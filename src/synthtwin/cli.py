@@ -1286,6 +1286,54 @@ _DELIMITER_SPELLINGS = {
 }
 
 
+def _answers_that_change_the_reading(
+    written: asking.Answers, first_row: str, declared_delimiter: str
+) -> "list[str]":
+    """Which answers of a questions file change HOW THE FILE IS READ.
+
+    The subjects, in the questions file's own words, of the answers that
+    give the same column name to a different column (review of stage 3,
+    floor item 1). Two of the three file questions do that:
+
+    * WHICH ROW HOLDS THE COLUMN NAMES. Under one reading the names come
+      out of the file's first row; under the other they are generated,
+      `column_1`, `column_2` and so on. Every name moves, and `column_1`
+      exists under both readings.
+    * WHICH CHARACTER SEPARATES THE COLUMNS. It decides how many columns
+      there are and where each one begins, so a name may move, may be
+      the name of a wider column, or may not be a name at all.
+
+    The third, how many rows under the names describe the columns, takes
+    ROWS out of the table and leaves every column where it was, so it is
+    not here.
+
+    AN ANSWER THAT AGREES WITH WHAT WAS TYPED CHANGES NOTHING and is not
+    reported: `--first-row names` answered `names`, or `--delimiter ';'`
+    answered `semicolon`, is the reading already in force. A delimiter
+    answered where none was typed IS a change, because the reading in
+    force was the one the cells favoured and nothing here can know which
+    that was -- the answers are read before the table is opened, which
+    is what makes them usable at all.
+
+    Guarantees: accepts the answers read back from the file, the
+    `--first-row` option as typed and the delimiter as typed (empty
+    where none was); returns the subjects in the order the questions
+    file writes them. A fixed function of the three. Raises nothing,
+    opens no file, and carries no value of the table -- the subjects are
+    this module's own question headings.
+    """
+    changed: "list[str]" = []
+    if written.first_row == asking.ANSWER_FIRST_ROW_NAMES:
+        if first_row != _FIRST_ROW_NAMES:
+            changed += [asking.FIRST_ROW_SUBJECT]
+    elif written.first_row == asking.ANSWER_FIRST_ROW_DATA:
+        if first_row == _FIRST_ROW_NAMES:
+            changed += [asking.FIRST_ROW_SUBJECT]
+    if written.delimiter and written.delimiter != declared_delimiter:
+        changed += [asking.DELIMITER_SUBJECT]
+    return changed
+
+
 def _delimiter_tie_notice(tied: "tuple[str, ...]") -> str:
     """What is said about a file that reads equally well two ways.
 
@@ -1786,6 +1834,9 @@ def _population_of(
     columns: "list[list[str]]",
     settings: object,
     declared: "list[str]",
+    codes: "list[str] | None" = None,
+    measurements: "list[str] | None" = None,
+    decimal_commas: "list[str] | None" = None,
 ) -> "tuple[tuple[str, ...], int, str]":
     """The person columns, the population and the word it is counted in.
 
@@ -1796,13 +1847,27 @@ def _population_of(
 
     THE ROWS COUNTED ARE THE ROWS THAT HOLD A VALUE (repair of landing
     3.2), which is `taxonomy.people_in`'s rule and not this function's:
-    a row whose every cell is blank or means "no value" is counted
+    a row every cell of which the run reads as "no value" is counted
     nowhere, so twenty records padded to a hundred lines are a
-    population of twenty and are refused.
+    population of twenty and are refused -- whether the padding is
+    blank, a listed spelling, a declared number or a stand-in this run
+    judged for itself.
+
+    AND WHAT A CELL HOLDS IS THE FINISHED READING'S ANSWER (review of
+    stage 3, floor item 3). All four declarations are carried down,
+    not the identifiers alone: each of them changes which cells of a
+    column survive the passes that judge "no value", and the census has
+    to read each column the way the run reads it. Measured before this:
+    a column of twenty numbers followed by eighty `-999` cells passed
+    the hundred-row floor as a hundred rows, under
+    `--missing-value=-999`, under `-999.0`, and under the stand-in rule
+    with nothing declared at all -- and the description that came out of
+    the same run recorded twenty present cells.
 
     Guarantees: accepts the table's column names, its columns as text
     in the same order, the settings in force and the columns declared
-    with `--identifier`; returns the three. A fixed function of them.
+    with `--identifier`, `--code`, `--measurement` and
+    `--decimal-comma`; returns the three. A fixed function of them.
     Raises TypeError where the settings are not settings, which is an
     internal invariant. Opens no file and prints nothing.
     """
@@ -1810,10 +1875,22 @@ def _population_of(
 
     if not isinstance(settings, taxonomy.Settings):
         raise TypeError("internal check: the settings are not settings")
-    people = taxonomy.repeating_identifiers(
-        column_names, columns, declared, settings
+    declarations = taxonomy.Declarations(
+        identifiers=tuple(declared),
+        codes=tuple(codes if codes is not None else []),
+        measurements=tuple(
+            measurements if measurements is not None else []
+        ),
+        decimal_commas=tuple(
+            decimal_commas if decimal_commas is not None else []
+        ),
     )
-    counted = taxonomy.people_in(column_names, columns, people, settings)
+    people = taxonomy.repeating_identifiers(
+        column_names, columns, declared, settings, declarations
+    )
+    counted = taxonomy.people_in(
+        column_names, columns, people, settings, declarations
+    )
     unit = taxonomy.NOTE_UNIT_ROWS
     if people:
         unit = taxonomy.NOTE_UNIT_PEOPLE
@@ -2028,6 +2105,50 @@ def _run_profile(
         if written.metadata_rows_answered:
             metadata_rows = written.metadata_rows
             metadata_rows_confirmed = written.metadata_rows > 0
+        # AN ANSWER THAT CHANGES THE READING MAY NOT STAND BESIDE ONE
+        # THAT NAMES A COLUMN (review of stage 3, floor item 1). The
+        # names in a questions file are the names of the reading that
+        # WROTE it; an answer that changes the reading gives the same
+        # names to different columns, and a declaration applied by name
+        # afterwards lands on the wrong one. Measured on the tree before
+        # this refusal: a header of `column_2,column_1` over 360 records
+        # whose first field held twelve repeating subject codes, with
+        # `names` answered for the first row and `identifier` answered
+        # for `column_1` -- the FIRST field under the reading in force
+        # -- reached all three writers with the declaration on the
+        # SECOND field, counted 350 people and published the twelve real
+        # subject codes with their visit counts. Declaring the first
+        # field refuses the same table as twelve people.
+        #
+        # THE ANSWERS ARE NOT RANKED AND NOTHING IS GUESSED. Whether
+        # `column_1` means the first field or a column the corrected
+        # reading names `column_1` is exactly what cannot be told apart
+        # -- the reproduction above is a file where both readings hold
+        # -- so the pair is refused and the person is told to answer the
+        # file's own question first. Two runs, each with one reading in
+        # it, and no name means two columns.
+        reading_changed = _answers_that_change_the_reading(
+            written, first_row, declared_delimiter
+        )
+        named_columns: "list[str]" = []
+        for one in (
+            list(written.codes)
+            + list(written.identifiers)
+            + list(written.measurements)
+            + list(written.decimal_commas)
+        ):
+            # Each name once: a column answered in both sections of the
+            # file would otherwise stand twice in one sentence.
+            if one not in named_columns:
+                named_columns += [one]
+        if reading_changed and named_columns:
+            _warn(
+                errors.answers_change_the_reading_and_name_columns(
+                    _shown(answers_path), reading_changed,
+                    sorted(named_columns),
+                )
+            )
+            return 2
         # ...AND THE SIXTH, FOR THE SAME REASON (plan P4-D110): which
         # delimiter the file is written with decides how it is read, so
         # the answer has to arrive before the read. It is the newer
@@ -2037,10 +2158,25 @@ def _run_profile(
         # ...AND THE SEVENTH, FOR THE SAME REASON (the owner's ruling of
         # 2026-09-17, item 8; plan P4-D232): which row holds the column
         # names decides how the file is read, so the answer has to
-        # arrive before the read. `first-record` is the reading that
-        # already stands and leaves the option where it was.
+        # arrive before the read.
+        #
+        # BOTH ANSWERS ARE APPLIED, and only one of them was until the
+        # review of stage 3 (floor item 2). `first-record` was called
+        # "the reading that already stands", which it is only while
+        # nothing else moves: answered BESIDE a delimiter correction it
+        # is the one answer holding the first row in the table, and
+        # dropping it let the corrected reading take that row as the
+        # column names. Measured: a first record of `12,HEADER|LABEL`
+        # over 360 records of `i,code{i}|other{i}`, answered
+        # `first-record` and `vertical-bar`, described 360 records and
+        # published `12,HEADER` and `LABEL` as two column names, where
+        # `--first-row data --delimiter '|'` keeps all 361 records and
+        # names the columns `column_1` and `column_2`. An answer that is
+        # dropped is an answer a person was told had been heard.
         if written.first_row == asking.ANSWER_FIRST_ROW_NAMES:
             first_row = _FIRST_ROW_NAMES
+        elif written.first_row == asking.ANSWER_FIRST_ROW_DATA:
+            first_row = _FIRST_ROW_DATA
         spoken_for = (
             list(written.codes)
             + list(written.identifiers)
@@ -2290,7 +2426,13 @@ def _run_profile(
     # described. A table under the floor therefore costs the person one
     # message and no files at all.
     person_columns, population, unit = _population_of(
-        read.column_names, read.columns, settings, forced_identifiers
+        read.column_names,
+        read.columns,
+        settings,
+        forced_identifiers,
+        forced_codes,
+        forced_measurements,
+        forced_decimal_commas,
     )
     if population < parsing.POPULATION_FLOOR:
         _warn(
@@ -2366,16 +2508,20 @@ def _run_profile(
         tuple(forced_decimal_commas),
     )
     # ...AND THE ONE QUESTION ABOUT WHO THE ROWS ARE (plan P4-D340).
-    # Asked only where NOTHING was declared as holding record numbers,
-    # of a column whose values repeat and are many -- the shape a table
+    # Asked only where the population is STILL COUNTED IN ROWS -- where
+    # `settings.person_columns` is empty, which is exactly where nobody
+    # has settled who the rows are about -- of a column whose values
+    # repeat and are many or are written as codes: the shape a table
     # with several rows per subject wears. Until it existed, such a
     # table was counted in rows with nothing said and every subject's
-    # identifier published beside its visit count.
+    # identifier published beside its visit count; and until the review
+    # of stage 3 (floor item 4) a declared identifier DIFFERENT ON
+    # EVERY ROW silenced it while leaving the count in rows, which is
+    # the same silence by a shorter route.
     asked_about = asked_about + asking.person_questions(
         document,
         read.columns,
         settings,
-        forced_identifiers,
         already_answered,
         asked_about,
     )
@@ -2476,6 +2622,9 @@ def _run_profile(
                     read.columns,
                     settings,
                     forced_identifiers,
+                    forced_codes,
+                    forced_measurements,
+                    forced_decimal_commas,
                 )
                 if population < parsing.POPULATION_FLOOR:
                     _warn(
@@ -2775,12 +2924,13 @@ def _run_profile(
     # ...AND THE PERSON QUESTION, recomputed from the FINAL
     # declarations like every other (plan P4-D340). A column answered
     # `identifier` at the terminal is declared now, so the file that
-    # replaces this one no longer asks about it.
+    # replaces this one no longer asks about it -- and the settings
+    # carried here are the rebuilt ones, whose `person_columns` says
+    # whether that answer settled who the rows are about.
     asked_about = asked_about + asking.person_questions(
         document,
         read.columns,
         settings,
-        forced_identifiers,
         settled,
         asked_about,
     )

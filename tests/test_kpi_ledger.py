@@ -29,6 +29,7 @@ from __future__ import annotations
 import ast
 import collections
 import csv
+import dataclasses
 import datetime
 import importlib.util
 import io
@@ -1186,13 +1187,27 @@ def test_k_s3_02(record_property, tmp_path: pathlib.Path) -> None:
         read = reading.read_table(
             f"{table}", "auto", small_cell_floor=settings.small_cell_floor
         )
-        document = profile_module.build_document(read, settings, list(declared))
+        # THE COMMAND'S OWN SETTINGS, `person_columns` INCLUDED (review
+        # of stage 3, floor item 4). What settles this question is
+        # that the population is counted in PEOPLE, which is the
+        # declared identifiers that REPEAT and not the fact of a
+        # declaration: an identifier different on every row names a ROW.
+        carried = dataclasses.replace(
+            settings,
+            person_columns=taxonomy.repeating_identifiers(
+                read.column_names,
+                read.columns,
+                list(declared),
+                settings,
+                taxonomy.Declarations(identifiers=tuple(declared)),
+            ),
+        )
+        document = profile_module.build_document(read, carried, list(declared))
         raised = asking.questions_for(
-            document, read.columns, settings, list(declared)
+            document, read.columns, carried, list(declared)
         )
         person = asking.person_questions(
-            document, read.columns, settings, list(declared),
-            list(declared), raised,
+            document, read.columns, carried, list(declared), raised
         )
         return [one.name for one in person]
 

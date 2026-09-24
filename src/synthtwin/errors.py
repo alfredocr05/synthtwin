@@ -201,6 +201,22 @@ def _listed(items: list[str]) -> str:
     return text
 
 
+def _quoted(items: list[str]) -> str:
+    """The same list as `_listed`, with each item in quotation marks.
+
+    A column name reads as part of the sentence without them -- "and
+    also names dose" -- and a name with a space in it reads as two.
+    """
+    text = ""
+    for item in items:
+        shown = f"'{_shown(item)}'"
+        if not text:
+            text = shown
+        else:
+            text = f"{text}, {shown}"
+    return text
+
+
 def file_missing(path: str) -> str:
     """Message for a table path that names nothing on disk."""
     return (
@@ -1225,9 +1241,18 @@ def the_population_is_too_small(count: int, unit: str, column: str) -> str:
     count is the rows that HOLD A VALUE and not the rows the reader
     returned, so somebody looking at a file of a hundred lines and
     reading "20 rows" here is owed the reason in the same breath: the
-    other eighty are blank, or hold nothing but spellings that mean "no
-    value", and every count a description would publish over them is a
-    count over twenty.
+    other eighty hold nothing this run READS as a value, and every count
+    a description would publish over them is a count over twenty.
+
+    "NOTHING THIS RUN READS AS A VALUE" IS WIDER THAN BLANK, and the
+    sentence said blank until the review of stage 3 (floor item 3). The
+    census now asks the same five passes the description asks, so the
+    eighty rows may be blank, may hold a spelling this format reads as
+    "no value", may hold a number the person named with
+    `--missing-value`, or may hold a stand-in this run judged for itself
+    -- `-999` among readings, `9999-12-31` among dates, `-999 mg` among
+    amounts. A person told only about blanks would look at eighty cells
+    of `-999` and think the message was about another file.
 
     Guarantees: accepts the population, the word it was counted in, and
     the column the people were counted by (empty where the rows were
@@ -1238,10 +1263,13 @@ def the_population_is_too_small(count: int, unit: str, column: str) -> str:
     by = (
         " Check that this is the table you meant to describe and that "
         "it was read the way you expect: the count above is the rows "
-        "that HOLD A VALUE -- a row whose every cell is blank, or is a "
-        "spelling that means no value, is counted nowhere -- and "
-        "--first-row data adds one where your first line is a record "
-        "rather than the column names."
+        "that HOLD A VALUE, and a row counts nowhere when this run "
+        "reads every cell of it as no value -- a blank, a spelling that "
+        "means no value, a number declared with --missing-value, or a "
+        "stand-in this run judged for itself, such as -999 among "
+        "readings or 9999-12-31 among dates -- and --first-row data "
+        "adds one where your first line is a record rather than the "
+        "column names."
     )
     if column:
         by = (
@@ -2209,6 +2237,38 @@ def answers_answer_is_not_offered(
         f"the answers that question offers. Write one of these instead: "
         f"{_listed(offered)}. Leave it blank to keep the reading "
         f"synthtwin made. {_ANSWER_IT_AGAIN}"
+    )
+
+
+def answers_change_the_reading_and_name_columns(
+    path: str, changed: list[str], named: list[str]
+) -> str:
+    """An answer that changes the reading stands beside one naming a column.
+
+    REFUSED RATHER THAN RANKED (review of stage 3, floor item 1). The
+    column names in a questions file are the names of the reading that
+    WROTE it. An answer that changes the reading gives those names to
+    different columns, so a declaration applied by name afterwards
+    reaches a column the person was not looking at -- measured, an
+    `identifier` answer meant for the first field landed on the second,
+    and the run published twelve real subject codes with their counts.
+    Which column a name means under the corrected reading is exactly
+    what nothing here can tell, so the pair is refused and the person
+    answers the file's own question first.
+    """
+    return (
+        f"The questions file at {path} answers a question about how the "
+        f"file is read -- {_listed(changed)} -- and also names "
+        f"{_quoted(named)}. synthtwin will not act on both at once. The "
+        f"column names in that file are the names your table had when "
+        f"the file was written, and answering the question above changes "
+        f"which column each name stands for, so a declaration made by "
+        f"name would reach a column you were not looking at. Do it in "
+        f"two runs: clear the answers that name columns, leave the one "
+        f"about how the file is read, and run the command again -- then "
+        f"answer the columns in the questions file that run writes, "
+        f"where the names are the ones your table really has. Nothing "
+        f"was written."
     )
 
 

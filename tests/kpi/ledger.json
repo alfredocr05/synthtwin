@@ -5743,16 +5743,18 @@
    "tier": "FAST",
    "source": "pytest",
    "nodes": [
+    "tests/test_p4d341_population_floor.py::test_a_column_of_bare_figures_is_not_a_register",
+    "tests/test_p4d341_population_floor.py::test_a_key_with_a_row_each_is_not_a_register_however_it_is_written",
     "tests/test_p4d341_population_floor.py::test_a_label_column_and_a_scale_column_are_never_asked_about",
-    "tests/test_p4d341_population_floor.py::test_a_unique_column_is_never_asked_about",
-    "tests/test_p4d341_population_floor.py::test_another_column_declared_silences_the_question_too",
-    "tests/test_p4d341_population_floor.py::test_a_subject_column_with_a_few_visits_each_is_asked_about",
-    "tests/test_p4d341_population_floor.py::test_a_subject_column_read_as_categories_is_asked_about",
+    "tests/test_p4d341_population_floor.py::test_a_register_holding_one_value_once_is_asked_about",
+    "tests/test_p4d341_population_floor.py::test_a_row_identifier_declared_does_not_settle_the_person_question",
     "tests/test_p4d341_population_floor.py::test_a_subject_column_of_codes_is_asked_about_whatever_it_is_called",
-    "tests/test_p4d341_population_floor.py::test_a_register_holding_one_value_once_is_not_asked_about",
-    "tests/test_p4d341_population_floor.py::test_a_column_of_bare_figures_is_not_a_register"
+    "tests/test_p4d341_population_floor.py::test_a_subject_column_read_as_categories_is_asked_about",
+    "tests/test_p4d341_population_floor.py::test_a_subject_column_with_a_few_visits_each_is_asked_about",
+    "tests/test_p4d341_population_floor.py::test_a_unique_column_is_never_asked_about",
+    "tests/test_p4d341_population_floor.py::test_another_column_declared_silences_the_question_too"
    ],
-   "nodes_min_collected": 8,
+   "nodes_min_collected": 10,
    "test": "tests/test_kpi_ledger.py::test_k_s3_02",
    "driver": null,
    "pin_strength": "EXACT",
@@ -5769,7 +5771,7 @@
      "categorical_subject_column_asked_about": 1
     }
    },
-   "status_note": "THE FOUR POSITIVES ARE ACCEPTED BY THE ORCHESTRATOR, 2026-09-22, with the measurement (not an owner ruling; the owner may reverse it). The repair of landing 3.2 added route two to `asking._names_people` -- a register of codes each standing on two rows or more -- because route one's second condition was the exact complement of the rule that makes a column categorical, so the question could never reach a subject column read as categories, which is the shape the plan's own cited case has. Route two reaches four label columns that name no people, and each is asked about rather than assumed: the cost of a false positive is one question a person answers `no` to, and the cost of a false negative is a population counted in rows when it should have been counted in people, which is the refusal this stage exists to make. `false_positives` is EXACT, so a fifth is seen."
+   "status_note": "THE FOUR POSITIVES ARE ACCEPTED BY THE ORCHESTRATOR, 2026-09-22, with the measurement (not an owner ruling; the owner may reverse it). The repair of landing 3.2 added route two to `asking._names_people` -- a register of codes each standing on two rows or more -- because route one's second condition was the exact complement of the rule that makes a column categorical, so the question could never reach a subject column read as categories, which is the shape the plan's own cited case has. Route two reaches four label columns that name no people, and each is asked about rather than assumed: the cost of a false positive is one question a person answers `no` to, and the cost of a false negative is a population counted in rows when it should have been counted in people, which is the refusal this stage exists to make. `false_positives` is EXACT, so a fifth is seen. AMENDED BY THE REVIEW OF STAGE 3 (floor item 4), 2026-09-23, AND THE COUNT DID NOT MOVE: still 4 of the same 33 columns, the same four. Two conditions changed. The question is now settled by `settings.person_columns` -- the declared identifiers that REPEAT -- and not by the fact of a declaration, because a unique-per-row `visit_id` declared over 1,196 visits of twelve people left the population counted in ROWS and silenced the question all the same. And route two's first condition is now route one's average rather than 'every value on two rows or more', because one subject with a single visit made the stricter form false and silenced the whole question on a register of twelve people. Neither change reaches this battery's negatives: `record`, `subject` and `visit_id` fail the average by a factor of two whether or not one value of them repeats, and the four positives are route two's as before. Two nodes joined the pin, one for each amended condition, and one was renamed where its expectation reversed."
   },
   {
    "id": "K-S3-01",

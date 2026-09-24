@@ -16,7 +16,7 @@ import sys
 
 import pytest
 
-from synthtwin import errors, parsing
+from synthtwin import asking, errors, parsing
 
 # The builders and one set of plausible arguments for each. Adding a
 # builder to errors.py without adding it here fails the completeness
@@ -240,6 +240,16 @@ CASES: "dict[str, tuple[object, ...]]" = {
     "answers_entry_names_no_column": ("checklist[7]",),
     "answers_entry_offers_nothing": ("asked[2]", "dose"),
     "answers_names_one_key_twice": ("/data/clinic-questions.json", "column"),
+    # THE PAIR THE FILE MAY NOT CARRY (review of stage 3, floor item 1).
+    # An answer that changes how the file is READ gives the file's own
+    # column names to different columns, so a declaration made by name
+    # lands on one the person was not looking at. It names the question,
+    # the columns, and the two runs to do it in.
+    "answers_change_the_reading_and_name_columns": (
+        "/data/clinic-questions.json",
+        [asking.FIRST_ROW_SUBJECT],
+        ["dose"],
+    ),
     # Said BEFORE anything is written, where a link or a name of the
     # person's own stands where the questions file goes (review item
     # L17b-R1-1). The noun is one of the three written out in errors.py

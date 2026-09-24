@@ -6,6 +6,87 @@ exists).
 
 ## [Unreleased]
 
+### The answer paths, and the population census (stage 3's review, floor items 1-4, 2026-09-23)
+
+**Stage 3's one review round returned REJECT on all four passes. These
+are the four items of the floor pass that are routes by which the command
+did something the person did not ask for, or counted a population it did
+not have.** Each has the reviewer's own reproduction as a test and a
+mutation that puts the old behaviour back.
+
+**1. AN IDENTIFIER ANSWER LANDED ON THE WRONG COLUMN.** The column names
+in a questions file are the names of the reading that WROTE it, and an
+answer that changes the reading gives those names to different columns.
+Measured: a header of `column_2,column_1` over 360 records whose first
+field held twelve repeating subject codes, with `names` answered for the
+first row and `identifier` for `column_1` -- the FIRST field under the
+reading in force -- reached all three writers with the declaration on the
+SECOND field, counted 350 people and published the twelve real subject
+codes with counts of thirty, where declaring the field the person meant
+refuses the table as thirteen people. **Refused rather than mapped**
+(`cli._answers_that_change_the_reading`,
+`errors.answers_change_the_reading_and_name_columns`): `column_1` is a
+column name under both readings of that file, so nothing can tell which
+was meant. Two of the three file questions move a column name -- which
+row holds the names, and which character separates the columns -- and
+either beside a `code`, `identifier`, `measurement` or `decimal-comma`
+answer is refused, with the question named, the columns named, and two
+runs to do it in. An answer that AGREES with the option typed is the
+reading already in force and is not a change. The delimiter half is not
+in the review: it is the same defect one question along.
+
+**2. AN EXPLICIT `first-record` ANSWER WAS IGNORED.** It was called "the
+reading that already stands", which it is only while nothing else moves.
+Measured: a first record of `12,HEADER|LABEL` over 360 records of
+`i,code{i}|other{i}`, answered `first-record` and `vertical-bar`,
+described 360 records and published `12,HEADER` and `LABEL` as two column
+names, where `--first-row data --delimiter '|'` keeps all 361 records and
+names the columns `column_1` and `column_2`. Both answers are applied
+now, in both directions: a typed `--first-row names` answered
+`first-record` gives the record reading, because the file is the newer
+statement.
+
+**3. THE POPULATION CENSUS READ AN UNFINISHED COLUMN.** It asked
+`taxonomy.split_missing`, the FIRST of five passes that decide what a
+column holds, and stopped there. Measured on five paddings of twenty
+readings to a hundred lines, one per pass: `-999` declared with
+`--missing-value=-999`, `-999.0` declared the same way, `-999` with
+nothing declared, `9999-12-31` in a column of dates and `-999 mg` in a
+column of amounts. Every one cleared the hundred-row floor as a hundred
+rows, and every one produced a description recording twenty present cells
+and eighty missing. **One reading, in one place:** `profile_column`'s own
+prologue is now `taxonomy._read_the_column`, the census asks it through
+`taxonomy.present_spellings_after_the_rules`, `taxonomy.Declarations`
+carries the four column declarations down to it because each of them
+changes what a column holds, and a test holds the census's surviving
+spellings equal to the description's `n_present` on all five paddings. All
+five files are refused now with nothing written, and the refusal says what
+"holds no value" covers instead of naming blanks alone.
+
+**4. AN IDENTIFIER DECLARATION SILENCED THE PERSON QUESTION.** A
+declaration is only an answer to "who are the rows about" when it settles
+that, and an identifier different on every row settles nothing: it names
+a ROW. Measured: 1,196 visits over twelve people with a unique-per-row
+`visit_id` declared left `person_columns` correctly EMPTY -- the
+population was counted in rows -- while the declaration silenced the
+question, so the run published the twelve subject codes, asked nothing,
+and printed neither the population notice nor the notice that it had
+counted rows. The gate is `settings.person_columns` now, so the question
+is asked exactly where the count is still in rows. **And one
+single-visit subject silenced it by the other route:** route two of
+`asking._names_people` asked "every different value on two rows or more",
+which one row of 1,196 made false, and the limit had been recorded beside
+the rule rather than repaired. Both routes now share route one's average,
+counted and never divided, and a per-row key still fails it by a factor
+of two whether or not one value of it repeats. The sentence the questions
+file says was SEEN moves with the rule: "so each one stands on more than
+one row" is now "on average".
+
+Plan P4-D232, P4-D340 and P4-D341 carry the four amendments; ledger
+`K-S3-02` keeps its 4 false positives of the same 33 columns, with the
+amendment and the re-measurement in its `status_note`, two nodes added to
+its pin and one renamed where its expectation reversed.
+
 ### Stage 3's gate, asked of a whole description in its own words (2026-09-23)
 
 **A STAGE IS NOT DONE UNTIL A TEST LITERALLY IMPLEMENTS THE GATE ITS
