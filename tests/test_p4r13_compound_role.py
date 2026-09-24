@@ -370,7 +370,8 @@ def test_both_halves_are_described_and_not_merely_counted(
     assert half["percentiles"]["p50"] == float(tail_rule.rung_at(numbers, 50))
     for low in (True, False):
         side = half["tails"]["low" if low else "high"]
-        assert tail_rule.stated(side) == tail_rule.expected(
+        assert tail_rule.holds(
+        side,
             half, numbers, 1, low
         ), low
     assert min(numbers) < half["mean"] < max(numbers)

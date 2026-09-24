@@ -501,8 +501,18 @@ def test_nothing_that_varies_between_runs_is_written(
 # every one a rung the tail rule withholds going null, plus the
 # publication notes shifting by one because `visits` gains the
 # histogram-withheld note. No key of any other role moved.
+# AND RE-RECORDED AT THE FIX PASS OF STAGE 3 (2026-09-23, plan P4-D349),
+# read as a leaf-by-leaf diff against the tree before it: FOUR leaves move
+# and they are all one column's. `record_code`'s cells are consecutive
+# padded codes, so each of its tails' twelve rows stands at twelve
+# DIFFERENT whole distances summing to the least twelve different whole
+# numbers can sum to -- one possible answer, which would give all
+# twenty-four outer cells back -- and both of its distances go null on
+# both sides. Nothing arrives, nothing leaves, and the four numeric blocks
+# whose tails are not settled that way (`visits`, `reading`, `amount`,
+# `dose`) publish exactly the numbers they published before.
 GOLDEN_SHA256 = (
-    "161182641ec0f8fe7dd2f10f63b5698e4cf2bc6c2bad76bc9686acf3edaaefcd"
+    "ef9969734e0b8210c5ee3e26b657d029f452488490271a39df65ae9f2832aade"
 )
 
 

@@ -1369,7 +1369,11 @@ _STATED_RULES: "dict[tuple[str, ...], str]" = {
     # null below the block floor, two nulls where only the moments are
     # published, otherwise per side the boundary percent, the rows
     # beyond it, their mean and root-mean-square distance from it, and on
-    # a listed grid tail its values.
+    # a listed grid tail its values. EACH DISTANCE MAY BE NULL (plan
+    # P4-D349): a tail whose published pair would hand its own cells back
+    # exactly publishes its boundary and its rows and neither distance,
+    # which is the numeric role taking the answer the date and clock role
+    # already had.
     ("columns", _EACH, "parts", _EACH, "tails"): _MAYBE_OBJECT,
     ("columns", _EACH, "parts", _EACH, "tails", "low"): _MAYBE_OBJECT,
     ("columns", _EACH, "parts", _EACH, "tails", "high"): _MAYBE_OBJECT,
@@ -1379,8 +1383,8 @@ _STATED_RULES: "dict[tuple[str, ...], str]" = {
         for leaf, kind in (
             ("percent", _TAIL_PERCENT),
             ("rows", _FLOOR_COUNT),
-            ("mean_distance", _NUMBER),
-            ("rms_distance", _NUMBER),
+            ("mean_distance", _MAYBE_NUMBER),
+            ("rms_distance", _MAYBE_NUMBER),
             ("values", _ARRAY),
         )
     },
@@ -1514,7 +1518,11 @@ _STATED_RULES: "dict[tuple[str, ...], str]" = {
     # null below the block floor, two nulls where only the moments are
     # published, otherwise per side the boundary percent, the rows
     # beyond it, their mean and root-mean-square distance from it, and on
-    # a listed grid tail its values.
+    # a listed grid tail its values. EACH DISTANCE MAY BE NULL (plan
+    # P4-D349): a tail whose published pair would hand its own cells back
+    # exactly publishes its boundary and its rows and neither distance,
+    # which is the numeric role taking the answer the date and clock role
+    # already had.
     ("columns", _EACH, "tails"): _MAYBE_OBJECT,
     ("columns", _EACH, "tails", "low"): _MAYBE_OBJECT,
     ("columns", _EACH, "tails", "high"): _MAYBE_OBJECT,
@@ -1524,8 +1532,8 @@ _STATED_RULES: "dict[tuple[str, ...], str]" = {
         for leaf, kind in (
             ("percent", _TAIL_PERCENT),
             ("rows", _FLOOR_COUNT),
-            ("mean_distance", _NUMBER),
-            ("rms_distance", _NUMBER),
+            ("mean_distance", _MAYBE_NUMBER),
+            ("rms_distance", _MAYBE_NUMBER),
             ("values", _ARRAY),
         )
     },

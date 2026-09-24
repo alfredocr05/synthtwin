@@ -790,9 +790,23 @@ def test_a_stand_in_number_reaches_its_share_as_a_count() -> None:
     # of nothing like this distance, which is the comparison below.
     assert block["percentiles"]["min"] is None
     numbers = [float(value) for value in values]
-    assert tail_rule.stated(block["tails"]["low"]) == tail_rule.expected(
+    assert tail_rule.holds(
+        block["tails"]["low"],
         block, numbers, 11, True
     )
+    # AND NEITHER COLUMN PUBLISHES A TAIL DISTANCE ANY MORE (plan
+    # P4-D349), so the comparison this test makes is made on a fact that
+    # is still published and is still exactly what it is about. BOTH tails
+    # are withheld for the same reason and it is not the same shape: the
+    # comparison column's two hundred values are CONSECUTIVE, so its low
+    # tail's eleven distances are 1 to 11; this column's are 1010 and then
+    # 1 to 10, which one arithmetic also settles because the squares leave
+    # the largest nowhere else to be. Where the `-999` shows is the
+    # column's own MEAN, which the owner's ruling keeps EXACT: a column
+    # that read `-999` as a NUMBER averages `(-999 + 1 + ... + 199) / 200`
+    # and one that read it as a missing marker could not. That is the
+    # arithmetic below, and it is the whole claim -- the `-999` reached the
+    # statistics as a count of its own.
     without = profile.build_document(
         reading.read_table(
             f"{fixtures.write(folder, 'without.csv', fixtures.single_column_table('score', values[1:] + ['200']))}",
@@ -801,9 +815,12 @@ def test_a_stand_in_number_reaches_its_share_as_a_count() -> None:
         taxonomy.Settings(small_cell_floor=11),
         [],
     )["columns"][0]
-    assert block["tails"]["low"]["mean_distance"] > 10 * (
-        without["tails"]["low"]["mean_distance"]
-    )
+    assert without["tails"]["low"]["mean_distance"] is None
+    assert without["tails"]["low"]["rms_distance"] is None
+    assert block["tails"]["low"]["mean_distance"] is None
+    assert block["mean"] == (-999 + sum(range(1, 200))) / 200
+    assert without["mean"] == (sum(range(1, 200)) + 200) / 200
+    assert block["mean"] < without["mean"]
 
 
 def _mixed_with_a_declared_hole(

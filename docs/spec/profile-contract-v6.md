@@ -6264,8 +6264,8 @@ changes.
 | `tails` | object or `null` | TL1 to TL6 | `null` on a block of fewer values than a tail's own rows; otherwise `low` and `high`, each `null` where only the moments are published, and otherwise an object naming the boundary percent, the rows beyond it, and how far from it they lie | the leaves below carry the classes |
 | `tails.low.percent`, `tails.high.percent` | whole number | 1 to 99 | the percent the published ladder stops at on that side | LOADER-ONLY: it follows from the count of values and the smallest group size, and the loader holds the description to it |
 | `tails.low.rows`, `tails.high.rows` | whole number | TL4 | how many rows lie beyond that percent | LOADER-ONLY: it follows from the percent and the count of values, and the loader holds the description to it |
-| `tails.low.mean_distance`, `tails.high.mean_distance` | number ≥ 0 | TL5 | the mean distance of those rows from the boundary rung, in the column's own unit | APPROXIMATED, inside the window of `docs/spec/generation-method-v1.md` G12.13 |
-| `tails.low.rms_distance`, `tails.high.rms_distance` | number ≥ 0 | TL5 | the root-mean-square of the same distances, computed exactly and rounded once | APPROXIMATED, inside the window of `docs/spec/generation-method-v1.md` G12.13 |
+| `tails.low.mean_distance`, `tails.high.mean_distance` | number ≥ 0, or `null` | TL5 | the mean distance of those rows from the boundary rung, in the column's own unit; `null` on a tail that publishes neither distance because the pair would give its own cells back (plan P4-D349) | APPROXIMATED, inside the window of `docs/spec/generation-method-v1.md` G12.13; a `null` is a LISTING and not a check |
+| `tails.low.rms_distance`, `tails.high.rms_distance` | number ≥ 0, or `null` | TL5 | the root-mean-square of the same distances, computed exactly and rounded once; `null` with its mean beside it and never alone (plan P4-D349) | APPROXIMATED, inside the window of `docs/spec/generation-method-v1.md` G12.13; a `null` is a LISTING and not a check |
 | `tails.low.values`, `tails.high.values` | array of numbers | TL6 | on a block the listing rule admits whose values stand on a grid, the tail's own different values, ascending, and no count beside them; `[]` elsewhere | EXACT-OBSERVABLE and SILENT: the file's own tail at that percent lists the same values, and the file's values are never printed |
 | `bin_groups` | array of objects | BG1 | the histogram of the rows between the two tails, in groups of bins: `{"first": bin, "last": bin, "count": rows}` | REPORT-ONLY, for the reason `value_histogram` is |
 
@@ -6286,7 +6286,7 @@ published that equalled a value fewer than eleven rows held went from
 | TL2 | `tails` is `null` exactly where `n_used_in_statistics` is below max(`small_cell_floor`, 3), and such a block publishes no rung and no moment at all | yes |
 | TL3 | `low` and `high` are both `null` or both objects; both `null` exactly where no percent clears two tails at once, and then every rung is `null` | yes |
 | TL4 | `rows` is `ceil((n - 1) * low.percent / 100)` on the low side and `n - 1 - floor((n - 1) * high.percent / 100)` on the high, `n` being `n_used_in_statistics`, and never below max(`small_cell_floor`, 3) | yes |
-| TL5 | `mean_distance` and `rms_distance` are numbers of nought or more, and the mean is no larger than the root-mean-square | yes |
+| TL5 | `mean_distance` and `rms_distance` are either both numbers of nought or more, the mean no larger than the root-mean-square, or both `null` -- never one of each, because a mean standing alone is still half the back-solve the pair is withheld to close (plan P4-D349). A tail that LISTS its values publishes both | yes |
 | TL6 | `values` is ascending and different, no longer than `rows`, whole on a block publishing `integer_valued: true`, at or beyond the side's boundary rung, and led by the published end where there is one | yes |
 | BG1 | `bin_groups` is empty, or groups that follow one another from bin 0 to the last bin of C6-31f's division, each counting at least max(`small_cell_floor`, 3) and together counting `n_used_in_statistics` less the two tails' rows | yes |
 
@@ -6306,10 +6306,28 @@ don't need to be worried about the tails ... many people will be there
 and there is no big deal in knowing that it's there." Without it the
 smooth reading of G5.3b rounded onto such a grid wrote values the scale
 does not have -- 11 on a pain score of 0 to 10 -- and never wrote the
-scale's own end. A tail is also listed where its rows, its two
-distances, its boundary, the grid and the sign counts would otherwise
-leave one answer for its end (plan P4-D324): the description would then
-name that end in all but name, and naming it outright at least says so.
+scale's own end. A tail the RULE ADMITS is also listed where its rows,
+its two distances, its boundary, the grid and the sign counts would
+otherwise leave one answer for its end (plan P4-D324): the description
+would then name that end in all but name, and naming it outright at
+least says so. **THE RULE GOVERNS BOTH ROADS** (plan P4-D349): P4-D346
+let a tail of at most `parsing.TAIL_SETTLED_VALUES` values list them
+wherever the pair settled them, whatever the rule said, and that road
+published `[1089, 1100]` on a column one row of which holds 1100. It is
+withdrawn.
+
+**AND A TAIL THAT WOULD BE READ BACK PUBLISHES NEITHER DISTANCE** (plan
+P4-D349, invariants DT1 and TL5). Where the published pair, together
+with the column's own "every value different" remark, the grid and the
+space's edges, leaves ONE multiset of distances, that pair names every
+outer cell exactly -- the integers 0 to 1100 once each publish eleven
+rows, a mean of 6 and a root-mean-square of root-46 a side, and eleven
+DIFFERENT whole distances summing to 66 can only be 1 to 11. Where the
+listing rule does not let such a tail name its values, it publishes its
+boundary and its rows and NEITHER distance. Its rows are then read
+through the column's own mean and spread, which stay exact, and what
+that costs the twin is measured in plan P4-D349 and held at ledger entry
+`K-S3-15`.
 
 **HOW MANY ROWS HOLD EACH LISTED VALUE FOLLOWS FROM WHAT IS PUBLISHED,
 AND THIS FILE SAID OTHERWISE** (plan P4-D346). The counts are not
@@ -11400,7 +11418,7 @@ it answers to.
 | D12 | every key of `datetime_separators` is `upper_t`, `space`, `lower_t` or `(withheld)`; every key other than `(withheld)` maps to a count at least the floor and never below two, and `(withheld)` appears only when the pooled remainder is non-zero; a `(withheld)` count stands alone, with no mark named beside it (plan P4-D220), and only over a population `parsing.census_pools` lets a pool stand on -- fewer values than the line, or no more than the permitted marks less one hold below it (plan P4-D222; stage 2 closed by the owner rulings of 2026-09-17) | yes |
 | D13 | `datetime_separators` is `{}` where `resolution` is not `datetime`; on a datetime column whose `format` is not `iso-mixed` its values sum to `n_present - n_unparsed`, and on `iso-mixed` to `resolution_mix["iso-datetime"]`; a `month-first-datetime`, `day-first-datetime` or `slashed-iso-datetime` column carries only `space` or `(withheld)` | yes |
 | D14 | `all_at_midnight` is `true` only where `resolution` is `datetime`, `n_present - n_unparsed` is at least the floor, every moment the block publishes — both boundaries, every value a tail lists and every published rung — stands at midnight under some offset `utc_offsets` names, and on the `utc` clock no offset is pooled; a `false` is never refused, because the canonical form drops the fraction (MN-P) | yes |
-| DT1 | a tail is `null` or a block of exactly `boundary`, `rows`, `mean_distance`, `rms_distance` and `values`, publishing either both distances and no values, or its values with at most its mean beside them | yes |
+| DT1 | a tail is `null` or a block of exactly `boundary`, `rows`, `mean_distance`, `rms_distance` and `values`, publishing either both distances and no values, or NEITHER distance and no values (plan P4-D349), or its values with at most its mean beside them | yes |
 | DT2 | both tails are `null` or neither; each `rows` is at least the floor; the two added leave at least one cell between them; the low boundary is not after the high one, and where they leave exactly one cell they share it; where they are `null` every rung is `null` | yes |
 | DT3 | every published `mean_distance` is at least one unit, every published `rms_distance` at least the mean (one part in `2**50` for the roundings), and a `values` list holds one to `rows` entries, strictly ascending, every one beyond its own boundary | yes |
 | DT4 | `tail_unit` follows from `resolution`, `time_precision` and `all_at_midnight`: `quarter`, `month`, `day` for a date or a column at midnight, `minute` for a column written to the minute, `second` otherwise | yes |

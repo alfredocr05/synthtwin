@@ -1397,3 +1397,34 @@ def test_k_s3_14(record_property, tmp_path: pathlib.Path) -> None:
             "shapes": shapes,
         },
     )
+
+
+def test_k_s3_15(record_property, tmp_path: pathlib.Path) -> None:
+    """P4-D349: what the withheld tail pair costs the twin, measured.
+
+    A tail whose published rows and two distances -- read with the
+    column's own "every value different" remark, its grid and the
+    space's edges -- leave ONE multiset of distances publishes neither
+    distance now, because that pair gave every one of its outer cells
+    back exactly. Three numbers come back: how many tail SIDES publish
+    neither distance over the fix pass's own shapes, how many checkable
+    obligations their twins MISS at seeds 0 and 4 together, and how many
+    shapes were measured.
+
+    The second is the limit. It is not nought and the entry says why: on
+    a column whose withheld tail carries the whole of its spread, the
+    column's mean is what the far cell puts in it, so no reading of the
+    tail that keeps that cell back can average to it.
+    """
+    import test_stage3_gate as gate
+
+    sides, missing, shapes = gate.withheld_cost(tmp_path)
+    _kpi(
+        record_property,
+        "K-S3-15",
+        {
+            "sides_publishing_neither_distance": sides,
+            "obligations_their_twins_miss": missing,
+            "shapes": shapes,
+        },
+    )

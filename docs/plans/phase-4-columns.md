@@ -20571,3 +20571,181 @@ repeated-measures table publishes, which is a landing and not a clause.
 **Where it is stated:** this decision, `K-S3-14`, `docs/STATE.md`'s
 decision list, and the head of `tests/test_stage3_gate.py`, which is
 the file that would otherwise be read as claiming the gate closes it.
+
+## The fix pass of stage 3 — decision P4-D349 (2026-09-23)
+
+### P4-D349 A tail that would be read back publishes neither distance
+
+**What the review found, and it is not a reading.** Stage 3 got one
+adversarial round and it returned REJECT on all four passes. Two of the
+items it raised are the same defect in the two roles, and both were
+reproduced here before anything was changed:
+
+* the integers `0` to `1100`, once each, publish a low boundary of `11`
+  and a high boundary of `1089`, eleven rows a side, a mean distance of
+  `6` and a root-mean-square distance of root-46, and `percentiles.min`
+  and `percentiles.max` null. The same description also says **every
+  value in this column is different**. Eleven DIFFERENT whole distances
+  summing to 66 can only be 1 to 11, because 66 is the least eleven
+  different whole numbers can sum to — so all twenty-two withheld values
+  come back exactly, the column's own smallest and largest among them;
+* 240 consecutive dates, and 240 unique minutes, publish eleven rows, a
+  mean of 6 and a root-mean-square of root-46 for the same reason and
+  give back the same twenty-two.
+
+**Measured, with the reader's own arithmetic** (the tail-leak driver's
+`_numeric_pinned`, which reads the published block and never the
+producer): on the integer column, with the all-different remark in the
+reader's hands, each tail admits exactly ONE multiset; without it, 64.
+So the remark is what turns close estimation into exact reconstruction,
+and the owner's ruling of 2026-09-22 — "a lone far value can then be
+estimated CLOSELY" — never weighed it.
+
+**Why the guard did not fire.** The date and clock role HAD the
+back-solve (`taxonomy._tail_pinned`, P4-D329) and used its answer only
+to decide whether a tail might LIST its values; where the listing rule
+refused, the pair was published anyway and P4-D346 recorded that as a
+stated residual. The numeric role had no such check on the road it
+takes at all: `_lattice_pins` asked a narrower question and asked it
+only about listing. And the widening walk of P4-D346 FAILED OPEN twice
+— it restored the original boundary when its budget ran out and again
+when its twelve-step cap was reached, which on a column stepping one
+unit at a time is every time.
+
+**The decision, in four parts.**
+
+1. **A tail whose published pair would give its own cells back publishes
+   NEITHER distance.** Its boundary and its row count stand; `values`,
+   `mean_distance` and `rms_distance` are all null. Contract DT1 and TL5
+   admit that shape on both roles — both distances or neither, never a
+   mean alone, which would still be half the back-solve.
+2. **The back-solve knows what the description publishes.** It is asked
+   with the column's own "every value different" remark, the published
+   grid, the space's own edges and the smallest distance a reader cannot
+   rule out — which is one on a date or clock tail, measured from a value
+   a cell holds, and NOUGHT on a numeric tail whose boundary rung falls
+   between two grid points. It runs on the numeric role for the first
+   time (`taxonomy._numeric_pinned`).
+3. **The tie is withdrawn from the back-solve.** It assumed that a tail
+   wider than the floor is wider because its innermost cells are tied,
+   which was true while a boundary stood where `tail_ranks` put it. Once
+   a boundary may also move inward a reader cannot tell the two apart, so
+   the reader's candidates are the untied ones — and the tied search
+   could not reach the real multiset at all: on 240 consecutive days
+   widened to eighteen rows it found its witness at another largest
+   distance and answered NOT PINNED on the very tail the review
+   reconstructed by hand.
+4. **The widening walk fails closed.** It no longer asks a question of
+   its own with a budget of its own; it builds the side and reads the
+   answer off it. Every place it can stop — both sides publishing, the
+   cap reached, no room left between the boundaries — leaves a tail that
+   withholds its pair where it is still pinned, so stopping is safe and
+   the boundary goes back where the tail rule put it rather than paying
+   rows for nothing.
+
+**And P4-D346's SECOND ROAD is withdrawn.** It let a tail of at most
+`parsing.TAIL_SETTLED_VALUES` values name them on a column the listing
+rule does NOT admit, on the reading that the published pair named them
+anyway. Two things ended that reading. It named values ONE CELL HOLDS —
+`list(range(1089)) + [1089] * 11 + [1100]` published the high-tail values
+`[1089, 1100]` where one row holds 1100 and `percentiles.max` is null,
+and ten cells at `06:58` beside one at `06:59` published `06:59` — which
+is outside the premise of the ruling it borrowed. And its premise is
+gone: a pinned tail now publishes no pair, so the alternative to listing
+is silence, and silence says less than a list. What is left is the
+ruling's own road, asked twice: a tail the ruling reaches lists its
+values where it holds few of them, and lists them where its pair would
+pin what the floor protects. `parsing.TAIL_SETTLED_VALUES` survives only
+where `contract._listed_counts` reads it, as the number above which a
+listed tail's values are known to stand on `TAIL_SHARED_CELLS` cells
+apiece.
+
+**HOW A WITHHELD TAIL IS READ, AND THE THREE READINGS MEASURED.** Its
+rows stand on even shares of the room between the boundary and an END
+that is `rows` GRID STEPS beyond it, held to the sign counts
+(`contract._withheld_end`) — the narrowest tail the description still
+asks for, since the rows lie strictly beyond the boundary and the
+column's own count of different values asks them to differ. Two wider
+readings were measured against it:
+
+| reading | the integers 0 to 1100 | 200 `1 000`-`1 199` beside 100 `3 000`-`3 099` |
+|---|---|---|
+| `rows` grid steps (ships) | ends 0.0 and 1100.0, the column's OWN two ends; nothing missed at seeds 0, 4 and 9 | twin inside 1000 to 3099; the census of 200 spaces and 100 narrow spaces comes back exactly |
+| `mean ± sqrt(3) std` (G5.3c's own) | ends -1.0 and 1101.0; nothing missed | ends 189 and 3347, so twelve cells fall below 1000 where no thousands mark can be written and the twin holds 89 of the 100 narrow spaces |
+| `mean + std sqrt((K-m)/m)` (Cauchy-Schwarz) | overshoots | overshoots |
+
+**AND ON ONE SHAPE NONE OF THE THREE WORKS, which is the cost and it is
+measured rather than argued away.** On `00001` to `00399` beside one
+`12345` — where the withheld tail carries the whole of the column's
+spread — the narrowest reaches 400, the moment reading 1301 and
+Cauchy-Schwarz 3745: the first two undershoot that column's mean of
+230.3625 and the third overshoots it. There the twin misses
+`moments.mean` and `moments.std`, and its own report names both. That is
+a limit of the withheld pair and not a rounding: the mean of that column
+is what the far cell puts in it, so no construction that keeps the cell
+back can average to it. Held at a ceiling by `K-S3-15`.
+
+**THE RESIDUAL THIS DECISION LEAVES, stated rather than found later.**
+The back-solve uses distinctness only where the column publishes that
+EVERY value of it differs, which is `n_distinct_values` equal to the
+count of values used in the statistics. A reader holds
+`n_distinct_values` exactly whatever it says, so on 1,101 rows with 1,100
+different values they know at most ONE row repeats -- a constraint
+weaker than distinctness and stronger than none, and the search models it
+as none. Closing it means a lattice that COUNTS repeats rather than
+forbidding them, which is a landing and not a clause. Two things bound
+what it leaves open: a tail pinned under the strict reading is already
+withheld, and the case that needs the weaker reading is a column whose
+repeats are few enough to name and whose tail is pinned only with them
+counted. Nothing in the round's own reproductions is of that shape.
+
+**AND A SECOND ONE, IN THE REMARK ITSELF.** `taxonomy._all_different`
+prints "every value in this column is different" where the column's
+different values reach `identifier_uniqueness` -- 0.95 -- of its present
+cells, so the sentence is printed over a column that repeats a handful of
+values, and it is then stronger than the truth. The back-solve does not
+read the remark; it reads the strict counts, which is the safe direction
+for what it decides here. The remark's own wording is a defect of its
+own, it is outside this pass's scope, and it is recorded here so that a
+later pass does not have to rediscover it from the back-solve.
+
+**Three more items of the same round, closed here.**
+
+* **A quality report printed a subfloor tail measurement.** The cells
+  counted are the file's own cells beyond the DESCRIPTION's boundary, not
+  beyond the file's own, so the walk can measure a group no description
+  of that file would publish a number for: 200 consecutive dates publish
+  a low boundary of January 12, and a file holding January 1 and then
+  January 12 onward has ONE cell below it at a mean and a
+  root-mean-square distance of eleven days, which names January 1. Where
+  the file has fewer cells beyond the boundary than the floor, the count
+  and both distances keep their verdicts and drop their numbers — the
+  owner's ruling of 2026-09-23 (P4-D347) applied to a measurement
+  instead of a warning.
+* **The root-mean-square distance certified an endpoint bound it cannot.**
+  `boundary - rms >= min` reported HELD for a published minimum of 10
+  against a file whose own minimum is 9, because the root-mean-square is
+  a LOWER bound on the largest distance and was read as an upper one.
+  Both ends had it. The two sound bounds are used instead — the largest
+  distance is at least `rms**2 / mean` and at most the smaller of
+  `rms * sqrt(rows)` and the whole sum — so a file beyond the end MISSES,
+  a file provably inside is HELD, and between them the check says the
+  file's own description settles nothing rather than guessing. Nothing
+  is printed either way.
+* **An overflowing moment window removed an exact obligation.** Where a
+  numeric tail's G12.13 window had no end this format can write, the
+  whole side was skipped — including the exact listed-values check below
+  it, which needs no window. A file replacing twelve cells of `1.7e308`
+  with `1.6e308` reported no miss and appeared in no not-checkable
+  listing either. The three keys are decided one at a time now, and
+  `validation._tail_listings_of` files every one no check can reach.
+* **The summary contradicted itself.** "The 12 smallest values are not
+  published" was printed over every tail block, including one that then
+  printed `0.0, 1.0` three lines later. The three shapes a tail can take
+  each have their own sentence.
+
+**Where it is stated:** this decision, `docs/spec/profile-contract-v6.md`
+(DT1, TL5, 6.7a), `docs/spec/generation-method-v1.md` (G5.3b), ledger
+entries `K-S3-11` and `K-S3-15`, and
+`tests/test_stage3_gate.py::reconstruction`, which carries every one of
+the review's reproductions as a case.

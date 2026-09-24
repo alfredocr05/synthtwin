@@ -72,6 +72,16 @@ def test_an_absorbed_notation_leaves_the_twin_every_number(
     `validate` MISSED `distinct.n_distinct_values` on it while the real
     table passed.
 
+    AND THE HIGH TAIL PUBLISHES NEITHER DISTANCE (the fix pass, plan
+    P4-D349): the 388 positive amounts are consecutive hundredths, so
+    that tail's twelve rows stand on the grid's last twelve consecutive
+    points and its published pair would give all twelve back. The twin
+    reads them as twelve steps of the column's own hundredth instead, so
+    every one lands on a point the source holds and the derived value
+    that used to stand above the grid is gone with the pair that derived
+    it. Nothing this test was built for moves: 400 numbers, 400
+    spellings, none led by a nought, and both files at exit 0.
+
     THE TAIL RULE MOVED WHERE THOSE STRATA LAND (stage 3, landing 3.3).
     The eleven bracketed cells and the lone `-12.25` are the twelve rows
     beyond the low boundary, so the stretch of empty bins now REACHES
@@ -123,20 +133,21 @@ def test_an_absorbed_notation_leaves_the_twin_every_number(
     pushed = [(math.ceil(edge * 100) + step) / 100 for step in range(4)]
     assert [value for value in positive if value < 100.0] == pushed
     grid = {float(f"{100 + index * 0.01:.2f}") for index in range(388)}
-    # ...AND THE DERIVED HIGH END, which is off the source's grid by
-    # construction and not by accident (stage 3, method G5.3b). The
-    # column's largest value is held by ONE row, so the tail rule
-    # publishes no maximum at all and the twin's top cell is derived
-    # from what the high tail states -- moved OUTWARD from the boundary
-    # and placed on the column's own hundredths, which is a hundredth
-    # the source never wrote. It is the only value above the grid, it
-    # is a hundredth, and it stands above every point of the grid: a
-    # cell inside the source's range would be a value of the table, and
-    # that is what this landing stops publishing.
-    top = max(positive)
-    assert sorted(set(positive) - grid) == pushed + [top]
-    assert top == round(top, 2)
-    assert top > max(grid)
+    # ...AND THE HIGH TAIL IS BACK ON THE SOURCE'S OWN GRID (stage 3,
+    # method G5.3b as amended by plan P4-D349). The column's positive
+    # amounts are 388 CONSECUTIVE hundredths, so the twelve rows beyond
+    # the high boundary stand on the grid's last twelve consecutive
+    # points: twelve DIFFERENT whole distances summing to the least twelve
+    # different whole numbers can sum to, one possible answer, and the
+    # description therefore publishes NEITHER of that tail's distances.
+    # Its rows are then read as the NARROWEST tail the description still
+    # asks for -- twelve steps of the column's own hundredth, out from the
+    # boundary -- which lands every one of them on a point the source
+    # holds. So the derived value that used to stand above the grid is
+    # gone with the pair that derived it: the only values off the grid are
+    # the four the empty stretch pushed up.
+    assert sorted(set(positive) - grid) == pushed
+    assert max(positive) == max(grid)
     assert twin_exit == 0
     assert real_exit == 0
 

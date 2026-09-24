@@ -601,7 +601,8 @@ def test_a_declaration_matching_no_cell_is_inert_on_the_affixed_role() -> None:
     assert column["n_present"] == plain["n_present"] == 89
     assert column["tails"] == plain["tails"]
     assert column["percentiles"]["min"] is plain["percentiles"]["min"] is None
-    assert tail_rule.stated(column["tails"]["low"]) == tail_rule.expected(
+    assert tail_rule.holds(
+        column["tails"]["low"],
         column,
         [
             float(cell.replace(" mg", ""))
@@ -742,7 +743,8 @@ def test_a_snap_never_carries_a_cell_past_a_published_end() -> None:
     # group. The snap this case is about is still bounded by that
     # boundary rung, which is what the twin reads.
     assert column["percentiles"]["min"] is None
-    assert tail_rule.stated(column["tails"]["low"]) == tail_rule.expected(
+    assert tail_rule.holds(
+        column["tails"]["low"],
         column, [float(value) for value in values]
     )
     described = contract.load_profile(
@@ -1210,7 +1212,8 @@ def test_a_column_wearing_three_wrappers_is_a_quantity(
     assert block["percentiles"]["min"] is None
     # The block's own numbers are the COMMONEST wrapper's cores, which
     # on this column is the ` L` flag rather than the bare cells.
-    assert tail_rule.stated(block["tails"]["low"]) == tail_rule.expected(
+    assert tail_rule.holds(
+        block["tails"]["low"],
         block,
         [
             float(one[: -len(block["affix_suffix"])])

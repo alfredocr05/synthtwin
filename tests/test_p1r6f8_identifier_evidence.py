@@ -119,6 +119,19 @@ def keeps_its_distribution(block: dict, values: "list[str]") -> None:
 
     A column whose end is HEAPED still publishes it, so a caller with
     such a column reads that end directly and does not come here.
+
+    AND A TAIL MAY PUBLISH NEITHER DISTANCE (plan P4-D349). Where the
+    rows, the two distances, the grid, the space's edges and the column's
+    own remark that every value in it is different leave ONE possible set
+    of distances, that set names every outer cell exactly and the tail
+    publishes neither number -- which is what these shapes' tails do,
+    because their values are consecutive on their own grid. What says
+    "this column was read as NUMBERS" is not touched by that: a column
+    read as TEXT has no tail block at all, and the percent, the rows and
+    the middle rung are all still numeric facts worked out from the
+    column's own numbers. So the pair is compared where it is published
+    and its absence is checked for the shape the contract admits -- both
+    null and never one of each (TL5).
     """
     numbers = [float(value) for value in values]
     assert block["percentiles"]["min"] is None
@@ -126,9 +139,13 @@ def keeps_its_distribution(block: dict, values: "list[str]") -> None:
     assert block["percentiles"]["p50"] == float(tail_rule.rung_at(numbers, 50))
     for low in (True, False):
         side = block["tails"]["low" if low else "high"]
-        assert tail_rule.stated(side) == tail_rule.expected(
-            block, numbers, low=low
-        ), low
+        percent, rows, mean, root = tail_rule.stated(side)
+        wanted = tail_rule.expected(block, numbers, low=low)
+        assert (percent, rows) == wanted[:2], low
+        if mean is None:
+            assert root is None, low
+            continue
+        assert (mean, root) == wanted[2:], low
 
 
 # -- nothing infers the role ------------------------------------------

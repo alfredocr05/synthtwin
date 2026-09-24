@@ -675,7 +675,8 @@ def test_leaving_out_the_keep_value_publishes_a_whole_distribution(
     )
     for low in (True, False):
         side = forgotten_column["tails"]["low" if low else "high"]
-        assert tail_rule.stated(side) == tail_rule.expected(
+        assert tail_rule.holds(
+        side,
             forgotten_column, numbers, _STATED_FLOOR, low
         ), low
 

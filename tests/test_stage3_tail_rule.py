@@ -199,6 +199,33 @@ def _fine_grid_columns() -> "list[tuple[str, list[str]]]":
     return built
 
 
+def _reconstructable_columns() -> "list[tuple[str, list[str]]]":
+    """Columns whose published pair would give their own outer cells back.
+
+    THE REVIEW'S OWN NUMERIC REPRODUCTION (plan P4-D349). Every integer
+    from 0 to 1100 once each publishes, at a floor of eleven, a low
+    boundary of 11 and a high boundary of 1089, eleven rows a side, a mean
+    distance of 6 and a root-mean-square of root-46 -- and the same
+    description says every value of the column is different. Eleven
+    DIFFERENT whole distances summing to 66 can only be 1 to 11, because
+    66 is the least eleven different whole numbers can sum to, so all
+    twenty-two withheld values come back exactly. Such a tail publishes
+    neither distance.
+
+    The second shape is the same column on a tenth-unit grid, so the
+    withholding is not a property of whole numbers; the third is 1,200
+    consecutive whole numbers, so it is not a property of 1,101 of them.
+    """
+    built: "list[tuple[str, list[str]]]" = []
+    built += [("consecutive_integers", [str(value) for value in range(1101)])]
+    built += [(
+        "consecutive_tenths",
+        [f"{value / 10.0:.1f}" for value in range(1101)],
+    )]
+    built += [("consecutive_wide", [str(value) for value in range(1200)])]
+    return built
+
+
 def _described(folder: pathlib.Path, name: str, cells: "list[str]"):
     """One column through the whole product path, at the landing's floor."""
     text = "value\n" + "\n".join(cells) + "\n"
@@ -274,6 +301,13 @@ def _admitted_values(
     COLUMN and never from the block -- the column is one
     `taxonomy.tail_may_list` admits, and the value stands on at least
     `taxonomy.TAIL_SHARED_CELLS` of that tail's cells.
+
+    AND THERE IS NO SECOND EXEMPTION ANY MORE (plan P4-D349). P4-D346's
+    second road let a tail of at most `TAIL_SETTLED_VALUES` values name
+    them on a column the rule does NOT admit, and this helper exempted
+    them on the same terms. The road is withdrawn -- it named values one
+    cell holds -- so the rule is the whole exemption and a tail that
+    lists outside it fails the sweep below.
     """
     allowed: "set[float]" = set()
     tails = block.get("tails") or {}
@@ -292,15 +326,6 @@ def _admitted_values(
             for value in tail["values"]:
                 if held[value] >= taxonomy.TAIL_SHARED_CELLS:
                     allowed.add(value)
-            continue
-        # ...AND THE SECOND ROAD, on the same terms the producer takes
-        # it: a tail of at most `TAIL_SETTLED_VALUES` different values
-        # is settled by its own published rows and two distances, so
-        # what it lists is named by the description either way and the
-        # list adds nothing to it.
-        if len(tail["values"]) <= taxonomy.TAIL_SETTLED_VALUES:
-            for value in tail["values"]:
-                allowed.add(value)
     return allowed
 
 
@@ -572,7 +597,7 @@ def test_a_fine_grid_publishes_its_shape_although_its_tail_is_shared(
     )
 
 
-def test_every_listed_tail_is_one_the_rule_admits_or_the_pair_settles(
+def test_every_listed_tail_is_one_the_rule_admits(
     tmp_path: pathlib.Path
 ) -> None:
     """The listing rule, asked of every tail of every shape here.
@@ -580,24 +605,27 @@ def test_every_listed_tail_is_one_the_rule_admits_or_the_pair_settles(
     THE RULE AND NOT THE PRODUCER'S WORD FOR IT. For each published
     tail, the per-value counts of the column's own cells beyond that
     boundary are counted here, `taxonomy.tail_may_list` is asked of
-    them, and a tail that lists must be one it admits -- or one of at
-    most `taxonomy.TAIL_SETTLED_VALUES` different values, which its own
-    published rows and two distances settle whatever the rule says.
+    them, and a tail that lists must be one it admits. THERE IS NO
+    SECOND ROAD (plan P4-D349): P4-D346 let a tail of at most
+    `taxonomy.TAIL_SETTLED_VALUES` values list them wherever its own
+    rows and two distances settled them, whatever the rule said, and that
+    road published `[1089, 1100]` on a column one row of which holds
+    1100.
 
-    Measured over the twenty-two shapes below at a floor of eleven: at
-    `ORDINAL_ROWS` every one of the six scales lists both sides and the
-    rule admits all twelve; at `THIN_ROWS` seven sides name a step one
-    row holds, of which the rule admits none and the settled road
-    carries two; and no continuous shape lists at all.
+    THE THREE ROADS A TAIL CAN NOW TAKE, and every one of them is
+    exercised here: it NAMES its values under the rule, it publishes its
+    SHAPE, or it publishes NEITHER DISTANCE because the pair would give
+    its own cells back (`_reconstructable_columns`).
     """
     admitted = 0
-    settled = 0
+    withheld = 0
     shaped = 0
     for group in (
         _ordinal_columns(),
         _thin_ordinal_columns(),
         _measured_columns(),
         _fine_grid_columns(),
+        _reconstructable_columns(),
     ):
         for name, cells in group:
             described = _described(tmp_path / f"{len(cells)}", name, cells)
@@ -626,21 +654,25 @@ def test_every_listed_tail_is_one_the_rule_admits_or_the_pair_settles(
                     count,
                 )
                 if not tail["values"]:
-                    shaped = shaped + 1
+                    if tail["mean_distance"] is None:
+                        assert tail["rms_distance"] is None, (
+                            f"{name} {side}: a tail publishes both of its "
+                            f"distances or neither (contract TL5)"
+                        )
+                        withheld = withheld + 1
+                    else:
+                        shaped = shaped + 1
                     continue
-                if allows:
-                    admitted = admitted + 1
-                    continue
-                assert len(tail["values"]) <= taxonomy.TAIL_SETTLED_VALUES, (
+                assert allows, (
                     f"{name} {side}: the tail lists {tail['values']} on a "
-                    f"column the listing rule does not admit, and its "
-                    f"published rows and distances do not settle a list "
-                    f"that wide"
+                    f"column the listing rule does not admit, and no other "
+                    f"road may name a value (plan P4-D349)"
                 )
-                settled = settled + 1
-    assert admitted and settled and shaped, (
-        f"all three roads must be exercised: {admitted} admitted, "
-        f"{settled} settled by the pair, {shaped} published by shape"
+                admitted = admitted + 1
+    assert admitted and withheld and shaped, (
+        f"all three roads must be exercised: {admitted} admitted by the "
+        f"rule, {withheld} publishing neither distance, {shaped} published "
+        f"by shape"
     )
 
 

@@ -6675,12 +6675,21 @@ TAIL_SET_VALUES = 256
 
 # HOW WIDE A TAIL THE PUBLISHED PAIR ALREADY SETTLES (plan P4-D346). Two
 # different distances stand under two counts that add to `rows`, so the
-# rows, the mean and the root-mean-square leave one arithmetic and the
-# list says nothing the pair does not already say. This is what the
-# SECOND road may name on a column the owner's ruling does not reach --
-# a pain score whose top step one row holds lists `9, 10`, both of them
-# settled by the pair -- and it is why eleven all-different clock times,
-# whose pair settles only the outermost of them, may not take that road.
+# rows, the mean and the root-mean-square leave one arithmetic.
+#
+# IT NO LONGER LICENSES A LISTING (plan P4-D349). P4-D346 let a tail this
+# narrow name its values on a column the owner's ruling does NOT reach, on
+# the reading that the pair names them anyway. That road is withdrawn: it
+# named values ONE CELL HOLDS -- `[1089, 1100]` where one row holds 1100,
+# `06:59` beside ten cells at `06:58` -- which is outside the premise of
+# the ruling it borrowed. And its premise went with the fail-closed rule,
+# because a tail whose pair settles it now publishes NO pair, so the
+# alternative to listing is silence and silence says less.
+#
+# What the number is still for is `contract._listed_counts`: a tail WIDER
+# than this was listed under the ruling's own premise, so each of its
+# values stands on at least `TAIL_SHARED_CELLS` cells and the solver may
+# start counting from there.
 TAIL_SETTLED_VALUES = 2
 
 

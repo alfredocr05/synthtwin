@@ -180,7 +180,8 @@ def test_each_position_publishes_its_own_range() -> None:
         assert part["percentiles"]["p50"] == float(tail_rule.rung_at(real, 50))
         for low in (True, False):
             side = part["tails"]["low" if low else "high"]
-            assert tail_rule.stated(side) == tail_rule.expected(
+            assert tail_rule.holds(
+        side,
                 part, real, low=low
             ), (place, low)
         assert abs(part["mean"] - statistics.fmean(real)) < 0.5

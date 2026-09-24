@@ -78,6 +78,7 @@ bought by a description that says nothing.
 """
 
 import datetime
+import fractions
 import io
 import math
 import pathlib
@@ -470,8 +471,9 @@ def _the_rule_allows(block, ordered, floor):
     exemption is now the rule's own two conditions, asked from the
     COLUMN's own cells: `taxonomy.tail_may_list` admits the tail, and
     the value stands on at least `taxonomy.TAIL_SHARED_CELLS` of that
-    tail's cells. A tail the rule does not admit exempts nothing, and a
-    value it lists is counted as the leak it would be.
+    tail's cells, and since plan P4-D349 that is the WHOLE exemption. A
+    tail the rule does not admit exempts nothing, and a value it lists is
+    counted as the leak it would be.
 
     Returns the allowed values and how many tails published a list.
     """
@@ -492,13 +494,12 @@ def _the_rule_allows(block, ordered, floor):
         if not taxonomy.tail_may_list(
             [held[value] for value in sorted(held)], floor, distinct, cells
         ):
-            # ...AND THE SECOND ROAD, on the producer's own terms: a
-            # tail of at most `TAIL_SETTLED_VALUES` values is settled by
-            # its own published rows and two distances, so what it lists
-            # the description names either way.
-            if len(tail["values"]) <= taxonomy.TAIL_SETTLED_VALUES:
-                for value in tail["values"]:
-                    allowed.add(value)
+            # AND NO SECOND ROAD (plan P4-D349). P4-D346's road exempted
+            # a tail of at most `TAIL_SETTLED_VALUES` values whatever the
+            # rule said, on the reading that the published pair named them
+            # anyway. It is withdrawn -- it named values one cell holds,
+            # and a pinned tail publishes no pair to be named by -- so a
+            # tail the rule does not admit exempts nothing here either.
             continue
         for value in tail["values"]:
             if held.get(value, 0) >= taxonomy.TAIL_SHARED_CELLS:
@@ -712,6 +713,14 @@ def _pinned_and_room(block, floor):
     pinned = 0
     room = None
     unsearched = 0
+    # THE NUMERIC ROLE IS ASKED HERE TOO (plan P4-D349). This walk read
+    # `low_tail` and `high_tail` and nothing else, so a numeric block --
+    # whose tails live under `tails` -- was measured as having no tail at
+    # all, and `pinned` could not go non-zero on one however much its pair
+    # gave back. That is the blind spot the review's numeric item 1 walked
+    # through.
+    if isinstance(block.get("tails"), dict):
+        return _numeric_pinned(block, floor, False)
     for side in ("low_tail", "high_tail"):
         tail = block.get(side)
         if not isinstance(tail, dict) or tail.get("rows") is None:
@@ -736,6 +745,162 @@ def _pinned_and_room(block, floor):
         pinned += 1 if count == 1 else 0
         room = count if room is None else min(room, count)
     return pinned, room, unsearched
+
+
+# THE ELEVEN NAMED RUNGS, so a numeric boundary percent can be read back
+# out of a block the way a reader would read it.
+_LADDER_AT = {
+    0: "min", 1: "p01", 5: "p05", 10: "p10", 25: "p25", 50: "p50",
+    75: "p75", 90: "p90", 95: "p95", 99: "p99", 100: "max",
+}
+
+
+def _numeric_grid(block):
+    """The grid a READER can put a numeric block's values on, in figures.
+
+    Written here from the published facts, not taken from the producer:
+    nought where the block says its values are whole, the one width its
+    `fraction_widths` census names where that census and the named
+    point-free styles cover every cell, and None where a reader cannot
+    say. A block with no grid has no whole-number back-solve at all.
+    """
+    if block.get("integer_valued") is True:
+        return 0
+    census = block.get("fraction_widths")
+    styles = block.get("numeric_styles")
+    if not isinstance(census, dict) or len(census) != 1:
+        return None
+    if not isinstance(styles, dict):
+        return None
+    free = 0
+    for key in ("plain", "leading_zero", "leading_plus"):
+        free += styles.get(key, 0)
+    used = block.get("n_used_in_statistics")
+    for width in census:
+        if not width.isdigit() or int(width) <= 0:
+            return None
+        if census[width] + free != used:
+            return None
+        return int(width)
+    return None
+
+
+def _numeric_rung(block, percent):
+    """One published rung of a numeric block, from either half of its ladder."""
+    name = _LADDER_AT.get(percent)
+    if name is not None:
+        return (block.get("percentiles") or {}).get(name)
+    return (block.get("percentiles_between") or {}).get("p%02d" % percent)
+
+
+def _numeric_sums(tail, boundary, figures):
+    """A numeric tail's two whole sums in grid units, or None.
+
+    The reader's own arithmetic: with the boundary rung ON the grid, each
+    distance is a whole number of grid units, so `rows * mean` and
+    `rows * rms**2` scaled by the grid are the whole sum and the whole
+    sum of squares. Exact rationals throughout, because the two published
+    numbers are binary64 and a float division here would decide a walk.
+    None where the block has no grid, where the boundary falls between two
+    grid points -- every distance then carries the same fraction and the
+    sums are not whole -- or where the two sums do not come out whole.
+    """
+    if figures is None:
+        return None
+    scale = 10 ** figures
+    home = fractions.Fraction(boundary) * scale
+    if home.denominator != 1:
+        return None
+    rows = tail["rows"]
+    mean = tail.get("mean_distance")
+    root = tail.get("rms_distance")
+    if mean is None or root is None or rows <= 0:
+        return None
+    total = fractions.Fraction(mean) * rows * scale
+    squares = fractions.Fraction(root) * fractions.Fraction(root) * rows
+    squares = squares * scale * scale
+    whole = round(total)
+    whole_squares = round(squares)
+    if abs(total - whole) > fractions.Fraction(1, 1024):
+        return None
+    if abs(squares - whole_squares) > fractions.Fraction(1, 1024):
+        return None
+    return int(home), whole, whole_squares
+
+
+def _numeric_cap(block, side, home, total):
+    """The largest grid-unit distance a numeric tail's sign counts allow."""
+    negatives = block.get("n_negative", 0) - block.get(
+        "n_negative_unrepresentable", 0
+    )
+    positives = None
+    used = block.get("n_used_in_statistics")
+    zeros = block.get("n_zero", 0)
+    if isinstance(used, int):
+        positives = used - negatives - zeros
+    if side == "low" and negatives <= 0 and home >= 0:
+        return min(home, total)
+    if side == "high" and positives is not None and positives <= 0:
+        return min(max(-home, 1), total)
+    return total
+
+
+def _numeric_pinned(block, floor, apart):
+    """(pinned, room, unsearched) over a NUMERIC block's two tails.
+
+    THE SAME QUESTION `_pinned_and_room` ASKS OF A DATE TAIL, asked of the
+    role that had no such measurement at all until the fix pass of stage 3
+    (plan P4-D349). `apart` is the column's own "every value different",
+    which is a sentence of the description and therefore a fact a reader
+    holds: with it the distances are strictly descending, and eleven
+    different whole distances summing to 66 are 1 to 11 and nothing else.
+    """
+    pinned = 0
+    room = None
+    unsearched = 0
+    tails = block.get("tails")
+    if not isinstance(tails, dict):
+        return pinned, room, unsearched
+    figures = _numeric_grid(block)
+    for side in ("low", "high"):
+        tail = tails.get(side)
+        if not isinstance(tail, dict):
+            continue
+        if tail.get("values"):
+            continue
+        boundary = _numeric_rung(block, tail.get("percent"))
+        if not isinstance(boundary, (int, float)):
+            continue
+        read = _numeric_sums(tail, boundary, figures)
+        if read is None:
+            continue
+        home, total, squares = read
+        if total > _EXACT_WHOLE or squares > _EXACT_WHOLE:
+            unsearched += 1
+            continue
+        spent = [False]
+        count = _multisets(
+            tail["rows"],
+            total,
+            squares,
+            _numeric_cap(block, side, home, total),
+            [ROOM_STEPS],
+            spent,
+            apart,
+        )
+        if spent[0]:
+            unsearched += 1
+            continue
+        pinned += 1 if count == 1 else 0
+        room = count if room is None else min(room, count)
+    return pinned, room, unsearched
+
+
+def _numeric_all_different(block):
+    """Whether a numeric block publishes that every value of it is different."""
+    used = block.get("n_used_in_statistics")
+    distinct = block.get("n_distinct_values")
+    return isinstance(used, int) and used > 0 and distinct == used
 
 
 def _reader_bounds(column):
@@ -783,15 +948,27 @@ def _reader_bounds(column):
     return found
 
 
-def _edge_pinned(column):
+def _edge_pinned(column, block=None):
     """How many shape-drawn tails the published pair settles to ONE multiset
     once the reader also uses `_reader_bounds` (plan P4-D343).
 
     A CEILING stated at its measured value rather than a gate held at
     nought: the shape road says strictly less than the list of values it
     replaced on these tails, and this says how much less.
+
+    AND IT ASKS THE NUMERIC ROLE TOO (plan P4-D349). A numeric tail's pair
+    is read back by the same arithmetic once the column's own "every value
+    different" remark is in the reader's hands, and that role was outside
+    this measurement entirely: the integers 0 to 1100 once each published
+    eleven rows, a mean of 6 and a root-mean-square of root-46 a side, and
+    this number stayed at nought.
     """
     facts = column.facts
+    if isinstance(block, dict) and isinstance(block.get("tails"), dict):
+        pinned, _room, _unsearched = _numeric_pinned(
+            block, FLOOR, _numeric_all_different(block)
+        )
+        return pinned
     bounds = _reader_bounds(column)
     settled = 0
     for key, tail in (("low", facts.low_tail), ("high", facts.high_tail)):
@@ -981,7 +1158,7 @@ def _case(folder, shape, rows, seed):
         "room": room,
         "listed": listed,
         "unsearched": unsearched,
-        "edge_pinned": _edge_pinned(described.columns[0]),
+        "edge_pinned": _edge_pinned(described.columns[0], block),
         "equality": _outside_the_window(described, described.columns[0]),
     }
 

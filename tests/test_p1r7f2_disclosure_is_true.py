@@ -240,7 +240,8 @@ def test_a_kept_number_is_counted_in_the_group_and_the_words_say_so(
     # the group beyond the low boundary is measured over them.
     assert column["n_negative"] == 3
     assert column["n_used_in_statistics"] == 203
-    assert tail_rule.stated(column["tails"]["low"]) == tail_rule.expected(
+    assert tail_rule.holds(
+        column["tails"]["low"],
         column,
         [float(value) for value in readings] + [-999.0] * 3,
     )
@@ -319,7 +320,8 @@ def test_a_declared_missing_spelling_is_listed_by_its_column(
     # beyond the low boundary is measured over those alone.
     assert column["percentiles"]["min"] is None
     assert column["n_used_in_statistics"] == 200
-    assert tail_rule.stated(column["tails"]["low"]) == tail_rule.expected(
+    assert tail_rule.holds(
+        column["tails"]["low"],
         column, [float(value) for value in readings]
     )
     assert f"counted as missing: {SENTINEL} (20)" in summary_text

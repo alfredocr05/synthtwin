@@ -808,15 +808,23 @@ def test_a_column_of_twenty_thousand_values_completes() -> None:
     assert described.n_present == 20000
     # The largest value is held by one row, so the tail rule withholds
     # it (contract 6.7a) and the group beyond the high boundary is what
-    # the description states about those rows.
+    # the description states about those rows -- which on THIS column is
+    # its boundary and its row count alone (plan P4-D349). The twenty
+    # thousand values step half a unit at a time, so the two hundred rows
+    # beyond each boundary stand at two hundred DIFFERENT whole distances
+    # summing to the least two hundred different whole numbers can sum to:
+    # one possible answer, which would give all four hundred outer values
+    # back, so neither distance is published. `tail_rule.holds` asks the
+    # percent and the rows against the rule either way.
     assert described.details["percentiles"]["max"] is None
-    assert tail_rule.stated(described.details["tails"]["high"]) == (
-        tail_rule.expected(
-            described.details,
-            [float(value) for value in values],
-            low=False,
-        )
+    assert tail_rule.holds(
+        described.details["tails"]["high"],
+        described.details,
+        [float(value) for value in values],
+        low=False,
     )
+    assert described.details["tails"]["high"]["mean_distance"] is None
+    assert described.details["tails"]["low"]["mean_distance"] is None
 
 
 def test_a_large_date_column_is_not_built_quadratically() -> None:
