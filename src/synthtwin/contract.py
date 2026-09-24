@@ -9835,6 +9835,14 @@ def _numeric_facts(
         where,
         0,
     )
+    # READ HERE BECAUSE Q5, Q6 AND Q16 ASK IT (verdict item 9). The
+    # count of the different numbers a block holds settles whether
+    # every value the statistics used is the same one, and it settles
+    # it exactly where a rounded spread cannot. `_numeric_ladder` reads
+    # the same key again for the block it builds.
+    distinct_numbers = _whole(
+        mapping["n_distinct_values"], "n_distinct_values", where, 0
+    )
     share = _share(mapping["numeric_share"], "numeric_share", where)
     integer_valued = _truth(
         mapping["integer_valued"], "integer_valued", where
@@ -9915,10 +9923,22 @@ def _numeric_facts(
         and ladder.minimum == ladder.maximum
     )
     # ON A TAIL BLOCK THE ENDS ARE USUALLY WITHHELD, so "every value is
-    # the same one" is read off the spread instead: nought exactly where
-    # every value the statistics used is one value (stage 3).
+    # the same one" is read off the block's COUNT OF DIFFERENT NUMBERS
+    # (stage 3; corrected by the stage-3 review, verdict item 9).
+    #
+    # IT WAS READ OFF THE SPREAD, AND A SPREAD IS ROUNDED. A column of
+    # 98 cells of `5e-324` beside `1e-323` and `1.5e-323` holds three
+    # different numbers and a spread of about `4e-325`, which is below
+    # the smallest number binary64 holds and is published as `0.0`. The
+    # block is not flat -- it has a shape, and publishes one -- but a
+    # spread read as constancy called it flat and Q5 refused the
+    # producer's own file, at floors 1, 5 and 11, every time it was
+    # written again. `n_distinct_values` is the same block's exact
+    # count of the different numbers its numeric cells hold, Q2 has
+    # already tied those cells to the values the statistics used, and
+    # no rounding stands between it and the question being asked.
     if tail_rule:
-        flat = std == 0.0 and not unrepresentable
+        flat = distinct_numbers == 1
     if flat and skew is not None:
         raise _broken(
             "Q5",
@@ -9936,7 +9956,17 @@ def _numeric_facts(
                 f"the same"
             ),
         )
-    if flat and used >= 2 and (std != 0.0 or unrepresentable):
+    # AND Q6 AND Q7 PASS OVER A BLOCK BELOW ITS FLOOR as Q4, Q5 and Q16
+    # already do. They never had to before: constancy was read off the
+    # spread, and a block below its floor publishes no spread at all, so
+    # `None == 0.0` answered no and neither rule was asked. Read off the
+    # count of different numbers, a below-floor block of ONE number is
+    # flat -- and it publishes no spread and no average either, which is
+    # what TL2 says it must, so asking it for them would refuse a
+    # description this producer writes.
+    if flat and used >= 2 and not below_floor and (
+        std != 0.0 or unrepresentable
+    ):
         raise _broken(
             "Q6",
             where,
@@ -9946,7 +9976,7 @@ def _numeric_facts(
                 f"{unrepresentable}"
             ),
         )
-    if flat and mean is None:
+    if flat and mean is None and not below_floor:
         raise _broken(
             "Q7",
             where,
@@ -10913,8 +10943,78 @@ def _grid_text_of(value: float, figures: int) -> str:
     return f"{sign}{kept}"
 
 
+# HOW FAR ABOVE THE SMOOTH POWER THE ROW-WISE ONE MAY BE LOOKED FOR
+# (G5.3b, verdict item 3 of stage 3's review). `R(j)` over a tail's own
+# row shares climbs toward the tail's ROW COUNT rather than without
+# bound, so a ratio close to that count wants a far higher power than
+# the smooth reading does -- 234 against 22 on a tail of twelve rows
+# whose ratio is within a billionth of twelve. The search looks this
+# many powers above the smooth one and no further; beyond it the shape
+# is the highest power looked at, and the tail's root-mean-square is
+# then not reached exactly.
+_TAIL_POWER_CAP = 4096
+
+
+def _row_shares(rows: int) -> "tuple[float, ...]":
+    """The share each of a tail's rows stands at (G5.3b).
+
+    Row `i` of `m` at `s = (2 i + 1) / (2 m)`, formed as the method
+    forms every share of a rank: the whole quotient at fifty-three bits,
+    so the same binary64 comes out everywhere.
+    """
+    width = 2 * max(rows, 1)
+    made: "list[float]" = []
+    for index in range(max(rows, 1)):
+        made += [math.ldexp(((2 * index + 1) << 53) // width, -53)]
+    return tuple(made)
+
+
+def _row_constants(
+    shares: "tuple[float, ...]", power: int
+) -> "tuple[float, float, float, float, float]":
+    """G5.3b's five constants over a tail's OWN row shares.
+
+    `P(k)` is the mean of `s ** k` over the shares, and the constants
+    are `a2 = P(j + 1)`, `de = P(j) - P(j + 1)`, `b1 = P(2j)`,
+    `c = 2 P(2j + 1)` and `b2 = P(2j + 2)`, returned in that order. With
+    `s` uniform on `[0, 1]` the same five are `1 / (j + 2)`,
+    `1 / ((j + 1)(j + 2))`, `1 / (2j + 1)`, `1 / (j + 1)` and
+    `1 / (2j + 3)`, which is what this rule read before the row shares
+    replaced them, and which the five agree with to the last places
+    wherever the power is small beside the row count.
+
+    ONE PASS AND A FIXED ORDER: `s ** j` is formed once per share by
+    squaring and multiplying, and the four powers above it are that
+    value times `s`, squared, and squared times `s` once and twice, each
+    multiplication written out so no platform may reassociate it.
+    """
+    at = 0.0
+    above = 0.0
+    twice = 0.0
+    twice_up = 0.0
+    twice_over = 0.0
+    for share in shares:
+        lifted = _power_of(share, power)
+        squared = lifted * lifted
+        square_up = squared * share
+        at = at + lifted
+        above = above + lifted * share
+        twice = twice + squared
+        twice_up = twice_up + square_up
+        twice_over = twice_over + square_up * share
+    count = float(len(shares))
+    near = above / count
+    return (
+        near,
+        at / count - near,
+        twice / count,
+        2.0 * (twice_up / count),
+        twice_over / count,
+    )
+
+
 def _tail_power(ratio: float) -> int:
-    """G5.3b's `j`: the whole number with `R(j) <= ratio < R(j + 1)`.
+    """G5.3b's SMOOTH `j`: the whole number with `R(j) <= ratio < R(j+1)`.
 
     `R(j) = (j + 1) ** 2 / (2 j + 1)`, and the comparison is EXACT: the
     ratio is a binary64, so it is a whole significand over a power of
@@ -10922,6 +11022,11 @@ def _tail_power(ratio: float) -> int:
     starts at the floor of `(r - 1) + sqrt(r (r - 1))`, which the
     comparisons then correct, so no rounding of the square root decides
     which power a shape takes.
+
+    THIS IS WHERE THE ROW-WISE SEARCH STARTS AND NOT WHERE IT ENDS. The
+    ratio over a tail's own row shares is never above the smooth one, so
+    this power always satisfies the lower half of the rule and
+    `_tail_shape` looks upward from it.
     """
     fraction, exponent = math.frexp(ratio)
     top = int(math.ldexp(fraction, 53))
@@ -10974,22 +11079,48 @@ def _tail_blend(first: float, second: float, third: float) -> float:
     return min(1.0, max(0.0, chosen))
 
 
-def _tail_shape(mean: float, root: float) -> "tuple[bool, int, float, float]":
+def _tail_shape(
+    mean: float, root: float, rows: int
+) -> "tuple[bool, int, float, float]":
     """G5.3b's shape of one tail: `(flat, j, lam, E)`.
 
     `a(s) = E s**j (lam + (1 - lam) s)` on `s` in `[0, 1]`, a mixture of
-    two adjacent whole powers, whose mean over a uniform `s` is the
-    published mean distance and whose mean square is the square of the
-    published root-mean-square distance. Only `+ - * /` and `sqrt`, in a
-    fixed order, so the same binary64 answer comes out on every platform:
+    two adjacent whole powers, fitted so that ITS VALUES AT THE TAIL'S
+    OWN ROW SHARES have the published mean distance and the published
+    root-mean-square distance. Only `+ - * /` and `sqrt`, in a fixed
+    order, so the same binary64 answer comes out on every platform:
 
-        r  = (rms / d1) * (rms / d1), held at one or more
-        a2 = 1 / (j + 2)   de = 1 / ((j + 1)(j + 2))
-        b1 = 1 / (2j + 1)  c = 1 / (j + 1)   b2 = 1 / (2j + 3)
+        r  = (rms / d1) * (rms / d1), held into [1, m]
+        a2, de, b1, c, b2 = `_row_constants` of the tail's rows at j
         qa = (b1 - c + b2) - r * de * de
         qb = (c - 2 * b2) - 2 * r * a2 * de
         qc = b2 - r * a2 * a2
         E  = d1 / (a2 + lam * de)
+
+    FITTED TO THE ROWS AND NOT TO AN INTEGRAL (verdict item 3 of stage
+    3's review). The five constants were the shape's moments over a
+    UNIFORM `s` -- `1/(j+2)`, `1/((j+1)(j+2))`, `1/(2j+1)`, `1/(j+1)`
+    and `1/(2j+3)` -- and the rule read the shape at the `m` row
+    midpoints and claimed the two agreed. They do not: sampling a
+    nonlinear power mixture at midpoints is not its integral, and 1,199
+    cells just above 100 beside one `100000100.0`, whose high tail's
+    ratio stands within a billionth of its twelve rows, gave a twin mean
+    14 per cent low and a spread 24 per cent low at three seeds, with
+    every window passed and no deviation named. The algebra is the same
+    algebra; what changed is that the five are now the moments over
+    THOSE ROWS, so `E` scales the rows' mean onto `d1` exactly and the
+    root `lam` puts their mean square on `rms * rms` exactly.
+
+    WHICH POWER. `qc <= 0` says the ratio is past what `j` and `j + 1`
+    can mix to over those rows, which happens where it never did over an
+    integral, because `R(j)` climbs to the ROW COUNT instead of without
+    bound. So the smooth power of `_tail_power` is where the search
+    STARTS -- the row-wise ratio is never above the smooth one, so it
+    always satisfies the lower half of the rule -- and the answer is the
+    least power at or above it whose `qc` is positive, found by halving
+    over the `_TAIL_POWER_CAP` powers above it. One pass of the rows
+    where the smooth power already answers, which is every tail whose
+    power is small beside its row count.
 
     A mean distance of nought is a FLAT tail -- every row of it at the
     boundary -- and has no shape to fit. `E` past the largest finite
@@ -11001,22 +11132,51 @@ def _tail_shape(mean: float, root: float) -> "tuple[bool, int, float, float]":
     ratio = step * step
     if not ratio >= 1.0:
         ratio = 1.0
-    # HELD WHERE NO TAIL REACHES (the ratio is at most the tail's rows,
-    # give or take a rounding), so the power stays a whole number a
-    # binary64 can hold beside it.
-    if not ratio <= 1e15:
-        ratio = 1e15
+    # HELD AT THE TAIL'S OWN ROW COUNT, which is the most the mean
+    # square of `m` distances can be beside the square of their mean --
+    # reached where one row stands alone -- so the power stays a whole
+    # number a binary64 can hold beside it.
+    shares = _row_shares(rows)
+    if not ratio <= float(len(shares)):
+        ratio = float(len(shares))
     power = _tail_power(ratio)
-    near = 1.0 / (power + 2)
-    gap = 1.0 / ((power + 1) * (power + 2))
-    first = 1.0 / (2 * power + 1)
-    middle = 1.0 / (power + 1)
-    last = 1.0 / (2 * power + 3)
+    parts = _row_constants(shares, power)
+    if not parts[4] - ratio * parts[0] * parts[0] > 0.0:
+        low = power + 1
+        high = power + _TAIL_POWER_CAP
+        while low < high:
+            halfway = (low + high) // 2
+            trial = _row_constants(shares, halfway)
+            reached = not trial[0] > 0.0
+            if not reached:
+                reached = trial[4] - ratio * trial[0] * trial[0] > 0.0
+            if reached:
+                high = halfway
+            else:
+                low = halfway + 1
+        power = low
+        parts = _row_constants(shares, power)
+        # AND NEVER ON A POWER THE FORMAT HAS RUN OUT OF. `s ** j` over
+        # shares below one underflows to nought eventually, and a ratio
+        # no power of this family reaches -- the published pair can
+        # round to one just above the row count -- walked the search
+        # into that region, where `a2` and `de` are both nought and the
+        # scale `E` divides by nought. The search stops at the FIRST
+        # such power, so the one below it is the last the format holds.
+        if not parts[0] > 0.0 and power > 0:
+            power = power - 1
+            parts = _row_constants(shares, power)
+    near = parts[0]
+    gap = parts[1]
+    first = parts[2]
+    middle = parts[3]
+    last = parts[4]
     quadratic = (first - middle + last) - ratio * gap * gap
     linear = (middle - 2.0 * last) - 2.0 * ratio * near * gap
     constant = last - ratio * near * near
     blend = _tail_blend(quadratic, linear, constant)
-    reach = mean / (near + blend * gap)
+    divisor = near + blend * gap
+    reach = _LARGEST_FINITE if not divisor > 0.0 else mean / divisor
     if not math.isfinite(reach):
         reach = _LARGEST_FINITE
     return False, power, blend, reach
@@ -11957,25 +12117,56 @@ def _listed_counts(
 def _tail_ramp(facts: NumericFacts) -> ShapedLadder:
     """G5.3d: the made-up ladder of a block below its floor.
 
-    The block publishes no rung and no moment, so its values are points
-    one grid step apart on the side of nought each belongs to: the
-    ladder runs straight from `-G u` to `(K - G - 1) u`, `G` the negative
-    numbers, `K` all of them and `u` one step of the block's grid (one
-    where it has none), each rung placed on that grid. The twin keeps
-    the block's type, its sign counts and its count of different
-    numbers, and claims nothing else about it.
+    The block publishes no rung and no moment, so the only shape left to
+    build on is what it says about SIGNS. `G` of its `K` values are
+    negative, `Z` are nought and the remaining `P` are positive, so its
+    made-up values are
+
+        -G u, ..., -u,   nought Z times,   u, ..., P u
+
+    `u` one step of the block's grid (one where it has none), each on
+    that grid; and rung `p` of the ladder is the value at the whole
+    rank nearest `(K - 1) p / 100`, halves downward. Every rung is one
+    of those values, so the ladder names no number the block's own
+    counts forbid. The twin keeps the block's type, its sign counts and
+    its count of different numbers, and claims nothing else about it.
+
+    ZERO IS BUILT FROM `n_zero` AND NOT ASSUMED (verdict item 5 of
+    stage 3's review). The ramp ran from `-G u` to `(K - G - 1) u`
+    whatever the block published, so it held nought once on every
+    block: measured on 100 rows holding the numbers 1 to 8 and 92
+    blanks, which publish eight different numbers and NO zero, the
+    ramp spanned 0 to 7, G5.5's sign repair moved the invented nought
+    to a number another stratum already held, and the twin wrote seven
+    different numbers against the eight published -- while the report
+    named `percentiles` as a fact the twin missed, printing the
+    invented `0.0` as though the description had published an end it
+    withheld.
     """
     figures = _tail_figures(facts)
     unit = _tail_unit(figures)
-    negatives = facts.n_negative - facts.n_negative_unrepresentable
     numbers = max(1, facts.n_used_in_statistics)
-    lowest = -negatives * unit
-    highest = (numbers - negatives - 1) * unit
+    negatives = facts.n_negative - facts.n_negative_unrepresentable
+    negatives = min(max(negatives, 0), numbers)
+    zeros = min(max(facts.n_zero, 0), numbers - negatives)
+    positives = numbers - negatives - zeros
+    made: "list[float]" = []
+    for step in range(negatives, 0, -1):
+        made += [_on_tail_grid(-step * unit, figures)]
+    for _each in range(zeros):
+        made += [0.0]
+    for step in range(1, positives + 1):
+        made += [_on_tail_grid(step * unit, figures)]
+    last = len(made) - 1
     rungs: "list[float]" = []
     for percent in range(101):
-        share = percent / 100.0
-        value = (1.0 - share) * lowest + share * highest
-        rungs += [_on_tail_grid(min(highest, max(lowest, value)), figures)]
+        # HALVES DOWNWARD, in whole numbers: `place` is `2 (K - 1) p`
+        # and the rank is the whole part of `(place + 100) / 200`.
+        place = 2 * last * percent + 100
+        rank = place // 200
+        if place % 200 == 0:
+            rank = rank - 1
+        rungs += [made[min(max(rank, 0), last)]]
     return _shaped(tuple(rungs), None, None)
 
 
@@ -11989,11 +12180,31 @@ def _moment_ladder(
     the grid and held to the sign counts like a derived end, and every
     rung between them on the straight line. None where the mean or the
     spread is withheld; the ramp stands in there.
+
+    AND THE STRETCH IS HELD INSIDE THE NUMBERS THIS FORMAT HOLDS
+    (verdict item 2 of stage 3's review). A block whose spread reaches
+    across the range has no uniform stretch in binary64 at all: 22 huge
+    cells publishing a mean of `-9.75e305` and a spread of `1.73e308`
+    put `mean + sqrt(3) std` past the largest finite number, both ends
+    came back infinite, and the block fell through to `_tail_ramp` --
+    the ladder of a block whose moments are WITHHELD -- so the twin of a
+    column whose scale is published was written between -11 and 11. The
+    published MEAN is kept and the reach is the widest the format holds
+    about it, `_LARGEST_FINITE - |mean|`: the stretch keeps the scale
+    and the average it was given, its spread falls short of the
+    published one, and the report says so on the spread's own line
+    rather than the ladder quietly becoming another block's.
     """
     if facts.mean is None or facts.std is None:
         return None
     figures = _tail_figures(facts)
     reach = math.sqrt(3.0) * facts.std
+    if not (
+        math.isfinite(facts.mean - reach) and math.isfinite(facts.mean + reach)
+    ):
+        reach = _LARGEST_FINITE - abs(facts.mean)
+        if not reach > 0.0:
+            reach = 0.0
     lowest = _signed_end(
         _on_tail_grid(facts.mean - reach, figures), True, facts.mean, facts,
         figures,
@@ -12002,8 +12213,13 @@ def _moment_ladder(
         _on_tail_grid(facts.mean + reach, figures), False, facts.mean, facts,
         figures,
     )
-    if not (math.isfinite(lowest) and math.isfinite(highest)):
-        return None
+    # AND EACH END IS HELD AT THE RANGE'S OWN EDGE, not answered with
+    # None: None here is "this block publishes no moments", and a block
+    # that publishes a mean and a spread is not that block.
+    lowest = min(_LARGEST_FINITE, max(-_LARGEST_FINITE, lowest))
+    highest = min(_LARGEST_FINITE, max(-_LARGEST_FINITE, highest))
+    if highest < lowest:
+        highest = lowest
     rungs: "list[float]" = []
     for percent in range(101):
         share = percent / 100.0
@@ -12055,7 +12271,7 @@ def tail_ladder(facts: NumericFacts) -> "ShapedLadder | None":
         withheld = mean is None or root is None
         shape: "tuple[bool, int, float, float]" = (False, 0, 0.0, 0.0)
         if mean is not None and root is not None:
-            shape = _tail_shape(mean, root)
+            shape = _tail_shape(mean, root, side.rows)
         listed = side.values if is_low else tuple(reversed(side.values))
         counts: "tuple[int, ...]" = ()
         if listed and mean is not None and root is not None:

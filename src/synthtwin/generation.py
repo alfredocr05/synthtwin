@@ -12268,8 +12268,8 @@ def _saturated_levels(
     return given
 
 
-def _next_representable(value: float) -> float:
-    """The next binary64 above one POSITIVE finite value, or 0.0.
+def _next_representable(value: float, downward: bool = False) -> float:
+    """The binary64 beside one POSITIVE finite value, or 0.0.
 
     Written from `frexp` and `ldexp`, which are two of the five names the
     offline scan admits from `math`: `nextafter` is not one of them, and
@@ -12279,15 +12279,30 @@ def _next_representable(value: float) -> float:
     fifty-three -- and where that underflows to nought the value is
     subnormal, whose grid is evenly spaced at two to the minus 1074.
 
-    Answers 0.0 for anything that is not a positive finite number, which
-    the one caller reads as "no step".
+    ``downward`` ASKS FOR THE NUMBER BELOW, which the ceiling walk of
+    `_apart_on_the_representable_grid` needs (verdict item 4 of stage
+    3's review). The gap is not the same on both sides: toward nought
+    from a value sitting exactly on the edge of its binade -- fraction
+    one half -- it is HALF the gap above, which is the one place a
+    single gap would step two numbers at once.
+
+    Answers 0.0 for anything that is not a positive finite number, and
+    for a step that would leave the positive numbers, which every caller
+    reads as "no step".
     """
     if not math.isfinite(value) or value <= 0.0:
         return 0.0
-    _mantissa, exponent = math.frexp(value)
+    fraction, exponent = math.frexp(value)
     step = math.ldexp(1.0, exponent - 53)
+    if downward and fraction == 0.5:
+        step = math.ldexp(1.0, exponent - 54)
     if step <= 0.0:
         step = math.ldexp(1.0, -1074)
+    if downward:
+        found = value - step
+        if not math.isfinite(found) or found <= 0.0 or found >= value:
+            return 0.0
+        return found
     found = value + step
     if not math.isfinite(found) or found <= value:
         return 0.0
@@ -12297,32 +12312,54 @@ def _next_representable(value: float) -> float:
 def _apart_on_the_representable_grid(
     layout: "_NumericLayout", values: "list[float]"
 ) -> "list[float]":
-    """A SATURATED representable grid is filled in order (plan P4-D269).
+    """The representable grid is filled in order (plan P4-D269).
 
-    THE LAST RESORT, AND ONLY WHERE NO DECIMAL GRID EXISTS. Where the
-    column's two pinned ends are exactly as many representable numbers
-    apart as it has strata, every stratum has exactly one number it can
-    hold and there is nothing to choose: the strata take the grid's own
-    points in ascending order, which is what `_saturated_integers`
-    already does on the integer grid. MEASURED: 120 numbers
-    `i * 5e-324`, each one step of the subnormal grid, at a floor of
-    eleven -- all 120 enter the statistics and the source passes, while
-    the ladder interpolates between rungs one representable step apart
-    and the twin held 120 different TEXTS and only 95 different NUMBERS.
+    THE LAST RESORT, AND ONLY WHERE NO DECIMAL GRID EXISTS. Between the
+    column's two pinned ends the binary64 numbers themselves are the
+    grid, and the strata take points of it in ascending order, each a
+    point of its own, which is what `_saturated_integers` already does
+    on the integer grid. MEASURED: 120 numbers `i * 5e-324`, each one
+    step of the subnormal grid, at a floor of eleven -- all 120 enter
+    the statistics and the source passes, while the ladder interpolates
+    between rungs one representable step apart and the twin held 120
+    different TEXTS and only 95 different NUMBERS.
+
+    A GRID WITH SPARE POINTS IS FILLED TOO (verdict item 4 of stage 3's
+    review). This pass ran only where the two ends hold EXACTLY as many
+    representable numbers as the column has strata, and stage 3's
+    derived ends widened that interval: 100 cells of `i * 5e-324` now
+    leave 106 numbers for 100 strata, the equality failed, the pass
+    withdrew and the twin held 82 different numbers where the pre-tail
+    code held 100. So each stratum takes the point NEAREST the value
+    the ladder gave it that the order still allows -- its value held up
+    to the number above its neighbour's point, and down to the point
+    that still leaves room for every stratum above it:
+
+        low[i]  = the i-th representable number at or above the lower end
+        high[i] = the (total - 1 - i)-th representable number at or
+                  below the upper end
+        out[i]  = values[i] raised to the number above out[i - 1] and
+                  then held at high[i]
+
+    `out` is strictly ascending and lies inside the two ends, and where
+    the interval is saturated `low[i]` and `high[i]` are one number and
+    the result is the grid itself, which is what this pass did before.
+    Where the interval holds FEWER numbers than the column has strata
+    there is no such assignment and the pass withdraws.
 
     POSITIVE VALUES ONLY, which is a bound and is stated rather than
-    implied: `_next_representable` steps upward from a positive number,
+    implied: `_next_representable` is asked of positive numbers here,
     and a column reaching below nought keeps the behaviour it had. The
     boundary this pass exists for is the subnormal grid, where a whole
     column sits on one side of nought.
 
-    NOTHING IS TRADED FOR IT AND NOTHING ELSE IS TOUCHED. The walk stops
-    the moment the grid runs past the upper end, so a column whose ends
-    are many steps apart -- every ordinary column -- leaves with its
-    values exactly as they came, after at most one step per stratum. The
-    two pinned ends keep their own values by construction, and the pass
-    is withdrawn whole where any stratum's sign band would not hold the
-    point the grid gives it.
+    NOTHING IS TRADED FOR IT AND NOTHING ELSE IS TOUCHED. Where the
+    values already stand a representable number apart -- every ordinary
+    column, whose ends are many steps apart -- each one is its own
+    nearest allowed point and the column leaves with its values exactly
+    as they came. The two pinned ends keep their own values by
+    construction, and the pass is withdrawn whole where any stratum's
+    sign band would not hold the point the grid gives it.
 
     Guarantees: accepts the layout and the stratum values in ascending
     order; returns values of the same length and order. Determinism: a
@@ -12334,19 +12371,39 @@ def _apart_on_the_representable_grid(
     ceiling = values[total - 1]
     if not math.isfinite(ceiling) or ceiling <= values[0]:
         return values
-    grid = [values[0]]
+    for place in range(total):
+        if layout.bands[place] != _BAND_POSITIVE:
+            return values
+    lowest = [values[0]]
     step = values[0]
     for _each in range(total - 1):
         step = _next_representable(step)
         if step <= 0.0 or step > ceiling:
             return values
-        grid += [step]
-    if grid[total - 1] != ceiling:
-        return values
-    for place in range(total):
-        if layout.bands[place] != _BAND_POSITIVE:
+        lowest += [step]
+    highest = [0.0] * total
+    highest[total - 1] = ceiling
+    back = ceiling
+    for place in range(total - 2, -1, -1):
+        back = _next_representable(back, True)
+        if back < values[0]:
             return values
-    return grid
+        highest[place] = back
+    made: "list[float]" = []
+    for place in range(total):
+        want = values[place]
+        if place > 0:
+            above = _next_representable(made[place - 1])
+            if above <= 0.0:
+                return values
+            if want < above:
+                want = above
+        if want > highest[place]:
+            want = highest[place]
+        if want < lowest[place]:
+            want = lowest[place]
+        made += [want]
+    return made
 
 
 def _apart_walk(
@@ -12474,7 +12531,22 @@ def _apart_walk(
                 unit = unit / 10.0
             steps = 1
             if unit > 0.0:
-                steps = int(width / unit) + 1
+                # THE CAP IS READ BEFORE THE CONVERSION, NOT AFTER IT
+                # (repair of stage 3's review, verdict item 8). A
+                # stratum's share can span the whole representable
+                # range -- `(-1.7e308, 1.004e308)` on a column of 20
+                # cells at `-1.7e308` beside 80 near `1.68e308` -- and
+                # the subtraction above overflows to infinity there, so
+                # `int(width / unit)` raised OverflowError and the run
+                # stopped before the count was capped at all. The count
+                # this search may use is `_GRID_REACH` whatever the
+                # width is, so a quotient at or past it -- infinity
+                # included -- settles the count without a conversion.
+                spread = width / unit
+                if not spread < float(_GRID_REACH):
+                    steps = _GRID_REACH
+                else:
+                    steps = int(spread) + 1
             if steps > _GRID_REACH:
                 steps = _GRID_REACH
             want = _apart_inside(
@@ -13121,6 +13193,21 @@ def _style_strata(
     """
     total = len(layout.sizes)
     if total < 1 or wanted < 1:
+        return styles
+    # AND NOT ON A COLUMN PUBLISHING MORE SPELLINGS THAN IT HAS STRATA
+    # (stage 3's review, beside verdict item 4). One form per stratum is
+    # the FEWEST spellings a column can hold, `total` of them, so where
+    # the published count stands ABOVE that the column has room for a
+    # split the packing cannot make: giving the walk's answer up there
+    # misses `n_distinct` from BELOW, which is the same trade this rule
+    # exists to refuse, taken the other way. Measured on the frozen case
+    # `numeric_decimal_styles` once verdict item 4's repair stopped its
+    # ladder standing two strata on one number: 23 strata, 24 spellings
+    # published, the cell walk spending 25 -- one split too many, and
+    # authorized, since the window `n_distinct` is judged in runs from
+    # the published count upward -- against a packing spending 23, which
+    # `validate` reports as MISSED.
+    if raw > total:
         return styles
     # THE PAIR IS THE VALUE AND THE FORM, NOT THE STRATUM AND THE FORM.
     # Two strata can hold the SAME number -- a column whose published

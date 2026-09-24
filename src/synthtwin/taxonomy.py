@@ -12630,12 +12630,27 @@ def _numeric_tails(
         found[side_percent] = value
     low_first, low_last = _tail_positions(count, percent, "low")
     high_first, high_last = _tail_positions(count, high_percent, "high")
+    # A DISTANCE BINARY64 CANNOT HOLD WITHHOLDS THE PAIR, NOT THE LADDER
+    # (verdict item 2 of stage 3's review). `_tail_distances` answers
+    # None where a tail's own mean or root-mean-square reaches past the
+    # largest number this format holds, which only a column reaching
+    # across the whole range can do -- 11 cells of `-1.7e308` beside 89
+    # near `1.68e308`, whose tail distances are about `3.4e308`. The
+    # block then withdrew EVERY rung and published its four moments
+    # alone, and the generator, handed a block whose moments are the
+    # only thing it says, read `mean + sqrt(3) std` past the range too
+    # and fell back to the ramp of a block below its floor: at seed 4
+    # the twin of that column held numbers between -11 and 88.
+    #
+    # The shape a tail with no publishable pair takes is already in the
+    # contract -- TL5's tail publishing NEITHER distance -- so it is
+    # taken here: the boundary rung and the rows stand, the pair is
+    # withheld, and the side lists no value, which TL5 requires of a
+    # tail with no pair beside it.
     low = _tail_distances(ordered, low_first, low_last, found[percent], "low")
     high = _tail_distances(
         ordered, high_first, high_last, found[high_percent], "high"
     )
-    if low is None or high is None:
-        return moments_only
     heaped_low = len([v for v in ordered if v == ordered[0]]) >= units
     heaped_high = len([v for v in ordered if v == ordered[count - 1]]) >= units
     rungs: "dict[str, float | None]" = {}
@@ -12704,15 +12719,24 @@ def _numeric_tails(
             distinct_numbers,
             parts,
         )
-        mean: "float | None" = distances[0]
-        root: "float | None" = distances[1]
+        mean: "float | None" = None
+        root: "float | None" = None
+        if distances is None:
+            # NO PAIR THIS FORMAT HOLDS, SO NO LIST EITHER (TL5).
+            listed = []
+        else:
+            mean = distances[0]
+            root = distances[1]
         # FAIL CLOSED WHERE THE PAIR WOULD HAND THE TAIL BACK (P4-D349).
         # A LISTED tail is not asked: it has already said which values it
         # holds, under a rule that says nobody's own value is among them,
         # and its pair adds nothing about them. Anything else that the
         # back-solve settles publishes its boundary and its rows alone.
-        if not listed and parts is not None and _numeric_pinned(
-            parts[0], parts[1], parts[2], floor, all_apart
+        # A TAIL WITH NO PAIR IS NOT ASKED EITHER: there is nothing left
+        # to withhold, and the back-solve is the most expensive question
+        # this block asks.
+        if mean is not None and not listed and parts is not None and (
+            _numeric_pinned(parts[0], parts[1], parts[2], floor, all_apart)
         ):
             mean = None
             root = None
