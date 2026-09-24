@@ -5729,6 +5729,10 @@ def invented_variant(parent, used, target):
 
 SHAPE_FORM_LIMIT = 24
 WITHHELD = "(withheld)"
+# The four resolutions a column of dates is published at (contract DT4),
+# written out here rather than imported: each one's ordinal space steps
+# by one unit, which is what method G7.3's count pass walks.
+RESOLUTIONS = ("date", "datetime", "quarter", "month")
 # The two placeholders and the closed mark list, held here so this
 # file's own reading of a form is written out rather than imported --
 # which is the whole point of an oracle.
@@ -8416,6 +8420,11 @@ def _datetime_content(column):
 
 
 MARK_OF = {"lower_t": "t", "space": " ", "upper_t": "T"}
+def mark_spend_leaves_a_named_count(wearing, floor):
+    """G7.9 item 2's last clause: the mark spent FROM stays a named count."""
+    return wearing - 1 >= census_line(floor)
+
+
 def marks_bought_for_the_shortfall(column, cells, holes, floor=CASE_SMALL_CELL_FLOOR):
     """G7.9: buy the folded spellings a mark census absorbed out of reach.
 
@@ -8451,7 +8460,12 @@ def marks_bought_for_the_shortfall(column, cells, holes, floor=CASE_SMALL_CELL_F
       folded spelling the column already holds, while the rank's own
       folded spelling is worn by somebody else (items 2, 4 and 6);
     * the ranks are offered each mark lowest first, and the whole
-      offering stops on the smaller of the two bounds (item 5).
+      offering stops on the smaller of the two bounds (item 5);
+    * and the offering stops while the commonest named mark is left at
+      `census_floor(floor)` cells, because the budget of item 1 only
+      keeps an invented mark below the census line where that line has
+      a named count to absorb it back into (item 2, the dates pass of
+      the stage-3 review).
 
     The count bought is a function of the published numbers alone: the
     count the real column held is not published and is not read.
@@ -8493,6 +8507,13 @@ def marks_bought_for_the_shortfall(column, cells, holes, floor=CASE_SMALL_CELL_F
         return written
     wanted = MARK_OF[max(sorted(census), key=census.get)]
     absent = {hole.strip().lower() for hole in holes}
+    # How many cells wear each mark, so item 2's last clause can stop
+    # the offering while the count it would take FROM is at the census
+    # line rather than one below it.
+    worn = {}
+    for cell in written:
+        if len(cell) >= 11:
+            worn[cell[10]] = worn.get(cell[10], 0) + 1
 
     def bought(rank, mark):
         """This rank's respelling, or None where item 2 refuses it."""
@@ -8515,15 +8536,23 @@ def marks_bought_for_the_shortfall(column, cells, holes, floor=CASE_SMALL_CELL_F
         for rank in range(1, len(written) - 1)
     ]
     for mark, rank in offers:
+        if allowance < 1:
+            break
         changed = bought(rank, mark)
         if changed is None:
             continue
+        # Item 2's last clause, asked of the mark this rank is taken
+        # FROM and where the rank is actually spent, which is the only
+        # place the count it guards moves.
+        taken = written[rank][10]
+        if not mark_spend_leaves_a_named_count(worn[taken], floor):
+            break
         wearers[folded(written[rank])].remove(rank)
         wearers[folded(changed)] = [rank]
         written[rank] = changed
         allowance -= 1
-        if allowance < 1:
-            break
+        worn[taken] -= 1
+        worn[mark] = worn.get(mark, 0) + 1
     return written
 
 
@@ -9549,14 +9578,21 @@ def kept_off_midnight(column, ordinals, parsed, whole, lows, highs, floor=CASE_S
 
 def date_counts_reachable(column):
     """Where method G7.3's count pass reaches the count of different values
-    (plan P4-D192): read on the column's own clock, at date or datetime
-    resolution, carrying no offset and pooling none, writing at most one
-    mark between day and clock and pooling none, each census of written
-    forms naming at most one form, no bare date beside moments, and the
-    same count published folded as raw."""
-    if column["datetimes_read_at"] != "local" or column["resolution"] not in ("date", "datetime"):
+    (plan P4-D192): read on the column's own clock, at a resolution whose
+    unit the layout steps by one, publishing at most one offset key and
+    pooling none, writing at most one mark between day and clock and
+    pooling none, each census of written forms naming at most one form,
+    no bare date beside moments, and the same count published folded as
+    raw.
+
+    G7.3's two amendments of the stage-3 review's dates pass are both
+    here: a month and a quarter are units of one like a day, and ONE
+    published offset is one way of writing an instant, being written
+    after every moment of the column."""
+    if column["datetimes_read_at"] != "local" or column["resolution"] not in RESOLUTIONS:
         return False
-    if any(key != "(none)" for key in column.get("utc_offsets", {})):
+    offsets = column.get("utc_offsets", {})
+    if WITHHELD in offsets or len(offsets) > 1:
         return False
     marks = column.get("datetime_separators", {})
     if WITHHELD in marks or len(marks) > 1:
@@ -9617,7 +9653,7 @@ def units_settled(column, ordinals, parsed, whole, lows, highs):
     """Method G7.3's two count passes (plan P4-D192).
 
     On a column read on its own clock, writing no bare date, counted in
-    days or in seconds: (1) where the member shows widths and the census
+    days, months, quarters or seconds: (1) where the member shows widths and the census
     names one convention, ranks the tail does not pin move whole days to
     the nearest day of the other kind inside their gap until as many show
     a width as the convention counts -- nearest move first, ties to the
@@ -9646,9 +9682,9 @@ def units_settled(column, ordinals, parsed, whole, lows, highs):
     if parsed < 3 or column["datetimes_read_at"] != "local" or any(whole):
         return ordinals
     space = ordinal_space(column)
-    if space not in ("date", "datetime"):
+    if space not in RESOLUTIONS:
         return ordinals
-    day = 1 if space == "date" else 86400
+    day = 86400 if space == "datetime" else 1
     step = 60 if space == "datetime" and column["time_precision"] == "minute" else 1
     pinned = [
         flag or lows[rank] >= highs[rank]
@@ -15977,6 +16013,12 @@ def clock_body_at(knots, position):
     return below[1] + (share * (above[1] - below[1])) // span
 
 
+def _clock_reads_absent(ordinal, form, absent):
+    """Whether this instant's cell reads as no value (G7A.4, G10.4)."""
+    text = clock_spelling_of(ordinal, form)
+    return text.strip().lower() in absent or not text.strip()
+
+
 def _clock_content(column):
     """The content list of a clock column -- method section G7A.
 
@@ -16079,6 +16121,59 @@ def _clock_content(column):
             ordinals[rank] = ordinal
         ordinals[low_rank] = sides["low"]["at"]
         ordinals[high_rank] = sides["high"]["at"]
+        # G7A.4's HOLE STEP: no parsed cell wears a spelling the table
+        # calls absent.  A body rank only, inside the window it was
+        # built in -- the knots read at its own two positions, carried
+        # through the all-different step where that runs (G12.10) --
+        # taking the nearest unit of it that is not one of those
+        # spellings, earlier before later at one distance, and one no
+        # other rank stands on where the ranks must differ.  A body rank
+        # whose window is one unit stays where it is, and so do the
+        # boundary and tail ranks, whose instants the description fixes.
+        absent = {
+            text.strip().lower() for text in column.get("missing_by_source") or {}
+        }
+        if absent:
+            room, floor_run, most_run = {}, sides["low"]["at"], sides["low"]["at"]
+            ceiling = sides["high"]["at"] - 1
+            for rank in range(low_rank + 1, high_rank):
+                under = clock_body_at(knots, 100 * rank * TWO64) - 1
+                over = min(
+                    clock_body_at(knots, 100 * (rank + 1) * TWO64),
+                    sides["high"]["at"],
+                )
+                if apart:
+                    floor_run = min(ceiling, max(under, floor_run + 1))
+                    most_run = min(ceiling, max(over, most_run + 1))
+                    under, over = floor_run, most_run
+                room[rank] = (under, over)
+            standing = {}
+            for value in ordinals:
+                standing[value] = standing.get(value, 0) + 1
+            reach = len(absent) + (parsed if apart else 0) + 1
+            for rank in range(low_rank + 1, high_rank):
+                under, over = room[rank]
+                if under >= over or not _clock_reads_absent(
+                    ordinals[rank], form, absent
+                ):
+                    continue
+                offers = [
+                    ordinals[rank] + step
+                    for away in range(1, reach + 1)
+                    for step in (-away, away)
+                ]
+                taken = [
+                    spot
+                    for spot in offers
+                    if under <= spot <= over
+                    and not (apart and standing.get(spot))
+                    and not _clock_reads_absent(spot, form, absent)
+                ]
+                if not taken:
+                    continue
+                standing[ordinals[rank]] -= 1
+                standing[taken[0]] = standing.get(taken[0], 0) + 1
+                ordinals[rank] = taken[0]
     content = []
     for rank in range(parsed):
         if low is not None and high is not None and rank == low["rows"]:
@@ -18409,6 +18504,123 @@ def _clock_ladder():
         "borrows its transform from.",
         "column": column,
         "rows": 41,
+    }
+
+
+def _mark_spend_at_the_line():
+    """A sparse joint column whose mark census sits exactly on the line.
+
+    Twenty-two dates in forty-four rows, alternating a `T` separator and
+    a bare date, so the census names `upper_t` at eleven -- the floor
+    itself -- and the twin's own description can publish it only while
+    that count stays there.  G7.9's spend would take one of the eleven
+    to buy a spelling back; the last clause of its item 2 refuses,
+    because a mark census with no count on the line is pooled whole.
+    """
+    column = _universal(
+        "column_1", "datetime", "datetime", "data", "ok",
+        n_present=22, n_missing=22, n_distinct=22, n_distinct_folded=22,
+        n_numeric=0, n_not_numeric=22, n_out_of_range=0, n_contradictory=0,
+        format="iso-mixed", resolution="datetime", time_precision="second",
+        subsecond_digits=0, datetimes_read_at="local",
+        earliest="2024-01-01 00:00:00", latest="2024-01-22 00:00:00",
+        earliest_utc_offset="(none)", latest_utc_offset="(none)",
+        date_percentiles={key: None for key in LADDER_KEYS},
+        n_unparsed=0, utc_offsets={"(none)": 22},
+        datetime_separators={"upper_t": 11},
+        resolution_mix={"iso-date": 11, "iso-datetime": 11},
+        all_at_midnight=True, n_at_midnight=22,
+    )
+    return {
+        "why": "G7.9's SPEND, refused because the census it would spend "
+        "from stands on the line (the dates pass of the stage-3 review, "
+        "item 6). Twenty-two dates in forty-four rows alternate a `T` "
+        "separator and a bare date, so `datetime_separators` names "
+        "`upper_t` at eleven -- `census_floor(11)` exactly -- and the "
+        "twin's own description publishes that census only while the "
+        "count stays there. The construction is two folded spellings "
+        "short of the twenty-two the column publishes, which is what "
+        "G7.9's spend exists for, and the budget of its item 1 keeps "
+        "the mark it would INVENT below the line so that describing "
+        "the twin counts it back into the commonest one. That "
+        "absorption needs a commonest one still on the line: spend a "
+        "rank here and the census is ten and one, no count of it "
+        "reaches eleven, and describing the twin pools the whole "
+        "census under `(withheld)` -- so `synthtwin validate` names "
+        "`marks.upper_t` and `marks.unnamed` on a twin whose own "
+        "generation reported nothing.\n\n"
+        "Its mutant withdraws the clause and lets the spend run to the "
+        "budget, and the column comes back with ten `T` marks beside "
+        "one space where its description publishes eleven and none.",
+        "column": column,
+        "rows": 44,
+        "identifier_declared": False,
+    }
+
+
+def _clock_declared_hole():
+    """A clock column a declared spelling stands in the middle of (G7A.4).
+
+    Forty-four cells parse and eleven are absent, every one of them
+    written `08:00` by a `--missing-value` declaration, so the twin owes
+    eleven cells of that spelling and no more.  The body runs from
+    `07:55` to `08:05` with its one free rung at `08:00`, so the
+    interpolation puts body ranks ON the declared spelling: without the
+    hole step those cells are written as clock times, read back as
+    absent, and the twin holds fewer present cells and more absent ones
+    than the description publishes.
+    """
+    column = _universal(
+        "column_1", "time_of_day", "time_of_day", "data", "ok",
+        n_present=44, n_missing=11, n_distinct=22, n_distinct_folded=22,
+        n_numeric=0, n_not_numeric=44, n_out_of_range=0, n_contradictory=0,
+        clock_form="hh-mm",
+        clock_percentiles={
+            "min": "07:55", "p01": "07:55", "p05": "07:55",
+            "p10": "07:55", "p25": "07:55", "p50": "08:00",
+            "p75": "08:05", "p90": "08:05", "p95": "08:05",
+            "p99": "08:05", "max": "08:05",
+        },
+        earliest="07:55", latest="08:05", n_unparsed=0,
+        missing_by_source={"08:00": 11},
+        detection_evidence=(
+            "44 value(s) are clock times written as hours and minutes, "
+            "`09:30`, and 0 value(s) are not"
+        ),
+    )
+    # The eleven absent cells are the spelling a `--missing-value`
+    # declaration named, so they are counted under that class and not
+    # under the pool `_universal` writes for a case that states none.
+    column["missing_by_class"] = dict(column["missing_by_class"])
+    column["missing_by_class"]["(declared-missing)"] = 11
+    column["missing_by_class"]["(withheld)"] = 0
+    column["n_missing_withheld"] = 0
+    return {
+        "why": "G7A.4's HOLE STEP, and the only frozen case that reaches "
+        "it (the dates pass of the stage-3 review, item 5). Eleven of "
+        "this column's cells are absent and every one of them is "
+        "written `08:00`, a spelling a `--missing-value` declaration "
+        "made mean 'no value' for the whole table -- and `08:00` is "
+        "also the column's own middle rung, so the body's "
+        "interpolation puts ranks squarely on it. A construction that "
+        "checks only its STAND-INS against the absent spellings, which "
+        "is what G7A.5 has always done and all this role did, writes "
+        "those ranks as clock times that the twin's own reader counts "
+        "as absent: one more absent cell and one fewer present one for "
+        "each of them. The step moves each such BODY rank to the "
+        "nearest unit of the window it was built in that is not an "
+        "absent spelling, so `n_present`, `n_missing` and the "
+        "`missing_by_source` count all come back exactly.\n\n"
+        "Its mutant withdraws the question -- no spelling reads as "
+        "absent -- and the same column writes `08:00` on body ranks "
+        "beside the eleven cells that are really absent. The two "
+        "boundary ranks and both tails are untouched either way: they "
+        "stand at instants the description names, and a twin that "
+        "moved one of them would miss a published fact to keep a "
+        "count.",
+        "column": column,
+        "rows": 55,
+        "identifier_declared": False,
     }
 
 
@@ -25116,6 +25328,15 @@ NINTH_BRANCH_CASE_BUILDERS = {
     "tail_listed_counts": _tail_listed_counts,
     "tail_moment_ladder": _tail_moment_ladder,
     "tail_sign_clamped": _tail_sign_clamped,
+    # ...AND THE ONE BRANCH THE DATES PASS OF THE STAGE-3 REVIEW ADDS
+    # (item 5): G7A.4's hole step, which no case frozen before it
+    # reaches, because no clock case carries an absent spelling at all.
+    # It stands here rather than in the tenth file because that one is
+    # 6,000 bytes under the manifest's cap and this one is 74,000.
+    "clock_declared_hole": _clock_declared_hole,
+    # ...and the same review's item 6: G7.9's spend refused where the
+    # census it would spend from stands on the line.
+    "mark_spend_at_the_line": _mark_spend_at_the_line,
 }
 
 CASE_SETS = {
@@ -25428,10 +25649,17 @@ _EIGHTH_BRANCH_ACCOUNT = (
 )
 _NINTH_BRANCH_ACCOUNT = (
     "cases method section G14.3 adds for the TAIL RULE of stage 3 "
-    "(landing 3.3, plans P4-D322 to P4-D327 and P4-D344), the other three of that "
-    "landing's five: the listed tail of G5.3e and the counts solved for "
-    "it, the sign rule of G5.5a on a derived end, and the moment ladder "
-    "of G5.3c. The other two -- the tail reading of G5.3b with its two "
+    "(landing 3.3, plans P4-D322 to P4-D327 and P4-D344) and for the "
+    "hole step of G7A.4: three of that landing's five -- the listed "
+    "tail of G5.3e and the counts solved for it, the sign rule of "
+    "G5.5a on a derived end, and the moment ladder of G5.3c -- beside "
+    "the two cases the dates pass of the stage-3 review adds -- "
+    "clock_declared_hole for G7A.4's hole step (item 5) and "
+    "mark_spend_at_the_line for G7.9's spend refused where the census "
+    "it would spend from stands on the line (item 6) -- which stand "
+    "here rather than in the tenth file because that one is a few "
+    "kilobytes under the provenance manifest's cap and this one is "
+    "tens of thousands. The other two -- the tail reading of G5.3b with its two "
     "derived ends and the made-up ramp of "
     "G5.3d -- are the TENTH file, "
     "tests/reference/generation-branch-vectors-8.json, beside the four "
@@ -25497,6 +25725,63 @@ SECTION_FIELDS = frozenset(("cases", name, FLOAT64) for name in CASE_BUILDERS)
 # The stream a seed produces is bound by the golden twin hash CI computes
 # against the locked numpy, not by this file (method section G14.4).
 GIVEN_WORDS = {
+    "mark_spend_at_the_line": (
+        11675319340742138364, 12427083351397836981, 12122401316151572590,
+        16660766894373463866, 4284189600899694925, 2214222155502125918,
+        10840699871040117896, 15418694247000278686, 4582727643069178859,
+        392003888344766713, 10951940513957057960, 16728219433827137523,
+        8387412108155623140, 1790667112596797611, 15377943837002667636,
+        17366713767739802494, 10320517578091008101, 12526515084198228732,
+        15597577275517472508, 2752525135180777179, 13060116420108960082,
+        1348040840730472572, 13007753574325148716, 11935583310072821485,
+        2379380755746882276, 6909879091068218802, 17533849283901430215,
+        8760025474153168173, 4205769158968431185, 11397939126913633903,
+        1768317523455473019, 12346592163591804480, 2229422132145559767,
+        17739544781644693758, 17237265038131748821, 2783143065358163664,
+        12251422112683587734, 4823133563032598572, 9830642892811516818,
+        11491028288561553851, 13188302508792490903, 12907368089742673786,
+        8096400565191355431, 14435563494046604454, 16551582609539753157,
+        12191600340968393628, 1318284667398215051, 3957414596426022544,
+        5394849575961308970, 12210096434487773670, 9563452704252783702,
+        3145734804934952483, 14767916119534959385, 17695169331411376025,
+        916141562942769998, 9494967727139167503, 11321904188751711359,
+        13395732097259113724, 4042968913399268630, 7077888503522609848,
+        3340644384872233582, 7219599123938414147, 12930302956416484542,
+    ),
+    "clock_declared_hole": (
+        1071583529125145534, 5549558102887229297, 2745262120164809086,
+        15856541462115922920, 17889257589329369842, 15660096658285096332,
+        18092595454495271049, 360279944114834059, 220192033824458176,
+        10465351894422327042, 4202339052138456366, 17425673995015892280,
+        7677723298375721430, 2035478447045183733, 9454889849868363760,
+        3150444811220035780, 6435242396736699025, 6585684854689262233,
+        2414941180712934650, 3593884664336600269, 3560863839226771792,
+        2103757848901565252, 18124452469610652751, 12334157020860186972,
+        2887303276868477208, 2127536203030885932, 14029234045157924945,
+        3454576210477364740, 9971765939233837143, 6322175324722508337,
+        17774264235671562989, 15855192818677553344, 17308529474865927923,
+        5427584726584052721, 821493645870544026, 13445555767339476101,
+        16267813707851447858, 11586615334315861923, 7330940046428419620,
+        4388671922857142541, 7824733569630452751, 2807417991001301036,
+        5713343369430986474, 11687944566893619345, 3625669553668218508,
+        14698709779667297477, 17050931655884230043, 2251840825323844795,
+        10296089166330230466, 16489782229912935486, 3302828616829018929,
+        17457027303817443037, 13241941045308284943, 14784352308120793197,
+        14803338466772028985, 10520838306085882165, 13832181669241759461,
+        4156105926412000303, 7191058832078700433, 16173160786168071204,
+        9141894221210986157, 7585137346360600851, 4693516679767029114,
+        16106396969331734714, 13230209335362770639, 2406043712618455431,
+        14689957640409143931, 8848972299607356150, 7590686306978286427,
+        7534588921794079058, 14305716020647304620, 3643268491031191024,
+        15613821378068855264, 466017786152799544, 1676517064556683593,
+        2013561886451597975, 9705299806408751398, 296068336266219600,
+        4891281189832216758, 8184463527490228089, 7704139785256772671,
+        4154897811573407806, 9946255050978419753, 16758928785002633399,
+        6693027041866799762, 2768173803160007525, 8185917058193251379,
+        7561181796020094065, 3297424478906421880, 6994234360410460433,
+        7146550730669405436, 6832066964849280266, 9305470015206488227,
+        4089448319368496247, 12121978204837565875, 10747365266635214714,
+    ),
     "date_absorbed_mark": (
         3545155956211708078, 14953683457447593041, 12179609554860036063,
         16147956605500772540, 17928776434274769870, 15034861070867882581,

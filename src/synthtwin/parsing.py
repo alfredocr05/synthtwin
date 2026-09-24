@@ -6134,6 +6134,52 @@ def utc_canonical(canonical: str, offset: str) -> "str | None":
     )
 
 
+def utc_moment(canonical: str, offset: str) -> "str | None":
+    """``canonical`` on the shared clock, KEPT INSIDE THE CALENDAR IT CAN SPELL.
+
+    `utc_canonical` where the converted instant falls inside the years
+    `0001` to `9999`, and otherwise the nearest instant that form can
+    spell: the calendar's own first moment below it, its last above.
+    None only where the value names no instant at all, which is a
+    quarter.
+
+    WHY THE CLAMP IS THE ANSWER AND NOT THE LOCAL TEXT (the dates pass of
+    the stage-3 review, item 7). A column published on the shared clock
+    publishes every value as the instant it names, and those texts are
+    compared as plain text -- the ordering, the ladder and both tails are
+    read off them. A conversion that cannot be spelled left the LOCAL
+    text standing in the ordered sequence while the sort used the
+    instant, so the two disagreed: twelve
+    `0001-01-01T01:00:00+14:00` beside twenty `0001-01-01T00:00:00Z` and
+    sixty-eight `0001-01-02T12:00:00Z` published a low tail whose mean
+    distance was MINUS 3,600 and whose listed value stood above its own
+    boundary, and `synthtwin`'s own loader then told the person their
+    description had been changed since it was written.
+
+    The clamp is an approximation of hours at the very edge of a calendar
+    this format cannot write past, and it says so; the fallback was an
+    approximation of the offset's whole width AND an ordering that
+    contradicted itself. Clamping keeps the sequence non-decreasing in
+    the instant, because it is a non-decreasing function of it.
+
+    Guarantees: accepts two strings; returns text or None; raises
+    TypeError if handed anything that is not a string instance. Whole-
+    number arithmetic throughout. No I/O of any kind.
+    """
+    found = utc_canonical(canonical, offset)
+    if found is not None:
+        return found
+    seconds = instant_key(canonical, offset)
+    if seconds is None:
+        return None
+    first = 86400 * days_from_civil(1, 1, 1)
+    if len(canonical) < 19:
+        return "0001-01-01" if seconds < first else "9999-12-31"
+    if seconds < first:
+        return "0001-01-01 00:00:00"
+    return "9999-12-31 23:59:59"
+
+
 def instant_key(canonical: str, offset: str) -> "int | None":
     """The instant a canonical datetime names, in whole seconds.
 

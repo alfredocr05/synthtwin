@@ -5449,12 +5449,38 @@ that way.
   distance, and the offers are taken nearest first, ties to the lower
   rank, until the count holds.
 - **The different values** (P4-D192), on the same columns, where one
-  instant is written one way (`contract.datetime_counts_reachable`: no
-  offset carried and none pooled, one mark at most and none pooled, each
-  written-form census naming at most one form, no bare date beside
+  instant is written one way (`contract.datetime_counts_reachable`: at
+  most one offset KEY and none pooled, one mark at most and none pooled,
+  each written-form census naming at most one form, no bare date beside
   moments) and the two published counts agree: the different
-  written units -- days, or minutes or seconds at the column's
-  precision -- must number `n_distinct` less the stand-ins. Too many:
+  written units -- a day, a month or a quarter, or minutes or seconds at
+  the column's precision -- must number `n_distinct` less the stand-ins.
+
+  *Amended by the dates pass of the stage-3 review (items 4).* Two
+  narrowings of this clause were narrower than its own reason, and
+  neither was written down as a decision.
+
+  1. **A MONTH AND A QUARTER ARE UNITS OF ONE**, stepped by the layout
+     exactly as a day is, and the pass ran on `date` and `datetime`
+     alone. Measured at a floor of eleven, seed 4: 100 unique months
+     from `2000-01` came back holding 74 different values and 100
+     consecutive quarters the same, with no deviation reported, because
+     the pass never ran and G12.5's envelope then admitted whatever the
+     draw held. Such a column carries no width census and no midnight
+     standing, so only the different-values pass has anything to do on
+     it. After the amendment both come back at 100 of 100 at seeds 0, 1
+     and 4.
+  2. **ONE PUBLISHED OFFSET IS ONE WAY OF WRITING AN INSTANT.** The
+     clause asked for no offset at all; a column every cell of which
+     wears `+02:00` writes that offset after every moment, so one
+     instant still has exactly one spelling. Measured: 200 timestamps
+     seven minutes apart, all different, publishing `{"+02:00": 200}` in
+     full, fell to the envelope -- and a file holding 29 of those 200
+     values met every obligation the description states. What the clause
+     refuses is more than one KEY, and a pool, because either lets one
+     instant be written more than one way.
+
+  Too many:
   each unpinned run sorted, a run of ranks on one unit holding no pinned
   rank moves whole onto the instant of the rank just below or just
   above it, where that lies inside its gap and is of the same width kind
@@ -5883,6 +5909,19 @@ only key is `(withheld)` and the published reading is `utc`, the twin
 writes one kind, re-profiles as `local`, and the report names it. That
 corner is bounded: it needs two or more distinct offsets each used by
 fewer rows than the small-cell floor.
+
+**THE TWO KINDS ARE COUNTED OVER WHAT THE CELLS WEAR, AND NONE IS A
+KIND** (*corrected by the dates pass of the stage-3 review, item 8*).
+There are two kinds a cell can wear: a NAMED offset, written out after
+the moment, and NO offset at all -- the census's own `(none)` member,
+which is also what a rank spent from a withheld pool is written with.
+The report counted the named ones alone, dropping the offsetless member
+before measuring the diversity, so a column publishing
+`{"(none)": 50, "+01:00": 50}` -- a census that withholds nothing --
+was told that every offset it carried had been held back as too rare to
+publish, on a twin that wrote both published members exactly. Measured
+on 100 successive noon timestamps alternating no offset and `+01:00`,
+at every seed.
 
 ### G7.5 Writing the cell IN ITS SOURCE'S OWN FORM, at the published precision
 
@@ -6407,6 +6446,22 @@ permitted marks (contract D12) the census leaves UNNAMED, in the order
    written as the description publishes `earliest` and `latest`. So no
    spend ever leaves the column one spelling fewer, none buys a
    spelling twice, and neither published end is respelled.
+
+   **AND THE MARK IT IS TAKEN FROM IS LEFT AT OR ABOVE
+   `census_floor(floor)`** (*added by the dates pass of the stage-3
+   review, item 6*). The budget of item 1 keeps the mark this pass
+   INVENTS below the census line, so that describing the twin counts it
+   back into the commonest one and publishes the census exactly as it
+   stands -- and that absorption only happens while the commonest one is
+   itself still a count the census may print. On a SPARSE column it need
+   not be: 22 dates in 2,000 rows, alternating a `T` separator and a
+   bare date, publish `{"upper_t": 11}` at a floor of eleven, which is
+   exactly the line. Seed 4 spent one of those eleven, leaving ten `T`
+   beside one space; no count of that census then reached the line, so
+   describing the twin pooled the whole census under `(withheld)` and
+   `synthtwin validate` named `marks.upper_t` and `marks.unnamed` on a
+   twin whose own generation reported nothing. The spend stops while the
+   count it would take from is at the line.
 3. The pass RUNS ON THE TWO ISO DATETIME MEMBERS ALONE — `iso-datetime`
    and `iso-mixed`, the members contract D12 permits all three marks —
    and is skipped on every other member, and on a census holding a
@@ -6736,6 +6791,33 @@ and `23:59` and 7 of 20 twins of an all-different column repeated a
 value its description publishes as different (the skeptic of the tail
 design, B5). The real column fits, because its own `m` values stood
 between the day's edge and the boundary.
+
+**AND NO PARSED CELL WEARS A SPELLING THE TABLE CALLS ABSENT.** The
+ranks come out of the layout, which knows nothing about the spellings
+this document's columns publish among their absent cells, so a rank can
+land on one -- and the twin then writes a cell its own reader counts as
+no value at all, one more absent cell and one fewer present one. After
+the ranks are placed and before any cell is spelled, each BODY rank --
+one strictly between the two tail boundaries -- whose spelling is one of
+those is moved to the NEAREST unit of the window it was built in
+(G12.10 above) that is not one of them, earlier before later at one
+distance, and -- on a column whose values were all different -- one no
+other rank stands on, so G11 survives the step. A boundary rank and a
+tail rank do not move: the first stands at a value the description
+prints and the second at a distance the published shape fixes, and a
+twin that moved either would miss a published fact to keep a count. Nor
+does a body rank whose window is one unit, which is a body with no slack
+left in it. The search passes at most one unit per absent spelling and,
+where the ranks must differ, one per rank.
+
+*Added by the dates pass of the stage-3 review, item 5.* The stand-ins
+of G7A.5 were stepped past the absent spellings from the day the role
+landed and the clock VALUES were checked against nothing. Measured at a
+floor of eleven: 99 minutes two apart from `07:00` with `08:00` declared
+missing and held by eleven cells wrote TWELVE `08:00` cells at seed 0,
+leaving 98 present against a published 99 and 12 absent against 11, at
+seeds 0, 3 and 7. There are enough free minutes to keep both the
+absent count and the uniqueness, and the step above takes one.
 
 ### G7A.5 The stand-ins
 
@@ -10697,6 +10779,22 @@ Four rules hold for all of them.
    so a twin that leaves it did not hold what the description asks for,
    and it belongs in the deviation list of G12 beside every other fact
    the twin could not meet.
+5. **EXCEPT WHERE THE TWIN HOLDS THE PUBLISHED VALUE ITSELF**
+   (*added by the dates pass of the stage-3 review, item 9; the same
+   reading the quality report takes under validation method clause
+   V6.1-A1 and plan amendment A-P3-40*). None of these bounds is a
+   margin around the published value -- each is worked out from the
+   description and the size of the column, so a bound can lie wholly to
+   one side of the value printed beside it. Where the achieved value
+   EQUALS the published one, the published fact was met, whatever the
+   window says: the record is marked as having landed inside, and no
+   deviation is raised for it. The window is still printed at both ends
+   and the report still says where it does not reach the published
+   value, so nothing is hidden -- what is removed is a page that said
+   "the description says 23:44; the twin holds 23:44 ... OUTSIDE the
+   range" and named the rung, four lines above, as a fact the twin had
+   not reproduced. That is a line no reader can act on, and it was
+   printed on a twin reproducing the real column's whole multiset.
 
 **A bound here is a statement about the CONSTRUCTION**, derived from the
 rule that builds the cells, never a tolerance measured on an output and
@@ -11489,6 +11587,33 @@ floors, so a value the construction writes for rank `r` can sit one
 unit below the un-floored ladder value there. The upper end is the
 ladder at rank `r + 1` because the construction never writes a value
 for rank `r` above the value it would write for the rank after it.
+
+**AND ON A COLUMN WHOSE VALUES WERE ALL DIFFERENT, BOTH ENDS GO THROUGH
+THE STEP-AND-CLAMP** (*added by the dates pass of the stage-3 review,
+item 9*). G7A.4's all-different repair leaves no body rank on the
+instant the knots gave it: it keeps the instant of the rank before,
+steps to that instant plus one where this rank is not above it, and
+clamps to one unit below the high boundary. That walk is monotone in
+each rank's own instant, so carrying the two ends of the window above
+through the same walk gives the two ends of what the construction can
+reach -- no wider and no narrower. Writing `lo(r)` and `hi(r)` for the
+two ends above, for the body ranks in ascending order and starting both
+at `low_tail.boundary`:
+
+```
+lo(r) = min(high_tail.boundary - 1, max(Knots(r) - 1,     lo(r - 1) + 1))
+hi(r) = min(high_tail.boundary - 1, max(Knots(r + 1),     hi(r - 1) + 1))
+```
+
+Without it the window is the interpolation's alone, which is NARROWER
+than the construction: measured on every minute of a day, 1,440 rows at
+a floor of eleven, seeds 0 and 1 reproduce the real column's whole
+multiset and its p99 rung stands at `23:44`, where the interpolation's
+window ends at `23:43`. The twin's report named that rung as a fact the
+twin had not held, printing "the description says 23:44; the twin holds
+23:44 ... OUTSIDE the range"; on the other side of the wall only the
+equality reading of V6.1-A1 kept the quality report from saying the
+same. Both reports draw this window, so both carry the walk.
 
 ### G12.11 The envelope on a clock column's two distinctness counts
 
@@ -12312,7 +12437,7 @@ that happens -- and the clause beside it, `--missing-value`'s "CAN be
 published as the column's smallest value", is exactly right under the
 new rule.
 
-**All one hundred and seventeen are required.** The count is taken off the committed
+**All one hundred and nineteen are required.** The count is taken off the committed
 case sets and not carried forward: this sentence said fifty-two and a
 split of nine, twenty, sixteen and seven while the six files held
 seventy-three, because each repair that added a case added a clause to
@@ -12332,7 +12457,7 @@ holds ten; the eighth,
 ninth, `tests/reference/generation-branch-vectors-7.json`, holds six;
 the TENTH, `tests/reference/generation-branch-vectors-8.json`, holds
 six; and the ELEVENTH,
-`tests/reference/generation-branch-vectors-9.json`, holds three (G14.2),
+`tests/reference/generation-branch-vectors-9.json`, holds five (G14.2),
 and a test holds this sentence to those files.
 
 **THE TENTH AND ELEVENTH FILES, AND WHY THEY WERE OPENED** (stage 3,
@@ -12435,6 +12560,7 @@ case passed, which is the failure the count exists to prevent:
 | `month_span` | G7.1's month ordinal and G7.5's `month/month` cell form: the second resolution that names a SPAN rather than an instant, whose canonical form is its own cell text |
 | `numeric_pooled_spelling` | owner decision 11's pooled remainder written by its own value, beside a whole number wider than the fixed-point window |
 | `long_tail_levels` | G8.1 to G8.4 reached through `long_tail_labels`: the ADMISSION of a folded count above the categorical ceiling, and the G8.3 stand-ins taken as words because a form census covers the held-back rows. It pins admission and routing into the shared label machinery, not a generator branch of the role's own |
+| `clock_declared_hole` | G7A.4's HOLE STEP (the dates pass of the stage-3 review, item 5): forty-four clock cells beside eleven absent ones, every absent cell written `08:00` -- a spelling a declaration made mean "no value" for the whole table -- and `08:00` is the column's own middle rung, so the body's interpolation puts ranks squarely on it. Its mutant answers that no spelling reads as absent, which is what this role did: the stand-ins were stepped past the absent spellings and the clock VALUES were asked nothing, and the column then writes thirteen `08:00` cells against the eleven its description publishes absent |
 | `clock_ladder` | G7A end to end on a column with NO SLACK: eleven seconds hold its eleven parsed cells, so the all-different repair must place every interior rank on the one ordinal left for it, and a stand-in stands beside them |
 | `affixed_brackets` | G6A's core view: the CELL class counts and the CORE class counts are not the same set, and only the second reaches G5 and G6. The pair is two-sided with differing characters, so the order of the wrap is pinned too |
 | `joined_readings` | G6B.4's PAIRING WALK, the only search in this method: each position built by the numeric rules over its own view, and the last position then walked, from a rank-for-rank start, toward a published agreement of 0.4323 that it does not reach |
@@ -12481,6 +12607,7 @@ case passed, which is the failure the count exists to prevent:
 | `date_thinning_week` | G7.3's choice between its two sets of places (plan P4-D138): forty dates thinning out over a week, five pins on the first day, where every pin at its unit's middle bends the count less than the straightest count and is taken. Its mutant keeps the straightest count and the ranks beside the first day move |
 | `date_peak_heap` | G7.3's heaps (plan P4-D138): forty dates peaking over a week, two pins on each of three days holding neither end, each heap at its day's middle in the straightest count, which is taken. Its mutant moves every heap onto the straight line and the ranks beside the peak's days move |
 | `month_first_widths` | G7.5's classes of width (plan P4-D132): eighty month-first dates publishing `padded` and `unpadded` at eleven each and `first-field-padded` at eleven beside `first-field-unpadded` at thirty; a date whose month alone is below ten is written from the first-field words, eleven of them reserved to the padded one. Its mutant writes that class as the joint words pad its field, and those dates take the other padding |
+| `mark_spend_at_the_line` | G7.9's spend REFUSED (the dates pass of the stage-3 review, item 6): twenty-two dates in forty-four rows alternating a `T` separator and a bare date, so `datetime_separators` names `upper_t` at eleven -- `census_floor(11)` exactly. The construction is two folded spellings short of the published twenty-two, which is what the spend exists for, and spending a rank here leaves the census ten and one, which no twin's own description may print at all. Its mutant lets the spend run to the budget alone, and the column comes back with ten `T` marks beside one space |
 | `may_month_names` | G7.5's `either` length (plan P4-D133): sixty day-first textual dates publishing `upper-abbreviated-hyphen-no-comma` at forty and `title-either-space-no-comma` at twenty; a date of May is written `02 May 2024` and every other `23-JUL-2024`. Its mutant offers May no `either` word and those dates take the hyphens and capitals |
 | `reserved_name_floor` | G7.5's reservation (plan P4-D132): sixty day-first textual dates publishing `title-abbreviated-space-no-comma` at eleven -- the floor -- beside thirty `upper-abbreviated-hyphen-no-comma` and nineteen `upper-either-hyphen-no-comma`, whose twin holds fewer dates outside May than the real column, so a proportional share gives the title-case style fewer than eleven. Its mutant spends the class by the rotation alone and the style falls under the floor |
 

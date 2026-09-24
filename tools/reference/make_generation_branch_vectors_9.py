@@ -10,6 +10,15 @@ derived end (`tail_sign_clamped`) and the moment ladder of G5.3c
 where they stand with the four cases the DATE AND CLOCK tail landing
 moved there (plan P4-D328).
 
+**And two more cases since the dates pass of the stage-3 review**:
+`clock_declared_hole` for G7A.4's hole step (item 5), which no clock
+case frozen before it reaches because none of them carries an absent
+spelling at all, and `mark_spend_at_the_line` for G7.9's spend refused
+where the census it would spend from stands on the line (item 6). They
+stand here rather than in the tenth file because that one is a few
+kilobytes under the provenance manifest's cap and this one is tens of
+thousands under it.
+
 **Why they are an eleventh file.**  Plan P4-D295 draws the line: an entry
 point takes the next case until its output passes 200000 bytes, and then
 the next entry point is written the way the last one was.  The seventh,

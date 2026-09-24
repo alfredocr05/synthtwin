@@ -16578,6 +16578,12 @@ def _clock_content(
             spots = _tail_spots(side, mine)
             for index in range(side.rows):
                 ordinals[_tail_rank_of(side, parsed, index)] = spots[index]
+    # AND NO PARSED CELL WEARS A SPELLING THE TABLE CALLS ABSENT (method
+    # G7A.4). The column's own instants come out of the layout, which
+    # knows nothing about the absent spellings, so a rank could land on
+    # one and the twin would write a cell its own reader counts as no
+    # value at all -- one more absent cell and one fewer present one.
+    ordinals = _clock_off_the_holes(layout, ordinals, form, _all_holes_of(plan))
     cells: "list[str]" = []
     for rank in range(parsed):
         cells += [parsing.clock_spelling(ordinals[rank], form)]
@@ -16599,6 +16605,87 @@ def _clock_content(
             continue
         cells += [_take(candidate, used)]
     return cells, []
+
+
+def _clock_off_the_holes(
+    layout: "_ClockLayout",
+    ordinals: "list[int]",
+    form: str,
+    holes: "tuple[str, ...]",
+) -> "list[int]":
+    """Step every rank off an absent spelling, inside its own window (G7A.4).
+
+    THE PARSED CELLS WERE NEVER ASKED THE QUESTION (the dates pass of the
+    stage-3 review, item 5). `_clock_content` checks its STAND-INS
+    against the spellings the table calls absent and its clock values
+    against nothing, so a rank whose instant spells one of them wrote a
+    cell the twin's own reader counts as no value: measured at a floor of
+    eleven on 99 minutes two apart from `07:00` with `08:00` declared
+    missing and held by eleven cells, seed 0 wrote TWELVE `08:00` cells,
+    and the twin held 98 present against a published 99 and 12 absent
+    against 11, at seeds 0, 3 and 7.
+
+    WHERE A RANK GOES, AND WHICH RANKS MOVE AT ALL. A BODY rank only --
+    one strictly between the two tail boundaries -- and inside the window
+    it was built in and nowhere else (`_clock_windows`), so no published
+    fact of the column moves further than the construction already
+    allowed. It takes the nearest unit of that window that is not an
+    absent spelling, earlier before later at one distance, and -- on a
+    column whose values were all different -- one no other rank stands
+    on, so the all-different obligation of G11 survives the step. A
+    boundary rank and a tail rank do NOT move: the first stands at a
+    value the description prints and the second at a distance the
+    published shape fixes, and a twin that moved either would miss a
+    published fact to keep a count. Nor does a body rank whose window is
+    one unit, which is a body with no slack left in it. The search passes
+    at most one unit per absent spelling and, where the ranks must
+    differ, one per rank, so it is bounded by the column's own length and
+    the number of spellings.
+
+    Guarantees: accepts the layout, one ordinal per rank, the published
+    clock form and every absent spelling; returns one ordinal per rank,
+    the same list where nothing had to move. Determinism: a fixed
+    function of the four; draws no word. Raises nothing. No I/O.
+    """
+    if not holes or layout.low is None or layout.high is None:
+        return ordinals
+    parsed = layout.parsed
+    if parsed < 1:
+        return ordinals
+    lows, highs = _clock_windows(layout, parsed)
+    moved = [value for value in ordinals]
+    held: "dict[int, int]" = {}
+    for value in moved:
+        held[value] = (held[value] if value in held else 0) + 1
+    reach = len(holes) + (parsed if layout.apart else 0) + 1
+    body_low = layout.low.rows + 1
+    body_high = parsed - 2 - layout.high.rows
+    for rank in range(body_low, body_high + 1):
+        if not _is_a_hole_spelling(
+            parsing.clock_spelling(moved[rank], form), holes
+        ):
+            continue
+        if lows[rank] >= highs[rank]:
+            continue
+        found = -1
+        for away in range(1, reach + 1):
+            for other in (moved[rank] - away, moved[rank] + away):
+                if other < lows[rank] or other > highs[rank]:
+                    continue
+                if layout.apart and other in held and held[other] > 0:
+                    continue
+                if _is_a_hole_spelling(parsing.clock_spelling(other, form), holes):
+                    continue
+                found = other
+                break
+            if found >= 0:
+                break
+        if found < 0:
+            continue
+        held[moved[rank]] = held[moved[rank]] - 1
+        held[found] = (held[found] if found in held else 0) + 1
+        moved[rank] = found
+    return moved
 
 
 def _reads_as_a_clock(text: str) -> bool:
@@ -17650,8 +17737,22 @@ def _datetime_content(
     used: dict[str, int] = {cell: 1 for cell in cells}
     for step in range(facts.n_unparsed):
         cells += [_take(_text_spelling(step + 1, used, holes), used)]
-    carried = [offset for offset in offsets if offset]
-    if facts.datetimes_read_at == "utc" and len(set(carried)) < 2:
+    # WHAT THE TWIN'S CELLS WEAR, AND NOT THE NAMED OFFSETS ALONE (the
+    # dates pass of the stage-3 review, item 8). This deviation answers
+    # one question: does the twin read back on the shared clock? It does
+    # wherever its cells wear more than one KIND of offset, and there are
+    # two kinds a cell can wear -- a named offset, written out after the
+    # moment, and NONE, which is the census's own `(none)` member and is
+    # also what a rank spent from a withheld pool is written with.
+    # Filtering the empty spelling out before counting threw the
+    # offsetless member away, so 100 noon timestamps publishing
+    # `{"(none)": 50, "+01:00": 50}` -- a census that withholds nothing
+    # -- were reported as a column whose every offset had been held
+    # back, on a twin that wrote both published members exactly.
+    carried = {
+        offset if _is_real_offset(offset) else "" for offset in offsets
+    }
+    if facts.datetimes_read_at == "utc" and len(carried) < 2:
         notes += [
             _deviation(
                 column.name,
@@ -18355,6 +18456,25 @@ def _spellings_short_of_the_count(
         if not named or census[name] > census[named]:
             named = name
     wanted_mark = parsing.SEPARATOR_MARKS[named] if named else ""
+    # ...AND THE MARK IT SPENDS FROM STAYS A NAMED COUNT (the dates pass
+    # of the stage-3 review, item 6). The budget above keeps the mark
+    # this pass INVENTS below the census line, so the twin's own
+    # description counts it back into the commonest one -- and that
+    # absorption only happens while the commonest one is still a count
+    # the census may print. On a sparse column it need not be: 22 dates
+    # in 2,000 rows, alternating a `T` separator and a bare date,
+    # publish `{"upper_t": 11}` at a floor of eleven, exactly the line.
+    # Seed 4 spent ONE of those eleven, leaving ten `T` beside one
+    # space, and no count of that census reaches the line any more -- so
+    # describing the twin pools the whole census under `(withheld)` and
+    # `synthtwin validate` misses `marks.upper_t` and `marks.unnamed`,
+    # while this pass, which buys values and reports nothing, said
+    # nothing. A rank is spent only while the mark it is taken from is
+    # left at or above `census_floor`.
+    worn: dict[str, int] = {}
+    for cell in fixed:
+        if len(cell) >= 11:
+            worn[cell[10]] = (worn[cell[10]] if cell[10] in worn else 0) + 1
     spent = 0
     last = len(fixed) - 1
     for mark in spare:
@@ -18381,14 +18501,43 @@ def _spellings_short_of_the_count(
                 # buys no value, and one that empties its own leaves
                 # the count where it was.
                 continue
+            if not _spend_leaves_a_name(worn[cell[10]], floor):
+                # ...ASKED OF THE MARK THIS RANK IS TAKEN FROM, and
+                # where the rank is actually spent. The count it guards
+                # is the one this spend moves, and it moves only here:
+                # asked before the walk, it would answer for a column no
+                # rank of which is eligible at all, and every other
+                # clause of item 2 would stop being the reason that
+                # column buys nothing.
+                break
             fixed[rank] = changed
             folded_worn[was] = folded_worn[was] - 1
             folded_worn[becomes] = 1
             short = short - 1
             spent = spent + 1
+            worn[cell[10]] = worn[cell[10]] - 1
+            worn[mark] = (worn[mark] if mark in worn else 0) + 1
         if short < 1 or spent >= budget:
             break
     return fixed
+
+def _spend_leaves_a_name(wearing: int, floor: int) -> bool:
+    """G7.9 item 2's last clause: the mark spent FROM stays a named count.
+
+    `wearing` is how many cells still carry the mark this spend is taken
+    from, which is the count the spend moves. While it would fall below
+    `parsing.census_floor(floor)` the spend is refused, because the
+    budget of item 1 keeps the INVENTED mark below the census line only
+    so that describing the twin counts it back into a named one -- and
+    there is no named one to count it into once the mark it came from
+    has left the line itself.
+
+    Guarantees: accepts the count and the settings floor; returns a
+    truth value. Determinism: a fixed function of the two. Raises
+    nothing. No I/O of any kind.
+    """
+    return wearing - 1 >= parsing.census_floor(floor)
+
 
 def _named_marks(facts: contract.DatetimeFacts) -> "tuple[str, ...]":
     """The census names a column publishes, the withheld pool left out."""
@@ -20079,9 +20228,18 @@ def _units_settled(
         if flag:
             return moved
     space = _ordinal_space(facts)
-    if space not in ("date", "datetime"):
+    if space not in contract.RESOLUTIONS:
         return moved
-    day = 1 if space == "date" else 86400
+    # A MONTH AND A QUARTER ARE UNITS OF ONE, EXACTLY AS A DAY IS (the
+    # dates pass of the stage-3 review, item 4). This pass ran on `date`
+    # and `datetime` alone and gave months and quarters back untouched,
+    # so their published count of different values was never reached and
+    # never reported: 100 unique months from `2000-01` came back as 74
+    # at seed 4 and 100 consecutive quarters the same. Their ordinal
+    # space steps by one (`_cell_of_ordinal`) and carries no width
+    # census and no midnight standing, so the walks below move ranks
+    # inside their gaps by the day arithmetic and nothing else changes.
+    day = 86400 if space == "datetime" else 1
     step = 1
     if space == "datetime" and facts.time_precision == "minute":
         step = 60
@@ -35250,7 +35408,7 @@ def generate(profile: contract.Profile, seed: int) -> Twin:
         # just written and checked against both ends of the bound
         # method G12 fixes for it. One that landed outside its bound is
         # a fact the twin did not hold, so it joins the deviations too.
-        approximated_here = _approximations(view, each, measured)
+        approximated_here = _held_exactly(_approximations(view, each, measured))
         # AND A FACT THAT LANDED INSIDE ITS OWN BOUND IS NOT A FACT THE
         # TWIN MISSED (residual R-P4-152). The two sections disagreed
         # about one number on the same page: the deviations section said
@@ -39085,10 +39243,25 @@ def _clock_windows(
     was interpolated between the knots at its own two positions, one unit
     lower at the bottom for the flooring; the two boundary ranks are their
     boundaries. A column with no tails is its ramp, each rank a point.
+
+    AND THE STEP-AND-CLAMP OF AN ALL-DIFFERENT COLUMN MOVES EVERY BODY
+    RANK IT TOUCHES (method G7A.4; the dates pass of the stage-3 review,
+    item 9). Where the real column's values were all different, the
+    construction does not leave a body rank on the instant the knots gave
+    it: a rank landing on or below the rank before it steps to the next
+    unit, and one reaching the high boundary is held one unit below it.
+    So the window a rank was BUILT in is the interpolation's window put
+    through that same recurrence -- `_body_bounds` -- and the window this
+    function drew before was the interpolation's alone. Measured on every
+    minute of a day, 1,440 rows, at seeds 0 and 1: the twin reproduces
+    the real column's multiset exactly and its p99 rung stood at 23:44,
+    which the interpolation's window put at 23:41 to 23:43, so the
+    report named an exactly conforming twin as having missed a fact.
     """
     lows: "list[int]" = []
     highs: "list[int]" = []
     parsed = layout.parsed
+    stepped = _body_bounds(layout)
     for rank in range(held):
         place = min(rank, max(parsed - 1, 0))
         if layout.low is None or layout.high is None or parsed == 0:
@@ -39114,6 +39287,10 @@ def _clock_windows(
             lows += [layout.high.boundary]
             highs += [layout.high.boundary]
             continue
+        if place in stepped:
+            lows += [stepped[place][0]]
+            highs += [stepped[place][1]]
+            continue
         lows += [_clock_body_at(layout, 100 * place * _WORD_SCALE) - 1]
         highs += [
             min(
@@ -39122,6 +39299,49 @@ def _clock_windows(
             )
         ]
     return (lows, highs)
+
+
+def _body_bounds(layout: "_ClockLayout") -> "dict[int, tuple[int, int]]":
+    """Each body rank's window once the all-different step has run (G7A.4).
+
+    `_clock_content` walks the body ranks in order, keeping the instant
+    the rank before it took: a rank on or below that one steps to the
+    next unit, and a rank at or above the high boundary is held one unit
+    below it. Both ends of a rank's window go through the same walk, so
+    the ends of the window are the ends of the interpolation's window
+    carried forward by
+
+        bound = min(high boundary - 1, max(own end, bound before + 1))
+
+    starting at the low boundary, which is where `_clock_content` starts
+    its own walk. The recurrence is non-decreasing in each rank's own
+    end, so carrying the two ends through it gives the two ends of what
+    the construction can reach -- no wider and no narrower.
+
+    Guarantees: accepts the layout; returns one window per BODY rank of
+    an all-different column and an empty mapping for every other column.
+    Determinism: a fixed function of the layout. Linear in the ranks.
+    Raises nothing. No I/O of any kind.
+    """
+    found: "dict[int, tuple[int, int]]" = {}
+    parsed = layout.parsed
+    if not layout.apart or layout.low is None or layout.high is None:
+        return found
+    low_rank = layout.low.rows
+    high_rank = parsed - 1 - layout.high.rows
+    ceiling = layout.high.boundary - 1
+    least = layout.low.boundary
+    most = layout.low.boundary
+    for place in range(low_rank + 1, high_rank):
+        below = _clock_body_at(layout, 100 * place * _WORD_SCALE) - 1
+        above = min(
+            _clock_body_at(layout, 100 * (place + 1) * _WORD_SCALE),
+            layout.high.boundary,
+        )
+        least = min(ceiling, max(below, least + 1))
+        most = min(ceiling, max(above, most + 1))
+        found[place] = (least, most)
+    return found
 
 
 def _ladder_at(ladder: "list[int]", numerator: int, denominator: int) -> int:
@@ -39850,6 +40070,45 @@ def _approximations(
     return []
 
 
+def _held_exactly(measured: "list[Approximation]") -> "list[Approximation]":
+    """A fact the twin holds EXACTLY is inside its bound, whatever the bound says.
+
+    THE REPORT'S HALF OF V6.1-A1 (plan amendment A-P3-40; the dates pass
+    of the stage-3 review, item 9). None of these bounds is a margin
+    around the published value: each is worked out from the description
+    and the size of the column, so a bound can lie wholly to one side of
+    the value printed beside it. The validator has read the exact
+    obligation first since review item P3-V10-F5 -- a file holding the
+    description's own value has met it, whatever window was drawn -- and
+    the twin's own report never learned the same reading, so it printed
+
+        the description says 23:44; the twin holds 23:44
+        allowed anywhere from 23:41 to 23:43: OUTSIDE the range
+
+    beside a deviation saying the fact was not reproduced, on a twin that
+    reproduced the real column's whole multiset. That is a line no reader
+    can act on, and it is the same self-contradiction on the same
+    sentence that A-P3-40 settled for the quality report.
+
+    The bound is NOT restated: `covers_published` still says whether the
+    window reaches the published value, and the report still prints both
+    ends and says where the window does not reach. What moves is the
+    answer to "did the twin hold this fact", which is yes.
+
+    Guarantees: accepts one column's approximation records; returns the
+    same records in the same order, each one whose achieved text equals
+    its published text marked inside. Determinism: a fixed function of
+    the list. Raises nothing. No I/O of any kind.
+    """
+    settled: "list[Approximation]" = []
+    for found in measured:
+        if found.inside or found.achieved != found.published:
+            settled += [found]
+            continue
+        settled += [dataclasses.replace(found, inside=True)]
+    return settled
+
+
 def _not_settled_by_a_bound(
     notes: "list[Deviation]", measured: "list[Approximation]"
 ) -> "list[Deviation]":
@@ -39898,10 +40157,18 @@ def _not_settled_by_a_bound(
     # `covers_published` answers. Dropping it on `inside` alone made
     # the report quieter rather than honester, which is the defect this
     # filter exists to avoid rather than to commit.
+    #
+    # ...AND SO IS A FACT THE TWIN HOLDS EXACTLY (`_held_exactly`, the
+    # dates pass of the stage-3 review, item 9). `covers_published` is a
+    # statement about the WINDOW and stays one; a twin standing on the
+    # description's own value honoured the published fact whether or not
+    # the window reached it, which is what V6.1-A1 reads on the other
+    # side of the wall.
     settled = {
         (found.column, found.fact)
         for found in measured
-        if found.inside and found.covers_published
+        if found.inside
+        and (found.covers_published or found.achieved == found.published)
     }
     kept: list[Deviation] = []
     for note in notes:

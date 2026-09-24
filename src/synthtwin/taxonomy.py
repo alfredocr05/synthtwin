@@ -14161,7 +14161,14 @@ def ordered_moments(
         instant = parsing.instant_key(canonical, offset)
         shown = canonical
         if reading == READ_AT_UTC:
-            at_utc = parsing.utc_canonical(canonical, offset)
+            # ...AND A CONVERSION THE CALENDAR CANNOT SPELL IS CLAMPED TO
+            # ITS EDGE, never left as the LOCAL text (`parsing.utc_moment`,
+            # the dates pass of the stage-3 review, item 7). The sequence
+            # this function returns is compared as plain text by
+            # everything that reads it, so one local text among the
+            # instants made the order and the texts disagree and published
+            # a tail whose own loader refused it.
+            at_utc = parsing.utc_moment(canonical, offset)
             if at_utc is not None:
                 shown = at_utc
         if instant is None:

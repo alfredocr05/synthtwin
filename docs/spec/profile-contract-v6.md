@@ -5649,6 +5649,32 @@ only in the direction the document can support — `utc_offsets` holding
 two or more non-`(withheld)` keys requires `datetimes_read_at ==
 "utc"` — and accepts either value where the map is fully withheld.
 
+**AND AN INSTANT THE CANONICAL FORM CANNOT SPELL IS PUBLISHED AT THE
+CALENDAR'S OWN EDGE** (*added by the dates pass of the stage-3 review,
+item 7*). On the shared clock every published moment is the instant the
+cell names, written in the canonical form of section 6.6.2 — and that
+form spells the years `0001` to `9999` and no others, while a cell
+within fourteen hours of either end of the calendar can name an instant
+outside them. The producer publishes the nearest instant the form can
+spell: `0001-01-01 00:00:00` below the calendar, `9999-12-31 23:59:59`
+above it. That is an approximation of hours at the very edge of a
+calendar this format cannot write past, and it is stated here rather
+than left to a reader to discover.
+
+What it replaces was worse in kind, not only in degree: the producer
+kept the cell's LOCAL text in the ordered sequence while sorting it by
+its instant, so the order and the texts disagreed. Twelve
+`0001-01-01T01:00:00+14:00` beside twenty `0001-01-01T00:00:00Z` and
+sixty-eight `0001-01-02T12:00:00Z` published a low tail whose
+`mean_distance` was **minus 3,600** and whose listed value stood ABOVE
+its own boundary — a description breaking DT3, which `synthtwin`'s own
+loader then refused, telling the person their file had been changed
+since it was written and to make it again, which produces the same
+file. The clamp is a non-decreasing function of the instant, so the
+published sequence stays ordered by construction, and the checker reads
+the same rule, so a file holding such a cell is measured in the unit its
+own description published it under.
+
 **Invariant D6 (precision is at least as fine as resolution).** The
 pair (`resolution`, `time_precision`) is one row of this table:
 
@@ -5860,6 +5886,34 @@ at least one whole unit beyond its boundary; every published
 between one and `rows` entries, strictly ascending, every one of them
 strictly beyond its own boundary -- below it on the low side, above it
 on the high side.
+
+**AND BOTH DISTANCES ARE ONES A TAIL OF THIS COLUMN COULD HOLD** (*added
+by the dates pass of the stage-3 review, item 10*). Finite is not
+possible: setting a valid 100-date profile's low tail to a mean and a
+root-mean-square of `1e308` loaded, and `synthtwin generate` then raised
+an uncaught `ValueError` out of the shape fitting, while a mean of `1`
+beside that root raised `OverflowError`. Each of a tail's distances is a
+whole number of units, at least one, and at most the number of units
+between the boundary and the edge of what the column's space can write:
+the supported calendar's own ends -- the proleptic Gregorian years
+`0001` to `9999`, which is what the canonical form of section 6.6.2 can
+spell -- counted in the tail's own unit, and the day itself for a column
+of clock times. Call that `span`, taken on the WIDEST space any column
+can be written in, so that nothing a narrower member would allow is
+refused, and a day with one day's slack on either end, because a moment
+on the shared clock is counted at the nearest midnight of that clock.
+Then
+
+* `mean_distance <= span` and `rms_distance <= span`, since both are
+  averages over distances that cannot pass it; and
+* `rms_distance * rms_distance <= span * mean_distance`, since the sum
+  of squares of numbers none of which passes `span` is at most `span`
+  times their sum.
+
+Both are read with the same one part in `2**50` the rule above carries,
+for the same reason: each moment is one binary64 rounding of an exact
+ratio. The second is what tells a description whose two moments cannot
+both be true of one tail from one whose moments are merely large.
 
 **Invariant DT4 (the unit the tails are counted in).** `tail_unit`
 follows from what the block already publishes, and a reader never
@@ -11429,7 +11483,7 @@ it answers to.
 | D14 | `all_at_midnight` is `true` only where `resolution` is `datetime`, `n_present - n_unparsed` is at least the floor, every moment the block publishes — both boundaries, every value a tail lists and every published rung — stands at midnight under some offset `utc_offsets` names, and on the `utc` clock no offset is pooled; a `false` is never refused, because the canonical form drops the fraction (MN-P) | yes |
 | DT1 | a tail is `null` or a block of exactly `boundary`, `rows`, `mean_distance`, `rms_distance` and `values`, publishing either both distances and no values, or NEITHER distance and no values (plan P4-D349), or its values with at most its mean beside them | yes |
 | DT2 | both tails are `null` or neither; each `rows` is at least the floor; the two added leave at least one cell between them; the low boundary is not after the high one, and where they leave exactly one cell they share it; where they are `null` every rung is `null` | yes |
-| DT3 | every published `mean_distance` is at least one unit, every published `rms_distance` at least the mean (one part in `2**50` for the roundings), and a `values` list holds one to `rows` entries, strictly ascending, every one beyond its own boundary | yes |
+| DT3 | every published `mean_distance` is at least one unit and no more than the units between its boundary and the edge of the column's own space, every published `rms_distance` at least the mean and no more than that same span, with `rms * rms` at most the span times the mean (one part in `2**50` for the roundings), and a `values` list holds one to `rows` entries, strictly ascending, every one beyond its own boundary | yes |
 | DT4 | `tail_unit` follows from `resolution`, `time_precision` and `all_at_midnight`: `quarter`, `month`, `day` for a date or a column at midnight, `minute` for a column written to the minute, `second` otherwise | yes |
 | D15 | `n_at_midnight` is absent (`null`), or at most `n_present - n_unparsed`, at least the floor — never fewer than two — and every parsed cell or at least that floor short of it; present only where `resolution` is `datetime` and, on the `utc` clock, no offset is pooled; equal to `n_present - n_unparsed` exactly where `all_at_midnight` is `true` | yes |
 | D16 | on an `iso-mixed` column, `resolution_mix["iso-date"]` is at most `utc_offsets["(none)"]` plus `utc_offsets["(withheld)"]`, either absent key counting nought | yes |
