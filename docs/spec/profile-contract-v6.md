@@ -12101,34 +12101,54 @@ which a cell carrying no offset still gives back exactly.
 
 **THE LAST SECOND OF A LEAP MINUTE IS NOT A CORNER, AND MAY NOT BE
 MADE ONE** (review item P2-C2-F5). `SS` of `60` is a reading the
-canonical form admits because a real reader accepts one, and both
-endpoints are exact in owner decision 5's representation with no
-exception at all. A twin cell carries it: the two endpoint cells are
-written from the published endpoint's OWN fields rather than through
-the whole-second ordinal arithmetic the interior ranks use, so the
-published `2024-11-02 04:55:60` is written in the twin as
+canonical form admits because a real reader accepts one, and every
+MOMENT A TAIL PUBLISHES — its `boundary` and each entry of its
+`values` — is exact in owner decision 5's representation with no
+exception at all. A twin cell carries it: a published moment is
+written from its OWN fields rather than through the whole-second
+ordinal arithmetic the interior ranks use, so the published
+`2024-11-02 04:55:60` is written in the twin as
 `2024-11-02T04:55:60` — or with a space or a `t`, where G7.5 allocates
 that mark to the rank — and describing the twin again gives back
-`2024-11-02 04:55:60` character for character (G7.5). An exact representation exists, and
-lowering a ratified bar to fit an implementation is not available to
-this document.
+`2024-11-02 04:55:60` character for character (G7.5). An exact
+representation exists, and lowering a ratified bar to fit an
+implementation is not available to this document.
+
+*Stage 3 moved which moments this paragraph is about, and plan P4-D328
+is where. The two published ENDPOINTS it was written for — `earliest`
+and `latest` — no longer exist: the ranks they were read off hold the
+column's outermost values, and this format publishes none of them. The
+obligation did not move with them, it moved TO the two tail
+boundaries, which are the outermost moments a description now names
+and are exact for the same reason and with the same absence of
+exceptions. This passage is restated in those terms rather than kept
+as history, because an implementer reading the table above was
+receiving two incompatible instructions at once (the governance pass of
+stage 3's review, item 10).*
 
 **And three pairs beside it are refused, not reported** (review items
-P2-C3-F2, P2-C4-F1). An endpoint no cell of the column's own recorded
-shape can show — seconds on a column whose `time_precision` is
-`minute`; `SS` of `60` published while `datetimes_read_at` is `utc`;
-an endpoint on the shared clock whose own offset carries its cell off
-the end of the calendar — is each an exception, whatever it is called:
-this table says the two ends are exact with no exception, and a
-document the loader ACCEPTS whose end the twin then changes makes the
-sentence false for every consumer who reads it. **D10 refuses all
-three**, exactly as D6 refuses the `date`-beside-`datetime` pair and
-for the same reason: published facts that no cell can show at once,
-decidable from the fields themselves, are settled in the description
-rather than paid for in the twin. The producer writes none of them, so
-this refuses nothing a real table can express, and D11 ties
-`date_percentiles.min` and `.max` to the same two texts so the ladder
-ends cannot carry what the endpoints may not.
+P2-C3-F2, P2-C4-F1). A published moment no cell of the column's own
+recorded shape can show — seconds on a column whose `time_precision`
+is `minute`; `SS` of `60` published while `datetimes_read_at` is
+`utc`; a moment on the shared clock whose own offset carries its cell
+off the end of the calendar — is each an exception, whatever it is
+called: this table says every moment a tail publishes is exact with no
+exception, and a document the loader ACCEPTS whose boundary the twin
+then changes makes the sentence false for every consumer who reads it.
+**D10 refuses the first two**, exactly as D6 refuses the
+`date`-beside-`datetime` pair and for the same reason: published facts
+that no cell can show at once, decidable from the fields themselves,
+are settled in the description rather than paid for in the twin. The
+third is the CALENDAR'S OWN EDGE and is the generator's obligation
+since stage 3 (`docs/spec/generation-method-v1.md` G7.3e), because
+there is no published end for a rule here to refuse: the construction
+holds every cell it draws inside the years `0001` to `9999` instead.
+The producer writes none of the three, so this refuses nothing a real
+table can express. And the ladder cannot carry what a boundary may
+not: **D11 makes `date_percentiles.min` and `.max` `null` in every
+description**, so there is no ladder end to tie, and every published
+rung lies between the two boundaries — which is the same closure the
+old tie bought, one step further in.
 
 The head of section 9 still governs the documents whose facts cannot
 all hold in ways two fields do not settle — a whole set of counts with

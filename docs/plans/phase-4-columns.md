@@ -19118,6 +19118,23 @@ cap; the tightest is
 `tests/reference/generation-branch-vectors-3.json` at 247474 bytes, with
 2526 to spare.
 
+**AND THE TENTH FILE HAS NOW CROSSED THE 200000-BYTE LINE, so the next
+case opens a TWELFTH** (the governance pass of stage 3's review). Four
+cases have gone into the tenth since the routing above was written --
+`representable_with_room` from the review's own item 4, and
+`tail_listed_floor` and `tail_withheld_pair` from the governance pass --
+and the eleventh took two from the dates pass. Measured after the
+rebuild from the merged oracle: the tenth holds NINE cases in 202875
+bytes and the eleventh FIVE in 192575, so by plan P4-D295 the tenth is
+past the line and the eleventh is not, and the next case goes to the
+eleventh while its own output stands under 200000. The one after that
+opens `tools/reference/make_generation_branch_vectors_10.py` the way the
+eleventh was opened -- by writing a new entry point over the same
+oracle, never by raising the manifest's 250000-byte cap and never by
+moving a case out of a file that already holds it. Every one of the
+eleven files stands under the cap still, the tightest unchanged at
+247474 bytes.
+
 ### The four names each landing claimed twice
 
 Each is resolved the same way -- **the landing that arrived LAST moves,

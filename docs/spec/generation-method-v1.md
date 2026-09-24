@@ -2217,18 +2217,39 @@ tail of at most six different values, or one whose published facts
 would otherwise solve for its end (contract 6.7, TL6) -- is read as a
 STAIRCASE over its own rows. The listed values are taken OUTERMOST FIRST
 (ascending on the low side, descending on the high side), each holds at
-least one row, and the `R = m - L` rows over (`L` values) are placed by
-this rule:
+least `q` rows, and the `R = m - L q` rows over (`L` values) are placed
+by this rule:
 
 - every binary64 of the tail -- `b`, the values, `d1`, `rms` -- is
   written as a whole number of one shared power of two, exactly, so a
   value's distance `A_i = |b - v_i|` and its square are whole numbers,
   and so are the targets `S1 = m * d1` and `S2 = m * rms * rms`;
-- the candidates are the count vectors `c_i = 1 + e_i` whose extras
+- the candidates are the count vectors `c_i = q + e_i` whose extras
   `e_i >= 0` sum to `R` and are nonzero on at most THREE values;
 - the chosen one makes `|sum c_i A_i - S1|` least, then
   `|sum c_i A_i**2 - S2|` least, then is the smallest vector of extras in
   lexicographic order, outermost first.
+
+**`q` IS THE LISTING RULE'S OWN FLOOR AND NOT ONE** (plan P4-D346). `q`
+is TWO where the tail names MORE THAN TWO values and `m >= 2 L`, and ONE
+otherwise. A tail of more than two values was listed because the listing
+rule ADMITTED it, and that rule admits a tail only where every value it
+names stands on at least TWO of the COLUMN's own cells -- and a scale's
+outermost value stands on the tail's cells and nowhere else, so a twin
+standing ONE row on it is a twin the same rule would refuse to list, and
+`tails.<side>.values` is MISSED on the twin although it holds every
+value the description named. Measured on a count of children at 1,800
+rows: the solver gave the value 9 one row against a real two, and the
+twin missed. Counting from the rule's own number is nearer the truth
+besides, because the real counts are all at least it. A tail of one or
+two values
+is not admitted by that rule at all -- it is listed under the other road
+above, its end otherwise being solved for -- so its floor stays one, and
+so does the floor of a tail with no room for two rows apiece. WITH `q`
+AT ONE THE RULE INVENTS A SINGLETON THE LISTING RULE EXCLUDES: for
+boundary `4`, values `[0, 1, 2, 3]`, `m = 12`, `d1 = 2.25` and
+`rms = 2.5` it allocates `[1, 5, 2, 4]` against this clause's
+`[2, 3, 3, 4]`.
 
 On a grid the summed distance of the real tail is what the published
 `d1` rounds from, so the twin's `d1` is met exactly and its
@@ -12525,6 +12546,17 @@ fixture must stay under the provenance manifest's 250000-byte cap and
 each case describing a column dense enough to fill its own histogram
 costs about seventy kilobytes of proved numbers.
 
+**AND THE GOVERNANCE PASS OF STAGE 3'S REVIEW ADDS TWO MORE TO THE
+TENTH FILE** (its items 1 and the close's open item). `tail_listed_floor`
+is the first case that tells G5.3e's floor `q` from a floor of one:
+every case frozen before it answers the same counts either way, so the
+floor could be removed with all eleven files byte-identical -- measured,
+by removing it. `tail_withheld_pair` is the first that publishes NEITHER
+distance, the construction plan P4-D349 added: the oracle could not read
+one at all, so G5.3b's first clause had no frozen case either. Both go
+in the tenth file because plan P4-D295 routes the next case to the file
+whose output still stands under 200000 bytes, and at seven cases it did.
+
 **A PUBLISHED (HEAPED) END HAS NO FROZEN CASE, AND THAT IS A GAP NAMED
 AS ONE.** Step 1 of G5.3b's derived end -- a published end IS the end
 -- is unreachable by a mutant on a column whose values stand on a
@@ -12555,7 +12587,7 @@ that happens -- and the clause beside it, `--missing-value`'s "CAN be
 published as the column's smallest value", is exactly right under the
 new rule.
 
-**All one hundred and eighteen are required.** The count is taken off the committed
+**All one hundred and twenty-two are required.** The count is taken off the committed
 case sets and not carried forward: this sentence said fifty-two and a
 split of nine, twenty, sixteen and seven while the six files held
 seventy-three, because each repair that added a case added a clause to
@@ -12574,9 +12606,12 @@ holds ten; the eighth,
 `tests/reference/generation-branch-vectors-6.json`, holds fourteen; the
 ninth, `tests/reference/generation-branch-vectors-7.json`, holds six;
 the TENTH, `tests/reference/generation-branch-vectors-8.json`, holds
-seven; and the ELEVENTH,
-`tests/reference/generation-branch-vectors-9.json`, holds three (G14.2),
-and a test holds this sentence to those files.
+nine; and the ELEVENTH,
+`tests/reference/generation-branch-vectors-9.json`, holds five (G14.2),
+and a test holds this sentence to those files. The tenth grew by the
+two cases the GOVERNANCE PASS of stage 3's review added and the
+eleventh by the two the dates pass added; each number here is read off
+the committed case sets again at every landing that touches them.
 
 **THE TENTH AND ELEVENTH FILES, AND WHY THEY WERE OPENED** (stage 3,
 plans P4-D328 and P4-D322 to P4-D327 and P4-D344). BOTH of stage 3's tail landings
@@ -12657,6 +12692,8 @@ case passed, which is the failure the count exists to prevent:
 | `tail_listed_counts` | G5.3e's staircase and the counts solved for it (stage 3, plan P4-D324): seventy-two whole numbers from 0 to 54 on a grid, four cells each at the three values of either end, so both tails are few-valued and the description publishes the values themselves. Its mutant gives every listed value one row and the rest to the outermost, and the staircase moves |
 | `tail_sign_clamped` | G5.5a's sign rule on a derived end (stage 3): sixty two-place readings, every one positive, whose low tail's own reading reaches past nought. Its mutant withdraws the rule and the twin writes a negative cell on a column whose description says it has none |
 | `tail_moment_ladder` | G5.3c's moment ladder (stage 3): fifteen two-place readings at a floor of eleven, where no percent leaves eleven rows outside on both sides at once, so the block publishes its moments and not one rung. Its mutant reads the block as the ramp of G5.3d instead |
+| `tail_listed_floor` | G5.3e's FLOOR `q` under each listed value (the governance pass of stage 3's review, item 1; plan P4-D346): sixty whole readings of a scale from 0 to 8, whose low tail lists two values and whose high tail lists four, so the one case parts both roads of the floor -- one row apiece where contract TL6's other road lists, two where the listing rule admitted the tail by finding every value it names on at least two cells of the column. Its mutant counts from one on both, which is the allocation the shipped rule retired: the high tail goes from [2, 2, 2, 6] -- the real column's own counts beyond that boundary -- to [1, 4, 1, 6], and the staircase moves with it |
+| `tail_withheld_pair` | G5.3b's FIRST clause, a tail that publishes NEITHER distance (the close of stage 3's review; plan P4-D349, contract TL5): thirty whole numbers 0 to 29 once each, whose published pair would give its own outer cells back, so both tails publish their boundary and their rows with both distances null. No shape is fitted; the rows take even shares of the room between the boundary rung and an end `m` grid steps beyond it. Its mutant leaves that end AT the boundary -- the FLAT reading a fitted tail of reach nought gets -- and every row of both tails falls back onto its own boundary rung |
 | `saturated_grid_alone` | G6.5a's column-wide fill of a grid with no spare point (plans P4-D147 and P4-D176) where it alone answers: seventy-eight one-place readings from -2.4 to 0.1, the whole numbers written bare, publishing twenty-six different numbers between ends holding exactly twenty-six tenths and twelve point-free cells, no empty stretch published. The band fill stands aside because a stratum it would fill changes whether its value has a point-free spelling, and the push keeps a whole value on the whole points: the two strata the walks leave on -2.0 find every whole point of their band taken, and the one free tenth, -0.1, is not whole. Its mutant withdraws the column-wide fill and nothing else, and the twin writes -1.9 a second way, `-01.9`, holding twenty-five numbers against twenty-six |
 | `saturated_band` | G6.5a's fill of a sign band whose own grid has no spare point (the carried numbers pass of 2026-09-18, amending plan P4-D147): twelve negative readings at one place and fifteen positive ones with the published empty pair (-0.1, 50.0) between them. The finer rungs fall inside the pair, so the ladder puts a positive stratum there; the positive band's points outside the pair are exactly its fifteen strata and take them in order, while the negative band, twelve strata on a hundred points, is left to the walk, and the whole column is not saturated. Its mutant withdraws the band fill and a stratum stays inside the empty pair |
 | `mode_held` | G6.1's last value pass (plan P4-D267): eleven one-place readings from -1.7 to 6.9, the commonest -0.6 over twenty-one rows. The ladder sizes one stratum at twenty-one cells and gives it another number; the pass puts -0.6 on it. Its mutant withdraws the pass and the mode is written nowhere |

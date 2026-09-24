@@ -112,6 +112,8 @@ published column produces, a first stratum standing above the published
 """
 
 import collections
+import fractions
+import math
 import pathlib
 import random
 import types
@@ -834,3 +836,104 @@ def test_two_push_refusals_cannot_decide_a_push_the_walks_hand_on() -> None:
     assert moved["end"] == 0
     assert moved["point_free"] > 0
     assert set(shapes) == {(False, True)}
+
+
+# ------------------------------------------ the tail bound at both ends of the range
+#
+# Method G5.3b step 4 bounds the derived end by `d1 + sqrt((m - 1) *
+# max(0, rms**2 - d1**2))`, TAKEN AS `rms` TIMES A FRACTION,
+# `d1 + rms * sqrt((m - 1) * max(0, 1 - (d1 / rms)**2))`. The two are the
+# same number in exact arithmetic and NOT the same number in binary64:
+# `rms * rms` underflows to nought below about 1e-162 and overflows above
+# about 1e154, and the squared form then returns `d1` itself or an
+# infinity. No frozen case reaches either end of that range -- every
+# committed tail stands at an ordinary scale -- so the clause could be
+# written either way with all eleven vectors files unchanged, which is
+# the gap the governance pass of stage 3's review named (item 2).
+#
+# THE EXPECTATION IS DERIVED AND NOT COPIED. `_exact_bound` works the
+# clause in exact rationals with a whole-number square root, which is a
+# different arithmetic from the oracle's binary64 one, and the witness
+# asks that the two agree to within four units in the last place. The
+# scale defect is a factor of six, not a last place.
+
+TAIL_BOUNDS = (
+    # (rows, mean distance, root-mean-square, why this row is here)
+    (12, 1.0, 2.0, "an ordinary scale, where either form works"),
+    (12, 1e-200, 2e-200, "below where `rms * rms` underflows to nought"),
+    (12, 1e200, 2e200, "above where `rms * rms` overflows to infinity"),
+    (12, 5e-324, 1e-323, "the smallest numbers this format holds at all"),
+    (2, 3.0, 3.0, "a JUMP tail: every row at one distance, so the bound is `d1`"),
+    (12, 0.0, 0.0, "a FLAT tail, whose bound is nought"),
+    (1, 7.0, 9.0, "one row, where the square root is over nought rows"),
+)
+
+
+def _exact_bound(rows: int, mean: float, root: float) -> float:
+    """G5.3b step 4's bound in exact rationals, rounded once at the end."""
+    spread = fractions.Fraction(root) ** 2 - fractions.Fraction(mean) ** 2
+    if spread < 0:
+        spread = fractions.Fraction(0)
+    under = fractions.Fraction(rows - 1) * spread
+    guard = 2 * (200 + max(0, under.denominator.bit_length()))
+    scaled = (under.numerator << guard) // under.denominator
+    whole = math.isqrt(scaled)
+    return float(
+        fractions.Fraction(mean)
+        + fractions.Fraction(whole, 1) / fractions.Fraction(2) ** (guard // 2)
+    )
+
+
+def _bounds_missed(rule: typing.Callable[..., object]) -> "list[str]":
+    missed = []
+    for rows, mean, root, why in TAIL_BOUNDS:
+        found = _asked(rule, rows, mean, root)
+        wanted = _exact_bound(rows, mean, root)
+        if not isinstance(found, float) or not math.isfinite(found):
+            missed += [f"bound of ({rows}, {mean!r}, {root!r}): {found!r} ({why})"]
+            continue
+        gap = abs(found - wanted)
+        if gap > abs(wanted) * 2.0**-50:
+            missed += [
+                f"bound of ({rows}, {mean!r}, {root!r}): {found!r}, and the "
+                f"clause worked in exact rationals gives {wanted!r} ({why})"
+            ]
+    return missed
+
+
+def test_the_oracle_s_tail_bound_holds_at_every_supported_scale() -> None:
+    """Every row of `TAIL_BOUNDS`, asked of the oracle as committed."""
+    assert _bounds_missed(ORACLE_MODULE.tail_bound) == []
+
+
+# The squared form, which is the arithmetic the clause replaced. It is
+# the whole of the defect: at 1e-200 it returns the mean distance itself.
+_SQUARED_BOUND = (
+    """    share = 0.0
+    if root > 0.0:
+        ratio = mean / root
+        if ratio < 1.0:
+            share = 1.0 - ratio * ratio
+    bound = mean + root * math.sqrt((rows - 1) * share)
+""",
+    """    spread = root * root - mean * mean
+    if not spread > 0.0:
+        spread = 0.0
+    bound = mean + math.sqrt((rows - 1) * spread)
+""",
+)
+
+
+def test_the_tail_bound_witness_fails_on_the_squared_form() -> None:
+    """And the witness can fail: the squared form put back, one edit.
+
+    A guard nobody has watched fail is a guard nobody knows the reach
+    of. The edit is the text the clause used to carry, and it stands in
+    the oracle exactly once.
+    """
+    before, after = _SQUARED_BOUND
+    assert SOURCE.count(before) == 1
+    mutated = _oracle(SOURCE.replace(before, after))
+    missed = _bounds_missed(mutated.tail_bound)
+    assert missed != []
+    assert any("1e-200" in line for line in missed), missed

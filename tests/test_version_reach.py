@@ -68,9 +68,9 @@ spelling reaches the 3.10 cells while this file says nothing about it.
 The tree holds FIFTEEN such calls. They are listed in
 `ROUTES_THAT_RUN_SOURCE` below and
 `test_the_routes_that_run_a_string_of_source_are_the_ones_named_here`
-holds the tree to that list, so a sixteenth cannot arrive unread.
-Every one of them runs a COMMITTED FILE of `tools/`, which the folders
-below already read:
+holds the tree to that list, so an eighteenth cannot arrive unread.
+Every one of them runs a COMMITTED FILE of `tools/` or of `tests/`,
+which the folders below already read:
 
 - `tests/test_oracle_rule_witnesses.py` builds a module with
   `exec(compile(source, ...))`, where `source` is
@@ -80,6 +80,14 @@ below already read:
   committed file alone; all 31 forms of it -- the oracle and its 30
   edits -- were re-read with both readings below on 2026-09-21 and
   hold no post-floor spelling.
+- `tests/test_stage3_tail_rule.py` builds a module the same way, and
+  what it runs is `tests/tail_rule.py` carrying ONE edit: the fixed
+  sixty-four-bit guard `rounded_root` took its whole-number square root
+  at before the governance pass of stage 3's review made it grow with
+  the value's own exponent. The edit is a string constant of `tests/`
+  and is four lines of whole-number arithmetic -- `shift = 128` -- so
+  both forms of that file were re-read with the two readings below: the
+  file is one this guard reads, and the edit adds no spelling at all.
 - `runpy.run_path` runs the same kind of committed file: twice in
   `tests/`, in the two stage-2 oracle tests, and eleven times in
   `tools/` -- one for the provenance guard's own runner and one for
@@ -218,6 +226,8 @@ FOLDERS = ("src", "tests", "tools")
 ROUTES_THAT_RUN_SOURCE = {
     ("tests/test_oracle_rule_witnesses.py", "compile"): 1,
     ("tests/test_oracle_rule_witnesses.py", "exec"): 1,
+    ("tests/test_stage3_tail_rule.py", "compile"): 1,
+    ("tests/test_stage3_tail_rule.py", "exec"): 1,
     ("tests/test_stage2_datetime_oracle.py", "runpy.run_path"): 1,
     ("tests/test_stage2_grouping_oracle.py", "runpy.run_path"): 1,
     ("tools/provenance/guard_runner.py", "runpy.run_path"): 1,

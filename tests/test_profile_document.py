@@ -511,8 +511,22 @@ def test_nothing_that_varies_between_runs_is_written(
 # both sides. Nothing arrives, nothing leaves, and the four numeric blocks
 # whose tails are not settled that way (`visits`, `reading`, `amount`,
 # `dose`) publish exactly the numbers they published before.
+# AND RE-RECORDED AT THE CLOSE OF STAGE 3'S REVIEW (2026-09-24), read as
+# a line-by-line diff against a git archive of ee56999, the tree this
+# digest was last taken on. ONE LINE MOVES, and it is a SENTENCE and not
+# a number: the refusal a free-text column raises said that describing it
+# from the part that does read "would publish an average, a smallest and
+# a largest value that the rest of the column contradicts", over a
+# description that publishes neither end since the tail rule. It now says
+# "an average, a spread and points along a range", which is what such a
+# description does publish (the sentences pass of stage 3's review,
+# 27b9915). Nothing else in 1,364 lines differs: the four tail distances
+# of `record_code` went null at the fix pass (P4-D349), came back at the
+# sentences pass because that tree predates it, and are null again here,
+# so the NET of the two passes is this one sentence. No key arrives, none
+# leaves, and no published number of any column moves.
 GOLDEN_SHA256 = (
-    "ef9969734e0b8210c5ee3e26b657d029f452488490271a39df65ae9f2832aade"
+    "2e1919686d557dc11ce15842497a84e8e01ad5e13de521f2e945f760d6f0f238"
 )
 
 

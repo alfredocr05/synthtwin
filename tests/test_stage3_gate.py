@@ -1617,6 +1617,121 @@ def test_no_tail_of_the_battery_back_solves_to_the_value_it_withheld(
     assert found == [], "\n".join(found)
 
 
+# -- 3a. what the two measurements miss, and the mutants that say so ---
+#
+# THE GOVERNANCE PASS OF STAGE 3'S REVIEW (items 3 and 4). Both numbers
+# the section above rests on scored NOUGHT on a disclosure that had
+# happened, and each for a reason of its own. They are reproduced here
+# as the driver's own functions, asked of the exact inputs the review
+# gave, and each is watched failing under the arithmetic it replaced --
+# a measurement nobody has watched fail is a measurement nobody knows
+# the reach of.
+
+# The review's own reconstruction: eleven distances summing to 24 whose
+# squares sum to 104. Two multisets meet both sums -- [8, 4, 4, 1 x 8]
+# and [8, 5, 2, 2, 1 x 7] -- so the whole multiset is NOT settled, while
+# both say the largest distance is 8 and that ONE row holds it. At a low
+# clock boundary of 00:20 that names the minimum 00:12 and its count.
+AMBIGUOUS_BUT_REVEALING = (11, 24, 104)
+
+
+def test_the_back_solve_sees_an_extreme_every_solution_agrees_on() -> None:
+    """Item 3: the protected value is the EXTREME, not the whole multiset.
+
+    The measurement asked whether the published facts leave one multiset
+    of distances, and answered "no, two" -- while both of the two named
+    the same outermost value and the same count of it. The question is
+    now whether the extreme and its count VARY across the solutions.
+    """
+    driver = _tail_leak_driver()
+    rows, total, squares = AMBIGUOUS_BUT_REVEALING
+    assert driver._multisets(
+        rows, total, squares, total, [driver.ROOM_STEPS], [False]
+    ) == 2, (
+        "this case is here because the multiset is NOT unique; if that "
+        "stopped being true the case would prove nothing"
+    )
+    settled, spent = driver._settled(rows, total, squares, total)
+    assert not spent
+    assert settled, (
+        "both multisets these facts admit put the largest distance at 8 "
+        "and one row on it, so the outermost value and its count are "
+        "named and the measurement must say so"
+    )
+    assert driver._extremes(
+        rows, total, squares, total, [driver.ROOM_STEPS], [False]
+    ) == {(8, 1)}
+
+
+def test_the_back_solve_still_reports_room_where_the_extreme_varies() -> None:
+    """...and it is not a measurement that always says "settled".
+
+    Eleven different whole distances summing to 66 with squares 506 admit
+    a largest of 15 and a largest of 16, so a reader cannot name the
+    outermost value and this must read UNSETTLED. Without this half the
+    repair above would be a number that cannot go down.
+    """
+    driver = _tail_leak_driver()
+    settled, spent = driver._settled(11, 66, 506, 66)
+    assert not spent and not settled
+    assert len(driver._extremes(
+        11, 66, 506, 66, [driver.ROOM_STEPS], [False]
+    )) > 1
+
+
+# Two pages, each printing a value the description withholds, and each
+# in the shape that scored nought: a moment after a label, whose spelling
+# carries a SPACE and split into two tokens; and a clock value at the end
+# of a sentence, which wears the full stop because a point is part of the
+# number spellings the split must keep together.
+SENTENCE_LEAKS = (
+    ("Earliest: 2024-02-02 12:34:56", "2024-02-02 12:34:56", "a moment after a label"),
+    ("  Earliest: 2024-02-02 12:34:56 +0100", "2024-02-02 12:34:56 +0100", "a moment and its offset"),
+    ("The earliest is 00:12.", "00:12", "a clock value ending a sentence"),
+    ("The smallest is 1002.32.", "1002.32", "a number ending a sentence"),
+)
+
+
+def _sentence_leaks_missed(split) -> "list[str]":
+    """Every page of `SENTENCE_LEAKS` whose withheld value ``split`` misses."""
+    return [
+        f"{why}: {line.strip()!r} does not give back {value!r}"
+        for line, value, why in SENTENCE_LEAKS
+        if value not in split(line)
+    ]
+
+
+def test_the_literal_leak_measurement_reads_a_value_inside_a_sentence() -> None:
+    """Item 4: a withheld end printed in prose is a leak and must count."""
+    driver = _tail_leak_driver()
+    assert _sentence_leaks_missed(driver._tokens) == []
+
+
+def test_the_sentence_leak_witness_fails_on_the_whole_word_split() -> None:
+    """And it is watched failing, on the split it replaced.
+
+    The old split yielded whole tokens and nothing else, so a moment
+    broke in two at its space and a value at the end of a sentence kept
+    the full stop: every page above scored nought.
+    """
+    def whole_words(text):
+        found = []
+        word = ""
+        for letter in text:
+            if letter.isalnum() or letter in "-:+./":
+                word += letter
+            else:
+                if word:
+                    found += [word]
+                word = ""
+        if word:
+            found += [word]
+        return found
+
+    missed = _sentence_leaks_missed(whole_words)
+    assert len(missed) == len(SENTENCE_LEAKS), missed
+
+
 # -- 3b. the reconstruction attacks (the fix pass, plan P4-D349) -------
 #
 # WHY THIS SECTION EXISTS. The walk above asks the tail-leak driver's
@@ -2156,24 +2271,32 @@ def test_the_gate_turns_red_on_an_exact_minimum_put_back_into_a_block(
     )
 
 
+@pytest.mark.parametrize("named", (1, 2, 3))
+@pytest.mark.parametrize("side", ("low", "high"))
 def test_the_gate_turns_red_on_a_tail_listing_a_value_one_row_holds(
-    tmp_path: pathlib.Path,
+    tmp_path: pathlib.Path, side: str, named: int,
 ) -> None:
     """MUTATION 4: a tail lists values one row of the column holds.
 
     The listing rule admits a tail only where every value it would name
     stands on at least `parsing.TAIL_SHARED_CELLS` of its cells. A tail
     that lists lone values is the exemption the gate must not grant,
-    and it asks `parsing.tail_may_list` rather than membership so that a
-    drifted listing rule cannot buy itself the answer.
+    and `_admitted` asks `parsing.tail_may_list` -- the RULE, and its
+    premise -- rather than membership, so that a drifted listing rule
+    cannot buy itself the answer.
 
-    THREE VALUES, AND ONE WOULD DO SINCE P4-D349. The second road that
-    used to exempt a list of one or two values whatever the rule said is
-    withdrawn, so a single lone value listed is already a leak; three are
-    kept here because that is what the mutation measured when it was
-    written and shrinking it would weaken nothing and prove nothing.
+    ONE VALUE, TWO, AND THREE, ON BOTH SIDES (the governance pass of
+    stage 3's review, item 5). The committed mutant listed THREE, and
+    the road plan P4-D349 withdrew had exempted any list of at most
+    `parsing.TAIL_SETTLED_VALUES` values whatever the rule said -- so the
+    one mutant this file carried was the one shape that branch could not
+    have hidden, and a gate still granting the exemption would have
+    passed it. Measured on this file's own 600-row `charges` fixture at
+    a floor of eleven, where the twelve outermost rows on each side hold
+    twelve different values apiece: every list of one, two or three of
+    them is a leak, and each is asserted here rather than argued.
     """
-    folder = tmp_path / "listed"
+    folder = tmp_path / f"listed-{side}-{named}"
     folder.mkdir()
     _name, cells = _heavy_tails()[0]
     table = fixtures.write(folder, "real.csv", _one_column("charges", cells))
@@ -2185,12 +2308,21 @@ def test_the_gate_turns_red_on_a_tail_listing_a_value_one_row_holds(
     assert _value_leaks(block, cells, 11) == []
     values = _numeric_cells(cells)
     tails = block["tails"]
-    assert isinstance(tails, dict) and isinstance(tails["high"], dict)
-    tails["high"] = dict(tails["high"])
-    tails["high"]["values"] = [values[len(values) - place] for place in (1, 2, 3)]
+    assert isinstance(tails, dict) and isinstance(tails[side], dict)
+    listed = (
+        [values[place] for place in range(named)]
+        if side == "low"
+        else [values[len(values) - place] for place in range(named, 0, -1)]
+    )
+    assert len(set(listed)) == named, (
+        "this mutation is about values ONE row holds, so the cells it "
+        "names must be different from each other"
+    )
+    tails[side] = dict(tails[side])
+    tails[side]["values"] = listed
     assert _value_leaks(block, cells, 11), (
-        "a tail listed the column's three largest values, each held by one "
-        "row, and the VALUE clause admitted them"
+        f"a tail listed {named} of the column's outermost values, each "
+        f"held by one row, and the VALUE clause admitted them"
     )
 
 

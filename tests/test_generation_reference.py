@@ -595,8 +595,16 @@ EIGHTH_BRANCH_CASES = (
     # `saturated_representable` because plan P4-D295 routes the next
     # case to the file whose output still stands under 200000 bytes.
     "representable_with_room",
+    # THE TWO THE GOVERNANCE PASS OF STAGE 3'S REVIEW ADDS, routed here
+    # by plan P4-D295 because this file's output still stands under
+    # 200000 bytes: G5.3e's FLOOR under each listed value (item 1),
+    # which every case frozen before it answers the same counts either
+    # side of, and the tail that publishes NEITHER distance, the
+    # construction plan P4-D349 added and no frozen case reached.
+    "tail_listed_floor",
     "tail_made_up_ramp",
     "tail_shape_ends",
+    "tail_withheld_pair",
 )
 
 # THE ELEVENTH FILE: the listed tail of G5.3e and the counts solved for
@@ -719,6 +727,9 @@ SEEDS = {
     "tail_sign_clamped": 303,
     "tail_moment_ladder": 304,
     "tail_made_up_ramp": 305,
+    # ...and the governance pass's two.
+    "tail_listed_floor": 302,
+    "tail_withheld_pair": 306,
     "identifier_unnamed_partners": 184,
     "truth_values_written": 189,
     "twice_written_filled": 190,
@@ -2930,6 +2941,32 @@ CASE_MUTANTS = {
             if listed
             else []
         ),
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "tail_listed_floor": Mutant(
+        branch="G5.3e's FLOOR `q` under each listed value (plan "
+        "P4-D346): two rows apiece on a tail the LISTING RULE admitted, "
+        "because that rule admits a tail only where every value it "
+        "names stands on at least two of the column's cells, and one on "
+        "a tail listed under contract TL6's other road. The mutant "
+        "counts from one on both, which is the allocation the shipped "
+        "rule retired: this column's high tail goes from [2, 2, 2, 6] "
+        "-- the real column's own counts beyond that boundary -- to "
+        "[1, 4, 1, 6], and the staircase moves with it",
+        attribute="listed_floor",
+        replacement=lambda size, rows: 1,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "tail_withheld_pair": Mutant(
+        branch="the reading of a tail that publishes NEITHER distance "
+        "(method G5.3b's first clause, plan P4-D349): no shape is "
+        "fitted, the rows stand on even shares of the room between the "
+        "boundary rung and an end `m` grid steps beyond it. The mutant "
+        "leaves the end AT the boundary, which is the FLAT reading a "
+        "fitted tail of reach nought gets, and every row of both tails "
+        "falls back onto its own boundary rung",
+        attribute="withheld_step",
+        replacement=lambda boundary, steps, low, figures: boundary,
         outcome=CHANGES_THE_CELLS,
     ),
     "tail_sign_clamped": Mutant(

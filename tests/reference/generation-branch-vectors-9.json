@@ -2975,7 +2975,7 @@
           }
         }
       ],
-      "why": "The listed tail of method G5.3e (stage 3, plan P4-D324, the owner's ruling of 2026-09-22). A hundred and sixteen whole numbers on a grid from 0 to 52, both tails few-valued, so the description publishes the values themselves and the twin solves how many rows hold each -- every value at least one row, the rest spread on at most three of them, nearest the published mean distance and then the published root-mean-square -- and reads each tail as a staircase. The mutant gives every listed value one row and the rest to the outermost, which is the obvious rule and the wrong one: the staircase moves and the twin's cells with it.",
+      "why": "The listed tail of method G5.3e (stage 3, plan P4-D324, the owner's ruling of 2026-09-22). A hundred and sixteen whole numbers on a grid from 0 to 52, both tails few-valued, so the description publishes the values themselves and the twin solves how many rows hold each -- the rest spread on at most three of them, nearest the published mean distance and then the published root-mean-square -- and reads each tail as a staircase. The mutant gives every listed value one row and the rest to the outermost, which is the obvious rule and the wrong one: the staircase moves and the twin's cells with it.",
       "word_budget": {
         "content": 52,
         "placement": 71

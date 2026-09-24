@@ -1175,11 +1175,25 @@ def tail_bound(rows, mean, root):
 
     The furthest one row of `m` can stand from the boundary with that
     mean distance and that root-mean-square.
+
+    TAKEN AS `rms` TIMES A FRACTION, which is the form G5.3b step 4
+    fixes: `d1 + rms * sqrt((m - 1) * max(0, 1 - (d1 / rms)**2))` where
+    `rms` is above nought.  It is the same number and is the only form
+    binary64 holds at both ends of its range.  `rms * rms` UNDERFLOWS to
+    nought below about 1e-162 and OVERFLOWS above about 1e154, and the
+    product form reaches both: with twelve rows, a mean distance of
+    1e-200 and a root-mean-square of 2e-200 the squared form returned
+    the mean itself, 1e-200, where the bound is about 6.74456e-200, so
+    the fitted end was held at a distance the published pair does not
+    hold it to and the grid then collapsed the example's outer end onto
+    its own boundary.
     """
-    spread = root * root - mean * mean
-    if not spread > 0.0:
-        spread = 0.0
-    bound = mean + math.sqrt((rows - 1) * spread)
+    share = 0.0
+    if root > 0.0:
+        ratio = mean / root
+        if ratio < 1.0:
+            share = 1.0 - ratio * ratio
+    bound = mean + root * math.sqrt((rows - 1) * share)
     return bound if math.isfinite(bound) else TAIL_LARGEST
 
 
@@ -1370,6 +1384,79 @@ def rung_places(value):
     return min(17, max(0, places))
 
 
+def tail_withheld(side):
+    """Whether a tail publishes NEITHER distance (contract TL5, P4-D349).
+
+    Both keys or neither: a side carrying one of the two is a
+    description the loader refuses, so one question answers for both.
+    """
+    return side["mean_distance"] is None or side["rms_distance"] is None
+
+
+def withheld_step(boundary, steps, low, figures):
+    """``steps`` grid steps beyond a boundary rung, on the grid (G5.3b).
+
+    THE NARROWEST TAIL THE DESCRIPTION STILL ASKS FOR: the rows of a
+    tail publishing neither distance lie strictly beyond the boundary
+    and the column's own count of different values asks them to differ,
+    so `m` grid steps is the least room they can have and nothing the
+    description publishes asks for more.
+
+    WHERE THE COLUMN NAMES NO WIDTH THE FORMAT'S OWN VALUES ARE THE
+    GRID, which is what "its own grid point" means there.  The step is
+    then taken on the MAGNITUDE by `next_representable` -- the same
+    walk G6.5a's grid uses, the only one this oracle states -- and the
+    sign is put back around it: a step away from nought asks for the
+    number above `|at|` and a step toward nought for the number below,
+    nought itself steps to the smallest number the format holds, and an
+    edge of the range stands still because there is nothing beyond it.
+    """
+    smallest = math.ldexp(1.0, -1074)
+    at = boundary
+    for _step in range(max(steps, 0)):
+        if figures != -1:
+            unit = tail_unit(figures if figures >= 0 else 0)
+            moved = tail_grid(at - unit if low else at + unit, figures)
+        elif at == 0.0:
+            moved = -smallest if low else smallest
+        else:
+            outward = (at > 0.0) != low
+            found = next_representable(abs(at), not outward)
+            if found is None:
+                found = abs(at) if outward else 0.0
+            moved = -found if at < 0.0 else found
+        at = moved if math.isfinite(moved) else at
+    return at
+
+
+def withheld_steps(column, side, boundary, end, low):
+    """Each row of a tail publishing NEITHER distance (G5.3b, P4-D349).
+
+    There is no `a(s)` to read, so the rows stand on EVEN shares of the
+    room between the boundary rung and the end -- row `i` of `m` at the
+    share `(i + 1) / m` of the way out -- each snapped to the grid, one
+    grid point apart at the least, a row landing where the row before it
+    stands taking the next grid point outward, and none past the end.
+    """
+    figures = tail_figures(column)
+    rows = side["rows"]
+    placed = []
+    span = end - boundary
+    for row in range(rows):
+        share = float(row + 1) / float(rows)
+        at = boundary + share * span
+        if not math.isfinite(at):
+            at = end
+        at = tail_grid(at, figures)
+        for last in placed[len(placed) - 1:]:
+            crowded = (at >= last) if low else (at <= last)
+            if crowded:
+                at = withheld_step(last, 1, low, figures)
+        past = (at < end) if low else (at > end)
+        placed += [end if past else at]
+    return placed
+
+
 def tail_steps(column, side, boundary, shape, end, low):
     """Each row of an UNLISTED tail on its own grid point (G5.3b).
 
@@ -1380,10 +1467,18 @@ def tail_steps(column, side, boundary, shape, end, low):
     it stands takes the next grid point outward instead, never past the
     tail's own end.  Empty on a listed tail, on a flat one, and on a
     block with no grid, where the reading's own values already differ.
+
+    A TAIL PUBLISHING NEITHER DISTANCE IS ITS PLAINEST CASE and is read
+    by `withheld_steps`: the rows take even shares of the room instead
+    of a fitted reading's, on every block and whatever its grid.
     """
     figures = tail_figures(column)
     rows = side["rows"]
-    if side["values"] or shape[0] == 0.0 or figures == -1 or rows <= 0:
+    if side["values"] or rows <= 0:
+        return []
+    if tail_withheld(side):
+        return withheld_steps(column, side, boundary, end, low)
+    if shape[0] == 0.0 or figures == -1:
         return []
     unit = tail_unit(figures if figures >= 0 else 0)
     placed = []
@@ -1404,18 +1499,29 @@ def derived_end(column, side, boundary, shape, low, published):
     """The value a tail block's pinned stratum holds (G5.3b step 4, G5.5a).
 
     In order: a published (heaped) end is the end; a listed tail's end is
-    its outermost listed value; a flat tail's end is its boundary;
-    otherwise the fitted shape read at the outermost row's own share,
-    moved outward, held inside the tail's own bound, placed on the
-    column's grid, stepped one grid step toward `b` where the grid put it
-    past that bound, held to the one published field width, and then held
-    to the sign counts.
+    its outermost listed value; a tail publishing NEITHER distance has no
+    shape to fit and its end is `m` GRID STEPS beyond the boundary, held
+    to the sign counts (G5.3b's step 2a, plan P4-D349); a flat tail's end
+    is its boundary; otherwise the fitted shape read at the outermost
+    row's own share, moved outward, held inside the tail's own bound,
+    placed on the column's grid, stepped one grid step toward `b` where
+    the grid put it past that bound, held to the one published field
+    width, and then held to the sign counts.
     """
     if heaped_end(published) is not None:
         return published
     listed = list(side["values"])
     if listed:
         return listed[0] if low else listed[len(listed) - 1]
+    if tail_withheld(side):
+        narrow = tail_figures(column)
+        return end_sign_held(
+            withheld_step(boundary, side["rows"], low, narrow),
+            low,
+            boundary,
+            column,
+            narrow,
+        )
     mean = side["mean_distance"]
     root = side["rms_distance"]
     if not mean > 0.0:
@@ -1462,17 +1568,50 @@ def whole_at(value, unit):
     return exact.numerator
 
 
+def listed_floor(size, rows):
+    """`q`, the fewest rows one listed value holds (method G5.3e).
+
+    TWO where the tail names MORE THAN `TAIL_SETTLED_LIST` values and
+    its rows leave room for two apiece, and ONE otherwise.  A tail of
+    more than two values was listed because the LISTING RULE admitted
+    it, and that rule admits a tail only where every value it names
+    stands on at least `TAIL_SHARED_ROWS` of the tail's own cells, so a
+    twin standing one row on one of them is a twin the same rule would
+    refuse to list.  A tail of one or two values is listed under the
+    other road of contract TL6 -- its end would otherwise be solved for
+    -- which the ruling's premise does not reach, so its floor is one.
+    """
+    if size > TAIL_SETTLED_LIST and rows >= size * TAIL_SHARED_ROWS:
+        return TAIL_SHARED_ROWS
+    return 1
+
+
+# How many of a tail's own cells share a value before the listing rule
+# will name it (method G5.3e, plan P4-D346), and the widest tail that is
+# listed under the OTHER road of contract TL6 -- the one whose published
+# facts would otherwise solve for its end -- and whose floor is
+# therefore one.
+TAIL_SHARED_ROWS = 2
+TAIL_SETTLED_LIST = 2
+
+
 def listed_counts(boundary, listed, rows, mean, root):
     """How many rows each listed value holds (method G5.3e).
 
     ``listed`` stands OUTERMOST FIRST.  Every listed value holds at least
-    one row; the `R = m - L` rows over are spread on at most THREE of
-    them; and among all such vectors the chosen one makes the summed
-    distance nearest `m * d1`, then the summed squared distance nearest
-    `m * rms**2`, then is the smallest vector of extras in lexicographic
-    order.  Every comparison is EXACT: `b`, the values, `d1` and `rms`
-    are whole numbers of one shared power of two, so the two sums and
-    the two targets are whole numbers too.
+    `q = listed_floor(L, m)` rows; the `R = m - L q` rows over are spread
+    on at most THREE of them; and among all such vectors the chosen one
+    makes the summed distance nearest `m * d1`, then the summed squared
+    distance nearest `m * rms**2`, then is the smallest vector of extras
+    in lexicographic order.  Every comparison is EXACT: `b`, the values,
+    `d1` and `rms` are whole numbers of one shared power of two, so the
+    two sums and the two targets are whole numbers too.
+
+    `q` IS NOT ONE (method G5.3e, plan P4-D346).  Counting from one
+    invents a singleton the listing rule excludes: for boundary `4`,
+    values `[0, 1, 2, 3]`, twelve rows, `d1` of `2.25` and `rms` of
+    `2.5` it allocates `[1, 5, 2, 4]` where the clause allocates
+    `[2, 3, 3, 4]`.
     """
     size = len(listed)
     if size == 0:
@@ -1486,7 +1625,8 @@ def listed_counts(boundary, listed, rows, mean, root):
     first_target = fractions.Fraction(rows) * fractions.Fraction(mean) / scale
     scaled_root = fractions.Fraction(root) / scale
     second_target = fractions.Fraction(rows) * scaled_root * scaled_root
-    spare = rows - size
+    least = listed_floor(size, rows)
+    spare = rows - size * least
     if spare < 0:
         raise AssertionError(
             "a listed tail names more values than it has rows, which "
@@ -1494,7 +1634,7 @@ def listed_counts(boundary, listed, rows, mean, root):
         )
     best = None
     for extras in _extra_vectors(spare, size):
-        counts = [1 + extras[place] for place in range(size)]
+        counts = [least + extras[place] for place in range(size)]
         summed = 0
         squared = 0
         for place in range(size):
@@ -1643,9 +1783,17 @@ def tail_ladder(column):
     high = tails["high"]
     low_boundary = _rung_at(column, low["percent"])
     high_boundary = _rung_at(column, high["percent"])
-    shapes = (
-        tail_shape(low["mean_distance"], low["rms_distance"], low["rows"]),
-        tail_shape(high["mean_distance"], high["rms_distance"], high["rows"]),
+    # A TAIL PUBLISHING NEITHER DISTANCE IS READ FIRST AND NOT THROUGH A
+    # SHAPE (G5.3b, plan P4-D349): there is no `d1` and no `rms` to fit
+    # `a(s)` to, so no shape is fitted for that side at all and its rows
+    # and its end come from `withheld_steps` and `withheld_step`.
+    shapes = tuple(
+        (0.0, 0.0, 0)
+        if tail_withheld(side)
+        else tail_shape(
+            side["mean_distance"], side["rms_distance"], side["rows"]
+        )
+        for side in (low, high)
     )
     # OUTERMOST FIRST on both sides: ascending on the low side and the
     # published ascending list reversed on the high (G5.3e).
@@ -14878,6 +15026,11 @@ def _numeric_tail_fields(sides):
     its two distances as decimal texts, and the values of a LISTED tail
     (contract 6.7a).  Returns the wire-shaped key and the claims, whose
     paths are the ones the proof walk descends.
+
+    A DISTANCE STATED AS `None` IS PUBLISHED AS `null` and proves
+    nothing, which is the tail that publishes NEITHER of them (contract
+    TL5, plan P4-D349): there is no number there for the proof walk to
+    descend to.
     """
     published = {}
     claims = {}
@@ -14885,6 +15038,9 @@ def _numeric_tail_fields(sides):
         one = sides[side]
         block = {"percent": one["percent"], "rows": one["rows"]}
         for key in ("mean_distance", "rms_distance"):
+            if one[key] is None:
+                block[key] = None
+                continue
             field, claim = nearest_field(one[key])
             block[key] = field
             claims[("column", "tails", side, key)] = claim
@@ -25272,9 +25428,154 @@ def _tail_listed_counts():
         **moments,
     )
     return {
-        "why": "The listed tail of method G5.3e (stage 3, plan P4-D324, the owner's ruling of 2026-09-22). A hundred and sixteen whole numbers on a grid from 0 to 52, both tails few-valued, so the description publishes the values themselves and the twin solves how many rows hold each -- every value at least one row, the rest spread on at most three of them, nearest the published mean distance and then the published root-mean-square -- and reads each tail as a staircase. The mutant gives every listed value one row and the rest to the outermost, which is the obvious rule and the wrong one: the staircase moves and the twin's cells with it.",
+        "why": "The listed tail of method G5.3e (stage 3, plan P4-D324, the owner's ruling of 2026-09-22). A hundred and sixteen whole numbers on a grid from 0 to 52, both tails few-valued, so the description publishes the values themselves and the twin solves how many rows hold each -- the rest spread on at most three of them, nearest the published mean distance and then the published root-mean-square -- and reads each tail as a staircase. The mutant gives every listed value one row and the rest to the outermost, which is the obvious rule and the wrong one: the staircase moves and the twin's cells with it.",
         "column": column,
         "rows": 72,
+        "identifier_declared": False,
+        "rungs": _tail_case_rungs(column),
+        "claims": claims,
+    }
+
+
+def _tail_listed_floor():
+    """G5.3e's floor `q` under each listed value (plan P4-D346).
+
+    A bounded scale of sixty whole readings from 0 to 8: eight noughts,
+    four ones, fourteen twos, eleven threes, nine fours, eight fives and
+    two each at six, seven and eight.  Both tails list their values --
+    the low one names TWO of them and the high one FOUR -- so the one
+    case parts both roads of `listed_floor`: the low tail's floor is one,
+    because a tail of two values is listed under contract TL6's other
+    road and the owner's bounded-scale premise does not reach it, and the
+    high tail's floor is TWO, because the listing rule admitted four
+    values only by finding each of them on at least two cells of the
+    column.
+
+    THIS IS THE CASE THAT TELLS THE TWO ALLOCATIONS APART.  Every case
+    frozen before it answers the same counts at either floor, so the
+    floor could be removed with every committed byte unchanged.  Here
+    the high tail's twelve rows go `[2, 2, 2, 6]` under the clause and
+    `[1, 4, 1, 6]` under a floor of one -- and the real column's own
+    counts beyond that boundary are `[2, 2, 2, 6]`, so the clause is the
+    truthful one and the staircase, and the twin's cells with it, moves
+    when it is withdrawn.
+    """
+    ladder, finer, claims = _tail_ladder_fields({
+        19: "1.21", 25: "2", 50: "3", 75: "4", 81: "5",
+    }, 19, 81)
+    moments = {}
+    for name, text in (("mean", "3.05"),
+                       ("std", "2.0288178072254923"),
+                       ("skew", "0.42279048108507733"),
+                       ("kurtosis", "2.7896481749881064"),
+                       ("numeric_share", "1.0")):
+        field, claim = nearest_field(text)
+        moments[name] = field
+        claims[("column", name)] = claim
+    tails, tail_claims = _numeric_tail_fields({
+        "low": {
+            "percent": 19, "rows": 12,
+            "mean_distance": "0.8766666666666666",
+            "rms_distance": "0.9953726270430922",
+            "values": ["0.0", "1.0"],
+        },
+        "high": {
+            "percent": 81, "rows": 12,
+            "mean_distance": "1.0",
+            "rms_distance": "1.5275252316519468",
+            "values": ["5.0", "6.0", "7.0", "8.0"],
+        },
+    })
+    claims.update(tail_claims)
+    column = _universal(
+        "column_1", "count", "count", "data", "ok",
+        n_present=60, n_missing=0, n_distinct=9, n_distinct_folded=9,
+        n_distinct_values=9, n_numeric=60, n_not_numeric=0,
+        n_out_of_range=0, n_contradictory=0, n_zero=8, n_negative=0,
+        n_negative_unrepresentable=0, n_used_in_statistics=60,
+        n_left_out_of_statistics=0, n_rows=60,
+        percentiles=ladder, percentiles_between=finer, tails=tails,
+        bin_groups=[{"first": 0, "last": 6, "count": 14}, {"first": 7, "last": 15, "count": 11}, {"first": 16, "last": 31, "count": 11}],
+        integer_valued=True, std_unrepresentable=False,
+        numeric_styles={"plain": 60}, mode_count=0,
+        fraction_widths={}, field_widths={"1": 60},
+        negative_notations={},
+        empty_bins=[], empty_edges=[],
+        **moments,
+    )
+    return {
+        "why": "G5.3e's floor `q` under each listed value (stage 3, plan P4-D346). A bounded scale of sixty whole readings from 0 to 8 whose low tail lists two values and whose high tail lists four, so the one case parts both roads of the floor: one row apiece on the tail contract TL6's other road lists, two on the tail the listing rule admitted by finding every value it names on at least two cells of the column. The mutant counts from one on both, which is the allocation the shipped rule retired: the high tail goes from [2, 2, 2, 6] -- the real column's own counts -- to [1, 4, 1, 6], the staircase moves and the twin's cells move with it.",
+        "column": column,
+        "rows": 60,
+        "identifier_declared": False,
+        "rungs": _tail_case_rungs(column),
+        "claims": claims,
+    }
+
+
+def _tail_withheld_pair():
+    """A tail that publishes NEITHER distance (G5.3b, plan P4-D349).
+
+    The thirty whole numbers 0 to 29, once each.  Every value of the
+    column is different and its outer cells stand on consecutive grid
+    points, so a published pair of distances would give those cells
+    back -- twelve different whole distances summing to the least twelve
+    different whole distances can sum to are 1 to 12 and nothing else --
+    and the description publishes each tail's boundary and its rows with
+    both distances `null`.
+
+    THIS CONSTRUCTION HAD NO FROZEN CASE.  Every tail case frozen before
+    it publishes a pair or a list, so the whole of G5.3b's first clause
+    could be withdrawn from the oracle with every committed byte
+    unchanged.  The reading is the one the clause states: no `a(s)` is
+    fitted at all, the rows stand on EVEN shares of the room between the
+    boundary rung and the end, each snapped to the grid and one grid
+    point apart at the least, and the end is `m` grid steps beyond the
+    boundary -- the narrowest tail the description still asks for.
+    """
+    ladder, finer, claims = _tail_ladder_fields({
+        38: "11.02", 50: "14.5", 62: "17.98",
+    }, 38, 62)
+    moments = {}
+    for name, text in (("mean", "14.5"),
+                       ("std", "8.803408430829505"),
+                       ("skew", "0.0"),
+                       ("kurtosis", "1.7973303670745273"),
+                       ("numeric_share", "1.0")):
+        field, claim = nearest_field(text)
+        moments[name] = field
+        claims[("column", name)] = claim
+    tails, tail_claims = _numeric_tail_fields({
+        "low": {
+            "percent": 38, "rows": 12,
+            "mean_distance": None, "rms_distance": None, "values": [],
+        },
+        "high": {
+            "percent": 62, "rows": 12,
+            "mean_distance": None, "rms_distance": None, "values": [],
+        },
+    })
+    claims.update(tail_claims)
+    column = _universal(
+        "column_1", "count", "count", "data", "ok",
+        n_present=30, n_missing=0, n_distinct=30, n_distinct_folded=30,
+        n_distinct_values=30, n_numeric=30, n_not_numeric=0,
+        n_out_of_range=0, n_contradictory=0, n_zero=1, n_negative=0,
+        n_negative_unrepresentable=0, n_used_in_statistics=30,
+        n_left_out_of_statistics=0, n_rows=30,
+        percentiles=ladder, percentiles_between=finer, tails=tails,
+        bin_groups=[],
+        integer_valued=True, std_unrepresentable=False,
+        numeric_styles={"plain": 30}, mode_count=0,
+        fraction_widths={}, field_widths={"2": 30},
+        negative_notations={},
+        empty_bins=[], empty_edges=[],
+        **moments,
+    )
+    return {
+        "why": "A tail that publishes NEITHER distance (stage 3, plan P4-D349, contract TL5). Thirty whole numbers 0 to 29 once each: a published pair would give the outer cells back, so each tail publishes its boundary and its rows with both distances null, and the ladder outside the two boundaries is read without a shape at all -- even shares of the room between the boundary and an end `m` grid steps beyond it. The mutant reads such a tail as a FLAT one, which is what a fitted tail of reach nought gets, and every row of both tails falls back onto its own boundary rung.",
+        "column": column,
+        "rows": 30,
         "identifier_declared": False,
         "rungs": _tail_case_rungs(column),
         "claims": claims,
@@ -25484,6 +25785,18 @@ EIGHTH_BRANCH_CASE_BUILDERS = {
     # saturated case beside it cannot hold up because the rule it
     # exercised ran only where there were none.
     "representable_with_room": _representable_with_room,
+    # ...AND THE TWO THE GOVERNANCE PASS OF STAGE 3'S REVIEW ADDS
+    # (items 1 and the close's open item). `tail_listed_floor` is the
+    # first case that tells G5.3e's floor `q` from a floor of one --
+    # every case before it answers the same counts either way, so the
+    # floor could be withdrawn with every committed byte unchanged --
+    # and `tail_withheld_pair` is the first that publishes NEITHER
+    # distance, the construction plan P4-D349 added and no frozen case
+    # reached. They stand here rather than in the eleventh file because
+    # plan P4-D295 routes the next case to the tenth while its output is
+    # under 200000 bytes, and it is.
+    "tail_listed_floor": _tail_listed_floor,
+    "tail_withheld_pair": _tail_withheld_pair,
 }
 
 NINTH_BRANCH_CASE_BUILDERS = {
@@ -25887,6 +26200,75 @@ SECTION_FIELDS = frozenset(("cases", name, FLOAT64) for name in CASE_BUILDERS)
 # The stream a seed produces is bound by the golden twin hash CI computes
 # against the locked numpy, not by this file (method section G14.4).
 GIVEN_WORDS = {
+    # THE TWO CASES THE GOVERNANCE PASS OF STAGE 3'S REVIEW ADDS:
+    # G5.3e's floor under a listed value (item 1) and the tail that
+    # publishes NEITHER distance (the close's open item).
+    "tail_listed_floor": (
+        14014845436977468675, 13022562993781162293,
+        18414827485423781858, 10263872504565764870,
+        3530159298995776288, 4538377169017523876,
+        13013790048914170576, 13058870115242620457,
+        15775937868619228916, 18252673534767655061,
+        2059677901538136586, 17757199003386397688,
+        5734814856719548343, 2489973611468957244,
+        8490206761688104355, 5808931060756704953,
+        5096165047474780023, 11891268420397103121,
+        16961075773643068843, 12798887532117009143,
+        8410891274886809941, 11996387702416996587,
+        6820003339196380305, 4155062456866821709,
+        10919585500055509374, 12234714602732327075,
+        13660377061708290376, 812912793418119416,
+        7332179776951054729, 17335677024165079469,
+        4684716515887705428, 530660165072596216,
+        16461220918952156437, 12875839397401165173,
+        12071804444504353797, 12309140117740207761,
+        14072671613932273558, 1735323223927553201,
+        16126082466815047493, 16227840667710158768,
+        102282974108028674, 16427914019240462752,
+        16409608578946582513, 3681407900332204148,
+        1657189637149343685, 9800337324892395596,
+        5035927323918177859, 11890131144889386298,
+        6539205300662548981, 6664937675231174597,
+        14954417128424974805, 17738675226449263167,
+        384062013549981980, 13075726975038531911,
+        15079588722983877617, 10670587966437249496,
+        6699746730968781272, 12303675347498636037,
+        2469520101529933286, 3667492314279463803,
+        16053593510982299671, 13997938041015529764,
+        1423499256002874705, 15358138416119294425,
+        4747949237213419311, 18378826748080119577,
+    ),
+    "tail_withheld_pair": (
+        1071583529125145534, 5549558102887229297,
+        2745262120164809086, 15856541462115922920,
+        17889257589329369842, 15660096658285096332,
+        18092595454495271049, 360279944114834059,
+        220192033824458176, 10465351894422327042,
+        4202339052138456366, 17425673995015892280,
+        7677723298375721430, 2035478447045183733,
+        9454889849868363760, 3150444811220035780,
+        6435242396736699025, 6585684854689262233,
+        2414941180712934650, 3593884664336600269,
+        3560863839226771792, 2103757848901565252,
+        18124452469610652751, 12334157020860186972,
+        2887303276868477208, 2127536203030885932,
+        14029234045157924945, 3454576210477364740,
+        9971765939233837143, 6322175324722508337,
+        17774264235671562989, 15855192818677553344,
+        17308529474865927923, 5427584726584052721,
+        821493645870544026, 13445555767339476101,
+        16267813707851447858, 11586615334315861923,
+        7330940046428419620, 4388671922857142541,
+        7824733569630452751, 2807417991001301036,
+        5713343369430986474, 11687944566893619345,
+        3625669553668218508, 14698709779667297477,
+        17050931655884230043, 2251840825323844795,
+        10296089166330230466, 16489782229912935486,
+        3302828616829018929, 17457027303817443037,
+        13241941045308284943, 14784352308120793197,
+        14803338466772028985, 10520838306085882165,
+        13832181669241759461,
+    ),
     "mark_spend_at_the_line": (
         11675319340742138364, 12427083351397836981, 12122401316151572590,
         16660766894373463866, 4284189600899694925, 2214222155502125918,

@@ -33,10 +33,12 @@ from __future__ import annotations
 
 import collections
 import decimal
+import fractions
 import math
 import pathlib
 import random
 import re
+import types
 
 import fixtures
 import kpi_shapes
@@ -73,15 +75,21 @@ def _ordinal_columns(rows: int = ORDINAL_ROWS) -> "list[tuple[str, list[str]]]":
 
     DRAWN AT `ORDINAL_ROWS`, AND THAT IS THE RULE'S OWN NUMBER (plan
     P4-D346). A tail lists only where every value it would name stands
-    on at least `taxonomy.TAIL_SHARED_CELLS` of its cells, and a scale's
-    own top step is one cell of a nine-hundred-row draw and several of
-    an eighteen-hundred-row one: at 900 rows seven of these twelve tail
-    sides name a step one row holds and are refused, at 1,800 none is.
-    The claims below are the claims about a tail the rule ADMITS, so
-    they are asked at a size where it does; `_thin_ordinal_columns` is
-    the same six scales at 900 rows, and
+    on at least `taxonomy.TAIL_SHARED_CELLS` of the column's cells, and
+    a scale's own top step is one cell of a nine-hundred-row draw and
+    several of an eighteen-hundred-row one: at 900 rows FOUR of these
+    twelve tail sides are refused, at 1,800 none is. The claims below
+    are the claims about a tail the rule ADMITS, so they are asked at a
+    size where it does; `_thin_ordinal_columns` is the same six scales
+    at 900 rows, and
     `test_a_scale_whose_own_step_stands_on_one_row_is_not_listed` is
-    what the refusal costs, measured.
+    what the refusal costs, measured and bounded.
+
+    THE POPULATION IS 1,800 AND THE LEDGER SAYS SO. `K-S3-05` recorded
+    900 rows and "6 of 6 keep their scale" after this battery moved to
+    1,800, and STATE put the smaller-scale residuals against `K-S3-09`,
+    which measures another shape entirely (the governance pass of stage
+    3's review, item 6). Both now name this file and this number.
     """
     built: "list[tuple[str, list[str]]]" = []
     draw = random.Random(1)
@@ -151,6 +159,28 @@ def _thin_ordinal_columns() -> "list[tuple[str, list[str]]]":
     not reach those tails and they publish their shape.
     """
     return _ordinal_columns(THIN_ROWS)
+
+
+# WHAT THE REFUSAL COSTS AT `THIN_ROWS`, measured at a floor of eleven
+# and at twin seed `SEED` over the six scales above, and held as
+# CEILINGS so the accepted trade cannot widen while nobody is looking
+# (the governance pass of stage 3's review, item 6). This is the
+# "bounded scale of few rows can lose its own top step" residual, and it
+# belongs to `K-S3-05` -- the entry that measures these scales -- and
+# never to `K-S3-09`, which measures a count column beside a heap of
+# zeros.
+#
+# AT THE MEASUREMENT: four of the twelve tail sides are refused (the
+# pain score's high side and the Glasgow, Apgar and children scores'
+# low ones); the twin writes 31 cells outside the scale the column
+# holds, 18 of them on the pain score and 13 on the Glasgow score; and
+# the worst column mean stands 11.33 per cent from the table's. At
+# `ORDINAL_ROWS` every side lists, no cell stands outside the scale and
+# the worst mean is 0.97 per cent out, which is the claim
+# `test_an_ordinal_twin_writes_the_scale_and_nothing_outside_it` makes.
+THIN_REFUSED_SIDES = 4
+THIN_OFF_SCALE_CELLS = 31
+THIN_MEAN_ERROR_PER_CENT = 11.5
 
 
 def _measured_columns() -> "list[tuple[str, list[str]]]":
@@ -835,6 +865,88 @@ def test_an_ordinal_twin_writes_the_scale_and_nothing_outside_it(
     assert min(written) == values[0] and max(written) == values[-1], (
         "the listed tails carry the scale's own two ends"
     )
+
+
+def test_a_scale_whose_own_step_stands_on_one_row_is_not_listed(
+    tmp_path: pathlib.Path,
+) -> None:
+    """What the listing rule's REFUSAL costs, at `THIN_ROWS`, bounded.
+
+    Two halves, and the first is the rule rather than a number: a tail
+    of these six scales publishes its values EXACTLY where
+    `taxonomy.tail_may_list` admits it, asked of the column's own
+    per-value counts -- so a producer that started listing a step one
+    row holds, or stopped listing one the ruling reaches, fails here
+    whatever the counts below say.
+
+    The second half is the COST, held at the ceilings recorded beside
+    `THIN_REFUSED_SIDES`. It is the accepted trade of plan P4-D346: a
+    bounded scale of few rows loses its own top step, so the twin writes
+    a handful of cells the scale does not have and its mean moves. The
+    trade is not re-argued here; what it gets is a number that cannot
+    grow unseen, which is what the entry it belongs to (`K-S3-05`) was
+    missing.
+    """
+    refused = 0
+    off_scale = 0
+    worst = 0.0
+    for name, cells in _thin_ordinal_columns():
+        described = _described(tmp_path, f"thin-{name}", cells)
+        block = described.document["columns"][0]
+        values = sorted(
+            value
+            for value in (parsing.parse_number(cell) for cell in cells)
+            if value is not None
+        )
+        count = len(values)
+        distinct = len(set(values))
+        tails = block["tails"]
+        for side in ("low", "high"):
+            tail = tails[side]
+            rows = tail["rows"]
+            beyond = values[:rows] if side == "low" else values[count - rows:]
+            held = [
+                _cells_holding(values, value)
+                for value in sorted(set(beyond))
+            ]
+            admits = taxonomy.tail_may_list(held, FLOOR, distinct, count)
+            assert bool(tail["values"]) == admits, (
+                f"{name} {side}: the tail "
+                f"{'lists' if tail['values'] else 'says its shape'} and "
+                f"the listing rule {'admits' if admits else 'refuses'} it"
+            )
+            refused += 0 if admits else 1
+        scale = set(values)
+        twin = generation.generate(described.loaded, SEED)
+        written = [
+            parsing.parse_number(cell)
+            for cell in twin.columns[0]
+            if cell != ""
+        ]
+        off_scale += len([one for one in written if one not in scale])
+        real = sum(values) / len(values)
+        made = sum(written) / len(written)
+        worst = max(worst, abs(made - real) / abs(real) * 100.0)
+    assert refused == THIN_REFUSED_SIDES, (
+        f"{refused} of twelve tail sides are refused at {THIN_ROWS} rows, "
+        f"against the {THIN_REFUSED_SIDES} this cost was measured over"
+    )
+    assert off_scale <= THIN_OFF_SCALE_CELLS, (
+        f"the twins of these six scales write {off_scale} cells outside "
+        f"the scale their column holds, past the ceiling "
+        f"{THIN_OFF_SCALE_CELLS} of plan P4-D346's accepted trade"
+    )
+    assert worst <= THIN_MEAN_ERROR_PER_CENT, (
+        f"the worst column mean stands {worst:.2f} per cent from the "
+        f"table's, past the ceiling {THIN_MEAN_ERROR_PER_CENT}"
+    )
+
+
+def _cells_holding(values: "list[float]", value: float) -> int:
+    """How many cells of the COLUMN hold one value, which is the count the
+    listing rule reads (plan P4-D346): this role's boundary is a rank, so
+    the innermost value a tail names routinely straddles it."""
+    return len([one for one in values if one == value])
 
 
 # -- 4. and the twin still meets its description -----------------------
@@ -1587,3 +1699,83 @@ def _shape_lies(document: "dict") -> "list[str]":
         if groups and block["name"] in carries:
             found += [f"{block['name']}: {len(groups)} bin group(s)"]
     return found
+
+
+# -- 8. the rule's own arithmetic, at the scales the rule supports ------
+#
+# `tail_rule.rounded_root` is how every expectation in this file gets a
+# root-mean-square distance out of an exact rational: the rule computes
+# one exactly and rounds it ONCE (contract 6.7a), so the helper takes a
+# whole-number square root and rounds at the end. It took that root at a
+# FIXED sixty-four guard bits, and `(numerator << 128) // denominator`
+# is NOUGHT for every value below about 1e-39 -- so `rounded_root` of
+# `1/10**40` came back 0.0 where the root is 1e-20, and a helper that
+# certifies a published root-mean-square as nought would pass a tail
+# publishing nothing and fail one publishing the truth. No case in this
+# file reaches that scale, which is why nothing here saw it (the
+# governance pass of stage 3's review, item 2).
+#
+# THE WITNESS IS INDEPENDENT. `taxonomy.rounded_root_ratio` is the
+# PRODUCER's own exactly-rounded square root, written from the same
+# clause by different arithmetic -- a significand at the right power of
+# two and the last digit decided against the square of the midpoint --
+# so agreeing with it at a scale is a statement about the clause and not
+# about one implementation.
+
+ROOT_SCALES = (
+    # (numerator, denominator, why this scale is here)
+    (1, 10 ** 40, "below where a fixed sixty-four-bit guard returns nought"),
+    (1, 10 ** 300, "near the bottom of the range this format holds"),
+    (3, 10 ** 400, "past the bottom of it, where the root is still a number"),
+    (10 ** 300, 1, "near the top of it"),
+    (1, 2 ** 1000, "a rational whose denominator is a power of two"),
+    (2, 1, "an ordinary scale, where every reading agrees"),
+    (0, 1, "nought, which has no root to round"),
+)
+
+
+def _root_scales_missed(rule) -> "list[str]":
+    missed: "list[str]" = []
+    for top, bottom, why in ROOT_SCALES:
+        found = rule(fractions.Fraction(top, bottom))
+        wanted = taxonomy.rounded_root_ratio(top, bottom)
+        if found != wanted:
+            missed += [
+                f"root of {top}/{bottom}: {found!r} against the producer's "
+                f"own exactly-rounded {wanted!r} ({why})"
+            ]
+    return missed
+
+
+def test_the_rule_s_own_square_root_holds_at_every_supported_scale() -> None:
+    """Every row of `ROOT_SCALES`, asked of `tail_rule.rounded_root`."""
+    assert _root_scales_missed(tail_rule.rounded_root) == []
+
+
+_FIXED_GUARD = (
+    """    shift = 2 * _GUARD_DIGITS + bottom.bit_length() - top.bit_length()
+    if shift < 0:
+        shift = 0
+    if shift % 2:
+        shift = shift + 1
+""",
+    """    shift = 128
+""",
+)
+
+
+def test_the_root_scale_witness_fails_on_a_fixed_guard() -> None:
+    """And it can fail: the guard fixed again, one edit, watched failing.
+
+    The edit stands in `tests/tail_rule.py` exactly once and is the
+    arithmetic that helper carried before this pass.
+    """
+    source = pathlib.Path(tail_rule.__file__).read_text(encoding="utf-8")
+    before, after = _FIXED_GUARD
+    assert source.count(before) == 1
+    module = types.ModuleType("tail_rule_under_witness")
+    exec(compile(source.replace(before, after), tail_rule.__file__, "exec"),
+         module.__dict__)
+    missed = _root_scales_missed(module.rounded_root)
+    assert missed != []
+    assert any("10000000000" in line for line in missed), missed

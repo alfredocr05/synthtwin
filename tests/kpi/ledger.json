@@ -5768,7 +5768,8 @@
      "columns_measured": 33,
      "false_positives": 4,
      "subject_column_asked_about": 1,
-     "categorical_subject_column_asked_about": 1
+     "categorical_subject_column_asked_about": 1,
+     "pinned_nodes_failing": 0
     }
    },
    "status_note": "THE FOUR POSITIVES ARE ACCEPTED BY THE ORCHESTRATOR, 2026-09-22, with the measurement (not an owner ruling; the owner may reverse it). The repair of landing 3.2 added route two to `asking._names_people` -- a register of codes each standing on two rows or more -- because route one's second condition was the exact complement of the rule that makes a column categorical, so the question could never reach a subject column read as categories, which is the shape the plan's own cited case has. Route two reaches four label columns that name no people, and each is asked about rather than assumed: the cost of a false positive is one question a person answers `no` to, and the cost of a false negative is a population counted in rows when it should have been counted in people, which is the refusal this stage exists to make. `false_positives` is EXACT, so a fifth is seen. AMENDED BY THE REVIEW OF STAGE 3 (floor item 4), 2026-09-23, AND THE COUNT DID NOT MOVE: still 4 of the same 33 columns, the same four. Two conditions changed. The question is now settled by `settings.person_columns` -- the declared identifiers that REPEAT -- and not by the fact of a declaration, because a unique-per-row `visit_id` declared over 1,196 visits of twelve people left the population counted in ROWS and silenced the question all the same. And route two's first condition is now route one's average rather than 'every value on two rows or more', because one subject with a single visit made the stricter form false and silenced the whole question on a register of twelve people. Neither change reaches this battery's negatives: `record`, `subject` and `visit_id` fail the average by a factor of two whether or not one value of them repeats, and the four positives are route two's as before. Two nodes joined the pin, one for each amended condition, and one was renamed where its expectation reversed."
@@ -5814,7 +5815,8 @@
      "refused": 4,
      "noticed": 6,
      "silent": 3,
-     "files_written_after_a_refusal": 0
+     "files_written_after_a_refusal": 0,
+     "pinned_nodes_failing": 0
     }
    }
   },
@@ -5889,7 +5891,7 @@
    "headline": false,
    "name": "A bounded scale keeps its own values and its own ends",
    "status": "GREEN",
-   "rule": "on each of six bounded clinical scales both tails are published BY THEIR VALUES (G5.3e), the twin writes no cell outside the scale the column holds, and its smallest and largest cells are the column's own",
+   "rule": "on each of six bounded clinical scales AT 1,800 ROWS both tails are published BY THEIR VALUES (G5.3e), the twin writes no cell outside the scale the column holds, and its smallest and largest cells are the column's own -- and the SAME six scales at 900 rows, where the listing rule refuses four of their twelve tail sides, cost no more than the ceilings tests/test_stage3_tail_rule.py records beside THIN_REFUSED_SIDES: 31 cells written outside the scale and a column mean no more than 11.5 per cent from the table's. The population moved from 900 to 1,800 when plan P4-D346 made the listing rule ask its premise, and this record still said 900 (the governance pass of stage 3's review, item 6); the smaller-table residual is this entry's and never K-S3-09's, which measures a count column beside a heap of zeros",
    "rule_kind": "exact",
    "expected": {
     "pinned_nodes_failing": 0
@@ -5897,14 +5899,15 @@
    "tier": "FAST",
    "source": "pytest",
    "nodes": [
-    "tests/test_stage3_tail_rule.py::test_an_ordinal_twin_writes_the_scale_and_nothing_outside_it"
+    "tests/test_stage3_tail_rule.py::test_an_ordinal_twin_writes_the_scale_and_nothing_outside_it",
+    "tests/test_stage3_tail_rule.py::test_a_scale_whose_own_step_stands_on_one_row_is_not_listed"
    ],
    "test": null,
    "driver": null,
    "pin_strength": "EXACT",
-   "measured_on": "pain 0-10, GCS 3-15, a surgical risk grade 1-5, Apgar 0-10, children 0-12 and Likert 1-5, 900 rows each at a floor of eleven",
-   "evidence": "6 of 6 keep their scale. Before the listed tail, a pain score of 0 to 10 at a floor of eleven published no end, its twin wrote 50 cells at 11 -- a value the scale does not have -- and none at 10, and its mean stood 25 per cent above the table's with nothing missed",
-   "nodes_min_collected": 6,
+   "measured_on": "pain 0-10, GCS 3-15, a surgical risk grade 1-5, Apgar 0-10, children 0-12 and Likert 1-5, 1,800 rows each at a floor of eleven and twin seed 4 (tests/test_stage3_tail_rule.py ORDINAL_ROWS), and the same six at 900 rows (THIN_ROWS) for the bound on what the listing rule's refusal costs",
+   "evidence": "At 1,800 rows 6 of 6 keep their scale: all twelve tail sides list, no twin cell stands outside the scale its column holds and the worst column mean is 0.97 per cent from the table's. At 900 rows four of those twelve sides are refused -- the pain score's high side and the Glasgow, Apgar and children scores' low ones -- and that costs 31 off-scale cells (18 on the pain score, 13 on the Glasgow score) and a worst column mean 11.33 per cent out, which is the accepted trade of plan P4-D346 held at a ceiling rather than left unmeasured. Before the listed tail, a pain score of 0 to 10 at a floor of eleven published no end, its twin wrote 50 cells at 11 -- a value the scale does not have -- and none at 10, and its mean stood 25 per cent above the table's with nothing missed",
+   "nodes_min_collected": 7,
    "value_at": {
     "commit": "0317f5d",
     "date": "2026-09-23",

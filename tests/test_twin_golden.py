@@ -575,13 +575,21 @@ NARROW_COLUMN_DIGESTS = {
     # at this seed: exactly those thirteen cells differ, blank to `-999`,
     # in the narrow and the wide run alike, and every other column of
     # both is byte-identical.
-    "reading": "2846e7a8d558b91d5d4cf90e60e25e2c",
+    # RE-RECORDED AT THE CLOSE OF STAGE 3'S REVIEW (2026-09-24) for the
+    # numeric robustness pass's item 3, the refitting of G5.3b's shape
+    # over the tail's own rows. MEASURED column by column on the NARROW
+    # demonstration against a git archive of 27b9915: exactly three of
+    # the thirteen columns move -- `reading`, `amount` and `dose`, the
+    # three whose tails are drawn by a fitted shape -- and the other ten
+    # hash exactly as they did, sorted and as written alike. Each of the
+    # three keeps its own count of different values and its own two ends.
+    "reading": "3152113efa5a7d05a78c5634c0354a93",
     # RE-RECORDED at landing 2b.1 (2026-09-15). `amount` is written at
     # ONE fraction width, so method G5.2a now reads its ladder on that
     # grid and G5.3 gives each stratum the grid value of one of its own
     # ranks: 235 of its 240 cells moved, every one of them still a
     # two-figure number, and the quality report still misses nothing.
-    "amount": "1b729a6b63d400491e490bc3f9ba5933",
+    "amount": "9e3ca3d56fe562867c1808f73dd3d57f",
     # RE-RECORDED at landing 2b.6 (2026-09-15). `recorded_on` is the
     # demonstration's one column of dates, and its interior cells move
     # because the placement rule of G7.3 moved: the nine interior rungs
@@ -656,7 +664,7 @@ NARROW_COLUMN_DIGESTS = {
     # untouched by the numeric rule: the numeric branch's own value for
     # it was a third one, measured on a tree that had no date and clock
     # tails, and neither branch's answer is this tree's.
-    "dose": "35fbb4a75bfd27999d349e38896a4506",
+    "dose": "f7c460e41b34314aa21372f2137cabf4",
     "seen_at": "904896a1750543a4b2f419ddd8f160ed",
     "note": "f0a181daf5af6bdb2db3d44e0a83a641",
 }
@@ -681,8 +689,10 @@ NARROW_COLUMN_ORDER_DIGESTS = {
     # Re-recorded for plan P4-D183 with the sorted digest above: the same
     # ten cells, as written. Re-recorded for plan P4-D6.4 with the sorted
     # digest above: the same thirteen cells, blank to `-999`, in place.
-    "reading": "a3bdd04c35dac6b0f1a21a74a97aed1c",
-    "amount": "b38fee66a1d3cdc181a1bc943dd4851e",
+    # Re-recorded with the sorted digests above at the close of stage 3's
+    # review: the same moved cells, as written.
+    "reading": "9655b1fc4822cfb098c661ef14eb968d",
+    "amount": "87fda8264bcfb8d3989c4614026b3974",
     # MERGED (2026-09-16): landing 2b.6's cells as written.
     # RE-RECORDED AT THE REVIEW OF 158c811 (plan P4-D130): the same 90
     # moved cells as the sorted digest above, as written.
@@ -701,7 +711,7 @@ NARROW_COLUMN_ORDER_DIGESTS = {
     # the places they stood; no cell moved place.
     # RE-RECORDED AT THE SAME MERGE: the same 30 cells of `dose`, in
     # the places they stand; no cell moved place, and `seen_at` holds.
-    "dose": "6dee62a916c865e9423c53ded567e247",
+    "dose": "7f9c511cfa197a17851048d8f09cf985",
     "seen_at": "5230cc5d6f06d53b7c8a6b52cf4400bb",
     "note": "0b99ebde93cbd5fedc30a0d2b7fa9516",
 }
@@ -1848,6 +1858,24 @@ def test_golden_hash_of_the_description_the_twin_is_built_from(
 # `record_code` moved, and every one of its 240 cells now opens with the
 # published `R` -- `Z09235` became `R55235` -- with 240 different values
 # before and after and every other column byte-identical.
+    # RE-RECORDED AT THE CLOSE OF STAGE 3'S REVIEW (2026-09-24), for the
+    # numeric robustness pass's item 3 and NOTHING else. G5.3b's five
+    # constants were the fitted shape's moments over a UNIFORM `s` and
+    # the rule read that shape at the tail's own `m` ROW MIDPOINTS: the
+    # two are not the same number, so every tail fitted by a shape moved
+    # by a last place or two when the constants became the moments over
+    # those rows. READ CELL BY CELL against a git archive of 27b9915
+    # before re-recording: 29 of the 3,360 cells of the wide twin move,
+    # and every one of them is in `dose` (20), `amount` (8) or `reading`
+    # (1) -- the three numeric columns whose tails are drawn by a fitted
+    # shape. `visits` does not move, because eleven rows hold each of its
+    # ends and the description publishes both; `record_code` does not,
+    # because its tails publish NEITHER distance and are read without a
+    # shape at all (plan P4-D349); no column of any other role moves.
+    # Every moved cell moves one grid step or two -- `99.61` to `99.62`,
+    # `183.1 mg` to `183.9 mg`, `20` to `21` -- each column keeps its own
+    # count of different values (`reading` 179, `amount` 238, `dose` 180)
+    # and no cell leaves the range its column already held.
 GOLDEN_TWIN_SHA256 = (
     # RE-RECORDED FOR THE NUMERIC TAIL (stage 3, landing 3.3). Every
     # numeric block now carries `tails` and `bin_groups`; the rungs
@@ -1876,7 +1904,7 @@ GOLDEN_TWIN_SHA256 = (
     # record-number column is byte-identical. That is the numeric tail
     # rule and nothing else: those four columns are built from a ladder
     # that no longer runs to two published extremes.
-    "8576737eb71277d2ebf346e97cc29adbfe87c5c9e8da38b2b83f08410d375399"
+    "e6437069e13a909f773402205cdfc89a77d246e80bfcc4fa03afee04d249a04e"
 )
 
 
@@ -2353,6 +2381,16 @@ def test_the_same_description_and_seed_give_the_same_twin_twice(
 # held-back labels' reason on `region` and on `note`, which now says the
 # twin keeps how many there were and the rows they covered together and
 # not the rows of each one.
+    # RE-RECORDED AT THE CLOSE OF STAGE 3'S REVIEW (2026-09-24), and the
+    # TWIN is what moved: the numeric robustness pass's item 3 refitted
+    # G5.3b's shape over the tail's own rows. READ LINE BY LINE against
+    # 27b9915 before re-recording: the report holds 864 lines before and
+    # after, names the same 107 facts in the same order, and every one of
+    # the 45 lines that moved is an ACHIEVED value or a window bound on
+    # `reading`, `amount` or `dose` -- 24 "the description says / the
+    # twin holds" lines and 21 "allowed anywhere from" lines. No line
+    # arrives, none leaves, "inside the range" still stands 136 times,
+    # and "outside the range" stands nought times as it did.
 GOLDEN_REPORT_SHA256 = (
     # RE-RECORDED FOR THE NUMERIC TAIL (stage 3, landing 3.3). Every
     # numeric block now carries `tails` and `bin_groups`; the rungs
@@ -2463,7 +2501,7 @@ GOLDEN_REPORT_SHA256 = (
     # largest value", and a measurement column publishes neither end.
     # One line differs, the note on the column no reading fits, and
     # nothing else -- 18 lines against the tree before both passes.
-    "83c2a0552c1e7db70c7af53c25811fd7f6ed2ac8049d55249346e91de99b4d5d"
+    "50c2bc2bed376932fb8377618a21d7b21ce98455cb4f6c70f4d7d295560e9221"
 )
 
 
@@ -3135,6 +3173,23 @@ def test_the_report_names_the_seed_the_twin_was_built_at(
 # RE-RECORDED FOR ITEM 1 OF THE SAME RULING (plan P4-D202): one
 # obligation arrived, `prefix.(column)` on `record_code`, HELD, so 531
 # became 532 and 463 HELD became 464. No other line moved.
+    # RE-RECORDED AT THE CLOSE OF STAGE 3'S REVIEW (2026-09-24), and TWO
+    # passes moved it. READ LINE BY LINE against a git archive of the
+    # tree each half was last recorded on. From the six untrue sentences
+    # (27b9915): the page's account of what the validator checks said
+    # "the smallest and largest exactly, the nine steps between them"
+    # over a description that publishes neither end, and now says "every
+    # rung the description publishes ... a rung the description withholds
+    # is not checked"; and the floor paragraph gains what the floor does
+    # NOT cover -- a count of CELLS BY KIND, and that the floor counts
+    # ROWS and not people (plan P4-D348). Fourteen lines arrive there and
+    # none leaves. Six per-column sentences about the finer rungs and two
+    # about a tail's withheld keys are reworded on the same pass. From
+    # the numeric robustness pass (05a2398): the achieved numbers of
+    # `reading`, `amount` and `dose` move with the twin's cells. THE
+    # CENSUS IS UNCHANGED: 478 obligations HELD before and after, the
+    # same 2 MISSED, the same 22 named facts in the same order, and
+    # nothing "outside the range" either way.
 GOLDEN_QUALITY_SHA256 = (
     # RE-RECORDED FOR THE NUMERIC TAIL (stage 3, landing 3.3). Every
     # numeric block now carries `tails` and `bin_groups`; the rungs
@@ -3217,7 +3272,7 @@ GOLDEN_QUALITY_SHA256 = (
     # LEFT OR MOVED, and no verdict moved; the description and twin
     # digests above hold, so neither input changed either. What moved is
     # only what the page SAYS, which is what this pass changed it to say.
-    "16fdeeeca6c9b98954c08221aa80e82ef04a5daaea4a4b7f5a090a7ba183fe2d"
+    "3d2ab44006cde7c1d45e471c55ae1bc6124a3157cec09e24f130a6557f8dc33c"
 )
 
 

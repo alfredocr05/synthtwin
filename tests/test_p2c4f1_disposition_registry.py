@@ -138,7 +138,12 @@ CONTRACT6 = REPO_ROOT / "docs" / "spec" / "profile-contract-v6.md"
 # still a sealed governing document, so attacking it exercises exactly
 # what those tests exist to exercise.
 MATRIX_CONTRACT = fixtures.GOVERNING_CONTRACT
+# The plan of record, sealed since the governance pass of stage 3's
+# review: it fixes each landing's scope and its gate, and `CLAUDE.md`'s
+# first instruction is to read it.
+STATE = REPO_ROOT / "docs" / "STATE.md"
 RELATIVE = {
+    "docs/STATE.md": STATE,
     "docs/spec/profile-contract-v4.md": CONTRACT,
     "docs/spec/profile-contract-v5.md": CONTRACT5,
     "docs/spec/profile-contract-v6.md": CONTRACT6,
@@ -444,6 +449,14 @@ def test_no_fourth_governing_document_can_appear_unsealed() -> None:
     what happened when `profile-contract-v5.md` landed under plan
     amendment A-P3-27: the list below grew by one line, in the same
     commit as the document and its seal entry.
+
+    AND `docs/` ITSELF IS WALKED, which it was not (the governance pass
+    of stage 3's review, item 8). `docs/STATE.md` -- the plan of record,
+    and the one page every session is instructed to read first -- sat
+    directly in `docs/`, which neither glob reached, so the document
+    that fixes each landing's scope and gate was outside the seal and
+    outside this guard at once. It is sealed now, and a second page put
+    beside it turns this red the day it lands.
     """
     specifications = sorted(
         path.name for path in (REPO_ROOT / "docs" / "spec").glob("*.md")
@@ -485,6 +498,12 @@ def test_no_fourth_governing_document_can_appear_unsealed() -> None:
         # the obvious place to state a lesser outcome nobody sealed.
         "phase-5-relationships.md",
     ], plans
+    pages = sorted(path.name for path in (REPO_ROOT / "docs").glob("*.md"))
+    assert pages == [
+        # The plan of record, sealed since the governance pass of stage
+        # 3's review. Nothing else may stand beside it unsealed.
+        "STATE.md",
+    ], pages
     for relative in dispositions.GOVERNING:
         assert (REPO_ROOT / relative).exists(), relative
 
@@ -512,6 +531,50 @@ def test_the_seal_reddens_on_any_new_or_reworded_passage(
         substituted = dict(RELATIVE)
         substituted[name] = copy
         assert _unsealed(substituted), name
+
+
+# THE REVIEW'S OWN EDIT TO THE PLAN OF RECORD (the governance pass of
+# stage 3's review, item 8). It lowers stage 3's guarantee about what a
+# published sentence may carry, in the one document every session is
+# told to read first, and it passed all four seal and coverage checks
+# because none of them opened that document.
+STATE_LOWERING = (
+    "| 3 | **DONE 2026-09-23. The extremes, and the population floor.**",
+    "no sentence carries a count a key withholds",
+    "a sentence may carry a count a key withholds",
+)
+
+
+def test_the_seal_reddens_on_a_stage_guarantee_rewritten(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Item 8, watched failing: the plan of record's own stage row.
+
+    The edit changes stage 3's GATE -- what a published sentence may
+    carry -- and nothing else. It states no disposition and names no
+    published fact, so neither the phrase scan nor the matrix checks can
+    see it; the seal sees it because the row is a passage of a governing
+    document and its digest moves.
+    """
+    row, before, after = STATE_LOWERING
+    text = STATE.read_text(encoding="utf-8")
+    line = [one for one in text.splitlines() if one.startswith(row)]
+    assert len(line) == 1, (
+        "the plan of record no longer carries stage 3's own row, so this "
+        "mutation has nothing to lower"
+    )
+    assert before in line[0]
+    copy = tmp_path / "STATE-lowered.md"
+    copy.write_text(
+        text.replace(line[0], line[0].replace(before, after), 1),
+        encoding="utf-8", newline="\n",
+    )
+    substituted = dict(RELATIVE)
+    substituted["docs/STATE.md"] = copy
+    assert _unsealed(substituted), (
+        "a stage guarantee was rewritten in the plan of record and the "
+        "seal did not move"
+    )
 
 
 # -- the second lock: the registry's own judgment is sealed ------------

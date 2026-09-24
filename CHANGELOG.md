@@ -6,6 +6,93 @@ exists).
 
 ## [Unreleased]
 
+### The ten governance items of stage 3's review, and the close of the round (2026-09-24)
+
+**THE ROUND DOES NOT RUN AGAIN**, so every repair here is proved by
+measurement in this tree and every new or changed guard was watched
+failing under the arithmetic it replaced.
+
+**What changed.**
+
+- **The oracle allocated a listed tail the way the shipped rule
+  stopped allocating it** (item 1). For boundary `4`, values
+  `[0, 1, 2, 3]`, twelve rows, a mean distance of `2.25` and a
+  root-mean-square of `2.5` it gave `[1, 5, 2, 4]` where method G5.3e
+  gives `[2, 3, 3, 4]`, which puts one row on a value the listing
+  rule excludes. The clause now states the floor `q` under each listed value
+  and the oracle reads it; the frozen case `tail_listed_floor` is the
+  first that tells the two allocations apart, since every case frozen
+  before it answers the same counts either way.
+- **The oracle's tail arithmetic failed at supported scales** (item 2).
+  `tail_bound` squared the root-mean-square, which underflows below
+  about 1e-162: with twelve rows, a mean of `1e-200` and a
+  root-mean-square of `2e-200` it returned `1e-200` against the clause's
+  `6.74456e-200`. It takes the form G5.3b step 4 already fixed, `rms`
+  times a fraction. `tests/tail_rule.py`'s `rounded_root` took a
+  whole-number square root at a FIXED sixty-four guard bits and returned
+  0.0 for every value below about 1e-39, so
+  `rounded_root(Fraction(1, 10**40))` was nought where the root is
+  `1e-20`; the guard now grows with the exponent. Both carry scale
+  witnesses with mutants.
+- **The back-solve measured the wrong thing** (item 3). It asked whether
+  the published facts leave ONE multiset of distances; what the floor
+  protects is the outermost value and its count. Eleven distances
+  summing to 24 with squares 104 admit two multisets and BOTH put the
+  largest distance at 8 with one row on it -- at a low clock boundary of
+  `00:20` that names the minimum `00:12` and says one cell holds it --
+  and `pinned` read nought. It asks whether the extreme and its count
+  vary across the solutions now.
+- **The literal-leak measurement could not see a value inside a
+  sentence** (item 4). A withheld `2024-02-02 12:34:56` after
+  `Earliest:` split at its space and scored nought; a withheld `00:12`
+  in `The earliest is 00:12.` wore the full stop and scored nought. The
+  split joins adjacent tokens and offers each with a trailing point
+  removed, so a renderer-only regression cannot leave the headline
+  green.
+- **The gate's listing mutation covered one shape only** (item 5). The
+  exemption's premise is the listing rule itself and has been since plan
+  P4-D349; what was missing is the mutant that would have caught it
+  otherwise, so the unauthorized listing is now driven at ONE, TWO and
+  THREE values on both tails of the 600-row charges fixture.
+- **`K-S3-05` recorded a population it had stopped measuring** (item 6).
+  Its battery moved to 1,800 rows when the listing rule began asking its
+  premise; the record still said 900 rows and "6 of 6 keep their scale",
+  and STATE put the smaller-scale residual against `K-S3-09`, which
+  measures a count column beside a heap of zeros. The record names 1,800
+  now, and the 900-row cost is bounded rather than described: four of
+  twelve tail sides refused, 31 cells written off the scale and a worst
+  column mean 11.33 per cent out, each held at a ceiling.
+- **Disposition completeness stopped at the tail containers** (item 7).
+  `unregistered_fact` injected into a numeric or a temporal tail left
+  the completeness test green. The walk reaches the leaves, and a
+  container the matrix disposes as a CONTAINER -- it says so in its own
+  row -- no longer answers for a child it does not name.
+- **The plan of record was outside the seal** (item 8). An in-memory
+  edit to `docs/STATE.md` permitting sentences to disclose withheld
+  counts passed all four seal and coverage checks, because none of them
+  opened it. It is a governing document now, `docs/` is walked so a
+  second page cannot appear beside it unsealed, and two of its raising
+  sentences are anchored.
+- **Two green records omitted evidence their own rule bounds** (item 9).
+  `K-S3-01` and `K-S3-02` bound `pinned_nodes_failing` and recorded no
+  answer for it, and ledger integrity excused exactly that key. It does
+  not any more, and judging such a record is watched calling it a drop.
+- **The contract commanded removed behaviour** (item 10). Section 9.6's
+  prose still required exact endpoint CELLS and said D11 ties the ladder
+  ends to the endpoint text, over a version that removed both. It states
+  the boundary obligations instead, and two guards hold the governing
+  contract to naming no removed endpoint AND to still stating the
+  obligation that replaced it.
+
+**And the close of the round.** Every frozen vector was rebuilt from the
+merged oracle through the provenance guard runner and every digest
+updated; `tail_withheld_pair` freezes the construction that publishes
+NEITHER distance, which the oracle could not read at all; G14.3's case
+count is recomputed off the committed sets (122, the tenth file nine and
+the eleventh five); and the five goldens are re-recorded, each beside a
+line-by-line reading of what moved in its artifact.
+
+
 ### The numeric tail's robustness: six repairs from stage 3's review (2026-09-24)
 
 **THE ROUND RETURNED REJECT ON ALL FOUR PASSES AND DOES NOT RUN AGAIN**,

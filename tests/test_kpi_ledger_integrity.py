@@ -277,6 +277,17 @@ def test_a_re_measured_entry_records_every_key_its_rule_bounds() -> None:
     taken by a driver that did not exist at that commit. Every key the
     rule bounds must be one the recorded value carries, so a rule
     extended without a re-measurement is red here.
+
+    AND `pinned_nodes_failing` IS ONE OF THEM (the governance pass of
+    stage 3's review, item 9). It was excused here, on the reading that
+    the runner merges it rather than the test measuring it -- so a
+    record could bound the key and carry no answer for it, and judging
+    such a record returns "pinned_nodes_failing: not measured" while
+    this file reported no problem at all. MEASURED on the tree that
+    found it: K-S3-01 and K-S3-02 were both in that state and both are
+    GREEN, so nothing else said so either. An entry that pins tests
+    bounds their failure (the test below) and must now RECORD it, which
+    closes the pair.
     """
     missing = []
     for entry in LEDGER["entries"]:
@@ -284,13 +295,42 @@ def test_a_re_measured_entry_records_every_key_its_rule_bounds() -> None:
         value = entry["value_at"]["value"]
         if not isinstance(expected, dict) or not isinstance(value, dict):
             continue
-        gone = sorted(k for k in expected if k not in value and k != "pinned_nodes_failing")
+        gone = sorted(k for k in expected if k not in value)
         if gone:
             missing.append(f"{entry['id']}: {', '.join(gone)}")
     assert missing == [], (
         "these entries bound a key their recorded value does not carry, so the rule was "
         "extended and the value was not re-measured: " + "; ".join(missing)
     )
+
+
+def test_an_incomplete_record_is_judged_as_not_measured() -> None:
+    """...and the judgment behind that: a missing key is a FAILURE.
+
+    The check above is what makes a record complete; this is why an
+    incomplete one matters. `kpi_rules.judge` returns "not measured" for
+    a bounded key the value does not carry, and that verdict is a drop
+    -- so an entry whose record omits `pinned_nodes_failing` would be
+    called broken the moment anybody judged its recorded value, while
+    ledger integrity reported nothing. Watched here on the two entries
+    that were in exactly that state.
+    """
+    for entry_id in ("K-S3-01", "K-S3-02"):
+        entry = ENTRIES[entry_id]
+        recorded = dict(entry["value_at"]["value"])
+        assert "pinned_nodes_failing" in recorded, entry_id
+        assert not kpi_rules.judge(entry, recorded).is_drop, entry_id
+        thinner = {
+            key: value
+            for key, value in recorded.items()
+            if key != "pinned_nodes_failing"
+        }
+        verdict = kpi_rules.judge(entry, thinner)
+        assert verdict.is_drop, (entry_id, verdict)
+        assert "pinned_nodes_failing: not measured" in verdict.message, (
+            entry_id,
+            verdict.message,
+        )
 
 
 

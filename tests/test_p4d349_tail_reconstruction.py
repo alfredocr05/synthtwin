@@ -574,6 +574,14 @@ def test_the_summary_never_says_unpublished_over_values_it_prints(
     and high-tail values `[9, 10]` -- a bounded scale every step of which
     many rows hold, which the owner's ruling reaches. The page said "the
     12 smallest values are not published" and then printed two of them.
+
+    BOTH HALVES ARE ABOUT WHAT THE PAGE SAYS, NOT ABOUT ITS WORDING. The
+    second half quoted "names which values they are" and the repair of
+    the six untrue sentences (2026-09-23, finding 7) rewrote that
+    heading, which left this asserting a phrase no page writes. What it
+    is FOR is that the page tells the reader a listed tail's values are
+    named and says which column they belong to, so it is asked that way:
+    the heading's own stem, and the column named under it.
     """
     cells = [str(value % 11) for value in range(110)]
     described = _described(tmp_path, "likert", cells)
@@ -586,7 +594,16 @@ def test_the_summary_never_says_unpublished_over_values_it_prints(
                 "the page says a listed tail's values are not published: "
                 + line.strip()
             )
-    assert "names which values they are" in page
+    heading = "the description names which values"
+    assert heading in page, (
+        "the page does not tell the reader that a listed tail's values "
+        "are named at all"
+    )
+    named = page[page.index(heading):].split("\n\n")[0]
+    assert block["name"] in named, (
+        "the page says a bounded scale's tail names its values and does "
+        f"not say it of {block['name']}: {named!r}"
+    )
 
 
 def test_the_summary_says_a_withheld_pair_is_withheld(

@@ -78,6 +78,7 @@ import typing
 
 import pytest
 
+import dispositions
 import fixtures
 from synthtwin import (
     parsing,
@@ -1124,3 +1125,89 @@ def test_an_exception_added_anywhere_is_caught() -> None:
                 assert _undecided(mutated, decided), (
                     f"{path.name} at block {place}: {added[:60]}"
                 )
+
+
+# -- the version 6 contract commands no removed endpoint behaviour -----
+#
+# THE GOVERNANCE PASS OF STAGE 3'S REVIEW, ITEM 10. Everything above
+# reads `profile-contract-v4.md`, which is history and is sealed as
+# history. The document that GOVERNS is version 6, and stage 3 removed
+# `earliest` and `latest` from it (plan P4-D328) while section 9's prose
+# went on commanding the behaviour they carried: "the two endpoint cells
+# are written from the published endpoint's OWN fields", "D11 ties
+# `date_percentiles.min` and `.max` to the same two texts". An
+# independent implementer reading the disposition table and the
+# paragraph under it received two incompatible instructions at once.
+#
+# The obligation did not go; it moved to the two tail BOUNDARIES, which
+# are the outermost moments a description names now. So the guard is not
+# "the words are gone" -- that would be satisfied by deleting the
+# obligation -- it is BOTH: no passage of the governing contract still
+# commands a published endpoint, AND the boundary obligations are stated
+# where the endpoint ones were.
+
+GOVERNING_CONTRACT = fixtures.GOVERNING_CONTRACT
+
+# The words that mark a passage as a RECORD of what was removed rather
+# than an instruction about what a description carries.
+WITHDRAWN_MARKERS = (
+    "are gone",
+    "no longer exist",
+    "left the matrix",
+    "which no longer exist",
+    "and both fields are gone",
+)
+
+# The two fields stage 3 removed, as a normative field name is written.
+REMOVED_ENDPOINTS = ("`earliest`", "`latest`", "`earliest_utc_offset`", "`latest_utc_offset`")
+
+
+def _governing_passages() -> "list[str]":
+    """The version 6 contract's passages, its own decision record aside.
+
+    Section 13 is "Decisions this contract took, and why": it exists to
+    record what was lowered and restored, and reading it as an
+    instruction would make the audit trail unwritable.
+    """
+    body = GOVERNING_CONTRACT.read_text(encoding="utf-8")
+    body = body[: body.index("\n## 13. Decisions this contract took")]
+    return [
+        " ".join(passage.split())
+        for passage in dispositions.passages(GOVERNING_CONTRACT)
+        if " ".join(passage.split()) in " ".join(body.split())
+    ]
+
+
+def test_the_governing_contract_commands_no_removed_endpoint() -> None:
+    """No normative passage of version 6 names an endpoint as a live fact."""
+    left = [
+        passage
+        for passage in _governing_passages()
+        if any(name in passage for name in REMOVED_ENDPOINTS)
+        and not any(mark in passage for mark in WITHDRAWN_MARKERS)
+    ]
+    assert left == [], (
+        "these passages of the contract that GOVERNS still name a field "
+        "stage 3 removed, without saying it is removed:\n  "
+        + "\n  ".join(one[:200] for one in left)
+    )
+
+
+def test_the_governing_contract_states_the_boundary_obligations() -> None:
+    """...and the obligation is stated on what replaced them.
+
+    Without this half the check above would be met by deleting the
+    paragraph, which is the lowering this whole file exists to catch.
+    """
+    body = " ".join(GOVERNING_CONTRACT.read_text(encoding="utf-8").split())
+    for sentence in (
+        "every MOMENT A TAIL PUBLISHES — its `boundary` and each entry "
+        "of its `values` — is exact in owner decision 5's representation "
+        "with no exception at all",
+        "a published moment is written from its OWN fields rather than "
+        "through the whole-second ordinal arithmetic the interior ranks "
+        "use",
+        "**D11 makes `date_percentiles.min` and `.max` `null` in every "
+        "description**",
+    ):
+        assert " ".join(sentence.split()) in body, sentence[:80]

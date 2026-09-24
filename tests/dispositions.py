@@ -114,6 +114,19 @@ REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
 PAUSED_UNTIL_PHASE_CLOSE = True
 
 GOVERNING = (
+    # THE PLAN OF RECORD (the governance pass of stage 3's review,
+    # item 8). `docs/STATE.md` is not a working note: it says in its own
+    # words that it IS the plan of record, it fixes each landing's
+    # scope and its gate, and `CLAUDE.md`'s first instruction is to read
+    # it -- so a stage guarantee quietly rewritten there is the same
+    # defect this seal exists to catch, in the one document every
+    # session is told to read first. MEASURED: an in-memory edit to it
+    # permitting sentences to disclose withheld counts passed all four
+    # seal and document-coverage checks, because none of them opened
+    # it. It is under the seal now, so a changed stage guarantee moves a
+    # digest and the suite says so before anybody argues about what the
+    # sentence means.
+    "docs/STATE.md",
     "docs/plans/phase-2-generator.md",
     "docs/plans/phase-3-product.md",
     # The Phase 4 plan joined at its ratification (2026-08-19, plan
@@ -2391,6 +2404,22 @@ ANCHORS: "tuple[tuple[str, str], ...]" = (
             "(`docs/spec/generation-method-v1.md` G12, "
             "`generation-whole-numbers-need-room`)"
         ),
+    ),
+    # THE PLAN OF RECORD'S OWN RAISING SENTENCES (item 8 of the
+    # governance pass). Sealing catches a stage guarantee somebody
+    # REWROTE; these two are the ones whose deletion would lower a bar
+    # just as surely -- the rule that keeps the page true, and stage 3's
+    # own guarantee about what a sentence may carry.
+    (
+        "docs/STATE.md",
+        (
+            "**The rule that keeps it true: this file moves in the same "
+            "commit as the work it describes.**"
+        ),
+    ),
+    (
+        "docs/STATE.md",
+        "no sentence carries a count a key withholds",
     ),
     (
         # THE COUNT MOVED FROM FOUR TO FIVE, and the anchor moved with

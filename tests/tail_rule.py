@@ -75,22 +75,48 @@ def rung_at(values: "list[float]", percent: int) -> Fraction:
     return ordered[under] + share * (ordered[under + 1] - ordered[under])
 
 
+# How many binary digits the whole-number square root below is grown to
+# carry. Fifty-three decide the last place of a binary64 and the rest is
+# headroom against the truncation of `math.isqrt`.
+_GUARD_DIGITS = 128
+
+
 def rounded_root(value: Fraction) -> float:
     """The binary64 nearest the square root of a rational.
 
     The rule computes a tail's root-mean-square exactly and rounds it
     ONCE (section 6.7a), so a helper that took `math.sqrt` of a rounded
     quotient would round twice and disagree in the last place. The
-    square root is taken in whole numbers at sixty-four guard bits,
-    which leaves the result exact wherever the rounding of the last
-    place is decided at all.
+    square root is taken in whole numbers, and the guard is chosen FROM
+    THE VALUE'S OWN SIZE rather than fixed, so the whole-number root
+    carries at least `_GUARD_DIGITS` binary digits whatever the
+    exponent.
+
+    A FIXED GUARD IS NOT SCALE-SAFE, which is what this rounds. At
+    sixty-four guard bits `(numerator << 128) // denominator` is NOUGHT
+    for every value below about 1e-39, so `rounded_root(Fraction(1,
+    10**40))` returned 0.0 where the root is 1e-20 -- a helper that
+    certifies a published root-mean-square as nought is a helper that
+    would pass a tail publishing nothing and fail one publishing the
+    truth. The guard now grows with the exponent: the shift is raised
+    until the whole-number root has the digits the rounding of the last
+    place is decided at, so the answer is the same binary64 at 1e-200
+    as at 1.
     """
     if value <= 0:
         return 0.0
-    guard = 64
-    scaled = (value.numerator << (2 * guard)) // value.denominator
-    root = math.isqrt(scaled)
-    return float(Fraction(root, 1 << guard))
+    top = value.numerator
+    bottom = value.denominator
+    # `root` has about `(bits(top) - bits(bottom) + shift) / 2` digits,
+    # and the last place of a binary64 is decided at 53 of them; the
+    # rest is headroom, so a truncating `isqrt` cannot move the answer.
+    shift = 2 * _GUARD_DIGITS + bottom.bit_length() - top.bit_length()
+    if shift < 0:
+        shift = 0
+    if shift % 2:
+        shift = shift + 1
+    root = math.isqrt((top << shift) // bottom)
+    return float(Fraction(root, 1) / Fraction(2) ** (shift // 2))
 
 
 def facts_of(

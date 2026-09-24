@@ -575,7 +575,32 @@ def _strings(node):
 
 
 def _tokens(text):
-    """The whole tokens of a line, so a value inside a sentence is caught."""
+    """The whole tokens of a line, so a value inside a sentence is caught.
+
+    TWO WAYS A WITHHELD VALUE SURVIVED THIS SPLIT (the governance pass
+    of stage 3's review, item 4), and both are what a SENTENCE does to a
+    value rather than anything the description did.
+
+    * A MOMENT IS TWO TOKENS. `2024-02-02 12:34:56` carries a space, so
+      a page printing it after `Earliest:` split into `2024-02-02` and
+      `12:34:56` and neither equalled the withheld cell: the measurement
+      scored nought on a value printed in full. Adjacent tokens are
+      joined here, in pairs and in threes, so a spelling written with
+      one or two spaces in it -- a moment, a moment beside its offset --
+      is compared whole.
+    * A VALUE AT THE END OF A SENTENCE WEARS THE FULL STOP. `The
+      earliest is 00:12.` yields `00:12.`, because a point is part of
+      the number spellings this split must keep together, and `00:12.`
+      is not `00:12`. Each token is therefore offered with a trailing
+      point taken off as well as with it. Only a TRAILING POINT is
+      taken: a leading minus or a trailing one is a NOTATION this
+      project publishes (`negative_notations`), and stripping either
+      would make `5-` read as the different value `5`.
+
+    A renderer-only regression could leave the headline green while a
+    page printed a withheld end in full; these are the two shapes that
+    happens in.
+    """
     found = []
     word = ""
     for letter in text:
@@ -587,7 +612,17 @@ def _tokens(text):
             word = ""
     if word:
         found += [word]
-    return found
+    caught = []
+    for place in range(len(found)):
+        for width in (1, 2, 3):
+            if place + width > len(found):
+                continue
+            joined = " ".join(found[place:place + width])
+            caught += [joined]
+            bare = joined.rstrip(".")
+            if bare and bare != joined:
+                caught += [bare]
+    return caught
 
 
 # How many multisets the back-solve is allowed to count before it stops
@@ -684,6 +719,76 @@ def _multisets(rows, total, squares, most, steps=None, spent=None, apart=False):
     return found
 
 
+def _extremes(rows, total, squares, most, steps, spent, apart=False):
+    """The `(largest distance, how many rows hold it)` pairs the two sums
+    admit, at most two of them, or None where the walk spent its budget.
+
+    WHAT THE FLOOR PROTECTS IS THE EXTREME AND ITS COUNT, NOT THE WHOLE
+    MULTISET (the governance pass of stage 3's review, item 3). A tail's
+    outermost value is `boundary -/+ the largest distance`, and how many
+    rows hold that value is the count beside it -- so where every
+    multiset the published facts admit carries the SAME largest distance
+    and the same count of it, the description has named the outermost
+    value and its count, whatever else a reader cannot pin down.
+    MEASURED: eleven distances summing to 24 with squares 104 admit
+    `[8, 4, 4, 1 x 8]` and `[8, 5, 2, 2, 1 x 7]`, so the multiset is not
+    unique and `pinned` read nought -- while BOTH say the largest
+    distance is 8 and that one row holds it, which at a low clock
+    boundary of `00:20` names the minimum `00:12` and says one cell
+    stands on it.
+
+    Stopping at TWO pairs is the whole question: one means revealed and
+    two mean it varies, so the walk returns as soon as it holds two.
+    """
+    found = set()
+    if rows <= 0:
+        return found
+    top = min(most, total - (rows - 1))
+    for first in range(top, 0, -1):
+        steps[0] -= 1
+        if steps[0] <= 0:
+            spent[0] = True
+            return None
+        for copies in range(1, rows + 1):
+            if apart and copies > 1:
+                break
+            if copies * first > total or copies * first * first > squares:
+                break
+            left_rows = rows - copies
+            left_total = total - copies * first
+            left_squares = squares - copies * first * first
+            if left_rows == 0:
+                if left_total == 0 and left_squares == 0:
+                    found.add((first, copies))
+                continue
+            if left_total < left_rows or left_squares < left_total:
+                continue
+            if first <= 1:
+                continue
+            # The rest of the tail stands strictly BELOW `first`, which
+            # is what makes `copies` the multiplicity of the largest.
+            if _multisets(
+                left_rows, left_total, left_squares, first - 1,
+                steps, spent, apart,
+            ):
+                found.add((first, copies))
+            if spent[0]:
+                return None
+            if len(found) > 1:
+                return found
+    return found
+
+
+def _settled(rows, total, squares, most, apart=False):
+    """Whether the published facts name a tail's outermost value AND its
+    count. Returns `(settled, spent)`; a spent walk settles nothing."""
+    spent = [False]
+    found = _extremes(rows, total, squares, most, [ROOM_STEPS], spent, apart)
+    if found is None or spent[0]:
+        return False, True
+    return len(found) == 1, False
+
+
 # The largest whole number binary64 carries exactly. A tail's two sums
 # are read back from two rounded numbers, and beyond this the reading
 # itself is not exact, so the walk is not run: the tail is UNSEARCHED
@@ -697,9 +802,13 @@ def _pinned_and_room(block, floor):
     and how many the walk could not finish.
 
     The back-solve of contract TL1, made from the published facts alone:
-    a tail whose rows, mean and root-mean-square distance leave exactly
-    ONE multiset of distances names its outermost value, and the count of
-    multisets is how much room a reader is left with.
+    a tail whose rows, mean and root-mean-square distance leave the same
+    LARGEST distance and the same count of it across every multiset they
+    admit names its outermost value and how many rows hold it
+    (`_settled`), and the count of multisets is how much room a reader
+    is left with. The two questions are asked separately because they
+    have different answers: a tail can be far from settling its whole
+    multiset and still give its extreme back.
 
     A TAIL PUBLISHING ITS VALUES IS NOT ASKED, because it has already
     said which values it holds and the lattice is not what a reader
@@ -739,10 +848,11 @@ def _pinned_and_room(block, floor):
             continue
         spent = [False]
         count = _multisets(rows, total, squares, total, [ROOM_STEPS], spent)
-        if spent[0]:
+        settled, stopped = _settled(rows, total, squares, total)
+        if spent[0] or stopped:
             unsearched += 1
             continue
-        pinned += 1 if count == 1 else 0
+        pinned += 1 if settled else 0
         room = count if room is None else min(room, count)
     return pinned, room, unsearched
 
@@ -879,19 +989,17 @@ def _numeric_pinned(block, floor, apart):
             unsearched += 1
             continue
         spent = [False]
+        cap = _numeric_cap(block, side, home, total)
         count = _multisets(
-            tail["rows"],
-            total,
-            squares,
-            _numeric_cap(block, side, home, total),
-            [ROOM_STEPS],
-            spent,
-            apart,
+            tail["rows"], total, squares, cap, [ROOM_STEPS], spent, apart,
         )
-        if spent[0]:
+        settled, stopped = _settled(
+            tail["rows"], total, squares, cap, apart
+        )
+        if spent[0] or stopped:
             unsearched += 1
             continue
-        pinned += 1 if count == 1 else 0
+        pinned += 1 if settled else 0
         room = count if room is None else min(room, count)
     return pinned, room, unsearched
 
@@ -984,11 +1092,10 @@ def _edge_pinned(column, block=None):
         squares = int(rows * tail.rms_distance * tail.rms_distance + 0.5)
         if total > _EXACT_WHOLE or squares > _EXACT_WHOLE:
             continue
-        spent = [False]
-        count = _multisets(
-            rows, total, squares, min(edge, total), [ROOM_STEPS], spent, apart
+        found, stopped = _settled(
+            rows, total, squares, min(edge, total), apart
         )
-        if not spent[0] and count == 1:
+        if found and not stopped:
             settled += 1
     return settled
 

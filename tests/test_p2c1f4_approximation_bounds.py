@@ -1408,14 +1408,47 @@ def test_a_genuine_run_names_no_bound_deviation(
 # -- 5. the disposition matrix has no cell without a disposition ------
 
 
+# The containers whose LEAVES the matrix itemises, and how deep each one
+# goes. `tails` holds a side and the side holds the leaf, so it is two;
+# a date or clock tail holds its five keys directly, so it is one.
+TAIL_CONTAINERS = {"tails": 2, "low_tail": 1, "high_tail": 1}
+
+
+def _leaf_names(key: str, value: object, depth: int) -> "list[str]":
+    """Every LEAF under ``key``, to ``depth`` levels, dotted.
+
+    The intermediate names are not returned: the matrix disposes
+    `tails.low.percent` and never `tails.low`, because a side is the
+    same container its parent's row already speaks for. A `null`
+    container publishes no leaf and returns none.
+    """
+    if value is None:
+        return []
+    if depth <= 0 or not isinstance(value, dict):
+        return [key]
+    names: list[str] = []
+    for inner in sorted(value):
+        names = names + _leaf_names(f"{key}.{inner}", value[inner], depth - 1)
+    return names
+
+
 def _emitted_names(block: "dict[str, typing.Any]") -> "list[str]":
-    """Every key one column block publishes, containers expanded one level.
+    """Every key one column block publishes, containers expanded.
 
     The matrix disposes a ladder's rungs by naming the ladder, and a
     level entry's parts by naming them, so the names this returns are
     the ones the matrix can be asked about: the block's own keys, plus
     the keys inside the four statistics containers and inside a level
     entry.
+
+    AND THE TAIL LEAVES, WHICH IT DID NOT WALK (the governance pass of
+    stage 3's review, item 7). Stage 3 added `tails` to the numeric
+    roles and `low_tail`/`high_tail` to the calendar and clock ones, and
+    the matrix disposes each of their leaves on a line of its own -- but
+    this walk stopped at the container, so `tails.low.unregistered_fact`
+    and `low_tail.unregistered_fact` were published and asked about
+    NOTHING. Measured: that key injected into both, across the whole
+    all-role battery, left this file green.
     """
     names: list[str] = []
     for key in sorted(block):
@@ -1424,6 +1457,8 @@ def _emitted_names(block: "dict[str, typing.Any]") -> "list[str]":
         if key in ("percentiles", "date_percentiles", "length", "words"):
             for inner in sorted(value):
                 names = names + [f"{key}.{inner}"]
+        if key in TAIL_CONTAINERS and isinstance(value, dict):
+            names = names + _leaf_names(key, value, TAIL_CONTAINERS[key])
         if key == "levels":
             for entry in value:
                 for inner in sorted(entry):
@@ -1431,21 +1466,74 @@ def _emitted_names(block: "dict[str, typing.Any]") -> "list[str]":
     return names
 
 
+# The numeric section, which the affixed role's own sub-table points at
+# with "as on `count` and `continuous` above". Resolving that reference
+# is what lets the question below be asked of every role alike.
+NUMERIC_SECTION = "9.4 The numeric roles: `count`, `continuous`, `affixed_number`"
+
+
+def _container_only(
+    head: str, table: "dict[str, str]", universal: "dict[str, str]"
+) -> bool:
+    """Whether the matrix's own row for ``head`` disposes the CONTAINER
+    and not the subtree under it.
+
+    The matrix says which it is, in the row's own words, and this reads
+    them rather than keeping a list beside them. A container-only row
+    either carries the disposition `STRUCTURAL` -- "the container's own
+    key carries no VALUE obligation; its membership is the five keys
+    below, and every one of them is disposed in its own right" -- or
+    names the container outright, as `tails` does: "the container
+    carries no obligation of its own, each leaf below it is disposed on
+    its own line". Anything else disposes what is under it, which is how
+    `percentiles` answers for a hundred and one rungs with one row.
+
+    A row reading "as on `count` and `continuous` above" is the affixed
+    role pointing at the numeric section, and is followed.
+    """
+    text = table.get(head, universal.get(head))
+    if text is None:
+        return False
+    flat = " ".join(text.split())
+    if flat.startswith("as on"):
+        numeric = dict(_matrix_sections()[NUMERIC_SECTION])
+        flat = " ".join(numeric.get(head, flat).split())
+    return flat.startswith(dispositions.STRUCTURAL) or "the container" in flat
+
+
 def _undisposed(
     names: "list[str]", table: "dict[str, str]", universal: "dict[str, str]"
 ) -> "list[str]":
     """The names in ``names`` that no matrix row disposes.
 
-    A dotted name is disposed by its own row or by its container's row,
-    once -- which is how the matrix writes a ladder's interior rungs.
-    Everything else has to be named outright.
+    A dotted name is disposed by its own row, or by its container's row
+    where the matrix disposes that container's WHOLE SUBTREE -- which it
+    does exactly where it itemises none of its children. That is how the
+    matrix writes a ladder: `percentiles` carries one row and no row
+    names a rung, so the row answers for every rung.
+
+    A CONTAINER-ONLY ROW DISPOSES ONLY THE CHILDREN IT NAMES (the
+    governance pass of stage 3's review, item 7). The matrix says which
+    of its containers those are, in their own words -- `tails` reads
+    "the container carries no obligation of its own, each leaf below it
+    is disposed on its own line" and `low_tail` reads "STRUCTURAL: its
+    membership is the five keys below, and every one of them is disposed
+    in its own right" -- and a walk that let either row excuse arbitrary
+    children read them as the opposite of what they say. `_container_only`
+    asks the row; nothing here keeps a list of containers that would go
+    stale beside it.
     """
     missing: list[str] = []
     for name in names:
         if name in table or name in universal:
             continue
         head = name.split(".")[0]
-        if head in table or head in universal:
+        if head == name:
+            missing = missing + [name]
+            continue
+        if (head in table or head in universal) and not _container_only(
+            head, table, universal
+        ):
             continue
         missing = missing + [name]
     return missing
@@ -1643,3 +1731,90 @@ def test_the_completeness_assertion_refuses_a_key_nobody_disposed(
         ]
         return
     raise AssertionError("the shared table has no column of counts")
+
+
+# The key the review injected, which the walk above must now find
+# wherever a description can carry it (the governance pass of stage 3's
+# review, item 7).
+UNREGISTERED = "unregistered_fact"
+
+# Where a tail leaf lives, per role: the numeric roles carry `tails`
+# with a side under it, the calendar and clock roles carry `low_tail`
+# and `high_tail` with the leaf directly under them.
+TAIL_PLACES = (
+    ("tails", ("low", "high")),
+    ("low_tail", ()),
+    ("high_tail", ()),
+)
+
+
+def _with_an_unregistered_tail_fact(
+    block: "dict[str, typing.Any]",
+) -> "list[dict[str, typing.Any]]":
+    """Copies of ``block`` carrying `unregistered_fact` in each tail leaf."""
+    bent: "list[dict[str, typing.Any]]" = []
+    for container, sides in TAIL_PLACES:
+        held = block.get(container)
+        if not isinstance(held, dict):
+            continue
+        for side in sides or (None,):
+            inner = held if side is None else held.get(side)
+            if not isinstance(inner, dict):
+                continue
+            copy = dict(block)
+            leaf = dict(inner)
+            leaf[UNREGISTERED] = 1
+            copy[container] = (
+                leaf if side is None else dict(held, **{side: leaf})
+            )
+            bent = bent + [copy]
+    return bent
+
+
+def test_a_fact_injected_into_a_tail_leaf_is_undisposed(
+    every_role_document: "dict[str, typing.Any]",
+    joined_numbers_document: "dict[str, typing.Any]",
+    numbers_with_labels_document: "dict[str, typing.Any]",
+) -> None:
+    """THE MUTATION FOR THE TAIL LEAVES, over the whole all-role battery.
+
+    The review injected `unregistered_fact: 1` into the numeric and
+    temporal tails and the completeness test stayed GREEN: the walk
+    stopped at the container, and the container's own row excused
+    whatever stood under it. Both halves are repaired -- the leaves are
+    walked, and a container the matrix disposes as a CONTAINER cannot
+    answer for a child it does not name -- and this is that injection,
+    asked of every block of every role that carries a tail at all.
+
+    It asserts the reach as well as the catch: some tail of some role
+    must be reached, or an injection that finds nowhere to go would pass
+    for a guard.
+    """
+    sections = _matrix_sections()
+    universal = dict(sections["9.2 Universal per-column fields"])
+    reached = 0
+    for document in (
+        every_role_document,
+        joined_numbers_document,
+        numbers_with_labels_document,
+    ):
+        for block in document["columns"]:
+            table = dict(sections[ROLE_SECTIONS[block["role"]]])
+            if block["role"] == "affixed_number":
+                table.update(sections["9.4 affixed_number"])
+            for bent in _with_an_unregistered_tail_fact(block):
+                reached = reached + 1
+                missing = _undisposed(
+                    _emitted_names(bent), table, universal
+                )
+                assert [
+                    name for name in missing if name.endswith(UNREGISTERED)
+                ], (
+                    f"{block['role']}/{block['name']}: a fact nobody "
+                    f"disposed was injected into a tail leaf and the "
+                    f"completeness walk did not name it: {missing}"
+                )
+    assert reached >= 4, (
+        f"only {reached} tail leaves were reached, so this injection is "
+        f"not the battery-wide one the review made"
+    )
