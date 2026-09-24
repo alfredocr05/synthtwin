@@ -3176,7 +3176,19 @@ GOLDEN_QUALITY_SHA256 = (
     # other way: `number 1 ladder.p95` and `number 2 ladder.p95` on
     # `pressure` and `ladder.p25` on `reading`, where the ladder the
     # tail rule leaves puts the twin on the published rung exactly.
-    "0d99c61a3ded9b2a9e952da8e9d6aec8b75f32aa5033463e3333a61234f61b36"
+    # ...AND RE-RECORDED AT THE FIX PASS OF STAGE 3 (2026-09-23, plan
+    # P4-D349), read line by line against the tree before it: FOUR LINES
+    # of 2,292 differ and they are one sentence printed four times --
+    # the not-checkable reason a withheld tail key carries, which used to
+    # say "a distance is published only where the tail has a row to
+    # measure" and now says that the two distances are published only
+    # where they would not give the tail's own cells back. The census is
+    # the same on both trees to the number: 473 HELD, 68 WITHIN-BOUND, 0
+    # WITHHELD, 0 MISSED and 214 not checkable. NO OBLIGATION ARRIVED,
+    # LEFT OR MOVED, and no verdict moved; the description and twin
+    # digests above hold, so neither input changed either. What moved is
+    # only what the page SAYS, which is what this pass changed it to say.
+    "16fdeeeca6c9b98954c08221aa80e82ef04a5daaea4a4b7f5a090a7ba183fe2d"
 )
 
 

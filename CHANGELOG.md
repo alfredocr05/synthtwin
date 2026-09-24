@@ -6,6 +6,94 @@ exists).
 
 ## [Unreleased]
 
+### The tail that would be read back publishes neither distance (2026-09-23)
+
+**STAGE 3'S ONE ADVERSARIAL ROUND RETURNED REJECT ON ALL FOUR PASSES,
+and this is the fix pass for the finding that is the heart of the
+stage** (plan P4-D349). The integers `0` to `1100`, once each, published
+a low boundary of `11` and a high boundary of `1089`, eleven rows a
+side, a mean distance of `6` and a root-mean-square of root-46, with
+`percentiles.min` and `percentiles.max` null -- and the same description
+says **every value in this column is different**. Eleven DIFFERENT whole
+distances summing to 66 can only be 1 to 11, because 66 is the least
+eleven different whole numbers can sum to, so all twenty-two withheld
+values came back exactly. 240 consecutive dates and 240 unique minutes
+did the same.
+
+**Measured with a reader's own arithmetic** before anything was changed:
+with the all-different remark in hand, each tail of the integer column
+admits exactly ONE multiset of distances; without it, 64.
+
+**What changed.**
+
+- **A tail whose published pair would give its own cells back publishes
+  NEITHER distance.** Its boundary and its row count stand; `values`,
+  `mean_distance` and `rms_distance` are all null. Contract DT1 and TL5
+  admit that shape on both roles -- both distances or neither, never a
+  mean alone.
+- **The back-solve knows what the description publishes** and runs on
+  the numeric role for the first time: the all-different remark, the
+  published grid, the space's edges, and the smallest distance a reader
+  cannot rule out -- one on a date tail, measured from a value a cell
+  holds, and NOUGHT on a numeric tail whose boundary rung falls between
+  two grid points.
+- **The tie is withdrawn from the back-solve.** It assumed a tail wider
+  than the floor is wider because its innermost cells are tied, which
+  stopped being true when a boundary learned to move inward. Worse, it
+  could not reach the real multiset: on 240 consecutive days widened to
+  eighteen rows the tied search answered NOT PINNED on the very tail the
+  review reconstructed by hand.
+- **The widening walk fails closed.** It no longer runs a question of
+  its own with a budget of its own; it builds the side and reads the
+  answer off it, so every place it can stop leaves a tail that withholds
+  its pair where it is still pinned.
+- **P4-D346's SECOND LISTING ROAD is withdrawn.** It named values ONE
+  CELL HOLDS -- `[1089, 1100]` where one row holds 1100, `06:59` beside
+  ten cells at `06:58` -- and its premise went with the fail-closed
+  rule, because a pinned tail now publishes no pair for a list to say
+  nothing more than.
+- **A quality report no longer prints a subfloor tail measurement.** The
+  cells counted are the file's own cells beyond the DESCRIPTION's
+  boundary, so one cell at a distance of eleven days named January 1
+  exactly; the verdicts stand and the numbers are dropped.
+- **The root-mean-square distance no longer certifies an endpoint
+  bound.** `boundary - rms >= min` reported HELD for a published minimum
+  of 10 against a file whose own minimum is 9, because a LOWER bound on
+  the largest distance was read as an upper one. Both ends had it.
+- **An overflowing moment window no longer removes an exact
+  obligation.** A file replacing twelve cells of `1.7e308` with
+  `1.6e308` reported no miss and appeared in no not-checkable listing;
+  the three keys are decided one at a time now.
+- **The summary no longer contradicts itself**: "the 12 smallest values
+  are not published" was printed over a block that then printed `0.0,
+  1.0`.
+
+**HOW A WITHHELD TAIL IS READ.** Its rows stand `rows` steps of the
+column's own grid out from the boundary -- the narrowest tail the
+description still asks for. On the integers 0 to 1100 that puts the
+twin's two ends on 0.0 and 1100.0, the column's OWN smallest and largest
+values, reached without either being published; on 200 `1 000` to `1 199`
+beside 100 `3 000` to `3 099` it keeps the twin inside 1000 to 3099 and
+the census of 200 spaces and 100 narrow spaces comes back exactly. Two
+wider readings were measured and rejected: the ends of the uniform
+stretch with the column's own two published moments, which put twelve
+cells below 1000 on that second column where no thousands mark can be
+written, and Cauchy-Schwarz's bound on the mean of `m` of `K` cells.
+
+**WHAT IT COSTS, measured** (`K-S3-15`): over the fix pass's ten shapes,
+17 tail sides publish neither distance and their twins miss FOUR
+obligations in total -- `moments.mean` and `moments.std`, at both seeds,
+on one shape: 399 consecutive record numbers beside a single `12345`.
+None of the three readings can average to that column's mean, because
+that mean is what the far cell puts in it.
+
+**The gate could not see any of this**, for three reasons at once: no
+battery shape is a column of consecutive values, the back-solve read
+`low_tail` and `high_tail` and so measured a numeric block as having no
+tail, and neither used the all-different remark.
+`tests/test_stage3_gate.py` now carries every one of the round's
+reproductions as a case, with a mutation that puts the pair back.
+
 ### Stage 3's gate, asked of a whole description in its own words (2026-09-23)
 
 **A STAGE IS NOT DONE UNTIL A TEST LITERALLY IMPLEMENTS THE GATE ITS

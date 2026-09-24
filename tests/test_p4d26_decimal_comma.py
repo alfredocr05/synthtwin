@@ -154,7 +154,8 @@ def test_a_declared_column_is_read_as_quantities() -> None:
     floor = taxonomy.Settings().small_cell_floor
     for low in (True, False):
         side = column["tails"]["low" if low else "high"]
-        assert tail_rule.stated(side) == tail_rule.expected(
+        assert tail_rule.holds(
+        side,
             column, numbers, floor, low
         )
 

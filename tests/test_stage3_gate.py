@@ -107,8 +107,10 @@ edges nobody states reads as a gate with none:
 from __future__ import annotations
 
 import collections
+import copy
 import datetime
 import importlib.util
+import math
 import json
 import pathlib
 import random
@@ -1402,7 +1404,12 @@ def _admitted(block: "dict", values: "list[float]", floor: int) -> "set[float]":
 
     `parsing.tail_may_list` and nothing else -- never "the tail listed
     it", which is the exemption plan P4-D346 removed because a drifted
-    listing rule could not fail against it.
+    listing rule could not fail against it, and no longer P4-D346's own
+    SECOND road either. That road exempted a tail of at most
+    `parsing.TAIL_SETTLED_VALUES` values whatever the rule said, and it
+    is withdrawn (plan P4-D349): it named values one row holds, and the
+    pair it said those values were settled by is now withheld rather than
+    published. One rule, one exemption.
     """
     allowed: "set[float]" = set()
     count = len(values)
@@ -1431,10 +1438,6 @@ def _admitted(block: "dict", values: "list[float]", floor: int) -> "set[float]":
             for value in tail["values"]:
                 if held[value] >= shared:
                     allowed.add(value)
-            continue
-        if len(tail["values"]) <= parsing.TAIL_SETTLED_VALUES:
-            for value in tail["values"]:
-                allowed.add(value)
     return allowed
 
 
@@ -1612,6 +1615,333 @@ def test_no_tail_of_the_battery_back_solves_to_the_value_it_withheld(
                     f"arithmetic by their own published facts"
                 ]
     assert found == [], "\n".join(found)
+
+
+# -- 3b. the reconstruction attacks (the fix pass, plan P4-D349) -------
+#
+# WHY THIS SECTION EXISTS. The walk above asks the tail-leak driver's
+# back-solve of the BATTERY, and the battery is the count design's own
+# shapes. It could not see the defect the adversarial round of stage 3
+# returned REJECT on, for three reasons at once: no shape of it is a
+# column of consecutive values; the driver's walk read `low_tail` and
+# `high_tail` and so measured a numeric block as having no tail at all;
+# and neither the walk nor the gate used the one fact that turns close
+# estimation into exact reconstruction -- the column's own published
+# remark that every value in it is different.
+#
+# Each case below IS one of the round's reproductions, named by what it
+# reproduces, and the three tests after them are the three things that
+# must hold of every one: nothing a single row holds is named, no tail's
+# published pair settles its own distances once the reader uses the whole
+# description, and the bounded scales the owner keeps are still named.
+
+
+def _consecutive_dates(count: int, start: str = "2020-01-01") -> "list[str]":
+    """`count` consecutive days as text, from `start`."""
+    first = datetime.date.fromisoformat(start)
+    return [
+        (first + datetime.timedelta(days=step)).isoformat()
+        for step in range(count)
+    ]
+
+
+def _consecutive_minutes(count: int, first: int = 7 * 60) -> "list[str]":
+    """`count` consecutive minutes as `hh:mm`, from `first` minutes of day."""
+    return [
+        "%02d:%02d" % divmod(first + step, 60) for step in range(count)
+    ]
+
+
+# THE ROUND'S OWN REPRODUCTIONS, each with the item that found it.
+RECONSTRUCTIONS = (
+    # numeric item 1: the pair, the grid and "every value different"
+    # leave one multiset on both sides at once.
+    ("integers_0_to_1100", [str(value) for value in range(1101)]),
+    # ...and it is not a property of whole numbers.
+    ("tenths_0_to_110", [f"{value / 10.0:.1f}" for value in range(1101)]),
+    # ...nor of 1,101 of them.
+    ("integers_0_to_1199", [str(value) for value in range(1200)]),
+    # numeric item 1's second half: the withdrawn second listing road
+    # published `[1089, 1100]`, and one row holds 1100.
+    (
+        "heap_then_one_far",
+        [str(value) for value in range(1089)] + ["1089"] * 11 + ["1100"],
+    ),
+    # dates item 2: 240 consecutive days, and 240 unique minutes.
+    ("dates_240_consecutive", _consecutive_dates(240)),
+    ("minutes_240_unique", _consecutive_minutes(240)),
+    # dates item 3: the second road named `06:59`, held by ONE cell.
+    (
+        "clock_one_beside_a_heap",
+        ["06:58"] * 10 + ["06:59"] + _consecutive_minutes(239),
+    ),
+    # dates item 1's own shape, whose boundary is January 12.
+    ("dates_200_consecutive", _consecutive_dates(200)),
+)
+
+# THE SCALES THE OWNER KEEPS, at the size at which the listing rule
+# reaches them (plan P4-D346's own measurement). They are here so that
+# the fix cannot be bought by withholding everything: a pass that
+# stopped these tails naming their values would be a pass that threw
+# away what the owner ruled publishable.
+KEPT_SCALES = (
+    ("pain_0_to_10", [str(value % 11) for value in range(1800)]),
+    ("risk_grade_1_to_5", [str(1 + value % 5) for value in range(1800)]),
+    ("likert_1_to_7", [str(1 + value % 7) for value in range(1800)]),
+)
+
+
+# THE SHAPES THE WITHHELD PAIR COSTS SOMETHING, beside the attacks. The
+# first is the review's own padded column: 399 consecutive record numbers
+# beside one far value, where the withheld tail carries the whole of the
+# column's spread. The second is that column without the far value, so
+# the measurement says which half the cost belongs to.
+COST_SHAPES = (
+    (
+        "padded_399_beside_one_far",
+        [f"{value:05}" for value in range(1, 400)] + ["12345"],
+    ),
+    ("padded_399_alone", [f"{value:05}" for value in range(1, 400)] + ["00400"]),
+)
+
+
+def withheld_cost(folder: pathlib.Path) -> "tuple[int, int, int]":
+    """The withheld pair's own cost, measured (ledger entry `K-S3-15`).
+
+    Three numbers over the fix pass's own shapes -- every reconstruction
+    attack and the two `COST_SHAPES`: how many tail SIDES publish neither
+    distance, how many checkable obligations their twins MISS at seeds 0
+    and 4 together, and how many shapes were measured. The second number
+    is the cost: a tail with no pair of its own is read through the
+    column's own published mean and spread, and where the withheld tail
+    IS the column's spread no reading can average to a mean the far cell
+    carries.
+    """
+    sides = 0
+    missing = 0
+    shapes = RECONSTRUCTIONS + COST_SHAPES
+    for name, cells in shapes:
+        described = kpi_shapes.describe(
+            folder / name, name, _one_column("value", cells), 11
+        )
+        for block in described.document["columns"]:
+            for _side, tail in _tails_of(block):
+                if tail["mean_distance"] is None:
+                    sides += 1
+            for key in ("low_tail", "high_tail"):
+                one = block[key] if key in block else None
+                if isinstance(one, dict) and one["mean_distance"] is None:
+                    sides += 1
+        for seed in (0, 4):
+            twin = kpi_shapes.twin_text(described, seed)
+            outcome = kpi_shapes.measure(described, twin, f"twin-{seed}.csv")
+            missing += len(kpi_shapes.missed(outcome))
+    return sides, missing, len(shapes)
+
+
+def _attack(folder: pathlib.Path, name: str, cells: "list[str]") -> Case:
+    """One reconstruction attack through the whole product path."""
+    home = folder / name
+    home.mkdir(parents=True, exist_ok=True)
+    table = fixtures.write(home, "real.csv", _one_column("value", cells))
+    read = reading.read_table(f"{table}", small_cell_floor=11)
+    document = profile.build_document(
+        read, taxonomy.Settings(small_cell_floor=11), [], [], []
+    )
+    case = Case(name, home, table, document, 11)
+    case.cells["value"] = list(cells)
+    return case
+
+
+@pytest.fixture(scope="module")
+def attacked(tmp_path_factory: pytest.TempPathFactory) -> "dict[str, Case]":
+    """Every reconstruction attack and every kept scale, described once."""
+    home = tmp_path_factory.mktemp("stage3-gate-attacks")
+    built: "dict[str, Case]" = {}
+    for name, cells in RECONSTRUCTIONS + KEPT_SCALES:
+        built[name] = _attack(home, name, cells)
+    return built
+
+
+def _reader_settles(block: "dict", driver: object) -> int:
+    """How many of one block's tails the WHOLE description settles.
+
+    The driver's own walk, asked with the facts a reader of that
+    description holds beside a tail's three numbers: for a numeric block
+    the published grid, the sign counts and the column's own "every value
+    different" remark; for a date or clock block the space's own edges
+    and the same remark. Nothing here restates the walk.
+    """
+    settled = 0
+    if isinstance(block.get("tails"), dict):
+        pinned, _room, _unsearched = driver._numeric_pinned(
+            block, 11, driver._numeric_all_different(block)
+        )
+        settled += pinned
+    if block.get("low_tail") is not None or block.get("high_tail") is not None:
+        pinned, _room, _unsearched = driver._pinned_and_room(block, 11)
+        settled += pinned
+    return settled
+
+
+# THE FOUR MOMENTS, WHICH A SYMMETRIC COLUMN MAKES COINCIDE WITH A CELL.
+# The owner ruled on 2026-09-22 that the column's own mean, spread, skew
+# and tail weight stay EXACT, and a moment is a statistic over every cell
+# rather than any cell's value. The integers 0 to 1199 are symmetric, so
+# their skew is exactly 0.0 -- which is also the value one row of that
+# column holds, and the sweep below would read the coincidence as a
+# naming. It is the same exemption `VALUE_DISTANCES` is: a number of the
+# VALUE class that is not a value.
+def _outermost_text(cells: "list[str]", units: int) -> "set[str]":
+    """The `units` outermost cells of a column, as the text they were written.
+
+    Sorted as TEXT, which is the ordering of every shape in
+    `RECONSTRUCTIONS`: an ISO date and an `hh:mm` clock time both sort by
+    their own order as text, so no parser is needed and none can disagree
+    with the producer's. A column whose spellings do not sort that way
+    would need its own reading, and none here is of that kind.
+    """
+    ordered = sorted(cell for cell in cells if cell)
+    if len(ordered) <= 2 * units:
+        return set(ordered)
+    return set(ordered[:units]) | set(ordered[len(ordered) - units:])
+
+
+_MOMENT_LINES = (".mean[", ".std[", ".skew[", ".kurtosis[")
+
+
+def _is_a_moment(line: str) -> bool:
+    """Whether one leak line names a moment rather than a cell's value."""
+    for name in _MOMENT_LINES:
+        if name in line:
+            return True
+    return False
+
+
+@pytest.mark.parametrize("name", [one for one, _cells in RECONSTRUCTIONS])
+def test_no_reconstruction_attack_names_a_value_one_row_holds(
+    attacked: "dict[str, Case]", name: str
+) -> None:
+    """THE VALUE HALF, asked of the round's own reproductions.
+
+    `list(range(1089)) + [1089] * 11 + [1100]` published the high-tail
+    values `[1089, 1100]` before this pass, and ONE row of that column
+    holds 1100 while `percentiles.max` is null. The clock shape published
+    `06:59` beside ten cells at `06:58` for the same reason.
+    """
+    case = attacked[name]
+    for block in case.document["columns"]:
+        held = case.cells[block["name"]] if block["name"] in case.cells else []
+        found = [
+            line for line in _value_leaks(block, held, 11)
+            if not _is_a_moment(line)
+        ]
+        assert found == [], (
+            f"{name}: the description names a value too few rows hold: "
+            f"{found}"
+        )
+        # AND THE DATE AND CLOCK CASES ARE ASKED IN THEIR OWN UNIT. The
+        # sweep above reads NUMBERS, so on a column of dates or clock
+        # times it has nothing to compare and would pass by saying
+        # nothing. What those columns publish as a value is TEXT -- each
+        # tail's boundary, and the values a listed tail names -- so the
+        # outermost eleven cells are compared against that text directly.
+        # A boundary is a real cell of the column and is published on
+        # purpose; what it may not be is one of the cells the floor
+        # protects.
+        outer = _outermost_text(held, 11)
+        for key in ("low_tail", "high_tail"):
+            tail = block[key] if key in block else None
+            if not isinstance(tail, dict):
+                continue
+            named = [tail["boundary"]]
+            if isinstance(tail["values"], list):
+                named += list(tail["values"])
+            for value in named:
+                assert value not in outer, (
+                    f"{name} {key}: the description names {value!r}, one of "
+                    f"the eleven outermost cells of the column"
+                )
+
+
+@pytest.mark.parametrize("name", [one for one, _cells in RECONSTRUCTIONS])
+def test_no_reconstruction_attack_has_a_tail_the_description_settles(
+    attacked: "dict[str, Case]", name: str
+) -> None:
+    """THE ARITHMETIC HALF, with the whole description in the reader's hands.
+
+    The integers 0 to 1100 once each published eleven rows, a mean
+    distance of 6 and a root-mean-square of root-46 on each side, and the
+    same description says every value is different: eleven DIFFERENT whole
+    distances summing to 66 are 1 to 11 and nothing else, so both ends
+    came back exactly. Measured with the driver's own walk before the fix:
+    each side admitted ONE multiset with the remark and 64 without it.
+    """
+    driver = _tail_leak_driver()
+    case = attacked[name]
+    for block in case.document["columns"]:
+        assert _reader_settles(block, driver) == 0, (
+            f"{name}/{block['name']}: a published tail is settled to one "
+            f"multiset by the description's own facts"
+        )
+
+
+@pytest.mark.parametrize("name", [one for one, _cells in KEPT_SCALES])
+def test_the_scales_the_owner_keeps_still_name_their_values(
+    attacked: "dict[str, Case]", name: str
+) -> None:
+    """AND THE FIX IS NOT BOUGHT BY WITHHOLDING EVERYTHING.
+
+    The owner ruled on bounded scales with few values: "we don't need to
+    be worried about the tails ... many people will be there and there is
+    no big deal in knowing that it's there." Every one of these three
+    holds each of its steps on more than a hundred rows, so the listing
+    rule reaches both of its tails, and a pass that made them say their
+    shape instead would have thrown the ruling away.
+    """
+    case = attacked[name]
+    block = case.document["columns"][0]
+    tails = block["tails"]
+    assert isinstance(tails, dict)
+    for side in ("low", "high"):
+        one = tails[side]
+        assert isinstance(one, dict) and one["values"], (
+            f"{name} {side}: a bounded scale the owner keeps stopped naming "
+            f"its values"
+        )
+        assert one["mean_distance"] is not None, (
+            f"{name} {side}: a listed tail publishes its two distances"
+        )
+
+
+def test_the_reconstruction_gate_turns_red_when_the_pair_goes_back(
+    attacked: "dict[str, Case]",
+) -> None:
+    """MUTATION 6: the withheld pair put back, and the gate must see it.
+
+    A guard that passes is not a guard. The two distances of the integer
+    column's low tail are the ones the producer withheld -- eleven
+    distances 1 to 11, so a whole sum of 66 and a whole sum of squares of
+    506 over eleven rows -- and with them back the walk above must find
+    the tail settled. The numbers are derived from the rule and not
+    copied from any output: the tail rule puts the low boundary at the
+    eleventh order statistic, which on the integers 0 to 1100 is 11, and
+    the eleven rows below it are 0 to 10.
+    """
+    driver = _tail_leak_driver()
+    case = attacked["integers_0_to_1100"]
+    block = copy.deepcopy(case.document["columns"][0])
+    tails = block["tails"]
+    assert isinstance(tails, dict) and isinstance(tails["low"], dict)
+    rows = 11
+    tails["low"] = dict(tails["low"])
+    tails["low"]["mean_distance"] = 66.0 / rows
+    tails["low"]["rms_distance"] = math.sqrt(506.0 / rows)
+    assert _reader_settles(block, driver) > 0, (
+        "the published pair of the low tail was put back and the "
+        "back-solve did not settle it: the walk does not see what the "
+        "review reconstructed by hand"
+    )
 
 
 # -- 4. the refusal half -----------------------------------------------
@@ -1837,13 +2167,11 @@ def test_the_gate_turns_red_on_a_tail_listing_a_value_one_row_holds(
     and it asks `parsing.tail_may_list` rather than membership so that a
     drifted listing rule cannot buy itself the answer.
 
-    THREE VALUES, AND THE NUMBER IS THE MUTATION'S OWN RULE. A list of
-    one or two is exempt by the SECOND road (`TAIL_SETTLED_VALUES`,
-    P4-D346): a tail of at most two different values is settled by its
-    own published rows and two distances, so the list says nothing the
-    pair does not. The gate asks that road exactly as the producer and
-    the tail-leak driver ask it, so a mutant must step past it to be a
-    mutant at all.
+    THREE VALUES, AND ONE WOULD DO SINCE P4-D349. The second road that
+    used to exempt a list of one or two values whatever the rule said is
+    withdrawn, so a single lone value listed is already a leak; three are
+    kept here because that is what the mutation measured when it was
+    written and shrinking it would weaken nothing and prove nothing.
     """
     folder = tmp_path / "listed"
     folder.mkdir()

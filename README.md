@@ -126,7 +126,13 @@ numbers, dates or clock times names either of its ends.** A numeric
 column's ladder stops short of both: every step that would read one of
 the outermost eleven values is withheld, and what stands there instead
 is how many rows lie beyond the last published step and how far from it
-they lie, on average and root-mean-square. A column of dates or clock
+they lie, on average and root-mean-square. **And where even those two
+numbers would give the withheld values back, neither of them is
+published either** -- a column of consecutive whole numbers has eleven
+rows a side at eleven different whole distances summing to the least
+eleven different whole numbers can sum to, and that arithmetic has one
+answer -- so such a tail says how many rows lie beyond its boundary and
+nothing more. A column of dates or clock
 times is described the same way, from a BOUNDARY -- the earliest date
 with at least a smallest group's worth of cells before it, and its
 mirror at the other end -- so the rarest dates in the column, a date of

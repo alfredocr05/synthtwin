@@ -1869,9 +1869,26 @@ by the `max` pin.
 
 ### G5.3b The tail reading (stage 3, plans P4-D344, P4-D322)
 
-For one side with published boundary percent `P`, boundary rung `b` (the
-published rung at `P`), rows `m`, mean distance `d1` and root-mean-square
-distance `rms`, the rows beyond `b` are read through a shape `a(s)` on
+**A TAIL THAT PUBLISHES NEITHER DISTANCE IS READ FIRST, AND IT IS NOT
+READ THROUGH A SHAPE** (plan P4-D349, contract TL5 and DT1). There is no
+`d1` and no `rms` to fit `a(s)` to, so the side's rows stand on even
+shares of the room between its boundary rung and its end, snapped to the
+grid of step 4, one grid point apart at the least, and a row landing
+where the row before it stands taking the next grid point outward. Its
+END is `m` GRID STEPS beyond the boundary, held to the sign counts by
+G5.5a -- the narrowest tail the description still asks for, since its
+rows lie strictly beyond the boundary and the column's own count of
+different values asks them to differ. Two wider readings were measured
+against it and neither ships: the ends of the uniform stretch with the
+column's own two published moments, and Cauchy-Schwarz's bound on the
+mean of `m` of `K` cells. Plan P4-D349 records what each does, on which
+shape, and what none of the three can do -- average to a mean a single
+withheld cell carries, which is held at ledger entry `K-S3-15`.
+
+For one side that publishes its pair -- boundary percent `P`, boundary
+rung `b` (the published rung at `P`), rows `m`, mean distance `d1` and
+root-mean-square
+distance `rms` -- the rows beyond `b` are read through a shape `a(s)` on
 `s` in `[0, 1]` -- the distance from `b` at the share `s` of the way out
 -- that has `a(0) = 0`, whose mean over a uniform `s` is `d1` and whose
 mean square is `rms * rms`: a MIXTURE OF TWO ADJACENT WHOLE POWERS,
@@ -1951,6 +1968,7 @@ boundary rung itself where that percent falls between the two tails.
 1. a published (heaped) end IS the end, and binds the reading (the
    clamp above holds every tail value at or inside it);
 2. a LISTED tail's end is its outermost listed value (G5.3e);
+2a. a tail publishing NEITHER distance takes the end above (P4-D349);
 3. a FLAT tail's end is `b`;
 4. otherwise the fitted shape read at the OUTERMOST ROW'S OWN SHARE,
    `a((2 m - 1) / (2 m))` -- where that row stands, and not where the

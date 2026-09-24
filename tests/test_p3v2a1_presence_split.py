@@ -356,6 +356,43 @@ _TAIL_DECIDING = (
 _TAIL_HEADS = ("ladder.", "tails.")
 _TAIL_COUNT = "counts.n_used_in_statistics"
 
+# THE TWO SILENCES THE FIX PASS OF STAGE 3 ADDED, each with the ONLY
+# subchecks it may appear on (plan P4-D349). Both are complete reasons in
+# themselves rather than reasons a neighbouring MISSED check decides, which
+# is the shape `_GATE_POOLED` has, and what is asserted here is the FENCE:
+# a reason that is complete in itself cannot become a general excuse for
+# going quiet, so it may stand on the subchecks whose own rule produces it
+# and nowhere else.
+#
+# * A file whose own tail publishes NEITHER distance -- because its rows
+#   and those two numbers would give its own outer cells back -- carries
+#   no number for the description's two distances to be compared with, and
+#   no published obligation of that column decides it: what decides it is
+#   the file's own values, which nothing counts.
+# * A published (heaped) END is asked of the file's own description, and
+#   where that description withholds its end and publishes only a tail's
+#   shape, the two sound bounds on the file's extreme can fall either side
+#   of the published value without reaching it.
+_SELF_EXPLAINING = {
+    validation._GATE_TAIL_WITHHELD: (
+        "tails.low.mean_distance",
+        "tails.low.rms_distance",
+        "tails.low.values",
+        "tails.high.mean_distance",
+        "tails.high.rms_distance",
+        "tails.high.values",
+        # A tail that publishes neither distance publishes no list of its
+        # values either, so a published END read off that description has
+        # nothing to be read off: the same sentence answers for it.
+        "ladder.min (heaped end, one-sided)",
+        "ladder.max (heaped end, one-sided)",
+    ),
+    validation._GATE_TAIL_BOUNDS: (
+        "ladder.min (heaped end, one-sided)",
+        "ladder.max (heaped end, one-sided)",
+    ),
+}
+
 def test_silence_is_never_free_and_never_the_validator_s_own_difficulty(
     battery: "list[tuple[str, str, str, validation.Outcome, validation.Outcome]]",
 ) -> None:
@@ -407,6 +444,13 @@ def test_silence_is_never_free_and_never_the_validator_s_own_difficulty(
     worse can make its obligations MISS, and it can make the file's own
     description publish a different class of fact -- which is reported
     -- but it can never make an obligation quietly stop being measured.
+
+    AND TWO MORE EXIST SINCE THE FIX PASS OF STAGE 3, both fenced the
+    same way (plan P4-D349, `_SELF_EXPLAINING`): a file whose own tail
+    publishes NEITHER distance, and a published end whose two sound
+    bounds do not reach it. Each names what the file's own description
+    does and why, so no companion verdict is owed -- and each may stand
+    only on the subchecks whose own rule produces it.
 
     ONE SECOND REASON EXISTS AND IT IS FENCED RATHER THAN TRUSTED
     (review item P3-V2-D-F2; plan amendment A-P3-3). A style clause over
@@ -469,6 +513,22 @@ def test_silence_is_never_free_and_never_the_validator_s_own_difficulty(
                             f"{name}/{label}/{marker}: {check.column} "
                             f"{check.subcheck} was withheld as a pooled "
                             f"count, which only a style clause may be"
+                        )
+                    ]
+                    continue
+                if check.citation in _SELF_EXPLAINING:
+                    # A REASON COMPLETE IN ITSELF, INSIDE ITS FENCE
+                    # (plan P4-D349). The sentence names what the file's
+                    # own description does and why, so no companion
+                    # verdict is owed -- and it may appear only on the
+                    # subchecks whose own rule produces it.
+                    if check.subcheck in _SELF_EXPLAINING[check.citation]:
+                        continue
+                    unexplained = unexplained + [
+                        (
+                            f"{name}/{label}/{marker}: {check.column} "
+                            f"{check.subcheck} was withheld under a reason "
+                            f"that belongs to another subcheck's rule"
                         )
                     ]
                     continue
@@ -578,8 +638,17 @@ def test_the_gate_still_comes_from_the_file_s_own_description(
     """
     folder = tmp_path / "gate"
     folder.mkdir()
+    # SIXTY SQUARES AND NOT SIXTY CONSECUTIVE NUMBERS, because the third
+    # subcheck below must be an obligation at all (plan P4-D349). A column
+    # of consecutive whole numbers has eleven rows a side at eleven
+    # DIFFERENT whole distances summing to the least eleven different
+    # whole numbers can sum to, so its published pair would give every one
+    # of those values back, and the description now publishes NEITHER
+    # distance -- which leaves no `tails.low.mean_distance` check for the
+    # gate to close over. Squares step further apart the further out they
+    # go, their pair is settled by nothing, and both tails publish it.
     described = _describe(
-        folder, "reading", [f"{index + 100}" for index in range(60)]
+        folder, "reading", [f"{100 + index * index}" for index in range(60)]
     )
     outcome = _measure(
         folder,

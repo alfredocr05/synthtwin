@@ -509,6 +509,21 @@ def test_the_questions_file_cannot_restore_an_absorbed_count(
     `numeric_styles {"leading_zero": 400}`; the questions file recounted
     the source and said "399 of them carry a leading zero", which beside
     `n_present 400` is the one unpadded record.
+
+    AND THE TWIN OF THIS SHAPE MISSES ITS COLUMN'S MEAN AND SPREAD, which
+    is the accepted limit of plan P4-D349 and not this repair coming
+    undone. The 399 codes run consecutively, so each of the column's
+    tails would hand its own cells back -- twelve DIFFERENT whole
+    distances summing to the least twelve different whole numbers can sum
+    to -- and the description publishes neither distance for either of
+    them. The HIGH tail is where the single `12345` lives, and the
+    column's mean is what that one cell puts in it: no reading of a tail
+    that keeps the cell back can average to 230.3625, and three were
+    measured. So the twin is checked here for exactly the two obligations
+    that limit predicts and for nothing else going wrong beside them, and
+    the REAL table still passes at exit 0 -- which is what says the
+    description itself is still true of the table it was made from.
+    Ledger entry `K-S3-15` holds the number.
     """
     cells = [f"{index:05}" for index in range(1, 400)] + ["12345"]
     result = _round_trip(tmp_path, {"value": cells}, FLOOR)
@@ -519,7 +534,43 @@ def test_the_questions_file_cannot_restore_an_absorbed_count(
     ).read_text(encoding="utf-8")
     assert "399 of them" not in asked
     assert "some of them carry a leading zero" in asked
-    _both_pass(result)
+    assert result["generated"] == 0
+    assert result["real_exit"] == 0, (
+        "the real table no longer meets its own description, which would "
+        "be a defect of this pass and not the accepted limit"
+    )
+    assert result["twin_exit"] == 3, (
+        "the twin of a column whose withheld tail carries its whole spread "
+        "is expected to miss its mean and its spread (K-S3-15); exit 0 here "
+        "means the limit closed and this expectation must be re-derived"
+    )
+    tails = block["tails"]
+    assert isinstance(tails, dict)
+    for side in ("low", "high"):
+        assert tails[side]["mean_distance"] is None, (
+            f"the {side} tail of 399 consecutive codes publishes no "
+            f"distance, which is why the twin misses the two moments"
+        )
+    # THE QUALITY REPORT IS THE PAGE THAT NAMES THEM, and it is written
+    # into the folder `validate` was pointed at rather than beside the
+    # description, so it is read from there.
+    quality = "".join(
+        path.read_text(encoding="utf-8")
+        for path in sorted((result["profile"].parent / "twin_exit").iterdir())
+        if path.is_file() and path.suffix == ".txt"
+    )
+    verdicts = [
+        line.strip() for line in quality.splitlines()
+        if "MISSED" in line and "[" in line and "]" in line
+    ]
+    assert verdicts, "the quality report names no missed obligation at all"
+    for line in verdicts:
+        assert "moments.mean" in line or "moments.std" in line, (
+            f"the twin misses something other than the two moments the "
+            f"accepted limit predicts: {line}"
+        )
+    assert any("moments.mean" in line for line in verdicts)
+    assert any("moments.std" in line for line in verdicts)
 
 
 def test_a_count_that_names_a_group_is_still_spoken() -> None:

@@ -2306,6 +2306,13 @@ class TailFacts:
     tail holds, published in place of `rms_distance` where the tail holds
     few values or its numbers would pin a count below the floor; beside
     it `mean_distance` is None where it would do that.
+
+    AND A TAIL MAY PUBLISH NEITHER (stage 3's fix pass, plan P4-D349):
+    its boundary and its rows, with `values`, `mean_distance` and
+    `rms_distance` all None. That is the tail whose pair would give its
+    own cells back exactly -- eleven all-different distances summing to
+    the least eleven different whole numbers can sum to -- on a column
+    the listing rule does not let name its values.
     """
 
     boundary: str
@@ -2524,12 +2531,20 @@ class TailSide:
     own unit. `values` is empty except on a grid tail published by its
     values (method G5.3e), where it holds the tail's different values in
     ascending order and no count.
+
+    BOTH DISTANCES ARE NULL ON A TAIL THAT MAY PUBLISH NEITHER (plan
+    P4-D349, contract TL5): the pair would give the tail's own cells back
+    exactly and the listing rule does not let it name its values, so it
+    publishes its boundary percent and its rows and stops. Either both
+    are numbers or neither is -- a mean alone is still half the
+    back-solve -- which is the shape the date and clock role has carried
+    since stage 3.
     """
 
     percent: int
     rows: int
-    mean_distance: float
-    rms_distance: float
+    mean_distance: "float | None"
+    rms_distance: "float | None"
     values: "tuple[float, ...]"
 
 
@@ -9370,7 +9385,10 @@ def _tail_object(
     whole count of at least one cell, and two distances each a number or
     null. A tail publishes its values in place of its root-mean-square
     distance or not at all; beside its values the mean distance may be
-    null, and without them both distances are numbers. Every distance is
+    null. WITHOUT them it publishes both distances or NEITHER (plan
+    P4-D349): a mean alone would still be half the back-solve, so the
+    tail that may not hand its cells back says how many rows lie beyond
+    its boundary and stops there. Every distance is
     at least one unit, because each outer cell lies at least one unit
     beyond the boundary, and the root-mean-square distance is never below
     the mean (with a relative allowance of one part in 2**50, for the two
@@ -9397,12 +9415,13 @@ def _tail_object(
         for item in listed:
             found += [_tail_value(item, f"{key} -> values", where, resolution, form)]
         values = tuple(found)
-    if values is None and (mean is None or root is None):
+    if values is None and (mean is None) != (root is None):
         raise _broken(
             "DT1",
             where,
-            f"the {key} publishes no values",
-            "a tail without its values publishes both of its distances",
+            f"the {key} publishes no values and one distance",
+            "a tail without its values publishes both of its distances "
+            "or neither of them",
         )
     if values is not None:
         if root is not None:
@@ -10386,20 +10405,32 @@ def _tail_side(
             f"{wanted}, which is what {used} values give a tail at "
             f"{percent} per cent, and at least {units}",
         )
-    mean = _figure(
+    mean = _figure_or_nothing(
         mapping["mean_distance"], f"tails -> {side} -> mean_distance", where
     )
-    root = _figure(
+    root = _figure_or_nothing(
         mapping["rms_distance"], f"tails -> {side} -> rms_distance", where
     )
-    if not (mean >= 0.0 and root >= 0.0 and mean <= root):
+    # TL5, AND THE TAIL THAT PUBLISHES NEITHER DISTANCE (plan P4-D349).
+    # Either both are numbers, the mean no larger, or both are null: a
+    # mean standing alone is half the back-solve the pair was withheld to
+    # close, so the contract does not admit that shape at all.
+    if (mean is None) != (root is None):
         raise _broken(
             "TL5",
             where,
-            f"the {side} tail's mean distance is {mean} and its "
-            f"root-mean-square distance {root}",
-            "two numbers of nought or more, the mean no larger",
+            f"the {side} tail publishes one of its two distances",
+            "both of them or neither",
         )
+    if mean is not None and root is not None:
+        if not (mean >= 0.0 and root >= 0.0 and mean <= root):
+            raise _broken(
+                "TL5",
+                where,
+                f"the {side} tail's mean distance is {mean} and its "
+                f"root-mean-square distance {root}",
+                "two numbers of nought or more, the mean no larger",
+            )
     listed = _listing(mapping["values"], f"tails -> {side} -> values", where)
     values: "list[float]" = []
     for entry in listed:
@@ -10419,6 +10450,20 @@ def _tail_side(
             where,
             f"the {side} tail lists {len(values)} values",
             f"no more than its {rows} rows",
+        )
+    # AND THE TWO ROADS DO NOT MEET (TL5, plan P4-D349). A numeric tail
+    # that lists its values is one the listing rule admits, and the pair
+    # beside the list adds nothing about them, so it publishes the pair;
+    # a tail that publishes neither distance is one nothing may be said
+    # about. A block carrying both shapes at once is a description this
+    # producer does not write, and the generator's staircase would have
+    # to choose between two readings of the same rows.
+    if values and mean is None:
+        raise _broken(
+            "TL5",
+            where,
+            f"the {side} tail lists its values and publishes no distance",
+            "a listed tail publishes both of its distances",
         )
     return TailSide(
         percent=given,
@@ -10730,6 +10775,13 @@ class TailReader:
     both outermost first, and is read as a staircase over its rows. An
     UNLISTED tail on a grid carries ``steps``, its rows' own grid values
     innermost first, which is G5.3b's grid staircase.
+
+    ``withheld`` IS THE TAIL THAT PUBLISHES NEITHER DISTANCE (TL5, plan
+    P4-D349). There is no shape to read it through, so its rows step one
+    grid point apart from the boundary outward. It is a field of its own
+    and not a reach of nought, because a FITTED tail whose reach rounds
+    to nought is a real answer -- every row at the boundary -- and this
+    is the absence of an answer.
     """
 
     low: bool
@@ -10745,6 +10797,7 @@ class TailReader:
     listed: "tuple[float, ...]"
     counts: "tuple[int, ...]"
     steps: "tuple[float, ...]" = ()
+    withheld: bool = False
 
 
 class ShapedLadder(tuple[float, ...]):
@@ -11020,6 +11073,83 @@ def _listed_at(side: TailReader, numerator: int, denominator: int) -> float:
     return side.listed[len(side.listed) - 1]
 
 
+def _withheld_step(
+    boundary: float, steps: int, low: bool, figures: int
+) -> float:
+    """``steps`` grid steps beyond a boundary rung, on the grid (P4-D349).
+
+    THE NARROWEST TAIL THE DESCRIPTION STILL ASKS FOR: its rows lie
+    strictly beyond the boundary and the column's own count of different
+    values asks them to differ, so `rows` grid steps is the least room
+    they can have. `_withheld_end` uses it as a floor under the room the
+    column's own moments ask for.
+
+    A block with no published grid steps by the next number this format
+    holds, exactly as `_tail_steps` does.
+    """
+    at = boundary
+    for _step in range(max(steps, 0)):
+        if figures == -1:
+            moved = _next_representable(at, low)
+        else:
+            unit = _tail_unit(figures)
+            moved = _on_tail_grid(at - unit if low else at + unit, figures)
+        if not math.isfinite(moved):
+            return at
+        at = moved
+    return at
+
+
+def _withheld_end(
+    facts: NumericFacts, boundary: float, rows: int, low: bool, figures: int
+) -> float:
+    """The end of a tail that publishes NEITHER distance (plan P4-D349).
+
+    THE NARROWEST TAIL THE DESCRIPTION STILL ASKS FOR, which is `rows`
+    grid steps beyond the boundary: the rows lie strictly beyond it and
+    the column's own count of different values asks them to differ, so
+    that is the least room they can have and nothing the description
+    publishes asks for more.
+
+    THREE READINGS WERE MEASURED AND THIS IS THE ONE THAT SHIPS.
+
+    * `rows` GRID STEPS -- this one. On the integers 0 to 1100 once each,
+      whose two tails are both withheld, it puts the twin's two ends on
+      0.0 and 1100.0, which are the column's OWN smallest and largest
+      values, and the twin holds the column's mean, its spread, its count
+      of different values and every published rung at seeds 0, 4 and 9.
+      On 300 grouped counts -- two hundred `1 000` to `1 199` and a
+      hundred `3 000` to `3 099` -- it keeps the twin inside 1000 to 3099
+      and the published census of 200 spaces and 100 narrow spaces comes
+      back exactly.
+    * `mean - sqrt(3) std` and `mean + sqrt(3) std`, the ends of the
+      uniform stretch with the column's own two published moments, which
+      is what G5.3c reads a block publishing its moments alone through. It
+      reaches -1.0 and 1101.0 on the first column and 189 and 3347 on the
+      second -- and there the twin wrote twelve cells below 1000, where no
+      thousands mark can be written at all, so it held 89 of the 100
+      narrow spaces the description names.
+    * Cauchy-Schwarz's own bound on the mean of `m` of `K` cells,
+      `mean + std sqrt((K - m) / m)`, the furthest those two published
+      numbers can account for.
+
+    AND ON ONE SHAPE NONE OF THE THREE WORKS. On `00001` to `00399`
+    beside one `12345`, where the withheld tail carries the whole of the
+    column's spread, the narrowest reaches 400, the moment reading 1301
+    and Cauchy-Schwarz 3745: the first two undershoot that column's mean
+    of 230.3625 and the third overshoots it, so the twin misses
+    `moments.mean` and `moments.std` and its report says so. That is an
+    accepted, measured limit (`K-S3-15`) and not a rounding: the mean of
+    that column is what the far cell puts in it, so no construction that
+    keeps the cell back can average to it.
+
+    ``facts`` is carried because the two readings this one was chosen over
+    need it, and a signature that hid which facts were available would
+    hide what the choice was between.
+    """
+    return _withheld_step(boundary, rows, low, figures)
+
+
 def _tail_steps(side: TailReader, figures: int) -> "tuple[float, ...]":
     """Each row of an unlisted tail on its own grid point (G5.3b).
 
@@ -11038,6 +11168,13 @@ def _tail_steps(side: TailReader, figures: int) -> "tuple[float, ...]":
     Empty on a LISTED tail (G5.3e reads its own staircase) and on a
     FLAT one.
 
+    AND A TAIL PUBLISHING NEITHER DISTANCE IS ITS PLAINEST CASE (plan
+    P4-D349): there is no `a(s)` to read, so every row takes the next
+    grid point outward from the boundary and the staircase is one step a
+    row. `withheld` says so, rather than being inferred from a reach of
+    nought, because a FITTED tail of reach nought is a different thing
+    and reads its rows at the boundary.
+
     A BLOCK WITH NO GRID STEPS BY THE REPRESENTABLE VALUE. Its reading's
     own values are different wherever the format can tell them apart,
     and at the bottom of the binary64 range it cannot: measured on 120
@@ -11049,7 +11186,36 @@ def _tail_steps(side: TailReader, figures: int) -> "tuple[float, ...]":
     which is what "its own grid point" means where the grid is the
     format's own.
     """
-    if side.flat or side.listed or side.rows <= 0:
+    if side.listed or side.rows <= 0:
+        return ()
+    if side.withheld:
+        # THE ROWS SPREAD OVER THE ROOM THE COLUMN'S OWN MOMENTS GIVE
+        # (plan P4-D349, `_withheld_end`), one grid step apart at the
+        # least: row `i` of `m` at the share `(i + 1) / m` of the way
+        # from the boundary to the end, snapped to the grid, and a row
+        # that lands where the row before it stands taking the next grid
+        # point outward exactly as the fitted reading does. There is no
+        # `a(s)` to read, so the shares are even -- the withheld pair is
+        # what would have said they were not.
+        walked: "list[float]" = []
+        span = side.end - side.boundary
+        for row in range(side.rows):
+            share = float(row + 1) / float(side.rows)
+            at = side.boundary + share * span
+            if not math.isfinite(at):
+                at = side.end
+            at = _on_tail_grid(at, figures)
+            if walked:
+                last = walked[len(walked) - 1]
+                if (at >= last) if side.low else (at <= last):
+                    at = _withheld_step(last, 1, side.low, figures)
+            if side.low and at < side.end:
+                at = side.end
+            if not side.low and at > side.end:
+                at = side.end
+            walked += [at]
+        return tuple(walked)
+    if side.flat:
         return ()
     unit = _tail_unit(figures if figures >= 0 else 0)
     placed: "list[float]" = []
@@ -11355,7 +11521,10 @@ def _derived_end(
     """The value a tail block's pinned stratum holds (G5.3b, G5.5a).
 
     In order: a published end (heaped, contract TL1) is the end; a listed
-    tail's end is its outermost listed value; otherwise the fitted end
+    tail's end is its outermost listed value; a tail publishing NEITHER
+    distance (TL5, plan P4-D349) has no shape to fit and its end is the
+    `rows`-th grid step beyond the boundary, which is where its own
+    staircase of one step a row finishes; otherwise the fitted end
     `E` moved outward (`_tail_outward`) and held inside the tail's own
     BOUND -- no row of a tail of `m` rows with mean distance `d1` and
     root-mean-square `rms` lies further than
@@ -11376,11 +11545,19 @@ def _derived_end(
         return published
     if side.values:
         return side.values[0] if low else side.values[len(side.values) - 1]
-    if shape[0]:
-        return boundary
     figures = _tail_figures(facts)
     mean = side.mean_distance
     root = side.rms_distance
+    if mean is None or root is None:
+        return _signed_end(
+            _withheld_end(facts, boundary, side.rows, low, figures),
+            low,
+            boundary,
+            facts,
+            figures,
+        )
+    if shape[0]:
+        return boundary
     share = 0.0
     if root > 0.0:
         ratio = mean / root
@@ -11869,16 +12046,25 @@ def tail_ladder(facts: NumericFacts) -> "ShapedLadder | None":
         (low, low_boundary, True, named[0]),
         (high, high_boundary, False, named[100]),
     ):
-        shape = _tail_shape(side.mean_distance, side.rms_distance)
+        # A TAIL PUBLISHING NEITHER DISTANCE HAS NO SHAPE TO FIT (TL5,
+        # plan P4-D349), so no shape is fitted to it: `_tail_shape` is
+        # asked only where the pair is there to ask it of, and the reader
+        # says `withheld` instead.
+        mean = side.mean_distance
+        root = side.rms_distance
+        withheld = mean is None or root is None
+        shape: "tuple[bool, int, float, float]" = (False, 0, 0.0, 0.0)
+        if mean is not None and root is not None:
+            shape = _tail_shape(mean, root)
         listed = side.values if is_low else tuple(reversed(side.values))
         counts: "tuple[int, ...]" = ()
-        if listed:
+        if listed and mean is not None and root is not None:
             counts = _listed_counts(
                 listed,
                 boundary,
                 side.rows,
-                side.mean_distance,
-                side.rms_distance,
+                mean,
+                root,
             )
         side_reader = TailReader(
             low=is_low,
@@ -11895,6 +12081,7 @@ def tail_ladder(facts: NumericFacts) -> "ShapedLadder | None":
             ),
             listed=listed,
             counts=counts,
+            withheld=withheld,
         )
         # ...and each row of an unlisted tail on its own grid point
         # (G5.3b's grid staircase), which needs the end this reader

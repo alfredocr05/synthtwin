@@ -206,3 +206,41 @@ def expected(
         facts["mean_distance"],
         facts["rms_distance"],
     )
+
+
+def holds(
+    side: dict,
+    block: dict,
+    values: "list[float]",
+    floor: int = 11,
+    low: bool = True,
+) -> bool:
+    """Whether one published tail side states what the rule says it must.
+
+    THE THIRD ANSWER A TAIL CAN GIVE (plan P4-D349). Where its rows, its
+    two distances, its grid, the space's edges and the column's own remark
+    that every value in it is different leave ONE possible set of
+    distances, that set names every outer cell exactly -- so the tail
+    publishes NEITHER distance, and a caller comparing four numbers
+    against four reads the third answer as a disagreement.
+
+    WHAT IS COMPARED, AND WHY EACH: the boundary percent and the rows
+    ALWAYS, because they follow from the count of values and the floor
+    alone (TL1, TL4) and no back-solve can move them; the two distances
+    only where the block publishes them, against the same arithmetic as
+    before; and where it publishes neither, the shape the contract admits
+    -- both null, never one of each (TL5).
+
+    This module still holds no rule of its own: whether a tail is settled
+    is the PRODUCER's question, asked with a budget, and a helper that
+    tried to answer it here would be a second statement of it. What is
+    asserted here is that a withheld pair is withheld on BOTH keys and
+    that everything the back-solve cannot touch is unchanged.
+    """
+    percent, rows, mean, root = stated(side)
+    wanted = expected(block, values, floor, low)
+    if (percent, rows) != wanted[:2]:
+        return False
+    if mean is None:
+        return root is None
+    return (mean, root) == wanted[2:]

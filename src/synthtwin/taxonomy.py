@@ -3881,18 +3881,13 @@ TAIL_LATTICE_STEPS = 131072
 # beside a tail's values is withheld, the answer that publishes less.
 TAIL_MEAN_TABLE_LIMIT = 16777216
 
-# THE WALK THAT ASKS WHETHER A PUBLISHED PAIR SETTLES A TAIL, and how
-# far a boundary may move because it does (plan P4-D346). A spent walk
-# answers "not settled", which moves no boundary -- so the budget is
-# what the answer is worth, and at a tenth of this number the walk gave
-# up on `clock_all_different` at 900 rows seed 4 after five steps and
-# left the tail settled. Set by measurement, and it is the same number
-# the MEASUREMENT of `edge_pinned` walks with, so the producer cannot
-# answer "roomy" where the driver answers "settled" for want of steps.
-# A walk that finds two answers returns after a few hundred; only a
-# settled tail costs the whole budget, and there are two of those in
-# the battery.
-TAIL_SETTLED_STEPS = 200000
+# HOW FAR A BOUNDARY MAY MOVE BECAUSE ITS TAIL WITHHOLDS (plan P4-D346,
+# amended by P4-D349). The walk that asked "does one multiset fit the
+# pair?" with a budget of its own is GONE: the question is now asked once,
+# by the producer, in `_tail_pinned`, and `_side_settles` reads the
+# answer off the side it builds. So there is one budget on this road
+# rather than two that could disagree, and a boundary moves only toward
+# a tail that can publish its shape.
 TAIL_WIDEN_MOST = 12
 
 
@@ -3995,9 +3990,33 @@ class _Lattice:
 
     What a reader knows of one tail: how many cells it holds, the whole
     sum of their distances and of their squares, the furthest a distance
-    can reach, whether the column's values are all different and how
-    many innermost cells must share one distance. `dead` remembers every
-    remainder already shown to have no answer.
+    can reach and whether the column's values are all different. `dead`
+    remembers every remainder already shown to have no answer.
+
+    `least` IS THE SMALLEST DISTANCE A READER CANNOT RULE OUT, and the
+    two roles do not answer it the same way. A tail of dates or clock
+    times has its boundary at the first RANK holding that value, so every
+    outer cell stands at least one unit beyond it. A NUMERIC tail is the
+    outermost `rows` ranks and its boundary is a percentile RUNG, so an
+    outer row can hold the rung's own value where that value is tied, or
+    stand on the grid point the parts are counted from: its smallest part
+    is NOUGHT. A search that assumed one unit there could not reach the
+    real multiset, and a search that cannot reach the real multiset
+    reports every tail pinned.
+
+    AND THE TIE IS GONE, because a reader no longer holds it (P4-D349).
+    This search used to add "where `rows` exceeds the floor, the
+    innermost `rows - floor + 1` cells share one distance", which was
+    true while a date boundary stood exactly where `tail_ranks` put it:
+    a wider tail was wider BECAUSE its innermost cells were tied. Once a
+    boundary may also move inward (P4-D346) a reader cannot tell the two
+    apart, so the reader's candidates are the union of the tied and
+    untied readings -- which is the untied one, since a tie only removes
+    candidates. AND A CONSTRAINT THE ANSWER ITSELF BREAKS IS WORSE THAN
+    A MISSING ONE: measured on 240 consecutive days widened to eighteen
+    rows, the tied search could not reach the real multiset `1..18` at
+    all, found its witness at another largest distance, and answered NOT
+    PINNED on the exact tail the review reconstructed by hand.
     """
 
     size: int
@@ -4005,7 +4024,7 @@ class _Lattice:
     squares: int
     edge: int
     distinct: bool
-    tie: int
+    least: int = 1
     steps: int = 0
     spent: bool = False
     dead: "dict[tuple[int, int, int, int, int, int], bool]" = dataclasses.field(
@@ -4140,48 +4159,21 @@ def _lattice_fill(
 
 def _lattice_with_top(lattice: _Lattice, top: int) -> "list[int] | None":
     """A multiset the reader cannot rule out whose largest distance is `top`."""
-    if lattice.tie <= 1:
-        below = top - 1 if lattice.distinct else top
-        rest = _lattice_fill(
-            lattice,
-            lattice.size - 1,
-            lattice.total - top,
-            lattice.squares - top * top,
-            1,
-            below,
-            0,
-        )
-        if rest is None:
-            return None
-        found = [top]
-        found += rest
-        return found
-    left = lattice.size - 1 - lattice.tie
-    for low in range(1, min(top - 1, lattice.total // lattice.size) + 1):
-        if left < 0:
-            break
-        rest = _lattice_fill(
-            lattice,
-            left,
-            lattice.total - top - lattice.tie * low,
-            lattice.squares - top * top - lattice.tie * low * low,
-            low,
-            top,
-            0,
-        )
-        if rest is not None:
-            found = [top]
-            found += rest
-            found += [low] * lattice.tie
-            return found
-        if lattice.spent:
-            return None
-    if (
-        lattice.size * top == lattice.total
-        and lattice.size * top * top == lattice.squares
-    ):
-        return [top] * lattice.size
-    return None
+    below = top - 1 if lattice.distinct else top
+    rest = _lattice_fill(
+        lattice,
+        lattice.size - 1,
+        lattice.total - top,
+        lattice.squares - top * top,
+        lattice.least,
+        below,
+        -1,
+    )
+    if rest is None:
+        return None
+    found = [top]
+    found += rest
+    return found
 
 
 def _lattice_with_count(
@@ -4190,66 +4182,20 @@ def _lattice_with_count(
     """A multiset the reader cannot rule out holding `value` exactly `count` times."""
     if lattice.distinct and count > 1:
         return None
-    total = lattice.total - count * value
-    squares = lattice.squares - count * value * value
-    if lattice.tie <= 1:
-        rest = _lattice_fill(
-            lattice, lattice.size - count, total, squares, 1, lattice.edge, value
-        )
-        if rest is None:
-            return None
-        found = [value] * count
-        found += rest
-        return found
-    for low in range(1, lattice.total // lattice.size + 1):
-        head: "list[int]" = []
-        if low == value:
-            if count < lattice.tie:
-                continue
-            rest = _lattice_fill(
-                lattice,
-                lattice.size - count,
-                total,
-                squares,
-                value + 1,
-                lattice.edge,
-                0,
-            )
-            head = [value] * count
-        elif low < value:
-            left = lattice.size - lattice.tie - count
-            if left < 0:
-                continue
-            rest = _lattice_fill(
-                lattice,
-                left,
-                total - lattice.tie * low,
-                squares - lattice.tie * low * low,
-                low,
-                lattice.edge,
-                value,
-            )
-            head = [value] * count
-            head += [low] * lattice.tie
-        else:
-            if count != 0:
-                continue
-            rest = _lattice_fill(
-                lattice,
-                lattice.size - lattice.tie,
-                lattice.total - lattice.tie * low,
-                lattice.squares - lattice.tie * low * low,
-                low,
-                lattice.edge,
-                value,
-            )
-            head = [low] * lattice.tie
-        if rest is not None:
-            head += rest
-            return head
-        if lattice.spent:
-            return None
-    return None
+    rest = _lattice_fill(
+        lattice,
+        lattice.size - count,
+        lattice.total - count * value,
+        lattice.squares - count * value * value,
+        lattice.least,
+        lattice.edge,
+        value,
+    )
+    if rest is None:
+        return None
+    found = [value] * count
+    found += rest
+    return found
 
 
 def _tally_of(values: "list[int]") -> "dict[int, int]":
@@ -4273,7 +4219,11 @@ def _held_in(values: "list[int]", wanted: int) -> int:
 
 
 def _tail_pinned(
-    distances: "list[int]", floor: int, edge: int, distinct: bool
+    distances: "list[int]",
+    floor: int,
+    edge: int,
+    distinct: bool,
+    least: int = 1,
 ) -> bool:
     """Whether the published tail would pin what the floor protects (P4-D329).
 
@@ -4281,13 +4231,18 @@ def _tail_pinned(
     tail design, blocker B1). A reader gives back the whole sum of the
     distances and of their squares from `rows`, the mean distance and
     the root-mean-square distance, and every distance is a whole number
-    of units from 1 to `edge`; where the column's values are all
-    different so are the distances, and where `rows` exceeds the floor
-    the innermost `rows - floor + 1` cells share one distance. The tail
-    is PINNED where every multiset those facts allow gives the outermost
-    distance, held by fewer than the floor, the same value -- or gives
-    some distance the same count between one and the floor less one.
-    Such a tail publishes which values it holds instead (`_tail_side`).
+    of units from ``least`` to `edge`; and where the column's values are
+    all different so are the distances. The tail is PINNED where every
+    multiset those facts allow gives the outermost distance, held by
+    fewer than the floor, the same value -- or gives some distance the
+    same count between one and the floor less one. Such a tail publishes
+    which values it holds where the listing rule admits it, and
+    WITHHOLDS BOTH DISTANCES where it does not (`_tail_side`,
+    `_numeric_tails`).
+
+    WHAT A READER IS NOT GIVEN is listed at `_Lattice`: the tie this
+    search once assumed is gone, because a boundary that may move inward
+    leaves a reader unable to tell a tied tail from a widened one.
 
     The search looks for WITNESSES: another allowed multiset whose
     largest distance differs, and for each count the floor protects,
@@ -4298,8 +4253,9 @@ def _tail_pinned(
     column the ruling does not reach (plan P4-D346).
 
     Guarantees: accepts the real distances, the floor, the furthest a
-    distance can reach and whether they must be all different; returns a
-    bool. Determinism: a function of the four. Raises nothing. No I/O.
+    distance can reach, whether they must be all different and the
+    smallest a distance can be; returns a bool. Determinism: a function
+    of the five. Raises nothing. No I/O.
     """
     size = len(distances)
     if size == 0:
@@ -4318,10 +4274,7 @@ def _tail_pinned(
     for distance in distances:
         total = total + distance
         squares = squares + distance * distance
-    tie = 1
-    if size > floor:
-        tie = size - floor + 1
-    lattice = _Lattice(size, total, squares, edge, distinct, tie)
+    lattice = _Lattice(size, total, squares, edge, distinct, least=least)
     witnesses: "list[list[int]]" = []
     if open_top:
         # THE CANDIDATES ARE WALKED OUTWARD FROM THE REAL LARGEST
@@ -4331,8 +4284,10 @@ def _tail_pinned(
         # least one step of it.
         below = top - 1
         above = top + 1
-        lowest = -(-total // size)
-        highest = min(edge, _root_of(max(0, squares - (size - 1))))
+        lowest = max(least, -(-total // size))
+        highest = min(
+            edge, _root_of(max(0, squares - (size - 1) * least * least))
+        )
         while open_top and (below >= lowest or above <= highest):
             candidate = below if below >= lowest else above
             if below >= lowest:
@@ -4429,53 +4384,6 @@ def _values_mean_pins(
     return False
 
 
-def _count_multisets(
-    size: int, total: int, squares: int, most: int, apart: bool, budget: "list[int]"
-) -> int:
-    """How many descending multisets meet both sums, counted to two.
-
-    Returns 0, 1 or 2 -- two meaning "two or more" -- and 2 where the
-    budget runs out, so a spent walk never reports a settled tail.
-    """
-    budget[0] = budget[0] - 1
-    if budget[0] <= 0:
-        return 2
-    if size == 0:
-        return 1 if total == 0 and squares == 0 else 0
-    if total < size or squares < total:
-        return 0
-    even, spare = divmod(total, size)
-    least = (size - spare) * even * even + spare * (even + 1) * (even + 1)
-    if squares < least:
-        return 0
-    top = min(most, total - (size - 1))
-    if top < 1:
-        return 0
-    # THE LARGEST DISTANCE IS AT LEAST THE AVERAGE, and its square is at
-    # most what the squares leave once every other distance has paid its
-    # least one. Both are bounds a reader holds. No upper bound on the
-    # SQUARES is taken here: one that was slightly wrong would prune a
-    # real answer and report a tail settled that is not, and the budget
-    # below already bounds the cost.
-    top = min(top, _root_of(max(0, squares - (size - 1))))
-    lowest = -(-total // size)
-    found = 0
-    for first in range(top, lowest - 1, -1):
-        found = found + _count_multisets(
-            size - 1,
-            total - first,
-            squares - first * first,
-            first - 1 if apart else first,
-            apart,
-            budget,
-        )
-        if found > 1:
-            return 2
-        if budget[0] <= 0:
-            return 2
-    return found
-
-
 def _tail_side(
     distances: "list[int]",
     texts: "list[str]",
@@ -4497,7 +4405,8 @@ def _tail_side(
     the whole sum of squares over it, each rounded once to the nearest
     binary64.
 
-    THREE ROADS, in order of what each says (plan P4-D342).
+    THREE ROADS, in order of what each says (plan P4-D342, amended by
+    P4-D349).
 
     * A tail may LIST ITS VALUES only where the owner's ruling of
       2026-09-22 reaches it, which is what `tail_may_list` answers for
@@ -4507,14 +4416,24 @@ def _tail_side(
       holds at most `TAIL_FEW_VALUES` of them, or if its two distances
       would pin what the floor protects (`_tail_pinned`) -- with its
       mean beside them unless that would pin a count below the floor
-      (`_values_mean_pins`).
+      (`_values_mean_pins`). The ruling is asked FIRST and there is no
+      road around it: P4-D346's second road, which let any tail of two
+      distances name them where the pair settled them, is withdrawn.
+    * Where the pair would pin what the floor protects and the values
+      road is CLOSED, the tail publishes neither: its boundary and its
+      rows, both distances null. That is P4-D349, and it replaces the
+      residual P4-D346 left standing. The pair was published there on
+      the reading that it says less than the list it replaces, and it
+      does -- but on a column whose values are all different and whose
+      outermost cells stand on consecutive grid points it says exactly
+      as much: 240 consecutive days publish eleven rows, a mean of six
+      and a root-mean-square of root-46, eleven DIFFERENT whole
+      distances summing to 66, and 66 is the least eleven different
+      whole distances can sum to, so they are 1 to 11 and every one of
+      the twenty-two outer cells comes back. Where safety cannot be
+      shown the tail says less, never the original pair.
     * Otherwise it publishes ITS TWO DISTANCES, the shape rather than
-      the values -- INCLUDING where `_tail_pinned` fires and the values
-      road is closed. That case is the landing's stated residual: the
-      pair says less than the list it replaces, and reading it back
-      takes an exhaustive lattice walk, so K-S3-11's `edge_pinned`
-      counts how often the walk succeeds instead of leaving it to be
-      found.
+      the values.
 
     Guarantees: returns the five keys of `TAIL_KEYS`. Determinism: a
     function of the arguments. Raises nothing. No I/O of any kind.
@@ -4557,23 +4476,45 @@ def _tail_side(
         [counts[distance] for distance in sorted(counts)], floor, grid, cells
     )
     few = may_list and len(counts) <= TAIL_FEW_VALUES
-    # THE SECOND ROAD, and it is the numeric role's second road too
-    # (plan P4-D346). Where the published pair settles what the floor
-    # protects the description names it either way, so the list is the
-    # reading that says LESS -- but on a column the owner's ruling does
-    # NOT reach, only where the list says nothing more than the pair
-    # already does, which is at most `TAIL_SETTLED_VALUES` different
-    # distances. Eleven all-different clock times are not: their pair
-    # settles the outermost and leaves the rest of the multiset open by
-    # tens of thousands, so listing all eleven says far more than the
-    # pair. It needs `single` either way: a distance carrying two texts
-    # has no one value to list.
-    settled = may_list or len(counts) <= TAIL_SETTLED_VALUES
-    if not few and not (
-        single
-        and settled
-        and _tail_pinned(distances, floor, edge, distinct)
-    ):
+    # THE SECOND ROAD IS WITHDRAWN ON A COLUMN THE RULING DOES NOT REACH
+    # (plan P4-D349, withdrawing that half of P4-D346). It let a tail of
+    # at most `TAIL_SETTLED_VALUES` distances name its values wherever
+    # the pair would settle them, on the reading that the pair names them
+    # anyway so the list says nothing more. TWO THINGS KILLED THAT
+    # READING. It named values ONE CELL HOLDS -- ten cells at `06:58`
+    # beside one at `06:59` published `06:59`, in a description that
+    # withholds the column's own end -- which the owner's bounded-scale
+    # premise does not cover. And its premise is gone: a pinned tail no
+    # longer publishes the pair at all, so the alternative to listing is
+    # not a pair that gives the values back, it is SILENCE, and silence
+    # says less than a list every time.
+    #
+    # What is left is the ruling's own road, asked twice: a tail the
+    # ruling reaches and holding few values lists them, and a tail the
+    # ruling reaches whose pair would pin what the floor protects lists
+    # them too, because there the list is what the ruling already allows
+    # and the pair would otherwise be withheld from a twin that needs it.
+    # It needs `single`: a distance carrying two texts has no one value
+    # to list.
+    #
+    # THE BACK-SOLVE IS ASKED WHATEVER `single` SAYS. A distance carrying
+    # two texts has no one value to LIST, but its pair is read back the
+    # same way and gives the reader the day each outer cell stands on;
+    # the answer that publishes less does not depend on how many
+    # spellings that day wore.
+    pinned = False if few else _tail_pinned(distances, floor, edge, distinct)
+    if not few and not (single and may_list and pinned):
+        if pinned:
+            # FAIL CLOSED (P4-D349). The values road is shut and the pair
+            # would give this tail back exactly; the tail says how many
+            # rows lie beyond its boundary and nothing else.
+            return {
+                "boundary": boundary,
+                "rows": size,
+                "mean_distance": None,
+                "rms_distance": None,
+                "values": None,
+            }
         return {
             "boundary": boundary,
             "rows": size,
@@ -4610,19 +4551,28 @@ def _side_settles(
     grid: int,
     count: int,
 ) -> int:
-    """Whether ONE multiset fits the pair this side would publish.
+    """Whether this side would WITHHOLD its pair at this rank (P4-D349).
 
-    Three answers, because two are not enough: 1 where the walk PROVED
-    the tail settled, 0 where it proved it was not, and -1 where it ran
-    out of budget and proved nothing. The caller abandons the widening
-    at -1 rather than keeping a boundary it moved for a reason it could
-    not check -- on 240 consecutive days the walk settles every width it
-    can finish and gives up at twenty-one cells, and without this the
-    column paid ten withheld rows for nothing.
+    ONE QUESTION, ASKED OF THE PRODUCER'S OWN ANSWER, and that is the
+    repair. The walk used to ask a question of its own -- "does exactly
+    one multiset fit the pair?" -- with a third answer for a budget it
+    spent, and the caller put the original boundary back on that third
+    answer and on its own widening cap alike. So a column the walk could
+    not finish, and a column settled at every width, published the pair
+    it had just been shown to be settled by: it failed OPEN, which is
+    the defect the review found on 240 consecutive days and 240 unique
+    minutes.
 
-    0 wherever the side would LIST its values instead: a listed tail
-    publishes no root-mean-square distance, so a reader has one sum and
-    not two. 0 too where the floor protects nothing in this tail.
+    Now the side is BUILT (`_tail_side`) and the answer read off it: 1
+    where that side publishes neither distance, 0 where it publishes
+    them. `_tail_side` is itself fail-closed -- a spent lattice walk
+    answers "pinned" and withholds -- so widening moves a boundary only
+    toward a tail that can publish its shape, and stopping anywhere at
+    all leaves a tail that publishes less rather than one that publishes
+    its ends.
+
+    0 too wherever the side would LIST its values instead: it has
+    already said which values it holds, and no width changes that.
     """
     if low_side:
         distances = [ordinals[rank] - ordinals[place] for place in range(rank)]
@@ -4662,18 +4612,7 @@ def _side_settles(
     )
     if side["values"] is not None:
         return 0
-    total = 0
-    squares = 0
-    for distance in distances:
-        total = total + distance
-        squares = squares + distance * distance
-    budget = [TAIL_SETTLED_STEPS]
-    found = _count_multisets(
-        len(distances), total, squares, min(edge, total), apart, budget
-    )
-    if budget[0] <= 0:
-        return -1
-    return 1 if found == 1 else 0
+    return 1 if side["mean_distance"] is None else 0
 
 
 def _unsettled_ranks(
@@ -4684,12 +4623,22 @@ def _unsettled_ranks(
     distinct: bool,
     ranks: "tuple[int, int]",
 ) -> "tuple[int, int]":
-    """The two boundary ranks, moved in while either side is settled.
+    """The two boundary ranks, moved in while either side withholds.
 
     At most `TAIL_WIDEN_MOST` steps, and never past the point where the
     two boundaries would leave no cell between them (contract DT2). Ties
     are skipped exactly as `tail_ranks` skips them, so a boundary is
     always read at the first rank holding its value.
+
+    WHAT STOPPING COSTS, AND WHY IT IS NOW SAFE (P4-D349). This walk is
+    an OPTIMISATION and no longer a guard: it looks for a width whose
+    tail can publish its shape, and every place it can stop -- both
+    sides publishing, the cap reached, no room left between the two
+    boundaries -- leaves a tail that `_tail_side` withholds the pair of
+    where it is still pinned. So the widest boundary it reached is kept
+    only where that bought something, and the original boundary is put
+    back where it did not, which is the cheaper of two safe answers
+    rather than the only unsafe one.
     """
     count = len(ordinals)
     grid = len(set(ordinals))
@@ -4716,11 +4665,6 @@ def _unsettled_ranks(
                 ordered, ordinals, high, False, floor, edges, distinct, grid, count
             ),
         )
-        if -1 in answers:
-            # NOTHING WAS PROVEN AT THIS WIDTH, so nothing is kept: the
-            # rows already withheld bought a reason the walk could not
-            # check.
-            return ranks
         if 1 not in answers:
             return (low, high)
         next_low = low + 1
@@ -4737,9 +4681,11 @@ def _unsettled_ranks(
     # `k` consecutive days is the one multiset `1..k`, whatever `k` is --
     # so the walk reaches its cap with the tail still settled and the
     # rows it withheld bought no room at all. The boundaries go back
-    # where the tail rule put them, and K-S3-11's `edge_pinned` counts
-    # what is left. Measured: 240 consecutive days at a floor of eleven
-    # widened twelve ranks and was settled at every one of them.
+    # where the tail rule put them and the tail publishes NEITHER
+    # distance (P4-D349), which is where the old reading published the
+    # pair and handed the column's two ends back. Measured: 240
+    # consecutive days at a floor of eleven widened twelve ranks and was
+    # settled at every one of them.
     return ranks
 
 
@@ -12248,6 +12194,112 @@ def _cells_holding(ordered: "list[float]", value: float) -> int:
     return low - first
 
 
+def _tail_parts(
+    ordered: "list[float]",
+    first: int,
+    last: int,
+    boundary: float,
+    side: str,
+    figures: int,
+    no_negative: bool,
+    no_positive: bool,
+) -> "tuple[list[int], int, int] | None":
+    """A numeric tail's distances in whole grid units, its cap and its least.
+
+    WHAT A READER OF THIS BLOCK HOLDS, in the one form the back-solve can
+    be run in. On a block with a published grid every value is `c + k u`
+    with `u` the grid unit, so the parts are counted from the grid point
+    at or inside the boundary rung (`_grid_home`): a boundary between two
+    grid points adds the same offset to every distance and nothing to the
+    question.
+
+    Returns the parts innermost-first as the rows stand, the largest part
+    the sign counts allow (negative for none) and the SMALLEST a part can
+    be, which on this role is NOUGHT. A numeric tail is the outermost
+    `rows` RANKS of the column and its boundary is a percentile rung, so
+    a tail row can hold the rung's own value where that value is tied --
+    measured on a count of visits published with a heaped end of 9,
+    whose twelve high rows are eleven 9s and one far cell, eleven parts of
+    nought among them. A search told the smallest part was one could not
+    reach that multiset and answered "pinned" on a tail no reader can
+    pin. None where this block has no grid, or a value off it, which is a
+    block whose distances no reader can put in whole numbers at all.
+
+    MUTATION (2026-09-23): with this nought put back to one,
+    `tests/test_joined_battery_readings.py::test_the_battery_of_three_and_four_positions_keeps_its_figures[None]`
+    turns red -- a search that cannot reach a tail's real distances calls
+    that tail pinned, and a tail wrongly called pinned withholds a pair
+    its twin needs.
+
+    Guarantees: accepts the sorted values, one tail's first and last
+    rank, the boundary rung, which side, the grid and the two sign
+    facts; returns the triple or None. Determinism: a function of those.
+    Raises nothing. No I/O of any kind.
+    """
+    if figures < 0:
+        return None
+    home = _grid_home(boundary, figures, side)
+    if home is None:
+        return None
+    steps: "list[int]" = []
+    for place in range(first, last + 1):
+        found = _grid_step(ordered[place], figures)
+        if found is None:
+            return None
+        steps += [found]
+    if side == "low":
+        parts = [home - step for step in steps]
+        cap = home if no_negative else -1
+    else:
+        parts = [step - home for step in steps]
+        cap = -home if no_positive else -1
+    if not parts or min(parts) < 0:
+        return None
+    return (parts, cap, 0)
+
+
+def _numeric_pinned(
+    parts: "list[int]",
+    cap: int,
+    least: int,
+    floor: int,
+    distinct: bool,
+) -> bool:
+    """Whether a numeric tail's published pair would give its cells back.
+
+    THE SAME BACK-SOLVE THE DATE AND CLOCK ROLE RUNS, asked here for the
+    first time (plan P4-D349). Before this pass the numeric role had no
+    pin check on the road it actually takes: `_lattice_pins` asked a
+    narrower question -- is the largest part the only one that fits? --
+    and asked it only to decide whether a tail might LIST its values, so
+    a tail that could not list published its pair whatever the pair gave
+    away. The integers `0..1100` once each publish a high boundary of
+    1089, eleven rows, a mean distance of six and a root-mean-square of
+    root-46, and the same description says every value is different: the
+    eleven distances are then DIFFERENT whole numbers summing to 66, and
+    66 is the least eleven different whole numbers can sum to, so they
+    are 1 to 11 and all eleven withheld values come back exactly. Both
+    ends of that column had the defect.
+
+    `cap` is the largest part the sign counts allow and is turned into
+    the lattice's own edge here: where the counts allow none, the reader
+    still holds one -- no part's square can exceed the whole sum of
+    squares.
+
+    Guarantees: accepts the whole parts, the sign cap, the smallest part,
+    the floor and whether the column publishes that its values are all
+    different; returns a bool. Determinism: a function of the five.
+    Raises nothing. No I/O of any kind.
+    """
+    if not parts:
+        return False
+    squares = 0
+    for part in parts:
+        squares = squares + part * part
+    edge = cap if cap >= 0 else _root_of(squares)
+    return _tail_pinned(parts, floor, max(edge, 1), distinct, least=least)
+
+
 def _listed_tail(
     ordered: "list[float]",
     first: int,
@@ -12259,11 +12311,14 @@ def _listed_tail(
     no_positive: bool,
     floor: int,
     distinct: int,
+    parts: "tuple[list[int], int, int] | None",
 ) -> "list[float]":
     """The tail's own values, where the tail is published by them (G5.3e).
 
     Only on a block with a published grid (``figures`` of nought or
-    more), which is what lets a reader write a listed value back.
+    more), which is what lets a reader write a listed value back, and
+    ``parts`` is that grid reading (`_tail_parts`), taken once per side
+    and shared with the pin check.
 
     WHETHER IT MAY LIST AT ALL IS `tail_may_list`, the one rule the date
     and clock role asks too (plan P4-D346). This road used to ask no
@@ -12274,16 +12329,22 @@ def _listed_tail(
     Neither column is a bounded scale, and the owner's ruling does not
     reach either.
 
-    THE TWO ROADS, and only the first is a listing CHOICE. A tail the
+    THE TWO ROADS, AND THE RULE GOVERNS BOTH (plan P4-D349). A tail the
     rule admits and holding at most `TAIL_VALUES_MOST` different values
-    lists them, which is the owner's ruling being applied. A tail whose
-    rows, two distances, boundary, grid and sign counts solve for its
-    end (`_lattice_pins`) lists them too -- on a column the rule does
-    NOT admit, only where it holds at most `TAIL_SETTLED_VALUES` of
-    them, because two distances over two counts summing to `rows` are
-    settled by the published pair and the list then says nothing the
-    pair does not. Eleven all-different values are not, which is why
-    that road is closed to them.
+    lists them, which is the owner's ruling being applied. A tail the
+    rule admits whose rows, two distances, boundary, grid and sign counts
+    solve for its end (`_lattice_pins`) lists them too, because the
+    ruling already allows the list there and the pair it would replace is
+    now withheld from the twin instead (`_numeric_tails`).
+
+    AND THE SECOND ROAD IS WITHDRAWN ON A COLUMN THE RULE DOES NOT ADMIT
+    (P4-D349, withdrawing that half of P4-D346). It was open to any tail
+    of at most `TAIL_SETTLED_VALUES` values, and
+    `list(range(1089)) + [1089] * 11 + [1100]` took it to publish
+    `[1089, 1100]` -- 1100 is the column's own maximum and ONE row holds
+    it -- in a block whose `percentiles.max` is null. Its premise is gone
+    as well: a tail whose pair settles it no longer publishes that pair,
+    so the alternative to listing is silence, and silence says less.
 
     The list is the tail's different values in ascending order and
     carries no count; the empty list says the tail is described by its
@@ -12309,39 +12370,17 @@ def _listed_tail(
     for value in seen:
         held += [_cells_holding(ordered, value)]
     admits = tail_may_list(held, floor, distinct, len(ordered))
-    if admits and len(seen) <= TAIL_VALUES_MOST:
+    if not admits:
+        return []
+    if len(seen) <= TAIL_VALUES_MOST:
         return seen
-    if not admits and len(seen) > TAIL_SETTLED_VALUES:
+    # THE SECOND ROAD, AND ONLY IT NEEDS THE GRID READING. The road above
+    # is the owner's ruling being applied and asks nothing of a reader's
+    # arithmetic, so a tail whose values lie too far out for whole parts
+    # -- twelve cells at `1.7e308` -- still lists them.
+    if parts is None:
         return []
-    # THE GRID POINT AT OR INSIDE THE BOUNDARY: the parts are counted
-    # from it, so a boundary between two grid points adds the same
-    # offset to every distance and nothing to the question.
-    home = _grid_home(boundary, figures, side)
-    steps: "list[int]" = []
-    for place in range(first, last + 1):
-        found = _grid_step(ordered[place], figures)
-        if home is None or found is None:
-            return []
-        steps += [found]
-    if home is None:
-        return []
-    if side == "low":
-        parts = [home - step for step in steps]
-        cap = home if no_negative else -1
-    else:
-        parts = [step - home for step in steps]
-        cap = -home if no_positive else -1
-    if min(parts) < 0:
-        return []
-    # THE SECOND ROAD, and what it may say (plan P4-D346). Where the
-    # published pair settles this tail's outermost value the description
-    # names that value either way, so the list is the reading that says
-    # LESS -- but only where the list says NOTHING MORE than the pair
-    # already does, which is a tail of at most `TAIL_SETTLED_VALUES`
-    # different values. On a column the owner's ruling reaches the road
-    # is open at any width, because there the ruling itself allows the
-    # list.
-    if _lattice_pins(parts, last - first + 1, cap):
+    if _lattice_pins(parts[0], last - first + 1, parts[1]):
         return seen
     return []
 
@@ -12521,28 +12560,68 @@ def _numeric_tails(
     distinct_numbers = len(set(ordered))
     no_negative = cells.n_negative == 0
     no_positive = len([v for v in ordered if v > 0.0]) == 0
+    # EVERY VALUE DIFFERENT IS A SENTENCE OF THE DESCRIPTION, so it is a
+    # fact the back-solve may use: where the column publishes it, the
+    # distances of each tail are different too (plan P4-D349).
+    #
+    # READ STRICTLY, AND THE RESIDUAL IS STATED. The question asked here
+    # is whether EVERY value differs, which is what makes each distance
+    # differ. A reader also holds `n_distinct_values` exactly, so on a
+    # column of 1,101 rows and 1,100 different values they know at most
+    # one row repeats -- a constraint weaker than distinctness and
+    # stronger than none, and this search models it as none. Closing that
+    # means a lattice that counts repeats rather than forbidding them,
+    # which is a landing and not a clause; it is written down in plan
+    # P4-D349 rather than left to be found. The date and clock role reads
+    # the same strict question through its own `distinct` argument.
+    all_apart = distinct_numbers == count
+    floor = cells.settings.small_cell_floor
     sides: "dict[str, object]" = {}
     for side, first, last, side_percent, distances in (
         ("low", low_first, low_last, percent, low),
         ("high", high_first, high_last, high_percent, high),
     ):
+        parts = _tail_parts(
+            ordered,
+            first,
+            last,
+            found[side_percent],
+            side,
+            figures,
+            no_negative,
+            no_positive,
+        )
+        listed = _listed_tail(
+            ordered,
+            first,
+            last,
+            found[side_percent],
+            side,
+            figures,
+            no_negative,
+            no_positive,
+            floor,
+            distinct_numbers,
+            parts,
+        )
+        mean: "float | None" = distances[0]
+        root: "float | None" = distances[1]
+        # FAIL CLOSED WHERE THE PAIR WOULD HAND THE TAIL BACK (P4-D349).
+        # A LISTED tail is not asked: it has already said which values it
+        # holds, under a rule that says nobody's own value is among them,
+        # and its pair adds nothing about them. Anything else that the
+        # back-solve settles publishes its boundary and its rows alone.
+        if not listed and parts is not None and _numeric_pinned(
+            parts[0], parts[1], parts[2], floor, all_apart
+        ):
+            mean = None
+            root = None
         sides[side] = {
             "percent": side_percent,
             "rows": last - first + 1,
-            "mean_distance": distances[0],
-            "rms_distance": distances[1],
-            "values": _listed_tail(
-                ordered,
-                first,
-                last,
-                found[side_percent],
-                side,
-                figures,
-                no_negative,
-                no_positive,
-                cells.settings.small_cell_floor,
-                distinct_numbers,
-            ),
+            "mean_distance": mean,
+            "rms_distance": root,
+            "values": listed,
         }
     groups, empty, edges = _tail_bins(
         ordered[low_last + 1 : high_first],

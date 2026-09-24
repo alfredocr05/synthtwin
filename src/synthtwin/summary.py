@@ -160,6 +160,13 @@ def _numeric_lines(column: "dict[str, object]", floor: int) -> "list[str]":
     an end at least a tail's own number of rows held, which is a value of
     a group and is said so. A block below its floor says that it is, and
     a block publishing its moments alone says only those.
+
+    AND EACH TAIL'S FIRST LINE IS ABOUT THE TAIL IN FRONT OF IT (plan
+    P4-D349). There are three of them: a tail that NAMES its values, one
+    that publishes its shape, and one that publishes neither distance
+    because the pair would give its cells back. One sentence for all
+    three said "not published" over a block that printed two of the
+    values below.
     """
     ladder = _map_of(column["percentiles"])
     moments = (
@@ -195,16 +202,47 @@ def _numeric_lines(column: "dict[str, object]", floor: int) -> "list[str]":
         (low, ladder["min"], "below", "smallest"),
         (high, ladder["max"], "above", "largest"),
     ):
-        lines += [
-            (
-                f"    the {_count_of(side['rows'])} {which} values are not "
-                f"published: they lie on average "
-                f"{_text_of(side['mean_distance'])} {word} "
-                f"{_text_of(_rung_at_percent(column, _count_of(side['percent'])))}"
-                f", the value {_count_of(side['percent'])} per cent of the "
-                f"way up"
-            )
-        ]
+        listed = side["values"] if "values" in side else None
+        names = isinstance(listed, list) and bool(listed)
+        rung = _text_of(_rung_at_percent(column, _count_of(side["percent"])))
+        percent = _count_of(side["percent"])
+        # WHAT THIS LINE SAYS FOLLOWS FROM WHAT THE BLOCK PUBLISHES
+        # (plan P4-D349). It said "the 12 smallest values are not
+        # published" on every tail block and then printed two of them
+        # three lines later: on a column of each integer 0 to 10 ten
+        # times, whose low tail lists `0.0, 1.0` and whose high tail
+        # lists `9.0, 10.0`, one summary contradicted itself twice and
+        # which half a reader believed was whichever they read second.
+        # The three shapes a tail can take each have their own sentence
+        # now, and each is true of the block it is printed under.
+        if names:
+            lines += [
+                (
+                    f"    the {_count_of(side['rows'])} {which} values lie "
+                    f"{word} {rung}, the value {percent} per cent of the "
+                    f"way up, and this description names which values they "
+                    f"are"
+                )
+            ]
+        elif side["mean_distance"] is None:
+            lines += [
+                (
+                    f"    the {_count_of(side['rows'])} {which} values are "
+                    f"not published, and neither is how far {word} {rung} "
+                    f"-- the value {percent} per cent of the way up -- they "
+                    f"lie: on this column the two distances together would "
+                    f"give those values back one by one"
+                )
+            ]
+        else:
+            lines += [
+                (
+                    f"    the {_count_of(side['rows'])} {which} values are "
+                    f"not published: they lie on average "
+                    f"{_text_of(side['mean_distance'])} {word} {rung}"
+                    f", the value {percent} per cent of the way up"
+                )
+            ]
         if end is not None:
             lines += [
                 (
@@ -214,8 +252,7 @@ def _numeric_lines(column: "dict[str, object]", floor: int) -> "list[str]":
                     f"value of a group and not of one row"
                 )
             ]
-        listed = side["values"] if "values" in side else None
-        if isinstance(listed, list) and listed:
+        if names and isinstance(listed, list):
             shown = ""
             for value in listed:
                 shown = (
@@ -821,6 +858,15 @@ def _tail_lines(
             )
             if mean is not None:
                 said = f"{said}, on average {_text_of(mean)} {unit}(s) beyond"
+        elif mean is None:
+            # THE TAIL THAT PUBLISHES NEITHER DISTANCE (plan P4-D349).
+            # Printing "on average None" was never a sentence; what is
+            # true of this tail is that the description says how many
+            # cells lie beyond the boundary and nothing else about them.
+            said = (
+                f"{said} beyond it and no distance is published for them: "
+                f"the two together would give those values back one by one"
+            )
         else:
             said = (
                 f"{said} on average {_text_of(mean)} {unit}(s) beyond "

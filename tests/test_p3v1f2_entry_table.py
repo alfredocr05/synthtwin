@@ -421,6 +421,20 @@ def _padded_code_table() -> str:
     code, a zip code whose leading zero matters, an account number. It
     is the case P4-D14 was built for, so it is the case the coverage
     identity walks.
+
+    ITS TAILS PUBLISH NO DISTANCE, AND THE VALUES STAY AS THEY ARE (plan
+    P4-D349). `00000` to `00039` are forty CONSECUTIVE whole numbers, so
+    each tail's twelve different whole distances sum to the least twelve
+    different whole numbers can sum to and have one possible answer: the
+    description publishes neither distance there and the four tail sites
+    this fixture used to be registered for are not shipped by it any
+    more. The values are not changed for that. Everything else this
+    fixture exists to reach -- the named field width, the whole-valued
+    flag, the spill census, the middle rung and the mean -- is a fact of
+    these forty codes, and a shape chosen to keep four registrations
+    alive would be a fixture chosen for the battery rather than for the
+    case P4-D14 was built for. The four facts are exercised on `visits`,
+    whose own tails publish their pair.
     """
     values = [f"{index:05d}" for index in range(40)]
     return fixtures.single_column_table("code", values)
@@ -2476,23 +2490,47 @@ def _compressed(described: contract.Profile, text: str, index: int) -> str:
 
 
 def _raised_end(described: contract.Profile, text: str, index: int) -> str:
-    """The largest number of one column made very much larger."""
+    """A tail's worth of one column's largest cells made very much larger.
+
+    A TAIL'S WORTH AND NOT ONE CELL, and the tail rule is why (plan
+    P4-D349). The site this edit is registered for -- `ladder.max`, the
+    heaped end -- is decided from the file's OWN description, because the
+    file's extreme may be one row's value and no report prints it. One
+    cell raised leaves the file's own end held by ONE row, so every
+    description of that file withholds it, and since a tail whose two
+    distances would give its cells back publishes neither of them, the
+    file's own high tail withholds them too: eleven cells at the boundary
+    value beside one far cell have a sum of squares equal to the square of
+    their sum, which one part alone can make. The check then had nothing
+    to read and went WITHHELD -- silence bought by an edit too small to be
+    reported, which is the same defect `_floor_cells` was written for.
+    `tail_units(floor)` cells raised TO ONE VALUE make the file's own end
+    a value of a group, which its own description publishes, and the
+    comparison is exact again. Every moment of the column moves further
+    than one cell moved it, so the four moment sites this edit also
+    covers are covered harder.
+    """
     rows = _rows_of(text)
     first = _first_record(described)
-    highest = None
-    where = 0
+    found: "list[tuple[float, int]]" = []
     for row in range(first, len(rows)):
         if not _holds_a_value(described, index, rows[row][index]):
             continue
-        found = parsing.parse_number(rows[row][index])
-        if found is None:
-            continue
-        if highest is None or found > highest:
-            highest = found
-            where = row
-    if highest is None:
+        number = parsing.parse_number(rows[row][index])
+        if number is not None:
+            found = found + [(number, row)]
+    if not found:
         return ""
-    rows[where][index] = f"{highest * 1000 + 7}"
+    found.sort()
+    highest = found[len(found) - 1][0]
+    raised = f"{highest * 1000 + 7}"
+    wanted = parsing.tail_units(described.settings.small_cell_floor)
+    taken = 0
+    for place in range(len(found) - 1, -1, -1):
+        if taken >= wanted:
+            break
+        rows[found[place][1]][index] = raised
+        taken = taken + 1
     return _rebuilt(rows)
 
 
@@ -5409,12 +5447,14 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("marked-code", "type.std_unrepresentable"),
             ('quoted-code', 'bytes.quoting'),
             ('reversed-code', 'rows.order'),
-            # THE SITES STAGE 3'S TAIL RULE ADDED, each against
-            # the edit MEASURED to make it miss (landing 3.3).
-            ("pushed-code", "tails.high.mean_distance"),
-            ("pushed-code", "tails.high.rms_distance"),
-            ("crowded-code", "tails.low.mean_distance"),
-            ("crowded-code", "tails.low.rms_distance"),
+            # THE FOUR TAIL SITES LANDING 3.3 REGISTERED HERE ARE GONE
+            # WITH THE SITES THEMSELVES (plan P4-D349). This fixture's
+            # forty codes run consecutively, so each of its tails would
+            # give its own cells back and the description publishes
+            # neither distance: there is no site here to aim a red case
+            # at. The four facts are registered on `visits`, whose own
+            # tails publish their pair -- `floor-grouped-visits` for the
+            # high side and `pushed-visits` for the low.
         ),
     },
     # THE SATURATED COLUMN, whose grid holds exactly as many points as
@@ -5931,10 +5971,18 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             # the edit MEASURED to make it miss (landing 3.3).
             ("crowded-reading", "number 1 ladder.p10"),
             ("crowded-reading", "number 1 ladder.p90"),
-            ("pushed-reading", "number 1 tails.high.mean_distance"),
-            ("pushed-reading", "number 1 tails.high.rms_distance"),
-            ("pushed-reading", "number 1 tails.low.mean_distance"),
-            ("pushed-reading", "number 1 tails.low.rms_distance"),
+            # POSITION 1 SHIPS NO TAIL DISTANCE ANY MORE, and it is this
+            # fixture's own shape that decides it (plan P4-D349). Its
+            # first number runs 100 to 219, one whole unit at a time, so
+            # each tail's twelve DIFFERENT whole distances sum to the
+            # least twelve different whole numbers can sum to and have
+            # one possible answer -- the description publishes neither
+            # distance there, so there is no site to register a red case
+            # against. The four facts are exercised on this fixture's
+            # SECOND position, whose numbers step 13 apart and repeat
+            # their band, and on `visits` and `amount`. The fixture's own
+            # values are not changed for this: its docstring records that
+            # every golden in the suite is built on them.
             ("crowded-reading", "number 2 ladder.p10"),
             ("crowded-reading", "number 2 ladder.p90"),
             ("pushed-reading", "number 2 tails.high.mean_distance"),

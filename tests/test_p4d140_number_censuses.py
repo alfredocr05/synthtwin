@@ -664,9 +664,30 @@ def test_the_width_censuses_leave_no_one_to_subtract(
         # rung is not published at all and the twin is told about those
         # rows as a group -- how many, and how far beyond the boundary
         # they lie -- instead of being handed a straight run up to a
-        # value it then spread cells along. Every case here now meets
-        # every obligation, on the twin and on the real table alike.
-        assert run["twin_exit"] == 0, run["twin_missed"]
+        # value it then spread cells along.
+        #
+        # AND IT IS OPEN AGAIN ON THAT ONE CASE, for a reason the census
+        # this test is about does not touch (plan P4-D349, ledger
+        # `K-S3-15`). The 800 codes run CONSECUTIVELY, so the twelve rows
+        # beyond each boundary stand at twelve different whole distances
+        # summing to the least twelve different whole numbers can sum to:
+        # one possible answer, which would give all twenty-four outer
+        # cells back, so the description publishes NEITHER distance. The
+        # twin's tail is then read through the column's own published mean
+        # and spread, and where the withheld tail holds a single far value
+        # -- `12345` here -- no reading can average to a mean that value
+        # puts in: the twin misses `moments.mean` and `moments.std` and
+        # its report names both. The `+00123` case has no far value and
+        # meets everything. The REAL table meets everything in every
+        # case, which is what says the description is still true of it.
+        far = label == "with" and not plus
+        if far:
+            assert run["twin_exit"] == 3, run["twin_missed"]
+            assert sorted(set(run["twin_missed"])) == [
+                "moments.mean", "moments.std"
+            ], run["twin_missed"]
+        else:
+            assert run["twin_exit"] == 0, run["twin_missed"]
         assert run["real_exit"] == 0, run["real_missed"]
         if label == "with":
             # SINCE PLAN P4-D222 (stage 2 closed by the owner rulings of

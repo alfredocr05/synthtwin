@@ -99,7 +99,8 @@ def _the_smallest_is_one(column: dict, values: "list[str]") -> None:
     assert column["percentiles"]["min"] is None, (
         "an end no group holds is withheld by the tail rule"
     )
-    assert tail_rule.stated(column["tails"]["low"]) == tail_rule.expected(
+    assert tail_rule.holds(
+        column["tails"]["low"],
         column, [float(value) for value in values]
     )
 
@@ -347,7 +348,8 @@ def test_both_candidates_can_be_declared_missing_at_once(
     assert column["missing_by_class"]["(declared-missing)"] == 30
     _the_smallest_is_one(column, READINGS)
     assert column["percentiles"]["max"] is None
-    assert tail_rule.stated(column["tails"]["high"]) == tail_rule.expected(
+    assert tail_rule.holds(
+        column["tails"]["high"],
         column, [float(value) for value in READINGS], low=False
     )
 
@@ -432,7 +434,8 @@ def test_two_declarations_that_are_not_the_same_value_are_accepted(
     # group beyond the high boundary instead.
     assert column["percentiles"]["min"] == -999.0
     assert column["percentiles"]["max"] is None
-    assert tail_rule.stated(column["tails"]["high"]) == tail_rule.expected(
+    assert tail_rule.holds(
+        column["tails"]["high"],
         column,
         [float(value) for value in READINGS] + [-999.0] * 15,
         low=False,

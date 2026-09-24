@@ -313,8 +313,15 @@ Stated here so that no reader has to discover them independently:
   root-mean-square. On a column of dates or clock times the same side is
   a boundary with at least `small_cell_floor` cells beyond it, how many
   those are, and how far they lie -- so no date in the file is the
-  rarest one the column held. An end at least that many rows share is
-  published as itself, because it is a value of a group. A tail may
+  rarest one the column held. **A tail whose two distances would give
+  its own cells back publishes NEITHER of them** (2026-09-23): where the
+  rows, the two distances, the grid, the space's edges and the column's
+  own remark that every value in it is different leave one possible set
+  of distances, that set names every outer cell exactly, so the tail
+  publishes its boundary and its row count and stops. What that costs
+  the twin is measured and recorded rather than claimed away. An end at
+  least that many rows share is published as itself, because it is a
+  value of a group. A tail may
   LIST the values it holds instead of publishing its shape, and ONE
   RULE decides that for every role: the owner's ruling of 2026-09-22
   reaches a tail only where every value it would list is held by at
@@ -326,7 +333,10 @@ Stated here so that no reader has to discover them independently:
   nothing. Where the rule admits a tail, each role has its own reason
   to list: a handful of different values, or a published shape that
   would settle the tail's outermost value anyway, so that the list is
-  the reading that says LESS. **A listed tail writes down no count, and
+  the reading that says LESS. Both of those roads are inside the rule,
+  and a road that ran outside it -- a tail of two values listed wherever
+  its own shape settled them -- was withdrawn on 2026-09-23, because it
+  named values ONE row holds. **A listed tail writes down no count, and
   the counts are not thereby secret**: this package ships the
   arithmetic that works them out from the listed values and the
   distances beside them, because the generator needs it, and over the

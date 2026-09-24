@@ -926,9 +926,12 @@ _NOT_CHECKABLE_NO_TAIL = (
 _NOT_CHECKABLE_TAIL_KEY_WITHHELD = (
     "the description's tail publishes nothing under this key: the values "
     "a tail holds are published only where it holds few of them or where "
-    "its distances would settle a count below the floor, and a distance "
-    "is published only where the tail has a row to measure "
-    "(docs/spec/profile-contract-v6.md TL1)"
+    "its distances would settle a count below the floor, and the two "
+    "distances are published only where they would not give the tail's "
+    "own cells back -- where its rows, those two numbers, the grid and "
+    "the column's own remark that every value in it is different leave "
+    "one possible set of distances, the tail publishes neither of them "
+    "(docs/spec/profile-contract-v6.md TL1 and TL5)"
 )
 _NOT_CHECKABLE_SPELLING_ENVELOPE = (
     "the description's own permitted spellings settle nothing about how "
@@ -1099,6 +1102,42 @@ _GATE_WORKBOOK = (
     "is shown"
 )
 
+# THE GATE ON A PUBLISHED END, AND WHY IT CLOSES WHERE IT DOES (plan
+# P4-D349). A published end is a value a group of rows holds, so the file
+# is asked whether it holds a cell beyond it -- and the file's own
+# extreme may be one row's value, so the question is put to the file's own
+# DESCRIPTION rather than to its cells. Where that description publishes
+# its own end, or lists its outer values, the answer is exact. Where it
+# publishes only a tail's shape, the two sums bound the file's extreme
+# from both sides and settle the question wherever either bound reaches
+# the published end; between the two bounds they settle nothing, and this
+# is what the report says instead of the false HELD it used to report from
+# reading a lower bound as an upper one.
+# THE SILENCE A FILE'S OWN TAIL RULE BUYS, and it is its own sentence
+# (plan P4-D349). A tail whose published rows and two distances would give
+# its own cells back publishes NEITHER distance, so a file whose own tail
+# is settled that way carries no number here for the description's to be
+# compared with -- and no MISSED check of that column decides it, because
+# what decides it is the file's own values and no published obligation
+# counts them. The reason is therefore complete in itself, which is the
+# shape `_GATE_POOLED` has: the report says what happened rather than
+# leaving a reader to infer it from a neighbouring verdict.
+_GATE_TAIL_WITHHELD = (
+    "the file's own description publishes nothing about this tail beyond "
+    "the count of cells past its boundary -- neither distance, and so no "
+    "list of the values it holds: its rows and those two numbers together "
+    "would give the file's own outer cells back one by one, which is the "
+    "same rule this description follows. There is nothing here for the "
+    "comparison, and neither it nor its outcome is shown"
+)
+
+_GATE_TAIL_BOUNDS = (
+    "the file's own description withholds its end under the same tail "
+    "rule this description follows, and the shape it publishes instead "
+    "bounds that end from both sides without reaching the value this "
+    "check compares, so neither the measurement nor its outcome is shown"
+)
+
 # The fact whose whole evidence is the header line, named once because
 # two places have to agree about which check that is.
 _POSITION_FACT = "universal.position"
@@ -1198,6 +1237,37 @@ _NOT_SHOWN_THEY_ARE_THE_TAIL_VALUES_OF_THE_FILE = (
     "      measured side is kept back. To read them, describe the file",
     "      itself with `synthtwin profile` and read the tail that",
     "      description publishes.",
+)
+
+# THE FIFTH, which THIS pass added (plan P4-D349). The cells beyond the
+# DESCRIPTION's boundary are not the cells beyond the file's own, so this
+# walk can measure a group the file's own description would never publish
+# a number for -- one cell, at a distance that names the day it stands on.
+# The verdict is kept and the numbers that would hand that cell back are
+# dropped, which is the owner's ruling of 2026-09-23 about a warning whose
+# count would do the same thing.
+_NOT_SHOWN_IT_IS_A_SUBFLOOR_GROUP_OF_THE_FILE = (
+    "      what this file holds here is NOT SHOWN, and this is why: the",
+    "      cells counted are the file's own cells beyond the boundary",
+    "      this description publishes, and there are fewer of them than",
+    "      the smallest group size -- so their count, and how far they",
+    "      lie from that boundary, would between them give back the",
+    "      values of a group smaller than any description publishes a",
+    "      number for. The comparison above was made in full and the",
+    "      verdict is its outcome; only the measured side is kept back.",
+    "      To read what stands there, describe the file itself with",
+    "      `synthtwin profile` and read the tail that description",
+    "      publishes -- which draws its own boundary and holds its own",
+    "      floor.",
+)
+
+# The gate's own sentence for that group, for the verdict that goes quiet
+# rather than the one that keeps a number back.
+_GATE_SUBFLOOR_TAIL = (
+    "the file holds fewer cells beyond this description's boundary than "
+    "the smallest group size, so a count of them and their distances "
+    "would give those cells back, and neither the measurement nor its "
+    "outcome is shown with a number"
 )
 
 _NOT_SHOWN_IT_IS_A_COUNT_OF_THE_FILE = (
@@ -4450,6 +4520,7 @@ def _within(
     citation: str,
     value: "float | None" = None,
     anchored: bool = False,
+    why: str = "",
 ) -> Check:
     """One approximated obligation, against both ends of its envelope.
 
@@ -4492,9 +4563,24 @@ def _within(
     must ALSO stand within the window's own width of that value -- half
     of it either side -- or the obligation is MISSED. Nothing changes
     where the window reaches the value.
+
+    ``why`` NAMES WHICH SILENCE THIS IS, where the caller knows and the
+    gate's general sentence would be less than the truth (plan P4-D349).
+    A report that goes quiet owes a reader the reason, and "describing
+    this file on its own would not publish what this check measures" is
+    true of every silence and so says nothing about the one in front of
+    them.
     """
     if measured is None or window is None:
-        return Check(column, fact, subcheck, WITHHELD, published, "", _GATE_CLOSED)
+        return Check(
+            column,
+            fact,
+            subcheck,
+            WITHHELD,
+            published,
+            "",
+            why if why else _GATE_CLOSED,
+        )
     low, high = window
     reaches = value is None or low <= value <= high
     if value is not None and measured == value:
@@ -12100,31 +12186,63 @@ def _heaped_end_check(
     held it -- so the file is asked whether any of its cells lies BEYOND
     it, and never shown what its own extreme is: that may be one row's
     value. Read off the file's own description: its end where that is
-    published, else the outermost value its tail lists, else the bound a
-    tail's root-mean-square distance puts on its extreme (no row set's
-    largest distance is below its root-mean-square), which settles
-    "beyond" where it reaches past the end and cannot clear a file
-    otherwise. None where the file publishes no tail at all.
+    published, else the outermost value its tail lists, else the two
+    BOUNDS its published tail puts on its own extreme. None where the
+    file publishes no tail at all, and None -- withheld -- where the
+    bounds do not settle the question either way.
+
+    AND THE ROOT-MEAN-SQUARE BOUNDS ONE SIDE ONLY (plan P4-D349). No row
+    set's largest distance is below its root-mean-square, so
+    `boundary - rms` is an UPPER bound on a low file's own minimum and
+    reading it as a lower one certified a file that misses: a column of
+    eleven tens and the integers 20 to 1508 publishes a minimum of 10,
+    and a file holding a 9 -- boundary 23.99, root-mean-square 12.14 --
+    was reported HELD because `23.99 - 12.14 >= 10`, on both ends alike.
+    What the two sums DO settle:
+
+    * the largest distance is at least the root-mean-square, so a file
+      whose `boundary - rms` falls below the published end has a cell
+      beyond it and MISSES;
+    * the largest distance is at most `rms * sqrt(rows)` -- its square
+      cannot exceed the whole sum of squares -- and at most the whole
+      sum `mean * rows`, since no distance is negative, so a file whose
+      boundary less the smaller of those two still stands at or above
+      the end holds every cell inside it and is HELD.
+
+    Between the two the file's own description settles nothing, and the
+    check says so rather than guessing.
     """
     measured = _inner_at(block, "percentiles")
     found = None if measured is None else _number_at(measured, key)
     held: "bool | None" = None
+    why = _GATE_CLOSED
+    name_of = "low" if low else "high"
     if found is not None:
         held = found >= end if low else found <= end
     else:
-        side = _file_tail(block, "low" if low else "high")
-        if side is not None:
+        side = _file_tail(block, name_of)
+        if side is None:
+            if _tail_is_quiet_at_any_percent(block, name_of):
+                why = _GATE_TAIL_WITHHELD
+        else:
             listed = side[3]
             if listed:
                 outermost = listed[0] if low else listed[len(listed) - 1]
                 held = outermost >= end if low else outermost <= end
             else:
-                boundary = side[0]
-                if boundary is not None:
-                    reach = side[2]
-                    held = (
-                        boundary - reach >= end if low else boundary + reach <= end
-                    )
+                held = _tail_bound_verdict(side, end, low)
+                if held is None:
+                    # AND WHICH SILENCE IT IS (plan P4-D349). A file whose
+                    # own tail publishes NEITHER distance says nothing
+                    # about its extreme at all, which is a different thing
+                    # from a file whose two sums simply do not reach the
+                    # published end -- and both are different again from a
+                    # file that describes this column as something else.
+                    # The report says which of the three it is.
+                    if side[1] is None or side[2] is None:
+                        why = _GATE_TAIL_WITHHELD
+                    else:
+                        why = _GATE_TAIL_BOUNDS
     return _silent(
         name,
         f"numeric.percentiles.{key}",
@@ -12132,14 +12250,26 @@ def _heaped_end_check(
         _shown_number(end),
         held,
         _NOT_SHOWN_IT_IS_AN_EXTREME_OF_THE_FILE,
+        why,
     )
 
 
 def _file_tail(
     block: "dict[str, object]", side: str
-) -> "tuple[float | None, float, float, tuple[float, ...], int] | None":
-    """One side of the file's own tail: boundary, mean and root-mean-square
-    distance, listed values and percent -- or None where it publishes none."""
+) -> "tuple[float | None, float | None, float | None, tuple[float, ...], int, int] | None":
+    """One side of the file's own tail, or None where it publishes no tail.
+
+    Boundary rung, mean and root-mean-square distance, listed values,
+    percent and rows. EACH DISTANCE IS ITS OWN ANSWER AND MAY BE None
+    (contract TL5, plan P4-D349): a tail that publishes neither still
+    publishes its rows, its percent and -- on a listed tail -- its values,
+    and a reader that refused the whole tail because its distances were
+    withheld would lose the EXACT check beside them. Measured: a
+    4,000-row column of halves whose twin writes 34.2 where the
+    description's tail names 34.5 reported `tails.low.values` MISSED
+    before this pass, and WITHHELD while this function demanded both
+    numbers -- a checker going quiet on a real miss.
+    """
     if "tails" not in block:
         return None
     tails = block["tails"]
@@ -12152,25 +12282,127 @@ def _file_tail(
     mean = found["mean_distance"] if "mean_distance" in found else None
     root = found["rms_distance"] if "rms_distance" in found else None
     listed = found["values"] if "values" in found else None
+    rows = found["rows"] if "rows" in found else None
     if (
         isinstance(percent, bool)
         or not isinstance(percent, int)
-        or not isinstance(mean, (int, float))
-        or not isinstance(root, (int, float))
+        or isinstance(rows, bool)
+        or not isinstance(rows, int)
         or not isinstance(listed, list)
     ):
         return None
+    for one in (mean, root):
+        if one is None:
+            continue
+        if isinstance(one, bool) or not isinstance(one, (int, float)):
+            return None
     values: "list[float]" = []
     for entry in listed:
         if isinstance(entry, (int, float)) and not isinstance(entry, bool):
             values += [float(entry)]
     return (
         _file_rung(block, percent),
-        float(mean),
-        float(root),
+        None if mean is None else float(mean),
+        None if root is None else float(root),
         tuple(values),
         percent,
+        rows,
     )
+
+
+def _tail_is_quiet_at_any_percent(
+    block: "dict[str, object]", side: str
+) -> bool:
+    """Whether the file's own tail publishes no distance, at any percent.
+
+    The published END is asked of the file's whole description rather than
+    at one percent: its own tail stands wherever its own count of values
+    puts it, and what matters here is whether it says anything about its
+    extreme at all.
+    """
+    if "tails" not in block:
+        return False
+    tails = block["tails"]
+    if not isinstance(tails, dict) or side not in tails:
+        return False
+    found = tails[side]
+    if not isinstance(found, dict):
+        return False
+    for key in ("mean_distance", "rms_distance"):
+        if key not in found or found[key] is not None:
+            return False
+    return True
+
+
+def _tail_is_quiet(
+    block: "dict[str, object]", side: str, percent: int
+) -> bool:
+    """Whether the file's own tail stands here and publishes no distance."""
+    if "tails" not in block:
+        return False
+    tails = block["tails"]
+    if not isinstance(tails, dict) or side not in tails:
+        return False
+    found = tails[side]
+    if not isinstance(found, dict):
+        return False
+    at = found["percent"] if "percent" in found else None
+    if isinstance(at, bool) or not isinstance(at, int) or at != percent:
+        return False
+    for key in ("mean_distance", "rms_distance"):
+        if key not in found or found[key] is not None:
+            return False
+    return True
+
+
+def _tail_bound_verdict(
+    side: "tuple[float | None, float | None, float | None, tuple[float, ...], int, int]",
+    end: float,
+    low: bool,
+) -> "bool | None":
+    """What a file's own published tail settles about a published end.
+
+    True where every cell of that tail is provably at or inside ``end``,
+    False where one of them is provably beyond it, None where the tail's
+    two sums settle neither. The arithmetic and the measured defect it
+    replaces are at `_heaped_end_check`; nothing here is shown to a
+    reader, because each bound is drawn from the file's own extreme.
+    """
+    boundary = side[0]
+    mean = side[1]
+    root = side[2]
+    rows = side[5]
+    if boundary is None or mean is None or root is None or rows <= 0:
+        return None
+    if not (math.isfinite(boundary) and math.isfinite(mean) and math.isfinite(root)):
+        return None
+    # THE LARGEST DISTANCE IS AT LEAST `rms**2 / mean`, and at most the
+    # smaller of `rms * sqrt(rows)` and the whole sum. The lower bound is
+    # the sharper reading of the same two sums: no distance is negative,
+    # so the sum of squares is at most the largest distance times the
+    # sum, and dividing gives it. It is never below the root-mean-square
+    # itself, which is the bound this used to take, and on the review's
+    # own file it is the difference between "the description settles
+    # nothing" and MISSED.
+    least = root
+    if mean > 0.0:
+        sharper = (root / mean) * root
+        if math.isfinite(sharper) and sharper > least:
+            least = sharper
+    most = min(root * math.sqrt(float(rows)), mean * float(rows))
+    if not math.isfinite(most):
+        return None
+    if low:
+        if boundary - most >= end:
+            return True
+        if boundary - least < end:
+            return False
+        return None
+    if boundary + most <= end:
+        return True
+    if boundary + least > end:
+        return False
+    return None
 
 
 def _file_rung(block: "dict[str, object]", percent: int) -> "float | None":
@@ -12300,6 +12532,19 @@ def _tail_checks(
     lists the same values -- or, where the list is short enough that the
     file would list its own and it lists none, a miss -- and the file's
     own values never leave this module (plan P4-D346).
+
+    AND THE EXACT CHECK NO LONGER DEPENDS ON THE WINDOWED ONE (plan
+    P4-D349). A column reaching across the binary64 range has a moment
+    window with no end this format can write, and this function used to
+    `continue` past the whole side on that -- past the LISTED VALUES
+    check below it, which is exact, needs no window at all, and is the
+    one obligation of a tail that names values. Measured: sixty cells at
+    `-1.7e308`, twenty-eight small integers and twelve at `1.7e308`
+    publish the high-tail value `1.7e308`, and a file holding `1.6e308`
+    twelve times instead reported no miss anywhere and did not appear in
+    the not-checkable census either, so the obligation simply vanished.
+    Each key is decided on its own now, and `_tail_listings_of` accounts
+    for every one this cannot reach.
     """
     tails = facts.tails
     if tails is None or tails.low is None or tails.high is None:
@@ -12312,13 +12557,16 @@ def _tail_checks(
         found = _file_tail(block, name)
         if found is not None and found[4] != side.percent:
             found = None
+        # WHICH SILENCE IT IS, where the file's own tail stands at the
+        # published percent and publishes neither distance (plan P4-D349).
+        # A reader told only that the gate closed cannot tell "this file
+        # describes itself as something else" from "this file's own tail
+        # rule withholds the number too", and the second is the one the
+        # report can explain completely. Asked of the BLOCK and not of
+        # `found`, which carries a tail whose distances are None as a
+        # tuple with two Nones in it.
+        quiet = _tail_is_quiet(block, name, side.percent)
         mean_window, root_window = _tail_window(facts, floor, ladder, side, low)
-        # A WINDOW WHOSE OWN ENDS ARE NOT NUMBERS IS A CENSUS LINE AND
-        # NOT A CHECK (the shape G12.3's moments already take). A column
-        # reaching across the binary64 range has such a window, and a
-        # comparison against it would admit every file there is.
-        if not _finite_window(mean_window) or not _finite_window(root_window):
-            continue
         for key, published, measured, window in (
             (
                 "mean_distance",
@@ -12333,6 +12581,14 @@ def _tail_checks(
                 root_window,
             ),
         ):
+            # THE TAIL THAT PUBLISHES NEITHER DISTANCE SETS NO OBLIGATION
+            # HERE (contract TL5, plan P4-D349), and A WINDOW WHOSE OWN
+            # ENDS ARE NOT NUMBERS IS A CENSUS LINE AND NOT A CHECK (the
+            # shape G12.3's moments already take): a comparison against
+            # it would admit every file there is. `_tail_listings_of`
+            # files each under its own reason.
+            if published is None or not _finite_window(window):
+                continue
             checks += [
                 _within(
                     column.name,
@@ -12343,6 +12599,7 @@ def _tail_checks(
                     window,
                     ENVELOPE_TAILS,
                     published,
+                    why=_GATE_TAIL_WITHHELD if quiet else _GATE_CLOSED,
                 )
             ]
         if side.values:
@@ -12371,9 +12628,58 @@ def _tail_checks(
                     wanted,
                     listed,
                     _NOT_SHOWN_THEY_ARE_THE_TAIL_VALUES_OF_THE_FILE,
+                    _GATE_TAIL_WITHHELD if quiet else _GATE_CLOSED,
                 )
             ]
     return checks
+
+
+def _tail_listings_of(
+    column: contract.ColumnBlock,
+    facts: contract.NumericFacts,
+    floor: int,
+    ladder: "tuple[float, ...]",
+) -> "list[Listing]":
+    """Each numeric tail distance `_tail_checks` cannot reach (plan P4-D349).
+
+    TWO REASONS, and the same walk `_tail_checks` runs, so a key cannot
+    be absent from both pages at once. A distance the description
+    WITHHELD sets no obligation on any file (contract TL5). A distance
+    whose G12.13 window has no end this format can write is a census line
+    and not a check, exactly as G12.3's moments already are on such a
+    column -- and until this pass it was neither: the `continue` that
+    skipped the check filed nothing, so the report claimed a census that
+    accounted for every obligation while two of them had gone.
+    """
+    tails = facts.tails
+    if tails is None or tails.low is None or tails.high is None:
+        return []
+    listings: "list[Listing]" = []
+    for name, side, low in (
+        ("low", tails.low, True),
+        ("high", tails.high, False),
+    ):
+        mean_window, root_window = _tail_window(facts, floor, ladder, side, low)
+        for key, published, window in (
+            ("mean_distance", side.mean_distance, mean_window),
+            ("rms_distance", side.rms_distance, root_window),
+        ):
+            why = ""
+            if published is None:
+                why = _NOT_CHECKABLE_TAIL_KEY_WITHHELD
+            elif not _finite_window(window):
+                why = _NOT_CHECKABLE_NO_WINDOW
+            if not why:
+                continue
+            listings += [
+                Listing(
+                    column.name,
+                    f"numeric.tails.{name}.{key}",
+                    f"tails.{name}.{key}",
+                    why,
+                )
+            ]
+    return listings
 
 
 def _finite_window(window: "tuple[float, float]") -> bool:
@@ -15978,6 +16284,7 @@ def _tail_side_checks(
     windows: "dict[str, tuple[list[int], list[int]]]",
     values_of: "dict[str, list[int]]",
     unit: str,
+    floor: int,
 ) -> "list[Check]":
     """Each published tail against the file, read at the PUBLISHED boundary.
 
@@ -15997,6 +16304,22 @@ def _tail_side_checks(
     - where the tail publishes its values, `tails.<side>.values`, EXACT
       and silent: the file's outer cells hold exactly those values, each
       at least once; and its mean, where published, EXACT.
+
+    AND A MEASUREMENT OVER FEWER CELLS THAN THE FLOOR IS NOT PRINTED
+    (plan P4-D349, and the owner's ruling of 2026-09-23 that a warning
+    whose count would hand back a withheld cell keeps the warning and
+    drops the number). The cells counted here are the file's own cells
+    beyond the DESCRIPTION's boundary, which is not where the file's own
+    boundary stands, so this walk can find a group the file's own
+    description would never publish: 200 consecutive dates from
+    2020-01-01 publish a low boundary of January 12, and a file holding
+    January 1 and then January 12 onward has ONE cell below it, at a mean
+    and a root-mean-square distance of eleven days. Printing those three
+    numbers names January 1 exactly, while the file's own description
+    moves its boundary to January 14 and names nothing. So where the file
+    has fewer than `floor` cells beyond the boundary, the count and the
+    two distances keep their verdicts and drop their numbers -- the shape
+    the heaped end beside them has always taken.
     """
     checks: "list[Check]" = []
     if low is None or high is None:
@@ -16037,8 +16360,27 @@ def _tail_side_checks(
                 _NOT_SHOWN_IT_IS_TEXT_OF_THE_FILE,
             )
         ]
+        # THE SUBFLOOR GROUP THIS WALK CAN FIND, and what is dropped
+        # because of it (plan P4-D349). `beyond` is counted from the
+        # DESCRIPTION's boundary, so a file can have fewer cells there
+        # than any description of that file would publish a count for --
+        # and one cell at a distance of eleven days names the day it
+        # stands on. Above the floor nothing changes, which is every
+        # conforming file: its count beyond the boundary is the published
+        # one.
+        held_back = 0 < len(beyond) < floor
         checks += [
-            _exact(
+            _silent(
+                name,
+                f"{stem}.rows",
+                f"tails.{side}.rows",
+                _shown_count(tail.rows),
+                len(beyond) == tail.rows,
+                _NOT_SHOWN_IT_IS_A_SUBFLOOR_GROUP_OF_THE_FILE,
+                _GATE_SUBFLOOR_TAIL,
+            )
+            if held_back
+            else _exact(
                 name,
                 f"{stem}.rows",
                 f"tails.{side}.rows",
@@ -16071,7 +16413,21 @@ def _tail_side_checks(
             if tail.mean_distance is not None:
                 measured = None if not beyond else total / len(beyond)
                 checks += [
-                    _exact(
+                    _silent(
+                        name,
+                        f"{stem}.mean_distance",
+                        f"tails.{side}.mean_distance",
+                        _tail_figure(tail.mean_distance, unit),
+                        None
+                        if measured is None
+                        else _tail_ratio_equal(
+                            total, len(beyond), tail.mean_distance, False
+                        ),
+                        _NOT_SHOWN_IT_IS_A_SUBFLOOR_GROUP_OF_THE_FILE,
+                        _GATE_SUBFLOOR_TAIL,
+                    )
+                    if held_back
+                    else _exact(
                         name,
                         f"{stem}.mean_distance",
                         f"tails.{side}.mean_distance",
@@ -16110,6 +16466,7 @@ def _tail_side_checks(
                     size,
                     rooted,
                     unit,
+                    held_back,
                 )
             ]
     return checks
@@ -16132,6 +16489,7 @@ def _tail_window_check(
     size: int,
     rooted: bool,
     unit: str,
+    held_back: bool = False,
 ) -> Check:
     """One tail distance against G12.14's window, compared exactly.
 
@@ -16141,6 +16499,12 @@ def _tail_window_check(
     the root-mean-square distance is compared as its square, so no
     rounding decides a verdict. The file's value is HELD where it rounds
     to the published one (V6.1-A1).
+
+    ``held_back`` SAYS THE FILE HAS FEWER CELLS BEYOND THE BOUNDARY THAN
+    THE FLOOR (plan P4-D349). The verdict is reached the same way and
+    the two numbers that would name those cells -- the file's own
+    distance, and the window it is judged against, which is printed as
+    distances too -- are dropped. The reason is at `_tail_side_checks`.
     """
     if count == 0:
         return Check(
@@ -16163,10 +16527,25 @@ def _tail_window_check(
         f"{high_value!r} {unit}(s)",
     )
     if exact:
+        if held_back:
+            return Check(
+                name, fact, subcheck, HELD, _tail_figure(published, unit)
+            )
         return Check(
             name, fact, subcheck, HELD, _tail_figure(published, unit), shown
         )
     verdict = WITHIN_BOUND if reaches else MISSED
+    if held_back:
+        return Check(
+            name,
+            fact,
+            subcheck,
+            verdict,
+            _tail_figure(published, unit),
+            "",
+            ENVELOPE_TAIL_DISTANCE,
+            _NOT_SHOWN_IT_IS_A_SUBFLOOR_GROUP_OF_THE_FILE,
+        )
     return Check(
         name,
         fact,
@@ -16263,6 +16642,7 @@ def _clock_checks(
             _clock_tail_windows(column, facts, floor),
             values_of,
             _clock_units(form),
+            floor,
         )
     checks = checks + _clock_ladder_checks(column, facts, block, floor)
     return checks
@@ -16667,6 +17047,7 @@ def _datetime_checks(
             _date_tail_windows(column, facts, floor, date_system),
             values_of,
             facts.tail_unit,
+            floor,
         )
     # THE TWO THE FORMAT CODE CAN STRAND (plan P4-D259.1), and they are
     # stranded TOGETHER: what makes `subsecond` unreachable is the same
@@ -19536,6 +19917,12 @@ def _numeric_listings(
                 _NOT_CHECKABLE_BIN_GROUPS,
             )
         ]
+        # ...AND EACH TAIL DISTANCE NO CHECK CAN REACH (plan P4-D349).
+        # Read off the same walk `_tail_checks` runs, so the two pages
+        # cannot both leave a key out.
+        rungs = _filled_ladder(facts)
+        if rungs is not None:
+            listings += _tail_listings_of(column, facts, floor, rungs)
     if facts.value_histogram or facts.tail_rule:
         # REPORT-ONLY, and LISTED rather than silent (P4-D4.7). A
         # published fact that appears in no check and no listing is

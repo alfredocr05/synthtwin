@@ -38445,6 +38445,12 @@ def _tail_approximations(
     The window is the one G12.13 states: every rank's own window from
     G5.6's rank form, the boundary's window at the two ranks its type-7
     reading touches, and the distances between them, held at nought.
+
+    A DISTANCE THE DESCRIPTION WITHHELD IS NOT AN APPROXIMATION (contract
+    TL5, plan P4-D349): there is no published number for the twin's own to
+    be near, so the report says nothing about it rather than printing the
+    twin's -- which is the twin's own tail, and the twin's tail of the
+    real table's tail.
     """
     tails = facts.tails
     if tails is None or tails.low is None or tails.high is None:
@@ -38463,6 +38469,8 @@ def _tail_approximations(
             ("mean_distance", side.mean_distance, measured[0], window[0]),
             ("rms_distance", side.rms_distance, measured[1], window[1]),
         ):
+            if published is None:
+                continue
             if not (math.isfinite(bounds[0]) and math.isfinite(bounds[1])):
                 continue
             found += [
