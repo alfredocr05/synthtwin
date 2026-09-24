@@ -590,6 +590,11 @@ EIGHTH_BRANCH_CASES = (
     "midnight_bare_offsets",
     "midnight_days",
     "partial_midnight",
+    # G6.5a's last resort on a representable grid with SPARE points
+    # (stage 3's review, verdict item 4). It is here rather than beside
+    # `saturated_representable` because plan P4-D295 routes the next
+    # case to the file whose output still stands under 200000 bytes.
+    "representable_with_room",
     "tail_made_up_ramp",
     "tail_shape_ends",
 )
@@ -691,6 +696,8 @@ SEEDS = {
     "code_band_words": 192,
     # The extra round's repair pass takes the next seeds after 192.
     "saturated_representable": 193,
+    # Stage 3's review takes 400 onward, clear of every block above.
+    "representable_with_room": 400,
     "unmarked_duplicates_first": 194,
     # The readings of an absorbed count (plan P4-D298) take 210 onward,
     # clear of every block in use.
@@ -1924,6 +1931,34 @@ class Mutant(typing.NamedTuple):
     also: tuple = ()
 
 
+def _only_when_saturated(total, bands, values):
+    """G6.5a's last resort as it stood before stage 3's review.
+
+    The fill ran only where the two published ends hold EXACTLY as many
+    representable numbers as the column has strata; three spare numbers
+    withdrew it whole, which verdict item 4 measured as 100 subnormal
+    cells coming back as 82 different numbers.
+    """
+    if total < 3 or not values or not math.isfinite(values[0]):
+        return None
+    if values[0] <= 0.0:
+        return None
+    ceiling = values[total - 1]
+    if not math.isfinite(ceiling) or ceiling <= values[0]:
+        return None
+    grid = [values[0]]
+    for _each in range(total - 1):
+        step = gen.next_representable(grid[-1])
+        if step is None or step > ceiling:
+            return None
+        grid.append(step)
+    if grid[total - 1] != ceiling:
+        return None
+    if not all(gen._band_holds(bands[place], grid[place]) for place in range(total)):
+        return None
+    return grid
+
+
 def _either_field_below_ten(column, day_number, word=""):
     """G7.3's width question as it stood before plan P4-D256: does the day
     show a width AT ALL, whatever convention the census names."""
@@ -3010,6 +3045,20 @@ CASE_MUTANTS = {
         "marked, and four of the eleven marks come off the column",
         attribute="unmarked_duplicates_first",
         replacement=lambda repeats, marks: list(repeats),
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "representable_with_room": Mutant(
+        branch="G6.5a's last resort on a representable grid with SPARE "
+        "points (stage 3's review, verdict item 4); the mutant restores "
+        "the rule as it stood before that verdict -- the fill only where "
+        "the two ends hold exactly as many representable numbers as the "
+        "column has strata -- and the three spare numbers withdraw it, "
+        "the ladder interpolates between rungs one binary64 apart, and "
+        "several strata land on one number",
+        attribute="representable_grid",
+        replacement=lambda total, bands, values: _only_when_saturated(
+            total, bands, values
+        ),
         outcome=CHANGES_THE_CELLS,
     ),
     "saturated_representable": Mutant(

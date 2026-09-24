@@ -6,6 +6,95 @@ exists).
 
 ## [Unreleased]
 
+### The numeric tail's robustness: six repairs from stage 3's review (2026-09-24)
+
+**THE ROUND RETURNED REJECT ON ALL FOUR PASSES AND DOES NOT RUN AGAIN**,
+so each of these six is proved by measurement here, in
+`tests/test_stage3_review_numeric_robustness.py`, with the reviewer's own
+reproduction and the number it gave before the repair. They are the six
+the reviewer classed as ROBUSTNESS: inputs that used to work and now
+crash, lose values, or pass a check they should fail.
+
+**What changed.**
+
+- **An overflowing tail distance withholds the PAIR, not the ladder**
+  (verdict item 2, HIGH). Every tail distance is computed exactly and
+  rounded once, and a column reaching across the whole range has
+  distances past the largest number binary64 holds: 11 cells of
+  `-1.7e308` beside 89 around `1.68e308` put the low tail's mean at
+  about `3.4e308`. The block used to withdraw EVERY rung and publish its
+  four moments alone, and the reader of that block then read
+  `mean + sqrt(3) std` past the range too and fell back to the ladder of
+  a block BELOW ITS FLOOR -- at seed 4 the twin held numbers between -11
+  and 88, with its mean and its spread both failing the check. TL5's
+  tail publishing NEITHER distance is the shape such a tail takes now,
+  so the ladder and the published scale both stand. And where the moment
+  ladder itself is past the range (22 such cells, a mean of `-9.75e305`
+  and a spread of `1.73e308`), its reach is held at
+  `LARGEST_FINITE - |mean|`: the widest stretch the format holds about
+  the published mean, and never another block's ramp.
+- **The tail shape is fitted to the ROWS and not to an integral**
+  (verdict item 3, HIGH). G5.3b said that reading the fitted shape at the
+  rows' midpoints gave it the published mean and root-mean-square. It
+  does not: midpoint sampling is exact for a straight line and for
+  nothing else. Measured: 1,199 cells just above 100 beside one
+  `100000100.0` gave a twin mean 14 per cent low and a spread 24 per
+  cent low, at seeds 0, 4 and 9, with every numeric window passed and no
+  deviation named. The clause's five constants are now the shape's
+  moments over the tail's OWN row shares, so both moments are exact; the
+  power is searched upward from the smooth one, because the row-wise
+  ratio climbs to the ROW COUNT instead of without bound. The same
+  column now comes back at 83,433.8321 and 2,886,751.3315 against a
+  source 83,433.8325 and 2,886,751.3315.
+- **A representable grid with SPARE points is filled** (verdict item 4,
+  MEDIUM). G6.5a's last resort ran only where the two ends hold exactly
+  as many representable numbers as the column has strata, and stage 3's
+  derived ends leave spare numbers: 100 cells of `i * 5e-324` came back
+  holding 82 different numbers against the 100 published, where the
+  pre-tail code held 100. Each stratum now takes the point nearest the
+  value the ladder gave it that the order still allows. The frozen case
+  `representable_with_room` holds the new road up; `saturated_representable`
+  keeps the old one, and the 120-cell case beside it goes from 101
+  different numbers to 120.
+- **The below-floor ramp is built from the sign counts** (verdict item 5,
+  MEDIUM). The ramp ran from `-G u` to `(K - G - 1) u` whatever the block
+  published, so nought was one of its points on every block: 100 rows
+  holding the numbers 1 to 8 and 92 blanks came back as SEVEN different
+  numbers, because the sign repair moved the invented nought onto a
+  number another stratum held -- and the report named `percentiles` as a
+  fact the twin missed, printing `0.0` as what "the description says" on
+  a block whose every rung is withheld. The ramp is `G` negatives, `Z`
+  noughts and `P` positives now, and the eight numbers come back as
+  eight with no line in the report.
+- **An infinite stratum width no longer stops generation** (verdict item
+  8, MEDIUM). 20 cells of `-1.7e308` beside 80 near `1.68e308` gave a
+  stratum a share spanning `(-1.7e308, 1.004e308)`, whose width overflows
+  to infinity, and `int(width / unit)` raised OverflowError before the
+  search count was capped at all. The cap is read before the conversion.
+- **Constancy is decided by the count of different numbers, not by a
+  rounded spread** (verdict item 9, MEDIUM). 98 cells of `5e-324` beside
+  `1e-323` and `1.5e-323` publish three different numbers, a skew of
+  7.863539654706267 and a spread of about `4e-325`, which underflows and
+  is published as `0.0`. Read as constancy it made Q5 refuse the
+  producer's own file, at floors 1, 5 and 11, and describing the table
+  again wrote the same file. `n_distinct_values` answers the question
+  exactly.
+
+**And one found beside them.** `generation._style_strata` packs the
+styles over whole strata where the cell walk would spend more spellings
+than the column publishes. One form per stratum is the FEWEST spellings a
+column can hold, so where the published count stands above the number of
+strata the packing missed `n_distinct` from below -- the same trade the
+rule exists to refuse, taken the other way. It is not taken there now.
+
+**Where the words moved.** `docs/spec/generation-method-v1.md` G5.3b
+(the five constants and the power search), G5.3c (the stretch held
+inside the range), G5.3d (the ramp from the sign counts) and G6.5a (the
+representable grid with spare points); `docs/spec/profile-contract-v6.md`
+6.7a (a tail whose distances the format cannot hold) and the Q5 test.
+Three vector files were rebuilt through the guard runner and one frozen
+case was added.
+
 ### The tail that would be read back publishes neither distance (2026-09-23)
 
 **STAGE 3'S ONE ADVERSARIAL ROUND RETURNED REJECT ON ALL FOUR PASSES,

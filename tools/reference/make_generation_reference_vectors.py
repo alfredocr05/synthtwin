@@ -1003,34 +1003,46 @@ def levelled(lengths, cap):
 TAIL_LARGEST = float(LARGEST_FINITE)
 
 
-def tail_shape(mean, root):
+def tail_shape(mean, root, rows):
     """`(E, lam, j)` of `a(s) = E * (s**j * (lam + (1 - lam) * s))` (G5.3b).
 
-    The mixture of two adjacent whole powers whose mean over a uniform
-    `s` is the published mean distance and whose mean square is the
-    published root-mean-square squared.  Built with `+ - * /` and `sqrt`
-    alone, each correctly rounded, in the order G5.3b fixes and no
-    other, so the reading is the same binary64 everywhere.  A tail whose
-    mean distance is nought is FLAT and its shape is nought.
+    The mixture of two adjacent whole powers whose values AT THE TAIL'S
+    OWN `m` ROW SHARES have the published mean distance and the
+    published root-mean-square.  Built with `+ - * /` and `sqrt` alone,
+    each correctly rounded, in the order G5.3b fixes and no other, so
+    the reading is the same binary64 everywhere.  A tail whose mean
+    distance is nought is FLAT and its shape is nought.
+
+    The five constants are `P(j + 1)`, `P(j) - P(j + 1)`, `P(2j)`,
+    `2 P(2j + 1)` and `P(2j + 2)` for the row power means `P` of
+    `row_power_means`, and `r` is held at `m`, the most the mean square
+    of `m` distances can be beside the square of their mean.  `j` is the
+    least power at or above the smooth `fitted_power` whose `qc` is
+    above nought -- walked upward one power at a time, which G5.3b says
+    finds the same power halving does -- and the power below the first
+    whose `P(j + 1)` underflows where none does.
     """
     if not mean > 0.0:
         return 0.0, 0.0, 0
     ratio = (root / mean) * (root / mean)
-    if not ratio == ratio or ratio > 1e15:
-        ratio = 1e15
-    ratio = max(ratio, 1.0)
+    if not ratio >= 1.0:
+        ratio = 1.0
+    if not ratio <= rows:
+        ratio = float(rows)
     power = fitted_power(ratio)
-    second, cross, first, middle, last = (
-        1 / (power + 2),
-        1 / ((power + 1) * (power + 2)),
-        1 / (2 * power + 1),
-        1 / (power + 1),
-        1 / (2 * power + 3),
-    )
-    square, linear, constant = (
+    looked = 0
+    while True:
+        second, cross, first, middle, last = row_power_means(rows, power)
+        constant = last - (ratio * second) * second
+        if constant > 0.0 or looked >= 4096:
+            break
+        onward = row_power_means(rows, power + 1)
+        if not onward[0] > 0.0:
+            break
+        power, looked = power + 1, looked + 1
+    square, linear = (
         (first - middle + last) - (ratio * cross) * cross,
         (middle - 2 * last) - ((2 * ratio) * second) * cross,
-        last - (ratio * second) * second,
     )
     blend = 0.0
     if constant > 0.0:
@@ -1042,8 +1054,36 @@ def tail_shape(mean, root):
         )
         inside = [value for value in offered if -1e-12 <= value <= 1 + 1e-12]
         blend = 1.0 if not inside else min(1.0, max(0.0, min(inside)))
-    reach = mean / (second + blend * cross)
+    divisor = second + blend * cross
+    reach = mean / divisor if divisor > 0.0 else TAIL_LARGEST
     return (reach if math.isfinite(reach) else TAIL_LARGEST), blend, power
+
+
+def row_power_means(rows, power):
+    """G5.3b's five constants over a tail's own row shares.
+
+    `P(k)` is the mean of `s ** k` over `s_i = (2 i + 1) / (2 m)`, and
+    the five returned are `P(j + 1)`, `P(j) - P(j + 1)`, `P(2j)`,
+    `2 P(2j + 1)` and `P(2j + 2)`, in the order `tail_shape` reads them.
+    Each share is formed as every share of a rank is and `s ** j` by the
+    bits of `j`, most significant first, so no `pow` decides a digit.
+    """
+    sums = [0.0, 0.0, 0.0, 0.0, 0.0]
+    for index in range(rows):
+        share = math.ldexp(((2 * index + 1) << 53) // (2 * rows), -53)
+        raised = 1.0
+        for bit in f"{power:b}" if power > 0 else "":
+            raised = raised * raised
+            if bit == "1":
+                raised = raised * share
+        squared = raised * raised
+        lifted = squared * share
+        for place, term in enumerate(
+            (raised, raised * share, squared, lifted, lifted * share)
+        ):
+            sums[place] = sums[place] + term
+    at, above, twice, twice_up, twice_over = (one / rows for one in sums)
+    return above, at - above, twice, 2.0 * twice_up, twice_over
 
 
 def fitted_power(ratio):
@@ -1522,6 +1562,13 @@ def moment_ladder(column, figures):
     """
     mean = column["mean"]
     reach = math.sqrt(3.0) * column["std"]
+    if not (math.isfinite(mean - reach) and math.isfinite(mean + reach)):
+        # No uniform with that mean and that spread is representable,
+        # so the widest stretch the format holds about the mean stands
+        # for it and the mean itself is kept exactly (G5.3c).
+        reach = TAIL_LARGEST - abs(mean)
+        if not reach > 0.0:
+            reach = 0.0
     ends = [
         end_sign_held(
             tail_grid(mean - reach, figures), True, mean, column, figures
@@ -1530,6 +1577,9 @@ def moment_ladder(column, figures):
             tail_grid(mean + reach, figures), False, mean, column, figures
         ),
     ]
+    ends = [min(TAIL_LARGEST, max(-TAIL_LARGEST, end)) for end in ends]
+    if ends[1] < ends[0]:
+        ends[1] = ends[0]
     rungs = [
         min(ends[1], max(ends[0], (1 - place / 100) * ends[0] + place / 100 * ends[1]))
         for place in range(101)
@@ -1542,25 +1592,34 @@ def moment_ladder(column, figures):
 def made_up_ramp(column, figures):
     """G5.3d: the ramp of a block below its own floor.
 
-    `L[p] = (1 - t) lo + t hi` with `lo = -G u` and `hi = (K - G - 1) u`,
-    `u` one step of the grid, each rung held into `[lo, hi]` and placed
-    on the grid: the strata then take points about one step apart on
-    their own sign bands, and the twin claims nothing else.
+    The block says nothing but how its `K` values divide by SIGN, so its
+    made-up values are `G` negatives one grid step apart below nought,
+    `Z` noughts and `P = K - G - Z` positives one grid step apart above
+    it, each on the grid; and rung `p` is the value at the whole rank
+    nearest `(K - 1) p / 100`, halves downward, taken in whole numbers.
+    The strata then take points about one step apart on their own sign
+    bands, and the twin claims nothing else.
     """
-    numbers = column["n_used_in_statistics"]
-    negatives = column["n_negative"] - column["n_negative_unrepresentable"]
+    numbers = max(1, column["n_used_in_statistics"])
+    apart = column["n_negative"] - column["n_negative_unrepresentable"]
+    negatives = min(max(apart, 0), numbers)
+    zeros = min(max(column["n_zero"], 0), numbers - negatives)
     unit = tail_unit(figures if figures > 0 else 0)
-    ends = (-negatives * unit, (numbers - negatives - 1) * unit)
-    return [
-        tail_grid(
-            min(
-                ends[1],
-                max(ends[0], (1 - place / 100) * ends[0] + place / 100 * ends[1]),
-            ),
-            figures,
-        )
-        for place in range(101)
+    made = [
+        tail_grid(-step * unit, figures) for step in range(negatives, 0, -1)
     ]
+    made += [0.0] * zeros
+    made += [
+        tail_grid(step * unit, figures)
+        for step in range(1, numbers - negatives - zeros + 1)
+    ]
+    last = len(made) - 1
+    rungs = []
+    for place in range(101):
+        offered = 2 * last * place + 100
+        rank = offered // 200 - (1 if offered % 200 == 0 else 0)
+        rungs.append(made[min(max(rank, 0), last)])
+    return rungs
 
 
 def tail_ladder(column):
@@ -1585,8 +1644,8 @@ def tail_ladder(column):
     low_boundary = _rung_at(column, low["percent"])
     high_boundary = _rung_at(column, high["percent"])
     shapes = (
-        tail_shape(low["mean_distance"], low["rms_distance"]),
-        tail_shape(high["mean_distance"], high["rms_distance"]),
+        tail_shape(low["mean_distance"], low["rms_distance"], low["rows"]),
+        tail_shape(high["mean_distance"], high["rms_distance"], high["rows"]),
     )
     # OUTERMOST FIRST on both sides: ascending on the low side and the
     # published ascending list reversed on the high (G5.3e).
@@ -4127,41 +4186,49 @@ def _band_holds(band, value):
     )
 
 
-def next_representable(value):
-    """The next binary64 above one positive finite value, or None -- G6.5a.
+def next_representable(value, downward=False):
+    """The binary64 beside one positive finite value, or None -- G6.5a.
 
     Written from the rule and not from the interpreter's own step: frexp
     gives a mantissa in [0.5, 1) and an exponent, so the gap above
     ``value`` is two raised to that exponent less fifty-three, and where
     that underflows to nought the value is subnormal, whose grid is
-    evenly spaced at two to the minus 1074.
+    evenly spaced at two to the minus 1074.  ``downward`` asks for the
+    number BELOW instead, whose gap is half of that where the mantissa
+    is exactly one half and the value sits on the edge of its binade.
     """
     if not math.isfinite(value) or value <= 0.0:
         return None
-    _mantissa, exponent = math.frexp(value)
-    gap = math.ldexp(1.0, exponent - 53)
+    mantissa, exponent = math.frexp(value)
+    gap = math.ldexp(1.0, exponent - 54 if downward and mantissa == 0.5 else exponent - 53)
     if gap <= 0.0:
         gap = math.ldexp(1.0, -1074)
-    found = value + gap
-    if not math.isfinite(found) or found <= value:
+    found = value - gap if downward else value + gap
+    if not math.isfinite(found) or found <= 0.0:
+        return None
+    if found >= value if downward else found <= value:
         return None
     return found
 
 
 def representable_grid(total, bands, values):
-    """The binary64 numbers themselves, where the ends saturate them -- G6.5a.
+    """The binary64 numbers themselves, between the two ends -- G6.5a.
 
     Plan P4-D269, the last resort of the separation pass and the only one
-    reached where the published widths fix NO decimal grid at all.  Where
-    the column's two pinned ends are exactly as many representable
-    numbers apart as it has strata, every stratum has one number it can
-    hold and there is nothing to choose: the strata take the grid's own
-    points in ascending order, which is what `saturated_grid` does on a
-    written grid.  Positive values only, and the pass is withdrawn whole
-    where any stratum's sign band would not hold the point the grid gives
-    it, so it can only add.  The walk stops the moment the grid runs past
-    the upper end, so a column whose ends are many steps apart leaves
-    with its values exactly as they came.
+    reached where the published widths fix NO decimal grid at all, with
+    the spare-point clause stage 3's review added (verdict item 4).  Each
+    stratum takes the point NEAREST the value the ladder gave it that the
+    order still allows: its own value, raised to the number above its
+    neighbour's point and held down to the point that still leaves room
+    for every stratum above it.  Where the two ends hold exactly as many
+    representable numbers as there are strata the two bounds coincide and
+    the answer is the grid's own points in ascending order, which is what
+    this rule always gave and what `saturated_grid` gives on a written
+    grid; where they hold fewer there is no such assignment and the rule
+    gives none.  Positive values only, and it is withdrawn whole where
+    any stratum's sign band would not hold the point it would take, so it
+    can only add.  A column whose values already stand a representable
+    number apart leaves with them exactly as they came.
     """
     if total < 3 or not values or not math.isfinite(values[0]):
         return None
@@ -4170,15 +4237,30 @@ def representable_grid(total, bands, values):
     ceiling = values[total - 1]
     if not math.isfinite(ceiling) or ceiling <= values[0]:
         return None
-    grid = [values[0]]
-    step = values[0]
+    floors = [values[0]]
     for _each in range(total - 1):
-        step = next_representable(step)
+        step = next_representable(floors[-1])
         if step is None or step > ceiling:
             return None
-        grid.append(step)
-    if grid[total - 1] != ceiling:
-        return None
+        floors.append(step)
+    ceilings = [ceiling]
+    for _each in range(total - 1):
+        step = next_representable(ceilings[-1], True)
+        if step is None or step < values[0]:
+            return None
+        ceilings.append(step)
+    ceilings.reverse()
+    grid = []
+    for place in range(total):
+        taken = values[place]
+        if place and taken < floors[place]:
+            taken = floors[place]
+        if place:
+            above = next_representable(grid[place - 1])
+            if above is None:
+                return None
+            taken = max(taken, above)
+        grid.append(min(taken, ceilings[place]))
     if not all(_band_holds(bands[place], grid[place]) for place in range(total)):
         return None
     return grid
@@ -14543,15 +14625,16 @@ NUMERIC_DISTINCT_RECOUNTS = {
     "numeric_decimal_styles": (25, 23),
     # Twelve whole numbers asked for over a ladder that reaches eleven.
     "numeric_integer": (11, 11),
-    # EIGHT WHOLE NUMBERS OVER A RAMP OF EIGHT POINTS (stage 3, G5.3d).
-    # A block below its own floor publishes no rung and no moment, so
-    # its ladder is a ramp of one grid step a value; the ramp's own
-    # walks leave two of its eight strata on one point, and the twin
-    # holds seven of the eight numbers the block publishes. It is the
-    # state the ramp is FOR -- a twin that keeps the block's type, its
-    # sign counts and about its count of different numbers, and claims
-    # nothing else -- and the twin's report names the difference.
-    "tail_made_up_ramp": (7, 7),
+    # `tail_made_up_ramp` STOOD HERE AT (7, 7) AND NO LONGER DOES
+    # (stage 3's review, verdict item 5). The ramp ran from `-G u` to
+    # `(K - G - 1) u` on every block, so it held nought whether or not
+    # the block published one: this case publishes eight positive
+    # numbers and no zero, the ramp gave it 0 to 7, G5.5's sign repair
+    # moved the invented nought onto a number another stratum already
+    # held, and the cells came back holding seven of the eight. The ramp
+    # is built from the sign counts now -- `P` positive points where the
+    # block publishes `P` positive values -- and the case holds all
+    # eight, so it needs no entry here.
     # FIFTY-ONE SPELLINGS OF FIFTY PUBLISHED (stage 3). This column's
     # ladder puts two strata on one number -- the high tail's reading
     # saturates at its derived end -- and G6.5's distinct-spelling
@@ -19937,6 +20020,80 @@ def _saturated_representable():
     }
 
 
+def _representable_with_room():
+    """The binary64 grid with SPARE points (G6.5a, stage 3's review).
+
+    The same boundary as `_saturated_representable` and one number
+    further apart: twelve strata between ends holding FIFTEEN
+    representable numbers, whose census names no fraction width, so the
+    separation pass has no decimal grid and the last resort is again the
+    only rule that can answer.  Before verdict item 4 that rule ran only
+    where the ends hold exactly as many numbers as there are strata, so
+    three spare numbers withdrew it whole; withdrawn, the ladder
+    interpolates between rungs one binary64 apart, several strata land on
+    one number and the twin holds fewer different numbers than the column
+    publishes.  Stage 3's derived ends leave spare numbers on almost
+    every column that reaches this rule, which is why this case stands
+    beside the saturated one rather than in place of it.
+    """
+    # THE LADDER IS FLAT UNTIL ITS UPPER END, for the reason
+    # `_saturated_representable` states: the ninety finer rungs are
+    # written to six decimal places, so a ladder whose rungs differ
+    # below that place publishes ninety rungs that all floor to the same
+    # number. The two published ends are FIFTEEN representable numbers
+    # apart and the column publishes twelve different values.
+    ladder, ladder_claims, rungs, finer = _ladder_fields({
+        "min": "1", "p01": "1", "p05": "1", "p10": "1", "p25": "1",
+        "p50": "1", "p75": "1", "p90": "1", "p95": "1", "p99": "1",
+        "max": "1.0000000000000031",
+    })
+    claims = {("column",) + key: value for key, value in ladder_claims.items()}
+    moments = {}
+    for name, text in (("mean", "1.0000000000000013"),
+                       ("std", "9.08756711201214e-16"),
+                       ("skew", "0.4285135847610471"),
+                       ("kurtosis", "2.462079021446364"),
+                       ("numeric_share", "1")):
+        field, claim = nearest_field(text)
+        moments[name] = field
+        claims[("column", name)] = claim
+    column = _universal(
+        "column_1", "continuous", "continuous", "data", "ok",
+        n_present=12, n_missing=0, n_distinct=12, n_distinct_folded=12,
+        n_distinct_values=12,
+        n_numeric=12, n_not_numeric=0, n_out_of_range=0, n_contradictory=0,
+        percentiles=ladder, percentiles_between=finer,
+        std_unrepresentable=False,
+        n_zero=0, n_negative=0, n_negative_unrepresentable=0,
+        n_used_in_statistics=12, n_left_out_of_statistics=0,
+        integer_valued=False, n_rows=12,
+        numeric_styles={"(withheld)": 12},
+        mode=None, mode_count=0, pad_widths={}, fraction_widths={},
+        field_widths={},
+        **moments,
+    )
+    return {
+        "why": "G6.5a's last resort on a representable grid with SPARE "
+        "points (stage 3's review, verdict item 4). The column's twelve "
+        "values lie at the bottom of one binade and its census names no "
+        "fraction width, so neither the pinned width nor the finest "
+        "width gives the separation pass a grid to act on. The two "
+        "published ends hold FIFTEEN representable numbers for twelve "
+        "strata, so no stratum's point is forced and each takes the one "
+        "nearest the value the ladder gave it that the order still "
+        "allows. The mutant restores the rule as it stood before that "
+        "verdict -- the fill only where the ends hold exactly as many "
+        "numbers as there are strata -- and the spare three withdraw it, "
+        "the ladder interpolates between rungs one binary64 apart, and "
+        "several strata land on one number.",
+        "column": column,
+        "rows": 12,
+        "identifier_declared": False,
+        "rungs": rungs,
+        "claims": claims,
+    }
+
+
 def _saturated_band():
     """A sign band whose own grid has no spare point (G6.5a, carried pass).
 
@@ -25110,6 +25267,11 @@ EIGHTH_BRANCH_CASE_BUILDERS = {
     # G5.3d.
     "tail_made_up_ramp": _tail_made_up_ramp,
     "tail_shape_ends": _tail_shape_ends,
+    # ...AND THE ONE STAGE 3'S REVIEW ADDS (verdict item 4): G6.5a's
+    # last resort on a representable grid with spare points, which the
+    # saturated case beside it cannot hold up because the rule it
+    # exercised ran only where there were none.
+    "representable_with_room": _representable_with_room,
 }
 
 NINTH_BRANCH_CASE_BUILDERS = {
@@ -26198,6 +26360,17 @@ GIVEN_WORDS = {
         1178006417815128179, 16565496060575845657, 6235668078579430265,
         283276246513352814, 11471448768032915452, 17996514995398699586,
         5646120977912611198, 9427082364266152894,
+    ),
+    # The representable grid with SPARE points (stage 3's review,
+    # verdict item 4), at seed 400, clear of every block in use.
+    "representable_with_room": (
+        3672724811354515319, 11286622843440073688, 18027573666625515203,
+        7040078463650253034, 6162672845447719851, 2891243007622815108,
+        7886433571611176016, 6651436530432333727, 15484841961637371316,
+        10805212118784031774, 6816876491344334102, 900941207550358774,
+        530819633876473747, 384351142188123563, 1782508530413520922,
+        6123420308740497622, 18153034579841899070, 2293825504344308761,
+        451201278581088119, 17423397146463129028, 1771204052344314139,
     ),
     # The representable grid of plan P4-D269, at the next seed after the
     # highest in use (193).

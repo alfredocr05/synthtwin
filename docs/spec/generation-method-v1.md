@@ -1890,26 +1890,37 @@ rung `b` (the published rung at `P`), rows `m`, mean distance `d1` and
 root-mean-square
 distance `rms` -- the rows beyond `b` are read through a shape `a(s)` on
 `s` in `[0, 1]` -- the distance from `b` at the share `s` of the way out
--- that has `a(0) = 0`, whose mean over a uniform `s` is `d1` and whose
-mean square is `rms * rms`: a MIXTURE OF TWO ADJACENT WHOLE POWERS,
+-- that has `a(0) = 0` and whose values AT THE TAIL'S OWN `m` ROW SHARES
+have mean `d1` and mean square `rms * rms`: a MIXTURE OF TWO ADJACENT
+WHOLE POWERS,
 
 ```
 a(s) = E * (s**j * (lam + (1 - lam) * s))
 ```
 
 built with `+ - * /` and `sqrt` alone, each correctly rounded by IEEE
-754, in this order and no other:
+754, in this order and no other. Write `s_i = (2 i + 1) / (2 m)` for the
+share of row `i` of `m` (the same share the rows are read at, below) and
+`P(k)` for the mean of `s_i ** k` over those `m` shares:
 
 ```
 if d1 == 0 (or is not above nought): the tail is FLAT; a(s) = 0, E = 0
 r   = (rms / d1) * (rms / d1)        one division, one multiplication
-r   = 1 where r < 1; 1e15 where it is larger than that or not a number
-j   = the whole number with R(j) <= r < R(j + 1), R(j) = (j + 1)**2 / (2j + 1)
-a2  = 1 / (j + 2)        de = 1 / ((j + 1) * (j + 2))   the product in whole numbers
-b1  = 1 / (2j + 1)       c  = 1 / (j + 1)               b2 = 1 / (2j + 3)
+r   = 1 where r is not one or more, which a number that is not one
+      is not; then m where what is left is larger than m
+j0  = the whole number with R(j0) <= r < R(j0 + 1), R(j) = (j + 1)**2 / (2j + 1)
+a2  = P(j + 1)           de = P(j) - P(j + 1)
+b1  = P(2j)              c  = 2 * P(2j + 1)             b2 = P(2j + 2)
 qa  = (b1 - c + b2) - (r * de) * de
 qb  = (c - 2 * b2) - ((2 * r) * a2) * de
 qc  = b2 - (r * a2) * a2
+j   = the least whole number at or above j0, and at most j0 + 4096, whose
+      qc is above nought; where P(j + 1) underflows to nought at some
+      power at or above j0 and before any such power is reached, the
+      power one below the first that underflows; j0 + 4096 where neither
+      happens. `qc` is above nought exactly where R_m(j + 1) > r and
+      R_m does not go down, so it turns positive once and stays
+      positive, and halving finds the same power a scan does
 lam = 0 where qc <= 0; otherwise disc = qb * qb - (4 * qa) * qc, held at 0
       or more; q = -0.5 * (qb + sqrt(disc)) where qb >= 0, else
       -0.5 * (qb - sqrt(disc)); the candidates q / qa (where qa != 0) and
@@ -1918,13 +1929,46 @@ lam = 0 where qc <= 0; otherwise disc = qb * qb - (4 * qa) * qc, held at 0
 E   = d1 / (a2 + lam * de)     held at the largest finite binary64
 ```
 
-`j` is decided by EXACT rational comparison: `r` is a binary64, hence a
+**THE FIVE CONSTANTS ARE THE SHAPE'S MOMENTS OVER THE TAIL'S OWN ROWS,
+AND THEY WERE ITS MOMENTS OVER AN INTEGRAL** (stage 3's review, verdict
+item 3). They read `a2 = 1/(j+2)`, `de = 1/((j+1)(j+2))`,
+`b1 = 1/(2j+1)`, `c = 1/(j+1)` and `b2 = 1/(2j+3)`, which are `P(k)`
+replaced by `1/(k+1)`, and this section said that sampling `a` at the
+row midpoints made the rows' mean equal that integral. IT DOES NOT: the
+midpoint rule is exact for a straight line and for nothing else, and the
+error grows with the power. Measured: 1,199 cells just above 100 beside
+one `100000100.0`, whose high tail of twelve rows has a ratio within a
+billionth of twelve, gave a twin whose mean was 14 per cent below the
+published one and whose spread was 24 per cent below it, at seeds 0, 4
+and 9 alike, with every numeric window passed and no deviation named.
+With `P(k)` the rows' own power means the algebra is unchanged and the
+two moments come out exact: `E` scales the rows' mean onto `d1`, and the
+root `lam` puts their mean square on `rms * rms`.
+
+**WHICH IS WHY `j` IS SEARCHED AND NOT SOLVED.** `qc` is
+`P(2j+2) - r P(j+1)**2`, which is above nought exactly where
+`R_m(j + 1) > r` for the rows' own ratio `R_m(j) = P(2j) / P(j)**2`. That
+ratio climbs toward `m` rather than without bound -- `m` distances of
+one mean can weigh at most `m` times that mean squared, reached where
+one row stands alone -- so a ratio near `m` wants a far higher power
+than the smooth `R` does: 234 against 22 on the twelve-row tail above.
+`R_m(j) <= R(j)` for every `j` and `m`, so the smooth `j0` always
+satisfies the lower half of the rule and the search only ever looks
+UPWARD from it. One pass of the rows answers wherever `j0` already
+does, which is every tail whose power is small beside its row count.
+`r` is held at `m` for the same reason, so `j0` is bounded too.
+
+`j0` is decided by EXACT rational comparison: `r` is a binary64, hence a
 whole significand over a power of two, and `(j + 1)**2 * den <= num *
 (2j + 1)` is whole-number arithmetic. The search starts at the whole part
 of `(r - 1) + sqrt(r * (r - 1))`, steps down while `R(j) > r` and up while
 `R(j + 1) <= r`, so no rounding of the square root decides the power.
-`s**j` is formed by squaring and multiplying over the bits of `j`, most
-significant first, starting from 1; then `(1 - lam) * s`, `lam + that`,
+`s_i` is formed as every share of a rank is, `ldexp(((2 i + 1) << 53) //
+(2 m), -53)`; `s**j` is formed by squaring and multiplying over the bits
+of `j`, most significant first, starting from 1, and `P(j + 1)`, `P(2j)`,
+`P(2j + 1)` and `P(2j + 2)` are that value times `s`, squared, and
+squared times `s` once and twice, summed in rank order and divided by
+`m` at the end; then `(1 - lam) * s`, `lam + that`,
 `s**j * that` and `E * that`, in that order. No `pow`, `exp` or `log`
 is used, so the reading is the same binary64 on every platform.
 
@@ -2113,18 +2157,58 @@ or the spread is withheld the ramp of G5.3d stands in. Measured on a
 table's and its spread 6 per cent, nothing missed on the twin or the
 table.
 
+**AND THE STRETCH IS HELD INSIDE THE NUMBERS THIS FORMAT HOLDS** (stage
+3's review, verdict item 2). Where `mean - sqrt(3) std` or
+`mean + sqrt(3) std` is not a finite binary64 there is no uniform with
+that mean and that spread to place at all: the reach is then
+`LARGEST_FINITE - |mean|`, held at nought or more, so `lo` and `hi` are
+the widest stretch the format holds about the published MEAN, which the
+stretch then has exactly. Each end is afterwards held into
+`[-LARGEST_FINITE, LARGEST_FINITE]` and `hi` at `lo` or above, and this
+section answers for the block whatever comes out — the ramp of G5.3d is
+the ladder of a block whose moments are WITHHELD and is never taken for
+one that publishes them. Measured before this clause: 22 cells at the
+top of the range publishing a mean of `-9.75e305` and a spread of
+`1.73e308` gave two infinite ends, fell through to G5.3d, and the twin
+was written between -11 and 11. The spread of the held stretch falls
+short of the published one and the twin's report says so on the
+spread's own line.
+
 ### G5.3d The made-up ramp (stage 3)
 
 A tail block below its floor (`tails: null`, TL2) publishes no rung and
-no moment. Its ladder is a RAMP: `L[p] = (1 - t) * lo + t * hi` with
-`t = p / 100`, `lo = -G u` and `hi = (K - G - 1) u`, each rung held into
-`[lo, hi]` and placed on the grid, `u` one step of the grid step 4 of
-G5.3b names (one where no width is named). The strata then take points
-about one step apart on their own sign bands, so the twin keeps the
-block's type, its sign counts and its count of different numbers and
-claims nothing else. Measured on an 8-value block at floor 11: before
-the ramp the sign fallback wrote `1.0` eight times and the twin was
-re-described as another role; with it, 0 to 7 and nothing missed.
+no moment, so the only shape left to build on is what it says about
+SIGNS. Of its `K` values `G = n_negative - n_negative_unrepresentable`
+are negative, `Z = n_zero` are nought and the remaining `P = K - G - Z`
+are positive (`G` held into `[0, K]` and `Z` into `[0, K - G]`), so the
+block's made-up values are
+
+```
+-G u, ..., -u,    nought Z times,    u, ..., P u
+```
+
+`u` one step of the grid step 4 of G5.3b names (one where no width is
+named), each placed on that grid. Rung `p` of the ladder is the value at
+the whole rank nearest `(K - 1) p / 100`, halves DOWNWARD — taken in
+whole numbers, the rank being the whole part of `(2 (K - 1) p + 100) /
+200`, less one where that divides exactly. Every rung is therefore one
+of those values and the ladder names no number the block's own counts
+forbid. The strata then take points about one step apart on their own
+sign bands, so the twin keeps the block's type, its sign counts and its
+count of different numbers and claims nothing else.
+
+**ZERO IS BUILT FROM `n_zero` AND NOT ASSUMED** (stage 3's review,
+verdict item 5). The ramp ran from `-G u` to `(K - G - 1) u` whatever
+the block published, so nought was one of its points on every block.
+Measured: a 100-row table holding the numbers 1 to 8 and 92 blanks
+publishes eight different numbers and no zero, the ramp spanned 0 to 7,
+G5.5's sign repair moved the invented nought onto a number another
+stratum already held, and the twin wrote seven different numbers against
+the eight published — while its report named `percentiles` as a fact the
+twin missed and printed the invented `0.0` as though the description had
+published an end it withheld. Measured before the ramp existed at all,
+on the same block: the sign fallback wrote `1.0` eight times and the twin
+was re-described as another role.
 
 ### G5.3e The listed tail (stage 3, plan P4-D324)
 
@@ -3448,6 +3532,40 @@ different values, the strata take those points in ascending order, each
 once, under the same sign-band condition. Measured before this clause:
 120 amounts `0.1` to `12.0`, with or without a decimal comma, held 119
 numbers at seeds 4, 0 and 1.
+
+**AND WHERE THE PUBLISHED WIDTHS FIX NO GRID AT ALL, THE GRID IS THE
+REPRESENTABLE NUMBERS THEMSELVES** (plan P4-D269, with the spare-point
+clause stage 3's review added, verdict item 4). This is the LAST RESORT
+of the pass, reached only where neither the pinned width nor the finest
+width gives it a decimal grid, and it is asked of a column whose strata
+number three or more, whose ends `values[0]` and `values[K-1]` are
+finite with the lower above nought, and every one of whose strata stands
+in the POSITIVE band. Let `low[i]` be the `i`-th representable number at
+or above the lower end and `high[i]` the `(K - 1 - i)`-th representable
+number at or below the upper one; where `low[K-1]` passes the upper end
+the two ends hold fewer numbers than the column has strata, no
+assignment exists and the rule gives none. Otherwise stratum `i` takes
+
+```
+out[i] = its own value, raised to the number above out[i - 1] where it
+         is below that, then held down to high[i]
+```
+
+`out[0]` is the lower end and `out[K-1]` the upper one, `out` climbs
+strictly, and a stratum whose value already stands above its
+neighbour's point keeps that value exactly — so a column whose values
+are already apart leaves with them unchanged. Where the two ends hold
+EXACTLY `K` representable numbers, `low[i]` and `high[i]` are one
+number and the result is the grid's own points in order, which is what
+this clause said before it said anything about spare points. The rule is
+withdrawn whole where any stratum's sign band would not hold the point
+it would take. Measured with the equality alone: 120 numbers
+`i * 5e-324`, one binary64 step apart, held 120 different TEXTS and 95
+different NUMBERS; with the fill on a saturated interval they came back
+at 120; and once stage 3's derived ends widened that interval to 126
+numbers for 120 strata the equality failed, the rule withdrew and the
+twin held 101 — while 100 such cells held 82 different numbers against
+the 100 the pre-tail code wrote.
 
 **A COLUMN WHOSE PUBLISHED LEVELS ARE ITS STRATA TAKES THEM** (plan
 P4-D178), where the fill above does not answer. Let `R` be the different
@@ -12312,7 +12430,7 @@ that happens -- and the clause beside it, `--missing-value`'s "CAN be
 published as the column's smallest value", is exactly right under the
 new rule.
 
-**All one hundred and seventeen are required.** The count is taken off the committed
+**All one hundred and eighteen are required.** The count is taken off the committed
 case sets and not carried forward: this sentence said fifty-two and a
 split of nine, twenty, sixteen and seven while the six files held
 seventy-three, because each repair that added a case added a clause to
@@ -12331,7 +12449,7 @@ holds ten; the eighth,
 `tests/reference/generation-branch-vectors-6.json`, holds fourteen; the
 ninth, `tests/reference/generation-branch-vectors-7.json`, holds six;
 the TENTH, `tests/reference/generation-branch-vectors-8.json`, holds
-six; and the ELEVENTH,
+seven; and the ELEVENTH,
 `tests/reference/generation-branch-vectors-9.json`, holds three (G14.2),
 and a test holds this sentence to those files.
 
@@ -12406,6 +12524,7 @@ case passed, which is the failure the count exists to prevent:
 | `identifier_absorbed_figure` | G9.6 built against the READINGS of an absorbed count (plan P4-D298): twenty-one record numbers, every one a whole number, publishing no cell in figures alone beside a shortest length of one, because the one figure-only cell is below the floor. A one-character whole number is a figure, so the published counts have no answer; the first reading that holds every count as published writes `1` once and `0e0` twenty times. Its mutant builds the published counts alone and the oracle refuses the column |
 | `unmarked_duplicates_first` | G6.5's distinct-spelling repair visited unmarked first (plan P4-D265): forty-four cells of one value written plain, with a leading plus and with a point, whose census of marks names eleven of the twenty-two groupable cells and whose ten published spellings ask four cells to spend a zero, so the duplicates a raised order may be spent on are mixed. Its mutant visits them in index order and four of the eleven marks come off the column |
 | `judged_stand_in_written` | G10.1's write rule with a judged stand-in among the absent cells (plan P4-D6.4): `numeric_integer`'s twenty values beside twenty-two absent cells, eleven of which held `-999`, which the column's own stand-in pass judged to mean "no value", and eleven of which held nothing. The twin writes `-999` in eleven cells and leaves eleven empty, placed by G4.2's one arrangement. Its mutant is the rule this replaced, which wrote a judged pass's cells empty, and the eleven `-999` cells move |
+| `representable_with_room` | G6.5a's last resort on a representable grid with SPARE points (stage 3's review, verdict item 4): the same boundary as `saturated_representable` and one number further apart, twelve strata between ends holding fifteen representable numbers, so no stratum's point is forced and each takes the one nearest the value the ladder gave it that the order still allows. Its mutant restores the rule as it stood before that verdict -- the fill only where the ends hold exactly as many numbers as there are strata -- and the three spare numbers withdraw it, the ladder interpolates between rungs one binary64 apart, and several strata land on one number |
 | `saturated_representable` | G6.5a's last resort, the REPRESENTABLE grid (plan P4-D269): twelve numbers at the subnormal boundary, one binary64 step apart, whose census names no fraction width, so neither the pinned width nor the finest width gives the separation pass a grid and the two published ends saturate the representable numbers themselves. Its mutant withdraws the fill, the ladder interpolates between rungs one step apart, and several strata land on one number |
 | `pushed_along_band` | G6.5a's push of a collision the walks leave along its band to the nearest free point (the carried numbers repair pass of 2026-09-19): fourteen one-place readings from 2.6 to 3.9 beside four far ones, 53.6, 67.1, 134.8 and 135.7, eighteen different numbers each written once and no empty stretch published. Once the walks are done the run's fourteen strata stand on thirteen of its tenths, two of them on 3.4, and the free tenth 3.9 lies past the walk's reach; the push moves the second 3.4 and every stratum above it one tenth up. Its mutant withdraws the push, and the twin writes 3.4 a second way, `03.4`, holding seventeen numbers against eighteen |
 | `tail_shape_ends` | G5.3b's reading of a tail's own rows and the two DERIVED ends (stage 3, landing 3.3): sixty one-place readings whose twelve smallest and twelve largest are withheld by the tail rule, the low tail fitting a nearly straight shape and the high one a power of sixteen because one row stands far past the others. Its mutant withdraws the OUTWARD move of plan P4-D326 and the high end falls back inside the rows it stands for |

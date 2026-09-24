@@ -538,23 +538,25 @@ def test_a_saturated_representable_grid_keeps_every_number(
     skipped altogether and the ladder interpolated between rungs one
     representable step apart. The repair carried the twin to all 120.
 
-    AND LANDING 3.3 GIVES SOME OF THEM BACK UP, at 101 of 120, which is
-    recorded here rather than left to be found. The tail rule withholds
-    the rungs that read this column's outermost values and hands the
-    twin two GROUPS instead (contract 6.7a), and at the bottom of the
-    binary64 range a group is a poor substitute for a rung: the whole
-    column is smaller than the smallest step any grid its texts name
-    would have, so three of this landing's own clamps had to be written
-    scale-free before the tail could stand anywhere at all -- the
-    Samuelson bound as `rms` times a fraction, one step of a column
-    with no usable grid as the smallest positive number the format
-    holds, and a grid refused where its step is not smaller than the
-    rung. With them the twin holds 101 of the 120; the 19 it does not
-    hold are the strata between the two boundaries, which the
-    separation walk can no longer take from the tails' own rows. The
-    shortfall is NAMED in the twin's own report and MISSED by
-    `validate`, which is the honest outcome and the one this test now
-    pins; the real table still passes.
+    LANDING 3.3 TOOK 19 OF THEM BACK AND STAGE 3'S REVIEW RETURNED THEM
+    (verdict item 4). The tail rule withholds the rungs that read this
+    column's outermost values and hands the twin two GROUPS instead
+    (contract 6.7a), and the derived ends that stand in for them lie
+    FURTHER APART than the column's own ends: 120 strata between ends
+    holding 126 representable numbers. G6.5a's last resort ran only
+    where the two ends hold EXACTLY as many representable numbers as
+    the column has strata, so six spare numbers withdrew it whole and
+    the twin came back holding 101 -- named in its own report and
+    MISSED by `validate`, which was honest and was still a twin 19
+    numbers short of the one the pre-tail code wrote. The rule now
+    gives each stratum the point nearest the value the ladder gave it
+    that the order still allows, so a grid with spare points is filled
+    as a saturated one is.
+
+    WHAT IS ASSERTED IS THE OBLIGATION AND NOT A NUMBER COPIED FROM A
+    RUN: the block publishes how many different numbers the column
+    holds, that count is what the twin owes, and the twin's own count is
+    compared against it.
     """
     cells = [str(step * 5e-324) for step in range(1, 121)]
     block, written, twin_exit, real_exit = _round_trip(
@@ -568,18 +570,32 @@ def test_a_saturated_representable_grid_keeps_every_number(
     # expectation with it instead of turning the file red.
     assert len(written) == max(len(cells), parsing.POPULATION_FLOOR)
     assert block["n_distinct_values"] == len(cells)
-    # ...AND THE COUNT OF DIFFERENT NUMBERS IS LANDING 3.3'S, NOT THE
-    # CASE'S. The docstring above works out why 19 of the 120 are the
-    # strata between the two boundaries that the separation walk can no
-    # longer take from the tails' own rows; 101 is what is left, and it
-    # is a shortfall the twin's report NAMES and `validate` MISSES.
-    assert len(held) == 101, len(held)
-    assert twin_exit == 3
+    assert len(held) == block["n_distinct_values"], len(held)
+    assert twin_exit == 0
     assert real_exit == 0
 
 
-def test_a_grid_the_ends_do_not_saturate_is_left_exactly_as_it_was() -> None:
-    """The fill is withdrawn whole unless the ends are the strata's own count."""
+def test_a_grid_with_room_is_filled_and_one_without_is_left_alone() -> None:
+    """Each stratum takes the nearest point the order still allows (G6.5a).
+
+    THE FILL RAN ONLY ON A SATURATED INTERVAL, and stage 3's review
+    (verdict item 4) found that the tail rule's derived ends rarely
+    leave one: 100 subnormal cells came back holding 82 different
+    numbers where the pre-tail code held 100. The expectations here are
+    worked out from the rule the clause now states -- each stratum's own
+    value, raised to the number above its neighbour's point and held
+    down to the point that still leaves room for every stratum above it
+    -- and not read off a run:
+
+    - values already a representable number apart are each their own
+      nearest allowed point, so nothing moves;
+    - a collision with room above it moves by ONE representable step,
+      which is the least move that separates the two;
+    - an interval saturated by the strata leaves one assignment, the
+      grid's own points in order, which is what this pass always did;
+    - an interval holding FEWER numbers than there are strata has no
+      such assignment at all, and the pass is withdrawn whole.
+    """
     layout = generation._NumericLayout(
         sizes=(1, 1, 1),
         starts=(0, 1, 2),
@@ -591,24 +607,30 @@ def test_a_grid_the_ends_do_not_saturate_is_left_exactly_as_it_was() -> None:
         raw_budgets=(0, 0, 0, 0),
         folded_budgets=(0, 0, 0, 0),
     )
-    # Ends a whole unit apart: an ordinary column, untouched.
-    ordinary = [1.0, 1.0, 2.0]
+    # Already apart: every value is its own nearest allowed point.
+    apart = [1.0, 1.5, 2.0]
+    assert generation._apart_on_the_representable_grid(layout, apart) == apart
+    # A collision with a whole unit of room above it: ONE step.
     assert generation._apart_on_the_representable_grid(
-        layout, ordinary
-    ) == ordinary
+        layout, [1.0, 1.0, 2.0]
+    ) == [1.0, generation._next_representable(1.0), 2.0]
     # Ends exactly two representable steps apart: the grid is saturated.
     low = 5e-324
-    high = generation._next_representable(
-        generation._next_representable(low)
-    )
-    filled = generation._apart_on_the_representable_grid(
+    middle = generation._next_representable(low)
+    high = generation._next_representable(middle)
+    assert generation._apart_on_the_representable_grid(
         layout, [low, low, high]
-    )
-    assert len(set(filled)) == 3 and filled[0] == low and filled[2] == high
-    # The step itself, against the grid's own arithmetic.
+    ) == [low, middle, high]
+    # Two numbers for three strata: no assignment exists, so none is made.
+    tight = [low, low, middle]
+    assert generation._apart_on_the_representable_grid(layout, tight) == tight
+    # The step itself, against the grid's own arithmetic, both ways.
     assert generation._next_representable(5e-324) == 1e-323
     assert generation._next_representable(1.0) == 1.0 + 2.0 ** -52
     assert generation._next_representable(-1.0) == 0.0
+    assert generation._next_representable(1e-323, True) == 5e-324
+    assert generation._next_representable(1.0, True) == 1.0 - 2.0 ** -53
+    assert generation._next_representable(5e-324, True) == 0.0
 
 
 # == the skeptic's pass over the round, 2026-09-18 =====================

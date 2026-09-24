@@ -1383,8 +1383,19 @@ def test_a_stratum_never_hands_its_number_to_a_wider_one(
     # column the trade was written for is walked here as well, and the
     # test asserts that the trade FIRED before asserting what it costs.
     # Without that, this reads as a clean pass over a branch never run.
+    #
+    # THIRTY WHOLE CELLS AND NOT THIRTY-FOUR (stage 3's review, verdict
+    # item 3). This column publishes a tail, and correcting G5.3b's fit
+    # so that a tail's rows carry the published mean and
+    # root-mean-square moved every rung outside the two boundary
+    # percents: with 34 the trade still runs, 151 times over these
+    # seeds, but every holder it asks now stands on a WHOLE number, so
+    # the fraction-holder branch below was never entered and the guard
+    # said so. The shape is otherwise the one the trade was written
+    # for, and the guard is what made the loss visible rather than
+    # silent.
     _document, pooled = _described(
-        tmp_path, [f"{index % 9 + 1}" for index in range(34)] + ["1.5", "2.5"]
+        tmp_path, [f"{index % 9 + 1}" for index in range(30)] + ["1.5", "2.5"]
     )
     for _name, _each, loaded in _cases(tmp_path):
         for seed in SEEDS:

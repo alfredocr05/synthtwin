@@ -6338,6 +6338,23 @@ through the column's own mean and spread, which stay exact, and what
 that costs the twin is measured in plan P4-D349 and held at ledger entry
 `K-S3-15`.
 
+**AND SO DOES A TAIL WHOSE DISTANCES BINARY64 CANNOT HOLD** (stage 3's
+review, verdict item 2). Every distance is computed exactly and rounded
+once, and a column reaching across the whole range has distances past
+the largest number this format holds: 11 cells of `-1.7e308` beside 89
+around `1.68e308` put the low tail's mean at about `3.4e308`. The block
+used to give up EVERY rung there and publish its four moments alone --
+`tails` two nulls and the whole ladder withheld -- and the reader of
+that block, having nothing but a mean and a spread, read
+`mean + sqrt(3) std` past the range too and fell back to the ladder of a
+block BELOW ITS FLOOR: at seed 4 the twin of that column held numbers
+between -11 and 88, and its mean and spread both failed the check. The
+shape a tail with no publishable pair takes is the one above, so it is
+taken here: the boundary rung and the rows stand, the pair is `null`,
+and the side lists no value, which TL5 requires of a tail with no pair
+beside it. The block keeps its ladder and the twin keeps the published
+scale.
+
 **HOW MANY ROWS HOLD EACH LISTED VALUE FOLLOWS FROM WHAT IS PUBLISHED,
 AND THIS FILE SAID OTHERWISE** (plan P4-D346). The counts are not
 written down, and "not written down" is not the same as "not knowable":
@@ -11367,12 +11384,27 @@ reading NOT identical, so a `null` `skew` at `n_used_in_statistics >=
 only route to these three rows from a parsed document, and a reader who
 supplied a different test would refuse different files.
 
-**ON A TAIL BLOCK THE TEST IS `std == 0.0`** (stage 3, section 6.7a).
-The two ends are usually withheld there, so "identical" cannot be read
-off them; the spread is nought exactly where every value the statistics
-used is one value, and `std_unrepresentable` false beside it. A block
-below its own floor publishes no spread and none of these three rows is
-asked of it.
+**ON A TAIL BLOCK THE TEST IS `n_distinct_values == 1`** (stage 3,
+section 6.7a; corrected by stage 3's review). The two ends are usually
+withheld there, so "identical" cannot be read off them, and
+`n_distinct_values` is the same block's count of the different NUMBERS
+its numeric cells hold -- cells Q2 has already tied to the values the
+statistics used -- so it answers the question exactly. A block below its
+own floor publishes no moment at all and none of these three rows is
+asked of it: read off the spread it was never flat, because it has no
+spread to read; read off the count of different numbers a block of ONE
+number is flat, and it still publishes neither the spread Q6 would ask
+for nor the average Q7 would.
+
+**IT WAS `std == 0.0`, AND A SPREAD IS ROUNDED.** A column of 98 cells
+of `5e-324` beside `1e-323` and `1.5e-323` holds three different numbers
+and a spread of about `4e-325`, which is below the smallest number
+binary64 holds and is published as `0.0` with `std_unrepresentable`
+false. Read as constancy it made Q5 refuse the producer's own file --
+"the shape is given as 7.863539654706267, and every value the statistics
+used is the same" -- at floors 1, 5 and 11, and describing the table
+again wrote the same file. A rounded number may not decide a question
+that has an exact published answer beside it.
 
 #### GS1 — `group_separator`, on every numeric block
 

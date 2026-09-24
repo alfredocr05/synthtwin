@@ -386,13 +386,19 @@ def test_both_pages_say_the_same_thing_about_every_pair() -> None:
     on, one landing and two readers with only one of them changed.
     """
     _document, loaded, folder, _table = _described(_three_position_column())
-    # SEED 0, AND IT WAS 9 (landing 2b.1, 2026-09-15). At seed 9 the twin
-    # built since part 1's stratum cap and grid value lands all three
-    # pairs exactly on their published agreements, so all three are HELD
-    # and none carries a window -- the assertion below said so, and a
-    # test whose witness is never windowed pins nothing. Seed 0 windows
-    # all three, the strongest form of the claim.
-    twin = generation.generate(loaded, 0)
+    # SEED 3, AND IT WAS 9 AND THEN 0. At seed 9 the twin built since
+    # landing 2b.1's stratum cap and grid value landed all three pairs
+    # exactly on their published agreements, so all three were HELD and
+    # none carried a window -- the assertion below said so, and a test
+    # whose witness is never windowed pins nothing -- and seed 0 was
+    # taken because it windowed all three. Correcting G5.3b's fit so
+    # that a tail's rows carry the published mean and root-mean-square
+    # (stage 3's review, verdict item 3) moved every rung outside the
+    # two boundary percents, and at seed 0 all three land exactly again.
+    # Seeds 3, 4, 5, 8, 10 and 11 window all three; 3 is the first, and
+    # the seed is written here rather than searched for so that the day
+    # it stops windowing is the day this test says so.
+    twin = generation.generate(loaded, 3)
     written = fixtures.write(
         folder, "twin.csv", rendering.twin_csv(twin)
     )
