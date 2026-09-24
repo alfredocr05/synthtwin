@@ -1539,11 +1539,19 @@ written, which is what they had done. A documented option produced a
 file the product would not read.
 
 **What is given up, stated at its size.** The floor is the whole of
-what keeps a published group too large to point at one person. At 11
+what keeps a published group larger than the count it names, and it
+counts ROWS. At 11
 no group named anywhere in a description covers fewer than eleven
 rows; at `f` no group covers fewer than `f`, and at 1 every group is
-named exactly, including a group of one row. Where one row of the real
-table is one person, a description written at a low floor publishes
+named exactly, including a group of one row. **It does not follow that
+a group at the floor covers more than one person**, and the owner
+accepted that on 2026-09-23 (plan P4-D348): where a table holds several
+rows per subject, twelve visits of one patient are twelve rows, so a
+value only that patient holds is published with the count twelve at a
+floor of eleven. The one number counted in people is the POPULATION a
+description was made from, where a declared identifier repeats, and
+`person_columns` records which column decided it. Where one row of the
+real table is one person, a description written at a low floor publishes
 the existence of that person's value together with how many people
 share it. That is not a route to a disclosure; it is the disclosure.
 The producer publishes the same facts it always did, and the floor
@@ -2545,7 +2553,8 @@ with a short piece of text beside it.
 > figure, such as a stage; or the whole column may be a CODING SYSTEM,
 > some of whose codes end in a letter. The three are described very
 > differently: as measurements, every one of these numbers joins this
-> column's average, spread and ends; as labels, only the values wearing
+> column's average, spread and the shape of its two tails; as labels,
+> only the values wearing
 > no marker are described that way; as codes, no average is published
 > at all, and the codes themselves are published under the
 > smallest-group size in force — at the default of 11, every code that
@@ -2688,7 +2697,7 @@ The base sentence, always written:
 > column is described as numbers, or as dates, only when at least «3»
 > of them read that way. It holds «4» different values, where a set of
 > categories may hold at most «5». Describing it from the part that
-> does read would publish an average, a smallest and a largest value
+> does read would publish an average, a spread and points along a range
 > that the rest of the column contradicts, so synthtwin describes it as
 > free text and publishes no value of it at all. If these are
 > measurements written with a currency sign, a per-cent sign, a unit

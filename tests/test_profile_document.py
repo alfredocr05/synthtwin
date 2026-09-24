@@ -501,8 +501,17 @@ def test_nothing_that_varies_between_runs_is_written(
 # every one a rung the tail rule withholds going null, plus the
 # publication notes shifting by one because `visits` gains the
 # histogram-withheld note. No key of any other role moved.
+# AND RE-RECORDED FOR ONE PUBLISHED SENTENCE (the review of 2026-09-23,
+# item 7). A description carries its remarks, and the remark a column no
+# reading fits carries said that describing it from the part that DOES
+# read "would publish an average, a smallest and a largest value" -- two
+# values a measurement column has not published since stage 3. Read as a
+# leaf-by-leaf diff: ONE leaf moves, that column's first remark, and
+# nothing arrives or leaves. The twin digest in
+# tests/test_twin_golden.py did not move, so not one cell of the twin
+# changed with it.
 GOLDEN_SHA256 = (
-    "161182641ec0f8fe7dd2f10f63b5698e4cf2bc6c2bad76bc9686acf3edaaefcd"
+    "c482eaa28ce550e0b31bfdbd469e6cbcace12a99629232185d8ee16decb61307"
 )
 
 

@@ -453,6 +453,28 @@ FILE_TOTAL = len(RUN_OUTPUT_SUFFIXES)
 # artifacts; the handling rule counts files, because a person deciding
 # what may leave their machine is looking at a folder.
 ARTIFACT_TOTAL = len({name.rsplit(".", 1)[0] for name in RUN_OUTPUT_SUFFIXES})
+# THE PAGES, which are the files less the twin's own table, and they are
+# counted here because the repository states totals about them too (review
+# of 2026-09-23, finding 10). "on all five pages a full run writes" and
+# "each of the four written pages" were both standing, one true and one
+# stale, and no rule in this file read the word `pages` at all -- so the
+# stale one passed while the guarded total moved from five to six under it.
+#
+# WHY A `.csv` ENDING IS THE DERIVATION. A run writes exactly one data
+# table, the twin, and every other output is prose or a document a person
+# or a program reads as a page. That is a property of the shipped output
+# names rather than a list, so a seventh output joins the right total on
+# the commit that ships it, exactly as `FILE_TOTAL` does.
+PAGE_TOTAL = len(
+    [name for name in RUN_OUTPUT_SUFFIXES if not name.endswith(".csv")]
+)
+assert len(RUN_OUTPUT_SUFFIXES) - PAGE_TOTAL == 1, (
+    "the derivation above assumes a run writes exactly ONE data table, "
+    f"and it writes {len(RUN_OUTPUT_SUFFIXES) - PAGE_TOTAL} "
+    f"({sorted(RUN_OUTPUT_SUFFIXES)}). Decide what a page is before the "
+    "page total is measured against anything, because a total nobody can "
+    "derive is the defect this file exists to catch."
+)
 
 # What each of those files is CALLED in a sentence a person reads. The
 # keys are the derived endings, so an output file that ships without a
@@ -870,6 +892,20 @@ def _text(relative: str) -> str:
     assembled inside a tuple or a call still does not match, and a
     surface that has to state a claim still states it as running text.
 
+    AND A SENTENCE WRAPPED INSIDE ONE f-STRING IS JOINED TOO (review of
+    2026-09-23, finding 10). The rule above joined a literal ending `",`
+    to the next line's `"` -- the comma-separated report line -- and a
+    screen message is not written that way. It is one expression of
+    adjacent literals, `f"... All five "` then `f"files of a full run
+    carry them"`, with no comma between them, and the quote characters
+    landed in the middle of the sentence. So `cli.py`'s lowered-floor
+    warning said "All five files of a full run carry them" while a full
+    run left six, and the derived-total guard below read right past it:
+    every ban in this file was one line break away from being defeated.
+    A literal that ends a source line is now joined to the literal that
+    begins the next whether a comma stands between them or not, which is
+    the join Python itself performs before the message is ever printed.
+
     Guarantees:
 
     - Inputs: a path relative to the repository root, as written in
@@ -893,6 +929,9 @@ def _text(relative: str) -> str:
         f"that silently skips a surface is not an inventory."
     )
     read = re.sub(r'",\s*\n\s*"', " ", path.read_text(encoding="utf-8"))
+    # ...and the same join where Python's own implicit concatenation puts
+    # no comma between the two halves of one sentence.
+    read = re.sub(r'"\s*\n\s*f?"', " ", read)
     return " ".join(read.lower().split())
 
 
@@ -1470,6 +1509,11 @@ _COUNT_WORDS = {
     "ten": 10,
 }
 _COUNTS = "|".join(sorted(_COUNT_WORDS, key=len, reverse=True))
+# The same map read backwards, for the one check that has to WRITE a
+# derived total in words instead of reading one somebody wrote. "both"
+# and "two" both mean 2 and the plain word wins, which is what a
+# sentence about a derived count would say.
+_WORD_FOR = {number: word for word, number in _COUNT_WORDS.items()}
 
 # Up to two words may stand between the number and its noun -- "all
 # three PHASE 2 artifacts", "all four files a full run produces" -- so
@@ -1527,7 +1571,20 @@ _NOUN_RULES = (
         r"files?",
         FILE_TOTAL,
         "the files a full run leaves behind",
-        ("run", "handling"),
+        ("run", "handling", "produced"),
+    ),
+    # "pages" NEEDS ITS OWN TOTAL AND ITS OWN REACHES. `both pages` is
+    # the twin's report and the quality report, a true pair claim on nine
+    # surfaces, so the totality reach is not read here -- and "all five
+    # pages a full run writes" is caught by the run reach anyway, which
+    # is where a claim about the whole set says so. The written reach is
+    # read here and not on files: "two written files" is the profile
+    # transaction, and "the four written pages" was the whole set.
+    (
+        r"pages?",
+        PAGE_TOTAL,
+        "the pages a full run writes beside the twin",
+        ("run", "produced", "written"),
     ),
     (
         r"commands?",
@@ -1646,6 +1703,41 @@ def _totals_stated(text: str) -> "list[tuple[int, int, str, str]]":
                     rf"(?:carry|carries|hold|holds) facts computed"
                 ),
             ),
+            # "three commands produce five files", "a full run leaves
+            # five files" (review of 2026-09-23, finding 10). The
+            # "run" reach above wanted the run AFTER the noun, and
+            # `README.md`'s opening sentence puts it before: it said
+            # "three commands produce five files" on a product whose
+            # three commands produce six, and nothing read it.
+            #
+            # THE SUBJECT IS THE ANCHOR, and it has to be. "`synthtwin
+            # profile <table>` reads a local CSV file and writes two
+            # files beside it" is true on nearly every page here, and so
+            # is "this run writes two files" about a transaction of two
+            # -- so a verb of producing is read only where the COMMANDS
+            # or a FULL run is its subject, which is the whole set by
+            # definition, there being no other set of either.
+            "produced": (
+                (
+                    rf"\b(?:commands?|(?:a|the|one) (?:full|whole) run) "
+                    rf"(?:[a-z0-9'-]+ ){{0,2}}?"
+                    rf"(?:produce|produces|write|writes|leave|leaves"
+                    rf"|make|makes) (?:the |all |exactly )?"
+                    rf"(?P<count>{_COUNTS}) (?P<gap>{_GAP})(?P<noun>{noun})\b"
+                ),
+            ),
+            # "each of the four written pages", "the four readable
+            # files" (review of 2026-09-23, finding 10). An adjective
+            # saying the file was WRITTEN or is READABLE is saying it is
+            # one of the run's own outputs, so a count in front of it is
+            # a count of that set and not of a subset somebody has in
+            # mind. Both spellings were live and both were stale.
+            "written": (
+                (
+                    rf"\b(?P<count>{_COUNTS}) (?:written|readable) "
+                    rf"(?P<gap>)(?P<noun>{noun})\b"
+                ),
+            ),
         }
         for reach in reaches:
             for pattern in patterns[reach]:
@@ -1711,9 +1803,79 @@ def test_no_surface_states_a_stale_total() -> None:
         + f"\n\nThe tool offers {COMMAND_TOTAL} commands "
         + f"({', '.join(COMMAND_WORDS)}), and a full run leaves "
         + f"{FILE_TOTAL} files behind, of {ARTIFACT_TOTAL} kinds "
-        + f"({', '.join(RUN_OUTPUT_SUFFIXES)}). Each total is counted "
+        + f"({', '.join(RUN_OUTPUT_SUFFIXES)}), {PAGE_TOTAL} of them "
+        "pages beside the twin's own table. Each total is counted "
         "from the shipped parser and the shipped output names, so if a "
         "number here surprises you the surface is stale, not the count."
+    )
+
+
+def test_the_total_reading_sees_a_count_however_a_sentence_carries_it() -> None:
+    """The four evasions the review of 2026-09-23 found, put through it.
+
+    WHAT THIS CLOSES (finding 10 of that review). Four sentences stating a
+    five-file total shipped beside a run that wrote six, and this file
+    passed on all four. Each got away a different way, so each is put
+    through the reading here rather than trusted:
+
+    * the sentence WRAPPED INSIDE ONE f-STRING. `cli.py`'s lowered-floor
+      warning is one expression of adjacent literals, and the quote
+      characters landed between "All five " and "files of a full run", so
+      `_text` -- which joined only the comma-separated report line -- saw
+      no such phrase at all. Every ban in this file was one line break
+      from being defeated, which is why the join is checked here and not
+      only the patterns.
+    * the RUN OR THE COMMANDS AS SUBJECT. The run reach wanted the run
+      after the noun; `README.md` opened "three commands produce five
+      files".
+    * the WRITTEN PAGE. "each of the four written pages" counts a set
+      this file had no total for, because no rule read the word `pages`.
+    * the count that is RIGHT, which has to stay right: "all five pages a
+      full run writes" is true, there being five pages among six files,
+      and a reading that reddened it would be traded away within a week.
+    """
+    wrapped = (
+        '_WARNING = (\n'
+        '    f"the quality report quotes them back. All five "\n'
+        '    f"files of a full run carry them.\\n"\n'
+        ')\n'
+    )
+    joined = re.sub(r'",\s*\n\s*"', " ", wrapped)
+    joined = " ".join(re.sub(r'"\s*\n\s*f?"', " ", joined).lower().split())
+    assert "all five files of a full run" in joined, (
+        "a sentence wrapped inside one f-string is still invisible to the "
+        "reading every ban in this file rests on, so a stale total can be "
+        f"shipped by putting a line break in it. Joined text: {joined!r}"
+    )
+    stale = {
+        "wrapped inside one f-string": joined,
+        "the commands as subject": (
+            "three commands produce five files, of four kinds"
+        ),
+        "the written page": (
+            "each of the four written pages says on its own face that it "
+            "was made this way"
+        ),
+    }
+    missed = [
+        f"{how}: {text!r}" for how, text in stale.items()
+        if not _totals_stated(text)
+    ]
+    assert not missed, (
+        "these ways of stating a stale total are invisible to the reading "
+        "that measures counts against the product, so a maintainer using "
+        "one of them would ship a five-file sentence beside a run that "
+        f"writes {FILE_TOTAL}:\n  " + "\n  ".join(sorted(missed))
+    )
+    # ...and the reading is not simply saying yes. The page count that IS
+    # true has to come back clean, or the rule above would be a rule
+    # against the word "five" rather than against a wrong number.
+    true_enough = (
+        f"it describes the table and says so, on the screen and on all "
+        f"{_WORD_FOR[PAGE_TOTAL]} pages a full run writes beside the twin"
+    )
+    assert not _totals_stated(true_enough), (
+        f"the true page count was read as stale: {_totals_stated(true_enough)}"
     )
 
 

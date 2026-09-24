@@ -714,13 +714,20 @@ _COUNT_OUTSIDE_THE_BAND = (
 # by and counts distinct on numeric columns, so a twin holding fewer
 # different numbers than the description records is a twin that column
 # cannot be developed against. It is a CHECK now, in `_numeric_checks`.
+# AND IT NO LONGER SAYS THE LADDER NAMES ELEVEN (the review of
+# 2026-09-23, item 7). It read "which the eleven named rungs beside them
+# are still checked for", and since stage 3 a ladder names ELEVEN AT MOST
+# and normally fewer: measured on 100 readings 0.125 to 99.125, three of
+# the eleven are published and `min`, `max` and six interior rungs are
+# withheld. What is checked is the rungs the description does name,
+# however many those are, so that is what this line says.
 _NOT_CHECKABLE_FINER_LADDER = (
     "the description records the ninety percentile rungs its named "
     "ladder does not carry, as ONE fact rather than ninety: no file is "
     "held to any of them, and holding one to each would mean ninety "
     "obligations whose red cases could not honestly be written. What "
-    "they buy is where a twin PLACES its values, which the eleven "
-    "named rungs beside them are still checked for. A file whose finer "
+    "they buy is where a twin PLACES its values, which the rungs the "
+    "ladder does name are still checked for. A file whose finer "
     "rungs differ misses no obligation this description makes"
 )
 _NOT_CHECKABLE_MODE = (

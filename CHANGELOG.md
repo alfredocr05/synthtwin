@@ -6,6 +6,124 @@ exists).
 
 ## [Unreleased]
 
+### Six sentences stage 3 left behind, each measured (2026-09-23)
+
+**A SENTENCE CLAIMING MORE THAN THE CODE CARRIES FAILS THE PRODUCT'S JOB
+AS SURELY AS A CRASH**, and stage 3's one adversarial round found six of
+them. Nothing crashed, 7,469 tests passed, and the claim inventory passed
+too, because what those checks ask is whether a page's arithmetic adds up
+and what these six got wrong is what the arithmetic is ABOUT. Each repair
+is measured, and each has a test that turns red on the wording that
+shipped (`tests/test_stage3_review_sentences.py`, seven tests, every one
+mutation-verified against the old clause).
+
+**`--code` promised a rollup the floor does not leave named.** README
+said "every rollup of that column reproduces exactly" of a column named
+with `--code`. **Measured** on 100 codes `1000` to `1099`, one row each,
+at the default floor: the description publishes no code at all, and a
+prefix `10` that all 100 source rows carried came back on 20 twin rows at
+seed 4. The promise is now stated of the codes the description PUBLISHES,
+with the pooling that decides them and that measurement beside it.
+
+**THE TWO FLOORS ARE COUNTED IN DIFFERENT UNITS, and every page that
+sets out either now says which.** The population notice read "Every count
+here is a count over that population" where the population is PEOPLE and
+every count is ROWS (plan P4-D348, an accepted limit). **Measured** on
+100 declared people of twelve visits each: a value one person holds
+publishes the count 12 at the default floor, beside 1,188. Repaired in
+the notice itself, the twin's report, the quality report, the
+lowered-floor alarm, the floor refusal, README, SECURITY and the
+governing contract -- which said the floor "is the whole of what keeps a
+published group too large to point at one person", and now says it keeps
+a group larger than the count it names, counts rows, and does not follow
+to people.
+
+**FOUR PAGES AND THREE ANSWER CHOICES PROMISED ENDS AND CHECKS STAGE 3
+TOOK AWAY.** **Measured** on 100 readings `0.125` to `99.125`: the
+description publishes `p25`, `p50` and `p75` and withholds `min`, `max`
+and six interior rungs. The summary announced "Real smallest and largest
+values"; the quality report promised "the smallest and largest exactly,
+the nine steps between them"; the twin's report said every one of the
+nine interior steps "was measured on this twin"; the measurement,
+joined-number and decimal-comma choices each offered "a smallest and a
+largest" as what an answer would publish. All of them now name the rungs
+a description carries and the tails that stand where the rest did. **The
+inverse error beside them:** a tail opened "the 12 smallest values are
+not published" two lines above naming one of them, and there are TWO
+ways it names one -- a bounded scale LISTS the values it holds (each
+whole number 0 to 10 held ten times publishes `[0, 1]` and printed `0.0,
+1.0` under that sentence) and a heaped END is published as itself where
+at least a tail's rows hold it. Either way the opening now says the outer
+values are not published ONE BY ONE and points at what is named below
+it, in one wording rather than two, because a published end is a listed
+value on every shape measured and a branch nothing reaches is a branch
+nobody reads.
+**And where the review named one site there were three.** The
+empty-edges line called its values "the same kind of fact as the
+smallest and the largest values of this column"; the finer-ladder
+listing put its ninety rungs "between the eleven your description names"
+and said those eleven "are still checked for", where a ladder names
+eleven AT MOST and published three on the measurement above; and the
+ambiguous-column remark, the no-reading-fits remark, the `--code` help,
+the code and decimal-comma screens and `asking`'s own docstrings all
+carried the same promise. SECURITY's endpoint inventory is corrected
+with them: it counted TWO exact values per numeric ladder, and the
+measurement above puts that at NONE.
+
+**A FOLDED SPELLING COUNT WAS DESCRIBED AS AN ORIGINAL SPELLING COUNT.**
+**Measured** on four labels each written nine times lower case, eight
+upper and eight with a leading space: every published `variants` map
+holds one spelling counted 25, `variants_withheld` is empty, and no
+spelling the file wrote reaches eleven. Ruling 6 of 2026-09-17 counts a
+sub-floor spelling into the label's commonest, so above a floor of one
+`variants_withheld` is always empty and the number beside a named
+spelling is not a count of that spelling. The behaviour is kept; the
+summary, README and SECURITY now describe it.
+
+**THE FLOOR WAS DESCRIBED AS UNIVERSAL beside an accepted exception.**
+The quality report said "a group fewer than 11 rows carry is named in no
+description written under it". **Measured** on 99 decimal cells beside
+one word: the description publishes `n_not_numeric` 1 and a remark
+carrying that 1. The report and README now name the scope -- the floor
+governs the naming of a VALUE -- and both exceptions: a count of cells by
+kind names no value and is published whatever its size, and the floor
+counts rows.
+
+**FIVE FILES WERE SIX, AND BOTH CLAIM-INVENTORY GUARDS PASSED ANYWAY.**
+The lowered-floor alarm, README's opening line, SECURITY and the quality
+report each counted five where a full run leaves six, and the count of
+written pages that stamp themselves said four where three say it in words
+beside a description that records the floor. The guards missed all of it
+four different ways, and all four are closed: `_text` now joins adjacent
+string literals across source lines, not only the comma-separated report
+line -- which is what hid a sentence wrapped inside one f-string, and
+means every ban in that file was one line break from being defeated;
+`pages` is a countable of its own with its total derived from the shipped
+output names (the outputs that are not the twin's own table); and two new
+reaches read a count whose subject is the commands or a full run, and a
+count standing before "written pages" or "readable files". `both pages`
+stays a true pair claim on nine surfaces and is not read, by design and
+with the reason written beside the rule. The stale artifact inventory in
+`cli.py`'s report-name docstring went with them: four endings where five
+artifacts exist by the time `validate` runs.
+
+**THREE TESTS THAT QUOTED A REPAIRED SENTENCE ARE DERIVED FROM THE RULE
+INSTEAD OF RE-QUOTED**, because copying the new output into a test is not
+fixing it: the joined column's answer choice is asked for the property
+(each number described on its own, and no end named without the floor it
+has to clear), the summary's label block is read to its own end rather
+than to 400 characters, and the population note's docstring names the
+unit it now carries.
+
+**RE-RECORDED, each with the diff read line by line first:** the
+demonstration description and the demonstration profile (ONE leaf moves,
+the first remark of the column no reading fits, with nothing arriving and
+nothing leaving), the twin's report golden (18 lines, two paragraphs) and
+the quality report golden (56 lines over four kinds of place, ten of them
+the same finer-ladder pair, with no verdict and no census count moved).
+**The twin's own bytes did not move**, so not one cell of it changed for
+any of this.
+
 ### Stage 3's gate, asked of a whole description in its own words (2026-09-23)
 
 **A STAGE IS NOT DONE UNTIL A TEST LITERALLY IMPLEMENTS THE GATE ITS

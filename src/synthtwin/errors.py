@@ -1192,15 +1192,24 @@ def metadata_rows_not_supported(given: str) -> str:
 
 
 def floor_not_positive(given: str) -> str:
-    """Message for a small-cell floor that is not a positive whole number."""
+    """Message for a small-cell floor that is not a positive whole number.
+
+    IT SAYS WHAT THE DEFAULT BUYS IN THE UNIT IT IS COUNTED IN (review of
+    2026-09-23, finding 6). It read "so none is small enough to point at
+    one person", and the floor counts ROWS (plan P4-D348): twelve visits
+    of one patient clear a floor of eleven. The sentence now names the
+    rows the default covers and stops there.
+    """
     return (
         f"The smallest group size must be a whole number of 1 or more, "
         f"but {given} was given. Give a whole number, or leave the "
         f"option out altogether to use the default of "
         f"{parsing.DEFAULT_SMALL_CELL_FLOOR}: no group named in the "
         f"profile then covers fewer than "
-        f"{parsing.DEFAULT_SMALL_CELL_FLOOR} rows, so none is small "
-        f"enough to point at one person."
+        f"{parsing.DEFAULT_SMALL_CELL_FLOOR} rows. That counts rows and "
+        f"not people, so where your table holds several rows per person "
+        f"a group of {parsing.DEFAULT_SMALL_CELL_FLOOR} rows can still "
+        f"be one person's."
     )
 
 

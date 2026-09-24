@@ -36,15 +36,19 @@ rely on a twin.
 
 ## What synthtwin does today [built]
 
-Given one table of real data, three commands produce five files, of
-four kinds:
+Given one table of real data, three commands produce the six files a
+full run leaves behind, of four kinds:
 
 1. **A synthetic twin** - a table of the same shape whose columns each
    behave like the matching column of the original, every cell of it
    worked out from the description rather than taken from your file.
 2. **A schema file** - a plain description of every column: its type, its
    range or its categories, and how the twin version of it was built.
-   You get it twice, once for a program to read and once in words.
+   You get it twice, once for a program to read and once in words - and
+   beside the pair, on every run, a **questions file** naming the columns
+   synthtwin could read more than one way, what it saw in each and the
+   answers you can give. That file is how the description gets settled
+   rather than a kind of its own, which is how six files are four kinds.
 3. **A generation report** - written beside every twin, saying which of
    the description's facts the twin holds exactly, which it holds only
    approximately (with the value the twin actually reached printed
@@ -120,8 +124,15 @@ table, and it never contains a value from a column you named with
 value of such a column opens with, like `REC` or `ABC-`, where enough
 rows share it -- but it does contain the
 steps that describe the shape of your numeric, date and clock columns
-and, for each label, the exact spellings your file used for it together
-with how many rows wrote it that way. **Since stage 3 no column of
+and, for each label, the spellings your file used for it together with
+how many rows are counted into each. **That number is not a count of
+that spelling.** A spelling fewer rows than the smallest group wrote is
+not named on its own: its rows are counted into the commonest spelling
+of the same label, so the number beside a named spelling covers every
+row whose own spelling settled to it. Measured: four labels each written
+nine times lower case, eight upper and eight with a leading space
+publish one spelling counted 25, while no spelling the file wrote
+reaches eleven. **Since stage 3 no column of
 numbers, dates or clock times names either of its ends.** A numeric
 column's ladder stops short of both: every step that would read one of
 the outermost eleven values is withheld, and what stands there instead
@@ -277,12 +288,14 @@ systolic.
 
 `--code` names a column that holds a **coding system** rather than
 measurements -- vaccine codes, procedure codes, revenue codes, provider
-numbers, risk-group codes. Its values are still published, because which
-codes are common is the point of the column; what changes is that
+numbers, risk-group codes. Its common values are still published,
+because which codes are common is the point of the column; what changes
+is that
 synthtwin stops reading them as numbers, so `08` stays `08` instead of
 coming back as `8`, and the column gets a count per code instead of an
-average, a smallest and a largest -- which for a code are meaningless
-and are real codes besides. You need it only for a column written in
+average, a spread and points along a range -- which for a code are
+meaningless, and whose published boundaries are real codes besides.
+You need it only for a column written in
 **digits alone**: one written with a letter or a dash, like `E11.9` or
 `0002-8215-01`, is already read as codes. Repeat it to name more than
 one column, and use `--identifier` instead for a record number nothing
@@ -291,13 +304,26 @@ should publish.
 **Naming a column here also makes it publish at all.** A column of many
 different codes, none of them repeated much -- a laboratory code, a drug
 code, a gene variant -- is otherwise read as free text, which publishes
-no value whatever. Named with `--code` it publishes every code with the
-number of rows that held it, and the twin holds the same codes in the
-same proportions. That is what makes counting on the twin come out
-right: because it holds the same codes the same number of times, **every
-rollup of that column reproduces exactly** -- the prefix a hierarchy
-groups by, the segment a reader splits on, the length. synthtwin knows
-no coding system and does not need to.
+no value whatever. Named with `--code` it publishes every code that at
+least `--smallest-group` rows share, with the number of rows that held
+it, and the twin holds those codes in those proportions.
+
+**What that buys, and what it does not -- because the floor decides it.**
+A rollup over the codes the description PUBLISHES reproduces exactly --
+the prefix a hierarchy groups by, the segment a reader splits on, the
+length -- because the twin holds each published code the same number of
+times. A rollup over the codes it does not publish does not: a code
+fewer than `--smallest-group` rows share is counted into a pooled
+remainder that names none of them, and the twin fills those rows with
+codes of its own making. The default floor of 11 is where that bites
+hardest on exactly the columns this option was made for. **Measured** on
+a column of 100 codes `1000` to `1099`, one row each: at the default
+floor the description publishes no code at all, and a prefix `10` that
+every one of the 100 source rows carried came back on 20 rows of the
+twin at seed 4. So the promise is worth what the floor leaves named --
+count the rows per code before relying on a rollup, and read what
+lowering `--smallest-group` costs below before lowering it. synthtwin
+knows no coding system and does not need to.
 
 **synthtwin asks you about this rather than guessing.** A column of
 `08`, `20`, `213` is vaccine codes or it is counts, and the two are
@@ -314,8 +340,8 @@ that corrects it.
 **How small a table synthtwin will describe.** `synthtwin profile`
 refuses a table of fewer than 100 and writes nothing at all, and
 describes one of 100 to 999 with a plain notice on the screen and on
-every page it writes. Every count a description publishes is a count
-over the population it was taken from, and below a hundred those
+every page it writes. Every count a description publishes is a count of
+rows over the population it was taken from, and below a hundred those
 counts describe the individuals in the table rather than a population.
 The notice cannot be turned off, it is on the description, the
 plain-language summary, the questions file, the twin's report and the
@@ -336,9 +362,9 @@ taken in rows.
 
 **`--smallest-group`, and what lowering it does.** It changes how many
 rows a group needs before the profile names it. **The default is 11**:
-no group named anywhere in the profile covers fewer than eleven rows,
-so a value fewer than eleven rows share is pooled into a count that
-names none of them, and does not reach your twin by name. Any
+no VALUE named anywhere in the profile is held by fewer than eleven
+rows, so a value fewer than eleven rows share is pooled into a count
+that names none of them, and does not reach your twin by name. Any
 whole number of 1 or more is accepted end to end: `profile`, `generate`
 and `validate` all run on the file it produces. Raising it publishes
 less. Lowering it publishes more, and **below 11 the profile publishes
@@ -351,7 +377,27 @@ table is one person, somebody who already knows one true thing about
 someone in it -- that they are in it at all -- can find the small group
 that person must be in and read off everything else the profile says
 about that group. Eleven is the number that keeps a published group too
-big for that.
+big for that where one row is one person.
+
+**The two floors are counted in different units, and the difference
+matters.** The SIZE of your table is counted in people where a declared
+`--identifier` repeats, as the paragraph above says. `--smallest-group`
+counts ROWS. Where your table holds several rows per person those are
+not the same number: twelve visits of one patient are twelve rows, so a
+value only that patient has is published with the count twelve even at
+the default of eleven. That is an accepted limit of this version and not
+an oversight - the alternative was to count people per value, which is
+designed and shelved - and the notices say so rather than leaving you to
+find it.
+
+**And the floor governs the naming of a VALUE, which is narrower than
+"no count under eleven".** Two kinds of number are published whatever
+their size, because neither names a value of anybody's. A count of CELLS
+BY KIND is one: 99 decimal cells beside one word publish "1 value is not
+a number" and a remark carrying that 1. The other is the count of rows
+in a group at the floor, which counts rows and not people as just said.
+Where a count WOULD hand back a value the floor withheld, the warning
+that needed it keeps the warning and drops the number.
 
 The counts do not stop at the profile: the twin is built to hold them
 exactly, and the summary, the questions file, the twin's report and the
@@ -359,8 +405,10 @@ quality report quote them back, so all six files of a run carry them.
 synthtwin does not
 refuse the option -- it is your table and your institution's rules -- but
 a run at a lowered number prints an unmissable warning before either file
-exists, and each of the four readable files says on its own face that it
-was made that way, so that a colleague handed one of them alone can tell.
+exists; the description records the floor it was made at; and the
+plain-language summary, the twin's report and the quality report each say
+on their own face that it was made that way, so that a colleague handed
+one of those alone can tell.
 
 `--keep-value` names a value your table means as real data even though
 synthtwin would otherwise read it as "no value" -- a region genuinely
@@ -616,10 +664,10 @@ inside the environment that already holds it and never reaches an
 assistant. That is a strong claim and it is the one to make. What it
 does not buy is a finding about your obligations -- being synthetic is
 not by itself the answer to a privacy rule, to your institution's own
-rules, or to an approval your study needed, and the five files above
-are the reason. Whether an obligation is met is for the people who set
-it to say, and what this project gives them to decide with is the
-written account of exactly which real facts each file carries.
+rules, or to an approval your study needed, and the six files a full run
+leaves are the reason. Whether an obligation is met is for the people
+who set it to say, and what this project gives them to decide with is
+the written account of exactly which real facts each file carries.
 
 ## Honest limits
 

@@ -3,9 +3,10 @@
 THE ONE THING THE VALUES CANNOT SETTLE (plan P4-D19). A column of
 `213`, `08`, `141` is a column of vaccine codes or a column of counts,
 and the two are written identically. Read as counts it publishes an
-average, a smallest and a largest -- all three meaningless for a code,
-and all three REAL CODES besides -- and its twin loses the leading
-zeros, so `08` comes back as `8` and a reader that splits on width
+average, a spread and points along a range -- all of them meaningless
+for a code, and the boundary each of its tails is measured from IS a
+REAL CODE besides -- and its twin loses the leading zeros, so `08`
+comes back as `8` and a reader that splits on width
 breaks. Read as codes it keeps every spelling exactly and publishes how
 many rows carried each, which is what the column is for.
 
@@ -336,8 +337,9 @@ def why_worth_asking(values: "list[str]") -> "str | None":
       at least one of them grouped, and every cell the same number of
       FIGURES. `123 456 789` is read as a number since that landing,
       and a register of nine-figure identifiers grouped for reading
-      would otherwise publish its smallest and largest identifier with
-      nothing asked.
+      would otherwise publish real identifiers of its own -- the
+      boundary each tail is measured from, and a rung a group of rows
+      shares -- with nothing asked.
     - at least one cell one to three figures, a point and exactly three
       figures, and every other cell a whole number below a thousand
       written plainly. Read undeclared, `12.345` is twelve and a bit;
@@ -549,6 +551,16 @@ def _publishes_under(answer: str, role: str, floor: int) -> str:
     is 11 since 2026-09-22, so most runs at that floor asked for nothing,
     and the sentence now names the rule rather than a request.
 
+    AND NO CHOICE PROMISES AN END STAGE 3 WITHHELD (review of
+    2026-09-23, finding 7). The measurement, joined-number and
+    decimal-comma choices each read "a smallest and a largest", and a
+    description written after stage 3 publishes an end only where at
+    least the floor's rows share it. Measured on 100 readings 0.125 to
+    99.125: `min`, `max` and six of the nine interior rungs are withheld,
+    so the person answering was deciding on a promise of two values the
+    answer cannot deliver. Each of the three now names the tail instead,
+    with the floor the end would have to clear.
+
     A choice that overstates what it buys is worse than no choice: the
     person is deciding on this sentence, and it is the only part of the
     question they cannot check for themselves.
@@ -569,21 +581,27 @@ def _publishes_under(answer: str, role: str, floor: int) -> str:
                 "file format can hold"
             )
         return (
-            "an average, a spread, a smallest and a largest, and points "
-            "between"
+            f"an average, a spread and points along its range, but "
+            f"neither end: each end is published only where at least "
+            f"{floor} rows share the value, and otherwise the "
+            f"description carries a boundary, how many rows lie beyond "
+            f"it and how far beyond they lie"
         )
     if answer == ANSWER_JOINED or (
         answer == ANSWER_KEEP and role == taxonomy.ROLE_JOINED
     ):
         return (
-            "each number inside the cell described on its own, with its "
-            "own average and ends"
+            f"each number inside the cell described on its own, with its "
+            f"own average, spread and points along its range, and its "
+            f"own two ends published only where at least {floor} rows "
+            f"share them"
         )
     if answer == ANSWER_DECIMAL_COMMA:
         return (
-            "an average, a spread, a smallest and a largest, and points "
-            "between, with every point read as a mark between thousands "
-            "and every comma as the decimal point"
+            f"an average, a spread and points along its range, but "
+            f"neither end unless at least {floor} rows share it, with "
+            f"every point read as a mark between thousands and every "
+            f"comma as the decimal point"
         )
     if answer == ANSWER_CODE:
         if floor > 1:

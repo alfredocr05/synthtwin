@@ -143,7 +143,26 @@ def test_a_slashed_code_is_read_and_the_question_is_still_put() -> None:
         asking.ANSWER_CODE,
         asking.ANSWER_IDENTIFIER,
     ]
-    assert "own average and ends" in asked[0].choices[0].publishes
+    # THE CLAUSE IS DERIVED FROM WHAT THE ROLE PUBLISHES, not quoted
+    # (the review of 2026-09-23, item 7). This read `"own average and
+    # ends" in ...publishes`, and since stage 3 a position of this role
+    # publishes NEITHER end unless a group of at least the floor's rows
+    # holds it -- which `test_every_fact_this_role_publishes_is_checked`
+    # below says in as many words. So the choice was offering the person
+    # two values their answer cannot deliver, and what is asked here is
+    # the property instead: each number described on its own, and no end
+    # named without the floor it has to clear.
+    offered = asked[0].choices[0].publishes
+    floor = taxonomy.Settings().small_cell_floor
+    assert "each number inside the cell described on its own" in offered
+    assert "a smallest and a largest" not in offered, (
+        "the choice promises two values a description written after "
+        f"stage 3 does not publish: {offered!r}"
+    )
+    assert "end" in offered and f"{floor} rows" in offered, (
+        "the choice says nothing about this role's two ends, or names "
+        f"them without the floor an end has to clear: {offered!r}"
+    )
 
 
 def test_declared_it_reads_each_number_separately() -> None:

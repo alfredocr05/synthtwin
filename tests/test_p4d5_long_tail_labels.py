@@ -387,8 +387,20 @@ def test_the_page_names_a_long_tail_among_the_label_columns() -> None:
     page = summary.render(document, "")
     assert "Real labels you will see in the profile" in page
     at = page.index("Real labels you will see in the profile")
-    tail = page[at : at + 400]
-    assert "thing" in tail
+    # THE BLOCK, NOT A CHARACTER COUNT. This read `page[at : at + 400]`,
+    # and the length of the heading it reads under is nobody's contract:
+    # the review of 2026-09-23 lengthened that paragraph by three lines --
+    # the count beside a named spelling is a FOLDED count and the page now
+    # says so -- and a 400-character window stopped reaching the list of
+    # column names the heading introduces. The block ends where every
+    # block of this summary ends, at a blank line, so that is what is read
+    # and a later sentence cannot break this test by being written.
+    ends = page.find("\n\n", at)
+    tail = page[at:] if ends == -1 else page[at:ends]
+    assert "thing" in tail, (
+        "the summary's label heading no longer names the column it is "
+        f"about, inside its own block:\n{tail}"
+    )
 
 
 def test_the_page_names_the_shared_text_of_an_affixed_column() -> None:

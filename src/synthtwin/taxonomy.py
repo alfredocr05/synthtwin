@@ -1834,16 +1834,26 @@ def rendered(form: str, arguments: "tuple[object, ...]") -> str:
             "synthtwin decided about them"
         )
     if form == NOTE_SMALL_POPULATION:
+        # THE TWO FLOORS ARE COUNTED IN DIFFERENT UNITS, AND THIS NOTICE
+        # SAYS SO (review of 2026-09-23, finding 6). The size above is
+        # counted in PEOPLE where a declared identifier repeats, and
+        # every count in the description is a count of ROWS (plan
+        # P4-D348) -- so this note read "Every count here is a count over
+        # that population" on a description of 100 declared people whose
+        # published counts were 12 and 1,188 over 1,200 rows. Naming the
+        # unit of each is the whole repair: the arithmetic did not move.
         return (
             f"this description was made from a table of "
             f"{_whole(arguments, 0)} {_word(arguments, 1)}, which is "
-            f"fewer than a thousand. Every count here is a count over "
-            f"that population, so each one narrows who a row could be "
-            f"further than the same count would in a large table. "
-            f"Nothing in this description is excused by the size: the "
-            f"same rules produced it, the smallest group size is the "
-            f"same number, and every obligation it states is the same "
-            f"obligation"
+            f"fewer than a thousand. Every count here is a count of "
+            f"ROWS over that population -- where your table holds "
+            f"several rows per person, a value only one person has is "
+            f"published with the number of their rows -- so each count "
+            f"narrows who a row could be further than the same count "
+            f"would in a large table. Nothing in this description is "
+            f"excused by the size: the same rules produced it, the "
+            f"smallest group size is the same number, and every "
+            f"obligation it states is the same obligation"
         )
     if form == EVIDENCE_EMPTY:
         return (
@@ -2189,7 +2199,8 @@ def rendered(form: str, arguments: "tuple[object, ...]") -> str:
             f"or the whole column may be a CODING SYSTEM, some of whose "
             f"codes end in a letter. The three are described very "
             f"differently: as measurements, every one of these numbers "
-            f"joins this column's average, spread and ends; as labels, "
+            f"joins this column's average, spread and the shape of its "
+            f"two tails; as labels, "
             f"only the values wearing no marker are described that way; "
             f"as codes, no average is published at all, and the codes "
             f"themselves are published under the smallest-group size in "
@@ -2237,9 +2248,9 @@ def rendered(form: str, arguments: "tuple[object, ...]") -> str:
             f"a set of categories may hold at most {_whole(arguments, 4)}. "
             f"Describing it "
             f"from the part that does read would publish an average, a "
-            f"smallest "
-            f"and a largest value that the rest of the column contradicts, "
-            f"so "
+            f"spread "
+            f"and points along a range that the rest of the column "
+            f"contradicts, so "
             f"synthtwin describes it as free text and publishes no value of "
             f"it "
             f"at all. If these are measurements written with a currency "

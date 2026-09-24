@@ -722,8 +722,13 @@ _LISTING_WORDS = {
         "how many different numbers your column holds, as distinct from "
         "how many different ways of writing them"
     ),
+    # NOT "between the eleven your description names" (the review of
+    # 2026-09-23, item 7): a ladder names eleven AT MOST and since stage
+    # 3 normally fewer, both ends among the withheld. The ninety is a
+    # property of the FORMAT and stays; the eleven was a claim about this
+    # description and goes.
     "numeric.percentiles_between": (
-        "the ninety percentile rungs between the eleven your "
+        "the ninety percentile rungs that lie between the rungs your "
         "description names, which say where your numbers sit between "
         "them"
     ),
@@ -858,6 +863,13 @@ def _expectations_lines() -> "list[str]":
     promises nothing about later versions -- no version number, no slot,
     no date -- because a promise about unbuilt work is exactly the kind
     of sentence this project's claim inventory exists to keep out.
+
+    AND IT PROMISES NO CHECK STAGE 3 TOOK AWAY (review of 2026-09-23,
+    finding 7). It said "the smallest and largest exactly, the nine steps
+    between them" on a report whose description publishes neither end.
+    Measured on 100 readings 0.125 to 99.125: `min`, `max` and six of the
+    nine interior rungs are withheld, so three rungs and two tails are
+    the whole of what a ladder check has to work with.
     """
     return [
         _RULE,
@@ -869,8 +881,12 @@ def _expectations_lines() -> "list[str]":
         "  * the share of each published label, against the count the",
         "    description publishes for it;",
         "  * where a column's values sit along its distribution ladder --",
-        "    the smallest and largest exactly, the nine steps between them",
-        "    against the window this method states for each;",
+        "    every rung the description publishes, against the window this",
+        "    method states for each, and each tail against its published",
+        "    boundary, the rows beyond it and how far beyond they lie. A",
+        "    rung the description withholds is not checked, because there",
+        "    is nothing published to check it against, and since stage 3",
+        "    that is normally both ends and the rungs nearest them;",
         "  * spread and shape summaries, against their stated windows;",
         "  * how many cells are empty and how many hold a value;",
         "  * value-format read-back: that the file writes its numbers,",
@@ -911,6 +927,18 @@ def _floor_gate_lines(floor: int) -> "list[str]":
     What is fixed here is the rule, which holds whether or not it bit
     today; how many times it bit is said once, by the caller, from the
     census.
+
+    AND THE RULE IS STATED WITH ITS SCOPE AND ITS EXCEPTIONS (review of
+    2026-09-23, finding 9). "A group fewer than 11 rows carry is named in
+    no description written under it" was written as a universal, and the
+    owner has accepted counts that break it: 99 decimal cells beside one
+    word publish `n_not_numeric 1` and a remark carrying that 1, because
+    a count of CELLS BY KIND names no value of anybody's. The floor also
+    counts ROWS and not people (plan P4-D348), so twelve visits of one
+    patient are twelve. A blanket assurance beside an accepted exception
+    is the defect this repository treats as equal to a crash, so the
+    scope is named here: what the floor governs is the naming of a
+    VALUE.
     """
     if floor < 2:
         return [
@@ -921,14 +949,24 @@ def _floor_gate_lines(floor: int) -> "list[str]":
             "  could.",
         ]
     return [
-        f"  The publication floor of this description is {floor}: a group",
-        f"  fewer than {floor} rows carry is named in no description",
-        "  written under it -- that is what a floor is for -- so a count",
-        "  of it is not something a description of this file carries",
-        "  either. Where that closes over a check, the comparison is",
-        "  still made and what cannot be shown is which way it came out,",
-        "  because two files no description tells apart would come out",
-        "  differently.",
+        f"  The publication floor of this description is {floor}, and what",
+        "  it governs is the naming of a VALUE: a value fewer than",
+        f"  {floor} rows hold is named in no description written under it",
+        "  -- that is what a floor is for -- so a count of that value is",
+        "  not something a description of this file carries either. Where",
+        "  that closes over a check, the comparison is still made and",
+        "  what cannot be shown is which way it came out, because two",
+        "  files no description tells apart would come out differently.",
+        "",
+        f"  What the floor of {floor} does NOT cover, said here rather",
+        "  than left for you to find. A count of CELLS BY KIND names no",
+        "  value and is published whatever its size: one cell of a",
+        "  numeric column holding a word is published as one, and a",
+        "  remark can carry that number. And the floor counts ROWS, not",
+        "  people -- where your table holds several rows per person,",
+        "  twelve visits of one patient are twelve rows, so a value only",
+        "  that patient has is published with the count twelve. The size",
+        "  of the table is the one number counted in people.",
     ]
 
 
@@ -1076,7 +1114,7 @@ def _handling_lines(
         "not in this file, not on the screen, not in a message that stops",
         "the command. That is a rule about what the page SAYS, and it is",
         "not permission to move the page: everything above about keeping",
-        "these five files applies to this one unchanged.",
+        "the six files a full run leaves applies to this one unchanged.",
         "",
         "What it is NOT is a barrier against somebody who HAS the checked",
         "file and runs this check on it again and again, each time with a",
