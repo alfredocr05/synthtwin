@@ -930,8 +930,10 @@ def _floor_gate_lines(floor: int) -> "list[str]":
 
     AND THE RULE IS STATED WITH ITS SCOPE AND ITS EXCEPTIONS (review of
     2026-09-23, finding 9). "A group fewer than 11 rows carry is named in
-    no description written under it" was written as a universal, and the
-    owner has accepted counts that break it: 99 decimal cells beside one
+    no description written under it" was written as a universal, and
+    counts that break it stay published by the orchestrator's call of
+    2026-09-22 (plan P4-D332, ledger K-S3-12, never put to the owner):
+    99 decimal cells beside one
     word publish `n_not_numeric 1` and a remark carrying that 1, because
     a count of CELLS BY KIND names no value of anybody's. The floor also
     counts ROWS and not people (plan P4-D348), so twelve visits of one

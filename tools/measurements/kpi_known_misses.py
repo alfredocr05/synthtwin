@@ -1,4 +1,4 @@
-"""K-2B-47, K-2B-49, K-2B-50 and K-2B-51 (OPEN): the carried misses and the two still with the owner.
+"""K-2B-47 and K-2B-49 (OPEN), K-2B-50 and K-2B-51 (GREEN since the owner's rulings of 2026-09-21).
 
 The stage-2b plan carries four measured misses that no other KPI holds,
 each rebuilt here from its plan statement with a committed seed:
@@ -84,8 +84,8 @@ the same thing:
   of carried items should say so rather than sending every line to this
   entry.
 
-K-2B-50 and K-2B-51 (OPEN), the two fidelity failures the changelog
-leaves "still with the owner", which had no regression ceiling at all
+K-2B-50 and K-2B-51, the two fidelity failures the owner ruled on
+2026-09-21 were to be fixed (both GREEN since), which had no regression ceiling at all
 until this pass (round-2 ledger item 1):
 
 - pooled numbers beside labels: 100 `alpha`, twenty `100` and ten each

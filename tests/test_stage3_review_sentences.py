@@ -442,8 +442,10 @@ def test_the_floor_is_described_with_its_scope_and_its_exceptions(
     THE SENTENCE (finding 9). The quality report said "a group fewer than
     11 rows carry is named in no description written under it -- that is
     what a floor is for -- so a count of it is not something a
-    description of this file carries either". The owner has accepted
-    counts that break it, and the simplest is measured here: 99 decimal
+    description of this file carries either". Counts that break it stay
+    published by the orchestrator's call of 2026-09-22 (plan P4-D332,
+    ledger K-S3-12, never put to the owner), and the simplest is measured
+    here: 99 decimal
     cells beside one word publish `n_not_numeric` 1 and a remark carrying
     that 1. A count of cells BY KIND names no value of anybody's, which
     is why it is allowed -- and a blanket assurance beside an accepted
