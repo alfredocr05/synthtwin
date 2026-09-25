@@ -11594,6 +11594,85 @@ def _mark_in_words(mark: str) -> str:
     return "a mark this version does not name"
 
 
+def _pool_alone_check(
+    name: str,
+    fact: str,
+    pool: int,
+    measured: "dict[str, int] | None",
+    order: "tuple[str, ...]",
+    population: int,
+    floor: int,
+    numeric: int,
+) -> Check:
+    """A census of marks that is ONLY a pool, held as one count (plan P4-D352).
+
+    It said nothing at all: `_mixture_check` is filed only where the
+    census names a convention, so a pool standing alone was never
+    compared, and 180 grouped amounts came back bare with no verdict.
+
+    What the census publishes is the pool and that every mark stood
+    under the floor, so that is what is compared, in this order:
+
+    1. a file whose own description NAMES a mark is MISSED first,
+       whatever its population: no mark the method writes carries the
+       floor, and the real column's own description names none;
+    2. a silent file that could have spoken the pool against its own
+       totals is MISSED -- the bare copy of a twin holding the pool;
+    3. a population short of the pool, a leftover strictly between
+       nought and the floor, or a silent file otherwise is WITHHELD
+       under the pooled gate, and the generator's report names the
+       difference;
+    4. a file pooling the same count is HELD, however it splits it under
+       the floor, because which marks the pool held is not published,
+       and a file pooling another count is MISSED.
+
+    Guarantees: accepts the column name, the fact, the published pool,
+    the file's own census, the enumeration fixing the order, the cells
+    that could wear a mark, the settings floor and every number of the
+    file; returns one check. Determinism: a function of those inputs.
+    Raises nothing. No I/O of any kind. Only counts a description
+    publishes are printed, and a mark is named in words.
+    """
+    least = parsing.census_floor(floor)
+    asked = f"{pool} grouped, each mark on fewer than {least}"
+    if measured is None:
+        return Check(
+            name, f"numeric.{fact}", f"spelling.{fact}", WITHHELD,
+            asked, "", _GATE_CLOSED,
+        )
+    for convention in order:
+        if convention in measured and measured[convention] > 0:
+            return Check(
+                name, f"numeric.{fact}", f"spelling.{fact}", MISSED,
+                asked,
+                f"{measured[convention]} with {_mark_in_words(convention)}",
+            )
+    pooled = 0
+    if taxonomy.SUPPRESSED_LABEL in measured:
+        pooled = measured[taxonomy.SUPPRESSED_LABEL]
+    rest = population - pool
+    if (
+        pooled < 1
+        and rest >= 0
+        and not (0 < rest < least)
+        and parsing.census_nameable([pool], [population, numeric], floor)
+    ):
+        return Check(
+            name, f"numeric.{fact}", f"spelling.{fact}", MISSED,
+            asked, _NO_NAMEABLE_COUNT,
+        )
+    if rest < 0 or (0 < rest < least) or pooled < 1:
+        return Check(
+            name, f"numeric.{fact}", f"spelling.{fact}", WITHHELD,
+            asked, "", _GATE_POOLED,
+        )
+    return Check(
+        name, f"numeric.{fact}", f"spelling.{fact}",
+        HELD if pooled == pool else MISSED,
+        asked, f"{pooled} grouped, each mark on fewer than {least}",
+    )
+
+
 def _mixture_check(
     name: str,
     fact: str,
@@ -12033,8 +12112,25 @@ def _spelling_checks(
         for convention in order:
             if convention in census and census[convention] > 0:
                 worn = worn + 1
-        # ONE NAMED CONVENTION IS AN OBLIGATION TOO (plan P4-D142).
+        # ONE NAMED CONVENTION IS AN OBLIGATION TOO (plan P4-D142), AND
+        # SO IS A CENSUS OF MARKS THAT IS ONLY A POOL (plan P4-D352).
         if worn < 1:
+            if (
+                fact == "thousands_marks"
+                and taxonomy.SUPPRESSED_LABEL in census
+            ):
+                checks += [
+                    _pool_alone_check(
+                        name,
+                        fact,
+                        census[taxonomy.SUPPRESSED_LABEL],
+                        _map_at(block, fact),
+                        order,
+                        population,
+                        floor,
+                        numbers,
+                    )
+                ]
             continue
         checks += [
             _mixture_check(
@@ -20123,6 +20219,10 @@ def _numeric_listings(
             if convention in census and census[convention] > 0:
                 worn = worn + 1
         if worn >= 1:
+            continue
+        # A CENSUS OF MARKS THAT IS ONLY A POOL IS CHECKED, not listed
+        # (plan P4-D352), so no obligation is both.
+        if fact == "thousands_marks" and taxonomy.SUPPRESSED_LABEL in census:
             continue
         listings += [
             Listing(

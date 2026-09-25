@@ -15676,11 +15676,14 @@ def _number_cells(
     # and can take an allocated mark back off a cell, so a recount is the
     # only thing that sees the finished column. The walk now expands
     # unmarked duplicates first and leaves the marks alone wherever it
-    # can, and this says so whenever it could not.
+    # can, and this says so whenever it could not. ONLY A GROUPABLE CELL
+    # IS COUNTED (plan P4-D352): every other cell is offered the published
+    # mark and can never show it, so 70 grouped cells beside 130 under a
+    # thousand were reported as 200 published against 70 achieved.
     allocated = 0
     surviving = 0
     for index in range(len(holds)):
-        if not marks[index]:
+        if not marks[index] or not groupable[index]:
             continue
         allocated = allocated + 1
         if marks[index] in cells[index]:
@@ -16108,9 +16111,11 @@ def _named_conventions(
     """The conventions a mixture census NAMES, in the enumeration's order.
 
     The pooled remainder and the unavailable state name no convention,
-    so neither reaches the cells: what they cover is written in the
-    column's published majority, exactly as a pooled style count is
-    written plainly. That is the same rule `_plus_places` follows for a
+    so neither reaches the cells through this list: what they cover is
+    written in the column's published majority, exactly as a pooled
+    style count is written plainly -- except a census of marks that is
+    only a pool, which `_pool_alone_places` spends (plan P4-D352). That
+    is the same rule `_plus_places` follows for a
     pooled `decimal_plus`, and it is why a census that says nothing
     leaves the generator writing precisely what it wrote before this
     landing existed.
@@ -16216,11 +16221,15 @@ def _candidate_mark(facts: contract.NumericFacts) -> str:
     any exchange. Which mark is asked does not change the answer --
     whether writing a cell with a mark puts one in it depends on its form
     and its figures, never on which mark -- so any mark that writes
-    would do; this is the one the column itself offers first.
+    would do; this is the one the column itself offers first. A census
+    that is only a pool is asked with the comma (plan P4-D352): it names
+    no mark to ask with, and the comma is the first of the seven marks
+    `_pool_alone_places` spends it over.
 
     Guarantees: accepts one numeric block; returns "" only where the
-    column publishes no mark and its census names none. Determinism: a
-    fixed function of the block. Raises nothing. No I/O of any kind.
+    column publishes no mark and its census names none and pools
+    nothing. Determinism: a fixed function of the block. Raises nothing.
+    No I/O of any kind.
     """
     published = _grouping_mark(facts)
     if published:
@@ -16229,6 +16238,8 @@ def _candidate_mark(facts: contract.NumericFacts) -> str:
         facts.thousands_marks, parsing.PUBLISHED_GROUP_MARKS
     ):
         return _mark_written(mark)
+    if taxonomy.SUPPRESSED_LABEL in facts.thousands_marks:
+        return parsing.GROUP_MARKS[0]
     return ""
 
 
@@ -16260,9 +16271,10 @@ def _mark_places(
     orders and four whole figures, because a second statement of those
     rules is a second thing to keep in step with `_styled_base`.
 
-    WHERE THE CENSUS NAMES NO MARK every groupable cell wears the
-    column's published mark, which is what every cell wore before the
-    census existed. WHERE IT NAMES ONE OR MORE (plan P4-D142, the final
+    WHERE THE CENSUS NAMES NO MARK AND POOLS NOTHING every groupable
+    cell wears the column's published mark, which is what every cell
+    wore before the census existed; where it names none and pools some,
+    `_pool_alone_places` spends the pool. WHERE IT NAMES ONE OR MORE (plan P4-D142, the final
     Codex review's grouping item 3), the census is the whole of the
     column's grouped cells and is spent as such, in three parts:
 
@@ -16313,7 +16325,12 @@ def _mark_places(
         facts.thousands_marks, parsing.PUBLISHED_GROUP_MARKS
     )
     if not named:
-        return worn, []
+        alone = 0
+        if taxonomy.SUPPRESSED_LABEL in facts.thousands_marks:
+            alone = facts.thousands_marks[taxonomy.SUPPRESSED_LABEL]
+        if alone < 1:
+            return worn, []
+        return _pool_alone_places(column, groupable, floor, holds, alone)
     taken: "dict[int, int]" = {}
     notes: list[Deviation] = []
     spending: "list[tuple[str, int]]" = []
@@ -16388,6 +16405,156 @@ def _mark_places(
     for index in range(len(groupable)):
         if groupable[index] and index not in taken:
             worn[index] = ""
+    return worn, notes
+
+
+def _pool_alone_places(
+    column: contract.ColumnBlock,
+    groupable: "list[bool]",
+    floor: int,
+    holds: "list[float] | None",
+    pool: int,
+) -> "tuple[list[str], list[Deviation]]":
+    """Which mark each grouped cell wears where the census is ONLY a pool (G6.1).
+
+    THE POOL WAS NEVER WRITTEN (plan P4-D352). Where no mark reached the
+    census floor the census is the one key `(withheld)`, the column
+    publishes no mark, and the twin wrote every groupable cell bare with
+    nothing named: 180 amounts grouped with six marks on thirty cells
+    each, at a floor of 31, came back with no mark at all.
+
+    THE SEVEN MARKS SHARE IT, each on fewer cells than the census floor,
+    because which marks the pool held is not published and code written
+    on the twin meets every mark the real column could have written only
+    where the twin writes them all. The comma is one of the seven; the
+    exchange writes it as the point on a declared decimal-comma column.
+    The pool holds at most six times one less than the floor: a larger
+    one would say every mark was written, so the producer counts it under
+    its commonest mark and the loader refuses it (TM1).
+
+    1. HOW MANY, T. The groupable cells, where they number fewer than the
+       pool and the census floor together -- a leftover under the floor
+       cannot be the real column's own bare cells, which the census is
+       published beside only at nought or at least the floor -- and the
+       pool otherwise; never more than six times one less than the floor,
+       so the twin's own description pools the count again rather than
+       counting it under one mark.
+    2. WHICH CELLS. The T are taken over the groupable cells by the
+       spread `_plus_cells_by_value` states (plan P4-D149), so the cells
+       left bare are not the largest ones.
+    3. WHICH MARK, BY WHOLE RUNS. The chosen cells are walked in cell
+       order, one run of one value at a time, and each run goes whole to
+       the mark of `parsing.GROUP_MARKS` holding the fewest cells, the
+       earlier mark on a tie; a mark stops one short of the floor, and
+       the rest of the run goes on to the next with the fewest. So a
+       value is written two ways only where a mark fills, and the marks
+       take the values in turn across the whole range. Measured against
+       fixed shares of floor((k+1)T/7) - floor(kT/7) per mark, over 17
+       pool-only shapes at five seeds: both show every real mark, and
+       whole runs raise the twin's count of spellings past the published
+       one on 5 twins by 5, fixed shares on 10 by 35.
+    4. EVERY MARK IS SHOWN wherever T reaches seven: while a mark holds
+       no cell, the mark holding the most, the earlier on a tie, gives it
+       the last cell it took.
+
+    NAMED WHERE THE TWIN CANNOT POOL THE SAME COUNT (contract C6-89):
+    wherever the groupable cells are not the pool and number fewer than
+    the pool and the census floor together, the report names
+    `thousands_marks` with the pool and the groupable cells. That is
+    where the checker withholds the comparison, and the capped case is
+    in it: sixty pooled at a floor of eleven beside sixty-five groupable
+    cells marks sixty, writes five bare and names 60 against 65.
+
+    Guarantees: accepts the column, one flag per cell, the settings
+    floor, one value per cell (or None, every cell its own run) and the
+    pool; returns one mark per cell, as written before any exchange, and
+    at most one deviation. Determinism: a function of those inputs, over
+    a fixed index order. Raises nothing. No I/O.
+    """
+    line = parsing.census_floor(floor)
+    marks = parsing.GROUP_MARKS
+    cells: "list[int]" = []
+    for index in range(len(groupable)):
+        if groupable[index]:
+            cells += [index]
+    wanted = pool
+    if len(cells) < pool + line:
+        wanted = len(cells)
+    wanted = min(wanted, (len(marks) - 1) * (line - 1))
+    values = holds
+    if values is None:
+        values = [float(index) for index in range(len(groupable))]
+    worn = [""] * len(groupable)
+    chosen = _plus_cells_by_value(cells, values, wanted, True)
+    held = [0] * len(marks)
+    last = [-1] * len(marks)
+    start = 0
+    while start < len(chosen):
+        end = start + 1
+        while end < len(chosen) and values[chosen[end]] == values[chosen[start]]:
+            end = end + 1
+        step = start
+        while step < end:
+            place = 0
+            for other in range(len(marks)):
+                if held[other] < held[place]:
+                    place = other
+            take = min(line - 1 - held[place], end - step)
+            for index in chosen[step : step + take]:
+                worn[index] = marks[place]
+                last[place] = index
+            held[place] = held[place] + take
+            step = step + take
+        start = end
+    for place in range(len(marks)):
+        if held[place] > 0:
+            continue
+        giver = 0
+        for other in range(len(marks)):
+            if held[other] > held[giver]:
+                giver = other
+        if held[giver] < 2:
+            break
+        worn[last[giver]] = marks[place]
+        last[place] = last[giver]
+        held[place] = 1
+        held[giver] = held[giver] - 1
+        last[giver] = -1
+        for index in chosen:
+            if worn[index] == marks[giver]:
+                last[giver] = index
+    notes: list[Deviation] = []
+    if len(cells) < pool:
+        notes += [
+            _deviation(
+                column.name,
+                "thousands_marks",
+                f"{pool}",
+                f"{len(cells)}",
+                "The twin groups its thousands with every mark the "
+                "description holds back, each on fewer cells than the "
+                "smallest group size, but its published ladder and forms "
+                "left fewer cells large enough to be grouped than the "
+                "description counts, so fewer of them carry a mark.",
+            )
+        ]
+    if pool < len(cells) < pool + line:
+        notes += [
+            _deviation(
+                column.name,
+                "thousands_marks",
+                f"{pool}",
+                f"{len(cells)}",
+                "The twin groups its thousands with every mark the "
+                "description holds back, each on fewer cells than the "
+                "smallest group size, but its published ladder and forms "
+                "left more cells large enough to be grouped than the "
+                "description counts, too few more to stand as cells "
+                "written with no mark, so the twin marks them as well, as "
+                "far as a count the description may hold back reaches, "
+                "and writes any past that with none.",
+            )
+        ]
     return worn, notes
 
 
