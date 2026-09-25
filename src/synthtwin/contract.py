@@ -11512,10 +11512,10 @@ def _withheld_end(
     column's spread, the narrowest reaches 400, the moment reading 1301
     and Cauchy-Schwarz 3745: the first two undershoot that column's mean
     of 230.3625 and the third overshoots it, so the twin misses
-    `moments.mean` and `moments.std` and its report says so. That is an
-    accepted, measured limit (`K-S3-15`) and not a rounding: the mean of
-    that column is what the far cell puts in it, so no construction that
-    keeps the cell back can average to it.
+    `moments.mean` and `moments.std` and its report says so. That is a
+    measured cost (`K-S3-15`, not yet put to the owner) and not a
+    rounding: the mean of that column is what the far cell puts in it,
+    so no construction that keeps the cell back can average to it.
 
     ``facts`` is carried because the two readings this one was chosen over
     need it, and a signature that hid which facts were available would

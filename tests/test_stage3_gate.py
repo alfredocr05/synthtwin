@@ -24,9 +24,11 @@ THE CLASSES, AND WHAT EACH IS ASKED (design section 2, read off
 * **POOLED** -- a pool of what the floor held back. Exempt under the
   owner's ruling 2 of 2026-09-17: the pool exists to say nothing about
   its members.
-* **SETTLED** -- the counts the owner has accepted. Exempt BY NAME,
-  each with the entry that settled it in `GATE_SETTLED_BY`, and never
-  by a rule that could quietly widen.
+* **SETTLED** -- counts left published by name: one the owner accepted
+  (K-2B-48), two left as is after the owner's questions (P4-D271,
+  P4-D277), and the orchestrator's calls (P4-D332) and design rows.
+  Exempt BY NAME, each with the entry that settled it in
+  `GATE_SETTLED_BY`, and never by a rule that could quietly widen.
 * **DISTINCT** -- a count of different VALUES, not of rows. Each value
   stands on at least one row and the count says which nothing.
 * **WRITTEN_FORM** -- the lengths and widths the owner kept (decision 2

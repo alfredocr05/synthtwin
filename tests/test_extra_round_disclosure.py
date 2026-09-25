@@ -511,7 +511,7 @@ def test_the_questions_file_cannot_restore_an_absorbed_count(
     `n_present 400` is the one unpadded record.
 
     AND THE TWIN OF THIS SHAPE MISSES ITS COLUMN'S MEAN AND SPREAD, which
-    is the accepted limit of plan P4-D349 and not this repair coming
+    is the measured cost of plan P4-D349 and not this repair coming
     undone. The 399 codes run consecutively, so each of the column's
     tails would hand its own cells back -- twelve DIFFERENT whole
     distances summing to the least twelve different whole numbers can sum
@@ -537,7 +537,7 @@ def test_the_questions_file_cannot_restore_an_absorbed_count(
     assert result["generated"] == 0
     assert result["real_exit"] == 0, (
         "the real table no longer meets its own description, which would "
-        "be a defect of this pass and not the accepted limit"
+        "be a defect of this pass and not the measured cost"
     )
     assert result["twin_exit"] == 3, (
         "the twin of a column whose withheld tail carries its whole spread "
@@ -567,7 +567,7 @@ def test_the_questions_file_cannot_restore_an_absorbed_count(
     for line in verdicts:
         assert "moments.mean" in line or "moments.std" in line, (
             f"the twin misses something other than the two moments the "
-            f"accepted limit predicts: {line}"
+            f"measured cost predicts: {line}"
         )
     assert any("moments.mean" in line for line in verdicts)
     assert any("moments.std" in line for line in verdicts)

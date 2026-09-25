@@ -23,8 +23,8 @@ harness, forty seeds:
   and 3. The push trades twelve agreements for four above-counts, all in
   column 9 (110 and 6 to 117 and 0) and column 11 (68 and 0 to 63 and 2).
 
-THE CEILING, ACCEPTED BY THE ORCHESTRATOR 2026-09-19 (not an owner
-ruling; the owner may reverse it): the carried-f-numbers push (G6.5a)
+THE CEILING, ACCEPTED BY THE ORCHESTRATOR 2026-09-19 AND BY THE OWNER
+2026-09-21 ("Accepted"): the carried-f-numbers push (G6.5a)
 repairs a twin that missed its own distinct-value count on a nearly full
 band, and on this battery it trades 12 more agreements outside the 0.02
 window (597 to 609 of 2,160) for 4 fewer missed rows-above counts (7 to

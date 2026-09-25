@@ -2367,7 +2367,7 @@
      "pairs": 2160
     }
    },
-   "target_stage": "the pairing walk of G6B.4 (stage 6, as the orchestrator's acceptance of 2026-09-19 names it; needs no ruling)",
+   "target_stage": "the pairing walk of G6B.4 (stage 6, as the trade the orchestrator accepted on 2026-09-19 and the owner on 2026-09-21 names it)",
    "target": {
     "agreements_outside": 550,
     "above_counts_missed": 0
@@ -2376,7 +2376,7 @@
     "pinned_nodes_failing": "exact"
    },
    "nodes_min_collected": 1,
-   "status_note": "ACCEPTED BY THE ORCHESTRATOR 2026-09-19 (not an owner ruling; the owner may reverse it): the carried-f-numbers push (G6.5a) repairs a twin that missed its own distinct-value count on a nearly full band, and it trades agreements outside the 0.02 window for missed rows-above counts. The target stays 550 and 0 (the pairing walk, stage 6), and this entry belongs to stage 6, which owns it. CEILINGS MOVE IN THEIR OWN COMMIT, NEVER INSIDE A MERGE, and this one has moved three times: to 609 and 4 on 2026-09-22 with the default floor of 11 (P4-D316, P4-D320), the default withholding more and not a defect; DOWN to 556 and 1 at stage 3's integration, where the numeric tail rule stopped the ladder running to the published extremes; and UP to 579 and 3 on 2026-09-23 for P4-D346's listing rule, where a position whose tail names a value ONE row holds says its SHAPE instead (columns 0, 5 and 11 fall, 7 and 9 rise, and the misses move from column 0 to 7 and 11). A ceiling that goes back up is reported as one."
+   "status_note": "ACCEPTED BY THE ORCHESTRATOR 2026-09-19 AND BY THE OWNER 2026-09-21 (\"Accepted\", at that day's ceiling of 609 outside and 3 missed): the carried-f-numbers push (G6.5a) repairs a twin that missed its own distinct-value count on a nearly full band, and it trades agreements outside the 0.02 window for missed rows-above counts. The target stays 550 and 0 (the pairing walk, stage 6), and this entry belongs to stage 6, which owns it. CEILINGS MOVE IN THEIR OWN COMMIT, NEVER INSIDE A MERGE, and this one has moved three times: to 609 and 4 on 2026-09-22 with the default floor of 11 (P4-D316, P4-D320), the default withholding more and not a defect; DOWN to 556 and 1 at stage 3's integration, where the numeric tail rule stopped the ladder running to the published extremes; and UP to 579 and 3 on 2026-09-23 for P4-D346's listing rule, where a position whose tail names a value ONE row holds says its SHAPE instead (columns 0, 5 and 11 fall, 7 and 9 rise, and the misses move from column 0 to 7 and 11). A ceiling that goes back up is reported as one."
   },
   {
    "id": "K-P4-07",
@@ -4236,7 +4236,7 @@
    "driver": null,
    "pin_strength": "WEAKER",
    "measured_on": "140-row alpha/+10/+11/+12 column, seed 4; 30 randomised held-back shapes; ceiling moved at the pooled-scale landing of 2026-09-21 and moved back by the repair pass of the same day",
-   "evidence": "+11 x10 and +12 x10 rebuilt exactly at floor 11; the reviewer's sweep read 85 of 469 held-back cells reproduced (7 before) and 2 of 30 columns rebuilt. That sweep was not kept, so test_k_2b_19 commits a fresh one of the same family (the pinned column plus 30 seeded columns; the 19 that hold a label back are measured); the pinned node asserts the leak EXISTS and is therefore not mapped to this KPI (critic correction). THE CEILING STANDS AT 63 OF 251 held-back cells reproduced exactly, against the 55 the owner accepted on 2026-09-18 and re-accepted on 2026-09-22, with columns_rebuilt_exactly unmoved at 1 of 19. THE CAUSE WAS ISOLATED rather than guessed: exactly ONE of the nineteen columns publishes a pooled scale under contract 6.3.3, and withdrawing method G8.3c's placement alone -- leaving the publication in place -- puts the number back at 55 on the same seed and the same nineteen columns; withdrawing the publication instead does the same. Across five choices of G8.3c's own spacing the count moves between 62 and 64 and never back to 55, so this is the price of placing a pool at all and not of the spacing chosen. Every move of this ceiling, and the producer refusals contract 6.3.3 gained with it, are in plan P4-D301 and P4-D302.",
+   "evidence": "+11 x10 and +12 x10 rebuilt exactly at floor 11; the reviewer's sweep read 85 of 469 held-back cells reproduced (7 before) and 2 of 30 columns rebuilt. That sweep was not kept, so test_k_2b_19 commits a fresh one of the same family (the pinned column plus 30 seeded columns; the 19 that hold a label back are measured); the pinned node asserts the leak EXISTS and is therefore not mapped to this KPI (critic correction). THE CEILING STANDS AT 63 OF 251 held-back cells reproduced exactly, against the 55 the owner accepted on 2026-09-18 (and 63 on 2026-09-22), with columns_rebuilt_exactly unmoved at 1 of 19. THE CAUSE WAS ISOLATED rather than guessed: exactly ONE of the nineteen columns publishes a pooled scale under contract 6.3.3, and withdrawing method G8.3c's placement alone -- leaving the publication in place -- puts the number back at 55 on the same seed and the same nineteen columns; withdrawing the publication instead does the same. Across five choices of G8.3c's own spacing the count moves between 62 and 64 and never back to 55, so this is the price of placing a pool at all and not of the spacing chosen. Every move of this ceiling, and the producer refusals contract 6.3.3 gained with it, are in plan P4-D301 and P4-D302.",
    "value_at": {
     "commit": "230fc89",
     "date": "2026-09-21",
@@ -5227,12 +5227,12 @@
   },
   {
    "id": "K-2B-45",
-   "phase_stage": "Stage 2b (the twin definition, clause 2); the orchestrator's reading of the identifier-room decision, not an owner ruling",
+   "phase_stage": "Stage 2b (the twin definition, clause 2); accepted by the owner 2026-09-21, confirmed 2026-09-25",
    "category": "PRIVACY",
    "headline": false,
    "name": "ACCEPTED LIMIT: whole real rows through a made-up identifier that coincides with a real one",
    "status": "ACCEPTED_LIMIT",
-   "rule": "on the realistic shapes with a declared identifier (A files, D labels; CSV; floors 1 and 11): made-up identifiers equal to a real one must not rise (16 of 400 at every seed); whole real rows must not rise past the chance ceiling of those 16 rows also matching their real row on the other columns (Binomial(16, p), P(exceed) < 1e-4: A p = 1/4 x 1/9, ceiling 5; D p = 0.454 x 1/3, ceiling 9); rows equal to a real row but for the identifier are held at D floor 11's 394, and are 400 of 400 (every row) for A and for D at floor 1, where the bound is the row count.. Every whole-row copy here has a made-up identifier equal to a real one. The owner accepted real record numbers reaching the twin (K-2B-18); whole real rows were not put to the owner; target 0 whole real rows",
+   "rule": "on the realistic shapes with a declared identifier (A files, D labels; CSV; floors 1 and 11): made-up identifiers equal to a real one must not rise (16 of 400 at every seed); whole real rows must not rise past the chance ceiling of those 16 rows also matching their real row on the other columns (Binomial(16, p), P(exceed) < 1e-4: A p = 1/4 x 1/9, ceiling 5; D p = 0.454 x 1/3, ceiling 9); rows equal to a real row but for the identifier are held at D floor 11's 394, and are 400 of 400 (every row) for A and for D at floor 1, where the bound is the row count.. Every whole-row copy here has a made-up identifier equal to a real one. The owner accepted real record numbers reaching the twin (K-2B-18) and, on 2026-09-21, whole real rows through a coincident one",
    "rule_kind": "at_most",
    "expected": {
     "A_csv_f1_coincident_ids": 16,
@@ -5275,7 +5275,7 @@
      "D_csv_f1_whole": 1
     }
    },
-   "status_note": "ACCEPTED by the owner, 2026-09-25, the first time it was put to them: a twin row can match a real row by chance where a made-up identifier coincides with a real one, and nothing tells a reader which. Held at its must-not-get-worse bound."
+   "status_note": "ACCEPTED by the owner, 2026-09-21: \"Yes, it may be a real row!\" (1 row in 400 on two of four realistic shapes); confirmed 2026-09-25, re-asked by mistake: \"Accept it as a limit\". A twin row can match a real row by chance where a made-up identifier coincides with a real one, and nothing tells a reader which. Held at its must-not-get-worse bound."
   },
   {
    "id": "K-2B-46",
@@ -5714,7 +5714,7 @@
     "count_leaves_1_to_10": 0
    },
    "target_stage": "none set: P4-D332 is the orchestrator's call of 2026-09-22, reversible, and goes to the owner on the board. Flooring these counts broke goal 1 in 7 of 7 probed shapes and the count still reached the reader through n_missing",
-   "status_note": "LEFT AS IS by P4-D332, extending the owner's K-2B-28 and K-2B-48 acceptances under the owner's own principle: 'What matters is not show the relation in a descriptive file, just showing that the value exist is not an issue'. The ceiling is 65 so that a later landing cannot widen the exposure without moving this number and saying why. THE THIRD NUMBER IS ASKED OF ALL THIRTEEN FLOORED POSITIONS while the rule arms four, so a battery shape whose complement is a competing reading's count -- the class P4-D332 leaves published in a key beside the sentence -- would raise it. That is a decision to record here, not automatically a defect: what the ceiling forbids is the number moving while nobody is looking.",
+   "status_note": "LEFT AS IS by P4-D332, extending K-2B-28 (left as is after the owner's questions, not an acceptance) and the owner's K-2B-48 acceptance under the owner's own principle: 'What matters is not show the relation in a descriptive file, just showing that the value exist is not an issue'. The ceiling is 65 so that a later landing cannot widen the exposure without moving this number and saying why. THE THIRD NUMBER IS ASKED OF ALL THIRTEEN FLOORED POSITIONS while the rule arms four, so a battery shape whose complement is a competing reading's count -- the class P4-D332 leaves published in a key beside the sentence -- would raise it. That is a decision to record here, not automatically a defect: what the ceiling forbids is the number moving while nobody is looking.",
    "nodes_min_collected": 0
   },
   {
@@ -6209,8 +6209,8 @@
    "category": "STATS",
    "headline": false,
    "name": "What the withheld tail pair costs the twin",
-   "status": "ACCEPTED_LIMIT",
-   "rule": "over the eight reconstruction attacks of tests/test_stage3_gate.py and the two shapes beside them -- 399 consecutive record numbers with one far value and the same column without it -- at a floor of eleven, count the tail SIDES that publish neither distance, and count every checkable obligation their twins MISS at seeds 0 and 4 together. The second number may not rise: a side withheld is a side whose rows are read through the column's own published mean and spread, and a twin that misses more than the far-value shape's two moments is a reading that has stopped working rather than a limit that was accepted",
+   "status": "OPEN",
+   "rule": "over the eight reconstruction attacks of tests/test_stage3_gate.py and the two shapes beside them -- 399 consecutive record numbers with one far value and the same column without it -- at a floor of eleven, count the tail SIDES that publish neither distance, and count every checkable obligation their twins MISS at seeds 0 and 4 together. The second number may not rise: a side withheld is a side whose rows are read through the column's own published mean and spread, and a twin that misses more than the far-value shape's two moments is a reading that has stopped working rather than the cost measured here; target 0 obligations missed",
    "rule_kind": "at_most",
    "expected": {
     "sides_publishing_neither_distance": 17,
@@ -6229,7 +6229,11 @@
    "pin_strength": "NONE",
    "measured_on": "tests/test_stage3_gate.py::withheld_cost, ten single-column shapes at a floor of eleven, each described, generated at seeds 0 and 4 and checked",
    "evidence": "17 tail sides over 10 shapes publish neither distance, and their twins miss FOUR obligations in total -- `moments.mean` and `moments.std`, at both seeds, on ONE shape: 399 consecutive record numbers `00001` to `00399` beside a single `12345`. Every other shape's twin misses nothing, the same column with `00400` in place of the far value among them, so the cost is the far value and not the withholding. WHY IT CANNOT BE REPAIRED BY A BETTER READING: three were measured (plan P4-D349). `rows` grid steps past the boundary, which is what ships, reaches 400; `mean + sqrt(3) std` reaches 1301; Cauchy-Schwarz's own bound on the mean of `m` of `K` cells reaches 3745. The first two undershoot the column's mean of 230.3625 and the third overshoots it, because that mean IS what the far cell puts in it -- so no construction that keeps the cell back can average to it. THE READING THAT SHIPS IS THE NARROWEST AND IT IS ALSO THE MOST FAITHFUL ELSEWHERE: on the integers 0 to 1100 the twin's two ends are 0.0 and 1100.0, the column's own, and on 200 `1 000`-`1 199` beside 100 `3 000`-`3 099` the published census of 200 spaces and 100 narrow spaces comes back exactly, where the moment reading put twelve cells below 1000 and held 89 of the 100. The twin's own report names both deviations of the far-value shape and the quality report reports them MISSED, so nothing here is silent.",
-   "status_note": "ACCEPTED AS A LIMIT BY THE FIX PASS OF STAGE 3 (plan P4-D349), and it is the price of closing the review's exact reconstruction. Before the pass, a tail whose published rows, mean and root-mean-square distance -- read with the column's own `every value different` remark -- left ONE multiset of distances published that pair anyway, and every one of its outer cells came back exactly. It now publishes its boundary and its rows and neither distance. On a column whose withheld tail carries the whole of its spread that costs the twin the column's exact mean and spread, and three readings of a withheld tail were measured before that was accepted, which the owner's two mandatory goals will not let anybody pretend is nothing: it is recorded here, named in the twin's own report, and the shape it happens to is stated. Closing it would take publishing something about the tail, which is the thing this pass withdrew.",
+   "target_stage": "stage 3's follow-up A before 3b: the direct witness of STATE's 'A tail withheld at a raised floor costs the twin its spread'; what it leaves goes to the owner",
+   "target": {
+    "obligations_their_twins_miss": 0
+   },
+   "status_note": "OPEN. The fix pass of stage 3 filed it ACCEPTED_LIMIT (plan P4-D349) and never put it to the owner, whose trade it is: privacy against the twin's mean and spread (P4-D351). It is the price of closing the review's exact reconstruction. Before the pass, a tail whose published rows, mean and root-mean-square distance -- read with the column's own `every value different` remark -- left ONE multiset of distances published that pair anyway, and every one of its outer cells came back exactly. It now publishes its boundary and its rows and neither distance. On a column whose withheld tail carries the whole of its spread that costs the twin the column's exact mean and spread, and three readings of a withheld tail were measured: it is recorded here, named in the twin's own report, and the shape it happens to is stated. Closing it would take publishing something about the tail, which is the thing this pass withdrew.",
    "nodes_min_collected": 0,
    "value_at": {
     "commit": "ee56999",

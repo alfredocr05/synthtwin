@@ -6,6 +6,19 @@ exists).
 
 ## [Unreleased]
 
+### The owner's rulings of 2026-09-21 recorded, and `K-S3-15` never put to the owner (2026-09-25)
+
+**Three answers of 2026-09-21 were in no record.** The owner accepted
+whole real rows through a coincident identifier ("Yes, it may be a real
+row!", `K-2B-45`), which the record had dated 2026-09-25, the day it was
+asked again by mistake and confirmed; accepted the readings trade on
+three- and four-number cells at 609 and 3 ("Accepted", `K-P4-06`, still
+OPEN at its target); and kept the spread fix in stage 3 (`K-P3-03`).
+**`K-S3-15` is OPEN**: the fix pass accepted it and never put it to the
+owner, whose trade it is; stage 3's follow-up A comes first, and what it
+leaves goes to the owner. `K-2B-28` is no longer called an owner
+acceptance anywhere. Plan P4-D351.
+
 ### CI's demonstration check reads the floor it checks (2026-09-25)
 
 **Stage 3's first CI run was red in the build job** (run 36121790821),
@@ -2254,8 +2267,9 @@ one question for the owner.
   synthtwin reads Excel and delimited text only, and openpyxl is a test
   dependency only.
 - **2026-09-17.** Rulings 1 to 8, as listed above.
-- **2026-09-18.** Seven limits accepted, plus fractions of a second
-  written as nought (below).
+- **2026-09-18.** Five limits accepted and two counts left as is after
+  the owner's questions; fractions of a second written as nought is the
+  orchestrator's call (below).
 
 **Accepted by the owner (2026-09-18), in the owner's words:**
 

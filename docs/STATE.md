@@ -49,7 +49,7 @@ stays in scope.
 | phase | **Phase 4 REOPENED 2026-09-12** — it closed on 2026-09-11 with silent within-column defects live inside its own charter. Phase 5 does not start until the ordered list below reaches it |
 | plan | This page is the plan of record. `docs/plans/phase-5-relationships.md` is a DRAFT whose scope is superseded: it deferred correlation, and correlation is now mandatory |
 | suite | 7,731 collected, and about 66 minutes in one process on the quiet machine (ledger `K-P0-10` carries the seconds). In CI it runs as **five shards**, the heaviest about 20 minutes. Re-measure here whenever the count moves |
-| KPIs | `tests/kpi/ledger.json`: 166 KPIs over phases 0-4 and stages 1, 2, 2b and 3, 30 of them headlines — which is the cap, so the next landing demotes one or raises it deliberately; 150 green, 9 open with the stage that owns each, 7 limits the owner accepted. Stage 3's five landings each allocated from `K-S3-01` and their integration renumbered them `K-S3-01` to `K-S3-12`, keeping ONE of them a headline (`K-S3-11`, the tail leak) and demoting the rest; the stage's gate added `K-S3-13` and `K-S3-14`, and its review's fix pass `K-S3-15`. **One command re-measures them all:** `.venv/bin/python tools/measurements/kpi_run.py` (add `--slow` for timings and scale). Run it at every stage close: **a KPI that drops is a regression even when every test is green** |
+| KPIs | `tests/kpi/ledger.json`: 166 KPIs over phases 0-4 and stages 1, 2, 2b and 3, 30 of them headlines — which is the cap, so the next landing demotes one or raises it deliberately; 150 green, 10 open with the stage that owns each, 6 limits the owner accepted. Stage 3's five landings each allocated from `K-S3-01` and their integration renumbered them `K-S3-01` to `K-S3-12`, keeping ONE of them a headline (`K-S3-11`, the tail leak) and demoting the rest; the stage's gate added `K-S3-13` and `K-S3-14`, and its review's fix pass `K-S3-15`. **One command re-measures them all:** `.venv/bin/python tools/measurements/kpi_run.py` (add `--slow` for timings and scale). Run it at every stage close: **a KPI that drops is a regression even when every test is green** |
 | checks | `ruff check .`, `mypy --strict src/`, the offline import scan, the provenance check, the decontamination scan, the signed attestation and the disposition seal — all clean |
 | CI | runs on every pull request, five Pythons across Ubuntu, Windows and macOS. **It saw stages 1, 2 and 2b for the first time on 2026-09-20 (PR #6, run 35508922164): every static check green, every test cell red on three defects, all three repaired.** Its **second** run (35541541720) was red again on a deeper layer, all of it in the tests: two that asserted the answer for the machine they ran on, a `Path.read_text(newline=)` that exists only on 3.13 while the floor is 3.10, seventeen Windows failures caused by a temporary path containing `AppData` (which contains a sheet name the test forbade), and about 25 workbook cases that failed instead of skipping where openpyxl is absent. All repaired, each with a guard that now fails HERE rather than in CI. The suite is sharded five ways since, so a cell should cost about 13 minutes rather than up to three hours. **Its third run (35670708722, on `eaff15f`, 2026-09-22) passed 69 of 69 jobs**; it has not seen stage 3. A green local suite is not a green CI. Check `gh pr checks` before believing a branch is done |
 | review | **ONE round per landing** (owner, 2026-09-12), `codex exec -m gpt-6-astra -c model_reasoning_effort="ultra" -s read-only`. Fix what it raises; never send the fixes back |
@@ -121,15 +121,19 @@ ones.
   decimal-comma warning back on 1,199 grouped prices beside one bare
   cell; an autofilter can still make an ambiguous first row the header; a
   workbook date cell naming no day is read; free text's "one cell is a
-  number" and a pooled label's one missing cell stay published; and
+  number" and a pooled label's one missing cell stay published (left as
+  is once the owner's questions were answered, not accepted); and
   **the disclosure floor counts ROWS, not people** (2026-09-23, plan
   P4-D348), so a value held by twelve visits of one patient is
   published with its count -- 68 such values over three seeded
   repeated-measures shapes, held there by `K-S3-14`, while the
   POPULATION floor beside it does count people. And **a twin row may
   match a real row whole where a made-up identifier coincides with a
-  real one** (2026-09-25, `K-2B-45`, the first time it was put to the
-  owner: 1 of 400 rows on each of two shapes, 0 to 7 over 40 seeds).
+  real one** (2026-09-21: "Yes, it may be a real row!", confirmed
+  2026-09-25; `K-2B-45`: 1 of 400 rows on each of two shapes, 0 to 7
+  over 40 seeds); and **the readings trade on three- and four-number
+  cells** (2026-09-21: "Accepted", at 609 outside and 3 missed;
+  `K-P4-06` keeps its target).
   **Judge any such question by its effect on the owner's code and
   results; if there is none, do not spend time on it.**
 - **Asking the person is part of the product** (A-P4-56, A-P4-58).
@@ -196,7 +200,8 @@ cannot get worse unseen.
   where `caf3079` passed. `K-S3-15` is the same cost on its own battery.
   The candidate repair is a direct witness tried before the walk: four
   distances each moved one step, which keeps the sum and the sum of
-  squares. Accepted by no one yet; a stage-3 follow-up before 3b.
+  squares. Accepted by no one yet; a stage-3 follow-up before 3b, and
+  what it leaves goes to the owner.
 - **A census of marks that is only a pool is never written.** Where
   every thousands-mark convention stands below the floor,
   `thousands_marks` publishes only `(withheld)`, and the twin writes

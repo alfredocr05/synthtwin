@@ -18317,7 +18317,7 @@ own reading, so a repair of G5.3 alone, or of G12.3 alone, turns it
 red. No verdict count is pinned, because it moves with G12.3; the
 ledger's 19 of 1,021 is re-derived by the driver.
 
-**Deferred by the orchestrator on 2026-09-18** to stage 3, under the owner's principle of 2026-09-17 ("build after the machinery of stage 3"). The cause is the straight outer segment to the exact published extreme, which stage 3 replaces. Until then the pin above holds the spread on both sides: within 2.2 per cent on its four normal columns at 5,000 rows, 3.1 on two at 20,000 and 3.3 on a one-figure lab column at 5,000. The ledger's twenty `gauss(50, 10)` columns read +1.07 to +3.11 per cent at 5,000 rows and +1.74 to +3.83 at 20,000, held at those widths by K-P3-03. This is not an owner ruling, and the owner may reverse it (the owner decisions of 2026-09-18 at the end of this plan).
+**Deferred by the orchestrator on 2026-09-18** to stage 3, under the owner's principle of 2026-09-17 ("build after the machinery of stage 3"). The cause is the straight outer segment to the exact published extreme, which stage 3 replaces. Until then the pin above holds the spread on both sides: within 2.2 per cent on its four normal columns at 5,000 rows, 3.1 on two at 20,000 and 3.3 on a one-figure lab column at 5,000. The ledger's twenty `gauss(50, 10)` columns read +1.07 to +3.11 per cent at 5,000 rows and +1.74 to +3.83 at 20,000, held at those widths by K-P3-03. The owner, told on 2026-09-21 that it could be reversed, kept it: "I think this is a build for stage 3" (P4-D351).
 
 ### P4-D299 An oracle rule no frozen case reaches is witnessed one call at a time
 
@@ -18661,7 +18661,8 @@ and 9). The owner accepted real record numbers reaching the twin; these
 two shapes have about 25 times the ids in use, and their 16 coincident
 ids are chance collisions at that room, so whether such an id may carry
 its real row whole is a question of its own. The entry is OPEN at its
-must-not-get-worse bound until the owner answers.
+must-not-get-worse bound until the owner answers. Answered by the owner
+on 2026-09-21: P4-D351.
 
 **Open:** the pairing walk of G6B.4, the open cause of the readings'
 distance from 550 and 0, which the orchestrator's acceptance below
@@ -18681,7 +18682,8 @@ its own distinct-value count on a nearly full band, and on this battery
 it trades 12 more agreements outside the 0.02 window (597 to 609 of
 2,160) for 4 fewer missed rows-above counts (7 to 3). The ceiling is 609
 and 3 from here; the target stays 550 and 0 (the pairing walk, stage 6).
-Ceilings move in their own commit, never inside a merge.
+Ceilings move in their own commit, never inside a merge. Answered by the
+owner on 2026-09-21: P4-D351.
 
 ## Decision P4-D301 — the pooled numbers keep their scale (2026-09-21)
 
@@ -19738,9 +19740,10 @@ go away: the design's own measurement recovered it exactly from the
 published `n_missing` in 7 of 7 shapes, because a cell counted out is
 counted absent.
 
-**What it extends.** The owner's acceptances K-2B-28 (free text's
-`n_numeric` of one, a pooled label's `n_missing` of one) and K-2B-48 (a
-date column's `n_unparsed` of one), under the owner's own principle,
+**What it extends.** K-2B-28 (free text's `n_numeric` of one, a pooled
+label's `n_missing` of one), left as is after the owner's questions and
+not an acceptance, and the owner's acceptance K-2B-48 (a date column's
+`n_unparsed` of one), under the owner's own principle,
 verbatim: "What matters is not show the relation in a descriptive file,
 just showing that the value exist is not an issue."
 
@@ -20935,3 +20938,34 @@ and V6.1-A3), `docs/spec/profile-contract-v6.md` (D5 and DT3), and
 `tests/test_stage3_review_dates.py`, which carries every one of the
 review's reproductions as a case beside the mutation that withdraws its
 rule.
+
+## Decision P4-D351 — the owner's rulings of 2026-09-21, recorded (2026-09-25)
+
+**Three answers of 2026-09-21 that no record carried**, in the owner's
+words:
+
+- **Whole real rows through a coincident identifier** (`K-2B-45`). Asked
+  "May a twin row be a real row when a made-up record number happens to
+  match a real one? 1 row in 400 on two of four realistic shapes.", the
+  owner answered "Yes, it may be a real row!". Asked again by mistake on
+  2026-09-25, the owner answered "Accept it as a limit": a confirmation,
+  not the first ruling. The entry is an accepted limit at its
+  must-not-get-worse bound.
+- **The readings trade on three- and four-number cells** (`K-P4-06`).
+  The orchestrator's acceptance of 2026-09-19 was put to the owner at
+  that day's ceiling, 609 outside and 3 missed: "Accepted". The later
+  moves of the ceiling stand as recorded, and the entry stays OPEN at
+  its target of 550 and 0 (the pairing walk, stage 6).
+- **The spread on bell-shaped columns** (`K-P3-03`, green since stage
+  3). Told the deferral could be reversed, the owner kept it: "I think
+  this is a build for stage 3".
+
+**Two attributions corrected.** `K-S3-15` was accepted as a limit by
+the fix pass (P4-D349) and never put to the owner, although it trades
+privacy against the twin's mean and spread, which is the owner's to
+decide. It is OPEN with a target of no missed obligation: stage 3's
+follow-up A, the direct witness, comes first, and what it leaves goes
+to the owner. Every accepted limit in the ledger is now the owner's.
+And `K-2B-28` is not an owner acceptance: its two counts of one were
+left as is once the owner's questions were answered (P4-D277, P4-D271),
+and P4-D332 extends it as that.
