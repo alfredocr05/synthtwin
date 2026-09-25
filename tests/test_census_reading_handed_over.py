@@ -228,7 +228,9 @@ def test_a_reading_under_any_other_argument_is_read_again(
         elif key == "values":
             cells = list(values)
         elif key == "n_rows":
-            cells = values + ["1"]
+            # The SAME list, so the count of rows is the only difference:
+            # a new list here was refused on its identity alone, and the
+            # row check could be deleted with this case still green.
             rows = _ROWS + 1
         else:
             arguments[key] = different[key]

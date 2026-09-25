@@ -2927,16 +2927,16 @@ def _present_spellings(
     asked: a column of twenty numbers followed by eighty `-999` cells,
     under `--missing-value=-999`, was counted as a hundred rows of
     population and cleared the hundred-row floor, and the description
-    the run then wrote said `n_present: 20`. The census now asks
-    `present_spellings_after_the_rules`, which is `profile_column`'s own
-    reading of the column.
+    the run then wrote said `n_present: 20`. The census reads through
+    `_census_reading`, which is `profile_column`'s own reading of the
+    column and the route `present_spellings_after_the_rules` answers from.
 
     Guarantees: accepts a column's cells, the settings, the column's
     name, the declarations in force and the reading this census keeps
     (`HeldReading`); returns a mapping whose keys are exactly the
     spellings that are PRESENT, each mapped to 1, and what the census
     keeps after this column (`_census_reading` says which) -- the reading
-    `present_spellings_after_the_rules` takes, kept so the description
+    `_census_reading` took, kept so the description
     can be handed it rather than read the column again.
     Determinism: a fixed function of the arguments. Raises nothing a
     caller can provoke -- the one refusal of the reading, a value
@@ -2953,10 +2953,7 @@ def _present_spellings(
         name in stated.decimal_commas,
         held,
     )
-    standing: "dict[str, int]" = {}
-    for value in kept.reading.present:
-        standing[value] = 1
-    return standing, held
+    return _standing_of(kept), held
 
 
 def repeating_identifiers(
@@ -18747,8 +18744,8 @@ class _ColumnReading:
     review of stage 3 measured it: a column of twenty numbers followed
     by eighty `-999` cells, with `--missing-value=-999`, cleared the
     hundred-row floor as a hundred rows although the finished column
-    held twenty. `present_spellings_after_the_rules` is the census's
-    reading and this record is what both it and `profile_column` read,
+    held twenty. `_census_reading` is the census's reading and this
+    record is what both it and `profile_column` read,
     so the two cannot answer differently.
 
     A SPELLING'S FATE IS THE SAME ON EVERY ROW THAT WEARS IT. Each pass
@@ -19289,9 +19286,10 @@ def present_spellings_after_the_rules(
     under a numerically equal spelling such as `-999.0`, and under the
     stand-in rule that judges `-999` with nothing declared at all. The
     finished column held twenty present cells and eighty missing, and
-    the command published the hundred-row notice over it. This asks
-    `_read_the_column`, which is `profile_column`'s own reading, and
-    returns the spellings it leaves standing.
+    the command published the hundred-row notice over it. This reads through
+    `_census_reading`, the census's own route to `_read_the_column`,
+    which is `profile_column`'s own reading, and returns the spellings
+    it leaves standing.
 
     Guarantees:
 
@@ -19308,17 +19306,22 @@ def present_spellings_after_the_rules(
       as data and as "no value", from `_read_the_column`.
     - Boundary: opens no file, prints nothing and publishes nothing.
     """
-    read = _read_the_column(
+    kept, _held = _census_reading(
         values,
-        len(values),
         settings,
-        forced_identifier=forced_identifier,
-        forced_code=forced_code,
-        forced_measurement=forced_measurement,
-        forced_decimal_comma=forced_decimal_comma,
+        forced_identifier,
+        forced_code,
+        forced_measurement,
+        forced_decimal_comma,
+        (),
     )
+    return _standing_of(kept)
+
+
+def _standing_of(kept: HeldReading) -> "dict[str, int]":
+    """The spellings a census reading leaves present, each mapped to 1."""
     standing: "dict[str, int]" = {}
-    for value in read.present:
+    for value in kept.reading.present:
         standing[value] = 1
     return standing
 

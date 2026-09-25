@@ -19619,7 +19619,9 @@ Each was counted as a hundred rows of population, and each produced a
 description recording twenty present cells and eighty missing. **One
 reading, in one place:** `profile_column`'s own prologue is
 `taxonomy._read_the_column`, the census asks it through
-`taxonomy.present_spellings_after_the_rules`, and a test holds the
+`taxonomy._census_reading` -- the route
+`taxonomy.present_spellings_after_the_rules` answers from too -- and a
+test holds the
 census's surviving spellings equal to the description's `n_present` on
 all five paddings, so a sixth pass added to one reading and not the
 other turns the suite red rather than reopening the floor.

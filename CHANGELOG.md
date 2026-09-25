@@ -6,6 +6,19 @@ exists).
 
 ## [Unreleased]
 
+### The census reads by one route, and its row check is held (2026-09-25)
+
+The two points the hand-over's second skeptic left. After the
+hand-over the census read through `taxonomy._census_reading` while
+`present_spellings_after_the_rules` -- which the test holding the census
+equal to the description asks -- read `_read_the_column` by a path of
+its own, so a later edit to one could drift from the other with that
+test green. It now answers through `_census_reading` too; putting the
+review's own defect back into that route (the census's spellings from
+`split_missing` alone) turns six tests red. And the guard's row-count
+case changed the list as well as the count, so `_same_reading`'s row
+check could be deleted with it green; it keeps the list now and goes red.
+
 ### The census's reading is handed over, not taken twice (2026-09-24)
 
 **`K-S1-05` went from 14.1 s to 19-20 s over stage 3, and all of it was
