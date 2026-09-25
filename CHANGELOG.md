@@ -19,7 +19,9 @@ every cell, as the product already did: G5.3b step 4 now states it and
 the oracle carries it (the high end 9999, where the oracle gave 15536).
 Frozen as `tail_marks_pooled` (twelfth file) and `tail_pad_partial`
 (thirteenth); G14.3 counts 129; every earlier case is byte-identical.
-Step 4's order example now names `tail_width_after_sign`.
+Step 4's order example now names `tail_width_after_sign`. Both entry
+points send the next case to a fourteenth file, since the twelfth and
+thirteenth stand past plan P4-D295's 200000-byte line.
 
 ### The oracle's derived end takes the method's order (2026-09-24)
 
