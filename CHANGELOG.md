@@ -6,6 +6,26 @@ exists).
 
 ## [Unreleased]
 
+### The one case CI skips is held where CI runs, and a failing suite names its failures (2026-09-24)
+
+**One process and the five shards differ by exactly one case**, found
+node by node: the claim inventory's check of `docs/STATE.md`'s stated
+suite size, which skips on every selected run, and every shard is one.
+CI holds that count only in its shard-coverage job, through
+`tools/ci/shards.py --prove`, and nothing held THAT: a workflow edit
+dropping the step would have left the count checked nowhere in CI with
+every job green. `tests/test_ci_shards.py` now reads the job and fails
+if it stops collecting the whole suite, stops running the prover, or
+runs under a condition, watched red on `ci.yml` with the prover removed.
+The skip now says where the count is held.
+
+**`a7bbc21` was red in one process, and the record said only `exit 1`.**
+The failing case was the ledger's own note check (`K-S3-02` stamped at
+`6c2b2d8`, a commit the note did not name), which `5bbb0be` repaired;
+it fails at `a7bbc21` in every layout, so no green five-shard run can
+have been taken on that commit's own tree. `kpi_suite_time.py` now
+prints each failing case by name.
+
 ### Two stale records re-measured at the close of stage 3 (2026-09-24)
 
 **`K-P0-10` recorded the suite exiting 1, and `K-P4-06` recorded 556

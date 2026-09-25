@@ -109,6 +109,11 @@ def main():
     found = collected()
     seconds, reported, code, output = timed_run()
     tail = output.strip().splitlines()
+    # The cases that failed, by name: a7bbc21's run kept only `exit 1`,
+    # and finding the one ledger check behind it took a second run.
+    for line in tail:
+        if line.startswith(("FAILED ", "ERROR ")):
+            print(line)
     print(tail[len(tail) - 1] if tail else "(pytest printed nothing)")
     print(
         f"collected {found} cases, ran in {seconds:.1f} s "

@@ -7402,7 +7402,10 @@ def test_the_state_page_states_the_suite_size_it_was_written_against(
         or given != paths
     )
     if selected:
-        pytest.skip("a selected run; the stated count describes the whole suite")
+        pytest.skip(
+            "a selected run collects a subset; CI holds the whole-suite count "
+            "in its shard-coverage job (tools/ci/shards.py --prove)"
+        )
     collected = request.session.testscollected
     page = (
         pathlib.Path(__file__).resolve().parents[1] / "docs" / "STATE.md"

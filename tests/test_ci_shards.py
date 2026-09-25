@@ -255,6 +255,47 @@ def test_the_prover_holds_the_state_page_to_the_suite_s_own_size() -> None:
     assert len(shards.state_page_problems(collection, missing)) == 1  # type: ignore[attr-defined]
 
 
+def _coverage_job_problems(workflow: str) -> "list[str]":
+    """What would stop CI's shard-coverage job holding the whole-suite count."""
+    job = re.search(
+        r"^  shard-coverage:\n(?P<body>(?:(?!  \S).*\n?)*)", workflow, re.MULTILINE
+    )
+    if job is None:
+        return ["ci.yml has no shard-coverage job"]
+    body = job.group("body")
+    problems = []
+    if "pytest --collect-only" not in body:
+        problems.append("shard-coverage no longer collects the whole suite")
+    if not re.search(r"tools/ci/shards\.py\b[^\n]*--prove[^\n]*--collected", body):
+        problems.append("shard-coverage no longer runs tools/ci/shards.py --prove on it")
+    if re.search(r"^\s+if:", body, re.MULTILINE):
+        problems.append("shard-coverage runs only under a condition")
+    return problems
+
+
+def test_the_shard_coverage_job_still_holds_the_state_page_count() -> None:
+    """The prover above is the ONLY keeper of the page's count in CI.
+
+    The case in `tests/test_claim_inventory.py` skips in every shard, so
+    a workflow that dropped the prover step would leave that count
+    checked nowhere in CI with every job green. MEASURED 2026-09-24: the
+    five-shard run and one process differ by exactly that case, 7,601
+    passed and 50 skipped against 7,602 and 49.
+    """
+    text = WORKFLOW.read_text(encoding="utf-8")
+    assert _coverage_job_problems(text) == []
+    dropped = text.replace(" --prove --collected collected.txt", "")
+    assert dropped != text, "the prover step is no longer spelled as this test expects"
+    assert _coverage_job_problems(dropped) == [
+        "shard-coverage no longer runs tools/ci/shards.py --prove on it"
+    ]
+    gated = text.replace("  shard-coverage:\n", "  shard-coverage:\n    if: false\n", 1)
+    assert _coverage_job_problems(gated) == ["shard-coverage runs only under a condition"]
+    assert _coverage_job_problems(text.replace("  shard-coverage:\n", "  renamed:\n", 1)) == [
+        "ci.yml has no shard-coverage job"
+    ]
+
+
 def test_the_prover_reads_the_same_count_pytest_prints() -> None:
     """`N tests collected` is the line, in both of pytest's spellings."""
     assert shards.cases_in("1 test collected in 0.1s\n") == 1  # type: ignore[attr-defined]
