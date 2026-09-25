@@ -18775,6 +18775,9 @@ NINTH_BRANCH_PART = "branches-9"
 # (stage 3's review, verdict item 10) once the eleventh passed 200000
 # bytes, the line plan P4-D295 draws.
 TENTH_BRANCH_PART = "branches-10"
+# The thirteenth, opened by that repair's skeptic pass: its two cases
+# cost about 70000 bytes each and the twelfth had 63000 under the cap.
+ELEVENTH_BRANCH_PART = "branches-11"
 
 
 NAMED_CASE_BUILDERS = {
@@ -24561,7 +24564,7 @@ _DOCUMENT_ACCOUNT = (
     " The seven cases the extra review round of 2026-09-18 added are an eighth file, tests/reference/generation-branch-vectors-6.json, for the same reason."
     " The six cases of the carried numbers pass of 2026-09-18 and its repair pass are a ninth file, tests/reference/generation-branch-vectors-7.json, for the same reason."
     " Stage 3's two tail landings are two more files, for the same reason again: a tenth, tests/reference/generation-branch-vectors-8.json, holding the four cases the date and clock tails grew past the room their own files had and two of the numeric rule's five, and an eleventh, tests/reference/generation-branch-vectors-9.json, holding the numeric rule's other three."
-    " The repair of the oracle's derived end in stage 3's review opened a twelfth, tests/reference/generation-branch-vectors-10.json, for the same reason."
+    " The repair of the oracle's derived end in stage 3's review opened a twelfth, tests/reference/generation-branch-vectors-10.json, and a thirteenth, tests/reference/generation-branch-vectors-11.json, for the same reason."
 )
 
 # The transforms this file's own cases name, stated the way every other
@@ -26055,6 +26058,121 @@ def _tail_extreme_magnitude():
     }
 
 
+
+def _tail_pad_ceiling():
+    """A derived end held under a padded block's ceiling (G5.3b step 4).
+
+    Sixty-eight whole numbers written with four figures and a leading
+    zero: 0100 to 0690 ten apart, then 0990, 0995 to 0998 and 0999
+    three times.  `pad_widths` names four on every numeric cell and so
+    does `field_widths`, so every cell wrote at least one pad figure and
+    no value reaches a thousand.  The high tail's reading reaches 1380;
+    the padded ceiling holds it at 999.
+    """
+    ladder, finer, claims = _tail_ladder_fields({
+        17: "213.9", 25: "267.5", 50: "435.0", 75: "602.5", 83: "656.1",
+    }, 17, 83)
+    moments = _tail_case_moments(
+        ("465.77941176470586", "254.9370917772224", "0.7200524882701638",
+         "2.826212542807944"),
+        claims,
+    )
+    tails, tail_claims = _numeric_tail_fields({
+        "low": {
+            "percent": 17, "rows": 12, "mean_distance": "58.900000000000006",
+            "rms_distance": "68.2706134926783", "values": [],
+        },
+        "high": {
+            "percent": 83, "rows": 12,
+            "mean_distance": "233.31666666666663",
+            "rms_distance": "278.33626545361756", "values": [],
+        },
+    })
+    claims.update(tail_claims)
+    column = _universal(
+        "column_1", "count", "count", "data", "ok",
+        n_present=68, n_missing=0, n_distinct=66, n_distinct_folded=66,
+        n_distinct_values=66, n_numeric=68, n_not_numeric=0,
+        n_out_of_range=0, n_contradictory=0, n_zero=0, n_negative=0,
+        n_negative_unrepresentable=0, n_used_in_statistics=68,
+        n_left_out_of_statistics=0, n_rows=68,
+        percentiles=ladder, percentiles_between=finer, tails=tails,
+        bin_groups=[{"first": 0, "last": 7, "count": 11}, {"first": 8, "last": 15, "count": 11}, {"first": 16, "last": 23, "count": 11}, {"first": 24, "last": 31, "count": 11}],
+        integer_valued=True, std_unrepresentable=False,
+        numeric_styles={"leading_zero": 68}, mode_count=0,
+        field_widths={"4": 68}, pad_widths={"4": 68},
+        negative_notations={},
+        **moments,
+    )
+    return {
+        "why": "The padded ceiling on a derived end, method G5.3b step 4's second width clamp. Every cell is written with four figures and at least one pad zero, so no value reaches a thousand, and the high tail's own reading reaches 1380: the ceiling holds the end at 999. The mutant withdraws the ceiling and the twin writes a four-figure number with no pad on a column whose census pads every cell.",
+        "column": column,
+        "rows": 68,
+        "identifier_declared": False,
+        "rungs": _tail_case_rungs(column),
+        "claims": claims,
+    }
+
+
+def _tail_width_stands_aside():
+    """The one field width standing aside (G5.3b step 4).
+
+    Sixty whole numbers: 1000 to 9000 a thousand apart, 10000 eight
+    times, and forty-three from 10500 to 73500.  The nine four-figure
+    cells are a group under the floor, so the census pools them into
+    the commonest width and names five on every cell.  The low boundary
+    rung is 10000 itself and the tail's reading reaches past nought, so
+    the sign rule holds the end at 1; the width clamp would move it to
+    10000, no distance at all from that rung, so it stands aside and
+    the end stays at 1.  The ladder is flat at 10000 from percent 19 to
+    27, so strata hold that value and G6.6 has no five-figure number
+    free to move a tail row onto.
+    """
+    ladder, finer, claims = _tail_ladder_fields({
+        19: "10000.0", 27: "10000.0", 50: "29250.0", 75: "51375.0",
+        81: "56685.0",
+    }, 19, 81)
+    moments = _tail_case_moments(
+        ("32183.333333333332", "22432.755761908662", "0.3126034564868096",
+         "1.7300874944962445"),
+        claims,
+    )
+    tails, tail_claims = _numeric_tail_fields({
+        "low": {
+            "percent": 19, "rows": 12, "mean_distance": "3750.0",
+            "rms_distance": "4873.397172404482", "values": [],
+        },
+        "high": {
+            "percent": 81, "rows": 12, "mean_distance": "8565.0",
+            "rms_distance": "10008.582566977204", "values": [],
+        },
+    })
+    claims.update(tail_claims)
+    column = _universal(
+        "column_1", "count", "count", "data", "ok",
+        n_present=60, n_missing=0, n_distinct=53, n_distinct_folded=53,
+        n_distinct_values=53, n_numeric=60, n_not_numeric=0,
+        n_out_of_range=0, n_contradictory=0, n_zero=0, n_negative=0,
+        n_negative_unrepresentable=0, n_used_in_statistics=60,
+        n_left_out_of_statistics=0, n_rows=60,
+        percentiles=ladder, percentiles_between=finer, tails=tails,
+        bin_groups=[{"first": 0, "last": 5, "count": 11}, {"first": 6, "last": 16, "count": 11}, {"first": 17, "last": 31, "count": 14}],
+        integer_valued=True, std_unrepresentable=False,
+        numeric_styles={"plain": 60}, mode_count=0,
+        field_widths={"5": 60},
+        negative_notations={},
+        **moments,
+    )
+    return {
+        "why": "A spelling clamp standing aside, method G5.3b step 4: no clamp pulls a derived end inside the tail's own mean distance of its boundary. The census pools nine four-figure cells into the width five, the sign rule holds the low end at 1, and the width clamp would move it to 10,000, which is the boundary rung itself: it stands aside and the end stays at 1. The mutant makes the clamp always apply and the low end comes back at 10,000.",
+        "column": column,
+        "rows": 60,
+        "identifier_declared": False,
+        "rungs": _tail_case_rungs(column),
+        "claims": claims,
+    }
+
+
 EIGHTH_BRANCH_CASE_BUILDERS = {
     # THE FOUR THAT MOVED HERE AT THE DATE AND CLOCK TAIL LANDING (stage
     # 3, plan P4-D328). Each of them grew: a column of dates or clock
@@ -26128,10 +26246,18 @@ TENTH_BRANCH_CASE_BUILDERS = {
     "tail_width_after_sign": _tail_width_after_sign,
 }
 
+# THE THIRTEENTH FILE: the padded ceiling and a width clamp standing
+# aside, the two parts of G5.3b step 4 the three above leave unfrozen.
+ELEVENTH_BRANCH_CASE_BUILDERS = {
+    "tail_pad_ceiling": _tail_pad_ceiling,
+    "tail_width_stands_aside": _tail_width_stands_aside,
+}
+
 CASE_SETS = {
     EIGHTH_BRANCH_PART: EIGHTH_BRANCH_CASE_BUILDERS,
     NINTH_BRANCH_PART: NINTH_BRANCH_CASE_BUILDERS,
     TENTH_BRANCH_PART: TENTH_BRANCH_CASE_BUILDERS,
+    ELEVENTH_BRANCH_PART: ELEVENTH_BRANCH_CASE_BUILDERS,
     FIFTH_BRANCH_PART: FIFTH_BRANCH_CASE_BUILDERS,
     SIXTH_BRANCH_PART: SIXTH_BRANCH_CASE_BUILDERS,
     SEVENTH_BRANCH_PART: SEVENTH_BRANCH_CASE_BUILDERS,
@@ -26156,6 +26282,7 @@ CASE_BUILDERS = {
     **EIGHTH_BRANCH_CASE_BUILDERS,
     **NINTH_BRANCH_CASE_BUILDERS,
     **TENTH_BRANCH_CASE_BUILDERS,
+    **ELEVENTH_BRANCH_CASE_BUILDERS,
 }
 
 # What each file says about itself, so that neither can be read as the
@@ -26188,7 +26315,7 @@ _NAMED_ACCOUNT = (
     " The seven cases the extra review round of 2026-09-18 added are an eighth file, tests/reference/generation-branch-vectors-6.json, for the same reason."
     " The six cases of the carried numbers pass of 2026-09-18 and its repair pass are a ninth file, tests/reference/generation-branch-vectors-7.json, for the same reason."
     " Stage 3's two tail landings are two more files, for the same reason again: a tenth, tests/reference/generation-branch-vectors-8.json, holding the four cases the date and clock tails grew past the room their own files had and two of the numeric rule's five, and an eleventh, tests/reference/generation-branch-vectors-9.json, holding the numeric rule's other three."
-    " The repair of the oracle's derived end in stage 3's review opened a twelfth, tests/reference/generation-branch-vectors-10.json, for the same reason."
+    " The repair of the oracle's derived end in stage 3's review opened a twelfth, tests/reference/generation-branch-vectors-10.json, and a thirteenth, tests/reference/generation-branch-vectors-11.json, for the same reason."
 )
 _BRANCH_ACCOUNT = (
     "cases method section G14.3 adds for the branches its first nine "
@@ -26224,7 +26351,7 @@ _BRANCH_ACCOUNT = (
     " The seven cases the extra review round of 2026-09-18 added are an eighth file, tests/reference/generation-branch-vectors-6.json, for the same reason."
     " The six cases of the carried numbers pass of 2026-09-18 and its repair pass are a ninth file, tests/reference/generation-branch-vectors-7.json, for the same reason."
     " Stage 3's two tail landings are two more files, for the same reason again: a tenth, tests/reference/generation-branch-vectors-8.json, holding the four cases the date and clock tails grew past the room their own files had and two of the numeric rule's five, and an eleventh, tests/reference/generation-branch-vectors-9.json, holding the numeric rule's other three."
-    " The repair of the oracle's derived end in stage 3's review opened a twelfth, tests/reference/generation-branch-vectors-10.json, for the same reason."
+    " The repair of the oracle's derived end in stage 3's review opened a twelfth, tests/reference/generation-branch-vectors-10.json, and a thirteenth, tests/reference/generation-branch-vectors-11.json, for the same reason."
 )
 _SECOND_BRANCH_ACCOUNT = (
     "cases method section G14.3 adds with the carried landings 2b.2, 2b.3 "
@@ -26251,7 +26378,7 @@ _SECOND_BRANCH_ACCOUNT = (
     " The seven cases the extra review round of 2026-09-18 added are an eighth file, tests/reference/generation-branch-vectors-6.json, for the same reason."
     " The six cases of the carried numbers pass of 2026-09-18 and its repair pass are a ninth file, tests/reference/generation-branch-vectors-7.json, for the same reason."
     " Stage 3's two tail landings are two more files, for the same reason again: a tenth, tests/reference/generation-branch-vectors-8.json, holding the four cases the date and clock tails grew past the room their own files had and two of the numeric rule's five, and an eleventh, tests/reference/generation-branch-vectors-9.json, holding the numeric rule's other three."
-    " The repair of the oracle's derived end in stage 3's review opened a twelfth, tests/reference/generation-branch-vectors-10.json, for the same reason."
+    " The repair of the oracle's derived end in stage 3's review opened a twelfth, tests/reference/generation-branch-vectors-10.json, and a thirteenth, tests/reference/generation-branch-vectors-11.json, for the same reason."
 )
 
 _THIRD_BRANCH_ACCOUNT = (
@@ -26276,7 +26403,7 @@ _THIRD_BRANCH_ACCOUNT = (
     " The seven cases the extra review round of 2026-09-18 added are an eighth file, tests/reference/generation-branch-vectors-6.json, for the same reason."
     " The six cases of the carried numbers pass of 2026-09-18 and its repair pass are a ninth file, tests/reference/generation-branch-vectors-7.json, for the same reason."
     " Stage 3's two tail landings are two more files, for the same reason again: a tenth, tests/reference/generation-branch-vectors-8.json, holding the four cases the date and clock tails grew past the room their own files had and two of the numeric rule's five, and an eleventh, tests/reference/generation-branch-vectors-9.json, holding the numeric rule's other three."
-    " The repair of the oracle's derived end in stage 3's review opened a twelfth, tests/reference/generation-branch-vectors-10.json, for the same reason."
+    " The repair of the oracle's derived end in stage 3's review opened a twelfth, tests/reference/generation-branch-vectors-10.json, and a thirteenth, tests/reference/generation-branch-vectors-11.json, for the same reason."
 )
 
 _FOURTH_BRANCH_ACCOUNT = (
@@ -26304,7 +26431,7 @@ _FOURTH_BRANCH_ACCOUNT = (
     " The seven cases the extra review round of 2026-09-18 added are an eighth file, tests/reference/generation-branch-vectors-6.json, for the same reason."
     " The six cases of the carried numbers pass of 2026-09-18 and its repair pass are a ninth file, tests/reference/generation-branch-vectors-7.json, for the same reason."
     " Stage 3's two tail landings are two more files, for the same reason again: a tenth, tests/reference/generation-branch-vectors-8.json, holding the four cases the date and clock tails grew past the room their own files had and two of the numeric rule's five, and an eleventh, tests/reference/generation-branch-vectors-9.json, holding the numeric rule's other three."
-    " The repair of the oracle's derived end in stage 3's review opened a twelfth, tests/reference/generation-branch-vectors-10.json, for the same reason."
+    " The repair of the oracle's derived end in stage 3's review opened a twelfth, tests/reference/generation-branch-vectors-10.json, and a thirteenth, tests/reference/generation-branch-vectors-11.json, for the same reason."
 )
 
 _FIFTH_BRANCH_ACCOUNT = (
@@ -26330,7 +26457,7 @@ _FIFTH_BRANCH_ACCOUNT = (
     " The seven cases the extra review round of 2026-09-18 added are an eighth file, tests/reference/generation-branch-vectors-6.json, for the same reason."
     " The six cases of the carried numbers pass of 2026-09-18 and its repair pass are a ninth file, tests/reference/generation-branch-vectors-7.json, for the same reason."
     " Stage 3's two tail landings are two more files, for the same reason again: a tenth, tests/reference/generation-branch-vectors-8.json, holding the four cases the date and clock tails grew past the room their own files had and two of the numeric rule's five, and an eleventh, tests/reference/generation-branch-vectors-9.json, holding the numeric rule's other three."
-    " The repair of the oracle's derived end in stage 3's review opened a twelfth, tests/reference/generation-branch-vectors-10.json, for the same reason."
+    " The repair of the oracle's derived end in stage 3's review opened a twelfth, tests/reference/generation-branch-vectors-10.json, and a thirteenth, tests/reference/generation-branch-vectors-11.json, for the same reason."
 )
 
 _SIXTH_BRANCH_ACCOUNT = (
@@ -26365,7 +26492,7 @@ _SIXTH_BRANCH_ACCOUNT = (
     "case was dropped, no proof was shortened and the cap was not raised."
     " The six cases of the carried numbers pass of 2026-09-18 and its repair pass are a ninth file, tests/reference/generation-branch-vectors-7.json, for the same reason."
     " Stage 3's two tail landings are two more files, for the same reason again: a tenth, tests/reference/generation-branch-vectors-8.json, holding the four cases the date and clock tails grew past the room their own files had and two of the numeric rule's five, and an eleventh, tests/reference/generation-branch-vectors-9.json, holding the numeric rule's other three."
-    " The repair of the oracle's derived end in stage 3's review opened a twelfth, tests/reference/generation-branch-vectors-10.json, for the same reason."
+    " The repair of the oracle's derived end in stage 3's review opened a twelfth, tests/reference/generation-branch-vectors-10.json, and a thirteenth, tests/reference/generation-branch-vectors-11.json, for the same reason."
     " And, added here by the dates pass of the second Codex round of"
     " 2026-09-19, the MIDNIGHT half of P4-D258's paid merge: forty each"
     " of three instants, eighty of them at midnight, on a column writing"
@@ -26404,7 +26531,7 @@ _SEVENTH_BRANCH_ACCOUNT = (
     "passes were integrated, because beside the others' cases the eighth "
     "would have stood past the 250000-byte cap."
     " Stage 3's two tail landings are two more files, for the same reason again: a tenth, tests/reference/generation-branch-vectors-8.json, holding the four cases the date and clock tails grew past the room their own files had and two of the numeric rule's five, and an eleventh, tests/reference/generation-branch-vectors-9.json, holding the numeric rule's other three."
-    " The repair of the oracle's derived end in stage 3's review opened a twelfth, tests/reference/generation-branch-vectors-10.json, for the same reason."
+    " The repair of the oracle's derived end in stage 3's review opened a twelfth, tests/reference/generation-branch-vectors-10.json, and a thirteenth, tests/reference/generation-branch-vectors-11.json, for the same reason."
 )
 
 _EIGHTH_BRANCH_ACCOUNT = (
@@ -26445,7 +26572,7 @@ _EIGHTH_BRANCH_ACCOUNT = (
     "tests/reference/generation-document-vectors.json, and live in a "
     "tenth file for the reason the fourth to the ninth exist: no cap is "
     "raised and no case is dropped."
-    " The repair of the oracle's derived end in stage 3's review opened a twelfth, tests/reference/generation-branch-vectors-10.json, for the same reason."
+    " The repair of the oracle's derived end in stage 3's review opened a twelfth, tests/reference/generation-branch-vectors-10.json, and a thirteenth, tests/reference/generation-branch-vectors-11.json, for the same reason."
 )
 _NINTH_BRANCH_ACCOUNT = (
     "cases method section G14.3 adds for the TAIL RULE of stage 3 "
@@ -26486,6 +26613,8 @@ _NINTH_BRANCH_ACCOUNT = (
     " because this file stood under plan P4-D295's 200000-byte line; its"
     " other two open a twelfth,"
     " tests/reference/generation-branch-vectors-10.json."
+    " Its skeptic pass opened a thirteenth,"
+    " tests/reference/generation-branch-vectors-11.json."
 )
 
 _TENTH_BRANCH_ACCOUNT = (
@@ -26512,6 +26641,34 @@ _TENTH_BRANCH_ACCOUNT = (
     "tests/reference/generation-document-vectors.json, and live in a "
     "twelfth file for the reason the fourth to the eleventh exist: no "
     "cap is raised and no case is dropped."
+    " The same repair's skeptic pass opened a thirteenth,"
+    " tests/reference/generation-branch-vectors-11.json, for the padded"
+    " ceiling and a width clamp standing aside, which did not fit here."
+)
+
+_ELEVENTH_BRANCH_ACCOUNT = (
+    "cases method section G14.3 adds with the skeptic pass of the repair "
+    "of the oracle's derived end (stage 3's review, verdict item 10): "
+    "G5.3b step 4's padded ceiling, which holds the high end of a column "
+    "padded to four figures at 999, and the rule that no spelling clamp "
+    "pulls a derived end inside the tail's own mean distance, on a "
+    "column whose low boundary rung is the 10000 the width clamp would "
+    "hold its end at. They are "
+    "computed by the same oracle and the same proof layer as "
+    "tests/reference/generation-reference-vectors.json, "
+    "tests/reference/generation-branch-vectors.json, "
+    "tests/reference/generation-branch-vectors-2.json, "
+    "tests/reference/generation-branch-vectors-3.json, "
+    "tests/reference/generation-branch-vectors-4.json, "
+    "tests/reference/generation-branch-vectors-5.json, "
+    "tests/reference/generation-branch-vectors-6.json, "
+    "tests/reference/generation-branch-vectors-7.json, "
+    "tests/reference/generation-branch-vectors-8.json, "
+    "tests/reference/generation-branch-vectors-9.json, "
+    "tests/reference/generation-branch-vectors-10.json and "
+    "tests/reference/generation-document-vectors.json, and live in a "
+    "thirteenth file because the twelfth could not hold them under the "
+    "250000-byte cap: no cap is raised and no case is dropped."
 )
 
 
@@ -26524,6 +26681,9 @@ CASE_SET_ACCOUNTS = {
     ),
     TENTH_BRANCH_PART: (
         f"The {len(TENTH_BRANCH_CASE_BUILDERS)} {_TENTH_BRANCH_ACCOUNT}"
+    ),
+    ELEVENTH_BRANCH_PART: (
+        f"The {len(ELEVENTH_BRANCH_CASE_BUILDERS)} {_ELEVENTH_BRANCH_ACCOUNT}"
     ),
     FIFTH_BRANCH_PART: (
         f"The {len(FIFTH_BRANCH_CASE_BUILDERS)} {_FIFTH_BRANCH_ACCOUNT}"
@@ -26673,6 +26833,93 @@ GIVEN_WORDS = {
         2336932289277638325, 7081666490928914566, 18440224098176914119,
         6982743988828475305, 2491265233251743332, 16212252780119421372,
         15385237354550481807, 13877259570828854289, 5737767012525277152,
+    ),
+    # ...and the two its skeptic's pass adds, at seeds 404 and 405: the
+    # padded ceiling and a width clamp standing aside.
+    "tail_pad_ceiling": (
+        5587599456442642476, 8344983246584380211, 5614443065837440058,
+        10267873468903713466, 7523099239211007046, 6994373552021731610,
+        558850806264514130, 8726595107874357405, 1903967569698339745,
+        2295748252683656850, 3604165649400273703, 16546190071665804158,
+        15614309273492927249, 10679826164596590406, 233659004516208093,
+        8099690284741401637, 7574822271516554852, 3388113814895340061,
+        7184259024674622835, 7773310029104749268, 6327823219687687536,
+        14414071217742704791, 7237823047317706414, 5567027572960301225,
+        6206332495857254033, 18156737579498011112, 13989150565580583361,
+        726201119424980250, 5630405689477615036, 18072870607958825947,
+        14739402079978070234, 3852408835169446021, 16723768272010348765,
+        11801387219640619100, 390151893390708707, 158342455239212666,
+        7034400418757286925, 13807107968019800571, 8192961982955669854,
+        11348486299234576417, 3565022704730784962, 11841092138108043700,
+        2342259832088883684, 6499561259045458168, 12928799019763257241,
+        7824991006133192638, 11655480584828357452, 2310344870646077074,
+        14263701001297854150, 439699459475012674, 3999928052567799424,
+        4766122193157376441, 12155507623711189466, 12904727413729683155,
+        2859558083595541168, 1231519460543838578, 2955244849968669433,
+        1601647725559914523, 9778953834719833232, 12427469810908486097,
+        17214976921927203163, 16738241876297976640, 8750258017618627735,
+        13704800887757714393, 16985608478431888068, 5519097511125182126,
+        9096407575221268138, 16572884721716038008, 655670568413699057,
+        12897271080121947577, 14933450979183787798, 11065313972910435393,
+        17855383184419040152, 12692825243754641005, 16391581086761436776,
+        10592183384428794553, 16754643922612668484, 10400644521957831690,
+        14270540645286617074, 2900870648626836943, 11574407282646252882,
+        5515977672312821705, 1873982071966985836, 18215491491570776324,
+        7200126070781964132, 730562390670232333, 78123895170637774,
+        13300874625292560595, 4340559241013447255, 13515662043482001622,
+        2335809678596892887, 16321356938971123734, 10273486603795776694,
+        2353745847268228244, 11086891341549613746, 953631831912081949,
+        3878165536567747906, 11940546123210809600, 11404276041495239589,
+        10139357178751059422, 2698804371624512053, 12314890983103317979,
+        4445455353607863109, 10290700928363661673, 14070253675224743513,
+        7535617208371393443, 14062808432055446424, 8975617997748217384,
+        6351713948326573319, 10959033952424288614, 10785203491425740444,
+        1234740189961969770, 11408642508888723109, 11751775268645880246,
+        2456257826926697165, 2857789814575338042, 8208547541244147229,
+        17349362679851369012, 9240150283707905071, 11347652813655235822,
+        6504586920564302421, 16615562565943608176, 9136816609311291727,
+        14136766055441528898, 11565468484037686818, 11130095254007510394,
+        4263449232371310266, 1809283442048809137, 14846673292539403344,
+        6948269664121464569, 13646871077549927635,
+    ),
+    "tail_width_stands_aside": (
+        16374193184023151245, 3771938372929625343, 12860902079572763038,
+        16250845576937860359, 11158262150394738613, 8979941388277093235,
+        3355613664954364366, 10188396772305727236, 1784744136324015760,
+        241303516339516447, 10568803350396966081, 16317072724346361406,
+        15300743465580597905, 6741131397842629343, 4433626646451291304,
+        18042275941784765618, 5626199644708347175, 631120996781154654,
+        1362758576248034553, 11095910798986991739, 26038117733516828,
+        5797980493267186860, 13159006111621477346, 16475364802717729021,
+        14296920965429108849, 5709523110795055818, 17895411160128389082,
+        16440572541867184796, 6138493721762436049, 10071246817536267524,
+        14552765516570449186, 9287978829233462973, 1206133103756790380,
+        9423549564527276946, 12183715022749335505, 15721029879260492872,
+        18347474124797972988, 8023746999381684089, 8543599840548724162,
+        8625962801800394022, 7593370567173914452, 4540938967766381496,
+        16391222474418157759, 8289348216890375517, 5056704452730547847,
+        4886561792570235263, 12594961038403039753, 10521161218121630727,
+        17493664699437745012, 1347876577519347351, 15411398432928964895,
+        1251712207438520698, 6798587881580448502, 2883907427063130333,
+        3658663677638412308, 16374212837399987625, 12110863532005220125,
+        15682857913981936666, 3909884650807277803, 2405421669159162082,
+        8006344355934025747, 14470728060645533657, 16415800354368563085,
+        4789976684959837183, 3229239061654010401, 11631665657957167898,
+        7255154756154029390, 14527703504504863566, 7051068107747360325,
+        15740644856546093838, 10595465191258724490, 458354391216547995,
+        10840521448782772697, 17359695095937065087, 3599487164163586379,
+        3010874655590708509, 9706392872429650082, 8406117428943143430,
+        3935460417699378410, 1801101239595581033, 4680837358637445115,
+        2769092389365830938, 11822701559506402368, 16252532668167792264,
+        167677788955197382, 14536851023832993417, 3221466153890004002,
+        6417942004204058822, 5016308091108704422, 12487032338286244884,
+        4586147948951161644, 8176261583878222268, 11052350734384051078,
+        8617176392034766116, 14051938504718528673, 13453430975497077774,
+        15074094226951557567, 10785066567457960414, 16952462345875470444,
+        7419919037042479206, 5500029709647853930, 5903192138695140123,
+        18312191012036513037, 1258107647451188724, 8695446008523537237,
+        11321367734310545171, 14017935836930078473, 12340323247801114841,
+        10126579919261042465, 15031132822184721252,
     ),
     # THE TWO CASES THE GOVERNANCE PASS OF STAGE 3'S REVIEW ADDS:
     # G5.3e's floor under a listed value (item 1) and the tail that

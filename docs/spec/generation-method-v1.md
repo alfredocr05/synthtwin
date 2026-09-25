@@ -12564,7 +12564,15 @@ thousands, with every committed byte unchanged, because no case froze
 an end either rule moves. `tail_mark_held` goes in the eleventh file,
 which stood under 200000 bytes; `tail_width_after_sign` and
 `tail_extreme_magnitude` open the twelfth, because the eleventh passed
-that line with the first.
+that line with the first. Its skeptic pass adds TWO MORE, the padded
+ceiling (`tail_pad_ceiling`) and a width clamp standing aside
+(`tail_width_stands_aside`), which the oracle carried with every byte
+unchanged when either was withdrawn; at about 70000 bytes each they do
+not fit in the twelfth under the cap, so they open a thirteenth. The
+stand-aside case is not step 4's own example of sixty numbers from
+1000 to 60000: there G6.6.3 moves the tail row at 9994 onto 10000, a
+value pass this oracle does not state, so its ladder is flat at 10000
+from percent 19 to 27 and leaves that pass no free value.
 
 **A PUBLISHED (HEAPED) END HAS NO FROZEN CASE, AND THAT IS A GAP NAMED
 AS ONE.** Step 1 of G5.3b's derived end -- a published end IS the end
@@ -12596,7 +12604,7 @@ that happens -- and the clause beside it, `--missing-value`'s "CAN be
 published as the column's smallest value", is exactly right under the
 new rule.
 
-**All one hundred and twenty-five are required.** The count is taken off the committed
+**All one hundred and twenty-seven are required.** The count is taken off the committed
 case sets and not carried forward: this sentence said fifty-two and a
 split of nine, twenty, sixteen and seven while the six files held
 seventy-three, because each repair that added a case added a clause to
@@ -12616,9 +12624,10 @@ holds ten; the eighth,
 ninth, `tests/reference/generation-branch-vectors-7.json`, holds six;
 the TENTH, `tests/reference/generation-branch-vectors-8.json`, holds
 nine; the ELEVENTH,
-`tests/reference/generation-branch-vectors-9.json`, holds six; and the
-TWELFTH, `tests/reference/generation-branch-vectors-10.json`, holds two
-(G14.2), and a test holds this sentence to those files. The tenth grew by the
+`tests/reference/generation-branch-vectors-9.json`, holds six; the
+TWELFTH, `tests/reference/generation-branch-vectors-10.json`, holds two;
+and the THIRTEENTH, `tests/reference/generation-branch-vectors-11.json`,
+holds two (G14.2), and a test holds this sentence to those files. The tenth grew by the
 two cases the GOVERNANCE PASS of stage 3's review added and the
 eleventh by the two the dates pass added; each number here is read off
 the committed case sets again at every landing that touches them.
@@ -12704,6 +12713,8 @@ case passed, which is the failure the count exists to prevent:
 | `tail_mark_held` | G5.3b step 4's mark between thousands on a derived end (stage 3's review, verdict item 10): forty-four whole numbers from 10,000 to 182,000, every one written with a comma, at two widths. The low tail's reading reaches past nought and the sign rule holds the end at 1; the census counts a mark on every cell, so the end is held at 1,000. Its mutant withdraws the mark clamp and the twin writes 1, a cell with no mark in it |
 | `tail_width_after_sign` | G5.3b step 4's ORDER of its last three (stage 3's review, verdict item 10): sixty whole numbers of five figures, whose low tail's reading reaches past nought. The sign rule holds the end at 1 and the one field width then holds it at 10,000. Its mutant runs the width clamp first, as the oracle did, and the end comes back as 1 |
 | `tail_extreme_magnitude` | G5.3b step 4's end left off a grid whose one step is no smaller than the boundary rung, and G5.5a's step of the smallest positive number (stage 3's review, verdict item 10): sixty readings `i * 1e-200`. The high end is read past its rung and the low one is held at 5e-324. Its mutant puts both ends on the rung's seventeen places with a step of one, and each falls onto its own boundary rung |
+| `tail_pad_ceiling` | G5.3b step 4's padded ceiling (the skeptic pass of the repair of the oracle's derived end): sixty-eight whole numbers written `0100` to `0999`, padded to four on every cell, whose high tail's reading reaches 1380. The ceiling holds the end at 999. Its mutant withdraws the ceiling and the twin writes four figures with no pad |
+| `tail_width_stands_aside` | G5.3b step 4's stand-aside (the same pass): sixty whole numbers, nine of four figures and eight at 10,000, so the census names the width five and the low boundary rung is 10,000. The sign rule holds the low end at 1 and the width clamp's 10,000 is no distance from that rung, so the clamp stands aside and the end stays at 1. Its mutant applies the clamp regardless and the end moves to 10,000 |
 | `tail_moment_ladder` | G5.3c's moment ladder (stage 3): fifteen two-place readings at a floor of eleven, where no percent leaves eleven rows outside on both sides at once, so the block publishes its moments and not one rung. Its mutant reads the block as the ramp of G5.3d instead |
 | `tail_listed_floor` | G5.3e's FLOOR `q` under each listed value (the governance pass of stage 3's review, item 1; plan P4-D346): sixty whole readings of a scale from 0 to 8, whose low tail lists two values and whose high tail lists four, so the one case parts both roads of the floor -- one row apiece where contract TL6's other road lists, two where the listing rule admitted the tail by finding every value it names on at least two cells of the column. Its mutant counts from one on both, which is the allocation the shipped rule retired: the high tail goes from [2, 2, 2, 6] -- the real column's own counts beyond that boundary -- to [1, 4, 1, 6], and the staircase moves with it |
 | `tail_withheld_pair` | G5.3b's FIRST clause, a tail that publishes NEITHER distance (the close of stage 3's review; plan P4-D349, contract TL5): thirty whole numbers 0 to 29 once each, whose published pair would give its own outer cells back, so both tails publish their boundary and their rows with both distances null. No shape is fitted; the rows take even shares of the room between the boundary rung and an end `m` grid steps beyond it. Its mutant leaves that end AT the boundary -- the FLAT reading a fitted tail of reach nought gets -- and every row of both tails falls back onto its own boundary rung |

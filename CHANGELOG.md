@@ -21,12 +21,17 @@ grid of 1e-17 and put each on its boundary rung; it leaves them off that
 grid and holds the low end at 5e-324, as G5.3b and G5.5a say, and puts
 each row of a tail with no grid at the middle of its own share.
 
-Three cases freeze it -- `tail_mark_held` in the eleventh file, and
+Five cases freeze it, each watched red against the product with its
+rule withdrawn: `tail_mark_held` in the eleventh file;
 `tail_width_after_sign` and `tail_extreme_magnitude` in a twelfth,
-`tests/reference/generation-branch-vectors-10.json` -- each watched red
-against the product with its rule withdrawn. Every case frozen before
-is byte-identical; every other file moves only by the sentence naming
-the twelfth. No product code changed. Two places where the product
+`tests/reference/generation-branch-vectors-10.json`; and, after a
+skeptic found the padded ceiling and the stand-aside could be withdrawn
+with every byte unchanged, `tail_pad_ceiling` (high end 999, where the
+old oracle gave 1380) and `tail_width_stands_aside` in a thirteenth,
+`-11.json`, since neither fits in the twelfth under the cap. The
+proof-floor table now covers the eleventh to thirteenth files. Every
+case frozen before is byte-identical; every other file moves only by
+the sentence naming the new files. No product code changed. Two places where the product
 and the method part company, and no case reaches, are reported rather
 than changed: the product's mark clamp stands aside on a census with a
 `(withheld)` pool, and it holds a partly padded column under `10**w`, a
