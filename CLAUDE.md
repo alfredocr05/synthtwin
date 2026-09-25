@@ -159,13 +159,15 @@ though it existed:
   seed. That says where the twin's values come from. It does not say
   that no twin row can equal a real one, and any wording that says so is
   a defect in this repository, not a nuance. Allocating published counts
-  exactly can force a twin row to match a real one: an 11-row
-  single-column table whose one label clears the disclosure floor
-  publishes that label with the count 11, so the twin holds it in all 11
-  rows, and each of those rows is a row the real table has. Nothing was
-  copied; the arithmetic left no other answer. The categorical form of
-  this claim is retired everywhere, and a test asserts its absence on
-  every public surface.
+  exactly can force a twin row to match a real one: a single-column
+  table of 100 rows whose one label is shared by all 100 publishes that
+  label with the count 100, so the twin holds it in all 100 rows, and
+  each of those rows is a row the real table has. Nothing was copied;
+  the arithmetic left no other answer. The example is stated at 100
+  rows because that is the smallest table `synthtwin profile` will
+  describe: under that it refuses and writes nothing (plan P4-D341).
+  The categorical form of this claim is retired everywhere, and a test
+  asserts its absence on every public surface.
 - synthtwin is not a formal privacy mechanism, claims no
   differential-privacy property, and offers no formal privacy guarantee.
   All six files a full run leaves behind - the profile, the
@@ -189,9 +191,10 @@ though it existed:
   table never has to leave the environment that already holds it and
   never has to reach an assistant. What it does NOT buy is a finding
   about anybody's obligations. The six files above carry facts
-  computed from real data, and at the default floor of one a column
-  whose role publishes values names every one of them with the rows
-  that held it, while the roles that publish none still publish counts
+  computed from real data, and at the default floor of eleven a column
+  whose role publishes values names every value eleven or more rows
+  held, with how many did - at a floor lowered to one, every one of
+  them - while the roles that publish none still publish counts
   and shapes measured from real cells - so whether a privacy rule, an
   institution's own rules, or a study's approval is satisfied is a
   question for the people who set
@@ -273,7 +276,7 @@ private prototype only behind a ratified public method specification
 with frozen neutral reference vectors, checked by the reviewer before
 the implementation they anchor exists.
 
-**The current phase is Phase 5.** Each entry below carries its own
+**The current phase is Phase 4, reopened 2026-09-12.** Each entry below carries its own
 state, so no reader has to work out from a date which of them is
 running.
 
@@ -313,9 +316,13 @@ running.
   is UNMET and named**: the reference vectors for the width pass and
   the empty-bin pass were not written, so those two branches are
   pinned by tests rather than by a frozen case with a mutant.
+  *Reopened by owner decision 2026-09-12*, because silent defects
+  inside its own charter were still live: the ordered landings in
+  `docs/STATE.md`, the plan of record, repair them before Phase 5
+  starts.
 - **Phase 5 - relationships and fidelity depth:** cross-column
-  structure and the quality report at full strength. *Current, and not
-  started* - this is the phase the twin's one-column-wide bound waits
+  structure and the quality report at full strength. *Next, and not
+  started: it waits on reopened Phase 4* - this is the phase the twin's one-column-wide bound waits
   on, and it inherits sixty-six carried register entries from Phase 4,
   grouped by what a reader would do about them in that plan's closure
   section. Nothing in this brief's "what the twin carries today" may

@@ -63,6 +63,7 @@ import pytest
 
 import fixtures
 from synthtwin import (
+    canonical,
     contract,
     errors,
     generation,
@@ -99,7 +100,7 @@ def _described(folder: pathlib.Path, floor: int) -> dict:
         folder, "witness.csv", fixtures.every_withholding_table()
     )
     document = profile.build_document(
-        reading.read_table(f"{table}"),
+        reading.read_table(f"{table}", small_cell_floor=floor),
         taxonomy.Settings(small_cell_floor=floor),
         [],
     )
@@ -157,6 +158,26 @@ def _is_prose(path: tuple) -> bool:
     if path[:1] == ("publication_notes",):
         return True
     return path[:1] == ("columns",) and "remarks" in path
+
+
+def _is_an_edge(path: tuple) -> bool:
+    """Whether this position holds a BIN NUMBER rather than a count.
+
+    `bin_groups` names the groups of bins a tail block publishes its
+    shape in (contract 6.7a, BG1), and each group carries the first and
+    the last BIN it covers beside the rows in it. Those two are
+    positions on the histogram's own scale: a floor of one leaves every
+    bin its own group, so the first group's `last` is nought there and
+    some larger number at a floor of eleven -- which is the shape of a
+    tally of held-back cells and is not one. Nothing is held back in a
+    bin number; the `count` beside it is the count, it is at least one
+    wherever a group exists, and it is inside the walk below.
+    """
+    return (
+        path[:1] == ("columns",)
+        and "bin_groups" in path
+        and path[len(path) - 1] in ("first", "last")
+    )
 
 
 def _whole_field(path: tuple) -> tuple:
@@ -324,11 +345,43 @@ def test_the_floor_governs_only_positions_the_loader_refuses(
     # it, `n_sentinel_candidates_unpublished` -- which is one of the five
     # this repair closed. So the whole block is grafted for these, and
     # the block carries its own tally.
-    assert silent == [("columns", 3, "sentinel_verdicts")], (
+    #
+    # AND `utc_offsets` SINCE PLAN P4-D220: its pool may stand at a floor
+    # of one (S13 as amended), so the floor-eleven map grafted there is a
+    # description the loader takes. What holds that pool is D3, asked
+    # beside it in `tests/test_older_censuses_name_no_row.py`.
+    #
+    # AND THE WIDTH CENSUSES SINCE PLAN P4-D221, on the same terms: their
+    # pools may stand at a floor of one too. Since plan P4-D222 (stage 2
+    # closed by the owner rulings of 2026-09-17) a floor of eleven counts
+    # rare forms, widths and offsets into the commonest rather than
+    # pooling them: `reading`'s field widths are a map the loader reads at
+    # either floor, and the forms map of `amount` left this list, because
+    # its floor-eleven count of decimals no longer meets the floor-one
+    # fraction census and is refused.
+    #
+    # AND `stamped_at`'s LADDER LEFT THIS LIST IN STAGE 3. It was here
+    # for a reason that was true when it was written: a ladder is
+    # statistics and not a census, its rows at a rare offset are read at
+    # the commonest offset where the census counts them into it, so the
+    # instants it is read off move with the floor while no invariant
+    # tied it to anything the floor governs. The tail rule (plan
+    # P4-D328) ties it: the contract's D11' publishes the ladder
+    # BETWEEN the two tail boundaries and nowhere else, and the
+    # boundaries are where the floor puts them, so the floor-eleven
+    # ladder grafted into a floor-one document now names rungs outside
+    # that column's own tails and is refused in those words. The two
+    # tails are refused there beside it. What is left silent is the
+    # three below.
+    assert silent == [
+        ("columns", 3, "field_widths"),
+        ("columns", 3, "sentinel_verdicts"),
+        ("columns", 5, "utc_offsets"),
+    ], (
         f"a position the floor moves has stopped being recorded by the "
         f"document: {silent}"
     )
-    for where in silent:
+    for where in silent[1:2]:
         made = _graft(strict, loose, where[:2])
         written = fixtures.write_profile(tmp_path, "block.json", made)
         with pytest.raises(errors.ProfileError):
@@ -358,7 +411,7 @@ def test_every_tally_the_floor_zeroes_is_refused_when_it_is_not_zero(
     right = _walked(loose, ())
     tallies: list[tuple] = []
     for path in sorted(left, key=lambda one: [f"{step}" for step in one]):
-        if path not in right or _is_prose(path):
+        if path not in right or _is_prose(path) or _is_an_edge(path):
             continue
         was = left[path]
         now = right[path]
@@ -433,8 +486,15 @@ def test_every_pooled_remainder_is_refused_by_the_half_that_writes(
         and not isinstance(value, bool)
         and isinstance(value, int)
         and value > 0
+        # The censuses whose pool S13 no longer refuses at a floor of one
+        # (plans P4-D220 and P4-D221), read from the one list the guard
+        # reads.
+        and not canonical.pools_at_any_floor(path[:-1])
     ]
-    assert len(remainders) >= 4, (
+    # THREE REMAINDERS OVER TWO FIELDS, where there were four over four
+    # before plan P4-D221 took the forms map and the width censuses out of
+    # this walk: both still stand in more than one field.
+    assert len(remainders) >= 3, (
         f"the witness table stopped pooling a remainder anywhere, so "
         f"this derivation is measuring nothing: {remainders}"
     )
@@ -442,7 +502,7 @@ def test_every_pooled_remainder_is_refused_by_the_half_that_writes(
         path[-2] if path[-1] == contract.WITHHELD else path[-1]
         for path in remainders
     }
-    assert len(fields) >= 4, (
+    assert len(fields) >= 2, (
         f"every pooled remainder the witness makes now stands in the "
         f"same field, so this derivation cannot show the walk reaching "
         f"more than one: {sorted(fields)}"
@@ -495,12 +555,22 @@ def _column(document: dict, name: str) -> dict:
 # now holds it. Grafting the old field instead would now break a total
 # and be refused by the accounting rule, which would say this one is
 # enforced when it is not.
+#
+# `utc_offsets` WAS THE FOURTH AND LEFT AT PLAN P4-D220 (stage 2 closed
+# by the owner rulings of 2026-09-17). That census names no count below
+# `parsing.census_floor`, which is two at a floor of one, so a pool there
+# holds the offsets that line cannot name and invariant S13 no longer
+# refuses it; D3 holds the pool instead, and
+# `tests/test_older_censuses_name_no_row.py` witnesses it at a floor of one.
+#
+# `numeric_styles` WAS THE FIFTH AND LEFT AT PLAN P4-D221, for the same
+# reason: the forms map names no count below `parsing.census_floor`, so its
+# pool stands at a floor of one, and P6 holds it instead;
+# `tests/test_number_censuses_name_no_row.py` witnesses it there.
 _WITNESSES = (
     ("missing_by_class", "visits"),
     ("n_missing_withheld", "visits"),
     ("n_sentinel_candidates_unpublished", "reading"),
-    ("utc_offsets", "stamped_at"),
-    ("numeric_styles", "amount"),
 )
 
 
@@ -735,7 +805,7 @@ def _deviating(folder: pathlib.Path, floor: int) -> "tuple[str, int]":
     ]
     table = fixtures.write(folder, "t.csv", fixtures.rows_to_csv(header, rows))
     document = profile.build_document(
-        reading.read_table(f"{table}"),
+        reading.read_table(f"{table}", small_cell_floor=floor),
         taxonomy.Settings(small_cell_floor=floor),
         [],
     )

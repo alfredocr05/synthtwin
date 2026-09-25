@@ -41,6 +41,9 @@ _WORDS = {
     18: "eighteen",
     19: "nineteen",
     20: "twenty",
+    21: "twenty-one",
+    22: "twenty-two",
+    23: "twenty-three",
 }
 
 
@@ -70,7 +73,7 @@ def test_the_membership_rule_counts_the_keys_the_producer_writes() -> None:
     said = _said()
     total = len(contract.SETTINGS_KEYS)
     word = _WORDS[total]
-    pattern = re.compile(r"\*\*C6-20 \(membership\)\.\*\* All ([A-Z]+) keys")
+    pattern = re.compile(r"\*\*C6-20 \(membership\)\.\*\* All ([A-Z]+(?:-[A-Z]+)?) keys")
     found = pattern.search(said)
     assert found is not None, "C6-20's membership sentence is not there"
     assert found.group(1).lower() == word, (

@@ -85,14 +85,16 @@ with tempfile.TemporaryDirectory() as folder:
             continue
         built += 1
         column = loaded.columns[0]
-        now = validation._windows_of(column, column.facts)
+        now = validation._windows_of(
+            column, column.facts, loaded.settings.small_cell_floor
+        )
         if not now:
             continue
         # the shipped deviation, on the same ladder the validator reads
         facts = column.facts
-        points = validation._fine_ladder_points(facts)
+        rungs = validation._filled_ladder(facts)
         numbers = validation._numeric_cells(facts)
-        ladder = [validation._ladder_at(points, (rank + 0.5) / numbers)
+        ladder = [validation._ladder_read(rungs, 2 * rank + 1, 2 * numbers)
                   for rank in range(numbers)]
         was = old_sample(ladder, numbers)
         is_now = validation._sample_deviation(ladder, numbers)

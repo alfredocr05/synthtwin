@@ -3,9 +3,10 @@
 THE ONE THING THE VALUES CANNOT SETTLE (plan P4-D19). A column of
 `213`, `08`, `141` is a column of vaccine codes or a column of counts,
 and the two are written identically. Read as counts it publishes an
-average, a smallest and a largest -- all three meaningless for a code,
-and all three REAL CODES besides -- and its twin loses the leading
-zeros, so `08` comes back as `8` and a reader that splits on width
+average, a spread and points along a range -- all of them meaningless
+for a code, and the boundary each of its tails is measured from IS a
+REAL CODE besides -- and its twin loses the leading zeros, so `08`
+comes back as `8` and a reader that splits on width
 breaks. Read as codes it keeps every spelling exactly and publishes how
 many rows carried each, which is what the column is for.
 
@@ -72,6 +73,7 @@ right thing with it; it is the asking that stops short, not the fix.
 
 import dataclasses
 
+from synthtwin import dialect
 from synthtwin import errors
 from synthtwin import parsing
 from synthtwin import taxonomy
@@ -88,11 +90,16 @@ NUMERIC_ROLES = (
 # P4-D21). `120/80` is not a number, not a date and not a clock time,
 # so it falls to free text -- or, where few enough readings repeat, to
 # a label role. Both are asked about, because both are what a blood
-# pressure column looks like when nobody has said what it is.
+# pressure column looks like when nobody has said what it is. AND THE
+# JOINED ROLE ITSELF (plan P4-D40): a pair of plain whole numbers joined
+# by a slash is read as joined numbers from its values, and a coding
+# system can be written that way too, so the question is still put and
+# `code` and `identifier` are still offered.
 JOINED_ROLES = (
     taxonomy.ROLE_TEXT,
     taxonomy.ROLE_LONG_TAIL,
     taxonomy.ROLE_CATEGORICAL,
+    taxonomy.ROLE_JOINED,
 )
 
 # The two readings a person is offered, and the third that already had
@@ -101,12 +108,93 @@ ANSWER_MEASUREMENT = "measurement"
 ANSWER_CODE = "code"
 ANSWER_IDENTIFIER = "identifier"
 ANSWER_JOINED = "joined"
+# ...and the fourth declaration a question can stand for (landing 2b.2):
+# the column writes a point between its thousands and a comma for its
+# decimals, which is `--decimal-comma`.
+ANSWER_DECIMAL_COMMA = "decimal_comma"
+
+# THE FIFTH DECLARATION, AND THE FIRST THAT IS NOT ABOUT A COLUMN (plan
+# P4-D81). Some survey exports write two rows UNDER the column names
+# that describe those columns rather than holding anybody's record.
+# synthtwin used to recognise that shape and act on it, which meant a
+# file it recognised WRONGLY had two of its records taken out of the
+# table and published whole as schema text (review item CODEX-2). So
+# the shape is a question now, and these are its two answers: the rows
+# are records of the table (the reading that stands where nobody
+# answers), or they describe the columns.
+ANSWER_DATA = "data"
+ANSWER_METADATA_ROWS = "metadata-rows"
+
+# How many rows the answer declares. The shape synthtwin recognises is
+# exactly two, and two is what the description can carry (contract FD9).
+METADATA_ROWS_DECLARED = 2
+
+# What the question is ABOUT, where a column question names its column.
+# It names no value and no cell: it is a fact about the file's shape.
+METADATA_SUBJECT = "the rows under your column names"
+
+BECAUSE_EXPORT_SHAPE = "export-metadata-shape"
+# ...and the same question asked from the other side: the person
+# DECLARED such rows on a file that does not wear that shape, so the
+# rows stayed in the table and the question is put in the file where
+# they can answer it after reading what it costs (review of landing
+# 2b.17, MAJOR; the CODEX-2 ruling read the other way round).
+BECAUSE_DECLARED_UNSEEN = "declared-metadata-rows-not-seen"
+
+# THE SIXTH DECLARATION, AND THE SECOND ABOUT THE FILE (plan P4-D110,
+# review item CODEX-4): which character separates the columns, asked
+# only where the file reads equally well under more than one. Each
+# answer is a word a person can type in a JSON file, which a tab is not.
+DELIMITER_SUBJECT = "the character between your columns"
+BECAUSE_DELIMITER_TIE = "reads-equally-well-with-two-delimiters"
+ANSWER_DELIMITERS = {
+    "comma": ",",
+    "semicolon": ";",
+    "tab": "\t",
+    "vertical-bar": "|",
+}
+
+# THE SEVENTH DECLARATION, AND THE THIRD ABOUT THE FILE (the owner's
+# ruling of 2026-09-17, item 8; plan P4-D232): which row the column
+# names are in, asked wherever the first row could not be told from a
+# record of the table. The reading that stands where nobody answers is
+# that the row is a RECORD -- the columns are named `column_1`,
+# `column_2` and so on and every row is kept -- because that reading
+# publishes no text of a row that may be somebody's data, and the other
+# publishes all of it.
+FIRST_ROW_SUBJECT = "which row your column names are in"
+BECAUSE_FIRST_ROW_UNTOLD = "first-row-not-told-from-a-record"
+ANSWER_FIRST_ROW_NAMES = "names"
+ANSWER_FIRST_ROW_DATA = "first-record"
 
 # Why a column was worth asking about. Each is shown to the person, so
 # each says what was SEEN and not what it was taken to mean.
 BECAUSE_PADDED = "padded"
 BECAUSE_FIXED_WIDTH = "fixed-width"
 BECAUSE_JOINED = "two-numbers"
+# ...and the two a number grouped between its thousands raises (landing
+# 2b.2). A column of `123 456 789` reads as numbers since that landing,
+# and every value the same number of figures is what an identifier looks
+# like whatever mark groups it. A column of `12.345` reads as decimals,
+# and three figures after every point is what a point between thousands
+# looks like.
+BECAUSE_GROUPED_FIXED_WIDTH = "grouped-fixed-width"
+BECAUSE_POINT_THOUSANDS = "three-figures-after-the-point"
+# ...AND THE ONE QUESTION ABOUT WHO THE ROWS ARE (plan P4-D340, and
+# the repair of landing 3.2). Asked of a column whose values REPEAT
+# and are either MANY or written as CODES, and only where nothing at
+# all was declared as holding record numbers: that shape is how a
+# table with several rows per subject is written, and nothing else in
+# this tool can reach it. The uniqueness pointer cannot -- it fires
+# only where almost every value differs, which is the opposite shape --
+# so a table of 12 subjects over 1,196 rows was described with every
+# subject's identifier published beside its visit count and nothing
+# said about it. ONE REASON COVERS BOTH ROUTES on purpose: what the
+# person is being asked is the same question with the same two
+# answers, and `_shape_of` renders what was actually seen -- how many
+# different values over how many cells -- rather than restating the
+# route that found it. `asking._names_people` holds both routes.
+BECAUSE_REPEATS_AND_MANY = "repeats-and-many-different-values"
 
 # A fixed-width all-digit column is asked about from three digits up.
 # Below that the shape is too common to mean anything: a column of `1`
@@ -134,6 +222,95 @@ def _is_plain_whole_number(text: str) -> bool:
     return True
 
 
+def _grouped_figures(text: str) -> "str | None":
+    """The figures of a cell written as figures grouped in threes, or None.
+
+    A cell qualifies where `parsing.thousands_mark` finds one mark
+    grouping its figures and nothing but figures and that mark stands in
+    it -- no sign, no point, no exponent -- which is how an identifier
+    grouped for reading is written: `123 456 789`.
+    """
+    mark = parsing.thousands_mark(text)
+    if not mark:
+        return None
+    figures = ""
+    for character in text:
+        if character == mark:
+            continue
+        if not ("0" <= character <= "9"):
+            return None
+        figures = figures + character
+    return figures
+
+
+def _without_sign_or_padding(text: str) -> str:
+    """A cell with its outer spaces and its sign notation taken off.
+
+    The notations the reader accepts on a number (landing 2b.2): a
+    leading `+` or `-`, the minus sign U+2212, brackets around the
+    figures, and a trailing minus. The shape questions below ask about
+    the figures and the point, and a sign or a padded cell says nothing
+    about whether the point groups thousands (integration repair: one
+    `+1.500`, or one ` 1.500 `, among 599 plain cells silenced the
+    question, and a column counted in thousands published a mean of
+    1.4995 with nothing asked).
+    """
+    body = parsing.trimmed(text)
+    if len(body) >= 2 and body[:1] == "(" and body[len(body) - 1 :] == ")":
+        body = body[1 : len(body) - 1]
+    elif len(body) >= 2 and body[len(body) - 1 :] == "-" and body[:1] != "-":
+        body = body[: len(body) - 1]
+    elif body[:1] in ("+", "-", parsing.MINUS_SIGN):
+        body = body[1:]
+    return body
+
+
+def _point_between_thousands(text: str) -> bool:
+    """Whether a cell could be a whole number with a point between thousands.
+
+    One to three figures, not led by a zero, then a point, then exactly
+    three figures, after an optional minus: `12.345`, `-1.500`. A
+    thousands group never begins `0.`, so a column of proportions
+    written `0.125` is not asked about.
+    """
+    if not isinstance(text, str):
+        raise TypeError("a cell to ask about must be text")
+    body = text
+    if body[:1] == "-":
+        body = body[1:]
+    point = -1
+    for place in range(len(body)):
+        if body[place] == "." and point < 0:
+            point = place
+    if point < 1 or point > 3:
+        return False
+    head = body[:point]
+    tail = body[point + 1 :]
+    if head[:1] == "0" or len(tail) != 3:
+        return False
+    return _is_plain_whole_number(head) and _is_plain_whole_number(tail)
+
+
+def _written_below_a_thousand(text: str) -> bool:
+    """Whether a cell is a whole number below a thousand, written plainly.
+
+    One to three figures, not led by a zero unless it is `0` itself,
+    after an optional minus: `523`, `-7`, `0`. Written with a point
+    between its thousands, a number below a thousand has no point at all,
+    so these are the cells a column of `12.345` holds beside them.
+    """
+    if not isinstance(text, str):
+        raise TypeError("a cell to ask about must be text")
+    body = text
+    if body[:1] == "-":
+        body = body[1:]
+    if len(body) < 1 or len(body) > 3:
+        return False
+    if body[:1] == "0" and body != "0":
+        return False
+    return _is_plain_whole_number(body)
+
+
 def why_worth_asking(values: "list[str]") -> "str | None":
     """The reason to ask about this column, or None to stay quiet.
 
@@ -153,12 +330,61 @@ def why_worth_asking(values: "list[str]") -> "str | None":
     - every cell exactly the same number of digits, at least three of
       them. Fixed width is what a code has and a measurement does not:
       real quantities spread across widths.
+
+    AND TWO THAT A GROUPED NUMBER RAISES (landing 2b.2):
+
+    - every cell figures alone or figures grouped in threes by one mark,
+      at least one of them grouped, and every cell the same number of
+      FIGURES. `123 456 789` is read as a number since that landing,
+      and a register of nine-figure identifiers grouped for reading
+      would otherwise publish real identifiers of its own -- the
+      boundary each tail is measured from, and a rung a group of rows
+      shares -- with nothing asked.
+    - at least one cell one to three figures, a point and exactly three
+      figures, and every other cell a whole number below a thousand
+      written plainly. Read undeclared, `12.345` is twelve and a bit;
+      written with a point between thousands it is twelve thousand, and
+      only the person holding the table knows which. The reading is not
+      changed: the question offers `--decimal-comma` as an answer.
+
+    THE SMALL NUMBERS DO NOT SILENCE IT (the verification of landing
+    2b.2). The first rule asked only where EVERY cell had a point, and a
+    count written the German way writes `523` for five hundred and
+    twenty-three: a column of 900 such counts, a third of them below a
+    thousand, published a mean of 184 for a true mean in the thousands
+    with nothing asked, on three seeds of three. A cell below a thousand
+    is what that column must hold, and one written any other way -- a
+    point with one or two figures after it, a fourth figure before it --
+    still settles the reading, so the column stays unasked.
     """
     if not values:
         return None
+    grouped = False
+    figures_of: "list[str]" = []
     for value in values:
-        if not _is_plain_whole_number(value):
+        if _is_plain_whole_number(value):
+            figures_of += [value]
+            continue
+        figures = _grouped_figures(value)
+        if figures is None:
+            pointed = False
+            for cell in values:
+                body = _without_sign_or_padding(cell)
+                if _point_between_thousands(body):
+                    pointed = True
+                elif not _written_below_a_thousand(body):
+                    return None
+            if pointed:
+                return BECAUSE_POINT_THOUSANDS
             return None
+        grouped = True
+        figures_of += [figures]
+    if grouped:
+        counted = {len(figures) for figures in figures_of}
+        if len(counted) == 1:
+            if sorted(counted)[0] >= _NARROWEST_FIXED_WIDTH:
+                return BECAUSE_GROUPED_FIXED_WIDTH
+        return None
     for value in values:
         if len(value) > 1 and value[0] == "0":
             return BECAUSE_PADDED
@@ -198,6 +424,20 @@ def why_joined_is_worth_asking(values: "list[str]") -> "str | None":
         if parts >= 2:
             return BECAUSE_JOINED
     return None
+
+
+def reads_each_number(role: str) -> bool:
+    """Whether a column on this role is described one number at a time.
+
+    The joined role (plan P4-D21, and P4-D40 for the shape read from the
+    values) describes each position of a cell as a quantity and
+    publishes no whole cell; neither sentence written for a label role
+    or a text role says that.
+
+    Guarantees: accepts a role name; returns whether it is the joined
+    role. Determinism: a function of the name. Raises nothing. No I/O.
+    """
+    return role == taxonomy.ROLE_JOINED
 
 
 def publishes_its_values(role: str) -> bool:
@@ -303,7 +543,23 @@ def _publishes_under(answer: str, role: str, floor: int) -> str:
     * at a smallest-group size of eleven a categorical column withholds
       its rare levels, and the code choice promised that every value is
       kept exactly as written -- which is the whole point of that
-      answer, and not true above the default floor.
+      answer, and not true above a floor of one.
+
+    AND IT DOES NOT SAY WHO CHOSE THE FLOOR (plan P4-D316). It read
+    "because you asked for groups of 11", which was true while the
+    default was 1 and every floor above it had been typed. The default
+    is 11 since 2026-09-22, so most runs at that floor asked for nothing,
+    and the sentence now names the rule rather than a request.
+
+    AND NO CHOICE PROMISES AN END STAGE 3 WITHHELD (review of
+    2026-09-23, finding 7). The measurement, joined-number and
+    decimal-comma choices each read "a smallest and a largest", and a
+    description written after stage 3 publishes an end only where at
+    least the floor's rows share it. Measured on 100 readings 0.125 to
+    99.125: `min`, `max` and six of the nine interior rungs are withheld,
+    so the person answering was deciding on a promise of two values the
+    answer cannot deliver. Each of the three now names the tail instead,
+    with the floor the end would have to clear.
 
     A choice that overstates what it buys is worse than no choice: the
     person is deciding on this sentence, and it is the only part of the
@@ -325,13 +581,27 @@ def _publishes_under(answer: str, role: str, floor: int) -> str:
                 "file format can hold"
             )
         return (
-            "an average, a spread, a smallest and a largest, and points "
-            "between"
+            f"an average, a spread and points along its range, but "
+            f"neither end: each end is published only where at least "
+            f"{floor} rows share the value, and otherwise the "
+            f"description carries a boundary, how many rows lie beyond "
+            f"it and how far beyond they lie"
         )
-    if answer == ANSWER_JOINED:
+    if answer == ANSWER_JOINED or (
+        answer == ANSWER_KEEP and role == taxonomy.ROLE_JOINED
+    ):
         return (
-            "each number inside the cell described on its own, with its "
-            "own average and ends"
+            f"each number inside the cell described on its own, with its "
+            f"own average, spread and points along its range, and its "
+            f"own two ends published only where at least {floor} rows "
+            f"share them"
+        )
+    if answer == ANSWER_DECIMAL_COMMA:
+        return (
+            f"an average, a spread and points along its range, but "
+            f"neither end unless at least {floor} rows share it, with "
+            f"every point read as a mark between thousands and every "
+            f"comma as the decimal point"
         )
     if answer == ANSWER_CODE:
         if floor > 1:
@@ -339,7 +609,7 @@ def _publishes_under(answer: str, role: str, floor: int) -> str:
                 f"every value that at least {floor} rows share, exactly "
                 f"as written and with the number of rows that carried "
                 f"it; rarer ones counted together and never named, "
-                f"because you asked for groups of {floor}"
+                f"because no group of fewer than {floor} rows is named"
             )
         return (
             "every value exactly as written, with the number of rows "
@@ -398,6 +668,42 @@ def _numeric_choices(
     return first + rest
 
 
+def _point_choices(role: str, floor: int) -> "list[Choice]":
+    """The answers a column of `12.345`-shaped figures may take (landing 2b.2).
+
+    The reading taken first, because Enter gives it: the point is a
+    decimal point. The second is the declaration that reads it the other
+    way, and the last two are the ones every column of figures is
+    offered.
+    """
+    return [
+        Choice(
+            ANSWER_MEASUREMENT,
+            "measurements written with a decimal point -- `12.345` is "
+            "twelve and a bit",
+            _publishes_under(ANSWER_MEASUREMENT, role, floor),
+        ),
+        Choice(
+            ANSWER_DECIMAL_COMMA,
+            "measurements written with a point between thousands and a "
+            "comma for decimals -- `12.345` is twelve thousand three "
+            "hundred and forty-five",
+            _publishes_under(ANSWER_DECIMAL_COMMA, role, floor),
+        ),
+        Choice(
+            ANSWER_CODE,
+            "codes -- a coding system, where the value stands for a "
+            "thing rather than counting one",
+            _publishes_under(ANSWER_CODE, role, floor),
+        ),
+        Choice(
+            ANSWER_IDENTIFIER,
+            "record numbers -- a key nothing should publish",
+            _publishes_under(ANSWER_IDENTIFIER, role, floor),
+        ),
+    ]
+
+
 def _joined_choices(role: str, floor: int) -> "list[Choice]":
     """The answers a column of two-numbers-in-one-cell may take.
 
@@ -407,7 +713,30 @@ def _joined_choices(role: str, floor: int) -> "list[Choice]":
     CHANGES the reading. Listing the change as the default told a
     person that doing nothing would describe their blood pressures,
     when doing nothing leaves them undescribed.
+
+    A column already read as joined numbers from its values (plan
+    P4-D40) keeps that reading on Enter, and is not offered `joined`
+    again: the answer would change nothing.
     """
+    if role == taxonomy.ROLE_JOINED:
+        return [
+            Choice(
+                ANSWER_KEEP,
+                "leave it as it is -- synthtwin reads each number in "
+                "these cells on its own",
+                _publishes_under(ANSWER_KEEP, role, floor),
+            ),
+            Choice(
+                ANSWER_CODE,
+                "codes -- a coding system that writes its codes in parts",
+                _publishes_under(ANSWER_CODE, role, floor),
+            ),
+            Choice(
+                ANSWER_IDENTIFIER,
+                "record numbers -- a key nothing should publish",
+                _publishes_under(ANSWER_IDENTIFIER, role, floor),
+            ),
+        ]
     return [
         Choice(
             ANSWER_KEEP,
@@ -433,13 +762,53 @@ def _joined_choices(role: str, floor: int) -> "list[Choice]":
     ]
 
 
+@dataclasses.dataclass(frozen=True, eq=False)
+class SplitColumns:
+    """The present cells `questions_for` split out of the columns it read.
+
+    Handed to `person_questions`, which asks `taxonomy.split_missing` the
+    same question of the same columns under the same settings, so each
+    column is split once. ``cells[place]`` is the column object the list
+    ``present[place]`` was split from, and `person_questions` takes a
+    list only where the table's column at that place IS that object and
+    the settings are equal to ``settings``; anything else it splits
+    itself.
+    """
+
+    settings: taxonomy.Settings
+    cells: "dict[int, list[str]]"
+    present: "dict[int, list[str]]"
+
+
 def questions_for(
     document: "dict[str, object]",
     table_columns: "list[list[str]]",
     settings: taxonomy.Settings,
     already: "list[str]",
+    decimal_commas: "tuple[str, ...]" = (),
 ) -> "list[Question]":
     """Every column worth asking about, in the table's own order.
+
+    `questions_and_splits_for` without the present cells it split, for
+    a caller that asks nothing after it.
+    """
+    return questions_and_splits_for(
+        document, table_columns, settings, already, decimal_commas
+    )[0]
+
+
+def questions_and_splits_for(
+    document: "dict[str, object]",
+    table_columns: "list[list[str]]",
+    settings: taxonomy.Settings,
+    already: "list[str]",
+    decimal_commas: "tuple[str, ...]" = (),
+) -> "tuple[list[Question], SplitColumns]":
+    """Every column worth asking about, in the table's own order.
+
+    Returned with the present cells split out of every column read on
+    the way (`SplitColumns`), which `person_questions` takes rather than
+    splitting the same columns again.
 
     Guarantees:
 
@@ -453,11 +822,17 @@ def questions_for(
 
     A column already declared is never asked about: the person has
     answered, and asking again would say their answer had not been
-    heard.
+    heard. ``decimal_commas`` names the columns declared with
+    `--decimal-comma`, which have answered the point question and only
+    that one (the verification of landing 2b.2: a declared column of
+    `2.433` beside `771` was still asked whether its point was a mark
+    between thousands).
     """
+    split_cells: "dict[int, list[str]]" = {}
+    split_present: "dict[int, list[str]]" = {}
     blocks = document["columns"]
     if not isinstance(blocks, list):
-        return []
+        return [], SplitColumns(settings, split_cells, split_present)
     asked: list[Question] = []
     position = 0
     for block in blocks:
@@ -475,14 +850,32 @@ def questions_for(
         present, _absent = taxonomy.split_missing(
             table_columns[position], settings
         )
+        split_cells[position] = table_columns[position]
+        split_present[position] = present
         if role not in NUMERIC_ROLES and role not in JOINED_ROLES:
             position = position + 1
             continue
         reason: "str | None"
-        if role in JOINED_ROLES:
+        mark = ""
+        remainder = 0
+        if role == taxonomy.ROLE_JOINED:
+            # THE PUBLISHED READING IS THE EVIDENCE (integration repair of
+            # landing 2b.5). Rule 9c reads a pair spaced `1234 / 5`, and a
+            # column with a cell that is not a pair, as joined numbers,
+            # and the recogniser below re-parses on bare marks with every
+            # cell a pair -- so both published an average of each number
+            # with nothing asked, while the bare column was asked. A
+            # column declared a measurement is in ``already`` above.
+            reason = BECAUSE_JOINED
+            mark = f"{block['separator']}" if "separator" in block else ""
+            unparsed = block["n_unparsed"] if "n_unparsed" in block else 0
+            remainder = unparsed if isinstance(unparsed, int) else 0
+        elif role in JOINED_ROLES:
             reason = why_joined_is_worth_asking(present)
         else:
             reason = why_worth_asking(present)
+        if reason == BECAUSE_POINT_THOUSANDS and name in decimal_commas:
+            reason = None
         if reason is not None:
             # THE READING RECORDED HERE IS THE ONE THE TOOL TAKES, and
             # never the one it ought to take. A questions file that
@@ -499,6 +892,9 @@ def questions_for(
                 # reading (review round 1, item 3).
                 choices = _joined_choices(role, settings.small_cell_floor)
                 taken = ANSWER_KEEP
+            elif reason == BECAUSE_POINT_THOUSANDS:
+                choices = _point_choices(role, settings.small_cell_floor)
+                taken = ANSWER_MEASUREMENT
             else:
                 choices = _numeric_choices(
                     ANSWER_MEASUREMENT, role, settings.small_cell_floor
@@ -509,13 +905,271 @@ def questions_for(
                     name,
                     role,
                     reason,
-                    _shape_of(reason, present, settings.small_cell_floor),
+                    _shape_of(
+                        reason, present, settings.small_cell_floor, mark,
+                        remainder,
+                    ),
                     choices,
                     taken,
                 )
             ]
         position = position + 1
-    return asked
+    return asked, SplitColumns(settings, split_cells, split_present)
+
+
+def file_questions(
+    metadata_shape: bool,
+    declared_unseen: int = 0,
+    tied_delimiters: "tuple[str, ...]" = (),
+    first_row_seen: str = "",
+) -> "list[Question]":
+    """The questions about the FILE rather than about a column.
+
+    Three subjects: which row the column names are in
+    (`_first_row_questions`, the owner's ruling of 2026-09-17 item 8,
+    plan P4-D232), the rows under the column names
+    (`_metadata_questions`) and, where the file reads equally well under
+    more than one delimiter, which one it is written with
+    (`_delimiter_questions`, plan P4-D110). In that order, which is the
+    order a file is read in: which row the names are in is settled
+    before anything under it can be described.
+
+    Guarantees: a fixed function of the arguments; opens nothing; and
+    carries no value of the table.
+    """
+    return (
+        _first_row_questions(first_row_seen)
+        + _metadata_questions(metadata_shape, declared_unseen)
+        + _delimiter_questions(tied_delimiters)
+    )
+
+
+def _first_row_questions(seen: str) -> "list[Question]":
+    """Which row the column names are in, where the file cannot say.
+
+    THE QUESTION A FILE CANNOT ANSWER (the owner's ruling of 2026-09-17,
+    item 8; plan P4-D232). A row of text above a table is the column
+    names as often as it is the first record, and where the values below
+    it mark it as a record -- or where a title stands above it, so that
+    a headerless table and a headed one are the same bytes up to that
+    row -- nothing in the file settles which. synthtwin takes the
+    reading that publishes nothing of it: the columns are named
+    `column_1`, `column_2` and so on and every row is kept, including
+    that one. The other reading is a declaration, and this is where it
+    is offered.
+
+    WHAT IT SAYS WAS SEEN IS A FACT ABOUT THE FILE'S SHAPE, never a
+    cell: a value in that row reads as a number, a value in it belongs
+    among the values below it, or a line that is not a record stands
+    above it. The row's own text is exactly what the standing reading
+    withholds, so quoting it to ask about it would publish it.
+
+    Guarantees: accepts what the file showed, in words, or the empty
+    string where the reading was settled; returns at most one question;
+    opens nothing; and carries no value of the table.
+    """
+    if not seen:
+        return []
+    return [
+        Question(
+            FIRST_ROW_SUBJECT,
+            "",
+            BECAUSE_FIRST_ROW_UNTOLD,
+            seen,
+            [
+                Choice(
+                    ANSWER_FIRST_ROW_DATA,
+                    "the first row of the file is a record of the table",
+                    (
+                        "the columns are named column_1, column_2 and so "
+                        "on, every row of the file is described, and no "
+                        "text of the first row is published anywhere"
+                    ),
+                ),
+                Choice(
+                    ANSWER_FIRST_ROW_NAMES,
+                    "the first row of the file holds the column names",
+                    (
+                        "the columns are named as that row names them, "
+                        "which publishes its text in the description, in "
+                        "the summary, in the twin and in the quality "
+                        "report, and the table is described without it"
+                    ),
+                ),
+            ],
+            ANSWER_FIRST_ROW_DATA,
+        )
+    ]
+
+
+def _delimiter_questions(tied: "tuple[str, ...]") -> "list[Question]":
+    """Which delimiter a file that reads equally well two ways is written with.
+
+    THE QUESTION THE CELLS CANNOT ANSWER (review item CODEX-4). A file
+    written `id,pair|code` over rows such as `1,2|3` is two columns
+    under the comma and two different columns under the vertical bar,
+    and a count of the cells that read as numbers took the bar where an
+    earlier version read the comma. Neither reading is wrong about the
+    bytes, so the reading taken stands -- a file this tool twinned
+    before may not be refused now -- and the person is asked. What the
+    question names is the delimiters, never a cell.
+
+    AND WHAT THE ANSWER COSTS IS SAID IN THE ANSWER (plan P4-D297, the
+    merge-close of 2026-09-18). The merge skeptic measured the residue
+    this question leaves: on `id,measure|low|high` over 120 rows of
+    `i,{100+i%4}|90|110` the vertical bar wins and the comma is recorded,
+    but the source's first column holds `0`, `1`, `2` beside its comma
+    while the twin's holds `100|90|110`, so a comma reader finds two
+    fields per row on the source and one on the twin. Both files
+    validate at nought against the description, because no published
+    fact is about the losing reading. Holding the twin's cells to the
+    losing delimiter's field count as well would bind every made-up cell
+    of every column to a second shape, against the length and form
+    censuses those cells already owe; so the cost is stated here, where
+    the person is choosing, rather than paid there.
+    """
+    if len(tied) < 2:
+        return []
+    word_of = {ANSWER_DELIMITERS[word]: word for word in ANSWER_DELIMITERS}
+    choices: list[Choice] = []
+    for one in tied:
+        choices += [
+            Choice(
+                word_of[one],
+                f"the columns are separated by {dialect.DELIMITER_WORDS[one]}",
+                (
+                    f"the file is read with {dialect.DELIMITER_WORDS[one]}, "
+                    f"which decides every column name and every column's "
+                    f"values, and the twin is written with it -- the "
+                    f"twin's own cells are made up under this reading "
+                    f"alone, so a reader that splits the twin by the "
+                    f"other character need not find the rows your file "
+                    f"gives it"
+                ),
+            )
+        ]
+    return [
+        Question(
+            DELIMITER_SUBJECT,
+            "",
+            BECAUSE_DELIMITER_TIE,
+            (
+                f"every record of your file splits cleanly, into one "
+                f"steady number of columns, under {len(tied)} different "
+                f"delimiters -- which need not be the same number of "
+                f"columns under each -- so nothing in the values can "
+                f"say which one your file uses"
+            ),
+            choices,
+            word_of[tied[0]],
+        )
+    ]
+
+
+def _metadata_questions(
+    metadata_shape: bool, declared_unseen: int = 0
+) -> "list[Question]":
+    """The question about the rows under the column names.
+
+    One subject, asked from either side: whether the rows under the
+    column names describe those columns (plan P4-D81).
+
+    WHERE THE SHAPE WAS SEEN it is asked because synthtwin will not act
+    on a resemblance -- two records as wide as the header, the second
+    every cell an ImportId object -- and NOTHING is done about it
+    unless the person answers, because acting on the shape unasked is
+    how a person's own record became schema text (review item
+    CODEX-2).
+
+    WHERE THE PERSON DECLARED SUCH ROWS AND THE SHAPE IS NOT THERE it
+    is asked for the mirror-image reason (review of landing 2b.17,
+    MAJOR). `--metadata-rows 2` on an ordinary table used to take two
+    records out of it and publish them verbatim as the columns'
+    description -- two people's rows, exempt from the smallest group,
+    written into the twin, and gone from every count -- on the
+    strength of a declaration the file plainly did not bear out. The
+    rows now stay in the table and the person is asked here, where the
+    answer says what it will cost before it is acted on. Answering
+    `metadata-rows` in this file is what makes the declaration act,
+    and it is a deliberate second step rather than a typing slip.
+
+    Guarantees: a fixed function of the arguments; opens nothing; and
+    carries no value of the table -- the shape it reports is a count of
+    rows and the name of a marker synthtwin itself looks for.
+    """
+    if declared_unseen and not metadata_shape:
+        return [
+            Question(
+                METADATA_SUBJECT,
+                "",
+                BECAUSE_DECLARED_UNSEEN,
+                (
+                    f"you said the {declared_unseen} row(s) under your "
+                    f"column names describe those columns, and what "
+                    f"synthtwin looked for and did not see is the shape "
+                    f"such a file usually has: rows as wide as your "
+                    f"table whose second holds a marker in every cell"
+                ),
+                [
+                    Choice(
+                        ANSWER_DATA,
+                        "they are records of your table, like any other row",
+                        (
+                            "they stay in the table, counted and described "
+                            "as data, which is what this run did"
+                        ),
+                    ),
+                    Choice(
+                        ANSWER_METADATA_ROWS,
+                        (
+                            "they describe the columns; they are not "
+                            "anybody's record"
+                        ),
+                        (
+                            "they are taken out of the table and published "
+                            "as written, like the column names, and the "
+                            "twin writes them back unchanged"
+                        ),
+                    ),
+                ],
+                ANSWER_DATA,
+            )
+        ]
+    if not metadata_shape:
+        return []
+    return [
+        Question(
+            METADATA_SUBJECT,
+            "",
+            BECAUSE_EXPORT_SHAPE,
+            (
+                "the two rows under your column names are each as wide as "
+                "the table, and every cell of the second is an ImportId "
+                "marker -- the shape some survey tools write to describe "
+                "their columns"
+            ),
+            [
+                Choice(
+                    ANSWER_DATA,
+                    "they are records of your table, like any other row",
+                    (
+                        "both rows are counted and described as data, and "
+                        "the twin holds a made-up row in each one's place"
+                    ),
+                ),
+                Choice(
+                    ANSWER_METADATA_ROWS,
+                    "they describe the columns; they are not anybody's record",
+                    (
+                        "both rows are taken out of the table and published "
+                        "as written, like the column names, and the twin "
+                        "writes them back unchanged"
+                    ),
+                ),
+            ],
+            ANSWER_DATA,
+        )
+    ]
 
 
 def _joining_mark(values: "list[str]") -> str:
@@ -536,7 +1190,7 @@ def _joining_mark(values: "list[str]") -> str:
     return ""
 
 
-def _sayable(count: int, floor: int) -> str:
+def _sayable(count: int, population: int, floor: int) -> str:
     """A count of cells, or the word for one the floor will not name.
 
     THE DISCLOSURE FLOOR REACHES THE SHAPE TOO (review round 1 of
@@ -550,13 +1204,38 @@ def _sayable(count: int, floor: int) -> str:
     fact about how it was written, which is what the question is about;
     HOW MANY carry it is a count of a group, and a group smaller than
     the floor is not named here any more than anywhere else.
+
+    AND THE COMPLEMENT IS A GROUP TOO -- the whole of the shared rule
+    `parsing.census_nameable`, asked here as every other surface asks it
+    (plan P4-D273, the repair of the extra review round of 2026-09-18).
+    The floor alone reads the count and not what is left beside it, and
+    the description that stands next to this file absorbs a spelling
+    below the line into the column's commonest (ruling 6 of 2026-09-17).
+    **Measured** at a floor of eleven, on 399 values `00001` to `00399`
+    and one `12345`: the description published `numeric_styles
+    {"leading_zero": 400}`, which says every value is padded, while this
+    file recounted the cells for itself and said "399 of them carry a
+    leading zero" -- and 400 present cells less 399 is the one unpadded
+    record, restored on the surface beside the one that hid it. The
+    count is now spoken only where it AND what it leaves over reach the
+    line, so the file says "some of them" and the pair says nothing.
+
+    Guarantees: accepts the count, the cells it was counted over and the
+    settings floor; returns words carrying no value of the table.
+    Determinism: a fixed function of the three. Raises nothing. No I/O.
     """
-    if count >= floor:
+    if parsing.census_nameable([count], [population], floor):
         return f"{count} of them"
     return "some of them"
 
 
-def _shape_of(reason: str, present: "list[str]", floor: int = 1) -> str:
+def _shape_of(
+    reason: str,
+    present: "list[str]",
+    floor: int,
+    mark: str = "",
+    remainder: int = 0,
+) -> str:
     """What synthtwin SAW, in words carrying no value of the table.
 
     THE DISCLOSURE RULE OF THE QUESTIONS FILE, made into a sentence
@@ -566,10 +1245,38 @@ def _shape_of(reason: str, present: "list[str]", floor: int = 1) -> str:
     -- and no value of the table. A count of how many cells carry a
     leading zero is a count and not a value; a width is a width.
 
-    Guarantees: accepts a reason and the present cells; returns one
-    sentence. Determinism: a fixed function of both. Raises nothing.
-    No I/O. **No cell of the column appears in what it returns.**
+    THE FLOOR HAS NO DEFAULT (plan P4-D317). It was 1, so a caller that
+    left it out would have counted at a floor of one whatever the person
+    asked for; the one caller passes the settings floor.
+
+    Guarantees: accepts a reason, the present cells and the settings
+    floor; returns one sentence. Determinism: a fixed function of those.
+    Raises nothing. No I/O. **No cell of the column appears in what it
+    returns.**
     """
+    if reason == BECAUSE_REPEATS_AND_MANY:
+        # THE TWO COUNTS THE RULE WAS MEASURED ON, and nothing else: how
+        # many different values the column holds and how many cells
+        # they stand on. Both are counts a description publishes about
+        # every column anyway (`n_distinct_folded` and `n_present`), so
+        # the file carries nothing here it does not carry there -- and
+        # no cell of the column reaches this sentence.
+        different: "dict[str, int]" = {}
+        for value in present:
+            different[parsing.folded(value)] = 1
+        # ON AVERAGE, AND THE WORD IS LOAD-BEARING (review of stage 3,
+        # floor item 4). This said "so each one stands on more than
+        # one row", which was true of route two while route two demanded
+        # it of every value -- and one subject with a single visit
+        # silenced the whole question for exactly that reason. The rule
+        # is now the average on both routes, so a register of twelve
+        # subjects one of whom has one visit IS asked about, and the
+        # sentence that says what was seen may not claim of that column
+        # something the column does not do.
+        return (
+            f"{len(different)} different value(s) over {len(present)} "
+            f"cell(s), so they stand on more than one row each on average"
+        )
     if reason == BECAUSE_PADDED:
         padded = 0
         for value in present:
@@ -577,7 +1284,7 @@ def _shape_of(reason: str, present: "list[str]", floor: int = 1) -> str:
                 padded = padded + 1
         return (
             f"every value is written in figures alone, and "
-            f"{_sayable(padded, floor)} carry a leading zero"
+            f"{_sayable(padded, len(present), floor)} carry a leading zero"
         )
     if reason == BECAUSE_FIXED_WIDTH:
         # A COMPREHENSION RATHER THAN `add` (plan D6.2). The offline
@@ -593,8 +1300,40 @@ def _shape_of(reason: str, present: "list[str]", floor: int = 1) -> str:
             f"every value is written in figures alone, all {only} "
             f"characters wide"
         )
+    if reason == BECAUSE_GROUPED_FIXED_WIDTH:
+        # THE WIDTH IN FIGURES, NOT IN CHARACTERS: the mark between the
+        # groups is not a figure, and "eleven characters" would name a
+        # width no identifier has.
+        counted: "list[int]" = []
+        for value in present:
+            figures = _grouped_figures(value)
+            counted += [len(value) if figures is None else len(figures)]
+        only = 0
+        for width in sorted(counted):
+            only = width
+        return (
+            f"every value is written in figures, grouped in threes, all "
+            f"{only} figures long"
+        )
+    if reason == BECAUSE_POINT_THOUSANDS:
+        return (
+            "every value with a point has exactly three figures after it, "
+            "and every value without one is below a thousand, which is "
+            "also how numbers are written with a point between their "
+            "thousands"
+        )
     if reason == BECAUSE_JOINED:
-        mark = _joining_mark(present)
+        # ``mark`` is the separator a joined column publishes, spaces and
+        # all; ``remainder`` its count of cells that are not such a pair,
+        # named under the floor as every count here is.
+        if not mark:
+            mark = _joining_mark(present)
+        if remainder > 0:
+            return (
+                f"values are two or more numbers with '{mark}' between "
+                f"them, and {_sayable(remainder, len(present), floor)} "
+                f"are not"
+            )
         return (
             f"every value is two or more numbers with '{mark}' between "
             f"them"
@@ -705,7 +1444,7 @@ def checklist_for(
         return []
     spoken: list[str] = []
     for question in asked:
-        spoken = spoken + [question.name]
+        spoken += [question.name]
     listed: list[Question] = []
     position = 0
     for block in blocks:
@@ -724,7 +1463,7 @@ def checklist_for(
             table_columns[position], settings
         )
         if role in _MEASURED_ROLES:
-            listed = listed + [
+            listed += [
                 Question(
                     name,
                     role,
@@ -740,7 +1479,7 @@ def checklist_for(
                 )
             ]
         elif role in _LABELLED_ROLES and _looks_like_a_code(present):
-            listed = listed + [
+            listed += [
                 Question(
                     name,
                     role,
@@ -757,6 +1496,321 @@ def checklist_for(
             ]
         position = position + 1
     return listed
+
+
+# THE ROLES A COLUMN THAT NAMES PEOPLE CAN HOLD (plan P4-D340): every
+# role EXCEPT the ones whose description is a distribution over the
+# numbers themselves, the calendar and clock roles, and the empty one.
+# A subject number is written `P00017`, `SUBJ0004` or `A-1000` and is
+# read as numbers wearing an affix, or as text, or as labels; a column
+# read as plain numbers, as a date or as a clock time is reached by the
+# checklist question instead, which lists every column read as a
+# number so that a register of codes can be named there.
+#
+# WHY THE NUMERIC ROLES ARE OUT, measured rather than assumed. On the
+# subject design's tables a `score` of whole numbers 0 to 100 repeats
+# 3 to 28 times per value and a `weight` repeats 1.6 to 5.1 times, both
+# with more different values than a set of categories may hold -- so
+# every bounded scale the owner named on 2026-09-22 -- a pain score of
+# 0 to 10, a risk grade, a rating item, a coma scale, ages in whole
+# years -- would be asked about on this rule if the role did not
+# exclude it.
+_PERSON_ROLES_EXCLUDED = (
+    taxonomy.ROLE_EMPTY,
+    taxonomy.ROLE_COUNT,
+    taxonomy.ROLE_CONTINUOUS,
+    taxonomy.ROLE_UNREPRESENTABLE,
+    taxonomy.ROLE_COMPOUND,
+    taxonomy.ROLE_JOINED,
+    taxonomy.ROLE_DATETIME,
+    taxonomy.ROLE_CLOCK,
+)
+
+# HOW OFTEN A VALUE HAS TO STAND ON A ROW before the column can be
+# naming people: two rows per different value on average. One is a key
+# with a row each, which names nobody.
+PERSON_ROWS_PER_VALUE = 2
+
+
+def _names_people(
+    present: "list[str]", role: str, n_rows: int, settings: taxonomy.Settings
+) -> bool:
+    """Whether this column looks like it names the people the rows are about.
+
+    TWO ROUTES, EITHER OF WHICH ASKS. The first was the whole rule when
+    landing 3.2 was written and could not reach the case the plan cites
+    as its reason for existing; the second is the repair.
+
+    ROUTE ONE -- MANY VALUES, REPEATING (plan P4-D340).
+
+    * Its present values REPEAT: at least `PERSON_ROWS_PER_VALUE` rows
+      per different folded value, on average. A value on one row each
+      names a row, not a person.
+    * It holds MORE DIFFERENT VALUES THAN A SET OF CATEGORIES COULD
+      HAVE HAD in a table of this many rows -- `taxonomy.
+      categories_ceiling`, the line `categorical_share` and
+      `categorical_ceiling` already record in every description. That
+      is the line, asked rather than restated.
+
+    ROUTE TWO -- A REGISTER OF CODES (repair of landing 3.2). Route
+    one's second condition is the exact COMPLEMENT of the rule that
+    makes a column `categorical` (`_categorical_ceiling` over the same
+    row count), so route one can only ever fire on a column that
+    publishes NO levels -- and the column the plan was written about
+    publishes every one of them. 12 subjects over 1,196 rows read as
+    `categorical`, and `subject_id` came back with all twelve
+    identifiers beside their visit counts and no question asked. So a
+    column also clears the rule when
+
+    * its present values REPEAT, which is route one's FIRST condition
+      unchanged: at least `PERSON_ROWS_PER_VALUE` rows per different
+      folded value, on average; and
+    * every present cell is WRITTEN AS A CODE: inside the code alphabet
+      (`parsing.is_code_text`, which is the positive evidence the
+      identifier rule itself asks for) and carrying both a letter and a
+      figure. The letter is what keeps a bare-figure column out -- a
+      binary 0/1, a group coded 1/2/3, an ordinal 0 to 10 -- and the
+      figure is what keeps a column of words out, `site`, `arm`,
+      `North`, `yes`/`no`. Measured: with the figure alone required, a
+      0/1 column clears the rule; with both required, no column of the
+      battery that is not a code does.
+
+    ROUTE TWO'S FIRST CONDITION WAS "EVERY VALUE ON TWO ROWS OR MORE",
+    AND ONE SINGLE-VISIT SUBJECT SILENCED IT (review of stage 3, floor
+    finding 4). The stricter form was recorded as a measured limit and
+    left standing; the review reproduced what the limit costs, which is
+    the whole question going unasked on a register of twelve subjects
+    where ONE of them has one visit -- a register of people, published
+    identifier by identifier, that one row decides. ONE ROW MAY NOT
+    SETTLE WHO THE TABLE IS ABOUT, so the condition is now route one's
+    average, counted and never divided. What it still keeps out is what
+    the stricter form was for: a per-row key holds as many different
+    values as it has cells, so `len(present) >= 2 x len(different)` is
+    false of `record`, `subject` and `visit_id` by a factor of two,
+    whether or not one value of them repeats.
+
+    WHAT ROUTE TWO ALSO REACHES, AND IS ACCEPTED (ledger K-S3-02). A
+    `ward-12`-shaped label column and a register of diagnosis-like
+    codes are written exactly as a subject register is written, and
+    nothing in the values tells them apart. They are asked about. The
+    cost of a false positive here is ONE question whose standing answer
+    is `keep`, and the cost of the miss it replaces was a description
+    that published twelve people's identifiers; the trade is taken
+    deliberately and the count is held at its measured value in the
+    ledger. Route one already asked about a 60-ward column over 500
+    rows and about a repeating free-text remarks column before this
+    repair, which is why the docstring that said `ward` could not
+    clear this rule was wrong when it was written.
+
+    MEASURED ON THE BATTERIES THE RULE WAS CHOSEN ON. Over the four
+    realistic families of `tests/kpi_shapes.py` (twelve columns, run
+    with the declarations they ship and with every declaration removed)
+    and five tables of the subject design -- fixed 100x5, fixed 150x3,
+    geometric 1,000, and 1 to 8 visits over 40 and over 22 subjects --
+    the rule is true of the five `subject_id` columns and of nothing
+    else: `dose`
+    (40 different values over 400 cells) and `note` (9 over 400) are
+    sets of categories, fall at route one's second condition and are
+    not written as codes; `record`, `subject` and `visit_id` are
+    different on every row and fall at the first condition both routes
+    now share; `score`, `weight`, `amount` and both date columns are
+    excluded by role.
+
+    Guarantees: accepts the present cells, the role the column holds,
+    the table's rows and the settings; returns a truth value. A fixed
+    function of those. Raises nothing. No I/O, and no cell reaches
+    anything it returns.
+    """
+    if role in _PERSON_ROLES_EXCLUDED:
+        return False
+    if not present:
+        return False
+    different: "dict[str, int]" = {}
+    for value in present:
+        key = parsing.folded(value)
+        if key in different:
+            different[key] = different[key] + 1
+        else:
+            different[key] = 1
+    # COUNTED, never divided: `len(present) / len(different) >= 2` is
+    # the same question as this one and asks a float to decide a
+    # question about rows.
+    #
+    # AND IT IS THE CONDITION BOTH ROUTES SHARE (review of stage 3,
+    # floor item 4). Route two asked "every different value on two
+    # rows or more" until then, which one subject with a single visit
+    # made false -- so one row silenced the question on a register of
+    # twelve people. The two routes now differ in their SECOND condition
+    # alone: many values, or every cell a code.
+    if len(present) < PERSON_ROWS_PER_VALUE * len(different):
+        return False
+    if len(different) > taxonomy.categories_ceiling(n_rows, settings):
+        return True
+    return _a_register_of_codes(present)
+
+
+def _a_register_of_codes(present: "list[str]") -> bool:
+    """Route two's second condition: every cell is written as a code.
+
+    Split out so that each half of the rule can be mutated on its own
+    and so that the loop over the cells stops at the first cell that is
+    not a code rather than folding the whole column first. The half that
+    asks how often a value repeats is the caller's, because both routes
+    ask it and one question belongs in one place.
+
+    Guarantees: accepts the present cells; returns a truth value. A
+    fixed function of them. Raises nothing. No I/O, and no cell reaches
+    anything it returns.
+    """
+    if not present:
+        return False
+    for value in present:
+        if not parsing.is_code_text(value):
+            return False
+        figure = False
+        letter = False
+        for character in value:
+            if "0" <= character <= "9":
+                figure = True
+            elif ("a" <= character <= "z") or ("A" <= character <= "Z"):
+                letter = True
+        if not figure or not letter:
+            return False
+    return True
+
+
+def person_questions(
+    document: "dict[str, object]",
+    table_columns: "list[list[str]]",
+    settings: taxonomy.Settings,
+    already: "list[str]",
+    asked: "list[Question]",
+    split: "SplitColumns | None" = None,
+) -> "list[Question]":
+    """The question about who the rows are, where nobody has said.
+
+    ASKED ONLY WHERE THE POPULATION IS COUNTED IN PEOPLE ALREADY, which
+    is `settings.person_columns` -- the declared identifiers that REPEAT
+    -- and NOT where any identifier at all is declared (review of stage
+    3, floor item 4). A DECLARATION IS NOT AN ANSWER TO THIS
+    QUESTION unless it settles who the rows are about, and one that is
+    different on every row settles nothing: it names a ROW.
+    `taxonomy.repeating_identifiers` says at length what that
+    distinction cost when it was measured, and the same distinction is
+    what this rule reads. Measured on the tree before this repair: 1,196
+    visits over twelve people with a unique-per-row `visit_id` declared
+    and nothing else left `person_columns` correctly EMPTY -- the
+    population was counted in rows -- while the declaration silenced the
+    question, so the run published the twelve subject codes, asked
+    nothing, and printed neither the population notice nor the notice
+    that it had counted rows. Declaring the subject column refuses the
+    same table as twelve people.
+
+    ASKING IS PART OF THE PRODUCT (amendments A-P4-56 and A-P4-58), and
+    this is the column class nothing else reaches. Until it existed a
+    table of 12 subjects over 1,196 rows passed the population floor on
+    its rows with no notice, and `subject_id` was described as a set of
+    categories with every subject's identifier published beside its
+    visit count. THAT EXACT CASE was still unreachable when landing 3.2
+    was written -- the rule's second condition was the complement of
+    the one that makes a column `categorical`, so it could fire only on
+    a column publishing no levels -- and route two of
+    `_names_people` is what reaches it.
+
+    Guarantees:
+
+    - Inputs: the profile document, the table's columns as text in the
+      same order, the settings that produced it -- whose
+      `person_columns` is what says whether anybody has settled who the
+      rows are about -- the names already declared any way at all, the
+      questions already asked so no column is asked twice, and what
+      `questions_and_splits_for` split out of the same columns, taken
+      where it was split from the same column under the same settings
+      so no column is split twice (none means every column is split
+      here).
+    - Determinism: a fixed function of the arguments, in the table's
+      own column order.
+    - Errors raised: none.
+    - Boundary: opens no file, prints nothing, and no cell of any
+      column appears in what it returns.
+    """
+    if settings.person_columns:
+        return []
+    blocks = document["columns"]
+    if not isinstance(blocks, list):
+        return []
+    spoken: "list[str]" = []
+    for question in asked:
+        spoken += [question.name]
+    rows = document["n_rows"]
+    if not isinstance(rows, int):
+        return []
+    found: "list[Question]" = []
+    position = 0
+    for block in blocks:
+        if not isinstance(block, dict):
+            position = position + 1
+            continue
+        name = f"{block['name']}"
+        role = f"{block['role']}"
+        if name in already or name in spoken:
+            position = position + 1
+            continue
+        if position >= len(table_columns):
+            position = position + 1
+            continue
+        if (
+            split is not None
+            and position in split.present
+            and split.cells[position] is table_columns[position]
+            and split.settings == settings
+        ):
+            present = split.present[position]
+        else:
+            present, _absent = taxonomy.split_missing(
+                table_columns[position], settings
+            )
+        if _names_people(present, role, rows, settings):
+            found += [
+                Question(
+                    name,
+                    role,
+                    BECAUSE_REPEATS_AND_MANY,
+                    _shape_of(
+                        BECAUSE_REPEATS_AND_MANY,
+                        present,
+                        settings.small_cell_floor,
+                    ),
+                    _person_choices(role, settings.small_cell_floor),
+                    ANSWER_KEEP,
+                )
+            ]
+        position = position + 1
+    return found
+
+
+def _person_choices(role: str, floor: int) -> "list[Choice]":
+    """The two answers the person question may take.
+
+    `keep` is first because it is what standing still gives: nobody
+    declared this column, so the reading in force is the one it already
+    has, and a list whose first entry is not the standing reading
+    misleads whatever the words underneath say.
+    """
+    return [
+        Choice(
+            ANSWER_KEEP,
+            "not a person -- it repeats for some other reason, and the "
+            "reading it has now is right",
+            _publishes_under(ANSWER_KEEP, role, floor),
+        ),
+        Choice(
+            ANSWER_IDENTIFIER,
+            "the people the rows are about -- rows sharing a value of "
+            "it are one person, and it is a key nothing should publish",
+            _publishes_under(ANSWER_IDENTIFIER, role, floor),
+        ),
+    ]
 
 
 # The one question the checklist puts, in the words every surface uses.
@@ -815,6 +1869,8 @@ def questions_document(
     table_name: str,
     asked: "list[Question]",
     listed: "list[Question]",
+    about_file: "list[Question] | None" = None,
+    about_table: "list[str] | None" = None,
 ) -> "dict[str, object]":
     """The questions file's whole content, as plain data.
 
@@ -843,20 +1899,39 @@ def questions_document(
       result.** Every question carries a shape, which is a count, a
       width or a separator, and never a cell.
     """
+    file_entries: list[dict[str, object]] = []
+    for question in about_file if about_file else []:
+        file_entries += [_question_entry(question)]
     asked_entries: list[dict[str, object]] = []
     for question in asked:
         asked_entries += [_question_entry(question)]
     listed_entries: list[dict[str, object]] = []
     for question in listed:
         listed_entries += [_question_entry(question)]
+    said: list[str] = []
+    for sentence in about_table if about_table else []:
+        said += [f"{sentence}"]
     return {
         "what_this_is": (
             "synthtwin could not settle these columns from their values "
             "alone, so it is asking you rather than guessing."
         ),
+        # WHAT THIS RUN SAID ABOUT THE TABLE AS A WHOLE, not about any
+        # column (plan P4-D341). Empty on almost every table: it holds
+        # the population notice, which the description carries as a
+        # note of its own and every page of the run repeats. It is
+        # HERE as well because this file travels on its own -- a person
+        # hands it to a colleague or opens it on another machine -- and
+        # a page that names the columns of a small table without saying
+        # it is a small table says less than the other four do.
+        "about_your_table": said,
         "what_this_file_carries": FILE_CARRIES,
         "how_to_answer": HOW_TO_ANSWER,
         "table": table_name,
+        # QUESTIONS ABOUT THE FILE ITSELF, not about one column (plan
+        # P4-D81). Empty for almost every table: it is filled only
+        # where synthtwin saw a shape it must not act on unasked.
+        "about_your_file": file_entries,
         "asked": asked_entries,
         "checklist": {
             "question": CHECKLIST_QUESTION,
@@ -886,6 +1961,32 @@ class Answers:
     codes: "tuple[str, ...]"
     identifiers: "tuple[str, ...]"
     measurements: "tuple[str, ...]"
+    # ...and the fourth list (landing 2b.2): the columns answered as
+    # writing a point between thousands, which is `--decimal-comma`.
+    decimal_commas: "tuple[str, ...]" = ()
+    # ...and the fifth answer, which is not a list of columns at all
+    # (plan P4-D81): how many rows under the column names the person
+    # said describe those columns. Nought where they did not answer,
+    # which leaves those rows in the table.
+    metadata_rows: int = 0
+    # ...and the sixth (plan P4-D110): the delimiter the person said
+    # their file is written with, as the character, or empty.
+    delimiter: str = ""
+    # WHETHER THE FIFTH WAS ANSWERED AT ALL (plan P4-D172). `data` is an
+    # answer of nought rows, and nought is also what an unanswered file
+    # carries -- so the command line could not tell "leave these rows in
+    # my table" from silence, dropped the answer, and let a typed
+    # `--metadata-rows 2` take a person's record out of the table and
+    # publish it. This says which it was.
+    metadata_rows_answered: bool = False
+    # ...and the seventh (the owner's ruling of 2026-09-17, item 8;
+    # plan P4-D232): which row the person says their column names are
+    # in, as the word they answered, or empty where they did not
+    # answer. `names` is `--first-row names`; `first-record` is the
+    # reading that already stands and changes nothing, and it is
+    # carried all the same, because an answer that is dropped is an
+    # answer a person was told had been heard.
+    first_row: str = ""
 
 
 def _entry_answer(
@@ -971,6 +2072,19 @@ def _entries_of(document: object, shown: str) -> "list[tuple[object, str]]":
     if not isinstance(listed, list):
         raise ValueError(errors.answers_file_is_not_one(shown))
     found: list[tuple[object, str]] = []
+    # THE FILE'S OWN SECTION FIRST, and tolerated absent: a questions
+    # file written before plan P4-D81 carries no such section, and
+    # refusing a person's older file for a question it could not have
+    # been asked would be this tool telling them their answers were
+    # wrong when they were only early.
+    if "about_your_file" in document:
+        about = document["about_your_file"]
+        if not isinstance(about, list):
+            raise ValueError(errors.answers_file_is_not_one(shown))
+        place = 0
+        for entry in about:
+            place += 1
+            found += [(entry, f"about_your_file[{place}]")]
     place = 0
     for entry in asked:
         place += 1
@@ -1015,6 +2129,11 @@ def answers_in(document: object, shown: str) -> Answers:
     codes: list[str] = []
     identifiers: list[str] = []
     measurements: list[str] = []
+    decimal_commas: list[str] = []
+    metadata_rows = 0
+    metadata_rows_answered = False
+    delimiter = ""
+    first_row = ""
     for entry, place in _entries_of(document, shown):
         read = _entry_answer(entry, place)
         if read is None:
@@ -1036,6 +2155,26 @@ def answers_in(document: object, shown: str) -> Answers:
             identifiers += [name]
         elif written == ANSWER_MEASUREMENT or written == ANSWER_JOINED:
             measurements += [name]
+        elif written == ANSWER_DECIMAL_COMMA:
+            decimal_commas += [name]
+        elif written == ANSWER_METADATA_ROWS:
+            # The one answer that names no column (plan P4-D81).
+            metadata_rows = METADATA_ROWS_DECLARED
+            metadata_rows_answered = True
+        elif written == ANSWER_DATA:
+            # The reading that already stands: the rows are records. It
+            # is an ANSWER all the same, and it overrides a typed
+            # declaration (plan P4-D172).
+            metadata_rows = 0
+            metadata_rows_answered = True
+        elif written == ANSWER_FIRST_ROW_NAMES:
+            first_row = ANSWER_FIRST_ROW_NAMES
+        elif written == ANSWER_FIRST_ROW_DATA:
+            first_row = ANSWER_FIRST_ROW_DATA
+        elif written in ANSWER_DELIMITERS:
+            # The one answer that decides how the file is SPLIT (plan
+            # P4-D110), which is `--delimiter`.
+            delimiter = ANSWER_DELIMITERS[written]
         elif written != ANSWER_KEEP:
             # Offered by the file but not a word this module acts on,
             # which a questions file synthtwin wrote cannot contain and
@@ -1045,4 +2184,13 @@ def answers_in(document: object, shown: str) -> Answers:
                     shown, name, written, list(offered)
                 )
             )
-    return Answers(tuple(codes), tuple(identifiers), tuple(measurements))
+    return Answers(
+        tuple(codes),
+        tuple(identifiers),
+        tuple(measurements),
+        tuple(decimal_commas),
+        metadata_rows,
+        delimiter,
+        metadata_rows_answered,
+        first_row,
+    )

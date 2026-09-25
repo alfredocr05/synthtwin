@@ -33,6 +33,7 @@ prints every one of them with both ends of the bound either way.
 
 import dataclasses
 import pathlib
+import random
 
 import fixtures
 from synthtwin import contract, generation, taxonomy
@@ -54,8 +55,14 @@ def _twin(
 
 
 def _the_hundred() -> "list[str]":
-    """The residual's own column, so this closes what it opened."""
-    return [f"{number}" for number in range(1, 101)]
+    """The residual's own column, so this closes what it opened.
+
+    Written starting at two with the one at the end: in the order one
+    to a hundred the column IS the row sequence (plan P4-D86), which the
+    twin writes exactly, and the shortfall this residual is about would
+    never arise. The order of a column's cells is none of its facts.
+    """
+    return [f"{number}" for number in range(2, 101)] + ["1"]
 
 
 def test_no_fact_is_both_missed_and_inside_a_range_that_covers_it(
@@ -154,11 +161,59 @@ def test_an_unwindowed_shortfall_is_as_loud_as_it_was(
 
     `n_distinct_values` counts different NUMBERS, which no method
     window authorizes to move. The twin holds 99 where the description
-    publishes 100, and that is a fact the twin did not hold -- so it
+    publishes 101, and that is a fact the twin did not hold -- so it
     stays in the deviations exactly as it was. A filter that dropped
     every count would have made the report quieter, not honester.
+
+    THE WITNESS IS THE HUNDRED AND TWO FAR VALUES, 150 AND 151 (measured
+    at the repair pass after the final skeptic). Plan P4-D147 fills a
+    saturated integer grid with its integers in order, so `_the_hundred`
+    -- a hundred integers between the ends 1 and 100 -- holds all
+    hundred and names no shortfall at all. One value past the grid's end
+    was the witness until plan P4-D178: its hundred and one rungs and
+    mode are exactly its hundred and one numbers, so its strata now take
+    those and it holds all of them too. A second far value leaves the
+    rungs one number short of the count, and its twin holds 100 numbers
+    of 102 at this seed.
+
+    AND THE FAR VALUES MOVED IN AGAIN, TO 103 AND 105 (the carried
+    numbers pass of 2026-09-18). 150 and 151 left the published empty
+    pair (100, 150), so the positive band's grid outside it held exactly
+    1 to 100, 150 and 151 -- 102 points for 102 strata -- and G6.5a's band
+    fill now gives every stratum one of them: that twin holds all 102 and
+    names no shortfall, so it stopped being a witness of one. 103 and 105
+    sit in the last two bins beside 100, so the description publishes no
+    empty pair, the grid from 1 to 105 has 105 points for 102 strata, no
+    fill applies, and the walk leaves the twin at 100 numbers of 102 at
+    this seed -- the unwindowed shortfall this test is about.
+
+    AND THE WITNESS MOVED A THIRD TIME (the carried numbers repair pass of
+    2026-09-19). G6.5a's push now walks a collision along its band to the
+    nearest free point, and 1 to 100 beside 103 and 105 have three free
+    points in their band, so that twin holds all 102. The witness then
+    became twelve negatives written once, a zero, and the whole numbers
+    one to ten forty times each: G5.2 divided the strata between the
+    bands by their CELLS, the positive band was given eleven strata for
+    its ten integers, and the twin held 22 numbers of 23.
+
+    AND A FOURTH TIME, AT LANDING 3.3. The tail rule reads a band's
+    ranks at that band's own sign (method G5.2a step 1a), which is what
+    gave that column its eleventh positive stratum, and its twin now
+    holds every one of its 23 numbers. The witness is a column of six
+    hundred readings at one place instead -- `gauss(0, 3)` rounded to a
+    tenth, a shape whose tail holds several values a row apart -- where
+    the description publishes 144 different numbers and the twin holds
+    145: one number MORE than the description names, which `n_distinct`
+    counts exactly and no window authorizes either way. The deviation is
+    named in the twin's own report, `validate` misses nothing, and what
+    this test is about is unchanged -- a count outside its published
+    value stays in the deviations whether it falls short or runs over.
     """
-    _loaded, twin = _twin(tmp_path, _the_hundred())
+    draw = random.Random(301)
+    _loaded, twin = _twin(
+        tmp_path,
+        [f"{draw.gauss(0, 3):.1f}" for _reading in range(600)],
+    )
     named = [note.fact for note in twin.deviations]
     assert "n_distinct_values" in named
     assert not any(

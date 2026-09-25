@@ -104,6 +104,18 @@ SO THIS FILE ASSERTS THE CLASS AND NOT THE WITNESS, in nine parts:
   the six routes past that guard put through it, five of which the
   version this replaces called clean.
 
+THE CLOSURE STANDS ON TWO PUBLISHED IDENTITIES AND NOT ONE (plan
+P4-D253.1). The rule decides three candidate kinds, and the third is a
+calendar placeholder day. "Which number is this text?" is
+`taxonomy.exact_of_spelling`; "which day do these written fields name?"
+is `parsing.placeholder_day_of`, which reads fixed-width runs of ASCII
+digits and hands back TEXT built from those runs. Neither forms a
+binary64 value, and the walk stops at both. It stops at nothing else
+that reads a date: `a-date-reader-of-its-own` puts
+`parsing.parse_datetime` in the closure and the walk refuses it, because
+that function reads a clock and a calendar with `int` and is not the
+published identity of anything.
+
 Every table is built at test time by the seeded neutral builders in
 `fixtures.py`; no data-format file enters the repository (plan D13).
 """
@@ -229,7 +241,8 @@ def _described(
     """One table through the real producer and the strict loader."""
     table_path = fixtures.write(folder, f"{stem}.csv", text)
     table = reading.read_table(
-        str(table_path), first_row=reading.FIRST_ROW_AUTOMATIC
+        str(table_path), first_row=reading.FIRST_ROW_AUTOMATIC,
+        small_cell_floor=_FLOOR,
     )
     document = profile.build_document(
         table,
@@ -1522,6 +1535,24 @@ _THE_HOLE_RULE = "_cells_that_description_reads"
 # Anything else that rounds is the defect this guard is for.
 _THE_EXACT_IDENTITY = ["exact_of_spelling", "exact_of_number"]
 
+# ...AND THE PRODUCER'S OWN PUBLISHED IDENTITY FOR "WHICH DAY DO THESE
+# WRITTEN FIELDS NAME?" (plan P4-D253.1). The closure decides three
+# candidate kinds, and the third is a calendar placeholder: a cell
+# writing `01/01/1900` on a month-first column names the member
+# `1900-01-01`, and a description that publishes no verdict for that day
+# -- fewer cells than the line hold it -- leaves the caller to settle
+# those cells from the count of holes, exactly as it settles a stand-in
+# number nothing names. Asking which day a cell writes is not asking
+# which number it is: `parsing.placeholder_day_of` reads fixed-width
+# runs of ASCII digits, validates the calendar, and hands back TEXT it
+# builds from those very runs, so no binary64 value is formed and no two
+# spellings a person can tell apart are folded into one. The walk counts
+# this and does not go through it, for the same reason it does not go
+# through the two names above -- and for NOTHING ELSE that reads a date:
+# the probe `a-date-reader-of-its-own` puts `parsing.parse_datetime`
+# itself in the closure and the walk still refuses it.
+_THE_EXACT_DAY = ["placeholder_day_of"]
+
 
 def _shipped_trees() -> "dict[str, ast.Module]":
     """Every shipped module the walk may cross into, parsed, by import name.
@@ -1995,11 +2026,12 @@ def _mentions_a_rounding_reader(node: ast.AST) -> str:
 
 def _the_closure_of(
     trees: "dict[str, ast.Module]",
-) -> "tuple[str, int, dict[tuple[str, str], int]]":
+) -> "tuple[str, int, int, dict[tuple[str, str], int]]":
     """Walk the hole rule's closure; say what it found.
 
     Returns the complaint (empty when the closure is clean), how many
-    times it asked the producer for an exact number, and every
+    times it asked the producer for an exact number, how many times it
+    asked the producer which DAY a cell writes, and every
     (module, function) it reached. Taking the parsed modules as an
     argument is what lets the probes below run the SAME walk over a
     doctored tree: a guard whose teeth are described rather than
@@ -2011,17 +2043,18 @@ def _the_closure_of(
         functions[module_name] = _functions_of(trees[module_name])
         bindings[module_name] = _bindings_in(trees[module_name])
     if "validation" not in functions:
-        return ("the shipped module list is empty", 0, {})
+        return ("the shipped module list is empty", 0, 0, {})
     if _THE_HOLE_RULE not in functions["validation"]:
         renamed = (
             "the rule this walk starts from was renamed, so the walk is "
             "asserting nothing"
         )
-        return (renamed, 0, {})
+        return (renamed, 0, 0, {})
     start = ("validation", _THE_HOLE_RULE)
     reached: dict[tuple[str, str], int] = {start: 1}
     frontier = [start]
     exact_asked = 0
+    day_asked = 0
     at_module: dict[str, dict[str, str]] = {}
     for module_name in trees:
         at_module[module_name] = _bound_to_nothing_readable(
@@ -2044,9 +2077,12 @@ def _the_closure_of(
         for path in _calls_in(body, bindings[module_name]):
             complaint = _complaint_about(path, opaque, where)
             if complaint:
-                return (complaint, exact_asked, reached)
+                return (complaint, exact_asked, day_asked, reached)
             if path[-1] in _THE_EXACT_IDENTITY:
                 exact_asked = exact_asked + 1
+                continue
+            if path[-1] in _THE_EXACT_DAY:
+                day_asked = day_asked + 1
                 continue
             # Where the call lands, if it lands anywhere the walk can
             # read: a bare name in this module, or a function of another
@@ -2071,8 +2107,8 @@ def _the_closure_of(
                 f"cells)` hands it every one of them (review item "
                 f"P3-V7-F5)"
             )
-            return (mentions, exact_asked, reached)
-    return ("", exact_asked, reached)
+            return (mentions, exact_asked, day_asked, reached)
+    return ("", exact_asked, day_asked, reached)
 
 
 def test_the_hole_rule_asks_no_rounding_reader() -> None:
@@ -2107,13 +2143,24 @@ def test_the_hole_rule_asks_no_rounding_reader() -> None:
     has to be standing on it rather than beside it, so that is asserted
     too: taking it away leaves the closure with no way to tell two
     numbers apart at all.
+
+    AND SO IS THE DAY IDENTITY (plan P4-D253.1). The closure settles a
+    calendar placeholder no verdict names, and the one reader it may ask
+    for that is `parsing.placeholder_day_of`. Asserted the same way, so
+    that an exemption nothing uses cannot sit in `_THE_EXACT_DAY`
+    quietly widening what the walk will not read.
     """
     trees = _shipped_trees()
-    complaint, exact_asked, reached = _the_closure_of(trees)
+    complaint, exact_asked, day_asked, reached = _the_closure_of(trees)
     assert not complaint, complaint
     assert exact_asked, (
         "nothing in the closure asks `taxonomy` for an exact number, so "
         "it is deciding a cell's identity some other way"
+    )
+    assert day_asked, (
+        "nothing in the closure asks `parsing` which day a cell writes, "
+        "so `_THE_EXACT_DAY` is an exemption the walk never needs and "
+        "is only widening what it will not read"
     )
     # The walk has to have gone somewhere, and it has to have LEFT this
     # module: a closure that stops at the package boundary would pass
@@ -2256,6 +2303,18 @@ _PROBES = {
         '    readers = {"exact": parse_number}\n'
         "    return _apply(readers, cells)\n"
     ),
+    # ...AND A DATE READER THAT IS NOT THE PUBLISHED DAY IDENTITY (plan
+    # P4-D253.1). `_THE_EXACT_DAY` exempts one name, and this is what
+    # keeps it one name: the closure reaches `parsing.parse_datetime`
+    # directly, which reads a clock and a calendar with `int`, and the
+    # walk has to refuse it exactly as it refuses every other reader.
+    "a-date-reader-of-its-own": (
+        "from synthtwin import parsing\n"
+        "\n"
+        "\n"
+        "def _cells_that_description_reads(block, cells, kept, declared):\n"
+        '    return parsing.parse_datetime(cells[0], "iso-date")\n'
+    ),
     # An annotated alias, which is the one binding shape `_bindings_in`
     # did not read before round 7.
     "an-annotated-alias": (
@@ -2290,6 +2349,7 @@ _EXPECTED = {
     "handed-to-something-that-calls-it": "names `float` where a value belongs",
     "kept-in-a-table-of-readers": "names `parse_number` where a value belongs",
     "an-annotated-alias": _ROUNDS,
+    "a-date-reader-of-its-own": _ROUNDS,
 }
 
 
@@ -2328,7 +2388,7 @@ def test_the_guard_catches_each_route_that_walked_past_it(route: str) -> None:
     """
     trees = _shipped_trees()
     trees["validation"] = ast.parse(_PROBES[route])
-    complaint, _asked, _reached = _the_closure_of(trees)
+    complaint, _asked, _days, _reached = _the_closure_of(trees)
     assert complaint, (
         f"the walk called `{route}` clean, so this guard is not the "
         f"closure it says it is"
@@ -2358,7 +2418,7 @@ def test_every_rule_of_the_walk_is_reached_by_a_probe() -> None:
     for route in sorted(_PROBES):
         trees = _shipped_trees()
         trees["validation"] = ast.parse(_PROBES[route])
-        complaint, _asked, _reached = _the_closure_of(trees)
+        complaint, _asked, _days, _reached = _the_closure_of(trees)
         said = said + [complaint]
     for rule in (
         _ROUNDS,

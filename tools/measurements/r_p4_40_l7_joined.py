@@ -249,6 +249,7 @@ def run(stem, rows, header="reading", seeds=SEEDS, show_pairs=False):
             layout, _notes, _content = generation._numeric_layout(
                 view, facts.parts[place],
                 facts.parts[place].n_distinct_values,
+                loaded.settings.small_cell_floor,
             )
             strata.append(len(layout.sizes))
         print("  strata per position:", strata)

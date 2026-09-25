@@ -26,6 +26,7 @@ WHAT IS PINNED HERE:
   date, carries no comma or quote, and does not open a formula.
 """
 
+import copy
 import pathlib
 import random
 import re
@@ -60,7 +61,7 @@ def _described(
     # (contract C5-S13) -- so a case about pooling has to say the floor
     # it means. Eleven is the floor these cases were written against.
     document = profile.build_document(
-        reading.read_table(f"{table}"),
+        reading.read_table(f"{table}", small_cell_floor=11),
         taxonomy.Settings(small_cell_floor=11),
         [],
     )
@@ -68,15 +69,48 @@ def _described(
     return document, contract.load_profile(f"{written}"), folder
 
 
-def _long_tail(common: "list[str]", rare: "list[str]") -> "list[str]":
+def _long_tail(
+    common: "list[str]",
+    rare: "list[str]",
+    counts: "tuple[int, ...]" = (62, 45, 34, 28, 22),
+) -> "list[str]":
     """A column shaped like a real one: a few common codes, a long tail."""
     values: list[str] = []
-    for code, count in zip(common, (62, 45, 34, 28, 22)):
+    for code, count in zip(common, counts):
         values = values + [code] * count
     for place, code in enumerate(rare):
         values = values + [code] * (1 if place % 2 else 2)
     random.Random(3).shuffle(values)
     return values
+
+
+# COMMON COUNTS UNDER WHICH `_long_tail`'s TAIL STANDS (owner ruling 5,
+# plan P4-D271). The tail writes its codes alternately twice and once,
+# so 2k codes cover 3k rows -- fewer than twice their number, and at
+# least k of them are provably single rows. Such a pool stands only
+# where twice its rows reach what the column publishes; below that the
+# floor counts every tail cell as MISSING, the twin writes a blank there
+# and there is no stand-in left for a case about stand-ins to look at.
+# At the default counts, 62 + 45 + 34 + 28 + 22 = 191 published rows,
+# neither tail this file uses stands: 2 x 39 = 78 and 2 x 60 = 120 are
+# both short of 191. At 22 + 18 + 15 + 12 + 11 = 78 both stand (78 is
+# at least 78, and 120 is at least 78), and every one of the five still
+# clears the floor of eleven, so all five are published.
+A_TAIL_THAT_STANDS = (22, 18, 15, 12, 11)
+
+
+def _held_back_by_the_floor(values: "list[str]") -> "tuple[int, int]":
+    """How many levels fall below the floor of eleven, and their rows.
+
+    Counted off the cells, from the rule (C5-S13): a value written in
+    fewer than eleven rows is held back. Where the pool stands this is
+    exactly what `suppressed_levels` and `suppressed_rows` publish.
+    """
+    counts: dict[str, int] = {}
+    for value in values:
+        counts[value] = counts.get(value, 0) + 1
+    rare = [count for count in counts.values() if count < 11]
+    return len(rare), sum(rare)
 
 
 # -- the form itself --------------------------------------------------
@@ -283,15 +317,25 @@ def test_a_code_column_publishes_the_forms_it_wore() -> None:
 def test_the_twin_of_a_code_column_is_code_shaped_throughout() -> None:
     """THE CASE THE DECISION IS FOR.
 
-    Before this landing 60 of these 251 cells were `group-14` and the
-    like; now every one of them is shaped like a diagnosis code.
+    Before this landing the stand-ins among these cells were `group-14`
+    and the like; now every one of them is shaped like a diagnosis code.
+
+    RE-ARMED UNDER RULING 5 (plan P4-D271). Beside 191 published rows the
+    tail of 39 rows is counted as missing, so the twin wrote no stand-in
+    and a twin writing `group-N` for every one of them passed here. At
+    `A_TAIL_THAT_STANDS` the 26 rare codes stand as 26 held-back levels
+    over 13 x 2 + 13 = 39 rows, and each of those rows is a stand-in.
     """
-    _document, described, folder = _described(
-        _long_tail(
-            ["E11.9", "I10", "Z00.00", "J45.909", "M54.5"],
-            [f"Q{number:02d}.{number % 3}" for number in range(70, 96)],
-        ),
-        "dx",
+    values = _long_tail(
+        ["E11.9", "I10", "Z00.00", "J45.909", "M54.5"],
+        [f"Q{number:02d}.{number % 3}" for number in range(70, 96)],
+        A_TAIL_THAT_STANDS,
+    )
+    document, described, folder = _described(values, "dx")
+    block = document["columns"][0]
+    assert _held_back_by_the_floor(values) == (26, 13 * 2 + 13)
+    assert (block["suppressed_levels"], block["suppressed_rows"]) == (
+        26, 13 * 2 + 13
     )
     twin = generation.generate(described, 7)
     cells = [cell for cell in twin.columns[0] if cell]
@@ -311,6 +355,12 @@ def test_a_hyphenated_code_still_splits_into_its_parts() -> None:
     whose twin held it split into two parts and passed for a code,
     while a three-part drug code split into two and crashed the frame
     that expected three.
+
+    RE-ARMED UNDER RULING 5 (plan P4-D271). Each tail is forty codes
+    over 20 x 2 + 20 = 60 rows, and beside 191 published rows it was
+    counted as missing, so neither twin held a stand-in to split. At
+    `A_TAIL_THAT_STANDS` (78 published rows, 2 x 60 = 120 >= 78) both
+    tails stand as forty held-back levels over sixty rows.
     """
     for common, rare, parts in (
         (
@@ -330,9 +380,13 @@ def test_a_hyphenated_code_still_splits_into_its_parts() -> None:
             3,
         ),
     ):
-        _document, described, _folder = _described(
-            _long_tail(common, rare)
-        )
+        values = _long_tail(common, rare, A_TAIL_THAT_STANDS)
+        document, described, _folder = _described(values)
+        block = document["columns"][0]
+        assert _held_back_by_the_floor(values) == (40, 20 * 2 + 20)
+        assert (block["suppressed_levels"], block["suppressed_rows"]) == (
+            40, 20 * 2 + 20
+        ), parts
         twin = generation.generate(described, 7)
         cells = [cell for cell in twin.columns[0] if cell]
         found = {len(cell.split("-")) for cell in cells}
@@ -346,13 +400,22 @@ def test_the_published_levels_pay_their_forms_first() -> None:
     already wear their forms. A stand-in walk that started from the
     whole census would write each form twice over and miss every count
     it was built to meet.
+
+    RE-ARMED UNDER RULING 5 (plan P4-D271): at the default counts the
+    tail is counted as missing and there is no walk to pay anything
+    first. At `A_TAIL_THAT_STANDS` its 39 rows are stand-ins again.
     """
-    _document, described, folder = _described(
+    document, described, folder = _described(
         _long_tail(
             ["E11.9", "I10", "Z00.00", "J45.909", "M54.5"],
             [f"Q{number:02d}.{number % 3}" for number in range(70, 96)],
+            A_TAIL_THAT_STANDS,
         ),
         "dx",
+    )
+    block = document["columns"][0]
+    assert (block["suppressed_levels"], block["suppressed_rows"]) == (
+        26, 13 * 2 + 13
     )
     twin = generation.generate(described, 7)
     written = fixtures.write(folder, "twin.csv", rendering.twin_csv(twin))
@@ -369,14 +432,23 @@ def test_a_stand_in_keeps_the_four_properties_it_had_for_free() -> None:
     """`group-N` had them by construction; a code-shaped one does not.
 
     A spelling built to look like a code could be a word meaning "no
-    value", could read as a number or a date, could carry a comma that
-    breaks the row, or could open with a character a spreadsheet reads
-    as a formula. Each is asked of every stand-in before it is used.
+    value", could read as a number or a date, could carry a QUOTE -- the
+    delimiter's own escape -- or could open with a character a
+    spreadsheet reads as a formula. Each is asked of every stand-in
+    before it is used.
+
+    A COMMA IS NOT ONE OF THEM ANY MORE (plan P4-D243). It was refused
+    here on the ground that it "breaks the row", which the generation
+    method's own clause already denied -- the writer quotes a cell
+    holding one and this package's reader reads it back unchanged -- and
+    refusing it made the comma the ONE mark of `parsing.SHAPE_MARKS` no
+    published form could ever be written with.
     """
     assert not generation._is_a_usable_stand_in("NA")
     assert not generation._is_a_usable_stand_in("1234")
     assert not generation._is_a_usable_stand_in("2024-03-17")
-    assert not generation._is_a_usable_stand_in("a,b")
+    assert not generation._is_a_usable_stand_in('a"b')
+    assert generation._is_a_usable_stand_in("a,b")
     assert not generation._is_a_usable_stand_in("=SUM(A1)")
     assert generation._is_a_usable_stand_in("A00.0")
 
@@ -444,10 +516,12 @@ def test_a_column_of_plain_words_publishes_no_census_at_all() -> None:
 # -- what the census found in the walk that was already there ---------
 
 
-def _forms_of(cells: "list[str]") -> "dict[str, int]":
+def _forms_of(
+    cells: "list[str]", census: "dict[str, int] | None" = None
+) -> "dict[str, int]":
     counted: dict[str, int] = {}
     for cell in cells:
-        form = parsing.shape_form(cell)
+        form = parsing.census_form(cell, census if census is not None else {})
         counted[form] = counted.get(form, 0) + 1
     return counted
 
@@ -475,6 +549,40 @@ def _level_with_held_back_spellings() -> "list[str]":
     return values
 
 
+def _level_held_back_by_hand() -> (
+    "tuple[dict, contract.Profile, pathlib.Path]"
+):
+    """The description `_level_with_held_back_spellings` used to publish.
+
+    SINCE RULING 6 REACHED A LABEL'S SPELLINGS NO PRODUCER WRITES IT
+    (plan P4-D275): `e11.9` (three rows) and `E11.9 ` (two) are below
+    the floor of eleven, so both are counted into `E11.9` and the level
+    publishes `{"E11.9": 67}` with nothing held back -- and the walk this
+    file guards is never reached. Invariant W5 refuses a held-back key of
+    1 and nothing else, so the description below still loads and still
+    drives G8.2, and it is built by hand from the rule statement: the
+    level names its 62-row spelling and holds back one spelling of three
+    rows and one of two; its form count is the 62 and the three held-back
+    rows that wore the form; the column holds the five named spellings
+    and the two held back; and `@%%.%` counts 62 + 3 cells of the level
+    and the 45 of `I10.0`, the two trailing-space rows having no form.
+    """
+    document, _loaded, folder = _described(
+        _level_with_held_back_spellings(), "dx"
+    )
+    edited = copy.deepcopy(document)
+    column = edited["columns"][0]
+    for level in column["levels"]:
+        if level["label"] == "e11.9":
+            level["variants"] = {"E11.9": 62}
+            level["variants_withheld"] = {"2": 1, "3": 1}
+            level["shape_form_cells"] = 62 + 3
+    column["n_distinct"] = 5 + 2
+    column["shape_forms"]["@%%.%"] = 62 + 3 + 45
+    written = fixtures.write_profile(folder, "held.json", edited)
+    return edited, contract.load_profile(f"{written}"), folder
+
+
 def test_a_made_up_variant_keeps_the_form_where_one_spelling_is_left() -> None:
     """THE DEFECT THE CENSUS FOUND IN A WALK OLDER THAN IT.
 
@@ -490,13 +598,24 @@ def test_a_made_up_variant_keeps_the_form_where_one_spelling_is_left() -> None:
     onto the label and keeps its form. The binary counter calls it
     order zero and started at one, so the walk never offered it. It is
     offered now, wherever nothing else of the level needs it.
+
+    RE-ARMED ON THE DESCRIPTION THE PRODUCER NO LONGER WRITES
+    (`_level_held_back_by_hand`). The twin's own census is counted off
+    its cells and is the published one exactly. `synthtwin validate`
+    describes the twin under ruling 6 as it describes any file, so it
+    counts the twin's three `e11.9` and two spaced stand-ins into
+    `E11.9` and misses exactly the five facts that respelling moves --
+    `n_distinct` 7 against 5, the level's named and held-back spellings,
+    its form count 65 against 67, and `@%%.%` 110 against 112 -- and
+    nothing else, which is pinned as the whole list.
     """
-    _document, described, folder = _described(
-        _level_with_held_back_spellings(), "dx"
-    )
+    document, described, folder = _level_held_back_by_hand()
     twin = generation.generate(described, 7)
     cells = [cell for cell in twin.columns[0] if cell]
     assert "e11.9" in cells
+    counted = _forms_of(cells)
+    del counted[""]
+    assert counted == document["columns"][0]["shape_forms"]
     written = fixtures.write(folder, "twin.csv", rendering.twin_csv(twin))
     outcome = validation.measure(described, f"{written}")
     missed = [
@@ -504,7 +623,13 @@ def test_a_made_up_variant_keeps_the_form_where_one_spelling_is_left() -> None:
         for check in outcome.checks
         if check.verdict == validation.MISSED
     ]
-    assert missed == []
+    assert sorted(missed) == sorted([
+        "distinct.n_distinct",
+        "levels.e11.9.variants",
+        "levels.e11.9.variants_withheld",
+        "levels.e11.9.shape_form_cells",
+        "forms.published.@%%.%",
+    ])
 
 
 def test_the_form_keeping_spelling_goes_to_the_largest_held_back_group() -> None:
@@ -518,10 +643,18 @@ def test_the_form_keeping_spelling_goes_to_the_largest_held_back_group() -> None
     the three-row group leaves it two short -- which is exactly what
     the source itself left, its own two trailing-space cells being
     counted nowhere.
+
+    RE-ARMED ON THE DESCRIPTION THE PRODUCER NO LONGER WRITES
+    (`_level_held_back_by_hand`). The source itself now publishes its
+    level as 67 rows of `E11.9` -- 62 + 3 + 2, ruling 6 -- and its census
+    counts those same cells, 67 + 45 = 112 in `@%%.%` (plan P4-D275.1;
+    it said 110 beside a twin that wrote 112 before that repair).
     """
-    document, described, _folder = _described(
+    source, _loaded, _folder = _described(
         _level_with_held_back_spellings(), "dx"
     )
+    assert source["columns"][0]["shape_forms"]["@%%.%"] == 62 + 3 + 2 + 45
+    document, described, _folder = _level_held_back_by_hand()
     published = document["columns"][0]["shape_forms"]
     twin = generation.generate(described, 7)
     counted = _forms_of([cell for cell in twin.columns[0] if cell])
@@ -570,10 +703,14 @@ def test_a_stand_in_that_collides_still_owes_its_form() -> None:
 
     Here the first spellings the stepper reaches are exactly what the
     column already published, so every early candidate collides.
+
+    RE-ARMED UNDER RULING 5 (plan P4-D271): beside 191 published rows the
+    39-row tail was counted as missing and no stand-in was walked at all.
+    At `A_TAIL_THAT_STANDS` all 26 rare codes are stand-ins again.
     """
     values: list[str] = []
     for code, count in zip(
-        ["A00.0", "B01.1", "C02.2", "D03.3", "E04.4"], (62, 45, 34, 28, 22)
+        ["A00.0", "B01.1", "C02.2", "D03.3", "E04.4"], A_TAIL_THAT_STANDS
     ):
         values = values + [code] * count
     for place, number in enumerate(range(70, 96)):
@@ -582,6 +719,11 @@ def test_a_stand_in_that_collides_still_owes_its_form() -> None:
         )
     random.Random(3).shuffle(values)
     document, described, folder = _described(values, "dx")
+    block = document["columns"][0]
+    assert _held_back_by_the_floor(values) == (26, 13 * 2 + 13)
+    assert (block["suppressed_levels"], block["suppressed_rows"]) == (
+        26, 13 * 2 + 13
+    )
     twin = generation.generate(described, 7)
     counted = _forms_of([cell for cell in twin.columns[0] if cell])
     assert counted == document["columns"][0]["shape_forms"]
@@ -753,9 +895,13 @@ def test_a_column_of_prose_is_written_exactly_as_it_was_before() -> None:
     # ...and BYTE FOR BYTE what the walk writes with the form offer
     # taken out altogether.
     offer = generation._wanted_form
+    # The stub takes `reads` as well: landing 2b.4 made the offer
+    # class-aware (method G9.5 step 7), which adds that argument, and
+    # `stands` and `rewords` for the band and the settling word
+    # exchange landing 2b.8 added on the same ground.
     generation._wanted_form = (
         lambda owing, length, words, carrier, shortest, longest, budget,
-        covering=1: ""
+        covering=1, reads=None, stands=None, rewords=None: ""
     )
     try:
         without = generation.generate(described, 7)
@@ -837,13 +983,33 @@ def test_every_named_code_system_survives_both_shapes() -> None:
     short_of_it = {
         ("scheme09", "long tail"): 8,
     }
+    # THE THIRD SHAPE IS THE ONE WITH STAND-INS IN IT (owner ruling 5,
+    # plan P4-D271). At the default counts every scheme that takes a
+    # label role counts its tail as MISSING -- 39 rows beside 191
+    # published ones -- so the "long tail" twin holds only published
+    # codes written byte for byte and a stand-in of any shape passes.
+    # The long tail is kept as it was, because the numeric schemes and
+    # the residual above are measured on it; the standing tail is added
+    # beside it, and on it every label-role scheme must hold exactly the
+    # held-back levels the floor makes of its cells.
+    stood: list[str] = []
     for name, values, pattern, parts in schemes:
         random.Random(4).shuffle(values)
         for shape, column in (
             ("all different", values),
             ("long tail", _long_tail(values[:5], values[5:31])),
+            (
+                "standing tail",
+                _long_tail(values[:5], values[5:31], A_TAIL_THAT_STANDS),
+            ),
         ):
-            _document, described, _folder = _described(list(column), name)
+            document, described, _folder = _described(list(column), name)
+            block = document["columns"][0]
+            if shape == "standing tail" and "suppressed_levels" in block:
+                assert (
+                    block["suppressed_levels"], block["suppressed_rows"]
+                ) == _held_back_by_the_floor(list(column)), name
+                stood = stood + [name]
             twin = generation.generate(described, 7)
             cells = [cell for cell in twin.columns[0] if cell]
             assert cells, name
@@ -863,6 +1029,8 @@ def test_every_named_code_system_survives_both_shapes() -> None:
                 name, shape, sorted(set(cells) - set(shaped))[:4]
             )
             assert {len(cell.split("-")) for cell in cells} == {parts}, name
+    # The four schemes that take a label role, each holding stand-ins.
+    assert stood == ["scheme02", "scheme04", "scheme06", "scheme10"], stood
 
 
 def test_the_report_says_which_stand_ins_wore_a_published_form() -> None:
@@ -874,14 +1042,26 @@ def test_the_report_says_which_stand_ins_wore_a_published_form() -> None:
     something they are written in it. One column can have both, so the
     sentence names how many rather than leaving a reader to guess which
     happened.
+
+    THE COMMON CODES COVER 78 ROWS AND NOT 191, and that is ruling 5 as
+    plan P4-D271 measures its exception. The twenty-six rare codes cover
+    39 rows, fewer than twice their number, so at least thirteen of them
+    are single rows; the pool stands only where it covers at least half
+    of what the column publishes. Beside 191 published rows 2 x 39 = 78
+    falls short, the tail is counted as missing and there is no stand-in
+    to describe. Beside 22 + 18 + 15 + 12 + 11 = 78 it is exactly half,
+    and the tail stands.
     """
-    _document, described, _folder = _described(
+    document, described, _folder = _described(
         _long_tail(
             ["E11.9", "I10", "Z00.00", "J45.909", "M54.5"],
             [f"Q{number:02d}.{number % 3}" for number in range(70, 96)],
+            (22, 18, 15, 12, 11),
         ),
         "dx",
     )
+    assert document["columns"][0]["suppressed_levels"] == 26
+    assert document["columns"][0]["suppressed_rows"] == 13 * 2 + 13
     twin = generation.generate(described, 7)
     said = [
         note.achieved
@@ -907,6 +1087,7 @@ def test_the_report_says_which_stand_ins_wore_a_published_form() -> None:
         for note in twin.deviations
         if note.fact == "suppressed_levels"
     ]
+    assert said, twin.deviations
     for sentence in said:
         assert "neutral labels made up in their place" in sentence, sentence
 
@@ -961,10 +1142,11 @@ def test_a_free_text_form_is_held_to_the_same_four_properties() -> None:
 
 def test_the_four_properties_are_each_asked_and_not_three_of_them() -> None:
     """Each of the four, including the ones the first test left out."""
-    for refused in ("NA", "n/a", "1234", "2024-03-17", "a,b", 'a"b',
+    for refused in ("NA", "n/a", "1234", "2024-03-17", 'a"b',
                     "=SUM(A1)", "+1", "-x", "@here"):
         assert not generation._is_a_usable_stand_in(refused), refused
-    for allowed in ("A00.0", "X12", "%%%%-%"):
+    # `a,b` moved from the first list to the second at plan P4-D243.
+    for allowed in ("A00.0", "X12", "%%%%-%", "a,b"):
         assert generation._is_a_usable_stand_in(allowed), allowed
 
 
@@ -1183,7 +1365,7 @@ def test_a_form_pass_that_gave_up_under_the_letter_ask_is_put_back() -> None:
     document, described, _folder = _described(values, "code")
     published = document["columns"][0]["shape_forms"]
     twin = generation.generate(described, 7)
-    counted = _forms_of([cell for cell in twin.columns[0] if cell])
+    counted = _forms_of([cell for cell in twin.columns[0] if cell], published)
     met = 0
     for form in published:
         if form == "(withheld)":
@@ -1329,8 +1511,18 @@ def test_a_column_whose_holes_look_like_values_is_not_accused() -> None:
     # column of 240 values drawn between 40 and 160 still cannot reach
     # its count, because its strata are crowded and their shares hold
     # no free grid point.
-    generator = random.Random(20260902)
-    values = [str(generator.randint(40, 160)) for _each in range(240)]
+    #
+    # AND THE WITNESS MOVED AGAIN at the carried numbers repair pass of
+    # 2026-09-19: G6.5a's push now brings those 240 values to their count,
+    # so a shortfall no repair of G6.5a can mend stands here instead --
+    # twelve negatives written once, a zero, and the whole numbers one to
+    # ten forty times each, where G5.2's division of the strata by cells
+    # gives the positive band eleven strata for ten integers.
+    values = (
+        [str(-number) for number in range(1, 13)]
+        + ["0"]
+        + [str(number) for number in range(1, 11) for _copy in range(40)]
+    )
     values = values + ["-999"] * 20
     folder = pathlib.Path(tempfile.mkdtemp())
     table = fixtures.write(
@@ -1354,7 +1546,50 @@ def test_a_column_whose_holes_look_like_values_is_not_accused() -> None:
         assert fabricated not in named, (fabricated, sorted(named))
 
     # ...and the shortfall that IS real is still named.
-    assert "n_distinct" in named, sorted(named)
+    #
+    # IT IS NAMED AS WHAT IT IS, and the page no longer names it twice
+    # over under a window the validator does not use (plan P4-D6.4). The
+    # twin holds 104 different values against a published 106, and
+    # `n_distinct_values` says so as a deviation, on this tree and on
+    # e53d5f4 alike. `n_distinct` and `n_distinct_folded` are
+    # APPROXIMATED facts (G12.8): each is named as a deviation only when
+    # the count lands outside the window [min(supply, published),
+    # max(supply, published)], where the supply is how many different
+    # spellings the twin's own PRESENT cells can carry. Every present
+    # cell here is a plain whole number, one spelling per value, so the
+    # supply is 104 and the window [min(104, 106), max(104, 106)] =
+    # [104, 106] holds the 104. This assertion used to read
+    # `"n_distinct" in named`, and it held only because the supply was
+    # counted over every non-blank cell: the twenty `-999` holes gave a
+    # 105th spelling, the window became [105, 106], and 104 fell
+    # outside it. A hole is no value (`_present_of`), and the validator
+    # has read this same twin as AUTHORIZED-DEVIATION at 104 against
+    # 106 on both trees; the report's window now agrees with it.
+    # AND THE SHORTFALL THAT WAS REAL IS GONE (stage 3, landing 3.3).
+    # The twin held 104 different values against a published 106 and
+    # named `n_distinct_values` as a deviation; the tail rule places the
+    # rows beyond each boundary on their own grid points (method G5.3b)
+    # and the twin now holds all 106, so there is nothing left to name
+    # -- on a column the same walk used to leave two short. What the
+    # test is about is unchanged and is asserted the other way round:
+    # NOTHING is named, the counts are recounted exactly, and the three
+    # distinctness obligations are HELD rather than authorized.
+    column = described.columns[0]
+    real = len({value for value in values if value != "-999"})
+    held = len({cell for cell in twin.columns[0] if cell not in ("", "-999")})
+    assert (column.n_distinct, column.n_distinct_folded) == (real, real)
+    assert held == real, (held, real)
+    assert named == set(), sorted(named)
+    windows = {
+        record.fact: record
+        for record in twin.approximations
+        if record.column == column.name
+    }
+    for fact in ("n_distinct", "n_distinct_folded"):
+        window = windows[fact]
+        assert (window.published, window.achieved) == (f"{real}", f"{held}")
+        assert window.inside, fact
+        assert fact not in named, (fact, sorted(named))
     twin_file = fixtures.write(folder, "twin.csv", rendering.twin_csv(twin))
     outcome = validation.measure(described, f"{twin_file}")
     assert [
@@ -1362,6 +1597,18 @@ def test_a_column_whose_holes_look_like_values_is_not_accused() -> None:
         for check in outcome.checks
         if check.verdict == validation.MISSED
     ] == []
+    verdicts = {
+        check.subcheck: check
+        for check in outcome.checks
+        if check.column == column.name
+    }
+    for subcheck in (
+        "distinct.n_distinct",
+        "distinct.n_distinct_folded",
+        "distinct.n_distinct_values",
+    ):
+        assert verdicts[subcheck].verdict == validation.HELD, subcheck
+        assert verdicts[subcheck].achieved == f"{held}", subcheck
 
 
 def test_a_census_key_is_never_withheld_on_account_of_another_cell() -> None:
@@ -1563,7 +1810,7 @@ def test_a_stand_in_avoids_a_hole_declared_on_another_column() -> None:
         declared_missing_values=("group-1",), small_cell_floor=11
     )
     document = profile.build_document(
-        reading.read_table(f"{table}"), settings, []
+        reading.read_table(f"{table}", small_cell_floor=11), settings, []
     )
     written = fixtures.write_profile(folder, "thing.json", document)
     described = contract.load_profile(f"{written}")

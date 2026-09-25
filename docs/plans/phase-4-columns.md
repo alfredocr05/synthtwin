@@ -267,6 +267,12 @@ recording what remained undone.
    re-tested. What it buys: clock-time and month columns stop falling
    through, and the single most common export shape — one ISO column
    mixing dates and datetimes — is read. **TAKEN 2026-08-19: yes.**
+   **NARROWED 2026-09-15 (landing 2b.3, P4-D39):** the form census of a
+   column read jointly whose every value stands at midnight IS
+   reproduced, because such a column is generated in whole days and a
+   bare date spells each of its ranks exactly, which is the case the
+   decision's recorded reason does not reach; every other joint column
+   is written at the finest form as the decision rules.
 5. **Width facts for unrepresentable numbers** (P4-D4.4; recommended:
    yes). Settles R-P2-1, flagged for the owner since Phase 2. Cost: two
    published length facts on a role that publishes no value of the
@@ -421,7 +427,13 @@ false at the edges:
 - **Partially invented labels**: a label-class column with suppressed
   levels or withheld variants — the twin carries its published
   spellings byte-for-byte plus counted neutral stand-ins (`group-N`,
-  invented variant spellings) for the withheld remainder.
+  invented variant spellings) for the withheld remainder. **(AMENDED
+  at landing 2b.4: a held-back level that was a number is written as a
+  number, stepped from the column's published numbers, and a held-back
+  level of the published forms wears one of them -- method G8.3 and
+  G8.3a. Those stand-ins are counted in this class exactly as the
+  neutral ones are, and none of them is neutral in the sense of
+  reading as text.)**
 - **Counted stand-in cells**: any column whose construction writes
   counted stand-ins for cells the description could not carry —
   unparsed datetime cells, out-of-range, contradictory and non-numeric
@@ -866,6 +878,35 @@ allotment itself to change (R-P4-49) and ended REPORT-ONLY.
 column held most often, and `mode_count` is how many cells held the
 commonest number. Both are **REPORT-ONLY** until the generator carves
 the stratum described below.
+
+**AMENDED AT LANDING 2b.1 (2026-09-15): THE GENERATOR NOW READS
+`mode_count`, AS A CEILING AND NOT AS A CARVE.** Method G5.2a caps every
+stratum at the published count — at one where the pair is withheld and
+every number differs, and otherwise at the most cells the ladder's own
+runs of equal rungs allow and, under a publication floor of 3 or more,
+at one fewer than the floor, which is what a withheld pair proves
+(landing 2b.1, repair, 2026-09-16) — so no number of the twin is held by
+more cells than any number of the real column was. Before that last
+term, 2,500 thousandths described under a floor of 11 came back holding
+one number 27 times and published a mode pair the real column had
+withheld. That repaired a defect
+this decision never named: the join of G5.2a step 3 grew one stratum
+without bound on any ladder that moves continuously, and a 4,000-row
+two-figure column publishing a count of 62 held one number 760 times.
+AND BOTH REPORTS READ THAT CEILING AS THE WIDEST STRATUM of every rung
+and moment window (landing 2b.1, part 2): the twin's own report no
+longer reads its layout for it, the quality report no longer estimates
+it, and G5.2b gives each sign band at least `ceil(cells / mode_count)`
+strata so no stratum stands above it except where the carrier and reach
+steps move a cell for a published style count. On such a column the twin
+report widens to the stratum those steps built and the quality report,
+which cannot see it, reads the ceiling: the two print different windows
+there, and that exception is carried by name (G5.6).
+
+The carve below is still not built, so the pair stays REPORT-ONLY: the
+ceiling bounds every count and meets none. Item 5's warning does not
+fire, because the ceiling moves cells between strata and never changes
+how many there are, so the word budget is untouched.
 
 They were written APPROXIMATED first, and that was wrong. Both halves
 are readable off a file, so they looked checkable — and they are, but a
@@ -1501,7 +1542,9 @@ the floor raises the detection line with it.
 label invariants (B1 through B8), verbatim: `levels` (each at or above
 the recorded floor, with exact variants and withheld-variant counts),
 `suppressed_levels`, `suppressed_rows`, and `suppressed_level_counts` —
-the anonymous ascending sizes of every below-floor level. NOT
+the anonymous ascending sizes of every below-floor level (withdrawn by
+the owner's ruling of 2026-09-17, plan P4-D201, which publishes only the
+pooled total). NOT
 `level_ceiling`, stated so no ambiguity survives into the contract:
 that key is categorical's own, its invariant (folded distinctness at or
 under the ceiling) is exactly what a long-tail column violates by
@@ -1558,7 +1601,8 @@ spellings. The price, in full:
 **Document size, stated.** `suppressed_level_counts` holds one integer
 per below-floor level; the bound is `n_rows`; no cap is added, honoring
 the standing rule against contracting the promised domain, and the cost
-is stated here rather than found later.
+is stated here rather than found later. (The array is withdrawn by the
+owner's ruling of 2026-09-17, plan P4-D201; the pool is two integers.)
 
 ## P4-D6. Missing-data patterns, per column
 
@@ -1569,6 +1613,15 @@ structure, is the `missing_data_process` slot's work, reserved to
 Phase 5; this plan neither fills nor reads that slot.
 
 ### P4-D6.1 The twin reproduces recorded hole spellings (decision 2)
+
+**ITS EXCEPTION IS SUPERSEDED by the owner's ruling of 2026-09-15 that
+the twin writes everything as the source wrote it (plan P4-D6.4).** The
+paragraphs below that keep a JUDGED pass's cells blank -- the exception
+in the write rule, "Why stand-in-sourced cells stay blank", the one
+authorization and the judged-pass term of the SUM identity -- record
+the rule as it stood until then and no longer bind: the twin writes
+those cells in the source's own spelling at the published count, and
+the key is recounted like every other.
 
 Contract version 5 already records, per column: the exact hole
 spellings at or above the floor (`missing_by_source`), the blank count
@@ -1708,6 +1761,86 @@ date stand-ins join the judged candidates and the class map gains
 their key, by owner ruling — the amendment carries the rule in
 full)**. Each is either Phase 5's or priced in
 P4-D13.
+
+### P4-D6.4 A judged pass's cells are written as the source wrote them (supersedes P4-D6.1's exception)
+
+**The ruling.** The owner ruled on 2026-09-15 that the twin writes
+everything exactly as the source wrote it. P4-D6.1's one exception --
+a `missing_by_source` key a JUDGED pass put there, a stand-in number or
+a calendar placeholder, written blank -- predates that ruling and is
+superseded by it; a declared spelling already came back at its count
+(`NA` 20 written 20), and a judged one now does too.
+
+**What the exception cost, measured** (the KPI critic's reproduction,
+re-run on e53d5f4). The shared every-role table's `reading` column
+holds thirteen `-999` cells and no blank. Its twin held thirteen
+blanks, so `pandas.read_csv` gave the real column `int64` and the
+twin's `float64` at seeds 20260811, 1, 2 and 3 and floors 1 and 11:
+`df.reading.astype(int)` raises on the twin and not on the table, and
+`df.reading == -999` selects thirteen rows of the table and none of
+the twin. Code developed on the twin did not run unchanged, which is
+the first mandatory goal. A battery of five further shapes -- whole
+numbers, a placeholder day, an affixed `-999 mg`, a declared decimal
+comma `-999,0`, and a judged column beside one keeping `-999` as data
+-- as delimited text and workbooks at floors 1 and 11 found the same
+`int64`/`float64` split on nine of sixteen files, and describing the
+twin again recovered the published `missing_by_source` on none.
+
+**Why C6-116's reason no longer holds, and what replaces it.** The
+exception existed because a twin's generated values need not fire the
+producer's outlier-and-share rule a second time. That was measured
+before this repair: 400 whole numbers whose fence stood a few units
+inside `-999`, with twelve `-999` cells, gave five twins in eight that
+the validator read with the twelve as VALUES, missing obligations
+while the real table passed. So the validator no longer asks the
+arithmetic again for a candidate the description already settled: it
+hands the producer, per column, the candidates the description
+published as `read_as_missing` there, and the producer reads them as
+missing in that column (validation method V2.4-A8, amended). The file
+the description was written from reaches the same verdict either way,
+so the real table is unmoved; a twin no longer depends on a
+re-judgement. After it, every one of the eight near-fence twins and
+every file of the battery validates at nought. Describing the twin
+again gives back `missing_by_source` exactly on every file of the
+battery, and NOT on every near-fence twin, which is the limit this
+repair keeps: `synthtwin profile` run on a twin is a new description
+and judges the twin's own values afresh, and only the validator reads
+the description's verdict. Measured on the near-fence columns at twin
+seeds 1 to 8, a plain re-description gave the key back on three twins
+of eight for the whole numbers and for the affixed `-999 mg`, and on
+four of eight for the placeholder `1900-01-01`; on the others the
+twin's own spread moved the judgement past the stand-in, which was
+then kept as a number. The validator reads all of them as the
+description does, and each passes.
+
+**Consequences, moved together.** The generation method's G10.1 and
+contract C6-115 lose the exception and C6-116 is rewritten as the
+reason it no longer holds; `missing_by_source` is EXACT-OBSERVABLE on
+every key, so the disposition registry's one authorization for it is
+withdrawn and the validator checks a judged key like any other; the
+SUM identity loses its judged-pass term (the twin's blank absent cells
+are the blank count plus the withheld remainder); the loader's FD7 and
+the producer's row-order rule and workbook cell-class census count a
+judged key's cells as written, not empty; the twin's report says the
+twin writes the spelling, and its count line for a column calls the
+absent cells cells "with no value" rather than cells it "leaves
+empty", since a written spelling is not an empty cell. The report's
+supply for the window of a column's numeric distinctness counts
+PRESENT cells only: a hole spelling is no value and lends the window
+no spelling, so the report draws the window the validator draws. On a
+declared `-999` column of 104 twin values against a published 106,
+every present cell a plain whole number, the window was [105, 106]
+with the hole counted as a 105th spelling and is [min(104, 106),
+max(104, 106)] = [104, 106] now; the validator reads the same twin as
+AUTHORIZED-DEVIATION at 104, and the shortfall is still named, as
+`n_distinct_values`. **What it does not reach:** a judged
+spelling below the floor is not a key, is pooled into
+`n_missing_withheld` and is written with that pool, exactly like any
+other absent spelling below the floor; the owner's rulings of
+2026-09-17 on spellings below the floor govern it, and nothing here
+changes them. On such a column the twin still holds blanks where the
+real table held the stand-in, which is the floor's price and not this
+rule's.
 
 ## P4-D7. Profile contract version 6
 
@@ -2628,7 +2761,8 @@ Opened by this plan, each a limit accepted rather than work forgotten:
   fact — hole spellings, sentinel candidates, long-tail levels — stays
   unwritten in the twin and unnamed everywhere, by the floor's own
   rule; stand-in-sourced absent cells stay blank in the twin by
-  P4-D6.1's stated exception.
+  P4-D6.1's stated exception (**superseded by P4-D6.4**: a published
+  stand-in or placeholder spelling is written at its count).
 - **R-P4-11.** Free text that remains is invention, labeled; making it
   linguistically plausible is out of scope and gated by the charter's
   privacy line on source language.
@@ -2638,7 +2772,11 @@ Opened by this plan, each a limit accepted rather than work forgotten:
   not kept), and the twin report names the recorded mix as not
   reproduced. Reproducing it would need a per-form construction with
   its own packing, feasibility rule and window family, priced out of
-  proportion in P4-D4.3.
+  proportion in P4-D4.3. **NARROWED 2026-09-15 (landing 2b.3, P4-D39):**
+  on a joint column whose every value stands at midnight, on either
+  clock, no per-form packing is needed -- every rank is a whole day --
+  and the mix is spent over the ranks by the smooth rotation of the
+  marks; the residual stands for every other joint column.
 - **R-P4-14** (opened by amendment A-P4-3, restated at its real size on
   review item P4-C2-F2). Sentences of the twin report, the generation
   screen, the profiler summary and the quality report are held by the
@@ -4324,8 +4462,8 @@ declaration for only one of them.
     the double step had been caught; round 8 read the code and found
     that it had not. See P4-G6-R8.
 
-- **R-P4-61 (opened here, 2026-08-30, PRE-EXISTING, and MEASURED before
-  it was written down).** THE GENERATOR AND THE VALIDATOR PRINT
+- **R-P4-61 — CLOSED 2026-09-15 by landing 2b.1, part 2** (opened here,
+  2026-08-30, PRE-EXISTING, and MEASURED before it was written down). THE GENERATOR AND THE VALIDATOR PRINT
   DIFFERENT MOMENT WINDOWS FOR ONE COLUMN. On the values 1 to 60 at
   seed 7 the twin report gives the skew range as -2.282203333063573 to
   2.2822033330635745 and the quality report gives -2.282203333063573 to
@@ -4347,6 +4485,35 @@ declaration for only one of them.
   at the tail of another one. The number a reader sees differs in its
   last two digits between two reports; the verdict either report gives
   has not been seen to differ, and R-P4-61 owes that measurement too.
+
+  **CLOSED, AND THE VERDICT MEASUREMENT IS WHAT CLOSES IT.** The
+  measurement this entry owed was never taken: the committed tool
+  compared the generator's window with the validator's published and
+  achieved values, which are not a window, never printed its own count,
+  and built columns of 20 to 240 rows, too short for the widest stratum
+  to tell the two modules apart. Repaired, it compares what each report
+  PRINTS for the same twin -- every interior rung and moment -- over 44
+  columns of fifteen shapes at 500, 2,000 and 4,000 rows and two seeds:
+
+  | commit | windows both print | ends that differ | verdicts that differ |
+  |---|---|---|---|
+  | 53bb012, before landing 2b.1 | 985 | 923 | **107** |
+  | landing 2b.1, part 1 | 838 | 544 | 0 |
+  | landing 2b.1, part 2 | 838 | **0** | **0** |
+
+  So verdicts DID differ, 107 of 1,128, and not in the last digits: the
+  two modules read two different widest strata. Part 2 closes both
+  halves. Both reports read the widest stratum off the description --
+  G5.2a's cap, which G5.2b's new band floor and G5.2a's levelling keep
+  every stratum under wherever the carrier and reach steps move no cell
+  (G5.6) -- and both follow one operation order, written step by step
+  in G12.2, G12.3 and G12.3a: the ladder read at exact fractions, the
+  profiler's exact mean, `E` in its scaled form, deviations divided by
+  the spread before they are raised, `fsum` then the count, and the one
+  outward step taken only where a universal range is formed. The values
+  1 to 60 at seed 7 now print one skew range in both reports, and
+  `tests/test_window_agreement.py` holds the two reports to one printed
+  window on seven shapes at three sizes and three seeds each.
 
 - **P4-G6-R8, the eighth and last round (2026-08-30). One item, and an
   AUDIT OF THIS REGISTER that found two of its claims overstated.**
@@ -5097,7 +5264,7 @@ declaration for only one of them.
   that stage already places exactly. It is design work and not a
   repair, which is why it is a residual.
 
-- **R-P4-113 — OPEN (opened 2026-09-01 by landing L6; PRE-EXISTING).**
+- **R-P4-113 — CLOSED 2026-09-15, the assembled contract is the only source (opened 2026-09-01 by landing L6; PRE-EXISTING).**
   THE CONTRACT ASSEMBLER REBUILDS A DOCUMENT FIVE DAYS STALE, AND
   NOTHING SAYS SO.
 
@@ -5124,6 +5291,45 @@ declaration for only one of them.
   means back-porting five commits of repairs section by section — or
   the assembled document is declared the source and the build folder
   and both tools are retired with a sentence saying so.
+
+  **2026-09-15, landing 2b.5: the destructive path is closed, and the
+  source question is still OPEN for the owner.** Re-measured on
+  53bb012, the rebuild wrote 385 lines and deleted 3,375, turning a
+  10,426-line contract into 7,436. Sixty commits had touched the
+  shipped document since the build folder last moved. Nothing chooses
+  between the two copies here. `tools/spec/assemble_v6.py` now refuses
+  to run, with a sentence naming this entry and the owner's question,
+  and writes nothing. `docs/spec/v6-build/` is untouched.
+  `tools/spec/check_assembly.py` accepts one document as well as a
+  folder, and it has learned three definition shapes the shipped
+  document uses: a rule named in prose ("its identifier is Q20"), a
+  rule opened as a bullet or part way along a line, and a landing name
+  such as `landing L16`, which read as an `L` invariant. On the shipped
+  document it had reported seventeen items, and seven were real. The
+  second definitions of C6-32, C6-33 (with its C6-33a and C6-33b) and
+  C6-96 are renumbered C6-122, C6-123 (C6-123a, C6-123b) and C6-124,
+  and the table rows that cited those meanings follow; code and tests
+  cite the first meanings, which keep their numbers. Invariants Q16 to
+  Q19, which were cited and enforced by the loader but never written,
+  are defined beside Q11 and listed in the Q family. It now reports
+  zero items, and `tests/test_contract_self_check.py` holds it there,
+  with a duplicated identifier turning that test red. On the build
+  folder it reports one item more than before, a real duplicate P5
+  between two draft sections that the old recogniser could not see.
+
+  **2026-09-15, CLOSED at the integration of landings 2b.1 to 2b.5: the
+  assembled contract is the only source.** The recommendation put to
+  the owner -- declare the assembled document the source and retire the
+  build folder and its tools -- drew no objection. So
+  `docs/spec/profile-contract-v6.md` is the one copy of the contract,
+  and a repair to it is made in it. The section folder
+  `docs/spec/v6-build/` and its assembler `tools/spec/assemble_v6.py`
+  are deleted; every path to them above records what stood there, and
+  none of them exists any more. `tools/spec/check_assembly.py` stays,
+  because it checks a document rather than building one: its default
+  is now the assembled contract, where it reports zero items, and
+  `tests/test_contract_self_check.py` holds it at zero and pins that
+  default.
 
 - **R-P4-124 — OPEN (opened 2026-09-01 by landing L7's own mutation
   run).** THREE RULES OF THE PROPOSAL STEP STAY SILENT.
@@ -7726,6 +7932,21 @@ takes a slot outside every barred BIN instead.
   published chooses between them; `EUR 1,5` has a core and a suffix and
   nothing says which mark is the point.
 
+  **THE AFFIXED HALF IS CLOSED BY P4-D106 (landing 2b.16, 2026-09-16),
+  and the sentence above is amended: the affixed role is IN.** The
+  second example was the wrong way round. `EUR 1,5` has a core and a
+  suffix, and on a column the person DECLARED, which mark is the point
+  is exactly what the declaration says — that is the one question it
+  exists to answer, and the wrapper is not a number at all, so nothing
+  about it is in doubt. Measured on the base of landing 2b.16, 800 rows
+  at floor eleven, seeds 1 and 7: `795,64 EUR` and `37,5 %` declared
+  `--decimal-comma` were described as **free text**, their twins held
+  `)!!!!! !!!!!` and `^!4 !!`, and `synthtwin validate` reported exit 0
+  on the twin AND on the real table, so the commonest European export
+  there is came back useless and silent. The JOINED half stays open and
+  is the whole of what R-P4-52 now carries: there the same mark may be
+  the separator between two readings, and no declaration settles which.
+
   **IT FAILS LOUDLY RATHER THAN SILENTLY**, which is the half a first
   build left out. Which columns the declaration reaches depends on the
   ROLE the values take, and that is not known until the table has been
@@ -8108,8 +8329,8 @@ P4-D4.3 widens what is read, not what is remembered; a month-first
 source still yields ISO twin dates), R-P2-8, R-P2-9, R-P2-13 (re-priced
 under P4-D6.1 where taken), R-P2-14 carry; R-P3-1 through R-P3-8 carry
 as written, except R-P3-8's vocabulary count, which moves by counted
-re-seal with decision 7; R-P3-11 remains the owner's pending decision,
-unmoved by this plan; R-P3-12 closes durably under decision 6, its
+re-seal with decision 7; R-P3-11 remained the owner's pending decision,
+unmoved by this plan, until the ruling of 2026-09-17 closed it (P4-D200); R-P3-12 closes durably under decision 6, its
 ledger entry recording which interim option A-P3-46's ruling took. The
 one Phase 3 bookkeeping discrepancy this drafting found is recorded for
 the owner rather than resolved here: STATUS.md states R-P3-12's ruling
@@ -9479,6 +9700,512 @@ shape says what is true of such a column — a number, with others
 wearing text beside it — and `synthtwin profile` no longer writes a
 file `synthtwin generate` will not take.
 
+### P4-D38 The mark between thousands (stage 2, 2026-09-14)
+
+`group_separator` is the mark a column writes between thousands, published on every numeric block as one character or the empty string; its class and its obligation are set by P4-D41 (landing 2b.2). It repairs a defect in which a charge written with a comma came back from the twin without one, so that code developed on the twin silently discarded every charge over a thousand when it met the real table: a mean of 412 against a true 918, with no error raised.
+
+It is published only where the column's convention can be reproduced (the stage 2 audit, 2026-09-14). A cell proves the mark where it has four or more whole figures, is written in a form that can be grouped, and carries a comma that reads as grouping; a lone group such as `12,345` counts, because the profiler's own statistics already read it as thousands. Such a cell with no comma is bare, and accounting brackets are not figures, so `(123.45)` is not a four-figure cell. The mark is published where the proving cells reach the smallest group size and outnumber the bare ones. The twin writes every groupable cell with the mark, so a column mixing the two is written as its majority. One grouped cell among many bare ones still publishes nothing, and a padded or exponent cell holding a comma still withholds the mark. Review round 1 of this landing measured why the floor exists: one grouped cell among two hundred grouped all two hundred.
+
+Under a declared decimal comma each cell is read with its points and commas exchanged, so a column written `42.037,34` publishes `.` (the stage 2 audit, 2026-09-14). The published value is therefore empty, a comma or a point, and a point only on a column named in `settings.forced_decimal_commas` that the declaration reaches. The generator groups such a column with a comma and then exchanges its points and commas, in the cells its numeric machinery wrote and no others: a label beside the numbers and an absent cell are never exchanged (the stage 2 closure review measured both corrupted when the exchange was decided from the text). Loader invariant GS1 holds the pair: a column groups with a point only where it writes its decimals with a comma, and never with a comma there; the numeric partition of a numbers-with-labels column the declaration reaches may carry a point, and a numeric block nested in an affixed or joined column never does. Where a twin's own numbers reach too few four-figure values to prove the mark at the published smallest group size -- a small column at a raised floor -- the report names it as a deviation of `group_separator`, and the same holds for the cores each wrapper of an affixed column wears and the numeric half of a column of numbers and labels (stage 2 confirmation review, 2026-09-15). Every recount of a declared decimal-comma column, the generator's own and the validator's, reads class and absence in the declared grammar before translating.
+
+The generator writes the mark into the plain, leading-plus and decimal forms at leading-zero order zero, and into nothing else. The independent oracle mirrors that rule in the same commit, as amendment A-P4-59 requires, and a test holds three separately written groupers to agreeing. The reason this decision first gave for leaving the mark unchecked -- that a file is read the same way with or without it -- is contradicted by the first goal, and landing 2b.2 withdrew it: code developed on a twin that carries the mark strips it before converting, and a bare copy of a grouped twin validated with exit 0. The validator still offers a grouped spelling of every value whatever mark the description publishes, so a real table whose commas were not proven is never MISSED in its spelling check for them; since P4-D41 it holds a file to the published mark through the file's own description.
+
+The rule this overturns is Phase 2's sentence that a thousands separator is never written because the comma breaks the CSV row itself. That reason was false: a cell holding a comma is quoted by the CSV writer and read back unchanged. The Phase 2 plan and the generation method record the correction on the same date.
+
+Carried by name at the stage 2 audit and repaired by landing 2b.2 (P4-D41): accounting brackets and a leading plus on a decimal, which were not published, and a column grouped with a space or an apostrophe, which was read as free text. Still carried: a free-text shape holding a comma is never written.
+
+### P4-D39 The mark inside a moment, and a date held at midnight (stage 2, 2026-09-14)
+
+The census `datetime_separators` counts the mark a moment writes between its day and its clock — `upper_t` for the letter T, `space`, `lower_t` for the letter t — on every datetime block, floor-governed exactly as `utc_offsets` is, with the names below the floor pooled under `(withheld)`. It is `{}` where the resolution is not `datetime`; the whole-date cells of an `iso-mixed` column are not counted, and a slashed stamp counts as `space`, the year-first `slashed-iso-datetime` of landing 2b.3 included. It repairs a defect in which a stamp written with a space came back from the twin with a T, so that code splitting on that character worked on every twin row and failed on every row of the real table. Since landing 2b.3 (2026-09-15) `datetime_separators` is EXACT-OBSERVABLE.
+
+The statement `all_at_midnight` marks a column whose every moment stands at midnight: `true` only on a datetime column whose parsed cells reach the floor and every one names clock 00:00, seconds 00 and a fraction of zeros on its own wall clock, a whole-date cell of `iso-mixed` counting as midnight. Since landing 2b.3 it is asked on the shared clock too wherever no offset is pooled: a CET/CEST export writing `T00:00:00+01:00` in winter and `+02:00` in summer is read on the shared clock only because it wore two offsets, and every one of its values is a local midnight. It repairs a defect in which a date stored as the date plus 00:00:00 came back with invented times of day: 800 of 800 real rows at midnight became 2 of 800. Since landing 2b.3 `all_at_midnight` is EXACT-OBSERVABLE where it is published true. The count `n_at_midnight` (landing 2b.3) says how many of a column's moments stand at midnight, floored on both sides: at least the floor stood there and at least the floor did not, or every parsed cell did; anything else is not published. THE FLOOR ON EITHER SIDE IS NEVER BELOW TWO AND THE UNPUBLISHED STATE IS `null`, NEVER NOUGHT (P4-D60, landing 2b.6): one is not a group, and a nought a reader can tell from a suppressed count of one IS that count — 400 moments a day apart at noon, and the same 400 with a single row moved to midnight, differed in `n_at_midnight: 0 -> 1` and in nothing else in either document. The count `n_at_midnight` is EXACT-OBSERVABLE where it is published. The move of an accidental value at midnight off a column publishing nought (repair pass of landing 2b.3, and its run-wise form from the integration repair) is WITHDRAWN with the nought that bought it, and the twin of such a column may hold a value at midnight the real column did not: named at P4-D60 rather than paid in silence. Contract invariants D12 to D16 hold the keys. D12 bounds the pool (the stage 2 audit, 2026-09-14): a `(withheld)` count may be no larger than the floor less one, times the number of permitted marks the census leaves unnamed, the permitted marks being the three names, or only `space` for a slashed format. D14 refuses a `true` whose ends or rungs are not a midnight under a published offset, or one on the shared clock with an offset pooled. D15 refuses a count that is not nought, a group on both sides, or every value, and ties every value to the statement. D16 refuses a joint column whose whole dates outnumber the values it counts with no offset.
+
+The generator spends the census over the parsed ranks that write a clock by a smooth weighted rotation that draws no word: each rank adds every mark's weight to that mark's credit, takes the mark with the most credit, the first in sorted order on a tie, and subtracts the weights' total from it. The weights are the named counts and, since landing 2b.3, a withheld pool split evenly over the permitted marks the census leaves unnamed, a remainder going one each in the order `upper_t`, `space`, `lower_t`: every value of a named mark is counted under its name, so the pooled values wore an unnamed one, and the rule this replaces, which wrote them with the commonest mark, erased that spelling — 870 T, 22 space and 8 t came back as 878 T and 22 space. Each share is below the floor, so the twin described again pools the same count. Ranks the weights leave over, the whole-date cells of an `iso-mixed` column written with a clock, go to the commonest named mark, or where nothing is named to `upper_t` on an ISO reading and to `space` on a slashed stamp. The rotation spreads each mark across the date range, so the twin invents no link between a moment's date and its spelling. A column of moments on its own clock whose every value stands at midnight is generated in whole days, exactly as a column of dates is, and each cell is written as its day with a midnight clock at the column's precision and fraction width; the report recounts the midnight cells it wrote and names any that are not. The validator reads such a column in day units; one on the shared clock is counted and read in seconds.
+
+**Owner decision 4 is narrowed here** (landing 2b.3, 2026-09-15). Decision 4 recorded the form census of a column read jointly and did not reproduce it, because a date-form cell cannot spell an interior value published at the second (residual R-P4-12). That reason does not reach a column whose every value stands at midnight: it is generated in whole days, and every rank is a day a bare date spells exactly. On exactly that column, on either clock, the census is spent over the ranks by the same smooth rotation, `iso-date` before `iso-datetime` on a tie, and a rank given `iso-date` is written as its bare day. Before the rotation starts, each rank whose instant the published tail fixes is settled -- the ends and, on a column moved onto a midnight, each rung rank and each rank between two pinned ranks of one instant: a moment where that instant stands at midnight only under a real offset, and on the shared clock a bare date where it may carry no offset while bare dates remain (repair pass of landing 2b.3: bare dates beside `T00:00:00+02:00` moments had rungs written 22 hours early and cells at `T02:00:00+02:00`, and every twin of that shape missed; after it the ladder comes back exactly on `+02:00`, CET and `-05:00` exports). Every bare-date rank takes one from `(none)`, or from `(withheld)` where `(none)` was pooled, before the ends are pinned, so no bare date carries an offset, and the census of marks is spent over the clock-writing ranks alone. Measured before this landing on 2,000 rows: 1,900 bare dates came back as moments, and bare dates beside `T00:00:00Z` moments came back with invented times; after it, 1,900 bare dates and 700 values at midnight. Every other joint column is written at the finest form, and R-P4-12 stands for it.
+
+**A column partly at midnight, and midnight on two offsets** (landing 2b.3). A column of moments counted in seconds that publishes a count of values at midnight above nought, partly at midnight on either clock or wholly at local midnight on the shared clock, keeps its interpolation and moves ranks onto a midnight. The ranks the published tail pins never move: the two ends, and each interior rung's rank, which takes its published rung and, on a column wholly at midnight on the shared clock, the offset that rung is a midnight under. A rank interpolated past a pinned value is brought back to it. The values at midnight still owed are spread over the other ranks by the smooth rotation; a chosen rank moves to the nearest midnight of its own wall clock that does not pass a pinned rank; an unchosen rank written at midnight moves one step of the precision away; and a second pass takes what is still owed, a shortfall being named in the report. The set of pinned ranks is stated once in the code, so a later landing that changes what the tail publishes changes that set and not the construction. Measured: 361 real values at midnight of 400 came back as 2 and now come back as 361; a CET/CEST export of 900 local midnight values came back with 2 at midnight and every interior value a day early on the shared clock, and now comes back with 900. The lower end of the distinctness window on such a column counts the separate windows less the ranks the move may carry out of theirs, and never less than the pinned values allow. Published instants keep their canonical space-separated text; only the twin's cells carry the mark. The independent oracle mirrors these rules in the same commit, as amendment A-P4-59 requires.
+
+A cell whose written spelling the table declares absent (the stage 2 audit, 2026-09-14) is offered, in order, each mark the census names or the pool is written with, in sorted order, and then the other common form, a space for T or t and a T for a space; it takes the first offer whose spelling is not absent. Absent spellings are drawn from every column's declarations and matched whatever the case of their letters. A spelling a column's own calendar placeholder or stand-in pass judged absent is not a declaration and stays that column's own (landing 2b.3): a discharge column's judged `1900-01-01 00:00:00` made a birth column's twin write its 75 values of that day with a T, and the validator read the real birth column's 187 such values as absent, failing the real table on 24 obligations. Where the judging column also counts cells absent by declaration, a declared cell shares the judged day only where the keys denoting the judged candidate, with the pooled hole spellings added, hold more cells than the verdict took, because a declared cell is taken out before any pass judges; there every key sharing that day keeps its table-wide reach, so a person's own declaration is never narrowed, and a declared `NA` no longer carries the judged spelling to the table (repair pass of landing 2b.3: the birth column's twin had written 75 values with a T and the real table missed 12 obligations). Where every offer is absent the value keeps its spelling and the report names it as a deviation of `n_present`. Each changed cell then hands its owed mark to the first rank, in rank order, that was allocated the mark the changed cell now wears, still wears it, was not touched before, and whose new spelling is not absent; a repeated spelling is allowed, no change may leave the column one spelling fewer nor one value fewer once case is ignored, and the walk is linear. Where every offer is absent, an interior rank of a column counted in whole units steps to the nearest unit whose spelling is not absent, inside its own window first (stage 2 confirmation review, 2026-09-15). A twin whose values come to two or fewer, case ignored, where the description counts three or more is named as a deviation of `n_distinct_folded`. A shortfall is named as a deviation of `datetime_separators`. A column of moments whose absent cells were pooled below the group size, in a table that declared missing values, carries a remark in the report that the twin cannot avoid an absent spelling the description does not publish; a remark and not a deviation, because no published fact was missed.
+
+The twin report's sentence on the marks is the one true of the column. Where every mark was pooled, the twin spreads those values over the marks the column's reader permits, a space alone on a slashed stamp. Where a remainder was pooled, the values whose mark was not named take the marks the census leaves unnamed. Otherwise each mark is written as often as the description records it, and on a joint column not at midnight a bare date of the real table takes the commonest mark. The resolution-mix deviation says code reading the cells as dates reads the same days only where `all_at_midnight` holds.
+
+What the facts buy is code meeting the same spelling on the twin as on the real table, and a date-only field that stays a date. The quality report holds a file to them since landing 2b.3, measured off the file's own description: each named mark as a floor-governed count whose window is the withheld pool, widened on a joint column not wholly at midnight by the clock-writing cells a file holds beyond the published count; the values wearing a mark the census does not name, bounded by that same window; the statement where it is published true; and the count where it is above nought. Each is listed, never silent, where the description sets no obligation. Measured before the change, a space column rewritten with a T and a midnight column moved to 09:30 both passed with nothing missed; after it, both miss. The absent-spelling repair's shortfall, which the twin's own report names, is now also a miss of the census, which is the consistent outcome. Carried by name: a column of a few different days whose pooled spellings land on more than one day keeps its kind but holds more different values than the real one, pinned in `tests/test_stage2_timestamp_spellings.py`; a joint column not at midnight is written wholly as moments (R-P4-12); the offsets of a column at midnight on two offsets are spread over the range without regard to the season, so a winter date can wear a summer offset; and twins of date columns spread their values across days more evenly than real tables, with a day-to-day variance about a third of the real one measured on 400 rows, which predates stage 2 — REPAIRED at landing 2b.6 part 2 (P4-D62 below), which also made every published rung exact, and carried only for the structure the description does not publish.
+
+**The year-first slashed stamp** (landing 2b.3). `2024/03/17 14:05` and `2024/03/17 14:05:09` are read by a twentieth format member, `slashed-iso-datetime`: a `slashed-iso-date`, one space, and a clock in the `time_of_day` role's two forms, with no fraction and no offset, tried after every member a column already reads under. A 500-row column of them was read as free text and its twin wrote made-up strings. The rule this overturns is the generation method's fixed T of G7.5, with the space exception of amendment A-P4-22; the method records the correction on the same date. Such a twin wrote ISO until the owner reversed decision 5 (P4-D61 below); it is written `2024/03/17 14:05` now.
+
+**P4-D61 — every date is written in its source's own form (landing 2b.6, 2026-09-15).** The owner ruled on 2026-09-15 that the twin should always write anything as the original source wrote it, mimicking the original as far as possible. That reverses owner decision 5 of the Phase 2 plan, which had every twin datetime cell written in ISO at the recorded precision. Measured before the reversal: `strptime('%m/%d/%Y')` parsed 400 of 400 real cells of a month-first export and none of its twin's; `'%d-%b-%Y'` did the same to a SAS `DATE11` export; a compact `YYYYMMDD` column's ISO twin FAILED synthtwin's own validation, because the real cells are also numbers and the ISO cells are not; and `2024-q1` came back `2024-Q4`. Code developed on the twin did not run unchanged on the real table, which is the first of the two mandatory goals. So a twin datetime cell is written through the member that read the real column, and four censuses of FORMS carry what the member alone does not fix. The census `date_field_widths` records **how wide a date wrote its month and day fields**, as ONE joint word per cell — `padded`, `unpadded`, `first-padded`, `second-padded` — counted over the cells that could show a width, a field below ten; joint because on a column half written `%m/%d/%Y` and half `m/d/yyyy` not one real cell mixes the two, and two independent censuses would have written about half the eligible cells `03/5/2024`, a style no row used. The census `month_name_styles` records **how a date wrote its month name**, again as one joint word — case, length, field mark, and whether a comma followed the day — counted over the cells whose month is not May, whose two written forms are one word; joint because a hand-entered column mixing `17-MAR-2024` with `17 Mar 2024` carries its case and its mark together. The census `quarter_marker_case` records **the case of a quarter's marker**, and `zulu_case` records **the case of a zulu offset marker**, the second published only where the offset map NAMES `Z`, since it counts a subset of the cells carrying one offset and would otherwise hand back a pooled count. Each is floor-governed with a `(withheld)` pool exactly as `datetime_separators` is, because a form used by one row describes how that row was written (*amended by the review of 158c811:* no census names a pool or a count under two, and the one-field width words, the `either` length of May and the exact marker counts were added — P4-D131 to P4-D134); each is spent over the ranks that can show it by the same smooth weighted rotation, which draws no word. `date_field_widths`, `month_name_styles`, `quarter_marker_case` and `zulu_case` are EXACT-OBSERVABLE, and so is `format`, which was REPORT-ONLY only because the twin's spelling was another member's; residual R-P2-7 is retired with it. What each census owes a file is its KEY SET and each key's floor rather than its count: whether a cell can show a convention depends on its own value, so how many of a file's cells could carry one is a fact about that file's values, and a count check would accuse a faithful twin. Contract invariants D17 to D20 hold the keys. **Carried, and named rather than paid in silence:** the figures after a second are still zeros, so a millisecond column's twin still ticks at `.000`; a joint `iso-mixed` column not wholly at midnight is still written wholly as moments, so `format` is listed rather than checked there (R-P4-12); and the members the reader does not reach at all — a 12-hour clock, `08APR2024`, Excel's unpadded hour, a partial CDISC date, an HL7 stamp — still fall to free text, with the twin writing stand-ins.
+
+**P4-D62 — a twin's dates are spread across days as the real ones are, and every published rung is exact (landing 2b.6 part 2, 2026-09-15).** The generator wrote one cell per rank inside that rank's own `1 / P` slice of the distribution, so every day received almost exactly its expected count — a below-Poisson spread, where a real table's per-day counts vary at least Poisson. Measured over 54 runs of uniform, seasonal and admissions-style columns, date-only and at midnight, at 400, 1,500 and 3,000 rows and three seeds: the twin's per-day count variance was **0.057 to 0.514 of the real column's** (median 0.334), and it got WORSE as the column grew, because stratifying ever more finely is ever further from sampling. A second defect rode with it: because the interpolation floors, the twin sat BELOW the published value at every one of the nine interior rungs in **all 54 runs** — one day early on a 400-row admissions column, so a rung published as a Monday was written as a Sunday. Both bear on the second mandatory goal, and the validator exited 0 throughout. So method G7.3's placement is rewritten: the published tail PINS the two ends and the rank each of the nine interior rungs is selected from, each to its own PUBLISHED value, and every other rank takes an INDEPENDENT draw inside the gap between the two pinned ranks either side of it, in the column's own ordinal space — whole days for a column of dates, of months, of quarters and for one whose every moment stands at midnight — with the draws inside one gap sorted among themselves so the ranks stay ascending. Each rank that is NOT pinned spends exactly one word and a pinned rank spends NONE; the budget is unchanged either way — `_plan_column` hands the column `P - 2` content words and the pins leave up to nine of them unread — so a column of dates consumes what it always consumed and no other column's cells move. *(Amended by landing 2b.14, which measured it rather than copying the correction: this sentence said that a pinned rank draws its word and discards it, and the construction takes a word only for the ranks strictly between two pins. The repair pass of landing 2b.6 corrected the other four places carrying the claim — the method's G7.3, the generator's own docstring, the oracle and the gate — and the plan was the fifth, left saying what the code does not do. A probe of the shipped function reads `P` words less one for each DISTINCT pinned rank: 389 of the 398 a 400-row column is handed, 1,489 of 1,498 at 1,500 rows, 229 of 238 at 240, and 4 of 9 at eleven rows, where only seven ranks are distinct. The rule now has a gate of its own in `tests/test_date_spread.py`, so the sentence and the code cannot drift apart again. The REPAIR PASS of landing 2b.14 corrected the number this sentence carries as well, after its reviewer measured it: the sentence said the pins leave up to ELEVEN of the handed words unread, and the ceiling is NINE, because the tail pins at most eleven RANKS — the two ends and the nine interior rungs — and neither end is ever drawn for, so the surplus is the number of DISTINCT pinned ranks less two. Over fourteen column sizes from two rows to ten thousand the surplus runs 0, 1, 3, 5, 6, 6, 6, 8 and then 9 from a hundred and one rows upward, and reaches ten at no size; it is pinned as a number in `tests/test_date_spread.py` together with the eleven it comes from.)* Measured after: every rung exact in 54 of 54 runs, and the variance ratio 0.52 to 1.41 on columns whose shape eleven rungs can carry — a qualification the repair pass of this landing added by measurement rather than by hedging: a column whose values burst around three onset dates leaves gaps weeks wide between the pins, the gap is filled evenly as everywhere else, and the ratio stays at 0.34 to 0.47 at 400 rows and 0.15 to 0.18 at 1,500, which is where the withdrawn construction already was, so this rule neither helps nor harms that shape (pinned in `tests/test_date_spread.py`). **That shape waits on a finer ladder, and on nothing a placement rule can do** (stated plainly by landing 2b.14 rather than left for a reader to infer from the qualification): eleven rungs over a year leave gaps weeks wide, a gap is filled EVENLY, and the triage measured the remedy directly — pinning 101 rungs instead of eleven brings the same burst columns to 1.01–1.03 where eleven leave them near 0.2, at 400, 1,500 and 4,000 rows alike. A finer ladder and a value-count map over days are the two measured remedies, and BOTH publish observed dates and counts over small groups, so both wait on the stage that sets the disclosure floor and the shape of the tail. Nothing this stage can build closes it. **It publishes nothing new, so clause 3 is untouched**; what it changes is where already-published facts put the twin's values. Two envelopes follow it. G12.4's window becomes the rank's own gap, so a rank a rung is selected from has a window of ONE VALUE and each of the nine is checked at its published value rather than inside a band around its slice — a strictly stronger check. G12.5's midnight correction is WITHDRAWN: it existed because the move onto a midnight could carry a rank out of its slice, and the move now keeps every rank inside exactly the gap G12.4 draws, so the widening, the deduction of the ranks the move may carry out and the second set of pinned windows all computed a weaker form of one walk. **Carried, and named rather than paid in silence:** a gap is filled EVENLY, so structure the description does not publish does not come back — the weekday composition, the time of day, days the real column heaps values on, and a column whose values sit on a few scheduled dates. On a seasonal or admissions-style column at 3,000 rows that structure is most of the day-to-day variance and the ratio stays near 0.55, below the 0.6 the smaller columns meet; it is pinned at that value in `tests/test_date_spread.py` so that closing it is a visible decision. Each remedy needs a fact no datetime block carries — a weekday census, a time-of-day ladder, a value-count map over days — and each publishes counts over small groups, so all of them wait on the stage that sets the disclosure floor. The twin's report names all four in its own enumerated sentence rather than printing "inside the range" alone. One frozen mutant was withdrawn with this rule and the loss is recorded in the generation method's G14.3: `midnight_days` withdrew P4-D39's day-unit rule, and its interior ranks still move under it, but its CELLS no longer do, because counting in seconds also turns landing 2b.3's midnight snap on and that snap pulls every rank back to the nearest midnight inside its own gap, reproducing the day-unit rule exactly.
+
+**P4-D63 — the description says which published hole spelling a judged pass took out, and the two consumers stop guessing (repair pass of landing 2b.6, 2026-09-16).** A key of `missing_by_source` is either one column's own judgement — a stand-in number or a calendar placeholder the profiler read as absent on that column's distribution — or something that reaches the whole table, a word the person declared or one of this package's own. The generator needs the difference (a judged key stays the judging column's business; a declared one is reserved everywhere and reproduced) and so does the validator (it reads the person's declarations back out of the columns). Both worked it out by COUNTING: the keys denoting the judged candidate, with the column's pooled hole spellings added, against the verdict's `n_occurrences`. No count can answer it. Two keys can write ONE candidate day, and then every count the block carries reads the same under either assignment — which is what Codex found on landing 2b.3 and what this pass reproduced before touching anything: 500 rows whose `end` column held 20 `1900-01-01 00:00:00` a placeholder pass judged beside 30 `1900-01-01T00:00:00` the person declared, with a second column holding 80 legitimate `1900-01-01 00:00:00` values, made the judged key a table-wide declaration, so **validating the REAL table against its own description exited 3 with thirteen obligations missed** — both presence counts, three counts of cells, the marks census, the count at midnight and seven rungs of its date ladder. The earlier repair, which landing 2b.3 made for the opposite failure, is the same guess in the other direction. So the fact is PUBLISHED: `sentinel_verdicts[].spellings` carries the keys of that column's `missing_by_source` whose cells that decision took out, gathered by the producer at the moment it removes the cell (contract 5.5, invariant V5, loader-enforced). **Clause 3 is untouched**: every member is a spelling the block already publishes at or above the floor, the list carries no count, and a decision that kept its candidate names none; what is new is the LINK, which is a fact about the describing run rather than about any row. A declared cell can never stand in it, because declarations are applied before any pass judges. Both `_judged_here_alone` writings collapse to reading the list, in the generator and the validator alike, and the two reproductions are gated in `tests/test_stage2_judged_provenance.py`. **Its loader half was incomplete, and P4-D95 finishes it.**
+
+**P4-D95 — the published provenance is CHECKED on the way back in, not merely carried (landing 2b.14, 2026-09-16).** P4-D63 moved the question out of the two consumers and into the document, which was right. What it did not do was check the answer when the document is read: V5 held every member of `spellings` to being a key of this column's `missing_by_source`, in order and named once, and stopped there. That leaves the claim itself unchecked, and the claim is the whole point of the key — **every count in the block reads the same under either assignment, which is exactly why P4-D63 had to publish the link, and equally why no consumer can re-derive it to test what it was told.** Measured on the reviewer's own 500-row table with the description hand-edited: the loader accepted a decision naming `1900-01-01T00:00:00`, the spelling the PERSON DECLARED, as the spelling its own judged pass took out — and accepted a second decision claiming a spelling the first had already claimed. Under the first, the generator stops reserving the declared word for the whole table and writes it into `start` as a present value, and the validator stops recovering it as a declaration and under-counts what came back; that is landing 2b.3's defect restored through a document rather than through a count. So V5 gains two parts, both arithmetic on the block alone and neither needing a cell: **no spelling is named by two decisions of one column** (a cell is taken out once), and **the cells a decision's named spellings cover never outnumber its `n_occurrences`** (a decision cannot have removed more cells than the rows it says held its candidate). The second is what refuses the declared-word claim: the declared spelling's thirty cells push the total to fifty against a verdict of twenty. **The bound is AT MOST and not EXACTLY, and that was measured before it was written** — a column holding twenty `1900-01-01 00:00:00` beside five `1900-01-01T00:00:00`, both judged, publishes at a floor of eleven one spelling worth twenty cells against an `n_occurrences` of twenty-five and pools the other five, so equality would refuse a description a producer writes. That shape is now a round trip of its own at both floors. No producible description changes, and no twin moves: the parts refuse documents the producer cannot write.
+
+**P4-D96 — what the repair pass of landing 2b.6 left standing, measured one at a time (landing 2b.14, 2026-09-16).** Four items were carried out of that landing's skeptic review as fixed or as named limits. Each was RE-MEASURED here before anything was written, and the measurements disagreed with the carried state in two places. **The word-spend rule was corrected in four places and not in five.** The repair pass amended the method's G7.3, the generator's docstring, the oracle and the gate; this plan, at P4-D62, still said verbatim that a pinned rank draws its word and discards it. A probe of the shipped construction reads `P` words less one for each distinct pinned rank — 389 of 398 at 400 rows, 1,489 of 1,498 at 1,500, 4 of 9 at eleven — and P4-D62 now says so. Nothing pinned either form of the rule, which is how the plan and the code drifted apart unseen: the oracle mirrors the CODE while its docstring stated the other rule, so no vector comparison could ever have shown it. That gate now exists. **D15's own floor of two had no witness, and could not have one where the battery lives.** The loader raises the midnight count's floor to two whatever the run asked for, because one is not a group; the loader battery's base declares a floor of eleven, where the ordinary floor refuses such a count first and the raise decides nothing. Withdrawn from the loader, the whole battery still passes — so the rule was stated, enforced and unexercised. It is witnessed now at a floor of ONE, in both directions, where the raise is the only rule standing: withdrawn, that witness accepts a count of one and a count one short of every value. **Two were confirmed closed rather than taken on trust.** The producer battery's vacuity floor is genuinely re-aimed, not merely lowered: the battery yields nine report lines over three reasons at every seed, three of them the date role's, and withdrawing that one shape drops it to six over two and turns the floor red. The spread remark's two-clause form is filed correctly on a column of quarters as well as on one of months, which nothing had asked; the gate now asks both. **And the outbreak shape is named as waiting rather than left implied** — see P4-D62, where the measured remedy and the stage it belongs to are now stated in the plan's own words.
+
+**P4-D97 — the correction carried the same kind of error it corrected, and a number a reader can re-derive is now pinned (repair pass of landing 2b.14, 2026-09-16).** P4-D96 above rewrote the word-spend rule to say what the code does. The rewritten sentence then went on, in all five places, to say that the pins leave **up to eleven** of the handed words unread — and the ceiling is **nine**. The reviewer of this landing measured it and so did this pass: the tail pins at most eleven RANKS, being the two ends and the nine interior rungs, and neither end is drawn for under either rule, so the words a column leaves unread are the DISTINCT pinned ranks less two. Over fourteen sizes from two rows to ten thousand the surplus runs 0, 1, 3, 5, 6, 6, 6, 8 and then 9 from a hundred and one rows upward, and never ten. Corrected in all five places — this plan, the method's G7.3, the generator's docstring, the oracle and the gate — and the ceiling is now pinned as a NUMBER beside the eleven it is derived from, so a later ladder that grows a rung turns the gate red instead of leaving a sentence standing. **The lesson is the one P4-D96 already carries, and it is worth stating twice:** an arithmetic rule and the headline number that follows it are two claims, and a gate over the arithmetic alone leaves the number unchecked. The same pass re-derived the loader battery's own size rather than repeating it: withdrawing D15's raise leaves 193 of 193 cases passing on the base and 196 of 198 on this branch's tip, the two failures being the witness P4-D96 built.
+
+### P4-D40 Two whole numbers joined by a slash are read from the values (landing 2b.5, 2026-09-15)
+
+A blood pressure written `int(gauss(128,17))/int(gauss(79,11))`, such as `128/79`, was described as free text at 300 rows and at 2,000. The joined reading was asked only under `--measurement` (P4-D21), so without the declaration the column published nothing, its twin held stand-in text, and the validator never checked either position. The questions file did ask, and the answer `joined` repaired it; a person who did not answer got a twin that fails both goals on that column.
+
+The profiler now tests one further rule after the long tail and before free text, so it claims only a column that would otherwise publish nothing and moves no column any value-publishing rule reads today. The rule reads exactly one shape: at least the parse-line count of present cells are two parts joined by `/`, `/ ` or ` / `, each part figures alone with no point, no sign, and no leading zero on a part of two or more figures. The other cells are counted as unparsed. The declaration keeps its full reading: any of the six marks, two or more parts, a point allowed.
+
+None of the columns P4-D21 measured wears that shape. A date and a clock are claimed by earlier rules. The laboratory code `1923-1` and the drug code `00052-0052-52` are joined by a hyphen, and the second is padded. What P4-D21 said stays true of this shape: a register written as two slashed figures cannot be told from a measurement. That cost is accepted and stated. Every column read this way is asked about in the questions file, with Enter keeping the reading and `code` and `identifier` offered, and a test pins it.
+
+Measured on this landing: the blood pressure at 300 and 2,000 rows, at seeds 3, 11 and 29, is described as joined numbers, its twin is described again as joined numbers with the same separator, the same part minima and the same count of different readings, and `synthtwin validate` exits 0 on both the twin and the real table. Against commit 53bb012 the profile, twin, twin report and quality report of fifteen other shapes are byte-identical: whole numbers, a lognormal to two places, ISO dates, slashed dates, clock times, the hyphenated and padded codes, pipe-joined pairs, padded slashed pairs, slashed pairs with a point, words, a unit-affixed number, three repeated slashed readings, and the shared every-role and every-withholding tables. The two fixture tables that carry an undeclared slashed pair change, and nothing else does. Contract section 6.15 and rule order C6-1 state the rule. The generator is unchanged: it already served the role.
+
+**Repaired in the same landing, after its verification: the validator carries the reading over** (validation method V2.2-A2). Because the rule stands after the long tail, which of the two reads a column of slashed pairs turns on whether one whole reading repeats in the long-tail line's count of rows, and near that line this is a property of the sample. A faithful twin pairs its two positions at random, so its commonest reading repeats more often than the real table's. Measured on a blood pressure of 5,000 rows, data seed 3: the real reading repeated 9 times and the twin's 12 and 14. As first landed, the twin re-read as a long tail and `synthtwin validate` reported its role and statistical type MISSED and withheld 60 obligations, where commit 53bb012 had read the column as free text and exited 0, and the declared column passed on the same cells. Over 80 round trips (plain readings at 3,500, 4,000, 4,500 and 5,000 rows, data seeds 1 to 8, generation seeds 3 and 11; and readings charted to the nearest even number at 1,200 and 1,600 rows, data seeds 1 to 8), 22 twins failed this way. Now the validator hands the producer the names of the columns its description gave this role without a declaration, and for those columns the producer tests this rule's reading just before the long tail and changes nothing else. On the same 80 round trips no twin is reported as another role. The twins, profiles and real-table reports are byte-identical, and the twin's quality report changed in exactly the 22 runs that failed. What is carried is the reading and not the verdict: a hyphen-joined file checked against such a description is still reported MISSED on its role. `tests/test_joined_pair_round_trip.py` pins four of the crossing cases and that miss.
+
+**What this rule does not reach, stated at its size** (measured 2026-09-15). A blood pressure of 6,000 or 12,000 rows, and one charted to the nearest 5 at 300 and 2,000 rows, has a whole reading at or past the line and stays `long_tail_labels`, so neither position is described without `--measurement`. A plain `synthtwin profile` of a twin near the line can read a long tail, as a second sample of the real table can. Not every slashed pair is a date either: an unpadded month and year (`4/2020`) was free text at 300 rows and is now read as joined numbers, publishing each part's ends, and so is a year-and-serial register (`2019/4821`). Both are asked about, with `code` offered. The README says all of this where it describes `--measurement`.
+
+**Carried, not caused here.** One of the 80 round trips, charted to the nearest even number at 1,200 rows (data seed 6, generation seed 3), misses `joined.part_above[0]`: it asks 1,192 rows where the earlier position is larger and the twin holds 1,190. The declared column at commit 53bb012 gives the identical miss, so it belongs to the generator's pairing of positions, which this landing does not touch. So does the known shortfall of one or two different numbers at a position at 300 rows.
+
+### P4-D41 How a number's grouping and sign are written (landing 2b.2, 2026-09-15)
+
+A number keeps every way it is spelled: the mark a column writes between thousands, how a column writes its negative numbers, and how many cells written with a point carried a plus. Before this landing a charge written `2 198.92`, `2'198.92` or with a no-break space between its groups was read as free text and its twin wrote stand-ins; a negative written `(1,234.56)` came back `-1,234.56` and the real table failed its own spelling check; a plus on a decimal was dropped; and `1,483.65-` and `−6.09` were affixed numbers whose negatives were published as positive magnitudes.
+
+**The marks.** A cell may group its thousands with a comma, a space, an apostrophe, the right single quotation mark, a no-break space, a narrow no-break space or a thin space U+2009 (the last added by the verification of this landing, which found a salary column grouped with it still read as free text): its whole part must read as groups of exactly three figures after a first group of one to three, around ONE kind of mark, with no mark after the point. A first group may begin with a zero for every mark alike, as the comma always allowed, and such a cell is padded and withholds the mark. So a postcode `123 45`, a telephone number `01 23 45 67 89`, a cell mixing two marks, and the Indian grouping `12,34,567`, whose later groups are two figures, stay text: the last is out of scope and named so. `group_separator` publishes the commonest proven mark, where its cells reach the smallest group size and outnumber every other four-figure groupable cell, bare or grouped with another mark. A point between thousands is still read only under a declared decimal comma, and GS1 lets the other six marks stand with or without that declaration. `group_separator` is EXACT-OBSERVABLE.
+
+**The notation of a negative.** A minus sign U+2212 in front and a hyphen-minus after the figures are read as negative, beside the hyphen-minus in front and accounting brackets -- the trailing minus only where the figures carry a decimal point, `1,483.65-`, because a grade or a code writes `3-` and one cell cannot say which. A thousands mark does not settle it: the verification of this landing measured a ledger of whole amounts writing `1,234-` beside `500-`, where reading on a mark split one column into numbers and text by each value's size and its twin missed its count of numbers on 1 seed of 6. So `500-` and `1,234-` both stay text, the minus stays in the wrapper for every such cell, and contract NF57 names it on the column: its statistics are of the amounts without their sign. That is a limit named, not a reading. `negative_form` publishes how a column writes its negative numbers: each negative cell counts under its notation, and a notation other than the minus in front is published where its cells reach the smallest group size and outnumber the other negatives together (NS1). The twin writes every negative in the published notation, after grouping and after any zeros a cell spends, so brackets never hold a sign and never read as the contradictory stand-in `(-5)`. Brackets inside a currency prefix, `$(1,234.56)`, belong to the core. Brackets around the prefix too, `($1,234.56)`, stand where a parenthetical note `(5 mg)` stands and nothing in the values tells them apart, so that wrapper is kept as written and contract NF56 names it: a spelling that cannot be read safely is named rather than read. `negative_form` is EXACT-OBSERVABLE.
+
+**The plus on a decimal.** `decimal_plus` counts how many cells written with a point carried a plus, as a census under the floor: named `+` where the count reaches the smallest group size and pooled under `(withheld)` below it, so a floor of one, which holds nothing back, never pools, and a count held back is one the loader sees (DP1). It is a count, as `leading_plus` is for a whole number, so a column signing three decimals in ten keeps three in ten. The twin spreads the plus over its non-negative decimal cells rather than taking them from the smallest value upward, and names a shortfall as a deviation. Two rules make the count reachable where signs and forms go together, as in a column of changes writing `+12` beside `+3.25`: the values step gives whole numbers to the negative strata until they carry the point-free count that the cells not negative cannot carry once the signed decimals keep theirs, and a cell allocated `plain` on a value not negative exchanges its form with a negative whole value allocated `decimal`, before any width is assigned, until enough cells not negative wear `decimal`. Every form count is unchanged by the exchange. Measured on 900 such changes, the plus came back exact on six seeds of six where it had been short on three. `decimal_plus` is EXACT-OBSERVABLE.
+
+**The obligations.** The quality report holds all three through the file's own description, so the edges of the producer's rules -- a padded or exponent cell holding a mark, each wrapper's cores, the numeric half of a column with labels, a declared decimal comma read in its own grammar -- come with the comparison, and the real table meets it by construction. Where a file holds fewer numbers that could show a spelling than the smallest group size, the verdict is WITHHELD under the pooled-count sentence V5.3 admits for a clause over the written cells, and the generator names the same case. A position of a joined column is read from figures and one point alone, so it files none of the three checks: the loader holds its spellings to the defaults (GS1, NS1, DP1), and a check of them could not fail. The class is the stronger one because of the first goal: code developed on the twin meets the spelling the real table writes. Amendment A-P4-59 clause 4 froze new obligations until Phase 4 closed; the phase was reopened and its ordered landings add facts, and this landing turns a listing into an obligation, which the owner is asked to confirm at its review.
+
+**The asking.** A column of figures grouped in threes whose values are all the same number of figures -- `123 456 789` -- is asked about as an identifier may be, and a column holding a value with one to three figures, a point and exactly three figures -- `12.345` -- whose every other value is a whole number below a thousand written plainly, is asked whether the point is a mark between thousands, with `--decimal-comma` offered as an answer. The small numbers are part of the rule because a count written the German way writes `523` beside `12.345`: the first rule asked only where every value had a point, and the verification measured a column of such counts published with a mean of 184 for a true mean in the thousands and nothing asked. A column already declared `--decimal-comma` is not asked this question. A comma-grouped column whose values are all the same number of figures, `12,345`, is asked the identifier question too, as `12345` always was. The reading of `12.345` does not change (A-P4-56, A-P4-58). Still carried: a column whose values reach a million, `1.234.567`, is read as text and is not asked, because the question reaches only columns read as numbers.
+
+**Frozen.** The independent oracle mirrors every rule in the same commit, and three frozen cases pin them with a mutant each: a comma beside signed decimals and zeros spent past order nought, a point on a declared decimal-comma column beside absent cells, and a space with accounting brackets. A fourth case was not added: it carried the branch vectors past the provenance guard's byte cap, because a case's published column block alone is about eleven thousand bytes whatever its cell count. So the apostrophe, the right single quotation mark, the three spaces other than the plain one, the minus sign and the trailing minus, and the two rules the verification added for the signed decimals -- the negative strata's whole values and the exchange of forms -- are mirrored in the oracle and pinned by round-trip tests with a mutation each, but by no frozen case; splitting the branch vectors into a third committed file, or raising the cap, is the owner's to rule. The verification also offered the validator's per-cell spelling check the unsigned reading of a zero written with a sign, `(0)` or `-0`, which a real ledger failed on before. Owner decisions 4 and 5 are untouched. The validator still does not hold `datetime_separators`, which rests on the reason withdrawn here for the thousands mark, and that stays carried by name. **Frozen further at the integration of landings 2b.1 to 2b.5 (2026-09-15).** The branch vectors were split into a third committed file under the unchanged cap, and five more cases there freeze what this paragraph left to round trips, each with a mutant: `apostrophe_minus_sign` (the apostrophe and the minus sign), `quoted_trailing_minus` (the right single quotation mark and the trailing minus), `spaced_decimal_comma` (a no-break space on a declared decimal-comma column, whose mutant is the exchange), `narrow_spaced` and `thin_spaced`. They have eleven rows each, because at twenty-two the five carried that file past the cap. The two signed-decimal rules the verification added -- the negative strata's whole values and the exchange of forms -- still have no frozen case.
+
+### P4-D65 Equal rounded rungs prove no exact identity (landing 2b.7, 2026-09-15)
+
+G5.2a's cap on a stratum reads the publication floor as a bound wherever the mode pair is withheld and the description does not itself prove a number held by the floor. Landing 2b.1's repair admitted two such proofs: the count of different numbers, and a run of equal rungs in the hundred-and-one-rung ladder. The second is withdrawn.
+
+Rungs are compared as binary64. A run of equal rungs proves that many equal ROUNDED values and says nothing about how often one exact value was held, so it cannot show that a withheld pair was withheld by something other than the floor. Measured on a hundred exact decimals `1.0000000000000001` upward at four cells each, described under `--smallest-group 11`: every number is different, none is held more than four times, the profiler withholds the pair, and 101 rungs carry 46 different binary64 values with a longest equal run of 4. The withdrawn term read 11 and stood the floor aside; the generator, the validator and the oracle each capped a stratum at 21 where the withheld pair proves 10. All three now read 10. The count term is untouched and still stands the floor aside where it reaches it.
+
+One committed vector file moves, and the case that moves is the one the review asked be kept apart from producer-valid descriptions: `numeric_point_free_styles`, whose thirty-three cells are all the number 5 and whose hand-written description withholds its mode pair while its own flat ladder said a number was held 33 times. Only its `float64` field moved; no cell of any case changed and the other three committed files rebuild byte-identical. The digest is re-recorded in `tools/provenance/fixture-manifest.json` with that cause written into its justification.
+
+**Carried, not fixed here.** The twin of that column still holds one number 15 times against the cap of 10, because two strata written at one grid value hold the sum of their cells — the recombination named below as carried from the same review.
+
+### P4-D66 An anonymous style pool is not a written grid (landing 2b.7, 2026-09-15)
+
+G5.2a step 1 reads a column as written on a grid of `f` figures where the fraction-width census names the one width `f` and that width's count, with the point-free style count, covers every numeric cell. The point-free count is now the NAMED one: `plain`, `leading_zero` and `leading_plus`, with the `(withheld)` share excluded.
+
+The pool is written in the plain style by G6.4, which is why it was counted, and that is a fact about WRITING and not about proof: a description that pools a style below the floor says how many cells it covered and never which form they took, so those cells may carry a point. Measured on 490 cells written at one decimal place beside ten `-1e-2` cells under `--smallest-group 11`: the census names `{1: 490}` and the styles map names `decimal` 490 and pools 10, so 490 + 10 read as full coverage and the column was placed on the grid of tenths, which `-0.01` is not a point of. The twin held 28 different numbers against a published 31 at seeds 1, 7 and 23, and holds 30 with the pool excluded; the miss of `ladder.min` goes with it. The column's remaining misses — its count of different numbers and its one published width — stand at both readings and are named rather than claimed fixed: its lone exponent cell is pooled below the floor whichever grid is read.
+
+### P4-D67 A joined part must be a number this format can hold (landing 2b.7, 2026-09-15)
+
+Rule 9c admitted a part on its SPELLING: figures alone, no sign, no point, no padding. `10 ** 310` is all of those and is past what binary64 holds, so a position of such parts had every statistic taken on values nothing could carry. The rule now also requires the part to be representable; a cell with a part that is not is left unparsed, and the parse line of the joined reading decides the column exactly as it does for every other cell it cannot read.
+
+Two shapes, both measured. Where every cell is such a pair, the column is no longer read as pairs at all and falls to the rules below rule 9c: it was published as `joined_numbers` with a wholly null ladder. Where 299 ordinary pairs stand beside one too-large cell, the one is counted unparsed and `n_joined` is 299; it was 300, while the first position's statistics had used 299 values — a description the loader then refused under invariant Q2, so `synthtwin profile` wrote a file `synthtwin generate` would not read, exiting 1. Both now generate with exit 0. The declaration's own reading (P4-D21) is unchanged.
+
+### P4-D68 A singular prose definition counts on its own (landing 2b.7, 2026-09-15)
+
+`tools/spec/check_assembly.py` collects the identifiers each section defines and reports any defined twice. It recognises a bolded opener and a definition written in prose, and it skipped a prose name already opened by a bolded one in the same region. That deduplication belongs to the PLURAL introduction — "their identifiers are P6c, P7c and P9c", whose rules are each then opened as a bullet of their own — and not to the singular sentence, which states its rule in the paragraph it opens and IS the definition.
+
+So a bolded `**Q20 (a count).**` beside a prose "its identifier is Q20" reported nothing, while two bolded openers or two prose sentences each reported the collision: the mixed pair was the one shape that hid a duplicate. A singular prose definition is now counted whether or not a bolded opener was seen; a plural introduction is still deduplicated. The shipped contract still reports zero items, and the plural shape it uses for P6c, P7c and P9c is pinned by a test of its own.
+
+### P4-D69 An undeclared slashed pair waits for stage 3 before its quantitative facts are published (landing 2b.7, 2026-09-15, STAGE 3 ITEM — NOT BUILT)
+
+**This is a stage 3 item recorded here by name, and the defect is live in the tree.** Rule 9c (P4-D40) reads an undeclared column of two plain whole numbers joined by a slash as `joined_numbers` and publishes each position's full quantitative block. At the population sizes this rule is meant for, those blocks name individuals. Measured on 1,200 readings `int(gauss(128,17))/int(gauss(79,11))` under `--smallest-group 11`: the first position publishes a minimum of 66 and a maximum of 181, the second 44 and 111, and each of those four values is held by exactly ONE source row. Commit 53bb012 read the column as free text and published none of them.
+
+That contradicts clause 3 of the owner's twin definition — the description reveals nothing about any individual — and the small-cell floor does not reach it, because an extreme is not a counted group. The fix the review asks for is to stop publishing the quantitative facts of an INFERRED pair until stage 3's tail summaries protect the ends, while still asking the person about the column; a DECLARED pair keeps today's path, because the person has said what the column is. It is recorded and not built: suppressing a role's published block reaches the contract's closed key enumeration, the loader's invariants, the generator, the validator, the oracle and the disposition registry, which is a landing of its own rather than the tail of a review pass.
+
+**Two further items of the same review are carried unfixed, both in G5.2a's neighbourhood.** Capped strata recombine: every stratum respects the cap, but two strata written at one grid value hold the SUM of their cells, so a 1,000-row column publishing a `mode_count` of 32 comes back holding `0.2` 43 times and is reported MISSED on its count of different numbers. A fix that held the finished NUMBERS to the cap was built at the integration of landings 2b.1 to 2b.5 and withdrawn whole in commit 367e1d7, because it bought a REPORT-ONLY `mode_count` with EXACT-OBSERVABLE published style counts, which plan P2-D6's feasibility rule 4 ranks above it; the place to repair it is G6.5a's separation, or an owner ruling on that precedence. And the witness for the generator-and-oracle allocation disagreement is not frozen: the two arithmetics now agree exactly, both giving `[56, 40, 4, 18, 49, 64, 66, 48, 26, 66, 64]` on the 501-row one-decimal ladder the review names, but `tests/reference/generation-branch-vectors-2.json` stands at 245,567 of its 250,000-byte cap, so freezing that case opens a fourth committed file with its own entry point and manifest entry.
+
+### P4-D65.1 A census with one category publishes an unavailable state, never a pool (landing 2b.7, 2026-09-15)
+
+`decimal_plus` counted the cells written with a point that carried a plus, named `+` at the smallest group size and pooled under `(withheld)` below it. The pool is withdrawn: this census has exactly ONE category, so a `(withheld)` remainder beside it names the category it is holding back, and differs from the empty census for exactly one reason — somebody signed a cell.
+
+Measured on the Codex review's own column: 1,200 measurements written `1000.5` upward under `--smallest-group 11`, against the same column with cell 600 rewritten `+1600.5`. The two descriptions differed in one place, `decimal_plus` moving from `{}` to `{"(withheld)": 1}`, and both loaded. A reader holding the other 1,199 spellings can read off the remaining individual's. That is clause 3 of the owner's twin definition broken by a key whose floor was working exactly as designed.
+
+**The three states.** `{}` where the column wrote no cell with a point at all, which `numeric_styles` already says publicly. `{"+": n}` where n reaches the census floor AND the cells that did not carry a plus are either none at all or reach it too — the second half is the complement clause, without which a column of 1,199 signed cells and one unsigned one published the unsigned cell as plainly as the first version published the signed one. `{"(unavailable)": 0}` for everything else.
+
+**The census floor is never one, whatever the settings floor.** A published count of one names an individual outright, and `small_cell_floor` defaults to one. So these censuses read the larger of two and the settings floor, and where stage 3 raises the floor this rises with it.
+
+**What it costs, named rather than discovered later.** Nought now shares the unavailable state with every below-floor count, so a column with a point and no plus at all publishes `{"(unavailable)": 0}` where it used to publish `{}`. That is deliberate: a state only a zero-plus column reaches is a state that tells a reader every other column had one.
+
+**The obligation is NOT withdrawn with the disclosure, and the first attempt at this decision withdrew it.** The state was first read as setting no obligation at all, filed WITHHELD under the closed gate. That is wrong, and the red battery of `tests/test_p3v1f2_entry_table.py` caught it in the same commit: four fixture columns whose `spelling.decimal_plus` had been an executable check became unfalsifiable, and the coverage identity named all four. What every count the state covers has in COMMON is worth publishing even though no one of them may be: the count is NOT NAMEABLE. So the quality report counts the checked file's own signed decimals and its own cells written with a point, asks the same nameability question of them, and holds the file to the same answer; it prints the exact number only where the file's count IS nameable and the verdict is already MISSED. A file rewritten to carry the floor's worth of signed decimals is MISSED exactly as it was before this decision.
+
+**Both halves of that question are needed, and the first version of this decision had only one.** Reading the state as "fewer signed decimals than the floor" alone ignores the way the complement clause reaches it, and a column of 1,195 signed cells beside 5 unsigned ones then MISSED on the real table the description was computed from — the real table failing its own description, which is the defect class landing 2b.5 was reviewed for. A gate test of this landing caught it before the commit.
+
+At a settings floor of one these censuses may not pool at all, because invariant C5-S13 says a description written there holds nothing back and `(withheld)` is the format's one word for that. They publish the unavailable state instead, which holds back no count and takes no key that walk reads.
+
+### P4-D65.2 A mixture of conventions is published per convention and generated (landing 2b.7, 2026-09-15)
+
+`negative_form` and `group_separator` each publish the column's MAJORITY convention, and the generator wrote every cell that way. A column mixing two therefore came back written wholly as one, with no deviation reported and no check missed.
+
+Measured, both halves from the Codex review. A column of 600 charges writing 480 with a minus in front and 120 in accounting brackets published `minus`; its seed-4 twin wrote 600 minuses and no bracket, and the twin's report, the twin's validation and the real table's validation all passed with nothing missed. A column of 200 cells grouped with a space beside 100 grouped with a narrow no-break space published a space; its twin wrote 300 ordinary spaces, so code that strips an ordinary space succeeded on the twin and failed on the real table — goal 1 of the owner's two mandatory goals, broken silently.
+
+Under the owner's ruling of 2026-09-15 — the twin writes anything as the original source, without changes — a mixture is reproduced rather than collapsed. Two censuses are published beside the majority keys, which are unchanged: `negative_notations` says how many negative numbers wore each notation, and `thousands_marks` says how many grouped numbers wore each mark. Both are EXACT-OBSERVABLE. `negative_notations` is counted over the cells `negative_form` is counted over, under the notation each wrote; `thousands_marks` over the cells that PROVE a mark by `group_separator`'s own evidence rule, read in the column's own grammar so a declared decimal comma publishes the point it writes. A bare groupable cell proves no mark and is counted in neither.
+
+**Floored per convention, under P4-D65.1's floor.** A convention used by at least the census floor is named with its count; what is left is pooled under `(withheld)`, which names no convention here because these censuses have four and eight possible keys; and a pool that is itself below the floor would name its own cells, so a census that cannot pool safely publishes `(unavailable)` and no number at all. The complement clause is met by construction: every count printed is at least the floor, so the cells outside any one of them are the other printed counts added — nought, or at least the floor again. **AMENDED BY P4-D140:** among the printed counts, yes; against a total a reader can subtract the printed ones from, no -- the complement is asked of those totals now, by one stated rule. A lone bracket among 599 minuses therefore publishes nothing at either floor.
+
+**The generator spends them cell by cell.** Negative cells are walked in cell order and each named notation takes its count; what no named count covers wears the published `negative_form`, which is what the pool and the unavailable state leave behind — so a column publishing no mixture is written exactly as it was before this landing. A trailing minus is offered only to a cell written with a point, because neither `12-` nor `1,234-` reads back as a number. Marks are spent the same way over the cells that can be grouped, and which cells those are is asked of the WRITER — a cell is groupable exactly where writing it with the published mark puts a mark in it — rather than restated from the rules about forms, orders and four whole figures, because a second statement of those rules is a second thing to keep in step. A named count the cells cannot meet is reported as a deviation.
+
+After the repair, both measured columns come back exact: 480 minuses and 120 brackets, 200 spaces and 100 narrow no-break spaces, at seed 4, with the twin and the real table both validating at exit 0. A position of a joined column publishes neither census, for the reason it publishes no mark and no signed decimal (NS2, TM1).
+
+**Frozen, and the frozen case had to name TWO conventions to be worth anything.** The independent oracle mirrors both allocators in the same commit, as amendment A-P4-59 requires, and one committed case pins them: `mixed_conventions` in `tests/reference/generation-branch-vectors.json`, twenty-two cells of one number written eleven times `-12 345.5` and eleven times `(12 345.5)` — a minus with an ordinary space, then brackets with a narrow no-break space, because each census is spent in the contract's own order of conventions and the earliest cells take the earliest convention each names. A case naming ONE convention would have proved nothing and this was measured rather than assumed: with a single convention the census path and the majority path write the same cell, so a mutant that withdraws the census from the oracle leaves every frozen cell where it was. Both oracle mutants were GREEN against the nine existing spelling cases for exactly that reason, which is why this case exists. It goes in the first branch file because that file has the room, at 172046 bytes of the unchanged 250000-byte cap; no cap was raised and no fourth committed file was opened.
+
+### P4-D66.1 A value moved out of an empty stretch lands on the column's own grid (landing 2b.7, 2026-09-15)
+
+G6.7's pass moves a stratum out of a stretch the description says holds nothing. It walks candidates outward from the stretch's published edge in sixty-fourths of a BIN, and a bin is not a grid. On a whole-valued column that did not matter, because the walk already rounds every candidate to a whole number — the integers being the grid such a column is written on. On a column written at a FIXED WIDTH there was no such step, so the stratum took a value lying between two grid points, and G6.6's writer then wrote that cell at the width its own value needed rather than at a published one.
+
+Measured through the real reader, producer, loader, generator and validator on halves written as a spreadsheet writes them — `37` beside `37.5`, so `fraction_widths` names the one width `1` and the point-free cells are `plain` — at 400 and 4,000 rows, generate seeds 1, 7 and 23, at the default floor and at eleven. Twelve runs, and every one of them wrote exactly ONE cell at full binary precision: `38.55126953125` at 400 rows and `39.05078125` at 4,000. The twin published 207 cells at the one width against 208, and 2,000 against 2,001, so `widths.published.1` MISSED on all twelve.
+
+The rule is now the same rule for both grids: a candidate is moved onto the column's written grid (G5.2a step 1) before anything else is asked of it, exactly as a whole-valued column's candidate is rounded. It is taken before the reach of G6.7.5 is measured, because the candidate that is tested must be the candidate that is written, and a grid point whose text does not read back as itself is passed over — the rule G6.5a already states for its own walk.
+
+**What it fixes and what it does not, both measured.** At 4,000 rows the twelve misses go to NONE: the twin and the real table both validate at exit 0 at both floors and all three seeds, and the cells written outside the published census go from 8 to 0. At 400 rows the width miss is closed too — off-census cells 6 to 0 — but the column still comes back holding 14 of its published 15 different numbers, which is a shortfall of the separation walk and not of this rule; it is carried below rather than claimed fixed. Amended into the sealed method text as G6.7.4 clause 8 and a sentence in G6.7.6.
+
+**The candidate set only narrows, which is why nothing else moved.** Rules 1 to 7 of G6.7.4 are applied to the snapped candidate exactly as before, so a snap that would change the written form, the figure count or the sign band, or that reads as a value another stratum holds, is refused as it always was; where the grid holds no free point within reach, the value stays and G6.7.8's recount names the stretch. Measured on ten shapes this landing does not touch — a clock, a yes/no flag, an identifier register, a four-level category, ISO dates, plain integers, two-decimal numbers, a comma-grouped column, a unit-affixed number and a slashed blood pressure — at 300 and 2,000 rows, data seeds 4 and 17 and both floors: 72 comparable runs, and the twin CSVs, the twin reports AND the profiles are byte-identical, 0 moved. No committed frozen case publishes a non-empty `empty_bins`, so no reference vector moves either.
+
+**The oracle does not carry this pass at all, and that is stated rather than implied.** `tools/reference/make_generation_reference_vectors.py` mirrors no part of G6.7: it emits `empty_bins` and `empty_edges` as published facts of its cases and never walks a value out of a stretch. So this rule is pinned by round-trip tests and a mutant rather than by a frozen case, exactly as the reach chain of G6.4 is, and for the same reason. Building that mirror is a landing of its own.
+
+**And the key index had already fallen out of step.** `negative_notations` and `thousands_marks`, the two censuses of P4-D65.2, are keys a report may carry, and the landing that added them to the generator did not add them to G12's key index — so `tests/test_p4d32_empty_bins.py::test_every_deviation_key_is_one_the_method_authorizes` was RED on commit cf7d2cb before any change of this part. Both are listed now. A closed enumeration is stated in up to eight places and the deviation key index is one of them.
+
+### P4-D66.2 A real export meets its own description (landing 2b.7, 2026-09-15)
+
+Describe a real Excel, SAS, Stata, SPSS or Fortran export and then validate THAT FILE against the description this tool has just produced from it: exit 3, `styles.spelled` MISSED, and the report withholds which cells failed. Seven shapes were measured doing it at 800 rows and two generation seeds, fourteen runs of fourteen: Excel's `2.29E+05`, SAS's `7.2960E+02`, the zero cell `0.00E+00`, Fortran's `6E9`, Stata's `.05` and `-.23`, and columns of seventeen- and eighteen-figure identifiers. A researcher is told their own export does not match its own description, and is not told which cell.
+
+**The cause is that one family answered two questions.** `_permitted_spellings` writes out the family of G6.1 — what this method's generator MAY write — and the per-cell check accepted that and nothing else from any file. Every spelling above is a spelling of the value the cell reads back as, differing from a text the family already offers in no figure of that number: a mantissa padded to a fixed count of figures, an exponent written without its `+` or at one digit, a value below one written without its leading `0`, and the figures of a whole number past what binary64 keeps, where more than one run of figures reads back as one value and only one of them is what the shortest-round-trip rule produces.
+
+**What changed.** The bare point joins brackets, the minus sign and the trailing minus as a NOTATION restored before any spelling is offered — which is what reaches the zero cell `.000`, whose restored text `0.000` is offered only by the census width, and what a rule built from the fixed-point text alone got wrong. The padded mantissa and the wide whole number are asked as shapes, after the family has been offered and found nothing. Amended into the sealed validation method.
+
+**Measured after.** All fourteen runs validate the real table at exit 0, and every twin still validates at exit 0. The mantissa width, the exponent grammar and the bare point are still not PUBLISHED facts, so the twin does not write them back — that is the carried half of NC-1, NC-2 and NC-6 and this decision does not claim it. What it closes is the false accusation against the file.
+
+**It stays falsifiable -- AMENDED BY P4-D144, which admits `46E+02` and keeps the form falsifiable instead.** `46E+02` reads back as 4600 and pairs two figures before the point with an exponent one too small; no rule here admitted it, and `tests/test_landing_2b7_source_spellings.py::test_a_spelling_of_no_permitted_form_is_still_missed` pins that the file holding it is still MISSED. A check that cannot fail is what a widened family invites, and that test is what stops this one becoming it.
+
+**Amended by the verification of this landing (2026-09-16): the wide whole number is read WITH ITS SIGN, and the shape is bounded by 2**53.** The first is a defect this decision shipped: the figures were asked to read back as the value with the sign already taken off, which no run of figures can do for a negative one, so a real ledger of signed seventeen-figure keys still failed its own description — 398 of 800 cells negative, exit 3 with `styles.spelled` MISSED, on both seeds of two, unchanged from the commit before this landing. It is the exact class this decision says it closed, on the neighbouring shape, and it is fixed and gated here. The second is a bound on the widening rather than a defect: `float(run) == value` is an IDENTITY for any run of figures, so as first written this rule admitted every point-free numeric cell ever written — measured, 0 of 8,000 random runs refused where the commit before this landing refused 4,819. Admitting it only at or past 2**53 makes the sentence true of the class it names: below that a whole number is held exactly, one run reads back as it, and the family already offers that run. Measured on the base commit at three hundred runs per width: none at fifteen figures was refused, 18 of 300 at sixteen, 240 of 300 at seventeen, and every refusal was a run that is not its own value's canonical text.
+
+**The residual this exposed, and the landing that closed it (recorded here as it was left; closed 2026-09-16 by P4-D90 below).** For point-free cells at or past 2**53 the CANONICAL question is now owed by nothing. `styles.spelled` cannot ask it — a run of figures is a spelling of the number it reads back as, which is why this shape was admitted — and `styles.canonical.plain` is filed as a LISTING entry, not a check, wherever the published count of a form reaches the description's own row count, which is every column of identifiers (`numeric_styles {plain: 800}` on 800 rows). Measured: a file of 800 canonical seventeen-figure runs, respelled cell by cell into the value-preserving neighbours binary64 cannot tell from them, 782 of 800 moved, validates against its own description at exit 0 with nothing missed. Before this landing that file was MISSED — but it was MISSED for being a real export, which is the false accusation this decision exists to end, so the refusal cannot simply come back. What is owed is a PUBLISHED fact about wide runs for a ceiling to be read against, which is a landing of its own and is recorded here rather than half-built. **That landing is P4-D90, and the fact is `wide_runs`.** The identifier R-P4-66 was ALREADY IN USE when this paragraph borrowed it — it names the CI-topology residual opened on 2026-08-31 by adversarial round P4-A1-R5 — so this residual never had an identifier of its own, and a reader grepping R-P4-66 reaches two unrelated things. It is recorded here rather than renumbered, because renumbering a sealed identifier is a change to every document that cites it; the canonical-question residual is closed, and the CI-topology R-P4-66 remains OPEN and untouched by this landing.
+
+### P4-D66.3 A whole-valued column is on the integer grid whatever its census says (landing 2b.7, 2026-09-15)
+
+`integer_valued` says every VALUE of a column is whole; `fraction_widths` says how many figures each CELL writes after its point. A column a spreadsheet exported as `44.0` publishes both, and G5.2a step 1 read the census: such a column was put on the grid of TENTHS, and the separation walk of G6.5a then moved a stratum onto `25.6`, a value no whole-number column holds.
+
+Measured through the real reader, producer, loader, generator and validator, 800 rows, seeds 1 and 7, floor eleven: 23 non-whole twin cells at seed 1 and 19 at seed 7, and the twin DESCRIBED ITSELF AGAIN as a `continuous` column where the source was a `count` — `axes.role`, `axes.statistical_type` and `type.integer_valued` all MISSED. A column of whole amounts written at two figures was worse, 68 cells of 800 and 76 at seed 7. Code written on such a twin meets values `astype(int)` refuses and a count model will not take.
+
+**After:** the one-figure column comes back with ZERO non-whole cells at both seeds, re-describes itself as a `count` with `integer_valued` true and the same width census, and both the twin and the real table validate at exit 0. Amended into the sealed method at G6.5a's WHICH GRID clause and mirrored in the independent oracle's `grid_of`, which carried the same defect — so the product and the oracle disagreed here before this landing, and no frozen case has a whole-valued column with a non-empty census to have caught it.
+
+**What it does NOT close, measured and carried.** On the two-figure column the values are now whole — 0 non-whole of 800 — but some cells are written at one figure rather than the published two, so `widths.published.2` and `distinct.n_distinct_values` are MISSED where `axes.role` and `type.integer_valued` were MISSED before. That is a real trade and it is named rather than buried: the integer grid gives such a column fewer numbers to separate with, and G6.6's width assignment spends a second width to make two spellings differ. The defect that remains is a width; the defect it replaced was the column's own type, which is the fact code depends on.
+
+**The size of that trade, measured over three fixtures rather than one (amended by the verification of this landing, 2026-09-16).** At 800 rows it runs from six cells of 800 on the fixture this landing's own test holds to seventeen and twenty-five on two neighbouring ones, with `n_distinct_values` falling by up to eight (343 published against 338 measured on one of them) and the odd cells sometimes landing under a `(withheld)` key rather than a named width. IT SHRINKS AS THE COLUMN GROWS, which the single figure hid: at 2,000 rows one fixture comes back CLEAN at both seeds — census `{2: 2000}`, 397 different numbers published and 397 written, twin and real both exit 0 — and another loses eight cells of 2,000 and one different number. A merger reading a single number as the size of this cost would be reading it too small at 800 rows and too large at 2,000.
+
+### P4-D66.4 A padded cell no field can hold gives the style up (landing 2b.7, 2026-09-15)
+
+G6.3's rule 2 moves the `leading_zero` style ONTO a value a published field width can hold. It never moved it OFF a value no published width can hold, and rule 1 forbids assigning such a cell a width at all — so the writer put one zero in front of a value that already filled the field. Measured: a column of month codes `01` to `12`, every real cell two characters, census `{2: 598}`, came back holding `012` — three characters in a two-character field, two cells per seed, `pads.published.2` MISSED. A month lookup on the twin's own text finds no key for it.
+
+The exchange now runs in both directions, which is the rule rule 2 already states applied where the walks left it open, and the count of padded cells is unchanged by it — so every published style count is exactly what it was.
+
+**PARTLY, and the measurement says why.** The month column does NOT come back clean, and the reason is not the exchange: every cell of that twin not wearing the padded style already needs the whole field, so there is no partner to exchange with. The twin drew fewer single-figure values than the census counts padded cells, which is a fact about the VALUES and reaches the draw of G5, not the placement of styles. The audit named both repairs and this landing builds the smaller one; the larger is carried. Both cases are pinned: the exchange on a column that has a partner, and the column that has none, where the pass must leave every style exactly where it found it rather than move one onto a value that cannot wear it.
+
+**CLOSED BY P4-D105 (landing 2b.16, 2026-09-16), and the sentence above about the value draw is WITHDRAWN.** The carried half was sent to the draw of G5 — draw more narrow values and the census is met — and that road is closed by the contract in as many words: `pad_widths` in section 9.4 says a named width "is honoured by PADDING and never by adjusting the value", because `000123` and `123` read back as the same number and no rung, endpoint or statistic may be spent to reach one. So a column whose twin drew fewer narrow values than the census counts padded cells has an UNMEETABLE census, and the only question left is what to miss. The last clause of this decision — "the pass must leave every style exactly where it found it rather than move one onto a value that cannot wear it" — was right about the second half and wrong about the first: leaving the style where it was is what wrote a six-character cell into a five-character field. P4-D105 states what replaces it.
+
+### P4-D90 The canonical spelling of a wide whole number is published and checked (landing 2b.13, 2026-09-16)
+
+Plan P4-D66.2 admitted the figures of a whole number past 2**53 as a spelling of its own value, because a real export of seventeen-figure accession numbers was being told its own file failed its own description. That admission is right and it took the canonical question with it: past that bound more than one run of figures reads back as one double, so `styles.spelled` — which asks whether a cell denotes its value — can no longer ask which run the column wrote. The ceiling beside it cannot ask either, because `styles.canonical.<form>` reads the published count of the form, and on every column of identifiers that count IS the row count (`numeric_styles {plain: 800}` on 800 rows), so the bar licenses every cell and the entry is filed as a listing.
+
+**Measured before this decision**, through the real reader, producer, loader and validator at 800 rows, floor eleven, two seeds: a file of canonical seventeen-figure runs respelled cell by cell into the value-preserving neighbours a double cannot tell from them — 790 of 800 moved at seed 1 and 783 of 800 at seed 7 — validates against its own description at **exit 0 with nothing missed**. The published block is identical on both files: same styles map, same ladder, same count of different numbers, because respelling moves no value.
+
+**Why the refusal could not simply come back.** A real export of literal seventeen-figure identifiers writes runs that are NOT their values' canonical text — measured, 690 of 800 cells at one seed and 647 of 800 at another — and both its twin and the real table validate at exit 0 today. A ceiling of nought asked of every column would fail that file on two-thirds of its cells, which is the exact false accusation P4-D66.2 exists to end. So the question cannot be answered from the number: it has to be PUBLISHED about the column.
+
+**The fact.** `wide_runs`, one word of three on every numeric block: `"none"` where the column wrote no point-free cell at or past 2**53, `"canonical"` where it wrote some and every one is the figures its own value writes, `"respelled"` where at least one is not. It carries no count, so no floor governs it and it never pools — the word is a property of the column's WRITER, naming no cell, no count and no figure, and a reader who knows every other cell of the column sees nothing about any one of them from it. **AMENDED BY P4-D140:** that last clause was false while one respelled run moved the word; the line between `canonical` and `respelled` is the census floor now. A count would have needed the census floor and would have said how many; this says whether, which is all a ceiling has to read.
+
+**The obligation.** `styles.canonical.wide`, filed on the `"canonical"` state ALONE. That is what keeps it from being the vacuity V3.4 refuses by name: a column publishing `"none"` has no such cell and a column publishing `"respelled"` has said its own writer respells them, and in both states the fact is LISTED with the sentence saying why, so it is never a silence. The recount is written out in the validator from the document rather than imported, like `_canonical_text` beside it.
+
+**No generator rule moves, and that is measured rather than assumed.** The twin of a canonical wide column already writes canonical text — 800 wide cells, 0 non-canonical, at both seeds — so the ceiling is met by the generator as it stands, no rule of the generation method changed, and the oracle mirrors no new rule. The three committed vector files gained the key and no cell of any case moved.
+
+**AMENDED BY P4-D91 (2026-09-16, the repair pass of this same landing).** The producer asked this question of the raw cell text and the checker asked it of the normalised text, so the two were not asking about the same cells: a real table wearing an accounting bracket, the minus sign of the character tables or a leading space could be accused at exit 3, and a column of grouped or space-padded wide runs published `"none"` while holding eight hundred of them. P4-D91 makes both sides read the core, asks the two point-free forms rather than one, and holds the word to the smallest group size. Two sentences of this decision are revised there and the revision is written out in full.
+
+**What it does NOT close, named rather than buried.** A column publishing `"respelled"` still comes back written canonically: the twin does not reproduce the source's own non-canonical runs, because no published fact says which cells wore them or what they were, and one that did would be publishing a person's own key. So the twin of such a column is checked against nothing here and the carried half of P4-D66.2's spelling gap is unchanged. Closing it means publishing something about individual wide cells, which the disclosure rule does not allow at any floor this product offers.
+
+### P4-D91 One class for the wide-run question, asked of the core and held to the floor (landing 2b.13's repair pass, 2026-09-16)
+
+P4-D90 above published `wide_runs` and filed `styles.canonical.wide` against it. The skeptic's verification of that landing found the word and the ceiling were not asking about the same cells, and the measurements below say they were right: **the producer asked its question of the RAW cell text while the checker asked it of the NORMALISED text**, and the two disagree about every spelling `number_core` takes off — the accounting bracket, the minus sign of the character tables, a surrounding space, a thousands mark.
+
+**Defect one, a false accusation restored.** A cell the producer did not count is a cell the checker does, so a REAL table could be held to a ceiling of nought its own description never claimed. Measured through the real command line, 800 rows, floor eleven, two seeds: ONE cell of eight hundred given a leading space and respelled into its value-preserving neighbour made the real table exit 3 on `styles.canonical.wide` while its twin exited 0; a column of bracketed negatives with the bracketed half respelled (388 cells moved at seed 1, 392 at seed 7) did the same, and so did the same column written with the minus sign of the character tables (392). That is exactly the false accusation P4-D66.2 exists to end, restored by the landing that says it keeps it ended. After this repair every one of those files exits 0 on both the twin and the real table, and the word reads `respelled` — which is what the file actually is.
+
+**Defect two, a word that was false about its own file.** Where the producer's raw-text test refused a spelling, the column published `none` — "no such cell" — while holding eight hundred of them, and the ceiling was silently listed as having nothing to govern. Measured: 800 wide keys written with thousands marks published `none`, and with every one of them respelled (780 and 782 cells moved) nothing saw it; 800 wide keys each written with one leading space published `none` while the TWIN of that same column published `canonical`, so the round trip disagreed with itself; and 800 plus-signed wide keys, every one respelled, published `none`. After this repair those columns publish `canonical`, `respelled`, `canonical` and `respelled`, each of which is what the file is.
+
+**Defect three, a pooled form named by the word.** The word was published with no floor, while its stated sibling `negative_form` is floored by NS1. Measured: one wide key beside 799 charge amounts at a floor of eleven published `numeric_styles {(withheld): 1, decimal: 799}` — the styles floor pooling the lone `plain` cell precisely so that no reader could tell what form it wore — and then published `wide_runs: canonical` beside it and filed the ceiling as HELD, which tells the reader what the pool was hiding. After this repair that column publishes `none` and the fact is LISTED.
+
+**The repair, in one sentence: both sides ask one question of one text.** `parsing.is_a_wide_run` reads `number_core`, as `fraction_width` and `pad_width` beside it do; `taxonomy._wide_runs` takes its figures from that same core; and the checker's recount takes the thousands marks out of the cell it had already written minus-first, so its class and the producer's are one class. A unit sweep of thirteen spellings — bare, signed both ways, bracketed, minus-signed, space-padded on either side, grouped with a comma and with a space, padded, trailing-minus and narrow — now shows **not one cell the two sides read differently**, where before it showed five.
+
+**Two point-free forms, not one.** The first version asked the question of the `plain` form alone, on the stated ground that "a padded or plus-signed wide run wears a spelling whose own census already answers for it". That ground is false and the measurement above says so: a respelled neighbour wears the same form and the same width as the run it replaced, so no census beside this one can see it, and 800 respelled plus-signed cells went unchecked. `leading_plus` is therefore asked too. `leading_zero` is NOT, and that bound keeps a reason it can hold: a padded cell's figures are not its value's figures by construction, so the question cannot be asked of it without first deciding which zeros are the pad, which is the width census's question. **Named limit:** a zero-padded column of wide keys, every cell respelled, still publishes `none` and is checked by nothing (measured, 800 cells, real and twin both exit 0). Closing it means reading the pad width first, and it is recorded here rather than left to be found. **THIS LIMIT IS CLOSED BY P4-D107 (landing 2b.16 part 2, 2026-09-16), and the sentence excluding `leading_zero` is WITHDRAWN.** The pad is read off first and the canonical question is asked of the figures that remain; no census has to decide the split, because a canonical run never begins with a zero. P4-D107 states what replaces it, and it also repairs the form THIS decision kept: a plus-signed PADDED cell was counted here with its pad still on, so a column of 800 such cells, every one canonical, was counted 800 of 800 respelled.
+
+**The floor.** `wide_runs` is `none` below `small_cell_floor`, as `negative_form` returns to `minus` below it (NS1), and invariant WR1 now reads the room and the floor together over both point-free forms plus the withheld remainder. The boundary is measured rather than asserted: five wide keys among 795 narrow plain ones — where the room is the whole column, so only the floor can bite — publish `none` at a floor of eleven and `canonical` at a floor of one.
+
+**The ceiling still fails, which is what makes the repair worth having.** Against a description published from a canonical column, a file respelled cell by cell exits 3 naming `styles.canonical.wide` on every widened shape: grouped (776 cells moved at seed 1, 784 at seed 7), space-padded (786), plus-signed (784) and bracketed (782). Before the repair the grouped and plus-signed attacks were not seen at all.
+
+**No generator rule moves, measured again rather than inherited.** Every twin of a canonical wide column — bare, bracketed, minus-signed, grouped, space-padded, plus-signed — re-describes itself as `canonical` and exits 0, and `tools/provenance/check_provenance.py` passes with every frozen vector byte-identical, so no case's cells moved. What moved on the description side is one word on columns that were describing themselves wrongly, and on the report side one sentence: `none` no longer says "wrote no such cell" but "wrote fewer than the smallest group size of them".
+
+**What P4-D90 said that this revises**, stated plainly rather than left for a reader to notice: its sentence "`none` where the column wrote no point-free cell at or past 2**53" now reads "fewer such cells than `small_cell_floor`"; its sentence "It carries no count, so no floor governs it" keeps its first half and loses its second — the word carries no count and never pools, and a floor holds it anyway, because the word names the FORM of the cells it is about. The carried half of P4-D66.2 — that a column publishing `respelled` still comes back written canonically — is unchanged by this repair and remains as P4-D90 names it.
+
+### P4-D105 A padded cell keeps its field even where the census cannot be met (landing 2b.16, 2026-09-16)
+
+P4-D66.4 above made G6.3's rule 2 run in both directions and left one case open: a cell wearing the padded style whose value no published field can hold, on a column where no cell can be exchanged with it. That decision sent the case to the VALUE draw of G5 — draw more values narrow enough for the field and the census is met — and **that road is closed by the contract in as many words.** Section 9.4's row for `pad_widths` says a named width "is honoured by PADDING and never by adjusting the value", because `000123` and `123` read back as the same number and no rung, endpoint or statistic may be spent to reach one. So on such a column the census is UNMEETABLE on the values in hand, something must be missed, and the only question is what.
+
+**Measured on the base of this landing**, through the real reader, producer, loader and validator, eight hundred five-figure postal codes at floor eleven, nine seeds each of four shapes: the census is unmeetable at two seeds of the postal codes (`pad_widths {5: 85}` published, 84 values narrow enough at seed 7; `{5: 87}` and 86 at seed 11), at two of a three-figure code, at two of a six-figure identifier and at two of a column of month codes. At every one of them the twin wrote a cell WIDER than the field its own description publishes — `099613`, `010035`, `0133`, `0996289`, `012` three times — and missed `pads.published.<width>` anyway, at the same count it reaches without them. **The census was missed in both writings. What differs is the cell.**
+
+**The rule.** After the widths are served and the exchange of rule 2 has run, a cell still wearing the padded style whose value no published width can hold takes the point-free form the published map carries MOST OF — `plain` before `leading_plus` on a tie, the enumeration order every other tie in G6.4 is broken by. A form no cell of the column wears is never offered, because writing one would invent a spelling the description does not publish. Where the map carries no other point-free form at all — every cell of the column padded — there is nothing to give the style up to and the cell keeps it; that column's census is unmeetable in both directions and G13's recount names it.
+
+**What it costs, stated rather than discovered.** The exchange of rule 2 moves no count; this one gives a cell from `leading_zero` to `plain`, so the forms map — EXACT-OBSERVABLE against the identity of contract 7.5.7 — is missed in the clauses that identity states, beside the width census that was already missed. Measured on the same column: **one obligation missed before this rule and five after it**, every one of the five naming the same single cell, and no cell of the twin wider than its published field. That trade is the right way round because the twin is for running code on: every cell of the real column is five characters, so a fixed-width slice, a length check and a code lookup all run on the twin this rule writes, and none of them runs on a twin holding a six-character code the real column never wrote. A miss a report names is a bounded miss; a spelling no real cell wears is a silent one.
+
+**What it does NOT close, named rather than buried.** The count itself is still short, and no placement rule can reach it: the values that could wear the field were not drawn. Closing THAT means the draw of G5 knowing the padding census before it places values, which is a change to the value stage and is not made here. The oracle mirrors no part of G6.3's named-width machinery today — its one frozen case carrying a `pad_widths` census holds a one-figure value in a two-figure field, so the width never binds and neither direction of rule 2 nor this give-up can move a committed byte — so this rule is held by the round-trip gate `tests/test_landing_2b16_number_readings.py` and its mutation check, and the oracle debt is the pre-existing one, neither created nor widened here.
+
+### P4-D106 The decimal-comma declaration reaches an affixed column, over its core (landing 2b.16, 2026-09-16)
+
+R-P4-52 kept the affixed role outside the `--decimal-comma` declaration on the ground that "which mark inside a larger spelling is the decimal point is a question this declaration does not answer". For a cell wearing a WRAPPER that is the wrong way round: the declaration is exactly the answer, given by the person who holds the table, and the wrapper is not a number at all.
+
+**Measured on the base of this landing**, through the real reader, producer, loader and validator, 800 rows at floor eleven, seeds 1 and 7: a column of `795,64 EUR` declared `--decimal-comma` was described as **free text** — 0 numeric cells, no ladder, no mean — and its twin held `)!!!!! !!!!!`, `;!!!1 !!!!`. A column of `37,5 %` came back `^!4 !!`. **Both the twin and the real table validated at exit 0**, so the commonest European export there is came back useless and said nothing about it. The controls say the failure is the comma inside the wrapper and nothing else: the same prices written with a POINT and declared nothing are `affixed_number` with 800 cells of `624.60 EUR`, and a declared column of BARE `624,60` is `continuous` and writes `624,60`.
+
+**The rule, in three places that must agree.** The splitter that finds a number inside a wrapper asks whether a substring is a number IN THE COLUMN'S OWN GRAMMAR — the declared reading and not the ordinary one, because one column may not have two graders; the cores are classified under the same declaration; and the writeback and the validator's reading both run **over the core alone**, the wrapper being published text that is copied character for character. A wrapper carrying either mark is why that last clause is not a detail: measured, 800 cells of `U.S.$ 129,58` had every twin cell written correctly and BOTH files reported at exit 3 with `styles.at-least.decimal` MISSED, because a swap over the whole cell read them as `U,S,$ 129.58` and counted every one a straggler.
+
+**After it**, at the same sizes and seeds: role `affixed_number`, suffix ` EUR`, the twin writes `624,60 EUR`, the twin's own re-description returns the role, the wrapper, the forms map, the fraction widths and both published ends, and the twin AND the real table validate at **exit 0 with nothing missed**. `U.S.$ 129,58` and `129,58 kg.` do the same.
+
+**What it does NOT close, named rather than buried.** (1) The JOINED role stays outside, and that is what R-P4-52 now carries: `1,5/2,5` declared both a measurement and a decimal comma has two readings and nothing published chooses. (2) A declared column whose cores group their thousands with a point — `645.121,62 EUR` — publishes no mark; measured, 800 such cells publish `group_separator: ""` and their twin writes the value ungrouped, `842480,87 EUR`, at exit 0 with nothing missed. The values are right and the grouping is lost. **THIS LIMIT IS CLOSED BY P4-D108 (this landing's repair pass), and the REASON GIVEN HERE WAS WRONG, which is why the repair is small.** The stated cause — that the core is read in the declared grammar, which drops the point before the mark evidence is weighed — is false, and the measurement that refutes it is that the core's text reaching the mark rule is the raw `92.959,11` and not a reading of it. What dropped the mark was the TALLY those cores are counted into, built without the declaration its cells were classified under. P4-D108 states what replaces it. (3) **The oracle mirrors this rule in no frozen case, and that debt is named rather than left to be found.** A generator rule moved — the exchange of P4-D26 now runs over the core of a declared affixed column — and no committed case reaches it: the oracle applies that exchange for the `count` and `continuous` roles alone, and its one affixed case wears no declaration, so every committed byte of all four vector files is unchanged by this landing (measured: the forty cases rebuild identical and `tests/test_generation_reference.py` is green). What holds the rule up meanwhile is the round-trip gate `tests/test_landing_2b16_number_readings.py` and three mutation checks, each RED: the splitter with the declaration withdrawn (four of fourteen tests fail), the writeback swapping the whole cell, and the validator's reading swapping the whole cell (one each). A frozen case wearing ` EUR` on a declared column, with a mutant that withdraws the core rule, is what closes this and it is owed by the next landing on this path.
+
+### P4-D107 The pad is read first, and a padded wide key is asked the canonical question like any other (landing 2b.16 part 2, 2026-09-16)
+
+P4-D91 above asked the canonical question of two point-free forms and left the third out, with the limit named rather than buried: **a zero-padded column of wide keys, every cell respelled, still publishes `none` and is checked by nothing.** Its stated ground was that a padded cell's figures are not its value's figures until somebody decides which zeros are the pad, and that deciding is the width census's job. **That ground is true of the READING and false of the exclusion**, which is what this decision separates.
+
+**Measured on the base of this landing**, through the real reader, producer, loader and validator, 800 zero-padded nineteen-character keys holding seventeen-figure values, floor eleven, seeds 1 and 7: the column publishes `wide_runs: none` whether its runs are canonical or respelled; respelled cell by cell into the value-preserving neighbours a double cannot tell apart — 786 of 800 moved at seed 1, 780 at seed 7, each written back into the SAME field so that every published census is untouched — the twin exits 0, the real table exits 0, and **the canonical description handed the respelled file exits 0 with no line naming it.** Nothing in the description sees the respelling, because the forms map counts FORMS and a respelled neighbour wears the same form and the same width as the run it replaced.
+
+**The rule: read the pad, then ask.** A canonical run NEVER begins with a zero — past 2**53 every value is a whole number and the figures a whole number writes have no leading zero — so every leading zero of a padded run is pad, and what remains is the run. `taxonomy._figures_past_the_pad` takes them off and the canonical question is asked of the figures that remain; `validation._wide_cells_respelled` reads the same split from the same text, so the two stay one class as P4-D91 requires. **No census decides the split, and this is the measurement that answers the question P4-D91 left open:** the published width is never consulted, so a column pooling its width under `(withheld)`, or publishing no width at all, is read exactly as one naming `19`. The width census answers how wide the FIELD is; this word answers whether the RUN is its own value's text; neither waits on the other.
+
+**It repairs the form P4-D91 KEPT, which is the other half of the argument.** `+0019094652364241860` is `leading_plus`, not `leading_zero`, so this question was already asked of it — with its pad still on. Measured: a column of 800 plus-signed padded keys, every one written canonically, was counted 800 of 800 NOT canonical and published `respelled` about a file that respells nothing. One reading answers for all three point-free forms and none of them is a special case.
+
+**After it**, at the same sizes and seeds: the canonical padded column publishes `canonical`, its twin re-describes to `canonical`, and the twin and the real table both exit 0 with nothing missed; the canonical description handed the respelled file exits **3**, naming `styles.canonical.wide`, where it exited 0 before; and a real padded export whose own runs are respelled publishes `respelled`, is LISTED rather than checked, and exits 0 on both files — which is the false accusation P4-D66.2 exists to end, measured in the direction that matters rather than assumed. A five-figure postal-code column, where no cell is near the bound, still publishes `none` on both sides.
+
+**Invariant WR1 gains the third form**, and it had to: the room clause counted `plain` and `leading_plus` only, so a padded column publishing `canonical` was a description its own producer wrote and this loader refused. The floor still holds the word for the reason NS1 holds the notation beside it.
+
+**No generator rule moves, measured rather than inherited.** The twin of a padded wide column already writes canonical text: 800 of 800 padded wide cells canonical on every run, before this landing and after it. **That sentence is true of a PURE wide column and is corrected here for the mixed one (the repair pass of this landing, after a skeptic's measurement).** In a column whose MAJORITY style is `decimal` — 789 two-figure amounts beside 11 nineteen-character padded keys — the generator writes padded wide cells whose figures are not their double's, so the twin fails its own description at exit 3 on `styles.canonical.wide` (2, 8 and 3 offending cells at seeds 4, 12 and 20; the real table exits 0). **That gap is older than the padded form and is not this landing's**, measured rather than argued: at ff795f6, the base this part landed on, the SAME mixed column built with `plain` wide runs instead of padded ones already publishes `canonical` and already exits 3 with the same offending cells, while the padded one published `none` and exited 0. So this decision did not create the generator gap; it widened the reach of a pre-existing P4-D90/P4-D91 defect to the third form, where the miss is NAMED at exit 3 rather than silent. Repairing the writer is a landing of its own and is left named here. Ten shapes this landing does not touch were generated from a base-source copy and from this worktree and compared by sha256 of the twin bytes — identical on all ten — and `tools/provenance/check_provenance.py` passes with every frozen vector byte-identical.
+
+**Two sealed tests state rules that moved, and both are amended rather than deleted.** `tests/test_landing_2b7_source_spellings.py::test_the_wide_run_class_is_one_class_on_both_sides` pinned the excluded padded cell at a count of nought; it now pins the pair that proves the pad was read — a padded RESPELLED cell counted, a padded CANONICAL cell not — at two pad widths, so the answer cannot depend on the census. `::test_a_padded_cell_with_no_partner_keeps_the_style` was left red by P4-D105 of part 1, whose give-up rule it contradicts; measured, it passes at b95f3d7 and fails at ff795f6. Its surviving clause is the one P4-D105 states — where the map carries no OTHER point-free form there is nothing to give the style up to — and it now pins that, with the give-up beside it.
+
+**What it does NOT close, named rather than buried.** The oracle carries no frozen case that exercises this word, and the measurement states that precisely rather than loosely. Every block of every committed vectors file publishes `wide_runs: "none"`, and `tools/reference/make_generation_reference_vectors.py` writes that word as a DEFAULT on any numeric block that lacks one rather than reading it off the rule — so the word is not mirrored there at all. One frozen case does hold wide cells: `numeric_pooled_spelling` writes `100000000000000000000` six times, `plain` and canonical. **No committed case anywhere holds a PADDED wide cell** — measured, nought across all four committed vectors files (the fourth, `tests/reference/numeric-reference-vectors.json`, carries no `wide_runs` key at all, which does not change the conclusion; the count of three was corrected in this landing's repair pass) — so no committed byte can move whichever way this rule is read, and the padded reading this decision adds is unreachable from the oracle as it stands. That gap is pre-existing, this landing neither created nor widened it, and the rule is held meanwhile by the round-trip gate in `tests/test_landing_2b16_number_readings.py` and by four mutation checks that turn it red in both directions — two withdrawing the reading, two withdrawing the admission and the room.
+
+### P4-D108 A tally built from cores carries the declaration its cells were classified under (landing 2b.16's repair pass, 2026-09-16)
+
+P4-D106 above closed the affixed half of R-P4-52 and named what it did not close: **a declared column whose cores group their thousands with a point publishes no mark.** It gave a reason — that the core is read in the declared grammar, which drops the point before the mark evidence is weighed — and **that reason was wrong**, which is why this repair is three lines rather than a rule change.
+
+**The defect, measured** through the real reader, producer, loader and validator, 800 cells of `92.959,11 EUR` at floor eleven, seeds 1 and 7: `role: affixed_number`, `group_separator: ""`, `thousands_marks: {}` about a column where 800 of 800 cells carry a grouping point; the twin writes `62391,86 EUR`, 0 of 800 grouped; the twin's own re-description agrees with the description that lost it; and the twin AND the real table validate at **exit 0 with nothing missed**, so a spelling every real cell wore was lost in silence. Under the owner's ruling that the twin writes everything exactly as the source wrote it, that is a lost fact and not a tolerated one.
+
+**The cause is the RECORD and not the reading**, and the measurement that separates them is that the text reaching the mark rule is the core's own `92.959,11`, raw, not a reading of it: `affixed_split` returns the raw slice and `_classify` keeps `text` exactly as the file wrote it. What was lost is the DECLARATION. `_Cells` carries a `decimal_comma` field precisely so that a rule reads the grammar off the record and never off the column, and `_tally` takes it as a defaulted argument — so three sites that classified cores WITH the declaration went on to build the record WITHOUT it: `_wrapper_tally`, `_affixed_verdict` and `_cores_judged`. `_group_separator` and `_thousands_marks` then asked the undeclared question of cells that had been read as a declared column's, and `92.959,11` proves no mark to a reader that thinks the point is a decimal point. The two sites that build a tally from a COMPOUND column's halves pass the flag and always did, which is what makes this a slip at three call sites rather than a missing rule.
+
+**The rule: a classification and the record it is counted into are one decision, and they are passed together.** Every site that builds a tally from cells it classified under a declaration hands that declaration to the tally.
+
+**After it**, at the same sizes and seeds: `group_separator: "."`, `thousands_marks: {".": 800}`, the twin writes `62.391,86 EUR` with 800 of 800 grouped, the twin's own re-description returns the mark and the role, and both files exit 0 with nothing missed. The controls say the repair reaches exactly what it names and nothing else: an UNDECLARED US-grouped price column, `92,959.11 EUR`, still publishes `","` with `{",": 800}` and writes `62,391.86 EUR`; a declared BARE column still publishes `"."`; and a declared grouped column carrying a stand-in the owner keeps publishes `"."` with `{".": 780}` and writes `27.891,65 EUR` at exit 0 on both files. **No generator rule moves and none had to:** `_core_view` hands the affixed block's own `NumericFacts` to the numeric writer, which has always spelled the published mark, so the writer began grouping the moment the description stopped throwing the mark away. Fourteen shapes this repair does not touch were generated from a `git archive` copy of d58e8b6 and from this worktree and compared by sha256 of the twin bytes: **identical on all fourteen.**
+
+**Mutation checks, and the one that did NOT turn red is reported rather than buried.** (a) All three sites drop the declaration again: 3 of 24 tests fail — both grouped-price seeds and the kept-stand-in gate. (c) Only `_affixed_verdict` drops it: the same 3 fail, so that site alone carries the published mark. (b) Only `_cores_judged` drops it: **all 24 tests pass, and no shape was found that turns it red.** The reason is measured and is a limit of its own: `_cores_settings`, which translates a `--keep-value` naming a whole cell into the core it holds, reads those declarations with `_declarations(settings.kept_values)` — itself without the declaration — and the stand-in pass did not judge `-999,0` a stand-in on any affixed shape built here, while the same shape on a plain column judged twenty. The site is corrected anyway, because a record that contradicts its own classification is the defect whatever reads it next; **it is held by no gate, and that is stated here rather than implied.** A landing that makes the core stand-in pass reachable under a declaration should close `_cores_settings` beside it.
+
+**One sealed sentence was contradicting itself and is repaired here too.** The `wide_runs` key row of contract v6 still DEFINED the class as a cell whose "form is `plain` or `leading_plus`" and then said two sentences later that "a cell written `leading_zero` IS one, once its pad is read off" — P4-D107 amended the invariant, the disposition row and the validation method's V3.5-A2 to name all three forms and left the defining clause behind. A re-implementer following the definition would exclude exactly the form that decision added. The clause now names the three forms.
+
+**What it does NOT close, named rather than buried.** (1) `_cores_settings` above. (2) The oracle mirrors this rule in no frozen case, exactly as P4-D106 recorded for the rule it added: no committed vectors block wears a wrapper on a declared column, so no committed byte moves whichever way this record is built, and both directions are held by the round-trip tests and the two mutation checks that turn them red. (3) An owner cannot write `--keep-value -999,0` on the command line at all — argparse reads a token beginning with a hyphen that is not a number as an option, so the declaration a European column needs is rejected with exit 2 before any of this is reached. Measured identical at d58e8b6 and here, so it is older than this repair and is named for whoever owns the command line.
+
+### P4-D86 The twin is written the way its source file was (owner ruling 2026-09-15)
+
+**RENUMBERED AT THE INTEGRATION OF LANDINGS 2b.6 TO 2b.10 (2026-09-16).** Landing 2b.9 wrote this decision as P4-D40, which landing 2b.5 had taken, and the branch that carried it (carried-2b17-file-declarations) renumbered it P4-D75 -- which landing 2b.8 had also taken and merged first. It is P4-D86 now, a number no landing used, and all 78 lines of that branch citing it were renamed by line provenance; the seven P4-D75 citations that remain are landing 2b.8's.
+
+`source.dialect` is EXACT-CONTROL. The owner's words: "Twin should always write anything as the original source, without changes." Code developed on the twin has to run unchanged on the real table, and code that reads a file is written against its bytes. Until this decision every twin was comma-separated UTF-8 with line feeds and minimal quoting, whatever the table was: a semicolon file was read as one column of free text, a CRLF or Latin-1 or byte-order-marked file came back as LF UTF-8 with no mark, every-field quoting and R's quoted strings came back bare, a missing final newline was added, blank lines and a sorted row order were dropped, and pandas and R index columns, repeated or blank names, trailing delimiters, preamble lines and short rows were refused. The audit of 53bb012 measured each of them; contract section 4.3a lists the facts that now carry them.
+
+**The reader.** The file's bytes are decoded once: a UTF-32 mark is refused; UTF-16 is read behind its own mark; then UTF-8 with or without its mark; then Windows-1252 where a byte between 0x80 and 0x9F is present and every such byte is defined there; then Latin-1. `dialect.survey` walks the text by the standard reader's own states, recording what that reader drops, and the reader module runs the standard reader over the same text and requires every record to agree, then pandas configured by the form the survey found. The delimiter is the candidate under which most of the first records share one width of two or more fields, and on a tie of share and width the one under whose reading more cells read as numbers, with a point or a decimal comma; a comma-space writing, and backslash escaping, are guesses held to the whole file and walked again where the file breaks them. Blank lines, lines of spaces, `\r\r\n` endings, an Excel `sep=` line, title and `#` lines before the header, a survey export's two metadata rows, trailing delimiters, rows short by their trailing empty cells, records holding nothing and a Ctrl-Z mark are each recorded where they stand. A blank or repeated header cell names its column `Unnamed: N` or with `.1`, `.2` after it, as pandas names them, and the cell is written back as it was.
+
+**The writer and the rows.** `dialect.twin_text` writes the twin in that form and the command writes it in `source.encoding` without translating a line ending. Every published label was read in that encoding and every made-up value is ASCII, and Latin-1 and Windows-1252 map each byte they define to one character and back, so the twin carries the bytes of every published label. The generator writes a row-sequence column as the sequence, puts the published records holding nothing in their places by moving cells within a column, and sorts the other whole rows by the published sort column into the places around them; no word is drawn and no column's cells change as a multiset (method G2.1). The sort is read over the records that hold something, so a sorted Excel table with formatted-empty rows below it keeps its order.
+
+**The validator.** Every byte rule compares the published form with the checked file's survey (validation method V6.2-A1), and every one is WITHHELD on a file the producer refuses. A checked file is read in the published encoding wherever its bytes decode there, and a Latin-1 or Windows-1252 description is held to be written as UTF-8 only by a file that, read in that encoding, holds a character beyond ASCII the description publishes nowhere. That supersedes the ruling of amendment A-P3-3 clause 6, which kept the line endings and the final newline outside the disclosure envelope because the producer published them about no file, by the test amendment A-P3-5 clause 3 wrote down: the producer publishes them about every file now. Residual R-P2-5 is closed.
+
+**What it discloses.** Every fact describes the file's writer. The metadata rows are schema text and are published like names. A preamble line may name anybody, so it is published as written only at a smallest group of one and above that as a stand-in that keeps the punctuation it began with; the generation report names the stand-ins.
+
+**Carried by name.** Native Excel, SAS, Stata and SPSS files wait for an owner decision on the import allowlist. A column whose source quoting fits no rule is written `needed` and the report says so. A cell longer than its column's padded width is written unpadded. The sort keeps no second key and no strictness: twin identifiers can repeat, and a subject's rows ordered by date need cross-column structure (landing 6). A filtered pandas index, increasing with gaps, is described as numbers and sorted, not written as a sequence. A header cell of spaces is named `Unnamed: N` where pandas keeps it. **No file 53bb012 twinned is refused for its written form (repair of this landing).** Past 64 runs of line endings the description publishes how many lines end each way, and the twin ends as many lines each way with the rarer endings spread evenly rather than where the table had them; past 64 places of blank lines it publishes how many there are, where the first and last stand and what most hold, and the twin spreads them evenly between those places, which is exact for a double-spaced file and approximate otherwise; the generation report names both. More than 16 lines before the names are not a preamble and are read as the table's. The order of rows is read by number or by text only: a column sorted by date (`m/d/yyyy`) or in natural order (`P1`, `P2`, ..., `P10`) publishes no order and its twin is not sorted. A title line holding the delimiter (`Cohort extract, generated 2026-09-01`) is not recognised as a preamble, and the file is refused as ragged, as at 53bb012. A UTF-8 table whose only non-UTF-8 bytes stand in cells the twin writes stand-ins for is read and written as Latin-1 or Windows-1252, and its twin, holding none of those bytes, also reads as UTF-8: it validates against its description, but described again it names UTF-8, and code that opens the real table without the published encoding fails on the table and not on the twin. A Windows-1252 table whose bytes between 0x80 and 0x9F all stand in withheld or stand-in cells gives a twin holding none, which described again names Latin-1; the two read those bytes identically. A MacRoman or cp850 file avoiding the five bytes Windows-1252 leaves undefined is read as Windows-1252, publishing letters that look wrong while writing back the bytes it read. A Qualtrics export with one metadata row, a UTF-16 file without its mark and MySQL's unquoted `\N` under backslash escaping are not recognised. The independent oracle does not yet mirror the written form or the row arrangement; every frozen case is an ordinary one-column file.
+
+### P4-D76 A declared identifier publishes no sequence and no order (landing 2b.10, 2026-09-15)
+
+The written form went around the withholding. `sequence_start` is written back by the generator as the literal cells `0, 1, 2, ...` or `1, 2, 3, ...`, so a column published as the row sequence is a column the twin reproduces EXACTLY. A table of two declared identifier columns each stepping by one -- `first_id,second_id` holding `i, i+1` -- had both published, and its twin held all 120 of the real table's rows, byte for byte, at a smallest group of ten. Every value `--identifier` exists to withhold was handed back by a file-level fact. The review that found it filed it as a blocker and it is a disclosure defect, not a warning.
+
+**The rule.** A column the person declared with `--identifier` publishes no `sequence_start` and is never the column `row_order` names. And a sequence is published at all only for a MECHANICAL index: the FIRST column, named as the two writers that produce one name it -- `Unnamed: 0` for a pandas frame written with its index, which is also how the reader names R's quoted blank first name, and `rownames`. That list is `dialect.INDEX_NAMES` and is stated once. A column of its own name holding `1, 2, 3, ...` -- a REDCap `record_id`, a register's serial -- is the table's own data and publishes no sequence, whatever it looks like. A column whose cells are absent anywhere publishes none either, which is the same rule contract FD6 states and which the producer used to break by writing a description its own loader refused.
+
+**What it costs, named.** A REDCap export's `record_id` is no longer written back in order; its twin holds made-up record numbers, as every other undeclared identifier-shaped column already did. That is the intended half of the change and `tests/test_file_dialect_round_trip.py` pins it.
+
+**What a gate can and cannot assert.** The loader is the executable statement (invariant FD12), and the producer's half is `profile._published_form`. The description's side is exact: no sequence, no order. The twin's side is pinned on a realistic identifier table, where it shares no row with the source. It is NOT pinned as an absolute on every table, and the reason is architectural rather than a shortfall of effort: **the generator never reads the real table**, so it cannot exclude a real row by comparing against one. Clause 2 of the twin's definition is held STRUCTURALLY, by not carrying the values across, and never by comparison. Measured on the review's own table, whose identifiers are the integers 0 to 120, a stand-in collides with a real pair by chance in 0 to 3 rows of 120 across twelve generation seeds, varying with the seed -- where the defect gave 120 of 120 at every seed. On a table of ordinary record numbers the count is 0 at all twelve. Whether a narrow-domain twin must also be checked against its source is an owner question this landing does not answer, and it is carried.
+
+### P4-D77 A spreadsheet workbook is read, with the standard library alone (landing 2b.10, 2026-09-15)
+
+`source.workbook` is EXACT-CONTROL. The owner ruled on 2026-09-15 that synthtwin reads Excel files and delimited text files only -- no SAS, Stata or SPSS. Until this landing it read neither: every workbook was refused, and a researcher whose table arrives as `.xlsx` -- which is most of them -- could not use the tool at all.
+
+**What a workbook cell is, and why a reader's answer is not good enough.** A delimited file's cells ARE their characters. A workbook's are typed, and what a reader shows a person is derived from the type, the stored number and a format code kept in another part of the package. The study behind this decision read the same probe workbooks four ways and found the readers disagreeing about nearly every derivation: a text cell of digits comes back as the integer 123 from pandas and as the characters `00123` from openpyxl; the text `NA` becomes a missing value in pandas and stays text in readxl; an empty-string cell, an absent cell and a styled blank are three different things in the file and one missing value to pandas; a date is a number wearing a format, and the KIND of format decides whether a reader calls it a date, a time or an elapsed span. A description that recorded what some reader made of a cell could not be written back. So the reader records what the cell HOLDS -- its class and its exact characters -- and the description publishes a census of those classes. Contract section 4.3b lists every fact.
+
+**The standard library alone, and what that costs.** A workbook library would have to enter the import graph the offline guarantee is a property of (plan D6), and both Python writers corrupt exactly the cells this landing exists to carry: openpyxl turns any text beginning with `=` into a formula and stores no cached value, and xlsxwriter turns such text into a formula with a cached 0 and `http://` text into a hyperlink. So the package reads with `zipfile` and `xml.parsers.expat` and nothing else, admitted into the offline scanner as four names and two, each justified in that scanner's own table and each with a mutation test proving a neighbouring attribute is still refused. openpyxl is a DEVELOPMENT dependency the tests use as an independent oracle and that `src/synthtwin` never imports.
+
+**The file's kind is decided by its opening bytes, never by its name.** A zip package is a workbook; a compound file is a legacy or password-protected workbook; a file opening with `<` is the HTML many systems export under a spreadsheet's name. Each of the last two is refused with the sentence that tells the person what to do, because the remedy differs. The study measured why this matters: many exports named `.xls` are really HTML or 2003 markup.
+
+**Every cap is named, and each is its own refusal.** A document type declaration is refused before any content is parsed, which closes the entity-expansion and external-entity families together -- no entity is ever defined, so none can be external. The total expanded size, the per-member expansion ratio, the member count, the row and column counts (Excel's own 1,048,576 by 16,384), the shared-string count, the length of one cell's text and the number of cells the walk will read are each capped and each refused by name. A member named outside the package is refused, though nothing is ever extracted to a path. A formula is never evaluated and an external link is never followed: what a formula cell carries into the description is its CACHED value and whether a cache existed. A macro project is never read and never copied, and the report names it.
+
+**The cell cap is there because the measured bomb passes every other one.** The study's package holds 5.2 megabytes expanding to 46 -- a ratio under nine, which is ordinary -- and spends it all on one sheet of a million styled rows sitting at exactly Excel's own row maximum, so no size cap and no row cap can refuse it. Read by the first writing of this module it cost 4.5 seconds and 920 megabytes, nearly all of it the element records rather than the cells. The sheet and the stored-string table are walked as they parse now, holding only what they yield: the same file costs 3.5 seconds and 274 megabytes, and the cell cap bounds the work whatever the ratio.
+
+**Which sheet, and why not the one the readers take.** The sheet named with the new `--sheet` option, otherwise the first sheet that is not hidden, and the choice is said on screen. That is deliberately NOT what pandas and readxl do -- both take the first sheet in workbook order whatever its state, which on a workbook whose first sheet is a hidden notes page means they read the notes, as the study measured. A hidden sheet is one the person put out of the way.
+
+**Where the table sits on the sheet.** The table's width is the WIDEST row of content, and the header is the first row that reaches it; rows above it -- a title, a merged banner -- are narrower and are counted rather than read as names. The one row admitted short is the written row index pandas and R produce, whose header leaves the corner cell empty, so it is one narrower and the cell it lacks is the first. THIS RULE WAS MEASURED INTO ITS PRESENT FORM: taking the COMMONEST width instead stepped over a 28-cell header whose data rows each dropped a cell, and named the columns out of a record. Rows holding nothing INSIDE the table stay, because every reader keeps them; rows and columns of formatted blanks BELOW and BEYOND it are not the table, and are published as counts of their own. Which row holds the names is an assumption, and is published as one (`header_by_convention`), exactly as the first row of a CSV file is.
+
+**The spelling rule is the seam.** Every column path in this package reads text, so each class is written as one piece of text once -- a text cell's own characters, a number's own spelling as the file wrote it, `TRUE`/`FALSE`, an error's kind, the empty text for a cell holding nothing -- and the description publishes which class each cell came from beside the count. That is what lets the existing column machinery read a workbook column without knowing it is one.
+
+**What it discloses, and what it refuses to.** Every published key describes the file. The facts the disclosure rule names are not published at all: not the sheet's NAME, not a column width (an autofit width measures the longest value, so it measures one cell), not a comment or its author, not a hidden row, not per-row styling, not a hyperlink target, not the document's author or company, not any cache of real values. The sheet is published by its POSITION. Every census count is held to the smallest group at both ends, so neither a count nor its complement names one row; invariant WB3 is the loader's statement of it.
+
+**Carried by name.** A number format CODE is read and decides the kind, but only the KIND is published: a custom code is text out of the file, and a census keyed by codes would publish that text as a key. A twin therefore cannot reproduce a custom format code. WB5 and WB6 were drafted as invariants and withdrawn, because neither can be broken by a description -- the first is the block loader's own key check and the second is a field the producer does not have -- and a rule that cannot fail is a defect here. A workbook is read ONCE: the second, independent reading the delimited path gets from pandas has no equivalent inside the offline guarantee, and what stands in for it is the round-trip gate reading the same file with openpyxl and pandas as development oracles. Excel re-saving a book UNHIDES a hidden first sheet, so "the first visible sheet" then chooses that sheet and the person needs `--sheet`; the study measured exactly that on its own re-saved book. `.xlsb` is not read. Rich-text runs, merged cells outside the header, data validation, conditional formatting and pivot caches are not read.
+
+### P4-D78 A workbook's twin waits for the writer (landing 2b.10, 2026-09-15)
+
+`synthtwin generate` REFUSES a description whose `source.workbook` is not null, before it works out a single path and before anything is written, and says that this version can describe a workbook but not yet write one.
+
+The alternative is not "no twin" but a WRONG one. The twin is written the way its source file was (P4-D86), and the writer that produces a workbook is the next landing's. A generator that met this description today would write delimited text and call it the twin of a spreadsheet: the sheet, the cell types and the number formats the description publishes would be silently dropped, and the person would be handed a file that does not open in the program their table came from. Writing it another way QUIETLY is the one outcome the owner's ruling forbids, so the refusal says so instead and tells the person the one thing that works today -- save the sheet as CSV and describe that.
+
+**SUPERSEDED 2026-09-15 by P4-D79 (landing 2b.10, part 2).** The writer
+arrived in the same landing. `generate` no longer refuses a workbook
+description; it writes the twin as a workbook. The reasoning above is
+kept because it is the reason the twin is a WORKBOOK rather than
+delimited text under a spreadsheet's name, and that reasoning is now
+carried out rather than deferred.
+
+### P4-D79 A workbook's twin is a workbook, written by us (landing 2b.10, 2026-09-15)
+
+`source.workbook` becomes an OBLIGATION and not only a record: the twin
+of a table that arrived in a spreadsheet is a spreadsheet, and every
+fact the block publishes is a promise the twin has to keep.
+
+**REPAIRED 2026-09-16 (amendment A-P4-66), after a review measured three
+ordinary shapes outside this landing's own fixture family** -- a table
+not on the first visible sheet, a sheet whose name may not be published,
+and a macro-enabled workbook. All three are named in this decision's own
+scope and all three produced a twin that synthtwin could not read back
+or that failed its own description. What the repair establishes, and
+what each cost:
+
+* **A twin is written so that its own reader finds the table.** The
+  writer records each sheet's hidden state and hides every sheet
+  standing before the table's. Until then every sheet was written
+  visible, so a table behind a hidden notes page got a twin whose first
+  visible sheet was an empty placeholder: `profile` and `validate` both
+  refused it outright.
+* **A withheld name is not a failure to reproduce a name.** The neutral
+  name a twin writes and the name the validator expects there come from
+  ONE allocation (`dialect.twin_sheet_names`), and published names are
+  claimed before placeholders so a published name is never renamed.
+  Compared as two rendered lists, every workbook whose tab is not one of
+  fourteen generic words failed at exit 3 for obeying the disclosure
+  rule.
+* **A fact the twin is forbidden to carry is named, not measured.** The
+  macro project, the defined names and each column's formulas are
+  WITHHELD with that reason on the line, because `validate` measures
+  whatever file it is pointed at and cannot tell a twin from the table
+  it was made from. They are said to the person on the summary instead,
+  with the sheet that was read and how many names were withheld --
+  three promises (the command's help, contract 4.3b, this section) that
+  nothing on screen had been keeping.
+* **Which counts the floor holds is stated exactly.** The records
+  holding nothing are held to the smallest group (WB3) because they
+  count rows of the table; the layout counts are exempt and say why.
+  The blanket claim that every count was floored stood while five were
+  published raw, a count of one among them.
+* **A published nought and a withheld count are different facts.** The
+  twin never writes a class the census denies, and a withheld count is
+  not held against the checked file. Both directions were measured on
+  the titled book at a raised floor: eight `workbook.cell-classes`
+  misses before, none after, with the real file passing throughout --
+  a defect the landing's own gate could not see, because its tables are
+  large enough that no count is ever withheld.
+* **The caps bound something.** The cell cap was a guess of four
+  million; a review measured what that costs (about 2.4 GB and four
+  minutes). A cell costs about 600 bytes, measured, so the cap is a
+  million cells -- about 600 MB and a few seconds -- and the study's own
+  zip bomb is refused by it rather than read.
+* Two lesser repairs: `--sheet` reaches `validate`, and
+  `rows_above_header` counts every row above the header rather than only
+  the rows of content, so a reader that counts rows sees the same table
+  in the twin as in the source.
+
+**Why a writer of our own.** The study measured both common Python
+writers corrupting exactly the cells this landing exists to carry:
+openpyxl turns any text beginning with `=` into a formula with no
+cached value, and xlsxwriter turns the same text into a formula with a
+cached 0 and turns `http://...` text into a hyperlink. A twin is a file
+of values, so the writer is written here out of the standard library --
+`zipfile` alone, with the XML written rather than parsed, which is what
+keeps the generator's import graph free of anything that opens or
+parses a table.
+
+**What the twin carries.** Shared strings; a style per published number
+format code; the published cell type of every cell; the 1904 flag; the
+chosen sheet under its published name and position, with every other
+sheet written as an empty sheet of the same name; the header and the
+rows above it; records holding nothing, in place; a defined table and
+an autofilter resized to the twin's own rows; frozen panes; neutral
+document properties. It never carries a formula, a macro project, a
+link, or a cache of any kind.
+
+**What the twin withholds, and why the report names each.** A sheet's
+own name can hold a person's name, so a name is published only when it
+is one synthtwin can rebuild from its own vocabulary -- a generic name,
+optionally numbered -- and every other is WITHHELD and written neutral. A defined table's name is never published
+and the twin's table is named neutrally. The text of the rows above the
+header is never published at any floor: the twin writes as many rows as
+the source had and puts nothing of the person's in them.
+
+**The format code, and the narrowing this reverses.** Part 1 published
+the format KIND and withheld the CODE, because a custom code is text
+out of the file. That reasoning stands, and a twin still cannot be
+written from the kind alone: a date is a number wearing a format, so a
+date column written with no code comes back from every reader as
+five-digit numbers and the first goal fails. So a code is published,
+but only ever one of a closed list -- Excel's own built-in codes, which
+are the standard's vocabulary and nobody's text, plus one canonical
+code per kind. A custom code is published as the canonical code of its
+kind. THE LIMIT: the twin wears the standard spelling of a date rather
+than the one somebody typed.
+
+**A mixture is reproduced as its counts.** A column may hold more than
+one kind of format -- values wearing none and blanks wearing the text
+format is the ordinary case -- and the census publishes a count per
+kind. The twin writes a cell per count rather than giving every cell
+the column's commonest code. This was measured into its present form: a
+first writing gave every cell one code, and the validator caught a
+column publishing `plain 133, text 67` whose twin came back `plain 200,
+text 0`. An ABSENT cell is always plain, because nothing is written for
+it and every reader sees the general format there.
+
+**Records holding nothing are made by permutation.** The generator
+fills each column's missing cells independently, so no row is empty in
+every column at once and a source that had such records got a twin with
+none (measured: `empty_rows_inside` 1 became 0). The twin's columns are
+permuted WITHIN THEMSELVES so that the cells holding nothing come to
+rest on shared rows. No cell is added, removed or changed, so every
+column keeps its exact multiset of values and every published fact
+about it still holds. Where a column has fewer empty cells than the
+count asks for, fewer records are emptied.
+
+**Invariants WB5 and WB6** are the loader's statement of the two rules
+the writer needs, and unlike the WB5 and WB6 drafted in part 1 both are
+rules a description can BREAK, which is why they are invariants at all:
+WB5, a workbook names one sheet for every sheet it has and every name
+it publishes is one this version would publish itself; WB6, the number
+format a column's twin wears is one of the published codes and its kind
+is one the column's own census does not say no cell wears.
+
+**Determinism.** Every member of the package carries one fixed moment
+rather than the clock and the members are written in one fixed order,
+so the same description and seed give the same bytes. Across platforms
+the compressed stream may differ between zlib builds, which is a stated
+limit rather than a claim.
+
+**The limits this landing leaves.** The BLANK rows above a header are
+not published at all (only the rows of content above it are), so a
+reader that counts them -- pandas does -- sees fewer rows in the twin
+than in the source. A custom format code is not reproduced. A table one
+column wide cannot carry rows above its header, because the header is
+found as the first row reaching the table's width.
+
+This is a stated, temporary limit of part 1 of landing 2b.10 and it is what makes the reading half landable on its own.
+
 ### P4-D15 The date shapes a spreadsheet actually writes
 
 Four shapes a person meets constantly are read by this tool as free
@@ -9498,15 +10225,19 @@ a resample — runs on it at all. That is principle 5's case exactly: a
 column handled by an appropriate type path, or declined with an
 explanation, and this is neither.
 
-**WHAT THIS DECISION ADDS IS READING, AND ONLY READING.** The twin
-still writes ISO. That is owner decision 5 of the Phase 2 plan, which
-chose ISO twin syntax at the recorded precision rather than the
-source's lexical family, and it is why `format` is REPORT-ONLY and why
-residual R-P2-7 stands. Nothing here disturbs it, and no sentence
-anywhere may say the twin reproduces these spellings. What the person
-gains is the whole of the column's behaviour as a date — its ends, its
-ladder, its gaps, its absence pattern — and what they still owe is the
-`format` argument in their own parsing call, which R-P2-7 names.
+**WHAT THIS DECISION ADDED WAS READING, AND ONLY READING.** The twin
+still wrote ISO: owner decision 5 of the Phase 2 plan, which chose ISO
+twin syntax at the recorded precision rather than the source's lexical
+family, which is why `format` could not be reproduced at all and why
+residual R-P2-7 stood. Nothing here disturbed it, and no sentence anywhere could say
+the twin reproduced these spellings. What the person gained was the
+whole of the column's behaviour as a date — its ends, its ladder, its
+gaps, its absence pattern — and what they still owed was the `format`
+argument in their own parsing call, which R-P2-7 named. **The owner
+reversed decision 5 on 2026-09-15** (P4-D61, landing 2b.6): the twin is
+written in the member that read the real column, `format` is
+EXACT-OBSERVABLE, and R-P2-7 is retired. The paragraph above is kept as
+the record of what this decision did and did not buy when it landed.
 
 Whether the twin should write the source's own date spelling is a
 question this decision deliberately does not reopen; it is owner
@@ -9990,6 +10721,494 @@ to correct it. That is a change to what every existing user sees, and
 it is the difference between a flag people must already know about and
 a tool that tells them. Recorded here; not built.
 
+### P4-D70 A whole-number tier where the published places cannot pay (landing 2b.8, 2026-09-15)
+
+A held-back level of a column of labels that was a number is written as a number (G8.3a), at the counts of decimal places the PUBLISHED numbers were written with. Where every published number carried a decimal and the census NAMES the form those places write, every candidate of the only tier there is is stepped past for wearing a named form, the tier is empty, and the class debt goes unpaid: a column publishing `5.1` and `5.3`, whose census names `%.%` and pools nothing, beside a held-back `7`, wrote two cells the table holds as numbers as words instead — twenty-five numeric against a published twenty-seven, two checks missed, and the real table passing its own description. Since this decision, where the finished walk leaves the number debt unpaid the walk is taken again with a last tier of no places at all, and that answer is kept only where it covers more of the debt. The tier is asked for by the DEBT and not by the supply, because a supply counted before the walk says how many numbers exist rather than how many this column may wear; it is last, and a tier is reached only once the one before it has ended, so a column of `d.d` readings whose own places pay never takes a bare integer — which matters because an integer there passes the form census and breaks a check written against the table's own spelling, the first goal. Raised by the review of landing 2b.4 (item 6).
+
+### P4-D71 A report may not tell a column it published no number (landing 2b.8, 2026-09-15)
+
+The ladder of G8.3a is built from the PLAIN decimals among a column's published spellings, so a column publishing `1.1e6` and `1.2e6` on eleven rows each has an unanchored ladder although it published numbers. The twin's report then printed the sentence written for a column that published nothing: "this column published no number at all". That is false on its face, and a reader who checks the description finds the numbers and stops believing the report — which this repository treats as a defect and not a nuance. The two cases are now told apart and the second says what is true: every number the column published is written in a way this version cannot step from. **What is NOT decided here is placing them.** Building anchors from the exponent, grouped and leading-plus spellings was built and withdrawn on measurement at landing 2b.4's integration, because the leading-plus column then lost `n_numeric` and `n_not_numeric`; trading a class count for a location is the wrong direction under the first goal. The invented location stands, named; the false sentence does not. Raised by the review of landing 2b.4 (item 7).
+
+### P4-D72 A text stand-in reads as no numeric class at all (landing 2b.8, 2026-09-15)
+
+The neutrality property of a stand-in owing ORDINARY TEXT was asked as "does this read as a NUMBER", which is one of the four classes of G10.2 — so the other two walked through it. A spelling of the census form `%%@%%%` that is a well-formed number too large for binary64, `47E807`, was written for a level owing ordinary text, and a sign inside accounting parentheses, `(-1)`, was accepted the same way. A column of `12e400`-style values beside four text levels came back with twenty-seven out-of-range cells against a published twenty-five and eighteen text against twenty, three checks missed and the real table passing its own description. The question asked of a text stand-in is now the class partition's own, under both grammars, exactly as the number property was already asked twice. Raised by the review of landing 2b.4 (item 8).
+
+### P4-D73 A number given no form may not wear one the census names (landing 2b.8, 2026-09-15)
+
+On a column of free text, G9.5 step 3a gives every number group carrying no published end the shortest length its band still has a spelling for. The rule knew nothing of the census, and every number of the wide band four characters long is written `%%.%`. A column of 800 rows publishing `%%.%` on 199 cells had those 199 settled exactly by step 7 and then gave forty-eight groups the census owed nothing a length of four, so the twin wore that form on 247 cells and failed its own description while the table passed. Such a group now steps over the lengths whose form the census names. Where no length inside the published ends escapes them the first length with room stands, the census is missed and the report names it, which is the outcome G9.5 step 3b already states for a column no exchange can settle. Raised by the review of landing 2b.4 (item 4).
+
+### P4-D74 A cell of nothing but space wore a spelling (landing 2b.8, 2026-09-15)
+
+`_missing_maps` counted every absent cell whose trimmed form was empty in `n_missing_blank` and lost its characters, so one space, two spaces, a tab and a no-break space were published as the same number as a cell that held nothing at all, and the twin wrote all of them empty. Measured on the audit's own shapes: a 500-row column of readings published `n_missing_blank: 315` where 177 of those cells held a space, two spaces or a no-break space; a 600-row column of labels published `n_missing_blank: 324` the same way; and the plain-language summary then told the reader "324 cell(s) with nothing written in them", which was false of 195 of them. Nothing the description published could tell the two files apart, and `pandas.to_numeric` runs on the twin and raises on the real table -- the first goal failing in silence, which is the class of defect this repository treats as worst.
+
+Blank now means the EMPTY spelling and nothing else. A whitespace-only spelling is an ordinary key of `missing_by_source`, stored character for character, held to the small-cell floor like every other spelling, pooled into `n_missing_withheld` below it, and written back by the twin at its count. The class map is unchanged: `(blank)` still reads such a cell as blank, because the REASON it is absent is that nothing meaningful was written there, and contract 5.4.4 now states the two questions apart rather than leaving a reader to infer that two numbers answering different questions disagree. The loader refuses the empty spelling as a key, since a document naming it both ways would count one cell twice in N3.
+
+**What is NOT decided here.** Whitespace-only spellings on a free-text or declared-identifier column are still emptied, because those columns publish no `missing_by_source` at all (C6-49); that is LTM-2 of the spelling audit and it is a change to the publication class, not to this rule. A ONE-COLUMN table holding whitespace-only rows is still refused with a message about the file changing while it was read, because the streaming pass keeps such a line and `pandas.read_csv(skip_blank_lines=True)` drops it; the refusal is false and is named in the audit, and repairing it means making both passes agree about a blank line without dropping a legitimate row of all-absent cells in a multi-column table. Both are carried by name.
+
+### P4-D75 A published form is settled before the lengths, and only in its own band (landing 2b.8, 2026-09-15)
+
+LTM-8 of the spelling audit, whose skeptic agreed with it and added that the trade-off bought nothing: the twin missed the form census AND the length average together. A column of free text whose census names written forms had those forms offered only after step 5 had walked every group's length toward the published average, and then only while a budget of ONE CHARACTER over the whole column could pay for the difference. The walk parks nearly every group on the middle length, so a form of any other length was refused almost everywhere. Measured on 800 rows of `%%%-@@@`-style codes: the census publishes FORTY forms of lengths four to seven, the walk put 777 of 791 groups at length five, and the twin missed ALL FORTY — 405 cells short, written `?!!!#` and `R---3` out of the fallback alphabet. `synthtwin validate` exits 3 and the real table passes, so this one is LOUD rather than silent; what it costs is that `rid.str.split('-').astype(int)` raises on the twin and runs on every real row, which is the first goal failing.
+
+The budget is NOT withdrawn. It was measured and ratified (review round 2 finding 9), it is what keeps a blood-pressure column's four forms together with a column whose census asks for lengths its average does not want, and a test pins it directly. What changes is the ORDER, which is the precedence rule the section already states: the census is EXACT-OBSERVABLE and `length.mean` is APPROXIMATED. The form each group would wear is settled FIRST, by the same offer asked with a budget no column can spend; that group's length and word count are then held through step 5, exactly as a number's own length is already held; and the published average is carried by the groups no form spoke for. The walk's own offer then costs the budget nothing, because the group already stands at the form's length.
+
+A form is also offered only to a group of the BAND its spellings are written in, on the same ground that landing 2b.4 made the offer class-aware. `%%%-@` fills to `000-A`, which the code alphabet holds; `%%/@` fills to `00/A`, which it does not. The walk already refused such a candidate and missed the census instead, so the ask spent the form's debt on a cell that could never be written: with the lengths held, the asks covered all 715 cells owed and 350 of them — 354 cells, the entire remaining shortfall — went to groups of the wrong band.
+
+With both rules the forty-form column wears every form at its published count and validates with nothing missed at three seeds, and so does a column of REDCap `arm-record` identifiers. Twins of shapes with no named form are byte-identical to the base commit, which is measured rather than argued: a column of prose publishes an empty census, so nothing is settled, nothing is held and the walk is what it was.
+
+**THE REPAIR PASS: THE PACKED WORD COUNT IS EXCHANGED TOO.** The review of this landing found the rule above NARROWED rather than fixed, and it was right. Holding the form's LENGTH freed one of the two packed numbers the census was being refused for; the packed WORD COUNT was still holding the other, and `_wanted_form` refused every candidate before the band filter was even reached. A notes column mixing one-word codes with multi-word prose therefore still missed its WHOLE census — 320 of 800 cells, all three published forms, `synthtwin validate` exiting 3 while the table passed — identically on the base commit and on the first pass of this landing. The settling ask now exchanges the word count on the same terms as the length: only where the group can still stand in the class and alphabet cell the packing gave it, and never for a group carrying a published word end. Measured across four draws of that shape the census is met exactly and both validations return 0; a column of sentences beside one-word tags goes from missing its census, its word clamp and `words.mean` (2.033 against 3.0) to meeting all three; and a telephone column of two conventions goes from one cell short of its 532-cell form to wearing it exactly.
+
+**What that costs, stated rather than discovered.** A group held for a form is a group the walk toward `length.mean` and `length.p50` cannot move, so an approximated average can land outside the reach G12.6 computes. That is the precedence rule working as written — an exact count outranks an approximated average — and G12.6's own ruling that **the bound is not widened to swallow it** is kept, not relaxed: the telephone column reports `length.mean` MISSED at 12.934 against 12.936 in a window 0.002 wide, and the sentences column reports `length.p50` MISSED. Both are named in the report as approximated facts the twin did not hold, which is what that section requires. The alternative — widening the window because the construction moved — is the thing G12.6 forbids in those words.
+
+**What is NOT decided here.** The twin of a free-text column still holds no letter of its own alphabet, no line break, no tab, no non-ASCII character and no edge whitespace, and an all-upper-case note column comes back with no letters at all; the interior length rungs still collapse onto the published middle. Those are LTM-3, LTM-4 and the two free-text MISSED items, and they are carried by name rather than repaired here.
+
+### P4-D85 A column that publishes no value still names synthtwin's own words (landing 2b.12, 2026-09-16)
+
+LTM-2 of the spelling audit, whose skeptic reproduced it and added the design gap this decision takes. A column whose publication class publishes no value of the table — free text, a declared identifier, numbers no format can hold — had `missing_by_source` emptied WHOLE on the way out, together with both absence counts. The reasoning was sound about the table's text and wrong about this format's own: `NA`, `N/A` and `NULL` are members of the published vocabulary, which C6-31 fixes as containing no text from any table.
+
+**Measured, on 500 rows of free text with 101 blank and 174 `NA`/`N/A` cells, at two source seeds and two generate seeds.** Before: `missing_by_source {}`, both absence counts 0, the twin writing 275 empty cells where the table wrote 101, and — the part that makes this more than a fidelity miss — the REAL TABLE failing its own description at exit 3, with `presence.n_present` asking 225 and the file found to hold 399, because a description naming no spelling cannot be read back. After: `{"N/A": 95, "NA": 79}` with `n_missing_blank: 101`, the twin writing each spelling at its published count, and both validations returning 0. A declared identifier with 59 `NA` cells behaves the same way: 111 empty cells become 52, its `NA` comes back, and its real-table validate goes 3 to 0.
+
+**The rule is enforceable, which is why it is drawn here and not wider.** Every key of such a column names a member of the published vocabulary under C6-32's one operation, and the loader refuses a key that names none. A spelling of the PERSON'S own words is NOT admitted, declared or not: a declaration is recorded as a count and never as text (C5-17), so no document tells `Not documented` declared from `Not documented` written in a cell, and a rule no consumer can check is not a rule this format writes. Those cells stay in `n_missing_withheld`, and the cost is named rather than discovered — a person declaring a word of their own on such a column gets blank holes in the twin.
+
+**Two invariants move with it.** N3's sum now closes on every column rather than on all but these. N6 stops saying the two absence counts are zero on exactly the nothing-publishing columns — they are not, since such a column accounts for its cells like any other — and says instead that the class is read from `role` and `structural_role`, which every block publishes. The inference from a nought is withdrawn rather than narrowed, which is also what the disclosure rule asks: what is not published is ABSENT, never a nought a reader can tell from a real nought.
+
+**What is NOT decided here.** A whitespace-only key names the empty member and is admitted on that ground, which is landing 2b.8's own rule (C6-125) and not new. The sentinel candidate is untouched and still reads `(withheld)`.
+
+### P4-D93 A class arrangement that strands a feasible form debt is not taken (landing 2b.13, 2026-09-16)
+
+**RENUMBERED AT THE INTEGRATION OF LANDINGS 2b.6 TO 2b.8 (2026-09-16).** This decision and the next were written as P4-D90 and P4-D91 on the branch of landing 2b.8 (carried-2b18-identifier-layout), whose part called itself landing 2b.13; landing 2b.7's branch had already taken both numbers for the wide-run question above, under the same part name, and merged first. They are P4-D93 and P4-D94 now, every citation on this branch's lines was renamed by line provenance, and P4-D92 beside them kept its number because nothing else took it.
+
+Codex item 5 of landing 2b.4, which landing 2b.8's skeptic reproduced on both trees and recorded NOT_FIXED. Method G8.3a settles the CLASS debts of the held-back levels first and the FORM debts inside each class afterwards, and the first settlement knew nothing of the second — so an arrangement that meets every class exactly could make a form debt arithmetically impossible.
+
+**Measured, on the reviewer's own column at two source seeds.** Readings `5.1` and `5.3` on eleven rows each beside `ab-cd` on twenty, with `5.2` on four rows, `8` on one, `retest` on three and `hold` on two, at a floor of eleven. Five cells must read as numbers and four of them must wear `%.%`. The held-back sizes are 4, 1, 3 and 2; `_class_split` took 3+2, which makes five exactly and four not at all. The twin wrote TWENTY-SEVEN cells of `%.%` against a published twenty-six, `synthtwin validate` exited 3 on the twin and 0 on the table, and the twin's census carried `6.9` twice where the table had `5.2` four times. The source's own 4+1 meets both obligations. After: `%.%` written twenty-six for twenty-six published, twin validate 0 and real validate 0, at both source seeds.
+
+**The rule is arithmetic, not search.** An exact class arrangement is accepted only where, inside each class, the forms reading as that class can themselves be settled exactly over that class's sizes by the same reachable-sums walk, both debt orders, each form's supply counted as the number of sizes. Where they cannot, another exact arrangement is tried — each pass forbidding one more of the places the refused arrangement spent, so the passes reach genuinely different subsets — up to eight passes, and the FIRST exact arrangement stands where none of them can.
+
+**Two guards keep it from being worse than what it replaces.** A form owing more cells than the whole class covers is unpayable under every split, so it is not asked and cannot veto an arrangement for failing to do the impossible. And the supply is COUNTED rather than walked: this asks only whether the arithmetic exists, and step 3's walk still reports whatever the supply then refuses, so preferring an arithmetically possible arrangement can never be worse than taking the first one blind. Where the census names no form, or no class debt is owed, the answer is the one the split always gave and no twin's bytes move.
+
+### P4-D94 A published form reads as a number where its exponent filling does (landing 2b.13, 2026-09-16)
+
+Codex item 7 of landing 2b.4, which landing 2b.8 answered on its report half — the sentence claiming the column "published no number at all" was false and was replaced — and left unfixed in the product, where its skeptic recorded PARTLY.
+
+**Measured, at two source seeds.** A column of thirty `alpha` cells beside `1.1e6` and `1.2e6` on eleven rows each and `1.3e6` on four, at a floor of eleven. `_filled_form` puts `A` in the first letter place, so `%.%@%` — the form those cells wear — fills to `0.0A0`, which reads as TEXT. The form was therefore offered to the word debt and never to the number debt: the four held-back cells were written `1`, the census named `%.%@%` twenty-six times while the twin wore it twenty-two, and `synthtwin validate` exited 3 while the table passed. The twin's numbers had mean 973,077 and minimum 1 against the table's mean 1,173,077 and minimum 1,100,000. After: the form is worn twenty-six times for twenty-six published, twin validate 0 and real validate 0, at both seeds.
+
+**Two halves, both stated where a reader meets the rule.** A form's class is its first filling's, and where that reads as no numeric class the EXPONENT filling is asked as well — every figure place `0`, every letter place `E` — because a letter place holding `E` is what makes a form of figures and one letter a number. Only NUMBER is answered this way; the out-of-range and contradictory classes are constructed outright by G10.3. And a number form has TWO SUPPLIES: step 3 spells a plain decimal, whose form is `%.%` and never `%.%@%`, so a form the ladder cannot spell had supply nought and was settled over no level at all. Its supply is now the larger of the ladder's and its own filling's, and a level owing such a form takes the form's own walk — `9.6E6`, which wears the form and reads as a number, so it meets the census and the class count together.
+
+**WHAT IS NOT FIXED, and it is two thirds of the item as Codex stated it.** Codex named leading-plus and grouped spellings as reproducing the same failure, and they do: a column publishing `+11` and `+12`, or `1,100` and `1,200`, still misses four cells of its published form at both seeds, twin validate 3 and real validate 0. Their cause is NOT this one. `+00` and `0,000` already read as numbers at the first filling, so the form reaches the number debt; what refuses them is the stand-in neutrality rule of G8.3a, which will not write a cell opening with `+` — a character a spreadsheet reads as the start of a formula — nor a cell carrying a comma on a column not read with one. Both refusals are there to stop a twin cell being re-read as something it is not, and widening them is an owner ruling about formula-leading and comma-bearing made-up cells that nobody has given. It was not taken here.
+
+**The location is still nothing the description places.** These numbers wear their form and read as their class; where they LIE is invented, exactly as `_HELD_BACK_UNSPELLED_REASON` already tells the reader in those words. That is landing 2b.4's left_undone item 5 and this decision does not close it.
+
+**AMENDED BY P4-D92 (repair pass, 2026-09-16).** The sentence above about where a made-up number lies was too small a statement of the cost. The form's own walk as this decision shipped it wrote `9.6E6` — a magnitude seven times the largest number the column holds — and, because that column publishes no numeric bound, no obligation could catch it and `synthtwin validate` fell from 3 to 0. P4-D92 holds the walk to the published numbers' own ends: read this decision's promise as "a level owing such a form takes the form's own walk **where that walk can reach a number the column is known to hold**, and otherwise the debt stands unsettled and reported".
+
+### P4-D92 A made-up number of a form's own walk stays inside the published ends (landing 2b.13 repair, 2026-09-16)
+
+The review of landing 2b.13 recorded this as a BLOCKER, and it was right to. P4-D94 gave a number form a second supply — the form's OWN filling, where step 3's ladder cannot spell it — and put no bound on what that filling wrote.
+
+**Measured, at seven generate seeds on the reviewer's own column.** Thirty `alpha` cells beside `1.1e6` and `1.2e6` on eleven rows each and `1.3e6` on four. The form's own walk wrote `9.6E6` for all four held-back cells at every seed. The census was met exactly, twenty-six of twenty-six — and the twin's numbers had mean 2,450,000 and maximum 9,600,000 against the table's 1,173,077 and 1,300,000, a standard deviation 42.9 times the table's against the 5.9 times it replaced, and the maximum overshooting the table's by 7.4 times. `synthtwin validate` exited 0 on that twin where it had exited 3. The column's description publishes no numeric ladder, minimum or maximum at all, so no obligation existed that could ever catch it: a detectable defect had been exchanged for a larger undetectable one, and the exit code that announced it was spent buying the census count.
+
+**Why the walk had no bound.** Step 3's ladder is BUILT from the published numbers and steps from them — the gaps between the two ends first, then outward a step at a time — so every number it writes sits in or beside the span the column is known to hold. The form's own walk is not a ladder: it fills the form's figure places by plain counting, and the first spelling it reaches that reads as a number is wherever the counting arrives, with nothing whatever to do with the column's magnitudes.
+
+**The rule.** A spelling of a form's own walk is refused where its VALUE lies outside the published numbers' ends, and the supply is COUNTED under the same bound it is spent under — counted loosely, the form is settled over a level the walk then cannot cover, and the shortfall is reported as a missing spelling rather than as the bound that is really refusing it. Where the column published no plain decimal at all the ladder has no ends: **nothing places a made-up number there**, so every spelling is refused, the debt stands, and the report line and the exit code that announce it stand with it. Only the number class is bounded; an out-of-range or contradictory stand-in is built outright by G10.3 and means a magnitude no envelope covers.
+
+**AMENDED BY P4-D100 (landing 2b.15, 2026-09-16).** The sentence above about a column that published no plain decimal is too strong, and it cost the very census count this decision was trying to keep. Such a column has no RUNG to step from, which settles the walk of step 3; it does not follow that it has no ENDS. Read that sentence as "where the column published no NUMBER at all the ladder has no ends"; where it published numbers this walk cannot step from, the ends are those numbers' own values.
+
+**A detectable miss is not traded for an undetectable one.** The ruling that statistics on the twin are reliable ranks with the ruling that code developed on the twin runs unchanged, and a repair that buys the second with the first is not a repair. Where the two cannot both be had, the obligation goes unmet LOUDLY.
+
+**AMENDED BY P4-D101 (landing 2b.15 repair, 2026-09-16).** The sentence above states the rule this walk can ENFORCE, and it enforces it on the candidate: a spelling whose value leaves the published ends is refused however much census it would buy. It does not hold where the HELD-BACK LEVEL is the thing outside those ends, because no fact below the floor reaches this walk and nothing here can tell that column from one whose held-back level sits inside the span. There the census is paid from inside the span, the exit code goes quiet, and the twin's spread narrows against the table's. Read the sentence as "a detectable miss is not traded for an undetectable one WHERE THIS VERSION CAN TELL THE TWO APART"; P4-D101 names, measures and pins the case where it cannot.
+
+**What this costs and what it keeps.** On Codex's own column the census miss returns, at twin validate 3 and real validate 0, with the four cells written `1` exactly as before landing 2b.13 — the numbers are back to mean 973,077 against the table's 1,173,077, and the low side of that is the unanchored walk's own known limit, which `_HELD_BACK_UNSPELLED_REASON` reports in the twin's report. P4-D94 is NOT withdrawn: on a column publishing the same census beside plain spellings — a spreadsheet turning to scientific notation partway down — the ladder has ends, the form debt is met in full, and the made-up cells come back `5.0E6` inside a span of 1,000,000 to 9,000,000, with the twin's numbers at mean 3,235,417 and standard deviation 3,318,790 against the table's 3,277,083 and 3,343,728. The census count and the twin's statistics are had together, which is the only way either is worth having.
+
+### P4-D100 The published ends of an unanchored column are its values, not its rungs (landing 2b.15, 2026-09-16)
+
+P4-D92 was right about the trade and wrong about where the ends come from. It asked the LADDER for them, and the ladder is built from plain decimals alone (`_plain_units` reads an optional minus, figures and at most one point). So a column whose every published number wears an exponent, a grouping mark or a leading plus had `anchored` False, no ends of any kind, and every spelling of its own form refused.
+
+**Measured on the base, at seven generate seeds, on all three of those spellings alike.** Twenty `alpha` cells beside two published numbers on eleven rows each and one held back on four. The census names the number form twenty-six times and the twin wears it TWENTY-TWO; the four held-back cells are written `1`; `synthtwin validate` exits 3 on the twin and 0 on the table. Exponent (`1.1e6`, `1.2e6`), grouped (`1,100,000`, `1,200,000`) and leading-plus (`+1100`, `+1200`) give the same four-cell shortfall.
+
+**The rule.** The ends of G8.3a step 2's bound are the smallest and the largest VALUE the column published, read with the column's own grammar, whether or not step 3 can step from the spelling carrying it. Only a column that published NO number at all has no ends, and there every spelling is still refused. The ladder's own walk is untouched: `anchored` still answers from the rungs, `unplaced` still answers from `anchored`, and `_HELD_BACK_UNSPELLED_REASON` still tells the reader the location is invented and that a statistic computed over it means nothing about the table. The bound was never about placing the number — only about how large it may be.
+
+**What it closes.** An unanchored exponent column publishing 1,100,000 to 8,800,000 now writes `5.0E6` for its held-back level: the census is met twenty-six of twenty-six, twin validate goes 3 → 0 at all seven seeds, and the twin's numbers improve as well — mean 4,957,692 against the table's 5,034,615 where the unpaid twin gave 4,188,462, spread 3,611,667 against 3,617,285 where it gave 4,044,881, and the minimum 1,100,000 against a `1` the table never held. Three orders of magnitude down the same column writes `4.6E2` and the twin's mean and spread equal the table's exactly, 506.54 and 277.47. **That holds where the held-back level lies INSIDE the published span, and the first statement of this decision said it without that clause, which the review was right to call a BLOCKER: where the held-back level lies outside the span the census count is bought AGAINST the statistics, and P4-D101 names, measures and pins it.**
+
+**What it does NOT close, and each is named rather than left to be found.**
+
+1. **A published span with no reachable spelling of its form.** The reviewer's own column publishes 1,100,000 to 1,200,000, and the only spelling of `%.%@%` the form's own counting walk reaches in that magnitude is `1.3E6` — whose value is above the published maximum. Paying the debt there means writing a number larger than any the column published, which is exactly the trade P4-D92 forbids on measurement, so the debt stands at four cells and validate still exits 3 while the table passes. A test pins that, so the limit cannot later be closed by cheating.
+2. **The grouped and leading-plus forms can never be paid by any stand-in at all**, and not because of this bound. Of 4,096 candidates of `%,%%%,%%%` and of `+%%%%`, the neutrality rules of G10.3 refuse 4,096: a stand-in carrying a comma is refused on a column not read with a decimal comma, and one opening with `+` is refused as a spreadsheet formula leader. Both refusals are deliberate and both are older than this landing. Their columns reach the bound with nothing left to ask it, so the four-cell shortfall stands there for a different reason and is reported the same way.
+3. **A column publishing plain numbers BESIDE unsteppable ones** keeps the ladder's own ends, which may be narrower than its values: `exponent_and_plain` is unchanged at four short. Widening the anchored case would move bytes on a shape this landing did not measure, so it is left as it stands. **The repair pass pinned it**: a column publishing `1100000` and `1200000` beside `8.8e6` has rungs 1,100,000 to 1,200,000 and a value span reaching 8,800,000, its stand-in is `''` under the rungs and `5.0E6` under the span, and a round trip now asserts it goes short at exit 3 — so the mutant that widens the anchored branch to the value span turns red instead of passing.
+4. **A held-back level lying OUTSIDE the published span** is paid from inside the span, which meets the census and moves the twin's numbers away from the table's. This is P4-D101, below.
+
+### P4-D101 What the unanchored bound costs where the held-back level lies outside the span (landing 2b.15 repair, 2026-09-16)
+
+The review of landing 2b.15 recorded this as a BLOCKER and was right to. P4-D100 closed the debt and claimed the census count and the statistics were had together; that is true where the held-back level lies inside the published span and false where it lies outside, which is the commonest place for a rare value — a tail.
+
+**Measured, at three generate seeds each, base against the landed tree.** A column of twenty `alpha` cells beside two published levels of eleven rows and one held back on four, at a floor of eleven.
+
+| shape | held-back level | base | this rule |
+| --- | --- | --- | --- |
+| `rare_low` (5.0e6, 8.8e6 published; 1.1e6 held back) | below the span | `1` ×4, twin validate 3, mean 2.82% low, spread 11.56% high | `8.1E6` ×4, twin validate 0, mean 17.93% HIGH, spread 33.96% LOW |
+| `two_rare_low` (4.0e3, 9.0e3; 1.0e3 and 1.2e3 held back) | both below | twin validate 3, mean 3.92% low, spread 10.01% high | twin validate 0, mean 20.40% high, spread 20.09% low |
+| `rare_high` (1.1e6, 5.0e6; 8.8e6 held back) | above the span | twin validate 3, mean 34.41% low, spread 23.27% low | twin validate 0, mean 23.46% low, spread 34.51% low |
+| `rare_inside` (1.1e6, 8.8e6; 5.5e6 held back) — the control | inside | twin validate 3, mean 16.81% low, spread 11.82% high | twin validate 0, mean 1.53% low, spread 0.16% low |
+
+The direction is not uniform — `rare_high`'s mean improves while its spread worsens — and the spread narrows in every outside case, because a stand-in inside the span replaces a value outside it. What IS uniform is that a shortfall the reader could see at exit 3 becomes exit 0.
+
+**Why it is not closed by choosing a different number, measured rather than argued.** The review proposed preferring, among the in-span candidates of the form's own walk, the one nearest the published values. Built as a full tree copy and measured at the same three seeds: `rare_low` improves on the mean (17.93% → 14.85%) and worsens on the spread (33.96% → 35.90% low), `rare_high` does not move at all, and `two_rare_low` FALLS BACK to twin validate 3 — the close itself regresses, because taking the nearest spelling for the first held-back level leaves none reachable for the second. No choice dominates: the base's `1` is nearer the truth on a level below the span and far from it on a level inside the span, and this version cannot tell those columns apart.
+
+**Why it cannot be detected here.** Nothing below the floor reaches this walk — that is the disclosure rule, not an oversight — so the generator knows the held-back level's SIZE and never its value. A rule that declined payment on the tail case would have to read the held-back value, which no generator rule may do.
+
+**What is done instead.** The claim is withdrawn where it was unqualified (P4-D92 above, P4-D100 above, and the step 2 paragraph of method G8.3a); the limit is named here with its measurement; the twin's report no longer tells the reader those cells count upward from the smallest step the column's forms write, since they do not; and a round trip on `rare_low` pins what the twin actually does, so the next reader meets the cost rather than rediscovering it. P4-D100 is NOT withdrawn: the shapes it closes stay closed, and the debt it settles is still owed.
+
+**The carried owner question reaches this path too, which the landing report denied.** Landing 2b.12's open question — may the twin pair an invented value with an exactly published withheld count? — was reported as living on the anchored, plain-decimal path alone. Measured on the landed tree at four generate seeds: a column publishing `1.1e6` and `8.8e6` on eleven rows each with `5.0e6` held back on four publishes `suppressed_level_counts` [4] and no spelling of `5.0e6` anywhere, and the twin writes `5.0E6` on exactly four rows at exit 0, where the base wrote `1` four times at exit 3. The stand-in is a deterministic function of published facts alone, which is the defence the anchored path already rests on; the owner should nonetheless be told the question now covers both paths before ruling. **Answered by the owner's ruling of 2026-09-17, item 2, option A (P4-D201):** no withheld count is published exactly any more, so an invented value is paired with a size read off the pooled total, never with a published size.
+
+### P4-D120 A record number keeps its LAYOUT, and a literal run waits for the owner (landing 2b.18, 2026-09-16)
+
+A declared identifier published its two length ends and its two alphabet counts, and between them they said nothing about what a record number LOOKS like. The audits found it four times over — LTM-5, LTM-6, NC-9 and NC-9's MISSED item M1 — and every one of them was SILENT: both files passed their own description at exit 0 while the twin matched none of its own rows.
+
+**Measured on the base, six shapes at two source seeds and two generate seeds, 800 rows each.** The column's own pattern matched 800 real cells and 0 twin cells on every shape: a UUID came back `A----------------------------------J`, a braced GUID as thirty-four interior spaces with no braces, `NYC-2033` as `A------J`, `02254257` as `10000020` counting upward, and a column mixing a ten-character and a seven-character system collapsed its length mix from `{10: 573, 7: 227}` to `{7: 799, 10: 1}`.
+
+**The decision.** The identifier role publishes a seventh key, `layout_forms` (contract 7.12): a floored census of POSITIONAL LAYOUTS, one mark per character saying what KIND of character stood there and never which one. The generator writes each cell to its published layout (method G9.6). Because a layout is one mark per character it is exactly as long as its cell, so the census of layouts IS the census of lengths and NC-9's lost length mix comes back in the same key, with nothing separate to drift out of step with it.
+
+**What it closes, measured on this tree at the same seeds.**
+
+| shape | base twin | this rule |
+| --- | --- | --- |
+| `uuid` (36-character lower hex) | 0/800 match, `A----…J` | **800/800**, twin validate 0 |
+| `guid` (braced upper hex) | 0/800, 34 interior spaces, no braces | **800/800**, twin validate 0 |
+| `site_code` (`NYC-2033`) | 0/800, `A------J` | **800/800**, twin validate 0 |
+| `padded` (`%08d`) | 0/800 leading noughts, `10000020` upward | **800/800** leading noughts |
+| `lower_hex` (bare 12-character token) | 0/800 | **800/800** |
+| `mixed_length` (a three-letter run and seven figures, beside one letter and six) | lengths `{7: 799, 10: 1}` against `{10: 573, 7: 227}` | lengths EXACT; layout pattern 800/800; the LITERAL pattern is the owner's question below |
+
+**The alphabet convention is the COLUMN's and never one cell's, and that was measured rather than assumed.** A hexadecimal mark decided character by character gives 800 braced GUIDs 800 different layouts, not one of which reaches two cells, because a figure is ambiguous between the two cases; and it gives a column of site codes three, because `B` is a hexadecimal letter and `O` is not. Decided once for the column, each of those publishes exactly one layout covering 800 of 800. This contradicts the design landing 2b.15 handed over, and the measurement stands in place of the argument.
+
+**A cell is written to a layout only where it RECOUNTS INTO that layout.** `%%%%` filled at a step whose leading figure is nought spells `0123`, whose layout is `!%%%`; before that guard a column publishing `!%%%%%%%` 480 and `%%%%` 320 wrote 33 of its 320 four-character cells with a leading nought — a zero-filled four-figure spelling its source never wrote — and went MISSED at exit 3. With the guard the same column comes back `{bare-4: 320, pad-8: 480}` against the source's own `{bare-4: 320, pad-8: 480}`, exactly, at exit 0.
+
+**The census is SPREAD over the identities, and that was measured before it was built.** The first form of the walk took, for each group in walk order, the first layout in sorted order with room left. The walk reaches the identities written once before those written more often, so on a two-system key of encounters — `REC` and seven figures beside `E` and six, 800 rows, identities recurring one to three times, one row in twenty missing — every census held at exit 0 and the one-letter system came back as 217 singletons and no repeat, against the table's 71 singletons, 34 doubles and 26 triples; the three-letter system took every repeat. At three source seeds the same held: 217/0/0, 214/10/0 and 204/27/0. The rule now spreads the census by the smooth weighted rotation P4-D39 spends a separator census with, visiting the groups largest first so a group covering three cells always finds a layout with three left: the same columns come back 67/27/32, 65/35/33 and 68/44/34, both systems recur, both files still validate at exit 0, and the `NA` and empty cells come back at their counts. A column whose two systems sit in DIFFERENT alphabet bands — six figures beside a letter and five — is not moved by this rule and still ties the figures system to the identities written once: that tie is made by the band packing of G9.4, which assigns the published alphabet counts to groups before any layout is offered, and it is named here as that packing's limit rather than this landing's.
+
+**A declared code column at a floor of twenty, re-measured.** The base twin's mean cell length is 4.004 against the real column's 6.126 — a third SHORT, the walk taking the shortest room first — with the length mix collapsed from `{4: 233, 7: 567}` to `{4: 799, 7: 1}`. On this tree it is `{4: 233, 7: 567}`, exactly, ratio 1.000. **THIS PARAGRAPH FIRST SAID IT CLOSED WHAT LANDING 2b.12 CARRIED, AND THAT WAS WRONG** (corrected in the same landing's second part, P4-D122): the carried item was a different column — UNDECLARED, a long tail of `4-F` beside `12-AB` and longer, whose stand-ins came back a third too LONG as `group-N` — and no identifier census reaches it. P4-D122 is what closes it.
+
+**THE LIMIT THE DISCLOSURE RULE IMPOSES, stated because it is real and must not be "fixed".** A layout whose possible spellings number fewer than `n_distinct + floor` is NOT published, because a layout with a small supply names the values it describes — `%-` has exactly ten. Measured: a column of `007` beside `7` publishes `%%%` and nothing else, because `%` has ten spellings and `!%%` a hundred, and the twin's one-figure and zero-filled three-figure cells are therefore unconstrained. That is the disclosure rule working as written, not a defect of this walk, and a reader should expect a column of very short codes to publish little or nothing.
+
+**AND THE LITERAL RUN IS NOT BUILT, which is the owner's question.** A constant run shared by a whole column — a hospital's own record prefix, `ABC-`, a single leading `Z` — is a character-for-character fragment of every value in that column, which contract invariants I3 and F3 forbid and which landing 2b.15 referred to the owner as a clause-3 ruling. **What a reader gains once the owner rules, precisely:** today the twin of a prefixed column writes `@@@%%%%%%%` from its own alphabet, so `df.record.str.startswith(<the prefix>)` selects 0 twin rows and 573 real rows of 800, and the key-format check `^(<prefix>\d{7}|E\d{6})$` matches 800 real cells and 9 twin cells — the nine being the accidents of a one-letter layout landing on `E`. The layout-level pattern `^([A-Z]{3}\d{7}|[A-Z]\d{6})$` already matches 800 and 800. So what the ruling buys is exactly the literal: the prefix predicate and any lookup keyed on it. **What it costs** is what I3 forbids — the run is a fragment of every value in the column, population-wide rather than any one person's, which is the whole of the question being put. **Ruled 2026-09-17 (item 1, P4-D202):** the prefix is published where every present cell carries it and the column clears the smallest group size, and I3 and F3 are amended for that case only.
+
+**CORRECTED AT THE REPAIR PASS (P4-D124 to P4-D128).** Four statements above were measured on six shapes and were not true of the role: the census published counts of one and a remainder of one, which P4-D124 forbids; `!` marked only the first nought of a fill, so `%08d` of small numbers lost its width (P4-D126); a column of hexadecimal tokens could publish a layout its twin could not fill and fail at exit 3 (P4-D125); and M1's own spaced example had no layout at all (P4-D127). The rules are amended in contract 7.12 and method G9.6 and stated in those decisions.
+
+### P4-D121 A form census carries the case of its letters, under the disclosure rule (landing 2b.18 part 2, 2026-09-16)
+
+LTM-6 for the five roles that publish `shape_forms`: the form marks every letter `@`, and the twin filled `@` with capitals. **Measured on the base, 800 rows, three source and generate seeds:** a lower-case code column `e9z-1i1` (read as free text) came back upper case on 800 of 800 rows, a case-sensitive pattern matching 800 real and 0 twin cells; a two-form column `ab12` beside `ab1` the same; a long tail of lower-case codes at a floor of twenty wrote 156 to 176 of its 800 cells — every stand-in — in capitals. Every run validated at exit 0 on both files.
+
+**The decision.** The census may name, beside or instead of a form, the form's LOWER-CASE KEY, `&` in every letter place, counting the cells of that form whose every letter was lower case (contract C6-31a). It is named only where those cells reach the floor and two, where the rest of the form's cells are either nought, at the line too, or under the floor (and then pooled), where the key's own supply passes the small-supply bound, and where the column's values do not fold onto one another; otherwise the form is named blind to case, byte for byte as before. The generator fills `&` in lower case at the positions `@` takes (method G8.3), and the cells already written pay the census under the key the recount files them under.
+
+**Why per form and not per position.** A case mark per letter splits a mixed column into forms the floor then pools, so a column publishing a form would publish none. Why not on a column whose values fold together: its twin's case partners are not lower case, and on 240 cells of `a-b` beside `x00`/`X00` named apart the twin missed three keys by thirty-three cells.
+
+**What it closes, measured on this tree.** `e9z-1i1`: 800/800 lower case on the twin at three seeds, the pattern written against the published facts (`[a-z][0-9][a-z]-[0-9][a-z][0-9]`) matching 800 real and 800 twin cells, both files at exit 0. The long tail at a floor of twenty: 800/800 lower case, its own pattern 800 against 800. A column half `abc-123`, three tenths `ABC-123` and a fifth `Abc-123` publishes `&&&-%%%` 409 and `@@@-%%%` 391 and the lower-case count comes back exactly; the capitalised cells are written in capitals, so an upper-case test counts 391 twin cells against 250 real ones — the stated limit, since a mark per position is what the floor would pool. **What stays out:** a hexadecimal convention on these roles, so a lower-case hex token published as free text still takes letters past `f`; the identifier role carries that convention (P4-D120).
+
+### P4-D122 A stand-in the census owes no form wears the shape of the published labels (landing 2b.18 part 2, 2026-09-16)
+
+**The item landing 2b.12 carried, re-measured.** A long tail of 2,000 codes `4-F`, `12-AB`, `0017-GHEB` and nine-plus-nine, at a floor of twenty, seed 7: its commonest shape `%-@` has too few spellings to be named, so every stand-in the census owed no form was `group-N`, and the twin's mean cell length was 9.907 against the real column's 7.204 (sd 4.553 against 5.900), 1,931 cells of five characters or more against 1,012. Both files validated at exit 0 at source seeds 401 and 2; at source seed 1 the twin misses two form counts at exit 3, on the base and on this tree alike.
+
+**The decision** (method G8.3b, contract 7.9.1). A stand-in owed no form wears the shape the published labels wear most, its case kept — a published fact already, since labels are written byte for byte — provided the census names that shape in neither case and it reads as no number. Its spellings are spent on the LARGEST places owed nothing, and a large place paying a named form trades with single rows summing to it exactly wherever that lets the shape cover more rows, every named form keeping its count. A place past the supply is `group-N` as before.
+
+**Measured on this tree.** Source seed 401: lengths `{3: 988, 5: 306, 9: 350, 19: 356}` on both files, mean 7.204 and sd 5.900 on both, 1,012 cells of five characters or more on both, exit 0 on both. Source seed 2: the same identity at mean 7.186 and sd 5.876. Source seed 1: 982 against 971 long cells, the base's own two form misses unchanged. Without the trade the shape's 257 spellings covered 257 of the 919 rows owed no form. **The one statistic this does not claim:** which held-back value wears which shape is not published, so a column whose rare values are SHORTER than its common ones is written the other way round; the rule is the one that matches a code column, whose repeated values are its short ones.
+
+### P4-D123 A count column that writes one number more than one way publishes its spellings (landing 2b.18 part 2, 2026-09-16)
+
+The audit's missed item on mixed padding, re-measured on the base at three seeds: a column of coded answers `7`, `07`, `007` and `0`, 500 rows, read as `count`, came back with six to eight spellings for four — `00`, `05`, `4`, `03` among them, spellings and numbers the source never wrote — every validate at exit 0. A column of twelve numbers each written with one, two or three figures (34 spellings) came back with 22 or 23.
+
+**Routing is not the answer, and that was settled before this landing.** With `--code` both columns come back exactly, but no column is routed by its shape: review item P1-R6-F7 and amendment A-P4-60, which measured routing padded figures to codes and withdrew it because it costs a genuine padded measurement its distribution. The role stays `count`.
+
+**The decision** (contract 7.13, method G6.8). A `count` block publishes `number_spellings`: every spelling with its cells, ALL OR NOTHING, where every number cell is written in figures alone, two spellings write one number, every spelling clears the floor and two, and the spellings are within the categorical ceiling; `{}` otherwise. Where it names anything, the twin's numbers are the census. Loader invariants SC1 to SC3, an EXACT recount per spelling in the validator.
+
+**Measured on this tree.** `7`/`07`/`007`/`0` at three seeds: the four spellings at their exact counts, nothing invented, mean and sd identical, twin and real at exit 0, the pattern `0*7|0+` matching 500 against 500. Twelve numbers in 34 spellings: 34 against 34 at their counts. **What a reader gains that they did not have:** which number wore which padding, and that no other number exists — at the disclosure price the categorical role already carries, a count per spelling at or above the floor and never one. **The limit, stated:** a column with one spelling under the line publishes `{}` and is written as before; a count column with a negative or a decimal is not reached.
+
+### P4-D124 A census of layouts publishes no count of one, no pool of one and no difference of one (landing 2b.18 repair pass, 2026-09-16)
+
+The skeptic's BLOCKER on landing 2b.18, reproduced on abd11f0 at source seeds 1 and 2, 800 rows, generate seed 4. `REC` and seven figures on 799 rows beside one `TMP-42` published `{"@@@%%%%%%%": 799, "@@@-%%": 1}` at a floor of one and `{"(withheld)": 1, "@@@%%%%%%%": 799}` at eleven; 800 random codes of capitals and figures published 194 and 199 layouts, 56 and 59 of them of one cell; a UUID column with one row in capitals published 800 masks of one cell each, the letter-and-figure mask of every person's identifier; and 799 record numbers beside one `REC 123456` published `{"@@@%%%%%%%": 799}` against 800 present cells. Both files validated at exit 0 on every run.
+
+**The decision** (contract C6-130, C6-131b, invariants LF1, LF2, LF4, LF5). A layout is named at the LINE, the floor or two, whichever is larger. A pool is written only where it holds two. And no difference a reader can take — `n_present`, `n_code_alphabet`, or in a plain column `n_all_digits`, less the named layouts inside that alphabet — is one: where it would be, a written pool is given up first, and otherwise the smallest named layout nothing shallower stands behind is taken back, until none is. **The validator recounts the census off the cells** with `taxonomy.layout_census`, every per-layout rule and not the whole-census one, because the file's own description applies C6-131b to the file's own cells and a conforming twin could have a layout it holds taken back and be told it missed it (measured: a file holding the published 700 and 2 beside 97 cells of a layout of its own and one undescribed cell validates at 0 with the recount and would have missed `@@@.%%%%%%` without it).
+
+**Measured on this tree.** One odd row: `{}` at both floors, no key under two. Random codes: 138 and 140 layouts, none of one cell, 56 and 59 cells over. The one-capital UUID column: one layout of 800 (P4-D125). **What it costs, stated plainly:** a column in which exactly one cell wears no named layout and whose only named layout is the one taken back publishes no layout at all, and its twin is the enumeration's `A----I`: `REC\d{7}` matches 800 real cells and 0 twin cells on `one_odd` and 799 against 0 on `one_space`. That is the disclosure rule working as written.
+
+### P4-D125 A hexadecimal column is decided without its case, and never marks a zero fill (landing 2b.18 repair pass, 2026-09-16)
+
+Reproduced on abd11f0: eight lower-case hexadecimal characters published `!~~~~~~~` for the cells of figures alone led by a nought (1 and 2 cells), six upper-case ones `!^^^^^` (2 and 3), the generator could fill neither, and the twin failed its own description at exit 3 on every run, writing `A-------`. **The decision** (C6-127, C6-128): hexadecimal where every letter is `a` to `f` in either case, marked in the case more letters wear; `!` only in a plain column. **Measured:** both shapes publish one layout of 800, twin and real at exit 0, `[0-9a-f]{8}` and `[0-9A-F]{6}` 800 against 800. The one-capital UUID column publishes `~~~~~~~~-~~~~-~~~~-~~~~-~~~~~~~~~~~~` 800 at floors one and eleven (the base: 800 masks, and `(withheld)` 800 with a twin matching 0); its case-blind pattern matches 800 against 800. **Limit:** the one cell's case is not carried — a count of one — so a lower-case test counts 799 real cells and 800 twin cells, pinned in the test.
+
+### P4-D126 A zero fill is marked nought by nought (landing 2b.18 repair pass, 2026-09-16)
+
+Reproduced on abd11f0: `%08d` over 1 to 499,999 published `{"!%%%%%%%": 800}`; `^00` matched 800 real cells and 78 and 77 twin cells, and `len(x.lstrip('0')) <= 5` 158 and 157 against 1. **The decision** (C6-127, C6-130): every nought before the first other figure of a cell of figures alone, the last character excepted, is `!`; a depth too rare to name counts one nought shallower. **Measured:** the census is `{"!!%%%%%%": 642, "!!!%%%%%": 140, "!!!!%%%%": 18}` (and 643/143/14); `^00` 800 against 800 and the `lstrip` test 158 against 158 and 157 against 157, exit 0/0. The landing's own `%08d` column: `00\d{6}` 77/77 and 75/75 (it was 77 against 75 at seed 2 by chance). **Limit:** a run of noughts inside a cell that is not figures alone is not marked — `S23-000123`'s `-00` matched 800 real and 6 twin cells before and matches 800 and 1 now.
+
+### P4-D127 A layout may hold one space between two characters (landing 2b.18 repair pass, 2026-09-16)
+
+Reproduced on abd11f0: `657 240 7282` published no layout and the twin wrote `!          5`, byte for byte base 9a03680's cells, `\d{3} \d{3} \d{4}` 800 against 0, exit 0/0 — so NC-9's M1 was PARTLY and not FIXED. **The decision** (C6-127): one space, neither opening nor closing a cell or key, never beside another. **Measured:** `{"%%% %%% %%%%": 800}`, 800 against 800 at seeds 1 to 3, exit 0/0.
+
+### P4-D128 The cells no named layout serves are written to mixes, and a filling does not lean on the nought (landing 2b.18 repair pass, 2026-09-16)
+
+Reproduced on abd11f0: 800 random eight-character codes of capitals and figures at a floor of eleven pooled 565, 581, 448 and 467 cells across two shapes and two seeds, the twin wrote them `A-----5V`, and `[A-Z0-9]{8}` matched 800 real cells and 235, 219, 352 and 333 twin cells. The figures of every filling leaned on the nought: EAN-13 44.8 per cent against 11.4, SSN 20.3 against 9.8, the two-system key 29.5 against 8.2. **The decision** (C6-132, method G9.6): a group no named layout serves is written to a mix of the named kinds over a plain named layout with no fill, never a named mix; a layout's step is spread by the exact golden section of its room; and each walk starts at its own step past nought. **Measured:** 800 against 800 on every one of those runs, and at a floor of one on the 56 and 59 cells P4-D124 leaves over; the nought share 10.9, 9.9 and 9.8 per cent on the same three columns, and within a point of the table on every shape measured. Frozen case `identifier_layout_mixes`; `identifier_layout`'s cells moved to new spellings of the same layouts. **Limit:** a mix is uniform over the kinds, so the share of figures among pooled cells is not the table's.
+
+### P4-D130 A pinned date stands at a place inside its own day, and a gap is drawn across the stretch between two places (review of 158c811, 2026-09-16)
+
+Reproduced on 158c811: 3,000 dates drawn by `random.Random(34676)` over sixty days from 2025-01-01, generated at seed 4, came back with a per-day variance of 301.33 against the real column's 45.47 — 6.63 times, and 5.87 and 4.79 times at seeds 0 and 11 — with 31 January at 91 values against 44 and 15 February at 105 against 42, and the table and the twin both validated with nothing missed. Every gap of G7.3 drew over `[low, high]` inclusive, so a pinned day took a day's share from each side and the pin on top. **The decision** (method G7.3): a unit of the ordinal space is a stretch of `2**20` steps; the first pin stands at the start of its unit and the last at the end of its own; every other pin is placed, 128 passes over, on the straight line between its neighbours' places at its own rank, kept inside its unit; and a gap's ranks are drawn across the stretch between its two pins' places. Taking each pin to its unit's middle alone was measured first and left 1.47 to 1.83 times at sixty days and 6.40 times on 500 dates over a week. **Measured with the rule:** 0.95, 1.02 and 0.61 of the real variance at seeds 4, 0 and 11; over spans of a week to two months and seeds 0, 4, 7 and 11, at most 0.95 of what such a column varies by in expectation and no rung's day more than 2.97 standard units over the expected count, against 3.37 to 23.8 and up to 10.64 before. The word budget and every rung are unchanged. Frozen case `date_gap_places`; gate `test_a_short_study_span_puts_no_spike_on_a_published_rung`. **What moved:** the year-long bands of `tests/test_date_spread.py` were re-measured and moved DOWN on shaped columns — seasonal at 1,500 rows 0.605-0.680 to 0.516-0.572 — because part of what they measured was the spike at each rung, and uniform arrivals at 3,000 rows went from 1.159-1.283 to 0.911-1.115. **Limit:** a short span's ranks are still stratified by eleven pins, so its per-day variance is below the real column's, 0.16 to 0.95 of expectation. *Amended by P4-D138:* the straightest count is now one of two sets of places, and a heap stands at its unit's middle within it.
+
+### P4-D131 A census of how dates were written names no count of one, no pool and no remainder of one (review of 158c811, 2026-09-16)
+
+Reproduced on 158c811: 400 daily moments at noon, row 31 written with `z` and the rest with `Z`, published `zulu_case {"lower": 1, "upper": 399}` by default and `{"upper": 399, "(withheld)": 1}` at a floor of eleven, and both loaded: with two forms and one named, the pool IS the other form's count. **The decision** (contract C6-25d to C6-25g, D17 to D20): one statement, `parsing.census_discloses`, asked by the producer, the loader and the document guard of all four censuses — every named count reaches the floor and never falls below two, nothing is pooled, and what the named counts leave over of the total the block publishes for them is none or at least that many; a census failing any of the three is published `{}`. `n_at_midnight` reads the same line through `parsing.disclosure_line`. **Measured:** the reviewer's column publishes `{}` at both floors and the table and its twin validate with nothing missed; the documents 158c811 wrote are refused. **Limit:** a column with a single odd cell loses the census whole, and its twin writes the majority form everywhere. *Amended by P4-D139:* a cell that shows nothing of a convention — a name of May, a date with both fields ten or more — is no longer that odd cell; a genuinely different form of one row still withholds the census. *Amended at the merge of the date and number repairs into the integration (2026-09-16):* the statement is no longer a second copy. `parsing.census_discloses` and `parsing.disclosure_line` are withdrawn, and the four censuses ask `parsing.census_nameable` with its line `parsing.census_floor` (P4-D140), the rule every number census asks, with the one addition that nothing is pooled (`parsing.disclosed_census` in the producer, D17 to D20 in the loader). The two statements were measured equal: the same line, the same remainder test, nought allowed.
+
+### P4-D132 A width word names the field that showed it, and a named form keeps its least in the twin (review of 158c811, 2026-09-16)
+
+Reproduced on 158c811: 400 dates written `m/dd/yyyy` published `unpadded` for dates whose day was past the ninth and `padded` for dates whose month was, the twin spent those words on dates showing both fields, and 106 of 400 twin cells were `5/4/2024` or `08/28/2022`; at a floor of fifty it lost `second-padded` below the floor and missed two obligations the real table met, with no deviation reported. **The decision** (contract C6-25d, method G7.5): a date where one field alone is below ten is counted under `first-field-padded`, `first-field-unpadded`, `second-field-padded` or `second-field-unpadded`; each class of rank is written from its own words, a class with none taking the joint words' padding of that field; and every class is spent by the rotation, with each named form's least — the smaller of its count and the floor, never below two — reserved first wherever the rotation falls short of it. **Measured:** no twin cell breaks the convention at either floor and both files validate; a column 3 per cent `%m/%d/%Y` at a floor of six keeps `first-field-padded` at six in its twin, where the rotation alone missed it at seeds 4, 5 and 9 of 0 to 11. Frozen cases `month_first_widths` and `reserved_name_floor`. *Amended by P4-D139:* the describing step folds each one-field count into the joint word agreeing with it wherever its column's two-field cells wrote one, so the one-field words are published only where none did.
+
+### P4-D133 A name of May publishes its case, its mark and its comma, with its length as either (review of 158c811, 2026-09-16)
+
+Reproduced on 158c811: 240 cells `DD-MAY-2024` published `month_name_styles {}`, the twin was written `25 May 2024`, and `%d-%b-%Y` with upper-case months read 240 real cells and 0 twin cells; both files validated. **The decision** (contract C6-25e, D18, method G7.5): a cell of May is counted under `<case>-either-<mark>-<comma>`, twelve more words, six on the day-first member; a rank of May is written from those words and every other rank from the words naming a length, each class taking the other's words with the length set aside where it has none. **Measured:** `{"upper-either-hyphen-no-comma": 240}`, 240 of 240 twin cells read by `%d-%b-%Y` in upper case, both files at exit 0. Frozen case `may_month_names`. *Amended by P4-D139:* a name of May is folded into the length its column's other cells of the same case, mark and comma wrote, and keeps `either` only where none did.
+
+### P4-D134 The case of a quarter's marker and of a zulu marker is held count for count (review of 158c811, 2026-09-16)
+
+Reproduced on 158c811: 400 moments at noon with 80 lower-case and 320 upper-case zulu markers at a floor of eleven, every marker's case then reversed without moving a timestamp: validation reported `zulu.lower` and `zulu.upper` HELD and exit 0. **The decision** (contract 9, validation method): `quarter_marker_case` and `zulu_case` are EXACT — every cell they count over shows its marker, and a twin writes exactly the published number of each — with the unnamed cells held to what the named counts leave over, which is nought; the widths and the names stay held as key sets, for the reason the contract gives. A form the file's own description does not name is printed as not named, never as a count. **Measured:** the reversed file exits 3 with both zulu checks MISSED, and a reversed column of quarters misses `markers.lower`; the tool's own twins still exit 0.
+
+### P4-D135 A judged decision that names none of the spellings it took out is refused (review of 158c811, 2026-09-16)
+
+Reproduced on 158c811: 500 rows, `end` holding twenty `1900-01-01 00:00:00`, thirty T-separated equivalents declared missing and 450 dates, `start` eighty of the spaced spelling beside 420 dates; with the judged verdict's `spellings` edited to `[]` the canonical description loaded against `n_occurrences: 20` and `n_missing_withheld: 0`, and validation read `start`'s 500 unchanged values as 420 and missed 13 obligations. **The decision** (contract V5): on a column that publishes values, the cells its `read_as_missing` decisions took out and name no spelling for, added over all of them, are at most `n_missing_withheld` — the one pool a spelling the floor did not name goes to, spent once. **Measured:** the edited document is refused under V5; the producer's own description of the same table loads, and the table and its twin validate at exit 0. Loader battery mutation added beside the two of P4-D95.
+
+### P4-D136 A kept placeholder written in the table's own spelling is replayed in its own column (review of 158c811, 2026-09-16)
+
+Reproduced on 158c811 and on 53bb012: thirty `01/01/1900` beside 470 dates written `%m/%d/%Y`, profiled with `--keep-value 01/01/1900`, published 500 values and the verdict `kept_by_you`, and an empty `settings.kept_values.built_in_dates`, because the typed spelling is not `1900-01-01` as text. Validation rebuilt the reading rule from the settings block alone, read 470 values and 30 holes, and missed 14 obligations on the table and 14 on its twin. **The decision** (validation method V2.2; no contract change): the validator hands the producer, per column, the placeholder days that column's description published as `kept_by_you`, and the producer keeps them in that column alone. Recording the day in the settings block instead would reach every column, including one whose `1900-01-01` the person's `01/01/1900` never named. **Measured:** both files at exit 0; a second column of `1900-01-01` beside the first is still judged a hole in the description and on both files.
+
+### P4-D137 The distinct count of a column of dates allows each form its census names (review of 158c811, 2026-09-16)
+
+Found while reproducing P4-D134 on 158c811: 300 quarters over twelve years, a quarter of them written `q`, published 81 different values, and the upper end of G12.5 was 48 — the ways one instant can be written counted offsets and marks and not the written forms — so the tool's own twin, and the table, were reported MISSED on `n_distinct`. **The decision** (method G12.5, in the generator's report and the validator alike): the product of how many forms each census of written forms names multiplies the ways an instant is written. It only widens a bound. **Measured:** the column's twin validates at exit 0.
+
+### P4-D138 A pin's place is the straightest count or its unit's middle, whichever bends the count less, and a heap stands at its middle (skeptic of the review of 158c811, 2026-09-16)
+
+Reproduced on 8be4b12: 500 dates `2020-01-01 + min(6, int(Random(3).expovariate(4/7)))` came back, over seeds 0 to 5, with the first day at 0.57 to 0.58 of its real count and a mean +0.315 to +0.326 real standard deviations late; 1,500 dates peaking at day four of a fortnight had the peak day at 0.74 and a mean 0.151 early on every seed; a two-peaked week drawn from `Random(17)` had a mean squared day error `(t - r)**2 / (t + r)` of 20.3 to 20.8. On 158c811 the same columns measured 0.79 to 0.89 and +0.059 to +0.106, 1.28 to 1.34 and -0.060 to -0.036, and 5.9 to 7.2. Both files validated throughout. P4-D130's straightest count is the flattest the pins allow, and a column that thins out or peaks is not flat. **Measured before deciding**, over uniform, thinning, peaked, two-peaked, heaped and seasonal columns of a week to two years: the middles alone recover 158c811 on the shaped columns and put 1.37 to 7.34 times the real per-day variance on flat ones; smoothing the count on a log scale by an optimiser recovered both but is not a rule an integer mirror can follow; a straight-line placement with the tied pins collapsed, a quadratic line, a monotone cubic and blends of the straightest with the middles each lost on one family or the other. **The decision** (method G7.3): build the straightest set with every HEAP — two or more pins on a unit holding neither end — at its unit's middle, and the middles set; score each by the sum over the units beside a pin of `(c(u-1) * c(u+1) / c(u)**2 - 1)**2` on the counts it spreads; take the middles only where they score strictly less. The heap is held because the straight line gives a peak's day exactly the ranks its pins span and no more. **Measured with the rule**, through the whole round trip: the thinning week +0.057 to +0.104 and 0.79 to 0.89; the peaked fortnight -0.059 to -0.037 and 1.28 to 1.34; the two-peaked week 8.4 to 10.4; the flat short spans of P4-D130's gate unchanged, at most 1.23 of expectation and 2.83 standard units on a rung's day. **Limit:** a column heaped on weekdays, whose heaps carry no tied pins, is filled evenly as before, and its heaviest day keeps 0.73 of its count at thirty days. Gate `test_a_short_span_that_thins_or_peaks_keeps_its_mean_and_its_heaviest_day` with `REINSTATE=P4-D138`; frozen cases `date_thinning_week` and `date_peak_heap`.
+
+### P4-D139 A cell that shows nothing of a convention costs its census nothing (skeptic of the review of 158c811, 2026-09-16)
+
+Reproduced on 8be4b12, where each census below was published on 158c811: 269 `DD-MON-YYYY` dates with one `15-MAY-2023` published `month_name_styles {}` and `%d-%b-%Y` read no twin cell of 269; 200 dates `%B %-d, %Y` at a floor of eleven published `{}` and the twin was written `Feb 26 2016`; 244 dates `m/d/yyyy` with one `12/25/2019` published `date_field_widths {}` and 212 of 245 twin cells were padded. Every file validated. And twins failed their own check: 120 `DD-MON-YYYY` dates at a floor of eleven on seeds 1, 4, 5 and 7 of eight, 150 `m/d/yyyy` dates on seed 2, the real tables passing. **The decision** (contract C6-25d, C6-25e, D17, D18; validation method): a name of May is counted under the style its column's other cells of the same case, mark and comma wrote, and keeps `either` only where none did; a one-field width is counted under the joint word agreeing with it that the column's two-field cells wrote most, and keeps its one-field word only where none did; the widths' remainder is taken over the cells that could show a width, which the block does not publish, so D17 holds the line and the pool and the producer holds the remainder; and the validator counts widths and names on the file's own cells, folded the same way, owing a one-field width or an `either` name on a floor's worth or on every cell of that kind the file holds, whichever is fewer. **Measured:** all three censuses published, every twin cell read by the source's format, and both twins at exit 0 on every seed of 0 to 7; a column whose names of May alone are upper case with hyphens, published `either` at eleven, exits 0 on the seeds its twin holds 7 to 10 Mays, where counting off the twin's floored description exited 3. **Left open:** `datetime_separators` and `utc_offsets`, which predate stage 2b and pool under `small_cell_floor` with no line of two, as every label census at a floor of one does; see the report of this pass.
+### P4-D140 The disclosure rule of the number censuses is written once, and a word no one cell can move (repair of the final Codex review of the numbers, 2026-09-16)
+
+The final Codex review of the merged numbers, at commit 158c811, found two BLOCKERS of one kind. **A wide-key spelling was disclosed:** 800 cells `str(10**17 + i*128)` at a floor of eleven published `wide_runs: canonical`, and the same column with cell 432 changed from `100000000000055296` to `100000000000055297` -- the same double -- published `respelled`, both loading, the word the ONLY difference; a reader who knew the other 799 cells read the last one's spelling off it. **A singleton was revealed by subtraction:** 1,200 cells `f"{10000+i:,}.5"` at floor eleven with the comma taken off cell 432 published `thousands_marks {",": 1199}` beside a row count of 1,200. Both reproduced on 158c811 through the real command line.
+
+**The decision.** The owner's disclosure rule is stated ONCE, as `parsing.census_nameable`, and the producer, the loader and the checker all read it: a census prints no count below the census floor max(2, `small_cell_floor`), and nothing it leaves of a total a reader can subtract it from -- the cells written with a point for `decimal_plus`, the negatives a double holds for `negative_notations`, the groupable cells AND every number of the column for `thousands_marks` -- is anything but nought or at least that floor. The census floor itself moved to `parsing.census_floor`, which `taxonomy.census_floor_of` and the loader's `_census_floor` now read. Where the rule refuses, `decimal_plus` and `negative_notations` publish `{"(unavailable)": 0}` as before, and `thousands_marks` publishes `{}`: that census is empty wherever no cell proves a mark, so its silent state must BE the empty state or a reader tells nought from one. The loader enforces all three complements and refuses `(unavailable)` on `thousands_marks` (DP1, NS2, TM1 amended; contract C6-88's sentence that the complement clause was "met by construction" is withdrawn in the contract itself).
+
+**`wide_runs` is not withdrawn, and the review's smallest fix is not taken, for a measured reason.** Withdrawing the word withdraws the only check on a respelled wide column: plan P4-D90 measured 790 of 800 keys respelled validating at exit 0 with nothing missed before the word existed. What the blocker shows is that the line between `canonical` and `respelled` stood between nought respelled runs and one. It now stands at the census floor: `respelled` only where at least that many runs are respelled, and the checker's `canonical` ceiling tolerates fewer than that many, so the real table with one respelled key still meets its own description. **Measured after:** the review's two columns publish byte-identical descriptions, and the twin and the real table of each validate at exit 0; eleven respelled keys at floor eleven publish `respelled`, and the canonical description handed a file with eleven respelled keys exits 3 on `styles.canonical.wide` while one with ten exits 0.
+
+**What stays distinguishable, stated plainly.** No deterministic census can avoid a boundary somewhere. Every boundary these censuses now have lies between two states whose counts both reach the floor, EXCEPT the complement of nought: 1,200 grouped prices publish `{",": 1200}` and 1,199 beside one bare publish `{}`. That is the boundary `decimal_plus` already had and the review named as the expected model ("complement protection equivalent to `decimal_plus`"): nought left over says every cell was written one way, a fact about the column's writer.
+
+### P4-D141 One evidence rule for both grouping keys (2026-09-16)
+
+The review's item 7: declared decimal comma, floor eleven, 780 cells `1097.001,01` beside 20 `197 001,01` published `group_separator: "."` beside `thousands_marks: {" ": 20}`, which the loader refuses under TM1, so the table could not be twinned at all; a unit on every cell reproduced it. The majority key read a declared column in its own grammar through `comma_reading` and the census asked the strict groups of the undeclared reader. **The decision:** `taxonomy._grouping_evidence` answers, for each cell, whether it refuses a mark to the column, whether it could be grouped, and which mark it proves, and both keys ask it. A cell that refuses a mark to the column refuses the census too: 400 grouped charges beside three `01,234,000` had published `{",": 202}` beside `""`, and with the generator of P4-D142 the twin's own description then published a comma. TM1's clause that a published mark is named by the census is read after GS1, so a point tampered onto an undeclared column is refused for what it is (the carried failure of `tests/test_stage2_refusals.py`). **Measured after:** `{" ": 20, ".": 780}` beside `"."`, both suffixes, twin and real table at exit 0.
+
+### P4-D142 A census of marks is the whole of the grouped cells, and is checked where it names one mark (2026-09-16)
+
+The review's item 3, at floor eleven and seed 4: 800 prices grouped with a comma beside 400 bare published `{",": 800}` and the twin grouped all 1,200 with zero deviations and zero missed checks; 800 commas, 200 spaces and 200 bare came back 1,000 commas and 200 spaces with the check withheld; 600 commas beside 600 spaces publish no majority, and the twin grouped nothing, because groupability was asked with the published mark. **The decision (method G6.1, contract C6-89, validation method):** where the census names a mark, the groupable cells are spent as the whole of the grouped cells -- each named mark its count, a `(withheld)` pool next with the first of a space, an apostrophe, U+2019, U+00A0, U+202F and U+2009 the census does not name, and the cells still left written BARE wherever at least the census floor of them are left, the only bare remainder P4-D140 lets the census be published beside; a smaller leftover wears the published mark as before. Groupability is asked with the published mark or, where none is published, the first mark the census names. The check `spelling.thousands_marks` (and `spelling.negative_notations`) is filed where a census names ONE convention, not only two; it is WITHHELD where the file holds fewer groupable cells than the census and its pool, leaves a remainder strictly between nought and the floor, or its own description names nothing -- and MISSED, printing no count, where its own description names nothing although the published counts could have been named from its own totals. **Measured after:** all three shapes come back mark for mark and bare for bare, both files at exit 0; the same twins rewritten back to the old writing -- every cell grouped, every mark stripped -- exit 3 on `spelling.thousands_marks`.
+
+### P4-D143 A declared decimal comma reaches the bare cells beside a unit (2026-09-16)
+
+The review's item 4: 800 cells `f"{100+i},25"`, the first 600 wearing ` EUR`, declared, floor eleven, published `affixed_number` with `n_affixed: 600`, which its own loader refuses (at least 792 must wear the pair); with 400 wrapped the column fell to free text. The bare pair is worn only by a number, and that was asked in the ordinary grammar, where `100,25` is none. **The decision:** `taxonomy._pair_worn` and the validator's `_core_read_as_declared` ask the bare pair in the declared grammar. **Measured after:** both shapes publish `n_affixed: 800`, twin and real table at exit 0; withdrawing either half turns the gate red.
+
+### P4-D144 An exponent text that reads back as its value is its value's spelling (2026-09-16)
+
+The review's item 5: `f"{r.uniform(10, 999):.18e}"` at `Random(23)`, 800 cells, floor eleven, failed its own description on 799 spellings, and engineering notation `1200e-3` failed too. P4-D66.2 had admitted a PADDED mantissa only, at the value's own decimal place, and held `46E+02` MISSED on the ground that it pairs two figures with the wrong exponent. That ground held the file to a canonical mantissa the description never publishes, which the owner's ruling -- the twin writes everything as the source wrote it -- makes no obligation. **The decision:** `styles.spelled` admits any exponent text whose mantissa, at any precision and with its point anywhere, reads back as the value. **What keeps it falsifiable** is the form: the same value written `4600.00` in a column of exponents is still MISSED, and `tests/test_landing_2b7_source_spellings.py` now asserts both halves in place of the test that refused `46E+02`. **Amends P4-D66.2's "It stays falsifiable" paragraph**, whose `46E+02` sentence no longer holds. The entry table's `_one_figure_more` exponent edit moves to a fixed-point text with one more figure, the one edit of a column of exponents `styles.spelled` still refuses.
+
+### P4-D145 A plus does not hide a pad (2026-09-16)
+
+The review's item 6: 800 cells `"+" + str(10**17 + i*128).rjust(20, "0")`, floor eleven, seed 1, published `field_widths {"20": 800}` beside `pad_widths {}`, and every 21-character cell came back 19 characters with nothing missed; `tests/test_landing_2b16_number_readings.py` checked the canonical flags and the exit codes of that very column and not its widths. **The decision:** `parsing.is_padded` counts a `leading_plus` cell whose figures begin with a redundant zero, the census counts it, the generator serves named widths in two tiers -- `leading_zero` first, then non-negative whole `leading_plus` cells from what each width still owes, never more of them than the census counts past the published `leading_zero` count, so a column whose padded form falls short is not made up with a `+01` no source cell wore (measured without the bound on eight `+1`, eight `-99` and nine `-02`) -- and writes a padded plus cell as `+` and its zeros, and the loader's P5b becomes a window: at least the `leading_zero` count, at most that plus the `leading_plus` count and the pool. **Measured after:** `pad_widths {"20": 800}` on both descriptions, every twin cell 21 characters, both files at exit 0, and the twin with its pads stripped exits 3 on `pads.published.20`. The oracle had carried no part of the named-width walk (the debt P4-D105 recorded); it carries the walk and both tiers now, frozen by `plus_padded_field`, with every committed vector byte of the older cases unchanged.
+
+**AMENDED BY THE REPAIR PASS (2026-09-16), in three places.** *A held-back padded form:* eight values written `+0100` twice and `0100` once at a floor of eleven published `pad_widths {"4": 24}` beside a pooled `leading_zero`, and the twin -- which writes a pooled form as its own value is written -- missed `pads.published.4` at exit 3; on 158c811 the same column published `{"(withheld)": 8}` and passed. Where the forms map pools something and names no `leading_zero`, the plus-signed pads are not counted, and the loader's P5b.c window returns to its pre-P4-D145 reading; that column now publishes `{"(withheld)": 8}` and both files exit 0. *The disclosure rule:* see P4-D148. *Spellings:* a padded cell cannot spend a zero, so 1,200 offsets written `+0123` or `0123` publishing 917 spellings came back with 776 and 768 at seeds 1 and 4, reported as an authorized deviation. Before any zero is spent, padded cells of one width now trade the plus between values -- values written one way by at least two cells with each other first, then with values written both ways that have a spare cell (method G6.5) -- so no form count and no width moves; the twin holds 917 at both seeds, and the `signed_pads` frozen case turns red with the trade withdrawn.
+
+### P4-D146 A long padded exponent is a verdict and not a crash (2026-09-16)
+
+The review's item 8: 100 cells `f"{1+i/1000:.3f}E+" + "0"*4300 + "1"` are read, described and loaded, and validation raised `ValueError` out of `int(power)` at Python's 4,300-digit conversion limit. **The decision:** the exponent's leading zeros come off before anything is converted, the power is never handed to `int`, and a power of more than nine significant figures is read as nought or as no number a double holds. **Measured after:** the real table validates at exit 0; restoring the conversion turns the gate red with the crash. **AMENDED BY THE REPAIR PASS:** the zeros came off one slice at a time, a copy of the power per zero. They come off in one scan and one slice now; twelve cells padded with 320,000 zeros validate in 52 seconds where they took 85, and 20,000, 80,000 and 320,000 zeros take 3.6, 13.8 and 52 seconds -- linear in the pad, the rest of the cost being the reader's own passes over every character.
+
+### P4-D147 A saturated integer grid is filled, not walked (2026-09-16)
+
+The final Codex review of the merge, item 6: 400 rows `f"+{i}.0"` beside `f"row{i%7}"`, default floor, wrote 400 different spellings of 395 numbers at seed 4, 392 at seed 1 and 391 at seed 7, missing `distinct.n_distinct_values` while the real table met it. Where the published ends leave exactly as many integers as the column publishes values, every stratum G6.5a's walk moves lands on a point another stratum still needs. **The decision (method G6.5a):** on the integer grid, with exactly as many strata as published values and exactly that many integers between the published ends, the strata take those integers in order, each once, unless a stratum's sign band would not hold its integer. **Measured after:** 400 of 400 numbers at all three seeds, both files at exit 0. **It moves the golden twin**: the joined column's systolic position publishes 120 different values between 100 and 219, and the twin held 117 and now holds 120; no other column's bytes move. The entry table's witness for an authorized deviation was the column the fill now fills, so it moves to a saturated column across nought, where the layout's sign bands stand the fill aside and the envelope is still taken (99 of 100).
+
+**Amended here, for the carried suite failures of landings 2b.7, 2b.13 and 2b.16:** `tests/test_p2c5f3_style_reach.py`'s claim that every named style count comes out exactly is held to P4-D105's give-up, where the published field width outranks the padded form and the shortfall is named on both censuses -- 11 of 1,920 runs; the disposition completeness assertion injects the two mixture censuses as it injects landing 2b.2's keys; `_wide_runs` reads the number its record already holds, which took the parser from 340 readings to 160 on an 80-cell column, two a cell; the quality report names both mixture censuses in words; P4-D66.4's padded-exchange passage of the generation method is recorded as a decided passage of the temporal-endpoint guard; and `tests/test_p4d30_field_widths.py`'s witness of a named missed width moves to a third shape (six `1`, six `-99`, seven `-02`), because at 158c811 the second shape's twin met `{1: 8, 2: 17}` on every seed and left the test nothing to name.
+
+### P4-D148 The width censuses leave no one cell to subtract (repair pass of the final Codex review of the numbers, 2026-09-16)
+
+The skeptic of the repair, at a floor of eleven, found P4-D140's shared rule applied to every spelling census and to none of the width censuses. **Two routes, measured:** 800 padded five-figure codes and fifty short ones beside one unpadded `12345` published `field_widths {"5": 801}` beside `pad_widths {"5": 800}` -- on 158c811 and after P4-D145 alike -- and 800 padded codes, fifty `+k` and one `+00123` published `pad_widths {"5": 801}` beside `leading_zero: 800` after P4-D145, the loader's P5b window admitting both. Each difference is exactly one person.
+
+**The decision.** The rule is stated once more, beside `parsing.census_nameable` and reading it, as `parsing.width_census_breaches`: the census total less the named `leading_zero` count (and the named `leading_plus` count less that), and at a width both censuses name `field_widths` less `pad_widths` -- with a `pad_widths` pool attributed to the one unnamed width of two figures or more where a reader could attribute it -- is each nought or at least `small_cell_floor`, wherever that floor is above one: at a floor of one both censuses print counts of one under keys of their own and invariant S13 forbids the pool the remedy needs, so the rule adds nothing there (measured: applied at floor one, the style-reach battery stopped at the profiler's own publication guard). The producer (`taxonomy._width_censuses`) answers the first route by not counting the plus-signed padded cells, which is what a column with none publishes, and the second by moving the width into `field_widths`' `(withheld)` remainder, a mixture of widths; the padded cells keep their width in `pad_widths`, so the twin loses only the report-only magnitude of the few unpadded cells. The loader refuses both under P5b and P6c, whose statements are amended in the contract, which also withdraws 7.10's sentence that no loader compares the two censuses. **Measured after:** the column with `12345` publishes `field_widths {"2": 41, "(withheld)": 810}` beside `pad_widths {"5": 800}`, the column with `+00123` publishes `pad_widths {"5": 800}`, both round trips at exit 0 for twin and real table, and the loader refuses the two hand-edited descriptions. The goldens do not move.
+
+**What this does not reach, stated.** The pooled remainders of the legacy censuses (`numeric_styles`, `fraction_widths` and both width censuses) still publish a `(withheld)` count below the floor, one included; that is the Phase 3 pooling rule and not a census this stage added, and it is left to the owner as the carried item it is.
+
+### P4-D149 Each census of conventions is spread across the values (repair pass, 2026-09-16)
+
+The skeptic's MAJOR finding: P4-D142 spent each named mark from the first groupable cell upward, and the cells stand in stratum order, so the bare remainder was the largest values. 1,500 amounts `randint(1000, 999999) + 0.25`, 60% grouped, at a floor of eleven and seed 4: the real table's grouped and bare means were 489,137 and 483,357, the twin's 289,169 and 795,007, and every bare cell was larger than every grouped one, with validation at exit 0. The census of negative notations (landing 2b.7) was placed the same way. **The decision (method G6.1):** each named count of either census takes its cells over the cells no earlier count took by the whole-value spread rule the plus sign already uses, with one change -- a run of one value that must be split keeps its share on its first cells -- so a notation and a mark spent over one run split it at the same cell and write the value two ways rather than four. A column whose eligible cells hold one value is written exactly as before, and every older committed vector byte is unchanged. **Measured after** (floor eleven, seed 4): 926 grouped amounts with mean 486,485 beside 574 bare with mean 485,079, against the real table's 492,653 and 475,824; a mixed-magnitude quantity column's bare mean 449,018 against the real 431,327; twin and real at exit 0. Frozen as `spread_conventions`, whose mutant takes each count from the first cell upward.
+### P4-D150 The disclosure rule of every census the stage added is written once (repair of the final review of the labels, 2026-09-16)
+
+The final review of the labels, identifiers and missing values found two blockers, and both were a count of one reaching a reader by a route the census's own repair did not ask about. **The decision.** One helper, `parsing.census_names_one_row`, answers the rule for a census: a published count of one, or a total the reader holds beside it less the cells the census covers inside it, is one. A total is read only where the census covers a cell of it, because an absent census leaves a reader nothing to subtract. The layout census's producer (C6-131b) and its loader (LF4, LF5), and the form census's case split (C6-31a) and its loader (SF1), all ask this helper rather than restating the rule.
+
+### P4-D151 A layout census that writes only its pool is asked the complement question (final review of the labels, blocker 2)
+
+Reproduced on 158c811: 800 identifiers of length twenty beside one of eighteen `G` inside two spaces, at a floor of eleven, published `{"(withheld)": 800}` beside `n_present` 801 -- one row outside the pool, named -- and the loader then refused the producer's own document under LF4. The repair loop ran only while a layout was NAMED. **The decision** (C6-131b): it runs while anything is published, the pool alone included, and gives the pool up where the difference is one. **Measured:** the census is `{}`, the description loads, twin and real validate at exit 0.
+
+### P4-D152 An empty layout census is asked nothing (final review of the labels item 9, merge review item 8)
+
+Reproduced on 158c811: `REC12345` beside 799 empty cells published `n_present` 1 and `layout_forms` `{}` at floors one and eleven, and LF4 refused the unchanged document, telling the person it had been edited. **The decision** (LF4): the invariant applies where the census counts a cell. **Measured:** the description loads and generates, twin and real at exit 0.
+
+### P4-D153 A case split leaves no count of one (final review of the labels blocker 1, merge review item 1)
+
+Reproduced on 158c811: 799 `abc-00000` codes beside one `ABC-00799`, declared a code at a floor of twenty, published `{"&&&-%%%%%": 799, "(withheld)": 1}`; the merge review's random three-letter codes with one row in capitals published `{"&&&-%%%": 799, "(withheld)": 1}` at eleven as free text. Both files passed. **The decision** (C6-31a, SF1): a remainder of exactly one is never split off, at any floor, and a census that would carry a lower-case key beside a pool of one is built blind to case; the loader refuses a lower-case key beside a pool of one. **Measured:** `{"@@@-%%%%%": 800}` and a case-blind census for the random codes, exit 0 on both files; five capitalised codes beside 795 still publish `{"&&&-%%%%%": 795, "(withheld)": 5}`. **Limit:** a remainder of one pooled beside other forms' cells is still written blind to case, which costs the case of the pooled form's other cells. **Superseded in part by P4-D160**: naming the form blind to case wrote the twin of a lower-case column in capitals, and the census-wide half removed no count of one.
+
+### P4-D154 Letters inside a to f that never trade places with a figure are letters (final review of the labels item 3)
+
+Reproduced on 158c811: `A1000000` to `F1000799` declared identifiers published `^^^^^^^^`, and 14 of 800 twin cells matched `[A-Z][0-9]{7}`, both files passing. **The decision** (C6-128): a column is hexadecimal only where, among its described cells of one length, some position holds a letter in one cell and a figure in another. **Measured:** `{"@%%%%%%%": 800}`, 800 of 800 twin cells match, exit 0; UUIDs, bare hexadecimal tokens and the one-capital UUID column keep their hexadecimal layout.
+
+### P4-D155 The lone figure 0 is a whole number one figure long (suite failures of landing 2b.8)
+
+Measured on 158c811: a declared whole-number identifier holding 0 to 119 at a floor of ten published `{"%%%": 20}`, and the twin wrote 21 three-figure cells, failing the layout at exit 3: the figures band refused `0` as a leading figure even alone, so one figure had nine spellings. It failed seven tests (the stepping identifier pair and six timestamp-spelling tests, 200 against 201). **The decision** (method G9.6, validation's capacity of V G9.4): a non-zero leading figure is required only past one figure. **Measured:** `{"%": 10, "%%": 90, "%%%": 20}` on the twin, exit 0; the frozen `identifier_edge_spacing` cells moved from `1` to `0`, and a column truly past the line is now 0 to 99 beside `00`. **Amended by P4-D162**: the lone 0 is the last one-figure number and is walked late, and those cells are `1` again.
+
+### P4-D156 A sign before figures is written where the census proves it (final review of the labels item 6)
+
+Reproduced on 158c811: `-1000000` upward published `{"-%%%%%%%": 800}`; the twin wrote `000020e0` and kept 0 of 800 layouts, and `+` came back `0000020.`, with no deviation. **The decision** (method G9.6, owner decision 9's distinction): a layout that is `-` or `+` followed by figures with at most one point is not refused as a formula, because only a signed number wears it; the cells are counted in the formula paragraph; a signed layout is not given to an identity owed a partner, whose edge-spaced partner would open with the sign too. **Measured:** 800 of 800 at both signs, exit 0. Frozen case `identifier_signed_layout`.
+
+### P4-D157 A fold-collision partner wears the layout its identity reserved, and the twin's report recounts every layout (final review of the labels item 5)
+
+Reproduced on 158c811: `G` and four figures on 600 rows beside `g` on 200 published `{"@%%%%": 600, "&%%%%": 200}`, and the twin wrote 500 and 300 with nothing named. **The decision** (method G9.6): partner slots are handed to identities before the rotation; an identity owed a partner whose layout the census names is visited early and takes a layout only where its partners' layouts have room, all debited together; a partner takes the member wearing a named layout with room, else one wearing none. Every named layout is recounted into the generation report. **Measured:** 600/200 at seeds 1, 4 and 7, and `AB` beside `ab` 500/300, exit 0. Frozen case `identifier_layout_partners`. **Stated, not hidden (and narrowed by P4-D163):** the recount names a layout shortfall on 488 of the 800 runs of the small mixed battery of review item P2-C5-F2, a shortfall `validate` already reported and the report did not; G9.4's packing settles class and band before any layout is offered, and making it layout-aware is carried.
+
+### P4-D158 A spelling the table declares absent is never invented, in any column (final review of the labels items 4 and 10)
+
+Reproduced on 158c811: `REC` identifiers beside a column declaring `FPQ7317879` absent; the twin wrote `FPQ7317879` once into the identifiers and missed eight obligations with nothing named; the free-text fixture `lower_codes(1)` did the same with `y6o-7p3`. The oracle's identifier walk certified `NA` as a present cell. **The decision** (method G9.2 rule 3, G9.6): identifiers and free text step over every spelling any column declares absent, in every candidate path and fallback, and the presence recount reads them absent; the oracle refuses the vocabulary and the column's published hole spellings and recounts presence as a reader does. **Measured:** zero such cells, exit 0 on both files. Frozen case `identifier_absent_words`, whose mutant writes `NA`.
+
+### P4-D159 Validation recounts a form under the submitted census's case convention (final review of the labels item 7)
+
+Reproduced on 158c811: codes `ab123` and `cd456` beside `00xy` and one `00XY`, declared codes at a floor of eleven, published `@@%%%` 200; the twin held all 200, its re-description named them `&&%%%`, and validation called it fewer than eleven. **The decision** (validation method, the recount of 7.9): the form census is recounted off the cells by `parsing.census_form` under the published census, and a count under the floor is not printed. **Measured:** twin and real at exit 0.
+
+**Not decided here: review item 8.** 280 record numbers beside ten `NA` and ten `N/A` at a floor of twenty publish 280 present and 20 missing, and the real file is reported 300 and nought. That is residual R-P3-11, which this plan and validation method V2.4-A4 record as the owner's pending decision, because closing it reverses A-P3-5 clause 1. Measured as a ready option: reading the two presence counts off the file's own description wherever the submitted column's `n_missing_withheld` is above nought gives exit 0 on that file and on R-P3-11's own sixty-number witness, and leaves the round-2 witness (holes reaching the floor, so nothing withheld) untouched.
+
+### P4-D160 No reading of the form census names one row, and a lower-case key named alone counts its whole form (final review of the labels, repair pass after the skeptic)
+
+The skeptic of P4-D153 measured three things it left. **A pool and a complement of one** survived on both commits at a floor of twenty: 799 `ABC-00001` beside one `WXYZ-123456` published `{"(withheld)": 1, "@@@-%%%%%": 799}`, and 799 of them beside one cell too long to have a form published `{"@@@-%%%%%": 799}` beside 800 present cells. **A case regression**: naming the form blind to case wrote the twin of 799 `abc-00001` and one `ABC-00799` as 0 lower-case cells of 800, and the merge review's random codes as 0 of 800, where 158c811 wrote 799. **An untested half**: the census-wide rebuild removed no count of one, and with it disabled every test still passed. **The decision** (C6-31a, C6-31e SF1 and SF3, validation method's recount of 7.9). (1) Per form, a lower-case count at the line beside fewer than the line of other cells publishes the lower-case key ALONE, counting every cell of the form; validation's recount counts the form's other cells under it while they number fewer than the line, and none of them otherwise, so a file writing the column in capitals still misses it. (2) The whole census is asked `parsing.census_names_one_row` over the pool, `n_present`, and on free text `n_code_alphabet`: a pool of one takes in the smallest family of keys (a form's own key and its lower-case key), a difference of one against `n_present` gives the pool up, and otherwise the smallest family that total covers is no longer named. The loader asks the same question (SF1 for the pool, SF3 for both differences). The census-wide case-blind rebuild is withdrawn. **Measured:** `{"&&&-%%%%%": 800}` and 800 lower-case twin cells on the review's code column, `{"&&&-%%%": 800}` on the random codes, `{"(withheld)": 800}` and `{}` on the pool and complement shapes, `{"&&.%%": 97}` on a free-text column whose one code-alphabet cell has no form; twin and real at exit 0 on each. **Cost, stated:** a column in which exactly one cell wears no named form publishes no form it cannot name without naming that cell, so its twin writes the neutral stand-ins; and five capitals beside 795 lower-case codes now publish `{"&&&-%%%%%": 800}` where they published 795 and a pool of five.
+
+### P4-D161 WITHDRAWN at the merge into the integration: residual R-P3-11 stays open for the owner (final review of the labels item 8)
+
+The repair pass of the labels review closed residual R-P3-11 here, reading the two presence counts off the measured file's own description wherever the submitted column's `n_missing_withheld` is above nought, on the reasoning that no ruling the owner had reserved covered it. The owner has since reserved it by name: pooled missing words at a raised floor is a ruling pending with the owner, and closing it reverses A-P3-5 clause 1. So the merge of that repair into the integration (2026-09-16) withdrew the closure and nothing else of the pass: `_obligations` counts both presence counts over the blank split as before, validation method V2.4-A4 and the Phase 3 plan state the residual as open, and `tests/test_final_review_labels.py` pins it at its size. **Measured on the merged tree:** 280 record numbers beside ten `NA` and ten `N/A` at a floor of twenty exit 3 on the real file with exactly `presence.n_present` and `presence.n_missing` MISSED, and the twin exits 0; `tests/test_p3v10f4_named_markers_are_holes.py` pins R-P3-11's own witness at two misses. The option measured by that pass stays on record above as the ready answer, should the owner take it. The number is kept so the pass's other decisions keep theirs. **The owner took that option on 2026-09-17** (ruling 4, option A), with the guard rewritten to check the pool's total; P4-D200 records it.
+
+### P4-D162 The lone 0 is the last one-figure number, and is walked late (skeptic of P4-D155)
+
+Measured on the first repair: a declared identifier of `1` to `800` came back holding `0`, with lengths 10, 89 and 701 against the table's 9, 90 and 701, both files at exit 0 but the twin's bytes moved on the commonest identifier there is. The slot pinned to one figure took `0`, the first spelling at that length. **The decision** (method G9.6): the one-figure whole numbers are `1` to `9` and then `0`, and where the published lengths run from one figure to two or more the walk takes `0` after every number shorter than the shortest named layout of figures alone two or more figures long, or after every published length where none is named. A walk that took it after the two-figure numbers alone still wrote `0` into `1` to `2000`, whose short numbers run to three figures. **Measured:** `1` to `800` and `1` to `2000` give twins and descriptions byte-identical to 158c811 at three seeds; `0` to `119` at a floor of ten still gives 10, 90 and 20, exit 0; the oracle writes the same cells as the product on `1` to `11` and `0` to `101`; the frozen `identifier_edge_spacing` cells are `1` again, exactly as committed before P4-D155, and no other frozen cell moved.
+
+### P4-D163 A layout the first packing leaves short is a reason to look at the next packing (skeptic of P4-D156)
+
+Measured on the first repair: 400 `-10000` upward beside 400 `20000` upward published `{"%%%%%": 400, "-%%%%%": 400}`; the slot pinned to six characters was packed into the figures band and wrote `100000`, 399 and 401, twin exit 3. **The decision** (method G9.3 step 5, widened): a candidate packing that meets every count the first one met, and every collision, is returned at once only where it leaves no named layout short; otherwise the search goes on through the same bounded tiers, and the candidate leaving the fewest named layouts short is kept, the first one on a tie. The reference oracle raises on a layout shortfall, so, as for step 5 itself, no frozen case reaches this search. **Measured:** 400 and 400, twin exit 0. The battery of review item P2-C5-F2 names a layout shortfall on 376 of its 800 runs where it named 488, pinned so the number can only fall. **Bounded, and what that costs:** a search for a layout alone trades nothing else -- a candidate giving up or winning back any other count, or reaching for the sign of owner decision 9 the first answer did without, is not taken -- skips the collision ask, asks the allocator at most sixteen questions and builds at most six further layouts; on that battery of tiny mixed columns generation takes about three and a half times as long (69 seconds for the 800 runs against 259, measured side by side), and a column whose layouts are met on the first answer costs nothing more.
+### P4-D164 A workbook census names no count, complement or difference under the line (files review repair, 2026-09-16)
+
+Reproduced on 158c811 (files review BLOCKER 4): a hundred-row column of sixty numbers, thirty-nine texts and one boolean published the boolean's count of 1 at the default floor, and at a floor of five `60, 39, null` beside noughts, so 100 - 60 - 39 rebuilt it; both descriptions loaded. **The decision** (contract 4.3b, WB3 and WB8; `dialect.sheet_census`, `dialect.sheet_count`, `dialect.sheet_census_broken`, written once and asked by the producer and the loader alike): the line is the floor or two; a census is exact where no count is small, and otherwise withholds every small count and every nought together, growing the withheld pool by the smallest published count until it holds two keys and reaches the line; a single count (`formulas`, `empty_rows_inside`) is published where it is the whole or reaches the line at both ends, a nought withheld with the rest. Because a census held back whole leaves a twin nothing to tell digit texts from numbers by, each column publishes its commonest value class BY NAME (`value_class`, WB8, `workbook.value-class`), and its `format_code` is the commonest among the cells HOLDING a value, where worn by the line. **Measured:** the reproduction publishes `number 60`, every other class `null`, `value_class: number`, at floors one and five, and both files validate at exit 0; sixty digit texts beside one absent cell withhold the whole census, publish `value_class: text`, and pandas reads strings from the twin as from the source (integers with the class withdrawn); thirty dates among seventy absent cells published the general format and now publish the date code, and the twin reads back as datetimes. **Limit:** a column whose one odd cell pools its census whole is written from its commonest class and code alone, so a minority class is written only where a withheld class fits its cells; every `formulas` of nought is now `null`, which the validator already withheld.
+
+### P4-D165 A workbook's table keeps its header, its first column and the person's declarations (files review repair, 2026-09-16)
+
+Reproduced on 158c811: `A1` and `ALM1001` passed the cap on stored cells and built 1,001,000 table cells (BLOCKER 1); a header `record_key`, blank, `arm` over thirty-one records was stepped over and the first record -- `CASE-ZEBRA-471`, `37`, `amber` -- published as the names at a floor of five, with `--first-row data` dropped on the workbook branch (BLOCKER 2); a table starting in `B1` read as 120 by 3 from the source and 120 by 2 from its twin (MAJOR 11, merge MAJOR 4). **The decision:** the table's rectangle, stored or not, is capped at `MAXIMUM_CELLS` before any column is built (`errors.workbook_table_spans_too_many_cells`); the header is the first row of content holding two cells, or the first row of a one-column table, or the written row index; an undeclared header is put the delimited path's first-row question; `--first-row data` makes every row from the sheet's first a record under generated names; the table's columns begin at the sheet's first column, as every reader's do; and a column named `Unnamed: N` for its place is written with no header cell. **Measured:** the sparse sheet is refused before allocation, and `A1` with `XFD1048576` in one millisecond at 80 MB of resident memory; the blank-header book publishes `record_key`, `Unnamed: 1`, `arm` over 31 records, the twin's `B1` is empty and pandas names the columns alike, both files exit 0; with `--first-row data` it is 32 records under `column_1` to `column_3`; the offset table reads 120 by 3 from both files, exit 0/0. **Limit:** a banner of two cells above a table is read as its header.
+
+### P4-D166 A workbook cell's class goes only to a cell it fits, and a column mixing storage is refused (files review repair, 2026-09-16)
+
+Reproduced on 158c811: thirty numeric cells of 10 and thirty text cells of `1000` came back at seed 0 with a numeric-cell sum of 15150 against 300 and 48 HELD, nothing missed (BLOCKER 6); a column of forty `#N/A` errors, forty `North` and forty `South` read from its twin as 27, 27 and 66 missing, and a boolean beside labels lost its booleans (merge MAJOR 2); twenty date- and elapsed-formatted numbers at a floor of eleven published `plain 0, date null, elapsed null` and the twin wrote `plain 20` (MAJOR 14). **The decision** (method G2.2 steps 1 and 2; `workbook.mixed_storage`, `dialect.sheet_class_fits`): the writer hands an error only to an error kind, a boolean to `TRUE` or `FALSE`, a date to ISO text and a number to a plain number, text taking what is left; a cell no count claims takes the published commonest class, or a withheld class, it fits; a format kind goes first to the cells of the class it suits, and a cell no count claims wears its published code's kind where that was withheld. A column where a cell of one value class is spelled as another present class is written, or whose number cells wear two kinds of format, cannot keep which value was stored which way, and the profile is refused naming the column (`errors.workbook_column_mixes_storage`). **Measured:** both reproductions of BLOCKER 6 exit 1 with that sentence; the error column reads 40, 40 and 40 from source and twin, the boolean column 40, 40, 20 and 20, exit 0/0; the census of MAJOR 14 is no longer published (P4-D164) and is refused by WB3, and handed to the writer anyway writes no plain cell. **Limit:** a column a person stored partly as numbers and partly as numeric text must be made one type before it is described; the frozen case `workbook_classes_by_spelling` pins the writer's rules.
+
+### P4-D167 Only a cell's own text runs are its value, and a carriage return survives the writing (files review repair, 2026-09-16)
+
+Reproduced on 158c811: a shared string `alpha` with a phonetic run `READING` was read `alphaREADING` and the twin carried it (MAJOR 10, merge MAJOR 3); an inline string written with indentation kept the indentation; a header `line&#13;name` came back from its twin as `line`, line feed, `name` and the twin missed `header.presence`, `header.names`, `columns.order` and `position.at` (MAJOR 18). **The decision:** the reader collects text only inside `<t>` runs and never inside `<rPh>`, on the shared and inline paths; the writer writes a carriage return as `&#13;` in element text, and a line feed and a tab as references too in an attribute (method G2.2 step 11). **Measured:** pandas reads `alpha` and `beta` from source and twin, `North` from the inline twin, no `READING` or `NORTH` in the description; the carriage-return header reads back `line\rname` from openpyxl; every file exits 0.
+
+### P4-D168 A date stored as ISO text is a class of its own (files review repair, 2026-09-16)
+
+Reproduced on 158c811 (MAJOR 13, merge MAJOR 5): 120 `t="d"` cells published `number 120`, the twin wrote them as text, pandas read datetimes from the source and strings from the twin, and the twin missed `workbook.cell-classes`. **The decision** (contract 4.3b, method G2.2): `date` joins the closed cell classes; such a cell is spelled as the ISO text it holds and written back as a `t="d"` cell. **Measured:** `date 120`, datetime64 from both files, `t="d"` in the twin, exit 0/0.
+
+### P4-D169 A bracket in a format code is not a date token, and a split pane freezes nothing (files review repair, 2026-09-16)
+
+Reproduced on 158c811: sixty values formatted `[Red]0.00` were classed as dates and pandas read floats from the source and datetimes from the twin (MAJOR 7); `[$USD-409]#,##0.00` likewise; a pane `state="split" ySplit="3000"` published three thousand frozen rows and the workbook's own description failed WB4 (MAJOR 15). **The decision:** `workbook.format_kind` reads no token inside square brackets but an elapsed count, and skips the character after `_` and `*`; `ySplit` counts frozen rows only on a `frozen` or `frozenSplit` pane. **Measured:** `plain 60` and float64 from the twin for both codes, `[h]:mm:ss` and `[mm]:ss` still elapsed; the split book publishes `frozen_rows: 0` and generates, a frozen pane of two still publishes 2; exit 0/0.
+
+### P4-D170 A second table one column wide is refused, and a checked workbook's refusals name positions (files review repair, 2026-09-16)
+
+Reproduced on 158c811: a second sheet holding `site` over thirty values was accepted and written as a column of the withheld word, nothing missed (MAJOR 8); reading a two-table workbook for the validator printed its second sheet's name, `PERSON-ZEBRA-471`, twice (MAJOR 9). **The decision** (contract WB7): any other sheet whose block reaches two rows is a table, whatever its width; the workbook branch honours the validator's request for positional refusals, with three new forms that take a path and positions alone. **Measured:** the one-column book is refused naming both sheets; the two-table, unknown-sheet and empty-sheet refusals on the validate path name sheet numbers and no name. **Limit:** a notes sheet of two or more lines is refused like a table, pending the owner's ruling on a workbook with a second table. **Ruled 2026-09-17 (item 3, P4-D203):** such a workbook stays refused, and the refusal asks which sheet is the table.
+
+### P4-D171 A published sheet name ends in at most two figures, and a name is taken whatever its case (files review repair, 2026-09-16)
+
+Reproduced on 158c811: `Report123456789` survived in a floor-5 description and loaded (BLOCKER 5); names `Private notes` and `sheet1` published `[null, "sheet1"]`, the twin wrote `Sheet1` beside `sheet1`, openpyxl renamed the published sheet `sheet11`, and validation missed nothing (MAJOR 12). **The decision** (contract WB5, method G2.2 step 9): a safe stem may be followed by one or two figures not beginning with a nought; every claim on a sheet name is made case-blind, and no two published names are one name in any case. **Measured:** `[Data, null]` with no figure of the number in the description; openpyxl reads the twin's sheets as `Sheet2`, `sheet1`; exit 0/0 on both.
+
+### P4-D172 Markup is recognised by what it opens with, and a person's declarations reach every reading (files review repair, 2026-09-16)
+
+Reproduced on 158c811: `<5 ng/mL,group` over three records, read at 53bb012, was refused as a web page (MAJOR 17); 120 headerless semicolon rows declared `--decimal-comma column_2` published no row order and seed 4 wrote 59 descending pairs (MAJOR 16); a questions-file answer `data` beside `--metadata-rows 2` was read as no answer and two records became `header_rows` (BLOCKER 3). **The decision:** a file is markup where, after spaces and a mark, it opens with a declaration, a comment or a known element name that ends there; a declaration naming `column_N` is matched against a headerless table's generated names; an answer of `data` is an answer and overrides the typed count. **Measured:** the limit table reads as two columns and three records; the headerless order is published `decimal_comma` and the twin writes no descending pair, real file exit 0; four records and no `header_rows` after the answer. **Limit:** the twin of that headerless table misses `distinct.n_distinct_values`, as the headed equivalent's does -- a limit of the numeric path, not of the declaration.
+
+### P4-D173 FD7 counts every cell the twin writes empty, the oracle refuses what it does not read, and the entry table states what its battery can file (files review repair, 2026-09-16)
+
+Reproduced on 158c811: two hundred sorted free-text values and twenty `ZZZ` declared `--missing-value ZZZ` published an ascending order, loaded, and the twin wrote the twenty cells empty and missed `rows.order` at exit 3 (merge MAJOR 7); the oracle wrote `1,234;A` where the product wrote `"1,234";A`, and read `1e` as a number the product reads as text (MAJOR 19); four tests of `tests/test_p3v1f2_entry_table.py` failed on the merged tree (landings 2b.9 to 2b.17). **The decision** (contract FD7): the cells a sort column's twin writes empty are its absent cells less the `missing_by_source` spellings it reproduces, a judged pass's not being reproduced, in the producer's guard and the loader alike; the oracle refuses a cell holding a figure and only a number's marks outside its narrow grammar, and an exponent mark with no figures is not a number in the oracle or in the product's workbook number spelling; the entry table binds `document.source.workbook` through one workbook, and no longer states or registers the three sites -- `bytes.header-rows`, `rows.sequence`, `rows.order` on a declared record number -- that its battery cannot file since plans P4-D81 and P4-D76, each pinned in `tests/test_file_dialect_round_trip.py`. **Measured:** the reproduction publishes no order and both files exit 0, and the loader refuses the order put back, naming FD7; the oracle's three existing vector files rebuild byte-identical and the fourth gains `workbook_classes_by_spelling` with five mutants; the four entry-table tests pass. **Second part of the repair (same day).** The oracle's reading of the ABSENT class was a sample of seven spellings of its own, so `-`, `?`, `#N/A`, a cell of spaces and `NaT` were text to the oracle and absent to the product -- the same silent misclassification, on the other class, and no committed case held a number or an absent cell in a column of differing rules. Method G2's quoting row now states how a cell's class is read (empty; a spelling of contract 5.4.1's vocabulary; the number grammar; text), the oracle mirrors that vocabulary whole, and the document file gains `written_form_classes` with two mutants (every cell under the text rule; absence read from the seven spellings). **Measured:** the product and the oracle agree on all 28 cells and on the file's bytes; the other six document cases and the three files beside them rebuild byte-identical.
+
+### P4-D174 A header of one name is asked about, a census counts what its twin writes, and a stored number is read without its writer's noise (files review, repair pass, 2026-09-16)
+
+Reproduced on 4a2da79, by a second reading of the repairs P4-D164 to P4-D173: `subject` in `A1` with `B1` and `C1` blank over forty-one records of three texts published the first record -- `CASE-ZEBRA-471`, `amber`, `Northfield` -- as the column names at a floor of five, both files exiting 0 while pandas named the source's columns `subject`, `Unnamed: 1`, `Unnamed: 2` (files-2's defect, on a header of one name); a table of eight rows at a floor of eleven withheld every count of a mixed column and the loader refused that census, so `generate` exited 1 on the producer's own description (a regression of P4-D164); a hundred labels one or three of them three spaces at a floor of five published `text 100`, the twin wrote those cells empty and missed `workbook.cell-classes`, and so did twenty `-999` a judged pass read as missing among two hundred and forty ages, one `NA` or `#N/A` among a hundred numbers; openpyxl's `73.09999999999999` published fraction widths of one and fourteen and the person's own workbook failed `styles.spelled`; a delimited table headed `<body temp` was refused as a web page; and neither of WB3's two subtraction rules had a registered case that failed without it. **The decision:** where rows of one cell stand above the header rule's row and the sheet neither freezes its panes nor starts its autofilter there -- the two marks of a header a twin carries -- the header is not settled: an undeclared profile stops and asks, quoting no cell (`errors.workbook_header_row_unsettled`), `--first-row names` puts the names on the first row of content, and the validator settles a checked workbook by the description's `rows_above_header`; a census with nothing published stands whatever the column's total (WB3); a cell holding a value whose spelling the column reads as absent and does not reproduce is counted `absent` in `cell_classes`, the class its twin writes; a stored number with a point or an exponent, sixteen figures or more and no trailing nought is read as the shortest spelling of the same binary64 in the same notation; an element name is markup only where the tag's end, the next tag or an attribute follows it. **Measured:** the one-name book is asked about, and with `--first-row names` publishes `subject`, `Unnamed: 1`, `Unnamed: 2` over 41 records with no `ZEBRA` in the description, pandas naming both files alike, exit 0/0; frozen panes or an autofilter on row 2 settle a title and the twin is described again unasked; the eight- and four-row tables generate, exit 0/0; the spaces, the sentinel, `NA` and `#N/A` columns exit 0/0 (all exited 3 on the twin at 158c811); the openpyxl weights publish width one alone and both files exit 0, where the study's openpyxl books at 158c811 had the real file exit 3; `<body temp` reads as a header. The producer's census and the loader's rule agree over every split of up to fifteen cells among three classes at floors one, two, five and eleven; the producer's two-key condition on the pool was measured redundant -- withdrawn, it changed none of 209,100 censuses -- because a single small count's pool always gathers a second. **Limit:** a title above a table that neither freezes its panes nor filters its header, a merged banner included, is asked about, because the twin merges nothing and would be asked about again; a two-level column whose levels all fall under the floor is written as the withheld word and its twin misses `workbook.cell-classes`, as at 158c811.
+
+### P4-D175 The form census asks the two totals it left out (final skeptic of the merged repairs, BLOCKER, 2026-09-17)
+
+Reproduced on a7ae404: a free-text column of 400 five-figure numbers, 399 codes such as `abc-123` and one `hello`, at a floor of eleven, published `shape_forms {"&&&-%%%": 399}` beside `n_code_alphabet` 800, `n_all_digits` 400 and `n_not_numeric` 400. 800 - 400 - 399 and 400 - 399 are both one, so the one row written otherwise was named; the adjacent table of 400 codes published 400; both descriptions loaded and both files passed. The same held declared a code (`long_tail_labels`, beside `n_not_numeric`) and in the workbook shape. P4-D160 had asked the rule against `n_present`, the pool and `n_code_alphabet` only. **The decision** (C6-31e SF3): two more readings, in the producer (`taxonomy._form_disclosure`) and the loader alike -- `n_not_numeric` less the named forms no number can be written in, and, on free text, `n_code_alphabet` less `n_all_digits` less the named forms of the code alphabet (a form carries two kinds, so no cell of figures alone has one). Which forms no number can be written in is read off the KEY, by `parsing.form_never_a_number`, so a reader asks the same question: a key with no figure, a mark other than a point, comma, sign or bracket, a second letter, or a letter anywhere an exponent cannot stand; checked against every numeric text of up to six characters over those marks, none of which it calls text. The label half of a compound column publishes no `n_not_numeric`, and every cell of it is text, so it is not asked. **Measured after:** both shapes publish `{}` at floors one and eleven, the adjacent tables still publish their form, the round trip passes, and the loader refuses both hand-edited censuses under SF3 naming the total. Mutants in `tests/test_final_skeptic_repairs.py`.
+
+### P4-D176 A saturated grid of tenths is filled too (final skeptic, MAJOR, and files review item 16)
+
+120 amounts `0.1` to `12.0`, with or without a header or a decimal comma, held 119 numbers at seeds 4, 0 and 1: P4-D147's fill stood on the integer grid alone. **The decision** (G6.5a): the fill holds on every written grid, counted in whole grid units off the grid texts of the two ends. The oracle's `saturated_grid` states it; no committed vector case reaches it, so it is pinned by tests with a mutant and by an oracle-agreement test. Measured after: 120 at every seed; files review item 16's twin exits 0.
+
+### P4-D177 A stuck stratum may take either edge where no cell is written point-free (final skeptic, MAJOR)
+
+A column of 1,423 discounts drawn from 2, 3, 5, 7.5, 10 and 15 published `empty_edges` [7.5, 10.0]; a stratum drawn at 8.5 could not take 10.0, because G6.7.4 rule 4 kept each value's point-free spelling, and went to 7.4 -- 225 cells of 7.4 and no 10.0 at seed 1, validation at exit 0. **The decision** (G6.7.4 rule 4): the rule is asked only where the styles map asks for a point-free cell, the withheld remainder counting as `plain`; elsewhere every cell carries a point whatever its value. Measured after, on six levels beside one level written twice: no twin of eight writes a number the source does not hold, where the mutant writes one at every seed. The empty-bin witness of `test_where_the_twin_cannot_move_a_value_it_says_so` stopped failing its move at all forty seeds and was moved to an upper cluster at eight, where the move fails at 20 of 40.
+
+### P4-D178 A column whose published levels are its strata takes them (final skeptic, MAJOR)
+
+2,000 quantities of eleven levels and the discounts of P4-D177: six seeds of eight wrote a whole level at a number the source never held (`1.3` 199 times, `2.9` 195 times, `7.4` 225 times), losing a published rung, with validation at exit 0. The ladder rule of G5.3 draws a stratum at a random rank of its share, and a rank between two rungs of different levels interpolates. **The decision** (G6.5a): where the strata number the count of different values and the rungs with the mode name exactly that many numbers -- or, where they name more, the numbers two rungs or more name with the ends and the mode -- every one a point of the grid, the strata take them in order, standing aside for a sign band, nought, or a change of point-free spelling on a column that writes one. Oracle `saturated_levels`; pinned by tests with a mutant and an oracle-agreement test. Measured after: both of the skeptic's columns keep every level at all eight seeds, both separators. **Limit:** a level too rare to be a rung is not published, so a column holding one still moves a level (eleven levels beside a twelfth written twice: every seed). R-P4-152's shortfall witness, a hundred integers beside 150, now holds all 101 numbers and moved to two far values.
+
+### P4-D179 A narrower fraction width has the values it needs (final skeptic, MAJOR)
+
+2,000 two-place readings written by the shortest round trip (`1.1` beside `1.23`, and seventeen `1`) publish `fraction_widths {"1": 182, "2": 1801}`, and the twin held 168 to 178 one-place cells at every seed, in CSV and in a workbook, which then exited 3; the commonest R, Python and spreadsheet export. The strata held 172 cells on the tenths, a pinned minimum of 0.3 took the wider width, and a one-rank stratum holding `1.2` was refused the one-place width because its stretch was narrower than the half-hundredth a snap may move -- though nothing was snapped. **The decision** (G6.6's width paragraph): where the census names several widths, none pooled, covering every numeric cell, a SHORTFALL of cells needing each narrower width is closed first by exchanging values between neighbouring strata and then by moving strata to the nearest narrower number strictly between their neighbours in value; a surplus is left to be padded, as a dose column of tenths writing `55.40` beside `55.4` requires. A pinned value takes its own width where the census names it; a value that fits a width is not asked the snap's stretch; a value whose own width is published is never snapped onto a number another value holds (where its own width is not published, refusing the snap wrote `36.001675000000006` sixteen times on a spreadsheet column of tenths, so there the snap stands). Measured after, on six shapes at two floors and four seeds: twins exiting 3, 19 of 48 before and none after; on eighteen shapes writing each cell at a place count drawn from one to three, at three seeds, both widths met on 9 runs of 54 against 3 and the count of different numbers on 18 against 12, none of the 12 lost. The golden twin's `dose` moves 12 cells: its pinned ends take one place and six other cells two, the census still exact. Mutants for the exchange, the pinned order and the snap in the test file; the stretch rule's mutant, measured by hand, misses the three-place widths at every seed.
+
+### P4-D180 The twin's page says a date spelling is kept where it is (found at the repair pass)
+
+Since landing 2b.6 the twin writes every date reading in its own spelling, and the twin report still said, for every reading but the four ISO ones, that it wrote the international form, that the spelling was NOT kept and that code with an explicit format must change -- measured on the skeptic's clinical table, whose twin wrote `11/14/2021 23:46`. **The decision:** the paragraph says the twin writes the column's own spelling and that such code needs no change, and warns only where every mark between the day and the clock was held back.
+
+### P4-D181 No form is named at a count of one, whatever the floor (final skeptic, MINOR)
+
+At the default floor of one a free-text column of 799 codes beside one `ab-000001` published `{"&&&-%%%%%": 799, "@@-%%%%%%": 1}`, although free text publishes no value. **The decision** (SF1): a named form reaches `parsing.census_floor`, two or the floor; below it the form is pooled where the floor pools and counted nowhere at a floor of one. The 799 are then one short of `n_present` and P4-D160 takes them back, so the column publishes no form: the stated cost of that rule. The remaining inline copies of the line of two (`max(floor, 2)`) now call `parsing.census_floor`.
+
+**Carried, measured and not changed at this pass.** `pad_widths {"5": 799}` beside `n_numeric` 800 leaves one cell only where `numeric_styles` prints that cell as `{"(withheld)": 1}` itself -- P4-D148's carried item for the owner -- and a plus-signed route is P4-D148's own; pinned at its size. The time of day of a moment column is not published, and the twin report already says so column by column ("which days of the week the values fall on, the time of day ... are not reproduced"); a census of it is a new published fact and waits on landing 3's extremes. A right-skewed amount's mean and spread are landing 3's tail work.
+
+### P4-D182 A record number's layout is packed with its family (the two red battery tests of P2-C4-F1)
+
+A declared identifier of 49 rows -- `N_0` to `N_12`, `no!!`, `x-y`, `913`, `-3` -- publishes `{"%%%": 12, "&-&": 8, "@_%": 10, "@_%%": 3}` and its twin wrote `&-&` and `@_%%` nought times and `@_%` twice on every seed, which kept both tests of the disposition registry's producer battery red: G9.4's packing settles each group's class and band before any layout is offered, and it gave the twelve singletons to the numbers. **The decision** (method G9.6): where the first answer meets every count and every collision, leaves a named layout short, and no group owes a fold-collision partner, the census is packed as a third margin of the same grid by `_allotted_over` -- a cell is a class, a band and one named layout or none; a group may take a layout it fits by size, by length and by the 64-filling test -- packed first with no end pinned, the two end carriers read off the answer, and each group is offered its packed layout alone. Pinning the ends shape by shape first took eighty seconds on the 760-row column below, sixteen questions with no answer; unpinned it takes under one. A candidate is kept only where it trades nothing, as P4-D163's are. The registry is not lowered. **Measured:** the 49-row column and its shapes twenty times over, 760 rows (`&-&` 150 against 160 before), come back with every named layout at its count, twin and table at exit 0, at seeds 1, 4 and 7; the battery of review item P2-C5-F2 names a layout short on 200 of 800 runs against 376, pinned so it can only fall. **Not reached, and named in G9.6:** a column owing a partner (keeping P4-D157's rule, whose frozen mutant a packing of partners would rescue); made-up cells whose letters are all `a` to `f` and trade places with figures, so the twin reads hexadecimal where the census is plain; a layout opening with a formula character no proven sign covers; and a family writing a named layout for a group packed to none. Frozen case `identifier_layout_packing`, whose mutant stops the oracle at the check of 7.12.
+
+### P4-D183 G6.5a's walks reach one ground at a time, and the oracle states them (carried from the numbers repair)
+
+Eleven whole numbers from 100 to 110 written three times each, twenty-two strata publishing eleven values: the generator moved the tenth stratum from 104 onto 105, above the 104 of the stratum after it, and the reference oracle moved the thirteenth, whose own share held 105. The generator tried a stratum's three reaches of amendment A-P4-55 -- its share, its neighbours' ground, the distance its share is wide -- one stratum at a time, and walked again up to three times; the method stated one ascending walk inside the share, and the oracle wrote that. A second implementation that disagrees is a defect whichever of them is nearer the owner's ruling, so both now follow one statement. **The decision** (method G6.5a): the walk the method stated is the first walk of every round; a round walks every stratum at reach 0, then every stratum at reach 1, then at reach 2, asking the count after each, for at most three rounds; the grid of a column of several widths is the finest, and a column writing some cells with no point keeps each stratum's wholeness -- the three clauses A-P4-55 built and the method never wrote. The oracle states all of it (`separation_reaches`, `finest_grid`), and its levels fill now reads the published mode's number rather than its proved field, which it had never been asked to. **Measured:** the column above agrees with the oracle at every seed tried. Plan P4-D147's frozen mutant ran the walk with a count one larger, and once the walk reaches as far as A-P4-55 lets it that walk writes all twenty-two numbers too, so the mutant now withdraws the fill itself and the walk stops at twenty-one. Frozen cases `separated_in_order`, `saturated_tenths` (P4-D176) and `saturated_levels` (P4-D178), each with a mutant, in a sixth vectors file.
+
+### P4-D184 A joined position short of its count of numbers is named (carried from the merge)
+
+Every position of a joined column publishes `parts[i].n_distinct_values`; the twin report recounted the count through the column's quantitative block, which a joined column has none of, so a short position was silent -- 85 positions at four seeds on the twelve-column joined battery of review round P4-G3-R1. **The decision:** each position's numbers -- the cells splitting into the published number of pieces, every piece a number -- are recounted by the plain column's rule and named with its sentence under `parts[i].n_distinct_values`, prefixed with the position as every other position note is. Measured: all 85 named, and none where the count is held.
+
+### P4-D185 As many cells reach a thousand as the census of marks counts (final skeptic, MINOR)
+
+The skeptic's semicolon export -- 2,000 lognormal amounts written `1.234,56` -- published `thousands_marks {".": 418}` and its twin wrote 416 at every seed. A cell carries a mark exactly where its number reaches a thousand, and the ladder places the strata near a thousand by interpolation: over twelve such columns at two seeds, sixteen twins of twenty-four wrote one or two fewer and two wrote one more, the surplus named nowhere because a surplus under the line wears the published mark (P4-D142). **The decision** (method G6.1): last among the value passes, on a column wholly on one grid with no negative value, no field width and no form but `decimal` and `plain`, the run of strata nearest a thousand crosses it -- up where the census counts more cells than reach a thousand, down where the surplus is under the census line -- onto the nearest free grid points, between its neighbours, whole or not at all. **Measured:** 48 twins of 48 on the twelve columns hold the census exactly; three round trips, short by two, short by one and over by one before, come back exact with twin and table at exit 0. Not reached, and stated: a column of several widths, one holding negatives, a padded or non-decimal form. Frozen case `grouped_thousands`. **Witnesses moved:** five tests of the warning a twin gives when it loses a column's mark, and the test that a small file's mark is withheld rather than missed, were built on columns whose twins lost the mark only because too few values reached a thousand; this rule now keeps it there, so each witness column carries one reading the rule does not reach -- one at one place, or one negative -- and the warning path is pinned as before.
+
+### P4-D186 A row of one cell above a workbook's names is asked the preamble rule's question (carried from the files review)
+
+P4-D174 stopped a workbook holding a row of one cell above its header wherever the sheet neither froze its panes nor filtered its header there: a titled sheet exported without either, `Extract of the visits` over `subject`, `colour`, `place` and forty records, exited 1 and asked, where the text file of the same rows -- a line of one field holding a space above the names -- is read by the preamble rule without a question, the title published as its shape and never its text. **The decision** (contract 4.3b `rows_above_header`, validation V6.2): the rows the header rule steps over are asked what the delimited survey asks a line of one field, by one function both readers call (`dialect.lone_field_leads_a_table`): a cell of text that is empty, holds a space or begins with `#` is furniture, counted in `rows_above_header`; the first row that is not -- one word, one number, one date -- holds the names. The frozen-pane and autofilter evidence still settle the rule's row first, `--first-row names` still puts the names on the first row, and the validator still reads a checked workbook's names off the description. The row taken as names meets the first-row question a delimited header meets. The error `workbook_header_row_unsettled` is withdrawn. **Measured:** the titled, commented and blank-titled books profile at exit 0 with `rows_above_header` 1, their twins describe again with 1, twin and real exit 0; P4-D174's `subject` over `CASE-ZEBRA-471` now reads `subject`, `Unnamed: 1`, `Unnamed: 2` undeclared, as pandas names it, no `ZEBRA` in the description; over four shapes the workbook and the text file of the same rows read the same names or both ask. **Limit, shared with the delimited path and not introduced here:** a title holding a space over a first record that no evidence marks as a record -- `subject id` over `CASE-ZEBRA-471`, `amber`, `Northfield` above forty records none of which repeats those words -- publishes that record as the names, in a workbook and in its text file alike (measured on both); the first-row question is the guard on both paths and does not reach it.
+
+### P4-D187 A workbook column of numbers some stored as text is read, and its text count is spread (final skeptic, MINOR)
+
+P4-D166 refused a workbook whose column held numbers beside text cells of figures -- Excel's numbers stored as text -- because the description does not say which values were stored which way: thirty numbers of 10 beside thirty texts of `1000` had given a twin whose numeric cells summed to 15150 against 300 with every fact held. A file the owner expects to read must be read. **The decision** (contract 4.3b, method G2.2 step 1, `workbook.mixed_storage`): such a cell is read as what the file stores, a text cell holding figures; both counts are published and the column's values stay one distribution. Where more written cells fit a class than its published count names, the count is spread over them by the smooth rotation rather than handed out in row order, so the text cells do not pile into the column's last rows (`sheetwriting._spread_over`, mirrored as the oracle's `sheet_spread_over`). Which values were the text ones is not published and not kept, and the twin's report says so for every column holding figures stored as text (more values reading as numbers than cells stored as numbers). A column whose NUMBER cells wear two kinds of format stays refused. **Measured:** the reproduction and a 300-row column with 30 figures stored as text profile at exit 0, twin and real exit 0 at floors 1 and 11, the twin holds 30 text cells at rows 0, 10, 20, ... where row order put them in rows 270 to 299, and pandas reads float64 from both files. Frozen case `workbook_as_written` (document vectors) with the row-order mutant. **Limit:** code that keeps only the cells stored as numbers selects different values on the twin than on the table, as the report states.
+
+### P4-D188 The twin's report says which name the table's sheet is written under (final skeptic, MINOR)
+
+A sheet called `Visits` is not a name synthtwin can rebuild from its own vocabulary, so the disclosure rule withholds it and the twin writes `Sheet1`; `read_excel(sheet_name="Visits")` failed on the twin and the twin's report said nothing about it (the description's summary did). **The decision:** the rule is unchanged -- a published name is written as published, a withheld one under the neutral name `dialect.twin_sheet_names` gives it -- and the twin's report, for a workbook only, now says which of the two the table's sheet is and under which name the twin holds it, and how many other sheet names are withheld. A delimited table's report keeps its bytes. **Measured:** the skeptic's `Visits` book reports `Sheet1` and the withholding at seeds 4 and 11, openpyxl reads `['Sheet1']`, twin and real exit 0; a `Data` book beside a withheld `Private notes` reports `Data` as its own name and one other name withheld.
+
+### P4-D189 A number format code of the format language's own tokens is written as the source wrote it (final skeptic, MINOR)
+
+The skeptic's workbook formatted a region code `00000` and a visit time `yyyy-mm-dd hh:mm`; its twin wrote `General` and `yyyy\-mm\-dd\ hh:mm:ss`, so a region stored as 802 showed `00802` in the table and `802` in the twin. P4-D79 published a custom code as the canonical code of its kind because a custom code can carry text out of somebody's file; that holds for a quoted word, a currency or a locale and not for a code built only of the number-format language's tokens. **The decision** (contract 4.3b and WB6, method G2.2 step 3): a code is published as written where it is one of Excel's built-in codes, a canonical code, or a code of the language's own tokens alone -- figure placeholders `0 # ?`, the point, comma, percent, fraction bar, colon, brackets, dash, plus, dollar and space, the date and clock letters `y m d h s`, `AM/PM` and `A/P`, an exponent mark with its sign, a backslash, underscore or asterisk before a character that is no letter or figure, a quoted run of no letter or figure, a colour or elapsed bracket, at most four sections and sixty-four characters (`dialect.sheet_format_code_speakable`). Every other code gives way to the canonical code of its kind as before. The kind of a code is read off the code by one rule every side may import (`dialect.sheet_format_kind`, formerly the reader's `workbook.format_kind`), which the writer, the loader and the validator now ask in place of the closed map. The producer, the publication guard and the loader ask `dialect.sheet_format_code_publishable`; a hand-edited code carrying a word is refused under WB6. The oracle states the kind rule (`sheet_code_kind`), fuzzed equal to the product's over 300,000 codes. **Measured:** the skeptic's `visits.xlsx` twin wears the source's code on every cell of all eleven columns at seeds 4 and 11 (region `00000`, visit date `yyyy-mm-dd`, visit time `yyyy-mm-dd hh:mm`), twin and real exit 0; a column wearing `0.0" kg"` publishes `General` and no `kg` reaches the description. Frozen case `workbook_as_written` with the closed-map mutant.
+
+### P4-D190 The numbers of a free-text column carry what the length walk could not spend (final skeptic, MINOR)
+
+The skeptic's workbook column -- sixty numbers, thirty-nine codes `txtNN` and one boolean, beside a label column -- missed `length.mean` at floors one and five (3.0 asked, 2.96 found) while the table passed. P4-D181 stopped that exact shape publishing its forms and the miss went quiet without being repaired: with two or three truth values the column still missed the average on every seed, in a workbook and in the text file of the same cells (2.99 asked, 2.95 found; 2.98 and 2.94). Every number stood at its own shortest length (G9.5 step 3a), every code held its form's length (step 7), and the two made-up words carried both published ends, so step 5's walk had no group to move. **The decision** (method G9.5 step 5): where the residual is not zero and no group the walk may move can move toward it, the number groups carrying no end whose length's form the census does not name are walked the same way -- largest group first, one character at a time, only to a length whose band still has a number with no leading zero to give and whose form the census does not name (`generation._numbers_walked`, the oracle's `numbers_walked`). A walk that stopped because its residual changed sign is left as it stood, so no column the walk already served moves: every committed vectors file but the one gaining the case rebuilt byte-identical. **Measured:** the workbook column with one, two and three truth values at floors one and five, and its text file with two, three and five at floors one and five, validate twin and table at exit 0 on seeds 0 and 4, the twin's recounted average within a hundredth or two of the published one. Frozen case `numbers_carry_the_average` (branch vectors 4). **Not repaired, and measured:** at a floor of one a workbook column publishing its boolean count -- two or more truth values -- still misses `workbook.cell-classes`, because a free-text column's made-up words are never spelled `TRUE` or `FALSE`, which is the only spelling the writer hands the boolean class; that is a separate rule and is carried.
+
+### P4-D191 A count at midnight withheld for its size is kept on its side and checked there (final skeptic, MINOR)
+
+The skeptic's clinical export wrote discharge times between seven in the morning and seven at night, so no value stood at midnight and `n_at_midnight` was withheld. At seed 11 the twin wrote two values at midnight; described again it published `n_at_midnight: 2`, a count the real description says nobody had, and validation LISTED the fact as asking nothing. **The decision** (method G7.3, validation V6.2 amended, `contract.midnight_withheld_for_its_size`): a count withheld because fewer than the line stood at midnight or fewer than the line did not is still owed on that side. The generator, on a column of moments counted in seconds, each rank asked on its own wall clock, moves the unpinned ranks written at midnight a precision step off it (or the unpinned ranks off midnight onto their nearest midnight, where most published instants stand there) until fewer than the line remain; the validator checks `midnight.withheld` -- HELD where the file's own description withholds the count too, MISSED where it publishes one -- and prints no number for a withheld file; the report names a twin that keeps a publishable count. **Found and repaired on the way:** the generator's two recounts of midnight asked every written cell under the joint ISO reading, so a month-first moment `04/07/2022 00:00` read as no date at all and no value at midnight was ever named on a column not written in ISO since landing 2b.6; they now ask the column's own member (`generation._midnight_reading`). **Measured:** the export's discharge column comes back withheld at seeds 4 and 11; visits a minute either side of midnight, whose twins held five, three and one values at midnight at seeds 0, 4 and 11 before, hold at most one; with the rule withdrawn and thirty-four moments put at midnight, the report names `n_at_midnight` and validation misses `midnight.withheld`. Frozen case `midnight_withheld_kept`.
+
+### P4-D192 A date column's count of different values and of widths come back, or are named (final skeptic, MINOR)
+
+On the same export, re-profiled at seeds 4 and 11: admission dates `m/d/yyyy` published `n_distinct` 1077 and `date_field_widths {"unpadded": 1635}`; the twins held 1065 and 1107 different dates and 1657 and 1667 cells showing a width, and both validated -- the first count against G12.5's envelope from 11 to 1460, the second against its floor. **The decision** (method G7.3 and G12.5, contract 9.6, validation V6.2): every rank drawn between two pinned ranks may move inside that gap, the gap's ranks sorted again, so on a column read on its own clock and writing no bare date two passes run before any cell is spelled (the second only where one instant is written one way, `contract.datetime_counts_reachable`) -- the widths, where the census names one convention, by moving ranks whole days to the nearest day of the other kind; and the different written units, where one instant is written one way, by moving whole runs of ranks on one unit onto a neighbouring rank's instant or single ranks to the nearest free unit, keeping each rank's width kind and midnight standing (`generation._units_settled`, the oracle's `units_settled`). The different values are taken first; the widths pass then offers each rank a free unit of the other kind before an occupied one; a split whose unit an earlier split took is offered the nearest still free; and where splits leave the count short, two ranks TRADE standings (`generation._standing_swaps`) -- measured necessary on the suite's own fixtures, where 240 textual dates over 240 days, 72 of them showing a width, stalled fourteen days short, and 240 moments publishing two at midnight put the second on the pinned earliest's own midnight. Inside G12.5's envelope `n_distinct` and `n_distinct_folded` are EXACT, in the report and the validator; a one-convention widths census is compared count for count. What the passes do not reach is named as a deviation (`generation._date_count_notes`) and MISSED by the validator, where it passed in silence before. **Measured:** all three counts of both date columns come back exactly on the export at both seeds and on a 900-row version; with the passes withdrawn the report names `n_distinct` and `date_field_widths` and validation misses both; 20,000 dates over 3,000 days, 20,000 minutes over four years and 20,000 dates over forty days generate in 2.4, 2.9 and 1.2 seconds and validate. The existing date cases of the committed vectors moved where their published counts had not been met, generator and oracle agreeing. The golden demonstration's `recorded_on`, publishing 84 different dates, held 176 inside an envelope of 10 to 240 and holds 84: 105 of its cells moved, no other column did, and two quality verdicts moved from WITHIN-BOUND to HELD. Frozen cases `date_widths_reached` and `date_distinct_reached`. **Limits:** a widths census naming several conventions is still held at its floor, because which convention each showing cell wears is spread by the rotation; a column written more than one way per instant, read on the shared clock, or writing bare dates beside moments keeps its count approximated, and the report names any miss.
+
 ## Phase 4 closure — 2026-09-11
 
 **Phase 4 is closed by owner decision, on the one-week close of
@@ -10003,6 +11222,1178 @@ remainder CARRIED to Phase 5 by name rather than built, which lowers
 the ruling of 2026-08-30 from "nothing left open" to "nothing open or
 carried by name". An entry carried by name is not an entry closed.
 
+### P4-D193 A whole number a column writes two ways is held by two strata (final skeptic of stage 2's close, BLOCKER)
+
+A workbook of 500 laboratory readings at one place, about one in eight of one column stored as text, is read since P4-D187, and its column publishes 33 spellings of 31 numbers: openpyxl writes a whole reading as `4` and the text cell keeps `4.0`. The twin held 30 numbers at seeds 4, 11 and 1 and exited 3 on `distinct.n_distinct_values` while the workbook passed; the same cells written to a delimited file missed the same way, so the cause was never the workbook. G6.5a's walk stops once the strata's texts number the published count, so strata left on `3.1` and `4.1` stood where the column needs strata on `4.0` and `5.0`, and a column writing some cells bare may walk a stratum only onto a point of its own kind, so the one free point, a whole `3.0`, was out of reach. Over 120 such columns 61 twins of 240 missed the count. **The decision** (method G6.5a, `generation._twice_written`, the oracle's `twice_written`): on a column at one fraction width beside bare cells, in the `decimal` and `plain` forms only, with no field width, mark or second notation, whose strata are its spellings, where the walk leaves the texts unsettled, a grid with no spare point between the published ends and outside every published empty pair is FILLED -- the strata take its points in order, the surplus of spellings over numbers doubling whole points, the assignment moving the strata fewest grid units -- and where the texts still outnumber the count a stratum holding a number that is not whole takes its whole neighbour's number, nearest pairs first. **Measured:** the lab workbook meets its count at seeds 4, 11, 0 and 1 with twin and workbook at exit 0; one of 240 battery twins misses it, a column writing no whole number twice. Frozen cases `twice_written_filled` and `twice_written_merged` in a seventh vectors file, `generation-branch-vectors-5.json`, because the sixth stood within a few kilobytes of the byte cap. **Not changed:** which figures a workbook stored as text is not published, so the twin's text cells may hold `4` where the source's held `4.0`; the spelling census and the count of numbers come back exactly.
+
+### P4-D194 The census of marks is held on a column with refunds, and a surplus under its line is named (final skeptic of stage 2's close, MAJOR)
+
+P4-D185 stood aside on any column holding a negative value. 1,500 amounts written `1,234.56`, one in ten negated, published `{",": 396}`; the twin wrote 397 at seeds 4 and 11, the validator printed WITHHELD, the twin exited 0, and the report named nothing. Over forty signed columns at two seeds, 36 of 80 twins missed by one to three. **The decision** (method G6.1, `generation._grouped_enough` and `_grouped_run`, `_mark_places`; the oracle's `grouped_enough`): the cells reaching a thousand are counted by size, the positive run is taken first, the count is taken again, and the same run is taken among the negative strata read by size; and a grouped surplus under the census line, written with the published mark, is named `thousands_marks` in the twin's report. **Measured:** 80 of 80 battery twins hold the census exactly; the skeptic's column holds 396 at both seeds. Frozen case `grouped_thousands_signed`.
+
+### P4-D195 A census of several date widths is named where the twin differs from it, and printed WITHIN-BOUND (final skeptic of stage 2's close, MAJOR)
+
+900 dates, half `1/5/2021` and half `01/05/2021`, published `date_field_widths {"padded": 369, "unpadded": 381}`; the twin held 381 and 393, the validator printed both HELD against "at least 1" and the report named nothing. **The decision** (method G13's key index, validation V6.2; `generation._date_count_notes`, `validation._written_form_checks`): a census naming several conventions is recounted as one naming one is, and each convention whose count the twin does not hold is named; a convention met at its floor is printed HELD only where the file's own folded tally equals the published count, WITHIN-BOUND otherwise. **Measured:** at seeds 4 and 11 both widths are named and printed WITHIN-BOUND on the twin and HELD on the table. **Not changed, and carried:** the count itself is not reached, because the twin spreads the conventions over its values without choosing which values show one.
+
+### P4-D196 A declared identifier's layouts beside fold-collision partners and proven signs (final skeptic of stage 2's close, MAJOR)
+
+300 record numbers `S1000` upward, a tenth written again as a lower-case `s` number, beside five-figure numbers and `S-NN-A`, published a layout for every cell, and `@%%%%` came back 212 of 214 at seeds 1 and 4: partners were handed to `S-NN-A` identities, whose partner wears no named layout. 200 record numbers `P###` beside `-##` and `+###` published `{"+%%%": 38, "@%%%": 121}` and `+%%%` came back 37: only the packing with the sign family open packed it, and a packing reaching for the sign the first answer did without was never taken. **The decision** (method G9.6; `generation._layout_preferences`, `_layout_packed`; the oracle's `layout_preferences`): the present cells a census names no layout for are a quota a partner wearing no named layout is debited from; and where a named layout is a sign before a number -- which proves the table held sign-leading cells, as P4-D156 reads that proof -- a layout packing may open the sign family. **Measured:** the signs column holds `+%%%` at 38 at both seeds; the fold column holds `@%%%%` at 213, one short, named in the report, because the identity carrying the longest length can wear only `S-NN-A` and G9.3 hands it a partner. The P2-C5-F2 battery stays at 200 layout-short runs of 800. Frozen case `identifier_unnamed_partners`.
+
+### P4-D197 A count of figures stored as text is not read by subtraction (final skeptic of stage 2's close, MINOR)
+
+400 readings, one stored as text and one the word `pending`, published `cell_classes {"number": 398, "text": 2}` beside `n_numeric` 399 at the default floor: the difference names one cell. **The decision** (contract WB3; `profile._stored_as_text_withheld`, `contract._workbook_rules`): where a column's census counts number cells and its count of numbers passes that count by a difference `parsing.census_nameable` would not print, the whole census is withheld, and the loader refuses a description publishing such a pair. **Measured:** one figure stored as text withholds the census; two publish it as before; both round trips exit 0.
+
+### P4-D198 A workbook column of free text writes its truth values (final skeptic of stage 2's close, MAJOR)
+
+A workbook column of 160 whole numbers, 138 codes `noteNN` and two TRUE cells published `boolean 2` at the default floor, and its twin wrote no boolean cell at seeds 4 and 11: the writer gives the class only to a cell spelled `TRUE` or `FALSE`, and no made-up word is. **The decision** (method G9.5; `generation._truth_words`, `_text_plan`, `_truth_cells`; the oracle's `truth_words`): among the groups packed as text in the code alphabet and held to no length, the first covering the census's count is spelled `TRUE`, else the first two covering it `TRUE` and `FALSE`, an end carrier only at the spelling's own length; their lengths are held before the walk, and a shape is taken only where such groups exist. The oracle's longest frozen word rises from three characters to five, the shortest date the shipped formats read being six. **Measured:** the skeptic's shape exits 0 at both seeds; over sixteen twins of eight columns of one to six truth values, two met the census before and eight after. **Not reached, and carried:** a census of three or more truth values where the packing leaves only singletons in the code alphabet, since at most two groups can be spelled; the quality report names the miss. Frozen case `truth_values_written`.
+
+### P4-D200 Residual R-P3-11 is closed: pooled missing-value words count as absent, up to the pool's total (owner ruling of 2026-09-17, option A)
+
+The owner's ruling of 2026-09-17, item 4, took option A of P4-D161: missing-value words pooled below a raised floor count as absent, so a real table passes its own description, and the guard that proved the pool honest is rewritten to check the pool's total. **The decision** (validation method V2.4-A4's closing paragraph; A-P3-5 clause 1 narrowed to descriptions that pool nothing; `validation._pooled_words_absent`): where the class map's pooled remainder is empty the two presence counts are still taken over the blank split, and where the SUBMITTED column's `n_missing_withheld` is above nought the cells that split reads as values and the measured file's own description reads as holes count as holes up to that total; every one past it counts as a value. The condition and the cap both read the submitted description, which no measured file chooses. **Measured:** 280 record numbers beside ten `NA` and ten `N/A` at a floor of twenty, real and twin at exit 0 (they were 3 and 0); R-P3-11's own sixty-reading witness with six `n/a` and six `N/A` at eleven, real and twin at exit 0 with nothing missed (it was exactly two misses); the round-2 witness, a description of thirty EMPTY holes against 25 `n/a` and 5 `N/A`, still exit 3 on `presence.n_present`; and a file spelling twenty-four holes against a pool of twelve, exit 3 with `presence.n_present` found 72 against 60. Pinned by `tests/test_p3v10f4_named_markers_are_holes.py` and `tests/test_final_review_labels.py`; withdrawing the absence turns the two closed witnesses red, and withdrawing the cap turns the pool-total witness red.
+
+### P4-D201 Held-back label levels are published as a pooled total only (owner ruling of 2026-09-17, item 2, option A)
+
+The owner's ruling of 2026-09-17, item 2, option A: a label column stops publishing the exact size of each held-back level and publishes only their pooled total; the gap-first writing rule stays. **The decision** (contract 6.3 and invariant B4; method G8.3; `taxonomy._levels`, `generation.held_back_sizes`, `generation._held_back_debts`, `validation._label_checks`). (1) **The key is withdrawn.** `suppressed_level_counts` leaves the categorical, long-tail, constant and binary blocks and the label half of `numbers_with_labels`, with its loader check, its entry-table rows, its disposition registry row, its publication-guard paths and every enumeration of the shared label keys, which are four now. A document carrying it is refused as carrying a key the format does not have. (2) **A pool of one row stands, as a limit put to the owner** (repair pass of 2026-09-17; the first writing is recorded below the measurements). `n_present` less the published counts is the pool (B3), so no key left out can hide a pool of one; it is published as the table holds it. (3) **B4 bounds the pool.** `suppressed_levels <= suppressed_rows <= suppressed_levels * (floor - 1)`, which at a floor of one is nought for both (S13). (4) **The generator sizes the invented levels from the pool and its debts** (G8.3's four steps): the class and form debts the published facts leave the held-back cells, in G8.3a's order, each take the fewest labels that pay them below the floor; the labels left over go to the debt largest on average, a number debt down to the average of the rising sizes, then a text form's debt to a label a cell, then the cells owing no form likewise, then any debt; each debt's rows are shared one row each and the rest by the square of each label's place. Every invented level stays below the floor, and every published class and form count has a set of sizes that meets it exactly. The oracle mirrors the rule from this statement (`held_back_debts`, `held_back_sizes`, `rising_share`), and frozen case `pooled_level_sizes` pins it with a mutant that shares the pool evenly. (5) **The validator holds the pooled total**: `suppressed_levels` and `suppressed_rows` exactly, as before; the silent check of the sizes is withdrawn with the key. **Measured, before (039df54) and after, on a realistic long-tail column** -- Zipf-distributed codes of one letter, two figures, a point and a figure, described as `long_tail_labels`, three generate seeds each, every twin and every table at exit 0 on both trees: 2,000 rows at a floor of eleven hold back 388 levels on 785 rows, and the twin's held-back levels went from the table's own 215 singletons, largest 10, spread of sizes 1.614 and column entropy 6.4985 bits to 151 singletons, largest 4, spread 1.004 and 6.5685 bits, with 414 distinct values and a top-ten share of 0.4745 unchanged; at a floor of twenty (399 levels on 937 rows) 215, 19, 2.537 and 6.4985 became 136, 5, 1.279 and 6.6498; 5,000 rows at eleven (559 on 1,413) 240, 10, 2.033 and 6.5177 became 177, 6, 1.419 and 6.5618. **On the numbers beside labels** (seven shapes of `tests/test_numbers_beside_labels.py` at six seeds each, 42 round trips): every twin at exit 0 on both trees; that file's statistical gate -- the twin's spread of numbers within a fifth of the table's and its mean within half a deviation -- held on the same 34 runs it held on before, and the eight runs that fail it failed it before too (five of amounts given, one of answers, two of integers beside comments), with amounts given's spread ratio at seed 4 moving from 0.72 to 0.51 and at seed 8 from 0.64 to 0.75. Rules tried and measured before this one: ones first then raised to the floor missed `%.%` at 38 against 34 on amounts given at a floor of twenty and failed ten round trips; an even share failed fourteen; the debts with an even share inside each still spread readings at a floor of twenty to 1.48 times the table; words given their labels first held integers beside comments at 0.69; and every word debt sharing its labels evenly left codes of figures, a hyphen and capitals at a floor of twenty (1,082 held-back levels, past the 256 the form walk searches) one cell over on two forms, which the one-pass walk cannot finish in single rows, so a text form's debt now takes its labels before the cells owing no form. **The cost to a shape the source's own sizes fitted exactly:** twenty-five groups of three and fifteen single rows beside a published `a-` at a floor of twenty are a pool of ninety rows over forty labels, whose twenty-five largest sizes now cover 74 rows, so the twin writes 99 cells of the pattern `[a-z]-` where the table has 100 (`tests/test_landing_2b18_forms_and_spellings.py`). **The pool of one, first writing and repair (2026-09-17).** The first writing of clause (2) held the smallest published label back beside a pool of one row wherever the enlarged pool still fitted its labels below the floor (`pool + count <= (held + 1) * (floor - 1)`), and B4 refused a document that did not: 400 `north`, 15 `south` and one `west` at a floor of eleven published `{"north": 400}` beside a pool of two levels on sixteen rows. The skeptic of the landing measured what that cost: the twin wrote 0 rows of `south` against 15, a lab column's `>1000` on 11 rows 0 against 11, and a ward `W04` on 14 rows 0 against 14, while both files exited 0; and the common shape of two large labels beside one stray cell (F 480, M 519, one U at eleven; yes and no beside one `maybe` at twenty) never reached the rule and still published a pool of one. Every label the rule held back had cleared the floor, so it could not be applied without the twin losing a published label, which the ruling does not authorise. The repair pass withdrew it from `taxonomy._levels` and from B4, and removed `parsing.held_back_pool_nameable` and `parsing.pool_takes_label`; `tests/test_ruling_pooled_held_back_levels.py` pins `south` at 15 twin rows and `W04` at 14, and the F/M/U pool of one as the limit. **Put to the owner:** a pool of one row can be removed only by withholding a label the floor publishes (the withdrawn rule) or by moving the one cell out of `n_present`, for example counting it with the missing cells so the twin writes a hole where the table holds a stray label; or the pool of one is accepted as the lone-value residual it has been since stage 1, where it was equally readable. **Also stated for the owner, and not changed:** every held-back label covers at least one row, so where `suppressed_rows` is below twice `suppressed_levels` at least `2 * suppressed_levels - suppressed_rows` of them are provably single rows, and a pool of one label publishes that label's size; the twin writes exactly that minimum of singletons on a long tail (1,500 Zipf codes at a floor of five, 252 levels on 360 rows: 144 twin singletons against the table's 178, largest held-back level 2 against 4).
+
+### P4-D202 A record number's literal prefix is published and written (owner ruling of 2026-09-17, item 1)
+
+The owner's ruling of 2026-09-17, item 1: a twin writes a literal prefix such as `REC`, `P` or `ABC-` when every present cell of a declared identifier carries that same prefix and the column clears the smallest group size (`parsing.census_floor`), amending invariants I3 and F3 for this case only. **The decision** (contract section 7.12a, clauses C6-138 to C6-142, invariants LP1 and LP2, producer obligation LP-P; I3, F3, C6-50 and the matrix of 6.11 amended; method G9.6a; validation method V3's corner paragraph; `parsing.literal_prefix`, `parsing.is_a_literal_prefix`, `parsing.prefix_layout`, `parsing.prefix_nameable`, `taxonomy._layout_prefixes`, `contract._layout_prefixes`, `generation._templated_facts`, `generation._wears_template`, `generation._layout_worn`, `generation._opened_with_prefix`, `generation._breaks_a_prefix`, `generation._prefix_notes`, `validation._prefix_checks`). (1) **A new key, `layout_prefixes`,** REQUIRED on `identifier` and forbidden elsewhere: `(column)` mapped to the text every present cell opens with, or, where the column shares none, each NAMED layout mapped to the text its own cells open with. **The per-layout scope is this landing's reading of the ruling**, which names the whole column, and it is flagged to the owner: a column of `REC` and seven figures beside `E` and six publishes `{"@%%%%%%": "E", "@@@%%%%%%%": "REC"}`. (2) **The prefix, stated once** (`parsing.literal_prefix`): the longest opening every cell shares, cut back so that it holds no figure (`P00123` beside `P00456` publishes `P`, not `P00`), so that a figure or a letter of every cell stands after it (so no value is published whole, not even as its prefix beside the marks its layout names: 10 cells of `no##` published `no#` under the first writing and its twin could not write the layout -- measured on the layout-packing column of P4-D182 before the cut), so that it does not end inside a run of letters (`REC` beside `REX` publishes nothing; `ST-A123` beside `ST-B456` publishes `ST-`), and so that it holds only ASCII letters, layout marks and single inner spaces, with at least one letter; a hexadecimal column publishes none. The third cut is conservative against the ruling's words: a column of `Abx123456` beside `AbX123456` shares `Ab`, and publishes nothing. A prefix is published only beside a layout census that names a layout (LP1), because the twin writes it as part of a named layout: on 120 `S` and five figures one of which held a stray byte, whose census C6-131b emptied, a published `(column)` prefix left 43 twin cells written by the band walk not opening with `S` and the twin failed at exit 3 (`tests/test_file_dialect_round_trip.py`); that column now publishes none and its twin is as before. (3) **Every entry asks the disclosure rule** (`parsing.prefix_nameable`, which is `census_nameable` with the cells opening with the prefix as the count and the present cells as the population): 796 `P` and five figures beside four `Q` and seven at a floor of eleven publish no prefix, because the four would be a group under the line. (4) **The generator writes a prefixed layout as its TEMPLATE** (`@@@%%%%%%%` under `REC` is `REC%%%%%%%`), which every walk of G9.6 fills as it fills a layout, so the prefix stands in every cell and the room is the placeholders' alone; a cell of the band walk owing a prefix has its opening overwritten where that is safe; a fold-collision partner not opening with its prefix is taken only where its family offers nothing else; the report recounts every prefix. (5) **The validator** files one exact obligation per scope, `prefix.<scope>`, printing neither the prefix nor the count. (6) **The oracle mirrors it** from G9.6a's statement (`templated_census`, `wears_template`, `worn_template`, `breaks_a_prefix`, `opened_with_prefix`), with frozen cases `identifier_column_prefix` and `identifier_layout_prefixes` whose mutant reads the census as published and stops the oracle at the recount of 7.12a; every other frozen case rebuilt byte-identical but for the new empty key on the identifier blocks. **Measured, before (039df54) and after, 800 rows at floors one, eleven and twenty, generate seeds 4 and 11, every file validated:** `^P\d{5}$` 800 real against 30 twin cells, now 800; `^REC\d{7}$` 0, now 800; `^ABC-\d{4}$` 0, now 800; `^ST-[A-Z]\d{3}$` 1, now 800; `^rec-\d{5}$` 0, now 800; `REC` and seven figures repeating one to three times on 589 rows 0, now 589; `^(REC\d{7}|E\d{6})$` 9, now 800 -- with every twin and every table at exit 0 on both trees and the number of different values unchanged. Eighteen identifier shapes that publish no prefix (UUIDs, braced GUIDs, site codes of four sites, `%08d`, unpadded numbers, lower-case codes, random codes, mixed case, case-folded `Ab`) wrote byte-identical twins at floors one and eleven. **Limits, measured and pinned** (`tests/test_ruling_identifier_prefix.py`): (a) 790 `P` and five figures beside ten `P` and six at a floor of eleven or twenty write all 800 twin cells opening with `P` and validate at exit 0, but `^P\d{5,6}$` matches 790 twin cells, because the ten pooled cells are written by the band walk's own shapes (`P-----`), which is P4-D128's older limit and not this ruling's; (c) **a prefix before a hexadecimal tail is not published** (skeptic of the landing, MINOR): `parsing.literal_prefix` publishes none where the layout convention is not plain, because a letter `a` to `f` is a figure of such a column and cannot be told from a letter of the prefix by the layout, so 800 cells `DE-` and six hexadecimal figures publish `{}` and `DE-[0-9a-f]{6}` matches 0 of 800 twin cells, as on 039df54 -- this narrows the ruling and is put to the owner, beside the per-layout extension and the letters-only cut (a prefix never stops inside a run of letters); (b) 750 `REC` numbers beside fifty of them with a trailing space write 799 of 800 twin cells opening with `REC`, one partner pinned to the longest length taking a case flip, which the report and the validator name -- that twin already failed at exit 3 on 039df54, on the layout count, and still does. The every-role demonstration's `record_code` (`R` and five figures) now publishes `{"(column)": "R"}`; its twin's 240 record numbers open with `R`, every other column is byte-identical, and the quality report holds one obligation more (532).
+
+### P4-D203 A workbook with a second table stays refused, and the refusal asks which sheet is the table (owner ruling of 2026-09-17, item 3)
+
+The owner's ruling of 2026-09-17, item 3: a workbook with a second table on another sheet is refused, contract rule WB7 stands, and the refusal names the sheet and asks which sheet is the table, with the `--sheet` option. **The decision** (`errors.workbook_other_sheet_holds_a_table`, `errors.checked_workbook_other_sheet_holds_a_table`, contract section 4.3b). The sentence names the sheet it found and the sheet it read as the table, asks which sheet is the table, and points to `--sheet` on a COPY of the workbook with every other sheet that holds a table deleted or moved to a workbook of its own, saying that naming a sheet of the workbook as it stands is not enough. That last clause is what the review of landing 2b.17 measured and is kept: on the two-table workbook, `--sheet Data` and `--sheet Codebook` each still exit 1. **Measured:** the copy holding `Data` alone, and the copy holding `Codebook` alone, each profile at exit 0 with `--sheet` naming it (`tests/test_workbook_round_trip.py`). The validate path asks the same question by sheet NUMBER, printing no sheet name (plan P4-D170). **The questions file cannot carry the question:** it is written by a `profile` run that described a table, and this refusal stops the run before any table is described, so no entry was added. **The limit P4-D170 named stands:** a notes sheet of two or more lines is refused as a table. **Repair pass (2026-09-17, skeptic MINOR):** the first wording asked "Which of the two sheets is your table?" and for a copy "with the other sheet deleted"; on a workbook of Visits, Labs and Codebook the refusal names two sheets of three, since it stops at the first other sheet holding a table, so a person following it was refused again. Both sentences now ask which sheet is the table and ask for a copy without every other sheet that holds a table (`test_a_workbook_with_three_tables_is_not_called_two`, red when either path says "the two sheets" again).
+
+### P4-D220 The offsets and the marks between day and clock name no row (carried from the final merge; stage 2 closed by the owner rulings of 2026-09-17)
+
+*Its pool, its fold and its allocation of a pool of marks are replaced by P4-D222; the line, the closed vocabulary and S13 stand.*
+
+The final merge left two censuses of a column of dates outside the one disclosure rule. `utc_offsets` and `datetime_separators` named a count where it reached the SETTINGS floor and pooled the rest, so 400 moments with one `t` published `{"lower_t": 1, "upper_t": 399}` at the default floor of one and `{"upper_t": 399, "(withheld)": 1}` at eleven, and 870 `T`, 22 spaces and 8 `t` at twenty published a pool of eight beside two named marks -- the count of `t`, since the marks are a closed vocabulary. Contract D12 bounded that pool by (floor - 1) times the unnamed marks, which admitted it, and the generator split a pool evenly under that bound. **The decision** (`parsing.pooled_census`, asked by `taxonomy._offset_counts` and `taxonomy._separator_counts`; contract D3, D12 and S13; method G7.5 step 2): both censuses ask `parsing.census_nameable` over the total the block already publishes -- `n_present - n_unparsed` for the offsets, the clock-writing cells for the marks -- so no named count, no pool and no complement is below `parsing.census_floor`. Offsets are an open vocabulary: a pool below the line takes in the smallest named offset, then the next, until it reaches the line or the map is one pool. Marks are closed, and a pool beside a named mark either is a count too small to print or, over two marks each below the line, says neither is nought -- the state nought reaches told apart from a count below the floor -- so where any mark falls short every mark pools and D12 refuses a pool beside a named mark. A pool that is the whole census prints only the published total and stands at any size. S13 lets these two pools stand at a floor of one, where the line is two (`canonical.POOLED_AT_ANY_FLOOR`, read by the loader's walk and the producer's guard). The generator spends a pool of marks one value on each rarer permitted mark and the rest on the commonest, mirrored as the oracle's `mark_weights`, so the twin described again pools the same count; the even split gave a pool of 240 eighty of each mark, which a floor of eleven names three times. Frozen cases `mixed_marks` (now twelve and twelve, no pool) and `pooled_marks` (now the whole census of twenty-four: twenty-two `T`, one space, one `t`) rebuilt; no other case moved. **Measured:** 400 moments with one `t` publish `{"(withheld)": 400}` at floors one and eleven, byte-identical to the same table with that cell written with a space; 399 at `Z` with one `+01:00` publish `{"(withheld)": 400}`; the twin described again pools the same and twin and table exit 0 at both floors; the stage-2 round-trip shapes return their censuses unchanged. **Limit, and it is a fidelity cost:** a column with one rare mark or offset now publishes none of its marks or offsets by name, so a twin of 399 `Z` stamps and one `+01:00` writes no offset at all (its report says so), and a twin of a pooled column writes a `T` where the table wrote spaces. Pinned in `tests/test_older_censuses_name_no_row.py`. The older pooled `(withheld)` counts of `numeric_styles`, `field_widths` and `fraction_widths` are not this decision's; P4-D221 takes them.
+
+### P4-D221 The forms map and the three width censuses of a column of numbers name no row (carried from the final merge; stage 2 closed by the owner rulings of 2026-09-17)
+
+*Its fold, its pool route, its P6 capacity and its checker reach are replaced by P4-D222; the line, P8 and S13 stand.*
+
+The last censuses outside the one disclosure rule were the numbers side. `numeric_styles`, `fraction_widths`, `pad_widths` and `field_widths` named a count where it reached the SETTINGS floor and pooled the rest, and P4-D148 carried the `pad_widths` complement as a repeat of the forms map's pool of one. Measured on 039df54: 1,200 two-place prices with one cell written `0042`, one `1.5e3` and one `12.345` published `{"decimal": 1198, "exponent_lower": 1, "leading_zero": 1}`, `fraction_widths {"2": 1197, "3": 1}`, `pad_widths {"4": 1}` and `field_widths {"4": 1}` at the default floor, and pools of two and one beside the named counts at eleven, and every description loaded; the column's remark also printed "1 of this column's values are written with a leading zero" at both floors, counted off the cells. **The decision** (`parsing.pooled_census` asked by `taxonomy._numeric_styles` and `taxonomy._floored_widths`; `taxonomy._width_censuses`; contract P2, P5, P5b, P6, P6b, P6c, P8, P9c, S13 and note NF43; validation V5.3-A3 and the amended width-pool permission): every count the four censuses print, a pool among them, reaches `parsing.census_floor`; a pool below the line takes in the smallest named count (the first in name order on a tie), one count at most, since a named count reaches the line alone; a map that is one pool restates the total it covers. A form the forms map holds back has no widths published (P8, replacing the four conditions of P5.c that bounded a pooled width census): its cells are below the line, or it is the one named form the pool took in and its total leaves that pool behind. `field_widths` leaves out the held-back cells written whole where what they add past the named point-free forms, or what that leaves of the pool, is too few to name (P9c), and `parsing.width_census_breaches` is asked at a floor of one too. The four pools stand at a floor of one (`canonical.POOLED_AT_ANY_FLOOR`, now listing them on a column, a part, and a compound or affixed column's `numbers`). The padded-number remark speaks only where the forms map names `leading_zero`, with that count. The checker's recount window lets one unnamed form hold as much as the smallest named form, or the whole pool where none is named; an absent key is withheld rather than missed where the measured file's own pool could hold the published count; and a pool that holds the point back permits its cells a width on `styles.spelled`. **The generator is unchanged**, so no frozen case moved a cell for the rule itself; four hand-written cases carried censuses the loader now refuses: `numeric_integer`, `numeric_pooled_spelling` and `saturated_integers` now publish what the producer writes for their sources with the same cells, and `numeric_decimal_styles`, whose three pooled plain cells beside two named exponent forms no longer load, is written in the two exponent forms alone (twelve and thirteen), keeping its boundary spellings and a fold-collision family of four and dropping G6.4's look-ahead over three plain carriers; the three vectors files are rebuilt with the guard runner and the manifest digests reset. **Measured:** the gate column publishes `{"decimal": 1198, "(withheld)": 2}` and `fraction_widths {"(withheld)": 1198}` at a floor of one and `{"(withheld)": 1200}` with every width census empty at eleven, no remark, and a description byte-identical to the same table with the three cells written `+42`, `1.5E3` and `12.3450`; twin and real exit 0 at both floors. 799 padded codes beside one unpadded key publish one pool of 800 and `pad_widths {}` at floors one and eleven, closing P4-D148's carried item. Fifteen ordinary number shapes at floors one and eleven (prices, integers, padded codes, grouped, one place, two widths, plain beside decimal, exponents, signed, currency, brackets, units, wide keys, joined pairs) give byte-identical descriptions, twins and reports against 039df54 but for one quality-report verdict: a twin whose own description folds two cells at another width into its pool now reads `widths.published.2` WITHHELD where it read HELD. The demonstration description moves one value (`reading`'s `field_widths`, a pool of five taking in a named width of 57) and its twin, report and quality report hold. **Limit, and it is a fidelity cost:** a column with too few cells written another way to name now publishes the whole of that census as one pool at a raised floor -- the gate column's twin at eleven writes 879 plain cells and 321 decimals at full precision where the table wrote two places -- and a width census with one odd cell is one pool at any floor, so 399 one-place readings with one `4.20` come back with no grid; twenty-five padded codes beside ten two-place cells at eleven come back unpadded. The older tests that pinned pools below the line are each rebuilt on a shape whose pool is legal or re-pinned to what the rule now publishes, and the entry table's red battery registers floor-sized or whole-column edits where a one-cell edit is now withheld. Pinned in `tests/test_number_censuses_name_no_row.py`, and every guard was checked by withdrawing it.
+
+### P4-D222 A count below the line is counted into the commonest named count (the repair of P4-D220 and P4-D221; stage 2 closed by the owner rulings of 2026-09-17)
+
+The final skeptic of P4-D220 and P4-D221 measured four BLOCKERs and a MAJOR on the pool those two decisions built. **The pool gave counts back:** the six forms of a number are a closed vocabulary, and 7, +8, 09, 1.5e3 and 2.5E3 among 995 prices at a floor of one published `{"decimal": 995, "(withheld)": 5}`, each unnamed form exactly one cell; `field_widths {"(withheld)": 3}` said it a second way. **The pool cost the column its own spelling:** a pool below the line took in the commonest named count, so one `T` among 5,000 space-separated moments made the twin write `T` on 4,998 rows; one `Z` among `+01:00` and `+02:00` made half the twin naive; one `120` among 999 two-place prices, one `4521` among 1,999 seven-wide padded codes and one `4.20` among 799 one-place readings came back as integers and fifteen-place decimals, unpadded codes and fifteen-place readings -- at the default floor, where 039df54 had kept all of them. **And the checker let breaks through:** reading an absent key as a pool the file might hold, it passed a file keeping 2 of 12 published exponents. These went against two mandatory owner rulings at once: the description reveals nothing about any individual, and code developed on the twin runs unchanged on the real table.
+
+**The decision** (`parsing.absorbed_census` and `parsing.census_pools`, asked by `taxonomy._separator_counts`, `_offset_counts`, `_numeric_styles`, `_fraction_widths` and `_width_censuses`; contract D3, D12, P2, P5, P5b, P6, P6b, P6c, P8, P9c and S13; validation V5.3-A3; method G7.5 step 2): **a name fewer cells than `parsing.census_floor` wrote is counted into the commonest named count**, the way ruling 4 of 2026-09-17 counts missing-value words pooled below a raised floor as absent so that a real table passes its own description. The description is that of the table with its rare spellings written the commonest way. So no pool ever stands beside a named count, no printed count and no difference a reader takes is below the line, and a rare name is never told apart from a name no cell wrote. **Where no name reaches the line the census is one pool** of the total the block already prints -- except on a closed vocabulary over more cells than all but one name can hold below the line, where a pool would say every name was written; there the whole population is counted under one name. That name was the vocabulary's DEFAULT (`upper_t`; `plain`, or `decimal` for a column not whole-valued) until plan P4-D242, which measured it publishing a mark no cell of the column wore; it is the commonest name the CELLS wrote now, ties to the first in sorted order, and the default is written only where no cell wrote any name at all. **What depends on a census follows it:** a value at a rare offset is read at the commonest offset, so the clock the column is published on, its ends and their offsets name nothing rare, and a pooled offset census publishes the shared clock and holds both ends back; `zulu_case` counts the values counted into `Z` in its commonest case; `decimal_plus` counts over the published `decimal` count (and is `(unavailable)` beside a pooled map), and `wide_runs` over the forms the map names. The width censuses count only the cells of named forms, the cells counted into a form at that form's commonest width, a pad width below the line into the commonest pad width, and unpadded cells below the line at a width into the commonest unpadded width; a census with no width at the line, or with no unpadded width at the line beside unpadded cells, is one pool, and a fraction census whose widest named width is narrower than the published minimum or maximum needs is one pool, because a twin cannot write that end on the named grid (the snap test's minimum of 2.11 came back 2.1). **The checker** settles every style clause on the counts the measured file's own description publishes where that description names its forms -- the same for every file it describes, so V5.1 needs no window -- reads the recount only over those forms, and keeps its window for a pooled map; a published key the file's own description does not name is missed again. **The generator** splits a pool of marks evenly again: a pool now stands only where each third of it is below the line, and plan P4-D220's one-value-each rule wrote 28 `T` for a pool of thirty at twenty, which the twin described again named. The twin report's mark sentence and the summary's are 039df54's again. Frozen case `pooled_marks` rebuilt at twenty moments (seven, seven and six); every other vectors file byte-identical to the branch.
+
+**Measured** (profile, generate at seed 4, describe the twin, validate twin and table, floors 1 and 11): 400 stamps with one `t` publish `{"upper_t": 400}`, byte-identical to that cell written with a space, twin all `T`; 5,000 space stamps with one `T` publish `{"space": 5000}` and the twin writes spaces; 495 `+01:00`, 504 `+02:00` and one `Z` publish `{"+01:00": 495, "+02:00": 505}` and every twin value is zoned; 399 `+00:00` and one `Z` publish `{"+00:00": 400}` on the local clock; the 1,200-price gate publishes `{"decimal": 1200}` and `fraction_widths {"2": 1200}` at both floors, byte-identical to the same table with `+42`, `1.5E3` and `12.3450`, and the twin writes two places; the five single forms and ten-of-each at eleven publish `{"decimal": N}`; 999 prices and `120`, 1,999 MRNs and `4521`, 799 readings and `4.20` keep two places, seven padded figures and one place; the file keeping 2 of 12 exponents is MISSED. A neighbour fuzz -- a cell of a rare spelling respelled, with the same value, into another rare spelling or into the commonest -- over 7,315 respellings of number and date columns at floors 1, 2, 3, 5 and 11 found no description the loader refused; of its twenty flagged differences nineteen moved the cell into a named form at a width that form already names, a named count gaining a member as any census's does, and one was a defect, a width emptied by the count read as a width below the line, repaired and pinned. Fifty random tables at floors 1 and 11 exit 0 on twin and table. Twenty-four shapes at floors 1 and 11 -- the fifteen number shapes P4-D221 measured, and ISO stamps with `T`, a space, `Z`, two offsets and mixed marks, twenty-four stamps, sixty prices, dates at midnight and slashed stamps -- give byte-identical descriptions, twins, reports and exit codes against 039df54, but for one twin quality report whose twin already exited 3 there (plain beside decimal at eleven): the twin writes two more cells with a point than published, its own description counts them at two places, and `widths.published.2` joins its misses at 202 against 200. Every twin of the 039df54 demonstration table is byte-identical; its description moves one value (`reading`'s `field_widths {"2": 57, "3": 170}`, where 039df54 pooled five) and its report adds one deviation paragraph for the five cells that value counts at three figures.
+
+**Costs, named:** (1) a file with fewer than the line of cells written another way now describes exactly as the table without them, so a twin that respells them passes -- 583 two-place and 5 one-place prices at eleven are a legitimate table of the same description; (2) a rare non-whole value counted into a point-free form cannot be written in it, so the twin writes it with a point and reports the named count short, and where that leaves thirty-two carriers for thirty-three point-free claims the placement can give up another named count (the entry file's `BAND` shape at eleven writes eleven padded cells for twelve and its twin misses `leading_zero`); (3) sixty moments on two days with five `T` among the spaces reads back as a binary column, because the five are the only third spelling; (4) a closed census in the default band publishes a name no cell may have written (eight of each mark over twenty-four moments at eleven publish `upper_t`), which the twin writes; (5) a short column's offsets pooled still says `datetimes_read_at` and a pooled map's endpoints are held back where 039df54 named `(none)`. All five are owner questions this record does not settle; the rule is ruling 4's by analogy, not by extension of its text. Pinned in `tests/test_older_censuses_name_no_row.py` and `tests/test_number_censuses_name_no_row.py`.
+
+### P4-D230 A prefixed column's fold partners wear the layouts the census names (the merge of the two ruling branches, 2026-09-17)
+
+The owner's rulings of 2026-09-17 (P4-D202, the literal prefix) and the repair of the carried items of landing 2b (P4-D196, the cells no layout is named for) were built on two branches cut from the same commit, and they first met in one column at this merge. **What went wrong.** Method G9.3 step 4 hands partners out in ascending identity order and walks the parents of the asking slot's own family in its cyclic order, taking the FIRST that supplies a partner at all; G9.3 step 2's member preference -- a member wearing a named layout with cells left -- chooses inside ONE parent's family and cannot reach past it. That order was fixed where any parent of a family could supply a partner of any layout the census names. A published prefix narrows it: every cell of a prefixed layout opens with the same characters, so one parent's family reaches one layout and no other. **Measured on the merged tree**, 300 record numbers `S1000` with a tenth of them written again in lower case, beside `S-12-A`, declared with `--identifier`, publishing `{"%%%%%": 28, "&%%%%": 26, "@%%%%": 214, "@-%%-@": 32}` and a prefix for each lettered layout: the first parent of every partner's family was a hyphenated one, whose case flip `s-12-A` wears a layout the census names no cell for, so the twin wrote 20 of those, `&%%%%` came back 7 of 26, `@%%%%` 213 of 214, and `validate` exited 3 naming both misses. The miss was never silent -- the twin's report named it and the quality report MISSED it -- but it is a fidelity loss this shape did not carry before the two rules met, and it is the shortfall P4-D196 had closed. **The decision** (method G9.6a step 6; `generation._partner_of`, `generation._partner_from`): on a column publishing a literal prefix, and only there, the ask is offered to every parent of the family FIRST with the step 2 preference held to a named layout that still has cells, and only then walked again exactly as G9.3 step 4 walks it. The two walks are the same walk in the same order, so a column publishing NO prefix asks nothing new and writes the bytes it wrote -- every frozen case, every golden and the whole suite are unmoved, and the shape above with two capitals instead of one publishes the same census, no prefix, and comes back with the same one-cell shortfall it always had. **Measured after:** the prefixed column writes `{"%%%%%": 28, "&%%%%": 26, "@%%%%": 214, "@-%%-@": 32}` exactly at seeds 1 and 4, twin and table both at exit 0. **Pinned** by `tests/test_p4d230_prefixed_partners_wear_named_layouts.py`, whose second half pins the unprefixed shortfall so a pass widened to every column turns it red; withdrawing the pass turns four tests red across that file and `tests/test_p4d196_identifier_layout_partners_signs.py`.
+
+### P4-D231 A label column's lone row read by subtraction is counted as MISSING (owner ruling of 2026-09-17, item 5)
+
+The owner's ruling of 2026-09-17, item 5, closing the limit P4-D201 put to the owner: a label column's lone row that could be read by subtraction is counted as MISSING rather than published; the twin writes a blank there, no count of one can be derived, and a real label that clears the floor is never held back to hide it. **The decision** (contract invariant B4b and section 6.3; `parsing.pool_names_a_level`, `taxonomy._a_level_is_below_the_floor`, `taxonomy._levels_read_by_subtraction`, the level pass of `taxonomy.profile_column`, `taxonomy._decide`'s `after_levels`, `contract._levels`).
+
+(1) **The question is a count of ONE.** P4-D201 publishes the pool as a count of levels and a count of rows and no size of any one of them; where that pair is one level on one row it is a count of one outright. Invariant B3 makes the subtraction available whether or not `suppressed_rows` is printed, which is why the first writing of P4-D201 could not hide a pool of one by leaving a key out.
+
+(2) **Two wider readings were BUILT, measured on the full suite, and left to the owner.** This is the record of what each costs, because the next reader will reach for them. (a) *One level of any size.* The pool is then that level's own count, and the number is below the floor by construction -- one level over seven rows says seven people share a value the description will not name. Measured: **53 witnesses move**, among them a `constant` column whose one value covers four rows, which becomes an EMPTY column, and a column of 98 readings beside two `trace` cells, which becomes a column of numbers with two holes. (b) *The pool must reach `parsing.census_floor`*, which is the one disclosure rule asked of the subtraction. Measured: **66 witnesses move**, the held-back machinery of P4-D201 is emptied wherever the floor is high (at a floor of 125 a pool of 124 rows over 40 levels would go), three frozen cases become unwritable, and the rare VALUES of every small column at a raised floor turn into holes -- twelve long spellings, twenty `not done`, three `2.0` and two `3.0` at a floor of eleven became a binary column with five blank cells. Neither is built: the ruling names a lone row and a count of one. **Say which is meant.**
+
+(3) **The producer counts that cell as missing, spelled as nothing.** A fourth judged pass joins the three the column already has (the numeric stand-ins, the placeholder days, the cores): a trial reading says whether the column publishes a level list, `_levels_read_by_subtraction` answers which level the floor will not name where the pool it would leave is one row, and its cell goes to the missing side as the EMPTY spelling. The spelling is not carried over, and that is the whole point: a cell counted absent under its own spelling would put that spelling in `missing_by_source` or in the pool beside it, and a reader who can tell such a cell from an ordinary blank has been told the count the pass exists to withhold. So the description is that of the table with that cell blank -- the same shape of answer ruling 4 and P4-D222 give, one for missing-value words below a raised floor and one for spellings below the line.
+
+(4) **The gate is cheap and the ordinary run is not charged for it.** No level below the floor means no pool, and at the default floor of one there is no such level, so the trial reading is never run there. Measured on a 2,000-row long tail at a floor of eleven, where the trial runs and the pass does not fire: 0.289 s to describe before, 0.320 s after.
+
+(5) **After the pass only the LABEL rules decide again -- except where the column was numbers BESIDE labels.** `_decide` gains `after_levels`, which silences rules 2, 5, 6, 8, 9 and 9c, and rule 0c, exactly as `--code` silences them: the cells the pass removed are the ones that were keeping the parse-rate rules out, so re-asking them would be a column changing what KIND of thing it holds because cells LEFT it, which C6-5 and A-P4-1 item 3 already forbid for the other two passes. Which LABEL rule claims the column does follow the levels that remain, and it must: 480 `F`, 519 `M` and one `U` is a `binary` column of `F` and `M` once the `U` cell is a hole, and the twin describes back to that role. On `numbers_with_labels` the silencing is withdrawn, measured under reading (a): what the pass removes there is a label half the floor would not name, and the numbers left were numbers all along -- 98 readings beside two `trace` cells became FREE TEXT and published no number at all, where the honest answer is a column of 98 numbers with two holes.
+
+(6) **The loader refuses a document whose pool is one label on one row** (B4b), so the generator and the validator hold the rule without a line of their own: the generator reads no description the loader rejects, and the validator describes the file it checks with the producer, which runs this pass.
+
+(7) **A WORKBOOK column whose cells are pooled into absence withholds its class census** (`profile._pooled_absence_withheld`). `cell_classes` counts every cell of a column as the SHEET stored it, and the column beside it says how many cells are absent under a spelling the floor would not name; the twin writes those cells EMPTY, because nothing published says what they held, so its own census counts an empty cell where this one counts a text. Measured: 41 records of three texts at a floor of five, whose first record holds a lone `amber` and a lone `Northfield`, published `text: 41` on each column and wrote a twin that MISSED `workbook.cell-classes` on both while the real workbook held everything. The census is withheld for such a column now, exactly as `_stored_as_text_withheld` withholds one whose difference a reader could take; a withheld census publishes no count and is never missed.
+
+**Measured, before (2b3746b) and after.** The shape the rulings branch pinned as the limit -- 480 `F`, 519 `M`, one `U` at a floor of eleven -- published `suppressed_levels` 1 and `suppressed_rows` 1 beside `n_present` 1,000, and its twin wrote the invented label `group-1` in exactly one row, which is that person's row; it now publishes two levels covering all 999 present cells, `n_missing` 1, `n_missing_withheld` 1, `missing_by_source` empty, and the twin writes 480, 519 and one empty cell, with the twin and the real table both at exit 0 and the twin describing back to the same block. 400 `north`, 15 `south` and one `west` at eleven keeps `south` published at 15 and written at 15, which is the half of P4-D201 that does not move, and loses only the `west` cell. Wards W01 to W04 beside one `home` keep W04 at 14. A column of 200 noughts beside one `-999` is a `constant` column with one hole, and the stand-in candidate is named nowhere (`tests/test_column_analysis.py`). A pool of three levels over five rows, one level over five rows, and a long tail of 2,000 rows over 300 Zipf-weighted codes are all untouched. The demonstration table's description, twin and reports do not move at all: its `region` holds one level over SEVEN rows, which is limit (a) above and not this rule.
+
+**Costs, named.** (1) **The twin loses a lone rare value to a hole** wherever the pass fires, which is the ruling. (2) **A role can move**, and the move is always toward what the remaining cells are: categorical to binary, binary to constant. (3) **The twin's report names that cell as an empty cell and not as a cell counted out for this reason**, and no count of it is published anywhere: a key saying "one cell was counted missing because its label was too rare" is the pool of one again, in another place, so the report cannot name the reason without undoing the ruling. What it does say is how many cells of the column are empty and that the twin writes every one of them as an empty cell.
+
+**Pinned** by `tests/test_ruling_levels_counted_by_subtraction.py` (ten witnesses: the pool of one row, one level over five rows as the stated limit, a pool of three levels that stands, a long tail untouched, the floor of one moving nothing, the smallest raised floor, no spelling of a counted-out cell anywhere, the loader's refusal, the question itself with both wider readings written out, and the roles the pass is asked of) and by the moved witnesses of `tests/test_ruling_pooled_held_back_levels.py` and `tests/test_column_analysis.py`. **Red checks, measured:** withdrawing the pass turns those witnesses red together with the two pooled pairs of `tests/test_ruling_pooled_held_back_levels.py`; the loader's own half is the `B4b` entry of `tests/test_contract_loader.py`'s battery, a document whose published labels leave one label on one row.
+
+**AMENDED BY P4-D239 AND P4-D240 (the final review of 2026-09-18), and the work item's report sentence WITHDRAWN.** The question this entry asks is no longer `levels == 1 and rows == 1`: a count of one is FORCED wherever the held-back rows come to fewer than twice the held-back levels, bounded by the pool being smaller than the smallest published level, and P4-D239 carries the measurement (three one-patient sites among 2,000 rows published three levels over three rows and its twin wrote three single-row labels). The three-levels-over-five-rows pool named as untouched above is closed with it, and the moved witness says why. P4-D240 gives the same treatment to a label's SPELLINGS, which published a count of one outright under `variants_withheld {"1": 1}`. **The work item asked that the twin's report name how many cells were counted as missing for this reason; that sentence is withdrawn**, and cost (3) above is why: the report is written from the DESCRIPTION alone, the description deliberately cannot tell such a cell from an ordinary blank, and a description carrying the reason undoes the pass. `n_missing_withheld` carries the count, as it does for every other withheld hole.
+
+### P4-D232 A first row that cannot be told from a record names no column (owner ruling of 2026-09-17, item 8)
+
+The owner's ruling of 2026-09-17, item 8: where a file's first row cannot be told from a data record -- a title over a headerless table, or no header at all, on delimited text and on workbooks alike -- synthtwin publishes placeholder names `column_1`, `column_2` and so on, never that row's own text, and asks in the questions file; `--first-row names` publishes the real names. **The decision** (contract section 4.3 and invariant S6's paragraph; `reading._settle_the_first_row`, `reading._stood_under_furniture`, `reading.read_table`, `reading._read_workbook_table`, `workbook.table_of`'s `records_from_the_header`, `taxonomy.HEADER_NAMES_NOT_TOLD`, `asking._first_row_questions`, `summary._names_not_told_lines`).
+
+(1) **Three shapes settle nothing, and all three are answered the same way.** A first row whose every value reads as a number; a first row the values below show to be a record (the record rules of `reading._record_evidence`, three of them here and FOUR since plan P4-D241, which added the rule that reads a record made of structured TEXT and closed the shapes this entry's furniture rule cannot reach); and a row the reader would take as names with a line that is NOT a record above it -- a title, a comment, a workbook row of one cell -- where no column of the file shows that row to be names. In each the file is walked again with the first row as a RECORD: the columns are synthtwin's own, every row is kept, no text of that row reaches the description, the summary, the twin, the twin's report or the quality report, and `header_evidence` is the new enumerated sentence.
+
+(2) **The two refusals are withdrawn** (`errors.header_looks_like_data` and `errors.first_row_could_be_a_record` are deleted, with their entries in the failure catalog). They stopped the run and asked on the screen. The reading taken now is the one that publishes nothing of a row that may be somebody's data, and the ask reaches the person where every other question about their file does -- which is what item 8 asks for and what P4-D203 could not do for the workbook refusal, because that one stops before any table is described. The words the reader found are not lost: they are the questions file's account of what was SEEN.
+
+(3) **The furniture rule is asked AFTER the file's own evidence that the row is names, and that ordering is the rule's safety.** A title over a real header is the commonest shape a spreadsheet exports. Measured with the rule asked first: `Extract for unit 7` over `record_id,age,arm,site,reading` and eighteen records read as a headerless table of nineteen, the header row became a value of every column, and the twin failed its own description at exit 3 -- three round trips of `tests/test_file_dialect_round_trip.py`. Asked after, the numeric column under a non-numeric name shows the row is names and the file is read exactly as it was.
+
+(4) **A blank run above the table is not furniture for this purpose.** Measured: counting it read `age` over four numbers as a headerless table of five records. A blank line says nothing about the line below it; a title or a comment is somebody's words, and words stand over a headerless table as readily as over a headed one.
+
+(5a) **A sheet that MARKS its header row is not asked** (`workbook.marks_the_header`, the public name of P4-D174's `_marked_by_the_sheet`). An autofilter beginning at that row is a thing a person does to a header and never to a record: the file's own evidence, of the same standing as a column of numbers under a name that is not one, and asked in the same place. Measured without it: the autofilter of a marked sheet names its header's row, the twin with no header wrote the filter elsewhere, and `workbook.autofilter` MISSED on the twin. **AMENDED BY P4-D281 (the files review of 2026-09-18): a FROZEN PANE is no longer such evidence**, and this entry said it was. A freeze splits the window where the person dragged it, over a banner or a logo as readily as over a heading, and one `ySplit` attribute was enough to publish a row this ruling protects as the column names; `_marked_by_the_sheet` keeps the pane for the OTHER question it answers, which is which of the rows already settled as furniture is the header.
+
+(5) **A workbook keeps its furniture** (`workbook.table_of`'s new `records_from_the_header`). `--first-row data` reads every row of a sheet from the first, so a title row would become a record and its text a value of the first column, which contract FD11 and plan P4-D80 forbid at every smallest group. The reader's own answer keeps the rows above the header rule's row as furniture, counted and never published, and makes that row the first record. **The validator reads a checked workbook the same way** (validation method V1.5's new clause): it passes the row the description starts its records on whether or not the names came from the file, because a reading that took every row from the sheet's first holds one row more -- measured, the titled sheet of 40 records missed fourteen obligations on its twin AND on the very book it was described from, and holds every one of them read this way.
+
+(6) **The questions file carries the seventh declaration** (`asking.FIRST_ROW_SUBJECT`): what was SEEN, in words that name a column by its POSITION and quote no cell, the reading that stands (`first-record`), and what the other answer would publish -- that row's text, in the description, the summary, the twin and the quality report. **And the answer is read back** (`asking.Answers.first_row`, applied in `cli._run_profile` before the table is opened, as the metadata-rows answer and the delimiter answer are): a person who writes `names` in the file gets the reading `--first-row names` gives them. Without that the file synthtwin itself wrote would have been refused for carrying an answer it offered.
+
+**BOTH ANSWERS ARE APPLIED, AND ONLY ONE WAS** (review of stage 3, floor item 2; this paragraph is the record of the amendment). `first-record` was called "the reading that already stands and leaves the option where it was", which it is only while nothing else moves. Answered BESIDE a delimiter correction it is the one answer holding the first row IN the table, and dropping it let the corrected reading take that row as the column names. **Measured:** a first record of `12,HEADER|LABEL` over 360 records of `i,code{i}|other{i}`, answered `first-record` and `vertical-bar` in one file, described 360 records and published `12,HEADER` and `LABEL` as two column names, where `--first-row data --delimiter '|'` keeps all 361 records and names the columns `column_1` and `column_2`. It is also what a person who changes their mind back towards the standing reading writes, so a typed `--first-row names` answered `first-record` now gives the record reading: the file is the newer statement in both directions, which is the rule this entry already states for `names`.
+
+**AND AN ANSWER THAT CHANGES THE READING MAY NOT STAND BESIDE ONE THAT NAMES A COLUMN** (review of stage 3, floor item 1; `cli._answers_that_change_the_reading`, `errors.answers_change_the_reading_and_name_columns`). The column names in a questions file are the names of the reading that WROTE it, so an answer changing the reading gives those names to different columns and a declaration applied by name afterwards reaches a column the person was not looking at. **Measured:** a header of `column_2,column_1` over 360 records whose first field held twelve repeating subject codes and whose second field repeated the header's own value on eleven records — so the first row could not be told from a record and the columns were named `column_1`, `column_2`. Answering `names` for the first row and `identifier` for `column_1`, the FIRST field under the reading in force, put the declaration on the SECOND field: the run reached all three writers, counted 350 people and published the twelve real subject codes with counts of thirty, where declaring the field the person meant refuses the table as thirteen people. **Refused rather than mapped**, because `column_1` is a column name under BOTH readings of that file and nothing can tell which was meant: two of the three file questions move a column name — which row holds the names, and which character separates the columns, the second of which decides how many columns there are at all — and either of them beside a `code`, `identifier`, `measurement` or `decimal-comma` answer is refused with a message saying which question it was, which columns were named, and to do it in two runs. An answer that AGREES with the option typed changes nothing and is not a change: `--delimiter ','` answered `comma` is the reading already in force. The third file question, how many rows under the names describe the columns, takes ROWS out and leaves every column where it was, so it is not one of them.
+
+**Measured, before (2b3746b) and after.** The case the green pass flagged: `subject id` over `CASE-ZEBRA-471,amber,Northfield` and 239 more records published that record as the three column names, in the description, in the plain summary, in the twin's own header line and in the quality report, with the table 239 rows instead of 240. It now publishes `column_1`, `column_2`, `column_3`, describes 240 rows, writes no `written_names` in `source.dialect`, and asks; at a floor of eleven no character of `amber`, `Northfield` or `subject id` appears in any of the six files. The same shape in a workbook -- a title row of one cell over 40 records of three texts -- was read the same way and is now read the same way as the text file. The three refusal shapes (a row of numbers, a repeated label, a number among numbers, a date among dates) exit 0 instead of 1 and lose no record.
+
+**Costs, named.** (1) **A title over a header of pure labels loses its names.** Where no column of the file is numeric, nothing shows the row is names, so a titled export of label columns is described with placeholder names and its header row becomes a record. The questions file says so and `--first-row names` puts it back; a person who ignores both gets a twin with one extra row of their own header's words at the floor's discretion. (2) **The first row's values are the floor's business now, not the names rule's.** Read as a record, that row's values are published exactly as every other row's are: at the default floor of one a lone `amber` is a published label. That is the floor's decision, and the ruling's point is that the row is no longer published AS SCHEMA, which bypasses the floor entirely.
+
+**Put to the owner.** **The shapes this does NOT reach**, measured and pinned rather than described. (i) `test_a_headerless_file_with_no_furniture_is_the_stated_limit`: the same headerless records with NO title above them and no value marking the first row as a record are still read as names by convention, and `CASE-ZEBRA-471` is still a column name. (ii) A workbook sheet whose header rule takes a row of ONE WORD as the names (`subject` in A1 with B1 and C1 blank, plan P4-D186): nothing then stands above the names as furniture, so the rule is not asked and the record under them is read as records, which is what `tests/test_files_review_repairs.py` holds. Nothing in such a file says otherwise. The only rule that could say it is the first row wearing the exact written shape its column's values wear -- `CASE-ZEBRA-471` over `CASE-ZEBRA-472` -- and that same rule reads `sites` over `north`, `south` and `east` as a record, because a five-letter word over five-letter words wears the same shape. Say whether to take that rule with its false positives, or to leave the convention where the file is silent.
+
+**Pinned** by `tests/test_ruling_first_row_not_told.py` (nine witnesses, including the workbook) and by the moved witnesses of `tests/test_p1r6f6_first_row_decision.py`, `tests/test_reading_agreement.py`, `tests/test_reading_header_shape.py`, `tests/test_reading.py` and `tests/test_failure_catalog.py`. **Red checks, measured:** withdrawing the furniture rule turns four of the nine red; asking it before the names evidence turns one of them red and three round trips of `tests/test_file_dialect_round_trip.py` with it.
+
+
+### P4-D233 A hexadecimal column's prefix is published and written (the limit P4-D202 put to the owner)
+
+Plan P4-D202 built the owner's ruling of 2026-09-17, item 1, and recorded one shape it did not reach, as limit (c): **a prefix before a hexadecimal tail is not published**. `parsing.literal_prefix` answered `""` for any column whose layout convention is not plain, `contract._layout_prefixes` refused a prefix beside a hexadecimal census under LP1, and `parsing.prefix_layout` marked a letter by its CASE whatever the column. **Measured on the merged tree at 155aa59**, 800 record numbers of `DE-` and six lower-case hexadecimal figures, declared with `--identifier` at a floor of eleven: `layout_forms {"~~-~~~~~~": 800}` beside `layout_prefixes {}`, the twin wrote `d2-cfc8af`, `2e-9cae7c`, `af-b06c7d`, and `DE-[0-9a-f]{6}` matched 800 real cells and 0 twin cells with both files at exit 0. That is exactly the loss the ruling exists to close -- `df.code.str.startswith("DE-")` selects 800 rows of the real table and none of the twin -- and the ruling's own words ("where every present cell carries it and the column clears the floor") do not exempt a base.
+
+**The decision** (contract C6-139 and C6-141's LP1 and LP2; method G9.6a step 2; `parsing.literal_prefix`, `parsing.prefix_layout`, `parsing._is_a_hex_figure`, `contract._layout_prefixes`, `contract._layout_census_convention`, the oracle's `prefix_layout`). The four cut-back rules are unchanged, and rule 3 -- no half a run of letters -- is asked of the column's own figures. A hexadecimal column is one whose every letter is `abcdef` in either case (C6-128), so every letter there is a figure of base sixteen, and the opening is cut back to its last character that is NOT one. **A hexadecimal prefix therefore always ends in a mark**, which is what tells a label the writer put in front of a number from the front of the number itself: `DE-` publishes, and `ab12` beside `ab34` still publishes nothing, because `ab` is half a number. Nothing else moves: `is_a_literal_prefix` admits the same text whatever the column, the disclosure rule is the same `parsing.prefix_nameable`, and the per-layout scope is the same.
+
+**And a prefix's own layout is read under the column's own convention** (`parsing.prefix_layout` now takes the convention, as `parsing.layout_form` always has, and is that reader asked character by character). `DE-` under a lower-hexadecimal column is `~~-`, so LP2 asks it of the census's own marks, the generator's template is `DE-~~~~~~`, and the recount of C6-142 reads it. Marked by case, `DE-` would have been `@@-`, which opens no hexadecimal layout: LP2 would have refused the producer's own document. The loader reads the convention off the published keys exactly as `generation._layout_convention` does, which LF6 has already made unambiguous.
+
+**Measured after,** same shape, same floor, generate seed 4: `layout_prefixes {"(column)": "DE-"}`, the twin writes `DE-dec8af`, `DE-07a7b8`, `DE-10e893`, **800 of 800 twin cells open with `DE-`**, the twin's re-description publishes the same census and the same prefix, and twin and table both validate at exit 0. Containment: every committed vectors file rebuilt byte-identical, the three goldens unmoved, and the plain shapes of `tests/test_ruling_identifier_prefix.py`, `tests/test_landing_2b18_identifier_layout.py`, `tests/test_p4d196_identifier_layout_partners_signs.py` and `tests/test_p4d230_prefixed_partners_wear_named_layouts.py` byte-identical -- a plain column's prefix, its template and its layout are what they were, because `_layout_mark` under `LAYOUT_PLAIN` is the case rule this function used to state a second time.
+
+**Pinned** by `tests/test_p4d233_hexadecimal_prefix.py`.
+
+
+### P4-D234 A band's made-up words are counted over a HEAD, and the oracle now counts them the same way (the enumeration divergence of the close)
+
+While the frozen cases of the close were being built, the shipped generator and the reference oracle were measured against each other on the made-up words of the code band and DISAGREED at every length above one: the generator's family at two characters is `A-`, `B-`, `C-`, `D-`, the oracle's `A-`, `A0`, `A1`, `A2`. A second implementation that disagrees is a defect whichever of the two is right, because the twin's bytes stop being a function of the description and the seed. **Measured** (`generation._headed_spelling` against the oracle's `enumerated_spelling`, code band and wide band, lengths one to three): identical at length ONE -- every index of the head is one spelling there, which is why no committed case caught it -- and different from the second index at every greater length.
+
+**Which is the rule's statement.** Method G9.2 fixes plain base-`|A|` counting with the leftmost character most significant, and G9.1 adds that where a POSITIONAL CONSTRAINT refuses a character the enumeration puts the first character of the alphabet meeting it in its place. G9.1's constraints are the space at either end and the four formula leaders, and no others. **G9.5 step 4's band rule is not one of them**: it says which characters a cell of that band may LEAD with, so it is the family's own alphabet at that position -- the HEAD -- and not a rejection to be repaired afterwards. Three things say so together: (1) G9.5's capacity paragraph already computes the family's size as `|head| * |A|**(L-1)`, which is the headed family and not `|A|**L`; (2) the same paragraph states twenty-five values at length one in the wide band, which is the head's own size less the two spellings that mean "no value"; (3) the headed family is a BIJECTION on its own indices, where substitution puts every index whose leading character the band refuses onto one spelling -- eleven of sixty-four onto `A-` in the code band, sixty-eight of ninety-five onto `!!` in the wide band. So the generator holds the rule and the oracle did not.
+
+**The decision** (method G9.2's new paragraph; the oracle's `headed_spelling`, `raw_spelling`, `FREE_TEXT_HEADS` and `FREE_TEXT_BANDS`). The method states the headed enumeration and its three heads in normative terms so a third implementation cannot repeat the reading. The oracle counts its free-text words that way. **Two more partings were found in the same three lines and closed with it**: the oracle's code-band head admitted `_` where the generator's is the LETTERS of `CODE` alone, and the oracle's wide-band body alphabet held the space, which a word may not hold because the words of G9.5 step 6 are separated by one. **Measured after:** the two agree on every index of 0 to 1,999 at lengths one, two and three in both bands, and the heads and the alphabets are equal element for element.
+
+**Frozen, which is what makes it stay closed:** `code_band_words` in `tests/reference/generation-branch-vectors-5.json` -- six one-word cells of the code alphabet at two characters, `C-`, `B-`, `E-`, `A-`, `F-`, `D-` as the placement lays them out -- with its registered mutant restoring the substitution reading, which moves the cells. The seventh file rises from five cases to six and G14.3's count from eighty-six to eighty-seven. **Containment:** every other committed vectors file is byte-identical and the provenance check re-ran every generator and byte-compared.
+
+### P4-D235 A value no named form can write is owed from the form the recount counts it into (cost 2 of P4-D222, closed)
+
+Plan P4-D222 named five costs and this is the second: *a rare non-whole value counted into a point-free form cannot be written in it, so the twin writes it with a point and reports the named count short*. **Measured on the merged tree at 155aa59**, the `BAND` shape of `tests/test_p2c4f3_style_capacity.py` -- one `-20.5`, ten `-20`, twelve `00`, four `1`, three `6` and three `9` -- at a floor of eleven: the column publishes `numeric_styles {"leading_zero": 12, "plain": 21}` and `pad_widths {"2": 12}`, and its twin wrote ELEVEN padded cells and twenty-two point-free ones, missing `styles.exact.leading_zero`, `styles.remainder`, `styles.published.leading_zero`, `styles.published.plain` and `pads.published.2` with `validate` at exit 3 on the twin and 0 on the table.
+
+**The cause, and it is arithmetic.** The published minimum is exact, so one cell of the twin must be `-20.5`, which no point-free form can write. `generation._style_wearable` offered that stratum only the point-carrying forms, whose quota is nought, so the whole-strata packing found no assignment at all and the cell walk's answer stood -- and the walk spent the pointed cell out of `leading_zero`. **But the recount does not read it there.** Since P4-D222 a form fewer cells than `parsing.census_floor` wrote is counted into the COMMONEST NAMED form, so when the twin is described again that `-20.5` is counted into `plain`. Owed from anywhere else it takes a published count with it.
+
+**The decision** (method G6.4's new paragraph; `generation._absorbing_form`, `generation._style_wearable`'s third argument, `generation._style_strata`'s bound). A value with no point-free spelling may be owed from the one form `parsing.absorbed_room` names -- the commonest named count, which is the same shared rule the checker and the producer ask and not a second copy of it -- and from no other. The rule is asked ONLY where the published map names no point-carrying form: a map naming `decimal` or an exponent form must have those cells wear it, and a cell more would move that form's own printed count. And the packing is given up for the cell walk's answer where more such cells would be owed from the form than `parsing.absorbed_room` says it can take in, so no printed count moves.
+
+**Measured after,** same shape, same floor, seed 4: the twin writes twelve padded cells, twenty plain and the one `-20.5`, its own description publishes `{"leading_zero": 12, "plain": 21}` -- the published census exactly -- and twin and table both validate at exit 0 with nothing missed. **Containment:** every committed vectors file rebuilt byte-identical, the three goldens unmoved, and `tests/test_p2c4f3_style_capacity.py`, `tests/test_number_censuses_name_no_row.py`, `tests/test_older_censuses_name_no_row.py`, `tests/test_p4d140_number_censuses.py`, `tests/test_twin_golden.py`, `tests/test_stage2_round_trip.py`, `tests/test_p3v1f2_entry_table.py` and `tests/test_generation_reference.py` green at 777 + 32. The pinned cost witness `test_the_band_step_is_what_reaches_a_stranded_sign_band` is re-recorded with its cause in its own docstring.
+
+### P4-D236 The pool-beside-named rules are withdrawn from the generator (the dead paths the older-census branch left)
+
+Since P4-D222 **no pool ever stands beside a named count** in the six older spelling censuses, and the loader refuses one that does: `_pool_stands_alone` holds D3 (the offsets), P6 (the forms map) and both width censuses, and D12 holds the marks by name. The generator only ever reads a document the loader admitted, so every branch it held for a pool STANDING BESIDE a named count was unreachable. Four are withdrawn, each with the reason written where it stood:
+
+1. `generation._mark_weights` gathered the named marks into the weights before splitting a pool over the unnamed ones. Beside a pool there are no named marks, so the split now spends the pool over every permitted mark and says so.
+2. `generation._pooled_marks` looked for the commonest NAMED mark to give the ranks its split left over. It takes the first permitted mark -- a `T` on an ISO reading, a space on a slashed stamp -- which is the arm that was always reached.
+3. `generation._pool_enough`'s owed count was the whole pooled count where `plain` was a NAMED count beside the pool, and one cell otherwise. It is one cell, always.
+4. `generation._fraction_notes`, `_pad_notes` and `_field_notes` widened the recount's window at a named width by the census's own pool, and `_field_notes` by the forms map's pool as well. A pooled census publishes no width at all (contract P8 and `taxonomy._width_censuses`, which hands both censuses back empty beside a pooled map), so the walk above each window leaves it empty and the function has already returned. The three windows are exact again.
+
+**Measured:** `tests/test_number_censuses_name_no_row.py`, `tests/test_older_censuses_name_no_row.py`, `tests/test_p2c4f3_style_capacity.py`, `tests/test_p4d140_number_censuses.py` and `tests/test_twin_golden.py` green, every committed vectors file byte-identical and the three goldens unmoved. **One reading was wrong and the tests said so:** withdrawing item 3 as `owed = pool` rather than `owed = 1` turned six witnesses red, because a census that is one pool names no `plain` count either and the older condition was false there too. That is recorded because it is the trap a reader of this entry will walk into.
+
+### P4-D237 The oracle recounts a numeric case's distinct spellings off its own cells, and three committed cases declare what theirs hold
+
+The final pass over the close tried to add this recount and withdrew it, because it refused an existing committed case. **Measured over every committed case:** three numeric cases publish counts their own cells do not hold -- `separated_in_order` publishes `n_distinct` 22 and `n_distinct_folded` 22 over cells holding 21 and 21, `numeric_decimal_styles` publishes 24 and 23 over cells holding 25 and 23, and `numeric_integer` publishes 12 and 12 over cells holding 11 and 11. Each is a shortfall the shipped generator reports as a deviation and the frozen case pins: the two implementations agree on the CELLS, which is what a frozen case is for.
+
+**The decision** (the oracle's `_numeric_distinct_recount`, `NUMERIC_DISTINCT_RECOUNTS` and `RECOUNT_DISTINCT`). A count of different spellings is a fact ABOUT a case's cells, so the oracle recounts it and refuses a numeric case whose cells do not hold what it publishes. The three above state what their cells DO hold, by name and with the reason, so a NEW case that silently misses the count is refused while these three keep their bytes and their account. The recount is not asked of a MUTATED build: the mutation battery reverts one rule and asks whether the cells move, and a mutant that moves the count would stop the oracle where the battery is there to see the cells move. **Red check, run and recorded:** writing `(12, 12)` for `numeric_integer` stops every generator of the seventh file with `numeric_integer built cells holding 11 different spelling(s) and 11 folded identity(ies), and 12 and 12 were expected`. **Containment:** no vectors file moved for this rule; the datetime cases are outside it and named as the half this does not reach.
+
+
+### P4-D238 What the close of landing 2b MEASURED and did not close, each with its own number
+
+The last checks named eight defects. Four are closed above (P4-D233 the hexadecimal prefix, P4-D234 the enumeration divergence, P4-D235 the first of P4-D222's costs, P4-D237 the oracle's distinct recount) and the dead paths with them (P4-D236). The rest are recorded here with the measurement that says what each is and what closing it costs, because a defect argued about is a defect nobody can act on.
+
+**(1) A COLUMN OF MOMENTS WHOSE RARE MARK IS ABSORBED CAN PUBLISH A DESCRIPTION NO FILE SATISFIES** (cost 3 of P4-D222). **Measured:** 60 stamps at midnight on 2025-03-01 and 60 on 2025-03-02, five of the 120 written with `T` instead of a space, at a floor of eleven. The column publishes `role` `datetime`, `n_distinct` 3 and `datetime_separators {"space": 120}`; its twin writes two different spellings, describes back as `binary`, and MISSES `axes.role`, `axes.statistical_type` and `midnight.count` at exit 3. **No file can hold that description**: with one mark, 120 cells at midnight and the two published days adjacent, three different spellings do not exist -- there is no third midnight instant between them. **The cause is exact.** `n_distinct` counts RAW spellings while the mark census counts ABSORBED ones, so the two halves of the block describe different tables. **Both cheaper repairs are closed.** Pooling the census instead is refused by contract D12 through `parsing.census_pools`: a pool of 120 over three marks would say every mark was written. Correcting `n_distinct` alone leaves the twin's own re-description at two values, so `axes.role` MISSES again. **What is left is the general rule**: every fact read off a SPELLING -- the two distinct counts, and therefore the ROLE -- must be counted over the cells as the published censuses spell them, which is what P4-D222 says the description IS. That moves the description of the SOURCE table (the column above becomes `binary`, which is what it is once the five are absorbed), so it is P4-D222's own decision to widen and not a defect this landing may close by itself. **Put to the owner.** Without the rare mark the same 120 cells are already `binary` with `n_distinct` 2, which is the measurement that says the widening is the consistent answer rather than a new loss.
+
+**(2) A CLOSED CENSUS IN THE BAND PUBLISHES ITS DEFAULT NAME** (cost 4 of P4-D222) **and a pooled column's rare fractions come back as one pointed cell** (the measured note of P4-D222). **Measured, and neither makes a twin fail:** twenty-four moments with eight `T`, eight spaces and eight `t` at a floor of eleven publish `datetime_separators {"upper_t": 24}`, the twin writes twenty-four `T`, describes back to the same census, and twin and table both validate at exit 0. 200 two-place decimals beside forty plain cells at eleven publish `{"decimal": 200, "plain": 40}` and `fraction_widths {"2": 200}`, and the twin holds both exactly at exit 0. The second no longer reproduces. **The first is now half closed and half measured** (P4-D242, the final review of 2026-09-18): the name written there is the commonest the CELLS wrote, never the vocabulary's default, so no census names a spelling the column did not use; the twin still writes one mark where the source wrote three, and that is ruling 6's own cost at a floor no spelling of the column clears. The pool the review asked for instead is refused by arithmetic and not by preference -- see P4-D242.
+
+**(3) A TRUTH-VALUE CENSUS OF THREE OR MORE WHOSE PACKING LEAVES ONLY SINGLETON GROUPS** is still missed, reported and never silent (carried from the final pass, plan P4-D198). Its own measurement stands: of sixteen battery twins, two met the census before P4-D198 and eight after, and what the remaining eight need is a packing that can spell a truth value on more than two groups. That is the packing question P4-D198 names as its own limit, not a rule this part can state.
+
+**(4) A DATE WIDTH CENSUS NAMING SEVERAL CONVENTIONS IS PRINTED WITHIN-BOUND AND ITS COUNTS ARE NOT REACHED** (carried, plan P4-D195). **Re-measured on this tree:** 900 dates over two years, half written `%m/%d/%Y` and half unpadded, publish `date_field_widths {"padded": 381, "unpadded": 374}`; the twin holds 370 and 364 at seed 4 and 387 and 379 at seed 11, the quality report prints WITHIN-BOUND on the twin and HELD on the table, and both files exit 0. **What reaching it needs is named where the gap already is**: whether a date SHOWS a width is decided by whether its day and month fall below the tenth, so the count is reached only by choosing which VALUES the ladder puts there -- the joint allocation of the two date censuses, the widths and the month-name styles, which method G14.3 already records as the one allocation no committed case reaches. It belongs with that gap.
+
+**(5) `fraction_widths` MISSES ON A PERCENT COLUMN** (carried). **THE MEASUREMENT THIS ITEM WAS DEFERRED ON WAS WRONG, and the final review of 2026-09-18 replaced it.** It said the shipped study workbook holds `share` at `{"2": 600}` exactly and concluded that only a census naming THREE widths with a rare narrow one fails; the passing control it cited is a percent column that happens to carry a SINGLE width, which no allocation can miss. **Re-measured:** an ordinary `0.00%` percent column of 2,000 rows publishes `fraction_widths {"1": 180, "2": 1798}` and its twin misses BOTH published widths at seeds 4 and 11, twin at exit 3 and the real book at exit 0; at 600 rows it publishes `{"1": 55, "2": 540}` and still exits 3 at both seeds. TWO published widths is enough, and a reader of this item must look for the two-width shape and not for a three-width one. The currency column of the same book (`#,##0.00`) holds `{"1": 171, "2": 1801}` exactly, so the class is the percent and elapsed formats and not the width count. Identical at 0b0e0fc, so it is not a regression of this landing. It is the trailing-zero class, and reaching it needs the width exchange of P4-D179 to find tenths the ladder does not hold.
+
+**(6) WHICH FIGURES A WORKBOOK STORED AS TEXT IS NOT PUBLISHED**, so a text cell of the twin may hold `4` where the source held `4.0` (carried, stated in the twin's own report since P4-D187 and P4-D193). It is not a miss against any published fact -- nothing is published for it to miss -- and closing it means publishing a NEW census of the text-stored cells' own spellings, which is a disclosure question of its own and a key the contract does not carry.
+
+**(7) THE ORACLE HAS NO REACH STEP AT ALL** -- the second of the two divergences found while building frozen cases, and the measurement is sharper than the report that named it. Method G5.2's carrier step has THREE parts: the band step, the cell step, and the reach step that repeats both against the LADDER'S own answer to which strata can hold a whole number, growing one stratum's window where the answer is none. The shipped generator implements all three (`generation._carrier_bands`, `_carrier_sizes`, `_reach_sizes` with `_reach_held`, `_reach_met` and `_reach_grow`). The oracle implements the first two (`carrier_bands`, `carrier_split`) and **nothing of the third**: no function of it exists in the file. That is exactly "the generator moved cells into whole strata and the oracle did not", and it is why the divergence appears on a hand-built ladder and on no committed case -- every frozen case's ladder leaves the reach step nothing to do. **Closing it is a mirror of about three hundred and ten lines of the most intricate arithmetic in the method**, with a frozen case whose ladder crowds several values inside one unit, and it must be measured against the generator index by index as P4-D234's was. It is named here with its size rather than attempted at the end of a landing.
+
+
+### P4-D239 The pool that FORCES a count of one, bounded by the exception it has to be
+
+The final review of 2026-09-18 broke ruling 5 of 2026-09-17 on an ordinary shape. `parsing.pool_names_a_level` asked `levels == 1 and rows == 1`, and a count of one is forced wherever the held-back rows come to fewer than TWICE the held-back levels -- which contract section 6.3 already computed, two paragraphs above the rule, as `2 * suppressed_levels - suppressed_rows` provable singletons. **Measured:** a clinical `site` column of 2,000 rows at a floor of eleven, four sites from 137 to 700 rows and three sites holding one patient each, published `suppressed_levels` 3 and `suppressed_rows` 3, and the plain summary said in English that three values are each shared by fewer than eleven rows and cover three rows in total. Three levels over three rows can only be one and one and one. Its twin wrote `group-1`, `group-2` and `group-3` in exactly one row each, at both seeds, and every command exited 0. The shape survives BOTH wider readings P4-D231 deferred: eight held-back levels over twelve rows has a pool of twelve, which reaches `parsing.census_floor(11)`, and eight levels -- and twelve is fewer than sixteen, so four of them are single rows and the twin wrote four single-row labels.
+
+**The decision** (`parsing.pool_names_a_level`, contract invariant B4b and section 6.3, `taxonomy._levels_read_by_subtraction`, `contract._levels`). The question is the forced band, `rows < 2 * levels`, and it takes a third argument: the SMALLEST COUNT the column publishes beside the pool. Both halves are measured, and the second is not a nicety. **The band alone is true of every long tail**: 780 record numbers each written once beside one value of twenty rows hold 780 held-back levels over 780 rows, and counting those cells as missing empties the column outright -- fifteen witnesses of the code and long-tail batteries turned red that way, `shape_forms` coming back with the whole lower-case key gone. Nothing is derived there that the block did not already say: `n_present` and `n_distinct_folded` beside each other say every value is unique. The ruling names a LABEL column's lone row, which is a row standing OUT from the labels a column is made of, so the pool must ALSO come to fewer rows than the smallest published level -- three one-patient sites beside a smallest published site of 137 are an exception; 780 unique codes beside one published value of 20 are the column.
+
+**After:** the clinical column publishes no pool at all, `n_present` 1,997 and `n_missing` 3 with `n_missing_withheld` 3, the twin writes three blanks and no single-row label, and twin and table both validate at exit 0 at seeds 4 and 11. The eight-over-twelve column publishes 2,480 present and twelve missing and writes twelve blanks. At the default floor of one nothing moves at all. **Red check, run and recorded:** restoring `levels == 1 and rows == 1` turns `test_three_one_patient_sites_are_counted_as_missing`, `test_eight_levels_over_twelve_rows_is_reached` and `test_a_pool_of_more_than_one_level_is_closed_too` red; ignoring `smallest_published` turns `test_a_pool_that_is_not_an_exception_stands` red and the fifteen code and long-tail witnesses with it. **The contract's own justification was corrected with the rule**: it said the remainder is "a count about unnamed groups, the class `n_distinct_by_occurrences` already publishes", and that class is assigned by the contract's own key index to U3, I2 and F2 alone -- it is null on every categorical and long-tail column the pool reaches. Section 6.3 now says which columns carry it.
+
+**The witness that moved, and why it was wrong.** `test_a_pool_of_more_than_one_level_stands` pinned three levels over five rows as standing, on the reading that the sizes could be 1, 1, 3 or 1, 2, 2 so no level's own count is derived. Five is fewer than six: at least one of the three is a single row whichever way the rest falls, and a forced count of one is a count of one.
+
+
+### P4-D240 A label's spelling that ONE row wrote is counted into the level's commonest
+
+Ruling 6 of 2026-09-17 (P4-D222, CONFIRMED by the owner) counts a spelling below the line into the column's commonest so that no row is named. The LABEL VARIANTS census was not given that treatment, and it published a count of one outright. **Measured:** 490 `F`, 500 `M` and one `f` at a floor of eleven published, for the level `f`, `variants {"F": 490}` beside `variants_withheld {"1": 1}` -- by `taxonomy._variants`' own definition, ONE held-back spelling covering exactly ONE row -- and the twin wrote a lone `f` cell in exactly one row. The same shape at a floor of five on 46 rows published the same pair. The contract's discussion of `variants_withheld` addresses only a floor of one; this happens at every raised floor.
+
+**The decision** (`taxonomy._absorb_lone_spellings`, asked by `taxonomy._variants` and by `_levels` before `shape_form_cells`). Every spelling ONE row wrote is counted into the level's commonest spelling before either census is taken off it, ties to the first in sorted order. `variants_withheld` can no longer carry the key `1`. At the default floor nothing is held back and nothing moves: a label written fifty different ways at that floor still publishes all fifty. **After:** the level publishes `variants {"F": 491}` and an empty withheld map, and the twin writes 491 `F` and 500 `M` with no lone spelling; twin and table both exit 0. The column's `n_distinct` still counts the raw spellings and the twin's shortfall against it is the standing AUTHORIZED-DEVIATION of method G12.7, which names this exact case -- the published variants not supplying enough spellings. **Red check, run and recorded:** returning the argument unchanged from `_absorb_lone_spellings` turns `test_a_lone_spelling_is_counted_into_the_commonest` and `test_no_variants_census_carries_a_count_of_one` red.
+
+
+### P4-D241 A record made of structured TEXT names no column
+
+Ruling 8 of 2026-09-17 (P4-D232) was met only for the shapes the FURNITURE rule reaches. **Measured:** a headerless export of 240 records whose first record is `CASE-ZEBRA-471,Northfield Clinic 3,<0.10`, with a column of numbers beside it, published that record as the three column names. `<0.10` is not a number, so the numeric column read as EVIDENCE that the first row is names, and `reading._names_evidence` is asked BEFORE the furniture rule. The record's text stood in the description four times, in the plain summary six, in the twin's report four and verbatim as row two of the twin CSV and of the twin workbook; the description said 239 rows where the file holds 240; nothing was asked; and profile, generate and both validates exited 0. It happened with a title above, with a comment above, with two titles and with NOTHING above at all, so no rule that reads the FILE's shape can close it. `NULL`, `.`, `NA` and `pending` in that column do it as readily as `<0.10`.
+
+**The decision** (`reading._silhouette`, `reading._shape_is_structured`, `reading._shares_the_shape_below`, the FOURTH rule of `reading._record_evidence`). A value's silhouette is its runs of letters and of figures collapsed, every mark standing for itself: `CASE-ZEBRA-471` and `CASE-ALPHA-0101` are both `A-A-9`, `record_id` is `A_A` and `R001` is `A9`. Where every value below the first row in one column wears the same silhouette, that silhouette is STRUCTURED, and the first row's value wears it too, the row is a record and the file is read as one. **AMENDED BY P4-D280 (the files review of 2026-09-18 and its repair pass): "every value below" is now "worn by two values or more below"**, because one cell defeated the unanimous rule -- see that entry. It is asked with the three record rules and not with the names evidence, so it does not depend on furniture and does not disturb the ordering P4-D232 measured.
+
+**STRUCTURED is two marks and something that is not a word, and both halves were set by witnesses the first writing turned red.** A run of letters beside a run of figures is what an ordinary header shares with its own column all the time -- `visit1` over `a1`, `region,2019` over `r1`, `B10` over `B01` are all `A9` over `A9`, and each is a headed table this package has read without a question since review item P1-R6-F6 -- so fewer than two marks says nothing. Letters and spaces alone say nothing either: `Full Name` over `John Smith` is `A A` over `A A`, and `First Middle Last` over `John Paul Jones` is `A A A`. A figure, or a mark that is not a space, is what makes the shape a structure.
+
+**After:** the export publishes `column_1`, `column_2`, `column_3`, describes 240 rows, writes no `written_names`, asks in the questions file with no cell quoted, and at a floor of eleven no character of `ZEBRA`, `Northfield`, `Cohort extract` or `<0.10` appears in any of the six files; profile, generate and both validates exit 0. `--first-row names` publishes the real names and 239 rows. Six headed tables stand unmoved, the last of them the SAME structured column under a header of ordinary names. **Red check, run and recorded:** withdrawing the fourth rule turns the four shapes of `test_a_structured_record_names_no_column` red with `test_no_text_of_that_record_reaches_any_file` and `test_the_questions_file_asks_and_quotes_no_cell`; writing it without the two-mark half turns six of the headed witnesses red across four older files.
+
+**The limit MOVED, and the moved witness says where it is now.** `test_a_headerless_file_with_no_furniture_is_the_stated_limit` became `test_a_headerless_file_of_plain_words_is_the_stated_limit`: a headerless file whose columns are all plain words -- `sites` over `north`, `south`, `east` -- wears the same silhouette as an ordinary header of words, so no rule can tell the two apart and none tries. That is what P4-D232 still puts to the owner.
+
+
+### P4-D242 A pooled closed census names the commonest mark the CELLS wrote
+
+The fourth of P4-D222's five named costs, and the half of the final review's finding 5 that is a defect. Where no name of a CLOSED vocabulary reaches the line and `parsing.census_pools` refuses a pool, `parsing.absorbed_census` counted the whole population under the vocabulary's DEFAULT name, "whether or not a cell wrote it" in its own words. **Measured:** twenty-four moments written twelve with a space and twelve with a lower-case `t`, at a floor of eleven, published `datetime_separators {"upper_t": 24}` -- a mark NO cell of the column wore.
+
+**The decision** (`parsing.absorbed_census`). The name is the commonest the cells wrote, ties to the first in sorted order, which is the rule ruling 6 states everywhere else: a spelling below the line is counted into the COLUMN'S commonest spelling. `default` is written only where no cell wrote any name at all, which a population above nought cannot reach. **After:** the twelve-and-twelve column publishes `{"space": 21}` at twenty-one cells and the eight-eight-eight column `{"lower_t": 24}`; twin and table both exit 0.
+
+**WHAT IS NOT CLOSED, AND THE ARITHMETIC THAT REFUSES THE REVIEW'S REPAIR.** The twin still writes one mark where the source wrote three. The review asked for the PURE POOL 0b0e0fc published on that shape (`{"(withheld)": 24}`, whose twin wrote all three spellings), and `census_pools` refuses it for a reason that is arithmetic and not preference: the branch is reached only where `population > (names - 1) * (line - 1)` while EVERY name is below the line, so no `names - 1` of them can cover the population -- every name of the vocabulary was written, and the smallest can be as few as `population - (names - 1) * (line - 1)` cells, which is ONE at twenty-one cells over three marks at a floor of eleven. A pool there names a row. So no representable census holds all three spellings, and the fidelity lost is ruling 6's own cost at a floor no spelling of the column clears -- at the default floor the same column publishes all three and its twin is exact. `test_the_band_forces_every_name_to_have_been_written` states the arithmetic as a check.
+
+
+### P4-D243 A made-up spelling may carry a COMMA, and the other grammar is asked only of a declared column
+
+**Measured:** a 2,000-row free-text column of a letter, three figures, one mark, two figures and a letter, run once per mark. With `.`, `/`, `:`, `-`, `_` and `#` the column published `shape_forms {"@%%%<mark>%%@": 2000}` and the twin wore the form on all 2,000 cells at exit 0. With `,` -- a member of `parsing.SHAPE_MARKS`, so a form `parsing.census_form` NAMES -- the same census was published and the twin wrote `?!!!!!"%`, `|!!!!!!.` and `>!!!!!!B`: not one cell wearing the published form, validate at exit 3 on the twin and 0 on the table. The comma was the only mark of the census vocabulary no twin could write.
+
+**The first cause** was `generation._is_a_usable_stand_in` refusing any candidate carrying a comma. It is the same false rule landing 2b.2 removed from the thousands separator, and that docstring already says why in terms: `rendering.twin_csv` quotes a cell holding a comma and this package's own reader reads it back unchanged. The quote stays refused, because it is the delimiter's own escape and has never been measured through the readers this package ships.
+
+**The second cause, found on the European export the review named.** An undeclared German amount column is FREE TEXT -- nothing declares the decimal comma, so no cell reads as a number -- and it published `shape_forms {"%%%,%%": 942, "%%,%%": 20, "%%.%%%,%%": 22, "%.%%%,%%": 1016}` over all 2,000 cells, every one MISSED with "fewer than 1" held. Every filling of `%.%%%,%%` is `0.000,00`, which the OTHER grammar reads as a number, and the stand-in rule asked that question of every column, declared or not. **The grammar a twin is read with is the column's own**: an undeclared column is never read with the decimal comma, so a spelling that would be a number under a grammar nobody applies to it is not one it should refuse -- and the REAL column is a number under that grammar too, so a twin that can wear the same spellings is the faithful one. The refusal stands unchanged wherever the column IS declared, which is the whole of what review round 5 of landing L8 measured.
+
+**After:** the comma column meets its census on all 2,000 cells at seeds 4 and 11, and the German amount column writes `467,00` and `611,03` where it wrote wide-band cells, with twin and table both at exit 0 at both seeds. **Containment:** every committed vectors file is byte-identical and the twin's own golden digest did not move, so no cell of the demonstration twin changed. **Red check, run and recorded:** restoring the comma refusal turns both comma round trips and `test_every_shape_mark_is_writable` red; restoring the other-grammar question for undeclared columns turns both German round trips red.
+
+
+### P4-D244 The twin's report says a made-up value can be one the table also holds
+
+**Measured:** a 2,000-row clinical table with `--identifier subject_id` over `SUBJ-10000` to `SUBJ-11999`. At seeds 4 and 11 alike, 40 of the twin's 2,000 identifiers are identifiers the real table holds -- about two per cent, the chance rate for drawing 2,000 five-figure values against a 2,000-value source. The owner's rulings hold: no row of the twin is a row of the table, every other field of those rows differs, and no real identifier reaches the description, the summary or the questions file. The twin's report nevertheless said of that column that synthtwin MADE UP all 2,000 of its values and "They are not your data", which is false of those forty, and a person holding the twin could read a fabricated clinical record beside a real subject's number. The generator cannot avoid the coincidence by design, because it never reads the table.
+
+**The decision** (`rendering`, the all-made-up paragraph). Four lines are added to the paragraph that carries the claim, so that whoever reads the claim reads the qualification: a made-up value can be one the table also holds by chance, and a value in the twin is never evidence that a row belongs to whoever holds it in the table. No code path changes. The demonstration report's golden was re-recorded for exactly those four lines, twice -- once in each all-made-up column -- and no other line moved, read as a line-by-line diff against 7f9a52d; the twin's own digest did not move.
+
+
+### P4-D245 What the final review of 2026-09-18 measured and did not close
+
+**(1) THE MOMENTS COLUMN WHOSE ABSORBED MARK LEAVES A DESCRIPTION NO FILE SATISFIES is still P4-D238 item 1, and the review's two bounded repairs are both refused by measurement.** The review called it a shipped regression and asked for either the pooled census 0b0e0fc wrote or, failing that, a loud flag. **Measured on this tree:** the pool is not representable. With 120 cells over three marks at a floor of eleven, `census_pools` refuses a pool because two marks below the line cannot cover 120 cells -- a pool there is not merely disclosing, it is a claim no file can satisfy -- and a census naming `space` alone is the only representable answer. Counting the five rare-mark cells as MISSING instead, which is ruling 5's own blessed machinery, leaves 115 cells over two distinct spellings, and role rule 4 makes any two-valued column `binary`: the role moves either way. **The role is the whole of it.** Rule 4 counts FOLDED spellings, and the only reason the description says `datetime` is that it counted the rare mark's spellings; the same 120 cells without the rare mark are already `binary` with `n_distinct` 2. So the consistent answer is the general rule P4-D238 item 1 states -- every fact read off a spelling, the two distinct counts and therefore the ROLE, counted over the cells as the published censuses spell them -- and validation follows it for free, because `synthtwin validate` re-describes the file through this same producer. It is a fifth judged pass of `taxonomy.profile_column` beside the cores, the placeholder days and the levels, and it moves the ROLE of every column the floor absorbs a spelling in. **It stays with the owner**, and it is NOT silent: re-measured on this tree, the twin validates at exit 3 and its quality report prints `3 CHECKABLE OBLIGATION(S) WERE MISSED` and names them -- `axes.role [universal.role]`, `axes.statistical_type [universal.statistical_type]` and `midnight.count [datetime.n_at_midnight]` -- while the real table exits 0. Whoever runs the two commands the product tells them to run is told.
+
+**(1a) CLOSED BY THE OWNER ON 2026-09-21 ('I think we need to fix'), AND NOT THE WAY ITEM 1 EXPECTED** (ledger K-2B-51, method G7.9). Item 1 above looked for the answer in the DESCRIPTION -- move the role, or move the distinct counts, so the published facts are counted over the cells as the censuses spell them. Measured on this landing's tree, that answer costs the real table: a description publishing `role: binary` is refused by the loader outright, and one publishing `n_distinct` 2 makes the REAL file miss `distinct.n_distinct` and `distinct.n_distinct_folded` while the twin goes on missing all three of its own. A third distinct INSTANT costs as much as it buys -- noon on the first day misses `midnight.all`, `midnight.count` and `date-ladder.p50`, a third day misses `ends.latest` and three ladder rungs -- because every midnight between the two published ends is already taken. And a lesser outcome in the VALIDATOR is measurably wrong, not merely risky: the description IS satisfiable, and a file of 124 spaces beside one `T` over the same two days misses nothing at either end, so a corner excusing the three checks would have excused a twin that genuinely lost a value.
+
+**What the description could not reach was a SPELLING, not a fact.** The census `{"space": 125}` is ruling 6's and stands; what was wrong was the construction reading it as an instruction about the cells. Method G7.9 spends the SHORTFALL the description itself publishes -- `n_distinct_folded` less the folded spellings written, which is one value here and never the five the table held -- on the first permitted mark the census leaves unnamed, and spends fewer ranks on it than the census could print, so the twin described again counts the mark back into the commonest name by the same ruling and publishes the same census. The line is exact and was measured: at eleven ranks and at twelve the twin misses `marks.space` and `marks.unnamed`; at one through ten it misses nothing at all. On the shape of item 1 the twin now misses NOTHING on seeds 0, 4 and 1 alike and the real file still misses nothing, and the rule is frozen in the oracle as `date_absorbed_mark` with a mutant that withdraws the spend. It reaches two committed cases besides its own, `midnight_bare_offsets` and `midnight_withheld_kept`, whose twins gain one and six different values against published counts of twelve and sixty; nothing else in any vector file moves.
+
+**(2) RULING 5'S STATED DELIVERABLE -- that the twin's report names how many cells were counted as missing for that reason -- CANNOT BE MET, and the sentence is struck rather than left standing.** The twin's report is written by `generate` from the DESCRIPTION alone, and the description deliberately cannot tell a cell counted out by this pass from an ordinary blank: that indistinguishability is the erasure the pass exists to achieve, and it survived the review's attack (the counted-out column's block is byte-identical to the same column with one genuinely empty cell, and the two plain summaries are identical line for line). A report written from the description therefore cannot name the count without the description carrying the reason, and a description carrying the reason undoes the pass. `n_missing_withheld` carries the COUNT, as it does for every other withheld hole. The work item's sentence is withdrawn here; P4-D231's own text is amended with it.
+
+**(3) THE FOUR ITEMS P4-D238 DEFERRED TO A LATER STAGE ARE UNCHANGED** -- the truth-value census of three or more (item 3), the date width census naming several conventions (item 4), `fraction_widths` on a percent column (item 5, whose EVIDENCE is corrected above and whose disposition stands), which figures a workbook stored as text (item 6), and the oracle's missing reach step (item 7). Nothing in this review moves any of them, and the deferred stage-3 and stage-3b items -- time of day inside moment columns, and the heavy-tail mean and spread -- were not touched at all.
+
+
+### P4-D250 A form the joint ISO reading counted for one row is counted into the commonest form
+
+**The defect** (the extra review of c5d09d5, item 1, its one blocker).
+`resolution_mix` published its two counts exactly, on the reading that a
+two-member space beside the published parsed total makes a pooled
+remainder recoverable by subtraction, so a floor would withhold nothing.
+The arithmetic is right and it argues against POOLING the rare form; the
+COUNT itself is the disclosure. **Measured on the reviewer's own shape:**
+118 consecutive ISO dates from 2024-03-01, one `2024-07-01T00:00:00` and
+one unreadable word, at a smallest group size of eleven, published
+`resolution_mix {"iso-date": 118, "iso-datetime": 1}` and
+`datetime_separators {"(withheld)": 1}` -- a form held by one row and,
+beside it, a pool of one, which pools nothing. Both files validated at
+exit 0, so nothing anywhere said otherwise.
+
+**The decision** (`taxonomy._forms_as_published`, asked by
+`_matching_date_format` before any fact is taken from the cells;
+contract RM3; contract C6-25's own text amended): **the forms ask
+`parsing.absorbed_census` with the line `parsing.census_floor`, as every
+other census of how a column was written does** (owner ruling 6 of
+2026-09-17, plans P4-D222 and P4-D242). A form below the line is counted
+into the commonest form and **the column is then published WHOLLY in
+that form**: its cells rewritten in it, its reading named as it, and its
+resolution, precision and mark census following from the rewritten
+cells. Jointly, because the dependent counts are what subtraction
+reaches -- publishing the mix alone would leave the mark census owing
+the absorbed cells' marks, and publishing the mark census alone would
+leave the mix naming them. A date rewritten as a moment stands at the
+midnight it already named, under the mark most of the column's moments
+wrote; a moment rewritten as a date loses its time of day, which is
+ruling 6's own cost and is the cost a rare spelling meets everywhere
+else. **Where both forms reach the line nothing moves**, so a column
+holding both in numbers the rule can name is described exactly as
+before.
+
+**Measured after:** the shape above publishes `resolution_mix
+{"iso-date": 119}`, `format` `iso-date`, an empty mark census and no
+count of one anywhere in the block; the real table and its twin both
+validate at exit 0. The reverse shape -- 118 moments, one bare date --
+publishes `iso-datetime` at 119. The balanced 60/60 column is unchanged.
+
+**The loader follows** (invariant RM3): where more than one form carries
+cells, every non-nought count is at least `census_floor`. A census
+naming ONE form is exempt, because its count IS `n_present -
+n_unparsed`, which the block prints two fields away -- thirteen moments
+at a floor of twenty are thirteen moments, and the document says so.
+
+**Decided by the owner, 2026-09-18:** "If makes no difference, don't loose your time" -- ACCEPTED. It makes none: `n_unparsed`, `n_present` and a one-form census are derivable from one another, so withholding `n_unparsed` alone would publish nothing less. RM3's one-form exemption stands (the owner decisions of 2026-09-18 at the end of this plan).
+
+### P4-D251 The placeholder pass reads a slashed pair the way the classifier reads it
+
+**The defect** (item 2). `taxonomy._remainder_reading` walked the format
+table alone, so the member standing first won by ORDER while the
+description that followed was written in the other one. **Measured:**
+`01/01/1900` twenty times beside `12/01/1900`, `12/02/1900` and
+`12/03/1900` at 125, 125 and 130, declared day first at a floor of
+eleven. Judging read the three reference days MONTH first, as December 1
+to 3, so the twenty January dates sat eleven months adrift, were judged
+outliers and were removed; the description was then written day first
+over what was left and published 380 present, 20 missing and an earliest
+of `1900-01-12`. The unchanged source then missed obligations at exit 3.
+
+**The decision:** the remainder pass asks `_slashed_evidence` with
+`settings.day_first`, on the two lines `_matching_date_format` already
+uses -- the column's own evidence first and the declaration as the
+tie-break. **Measured after:** all 400 values stand, the earliest is
+`1900-01-01`, the latest `1900-03-12`, and the source validates at exit
+0. A real placeholder is still judged: the same shape with 2020 dates
+keeps its twenty `01/01/1900` cells counted as missing.
+
+### P4-D252 A declared spelling that DENOTES a placeholder day names that member
+
+**The defect** (item 5). `taxonomy.built_in_values_named` matched a
+declaration against the two calendar placeholders by folded TEXT, and
+the two members are written in ISO, so a person typing the spelling
+their own table uses named a member of this package's vocabulary and was
+recorded as having named a word of their own. Nothing could then rebuild
+the instruction for a column whose own verdict the publication floor
+withheld. **Measured:** five `01/01/1900` cells beside 395 month-first
+dates of 2020, `--smallest-group 11 --keep-value 01/01/1900`. The
+description publishes 400 present and `sentinel_verdicts []` with
+`n_sentinel_candidates_unpublished 1`; validation re-judged the five
+cells as holes and the UNCHANGED SOURCE received **14 MISSED
+obligations**, presence among them, and so did its seed-4 twin.
+
+**The decision, in two halves.** (1) Denotation, and not text alone,
+decides the third list. The question is asked of the TYPED text under this package's own
+readings, so no cell is consulted and a value never held by any cell is
+recorded exactly as one every cell held -- the property that settings
+block has always been required to have. What is recorded is still the
+MEMBER: `01/01/1900` puts `1900-01-01` in `built_in_dates`, and through
+these two lists nothing the person typed travels. The withheld count
+stays withheld, and what a column publishes is untouched -- a spelling
+named with `--missing-value` still stands in that column's
+`missing_by_source`, character for character, under the ordinary floor.
+
+(2) **The list is spent COLUMN BY COLUMN and not among the spellings
+every column is read under.** Spending it globally is what a first
+writing of this repair did, and it moved a decision the person's own
+spelling never reached: measured on thirty `01/01/1900` beside thirty
+`1900-01-01` in a second column, the second column's day is judged a
+hole by the description and was KEPT by the checker, and the unchanged
+table missed fourteen obligations there. So
+`validation._kept_placeholders_here` carries a recorded member to each
+column of the checked file EXCEPT one whose own description publishes a
+`read_as_missing` verdict for that day, and
+`validation._vocabulary_spellings` spends the two other lists alone.
+Where both columns' verdicts are withheld for their size the two cannot
+be told apart and the day is kept in both -- the corner
+`_cells_that_description_reads` already names for an unpublished
+stand-in, bounded the same way.
+**Measured after:** 0 missed on the source and 0 on the twin.
+
+### P4-D253 A recount leaves out the cells the description read as holes, and prints the number that decided the verdict
+
+**The defect** (item 6, two halves). `validation._candidates_with` reads
+a verdict's candidate as a NUMBER and a calendar day denotes none, so
+every placeholder-day verdict fell out of the hole rule and the cells a
+description judged as holes were handed to the written-form recounts as
+values. **Measured:** `01/01/1900` twenty times beside 380 day-first
+dates of 2020 at a floor of eleven publishes
+`date_field_widths {"second-field-padded": 380}`; the recount walked all
+400, folded them into another width class, and the unchanged source was
+told it missed two obligations -- one of them printing "the description
+asks for: 380 / the file was found to hold: 380", which tells a reader
+nothing at all, because the verdict was settled by the recount and the
+number shown was the census of the file's own description.
+
+**The decision:** (1) the cells a re-described block's own placeholder
+verdicts read as absent are holes to every recount, exactly as a
+stand-in number's cells are, and they are named by the SPELLINGS those
+verdicts publish (`validation._placeholder_spellings_dropped`) rather
+than by the day they denote -- because this closure decides a cell's
+identity and may ask no reader that rounds, which
+`tests/test_p3v4f1_kept_values.py` walks the whole closure for, and a
+verdict already publishes the `missing_by_source` keys its own decision
+took out; (2) what is printed beside a
+written-form verdict is the RECOUNT that decided it, held below the line
+to the same wording the `unnamed` line beside it uses, so no number a
+description withholds is printed. **Measured after:** the source
+validates at exit 0 with both width obligations HELD.
+
+### P4-D253.1 A placeholder day no verdict names is settled like a stand-in number no verdict names
+
+**The defect** (the skeptic of P4-D253, finding 1; a BLOCKER). P4-D253
+reads the judged spellings out of the verdicts the description
+PUBLISHES, and the publication floor withholds a verdict whose
+occurrences are too few to name. So the repair reached the reviewer's
+own twenty-placeholder shape and not a column holding five of them, and
+a description's own judged cells were still handed to the recounts as
+values. **Measured** on the reviewed commit and on P4-D253's repair
+alike: five `01/01/1900` beside 395 month-first dates of 2020 at a floor
+of eleven publish `n_present` 395, `n_missing` 5, `missing_by_class`
+`{"(withheld)": 5}`, `sentinel_verdicts` `[]`,
+`n_sentinel_candidates_unpublished` 1 and
+`date_field_widths {"padded": 330}` -- and the UNCHANGED SOURCE
+validates at exit 3, `widths.padded` MISSED, "the description asks for:
+330 / the file was found to hold: 335". The numeric sibling of that
+exact table -- five `-999` beside 395 decimals at the same floor --
+validates at exit 0, because `_cells_that_description_reads` leaves a
+stand-in nothing names UNDECIDED and settles it from the published count
+of holes. The day was the one candidate kind with no below-floor path.
+
+**The decision** (`validation._an_unnamed_placeholder_day`,
+`validation._placeholder_days_named`): a cell writing a calendar
+placeholder member that the block's own verdicts do not name -- neither
+kept nor judged -- is undecided, exactly as an unpublished stand-in
+number is, and the caller settles it from the one number the description
+does publish. A day a verdict DOES name is settled by that verdict and
+is not touched: a `read_as_missing` verdict makes its cells holes
+through the spellings it prints, and a kept day's cells are values.
+**Measured after:** the same table validates at exit 0 with both width
+obligations HELD, and a table of thirty `01/01/1900` declared kept
+beside five `12/31/9999` the floor withholds -- where widening the
+settlement to every placeholder-shaped cell would delete the kept thirty
+from the recount -- validates at exit 0 too, against exit 3 when the
+guard is withdrawn.
+
+**And the closure now stands on TWO published identities**
+(`tests/test_p3v4f1_kept_values.py`). P4-D253 named the judged cells by
+SPELLING to keep a rounding reader out of the rule that decides which
+cells a description reads; a day nothing names has no published spelling
+to be named by, so the rule asks which day a cell WRITES.
+`parsing.placeholder_day_of` reads fixed-width runs of ASCII digits,
+validates the calendar and hands back text built from those runs: no
+binary64 value is formed and no two spellings a person can tell apart
+are folded together. The guard's walk stops at that name as it stops at
+`taxonomy.exact_of_spelling`, asserts that the closure actually asks it,
+and stops at nothing else that reads a date -- its new probe
+`a-date-reader-of-its-own` puts `parsing.parse_datetime` in the closure
+and the walk still refuses it.
+
+### P4-D254 An offset is spent where the rank's own gap holds a midnight under it
+
+**The defect** (item 3). The offsets were spent lexically -- each key
+filling a block of consecutive ranks -- so a rank whose gap is an hour
+wide took whichever key that block reached, and the pass that moves
+ranks onto a midnight found none inside the gap under that offset and
+left the rank where it stood. **Measured at seed 4:** twenty repeats of
+the six combinations of 1 and 2 March 2024 at `T00:00:00` under `Z`,
+`+01:00` and `-05:00`. The source validates with 120 cells at midnight;
+the twin held 109, eleven wearing times such as `03:17:59+01:00`, and
+missed both midnight obligations.
+
+**The decision** (`generation._offset_allocation`, with the gap
+`_pin_bounds` states handed in by the snapping path alone): each rank
+asks for the first key with a count left whose wall clock holds a
+midnight inside that rank's own gap, and falls back to the first key
+with a count left where none does. A column every one of whose keys is
+feasible is allocated exactly as before, key block by key block, and
+writes the same bytes. **Measured after:** 120 of 120 at midnight, the
+offset counts unchanged, twin and table both at exit 0. Frozen case
+`date_midnight_feasible`, whose mutant makes every offset look feasible.
+
+### P4-D255 Every rank standing on an end's instant is held to that end's offset
+
+**The defect** (item 10). The describing step orders the parsed cells by
+(instant, text, offset) and reads `latest_utc_offset` off the LAST of
+them, so where several cells share the latest instant the offset
+published is the largest of theirs -- and pinning the two end RANKS
+settles nothing on a column whose interior ranks reach an end's instant.
+**Measured at seed 4:** 120 moments on three days at midnight or noon
+under `+01:00` on even rows and `+02:00` on odd ones. The source
+publishes `+01:00` as its latest offset; the twin published `+02:00`,
+missed `offsets.latest`, and its generation report named no deviation.
+
+**The decision:** (1) `generation._endpoint_tie_offsets` holds every
+interior rank whose instant IS an end's to an offset that cannot
+out-sort that end's published one -- not above it at the latest, not
+below it at the earliest -- and where such a rank already carries the
+midnight pins the two are met together, the midnight pin standing where
+nothing meets both; (2) the two end offsets are RECOUNTED on the cells
+this run wrote, through `taxonomy.ordered_moments`, the describing
+step's own ordering, so there is no second statement of the tie rule to
+drift and a twin that writes another end offset says so in its report.
+**Measured after:** both end offsets come back, twin and table at exit 0.
+Frozen case `date_endpoint_ties`, whose mutant holds no tied rank.
+
+### P4-D256 The census key decides which days show the width it names
+
+**The defect** (item 7). `generation._shows_a_width` asked whether
+either field is below ten, which is the question a census of several
+conventions asks. **Measured at seed 4:** 240 cells written
+`11/01/2020` to `11/09/2021`, whose first field is eleven on every one
+of them, publish the single entry `second-field-padded`. The twin put
+dates on days whose two fields both show, each counted under a joint
+word, and `parsing.folded_width_tally` then folds the one-field cells
+into that joint word -- so the twin published `padded: 240` and missed
+`widths.second-field-padded` and `widths.unnamed` while its own census
+still held 240 cells. This is ONE named convention, outside the known
+several-convention limitation of P4-D238 item 4.
+
+**The decision** (`parsing.day_shows_width`, the read-back of
+`date_field_style`, carried into the width pass and its movement): a
+one-field word needs its OWN field below ten and the other at ten or
+more; a JOINT word is met by either, because a cell showing one field is
+folded into the joint word its column's own cells wrote. **Measured
+after:** the twin publishes `second-field-padded: 240` and validates at
+exit 0, and the frozen case `date_widths_reached`, whose census names a
+joint word, is byte-identical. Frozen case `date_second_field_class`,
+whose mutant asks the older question.
+
+### P4-D257 A published `either` length is met by either resolved length
+
+**The defect** (item 8). May is its own abbreviation, so a column every
+cell of which falls in May publishes `upper-either-hyphen-no-comma` and
+says nothing about length; a twin of it writes other months, each of
+which must resolve that length. The checker counted all 240 of those
+spellings as styles nobody published and failed `names.unnamed`, while
+the generation report named no deviation at all.
+
+**The decision** (`parsing.name_style_agrees`, stated once and asked by
+the checker): a published `either` is met by the same case, mark and
+comma at EITHER length, and by nothing else -- the three parts the
+source did settle stay exact. **Measured after:** the twin validates at
+exit 0; a style differing in case, in mark or in comma is still unnamed,
+and a published length is still met by itself alone.
+
+### P4-D258 The restoration runs while it is useful, merges onto a unit no neighbour holds, and trades to keep the width census
+
+**The defect** (item 4, in three parts). The two count passes of P4-D192
+ran a fixed four rounds and offered a run its rank NEIGHBOURS alone.
+**Measured at seed 4:** ISO dates `2020-04-26` 379 times, `2021-06-14`
+37, `2022-09-02` 102 and `2022-12-15` 382 came back as SEVEN different
+dates against four, and the same pass run again brought them to four --
+the cap, and not the rule, was what stopped it. `15-Mar-2020` five
+times, `19-Nov-2020` twelve and `04-May-2021` 223 came back as SIX
+against three, and repetition did not repair it: the run of
+`02-Mar-2021` cells could merge onto `04-May-2021` and keep the width
+census exact, but neither was the other's rank neighbour, and the one
+`05-Apr-2020` cell sits in a gap whose every other day shows no width at
+all, so its merge has to be paid for elsewhere.
+
+**The decision:** (1) the passes run while each round brings the column
+CLOSER to the two counts, stopping after `_RESTORATION_STALLS` rounds
+that do not and at `_RESTORATION_ROUNDS` in any case -- a CONSTANT
+ceiling, because each round walks every rank and generation is linear in
+the column's length (landing 1); the measured need is six rounds; (2) a
+run is offered the nearest held unit of its own width kind inside its
+gap, which its rank neighbours need not be
+(`generation._nearest_held_unit`); (3) where its gap holds no unit of its
+own kind at all, it moves onto one of the other kind while as many ranks
+elsewhere move between held units the other way, each leaving a unit
+that keeps other ranks and landing on a unit ranks already hold, so
+neither half changes the count of different units and the two together
+leave the width census where it stood (`generation._traded_merges`); a
+payment that cannot be made in full is put back cell for cell.
+**Measured after:** four dates come back as four and three as three,
+both with their width censuses exact and both at exit 0. Frozen cases
+`date_nonadjacent_merge` and `date_traded_merge`.
+
+**AND THE MERGE READS ITS NEIGHBOUR AGAIN WHEN ITS TURN COMES**, which
+is what the pass always did and is stated here because the first
+writing of the offer list froze the instant instead. Measured on the
+golden demonstration at its own seed: freezing it moved 42 of
+`recorded_on`'s 240 cells -- the same 84 different dates before and
+after, the description digest and the word budget unchanged -- for no
+reason the rule gives. Read again, the golden twin is byte-identical to
+c5d09d5's and `date_distinct_reached`'s committed cells are unchanged,
+so the three parts above are the whole of what this entry moves.
+
+### P4-D259 A workbook's subsecond precision is read off the format its cells wear
+
+**The defect** (item 9). A workbook stores a moment as a day count and
+its fraction, so a moment standing at a whole second stores exactly what
+a moment with no subsecond figures stores; what tells them apart is the
+FORMAT, which is what every reader shows a person. **Measured at seed
+4:** 240 serials `45300 + i + 0.5 + 0.001 / 86400` formatted
+`yyyy-mm-dd hh:mm:ss.000` publish `time_precision` `subsecond` and three
+figures and validate at exit 0. Generation writes its fractional figures
+as noughts, the conversion back to a serial keeps nothing of them, and
+the written twin was read as whole seconds: it missed both obligations
+with an empty generation-deviation list, and openpyxl confirmed the
+source's thousandths and their absence from the twin.
+
+**The decision** (`dialect.sheet_format_figures` and
+`dialect.sheet_serial_moment`, asked by the workbook reader per format
+code): the fraction is written to as many places as the cell's FORMAT
+shows, even where it is nought, and the reader's two spellings widen
+from three figures to one, two or three -- `sheet_moment_kind` and
+`sheet_moment_serial` read them all and the pair stays an inverse.
+**Measured after:** the twin re-describes as `subsecond` at three
+figures and validates at exit 0. The check is of the SERIALIZED
+workbook, re-described and validated, rather than of the generator's
+intermediate text.
+
+### P4-D259.1 The two facts a figure-free format code cannot carry are listed, not checked
+
+**The defect** (the skeptic of P4-D259, finding 2; MAJOR). P4-D259 reads
+the figures a date format shows and writes the fraction to that many
+places, which closed the sub-case where the code SHOWS them. Where it
+shows none the workbook has nowhere to put them. **Measured** on the
+reviewed commit and on P4-D259's repair alike, at seed 4: the same 240
+serials `45300 + i + 0.5 + 0.001 / 86400` under `yyyy-mm-dd hh:mm:ss` --
+the code pandas 3.0.5 `to_excel` writes by default, measured rather than
+assumed -- publish `time_precision` `subsecond` and three figures
+correctly, because the fraction IS stored; their twin re-describes as
+`second` and nought and misses `precision.time_precision` and
+`counts.subsecond_digits` at exit 3.
+
+**Why the twin cannot meet them, and why that is not this landing's to
+change.** A workbook stores a moment as a day count, so a whole second
+stores exactly what no subsecond figures store, and the twin's moments
+DO stand at whole seconds: `docs/spec/generation-method-v1.md` G7.3 says
+the twin's fractional digits are zeros and says why -- the description
+publishes how MANY figures the finest cell carried and nothing about
+their values, so any other digit would be an invented fact. Writing a
+non-zero millisecond into the serial, which is the only other way a
+figure-free code could carry the claim, is that reversal wearing a
+different hat: it puts into the twin a figure no published fact
+constrains. The generator's ordinals are counted in seconds besides, and
+sub-second values inside a moment column are part of the time of day the
+owner deferred.
+
+**The decision** (`validation.subsecond_figures_unwritable`): where the
+description's source is a workbook, publishes `subsecond` for a column,
+and publishes for that column a format code showing fewer figures after
+the second than its `subsecond_digits`, `precision.time_precision` and
+`counts.subsecond_digits` are REPORT-ONLY and `_listings` says why. This
+module refuses a check whose only outcome is a lesser one
+(`_hole_spelling_checks` names the same rule), and both are stranded
+TOGETHER because the one fact that makes `subsecond` unreachable makes
+its count of figures unreachable. The predicate is a function of the
+DESCRIPTION alone -- the format code is what the description publishes
+and what the twin wears -- so no measured file can move which
+obligations exist. A code that DOES show the figures is checked exactly
+as before. **Measured after:** the twin and the real workbook both
+validate at exit 0 with the two facts listed and their reason printed;
+the figure-showing shape still publishes both as checks and holds them.
+
+## The extra review round of 2026-09-18: the number items
+
+Codex reviewed c5d09d5 ONCE, in four passes, and this is the only extra
+round. Ten of its items are about the numbers a description publishes
+and the numbers a twin writes. Nine are closed here; the tenth is
+measured and left. Every figure below was reproduced on c5d09d5 before
+anything changed, and re-measured after.
+
+
+### P4-D260 A layout's supply is the census's own capacity, not the generator's
+
+**Measured (the review's first BLOCKER).** `[str(i) for i in range(100,1000)]`
+declared an identifier, floor 11, seed 4. The accepted profile published
+900 distinct three-character identifiers, `layout_forms {"%%%": 900}`,
+`n_distinct` 900 and 900 singleton groups. The small-supply rule of
+C6-130 asked `parsing.layout_room("%%%")`, which is 1,000, against
+`n_distinct` plus the floor, 911 — and only `100` to `999` can wear that
+key, because a leading nought makes `012` wear `!%%`. So exactly 900
+cells could ever be counted under the key the census named at 900: the
+census named the source's own value set. The generated identifier set
+equalled the source set and both files validated at exit 0.
+
+**The decision** (`parsing.layout_supply`, `taxonomy.layout_census`,
+`contract._layout_forms` invariant LF7, contract C6-130 and the invariant
+table of 8.x). The small-supply rule asks the CENSUS-COMPATIBLE capacity:
+how many different cells `layout_form` would file under the key. On a key
+of figures alone — written only in a plain column, where the zero fill
+takes every nought before the first other figure — the first `%` stands
+for a figure that is not a nought whenever another `%` follows it, so the
+supply is `9 * 10**(d-1)` for `d` figure places and `10` for one. Every
+other key answers exactly `layout_room`, because no fill is marked in it.
+The rule is over published facts alone — the key, `n_distinct` and the
+floor are all on the page — so the LOADER asks it too, as invariant LF7,
+and a hand-edited document naming a layout with too small a supply is
+refused. Enumeration capacity is untouched: the generator still spends
+`layout_room`, which is what it can spell.
+
+**What it costs, stated.** The 900-identifier column now publishes no
+layout at all, and its twin is written by the enumeration. That is the
+disclosure rule working as C6-130 already says it works for a column of
+very short codes.
+
+
+### P4-D261 Ruling 5 is asked of each SIBLING TOTAL, not of the pool alone
+
+**Measured (the review's second BLOCKER).** `alpha` and `beta` a hundred
+rows each, `"1"` five rows, `"2"` six rows and `gamma` one row, floor 11,
+seed 4. The profile published `n_not_numeric` 201 with both named words
+at 100 and three held-back levels covering twelve rows. 201 − 100 − 100 =
+1 proves the withheld WORD level occurs once. Every published row count
+cleared the floor, invariant B4b saw a pool of three levels over twelve
+rows and forced nothing, the twin wrote one `group-1`, and both files
+passed all 99 executable checks.
+
+**The decision** (`taxonomy._levels_read_by_class`, asked by
+`_levels_read_by_subtraction`; `contract._levels_against_their_classes`
+invariant B4c; contract 6.3 and the invariant table of 8.x). Every column
+publishes four totals saying what its present cells READ AS —
+`n_numeric`, `n_not_numeric`, `n_out_of_range`, `n_contradictory` — and
+each is subtractable exactly as `n_present` is. The question is
+`parsing.census_names_one_row` over the pair, which is the rule the form
+and layout censuses already ask of their own sibling totals, so the
+producer and the loader ask ONE question. Where a class's difference is
+one, every held-back level of that class is counted as MISSING, exactly
+as the whole pool's own forced band is.
+
+**AMENDED at the repair pass of 2026-09-18, because the first writing of
+this decision left three of the four classes out.** It said "a total no
+published level counts into is not read at all", which is what
+`parsing.census_names_one_row` answers of the PAIR alone: a census that
+covers none of a total leaves a reader nothing to subtract. A class whose
+every level the floor held back is exactly that shape, and the count of
+one survived there untouched. **Measured by the skeptic on all three of
+those classes**, at a floor of eleven and seed 4 — `alpha` and `beta` a
+hundred rows each, `gamma` six, `delta` five and ONE further cell. With
+`77` the block published `n_numeric` 1 beside two published WORDS,
+`suppressed_levels` 3 over `suppressed_rows` 12 and `n_missing` 0, so
+exactly one row of the column reads as a number and its value is
+withheld; with `1e999` the same of `n_out_of_range`; with `(+5)` the same
+of `n_contradictory`, which names the accounting notation ONE
+individual's cell was written in. All three passed every executable check
+on twin and table alike, and the twin wrote the row. **The repair** asks
+the one rule of the class's own held-back rows as a POOL as well as of
+the pair — `census_names_one_row({reading: rows}, [(total, covered)])`,
+one call, both of the rule's readings, no second copy of it — because a
+pool of one is the rule's FIRST reading and needs no census beside it.
+The loader's B4c does the same and no longer skips a class the published
+levels say nothing about. Re-measured: all three now publish that class's
+total as nought, `n_missing` 1 and `n_missing_withheld` 1, the pool of
+eleven rows over two levels is still pooled, and both files exit 0.
+
+**The wider reading is refused by measurement, not by preference.**
+`parsing.pool_names_a_level`'s whole band (`rows < 2 * levels`) asked per
+class is the natural generalisation and it breaks the twin. The generator
+spends a pooled class over the group sizes G8.3 reads off the pool, which
+are not the source's: 25 out-of-range cells over eight source levels
+beside 9 words over four, at a floor of eleven, come back as six groups
+and six, so the TWIN's own description falls in the band although the
+source's does not. Counting those cells out of the twin's description
+left it missing eight of its own obligations — `n_present`, `n_missing`,
+`n_not_numeric`, both distinct counts, both held-back counts and a
+published form — on a file that passed before. The band joins the two
+readings P4-D231 already puts to the owner, and it waits on the generator
+spending a pooled class in sizes its own description cannot read a one
+out of.
+
+**What moved with it.** `tests/test_numbers_beside_labels.py`'s pooled-word
+witness: its one `ab-cd` beside 2,500 readings is the same shape — 770
+words published as 769 — so the word is counted as missing rather than
+pooled, and the column's form census is its control column's again,
+`{"%.%": 134}`. The witness's own claim is restored and strengthened: the
+two columns are described alike and every number either twin writes is
+the same. The range bound it carried (`max(twin) <= max(real)`) was a
+coincidence of the pooled description and is now measured rather than
+asserted: both twins reach 13.9 against the table's 13.4 and stop at 2.4
+against its 0.8, because the stand-in walk of G8.3a steps outward from
+the published levels and nothing published bounds it by the table's ends.
+The two frozen cases `label_numbers` and `label_number_tiers` gained one
+row each so that their held-back WORD class covers two rows and not one;
+their vectors were rebuilt with the guard runner and the manifest digest
+set from the rebuilt bytes.
+
+
+### P4-D262 A shape census is recounted over the cells the description was made from
+
+**Measured (item 7).** `"0.0"`×19, `"1.0"`×19, `"2.0"`×1, `"3.0"`×30 and a
+word ×12 at a floor of five. The producer correctly counts the lone `2.0`
+as missing (ruling 5) and publishes `shape_forms {"%.%": 68}`; validation
+recounted all 69 written cells of that form, and the REAL TABLE had one
+MISSED check against a description made from itself while its twin passed.
+
+**The decision** (`validation._judged_absent`, asked by `_form_checks`).
+The census counts the cells the description was made from; the recount
+walks every cell the file holds, and the two part wherever a pass judged a
+written cell absent — the declared missing words and sentinels, the cores,
+the placeholder days, and ruling 5's own levels. None of them leaves a
+spelling behind, so no recount can name WHICH cells went; what the file
+evidences is the NUMBER, its own written cells less its own description's
+`n_present`. That number is added to the pool's own window, which is the
+same treatment and the same arithmetic already applied to a pooled count.
+
+
+### P4-D263 A decimal absorbed into a named style is allowed for
+
+**Measured (item 8).** `[str(1000+3*i) for i in range(30)] + ["1254.00"]`,
+at a floor of one and at eleven alike. Ruling 6 counts the singleton
+decimal into the column's commonest spelling, so the profile publishes
+`numeric_styles {"plain": 31}` with `fraction_widths {}` — a description
+that says nothing whatever about the width that cell was written at. The
+ORIGINAL FILE failed `styles.spelled` and the seed-4 twin passed.
+
+**The decision** (`validation._pooled_widths`). The allowance the checker
+already makes for a pooled style is made for an ABSORBED one, at the same
+bound the producer absorbed it under, `parsing.absorbed_room`, asked of
+the style census exactly as it is asked of the width census beside it. It
+stands only where no `decimal` count is named, because a named count
+licenses its own spellings and needs no allowance.
+
+**AMENDED at the repair pass of 2026-09-18: the same allowance is owed on
+the STYLE axis, and this decision put it only on the width one.**
+`_pooled_widths` widens the pool a cell may be spelled at a width the
+census does not name; a cell absorbed out of the census altogether has no
+width problem at all, it has a STYLE problem, and no clause allowed for
+it. **Measured by the skeptic**, at a floor of one and at eleven alike:
+thirty grouped counts `10,100` to `39,129` beside one `0,472`, whose
+style is `leading_zero`, publish `numeric_styles {"plain": 31}` with
+`thousands_marks {}` and `pad_widths {}` — and the seed-4 twin passed
+while validate on the REAL TABLE exited 3 with `styles.spelled` MISSED.
+Three of forty random European decimal-comma shapes failed the same way.
+The ungrouped equivalents pass — thirty plain integers beside one `0123`,
+one `+123` or one `123e0` — so it is the grouped column that breaks, and
+it broke on c5d09d5 too, which is why it is the item 7/8/9 family in a
+shape none of those three reaches. **The repair**
+(`validation._absorbed_styles`, `_named_styles` and the per-cell
+allowance in `_cells_outside_the_styles`): a cell whose OWN style the
+census does not name is admitted, up to `parsing.absorbed_room`'s answer
+bounded by what a census of six names can hide — five of the six can have
+been absorbed and each was below the line, so five times one less than
+the line. On a three-hundred-cell column at a floor of eleven that is
+`min(289, 50)`, measured at the edge: fifty spoiled cells leave the clause
+held and fifty-one do not. Re-measured: the grouped column exits 0 on
+table and twin at both floors.
+
+
+### P4-D264 A pooled style census licenses a BAND, not the generator's own choice
+
+**Measured (item 9).** `[f"+{i}.00" for i in range(100,110)] + [f"{i}e0"
+for i in range(110,120)]` at a floor of eleven publishes
+`numeric_styles {"(withheld)": 20}`. The source failed `styles.remainder`
+because the clause demanded canonical plain cells; the canonical twin
+passed.
+
+**The decision** (`validation._window_between`, asked by the
+`styles.remainder` clause). A count the census pools has no published
+form at all, so every allocation of the pooled cells across the six forms
+is a file the description describes. `plain` is owed at least what the
+census names it and at most that plus the pool, less the cells
+`styles.spill` has already sent to the two point-carrying forms. The
+generator writes the pool plain and still meets it; a file spelling more
+cells plain than the pool can pay still misses, so the clause can still
+fail.
+
+**AMENDED at the repair pass of 2026-09-18: a band that excludes nothing
+is WITHHELD and not HELD.** On the census this decision was written from
+there is no named `plain` count at all, so the band runs from nought to
+the pool less the spill — and every numeric cell of the file is either
+counted plain or spilled, so no allocation can fall outside it.
+**Measured by the skeptic**: the clause read HELD on all four of four
+hand-built allocations of the same twenty cells — all plain, all
+exponent, all leading-plus, all leading-zero — beside `0 MISSED` and NO
+CHECKABLE OBLIGATION WAS MISSED, although nothing about the file had been
+asked. The repository already has WITHHELD for an obligation a file gives
+no evidence on and uses it two lines above for `styles.spill`.
+`_window_between` now takes the largest count the file could show the
+clause — the recount less the spill — and answers None where the band
+starts at nought and ends at or past it. The clause is not vacuous in
+general and that is measured, not asserted: beside
+`{"plain": 30, "(withheld)": 20}` the band is 30 to 50 and a file
+spelling 55 cells plain still misses, and that case is unchanged.
+
+
+### P4-D265 The distinct-spelling repair leaves the marks alone
+
+**Measured (item 6).** Three values written grouped and plain — forty
+cells, twenty of them grouped and twenty carrying a plus — at a floor of
+one and of eleven. The twin wrote NINETEEN grouped cells, among them an
+invented `+02387.27 kg`, and validation missed the count 20 against 19
+while `generation.deviations` was empty.
+
+**The decision** (`generation._number_cells`). A raised leading-zero order
+carries no thousands mark — `_styled_base` says why, and that rule stands
+— so spending the order on a cell the mark walk has already marked takes
+the mark back off it. The walk visits the unmarked duplicates first and
+reaches a marked cell only when no unmarked duplicate is left; a column
+whose cells all carry the mark, or none of them, visits its cells in
+index order exactly as before, so no such column's bytes move. And the
+marks are RECOUNTED off the finished text, because `_mark_places` reports
+only what it could not allocate and runs before the walk that can take an
+allocated mark back.
+
+**MIRRORED IN THE ORACLE at the repair pass of 2026-09-18, with a frozen
+case and a registered mutant** (`unmarked_duplicates_first` in
+`tests/reference/generation-branch-vectors-5.json`; the rule is
+`unmarked_duplicates_first` in
+`tools/reference/make_generation_reference_vectors.py`). The case is
+forty-four cells of one value written plain, with a leading plus and with
+a point, whose census of marks names eleven of the twenty-two groupable
+cells and whose ten published spellings ask four cells to spend a zero:
+so the duplicates a raised order may be spent on are MIXED. Its mutant
+visits them in index order and four of the eleven marks come off the
+column. `grouped_charges` beside it raises two orders and every duplicate
+of it wears the mark, so that branch too could have been reverted with
+every committed byte where it was, which is why this case exists.
+
+**And the RECOUNT half now has a column that reaches it.** The skeptic
+found it pinned by no test and could not reach it in forty-eight shapes,
+because the visiting order keeps every allocated mark wherever a column
+holds an unmarked duplicate. A column whose EVERY cell carries the mark
+has none: three values written grouped-and-plain and
+grouped-and-plussed — `2,387.27 kg`, `+2,387.27 kg` and their two
+partners, forty cells at counts 7, 5, 7, 10, 6, 5, at a floor of one and
+of eleven — writes 38 marked cells against a census of 40, and the
+deviation names 40 against 38 rather than leaving it silent. That is the
+search that was made, and the branch fires.
+
+
+### P4-D266 The anchored held-back sentence carries the statistical warning
+
+**Measured (item 3).** `alpha`×100, `"100"`×20 and each integer 200–209
+×10 at a floor of eleven. The numeric subset's mean and population spread
+go from 187.083333 and 39.033017 to 100 and 3.027650; the twin replaces
+the held-back cluster with 95–99 and 101–105 and both files pass all 99
+executable checks. This is a compact population and not the deferred
+heavy-tail case.
+
+**The decision** (`generation._HELD_BACK_NUMBERS_REASON`). Generating this
+population from disclosure-safe numeric aggregates while keeping
+pooled-only rare-level counts is NOT BUILT, and the item's own fallback is
+taken instead: the numeric fidelity is reported as unmet where the reader
+meets it. Being anchored says where the made-up numbers START, not that
+they stand where the held-back ones stood, and the two unanchored
+sentences beside this one already ended by saying a statistic over these
+cells is not a fact about the table. This one now does too. The aggregate
+generation stays for the owner, with the figures above.
+
+
+### P4-D267 The published mode is a number the twin holds
+
+**Measured (item 4).** Eleven one-place values from −1.7 to 6.9 at the
+counts 150, 170, 150, 210, 10, 10, 160, 60, 40, 180, 60, floor eleven,
+seed 4. The published mode −0.6 over 210 rows was written NOWHERE; the
+twin held −0.2 exactly 210 times, the median moved −0.6 → −0.2 and was
+accepted as WITHIN-BOUND inside [−1.35, 3.05], neither file missed
+anything, and the generation report named an unrelated empty-gap miss and
+no modal loss.
+
+**The decision** (`generation._mode_held`, `generation._mode_note`). The
+last of the value passes puts the published number on the stratum the
+published count sizes — the one standing nearest it where several are
+that size — and only where every guarantee the passes before it
+established survives untouched: the strata stay in their published order,
+the sign band admits it, the point-free carrier count does not move, the
+value stands on the grid the published widths fix and its bin is not one
+the description calls empty. Where the move cannot be made the pair is
+named in the twin's report instead of being dropped in silence.
+
+**The item's second half is refused, with the measurement.** It asks that
+the pair be CHECKED rather than listed. A stratum's SIZE comes from the
+runs of the published ladder and not from `mode_count`, and on the
+product's own demonstration the `visits` column publishes the mode 9.0
+over 28 rows, its mode is the column's largest value and therefore a
+pinned end of the ladder, and the ladder gives that end 27 cells.
+Checking the pair exactly turned the demonstration twin's quality report
+from nothing missed to two obligations missed — `mode.value` 9.0 against
+8.0 and `mode.count` 28 against 27 — on a twin that is otherwise exactly
+what its description asks for. A check a conforming twin cannot meet is
+not an obligation. The pair stays listed, its NOT-CHECKABLE sentence now
+says that the twin does write the number where its ladder leaves room and
+that the report says so when it does not, and the check waits on a
+landing that gives the mode's own stratum its published size.
+
+
+**MIRRORED IN THE ORACLE at the carried numbers pass of 2026-09-18, with
+a frozen case and a registered mutant** (`mode_held`, frozen in
+`tests/reference/generation-branch-vectors-6.json` on its branch and
+moved whole to `tests/reference/generation-branch-vectors-7.json` at the
+integration of the carried passes, P4-D295; the rule is
+`mode_held` in `tools/reference/make_generation_reference_vectors.py`,
+written from the statement now in method G6.1). The case is eleven
+one-place readings from -1.7 to 6.9 whose commonest, -0.6, covers
+twenty-one rows -- the review's own values at a tenth of its row count --
+and its mutant withdraws the pass, so the mode is written nowhere and the
+cells move; withdrawn from the generator, the same case's cells move too.
+**And the note this decision added is worded again.** It said "the
+stretches your table leaves empty", and the plain-language guard every
+deviation note answers to
+(`tests/test_generation.py::test_every_deviation_names_a_published_fact_and_speaks_plainly`)
+reads `str` inside "stretches" as it would read a leaked type name, so the
+every-role twin, which carries this note, turned that guard red on the
+merged tree. The guard keeps its full strength; the note says "the gaps
+in your table's range".
+
+### P4-D268 A held-back number keeps its magnitude and its spelling
+
+**Measured (item 5).** `alpha`×100, `"+10"`×20, `"+11"`×10, `"+12"`×10 at
+a floor of eleven requires `shape_forms {"+%%": 40}`; the twin replaced
+the two held-back levels with ten `1`s and ten `2`s, the source passed
+its own description and the twin missed the form count, 40 against 20.
+The `"1,100"`/`"1,101"`/`"1,102"` column did the same, replacing numbers
+above a thousand with 1 and 2.
+
+**The decision** (`generation._anchor_units`, `generation._dressed_in_form`,
+`generation._reads_as_its_class`; method G8.3's unanchored fallback).
+Three things were wrong and all three are repaired:
+
+1. **The anchors.** `_plain_units` reads an optional minus, figures and
+   at most one point — the shape the walk STEPS in — and a leading plus,
+   a thousands mark and accounting brackets are ways of writing the same
+   magnitude. The ladder is anchored by every accepted numeric spelling
+   now: the spelling is read a second way where the first refuses it, and
+   a spelling no rewriting reaches, an exponent above all, is read from
+   its VALUE.
+2. **The rendering.** Every step of the ladder is spelled plainly by
+   `_units_spelled`, so a form that is a plain decimal WITH A DECORATION
+   was worn by no step and its group was given no form at all. The same
+   number is now written THROUGH the form: the form's figure places take
+   the candidate's own figures in order, and the result is given back only
+   where it reads as a number, wears exactly that form under the published
+   census, and parses to the same value. A form carrying a letter place is
+   never dressed — an exponent is not a decoration.
+3. **The two refusals that are about a character.** A thousands mark and a
+   leading plus were refused outright in a made-up number, so the form
+   could not be worn even once it was reachable. Where the published
+   census names a form carrying the mark, the REAL column wrote cells
+   carrying it and the twin already writes the published ones, so a
+   made-up cell wearing that same form is as faithful as those. The
+   relaxation reaches exactly the characters the form itself holds and
+   nothing else.
+
+**Re-measured:** both columns come back with all forty cells wearing the
+published form, the magnitudes the published ones' own, and validate at
+exit 0 on twin and table alike.
+
+**AMENDED at the repair pass of 2026-09-18: the EXPONENT is dressed too,
+and clause 2's last sentence is withdrawn.** "A form carrying a letter
+place is never dressed" left item 5 closed for five of the six spellings
+a numeric cell can wear and open for the sixth. **Measured by the
+skeptic**, at a floor of eleven and seed 4: a hundred and twenty `alpha`
+beside twenty-six `1235.00e0`, eight `1236.00e0`, five `1237.00e0` and
+nine `1238.00e0` publish `shape_forms {"%%%%.%%&%": 48}`, and the twin
+wore the form 26 times and exited 3 on its own description while the real
+table exited 0 — every one of the five failures left in a thirty-shape
+sweep was this one spelling. **The repair.** A letter place takes the one
+letter an exponent is written with (`e` for a lower-case key, `E` for a
+case-blind one, so the cell is counted under the key that asked for it),
+a figure place the candidate has no figure for takes a NOUGHT, and the
+three verifications are unchanged: it must read as a number, wear exactly
+that form under the published census, and parse to the same value. What
+keeps the dressing honest is the verification, not the refusal. The
+noughts go at the END, and at the front only where the form carries a
+letter place: an exponent form fixes its mantissa's width and the
+ladder's own grid is not that width, so `9.990` wears `%%.%%&%` only as
+`09.99e0` — the same value — while the same allowance inside `%,%%%`
+would give `0,011` for eleven, a spelling no ladder should invent. Both
+placements are verified and the first that passes is the answer.
+**Re-measured** on the same thirty randomised held-back-number shapes,
+six spellings over five sizes: the twin failed 17 of 30 on c5d09d5, 5 of
+30 after the round — every one an exponent — and 0 of 30 now.
+
+**FOR THE OWNER, with the measurement, and NOT reversed here.** This
+repair makes the twin reproduce held-back rare values, and their counts,
+far more often than before. **Measured by the skeptic** over the same
+thirty shapes: 7 of 469 held-back cells came back with the source's own
+spelling on c5d09d5 and 85 of 469 after, and 2 of 30 columns were
+reconstructed exactly in values AND counts. Codex's own item-5 column is
+one of the two: `alpha`×100 beside `+10`×20, `+11`×10 and `+12`×10
+publishes only the level `+10` and a pool of two levels over twenty rows,
+and the twin now writes `+11`×10 and `+12`×10 — the source's held-back
+multiset exactly. The generator never reads the table, so the
+reconstruction comes from the published facts and a public, deterministic
+ladder convention: anyone holding the description can recompute it. That
+bears on ruling 2 of 2026-09-17, which holds a rare level back and
+publishes a pooled total only, and on the goal that the description
+reveals nothing about any individual. **It is not reverted**, because
+reverting it would undo item 5, which Codex demanded and which this round
+otherwise closes. **The question for the owner is one sentence:** should
+the held-back ladder be required to step to a value the published facts
+do NOT already pin — by refusing the arithmetically obvious neighbour
+where the pool holds only two or three levels — at the cost of the form
+fidelity item 5 buys? The measurement is pinned by
+`tests/test_extra_round_numbers.py::test_the_twin_reproduces_held_back_numbers_and_that_is_measured`,
+so a later change to it is measured and not silent.
+
+
+**MIRRORED IN THE ORACLE at the carried numbers pass of 2026-09-18, one
+frozen case for each half** (`held_back_dressed` and `held_back_anchored`
+in `tests/reference/generation-branch-vectors-6.json` on their branch,
+moved whole to `tests/reference/generation-branch-vectors-7.json` at the
+integration of the carried passes, P4-D295; the rules are
+`dressed_in_form` and `anchor_units` in
+`tools/reference/make_generation_reference_vectors.py`, beside the
+relaxation of `usable_of_class` to the characters a worn form holds). Both
+cases are thirty `alpha` beside eleven of one signed number and two
+held-back signed numbers over eleven rows, whose census names `+%%`
+twenty-two times. In the first, `+15` published, the dressing writes the
+ladder's `14` and `16` through the form; its mutant withdraws the dressing
+and the held-back rows are bare numbers. In the second, `+25` published,
+the only published number carries a plus, which the plain reading
+refuses; read a second way it anchors the ladder at twenty-five, and its
+mutant reads the plain spelling alone, so the ladder counts up from
+nought. Each mutant moves its case's cells in the oracle, and the same
+withdrawal in the generator moves them there too. The oracle's reader
+states no rule for a thousands mark, so the `1,100` column of the review
+is pinned by `tests/test_extra_round_numbers.py` and not by a frozen
+case, and the oracle's order of refusals was changed so a candidate a
+character rule refuses is refused before the check of what the file can
+state is asked of it -- `+00`, which no form was worn by, used to stop the
+oracle rather than be refused.
+
+**Decided by the owner, 2026-09-18:** "Rare values: ok. Fine" -- ACCEPTED. The held-back ladder may rebuild held-back rare values the published facts pin, and item 5's form fidelity is kept (the owner decisions of 2026-09-18 at the end of this plan).
+
+### P4-D269 A saturated representable grid is filled in order
+
+**Measured (item 10, MINOR).** `[str(i*5e-324) for i in range(1,121)]` at a
+floor of eleven: all 120 source numbers enter the statistics and the
+source passes; the twin holds 120 distinct TEXTS and only **95 distinct
+NUMBERS**, correctly reported as MISSED by `distinct.n_distinct_values` on
+the twin, with the real table at exit 0. The separation walk of
+`_apart_enough` acts on the grid the published widths fix, and at the
+subnormal boundary there is no decimal-width grid to act on, so it is
+skipped: the neighbouring values are one representable step apart and the
+ladder's interpolation lands several strata on the same binary64.
+
+**The decision** (`generation._apart_on_the_representable_grid`, asked by
+`_apart_enough` where `_pinned_fraction` and `_finest_fraction` both
+answer -1). Where the column's two pinned ends are exactly as many
+representable numbers apart as it has strata, every stratum has exactly
+one number it can hold and there is nothing to choose: the strata take
+the grid's own points in ascending order, which is what
+`_saturated_integers` already does on the integer grid. The walk stops
+the moment the grid runs past the upper end, so a column whose ends are
+many steps apart — every ordinary column — leaves with its values exactly
+as they came, after at most one step per stratum; the pass is withdrawn
+whole where any stratum's sign band would not hold the point the grid
+gives it, so it can only add. **Re-measured:** the column comes back with
+120 different numbers and validates at exit 0 on twin and table alike.
+
+**MIRRORED IN THE ORACLE at the repair pass of 2026-09-18, with a frozen
+case and a registered mutant** (`saturated_representable` in
+`tests/reference/generation-branch-vectors-5.json`; the rule is
+`representable_grid` beside `saturated_grid` in
+`tools/reference/make_generation_reference_vectors.py`, written from the
+statement above). The case is twelve numbers one binary64 step apart from
+one upward, whose census names no fraction width at all, so neither the
+pinned width nor the finest width gives the separation pass a grid and
+this is the only rule that can answer; its ladder is flat until its upper
+end, because the ninety finer rungs of P4-D4.10 are written to six
+decimal places and this column's values lie far below that place. Its
+mutant withdraws the fill and the cells move. Every other numeric case in
+the seven files publishes a width, so the branch could have been
+withdrawn whole with every committed byte unchanged.
+
+**What was STILL NOT mirrored, and is named rather than left to be
+found — CLOSED at the carried numbers pass of 2026-09-18, which mirrored
+both (see P4-D267 and P4-D268 above).** Two of the four generator rules
+the round added — the mode's own stratum (P4-D267) and the anchors and
+the dressing (P4-D268) — were NOT mirrored in
+`tools/reference/make_generation_reference_vectors.py`, and no frozen
+case with a registered mutant pinned either. Each is pinned by a
+test built from the review's own reproduction, with a mutation check
+recorded beside it, which is the same footing criterion 8 of this phase
+records as UNMET for the width pass and the empty-bin pass. The other two
+— the unmarked-duplicate order (P4-D265) and this grid — were mirrored at
+the repair pass of 2026-09-18 and are pinned by frozen cases. The
+remaining oracle work is the next landing's, and until it is done those
+two branches are pinned by tests rather than by a frozen case.
+
+
 ### The ten acceptance criteria, each with its verdict
 
 | # | what it asks | verdict |
@@ -10014,7 +12405,7 @@ carried by name". An entry carried by name is not an entry closed.
 | 5 | the taxonomy total and ordered after P4-D3 | **MET.** Fourteen roles through every closed enumeration, completeness tests green, every threshold a recorded setting. |
 | 6 | producer → generator → validator at the new version, zero MISSED and zero WITHHELD on the every-role fixture in both header modes | **MET.** |
 | 7 | the reproduction rule exactly as stated | **MET, and its report sentence was FALSE until landing L19** (R-P4-70): the twin reproduced each published spelling at its count, and the twin's own report told the reader it had not. The rule held; the page describing it did not. Both hold now. |
-| 8 | every new generation branch with frozen reference cases and committed mutants; case set and mutant table equal | **UNMET, and lowered by A-P4-59 rather than counted done.** The reference vectors landing L21 owed for the width pass and the empty-bin pass were not written. A second implementer can reproduce every committed byte, but those two branches are pinned by tests rather than by a frozen case with a mutant. Carried as R-P4-18 and R-P4-115. |
+| 8 | every new generation branch with frozen reference cases and committed mutants; case set and mutant table equal | **UNMET, and lowered by A-P4-59 rather than counted done.** The reference vectors landing L21 owed for the width pass and the empty-bin pass were not written. A second implementer can reproduce every committed byte, but those two branches are pinned by tests rather than by a frozen case with a mutant. Carried as R-P4-18 and R-P4-115. **Widened and then narrowed by the extra round of 2026-09-18:** its four new generator rules landed with no mirror at all, and the repair pass of the same round mirrored two of them with frozen cases and registered mutants — `unmarked_duplicates_first` (P4-D265) and `saturated_representable` (P4-D269), both in `tests/reference/generation-branch-vectors-5.json`. The mode's own stratum (P4-D267) and the anchors and the dressing (P4-D268) stood where the width pass and the empty-bin pass stand until the carried numbers pass of the same day mirrored both, with the frozen cases `mode_held`, `held_back_dressed` and `held_back_anchored` and a registered mutant each; the band fill that pass added to G6.5a was mirrored in the same commit (`saturated_band`). The width pass and the empty-bin pass remain the two named gaps. The repair pass of 2026-09-19 mirrored its own new rule, G6.5a's push (`pushed_along_band`), and gave the column-wide fill of P4-D147 and P4-D176 a case whose mutant withdraws it alone (`saturated_grid_alone`), both in the ninth file, `tests/reference/generation-branch-vectors-7.json`. |
 | 9 | the version-refusal messages exact-shape tested, naming and pricing every publication-changing option | **MET**, and widened twice during the close: `--code` at landing L16, `--answers` at L17b. Contract R11's clause and the shipped message are held equal word for word by two tests. |
 | 10 | every artifact scans clean as a tracked file; the seal current; CI green; the claim inventory green | **MET.** Every scanner, the seal and the suite are clean on this machine at every landing of the close, and **CI is green on every cell of the matrix at the closing commit — Windows included.** The first writing of this row said CI had not run, which was FALSE and is corrected here rather than quietly: CI had run on pull request 5 throughout the close and was FAILING on every Windows cell of the three runs before this one. See the note below. |
 
@@ -10061,7 +12452,7 @@ would do about them:
 | **Readings the values cannot settle** | R-P4-16, R-P4-19, R-P4-36, R-P4-100, R-P4-102, R-P4-150, R-P4-159, R-P4-160 | Columns where a shape is read one way and could be read another. The questions file now asks about the ones it can see; these are the ones it cannot. |
 | **The method's own text** | R-P4-101, R-P4-115, R-P4-120, R-P4-123, R-P4-124, R-P4-128, R-P4-129, R-P4-141, R-P4-145, R-P4-146 | Clauses written in the form the method argues for rather than the form a second implementer could follow. |
 | **Frozen vectors and guards** | R-P4-17, R-P4-18, R-P4-29, R-P4-63, R-P4-64, R-P4-65, R-P4-66, R-P4-67, R-P4-113, R-P4-126 | Coverage the oracle and the guards do not yet pin. Acceptance criterion 8 lives here. |
-| **Two implementations that must agree** | R-P4-61, R-P4-118 | The generator and the validator print moment windows differing in their last two digits. No verdict has been seen to differ, and R-P4-61 owes that measurement. |
+| **Two implementations that must agree** | R-P4-61, R-P4-118 | The generator and the validator printed moment windows differing in their last two digits. R-P4-61 was CLOSED on 2026-09-15 by landing 2b.1, part 2, when its measurement was finally taken: 107 verdicts of 1,128 had differed, and none do now. |
 | **Cost** | R-P4-116, R-P4-169 | Generation is superlinear in the strata; one report heading rescans a declaration list per column. |
 | **Open questions for the owner** | R-P4-13, R-P4-14, R-P4-20, R-P4-37, R-P4-52, R-P4-71, R-P4-72, R-P4-111, R-P4-153 | Each needs a decision rather than a build. |
 
@@ -10427,11 +12818,12 @@ changes a shipped sentence and the contract still says both things.
 form of the all-different remark: this plan's own P4-D4.1 ("the
 all-different remark additionally extends to this role verbatim", two
 lines after naming the all-different TEXT remark) and
-`docs/spec/v6-build/r5a2.md`. One passage gives it the NUMBERS form:
+the draft section `r5a2.md` of `docs/spec/v6-build/`, a folder since
+deleted (R-P4-113). One passage gives it the NUMBERS form:
 contract C6-81, which assigns one form to the roles described as
 numbers — `count`, `continuous` and `affixed_number` — and one to
 `free_text`. The project's own derivation notes for the section
-(`r5a_meta.md`) already record the conflict and name the owed act:
+(`r5a_meta.md`, in that deleted folder) already record the conflict and name the owed act:
 section 4.5 must move the sentence or say why not. It was never done.
 
 **Why the numbers form is what ships.** The free-text form says
@@ -11326,10 +13718,13 @@ evidence walk, `--day-first` and the remarks reach them unchanged.
 Contract C6-D8P fixes the two-figure century pivot and note NF42
 carries it on every such column.
 
-**THIS ADDS READING AND NOT WRITING.** The twin still writes ISO —
-owner decision 5 of the Phase 2 plan, `format` REPORT-ONLY, residual
-R-P2-7 — and a test asserts the ISO syntax so nothing drifts into
-claiming otherwise. **THIS RAISES** what a column of these shapes
+**THIS ADDED READING AND NOT WRITING.** The twin still wrote ISO —
+owner decision 5 of the Phase 2 plan, `format` not reproduced, residual
+R-P2-7 — and a test asserted the ISO syntax so nothing drifted into
+claiming otherwise. **The owner reversed decision 5 on 2026-09-15**
+(P4-D61, landing 2b.6): the twin is written in the member that read the
+real column, `format` is EXACT-OBSERVABLE, R-P2-7 is retired, and that
+same test now asserts the source's own syntax so nothing drifts BACK. **THIS RAISES** what a column of these shapes
 publishes, from nothing to the whole of a date column's behaviour.
 **THIS LOWERS** nothing.
 
@@ -11841,6 +14236,10 @@ it with one more answer offered: measurements written as two numbers.
 `lab_code` answers "codes" and keeps everything A-P4-38 gave it; `bp`
 answers "measurements" and gets its distribution back. One question,
 one place, three answers, and no rule anywhere guesses which.
+
+**Narrowed on 2026-09-15 by P4-D40**: one shape, two plain whole
+numbers joined by a slash in a column that would otherwise be free
+text, is read from its values. The full reading stays a declaration.
 
 ## Amendment A-P4-39 — the fourteenth role is built (P4-D21)
 
@@ -13687,6 +16086,13 @@ documentation however much it looks like it.
 | **A-P4-40** | 2026-08-26 | The documentation regime above. THIS LOWERS what is written and lowers nothing that is checked. | 23 per cent of eight days' output was the product; the phase was spending its time on prose nobody reads. | Roughly six days come off the close sequence. A second implementer gets less prose and the same executable specification; where the contract is now silent, the loader and the guards are the authority, and the note grammar is the worked example of that -- four shipped sentences had no clause at all and no reader had noticed. |
 | **A-P4-50** | 2026-09-01 | Where the published ladder and the published empty-bin fact disagree about where a cell goes, the FACT wins and the ladder gives way. The move's bound is the fact's own — out of the stretch, into the bin next to it, no further — and not A-P4-18's, whose share-bounded reach was measured to reach nothing on the columns this concerns. | Between the rungs the ladder says nothing and the method interpolates, which is an inference; "no cell lies between these two edges" is a measurement of real cells. Measured on three two-cluster columns at forty seeds, a share-bounded move could not free four of six, one of three and four of six of the offending strata. | The rungs near an empty middle are met by interpolation less exactly than before. Measured at forty seeds on all three columns through the real path, the quality report misses exactly what it missed before and nothing more, so on these shapes the cost is nil. A-P4-18 is untouched for the width snap it governs. |
 | **A-P4-60** | 2026-09-10 | **A-P4-59 CLAUSE 3 IS WITHDRAWN ON MEASUREMENT, AND `--answers` LANDS INSTEAD.** Clause 3 read every unanswered column of digits as codes. It was BUILT — narrowed first to the padded signal, given contract NF56 so it could never be silent, thirteen tests green — and the whole suite then returned 46 failures and 19 errors carrying three results: review item P1-R6-F7 deleted a rule routing on width AND ON THE LEADING ZERO and the owner settled that policy the other way; plan decision P4-D14 already publishes the FIELD WIDTH of a padded column, so the SPELLING defect routing was argued from is closed (code DOMAIN membership is NOT, and is carried as R-P4-165); and routing costs a genuine padded measurement its whole distribution. Withdrawn. `--answers FILE` ships in its place: the questions file is filled in and handed back, each answer becoming the declaration it stands for. | The case for routing rested on a defect P4-D14 closed on 2026-09-01, and on a distinction — that a leading zero is not width — that the record does not support. What the ruling was reaching for was a column settled without a person at the keyboard; asking already existed, and the ANSWER path was what was missing. | THIS LOWERS clause 3 of A-P4-59 to nothing: no column is routed by its shape, which is P1-R6-F7's policy unchanged. It raises nothing. A padded column is still asked about, still offered `code`, and can now be answered in a file. If the owner wants the routing anyway it is one commit, and the measurement above is what it costs.
+| **A-P4-61** | 2026-09-15 | **RENUMBERED P4-D40 TO P4-D86 AT ITS MERGE (landing 2b.10).** Landing 2b.9 took P4-D40 for the written form while landing 2b.5, already landed, held P4-D40 for the slashed pair read from the values, so the merged plan carried one number over two decisions; the newcomer yielded and every citation of the written form moved with it. Decision P4-D86: the twin is written the way its source file was, `source.dialect` EXACT-CONTROL. THIS SUPERSEDES the ruling of amendment A-P3-3 clause 6, by the test of A-P3-5 clause 3 (the line endings, the final newline and the byte-order mark are published now, so they are checked, and withheld on a refused file), and closes residual R-P2-5. | Owner ruling 2026-09-15: code developed on the twin runs unchanged on the real table only if the twin's bytes are the table's. | Every profile gains `source.dialect`, so a description written before it is refused as missing a key (version 6 is extended in place, A-P4-41). At its repair `source.dialect` gained `blank_lines_spread` and `line_endings_spread` (twenty-two keys), the caps publish counts instead of refusing, the order is read beside records holding nothing (FD5, FD7 amended), and the validator reads a checked file in the published encoding. The reader holds the file's text while it reads, which the streaming claim of P1-D3 no longer describes. The oracle mirror of the written form is owed. |
+| **A-P4-62** | 2026-09-15 | Decision P4-D76: a column declared with `--identifier` publishes no row sequence and is not the column the rows are sorted by, and a row sequence is published only for a first column named as a written row index is (`dialect.INDEX_NAMES`). Invariant FD12 is the loader's statement of it. | A review of landing 2b.9 measured a table of two declared identifier columns whose twin reproduced all 120 real rows byte for byte: the written form was handing back the values the declaration exists to withhold. | A REDCap `record_id` is no longer written back in order, and its twin holds made-up record numbers. Descriptions that published such a sequence are refused by FD12 and are made again (version 6 is extended in place, A-P4-41). Clause 2 of the twin's definition is held structurally and not by comparison, because the generator never reads the real table; a narrow-domain chance collision is carried as an owner question. |
+| **A-P4-63** | 2026-09-15 | Decision P4-D77: a spreadsheet workbook is READ, with `zipfile` and `xml.parsers.expat` and nothing else. `source` gains a seventh key, `workbook` (contract 4.3b), carrying the sheet's place, the date system, the rows above the header, the records holding nothing inside the table, the formatted blanks beyond it and a census per column of what its cells were and what kind of thing their formats made of them. Invariants WB1-WB4 are the loader's statement of it; the offline scanner admits four zipfile names and two expat names, each justified in its own table and each mutation-tested. | Owner ruling 2026-09-15: synthtwin reads Excel files and delimited text files only. Until this landing it read neither, and most researchers' tables arrive as workbooks. | Every profile gains `source.workbook`, so a description written before it is refused as missing a key (version 6 is extended in place, A-P4-41). A number format code is read but not published, so a twin cannot reproduce a custom one. A workbook is read once, without the second independent reading the delimited path gets. |
+| **A-P4-64** | 2026-09-15 | Decision P4-D78: `synthtwin generate` refuses a description of a workbook, because this version can describe one and cannot yet write one. | Writing a delimited twin of a spreadsheet would silently drop the sheet, the cell types and the number formats the description publishes, which is what the owner's ruling of 2026-09-15 forbids. | A workbook description has no twin until the writer lands; the refusal names the one route that works today. |
+| **A-P4-66** | 2026-09-16 | **THE REPAIR OF P4-D79, AFTER A REVIEW MEASURED THREE ORDINARY SHAPES OUTSIDE THE GATE'S OWN FIXTURE FAMILY.** (1) The writer records each sheet's hidden state, hiding every sheet standing before the table's, so the twin's own reading rule — the first visible sheet — lands on the table; a hidden-first workbook's twin could not be read back at all. (2) A withheld sheet name is compared through one allocation shared by the writer and the validator (`dialect.twin_sheet_names`), so a twin that writes the neutral name the disclosure rule demands is no longer MISSED for it; published names are claimed before placeholders, so a published name is never renamed. (3) The macro project, the defined names and each column's formulas are WITHHELD rather than measured, because a twin is forbidden to carry them and this measurement cannot tell a twin from the file it was made from; they are named on the summary instead, with the sheet that was read and every withheld name. (4) `empty_rows_inside` is held to the smallest group like every other count of records (WB3), and the layout counts are named as exempt with their reason rather than a blanket claim that every count is floored (WB4 restated to what it enforces). (5) A published nought and a withheld count are read apart by the writer and the validator: the twin never writes a class the census denies, and a withheld count is not held against the file. (6) `--sheet` reaches `validate`. (7) `rows_above_header` counts every row above the header, blank ones included. (8) The reader's cell cap is set from a measurement (1,000,000 cells, about 600 MB) instead of a guess of four million, and the study's own bomb is refused by it rather than read. (9) The zip and parser admissions are scoped to the modules they were argued from. (10) `dialect.named_columns` is linear. | A skeptic's verdict of REJECT on the landing, every item reproduced with numbers before it was fixed: a twin `profile` refused, a twin failing its own description at exit 3 on two ordinary shapes, five counts published raw against the disclosure rule, three published facts with no subcheck, and caps that bounded memory at about 2.4 GB. | A description written before this is refused where `empty_rows_inside` is a count the floor should have held (version 6 is extended in place, A-P4-41). A workbook of more than a million cells is refused where it was read. Every other change loosens a check that could not be met or tightens one that was silent; no delimited twin's bytes move, measured against the landing's own commit. |
+| **A-P4-67** | 2026-09-16 | Decision P4-D110: the delimiter becomes a DECLARATION. `synthtwin profile --delimiter` (`,` `;` `\|` or `tab`) and an answer under `about_your_file` in the questions file both set `settings.forced_delimiter`, the sixth declaration; the survey reads a declared delimiter and guesses none; invariant FD13 holds it to `source.dialect.delimiter` and refuses it on a workbook; the validator reads a checked file with it. Where nobody declares and two or more delimiters tie on both the share of records and the width, the reading the cells favour STANDS, the tie is said on the screen and asked as a question in the questions file. A declaration contradicting the file's own separator line is refused. | Review item CODEX-4 (landing 2b.9): the numeric tie-break read `id,pair\|code` over rows such as `1,2\|3` with the vertical bar where commit 53bb012 read the comma, silently. Both trees twin that file at exit 0, so the reviewer's refusal branch would refuse a file the baseline twinned, which this work may not do; a question plus a declaration settles it without refusing anything. | Every profile gains `settings.forced_delimiter`, so a description written before this is refused as missing a key (version 6 is extended in place, A-P4-41). No twin's bytes move and no file that was read is read differently unless a delimiter is declared. |
+| **A-P4-65** | 2026-09-15 | Decision P4-D79: a workbook's twin is a WORKBOOK, written by a writer of synthtwin's own out of the standard library. `source.workbook` becomes an obligation the validator holds the twin to; it gains `sheet_names` and a per-column `format_code`, both drawn from closed vocabularies; invariants WB5 and WB6 are the loader's statement of them, each with a mutation. THIS SUPERSEDES P4-D78, which refused a workbook description a twin. | Owner ruling 2026-09-15: the twin is written the way its source file was, and a spreadsheet's twin that was delimited text would drop the sheet, the cell types and the number formats. | Every profile gains two workbook entries, so a description written before this is refused as missing a key (version 6 is extended in place, A-P4-41). A custom format code is published as the canonical code of its kind, so the twin wears the standard spelling of a date rather than the person's. The blank rows above a header are still not published, so a reader that counts them sees fewer rows in the twin than in the source. |
 | **A-P4-59** | 2026-09-10 | **THE CLOSE RUNS ON ONE REVIEW ROUND PER LANDING, AND THE PHASE CLOSES WITH ITS REMAINDER CARRIED BY NAME.** Four owner rulings of 2026-09-10, taken together: (1) review is one round per landing, `gpt-6-astra` at high reasoning effort, launched automatically; a crash or a silent wrongness in what THAT landing built is repaired, and every other item the round names is recorded as a residual id and carried, with no second round. (2) Phase 4 closes with about forty entries CARRIED to Phase 5 by name in one table, rather than built — THIS LOWERS the ruling of 2026-08-30 (`c10f5f6`) from "nothing left open" to "nothing open or carried by name". (3) Where a question about a column of digits is unanswered, the column is read as CODES rather than as numbers. (4) Scope is frozen: no new obligation, fact or surface until the phase closes. Review does not run on L22 or L23, per A-P4-46.3. | The phase spent ten days on 95 commits of which 44 were review-round repairs; three landings ran EIGHT rounds each against the five-round ruling; and 32 residuals were opened against 19 closed, so the register grew by 13 while the work looked like progress. A process that opens work faster than it closes it does not end. | THIS LOWERS three things and each is named where it lands. Review depth: a landing is ratified on one round, so items a second round would have found are carried instead of built, and the closure section lists them. Acceptance criterion 8: the reference vectors L21 owes are carried, so a second implementer can reproduce every committed byte with the width and empty-bin passes unwritten — recorded unmet in the closure rather than counted done. And the register: an entry carried by name is not an entry closed, which is why every one of them is listed with a line and a size a reader can act on. What it does NOT lower: the tests, the claim inventory, the decontamination scan, and the rule that any generator rule which moves is mirrored in the independent oracle in the same commit. |
 | **A-P4-41** | 2026-08-26 | Version 6 is EXTENDED IN PLACE until the first release rather than bumped whenever a key is added. Closes R-P4-23 BY RULING. | Nothing outside this repository holds a version 6 description, nothing is released and nothing is tagged, so the migration message the bump would buy has no reader. The owner declined to spend the phase on it. | A description written earlier on this branch, before `pad_widths`, `forced_codes` or `forced_measurements`, gets the loader's plain missing-key refusal instead of the sentence naming which options to supply again. The route is to describe the table once more. The contract's own "filling any slot advances `profile_version`" is amended to bind from the first release on, and Phase 5 bumps the number when it fills the relationship slots. |
 
@@ -14098,3 +16504,4434 @@ catches more.
 no good pairing still reprofiles, and now says so. That is the
 residual's complaint answered — the column changed kind "and says
 nothing" — with the packing left as the honest remainder.
+
+## The files review of 2026-09-18 — decisions P4-D280 to P4-D289
+
+One review round on commit `c5d09d5`, four passes, ten items in the
+files area: three blockers, six major, one minor. Every item was
+reproduced on `c5d09d5` before anything was changed, and every number
+below is measured rather than argued. None of them reverses any of the
+owner's eight rulings of 2026-09-17; two of them are that ruling's own
+repair (P4-D280, P4-D281) and one takes ruling 6 for its threshold
+(P4-D283).
+
+### P4-D280 A record's layout is one that recurs below it, not the unanimous one (BLOCKER)
+
+`reading._shares_the_shape_below`. P4-D241's fourth record rule
+required EVERY value below the first row to wear that row's silhouette.
+**Measured at a floor of eleven**, on the very shape P4-D241 was written
+for -- `Cohort extract`, then `CASE-ZEBRA-471,Northfield Clinic 3,<0.10`
+and 239 records `CASE-ALPHA-{1000+i},location {i},{n}`: unanimous, the
+rule speaks and the file is described as 240 records under `column_1`,
+`column_2`, `column_3`. Write ONE of the 239 identifiers
+`CASE_ALPHA_1120` -- a second system's layout, which ruling 7 says a
+file may hold -- and the rule falls silent, `_names_evidence` fires
+instead on the third column (`<0.10` is not a number), and the whole
+first record is published as the three column names with the table 239
+rows long, no question asked and both files validating with nothing
+missed. `NA` in that cell does it as readily.
+
+**The decision.** The first row's silhouette must be structured and
+must be worn by at least TWO of the non-empty values below it. A
+minority layout and a missing-value word are counted and beaten rather
+than obeyed. **After:** all three variants describe 240 records under
+placeholder names and ask the question.
+
+**AMENDED IN THE REPAIR PASS: the first writing also asked that the
+silhouette be the COMMONEST below, and that MOVED the threshold rather
+than removing it.** MEASURED on the tree carrying that writing, same 239
+records at a floor of eleven, varying only how many identifiers read
+`NA`: 119 is caught -- 240 records, `column_1` to `column_3`, no
+character of the record anywhere -- and 120 is not: 239 records, the
+whole record published as the three column names, nothing asked, and
+`generate --seed 4` writing the real record verbatim as the twin's
+header line. Two further shapes did it: all 239 identifiers in
+`CASE_ALPHA_1001` layout with the first record in the other, and a
+50/50 split of the two systems whichever way the parity fell. The
+`commonest` test is dropped: the count that matters is the count of rows
+wearing the FIRST ROW'S layout, and two of them say the first row is one
+of a population, however many wear another. **After the amendment:** the
+missing-value shape is caught at 118, 119, 120 and 200 alike and the
+50/50 split at either parity; the five header and first-row suites run
+173 passed. At 239 -- every identifier of the file reading `NA`, so that
+NO value below wears the first row's layout -- it is still read as
+names, which is the class the next paragraph names and leaves with the
+owner.
+
+**WHAT THIS RULE STILL CANNOT SEE, measured and left for the owner.** A
+first record whose layout NO row below repeats -- 239 identifiers
+`CASE_ALPHA_1001` under the one record `CASE-ZEBRA-471` -- wears a
+structured silhouette worn by nought below it, and the rule is silent:
+that record is published as the three column names, 239 rows described
+where the file holds 240. The obvious widening is to read ANY structured
+silhouette recurring below as the evidence, and it has its own cost.
+MEASURED with exactly that widening applied to this tree: the header
+`id,measure|low|high` of P4-D282's own witness -- `A|A|A` over `9|9|9`,
+both structured -- loses its real column names to placeholders, and
+`test_the_declared_comma_reads_the_baseline_columns` turns red (172
+passed, 1 failed across the same five suites plus this landing's). So it
+is a SECOND rule with its own false-positive surface, not a widening of
+this one, and it is the owner's to rule on.
+
+### P4-D281 A frozen pane is not evidence about which row holds the names (BLOCKER)
+
+`workbook.marks_the_header`. P4-D232's clause (5a) let a sheet waive
+ruling 8 by freezing its panes at the header row. **Measured at a floor
+of five**, on a sheet holding `Study overview` in `A1`, two texts in
+`A2`/`B2` and 120 records of text pairs below: without a pane, 121
+records under `column_1`/`column_2`, neither of row 2's values anywhere
+in the six files. Adding `<pane ySplit="2" topLeftCell="A3"
+state="frozen"/>` and nothing else: both of those values become the
+column names, the row count falls to 120, they are copied into the
+twin's own header, and the description passes every contract check.
+
+**The decision.** The reader's question — may a row standing under
+furniture be published as schema without asking anybody — is waived by
+an autofilter whose range BEGINS at the header row, and by nothing
+else. A freeze says where the scrolling stops: a person freezes two
+rows for a banner and a heading, one for a heading, four for a logo,
+and no reader can tell which. `_marked_by_the_sheet` keeps the pane for
+the other question it answers — which of the rows already settled as
+furniture is the header — because answering that wrongly costs a row's
+PLACE and never its publication. **After:** 121 records and placeholder
+names with the pane and without it alike.
+
+**Decided by the owner, 2026-09-18,** on the autofilter left as the one door to a published header ("What was NOT changed, and why", item 1, below): "sounds minimal issue. I wouldn't care" -- ACCEPTED, and clause 5a of P4-D232 stands (the owner decisions of 2026-09-18 at the end of this plan).
+
+### P4-D282 A competing delimiter need not agree about the width (BLOCKER)
+
+`dialect.delimiter_reading`. P4-D110 recorded a competing candidate only
+where it tied the winner on the share AND the width, and the walk
+prefers the WIDER reading on a tie of the share — so the wider reading
+could take a file from a narrower one just as consistent, and say
+nothing. **Measured**: a header `id,measure|low|high` over 120 rows
+`{i},{100+i%4}|90|110` reads at a share of 1.0 under the comma (two
+columns) and at a share of 1.0 under the vertical bar (three columns).
+Commit `53bb012` read the comma; the current code chooses the bar, with
+no competitor recorded and no question asked, and reads the combined
+first field as a QUANTITY — role `count`, percentiles 100 to 119,103.
+Seed 4 writes rows such as `3,029|90|110`, so code using the source's
+own comma delimiter obtains the measurement `029` where the column
+holds 100 to 103. Both files validate with nothing missed, against a
+description of a table the person does not have.
+
+**The decision.** A competitor is every candidate reading the file at
+the winner's own share, whatever width it gives. The reading taken is
+unchanged, because a file the baseline twinned may not become refused;
+what changes is that the person is told and asked, and `--delimiter`
+answers. The two published sentences are reworded, because both said
+the readings give the same number of columns and that is no longer
+true. **Measured against ordinary files:** a plain comma table, a
+semicolon table of decimal commas, a tab table, a one-column table, a
+quoted-comma table and a comma table whose cells hold bars record no
+competitor at all — every other candidate fails to reach two fields,
+which `_best_reading` already rejects.
+
+**AMENDED IN THE REPAIR PASS: the tie notice's REASON was true only
+while a competitor had to agree about the width.** `cli.
+_delimiter_tie_notice` told the person synthtwin had taken "the reading
+under which more of the values read as numbers", and
+`dialect.delimiter_reading` asks the count of numbers only where the
+share AND the width tie -- so widening the competitor to any reading of
+the winner's share began printing that sentence about files the WIDTH
+settled. MEASURED on the tree carrying the widening: a header
+`id,note|tagA|tagB` over 120 rows `{i},alpha{i}|x{i}|y{i}` reads at a
+share of 1.0 under both, two columns with 120 values read as numbers
+under the comma and three columns with NOUGHT under the vertical bar;
+the bar wins on the width and the person was told it won for the
+numbers -- false by 120 to 0, in the one sentence that tells them
+whether to override the reading. The sentence now states the walk's own
+order: the reading that gives the table the most columns, and the count
+of numbers only between readings of one width. The two published
+sentences are `cli._delimiter_tie_notice` and
+`asking._delimiter_questions`; only the first carried the reason.
+
+### P4-D283 A column wearing two number formats of one kind is refused (MAJOR)
+
+`workbook.mixed_number_formats`, `errors.MIXED_CODES`. P4-D164 publishes
+ONE format code per column — the commonest among the value-holding
+cells. **Measured at a floor of five** on 120 numeric cells repeating
+0.1 to 1.0, sixty formatted `0%` and sixty `0.0`: the description
+publishes `0%`, seed 0 writes all 120 cells with it, openpyxl reads
+`{0%: 60, 0.0: 60}` from the source and `{0%: 120}` from the twin, and
+both files validate with nothing missed. Sixty values a person reads as
+`0.5` read as `50%` off the twin, and code selecting cells by their
+number format gets a different population.
+
+**The decision, and why it is the refusal and not the census.** The
+repair that keeps such a column is a published, allocated and validated
+census of format CODES; that is a new contract key with a loader half, a
+generator half, a validator half and its own frozen vectors, and it is
+a landing rather than a review item. Until a description can carry one,
+the column is declined by name — the treatment `mixed_storage` already
+gives a mix of KINDS one level up, and what principle 5 asks for. **The
+threshold is ruling 6's.** A code worn by fewer cells than the line is
+the stray cell somebody reformatted, not a second population, and it is
+counted into the column's commonest code exactly as a rare spelling is.
+**Measured, floor 5, 120 cells:** 1 and 4 cells of the second code are
+read and published as `0%`; 5 and 60 are refused. The refusal names the
+column and never a code, because a custom code can hold somebody's text.
+
+**AMENDED IN THE REPAIR PASS: the general format is not one of the two,
+and counting it turned away the commonest workbook there is.** `General`
+is what a cell wears when NOBODY gave it a format, and it is also the
+code `_leading_code` FALLS BACK to when nothing else reaches the line.
+MEASURED at a floor of five on 120 numeric cells, sixty carrying no
+style at all beside sixty carrying `0.00`: the first writing of this
+rule exited 1 where `c5d09d5` exited 0 and wrote a twin -- and a numeric
+column somebody formatted part of the range of is an ordinary
+spreadsheet, not two populations a person chose. The general format is
+skipped when counting the codes that stand. **After:** that column is
+read at exit 0, publishing `0.00`, and its twin wears `0.00` on all 120
+cells, which is what such a column loses here and is exactly what
+`c5d09d5` did with it. The mixed columns Codex measured are untouched: `0%`
+beside `0.0`, `#,##0.00` beside `"$"#,##0.00`, and `0%` beside `0.00%`
+are each still refused at exit 1, naming the column and no code.
+
+### P4-D284 A cell's storage class is settled before its date is converted (MAJOR)
+
+`sheetwriting._dates_as_day_counts`, `sheetwriting._stores_dates`.
+**Measured at a floor of five** on 120 `t="d"` cells holding
+`2024-01-01` to `2024-01-28` and wearing `yyyy-mm-dd`: generation
+succeeds, openpyxl reads dates from the source and strings such as
+`"45315"` from the twin, describing the twin again turns the column's
+role from `datetime` into `count`, and the twin misses its storage
+class, its value class, its role, its statistical type and its numeric
+counts while the source misses nothing. The conversion to the day count
+a workbook stores ran before the classes were allocated, so by the time
+anything could fit the `date` class the ISO spelling was gone.
+
+**The decision.** The classes are allocated first, from the census;
+only the cells NOT allocated ISO date storage are converted; the
+classes are then settled again over the cells as they will be written.
+**And the census has to SAY so.** Where the census is withheld, a cell
+no count claims takes the first withheld class its spelling fits, and
+the twin's spelling of a date fits `date` — so the allocation is
+trusted only where the column publishes a count of date cells above
+nought or a value class of `date`. Measured without that guard, on the
+study's titled book at a floor of eleven: 59 of the twin's date cells
+turned from `<v>45343</v>` into `t="d"` holding `2024-02-21` and the
+twin missed `workbook.value-class`. With it, that twin is BYTE-IDENTICAL
+to the one `c5d09d5` writes. **After:** the ISO shape's twin comes back
+as 120 dates and validates at 0; the serial shape is untouched.
+
+### P4-D285 An empty inline string is an empty string (MAJOR)
+
+`workbook._CellWalk.had_inline`. A cell was classified by asking whether
+the walk still STOOD inside an inline string, which `</is>` has already
+cleared, and whether that string had characters in it, which an empty
+one has not — so `<c t="inlineStr"><is><t></t></is></c>` was read as the
+styled blank it is not. **Measured** on 120 rows alternating 60 such
+cells with 60 texts: the description publishes `blank 60, empty 0`,
+openpyxl reads `""` from the source and `None` from the twin for those
+60 records, and both files validate with nothing missed — so code
+testing `cell.value is None` finds 60 records on the twin that the real
+table does not have. **The decision:** the walk remembers that the
+element was there. **After:** `blank 0, empty 60`, and the twin hands
+back `""` for all 60.
+
+### P4-D286 A refusal that names a column waits until there are names (MAJOR)
+
+`reading._read_workbook_table`. The mixed-storage refusal stood above
+the first-row decision and named the column it refused. **Measured:** a
+sheet holding a text and 12 in row 1, a date-formatted 45000 and 11 in
+row 2, and an ordinary 20 and 13 in row 3 refuses with "The column
+'<that text>' ..." printed on the screen — although 12 standing among 11
+and 13 is exactly the record evidence ruling 8 answers with placeholder
+names. **The decision:** the check is asked after the first row is
+settled, of the sheet that stands and with the names the reading
+settled on. **After:** the same refusal names `column_1` and no
+character of that row reaches the screen.
+
+### P4-D287 A cell reference is bounded by the last column, and by its length (MAJOR)
+
+`workbook.reference_column`, `workbook.MAXIMUM_REFERENCE_CHARACTERS`.
+The reference walk built the whole base-26 integer the letters spell
+before anything asked whether it was past the last column, which is
+quadratic in the letters for a cell that will be refused anyway.
+**Measured on uncompressed worksheets of 13, 43 and 163 KB, whose one
+cell is referenced by 10,000, 40,000 and 160,000 letters:** 0.011,
+0.162 and 2.592 seconds to refuse one invalid cell. Neither the cell
+cap nor the archive caps bound it. **The decision:** the walk stops at
+`MAXIMUM_COLUMNS` and returns one more than it, and a reference longer
+than 32 characters — `XFD1048576` is ten — is refused as the column
+past the last that it is. **After:** 0.000 seconds at all three sizes.
+
+**AMENDED IN THE REPAIR PASS: the length cap was the one rule of this
+landing no test pinned, and it is not redundant.** Withdrawn, all 31
+tests of the landing stayed green. `reference_column`'s own bound reads
+LETTERS; the cap reads the whole reference, and what it stands in front
+of is `reference_row`, which gathers every FIGURE of the reference and
+calls `int` on them. MEASURED: `reference_row("A" + "9" * 100_000)`
+raises `ValueError` -- CPython refuses an integer conversion past 4,300
+figures -- which is an escape and not a refusal. MEASURED end to end at
+the cap's own boundary: a reference of 32 characters is read by the
+ordinary path and refused for its ROW (`past row 1048576`), and one of
+33 is stopped at the `<c>` element and refused for its COLUMN (`past
+column 16384`); with the cap withdrawn, the 33-character and
+5,000-figure references are refused instead as a cell holding more than
+32,767 characters of text, which is a sentence about a cell holding `1`.
+The boundary and the escape are both now tests.
+
+### P4-D288 A freeze is bounded by the worksheet, not by the table (MAJOR)
+
+`contract` WB4, `dialect.SHEET_MAXIMUM_ROWS`. WB4 held `frozen_rows` to
+`n_rows + rows_above_header + 1`. **Measured:** a header and 120 records
+with `<pane ySplit="200" topLeftCell="A201" state="frozen"/>` — a
+layout openpyxl accepts, reporting `freeze_panes='A201'` — profiles at
+exit 0 publishing `frozen_rows 200`, and the loader then refuses that
+same description under WB4, so `generate` and `validate` both exit 1
+and the refusal's advice to describe the table again repeats the
+failure for ever. **The decision:** the bound is Excel's own last row,
+1,048,576. Splitting the window below everything written is a legal
+layout. **After:** generate and validate both exit 0. The limit moves to
+`dialect` because the loader asks it and the loader may not import the
+reader.
+
+**AMENDED IN THE REPAIR PASS: the bound admitted a freeze the twin then
+wrote as a cell no worksheet has.** WB4 asked `>`, so `ySplit="1048576"`
+-- a freeze of every row a worksheet has -- loaded. MEASURED on the tree
+carrying that bound: profile exits 0 publishing `frozen_rows 1048576`,
+generate exits 0, and the twin's own pane comes out `<pane
+ySplit="1048576" topLeftCell="A1048577" .../>`. The split's top-left
+cell is the row BELOW it, so a freeze of every row spells a reference
+one row past the sheet; openpyxl tolerates it and both validates return
+0, and the twin is still not a layout a spreadsheet can spell. **The
+decision, in two halves.** The READER holds such a pane one row inside
+the sheet (`workbook.sheet_cells`), so no description synthtwin writes
+reaches the bound at all; WB4 asks `>=`, so a description somebody
+edited to claim it is refused, which is what WB4 is for. **After:**
+`ySplit="1048576"` publishes `frozen_rows 1048575`, the twin's pane
+spells `topLeftCell="A1048576"`, and profile, generate and both
+validates exit 0; `ySplit="200"` and `ySplit="1048575"` are unmoved.
+
+### P4-D289 A package this reader cannot expand is refused in words (MINOR)
+
+`workbook.is_packaged_unreadably`,
+`errors.workbook_is_packaged_unreadably`. **Measured** on a workbook
+one of whose members carries the encrypted flag, and on one packed by
+compression method 99: `RuntimeError` and `NotImplementedError` escape
+the reader with no sentence a person can act on. **The decision:** both
+are read off the package's own listing, before a byte is expanded, and
+turned into one refusal of the workbook error catalog naming neither —
+it is a fact about the packaging, and both have the same answer.
+**After:** a controlled refusal telling the person to take the password
+off or save the sheet as a .csv file.
+
+### What was NOT changed, and why
+
+Nothing in this round required reversing one of the owner's eight
+rulings, so nothing is left for the owner on that ground. The one item
+whose full repair is deferred is P4-D283's census of format codes,
+which is named there with what it would cost.
+
+**The repair pass adds two more, both measured on this tree.**
+
+**(1) AN AUTOFILTER IS NOW THE ONLY DOOR LEFT, and narrowing it would
+reverse P4-D232 rather than implement it.** P4-D281 took the frozen pane
+out of the waiver; the autofilter clause (5a) stands, and it is enough
+on its own. MEASURED at a floor of five on the very sheet P4-D281 was
+written for -- `Study overview` in `A1`, two texts in `A2`/`B2`, 120
+records of text pairs below -- with the pane replaced by `<autoFilter
+ref="A2:B122"/>`: 120 records described where the sheet holds 121, both
+of row 2's values published as the column names, `header_source file`,
+and their text in the description. Without the filter: 121 records under
+`column_1`/`column_2` and neither value anywhere. This is NOT a
+regression of this landing -- `c5d09d5` does the same -- and the
+argument P4-D281 makes against the pane ("it falls where the person
+dragged it") applies to a filter dragged over a headerless selection
+too. It is put to the owner as a ruling-8 question, because narrowing
+the last waiver is a decision and not a repair.
+
+**(2) A WITHHELD DATE CENSUS WRITES A TWIN NO READER CAN OPEN.** Where
+the cell-class census is withheld whole, a cell no count claims takes
+the first withheld class its SPELLING fits, and
+`dialect.sheet_class_fits` reads the date SHAPE alone -- `2006-06-32`
+fits. MEASURED at a floor of eleven on 118 `t="d"` cells wearing
+`yyyy-mm-dd` beside two texts: the role is free text, the twin's 118
+date cells hold `2006-06-32`, `8204-84-03` and `2106-36-14`, openpyxl
+raises `day is out of range for month` and cannot open the twin AT ALL,
+and `synthtwin validate` returns 0 for the table and 0 for the twin. It
+predates `c5d09d5` -- the twins the two commits write are byte-identical
+-- and it is recorded as a test that states the defect it stands over
+(`test_a_withheld_date_census_writes_a_twin_no_reader_opens`). It is NOT
+repaired here because `sheet_class_fits` is a GENERATOR rule mirrored in
+the oracle as `sheet_fits`: narrowing the date class to a day of the
+calendar needs the mirror, a frozen case that reaches the branch, a
+registered mutant that moves its cells, and G14.3's own count of the
+cases -- a landing. MEASURED with the one-line narrowing applied to this
+tree: the twin opens, its 118 cells are written as text, and
+`workbook.value-class` is then MISSED -- the description asks for `date`
+and the file holds `text` -- at exit 3 on the twin and 0 on the table.
+Both halves of that trade are the owner's to take.
+### P4-D270 A published prefix asks the ROOM rule as well as the disclosure rule
+
+The extra review round of 2026-09-18, blocking item 1. C6-130 names a
+layout only where `layout_room` is at least `n_distinct +
+small_cell_floor`, so that no named shape spells the column's own value
+set out; the prefix ruling of 2026-09-17 then published the literal
+opening beside it, and the guard was never re-asked with the prefix's
+characters fixed. **Measured** at a floor of eleven: 1,000 declared
+record numbers `REC000` to `REC999` beside a constant `cohort` published
+`layout_forms {"@@@%%%": 1000}`, `layout_prefixes {"(column)": "REC"}`
+and `n_distinct 1000`; those three facts have exactly one solution, and
+at seed 4 the twin held all 1,000 of the table's own record numbers with
+both files at exit 0. `layout_room("@@@%%%")` is 17,576,000 and clears
+1,011 easily; `prefix_room` is 1,000 and does not.
+
+**The decision** (`parsing.prefix_room`, `parsing.prefix_leaves_room`,
+`taxonomy._layout_prefixes`, contract C6-140 and invariant LP3,
+`contract._layout_prefixes`). The count the room rule asks about is the
+one left once the prefix is fixed, and it is asked of the producer and
+of the loader from one statement. WHAT GIVES WAY IS THE PREFIX, not the
+census: LP1 lets a prefix stand only beside a named layout, so taking
+the census back would leave it nothing to stand on, while taking the
+prefix back leaves a column whose layout still clears the room rule.
+The ruling is unmoved everywhere it can be kept — `REC` and seven
+figures over 800 rows leaves 10,000,000 cells for 811 and publishes
+exactly as before.
+
+**OPEN, AND PUT TO THE OWNER: THE ROOM RULE'S THRESHOLD IS `n_distinct +
+floor`, AND THAT IS NOT ENOUGH TO KEEP REAL ROWS OUT OF THE TWIN** (the
+repair pass of 2026-09-18). The rule this decision restores is the one
+C6-130 already stated; restoring it closes the shape the review built
+and does not deliver the owner goal behind it in general. The generator
+never reads a table, so it draws its cells from the published shape at
+random, and a shape with room *R* drawn *n* times leaves about *n²/R*
+cells that happen to be cells of the real table. **Measured** at a floor
+of eleven, 1,000 declared record numbers beside a constant cohort, seed
+4, all runs at exits 0/0/0:
+
+| published layout | room | room ÷ `n_distinct` | record numbers of the real table in the twin |
+|---|---|---|---|
+| `@@@%%%%` (`REC` + 4 figures) | 10,000 | 10× | 100 of 1,000 — and all 100 are whole real ROWS |
+| `@@@%%%%%` | 100,000 | 100× | 10 of 1,000 |
+| `@@@%%%%%%` | 1,000,000 | 1,000× | 1 of 1,000 |
+| `@@@%%%%%%%` | 10,000,000 | 10,000× | 0 of 1,000 |
+
+Every one of those clears `n_distinct + floor` (1,011) and publishes its
+layout and its prefix. A column with no prefix at all behaves the same:
+989 identifiers `000` to `988` published `%%%` and its twin held 978 of
+the 989. **NO TWIN ROW IS A REAL ROW** is an owner goal, and at the
+current threshold it is not reached. The lever is the threshold, and it
+is the only one — a multiple of `n_distinct` rather than a sum with the
+floor, where 100× buys about one collision per hundred rows and 1,000×
+about one per thousand. It is NOT taken here, because raising it
+withdraws the published layout, and with it the prefix ruling 1 admits,
+from ordinary identifier columns whose figures are only as wide as the
+count needs — a fidelity decision and a bearing on ruling 1, not a
+defect this pass may settle. Put to the owner with the four rows above.
+
+**Decided by the owner, 2026-09-18:** "Identifier room: no worries. Fine" -- ACCEPTED. The threshold stays `n_distinct + floor`, so real record numbers can reach the twin where a declared identifier's layout has little spare room, and where it has none (for example `100`-`999` declared) all 900 reach it (the owner decisions of 2026-09-18 at the end of this plan).
+
+### P4-D271 The pool's exception is measured against the PUBLISHED ROWS
+
+The extra review round of 2026-09-18, blocking item 3. P4-D239 bounded
+ruling 5's forced band by an exception — the pool must be smaller than
+the SMALLEST published level — so that a long tail is not counted out
+wholesale. The smallest published level is a function of the FLOOR and
+not of the column: at a floor of eleven it can be eleven on a column of
+two thousand rows. **Measured** at a floor of eleven: 1,977 `NORTH`, 11
+`SOUTH` and twelve one-row sites published `suppressed_levels 12`,
+`suppressed_rows 12` and no missing cell at all — twelve levels over
+twelve rows can only be twelve single rows — and the twin wrote twelve
+single-row labels while both files validated at exit 0.
+
+**The decision** (`parsing.pool_names_a_level`,
+`taxonomy._levels_read_by_subtraction`, `contract._levels`, contract
+invariant B4b). The third argument is the rows the column's PUBLISHED
+levels cover between them, and the exception is `rows * 2 >=
+published_rows`: twelve stands against 1,988 and is the exception it
+plainly is, while 780 unique codes against one published value of 20
+are still the column.
+
+**THE WIDTH IS HALF, AND IT WAS MEASURED.** `rows >= published_rows` was
+built first and it turned a long tail into a blank column: 100 codes
+written once beside two codes of a hundred rows each, at a floor of
+eleven, is a code register whose tail covers a third of it, and counting
+that tail out left the column two values wide and its form census one
+key (`tests/test_final_review_labels.py`). A pool covering a third of a
+column or more is the column's own shape; a pool covering less than half
+of what the column publishes is an exception beside it. Every reading
+the rule was pinned at is unmoved, because in each of them the pool
+stands on the same side of both counts.
+
+**AMENDED BY THE REPAIR PASS OF 2026-09-18: A WIDTH IS NOT ENOUGH.** The
+verification of this landing measured the same arithmetic at other
+widths and it still stood. At a floor of eleven, 100 `NORTH` and 100
+`SOUTH` beside 120 site codes written once each published
+`suppressed_levels 120`, `suppressed_rows 120` and `n_missing 0`, and the
+twin wrote 120 labels each covering one row; 600 and 600 beside 700 such
+codes published (700, 700). Both cleared the exception, because 240 is
+not below 200 and 1,400 is not below 1,200 — and `suppressed_levels`
+equal to `suppressed_rows` is not "at least one of them is a single row"
+but a count of ONE for every one of them, read off two published numbers
+by subtraction. That is squarely ruling 5, so the ruling wins over the
+width.
+
+**The amendment** (`parsing.pool_names_a_level`, contract invariant
+B4b). A PINNED pool — the rows equal to the levels — is read by
+subtraction outright wherever it covers fewer rows than the published
+levels do, whatever the width says. The second half of the rule is kept
+whole above that line: 780 unique codes over 780 rows beside one
+published value of twenty are pinned too, cover more rows than the
+published levels, and still stand; 99 codes over 100 rows beside 200
+published rows are not pinned at all and still stand. **Measured:** the
+two shapes above now publish no pool, count their 120 and their 700 rows
+as missing, and both files validate at exit 0; every reading the rule was
+pinned at — the whole unit battery of
+`tests/test_ruling_levels_counted_by_subtraction.py`, the code and
+long-tail batteries of `tests/test_final_review_labels.py`, and
+`tests/test_p4d239_forced_counts_of_one.py` — is unmoved. Removing the
+exception altogether, which is what the review asked for, was built and
+measured first and turned five witnesses red, among them the 780-code
+register and the form census of a code column with a long tail; that
+reading is recorded here and not taken.
+
+**OPEN, AND PUT TO THE OWNER: `n_missing` IS THE DESTINATION AND IT IS
+NOT ASKED THE DISCLOSURE RULE** (the repair pass of 2026-09-18). This
+rule counts a held-back label's rows as MISSING, which is ruling 5's own
+consequence — and the presence split it counts them into is published
+without ever being asked `parsing.census_nameable`. **Measured** at a
+floor of eleven, unchanged on the commit this landing was cut from and
+after it: 1,977 `NORTH`, 11 `SOUTH` and ONE one-row site publish
+`levels [("north", 1977), ("south", 11)]`, `suppressed 0/0`,
+`n_present 1988` and `n_missing 1` against `n_rows 1989`, and the twin
+holds exactly one blank cell. That names the one record whose site is
+none of the published labels. It is pre-existing and it is not changed
+here, because publishing that a row is missing is what ruling 5 asks
+for, so closing it may be a question about the ruling rather than a
+defect under it — and because `n_present` and `n_missing` are a
+floor-free pair on EVERY role (section 11's table of the universal
+counts), so asking the rule of them is a change to every column block
+this format writes, not a repair in this lane. Put to the owner with
+those numbers: should the presence split clear `census_floor` like the
+other censuses? If yes it is one call to `parsing.census_nameable` at
+the split; if no, the exception belongs in the contract, which is where
+the repair pass wrote it.
+
+**Left as is, 2026-09-18.** The question was answered for the owner: making the presence split clear `census_floor` would withhold the missing counts of every column. The exception stays where the contract writes it (the owner decisions of 2026-09-18 at the end of this plan).
+
+### P4-D272 A value carrying a FIGURE is no evidence that the first row is names
+
+The extra review round of 2026-09-18, blocking item 2. `_names_evidence`
+reads one thing: a column all of whose values are numbers under a
+first-row value that is not one. A column of measurements holds values
+this package cannot parse as numbers all the time — `<0.10` under a
+limit of detection, `2-4` for a range, `5 mg` with its unit — and every
+one of them is a VALUE of that column. **Measured** at a floor of
+eleven, on a title line above a headerless table of 240 records whose
+first is `R001,North Unit,<0.10` and whose rest are `R###,East,#.5`:
+both the delimited file and the workbook published `R001`, `North Unit`
+and `<0.10` as the three column names, described 239 records where the
+file holds 240, asked no first-row question, and wrote that person's
+record as the twin's header line. The fourth record rule of P4-D241
+cannot reach it: `R001` is `A9`, which `_shape_is_structured` refuses
+because an ordinary header shares it with its own column all the time.
+
+**The decision** (`reading._names_evidence`, `reading._holds_a_figure`).
+A first-row value carrying a figure is no evidence here, so the caller
+falls through to the furniture rule — which on a file with nothing above
+the row still takes it as the names by convention, and on a file with a
+title puts ruling 8's question. `record_id`, `age`, `arm`, `site` and
+`reading` over a title line are untouched, because not one of them
+carries a figure. The cost of the rare case is a question rather than a
+record.
+
+**AMENDED BY THE REPAIR PASS OF 2026-09-18: "CARRIES A FIGURE" WAS TOO
+WIDE.** A column name carries a figure often, not rarely: `q1`, `week_2`
+and `glucose1` are column names by every reading. **Measured** at a floor of
+eleven, against the commit this landing was cut from: `Patient
+questionnaire export 2021` over a real header `q1,q2,q3,q4` and 300 rows
+of numbers was read correctly before and afterwards published `column_1`
+to `column_4` over 301 records — the header row taken as a RECORD, which
+then gave every numeric column `n_numeric 300` beside `n_not_numeric 1`,
+a fresh count of one made by the very landing that was closing them, and
+a twin whose columns are named `column_1..` so that code written against
+it does not run against the real table. The same as a workbook, and the
+same for a header `subject,glucose1,week_2`. `_names_evidence` returns on
+the FIRST column that shows evidence, so one such name was enough.
+
+**The amendment** (`reading._holds_a_figure_as_a_value`). What separates
+a measurement from a name is the OPENING: `<0.10`, `2-4` and `5 mg` open
+on a mark or on a figure, while `q1`, `week_2` and `glucose1` open on a
+letter and a name written `_2021` opens on the one mark a name is
+written with. So a figure counts here only in a value that does not open
+on a letter or an underscore. **Measured:** ruling 8's shape is unmoved —
+`R001,North Unit,<0.10` under a title still gets `column_1` to
+`column_3`, 240 records, the first-record question, and none of its three
+values in any published file — while `q1,q2,q3,q4` is back to its own
+names over 300 records and `subject,glucose1,week_2` to its own names over
+240.
+
+### P4-D273 The questions file asks the complement too
+
+The extra review round of 2026-09-18, item 6. `_sayable` held a count to
+the floor and not to what it leaves over, and the description beside it
+absorbs a spelling below the line into the column's commonest (ruling 6).
+**Measured** at a floor of eleven, on 399 values `00001` to `00399` and
+one `12345`: the description published `numeric_styles {"leading_zero":
+400}`, which says every value is padded, while the questions file
+recounted the source and said "399 of them carry a leading zero" — and
+400 present cells less 399 is the one unpadded record, restored on the
+surface beside the one that hid it.
+
+**The decision** (`asking._sayable`). The shared rule
+`parsing.census_nameable` decides it, over the count and the cells it
+was counted over, so the file says "some of them" wherever the pair
+cannot speak.
+
+### P4-D274 A rare negative notation is counted into the commonest
+
+The extra review round of 2026-09-18, item 7. `_mixture_census` named a
+convention at the line, pooled the rest, and went SILENT where the pool
+itself fell below the line — which left the majority field standing
+alone and told a reader what the census had held back. **Measured** at a
+floor of eleven, on 388 positive decimals, eleven negatives in
+accounting brackets and one `-12.25`: the description published
+`n_negative 12`, `negative_form brackets` and `negative_notations
+{"(unavailable)": 0}`; the majority field needs at least eleven
+bracketed cells and twelve would have been NAMED, so the three facts
+together prove eleven brackets and one other notation.
+
+**The decision** (`taxonomy._mixture_census`, contract invariant NS2).
+A convention below the line is counted into the commonest NAMED one,
+which is ruling 6 of 2026-09-17; the pool stands only where no
+convention reaches the line at all. The census then says
+`{"brackets": 12}`, describing the table again says the same thing, so
+the table passes its own description, and the same repair reaches
+`thousands_marks`, which is the identical shape.
+
+**AMENDED at the carried numbers pass of 2026-09-18: the census it made
+exact left the twin one NUMBER short, and the repair is G6.5a's band
+fill.** The merge skeptic's MAJOR finding 5, on this decision's own
+column: 388 positive amounts `100.00` to `103.87`, eleven accounting
+brackets and one `-12.25` at a floor of eleven. The census says
+`{"brackets": 12}` as decided above, and the description publishes 400
+different numbers beside the empty pair `(-1.25, 100.00)`. The ladder's
+third percentile falls inside that pair, so three positive strata stood
+at 97.73, 98.50 and 99.27, and the positive grid from 100.00 to 103.87
+holds exactly 388 points for 388 positive strata -- so two of the rest
+shared `101.88`, no free point lay within the walk's reach, G6.5 spelled
+the second `0101.88`, and the twin held 400 spellings of 399 numbers at
+seeds 4, 1, 2 and 3; `validate` exited 3 on the twin and 0 on the table.
+**The decision** (`generation._saturated_bands`, method G6.5a, amending
+P4-D147): on a column written on one grid with exactly as many strata as
+different numbers, each signed band whose points -- the grid from `min` to
+`max`, of the band's sign, outside every published empty pair -- number
+exactly its strata takes them in order before the walk. **Re-measured:**
+400 different numbers and exit 0 on twin and table at seeds 4, 1, 2, 3, 7
+and 11; pinned by `tests/test_carried_numbers.py` and mirrored in the
+oracle by the frozen case `saturated_band`. On a column of one sign the
+band fill is P4-D147's fill, so the registered mutants of
+`saturated_integers` and `saturated_tenths` now withdraw both statements.
+**And the two witnesses of the old silence are rewritten as witnesses of
+ruling 6** (`tests/test_landing_2b7_mixed_spellings.py`): at the default
+floor the census line is two, so a lone bracket beside 299 minuses is
+counted in and the census is `{"minus": 300}`, not `(unavailable)`.
+
+**AMENDED AGAIN at the carried numbers repair pass of 2026-09-19: the band
+fill closed the band that is EXACTLY full, and the defect stood wherever
+a band is NEARLY full.** The repair skeptic's first MAJOR finding: 300
+negative amounts `-5.00` to `-7.99` beside 120 positive amounts drawn
+between 10 and 900, at a floor of eleven, publish 420 different numbers
+and no empty pair. The ladder puts the negative band's last stratum at
+`-0.01`, so the band's 300 hundredths from `-7.99` to `-5.00` hold 299
+strata; two shared `-5.90`, eighty-nine points from the free `-5.01` and
+`-5.00`, past the walk's reach; G6.5 spelled the second `-05.90`, and the
+twin held 420 spellings of 419 numbers at ten seeds of ten while the real
+table held 420 -- `validate` exited 3 on the twin and 0 on the table, on
+this commit's parent and on the one before the band fill alike. The
+first repair's account called the original shape's miss silent; it was
+not, since the twin's report named `n_distinct_values`, and the shape
+the skeptic measured is the same class. **The decision**
+(`generation._pushed_apart`, method G6.5a, "A COLLISION THE WALKS LEAVE
+IS PUSHED ALONG ITS BAND TO THE NEAREST FREE POINT"): after the walks, on
+a column whose strata are its numbers, the lowest shared grid text is
+walked from along its band's points, both ways, to the first point no
+stratum holds, and every stratum between moves one point toward it,
+with one stratum of the collision -- the lowest-placed mover asked first
+going down, the highest going up; on a column that writes some cells
+with no point the walk counts only points of the mover's own kind, whole
+or not, so a free whole point is not taken for a value that is not
+whole. The way moving fewer strata is taken, downward on a tie, and a
+way that would move an end, change a whole value's kind or a point-free
+spelling, or leave the band is refused for that mover and the next is
+asked.
+**Re-measured:** the skeptic's shape holds 420 numbers and validates at
+exit 0 on twin and table at seeds 0, 1, 2, 3, 4, 5, 7, 11, 13 and 17, and
+so do the other five of its battery (the absorbed notation of this
+decision, a tenths band with a mode, a saturated integer band beside far
+negatives, a point-free mix and a weighted band); over 312 twins of 52
+dense and skewed columns at two floors and three seeds, 88 held fewer
+numbers than published before and 30 were MISSED by `validate`, and none
+after. The rule is mirrored in the oracle, written from its statement
+(`pushed_apart`), agrees with the generator on all 22,638 random inputs a fuzz compared (22,582 of them pushed), and
+is pinned by the frozen case `pushed_along_band` in the ninth vectors
+file, `tests/reference/generation-branch-vectors-7.json`, whose mutant
+withdraws it. **What it cannot mend is named:** G5.2 divides the strata
+between the bands by their cells, and the description publishes no count
+of different numbers per band, so a band can be given more strata than
+it has points -- twelve negatives once, a zero and the whole numbers one
+to ten forty times each put eleven strata on ten points -- and that
+shortfall stays in the twin's report (it is the witness
+`tests/test_p4r152_one_page_one_answer.py` now uses).
+
+**What the push changed elsewhere, each measured.** The carried
+shortfall of `tests/test_numeric_strata_round_trip.py` -- the
+spreadsheet column of 2,000 readings at seed 23, two numbers short since
+landing 2b.1 -- comes back to its count: its two collisions, `36.0` and
+`37.9`, are pushed along the points that are not whole to the free
+`36.3` and `38.5`, and the carried entry is removed, as its own comment
+asked. The joined battery of P4-D184 now brings every position to its
+count at its four seeds. Five guards whose witnesses were shortfalls the
+push now mends were re-armed rather than loosened: the tenths mutant of
+`tests/test_final_skeptic_repairs.py` withdraws the push on a written
+grid as it withdraws the two fills; the broken-walk guard of
+`tests/test_p4r56_grid_separation.py` and the naming guard of P4-D184
+take the push away so the walk and the report are asked alone, the
+latter beside a new test that the push leaves no position short; and
+the shortfall witnesses of `tests/test_p2c2f3_style_invention.py` and
+`tests/test_p4d18_shape_forms.py` move to the band G5.2 over-fills.
+
+**And the column-wide fill is held up alone.** The skeptic's second
+MAJOR: after the band fill, `_saturated_integers` could be withdrawn with
+every test and every committed byte unchanged, because every case that
+reached it was a column the band fill filled the same way. It is not
+subsumed -- on a column whose styles ask for a point-free cell the band
+fill stands aside where a stratum's point-free spelling would change, and
+the push keeps a whole value on the whole points, so where the only free
+point of a band is not whole two whole strata sharing a point stay
+there, and the column-wide fill asks neither question -- so it is kept and pinned:
+seventy-eight one-place readings from -2.4 to 0.1 with the whole numbers
+written bare, published without an empty stretch, hold 26 numbers with
+it and 25 without it (`-01.9`) in the oracle and the generator alike --
+the frozen case `saturated_grid_alone`, whose mutant withdraws the
+column-wide fill and nothing else -- and 102 one-place readings from
+-0.5 to 2.8 with the whole numbers written bare, through the real
+producer, hold 34 with it and 33 without it, `validate` MISSED, at seeds
+4, 7, 1 and 0 (`tests/test_carried_numbers.py`). **An open defect this measurement found, and did not
+repair:** asking no carrier question is also what breaks it, on other
+point-free columns -- a saturated grid of tenths whose whole numbers are
+written bare can come back with `numeric_styles` and `fraction_widths`
+MISSED while the table passes, and withdrawing the fill there trades
+those for `n_distinct_values`. Adding the band fill's carrier refusal to
+it measured 186 misses in 72 twins down to 65, with four columns newly
+missing their count, so it is a trade between two published obligations
+and is left to the owner.
+
+**Recorded by the orchestrator on 2026-09-18, under the owner's own rule** (judge by effect on code and results; where there is none, spend no time): the column-wide fill's trade on point-free grids stays as measured above. This is not an owner ruling, and the owner may reverse it (the owner decisions of 2026-09-18 at the end of this plan).
+
+### P4-D275 EVERY spelling below the floor is counted into the level's commonest
+
+The extra review round of 2026-09-18, item 5. P4-D240 wrote the rule for
+a count of ONE and stopped there. **Measured** at a floor of eleven, on
+490 `F`, 500 `M` and TWO `f`: the pair was not absorbed, the level
+published `variants {"F": 490}` beside `variants_withheld {"2": 1}` —
+one held-back spelling that exactly two rows wrote — and the twin wrote
+two `f` cells. Two rows is a group below the line as surely as one row
+is, and the multiplicity map states its size outright.
+
+**The decision** (`taxonomy._absorb_lone_spellings`, contract invariant
+W5). The line is `small_cell_floor`, the same line `_variants` names a
+spelling at, so `variants_withheld` is empty on every level of every
+raised-floor description and carries entries only at a floor of one,
+where nothing is held back at all.
+
+**AMENDED BY THE CARRIED-TEST PASS OF 2026-09-18: WHERE NO SPELLING
+CLEARS THE LINE, THE COMMONEST OF THEM.** `_absorb_lone_spellings` took
+the first spelling in sorted order when none reached the floor, which was
+the commonest only while every spelling it saw was written once (P4-D240).
+**Measured** at a floor of eleven: a level written as 2 `A` and 9 `a`
+published `variants {"A": 11}`, and the twin wrote in all eleven cells the
+spelling two rows wore. The commonest spelling now takes them, ties to the
+first in sorted order, which is the rule `parsing.absorbed_census` states
+for every number census (P4-D242): the same level publishes `{"a": 11}`.
+Red check, run and recorded: putting `lone[0]` back turns
+`test_where_no_spelling_clears_the_floor_the_commonest_takes_them` red.
+
+**THE SUITE THAT PINNED THE WITHHELD MAP, RE-ARMED** (the same pass).
+Six tests asserted what the producer wrote BEFORE this rule --
+`variants_withheld {"2": 3}`, a label whose every spelling the producer
+held back, and the invention class that follows -- and went red when it
+landed. Each is now a witness of this rule with its numbers derived from
+it; where what they guarded is a route the contract still accepts
+(invariant W5 admits keys `2 .. floor - 1`), the route is written by hand
+from the producer's document and read back by the strict loader, so the
+twin's page, the summary and G12.7's two supplies stay held to one answer
+over it. **What that leaves, measured:** at every floor the producer's
+withheld map is empty, so on a producer's description the validator's
+`levels.<label>.variants_withheld` can miss only where the level itself
+is absent from the checked file; no spelling edit can move it.
+
+**AND THE HAND-WRITTEN ROUTE IS A DESCRIPTION NO FILE MEETS** (the
+repair pass of 2026-09-19, measured, not decided). The loader still
+reads a `variants_withheld` key in `2 .. floor - 1` at a raised floor,
+as section 7.4's W5 states it, while section 8.8's W5 row and this
+decision call that map empty. **Measured** over the corner-parity
+file's 27 hand-written descriptions: the 17 carrying a non-empty
+withheld map are each reported MISSED on `levels.<label>.variants` and
+`levels.<label>.variants_withheld` of every level holding a spelling
+back, BOTH against the generator's own twin and against the very source
+table the description was written from, and on `distinct.n_distinct`
+as well against all 17 twins and 16 of the 17 source tables; the 10
+whose map stayed empty pass. The validator
+describes the checked file again with this rule, so no file can show it
+a withheld spelling. That is P3-V7-F3's symptom -- the product's own
+twin reported MISSED -- on a description the format admits, and the
+guards re-armed above over the hand-written route compare arithmetic
+taken from the description alone, so they are not touched by it. **An
+owner question, open:** should W5 refuse a non-empty map at a raised
+floor, as W5b refuses the key `1` and as P5, P6 and P6c refuse a pool
+beside a named count (P4-D222)? If so, those guards lose their route
+and must be re-armed at the loader's refusal; if not, it is an accepted
+limit and wants a test witnessing the MISSED.
+
+**Recorded by the orchestrator on 2026-09-18, under the owner's own rule:** W5 keeps accepting a hand-written withheld map at a raised floor, which no producer writes. The guards keep their route. This is not an owner ruling, and the owner may reverse it (the owner decisions of 2026-09-18 at the end of this plan).
+
+### P4-D275.1 The form census counts the spellings the level entries speak of
+
+Found when the four branches of the extra round were run against each
+other's tests. P4-D275 respelled a level's cells and left the column's
+`shape_forms` counting them as the source wrote them, so one block
+described two tables. **Measured** at a floor of eleven, on 181
+four-figure codes beside a level of twenty `E11.9`, three `e11.9` and
+five `E11.9` written with trailing spaces: the level published `variants
+{"E11.9": 28}` and `shape_form_cells 28` beside `shape_forms {"@%%.%":
+204}`. The twin writes the level's one spelling in all 28 rows, holds
+209, and `synthtwin validate` MISSED it while the table passed; and 209
+less 204 is the held-back group of five the absorption exists to hide.
+It turned two witnesses red that the landing which made it did not run:
+`test_the_twins_own_report_names_neither_direction_any_more` in
+`tests/test_p4r34_form_census_per_level.py`, and the census line of
+`test_the_form_keeping_spelling_goes_to_the_largest_held_back_group` in
+`tests/test_p4d18_shape_forms.py` (110 published, 112 written).
+
+**The decision** (`taxonomy.described_spellings`, `taxonomy._shape_forms`,
+`validation._column_checks`, contract C6-31b). On the four label roles
+the census counts every present cell as the level entries speak of it:
+a cell of a published level is written as `_absorb_lone_spellings`
+counts it, and a cell of a level the floor holds back keeps its own
+spelling, which no key names. The room rule and the case rule are asked
+of the number of different spellings in that answer, which is the
+published `n_distinct` of P4-D276 and the count C6-31c and C6-31d were
+always stated over. The checker's recount respells the file's cells by
+the same statement, because repairing the producer alone turned the
+same table the other way -- its raw recount found 204 against a
+published 209. At a floor of one nothing is absorbed and no description
+moves.
+
+**What it leaves.** A description carrying `variants_withheld` at a
+raised floor still loads -- W5 refuses a key of 1 and nothing else -- and
+still drives G8.1a and G8.2a, which is how the tests of that walk are
+kept armed. `synthtwin validate` describes a twin of such a description
+under ruling 6 as it describes any file, so it counts the twin's
+held-back stand-ins into the level's commonest spelling and reports the
+five facts that respelling moves. No producer writes such a
+description; whether the loader should refuse one, which would leave the
+walk reachable by no description at all, is not settled here.
+
+### P4-D276 A label role's `n_distinct` counts the spellings the block SPEAKS OF
+
+The extra review round of 2026-09-18, item 5, second half. `n_distinct`
+counted raw identities exactly, and a published level's `variants`
+census counts the spellings the floor let it name — so the difference
+counted the spellings the absorption took away. **Measured** at a floor
+of eleven, on 490 `F`, 500 `M` and one `f`: the block published
+`variants {"F": 491}` and `{"M": 500}`, no withheld spelling anywhere,
+and `n_distinct 3`.
+
+**The decision** (`taxonomy._published_distinct`, contract section 3's
+raw-identity row). On the four roles that publish a level list, and on
+the label half of a compound column, the count is taken over the
+spellings that survive the absorption for a published level and over the
+raw spellings of a level the floor holds back — which no key of the
+block names and which no reader can subtract a published census from.
+
+**AMENDED at the carried numbers pass of 2026-09-18, twice.** FIRST, a
+compound column's OWN count is the halves added
+(`taxonomy._column_distinct`). This decision moved the label half's
+`n_distinct` to the spellings it speaks of and left the column's raw, so
+wherever the absorption took a spelling away the column published one
+more than `n_numeric_distinct + labels.n_distinct`, which contract 7.14
+refuses: **measured** on forty exponents beside `alpha` 6, `Alpha` 6,
+`beta` 5 and `Beta` 5 at a floor of eleven, the producer wrote 40, 3 and
+44 and its own loader refused the description. The raw 44 was also this
+decision's own residual one level up. SECOND, the count is a RULE of the
+loader now, contract invariant W9: with `S` the spellings the published
+levels name, `S + suppressed_levels <= n_distinct <= S + suppressed_rows`,
+equal to `S` wherever nothing is held back. Without it the floor-eleven
+`n_distinct` and `levels` of a label column grafted into the floor-one
+description of the same table were both accepted
+(`tests/test_p3v5f1_floor_one.py`), each a description whose count
+contradicts its own levels.
+
+### P4-D277 A declared record number's scalar partitions ask the disclosure rule
+
+The extra review round of 2026-09-18, item 8. The one role whose whole
+promise is that no fact about any one record is published carried four
+counts of what its cells READ AS and two counts of which ALPHABET they
+came from, none of them held to the line. **Measured** at a floor of
+eleven: 999 identifiers `REC` and seven figures beside one `42`
+published `n_numeric 1`, `n_all_digits 1` and `n_not_numeric 999`, and
+with `X Y` in its place `n_code_alphabet 999` beside `n_present 1000` —
+each of them naming that record, while the layout census was withheld
+for saying the same thing.
+
+**The decision** (`parsing.absorbed_total`,
+`taxonomy._published_reading_split`, `taxonomy._published_alphabets`,
+contract invariant X2 and the identifier block's added keys). The two
+alphabet counts are a census of two groups written as one number and ask
+`census_nameable` over the count and its complement; the four-way
+partition counts a part below the line into the LARGEST part, so X2's
+sum is unchanged and every complement is a sum of parts each nought or
+at the line. The censuses checked against those counts are checked
+against them AS PUBLISHED, so the block and its own censuses cannot
+part.
+
+**WHAT IS NOT CLOSED, and is measured rather than left to be found.**
+Free text publishes the same four counts and the same two alphabet
+counts beside the same promise to name no value, and the alphabet half
+is repaired there with the identifier's. The four-way partition is NOT,
+because those three counts are what the numeric roles are described BY —
+a column of measurements publishes its `n_not_numeric` beside a form
+census checked against it — so moving them there is a change to what
+those roles mean rather than a disclosure repair. It is put to the
+owner.
+
+**Left as is, 2026-09-18.** The owner asked how free text's `n_numeric` of one affects code and statistics. The answer given was that it affects neither, and that closing it would move every numeric column's description (the owner decisions of 2026-09-18 at the end of this plan).
+
+### P4-D278 A date's width census is held against the PARSED cells
+
+The extra review round of 2026-09-18, item 4, second half. P4-D139
+counted the width census's remainder against the cells that could SHOW a
+width, which no field of the block publishes — and a reader holds the
+PARSED total and subtracts from that one instead. **Measured** at a
+floor of eleven, on 399 dates written `1/1/2000` through `1/9/2044`
+beside one `12/25/2020`: the census published `{"unpadded": 399}`
+against 400 parsed cells, and the one left over is the record whose
+month and day are both two figures. This uses ONE width convention and
+is a different reading from the allocation question P4-D245 leaves open.
+
+**The decision** (`taxonomy.absorbed_width_tally`,
+`taxonomy._width_counts`, `contract._written_census` with the
+remainder published, contract invariant D17,
+`validation._written_form_checks`). A cell that could show no width is
+counted into the column's COMMONEST width, which is true of it — a date
+both of whose fields are ten or more is written identically under either
+convention — so the census reaches the parsed total whenever it names
+anything and the remainder rule is asked of it like the other three.
+The silence P4-D139 measured is not taken: it left 212 of a twin's 245
+cells written `04/14/2020`, and the absorption costs nothing at all.
+The checker asks the same one function, so both sides count one way.
+
+**AMENDED BY THE CARRIED DATE ITEMS OF 2026-09-18: THE CHECKER ABSORBS
+ON A CENSUS OF SEVERAL WIDTHS TOO.** `taxonomy._width_counts` absorbs the
+cells showing no width into the commonest width whatever the census
+names, and `validation._written_form_checks` absorbed them only where the
+census named ONE width. **Measured** on the 900 visits of
+`tests/test_p4d195_width_conventions_named.py`, half written `1/5/2021`
+and half `01/05/2021`: the description published `{"padded": 369,
+"unpadded": 531}` -- 381 cells showing `unpadded` and 150 showing none --
+and validating the TABLE ITSELF printed `widths.unpadded` WITHIN-BOUND,
+comparing 531 with the bare 381. The recount is now the absorbed one on
+every width census, so both sides count one way; a census of several
+widths is still MET at its floor on the cells that show each convention,
+and HELD only where the absorbed count is the published one. **Measured
+after:** the table prints both widths HELD with 369 and 531, and its twin
+at seeds 4 and 11 still prints WITHIN-BOUND with both counts named in its
+report.
+
+### P4-D279 The joint ISO reading is not taken where one of its forms is below the line — SUPERSEDED at the integration by P4-D250
+
+**SUPERSEDED 2026-09-18, at the integration of the extra round's four
+branches, by the date pass's P4-D250.** Both passes repaired the SAME
+exposure — a joint ISO column whose form census names one record — and
+the two repairs cannot both stand: P4-D250 counts the rare form into the
+commonest form, which leaves the reading no longer joint, so the refusal
+below can never be reached; and were the refusal asked first, the fold
+could never be reached. The fold is kept, and the reason is measured
+rather than argued. **Measured on THIS decision's own shape** — 395
+consecutive ISO dates, one `2020-05-03T00:00:00` and four cells that
+parse under nothing, at a floor of eleven — the fold publishes
+`resolution_mix {"iso-date": 396}` and `datetime_separators {}`, and no
+census key of the block carries a count of one at all, at exits 0/0 with
+nothing declined. The one record is named by nothing, which is the whole
+of what this decision asked for. What the refusal costs on top is the
+column: it asserted `role != "datetime"`, so 400 date values would be
+described as something else, and a column that falls to free text or the
+long tail writes stand-ins that cannot reproduce its own forms — a defect
+`docs/STATE.md` already carries. So the kept rule protects the person
+exactly as far and costs the twin nothing, which is why it is the one
+that stands. `_joint_reading_names_a_group` is removed with this, because
+a guard that cannot be reached is not a guard. The shape this decision
+pinned second — 200 bare dates beside 200 moments, both forms clearing
+the line — still reads jointly and still publishes both counts exactly.
+**This is an integrator's call on two owner-facing repairs, and it is the
+one item of the merge the owner may want to reverse.**
+
+The extra review round of 2026-09-18, item 4, first half. `iso-mixed`
+joins whole dates and moments and publishes `resolution_mix` exactly,
+with no floor, because a two-member space beside the published parsed
+total makes a pooled remainder recoverable by subtraction — so a floor
+applied to the census itself would withhold nothing. **Measured** at a
+floor of eleven, on 395 consecutive ISO dates beside ONE
+`2020-05-03T00:00:00` and four cells that parse under nothing: the
+single-format pass did not clear at 395 of 400, the joint reading did at
+396, and the block published `resolution_mix {"iso-date": 395,
+"iso-datetime": 1}` beside `datetime_separators {"(withheld)": 1}` — one
+record named twice over, and both documents loaded.
+
+**The decision** (`taxonomy._joint_reading_names_a_group`,
+`taxonomy._matching_date_format`, contract invariant RM1). The READING
+gives way whole: where one of the two forms is written by fewer cells
+than `parsing.census_floor`, the joint reading is not taken, and the
+column falls through to the roles below it. The joint reading is the
+LAST member tried, so this is reached only where neither single ISO
+member cleared the parse rate on its own — which is exactly the column
+whose date reading rests on a handful of rows. A column of 1,990 dates
+beside ten moments is untouched, because `iso-date` clears on its own at
+99.5 per cent and the joint reading is never reached.
+
+**THREE NARROWER REPAIRS WERE BUILT AND MEASURED FIRST**, and a round
+trip refused each: counting the rare form into the other one inside
+`resolution_mix` left the twin writing 396 bare dates against a block
+published at the datetime resolution and NINE obligations missed;
+reading the column under the surviving member and counting the rare
+cells as unparsed gave a description whose own twin reads back as free
+text at exit 3; and raising the rare form to the line made the separator
+census name a mark on eleven cells the table wrote on one, so the real
+table missed its own description.
+
+**WHAT IT COSTS IS NAMED:** a column of 395 dates whose reading rested
+on one moment is described as text and its twin writes stand-ins.
+
+### P4-D290 A delimited file's own lines are held to the disclosure rule
+
+The extra review round of 2026-09-18, item 9. `source.dialect` publishes
+how a file was written, and three of its facts are counts and POSITIONS
+of individual lines. A line of a delimited table is one of its records.
+**Measured** at a floor of eleven, on `record,amount` and 120 records
+`R001,1` through `R120,120` with `record` declared an identifier:
+changing only record 57's ending to CRLF published `[{lf: 57},
+{crlf: 1}, {lf: 63}]`, which is that record's exact position; replacing
+record 57 with a bare comma published `empty_rows.interior 1`; and a
+blank separator after record 57 published `{after: 57, lines: 1}`. All
+three descriptions loaded and all three twins passed.
+
+**The decision** (`dialect.endings_disclosed`,
+`dialect.blank_places_disclosed`, `dialect.blank_lines_withheld`,
+`dialect.row_count_disclosed`, `dialect.survey`'s new
+`small_cell_floor`, `reading.read_table`, `cli`'s profile path,
+`validation`'s checked-file read, contract section 4.3's three rows).
+
+- Where any ENDING is written by fewer lines than the line, the whole
+  file is published as one run of the commonest ending — ruling 6 read
+  on a file's own spelling.
+- BLANK PLACES are published only where there are at least as many of
+  them as the line, because a place is a record position; a file with
+  fewer is described as having none. The lines of a withheld place
+  leave the ending count with them and the runs collapse, because FD2
+  has the endings account for every line the description keeps — without
+  that the loader refused the producer's own document at 122 endings
+  against 121 lines.
+- Each EMPTY-ROW count below the line is published as nought, which is
+  ruling 4 counting a group below a raised floor as absent.
+
+The floor reaches the survey because the survey is what BOTH sides run:
+the profiler's reading of the table and the validator's reading of the
+checked file, so a real table and its twin are measured under one rule
+and each passes its own description.
+
+**AMENDED BY THE REPAIR PASS OF 2026-09-18, IN TWO PLACES.**
+
+*(a) A RUN below the line counts, not only an ENDING below the line.*
+`endings_disclosed` read each ending's TOTAL over the whole file, so an
+ending with companions elsewhere never tripped the rule and its lone run
+stood. **Measured** at a floor of eleven, on the same header and 120
+records: lines 0 to 20 given CRLF endings AND record 57 given one, every
+other line LF, published `[{crlf: 21}, {lf: 36}, {crlf: 1}, {lf: 63}]` —
+record 57's exact position again, from an ending whose total is 22. A
+run says how many CONSECUTIVE lines ended one way, so a published run
+shorter than the line points at the records that carry it whatever the
+totals come to. The runs are read as well as the totals now, and that
+file publishes `[{lf: 121}]` with both files at exit 0.
+
+*(b) THE THREE FILE RULES ARE GATED ON A RAISED FLOOR.* The first
+writing let them bite at the DEFAULT floor, where `census_floor` is two
+and nothing has been asked of synthtwin at all — and at that same floor
+the column censuses beside them publish a level covering ONE row.
+**Measured** at the default floor, on a header and 120 records: a single
+blank line after record 57, a single bare-comma record and a single
+trailing blank line were each kept before this landing and each dropped
+after it, while the very same run published the level `("south", 1)` on
+a column of 239 `NORTH` and one `SOUTH`. Holding a file's own form to a
+stricter standard than the product holds its own column contents to, on
+the path where the person asked for no protection, costs the twin its
+form for nothing and moves against the owner goal that the twin writes
+everything exactly as the source wrote it. So all three rules now return
+their argument unchanged at a floor of one, exactly as
+`taxonomy._absorb_lone_spellings` does, and the floor's own value and
+unit stay the owner's deferred question. **Measured after the gate:** at
+the default floor all seven shapes are written as the source wrote them,
+and at a floor of eleven all seven are protected, every run at exits
+0/0/0. The four guards of `tests/test_file_dialect_round_trip.py` that
+the first writing rebuilt at two blank places and two empty records are
+restored to their own one-of-a-kind shapes, positional assertion and
+all, because the default floor publishes them again.
+
+**AMENDED BY THE CARRIED-TEST PASS OF 2026-09-18: A ONE-COLUMN
+DESCRIPTION FILES NO BLANK-LINE RULE AT A RAISED FLOOR** (`validation`,
+V3.4). A one-column file holds at most ONE blank place -- the reader
+refuses a blank line between its records, a line before the table is a
+preamble, and the lines after the last record are one place -- and a
+place is published only from `census_floor` of them, so both sides of
+`bytes.blank-lines` said "no blank lines" whatever the file held.
+**Measured** at a floor of eleven on a one-column description of 300 rows:
+one trailing blank line HELD, eleven trailing lines HELD, eleven leading
+lines missed only `bytes.preamble`, and interior blank lines were refused;
+the coverage identity of `tests/test_p3v1f2_entry_table.py` found the rule
+unfalsifiable on all five one-column fixtures. At a floor of one it is
+filed and a trailing blank line misses it. The battery's own blank-line
+and empty-record edits are written at the place and row counts this rule
+publishes, `census_floor` of each, because one line was absorbed and two
+trailing lines are still one place.
+
+### P4-D291 A twin's date cell names a day of the calendar, and a column stored as dates is written as dates
+
+The minor item of the extra round's files pass, measured there and
+recorded as a defect rather than repaired because `sheet_class_fits`
+is a GENERATOR rule and narrowing it needs its mirror, a frozen case, a
+registered mutant and G14.3's own count. This is that landing.
+
+**The defect.** A workbook column of 118 cells stored as dates
+(`t="d"`) wearing `yyyy-mm-dd`, beside two texts and a label column,
+has its cell-class census held back whole at a smallest group of
+eleven; 118 of its 120 values read as dates where 119 are needed, so
+its ROLE falls to free text and its twin's cells are made up from the
+column's published SHAPE, `%%%%-%%-%%`. `dialect.sheet_class_fits`
+read the date SHAPE alone, so `2006-06-32` took the `date` class and
+was written as a date cell. **Measured** at seed 0: the twin's 118 date
+cells held `7001-26-23`, `5805-52-35`, `8404-45-66` and the like,
+openpyxl raised `day is out of range for month` and could not open the
+twin AT ALL, and `synthtwin validate` returned 0 for the table and 0
+for the twin — so nothing caught it.
+
+**Three options were measured on this tree before anything was built,
+and the numbers decided it.**
+
+*(a) The narrowing alone*, which the files fixer built and withdrew:
+`sheet_date_is_real` in `sheet_class_fits` and in the writer's date
+branch. The twin OPENS — openpyxl hands back 120 `str` — and its 118
+cells are written as TEXT, so `workbook.value-class` is MISSED (the
+description asks for `date`, the file holds `text`) at exit 3 on the
+twin against exit 0 on the table. It keeps one owner goal and breaks
+the other: the twin no longer fails silently, it fails loudly, and it
+still does not carry what the description publishes about that column.
+
+*(c) Not withholding the census*, weighed against the disclosure rule
+that withheld it. **It buys nothing.** Measured at a smallest group of
+two, where the same table publishes `date 118, text 2` in full: the
+count is handed out by number to the cells that FIT `date`, every
+made-up cell fits the shape, and openpyxl fails on the twin in exactly
+the same way. The defect was never a property of the withholding —
+it is a property of what `date` was taken to fit — so publishing the
+census would have cost the disclosure rule and left the file
+unreadable. This is the measurement that took option (c) off the table
+rather than an argument about it.
+
+*(b) Writing valid cells of the stored class whatever the role*, which
+is what was built, and which CONTAINS the narrowing of (a) as its
+second half. Measured at a smallest group of eleven and again at two:
+the twin opens, openpyxl hands back 118 `datetime.date` values and 2
+strings, the table is at exit 0 and the TWIN is at exit 0 with
+`workbook.value-class` HELD. Both owner goals stand.
+
+**The decision** (method G2.2 step 0a and step 1's fit rule;
+`dialect.sheet_date_is_real`, `dialect.sheet_date_on_the_calendar`,
+`parsing.valid_date` made public so the calendar is stated once,
+`sheetwriting._onto_the_calendar`). In two halves:
+
+1. **The `date` class fits only a cell that names a day.** The shape is
+   asked first, exactly as before, and then the fields: a month among
+   the twelve, a day the month has in that year, an hour of at most 23,
+   minutes and seconds of at most 59. The writer's own `t="d"` branch
+   asks the same question, so a cell that names no day cannot be
+   written as a date cell even if something else hands it the class.
+2. **A column the description says stores dates is written as dates.**
+   Before the classes are allocated, in a column publishing a `date`
+   cell-class count above nought or a `value_class` of `date` where
+   that census was withheld — the same question step 0 already asks —
+   every cell wearing the ISO shape and naming no day has each field
+   brought to the NEAREST value the calendar allows, at the width it
+   was written with. A cell that already names a day, and a cell that
+   is not of the shape, are left exactly as they came, so a column
+   whose dates ARE published is not touched here at all.
+
+**WHAT IT COSTS, MEASURED AND NAMED.** The cells this moves are cells
+of a column whose role publishes no value of it. Their SHAPE does not
+move — every one keeps its length and its form, so the form census and
+the length facts the description does publish are met exactly as
+before — and how many different values the column holds does not move
+either: 83 before and 83 after, because a made-up cell's four-figure
+year carries the differences. What moves is the figures, and they pile
+up at the top of each field's range: of the 118 cells, 105 carried a
+month above twelve and 108 of the twin's cells are written in December.
+A reader who groups the twin's column by month therefore sees one
+bucket where the real table has twelve. That is a fact about a column
+whose dates the description publishes NOTHING about — the alternative
+was 118 cells no reader can read at all — and it is written here rather
+than left to be discovered.
+
+**The frozen case.** `workbook_made_up_dates`, the ninth of
+`tests/reference/generation-document-vectors.json`, written from the
+rule statement in G2.2: a column whose census is withheld whole and
+whose commonest class is `date`, sixteen of whose twenty-two cells name
+no day and six of which do and must not move; a second column asking
+the same of a clock and of a day that moves under one; and a third the
+description does NOT store as dates, whose made-up cells the fit rule
+alone keeps off the class. It carries TWO mutants, one per half, each
+moving bytes. The eight cases beside it rebuilt BYTE-IDENTICAL, which
+is the measurement that says this rule touches nothing that already
+named a day — and also why the case was needed: no committed case
+reached either branch. G14.3's count moves from ninety-four to
+ninety-five and the fourth file's from eight to nine.
+
+**Beside the frozen case**, `tests/test_p4d291_dates_a_reader_opens.py`
+runs the rule end to end through the three commands at both floors and
+asks openpyxl — which `src/synthtwin` never imports — the question the
+defect was about, and the test that recorded the defect in
+`tests/test_files_review_2026_09_18.py` now records the repair. Each of
+the four ways to withdraw the rule was put back and measured: the fit
+narrowing, the calendar step, the writer's own branch, and the caller
+that runs the calendar step, and each turns a test red.
+
+**OPEN, AND PUT TO THE OWNER.** `synthtwin validate` read the
+unreadable twin without complaint and returned 0 for it, because
+synthtwin's own reader takes a `t="d"` cell's characters as they come.
+Nothing generated can reach that state any more, but a file somebody
+else wrote can, and the validator would still describe it as holding
+dates. Whether the reader should refuse a date cell that names no day —
+which is a change to what synthtwin ACCEPTS, not to what it writes — is
+a decision and not a repair, so it is left here rather than taken.
+
+**Decided by the owner, 2026-09-18,** on the reader accepting a date cell that names no day: "wouldn't be worried about" -- ACCEPTED, and the reader is unchanged (the owner decisions of 2026-09-18 at the end of this plan).
+
+### P4-D292 A headerless table with nothing above it stops publishing its first record
+
+The merge skeptic's BLOCKER, found by attacking the merged tree rather
+than by re-running a listed item, and it breaks the owner's ruling 8 of
+2026-09-17 outright.
+
+**The defect.** 240 records `R001,North Unit,<0.10` then
+`R002,East,2.5` … `R240,East,240.5`, no header line and no title line,
+at a smallest group of eleven. The description named the columns
+`R001`, `North Unit` and `<0.10`, counted 239 rows where the file holds
+240, put NO first-row question in the questions file, and wrote that
+person's record into `real-profile.json`, `real-profile.txt` and
+`real-questions.json` — and, as a workbook, into the twin's own header
+row. The SAME table under a title line was read correctly, by the
+furniture rule, which is why the extra round's disclosure item read as
+closed.
+
+**Why nothing caught it.** `_numeric_fit` declines `<0.10` because it is
+not a number. `_shape_is_structured` deliberately excludes the `A9` that
+`R001` wears (review item P1-R6-F6, so that `visit1` over `a1` asks
+nothing), so the fourth record rule never reached column 1.
+`_names_evidence` refuses `<0.10` as evidence of NAMES (P4-D272) — and
+refusing evidence of names is not evidence of a record, so the row fell
+through to outcome 4 and was taken as the names by convention. That
+function's own docstring claimed the shape "still gets placeholder names
+and the question"; it was measured and it was false, and the sentence is
+corrected in the same commit.
+
+**The decision.** A fifth record rule,
+`reading._measurement_among_numbers`: a first-row value that does NOT
+read as a number but carries a figure AS A VALUE — it opens on a mark or
+on a figure rather than on a letter or an underscore — standing over a
+column every one of whose values below reads as a number, is evidence
+that the row is a record. It is the exact complement of what
+`_names_evidence` refuses, which is what keeps the two functions from
+answering one question two ways. A value that IS a number never reaches
+it: `_numeric_fit` is the rule for those and it measures the distance,
+so `region,2019` over fourteen rows near 1234 stays a header.
+
+**Measured after.** The bare table: `column_1`…`column_3`, 240 rows, one
+first-row question naming column 3 and quoting nothing, and no text of
+the record in any document. As a workbook: the same, and the twin's
+header row is made-up cells. Unmoved: the same table under a title line,
+`subject,q1,week_2,glucose1` over 300 rows of numbers, and
+`region,2019,2020` over forty rows near 1234.
+
+**Its named cost.** A column name that opens on a figure or on a mark
+AND carries a figure — `2019_total` over a column of numbers — is now
+read as a record: the file gets placeholder names and the question
+rather than that name. `%change`, `n_total` and `_2021` are untouched,
+because the first carries no figure at all and the other two open on a
+letter or on the one mark a name is written with. The trade is the one
+ruling 8 states: a question costs a sentence and a wrong reading costs a
+person's record, and the answer `--first-row names` takes the other
+reading in one word.
+
+### P4-D293 A pool of one is not a pool, in either absent-value census
+
+The merge skeptic's third MAJOR. `parsing.census_floor`'s own rule is
+"NEVER ONE, WHATEVER THE SETTINGS FLOOR", and both absent-value maps
+pooled what the floor could not name without ever asking whether the
+POOL named a row.
+
+**The defect.** 400 rows — `north` ×200, `south` ×180, `NA` ×19 and one
+`-999` — at a smallest group of eleven: `n_missing` 20,
+`missing_by_source {"NA": 19}`, `missing_by_class {"(text-code)": 19,
+"(withheld)": 1}` and `n_missing_withheld` 1. Two readings name that one
+row: the published count of one outright, and 20 less 19 by subtraction
+from the sibling total. Both documents loaded and every exit was nought.
+
+**Two repairs were built and measured.** Counting the rare cell into the
+commonest spelling — ruling 6's treatment — publishes `{"NA": 20}` over a
+table holding nineteen, and the REAL TABLE then misses its own
+description (`holes.by_source.NA` MISSED, 20 asked and 19 held, exit 3 on
+the table itself). A description that does not describe the table is not
+a repair. So the rule taken is the floor's own: while
+`parsing.census_names_one_row` says either map names a row, the smallest
+NAMED spelling joins the pool — in both maps at once, because a class
+holds every cell of each of its spellings — and the maps are counted
+again. The same 400 rows now publish `missing_by_source {}`,
+`missing_by_class {"(withheld)": 20}` and `n_missing_withheld` 20, which
+is exactly what the same table publishes at a floor of twenty, and every
+exit is nought.
+
+**What it costs, stated:** a column with ONE named absent spelling loses
+that spelling's census to a single stray cell. That is the floor's own
+arithmetic and not a new cost; a column with two named spellings loses
+only the smaller. **And a spelling that clears the floor on its own can
+be taken into the pool to hide a lone stray beside it** — measured on
+the judged-provenance witness of stage 2: 20 cells of a judged spelling
+beside 30 declared `NA` and one `NULL`, floor eleven, where the pool
+takes the judged spelling and `sentinel_verdicts` then publishes no
+spelling for its candidate. The verdict, its candidate and its count of
+20 are unmoved and both files still validate at nought; what is lost is
+the provenance of the spelling, and it is lost to the same subtraction
+the rule exists to close (51 absent less the 50 the census covers is
+one).
+
+**Its named limit.** Where the pool already holds every absent cell — one
+lone `NA` among 380 present — there is no named group left to raise it
+with, and `missing_by_class` publishes `{"(withheld)": 1}`. The pool is
+then `n_missing` itself, which the column publishes beside it on its own
+terms, so the map carries no reading the description does not already
+carry. The rule binds above a floor of one only: at a floor of one
+nothing is pooled and `profile._remainder_is_published` refuses a
+remainder above nought outright.
+
+### P4-D294 A day's width KIND is the census's own membership question
+
+The merge skeptic's second MAJOR, and the repair reaches further than the
+shape it was found on.
+
+**The defect.** 400 cells, `(2021-01-01 + n days).strftime("%d-%b-%Y")`
+over 250 different days, at a smallest group of eleven: published
+`n_distinct` 250, twin 246, `distinct.n_distinct` and
+`distinct.n_distinct_folded` both MISSED, validate exit 3 on the twin and
+0 on the table. The same 400 rows spelt `%Y-%m-%d` or `%m/%d/%Y` came
+back 250 of 250 at exit 0, so it was the month-name spelling alone.
+
+**The cause.** G7.3's two count passes COUNT the width census with
+`_counts_into_width` — the absorbed census of P4-D278, where a cell
+showing no width at all is counted into the column's one convention —
+but asked `_shows_a_width` when deciding whether a rank could MOVE. The
+two are different questions, and the guard was both too strict and too
+loose: too strict because a day showing the word and a day absorbed into
+it are the same to the census and it refused the move; too loose because
+two days that both fail to show the word can sit on opposite sides of it
+when one shows the OTHER convention. On a textual member every day below
+ten shows `padded` and every other day is absorbed, so the restoration
+could never move a rank across the tenth of a month however many rounds
+it ran.
+
+**The decision.** Every rule that speaks of a day's width KIND asks
+`_counts_into_width`: `_same_standing`, `_nearest_day_of_kind`,
+`_standing_of`, and both halves of the traded merge. The rule statement
+in G7.3 says so in as many words. Measured after: month-name 250 of 250,
+ISO 250 of 250, slashed 250 of 250, every exit nought.
+
+**What it cost the frozen cases, stated rather than left to be found.**
+`date_widths_reached` published `{"unpadded": 44}` on 80 cells — a census
+the producer cannot write, because a JOINT word absorbs every day, so it
+is now `{"second-field-padded": 44}` and its own mutant bites again.
+`date_traded_merge` and `date_nonadjacent_merge` are textual columns
+under a joint word, so they carry ONE kind and no longer reach P4-D258's
+two branches at all; 500 candidate columns were measured for a
+replacement and none reached either. They are re-registered against the
+rule they DO pin, which is this one, and the loss of coverage is written
+into G14.3 under the case table. A case that reaches either branch is
+owed.
+
+**AMENDED BY THE CARRIED DATE ITEMS OF 2026-09-18: THE OWED CASES
+EXIST.** A census naming one word over EVERY parsed cell leaves the twin
+nothing of the other kind to hold, whatever the word, and that is the
+column every replacement tried above described. The loader and the
+producer also allow one word over FEWER cells: a ONE-FIELD word whose
+unnamed remainder -- at least the line, written by words that each fall
+below it and fold into no named one -- stands on days of the other kind.
+Such a column carries two width kinds and reaches both of P4-D258's
+branches. **Measured** at the oracle, on 200 random month-first and
+day-first columns under the four one-field words with a remainder of
+eleven to sixteen cells: 21 reached the merge onto a held unit that is no
+rank neighbour and 29 the traded merge; every hit of a second search,
+handed to the generator, wrote the oracle's cells and moved when the same
+branch was withdrawn there. Two are
+frozen in the eighth file, each on three days: `date_two_kinds_traded`
+(seed 205), whose mutant withdraws the trade and leaves four different
+dates against three, and `date_two_kinds_nonadjacent` (seed 206), whose
+mutant offers the rank neighbours alone and leaves five. A test withdraws
+each merge from `synthtwin.generation` as well and the committed cells
+move there too. Nothing earlier moved: the seven cases already in the
+file are byte-identical, and the two cases this entry re-registered stay
+where it put them, as the pins of P4-D294's own question. **Measured on
+the way, and CARRIED rather than repaired here:** the twin of such a
+column writes its remainder cells in the named word's own padding --
+`03/03/2020` under `first-field-padded` -- which is a joint word that
+agrees with the named one, so describing the twin again folds the named
+count into it. **Measured** on the table such a census comes from --
+twenty-two cells `03/19/2020` and `04/10/2020`, seven `3/3/2020` and seven
+`3/03/2020`, at a floor of eleven: the producer publishes
+`{"first-field-padded": 22}`, the twin at seed 4 describes again as
+`{"padded": 36}`, and validating it exits 3 with
+`widths.first-field-padded` and `widths.unnamed` MISSED. The branches
+above are what the cases pin; the written spelling of a remainder the
+census does not name is a separate question for the owner.
+
+**AMENDED AGAIN BY THE REPAIR PASS OF THE SAME DAY: THE CARRIED DEFECT IS
+REPAIRED, BECAUSE THE CENSUS ALREADY ANSWERS IT.** It is not a question
+for the owner after all: the spelling of a remainder cell showing BOTH
+fields is fixed by the census itself. A census naming a one-field word
+says that no cell of its table showing both fields wore that word's
+convention in that field -- `parsing.folded_width_tally` would have
+joined the named count to such a cell's joint word, and the census would
+name the joint word instead. The twin wrote exactly the cell the census
+rules out, because the rank showing both fields took `_joint_width_of`,
+which builds the joint word that AGREES with the named one-field words.
+Method G7.5 step 1 now gives such a rank, where the census names no joint
+word, the joint word built field by field from the convention the
+commonest named one-field word of that field does not wear, a field the
+census names nothing for staying padded (`_both_fields_width_of`, and
+`both_fields_width_of` in the oracle). A rank showing no width keeps
+`_joint_width_of`; nothing it writes can show. **Measured after**, on the
+reproduction above at seeds 4, 0 and 1: the twin writes the third of
+March `3/03/2020`, describes again as `{"first-field-padded": 22,
+"second-padded": 14}` and validates at exits (0, 0); so does the same
+table written day first, `second-field-padded` on twenty-two. The twin's
+own description names the remainder's word where the table's held it
+back: the validator lets the cells a description leaves unnamed take any
+form (`widths.unnamed` is held to the published total less the named
+counts), and a count derived from the published total and the named one
+names no row. **Pinned** by `date_both_fields_disagree`, a new frozen
+case in the eighth file (seed 207), whose mutant is the rule replaced.
+**What moved:** `date_two_kinds_traded`'s fourteen cells of the third of
+March (`03/03/2020` to `3/03/2020`) and six cells of `date_widths_reached`
+in the sixth file (`06/01/2024` to `06/1/2024`: its census names
+`second-field-padded` alone, so a day whose two fields both show is now
+written with the day unpadded). Every other committed byte of the eight
+files rebuilt identical.
+
+**THE TWO CASES ABOVE ARE REBUILT FROM THE PRODUCER'S OWN DESCRIPTIONS**
+(the merge skeptic of the carried date items, its third MINOR). Both were
+frozen publishing three different values and ladder rungs no table of
+their cells can publish: a remainder of fourteen or thirteen cells on one
+day needs two spellings each below the line of eleven, so the day is
+written two ways and the producer publishes four. Each is now exactly the
+description `synthtwin profile --smallest-group 11` writes of the table
+its builder names, at the same seeds; the trade and the merge onto a
+held unit past the rank neighbours are still what write their cells, and
+each mutant still moves them -- withdrawn, the trade leaves the traded
+twin's fourth date on the sixth of April instead of the eleventh of
+March, and the neighbours alone leave the other twin five different
+dates against four.
+
+**CARRIED, AND MEASURED, NOT REPAIRED HERE: A REMAINDER WRITTEN IN ONE
+SPELLING.** The repair above settles the cells showing both fields
+under a census of one-field words. Two siblings of it stand, and both
+stood on e53d5f4 before any of this round's date work, measured by the
+same round trip at seeds 4, 0 and 1 on e53d5f4 and on this repair alike.
+(a) A census naming ONE JOINT word beside an unnamed remainder: fifteen
+`03/05/2020`, fifteen `04/06/2020`, seven `3/7/2020` and seven
+`03/8/2020` publish `{"padded": 30}`; every day counts under a joint word,
+so the widths pass has no day of another kind to put the remainder on,
+the twin writes all forty-four cells padded and validates at exit 3 with
+`widths.padded` MISSED. (b) A remainder that OUTNUMBERS the named word's
+visible cells: ten `11/05/2020`, seventeen `11/15/2020`, seventeen
+`12/20/2020`, nine `3/15/2020`, nine `03/16/2020` and nine `11/5/2020`
+publish `{"second-field-padded": 44}` -- ten cells showing it and
+thirty-four showing no width, absorbed into it as the commonest (plan
+P4-D278). The twin writes every cell showing its first field alone in
+the one word `first-field-padded`, which then outnumbers the named word's
+visible cells and takes the absorbed cells for itself: described again
+as `{"first-field-padded": 49, "second-field-padded": 22}` at seed 0,
+exit 3 with `widths.second-field-padded` MISSED. Both are one rule that
+does not exist yet: the census's unnamed remainder, the published total
+less the named counts, has to be written over words the census does not
+name, each below the line and none outnumbering the word the absorbed
+cells belong to, on ranks chosen so that the count of different values
+still holds. That is a new allocation of G7.5, with its own statement,
+oracle mirror and frozen case; it is recorded here for the next date
+landing rather than built under a repair pass.
+
+### P4-D295 Where the next frozen case goes is chosen before the gate fails
+
+The merge skeptic's first MINOR. The extra round's brief assumed 25,000
+bytes of headroom under the 250,000-byte fixture cap; measured, the
+second vectors file stands at 249,482 — 518 bytes — with the first at
+248,177 and the third at 246,851. A case routed into a full file is
+discovered by `tools/provenance/check_provenance.py` refusing the build,
+which is the worst moment to be choosing one. The eighth entry point's
+header now says it: the next case goes there, and the one after it, until
+its output passes 200,000 bytes, at which point a ninth is written the
+way the eighth was — by moving cases whole rather than by raising the
+cap. Splitting the second file was the other option and it was not taken:
+it moves committed bytes for no defect, and the choice it would make is
+the choice this sentence makes for nothing.
+
+**THE NINTH ENTRY POINT WAS OPENED at the carried numbers repair pass of
+2026-09-19** (`tools/reference/make_generation_branch_vectors_7.py`,
+writing `tests/reference/generation-branch-vectors-7.json`, 108,457 bytes
+with its two cases). Every committed file's account names every other
+file, so the eight others were rebuilt with one sentence added and no
+cell moved, and their digests were taken from the rebuilt bytes. The
+second file now stands at 249,634 bytes -- 366 of headroom -- so a TENTH
+file costs each account one more sentence it may not have room for; the
+next file after this one has to shorten the accounts or split the
+second file, and that choice is recorded here before a gate forces it.
+
+**THE CARRIED PASSES MET AT THEIR INTEGRATION (2026-09-19), and the
+numbers pass's four cases moved WHOLE into the ninth file.** The carried
+date items put three cases into the eighth file and the readings of an
+absorbed count (P4-D298) two, as this entry directs, while the numbers
+pass had built its four (`saturated_band`, `mode_held`,
+`held_back_dressed`, `held_back_anchored`) into the same file on its own
+branch. Merged, the eighth would have held sixteen cases: 158,732 bytes
+for the twelve plus about 106,000 for the four, past the 250,000-byte
+cap. The four moved into the ninth file beside the two its repair pass
+had opened it for, which is how the eighth was itself first formed; every
+case's cells are byte-for-byte those its own branch froze, and each file
+was rebuilt through the guard runner with its digest taken from the
+rebuilt bytes. **Measured after the move:** the eighth file holds twelve
+cases in 158,732 bytes, under the 200,000 line, so THE NEXT CASE GOES IN
+THE EIGHTH again; the ninth holds six in 214,367 bytes and takes none
+until the eighth passes the line; the second file stands at 249,647 bytes
+-- 353 of headroom -- because the ninth file's sentence in every account
+now names six cases. The eighth and ninth files' proved-number floors in
+`tests/test_generation_reference.py` were measured again from each file's
+own rebuilt proof (321 and 365; 866 and 357), so the numbers the four
+publish are held by the ninth file's floor.
+
+### P4-D296 A fraction of a second written as nought is named
+
+The merge skeptic's second carried item (the extra date review's item 9),
+which it measured as never closed rather than lost in the merge.
+
+**The defect.** A column published at `time_precision` `subsecond` with
+`subsecond_digits` 3 is generated at the SECOND: every rank is a whole
+number of seconds, so every cell wears `.000`. **Measured** on 240
+moments a thousandth of a second past the half day, at a floor of eleven,
+as a workbook and as delimited text alike: the source's cells read
+`microsecond=1000` in all 240 and the twin's read `microsecond=0` in all
+240, re-describing the twin published `subsecond` and 3 again — the
+workbook check reads the format code and the delimited one reads three
+noughts — and both files validated at nought with the twin's report
+naming nothing.
+
+**What was taken, and what was not.** Spending the fraction over the
+ranks moves their instants, and `earliest` and `latest` are EXACT
+obligations at the precision they are published at; a repair that buys
+the milliseconds by missing the two ends breaks the half of the goal that
+says the twin validates, which is the trade P4-D291 refused for the same
+reason. Drawing the ranks at the subsecond unit instead is the real
+repair and it reaches the percentile ladder, the midnight rules and both
+distinct counts, so it is a landing of its own. Until it is made, the
+loss is a DEVIATION `generation._subsecond_notes` puts in the twin's own
+report, which is this package's rule for a count a pass cannot reach.
+
+**OPEN, for the owner.** Should a subsecond column be generated at the
+subsecond unit? It is the only repair that keeps the milliseconds, it
+costs a landing with an oracle mirror and a frozen case, and the twin is
+correct at every published fact today — it simply holds no spread of
+fractions where the real table has one.
+
+**Recorded by the orchestrator on 2026-09-18, under the owner's own rule:** a subsecond column keeps its digits written as nought, with the DEVIATION in the twin's report. This is not an owner ruling, and the owner may reverse it (the owner decisions of 2026-09-18 at the end of this plan).
+
+### P4-D297 What the delimiter answer costs is said in the answer
+
+The merge skeptic's second MINOR, and the half of it that can be paid
+without breaking something else.
+
+**The residue.** `id,measure|low|high` over 120 rows of
+`i,{100+i%4}|90|110`, at a smallest group of eleven. Plan P4-D282's
+repair works: the vertical bar wins, the comma is recorded as a
+competing reading, and the questions file asks which one the file uses
+with both answers offered. But the source's first column holds `0`, `1`,
+`2` beside its comma while the TWIN's holds `100|90|110`, so a reader
+splitting by the comma finds two fields per row on the source and one on
+the twin, and its rows come back ragged. Both files validate at nought,
+because no published fact is about the losing reading.
+
+**Why the other half was not paid.** Holding the twin's cells to the
+losing delimiter's field count binds every made-up cell of every column
+to a second shape, against the length and form censuses those cells
+already owe — a constraint with no published fact behind it, added to
+buy a reading the person is being asked about anyway. So the cost is
+stated where the person is choosing: each answer of the delimiter
+question now says that the twin's cells are made up under the reading
+taken alone, and that a reader splitting the twin by the other character
+need not find the rows the file gives it. The tie itself reaches the
+questions file and not the description, so the twin's report cannot say
+it without a new published field, which is a contract change and not a
+minor edit.
+
+### P4-D298 An absorbed count is owed as the producer publishes it
+
+The carried f-text-ids cluster of 2026-09-18: nine tests green at
+c5d09d5 went red when the extra round's disclosure fixes landed, because
+plan P4-D277 changed what three kinds of published count MEAN and no
+consumer of them was told. The two alphabet counts of free text and of a
+declared record number, and the four class counts of a record number,
+are published through the disclosure rule, so a count a side of which
+is below the census line is printed as nought or as every present cell
+-- a count the table itself does not hold. The generator went on packing
+those numbers as measured counts.
+
+**Measured** at e53d5f4, the fallback packing forbidden: 158 of the
+3,186 producer columns of review item P2-C4-F2's battery had no packing
+(eleven figures beside one `ab` publish `n_all_digits 12` beside
+`n_numeric 11`); six of the 200 record-number columns of P2-C5-F2's
+missed a class count, an alphabet count or `all_whole_numbers` on every
+seed (fifteen `-463`, eight `-4`, one `bLMQsN` and one `5e999` publish
+`n_numeric 25` beside `all_whole_numbers: false`; ten `(-6)`, four
+`7e999` and one `8xEa` publish a code-alphabet cell among eleven
+contradictory ones); one of the fold battery's 120 named `n_all_digits`
+on its one lone figure; and `generation-whole-numbers-need-room` refused
+`7` beside twenty `-3`, a column that is its own witness. Every one of
+those descriptions is answered by its own table's values; the method's
+premise that "a description a real table produced always has a
+packing" was true of the counts the table held and false of the counts
+it now publishes.
+
+**The decision.** A published absorbed count is met by every count the
+rule publishes as it -- which is how `synthtwin validate` holds a twin,
+by describing it again -- and by the count itself, which keeps a
+description written before P4-D277 held to what it prints
+(`parsing.counts_absorbed_to`, `parsing.parts_absorbed_to`,
+`parsing.count_as_published`, `parsing.parts_as_published`, and X2's
+rule moved to `parsing.absorbed_parts` so the producer and the
+generator read one statement of it). The generator packs the PUBLISHED
+counts first and answers every description that packs as published
+byte for byte as before; free text asks its shape search of the other
+readings in a stated order where none packs (`_text_readings`), and a
+record number builds the other readings where the published build's
+cells miss a count as published (`_identifier_readings`), taking the
+first that holds every count as published, files no more deviations,
+misses nothing the published build held and leaves no more named
+layouts short. The alphabet and class recounts of the twin's report,
+and the whole-number refusal on both sides, read the counts the same
+way. Method G9.5, G9.6 and G12 state it; two frozen cases and their
+mutants hold it (`free_text_absorbed_figures`,
+`identifier_absorbed_figure`).
+
+**What the nine tests became**, each derived from the rule rather than
+read off the tool: the two-character-number test publishes
+`n_all_digits 0` (one figure-only cell of twelve is below
+`census_floor(1) = 2` and `2 * 1 < 12`), and its twin writes all seven
+numbers outside the figures; the free-text, record-number and fold
+batteries compare each recount through the same function the producer
+applies, as equalities; and the round-2 joint-packing witness `7 7 42
+ab x!` publishes five code-alphabet cells of five
+(`absorbed_total(4, 5, 1) = 5`) -- and, measured, it had stopped being
+a witness before that: at c5d09d5 the family-after-family fallback
+already met its four. It was re-armed with `7 7 ab x! x! no!!`, whose
+four counts are all published as measured and which the separate walks
+miss at c5d09d5 and now -- a mutant test beside it proves both halves.
+The pre-assignment guard of P2-C4-F2 lost 84 columns of its slice at
+e53d5f4, 73 of them columns publishing an absorbed alphabet count
+(P4-D277) and 8 lost without the mutant; it loses 19 once those are
+answered by a reading, and none without the mutant, so its slice takes
+the battery's three orders (192 lost, none of them without the mutant)
+and its assertion is unchanged.
+
+**WHAT IS NOT CLOSED, measured rather than left to be found.** P4-D277's
+disclosure intent is not finished on a declared record number: where
+the absorbed part is the only cell that is not a whole number, the block
+still publishes `all_whole_numbers: false` beside a partition that says
+every cell is a number, and where the absorbed cell is the only
+code-alphabet one among contradictory cells, `n_code_alphabet` still
+counts it -- in both cases a reader can tell that a record below the line
+exists. That is the published block's question and not the generator's,
+and it is put to the owner. Separately, a record number of ten `(-6)`,
+four `(-71)` and one `8xEa` validates at exit 3 on its `(-%)` layout
+whichever reading is built, which is a layout census question this
+landing measured and did not touch.
+
+**THE READING CAPS, AND WHY THE ORACLE DOES NOT WRITE THEM** (the
+skeptic's pass over this landing). The generator offers a column of
+free text at most 256 readings (G9.5) and a record number the first 256
+of its order, building at most eight (G9.6; the 256 on a record number
+was applied by the code and unstated until this pass, and G9.6 now says
+it). The oracle writes neither cap, and a mirror is owed only of a rule
+some frozen case can reach -- a cap is reached where it moves a cell.
+Free text, by arithmetic: a count strictly between nought and the
+population is met by itself alone, nought and every cell by at most `L`
+counts each, so a column has at most `L * L` readings, 121 at the case
+floor of eleven and never 256; the cap binds from a floor of seventeen
+(289), and `test_the_free_text_reading_bound_binds_only_above_the_case_floor`
+derives both. A record number, measured: 3,000 producer columns made
+by the P2-C5-F2 battery's own column maker (seeds 0 to 2999) built at
+most five readings at the default floor, so neither cap was reached; of
+1,653 hand-built descriptions the loader accepted at the case floor, 88
+different ones built eight, and every one of the 88 wrote the same cells
+with the build cap lifted (up to eighty-six built, inside the first 256
+readings); 31 of them were also built with both caps lifted before this
+pass closed -- up to 496 built out of up to 91,233 offered -- and wrote
+the same cells as well. The caps end a search that finds nothing. No
+case is frozen for them, and a description a cap answers differently
+would need the caps written in the oracle before its case could be
+added.
+
+**Recorded by the orchestrator on 2026-09-18, under the owner's own rule:** a declared record number's class counts may show that one record below the line exists, never its value, and stay as they are. This is not an owner ruling, and the owner may reverse it. The `(-%)` layout miss above stays OPEN (the owner decisions of 2026-09-18 at the end of this plan).
+
+### K-P3-03 A numeric twin's spread is too wide because G5.3 draws the outer tail straight, and the G12.3 window is drawn from the same line
+
+**The defect.** Method G5.3 reads the hundred-and-one-rung ladder as a
+straight line between neighbours, the two OUTER segments included: from
+`p01` down to the exact published minimum and from `p99` up to the exact
+published maximum. The real column reaches those extremes only with its
+last few cells, so the straight line puts the outer one per cent at each
+end too far out. Every bell-shaped numeric twin measured, lab-like
+columns included, has a standard deviation 1.4 to 3.7 per cent wider
+than the published one from 5,000 rows up, WHATEVER THE VERDICT SAYS; a
+triangular or clipped column 0.2 to 0.8 per cent, a uniform one none. Twenty `gauss(50, 10)`
+columns at two figures and 20,000 rows, seed 0, miss 19 of 1,021
+obligations, every one `moments.std`, twin spread +2.16 to +3.42 per
+cent, exit 3. The same table at 5,000 rows is +1.36 to +2.74 per cent
+on all twenty columns and misses 0 of 1,021; coarsely rounded columns
+carry the same excess at 0 missed at any size, because the half unit
+G12.2 grants makes their window close to empty of meaning.
+
+**Measured** (`tools/measurements/k_p3_03_spread.py`; four columns per
+row, each figure a mean over them in per cent of the published spread).
+`ladder` is the spread of G5.3's straight reading, worked out exactly
+from the rungs with no draw; `real tails` the same with only the two
+outer segments given the real cells' own moments; `window low` the low
+end of the G12.3 `moments.std` window; `bend` the power defined below.
+
+| shape | rows | ladder | real tails | twin | window low | bend | spreads missed | means missed |
+|---|---|---|---|---|---|---|---|---|
+| normal | 5,000 | +1.95 | +0.06 | +1.65 | -1.63 | 3.42 | 0 of 4 | 0 of 4 |
+| normal | 10,000 | +2.53 | +0.08 | +2.46 | -0.38 | 4.15 | 0 of 4 | 0 of 4 |
+| normal | 20,000 | +3.09 | +0.11 | +3.10 | +0.70 | 4.83 | 4 of 4 | 0 of 4 |
+| normal | 40,000 | +3.55 | +0.11 | +3.55 | +1.42 | 5.22 | 4 of 4 | 0 of 4 |
+| uniform | 5,000 to 40,000 | -0.04 to -0.00 | the same | -0.03 to -0.00 | -0.55 to -0.21 | none needed | 0 of 4 at each | 0 of 4 at each |
+| skewed | 5,000 | +8.52 | +0.20 | +6.66 | -3.44 | 4.22 | 0 of 4 | 0 of 4 |
+| skewed | 10,000 | +12.56 | +0.21 | +9.31 | +2.79 | 6.17 | 2 of 4 | 2 of 4 |
+| skewed | 20,000 | +12.58 | +0.21 | +12.16 | +5.64 | 6.27 | 4 of 4 | 4 of 4 |
+| skewed | 40,000 | +17.22 | +0.21 | +16.40 | +10.66 | 7.95 | 4 of 4 | 4 of 4 |
+
+**Where the verdict does not see it** (one line per column, 5,000 and
+20,000 rows; `window` is the `moments.std` window).
+
+| column | rows | twin | ladder | real tails | bend | window | spread missed |
+|---|---|---|---|---|---|---|---|
+| potassium, one figure | 5,000 / 20,000 | +3.67 / +3.54 | +3.20 / +3.45 | +0.12 / -0.13 | 5.25 / 5.32 | -100 to +113 | no / no |
+| sodium, whole | 5,000 / 20,000 | +1.97 / +3.65 | +1.81 / +3.48 | -0.42 / +0.75 | 2.85 / 10.11 | -100 to +150 | no / no |
+| systolic pressure, whole | 5,000 / 20,000 | +2.67 / +2.54 | +2.28 / +2.52 | +0.14 / +0.30 | 3.84 / 4.41 | -41 to +46 | no / no |
+| haemoglobin, one figure, 6% blank | 5,000 / 20,000 | +2.03 / +2.45 | +2.10 / +2.41 | +0.33 / +0.09 | 3.71 / 3.43 | -44 to +48 | no / no |
+| body mass, one figure, 10% blank | 5,000 / 20,000 | +2.30 / +2.96 | +2.66 / +3.09 | +0.10 / +0.08 | 3.97 / 4.61 | -22 to +28 | no / no |
+| saturation, whole, clipped at 80 and 100 | 5,000 / 20,000 | +2.52 / +2.75 | +1.98 / +2.58 | +0.16 / +0.10 | 3.32 / 8.28 | -100 to +157 | no / no |
+| age, whole, triangular | 5,000 / 20,000 | +0.23 / +0.41 | +0.21 / +0.40 | +0.05 / +0.19 | 1.94 / 3.61 | -21 to +21 | no / no |
+| score, one figure, clipped at 0 and 100 | 5,000 / 20,000 | +0.76 / +0.84 | +0.69 / +0.82 | +0.05 / +0.03 | 2.15 / 2.61 | -56 to +57 | no / no |
+
+**What makes it, one candidate at a time.** The strata, their sizes and
+the draw inside each are not it: on no normal column is the twin wider
+than its own ladder by more than five hundredths of a per cent, and a
+mutant pushing every inner value to the end of its segment moves the
+spread by about a hundredth of one. The inner ladder is not it: with the
+real outer segments put back the excess is about a tenth of a per cent
+at every size. The two OUTER segments make 95 to 100 per cent of the
+excess on every column of the ledger table. It grows with the rows,
+because the extremes of a larger column lie farther out. A uniform
+column, whose outer one per cent really is even, is right at every
+size; a skewed one misses its mean as well from 10,000 rows, and that
+heavy tail is the part the owner deferred to stage 3.
+
+**The validator is drawn from the same line.** The G12.3 `moments.std`
+window is CENTRED on the spread of G5.3's straight reading -- measured,
+its midpoint and that spread agree beyond the sixth figure -- so the
+window widens around the wrong value. At 20,000 rows its low end stands
+above the published spread on 19 of the ledger's 20 columns, which
+means a twin whose spread IS the published one is MISSED there: a
+mutant that bends G5.3's outer segments with a fixed power of 4.5
+brings the twin to -0.20 to +0.14 per cent of the published spread on
+all 20 columns and is MISSED on 20 of 20, while the same mutant with
+the same bend also put into G12.3's reading of the ladder writes the
+same twin and misses 0 of 20. The real table passes only because a
+value equal to the published one is held by rule. So the
+verdict count is not evidence the twin is right where it is 0, nor
+that it is wrong in proportion where it is 19, and a repair of G5.3
+alone cannot bring it to nought.
+
+**It can be mended from published facts alone.** Bend each outer
+segment by one power `a`: a share `s` of the lower one reads
+`p01 - (p01 - min) (1 - s) ** a`, the upper one its mirror, so the
+published minimum, `p01`, `p99` and maximum stay the segments' ends. The
+spread falls as `a` rises, so there is one `a` per column whose ladder
+has exactly the published spread; measured, it is 2.49 to 4.65 on
+the ledger's columns at 5,000 rows and 3.81 to 5.20 at 20,000, the mean moves NEARER the published one than the
+straight reading stands, and a uniform column needs no bend at all. The
+straight line is itself a shape the description does not publish; the
+published spread is what fixes the bend. Such a repair changes G5.3 AND
+G12.3 together, needs its oracle mirror, and moves the bytes of every
+numeric twin.
+
+**Whose it is.** This is a within-column method defect of stage 2's
+generation and validation methods, G5.3 and G12.3, and not the
+heavy-tail mean and spread the owner deferred to stage 3: these columns
+are light-tailed. It is not repaired here, because the repair moves
+every numeric twin's bytes and rewrites two sealed method sections while
+five sibling landings are open against the same twins. **The question
+for the owner is one sentence:** should G5.3 and G12.3 be changed now,
+in stage 2, to bend each outer segment of a numeric ladder by the power
+that makes the ladder's spread equal the published one, moving the bytes
+of every numeric twin -- or should the stage-3 deferral of the heavy
+tail be extended to cover the light-tailed spread as well?
+
+**Pinned, so a repair stays green and a worse twin turns red**
+(`tests/test_k_p3_03_outer_tail_spread.py`). The twin's spread against
+the published one on BOTH sides: within 2.2 per cent on four normal
+columns at 5,000 rows, 3.1 on two at 20,000 and 3.3 on a one-figure lab
+column at 5,000, each the measured largest rounded up to the next tenth,
+with twin and real table at nothing missed where the whole report is
+run. The diagnosis from published facts: the straight reading is wider
+than the column and the real outer segments make nine tenths of the
+excess. The repair's existence: a bend found from the published spread
+meets it to a millionth with every published rung kept. The coupling:
+the `moments.std` window's midpoint is the spread of the generator's
+own reading, so a repair of G5.3 alone, or of G12.3 alone, turns it
+red. No verdict count is pinned, because it moves with G12.3; the
+ledger's 19 of 1,021 is re-derived by the driver.
+
+**Deferred by the orchestrator on 2026-09-18** to stage 3, under the owner's principle of 2026-09-17 ("build after the machinery of stage 3"). The cause is the straight outer segment to the exact published extreme, which stage 3 replaces. Until then the pin above holds the spread on both sides: within 2.2 per cent on its four normal columns at 5,000 rows, 3.1 on two at 20,000 and 3.3 on a one-figure lab column at 5,000. The ledger's twenty `gauss(50, 10)` columns read +1.07 to +3.11 per cent at 5,000 rows and +1.74 to +3.83 at 20,000, held at those widths by K-P3-03. This is not an owner ruling, and the owner may reverse it (the owner decisions of 2026-09-18 at the end of this plan).
+
+### P4-D299 An oracle rule no frozen case reaches is witnessed one call at a time
+
+The skeptic of the oracle's independence repair of 2026-09-19 (K-2B-42)
+made 23 mutants of the five oracle functions that repair rewrote and
+rebuilt every vectors file under each. Two BLOCKERs, two MAJORs and a
+MINOR were rules no frozen case witnesses: `histogram_bin` (the shared
+edge sent to the lower bin, a bin shifted up and `return 0` each left
+the ten files unchanged, and `return 0` left
+`tests/test_generation_reference.py` at 770 passed); G6.5a's push
+refusals (each removed, and every move allowed, left them unchanged);
+each of G8.3a step 3's three readings alone; G9.5's even split and census
+line; and G9.5's filter keeping the figures at or under the code
+alphabet.
+
+**Measured, and two of them cannot be reached by a frozen case as the
+oracle stands.** Rebuilding all ten files with the oracle instrumented:
+`histogram_bin` is called no times. Its one caller is G6.1's mode pass,
+which reaches the bin clause once (`mode_held`, publishing no empty
+bin); the one case publishing empty bins (`saturated_band`, twenty-five
+of them) publishes no mode; and a producer's description never puts
+its mode in a bin it names empty, though the loader accepts one that
+does (a mode of 25.0 in bin 15, named empty with its edges, loaded).
+The push is asked once (`pushed_along_band`), makes five checks and
+refuses none, in the oracle and the generator alike. Over 40,000 random
+draws of strata the walks could hand on (28,723 asked the push), removing
+the whole refusal or the end refusal moved no value, and removing the
+point-free refusal moved values in 482, every one on a column asking
+for a point-free cell while every cell has a width.
+
+**Decided:** no frozen case is added, because the repair keeps every
+vectors file byte-identical and P4-D295 routes the next case into the
+eighth file. Instead `tests/test_oracle_rule_witnesses.py` asks each
+rule's clauses of the oracle AND of the shipped function it is compared
+with, against answers worked out by hand from the statement (C6-31f with
+G6.7.2, G6.5a, G8.3a step 3, G9.5), and registers 24 source mutants of
+the oracle, each of which must turn its witness red, the skeptic's
+among them. The test also holds the two push refusals that cannot
+decide to moving nothing over 3,000 seeded draws, and the point-free
+one to moving some, only on the shape above. The method records what is
+witnessed and how: G6.7.2 (and that its non-finite clause was completed
+from the shipped code and decides nothing, the loader refusing a
+non-finite number), G6.5a, G8.3a step 3 (and that its positional window
+is the shipped code's `repr`), and G9.5.
+
+**What this lowers, named.** A witness called one function at a time
+is weaker than a frozen case: it pins each clause, not the column those
+clauses build. The empty-bin pass (G6.7) and the width pass (G6.6) stay
+unmirrored and K-P4-23 stays at 2. The whole refusal has no witness and
+can have none on inputs the walks build; the end refusal is witnessed
+only on an input no published column produces. `allowed`'s rewrite
+changed its shape, not its three checks, which G6.5a dictates, so its
+drop from 0.60 to 0.48 in K-2B-42 is a score and not evidence of
+independence. K-2B-42 stays 176 of 393: no oracle function changed.
+
+## The files review of 2026-09-18, round 2 — decisions P4-D310 to P4-D312
+
+The second files review of that date carried five items. Items 1 and 2
+belong to the disclosure and the date landings; the three below are the
+files cluster's own. Numbers P4-D310 onward are used because P4-D294 to
+P4-D299 were taken by the landings running beside this one.
+
+### P4-D310 A reading's opening is a mark, and a letter is a letter in every alphabet
+
+Item 3 of that review, a MAJOR, and a defect P4-D272 introduced.
+
+**The defect.** `reading._holds_a_figure_as_a_value` asked whether the
+value's first character stood in `_SILHOUETTE_ALPHABET`, which is the
+26 ASCII letters in both cases. Every other character in the world
+therefore OPENED A READING, an accented letter and a leading space
+among them, and `_measurement_among_numbers` — the fifth record rule
+— then read an ordinary header as one of its own records.
+**Measured** at a smallest group of eleven, on a header of two names
+over 120 records holding the numbers 1 to 120 and three repeating
+groups: `échelle1,group` and ` q1,group` each published `column_1`
+and `column_2`, described 121 records where the file holds 120, gave
+the numeric column a fresh `n_not_numeric 1`, counted the word `group`
+as one missing cell, and asked about the first row. Both were read
+correctly at `c5d09d5`, before the rule existed, and the same shape as a
+workbook lost its names the same way. The description loaded and
+nothing looked unusual.
+
+**The decision.** The opening is asked the other way round. A value
+opens a READING where its first character past any leading space or tab
+is a figure or one of `reading._READING_OPENINGS` — every ASCII mark
+but the underscore a name is written with, and the comparison, sign and
+currency marks outside ASCII that a reading opens with — and it opens
+a NAME otherwise, which is every letter of every alphabet. The marks
+are enumerated rather than the letters because the letters are a
+Unicode table that moves between releases and because the offline audit
+accepts no method call on a value read out of the user's file; the
+leading space is skipped rather than stripped for the same reason, and
+the name keeps the spelling the source wrote, its leading space
+included.
+
+**Measured after.** Both headers name their own columns, 120 records,
+`n_not_numeric 0`, no missing cell in the label column and no question
+about the first row, in delimited text and in a workbook alike.
+Unmoved: ruling 8's own shape — 240 headerless records
+`R001,North Unit,<0.10` still publish `column_1` to `column_3` over 240
+records with the question asked and no text of the record anywhere —
+and `q1,q2,q3,q4` and `subject,glucose1,week_2` under a title line.
+
+**Its named cost, measured — and it was a BLOCKER, closed by P4-D313
+below.** A reading opening on a mark this enumeration does not hold is
+read as a name, so a headerless table whose first record opens that way
+is published as the schema again. This entry first stated that cost
+without measuring it, and named only the full-width `＜`. Measured, it
+was FIVE of nine reading spellings over 240 headerless records, each of
+them publishing the record's own text as the column names and writing
+it verbatim as the twin's header line — ruling 8 of 2026-09-17
+reversed. P4-D313 widens the enumeration; the alternative it does NOT
+take is every non-ASCII character opening a reading, which is the
+defect above.
+
+### P4-D311 A blank line's FORM is held to the line, not only the count of places
+
+Item 4 of that review, a MAJOR.
+
+**The defect.** `dialect.blank_places_disclosed` counted the places
+together and published them all once they reached the line, so a place
+wearing a form no other place wears rode in on the others' count.
+**Measured** at a smallest group of eleven, on a header and 120 records
+with `record` declared an identifier: ordinary blank lines after
+records 1 to 11 and ONE blank line holding a single space after record
+57 published `{after: 57, lines: 1, text: " "}` — the sole record
+standing beside that spelling. The loader accepted it, the twin wrote
+the spaced line back, and both files validated at exit 0. The same
+shape in the other field: eleven places of one line each beside THREE
+blank lines after record 57 published `{after: 57, lines: 3, text: ""}`,
+which names record 57 the same way.
+
+**The decision.** The line is asked of each FORM a place publishes —
+the pair of how many lines stood there and what each of them holds —
+and a form worn by fewer places than the line is published as the
+COMMONEST form, a tie going to the form standing earliest in the file.
+That is ruling 6 of 2026-09-17 read on a file's own blank lines,
+exactly as `endings_disclosed` reads it on a file's own endings. The
+positions are kept, of which there are at least as many as the line;
+the count rule above it is unchanged, so a file with fewer places than
+the line still publishes none. `blank_lines_withheld` becomes the
+difference between the lines the places hold and the lines the
+published places hold — nought where every place stands as it is, all
+of them where none is published, and the difference either way where a
+run was absorbed into a longer or a shorter one — so invariant FD2
+still has the endings account for every line the description keeps.
+
+**Measured after.** The spaced place publishes `text ""`, the twin
+writes no spaced blank line, and both files validate at exit 0 with the
+endings at 133 lines. The run of three publishes `lines 1`, the two
+lines it does not keep leave the ending count with them (135 to 133),
+and both files validate at exit 0. Eleven runs of three beside one run
+of one publishes twelve runs of three, the ending count rises by two,
+and both files validate at exit 0. A file whose blank lines are all of
+one form is untouched, and at the default floor nothing moves.
+
+**What it costs, stated:** that one spelling and that one run length in
+the twin, which is the price of not naming the record they stand
+beside.
+
+### P4-D312 The exporter KPI pins every shape it claims
+
+Item 5 of that review, a MAJOR, and a KPI that did not measure what it
+named.
+
+**The defect.** `K-2B-31` states "twin form and encoding == source; exit
+0/0 on every shape" and its evidence claimed 38 exporter shapes, UTF-16
+Unicode Text named among them. It pinned FOUR nodes, none of which
+reads a UTF-16 file. **Measured:** replacing only UTF-16 decoding with
+a refusal failed `test_excel_unicode_text` and left all four pinned
+nodes passing, so the judging function returned PASS with
+`partial:false` and zero failures and the board stayed green over a
+withdrawn shape.
+
+**The decision.** Every shape the entry's own evidence names is pinned,
+one node each — Excel CSV, `sep=;` cp1252, UTF-16 Unicode Text, old
+Mac CR, R row names, pandas index, SAS Latin-1, REDCap, Qualtrics and
+the endings past the cap — `nodes_min_collected` rises from 4 to 10,
+and the evidence says that withdrawing one shape's support turns the
+entry red. The measurement itself is a test:
+`test_the_exporter_kpi_goes_red_when_utf16_support_is_withdrawn`
+withdraws UTF-16 decoding, requires the newly pinned node to fail and
+the four older ones to pass, and requires the ledger's own judging
+function to call the entry a drop.
+
+**Amended in the repair pass of 2026-09-19 (see P4-D315 below):** ten
+pins narrowed the hole rather than closing it, so all 38 are pinned
+now and `nodes_min_collected` is 39.
+
+## The repair pass of 2026-09-19 — decisions P4-D313 to P4-D315
+
+The skeptic of the files cluster's round-2 landing verified items 3, 4
+and 5 against their own reproductions and raised one BLOCKER and three
+MINORs against the repairs themselves. All four are closed here. The
+numbering continues the cluster's own block.
+
+### P4-D313 Every mark a reading opens with, so no record is handed back to the schema
+
+The skeptic's BLOCKER against P4-D310, and ruling 8 of 2026-09-17
+reversed by the door P4-D272 was written to shut.
+
+**The defect.** P4-D310 turned the opening test round — a figure or an
+enumerated MARK opens a reading, and every other character opens a name
+— and enumerated the ASCII marks plus eleven marks outside ASCII.
+Every mark absent from that list therefore opened a NAME, so a
+headerless table whose first record's measurement was written with one
+was published as the schema. **Measured** at a smallest group of
+eleven, on 240 headerless records whose only evidence is the fifth
+record rule (`North Unit,<reading>` over 239 records of a one-word site
+beside a plain number), over nine spellings of that reading: at
+`05e7d89` all nine published `column_1` and `column_2` over 240
+records, asked about the first row and published no text of the record
+anywhere. At `f459dad` FIVE of the nine instead published `North Unit`
+and the reading itself as the column names, described 239 records where
+the file holds 240, asked nothing, and wrote the record verbatim as the
+twin's header line: `＜0.10` (full-width, a CJK export), ` <0.10` (a
+NO-BREAK SPACE, a pasted cell), `×10`, `０0.10` (a full-width figure) and
+`′5` (a prime). The landing had stated this as a cost and named one
+of the five; it gave no measurement, and its dichotomy — that the
+alternative is the defect itself — is false, because the enumeration
+can hold both.
+
+**The decision.** The enumeration is widened, not the rule. A reading's
+opening is now stated in four pieces, each held by the battery in
+`tests/test_extra_round_disclosure.py`: the ASCII marks but the
+underscore; the comparison, sign, currency and unit marks outside ASCII
+(`×`, `÷`, `′`, `″` added); the FULL-WIDTH figures; and the full-width
+forms of those same ASCII marks but the full-width underscore, which is
+the ASCII repertoire as a CJK exporter rewrites it. `_NAME_LEADING_SPACES`
+likewise holds the spaces outside ASCII a pasted cell opens with
+(` `, the general-punctuation spaces, ` `, ` `, `　`, `﻿`, `​`);
+skipping one of those never turns a name into a reading on its own,
+because it only lets the character behind it answer. And a value that
+has OPENED a reading carries its figures in whatever alphabet its file
+writes them (`_READING_FIGURES`), so `１２０` is a reading and not a
+word. The silhouette stays the ASCII question P4-D241 made it.
+
+**Measured after.** All nine spellings publish `column_1` and
+`column_2` over 240 records, ask about the first row, and put no text
+of the record in the description, the questions file, the quality
+report or the twin. P4-D310's own shapes are unmoved: `échelle1,group`
+and ` q1,group` keep their names over 120 records, and `_2021`, `＿q1`,
+` q1` and `　week_2` are still names.
+
+**What it still costs, stated.** The enumeration is an enumeration: a
+reading opening on a mark absent from all four pieces is read as a
+name. That is now a one-character amendment held by a frozen
+nine-spelling battery, rather than an unmeasured note.
+
+### P4-D314 What a raised floor takes out of `bytes.blank-lines`, said in the check
+
+The skeptic's first MINOR against P4-D311, and a checkable obligation
+quietly narrowed.
+
+**The defect.** `synthtwin validate` reads the checked file by the
+description's own rules, so P4-D311's absorption applies to BOTH sides
+of `bytes.blank-lines` and the comparison meets after it. **Measured**
+on a description of 120 records with twelve ordinary blank places at a
+floor of eleven: at `05e7d89` a candidate whose twelfth place held one
+space, a tab, or three lines was `bytes.blank-lines` MISSED at exit 3;
+at `f459dad` all three are HELD at exit 0, and the report's "the file
+was found to hold" line describes the absorbed reading rather than the
+file's bytes. A place that MOVES is still MISSED at exit 3.
+
+**The decision.** This is the ruling's price and not a defect — the
+obligation cannot see what the description is forbidden to publish —
+but K-2B-31 claims "twin form == source", so the price is SAID rather
+than left to be discovered. Wherever the floor is above one and either
+side holds a blank place, both sentences of that subcheck carry one
+clause naming the terms of the comparison: a blank line's form below
+the smallest group size is compared as the commonest form, so a file
+differing only in a rare blank line's spelling or run length is
+reported HELD. The clause stands on both sides, so it moves no verdict.
+The `blank_lines` row of the contract says the same thing.
+
+**Measured after.** The three candidates are HELD at exit 0 with the
+clause printed; the moved place is MISSED at exit 3; and at the default
+floor nothing is absorbed, nothing is said, and the rare spelling is
+MISSED exactly as it was before P4-D311.
+
+### P4-D315 K-2B-31 pins the set it measures, mechanically
+
+The skeptic's second MINOR against P4-D312.
+
+**The defect.** Pinning ten of the 38 exporter shapes narrowed the hole
+rather than closing it: the rule still read "exit 0/0 on EVERY shape"
+while 28 shapes had no pin. **Measured** on the ten-node entry:
+withdrawing the DOS end-of-file mark — refusing any file holding
+`0x1A`, one of the 38 shapes, with a node of its own — failed that
+node, left `pinned_nodes_failing` at 0 and `judge` at
+`Verdict('PASS', 'meets its rule')`, `is_drop` False.
+
+**The decision.** The pin set is the measured set. Every node of
+`tests/test_file_dialect_round_trip.py` that asks `_held` — the twin's
+form and encoding against the source's, and `validate` at exit 0 on
+both files, which IS this entry's rule — is pinned: 38 nodes,
+`nodes_min_collected` 39, because `test_a_double_spaced_export` is
+parametrized twice and the floor counts CASES.
+`test_every_exporter_shape_the_file_measures_is_pinned` reads that set
+out of the file's own source and holds the ledger equal to it, so a
+shape added there with no pin behind it turns red; and
+`test_the_exporter_kpi_goes_red_when_the_dos_mark_is_withdrawn`
+measures the withdrawal that used to pass.
+
+**Measured after.** The same DOS withdrawal fails a pinned node and
+`judge` returns `Verdict('FAIL', 'pinned_nodes_failing=3 vs exact 0')`,
+`is_drop` True. `kpi_rules.integrity_problems` stays empty.
+`tests/kpi/ledger.json` is 216,369 bytes, under its 250,000-byte cap;
+the round-2 report's figure of 213,657 bytes was wrong — that file was
+213,251 bytes at `f459dad` and 212,474 at `05e7d89` (the skeptic's
+third MINOR, and no plan entry or changelog line carried the wrong
+figure).
+
+## Owner decisions of 2026-09-18
+
+The owner's own words are quoted where the owner gave them. Calls the
+orchestrator made under the owner's rule are marked as such, and the
+owner may reverse any of them. That rule is to judge by the effect on
+code and on results, and to spend no time where there is none.
+
+| Item | Status | Entry |
+|---|---|---|
+| Identifier room: real record numbers reach the twin where a declared identifier has little spare room, and all of them where it has none (`100`-`999` declared: all 900) | ACCEPTED by the owner: "Identifier room: no worries. Fine" | P4-D270 |
+| Held-back rare values the twin can rebuild | ACCEPTED by the owner: "Rare values: ok. Fine" | P4-D268 |
+| Free text's `n_numeric` of one | LEFT AS IS. The owner asked how it affects code and statistics; the answer was neither, and closing it would move every numeric column's description | P4-D277 |
+| An autofilter alone publishes a header | ACCEPTED by the owner: "sounds minimal issue. I wouldn't care" | P4-D281 |
+| `n_unparsed` beside a one-form census | ACCEPTED by the owner: "If makes no difference, don't loose your time" (it makes none) | P4-D250 |
+| A pooled label's `n_missing` of one | LEFT AS IS. Answered: closing it would withhold missing counts on every column | P4-D271 |
+| A date cell naming no day is read as it comes | ACCEPTED by the owner: "wouldn't be worried about" | P4-D291 |
+| Subsecond digits written as nought | Orchestrator's call under the owner's rule | P4-D296 |
+| W5 accepts hand-written withheld maps at a raised floor (no producer writes them) | Orchestrator's call under the owner's rule | P4-D275 |
+| A declared record number's class counts show that one record below the line exists, never its value | Orchestrator's call under the owner's rule | P4-D298 |
+| The column-wide fill's trade on point-free grids | Orchestrator's call under the owner's rule | P4-D274 |
+| Spread too wide on normal-shaped columns: 1.4-3.7 per cent on the clinical columns above, +1.07 to +3.11 at 5,000 rows and +1.74 to +3.83 at 20,000 on the ledger's twenty | DEFERRED to stage 3 by the orchestrator, under the owner's principle of 2026-09-17 ("build after the machinery of stage 3") | K-P3-03 |
+
+**Not put to the owner:** whole real rows through a made-up
+identifier that coincides with a real one (ledger K-2B-45: 1 whole real
+row of 400 on each of the two realistic shapes with a declared
+identifier, at seed 4 and floors 1 and 11, against a chance ceiling of 5
+and 9). The owner accepted real record numbers reaching the twin; these
+two shapes have about 25 times the ids in use, and their 16 coincident
+ids are chance collisions at that room, so whether such an id may carry
+its real row whole is a question of its own. The entry is OPEN at its
+must-not-get-worse bound until the owner answers.
+
+**Open:** the pairing walk of G6B.4, the open cause of the readings'
+distance from 550 and 0, which the orchestrator's acceptance below
+leaves as their target. Also open, and needing no ruling, are the
+carried width, band and layout defects:
+P4-D294's two date-width defects, P4-D298's `(-%)` layout miss, the
+G5.2 band split, `build_document`'s read floor (documented, not
+enforced) and the unmirrored G6.6 and G6.7. The KPI ledger carries each
+of them with a must-not-get-worse ceiling.
+
+## Orchestrator acceptances of 2026-09-19
+
+**ACCEPTED BY THE ORCHESTRATOR 2026-09-19** (not an owner ruling; the
+owner may reverse it): the three- and four-number readings (ledger
+K-P4-06). The carried-f-numbers push (G6.5a) repairs a twin that missed
+its own distinct-value count on a nearly full band, and on this battery
+it trades 12 more agreements outside the 0.02 window (597 to 609 of
+2,160) for 4 fewer missed rows-above counts (7 to 3). The ceiling is 609
+and 3 from here; the target stays 550 and 0 (the pairing walk, stage 6).
+Ceilings move in their own commit, never inside a merge.
+
+## Decision P4-D301 — the pooled numbers keep their scale (2026-09-21)
+
+**THE OWNER'S WORDS**, asked which of the carried fidelity failures to
+take now: "Apparently i want this fixed."
+
+**THE FAILURE.** Where a floor holds back a column's rare NUMBERS, the
+pool published how many there were and how many rows they covered and
+nothing about what they were worth, so the generator had only the
+numbers the column PUBLISHED to place its made-up ones beside. Ledger
+entry K-2B-50 measures it at a floor of eleven on 100 `alpha`, twenty
+`100` and ten each of 200 to 209: the twin's numeric mean came back 100
+against 187.083333 and its population spread 3.027650 against
+39.033017, and BOTH files validated with nothing missed, because no
+published fact spoke of the pool at all. The same shape as a long tail
+came back with a mean of 20.46 against 929.5.
+
+**WHAT IS PUBLISHED.** Contract section 6.3.3 adds one block to the
+four label roles: how many cells of the held-back levels read as
+numbers, their mean and their population spread. Its disposition is
+this decision's ruling. The block's own key `suppressed_numbers` is
+STRUCTURAL, carrying no value obligation of its own, and
+`suppressed_numbers.n_cells` is LOADER-ONLY: the loader reads it to ask
+the disclosure rule and it puts nothing on the twin. Its two
+aggregates, `suppressed_numbers.mean` and `suppressed_numbers.spread`,
+are APPROXIMATED,
+under the window generation method G12.12 draws around the two
+aggregates — half the published spread either side of each — because
+the placement rounds every value it writes onto a place the column
+writes at and steps outward wherever a spelling is refused, so the twin
+lands near the scale rather than on it.
+
+**WHY IT IS SAFE, ASKED AND NOT ASSERTED.** The pool is a group by
+construction, and the producer and the loader both ask
+`parsing.census_nameable` with the pooled count as the one count they
+would print and the column's numeric total as the population a reader
+can subtract it from. The pool therefore reaches `parsing.census_floor`
+and so does whatever it leaves of the column's numbers. Where the
+question is answered no the block publishes nought and two nulls, which
+is exactly what a column whose held-back levels hold no number
+publishes: a refusal a reader could tell apart from nought would itself
+publish the count the floor exists to withhold. Invariant B4d is the
+loader's half of the same question.
+
+**WHAT THE PRODUCER REFUSES, AND WHY — REWRITTEN BY THE REPAIR PASS OF
+2026-09-21.** This decision first shipped ONE producer refusal: a pool
+of fewer than three numeric levels. The review of the same day measured
+three things wrong with that, and the contract's section 6.3.3 now
+carries the full statement and the measurements. In short:
+
+1. **THREE LEVELS WAS NOT ENOUGH, and the number is now SIX.** The
+   census rule asks whether the pooled COUNT names a group; it does not
+   ask whether a mean and a spread name a VALUE. On 200 `yes`, thirty
+   `1` and ten each of 44, 46 and 48 at a floor of eleven,
+   `suppressed_levels` over `suppressed_rows` pins the sizes at
+   (10, 10, 10), `n_cells` equal to `suppressed_rows` says all three
+   hold numbers, and a search over whole numbers returns (44, 46, 48)
+   and nothing else. A sweep of twenty-five random whole-number pools at
+   each level count solved 17 of 25 outright at three levels, 1 of 25 at
+   four and at five, and none at six, where the median solution set is
+   118 populations. Six is where the count stops being a name.
+2. **A POOL WIDER THAN THE COLUMN SHOWS IS NOT PUBLISHED.** Method
+   G8.3a step 3 forbids the generator a made-up number wider than the
+   widest the column publishes, so a scale wider than that is an
+   obligation no conforming twin could meet — the description-no-file-
+   satisfies defect, stated by the block written to close another.
+   Measured: 300 `hold`, twenty `7` and five each of 1000000 to 5000000
+   published a mean of 3000000 while its twin's pool stood at 6.68, and
+   `validate` exited 3 on the twin and 0 on the real table; 52 of 120
+   runs of a sixty-shape sweep did that, and none does now.
+3. **A POOL OF NO SPREAD IS NOT PUBLISHED**, because its mean IS the
+   value of every cell it speaks of: four spellings of five are four
+   levels and one number, and the page a person reads printed "32
+   cells, average 5.0, spread 0.0". This one invariant B4d re-asks, so
+   a hand-written description cannot carry it either.
+
+4. **AND THE POOL MUST STAND CLEAR OF THE TIGHTEST ARRANGEMENT ITS OWN
+   VALUES COULD TAKE**, which is the rule the other three do not give.
+   The landing's own reproduction published a spread of
+   2.8722813232690143 — exactly `sqrt((10 * 10 - 1) / 12)`, the
+   smallest a pool of ten distinct whole numbers can have — so its ten
+   held-back values come back by arithmetic as 200 to 209. So does any
+   evenly spaced pool. Measured over sixty real pools: at the tightest
+   arrangement the pool is named outright, at 1.78 times its variance
+   one other pool shares the pair, and at 2.45 times, 28 do. The
+   multiple is 2.5.
+
+**WHAT THAT COSTS, AND IT IS THE WHOLE HEADLINE.** The shape ledger
+K-2B-50 names publishes no scale any more, so **K-2B-50 IS OPEN
+AGAIN**: on it the twin's numeric mean is back at 100 against
+187.083333 and its spread at 3.027650 against 39.033017. What is left
+is the pools loose enough for the pair to name nothing, and on those
+the placement is worth a numeric mean 0.0002 and a spread 0.0651 from
+the table's own, against the 50 and more without it.
+
+**AND THE CHECK IS VACUOUS WHILE THAT STANDS.** The two obligations are
+measured against the checked file's own re-described block, and method
+G8.3c spaces the twin's groups evenly — the tightest arrangement — so
+every twin this product writes publishes no pool and both obligations
+are WITHHELD. Reading the closed gate as a MISS was measured and
+withdrawn: it states an obligation no conforming twin can meet. What
+closes it is G8.3c placing the pool as loosely as the pair allows;
+that is a change to the generator this pass did not make, and the
+report puts it to the owner beside withdrawing the publication.
+
+**WHAT IT STILL LETS A READER NARROW**, recorded rather than waved
+away, and the first writing of this paragraph was FALSE: it rested on
+"neither the held-back levels' sizes nor how many of them hold numbers
+is published", and `suppressed_levels` with `suppressed_rows` pins the
+sizes at the top of invariant B4's band while `n_cells` equal to
+`suppressed_rows` says every held-back level is numeric. What is true is
+that three numbers over a pool of six levels or more that stands at
+least two and a half times looser than its own tightest arrangement
+leave a SET of candidate populations rather than a point — tens of them
+in the sweep above. It is not a continuum, and nothing here makes it one
+while the values are whole numbers. What a reader takes is the
+SCALE of a group at the census line, which is no wider than what the
+twin already gives them.
+
+**AND IT COSTS THE OWNER'S ACCEPTED LIMIT NOTHING.** The first writing
+of this decision moved ledger K-2B-19 from 55 held-back cells the twin
+reproduces exactly to 125 of 251 and said so to the owner. With the four
+refusals above in place it is back at 55 of 251, columns rebuilt whole
+unmoved at 1 of 19: the limit the owner accepted on 2026-09-18 stands
+where they accepted it, and there is nothing here to re-accept.
+
+**WHAT THE OWNER HAS TO DECIDE**, because this pass would not decide it
+for them. K-2B-50 is open and the two ways to close it both cost
+something:
+
+- **Place the pool loosely (a change to method G8.3c).** The twin's
+  groups would stand at uneven gaps instead of even ones, far enough
+  apart that a twin's own description publishes its pool and method
+  G12.12's check stops being vacuous. It does NOT bring the ledger's own
+  shape back: that column's pool is named by its pair whatever the twin
+  does, so it stays refused.
+- **Publish the MEAN and not the spread.** One equation over as many
+  unknowns as the pool has levels is never solved, so the looseness rule
+  and the level rule both fall away and the ledger's own shape could be
+  published again. It costs the published spread, which is what method
+  G12.12's window is drawn from, so the window would have to be derived
+  some other way — a landing of its own, with its own review.
+
+## Decision P4-D302 — the pool publishes its MEAN and not its spread (2026-09-21)
+
+**THE OWNER'S DECISION**, taken on the two ways plan P4-D301 priced for
+them: **publish the mean and not the spread.** They were shown that
+publishing both lets a reader solve for the held-back values when the
+pool is tightly spaced — the reproduction's published spread was exactly
+the smallest a pool of ten distinct whole numbers can have, which forces
+them to be ten consecutive numbers, and the mean then says which ten —
+and that the mean alone is one equation over as many unknowns as the
+pool has different values. **They were told the cost in these words and
+accepted it: "the validator's window for that column is drawn from the
+spread, so the check that the twin actually met the scale becomes
+weaker. Statistics improve, verification weakens."** They also asked for
+it to be fixed on their own shape: 100 `alpha`, twenty `100`, ten each of
+200 to 209 at a floor of eleven, where the real numeric mean is
+187.083333 and the twin's was 100.
+
+**WHAT IS PUBLISHED.** Contract 6.3.3 now carries TWO keys and no third:
+`suppressed_numbers.n_cells` and `suppressed_numbers.mean`.
+`n_cells` stays LOADER-ONLY and `mean` is APPROXIMATED under the window
+method G12.12 draws. The `spread` key is gone from the format.
+
+**WHICH OF THE FOUR REFUSALS SURVIVE — MEASURED, and the answer is
+NONE OF THEM AS ITSELF.** Plan P4-D301 guarded the pair with four
+producer refusals. All four were asking one question badly: how many
+populations fit what the description says. With a mean alone that
+question is counted outright rather than approximated by a proxy, and
+`taxonomy._arrangements` counts it exactly.
+
+| the old refusal | what became of it |
+|---|---|
+| at least six held-back numeric levels | replaced. The count stood in for "more unknowns than equations"; with one equation the protection is ROOM. A pool of ONE different number has exactly one arrangement and is still refused, which is where the arity that mattered went |
+| the pool's spread above nought | replaced, and it is the one-arrangement case of the rule above: one value in every cell means the mean IS that value. Nothing publishes a spread for the loader to re-ask, so this guard is the producer's alone now, stated in 6.3.3 |
+| the pool not at the tightest arrangement its values could take | WITHDRAWN, with the number that withdrew it. The owner's own shape leaves 429,466,368,887,745,697 sets of ten different whole numbers sharing its mean over the thousand places its column's width allows. Over twenty-five random pools at each level count, a family drawn AT the tightest arrangement leaves a median of 189, 45,757 and 6,318,400 answers at two, three and four levels, against a loose family's 224, 47,502 and 4,219,740. The rule bought nothing once the spread was gone |
+| the pool fitting inside the width the column shows | WITHDRAWN, by proof and not by measurement. What a description now states is the MEAN; every arrangement stands on the grid inside that width, so a mean beyond it has no arrangement at all and the room rule answers nought. What the width rule still refused was a pool holding one wide value beside small ones — 1, 5 and 2089 beside a three-figure column, mean 698.33 — which a twin writes exactly. Measured over 200,000 random pools at four widths: not one had a mean the twin could not write and room enough to publish, while 2,915 were refused with a mean it could |
+
+**AND ONE RULE REPLACES THEM: THE ROOM THE MEAN LEAVES THE VALUES.**
+`taxonomy._arrangements` counts how many sets of `k` different places on
+the pool's own grid, inside the range the column's width and sign
+census allow, add up to what the mean and the cell count say the pool
+adds up to. It is a Gaussian binomial coefficient, walked one factor at
+a time, checked against an exhaustive count of every subset over 980
+cases at four range sizes and seven level counts. The bound is
+`_POOLED_SCALE_ROOM`, **a thousand arrangements** — the level rule of
+six it replaces was accepted with a measured median of 118 and two pools
+of twenty-five down to four answers, and this asks a thousand of every
+pool rather than a median of the family.
+
+**WHAT THE COUNT OF LEVELS NEVER SAW.** Six different ONE-FIGURE
+numbers beside a published one-figure number passed every one of the
+four old rules and are named to within SIXTEEN answers: six of the ten
+one-figure numbers there are. Measured over every pool of one-figure
+numbers at every level count from one to seven, the smallest count of
+surviving arrangements is ONE. That shape published a pooled mean before
+this decision and does not now.
+
+**THE PROOF THE VALUES CANNOT BE RECOVERED** was taken the way the last
+pass proved they could: by counting, over the whole range the width
+allows, with the sizes given to the reader and the values taken as whole
+numbers, which is the coarsest grid and so the fewest answers. **Seventy-
+two shapes were run through the whole product** — the owner's own, eleven
+others built to reach a named rule, and sixty randomised label columns —
+and fifteen of them publish a pool. Counted exactly, the smallest number
+of surviving arrangements across every published pool is **1,224**, on a
+three-level pool of whole numbers beside a two-figure published number.
+**Not one shape came back with a single arrangement.** The owner's own
+shape leaves 429,466,368,887,745,697. The fifty-seven shapes the
+producer refuses reach the same state as a column with no held-back
+number at all, so a reader cannot tell a refusal from a silence.
+
+**WHAT THE VALIDATOR CHECKS NOW.** Method G12.12 is ONE obligation and
+no longer two. Its window is `taxonomy.pooled_window`: a fifth of the
+REACH, which is the largest magnitude the description states for this
+column's numbers — the largest of its published numbers, or the pool's
+own mean where it publishes none. It is measured rather than chosen:
+over ten shapes whose description publishes a pool and whose twin
+publishes one back, the furthest a conforming twin's own pooled mean
+stood from the published one was one part in eleven of that reach; the
+window is one part in five. The defect stands at one part in two.
+
+**IT IS NOT A BLANKET EXCUSE, and that is measured three ways on the
+owner's own shape.** As built the twin's pool sits on 204.5 and the check
+passes. With G8.3c's placement withdrawn the twin's pool sits at 100 and
+`validate` exits 3 on `suppressed.numbers.mean` while the real table
+exits 0. With the twin's pooled population shifted off its own
+centre — its pool at 264.5 against a window of 40.9 either side of
+204.5 — it exits 3 again, and the boundary is exactly where the rule
+puts it: a shift to 244.5 passes and one to 264.5 does not. With the
+window widened without bound the first mutant passes, which is what
+shows the window and not some other obligation is doing the work.
+
+**AND THE CHECK STOPPED BEING VACUOUS.** While the pool published a
+spread, the producer refused a pool at the tightest arrangement, G8.3c
+wrote exactly that arrangement, and every twin this product wrote
+published no pool of its own — so both obligations were WITHHELD on
+every file and plan P4-D301 said so. A mean names no arrangement, so a
+twin's own description publishes its pool and the comparison happens.
+
+**WHAT IS NO LONGER CHECKED, said plainly.** No check in this product,
+and no line of any report it writes, now says anything about how far
+apart a file's held-back numbers lie. A twin whose pool sits at the
+published average and is spread a tenth as wide as the real column's
+meets every obligation and meets them honestly, because no published
+fact was missed. The generation report's held-back note says so to the
+person in words: an average over this column's numbers IS about their
+table, a spread is not.
+
+**THE GENERATOR.** Method G8.3c step 2 no longer reads a spacing from
+the description, because there is none to read. It chooses one, and the
+choice is stated: `_POOLED_LOOSENESS` places of the finest grid the
+ladder writes at, held inside the room the column's own published
+numbers leave, and down to an odd whole number of places. Measured:
+
+| places apart | K-2B-19 | the owner's shape: mean error, spread error, held-back cells rebuilt |
+|---|---|---|
+| 1 | 62 | 0.0000, 0.0000, 100 of 100 |
+| 2 | 62 | 0.4167, 0.4480, 50 |
+| 3 | 63 | 0.0000, 0.6983, 40 |
+| 5 | 63 | 0.0000, 2.0593, 20 |
+| 7 | 63 | 0.0000, 4.0202, 20 |
+
+At one place the twin's pool comes back AS the table's, which is the
+"suspiciously tight" the landing brief names: a pool of consecutive
+whole numbers IS the tightest arrangement, and the mean pins where it
+starts. Five is odd, which keeps the written mean exactly on `mu` where
+the offsets are half-integers, and it halves again what a twin hands
+back. The room bound is what stops a pool of many levels reaching a long
+way: eighty groups five places apart on a column of integers around 120
+spanned four hundred and the twin's numeric spread came back 77.6
+against the table's 20.4; held inside the room it comes back within 2.61.
+
+**WHAT IT COSTS ON K-2B-19, and the owner is told rather than the
+ceiling moved quietly.** The accepted limit is 55 of 251 held-back cells
+the twin reproduces exactly, on a committed sweep of nineteen columns.
+It goes to **63 of 251**, with the count of columns rebuilt whole
+unmoved at 1 of 19. The cause was isolated: exactly ONE of the nineteen
+columns publishes a pool under contract 6.3.3, and withdrawing method
+G8.3c's placement alone puts the number back at 55. **This needs the
+owner's acceptance.**
+
+**WHAT THE READER IS STILL LEFT WITH, stated rather than waved away.**
+`suppressed_levels` with `suppressed_rows` pins the held-back levels'
+sizes wherever the pool stands at the top of invariant B4's band, and
+`n_cells` equal to `suppressed_rows` says every held-back level holds a
+number. Nothing here rests on either. A cell count and a mean over a pool
+whose values have at least a thousand arrangements leave a SET of
+populations and not a point; it is not a continuum, and no rule here
+makes it one while the held-back values are whole numbers.
+
+## Decision P4-D303 — the window on the pooled mean is counted in PLACES (2026-09-21, repair pass)
+
+**THE BLOCKER THIS CLOSES**, found by the review of plan P4-D302's
+landing. Method G12.12's window on `suppressed_numbers.mean` was a fifth
+of the largest magnitude the column's description stated — the largest
+of its published numbers, or `|mu|` where it published none. **A
+column's published number has nothing to do with its pool.** Measured on
+an ordinary shape, 100 `alpha`, twenty `990` and ten each of 940 to 949
+at a floor of eleven: the published `990` drew a window of 198.0 around
+a pooled mean of 944.5, and **the very defect ledger K-2B-50 names** —
+method G8.3c's placement withdrawn, the twin's pool back at 990.0 and
+its numeric mean 990.000 against the table's 952.083 — **passed inside
+it and the file exited clean.** The landing's single window test stood
+on the owner's own shape, where the reach and `|mu|` happen to coincide.
+
+**THE WINDOW IS DRAWN FROM THE GRID**, which is the one thing left that
+says how exactly a placement can meet a mean: TWO PLACES of the coarsest
+grid the column's description writes its numbers at — the fewest decimal
+places any number it publishes was written with — and whole numbers
+where it publishes none, which is the coarsest grid there is and the
+widest the window ever becomes. A mark this reader takes for a grouping
+mark answers nought places, which widens the window rather than
+narrowing it; a window read too narrow would call a sound twin missed.
+
+**WHY THE GENERATOR HAD TO MOVE FIRST.** A window counted in places is
+unmeetable while a conforming twin can stand a fifth of its published
+mean away, and it could: where a rule of G8.3c step 3 refuses every
+spelling near a group's value the offer steps outward until one is
+accepted, however far that is. Measured on 200 `alpha`, thirty `48.0`
+and five held-back one-decimal levels whose census names `%%.%`, the one
+group owing no form was refused every two-figure one-place spelling
+there is and the offer walked four hundred and twenty-eight places to
+`9.9`: the pool came back at 45.14 against a published 53.72, on a twin
+that broke no other rule.
+
+**SO G8.3c GAINED STEP 4: several offers, and the best one is written.**
+The plain offer of steps 1 to 3; then up to three MOVED offers, each
+standing where the one before it would have had to stand for its own
+cells to average `mu` (a plain fixed-point step, which slides the pool
+and keeps its arrangement); and last the CARRIED offer, in which the
+groups carry each other's arrears and the group the census pushes
+furthest goes first. **It is a repair and not a preference:** it does
+not run where the plain offer already meets the window, and it stops at
+the first offer that does, because moving a pool already inside the
+window buys nothing and moves the twin's numbers. **The plain offer is
+among them, so step 4 cannot make a twin worse.**
+
+**MEASURED, and both kinds of offer earn their place.**
+
+| measurement | before | after |
+|---|---|---|
+| furthest a conforming twin's own pooled mean stood from the published one, over 551 publishing pools (the landing's twelve shapes, the blocker's family and four draws of 150 randomised pools at four widths, two grids, both signs and mixed grids) | a FIFTH of the published mean | a THIRD of one place of the column's grid |
+| the K-2B-50 defect on 100 `alpha`, twenty `990`, ten each of 940–949 | error 45.5 against a window of 198.0 — **exit 0** | error 45.5 against a window of 2 — **exit 3** |
+| the K-2B-50 defect on the owner's own shape | error 104.5 against a window of 40.9 — exit 3 | error 104.5 against a window of 2 — exit 3 |
+| publishing pools outside the window, per draw of ~115 randomised pools | — | 0 |
+
+With the CARRIED offer withdrawn, four to five pools per draw came back
+outside the window, a dense one-decimal pool at sixteen places out,
+because no slide helps when the column's unused spellings near the mean
+are spent. With the MOVED offers withdrawn, a dense pool ran the arrears
+away instead of closing them: 2,500 one-decimal readings at a floor of
+twenty, whose 43 held-back levels leave almost no unused tenth, asked
+its last group for 44.92 on a column whose numbers run from 5.1 to 9.3
+and came back at 4.17 against a published 6.79.
+
+**WHAT THIS DOES NOT CHANGE.** Nothing published moves: contract 6.3.3
+still carries two keys and no third, the producer's room rule is
+untouched, and no check anywhere says how far apart a file's held-back
+numbers lie. The owner's own shape is placed exactly as P4-D302 placed
+it — step 4 does not run on it — so ledger K-2B-50's every measured
+value is unmoved.
+
+**WHAT IS STILL OWED.** No frozen case of any vectors file reaches step
+4: `pooled_number_scale`'s plain offer already meets its window, so the
+oracle's mirror of step 4 is held up by no committed byte. The rule is
+held by `tests/test_pooled_number_scale.py` and its mutation checks
+instead, and a frozen case that reaches step 4 — a column whose census
+pushes one pooled group a long way — is the next pass's work.
+
+## Stage 3 — decisions P4-D316 to P4-D345 (2026-09-22)
+
+Stage 3's landings take their numbers from this block. P4-D316 to
+P4-D318 are landing 3.1's and P4-D319 to P4-D321 its repair pass's;
+P4-D322 to P4-D327 and P4-D344 are landing 3.3's, the numeric tail;
+P4-D328 to P4-D331 and P4-D345 are landing 3.4's, the date and clock
+tails; P4-D340 and P4-D341 are landing 3.2's, the population floor;
+P4-D332 to P4-D335 are landing 3.5's; P4-D342 and P4-D343 are landing
+3.4's review repair; P4-D336 to P4-D339 stay reserved for the stage's
+other landings.
+
+**TWO NUMBERS WERE CLAIMED TWICE, AND BOTH CLAIMS ARE RESOLVED HERE**
+(the integration of the five stage-3 landings). The reserved block this
+stage opened ran from P4-D322, so P4-D321 was never free: landing 3.1's
+repair pass held it, and landing 3.3 -- built on a branch that never saw
+the repair pass -- numbered its first decision there as well. P4-D332
+was claimed the same way by landing 3.5, which took P4-D332 to P4-D335
+above the reserved block, and by landing 3.4, which ran one number past
+P4-D331 into it. In both cases the landing that arrived LAST moves, and
+it moves ABOVE everything allocated rather than into the reserved block
+-- which is the rule landing 3.4 already applied to itself when it
+numbered its review repair P4-D342 and P4-D343 because P4-D328 to
+P4-D341 were spoken for. So landing 3.3's "The numeric tail" is P4-D344
+and landing 3.4's "An advisory remark may not outlive the facts it
+quotes" is P4-D345. No decision's text changed; only its number did.
+
+## The integration of stage 3's five landings (2026-09-23)
+
+The five landings were built on five branches from one base, each with
+its own skeptic and repair pass, and four of them were merged before the
+fifth. This section records what the last merge had to settle that no
+landing could settle on its own. It adds no rule; every rule here is one
+of the five landings', and what is written is which of two claims to one
+name each keeps.
+
+### The routing of the reference vectors
+
+**The decision.** The tenth file,
+`tests/reference/generation-branch-vectors-8.json`, holds SIX cases: the
+four the date and clock tail landing moved into it (plan P4-D328) and
+two of the numeric tail rule's five (`tail_shape_ends`,
+`tail_made_up_ramp`). The eleventh,
+`tests/reference/generation-branch-vectors-9.json`, holds the numeric
+rule's other three (`tail_listed_counts`, `tail_sign_clamped`,
+`tail_moment_ladder`).
+
+**Why it is a decision at all.** Both landings opened a TENTH file, on
+their own branches, for cases that could go in no earlier one: the
+seventh, eighth and ninth all stand past the 200000 bytes plan P4-D295
+draws the line at. In one tree there is one tenth file, so the cases had
+to be routed. The numeric rule's five do not fit under the provenance
+manifest's 250000-byte cap in one file -- on their own branch they stood
+at 88460 and 175887 bytes, 264347 together -- and beside the date
+landing's four they fit still less. Two in the tenth and three in the
+eleventh is what fits: REGENERATED FROM THE MERGED ORACLE the tenth
+holds 128981 bytes and the eleventh 176144, both under the 200000-byte
+line as well as the cap, so the next case goes to the tenth and then to
+the eleventh.
+
+**No cap was raised and no case was dropped.** Every one of the eleven
+files was regenerated from the merged oracle and every one is under the
+cap; the tightest is
+`tests/reference/generation-branch-vectors-3.json` at 247474 bytes, with
+2526 to spare.
+
+**AND THE TENTH FILE HAS NOW CROSSED THE 200000-BYTE LINE, so the next
+case opens a TWELFTH** (the governance pass of stage 3's review). Four
+cases have gone into the tenth since the routing above was written --
+`representable_with_room` from the review's own item 4, and
+`tail_listed_floor` and `tail_withheld_pair` from the governance pass --
+and the eleventh took two from the dates pass. Measured after the
+rebuild from the merged oracle: the tenth holds NINE cases in 202875
+bytes and the eleventh FIVE in 192575, so by plan P4-D295 the tenth is
+past the line and the eleventh is not, and the next case goes to the
+eleventh while its own output stands under 200000. The one after that
+opens `tools/reference/make_generation_branch_vectors_10.py` the way the
+eleventh was opened -- by writing a new entry point over the same
+oracle, never by raising the manifest's 250000-byte cap and never by
+moving a case out of a file that already holds it. Every one of the
+eleven files stands under the cap still, the tightest unchanged at
+247474 bytes.
+
+### The four names each landing claimed twice
+
+Each is resolved the same way -- **the landing that arrived LAST moves,
+and it moves above everything allocated rather than into a reserved
+block** -- except the last, where the two names are not interchangeable
+and the rule is which name says which family.
+
+1. **Plan decisions.** `P4-D321` was landing 3.1's repair pass's and the
+   stage's reserved block opened at P4-D322, so landing 3.3's first
+   decision was never free to take it: it is `P4-D344`. `P4-D332` was
+   landing 3.5's and landing 3.4 ran one number past P4-D331 into it:
+   that decision is `P4-D345`. Neither decision's text changed.
+2. **Published sentence forms.** Landing 3.2 took NF59 for
+   `population_under_a_thousand` and landing 3.5 took it for
+   `said_fewer_than_the_line`. The note keeps NF59; the two fragments
+   are NF60 and NF61, and the 14.8 appendix gains the row the note never
+   had. Neither rendering, arity nor argument moved with the number.
+3. **KPI ids.** All five landings allocated from `K-S3-01`, and two
+   entries -- landing 3.2's population battery and landing 3.4's tail
+   leak -- were LOST by earlier merges rather than renumbered. They are
+   restored. The twelve are numbered in landing order: 3.2 takes
+   `K-S3-01` and `K-S3-02`, 3.3 `K-S3-03` to `K-S3-10`, 3.4 `K-S3-11`
+   and 3.5 `K-S3-12`.
+4. **Loader invariants.** Landing 3.4 named the date and clock tail's
+   invariants TL1 to TL4 and landing 3.3 named the numeric tail's TL1 to
+   TL6, in ONE dictionary, so every date-tail refusal quoted the numeric
+   rule's words. Here the rule is not arrival order but which name says
+   which family: `tails`, `TAIL_KEYS` and section 6.7a make TL the
+   numeric family's name across the code, so the date and clock family
+   is **DT1 to DT4**. It is also the smaller set, so fewer sentences
+   change to say the same thing.
+
+### The headline budget
+
+The board holds 30 headlines and held 30. Stage 3 arrived with four
+landings each calling its own entry a headline. ONE is kept --
+`K-S3-11`, the date and clock tail leak, because it is the only stage-3
+entry whose value is a measurement a reader can scan rather than a
+pass-or-fail, and it walks the largest battery of the four -- and the
+other three are demoted. The cap is not raised. Every one of the twelve
+is measured on every run either way; what a demotion changes is whether
+it is on the board.
+
+### P4-D316 The default smallest group is 11
+
+**The decision** (owner, 2026-09-22). The smallest group a run uses when
+nobody asks for another is 11: the value it held before amendment
+A-P4-37, and the same number as `contract.SMALL_GROUP_NOTICE_LINE`, which
+stays. `--smallest-group` below 11 stays legal and keeps its
+lowered-floor alarm. It reverses P4-D20's default of 1, which the twin's
+definition of 2026-09-12 already contradicted: a published value held by
+one row reveals that row's value.
+
+**What moved.** The number is written once, `parsing.DEFAULT_SMALL_CELL_FLOOR`,
+because every module that needs it already imports `parsing` and
+`parsing` imports nothing; `taxonomy.Settings`,
+`contract.DEFAULT_SMALL_CELL_FLOOR`, `cli._SMALLEST_GROUP` and the floor
+parameters of `reading.read_table`, `reading._read_authoritatively`,
+`reading._read_workbook_table`, `dialect.survey` and `dialect.settle`
+read it, and no module gains an import. The sentences that stated the
+default were rewritten -- not every one, as this said until its repair
+pass: five comments and docstrings in `contract`, `profile` and
+`taxonomy` and the `--code` help still assumed a default of one, and
+P4-D321 rewrote them -- the `--smallest-group` and `--missing-value` help,
+`errors.floor_not_positive`, the three pages' lowered-floor section
+(which said a description holds nothing back unless asked), the
+questions file's code choice (which said "because you asked for groups
+of N", untrue where nobody asked), the published remarks that promised
+every spelling on the `--code` route, README, SECURITY, STATUS, the
+charter and contract 2.3, 4.3a and 4.4. `asking._shape_of` lost its
+default floor of 1.
+
+**What it costs, measured** on the every-role table, floor 1 against 11:
+published labels 192 to 9; labels held by one row 147 to 0; the 183
+labels under eleven rows pooled, 224 rows; the value histogram on one
+numeric column of four, because it is all or nothing and a bell-shaped
+column's outer bins are thin -- until the tail landing re-anchors it; the
+description 100,210 bytes to 50,517; the twin's own report names four
+unmet facts at either floor and the twin misses no subcheck at either.
+Exact minima and maxima are still published; that is the tail
+landing's.
+
+**What it exposed, and is not repaired here.** Three generator paths ran
+at a raised floor only when somebody asked, and now run by default:
+
+- the 49-row declared identifier of P4-D182 publishes
+  `{"%%%": 12, "(withheld)": 21}`, and its twin writes the pooled groups
+  as `A0`, `A1` and `0e0`, which read as hexadecimal and rename every
+  layout, so the twin MISSES `layout_forms.%%%` at exit 3 on every seed.
+  On P2-C5-F2's battery of 200 declared identifiers the share of twins
+  missing their own description is unchanged -- 50 at a floor of one
+  and 50 at eleven -- but three generations took over five seconds at
+  eleven against none at one;
+- one column of A-P3-12's fold-repair battery (case 112) takes 269
+  seconds to generate at eleven against under one at one, in
+  `_layout_stepped`;
+- a whole-number column whose rarer width is held by fewer than eleven
+  cells publishes its width census counted into the commonest width
+  while its exact smallest value keeps the rarer one, so the twin names
+  `field_widths` (report-only). The tail landing, which withdraws the
+  exact ends, is where that one closes.
+
+**The suite.** The tests the change turned red were re-derived by one
+rule: a test whose subject is a floor-one mechanism -- a packing, a
+census of groups of one to ten, a lone blank line -- asks for a floor of
+one and says so; a test about the default is re-derived at 11 from the
+rule it states. The tests of the three paths above ask for a floor of
+one and name the defect beside it. The in-suite pin of K-P4-06 is
+measured at a floor of one, its ceilings' floor; the ledger's driver
+measures the default, and on `3f6cd9f` it reads 609 agreements outside
+the window, as recorded, and 4 rows-above counts missed against the
+ceiling of 3 -- worse by one, and left for the owner to rule on. (Its
+cause was measured and the ceiling moved in the repair pass: P4-D320.)
+
+### P4-D317 The floor holes
+
+Four places read or checked a file's form at a floor other than the
+description's, each measured before it closed:
+
+1. `dialect.survey` walks the file again after a broken
+   trailing-delimiter guess, and that walk dropped `small_cell_floor`:
+   asked at a floor of one, a file whose retry held one blank line
+   published none.
+2. `validation._surveyed_quietly` settled a zero-row checked file at no
+   floor. Read at the description's floor, a headed file of no rows
+   holds at most one blank place, which no raised floor publishes, so
+   `bytes.blank-lines` is not filed there (V3.4, the one-column rule's
+   reasoning) and a blank line is `bytes.zero-row-form`'s to miss.
+3. `tests/kpi_shapes.describe` read a table at the default and described
+   it at the floor asked.
+4. Blank places, the blank lines counted past the cap and the three
+   counts of empty records were held to the census line by the producer
+   alone: a hand-edited `{after: 57, lines: 1}` at a floor of eleven
+   loaded. The loader now asks the producer's own rule from its side
+   (`dialect.blank_places_broken`, `blank_spread_broken`,
+   `row_count_broken`, under FD4 and FD5), and so does the publication
+   guard (`profile._FORM_PLACES`, `_FORM_COUNT`). Contract 4.3a words the
+   clauses against the census line, not asked at a floor of one.
+
+`tests/test_stage3_default_floor.py` holds each, and an AST check asks
+every call of every function whose floor parameter has a default to pass
+it; `parsing.census_names_one_row`, whose floor is a line and not the
+person's, is the one exception and says why. Each guard was put back to
+the old code and seen red.
+
+### P4-D318 The owner's other decisions of 2026-09-22, recorded
+
+- **K-2B-19 is accepted at 63 of 251** held-back cells the twin writes
+  as the table held them. The owner: "it's ok. What matters is not show
+  the relation in a descriptive file, just showing that the value exist
+  is not an issue."
+- **Written-form extremes stay published**, as an accepted limit.
+- **A column's real average and spread stay published**, and the tail
+  carries the outer cells' mean and mean-square distance.
+
+## The repair pass of landing 3.1 — decisions P4-D319 to P4-D321 (2026-09-22)
+
+Its skeptic returned LAND_WITH_REPAIRS: three blocking items, two high,
+two medium and three low, beside one recorded for information (small
+published counts on the every-role table, which the tail landing owns).
+Each of the ten is closed below or held by name.
+
+### P4-D319 Two places of one form at one record are one place
+
+**The defect** (blocking; it predates landing 3.1, which made every
+default run meet it). `dialect.blank_places_disclosed` writes a blank
+place whose form fewer places wear than the census line in the
+commonest form (P4-D311), and did not ask what that left. A header and
+30 records, each followed by one blank line, except that record 17 is
+followed by a line of three spaces and then the blank line, published
+`{after: 17, lines: 1, text: ""}` TWICE at the default. Places are read
+as runs of ONE text, so invariant FD4 refuses two of one text at one
+record, and `generate` and `validate` refused the producer's own file
+as one changed since it was written. The skeptic's fuzz of 400
+blank-line-heavy files: 112 refused at the default, 0 at a floor of one.
+
+**The rule.** A place the absorption writes in the text of the place
+before it at the same record is MERGED into it, its lines added -- which
+is how the file written that way would be read -- and the rule is asked
+again of what that leaves, since the merged place wears a form of its
+own and there are fewer places, until it moves nothing. Every pass that
+moves something merges two places or removes a form, so it ends; a list
+the first pass leaves unmerged is published exactly as before. The
+skeptic's file publishes thirty places of one line, one of its
+thirty-one lines withheld.
+
+**The same question on every side.** `dialect.blank_place_follows` is
+the one order question: the producer's merge, the loader's FD4 clause
+and `dialect.blank_places_broken` -- which the publication guard asks --
+all ask it, at every floor, so `profile` can no longer write what the
+loader refuses. Measured with the rule's first step alone, as it stood:
+7,471 of 12,000 seeded place lists at floors 2 to 20 broke the order,
+and 27 of 40 seeded files were refused by their own loader; with the
+rule, none. `tests/test_stage3_default_floor.py` holds the skeptic's
+file end to end at the default, the fixed point on those 12,000 lists,
+the guard's order at a floor of one and at the default, and the forty
+files through the producer, the loader, the generator and the
+validator; withdrawing the merge, the second asking or the guard's
+order each turns them red.
+
+### P4-D320 What the default of 11 costs elsewhere, held by name
+
+None of these is a defect of landing 3.1's code, which changed no
+generator line; each is the default withholding more, or a generator
+path that ran at a raised floor only when somebody asked.
+
+- **K-P4-06, 4 rows-above counts missed against the ceiling of 3.** At
+  11 the battery's positions publish no value histogram and no mode and
+  an absorbed width census, every bin and value being held by fewer
+  than eleven cells, and the generator builds them from less. Measured
+  one column at a time, forty seeds: 609 and 3 at a floor of one, as
+  recorded; 609 and 4 at 11, the fourth being column 9 at seed 29,
+  positions 1 and 4, 23 rows above against 22. The ceiling moves to 4
+  in its own commit, the entry stays with stage 6's pairing walk, and
+  the in-suite pin runs both floors.
+- **The declared identifier of P4-D182 misses `layout_forms.%%%` at the
+  default** (exit 3 on every seed): its pooled groups are written `A0`,
+  `A1` and `0e0`, which read as hexadecimal and rename every layout.
+  Not repaired: the fix is a change to G9.6's made-up spellings, with a
+  method clause and an oracle. Held three ways -- a strict xfail at the
+  default in `tests/test_p4d182_layout_packing.py`; the disposition
+  registry's battery back at the default with this one line held by
+  EQUALITY, so a repair turns it red; and K-2B-47's
+  `declared_layout_default_missed_checks`, 3 over three seeds.
+- **Fold-repair battery case 112 is a known limit at the default.** At a
+  floor of one its column is laid out 8 times and generates in about
+  half a second; at 11 its class counts and one layout are pooled, the
+  fold repair finds no layout it accepts, and it is laid out 4,516
+  times, reading 47,349,727 layout fillings -- 269 s on the reference
+  machine. `test_case_112_is_still_the_known_limit_at_the_default`
+  stops the walk after 32 layouts, so it costs seconds, and goes red
+  when a repair brings the default inside that bound.
+- **Carried misses the default now hides.** K-2B-47's heavy tail (the
+  mean of 2,000 Pareto charges) and P4-D298's record layout fall from 2
+  and 3 missed verdicts to 0 at 11, because the charges' histogram and
+  mode and the rarer layouts are withheld; both still miss at a floor
+  of one and are now measured there too. K-2B-05's four flipped
+  verdicts fall to 0 the same way and the entry stays OPEN. The read
+  floor's four moving facts fall to 0 for a different reason: P4-D317's
+  guard refuses a table read at one and described at eleven, so the
+  driver records that refusal (it crashed on it) and the bound is 0.
+
+### P4-D321 The floor reaches every read, and every floor parameter
+
+- **Tests and tools.** Fifty-eight test functions and three functions
+  of tool drivers built `taxonomy.Settings(small_cell_floor=...)` and
+  read the table at the default -- the hole P4-D317 closed in
+  `tests/kpi_shapes.py` alone. Each of their 62 reads passes the floor
+  now, and
+  `tests/test_stage3_default_floor.py` asks the question of `tests/` and
+  `tools/`: in a scope that names a floor, every call of a package
+  function whose floor parameter has a default passes one.
+- **Every floor parameter.** The literal-default check asked
+  `small_cell_floor` alone, so `reading._read_workbook_table`'s `floor`
+  back at 1 went unseen. It asks every parameter named for a floor now.
+  Seventeen `floor=0` and `floor=1` defaults in `generation` and
+  `validation` that every caller passes are gone, or name
+  `parsing.DEFAULT_SMALL_CELL_FLOOR` where an earlier parameter's
+  default keeps one; `parsing.census_names_one_row`'s line stays.
+- **The mutation gaps.** The zero-row check at the default (a survey
+  hard-coded at a floor of one survived), the loader's and the guard's
+  leading and trailing empty-row counts (each could be dropped), and
+  the literal default above each have a test that goes red.
+- **Tests that lost a half.** Three tests written `[None, 11]` when None
+  meant a floor of one ran eleven twice; they ask `[1, None]`. The
+  one-number histogram test asserts again, at a floor of one, that the
+  varying position keeps its census.
+- **Wording.** The five sentences P4-D316 missed, the `--code` help --
+  which promised every code's count where the default pools the rarer
+  ones -- and ledger K-P4-22's name, which said the shipped floor is 1.
+
+## Landing 3.2 — the population floor and the person rule (2026-09-22)
+
+Decisions P4-D340 and P4-D341. Built on the default floor of 11 that
+landing 3.1 left on this branch. The disclosure floor is still counted
+in ROWS everywhere; counting it in PEOPLE is a later landing, and what
+this one builds is the key that landing reads and the one gate that
+uses it today.
+
+### P4-D340 The person is named by the declared identifiers that REPEAT
+
+**The rule.** A declared identifier NAMES A PERSON when some folded
+present value of it stands on two or more rows. One that is different
+on every present row names a ROW, and never a person. Where several
+repeat, they are a UNION: rows are one person when they share a folded
+value of ANY of them. Rows holding a present value of NONE of them are
+ONE unknown person between them. Identity is `parsing.folded` — trimmed
+and case-folded, the identity labels already use.
+
+**What it replaces, and why.** The subject design proposed the declared
+identifier with the FEWEST different present values. Its skeptic
+refuted that on a measured table of 150 subjects whose second
+identifier `sample_id` stood on 90 rows and was different on every one:
+the fewest-distinct rule chose `sample_id`, counted 91 people and
+REFUSED a table of 150 subjects; with `sample_id` on 120 rows it
+counted 121 people and named a group held by ONE real subject. Under
+this rule the same table gives `subject_id`, 150 people and no such
+group. Union-find over ALL declared identifiers was also measured and
+rejected by the design: with a per-row identifier declared beside the
+subject's it makes every row its own person. Restricting the union to
+the identifiers that REPEAT is what removes that, because a per-row
+identifier is exactly the one that does not repeat.
+
+**Leading zeros are not normalised.** `007` and `7` stay two people.
+That is the liberal direction and is stated as a limit rather than
+guessed at.
+
+**Recorded** as a new settings key `person_columns` (contract 4.4 and
+14.3; C6-20's key count moves from twenty-two to twenty-three), a
+sorted list of column names, empty where the population is counted in
+rows. It is DERIVED and never typed, and invariant S8b holds every name
+in it to `settings.forced_identifiers`. Its closed enumeration:
+`taxonomy.Settings`, `profile._settings_block`, `profile._STATED_RULES`,
+`contract.SETTINGS_KEYS`, the loader's settings reader,
+`contract.SettingsBlock`, `validation.settings_for`, the contract's
+settings section, the disposition registry and the settings
+completeness test.
+
+**Asking for the person.** Where the population is still counted in
+ROWS — where `person_columns` is EMPTY — a column is asked about when
+EITHER route holds. Both routes share their first condition:
+
+1. its present values REPEAT — at least two rows per different folded
+   value, counted and never divided.
+
+Route one's second condition:
+
+2. it holds MORE DIFFERENT VALUES than a set of categories could have
+   had in a table of this many rows — `taxonomy.categories_ceiling`,
+   the line `categorical_share` and `categorical_ceiling` already
+   record in every description, asked rather than restated.
+
+Route two's second condition (route two was added by this landing's
+repair pass, because route one cannot reach the case below):
+
+2. every present cell is WRITTEN AS A CODE: inside the code alphabet
+   (`parsing.is_code_text`, the positive evidence the identifier rule
+   itself asks for) and carrying both a letter and a figure.
+
+**AMENDED BY THE REVIEW OF STAGE 3 (floor item 4), and this entry is
+the record of it.** Two conditions above are the amendment, and each
+closed a route by which one thing settled who a whole table is about.
+
+*The gate was "NO column at all is declared as holding record
+numbers".* A declaration is only an answer to this question when it
+settles who the rows are about, and an identifier that is different on
+every row settles nothing: it names a ROW, which is the distinction
+`repeating_identifiers` was written for three paragraphs above.
+Measured: 1,196 visits over twelve people with a unique-per-row
+`visit_id` declared and nothing else left `person_columns` correctly
+EMPTY — the population was counted in rows — while the declaration
+silenced the question, so the run published the twelve subject codes,
+asked nothing, and printed neither the population notice nor the notice
+that it had counted rows. The gate is now `person_columns` itself, so
+the question is asked exactly where the count is still in rows.
+
+*Route two's first condition was "EVERY different folded value stands
+on at least two rows".* One subject with a single visit made that false,
+and the limit was recorded beside the rule rather than repaired: the
+cited table of twelve subjects over 1,196 visits, with ONE of them
+holding one visit, was asked about by neither route — route one because
+the subject count is under the categorical ceiling, route two because
+one row of 1,196 said so. ONE ROW MAY NOT SETTLE WHO A TABLE IS ABOUT,
+so the condition is route one's average on both routes. What the
+stricter form was for is still held by the average: a per-row key has as
+many different values as cells, so it fails "two rows per value" by a
+factor of two whether or not one value of it repeats.
+
+The sentence the questions file says was SEEN moves with the rule: it
+said "so each one stands on more than one row", which the average does
+not promise, and it now says "on average". **And so do both notices
+that say the population was counted in ROWS** — the one the scripted
+path prints among its assumptions and the one printed beside the
+question at a terminal. Each opened "Nothing was named with
+--identifier", which was true while any declaration silenced the
+question and is false the moment a unique-per-row key is declared and
+the count stays in rows; both now say "No column that names PEOPLE has
+been declared".
+
+Route two's second condition is what holds its cost down, and both
+halves of it were measured. Without the figure, every column of words
+clears it — `site`, `arm`, `North`, `yes`/`no`. Without the letter, a
+two-value column of `0` and `1` clears it, and so do a group coded
+1/2/3 and an ordinal 0 to 10.
+
+Roles read as a quantity (`count`, `continuous`,
+`numeric_unrepresentable`, `numbers_with_labels`, `joined_numbers`),
+the calendar and clock roles and the empty role are out: a column read
+as plain numbers is reached by the checklist question instead.
+
+**The line was chosen by measurement**, over the four realistic
+families of `tests/kpi_shapes.py` (twelve columns, run both as shipped
+and with every declaration removed) and five tables of the subject
+design (fixed 100x5, fixed 150x3, geometric 1,000, and 1-to-8 visits
+over 40 and over 22 subjects). The question is asked about the four
+`subject_id` columns and about NOTHING else: `dose` (40 different
+values over 400 cells) and `note` (9 over 400) are sets of categories
+and fall at condition 2, `record`, `subject` and `visit_id` are
+different on every row and fall at the condition both routes share, and
+`score` (98 to 102
+different whole numbers repeating 3 to 28 times), `weight`, `amount`
+and both date columns are excluded by role. That last group is what
+makes the role test load-bearing rather than tidy: every bounded scale
+the owner named on 2026-09-22 — a pain score of 0 to 10, a risk
+grade, a rating item, a coma scale, ages in whole years — clears both
+measured conditions.
+
+**Why it is needed at all.** The only pointer at `--identifier` fires
+where `raw_distinct >= 0.95 x n_present`, which is the opposite shape
+and never happens for a repeated subject column. Measured by the
+design's skeptic: a table of 12 subjects over 1,196 rows passed the
+population floor on its rows with no notice, and `subject_id` was
+described as a set of categories with every subject's identifier
+published beside its visit count.
+
+**And route one could not reach that case either**, which this
+landing's skeptic measured and its repair pass fixed. Condition 2 is
+the exact COMPLEMENT of the rule that makes a column `categorical`
+over the same row count, so route one fires only on a column that
+publishes NO levels — never on the one publishing every subject's
+identifier beside its visit count. The cited table is asked about by
+route two, and `tests/test_p4d341_population_floor.py::test_a_subject
+_column_read_as_categories_is_asked_about` asserts both halves: that
+the column reads as `categorical` and publishes all twelve, and that
+the question is put.
+
+**What route two also reaches, accepted with the measurement** (ledger
+K-S3-02's `status_note`). A `ward-12`-shaped label column and a
+register of diagnosis-like codes are written exactly as a subject
+register is written, and nothing in the values tells them apart. On
+the 33-column battery the rule reads 4 false positives where route one
+alone read 2 — and route one's two were unmeasured until this pass,
+because the battery held neither shape. The cost of each is ONE
+question whose standing answer is `keep`; the cost of the miss it
+replaces was a description that published twelve people's identifiers.
+**The count did not move when the review's amendment loosened route
+two's first condition**: 4 of the same 33, the same four, because a
+per-row key fails the average by a factor of two whether or not one
+value of it repeats.
+
+The answer becomes the `--identifier` declaration by the route every
+other answer takes, and where nobody has said, the screen says the
+population was counted in ROWS.
+
+### P4-D341 Under 100 refused, 100 to 999 noticed, and in `cli._run_profile` only
+
+**The rule.** The command counts the population — rows where
+`person_columns` is empty, otherwise people. Under
+`parsing.POPULATION_FLOOR` (100) it refuses with
+`errors.the_population_is_too_small` and writes nothing. From there to
+`parsing.POPULATION_NOTICE_LINE` (1,000) less one it runs, with ONE
+notice that cannot be silenced.
+
+**The rows counted are the rows that HOLD A VALUE** (repair of this
+landing). `taxonomy.people_in` counted the rows the reader returned,
+so twenty real records followed by eighty `,,` rows — or eighty
+`NA,NA,NA` rows — read as a hundred-row table, cleared the floor and
+were described, and every census, mean, spread and percentile in the
+description that came out was taken over the twenty. Three numbers
+padded to a hundred printed all three back verbatim. A row whose every
+cell is blank or is one of this format's spellings for "no value" is
+now counted nowhere: neither as a row of the population, nor as part
+of the one unknown person where an identifier is declared. The notice
+below then states the honest number, because the number it states is
+this count.
+
+**AND "HOLDS A VALUE" IS THE FINISHED READING'S ANSWER** (review of
+stage 3, floor item 3; this paragraph is the record of the
+amendment). The census asked `taxonomy.split_missing`, which is the
+FIRST of the passes that decide what a column holds — the half of the
+person's declarations that reads SPELLINGS — and stopped there. Four
+passes come after it, and every one of them takes cells out: the
+declarations that name a NUMBER, the numeric stand-ins this package
+judges, the calendar placeholders it judges, and the stand-ins inside
+affixed cores. So exactly the same twenty records padded to a hundred
+cleared the floor whenever the padding was anything but a blank or a
+listed word — measured on five paddings, one per pass and one for the
+spelling half: `-999` declared with `--missing-value=-999`, `-999.0`
+declared the same way, `-999` with nothing declared at all,
+`9999-12-31` in a column of dates, and `-999 mg` in a column of amounts.
+Each was counted as a hundred rows of population, and each produced a
+description recording twenty present cells and eighty missing. **One
+reading, in one place:** `profile_column`'s own prologue is
+`taxonomy._read_the_column`, the census asks it through
+`taxonomy._census_reading` -- the route
+`taxonomy.present_spellings_after_the_rules` answers from too -- and a
+test holds the
+census's surviving spellings equal to the description's `n_present` on
+all five paddings, so a sixth pass added to one reading and not the
+other turns the suite red rather than reopening the floor.
+`taxonomy.Declarations` is what carries the four column declarations
+down to it, because each of them changes what a column holds: an
+identifier skips three of the passes, a code or a measurement moves the
+role they are gated on, and `--decimal-comma` decides what number a
+cell denotes.
+
+**Where it lives, and what it may not touch.** `cli._run_profile` and
+nowhere else. `profile.build_document` describes a table of any size
+and refuses none; the reader, the loader and `synthtwin validate` are
+untouched. A library caller still describes five rows, and the
+validator still re-describes a 50-row file it was pointed at. A
+DESCRIPTION WRITTEN BEFORE THIS LANDING DOES NOT STILL LOAD, and the
+sentence here that said it did was wrong when it was written: the
+settings block gained a required key on this landing
+(`person_columns`), and contract rule C6-20 makes all twenty-three of
+its keys required, so the loader refuses an earlier build's v6
+description and names the entry that is missing. The break is
+sanctioned by amendment A-P4-41, which extends version 6 in place
+until the first release; such a description has to be made again. What
+the floor governs is the one act the command performs: turning a real
+table into files that leave the machine.
+
+**Asked twice.** Once after the read, with the identifiers typed on the
+command line and answered in the questions file — a necessary
+condition, because a declaration arriving later can only LOWER the
+count of people. Again after the on-screen answers' rebuild, with the
+final set, before anything is announced and before anything is
+written. A refusal at either gate costs one message and no files.
+
+**The notice is one sentence, in six places.** It is a new enumerated
+form, `population_under_a_thousand` (contract NF59, NG59), arity 2:
+the population and the WORD it was counted in, `rows` or `people`, two
+new members of the package-word vocabulary (14.4a; the vocabulary
+moves from 24 to 26 and the grammar from 58 forms and 96 positions to
+59 and 98). The description carries it as a publication note naming NO
+COLUMN — the first note of that kind, which S10 and S11 are widened
+for — and the screen, the plain-language summary, the questions file,
+the twin's report and the quality report all render it from there, so
+none of them can drift from the others. The twin's own TABLE carries
+nothing of it, which is what keeps code written against the twin
+running unchanged.
+
+**What the notice may not say.** It may not say that a size lifts an
+obligation. It says the opposite in as many words: the same rules
+produced the description, the smallest group size is the same number,
+and every obligation it states is the same obligation.
+
+**The headline example moves with the floor.** The 11-row forced-match
+example described a table synthtwin now refuses, so every surface that
+carried it — `cli._STATUS`, the summary, the twin's report,
+`src/synthtwin/__init__.py`, `CLAUDE.md`, `README.md` and `SECURITY.md`
+— states it at 100 rows, keeping the exact phrase the claim inventory
+requires.
+
+**What the tests cost.** Every test that drove the profile COMMAND on a
+table under 100 rows moved to 100 rows or more, with its expectation
+derived from the rule rather than copied off a run, or to
+`build_document` where the command was incidental to what it checks.
+
+Three ways, and which one a shape takes is decided by what the shape
+IS. Where the shape is a property of a column's PRESENT values, the
+table is padded to the floor with cells this format reads as "no
+value", which leaves every census, every count and every role over
+them exactly as they were. Where the shape is a property of the table
+the generator wrote, the case's own generator is run to the floor --
+never by repeating rows, because three cases here turn on their
+column's values being all DIFFERENT and a repeated row takes that
+evidence away. And TWO CLASSES cannot be grown at all: a column whose
+FEW different values are the shape, because the categorical ceiling is
+a share of the table's ROWS and a hundred rows read those values as a
+set of categories; and a column DECLARED with `--identifier` whose
+values repeat, because those values are then what the population is
+counted BY, so a code on fifteen rows is one person at any length.
+Both describe with `profile.build_document` and still build, report on
+and check their twin through `generate` and `validate`, which the
+floor does not govern. A description written that way says the
+population was counted in rows, which is what a caller who never ran
+the gate did.
+
+**The two ledger entries are stamped on the landing's own commit**,
+`52b9eee`, and recorded in the commit after it -- the route K-P4-20
+took on 2026-09-22. Neither value could have been taken on any earlier
+tree, because the population floor and the person question are what
+this landing built.
+
+## Landing 3.5 — decisions P4-D332 to P4-D335 (2026-09-22)
+
+Landing 3.5 is the sentence half of the stage-3 count inventory: no
+sentence carries a count a key withholds, the words a count moves read
+the census line, and the mode's complement is a group. Its design is the
+count inventory of 2026-09-22 and its skeptic's verdict, which returned
+UNSOUND on the rules the orchestrator then declined to build.
+
+### P4-D332 The odd-kind, sign and pair counts stay published
+
+**The decision** (ORCHESTRATOR, 2026-09-22 — reversible, and to be put
+to the owner on the board). `n_not_numeric`, `n_out_of_range`,
+`n_contradictory`, `n_negative_unrepresentable`, the clock and joined
+`n_unparsed`, the affixed complement, `n_zero`, `n_negative` and
+`part_above` are NOT floored, absorbed or counted out. Rule M, rule V,
+rule I and the `rare_kinds` presence list of the design are not built.
+
+**Why, measured.** Flooring them broke goal 1 — code developed on the
+twin runs unchanged on the real table — in 7 of 7 probed shapes: the
+owner's program ran clean on the twin and raised on the real table,
+because the odd cell the real column holds was gone from the twin.
+`np.log(s.astype(float))` raises on a real column holding one `(-5)`
+and not on a twin without it; `str.split("/").astype(int)` the same;
+`pd.to_datetime(format="%H:%M")` the same. And the count did not even
+go away: the design's own measurement recovered it exactly from the
+published `n_missing` in 7 of 7 shapes, because a cell counted out is
+counted absent.
+
+**What it extends.** The owner's acceptances K-2B-28 (free text's
+`n_numeric` of one, a pooled label's `n_missing` of one) and K-2B-48 (a
+date column's `n_unparsed` of one), under the owner's own principle,
+verbatim: "What matters is not show the relation in a descriptive file,
+just showing that the value exist is not an issue."
+
+**What holds it.** KPI `K-S3-12`, a ceiling of 64 count leaves at 1 to
+10 over the 43 seeded shapes of `tests/stage3_battery.py` at floor 11.
+A later landing that widens this exposure moves that number and says
+why in the entry's `status_note`.
+
+### P4-D333 Every sentence argument is bound, and the thirteen that are not keys are floored
+
+**The decision.** `taxonomy.ARGUMENT_BINDINGS` binds every argument
+position of every form — all 97 of the contract's, the two it states
+and no producer emits included — to what it is: a key of the block, a
+sum or a difference of keys, a key of the document, the main wrapper's
+cells, a setting, the levels at the line, a place in one of this
+package's own lists, a column number, a value of the column said a
+second way, or one of THIRTEEN counts no key carries. The guard
+`profile._arguments_are_bound`, called from `check_publication` beside
+`_affix_notes_are_bound`, holds a bound position equal to what it is
+bound to and a floored one to the census line. Contract C6-143 states
+the same table and `tests/test_p4d27_note_grammar_matches_the_code.py`
+holds the two equal in a third direction.
+
+**The measurement that asked for it** (the design's own
+`guard_measure.txt`, 56 documents). At a floor of eleven: 252
+sentences, 145 carrying whole numbers, NINE arguments printing a count
+no key of the block published at all, and 38 more restating a count the
+key itself published below the line. The walk flags the first kind, and
+flagged 3 at a floor of one and 7 at five. The second kind is not this
+decision's to close: the key publishes those counts and P4-D332 is the
+call that leaves them published.
+
+**THE SECOND NUMBER READ 29 IN SEVEN PLACES AND THE RUN SAYS 38.** 29
+is what the same `guard_measure.txt` records on its NEXT line, under a
+rule-M prototype this landing did not build; the design's own prose
+table carried the 29 across and the landing carried it into the
+contract, the plan, the changelog, two docstrings and a test. The
+repair pass states 38, which is the shipped tool's number, and adds
+`tests/test_p4d334_sentence_arguments.py::test_the_keys_a_sentence_restates_below_the_line_are_held_at_a_ceiling`
+so the class is re-measurable from the repository rather than quoted
+from a file outside it: 20 such arguments over the committed 46-shape
+battery at the default floor, held as a ceiling on P4-D332's own
+reasoning. THE GROUP-CLASS SPLIT IS NOT STATED ANYWHERE, so it is not
+claimed: commit ce20f83's own message says "38 restating a key below
+the line, 29 of them GROUP-class" and no artifact in this repository or
+in the design output records that split.
+
+**Which floored positions name a population** (corrected by the repair
+pass; the paragraph here said "no binding names a population" and gave
+a reason that was false of four of them). FOUR of the thirteen name
+`n_present`: NF44's two counts, NF29 argument 6 and NF18's date reach.
+Each counts the cells bearing ONE SPELLING -- of a number or of an
+affix -- so what it does not count is a spelling-census group
+`census_nameable` withholds in the same block, and the sentence handed
+it back by subtraction. Measured: 1,199 comma-grouped prices beside one
+bare cell printed 1199 next to a published `n_present` of 1,200, which
+is the exact shape `census_nameable`'s own docstring records as the
+reason it exists; 390 dates beside ten free-text cells printed 390 next
+to 400; 59 cells wearing ` mg` beside one wearing ` MG` printed 59 next
+to 60. The other NINE name none, and that is P4-D332's call rather than
+an omission: there the complement is the count of cells a competing
+reading did not reach, and the block publishes it in a key beside the
+sentence -- NF36's flagship shape publishes `n_unparsed` = 5 next to
+the reaches of 3,995 -- so flooring the sentence would withhold
+nothing.
+
+**What arming it costs, measured.** A remark is withdrawn: the
+1,199-price shape loses its decimal-comma warning entirely, which is a
+load-bearing warning about 1,199 cells that may be a thousand times
+their real size, withdrawn by one ungrouped cell. The alternative is
+the subtraction. Keeping such a warning and printing no count -- what
+NF61 does for the sentence that cannot be withdrawn -- is an
+owner-sized question about what a description is FOR, and goes to the
+board rather than being taken here.
+
+### P4-D334.1 The fragment `said_some_but_not_all`, and the clash it closes
+
+**The defect.** `taxonomy._arguments_at_the_line` wrote the DIGITS
+wherever a floored count stood nowhere and could not be withdrawn,
+while `profile._floored_argument_is_bound` refuses exactly that. The
+two halves agreed only because no binding named a population; the first
+one to do so turned an ordinary table -- 390 ISO dates beside ten
+free-text cells at the default floor -- into a ProfileError reading
+"this is a fault in synthtwin itself: no table causes it".
+
+**The decision.** A 60th form, arity 0, rendering "some but not all"
+(capitalised where it opens a sentence, on NF60's rule). It stands
+where the count REACHES the line and the population named beside it
+leaves a group below the line, and only where the sentence cannot be
+withdrawn. NF60 cannot stand there: "fewer than 11" is false of 1,199.
+Arity nought is the whole control -- a form with no argument carries no
+count, so there is no line it can contradict and no key it can
+disagree with, and what it says is what the clause around it already
+asserts.
+
+**Mutation.** Take the four populations back out of
+`taxonomy.ARGUMENT_BINDINGS` and the three complement shapes of the
+battery print 1199 beside 1,200, 390 beside 400 and 59 beside 60
+again, and `K-S3-12`'s third number reads 4 instead of nought.
+
+### P4-D334 The fragment `said_fewer_than_the_line`
+
+**The decision.** A 59th form, arity 1, its argument the census line.
+It stands at a floored position where the count is one or more and
+below the line, and it renders "fewer than 11" — the shape of the
+number and never the number. Where the position opens a sentence (NF29
+argument 6) the first letter is capitalised. Where the line is two, a
+remark whose floored count falls below it is WITHDRAWN instead: "fewer
+than 2" beside a clause asserting such cells exist is a count of one
+said in words. The one sentence that cannot be withdrawn is a column's
+own detection evidence, which every block must carry, so the fragment
+stands there at every line: strictly less than the digits it replaces
+above a line of two, and exactly as much AT a line of two, where a
+fragment that stands only above nought is one said in other words.
+Measured at `--smallest-group 1`: 399 free-text cells beside one date
+write "fewer than 2 read as dates" in their evidence while the remark
+repeating the same count is withdrawn. The evidence keeps what the
+digit said and never more, which is the price of the sentence a block
+may not lose.
+
+**Where it is used.** NF44's two counts, NF18's date reach, NF36's two
+contradiction counts, NF54, NF55 and NF29 arguments 6 to 9 — the
+thirteen FLOORED positions. NF36's two reaches never carry it, because
+the rendering compares them to choose which of its three sentences to
+write; where either reach is itself below the line that remark is
+withdrawn instead. Where a count REACHES the line and its population
+leaves a group below it, NF60 is false and NF61 stands instead
+(P4-D334.1).
+
+**What it costs, measured.** At the default floor NF36's second clause
+reads "fewer than 11 ... and fewer than 11" on every shape that can
+reach it, because a cell only one reading accepts is a cell the other
+leaves unparsed and eleven of them on the losing side put the column
+below the parse line. The clause still tells its reader the column
+contradicts itself, which is what it is for.
+
+**Mutation.** Put the digit back where the fragment stands and
+`tests/test_p4d334_sentence_arguments.py` turns red; so does a fragment
+built with any number but the line, and a fragment standing at a
+position that is not floored.
+
+### P4-D335 Rule W, and the mode's complement
+
+**The decision, rule W.** `negative_form`, `group_separator` and
+`wide_runs` read `parsing.census_floor` rather than the settings floor,
+and so do the loader's NS1 and WR1. GS1 gains the floor clause its two
+siblings always had: a column names the mark between its thousands only
+where the forms map leaves room for at least the census floor of the
+cells a writer groups. D14 reads `census_floor` in place of its own
+rebuild of it. `_all_at_midnight` already read it, through
+`_midnight_count`. Nothing moves at the default floor of eleven; at a
+floor of one, one bracketed cell among 400 no longer publishes
+`brackets`, one grouped cell no longer publishes the mark, and one wide
+run no longer publishes `canonical`.
+
+**The decision, the mode.** `_mode_published` asks
+`parsing.census_nameable([mode_count], [n_used_in_statistics])`, so the
+pair is withheld where the count is a group but its COMPLEMENT is not:
+395 zeros among 400 numbers published `mode_count: 395` and named the
+five cells that are not the heap. Loader invariant Q18 holds the same
+rule.
+
+**What follows it.** A withheld pair no longer proves "no number was
+held by more than `floor - 1` cells" on its own, because a heap is
+withheld too. Method clause G5.2a-2 states the narrowing: the floor
+term stands only where the other bounds already put the cap at or below
+`K - L`. The generator's `_floored_cap`, the validator's
+`_stratum_bound` and the reference oracle each read that clause, and
+one frozen branch vector moves with it.
+
+### P4-D328 A column of dates or clock times publishes tails, not ends
+
+**The decision.** `earliest`, `latest`, `earliest_utc_offset` and
+`latest_utc_offset` are removed from the `datetime` role and `earliest`
+and `latest` from `time_of_day`. Each role publishes two TAILS instead,
+`low_tail` and `high_tail`, each
+`{boundary, rows, mean_distance, rms_distance, values}`, and `datetime`
+publishes `tail_unit` beside them. The boundary is the smallest value
+with at least a smallest group's worth of cells strictly below it,
+mirrored above; `rows` counts the cells strictly beyond it; the two
+distances are the mean and the ROOT-MEAN-SQUARE distance of those cells
+from the boundary, in the tail's own unit, each an exact whole-number
+sum rounded once. The eleven-rung ladder keeps its keys and publishes a
+rung only between the two boundaries, both ends always null (contract
+D11, T2). No published value is one of the k outermost cells any more,
+and the stage-3 gate -- no published number held by fewer than the floor
+-- is met for these two roles.
+
+**Why the root-mean-square and not the mean square** (the numeric
+sibling's skeptic, break 4): a mean square of distances in seconds
+overflows binary64 on a column of moments far apart and underflows on
+one of tiny values, and the loader's own invariant then refuses a
+description the producer wrote. The root is in the column's own unit, so
+it cannot leave the range its values live in, and the shape reads
+`r = (rms / mean)**2` from it.
+
+**What the twin does.** Method G7.3b: the two boundary ranks are pinned
+at the two boundaries, each published rung at its own value, and each
+tail is drawn through ONE SHAPE -- the mixture
+`a(s) = E * s**n * (w + (1 - w) * s)` the numeric tail is read through,
+with `n` decided by exact rational comparison -- whose mean and mean
+square over a uniform share are the two published distances. The
+outermost rank stands at a MOMENT-MATCHED end: the stretch on the drawn
+ranks and the end's own distance solve the two moment equations
+together, which on a lone far value misses the published numbers by 0.1
+to 3.9 per cent where a stratum mean misses by 14 to 22. Each rank's gap
+is its own stratum, so every later pass -- the counts of different
+values and widths, the moves onto and off midnight, the step off a hole
+-- keeps every tail fact inside the window of G12.14, which the
+validator draws from the same construction.
+
+**The word budget does not move** (G3, G4). A column of dates is handed
+`P - 2` content words as it always was; a pinned rank reads none, and a
+clock column's boundary ranks and tie group read theirs and set them
+aside, so no column generated after a date or clock column moves.
+
+**What each new key owes a twin** (plan P2-D6's matrix, for the keys
+this decision adds, on `datetime` and on `time_of_day` alike; the four
+keys it removes take their dispositions with them). A boundary is an
+exact value of a real cell and a count beyond it is a recount, so
+`low_tail.boundary`, `high_tail.boundary`, `low_tail.rows` and
+`high_tail.rows` are EXACT-OBSERVABLE, in the representation owner
+decision 5 fixes. Which values a tail holds is a set a re-description
+gives back cell for cell, so `low_tail.values` and `high_tail.values`
+are EXACT-OBSERVABLE as well, each published value held by at least one
+cell beyond the boundary. The two distances are consequences of a
+construction that places ranks inside strata rather than targets it
+hits, so `low_tail.mean_distance`, `high_tail.mean_distance`,
+`low_tail.rms_distance` and `high_tail.rms_distance` are APPROXIMATED,
+under the two-sided window of G12.14 -- except on a tail publishing its
+values, where every rank stands on a published value, the counts are
+solved to reach the published mean, and the mean is owed exactly. And
+`tail_unit` names the unit the two tails are counted in, follows from
+the block's own resolution, precision and midnight fields by DT4, and
+obliges no cell of any file, so it is LOADER-ONLY: the loader settles
+it when the description is read, each of the three fields it follows
+from is checked in its own right, and a verdict of its own would be a
+second reading of theirs. The two containers
+themselves, `low_tail` and `high_tail`, are STRUCTURAL: each is a block
+whose membership is the five keys above, every one of them disposed in
+its own right, and the key carries no value obligation besides theirs.
+
+**The eleven-rung ladder of each role keeps its dispositions** and loses two rows
+each: `date_percentiles.min`, `date_percentiles.max`,
+`clock_percentiles.min` and `clock_percentiles.max` are null in every
+description this version writes, so they oblige no cell of any file and
+no document disposes them. Every rung a tail rule withholds is null on
+the same terms; the rungs that remain are APPROXIMATED as they were.
+
+**Measured** over the design's battery -- its seventeen shapes and the
+skeptic's four more, at two sizes and up to three seeds each, 105 cases
+at a floor of eleven -- through the real producer, generator and
+checker, and recorded as ledger entry K-S3-11
+(`tools/measurements/kpi_stage3_tail_leak.py`): boundary and rows exact
+on both sides of every twin; NO checkable obligation missed on any twin
+or on any real table of the battery; NO published value, summary line
+or report line equal to one of the eleven outermost values of any case,
+by whole-token scan, counting a tail's own published values and the
+member's fixed example as the publications they are; and NO tail whose
+published rows, mean and root-mean-square distance leave one multiset
+of distances by back-solve -- the tightest leaves two, on a column of
+quarters. Against the old generator the spread of a lone-far-value
+column comes back at -0.24 to +0.46 per cent where the shipped
+construction gave +7.92 to +26.02.
+
+**Three things the suite found after the design was written**, recorded
+here because the landing is what the suite says it is:
+
+- **a tail's BOUNDARY is MISSED, never withheld, where the file holds no
+  cell at that rank.** The rank is counted from the outside of the
+  file's own dates, so a file holding fewer of them than the description
+  publishes has no cell standing where the boundary stands -- an
+  obligation it does not meet, not a measurement its own description
+  would decline to carry. Reporting it withheld said the disclosure gate
+  had closed on a column whose ROLE the same report held, which is
+  silence bought by making a file worse (validation method V5.3):
+  measured on four precision perturbations of one column, eight
+  obligations went quiet with nothing in the report saying why.
+- **and a tail is counted over the cells the file's own description
+  counts as VALUES** (amendment A-P3-5 clause 2). A placeholder day the
+  producer judges to mean "no value" is a date to a reader and a hole to
+  the description: twenty cells of `1900-01-01` beside 449 consecutive
+  days put twenty instants below a boundary published over the 449
+  values the description holds, and the table that description was
+  written from was told it missed four obligations at exit 3.
+- **and two committed MUTANTS lost their outcome**, which is written
+  down rather than repaired away: P4-D258's midnight trade withdrawn no
+  longer strands a fourth value in the twin, and the free unit search is
+  no longer asked at all on the one-stray-time column, because G12.4's
+  own placement and the tails' published values reach those cells first.
+  Both tests keep the mutation and assert the property that replaced it,
+  and the loss is recorded where the branch losses of this landing are,
+  in `docs/spec/generation-method-v1.md` G14.3.
+
+### P4-D329 A tail that publishes which values it holds
+
+**The decision** (the owner's ruling of 2026-09-22, quoted in P4-D318:
+"what matters is not show the relation in a descriptive file, just
+showing that the value exist is not an issue"). Where a tail holds at
+most `taxonomy.TAIL_FEW_VALUES` different values -- quarters, months, a
+few days -- or where a LATTICE CHECK finds that its published numbers
+would settle its outermost value or any count below the floor, the tail
+publishes its sorted distinct `values` in place of its root-mean-square
+distance, and its mean distance beside them only where that settles no
+count below the floor either. The twin then writes the tail on those
+values and nowhere else, each at least once, with the counts solved to
+reach the published mean exactly (G7.3c).
+
+**The lattice check** is the back-solve a reader can run, run by the
+producer first (the skeptic of the tail design, blocker B1). A reader
+gives back the whole sum of the distances and of their squares from
+`rows`, the two distances and the tail unit; every distance is a whole
+number of units from one to the space's own edge; where the column
+publishes `n_distinct == n_present` the distances are distinct too; and
+where `rows` exceeds the floor the innermost `rows - floor + 1` cells
+share one distance. The producer searches for WITNESSES -- another
+allowed multiset whose largest distance differs, and for each count the
+floor protects another whose count there differs -- with a bounded
+depth-first walk (`taxonomy.TAIL_LATTICE_STEPS`), and where it cannot
+find one it answers "pinned", the answer that publishes less. Without
+it, 18 of 20 seeds of a quarters column published a tail from which the
+exact maximum and its count of three cells follow by arithmetic.
+
+**Its limit, stated.** The check is exact within its budget and
+conservative outside it, so a tail it cannot decide publishes its values
+rather than its spread. It is run on the two tails of every column of
+dates or clock times; measured over the battery it decides every side in
+under a millisecond.
+
+### P4-D330 A column with no tails publishes no value at all
+
+**The decision.** Where the column holds fewer than `2k + 1` parsed
+cells, or where ties at an end leave no value between the two
+boundaries, it publishes `low_tail` and `high_tail` as null and every
+rung as null (contract DT2). It is the date and clock half of the
+numeric sibling's block floor: below the floor nothing value-bearing is
+published, and between the floor and `2k + 1` there is no tail and no
+rung. A death date present in 15 rows of 2,000 is the common case.
+
+**What the twin does** (G7.3d): a made-up RAMP from 1970-01-01, one
+unit a rank -- a whole day for a column of moments -- spread over the
+column's published count of different values, so the counts beside it
+are still met: `n_distinct`, `n_at_midnight`, `resolution_mix` and the
+four written-form censuses go through the ordinary passes. What cannot
+be met is LISTED by the quality report as withheld rather than missed
+(validation method V3.5).
+
+### P4-D331 Every tail rank stays inside what the column can write back
+
+**The decision** (the skeptic of the tail design, B2 and B3). A tail's
+ranks and its derived end are placed only where the column's own
+spelling reads them back: the calendar for an ordinary member, 1969 to
+2068 for a member writing a two-figure year (`TWO_DIGIT_YEAR_PIVOT`),
+and the workbook date system's first day where the twin's cells are
+stored as days. On the shared clock the edges come in by the widest
+offset the census names. **The calendar itself is not inset on the local
+clock**: a heap of `0001-01-01 00:00:00` -- the "no date" value of two
+common systems, floor-safe at 40 cells -- comes back written exactly,
+where a one-day inset wrote none of them. The moment solve is
+clamp-aware: an end past the edge stands AT the edge and the rest of the
+tail is stretched to keep the published mean, which is the point mass
+the real column has.
+
+**D10 moves with it.** The loader's calendar-edge clause asked about an
+endpoint moved onto the clock its own endpoint offset named; neither
+field exists now, so the clause is the generator's obligation (G7.3e)
+and D10 keeps the two clauses a loader can still decide -- the seconds
+field of a published moment against the column's own precision and
+clock.
+
+### P4-D345 An advisory remark may not outlive the facts it quotes
+
+**The decision.** NF51, the time-band remark, writes the smallest and
+the largest value of a `count` column a second way, as two days. It is
+admitted only because both are facts the same block already publishes.
+This landing stopped publishing the end of a date or clock column, and
+the `count` role's ladder follows in the sibling landing, so the
+sentence's two ends are that block's **low and high tail boundaries**
+from the day the ladder stops naming `min` and `max`. The remark keeps
+its arity of seven, its argument classes and its wording: a band, then
+a year, a month and a day twice over.
+
+**Why it is recorded here and not built here.** The numeric block of
+this branch still publishes `min` and `max`, so its remark quotes
+published facts and leaks nothing; a producer here may read either, and
+`taxonomy._epoch_band_reading` already walks the column's own values
+rather than the ladder, so it needs no change to follow the ladder.
+What the rule forbids is the state in between: a block whose ends are
+gone and whose remark still names them would publish the two extreme
+values of a floored column in prose, which is the one disclosure this
+stage exists to close. A block with neither end nor boundary -- a
+column too small for a tail -- carries no remark at all.
+
+### P4-D342 The ruling's premise is part of the ruling
+
+**Numbered above the block.** The stage-3 heading reserves P4-D316 to
+P4-D339, and P4-D328 to P4-D331 are this landing's own. This decision
+repairs one of them after its review, so it takes the next free number
+above P4-D341 rather than a number inside a block already spent.
+
+**The decision.** The owner's ruling of 2026-09-22 -- "we don't need to
+be worried about the tails. Like, many people will be there and there
+is no big deal in knowing that it's there" -- is a ruling about BOUNDED
+SCALES WITH FEW VALUES: a pain score, a stage, a grade, a Likert
+answer, ages in whole years, quarters. Its premise is that many people
+stand on each listed value. P4-D329 applied the ruling without its
+premise, and on a column of all-different clock times the premise is
+false: every value is one person's own time. So a tail publishes the
+values it holds only where all three of these hold, and publishes its
+shape otherwise.
+
+1. **One canonical text to a distance** (P4-D329's own rule, unchanged).
+2. **Every distance the tail would list is held by at least
+   `taxonomy.TAIL_SHARED_CELLS` of its cells**, so no listed value names
+   one row. The extreme case is a tail whose `rows` equals the length of
+   its own list, where the count of one follows by subtraction.
+3. **The column's values come from a small fixed set, not a fine grid**:
+   its different values, counted as ordinals in the tail's own unit so
+   that two spellings of one day count once, are at most
+   `taxonomy.TAIL_SET_VALUES` -- 256, a scale a reader could enumerate,
+   quarters over sixty-four years or months over twenty-one -- and
+   stand under at least `TAIL_SHARED_CELLS` cells apiece on average.
+   Decided once per column, in `taxonomy.ordered_tails`, because it is a
+   fact about the column and not about either of its ends.
+   **OR the tail is a HEAP**: every value it would list is held by at
+   least the FLOOR's own number of cells, which is "many people will be
+   there" by the project's own measure of many, and then the column's
+   grid says nothing against it. K-S3-11's own `_outermost` already
+   reads the rule from the other side, leaving out any value the
+   floor's cells hold, so the producer and the measurement now agree.
+
+**What was published before, and what is published now.** On the
+shipped battery -- 21 shapes, two sizes, up to three seeds, floor 11,
+200 tails -- 29 tails listed values and 171 published two distances.
+Now 12 list values and 188 publish two distances. The 12 that keep the
+values road are seven of quarters and
+months, every value held by 3 to 14 cells over columns of 117 to 120
+different values standing under 3.4 to 12.8 cells apiece, and five of
+`dotnet_minimum`, whose 40 cells all stand on the one `0001-01-01`
+sentinel and pass as a heap. The 17 that lost it are
+`clock_all_different` and `clock_edges` at 900 rows -- 900 different
+values, one cell each, eleven values listed per side each held by ONE
+cell, which is the blocking item -- and `lone_far`, `births` and
+`months` at 1,500 rows, each listing a value that one cell holds.
+
+**MEASURED HEADROOM.** The nearest column on the excluded side is two
+years of admission days: 217 to 227 different values, inside the 256,
+but 1.76 to 1.84 cells apiece, below the two. The nearest on the
+included side is quarters at 3.36 cells apiece and 119 different values.
+So the vocabulary test has room of 2.1 times below and 2.0 times above,
+and the sharing test 1.7 times above and 1.1 times below.
+
+### P4-D343 What the shape road still settles, measured and stated
+
+**The decision.** P4-D329 sent a tail whose two published distances
+would settle what the floor protects to the VALUES road. P4-D342 closes
+that road on every column whose values are one person's own, and such a
+tail now publishes its two distances WHATEVER the lattice check says of
+them. It is the lesser of the two disclosures and it is not nothing, so
+it is measured rather than claimed away: K-S3-11 gains an `edge_pinned`
+key, a CEILING held at its measured value in the manner of
+`equality_only`.
+
+**What `edge_pinned` counts.** How many shape-drawn tails the published
+`rows`, `mean_distance` and `rms_distance` settle to ONE multiset of
+distances once the reader also uses the two things the same description
+hands them: the column's own "every value different" remark, and the
+tail's own edge -- how far a distance can reach before it leaves the
+calendar or the day, which follows from the boundary and the member.
+The driver's `pinned` key uses neither, so it reports how tight the
+lattice is on its own; `edge_pinned` reports how tight it is to the
+reader who has the whole description.
+
+**Measured** on the shipped battery, floor 11. `clock_all_different` at
+900 rows, seed 0: the low tail holds 11 cells below the boundary `00:14`
+at distances summing to 80 with squares summing to 756. Ignoring both
+extra facts, 687 multisets fit. With them -- 11 DIFFERENT whole
+distances, none past 14 because the day starts at `00:00` -- exactly
+ONE fits, which names all eleven values including the column's own
+minimum. The same shape at HEAD of the unrepaired landing printed those
+eleven values in the clear, so the shape road says strictly less; it
+does not say nothing.
+
+**WHAT IS STILL OWED, and to whom.** Whether a column this dense may
+publish a tail at all is a question for the owner, not for this repair:
+the shapes it bites on are all-different clock columns whose tail is
+pressed against the end of the day, where 11 cells stand in a 14-minute
+window and any published summary of that window is nearly determined.
+Three levers exist and none is this landing's to pull -- a wider tail
+(the boundary rule, contract DT2), a coarser published number (the
+`APPROXIMATED` disposition of the two distances), or no tail at all on
+such a column. The number is now on the board so that the choice is
+made on a measurement.
+
+**The two budgets are not the same question.** `taxonomy._tail_pinned`
+is the PRODUCER's guard and answers "pinned, publish less" when its
+budget runs out (plan P4-D329). K-S3-11's own walk is the MEASUREMENT
+and answers "plenty of room" when its budget runs out, which is why the
+tails it happens on are counted as `unsearched` instead of passing for
+measured. Each defaults to the answer that cannot flatter the landing,
+and the two must not be read as one rule.
+
+### P4-D344 The numeric tail (landing 3.3)
+
+**The decision.** A numeric block stops publishing its smallest and
+largest values, and every rung whose type-7 reading touches one of the
+outermost `max(small_cell_floor, 3)` values on its side. What stands
+there instead, per side, is the tail as a GROUP: the boundary percent
+the ladder stops at, how many rows lie beyond it, their MEAN DISTANCE
+from the boundary rung and the ROOT-MEAN-SQUARE of that distance. The
+keys are `tails` and `bin_groups`, the contract states them at 6.7a
+with invariants TL1 to TL6 and BG1, and
+`docs/spec/generation-method-v1.md` G5.1a to G5.3e, G5.5a, G5.6a,
+G6.7a and G12.13 state what reads them.
+
+**Why.** The twin's definition of 2026-09-12 binds: "the description
+needed to build that population reveals nothing about any individual",
+and a published minimum is one row's value. Measured over sixteen
+shapes at a floor of eleven, the numbers a description published that
+equalled a value fewer than eleven rows held went from **13 to 46 per
+shape to none**, and at a floor of one, where the leak set is a minimum
+or a maximum one row holds, from 9 to 19 per shape to none.
+
+**What it buys beside the disclosure.** The straight segment from the
+last interior rung to an exact extreme was also the twin's widest
+error: `K-P3-03` measured the spread of twenty normal columns 1.07 to
+3.83 per cent too wide, and 19 of 20 twins missed their own spread
+check at 20,000 rows. With the tail's shape read instead, the spread is
+within ±0.15 per cent and nothing is missed.
+
+**Dispositions.** The container key `tails` is LOADER-ONLY: it carries
+no obligation of its own, and each leaf below it is disposed on its own
+terms. `tails.low.percent`, `tails.high.percent`,
+`tails.low.rows` and `tails.high.rows` are LOADER-ONLY: each follows
+from `n_used_in_statistics` and the smallest group size, the loader
+holds the description to both (TL1, TL4), and a file of the same count
+of values re-describes them identically, so a check would repeat
+`counts.n_used_in_statistics`. `tails.low.mean_distance`,
+`tails.high.mean_distance`, `tails.low.rms_distance` and
+`tails.high.rms_distance` are APPROXIMATED, inside the window G12.13
+draws from G5.6's rank form over the tail ladder; the validator reads
+a file's tail AT THE PUBLISHED PERCENT and withholds the comparison
+where the file's own tail stands elsewhere. `tails.low.values` and
+`tails.high.values` are EXACT-OBSERVABLE: the generator writes the
+tail on those values and no others, so a file's own tail lists the
+same ones. `bin_groups` is REPORT-ONLY, for the reason
+`value_histogram` is: the twin's cells are allotted to values by the
+runs of the published ladder and not by a census of bins.
+`percentiles.min` and `percentiles.max` stay EXACT-OBSERVABLE where
+they are published, and a tail block publishes them only where at
+least `max(small_cell_floor, 3)` rows held the value; the check is
+then ONE-SIDED and silent -- no cell of the file beyond the end, and
+the file's own extreme never printed.
+
+**What it costs, stated.** A twin's range is now derived, so the twin
+no longer holds the real extreme: measured over the sixteen shapes,
+between 0 and 3 real cells per shape fall outside the twin's range
+(K-S3-07 holds the ceiling). Nothing else of the block moves: 0 MISSED
+on every twin and every real table of the battery, at floors 1 and 11.
+
+### P4-D322 The tail reading and its derived end
+
+**The decision.** The rows beyond a boundary are read through a
+two-parameter shape fitted to the two published distances -- a mixture
+of two adjacent whole powers, built from `+ - * /` and `sqrt` alone in
+a fixed order (G5.3b) -- and the pinned stratum holds a DERIVED END:
+the fitted end moved outward where the fitted power says the tail is at
+least as long as an exponential one, held inside the furthest one row
+of `m` can stand with that mean and root-mean-square, placed on the
+column's grid and held to the sign counts (G5.5a).
+
+**The root-mean-square and not the mean square** (the skeptic of
+2026-09-22, break 4). A mean square is the square of a column's unit,
+so on a p-value column reaching 1e-300 it underflows to nought while
+the mean distance does not, and on values near 5e160 it overflows: the
+prototype crashed with `ZeroDivisionError` on the first and
+`OverflowError` on the second, on tables the shipped tool describes,
+generates and validates today. The root-mean-square is in the column's
+own unit, is computed by the exact integer square root and rounded
+once, and the reading forms `r = (rms / d1) * (rms / d1)` where it
+needs the ratio. G14.3's required cases now include both ends of the
+binary64 range and a subnormal one.
+
+**The outward move** (the skeptic's break 6). A shape fitted to two
+moments ends inside the real extreme of a light tail, and code that
+reads a range from the twin then meets real rows outside it: 16 real
+cells of a 20,000-row normal column, 5 at 5,000 rows, 4 on a lognormal
+and 3 on a Pareto. Where the fitted power is 2 or more the pinned end
+stands at the larger of the fitted end and `d1 * H(rows)`, the harmonic
+sum, which is where the largest of `rows` draws of an exponential tail
+of that mean is expected. It is a function of published facts alone, so
+it discloses nothing, and it is held inside the tail's own bound.
+
+### P4-D323 The block population floor
+
+**The decision.** A numeric block of fewer values than
+`max(small_cell_floor, 3)` publishes no rung, no moment and no
+histogram: `tails: null`, and its twin's values are the made-up ramp of
+G5.3d, one grid step apart on their own sign bands, so the column keeps
+its type, its sign counts and its count of different numbers and claims
+nothing else. A block of fewer than `2 max(small_cell_floor, 3) + 1`
+publishes its four moments and no rung (`tails: {low: null, high:
+null}`), and its twin reads the moment ladder of G5.3c -- the uniform
+stretch with that mean and that spread.
+
+**Why three, whatever the floor.** Two published moments over one or
+two rows solve for those rows exactly, so a tail always spans at least
+three units: at a floor of one a 101-row column's `p01` tail is ONE
+row, and `min = b - d1` exactly. At the default floor of eleven the
+rule changes nothing.
+
+**Measured** at floor 11 on blocks of 8, 15, 23, 24 and 40 values:
+before the ramp the sign fallback wrote `1.0` eight times and the twin
+was re-described as another role; with it, 0 to 7 and nothing missed.
+The 15-value block's twin is 1.9 per cent off its mean and 6 per cent
+off its spread, with nothing missed on the twin or the table.
+
+### P4-D324 The listed tail on a grid, and the lattice check
+
+**The decision** (owner, 2026-09-22). On a block whose values stand on
+a grid -- `integer_valued`, or one published fraction width -- a tail
+that holds at most `taxonomy.TAIL_VALUES_MOST` (six) different values
+publishes THOSE VALUES, ascending, with no count beside them, and the
+generator writes the tail on them and on nothing else, each at least
+once, with counts solved so that the tail's mean distance is met
+exactly and its root-mean-square as closely as whole counts allow
+(G5.3e). The owner's words: "we don't need to be worried about the
+tails ... many people will be there and there is no big deal in knowing
+that it's there. If you prefer a more privacy worried approach, make
+sure that code still working and that we gonna still have reliable
+statistical results."
+
+**Why, measured** (the skeptic's break 1). The smooth reading of G5.3b
+rounded onto a bounded scale writes values the scale does not have and
+never writes its own end: on a pain score of 0 to 10 at a floor of
+eleven the twin wrote 50 cells at **11**, wrote 10 in none, and its
+mean was **24.8 per cent high** with nothing missed. Over the
+thirteen-column ordinal battery -- pain, GCS, a surgical risk grade,
+Apgar, children and Likert, two seeds each -- the listed tail writes
+**no off-scale cell and every real value**, and every twin's mean is
+inside the band the shipped generator reached before stage 3.
+
+**The lattice check, producer-side.** On a grid every tail distance is
+`c + k u` with `c` fixed by the published boundary, so `rows * d1` and
+`rows * rms**2` give the sum of the `k` and of their squares exactly,
+and a search over whole parts can leave ONE feasible largest part --
+the withheld end, named in all but name (the skeptic's break 2:
+measured on pain 0 to 10 at 2,000 rows, 18 of 20 seeds). So a grid tail
+whose rows, distances, boundary, grid and sign counts leave one answer
+for its end is LISTED too, whatever its count of values. The search is
+exact and bounded (`taxonomy.TAIL_LATTICE_REACH`,
+`TAIL_LATTICE_WORK`): past those sizes a tail spans too many units for
+one answer to fit, and the measurement that stands behind the bound is
+the skeptic's own -- count, length-of-stay and admissions tails leave 6
+to 39 feasible ends.
+
+**What a listed tail discloses, stated plainly.** Its values, which the
+owner has ruled publishable, and -- through the two distances beside
+them -- how many rows hold each where the tail holds two or three
+values. That is the owner's ruling applied, not an oversight: the
+alternative is a twin that writes values the scale does not have.
+
+**A run that REACHES INTO the tail is one of the runs kept whole**
+(found by `K-P4-11` while this landing was being verified). The
+layout neither joins nor divides a band's runs that lie inside a listed
+tail, and a tail's innermost listed value is commonly the column's
+value just inside the boundary as well -- so the ladder reads one
+number across the edge and such a run lay wholly inside nothing. On the
+240 clinical codes of the ClinVar system the walk joined it to its
+neighbours, the stratum that swallowed it read its own share, and the
+twin wrote five cells at `920759` where the table holds `920760`:
+`tails.high.values` MISSED and one of eighteen coding systems stopped
+validating clean. The run is kept WHOLE and not cut at the edge; a cut
+was measured first and spends one of the band's strata on the tail's
+own part, which took that stratum off a published MODE -- 210 cells
+written nowhere on 1,140 readings. It is kept whole only where the
+band's runs must be JOINED at all, because that is the only case one
+can be joined away in: on 150 cells over three values written
+`+100.25`, `200.25` and `300.25`, whose three runs already had three
+strata, the protection split fifty published pluses across two values
+and the twin wrote four spellings of three numbers. And it is kept
+whole, not kept STILL: the levelling still evens the band, without
+which it came out 49, 53 and 48 cells where the source holds fifty of
+each. The price of keeping it whole is one number at one seed of one
+battery: a 4,000-row column of halves holds 16 of its 17 different
+values at seed 1, where the run kept whole is one stratum and the walk
+could have divided it.
+
+**A pooled census may not cross a checked fact** (the same
+verification). The two spelling clamps of G5.3b step 4 read a census of
+widths and a census of marks as a ceiling, and both censuses count a
+group of fewer cells than the smallest group into the commonest (plan
+P4-D222): a column of 1 to 30 publishes the one field width two
+although nine of its cells wear one. Read as a ceiling there, the clamp
+moved a derived low end from under 1 up to 10, and no set of `m` rows
+has mean distance `d1` with its furthest row nearer than `d1` -- so the
+end made a CHECKED fact unreachable to hold a report-only one. Neither
+clamp now pulls an end inside `b -/+ d1`. Measured on the 30-row
+reading column of a macro workbook: five cells at 10 and none below it,
+the twin's mean 5.3 above the published 15.5, `ladder.p50` and
+`moments.mean` MISSED.
+
+### P4-D325 The histogram between the two tails, and the stretch edges
+
+**The decision.** A tail block's bins divide `[b_lo, b_hi]`, the two
+boundary rungs, and a value outside that stretch is IN NO BIN, so
+G6.7's walk never moves a tail value (G6.7a). The census is published
+as `bin_groups`, groups of bins each holding at least
+`max(small_cell_floor, 3)` rows, which is what makes a histogram
+survive a raised floor at all: measured at a floor of eleven, the
+all-or-nothing census of `value_histogram` vanishes on every
+non-uniform shape, and the groups come back on all sixteen -- 6, 18,
+30, 32 and 32 groups on the normal columns, 15 on a Pareto, 13 to 20 on
+charges, 21 on counts, 23 on a heap at zero, 32 on ages.
+`value_histogram` is `{}` on a tail block.
+
+**The stretch edges keep the owner's principle.** `empty_edges` names
+two REAL values per run of empty bins, and the owner ruled on
+2026-09-22 that "just showing that the value exist is not an issue".
+So the pairs stay where both edges are INTERIOR values -- a run with an
+occupied bin on both sides -- and are withdrawn where a run touches an
+end bin, whose outer neighbour is a tail value. G6.7 walks to the
+published edges as before, and to the edges of the run's own bins
+where the description publishes none.
+
+**K-P4-07 is restated, not quietly lost** (the skeptic's break 5). The
+KPI reads "no twin cell falls in a stretch the real column left empty",
+0 of 12,000 cells, EXACT. Its rule now reads **no twin cell inside a
+published stretch**: the stretches a description publishes are the
+interior ones, and the twin keeps out of those. What it no longer
+covers is a gap whose own edge is a tail value, where the twin may now
+write a cell -- measured on the three two-cluster witnesses, at most
+one bin's width deep. The entry's `status_note` carries this sentence
+and its ceiling.
+
+### P4-D326 Where the outward move is measured
+
+The pinned end's outward move (P4-D322) is measured per shape as REAL
+CELLS OUTSIDE THE TWIN'S RANGE, and the ledger holds the ceiling
+(`K-S3-07`). It is the one number that says whether code developed on
+the twin meets a real row it was not built for, and it is the trade the
+derived end makes: before stage 3 the twin's range was the real one
+exactly, because the description published it.
+
+### P4-D327 The band's own sign (found while building landing 3.3)
+
+**The defect.** On an ordinary count column the twin wrote the value
+one in **4 cells against the table's 317**, and its mean was 18 per
+cent high, with every check passing, at floors 1 and 11. Reproduced:
+2,000 rows of `int(random.Random(7).expovariate(0.2))` beside a
+constant column, described, generated at seed 4.
+
+**The cause.** The positive band begins where the zero stratum ends,
+and the ladder does not know that: it crosses from the last rung
+reading nought to the first reading one by a straight line, so the
+first ranks of the band read a fraction under a half, the integer rule
+of G5.4 takes them to nought, and the band opens with a run of noughts
+BESIDE the real plateau of one. G5.5's sign repair moves that run to
+one, two strata then hold one number, G6.5a's separation moves the
+larger up to two, and every stratum above it moves up in turn.
+
+**The repair** (method G5.2a step 1a). A band's rank values are held to
+the band's own sign before the runs are taken: in the positive band a
+value that is not above nought reads as the first value of the band
+that is, and in the negative band a value that is not below nought
+reads as the last value that is. With it the twin writes one in 324
+cells and its mean is 1.3 per cent above the table's. The frozen case
+`mode_held` moved with the repair -- the ladder now reads the
+commonest value on a stratum of its own, so the case's mode moved one
+grid step to keep holding its own pass up. NO FROZEN CASE WAS ADDED
+for the step itself, and that is named here as the gap it is: what
+pins it is the round trip
+`tests/test_stage3_tail_rule.py::test_a_count_column_beside_a_zero_heap_keeps_its_ones`,
+which withdraws the step and reads the counts and the mean off the
+twin. `K-S3-09` holds that same column's count of ones and its mean,
+and `K-S3-10` holds the histogram the groups keep at a raised floor.
+
+### P4-D346 One listing rule, asked by every role
+
+**The decision.** `parsing.tail_may_list` is the only statement of when
+a tail may publish the values it holds, and both the date/clock role
+(`taxonomy._tail_side`) and the numeric role (`taxonomy._listed_tail`)
+ask it. It is the premise of the owner's ruling of 2026-09-22, read as
+that ruling's own condition: every value the tail would list is held by
+at least `parsing.TAIL_SHARED_CELLS` of the tail's cells, AND the
+column's values are a small fixed set -- at most
+`parsing.TAIL_SET_VALUES` different ones standing under at least
+`parsing.TAIL_SHARED_CELLS` cells apiece on average -- OR every listed
+value is held by the floor's own number of cells.
+
+**Why one function.** The two roads were written apart and drifted. The
+date road had carried the premise since P4-D342; the numeric road had
+none, and listed wherever a tail held at most six different values or
+its own shape would settle its end anyway. Measured: a continuous
+column of 599 rows on a tenth-unit grid published `88.0` -- its own
+maximum, held by ONE row -- in the same block that withheld
+`percentiles.max`, and a second of 609 rows listed five values whose
+counts in the column were 1, 1, 1, 1 and 9. Both are closed by the
+rule; neither column is a bounded scale and the owner's ruling reaches
+neither.
+
+**The second road, and what it may say.** A tail whose published rows
+and two distances settle its own outermost value names that value
+either way, so listing it is the reading that says LESS. On a column
+the rule does not admit, that road is open only to a tail of at most
+`parsing.TAIL_SETTLED_VALUES` different values: two distances stand
+under two counts that add to `rows`, so the pair settles both and the
+list adds nothing. Eleven all-different clock times are not settled
+that way -- their pair settles the outermost and leaves the rest of the
+multiset open by tens of thousands -- which is why that road is closed
+to them and the blocker of the date landing's skeptic stays closed.
+
+**MEASURED, BEFORE AND AFTER**, at a floor of eleven, over six bounded
+clinical scales, four measured columns, three fine-grid columns and
+eight continuous witnesses.
+
+| shape | rows | before | after |
+|---|---|---|---|
+| pain 0-10, GCS, a surgical risk grade, Apgar, children, Likert | 1,800 | both sides list | both sides list |
+| the same six | 900 | both sides list | seven of twelve sides list; five say their shape |
+| whole-year ages | 2,000 and 5,000 | both sides list | both sides list |
+| whole-year ages | 600 | both sides list | neither side lists |
+| normal, lognormal, Pareto charges | 600 | neither lists | neither lists |
+| continuous, one place, 599 rows | 599 | neither lists | neither lists |
+| continuous, two places, 609 rows, nine cells tied at the top | 609 | the high side lists `87.54, 87.8, 89.21, 90.68, 99.99`, held by 1, 1, 1, 1 and 9 cells | neither lists |
+| 640 readings to two places, each tail 13 cells over 3 values held 5, 5 and 3 | 640 | both sides list | neither lists |
+
+**WHAT THE REFUSAL COSTS, and it is stated rather than argued away.**
+On the six scales at 900 rows, where a scale's own outer step stands on
+one cell: the Glasgow coma twin writes 13 cells of 900 outside the 3-to-15
+scale against 0 before, the 600-row age twin 7 to 9 of 600 against 0 to
+2, and the children count's twin mean moves from 0.82 per cent below
+the table's to 2.71 per cent above. Every twin still writes the
+column's own smallest and largest value, and no twin or real table of
+the battery misses a checkable obligation. At 1,800 rows and above --
+the size at which every one of these scales holds its outer steps on
+two cells or more -- every one of the twelve sides lists, no twin cell
+stands outside the scale, and the twins' means are within 0.52 per
+cent. The trade is the twin's definition of 2026-09-12: a value held by
+one person is that person's value, and the description may not name it.
+
+**The counts of a listed tail are recoverable, and five places said
+otherwise.** This package SHIPS the arithmetic -- `contract._listed_counts`,
+which the generator needs -- and over the ordinal battery it recovered
+22 of 22 listed tails' counts exactly. What a listed tail publishes is
+WHICH values the tail holds and no written count; how many rows hold
+each follows from those values and the distances beside them. The
+sentences that claimed otherwise are corrected in `README.md`,
+`SECURITY.md`, `CHANGELOG.md`, `docs/spec/profile-contract-v6.md` 6.7a,
+`src/synthtwin/summary.py` and `src/synthtwin/quality.py`.
+
+**And the solver counts from the rule's own number.** A tail of more
+than `TAIL_SETTLED_VALUES` values was listed because the rule admitted
+it, and the rule admits only a tail every value of which stands on at
+least `TAIL_SHARED_CELLS` cells -- so the twin's own tail must too, or
+`tails.<side>.values` MISSES on a twin holding every value the
+description named. Measured on a count of children at 1,800 rows: the
+solver chose 9 -> 1 against a real 9 -> 2, and the twin missed.
+
+### P4-D347 A warning whose count is withheld keeps the warning
+
+**The owner's ruling of 2026-09-23.** A remark whose count would hand
+back a withheld cell KEEPS ITS WARNING AND DROPS THE NUMBER. It is not
+withdrawn.
+
+**What it replaces.** P4-D334 withdrew such a remark whole, on the
+argument that its subject WAS the count. The shape that argument was
+written against is what it cost: 1,199 comma-grouped prices beside one
+bare cell lost the decimal-comma warning entirely -- a load-bearing
+warning that 1,199 values may have been read as a thousand times their
+real size -- and what bought the silence was the single ungrouped cell
+a reader would otherwise take off the published `n_present`.
+
+**What it says instead.** `said_some_but_not_all` (NF61), the fragment
+built for the one sentence that could not be withdrawn. It carries no
+argument at all, so there is nothing in it to subtract. Two further
+consequences follow from the same ruling: `taxonomy._sentence_at_the_line`
+no longer takes a `may_drop` flag, because no sentence is withdrawn;
+and at a census line of two, where "fewer than 2" is the count of one
+said in other words, NF61 stands in NF60's place -- the withdrawal used
+to cover that case and no longer does.
+
+**Proved on the owner's own shape**
+(`tests/test_p4d334_sentence_arguments.py`): the warning is printed on
+the 1,199-cell column; every floored argument of it is either the
+fragment or a count whose complement against `n_present` is nought or
+reaches the line; and the same warning built from 899 grouped cells of
+900 renders character for character alike, which a sentence carrying a
+count of its column could not.
+
+### P4-D348 The disclosure floor counts rows, not people
+
+**The owner's accepted limit of 2026-09-23.** On a repeated-measures
+table a value held by twelve visits of ONE patient clears a floor of
+eleven and is published with its count. The floor synthtwin applies to
+every published count and every published value counts ROWS. It is not
+changed by this decision; it is measured by it.
+
+**Why it is a limit and not a defect.** The other half of stage 3 --
+the POPULATION floor of P4-D340 and P4-D341 -- already counts PEOPLE:
+a table of 500 visits over 99 patients is refused, and a declared
+identifier that repeats moves the whole population count into people.
+So the two halves of stage 3 count different units on purpose. What
+this decision records is that the disclosure floor was NOT moved with
+it, and what that leaves standing.
+
+**Measured** (`tests/test_stage3_gate.py::people_limit`, three
+repeated-measures shapes at a floor of eleven, seeded and neutral):
+177 published values are held by fewer than eleven of the table's
+PEOPLE, and 68 of those have their ROWS at the floor or above -- which
+is the class this ruling is about, the rest being ordinary ladder rungs
+a handful of rows hold either way (owner decision 3, the ladder kept).
+The plan's own cited case is where it concentrates: 12 patients over
+1,196 visits leaves 66 of the 68, the worst standing on 11 rows of 5
+people.
+
+**Held at a ceiling** by ledger entry `K-S3-14`, so the number cannot
+widen while nobody is looking, and NOT closed here: counting the
+disclosure floor in people would change what every column of every
+repeated-measures table publishes, which is a landing and not a clause.
+
+**Where it is stated:** this decision, `K-S3-14`, `docs/STATE.md`'s
+decision list, and the head of `tests/test_stage3_gate.py`, which is
+the file that would otherwise be read as claiming the gate closes it.
+
+## The fix pass of stage 3 — decision P4-D349 (2026-09-23)
+
+### P4-D349 A tail that would be read back publishes neither distance
+
+**What the review found, and it is not a reading.** Stage 3 got one
+adversarial round and it returned REJECT on all four passes. Two of the
+items it raised are the same defect in the two roles, and both were
+reproduced here before anything was changed:
+
+* the integers `0` to `1100`, once each, publish a low boundary of `11`
+  and a high boundary of `1089`, eleven rows a side, a mean distance of
+  `6` and a root-mean-square distance of root-46, and `percentiles.min`
+  and `percentiles.max` null. The same description also says **every
+  value in this column is different**. Eleven DIFFERENT whole distances
+  summing to 66 can only be 1 to 11, because 66 is the least eleven
+  different whole numbers can sum to — so all twenty-two withheld values
+  come back exactly, the column's own smallest and largest among them;
+* 240 consecutive dates, and 240 unique minutes, publish eleven rows, a
+  mean of 6 and a root-mean-square of root-46 for the same reason and
+  give back the same twenty-two.
+
+**Measured, with the reader's own arithmetic** (the tail-leak driver's
+`_numeric_pinned`, which reads the published block and never the
+producer): on the integer column, with the all-different remark in the
+reader's hands, each tail admits exactly ONE multiset; without it, 64.
+So the remark is what turns close estimation into exact reconstruction,
+and the owner's ruling of 2026-09-22 — "a lone far value can then be
+estimated CLOSELY" — never weighed it.
+
+**Why the guard did not fire.** The date and clock role HAD the
+back-solve (`taxonomy._tail_pinned`, P4-D329) and used its answer only
+to decide whether a tail might LIST its values; where the listing rule
+refused, the pair was published anyway and P4-D346 recorded that as a
+stated residual. The numeric role had no such check on the road it
+takes at all: `_lattice_pins` asked a narrower question and asked it
+only about listing. And the widening walk of P4-D346 FAILED OPEN twice
+— it restored the original boundary when its budget ran out and again
+when its twelve-step cap was reached, which on a column stepping one
+unit at a time is every time.
+
+**The decision, in four parts.**
+
+1. **A tail whose published pair would give its own cells back publishes
+   NEITHER distance.** Its boundary and its row count stand; `values`,
+   `mean_distance` and `rms_distance` are all null. Contract DT1 and TL5
+   admit that shape on both roles — both distances or neither, never a
+   mean alone, which would still be half the back-solve.
+2. **The back-solve knows what the description publishes.** It is asked
+   with the column's own "every value different" remark, the published
+   grid, the space's own edges and the smallest distance a reader cannot
+   rule out — which is one on a date or clock tail, measured from a value
+   a cell holds, and NOUGHT on a numeric tail whose boundary rung falls
+   between two grid points. It runs on the numeric role for the first
+   time (`taxonomy._numeric_pinned`).
+3. **The tie is withdrawn from the back-solve.** It assumed that a tail
+   wider than the floor is wider because its innermost cells are tied,
+   which was true while a boundary stood where `tail_ranks` put it. Once
+   a boundary may also move inward a reader cannot tell the two apart, so
+   the reader's candidates are the untied ones — and the tied search
+   could not reach the real multiset at all: on 240 consecutive days
+   widened to eighteen rows it found its witness at another largest
+   distance and answered NOT PINNED on the very tail the review
+   reconstructed by hand.
+4. **The widening walk fails closed.** It no longer asks a question of
+   its own with a budget of its own; it builds the side and reads the
+   answer off it. Every place it can stop — both sides publishing, the
+   cap reached, no room left between the boundaries — leaves a tail that
+   withholds its pair where it is still pinned, so stopping is safe and
+   the boundary goes back where the tail rule put it rather than paying
+   rows for nothing.
+
+**And P4-D346's SECOND ROAD is withdrawn.** It let a tail of at most
+`parsing.TAIL_SETTLED_VALUES` values name them on a column the listing
+rule does NOT admit, on the reading that the published pair named them
+anyway. Two things ended that reading. It named values ONE CELL HOLDS —
+`list(range(1089)) + [1089] * 11 + [1100]` published the high-tail values
+`[1089, 1100]` where one row holds 1100 and `percentiles.max` is null,
+and ten cells at `06:58` beside one at `06:59` published `06:59` — which
+is outside the premise of the ruling it borrowed. And its premise is
+gone: a pinned tail now publishes no pair, so the alternative to listing
+is silence, and silence says less than a list. What is left is the
+ruling's own road, asked twice: a tail the ruling reaches lists its
+values where it holds few of them, and lists them where its pair would
+pin what the floor protects. `parsing.TAIL_SETTLED_VALUES` survives only
+where `contract._listed_counts` reads it, as the number above which a
+listed tail's values are known to stand on `TAIL_SHARED_CELLS` cells
+apiece.
+
+**HOW A WITHHELD TAIL IS READ, AND THE THREE READINGS MEASURED.** Its
+rows stand on even shares of the room between the boundary and an END
+that is `rows` GRID STEPS beyond it, held to the sign counts
+(`contract._withheld_end`) — the narrowest tail the description still
+asks for, since the rows lie strictly beyond the boundary and the
+column's own count of different values asks them to differ. Two wider
+readings were measured against it:
+
+| reading | the integers 0 to 1100 | 200 `1 000`-`1 199` beside 100 `3 000`-`3 099` |
+|---|---|---|
+| `rows` grid steps (ships) | ends 0.0 and 1100.0, the column's OWN two ends; nothing missed at seeds 0, 4 and 9 | twin inside 1000 to 3099; the census of 200 spaces and 100 narrow spaces comes back exactly |
+| `mean ± sqrt(3) std` (G5.3c's own) | ends -1.0 and 1101.0; nothing missed | ends 189 and 3347, so twelve cells fall below 1000 where no thousands mark can be written and the twin holds 89 of the 100 narrow spaces |
+| `mean + std sqrt((K-m)/m)` (Cauchy-Schwarz) | overshoots | overshoots |
+
+**AND ON ONE SHAPE NONE OF THE THREE WORKS, which is the cost and it is
+measured rather than argued away.** On `00001` to `00399` beside one
+`12345` — where the withheld tail carries the whole of the column's
+spread — the narrowest reaches 400, the moment reading 1301 and
+Cauchy-Schwarz 3745: the first two undershoot that column's mean of
+230.3625 and the third overshoots it. There the twin misses
+`moments.mean` and `moments.std`, and its own report names both. That is
+a limit of the withheld pair and not a rounding: the mean of that column
+is what the far cell puts in it, so no construction that keeps the cell
+back can average to it. Held at a ceiling by `K-S3-15`.
+
+**THE RESIDUAL THIS DECISION LEAVES, stated rather than found later.**
+The back-solve uses distinctness only where the column publishes that
+EVERY value of it differs, which is `n_distinct_values` equal to the
+count of values used in the statistics. A reader holds
+`n_distinct_values` exactly whatever it says, so on 1,101 rows with 1,100
+different values they know at most ONE row repeats -- a constraint
+weaker than distinctness and stronger than none, and the search models it
+as none. Closing it means a lattice that COUNTS repeats rather than
+forbidding them, which is a landing and not a clause. Two things bound
+what it leaves open: a tail pinned under the strict reading is already
+withheld, and the case that needs the weaker reading is a column whose
+repeats are few enough to name and whose tail is pinned only with them
+counted. Nothing in the round's own reproductions is of that shape.
+
+**AND A SECOND ONE, IN THE REMARK ITSELF.** `taxonomy._all_different`
+prints "every value in this column is different" where the column's
+different values reach `identifier_uniqueness` -- 0.95 -- of its present
+cells, so the sentence is printed over a column that repeats a handful of
+values, and it is then stronger than the truth. The back-solve does not
+read the remark; it reads the strict counts, which is the safe direction
+for what it decides here. The remark's own wording is a defect of its
+own, it is outside this pass's scope, and it is recorded here so that a
+later pass does not have to rediscover it from the back-solve.
+
+**Three more items of the same round, closed here.**
+
+* **A quality report printed a subfloor tail measurement.** The cells
+  counted are the file's own cells beyond the DESCRIPTION's boundary, not
+  beyond the file's own, so the walk can measure a group no description
+  of that file would publish a number for: 200 consecutive dates publish
+  a low boundary of January 12, and a file holding January 1 and then
+  January 12 onward has ONE cell below it at a mean and a
+  root-mean-square distance of eleven days, which names January 1. Where
+  the file has fewer cells beyond the boundary than the floor, the count
+  and both distances keep their verdicts and drop their numbers — the
+  owner's ruling of 2026-09-23 (P4-D347) applied to a measurement
+  instead of a warning.
+* **The root-mean-square distance certified an endpoint bound it cannot.**
+  `boundary - rms >= min` reported HELD for a published minimum of 10
+  against a file whose own minimum is 9, because the root-mean-square is
+  a LOWER bound on the largest distance and was read as an upper one.
+  Both ends had it. The two sound bounds are used instead — the largest
+  distance is at least `rms**2 / mean` and at most the smaller of
+  `rms * sqrt(rows)` and the whole sum — so a file beyond the end MISSES,
+  a file provably inside is HELD, and between them the check says the
+  file's own description settles nothing rather than guessing. Nothing
+  is printed either way.
+* **An overflowing moment window removed an exact obligation.** Where a
+  numeric tail's G12.13 window had no end this format can write, the
+  whole side was skipped — including the exact listed-values check below
+  it, which needs no window. A file replacing twelve cells of `1.7e308`
+  with `1.6e308` reported no miss and appeared in no not-checkable
+  listing either. The three keys are decided one at a time now, and
+  `validation._tail_listings_of` files every one no check can reach.
+* **The summary contradicted itself.** "The 12 smallest values are not
+  published" was printed over every tail block, including one that then
+  printed `0.0, 1.0` three lines later. The three shapes a tail can take
+  each have their own sentence.
+
+**Where it is stated:** this decision, `docs/spec/profile-contract-v6.md`
+(DT1, TL5, 6.7a), `docs/spec/generation-method-v1.md` (G5.3b), ledger
+entries `K-S3-11` and `K-S3-15`, and
+`tests/test_stage3_gate.py::reconstruction`, which carries every one of
+the review's reproductions as a case.
+
+## Amendment P4-D350 — the date and clock robustness items of stage 3's review round (2026-09-24)
+
+Stage 3's one adversarial round returned REJECT on all four passes. This
+amendment records the seven items of its DATES pass that are robustness
+rather than disclosure: inputs that used to work and now crash, lose
+values, or pass a check they should fail. **No rule of the format moves
+here**; what moves is where an existing clause reaches. Each item is
+repaired with the review's own reproduction as a case and a mutation
+that puts the old behaviour back
+(`tests/test_stage3_review_dates.py`, 31 cases).
+
+1. **The all-different obligation was abandoned in silence** (item 4,
+   HIGH). Method G7.3's count pass ran on `date` and `datetime` alone,
+   so a hundred unique months from `2000-01` at a floor of eleven came
+   back holding 74 different values at seed 4 -- no deviation reported,
+   no obligation missed -- and a hundred consecutive quarters the same.
+   A month and a quarter are ordinal units of one exactly as a day is.
+   The same clause asked for NO offset at all, which is stricter than
+   its own reason: one offset written after every moment leaves one
+   spelling per instant, so a 200-value column publishing
+   `{"+02:00": 200}` in full is inside the pass, where a file holding
+   29 of those values used to meet every obligation it states. And on a
+   column of CLOCK times, where G7A.4 makes the obligation EXACT, the
+   checker held the count to an envelope a file of 99 different times
+   against a published 100 passed: G11's own reading decides it now
+   (`contract.all_different_binds`, validation clause V6.1-A3).
+2. **Clock generation invented declared missing cells** (item 5). The
+   parsed clock values were never asked whether their spelling is one
+   the table calls absent -- only the stand-ins of G7A.5 were -- so with
+   `08:00` declared missing and eleven such cells, seeds 0, 3 and 7
+   wrote twelve, leaving 98 present against a published 99. G7A.4 steps
+   each BODY rank off such a spelling, inside the window it was built
+   in; a boundary or tail rank stands at an instant the description
+   names and does not move.
+3. **A sparse column lost its separator census** (item 6). G7.9's spend
+   kept the mark it INVENTS below the census line and never asked what
+   the mark it spends FROM was left holding: 22 dates in 2,000 rows
+   publish `{"upper_t": 11}` at a floor of eleven, seed 4 spent one of
+   the eleven, and ten beside one is a census no description may print.
+   The spend stops while that count is at the line.
+4. **A calendar edge produced a description its own loader rejects**
+   (item 7). Twelve `0001-01-01T01:00:00+14:00` convert to an instant
+   outside the years the canonical form can spell, and the LOCAL text
+   was left standing in the ordered sequence while the sort used the
+   instant: the low tail published a mean distance of MINUS 3,600 and a
+   listed value above its own boundary, and the strict loader refused it
+   under DT3 and told the person the file had been changed since it was
+   written. `parsing.utc_moment` publishes the nearest instant the form
+   can spell instead -- a non-decreasing function of the instant, so the
+   sequence stays ordered by construction -- and the checker reads the
+   same rule. **The cost is named rather than hidden:** on the review's
+   own shape the clamp puts 32 of the 100 cells on one instant, the two
+   tails cross, and the column falls to the made-up ramp of G7.3d, whose
+   twin holds 84 different values against a published 3. That is a LOUD
+   deviation on both pages where the shipped tool refused the
+   description outright, and G7.3d's ramp is the open cause.
+5. **Generation reported published offsets as withheld** (item 8). The
+   offsetless member is a published member of the census: a column
+   publishing `{"(none)": 50, "+01:00": 50}` was told every offset it
+   carried had been held back as too rare to publish, on a twin that
+   wrote both members exactly.
+6. **An exactly conforming clock twin got a false percentile failure**
+   (item 9). Every minute of a day, 1,440 rows: seeds 0 and 1 reproduce
+   the real column's whole multiset and the report marked p99 outside
+   its window -- published `23:44`, achieved `23:44`, allowed `23:41` to
+   `23:43`. Two rules were missing and both are written down: the window
+   carries G7A.4's all-different step in BOTH reports, and the twin's
+   own report takes the equality reading the quality report has taken
+   since plan amendment A-P3-40.
+7. **The loader accepted impossible tail moments** (item 10). Setting a
+   valid 100-date profile's tail distances to `1e308` loaded, and
+   generation then raised `ValueError: cannot convert float NaN to
+   integer`; a mean of `1` beside that root raised `OverflowError`.
+   Contract DT3 carries the feasible bounds and the moment relationship
+   the supported calendar and the clock domain allow, taken on the
+   WIDEST space any column can be written in so that nothing a narrower
+   member would allow is refused.
+
+**Two frozen cases were added** for the two new construction branches --
+`clock_declared_hole` for G7A.4's hole step and `mark_spend_at_the_line`
+for G7.9's refused spend -- and the existing `month_span` and `quarter`
+cases move seven cells each, which is the count pass reaching a
+resolution it never ran on.
+
+**Where it is stated:** this amendment,
+`docs/spec/generation-method-v1.md` (G7.3, G7.9, G7A.4, G12.1, G12.10,
+G14.3), `docs/spec/validation-method-v1.md` (the distinctness envelope
+and V6.1-A3), `docs/spec/profile-contract-v6.md` (D5 and DT3), and
+`tests/test_stage3_review_dates.py`, which carries every one of the
+review's reproductions as a case beside the mutation that withdraws its
+rule.

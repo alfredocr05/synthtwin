@@ -137,6 +137,21 @@ def test_a_tie_is_not_the_same_thing_as_full_ambiguity() -> None:
     the declaration decides the reading -- and the column still
     contradicts itself, which is a different question and gets its own
     clause.
+
+    THE TWO CONTRADICTION COUNTS ARE FLOORED (contract C6-143, plan
+    P4-D334), and one cell each is below the census line of eleven, so
+    each is written as NF60 `said_fewer_than_the_line` rather than as
+    its own digit. That is derived from the rule, not read off the
+    output.
+
+    AND AT THE DEFAULT FLOOR THE FRAGMENT IS THIS CLAUSE'S ORDINARY
+    READING, measured while the rule was built: a cell only one reading
+    accepts is a cell the OTHER reading leaves unparsed, so a column
+    with eleven of them on the losing side falls below the parse line
+    and is not described as dates at all. The digits can stand here
+    only under a lowered `--smallest-group`, and the REACHES beside
+    them -- 99 against 98 in the test below -- keep theirs at every
+    floor.
     """
     document, _loaded = _described(
         _ambiguous(98) + ["12/25/2024", "25/12/2024"], True
@@ -147,8 +162,9 @@ def test_a_tie_is_not_the_same_thing_as_full_ambiguity() -> None:
     assert f"{block['remarks'][0]}" == (
         "read day first because you asked for it: both readings parse "
         "99 of these values and the values themselves do not settle "
-        "which is right. This column contradicts itself: 1 values only "
-        "a day-first reading accepts, and 1 only a month-first one."
+        "which is right. This column contradicts itself: fewer than 11 "
+        "values only a day-first reading accepts, and fewer than 11 "
+        "only a month-first one."
     )
 
 
@@ -159,6 +175,10 @@ def test_a_column_decided_by_evidence_can_also_contradict_itself() -> None:
     day-first reading parses: the counts do NOT tie, so the evidence
     decides -- and the second clause still appears, because the column
     points both ways.
+
+    Both contradiction counts are below the census line of eleven and
+    are written as NF60 (C6-143). The REACHES keep their own digits:
+    they are floored too, and 99 and 98 each reach the line.
     """
     document, _loaded = _described(
         _ambiguous(97) + ["12/25/2024", "12/26/2024", "25/12/2024"], True
@@ -167,8 +187,9 @@ def test_a_column_decided_by_evidence_can_also_contradict_itself() -> None:
     assert block["format"] == "month-first-date"
     assert f"{block['remarks'][0]}" == (
         "read month first, though you asked for day first, because it "
-        "parses 99 against 98. This column contradicts itself: 1 values "
-        "only a day-first reading accepts, and 2 only a month-first one."
+        "parses 99 against 98. This column contradicts itself: fewer "
+        "than 11 values only a day-first reading accepts, and fewer "
+        "than 11 only a month-first one."
     )
 
 

@@ -178,6 +178,7 @@ SURFACES = (
     "src/synthtwin/canonical.py",
     "src/synthtwin/cli.py",
     "src/synthtwin/contract.py",
+    "src/synthtwin/dialect.py",
     "src/synthtwin/errors.py",
     "src/synthtwin/generation.py",
     "src/synthtwin/parsing.py",
@@ -452,6 +453,28 @@ FILE_TOTAL = len(RUN_OUTPUT_SUFFIXES)
 # artifacts; the handling rule counts files, because a person deciding
 # what may leave their machine is looking at a folder.
 ARTIFACT_TOTAL = len({name.rsplit(".", 1)[0] for name in RUN_OUTPUT_SUFFIXES})
+# THE PAGES, which are the files less the twin's own table, and they are
+# counted here because the repository states totals about them too (review
+# of 2026-09-23, finding 10). "on all five pages a full run writes" and
+# "each of the four written pages" were both standing, one true and one
+# stale, and no rule in this file read the word `pages` at all -- so the
+# stale one passed while the guarded total moved from five to six under it.
+#
+# WHY A `.csv` ENDING IS THE DERIVATION. A run writes exactly one data
+# table, the twin, and every other output is prose or a document a person
+# or a program reads as a page. That is a property of the shipped output
+# names rather than a list, so a seventh output joins the right total on
+# the commit that ships it, exactly as `FILE_TOTAL` does.
+PAGE_TOTAL = len(
+    [name for name in RUN_OUTPUT_SUFFIXES if not name.endswith(".csv")]
+)
+assert len(RUN_OUTPUT_SUFFIXES) - PAGE_TOTAL == 1, (
+    "the derivation above assumes a run writes exactly ONE data table, "
+    f"and it writes {len(RUN_OUTPUT_SUFFIXES) - PAGE_TOTAL} "
+    f"({sorted(RUN_OUTPUT_SUFFIXES)}). Decide what a page is before the "
+    "page total is measured against anything, because a total nobody can "
+    "derive is the defect this file exists to catch."
+)
 
 # What each of those files is CALLED in a sentence a person reads. The
 # keys are the derived endings, so an output file that ships without a
@@ -780,12 +803,13 @@ COMMAND_BEARING = (
 # MOVED 2026-09-11 WHEN PHASE 4 CLOSED. The pairing is the point: the
 # sentence in the file and the expected wording here change in one
 # commit, so a phase that advances cannot leave one surface behind.
-# `CLAUDE.md` names the phase that is RUNNING, which is now 5;
-# `README.md` names where a reader stands, which is a closed Phase 4
-# with Phase 5 not started.
+# `CLAUDE.md` names the phase that is RUNNING, which is Phase 4 again:
+# the owner reopened it on 2026-09-12 and `docs/STATE.md` is its plan of
+# record. `README.md` names where a reader stands, which is that Phase 4
+# with Phase 5 waiting on it. MOVED AGAIN 2026-09-14 at stage 2's close.
 PHASE_STATEMENTS = (
-    ("CLAUDE.md", "the current phase is phase 5"),
-    ("README.md", "status: early (phase 4 closed; phase 5 next)"),
+    ("CLAUDE.md", "the current phase is phase 4, reopened 2026-09-12"),
+    ("README.md", "status: early (phase 4 reopened 2026-09-12; phase 5 waits on it)"),
 )
 
 # Where the dependency count is stated, and what it must name. The
@@ -868,6 +892,20 @@ def _text(relative: str) -> str:
     assembled inside a tuple or a call still does not match, and a
     surface that has to state a claim still states it as running text.
 
+    AND A SENTENCE WRAPPED INSIDE ONE f-STRING IS JOINED TOO (review of
+    2026-09-23, finding 10). The rule above joined a literal ending `",`
+    to the next line's `"` -- the comma-separated report line -- and a
+    screen message is not written that way. It is one expression of
+    adjacent literals, `f"... All five "` then `f"files of a full run
+    carry them"`, with no comma between them, and the quote characters
+    landed in the middle of the sentence. So `cli.py`'s lowered-floor
+    warning said "All five files of a full run carry them" while a full
+    run left six, and the derived-total guard below read right past it:
+    every ban in this file was one line break away from being defeated.
+    A literal that ends a source line is now joined to the literal that
+    begins the next whether a comma stands between them or not, which is
+    the join Python itself performs before the message is ever printed.
+
     Guarantees:
 
     - Inputs: a path relative to the repository root, as written in
@@ -891,6 +929,9 @@ def _text(relative: str) -> str:
         f"that silently skips a surface is not an inventory."
     )
     read = re.sub(r'",\s*\n\s*"', " ", path.read_text(encoding="utf-8"))
+    # ...and the same join where Python's own implicit concatenation puts
+    # no comma between the two halves of one sentence.
+    read = re.sub(r'"\s*\n\s*f?"', " ", read)
     return " ".join(read.lower().split())
 
 
@@ -947,6 +988,63 @@ def test_claim_bearing_surfaces_state_the_qualified_claim() -> None:
         + "\n\nAll four parts are load-bearing: provenance alone reads "
         "as the promise that was withdrawn, and naming only the profile "
         "reads as permission for the twin and the report."
+    )
+
+
+# THE RUN CLAIM, AND THE FOUR SURFACES THAT SHIP IT. Code developed on
+# the twin is MEANT to run unchanged on the real table; nothing here
+# guarantees that it will, because a step that depends on more than
+# the description publishes can succeed on the twin and fail on the
+# real table. The unqualified form -- code
+# written on the twin RUNS on your table -- is a promise, and these are
+# the surfaces a person reads before trusting it: the front page, the
+# package docstring, the command's help and the report beside the twin.
+_RUN_CLAIM_SURFACES = (
+    "README.md",
+    "src/synthtwin/__init__.py",
+    "src/synthtwin/cli.py",
+    "src/synthtwin/rendering.py",
+)
+_RUN_CLAIM_QUALIFIED = "meant to run unchanged"
+# Lowercase, because `_text` is: the retired forms were "on the twin
+# RUNS" and "twin **runs**", and reading them lowercased also refuses
+# the same promise without the emphasis.
+_RUN_CLAIM_RETIRED = ("on the twin runs", "twin **runs**")
+
+
+def _run_claim_defects(relative: str, text: str) -> "list[str]":
+    """What one surface's text gets wrong about the run claim."""
+    defects: list[str] = []
+    if _RUN_CLAIM_QUALIFIED not in text:
+        defects.append(f"{relative} does not say {_RUN_CLAIM_QUALIFIED!r}")
+    defects.extend(
+        f"{relative} still says {retired!r}"
+        for retired in _RUN_CLAIM_RETIRED
+        if retired in text
+    )
+    return defects
+
+
+def test_every_surface_that_ships_the_run_claim_qualifies_it() -> None:
+    """Each surface that ships the run claim says it is MEANT to run.
+
+    Read through `_text`, so whitespace is collapsed and a report's
+    sentence split across two string literals is read as it prints --
+    `rendering.py` wraps this very sentence between "is meant to" and
+    "run unchanged". The retired unqualified form must be gone as well
+    as the qualified one present: a surface carrying both would still
+    make the promise.
+    """
+    defects = [
+        defect
+        for relative in _RUN_CLAIM_SURFACES
+        for defect in _run_claim_defects(relative, _text(relative))
+    ]
+    assert not defects, (
+        "the run claim is shipped unqualified somewhere a person reads "
+        "it. Code developed on the twin is meant to run unchanged on the "
+        "real table, and nothing guarantees it does:\n  "
+        + "\n  ".join(defects)
     )
 
 
@@ -1411,6 +1509,11 @@ _COUNT_WORDS = {
     "ten": 10,
 }
 _COUNTS = "|".join(sorted(_COUNT_WORDS, key=len, reverse=True))
+# The same map read backwards, for the one check that has to WRITE a
+# derived total in words instead of reading one somebody wrote. "both"
+# and "two" both mean 2 and the plain word wins, which is what a
+# sentence about a derived count would say.
+_WORD_FOR = {number: word for word, number in _COUNT_WORDS.items()}
 
 # Up to two words may stand between the number and its noun -- "all
 # three PHASE 2 artifacts", "all four files a full run produces" -- so
@@ -1468,7 +1571,20 @@ _NOUN_RULES = (
         r"files?",
         FILE_TOTAL,
         "the files a full run leaves behind",
-        ("run", "handling"),
+        ("run", "handling", "produced"),
+    ),
+    # "pages" NEEDS ITS OWN TOTAL AND ITS OWN REACHES. `both pages` is
+    # the twin's report and the quality report, a true pair claim on nine
+    # surfaces, so the totality reach is not read here -- and "all five
+    # pages a full run writes" is caught by the run reach anyway, which
+    # is where a claim about the whole set says so. The written reach is
+    # read here and not on files: "two written files" is the profile
+    # transaction, and "the four written pages" was the whole set.
+    (
+        r"pages?",
+        PAGE_TOTAL,
+        "the pages a full run writes beside the twin",
+        ("run", "produced", "written"),
     ),
     (
         r"commands?",
@@ -1587,6 +1703,41 @@ def _totals_stated(text: str) -> "list[tuple[int, int, str, str]]":
                     rf"(?:carry|carries|hold|holds) facts computed"
                 ),
             ),
+            # "three commands produce five files", "a full run leaves
+            # five files" (review of 2026-09-23, finding 10). The
+            # "run" reach above wanted the run AFTER the noun, and
+            # `README.md`'s opening sentence puts it before: it said
+            # "three commands produce five files" on a product whose
+            # three commands produce six, and nothing read it.
+            #
+            # THE SUBJECT IS THE ANCHOR, and it has to be. "`synthtwin
+            # profile <table>` reads a local CSV file and writes two
+            # files beside it" is true on nearly every page here, and so
+            # is "this run writes two files" about a transaction of two
+            # -- so a verb of producing is read only where the COMMANDS
+            # or a FULL run is its subject, which is the whole set by
+            # definition, there being no other set of either.
+            "produced": (
+                (
+                    rf"\b(?:commands?|(?:a|the|one) (?:full|whole) run) "
+                    rf"(?:[a-z0-9'-]+ ){{0,2}}?"
+                    rf"(?:produce|produces|write|writes|leave|leaves"
+                    rf"|make|makes) (?:the |all |exactly )?"
+                    rf"(?P<count>{_COUNTS}) (?P<gap>{_GAP})(?P<noun>{noun})\b"
+                ),
+            ),
+            # "each of the four written pages", "the four readable
+            # files" (review of 2026-09-23, finding 10). An adjective
+            # saying the file was WRITTEN or is READABLE is saying it is
+            # one of the run's own outputs, so a count in front of it is
+            # a count of that set and not of a subset somebody has in
+            # mind. Both spellings were live and both were stale.
+            "written": (
+                (
+                    rf"\b(?P<count>{_COUNTS}) (?:written|readable) "
+                    rf"(?P<gap>)(?P<noun>{noun})\b"
+                ),
+            ),
         }
         for reach in reaches:
             for pattern in patterns[reach]:
@@ -1652,9 +1803,79 @@ def test_no_surface_states_a_stale_total() -> None:
         + f"\n\nThe tool offers {COMMAND_TOTAL} commands "
         + f"({', '.join(COMMAND_WORDS)}), and a full run leaves "
         + f"{FILE_TOTAL} files behind, of {ARTIFACT_TOTAL} kinds "
-        + f"({', '.join(RUN_OUTPUT_SUFFIXES)}). Each total is counted "
+        + f"({', '.join(RUN_OUTPUT_SUFFIXES)}), {PAGE_TOTAL} of them "
+        "pages beside the twin's own table. Each total is counted "
         "from the shipped parser and the shipped output names, so if a "
         "number here surprises you the surface is stale, not the count."
+    )
+
+
+def test_the_total_reading_sees_a_count_however_a_sentence_carries_it() -> None:
+    """The four evasions the review of 2026-09-23 found, put through it.
+
+    WHAT THIS CLOSES (finding 10 of that review). Four sentences stating a
+    five-file total shipped beside a run that wrote six, and this file
+    passed on all four. Each got away a different way, so each is put
+    through the reading here rather than trusted:
+
+    * the sentence WRAPPED INSIDE ONE f-STRING. `cli.py`'s lowered-floor
+      warning is one expression of adjacent literals, and the quote
+      characters landed between "All five " and "files of a full run", so
+      `_text` -- which joined only the comma-separated report line -- saw
+      no such phrase at all. Every ban in this file was one line break
+      from being defeated, which is why the join is checked here and not
+      only the patterns.
+    * the RUN OR THE COMMANDS AS SUBJECT. The run reach wanted the run
+      after the noun; `README.md` opened "three commands produce five
+      files".
+    * the WRITTEN PAGE. "each of the four written pages" counts a set
+      this file had no total for, because no rule read the word `pages`.
+    * the count that is RIGHT, which has to stay right: "all five pages a
+      full run writes" is true, there being five pages among six files,
+      and a reading that reddened it would be traded away within a week.
+    """
+    wrapped = (
+        '_WARNING = (\n'
+        '    f"the quality report quotes them back. All five "\n'
+        '    f"files of a full run carry them.\\n"\n'
+        ')\n'
+    )
+    joined = re.sub(r'",\s*\n\s*"', " ", wrapped)
+    joined = " ".join(re.sub(r'"\s*\n\s*f?"', " ", joined).lower().split())
+    assert "all five files of a full run" in joined, (
+        "a sentence wrapped inside one f-string is still invisible to the "
+        "reading every ban in this file rests on, so a stale total can be "
+        f"shipped by putting a line break in it. Joined text: {joined!r}"
+    )
+    stale = {
+        "wrapped inside one f-string": joined,
+        "the commands as subject": (
+            "three commands produce five files, of four kinds"
+        ),
+        "the written page": (
+            "each of the four written pages says on its own face that it "
+            "was made this way"
+        ),
+    }
+    missed = [
+        f"{how}: {text!r}" for how, text in stale.items()
+        if not _totals_stated(text)
+    ]
+    assert not missed, (
+        "these ways of stating a stale total are invisible to the reading "
+        "that measures counts against the product, so a maintainer using "
+        "one of them would ship a five-file sentence beside a run that "
+        f"writes {FILE_TOTAL}:\n  " + "\n  ".join(sorted(missed))
+    )
+    # ...and the reading is not simply saying yes. The page count that IS
+    # true has to come back clean, or the rule above would be a rule
+    # against the word "five" rather than against a wrong number.
+    true_enough = (
+        f"it describes the table and says so, on the screen and on all "
+        f"{_WORD_FOR[PAGE_TOTAL]} pages a full run writes beside the twin"
+    )
+    assert not _totals_stated(true_enough), (
+        f"the true page count was read as stale: {_totals_stated(true_enough)}"
     )
 
 
@@ -1725,8 +1946,17 @@ def test_a_full_run_leaves_exactly_the_files_this_file_counts(
     """
     import fixtures
 
+    # THE SMALLEST TABLE THE COMMAND WILL DESCRIBE (plan P4-D341), and
+    # not the forty-eight rows this had before: under the population
+    # floor `synthtwin profile` writes nothing at all, so a run on such
+    # a table counts no files. The number is read from the rule, so a
+    # floor that moves moves this table with it, and what the test
+    # measures -- how many files a FULL run leaves -- is unchanged.
+    from synthtwin import parsing as _parsing
+
     rows = [
-        [fixtures.REGIONS[index % 4], f"{index % 7}"] for index in range(48)
+        [fixtures.REGIONS[index % 4], f"{index % 7}"]
+        for index in range(_parsing.POPULATION_FLOOR)
     ]
     table = fixtures.write(
         tmp_path, "table.csv", fixtures.rows_to_csv(["region", "visits"], rows)
@@ -6375,6 +6605,20 @@ _OBLIGATION_NAMES = (
     # reported as the banned claim. The shape is named instead of the
     # noun widened.
     r"\bapprovals? (?:is|are) (?:unnecessary|not needed|not required)\b",
+    # STAGE 2 (2026-09-12 measurement, repaired 2026-09-14). The family
+    # named regimes only by description, so a claim naming one by its
+    # ACRONYM walked past it: every such wording measured that day was
+    # passed. The acronyms are regime names in their own right.
+    r"\bhipaa\b",
+    r"\bgdpr\b",
+    r"\bhitech\b",
+    r"\bprotected health information\b",
+    r"\bphi\b",
+    r"\bprivacy (?:issues?|concerns?|risks?)\b",
+    # STAGE 2 AUDIT (2026-09-14): the same compound, in the two nouns
+    # the clearance shapes below are said with. Not a bare noun: the
+    # `privacy` is what makes it a regime, as it is two lines up.
+    r"\bprivacy (?:implications?|problems?)\b",
 )
 
 # The claim that an obligation has been LIFTED. Deliberately not here:
@@ -6423,6 +6667,83 @@ _EXEMPTION_MARKS = (
     r"\bis exempt\b",
 )
 
+# ...AND THE CLEARANCE SHAPES, the other half of the stage-2 repair. An
+# exemption is also claimed by clearing the regime rather than lifting
+# it: no issue with it, free of it, compliant with it, safe under it.
+# The suffix form is ANCHORED to a regime word, because a bare `-free`
+# reports this repository's honest "floor-free" prose.
+_EXEMPTION_MARKS = _EXEMPTION_MARKS + (
+    r"\bno (?:[a-z'-]+ ){0,3}?(?:issues?|concerns?|risks?)\b",
+    (
+        r"\b(?:hipaa|gdpr|hitech|phi|privacy|compliance|regulation"
+        r"|regulatory)[- ](?:free|compliant|safe)\b"
+    ),
+    # Review round 1 of stage 2: the same clearance, said with a
+    # preposition.
+    r"\bcompliant with\b",
+    r"\bsafe under\b",
+    r"\bfree (?:of|from)\b",
+)
+
+# STAGE 2 AUDIT (2026-09-14). A measured audit found seven wordings a
+# person writes without thinking that walked past every mark above, and
+# they fall into four shapes: the regime is DISMISSED ("is not an
+# issue", "no implications"), the twin is CLEARED of the regime's
+# subject ("contains no PHI", "is HIPAA-exempt"), the regime is MET
+# ("satisfies HIPAA"), and the regime is lifted in a CONTRACTION
+# ("doesn't apply"). The last is repaired by `_uncontracted` below and
+# not by a mark, because every negated mark above was already right and
+# only the spelling was missed.
+#
+# EACH IS A SHAPE, ANCHORED WHERE A BARE WORD WOULD REPORT HONEST PROSE,
+# and the anchors are measured rather than argued:
+#
+#   * `satisfy` bare reported the phase-4 plan's true sentence about
+#     the tool's ability to "satisfy a review board that asks for a
+#     small-cell rule" -- a real control meeting a real request, which
+#     is the opposite of the claim. So it reads only with the regime's
+#     acronym as its direct object, and never after `not`.
+#   * `does not cover` bare is refused by the round-2 floor ("this
+#     contract does not cover institutional requirements"), so it
+#     reads only with the REGIME as its subject.
+#   * `is not relevant` bare would report "being synthetic is not
+#     relevant to whether hipaa applies", which is the honest form of
+#     the whole instruction; so it too reads only with the regime as
+#     its subject.
+#   * the PHI shapes carry their own regime word, as the stage-2 suffix
+#     form does, so "the twin contains no value of the table" is not a
+#     candidate at all.
+_REGIME_SUBJECT = (
+    r"(?:hipaa|gdpr|hitech|rules?|laws?|regulations?|polic(?:y|ies)"
+    r"|requirements?|agreements?)"
+)
+_PHI = r"(?:phi|protected health information)"
+_EXEMPTION_MARKS = _EXEMPTION_MARKS + (
+    # Dismissed.
+    r"\b(?:is|are) not (?:really |even )?(?:an? )?(?:issue|concern|problem|worry)s?\b",
+    r"\bno (?:[a-z'-]+ ){0,3}?problems?\b",
+    r"\bno (?:[a-z'-]+ ){0,2}?implications?\b",
+    r"\b(?:is|are) not applicable\b",
+    r"\b" + _REGIME_SUBJECT + r" (?:is|are) not relevant\b",
+    # Cleared.
+    r"\b(?:hipaa|gdpr|hitech|phi|privacy|compliance|regulation|regulatory)[- ]exempt\b",
+    (
+        r"\b(?:contains?|includes?|holds?|has|have|carr(?:y|ies)"
+        r"|there (?:is|are)) no " + _PHI + r"\b"
+    ),
+    r"\bno " + _PHI + r" (?:is|are) (?:involved|present|included|contained)\b",
+    r"\b(?:does|do) not (?:contain|include|hold|carry) (?:any )?" + _PHI + r"\b",
+    # Met.
+    (
+        r"(?<!not )(?<!never )(?<!not necessarily )(?<!not always )"
+        r"(?<!not automatically )(?<!not by itself )"
+        r"\b(?:satisf(?:y|ies|ied)|meets?) (?:the )?(?:hipaa|gdpr|hitech)\b"
+    ),
+    # Lifted, in the forms the list above did not hold.
+    r"\b" + _REGIME_SUBJECT + r" (?:does|do) not (?:cover|reach)\b",
+    r"\b(?:does|do) not fall (?:under|within)\b",
+    r"\b(?:will|would) not apply\b",
+)
 _STILL_BOUND_MARKS = (
     r"\bapply to all five\b",
     r"\bstill (?:applies|apply)\b",
@@ -6507,12 +6828,69 @@ _EXEMPTIONS_THAT_MUST_TRIP = (
         "the twin is exempt from data-use agreements. its output "
         "formats have rules, and they still apply."
     ),
+    # STAGE 2 (2026-09-14): a regime named by its acronym, and an
+    # exemption claimed by clearing it. Each walked past the family
+    # before the repair.
+    "there is no hipaa issue with this workflow.",
+    "hipaa does not apply to the twin.",
+    "your data is hipaa-free once it is synthetic.",
+    "gdpr does not apply to synthetic output.",
+    "the twin is hipaa-compliant.",
+    "synthetic data raises no privacy issue.",
+    "the twin carries no hipaa risk.",
+    "this workflow is gdpr-safe because the rows are invented.",
+    "you do not need review board approval for the twin.",
+    # Review round 1 of stage 2, each measured walking past the repair.
+    "the twin is compliant with hipaa.",
+    "the twin is safe under gdpr because the rows are synthetic.",
+    "the twin is free of privacy risks.",
+    "the twin is phi-free.",
+    # Stage 2 audit, 2026-09-14. The first seven are the audit's own
+    # wordings; the rest are close variants a person would write. Every
+    # one was measured passing `_grants_an_exemption` before the repair.
+    "hipaa doesn't apply to the twin.",
+    "hipaa is not an issue here.",
+    "hipaa isn't a concern for synthetic data.",
+    "there are no hipaa implications.",
+    "the twin is hipaa-exempt.",
+    "the twin contains no phi.",
+    "synthetic data satisfies hipaa.",
+    "gdpr doesn't cover the twin.",
+    "the rows are synthetic so there are no privacy implications.",
+    (
+        "no protected health information is involved because the data "
+        "is synthetic."
+    ),
+    "the twin poses no hipaa problem.",
+    "the twin poses no privacy problem.",
+    "privacy rules don't apply to the twin.",
+    "hipaa won't apply to synthetic data.",
+    "hipaa is not a problem for the twin.",
+    "hipaa isn't applicable to the twin.",
+    "gdpr isn't relevant to the twin.",
+    "the twin has no hipaa implications.",
+    "the twin is gdpr-exempt.",
+    "the twin contains no protected health information.",
+    "there is no phi in the twin.",
+    "the twin doesn't contain any phi.",
+    "synthetic data satisfies gdpr.",
+    "the twin meets hipaa requirements.",
+    "the twin doesn't fall under hipaa.",
+    "hipaa does not cover synthetic rows.",
 )
 
 # SENTENCES THAT MUST NOT TRIP IT, kept beside the floor because a ban
 # is two-sided and the round-1 repair proved it: a widening that caught
 # one more attack reported this repository's own honest prose.
 _HONEST_AND_MUST_NOT_TRIP = (
+    # STAGE 2: the widening must keep these sayable.
+    "being synthetic does not necessarily satisfy hipaa.",
+    "a synthetic table does not automatically satisfy gdpr.",
+    "synthtwin offers no formal privacy guarantee.",
+    (
+        "a published maximum held by one person is a privacy risk, and "
+        "hipaa still applies."
+    ),
     (
         "this contract does not cover institutional requirements; consult "
         "your institution."
@@ -6547,6 +6925,26 @@ _HONEST_AND_MUST_NOT_TRIP = (
         "privacy policy and institutional approval do not apply to "
         "synthetic twins. privacy policy still applies."
     ),
+    # Stage 2 audit, 2026-09-14: the new marks read the same words, so
+    # the same words in an honest sentence must stay sayable. The first
+    # four carry a new mark and no regime; the rest carry a regime and
+    # the honest neighbour of a new mark.
+    "the twin contains no value of the table.",
+    "a withheld count is not an issue for the loader.",
+    "there are no implications for the twin's cells.",
+    "this satisfies the contract's invariant.",
+    "being synthetic does not satisfy hipaa.",
+    "being synthetic doesn't satisfy hipaa.",
+    "being synthetic is not relevant to whether hipaa applies.",
+    (
+        "the tool's small-cell rule can satisfy a review board that asks "
+        "for one."
+    ),
+    (
+        "whether hipaa applies is not a problem this tool can settle; "
+        "hipaa still applies."
+    ),
+    "a published maximum can have privacy implications.",
 )
 
 
@@ -6714,17 +7112,42 @@ def _cured_after(statements: "list[str]", named: "list[str]") -> bool:
     return False
 
 
+def _uncontracted(text: str) -> str:
+    """The text with every negative contraction written out.
+
+    STAGE 2 AUDIT (2026-09-14): "hipaa doesn't apply to the twin" walked
+    past a family whose `does not apply` mark was right all along, and
+    so did every other negated mark here spelled with an apostrophe.
+    Writing the contraction out repairs all of them at once rather than
+    doubling each mark.
+
+    LOCAL TO THIS FAMILY ON PURPOSE. It is applied inside
+    `_grants_an_exemption` and nowhere else, so `_text` and every other
+    family read exactly what they read before. `won't` and `can't` are
+    written out first because the general rule would leave `wo not` and
+    `ca not`; both apostrophes are read, since a surface may carry
+    either.
+    """
+    text = re.sub(r"\bwon['\u2019]t\b", "will not", text)
+    text = re.sub(r"\bcan['\u2019]t\b", "can not", text)
+    text = re.sub(r"\bshan['\u2019]t\b", "shall not", text)
+    return re.sub(r"n['\u2019]t\b", " not", text)
+
+
 def _grants_an_exemption(text: str) -> "list[tuple[str, str, str]]":
     """Every statement claiming an obligation has stopped binding.
 
     Guarantees:
 
     - Inputs: one surface's text, lowercased and space-collapsed by
-      `_text`.
+      `_text`. Negative contractions are written out here, by
+      `_uncontracted`, so a reported statement reads "does not" where
+      the surface wrote "doesn't".
     - Determinism: a fixed function of that text; nothing is read here.
     - Errors raised: none.
     - Boundary: pure text; opens nothing.
     """
+    text = _uncontracted(text)
     found: list[tuple[str, str, str]] = []
     at = 0
     statements = _STATEMENT_END.split(text)
@@ -6979,7 +7402,10 @@ def test_the_state_page_states_the_suite_size_it_was_written_against(
         or given != paths
     )
     if selected:
-        pytest.skip("a selected run; the stated count describes the whole suite")
+        pytest.skip(
+            "a selected run collects a subset; CI holds the whole-suite count "
+            "in its shard-coverage job (tools/ci/shards.py --prove)"
+        )
     collected = request.session.testscollected
     page = (
         pathlib.Path(__file__).resolve().parents[1] / "docs" / "STATE.md"

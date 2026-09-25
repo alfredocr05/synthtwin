@@ -39,7 +39,8 @@ def _described(folder: pathlib.Path):
         folder, "long.csv", "code\n" + "\n".join(rows) + "\n"
     )
     table = reading.read_table(
-        str(path), first_row=reading.FIRST_ROW_AUTOMATIC
+        str(path), first_row=reading.FIRST_ROW_AUTOMATIC,
+        small_cell_floor=FLOOR,
     )
     document = profile.build_document(
         table, taxonomy.Settings(small_cell_floor=FLOOR), []

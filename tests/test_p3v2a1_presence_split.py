@@ -317,6 +317,82 @@ def test_nothing_a_file_holds_decides_which_obligations_it_owes(
 # a shape the producer publishes, and has no deviation it can state.
 _SPREAD_SUBCHECKS = ("moments.std",)
 
+# ...and the measurements a column's own TAILS decide the existence of
+# (stage 3, plan P4-D328). A date or clock ladder is published BETWEEN
+# the two tail boundaries and nowhere else (contract D11'), so which
+# rungs a description carries follows from where its own tails end: a
+# file holding fewer cells beyond a boundary than the description
+# publishes has a tail reaching further in, its own description
+# publishes nothing at that rank, and the rung goes quiet. The check
+# that DECIDES it is the count of rows beyond that boundary, or the
+# boundary itself, and the two named below are what a report must carry
+# as MISSED for the silence to be accounted for.
+_LADDER_PREFIXES = ("date-ladder.", "clock-ladder.")
+_TAIL_DECIDING = (
+    "tails.low.boundary",
+    "tails.low.rows",
+    "tails.high.boundary",
+    "tails.high.rows",
+)
+
+# ...AND THE NUMERIC LADDER'S OWN VERSION OF THE SAME THING (amendment
+# V2.4-A11, stage 3 landing 3.3). Where a date or clock ladder is
+# decided by the tail a file's own cells fall into, a NUMERIC column's
+# two boundary percents are read off its COUNT of values and nothing
+# else (contract 6.7a TL1, and the rows beyond them off the same count,
+# TL4), so a file holding a different number of values describes itself
+# with its ladder and its tails at a DIFFERENT percent and publishes
+# nothing at the percent this description names. The rungs and the tail
+# facts then go quiet for the reason A2 widened the clause to admit: a
+# published fact of its own, `counts.n_used_in_statistics`, decides
+# whether such a measurement exists at all, and it MISSES in the same
+# report -- which is the sentence a reader acts on. The column is still
+# a column of numbers, so its role is HELD and its role is right.
+#
+# THE TWO ARE SEPARATE RULES AND BOTH ARE ASKED. A date ladder is not
+# decided by `n_used_in_statistics` and a numeric ladder has no
+# `tails.low.boundary` check of its own to name, so a check explained
+# by neither is still unexplained.
+_TAIL_HEADS = ("ladder.", "tails.")
+_TAIL_COUNT = "counts.n_used_in_statistics"
+
+# THE TWO SILENCES THE FIX PASS OF STAGE 3 ADDED, each with the ONLY
+# subchecks it may appear on (plan P4-D349). Both are complete reasons in
+# themselves rather than reasons a neighbouring MISSED check decides, which
+# is the shape `_GATE_POOLED` has, and what is asserted here is the FENCE:
+# a reason that is complete in itself cannot become a general excuse for
+# going quiet, so it may stand on the subchecks whose own rule produces it
+# and nowhere else.
+#
+# * A file whose own tail publishes NEITHER distance -- because its rows
+#   and those two numbers would give its own outer cells back -- carries
+#   no number for the description's two distances to be compared with, and
+#   no published obligation of that column decides it: what decides it is
+#   the file's own values, which nothing counts.
+# * A published (heaped) END is asked of the file's own description, and
+#   where that description withholds its end and publishes only a tail's
+#   shape, the two sound bounds on the file's extreme can fall either side
+#   of the published value without reaching it.
+_SELF_EXPLAINING = {
+    validation._GATE_TAIL_WITHHELD: (
+        "tails.low.mean_distance",
+        "tails.low.rms_distance",
+        "tails.low.values",
+        "tails.high.mean_distance",
+        "tails.high.rms_distance",
+        "tails.high.values",
+        # A tail that publishes neither distance publishes no list of its
+        # values either, so a published END read off that description has
+        # nothing to be read off: the same sentence answers for it.
+        "ladder.min (heaped end, one-sided)",
+        "ladder.max (heaped end, one-sided)",
+    ),
+    validation._GATE_TAIL_BOUNDS: (
+        "ladder.min (heaped end, one-sided)",
+        "ladder.max (heaped end, one-sided)",
+    ),
+}
+
 def test_silence_is_never_free_and_never_the_validator_s_own_difficulty(
     battery: "list[tuple[str, str, str, validation.Outcome, validation.Outcome]]",
 ) -> None:
@@ -345,14 +421,36 @@ def test_silence_is_never_free_and_never_the_validator_s_own_difficulty(
       so its role is HELD and its role is right, and the producer
       publishes for it that the spread CANNOT be held -- which is a
       published fact of its own, is reported as a MISSED check of its
-      own, and is exactly the reason no spread is shown. Either way a
-      reader is never told nothing: the report says out loud, in a
-      verdict, why the rest of the column went quiet.
+      own, and is exactly the reason no spread is shown. AND SINCE
+      STAGE 3 there are two more of the same shape, one per tail rule.
+      A rung of a date or clock ladder is published BETWEEN that
+      column's two tail boundaries and nowhere else (plan P4-D328,
+      contract D11'), so a file whose own tail reaches further in than
+      the description's publishes nothing at that rank and the rung
+      goes quiet -- and what decides it, the count of rows beyond that
+      boundary, is a published obligation of its own that the same run
+      reports MISSED by name. A NUMERIC ladder goes quiet for the
+      neighbouring reason (amendment V2.4-A11): the tail rule reads a
+      column's two boundary percents off its COUNT of values and
+      nothing else, so a file holding a different number of values
+      publishes its ladder and its tails at a different percent and
+      publishes nothing at the percent the description names -- and
+      `counts.n_used_in_statistics` is a published fact of its own that
+      MISSES in the same report. Either way a reader is never told
+      nothing: the report says out loud, in a verdict, why the rest of
+      the column went quiet.
 
     Together these say a measured file cannot buy silence. Making a file
     worse can make its obligations MISS, and it can make the file's own
     description publish a different class of fact -- which is reported
     -- but it can never make an obligation quietly stop being measured.
+
+    AND TWO MORE EXIST SINCE THE FIX PASS OF STAGE 3, both fenced the
+    same way (plan P4-D349, `_SELF_EXPLAINING`): a file whose own tail
+    publishes NEITHER distance, and a published end whose two sound
+    bounds do not reach it. Each names what the file's own description
+    does and why, so no companion verdict is owed -- and each may stand
+    only on the subchecks whose own rule produces it.
 
     ONE SECOND REASON EXISTS AND IT IS FENCED RATHER THAN TRUSTED
     (review item P3-V2-D-F2; plan amendment A-P3-3). A style clause over
@@ -397,11 +495,40 @@ def test_silence_is_never_free_and_never_the_validator_s_own_difficulty(
                     # coming back under a new sentence.
                     if check.subcheck in validation._MEASURED_FROM_THE_CELLS:
                         continue
+                    # ...AND THE PUBLISHED COUNTS OF THE FORMS MAP AND ITS
+                    # WIDTH CENSUSES (plan P4-D221; stage 2 closed by the
+                    # owner rulings of 2026-09-17). They are the same
+                    # family read off the re-description: a pool below the
+                    # disclosure line there takes in the smallest named
+                    # count, so a key the file's own description no longer
+                    # names may hold the published count, and a verdict
+                    # would state what no description of that file prints.
+                    # The fence moves by exactly those three prefixes.
+                    if check.subcheck.split(".")[0] in (
+                        "styles", "widths", "pads"
+                    ) and ".published." in check.subcheck:
+                        continue
                     unexplained = unexplained + [
                         (
                             f"{name}/{label}/{marker}: {check.column} "
                             f"{check.subcheck} was withheld as a pooled "
                             f"count, which only a style clause may be"
+                        )
+                    ]
+                    continue
+                if check.citation in _SELF_EXPLAINING:
+                    # A REASON COMPLETE IN ITSELF, INSIDE ITS FENCE
+                    # (plan P4-D349). The sentence names what the file's
+                    # own description does and why, so no companion
+                    # verdict is owed -- and it may appear only on the
+                    # subchecks whose own rule produces it.
+                    if check.subcheck in _SELF_EXPLAINING[check.citation]:
+                        continue
+                    unexplained = unexplained + [
+                        (
+                            f"{name}/{label}/{marker}: {check.column} "
+                            f"{check.subcheck} was withheld under a reason "
+                            f"that belongs to another subcheck's rule"
                         )
                     ]
                     continue
@@ -420,6 +547,27 @@ def test_silence_is_never_free_and_never_the_validator_s_own_difficulty(
                     check.column,
                     "type.std_unrepresentable",
                 ) in missed:
+                    continue
+                # ...and a ladder rung the file's OWN tail takes in, on
+                # the same terms: the deciding fact is the tail, it is a
+                # published obligation of its own, and the same run
+                # reports it MISSED by name.
+                decided = False
+                for prefix in _LADDER_PREFIXES:
+                    if not check.subcheck.startswith(prefix):
+                        continue
+                    for subcheck in _TAIL_DECIDING:
+                        if (check.column, subcheck) in missed:
+                            decided = True
+                # ...and the numeric ladder's own deciding fact, which
+                # is the count of values the two boundary percents are
+                # read off (amendment V2.4-A11).
+                if check.subcheck.startswith(_TAIL_HEADS) and (
+                    check.column,
+                    _TAIL_COUNT,
+                ) in missed:
+                    decided = True
+                if decided:
                     continue
                 unexplained = unexplained + [
                     (
@@ -490,8 +638,17 @@ def test_the_gate_still_comes_from_the_file_s_own_description(
     """
     folder = tmp_path / "gate"
     folder.mkdir()
+    # SIXTY SQUARES AND NOT SIXTY CONSECUTIVE NUMBERS, because the third
+    # subcheck below must be an obligation at all (plan P4-D349). A column
+    # of consecutive whole numbers has eleven rows a side at eleven
+    # DIFFERENT whole distances summing to the least eleven different
+    # whole numbers can sum to, so its published pair would give every one
+    # of those values back, and the description now publishes NEITHER
+    # distance -- which leaves no `tails.low.mean_distance` check for the
+    # gate to close over. Squares step further apart the further out they
+    # go, their pair is settled by nothing, and both tails publish it.
     described = _describe(
-        folder, "reading", [f"{index + 100}" for index in range(60)]
+        folder, "reading", [f"{100 + index * index}" for index in range(60)]
     )
     outcome = _measure(
         folder,
@@ -500,7 +657,13 @@ def test_the_gate_still_comes_from_the_file_s_own_description(
         ["5" if index % 2 else "7" for index in range(60)],
         "twovalued.csv",
     )
-    for subcheck in ("ladder.p50", "moments.mean", "ladder.min"):
+    # `ladder.min` stood here as the third. The tail rule of contract
+    # 6.7a withholds that rung from PUBLICATION on a column of sixty
+    # different numbers (landing 3.3), so there is no such obligation
+    # left to gate; what the description says about that end instead is
+    # the group beyond the boundary, and the gate closes over it the
+    # same way.
+    for subcheck in ("ladder.p50", "moments.mean", "tails.low.mean_distance"):
         check = _one(outcome, subcheck)
         assert check.verdict == validation.WITHHELD, check
         assert check.achieved == ""
@@ -559,7 +722,7 @@ def test_the_two_sides_build_the_same_obligations_in_the_same_order(
                 blocks = blocks + [document["columns"][0]]
         seen = []
         for block in blocks:
-            built = validation._universal_checks(column, block, mine)
+            built = validation._universal_checks(column, block, mine, floor)
             built = built + validation._role_checks(
                 column, block, values, floor, mine
             )
@@ -726,7 +889,8 @@ def _describe(
         folder, f"{name}.csv", fixtures.single_column_table(name, values)
     )
     table = reading.read_table(
-        str(target), first_row=reading.FIRST_ROW_AUTOMATIC
+        str(target), first_row=reading.FIRST_ROW_AUTOMATIC,
+        small_cell_floor=SMALL_CELL_FLOOR,
     )
     document = profile.build_document(
         table, taxonomy.Settings(small_cell_floor=SMALL_CELL_FLOOR), []

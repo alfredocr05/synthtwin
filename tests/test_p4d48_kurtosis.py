@@ -114,9 +114,6 @@ def test_the_two_implementations_draw_the_same_window() -> None:
         # EVERY REACH A RUN CAN ACTUALLY HAVE. A rank window always has
         # width -- the displacement bound of G12.2 plus the whole-number
         # slack -- so a reach of exactly zero is a case no run reaches.
-        # At that value the two float paths do part company, by a few
-        # units in the last place, and this test says so rather than
-        # widening until it passes: from 1e-12 upward they agree.
         span = max(ranks) - min(ranks)
         for share in (1e-9, 1e-6, 0.001, 0.05, 0.2):
             # THE REACH SCALES WITH THE COLUMN, because the
@@ -124,28 +121,26 @@ def test_the_two_implementations_draw_the_same_window() -> None:
             # rank windows, which are ladder values. An absolute reach
             # of 1e-12 is a real width on a column of small numbers and
             # exactly zero on a column around 1e78.
-            reach = span * share
-            lows = [rank - reach for rank in ranks]
-            highs = [rank + reach for rank in ranks]
+            lows = [rank - span * share for rank in ranks]
+            highs = [rank + span * share for rank in ranks]
+            # `E` IS THE ONE G12.3 STATES, formed from these windows the
+            # way both reports form it -- not a number handed in beside
+            # them, which the two modules could each have read apart.
+            steps = [
+                max(ranks[k] - lows[k], highs[k] - ranks[k])
+                for k in range(held)
+            ]
+            reach = generation._root_mean_square(steps)
             mine = generation._tails_window(lows, highs, ranks, reach, held)
             theirs = validation._moment_windows(lows, highs, ranks, held)
             assert "kurtosis" in theirs, (ranks, share)
-            low, high = theirs["kurtosis"]
-            # The two are computed by different code and need not agree
-            # to the last bit; what they may not do is disagree about
-            # whether a value is inside, so the OVERLAP is asserted.
-            # At a reach of exactly zero both windows collapse onto
-            # the statistic and part company by a few units in the last
-            # place. Opening each end by one unit would have hidden
-            # that and `math.nextafter` is not on the offline audit's
-            # allowlist, which is a policy decision and not a routine
-            # one -- so the case is named here instead and left out.
-            assert mine[0] <= high and low <= mine[1], (
-                ranks,
-                share,
-                mine,
-                theirs,
-            )
+            # THE SAME WINDOW, BIT FOR BIT (residual R-P4-61, closed at
+            # landing 2b.1 part 2). This asserted only that the two
+            # overlapped, with a note that code written twice "need not
+            # agree to the last bit". G12.3a now states the operation
+            # order, both modules follow it, and the two reports print
+            # one window.
+            assert mine == theirs["kurtosis"], (ranks, share, mine, theirs)
 
 
 def test_the_published_weight_lies_where_every_sample_must() -> None:

@@ -267,6 +267,161 @@ def test_every_named_disagreement_is_still_real() -> None:
     )
 
 
+# The binding column of contract 4.5.1's C6-143 table, one row per
+# argument position: | `form` | argument (1-based) | bound to |.
+_BINDING_ROW = re.compile(
+    r"^\|\s*`([a-z0-9_]+)`\s*\|\s*(\d+)\s*\|\s*([^|]+?)\s*\|$", re.MULTILINE
+)
+
+
+def _binding_text(binding: "tuple[object, ...]") -> str:
+    """How C6-143 writes one binding, from the code's own table.
+
+    THE ONE TRANSLATION, so that the comparison below is between the
+    contract's rows and the producer's table and not between two
+    spellings of the same thing. Every branch is a fixed phrase of the
+    contract; a binding kind with no branch stops the read, which is
+    the same refusal `taxonomy.unbound_argument_positions` makes one
+    level up.
+    """
+    kind = binding[0]
+    if kind == taxonomy.BIND_KEY:
+        return f"key `{binding[1]}`"
+    if kind == taxonomy.BIND_SUM:
+        return "sum " + " + ".join(f"`{name}`" for name in binding[1])
+    if kind == taxonomy.BIND_DIFFERENCE:
+        return f"difference `{binding[1]}` less `{binding[2]}`"
+    if kind == taxonomy.BIND_DOCUMENT:
+        return f"document key `{binding[1]}`"
+    if kind == taxonomy.BIND_MAIN_WRAPPER:
+        return "main wrapper"
+    if kind == taxonomy.BIND_SETTING:
+        return f"setting ({binding[1]})"
+    if kind == taxonomy.BIND_LEVELS_AT_THE_LINE:
+        return "levels at the line"
+    if kind == taxonomy.BIND_VOCABULARY:
+        return "vocabulary"
+    if kind == taxonomy.BIND_STRUCTURAL:
+        return "structural"
+    if kind == taxonomy.BIND_POPULATION:
+        return "population"
+    if kind == taxonomy.BIND_VALUE:
+        return "value (tail rule)"
+    if kind == taxonomy.BIND_FLOORED:
+        if len(binding) > 1:
+            return "floored against " + ", ".join(
+                f"`{name}`" for name in binding[1]
+            )
+        return "floored"
+    if kind == taxonomy.BIND_WORD:
+        return "package word"
+    if kind == taxonomy.BIND_NESTED:
+        return "nested form"
+    if kind == taxonomy.BIND_AFFIX:
+        return "bound affix"
+    raise AssertionError(f"no contract wording for the binding kind {kind!r}")
+
+
+def _contract_bindings() -> "dict[tuple[str, int], str]":
+    """Every row of the C6-143 table, keyed by (form, zero-based position)."""
+    found: "dict[tuple[str, int], str]" = {}
+    for match in _BINDING_ROW.finditer(_contract()):
+        key = (match.group(1), int(match.group(2)) - 1)
+        if key in found:
+            raise AssertionError(
+                f"C6-143 binds {key[0]} argument {key[1] + 1} twice; a "
+                "repeated row is invisible to every count taken from "
+                "this table"
+            )
+        found[key] = match.group(3)
+    return found
+
+
+def _code_bindings() -> "dict[tuple[str, int], tuple[object, ...]]":
+    """The producer's table, the two contract-only positions included."""
+    bound = dict(taxonomy.ARGUMENT_BINDINGS)
+    bound.update(taxonomy.ARGUMENT_BINDINGS_STATED_NOT_EMITTED)
+    return bound
+
+
+def test_the_producer_binds_every_argument_it_can_print() -> None:
+    """THE THIRD DIRECTION, ASKED OF THE CODE ALONE.
+
+    `NOTE_ARITY` says how many arguments a form takes and C6-143 says
+    what each one IS. A position with no binding is a number a sentence
+    may print that no rule governs -- which is the state every one of
+    the 94 positions was in before stage 3 landing 3.5, and how nine
+    sentence arguments came to print counts no key of the block beside
+    them published at all.
+    """
+    assert taxonomy.unbound_argument_positions() == []
+    kinds = {
+        taxonomy.ARGUMENT_BINDINGS[place][0]
+        for place in taxonomy.ARGUMENT_BINDINGS
+    }
+    assert kinds <= set(taxonomy.BINDING_KINDS)
+
+
+def test_the_contract_binding_column_is_the_codes_binding_table() -> None:
+    """The third direction of this file's guard: the BINDINGS agree.
+
+    The two directions above compare how many arguments each form
+    takes. They say nothing about what those arguments are, and a
+    contract whose binding column drifted from the code would send a
+    second implementer's guard looking at the wrong key -- which is
+    the same silence that let four whole forms ship undefined.
+
+    Both tables carry the two positions
+    `tests/test_p4d27_note_grammar_matches_the_code.py` records as
+    known arity mismatches, so the comparison is over exactly the
+    contract's 97 positions.
+    """
+    stated = _contract_bindings()
+    emitted = _code_bindings()
+    missing = sorted(set(emitted) - set(stated))
+    extra = sorted(set(stated) - set(emitted))
+    assert not missing, (
+        "the producer binds argument positions that contract 4.5.1's "
+        f"C6-143 table does not list: {missing}"
+    )
+    assert not extra, (
+        "C6-143 binds argument positions no form of this producer has: "
+        f"{extra}"
+    )
+    drifted = [
+        f"{form} argument {place + 1}: contract {stated[(form, place)]!r}, "
+        f"code {_binding_text(emitted[(form, place)])!r}"
+        for form, place in sorted(emitted)
+        if stated[(form, place)] != _binding_text(emitted[(form, place)])
+    ]
+    assert not drifted, "the argument bindings have drifted:\n" + "\n".join(
+        drifted
+    )
+
+
+def test_the_floored_positions_are_the_ones_the_contract_marks_floored() -> None:
+    """Thirteen positions carry a count no key of the block publishes.
+
+    They are the only ones the census line is asked about directly, and
+    the only ones `said_fewer_than_the_line` may stand at. Stating the
+    number in the contract and deriving it here is what keeps a
+    fourteenth from being added in the code alone.
+    """
+    stated = {
+        place
+        for place, text in _contract_bindings().items()
+        if text.startswith("floored")
+    }
+    assert stated == set(taxonomy.FLOORED_POSITIONS)
+    assert len(taxonomy.FLOORED_POSITIONS) == 13
+    written = re.search(
+        r"THE (\w+) POSITIONS WHERE THE SENTENCE IS THE\n  PUBLICATION",
+        _contract(),
+    )
+    assert written is not None, "C6-143 no longer states how many are floored"
+    assert written.group(1) == "THIRTEEN"
+
+
 def test_the_package_word_vocabulary_is_the_one_the_contract_states() -> None:
     """The second argument class is one closed list, counted once.
 
@@ -281,6 +436,12 @@ def test_the_package_word_vocabulary_is_the_one_the_contract_states() -> None:
         set(parsing.DATE_FORMATS)
         | set(taxonomy.NOTE_CLOCK_WORDS)
         | set(taxonomy.NOTE_READING_WORDS)
+        # THE TWO UNITS A POPULATION IS COUNTED IN (plan P4-D341,
+        # contract 14.4a). They join this class for the reason the
+        # clock words did: NF59 names a form's second argument by one
+        # of them, so a producer written to a contract that omitted
+        # them would refuse the sentence the tool writes.
+        | set(taxonomy.NOTE_UNIT_WORDS)
     )
     stated = re.search(r"\*\*The package-word vocabulary — (\d+)\*\*", _contract())
     assert stated is not None, "the contract no longer states the count"
@@ -290,8 +451,9 @@ def test_the_package_word_vocabulary_is_the_one_the_contract_states() -> None:
     )
     # The clock words are named, and named as NOT being format members:
     # a reader who took them for `format` values would write them into
-    # a key the loader refuses.
-    for word in taxonomy.NOTE_CLOCK_WORDS:
+    # a key the loader refuses. The two units are held to the same two
+    # things, for the same reason.
+    for word in taxonomy.NOTE_CLOCK_WORDS + taxonomy.NOTE_UNIT_WORDS:
         assert f"`{word}`" in _contract(), f"the contract never names {word}"
         assert word not in parsing.DATE_FORMATS
 

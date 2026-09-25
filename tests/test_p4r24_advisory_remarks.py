@@ -43,6 +43,7 @@ import random
 import tempfile
 
 import fixtures
+import tail_rule
 from synthtwin import parsing, profile, reading, taxonomy
 
 # Each sentence's own fixed opening. Every test finds its remark by one
@@ -122,18 +123,43 @@ def test_the_sentence_says_the_range_as_dates() -> None:
     """The two ends, converted, are what makes the column recognizable.
 
     A reader holding `1600000000` cannot tell what it is; a reader told
-    the column runs from one calendar day to another can. The two days
-    are the block's own `min` and `max` said a second way, so the
-    assertion is against those rather than against written dates.
+    the column runs from one calendar day to another can.
+
+    THE TWO DAYS ARE THE TWO EDGES THE BLOCK PUBLISHES, and that is plan
+    P4-D345's rule rather than a convenience. They used to be
+    `percentiles.min` and `percentiles.max` said a second way; on a
+    column of two hundred numbers both of those rungs are now null,
+    because the tail rule of contract 6.7a withholds every rung whose
+    reading touches the outermost values (landing 3.3). An advisory
+    remark may not outlive the facts it quotes, so each end is now
+    whatever stands in its place -- the end itself where a group of
+    `tail_units` rows holds it, and the side's BOUNDARY RUNG otherwise.
+    The rungs are read here through `tests/tail_rule.py`, from the
+    boundary percent the rule gives the column's own count, so this
+    passes by working the rule out and not by agreeing with the
+    producer.
     """
     values = _epoch_seconds()
     block = _described(values, name="event_at")["columns"][0]
     said = _said(block, BAND_OPENING)
     assert said is not None
-    for end in ("min", "max"):
-        number = int(block["percentiles"][end])
-        year, month, day = parsing.civil_from_days(number // _DAY)
-        assert f"{year:04d}-{month:02d}-{day:02d}" in said, end
+    assert block["percentiles"]["min"] is None
+    assert block["percentiles"]["max"] is None
+    percent = tail_rule.percent_of(len(values), 11)
+    assert percent is not None
+    for edge in (
+        tail_rule.rung_of(block, percent),
+        tail_rule.rung_of(block, 100 - percent),
+    ):
+        year, month, day = parsing.civil_from_days(int(edge) // _DAY)
+        assert f"{year:04d}-{month:02d}-{day:02d}" in said, edge
+    # ...AND NEITHER OF THE COLUMN'S OWN ENDS IS NAMED, which is what
+    # the rule buys: the days a reader is given are the description's,
+    # not two cells the description no longer holds.
+    numbers = [int(value) for value in values]
+    for end in (min(numbers), max(numbers)):
+        year, month, day = parsing.civil_from_days(end // _DAY)
+        assert f"{year:04d}-{month:02d}-{day:02d}" not in said, end
 
 
 def test_a_column_of_epoch_milliseconds_says_milliseconds() -> None:
@@ -179,7 +205,7 @@ def test_the_time_band_sentence_moves_no_role_and_no_fact(monkeypatch) -> None:
     values = _epoch_seconds()
     with_it = _described(values, name="event_at")["columns"][0]
     monkeypatch.setattr(
-        taxonomy, "_epoch_band_reading", lambda _cells: None
+        taxonomy, "_epoch_band_reading", lambda _cells, _details: None
     )
     without = _described(values, name="event_at")["columns"][0]
 
@@ -196,14 +222,28 @@ def test_the_time_band_sentence_moves_no_role_and_no_fact(monkeypatch) -> None:
 
 
 def test_the_sentence_is_exactly_the_form_and_carries_no_cell() -> None:
-    """Seven whole numbers, and not one spelling of the column."""
+    """Seven whole numbers, and not one spelling of the column.
+
+    The two ends are the two edges the BLOCK publishes, not the
+    column's own smallest and largest number: the tail rule withholds
+    those on a column this size (landing 3.3) and an advisory remark
+    may not outlive the facts it quotes (plan P4-D345). The days are
+    worked out here from the boundary percent the rule gives this
+    column's count, through `tests/tail_rule.py`.
+    """
     values = _epoch_seconds()
     block = _described(values)["columns"][0]
     said = _said(block, BAND_OPENING)
     assert said is not None
     assert taxonomy.NOTE_ARITY[taxonomy.REMARK_EPOCH_BAND] == 7
-    first = parsing.civil_from_days(int(block["percentiles"]["min"]) // _DAY)
-    last = parsing.civil_from_days(int(block["percentiles"]["max"]) // _DAY)
+    percent = tail_rule.percent_of(len(values), 11)
+    assert percent is not None
+    first = parsing.civil_from_days(
+        int(tail_rule.rung_of(block, percent)) // _DAY
+    )
+    last = parsing.civil_from_days(
+        int(tail_rule.rung_of(block, 100 - percent)) // _DAY
+    )
     assert said == taxonomy.rendered(
         taxonomy.REMARK_EPOCH_BAND,
         (taxonomy.EPOCH_BAND_SECONDS,) + first + last,
@@ -401,13 +441,22 @@ def test_the_clock_count_is_the_readings_own_count(monkeypatch) -> None:
     Two places computing one quantity is the shape four of six items
     in review round P4-G3-R1 took. Replacing the one function moves the
     sentence, which is what says the sentence reads it.
+
+    THE REPLACEMENT IS A GROUP, and since stage 3 landing 3.5 it has to
+    be. This clause is one of the thirteen sentence positions no key of
+    the block covers, so the floor is asked of it here (plan P4-D334):
+    a reach below `parsing.census_floor` is written as the fragment
+    "fewer than 11" and the digits never appear. Thirty-seven is above
+    the line and is not the reach the column really has, which is what
+    this test needs it to be -- the point is that the sentence reads
+    `clock_reach` and not that it reads a small number.
     """
     values = _declined_with_clocks()
-    monkeypatch.setattr(taxonomy, "clock_reach", lambda _cells: 7)
+    monkeypatch.setattr(taxonomy, "clock_reach", lambda _cells: 37)
     block = _described(values, name="taken_at")["columns"][0]
     said = _said(block, CLOCK_CLAUSE)
     assert said is not None
-    assert "7 of these values read as a clock time" in said
+    assert "37 of these values read as a clock time" in said
 
 
 # -- NF29 argument 9: the recoverable-distribution advice --------------

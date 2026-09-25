@@ -72,12 +72,40 @@ defect with the generator it is checking — which is the one thing a
 second opinion may not do. No random number generator is constructed or
 consumed anywhere in the validate path.
 
+**The windows of generation method G12.2 and G12.3 are drawn from the
+description alone** (landing 2b.1, part 2). The widest stratum they read
+is G5.6's `g_max` — G5.2a's cap, read off the block the numbers are
+described by and, where that block's mode pair is withheld, off the
+description's own `small_cell_floor` (landing 2b.1, repair) — and
+nothing here rebuilds the generator's layout or
+estimates it: the two estimates that stood here, an even split and a
+longest plateau, were each narrower than the strata the construction
+built, and accused twins it had built. The twin's own report reads the
+same number off the same block and reads the ladder at the same exact
+fractions, so the two reports print one window, and the suite holds the
+two writings and the oracle's to that where all three may be imported.
+The one exception is generation method G5.6's: where the generator's
+carrier and reach steps move a stratum past the cap, the twin's own
+report widens to that stratum and this report, which cannot see it, does
+not.
+
 **V1.5 The reading is derived from the profile, never guessed.**
 
 - The header is present exactly when `source.header_source` says the
   names came from the file. A twin whose names were generated is read
   first-row-as-data. The profiler's automatic header detection is never
   invoked here.
+- **Where the names were generated and the description is of a WORKBOOK
+  that counts rows above its table, the records start at the row the
+  description starts them on** (the owner's ruling of 2026-09-17, item
+  8; plan P4-D232). A description written where the first row could not
+  be told from a record keeps the rows above it as furniture and
+  publishes their count, so a reading that took every row from the
+  sheet's first would hold one row more and the very file the
+  description was written from would miss `rows.n_rows` and
+  `workbook.rows-above-header`. Measured: a titled sheet of 40 records
+  missed fourteen obligations on both its twin and its own book, and
+  holds every one of them read this way.
 - The expected column count, and the expected names where a header
   exists, are known before the first byte is read.
 - A profile publishing `n_rows: 0` leads to the degenerate forms of V6.4,
@@ -160,6 +188,30 @@ description was written from, and that table is exactly where a
 in such a table were read back as data, the column re-read as free
 text, and seven obligations came back MISSED against the table's own
 profile; declared as the number `-777` instead, seventeen did.
+
+**V2.2-A2 A reading the description took from the values is carried
+over the way a declaration is** (2026-09-15, profile plan P4-D40). A
+column the description gives `joined_numbers` WITHOUT naming it in
+`forced_measurements` was read by the producer's rule for two plain
+whole numbers joined by a slash, which stands after the long-tail rule.
+Which of the two reads such a column turns on whether one whole reading
+repeats in the long-tail line's count of rows, and that is a property of
+the sample: a faithful twin, whose two positions are paired at random,
+repeats its commonest reading more often than the real table did, and
+measured over 80 round trips of blood pressures at 1,200 to 5,000 rows,
+22 twins re-read as a long tail and reported their role MISSED where
+the declared column passed on the same cells. So the validator hands the
+producer the names of those columns, derived from the description's own
+column roles and settings and from nothing in the checked file, and the
+producer tests that one reading just before the long-tail rule for them
+and changes nothing else. **What is carried is the reading and not the
+verdict.** A file whose cells are not such pairs is not read as them and
+falls to the ordinary rules, so its role MISSES (a hyphen-joined file is
+pinned in the suite); every published fact of each position is still
+recounted; and a column the description gave another role is re-read
+with nothing carried. **What it does not reach:** `synthtwin profile`
+passes nothing, so a plain re-profile of such a twin can read a long
+tail, exactly as a second sample of the real table can.
 
 **V2.3 The kept set, derived from the profile** (Phase 3 plan owner
 decision 8, as amended). A twin can validly hold a spelling the
@@ -749,10 +801,16 @@ places:
   from 2026-08-17, and V2.4-A9 below is the correction. The walk
   returns keys, which is V2.4-A7's correction.)*
 - **The per-column structural test is not asked where the publication
-  class empties the source accounting.** On a nothing-publishing column
+  class empties the source accounting.** ~~On a nothing-publishing column
   `missing_by_source` is empty, `n_missing_blank` is zero and
   `n_missing_withheld` is zero because of the CLASS and not because of
-  the cells, and contract 5's C5-N6 makes the two cases tellable apart
+  the cells~~ *(amended by contract C6-126, plan P4-D85: such a column
+  names the members of the published vocabulary its holes wore and
+  closes N3's sum like any other, so the class empties nothing and the
+  structural test is asked of it as of every column. What the class
+  still empties is a spelling of the PERSON'S own words, which stays in
+  the pooled remainder and is what the head count answers for)*, and
+  contract 5's C5-N6 makes the two cases tellable apart
   from `role` and `structural_role`. A count-against-count test has
   nothing to read there; asking it anyway called every declared hole of
   such a column unattributable even where the word is in the settings
@@ -917,6 +975,29 @@ rules to fire on the twin's own values, and it is the exposure the
 GATE side has always carried, because the file's own description was
 never pinned.
 
+**Amended 2026-09-18 (plan P4-D6.4): the description's own verdict is
+handed over, per column, and the rule is not asked again.** The owner's
+ruling of 2026-09-15 has the twin write a judged stand-in's or
+placeholder's cells as the source wrote them, where they were written
+blank. The paragraph above then stops being enough, because it needs
+the outlier and share rules to fire on the twin's own values, and they
+need not: 400 whole numbers whose fence stood a few units inside
+`-999`, beside twelve `-999` cells, gave five twins in eight whose
+twelve cells the producer read as VALUES, and each missed obligations
+while the real table passed. So the producer is handed, for each column
+of the checked file, the candidates that column's `sentinel_verdicts`
+publish as `read_as_missing` (a candidate the floor withheld by name is
+not handed over), and reads each as missing in that column before any
+arithmetic, a `--keep-value` still winning (C6-117). This IS a second
+reading of `sentinel_verdicts`, and it moves no verdict on the file the
+description was written from, because that file fires the rule on the
+same cells. It moves one thing on any other file: a cell wearing a
+candidate a column's description judged missing is counted absent in
+that column whatever the file's own values would say, which is how a
+spelling the description publishes as a hole is already read (V2.4-A4
+clause 2). `missing_by_source` is then held on every key, a judged
+key included.
+
 **V2.4-A9 The head count's second over-fire is closed at the producer,
 and one of the two over-fires A6 and A7 recorded is gone. THIS RAISES
 what is checked on a class of description that was being routed away; it
@@ -1022,7 +1103,20 @@ wearing that word, and it is the same exposure A-P3-29 took for a
 built-in word the person declared and A8 took for a stand-in number,
 said now about the one route those two left standing.
 
-**WHAT IS NOT CLOSED, at its size.** The two presence COUNTS are read
+**WHAT WAS NOT CLOSED, at its size, and is closed by the owner's ruling
+of 2026-09-17 (option A, plan P4-D200).** Where the SUBMITTED
+description's column pools hole spellings -- its `n_missing_withheld` is
+above nought -- the cells the blank split reads as values and the
+measured file's own description reads as holes count as holes, so the
+table the description was written from holds both presence counts. The
+guard that proved the pool honest now checks the pool's TOTAL: those
+cells count as holes only up to the published pool, and each one past it
+counts as the value the split reads it as. A description that pools
+nothing is therefore measured by blankness exactly as before, and the
+round-2 witness -- a description of EMPTY holes and a file spelling them
+`n/a` -- is still missed; so is a file spelling more holes than the pool
+holds. The text below is the residual as it stood until that ruling.
+The two presence COUNTS are read
 over the weaker publication of V2.4-A3's second half — `missing_by_class`
 says how many holes are non-blank without saying what they spell — so a
 column whose non-blank holes are pooled below the floor still has those
@@ -1035,6 +1129,29 @@ never more; the plan carries it as residual R-P3-11 and the suite pins
 its size. Closing it would reverse A-P3-5 clause 1, which bought the
 weaker question deliberately, and that is an owner decision and not a
 repair.
+
+**V2.4-A11 The COUNT of a column's values is a third published fact
+that decides whether a measurement exists at all, and a ladder rung or
+a tail fact may go quiet beside it MISSING. THIS LOWERS NO OBLIGATION**
+(stage 3, landing 3.3; contract 6.7a, invariants TL1 and TL4). A2
+widened A1's last clause from the role alone to the published facts
+that decide whether the measurement exists; the tail rule adds one of
+exactly that shape. A column's two boundary percents are a function of
+how many values it holds and of the smallest group, and of nothing
+else: a file of a different count describes ITSELF with its ladder and
+its tails at a different percent, so at the percent this description
+names it publishes nothing, and V5.1 then forbids the report to state a
+number there. The run is not silent about the reason:
+`counts.n_used_in_statistics` is a published fact of its own and MISSES
+in the same report, which is the sentence a reader acts on. Measured on
+the every-role fixture with one cell of a column overwritten by `-999`:
+227 values published against 226 read, `counts.n_used_in_statistics`
+MISSED, and `ladder.p05`, `ladder.p95` and that column's four tail
+distances withheld under the disclosure gate while its role stands HELD
+and right. **No check stops being made, no verdict changes and no
+obligation is lowered:** which obligations exist is still a function of
+the description alone, and every silence still stands beside a MISSED
+check of the same column that says why.
 
 ---
 
@@ -1050,12 +1167,23 @@ four corner predicates of V4. The subcheck is one obligation at the
 finest grain the contract governs.
 
 **V3.2 The subcheck grain, stated so it cannot be quietly coarsened.**
-Each of the eleven percentile rungs separately, the two ends exact and
-the nine interior rungs each against its own window. Each published
+Each of the eleven percentile rungs separately, and ON EVERY LADDER --
+numeric, date and clock alike -- each PUBLISHED rung against its own
+window, a rung the tail rule withholds being a listing entry and never
+a check (stage 3, plans P4-D328 and P4-D344). The two ENDS are exact
+where a ladder publishes them, which is a legacy block written before
+stage 3 or an end at least `max(small_cell_floor, 3)` rows hold; on a
+tail block a published end is a HEAPED one and its check is one-sided,
+because the rows beyond the boundary on that side are described by the
+tail and not one by one. Each side of a column's TAIL
+separately, and four obligations on each: its boundary, the count of
+cells beyond it, and each of its two distances — or, where the tail
+publishes which values it holds, those values as a set and its mean
+distance exactly. Each published
 style key. Each published level with its count, its `variants` map and
-its `variants_withheld` multiplicity map. Each offset key and each of
-the two endpoint offsets. Each length and word extreme. Each
-absent-cell obligation. Each byte-level rule of V6.
+its `variants_withheld` multiplicity map. Each offset key. Each length
+and word extreme. Each absent-cell obligation. Each byte-level rule of
+V6.
 
 **V3.3 Three kinds, and the partition is total over OBLIGATIONS.**
 
@@ -1112,6 +1240,462 @@ rather than withheld. The suite walks the producer's own list of
 resolutions, so a resolution added there without a reading here is red
 on the commit that adds it.
 
+**Amended 2026-09-14 (plan P4-D39): the space is fixed by the resolution
+AND by `all_at_midnight`.** A column of moments whose every value stands
+at midnight is generated in whole days and each day is written back with
+a midnight clock, so this method reads it in the space of a column of
+dates: its step, its reading allowance `u` and the unit it names a
+distance in are a day's, whatever precision its midnight clock is
+written at. A measured value off midnight in such a column is named in
+seconds rather than rounded into a day it is not. What the day space
+prevents is a conforming twin being called out of place by windows
+drawn in seconds. **On its own clock only** (landing 2b.3, 2026-09-15):
+a column wholly at local midnight on the `utc` clock publishes instants
+that do not stand at midnight on that clock, and is read in seconds.
+
+**Amended 2026-09-15 (landing 2b.3): the marks and the values at midnight are
+obligations.** They were listed, never checked, and a space column
+rewritten with a `T` and a midnight column moved to 09:30 both passed
+with nothing missed. Each is now measured off the file's OWN
+description, made by the same producer under the same declarations and
+floor, so the real table meets its description by construction:
+
+- every mark `datetime_separators` names is a floor-governed count
+  (`marks.<name>`), its window running from the published count to the
+  published count plus the `(withheld)` pool — the precedent of the
+  offsets and the styles — and on an `iso-mixed` column not wholly at
+  midnight plus the clock-writing cells the file holds beyond the
+  published total, whose marks the description never counted (a joint
+  column wholly at midnight writes its whole dates bare, so there the
+  pool alone bounds them: repair pass of landing 2b.3, where 1,900 bare
+  dates of 2,000 rewritten with a `T` passed);
+- the values wearing a mark the census does NOT name, the file's own
+  pool included, are at most that same width (`marks.unnamed`), which is
+  the only check that sees a mark nobody published;
+- `all_at_midnight` is compared where it is published `true`
+  (`midnight.all`), and `n_at_midnight` where it is published at all,
+  which is where it is above nought (`midnight.count`). The nought that
+  was checked at a smallest-group size of one is gone: it could not be
+  told from a suppressed count of one without telling a reader that
+  count, so no description publishes it (landing 2b.6) and no file is
+  asked for it;
+- each of the three is LISTED where the description sets it no
+  obligation: all three on a column that writes no clock, the statement
+  where it is published `false`, and the count wherever it is absent —
+  which covers a column holding none at midnight, one holding a single
+  value there, and one holding all but a single value there, the three
+  being one state on purpose (landing 2b.6).
+
+**Amended 2026-09-17 (plan P4-D191): a count withheld for its size is
+checked on its side.** Where `n_at_midnight` is absent because too few
+values stood at midnight or too few did not
+(`contract.midnight_withheld_for_its_size`: a column of moments, not
+wholly at midnight, not read on the shared clock with its offsets
+pooled, and NOT the joint ISO reading), the file owes a count its own
+description withholds too
+(`midnight.withheld`): HELD where the file's description publishes none,
+MISSED where it publishes one. It was LISTED as asking nothing, and a
+twin of discharge times between seven and seven that wrote two values at
+midnight -- a count its own description published -- passed. The line
+prints no number for a file whose count is withheld. The count stays
+LISTED where it is absent for the other reasons: offsets pooled on the
+shared clock, and a column of whole dates AND moments together.
+
+**Amended 2026-09-19 (review round 2, the disclosure pass, item 4 and
+its repair pass): a JOINT column owes nothing here.** A column holding
+whole dates beside moments -- `resolution_mix` with both ISO members --
+now withholds `n_at_midnight` for a fourth reason as well: the
+timestamps' own residual, the count less the whole dates that stand at
+midnight by definition, would name one person's time of day. Nothing
+in the loaded description can tell that silence from the older one,
+because the residual is exactly what the withheld count would have
+supplied, so neither obligation is owed on such a column and the field
+is LISTED. Measured before the amendment, on the reviewer's own input
+at the default floor: the generator wrote a twin and validation exited
+3 on `midnight.withheld [datetime.n_at_midnight]: MISSED`, on every
+seed, because a bare-date rank of a joint column is left where it is
+and no rank shift can bring that side under the line.
+
+**Amended 2026-09-15 (landing 2b.6): the MEMBER is an obligation, and
+how the dates were written is four more.** The owner reversed decision
+5, so the twin is written in the member that read the real column
+rather than in ISO:
+
+- `format` is compared exactly (`format.member`): describing the file
+  again must name the member the description names. It was NOT
+  CHECKABLE for as long as the twin's own spelling was another
+  member's, and it is the one check that turns red on a writer that
+  goes back to ISO. It is LISTED, not checked, on an `iso-mixed` column
+  NOT wholly at midnight, where the twin writes every value with a time
+  of day and so reads back as `iso-datetime` (residual R-P4-12).
+- each of `date_field_widths` and `month_name_styles` is compared as a
+  KEY SET and not as a count: every convention the description names
+  must appear on at least a floor's worth of the file's own cells
+  (`widths.<word>`, `names.<word>`), and the cells wearing a convention
+  the description does NOT name are at most the cells the named counts
+  leave over of the total the description publishes for them, widened
+  by any cells the file holds beyond the published total
+  (`<family>.unnamed`). *Amended 2026-09-17 (plan P4-D192):* a census
+  of widths naming ONE convention is compared COUNT FOR COUNT on the
+  file's own folded tally, because that convention is worn by every cell
+  showing a width and the generator reaches the count of such cells by
+  moving ranks inside their gaps; 1635 real cells against 1667 twin cells
+  passed at the floor before. *Amended 2026-09-17 (plan P4-D195):* on
+  every other census a convention met at its floor is printed HELD only
+  where the file's own folded tally equals the published count, and
+  WITHIN-BOUND where it does not, so a twin holding 381 and 393 against
+  a published 369 and 381 is no longer printed as keeping them. For every
+  other census the counts themselves are NOT compared as obligations, and
+  the reason is the fact that makes
+  them interesting: whether a cell can
+  show a width or a name's length depends on its own value — a day
+  above the ninth shows no field width, a month of May shows no name
+  length — so how many of a file's cells could carry one is a fact about
+  that file's values, and a faithful twin whose interior instants fall a
+  day either side of the real ones carries a different number of them.
+  A count check would accuse the tool's own twin. THOSE CELLS ARE
+  COUNTED ON THE FILE ITSELF (plan P4-D139), by the producer's own tally
+  and its folds — a one-field width into the joint word agreeing with
+  it, a name of May into its column's length — and not read off the
+  file's floored description, which withholds a census whole where what
+  it leaves over is a handful: a twin whose dates put seven cells in May
+  beside a published `either` style of eleven was told it missed every
+  style, on four seeds of eight. A convention only a date's value can
+  show — a one-field width, an `either` name — is owed on a floor's
+  worth of the file's cells or on every cell of that kind the file
+  holds, whichever is fewer. A count the file's description does not
+  name is printed as not named, and an unnamed total under the line as
+  fewer than it, never as the number.
+- each of `quarter_marker_case` and `zulu_case` is compared COUNT FOR
+  COUNT (`markers.<word>`, `zulu.<word>`), and the unnamed cells are
+  held to nought (plan P4-D134). Every cell those two count over shows
+  its marker — every quarter, every value carrying `Z` — and a twin
+  writes exactly the published number of each, so the uncertainty
+  above does not arise. *Amended by the review of 158c811:* both were
+  compared as a key set, and a file holding eighty lower-case and 320
+  upper-case zulu markers turned the other way round met both.
+- a convention the FILE's own description does not name is printed as
+  not named there and never as a count (plan P4-D134): that description
+  holds each census to the disclosure rule of plan P4-D131, so an absent
+  key can stand for a handful of cells or for a census withheld whole.
+- each of the four is LISTED where the column's member cannot show that
+  convention at all: the widths on a member of fixed field width, the
+  name styles outside the two textual members, the marker outside
+  `year-quarter`, the zulu case where no `Z` is named. It is listed in
+  other words where the member CAN show it and the census is empty, for
+  that census names no value that showed one or was held back whole,
+  and the listing does not say which. `resolution_mix`
+  stays listed on every column: on a single-member column it restates
+  `format` and `n_unparsed`, both checked, and a check that cannot fail
+  on its own is what this method exists to refuse.
+
+**Amended 2026-09-15 (landing 2b.6 part 2): one walk, for every
+column.** G12.5's lower end used to need a correction on a column whose
+ranks the generator moves onto a midnight — the separate windows widened
+by one precision step, less the ranks the move may carry out of theirs,
+and never less than the pinned values allow — because a rank's window
+was then its own slice of the distribution, which the move could carry
+it out of. It is not. Method G7.3 pins the two ends and the rank each of
+the nine interior rungs is selected from, each to its published value,
+and draws every other rank inside the gap between the two pinned ranks
+either side of it; the move onto a midnight keeps every rank inside
+exactly that gap. So this document counts the ranks whose windows do not
+overlap and applies no correction, and the rung checks are drawn from
+the same gaps: a rank a rung is selected from has a window of ONE VALUE,
+its published one, so each of the nine is checked at the value rather
+than inside a band around it.
+
+**Amended 2026-09-17 (plan P4-D192): inside G12.5's envelope the count
+is exact.** A column of dates whose published `n_distinct` or
+`n_distinct_folded` lies inside the envelope this section draws, and
+which method G7.3's count pass applies to
+(`contract.datetime_counts_reachable`: read on its own clock, one
+instant written one way), is held to it EXACTLY (`distinct.n_distinct`, HELD or MISSED), because method
+G7.3's count pass moves ranks inside their gaps until the published
+count is held wherever the construction can reach it; a twin holding
+1107 different dates against a published 1077 was WITHIN-BOUND of an
+envelope from 11 to 1460 and passed. Where the published count lies
+outside the envelope, or on a column the pass does not apply to, the
+window stands, WITHIN-BOUND as before.
+
+**Amended by the dates pass of the stage-3 review, item 4: the clause
+reaches months, quarters and one published offset.** The clause is
+method G7.3's and this document only asks it, so what moves here is
+which columns the exact bar reaches. `contract.datetime_counts_reachable`
+now answers yes for a column of months or of quarters, whose ordinal
+unit the layout steps by one exactly as a day's, and for a column
+publishing ONE offset key in full, where one instant still has exactly
+one spelling. Both were enveloped before, and an envelope in the place
+of a count the construction reaches is a check that cannot fail on the
+files it was written for: measured at a floor of eleven, 100 unique
+months from `2000-01` had a twin holding 74 different values and a
+description that missed nothing, and a 200-value column with
+`{"+02:00": 200}` published in full was met by a file holding 29.
+
+**V6.1-A3. A count G11 fixes exactly is not an envelope's to settle**
+(*the dates pass of the stage-3 review, item 4*). Method G11's rule is
+that a column publishing `n_distinct == n_present` has ALL-DIFFERENT
+present values in the twin, on every role, and it names the four
+instances where it cannot hold -- a declared identifier short of room,
+a label fold beneath the floor, a datetime column whose OFFSETS ARE
+WITHHELD, and a joined column whose pairing cannot reach the count.
+None of the four is a column of clock times, and G7A.4 states the
+obligation EXACT for that role, so a clock column publishing as many
+different times as it has present values is held to that count exactly
+(`distinct.n_distinct`, HELD or MISSED) wherever the published count
+lies inside the envelope of G12.11. The envelope stood in the
+obligation's place and could not fail on the file it was written for: a
+column of 100 different times was met by a file holding 99, and every
+obligation passed with nothing said.
+
+**Amended 2026-09-15 (landing 2b.3, rewritten by the repair pass of
+landing 2b.6): a judged spelling is not a declaration, and the
+description says which is which.** A `missing_by_source` key a column's
+own calendar placeholder or stand-in pass put there is left out of the
+declared spellings, and so out of the settings the file is described
+under. A birth column holding 187 present cells of a discharge column's
+judged `1900-01-01 00:00:00` had them described as absent, and the real
+table missed 24 obligations of its own description.
+
+WHICH KEYS THOSE ARE IS READ, NOT COUNTED. Each decision published in
+`sentinel_verdicts` names the spellings its own pass took out (contract
+V5), and this document asks that list and nothing else. The version
+this replaces compared the cells of every key DENOTING the judged
+candidate — with the column's pooled hole spellings added — against the
+verdict's `n_occurrences`, and no count can settle the case where two
+keys write one candidate day: twenty judged `1900-01-01 00:00:00`
+beside thirty `1900-01-01T00:00:00` a person declared put 50 cells
+against a verdict of 20, so the judged key was read as a declaration of
+the whole table, a second column's 80 ordinary values were re-read as
+absent, and the REAL table missed 13 obligations of its own description
+— both presence counts, three counts of cells, the marks census, the
+count at midnight and seven rungs of its date ladder. A declared word
+still reaches every column, because no decision names it.
+
+**Amended 2026-09-14 (the stage 2 audit): `styles.spelled` offers a
+grouped spelling of every value, whatever `group_separator` publishes.**
+The mark is REPORT-ONLY and listed, never checked, and a cell reads the
+same with or without it, so a file grouping cells the description found
+no proof for — the real table itself, where its grouped cells fell short
+of the floor or of the majority — is spelled in a permitted form and is
+never MISSED for its commas. Cells reach the check with a declared
+decimal comma already read back to a point, so the grouping offered is a
+comma under either published mark. The listing says the description
+records the mark the real column's numbers were found to carry between
+thousands, or that none was found.
+
+**Amended 2026-09-15 (landing 2b.2, plan P4-D41): the mark, the notation
+of a negative and the count of signed decimals are held.** The listing of
+`group_separator` is withdrawn, and three checks stand in its place on
+every numeric block: `spelling.group_separator` and
+`spelling.negative_form` compare the published spelling with what
+describing the file on its own publishes, and `spelling.decimal_plus`
+holds the census's named count the way a named form count is held, with
+its pooled remainder widening the bar, and a census naming none to a
+file naming none.
+
+**Amended 2026-09-15 (landing 2b.7, plan P4-D65.1 and P4-D65.2).**
+`spelling.decimal_plus` no longer reads a pooled remainder, because that
+census no longer has one: `+` is its only category, so a `(withheld)`
+count beside it named the category it held back. Where it carries
+`{"(unavailable)": 0}` the check PUBLISHES THE BAR AND NOT THE COUNT:
+that state says neither the count nor whether the count is nought,
+which is what makes nought and a below-floor count one published state.
+What every count it covers has in common is that the count is NOT
+NAMEABLE — it does not reach the census floor, or it reaches it while
+the cells written with a point that carry NO plus fall below the floor,
+which is the complement clause. So the file's own signed decimals and
+its own cells written with a point are counted from its cells — the
+re-description carries no number there, which is the point of the state
+— and the verdict is HELD where that pair is unnameable by the same
+rule and MISSED where it is nameable. Both halves are needed: an
+earlier version of this check read the state as "fewer than the floor"
+alone and failed a REAL TABLE against its own description, 1,195 signed
+cells beside 5 unsigned ones. The exact count is printed only in the
+MISSED case, where it is the file's own and the bar has already been
+passed. Only `{}`, which a column
+writing no cell with a point publishes, still holds a file to naming
+none. Filing the state as WITHHELD instead withdraws a real obligation
+from every ordinary decimal column and was caught by the red battery:
+four fixtures whose `spelling.decimal_plus` had been executable became
+unfalsifiable in one commit.
+
+Two further checks stand beside the three, on every numeric block whose
+census names AT LEAST ONE convention (plan P4-D142; until then two or
+more, and 800 grouped prices beside 400 bare ones, `{",": 800}`, were
+twinned as 1,200 grouped cells with nothing missed and nothing
+withheld): `spelling.negative_notations` and `spelling.thousands_marks`
+hold the counts the majority keys collapse. Each is one check and not
+one per convention, because the fact is the census itself: a twin
+meeting one count and not the other has not reproduced the column's
+convention. Where the census names none, the fact is LISTED rather than
+checked. Where it names any, each is compared exactly with what
+describing the file on its own publishes for it; the pooled remainder
+does not widen the bar, because the generator writes a pooled cell with
+a convention the census does not name. The comparison is WITHHELD where
+the file holds fewer cells that could wear a convention — its negative
+cells, or its cells reaching four whole figures in a groupable form —
+than the census and its pool count, or leaves over a number of them
+strictly between nought and the census floor, or its own description
+names no convention: neither population is pinned cell for cell, so a
+twin with fewer such cells cannot place every named convention however
+faithfully it writes the ones it can, and the generator's report names
+that shortfall as a deviation of the census; and the census is never
+published beside a leftover below its floor, so a file holding one is a
+file whose own description holds its census back (plan P4-D140). A file
+whose own description names no convention although the published counts
+could have been named from the file's own totals is MISSED, and the page
+prints no count for it: its counts are then not the published ones, and
+withholding there would let a twin that dropped every mark of a column
+with no majority pass with no verdict at all. Because the
+comparison is made against the file's own description, every edge of the
+producer's rule comes with it: a padded or exponent cell holding a mark,
+the cores each wrapper wears, the numeric half of a column with labels,
+and a declared decimal comma read in its own grammar. Where the file
+holds fewer four-figure numbers in a groupable form, or fewer negative
+numbers, than the smallest group size, its own description publishes the
+default whatever those cells wear, and the verdict is WITHHELD rather
+than MISSED. `styles.spelled` offers, for every cell, the grouping of the
+one mark the cell carries and the leading-minus reading of brackets,
+U+2212 and a trailing minus after figures carrying a point, whatever the description publishes, and for a cell whose value is zero the unsigned reading too, because a ledger writes a rounded -0.3 as `(0)` or `-0` and the sign on a zero says nothing about the value (the verification of landing 2b.2), so a
+real table whose spellings fell short of the floor or the majority is
+never MISSED there for them. A position of a joined column files none of
+the three: its parts are read from figures and one point alone, so no
+mark, sign or plus can stand in one, the loader holds the three to their
+defaults (GS1, NS1, DP1), and a check of them could not fail. The sentence the listing carried -- a file
+is read the same way whether its large numbers carry the mark or not --
+is contradicted by the first goal and is withdrawn.
+
+**Amended 2026-09-16 (repair of the stage-2b integration): a withheld
+width pool permits its own count of cells an unnamed width.**
+`fraction_widths` pools a width too few cells shared under
+`(withheld)`, and that pool authorized no spelling, so the cells it
+counts -- cells written at a width the census does not name -- were
+counted outside every permitted form. A real column of 400 one-place
+readings with ONE cell written `4.20` published `{(withheld): 1, 1:
+399}` at a floor of eleven and failed its own description on
+`styles.spelled`, exit 3; ten such cells did the same. Now a cell
+spelled as its value at a width the census does not name is admitted,
+up to the pooled count and no further, so a file padding more cells
+than the description withheld still misses.
+
+**Amended 2026-09-17 (plans P4-D221 and P4-D222, citing the owner
+rulings of 2026-09-17): the permission covers the cells a width census
+counts into its commonest width, and a pool that holds the point back.**
+A width fewer cells than `parsing.census_floor` wrote is counted into
+the commonest width, so a cell at a width the census does not name is a
+cell of that count; the permission is at most what the commonest width
+can have taken in (`parsing.absorbed_room`). A real column of 400
+one-place readings with one `4.20` publishes `fraction_widths {"1":
+400}`, and its `4.20` is admitted. And where `numeric_styles` is one
+pool, its count is added: a form the forms map holds back has no widths
+published (profile contract P8).
+
+**Amended 2026-09-18 (the repair pass of the extra round, plan P4-D263):
+the same permission is owed on the STYLE axis, and the clause above puts
+it only on the width one.** Ruling 6 of 2026-09-17 counts a spelling
+below the floor into the column's commonest spelling, so the census names
+that STYLE nowhere; a cell wearing it has no width problem at all and
+`styles.spelled` found it outside every published spelling of its value.
+Measured, at a floor of one and at eleven alike: thirty grouped counts
+`10,100` to `39,129` beside one `0,472`, whose style is `leading_zero`,
+publish `numeric_styles {"plain": 31}` with `thousands_marks {}` and
+`pad_widths {}` -- and the real table failed its own description at exit
+3 while its seed-4 twin passed. So `styles.spelled` admits a cell whose
+OWN style the census does not name, up to `parsing.absorbed_room`'s own
+answer bounded by what a census of six names can hide: five of the six
+can have been absorbed and each was below the line, so at most five times
+one less than the line. The bound is what keeps it falsifiable, measured
+at its edge: on a three-hundred-cell column at a floor of eleven the
+allowance is `min(289, 50)`, so fifty odd cells pass and fifty-one do
+not.
+
+**Amended 2026-09-15 (landing 2b.7, plan P4-D66.2): `styles.spelled`
+admits the spellings a real exporter writes that G6.3 does not choose.**
+The family of G6.1 is what this method's own generator may write, and
+it was also what this check would accept from any file — so a REAL
+Excel, SAS, Stata, SPSS or Fortran export, validated against the
+description this tool had just produced from it, exited 3 with
+`styles.spelled` MISSED and the failing cells withheld. Seven shapes
+were measured doing it, fourteen runs of fourteen. Four notations and
+shapes are now admitted, each a spelling of the value the cell reads
+back as and each differing from a text the family already offers in no
+figure of that number:
+
+- a mantissa PADDED to a fixed count of figures, `4.60E+03` and
+  `7.2960E+02` and `0.00E+00`, with the value's own decimal place —
+  AND, SINCE PLAN P4-D144, ANY MANTISSA THAT READS BACK AS THE VALUE,
+  at any precision and with its point anywhere: C's `%.18e`, whose
+  figures carry the double's exact expansion past its shortest form,
+  and engineering notation `1200e-3` were both ordinary exports failing
+  the description made from them on `styles.spelled` (799 cells of 800 for the
+  first, measured by the final Codex review), and a canonical mantissa
+  was never a published obligation. A mantissa naming another number
+  reads back as that number, so it is still no spelling of this one;
+- an exponent written however the writer spells it — with or without a
+  `+` on a non-negative power, at any number of digits — since those
+  differ in no figure, its leading zeros taken off BEFORE anything is
+  converted, so that the padding the grammar promises at any length is
+  never handed to an integer conversion with a limit of its own (plan
+  P4-D146: 100 cells padded past 4,300 figures crashed validation out of
+  Python's limit), and a power of more than nine significant figures
+  read as nought or as nothing a double holds without converting it. The
+  width is deliberately unbounded and the code holds no ceiling on it: `e+5`, `e+05` and MSVC's `e+005` are
+  one power written three ways, and a bound would have to name a
+  widest writer to be right about the next one. The earlier wording
+  here said "at one, two or three digits", which the code never did
+  (the verification of landing 2b.7);
+- a value below one written with no `0` in front of its point, `.05`
+  and `-.23`, which is restored as a NOTATION before any spelling is
+  offered, exactly as brackets and a trailing minus are. Restoring it
+  rather than offering a second text is what reaches the zero cell
+  `.000`, whose restored text is offered only at the census width;
+- the figures of a whole number too wide for binary64 to keep, WITH
+  ITS SIGN, where more than one run of figures reads back as the same
+  value and only one is the one the shortest-round-trip rule produces.
+  Two bounds on it, both added by the verification of landing 2b.7.
+  The sign is part of the run: a run of figures with the minus taken
+  off never reads back as a negative value, so a real ledger of signed
+  seventeen-figure keys failed its own description on every negative
+  cell — 398 of 800, exit 3, on both seeds — while the same column
+  written positive passed. And the shape is admitted only where the
+  value is at or past 2**53: below that a whole number is held
+  exactly, exactly one run of figures reads back as it, and that run
+  is one the family already offers, so admitting it here would decide
+  nothing and claim to have decided something. Of three hundred random
+  runs at each width measured on the commit before this landing, none
+  at fifteen figures was ever counted outside the styles, 18 of 300
+  were at sixteen and 240 of 300 at seventeen, and every run refused
+  was one that is not its own value's canonical text — so the class
+  this admits and the class binary64 cannot tell apart are one class.
+
+**The direction this cannot drift in, and the guard on it.** A text
+this admits that no style would have chosen costs a miss the aggregate
+style counts make anyway; a text it omits costs a MISSED verdict
+against a conforming file, which is the direction nothing may drift in.
+None of these shapes is one G6.3 chooses, so no twin of this generator
+writes one, and the style census, the canonical ceilings of the pooled
+forms and the width census are untouched by this widening. A pairing
+the family does not hold — two figures before an exponent's point,
+`46E+02` — WAS still MISSED here until plan P4-D144 admitted it: it reads
+back as its own value, and holding it MISSED held a real export to a
+canonical mantissa no description publishes. What keeps the widened
+family falsifiable is the FORM: the same value written in a form the
+description does not publish — `4600.00` in a column of exponents — is
+still MISSED, and a test asserts both halves, because a check that
+cannot fail is what a widened family invites.
+
+**Amended 2026-09-15 (stage 2 confirmation review): a declared column is
+read in its own grammar before it is translated.** Which cells are
+absent is decided on the file's own text with every exact identity --
+the cell's, a kept value's, a declared missing value's -- read under the
+declared decimal comma, and only the cells left are translated to a
+point. On a column of numbers and labels a cell whose declared reading
+is not a number stays a label. Reading the translated list against
+untranslated absent spellings had dropped a grouped `-999.000` as the
+absent `-999,000`, and counting `1,234,567` beside the numbers as a
+plain number had missed `styles.remainder` on the real table itself.
+
 **V3.4-A2 And the measurement taken in that space is the CONSTRUCTION's
 own, written from the method and compared with the generator's writing
 of it** (2026-08-14, review items P3-V4-F4 and P3-V4-F5; the plan's
@@ -1119,8 +1703,8 @@ amendment A-P3-9 clauses 2 and 3 are the ruling and this follows it).
 A1 fixed the space every published instant is read into and said
 nothing about the arithmetic done in it, and three readings then
 diverged from the G12 construction they check: the rank windows of
-G12.4 were drawn without the pinning that fixes the first and last
-ranks at the published `earliest` and `latest`, the reading allowance
+G12.4 were drawn without the pinning that fixes the ranks the tail
+pins, the reading allowance
 `u` was one step of the published PRECISION rather than one unit of the
 ordinal SPACE, and the ladder was read with the floating-point reader
 the numeric ladder uses rather than with the whole-number interpolation
@@ -1128,6 +1712,19 @@ G7.3 builds cells with. Each produced a verdict the generator
 contradicts, in both directions: a file passing a distinctness bound its
 own construction forbids, and a conforming twin missing a rung by less
 than one ordinal unit.
+
+**AND THE TAIL'S OWN WINDOW IS WRITTEN OUT THE SAME WAY** (stage 3,
+plan P4-D328). G12.14's window is the construction of G7.3b run twice,
+once with every drawn rank's word at nought and once at the largest
+word; this module writes that construction from the method's own text --
+the mixture, the moment-matched end, the rounding halves up, the tie
+group, the step off a hole, the move onto a midnight, the two-pass
+all-different step and the clamp to the readable window -- in the
+binary64 arithmetic the clause fixes, operation by operation and in the
+order written. It is compared with the generator's writing of it in the
+suite, rank by rank: a validator whose derived end differs from the
+generator's by one unit would MISS 23 of 128 conforming sides of the
+design's own battery (the skeptic of the tail design, B7).
 
 **So a window this method cites is written out from the cited clause,
 in the whole-number arithmetic that clause fixes, and the two writings
@@ -1168,6 +1765,42 @@ way, and the plan amendment states each as a lowering:
   not below the description's own row count, so the ceiling licenses
   every cell a file of that length can carry.
 
+**V3.5-A2 And the wide-run ceiling is filed the same way, in the two
+states its own published word empties** (2026-09-16, landing 2b.13;
+the plan's decision P4-D90 is the ruling and this follows it).
+`styles.canonical.wide` asks whether FEWER than the census floor max(2,
+`small_cell_floor`) of the point-free cells past 2**53 are anything but
+the figures their own values write — the line the producer draws between
+`"canonical"` and `"respelled"`, moved there from nought by plan P4-D140
+so that no single cell moves the published word, and read at the same
+place here so that a real table with one respelled key still meets its
+own description. The subcheck asks it — asked of the cell's CORE and of the
+three point-free forms, `plain`, `leading_plus` and `leading_zero`, so
+that the checker's class and the producer's are one class (plan P4-D91),
+the padded cell asked once its PAD IS READ OFF: a canonical run never
+begins with a zero, so every leading zero is pad and what remains is the
+run, which both sides read from the text and neither reads from the
+published width census (landing 2b.16 part 2, plan P4-D107; measured
+before it, 800 padded wide keys with every cell respelled published
+`"none"` and were checked by nothing) — the question `styles.spelled` cannot
+ask, because past that bound more than one run of figures reads back as
+one double and admitting them all is what P4-D66.2 decided. The column
+publishes `wide_runs`, and the subcheck is EXECUTABLE on `"canonical"`
+alone:
+
+- on `"none"` the description says fewer such cells than the smallest
+  group size were written, so there is no published cell for the ceiling
+  to govern — the floor is WR1's, and it is there because the word names
+  the FORM of the cells it is about (plan P4-D91);
+- on `"respelled"` the description says its own writer respells at
+  least the census floor of them, so a file writing one another way writes what
+  the description licenses — and holding it to a ceiling of nought is
+  the false accusation P4-D66.2 ends.
+
+Both are obligations the description itself empties, which is the shape
+the four above are, so both are LISTINGS with the sentence saying why
+and neither is counted toward a pass.
+
 **V3.5-A1 Two more are decided that way, and the count above is now
 six** (2026-08-15, review item P3-V7-F4; the plan's amendment A-P3-18
 clauses 3 and 4 are the ruling and this follows it). Both were found by
@@ -1180,12 +1813,19 @@ four above — an obligation the description itself empties:
   case: all the plain cells together supply one identity, so a column
   that has collapsed onto one repeated value lands inside the bar and
   so does every count above it;
-- `offsets.earliest` and `offsets.latest`, where the publication floor
-  held that END's own offset back and the description publishes the
-  withheld label in its place. The description then names no offset for
-  that end, and the comparison that stood asked whether the measured
-  file's OWN floor had suppressed the same end — a fact about how many
-  rows shared an offset rather than about the file's dates.
+- every rung of a ladder that the TAIL RULE withholds, on a numeric
+  ladder as on a ladder of dates or of clock times, both ends included
+  unless an end is heaped (stage 3, plans P4-D328 and P4-D344). The
+  description publishes nothing at those ranks — they hold the column's
+  outermost values — so there is nothing for a file to carry and a
+  comparison of a null with a null could not fail on any file of the
+  same depth. Each is listed with the rule that withholds it
+  (contract D11 and T2 for a date or clock ladder, TL1 for a numeric
+  one), and a column with no tails at all lists both tails the same
+  way; a numeric tail block lists its grouped histogram and the census
+  of every bin it no longer publishes for the same reason;
+- the two endpoint offsets, which stood here until stage 3 and are gone
+  from the format with the ends they described.
 
 **V3.5-A2 And a count the description names only PART of is a window,
 not a point** (2026-08-15, review item P3-V7-F2's battery; the plan's
@@ -1226,6 +1866,47 @@ same fact is a check on one column and a listing on another where the
 descriptions of the two columns differ. Which it is may never depend on
 what the measured file turned out to hold.
 
+**V3.5-A4 And an EIGHTH way: an obligation this method's own generator
+cannot meet by any writing of a conforming twin** (2026-09-18, the
+skeptic of the extra review of c5d09d5 item 9; the plan's decision
+P4-D259.1 is the ruling and this follows it). The seven above are about
+a failure set. This one is about the other side of V3.4's no-vacuity
+rule read through V1.2: where the generation method FIXES what the twin
+writes, an obligation the twin therefore cannot carry is one a report
+can only ever bring against a conforming file, and bringing it teaches a
+reader that a right twin is wrong.
+
+The one entry decided this way, and it is a PAIR because one fact
+strands both: `precision.time_precision` and `counts.subsecond_digits`,
+on a column of a WORKBOOK description that publishes `subsecond` and
+publishes for that column a number format code showing fewer figures
+after the second than its own `subsecond_digits`. A workbook stores a
+moment as a day count, so a whole second stores exactly what no
+subsecond figures store, and `docs/spec/generation-method-v1.md` G7.3
+fixes the twin's fractional digits at ZEROS and says why: the
+description publishes how many figures the finest cell carried and
+nothing about their values, so any other digit would be an invented
+fact. The twin's moments therefore stand at whole seconds, the format
+writes no figure, and nothing is left for either obligation to be
+carried by. Measured: 240 serials carrying a millisecond under
+`yyyy-mm-dd hh:mm:ss` publish `subsecond` and three figures, and their
+twin re-describes as `second` and nought and misses both at exit 3.
+
+**The condition is on the DESCRIPTION alone**, as V3.1 requires: the
+format code is what the description publishes for the column and what
+the twin is written to wear, so no measured file can move which
+obligations exist. A description whose code DOES show the figures keeps
+both as executable subchecks, and the same fact is therefore a check on
+one description and a listing on another — which is the partition
+V3.5-A3 closes with, in this method's own words.
+
+**What it costs, said rather than passed over.** A real workbook of that
+shape does carry the millisecond in its stored fraction and would have
+HELD both, so this stops asking a question one class of real file could
+answer. That is the narrower loss: the alternative keeps a check the
+product's own generator is defined to fail, and the check would then
+name every conforming twin.
+
 **V3.6 A check may not be defeated by a compensating edit** (review
 item P3-V2-C-F8). A subcheck whose verdict is a conjunction is only as
 strong as the conjunct an edit can pay off separately, and a conjunct
@@ -1253,6 +1934,71 @@ unrelated to the number of G12 refusals, which method G12 fixes):
   its `n_distinct_by_occurrences` names groups. Then `n_distinct`,
   `n_distinct_folded` and `n_distinct_by_occurrences` are REPORT-ONLY
   for that column, and nothing else is.
+
+  **THE LOWER-CASE KEY OF A FORM CENSUS AND THE CENSUS OF SPELLINGS
+  OF A COUNT COLUMN** (contract C6-31a and section 7.13, landing 2b.18
+  part 2, plans P4-D121 and P4-D123) are recounted by the same producer
+  the description was made with, so the file is read the way the table
+  was: a cell whose every letter is lower case is counted under its
+  form's lower-case key where the description names one, and under the
+  form otherwise -- except that a lower-case key the description names
+  without the form's own key also counts the form's other cells where
+  they number fewer than the line, the floor or two, whichever is larger,
+  and none of them where they do not (plan P4-D160) -- each named key numbering at least its published count
+  and at most that count plus the pooled remainder. A count column's
+  published spellings are each recounted EXACTLY, subcheck
+  `spellings.published.<spelling>`, because that census pools nothing.
+  Neither is lowered in this corner, which reaches neither role.
+
+  **`layout_forms` IS NOT LOWERED HERE, AND THE CHECK STANDS BEFORE
+  THE CORNER AS WELL AS INSIDE IT** (contract 7.12, landing 2b.18,
+  plan P4-D120). This corner is about DISTINCTNESS — a published
+  length range that cannot supply as many different values as the
+  column has rows — and it lowers exactly the three facts named above.
+  What a cell LOOKS like is untouched by it: a twin whose record
+  numbers repeat still writes every one of them to a published layout.
+  So the census is recounted on the measured file wherever the column
+  publishes one, on the same terms 7.9's form census is recounted —
+  each named layout numbering at least its published count and at most
+  that count plus the pooled remainder — and filing that check after
+  the corner's early return would have quietly excused it. **The recount
+  is taken off the measured cells by every rule of contract C6-130 and
+  NOT by C6-131b** (plan P4-D124): that clause decides which of a file's
+  own layouts its description may name, and a conforming file whose
+  made-up cells left one cell off its named layouts would have a layout
+  it holds at the published count taken back and be reported MISSED.
+
+  **`layout_prefixes` IS CHECKED BESIDE IT, BEFORE THE CORNER AND INSIDE
+  IT** (contract 7.12a, owner ruling of 2026-09-17, item 1, plan
+  P4-D202), for the same reason. Each published scope is one exact
+  obligation, subcheck `prefix.<scope>`: under `(column)` no present cell
+  of the measured file opens otherwise, and under a layout no cell the
+  census's reader files under that layout — the convention decided over
+  the file's own cells — opens otherwise. The published side is said in
+  words and the prefix is not printed, and the measured side is a count
+  of the file's cells and is kept back on a miss as such counts are.
+  **The form census of 7.9 is recounted off the cells too, under the
+  SUBMITTED census's case convention** (plan P4-D159): a cell counts
+  under the key `parsing.census_form` files it under in that census, so
+  a lower-case cell counts toward a form the census names blind to
+  case. The file's own census decides for itself whether to name
+  lower-case cells apart, on the measured values, and a twin whose 200
+  lower-case codes no longer folded onto a capitalised neighbour named
+  them `&&%%%` against a published `@@%%%` and was told it held fewer
+  than eleven. A recount under the floor is not printed. **On the four
+  label roles the file's cells are first respelled as its own
+  description speaks of them** (plan P4-D275.1,
+  `taxonomy.described_spellings`): a spelling below the floor of a label
+  that reaches it is counted as that label's commonest, which is how the
+  census was made, so a table is not told it missed its own description.
+  A description no producer writes is checked the same way: one still
+  carrying `variants_withheld` at a raised floor loads (W5 refuses a
+  held-back key of 1 and nothing else), and a twin meeting it cell for
+  cell is reported MISSED on exactly the facts the respelling moves --
+  `n_distinct`, the level's `variants`, `variants_withheld` and
+  `shape_form_cells`, and the census key its stand-ins wear. Whether the
+  loader should refuse such a description is left to the owner (plan
+  P4-D275.1).
 
   **The supply is method G9.4's, band by band and all three at once**
   (review item P3-V6-F1, plan amendment A-P3-14). The published cells
@@ -1302,12 +2048,13 @@ unrelated to the number of G12 refusals, which method G12 fixes):
   repairs it. The summed reach can miss that, because it lets the
   smallest published groups answer for every band at once.
 - **datetime-offsets-withheld** (P2-D9): a datetime column whose
-  `utc_offsets` map is the single `(withheld)` key. Then `utc_offsets`,
-  both endpoint offsets and `datetimes_read_at` are REPORT-ONLY, and
-  the two ends are not. **A map naming real offsets whose own earliest
-  or latest END is withheld is a different shape and not this corner**:
-  it is V3.5-A1's listing for that one endpoint, and every offset the
-  description does name is still checked.
+  `utc_offsets` map is the single `(withheld)` key. Then `utc_offsets`
+  and `datetimes_read_at` are REPORT-ONLY, and the two TAILS are not:
+  a boundary is an instant, which a cell carrying no offset still gives
+  back exactly. *Stage 3 (plan P4-D328): the two endpoint offsets this
+  corner also named are gone from the format, and so is the shape that
+  stood beside it -- a map naming real offsets whose own end offset was
+  withheld -- because no end is described any more.*
 - **label-variants-short** (P2-D6): a label column whose published
   variants and withheld-variant multiset do not settle the published raw
   `n_distinct`. Then raw `n_distinct` falls to the G12.7 envelope.
@@ -1658,6 +2405,21 @@ classifies differently than the submitted profile expects is itself a
 fact the producer publishes about any file — the role axis — so the
 signal stays inside the envelope.
 
+**Amended 2026-09-18 (the repair pass of the extra round, plan P4-D264):
+a clause whose permitted BAND excludes no file the description admits is
+WITHHELD too.** A band is a licence, not a measurement, and where it
+starts at nought and reaches the largest count the file could possibly
+show the clause, no allocation can fall outside it: printing HELD then
+tells a reader an obligation was verified when nothing about the file was
+asked. Measured on `styles.remainder` over a census that pools every
+cell — ten `+100.00` to `+109.00` beside ten `110e0` to `119e0` at a
+floor of eleven, `numeric_styles {"(withheld)": 20}` — the clause read
+HELD on all four of four hand-built allocations of those twenty cells,
+beside `0 MISSED` and NO CHECKABLE OBLIGATION WAS MISSED. The clause is
+not vacuous in general and the amendment does not make it so: beside
+`{"plain": 30, "(withheld)": 20}` the band is 30 to 50 and a file
+spelling 55 cells plain still misses.
+
 **V5.3-A1 What the envelope is drawn round, and the test that settles a
 disputed fact** (2026-08-14, review item P3-V3-F2; the plan's amendment
 A-P3-5 clause 3 is the ruling and this follows it). The plan's A-P3-3
@@ -1746,6 +2508,31 @@ function and the one call, which costs teeth at every count inside a
 floor-wide block and buys the block-resolution bound back against a
 person who holds the file anyway.
 
+**V5.3-A3 The file as its own description writes it** (2026-09-17,
+plans P4-D221 and P4-D222, citing the owner rulings of 2026-09-17). A
+form, a width, a mark or an offset fewer cells than
+`parsing.census_floor` wrote is counted into the commonest named one, so
+where the measured file's own forms map names its forms it pools nothing,
+and every file it describes holds exactly those counts once its rare
+spellings are read the commonest way. The style subchecks settle each
+clause on those counts, and read the recount of cells needing a point
+and of non-canonical cells only over the forms that description names:
+a form it counts into another holds no cell of the file it describes.
+The verdict is then the same for every file one description describes,
+which is what V5.1 asks, with no window; the window of V5.1 is drawn only
+where the map is one pool. `styles.published.*`, `widths.published.*` and
+`pads.published.*` compare the published count with the count the file's
+own description names, and a key it does not name is MISSED where the
+published count reaches the floor. Measured: a file keeping two of the
+twelve exponent cells a description publishes is missed on
+`styles.published.exponent_lower` and `styles.at-least.exponent_lower`,
+where plan P4-D221's reading of an absent key through a pool withheld
+both. **What it costs, and it is the rule and not a gap:** a file with
+fewer than the line of cells respelled another way describes exactly as
+the file without them, so it is not missed -- 583 two-place and 5
+one-place prices at a floor of eleven are the description of 588
+two-place prices, and the real table must meet its own description.
+
 **V5.4 What may be printed, exactly.**
 
 - No string from the measured file, ever — not in the report, not on
@@ -1823,6 +2610,28 @@ citations); WITHHELD (V5.3); MISSED (an obligation the ratified matrix
 sets that the file does not meet). Listing entries carry no verdict and
 appear only in the NOT-CHECKABLE census.
 
+**V6.1-A2 A window that does not reach the published mean or standard
+deviation is not a pass for a file far from that value** (repair of
+the stage-2b integration; the owner's ruling of 2026-09-12 that
+statistics computed on the twin are reliable). G12.3's windows are
+drawn from the construction and not around the published value, so on
+a column whose ladder the construction cannot follow they sit wholly
+away from it. MEASURED: a 5,000-row column of amounts
+(`lognormvariate(6, 1.4)`, one value of 124,284 above a 99th percentile
+of 10,438) published a mean of 1049.66 and a standard deviation of
+2697.30; its twin held 1485.25 and 7040.63, inside windows of 1438.37
+to 1682.34 and 6442.66 to 8771.67, and was WITHIN-BOUND on both at exit
+0. So for `mean` and `std` only, where the window does not reach the
+published value, a file not holding that value exactly (V6.1-A1) must
+also stand within half the window's width of it on either side, or the
+obligation is MISSED, and the note under the line says which rule
+missed it. Where the window reaches the value nothing changes. `skew`
+and `kurtosis` keep their windows alone: they are drawn wide on
+purpose, and no analysis this ruling protects reads them as it reads
+the first two moments. The twin's own report passes no verdict and is
+unchanged; it already prints both values and says where its range does
+not cover the published one.
+
 **V6.1-A1 Where the first two definitions both fit, HELD is the one
 taken: a file holding the description's own value has met the exact
 obligation, whatever its window says. THIS RAISES; nothing moves to a
@@ -1877,8 +2686,199 @@ count and order; the header present exactly when
 `source.header_source` says so and its names read back byte for byte,
 including the quoted U+FEFF exception.
 
+**V6.2-A2 On a description of a WORKBOOK every byte rule is WITHHELD**
+(2026-09-15, plan P4-D77). `source.dialect` describes how a DELIMITED
+file is written -- its delimiter, the space after it, its escaping, its
+line endings, its final newline, its byte-order mark, its quoting per
+column. A table read from a spreadsheet workbook has none of those: the
+file is a zip package of markup, and the description says so by
+carrying a `source.workbook` block that is not `null` (contract 4.3b).
+Measured against such a file the rules do not merely fail, they are
+unanswerable -- the reader's survey of a package yields no delimiter to
+compare -- and a report that called them MISSED would accuse a file of
+breaking a promise its description never made about it. So every rule
+of `_byte_checks` is WITHHELD there, on exactly the reasoning V6.2-A1
+already applies to a file the producer refuses: these are facts the
+description publishes ABOUT A DELIMITED FILE, and this file is not one.
+
+What is NOT withheld is everything else: the row count, the column
+count and order, the header, and every column obligation are checked on
+a workbook exactly as they are on delimited text, because the profiler
+read the workbook to state them and reads it again to check them. A
+workbook validates against its own description with no obligation
+missed.
+
+THIS IS A WITHHOLDING AND NOT A PASS. The count stands beside the
+verdict in the report's own census, as every withheld count does, so a
+reader sees that these rules were not checked rather than being told
+they held.
+
+**V6.2-A3 On a description of a WORKBOOK the workbook block IS checked**
+(2026-09-15, plan P4-D79). What V6.2-A2 withholds is the byte rules of
+`source.dialect`, which describe a DELIMITED file and are unanswerable
+against a package of markup. It withholds nothing else, and from this
+landing `source.workbook` is measured in full: the twin of a workbook is
+a workbook, so every fact that block publishes is an obligation. The
+subchecks are named `workbook.*` and filed under the fact
+`document.source.workbook` -- the sheet's place and count, the published
+sheet names, the date system, the rows above the header, the records
+holding nothing, the frozen rows, the formatted blanks beyond the table,
+the defined table, the autofilter, the macro project, and per column the
+cell-class census, the format-kind census and the format code.
+
+Two of them are the reason the landing exists. A column whose cells were
+TEXT publishes a text count, so a twin that wrote those cells as numbers
+-- which is what every ordinary writer does to `00123` -- MISSES
+`workbook.cell-classes`. A column whose cells wear a DATE format
+publishes that kind and that code, so a twin that wrote the numbers bare
+misses `workbook.format-kinds` and `workbook.format-code`. Without these
+checks those two failures would show up only as a reader handing back a
+different type, which is exactly the silent wrongness a quality report
+exists to catch.
+
+A file that is not a package at all, measured against a workbook
+description, MISSES `workbook.package`. That is a miss and not a
+withholding: the description says the table came out of a spreadsheet,
+and a file that is not one does not meet that.
+
+**V6.2-A4 What a workbook's twin cannot be held to** (2026-09-16, the
+repair of landing 2b.10). V6.2-A3 made every fact of `source.workbook`
+an obligation of the checked file. Four kinds of fact cannot be
+obligations, and holding them as such failed twins that had done
+exactly what the disclosure rule required.
+
+1. **What a twin never carries.** A twin holds no macro project, writes
+no formula and writes no defined name. `workbook.macro-project`,
+`workbook.defined-names` and each column's `workbook.formulas` are
+therefore WITHHELD, with that reason stated on the line. They cannot be
+checked on the real file and withheld on the twin, because THIS
+MEASUREMENT CANNOT TELL THE TWO APART: `validate` measures whatever
+file it is pointed at, and a real table is checked by pointing `--twin`
+at it. One verdict is owed for both, and a withholding that says why is
+the honest one. The facts are named to the person instead on the
+summary their own profiling run prints.
+
+2. **A name that was withheld.** `sheet_names` publishes `null` where a
+sheet's name may not be published, and the twin writes a NEUTRAL name
+there. So the obligation is not list-against-list: a published name
+must be on the sheet it names, and a withheld one must be either
+withheld still (the person's own file) or the neutral name a twin
+writes there (`dialect.twin_sheet_names`, one allocation shared by the
+writer and this check). The measured names are the file's own and are
+never printed. Compared as two rendered lists, every workbook whose tab
+is not one of the generic names failed at exit 3.
+
+3. **A count the smallest group held back.** A census entry or
+`empty_rows_inside` published as `null` states no number, so there is
+nothing for the file to meet: those entries are passed over, and
+`empty_rows_inside` is WITHHELD as a whole. A column's `format_code` is
+WITHHELD in the same way when the census entry for the code's own kind
+was held back, because the twin then writes no cell of that kind and
+the code appears nowhere in it. Since the files review's repair (plan
+P4-D164) the disclosure rule withholds more -- a nought beside a
+withheld count, and the smallest counts a reader could subtract to one
+-- so a whole census is often held back, and a column then publishes
+its commonest value class BY NAME in `value_class`: `workbook.value-class`
+is checked exactly where that name is published, and WITHHELD where it
+is `null`, which is the one fact that still misses a twin writing a
+column of digit texts as numbers.
+
+4. **A hidden state a lone sheet cannot keep.** `workbook.sheet-hidden`
+IS checked -- the writer hides every sheet standing before the table's,
+so that the twin's first visible sheet is the table's, and the twin
+carries the chosen sheet's own state. The one exception is a workbook of
+a single hidden sheet: such a file opens nowhere and synthtwin's own
+reader refuses it, so the twin's lone sheet is written visible and this
+subcheck is WITHHELD there.
+
+`--sheet` reaches this command as well as `profile`. It was accepted on
+the command line and never passed to the reader, so a real workbook
+whose table is not on the first visible sheet was measured at whichever
+sheet the reader settled on by itself.
+
+The row a checked workbook's names stand on is the description's where
+the sheet does not settle it (plan P4-D174). Rows of one cell above the
+reader's header row, with no frozen panes and no autofilter at that row,
+may be a title or the names themselves; the producer settles them by the
+delimited preamble rule (plan P4-D186), and the checked file is read
+with its names on the row `rows_above_header` puts them on, where that
+row is the reader's or one of the rows of one cell above it. Where it is
+none of them, the producer's rule stands and
+`workbook.rows-above-header` is measured against it.
+
+**V6.2-A1 The byte rules are the published form's** (2026-09-15, plan
+P4-D86). The first four rules above are no longer constants: each asks
+what `source.encoding` and `source.dialect` record — the encoding
+(`bytes.encoding`, once `bytes.utf8`), the mark, the line endings in file
+order and the last line's ending — and every other fact of the written
+form is a subcheck of its own under `document.source.dialect`: the
+delimiter, the space after it, the escaping, the separator line, the
+end-of-file mark, the preamble, the header's quoting, the metadata rows
+and their quoting, the header cells written blank or repeated, the
+trailing delimiters, left-out cells, blank lines, records holding
+nothing, and per column its quoting per cell class, its padding, a row
+sequence and the row order. Each is measured on the checked file by the
+reader's own survey, so a twin passes by being written the way its table
+was and the real table passes by being itself. A class of cells a column
+does not hold holds any quoting rule; `mixed` holds of any file; a
+published left-out-cells or backslash rule holds of a file with no cell
+that would show it; the line-ending rule compares only the order of
+endings where the file holds a different number of lines, which the row
+and blank-line rules answer for. Where the description publishes the
+line endings or the blank lines COUNTED, past their caps
+(`line_endings_spread`, `blank_lines_spread`), the rule compares the
+checked file's own counts — how many lines end each way; how many blank
+lines, where the first and last stand, what most hold — whatever its runs
+or places number. The row order is asked of the records that hold
+something, as the producer reads it. A checked file is read in the
+published encoding wherever its bytes decode there without a mark
+(`dialect.decoded_as`), and a Latin-1 or Windows-1252 description is
+held to be written as UTF-8 only by a file that is valid UTF-8 beyond
+ASCII and, read in the published encoding, holds a character the
+description publishes nowhere (repair of landing 2b.9). Every one of these facts is published,
+so on a file the producer refuses they are WITHHELD. That supersedes the
+ruling of the plan's amendment A-P3-3 clause 6, by the test its
+amendment A-P3-5 clause 3 wrote down: the producer now publishes the
+line endings, the final newline and the mark about every file.
+
 **V6.3 The numeric-style identity** is contract 7.5.7's, clause by
 clause, with each published count a floor.
+
+**V6.3-A1 A whole numeral this format cannot hold exactly is a spelling
+of the value it reads back as** (2026-09-16, landing 2b.11, contract
+C6-137, numbered C6-86 on its branch). The six permitted spellings of a cell are computed from the
+VALUE that cell reads back as, and past 2**53 that value is not the
+numeral the person wrote: `9007199254740993` reads back as
+9007199254740992.0, whose spellings are the six forms of ...992. So a
+real register of long whole numbers was reported MISSED on
+`styles.spelled` for holding exactly the digits its owner typed — the
+file could not meet its own description by any writing of itself, which
+V1.2 forbids of a real file. Measured at exit 3 on 300 such rows as
+delimited text and again as a workbook.
+
+A cell is therefore in a permitted spelling of its value when its text
+is FIGURES ALONE after an optional minus, it reads back as exactly that
+value, and the value is at or above 2**53, the first whole number this
+format cannot hold exactly. The clause is narrow so that the subcheck
+can still fail, and each condition is one of the ways it still does: a
+point, an exponent or a grouping mark takes a cell outside it (a
+fraction width the census does not name is MISSED as before), and a
+numeral naming a different value is outside it whatever its width.
+
+**What this does not say.** The twin of such a column still writes the
+canonical figures, because the description carries the value the format
+read and not the digits that were typed. That is a limit of generation
+past 2**53 and is named as one; this clause is about the obligation,
+which was asking a real file for a spelling of a number its own cells
+never held.
+
+**One rule, not two** (the integration of landings 2b.6 to 2b.10,
+2026-09-16). Landing 2b.7 closed the same limit in V1.4's list of the
+spellings a real exporter writes -- the figures of a whole number too
+wide for binary64, with its sign -- and that clause admits every text
+this one does (264,387 measured, no exception). The validator holds
+that one rule; the conditions above describe this amendment's reach,
+not a narrowing of V1.4.
 
 **V6.4 The degenerate zero-row forms** (Phase 3 plan owner decision 7).
 A zero-row profile whose names were generated expects exactly zero

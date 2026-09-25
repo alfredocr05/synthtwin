@@ -299,8 +299,234 @@ def test_nothing_that_varies_between_runs_is_written(
 # publishes NOTHING; `--code` is the one that keeps every code with the
 # rows that carried it. It names `--code` first now. No count,
 # statistic, label, role, spelling or cell of any column changed.
+# RE-RECORDED 2026-09-14 (stage 2): part one added `group_separator: ""`
+# to every numeric block; part two added `all_at_midnight: false` and
+# `datetime_separators: {}` to `recorded_on`, the one datetime column.
+# Read as a diff of the two documents: nothing else moved.
+# RE-RECORDED 2026-09-15 at the integration of landings 2b.1 to 2b.5, whose
+# document carries both causes below at once. Diffed against the integrated
+# document before landing 2b.2 merged, only 2b.2's ten keys moved; diffed
+# against landing 2b.2's own, only `n_at_midnight: 0` moved.
+# RE-RECORDED 2026-09-15 (landing 2b.3): `n_at_midnight: 0` added to
+# `recorded_on`, the one datetime column, which writes no clock; read as
+# a diff of the two documents, nothing else moved.
+# RE-RECORDED 2026-09-15 (landing 2b.2, plan P4-D41): every numeric block
+# gained `negative_form: "minus"` and the census `decimal_plus: {}` -- five
+# blocks, ten keys. Read as a diff of the two documents against 53bb012:
+# nothing else moved, no count, statistic, label, role or spelling of any
+# column.
+# RE-RECORDED 2026-09-15 (landing 2b.6), and the cause is ONE KEY of one
+# column block: `n_at_midnight` on the demonstration table's column of
+# dates went from `0` to `null`. A published nought could not be told
+# from a count suppressed for naming one person, and being able to tell
+# them apart IS being told that count -- measured on 400 moments a day
+# apart at noon against the same 400 with a single row moved to
+# midnight, whose two descriptions differed in that key and nowhere
+# else. Nothing else about the document moved, and the twin's own bytes
+# did not move at all (GOLDEN_TWIN_SHA256 below is untouched).
+# RE-RECORDED AGAIN 2026-09-15 (landing 2b.6, the reversal of owner
+# decision 5), and the cause is FOUR KEYS ADDED to one column block:
+# `recorded_on` gains `date_field_widths`, `month_name_styles`,
+# `quarter_marker_case` and `zulu_case`, each EMPTY, because that column
+# is read as `iso-date` -- a member whose fields are of fixed width,
+# which writes no month name, which is no column of quarters and which
+# names no zulu offset. No count, statistic, label, role, spelling or
+# value of any column moved, and the demonstration's twin bytes did not
+# move either: its dates were already written in their source's form,
+# which is what an ISO column's source form is.
+# RE-RECORDED 2026-09-16 (the repair pass of landing 2b.6), and the
+# cause is ONE KEY of one decision: the demonstration's `reading` column
+# publishes a stand-in verdict, and that decision now names the
+# published spelling its own pass took out -- `"spellings": ["-999"]`.
+# It is the provenance of a hole spelling, which nothing else in the
+# document carries and which both readers were guessing at by counting
+# (contract V5, plan P4-D63). Three lines were added to one block and
+# NOTHING else about the document moved: no count, statistic, label,
+# role, spelling or value of any column, and the demonstration's twin
+# bytes did not move either, because the demonstration has no column
+# where a declaration and a judgement share a candidate.
+# RE-RECORDED 2026-09-15 (landing 2b.7, plan P4-D65.1 and P4-D65.2):
+# every numeric block gained the two mixture censuses `negative_notations`
+# and `thousands_marks`, and `decimal_plus` moved from `{}` to
+# `{"(unavailable)": 0}` wherever the column wrote a cell with a point --
+# the state nought now shares with every below-floor count, so that a
+# reader cannot tell "no cell carried a plus" from "one did". Read as a
+# diff of the two documents: those are the only keys that moved, and no
+# count, statistic, label, role or spelling of any column changed.
+# RE-RECORDED AT THE MERGE OF LANDINGS 2b.6 AND 2b.7 (2026-09-16), and
+# the cause is the two landings' own keys side by side, measured both
+# ways on the same harness that reproduces each side's committed digest.
+# Against the tree before the merge (2b.6), only landing 2b.7's keys
+# moved: `negative_notations`, `thousands_marks` and `wide_runs` arrived
+# on every numeric block and `decimal_plus` became `{"(unavailable)": 0}`
+# on the two columns writing a point. Against landing 2b.7's own tree,
+# only landing 2b.6's keys moved: the four written-form censuses of
+# `recorded_on`, its `n_at_midnight` null, and the `-999` spellings of
+# the `reading` decision. No other key, count or value moved.
+# RE-RECORDED 2026-09-16 (landing 2b.12, plan P4-D85), and ONE LINE of
+# the document moved: `comment`, the free-text column, publishes
+# `n_missing_blank: 160` where it published 0. Read as a diff of the two
+# documents against the base commit, that line is the WHOLE of the
+# difference -- no count, statistic, label, role or spelling of any
+# column changed, and `missing_by_source` on that column is still `{}`,
+# because every one of its 160 absent cells held nothing at all and a
+# blank is not a spelling. What moved is the rule, not the cells: a
+# column that publishes no value of the table now accounts for its
+# absent cells like any other, so the count that was zeroed by its CLASS
+# reads what the column holds.
+# RE-RECORDED 2026-09-16 (landing 2b.18 part 2, plan P4-D123): the two
+# `count` blocks, `visits` and `reading`,
+# each gained the census `number_spellings: {}` the contract now requires
+# on that role (section 7.13). Read as a diff of the two documents against
+# 2e2ec8f, those two lines are the whole of the difference: neither
+# column writes one number more than one way, so both censuses are empty,
+# and no count, statistic, label, role, form or spelling of any column
+# moved.
+# RE-RECORDED AT THE MERGE OF LANDING 2b.8 INTO LANDINGS 2b.6 AND 2b.7
+# (2026-09-16), measured both ways on the harness that reproduces each
+# side's committed digest. Against the tree before the merge only
+# landing 2b.8's keys moved: `number_spellings` on the two `count`
+# blocks and `n_missing_blank` 0 to 160 on the free-text column. Against
+# landing 2b.8's own tree only landings 2b.6's and 2b.7's keys moved, as
+# recorded above. Nothing else in the document moved.
+# RE-RECORDED 2026-09-15 for plan P4-D86 (owner ruling: the twin is
+# written the way the source file was). `source` gained ONE key,
+# `dialect`, the written form of the demonstration file: a comma, UTF-8
+# with no mark, line feeds on every line, minimal quoting in every
+# column, and the rows sorted by `record_code`. HOW IT WAS CHECKED, by
+# this file's own procedure: the new document written out again with
+# that one key deleted hashes to the digest this one replaces --
+# dc2909838b71bd4e300d38d672466318fd7976955a86ae21ca60a711d2f7c2cf
+# -- so the single added key is the whole of the difference.
+# RE-RECORDED 2026-09-15 again, at the repair of landing 2b.9: past their
+# caps the written form publishes line endings and blank lines COUNTED
+# rather than refusing the file, so `source.dialect` gained two keys,
+# `blank_lines_spread: null` and `line_endings_spread: []`, on every
+# description. Checked the same way: this document with those two keys
+# deleted hashes to 37db1d0303a771bfae871bb1ea30c4e8597b4b00b037a3c6f5169786fbdd3aca,
+# the digest this one replaces.
+# RE-RECORDED 2026-09-15 at the merge of landing 2b.9 into landings
+# 2b.1-2b.5. The two landings' causes stand together above. CHECKED by
+# this file's own procedure: this document written out again with
+# `source.dialect` deleted hashes to the digest the base commit 367e1d7
+# froze, so 2b.9's single added key is the whole of the difference.
+# RE-RECORDED 2026-09-15 for plan P4-D77 (reading a spreadsheet
+# workbook). `source` gained ONE key, `workbook`, which carries how a
+# workbook holds the table -- the sheet's place, its date system, the
+# rows above the header, the records holding nothing inside it, the
+# formatted blanks beyond it, and a census per column of what its cells
+# WERE and what kind of thing their formats made of them. The
+# demonstration table is a DELIMITED file, so the key's value here is
+# `null` and nothing else about this document moves. HOW IT WAS CHECKED,
+# by this file's own procedure: the new document written out again with
+# that one key deleted hashes to the digest this one replaces --
+# 4b5dc01def67ea46f9432b5d7c1b50d7b933ae38a3a0c1c5d2598abb07727a1d --
+# so the single added key is the whole of the difference.
+# RE-RECORDED 2026-09-16 for plan P4-D81 (review item CODEX-2): the
+# settings block of every document now carries `forced_metadata_rows`,
+# how many rows under the column names the person declared to describe
+# those columns, which sorts immediately after `forced_measurements`.
+# This run declares none, so the line reads
+# `"forced_metadata_rows": 0,`. CHECKED rather than assumed, by the
+# procedure every previous re-recording used: building these bytes,
+# deleting that one key and serializing again reproduces the previous
+# digest,
+# 2d167220a5fb2c6538f58e687723b6ccf85286af595c80a25bf2a001843e2bb3,
+# character for character -- so the single added key is the whole of
+# the difference. No count, no statistic, no label, no role and no
+# spelling of any column moved.
+# RE-RECORDED 2026-09-16 for plan P4-D110 (review item CODEX-4): the
+# settings block gains `forced_delimiter`, the delimiter the person
+# declared, which sorts immediately after `forced_decimal_commas`. This
+# run declares none, so the line reads `"forced_delimiter": "",`.
+# CHECKED by the same procedure: these bytes with that one key deleted
+# hash to the previous digest,
+# 38006a57f7c352d888957e47d180c8ed3dbba160d82025c4bcf1e1b3b5e181e9,
+# so the single added key is the whole of the difference.
+# RE-RECORDED AT THE MERGE OF LANDING 2b.10 INTO LANDINGS 2b.6 TO 2b.8
+# (2026-09-16), measured both ways on the harness that reproduces each
+# side's committed digests. Against the tree before the merge only
+# landing 2b.10's written form arrived: `source.dialect` and its column
+# quoting, `forced_delimiter`, `forced_metadata_rows`, `workbook` and
+# `used_fallback_encoding`. Against landing 2b.10's own tree only
+# landings 2b.6's, 2b.7's and 2b.8's keys moved. Nothing else moved.
+# RE-RECORDED AT THE MERGE OF THE TWO RULING BRANCHES INTO THIS ONE,
+# carrying both sides' moved values, read as a diff against 039df54:
+# `suppressed_level_counts` left `region`, `answer`, `batch` and `note`
+# (item 2, option A; plan P4-D201); `record_code` gained
+# `"layout_prefixes": {"(column)": "R"}` (item 1; plan P4-D202); and
+# `reading`'s `field_widths` published `{"2": 57, "3": 165,
+# "(withheld)": 5}` and now publishes `{"2": 57, "3": 170}`, the five
+# cells at widths too rare to name counted into the commonest width
+# (plan P4-D222, which replaces plan P4-D221's recording). Nothing else
+# moved.
+# RE-RECORDED AT THE POOLED-SCALE LANDING (2026-09-21, plan P4-D301,
+# ledger K-2B-50), and the ONE key added is the whole of the difference.
+# The four label columns -- `region`, `answer`, `batch` and `note` --
+# gained `suppressed_numbers`, the scale of the numbers the floor held
+# back, and every one of them publishes the state that says nothing,
+# because none of their held-back levels holds a number.
+# RE-RECORDED AGAIN BY THE OWNER'S DECISION OF 2026-09-21 (plan
+# P4-D302), and ONE KEY REMOVED from inside it is the whole of this
+# difference: `suppressed_numbers` carried `n_cells`, `mean` and
+# `spread`, and the spread is withdrawn, so those four columns now read
+# `{"n_cells": 0, "mean": null}`. No other key moved, and the twin
+# digest in tests/test_twin_golden.py did not move at all -- none of
+# this demonstration's columns publishes a pooled scale, so nothing
+# placed any of its made-up numbers before or after.
+# RE-RECORDED BY PLAN P4-D340, AND ONE KEY ADDED: every settings block
+# now carries `person_columns`, which names the declared columns whose
+# values REPEAT and so name the people the rows belong to. Nothing was
+# declared on this demonstration, so it reads `[]` -- the population is
+# counted in rows -- and no other key of any column or of the document
+# moved for that landing.
+# AND RE-RECORDED AGAIN FOR THE NUMERIC TAIL (stage 3, landing 3.3).
+# Every numeric block of the demonstration now carries `tails` and
+# `bin_groups`, its two ends are withheld unless a group of eleven rows
+# holds one, and the rungs whose type-7 reading would touch one of the
+# outermost eleven values are null (contract 6.7a). The difference was
+# read before it was recorded: the ladder keys that moved are the ones
+# outside the two boundary percents, the four columns that publish a
+# histogram now publish it between those boundaries, and no key of any
+# other role moved at all.
+# THE DIGEST BELOW IS THE MERGED TREE'S, RE-RECORDED AFTER ALL FIVE
+# LANDINGS WERE IN ONE TREE (2026-09-23): neither branch's own digest is
+# the merged document's, because each carried only its own half of the
+# difference -- and the value this replaces was stale before the merge,
+# left behind when the date and clock tails landed. Read as a
+# leaf-by-leaf diff against the tree before the merge: 251 leaves ARRIVE
+# (`bin_groups` on the five numeric blocks, and each side's `percent`,
+# `rows` and two distances, with one block listing its tail values), 10
+# LEAVE (the `value_histogram` bins the groups replace), and 54 MOVE --
+# every one a rung the tail rule withholds going null, plus the
+# publication notes shifting by one because `visits` gains the
+# histogram-withheld note. No key of any other role moved.
+# AND RE-RECORDED AT THE FIX PASS OF STAGE 3 (2026-09-23, plan P4-D349),
+# read as a leaf-by-leaf diff against the tree before it: FOUR leaves move
+# and they are all one column's. `record_code`'s cells are consecutive
+# padded codes, so each of its tails' twelve rows stands at twelve
+# DIFFERENT whole distances summing to the least twelve different whole
+# numbers can sum to -- one possible answer, which would give all
+# twenty-four outer cells back -- and both of its distances go null on
+# both sides. Nothing arrives, nothing leaves, and the four numeric blocks
+# whose tails are not settled that way (`visits`, `reading`, `amount`,
+# `dose`) publish exactly the numbers they published before.
+# AND RE-RECORDED AT THE CLOSE OF STAGE 3'S REVIEW (2026-09-24), read as
+# a line-by-line diff against a git archive of ee56999, the tree this
+# digest was last taken on. ONE LINE MOVES, and it is a SENTENCE and not
+# a number: the refusal a free-text column raises said that describing it
+# from the part that does read "would publish an average, a smallest and
+# a largest value that the rest of the column contradicts", over a
+# description that publishes neither end since the tail rule. It now says
+# "an average, a spread and points along a range", which is what such a
+# description does publish (the sentences pass of stage 3's review,
+# 27b9915). Nothing else in 1,364 lines differs: the four tail distances
+# of `record_code` went null at the fix pass (P4-D349), came back at the
+# sentences pass because that tree predates it, and are null again here,
+# so the NET of the two passes is this one sentence. No key arrives, none
+# leaves, and no published number of any column moves.
 GOLDEN_SHA256 = (
-    "ddcedf3207a45b3fba0e15ef19cbf268a5a75845070c6f036887090f292f939f"
+    "2e1919686d557dc11ce15842497a84e8e01ad5e13de521f2e945f760d6f0f238"
 )
 
 
@@ -340,14 +566,22 @@ def test_published_numbers_are_exact_not_rounded_to_a_fixed_width(
     # exactly as computed.
     text = profile.serialize(_demo_document(tmp_path))
     assert "1e+15" not in text
-    values = [str(1000000000000000 + step) for step in range(10)]
+    # FORTY ROWS AND NOT TEN (stage 3, landing 3.3): ten rows are fewer
+    # than one tail's own, and a block that small publishes no rung at
+    # all to ask this question of (contract 6.7a, TL2). Forty publish a
+    # ladder whose middle rungs are these very numbers.
+    values = [str(1000000000000000 + step) for step in range(40)]
     table = reading.read_table(
         str(fixtures.write(tmp_path, "big.csv", fixtures.single_column_table("v", values)))
     )
     document = profile.build_document(table, SETTINGS, [])
-    ladder = document["columns"][0]["percentiles"]
-    assert ladder["min"] == 1000000000000000.0
-    assert ladder["max"] == 1000000000000009.0
+    block = document["columns"][0]
+    # The two ENDS are withheld by the tail rule; the rungs between the
+    # two boundaries are these numbers and are written in full.
+    assert block["percentiles"]["min"] is None
+    assert block["percentiles"]["p50"] == 1000000000000019.5
+    assert "1e+15" not in profile.serialize(document)
+    assert "1000000000000019.5" in profile.serialize(document)
 
 
 def test_no_not_a_number_can_reach_the_file(tmp_path: pathlib.Path) -> None:
@@ -391,7 +625,8 @@ def test_a_label_below_the_floor_never_appears(tmp_path: pathlib.Path) -> None:
 
 def test_raising_the_floor_withholds_more(tmp_path: pathlib.Path) -> None:
     table = reading.read_table(
-        str(fixtures.write(tmp_path, "t.csv", fixtures.every_role_table()))
+        str(fixtures.write(tmp_path, "t.csv", fixtures.every_role_table())),
+        small_cell_floor=1000,
     )
     strict = taxonomy.Settings(small_cell_floor=1000)
     text = profile.serialize(profile.build_document(table, strict, []))

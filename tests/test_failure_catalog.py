@@ -16,7 +16,7 @@ import sys
 
 import pytest
 
-from synthtwin import errors
+from synthtwin import asking, errors, parsing
 
 # The builders and one set of plausible arguments for each. Adding a
 # builder to errors.py without adding it here fails the completeness
@@ -25,14 +25,11 @@ CASES: "dict[str, tuple[object, ...]]" = {
     "file_missing": ("/data/table.csv",),
     "path_is_a_folder": ("/data",),
     "file_unreadable": ("/data/table.csv", "permission denied"),
-    "not_utf8_or_latin1": ("/data/table.csv",),
     "looks_like_utf16": ("/data/table.csv",),
     "file_is_empty": ("/data/table.csv",),
     "no_data_rows": ("/data/table.csv",),
-    "header_looks_like_data": ("/data/table.csv", "every value reads as a number"),
-    "duplicate_column_names": (["age", "age"],),
-    "empty_column_name": (3,),
     "ragged_rows": ("/data/table.csv", 4, [(2, 3), (7, 5)], 9),
+    "twin_not_writable_in_encoding": ("Western European text (Latin-1)",),
     "field_too_long": ("/data/table.csv", 10_000_000),
     "unreadable_as_csv": ("/data/table.csv", "unexpected end of data"),
     "readers_disagree": ("/data/table.csv", "12 rows", "13 rows"),
@@ -40,7 +37,12 @@ CASES: "dict[str, tuple[object, ...]]" = {
     "output_folder_missing": ("/reports",),
     "output_not_writable": ("/reports/out.json", "read-only file system"),
     "floor_not_positive": ("0",),
-    "first_row_could_be_a_record": ("/data/table.csv", 3),
+    # THE POPULATION FLOOR (plan P4-D341). Registered with the landing
+    # that added it, because a refusal nobody has read is a refusal
+    # nobody has checked. Two shapes, and the people one carries the
+    # column the person typed after --identifier: the rows one names
+    # no column at all.
+    "the_population_is_too_small": (48, "rows", ""),
     "readers_disagree_about_a_name": ("/data/table.csv", 2, "age", "agee"),
     "readers_disagree_about_a_value": ("/data/table.csv", 7, "age"),
     # The same three refusals for a file `synthtwin validate` was only
@@ -48,6 +50,53 @@ CASES: "dict[str, tuple[object, ...]]" = {
     # path the file may not be the reader's own table, and a refusal
     # travels as freely as a report does. The test below walks their
     # arguments and asserts no spelling from a file can be among them.
+    # Reading a workbook (plan P4-D77). Every argument is a path, a
+    # limit or a sheet name: no cell of a workbook reaches a refusal.
+    "workbook_unreadable": ("/data/table.xlsx",),
+    "workbook_part_unreadable": ("/data/table.xlsx",),
+    "workbook_declares_a_document_type": ("/data/table.xlsx",),
+    "workbook_is_a_compound_file": ("/data/table.xls",),
+    "workbook_is_markup": ("/data/table.xls",),
+    "workbook_expands_too_far": ("/data/table.xlsx", 256_000_000),
+    "workbook_part_expands_too_far": ("/data/table.xlsx", 200),
+    "workbook_too_many_parts": ("/data/table.xlsx", 4_096),
+    "workbook_part_named_away": ("/data/table.xlsx",),
+    # The files review of 2026-09-18 (plans P4-D283, P4-D289). Neither
+    # names a cell: one names the column, the other the file alone.
+    "workbook_is_packaged_unreadably": ("/data/table.xlsx",),
+    "workbook_column_mixes_number_formats": ("/data/table.xlsx", "amount"),
+    "workbook_cell_too_long": ("/data/table.xlsx", 32_767),
+    "workbook_holds_too_many_cells": ("/data/table.xlsx", 8_000_000),
+    "workbook_too_many_shared_strings": ("/data/table.xlsx", 4_000_000),
+    "workbook_too_many_rows": ("/data/table.xlsx", 1_048_576),
+    "workbook_too_many_columns": ("/data/table.xlsx", 16_384),
+    "workbook_has_no_sheet": ("/data/table.xlsx",),
+    "workbook_sheet_not_found": ("/data/table.xlsx", "Data", ["Notes", "Totals"]),
+    "workbook_sheet_is_empty": ("/data/table.xlsx", "Data"),
+    "workbook_other_sheet_holds_a_table": ("/data/table.xlsx", "Notes", "Data"),
+    # The files review's repairs (plan P4-D164 to P4-D173). The three
+    # `checked_` forms are the validate path's, and take a path and
+    # positions alone (V9); the rectangle and the storage refusals are
+    # the profile path's.
+    "workbook_table_spans_too_many_cells": ("/data/table.xlsx", 1_000_000),
+    "checked_workbook_sheet_not_found": ("/data/checked.xlsx", 3),
+    "checked_workbook_sheet_is_empty": ("/data/checked.xlsx", 2),
+    "checked_workbook_other_sheet_holds_a_table": ("/data/checked.xlsx", 2, 1),
+    "workbook_column_mixes_storage": ("/data/table.xlsx", "amount", "formats"),
+    # The repair pass after the files review (plan P4-D174): a header
+    # row the sheet does not settle is asked about, by row number.
+    # Registered here by landing 2b.11 part 2. The builder arrived with
+    # the `--metadata-rows` declaration of plan P4-D81 and reached this
+    # table with no entry, so this file -- whose whole job is that every
+    # refusal a person can meet has been read by somebody -- was red on
+    # the commit that added it.
+    "metadata_rows_not_supported": ("3",),
+    # Registered with the `--delimiter` declaration of plan P4-D110.
+    "delimiter_not_supported": ("x",),
+    "delimiter_declared_against_the_file": (
+        "/data/table.csv", "a semicolon", "a comma",
+    ),
+    "delimiter_declared_on_a_workbook": ("/data/table.xlsx",),
     "checked_file_readers_disagree_about_a_name": ("/data/checked.csv", 2),
     "checked_file_readers_disagree_about_a_value": (
         "/data/checked.csv",
@@ -55,7 +104,6 @@ CASES: "dict[str, tuple[object, ...]]" = {
         2,
     ),
     "checked_file_unreadable_as_csv": ("/data/checked.csv",),
-    "checked_file_repeats_a_column_name": ("/data/checked.csv",),
     "blank_line_in_one_column": ("/data/table.csv", 4),
     # The two messages about the disk take the arguments profile.py
     # actually passes: the caller has LOOKED at each name and hands over
@@ -192,6 +240,16 @@ CASES: "dict[str, tuple[object, ...]]" = {
     "answers_entry_names_no_column": ("checklist[7]",),
     "answers_entry_offers_nothing": ("asked[2]", "dose"),
     "answers_names_one_key_twice": ("/data/clinic-questions.json", "column"),
+    # THE PAIR THE FILE MAY NOT CARRY (review of stage 3, floor item 1).
+    # An answer that changes how the file is READ gives the file's own
+    # column names to different columns, so a declaration made by name
+    # lands on one the person was not looking at. It names the question,
+    # the columns, and the two runs to do it in.
+    "answers_change_the_reading_and_name_columns": (
+        "/data/clinic-questions.json",
+        [asking.FIRST_ROW_SUBJECT],
+        ["dose"],
+    ),
     # Said BEFORE anything is written, where a link or a name of the
     # person's own stands where the questions file goes (review item
     # L17b-R1-1). The noun is one of the three written out in errors.py
@@ -442,7 +500,6 @@ CHECKED_FILE_FORMS = (
     "checked_file_readers_disagree_about_a_name",
     "checked_file_readers_disagree_about_a_value",
     "checked_file_unreadable_as_csv",
-    "checked_file_repeats_a_column_name",
 )
 
 
@@ -815,8 +872,16 @@ def _a_described_table(folder: "pathlib.Path") -> "pathlib.Path":
     import fixtures
     from synthtwin.cli import main
 
+    # A HUNDRED ROWS AND NOT FORTY-EIGHT (plan P4-D341). The command
+    # refuses a table under the population floor and writes nothing, so
+    # a helper that describes one describes no table at all. The number
+    # is derived from the rule -- `parsing.POPULATION_FLOOR` is the
+    # smallest population the command describes -- and not copied off a
+    # run: what this helper needs is a described table, and the
+    # smallest one the command makes is the cheapest.
     rows = [
-        [fixtures.REGIONS[index % 4], f"{index % 7}"] for index in range(48)
+        [fixtures.REGIONS[index % 4], f"{index % 7}"]
+        for index in range(parsing.POPULATION_FLOOR)
     ]
     table = fixtures.write(
         folder, "clinic.csv", fixtures.rows_to_csv(["region", "visits"], rows)
@@ -1138,11 +1203,24 @@ def _the_description_no_file_can_be_the_twin_of(folder, description, undo):
     import fixtures
     from synthtwin.cli import main
 
+    # EACH VALUE ON SEVERAL ROWS, SO THE TABLE CLEARS THE POPULATION
+    # FLOOR (plan P4-D341). The condition this fixture needs is a
+    # property of the COLUMN -- twenty-six different values where the
+    # code alphabet can write twenty-five -- and not of the row count,
+    # so the rows are raised until the command describes the table at
+    # all and the property is left exactly as it was. The copies are
+    # derived: enough of them for `parsing.POPULATION_FLOOR` rows, which
+    # is four at a hundred. No value reaches the floor of eleven either
+    # way, so the description is the one this fixture had before.
     values = [chr(0x100 + 2 * index) for index in range(26)]
+    copies = -(-parsing.POPULATION_FLOOR // len(values))
     table = fixtures.write(
         folder,
         "note.csv",
-        fixtures.rows_to_csv(["note"], [[value] for value in values]),
+        fixtures.rows_to_csv(
+            ["note"],
+            [[value] for value in values for _each in range(copies)],
+        ),
     )
     assert main(["profile", f"{table}"]) == 0
     ordinary = fixtures.write(folder, "any.csv", "note\nx\n")

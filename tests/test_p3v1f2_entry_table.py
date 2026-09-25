@@ -34,7 +34,8 @@ counts it excused are taken over the blank split, where the floor's
 worth of cells spelling a missing marker moves all three with the role
 still holding. So: coverage is credited to a registered case and to
 nothing else, which makes the registration total over the shipped sites
-(672 rows over 668 sites, 73 curated and 599 derived); each derived row
+(measured on 2026-09-22: 1401 rows over 1311 sites, 247 curated and
+1154 derived); each derived row
 must be an edit aimed
 at the site it covers; the floor is counted over the registration; and
 nothing is excused at all.
@@ -110,8 +111,10 @@ Every table is built at test time by the seeded neutral builders in
 
 import csv
 import dataclasses
+import decimal
 import io
 import os
+import sys
 import pathlib
 import re
 import typing
@@ -187,6 +190,23 @@ def _reinstated() -> "typing.Iterator[None]":
         monkeypatch.setattr(
             validation, "_corner_listings", _one_offset_fact_rebound
         )
+    # LANDING D's OWN MUTANT. The measurements eleven cases now share
+    # are built once, so a name lost out of one of those lists is a
+    # fixture nobody walks any more and every one of those cases stays
+    # green. `test_the_shared_measurements_hold_every_run_they_stand_for`
+    # is what catches it, and this is how to see it catch it:
+    #
+    #     REINSTATE=D-SHARED-COVER python -m pytest \
+    #         tests/test_p3v1f2_entry_table.py -k shared_measurements
+    if os.environ.get("REINSTATE") == "D-SHARED-COVER":
+        monkeypatch.setattr(
+            sys.modules[__name__], "_green_runs", _one_shared_run_missing
+        )
+        monkeypatch.setattr(
+            sys.modules[__name__],
+            "_ordinary_entries_walked",
+            _one_walked_entry_missing,
+        )
     yield
     monkeypatch.undo()
 
@@ -204,9 +224,11 @@ def _described(
 ) -> contract.Profile:
     """One table through the real producer and the strict loader.
 
-    `measured` carries `--measurement`, which the JOINED role requires:
-    an undeclared column of `120/80` is not that role, by design (plan
-    P4-D23), so its fixture cannot reach the battery without one.
+    `measured` carries `--measurement`, which the JOINED role's full
+    reading requires (plan P4-D23). A slashed pair of plain whole
+    numbers is read as that role undeclared since plan P4-D40, and the
+    fixture keeps the declaration so its description does not depend
+    on which of the two readings reached it.
     """
     table_path = fixtures.write(folder, f"{stem}.csv", text)
     table = reading.read_table(str(table_path), first_row=first_row)
@@ -305,12 +327,19 @@ def _pooled_styles_table() -> str:
     # and the twin holds thirty-six at every seed measured.
     #
     # NOTHING THE FIXTURE EXISTS FOR MOVED: `fraction_widths` is still
-    # `{1: 12}`, the styles are still 34 plain, 12 decimal and one
-    # pooled, and the role is still `continuous`.
+    # `{1: 12}`, the styles are still 34 plain and 12 decimal beside a
+    # pool, and the role is still `continuous`.
+    #
+    # THE POOL IS ELEVEN EXPONENT CELLS OVER TWO FORMS, where it was one
+    # (plan P4-D221; stage 2 closed by the owner rulings of 2026-09-17). A
+    # pool of one is below the disclosure line and took in the named twelve
+    # decimals; ten lower-case and one upper-case exponent are a pool that
+    # stands beside both named counts, and no form of it is named.
     values = (
         [f"{index * 3 + 20}" for index in range(34)]
         + ["1.5"] * 12
-        + ["2.5e0"]
+        + [f"{index}.5e0" for index in range(2, 12)]
+        + ["12.5E0"]
     )
     return fixtures.single_column_table("reading", values)
 
@@ -392,9 +421,37 @@ def _padded_code_table() -> str:
     code, a zip code whose leading zero matters, an account number. It
     is the case P4-D14 was built for, so it is the case the coverage
     identity walks.
+
+    ITS TAILS PUBLISH NO DISTANCE, AND THE VALUES STAY AS THEY ARE (plan
+    P4-D349). `00000` to `00039` are forty CONSECUTIVE whole numbers, so
+    each tail's twelve different whole distances sum to the least twelve
+    different whole numbers can sum to and have one possible answer: the
+    description publishes neither distance there and the four tail sites
+    this fixture used to be registered for are not shipped by it any
+    more. The values are not changed for that. Everything else this
+    fixture exists to reach -- the named field width, the whole-valued
+    flag, the spill census, the middle rung and the mean -- is a fact of
+    these forty codes, and a shape chosen to keep four registrations
+    alive would be a fixture chosen for the battery rather than for the
+    case P4-D14 was built for. The four facts are exercised on `visits`,
+    whose own tails publish their pair.
     """
     values = [f"{index:05d}" for index in range(40)]
     return fixtures.single_column_table("code", values)
+
+
+def _spelled_code_table() -> str:
+    """A count column writing one number more than one way (P4-D123).
+
+    THE CENSUS OF SPELLINGS HAD NO FIXTURE PUBLISHING ONE, and a count
+    column publishes it only where two spellings write one number and
+    every spelling clears the floor: `7`, `07` and `0`, fourteen cells
+    each, are the smallest such column here.
+    """
+    values = []
+    for index in range(42):
+        values += [("7", "07", "0")[index % 3]]
+    return fixtures.single_column_table("answer", values)
 
 
 def _quarter_table() -> str:
@@ -506,17 +563,21 @@ def runs(
         # assertion that every one carries its citation was asserting
         # nothing.
         #
-        # A SATURATED INTEGER COLUMN still does: a hundred whole
-        # numbers over two hundred cells, ends one and a hundred, so
-        # the grid holds exactly as many points as the column has
-        # values and the placement has no freedom. Its twin holds
-        # ninety-eight of the hundred and all three distinctness counts
-        # take the envelope together, which is the shape A-P4-55 exists
-        # to keep consistent.
+        # A SATURATED INTEGER COLUMN ACROSS NOUGHT still does: a
+        # hundred whole numbers from minus five to ninety-four over three
+        # hundred cells, so the grid holds exactly as many points as the
+        # column has values and the placement has no freedom. Its twin
+        # holds ninety-nine of the hundred and all three distinctness
+        # counts take the envelope together, which is the shape A-P4-55
+        # exists to keep consistent. The column was ends one and a
+        # hundred until plan P4-D147 gave a saturated grid its integers
+        # in order, each once, and that column now meets its count; the
+        # fill stands aside here because the sign bands the layout gives
+        # the strata are not the bands those integers stand in.
         (
             "saturated",
             fixtures.single_column_table(
-                "reading", [f"{index % 100 + 1}" for index in range(200)]
+                "reading", [f"{index % 100 - 5}" for index in range(300)]
             ),
             None,
             reading.FIRST_ROW_AUTOMATIC,
@@ -551,6 +612,7 @@ def runs(
             None,
             reading.FIRST_ROW_AUTOMATIC,
         ),
+
         (
             "headerless",
             fixtures.rows_to_csv(
@@ -599,12 +661,71 @@ def _measured(
     return validation.measure(described, str(target))
 
 
+@pytest.fixture(scope="module")
+def green(
+    tmp_path_factory: pytest.TempPathFactory,
+    runs: "list[tuple[str, contract.Profile, str]]",
+) -> "list[tuple[str, contract.Profile, str, validation.Outcome]]":
+    """Every fixture with its own unperturbed twin, MEASURED ONCE.
+
+    Eight cases below walked the same eleven files -- one of them
+    twice -- and each walk wrote every twin out again and ran a whole
+    `validate` over it, which is 99 measured files where there are
+    eleven. The measurement is a function of the description and the
+    file's characters, both of which `runs` already holds, so it is the
+    same eleven outcomes every time and it is built here.
+
+    WHAT MAKES SHARING THIS SAFE, and it is two things. `Outcome` is a
+    frozen dataclass of tuples, so no case can leave a mark on it for
+    the next; and no case here writes into this folder, reads the files
+    back, or reads `Outcome.measured_name`, so nothing depends on WHICH
+    path a twin was measured at. A perturbed file is a different
+    question and is not in here: the perturbation battery has its own
+    folder and its own fixture, and the two never share a file name.
+
+    MODULE-SCOPED and not wider, for the reason `runs` is: the
+    reinstatement above is a module-scoped patch, and a run built
+    outside this module would be a run built without it.
+    """
+    return _green_runs(tmp_path_factory.mktemp("entry-table-green"), runs)
+
+
+def _green_runs(
+    folder: pathlib.Path,
+    runs: "list[tuple[str, contract.Profile, str]]",
+) -> "list[tuple[str, contract.Profile, str, validation.Outcome]]":
+    """The eleven unperturbed runs, measured. Named so a mutant can take it."""
+    return [
+        (name, described, twin, _measured(folder, described, twin, f"{name}.csv"))
+        for name, described, twin in runs
+    ]
+
+
+# The real builders, held before the mutant below can stand in for
+# them, so each mutant wraps the real one instead of calling itself.
+_REAL_GREEN_RUNS = _green_runs
+
+
+def _one_shared_run_missing(
+    folder: pathlib.Path,
+    runs: "list[tuple[str, contract.Profile, str]]",
+) -> "list[tuple[str, contract.Profile, str, validation.Outcome]]":
+    """The shared runs with the last one left out: the mutant of landing D.
+
+    A fixture eight cases read is a place where a subject can be lost
+    with nothing going red -- each of those cases walks what it is
+    handed, so a shorter list is a shorter walk and a green one. This
+    is that mistake, made on demand.
+    """
+    built = _REAL_GREEN_RUNS(folder, runs)
+    return built[: len(built) - 1]
+
+
 # -- V3.1 and V3.3: the entry table IS the registry's projection ------
 
 
 def test_every_fact_the_validator_names_is_a_registry_fact(
-    tmp_path: pathlib.Path,
-    runs: "list[tuple[str, contract.Profile, str]]",
+    green: "list[tuple[str, contract.Profile, str, validation.Outcome]]",
 ) -> None:
     """Drift in one direction: a fact nobody registered.
 
@@ -617,8 +738,7 @@ def test_every_fact_the_validator_names_is_a_registry_fact(
     known = {
         f"{fact.group}.{fact.field}" for fact in dispositions.REGISTRY
     }
-    for name, described, twin in runs:
-        outcome = _measured(tmp_path, described, twin, f"{name}.csv")
+    for name, _described, _twin, outcome in green:
         for check in outcome.checks:
             assert (
                 _registry_key(check.fact) in known
@@ -691,7 +811,39 @@ def test_every_registry_fact_is_bound_to_one_of_the_three_kinds(
     """
     checked: set[str] = set()
     listed: set[str] = set()
-    for name, described, twin in runs:
+    # THE CENSUS OF SPELLINGS IS REACHED BY ONE MORE MEASURED FILE, and
+    # only here (contract 7.13, landing 2b.18 part 2). No fixture of the
+    # coverage identity writes one number two ways, and adding one there
+    # would owe a red case for every subcheck a count column files; the
+    # binding asked HERE is only that the fact is filed at all, so the
+    # twin of `_spelled_code_table` is measured beside the others.
+    spelled = _described(tmp_path, _spelled_code_table(), None, stem="spelled")
+    spelled_twin = rendering.twin_csv(generation.generate(spelled, SEED))
+    # ...AND SO IS THE WORKBOOK BLOCK (plan P4-D77), by one workbook: no
+    # fixture of this battery is a workbook, so `document.source.workbook`
+    # was bound by nothing here while the validator files every one of its
+    # subchecks against it (the files review's repair, plan P4-D173). The
+    # binding asked is only that the fact is filed, so the workbook itself
+    # is the measured file.
+    import workbooks
+
+    book = tmp_path / "book.xlsx"
+    book.write_bytes(workbooks.plain_book())
+    booked = contract.load_profile(
+        str(
+            fixtures.write_profile(
+                tmp_path,
+                "book-profile.json",
+                profile.build_document(
+                    reading.read_table(str(book)), SETTINGS, []
+                ),
+            )
+        )
+    )
+    for name, described, twin in runs + [
+        ("spelled-codes", spelled, spelled_twin),
+        ("workbook", booked, book.read_bytes()),
+    ]:
         outcome = _measured(tmp_path, described, twin, f"{name}.csv")
         for check in outcome.checks:
             checked.add(check.fact)
@@ -763,8 +915,7 @@ def test_an_input_side_entry_is_a_fact_whose_obligation_is_on_the_profile() -> (
 
 
 def test_the_kind_of_every_entry_follows_from_its_disposition(
-    tmp_path: pathlib.Path,
-    runs: "list[tuple[str, contract.Profile, str]]",
+    green: "list[tuple[str, contract.Profile, str, validation.Outcome]]",
 ) -> None:
     """The three-way split, derived rather than re-decided (V3.3).
 
@@ -779,8 +930,7 @@ def test_the_kind_of_every_entry_follows_from_its_disposition(
     by_key = {
         f"{fact.group}.{fact.field}": fact for fact in dispositions.REGISTRY
     }
-    for name, described, twin in runs:
-        outcome = _measured(tmp_path, described, twin, f"{name}.csv")
+    for name, _described, _twin, outcome in green:
         for check in outcome.checks:
             if check.fact in validation.BYTE_RULE_FACTS:
                 continue
@@ -806,8 +956,7 @@ def test_the_kind_of_every_entry_follows_from_its_disposition(
 
 
 def test_no_obligation_is_both_checked_and_listed_in_one_run(
-    tmp_path: pathlib.Path,
-    runs: "list[tuple[str, contract.Profile, str]]",
+    green: "list[tuple[str, contract.Profile, str, validation.Outcome]]",
 ) -> None:
     """Double-binding, which the plan refuses beside unbinding.
 
@@ -818,8 +967,7 @@ def test_no_obligation_is_both_checked_and_listed_in_one_run(
     counted twice, once in each census, and the two censuses then
     disagree about what the run did.
     """
-    for name, described, twin in runs:
-        outcome = _measured(tmp_path, described, twin, f"{name}.csv")
+    for name, _described, _twin, outcome in green:
         verdicted = {
             (check.column, check.fact, check.subcheck)
             for check in outcome.checks
@@ -852,8 +1000,8 @@ def _predicate_runs(
     for name, described, twin in (
         ("header-written", headed[0], headed[1]),
         ("names-generated", bare[0], bare[1]),
-        ("zero-rows-headered", dataclasses.replace(headed[0], n_rows=0), ""),
-        ("zero-rows-headerless", dataclasses.replace(bare[0], n_rows=0), ""),
+        ("zero-rows-headered", fixtures.zero_rows(headed[0]), ""),
+        ("zero-rows-headerless", fixtures.zero_rows(bare[0]), ""),
     ):
         plain = headed if name in ("header-written", "zero-rows-headered") else bare
         ordinary = _measured(folder, plain[0], plain[1], f"{name}-plain.csv")
@@ -973,22 +1121,87 @@ def test_every_named_predicate_binds_every_fact_exactly_once(
             seen.add(identity)
 
 
+def _a_label_half_that_cannot_supply_its_spellings(
+    folder: pathlib.Path,
+) -> "validation.Outcome":
+    """A run that reaches an authorized deviation, built here.
+
+    THE FIXTURES ABOVE STOPPED REACHING ONE AT LANDING 3.3, and that is
+    a measurement rather than an omission: the saturated fixture's twin
+    used to hold fewer different numbers than its description publishes
+    -- three distinct counts on its `reading` column took the envelope's
+    authorized deviation -- and with the tail rule it holds all 100 of
+    them, so all three are HELD. Nothing else in the walk lowers an
+    outcome, and the loop below would have gone on passing over an
+    empty set.
+
+    So the case is CONSTRUCTED here instead, from the rule that grants
+    the lowering rather than from any fixture's luck: a compound column
+    whose label half publishes more spellings than the twin can supply
+    (plans P4-D275 and P4-D276). At a floor of eleven `alpha` covers
+    twelve rows and is published as its commonest spelling alone, while
+    `beta` covers ten and is held back with both of its own -- so the
+    half publishes 1 + 2 = 3 spellings, the twin can write 1 + 1 = 2,
+    and the column's raw count is one short of its published 40 + 3
+    inside the window 40 + 2 to 40 + 3. That is the one shape of
+    lowering this product grants, and `tests/test_p2c1f4_approximation
+    _bounds.py` measures its window; here it is the witness that keeps
+    the walk below from asserting nothing.
+    """
+    values = (
+        [f"{index * 2}e0" for index in range(1, 41)]
+        + ["alpha"] * 6
+        + ["Alpha"] * 6
+        + ["beta"] * 5
+        + ["Beta"] * 5
+    )
+    path = fixtures.write(
+        folder,
+        "short-half.csv",
+        fixtures.rows_to_csv(["c"], [[value] for value in values]),
+    )
+    document = profile.build_document(
+        reading.read_table(str(path), small_cell_floor=11),
+        taxonomy.Settings(small_cell_floor=11),
+        [],
+    )
+    assert document["columns"][0]["role"] == "numbers_with_labels"
+    written = fixtures.write_profile(folder, "short-half.json", document)
+    described = contract.load_profile(str(written))
+    twin = folder / "short-half-twin.csv"
+    twin.write_text(
+        rendering.twin_csv(generation.generate(described, SEED)),
+        encoding="utf-8",
+        newline="\n",
+    )
+    return validation.measure(described, str(twin))
+
+
 def test_an_authorized_deviation_names_a_lesser_outcome_the_plan_grants(
     tmp_path: pathlib.Path,
-    runs: "list[tuple[str, contract.Profile, str]]",
+    green: "list[tuple[str, contract.Profile, str, validation.Outcome]]",
 ) -> None:
     """A lowering shown without its authority is one nobody can check.
 
     Every AUTHORIZED-DEVIATION verdict must belong to a fact the
     registry carries an authorization for, and must arrive with the
-    passage that grants it.
+    passage that grants it. The walk is the green fixtures AND the
+    constructed run above, which is where the witness lives since
+    landing 3.3.
     """
     by_key = {
         f"{fact.group}.{fact.field}": fact for fact in dispositions.REGISTRY
     }
     seen = 0
-    for name, described, twin in runs:
-        outcome = _measured(tmp_path, described, twin, f"{name}.csv")
+    walked = green + [
+        (
+            "a label half that cannot supply its spellings",
+            None,
+            "",
+            _a_label_half_that_cannot_supply_its_spellings(tmp_path),
+        )
+    ]
+    for name, _described, _twin, outcome in walked:
         for check in outcome.checks:
             if check.verdict != validation.AUTHORIZED_DEVIATION:
                 continue
@@ -1000,7 +1213,7 @@ def test_an_authorized_deviation_names_a_lesser_outcome_the_plan_grants(
                 f"fact the registry authorizes none for"
             )
     assert seen, (
-        "no fixture here reached an authorized deviation at all, so this "
+        "no run here reached an authorized deviation at all, so this "
         "assertion is asserting nothing"
     )
 
@@ -1057,7 +1270,7 @@ def _reshaped(
         if index >= len(rows[row]):
             continue
         cell = rows[row][index]
-        if not cell:
+        if not _holds_a_value(described, index, cell):
             continue
         rows[row][index] = f"{cell}1"
     return _rebuilt(rows)
@@ -1101,6 +1314,24 @@ def _renamed_header(text: str, was: str, becomes: str) -> str:
     return _rebuilt(rows)
 
 
+def _holds_a_value(
+    described: contract.Profile, index: int, cell: str
+) -> bool:
+    """Whether one written cell of one column is a VALUE of that column.
+
+    Not blank, and not a spelling the column publishes among its ABSENT
+    cells. The second half arrived with plan P4-D6.4: the every-role
+    `reading` column's thirteen judged `-999` cells were written blank
+    and are written as the table wrote them now, so a battery that asked
+    "is it blank" found no absent cell there to fill and picked a `-999`
+    as the first value to blank or reword -- and eight covering cases of
+    that column lost the file they are measured on. Asked this way, each
+    perturbation edits the same row it edited before, and on every other
+    fixture, none of which publishes a hole spelling, nothing moves.
+    """
+    return bool(cell) and cell not in described.columns[index].missing_by_source
+
+
 def _changed(
     described: contract.Profile,
     text: str,
@@ -1108,19 +1339,60 @@ def _changed(
     find_blank: bool,
     value: str,
 ) -> str:
-    """The first cell of one column that is (or is not) blank, changed.
+    """The first cell of one column that is (or is not) absent, changed.
 
-    "" where the column holds no such cell -- a column with no blank in
-    it cannot have one filled -- and the caller leaves that perturbation
-    out rather than building a file identical to the twin, which would
-    be a red case that can never go red.
+    "" where the column holds no such cell -- a column with no absent
+    cell in it cannot have one filled -- and the caller leaves that
+    perturbation out rather than building a file identical to the twin,
+    which would be a red case that can never go red. Absent is blank or
+    a published hole spelling (`_holds_a_value`).
     """
     rows = _rows_of(text)
+    left = _smallest_reportable_edit(described, index)
     for row in range(_first_record(described), len(rows)):
-        if bool(rows[row][index]) != find_blank:
+        if _holds_a_value(described, index, rows[row][index]) != find_blank:
             rows[row][index] = value
-            return _rebuilt(rows)
+            left = left - 1
+            if not left:
+                return _rebuilt(rows)
     return ""
+
+
+def _smallest_reportable_edit(
+    described: contract.Profile, index: int
+) -> int:
+    """How many cells an edit must touch before a description can carry it.
+
+    ONE, EXCEPT ON A COLUMN THAT PUBLISHES A LEVEL LIST (the owner's
+    ruling of 2026-09-17, item 5; plan P4-D231), where it is TWO. A
+    single cell edited into a class of its own is a level of ONE row
+    below the floor, and the level pass counts such a cell as MISSING --
+    so the file's own description does not count it in any class, the
+    count of that class cannot miss, and a red case built on one cell
+    has no teeth. Two cells are one level of TWO rows, which the pool
+    publishes without saying a size, so they stay present and the class
+    count misses as it did.
+
+    It is the same reasoning `_floor_cells` gives for the style clauses:
+    the battery edits the smallest number of cells a description of the
+    edited file can still carry, and says which number that is and why.
+
+    AND THE FLOOR'S WORTH ON A DECLARED RECORD NUMBER (plan P4-D277).
+    Its four-way reading split counts a part below the line into the
+    largest part, and its two alphabet counts ask `census_nameable`
+    over the count and its complement, so every class those counts name
+    is published only from `census_floor` cells up: two cells moved into
+    a class are counted back out of it by the file's own description,
+    and a red case built on them has no teeth.
+    """
+    if index >= len(described.columns):
+        return 1
+    role = described.columns[index].role
+    if role == "identifier":
+        return parsing.census_floor(described.settings.small_cell_floor)
+    if role in ROLES_WITH_NUMBERS and role != "numbers_with_labels":
+        return 1
+    return 2
 
 
 def _mapped(
@@ -1132,7 +1404,7 @@ def _mapped(
     """Every non-blank cell of one column put through one rule."""
     rows = _rows_of(text)
     for row in range(_first_record(described), len(rows)):
-        if rows[row][index]:
+        if _holds_a_value(described, index, rows[row][index]):
             rows[row][index] = rule(rows[row][index])
     return _rebuilt(rows)
 
@@ -1153,6 +1425,8 @@ def _numbered(described: contract.Profile, text: str, index: int) -> str:
     first = _first_record(described)
     numbers: list[float] = []
     for row in range(first, len(rows)):
+        if not _holds_a_value(described, index, rows[row][index]):
+            continue
         found = parsing.parse_number(rows[row][index])
         if found is not None:
             numbers = numbers + [found]
@@ -1162,7 +1436,7 @@ def _numbered(described: contract.Profile, text: str, index: int) -> str:
     high = max(numbers)
     step = 0
     for row in range(first, len(rows)):
-        if not rows[row][index]:
+        if not _holds_a_value(described, index, rows[row][index]):
             continue
         share = step / (len(numbers) - 1)
         rows[row][index] = f"{low + (high - low) * share}"
@@ -1209,8 +1483,10 @@ def _clock_piled(
     if not isinstance(facts, contract.ClockFacts):
         return ""
     form = facts.clock_form
-    low = parsing.clock_ordinal(facts.earliest, form)
-    high = parsing.clock_ordinal(facts.latest, form)
+    if facts.low_tail is None or facts.high_tail is None:
+        return ""
+    low = parsing.clock_ordinal(facts.low_tail.boundary, form)
+    high = parsing.clock_ordinal(facts.high_tail.boundary, form)
     if low is None or high is None:
         return ""
     half = (high - low) // 2
@@ -1221,15 +1497,18 @@ def _clock_piled(
     written = [row for row in range(first, len(rows)) if rows[row][index]]
     if len(written) < 12:
         return ""
+    # EVERY CELL OUTSIDE THE TWO BOUNDARIES STAYS WHERE THE TWIN PUT IT
+    # (stage 3, plan P4-D328). The two ends are published nowhere now;
+    # what the description publishes at the outside of the column is a
+    # tail on each side, and moving one of its cells would make a tail
+    # check do the catching instead of the rung this perturbation is
+    # about. So the tails and the two boundary cells are left alone and
+    # only the interior is piled.
     keep: "set[int]" = set()
     for row in written:
-        if rows[row][index] == facts.earliest:
+        ordinal = parsing.clock_ordinal(rows[row][index], form)
+        if ordinal is None or ordinal <= low or ordinal >= high:
             keep.add(row)
-            break
-    for row in written:
-        if rows[row][index] == facts.latest and row not in keep:
-            keep.add(row)
-            break
     corner = high - half if at_the_top else low
     place = 0
     for row in written:
@@ -1314,11 +1593,37 @@ def _ladder_lifted(
     return _ladder_piled(described, text, index, at_the_top=True)
 
 
+def _ladder_flattened(
+    described: contract.Profile, text: str, index: int
+) -> str:
+    """Both ends kept, and every cell between them on ONE value.
+
+    THE EDIT THE TWO DISTINCTNESS COUNTS ANSWER FOR SINCE LANDING 2b.6.
+    `crushed` used to catch them: under the stratified placement each
+    rank sat in its own slice of the distribution, so G12.5's lower end
+    counted almost every rank as forced apart from its neighbours, and a
+    file that piled its middle into half the range held fewer different
+    values than that. Method G7.3 pins the rungs and draws every other
+    rank inside the gap between two pinned ranks now, so ranks in one
+    gap are NOT forced apart at all and the lower end is the number of
+    different PINNED values -- eleven at most. A pile into half the
+    range clears that easily, and `crushed` stopped reaching these two
+    sites while still reaching the rungs.
+
+    So this edit puts every interior cell on one value, which is what a
+    file has to do to fall below the bound the construction now
+    guarantees. The two ends are kept, so both end checks and both
+    ladder ends still hold and these two counts answer for themselves.
+    """
+    return _ladder_piled(described, text, index, at_the_top=False, spread=1)
+
+
 def _ladder_piled(
     described: contract.Profile,
     text: str,
     index: int,
     at_the_top: bool,
+    spread: int = 0,
 ) -> str:
     """A datetime column with its two ends kept and its middle piled to one side.
 
@@ -1343,8 +1648,10 @@ def _ladder_piled(
     facts = column.facts
     if not isinstance(facts, contract.DatetimeFacts):
         return ""
-    low = generation._ordinal_of(facts.earliest, facts.resolution)
-    high = generation._ordinal_of(facts.latest, facts.resolution)
+    if facts.low_tail is None or facts.high_tail is None:
+        return ""
+    low = generation._ordinal_of(facts.low_tail.boundary, facts.resolution)
+    high = generation._ordinal_of(facts.high_tail.boundary, facts.resolution)
     half = (high - low) // 2
     if half < 4:
         return ""
@@ -1353,32 +1660,263 @@ def _ladder_piled(
     written = [row for row in range(first, len(rows)) if rows[row][index]]
     if len(written) < 12:
         return ""
-    # The two ends are kept where the twin put them -- WHEREVER it put
-    # them. Keeping the first and last WRITTEN cells instead would keep
-    # whatever the twin happens to hold at those two rows, and a twin
-    # does not write its values in order, so the ends moved with
-    # everything else and the two end checks did the catching.
+    # EVERY CELL OUTSIDE THE TWO BOUNDARIES IS KEPT WHERE THE TWIN PUT
+    # IT -- WHEREVER it put it (stage 3, plan P4-D328). The column
+    # publishes no end any more: what stands at its outside is a tail
+    # on each side, whose rows and distances a moved cell would break,
+    # so the two tails would do the catching instead of the rungs this
+    # perturbation is about. Keeping the first and last WRITTEN cells
+    # instead would keep whatever the twin happens to hold at those two
+    # rows, and a twin does not write its values in order.
     keep: set[int] = set()
     for row in written:
-        if rows[row][index] == facts.earliest:
+        read = parsing.parse_datetime(rows[row][index], facts.parser_family)
+        if read is None:
+            # A stand-in stays a stand-in: it is not a value of this
+            # column's own space and moving it would change how many
+            # cells read as dates at all.
             keep.add(row)
-            break
-    for row in written:
-        if rows[row][index] == facts.latest and row not in keep:
+            continue
+        ordinal = generation._ordinal_of(read[0], facts.resolution)
+        if ordinal <= low or ordinal >= high:
             keep.add(row)
-            break
     corner = high - half if at_the_top else low
     place = 0
     for row in written:
         if row in keep:
             continue
         rows[row][index] = generation._cell_of_ordinal(
-            corner + (place % half),
+            corner + (place % (spread if spread else half)),
             facts.resolution,
             facts.time_precision,
             facts.subsecond_digits,
+            "T",
         )
         place = place + 1
+    return _rebuilt(rows)
+
+
+def _tail_readings(
+    described: contract.Profile, rows: "list[list[str]]", index: int
+) -> "list[tuple[int, int, str]]":
+    """Each record row that reads as a date or a clock time, by rank.
+
+    A row, the unit its cell stands at, and the offset it wears (empty
+    for a clock). Ordered by the unit, which is the order the tail
+    checks read the file in.
+
+    THE READING IS THE SHIPPED ONE (`validation._tail_units_of`) and not
+    a second one written here. An edit aimed at a tail has to put its
+    hand on the cell that stands where the description's boundary
+    stands, and the offsets a datetime column wears move a cell's rank:
+    a reader of this file's own would be a second answer to the question
+    the check asks, and an edit aimed by it would miss the site it is
+    registered against on the day the two answers differed.
+    """
+    facts = described.columns[index].facts
+    first = _first_record(described)
+    cells = [rows[row][index] for row in range(first, len(rows))]
+    found: "list[tuple[int, int, str]]" = []
+    if isinstance(facts, contract.DatetimeFacts):
+        units = validation._tail_units_of(facts, cells)
+        for place in range(len(cells)):
+            unit = units[place]
+            if unit is None:
+                continue
+            read = parsing.parse_datetime(cells[place], facts.parser_family)
+            found += [(first + place, unit, "" if read is None else read[1])]
+    elif isinstance(facts, contract.ClockFacts):
+        for place in range(len(cells)):
+            reading = parsing.clock_ordinal(cells[place], facts.clock_form)
+            if reading is None:
+                continue
+            found += [(first + place, reading, "")]
+    return sorted(found, key=lambda entry: entry[1])
+
+
+def _tail_boundaries(
+    described: contract.Profile, index: int
+) -> "tuple[int, int] | None":
+    """The two PUBLISHED boundaries of a column's tails, in its own unit."""
+    facts = described.columns[index].facts
+    if isinstance(facts, contract.DatetimeFacts):
+        if facts.low_tail is None or facts.high_tail is None:
+            return None
+        reading = facts.datetimes_read_at
+        return (
+            taxonomy.tail_ordinal(facts.low_tail.boundary, facts.tail_unit, reading),
+            taxonomy.tail_ordinal(facts.high_tail.boundary, facts.tail_unit, reading),
+        )
+    if isinstance(facts, contract.ClockFacts):
+        if facts.low_tail is None or facts.high_tail is None:
+            return None
+        low = parsing.clock_ordinal(facts.low_tail.boundary, facts.clock_form)
+        high = parsing.clock_ordinal(facts.high_tail.boundary, facts.clock_form)
+        if low is None or high is None:
+            return None
+        return (low, high)
+    return None
+
+
+def _tail_source(
+    rows: "list[list[str]]",
+    index: int,
+    readings: "list[tuple[int, int, str]]",
+    value: int,
+    offset: str,
+) -> str:
+    """The text of a cell the column already holds at `value`.
+
+    A tail edit moves a cell by writing a spelling the column itself
+    writes, preferring one worn at the offset the moved cell wore: a
+    cell composed here could spell an instant in a shape this column
+    never uses, and the file would then be answering for its shape
+    rather than for its tail.
+    """
+    best = ""
+    for row, unit, worn in readings:
+        if unit != value:
+            continue
+        if worn == offset:
+            return rows[row][index]
+        if not best:
+            best = rows[row][index]
+    return best
+
+
+def _tail_stepped(
+    described: contract.Profile, cell: str, index: int, step: int
+) -> str:
+    """One date or clock cell moved one value of its own kind outward.
+
+    Written with the GENERATOR's own writer, which a test may import and
+    the validator may not, so the cell is spelled the way this column's
+    own kind spells it. Empty where the cell does not read, or where the
+    step would leave the clock's own day.
+    """
+    facts = described.columns[index].facts
+    if isinstance(facts, contract.DatetimeFacts):
+        read = parsing.parse_datetime(cell, facts.parser_family)
+        if read is None:
+            return ""
+        ordinal = generation._ordinal_of(read[0], facts.resolution)
+        return generation._cell_of_ordinal(
+            ordinal + step,
+            facts.resolution,
+            facts.time_precision,
+            facts.subsecond_digits,
+            "T",
+        )
+    if isinstance(facts, contract.ClockFacts):
+        reading = parsing.clock_ordinal(cell, facts.clock_form)
+        if reading is None:
+            return ""
+        span = 1440 if facts.clock_form == contract.CLOCK_FORMS[0] else 86400
+        if not 0 <= reading + step < span:
+            return ""
+        return parsing.clock_spelling(reading + step, facts.clock_form)
+    return ""
+
+
+def _tail_edited(
+    described: contract.Profile, text: str, index: int, rule: str
+) -> str:
+    """A date or clock column edited AT its two published tails.
+
+    THE EDITS THE TAILS ANSWER FOR ON THEIR OWN (stage 3, plan P4-D328).
+    What a date column publishes at its outside is a tail on each side:
+    a boundary, how many cells lie beyond it, and how far they lie. The
+    perturbations the ladder carries all keep the cells outside the two
+    boundaries exactly where the twin put them -- they have to, or the
+    tails would do the catching instead of the rung under test -- so
+    without these three nothing in this battery moves a tail at all and
+    the sites the tails file would be covered by nothing.
+
+    Each rule is aimed at one of the three obligations, and the cells it
+    does not aim at are left where they stand:
+
+    - `shifted` moves every cell standing ON a boundary one value
+      inward. The count beyond and the distances are untouched, so the
+      BOUNDARY, which is now a different value, is what is left to catch
+      the file.
+    - `drawn` moves the innermost cell of each tail onto the boundary.
+      The boundary still stands where it stood -- the cell that moved is
+      now one of the cells standing on it -- and what changes is how
+      many ROWS lie beyond it.
+    - `piled` moves every cell of each tail except the outermost onto
+      the outermost. The count beyond and the boundary are untouched and
+      every distance becomes the largest one, so the two DISTANCES, and
+      the set of values where a tail publishes them, are what is left.
+    - `stretched` moves every cell of each tail ONE value further out.
+      The count beyond and the boundary are untouched again and every
+      distance grows by one, which is the edit a tail whose cells all
+      stand on ONE value answers to: piling such a tail onto its own
+      outermost value moves nothing at all, and a column of quarters has
+      tails of exactly that shape.
+
+    The first three move a cell by writing a spelling the column already
+    holds at the value it is moved to; the fourth has to write a value
+    the column does not hold, and writes it with the generator's own
+    writer. Either way the file stays one this column's own kind could
+    have been written as.
+    """
+    boundaries = _tail_boundaries(described, index)
+    if boundaries is None:
+        return ""
+    at_low, at_high = boundaries
+    if at_low >= at_high:
+        return ""
+    rows = _rows_of(text)
+    readings = _tail_readings(described, rows, index)
+    if len(readings) < 12:
+        return ""
+    inside = [entry for entry in readings if at_low < entry[1] < at_high]
+    if not inside:
+        return ""
+    edited = 0
+    for side in ("low", "high"):
+        at = at_low if side == "low" else at_high
+        beyond = [
+            entry
+            for entry in readings
+            if (entry[1] < at if side == "low" else entry[1] > at)
+        ]
+        if side == "low":
+            # INNERMOST FIRST on both sides, so one rule reads the same
+            # way whichever side of the column it is working on.
+            beyond = list(reversed(beyond))
+        if not beyond:
+            continue
+        if rule == "stretched":
+            for row, _unit, _offset in beyond:
+                stepped = _tail_stepped(
+                    described, rows[row][index], index, -1 if side == "low" else 1
+                )
+                if not stepped:
+                    continue
+                rows[row][index] = stepped
+                edited = edited + 1
+            continue
+        targets: "list[tuple[int, int, str]]" = []
+        value = at
+        if rule == "shifted":
+            targets = [entry for entry in readings if entry[1] == at]
+            value = inside[0][1] if side == "low" else inside[-1][1]
+        if rule == "drawn":
+            targets = [beyond[0]]
+        if rule == "piled":
+            if len(beyond) < 2:
+                continue
+            targets = beyond[0 : len(beyond) - 1]
+            value = beyond[-1][1]
+        for row, _unit, offset in targets:
+            written = _tail_source(rows, index, readings, value, offset)
+            if not written:
+                continue
+            rows[row][index] = written
+            edited = edited + 1
+    if not edited:
+        return ""
     return _rebuilt(rows)
 
 
@@ -1422,6 +1960,147 @@ def _dated(described: contract.Profile, text: str, index: int, rule: str) -> str
     return _rebuilt(rows)
 
 
+def _pushed_tail(described: contract.Profile, text: str, index: int) -> str:
+    """The outermost cells of one column pushed further out (stage 3).
+
+    THE RED FILE THE TAIL FACTS OWE (contract 6.7a, method G12.13). A
+    description publishes, per side, how many rows lie beyond its
+    boundary rung, how far from it they lie on average, the
+    root-mean-square of that distance and -- on a grid whose tail holds
+    a handful of values -- those values. Every perturbation this
+    battery had before edited a cell's CLASS, its spelling or its
+    presence; none moved the outer rows of a column while leaving it
+    the same column, so nothing here showed that a tail fact can fail
+    at all.
+
+    This is that edit: the outermost twelve cells on each side -- more
+    than any tail of these fixtures holds -- move out to THREE TIMES
+    their distance from the thirteenth cell in, so each published
+    distance is several times what the file now holds, the listed
+    values become other values, and a cell lands beyond a published
+    heaped end. Nothing else about the file changes: every cell is
+    still a number written as it was, none of them crosses nought, the
+    count of rows and of numbers stands, and the column keeps its
+    role -- which is what keeps the disclosure gate open and the sites
+    of the column reporting MISSED rather than WITHHELD.
+
+    A JOINED COLUMN IS PUSHED POSITION BY POSITION, on its own
+    published separator, because each position publishes its own tail
+    and a file that moved only the whole cell would leave the second
+    position's facts untouched.
+    """
+    rows = _rows_of(text)
+    first = _first_record(described)
+    column = described.columns[index]
+    separator = getattr(column.facts, "separator", None)
+    places = column.facts.n_parts if separator else 1
+    moved = False
+    for place in range(places):
+        found: "list[tuple[float, int]]" = []
+        for row in range(first, len(rows)):
+            if not _holds_a_value(described, index, rows[row][index]):
+                continue
+            piece = _piece_at(rows[row][index], separator, place)
+            number = None if piece is None else parsing.parse_number(piece)
+            if number is not None:
+                found = found + [(number, row)]
+        if len(found) < 26:
+            continue
+        found.sort()
+        inner_low = found[12][0]
+        inner_high = found[len(found) - 13][0]
+        if inner_high <= inner_low:
+            continue
+        pushed = found[:12] + found[len(found) - 12 :]
+        for number, row in pushed:
+            low = number < inner_low
+            away = (
+                inner_low - 3 * (inner_low - number)
+                if low
+                else inner_high + 3 * (number - inner_high)
+            )
+            # THE CELL KEEPS ITS SIDE OF NOUGHT. A column of positive
+            # readings whose low cells went negative is a different
+            # column -- its role moves, the disclosure gate closes and
+            # every site of it reports WITHHELD rather than MISSED, so
+            # the file would be a red case that can never go red.
+            if (number > 0 and away <= 0) or (number < 0 and away >= 0):
+                away = number / 4
+            rows[row][index] = _piece_written(
+                rows[row][index], separator, place, f"{away:g}"
+            )
+        moved = True
+    return _rebuilt(rows) if moved else ""
+
+
+def _crowded_parts(described: contract.Profile, text: str, index: int) -> str:
+    """Each position of a joined column crowded toward its own low end.
+
+    The companion of `_compressed` for a column whose cells hold two
+    numbers. The plain edit parses the whole cell, so it makes no file
+    at all here, and every INTERIOR rung of a position was therefore
+    left with no edit that moves it: the first position's `ladder.p10`
+    and `ladder.p90` had no registered red case once the tail rule
+    withheld the rungs the old edits moved.
+
+    Each position keeps its own two ends and its own count of numbers,
+    so the column is the same column by every fact but the shape of
+    each position.
+    """
+    rows = _rows_of(text)
+    first = _first_record(described)
+    column = described.columns[index]
+    separator = getattr(column.facts, "separator", None)
+    if separator is None:
+        return ""
+    moved = False
+    for place in range(column.facts.n_parts):
+        found: "list[tuple[float, int]]" = []
+        for row in range(first, len(rows)):
+            if not _holds_a_value(described, index, rows[row][index]):
+                continue
+            piece = _piece_at(rows[row][index], separator, place)
+            number = None if piece is None else parsing.parse_number(piece)
+            if number is not None:
+                found = found + [(number, row)]
+        if len(found) < 3:
+            continue
+        found.sort()
+        low = found[0][0]
+        high = found[len(found) - 1][0]
+        for rank in range(len(found)):
+            share = rank / (len(found) - 1)
+            rows[found[rank][1]][index] = _piece_written(
+                rows[found[rank][1]][index],
+                separator,
+                place,
+                f"{low + (high - low) * share * share * share:g}",
+            )
+        moved = True
+    return _rebuilt(rows) if moved else ""
+
+
+def _piece_at(cell: str, separator: "str | None", place: int) -> "str | None":
+    """One position of a joined cell, or the whole cell where there is none."""
+    if separator is None:
+        return cell
+    pieces = cell.split(separator)
+    return pieces[place] if place < len(pieces) else None
+
+
+def _piece_written(
+    cell: str, separator: "str | None", place: int, value: str
+) -> str:
+    """``cell`` with one position rewritten, the rest left as they were."""
+    if separator is None:
+        return value
+    pieces = cell.split(separator)
+    if place >= len(pieces):
+        return cell
+    pieces[place] = value
+    return separator.join(pieces)
+
+
 def _classed(
     described: contract.Profile,
     text: str,
@@ -1441,7 +2120,7 @@ def _classed(
     first = _first_record(described)
     step = 0
     for row in range(first, len(rows)):
-        if rows[row][index]:
+        if _holds_a_value(described, index, rows[row][index]):
             if step % every == 0:
                 rows[row][index] = value
             step = step + 1
@@ -1451,7 +2130,13 @@ def _classed(
 def _one_cell(
     described: contract.Profile, text: str, index: int, value: str
 ) -> str:
-    """Exactly ONE written cell of one column replaced.
+    """The smallest reportable number of written cells of one column replaced.
+
+    ONE on a column of numbers and TWO on a column that publishes a
+    level list, for the reason `_smallest_reportable_edit` states (the
+    owner's ruling of 2026-09-17, item 5; plan P4-D231). The family
+    keeps its `one-` name, which says what it is FOR: the smallest edit
+    this battery can still be reported through.
 
     REVIEW ITEM P3-V2-B-F5, and the whole of why that register emptied.
     The register of gaps said four class counts "move only when a
@@ -1464,10 +2149,13 @@ def _one_cell(
     disclosure gate wide open.
     """
     rows = _rows_of(text)
+    left = _smallest_reportable_edit(described, index)
     for row in range(_first_record(described), len(rows)):
-        if rows[row][index]:
+        if _holds_a_value(described, index, rows[row][index]):
             rows[row][index] = value
-            return _rebuilt(rows)
+            left = left - 1
+            if not left:
+                return _rebuilt(rows)
     return ""
 
 
@@ -1493,10 +2181,62 @@ def _floor_cells(
     for row in range(_first_record(described), len(rows)):
         if written >= wanted:
             break
-        if not rows[row][index]:
+        if not _holds_a_value(described, index, rows[row][index]):
             continue
         rows[row][index] = value
         written = written + 1
+    if written < wanted:
+        return ""
+    return _rebuilt(rows)
+
+
+def _floor_signed_cells(
+    described: contract.Profile, text: str, index: int, value: str
+) -> str:
+    """The floor's worth of cells signed, leaving the complement behind.
+
+    LANDING 2b.7, AND THE REASON THIS EDIT NEEDED A CHOICE. Since plan
+    P4-D65.1 the signed-decimal census is published only where the count
+    NAMES a group and the cells written with a point that carry no plus
+    name one too -- the complement clause, without which "1,195 of these
+    1,200 are signed" names the five that are not. So an edit meant to
+    make `spelling.decimal_plus` miss has to leave a file whose own
+    count is NAMEABLE, and `_floor_cells` cannot promise that: it
+    overwrites whichever cells come first, and on the pooled fixture it
+    consumed two of that column's twelve decimal cells, leaving eleven
+    signed against a complement of ten. Ten is below the floor, so the
+    census was unnameable, the verdict HELD, and the red case proved
+    nothing -- measured, not argued.
+
+    Writing into cells that carry NO POINT fixes it, and makes the edit
+    better aimed besides: the column keeps every unsigned decimal cell
+    it had, so the complement is whatever it was before. On the pooled
+    fixture that is twelve, which clears the floor. Where a column has
+    too few point-free cells -- a column of decimals almost throughout
+    -- the walk takes decimal cells for the rest rather than give up,
+    and such a column has decimals to spare for the complement anyway.
+
+    A cell is judged by whether it holds a point, which takes the
+    exponent forms with it. That is a deliberate over-approximation: the
+    question here is only which cells are the cheapest to spend, and
+    spending an exponent cell would be as sound as spending a decimal
+    one, merely less useful.
+    """
+    rows = _rows_of(text)
+    wanted = described.settings.small_cell_floor
+    first = _first_record(described)
+    written = 0
+    for pointed in (False, True):
+        for row in range(first, len(rows)):
+            if written >= wanted:
+                break
+            cell = rows[row][index]
+            if not _holds_a_value(described, index, cell) or cell == value:
+                continue
+            if ("." in cell) != pointed:
+                continue
+            rows[row][index] = value
+            written = written + 1
     if written < wanted:
         return ""
     return _rebuilt(rows)
@@ -1510,7 +2250,7 @@ def _restyled(
     first = _first_record(described)
     for row in range(first, len(rows)):
         cell = rows[row][index]
-        if not cell:
+        if not _holds_a_value(described, index, cell):
             continue
         found = parsing.parse_number(cell)
         if found is None:
@@ -1538,20 +2278,43 @@ def _one_figure_more(cell: str) -> str:
     values already shorter than that produces a DIFFERENT number whose
     own shortest spelling it then is -- so it moves the ladder and never
     reaches the spelling. This one moves nothing but the characters: a
-    trailing zero after the point, or one inside the mantissa of an
-    exponent form, or a `.00` on a whole one. The value the cell reads
-    back as is the value it held, and the text is a spelling no style of
-    method G6.1 can write for it.
+    trailing zero after the point, or a `.00` on a whole one. The value
+    the cell reads back as is the value it held, and the text is a
+    spelling nothing may write for it.
+
+    THE EXPONENT EDIT WAS RE-CHOSEN BY LANDING 2b.7, AND THE CAUSE IS
+    THAT THE OLD ONE STOPPED BEING WRONG. It used to pad the MANTISSA,
+    turning `1e-05` into `1.00e-05` -- and a mantissa padded to a fixed
+    count of figures is exactly what Excel and SAS write, so plan
+    P4-D66.2 now admits it as a spelling of the value the cell reads
+    back as. The edit went green, and this file's own guard caught it:
+    a registered red case that no longer misses the site it names is a
+    subcheck nothing in this suite shows can fail. Measured both ways
+    round -- with this function reverted to its old text, BOTH
+    `test_every_registered_red_case_misses_the_site_it_names` and
+    `test_the_coverage_identity_walks_the_shipped_table` fail again.
+
+    So the exponent edit MISPAIRED the mantissa with its exponent
+    instead, `1e-05` becoming `10e-06` -- and plan P4-D144 made that
+    edit go green in its turn, for the reason the first one went: every
+    exponent text reading back as its value is now its value's spelling,
+    because a canonical mantissa was never a published obligation and
+    C's `%.18e` and engineering notation were real exports failing their
+    own description. So the exponent edit now leaves the exponent FORM:
+    the value is written in fixed point with one figure more than its
+    shortest fixed-point text, `1e-05` becoming `0.000010`. It reads
+    back as the same number, and the family offers a column publishing
+    no census of fraction widths no such text, so `styles.spelled`
+    still has an edit that makes it miss. The edit is still "one figure
+    more", which is what this function is called.
     """
     for marker in ("e", "E"):
-        for index in range(len(cell)):
-            if cell[index] != marker:
-                continue
-            head = cell[:index]
-            tail = cell[index:]
-            if "." not in head:
-                head = f"{head}.0"
-            return f"{head}0{tail}"
+        if marker not in cell:
+            continue
+        fixed = format(decimal.Decimal(repr(float(cell))), "f")
+        if "." not in fixed:
+            fixed = f"{fixed}."
+        return f"{fixed}0"
     if "." in cell:
         return f"{cell}0"
     return f"{cell}.00"
@@ -1573,7 +2336,7 @@ def _wider_numerals(
     first = _first_record(described)
     for row in range(first, len(rows)):
         cell = rows[row][index]
-        if not cell:
+        if not _holds_a_value(described, index, cell):
             continue
         sign = ""
         figures = cell
@@ -1598,7 +2361,7 @@ def _huge_spread(described: contract.Profile, text: str, index: int) -> str:
     first = _first_record(described)
     step = 0
     for row in range(first, len(rows)):
-        if not rows[row][index]:
+        if not _holds_a_value(described, index, rows[row][index]):
             continue
         sign = 1.0 if step % 2 else -1.0
         rows[row][index] = repr(sign * biggest * (1 - step * 1e-15))
@@ -1610,10 +2373,17 @@ def _one_variant(described: contract.Profile, text: str, index: int) -> str:
     """Two cells of one label written with a trailing space.
 
     The two cells still fold to the same published label, so the level's
-    own count is untouched; what changes is the spelling map, and at two
-    cells the file's own description holds the new spelling back below
-    the floor -- which is the `variants_withheld` map, published empty on
-    a twin and not empty here.
+    own count is untouched; what changes is the spelling map. At two
+    cells the file's own description USED to hold the new spelling back
+    below the floor -- the `variants_withheld` map, published empty on a
+    twin and not empty here. Since plan P4-D275 every spelling below the
+    floor is counted into the level's commonest, so no description of
+    any file holds one back and this edit can no longer move that map;
+    the rows that named it for `variants_withheld` are registered against
+    `reshaped-<column>` now, measured to be the narrowest edit of the
+    column that does. It stays in the battery, where on some columns it
+    still moves other facts -- a count of different values, a form
+    census -- that a trailing space reaches.
     """
     rows = _rows_of(text)
     first = _first_record(described)
@@ -1621,7 +2391,7 @@ def _one_variant(described: contract.Profile, text: str, index: int) -> str:
     touched = 0
     for row in range(first, len(rows)):
         cell = rows[row][index]
-        if not cell:
+        if not _holds_a_value(described, index, cell):
             continue
         seen = changed.get(cell, 0)
         if seen < 2:
@@ -1650,7 +2420,7 @@ def _text_shape(
     first = _first_record(described)
     step = 0
     for row in range(first, len(rows)):
-        if not rows[row][index]:
+        if not _holds_a_value(described, index, rows[row][index]):
             continue
         # Distinct values, because a column whose cells are all the same
         # is a constant column and the gate closes over its whole role.
@@ -1682,7 +2452,7 @@ def _digit_codes(described: contract.Profile, text: str, index: int) -> str:
     first = _first_record(described)
     step = 0
     for row in range(first, len(rows)):
-        if rows[row][index]:
+        if _holds_a_value(described, index, rows[row][index]):
             rows[row][index] = f"{700000 + step}"
             step = step + 1
     return _rebuilt(rows)
@@ -1700,6 +2470,8 @@ def _compressed(described: contract.Profile, text: str, index: int) -> str:
     first = _first_record(described)
     numbers: list[float] = []
     for row in range(first, len(rows)):
+        if not _holds_a_value(described, index, rows[row][index]):
+            continue
         found = parsing.parse_number(rows[row][index])
         if found is not None:
             numbers = numbers + [found]
@@ -1709,7 +2481,7 @@ def _compressed(described: contract.Profile, text: str, index: int) -> str:
     high = max(numbers)
     step = 0
     for row in range(first, len(rows)):
-        if not rows[row][index]:
+        if not _holds_a_value(described, index, rows[row][index]):
             continue
         share = step / (len(numbers) - 1)
         rows[row][index] = f"{low + (high - low) * share * share * share}"
@@ -1718,21 +2490,47 @@ def _compressed(described: contract.Profile, text: str, index: int) -> str:
 
 
 def _raised_end(described: contract.Profile, text: str, index: int) -> str:
-    """The largest number of one column made very much larger."""
+    """A tail's worth of one column's largest cells made very much larger.
+
+    A TAIL'S WORTH AND NOT ONE CELL, and the tail rule is why (plan
+    P4-D349). The site this edit is registered for -- `ladder.max`, the
+    heaped end -- is decided from the file's OWN description, because the
+    file's extreme may be one row's value and no report prints it. One
+    cell raised leaves the file's own end held by ONE row, so every
+    description of that file withholds it, and since a tail whose two
+    distances would give its cells back publishes neither of them, the
+    file's own high tail withholds them too: eleven cells at the boundary
+    value beside one far cell have a sum of squares equal to the square of
+    their sum, which one part alone can make. The check then had nothing
+    to read and went WITHHELD -- silence bought by an edit too small to be
+    reported, which is the same defect `_floor_cells` was written for.
+    `tail_units(floor)` cells raised TO ONE VALUE make the file's own end
+    a value of a group, which its own description publishes, and the
+    comparison is exact again. Every moment of the column moves further
+    than one cell moved it, so the four moment sites this edit also
+    covers are covered harder.
+    """
     rows = _rows_of(text)
     first = _first_record(described)
-    highest = None
-    where = 0
+    found: "list[tuple[float, int]]" = []
     for row in range(first, len(rows)):
-        found = parsing.parse_number(rows[row][index])
-        if found is None:
+        if not _holds_a_value(described, index, rows[row][index]):
             continue
-        if highest is None or found > highest:
-            highest = found
-            where = row
-    if highest is None:
+        number = parsing.parse_number(rows[row][index])
+        if number is not None:
+            found = found + [(number, row)]
+    if not found:
         return ""
-    rows[where][index] = f"{highest * 1000 + 7}"
+    found.sort()
+    highest = found[len(found) - 1][0]
+    raised = f"{highest * 1000 + 7}"
+    wanted = parsing.tail_units(described.settings.small_cell_floor)
+    taken = 0
+    for place in range(len(found) - 1, -1, -1):
+        if taken >= wanted:
+            break
+        rows[found[place][1]][index] = raised
+        taken = taken + 1
     return _rebuilt(rows)
 
 
@@ -1853,6 +2651,12 @@ FLOOR_STYLE_VALUES = (
     ("zero-led", "05"),
     ("plussed", "+5"),
     ("upper", "5E0"),
+    # ...and the three spellings landing 2b.2 holds, missed the same way
+    # and for the same reason: a mark, a notation or a plus that fewer
+    # cells wear than the floor is one no description of the file names.
+    ("grouped", "1,234"),
+    ("signed", "+4.5"),
+    ("bracketed", "(4)"),
 )
 
 
@@ -1884,11 +2688,15 @@ def _perturbations(
         ("added-column", CLASS_COLUMN_COUNT, _extra_column(twin)),
         # THE ONE PERTURBATION THAT IS NOT CHARACTERS. A file that is
         # not UTF-8 cannot be written as text, and the register of gaps
-        # carried `bytes.utf8` for exactly that reason (review item
+        # carried `bytes.encoding` for exactly that reason (review item
         # P3-V2-B-F5) -- a gap in the harness, recorded as though it
         # were a property of the check.
         ("not-utf8", CLASS_ENCODING, b"\xff" + twin.encode("utf-8")[1:]),
     ]
+    # THE WRITTEN FORM'S OWN EDITS (plan P4-D86). Each changes one fact
+    # of how the file is written and nothing about its cells, so the
+    # rule it is registered against is the one that must report it.
+    built = built + _form_perturbations(described, twin, rows, first)
     if described.n_columns > 1:
         built = built + [
             ("dropped-column", CLASS_COLUMN_COUNT, _dropped_column(twin))
@@ -2162,6 +2970,207 @@ def _numeric_half(
     return _rebuilt(rows)
 
 
+def _form_perturbations(
+    described: contract.Profile,
+    twin: str,
+    rows: "list[list[str]]",
+    first: int,
+) -> "list[tuple[str, str, str | bytes]]":
+    """The edits of a twin's written form, one fact each (plan P4-D86).
+
+    Where a fixture's file holds nothing an edit could change -- a
+    one-column file has no delimiter to replace -- the edit adds what it
+    needs rather than returning the twin unchanged, which would be a red
+    case that can never go red. An edit a fixture cannot carry at all is
+    "" and is left out, as every other family's is.
+    """
+    lines = twin.split("\n")
+    body = lines[: len(lines) - 1]
+    width = described.n_columns
+    if "," in twin:
+        # Written again through a writer with the semicolon as its
+        # delimiter, so a cell holding a semicolon is quoted and every
+        # record keeps its width: a blind replacement splits such a cell
+        # and the reader refuses the file, which proves nothing.
+        out = io.StringIO()
+        csv.writer(out, delimiter=";", lineterminator="\n").writerows(rows)
+        semicolons = out.getvalue()
+        spaced = twin.replace(",", ", ")
+    else:
+        semicolons = "\n".join([line + ";z" for line in body]) + "\n"
+        spaced = "\n".join([line + ", z" for line in body]) + "\n"
+    trailing = "\n".join([line + "," for line in body]) + "\n"
+    header = rows[:first]
+    data = rows[first:]
+    # A quoted field holding a backslash-escaped quote, put into the text
+    # through a sentinel cell: the writer's own rules would double the
+    # quote and leave nothing for the escaping rule to find, and cutting
+    # the line at its first comma would split a quoted cell.
+    backslashed = ""
+    if data:
+        # The WHOLE file written again with backslash escaping, so no
+        # quoted cell doubles its quotes: a single escaped cell in a file
+        # whose other quoted cells double theirs is read the doubled way,
+        # rightly, and would prove nothing. One cell is then written by
+        # hand as a QUOTED field holding an escaped quote. The writer is
+        # not asked to write that cell: with an escape character it
+        # escapes a delimiter instead of quoting the field, and the row
+        # would come apart at it.
+        marked = [list(row) for row in rows]
+        marked[first] = ["QQESCAPEDQQ"] + marked[first][1:]
+        out = io.StringIO()
+        csv.writer(
+            out, lineterminator="\n", escapechar="\\", doublequote=False
+        ).writerows(marked)
+        backslashed = out.getvalue().replace(
+            "QQESCAPEDQQ", '"a\\"b"', 1
+        )
+    quoted_header = ""
+    header_rows = ""
+    blank_name = ""
+    if first:
+        rest = twin[twin.index("\n") + 1 :]
+        quoted_header = (
+            ",".join('"' + name.replace('"', '""') + '"' for name in rows[0])
+            + "\n"
+            + rest
+        )
+        header_rows = (
+            twin[: twin.index("\n") + 1]
+            + ",".join("q" for _place in range(width))
+            + "\n"
+            + ",".join('"{""ImportId"":""x""}"' for _place in range(width))
+            + "\n"
+            + rest
+        )
+        if width > 1:
+            blank_name = _rebuilt([rows[0][: width - 1] + [""]] + data)
+        else:
+            # One column: its blank name is written as two quote
+            # characters, or the header would be a blank line.
+            blank_name = '""\n' + rest
+    short = ""
+    if width > 1 and data:
+        shortened = []
+        for row in data:
+            kept = list(row)
+            while len(kept) > 1 and kept[len(kept) - 1] == "":
+                kept = kept[: len(kept) - 1]
+            shortened += [kept]
+        if all(len(row) == width for row in shortened):
+            # A row other than the first: the first record decides a
+            # headerless table's width, and shortening it would make every
+            # later row look long.
+            for place in range(len(shortened) - 1, 0, -1):
+                row = shortened[place]
+                if row[width - 1] and row[width - 2]:
+                    shortened[place] = row[: width - 1]
+                    break
+        short = _rebuilt(header + shortened)
+    sorted_by = described.source.dialect.row_order.column
+    reversed_name = "reversed-rows"
+    if 1 <= sorted_by <= len(described.columns):
+        reversed_name = f"reversed-{described.columns[sorted_by - 1].name}"
+    # THE FILE'S OWN LINES ARE HELD TO THE DISCLOSURE RULE (plan
+    # P4-D290), so the two edits below are written at the smallest count
+    # a description of the edited file can still carry: a blank PLACE is
+    # a record position and is published only where there are at least
+    # `census_floor` of them, and an empty-row count below that line is
+    # published as nought. At a floor of one nothing is held back and one
+    # is enough, which is the edit this battery made before P4-D290.
+    floor = described.settings.small_cell_floor
+    reportable = parsing.census_floor(floor) if floor > 1 else 1
+    empty_row = ""
+    if width > 1:
+        empty_row = twin + (
+            ",".join("" for _place in range(width)) + "\n"
+        ) * reportable
+    blank_line = _blank_places(twin, rows, first, width, reportable)
+    return [
+        ("semicolons", CLASS_SHAPE, semicolons),
+        ("spaced-delimiters", CLASS_SHAPE, spaced),
+        ("backslashed-quote", CLASS_CONTENT, backslashed),
+        ("separator-line", CLASS_SHAPE, "sep=,\n" + twin),
+        ("end-of-file-mark", CLASS_TERMINAL, twin + "\x1a"),
+        # A title line leads only where a wider record follows it, so a
+        # one-column file is given the blank line that leads any table.
+        ("preamble-line", CLASS_HEADER, ("Report of the extract\n" if width > 1 else "\n") + twin),
+        ("quoted-header", CLASS_HEADER, quoted_header),
+        ("metadata-rows", CLASS_HEADER, header_rows),
+        ("blank-name", CLASS_HEADER, blank_name),
+        ("trailing-delimiters", CLASS_SHAPE, trailing),
+        ("short-rows", CLASS_SHAPE, short),
+        # RE-ARMED FOR PLAN P4-D290 (it was one trailing blank line).
+        # The merge skeptic reported that the one added line no longer
+        # made `bytes.blank-lines` miss, and two trailing lines were then
+        # measured to miss on NO fixture: both are ONE blank place, and a
+        # place is published only where there are `census_floor` of them.
+        # What the absorption cannot take is the PLACE count, so this
+        # edit puts one blank line after each of that many records; see
+        # `_blank_places`.
+        ("blank-line", CLASS_LINE_ENDINGS, blank_line),
+        ("empty-record", CLASS_ROWS, empty_row),
+        # Named after the column the rows are sorted by, which is where
+        # the order is filed: the edit breaks that one column's order.
+        (reversed_name, CLASS_CELL, _rebuilt(header + list(reversed(data)))),
+    ]
+
+
+def _blank_places(
+    twin: str,
+    rows: "list[list[str]]",
+    first: int,
+    width: int,
+    places: int,
+) -> str:
+    """The twin with one blank line after each of ``places`` records.
+
+    Records are written back one at a time through the twin writer's own
+    rules (`_rebuilt`), so a quoted cell is never cut and the file is the
+    twin byte for byte apart from the blank lines. They stand after the
+    second record onwards, so none of them can be read as a line before
+    the table. Where ``places`` is one -- a floor of one, where nothing
+    is held back -- the one blank line is the trailing line this edit
+    always was.
+
+    A ONE-COLUMN FILE CANNOT CARRY IT at a raised floor, and "" leaves
+    the edit out: the reader refuses a blank line between the records of
+    a one-column table (a blank line there could be a record whose one
+    value is missing), a line before the table is a preamble and the
+    lines after it are one place. `validation` files no `bytes.blank-lines`
+    for such a description for exactly that reason.
+    """
+    if places <= 1:
+        return twin + "\n"
+    data = rows[first:]
+    if width < 2 or len(data) < places + 2:
+        return ""
+    written = _rebuilt(rows[:first]) if first else ""
+    for place in range(len(data)):
+        written = written + _rebuilt([data[place]])
+        if 1 <= place <= places:
+            written = written + "\n"
+    return written
+
+
+def _quoted_column(twin: str, first: int, index: int) -> str:
+    """Every data cell of one column written quoted, and nothing else."""
+    rows = _rows_of(twin)
+    out = ""
+    for place in range(len(rows)):
+        cells = []
+        for column in range(len(rows[place])):
+            cell = rows[place][column]
+            if place >= first and column == index:
+                cells += ['"' + cell.replace('"', '""') + '"']
+            elif any(mark in cell for mark in ',"\r\n'):
+                cells += ['"' + cell.replace('"', '""') + '"']
+            else:
+                cells += [cell]
+        out = out + ",".join(cells) + "\n"
+    return out
+
+
 def _column_perturbations(
     described: contract.Profile,
     twin: str,
@@ -2171,6 +3180,11 @@ def _column_perturbations(
     index = column.position - 1
     name = column.name
     built: list[tuple[str, str, str | bytes]] = [
+        (
+            f"quoted-{name}",
+            CLASS_SPELLING,
+            _quoted_column(twin, _first_record(described), index),
+        ),
         (
             f"blanked-{name}",
             CLASS_PRESENCE,
@@ -2253,12 +3267,20 @@ def _column_perturbations(
         built = built + _pair_perturbations(described, twin, index, name, pair)
     if column.role in ROLES_WITH_NUMBERS:
         for tag, value in FLOOR_STYLE_VALUES:
+            # THE SIGNED-DECIMAL EDIT CHOOSES ITS CELLS (landing 2b.7).
+            # Its site is published only where the count and its
+            # complement both name a group, so an edit that spends the
+            # column's unsigned decimal cells can leave the census
+            # unnameable and the check HELD. `_floor_signed_cells`
+            # spends point-free cells first and leaves the complement
+            # where it was; every other tag keeps the plain walk.
+            made = (
+                _floor_signed_cells(described, source, index, value)
+                if tag == "signed"
+                else _floor_cells(described, source, index, value)
+            )
             shaped = shaped + [
-                (
-                    f"floor-{tag}-{name}",
-                    CLASS_SPELLING,
-                    _floor_cells(described, source, index, value),
-                )
+                (f"floor-{tag}-{name}", CLASS_SPELLING, made)
             ]
     if column.role in ROLES_WITH_NUMBERS:
         shaped = shaped + [
@@ -2355,6 +3377,27 @@ def _column_perturbations(
         shaped = shaped + [
             (f"vast-{name}", CLASS_SHAPE, _huge_spread(described, source, index))
         ]
+    if column.role in ROLES_WITH_NUMBERS or column.role == "joined_numbers":
+        # THE OUTER ROWS MOVED, which is the one edit a tail fact
+        # answers for (stage 3, contract 6.7a). A joined column takes
+        # it too: each of its positions publishes a tail of its own.
+        shaped = shaped + [
+            (
+                f"pushed-{name}",
+                CLASS_SHAPE,
+                _pushed_tail(described, source, index),
+            )
+        ]
+    if column.role == "joined_numbers":
+        # ...and the same column's INTERIOR rungs, which the plain
+        # crowding edit cannot reach through a cell of two numbers.
+        shaped = shaped + [
+            (
+                f"crowded-{name}",
+                CLASS_SHAPE,
+                _crowded_parts(described, source, index),
+            )
+        ]
     if column.role == "numeric_unrepresentable":
         shaped = shaped + [
             (
@@ -2391,6 +3434,21 @@ def _column_perturbations(
                 _one_variant(described, twin, index),
             ),
         ]
+    if column.role == "datetime":
+        # HOW THE DATES WERE WRITTEN, landing 2b.6. Case-folding a column
+        # of dates leaves every member's own reading exactly where it
+        # was -- the readers take either case of a quarter's marker and
+        # of a zulu marker, and month names are matched folded -- and
+        # moves only the census of how those markers were WRITTEN. It is
+        # therefore the edit that reaches those censuses and disturbs as
+        # little else as an edit can, which is what a red case has to be.
+        built = built + [
+            (
+                f"lowered-{name}",
+                CLASS_CASING,
+                _mapped(described, twin, index, lambda cell: cell.lower()),
+            )
+        ]
     if column.role == "time_of_day":
         built = built + [
             (f"crushed-{name}", CLASS_DATE, _clock_crushed(described, twin, index)),
@@ -2425,6 +3483,16 @@ def _column_perturbations(
                 CLASS_DATE,
                 _ladder_lifted(described, twin, index),
             ),
+            # ...AND THE SAME EDIT WITH NO SPREAD AT ALL (landing 2b.6).
+            # The two distinctness counts are bounded below by the
+            # number of different PINNED values now, not by a rank per
+            # slice, so only a file that puts its whole middle on one
+            # value falls under it.
+            (
+                f"flattened-{name}",
+                CLASS_DATE,
+                _ladder_flattened(described, twin, index),
+            ),
         ]
         moved = (
             _quartered(described, twin, index)
@@ -2452,6 +3520,38 @@ def _column_perturbations(
                 f"subsecond-{name}",
                 CLASS_PRECISION,
                 _dated(described, twin, index, "subsecond"),
+            ),
+        ]
+    if column.role in ("datetime", "time_of_day"):
+        # THE THREE EDITS THE TWO TAILS ANSWER FOR (stage 3, plan
+        # P4-D328), and they belong to both roles that carry tails. A
+        # date column publishes no end any more: what stands at its
+        # outside is a tail a side, and every OTHER edit in this battery
+        # keeps the cells out there exactly where the twin put them --
+        # deliberately, or a tail would catch the file the rungs are
+        # under test on. So these three are the whole of what can make a
+        # tail miss, one per obligation: the boundary, the rows beyond
+        # it, and the distances they lie at.
+        built = built + [
+            (
+                f"tail-shifted-{name}",
+                CLASS_DATE,
+                _tail_edited(described, twin, index, "shifted"),
+            ),
+            (
+                f"tail-drawn-{name}",
+                CLASS_DATE,
+                _tail_edited(described, twin, index, "drawn"),
+            ),
+            (
+                f"tail-piled-{name}",
+                CLASS_DATE,
+                _tail_edited(described, twin, index, "piled"),
+            ),
+            (
+                f"tail-stretched-{name}",
+                CLASS_DATE,
+                _tail_edited(described, twin, index, "stretched"),
             ),
         ]
     if column.role == "free_text":
@@ -2642,7 +3742,7 @@ NAMED_RED_CASES = (
     # battery walks, so no edit could turn one of its checks red.
     RedCase("joined", 'not-utf8', '', 'document.columns', 'columns.order'),
     RedCase("joined", 'byte-order-mark', '', 'document.encoding', 'bytes.byte-order-mark'),
-    RedCase("joined", 'not-utf8', '', 'document.encoding', 'bytes.utf8'),
+    RedCase("joined", 'not-utf8', '', 'document.encoding', 'bytes.encoding'),
     RedCase("joined", 'carriage-returns', '', 'document.line-endings', 'bytes.line-endings'),
     RedCase("joined", 'no-terminal-newline', '', 'document.line-endings', 'bytes.terminal-newline'),
     RedCase("joined", 'added-column', '', 'document.n_columns', 'columns.n_columns'),
@@ -2654,7 +3754,6 @@ NAMED_RED_CASES = (
     RedCase("joined", 'marked-clinic', 'clinic', 'label.levels', 'levels.set'),
     RedCase("joined", 'marked-clinic', 'clinic', 'label.n_distinct', 'distinct.n_distinct'),
     RedCase("joined", 'marked-clinic', 'clinic', 'label.n_distinct_folded', 'distinct.n_distinct_folded'),
-    RedCase("joined", 'one-worded-clinic', 'clinic', 'label.suppressed_level_counts', 'suppressed.counts'),
     RedCase("joined", 'one-worded-clinic', 'clinic', 'label.suppressed_levels', 'suppressed.suppressed_levels'),
     RedCase("joined", 'one-worded-clinic', 'clinic', 'label.suppressed_rows', 'suppressed.suppressed_rows'),
     RedCase("joined", 'dropped-row', 'clinic', 'label.variants', 'levels.one.variants'),
@@ -2680,15 +3779,13 @@ NAMED_RED_CASES = (
     RedCase("joined", 'blanked-cell', 'reading', 'joined.n_joined', 'counts.n_joined'),
     RedCase("joined", 'marked-reading', 'reading', 'joined.n_parts', 'counts.n_parts'),
     RedCase("joined", 'moved-cell', 'reading', 'joined.n_unparsed', 'counts.n_unparsed'),
-    RedCase("joined", 'blanked-cell', 'reading', 'joined.part_above[0]', 'together.rows one above the other, pair 1'),
+    RedCase("joined", 'reshaped-reading', 'reading', 'joined.part_above[0]', 'together.rows one above the other, pair 1'),
     RedCase("joined", 'marked-reading', 'reading', 'joined.part_agreements[0]', 'together.how strongly they move, pair 1'),
     RedCase("joined", 'marked-reading', 'reading', 'joined.part_min_widths[0]', 'widths.number 1'),
     RedCase("joined", 'marked-reading', 'reading', 'joined.part_min_widths[1]', 'widths.number 2'),
     RedCase("joined", 'marked-reading', 'reading', 'joined.parts[0].integer_valued', 'type.number 1 is whole'),
     RedCase("joined", 'marked-reading', 'reading', 'joined.parts[0].kurtosis', 'number 1 moments.kurtosis'),
-    RedCase("joined", 'marked-reading', 'reading', 'joined.parts[0].max', 'ends.number 1 max'),
     RedCase("joined", 'marked-reading', 'reading', 'joined.parts[0].mean', 'number 1 moments.mean'),
-    RedCase("joined", 'marked-reading', 'reading', 'joined.parts[0].min', 'ends.number 1 min'),
     RedCase("joined", 'blanked-cell', 'reading', 'joined.parts[0].numeric_styles', 'number 1 styles.at-least.plain'),
     RedCase("joined", 'marked-reading', 'reading', 'joined.parts[0].numeric_styles', 'number 1 styles.canonical.decimal'),
     RedCase("joined", 'marked-reading', 'reading', 'joined.parts[0].numeric_styles', 'number 1 styles.canonical.exponent_lower'),
@@ -2699,22 +3796,14 @@ NAMED_RED_CASES = (
     RedCase("joined", 'blanked-cell', 'reading', 'joined.parts[0].numeric_styles', 'number 1 styles.remainder'),
     RedCase("joined", 'marked-reading', 'reading', 'joined.parts[0].numeric_styles', 'number 1 styles.spelled'),
     RedCase("joined", 'marked-reading', 'reading', 'joined.parts[0].numeric_styles', 'number 1 styles.spill'),
-    RedCase("joined", 'marked-reading', 'reading', 'joined.parts[0].percentiles', 'number 1 ladder.p01'),
-    RedCase("joined", 'marked-reading', 'reading', 'joined.parts[0].percentiles', 'number 1 ladder.p05'),
-    RedCase("joined", 'marked-reading', 'reading', 'joined.parts[0].percentiles', 'number 1 ladder.p10'),
     RedCase("joined", 'marked-reading', 'reading', 'joined.parts[0].percentiles', 'number 1 ladder.p25'),
     RedCase("joined", 'marked-reading', 'reading', 'joined.parts[0].percentiles', 'number 1 ladder.p50'),
     RedCase("joined", 'marked-reading', 'reading', 'joined.parts[0].percentiles', 'number 1 ladder.p75'),
-    RedCase("joined", 'marked-reading', 'reading', 'joined.parts[0].percentiles', 'number 1 ladder.p90'),
-    RedCase("joined", 'marked-reading', 'reading', 'joined.parts[0].percentiles', 'number 1 ladder.p95'),
-    RedCase("joined", 'marked-reading', 'reading', 'joined.parts[0].percentiles', 'number 1 ladder.p99'),
     RedCase("joined", 'marked-reading', 'reading', 'joined.parts[0].skew', 'number 1 moments.skew'),
     RedCase("joined", 'marked-reading', 'reading', 'joined.parts[0].std', 'number 1 moments.std'),
     RedCase("joined", 'marked-reading', 'reading', 'joined.parts[1].integer_valued', 'type.number 2 is whole'),
     RedCase("joined", 'marked-reading', 'reading', 'joined.parts[1].kurtosis', 'number 2 moments.kurtosis'),
-    RedCase("joined", 'marked-reading', 'reading', 'joined.parts[1].max', 'ends.number 2 max'),
     RedCase("joined", 'marked-reading', 'reading', 'joined.parts[1].mean', 'number 2 moments.mean'),
-    RedCase("joined", 'marked-reading', 'reading', 'joined.parts[1].min', 'ends.number 2 min'),
     RedCase("joined", 'blanked-cell', 'reading', 'joined.parts[1].numeric_styles', 'number 2 styles.at-least.plain'),
     RedCase("joined", 'marked-reading', 'reading', 'joined.parts[1].numeric_styles', 'number 2 styles.canonical.decimal'),
     RedCase("joined", 'marked-reading', 'reading', 'joined.parts[1].numeric_styles', 'number 2 styles.canonical.exponent_lower'),
@@ -2725,15 +3814,9 @@ NAMED_RED_CASES = (
     RedCase("joined", 'blanked-cell', 'reading', 'joined.parts[1].numeric_styles', 'number 2 styles.remainder'),
     RedCase("joined", 'marked-reading', 'reading', 'joined.parts[1].numeric_styles', 'number 2 styles.spelled'),
     RedCase("joined", 'marked-reading', 'reading', 'joined.parts[1].numeric_styles', 'number 2 styles.spill'),
-    RedCase("joined", 'marked-reading', 'reading', 'joined.parts[1].percentiles', 'number 2 ladder.p01'),
-    RedCase("joined", 'marked-reading', 'reading', 'joined.parts[1].percentiles', 'number 2 ladder.p05'),
-    RedCase("joined", 'marked-reading', 'reading', 'joined.parts[1].percentiles', 'number 2 ladder.p10'),
     RedCase("joined", 'marked-reading', 'reading', 'joined.parts[1].percentiles', 'number 2 ladder.p25'),
     RedCase("joined", 'marked-reading', 'reading', 'joined.parts[1].percentiles', 'number 2 ladder.p50'),
     RedCase("joined", 'marked-reading', 'reading', 'joined.parts[1].percentiles', 'number 2 ladder.p75'),
-    RedCase("joined", 'marked-reading', 'reading', 'joined.parts[1].percentiles', 'number 2 ladder.p90'),
-    RedCase("joined", 'marked-reading', 'reading', 'joined.parts[1].percentiles', 'number 2 ladder.p95'),
-    RedCase("joined", 'marked-reading', 'reading', 'joined.parts[1].percentiles', 'number 2 ladder.p99'),
     RedCase("joined", 'marked-reading', 'reading', 'joined.parts[1].skew', 'number 2 moments.skew'),
     RedCase("joined", 'marked-reading', 'reading', 'joined.parts[1].std', 'number 2 moments.std'),
     RedCase("joined", 'marked-reading', 'reading', 'joined.separator', 'shape.separator'),
@@ -2745,15 +3828,21 @@ NAMED_RED_CASES = (
     RedCase("joined", 'blanked-cell', 'reading', 'universal.n_present', 'presence.n_present'),
     RedCase("joined", 'not-utf8', 'reading', 'universal.position', 'position.at'),
     RedCase("joined", 'emptied-reading', 'reading', 'universal.quality_state', 'axes.quality_state'),
-    RedCase("joined", 'not-utf8', 'reading', 'universal.role', 'axes.role'),
-    RedCase("joined", 'not-utf8', 'reading', 'universal.statistical_type', 'axes.statistical_type'),
+    # RE-MEASURED 2026-09-15 (plan P4-D86). `not-utf8` made these two
+    # miss only because the renamed header left the `--measurement`
+    # declaration unreached and the column fell to free text; a slashed
+    # pair of whole numbers is now read as joined numbers from its
+    # values, so that edit keeps the role. `rewritten-reading` makes
+    # both miss with four misses in all, the narrowest edit measured.
+    RedCase("joined", 'rewritten-reading', 'reading', 'universal.role', 'axes.role'),
+    RedCase("joined", 'rewritten-reading', 'reading', 'universal.statistical_type', 'axes.statistical_type'),
     # The unrepresentable and pooled fixtures changed shape when
     # their green witnesses were made genuinely green (review item
     # P4-A2-R3-F1), so their cases are regenerated against the new
     # shapes -- every one measured, none uncovered.
     RedCase('unrepresentable', 'not-utf8', '', 'document.columns', 'columns.order'),
     RedCase('unrepresentable', 'byte-order-mark', '', 'document.encoding', 'bytes.byte-order-mark'),
-    RedCase('unrepresentable', 'not-utf8', '', 'document.encoding', 'bytes.utf8'),
+    RedCase('unrepresentable', 'not-utf8', '', 'document.encoding', 'bytes.encoding'),
     RedCase('unrepresentable', 'carriage-returns', '', 'document.line-endings', 'bytes.line-endings'),
     RedCase('unrepresentable', 'no-terminal-newline', '', 'document.line-endings', 'bytes.terminal-newline'),
     RedCase('unrepresentable', 'added-column', '', 'document.n_columns', 'columns.n_columns'),
@@ -2783,7 +3872,7 @@ NAMED_RED_CASES = (
     RedCase('unrepresentable', 'rewritten-overflow', 'overflow', 'universal.statistical_type', 'axes.statistical_type'),
     RedCase('pooled', 'not-utf8', '', 'document.columns', 'columns.order'),
     RedCase('pooled', 'byte-order-mark', '', 'document.encoding', 'bytes.byte-order-mark'),
-    RedCase('pooled', 'not-utf8', '', 'document.encoding', 'bytes.utf8'),
+    RedCase('pooled', 'not-utf8', '', 'document.encoding', 'bytes.encoding'),
     RedCase('pooled', 'carriage-returns', '', 'document.line-endings', 'bytes.line-endings'),
     RedCase('pooled', 'no-terminal-newline', '', 'document.line-endings', 'bytes.terminal-newline'),
     RedCase('pooled', 'added-column', '', 'document.n_columns', 'columns.n_columns'),
@@ -2802,33 +3891,31 @@ NAMED_RED_CASES = (
     RedCase('pooled', 'marked-reading', 'reading', 'numeric.n_zero', 'counts.n_zero'),
     RedCase('pooled', 'marked-reading', 'reading', 'numeric.numeric_share', 'counts.numeric_share'),
     RedCase('pooled', 'blanked-cell', 'reading', 'numeric.numeric_styles', 'styles.at-least.decimal'),
-    RedCase('pooled', 'marked-reading', 'reading', 'numeric.numeric_styles', 'styles.at-least.plain'),
+    # THE POOLED FIXTURE'S FORM EDITS ARE WHOLE-COLUMN ONES SINCE PLAN
+    # P4-D221 (stage 2 closed by the owner rulings of 2026-09-17): its
+    # pool is eleven exponent cells, a floor's worth of edited cells can
+    # break that pool below the disclosure line, and the measured file's
+    # own description then folds its named forms in and withholds these
+    # verdicts. Measured: `floor-plussed`, `floor-upper` and
+    # `floor-zero-led` no longer miss here; the whole-column edits do.
+    RedCase('pooled', 'leading_plus-reading', 'reading', 'numeric.numeric_styles', 'styles.at-least.plain'),
     RedCase('pooled', 'noncanonical-reading', 'reading', 'numeric.numeric_styles', 'styles.canonical.decimal'),
     RedCase('pooled', 'enormous-reading', 'reading', 'numeric.numeric_styles', 'styles.canonical.exponent_lower'),
-    RedCase('pooled', 'floor-upper-reading', 'reading', 'numeric.numeric_styles', 'styles.exact.exponent_upper'),
-    RedCase('pooled', 'floor-plussed-reading', 'reading', 'numeric.numeric_styles', 'styles.exact.leading_plus'),
-    RedCase('pooled', 'floor-zero-led-reading', 'reading', 'numeric.numeric_styles', 'styles.exact.leading_zero'),
+    RedCase('pooled', 'exponent_upper-reading', 'reading', 'numeric.numeric_styles', 'styles.exact.exponent_upper'),
+    RedCase('pooled', 'leading_plus-reading', 'reading', 'numeric.numeric_styles', 'styles.exact.leading_plus'),
+    RedCase('pooled', 'leading_zero-reading', 'reading', 'numeric.numeric_styles', 'styles.exact.leading_zero'),
     RedCase('pooled', 'blanked-cell', 'reading', 'numeric.numeric_styles', 'styles.published.decimal'),
     RedCase('pooled', 'added-row', 'reading', 'numeric.numeric_styles', 'styles.published.plain'),
     RedCase('pooled', 'dropped-row', 'reading', 'numeric.numeric_styles', 'styles.remainder'),
-    RedCase('pooled', 'one-bracketed-reading', 'reading', 'numeric.numeric_styles', 'styles.spelled'),
+    RedCase('pooled', 'noncanonical-reading', 'reading', 'numeric.numeric_styles', 'styles.spelled'),
     RedCase('pooled', 'blanked-cell', 'reading', 'numeric.numeric_styles', 'styles.spill'),
-    RedCase('pooled', 'marked-reading', 'reading', 'numeric.percentiles', 'ladder.p01'),
-    RedCase('pooled', 'marked-reading', 'reading', 'numeric.percentiles', 'ladder.p05'),
-    RedCase('pooled', 'marked-reading', 'reading', 'numeric.percentiles', 'ladder.p10'),
     RedCase('pooled', 'marked-reading', 'reading', 'numeric.percentiles', 'ladder.p25'),
     RedCase('pooled', 'marked-reading', 'reading', 'numeric.percentiles', 'ladder.p50'),
     RedCase('pooled', 'marked-reading', 'reading', 'numeric.percentiles', 'ladder.p75'),
-    RedCase('pooled', 'marked-reading', 'reading', 'numeric.percentiles', 'ladder.p90'),
-    RedCase('pooled', 'marked-reading', 'reading', 'numeric.percentiles', 'ladder.p95'),
-    RedCase('pooled', 'marked-reading', 'reading', 'numeric.percentiles', 'ladder.p99'),
-    RedCase('pooled', 'marked-reading', 'reading', 'numeric.percentiles.max', 'ladder.max'),
-    RedCase('pooled', 'marked-reading', 'reading', 'numeric.percentiles.min', 'ladder.min'),
     RedCase('pooled', 'marked-reading', 'reading', 'numeric.std', 'moments.std'),
     RedCase('pooled', 'marked-reading', 'reading', 'numeric.std_unrepresentable', 'type.std_unrepresentable'),
     RedCase('pooled', 'one-contradicted-reading', 'reading', 'universal.n_contradictory', 'counts.n_contradictory'),
     RedCase('pooled', 'blanked-cell', 'reading', 'universal.n_missing', 'presence.n_missing'),
-    RedCase('pooled', 'moved-cell', 'reading', 'universal.n_not_numeric', 'counts.n_not_numeric'),
     RedCase('pooled', 'blanked-cell', 'reading', 'universal.n_numeric', 'counts.n_numeric'),
     RedCase('pooled', 'one-overflowed-reading', 'reading', 'universal.n_out_of_range', 'counts.n_out_of_range'),
     RedCase('pooled', 'blanked-cell', 'reading', 'universal.n_present', 'presence.n_present'),
@@ -2873,7 +3960,7 @@ NAMED_RED_CASES = (
         "document.line-endings",
         "bytes.terminal-newline",
     ),
-    RedCase("every-role", "not-utf8", "", "document.encoding", "bytes.utf8"),
+    RedCase("every-role", "not-utf8", "", "document.encoding", "bytes.encoding"),
     RedCase(
         "every-role",
         "added-column",
@@ -2916,9 +4003,17 @@ NAMED_RED_CASES = (
         "label.variants",
         "levels.north.variants",
     ),
+    # RE-ARMED FOR PLAN P4-D275 (it was `spaced-region`). Two cells
+    # written with a trailing space were a spelling the file's own
+    # description held back; ruling 6 now counts every spelling below the
+    # floor into the level's commonest, so no description of any file
+    # holds one back and that edit moves nothing. What still moves the
+    # map is the level itself leaving the file, which `reshaped-region`
+    # does -- the edit the joined fixture's curated row already names for
+    # the same fact.
     RedCase(
         "every-role",
-        "spaced-region",
+        "reshaped-region",
         "region",
         "label.variants_withheld",
         "levels.north.variants_withheld",
@@ -2972,13 +4067,12 @@ NAMED_RED_CASES = (
         "numeric.numeric_styles",
         f"styles.at-least.{parsing.STYLE_EXPONENT_LOWER}",
     ),
-    RedCase(
-        "every-role",
-        "moved-recorded_on",
-        "recorded_on",
-        "datetime.date_percentiles.min",
-        "date-ladder.min",
-    ),
+    # THE LADDER'S LOW END WAS CURATED HERE, and it left the table with
+    # the fact (stage 3, plan P4-D328): a description this version
+    # writes publishes no `min` rung, so there is no entry to name. What
+    # stands at the outside of a column of dates is a tail a side, and
+    # the ten obligations the two of them carry are registered in
+    # `COVERING_RED_CASES` below, one edit per obligation.
     RedCase(
         "every-role",
         "timed-recorded_on",
@@ -3000,22 +4094,24 @@ NAMED_RED_CASES = (
         "datetime.n_unparsed",
         "counts.n_unparsed",
     ),
-    RedCase(
-        "every-role",
-        "mixed-recorded_on",
-        "recorded_on",
-        "datetime.earliest_utc_offset",
-        "offsets.earliest",
-    ),
-    # THE NINE RUNGS BETWEEN THE ENDS, ON THEIR OWN TERMS (review item
-    # P3-V3-F4). A file whose ladder is moved wholesale is caught by the
-    # two ENDS, so the interior rungs could be asleep behind them and
-    # nothing here would say so. `crushed` keeps both ends, the role,
-    # the resolution and the precision exactly where the description
-    # puts them and piles the middle low, so the only checks left to
-    # catch it are the nine -- and on the quarter fixture the two counts
-    # of how many different values the column holds, which were WITHHELD
-    # on every file before this repair.
+    # AND THE ENDPOINT OFFSET WAS CURATED HERE, and left with its own
+    # fact on the same day: a column publishes the offset its dates were
+    # read at and the map of the offsets they wear, and no offset of an
+    # end it no longer names.
+    #
+    # THE RUNGS BETWEEN THE TAILS, ON THEIR OWN TERMS (review item
+    # P3-V3-F4). A file whose ladder is moved wholesale used to be
+    # caught by the two ENDS, so the interior rungs could be asleep
+    # behind them and nothing here would say so. `crushed` keeps the
+    # role, the resolution, the precision and every cell outside the two
+    # tail boundaries exactly where the description puts them and piles
+    # the middle low, so the only checks left to catch it are the rungs
+    # -- and on the quarter fixture the two counts of how many different
+    # values the column holds, which were WITHHELD on every file before
+    # this repair. Since stage 3 what stands outside the boundaries is a
+    # tail rather than an end, and the rungs a tail takes in are not
+    # published at all: the quarter fixture's `p99` was one of them and
+    # its row went with it.
     RedCase(
         "every-role",
         "crushed-recorded_on",
@@ -3030,35 +4126,32 @@ NAMED_RED_CASES = (
         "datetime.date_percentiles",
         "date-ladder.p50",
     ),
+    # MOVED FROM `crushed` TO `flattened` AT LANDING 2b.6, because the
+    # bound these two answer to changed. G12.5's lower end used to count
+    # a rank per slice of the distribution and a pile into half the
+    # range fell under it; it counts the different PINNED values now, so
+    # only a file whose whole middle sits on ONE value does. The sites
+    # are unchanged and still covered -- what moved is the edit that can
+    # actually make them miss.
     RedCase(
         "quarters",
-        "crushed-when",
-        "when",
-        "datetime.date_percentiles",
-        "date-ladder.p99",
-    ),
-    RedCase(
-        "quarters",
-        "crushed-when",
+        "flattened-when",
         "when",
         "datetime.n_distinct",
         "distinct.n_distinct",
     ),
     RedCase(
         "quarters",
-        "crushed-when",
+        "flattened-when",
         "when",
         "datetime.n_distinct_folded",
         "distinct.n_distinct_folded",
     ),
-    RedCase(
-        "quarters",
-        "moved-when",
-        "when",
-        "datetime.date_percentiles.min",
-        "date-ladder.min",
-    ),
-    RedCase("quarters", "moved-when", "when", "datetime.latest", "ends.latest"),
+    # THE QUARTER FIXTURE'S TWO ENDS WERE CURATED HERE and left with
+    # their facts in stage 3, on the terms written at the datetime rows
+    # above: a description publishes no `min` rung and no `latest`, and
+    # the two tails that stand in their place carry their obligations in
+    # `COVERING_RED_CASES`.
     RedCase(
         "quarters",
         "timed-when",
@@ -3121,13 +4214,6 @@ NAMED_RED_CASES = (
         "amount",
         "numeric.percentiles",
         "ladder.p90",
-    ),
-    RedCase(
-        "every-role",
-        "raised-amount",
-        "amount",
-        "numeric.percentiles.max",
-        "ladder.max",
     ),
     RedCase("every-role", "zeroed-visits", "visits", "numeric.n_zero", "counts.n_zero"),
     RedCase(
@@ -3324,6 +4410,28 @@ NAMED_RED_CASES = (
 # which is V8.2's own complaint at the grain of the identity, and
 # `test_a_registered_case_is_aimed_at_the_site_it_covers` holds every
 # row to it with the two exceptions named there.
+#
+# THE ROWS THE EXTRA ROUND'S DISCLOSURE RULES DISARMED, chosen again by
+# that rule over the battery as it now stands (measured, 2026-09-18):
+#
+# - `levels.<label>.variants_withheld` was `spaced-<column>`. Plan
+#   P4-D275 counts every spelling below the floor into the level's
+#   commonest, so two spaced cells are absorbed and no file's own
+#   description holds a spelling back; `reshaped-<column>` takes the
+#   level's cells out of it, which is what still moves the map.
+# - `distinct.n_distinct` on the two-level label columns was
+#   `spaced-<column>`, absorbed the same way (and P4-D276 counts the
+#   spellings the block speaks of); `marked-<column>` is the narrowest.
+# - the free-text alphabet counts were one-cell edits. Plan P4-D277 asks
+#   the disclosure rule of `n_all_digits` and `n_code_alphabet`, so one
+#   cell is counted back into the larger side; `marked-<column>`, the
+#   floor's worth of cells, is the only own-column edit that reaches
+#   them. A declared record number's class edits are the floor's worth
+#   of cells instead (`_smallest_reportable_edit`), so its rows kept
+#   their names.
+# - `bytes.blank-lines` and `bytes.empty-rows` kept their edits, which
+#   were re-armed to the place and row counts P4-D290 publishes; a
+#   one-column description at a raised floor files no blank-line rule.
 COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
     # THE FIFTEENTH ROLE (residual R-P4-13, landing L8). Every site of
     # a compound column, and each named against an edit of its OWN
@@ -3339,12 +4447,24 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("byte-order-mark", "bytes.byte-order-mark"),
             ("carriage-returns", "bytes.line-endings"),
             ("no-terminal-newline", "bytes.terminal-newline"),
-            ("not-utf8", "bytes.utf8"),
+            ("not-utf8", "bytes.encoding"),
             ("added-column", "columns.n_columns"),
             ("not-utf8", "columns.order"),
             ("not-utf8", "header.names"),
             ("not-utf8", "header.presence"),
             ("added-row", "rows.n_rows"),
+            ('blank-line', 'bytes.blank-lines'),
+            ('semicolons', 'bytes.delimiter'),
+            ('empty-record', 'bytes.empty-rows'),
+            ('end-of-file-mark', 'bytes.end-of-file-mark'),
+            ('backslashed-quote', 'bytes.escape'),
+            ('quoted-header', 'bytes.header-quoting'),
+            ('spaced-delimiters', 'bytes.initial-space'),
+            ('preamble-line', 'bytes.preamble'),
+            ('separator-line', 'bytes.separator-line'),
+            ('short-rows', 'bytes.short-rows'),
+            ('trailing-delimiters', 'bytes.trailing-delimiter'),
+            ('blank-name', 'bytes.written-names'),
         ),
         "clinic": (
             ("emptied-clinic", "axes.quality_state"),
@@ -3360,17 +4480,25 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("reshaped-clinic", "levels.one.label"),
             ("reshaped-clinic", "levels.one.shape_form_cells"),
             ("marked-clinic", "levels.one.variants"),
-            ("spaced-clinic", "levels.one.variants_withheld"),
+            ("reshaped-clinic", "levels.one.variants_withheld"),
             ("marked-clinic", "levels.set"),
             ("renamed-clinic", "position.at"),
             ("blanked-clinic", "presence.n_missing"),
             ("blanked-clinic", "presence.n_present"),
-            ("one-tiny-clinic", "suppressed.counts"),
             ("one-tiny-clinic", "suppressed.suppressed_levels"),
             ("one-tiny-clinic", "suppressed.suppressed_rows"),
+            ('quoted-clinic', 'bytes.quoting'),
         ),
         "reading": (
-            ("filled-reading", "distinct.n_distinct_values"),
+            # The three spellings landing 2b.2 holds (P4-D41).
+            ("floor-grouped-reading", "spelling.group_separator"),
+            ("floor-bracketed-reading", "spelling.negative_form"),
+            ("floor-signed-reading", "spelling.decimal_plus"),
+            # LANDING 2b.1: `filled-reading` writes `5`, which the twin of this
+            # column now already holds -- its values sit on the column's own
+            # grid -- so the count of different numbers does not move. A filled
+            # fraction is a number the twin does not hold.
+            ("filled-fractioned-reading", "distinct.n_distinct_values"),
             ("emptied-reading", "axes.quality_state"),
             ("vast-reading", "axes.role"),
             ("vast-reading", "axes.statistical_type"),
@@ -3403,14 +4531,10 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             # now -- an unusable numeral is a number -- so it moves
             # `counts.n_out_of_range` instead, which is the fact it was
             # always about. A word covers these three.
-            ("one-worded-reading", "suppressed.counts"),
             ("one-worded-reading", "suppressed.suppressed_levels"),
             ("one-worded-reading", "suppressed.suppressed_rows"),
             ("half-whole-reading", "distinct.n_numeric_distinct"),
             ("half-whole-reading", "distinct.n_numeric_distinct_folded"),
-            ("raised-reading", "ladder.max"),
-            ("zeroed-reading", "ladder.min"),
-            ("zeroed-reading", "ladder.p01"),
             ("zeroed-reading", "ladder.p05"),
             ("zeroed-reading", "ladder.p10"),
             ("zeroed-reading", "ladder.p25"),
@@ -3418,7 +4542,6 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("zeroed-reading", "ladder.p75"),
             ("enormous-reading", "ladder.p90"),
             ("enormous-reading", "ladder.p95"),
-            ("enormous-reading", "ladder.p99"),
             ("marked-reading", "levels.not detected.count"),
             ("reshaped-reading", "levels.not detected.label"),
             ("reshaped-reading", "levels.not detected.shape_form_cells"),
@@ -3444,13 +4567,36 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("half-whole-reading", "type.integer_valued"),
             ("half-vast-reading", "type.std_unrepresentable"),
             ("marked-reading", "widths.published.2"),
+            ('quoted-reading', 'bytes.quoting'),
+            # THE SITES STAGE 3'S TAIL RULE ADDED, each against
+            # the edit MEASURED to make it miss (landing 3.3).
+            ("pushed-reading", "tails.high.mean_distance"),
+            ("pushed-reading", "tails.high.rms_distance"),
+            ("bracketed-reading", "tails.low.mean_distance"),
+            ("bracketed-reading", "tails.low.rms_distance"),
         ),
     },
     "every-role": {
         "": (
             ("added-column", "header.presence"),
+            ('blank-line', 'bytes.blank-lines'),
+            ('semicolons', 'bytes.delimiter'),
+            ('empty-record', 'bytes.empty-rows'),
+            ('end-of-file-mark', 'bytes.end-of-file-mark'),
+            ('backslashed-quote', 'bytes.escape'),
+            ('quoted-header', 'bytes.header-quoting'),
+            ('spaced-delimiters', 'bytes.initial-space'),
+            ('preamble-line', 'bytes.preamble'),
+            ('separator-line', 'bytes.separator-line'),
+            ('short-rows', 'bytes.short-rows'),
+            ('trailing-delimiters', 'bytes.trailing-delimiter'),
+            ('blank-name', 'bytes.written-names'),
         ),
         "amount": (
+            # The three spellings landing 2b.2 holds (P4-D41).
+            ("floor-grouped-amount", "spelling.group_separator"),
+            ("floor-bracketed-amount", "spelling.negative_form"),
+            ("floor-signed-amount", "spelling.decimal_plus"),
             ("marked-amount", "distinct.n_distinct_values"),
             ("contradicted-amount", "axes.quality_state"),
             ("rewritten-amount", "axes.role"),
@@ -3474,14 +4620,16 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             # `worded-amount` make six subchecks miss; the rule above
             # takes the first by name.
             # The census of fraction widths (plan P4-D4.5). One cell
-            # given a third figure after the point is the narrowest edit
-            # there is: the column still publishes one width, and one
-            # fewer cell wears it.
-            ("one-fractioned-amount", "widths.published.2"),
+            # given a third figure after the point was the narrowest edit
+            # there is: the column still published one width, and one
+            # fewer cell wore it. Since plan P4-D221 (stage 2 closed by the
+            # owner rulings of 2026-09-17) that one cell is a pool below the
+            # disclosure line in the measured file's own description, which
+            # takes the named width in, so the check is withheld; the
+            # whole-column edit still misses it.
+            ("fractioned-amount", "widths.published.2"),
             ("rewritten-amount", "distinct.n_distinct"),
             ("rewritten-amount", "distinct.n_distinct_folded"),
-            ("one-negated-amount", "ladder.min"),
-            ("negated-amount", "ladder.p01"),
             ("fractioned-amount", "ladder.p05"),
             ("fractioned-amount", "ladder.p10"),
             # `spread` stopped moving p25 when the rung window began
@@ -3495,7 +4643,6 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("floor-plussed-amount", "ladder.p50"),
             ("spread-amount", "ladder.p75"),
             ("crowded-amount", "ladder.p95"),
-            ("crowded-amount", "ladder.p99"),
             ("raised-amount", "moments.mean"),
             ("raised-amount", "moments.skew"),
             ("raised-amount", "moments.kurtosis"),
@@ -3503,12 +4650,25 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("renamed-amount", "position.at"),
             ("emptied-amount", "presence.n_missing"),
             ("emptied-amount", "presence.n_present"),
-            ("one-plussed-amount", "styles.at-least.decimal"),
+            # ONE PLUSSED CELL NO LONGER MOVES THE DECIMAL FLOOR, and that
+            # is the disclosure rule working (plan P4-D221; stage 2 closed
+            # by the owner rulings of 2026-09-17): the measured file's own
+            # description pools a form held by one cell together with the
+            # decimals, so the subcheck is withheld. A floor's worth of
+            # plussed cells is a group its description names.
+            ("floor-plussed-amount", "styles.at-least.decimal"),
             ("exponent_lower-amount", "styles.canonical.exponent_lower"),
-            ("one-plussed-amount", "styles.published.decimal"),
+            ("floor-plussed-amount", "styles.published.decimal"),
             ("negated-amount", "styles.remainder"),
             ("exponent_upper-amount", "styles.spill"),
             ("vast-amount", "type.integer_valued"),
+            ('quoted-amount', 'bytes.quoting'),
+            # THE SITES STAGE 3'S TAIL RULE ADDED, each against
+            # the edit MEASURED to make it miss (landing 3.3).
+            ("pushed-amount", "tails.high.mean_distance"),
+            ("pushed-amount", "tails.high.rms_distance"),
+            ("crowded-amount", "tails.low.mean_distance"),
+            ("crowded-amount", "tails.low.rms_distance"),
         ),
         "answer": (
             ("emptied-answer", "axes.quality_state"),
@@ -3518,25 +4678,25 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("blanked-answer", "counts.n_not_numeric"),
             ("one-bracketed-answer", "counts.n_numeric"),
             ("one-overflowed-answer", "counts.n_out_of_range"),
-            ("spaced-answer", "distinct.n_distinct"),
+            ("marked-answer", "distinct.n_distinct"),
             ("marked-answer", "distinct.n_distinct_folded"),
             ("marked-answer", "levels.no.count"),
             ("rewritten-answer", "levels.no.label"),
             ("reshaped-answer", "levels.no.shape_form_cells"),
             ("recased-answer", "levels.no.variants"),
-            ("spaced-answer", "levels.no.variants_withheld"),
+            ("reshaped-answer", "levels.no.variants_withheld"),
             ("marked-answer", "levels.set"),
-            ("blanked-answer", "levels.yes.count"),
+            ("marked-answer", "levels.yes.count"),
             ("rewritten-answer", "levels.yes.label"),
             ("reshaped-answer", "levels.yes.shape_form_cells"),
             ("recased-answer", "levels.yes.variants"),
-            ("spaced-answer", "levels.yes.variants_withheld"),
+            ("reshaped-answer", "levels.yes.variants_withheld"),
             ("renamed-answer", "position.at"),
             ("blanked-answer", "presence.n_missing"),
             ("blanked-answer", "presence.n_present"),
-            ("one-worded-answer", "suppressed.counts"),
             ("one-worded-answer", "suppressed.suppressed_levels"),
             ("one-worded-answer", "suppressed.suppressed_rows"),
+            ('quoted-answer', 'bytes.quoting'),
         ),
         "batch": (
             ("emptied-batch", "axes.quality_state"),
@@ -3546,29 +4706,33 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("blanked-batch", "counts.n_not_numeric"),
             ("one-bracketed-batch", "counts.n_numeric"),
             ("one-overflowed-batch", "counts.n_out_of_range"),
-            ("spaced-batch", "distinct.n_distinct"),
+            ("marked-batch", "distinct.n_distinct"),
             ("marked-batch", "distinct.n_distinct_folded"),
             ("blanked-batch", "levels.one.count"),
             ("rewritten-batch", "levels.one.label"),
             ("reshaped-batch", "levels.one.shape_form_cells"),
             ("recased-batch", "levels.one.variants"),
-            ("spaced-batch", "levels.one.variants_withheld"),
+            ("reshaped-batch", "levels.one.variants_withheld"),
             ("marked-batch", "levels.set"),
             ("renamed-batch", "position.at"),
             ("blanked-batch", "presence.n_missing"),
             ("blanked-batch", "presence.n_present"),
-            ("one-worded-batch", "suppressed.counts"),
             ("one-worded-batch", "suppressed.suppressed_levels"),
             ("one-worded-batch", "suppressed.suppressed_rows"),
+            ('quoted-batch', 'bytes.quoting'),
         ),
         "comment": (
             ("emptied-comment", "axes.quality_state"),
             ("one-word-comment", "axes.role"),
             ("one-word-comment", "axes.statistical_type"),
-            ("one-zero-led-comment", "counts.n_all_digits"),
-            ("one-worded-comment", "counts.n_code_alphabet"),
+            ("marked-comment", "counts.n_all_digits"),
+            ("marked-comment", "counts.n_code_alphabet"),
             ("one-contradicted-comment", "counts.n_contradictory"),
-            ("marked-comment", "counts.n_not_numeric"),
+            # `marked` writes the floor's worth of `na`, which landing
+            # 2b.8 made a published absence word on a column publishing
+            # no value (plan P4-D85), so it no longer moves this count;
+            # blanking the column does, measured.
+            ("blanked-comment", "counts.n_not_numeric"),
             ("one-bracketed-comment", "counts.n_numeric"),
             ("one-overflowed-comment", "counts.n_out_of_range"),
             ("marked-comment", "distinct.n_distinct"),
@@ -3582,8 +4746,13 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("blanked-comment", "presence.n_present"),
             ("one-worded-comment", "words.mean"),
             ("one-worded-comment", "words.min"),
+            ('quoted-comment', 'bytes.quoting'),
         ),
         "dose": (
+            # The three spellings landing 2b.2 holds (P4-D41).
+            ("floor-grouped-dose", "spelling.group_separator"),
+            ("floor-bracketed-dose", "spelling.negative_form"),
+            ("floor-signed-dose", "spelling.decimal_plus"),
             ("marked-dose", "distinct.n_distinct_values"),
             # THE AFFIXED ROLE, and the edits divide the way its two
             # populations do. The pair is moved by three edits of its
@@ -3626,9 +4795,6 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("vast-dose", "type.integer_valued"),
             ("vast-dose", "type.std_unrepresentable"),
             ("one-worded-dose", "counts.numeric_share"),
-            ("fractioned-dose", "ladder.min"),
-            ("raised-dose", "ladder.max"),
-            ("fractioned-dose", "ladder.p01"),
             ("crowded-dose", "ladder.p05"),
             ("crowded-dose", "ladder.p10"),
             ("crowded-dose", "ladder.p25"),
@@ -3636,7 +4802,9 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("crowded-dose", "ladder.p75"),
             ("crowded-dose", "ladder.p90"),
             ("crowded-dose", "ladder.p95"),
-            ("crowded-dose", "ladder.p99"),
+            # LANDING 2b.1: the checker now reads the widest stratum as no less
+            # than method G5.2a's cap, six here, so a crowded file's p99 lands
+            # inside the honest window; the enormous cells still move it out.
             ("raised-dose", "moments.mean"),
             ("raised-dose", "moments.std"),
             ("raised-dose", "moments.skew"),
@@ -3644,22 +4812,52 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("floor-zero-led-dose", "styles.exact.leading_zero"),
             ("floor-plussed-dose", "styles.exact.leading_plus"),
             ("exponent_upper-dose", "styles.exact.exponent_upper"),
-            ("prefixed-dose", "styles.at-least.decimal"),
-            ("prefixed-dose", "styles.spill"),
+            # A PREFIXED COPY OF THE COLUMN NO LONGER MISSES THE DECIMAL
+            # FLOOR OR THE SPILL (plan P4-D222; stage 2 closed by the owner
+            # rulings of 2026-09-17): the measured file's own description
+            # counts the prefixed cells' rare forms into the commonest and
+            # settles both clauses on its own counts. A floor's worth of
+            # plussed cells is a form that description names.
+            ("floor-plussed-dose", "styles.at-least.decimal"),
+            ("floor-plussed-dose", "styles.spill"),
             ("zeroed-dose", "styles.remainder"),
             ("noncanonical-dose", "styles.spelled"),
             ("exponent_lower-dose", "styles.canonical.exponent_lower"),
             ("exponent_lower-dose", "styles.published.decimal"),
             ("spread-dose", "widths.published.1"),
             ("spread-dose", "widths.published.2"),
+            ('quoted-dose', 'bytes.quoting'),
+            # THE SITES STAGE 3'S TAIL RULE ADDED, each against
+            # the edit MEASURED to make it miss (landing 3.3).
+            ("pushed-dose", "tails.high.mean_distance"),
+            ("pushed-dose", "tails.high.rms_distance"),
+            ("marked-dose", "tails.low.mean_distance"),
+            ("marked-dose", "tails.low.rms_distance"),
         ),
         "seen_at": (
-            # THE CLOCK ROLE. Three edits are its own: the two halves
+            # THE CLOCK ROLE. Six edits are its own: the two halves
             # of the ladder, piled low and piled high, because a rung
             # near the bottom is falsifiable only upward and one near
-            # the top only downward; and every cell rewritten in the
+            # the top only downward; every cell rewritten in the
             # OTHER form, which moves the published form and the four
-            # values written in it without moving a single time.
+            # values written in it without moving a single time; and
+            # the three the two TAILS answer for (stage 3, plan
+            # P4-D328), each aimed at one of their obligations.
+            #
+            # THE ROWS THE TAIL RULE MOVED, chosen again over the
+            # battery as it now stands (measured, 2026-09-22). The
+            # ladder's two ends and the rungs inside a tail are null in
+            # every description this version writes, so `clock-ladder`
+            # min, max, p01, p05 and p99 are no longer checks at all and
+            # their rows went with them; `ends.earliest` and
+            # `ends.latest` are published nowhere. `clock-ladder.p95`
+            # sits INSIDE the high tail's cells, which every other edit
+            # here keeps where the twin put them, so the tail edit that
+            # moves a boundary cell is what still reaches it. The two
+            # distinctness counts were `one-worded-seen_at`: one cell
+            # spelling a word is counted back now, and the narrowest
+            # own-column edit that moves them is the whole column
+            # rewritten.
             ("renamed-seen_at", "position.at"),
             ("blanked-seen_at", "presence.n_present"),
             ("blanked-seen_at", "presence.n_missing"),
@@ -3670,25 +4868,31 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("blanked-seen_at", "counts.n_not_numeric"),
             ("one-overflowed-seen_at", "counts.n_out_of_range"),
             ("one-contradicted-seen_at", "counts.n_contradictory"),
-            ("one-worded-seen_at", "distinct.n_distinct"),
-            ("one-worded-seen_at", "distinct.n_distinct_folded"),
+            ("rewritten-seen_at", "distinct.n_distinct"),
+            ("rewritten-seen_at", "distinct.n_distinct_folded"),
             ("reformed-seen_at", "form.clock_form"),
-            ("reformed-seen_at", "ends.earliest"),
-            ("reformed-seen_at", "ends.latest"),
             ("marked-seen_at", "counts.n_unparsed"),
-            ("reformed-seen_at", "clock-ladder.min"),
-            ("reformed-seen_at", "clock-ladder.max"),
-            ("lifted-seen_at", "clock-ladder.p01"),
-            ("crushed-seen_at", "clock-ladder.p05"),
+            ("tail-shifted-seen_at", "tails.low.boundary"),
+            ("tail-shifted-seen_at", "tails.high.boundary"),
+            ("tail-drawn-seen_at", "tails.low.rows"),
+            ("tail-drawn-seen_at", "tails.high.rows"),
+            ("tail-piled-seen_at", "tails.low.mean_distance"),
+            ("tail-piled-seen_at", "tails.low.rms_distance"),
+            ("tail-piled-seen_at", "tails.high.mean_distance"),
+            ("tail-piled-seen_at", "tails.high.rms_distance"),
             ("crushed-seen_at", "clock-ladder.p10"),
             ("crushed-seen_at", "clock-ladder.p25"),
             ("crushed-seen_at", "clock-ladder.p50"),
             ("crushed-seen_at", "clock-ladder.p75"),
             ("crushed-seen_at", "clock-ladder.p90"),
-            ("crushed-seen_at", "clock-ladder.p95"),
-            ("crushed-seen_at", "clock-ladder.p99"),
+            ("tail-shifted-seen_at", "clock-ladder.p95"),
+            ('quoted-seen_at', 'bytes.quoting'),
         ),
         "reading": (
+            # The three spellings landing 2b.2 holds (P4-D41).
+            ("floor-grouped-reading", "spelling.group_separator"),
+            ("floor-bracketed-reading", "spelling.negative_form"),
+            ("floor-signed-reading", "spelling.decimal_plus"),
             ("vast-reading", "distinct.n_distinct_values"),
             ("contradicted-reading", "axes.quality_state"),
             ("one-negated-reading", "axes.role"),
@@ -3705,13 +4909,13 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("filled-worded-reading", "counts.numeric_share"),
             ("emptied-reading", "distinct.n_distinct"),
             ("emptied-reading", "distinct.n_distinct_folded"),
-            ("raised-reading", "ladder.max"),
-            ("one-zeroed-reading", "ladder.min"),
-            ("zeroed-reading", "ladder.p01"),
             ("zeroed-reading", "ladder.p05"),
             ("zeroed-reading", "ladder.p10"),
             ("zeroed-reading", "ladder.p25"),
-            ("zeroed-reading", "ladder.p50"),
+            # LANDING 2b.1: with the widest stratum read as G5.2a's cap, the
+            # floor's worth of zeroed cells moves p50 to 188 inside a window
+            # from 182.74 to 211.46; the crowded file still leaves it.
+            ("crowded-reading", "ladder.p50"),
             ("enormous-reading", "ladder.p75"),
             # `spread` stopped moving p90 when the rung window began to
             # be drawn through all hundred and one published rungs
@@ -3721,13 +4925,15 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             # it -- measured, not guessed.
             ("crowded-reading", "ladder.p90"),
             ("enormous-reading", "ladder.p95"),
-            ("enormous-reading", "ladder.p99"),
             ("raised-reading", "moments.mean"),
             ("raised-reading", "moments.skew"),
             ("raised-reading", "moments.kurtosis"),
             ("raised-reading", "moments.std"),
             ("renamed-reading", "position.at"),
             ("filled-overflowed-reading", "presence.n_missing"),
+            # The judged key plan P4-D6.4 made a check: filling one of
+            # the thirteen `-999` cells with a value leaves twelve.
+            ("filled-reading", "holes.by_source.-999"),
             ("filled-overflowed-reading", "presence.n_present"),
             # One plussed cell no longer moves the plain floor on
             # this column: the finer ladder writes a different set
@@ -3740,10 +4946,17 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("leading_plus-reading", "styles.exact.leading_plus"),
             ("leading_zero-reading", "styles.exact.leading_zero"),
             ("crowded-reading", "styles.published.plain"),
-            ("one-plussed-reading", "styles.remainder"),
+            ("floor-plussed-reading", "styles.remainder"),
             ("exponent_lower-reading", "styles.spill"),
             ("one-fractioned-reading", "type.integer_valued"),
             ("vast-reading", "type.std_unrepresentable"),
+            ('quoted-reading', 'bytes.quoting'),
+            # THE SITES STAGE 3'S TAIL RULE ADDED, each against
+            # the edit MEASURED to make it miss (landing 3.3).
+            ("floor-grouped-reading", "tails.high.mean_distance"),
+            ("crowded-reading", "tails.high.rms_distance"),
+            ("reshaped-reading", "tails.low.mean_distance"),
+            ("reshaped-reading", "tails.low.rms_distance"),
         ),
         "record_code": (
             ("emptied-record_code", "axes.quality_state"),
@@ -3759,6 +4972,23 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("repeated-record_code", "length.max"),
             ("blanked-record_code", "presence.n_missing"),
             ("digits-record_code", "type.all_whole_numbers"),
+            # THE LAYOUT CENSUS (contract 7.12, landing 2b.18). Writing
+            # the column in figures alone moves every cell off the
+            # published layout `@%%%%%`, whose leading mark is a
+            # letter, so the census goes MISSED -- which is what shows
+            # this subcheck can fail at all.
+            ("digits-record_code", "forms.published.@%%%%%"),
+            # THE LITERAL PREFIX (contract 7.12a, owner ruling of
+            # 2026-09-17, item 1). The column is `R` and five figures, so
+            # it publishes `{"(column)": "R"}`; written in figures alone
+            # no cell opens with `R`, and the prefix goes MISSED.
+            ("digits-record_code", "prefix.(column)"),
+            ('quoted-record_code', 'bytes.quoting'),
+            # NO ORDER IS REGISTERED ON `record_code` (contract FD12, plan
+            # P4-D76): an order is never published of a declared record
+            # number, so `rows.order` is not filed on this column and an
+            # edit reversing its rows falsifies nothing here. The rule is
+            # pinned by tests/test_file_dialect_round_trip.py.
         ),
         "recorded_on": (
             ("emptied-recorded_on", "axes.quality_state"),
@@ -3767,26 +4997,45 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("blanked-recorded_on", "counts.n_not_numeric"),
             ("one-bracketed-recorded_on", "counts.n_numeric"),
             ("one-overflowed-recorded_on", "counts.n_out_of_range"),
-            ("moved-recorded_on", "date-ladder.max"),
-            ("moved-recorded_on", "date-ladder.p01"),
-            ("crushed-recorded_on", "date-ladder.p05"),
+            # THE ROWS THE TAIL RULE MOVED (stage 3, plan P4-D328),
+            # chosen again over the battery as it now stands (measured,
+            # 2026-09-22). The ladder's two ends and the rungs a tail
+            # takes in are null in every description this version
+            # writes, so `date-ladder` min, max, p01, p05 and p99 are no
+            # longer checks and their rows went with them; `ends` and
+            # the two endpoint offsets are published nowhere.
+            # `date-ladder.p95` stands among the high tail's own cells,
+            # which every other edit here leaves where the twin put
+            # them, so the tail edit that moves a boundary cell is what
+            # reaches it. The ten rows below are the two tails, one edit
+            # per obligation.
             ("crushed-recorded_on", "date-ladder.p10"),
             ("crushed-recorded_on", "date-ladder.p25"),
             ("crushed-recorded_on", "date-ladder.p75"),
             ("crushed-recorded_on", "date-ladder.p90"),
-            ("crushed-recorded_on", "date-ladder.p95"),
-            ("crushed-recorded_on", "date-ladder.p99"),
+            ("tail-shifted-recorded_on", "date-ladder.p95"),
             ("rewritten-recorded_on", "distinct.n_distinct"),
             ("rewritten-recorded_on", "distinct.n_distinct_folded"),
-            ("moved-recorded_on", "ends.earliest"),
-            ("moved-recorded_on", "ends.latest"),
+            ("tail-shifted-recorded_on", "tails.low.boundary"),
+            ("tail-shifted-recorded_on", "tails.high.boundary"),
+            ("tail-drawn-recorded_on", "tails.low.rows"),
+            ("tail-drawn-recorded_on", "tails.high.rows"),
+            ("tail-piled-recorded_on", "tails.low.mean_distance"),
+            ("tail-piled-recorded_on", "tails.low.rms_distance"),
+            ("tail-piled-recorded_on", "tails.high.mean_distance"),
+            ("tail-piled-recorded_on", "tails.high.rms_distance"),
             ("one-worded-recorded_on", "offsets.(none)"),
-            ("offset-recorded_on", "offsets.latest"),
             ("mixed-recorded_on", "offsets.read-at"),
             ("renamed-recorded_on", "position.at"),
             ("timed-recorded_on", "precision.resolution"),
             ("blanked-recorded_on", "presence.n_missing"),
             ("blanked-recorded_on", "presence.n_present"),
+            # THE MEMBER, an obligation since landing 2b.6: writing the
+            # whole dates as moments has the file read under another
+            # member, so the member the description names is not the
+            # member the file is read under.
+            ("timed-recorded_on", "format.member"),
+            ('quoted-recorded_on', 'bytes.quoting'),
         ),
         "note": (
             # THE LONG-TAIL ROLE (plan P4-D5). It publishes the four
@@ -3808,18 +5057,18 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("reshaped-note", "levels.clinic.shape_form_cells"),
             ("rewritten-note", "levels.clinic.variants"),
             ("rewritten-note", "levels.clinic.variants_withheld"),
-            ("marked-note", "levels.referral.count"),
-            ("marked-note", "levels.referral.label"),
-            ("marked-note", "levels.referral.shape_form_cells"),
-            ("marked-note", "levels.referral.variants"),
-            ("marked-note", "levels.referral.variants_withheld"),
+            ("reshaped-note", "levels.referral.count"),
+            ("reshaped-note", "levels.referral.label"),
+            ("reshaped-note", "levels.referral.shape_form_cells"),
+            ("reshaped-note", "levels.referral.variants"),
+            ("reshaped-note", "levels.referral.variants_withheld"),
             ("marked-note", "levels.set"),
             ("renamed-note", "position.at"),
             ("blanked-note", "presence.n_missing"),
             ("blanked-note", "presence.n_present"),
-            ("marked-note", "suppressed.counts"),
             ("marked-note", "suppressed.suppressed_levels"),
             ("blanked-note", "suppressed.suppressed_rows"),
+            ('quoted-note', 'bytes.quoting'),
         ),
         "region": (
             ("emptied-region", "axes.role"),
@@ -3834,8 +5083,8 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("rewritten-region", "levels.east.label"),
             ("reshaped-region", "levels.east.shape_form_cells"),
             ("recased-region", "levels.east.variants"),
-            ("spaced-region", "levels.east.variants_withheld"),
-            ("blanked-region", "levels.north.count"),
+            ("reshaped-region", "levels.east.variants_withheld"),
+            ("marked-region", "levels.north.count"),
             ("rewritten-region", "levels.north.label"),
             ("reshaped-region", "levels.north.shape_form_cells"),
             ("marked-region", "levels.set"),
@@ -3843,18 +5092,18 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("rewritten-region", "levels.south.label"),
             ("reshaped-region", "levels.south.shape_form_cells"),
             ("recased-region", "levels.south.variants"),
-            ("spaced-region", "levels.south.variants_withheld"),
+            ("reshaped-region", "levels.south.variants_withheld"),
             ("marked-region", "levels.west.count"),
             ("rewritten-region", "levels.west.label"),
             ("reshaped-region", "levels.west.shape_form_cells"),
             ("recased-region", "levels.west.variants"),
-            ("spaced-region", "levels.west.variants_withheld"),
+            ("reshaped-region", "levels.west.variants_withheld"),
             ("renamed-region", "position.at"),
             ("blanked-region", "presence.n_missing"),
             ("blanked-region", "presence.n_present"),
-            ("one-worded-region", "suppressed.counts"),
             ("one-worded-region", "suppressed.suppressed_levels"),
             ("one-worded-region", "suppressed.suppressed_rows"),
+            ('quoted-region', 'bytes.quoting'),
         ),
         "unused": (
             ("filled-bracketed-unused", "axes.quality_state"),
@@ -3868,8 +5117,13 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("filled-bracketed-unused", "distinct.n_distinct_folded"),
             ("renamed-unused", "position.at"),
             ("filled-bracketed-unused", "presence.n_missing"),
+            ('quoted-unused', 'bytes.quoting'),
         ),
         "visits": (
+            # The three spellings landing 2b.2 holds (P4-D41).
+            ("floor-grouped-visits", "spelling.group_separator"),
+            ("floor-bracketed-visits", "spelling.negative_form"),
+            ("floor-signed-visits", "spelling.decimal_plus"),
             ("vast-visits", "distinct.n_distinct_values"),
             ("contradicted-visits", "axes.quality_state"),
             ("one-negated-visits", "axes.role"),
@@ -3882,28 +5136,35 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("filled-worded-visits", "counts.numeric_share"),
             ("emptied-visits", "distinct.n_distinct"),
             ("emptied-visits", "distinct.n_distinct_folded"),
-            ("raised-visits", "ladder.max"),
-            ("one-negated-visits", "ladder.min"),
-            ("negated-visits", "ladder.p01"),
             ("negated-visits", "ladder.p05"),
             ("marked-visits", "ladder.p10"),
             ("crowded-visits", "ladder.p25"),
             ("crowded-visits", "ladder.p75"),
             ("crowded-visits", "ladder.p90"),
             ("enormous-visits", "ladder.p95"),
-            ("enormous-visits", "ladder.p99"),
             ("raised-visits", "moments.mean"),
             ("raised-visits", "moments.std"),
             ("renamed-visits", "position.at"),
             ("filled-overflowed-visits", "presence.n_present"),
-            ("one-plussed-visits", "styles.at-least.plain"),
+            ("floor-plussed-visits", "styles.at-least.plain"),
             ("noncanonical-visits", "styles.canonical.decimal"),
             ("exponent_lower-visits", "styles.canonical.exponent_lower"),
             ("exponent_upper-visits", "styles.exact.exponent_upper"),
-            ("one-plussed-visits", "styles.published.plain"),
-            ("one-plussed-visits", "styles.remainder"),
+            ("floor-plussed-visits", "styles.published.plain"),
+            ("floor-plussed-visits", "styles.remainder"),
             ("exponent_lower-visits", "styles.spill"),
             ("marked-visits", "type.std_unrepresentable"),
+            ('quoted-visits', 'bytes.quoting'),
+            # THE SITES STAGE 3'S TAIL RULE ADDED, each against
+            # the edit MEASURED to make it miss (landing 3.3).
+            ("raised-visits", "ladder.max (heaped end, one-sided)"),
+            ("pushed-visits", "ladder.min (heaped end, one-sided)"),
+            ("floor-grouped-visits", "tails.high.mean_distance"),
+            ("floor-grouped-visits", "tails.high.rms_distance"),
+            ("crowded-visits", "tails.high.values"),
+            ("pushed-visits", "tails.low.mean_distance"),
+            ("pushed-visits", "tails.low.rms_distance"),
+            ("pushed-visits", "tails.low.values"),
         ),
     },
     "unrepresentable": {
@@ -3911,12 +5172,27 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ('byte-order-mark', 'bytes.byte-order-mark'),
             ('carriage-returns', 'bytes.line-endings'),
             ('no-terminal-newline', 'bytes.terminal-newline'),
-            ('not-utf8', 'bytes.utf8'),
+            ('not-utf8', 'bytes.encoding'),
             ('added-column', 'columns.n_columns'),
             ('not-utf8', 'columns.order'),
             ('not-utf8', 'header.names'),
             ('not-utf8', 'header.presence'),
             ('dropped-row', 'rows.n_rows'),
+            # NO `bytes.blank-lines` ROW: a one-column description at a
+            # raised floor files no such rule, because a one-column file
+            # holds at most one blank place and a place is published only
+            # from `census_floor` of them (plan P4-D290; V3.4). It was
+            # registered here against one trailing blank line, which the
+            # description absorbs.
+            ('semicolons', 'bytes.delimiter'),
+            ('end-of-file-mark', 'bytes.end-of-file-mark'),
+            ('backslashed-quote', 'bytes.escape'),
+            ('quoted-header', 'bytes.header-quoting'),
+            ('spaced-delimiters', 'bytes.initial-space'),
+            ('preamble-line', 'bytes.preamble'),
+            ('separator-line', 'bytes.separator-line'),
+            ('trailing-delimiters', 'bytes.trailing-delimiter'),
+            ('blank-name', 'bytes.written-names'),
         ),
         'overflow': (
             ('rewritten-overflow', 'axes.quality_state'),
@@ -3940,6 +5216,7 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ('not-utf8', 'position.at'),
             ('blanked-cell', 'presence.n_missing'),
             ('blanked-cell', 'presence.n_present'),
+            ('quoted-overflow', 'bytes.quoting'),
         ),
     },
     # THE PADDED-CODE FIXTURE (P4-D14). Its one column publishes a named
@@ -3977,7 +5254,7 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("reshaped-dx_code", "levels.e11.9.variants_withheld"),
             ("marked-dx_code", "levels.i10.count"),
             ("reshaped-dx_code", "levels.i10.label"),
-            ("blanked-dx_code", "levels.i10.shape_form_cells"),
+            ("marked-dx_code", "levels.i10.shape_form_cells"),
             ("marked-dx_code", "levels.i10.variants"),
             ("reshaped-dx_code", "levels.i10.variants_withheld"),
             ("reshaped-dx_code", "levels.j45.909.count"),
@@ -3985,10 +5262,10 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("reshaped-dx_code", "levels.j45.909.shape_form_cells"),
             ("reshaped-dx_code", "levels.j45.909.variants"),
             ("reshaped-dx_code", "levels.j45.909.variants_withheld"),
-            ("marked-dx_code", "levels.m54.5.count"),
+            ("reshaped-dx_code", "levels.m54.5.count"),
             ("reshaped-dx_code", "levels.m54.5.label"),
-            ("marked-dx_code", "levels.m54.5.shape_form_cells"),
-            ("marked-dx_code", "levels.m54.5.variants"),
+            ("reshaped-dx_code", "levels.m54.5.shape_form_cells"),
+            ("reshaped-dx_code", "levels.m54.5.variants"),
             ("reshaped-dx_code", "levels.m54.5.variants_withheld"),
             ("marked-dx_code", "levels.set"),
             ("marked-dx_code", "levels.z00.00.count"),
@@ -3999,26 +5276,38 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("renamed-dx_code", "position.at"),
             ("blanked-dx_code", "presence.n_missing"),
             ("blanked-dx_code", "presence.n_present"),
-            ("marked-dx_code", "suppressed.counts"),
-            ("marked-dx_code", "suppressed.suppressed_levels"),
-            ("marked-dx_code", "suppressed.suppressed_rows"),
+            ("one-worded-dx_code", "suppressed.suppressed_levels"),
+            ("one-worded-dx_code", "suppressed.suppressed_rows"),
+            ('quoted-dx_code', 'bytes.quoting'),
         ),
         "": (
             ("byte-order-mark", "bytes.byte-order-mark"),
             ("carriage-returns", "bytes.line-endings"),
             ("no-terminal-newline", "bytes.terminal-newline"),
-            ("not-utf8", "bytes.utf8"),
+            ("not-utf8", "bytes.encoding"),
             ("added-column", "columns.n_columns"),
             ("added-column", "columns.order"),
             ("added-column", "header.names"),
             ("added-column", "header.presence"),
             ("added-row", "rows.n_rows"),
+            ('blank-line', 'bytes.blank-lines'),
+            ('semicolons', 'bytes.delimiter'),
+            ('empty-record', 'bytes.empty-rows'),
+            ('end-of-file-mark', 'bytes.end-of-file-mark'),
+            ('backslashed-quote', 'bytes.escape'),
+            ('quoted-header', 'bytes.header-quoting'),
+            ('spaced-delimiters', 'bytes.initial-space'),
+            ('preamble-line', 'bytes.preamble'),
+            ('separator-line', 'bytes.separator-line'),
+            ('short-rows', 'bytes.short-rows'),
+            ('trailing-delimiters', 'bytes.trailing-delimiter'),
+            ('blank-name', 'bytes.written-names'),
         ),
         "lab_code": (
             ("emptied-lab_code", "axes.quality_state"),
             ("emptied-lab_code", "axes.role"),
             ("emptied-lab_code", "axes.statistical_type"),
-            ("one-zero-led-lab_code", "counts.n_all_digits"),
+            ("marked-lab_code", "counts.n_all_digits"),
             ("blanked-lab_code", "counts.n_code_alphabet"),
             ("one-contradicted-lab_code", "counts.n_contradictory"),
             ("blanked-lab_code", "counts.n_not_numeric"),
@@ -4038,6 +5327,8 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("lengthened-lab_code", "words.max"),
             ("lengthened-lab_code", "words.mean"),
             ("lengthened-lab_code", "words.min"),
+            ('quoted-lab_code', 'bytes.quoting'),
+            ('reversed-lab_code', 'rows.order'),
         ),
         "region": (
             ("emptied-region", "axes.quality_state"),
@@ -4073,9 +5364,9 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("renamed-region", "position.at"),
             ("blanked-region", "presence.n_missing"),
             ("blanked-region", "presence.n_present"),
-            ("one-bracketed-region", "suppressed.counts"),
             ("one-bracketed-region", "suppressed.suppressed_levels"),
             ("one-bracketed-region", "suppressed.suppressed_rows"),
+            ('quoted-region', 'bytes.quoting'),
         ),
     },
     "padded-codes": {
@@ -4083,14 +5374,33 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("byte-order-mark", "bytes.byte-order-mark"),
             ("carriage-returns", "bytes.line-endings"),
             ("no-terminal-newline", "bytes.terminal-newline"),
-            ("not-utf8", "bytes.utf8"),
+            ("not-utf8", "bytes.encoding"),
             ("added-column", "columns.n_columns"),
             ("added-column", "columns.order"),
             ("added-column", "header.names"),
             ("added-column", "header.presence"),
             ("added-row", "rows.n_rows"),
+            # NO `bytes.blank-lines` ROW: a one-column description at a
+            # raised floor files no such rule, because a one-column file
+            # holds at most one blank place and a place is published only
+            # from `census_floor` of them (plan P4-D290; V3.4). It was
+            # registered here against one trailing blank line, which the
+            # description absorbs.
+            ('semicolons', 'bytes.delimiter'),
+            ('end-of-file-mark', 'bytes.end-of-file-mark'),
+            ('backslashed-quote', 'bytes.escape'),
+            ('quoted-header', 'bytes.header-quoting'),
+            ('spaced-delimiters', 'bytes.initial-space'),
+            ('preamble-line', 'bytes.preamble'),
+            ('separator-line', 'bytes.separator-line'),
+            ('trailing-delimiters', 'bytes.trailing-delimiter'),
+            ('blank-name', 'bytes.written-names'),
         ),
         "code": (
+            # The three spellings landing 2b.2 holds (P4-D41).
+            ("floor-grouped-code", "spelling.group_separator"),
+            ("floor-bracketed-code", "spelling.negative_form"),
+            ("floor-signed-code", "spelling.decimal_plus"),
             # THE CENSUS CATCHES WHAT THE FORMS MAP CANNOT, and this
             # row is that claim made executable: `leading_zero-code`
             # writes every cell one figure wider WITHOUT leaving the
@@ -4109,17 +5419,7 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("blanked-code", "counts.n_used_in_statistics"),
             ("floor-plussed-code", "counts.n_zero"),
             ("marked-code", "counts.numeric_share"),
-            ("enormous-code", "ladder.max"),
-            ("bracketed-code", "ladder.min"),
-            ("bracketed-code", "ladder.p01"),
-            ("marked-code", "ladder.p05"),
-            ("crowded-code", "ladder.p10"),
-            ("crowded-code", "ladder.p25"),
             ("crowded-code", "ladder.p50"),
-            ("crowded-code", "ladder.p75"),
-            ("crowded-code", "ladder.p90"),
-            ("crowded-code", "ladder.p95"),
-            ("enormous-code", "ladder.p99"),
             ("crowded-code", "moments.mean"),
             ("marked-code", "moments.skew"),
             ("marked-code", "moments.kurtosis"),
@@ -4134,11 +5434,27 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("floor-plussed-code", "styles.exact.leading_plus"),
             ("blanked-code", "styles.exact.leading_zero"),
             ("blanked-code", "styles.published.leading_zero"),
-            ("crowded-code", "styles.remainder"),
-            ("bracketed-code", "styles.spelled"),
+            # Since plan P4-D222 a crowded column's rare forms are counted
+            # into the commonest, so its remainder is met; a floor's worth
+            # of grouped codes is a remainder the description misses.
+            ("floor-grouped-code", "styles.remainder"),
+            # A bracketed cell is a spelling of its own negative value
+            # since landing 2b.2, so the edit that misses this site is a
+            # cell written at a width the census does not name.
+            ("noncanonical-code", "styles.spelled"),
             ("crowded-code", "styles.spill"),
             ("crowded-code", "type.integer_valued"),
             ("marked-code", "type.std_unrepresentable"),
+            ('quoted-code', 'bytes.quoting'),
+            ('reversed-code', 'rows.order'),
+            # THE FOUR TAIL SITES LANDING 3.3 REGISTERED HERE ARE GONE
+            # WITH THE SITES THEMSELVES (plan P4-D349). This fixture's
+            # forty codes run consecutively, so each of its tails would
+            # give its own cells back and the description publishes
+            # neither distance: there is no site here to aim a red case
+            # at. The four facts are registered on `visits`, whose own
+            # tails publish their pair -- `floor-grouped-visits` for the
+            # high side and `pushed-visits` for the low.
         ),
     },
     # THE SATURATED COLUMN, whose grid holds exactly as many points as
@@ -4149,18 +5465,40 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("byte-order-mark", "bytes.byte-order-mark"),
             ("carriage-returns", "bytes.line-endings"),
             ("no-terminal-newline", "bytes.terminal-newline"),
-            ("not-utf8", "bytes.utf8"),
+            ("not-utf8", "bytes.encoding"),
             ("added-column", "columns.n_columns"),
             ("not-utf8", "columns.order"),
             ("not-utf8", "header.names"),
             ("not-utf8", "header.presence"),
             ("added-row", "rows.n_rows"),
+            # NO `bytes.blank-lines` ROW: a one-column description at a
+            # raised floor files no such rule, because a one-column file
+            # holds at most one blank place and a place is published only
+            # from `census_floor` of them (plan P4-D290; V3.4). It was
+            # registered here against one trailing blank line, which the
+            # description absorbs.
+            ('semicolons', 'bytes.delimiter'),
+            ('end-of-file-mark', 'bytes.end-of-file-mark'),
+            ('backslashed-quote', 'bytes.escape'),
+            ('quoted-header', 'bytes.header-quoting'),
+            ('spaced-delimiters', 'bytes.initial-space'),
+            ('preamble-line', 'bytes.preamble'),
+            ('separator-line', 'bytes.separator-line'),
+            ('trailing-delimiters', 'bytes.trailing-delimiter'),
+            ('blank-name', 'bytes.written-names'),
         ),
         "reading": (
+            # The three spellings landing 2b.2 holds (P4-D41).
+            ("floor-grouped-reading", "spelling.group_separator"),
+            ("bracketed-reading", "spelling.negative_form"),
+            # A census naming ONE notation is checked since plan P4-D142,
+            # and this column's negatives all wear the minus.
+            ("bracketed-reading", "spelling.negative_notations"),
+            ("floor-signed-reading", "spelling.decimal_plus"),
             ("vast-reading", "distinct.n_distinct_values"),
             ("overflowed-reading", "axes.quality_state"),
-            ("vast-reading", "axes.role"),
-            ("vast-reading", "axes.statistical_type"),
+            ("rewritten-reading", "axes.role"),
+            ("rewritten-reading", "axes.statistical_type"),
             ("contradicted-reading", "counts.n_contradictory"),
             ("marked-reading", "counts.n_left_out_of_statistics"),
             ("vast-reading", "counts.n_negative"),
@@ -4173,9 +5511,6 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("marked-reading", "counts.numeric_share"),
             ("vast-reading", "distinct.n_distinct"),
             ("vast-reading", "distinct.n_distinct_folded"),
-            ("vast-reading", "ladder.max"),
-            ("vast-reading", "ladder.min"),
-            ("vast-reading", "ladder.p01"),
             ("vast-reading", "ladder.p05"),
             ("vast-reading", "ladder.p10"),
             ("vast-reading", "ladder.p25"),
@@ -4183,7 +5518,6 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("vast-reading", "ladder.p75"),
             ("vast-reading", "ladder.p90"),
             ("vast-reading", "ladder.p95"),
-            ("vast-reading", "ladder.p99"),
             ("marked-reading", "moments.kurtosis"),
             ("vast-reading", "moments.mean"),
             ("marked-reading", "moments.skew"),
@@ -4195,14 +5529,23 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("padded-reading", "styles.canonical.decimal"),
             ("vast-reading", "styles.canonical.exponent_lower"),
             ("floor-upper-reading", "styles.exact.exponent_upper"),
-            ("leading_plus-reading", "styles.exact.leading_plus"),
-            ("leading_zero-reading", "styles.exact.leading_zero"),
+            ("floor-plussed-reading", "styles.exact.leading_plus"),
+            ("floor-zero-led-reading", "styles.exact.leading_zero"),
             ("vast-reading", "styles.published.plain"),
             ("vast-reading", "styles.remainder"),
             ("padded-reading", "styles.spelled"),
             ("vast-reading", "styles.spill"),
             ("marked-reading", "type.integer_valued"),
             ("vast-reading", "type.std_unrepresentable"),
+            ('quoted-reading', 'bytes.quoting'),
+            # THE SITES STAGE 3'S TAIL RULE ADDED, each against
+            # the edit MEASURED to make it miss (landing 3.3).
+            ("floor-grouped-reading", "tails.high.mean_distance"),
+            ("floor-grouped-reading", "tails.high.rms_distance"),
+            ("pushed-reading", "tails.high.values"),
+            ("marked-reading", "tails.low.mean_distance"),
+            ("marked-reading", "tails.low.rms_distance"),
+            ("pushed-reading", "tails.low.values"),
         ),
     },
     "pooled": {
@@ -4210,14 +5553,33 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ('byte-order-mark', 'bytes.byte-order-mark'),
             ('carriage-returns', 'bytes.line-endings'),
             ('no-terminal-newline', 'bytes.terminal-newline'),
-            ('not-utf8', 'bytes.utf8'),
+            ('not-utf8', 'bytes.encoding'),
             ('added-column', 'columns.n_columns'),
             ('not-utf8', 'columns.order'),
             ('not-utf8', 'header.names'),
             ('not-utf8', 'header.presence'),
             ('dropped-row', 'rows.n_rows'),
+            # NO `bytes.blank-lines` ROW: a one-column description at a
+            # raised floor files no such rule, because a one-column file
+            # holds at most one blank place and a place is published only
+            # from `census_floor` of them (plan P4-D290; V3.4). It was
+            # registered here against one trailing blank line, which the
+            # description absorbs.
+            ('semicolons', 'bytes.delimiter'),
+            ('end-of-file-mark', 'bytes.end-of-file-mark'),
+            ('backslashed-quote', 'bytes.escape'),
+            ('quoted-header', 'bytes.header-quoting'),
+            ('spaced-delimiters', 'bytes.initial-space'),
+            ('preamble-line', 'bytes.preamble'),
+            ('separator-line', 'bytes.separator-line'),
+            ('trailing-delimiters', 'bytes.trailing-delimiter'),
+            ('blank-name', 'bytes.written-names'),
         ),
         'reading': (
+            # The three spellings landing 2b.2 holds (P4-D41).
+            ("floor-grouped-reading", "spelling.group_separator"),
+            ("floor-bracketed-reading", "spelling.negative_form"),
+            ("floor-signed-reading", "spelling.decimal_plus"),
             ("marked-reading", "distinct.n_distinct_values"),
             ('one-overflowed-reading', 'axes.quality_state'),
             ('moved-cell', 'axes.role'),
@@ -4226,7 +5588,6 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ('marked-reading', 'counts.n_left_out_of_statistics'),
             ('marked-reading', 'counts.n_negative'),
             ('marked-reading', 'counts.n_negative_unrepresentable'),
-            ('moved-cell', 'counts.n_not_numeric'),
             ('blanked-cell', 'counts.n_numeric'),
             ('one-overflowed-reading', 'counts.n_out_of_range'),
             ('blanked-cell', 'counts.n_used_in_statistics'),
@@ -4235,37 +5596,42 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ('rewritten-reading', 'distinct.n_distinct'),
             ('marked-reading', 'distinct.n_distinct_values'),
             ('rewritten-reading', 'distinct.n_distinct_folded'),
-            ('marked-reading', 'ladder.max'),
-            ('marked-reading', 'ladder.min'),
-            ('marked-reading', 'ladder.p01'),
-            ('marked-reading', 'ladder.p05'),
-            ('marked-reading', 'ladder.p10'),
             ('marked-reading', 'ladder.p25'),
             ('marked-reading', 'ladder.p50'),
             ('marked-reading', 'ladder.p75'),
-            ('marked-reading', 'ladder.p90'),
-            ('marked-reading', 'ladder.p95'),
-            ('marked-reading', 'ladder.p99'),
             ('marked-reading', 'moments.mean'),
             ('marked-reading', 'moments.std'),
             ('not-utf8', 'position.at'),
             ('blanked-cell', 'presence.n_missing'),
             ('blanked-cell', 'presence.n_present'),
             ('blanked-cell', 'styles.at-least.decimal'),
-            ('marked-reading', 'styles.at-least.plain'),
+            ('leading_plus-reading', 'styles.at-least.plain'),
             ('noncanonical-reading', 'styles.canonical.decimal'),
             ('enormous-reading', 'styles.canonical.exponent_lower'),
-            ('floor-upper-reading', 'styles.exact.exponent_upper'),
-            ('floor-plussed-reading', 'styles.exact.leading_plus'),
-            ('floor-zero-led-reading', 'styles.exact.leading_zero'),
+            ('exponent_upper-reading', 'styles.exact.exponent_upper'),
+            ('leading_plus-reading', 'styles.exact.leading_plus'),
+            ('leading_zero-reading', 'styles.exact.leading_zero'),
             ('blanked-cell', 'styles.published.decimal'),
             ('added-row', 'styles.published.plain'),
             ('dropped-row', 'styles.remainder'),
-            ('one-bracketed-reading', 'styles.spelled'),
+            # A bracketed cell is a spelling of its own negative value since
+            # landing 2b.2; a cell written at a width the census does not
+            # name is the edit that misses this site now.
+            ('noncanonical-reading', 'styles.spelled'),
             ('blanked-cell', 'styles.spill'),
             ('marked-reading', 'type.integer_valued'),
             ('marked-reading', 'type.std_unrepresentable'),
             ('blanked-cell', 'widths.published.1'),
+            ('quoted-reading', 'bytes.quoting'),
+            # THE SITES STAGE 3'S TAIL RULE ADDED, each against
+            # the edit MEASURED to make it miss (landing 3.3).
+            ("marked-reading", "counts.n_not_numeric"),
+            ("pushed-reading", "ladder.min (heaped end, one-sided)"),
+            ("floor-grouped-reading", "tails.high.mean_distance"),
+            ("floor-grouped-reading", "tails.high.rms_distance"),
+            ("vast-reading", "tails.low.mean_distance"),
+            ("vast-reading", "tails.low.rms_distance"),
+            ("pushed-reading", "tails.low.values"),
         ),
     },
     "spelled": {
@@ -4273,14 +5639,33 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("byte-order-mark", "bytes.byte-order-mark"),
             ("carriage-returns", "bytes.line-endings"),
             ("no-terminal-newline", "bytes.terminal-newline"),
-            ("not-utf8", "bytes.utf8"),
+            ("not-utf8", "bytes.encoding"),
             ("added-column", "columns.n_columns"),
             ("added-column", "columns.order"),
             ("added-column", "header.names"),
             ("added-column", "header.presence"),
             ("added-row", "rows.n_rows"),
+            # NO `bytes.blank-lines` ROW: a one-column description at a
+            # raised floor files no such rule, because a one-column file
+            # holds at most one blank place and a place is published only
+            # from `census_floor` of them (plan P4-D290; V3.4). It was
+            # registered here against one trailing blank line, which the
+            # description absorbs.
+            ('semicolons', 'bytes.delimiter'),
+            ('end-of-file-mark', 'bytes.end-of-file-mark'),
+            ('backslashed-quote', 'bytes.escape'),
+            ('quoted-header', 'bytes.header-quoting'),
+            ('spaced-delimiters', 'bytes.initial-space'),
+            ('preamble-line', 'bytes.preamble'),
+            ('separator-line', 'bytes.separator-line'),
+            ('trailing-delimiters', 'bytes.trailing-delimiter'),
+            ('blank-name', 'bytes.written-names'),
         ),
         "reading": (
+            # The three spellings landing 2b.2 holds (P4-D41).
+            ("floor-grouped-reading", "spelling.group_separator"),
+            ("floor-bracketed-reading", "spelling.negative_form"),
+            ("floor-signed-reading", "spelling.decimal_plus"),
             ("marked-reading", "distinct.n_distinct_values"),
             ("one-contradicted-reading", "axes.quality_state"),
             ("one-worded-reading", "axes.role"),
@@ -4297,17 +5682,7 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("marked-reading", "counts.numeric_share"),
             ("rewritten-reading", "distinct.n_distinct"),
             ("rewritten-reading", "distinct.n_distinct_folded"),
-            ("one-fractioned-reading", "ladder.max"),
-            ("one-zeroed-reading", "ladder.min"),
-            ("one-zeroed-reading", "ladder.p01"),
-            ("zeroed-reading", "ladder.p05"),
-            ("crowded-reading", "ladder.p10"),
-            ("crowded-reading", "ladder.p25"),
             ("crowded-reading", "ladder.p50"),
-            ("crowded-reading", "ladder.p75"),
-            ("crowded-reading", "ladder.p90"),
-            ("crowded-reading", "ladder.p95"),
-            ("one-fractioned-reading", "ladder.p99"),
             ("one-fractioned-reading", "moments.mean"),
             ("one-fractioned-reading", "moments.skew"),
             ("one-fractioned-reading", "moments.kurtosis"),
@@ -4319,11 +5694,23 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("exponent_upper-reading", "styles.exact.exponent_upper"),
             ("floor-plussed-reading", "styles.exact.leading_plus"),
             ("floor-zero-led-reading", "styles.exact.leading_zero"),
-            ("spread-reading", "styles.published.exponent_lower"),
-            ("added-row", "styles.remainder"),
+            ("floor-upper-reading", "styles.published.exponent_lower"),
+            # AN EDIT OF THE COLUMN ITSELF SINCE PLAN P4-D222 (stage 2
+            # closed by the owner rulings of 2026-09-17), where `added-row`
+            # stood: a floor's worth of grouped readings is a remainder no
+            # description of the column allows.
+            ("floor-grouped-reading", "styles.remainder"),
             ("exponent_upper-reading", "styles.spill"),
             ("vast-reading", "type.integer_valued"),
             ("vast-reading", "type.std_unrepresentable"),
+            ('quoted-reading', 'bytes.quoting'),
+            ('reversed-reading', 'rows.order'),
+            # THE SITES STAGE 3'S TAIL RULE ADDED, each against
+            # the edit MEASURED to make it miss (landing 3.3).
+            ("pushed-reading", "tails.high.mean_distance"),
+            ("pushed-reading", "tails.high.rms_distance"),
+            ("crowded-reading", "tails.low.mean_distance"),
+            ("crowded-reading", "tails.low.rms_distance"),
         ),
     },
     "quarters": {
@@ -4331,12 +5718,24 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("byte-order-mark", "bytes.byte-order-mark"),
             ("carriage-returns", "bytes.line-endings"),
             ("no-terminal-newline", "bytes.terminal-newline"),
-            ("not-utf8", "bytes.utf8"),
+            ("not-utf8", "bytes.encoding"),
             ("added-column", "columns.n_columns"),
             ("added-column", "columns.order"),
             ("added-column", "header.names"),
             ("added-column", "header.presence"),
             ("added-row", "rows.n_rows"),
+            ('blank-line', 'bytes.blank-lines'),
+            ('semicolons', 'bytes.delimiter'),
+            ('empty-record', 'bytes.empty-rows'),
+            ('end-of-file-mark', 'bytes.end-of-file-mark'),
+            ('backslashed-quote', 'bytes.escape'),
+            ('quoted-header', 'bytes.header-quoting'),
+            ('spaced-delimiters', 'bytes.initial-space'),
+            ('preamble-line', 'bytes.preamble'),
+            ('separator-line', 'bytes.separator-line'),
+            ('short-rows', 'bytes.short-rows'),
+            ('trailing-delimiters', 'bytes.trailing-delimiter'),
+            ('blank-name', 'bytes.written-names'),
         ),
         "region": (
             ("emptied-region", "axes.quality_state"),
@@ -4352,29 +5751,29 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("rewritten-region", "levels.east.label"),
             ("reshaped-region", "levels.east.shape_form_cells"),
             ("recased-region", "levels.east.variants"),
-            ("spaced-region", "levels.east.variants_withheld"),
+            ("reshaped-region", "levels.east.variants_withheld"),
             ("marked-region", "levels.north.count"),
             ("rewritten-region", "levels.north.label"),
             ("reshaped-region", "levels.north.shape_form_cells"),
             ("recased-region", "levels.north.variants"),
-            ("spaced-region", "levels.north.variants_withheld"),
+            ("reshaped-region", "levels.north.variants_withheld"),
             ("marked-region", "levels.set"),
-            ("blanked-region", "levels.south.count"),
+            ("marked-region", "levels.south.count"),
             ("rewritten-region", "levels.south.label"),
             ("reshaped-region", "levels.south.shape_form_cells"),
             ("recased-region", "levels.south.variants"),
-            ("spaced-region", "levels.south.variants_withheld"),
+            ("reshaped-region", "levels.south.variants_withheld"),
             ("marked-region", "levels.west.count"),
             ("rewritten-region", "levels.west.label"),
             ("reshaped-region", "levels.west.shape_form_cells"),
             ("recased-region", "levels.west.variants"),
-            ("spaced-region", "levels.west.variants_withheld"),
+            ("reshaped-region", "levels.west.variants_withheld"),
             ("renamed-region", "position.at"),
             ("blanked-region", "presence.n_missing"),
             ("blanked-region", "presence.n_present"),
-            ("one-worded-region", "suppressed.counts"),
             ("one-worded-region", "suppressed.suppressed_levels"),
             ("one-worded-region", "suppressed.suppressed_rows"),
+            ('quoted-region', 'bytes.quoting'),
         ),
         "when": (
             ("emptied-when", "axes.quality_state"),
@@ -4385,23 +5784,47 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("one-bracketed-when", "counts.n_numeric"),
             ("one-overflowed-when", "counts.n_out_of_range"),
             ("subsecond-when", "counts.subsecond_digits"),
-            ("timed-when", "date-ladder.max"),
-            ("moved-when", "date-ladder.p01"),
-            ("moved-when", "date-ladder.p05"),
-            ("lifted-when", "date-ladder.p10"),
+            # THE ROWS THE TAIL RULE MOVED (stage 3, plan P4-D328),
+            # chosen again over the battery as it now stands (measured,
+            # 2026-09-22), and this column shows the rule at its
+            # coarsest. A quarter is a wide unit, so both of its tails
+            # stand on ONE value each and publish that value rather than
+            # a root-mean-square distance: piling such a tail onto its
+            # own outermost cell moves nothing, and what moves it is the
+            # tail stretched one quarter further out. `date-ladder.p10`
+            # and `date-ladder.p90` are rungs among the tails' own
+            # cells, which every edit but these leaves standing, so the
+            # tail edit that moves a boundary cell is what reaches them.
             ("crushed-when", "date-ladder.p25"),
             ("crushed-when", "date-ladder.p75"),
-            ("crushed-when", "date-ladder.p90"),
-            ("crushed-when", "date-ladder.p95"),
-            ("timed-when", "ends.earliest"),
+            ("tail-shifted-when", "date-ladder.p10"),
+            ("tail-shifted-when", "date-ladder.p90"),
+            ("tail-shifted-when", "tails.low.boundary"),
+            ("tail-shifted-when", "tails.high.boundary"),
+            ("tail-drawn-when", "tails.low.rows"),
+            ("tail-drawn-when", "tails.high.rows"),
+            ("tail-piled-when", "tails.low.values"),
+            ("tail-stretched-when", "tails.high.values"),
+            ("tail-stretched-when", "tails.high.mean_distance"),
             ("blanked-when", "offsets.(none)"),
-            ("offset-when", "offsets.earliest"),
-            ("offset-when", "offsets.latest"),
             ("mixed-when", "offsets.read-at"),
             ("renamed-when", "position.at"),
             ("timed-when", "precision.time_precision"),
             ("blanked-when", "presence.n_missing"),
             ("blanked-when", "presence.n_present"),
+            # THE MEMBER AND THE MARKER, obligations since landing 2b.6.
+            # `timed-when` writes the quarters as moments, so the file
+            # is read under another member and the member check misses;
+            # `lowered-when` writes `2024-q1` for `2024-Q1`, which is
+            # the SAME member -- the reader takes either case -- and
+            # moves only how the marker was written, so it is the edit
+            # that reaches the marker census and as little else as an
+            # edit can.
+            ("timed-when", "format.member"),
+            ("lowered-when", "markers.upper"),
+            ("lowered-when", "markers.unnamed"),
+            ('quoted-when', 'bytes.quoting'),
+            ('reversed-when', 'rows.order'),
         ),
     },
     "headerless": {
@@ -4409,11 +5832,24 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("byte-order-mark", "bytes.byte-order-mark"),
             ("carriage-returns", "bytes.line-endings"),
             ("no-terminal-newline", "bytes.terminal-newline"),
-            ("not-utf8", "bytes.utf8"),
+            ("not-utf8", "bytes.encoding"),
             ("added-column", "columns.n_columns"),
             ("added-row", "rows.n_rows"),
+            ('blank-line', 'bytes.blank-lines'),
+            ('semicolons', 'bytes.delimiter'),
+            ('empty-record', 'bytes.empty-rows'),
+            ('end-of-file-mark', 'bytes.end-of-file-mark'),
+            ('backslashed-quote', 'bytes.escape'),
+            ('spaced-delimiters', 'bytes.initial-space'),
+            ('preamble-line', 'bytes.preamble'),
+            ('separator-line', 'bytes.separator-line'),
+            ('short-rows', 'bytes.short-rows'),
         ),
         "column_1": (
+            # The three spellings landing 2b.2 holds (P4-D41).
+            ("floor-grouped-column_1", "spelling.group_separator"),
+            ("floor-bracketed-column_1", "spelling.negative_form"),
+            ("floor-signed-column_1", "spelling.decimal_plus"),
             ("vast-column_1", "distinct.n_distinct_values"),
             ("contradicted-column_1", "axes.quality_state"),
             ("one-worded-column_1", "axes.statistical_type"),
@@ -4429,12 +5865,11 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("marked-column_1", "counts.numeric_share"),
             ("emptied-column_1", "distinct.n_distinct"),
             ("emptied-column_1", "distinct.n_distinct_folded"),
-            ("raised-column_1", "ladder.max"),
-            ("one-zeroed-column_1", "ladder.min"),
-            ("zeroed-column_1", "ladder.p01"),
-            ("zeroed-column_1", "ladder.p05"),
-            ("floor-plussed-column_1", "ladder.p10"),
-            ("floor-plussed-column_1", "ladder.p50"),
+            # LANDING 2b.1: on sixty cells the widest stratum read as G5.2a's
+            # cap widens the p10 window to 0.5 to 72.9, which the floor's worth
+            # of plussed cells stays inside; the enormous cells still leave it.
+            # LANDING 2b.1: the same widening, at p50 (132.2 to 244.3).
+            ("crowded-column_1", "ladder.p50"),
             # `floor-plussed` reached p75 while the ladder had
             # eleven rungs; on a hundred and one it moves p10,
             # p25 and p50 and no further, because the finer ladder
@@ -4442,26 +5877,35 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             # `crowded` is the witness now, and it is already the
             # one registered for p90 and p95.
             ("crowded-column_1", "ladder.p75"),
-            ("crowded-column_1", "ladder.p90"),
-            ("crowded-column_1", "ladder.p95"),
-            ("raised-column_1", "ladder.p99"),
-            ("floor-plussed-column_1", "moments.mean"),
-            ("raised-column_1", "moments.skew"),
-            ("raised-column_1", "moments.kurtosis"),
+            # LANDING 2b.1: the same widening, on the mean (149.7 to 237.4).
+            ("crowded-column_1", "moments.mean"),
+            # `moments.skew` and `moments.kurtosis` are no longer
+            # registered here: since landing 2b.1 the checker reads the
+            # widest stratum of these sixty cells as method G5.2a's cap,
+            # both windows then admit every value a file could hold, and
+            # the validator LISTS the two moments instead of filing them.
+            # A registration naming a site no run files covers nothing.
             ("raised-column_1", "moments.std"),
             ("blanked-column_1", "presence.n_missing"),
             ("blanked-column_1", "presence.n_present"),
-            ("one-plussed-column_1", "styles.at-least.plain"),
+            ("floor-plussed-column_1", "styles.at-least.plain"),
             ("noncanonical-column_1", "styles.canonical.decimal"),
             ("exponent_lower-column_1", "styles.canonical.exponent_lower"),
             ("exponent_upper-column_1", "styles.exact.exponent_upper"),
             ("leading_plus-column_1", "styles.exact.leading_plus"),
             ("leading_zero-column_1", "styles.exact.leading_zero"),
-            ("one-plussed-column_1", "styles.published.plain"),
-            ("one-plussed-column_1", "styles.remainder"),
+            ("floor-plussed-column_1", "styles.published.plain"),
+            ("floor-plussed-column_1", "styles.remainder"),
             ("exponent_lower-column_1", "styles.spill"),
             ("fractioned-column_1", "type.integer_valued"),
             ("vast-column_1", "type.std_unrepresentable"),
+            ('quoted-column_1', 'bytes.quoting'),
+            # THE SITES STAGE 3'S TAIL RULE ADDED, each against
+            # the edit MEASURED to make it miss (landing 3.3).
+            ("floor-grouped-column_1", "tails.high.mean_distance"),
+            ("pushed-column_1", "tails.high.rms_distance"),
+            ("reshaped-column_1", "tails.low.mean_distance"),
+            ("reshaped-column_1", "tails.low.rms_distance"),
         ),
         "column_2": (
             ("emptied-column_2", "axes.quality_state"),
@@ -4477,28 +5921,74 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("rewritten-column_2", "levels.east.label"),
             ("reshaped-column_2", "levels.east.shape_form_cells"),
             ("recased-column_2", "levels.east.variants"),
-            ("spaced-column_2", "levels.east.variants_withheld"),
+            ("reshaped-column_2", "levels.east.variants_withheld"),
             ("marked-column_2", "levels.north.count"),
             ("rewritten-column_2", "levels.north.label"),
             ("reshaped-column_2", "levels.north.shape_form_cells"),
             ("recased-column_2", "levels.north.variants"),
-            ("spaced-column_2", "levels.north.variants_withheld"),
+            ("reshaped-column_2", "levels.north.variants_withheld"),
             ("marked-column_2", "levels.set"),
             ("blanked-column_2", "levels.south.count"),
             ("rewritten-column_2", "levels.south.label"),
             ("reshaped-column_2", "levels.south.shape_form_cells"),
             ("recased-column_2", "levels.south.variants"),
-            ("spaced-column_2", "levels.south.variants_withheld"),
+            ("reshaped-column_2", "levels.south.variants_withheld"),
             ("marked-column_2", "levels.west.count"),
             ("rewritten-column_2", "levels.west.label"),
             ("reshaped-column_2", "levels.west.shape_form_cells"),
             ("recased-column_2", "levels.west.variants"),
-            ("spaced-column_2", "levels.west.variants_withheld"),
+            ("reshaped-column_2", "levels.west.variants_withheld"),
             ("blanked-column_2", "presence.n_missing"),
             ("blanked-column_2", "presence.n_present"),
-            ("one-worded-column_2", "suppressed.counts"),
             ("one-worded-column_2", "suppressed.suppressed_levels"),
             ("one-worded-column_2", "suppressed.suppressed_rows"),
+            ('quoted-column_2', 'bytes.quoting'),
+        ),
+    },
+    # The written form's rules on the joined fixture (plan P4-D86).
+    'joined': {
+        '': (
+            ('blank-line', 'bytes.blank-lines'),
+            ('semicolons', 'bytes.delimiter'),
+            ('empty-record', 'bytes.empty-rows'),
+            ('end-of-file-mark', 'bytes.end-of-file-mark'),
+            ('backslashed-quote', 'bytes.escape'),
+            ('quoted-header', 'bytes.header-quoting'),
+            ('spaced-delimiters', 'bytes.initial-space'),
+            ('preamble-line', 'bytes.preamble'),
+            ('separator-line', 'bytes.separator-line'),
+            ('short-rows', 'bytes.short-rows'),
+            ('trailing-delimiters', 'bytes.trailing-delimiter'),
+            ('blank-name', 'bytes.written-names'),
+        ),
+        'clinic': (
+            ('quoted-clinic', 'bytes.quoting'),
+        ),
+        'reading': (
+            ('quoted-reading', 'bytes.quoting'),
+            ('reversed-reading', 'rows.order'),
+            # THE SITES STAGE 3'S TAIL RULE ADDED, each against
+            # the edit MEASURED to make it miss (landing 3.3).
+            ("crowded-reading", "number 1 ladder.p10"),
+            ("crowded-reading", "number 1 ladder.p90"),
+            # POSITION 1 SHIPS NO TAIL DISTANCE ANY MORE, and it is this
+            # fixture's own shape that decides it (plan P4-D349). Its
+            # first number runs 100 to 219, one whole unit at a time, so
+            # each tail's twelve DIFFERENT whole distances sum to the
+            # least twelve different whole numbers can sum to and have
+            # one possible answer -- the description publishes neither
+            # distance there, so there is no site to register a red case
+            # against. The four facts are exercised on this fixture's
+            # SECOND position, whose numbers step 13 apart and repeat
+            # their band, and on `visits` and `amount`. The fixture's own
+            # values are not changed for this: its docstring records that
+            # every golden in the suite is built on them.
+            ("crowded-reading", "number 2 ladder.p10"),
+            ("crowded-reading", "number 2 ladder.p90"),
+            ("pushed-reading", "number 2 tails.high.mean_distance"),
+            ("pushed-reading", "number 2 tails.high.rms_distance"),
+            ("pushed-reading", "number 2 tails.low.mean_distance"),
+            ("pushed-reading", "number 2 tails.low.rms_distance"),
         ),
     },
 }
@@ -4575,7 +6065,7 @@ ROLE_FAMILIES = {
     "numbers_with_labels": "compound",
     "categorical": "label",
     "constant": "label",
-    # It publishes the five shared label keys and no key of its own,
+    # It publishes the four shared label keys and no key of its own,
     # so its facts are the label family's (plan P4-D5).
     "long_tail_labels": "label",
     # Its quantitative facts are the numeric family's, read over the
@@ -4626,10 +6116,19 @@ FIXTURE_ROLES: "dict[str, dict[str, str]]" = {
     "shaped-text": {
         "lab_code": "free_text",
         "region": "categorical",
-        "dx_code": "long_tail_labels",
+        # `categorical` since plan P4-D271, and derived rather than read
+        # off the run: the rare tail is 26 levels over 39 rows (13 codes
+        # of two rows, 13 of one) beside 201 published rows. It is not a
+        # pinned pool (39 rows, 26 levels), it is not the exception
+        # (39 x 2 = 78 < 201), and 39 < 2 x 26, so the pool names a
+        # level, ruling 5 counts its rows as missing, and the column
+        # publishes its five common codes and no tail -- which is a set
+        # of categories. Before P4-D271 the exception was "smaller than
+        # the smallest published level", 22, and 39 cleared it.
+        "dx_code": "categorical",
     },
     "pooled": {"reading": "continuous"},
-    "saturated": {"reading": "count"},
+    "saturated": {"reading": "continuous"},
     "quarters": {
         "region": "categorical",
         "when": "datetime",
@@ -4666,6 +6165,43 @@ PREDICATE_FIXTURES = {
 # a column of each family. Keyed by (family, subcheck); the value is the
 # fact, `group.field`, exactly as the registry spells it.
 SUBCHECK_FACTS: "dict[tuple[str, str], str]" = {
+    # -- the file's written form (plan P4-D86): every rule is filed under
+    # one fact, on the document and on every column family alike.
+    #
+    # THREE SITES ARE NOT STATED HERE, because no fixture of this battery
+    # can file them and a statement no site meets is one that cannot fail
+    # (the files review's repair, plan P4-D173): `bytes.header-rows` is
+    # filed only where a person DECLARED rows of column descriptions (plan
+    # P4-D81), `rows.sequence` only for a first column named as a written
+    # row index (P4-D76), and `rows.order` never on a declared record
+    # number (FD12). Each is filed, and missed by a file that breaks it,
+    # in tests/test_file_dialect_round_trip.py.
+    ('clock', 'bytes.quoting'): 'document.source.dialect',
+    ('compound', 'bytes.quoting'): 'document.source.dialect',
+    ('datetime', 'bytes.quoting'): 'document.source.dialect',
+    ('datetime', 'rows.order'): 'document.source.dialect',
+    ('document', 'bytes.blank-lines'): 'document.source.dialect',
+    ('document', 'bytes.delimiter'): 'document.source.dialect',
+    ('document', 'bytes.empty-rows'): 'document.source.dialect',
+    ('document', 'bytes.end-of-file-mark'): 'document.source.dialect',
+    ('document', 'bytes.escape'): 'document.source.dialect',
+    ('document', 'bytes.header-quoting'): 'document.source.dialect',
+    ('document', 'bytes.initial-space'): 'document.source.dialect',
+    ('document', 'bytes.preamble'): 'document.source.dialect',
+    ('document', 'bytes.separator-line'): 'document.source.dialect',
+    ('document', 'bytes.short-rows'): 'document.source.dialect',
+    ('document', 'bytes.trailing-delimiter'): 'document.source.dialect',
+    ('document', 'bytes.written-names'): 'document.source.dialect',
+    ('empty', 'bytes.quoting'): 'document.source.dialect',
+    ('free_text', 'bytes.quoting'): 'document.source.dialect',
+    ('free_text', 'rows.order'): 'document.source.dialect',
+    ('identifier', 'bytes.quoting'): 'document.source.dialect',
+    ('joined', 'bytes.quoting'): 'document.source.dialect',
+    ('joined', 'rows.order'): 'document.source.dialect',
+    ('label', 'bytes.quoting'): 'document.source.dialect',
+    ('numeric', 'bytes.quoting'): 'document.source.dialect',
+    ('numeric', 'rows.order'): 'document.source.dialect',
+    ('numeric_unrepresentable', 'bytes.quoting'): 'document.source.dialect',
     # -- compound: the FIFTEENTH role, whose sites are three groups at
     # once and are stated here by the rule that makes them so (contract
     # 9.4b, plan P4-D33). The column's universal counts are the
@@ -4755,14 +6291,30 @@ SUBCHECK_FACTS: "dict[tuple[str, str], str]" = {
     ("compound", "styles.at-least.decimal"): "numeric.numeric_styles",
     ("compound", "styles.canonical.decimal"): "numeric.numeric_styles",
     ("compound", "styles.canonical.exponent_lower"): "numeric.numeric_styles",
+    # ...and the wide-run ceiling on the numeric HALF, which binds
+    # that half's own published word (landing 2b.13, plan P4-D90).
+    ("compound", "styles.canonical.wide"): "numeric.wide_runs",
     ("compound", "styles.exact.exponent_upper"): "numeric.numeric_styles",
     ("compound", "styles.exact.leading_plus"): "numeric.numeric_styles",
     ("compound", "styles.exact.leading_zero"): "numeric.numeric_styles",
     ("compound", "styles.published.decimal"): "numeric.numeric_styles",
     ("compound", "styles.remainder"): "numeric.numeric_styles",
     ("compound", "styles.spelled"): "numeric.numeric_styles",
+    ("compound", "spelling.group_separator"): "numeric.group_separator",
+    ("compound", "spelling.negative_form"): "numeric.negative_form",
+    ("compound", "spelling.decimal_plus"): "numeric.decimal_plus",
     ("compound", "styles.spill"): "numeric.numeric_styles",
-    ("compound", "suppressed.counts"): "label.suppressed_level_counts",
+    # THE TWO TAIL DISTANCES OF THE NUMBERS HALF (stage 3, landing
+    # 3.3). A compound column's numeric half takes the numeric group's
+    # facts, exactly as its rungs and its moments do above, and each
+    # distance is a field of its own, APPROXIMATED under G12.13.
+    ("compound", "tails.high.mean_distance"): (
+        "numeric.tails.high.mean_distance"
+    ),
+    ("compound", "tails.high.rms_distance"): "numeric.tails.high.rms_distance",
+    ("compound", "tails.low.mean_distance"): "numeric.tails.low.mean_distance",
+    ("compound", "tails.low.rms_distance"): "numeric.tails.low.rms_distance",
+    ("compound", "suppressed.numbers.mean"): "label.suppressed_numbers.mean",
     ("compound", "suppressed.suppressed_levels"): "label.suppressed_levels",
     ("compound", "suppressed.suppressed_rows"): "label.suppressed_rows",
     ("compound", "type.integer_valued"): "numeric.integer_valued",
@@ -4785,10 +6337,6 @@ SUBCHECK_FACTS: "dict[tuple[str, str], str]" = {
     ("joined", 'counts.n_unparsed'): 'joined.n_unparsed',
     ("joined", 'distinct.n_distinct'): 'joined.n_distinct',
     ("joined", 'distinct.n_distinct_folded'): 'joined.n_distinct_folded',
-    ("joined", 'ends.number 1 max'): 'joined.parts[0].max',
-    ("joined", 'ends.number 1 min'): 'joined.parts[0].min',
-    ("joined", 'ends.number 2 max'): 'joined.parts[1].max',
-    ("joined", 'ends.number 2 min'): 'joined.parts[1].min',
     ("joined", 'number 1 ladder.p01'): 'joined.parts[0].percentiles',
     ("joined", 'number 1 ladder.p05'): 'joined.parts[0].percentiles',
     ("joined", 'number 1 ladder.p10'): 'joined.parts[0].percentiles',
@@ -4805,6 +6353,7 @@ SUBCHECK_FACTS: "dict[tuple[str, str], str]" = {
     ("joined", 'number 1 styles.at-least.plain'): 'joined.parts[0].numeric_styles',
     ("joined", 'number 1 styles.canonical.decimal'): 'joined.parts[0].numeric_styles',
     ("joined", 'number 1 styles.canonical.exponent_lower'): 'joined.parts[0].numeric_styles',
+    ("joined", 'number 1 styles.canonical.wide'): 'joined.parts[0].wide_runs',
     ("joined", 'number 1 styles.exact.exponent_upper'): 'joined.parts[0].numeric_styles',
     ("joined", 'number 1 styles.exact.leading_plus'): 'joined.parts[0].numeric_styles',
     ("joined", 'number 1 styles.exact.leading_zero'): 'joined.parts[0].numeric_styles',
@@ -4828,6 +6377,7 @@ SUBCHECK_FACTS: "dict[tuple[str, str], str]" = {
     ("joined", 'number 2 styles.at-least.plain'): 'joined.parts[1].numeric_styles',
     ("joined", 'number 2 styles.canonical.decimal'): 'joined.parts[1].numeric_styles',
     ("joined", 'number 2 styles.canonical.exponent_lower'): 'joined.parts[1].numeric_styles',
+    ("joined", 'number 2 styles.canonical.wide'): 'joined.parts[1].wide_runs',
     ("joined", 'number 2 styles.exact.exponent_upper'): 'joined.parts[1].numeric_styles',
     ("joined", 'number 2 styles.exact.leading_plus'): 'joined.parts[1].numeric_styles',
     ("joined", 'number 2 styles.exact.leading_zero'): 'joined.parts[1].numeric_styles',
@@ -4835,6 +6385,42 @@ SUBCHECK_FACTS: "dict[tuple[str, str], str]" = {
     ("joined", 'number 2 styles.remainder'): 'joined.parts[1].numeric_styles',
     ("joined", 'number 2 styles.spelled'): 'joined.parts[1].numeric_styles',
     ("joined", 'number 2 styles.spill'): 'joined.parts[1].numeric_styles',
+    # EACH POSITION'S TAIL (stage 3, landing 3.3). A position withholds
+    # its two ends by the tail rule exactly as a plain numeric column
+    # does, and the withheld rung is LISTED under the field its check
+    # would have named -- the position's own `percentiles.min` and
+    # `percentiles.max`, which contract 9.4a gives the numeric group's
+    # dispositions. The exact `ends.number N min|max` rows above stay:
+    # they are the legacy reading, and a position that publishes a
+    # heaped end keeps them.
+    ("joined", 'number 1 ladder.max'): 'joined.parts[0].percentiles.max',
+    ("joined", 'number 1 ladder.min'): 'joined.parts[0].percentiles.min',
+    ("joined", 'number 2 ladder.max'): 'joined.parts[1].percentiles.max',
+    ("joined", 'number 2 ladder.min'): 'joined.parts[1].percentiles.min',
+    ("joined", 'number 1 tails.high.mean_distance'): (
+        'joined.parts[0].tails.high.mean_distance'
+    ),
+    ("joined", 'number 1 tails.high.rms_distance'): (
+        'joined.parts[0].tails.high.rms_distance'
+    ),
+    ("joined", 'number 1 tails.low.mean_distance'): (
+        'joined.parts[0].tails.low.mean_distance'
+    ),
+    ("joined", 'number 1 tails.low.rms_distance'): (
+        'joined.parts[0].tails.low.rms_distance'
+    ),
+    ("joined", 'number 2 tails.high.mean_distance'): (
+        'joined.parts[1].tails.high.mean_distance'
+    ),
+    ("joined", 'number 2 tails.high.rms_distance'): (
+        'joined.parts[1].tails.high.rms_distance'
+    ),
+    ("joined", 'number 2 tails.low.mean_distance'): (
+        'joined.parts[1].tails.low.mean_distance'
+    ),
+    ("joined", 'number 2 tails.low.rms_distance'): (
+        'joined.parts[1].tails.low.rms_distance'
+    ),
     ("joined", 'position.at'): 'universal.position',
     ("joined", 'presence.n_missing'): 'universal.n_missing',
     ("joined", 'presence.n_present'): 'universal.n_present',
@@ -4855,12 +6441,30 @@ SUBCHECK_FACTS: "dict[tuple[str, str], str]" = {
     ("clock", "counts.n_numeric"): "universal.n_numeric",
     ("clock", "counts.n_out_of_range"): "universal.n_out_of_range",
     ("clock", "counts.n_unparsed"): "clock.n_unparsed",
-    ("clock", "clock-ladder.max"): "clock.clock_percentiles.max",
-    ("clock", "clock-ladder.min"): "clock.clock_percentiles.min",
     ("clock", "distinct.n_distinct"): "clock.n_distinct",
     ("clock", "distinct.n_distinct_folded"): "clock.n_distinct_folded",
-    ("clock", "ends.earliest"): "clock.earliest",
-    ("clock", "ends.latest"): "clock.latest",
+    # THE LADDER'S TWO ENDS are null in every description this version
+    # writes (stage 3, contract T2), so they are LISTED under the ladder
+    # they belong to rather than checked against a value nobody
+    # published; the registry disposes the ladder and no longer carries
+    # a fact of their own.
+    ("clock", "clock-ladder.max"): "clock.clock_percentiles",
+    ("clock", "clock-ladder.min"): "clock.clock_percentiles",
+    # THE TWO TAILS, in place of the two ends and the two ladder-end
+    # rungs (stage 3, plan P4-D328). One fact name carries five
+    # subchecks, whose classes differ -- a boundary and a count are
+    # exact, the two distances are approximated -- so the registry key
+    # is read off the SUBCHECK here, exactly as the ladder's ends were.
+    ("clock", "tails.low.boundary"): "clock.low_tail.boundary",
+    ("clock", "tails.low.rows"): "clock.low_tail.rows",
+    ("clock", "tails.low.values"): "clock.low_tail.values",
+    ("clock", "tails.low.mean_distance"): "clock.low_tail.mean_distance",
+    ("clock", "tails.low.rms_distance"): "clock.low_tail.rms_distance",
+    ("clock", "tails.high.boundary"): "clock.high_tail.boundary",
+    ("clock", "tails.high.rows"): "clock.high_tail.rows",
+    ("clock", "tails.high.values"): "clock.high_tail.values",
+    ("clock", "tails.high.mean_distance"): "clock.high_tail.mean_distance",
+    ("clock", "tails.high.rms_distance"): "clock.high_tail.rms_distance",
     ("clock", "form.clock_form"): "clock.clock_form",
     ("clock", "position.at"): "universal.position",
     ("clock", "presence.n_missing"): "universal.n_missing",
@@ -4885,8 +6489,8 @@ SUBCHECK_FACTS: "dict[tuple[str, str], str]" = {
     ("datetime", "counts.n_out_of_range"): "universal.n_out_of_range",
     ("datetime", "counts.n_unparsed"): "datetime.n_unparsed",
     ("datetime", "counts.subsecond_digits"): "datetime.subsecond_digits",
-    ("datetime", "date-ladder.max"): "datetime.date_percentiles.max",
-    ("datetime", "date-ladder.min"): "datetime.date_percentiles.min",
+    ("datetime", "date-ladder.max"): "datetime.date_percentiles",
+    ("datetime", "date-ladder.min"): "datetime.date_percentiles",
     ("datetime", "date-ladder.p01"): "datetime.date_percentiles",
     ("datetime", "date-ladder.p05"): "datetime.date_percentiles",
     ("datetime", "date-ladder.p10"): "datetime.date_percentiles",
@@ -4898,23 +6502,56 @@ SUBCHECK_FACTS: "dict[tuple[str, str], str]" = {
     ("datetime", "date-ladder.p99"): "datetime.date_percentiles",
     ("datetime", "distinct.n_distinct"): "datetime.n_distinct",
     ("datetime", "distinct.n_distinct_folded"): "datetime.n_distinct_folded",
-    ("datetime", "ends.earliest"): "datetime.earliest",
-    ("datetime", "ends.latest"): "datetime.latest",
     ("datetime", "offsets.(none)"): "datetime.utc_offsets",
-    ("datetime", "offsets.earliest"): "datetime.earliest_utc_offset",
-    ("datetime", "offsets.latest"): "datetime.latest_utc_offset",
     ("datetime", "offsets.map"): "datetime.utc_offsets",
+    # THE TWO TAILS, on the terms the clock role's carry above.
+    ("datetime", "tails.low.boundary"): "datetime.low_tail.boundary",
+    ("datetime", "tails.low.rows"): "datetime.low_tail.rows",
+    ("datetime", "tails.low.values"): "datetime.low_tail.values",
+    ("datetime", "tails.low.mean_distance"): "datetime.low_tail.mean_distance",
+    ("datetime", "tails.low.rms_distance"): "datetime.low_tail.rms_distance",
+    ("datetime", "tails.high.boundary"): "datetime.high_tail.boundary",
+    ("datetime", "tails.high.rows"): "datetime.high_tail.rows",
+    ("datetime", "tails.high.values"): "datetime.high_tail.values",
+    ("datetime", "tails.high.mean_distance"): (
+        "datetime.high_tail.mean_distance"
+    ),
+    ("datetime", "tails.high.rms_distance"): (
+        "datetime.high_tail.rms_distance"
+    ),
     ("datetime", "offsets.read-at"): "datetime.datetimes_read_at",
     ("datetime", "position.at"): "universal.position",
     ("datetime", "precision.resolution"): "datetime.resolution",
     ("datetime", "precision.time_precision"): "datetime.time_precision",
     ("datetime", "presence.n_missing"): "universal.n_missing",
     ("datetime", "presence.n_present"): "universal.n_present",
+    # THE MARKS, obligations since landing 2b.3. Only the corner fixture
+    # of withheld offsets holds a column whose values write a clock, and
+    # its census names one mark, so these two subchecks are the sites the
+    # shipped table files; a line for a site no fixture files asserts
+    # nothing and is refused below. The other two marks and the two
+    # midnight checks are held by `tests/test_stage2_timestamp_spellings.py`,
+    # each shown able to fail on a real round trip.
+    ("datetime", "marks.upper_t"): "datetime.datetime_separators",
+    ("datetime", "marks.unnamed"): "datetime.datetime_separators",
+    # THE MEMBER AND THE WRITTEN FORMS, obligations since landing 2b.6,
+    # where the owner reversed decision 5 and the twin began to be
+    # written in the member that read the real column. Only the
+    # `quarters` fixture holds a column whose member can show a written
+    # form -- the case of its `Q` -- so those two subchecks are the
+    # sites the shipped table files for that family; a line for a site
+    # no fixture files asserts nothing and is refused below. The widths
+    # and the month-name styles are held by
+    # `tests/test_stage2_dates_as_written.py`, each shown able to fail
+    # on a real round trip.
+    ("datetime", "format.member"): "datetime.format",
+    ("datetime", "markers.upper"): "datetime.quarter_marker_case",
+    ("datetime", "markers.unnamed"): "datetime.quarter_marker_case",
     # -- document ----------------------------------------------------------
     ("document", "bytes.byte-order-mark"): "document.encoding",
     ("document", "bytes.line-endings"): "document.line-endings",
     ("document", "bytes.terminal-newline"): "document.line-endings",
-    ("document", "bytes.utf8"): "document.encoding",
+    ("document", "bytes.encoding"): "document.encoding",
     # REACHED BY NO ORDINARY RUN, and that is the point (review item
     # P3-V4-F6). Owner decision 7's byte form is filed only on the two
     # zero-row predicates, so a walk over the ordinary fixtures alone
@@ -5075,7 +6712,7 @@ SUBCHECK_FACTS: "dict[tuple[str, str], str]" = {
     ("label", "position.at"): "universal.position",
     ("label", "presence.n_missing"): "universal.n_missing",
     ("label", "presence.n_present"): "universal.n_present",
-    ("label", "suppressed.counts"): "label.suppressed_level_counts",
+    ("label", "suppressed.numbers.mean"): "label.suppressed_numbers.mean",
     ("label", "suppressed.suppressed_levels"): "label.suppressed_levels",
     ("label", "suppressed.suppressed_rows"): "label.suppressed_rows",
     # -- numeric -----------------------------------------------------------
@@ -5096,6 +6733,7 @@ SUBCHECK_FACTS: "dict[tuple[str, str], str]" = {
     # on the same terms, and for the same reason only the widths the
     # fixtures publish need a row here (P4-D14).
     ("numeric", "pads.published.5"): "numeric.pad_widths",
+
     # The census of WHOLE-NUMBER field widths (P4-D30) has NO row here
     # and needs none: it is REPORT-ONLY, so the validator LISTS it
     # whole rather than filing an executable subcheck per width, and a
@@ -5106,6 +6744,16 @@ SUBCHECK_FACTS: "dict[tuple[str, str], str]" = {
     # form, so its subcheck names are decided by the description in
     # the same way the two width censuses are (P4-D18). Only the forms
     # the fixtures actually publish need a row.
+    # The census of LAYOUTS does the same on the identifier role
+    # (contract 7.12, landing 2b.18, plan P4-D120): one subcheck per
+    # published layout, named by the layout itself, so only the layout
+    # the every-role fixture's declared column actually publishes needs
+    # a row here.
+    ("identifier", "forms.published.@%%%%%"): "identifier.layout_forms",
+    # ...and the literal prefix (contract 7.12a, owner ruling of
+    # 2026-09-17, item 1): one subcheck per published scope, and the
+    # every-role fixture's declared column publishes the whole column's.
+    ("identifier", "prefix.(column)"): "identifier.layout_prefixes",
     ("free_text", "forms.published.%%%%-%"): "free_text.shape_forms",
     ("label", "forms.published.@%%"): "label.shape_forms",
     ("label", "forms.published.@%%.%"): "label.shape_forms",
@@ -5158,13 +6806,13 @@ SUBCHECK_FACTS: "dict[tuple[str, str], str]" = {
     ("numeric", "moments.skew"): "numeric.skew",
     ("numeric", "moments.kurtosis"): "numeric.kurtosis",
     ("numeric", "moments.std"): "numeric.std",
-    # THE ONE `missing_by_source` KEY THAT IS NOT CHECKED (R-P4-60).
+    # THE `missing_by_source` KEY A JUDGED PASS PUT THERE (R-P4-60).
     # The field is EXACT-OBSERVABLE since contract version 6 and every
-    # other spelling is written at its published count and checked as
+    # spelling is written at its published count and checked as
     # `holes.by_source.<spelling>`. A spelling a JUDGED PASS put there
-    # is written blank instead -- reproducing it would make the twin's
-    # own reading depend on judging the same number twice (C6-116) --
-    # so that key alone is a census line, and this row is what binds it.
+    # was written blank and was a census line until plan P4-D6.4 (the
+    # owner's ruling of 2026-09-15); it is written and checked now like
+    # every other key, and this row is what binds it.
     # The two widths of the unrepresentable role, which the contract's
     # matrix disposes EXACT-OBSERVABLE and nothing measured until
     # residual R-P4-59.
@@ -5181,6 +6829,10 @@ SUBCHECK_FACTS: "dict[tuple[str, str], str]" = {
     ("numeric", "styles.at-least.plain"): "numeric.numeric_styles",
     ("numeric", "styles.canonical.decimal"): "numeric.numeric_styles",
     ("numeric", "styles.canonical.exponent_lower"): "numeric.numeric_styles",
+    # ...and the canonical question for a run of figures past what a
+    # double keeps (landing 2b.13, plan P4-D90), which binds its own
+    # published word rather than the forms map.
+    ("numeric", "styles.canonical.wide"): "numeric.wide_runs",
     ("numeric", "styles.exact.exponent_upper"): "numeric.numeric_styles",
     ("numeric", "styles.exact.leading_plus"): "numeric.numeric_styles",
     ("numeric", "styles.exact.leading_zero"): "numeric.numeric_styles",
@@ -5190,7 +6842,38 @@ SUBCHECK_FACTS: "dict[tuple[str, str], str]" = {
     ("numeric", "styles.published.plain"): "numeric.numeric_styles",
     ("numeric", "styles.remainder"): "numeric.numeric_styles",
     ("numeric", "styles.spelled"): "numeric.numeric_styles",
+    # The three spellings landing 2b.2 holds on every numeric block.
+    ("numeric", "spelling.group_separator"): "numeric.group_separator",
+    ("numeric", "spelling.negative_form"): "numeric.negative_form",
+    ("numeric", "spelling.decimal_plus"): "numeric.decimal_plus",
+    # The census of notations, checked where it names ONE convention since
+    # plan P4-D142 -- which the saturated fixture's negatives, all written
+    # with a minus, now reach.
+    ("numeric", "spelling.negative_notations"): "numeric.negative_notations",
     ("numeric", "styles.spill"): "numeric.numeric_styles",
+    # THE TAIL RULE (stage 3, landing 3.3). An end the rule withholds
+    # is LISTED at `ladder.min`/`ladder.max` above, under the same
+    # field its check bound before -- the obligation going quiet, not
+    # another one appearing. An end a group of rows SHARES is still
+    # published, and is checked one-sided and silently under its own
+    # subcheck, so the two readings never share a name.
+    ("numeric", "ladder.max (heaped end, one-sided)"): (
+        "numeric.percentiles.max"
+    ),
+    ("numeric", "ladder.min (heaped end, one-sided)"): (
+        "numeric.percentiles.min"
+    ),
+    # The tail's own published facts: two distances per side, each
+    # APPROXIMATED under G12.13, and -- on a grid whose tail holds a
+    # handful of values -- the values themselves, which are
+    # EXACT-OBSERVABLE because the generator writes that tail on those
+    # values and no others.
+    ("numeric", "tails.high.mean_distance"): "numeric.tails.high.mean_distance",
+    ("numeric", "tails.high.rms_distance"): "numeric.tails.high.rms_distance",
+    ("numeric", "tails.high.values"): "numeric.tails.high.values",
+    ("numeric", "tails.low.mean_distance"): "numeric.tails.low.mean_distance",
+    ("numeric", "tails.low.rms_distance"): "numeric.tails.low.rms_distance",
+    ("numeric", "tails.low.values"): "numeric.tails.low.values",
     ("numeric", "type.integer_valued"): "numeric.integer_valued",
     ("numeric", "type.std_unrepresentable"): "numeric.std_unrepresentable",
     # -- numeric_unrepresentable -------------------------------------------
@@ -5273,11 +6956,28 @@ WHOLE_FACT_LISTINGS: "dict[str, tuple[str, ...]]" = {
         # stretch, and neither position of this column leaves one. A
         # line here would state a listing the shipped table does not
         # file, which is exactly what the assertion below refuses.
+        # THE TWO MIXED CONVENTIONS, ONE LEVEL DOWN (landing 2b.7). A
+        # position is read from figures and one point alone, so it can
+        # wear no notation and no mark at all: invariants NS2 and TM1
+        # hold both censuses EMPTY there, and an empty census is listed
+        # rather than checked.
+        "joined.parts[0].negative_notations",
+        "joined.parts[0].thousands_marks",
+        "joined.parts[1].negative_notations",
+        "joined.parts[1].thousands_marks",
         "joined.parts[0].field_widths",
         # `joined.parts[N].n_distinct_values` LEFT THIS LIST on
         # 2026-09-04: amendment A-P4-55 makes the count of different
         # numbers an obligation, so each position files it as a check.
         "joined.parts[0].percentiles_between",
+        # ...AND THE TWO A TAIL BLOCK CARRIES (stage 3, plan P4-D344):
+        # a position publishes no census of every bin at all, and its
+        # shape stands in `bin_groups`, which is REPORT-ONLY for the
+        # reason the census was.
+        "joined.parts[0].value_histogram",
+        "joined.parts[0].bin_groups",
+        "joined.parts[1].value_histogram",
+        "joined.parts[1].bin_groups",
         "joined.parts[1].field_widths",
 
         "joined.parts[1].percentiles_between",
@@ -5305,12 +7005,24 @@ WHOLE_FACT_LISTINGS: "dict[str, tuple[str, ...]]" = {
     # `SUBCHECK_FACTS` beside the checks, which is what tells a reader
     # they are the same obligations under another answer.
     "compound": (
+        # THE TWO MIXED CONVENTIONS (landing 2b.7, plan P4-D65.2), which
+        # are CHECKED where a column wore more than one notation or more
+        # than one mark and LISTED where it wore one or none. This half
+        # wears one of each, as every fixture column here does, so both
+        # are listed: the single convention each column did wear is
+        # `negative_form` or `group_separator`, published beside these
+        # censuses and checked in its own right.
+        "numeric.negative_notations",
+        "numeric.thousands_marks",
         "numeric.field_widths",
         # `numeric.n_distinct_values` LEFT THIS LIST on 2026-09-04:
         # amendment A-P4-55 makes the count of different numbers an
         # obligation, so it is an executable subcheck now and is held
         # to `SUBCHECK_FACTS` beside the other checks.
         "numeric.percentiles_between",
+        # ...AND THE TWO A TAIL BLOCK CARRIES (stage 3, plan P4-D344).
+        "numeric.value_histogram",
+        "numeric.bin_groups",
         "universal.detection_evidence",
         "universal.missing_by_class",
         "universal.n_missing_blank",
@@ -5329,8 +7041,36 @@ WHOLE_FACT_LISTINGS: "dict[str, tuple[str, ...]]" = {
         "universal.sentinel_verdicts",
     ),
     "datetime": (
-        "datetime.format",
+        # CHECKED since landing 2b.3 where the description sets an
+        # obligation, and LISTED where it sets none: every fixture's
+        # column of dates here writes no clock, so all three are listed
+        # on it, and the corner column of withheld offsets lists the two
+        # midnight facts beside its checked marks.
+        "datetime.all_at_midnight",
+        "datetime.datetime_separators",
+        "datetime.n_at_midnight",
+        # `datetime.format` LEFT THIS LIST at landing 2b.6. The owner
+        # reversed decision 5, so the twin is written in the member that
+        # read the real column and describing it again names that
+        # member: every date column of every fixture here now files
+        # `format.member` as a CHECK. It returns to a listing on one
+        # column only -- an `iso-mixed` column not wholly at midnight,
+        # whose twin writes every value with a time of day (R-P4-12) --
+        # and no fixture here holds one.
         "datetime.resolution_mix",
+        # ...and the four censuses of HOW the dates were written arrive
+        # as listings here for the same reason the three above are:
+        # every date column of these fixtures is read under a member
+        # whose fields are of fixed width, which writes no month NAME,
+        # which is no column of quarters and which names no zulu
+        # offset, so each census is empty and asks a file for nothing.
+        # The `quarters` fixture is the exception and files its marker
+        # census as two checks, which is why it is absent from three of
+        # these four on that column rather than from all four.
+        "datetime.date_field_widths",
+        "datetime.month_name_styles",
+        "datetime.quarter_marker_case",
+        "datetime.zulu_case",
         "universal.detection_evidence",
         "universal.missing_by_class",
         "universal.n_missing_blank",
@@ -5419,10 +7159,26 @@ WHOLE_FACT_LISTINGS: "dict[str, tuple[str, ...]]" = {
         # keys, listed together: the bins say WHICH stretches there
         # are and the edges say where each really begins and ends.
         "numeric.empty_edges",
+        # THE TWO MIXED CONVENTIONS (landing 2b.7, plan P4-D65.2). Not
+        # REPORT-ONLY: both are EXACT-OBSERVABLE and are CHECKED on any
+        # column that wore more than one notation or more than one mark.
+        # They are listed HERE because no column of these fixtures wears
+        # two of either, which is the ordinary case -- a column wearing
+        # one convention has it published in `negative_form` or
+        # `group_separator` and checked there, so a check of the census
+        # beside it would hold one obligation twice.
+        "numeric.negative_notations",
+        "numeric.thousands_marks",
         "numeric.field_widths",
         # ...and it left the numeric family's list on the same day and
         # for the same reason (amendment A-P4-55).
         "numeric.value_histogram",
+        # ...AND THE GROUPS OF BINS THAT STAND IN THE CENSUS'S PLACE ON
+        # A TAIL BLOCK (stage 3, plan P4-D344), REPORT-ONLY for the
+        # reason the census is: the twin's cells are allotted to values
+        # by the runs of the published ladder and not by a census of
+        # bins.
+        "numeric.bin_groups",
         "universal.detection_evidence",
         "universal.missing_by_class",
         "universal.n_missing_blank",
@@ -5658,9 +7414,7 @@ def test_every_fact_this_file_states_is_a_registry_fact() -> None:
 
 
 def test_every_shipped_site_binds_the_fact_this_file_states(
-    tmp_path: pathlib.Path,
-    runs: "list[tuple[str, contract.Profile, str]]",
-    corner_runs: "list[tuple[str, contract.Profile, str]]",
+    walked_with_corners: "list[tuple[str, str, list[Site]]]",
 ) -> None:
     """V3.1's third term, stated here and compared with the shipped table.
 
@@ -5703,7 +7457,7 @@ def test_every_shipped_site_binds_the_fact_this_file_states(
     """
     wrong: list[str] = []
     reached: set[tuple[str, str]] = set()
-    walked = _every_entry_walked(tmp_path, runs, corner_runs)
+    walked = walked_with_corners
     for name, fixture, sites in walked:
         for site in sites:
             family = _family_of(fixture, site.column)
@@ -5752,10 +7506,9 @@ def test_every_shipped_site_binds_the_fact_this_file_states(
     )
 
 
-def _every_entry_walked(
+def _ordinary_entries_walked(
     folder: pathlib.Path,
     runs: "list[tuple[str, contract.Profile, str]]",
-    corners: "list[tuple[str, contract.Profile, str]] | None",
 ) -> "list[tuple[str, str, list[Site]]]":
     """Every ENTRY the shipped table files, over every predicate here.
 
@@ -5766,11 +7519,14 @@ def _every_entry_walked(
     collected one kind was a walk over half the table (review item
     P3-V4-F6).
 
-    The corner runs are walked only when they are handed in, because
-    they are the one thing here whose whole reason is a listing: the
-    six ordinary fixtures reach no corner, so four offset facts, three
-    identifier cardinalities and two distinctness bars are entries no
-    other run in this file files.
+    The corner runs are walked by `_corner_entries_walked` and placed
+    after these, because they are the one thing here whose whole reason
+    is a listing: the six ordinary fixtures reach no corner, so four
+    offset facts, three identifier cardinalities and two distinctness
+    bars are entries no other run in this file files. The two halves
+    stand apart so that a case which wants the corners and a case which
+    wants exactly this list can each have one without the other's
+    measurements being taken again.
     """
     walked: list[tuple[str, str, list[Site]]] = []
     for name, described, twin in runs:
@@ -5788,12 +7544,112 @@ def _every_entry_walked(
                 _sites_of(outcome) + _listed_sites_of(outcome),
             )
         ]
+    return walked
+
+
+def _corner_entries_walked(
+    folder: pathlib.Path,
+    corners: "list[tuple[str, contract.Profile, str]] | None",
+) -> "list[tuple[str, str, list[Site]]]":
+    """The corner runs' own entries, which come last in the walk."""
+    walked: list[tuple[str, str, list[Site]]] = []
     for name, described, twin in corners if corners else []:
         outcome = _measured(folder, described, twin, f"{name}-facts.csv")
         walked = walked + [
             (name, name, _sites_of(outcome) + _listed_sites_of(outcome))
         ]
     return walked
+
+
+_REAL_ORDINARY_WALK = _ordinary_entries_walked
+
+
+def _one_walked_entry_missing(
+    folder: pathlib.Path,
+    runs: "list[tuple[str, contract.Profile, str]]",
+) -> "list[tuple[str, str, list[Site]]]":
+    """The shared walk with its last row left out: the other half of the mutant."""
+    built = _REAL_ORDINARY_WALK(folder, runs)
+    return built[: len(built) - 1]
+
+
+@pytest.fixture(scope="module")
+def walked_ordinary(
+    tmp_path_factory: pytest.TempPathFactory,
+    runs: "list[tuple[str, contract.Profile, str]]",
+) -> "list[tuple[str, str, list[Site]]]":
+    """The walk over the eleven fixtures and the four predicates, ONCE.
+
+    The walk was built four times over the same runs -- three cases,
+    one of them twice -- and each build wrote and measured every file
+    again. It is the same walk each time: the description and the
+    characters are what decide it, and both come from `runs`.
+
+    WHAT MAKES SHARING THIS SAFE. Every element is a name, a fixture
+    name and a list of `Site` tuples read off a frozen `Outcome`; no
+    case here writes into the folder or reads a measured file back, and
+    no case changes the list it is handed -- each builds its own with
+    `x = x + [item]`. Module-scoped for the same reason `runs` is: the
+    reinstatement at the top of this file is a module-scoped patch.
+    """
+    return _ordinary_entries_walked(tmp_path_factory.mktemp("entry-walk"), runs)
+
+
+@pytest.fixture(scope="module")
+def walked_with_corners(
+    tmp_path_factory: pytest.TempPathFactory,
+    walked_ordinary: "list[tuple[str, str, list[Site]]]",
+    corner_runs: "list[tuple[str, contract.Profile, str]]",
+) -> "list[tuple[str, str, list[Site]]]":
+    """The same walk with the corner runs' entries after it.
+
+    Built from `walked_ordinary` rather than beside it, because that is
+    exactly what the whole walk is: the corner rows come last and
+    nothing before them depends on them.
+    """
+    return walked_ordinary + _corner_entries_walked(
+        tmp_path_factory.mktemp("entry-walk-corners"), corner_runs
+    )
+
+
+def test_the_shared_measurements_hold_every_run_they_stand_for(
+    runs: "list[tuple[str, contract.Profile, str]]",
+    corner_runs: "list[tuple[str, contract.Profile, str]]",
+    green: "list[tuple[str, contract.Profile, str, validation.Outcome]]",
+    walked_ordinary: "list[tuple[str, str, list[Site]]]",
+    walked_with_corners: "list[tuple[str, str, list[Site]]]",
+) -> None:
+    """The measurements eleven cases share may not quietly hold less.
+
+    Landing D took two measurements that were being made over and over
+    -- the unperturbed run of every fixture, walked nine times by eight
+    cases, and the entry walk, built four times by three -- and made
+    each of them once. That is where a shared fixture needs a guard: a
+    name dropped from one of these lists is a fixture no case walks any
+    more, and every one of those cases stays green while it proves
+    less. Each cover is therefore asserted against the runs it stands
+    for. `REINSTATE=D-SHARED-COVER` drops one and shows this case, and
+    only this case, go red.
+    """
+    assert [name for name, *_rest in green] == [name for name, *_rest in runs]
+    for name, _described, _twin, outcome in green:
+        assert outcome.checks, f"{name}: the shared green run checked nothing"
+    ordinary = [name for name, _fixture, _sites in walked_ordinary]
+    assert {name for name, *_rest in runs} <= set(ordinary), (
+        "the shared walk no longer reaches every fixture"
+    )
+    assert set(PREDICATE_FIXTURES) <= set(ordinary), (
+        "the shared walk no longer reaches every named predicate"
+    )
+    assert walked_with_corners[: len(walked_ordinary)] == walked_ordinary, (
+        "the corner walk is no longer the ordinary walk with the corners "
+        "after it, so the two cases that read them read different tables"
+    )
+    assert [
+        name for name, _fixture, _sites in walked_with_corners[len(walked_ordinary) :]
+    ] == [name for name, *_rest in corner_runs], (
+        "the corner rows of the shared walk are not the corner runs"
+    )
 
 
 def test_every_corner_fixture_reaches_the_corner_it_is_for(
@@ -5833,9 +7689,7 @@ def test_every_corner_fixture_reaches_the_corner_it_is_for(
 
 
 def test_every_shipped_listing_binds_the_fact_this_file_states(
-    tmp_path: pathlib.Path,
-    runs: "list[tuple[str, contract.Profile, str]]",
-    corner_runs: "list[tuple[str, contract.Profile, str]]",
+    walked_with_corners: "list[tuple[str, str, list[Site]]]",
 ) -> None:
     """V3.1's third term on the OTHER half of the entry table.
 
@@ -5866,9 +7720,7 @@ def test_every_shipped_listing_binds_the_fact_this_file_states(
     """
     wrong: list[str] = []
     reached: set[tuple[str, str]] = set()
-    for name, fixture, sites in _every_entry_walked(
-        tmp_path, runs, corner_runs
-    ):
+    for name, fixture, sites in walked_with_corners:
         for site in sites:
             if site.subcheck:
                 continue
@@ -5900,37 +7752,26 @@ def test_every_shipped_listing_binds_the_fact_this_file_states(
 
 
 def test_the_corner_listings_are_reached_by_this_walk_and_nowhere_else(
-    tmp_path: pathlib.Path,
-    runs: "list[tuple[str, contract.Profile, str]]",
-    corner_runs: "list[tuple[str, contract.Profile, str]]",
+    walked_ordinary: "list[tuple[str, str, list[Site]]]",
+    walked_with_corners: "list[tuple[str, str, list[Site]]]",
 ) -> None:
     """The corner entries are IN the binding proof, and were not.
 
-    REVIEW ITEM P3-V4-F6's named witness. Nine entries exist only where
-    a corner sends a fact to REPORT-ONLY -- four offset facts, three
-    identifier cardinalities and two distinctness bars -- and no fixture
-    the proof walked filed one of them. This asserts two things at once:
-    that the corner runs file every one of the nine, and that the six
-    ordinary fixtures and the four predicates file none of the four
-    offset ones, so the walk cannot be narrowed back to them and stay
-    green.
+    REVIEW ITEM P3-V4-F6's named witness. Nine entries existed only
+    where a corner sends a fact to REPORT-ONLY -- four offset facts,
+    three identifier cardinalities and two distinctness bars -- and no
+    fixture the proof walked filed one of them. SEVEN remain: stage 3
+    removed the two END offsets from the role, so the corner reaches
+    the census and the reading and no longer reaches an endpoint's own
+    offset, there being none. This asserts two things at once: that the
+    corner runs file every one of the seven, and that the six ordinary
+    fixtures and the four predicates file neither of the two offset
+    ones, so the walk cannot be narrowed back to them and stay green.
     """
-    ordinary = _every_entry_walked(tmp_path, runs, None)
-    with_corners = _every_entry_walked(tmp_path, runs, corner_runs)
+    ordinary = walked_ordinary
+    with_corners = walked_with_corners
     owed = {
         ("withheld-offsets", "recorded_on", "datetime.utc_offsets", "offsets.map"),
-        (
-            "withheld-offsets",
-            "recorded_on",
-            "datetime.earliest_utc_offset",
-            "offsets.earliest",
-        ),
-        (
-            "withheld-offsets",
-            "recorded_on",
-            "datetime.latest_utc_offset",
-            "offsets.latest",
-        ),
         (
             "withheld-offsets",
             "recorded_on",
@@ -6008,9 +7849,19 @@ ZERO_ROW_PREDICATES = ("zero-rows-headered", "zero-rows-headerless")
 # excused, and the coverage is checked in both directions: a site with
 # no case is red, and a case naming a site the predicate does not file
 # is red too.
-def _zero_row_edits(text: str, names: "list[str]") -> "list[tuple[str, str, str | bytes]]":
-    """Every registered edit of one conforming zero-row file."""
+def _zero_row_edits(
+    text: str, names: "list[str]", floor: int
+) -> "list[tuple[str, str, str | bytes]]":
+    """Every registered edit of one conforming zero-row file.
+
+    AT THE DESCRIPTION'S OWN FLOOR (plan P4-D317). A record of nothing
+    is a count the rule publishes only from `parsing.census_floor` of
+    them, so the edit writes that many; and a headed file of no rows
+    holds at most one blank place, which no floor above one publishes,
+    so `bytes.blank-lines` is not filed there (V3.4) and has no edit.
+    """
     joined = ",".join(names)
+    nothing = parsing.census_floor(floor) if floor > 1 else 1
     built: list[tuple[str, str, str | bytes]] = [
         ("zero-byte-order-mark", "bytes.byte-order-mark", "﻿" + text),
         (
@@ -6028,8 +7879,34 @@ def _zero_row_edits(text: str, names: "list[str]") -> "list[tuple[str, str, str 
         # exactly as it does on the ordinary path. So the edit is a
         # single Latin-1 byte: a file that is not UTF-8, that the reader
         # accepts through its documented fallback, and that leaves
-        # `bytes.utf8` a verdict to reach.
-        ("zero-not-utf8", "bytes.utf8", b"\xff" + text.encode("utf-8")[1:]),
+        # `bytes.encoding` a verdict to reach.
+        ("zero-not-utf8", "bytes.encoding", b"\xff" + text.encode("utf-8")[1:]),
+        # THE WRITTEN FORM'S RULES ON THE DEGENERATE FORM (plan P4-D86):
+        # the delimiter, the space after it, the escaping, the separator
+        # hint, the end-of-file mark and the lines before the table are
+        # all shown by a file of no rows, with or without a header.
+        (
+            "zero-semicolons",
+            "bytes.delimiter",
+            text.replace(",", ";") if text else "a;b\n",
+        ),
+        (
+            "zero-spaced",
+            "bytes.initial-space",
+            text.replace(",", ", ") if text else "a, b\n",
+        ),
+        (
+            "zero-backslashed",
+            "bytes.escape",
+            '"a\\"b",' + text if text else '"a\\"b",c\n',
+        ),
+        ("zero-separator-line", "bytes.separator-line", "sep=,\n" + text),
+        ("zero-end-of-file-mark", "bytes.end-of-file-mark", text + "\x1a"),
+        (
+            "zero-preamble",
+            "bytes.preamble",
+            "Report of the extract\n" + text if text else "\n",
+        ),
         (
             "zero-nonempty",
             "bytes.zero-row-form",
@@ -6041,16 +7918,46 @@ def _zero_row_edits(text: str, names: "list[str]") -> "list[tuple[str, str, str 
             # A HEADERLESS ZERO-ROW FILE IS ZERO BYTES, so the one
             # structural thing it can get wrong is writing the names.
             ("zero-header-written", "header.presence", joined + "\n"),
-            # ...and its terminal newline is missed by the conforming
-            # file itself, which is recorded rather than dressed up:
-            # `dataclasses.replace` is the only way to build a zero-row
-            # description at all -- the producer refuses a zero-row
-            # table outright -- so this description carries the line
-            # ending fact of the twenty-row file it was cut down from.
-            ("zero-empty-file", "bytes.terminal-newline", ""),
+            ("zero-record-of-nothing", "bytes.empty-rows", ",\n" * nothing),
+            # ...and its line ending rules are missed by a line ending
+            # it does not have. Until plan P4-D86 the conforming file
+            # itself missed its terminal newline: a description cut down
+            # with `dataclasses.replace` kept the line-ending fact of the
+            # twenty-row file it came from. `fixtures.zero_rows` now gives
+            # it the zero-row form, so the empty file holds and this edit
+            # is what makes the rule miss.
+            ("zero-newline", "bytes.terminal-newline", "\r\n"),
         ]
     return built + [
         ("zero-no-terminal-newline", "bytes.terminal-newline", text[:-1]),
+        (
+            "zero-quoted-header",
+            "bytes.header-quoting",
+            ",".join('"' + name + '"' for name in names) + "\n",
+        ),
+        # THE `zero-metadata-rows` EDIT IS GONE (plan P4-D81). It
+        # appended two rows to a zero-row file and relied on the reader
+        # GUESSING them to be the columns' descriptions, which is the
+        # guess review item CODEX-2 removed: they are records now, so
+        # the edit made `bytes.zero-row-form` miss and never
+        # `bytes.header-rows`. That subcheck is not filed at all for a
+        # description declaring no such rows, so there is nothing here
+        # for an edit to falsify.
+        (
+            "zero-blank-name",
+            "bytes.written-names",
+            ",".join(names[: len(names) - 1] + [""]) + "\n",
+        ),
+    ] + (
+        [("zero-blank-line", "bytes.blank-lines", text + "\n")]
+        if floor <= 1
+        else []
+    ) + [
+        (
+            "zero-record-of-nothing",
+            "bytes.empty-rows",
+            text + (",".join("" for _name in names) + "\n") * nothing,
+        ),
         (
             "zero-dropped-name",
             "columns.n_columns",
@@ -6086,18 +7993,18 @@ def test_a_conforming_zero_row_file_misses_nothing_it_can_hold(
     holds `_conforming_text`'s construction to the shipped reader,
     since a header line written the wrong way would miss here.
 
-    THE HEADERLESS FORM IS RECORDED RATHER THAN ASSERTED, and the
-    reason is not a defect in the validator. `synthtwin profile` refuses
-    a zero-row table outright, in both header modes, so no producer can
-    write a zero-row description and the only way to have one is to cut
-    an ordinary description down -- which leaves it carrying the line
-    ending fact of the file it was cut from. A file of no bytes then
-    misses `bytes.terminal-newline`, correctly, against a description
-    no producer would have written. That measurement is pinned as a red
-    case below rather than asserted away.
+    THE HEADERLESS FORM IS ASSERTED TOO, since plan P4-D86. `synthtwin
+    profile` refuses a zero-row table outright, in both header modes, so
+    the only way to have a zero-row description is to cut an ordinary one
+    down. Cut with `dataclasses.replace` alone it kept the written form
+    of the file it came from, and a file of no bytes then missed
+    `bytes.terminal-newline` against a description no producer would
+    have written, which this test used to record rather than assert.
+    `fixtures.zero_rows` cuts the written form down with the rows, so the
+    file of no bytes is the conforming file and must miss nothing.
     """
     for label, described, text, _sites in _predicate_sites(tmp_path, runs):
-        if label != "zero-rows-headered":
+        if label not in ZERO_ROW_PREDICATES:
             continue
         outcome = _measured(tmp_path, described, text, f"{label}-green.csv")
         bad = [
@@ -6109,7 +8016,8 @@ def test_a_conforming_zero_row_file_misses_nothing_it_can_hold(
             "the file this description asks for missed its own "
             f"obligations: {sorted(bad)}"
         )
-        assert len(outcome.checks) >= 9, len(outcome.checks)
+        if label == "zero-rows-headered":
+            assert len(outcome.checks) >= 9, len(outcome.checks)
 
 
 def test_the_predicate_walk_covers_every_predicate_that_file_names(
@@ -6155,7 +8063,9 @@ def test_every_site_of_every_zero_row_predicate_can_be_made_to_miss(
         names = [column.name for column in described.columns]
         filed = {site.subcheck for site in sites}
         covered: set[str] = set()
-        for edit, subcheck, made in _zero_row_edits(text, names):
+        for edit, subcheck, made in _zero_row_edits(
+            text, names, described.settings.small_cell_floor
+        ):
             assert subcheck in filed, (
                 f"{label}: the edit {edit} names {subcheck}, which this "
                 f"predicate does not file at all"
@@ -6218,9 +8128,108 @@ def test_every_registered_red_case_misses_the_site_it_names(
         )
 
 
-def test_no_two_sites_of_one_fixture_share_a_name(
+def _blank_line_verdicts(
+    folder: pathlib.Path,
+    described: contract.Profile,
+    text: str,
+    name: str,
+) -> "list[str]":
+    """Every verdict one measured file files under `bytes.blank-lines`."""
+    outcome = _measured(folder, described, text, name)
+    return [
+        check.verdict
+        for check in outcome.checks
+        if check.subcheck == "bytes.blank-lines"
+    ]
+
+
+def test_a_one_column_description_files_no_blank_line_rule_it_cannot_miss(
     tmp_path: pathlib.Path,
-    runs: "list[tuple[str, contract.Profile, str]]",
+) -> None:
+    """V3.4 at a raised floor, asked of the one-column form (plan P4-D290).
+
+    THE REPRODUCTION. A blank place is published only from
+    `census_floor` places up, and a one-column file holds at most one:
+    the reader refuses a blank line between its records, a line before
+    the table is a preamble, and the lines after the last record are one
+    place. At a floor of eleven the shipped validator still FILED
+    `bytes.blank-lines` against such a description, and every file held
+    it -- one trailing blank line HELD, eleven trailing lines HELD, and
+    eleven leading lines missed `bytes.preamble` and HELD this rule. A
+    subcheck no file can make miss is what V3.4 refuses, and the
+    coverage identity of this file found it on five fixtures.
+
+    So at a raised floor the rule is not filed for a one-column
+    description; at a floor of one it is filed and a trailing blank line
+    misses it; and a two-column description at the raised floor still
+    files it and misses it on a blank line after each of `census_floor`
+    records.
+    """
+    values = [f"{index % 100 - 5}" for index in range(300)]
+    text = fixtures.single_column_table("reading", values)
+    raised = _described(tmp_path, text, stem="one-column-raised")
+    assert raised.settings.small_cell_floor == SMALL_CELL_FLOOR > 1
+    twin = rendering.twin_csv(generation.generate(raised, SEED))
+    for label, written in (
+        ("green", twin),
+        ("one-trailing", twin + "\n"),
+        ("floor-trailing", twin + "\n" * SMALL_CELL_FLOOR),
+        ("floor-leading", "\n" * SMALL_CELL_FLOOR + twin),
+    ):
+        assert _blank_line_verdicts(
+            tmp_path, raised, written, f"raised-{label}.csv"
+        ) == [], label
+
+    folder = tmp_path / "default-floor"
+    folder.mkdir()
+    table = reading.read_table(str(fixtures.write(folder, "t.csv", text)), small_cell_floor=1)
+    document = profile.build_document(
+        table, taxonomy.Settings(small_cell_floor=1), [], [], []
+    )
+    default = contract.load_profile(
+        str(fixtures.write_profile(folder, "t-profile.json", document))
+    )
+    twin = rendering.twin_csv(generation.generate(default, SEED))
+    assert _blank_line_verdicts(folder, default, twin, "green.csv") == [
+        validation.HELD
+    ]
+    assert _blank_line_verdicts(
+        folder, default, twin + "\n", "one-trailing.csv"
+    ) == [validation.MISSED]
+
+    pairs = fixtures.rows_to_csv(
+        ["reading", "region"],
+        [
+            [values[index], fixtures.REGIONS[index % 4]]
+            for index in range(len(values))
+        ],
+    )
+    wide = _described(tmp_path, pairs, stem="two-columns-raised")
+    twin = rendering.twin_csv(generation.generate(wide, SEED))
+    rows = _rows_of(twin)
+    first = _first_record(wide)
+    places = parsing.census_floor(SMALL_CELL_FLOOR)
+    assert _blank_line_verdicts(tmp_path, wide, twin, "wide-green.csv") == [
+        validation.HELD
+    ]
+    assert _blank_line_verdicts(
+        tmp_path,
+        wide,
+        _blank_places(twin, rows, first, 2, places),
+        "wide-places.csv",
+    ) == [validation.MISSED]
+    # ...and one place fewer is absorbed, which is why the edit is that
+    # wide and not narrower.
+    assert _blank_line_verdicts(
+        tmp_path,
+        wide,
+        _blank_places(twin, rows, first, 2, places - 1),
+        "wide-fewer.csv",
+    ) == [validation.HELD]
+
+
+def test_no_two_sites_of_one_fixture_share_a_name(
+    green: "list[tuple[str, contract.Profile, str, validation.Outcome]]",
 ) -> None:
     """A column and a subcheck name ONE entry, which the table relies on.
 
@@ -6231,8 +8240,7 @@ def test_no_two_sites_of_one_fixture_share_a_name(
     and would hide one of the two from the coverage identity. It is
     asserted rather than assumed, on the shipped table itself.
     """
-    for name, described, twin in runs:
-        outcome = _measured(tmp_path, described, twin, f"{name}-names.csv")
+    for name, _described, _twin, outcome in green:
         seen: dict[tuple[str, str], str] = {}
         for site in _sites_of(outcome):
             key = (site.column, site.subcheck)
@@ -6258,12 +8266,12 @@ def test_a_registered_case_is_aimed_at_the_site_it_covers(
     `COVERING_RED_CASES` must be an edit of the site's OWN column, and a
     document-level site must be covered by an edit of no column at all.
 
-    ONE SITE IN THE DERIVED TABLE IS NOT, and it is named here rather
-    than waved through by a rule with a hole in it: `styles.remainder`
-    on the `spelled` fixture's one column, which no edit named for that
-    column reaches -- each of those either leaves the remainder where it
-    is or moves the role -- and which `added-row` reaches by repeating a
-    row, an edit that writes one more cell into that same column.
+    ONE SITE IN THE DERIVED TABLE WAS NOT, and is named here so the
+    allowance is not read as a hole: `styles.remainder` on the `spelled`
+    fixture's one column was reached only by `added-row`, repeating a row.
+    Since plan P4-D222 (stage 2 closed by the owner rulings of 2026-09-17)
+    `floor-grouped-reading`, an edit of that column, reaches it, and the
+    allowance is kept only so the row may move back without a new rule.
 
     THE CURATED ROWS ARE NOT WALKED HERE, and that is deliberate rather
     than an oversight: a hand chose each of them against a finding, with
@@ -6413,7 +8421,7 @@ def test_the_pooled_fraction_column_holds_its_role_and_its_census(
     WHAT THE PUBLISHED MAP ACTUALLY ASKS, measured off the validator
     rather than assumed. A pooled cell may perfectly well be written
     point-free, so `plain` is met anywhere from the NAMED count up to
-    that count plus the pool -- 34 to 36 on this column. The defect ran
+    that count plus the pool -- 34 to 45 on this column. The defect ran
     off BOTH ends of that range: no cell carrying a point at all, which
     moved the role, and four or eight of them, which put `plain` at 30
     or 28 against a floor of 34.
@@ -6430,22 +8438,33 @@ def test_the_pooled_fraction_column_holds_its_role_and_its_census(
     # NUMBER as a plain cell written `9`, and the count of different
     # numbers is an obligation now. Nothing this case is for moved --
     # the census is still pooled and the role is still `continuous`.
-    values = [f"{index * 3 + 20}" for index in range(34)] + ["1.5", "2.5"]
+    #
+    # AND ITS RARE FORMS ARE COUNTED INTO `plain` SINCE PLAN P4-D222 (stage
+    # 2 closed by the owner rulings of 2026-09-17). Plan P4-D221 made the
+    # pool eleven cells over two forms, ten fractions and one exponent, so
+    # it could stand beside the named thirty-four; now no pool stands
+    # beside a named count and the map is `plain: 45`. The role is what
+    # this case is for, and it holds: the twin writes the one fraction the
+    # column's type needs and forty-four plain cells, and says the forty-
+    # fifth plain cell is short. Measured on all two hundred seeds.
+    values = (
+        [f"{index * 3 + 20}" for index in range(34)]
+        + [f"{index}.5" for index in range(1, 11)]
+        + ["1.5e0"]
+    )
     described = _described(
         tmp_path, fixtures.single_column_table("reading", values),
         stem="pooled-repair",
     )
     facts = described.columns[0].facts
-    assert facts.numeric_styles == {"plain": 34, contract.WITHHELD: 2}, (
-        facts.numeric_styles
-    )
+    assert facts.numeric_styles == {"plain": 45}, facts.numeric_styles
     assert facts.integer_valued is False
 
     # 1. The seed this file pins, end to end through the validator.
     twin = rendering.twin_csv(generation.generate(described, SEED))
     cells = [line for line in twin.splitlines()[1:] if line != ""]
-    assert len(cells) == 36
-    assert len([cell for cell in cells if "." in cell]) == 2, cells
+    assert len(cells) == 45
+    assert len([cell for cell in cells if "." in cell]) == 1, cells
     outcome = _measured(tmp_path, described, twin, "pooled-repair.csv")
     missed = {
         check.subcheck: (check.published, check.achieved)
@@ -6479,7 +8498,7 @@ def test_the_pooled_fraction_column_holds_its_role_and_its_census(
         written = [cell for cell in built.columns[0] if cell != ""]
         numbers = [parsing.parse_number(cell) for cell in written]
         held = [one for one in numbers if one is not None]
-        assert len(held) == 36, (seed, written)
+        assert len(held) == 45, (seed, written)
         pointed = len([one for one in held if one != int(one)])
         # THE ROLE, ON EVERY SEED. This is the fact the defect moved,
         # and it is asserted here rather than only on the seed that runs
@@ -6498,15 +8517,16 @@ def test_the_pooled_fraction_column_holds_its_role_and_its_census(
             note for note in built.deviations
             if note.fact == "numeric_styles" and "plain" in note.published
         ]
-        if pointed == 2:
+        if pointed == 1:
             exact = exact + 1
-        if 34 <= plain <= 36:
+        if plain == 45:
             assert not said, (seed, plain, said)
         else:
             assert said, (seed, plain, pointed)
     # A TRIPWIRE, NOT A DERIVED BOUND, and said plainly so nobody reads
     # it as one. Measured on 2026-09-01: 182 of these 200 seeds write
-    # exactly the published two, where before the repair NO seed reached
+    # exactly the published two (and on 2026-09-17 all 200 write the one
+    # fraction of the shape plan P4-D222 left it), where before the repair NO seed reached
     # the count by either road. The number here is round and well under
     # that, so it catches a collapse without being fitted to the run.
     assert exact >= 150, exact
@@ -6521,8 +8541,7 @@ def test_the_pooled_fraction_column_holds_its_role_and_its_census(
 
 
 def test_every_fixture_is_GREEN_before_it_is_perturbed(
-    runs: "list[tuple[str, contract.Profile, str]]",
-    tmp_path: pathlib.Path,
+    green: "list[tuple[str, contract.Profile, str, validation.Outcome]]",
 ) -> None:
     """The premise the whole red battery rests on, and it was unstated.
 
@@ -6545,8 +8564,7 @@ def test_every_fixture_is_GREEN_before_it_is_perturbed(
     been asserting it all along.
     """
     broken: list[str] = []
-    for name, described, twin in runs:
-        outcome = _measured(tmp_path, described, twin, f"{name}-premise.csv")
+    for name, _described, _twin, outcome in green:
         # BOTH VERDICTS, because validation method V8.4 asks a green run
         # for zero MISSED *and* zero WITHHELD. Rejecting only MISSED
         # left a comparator that returns WITHHELD when the two agree
@@ -6584,8 +8602,7 @@ def test_every_fixture_is_GREEN_before_it_is_perturbed(
 
 
 def test_the_coverage_identity_walks_the_shipped_table(
-    tmp_path: pathlib.Path,
-    runs: "list[tuple[str, contract.Profile, str]]",
+    green: "list[tuple[str, contract.Profile, str, validation.Outcome]]",
     battery: "dict[str, dict[str, Case]]",
     registered: "list[RedCase]",
 ) -> None:
@@ -6612,16 +8629,18 @@ def test_the_coverage_identity_walks_the_shipped_table(
     which is V8.3's "registered, named" read as though it said
     "reached". And a site could be covered only by an edit that broke
     something else, which is exactly the failure V8.2 refuses one grain
-    up. The registration is now total over the shipped sites: 672 rows
-    over 668 sites, 73 curated and 599 derived, each derived one an edit
-    aimed at the site it covers. THREE sites carry more than one row on
-    purpose: `columns.order` carries three, because it is the whole of
-    what the shipped table files for the STRUCTURAL disposition and the
-    floor below asks that class for three edits; `rows.n_rows` carries
-    two, a row taken out and a row added; and the headerless
-    `header.presence` carries the plain edit and the compensating one
-    that used to defeat it. For those three, deleting one row is not
-    enough to turn this red. Every one of the other 665 is on its own.
+    up. The registration is now total over the shipped sites -- measured
+    on 2026-09-22, 1401 rows over 1311 sites, 247 curated and 1154
+    derived -- each derived one an edit aimed at the site it covers.
+    89 sites carry more than one row. Some do so on purpose:
+    `columns.order` carries three on `every-role`, because it is the
+    whole of what the shipped table files for the STRUCTURAL disposition
+    and the floor below asks that class for three edits; `rows.n_rows`
+    carries a row
+    taken out and a row added; and the headerless `header.presence`
+    carries the plain edit and the compensating one that used to defeat
+    it. At every such site deleting one row is not enough to turn this
+    red; each of the other 1222 is on its own.
 
     NOTHING IS EXCUSED. There were two exemptions here and both are
     gone. A register of OPEN DEFECTS went with round 2's repairs. The
@@ -6645,8 +8664,7 @@ def test_the_coverage_identity_walks_the_shipped_table(
             covered.setdefault(case.fixture, set()).add(found)
     uncovered: list[str] = []
     walked: dict[str, int] = {}
-    for name, described, twin in runs:
-        outcome = _measured(tmp_path, described, twin, f"{name}-green.csv")
+    for name, _described, _twin, outcome in green:
         sites = _sites_of(outcome)
         walked[name] = len(sites)
         mine = covered.get(name, set())
@@ -6664,8 +8682,7 @@ def test_the_coverage_identity_walks_the_shipped_table(
     # and reads as though it proved something, which is the other half
     # of the same rot.
     dead: list[str] = []
-    for name, described, twin in runs:
-        outcome = _measured(tmp_path, described, twin, f"{name}-alive.csv")
+    for name, _described, _twin, outcome in green:
         sites = set(_sites_of(outcome))
         for case in registered:
             if case.fixture != name:
@@ -6745,8 +8762,7 @@ def test_the_coverage_identity_walks_the_shipped_table(
 
 
 def test_the_vacuity_floor_counts_classes_per_disposition(
-    tmp_path: pathlib.Path,
-    runs: "list[tuple[str, contract.Profile, str]]",
+    green: "list[tuple[str, contract.Profile, str, validation.Outcome]]",
     battery: "dict[str, dict[str, Case]]",
     registered: "list[RedCase]",
 ) -> None:
@@ -6782,8 +8798,7 @@ def test_the_vacuity_floor_counts_classes_per_disposition(
         return by_key[_registry_key(fact)].disposition
 
     carried: dict[str, int] = {}
-    for name, described, twin in runs:
-        outcome = _measured(tmp_path, described, twin, f"floor-{name}.csv")
+    for _name, _described, _twin, outcome in green:
         for site in _sites_of(outcome):
             key = disposition_of(site.fact)
             carried[key] = carried.get(key, 0) + 1

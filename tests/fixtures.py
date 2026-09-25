@@ -73,6 +73,101 @@ REGIONS = ("north", "south", "east", "west")
 LABELS = ("alpha", "beta", "gamma", "delta", "epsilon")
 
 
+# -- what a name and a message may hold on EVERY platform of the matrix --
+#
+# The two helpers below exist because two tests passed on every Linux
+# and macOS cell and failed on every Windows one, and neither failure
+# was about the product. They are kept here, together, because both are
+# the same mistake in two shapes: a test that assumed its own machine's
+# idea of a path.
+
+# The characters Windows will not put in a file or folder name. POSIX
+# accepts all of them but the separator, which is why a name built from
+# a test's own parameter can pass here for years and fail on five cells.
+WINDOWS_FORBIDS = '<>:"/\\|?*'
+# The device names Windows reserves, with or without an extension.
+WINDOWS_RESERVES = (
+    ("CON", "PRN", "AUX", "NUL")
+    + tuple(f"COM{digit}" for digit in range(1, 10))
+    + tuple(f"LPT{digit}" for digit in range(1, 10))
+)
+
+
+def unusable_as_a_folder_name(name: str) -> str:
+    """Why ``name`` cannot be a folder on every platform of the matrix, or ``""``.
+
+    THE REPRODUCTION. `test_a_headed_export_keeps_the_names_its_file_wrote`
+    built its working folder as `f"headed{len(header)}{absent}{len(floor)}"`,
+    and `absent` is a parametrized value -- one of `NA`, `<10` and `437`,
+    because a column of readings written `<10` is exactly what the
+    smallest-group floor exists for. So a third of its cases asked for a
+    folder called `headed15<100`. POSIX makes it without complaint;
+    Windows answers `OSError: [WinError 123] The filename, directory
+    name, or volume label syntax is incorrect`, and fourteen cases went
+    red on every Windows cell of the matrix and nowhere else.
+
+    A value a test was given is not a name a test may use. Pass it
+    through `as_a_folder_name` first, and assert this is empty before
+    the `mkdir`, so the next one fails on the machine that wrote it.
+    """
+    if not name:
+        return "a folder name may not be empty"
+    held = sorted({letter for letter in name if letter in WINDOWS_FORBIDS})
+    if held:
+        return (
+            f"{name!r} holds {', '.join(repr(letter) for letter in held)}, which "
+            "Windows refuses in a file or folder name"
+        )
+    if any(ord(letter) < 32 for letter in name):
+        return f"{name!r} holds a control character"
+    if name[-1] in " .":
+        return f"{name!r} ends in a space or a dot, which Windows strips silently"
+    if name.partition(".")[0].upper() in WINDOWS_RESERVES:
+        return f"{name!r} is one of the device names Windows reserves"
+    return ""
+
+
+def as_a_folder_name(value: str) -> str:
+    """``value`` with every character Windows refuses replaced by a dash.
+
+    The result still reads as the value it came from -- `<10` becomes
+    `-10` -- so a failing case still says which one it was, and it is a
+    name every platform of the matrix can make.
+    """
+    safe = "".join("-" if letter in WINDOWS_FORBIDS else letter for letter in value)
+    return safe.rstrip(" .") or "value"
+
+
+def aside_from_the_path(message: str, *paths: object) -> str:
+    """``message`` with the file paths it legitimately names taken out.
+
+    THE REPRODUCTION. A refusal may name the FILE somebody pointed the
+    command at; it may not name what is written INSIDE that file, and
+    `test_a_checked_workbook_refusal_names_no_sheet` holds it to that by
+    looking for the sheet names in the whole message. On Windows
+    pytest's `tmp_path` sits under
+    `C:\\Users\\runneradmin\\AppData\\Local\\Temp\\...`, and `AppData`
+    CONTAINS `Data`, which is the name of the first sheet. So every
+    Windows cell reported a leaked sheet name in a refusal that had
+    leaked nothing, while the same refusal read clean under
+    `/tmp/pytest-of-...` on Linux and macOS.
+
+    What the test means is "the message APART FROM the path", and that
+    is what this returns. Both spellings of each path are removed, the
+    platform's own and the forward-slash one, because a message may
+    carry either.
+    """
+    out = message
+    for path in paths:
+        spellings = [f"{path}"]
+        if isinstance(path, pathlib.PurePath):
+            spellings += [path.as_posix(), f"{path}".replace("\\", "/")]
+        for spelled in spellings:
+            if spelled:
+                out = out.replace(spelled, "<the file>")
+    return out
+
+
 def write(folder: pathlib.Path, name: str, text: str) -> pathlib.Path:
     """Write ``text`` as a UTF-8 file with newline endings; return its path."""
     target = folder / name
@@ -283,11 +378,13 @@ def every_role_and_joined_table(n_rows: int = 240) -> str:
     """`every_role_table` with a JOINED column beside it.
 
     THE SHARED TABLE CANNOT CARRY THIS ROLE ON ITS OWN. An undeclared
-    column of two numbers in one cell is not `joined_numbers` (plan
-    P4-D23), so every one of that table's call sites would have to pass
-    `--measurement` and any that missed it would give the column
-    another role in silence -- which is residual R-P4-62's own defect
-    in a new place. So the joined column is added HERE, for the
+    column of two numbers in one cell is not `joined_numbers` in its
+    full reading (plan P4-D23), so every one of that table's call sites
+    would have to pass `--measurement` and any that missed it could give
+    the column another role in silence -- which is residual R-P4-62's
+    own defect in a new place. This column's slashed pairs of whole
+    numbers are read as joined numbers undeclared since plan P4-D40,
+    and the surfaces go on declaring it. So the joined column is added HERE, for the
     surfaces that claim to cover every role, and those surfaces declare
     `JOINED_COLUMN`.
 
@@ -449,18 +546,28 @@ def every_withholding_table(seed: int = 20260814, n_rows: int = 240) -> str:
     something back is given a column here:
 
     * `region` -- one label that about seven rows share, so the floor
-      suppresses a LEVEL and fills `suppressed_levels`,
-      `suppressed_rows` and `suppressed_level_counts`;
+      suppresses a LEVEL and fills `suppressed_levels` and
+      `suppressed_rows`, the pooled total that has stood alone since the
+      owner's ruling of 2026-09-17 (plan P4-D201);
     * `visits` -- blank cells plus three rare spellings of "no value",
       so `missing_by_source` pools a REMAINDER and `missing_by_class`
       pools the class those spellings fell into;
     * `reading` -- a common stand-in number and a rare one, so
       `n_sentinel_candidates_unpublished` counts a candidate too rare to
       name;
-    * `amount` -- mostly plain decimals with one exponent and one signed
-      value, so `numeric_styles` pools a FORM;
-    * `stamped_at` -- times stamped in UTC with two rare offsets, so
-      `utc_offsets` pools an OFFSET;
+    * `amount` -- mostly plain decimals with six exponents, six signed
+      whole numbers and one signed decimal, so `numeric_styles` pools two
+      FORMS at the default floor and names both at a floor of one. They
+      were one exponent and one signed value until plan P4-D221 (stage 2
+      closed by the owner rulings of 2026-09-17) held a pool of the forms
+      map to the disclosure line: a pool of one took the named decimals in
+      with it, and a map of one pool keeps nothing of the column;
+    * `stamped_at` -- times stamped in UTC with two rare offsets of six
+      rows each, so `utc_offsets` pools an OFFSET beside `Z` at the
+      default floor and names both at a floor of one. They were one row
+      each until plan P4-D220 made a pool beside a named offset a group
+      of at least the floor: two rows pooled at eleven now take `Z` in
+      with them, and a map of one pool keeps nothing of the column;
     * `answer` -- a two-value column where one row shouts its label, so
       one level's `variants_withheld` holds a SPELLING back;
     * `comment`, `unused`, `batch`, `record_code` -- free text, an empty
@@ -501,15 +608,17 @@ def every_withholding_table(seed: int = 20260814, n_rows: int = 240) -> str:
             reading = "9999"
         else:
             reading = str(rng.randint(1, 400))
-        if index == 13:
-            amount = "1.5e3"
+        if index % 40 == 13:
+            amount = f"{index % 90 + 5}.5e0"
+        elif index % 40 == 33:
+            amount = f"+{index % 90 + 3}"
         elif index == 17:
             amount = "+12.25"
         else:
             amount = f"{rng.uniform(0.5, 99.5):.2f}"
-        if index == 21:
+        if index % 40 == 21:
             offset = "+02:00"
-        elif index == 29:
+        elif index % 40 == 29:
             offset = "-05:00"
         else:
             offset = "Z"
@@ -633,6 +742,91 @@ def single_column_table(name: str, values: list[str]) -> str:
     return rows_to_csv([name], [[value] for value in values])
 
 
+# THE KEEPER COLUMN (repair of landing 3.2). `synthtwin profile`
+# refuses a table whose POPULATION is under `parsing.POPULATION_FLOOR`,
+# and the population is the rows that HOLD A VALUE -- so a one-column
+# shape padded with cells this format reads as "no value", or made
+# wholly of them, is a population of its present cells and is refused.
+# A shape whose subject is a COLUMN and not a table reaches the floor
+# by carrying a second column that holds a value on every row.
+#
+# ONE VALUE ON EVERY ROW, so the keeper is a CONSTANT: it publishes
+# one label and no count of any group smaller than the whole table, it
+# is no shape any test measures, and no question can be asked about it
+# -- route two of the person rule wants a figure and this value has
+# none, route one wants more values than a set of categories may hold
+# and this column has one.
+KEEPER_NAME = "held"
+KEEPER_VALUE = "kept"
+
+
+def needs_a_keeper(
+    values: "list[str]", declared_missing: "tuple[str, ...]" = ()
+) -> bool:
+    """Whether a one-column shape of ``values`` falls under the floor.
+
+    The command's rule asked rather than restated: the population is
+    the rows that hold a present value, so a shape holding fewer than
+    `parsing.POPULATION_FLOOR` of them needs the keeper.
+
+    ``declared_missing`` IS NOT OPTIONAL WHERE THE RUN DECLARES ONE.
+    A spelling named with `--missing-value` holds no value on that run,
+    and the default settings cannot know it -- so a column of two
+    hundred `ZZ-777` cells looks full here and is refused there. Every
+    caller that passes `--missing-value` passes those spellings too.
+    """
+    from synthtwin import parsing, taxonomy
+
+    settings = taxonomy.Settings(
+        declared_missing_values=tuple(declared_missing)
+    )
+    present, _absent = taxonomy.split_missing(list(values), settings)
+    return len(present) < parsing.POPULATION_FLOOR
+
+
+def rows_at_the_floor(
+    name: str,
+    values: "list[str]",
+    declared_missing: "tuple[str, ...]" = (),
+) -> "tuple[list[str], list[list[str]]]":
+    """The header and rows of a one-column shape, keeper included.
+
+    Where the shape's own present cells already reach the floor the
+    table is the one column it always was, so nothing about the shapes
+    that never needed a keeper moves.
+    """
+    if not needs_a_keeper(values, declared_missing):
+        return [name], [[value] for value in values]
+    return ([name, KEEPER_NAME], [[value, KEEPER_VALUE] for value in values])
+
+
+def kept_column_table(
+    name: str,
+    values: "list[str]",
+    declared_missing: "tuple[str, ...]" = (),
+) -> str:
+    """`single_column_table`, with the keeper column where it is needed."""
+    names, built = rows_at_the_floor(name, values, declared_missing)
+    return rows_to_csv(names, built)
+
+
+def declared_missing_in(options: "list[str]") -> "tuple[str, ...]":
+    """The spellings a command line names with `--missing-value`.
+
+    Both spellings of the option -- `--missing-value X` and
+    `--missing-value=X` -- because both are used here.
+    """
+    named: "list[str]" = []
+    place = 0
+    for word in options:
+        if word == "--missing-value" and place + 1 < len(options):
+            named += [options[place + 1]]
+        elif word[:16] == "--missing-value=":
+            named += [word[16:]]
+        place = place + 1
+    return tuple(named)
+
+
 def numbers(seed: int, count: int, low: int, high: int) -> list[str]:
     """``count`` whole numbers written as text, drawn with ``seed``."""
     rng = random.Random(seed)
@@ -643,3 +837,26 @@ def labels(seed: int, count: int, pool: tuple[str, ...] = LABELS) -> list[str]:
     """``count`` labels drawn from ``pool`` with ``seed``."""
     rng = random.Random(seed)
     return [pool[rng.randrange(len(pool))] for _index in range(count)]
+
+
+def zero_rows(described: "object") -> "object":
+    """A loaded description cut down to the degenerate zero-row form.
+
+    `dataclasses.replace` is the only way to build one -- the producer
+    refuses a table with no rows -- and cutting `n_rows` alone left the
+    WRITTEN FORM of the file it was cut from: line endings for every
+    row, a row order, per-column quoting. A zero-row file holds its
+    header line or nothing (owner decision 7), so its form is the
+    ordinary one for no rows (plan P4-D86).
+    """
+    import dataclasses
+
+    from synthtwin import dialect, reading
+
+    headed = described.source.header_source == reading.HEADER_FROM_FILE
+    form = dialect.ordinary(len(described.columns), 0, headed)
+    return dataclasses.replace(
+        described,
+        n_rows=0,
+        source=dataclasses.replace(described.source, dialect=form),
+    )

@@ -111,7 +111,8 @@ def _numbers_and_a_marker(folder: pathlib.Path, floor: int) -> dict:
         folder, "reading.csv", fixtures.single_column_table("reading", values)
     )
     read = reading.read_table(
-        str(path), first_row=reading.FIRST_ROW_AUTOMATIC
+        str(path), first_row=reading.FIRST_ROW_AUTOMATIC,
+        small_cell_floor=floor,
     )
     return profile.build_document(
         read,
@@ -129,7 +130,8 @@ def _labels(folder: pathlib.Path, floor: int) -> dict:
         folder, "region.csv", fixtures.single_column_table("region", values)
     )
     read = reading.read_table(
-        str(path), first_row=reading.FIRST_ROW_AUTOMATIC
+        str(path), first_row=reading.FIRST_ROW_AUTOMATIC,
+        small_cell_floor=floor,
     )
     return profile.build_document(
         read, taxonomy.Settings(small_cell_floor=floor), []
@@ -320,7 +322,8 @@ def test_a_source_spelling_that_reads_like_one_of_our_names_still_loads(
         tmp_path, "reading.csv", fixtures.single_column_table("reading", values)
     )
     read = reading.read_table(
-        str(path), first_row=reading.FIRST_ROW_AUTOMATIC
+        str(path), first_row=reading.FIRST_ROW_AUTOMATIC,
+        small_cell_floor=1,
     )
     document = profile.build_document(
         read,

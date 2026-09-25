@@ -1,5 +1,5 @@
 {
-  "case_set": "The 12 cases method section G14.3 adds for the branches its first nine leave unexercised (review items P2-C3-F3 and P2-C4-C3, owner decision 11, plan P4-D4.3, residual R-P4-17, and residuals R-P4-48 and R-P4-68 for the newest of them): the joint class-and-sign packing of an unrepresentable column, the joint class-and-alphabet packing of free text, a fold collision no case change can build, the literal decimal, leading-zero and leading-plus style placements, the published end whose seconds field is 60, which the ordinal space cannot hold and the endpoint-fields route writes exactly, the pooled remainder written by its own value beside a whole number wider than the fixed-point window, the month, which is the second resolution naming a SPAN rather than an instant, the four roles Phase 4 added, and the EXPONENT spelling family of an unrepresentable column, on widths no digit string can be written at. They are computed by the same oracle and the same proof layer as tests/reference/generation-reference-vectors.json, and live in their own file only because a committed fixture must stay under the provenance manifest's byte cap.",
+  "case_set": "The 19 cases method section G14.3 adds for the branches its first nine leave unexercised (review items P2-C3-F3 and P2-C4-C3, owner decision 11, plan P4-D4.3, residual R-P4-17, and residuals R-P4-48 and R-P4-68 for the newest of them): the joint class-and-sign packing of an unrepresentable column, the joint class-and-alphabet packing of free text, a fold collision no case change can build, the literal decimal, leading-zero and leading-plus style placements, the published end whose seconds field is 60, which the ordinal space cannot hold and the endpoint-fields route writes exactly, the pooled remainder written by its own value beside a whole number wider than the fixed-point window, the month, which is the second resolution naming a SPAN rather than an instant, the four roles Phase 4 added, the EXPONENT spelling family of an unrepresentable column, on widths no digit string can be written at, and, for landing 2b.18, the layout census of a declared record number, the lower-case key of a form census, and the shape of a published label worn by the stand-ins a census owes no form. They are computed by the same oracle and the same proof layer as tests/reference/generation-reference-vectors.json, and live in their own file only because a committed fixture must stay under the provenance manifest's byte cap; the cases the carried landings 2b.2, 2b.3 and 2b.4 added are the third file, tests/reference/generation-branch-vectors-2.json, for the same reason, and the five landing 2b.17 added for the transforms that produce a whole DOCUMENT rather than one column's cells are the fourth, tests/reference/generation-document-vectors.json, for that same reason again. The cases the repair of the final Codex review of the number censuses added are a fifth file, tests/reference/generation-branch-vectors-3.json, for the same reason. The cases the reconciliation of the separation walk, the fills of a saturated grid and a column's published levels, and the census of marks at a thousand added are a sixth file, tests/reference/generation-branch-vectors-4.json, for the same reason. The cases the final pass over the close of stage 2 added are a seventh file, tests/reference/generation-branch-vectors-5.json, for the same reason. The seven cases the extra review round of 2026-09-18 added are an eighth file, tests/reference/generation-branch-vectors-6.json, for the same reason. The six cases of the carried numbers pass of 2026-09-18 and its repair pass are a ninth file, tests/reference/generation-branch-vectors-7.json, for the same reason. Stage 3's two tail landings are two more files, for the same reason again: a tenth, tests/reference/generation-branch-vectors-8.json, holding the four cases the date and clock tails grew past the room their own files had and two of the numeric rule's five, and an eleventh, tests/reference/generation-branch-vectors-9.json, holding the numeric rule's other three. The repair of the oracle's derived end in stage 3's review opened a twelfth, tests/reference/generation-branch-vectors-10.json, and a thirteenth, tests/reference/generation-branch-vectors-11.json, for the same reason.",
   "cases": {
     "affixed_brackets": {
       "cells": [
@@ -20,6 +20,7 @@
         "affix_prefix": "[",
         "affix_suffix": "]",
         "affix_variants": [],
+        "decimal_plus": {},
         "detection_evidence": "written by hand in this method specification's own neutral vocabulary; no value here comes from any table.",
         "empty_bins": [],
         "empty_edges": [],
@@ -27,6 +28,7 @@
           "2": 12
         },
         "fraction_widths": {},
+        "group_separator": "",
         "integer_valued": true,
         "kurtosis": {
           "decimal": "1.7832167832167831",
@@ -77,6 +79,8 @@
         "n_used_in_statistics": 12,
         "n_zero": 0,
         "name": "column_1",
+        "negative_form": "minus",
+        "negative_notations": {},
         "numeric_share": {
           "decimal": "1",
           "exact": "1",
@@ -719,7 +723,9 @@
         },
         "std_unrepresentable": false,
         "structural_role": "data",
-        "value_histogram": {}
+        "thousands_marks": {},
+        "value_histogram": {},
+        "wide_runs": "none"
       },
       "content": [
         "[12]",
@@ -766,39 +772,78 @@
         "9781242035145962743"
       ]
     },
-    "clock_ladder": {
+    "count_spellings": {
       "cells": [
-        "text-1",
-        "08:00:01",
-        "08:00:05",
-        "08:00:04",
-        "08:00:02",
-        "08:00:09",
-        "08:00:07",
-        "08:00:03",
-        "08:00:06",
-        "08:00:08",
-        "08:00:00",
-        "08:00:10"
+        "0",
+        "7",
+        "007",
+        "07",
+        "7",
+        "007",
+        "07",
+        "07",
+        "007",
+        "007",
+        "07",
+        "07",
+        "007",
+        "0",
+        "7",
+        "0",
+        "0",
+        "007",
+        "07",
+        "007",
+        "007",
+        "007",
+        "07",
+        "7",
+        "07",
+        "0",
+        "007",
+        "7",
+        "7",
+        "007",
+        "7",
+        "0",
+        "07",
+        "7",
+        "0",
+        "0",
+        "07",
+        "7",
+        "0",
+        "07",
+        "7",
+        "7",
+        "0",
+        "0"
       ],
       "column": {
-        "clock_form": "hh-mm-ss",
-        "clock_percentiles": {
-          "max": "08:00:10",
-          "min": "08:00:00",
-          "p01": "08:00:00",
-          "p05": "08:00:00",
-          "p10": "08:00:01",
-          "p25": "08:00:02",
-          "p50": "08:00:05",
-          "p75": "08:00:07",
-          "p90": "08:00:09",
-          "p95": "08:00:09",
-          "p99": "08:00:09"
+        "decimal_plus": {},
+        "detection_evidence": "written by hand in this method specification's own neutral vocabulary; no value here comes from any table.",
+        "empty_bins": [],
+        "empty_edges": [],
+        "field_widths": {
+          "1": 22,
+          "2": 11,
+          "3": 11
         },
-        "detection_evidence": "11 value(s) are clock times written as hours, minutes and seconds, `09:30:00`, and 1 value(s) are not",
-        "earliest": "08:00:00",
-        "latest": "08:00:10",
+        "fraction_widths": {},
+        "group_separator": "",
+        "integer_valued": true,
+        "kurtosis": {
+          "decimal": "2.3333333333333335",
+          "exact": "4666666666666667/2000000000000000",
+          "float64": 2.3333333333333335,
+          "proof": "nearest"
+        },
+        "mean": {
+          "decimal": "5.25",
+          "exact": "21/4",
+          "float64": 5.25,
+          "proof": "nearest"
+        },
         "missing_by_class": {
           "(blank)": 0,
           "(date-sentinel)": 0,
@@ -808,76 +853,789 @@
           "(withheld)": 0
         },
         "missing_by_source": {},
+        "mode": null,
+        "mode_count": 0,
         "n_contradictory": 0,
-        "n_distinct": 12,
-        "n_distinct_folded": 12,
+        "n_distinct": 4,
+        "n_distinct_folded": 4,
+        "n_distinct_values": 2,
+        "n_left_out_of_statistics": 0,
         "n_missing": 0,
         "n_missing_blank": 0,
         "n_missing_withheld": 0,
-        "n_not_numeric": 12,
-        "n_numeric": 0,
+        "n_negative": 0,
+        "n_negative_unrepresentable": 0,
+        "n_not_numeric": 0,
+        "n_numeric": 44,
         "n_out_of_range": 0,
-        "n_present": 12,
+        "n_present": 44,
+        "n_rows": 44,
         "n_sentinel_candidates_unpublished": 0,
-        "n_unparsed": 1,
+        "n_used_in_statistics": 44,
+        "n_zero": 11,
         "name": "column_1",
+        "negative_form": "minus",
+        "negative_notations": {},
+        "number_spellings": {
+          "0": 11,
+          "007": 11,
+          "07": 11,
+          "7": 11
+        },
+        "numeric_share": {
+          "decimal": "1",
+          "exact": "1",
+          "float64": 1.0,
+          "proof": "nearest"
+        },
+        "numeric_styles": {
+          "leading_zero": 22,
+          "plain": 22
+        },
+        "pad_widths": {
+          "2": 11,
+          "3": 11
+        },
+        "percentiles": {
+          "max": {
+            "decimal": "7",
+            "exact": "7",
+            "float64": 7.0,
+            "proof": "nearest"
+          },
+          "min": {
+            "decimal": "0",
+            "exact": "0",
+            "float64": 0.0,
+            "proof": "nearest"
+          },
+          "p01": {
+            "decimal": "0",
+            "exact": "0",
+            "float64": 0.0,
+            "proof": "nearest"
+          },
+          "p05": {
+            "decimal": "0",
+            "exact": "0",
+            "float64": 0.0,
+            "proof": "nearest"
+          },
+          "p10": {
+            "decimal": "0",
+            "exact": "0",
+            "float64": 0.0,
+            "proof": "nearest"
+          },
+          "p25": {
+            "decimal": "5.25",
+            "exact": "21/4",
+            "float64": 5.25,
+            "proof": "nearest"
+          },
+          "p50": {
+            "decimal": "7",
+            "exact": "7",
+            "float64": 7.0,
+            "proof": "nearest"
+          },
+          "p75": {
+            "decimal": "7",
+            "exact": "7",
+            "float64": 7.0,
+            "proof": "nearest"
+          },
+          "p90": {
+            "decimal": "7",
+            "exact": "7",
+            "float64": 7.0,
+            "proof": "nearest"
+          },
+          "p95": {
+            "decimal": "7",
+            "exact": "7",
+            "float64": 7.0,
+            "proof": "nearest"
+          },
+          "p99": {
+            "decimal": "7",
+            "exact": "7",
+            "float64": 7.0,
+            "proof": "nearest"
+          }
+        },
+        "percentiles_between": {
+          "p02": {
+            "decimal": "0.000000",
+            "exact": "0",
+            "float64": 0.0,
+            "proof": "nearest"
+          },
+          "p03": {
+            "decimal": "0.000000",
+            "exact": "0",
+            "float64": 0.0,
+            "proof": "nearest"
+          },
+          "p04": {
+            "decimal": "0.000000",
+            "exact": "0",
+            "float64": 0.0,
+            "proof": "nearest"
+          },
+          "p06": {
+            "decimal": "0.000000",
+            "exact": "0",
+            "float64": 0.0,
+            "proof": "nearest"
+          },
+          "p07": {
+            "decimal": "0.000000",
+            "exact": "0",
+            "float64": 0.0,
+            "proof": "nearest"
+          },
+          "p08": {
+            "decimal": "0.000000",
+            "exact": "0",
+            "float64": 0.0,
+            "proof": "nearest"
+          },
+          "p09": {
+            "decimal": "0.000000",
+            "exact": "0",
+            "float64": 0.0,
+            "proof": "nearest"
+          },
+          "p11": {
+            "decimal": "0.350000",
+            "exact": "7/20",
+            "float64": 0.35,
+            "proof": "nearest"
+          },
+          "p12": {
+            "decimal": "0.700000",
+            "exact": "7/10",
+            "float64": 0.7,
+            "proof": "nearest"
+          },
+          "p13": {
+            "decimal": "1.050000",
+            "exact": "21/20",
+            "float64": 1.05,
+            "proof": "nearest"
+          },
+          "p14": {
+            "decimal": "1.400000",
+            "exact": "7/5",
+            "float64": 1.4,
+            "proof": "nearest"
+          },
+          "p15": {
+            "decimal": "1.750000",
+            "exact": "7/4",
+            "float64": 1.75,
+            "proof": "nearest"
+          },
+          "p16": {
+            "decimal": "2.100000",
+            "exact": "21/10",
+            "float64": 2.1,
+            "proof": "nearest"
+          },
+          "p17": {
+            "decimal": "2.450000",
+            "exact": "49/20",
+            "float64": 2.45,
+            "proof": "nearest"
+          },
+          "p18": {
+            "decimal": "2.800000",
+            "exact": "14/5",
+            "float64": 2.8,
+            "proof": "nearest"
+          },
+          "p19": {
+            "decimal": "3.150000",
+            "exact": "63/20",
+            "float64": 3.15,
+            "proof": "nearest"
+          },
+          "p20": {
+            "decimal": "3.500000",
+            "exact": "7/2",
+            "float64": 3.5,
+            "proof": "nearest"
+          },
+          "p21": {
+            "decimal": "3.850000",
+            "exact": "77/20",
+            "float64": 3.85,
+            "proof": "nearest"
+          },
+          "p22": {
+            "decimal": "4.200000",
+            "exact": "21/5",
+            "float64": 4.2,
+            "proof": "nearest"
+          },
+          "p23": {
+            "decimal": "4.550000",
+            "exact": "91/20",
+            "float64": 4.55,
+            "proof": "nearest"
+          },
+          "p24": {
+            "decimal": "4.900000",
+            "exact": "49/10",
+            "float64": 4.9,
+            "proof": "nearest"
+          },
+          "p26": {
+            "decimal": "5.320000",
+            "exact": "133/25",
+            "float64": 5.32,
+            "proof": "nearest"
+          },
+          "p27": {
+            "decimal": "5.390000",
+            "exact": "539/100",
+            "float64": 5.39,
+            "proof": "nearest"
+          },
+          "p28": {
+            "decimal": "5.460000",
+            "exact": "273/50",
+            "float64": 5.46,
+            "proof": "nearest"
+          },
+          "p29": {
+            "decimal": "5.530000",
+            "exact": "553/100",
+            "float64": 5.53,
+            "proof": "nearest"
+          },
+          "p30": {
+            "decimal": "5.600000",
+            "exact": "28/5",
+            "float64": 5.6,
+            "proof": "nearest"
+          },
+          "p31": {
+            "decimal": "5.670000",
+            "exact": "567/100",
+            "float64": 5.67,
+            "proof": "nearest"
+          },
+          "p32": {
+            "decimal": "5.740000",
+            "exact": "287/50",
+            "float64": 5.74,
+            "proof": "nearest"
+          },
+          "p33": {
+            "decimal": "5.810000",
+            "exact": "581/100",
+            "float64": 5.81,
+            "proof": "nearest"
+          },
+          "p34": {
+            "decimal": "5.880000",
+            "exact": "147/25",
+            "float64": 5.88,
+            "proof": "nearest"
+          },
+          "p35": {
+            "decimal": "5.950000",
+            "exact": "119/20",
+            "float64": 5.95,
+            "proof": "nearest"
+          },
+          "p36": {
+            "decimal": "6.020000",
+            "exact": "301/50",
+            "float64": 6.02,
+            "proof": "nearest"
+          },
+          "p37": {
+            "decimal": "6.090000",
+            "exact": "609/100",
+            "float64": 6.09,
+            "proof": "nearest"
+          },
+          "p38": {
+            "decimal": "6.160000",
+            "exact": "154/25",
+            "float64": 6.16,
+            "proof": "nearest"
+          },
+          "p39": {
+            "decimal": "6.230000",
+            "exact": "623/100",
+            "float64": 6.23,
+            "proof": "nearest"
+          },
+          "p40": {
+            "decimal": "6.300000",
+            "exact": "63/10",
+            "float64": 6.3,
+            "proof": "nearest"
+          },
+          "p41": {
+            "decimal": "6.370000",
+            "exact": "637/100",
+            "float64": 6.37,
+            "proof": "nearest"
+          },
+          "p42": {
+            "decimal": "6.440000",
+            "exact": "161/25",
+            "float64": 6.44,
+            "proof": "nearest"
+          },
+          "p43": {
+            "decimal": "6.510000",
+            "exact": "651/100",
+            "float64": 6.51,
+            "proof": "nearest"
+          },
+          "p44": {
+            "decimal": "6.580000",
+            "exact": "329/50",
+            "float64": 6.58,
+            "proof": "nearest"
+          },
+          "p45": {
+            "decimal": "6.650000",
+            "exact": "133/20",
+            "float64": 6.65,
+            "proof": "nearest"
+          },
+          "p46": {
+            "decimal": "6.720000",
+            "exact": "168/25",
+            "float64": 6.72,
+            "proof": "nearest"
+          },
+          "p47": {
+            "decimal": "6.790000",
+            "exact": "679/100",
+            "float64": 6.79,
+            "proof": "nearest"
+          },
+          "p48": {
+            "decimal": "6.860000",
+            "exact": "343/50",
+            "float64": 6.86,
+            "proof": "nearest"
+          },
+          "p49": {
+            "decimal": "6.930000",
+            "exact": "693/100",
+            "float64": 6.93,
+            "proof": "nearest"
+          },
+          "p51": {
+            "decimal": "7.000000",
+            "exact": "7",
+            "float64": 7.0,
+            "proof": "nearest"
+          },
+          "p52": {
+            "decimal": "7.000000",
+            "exact": "7",
+            "float64": 7.0,
+            "proof": "nearest"
+          },
+          "p53": {
+            "decimal": "7.000000",
+            "exact": "7",
+            "float64": 7.0,
+            "proof": "nearest"
+          },
+          "p54": {
+            "decimal": "7.000000",
+            "exact": "7",
+            "float64": 7.0,
+            "proof": "nearest"
+          },
+          "p55": {
+            "decimal": "7.000000",
+            "exact": "7",
+            "float64": 7.0,
+            "proof": "nearest"
+          },
+          "p56": {
+            "decimal": "7.000000",
+            "exact": "7",
+            "float64": 7.0,
+            "proof": "nearest"
+          },
+          "p57": {
+            "decimal": "7.000000",
+            "exact": "7",
+            "float64": 7.0,
+            "proof": "nearest"
+          },
+          "p58": {
+            "decimal": "7.000000",
+            "exact": "7",
+            "float64": 7.0,
+            "proof": "nearest"
+          },
+          "p59": {
+            "decimal": "7.000000",
+            "exact": "7",
+            "float64": 7.0,
+            "proof": "nearest"
+          },
+          "p60": {
+            "decimal": "7.000000",
+            "exact": "7",
+            "float64": 7.0,
+            "proof": "nearest"
+          },
+          "p61": {
+            "decimal": "7.000000",
+            "exact": "7",
+            "float64": 7.0,
+            "proof": "nearest"
+          },
+          "p62": {
+            "decimal": "7.000000",
+            "exact": "7",
+            "float64": 7.0,
+            "proof": "nearest"
+          },
+          "p63": {
+            "decimal": "7.000000",
+            "exact": "7",
+            "float64": 7.0,
+            "proof": "nearest"
+          },
+          "p64": {
+            "decimal": "7.000000",
+            "exact": "7",
+            "float64": 7.0,
+            "proof": "nearest"
+          },
+          "p65": {
+            "decimal": "7.000000",
+            "exact": "7",
+            "float64": 7.0,
+            "proof": "nearest"
+          },
+          "p66": {
+            "decimal": "7.000000",
+            "exact": "7",
+            "float64": 7.0,
+            "proof": "nearest"
+          },
+          "p67": {
+            "decimal": "7.000000",
+            "exact": "7",
+            "float64": 7.0,
+            "proof": "nearest"
+          },
+          "p68": {
+            "decimal": "7.000000",
+            "exact": "7",
+            "float64": 7.0,
+            "proof": "nearest"
+          },
+          "p69": {
+            "decimal": "7.000000",
+            "exact": "7",
+            "float64": 7.0,
+            "proof": "nearest"
+          },
+          "p70": {
+            "decimal": "7.000000",
+            "exact": "7",
+            "float64": 7.0,
+            "proof": "nearest"
+          },
+          "p71": {
+            "decimal": "7.000000",
+            "exact": "7",
+            "float64": 7.0,
+            "proof": "nearest"
+          },
+          "p72": {
+            "decimal": "7.000000",
+            "exact": "7",
+            "float64": 7.0,
+            "proof": "nearest"
+          },
+          "p73": {
+            "decimal": "7.000000",
+            "exact": "7",
+            "float64": 7.0,
+            "proof": "nearest"
+          },
+          "p74": {
+            "decimal": "7.000000",
+            "exact": "7",
+            "float64": 7.0,
+            "proof": "nearest"
+          },
+          "p76": {
+            "decimal": "7.000000",
+            "exact": "7",
+            "float64": 7.0,
+            "proof": "nearest"
+          },
+          "p77": {
+            "decimal": "7.000000",
+            "exact": "7",
+            "float64": 7.0,
+            "proof": "nearest"
+          },
+          "p78": {
+            "decimal": "7.000000",
+            "exact": "7",
+            "float64": 7.0,
+            "proof": "nearest"
+          },
+          "p79": {
+            "decimal": "7.000000",
+            "exact": "7",
+            "float64": 7.0,
+            "proof": "nearest"
+          },
+          "p80": {
+            "decimal": "7.000000",
+            "exact": "7",
+            "float64": 7.0,
+            "proof": "nearest"
+          },
+          "p81": {
+            "decimal": "7.000000",
+            "exact": "7",
+            "float64": 7.0,
+            "proof": "nearest"
+          },
+          "p82": {
+            "decimal": "7.000000",
+            "exact": "7",
+            "float64": 7.0,
+            "proof": "nearest"
+          },
+          "p83": {
+            "decimal": "7.000000",
+            "exact": "7",
+            "float64": 7.0,
+            "proof": "nearest"
+          },
+          "p84": {
+            "decimal": "7.000000",
+            "exact": "7",
+            "float64": 7.0,
+            "proof": "nearest"
+          },
+          "p85": {
+            "decimal": "7.000000",
+            "exact": "7",
+            "float64": 7.0,
+            "proof": "nearest"
+          },
+          "p86": {
+            "decimal": "7.000000",
+            "exact": "7",
+            "float64": 7.0,
+            "proof": "nearest"
+          },
+          "p87": {
+            "decimal": "7.000000",
+            "exact": "7",
+            "float64": 7.0,
+            "proof": "nearest"
+          },
+          "p88": {
+            "decimal": "7.000000",
+            "exact": "7",
+            "float64": 7.0,
+            "proof": "nearest"
+          },
+          "p89": {
+            "decimal": "7.000000",
+            "exact": "7",
+            "float64": 7.0,
+            "proof": "nearest"
+          },
+          "p91": {
+            "decimal": "7.000000",
+            "exact": "7",
+            "float64": 7.0,
+            "proof": "nearest"
+          },
+          "p92": {
+            "decimal": "7.000000",
+            "exact": "7",
+            "float64": 7.0,
+            "proof": "nearest"
+          },
+          "p93": {
+            "decimal": "7.000000",
+            "exact": "7",
+            "float64": 7.0,
+            "proof": "nearest"
+          },
+          "p94": {
+            "decimal": "7.000000",
+            "exact": "7",
+            "float64": 7.0,
+            "proof": "nearest"
+          },
+          "p96": {
+            "decimal": "7.000000",
+            "exact": "7",
+            "float64": 7.0,
+            "proof": "nearest"
+          },
+          "p97": {
+            "decimal": "7.000000",
+            "exact": "7",
+            "float64": 7.0,
+            "proof": "nearest"
+          },
+          "p98": {
+            "decimal": "7.000000",
+            "exact": "7",
+            "float64": 7.0,
+            "proof": "nearest"
+          }
+        },
         "position": 1,
         "quality_state": "ok",
         "remarks": [],
-        "role": "time_of_day",
+        "role": "count",
         "sentinel_verdicts": [],
-        "statistical_type": "time_of_day",
-        "structural_role": "data"
+        "skew": {
+          "decimal": "-1.1547005383792515",
+          "exact": "-2309401076758503/2000000000000000",
+          "float64": -1.1547005383792515,
+          "proof": "nearest"
+        },
+        "statistical_type": "count",
+        "std": {
+          "decimal": "3.066131567740966",
+          "exact": "1533065783870483/500000000000000",
+          "float64": 3.066131567740966,
+          "proof": "nearest"
+        },
+        "std_unrepresentable": false,
+        "structural_role": "data",
+        "thousands_marks": {},
+        "value_histogram": {},
+        "wide_runs": "none"
       },
       "content": [
-        "08:00:00",
-        "08:00:01",
-        "08:00:02",
-        "08:00:03",
-        "08:00:04",
-        "08:00:05",
-        "08:00:06",
-        "08:00:07",
-        "08:00:08",
-        "08:00:09",
-        "08:00:10",
-        "text-1"
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "007",
+        "007",
+        "007",
+        "007",
+        "007",
+        "007",
+        "007",
+        "007",
+        "007",
+        "007",
+        "007",
+        "07",
+        "07",
+        "07",
+        "07",
+        "07",
+        "07",
+        "07",
+        "07",
+        "07",
+        "07",
+        "07",
+        "7",
+        "7",
+        "7",
+        "7",
+        "7",
+        "7",
+        "7",
+        "7",
+        "7",
+        "7",
+        "7"
       ],
-      "csv_bytes": "text-1\n08:00:01\n08:00:05\n08:00:04\n08:00:02\n08:00:09\n08:00:07\n08:00:03\n08:00:06\n08:00:08\n08:00:00\n08:00:10\n",
+      "csv_bytes": "0\n7\n007\n07\n7\n007\n07\n07\n007\n007\n07\n07\n007\n0\n7\n0\n0\n007\n07\n007\n007\n007\n07\n7\n07\n0\n007\n7\n7\n007\n7\n0\n07\n7\n0\n0\n07\n7\n0\n07\n7\n7\n0\n0\n",
       "float64": [],
-      "why": "the first frozen case for the clock role, and the one that reaches its own repair rather than only its ladder. ELEVEN SECONDS HOLD ELEVEN PARSED CELLS: the ends are `08:00:00` and `08:00:10`, the eleven ordinals between them inclusive are exactly as many as the cells that parsed, and the column publishes every value different. So the all-different obligation of G7A.4 -- EXACT for this role where every other shape's distinctness falls to an envelope -- has no slack at all: each interior rank must land on the one ordinal left for it. Measured against the shipped generator with the step-up removed, the same column comes out holding `08:00:01` and `08:00:06` twice each, so the repair is doing the work here and not merely present.\n\nIt also carries a cell that is not a clock time at all, which is what makes `n_unparsed` non-zero and puts a stand-in beside the parsed cells (G7A.5). The two ends are the published TEXT and cost no word, so the budget is the nine interior ranks, and the ladder is read in SECONDS OF DAY -- the form's own unit -- which is the whole of what makes this role different from the date role it borrows its transform from.",
+      "why": "a count column that wrote one number more than one way -- `7`, `07` and `007` beside `0` -- and so publishes the census of its spellings (contract section 7.13, method G6.8, landing 2b.18 part 2). Before the census a count published how many cells wore each field width and never which number wore which, and the twin of a column shaped like this one wrote `00` and `05`, spellings its source never had. The census names every cell read as a number, so it is the column's numbers: the forty-four cells here are its four spellings eleven times each, in the order of the number spelled and then of the spelling, and nothing is drawn for them. This case's mutant withdraws the rule, and the ladder walk of G5 and the style walk of G6 write the column instead: the cells move.",
       "word_budget": {
-        "content": 9,
-        "placement": 11
+        "content": 2,
+        "placement": 43
       },
       "words": [
-        "17168193686452184398",
-        "17294964732501811759",
-        "5119971829015185418",
-        "3974762115987730418",
-        "9783861565524925563",
-        "676574683570638621",
-        "12408121771224495461",
-        "17120944728125855256",
-        "8074603130316608142",
-        "16171205420250064347",
-        "1348050307520104417",
-        "14805382045011159389",
-        "12528853194802204718",
-        "7870325075990001275",
-        "8800084849072185159",
-        "11241460431909986162",
-        "9287835057163713957",
-        "11122896599893611155",
-        "15231939135091175662",
-        "12051230916723616950"
+        "7687911214574418412",
+        "10663533608816953314",
+        "2616547998438772155",
+        "1366869589866334087",
+        "17520374349558038042",
+        "1609274745335312500",
+        "14208627795420856630",
+        "4243662745333721072",
+        "16049732717786980771",
+        "13998553070692769882",
+        "1474326905162042579",
+        "2312802121902820003",
+        "2469587400300821282",
+        "18252884443183030911",
+        "3161585658302330964",
+        "5124052084043109061",
+        "12069967067160595751",
+        "18101372447488982082",
+        "1747047840045718174",
+        "8772433440031119127",
+        "503463901603744489",
+        "14446097835952004249",
+        "5275666164281917924",
+        "17786018302256602457",
+        "9531465300822991939",
+        "16454979768288460259",
+        "14153358980504684320",
+        "544672169205711433",
+        "17575418052128749653",
+        "1651629124224001023",
+        "12674954058559114794",
+        "6112529208509423379",
+        "12384984089675196170",
+        "236106178430280789",
+        "16664337307126418403",
+        "600496068526828757",
+        "17536768382670458704",
+        "2828983999751666805",
+        "4820344975137709250",
+        "15646717198495412648",
+        "15130515098698616441",
+        "4009465223591371070",
+        "5131576334512893944",
+        "4352129982649265412",
+        "11759005967142306325"
       ]
     },
     "free_text_joint": {
       "cells": [
-        "00",
+        "0",
         "!!",
-        "00",
+        "0",
         "A"
       ],
       "column": {
@@ -885,16 +1643,16 @@
         "length": {
           "max": 2,
           "mean": {
-            "decimal": "1.75",
-            "exact": "7/4",
-            "float64": 1.75,
+            "decimal": "1.25",
+            "exact": "5/4",
+            "float64": 1.25,
             "proof": "nearest"
           },
           "min": 1,
           "p50": {
-            "decimal": "2",
-            "exact": "2",
-            "float64": 2.0,
+            "decimal": "1",
+            "exact": "1",
+            "float64": 1.0,
             "proof": "nearest"
           }
         },
@@ -949,10 +1707,10 @@
       "content": [
         "A",
         "!!",
-        "00",
-        "00"
+        "0",
+        "0"
       ],
-      "csv_bytes": "00\n!!\n00\nA\n",
+      "csv_bytes": "0\n!!\n0\nA\n",
       "float64": [],
       "why": "the joint class-and-alphabet packing of G9.5 steps 3 and 4 on a column where two separate walks cannot both land. The class counts alone permit the doubled group to answer for either class; the alphabet counts alone permit either split of the singletons. A walk that settled the classes first would take the two singletons for the two numeric cells -- the smallest sizes for the count that is reached first -- and leave the doubled group owing one code-alphabet cell and one wide cell, which one group covering two cells cannot do. The joint packing gives the doubled group the figures and the two singletons the other two bands, which meets every quota of both margins exactly. The permissions are the rule's own: a cell of ordinary text cannot be written in figures alone because figures alone read as a number, and a cell whose leftmost character is a non-digit of the code alphabet is not a number at all.",
       "word_budget": {
@@ -975,6 +1733,8 @@
       "column": {
         "all_whole_numbers": true,
         "detection_evidence": "written by hand in this method specification's own neutral vocabulary; no value here comes from any table.",
+        "layout_forms": {},
+        "layout_prefixes": {},
         "max_length": 3,
         "min_length": 1,
         "missing_by_class": {
@@ -1030,17 +1790,442 @@
         "2670401546021029124"
       ]
     },
+    "identifier_layout": {
+      "cells": [
+        "S31274",
+        "H01458",
+        "Z32623",
+        "ZX9297",
+        "L30816",
+        "K72449",
+        "EP9471",
+        "D71090",
+        "K72449",
+        "O02807",
+        "TO8023",
+        "Z32623",
+        "V03265",
+        "PP0920",
+        "ZX9297",
+        "PP0920",
+        "V03265",
+        "UG0114",
+        "JG9655",
+        "UG0114",
+        "OX8839",
+        "W60632",
+        "DX7480",
+        "YF8207"
+      ],
+      "column": {
+        "all_whole_numbers": false,
+        "detection_evidence": "written by hand in this method specification's own neutral vocabulary; no value here comes from any table.",
+        "layout_forms": {
+          "@%%%%%": 12,
+          "@@%%%%": 12
+        },
+        "layout_prefixes": {},
+        "max_length": 6,
+        "min_length": 6,
+        "missing_by_class": {
+          "(blank)": 0,
+          "(date-sentinel)": 0,
+          "(declared-missing)": 0,
+          "(numeric-sentinel)": 0,
+          "(text-code)": 0,
+          "(withheld)": 0
+        },
+        "missing_by_source": {},
+        "n_all_digits": 0,
+        "n_code_alphabet": 24,
+        "n_contradictory": 0,
+        "n_distinct": 18,
+        "n_distinct_by_occurrences": {
+          "1": 12,
+          "2": 6
+        },
+        "n_distinct_folded": 18,
+        "n_missing": 0,
+        "n_missing_blank": 0,
+        "n_missing_withheld": 0,
+        "n_not_numeric": 24,
+        "n_numeric": 0,
+        "n_out_of_range": 0,
+        "n_present": 24,
+        "n_sentinel_candidates_unpublished": 0,
+        "name": "column_1",
+        "position": 1,
+        "quality_state": "ok",
+        "remarks": [],
+        "role": "identifier",
+        "sentinel_verdicts": [],
+        "statistical_type": "code",
+        "structural_role": "identifier"
+      },
+      "content": [
+        "L30816",
+        "DX7480",
+        "W60632",
+        "YF8207",
+        "H01458",
+        "TO8023",
+        "S31274",
+        "OX8839",
+        "D71090",
+        "JG9655",
+        "O02807",
+        "EP9471",
+        "ZX9297",
+        "ZX9297",
+        "Z32623",
+        "Z32623",
+        "UG0114",
+        "UG0114",
+        "K72449",
+        "K72449",
+        "PP0920",
+        "PP0920",
+        "V03265",
+        "V03265"
+      ],
+      "csv_bytes": "S31274\nH01458\nZ32623\nZX9297\nL30816\nK72449\nEP9471\nD71090\nK72449\nO02807\nTO8023\nZ32623\nV03265\nPP0920\nZX9297\nPP0920\nV03265\nUG0114\nJG9655\nUG0114\nOX8839\nW60632\nDX7480\nYF8207\n",
+      "float64": [],
+      "why": "a declared identifier that publishes a census of LAYOUTS (contract section 7.12, landing 2b.18), which every case frozen before it publishes empty. The census says what KIND of character stood at each position and never which one, and G9.6 writes each cell to it: the twenty-four cells here wear `@%%%%%` twelve times and `@@%%%%` twelve times instead of the band enumeration's own spellings. Without this case the whole layout rule could be withdrawn with every committed byte unchanged, because the three identifier cases beside it publish no layout at all. TWO RULES ARE FROZEN HERE. The fill is a COUNTER taken apart LEFTMOST FIRST, so consecutive cells of one layout differ in their leading characters rather than their trailing ones, which is what stops a column of record numbers coming out as a near-consecutive walk. And the census is SPREAD over the identities by the smooth weighted rotation, largest group first, rather than poured into them in walk order: twelve values are written once and six twice, and a walk taking the first layout with room left gives every singleton `@%%%%%` and every repeated value `@@%%%%`, binding a layout to how often its record numbers recur. This case's mutant withdraws the preference, and the cells move. Every other published fact survives the offer and is recounted from the finished cells: the two alphabet counts and the four class counts, because a candidate the readers do not recount into its slot's band is stepped over, and both length ends, because a layout is one mark per character. Withdrawing the offer altogether stops this oracle before any byte is written, because the recount of 7.12 then finds each layout worn nought times.",
+      "word_budget": {
+        "content": 0,
+        "placement": 23
+      },
+      "words": [
+        "2350890344146344126",
+        "1295412325827091444",
+        "2148692853705598588",
+        "6856365061159066252",
+        "15421135529079413842",
+        "9337190313697136114",
+        "17443182240601902554",
+        "3945372972456016603",
+        "3231109804060922937",
+        "14928184306589085733",
+        "9623648095902836919",
+        "2833255648229499529",
+        "2484211853885415346",
+        "9206020379377428048",
+        "10880630985268877757",
+        "11539897411331388552",
+        "13221390389229023683",
+        "5089869681841105310",
+        "12063417803171021458",
+        "3253571153139736265",
+        "17680378324194345923",
+        "17516376728897238031",
+        "2135463789325316001"
+      ]
+    },
+    "identifier_layout_mixes": {
+      "cells": [
+        "IE-------",
+        "92-------",
+        "WC74 6246",
+        "X9-------",
+        "008604614",
+        "FI-------",
+        "L9-------",
+        "FE77 4255",
+        "3S-------",
+        "W0-------",
+        "21-------",
+        "H2-------",
+        "15-------",
+        "1M-------",
+        "V1-------",
+        "DD31 6420",
+        "37-------",
+        "004302807",
+        "HO-------",
+        "KD97 5604",
+        "2C-------",
+        "002172449",
+        "PC18 6062",
+        "4I-------",
+        "NB71 8237",
+        "YD11 5071",
+        "UB38 7411",
+        "009330816",
+        "G3-------",
+        "005961090",
+        "007101458",
+        "09-------",
+        "IC51 7878",
+        "RD54 5887",
+        "008760632",
+        "M8-------",
+        "006531274",
+        "GY-------",
+        "003732623",
+        "001503265",
+        "BC94 7694",
+        "C6-------",
+        "R4-------",
+        "009273897",
+        "JU-------",
+        "B7-------",
+        "Q5-------"
+      ],
+      "column": {
+        "all_whole_numbers": false,
+        "detection_evidence": "written by hand in this method specification's own neutral vocabulary; no value here comes from any table.",
+        "layout_forms": {
+          "!!%%%%%%%": 11,
+          "(withheld)": 14,
+          "@%-------": 11,
+          "@@%% %%%%": 11
+        },
+        "layout_prefixes": {},
+        "max_length": 9,
+        "min_length": 9,
+        "missing_by_class": {
+          "(blank)": 0,
+          "(date-sentinel)": 0,
+          "(declared-missing)": 0,
+          "(numeric-sentinel)": 0,
+          "(text-code)": 0,
+          "(withheld)": 0
+        },
+        "missing_by_source": {},
+        "n_all_digits": 11,
+        "n_code_alphabet": 36,
+        "n_contradictory": 0,
+        "n_distinct": 47,
+        "n_distinct_by_occurrences": {
+          "1": 47
+        },
+        "n_distinct_folded": 47,
+        "n_missing": 0,
+        "n_missing_blank": 0,
+        "n_missing_withheld": 0,
+        "n_not_numeric": 36,
+        "n_numeric": 11,
+        "n_out_of_range": 0,
+        "n_present": 47,
+        "n_sentinel_candidates_unpublished": 0,
+        "name": "column_1",
+        "position": 1,
+        "quality_state": "ok",
+        "remarks": [],
+        "role": "identifier",
+        "sentinel_verdicts": [],
+        "statistical_type": "code",
+        "structural_role": "identifier"
+      },
+      "content": [
+        "009330816",
+        "008760632",
+        "007101458",
+        "006531274",
+        "005961090",
+        "004302807",
+        "003732623",
+        "002172449",
+        "001503265",
+        "009273897",
+        "008604614",
+        "FE77 4255",
+        "YD11 5071",
+        "RD54 5887",
+        "KD97 5604",
+        "DD31 6420",
+        "WC74 6246",
+        "PC18 6062",
+        "IC51 7878",
+        "BC94 7694",
+        "UB38 7411",
+        "NB71 8237",
+        "X9-------",
+        "C6-------",
+        "H2-------",
+        "M8-------",
+        "R4-------",
+        "W0-------",
+        "B7-------",
+        "G3-------",
+        "L9-------",
+        "Q5-------",
+        "V1-------",
+        "92-------",
+        "FI-------",
+        "1M-------",
+        "09-------",
+        "GY-------",
+        "2C-------",
+        "15-------",
+        "HO-------",
+        "3S-------",
+        "21-------",
+        "IE-------",
+        "4I-------",
+        "37-------",
+        "JU-------"
+      ],
+      "csv_bytes": "IE-------\n92-------\nWC74 6246\nX9-------\n008604614\nFI-------\nL9-------\nFE77 4255\n3S-------\nW0-------\n21-------\nH2-------\n15-------\n1M-------\nV1-------\nDD31 6420\n37-------\n004302807\nHO-------\nKD97 5604\n2C-------\n002172449\nPC18 6062\n4I-------\nNB71 8237\nYD11 5071\nUB38 7411\n009330816\nG3-------\n005961090\n007101458\n09-------\nIC51 7878\nRD54 5887\n008760632\nM8-------\n006531274\nGY-------\n003732623\n001503265\nBC94 7694\nC6-------\nR4-------\n009273897\nJU-------\nB7-------\nQ5-------\n",
+      "float64": [],
+      "why": "a declared identifier whose census of LAYOUTS names a zero fill two noughts deep, a layout holding a single interior SPACE, and a pool of fourteen cells no named layout serves (contract section 7.12, plans P4-D126, P4-D127 and P4-D128). THREE RULES OF G9.6 ARE FROZEN HERE. A zero-filled layout writes a nought for every `!` and steps over a filling whose next figure is a nought, because that cell recounts one nought deeper. A space stands in a layout as a mark does. And the fourteen pooled cells, which every case before this one wrote by the band enumeration, are written to MIXES of the kinds the census names -- figures and capitals over the two places of `@%-------`, the first base in sorted order -- and of its four mixes the one the census names, `@%-------` itself, is stepped over, so no pooled cell is counted into a published layout. Every layout is walked from step one, and a step is spread by the exact golden section of the layout's room. NINE characters wide, because G9.6's bar on a filling that reads as a date is not carried by this oracle, which reads no date, and no date format this package reads is nine figures or four and four around a space: at eight, `00330816` reads as the compact date 0033-08-16 and is stepped over. This case's mutant withdraws the mixes, and the fourteen cells move; withdrawing the fill or the space stops this oracle at the recount of 7.12.",
+      "word_budget": {
+        "content": 0,
+        "placement": 46
+      },
+      "words": [
+        "12315416199638712830",
+        "11461917734807452332",
+        "13043389866221201829",
+        "4117057510935812347",
+        "11166822964374134715",
+        "10306677672402459178",
+        "8646002244923713862",
+        "4041989434868756395",
+        "3102189724845197795",
+        "18075701478311684605",
+        "1857492319440419448",
+        "13086464872739884056",
+        "581282553384915289",
+        "7586242669707928484",
+        "10323704345614453502",
+        "2255447556845704593",
+        "1703153506126005306",
+        "2692500561440188756",
+        "3055453076326589704",
+        "97091045728570219",
+        "14343194256563202997",
+        "9217557811682092942",
+        "15888849271152112244",
+        "2757548850731508731",
+        "14119304420836053316",
+        "6472162727552187798",
+        "5861169136430044779",
+        "13671056489289250396",
+        "13691116676054877367",
+        "5333278273152096980",
+        "4851488638743472859",
+        "17583254726709643303",
+        "18085613694544194866",
+        "16045974538112549444",
+        "12577078091213710482",
+        "11805424536042655935",
+        "10109715328958355953",
+        "1696310926535484208",
+        "7655097596069497137",
+        "17270314890295469748",
+        "7499453768873882173",
+        "4012621328774350190",
+        "10699857760492589064",
+        "6430887874155946278",
+        "17302433675516304856",
+        "15120724432689965450"
+      ]
+    },
+    "identifier_signed_layout": {
+      "cells": [
+        "-2714",
+        "-3458",
+        "-4274",
+        "-5090",
+        "-6807",
+        "-1997",
+        "-8449",
+        "-0181",
+        "-9265",
+        "-7623",
+        "-2632",
+        "-1816"
+      ],
+      "column": {
+        "all_whole_numbers": true,
+        "detection_evidence": "written by hand in this method specification's own neutral vocabulary; no value here comes from any table.",
+        "layout_forms": {
+          "-%%%%": 12
+        },
+        "layout_prefixes": {},
+        "max_length": 5,
+        "min_length": 5,
+        "missing_by_class": {
+          "(blank)": 0,
+          "(date-sentinel)": 0,
+          "(declared-missing)": 0,
+          "(numeric-sentinel)": 0,
+          "(text-code)": 0,
+          "(withheld)": 0
+        },
+        "missing_by_source": {},
+        "n_all_digits": 0,
+        "n_code_alphabet": 12,
+        "n_contradictory": 0,
+        "n_distinct": 12,
+        "n_distinct_by_occurrences": {
+          "1": 12
+        },
+        "n_distinct_folded": 12,
+        "n_missing": 0,
+        "n_missing_blank": 0,
+        "n_missing_withheld": 0,
+        "n_not_numeric": 0,
+        "n_numeric": 12,
+        "n_out_of_range": 0,
+        "n_present": 12,
+        "n_sentinel_candidates_unpublished": 0,
+        "name": "column_1",
+        "position": 1,
+        "quality_state": "ok",
+        "remarks": [],
+        "role": "identifier",
+        "sentinel_verdicts": [],
+        "statistical_type": "code",
+        "structural_role": "identifier"
+      },
+      "content": [
+        "-1816",
+        "-2632",
+        "-3458",
+        "-4274",
+        "-5090",
+        "-6807",
+        "-7623",
+        "-8449",
+        "-9265",
+        "-0181",
+        "-1997",
+        "-2714"
+      ],
+      "csv_bytes": "-2714\n-3458\n-4274\n-5090\n-6807\n-1997\n-8449\n-0181\n-9265\n-7623\n-2632\n-1816\n",
+      "float64": [],
+      "why": "a declared identifier of signed whole numbers publishing `{\"-%%%%\": 12}` (G9.6, plan P4-D156). A layout that is a sign before figures is worn by signed numbers alone, so the census proves the table held them and the opening sign is not refused as a formula: every cell is a minus and four figures. This case's mutant refuses the sign, no filling of the layout is written, and the check of 7.12 stops the oracle.",
+      "word_budget": {
+        "content": 0,
+        "placement": 11
+      },
+      "words": [
+        "411179136531786142",
+        "1982861595377018348",
+        "11950373906050309963",
+        "17721752918347183196",
+        "14209512559177407037",
+        "16754303442300708120",
+        "4204783424237075846",
+        "4681831488814884530",
+        "6446403972659101316",
+        "8427775216937654035",
+        "10211324520233377560"
+      ]
+    },
     "joined_readings": {
       "cells": [
         "36/25",
-        "37/28",
+        "38/28",
         "24/28",
         "24/25",
         "29/25",
-        "40/45",
-        "40/35",
+        "41/45",
+        "38/35",
         "49/45",
-        "40/25",
+        "41/25",
         "57/45",
         "32/33",
         "28/45"
@@ -1088,12 +2273,14 @@
         ],
         "parts": [
           {
+            "decimal_plus": {},
             "empty_bins": [],
             "empty_edges": [],
             "field_widths": {
               "2": 12
             },
             "fraction_widths": {},
+            "group_separator": "",
             "integer_valued": true,
             "kurtosis": {
               "decimal": "2.645135996997432",
@@ -1116,6 +2303,8 @@
             "n_rows": 12,
             "n_used_in_statistics": 12,
             "n_zero": 0,
+            "negative_form": "minus",
+            "negative_notations": {},
             "numeric_share": {
               "decimal": "1",
               "exact": "1",
@@ -1749,15 +2938,19 @@
               "proof": "nearest"
             },
             "std_unrepresentable": false,
-            "value_histogram": {}
+            "thousands_marks": {},
+            "value_histogram": {},
+            "wide_runs": "none"
           },
           {
+            "decimal_plus": {},
             "empty_bins": [],
             "empty_edges": [],
             "field_widths": {
               "2": 12
             },
             "fraction_widths": {},
+            "group_separator": "",
             "integer_valued": true,
             "kurtosis": {
               "decimal": "1.685945422653337",
@@ -1780,6 +2973,8 @@
             "n_rows": 12,
             "n_used_in_statistics": 12,
             "n_zero": 0,
+            "negative_form": "minus",
+            "negative_notations": {},
             "numeric_share": {
               "decimal": "1",
               "exact": "1",
@@ -2413,7 +3608,9 @@
               "proof": "nearest"
             },
             "std_unrepresentable": false,
-            "value_histogram": {}
+            "thousands_marks": {},
+            "value_histogram": {},
+            "wide_runs": "none"
           }
         ],
         "position": 1,
@@ -2432,14 +3629,14 @@
         "29/25",
         "32/33",
         "36/25",
-        "37/28",
-        "40/35",
-        "40/25",
-        "40/45",
+        "38/28",
+        "38/35",
+        "41/25",
+        "41/45",
         "49/45",
         "57/45"
       ],
-      "csv_bytes": "36/25\n37/28\n24/28\n24/25\n29/25\n40/45\n40/35\n49/45\n40/25\n57/45\n32/33\n28/45\n",
+      "csv_bytes": "36/25\n38/28\n24/28\n24/25\n29/25\n41/45\n38/35\n49/45\n41/25\n57/45\n32/33\n28/45\n",
       "float64": [],
       "why": "the first frozen case for the joined role, and the one that pins the PAIRING WALK of G6B.4 -- the only search in this method, and the only place where synthtwin reproduces structure between two quantities at all. Each position is built by the numeric rules over its own view, laid out by G5.2's grain rule from that position's own count of different numbers, and the walk then decides which number of one meets which of the other, holding the FIRST position still so that no position's multiset can change. IT IS NOT A COLUMN THE WALK CAN IGNORE, and it was chosen against that check rather than assumed. A first draft published an agreement of 0.9983, which a rank-for-rank start already meets, so removing the walk entirely changed no committed byte: that case pinned the sort and the start rule and nothing else. This column publishes 0.4323, holds the earlier position above the later in only seven of twelve rows, and repeats values in both positions. WHAT IT PINS, MEASURED RULE BY RULE AND RE-MEASURED AT LANDING L7. Withdrawn one at a time from this file, these move its cells: the walk itself, six; the VALUE of the 0.4 threshold, eleven, because moving it to 0.9 pulls this column into the permutation branch; the proposal step of G6B.4a, six; and the distinct-cell term of the distance, two. A fifth is REFUSED rather than moved: taking the whole cell's distinctness for a position instead of the position's own changes the draw budget, and the case is rejected before a cell is built. AND IT PINS FEWER RULES THAN IT DID, WHICH IS SAID HERE RATHER THAN LEFT TO BE NOTICED. Before L7 it also pinned the reserve cursor's restart, accept-on-equal, that a try ceiling exists, and the `part_above` term. It pins none of those now: the proposal step reaches this column's published cell count early, so the walk stops moving long before the ceiling, before an equal swap matters and before the cursor wraps -- and `part_above` is already met at the start. TEN rules of this walk therefore stand on the method's word and on the mutation testing of the shipped generator, not on this case: the anchor, each position's own start, the cursor restart stepping along, accept-on-equal, both facts about the ceiling, the `part_above` term, the agreement scored outside its window, the agreement tie-break, and the proposal's partner condition. A case that bites on those wants a longer column and more than two positions, and is owed. AND THE WALK DOES NOT CONVERGE ON THIS COLUMN, which the case freezes rather than hides. The twin meets `part_above` exactly, seven of twelve, holds all twelve readings different, and reaches a rank agreement of 0.5103 against the 0.4323 published -- outside G12.9's window, reported as a miss by both pages: it stops at its try ceiling, never on distance. It also holds EIGHT different first numbers where the block publishes nine, which is residual R-P4-120 frozen into a committed case.",
       "word_budget": {
@@ -2483,40 +3680,89 @@
     },
     "leap_second_endpoint": {
       "cells": [
-        "2016-12-31T23:34:46",
-        "2016-12-31T23:44:57",
-        "2016-12-31T23:38:22",
-        "2016-12-31T23:21:26",
-        "2016-12-31T23:46:09",
-        "2016-12-31T23:25:40",
-        "2016-12-31T23:32:09",
-        "2016-12-31T23:17:37",
+        "2016-12-31T22:59:52",
+        "2017-01-01T00:00:10",
+        "2017-01-01T00:00:01",
+        "2017-01-01T00:00:06",
+        "2016-12-31T22:59:57",
+        "2017-01-01T00:00:04",
+        "2016-12-31T22:59:53",
+        "2016-12-31T22:59:58",
         "2016-12-31T23:59:60",
-        "2016-12-31T23:28:41",
+        "2017-01-01T00:00:09",
+        "2017-01-01T00:00:03",
         "2016-12-31T23:00:00",
-        "2016-12-31T23:16:27"
+        "2016-12-31T22:59:59",
+        "2017-01-01T00:00:08",
+        "2016-12-31T22:59:56",
+        "2017-01-01T00:00:07",
+        "2017-01-01T00:00:11",
+        "2016-12-31T23:34:48",
+        "2016-12-31T22:59:51",
+        "2017-01-01T00:00:05",
+        "2017-01-01T00:00:02",
+        "2016-12-31T22:59:50",
+        "2016-12-31T22:59:49",
+        "2016-12-31T23:30:00",
+        "2016-12-31T22:59:55",
+        "2016-12-31T22:59:54"
       ],
       "column": {
+        "all_at_midnight": false,
+        "date_field_widths": {},
         "date_percentiles": {
-          "max": "2016-12-31 23:59:60",
-          "min": "2016-12-31 23:00:00",
-          "p01": "2016-12-31 23:05:00",
-          "p05": "2016-12-31 23:10:00",
-          "p10": "2016-12-31 23:15:00",
-          "p25": "2016-12-31 23:20:00",
+          "max": null,
+          "min": null,
+          "p01": null,
+          "p05": null,
+          "p10": null,
+          "p25": null,
           "p50": "2016-12-31 23:30:00",
-          "p75": "2016-12-31 23:40:00",
-          "p90": "2016-12-31 23:50:00",
-          "p95": "2016-12-31 23:55:00",
-          "p99": "2016-12-31 23:58:00"
+          "p75": null,
+          "p90": null,
+          "p95": null,
+          "p99": null
+        },
+        "datetime_separators": {
+          "upper_t": 26
         },
         "datetimes_read_at": "local",
         "detection_evidence": "written by hand in this method specification's own neutral vocabulary; no value here comes from any table.",
-        "earliest": "2016-12-31 23:00:00",
-        "earliest_utc_offset": "(none)",
         "format": "iso-datetime",
-        "latest": "2016-12-31 23:59:60",
-        "latest_utc_offset": "(none)",
+        "high_tail": {
+          "boundary": "2016-12-31 23:59:60",
+          "mean_distance": {
+            "decimal": "3",
+            "exact": "3",
+            "float64": 3.0,
+            "proof": "nearest"
+          },
+          "rms_distance": {
+            "decimal": "4",
+            "exact": "4",
+            "float64": 4.0,
+            "proof": "nearest"
+          },
+          "rows": 11,
+          "values": null
+        },
+        "low_tail": {
+          "boundary": "2016-12-31 23:00:00",
+          "mean_distance": {
+            "decimal": "3",
+            "exact": "3",
+            "float64": 3.0,
+            "proof": "nearest"
+          },
+          "rms_distance": {
+            "decimal": "4",
+            "exact": "4",
+            "float64": 4.0,
+            "proof": "nearest"
+          },
+          "rows": 11,
+          "values": null
+        },
         "missing_by_class": {
           "(blank)": 0,
           "(date-sentinel)": 0,
@@ -2526,56 +3772,75 @@
           "(withheld)": 0
         },
         "missing_by_source": {},
+        "month_name_styles": {},
+        "n_at_midnight": null,
         "n_contradictory": 0,
-        "n_distinct": 12,
-        "n_distinct_folded": 12,
+        "n_distinct": 26,
+        "n_distinct_folded": 26,
         "n_missing": 0,
         "n_missing_blank": 0,
         "n_missing_withheld": 0,
-        "n_not_numeric": 12,
+        "n_not_numeric": 26,
         "n_numeric": 0,
         "n_out_of_range": 0,
-        "n_present": 12,
+        "n_present": 26,
         "n_sentinel_candidates_unpublished": 0,
         "n_unparsed": 0,
         "name": "column_1",
         "position": 1,
         "quality_state": "ok",
+        "quarter_marker_case": {},
         "remarks": [],
         "resolution": "datetime",
         "resolution_mix": {
-          "iso-datetime": 12
+          "iso-datetime": 26
         },
         "role": "datetime",
         "sentinel_verdicts": [],
         "statistical_type": "datetime",
         "structural_role": "data",
         "subsecond_digits": 0,
+        "tail_unit": "second",
         "time_precision": "second",
         "utc_offsets": {
-          "(none)": 12
-        }
+          "(none)": 26
+        },
+        "zulu_case": {}
       },
       "content": [
+        "2016-12-31T22:59:49",
+        "2016-12-31T22:59:50",
+        "2016-12-31T22:59:51",
+        "2016-12-31T22:59:52",
+        "2016-12-31T22:59:53",
+        "2016-12-31T22:59:54",
+        "2016-12-31T22:59:55",
+        "2016-12-31T22:59:56",
+        "2016-12-31T22:59:57",
+        "2016-12-31T22:59:58",
+        "2016-12-31T22:59:59",
         "2016-12-31T23:00:00",
-        "2016-12-31T23:16:27",
-        "2016-12-31T23:17:37",
-        "2016-12-31T23:21:26",
-        "2016-12-31T23:25:40",
-        "2016-12-31T23:28:41",
-        "2016-12-31T23:32:09",
-        "2016-12-31T23:34:46",
-        "2016-12-31T23:38:22",
-        "2016-12-31T23:44:57",
-        "2016-12-31T23:46:09",
-        "2016-12-31T23:59:60"
+        "2016-12-31T23:30:00",
+        "2016-12-31T23:34:48",
+        "2016-12-31T23:59:60",
+        "2017-01-01T00:00:01",
+        "2017-01-01T00:00:02",
+        "2017-01-01T00:00:03",
+        "2017-01-01T00:00:04",
+        "2017-01-01T00:00:05",
+        "2017-01-01T00:00:06",
+        "2017-01-01T00:00:07",
+        "2017-01-01T00:00:08",
+        "2017-01-01T00:00:09",
+        "2017-01-01T00:00:10",
+        "2017-01-01T00:00:11"
       ],
-      "csv_bytes": "2016-12-31T23:34:46\n2016-12-31T23:44:57\n2016-12-31T23:38:22\n2016-12-31T23:21:26\n2016-12-31T23:46:09\n2016-12-31T23:25:40\n2016-12-31T23:32:09\n2016-12-31T23:17:37\n2016-12-31T23:59:60\n2016-12-31T23:28:41\n2016-12-31T23:00:00\n2016-12-31T23:16:27\n",
+      "csv_bytes": "2016-12-31T22:59:52\n2017-01-01T00:00:10\n2017-01-01T00:00:01\n2017-01-01T00:00:06\n2016-12-31T22:59:57\n2017-01-01T00:00:04\n2016-12-31T22:59:53\n2016-12-31T22:59:58\n2016-12-31T23:59:60\n2017-01-01T00:00:09\n2017-01-01T00:00:03\n2016-12-31T23:00:00\n2016-12-31T22:59:59\n2017-01-01T00:00:08\n2016-12-31T22:59:56\n2017-01-01T00:00:07\n2017-01-01T00:00:11\n2016-12-31T23:34:48\n2016-12-31T22:59:51\n2017-01-01T00:00:05\n2017-01-01T00:00:02\n2016-12-31T22:59:50\n2016-12-31T22:59:49\n2016-12-31T23:30:00\n2016-12-31T22:59:55\n2016-12-31T22:59:54\n",
       "float64": [],
       "why": "the endpoint route of G7.5, on the one published end the ordinal space of G7.1 cannot hold. The latest cell carries a seconds field of 60, which the profile contract's canonical form admits because the shipped reader accepts one; the whole-second space has one place for 23:59:59 and the next for the following midnight and none for it. So the two ends are built from the published endpoint's own four fields -- the date with HH:MM and a seconds field of 00, moved to this cell's clock, then the published seconds field written back unchanged -- and the space below is left to the ten interior ranks it is exact for. The clock here is the local one, which is the only clock the contract's D10 lets this end stand on: on the shared clock every cell is written on its own offset's wall clock, so D10 refuses that pair in the description instead. An implementation that sent these two cells through the ordinal route writes the following minute for the second of them and every other byte of this case unchanged, which is exactly the regression this case is frozen to stop.",
       "word_budget": {
-        "content": 10,
-        "placement": 11
+        "content": 24,
+        "placement": 25
       },
       "words": [
         "13427168714134208824",
@@ -2598,7 +3863,313 @@
         "1508198782665164068",
         "17439788078174870154",
         "7339215063107649377",
-        "9204310222248724882"
+        "9204310222248724882",
+        "15559107477254044802",
+        "7991936714211770077",
+        "2539437212643484746",
+        "4062052637934460323",
+        "5140235368132147656",
+        "9507922136212515916",
+        "188470885596750068",
+        "1543946655921846606",
+        "14705923592548002731",
+        "18337769679302126735",
+        "2062865810067552184",
+        "13336188254488881338",
+        "6403283765372763487",
+        "1882026787591822466",
+        "8841182926849159694",
+        "449592574740526837",
+        "14315731861014344211",
+        "18035333422767411392",
+        "418590338853899504",
+        "68787480733765907",
+        "15072647170492125674",
+        "620370200951506583",
+        "11918822847094141119",
+        "7417841315839401386",
+        "2012877081157450573",
+        "9354779009704827579",
+        "7849106559322250261",
+        "7172629100527966695"
+      ]
+    },
+    "level_shape_stand_ins": {
+      "cells": [
+        "r-",
+        "WGZS-KS",
+        "YAYP-CX",
+        "OUXE-GD",
+        "e-",
+        "x-",
+        "y-",
+        "w-",
+        "UHXI-NP",
+        "ZKKO-LZ",
+        "OUXE-GD",
+        "k-",
+        "v-",
+        "a-",
+        "ZKKO-LZ",
+        "c-",
+        "a-",
+        "g-",
+        "IHYA-ZQ",
+        "p-",
+        "LQMJ-FW",
+        "NKLG-XA",
+        "k-",
+        "a-",
+        "EOXT-JJ",
+        "m-",
+        "k-",
+        "DELV-AH",
+        "i-",
+        "z-",
+        "JRKZ-HT",
+        "n-",
+        "h-",
+        "RDMN-MI",
+        "QTZO-DG",
+        "a-",
+        "a-",
+        "f-",
+        "TXKK-EN",
+        "a-",
+        "VWMU-BQ",
+        "a-",
+        "k-",
+        "TXKK-EN",
+        "ZKKO-LZ",
+        "XQLR-TU",
+        "a-",
+        "q-",
+        "a-",
+        "YAYP-CX",
+        "HXLC-QO",
+        "UHXI-NP",
+        "UHXI-NP",
+        "SNYL-VK",
+        "BKMY-IC",
+        "EOXT-JJ",
+        "o-",
+        "MAZH-OY",
+        "AAAA-AA",
+        "GNZD-HM",
+        "CUYW-RE",
+        "k-",
+        "a-",
+        "a-",
+        "t-",
+        "u-",
+        "EOXT-JJ",
+        "UHXI-NP",
+        "d-",
+        "JRKZ-HT",
+        "l-"
+      ],
+      "column": {
+        "detection_evidence": "written by hand in this method specification's own neutral vocabulary; no value here comes from any table.",
+        "levels": [
+          {
+            "count": 11,
+            "label": "a-",
+            "shape_form_cells": 11,
+            "variants": {
+              "a-": 11
+            },
+            "variants_withheld": {}
+          }
+        ],
+        "missing_by_class": {
+          "(blank)": 0,
+          "(date-sentinel)": 0,
+          "(declared-missing)": 0,
+          "(numeric-sentinel)": 0,
+          "(text-code)": 0,
+          "(withheld)": 0
+        },
+        "missing_by_source": {},
+        "n_contradictory": 0,
+        "n_distinct": 46,
+        "n_distinct_folded": 46,
+        "n_missing": 0,
+        "n_missing_blank": 0,
+        "n_missing_withheld": 0,
+        "n_not_numeric": 71,
+        "n_numeric": 0,
+        "n_out_of_range": 0,
+        "n_present": 71,
+        "n_sentinel_candidates_unpublished": 0,
+        "name": "column_1",
+        "position": 1,
+        "quality_state": "ok",
+        "remarks": [],
+        "role": "long_tail_labels",
+        "sentinel_verdicts": [],
+        "shape_forms": {
+          "@@@@-@@": 34
+        },
+        "statistical_type": "long_tail_labels",
+        "structural_role": "data",
+        "suppressed_levels": 45,
+        "suppressed_numbers": {
+          "mean": null,
+          "n_cells": 0
+        },
+        "suppressed_rows": 60
+      },
+      "content": [
+        "a-",
+        "a-",
+        "a-",
+        "a-",
+        "a-",
+        "a-",
+        "a-",
+        "a-",
+        "a-",
+        "a-",
+        "a-",
+        "AAAA-AA",
+        "VWMU-BQ",
+        "QTZO-DG",
+        "LQMJ-FW",
+        "GNZD-HM",
+        "BKMY-IC",
+        "WGZS-KS",
+        "RDMN-MI",
+        "MAZH-OY",
+        "HXLC-QO",
+        "CUYW-RE",
+        "r-",
+        "i-",
+        "z-",
+        "q-",
+        "h-",
+        "y-",
+        "p-",
+        "g-",
+        "x-",
+        "o-",
+        "f-",
+        "w-",
+        "n-",
+        "e-",
+        "v-",
+        "m-",
+        "d-",
+        "u-",
+        "l-",
+        "c-",
+        "t-",
+        "XQLR-TU",
+        "SNYL-VK",
+        "NKLG-XA",
+        "IHYA-ZQ",
+        "DELV-AH",
+        "YAYP-CX",
+        "YAYP-CX",
+        "TXKK-EN",
+        "TXKK-EN",
+        "OUXE-GD",
+        "OUXE-GD",
+        "JRKZ-HT",
+        "JRKZ-HT",
+        "EOXT-JJ",
+        "EOXT-JJ",
+        "EOXT-JJ",
+        "ZKKO-LZ",
+        "ZKKO-LZ",
+        "ZKKO-LZ",
+        "UHXI-NP",
+        "UHXI-NP",
+        "UHXI-NP",
+        "UHXI-NP",
+        "k-",
+        "k-",
+        "k-",
+        "k-",
+        "k-"
+      ],
+      "csv_bytes": "r-\nWGZS-KS\nYAYP-CX\nOUXE-GD\ne-\nx-\ny-\nw-\nUHXI-NP\nZKKO-LZ\nOUXE-GD\nk-\nv-\na-\nZKKO-LZ\nc-\na-\ng-\nIHYA-ZQ\np-\nLQMJ-FW\nNKLG-XA\nk-\na-\nEOXT-JJ\nm-\nk-\nDELV-AH\ni-\nz-\nJRKZ-HT\nn-\nh-\nRDMN-MI\nQTZO-DG\na-\na-\nf-\nTXKK-EN\na-\nVWMU-BQ\na-\nk-\nTXKK-EN\nZKKO-LZ\nXQLR-TU\na-\nq-\na-\nYAYP-CX\nHXLC-QO\nUHXI-NP\nUHXI-NP\nSNYL-VK\nBKMY-IC\nEOXT-JJ\no-\nMAZH-OY\nAAAA-AA\nGNZD-HM\nCUYW-RE\nk-\na-\na-\nt-\nu-\nEOXT-JJ\nUHXI-NP\nd-\nJRKZ-HT\nl-\n",
+      "float64": [],
+      "why": "the shape a held-back label takes where the census owes it no form (method G8.3b, landing 2b.18 part 2, the carried item of landing 2b.12). The column publishes one level, `a-`, whose shape no census key names because it has too few spellings; before this rule every stand-in the census owed nothing was `group-N`, and on the carried column that made the twin's mean cell length 9.907 against the real 7.204. The stand-ins owed no form are written in the level's own shape with its case kept, `&-`, whose supply here is twenty-five spellings against more places owed nothing -- so the TRADE of G8.3b is frozen too: a large held-back group paying `@@@@-@@` trades places with single rows summing to it exactly, the named form keeps its count, and the shape covers every row it can. This case's mutant withdraws the trade, and a place past the shape's supply takes the neutral spelling, which this oracle refuses to reason about.",
+      "word_budget": {
+        "content": 0,
+        "placement": 70
+      },
+      "words": [
+        "10572201364969750517",
+        "14488452992183049686",
+        "10338980211685271540",
+        "17310746628490101705",
+        "15930516927233095031",
+        "10925981946687229523",
+        "11984375984483652018",
+        "3115820831674141766",
+        "1491667508731758021",
+        "12095184894851438023",
+        "6616027349516039298",
+        "4869191475851910318",
+        "3667299028267463384",
+        "6287211967338772842",
+        "10303464976186970092",
+        "3778724444670585346",
+        "5518558728777231354",
+        "15069916103189709611",
+        "13902520522701011481",
+        "14960497023170678489",
+        "7361620293930603418",
+        "17783812003195909956",
+        "902419012765408100",
+        "9861278426630039680",
+        "550339003356881841",
+        "17324367625225383559",
+        "16634594057315558326",
+        "17745590132511631737",
+        "4661080672871936834",
+        "3041321162227143340",
+        "5680036735926225649",
+        "3863807788710707093",
+        "9729211348814354707",
+        "15791412086449201245",
+        "3530221954823534184",
+        "4612587005460363641",
+        "7044370326001245642",
+        "10055541422525994635",
+        "14970981537008481323",
+        "7666065712349092006",
+        "6886019483394326737",
+        "14772245721026608204",
+        "15083889930239009629",
+        "16666244600805875045",
+        "11435779303634445760",
+        "11864111828352662593",
+        "10236277314942045383",
+        "2765469866442712258",
+        "15636219563350824567",
+        "8863328807930096672",
+        "12914777269208835441",
+        "3595536836711968274",
+        "1433759923759427814",
+        "13624577672746584616",
+        "4873316314549421849",
+        "7932092449336148476",
+        "7739797739499316257",
+        "123464669902506341",
+        "11181717779831646623",
+        "9263968744977333854",
+        "14344049750293701763",
+        "16366278832934763060",
+        "12179873843408294288",
+        "2444068681713350805",
+        "12848255613891529191",
+        "12641691033048600769",
+        "14952483995130744131",
+        "8283423452509650775",
+        "12601060826970560254",
+        "8872082779446286874"
       ]
     },
     "long_tail_levels": {
@@ -2688,29 +4259,11 @@
         },
         "statistical_type": "long_tail_labels",
         "structural_role": "data",
-        "suppressed_level_counts": [
-          1,
-          1,
-          1,
-          1,
-          1,
-          1,
-          1,
-          1,
-          1,
-          1,
-          1,
-          2,
-          2,
-          2,
-          2,
-          2,
-          2,
-          2,
-          2,
-          2
-        ],
         "suppressed_levels": 20,
+        "suppressed_numbers": {
+          "mean": null,
+          "n_cells": 0
+        },
         "suppressed_rows": 29
       },
       "content": [
@@ -2757,7 +4310,7 @@
       ],
       "csv_bytes": "OUXE-GD\nLQMJ-FW\nMAZH-OY\nNote Alpha\nBKMY-IC\nIHYA-ZQ\nSNYL-VK\nDELV-AH\nAAAA-AA\nNote Alpha\nNote Alpha\nOUXE-GD\nIHYA-ZQ\nNKLG-XA\nJRKZ-HT\nNote Alpha\nDELV-AH\nYAYP-CX\nHXLC-QO\nJRKZ-HT\nNote Alpha\nTXKK-EN\nNote Alpha\nGNZD-HM\nCUYW-RE\nNKLG-XA\nYAYP-CX\nNote Alpha\nNote Alpha\nSNYL-VK\nWGZS-KS\nNote Alpha\nVWMU-BQ\nXQLR-TU\nNote Alpha\nRDMN-MI\nQTZO-DG\nXQLR-TU\nNote Alpha\nTXKK-EN\n",
       "float64": [],
-      "why": "the first frozen case for a role Phase 4 added, and the one that proves a long tail of labels reaches G8.1 to G8.4 at all. It carries far more rows in its held-back levels than in its published one -- twenty-nine against eleven -- which is the shape a long tail has and a column of categories cannot: its twenty-one folded identities stand above the ceiling of twenty this column passed, and that is the admission a rename to `categorical` could not survive. At a floor of eleven, forty rows leave room for exactly one published level; the other twenty cover one or two rows each and are held back. The case flips of G8.2 answer the one level carrying a published variant, and the twenty suppressed levels take the neutral stand-ins of G8.3 at their published sizes -- as words rather than as numbered labels, because the form census names a letters-and-hyphen form for all twenty-nine held-back rows. A label column consumes no content word, so every byte here is fixed by published counts. What this case does NOT prove is a generator branch of its own: a long tail is admitted by rules the categorical role would fail and is then written by the shared G8 machinery, so what is pinned here is admission and routing, and the cells are the label path's.",
+      "why": "the first frozen case for a role Phase 4 added, and the one that proves a long tail of labels reaches G8.1 to G8.4 at all. It carries far more rows in its held-back levels than in its published one -- twenty-nine against eleven -- which is the shape a long tail has and a column of categories cannot: its twenty-one folded identities stand above the ceiling of twenty this column passed, and that is the admission a rename to `categorical` could not survive. At a floor of eleven, forty rows leave room for exactly one published level; the other twenty cover one or two rows each and are held back. The case flips of G8.2 answer the one level carrying a published variant, and the twenty suppressed levels take the neutral stand-ins of G8.3 at the sizes read off their pooled total -- as words rather than as numbered labels, because the form census names a letters-and-hyphen form for all twenty-nine held-back rows. A label column consumes no content word, so every byte here is fixed by published counts. What this case does NOT prove is a generator branch of its own: a long tail is admitted by rules the categorical role would fail and is then written by the shared G8 machinery, so what is pinned here is admission and routing, and the cells are the label path's.",
       "word_budget": {
         "content": 0,
         "placement": 39
@@ -2804,42 +4357,83 @@
         "5388882302899227045"
       ]
     },
-    "month_span": {
+    "lower_case_stand_ins": {
       "cells": [
-        "2024-05",
-        "2024-06",
-        "2024-07",
-        "2024-03",
-        "2024-12",
-        "2024-05",
-        "2024-10",
-        "2024-01",
-        "2024-08",
-        "2024-09",
-        "2024-02",
-        "2024-04"
+        "ab-cd",
+        "nklg-xa",
+        "ab-cd",
+        "rdmn-mi",
+        "wgzs-ks",
+        "note alpha",
+        "note alpha",
+        "ab-cd",
+        "hxlc-qo",
+        "ab-cd",
+        "delv-ah",
+        "yayp-cx",
+        "txkk-en",
+        "bkmy-ic",
+        "jrkz-ht",
+        "ihya-zq",
+        "note alpha",
+        "note alpha",
+        "ab-cd",
+        "xqlr-tu",
+        "ab-cd",
+        "ab-cd",
+        "aaaa-aa",
+        "nklg-xa",
+        "ab-cd",
+        "delv-ah",
+        "snyl-vk",
+        "snyl-vk",
+        "jrkz-ht",
+        "gnzd-hm",
+        "qtzo-dg",
+        "note alpha",
+        "ihya-zq",
+        "ab-cd",
+        "vwmu-bq",
+        "note alpha",
+        "ab-cd",
+        "note alpha",
+        "ouxe-gd",
+        "cuyw-re",
+        "xqlr-tu",
+        "ouxe-gd",
+        "ab-cd",
+        "note alpha",
+        "lqmj-fw",
+        "txkk-en",
+        "note alpha",
+        "mazh-oy",
+        "note alpha",
+        "note alpha",
+        "yayp-cx"
       ],
       "column": {
-        "date_percentiles": {
-          "max": "2024-12",
-          "min": "2024-01",
-          "p01": "2024-01",
-          "p05": "2024-02",
-          "p10": "2024-02",
-          "p25": "2024-04",
-          "p50": "2024-06",
-          "p75": "2024-09",
-          "p90": "2024-11",
-          "p95": "2024-12",
-          "p99": "2024-12"
-        },
-        "datetimes_read_at": "local",
         "detection_evidence": "written by hand in this method specification's own neutral vocabulary; no value here comes from any table.",
-        "earliest": "2024-01",
-        "earliest_utc_offset": "(none)",
-        "format": "iso-month",
-        "latest": "2024-12",
-        "latest_utc_offset": "(none)",
+        "level_ceiling": 25,
+        "levels": [
+          {
+            "count": 11,
+            "label": "ab-cd",
+            "shape_form_cells": 11,
+            "variants": {
+              "ab-cd": 11
+            },
+            "variants_withheld": {}
+          },
+          {
+            "count": 11,
+            "label": "note alpha",
+            "shape_form_cells": 0,
+            "variants": {
+              "note alpha": 11
+            },
+            "variants_withheld": {}
+          }
+        ],
         "missing_by_class": {
           "(blank)": 0,
           "(date-sentinel)": 0,
@@ -2849,6 +4443,1181 @@
           "(withheld)": 0
         },
         "missing_by_source": {},
+        "n_contradictory": 0,
+        "n_distinct": 22,
+        "n_distinct_folded": 22,
+        "n_missing": 0,
+        "n_missing_blank": 0,
+        "n_missing_withheld": 0,
+        "n_not_numeric": 51,
+        "n_numeric": 0,
+        "n_out_of_range": 0,
+        "n_present": 51,
+        "n_sentinel_candidates_unpublished": 0,
+        "name": "column_1",
+        "position": 1,
+        "quality_state": "ok",
+        "remarks": [],
+        "role": "categorical",
+        "sentinel_verdicts": [],
+        "shape_forms": {
+          "&&&&-&&": 29,
+          "&&-&&": 11
+        },
+        "statistical_type": "categorical",
+        "structural_role": "data",
+        "suppressed_levels": 20,
+        "suppressed_numbers": {
+          "mean": null,
+          "n_cells": 0
+        },
+        "suppressed_rows": 29
+      },
+      "content": [
+        "ab-cd",
+        "ab-cd",
+        "ab-cd",
+        "ab-cd",
+        "ab-cd",
+        "ab-cd",
+        "ab-cd",
+        "ab-cd",
+        "ab-cd",
+        "ab-cd",
+        "ab-cd",
+        "note alpha",
+        "note alpha",
+        "note alpha",
+        "note alpha",
+        "note alpha",
+        "note alpha",
+        "note alpha",
+        "note alpha",
+        "note alpha",
+        "note alpha",
+        "note alpha",
+        "aaaa-aa",
+        "vwmu-bq",
+        "qtzo-dg",
+        "lqmj-fw",
+        "gnzd-hm",
+        "bkmy-ic",
+        "wgzs-ks",
+        "rdmn-mi",
+        "mazh-oy",
+        "hxlc-qo",
+        "cuyw-re",
+        "xqlr-tu",
+        "xqlr-tu",
+        "snyl-vk",
+        "snyl-vk",
+        "nklg-xa",
+        "nklg-xa",
+        "ihya-zq",
+        "ihya-zq",
+        "delv-ah",
+        "delv-ah",
+        "yayp-cx",
+        "yayp-cx",
+        "txkk-en",
+        "txkk-en",
+        "ouxe-gd",
+        "ouxe-gd",
+        "jrkz-ht",
+        "jrkz-ht"
+      ],
+      "csv_bytes": "ab-cd\nnklg-xa\nab-cd\nrdmn-mi\nwgzs-ks\nnote alpha\nnote alpha\nab-cd\nhxlc-qo\nab-cd\ndelv-ah\nyayp-cx\ntxkk-en\nbkmy-ic\njrkz-ht\nihya-zq\nnote alpha\nnote alpha\nab-cd\nxqlr-tu\nab-cd\nab-cd\naaaa-aa\nnklg-xa\nab-cd\ndelv-ah\nsnyl-vk\nsnyl-vk\njrkz-ht\ngnzd-hm\nqtzo-dg\nnote alpha\nihya-zq\nab-cd\nvwmu-bq\nnote alpha\nab-cd\nnote alpha\nouxe-gd\ncuyw-re\nxqlr-tu\nouxe-gd\nab-cd\nnote alpha\nlqmj-fw\ntxkk-en\nnote alpha\nmazh-oy\nnote alpha\nnote alpha\nyayp-cx\n",
+      "float64": [],
+      "why": "a column of categories whose census names LOWER-CASE keys (contract C6-31a, landing 2b.18 part 2): every formed cell wrote every letter in lower case, so the census names `&&&&-&&` and `&&-&&` and not their capital forms. The published level `ab-cd` settles `&&-&&` in full, counted under the key the census files it under, so the twenty stand-ins owe `&&&&-&&` alone -- twenty-nine cells, exactly their sizes -- and G8.3 fills each `&` from the lower-case alphabet at the position and by the arithmetic a `@` is filled. Before this key existed a column of lower-case codes came back in capitals on every stand-in and a case-sensitive pattern matched none of them. This case's mutant fills the key in capitals, and every stand-in moves; a walk reading the published level blind to case hands `&&-&&` stand-ins it does not owe, and the cells move too.",
+      "word_budget": {
+        "content": 0,
+        "placement": 50
+      },
+      "words": [
+        "15830664673893228848",
+        "5073698456080673279",
+        "7875838601216900988",
+        "11535154252214777058",
+        "8621941330772045083",
+        "8772339449381309270",
+        "10488852849884475397",
+        "6371871893467202343",
+        "1246799487542206975",
+        "9064597751508696776",
+        "15332551243623560934",
+        "14774754731362542570",
+        "14534231870623192905",
+        "9408872517084544776",
+        "3320777161477635281",
+        "8654342408759465470",
+        "12447963985929670088",
+        "5106417360233856539",
+        "18427915347586493865",
+        "10570067524607262016",
+        "14439736570525528903",
+        "16546367209938517481",
+        "8477631004882138497",
+        "10913147923967033456",
+        "4194028020326342935",
+        "14495905327524417777",
+        "583302282863258999",
+        "139154040289801448",
+        "18046683419125720843",
+        "1296118245588486310",
+        "2636961127756418768",
+        "9001931390103612218",
+        "7741167511558814911",
+        "18041580935583591676",
+        "13694740739387581868",
+        "553546565315490563",
+        "22513546439589079",
+        "16709646298868681502",
+        "1447791936714280564",
+        "5098489623189836073",
+        "4374303835978440748",
+        "9815100461200391397",
+        "15679049804236764501",
+        "18155049002991901528",
+        "8469325124826455278",
+        "946244536432157447",
+        "7040022859543152818",
+        "15636706020943181500",
+        "10620482021486410816",
+        "741266932377646521"
+      ]
+    },
+    "mixed_conventions": {
+      "cells": [
+        "(12\u202f345.5)",
+        "-12 345.5",
+        "-12 345.5",
+        "(12\u202f345.5)",
+        "-12 345.5",
+        "(12\u202f345.5)",
+        "(12\u202f345.5)",
+        "(12\u202f345.5)",
+        "-12 345.5",
+        "(12\u202f345.5)",
+        "(12\u202f345.5)",
+        "-12 345.5",
+        "-12 345.5",
+        "(12\u202f345.5)",
+        "-12 345.5",
+        "(12\u202f345.5)",
+        "-12 345.5",
+        "(12\u202f345.5)",
+        "-12 345.5",
+        "(12\u202f345.5)",
+        "-12 345.5",
+        "-12 345.5"
+      ],
+      "column": {
+        "decimal_plus": {},
+        "detection_evidence": "written by hand in this method specification's own neutral vocabulary; no value here comes from any table.",
+        "empty_bins": [],
+        "empty_edges": [],
+        "field_widths": {},
+        "fraction_widths": {
+          "1": 22
+        },
+        "group_separator": " ",
+        "integer_valued": false,
+        "kurtosis": null,
+        "mean": {
+          "decimal": "-12345.5",
+          "exact": "-24691/2",
+          "float64": -12345.5,
+          "proof": "nearest"
+        },
+        "missing_by_class": {
+          "(blank)": 0,
+          "(date-sentinel)": 0,
+          "(declared-missing)": 0,
+          "(numeric-sentinel)": 0,
+          "(text-code)": 0,
+          "(withheld)": 0
+        },
+        "missing_by_source": {},
+        "mode": null,
+        "mode_count": 0,
+        "n_contradictory": 0,
+        "n_distinct": 2,
+        "n_distinct_folded": 2,
+        "n_distinct_values": 1,
+        "n_left_out_of_statistics": 0,
+        "n_missing": 0,
+        "n_missing_blank": 0,
+        "n_missing_withheld": 0,
+        "n_negative": 22,
+        "n_negative_unrepresentable": 0,
+        "n_not_numeric": 0,
+        "n_numeric": 22,
+        "n_out_of_range": 0,
+        "n_present": 22,
+        "n_rows": 22,
+        "n_sentinel_candidates_unpublished": 0,
+        "n_used_in_statistics": 22,
+        "n_zero": 0,
+        "name": "column_1",
+        "negative_form": "brackets",
+        "negative_notations": {
+          "brackets": 11,
+          "minus": 11
+        },
+        "numeric_share": {
+          "decimal": "1",
+          "exact": "1",
+          "float64": 1.0,
+          "proof": "nearest"
+        },
+        "numeric_styles": {
+          "decimal": 22
+        },
+        "pad_widths": {},
+        "percentiles": {
+          "max": {
+            "decimal": "-12345.5",
+            "exact": "-24691/2",
+            "float64": -12345.5,
+            "proof": "nearest"
+          },
+          "min": {
+            "decimal": "-12345.5",
+            "exact": "-24691/2",
+            "float64": -12345.5,
+            "proof": "nearest"
+          },
+          "p01": {
+            "decimal": "-12345.5",
+            "exact": "-24691/2",
+            "float64": -12345.5,
+            "proof": "nearest"
+          },
+          "p05": {
+            "decimal": "-12345.5",
+            "exact": "-24691/2",
+            "float64": -12345.5,
+            "proof": "nearest"
+          },
+          "p10": {
+            "decimal": "-12345.5",
+            "exact": "-24691/2",
+            "float64": -12345.5,
+            "proof": "nearest"
+          },
+          "p25": {
+            "decimal": "-12345.5",
+            "exact": "-24691/2",
+            "float64": -12345.5,
+            "proof": "nearest"
+          },
+          "p50": {
+            "decimal": "-12345.5",
+            "exact": "-24691/2",
+            "float64": -12345.5,
+            "proof": "nearest"
+          },
+          "p75": {
+            "decimal": "-12345.5",
+            "exact": "-24691/2",
+            "float64": -12345.5,
+            "proof": "nearest"
+          },
+          "p90": {
+            "decimal": "-12345.5",
+            "exact": "-24691/2",
+            "float64": -12345.5,
+            "proof": "nearest"
+          },
+          "p95": {
+            "decimal": "-12345.5",
+            "exact": "-24691/2",
+            "float64": -12345.5,
+            "proof": "nearest"
+          },
+          "p99": {
+            "decimal": "-12345.5",
+            "exact": "-24691/2",
+            "float64": -12345.5,
+            "proof": "nearest"
+          }
+        },
+        "percentiles_between": {
+          "p02": {
+            "decimal": "-12345.500000",
+            "exact": "-24691/2",
+            "float64": -12345.5,
+            "proof": "nearest"
+          },
+          "p03": {
+            "decimal": "-12345.500000",
+            "exact": "-24691/2",
+            "float64": -12345.5,
+            "proof": "nearest"
+          },
+          "p04": {
+            "decimal": "-12345.500000",
+            "exact": "-24691/2",
+            "float64": -12345.5,
+            "proof": "nearest"
+          },
+          "p06": {
+            "decimal": "-12345.500000",
+            "exact": "-24691/2",
+            "float64": -12345.5,
+            "proof": "nearest"
+          },
+          "p07": {
+            "decimal": "-12345.500000",
+            "exact": "-24691/2",
+            "float64": -12345.5,
+            "proof": "nearest"
+          },
+          "p08": {
+            "decimal": "-12345.500000",
+            "exact": "-24691/2",
+            "float64": -12345.5,
+            "proof": "nearest"
+          },
+          "p09": {
+            "decimal": "-12345.500000",
+            "exact": "-24691/2",
+            "float64": -12345.5,
+            "proof": "nearest"
+          },
+          "p11": {
+            "decimal": "-12345.500000",
+            "exact": "-24691/2",
+            "float64": -12345.5,
+            "proof": "nearest"
+          },
+          "p12": {
+            "decimal": "-12345.500000",
+            "exact": "-24691/2",
+            "float64": -12345.5,
+            "proof": "nearest"
+          },
+          "p13": {
+            "decimal": "-12345.500000",
+            "exact": "-24691/2",
+            "float64": -12345.5,
+            "proof": "nearest"
+          },
+          "p14": {
+            "decimal": "-12345.500000",
+            "exact": "-24691/2",
+            "float64": -12345.5,
+            "proof": "nearest"
+          },
+          "p15": {
+            "decimal": "-12345.500000",
+            "exact": "-24691/2",
+            "float64": -12345.5,
+            "proof": "nearest"
+          },
+          "p16": {
+            "decimal": "-12345.500000",
+            "exact": "-24691/2",
+            "float64": -12345.5,
+            "proof": "nearest"
+          },
+          "p17": {
+            "decimal": "-12345.500000",
+            "exact": "-24691/2",
+            "float64": -12345.5,
+            "proof": "nearest"
+          },
+          "p18": {
+            "decimal": "-12345.500000",
+            "exact": "-24691/2",
+            "float64": -12345.5,
+            "proof": "nearest"
+          },
+          "p19": {
+            "decimal": "-12345.500000",
+            "exact": "-24691/2",
+            "float64": -12345.5,
+            "proof": "nearest"
+          },
+          "p20": {
+            "decimal": "-12345.500000",
+            "exact": "-24691/2",
+            "float64": -12345.5,
+            "proof": "nearest"
+          },
+          "p21": {
+            "decimal": "-12345.500000",
+            "exact": "-24691/2",
+            "float64": -12345.5,
+            "proof": "nearest"
+          },
+          "p22": {
+            "decimal": "-12345.500000",
+            "exact": "-24691/2",
+            "float64": -12345.5,
+            "proof": "nearest"
+          },
+          "p23": {
+            "decimal": "-12345.500000",
+            "exact": "-24691/2",
+            "float64": -12345.5,
+            "proof": "nearest"
+          },
+          "p24": {
+            "decimal": "-12345.500000",
+            "exact": "-24691/2",
+            "float64": -12345.5,
+            "proof": "nearest"
+          },
+          "p26": {
+            "decimal": "-12345.500000",
+            "exact": "-24691/2",
+            "float64": -12345.5,
+            "proof": "nearest"
+          },
+          "p27": {
+            "decimal": "-12345.500000",
+            "exact": "-24691/2",
+            "float64": -12345.5,
+            "proof": "nearest"
+          },
+          "p28": {
+            "decimal": "-12345.500000",
+            "exact": "-24691/2",
+            "float64": -12345.5,
+            "proof": "nearest"
+          },
+          "p29": {
+            "decimal": "-12345.500000",
+            "exact": "-24691/2",
+            "float64": -12345.5,
+            "proof": "nearest"
+          },
+          "p30": {
+            "decimal": "-12345.500000",
+            "exact": "-24691/2",
+            "float64": -12345.5,
+            "proof": "nearest"
+          },
+          "p31": {
+            "decimal": "-12345.500000",
+            "exact": "-24691/2",
+            "float64": -12345.5,
+            "proof": "nearest"
+          },
+          "p32": {
+            "decimal": "-12345.500000",
+            "exact": "-24691/2",
+            "float64": -12345.5,
+            "proof": "nearest"
+          },
+          "p33": {
+            "decimal": "-12345.500000",
+            "exact": "-24691/2",
+            "float64": -12345.5,
+            "proof": "nearest"
+          },
+          "p34": {
+            "decimal": "-12345.500000",
+            "exact": "-24691/2",
+            "float64": -12345.5,
+            "proof": "nearest"
+          },
+          "p35": {
+            "decimal": "-12345.500000",
+            "exact": "-24691/2",
+            "float64": -12345.5,
+            "proof": "nearest"
+          },
+          "p36": {
+            "decimal": "-12345.500000",
+            "exact": "-24691/2",
+            "float64": -12345.5,
+            "proof": "nearest"
+          },
+          "p37": {
+            "decimal": "-12345.500000",
+            "exact": "-24691/2",
+            "float64": -12345.5,
+            "proof": "nearest"
+          },
+          "p38": {
+            "decimal": "-12345.500000",
+            "exact": "-24691/2",
+            "float64": -12345.5,
+            "proof": "nearest"
+          },
+          "p39": {
+            "decimal": "-12345.500000",
+            "exact": "-24691/2",
+            "float64": -12345.5,
+            "proof": "nearest"
+          },
+          "p40": {
+            "decimal": "-12345.500000",
+            "exact": "-24691/2",
+            "float64": -12345.5,
+            "proof": "nearest"
+          },
+          "p41": {
+            "decimal": "-12345.500000",
+            "exact": "-24691/2",
+            "float64": -12345.5,
+            "proof": "nearest"
+          },
+          "p42": {
+            "decimal": "-12345.500000",
+            "exact": "-24691/2",
+            "float64": -12345.5,
+            "proof": "nearest"
+          },
+          "p43": {
+            "decimal": "-12345.500000",
+            "exact": "-24691/2",
+            "float64": -12345.5,
+            "proof": "nearest"
+          },
+          "p44": {
+            "decimal": "-12345.500000",
+            "exact": "-24691/2",
+            "float64": -12345.5,
+            "proof": "nearest"
+          },
+          "p45": {
+            "decimal": "-12345.500000",
+            "exact": "-24691/2",
+            "float64": -12345.5,
+            "proof": "nearest"
+          },
+          "p46": {
+            "decimal": "-12345.500000",
+            "exact": "-24691/2",
+            "float64": -12345.5,
+            "proof": "nearest"
+          },
+          "p47": {
+            "decimal": "-12345.500000",
+            "exact": "-24691/2",
+            "float64": -12345.5,
+            "proof": "nearest"
+          },
+          "p48": {
+            "decimal": "-12345.500000",
+            "exact": "-24691/2",
+            "float64": -12345.5,
+            "proof": "nearest"
+          },
+          "p49": {
+            "decimal": "-12345.500000",
+            "exact": "-24691/2",
+            "float64": -12345.5,
+            "proof": "nearest"
+          },
+          "p51": {
+            "decimal": "-12345.500000",
+            "exact": "-24691/2",
+            "float64": -12345.5,
+            "proof": "nearest"
+          },
+          "p52": {
+            "decimal": "-12345.500000",
+            "exact": "-24691/2",
+            "float64": -12345.5,
+            "proof": "nearest"
+          },
+          "p53": {
+            "decimal": "-12345.500000",
+            "exact": "-24691/2",
+            "float64": -12345.5,
+            "proof": "nearest"
+          },
+          "p54": {
+            "decimal": "-12345.500000",
+            "exact": "-24691/2",
+            "float64": -12345.5,
+            "proof": "nearest"
+          },
+          "p55": {
+            "decimal": "-12345.500000",
+            "exact": "-24691/2",
+            "float64": -12345.5,
+            "proof": "nearest"
+          },
+          "p56": {
+            "decimal": "-12345.500000",
+            "exact": "-24691/2",
+            "float64": -12345.5,
+            "proof": "nearest"
+          },
+          "p57": {
+            "decimal": "-12345.500000",
+            "exact": "-24691/2",
+            "float64": -12345.5,
+            "proof": "nearest"
+          },
+          "p58": {
+            "decimal": "-12345.500000",
+            "exact": "-24691/2",
+            "float64": -12345.5,
+            "proof": "nearest"
+          },
+          "p59": {
+            "decimal": "-12345.500000",
+            "exact": "-24691/2",
+            "float64": -12345.5,
+            "proof": "nearest"
+          },
+          "p60": {
+            "decimal": "-12345.500000",
+            "exact": "-24691/2",
+            "float64": -12345.5,
+            "proof": "nearest"
+          },
+          "p61": {
+            "decimal": "-12345.500000",
+            "exact": "-24691/2",
+            "float64": -12345.5,
+            "proof": "nearest"
+          },
+          "p62": {
+            "decimal": "-12345.500000",
+            "exact": "-24691/2",
+            "float64": -12345.5,
+            "proof": "nearest"
+          },
+          "p63": {
+            "decimal": "-12345.500000",
+            "exact": "-24691/2",
+            "float64": -12345.5,
+            "proof": "nearest"
+          },
+          "p64": {
+            "decimal": "-12345.500000",
+            "exact": "-24691/2",
+            "float64": -12345.5,
+            "proof": "nearest"
+          },
+          "p65": {
+            "decimal": "-12345.500000",
+            "exact": "-24691/2",
+            "float64": -12345.5,
+            "proof": "nearest"
+          },
+          "p66": {
+            "decimal": "-12345.500000",
+            "exact": "-24691/2",
+            "float64": -12345.5,
+            "proof": "nearest"
+          },
+          "p67": {
+            "decimal": "-12345.500000",
+            "exact": "-24691/2",
+            "float64": -12345.5,
+            "proof": "nearest"
+          },
+          "p68": {
+            "decimal": "-12345.500000",
+            "exact": "-24691/2",
+            "float64": -12345.5,
+            "proof": "nearest"
+          },
+          "p69": {
+            "decimal": "-12345.500000",
+            "exact": "-24691/2",
+            "float64": -12345.5,
+            "proof": "nearest"
+          },
+          "p70": {
+            "decimal": "-12345.500000",
+            "exact": "-24691/2",
+            "float64": -12345.5,
+            "proof": "nearest"
+          },
+          "p71": {
+            "decimal": "-12345.500000",
+            "exact": "-24691/2",
+            "float64": -12345.5,
+            "proof": "nearest"
+          },
+          "p72": {
+            "decimal": "-12345.500000",
+            "exact": "-24691/2",
+            "float64": -12345.5,
+            "proof": "nearest"
+          },
+          "p73": {
+            "decimal": "-12345.500000",
+            "exact": "-24691/2",
+            "float64": -12345.5,
+            "proof": "nearest"
+          },
+          "p74": {
+            "decimal": "-12345.500000",
+            "exact": "-24691/2",
+            "float64": -12345.5,
+            "proof": "nearest"
+          },
+          "p76": {
+            "decimal": "-12345.500000",
+            "exact": "-24691/2",
+            "float64": -12345.5,
+            "proof": "nearest"
+          },
+          "p77": {
+            "decimal": "-12345.500000",
+            "exact": "-24691/2",
+            "float64": -12345.5,
+            "proof": "nearest"
+          },
+          "p78": {
+            "decimal": "-12345.500000",
+            "exact": "-24691/2",
+            "float64": -12345.5,
+            "proof": "nearest"
+          },
+          "p79": {
+            "decimal": "-12345.500000",
+            "exact": "-24691/2",
+            "float64": -12345.5,
+            "proof": "nearest"
+          },
+          "p80": {
+            "decimal": "-12345.500000",
+            "exact": "-24691/2",
+            "float64": -12345.5,
+            "proof": "nearest"
+          },
+          "p81": {
+            "decimal": "-12345.500000",
+            "exact": "-24691/2",
+            "float64": -12345.5,
+            "proof": "nearest"
+          },
+          "p82": {
+            "decimal": "-12345.500000",
+            "exact": "-24691/2",
+            "float64": -12345.5,
+            "proof": "nearest"
+          },
+          "p83": {
+            "decimal": "-12345.500000",
+            "exact": "-24691/2",
+            "float64": -12345.5,
+            "proof": "nearest"
+          },
+          "p84": {
+            "decimal": "-12345.500000",
+            "exact": "-24691/2",
+            "float64": -12345.5,
+            "proof": "nearest"
+          },
+          "p85": {
+            "decimal": "-12345.500000",
+            "exact": "-24691/2",
+            "float64": -12345.5,
+            "proof": "nearest"
+          },
+          "p86": {
+            "decimal": "-12345.500000",
+            "exact": "-24691/2",
+            "float64": -12345.5,
+            "proof": "nearest"
+          },
+          "p87": {
+            "decimal": "-12345.500000",
+            "exact": "-24691/2",
+            "float64": -12345.5,
+            "proof": "nearest"
+          },
+          "p88": {
+            "decimal": "-12345.500000",
+            "exact": "-24691/2",
+            "float64": -12345.5,
+            "proof": "nearest"
+          },
+          "p89": {
+            "decimal": "-12345.500000",
+            "exact": "-24691/2",
+            "float64": -12345.5,
+            "proof": "nearest"
+          },
+          "p91": {
+            "decimal": "-12345.500000",
+            "exact": "-24691/2",
+            "float64": -12345.5,
+            "proof": "nearest"
+          },
+          "p92": {
+            "decimal": "-12345.500000",
+            "exact": "-24691/2",
+            "float64": -12345.5,
+            "proof": "nearest"
+          },
+          "p93": {
+            "decimal": "-12345.500000",
+            "exact": "-24691/2",
+            "float64": -12345.5,
+            "proof": "nearest"
+          },
+          "p94": {
+            "decimal": "-12345.500000",
+            "exact": "-24691/2",
+            "float64": -12345.5,
+            "proof": "nearest"
+          },
+          "p96": {
+            "decimal": "-12345.500000",
+            "exact": "-24691/2",
+            "float64": -12345.5,
+            "proof": "nearest"
+          },
+          "p97": {
+            "decimal": "-12345.500000",
+            "exact": "-24691/2",
+            "float64": -12345.5,
+            "proof": "nearest"
+          },
+          "p98": {
+            "decimal": "-12345.500000",
+            "exact": "-24691/2",
+            "float64": -12345.5,
+            "proof": "nearest"
+          }
+        },
+        "position": 1,
+        "quality_state": "ok",
+        "remarks": [],
+        "role": "continuous",
+        "sentinel_verdicts": [],
+        "skew": null,
+        "statistical_type": "continuous",
+        "std": {
+          "decimal": "0",
+          "exact": "0",
+          "float64": 0.0,
+          "proof": "nearest"
+        },
+        "std_unrepresentable": false,
+        "structural_role": "data",
+        "thousands_marks": {
+          " ": 11,
+          "\u202f": 11
+        },
+        "value_histogram": {},
+        "wide_runs": "none"
+      },
+      "content": [
+        "-12 345.5",
+        "-12 345.5",
+        "-12 345.5",
+        "-12 345.5",
+        "-12 345.5",
+        "-12 345.5",
+        "-12 345.5",
+        "-12 345.5",
+        "-12 345.5",
+        "-12 345.5",
+        "-12 345.5",
+        "(12\u202f345.5)",
+        "(12\u202f345.5)",
+        "(12\u202f345.5)",
+        "(12\u202f345.5)",
+        "(12\u202f345.5)",
+        "(12\u202f345.5)",
+        "(12\u202f345.5)",
+        "(12\u202f345.5)",
+        "(12\u202f345.5)",
+        "(12\u202f345.5)",
+        "(12\u202f345.5)"
+      ],
+      "csv_bytes": "(12\u202f345.5)\n-12 345.5\n-12 345.5\n(12\u202f345.5)\n-12 345.5\n(12\u202f345.5)\n(12\u202f345.5)\n(12\u202f345.5)\n-12 345.5\n(12\u202f345.5)\n(12\u202f345.5)\n-12 345.5\n-12 345.5\n(12\u202f345.5)\n-12 345.5\n(12\u202f345.5)\n-12 345.5\n(12\u202f345.5)\n-12 345.5\n(12\u202f345.5)\n-12 345.5\n-12 345.5\n",
+      "float64": [],
+      "why": "the two censuses landing 2b.7 adds, and the ONLY case in either file that names more than one convention -- which is the whole of what it is for. `negative_form` and `group_separator` publish a column's MAJORITY, and until this landing the twin wrote every cell that way, so a column mixing two came back written wholly as one with every check passing. Where a census names ONE convention nothing can show that: the census path and the majority path write the same cell, so a mutant that withdraws the census is invisible. Here each census names two at eleven cells apiece, so the cells divide and a mutant moves them. Every cell is minus twelve thousand three hundred and forty-five and a half. EACH CENSUS IS SPENT IN THE CONTRACT'S OWN ORDER OF CONVENTIONS, so the earliest cells take the earliest convention each names: the first eleven are written `-12 345.5`, a minus in front and an ordinary space between the thousands, and the last eleven `(12 345.5)`, in brackets and grouped with a narrow no-break space. That the two pairings fall the way they do is the ORDER rule showing, and a generator that spent either census the other way round writes different cells here. Two spellings of one number is the count of different cells this column publishes, so no cell spends a leading zero to reach it. This case's mutant withdraws the notation census and every cell is written in the majority, brackets, as the twin wrote them before this landing.",
+      "word_budget": {
+        "content": 0,
+        "placement": 21
+      },
+      "words": [
+        "2350890344146344126",
+        "1295412325827091444",
+        "2148692853705598588",
+        "6856365061159066252",
+        "15421135529079413842",
+        "9337190313697136114",
+        "17443182240601902554",
+        "3945372972456016603",
+        "3231109804060922937",
+        "14928184306589085733",
+        "9623648095902836919",
+        "2833255648229499529",
+        "2484211853885415346",
+        "9206020379377428048",
+        "10880630985268877757",
+        "11539897411331388552",
+        "13221390389229023683",
+        "5089869681841105310",
+        "12063417803171021458",
+        "3253571153139736265",
+        "17680378324194345923"
+      ]
+    },
+    "mixed_marks": {
+      "cells": [
+        "2024-05-01 06:20",
+        "2024-05-01t06:25",
+        "2024-05-28 21:54",
+        "2024-05-01 06:24",
+        "2024-05-28 21:48",
+        "2024-05-28t21:53",
+        "2024-05-28 21:50",
+        "2024-05-01t06:21",
+        "2024-05-28 21:52",
+        "2024-05-01 06:26",
+        "2024-05-28t21:51",
+        "2024-05-01t06:27",
+        "2024-05-28 21:56",
+        "2024-05-01 06:22",
+        "2024-05-28t21:45",
+        "2024-05-28t21:47",
+        "2024-05-01t06:29",
+        "2024-05-28t21:49",
+        "2024-05-28t21:55",
+        "2024-05-01 06:28",
+        "2024-05-01t06:19",
+        "2024-05-01t06:23",
+        "2024-05-28 21:46",
+        "2024-05-01 06:30"
+      ],
+      "column": {
+        "all_at_midnight": false,
+        "date_field_widths": {},
+        "date_percentiles": {
+          "max": null,
+          "min": null,
+          "p01": null,
+          "p05": null,
+          "p10": null,
+          "p25": null,
+          "p50": "2024-05-01 06:30:00",
+          "p75": null,
+          "p90": null,
+          "p95": null,
+          "p99": null
+        },
+        "datetime_separators": {
+          "lower_t": 12,
+          "space": 12
+        },
+        "datetimes_read_at": "local",
+        "detection_evidence": "written by hand in this method specification's own neutral vocabulary; no value here comes from any table.",
+        "format": "iso-datetime",
+        "high_tail": {
+          "boundary": "2024-05-28 21:45:00",
+          "mean_distance": {
+            "decimal": "3",
+            "exact": "3",
+            "float64": 3.0,
+            "proof": "nearest"
+          },
+          "rms_distance": {
+            "decimal": "4",
+            "exact": "4",
+            "float64": 4.0,
+            "proof": "nearest"
+          },
+          "rows": 11,
+          "values": null
+        },
+        "low_tail": {
+          "boundary": "2024-05-01 06:30:00",
+          "mean_distance": {
+            "decimal": "3",
+            "exact": "3",
+            "float64": 3.0,
+            "proof": "nearest"
+          },
+          "rms_distance": {
+            "decimal": "4",
+            "exact": "4",
+            "float64": 4.0,
+            "proof": "nearest"
+          },
+          "rows": 11,
+          "values": null
+        },
+        "missing_by_class": {
+          "(blank)": 0,
+          "(date-sentinel)": 0,
+          "(declared-missing)": 0,
+          "(numeric-sentinel)": 0,
+          "(text-code)": 0,
+          "(withheld)": 0
+        },
+        "missing_by_source": {},
+        "month_name_styles": {},
+        "n_at_midnight": null,
+        "n_contradictory": 0,
+        "n_distinct": 24,
+        "n_distinct_folded": 24,
+        "n_missing": 0,
+        "n_missing_blank": 0,
+        "n_missing_withheld": 0,
+        "n_not_numeric": 24,
+        "n_numeric": 0,
+        "n_out_of_range": 0,
+        "n_present": 24,
+        "n_sentinel_candidates_unpublished": 0,
+        "n_unparsed": 0,
+        "name": "column_1",
+        "position": 1,
+        "quality_state": "ok",
+        "quarter_marker_case": {},
+        "remarks": [],
+        "resolution": "datetime",
+        "resolution_mix": {
+          "iso-datetime": 24
+        },
+        "role": "datetime",
+        "sentinel_verdicts": [],
+        "statistical_type": "datetime",
+        "structural_role": "data",
+        "subsecond_digits": 0,
+        "tail_unit": "minute",
+        "time_precision": "minute",
+        "utc_offsets": {
+          "(none)": 24
+        },
+        "zulu_case": {}
+      },
+      "content": [
+        "2024-05-01t06:19",
+        "2024-05-01 06:20",
+        "2024-05-01t06:21",
+        "2024-05-01 06:22",
+        "2024-05-01t06:23",
+        "2024-05-01 06:24",
+        "2024-05-01t06:25",
+        "2024-05-01 06:26",
+        "2024-05-01t06:27",
+        "2024-05-01 06:28",
+        "2024-05-01t06:29",
+        "2024-05-01 06:30",
+        "2024-05-28t21:45",
+        "2024-05-28 21:46",
+        "2024-05-28t21:47",
+        "2024-05-28 21:48",
+        "2024-05-28t21:49",
+        "2024-05-28 21:50",
+        "2024-05-28t21:51",
+        "2024-05-28 21:52",
+        "2024-05-28t21:53",
+        "2024-05-28 21:54",
+        "2024-05-28t21:55",
+        "2024-05-28 21:56"
+      ],
+      "csv_bytes": "2024-05-01 06:20\n2024-05-01t06:25\n2024-05-28 21:54\n2024-05-01 06:24\n2024-05-28 21:48\n2024-05-28t21:53\n2024-05-28 21:50\n2024-05-01t06:21\n2024-05-28 21:52\n2024-05-01 06:26\n2024-05-28t21:51\n2024-05-01t06:27\n2024-05-28 21:56\n2024-05-01 06:22\n2024-05-28t21:45\n2024-05-28t21:47\n2024-05-01t06:29\n2024-05-28t21:49\n2024-05-28t21:55\n2024-05-01 06:28\n2024-05-01t06:19\n2024-05-01t06:23\n2024-05-28 21:46\n2024-05-01 06:30\n",
+      "float64": [],
+      "why": "the rotation of marks between day and clock of plan P4-D39. The census names two marks at twelve cells each, so it pins two rules at once: the named marks are spread evenly over the ranks rather than spent from the earliest rank upward, and the earliest name in sorted order is the commonest on a tie. REBUILT AT PLAN P4-D220 (stage 2 closed by the owner rulings of 2026-09-17): it published eleven and eleven with two held back, which named the one mark those two wore, and contract D12 now refuses a pool of marks beside a named one; the pool is pooled_marks' to pin. A walk that spent the names from the first rank upward would write every lower-case t on the earliest dates and every space on the latest, making up a link between how early a moment is and how it was spelled; this case's mutant is that walk.",
+      "word_budget": {
+        "content": 22,
+        "placement": 23
+      },
+      "words": [
+        "12587170189557361101",
+        "992822559630912803",
+        "4064922177151560342",
+        "3401059606364785669",
+        "3244891138370822358",
+        "14980499527944476233",
+        "17032708870344961936",
+        "5101897133503557865",
+        "15121802600962083084",
+        "16415622762886201840",
+        "9462634704993459244",
+        "4518799303034446728",
+        "15204573778114825406",
+        "3943230677818135853",
+        "13677652951661521469",
+        "11620345735806077694",
+        "17107644350114347775",
+        "4277951003820173595",
+        "14741256730524897565",
+        "9558457822766297307",
+        "4271447349828353003",
+        "3060388504118456040",
+        "9182585704594671237",
+        "10749372310875182232",
+        "3400435677155855496",
+        "274762717475212626",
+        "8690874097962755731",
+        "13433718298383103069",
+        "16945188177730290244",
+        "11539065713204468302",
+        "16917925380007743293",
+        "15950719764958515555",
+        "4024025754346188944",
+        "15977231050047964636",
+        "13479993951608207110",
+        "5125709897111330840",
+        "14702858441175478488",
+        "15960523503845024435",
+        "5523654226794324199",
+        "9722210440181412196",
+        "1318698826428569177",
+        "10758849686013811633",
+        "4388598467465224327",
+        "14111088605365728606",
+        "3202938355627100572"
+      ]
+    },
+    "month_span": {
+      "cells": [
+        "1970-05",
+        "1970-07",
+        "1970-08",
+        "1970-03",
+        "1970-12",
+        "1970-06",
+        "1970-11",
+        "1970-01",
+        "1970-09",
+        "1970-10",
+        "1970-02",
+        "1970-04"
+      ],
+      "column": {
+        "all_at_midnight": false,
+        "date_field_widths": {},
+        "date_percentiles": {
+          "max": null,
+          "min": null,
+          "p01": null,
+          "p05": null,
+          "p10": null,
+          "p25": null,
+          "p50": null,
+          "p75": null,
+          "p90": null,
+          "p95": null,
+          "p99": null
+        },
+        "datetime_separators": {},
+        "datetimes_read_at": "local",
+        "detection_evidence": "written by hand in this method specification's own neutral vocabulary; no value here comes from any table.",
+        "format": "iso-month",
+        "high_tail": null,
+        "low_tail": null,
+        "missing_by_class": {
+          "(blank)": 0,
+          "(date-sentinel)": 0,
+          "(declared-missing)": 0,
+          "(numeric-sentinel)": 0,
+          "(text-code)": 0,
+          "(withheld)": 0
+        },
+        "missing_by_source": {},
+        "month_name_styles": {},
+        "n_at_midnight": null,
         "n_contradictory": 0,
         "n_distinct": 12,
         "n_distinct_folded": 12,
@@ -2864,6 +5633,7 @@
         "name": "column_1",
         "position": 1,
         "quality_state": "ok",
+        "quarter_marker_case": {},
         "remarks": [],
         "resolution": "month",
         "resolution_mix": {
@@ -2874,26 +5644,28 @@
         "statistical_type": "datetime",
         "structural_role": "data",
         "subsecond_digits": 0,
+        "tail_unit": "month",
         "time_precision": "month",
         "utc_offsets": {
           "(none)": 12
-        }
+        },
+        "zulu_case": {}
       },
       "content": [
-        "2024-01",
-        "2024-02",
-        "2024-03",
-        "2024-04",
-        "2024-05",
-        "2024-05",
-        "2024-06",
-        "2024-07",
-        "2024-08",
-        "2024-09",
-        "2024-10",
-        "2024-12"
+        "1970-01",
+        "1970-02",
+        "1970-03",
+        "1970-04",
+        "1970-05",
+        "1970-06",
+        "1970-07",
+        "1970-08",
+        "1970-09",
+        "1970-10",
+        "1970-11",
+        "1970-12"
       ],
-      "csv_bytes": "2024-05\n2024-06\n2024-07\n2024-03\n2024-12\n2024-05\n2024-10\n2024-01\n2024-08\n2024-09\n2024-02\n2024-04\n",
+      "csv_bytes": "1970-05\n1970-07\n1970-08\n1970-03\n1970-12\n1970-06\n1970-11\n1970-01\n1970-09\n1970-10\n1970-02\n1970-04\n",
       "float64": [],
       "why": "the month form of G7.5 and the month ordinal of G7.1, where one unit is one month, no clock exists to shift, and the cell text is the canonical form itself.",
       "word_budget": {
@@ -2961,6 +5733,7 @@
         "+5"
       ],
       "column": {
+        "decimal_plus": {},
         "detection_evidence": "written by hand in this method specification's own neutral vocabulary; no value here comes from any table.",
         "empty_bins": [],
         "empty_edges": [],
@@ -2971,6 +5744,7 @@
         "fraction_widths": {
           "1": 11
         },
+        "group_separator": "",
         "integer_valued": true,
         "kurtosis": null,
         "mean": {
@@ -3009,6 +5783,9 @@
         "n_used_in_statistics": 33,
         "n_zero": 0,
         "name": "column_1",
+        "negative_form": "minus",
+        "negative_notations": {},
+        "number_spellings": {},
         "numeric_share": {
           "decimal": "1",
           "exact": "1",
@@ -3648,7 +6425,9 @@
         },
         "std_unrepresentable": false,
         "structural_role": "data",
-        "value_histogram": {}
+        "thousands_marks": {},
+        "value_histogram": {},
+        "wide_runs": "none"
       },
       "content": [
         "05",
@@ -3780,15 +6559,13 @@
         "100000000000000000000"
       ],
       "column": {
+        "decimal_plus": {},
         "detection_evidence": "written by hand in this method specification's own neutral vocabulary; no value here comes from any table.",
         "empty_bins": [],
         "empty_edges": [],
-        "field_widths": {
-          "(withheld)": 11
-        },
-        "fraction_widths": {
-          "(withheld)": 1
-        },
+        "field_widths": {},
+        "fraction_widths": {},
+        "group_separator": "",
         "integer_valued": false,
         "kurtosis": {
           "decimal": "2.5",
@@ -3832,6 +6609,8 @@
         "n_used_in_statistics": 12,
         "n_zero": 0,
         "name": "column_1",
+        "negative_form": "minus",
+        "negative_notations": {},
         "numeric_share": {
           "decimal": "1",
           "exact": "1",
@@ -3839,8 +6618,7 @@
           "proof": "nearest"
         },
         "numeric_styles": {
-          "(withheld)": 1,
-          "plain": 11
+          "(withheld)": 12
         },
         "pad_widths": {},
         "percentiles": {
@@ -4473,7 +7251,9 @@
         },
         "std_unrepresentable": false,
         "structural_role": "data",
-        "value_histogram": {}
+        "thousands_marks": {},
+        "value_histogram": {},
+        "wide_runs": "none"
       },
       "content": [
         "0.5",
@@ -4710,11 +7490,12 @@
     "integer_rule": "b = int(v) truncated toward zero; r = v - float(b); to nearest with ties toward POSITIVE INFINITY -- r > 0.5 or r == 0.5 gives b+1, r < -0.5 gives b-1, r == -0.5 gives b. Not banker's rounding and not toward zero. Applied by the published integer_valued fact and never by the role name, and never to a pinned stratum (G5.4).",
     "ladder_segment": "the unique j in 0..9 with PCT[j]*D <= 100*N < PCT[j+1]*D, scanned upward from zero and stopped at the first that holds. PCT is (0,1,5,10,25,50,75,90,95,99,100) held as whole numbers (G5.1, G5.3, G7.3).",
     "notation_reading": "what one finished cell's notation settles, asked of every cell by the recounts: a sign inside accounting parentheses is the contradictory class and settles neither the sign nor the whole-number status, ordinary text settles neither either, and a well-formed number is out of range exactly when its magnitude reaches the point where binary64 rounds to an infinity or falls to or below half the smallest subnormal -- so a 400-digit whole number is out of range and whole, and a fraction below that point is out of range and a fraction (G10.2, G10.5).",
-    "offset_form": "rank 0 takes earliest_utc_offset and rank P-1 takes latest_utc_offset where each names a real offset; the rest are spent over the remaining ranks in ascending rank, taking the keys in the profile's own sorted order with (none) and (withheld) last. A cell allocated either of those is written with no offset. Under the utc clock a datetime cell is written on its own offset's wall clock, local_ordinal = ordinal + offset_in_seconds (G7.4).",
+    "offset_form": "no end takes an offset of its own since stage 3, the description naming no end row at all; the counts are spent over the ranks the layout does not pin, taking the keys in the profile's own sorted order with (none) and (withheld) last, in ascending rank -- or, on a column moved onto a midnight, the ranks with the fewest feasible keys first. A cell allocated either of those is written with no offset. Under the utc clock a datetime cell is written on its own offset's wall clock, local_ordinal = ordinal + offset_in_seconds (G7.4).",
     "ordinal_transform": "N_r = r * 2**64 + w over D = P * 2**64; the segment is located as above and ordinal = Lo[j] + (A * (Lo[j+1] - Lo[j])) // B. The floor division rounds toward the EARLIER instant always, before the epoch included, which is why it floors toward negative infinity rather than truncating toward zero (G7.3).",
     "partner_family": "a fold-collision partner is a case flip, edge spacing, or both, because the shipped fold trims before it turns the case over. One parent's partners are enumerated by ascending TOTAL number of spaces, and within one total the LEADING share ascends, so the spaces go to the end first and are then moved leftward one at a time; within one placement the case flips are taken in ascending binary-counter order with bit 0 the leftmost alphabetic position and k = 0 the placement's own case; the parent itself is stepped over. The case flips of the unspaced parent are therefore the first 2**L - 1 partners. A partner may take only a length its own slot may take (G9.3).",
     "permutation": "a = [0..n-1]; for i from n-1 down to 1, j = bounded(next word, i+1) and a[i] and a[j] are swapped, the swap happening even when j == i. Consumes max(n-1, 0) words (G3.4c).",
-    "precision_form": "quarter writes YYYY-Qn, date writes YYYY-MM-DD, and datetime writes YYYY-MM-DDTHH:MM, ...:SS or ...:SS.ddd by the published time_precision, with T as the separator and the fractional digits all zeros because the profile publishes how many digits the finest cell carried and nothing about their values (G7.5).",
+    "precision_form": "quarter writes YYYY-Qn, date writes YYYY-MM-DD, and datetime writes YYYY-MM-DD?HH:MM, ...:SS or ...:SS.ddd by the published time_precision, the ? being the mark separator_allocation gives the rank (T where the census names none), a column whose every moment stands at midnight writing its day with a midnight clock, and the fractional digits all zeros because the profile publishes how many digits the finest cell carried and nothing about their values (G7.5).",
+    "separator_allocation": "the census of marks between day and clock is spent over the parsed ranks by a smooth weighted rotation: each rank adds every named count to that name's credit, takes the name holding the most credit (the first in sorted order among equals) and takes the weights' total back from it; ranks the named counts leave over are added to the commonest name's weight. No rank is pinned and no word is drawn; a column counted in days by ordinal_space is written with a midnight clock (P4-D39). Where a cell's text is a declared absent spelling (matched whatever the case of its letters) it takes the first mark the census names, then the other common mark (a space for T or t, a T for a space) unless that is absent too, and the mark it owed is handed to the first rank, in rank order, allocated the mark it now wears whose new text is not absent and whose change leaves the column no spelling fewer, nor one value fewer once case is ignored; no rank is touched twice. An interior rank of a column counted in whole units whose unit wears only absent spellings steps to the nearest unit, earlier before later, inside its own window and then inside the published range. No frozen case declares an absent spelling, so that exception is pinned by the agreement test rather than by committed cells (G7.5).",
     "stratum_layout": "negatives ascending, then the zero stratum, then positives ascending. M = min(K, F_num) different values. M_neg is the nearest whole number to M_rest*A_neg/(A_neg+A_pos) with ties upward, computed as (2*M_rest*A_neg + (A_neg+A_pos)) // (2*(A_neg+A_pos)) and clamped into [1, M_rest-1], where A_neg and A_pos are how many RUNS the ladder gives each band and fall back to G and P where there is no ladder (G5.2b). The zero stratum holds Z cells; each other band divides its C cells by the ladder's own plateaus (G5.2a): the value at every rank lo+i is read by Interpolate(Ladder, (lo+i)*2**53, K*2**53) with G5.4 applied where integer_valued is true, equal neighbours make a run, and runs are joined -- smallest (min(L[j],L[j+1]), 0 if Whole(H[j])==Whole(H[j+1]) else 1, |H[j+1]-H[j]|/(|H[j+1]|+|H[j]|)) first, leftmost on a tie -- or the longest divided into floor(L/2) and L-floor(L/2), leftmost on a tie, until there are M of them. The even split floor((i+1)*C/M) - floor(i*C/M) is the FALLBACK, taken only where there is no ladder or M >= C.",
     "style_allocation": "the VALUES step first: W is the point-free quota of the effective map, and while fewer cells than that hold a value with a point-free spelling the strata are walked in ascending order and the fewest the shortfall needs are taken to the nearest whole number, never the two pinned ends, never one that would cross zero and never one whose rounded value is already another stratum's. Then largest-remaining-quota over the numeric cells in stratum order and, inside a stratum, in ascending cell index, with ties going to the enumeration order plain, leading_zero, leading_plus, decimal, exponent_lower, exponent_upper and the withheld remainder added to plain. A style is offered to a cell only where the finished text would classify back as that style: leading_plus needs a value that is not negative, and plain, leading_zero and leading_plus need a value with a point-free spelling. The look-ahead is part of the rule: a choice is admissible only where it leaves the point-free quotas inside the count of cells after it that can carry them. Zeros are then spent over the WHOLE column at once -- the shortfall of the base spellings' identities against the folded budget is how many cells raise their order, each taking the lowest order whose folded identity is new, inside whatever style it was given, since every style but plain carries the family (G6.3, G6.4, G6.5)."
   },

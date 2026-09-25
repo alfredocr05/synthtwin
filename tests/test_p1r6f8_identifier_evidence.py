@@ -39,19 +39,27 @@ import random
 import pytest
 
 import fixtures
-from synthtwin import profile, reading, summary, taxonomy
+import tail_rule
+from synthtwin import parsing, profile, reading, summary, taxonomy
 from synthtwin.cli import main
 
 SETTINGS = taxonomy.Settings()
 
 # The item's own reproduction: an amount with its unit written after the
 # number. Round 6 read this as record numbers.
-UNIT_AMOUNTS = [f"{index}mg" for index in range(1, 31)]
+# AT THE POPULATION FLOOR (plan P4-D341): the command refuses a
+# smaller table and writes nothing, and what these two columns pin is
+# that NOTHING in their values tells them apart.
+UNIT_AMOUNTS = [
+    f"{index}mg" for index in range(1, parsing.POPULATION_FLOOR + 1)
+]
 
 # A real record-code column of the SAME shape: one token, code alphabet,
 # all different, letters and digits mixed. Nothing in the values tells
 # these two columns apart, which is the whole argument.
-CODE_WORDS = [f"code{index}" for index in range(1, 31)]
+CODE_WORDS = [
+    f"code{index}" for index in range(1, parsing.POPULATION_FLOOR + 1)
+]
 
 # A column that is STILL declined, for the tests about what a decline
 # says. `1mg` and `code1` stopped being declined when the
@@ -95,6 +103,49 @@ def whole_block(described: taxonomy.ColumnProfile) -> str:
         + " ".join(described.remarks)
         + " ".join(described.publication_notes)
     )
+
+
+def keeps_its_distribution(block: dict, values: "list[str]") -> None:
+    """That a column was read as NUMBERS, said through a tail block.
+
+    An end rung used to say it by itself: a column of `0930` read as
+    text has no maximum, and one read as numbers has nine hundred and
+    thirty. Under the tail rule of contract 6.7a (landing 3.3) a column
+    of different numbers publishes neither end, because both readings
+    touch the outermost values, so the same thing is said through the
+    facts that replaced them -- the middle rung and the two tail groups
+    -- each worked out from the column's own numbers by
+    `tests/tail_rule.py` rather than read back out of the description.
+
+    A column whose end is HEAPED still publishes it, so a caller with
+    such a column reads that end directly and does not come here.
+
+    AND A TAIL MAY PUBLISH NEITHER DISTANCE (plan P4-D349). Where the
+    rows, the two distances, the grid, the space's edges and the column's
+    own remark that every value in it is different leave ONE possible set
+    of distances, that set names every outer cell exactly and the tail
+    publishes neither number -- which is what these shapes' tails do,
+    because their values are consecutive on their own grid. What says
+    "this column was read as NUMBERS" is not touched by that: a column
+    read as TEXT has no tail block at all, and the percent, the rows and
+    the middle rung are all still numeric facts worked out from the
+    column's own numbers. So the pair is compared where it is published
+    and its absence is checked for the shape the contract admits -- both
+    null and never one of each (TL5).
+    """
+    numbers = [float(value) for value in values]
+    assert block["percentiles"]["min"] is None
+    assert block["percentiles"]["max"] is None
+    assert block["percentiles"]["p50"] == float(tail_rule.rung_at(numbers, 50))
+    for low in (True, False):
+        side = block["tails"]["low" if low else "high"]
+        percent, rows, mean, root = tail_rule.stated(side)
+        wanted = tail_rule.expected(block, numbers, low=low)
+        assert (percent, rows) == wanted[:2], low
+        if mean is None:
+            assert root is None, low
+            continue
+        assert (mean, root) == wanted[2:], low
 
 
 # -- nothing infers the role ------------------------------------------
@@ -214,14 +265,20 @@ def test_the_withdrawal_costs_no_ordinary_column_its_distribution() -> None:
     column, because a set of categories may hold at most a tenth of the
     values present.
     """
-    numbers = describe([str(index) for index in range(50)])
+    whole = [str(index) for index in range(50)]
+    numbers = describe(whole)
     assert numbers.role == taxonomy.ROLE_COUNT
-    assert numbers.details["percentiles"]["max"] == 49.0
-    measured = describe([f"{index}.5" for index in range(50)])
+    keeps_its_distribution(numbers.details, whole)
+    halves = [f"{index}.5" for index in range(50)]
+    measured = describe(halves)
     assert measured.role == taxonomy.ROLE_CONTINUOUS
-    assert measured.details["percentiles"]["min"] == 0.5
+    keeps_its_distribution(measured.details, halves)
     dates = describe([f"2024-01-{day:02d}" for day in range(1, 29)])
     assert dates.role == taxonomy.ROLE_DATETIME
+    # THREE POSTCODES TWENTY TIMES EACH keep both ends: twenty rows hold
+    # each of them, which is more than the floor asks, so the tail rule
+    # publishes those ends as the values of a group rather than
+    # withholding them (contract 6.7a, a heaped end).
     unpadded = describe(["52242", "10001", "90210"] * 20)
     assert unpadded.role == taxonomy.ROLE_COUNT
     assert unpadded.details["percentiles"]["max"] == 90210.0
@@ -244,7 +301,7 @@ def test_the_padded_column_is_read_by_the_ordinary_rules_now() -> None:
     """
     described = describe(CLOCK_TIMES)
     assert described.role == taxonomy.ROLE_COUNT
-    assert described.details["percentiles"]["max"] == 2350.0
+    keeps_its_distribution(described.details, CLOCK_TIMES)
     said = " ".join(described.remarks)
     assert "every value in this column is different" in said
     assert "--identifier NAME" in said
@@ -460,14 +517,12 @@ def test_the_measurement_written_plainly_keeps_its_distribution(
     # What the remark asks for, and what it buys: the same amounts written
     # as plain numbers with the unit in the column name are described in
     # full.
-    text = fixtures.single_column_table(
-        "amount_mg", [f"{index}" for index in range(1, 31)]
-    )
+    amounts = [f"{index}" for index in range(1, 31)]
+    text = fixtures.single_column_table("amount_mg", amounts)
     table = reading.read_table(str(fixtures.write(tmp_path, "amount.csv", text)))
     column = profile.build_document(table, SETTINGS, [])["columns"][0]
     assert column["role"] == taxonomy.ROLE_COUNT
-    assert column["percentiles"]["min"] == 1.0
-    assert column["percentiles"]["max"] == 30.0
+    keeps_its_distribution(column, amounts)
 
 
 # -- end to end, through the summary a person reads -------------------
@@ -593,7 +648,7 @@ def test_the_real_command_still_profiles_a_plain_table(
     # numbers, labels and dates keeps every statistic it had before.
     rows = [
         [str(index), fixtures.LABELS[index % 5], f"2024-01-{index % 28 + 1:02d}"]
-        for index in range(60)
+        for index in range(parsing.POPULATION_FLOOR)
     ]
     table = fixtures.write(
         tmp_path, "plain.csv", fixtures.rows_to_csv(["n", "group", "day"], rows)
@@ -608,7 +663,13 @@ def test_the_real_command_still_profiles_a_plain_table(
         "n": "count", "group": "categorical", "day": "datetime",
     }
     counts = document["columns"][0]
-    assert counts["percentiles"]["max"] == 59.0
+    # THE LARGEST VALUE IS NO LONGER PUBLISHED (landing 3.3). The
+    # column counts 0 upward over the rows the table was built with,
+    # which is the population floor (plan P4-D341), so every value
+    # differs, both ends touch the outermost values and the tail rule
+    # withholds them. `keeps_its_distribution` says the same thing
+    # through the facts that replaced them, worked out from the rule.
+    keeps_its_distribution(counts, [row[0] for row in rows])
     assert counts["mean"] is not None
     assert "COLUMNS, ONE BY ONE" in out
     assert "identifier" not in out.replace("--identifier", "")

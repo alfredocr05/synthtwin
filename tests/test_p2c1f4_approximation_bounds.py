@@ -454,6 +454,56 @@ PHASE_4_MODE_KEYS = ("mode", "mode_count")
 # interpolating it rather than from a file being held to any of them.
 PHASE_4_FINER_LADDER_KEYS = ("percentiles_between",)
 
+# Plan P4-D38 (stage 2, 2026-09-14). The mark a column writes between
+# thousands is REPORT-ONLY: the validator accepts a grouped spelling and
+# does not yet hold a twin to carrying the mark, so the report LISTS it.
+# ...and plan P4-D39 on the same day: the mark a moment writes between
+# its day and its clock, and the statement that every moment of a column
+# stands at midnight. Both REPORT-ONLY and LISTED, for the same reason.
+STAGE_2_SPELLING_KEYS = (
+    "datetime_separators",
+    "all_at_midnight",
+    # ...and the count of values at midnight (landing 2b.3).
+    "n_at_midnight",
+)
+
+# Landing 2b.2 (2026-09-15). The mark between thousands became an
+# obligation, and the notation of a negative and the count of signed
+# decimals arrived beside it as obligations: all three are held by the
+# quality report's spelling checks.
+LANDING_2B2_SPELLING_KEYS = (
+    "group_separator",
+    "negative_form",
+    "decimal_plus",
+)
+
+# Landing 2b.7 (2026-09-15), plan P4-D65.2. The two majority keys above
+# stopped throwing their minority away: a census per convention carries
+# the notations a column's negatives wore and the marks its grouped cells
+# wore, and the quality report holds a file to every convention either
+# names. Registered EXACT-OBSERVABLE in `tests/dispositions.py` against
+# the plan's own region, like the three above, and injected here for the
+# reason they are: the contract matrix was frozen before they existed.
+LANDING_2B7_MIXTURE_KEYS = (
+    "negative_notations",
+    "thousands_marks",
+)
+
+# Landing 2b.6 (2026-09-15), plan P4-D61. The owner reversed decision 5,
+# so a twin datetime cell is written in the member that read the real
+# column rather than in ISO, and four censuses carry what the member
+# alone does not fix: how wide the month and day fields were, how a
+# month NAME was written, and the case of a quarter's and a zulu marker.
+# All four are EXACT-OBSERVABLE in their KEY SET -- every convention the
+# description names must come back, on at least a floor's worth of the
+# file's cells -- and the quality report holds a file to them.
+LANDING_2B6_DATE_KEYS = (
+    "date_field_widths",
+    "month_name_styles",
+    "quarter_marker_case",
+    "zulu_case",
+)
+
 ROLE_SECTIONS = {
     "empty": "9.3 `empty`",
     "count": NUMERIC_SECTION,
@@ -545,6 +595,45 @@ def test_the_inventory_is_read_out_of_the_matrix_and_misses_no_clause(
     assert "n_distinct_folded" in APPROXIMATED["continuous"]
 
 
+def _published_rung(column: contract.ColumnBlock, fact: str) -> bool:
+    """Whether a named fact is a rung this column actually publishes.
+
+    Every fact that is not a ladder rung passes; a rung passes only
+    where the description carries a value at it (stage 3, contract D11
+    and T2).
+    """
+    for key, ladder in (
+        ("date_percentiles.", "date_percentiles"),
+        ("clock_percentiles.", "clock_percentiles"),
+    ):
+        if not fact.startswith(key):
+            continue
+        facts = column.facts
+        published = getattr(facts, ladder, None)
+        if published is None:
+            return False
+        rung = fact[len(key):]
+        if ladder == "clock_percentiles":
+            return published[rung] is not None
+        return getattr(published, rung) is not None
+    return True
+
+
+def _withheld_rungs(column: contract.ColumnBlock) -> "set[str]":
+    """The named rungs one column's block does not publish (contract TL1)."""
+    facts = column.facts
+    numbers = facts
+    if isinstance(facts, contract.AffixedFacts):
+        numbers = facts.numbers if hasattr(facts, "numbers") else facts
+    if not isinstance(numbers, contract.NumericFacts):
+        return set()
+    gone: "set[str]" = set()
+    for index in range(len(contract.LADDER_PERCENTS)):
+        if numbers.percentiles.rungs[index] is None:
+            gone.add(f"percentiles.{contract.LADDER_KEYS[index]}")
+    return gone
+
+
 def test_every_approximated_fact_of_every_role_is_measured(
     every_role: contract.Profile, twin: generation.Twin
 ) -> None:
@@ -583,7 +672,23 @@ def test_every_approximated_fact_of_every_role_is_measured(
                 f"n_core_{one[2:]}" if one.startswith("n_distinct") else one
                 for one in owed
             ]
-        assert measured == owed, f"{column.name} ({column.role})"
+        # A RUNG EITHER TAIL RULE WITHHOLDS IS NOT AN APPROXIMATED FACT
+        # OF THIS COLUMN (stage 3, plans P4-D328 and P4-D344): the
+        # description publishes `null` there, so there is no number to
+        # bound, the report measures none and LISTS the rung instead
+        # (contract TL1). The matrix names every rung a ladder CAN
+        # carry, so the ones this column withholds come out of the list
+        # here -- the date ladder and the clock one through the tails
+        # block's own facts decide, the numeric ladder through the
+        # rungs its own block carries.
+        owed = [one for one in owed if _published_rung(column, one)]
+        owed = [one for one in owed if one not in _withheld_rungs(column)]
+        # COMPARED BY IDENTITY, not by the order the two happen to use:
+        # the report writes the ladder's bounds before the tails' and
+        # the matrix states the tails' row first, and what this asserts
+        # is that the sets are the same -- no fact missing, and none
+        # measured that the matrix does not give the role.
+        assert sorted(measured) == sorted(owed), f"{column.name} ({column.role})"
 
 
 def test_every_approximated_fact_of_the_compound_role_is_measured(
@@ -615,11 +720,23 @@ def test_every_approximated_fact_of_the_compound_role_is_measured(
     # ...and the LABEL half's own count of different spellings, which
     # is the label section's approximated fact read over that half and
     # is named for the half it belongs to (review round 6, item 1).
+    # ...AND THE TAIL FACTS OF THE NUMERIC HALF, under the tail rule
+    # like any other numeric block (contract 6.7a), less the rungs that
+    # rule withholds.
+    half = described.columns[0].facts.numbers
+    assert isinstance(half, contract.NumericFacts)
+    assert half.tail_rule, "this half is described under the tail rule"
+    gone = {
+        f"percentiles.{contract.LADDER_KEYS[index]}"
+        for index in range(len(contract.LADDER_PERCENTS))
+        if half.percentiles.rungs[index] is None
+    }
     owed = (
         [
             name
             for name in numeric
             if name not in ("n_distinct", "n_distinct_folded")
+            and name not in gone
         ]
         + list(APPROXIMATED["numbers_with_labels"])
         + ["labels -> n_distinct"]
@@ -664,10 +781,28 @@ def test_the_compound_windows_are_measured_where_the_two_halves_differ(
     REVIEW ROUND 6 OF LANDING L8, item 3. The walk above uses a column
     whose label half holds ONE identity, so its raw and folded shifts
     are the same number and a mutant using either for both stays
-    green. This column's label half publishes four raw spellings and
-    two folded identities, and the floor holds back the variants that
-    would supply the raw four -- so the twin writes three, and the
-    outer raw count is one short while the folded one is exact.
+    green. This column's label half publishes three spellings and two
+    folded identities, and the floor holds back the level whose own two
+    spellings the three count -- so the twin writes two, and the outer
+    raw count is one short while the folded one is exact.
+
+    THE NUMBERS MOVED WITH PLANS P4-D275 AND P4-D276 AND ARE DERIVED
+    HERE FROM THOSE RULES (the carried numbers pass of 2026-09-18), never
+    read off the tool. At a floor of eleven the level `alpha` covers
+    6 + 6 = 12 rows and is published; both its spellings are below the
+    floor, so P4-D275 counts them into the commonest, the tie going to
+    the first in sorted order: `Alpha`, one spelling. The level `beta`
+    covers 5 + 5 = 10 rows and is held back. P4-D276 counts the
+    spellings the block speaks of -- one for `alpha` and the held-back
+    level's own two -- so the half publishes 1 + 2 = 3 where it
+    published the raw 4. Its folded count is still 2. The twin's supply
+    (`generation._label_supply`, method G8) is one per published variant
+    and one per held-back level: 1 + 1 = 2. So the half runs 2 to 3 and
+    holds 2; the numeric half is 40 exact; the column publishes
+    40 + 3 = 43, owes between 40 + 2 = 42 and 43 and holds 42; and the
+    folded count is 40 + 2 = 42 on every side. The intent -- the raw
+    and folded shifts differ, one against nought -- is the same, and
+    every assertion is still an equality.
     """
     folder = tmp_path_factory.mktemp("f4-compound-windows")
     # THE NUMBERS ARE SPREAD rather than one to forty (amendment
@@ -688,14 +823,18 @@ def test_the_compound_windows_are_measured_where_the_two_halves_differ(
         "windows.csv",
         fixtures.rows_to_csv(["c"], [[value] for value in values]),
     )
-    table = reading.read_table(str(path))
+    table = reading.read_table(str(path), small_cell_floor=11)
     document = profile.build_document(
         table, taxonomy.Settings(small_cell_floor=11), []
     )
     block = document["columns"][0]
     assert block["role"] == "numbers_with_labels"
-    assert block["labels"]["n_distinct"] == 4
+    assert block["labels"]["n_distinct"] == 1 + 2
     assert block["labels"]["n_distinct_folded"] == 2
+    # ...and the column's own count is the two halves added, which the
+    # loader holds it to (contract 7.14), so a raw 44 here is a
+    # description the product's own loader refuses.
+    assert block["n_distinct"] == 40 + (1 + 2)
     written = fixtures.write_profile(folder, "windows-profile.json", document)
     twin = generation.generate(contract.load_profile(str(written)), 7)
     records = {
@@ -703,12 +842,12 @@ def test_the_compound_windows_are_measured_where_the_two_halves_differ(
         for record in twin.outcomes[0].approximations
         if "distinct" in record.fact
     }
-    # The label half cannot supply its fourth spelling, and every
+    # The label half cannot supply its third spelling, and every
     # record says so at the same numbers.
-    assert records["labels -> n_distinct"].achieved == "3"
-    assert records["labels -> n_distinct"].lowest == "3"
-    assert records["n_distinct"].achieved == "43"
-    assert records["n_distinct"].published == "44"
+    assert records["labels -> n_distinct"].achieved == f"{1 + 1}"
+    assert records["labels -> n_distinct"].lowest == f"{1 + 1}"
+    assert records["n_distinct"].achieved == f"{40 + 1 + 1}"
+    assert records["n_distinct"].published == f"{40 + 1 + 2}"
     assert records["n_distinct"].inside
     # ...while the FOLDED side is exact on both halves, which is what a
     # raw-for-folded mutant would break. The label half's folded count
@@ -720,10 +859,10 @@ def test_the_compound_windows_are_measured_where_the_two_halves_differ(
     assert records["n_distinct_folded"].lowest == "42"
     assert records["n_distinct_folded"].highest == "42"
     # AND THE OUTER RAW ENDS ARE THE NUMBERS THEMSELVES (round 7, item
-    # 5): the numeric half is exact at 40 and the label half runs 3 to
-    # 4, so the column owes between 43 and 44 and holds 43.
-    assert records["n_distinct"].lowest == "43"
-    assert records["n_distinct"].highest == "44"
+    # 5): the numeric half is exact at 40 and the label half runs 2 to
+    # 3, so the column owes between 42 and 43 and holds 42.
+    assert records["n_distinct"].lowest == f"{40 + 2}"
+    assert records["n_distinct"].highest == f"{40 + 3}"
     # AND THE VALIDATOR SAYS THE SAME THING ABOUT THE SAME FILE (review
     # round 7 of landing L8, item 4). This walk measured generation
     # alone, so taking the compound branch out of `_distinctness_checks`
@@ -743,8 +882,9 @@ def test_the_compound_windows_are_measured_where_the_two_halves_differ(
     ]
     assert len(outer) == 1, outer
     assert outer[0].verdict == validation.AUTHORIZED_DEVIATION, outer[0]
-    assert outer[0].achieved == "43", outer[0]
-    assert "43" in outer[0].published and "44" in outer[0].published
+    assert outer[0].achieved == f"{40 + 2}", outer[0]
+    assert f"{40 + 2}" in outer[0].published, outer[0]
+    assert f"{40 + 3}" in outer[0].published, outer[0]
     # ...and the citation names the half that widened the window, which
     # is the LABEL half here: the numeric half is exact at forty.
     assert outer[0].citation == validation.CORNER_CITATIONS[
@@ -970,9 +1110,20 @@ def test_the_report_still_has_the_section_with_nothing_to_put_in_it(
 
 
 def _numeric_cells(loaded: contract.Profile, name: str) -> "list[float]":
-    """The published ladder ends of one numeric column, as two numbers."""
+    """The two ends of one numeric column's ladder, as two numbers.
+
+    The published `min` and `max` on a block written before stage 3, and
+    the DERIVED ends of method G5.3b on a tail block, which withholds
+    both unless a group of rows shares one. Either way they are the two
+    values the construction pins, which is what a mutant built "from the
+    two ends alone" is built from.
+    """
     facts = loaded.columns[_place_of(loaded, name)].facts
     assert isinstance(facts, contract.NumericFacts)
+    if facts.tail_rule:
+        ladder = contract.tail_ladder(facts)
+        assert ladder is not None
+        return [ladder[0], ladder[len(ladder) - 1]]
     low = facts.percentiles.minimum
     high = facts.percentiles.maximum
     assert low is not None and high is not None
@@ -1079,10 +1230,18 @@ def test_the_shape_bound_refuses_a_column_whose_tail_is_the_wrong_way(
 def test_the_date_rung_bound_refuses_a_twin_that_wrote_one_date(
     every_role: contract.Profile
 ) -> None:
-    """A generator that met both published ends and nothing between them."""
+    """A generator that met both published BOUNDARIES and nothing between.
+
+    The two ends went with stage 3 (plan P4-D328), so the column a
+    collapsed twin is built from is the two tail boundaries: every cell
+    on the low one but the last, which stands on the high one.
+    """
     facts = every_role.columns[_place_of(every_role, "recorded_on")].facts
     assert isinstance(facts, contract.DatetimeFacts)
-    collapsed = [facts.earliest for _step in range(239)] + [facts.latest]
+    assert facts.low_tail is not None and facts.high_tail is not None
+    collapsed = [facts.low_tail.boundary for _step in range(239)] + [
+        facts.high_tail.boundary
+    ]
     measured = _measure(every_role, "recorded_on", collapsed)
     outside = [
         record.fact
@@ -1101,7 +1260,10 @@ def test_the_date_cardinality_bound_refuses_a_collapsed_column(
     """The lower end of G12.5: the published ladder forces values apart."""
     facts = every_role.columns[_place_of(every_role, "recorded_on")].facts
     assert isinstance(facts, contract.DatetimeFacts)
-    collapsed = [facts.earliest for _step in range(239)] + [facts.latest]
+    assert facts.low_tail is not None and facts.high_tail is not None
+    collapsed = [facts.low_tail.boundary for _step in range(239)] + [
+        facts.high_tail.boundary
+    ]
     measured = _measure(every_role, "recorded_on", collapsed)
     assert not _found(measured, "n_distinct").inside
     assert not _found(measured, "n_distinct_folded").inside
@@ -1246,14 +1408,47 @@ def test_a_genuine_run_names_no_bound_deviation(
 # -- 5. the disposition matrix has no cell without a disposition ------
 
 
+# The containers whose LEAVES the matrix itemises, and how deep each one
+# goes. `tails` holds a side and the side holds the leaf, so it is two;
+# a date or clock tail holds its five keys directly, so it is one.
+TAIL_CONTAINERS = {"tails": 2, "low_tail": 1, "high_tail": 1}
+
+
+def _leaf_names(key: str, value: object, depth: int) -> "list[str]":
+    """Every LEAF under ``key``, to ``depth`` levels, dotted.
+
+    The intermediate names are not returned: the matrix disposes
+    `tails.low.percent` and never `tails.low`, because a side is the
+    same container its parent's row already speaks for. A `null`
+    container publishes no leaf and returns none.
+    """
+    if value is None:
+        return []
+    if depth <= 0 or not isinstance(value, dict):
+        return [key]
+    names: list[str] = []
+    for inner in sorted(value):
+        names = names + _leaf_names(f"{key}.{inner}", value[inner], depth - 1)
+    return names
+
+
 def _emitted_names(block: "dict[str, typing.Any]") -> "list[str]":
-    """Every key one column block publishes, containers expanded one level.
+    """Every key one column block publishes, containers expanded.
 
     The matrix disposes a ladder's rungs by naming the ladder, and a
     level entry's parts by naming them, so the names this returns are
     the ones the matrix can be asked about: the block's own keys, plus
     the keys inside the four statistics containers and inside a level
     entry.
+
+    AND THE TAIL LEAVES, WHICH IT DID NOT WALK (the governance pass of
+    stage 3's review, item 7). Stage 3 added `tails` to the numeric
+    roles and `low_tail`/`high_tail` to the calendar and clock ones, and
+    the matrix disposes each of their leaves on a line of its own -- but
+    this walk stopped at the container, so `tails.low.unregistered_fact`
+    and `low_tail.unregistered_fact` were published and asked about
+    NOTHING. Measured: that key injected into both, across the whole
+    all-role battery, left this file green.
     """
     names: list[str] = []
     for key in sorted(block):
@@ -1262,6 +1457,8 @@ def _emitted_names(block: "dict[str, typing.Any]") -> "list[str]":
         if key in ("percentiles", "date_percentiles", "length", "words"):
             for inner in sorted(value):
                 names = names + [f"{key}.{inner}"]
+        if key in TAIL_CONTAINERS and isinstance(value, dict):
+            names = names + _leaf_names(key, value, TAIL_CONTAINERS[key])
         if key == "levels":
             for entry in value:
                 for inner in sorted(entry):
@@ -1269,21 +1466,74 @@ def _emitted_names(block: "dict[str, typing.Any]") -> "list[str]":
     return names
 
 
+# The numeric section, which the affixed role's own sub-table points at
+# with "as on `count` and `continuous` above". Resolving that reference
+# is what lets the question below be asked of every role alike.
+NUMERIC_SECTION = "9.4 The numeric roles: `count`, `continuous`, `affixed_number`"
+
+
+def _container_only(
+    head: str, table: "dict[str, str]", universal: "dict[str, str]"
+) -> bool:
+    """Whether the matrix's own row for ``head`` disposes the CONTAINER
+    and not the subtree under it.
+
+    The matrix says which it is, in the row's own words, and this reads
+    them rather than keeping a list beside them. A container-only row
+    either carries the disposition `STRUCTURAL` -- "the container's own
+    key carries no VALUE obligation; its membership is the five keys
+    below, and every one of them is disposed in its own right" -- or
+    names the container outright, as `tails` does: "the container
+    carries no obligation of its own, each leaf below it is disposed on
+    its own line". Anything else disposes what is under it, which is how
+    `percentiles` answers for a hundred and one rungs with one row.
+
+    A row reading "as on `count` and `continuous` above" is the affixed
+    role pointing at the numeric section, and is followed.
+    """
+    text = table.get(head, universal.get(head))
+    if text is None:
+        return False
+    flat = " ".join(text.split())
+    if flat.startswith("as on"):
+        numeric = dict(_matrix_sections()[NUMERIC_SECTION])
+        flat = " ".join(numeric.get(head, flat).split())
+    return flat.startswith(dispositions.STRUCTURAL) or "the container" in flat
+
+
 def _undisposed(
     names: "list[str]", table: "dict[str, str]", universal: "dict[str, str]"
 ) -> "list[str]":
     """The names in ``names`` that no matrix row disposes.
 
-    A dotted name is disposed by its own row or by its container's row,
-    once -- which is how the matrix writes a ladder's interior rungs.
-    Everything else has to be named outright.
+    A dotted name is disposed by its own row, or by its container's row
+    where the matrix disposes that container's WHOLE SUBTREE -- which it
+    does exactly where it itemises none of its children. That is how the
+    matrix writes a ladder: `percentiles` carries one row and no row
+    names a rung, so the row answers for every rung.
+
+    A CONTAINER-ONLY ROW DISPOSES ONLY THE CHILDREN IT NAMES (the
+    governance pass of stage 3's review, item 7). The matrix says which
+    of its containers those are, in their own words -- `tails` reads
+    "the container carries no obligation of its own, each leaf below it
+    is disposed on its own line" and `low_tail` reads "STRUCTURAL: its
+    membership is the five keys below, and every one of them is disposed
+    in its own right" -- and a walk that let either row excuse arbitrary
+    children read them as the opposite of what they say. `_container_only`
+    asks the row; nothing here keeps a list of containers that would go
+    stale beside it.
     """
     missing: list[str] = []
     for name in names:
         if name in table or name in universal:
             continue
         head = name.split(".")[0]
-        if head in table or head in universal:
+        if head == name:
+            missing = missing + [name]
+            continue
+        if (head in table or head in universal) and not _container_only(
+            head, table, universal
+        ):
             continue
         missing = missing + [name]
     return missing
@@ -1430,6 +1680,14 @@ def test_every_key_the_producer_emits_has_a_disposition(
                 table[own] = "REPORT-ONLY (Phase 4 plan, P4-D4.11)"
             for own in PHASE_4_FINER_LADDER_KEYS:
                 table[own] = "REPORT-ONLY (Phase 4 plan, P4-D4.10)"
+            for own in STAGE_2_SPELLING_KEYS:
+                table[own] = "REPORT-ONLY (Phase 4 plan, P4-D39)"
+            for own in LANDING_2B2_SPELLING_KEYS:
+                table[own] = "EXACT-OBSERVABLE (Phase 4 plan, P4-D38 and P4-D41)"
+            for own in LANDING_2B7_MIXTURE_KEYS:
+                table[own] = "EXACT-OBSERVABLE (Phase 4 plan, P4-D65.2)"
+            for own in LANDING_2B6_DATE_KEYS:
+                table[own] = "EXACT-OBSERVABLE (Phase 4 plan, P4-D61)"
             missing = _undisposed(_emitted_names(block), table, universal)
             assert missing == [], f"{role}: {missing}"
     assert reached == set(ROLE_SECTIONS)
@@ -1459,9 +1717,109 @@ def test_the_completeness_assertion_refuses_a_key_nobody_disposed(
             table[own] = "REPORT-ONLY (Phase 4 plan, P4-D4.11)"
         for own in PHASE_4_FINER_LADDER_KEYS:
             table[own] = "REPORT-ONLY (Phase 4 plan, P4-D4.10)"
+        for own in STAGE_2_SPELLING_KEYS:
+            table[own] = "REPORT-ONLY (Phase 4 plan, P4-D39)"
+        for own in LANDING_2B2_SPELLING_KEYS:
+            table[own] = "EXACT-OBSERVABLE (Phase 4 plan, P4-D38 and P4-D41)"
+        for own in LANDING_2B7_MIXTURE_KEYS:
+            table[own] = "EXACT-OBSERVABLE (Phase 4 plan, P4-D65.2)"
+        for own in LANDING_2B6_DATE_KEYS:
+            table[own] = "EXACT-OBSERVABLE (Phase 4 plan, P4-D61)"
         names = _emitted_names(block) + ["a_field_nobody_disposed"]
         assert _undisposed(names, table, universal) == [
             "a_field_nobody_disposed"
         ]
         return
     raise AssertionError("the shared table has no column of counts")
+
+
+# The key the review injected, which the walk above must now find
+# wherever a description can carry it (the governance pass of stage 3's
+# review, item 7).
+UNREGISTERED = "unregistered_fact"
+
+# Where a tail leaf lives, per role: the numeric roles carry `tails`
+# with a side under it, the calendar and clock roles carry `low_tail`
+# and `high_tail` with the leaf directly under them.
+TAIL_PLACES = (
+    ("tails", ("low", "high")),
+    ("low_tail", ()),
+    ("high_tail", ()),
+)
+
+
+def _with_an_unregistered_tail_fact(
+    block: "dict[str, typing.Any]",
+) -> "list[dict[str, typing.Any]]":
+    """Copies of ``block`` carrying `unregistered_fact` in each tail leaf."""
+    bent: "list[dict[str, typing.Any]]" = []
+    for container, sides in TAIL_PLACES:
+        held = block.get(container)
+        if not isinstance(held, dict):
+            continue
+        for side in sides or (None,):
+            inner = held if side is None else held.get(side)
+            if not isinstance(inner, dict):
+                continue
+            copy = dict(block)
+            leaf = dict(inner)
+            leaf[UNREGISTERED] = 1
+            copy[container] = (
+                leaf if side is None else dict(held, **{side: leaf})
+            )
+            bent = bent + [copy]
+    return bent
+
+
+def test_a_fact_injected_into_a_tail_leaf_is_undisposed(
+    every_role_document: "dict[str, typing.Any]",
+    joined_numbers_document: "dict[str, typing.Any]",
+    numbers_with_labels_document: "dict[str, typing.Any]",
+) -> None:
+    """THE MUTATION FOR THE TAIL LEAVES, over the whole all-role battery.
+
+    The review injected `unregistered_fact: 1` into the numeric and
+    temporal tails and the completeness test stayed GREEN: the walk
+    stopped at the container, and the container's own row excused
+    whatever stood under it. Both halves are repaired -- the leaves are
+    walked, and a container the matrix disposes as a CONTAINER cannot
+    answer for a child it does not name -- and this is that injection,
+    asked of every block of every role that carries a tail at all.
+
+    It asserts the reach as well as the catch: some tail of some role
+    must be reached, or an injection that finds nowhere to go would pass
+    for a guard.
+
+    MUTATION, RUN: `_undisposed` put back to letting a container's own
+    row excuse any child -- `if head in table or head in universal:
+    continue` -- and this fails on the first injected leaf, with the
+    walk's `missing` empty.
+    """
+    sections = _matrix_sections()
+    universal = dict(sections["9.2 Universal per-column fields"])
+    reached = 0
+    for document in (
+        every_role_document,
+        joined_numbers_document,
+        numbers_with_labels_document,
+    ):
+        for block in document["columns"]:
+            table = dict(sections[ROLE_SECTIONS[block["role"]]])
+            if block["role"] == "affixed_number":
+                table.update(sections["9.4 affixed_number"])
+            for bent in _with_an_unregistered_tail_fact(block):
+                reached = reached + 1
+                missing = _undisposed(
+                    _emitted_names(bent), table, universal
+                )
+                assert [
+                    name for name in missing if name.endswith(UNREGISTERED)
+                ], (
+                    f"{block['role']}/{block['name']}: a fact nobody "
+                    f"disposed was injected into a tail leaf and the "
+                    f"completeness walk did not name it: {missing}"
+                )
+    assert reached >= 4, (
+        f"only {reached} tail leaves were reached, so this injection is "
+        f"not the battery-wide one the review made"
+    )

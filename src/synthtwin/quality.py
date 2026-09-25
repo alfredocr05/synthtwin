@@ -199,6 +199,37 @@ def _opening_lines(
     ]
 
 
+def _small_population_lines(description: contract.Profile) -> "list[str]":
+    """The description's notes about the WHOLE TABLE, or nothing.
+
+    RENDERED FROM THE DESCRIPTION (plan P4-D341) and decided nowhere
+    here: a note naming no column is about the table, the population
+    floor is applied once by the command that reads the table, and this
+    report repeats the sentence the description carries. This command
+    checks files of any size and refuses none for being small, which is
+    what lets it check a 50-row file against a description like any
+    other.
+
+    Guarantees: accepts the loaded description; returns the lines, or
+    none where it carries no table-wide note. A fixed function of the
+    description. Raises nothing. No value of any table reaches it.
+    """
+    said: "list[str]" = []
+    for note in description.publication_notes:
+        if note.column == "":
+            said += [note.note]
+    if not said:
+        return []
+    lines = [
+        "ABOUT THE TABLE THE DESCRIPTION WAS MADE FROM, which is not "
+        "the file",
+        "checked here and is not changed by any verdict below.",
+    ]
+    for sentence in said:
+        lines += [f"{sentence}."]
+    return lines
+
+
 def _lowered_floor_lines(description: contract.Profile) -> "list[str]":
     """Said only where the description was made under a lowered floor.
 
@@ -246,6 +277,11 @@ def _lowered_floor_lines(description: contract.Profile) -> "list[str]":
     if floor >= contract.SMALL_GROUP_NOTICE_LINE:
         return []
     usual = contract.SMALL_GROUP_NOTICE_LINE
+    # THE DEFAULT IS NAMED AS THE DEFAULT (plan P4-D316), for the reason
+    # `rendering._lowered_floor_lines` gives: a description below it may
+    # have been made before 2026-09-22 at the old default of 1, so the
+    # sentence names the floor and not who chose it.
+    default = contract.DEFAULT_SMALL_CELL_FLOOR
     lines = [
         _RULE,
         (
@@ -254,11 +290,11 @@ def _lowered_floor_lines(description: contract.Profile) -> "list[str]":
         _RULE,
         "",
         (
-            f"A description holds nothing back for being a small group "
-            f"unless it is asked to. Pooling everything under {usual} rows"
+            f"By default a description pools every group under {default} "
+            f"rows into a"
         ),
-        f"is what --smallest-group {usual} does, and this description was",
-        f"not made that way: it names values as few as {floor} row(s)",
+        "count that names none of them. This description was made with",
+        f"a smallest group of {floor}: it names values as few as {floor} row(s)",
         "shared, and prints how many rows that is.",
         "",
     ]
@@ -266,19 +302,19 @@ def _lowered_floor_lines(description: contract.Profile) -> "list[str]":
     # sentence is the one that is true there rather than the general one
     # with a bad number in it.
     if floor < 2:
-        lines = lines + [
+        lines += [
             "A published group can be a single row. If one row of the real",
             "table is one person, this description says out loud that exactly",
             "one person -- on their own -- had that value.",
             "",
         ]
     else:
-        lines = lines + [
+        lines += [
             f"If one row of the real table is one person, a group of {floor}",
             f"is {floor} people.",
             "",
         ]
-    lines = lines + [
+    lines += [
         "READ WHAT THAT DOES TO THIS REPORT, because it is not only the",
         "description that carries the small counts now. The rule further",
         "down decides what may be shown by asking what a description of",
@@ -292,7 +328,7 @@ def _lowered_floor_lines(description: contract.Profile) -> "list[str]":
         "",
     ]
     if floor < 2:
-        lines = lines + [
+        lines += [
             "At 1 nothing is held back FOR BEING A SMALL GROUP: every count",
             "this description carries is named exactly, and no line below",
             "reads WITHHELD for that reason. Lines below may still read",
@@ -339,13 +375,13 @@ def _summary_lines(census: validation.Census) -> "list[str]":
         "",
     ]
     for verdict in _CENSUS_ORDER:
-        lines = lines + [
+        lines += [
             (
                 f"  {counted[verdict]:>6}  {_shown(verdict)} -- "
                 f"{_VERDICT_WORDS[verdict]}"
             )
         ]
-    lines = lines + [
+    lines += [
         "",
         (
             f"Those five numbers add to {total}, which is every obligation "
@@ -362,7 +398,7 @@ def _summary_lines(census: validation.Census) -> "list[str]":
         "",
     ]
     if census.missed == 0:
-        lines = lines + [
+        lines += [
             "NO CHECKABLE OBLIGATION WAS MISSED.",
             "",
             "That sentence is the whole of what this report concludes, and",
@@ -385,7 +421,7 @@ def _summary_lines(census: validation.Census) -> "list[str]":
             f"  {census.not_checkable} could not be checked at all.",
         ]
     else:
-        lines = lines + [
+        lines += [
             f"{census.missed} CHECKABLE OBLIGATION(S) WERE MISSED.",
             "",
             "Each one is named first in the section below, with what the",
@@ -497,11 +533,11 @@ def _detail_of(check: validation.Check) -> "list[str]":
         )
     ]
     if check.published:
-        lines = lines + [
+        lines += [
             f"      the description asks for: {_shown(check.published)}"
         ]
     if check.achieved:
-        lines = lines + [
+        lines += [
             f"      the file was found to hold: {_shown(check.achieved)}"
         ]
     if check.citation:
@@ -510,7 +546,7 @@ def _detail_of(check: validation.Check) -> "list[str]":
             opening = "the window comes from"
         if check.verdict == validation.WITHHELD:
             opening = "why nothing is shown"
-        lines = lines + [f"      {opening}: {_shown(check.citation)}"]
+        lines += [f"      {opening}: {_shown(check.citation)}"]
     return lines + _note_lines(check)
 
 
@@ -518,7 +554,7 @@ def _note_lines(check: validation.Check) -> "list[str]":
     """The check's own further lines, already broken where they break."""
     lines: list[str] = []
     for note in check.note:
-        lines = lines + [_shown(note)]
+        lines += [_shown(note)]
     return lines
 
 
@@ -556,7 +592,7 @@ def _column_order(outcome: validation.Outcome) -> "list[str]":
     seen: list[str] = []
     for check in outcome.checks:
         if check.column not in seen:
-            seen = seen + [check.column]
+            seen += [check.column]
     return seen
 
 
@@ -569,7 +605,7 @@ def _detail_lines(outcome: validation.Outcome) -> "list[str]":
         "",
     ]
     lines = lines + _missed_lines(outcome)
-    lines = lines + [
+    lines += [
         "EVERY OBLIGATION, IN THE DESCRIPTION'S OWN ORDER.",
         "",
     ]
@@ -577,12 +613,12 @@ def _detail_lines(outcome: validation.Outcome) -> "list[str]":
         heading = "the file as a whole"
         if column:
             heading = f"'{_shown(column)}'"
-        lines = lines + [heading]
+        lines += [heading]
         for check in outcome.checks:
             if check.column != column:
                 continue
             lines = lines + _detail_of(check)
-        lines = lines + [""]
+        lines += [""]
     return lines
 
 
@@ -641,6 +677,14 @@ _LISTING_WORDS = {
     "universal.remarks": (
         "the remarks the description records about your column"
     ),
+    "numeric.negative_notations": (
+        "how many of your column's negative numbers wore each way of "
+        "writing a minus"
+    ),
+    "numeric.thousands_marks": (
+        "how many of your column's grouped numbers wore each mark between "
+        "their thousands"
+    ),
     "datetime.format": (
         "the date spelling your column was written in"
     ),
@@ -648,12 +692,43 @@ _LISTING_WORDS = {
         "which written form each of your dates wore, and how many wore "
         "each"
     ),
+    "datetime.datetime_separators": (
+        "the mark your column wrote between the day and the time of day, "
+        "and how many moments wore each"
+    ),
+    "datetime.all_at_midnight": (
+        "whether every moment your column recorded stood at midnight"
+    ),
+    "datetime.n_at_midnight": (
+        "how many moments your column recorded stood at midnight"
+    ),
+    "datetime.date_field_widths": (
+        "how wide your column wrote the month and day of a date, where "
+        "the date was one that could show it"
+    ),
+    "datetime.month_name_styles": (
+        "how your column wrote a month NAME -- its case, its length, the "
+        "mark around it and whether a comma followed the day"
+    ),
+    "datetime.quarter_marker_case": (
+        "whether your column wrote the marker of a quarter as a capital "
+        "letter or a small one"
+    ),
+    "datetime.zulu_case": (
+        "whether your column wrote the zulu time marker as a capital "
+        "letter or a small one"
+    ),
     "numeric.n_distinct_values": (
         "how many different numbers your column holds, as distinct from "
         "how many different ways of writing them"
     ),
+    # NOT "between the eleven your description names" (the review of
+    # 2026-09-23, item 7): a ladder names eleven AT MOST and since stage
+    # 3 normally fewer, both ends among the withheld. The ninety is a
+    # property of the FORMAT and stays; the eleven was a claim about this
+    # description and goes.
     "numeric.percentiles_between": (
-        "the ninety percentile rungs between the eleven your "
+        "the ninety percentile rungs that lie between the rungs your "
         "description names, which say where your numbers sit between "
         "them"
     ),
@@ -677,6 +752,46 @@ _LISTING_WORDS = {
     "numeric.field_widths": (
         "how many figures each of your whole-numbered cells was "
         "written with"
+    ),
+    # THE TAIL FACTS (stage 3). The description does not carry your
+    # column's smallest and largest values; it carries how many rows lie
+    # beyond each end of the published ladder and how far from it they
+    # lie, which is what these lines are about.
+    "numeric.tails": (
+        "where each end of your column's ladder stops and how many rows "
+        "lie beyond it"
+    ),
+    "numeric.tails.low.mean_distance": (
+        "how far the smallest values of your column lie, on average, "
+        "below the lowest step of its published ladder"
+    ),
+    "numeric.tails.low.rms_distance": (
+        "how far the smallest values of your column lie below that step "
+        "when the distances are squared, averaged and rooted, which is "
+        "what says how spread out they are"
+    ),
+    "numeric.tails.low.values": (
+        "which values the smallest rows of your column lie on; how many "
+        "rows hold each is not written down here and follows from those "
+        "values and the two distances beside them"
+    ),
+    "numeric.tails.high.mean_distance": (
+        "how far the largest values of your column lie, on average, "
+        "above the highest step of its published ladder"
+    ),
+    "numeric.tails.high.rms_distance": (
+        "how far the largest values of your column lie above that step "
+        "when the distances are squared, averaged and rooted, which is "
+        "what says how spread out they are"
+    ),
+    "numeric.tails.high.values": (
+        "which values the largest rows of your column lie on; how many "
+        "rows hold each is not written down here and follows from those "
+        "values and the two distances beside them"
+    ),
+    "numeric.bin_groups": (
+        "the shape of your numbers between the two ends of the "
+        "published ladder -- how many of them fall in each group of bins"
     ),
 }
 
@@ -733,7 +848,7 @@ def _not_checkable_lines(outcome: validation.Outcome) -> "list[str]":
         words = _listing_name(listing)
         if words:
             named = f"{_shown(words)} [{named}]"
-        lines = lines + [
+        lines += [
             f"  {where} -- {named}",
             f"      {_shown(listing.reason)}",
         ]
@@ -748,6 +863,13 @@ def _expectations_lines() -> "list[str]":
     promises nothing about later versions -- no version number, no slot,
     no date -- because a promise about unbuilt work is exactly the kind
     of sentence this project's claim inventory exists to keep out.
+
+    AND IT PROMISES NO CHECK STAGE 3 TOOK AWAY (review of 2026-09-23,
+    finding 7). It said "the smallest and largest exactly, the nine steps
+    between them" on a report whose description publishes neither end.
+    Measured on 100 readings 0.125 to 99.125: `min`, `max` and six of the
+    nine interior rungs are withheld, so three rungs and two tails are
+    the whole of what a ladder check has to work with.
     """
     return [
         _RULE,
@@ -759,8 +881,12 @@ def _expectations_lines() -> "list[str]":
         "  * the share of each published label, against the count the",
         "    description publishes for it;",
         "  * where a column's values sit along its distribution ladder --",
-        "    the smallest and largest exactly, the nine steps between them",
-        "    against the window this method states for each;",
+        "    every rung the description publishes, against the window this",
+        "    method states for each, and each tail against its published",
+        "    boundary, the rows beyond it and how far beyond they lie. A",
+        "    rung the description withholds is not checked, because there",
+        "    is nothing published to check it against, and since stage 3",
+        "    that is normally both ends and the rungs nearest them;",
         "  * spread and shape summaries, against their stated windows;",
         "  * how many cells are empty and how many hold a value;",
         "  * value-format read-back: that the file writes its numbers,",
@@ -801,6 +927,18 @@ def _floor_gate_lines(floor: int) -> "list[str]":
     What is fixed here is the rule, which holds whether or not it bit
     today; how many times it bit is said once, by the caller, from the
     census.
+
+    AND THE RULE IS STATED WITH ITS SCOPE AND ITS EXCEPTIONS (review of
+    2026-09-23, finding 9). "A group fewer than 11 rows carry is named in
+    no description written under it" was written as a universal, and the
+    owner has accepted counts that break it: 99 decimal cells beside one
+    word publish `n_not_numeric 1` and a remark carrying that 1, because
+    a count of CELLS BY KIND names no value of anybody's. The floor also
+    counts ROWS and not people (plan P4-D348), so twelve visits of one
+    patient are twelve. A blanket assurance beside an accepted exception
+    is the defect this repository treats as equal to a crash, so the
+    scope is named here: what the floor governs is the naming of a
+    VALUE.
     """
     if floor < 2:
         return [
@@ -811,14 +949,24 @@ def _floor_gate_lines(floor: int) -> "list[str]":
             "  could.",
         ]
     return [
-        f"  The publication floor of this description is {floor}: a group",
-        f"  fewer than {floor} rows carry is named in no description",
-        "  written under it -- that is what a floor is for -- so a count",
-        "  of it is not something a description of this file carries",
-        "  either. Where that closes over a check, the comparison is",
-        "  still made and what cannot be shown is which way it came out,",
-        "  because two files no description tells apart would come out",
-        "  differently.",
+        f"  The publication floor of this description is {floor}, and what",
+        "  it governs is the naming of a VALUE: a value fewer than",
+        f"  {floor} rows hold is named in no description written under it",
+        "  -- that is what a floor is for -- so a count of that value is",
+        "  not something a description of this file carries either. Where",
+        "  that closes over a check, the comparison is still made and",
+        "  what cannot be shown is which way it came out, because two",
+        "  files no description tells apart would come out differently.",
+        "",
+        f"  What the floor of {floor} does NOT cover, said here rather",
+        "  than left for you to find. A count of CELLS BY KIND names no",
+        "  value and is published whatever its size: one cell of a",
+        "  numeric column holding a word is published as one, and a",
+        "  remark can carry that number. And the floor counts ROWS, not",
+        "  people -- where your table holds several rows per person,",
+        "  twelve visits of one patient are twelve rows, so a value only",
+        "  that patient has is published with the count twelve. The size",
+        "  of the table is the one number counted in people.",
     ]
 
 
@@ -966,7 +1114,7 @@ def _handling_lines(
         "not in this file, not on the screen, not in a message that stops",
         "the command. That is a rule about what the page SAYS, and it is",
         "not permission to move the page: everything above about keeping",
-        "these five files applies to this one unchanged.",
+        "the six files a full run leaves applies to this one unchanged.",
         "",
         "What it is NOT is a barrier against somebody who HAS the checked",
         "file and runs this check on it again and again, each time with a",
@@ -1048,6 +1196,11 @@ def quality_report(
     lowered = _lowered_floor_lines(description)
     if lowered:
         lines = lines + lowered + [""]
+    # AND THE SAME PLACE FOR THE SAME REASON (plan P4-D341), and
+    # nothing at all where the description carries no such note.
+    population = _small_population_lines(description)
+    if population:
+        lines = lines + population + [""]
     lines = lines + _summary_lines(outcome.census) + [""]
     lines = lines + _bounds_lines() + [""]
     lines = lines + _detail_lines(outcome)

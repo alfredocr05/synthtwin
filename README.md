@@ -1,6 +1,6 @@
 # synthtwin
 
-> **Status: early (Phase 4 closed; Phase 5 next).** synthtwin is **not on PyPI**. What
+> **Status: early (Phase 4 reopened 2026-09-12; Phase 5 waits on it).** synthtwin is **not on PyPI**. What
 > exists today is the whole workflow -- the profiler, which reads a CSV
 > table on your computer and describes it; the generator, which builds
 > the synthetic twin from that description and nothing else; and the
@@ -36,15 +36,19 @@ rely on a twin.
 
 ## What synthtwin does today [built]
 
-Given one table of real data, three commands produce five files, of
-four kinds:
+Given one table of real data, three commands produce the six files a
+full run leaves behind, of four kinds:
 
 1. **A synthetic twin** - a table of the same shape whose columns each
    behave like the matching column of the original, every cell of it
    worked out from the description rather than taken from your file.
 2. **A schema file** - a plain description of every column: its type, its
    range or its categories, and how the twin version of it was built.
-   You get it twice, once for a program to read and once in words.
+   You get it twice, once for a program to read and once in words - and
+   beside the pair, on every run, a **questions file** naming the columns
+   synthtwin could read more than one way, what it saw in each and the
+   answers you can give. That file is how the description gets settled
+   rather than a kind of its own, which is how six files are four kinds.
 3. **A generation report** - written beside every twin, saying which of
    the description's facts the twin holds exactly, which it holds only
    approximately (with the value the twin actually reached printed
@@ -116,20 +120,63 @@ on its own, it asks you rather than guessing.
 **Read that last part before you move the profile anywhere.** The
 profile is computed from your real data. It contains no rows of your
 table, and it never contains a value from a column you named with
-`--identifier` or a line of free text -- but it does contain the
-smallest and largest values of your numeric and date columns, the points
-in between that describe their shape, and, for each label, the exact
-spellings your file used for it together with how many rows wrote it
-that way. **By default that includes labels only one row held.** A twin
-is not a twin if a rare finding never reaches it, so synthtwin names
-every value and says how many rows shared it. What a named rare value
-tells anybody is that somebody in your table had it -- synthtwin
-publishes nothing that crosses two columns, so it says nothing about
-who, or about anything else that person's row holds. If your review
-board or a data-use agreement needs groups kept above a size,
-`--smallest-group 11` pools everything under eleven rows and the whole
-workflow runs on the result. What each setting costs is written out
-under the options below. It is
+`--identifier` or a line of free text -- apart from the text every
+value of such a column opens with, like `REC` or `ABC-`, where enough
+rows share it -- but it does contain the
+steps that describe the shape of your numeric, date and clock columns
+and, for each label, the spellings your file used for it together with
+how many rows are counted into each. **That number is not a count of
+that spelling.** A spelling fewer rows than the smallest group wrote is
+not named on its own: its rows are counted into the commonest spelling
+of the same label, so the number beside a named spelling covers every
+row whose own spelling settled to it. Measured: four labels each written
+nine times lower case, eight upper and eight with a leading space
+publish one spelling counted 25, while no spelling the file wrote
+reaches eleven. **Since stage 3 no column of
+numbers, dates or clock times names either of its ends.** A numeric
+column's ladder stops short of both: every step that would read one of
+the outermost eleven values is withheld, and what stands there instead
+is how many rows lie beyond the last published step and how far from it
+they lie, on average and root-mean-square. **And where even those two
+numbers would give the withheld values back, neither of them is
+published either** -- a column of consecutive whole numbers has eleven
+rows a side at eleven different whole distances summing to the least
+eleven different whole numbers can sum to, and that arithmetic has one
+answer -- so such a tail says how many rows lie beyond its boundary and
+nothing more. A column of dates or clock
+times is described the same way, from a BOUNDARY -- the earliest date
+with at least a smallest group's worth of cells before it, and its
+mirror at the other end -- so the rarest dates in the column, a date of
+death or a birthday at the edge of a cohort, are not written down. An
+end AT LEAST ELEVEN ROWS SHARE is published as itself, because it is a
+value of a group and not of a person. And a tail may be described by
+the values it holds instead of by its shape. **ONE RULE decides that,
+and it is the same rule for numbers, dates and clock times**: a tail
+lists only where every value it would list is held by at least two of
+its own cells AND the column's values come from a small fixed set
+rather than a fine grid -- quarters, months, a pain score, a grade, a
+scale a reader could enumerate -- or where every listed value is held
+by a whole smallest group. A tail whose values are one row's own
+apiece, a column of clock times, a column of days spread over years and
+any fine numeric grid are described by their shape and never by a list.
+Where the rule admits a tail, each kind of column has its own reason to
+list: a handful of different values, or a shape that would settle the
+tail's outermost value anyway, so that the list says less than the
+shape would. A listed tail writes down no count -- and how many rows
+hold each of its values follows from those values and the distances
+beside them, which is arithmetic this package itself does to build your
+twin. That is what the owner accepted for bounded scales, and it is
+why the rule asks first whether the column is one.
+**By default no label fewer than eleven rows held is named**:
+synthtwin pools every group under eleven rows into a count that names
+none of them, so a label rarer than that does not reach your twin by
+name. `--smallest-group` lowers the number -- down to 1, where
+every value is named together with how many rows shared it -- and the
+whole workflow runs on the result. What a named rare value tells
+anybody is that somebody in your table had it -- synthtwin publishes
+nothing that crosses two columns, so it says nothing about who, or
+about anything else that person's row holds. What each setting costs
+is written out under the options below. It is
 real-derived material, and your institution's rules for such material
 apply to it. The same is true of every other file a full run produces:
 the profile, the plain-language summary beside it, the questions file,
@@ -180,7 +227,7 @@ synthtwin profile my-table.csv --out-dir reports
 synthtwin profile my-table.csv --identifier participant_number
 synthtwin profile my-table.csv --code vaccine_code
 synthtwin profile my-table.csv --measurement blood_pressure
-synthtwin profile my-table.csv --smallest-group 11
+synthtwin profile my-table.csv --smallest-group 20
 synthtwin profile my-table.csv --keep-value -999
 synthtwin profile my-table.csv --missing-value NA
 synthtwin profile my-table.csv --first-row data
@@ -202,7 +249,10 @@ than being quietly dropped.
 
 `--identifier` names a column whose values are record numbers or codes
 rather than measurements, so that none of them are published anywhere in
-that column's description. It takes a column name -- any column, whatever
+that column's description. The one thing of theirs the description does
+carry is text every value opens with, like `REC` or `ABC-`, where at
+least your smallest group of rows shares it, so the twin's values open
+with it too. It takes a column name -- any column, whatever
 that column holds -- and it is the only way a column is ever read that
 way. Repeat it to name more than one column. A name that is not in your
 table stops the run before anything is written.
@@ -213,7 +263,15 @@ ventilator ratio such as `1:1.5`.
 synthtwin reads each number separately and publishes a range and an
 average for each one, so the twin's cells hold believable readings
 instead of digits in the right shape. Without it such a column is
-described as text and its twin carries no readings at all. Use it only
+described as text and its twin carries no readings at all -- except two
+whole numbers joined by a slash (`128/79`), which are read this way from
+their values and are still asked about, as long as no one reading repeats
+in eleven rows or more (or in as many rows as your publication floor, if
+that is higher). A long column of such readings, or readings rounded to
+the nearest 5, usually repeats past that line and is described as labels
+instead, so name it here. An unpadded month and year (`4/2020`) or a
+register number (`2019/4821`) is read the same way, so answer `code` for
+those in the questions file. Use it only
 where the numbers are quantities: a lab code such as `1923-1` and a drug
 code such as `00052-0052-52` are written exactly the same way and are
 codes, so name those with `--code`. A column of plain single numbers
@@ -236,12 +294,14 @@ systolic.
 
 `--code` names a column that holds a **coding system** rather than
 measurements -- vaccine codes, procedure codes, revenue codes, provider
-numbers, risk-group codes. Its values are still published, because which
-codes are common is the point of the column; what changes is that
+numbers, risk-group codes. Its common values are still published,
+because which codes are common is the point of the column; what changes
+is that
 synthtwin stops reading them as numbers, so `08` stays `08` instead of
 coming back as `8`, and the column gets a count per code instead of an
-average, a smallest and a largest -- which for a code are meaningless
-and are real codes besides. You need it only for a column written in
+average, a spread and points along a range -- which for a code are
+meaningless, and whose published boundaries are real codes besides.
+You need it only for a column written in
 **digits alone**: one written with a letter or a dash, like `E11.9` or
 `0002-8215-01`, is already read as codes. Repeat it to name more than
 one column, and use `--identifier` instead for a record number nothing
@@ -250,13 +310,26 @@ should publish.
 **Naming a column here also makes it publish at all.** A column of many
 different codes, none of them repeated much -- a laboratory code, a drug
 code, a gene variant -- is otherwise read as free text, which publishes
-no value whatever. Named with `--code` it publishes every code with the
-number of rows that held it, and the twin holds the same codes in the
-same proportions. That is what makes counting on the twin come out
-right: because it holds the same codes the same number of times, **every
-rollup of that column reproduces exactly** -- the prefix a hierarchy
-groups by, the segment a reader splits on, the length. synthtwin knows
-no coding system and does not need to.
+no value whatever. Named with `--code` it publishes every code that at
+least `--smallest-group` rows share, with the number of rows that held
+it, and the twin holds those codes in those proportions.
+
+**What that buys, and what it does not -- because the floor decides it.**
+A rollup over the codes the description PUBLISHES reproduces exactly --
+the prefix a hierarchy groups by, the segment a reader splits on, the
+length -- because the twin holds each published code the same number of
+times. A rollup over the codes it does not publish does not: a code
+fewer than `--smallest-group` rows share is counted into a pooled
+remainder that names none of them, and the twin fills those rows with
+codes of its own making. The default floor of 11 is where that bites
+hardest on exactly the columns this option was made for. **Measured** on
+a column of 100 codes `1000` to `1099`, one row each: at the default
+floor the description publishes no code at all, and a prefix `10` that
+every one of the 100 source rows carried came back on 20 rows of the
+twin at seed 4. So the promise is worth what the floor leaves named --
+count the rows per code before relying on a rollup, and read what
+lowering `--smallest-group` costs below before lowering it. synthtwin
+knows no coding system and does not need to.
 
 **synthtwin asks you about this rather than guessing.** A column of
 `08`, `20`, `213` is vaccine codes or it is counts, and the two are
@@ -270,24 +343,67 @@ keyboard -- a script, a pipeline, CI -- it never stops: it names those
 columns on screen, says what it assumed, and prints the `--code` line
 that corrects it.
 
-**`--smallest-group`, and what raising it does.** It changes how many
-rows a group needs before the profile names it. **The default is 1,
-which holds nothing back**: every value your table holds is named,
-together with how many rows shared it, so a rare finding reaches your
-twin. Any whole number of 1 or more is accepted end to end: `profile`, `generate` and `validate` all run
-on the file it produces. Raising it publishes less -- `--smallest-group
-11` pools every group under eleven rows, which is what a review board or
-a data-use agreement usually means by a small-cell rule. **At the
-default of 1 the profile publishes small groups and their counts**, and
-that is worth reading slowly, because the count is the disclosure rather
-than a route to one. At a smallest group size of two, the profile names values that
+**How small a table synthtwin will describe.** `synthtwin profile`
+refuses a table of fewer than 100 and writes nothing at all, and
+describes one of 100 to 999 with a plain notice on the screen and on
+every page it writes. Every count a description publishes is a count of
+rows over the population it was taken from, and below a hundred those
+counts describe the individuals in the table rather than a population.
+The notice cannot be turned off, it is on the description, the
+plain-language summary, the questions file, the twin's report and the
+quality report alike, and the twin's own table carries no trace of it,
+so code you write against the twin runs exactly as it ran before.
+
+**The population is counted in PEOPLE where you say who the rows are.**
+Name a column with `--identifier` and, if its values REPEAT, rows
+sharing a value of it are one person and rows holding no value of it
+count as one person between them -- so a table of 500 visits by 80
+subjects is 80, and is refused. An identifier that is different on
+every row names a row rather than a person and is not counted by.
+Where nothing is declared, the population is counted in rows, and
+where a column looks like it names people -- its values repeat, and
+there are more of them than a set of categories could have -- the
+questions file asks you about it and the screen says the count was
+taken in rows.
+
+**`--smallest-group`, and what lowering it does.** It changes how many
+rows a group needs before the profile names it. **The default is 11**:
+no VALUE named anywhere in the profile is held by fewer than eleven
+rows, so a value fewer than eleven rows share is pooled into a count
+that names none of them, and does not reach your twin by name. Any
+whole number of 1 or more is accepted end to end: `profile`, `generate`
+and `validate` all run on the file it produces. Raising it publishes
+less. Lowering it publishes more, and **below 11 the profile publishes
+small groups and their counts**, which is worth reading slowly, because
+the count is the disclosure rather than a route to one. At a smallest
+group size of two, the profile names values that
 two rows shared and says that two rows shared them; at one, it names a
 value one row held and says that one row held it. If one row of your
 table is one person, somebody who already knows one true thing about
 someone in it -- that they are in it at all -- can find the small group
 that person must be in and read off everything else the profile says
 about that group. Eleven is the number that keeps a published group too
-big for that.
+big for that where one row is one person.
+
+**The two floors are counted in different units, and the difference
+matters.** The SIZE of your table is counted in people where a declared
+`--identifier` repeats, as the paragraph above says. `--smallest-group`
+counts ROWS. Where your table holds several rows per person those are
+not the same number: twelve visits of one patient are twelve rows, so a
+value only that patient has is published with the count twelve even at
+the default of eleven. That is an accepted limit of this version and not
+an oversight - the alternative was to count people per value, which is
+designed and shelved - and the notices say so rather than leaving you to
+find it.
+
+**And the floor governs the naming of a VALUE, which is narrower than
+"no count under eleven".** Two kinds of number are published whatever
+their size, because neither names a value of anybody's. A count of CELLS
+BY KIND is one: 99 decimal cells beside one word publish "1 value is not
+a number" and a remark carrying that 1. The other is the count of rows
+in a group at the floor, which counts rows and not people as just said.
+Where a count WOULD hand back a value the floor withheld, the warning
+that needed it keeps the warning and drops the number.
 
 The counts do not stop at the profile: the twin is built to hold them
 exactly, and the summary, the questions file, the twin's report and the
@@ -295,8 +411,10 @@ quality report quote them back, so all six files of a run carry them.
 synthtwin does not
 refuse the option -- it is your table and your institution's rules -- but
 a run at a lowered number prints an unmissable warning before either file
-exists, and each of the four readable files says on its own face that it
-was made that way, so that a colleague handed one of them alone can tell.
+exists; the description records the floor it was made at; and the
+plain-language summary, the twin's report and the quality report each say
+on their own face that it was made that way, so that a colleague handed
+one of those alone can tell.
 
 `--keep-value` names a value your table means as real data even though
 synthtwin would otherwise read it as "no value" -- a region genuinely
@@ -391,9 +509,11 @@ twin: not a taller person weighing more, not a later date costing more,
 not a code that only ever appears beside one region, not a column that
 is another column times twelve, not two columns that are empty in the
 same rows, and not one event date always falling before another.
-Analysis code you develop on the twin **runs**, which is what the twin
-is for; a number that code computes from two columns of the twin means
-nothing about your table.
+Analysis code you develop on the twin is **meant to run unchanged** on
+your table, and nothing here guarantees that it will: a step that depends
+on more than the description publishes, such as a cut into quartiles, can
+succeed on the twin and fail on your table. A number that code computes
+from two columns of the twin means nothing about your table.
 
 **Rows are treated as independent, and the grain is undescribed.** The
 description never says what one row of your table is. If your table
@@ -523,10 +643,12 @@ That is a statement about where the twin's values come from. It is not a
 promise that no row of the twin can equal a row of yours, and an earlier
 version of this page said otherwise, which was wrong. The profile
 publishes exact counts, and meeting them exactly can force a twin row to
-match a real one. The plainest case: a table of eleven rows with one
-column, whose single label is shared by all eleven rows, publishes that
-label with the count eleven -- so the twin writes that label in all
-eleven of its rows, and each of those rows is the row you have. Nothing
+match a real one. The plainest case: a table of 100 rows with one
+column, whose single label is shared by all 100 rows, publishes that
+label with the count 100 -- so the twin writes that label in all 100 of
+its rows, and each of those rows is the row you have. It is stated at
+100 rows because that is the smallest table `synthtwin profile` will
+describe: below 100 it refuses and writes nothing. Nothing
 was copied. The arithmetic left no other answer, and any tool that
 reproduces published counts exactly lands in the same place.
 
@@ -548,10 +670,10 @@ inside the environment that already holds it and never reaches an
 assistant. That is a strong claim and it is the one to make. What it
 does not buy is a finding about your obligations -- being synthetic is
 not by itself the answer to a privacy rule, to your institution's own
-rules, or to an approval your study needed, and the five files above
-are the reason. Whether an obligation is met is for the people who set
-it to say, and what this project gives them to decide with is the
-written account of exactly which real facts each file carries.
+rules, or to an approval your study needed, and the six files a full run
+leaves are the reason. Whether an obligation is met is for the people
+who set it to say, and what this project gives them to decide with is
+the written account of exactly which real facts each file carries.
 
 ## Honest limits
 
@@ -564,7 +686,7 @@ These are design limits, stated up front so nobody discovers them late:
 | One row at a time | Rows are treated as independent and the grain is undescribed: the description never says what one row of your table is, so a table with several rows per subject yields a twin that misdescribes the subject-level picture. |
 | Only what the description publishes is reproduced | A pattern the profiler does not publish is not in the twin, whether or not the profiler could in principle have seen it. |
 | No free text | Narrative or note columns are described by their length and word counts only; their values are never published, and the twin will not invent sentences. A column of CODES that reaches this role -- short cells, no spaces, marks from a small list -- also publishes the SHAPE its values were written in, so its twin's cells split and measure the way the real ones do. A shape carries no letter and no figure of any value: `4548-4` says `9999-9`. |
-| CSV only, for now | The profiler reads comma-separated files saved as UTF-8 (or, as a fallback, Western European text). Spreadsheets, databases and columnar formats come later. |
+| Delimited text only, for now | The profiler reads delimited text files -- comma, semicolon, tab or vertical bar -- saved as UTF-8, as UTF-16 with its byte-order mark, or as Western European text, and the twin is written the same way the table was. Native spreadsheet, statistics-package, database and columnar formats come later. |
 | The table has to fit in memory | A table is read into memory whole; reading very large files in pieces is planned but not built. A file of a few hundred megabytes is comfortable on an ordinary machine; several gigabytes is not, and you are told so in words rather than by a crash. |
 | The file is read twice | Once to check its shape and once to read its values, by two different readers whose results must agree. That costs a second pass over the file and buys the guarantee that a malformed row is refused rather than quietly turned into missing values. |
 | Small tables degrade | With few rows, the statistics the profiler measures are noisy, and the twin's fidelity drops accordingly. Two files say where: the generation report names each approximate fact with the value the twin reached beside the published one, and `synthtwin validate` writes the quality report, which is where a small table shows as missed obligations rather than as a feeling. |

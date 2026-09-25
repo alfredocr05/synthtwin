@@ -52,7 +52,8 @@ import pathlib
 import pytest
 
 import fixtures
-from synthtwin import profile, taxonomy
+import tail_rule
+from synthtwin import parsing, profile, taxonomy
 from synthtwin.cli import main
 
 # THE FLOOR THIS FILE ASKS ITS QUESTIONS AT, NAMED RATHER THAN ASSUMED.
@@ -209,11 +210,18 @@ def test_the_paragraph_no_longer_says_a_declared_value_is_held_back(
 # -- the kept direction ------------------------------------------------
 
 
-def test_a_kept_number_is_published_as_the_smallest_and_the_words_say_so(
+def test_a_kept_number_is_counted_in_the_group_and_the_words_say_so(
     tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
     # The reviewer's exact probe: three rows out of 203, far below the
-    # floor, and the range is a real range so the value is in it.
+    # floor. Until landing 3.3 the range published its two ends whatever
+    # held them, so this run printed `smallest: -999.0` and the
+    # paragraph said so. THE TAIL RULE CHANGED THAT ANSWER, not this
+    # test's question: an end is published only where at least
+    # max(`small_cell_floor`, 3) rows hold it (contract 6.7a), so the
+    # three cells are counted in the group beyond the low boundary and
+    # the number is named nowhere. What the page says must match, in
+    # this direction as in the other.
     readings = [f"{index}" for index in range(1, 201)]
     document, _written, summary_text = _run(
         tmp_path, "reading", readings + [SENTINEL] * 3, ["--keep-value", SENTINEL]
@@ -221,13 +229,28 @@ def test_a_kept_number_is_published_as_the_smallest_and_the_words_say_so(
     capsys.readouterr()
     column = document["columns"][0]
     assert column["n_missing"] == 0
-    assert column["percentiles"]["min"] == -999.0
-    assert "smallest: -999.0" in summary_text
     assert 3 < FLOOR, "the point of this case is that it is below the floor"
+    assert column["percentiles"]["min"] is None
+    # The settings block still records that one of synthtwin's own
+    # thirteen words was typed (contract version 5, section 6.6); the
+    # COLUMN names it nowhere, and neither does the page.
+    assert SENTINEL not in json.dumps(column)
+    assert "-999" not in summary_text
+    # The rows are still DATA: they are counted, they are negative, and
+    # the group beyond the low boundary is measured over them.
+    assert column["n_negative"] == 3
+    assert column["n_used_in_statistics"] == 203
+    assert tail_rule.holds(
+        column["tails"]["low"],
+        column,
+        [float(value) for value in readings] + [-999.0] * 3,
+    )
     # And the paragraph the person reads describes exactly that.
     said = _declaration_paragraph(summary_text)
     assert "smallest or largest number" in said
-    assert "however few rows hold it" in said
+    assert "however few rows hold it" not in said
+    assert f"if at least {max(FLOOR, 3)} rows hold that number" in said
+    assert "without naming" in said
 
 
 def test_a_kept_label_is_published_only_at_or_above_the_floor(
@@ -292,8 +315,14 @@ def test_a_declared_missing_spelling_is_listed_by_its_column(
     column = document["columns"][0]
     assert column["n_missing"] == 20
     assert column["missing_by_source"] == {SENTINEL: 20}
-    assert column["percentiles"]["min"] == 1.0, (
-        "a value declared missing is absent, so it is not in the range"
+    # A value declared missing is absent, so it is not in the range at
+    # all: the numbers the statistics used are 1 to 200 and the group
+    # beyond the low boundary is measured over those alone.
+    assert column["percentiles"]["min"] is None
+    assert column["n_used_in_statistics"] == 200
+    assert tail_rule.holds(
+        column["tails"]["low"],
+        column, [float(value) for value in readings]
     )
     assert f"counted as missing: {SENTINEL} (20)" in summary_text
     said = _declaration_paragraph(summary_text)
@@ -339,7 +368,12 @@ def test_a_declared_missing_spelling_below_the_floor_is_pooled(
 def test_a_column_that_publishes_nothing_publishes_nothing_either_way(
     tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    narrative = fixtures.prose(60)
+    # AT THE POPULATION FLOOR (plan P4-D341): the command refuses a
+    # smaller table and writes nothing. The twenty declared cells stay
+    # twenty -- what this pins is that a role withholds a spelling
+    # twenty rows share, and how many other rows the column has decides
+    # nothing.
+    narrative = fixtures.prose(parsing.POPULATION_FLOOR)
     token = "withheld-token-417"
     document, written, summary_text = _run(
         tmp_path,
@@ -413,7 +447,12 @@ def test_the_recorded_policy_names_its_own_scope(
         tmp_path, "reading", readings + [SENTINEL] * 3, ["--keep-value", SENTINEL]
     )
     capsys.readouterr()
-    assert document["columns"][0]["percentiles"]["min"] == -999.0
+    # The declared value is IN the statistics -- three negative numbers
+    # of 203 -- although the tail rule names it nowhere (contract 6.7a),
+    # and the settings block records that one of synthtwin's own words
+    # was typed. That record is what the token has to be honest about.
+    assert document["columns"][0]["n_negative"] == 3
+    assert document["columns"][0]["percentiles"]["min"] is None
     token = document["settings"]["declaration_publication"]
     assert token == profile.DECLARATION_PUBLICATION
     assert token == "settings_counts_only_columns_unchanged"
@@ -465,7 +504,8 @@ def test_both_directions_are_described_when_both_were_used(
     # One declaration put a value into the range; the other took 15 rows
     # out of it. The paragraph has to carry both rules, and say they are
     # two rules rather than one said twice.
-    assert column["percentiles"]["min"] == -999.0
+    assert column["n_negative"] == 3
+    assert column["percentiles"]["min"] is None
     assert column["missing_by_source"] == {"0": 15}
     said = _declaration_paragraph(summary_text)
     assert "the two directions do not work the same way" in said

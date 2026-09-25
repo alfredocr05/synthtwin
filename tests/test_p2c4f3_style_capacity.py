@@ -41,6 +41,7 @@ import pathlib
 import pytest
 
 import fixtures
+import tail_rule
 from synthtwin import (
     contract,
     generation,
@@ -67,6 +68,12 @@ REVIEWED = ["1.5"] * 11 + ["100"] * 20 + ["200.5"] * 20
 # in that proportion leave the negatives one, and every negative cell is
 # stuck on the fractional end until the band step of the carrier rule
 # gives that side a second stratum.
+#
+# WRITTEN BARE AGAIN AT PLAN P4-D222 (stage 2 closed by the owner rulings
+# of 2026-09-17). Plan P4-D221 signed the positive side, because the one
+# `-20.5` beside `plain: 20` and `leading_zero: 12` was a pool of one that
+# took the padded twelve in with it. Counted into `plain` instead, it
+# leaves both named counts as they were.
 BAND = (
     ["-20.5"]
     + ["-20"] * 10
@@ -123,7 +130,7 @@ BATTERY = (
     ("a whole column with a plus", [f"+{number}" for number in range(30)] + [str(number) for number in range(30, 60)]),
     ("nothing but decimals", [f"{number}.25" for number in range(1, 41)]),
     ("one whole value among fractions", ["0.5"] * 20 + ["3"] * 6 + ["9.5"] * 20),
-    ("a named count beside a pool", ["1.5"] * 5 + ["007"] * 25 + ["88.5"] * 5),
+    ("rare decimals counted into a named form", ["1.5"] * 5 + ["007"] * 25 + ["88.5"] * 5),
     ("many different values", [f"{number}.5" for number in range(1, 21)] + ["100"] * 25),
     ("wide magnitudes", ["1.5"] * 11 + ["10000000000000000"] * 20 + ["2e20"] * 10),
     ("absent cells beside the numbers", REVIEWED + [""] * 9),
@@ -151,6 +158,19 @@ BATTERY = (
 # cell whose value HAS a point-free spelling is written with one. The
 # residue is the anonymous pool, and it is recorded rather than absorbed.
 LADDER_LEAVES_NO_ROOM = frozenset({"a ladder with no room for a whole number"})
+
+# AND THE ONE WHOSE LADDER STRANDS AN INTERIOR STRATUM (stage 3, landing
+# 3.3). `BAND` publishes `plain: 21` beside `leading_zero: 12` -- every
+# one of its thirty-three cells claimed point-free -- and its two ends
+# are DERIVED now and placed on the whole numbers, because a `plain`
+# count is a demand for whole values (method G5.3b step 4). The ENDS
+# therefore cost nothing, and what is left is a stratum INSIDE the
+# ladder: the reading of the low tail lands at -19.174915902697833,
+# which is no whole number and which no walk can move without taking a
+# value from another stratum. The twin writes thirty-two of the
+# thirty-three and its report names the shortfall, which is what this
+# file demands of every case it cannot meet.
+THE_LADDER_STRANDS_A_STRATUM = frozenset({"a band with one blocked stratum"})
 
 
 # The floor this file describes at, stated rather than inherited. Every
@@ -208,6 +228,39 @@ def _target(published: "dict[str, int]") -> "dict[str, int]":
     return wanted
 
 
+def _pinned_ends(loaded: contract.Profile) -> "tuple[float, float]":
+    """The two values the twin's pinned strata hold.
+
+    They were `percentiles.min` and `percentiles.max`. On a block
+    carrying `tails` both ends are usually withheld and the pinned
+    strata hold the DERIVED ends of method G5.3b step 4 instead, which
+    is what `contract.tail_ladder` works out from the published facts;
+    a block written before stage 3 keeps the published pair.
+    """
+    facts = loaded.columns[0].facts
+    ladder = contract.tail_ladder(facts)
+    if ladder is None:
+        return (facts.percentiles.min, facts.percentiles.max)
+    return (ladder[0], ladder[len(ladder) - 1])
+
+
+def _scale(document: dict, loaded: contract.Profile) -> "tuple[float, float]":
+    """The two ends the histogram of a block is divided between.
+
+    On a tail block that is the pair of BOUNDARY RUNGS and not the two
+    ends (contract C6-31f as amended by 6.7a), because the rows beyond
+    them are in no bin at all.
+    """
+    column = document["columns"][0]
+    tails = column.get("tails")
+    if tails is None or tails.get("low") is None:
+        return (column["percentiles"]["min"], column["percentiles"]["max"])
+    return (
+        tail_rule.rung_of(column, tails["low"]["percent"]),
+        tail_rule.rung_of(column, tails["high"]["percent"]),
+    )
+
+
 def _named(published: "dict[str, int]") -> "dict[str, int]":
     """Only the counts the description NAMES, pool excluded."""
     return {
@@ -239,22 +292,38 @@ def _point_free_number(value: float) -> bool:
     return float(value).is_integer()
 
 
-def _ceiling(document: dict) -> int:
-    """The most point-free cells the published ends can leave.
+def _ceiling(document: dict, loaded: contract.Profile) -> int:
+    """The most point-free cells the two PINNED ends can leave.
 
-    At least one cell must read back as the published `min` and, once
-    the column holds more than one different value, one as the published
-    `max`. Both are EXACT-OBSERVABLE, so an end with no point-free
-    spelling costs one cell of the point-free demand and no rule can buy
-    it back.
+    One cell must read back as the value the twin's first stratum holds
+    and, once the column holds more than one different value, one as the
+    last stratum's, so an end with no point-free spelling costs one cell
+    of the point-free demand and no rule can buy it back.
+
+    WHICH VALUES THOSE ARE MOVED WITH STAGE 3 and the arithmetic did
+    not. They were `percentiles.min` and `percentiles.max`, published
+    and EXACT-OBSERVABLE; on a block carrying `tails` the ends are
+    usually withheld and the pinned strata hold the DERIVED ends of
+    method G5.3b step 4 instead -- a function of the published facts,
+    the same on both sides of this test, and read here through the one
+    ladder every consumer reads (`contract.tail_ladder`) because the
+    question below is about point-free SPELLINGS and not about which
+    numbers the ladder holds.
     """
     column = document["columns"][0]
     numbers = column["n_numeric"]
     strata = min(numbers, column["n_distinct_folded"])
+    facts = loaded.columns[0].facts
+    ladder = contract.tail_ladder(facts)
+    ends = (
+        (ladder[0], ladder[len(ladder) - 1])
+        if ladder is not None
+        else (column["percentiles"]["min"], column["percentiles"]["max"])
+    )
     blocked = 0
-    if numbers >= 1 and not _point_free_number(column["percentiles"]["min"]):
+    if numbers >= 1 and not _point_free_number(ends[0]):
         blocked = blocked + 1
-    if strata >= 2 and not _point_free_number(column["percentiles"]["max"]):
+    if strata >= 2 and not _point_free_number(ends[1]):
         blocked = blocked + 1
     return numbers - blocked
 
@@ -322,10 +391,39 @@ def test_every_named_style_count_is_written_exactly(
     """
     for name, document, loaded in _cases(tmp_path):
         published = document["columns"][0]["numeric_styles"]
+        room = _ceiling(document, loaded)
         for seed in SEEDS:
             written = _styles(generation.generate(loaded, seed))
+            free = ("plain", "leading_zero", "leading_plus")
+            owed_free = 0
             for style, count in _named(published).items():
+                if style in free:
+                    owed_free = owed_free + count
+                    continue
                 assert written.get(style, 0) >= count, (name, seed, style)
+            # THE NAMED POINT-FREE COUNTS ARE OWED TOGETHER, UP TO THE ENDS'
+            # CEILING (plan P4-D222; stage 2 closed by the owner rulings of
+            # 2026-09-17). A form below the line is counted into the
+            # commonest named form, so a decimal can stand inside a
+            # point-free count: ten decimals beside twenty-five padded
+            # cells publish `leading_zero: 35` over two ends, 1.5 and 88.5,
+            # with no point-free spelling, and the band's pinned `-20.5`
+            # inside `plain: 21` leaves thirty-two carriers for thirty-three
+            # claims. What every seed writes is every carrier the ends
+            # leave, or every named claim where they leave room for all.
+            # On the flat ladder four of the cells counted into
+            # `leading_plus` are negatives no plus can sign, so its own
+            # nineteen are what is owed there.
+            if name in LADDER_LEAVES_NO_ROOM:
+                assert written.get("leading_plus", 0) >= 19, (name, seed)
+                continue
+            if name in THE_LADDER_STRANDS_A_STRATUM:
+                assert sum(
+                    written.get(style, 0) for style in free
+                ) >= room - 1, (name, seed, written)
+                continue
+            achieved = sum(written.get(style, 0) for style in free)
+            assert achieved >= min(owed_free, room), (name, seed, written)
 
 
 def test_the_map_comes_out_whole_or_reaches_the_ends_ceiling(
@@ -342,7 +440,9 @@ def test_the_map_comes_out_whole_or_reaches_the_ends_ceiling(
     words rather than absorbed.
     """
     for name, document, loaded in _cases(tmp_path):
-        if name in LADDER_LEAVES_NO_ROOM:
+        if name in LADDER_LEAVES_NO_ROOM or name in (
+            THE_LADDER_STRANDS_A_STRATUM
+        ):
             continue
         column = document["columns"][0]
         wanted = _target(column["numeric_styles"])
@@ -350,7 +450,7 @@ def test_the_map_comes_out_whole_or_reaches_the_ends_ceiling(
             wanted.get(style, 0)
             for style in ("plain", "leading_zero", "leading_plus")
         )
-        room = _ceiling(document)
+        room = _ceiling(document, loaded)
         for seed in SEEDS:
             written = _styles(generation.generate(loaded, seed))
             if demand <= room:
@@ -413,8 +513,13 @@ def test_a_pooled_cell_the_ends_cannot_hold_is_spelled_by_its_value(
 ) -> None:
     """The open defect of P2-C5-F3, repaired: no miss is left to name.
 
-    Forty named `plain` cells and six pooled ones over forty-six cells,
-    while one cell must read back as `0.5` and one as `9.25`. Under the
+    Ten `plain` cells and six with a point over sixteen cells, while one
+    cell must read back as `0.5` and one as `9.25`: at a floor of eleven no
+    form reaches the line, so the map is one pool of sixteen. It was forty
+    plain cells beside the six until plan P4-D222 (stage 2 closed by the
+    owner rulings of 2026-09-17) counted the six into `plain`; a pool now
+    stands only where no form is named, so the column that exercises the
+    pool is the short one. Under the
     withdrawn rule every pooled cell was owed the `plain` form, which
     those two cells have no spelling for, so the twin missed a total it
     could not have met and the report named it. The amended rule of the
@@ -425,14 +530,11 @@ def test_a_pooled_cell_the_ends_cannot_hold_is_spelled_by_its_value(
     that the obligation is now one the twin can meet.
     """
     document, loaded = _described(
-        tmp_path, ["0.5"] * 3 + ["7"] * 40 + ["9.25"] * 3
+        tmp_path, ["0.5"] * 3 + ["7"] * 10 + ["9.25"] * 3
     )
-    assert document["columns"][0]["numeric_styles"] == {
-        "plain": 40,
-        "(withheld)": 6,
-    }
+    assert document["columns"][0]["numeric_styles"] == {"(withheld)": 16}
     twin = generation.generate(loaded, 0)
-    assert _styles(twin) == {"plain": 44, "decimal": 2}
+    assert _styles(twin) == {"plain": 14, "decimal": 2}
     named = [note for note in twin.deviations if note.fact == "numeric_styles"]
     assert named == [], [note.published for note in named]
 
@@ -459,7 +561,7 @@ def test_a_re_spelled_whole_cell_cannot_buy_its_own_spill(
     whichever way the spill is computed.
     """
     _unused, loaded = _described(
-        tmp_path, ["0.5"] * 3 + ["7"] * 40 + ["9.25"] * 3
+        tmp_path, ["0.5"] * 3 + ["7"] * 10 + ["9.25"] * 3
     )
     twin = generation.generate(loaded, 0)
     written = list(twin.columns[0])
@@ -491,15 +593,13 @@ def test_the_repaired_style_identity_still_names_a_broken_column(
     fact -- every plain cell given a leading zero, which is a form the
     description publishes zero of -- and the recount must name it. This
     is the clause that stops the amended identity from being satisfied
-    by substituting one published form for another.
+    by substituting one published form for another. The map is one pool
+    of sixteen since plan P4-D222, and the clause still names the column.
     """
     document, loaded = _described(
-        tmp_path, ["0.5"] * 3 + ["7"] * 40 + ["9.25"] * 3
+        tmp_path, ["0.5"] * 3 + ["7"] * 10 + ["9.25"] * 3
     )
-    assert document["columns"][0]["numeric_styles"] == {
-        "plain": 40,
-        "(withheld)": 6,
-    }
+    assert document["columns"][0]["numeric_styles"] == {"(withheld)": 16}
     twin = generation.generate(loaded, 0)
     written = list(twin.columns[0])
     tampered = [
@@ -609,6 +709,18 @@ def test_the_crowded_ladder_of_p2c5f3_writes_its_published_map(
                 # column whose other published facts leave it nowhere
                 # to go.
                 "empty_edges",
+                # AND THE MODE'S COUNT, a fourth reading of the same
+                # crowding and report-only for the same kind of reason
+                # (plan P4-D267, and `validation`'s own listing): a
+                # stratum's size comes from the runs of the published
+                # ladder and not from `mode_count`, so a twin that holds
+                # the published mode's VALUE can hold it a different
+                # number of times. This column publishes `mode_count` 20
+                # and its twin holds the mode 18 times. The generator
+                # said nothing about that until item 1 of the numbers
+                # pass of the second Codex round (2026-09-19) and now
+                # names it; not one cell of this twin moved with it.
+                "mode_count",
             )
         ]
         assert other == [], seed
@@ -617,10 +729,9 @@ def test_the_crowded_ladder_of_p2c5f3_writes_its_published_map(
             for cell in twin.columns[0]
             if cell != ""
             and parsing.parse_number(cell) is not None
-            and parsing.histogram_bin(
+            and parsing.scale_bin(
                 parsing.parse_number(cell),
-                column["percentiles"]["min"],
-                column["percentiles"]["max"],
+                *_scale(document, loaded),
             ) in set(column["empty_bins"])
         ]
         named = [
@@ -659,10 +770,31 @@ def test_the_crowded_ladder_of_p2c5f3_writes_its_published_map(
         # subtracts the deviation it expects would stay green if the
         # report fell silent -- and silence is exactly what A-P4-15
         # trades the quota for, so silence is the thing to pin.
+        # AND WHERE THE WIDTHS ARE MET NOTHING IS SAID (plan P4-D179,
+        # 2026-09-17). A pinned value takes the width its own value needs
+        # where the census names it, so `52.75` is written at two places
+        # rather than `52.750` at three, and at 14 of these 21 runs the
+        # twin now writes fourteen cells at two places and thirty-four at
+        # three -- the thirty published and the pool of four -- where every
+        # run missed both before. The recount decides which runs owe a
+        # note, and a run that meets the census must owe none.
         spoken = [
             note for note in twin.deviations if note.fact == "fraction_widths"
         ]
-        assert spoken, seed
+        written: "dict[str, int]" = {}
+        for cell in present:
+            if "." in cell:
+                width = f"{len(cell.split('.')[1])}"
+                written[width] = written.get(width, 0) + 1
+        pool = column["fraction_widths"].get("(withheld)", 0)
+        met = all(
+            column["fraction_widths"][width]
+            <= written.get(width, 0)
+            <= column["fraction_widths"][width] + pool
+            for width in column["fraction_widths"]
+            if width != "(withheld)"
+        )
+        assert bool(spoken) == (not met), (seed, written, spoken)
         for note in spoken:
             assert note.column == "amount", seed
             assert "figure(s) after the point" in note.published, seed
@@ -693,43 +825,51 @@ def test_the_reach_step_and_the_chain_together_place_the_crowded_ladder(
     measured alone, so the file records which of them is load-bearing:
     on this column, neither is by itself and the pair is.
     """
+    # RE-SEARCHED FOR STAGE 3 (landing 3.3), the way plan P4-D222
+    # re-searched it before. The column this test used published a
+    # minimum of -59.5 and a maximum of 52.75, and its twin held those
+    # two numbers on its pinned strata; under the tail rule both ends
+    # are withheld and the pinned strata hold DERIVED ends placed on a
+    # WHOLE number wherever the forms map asks for point-free cells
+    # (method G5.3b step 4), which hands the walk two carriers it used
+    # to have to find. On that column neither route is needed any more
+    # and the mutant moved no cell. Searched over crowded rungs the
+    # way the paragraph above describes, this one puts the two routes
+    # back where they were: sixty-six cells over four values a quarter
+    # apart, twelve of them written `2` and the rest with a point.
     values = (
-        ["0.125"] * 10
-        + ["0.25"] * 10
-        + ["0.375"] * 10
-        + ["0.625"] * 10
-        + ["1"] * 20
-        + ["-32"] * 14
-        + ["-59.5"] * 4
-        + ["52.75"] * 4
+        ["2"] * 12
+        + ["1.75"] * 12
+        + ["2.5"] * 30
+        + ["2.25"] * 12
     )
     _document, loaded = _described(tmp_path, values)
     assert _styles(generation.generate(loaded, 0)) == {
-        "plain": 34, "decimal": 48,
+        "plain": 12, "decimal": 54,
     }
 
     monkeypatch.setattr(
         generation,
         "_reach_sizes",
-        lambda sizes, bands, rungs, whole, numbers, demand, plus: sizes,
+        lambda sizes, bands, rungs, whole, numbers, demand, plus, grid: sizes,
     )
     assert _styles(generation.generate(loaded, 0)) == {
-        "plain": 34, "decimal": 48,
+        "plain": 12, "decimal": 54,
     }, "the chain alone still covers this column"
 
     monkeypatch.undo()
     monkeypatch.setattr(generation, "_rehomed", lambda *a, **k: None)
     assert _styles(generation.generate(loaded, 0)) == {
-        "plain": 34, "decimal": 48,
+        "plain": 12, "decimal": 54,
     }, "the reach step alone still covers this column"
 
     monkeypatch.setattr(
         generation,
         "_reach_sizes",
-        lambda sizes, bands, rungs, whole, numbers, demand, plus: sizes,
+        lambda sizes, bands, rungs, whole, numbers, demand, plus, grid: sizes,
     )
     written = _styles(generation.generate(loaded, 0))
-    assert written.get("plain", 0) < 34, written
+    assert written.get("plain", 0) < 12, written
 
 
 def test_the_flat_rung_claim_and_the_chain_keep_the_map_seed_free(
@@ -776,9 +916,20 @@ def test_the_flat_rung_claim_and_the_chain_keep_the_map_seed_free(
     both shares, and a number inside a stratum's own share is one the
     bar is never asked about.
     """
-    document, loaded = _described(tmp_path, CONTENDED)
+    # RE-SEARCHED FOR STAGE 3 (landing 3.3), as plan P4-D222 re-searched
+    # the column above. `CONTENDED` holds twenty-two cells over four
+    # values, and under the tail rule a column that small publishes its
+    # moments and no rung at all (contract TL3): its ladder is the
+    # uniform of method G5.3c, the contended `5` is nobody's only whole
+    # number any more, and both mutants moved no cell. The shape the
+    # paragraph above describes is kept -- a crowded ladder whose whole
+    # number sits in one stratum's share and just outside another's --
+    # on a column large enough to publish one: four values a tenth
+    # apart, fifty-three cells, `2` held by the crowded middle.
+    values = ["1.5"] * 11 + ["1.6"] * 11 + ["2"] * 20 + ["2.4"] * 11
+    document, loaded = _described(tmp_path, values)
     published = _named(document["columns"][0]["numeric_styles"])
-    assert published == {"plain": 11, "decimal": 11}
+    assert published == {"plain": 20, "decimal": 33}
     before = [_styles(generation.generate(loaded, seed)) for seed in SEEDS]
     for step in range(len(SEEDS)):
         for style, count in published.items():
@@ -820,15 +971,31 @@ def test_one_form_per_stratum_is_what_keeps_the_spelling_count(
     above the published one on at least one seed -- which is one exact
     count bought with another, the trade this file exists to refuse.
     """
+    # RE-SEARCHED AT PLAN P4-D222 (stage 2 closed by the owner rulings of
+    # 2026-09-17). The crowded ladder this used published four one-place
+    # cells as a pool beside the named widths, and counted into the
+    # three-place width they no longer give the cell walk a stratum to
+    # split: the mutant left every seed at the published count. Searched
+    # over variations of that ladder, this one is the first on which the
+    # mutant spends the count, at every seed.
+    # ...AND RE-SEARCHED AGAIN FOR STAGE 3 (landing 3.3). The ladder
+    # that column published put its two pinned strata on the real
+    # `-59.5` and `52.75`; under the tail rule both ends are derived and
+    # the reading at the outermost row is the end itself, so the two top
+    # strata of that column read one number, the distinct-spelling
+    # repair wrote it two ways, and its twin already stood at ten
+    # spellings against a published nine -- an AUTHORIZED deviation the
+    # plan grants, but one that leaves the mutant below nothing to
+    # spend. Searched the same way, this column is the first on which
+    # the count comes out exact on every seed and the mutant spends it:
+    # six values, five of them held by eleven cells or more, on three
+    # different fraction widths.
     values = (
-        ["0.125"] * 10
-        + ["0.25"] * 10
-        + ["0.375"] * 10
-        + ["0.625"] * 10
-        + ["1"] * 20
-        + ["-32"] * 14
-        + ["-59.5"] * 4
-        + ["52.75"] * 4
+        ["11.00"] * 11
+        + ["1.00"] * 5
+        + ["52"] * 20
+        + ["4"] * 11
+        + ["-6"] * 6
     )
     document, loaded = _described(tmp_path, values)
     published = document["columns"][0]["n_distinct"]
@@ -840,7 +1007,9 @@ def test_one_form_per_stratum_is_what_keeps_the_spelling_count(
     monkeypatch.setattr(
         generation,
         "_style_strata",
-        lambda quotas, layout, values, whole, wanted, raw, styles: styles,
+        lambda quotas, layout, values, whole, wanted, raw, styles, absorbing=(
+            "", 0
+        ): styles,
     )
     spent = []
     for seed in SEEDS:
@@ -886,8 +1055,12 @@ def test_the_counts_the_carrier_step_may_not_spend_are_recounted(
             assert len([one for one in held if one == 0.0]) == (
                 column["n_zero"]
             ), (name, seed)
-            assert min(held) == column["percentiles"]["min"], (name, seed)
-            assert max(held) == column["percentiles"]["max"], (name, seed)
+            # THE TWIN'S OWN ENDS ARE ITS PINNED STRATA'S, which on a
+            # tail block are derived from the published facts rather
+            # than published outright (method G5.3b step 4).
+            ends = _pinned_ends(loaded)
+            assert min(held) == ends[0], (name, seed)
+            assert max(held) == ends[1], (name, seed)
             assert len(set(held)) <= column["n_distinct_folded"], (name, seed)
 
 
@@ -995,12 +1168,20 @@ def test_the_hold_back_leaves_a_column_whose_plain_is_not_named_alone(
     point in eleven that never had one.
     """
     _document, loaded = _described(tmp_path, FLAT)
+    # THE MAP THIS COLUMN PUBLISHED UNTIL PLAN P4-D222 (stage 2 closed by
+    # the owner rulings of 2026-09-17), which now counts the twenty into
+    # `leading_plus`: the hold-back rule is still the method's, so it is
+    # held on those facts, set past the loader.
+    assert loaded.columns[0].facts.numeric_styles == {"leading_plus": 39}
+    loaded = _with_styles_past_the_loader(
+        loaded, {"leading_plus": 19, "(withheld)": 20}
+    )
     column = loaded.columns[0]
     facts = column.facts
     assert facts.numeric_styles.get("plain", 0) == 0, facts.numeric_styles
     assert generation._style_pool(facts.numeric_styles) == 20
     layout, _notes, _content = generation._numeric_layout(
-        column, facts, None
+        column, facts, None, SETTINGS.small_cell_floor
     )
     rungs = generation._merged_rungs(facts)
     values = [-4.5, -4.0, 15.0, 18.0, 25.0, 60.0]
@@ -1026,7 +1207,7 @@ def test_the_hold_back_takes_the_narrowest_strata(
     """
     column, facts = _pooled_column(tmp_path)
     built, _notes, _content = generation._numeric_layout(
-        column, facts, None
+        column, facts, None, SETTINGS.small_cell_floor
     )
     rungs = generation._merged_rungs(facts)
     # THE SIZES THIS COLUMN'S LADDER GIVES CANNOT TELL THE TWO ORDERS
@@ -1083,7 +1264,7 @@ def test_the_type_is_owed_a_cell_no_stratum_fits_exactly(
     """
     column, facts = _pooled_column(tmp_path)
     built, _notes, _content = generation._numeric_layout(
-        column, facts, None
+        column, facts, None, SETTINGS.small_cell_floor
     )
     rungs = generation._merged_rungs(facts)
     # Every stratum at least two cells wide, so the exact-fit rule above
@@ -1202,8 +1383,19 @@ def test_a_stratum_never_hands_its_number_to_a_wider_one(
     # column the trade was written for is walked here as well, and the
     # test asserts that the trade FIRED before asserting what it costs.
     # Without that, this reads as a clean pass over a branch never run.
+    #
+    # THIRTY WHOLE CELLS AND NOT THIRTY-FOUR (stage 3's review, verdict
+    # item 3). This column publishes a tail, and correcting G5.3b's fit
+    # so that a tail's rows carry the published mean and
+    # root-mean-square moved every rung outside the two boundary
+    # percents: with 34 the trade still runs, 151 times over these
+    # seeds, but every holder it asks now stands on a WHOLE number, so
+    # the fraction-holder branch below was never entered and the guard
+    # said so. The shape is otherwise the one the trade was written
+    # for, and the guard is what made the loss visible rather than
+    # silent.
     _document, pooled = _described(
-        tmp_path, [f"{index % 9 + 1}" for index in range(34)] + ["1.5", "2.5"]
+        tmp_path, [f"{index % 9 + 1}" for index in range(30)] + ["1.5", "2.5"]
     )
     for _name, _each, loaded in _cases(tmp_path):
         for seed in SEEDS:
@@ -1356,7 +1548,10 @@ def test_a_grain_is_laid_out_by_ITS_OWN_count_which_closes_R_P4_112(
     assert part.n_distinct_values == 11, part.n_distinct_values
     assert column.n_distinct == 36, column.n_distinct
     layout, _notes, _content = generation._numeric_layout(
-        generation._part_view(column, 0), part, part.n_distinct_values
+        generation._part_view(column, 0),
+        part,
+        part.n_distinct_values,
+        SETTINGS.small_cell_floor,
     )
     assert len(layout.sizes) == part.n_distinct_values, len(layout.sizes)
     assert len(layout.sizes) != column.n_distinct, len(layout.sizes)
@@ -1367,7 +1562,7 @@ def test_the_joined_position_meets_its_plain_floor_which_closes_R_P4_112(
 ) -> None:
     """The same repair from the other side, on the exact numbers.
 
-    The first position publishes `plain: 34` with a pool of 2 and wrote
+    The first position published `plain: 34` with a pool of 2 and wrote
     12 to 15 cells with a point in them across seeds, missing
     `number 1 styles.published.plain` at 22 against a floor of 34. At
     the seed this file pins it now writes exactly TWO and misses
@@ -1384,9 +1579,10 @@ def test_the_joined_position_meets_its_plain_floor_which_closes_R_P4_112(
     """
     _document, loaded = _joined_witness(tmp_path)
     column = loaded.columns[0]
-    assert column.facts.parts[0].numeric_styles == {
-        "plain": 34, contract.WITHHELD: 2,
-    }
+    # THE TWO ARE COUNTED INTO `plain` (plan P4-D222; stage 2 closed by
+    # the owner rulings of 2026-09-17), where plan P4-D221 pooled all
+    # thirty-six with them.
+    assert column.facts.parts[0].numeric_styles == {"plain": 36}
     twin = generation.generate(loaded, 0)
     folder = tmp_path / "joined-floor"
     folder.mkdir(exist_ok=True)
@@ -1403,7 +1599,16 @@ def test_the_joined_position_meets_its_plain_floor_which_closes_R_P4_112(
         for cell in twin.columns[0]
         if cell != "" and "." in cell.split("/")[0]
     ]
-    assert len(pointed) == 2, pointed
+    # THE PLAIN FLOOR IS WHAT THIS TEST IS ABOUT and the line above is
+    # where it is asserted, through the real validator. The count of
+    # cells carrying a point is recorded beside it rather than pinned:
+    # it was ONE while the position's ladder ran between its two
+    # PUBLISHED ends, and stands at seven now that both ends of a tail
+    # block are DERIVED (method G5.3b step 4) and the position names no
+    # fraction width for them to be placed on. What must not slip is
+    # that the position keeps a value with a point at all -- the type
+    # this whole file is about -- and the per-seed check below says so.
+    assert len(pointed) >= 1, pointed
     # AND THE TYPE SURVIVES ON EVERY SEED, which is the part that must
     # not slip while R-P4-119 waits.
     for seed in SEEDS:
@@ -1545,14 +1750,26 @@ def test_where_a_double_stops_carrying_a_point_is_where_the_type_goes(
     either KEPT, or LOST AND NAMED. Lost in silence is the defect
     R-P4-69 was opened on, and no magnitude excuses it.
     """
+    # RE-MEASURED FOR STAGE 3 (landing 3.3). Two rows moved from KEPT to
+    # LOST-AND-NAMED, and the reason is the tail rule rather than the
+    # doubles: the one fractional value of each of these columns lies
+    # inside a TAIL, the census names no fraction width so the tail is
+    # not a listed one (contract 6.7a, TL6), and what the description
+    # then says about those rows is a mean distance and a
+    # root-mean-square -- from which no reader can tell that one of them
+    # carried a point. At two to the fifty-third and above the whole
+    # numbers are far enough apart that the tail's own reading lands on
+    # them, so the twin writes none. The rule this file exists for is
+    # untouched, and it is what the rows below still assert: kept, or
+    # lost and said out loud.
     measured = (
         (["0"] * 5 + ["0.5"], 995, 49, True),
         (["0"] * 5 + ["0.5"], 995, 52, True),
-        (["0"] * 5 + ["0.5"], 995, 53, True),
+        (["0"] * 5 + ["0.5"], 995, 53, False),
         (["0"] * 5 + ["0.5"], 995, 55, False),
         (["0"] * 5 + ["0.5"], 995, 60, False),
         (["1", "1.5"], 998, 52, True),
-        (["1", "1.5"], 998, 55, True),
+        (["1", "1.5"], 998, 55, False),
         (["1", "1.5"], 998, 60, False),
     )
     kept = 0
@@ -1579,7 +1796,7 @@ def test_where_a_double_stops_carrying_a_point_is_where_the_type_goes(
             lost = lost + 1
             assert pointed == 0, (small[:2], power, sorted(set(written))[:4])
     # AND BOTH OUTCOMES ARE REACHED, so neither half is vacuous.
-    assert kept >= 4 and lost >= 3, (kept, lost)
+    assert kept >= 3 and lost >= 3, (kept, lost)
 
 
 def test_numbers_too_large_to_hold_a_fraction_are_named_not_hidden(
@@ -1615,8 +1832,10 @@ def test_a_narrowed_carrier_keeps_both_the_type_and_the_floor(
 ) -> None:
     """Round 2, item 2, end to end: both obligations, not one of them.
 
-    Two `0`, one `0.5` and 197 `2` publish `plain: 199` with a pool of
-    one, and the ladder allots strata of 2, 2 and 196. No single-cell
+    Two `0`, one `0.5` and 197 `2` published `plain: 199` with a pool of
+    one, and the ladder allots strata of 2, 2 and 196. Since plan P4-D221
+    a pool of one takes in the named count, so the map is one pool of
+    two hundred, which a twin writes by the same rule. No single-cell
     stratum exists, so keeping the type meant giving the two-cell middle
     stratum a value with a point in it and missing an exactly achievable
     `plain: 199` by one. The source's own `0.5` covers one row, so both
@@ -1625,7 +1844,7 @@ def test_a_narrowed_carrier_keeps_both_the_type_and_the_floor(
     values = ["0"] * 2 + ["0.5"] + ["2"] * 197
     document, loaded = _described(tmp_path, values)
     published = document["columns"][0]
-    assert published["numeric_styles"] == {"plain": 199, "(withheld)": 1}
+    assert published["numeric_styles"] == {"plain": 200}
     for seed in SEEDS:
         twin = generation.generate(loaded, seed)
         written = [cell for cell in twin.columns[0] if cell != ""]
@@ -1634,7 +1853,13 @@ def test_a_narrowed_carrier_keeps_both_the_type_and_the_floor(
         pointed = len([one for one in numbers if one != int(one)])
         assert pointed == 1, (seed, sorted(set(written)))
         assert _styles(twin).get("plain", 0) == 199, (seed, _styles(twin))
-        assert list(twin.deviations) == [], (seed, twin.deviations)
+        # THE `0.5` IS COUNTED INTO `plain` SINCE PLAN P4-D222 (stage 2
+        # closed by the owner rulings of 2026-09-17), so the report names
+        # the one plain cell and the one one-figure field its value cannot
+        # be written as, and nothing else.
+        assert sorted(note.fact for note in twin.deviations) == [
+            "field_widths", "numeric_styles",
+        ], (seed, twin.deviations)
 
 
 def test_no_two_strata_are_given_the_same_whole_number() -> None:
@@ -1718,25 +1943,35 @@ def test_the_carrier_step_is_what_places_the_reviewed_map(
     reviewed column must then miss its published map again -- if it does
     not, this file is proving nothing about that step.
     """
-    document, loaded = _described(tmp_path, REVIEWED)
+    # THE REVIEWED COLUMN NO LONGER REACHES THIS STEP (stage 3, landing
+    # 3.3). Its twin held `1.5` on the pinned end that carries a point;
+    # the tail rule withholds that end and the derived one stands on a
+    # WHOLE number wherever the forms map asks for point-free cells
+    # (method G5.3b step 4), so the band has a carrier before this step
+    # is asked and the mutant moves no cell. The item's own column is
+    # still the positive test above; the mutant is measured on the
+    # nearest column that does reach the step -- four values a tenth
+    # apart whose whole number is held by the crowded middle.
+    values = ["1.5"] * 11 + ["1.6"] * 11 + ["2"] * 20 + ["2.4"] * 11
+    document, loaded = _described(tmp_path, values)
     assert _styles(generation.generate(loaded, 0)) == {
-        "plain": 20, "decimal": 31,
+        "plain": 20, "decimal": 33,
     }
 
     monkeypatch.setattr(
         generation,
         "_carrier_sizes",
-        lambda sizes, bands, flags, demand, plus_demand: sizes,
+        lambda sizes, bands, flags, demand, plus_demand, grid: sizes,
     )
     written = _styles(generation.generate(loaded, 0))
     assert written.get("plain", 0) < 20, written
     assert document["columns"][0]["numeric_styles"]["plain"] == 20
 
 
-def test_the_band_step_is_what_reaches_a_stranded_sign_band(
-    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+def test_the_band_step_has_no_witness_left_in_this_file(
+    tmp_path: pathlib.Path,
 ) -> None:
-    """Mutant 2: leave the band share alone, and two NAMED counts fall.
+    """Mutant 2 WAS: leave the band share alone, and two NAMED counts fall.
 
     THE SHAPE, AND WHY IT STILL REACHES THE STEP. The share of strata
     between the two sign bands follows the LADDER'S PLATEAUS now and no
@@ -1748,25 +1983,76 @@ def test_the_band_step_is_what_reaches_a_stranded_sign_band(
     five strata shared in that proportion leave the negative side ONE.
     That one is the pinned `min`, and it carries a point, so no cell of
     the band can be written point-free at all: without the band step all
-    eleven come out `-20.5`, and the twin misses BOTH published counts,
-    not only the pooled remainder.
+    eleven come out `-20.5`, and the twin misses BOTH published counts.
+
+    SINCE PLAN P4-D222 (stage 2 closed by the owner rulings of
+    2026-09-17) the one `-20.5` is counted into `plain`, which publishes
+    twenty-one, and the pinned minimum is the one of those no twin can
+    write point-free. THAT COST A NAMED COUNT UNTIL PLAN P4-D235: with
+    thirty-three point-free cells claimed over thirty-two carriers and no
+    pool left to give way first, the placement gave up a PADDED cell --
+    eleven where twelve are published -- and the twin missed
+    `leading_zero`, `plain`, the remainder and `pads.published.2` at exit
+    3. The cell no named form can write is owed from the form the recount
+    counts it into, which is the commonest named one, so the twin now
+    writes twelve padded cells, twenty plain and the one `-20.5` that
+    counts back into `plain`: the published census exactly, twin and
+    table both at exit 0. The mutant is held on the facts the column
+    published until P4-D222, set past the loader, where the pool of one
+    is the claim that gives way.
+
+    AND SINCE STAGE 3 THIS COLUMN NO LONGER REACHES THE STEP, which is
+    recorded here rather than dressed up. The stranded band was stranded
+    because its one stratum was the pinned `min`, `-20.5`, which carries
+    a point; the tail rule withholds that end and the DERIVED end in its
+    place is put on a whole number, because a `plain` count is a demand
+    for whole values (method G5.3b step 4). The band therefore has a
+    carrier before the band step is asked: withdrawn, the step leaves
+    this column's cells IDENTICAL, cell for cell, on the pooled facts as
+    on the published ones. Searched over two hundred columns built the
+    way this one is -- a few fractional negatives, a run of whole ones,
+    padded zeros, a plus band and whole positives, at every size between
+    thirty and a hundred and fifty cells -- not one column both met its
+    published map with the step and missed it without, so no witness is
+    offered in its place. **The band share of G5.2b therefore has no
+    mutation witness in this file, and that is a gap named as one**, of
+    the same kind method section G14.3 names for the day-unit rule of
+    plan P4-D39. What is still held here is the OUTCOME the step
+    reaches on this column, asserted below on the published facts and on
+    the pooled ones; the rule itself is pinned by the round trips of
+    this file's battery and by nothing narrower.
     """
     document, loaded = _described(tmp_path, BAND)
     published = document["columns"][0]["numeric_styles"]
-    assert published == {"plain": 20, "leading_zero": 12, "(withheld)": 1}
+    assert published == {"plain": 21, "leading_zero": 12}
+    # ONE CELL CARRIES A POINT, as one did before stage 3, and it is a
+    # DIFFERENT cell: the column's low end was the published `-20.5` and
+    # is now a derived end placed on a whole number, because a `plain`
+    # count is a demand for whole values (method G5.3b step 4). What
+    # carries the point instead is an interior stratum the low tail's
+    # own reading puts at -19.174915902697833.
+    absorbed = _styles(generation.generate(loaded, 0))
+    assert absorbed == {"plain": 20, "leading_zero": 12, "decimal": 1}, absorbed
+    loaded = _with_styles_past_the_loader(
+        loaded, {"plain": 20, "leading_zero": 12, "(withheld)": 1}
+    )
     written = _styles(generation.generate(loaded, 0))
     assert written["leading_zero"] == 12
     assert written["plain"] >= 20
 
-    monkeypatch.setattr(
-        generation,
-        "_carrier_bands",
-        lambda negatives, zeros, positives, low, high, rungs, whole, demand,
-        plus_demand: (low, high),
-    )
-    after = _styles(generation.generate(loaded, 0))
-    assert after.get("leading_zero", 0) < 12, after
-    assert after.get("plain", 0) < 20, after
+    # AND THE MEASUREMENT THE PARAGRAPH ABOVE RECORDS, so that a reader
+    # who doubts the gap can see it fail the day it closes: with the
+    # band share withdrawn this column's twin is the same file.
+    kept = generation._carrier_bands
+    try:
+        generation._carrier_bands = (
+            lambda negatives, zeros, positives, low, high, rungs, whole,
+            demand, plus_demand: (low, high)
+        )
+        after = generation.generate(loaded, 0).columns[0]
+    finally:
+        generation._carrier_bands = kept
+    assert after == generation.generate(loaded, 0).columns[0]
 
 
 def test_the_share_walk_is_what_places_a_flat_ladder(
@@ -1831,13 +2117,21 @@ def test_the_pool_gives_way_before_a_named_count(
     gives up the anonymous claim; this mutant hands the pool the same
     standing as the named count, which is what the placement did before,
     and the named twenty-five comes out twenty-four.
+
+    A MAP NO PRODUCER WRITES SINCE PLAN P4-D222 (stage 2 closed by the
+    owner rulings of 2026-09-17), and one the loader refuses (P6): the
+    ten decimals are counted into `leading_zero`. The generator's rule
+    for a pool beside a named count is still the method's, so it is held
+    here on the facts the column published until then, set past the
+    loader.
     """
     values = ["1.5"] * 5 + ["007"] * 25 + ["88.5"] * 5
     document, loaded = _described(tmp_path, values)
-    assert document["columns"][0]["numeric_styles"] == {
-        "leading_zero": 25, "(withheld)": 10,
-    }
-    assert _styles(generation.generate(loaded, 0))["leading_zero"] == 25
+    assert document["columns"][0]["numeric_styles"] == {"leading_zero": 35}
+    pooled = _with_styles_past_the_loader(
+        loaded, {"leading_zero": 25, "(withheld)": 10}
+    )
+    assert _styles(generation.generate(pooled, 0))["leading_zero"] == 25
 
     keep = generation._style_places
     monkeypatch.setattr(
@@ -1847,8 +2141,25 @@ def test_the_pool_gives_way_before_a_named_count(
             quotas, holds, whole_column, 0
         ),
     )
-    written = _styles(generation.generate(loaded, 0))
+    written = _styles(generation.generate(pooled, 0))
     assert written.get("leading_zero", 0) < 25, written
+
+
+def _with_styles_past_the_loader(
+    loaded: contract.Profile, styles: "dict[str, int]"
+) -> contract.Profile:
+    """A loaded one-column profile whose forms map is replaced, unchecked."""
+    column = loaded.columns[0]
+    facts = column.facts
+    assert isinstance(facts, contract.NumericFacts)
+    return dataclasses.replace(
+        loaded,
+        columns=(
+            dataclasses.replace(
+                column, facts=dataclasses.replace(facts, numeric_styles=styles)
+            ),
+        ),
+    )
 
 
 def test_a_generator_that_stops_choosing_styles_is_caught(

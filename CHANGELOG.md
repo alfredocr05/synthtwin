@@ -6,6 +6,2654 @@ exists).
 
 ## [Unreleased]
 
+### CI's demonstration check reads the floor it checks (2026-09-25)
+
+**Stage 3's first CI run was red in the build job** (run 36121790821),
+and every test cell was skipped behind it. The end-to-end profiling
+check written into `ci.yml` still asserted the default floor of ONE
+(amendment A-P4-37): that nothing is withheld and that the 7-row label
+`outlying` is named. Stage 3 put the default back to eleven (P4-D316), so
+the description rightly pooled that label and the check called it a
+defect. It had gone stale the same way twice before, because that block
+runs on no developer machine. It now reads the default floor from the
+package and each label's rows from the table it built, and asserts the
+rule itself: a label below the floor is withheld and reaches neither
+output file, one at or above it is named. `tests/test_ci_demo_steps.py`
+runs the workflow's own MAKE, CHECK and TWIN blocks against this tree in
+the suite, and was watched red on the old `ci.yml` with CI's own words.
+
+### A derived end's two divergences from the method, settled (2026-09-25)
+
+**A `(withheld)` pool in `thousands_marks` counts marked cells**
+(contract C6-87, C6-88), so the product's mark clamp now counts it with
+the named marks, as G5.3b step 4 does. Measured on 210 amounts of 1,000
+to 60,000, seven marks on thirty cells each at a floor of 31
+(`{"(withheld)": 210}`), the twin wrote `1` at seeds 1, 4, 7 and 13
+with nothing named; now it writes nothing under a thousand. **A partly
+padded block is held to `10**w - 1`** where one field width `w` covers
+every cell, as the product already did: G5.3b step 4 now states it and
+the oracle carries it (the high end 9999, where the oracle gave 15536).
+Frozen as `tail_marks_pooled` (twelfth file) and `tail_pad_partial`
+(thirteenth); G14.3 counts 129; every earlier case is byte-identical.
+Step 4's order example now names `tail_width_after_sign`. Both entry
+points send the next case to a fourteenth file, since the twelfth and
+thirteenth stand past plan P4-D295's 200000-byte line.
+
+### The census reads by one route, and its row check is held (2026-09-25)
+
+The two points the hand-over's second skeptic left. After the
+hand-over the census read through `taxonomy._census_reading` while
+`present_spellings_after_the_rules` -- which the test holding the census
+equal to the description asks -- read `_read_the_column` by a path of
+its own, so a later edit to one could drift from the other with that
+test green. It now answers through `_census_reading` too; putting the
+review's own defect back into that route (the census's spellings from
+`split_missing` alone) turns six tests red. And the guard's row-count
+case changed the list as well as the count, so `_same_reading`'s row
+check could be deleted with it green; it keeps the list now and goes red.
+
+### The census's reading is handed over, not taken twice (2026-09-24)
+
+**`K-S1-05` went from 14.1 s to 19-20 s over stage 3, and all of it was
+two repeats.** The population census read a column under the finished
+reading and `profile_column` read the same column again with the same
+arguments; `person_questions` split every column `questions_for` had
+just split. Both answers are now handed over explicitly:
+`taxonomy.population_census` returns the one reading it keeps
+(`HeldReading`, with every argument it was read under),
+`profile.build_document` passes it to `profile_column`, which takes it
+only where every argument matches; `asking.questions_and_splits_for`
+returns its splits for `person_questions`. The census keeps ONE
+reading: keeping all of them raised peak memory from 218 MB to 599 MB
+on 50,000 rows by 20 columns with an empty row. cProfile calls on
+`labels2` fall from 190.4 M to 140.0 M at 50,000 rows and from
+746.2 M to 544.8 M at 200,000 (541.7 M on `caf3079`). Every output file, exit code and message is
+byte-identical to `68be599` over a battery of 22 shapes.
+`tests/test_census_reading_handed_over.py` counts the readings and
+splits. A reading taken over is given the description's own settings
+(they differ in `person_columns` alone), so it is field for field the
+reading `_read_the_column` returns there; the test file pins that and
+both conditions under which a split is taken over.
+
+### The oracle's derived end takes the method's order (2026-09-24)
+
+**The reference oracle held a derived end to the one field width BEFORE
+the sign rule and had no mark between thousands** (stage 3's review,
+verdict item 10), where G5.3b step 4 orders the sign rule, the two width
+clamps, then the mark. On sixty five-figure whole numbers whose low tail
+reaches past nought the oracle derived 1 where the product derives
+10,000; on forty-four cells written with a comma, 1 where the product
+derives 1,000. It now takes that order, with the padded ceiling, the
+mark clamp and the stand-aside inside the tail's mean distance, written
+from the clause. On sixty readings `i * 1e-200` it placed both ends on a
+grid of 1e-17 and put each on its boundary rung; it leaves them off that
+grid and holds the low end at 5e-324, as G5.3b and G5.5a say, and puts
+each row of a tail with no grid at the middle of its own share.
+
+Five cases freeze it, each watched red against the product with its
+rule withdrawn: `tail_mark_held` in the eleventh file;
+`tail_width_after_sign` and `tail_extreme_magnitude` in a twelfth,
+`tests/reference/generation-branch-vectors-10.json`; and, after a
+skeptic found the padded ceiling and the stand-aside could be withdrawn
+with every byte unchanged, `tail_pad_ceiling` (high end 999, where the
+old oracle gave 1380) and `tail_width_stands_aside` in a thirteenth,
+`-11.json`, since neither fits in the twelfth under the cap. The
+proof-floor table now covers the eleventh to thirteenth files. Every
+case frozen before is byte-identical; every other file moves only by
+the sentence naming the new files. No product code changed. Two places where the product
+and the method part company, and no case reaches, are reported rather
+than changed: the product's mark clamp stands aside on a census with a
+`(withheld)` pool, and it holds a partly padded column under `10**w`, a
+ceiling the method does not state.
+
+### The one case CI skips is held where CI runs, and a failing suite names its failures (2026-09-24)
+
+**One process and the five shards differ by exactly one case**, found
+node by node: the claim inventory's check of `docs/STATE.md`'s stated
+suite size, which skips on every selected run, and every shard is one.
+CI holds that count only in its shard-coverage job, through
+`tools/ci/shards.py --prove`, and nothing held THAT: a workflow edit
+dropping the step would have left the count checked nowhere in CI with
+every job green. `tests/test_ci_shards.py` now reads the job and fails
+if it stops collecting the whole suite, stops running the prover, or
+runs under a condition, watched red on `ci.yml` with the prover removed.
+The skip now says where the count is held.
+
+**`a7bbc21` was red in one process, and the record said only `exit 1`.**
+The failing case was the ledger's own note check (`K-S3-02` stamped at
+`6c2b2d8`, a commit the note did not name), which `5bbb0be` repaired;
+it fails at `a7bbc21` in every layout, so no green five-shard run can
+have been taken on that commit's own tree. `kpi_suite_time.py` now
+prints each failing case by name.
+
+### Two stale records re-measured at the close of stage 3 (2026-09-24)
+
+**`K-P0-10` recorded the suite exiting 1, and `K-P4-06` recorded 556
+and 1 where its own ceiling already said 579 and 3.** Both were
+re-measured on `1578bee`, after the whole suite passed there in five
+shards (7,601 passed, 50 skipped, 3 xfailed, 0 failed, 7,654
+collected). One process: **3,963.9 s, exit 0**, 7,602 passed and 49
+skipped, quiet machine. The one case between those two counts is the
+claim inventory's check of `docs/STATE.md`'s stated suite size, which stands
+down on every selected run and which CI's shard-coverage job carries.
+The joined battery: 579 of 2,160 agreements outside the window and 3
+above-counts missed, both pinned nodes passing. `K-P4-06`'s rule text
+now states the ceiling its `expected` already held.
+
+`docs/STATE.md` stops restating seconds the ledger holds (`K-P0-10`,
+`K-P3-12`, `K-S1-01`), and names `K-S3-13` to `K-S3-15` beside the
+stage's gate test.
+
+### The tail's back-solve walks its own stack (2026-09-24)
+
+**`synthtwin profile` CRASHED ON AN ORDINARY TABLE.**
+`taxonomy._lattice_fill` -- the walk that decides whether a tail's
+published pair would give the tail's own cells back (plan P4-D349) --
+called itself once per distance still to place. A tail holds about a
+hundredth of its column, so the walk nested once per hundred rows and
+raised a bare `RecursionError` past the interpreter's own limit.
+Measured here on ONE Gaussian numeric column at two decimal places and
+the default floor of eleven, seed 20260913: **98,456 rows described
+cleanly and 98,457 rows raised.** The step budget bounded the WORK and
+could not bound the STACK, exactly as it could not in
+`generation._settles`. The tool refused nothing and crashed, which is
+the worst of both.
+
+**What changed, and it is not a behaviour change.** The same walk
+carries an explicit stack. `_lattice_enter` is one call -- its step of
+the budget and every bound and short answer that stood at the top of
+`_lattice_fill` -- and `_lattice_onward` is one turn of its candidate
+loop; pushing a frame is entering a call and popping one is returning
+from it. The candidate order, the memo of dead remainders, the step
+budget and **its accounting** are untouched: the budget is charged once
+per `_lattice_enter`, which is once per call, so a search spends its
+steps on exactly the sub-problems it spent them on before.
+
+**Proved, not asserted** (`tests/test_tail_back_solve_without_recursion.py`,
+which carries the pre-repair text whole as its reference). Over 4,002
+seeded shapes -- few cells, heavy ties, all-different distances, a heap
+with one far cell, a wide range, a tail big enough to make the walk
+work, plus the review's own eleven distances summing to 24 with squares
+104 -- each asked at the shipped budget and at three budgets small
+enough to run out, the two forms return the same multiset, take the same
+number of steps, spend the budget in the same place, mark the same
+remainders dead, give `_tail_pinned` the same verdict and publish the
+same tail side: the same rows, the same mean and root-mean-square
+distance, the same listed values. 32,016 fill comparisons, 16,008
+verdict comparisons and 4,002 published sides, no difference. A shape
+that spends the SHIPPED
+budget of its own accord -- twenty-six all-different distances three
+units apart -- agrees there too, at step 131,073.
+
+**The regression is sized by the walk's own bound**, not by a number
+somebody typed: a floor of `sys.getrecursionlimit() + 64` and the
+`2 * units + 1` rows that take the widest boundary percent the tail rule
+allows give a 1,064-row tail on a 2,129-row column, which describes in
+0.4 s and raises `RecursionError` under the recursive form. Five
+mutations were watched turning the file red -- the candidate step, the
+budget charged twice, an exhausted remainder left unmarked, the barred
+distance allowed, and `_lattice_onward` naming `_lattice_fill` again --
+and a no-op edit left it green.
+
+**And the cost of the walk at scale is now a measured number.** One
+Gaussian numeric column described at the default floor, quiet machine:
+100,000 rows 15.9 s, 200,000 rows 31.4 s, 1,000,000 rows 163.1 s. The
+back-solve itself is 0.168 s of the 200,000-row describe (0.53 per cent,
+14 calls, deepest tail 2,000 rows, 2,024 steps) and 1.274 s of the
+1,000,000-row one (0.78 per cent, deepest tail 10,000 rows, 10,063
+steps). The walk finds its witness in about one step per tail row, so
+the shipped budget of 131,072 is not approached until a tail of about
+130,000 rows -- a column of about thirteen million -- and past that the
+existing fail-closed answer stands: the walk gives up and the tail
+publishes neither distance. **No new rule was needed and none was
+added**; there is no hidden cliff between here and landing 4's two
+million rows.
+
+`K-S1-06`'s INTEGRITY cause is closed: its driver runs again.
+
+### The ten governance items of stage 3's review, and the close of the round (2026-09-24)
+
+**THE ROUND DOES NOT RUN AGAIN**, so every repair here is proved by
+measurement in this tree and every new or changed guard was watched
+failing under the arithmetic it replaced.
+
+**What changed.**
+
+- **The oracle allocated a listed tail the way the shipped rule
+  stopped allocating it** (item 1). For boundary `4`, values
+  `[0, 1, 2, 3]`, twelve rows, a mean distance of `2.25` and a
+  root-mean-square of `2.5` it gave `[1, 5, 2, 4]` where method G5.3e
+  gives `[2, 3, 3, 4]`, which puts one row on a value the listing
+  rule excludes. The clause now states the floor `q` under each listed value
+  and the oracle reads it; the frozen case `tail_listed_floor` is the
+  first that tells the two allocations apart, since every case frozen
+  before it answers the same counts either way.
+- **The oracle's tail arithmetic failed at supported scales** (item 2).
+  `tail_bound` squared the root-mean-square, which underflows below
+  about 1e-162: with twelve rows, a mean of `1e-200` and a
+  root-mean-square of `2e-200` it returned `1e-200` against the clause's
+  `6.74456e-200`. It takes the form G5.3b step 4 already fixed, `rms`
+  times a fraction. `tests/tail_rule.py`'s `rounded_root` took a
+  whole-number square root at a FIXED sixty-four guard bits and returned
+  0.0 for every value below about 1e-39, so
+  `rounded_root(Fraction(1, 10**40))` was nought where the root is
+  `1e-20`; the guard now grows with the exponent. Both carry scale
+  witnesses with mutants.
+- **The back-solve measured the wrong thing** (item 3). It asked whether
+  the published facts leave ONE multiset of distances; what the floor
+  protects is the outermost value and its count. Eleven distances
+  summing to 24 with squares 104 admit two multisets and BOTH put the
+  largest distance at 8 with one row on it -- at a low clock boundary of
+  `00:20` that names the minimum `00:12` and says one cell holds it --
+  and `pinned` read nought. It asks whether the extreme and its count
+  vary across the solutions now.
+- **The literal-leak measurement could not see a value inside a
+  sentence** (item 4). A withheld `2024-02-02 12:34:56` after
+  `Earliest:` split at its space and scored nought; a withheld `00:12`
+  in `The earliest is 00:12.` wore the full stop and scored nought. The
+  split joins adjacent tokens and offers each with a trailing point
+  removed, so a renderer-only regression cannot leave the headline
+  green.
+- **The gate's listing mutation covered one shape only** (item 5). The
+  exemption's premise is the listing rule itself and has been since plan
+  P4-D349; what was missing is the mutant that would have caught it
+  otherwise, so the unauthorized listing is now driven at ONE, TWO and
+  THREE values on both tails of the 600-row charges fixture.
+- **`K-S3-05` recorded a population it had stopped measuring** (item 6).
+  Its battery moved to 1,800 rows when the listing rule began asking its
+  premise; the record still said 900 rows and "6 of 6 keep their scale",
+  and STATE put the smaller-scale residual against `K-S3-09`, which
+  measures a count column beside a heap of zeros. The record names 1,800
+  now, and the 900-row cost is bounded rather than described: four of
+  twelve tail sides refused, 31 cells written off the scale and a worst
+  column mean 11.33 per cent out, each held at a ceiling.
+- **Disposition completeness stopped at the tail containers** (item 7).
+  `unregistered_fact` injected into a numeric or a temporal tail left
+  the completeness test green. The walk reaches the leaves, and a
+  container the matrix disposes as a CONTAINER -- it says so in its own
+  row -- no longer answers for a child it does not name.
+- **The plan of record was outside the seal** (item 8). An in-memory
+  edit to `docs/STATE.md` permitting sentences to disclose withheld
+  counts passed all four seal and coverage checks, because none of them
+  opened it. It is a governing document now, `docs/` is walked so a
+  second page cannot appear beside it unsealed, and two of its raising
+  sentences are anchored.
+- **Two green records omitted evidence their own rule bounds** (item 9).
+  `K-S3-01` and `K-S3-02` bound `pinned_nodes_failing` and recorded no
+  answer for it, and ledger integrity excused exactly that key. It does
+  not any more, and judging such a record is watched calling it a drop.
+- **The contract commanded removed behaviour** (item 10). Section 9.6's
+  prose still required exact endpoint CELLS and said D11 ties the ladder
+  ends to the endpoint text, over a version that removed both. It states
+  the boundary obligations instead, and two guards hold the governing
+  contract to naming no removed endpoint AND to still stating the
+  obligation that replaced it.
+
+**And the close of the round.** Every frozen vector was rebuilt from the
+merged oracle through the provenance guard runner and every digest
+updated; `tail_withheld_pair` freezes the construction that publishes
+NEITHER distance, which the oracle could not read at all; G14.3's case
+count is recomputed off the committed sets (122, the tenth file nine and
+the eleventh five); and the five goldens are re-recorded, each beside a
+line-by-line reading of what moved in its artifact.
+
+
+### The numeric tail's robustness: six repairs from stage 3's review (2026-09-24)
+
+**THE ROUND RETURNED REJECT ON ALL FOUR PASSES AND DOES NOT RUN AGAIN**,
+so each of these six is proved by measurement here, in
+`tests/test_stage3_review_numeric_robustness.py`, with the reviewer's own
+reproduction and the number it gave before the repair. They are the six
+the reviewer classed as ROBUSTNESS: inputs that used to work and now
+crash, lose values, or pass a check they should fail.
+
+**What changed.**
+
+- **An overflowing tail distance withholds the PAIR, not the ladder**
+  (verdict item 2, HIGH). Every tail distance is computed exactly and
+  rounded once, and a column reaching across the whole range has
+  distances past the largest number binary64 holds: 11 cells of
+  `-1.7e308` beside 89 around `1.68e308` put the low tail's mean at
+  about `3.4e308`. The block used to withdraw EVERY rung and publish its
+  four moments alone, and the reader of that block then read
+  `mean + sqrt(3) std` past the range too and fell back to the ladder of
+  a block BELOW ITS FLOOR -- at seed 4 the twin held numbers between -11
+  and 88, with its mean and its spread both failing the check. TL5's
+  tail publishing NEITHER distance is the shape such a tail takes now,
+  so the ladder and the published scale both stand. And where the moment
+  ladder itself is past the range (22 such cells, a mean of `-9.75e305`
+  and a spread of `1.73e308`), its reach is held at
+  `LARGEST_FINITE - |mean|`: the widest stretch the format holds about
+  the published mean, and never another block's ramp.
+- **The tail shape is fitted to the ROWS and not to an integral**
+  (verdict item 3, HIGH). G5.3b said that reading the fitted shape at the
+  rows' midpoints gave it the published mean and root-mean-square. It
+  does not: midpoint sampling is exact for a straight line and for
+  nothing else. Measured: 1,199 cells just above 100 beside one
+  `100000100.0` gave a twin mean 14 per cent low and a spread 24 per
+  cent low, at seeds 0, 4 and 9, with every numeric window passed and no
+  deviation named. The clause's five constants are now the shape's
+  moments over the tail's OWN row shares, so both moments are exact; the
+  power is searched upward from the smooth one, because the row-wise
+  ratio climbs to the ROW COUNT instead of without bound. The same
+  column now comes back at 83,433.8321 and 2,886,751.3315 against a
+  source 83,433.8325 and 2,886,751.3315.
+- **A representable grid with SPARE points is filled** (verdict item 4,
+  MEDIUM). G6.5a's last resort ran only where the two ends hold exactly
+  as many representable numbers as the column has strata, and stage 3's
+  derived ends leave spare numbers: 100 cells of `i * 5e-324` came back
+  holding 82 different numbers against the 100 published, where the
+  pre-tail code held 100. Each stratum now takes the point nearest the
+  value the ladder gave it that the order still allows. The frozen case
+  `representable_with_room` holds the new road up; `saturated_representable`
+  keeps the old one, and the 120-cell case beside it goes from 101
+  different numbers to 120.
+- **The below-floor ramp is built from the sign counts** (verdict item 5,
+  MEDIUM). The ramp ran from `-G u` to `(K - G - 1) u` whatever the block
+  published, so nought was one of its points on every block: 100 rows
+  holding the numbers 1 to 8 and 92 blanks came back as SEVEN different
+  numbers, because the sign repair moved the invented nought onto a
+  number another stratum held -- and the report named `percentiles` as a
+  fact the twin missed, printing `0.0` as what "the description says" on
+  a block whose every rung is withheld. The ramp is `G` negatives, `Z`
+  noughts and `P` positives now, and the eight numbers come back as
+  eight with no line in the report.
+- **An infinite stratum width no longer stops generation** (verdict item
+  8, MEDIUM). 20 cells of `-1.7e308` beside 80 near `1.68e308` gave a
+  stratum a share spanning `(-1.7e308, 1.004e308)`, whose width overflows
+  to infinity, and `int(width / unit)` raised OverflowError before the
+  search count was capped at all. The cap is read before the conversion.
+- **Constancy is decided by the count of different numbers, not by a
+  rounded spread** (verdict item 9, MEDIUM). 98 cells of `5e-324` beside
+  `1e-323` and `1.5e-323` publish three different numbers, a skew of
+  7.863539654706267 and a spread of about `4e-325`, which underflows and
+  is published as `0.0`. Read as constancy it made Q5 refuse the
+  producer's own file, at floors 1, 5 and 11, and describing the table
+  again wrote the same file. `n_distinct_values` answers the question
+  exactly.
+
+**And one found beside them.** `generation._style_strata` packs the
+styles over whole strata where the cell walk would spend more spellings
+than the column publishes. One form per stratum is the FEWEST spellings a
+column can hold, so where the published count stands above the number of
+strata the packing missed `n_distinct` from below -- the same trade the
+rule exists to refuse, taken the other way. It is not taken there now.
+
+**Where the words moved.** `docs/spec/generation-method-v1.md` G5.3b
+(the five constants and the power search), G5.3c (the stretch held
+inside the range), G5.3d (the ramp from the sign counts) and G6.5a (the
+representable grid with spare points); `docs/spec/profile-contract-v6.md`
+6.7a (a tail whose distances the format cannot hold) and the Q5 test.
+Three vector files were rebuilt through the guard runner and one frozen
+case was added.
+
+### The date and clock repairs of stage 3's review round (2026-09-24)
+
+**STAGE 3'S ONE ADVERSARIAL ROUND RETURNED REJECT ON ALL FOUR PASSES,
+and these are the seven items of its dates pass that are ROBUSTNESS
+rather than disclosure**: inputs that used to work and now crash, lose
+values, or pass a check they should fail. Each one is repaired with the
+review's own reproduction as a test and a mutation that puts the old
+behaviour back (`tests/test_stage3_review_dates.py`, 31 cases).
+
+- **The all-different obligation is no longer abandoned in silence**
+  (item 4). Method G7.3's count pass ran on `date` and `datetime` alone,
+  so 100 unique months from `2000-01` came back holding 74 different
+  values at seed 4 with nothing reported, and 100 consecutive quarters
+  the same; a month and a quarter are ordinal units of one like a day,
+  and the pass reaches them now -- 100 of 100 at seeds 0, 1 and 4. The
+  same clause asked for NO offset at all, which is stricter than its own
+  reason: one offset written after every moment leaves one spelling per
+  instant, so a 200-value column publishing `{"+02:00": 200}` in full is
+  inside the pass too, where a file holding 29 of those values used to
+  meet every obligation. And on a column of CLOCK times, where G7A.4
+  makes the obligation exact, validation held the count to an envelope
+  that a file of 99 different times against a published 100 passed:
+  G11's own reading now decides it (`contract.all_different_binds`,
+  validation clause V6.1-A3).
+- **Clock generation invents no declared missing cell** (item 5). The
+  parsed clock values were never asked whether their spelling is one the
+  table calls absent -- only the stand-ins were -- so with `08:00`
+  declared missing and eleven such cells, seeds 0, 3 and 7 wrote twelve,
+  leaving 98 present against a published 99. G7A.4 now steps each BODY
+  rank off such a spelling, inside the window it was built in.
+- **A sparse column keeps the separator census it publishes** (item 6).
+  G7.9's spend kept the mark it INVENTS below the census line and never
+  asked what the mark it spends FROM was left holding: 22 dates in 2,000
+  rows publish `{"upper_t": 11}` at a floor of eleven, seed 4 spent one
+  of the eleven, and ten beside one is a census no description may
+  print. The spend stops at the line.
+- **A calendar edge no longer produces a description its own loader
+  rejects** (item 7). Twelve `0001-01-01T01:00:00+14:00` convert to an
+  instant outside the years the canonical form can spell, and the LOCAL
+  text was left standing in the ordered sequence while the sort used the
+  instant: the low tail published a mean distance of **minus 3,600** and
+  a listed value above its own boundary, and the strict loader refused
+  it under DT3. `parsing.utc_moment` publishes the nearest instant the
+  form can spell instead, on both sides of the wall.
+- **Generation no longer reports published offsets as withheld**
+  (item 8). The offsetless member is a published member: a column
+  publishing `{"(none)": 50, "+01:00": 50}` was told every offset it
+  carried had been held back, on a twin that wrote both exactly.
+- **An exactly conforming clock twin gets no false percentile failure**
+  (item 9). Every minute of a day, 1,440 rows: seeds 0 and 1 reproduce
+  the whole multiset and the report marked p99 outside its window --
+  published `23:44`, achieved `23:44`, allowed `23:41` to `23:43`. The
+  window now carries G7A.4's all-different step, in both reports, and
+  the twin's report takes the same equality reading the quality report
+  has taken since plan amendment A-P3-40.
+- **The loader refuses tail moments no tail could hold** (item 10).
+  Setting a valid 100-date profile's distances to `1e308` loaded and
+  generation then raised `ValueError: cannot convert float NaN to
+  integer`; mean `1` beside that root raised `OverflowError`. DT3 now
+  carries the feasible bounds and the moment relationship the supported
+  calendar and the clock domain allow.
+
+**Two frozen cases were added** for the two new construction branches --
+`clock_declared_hole` for G7A.4's hole step and `mark_spend_at_the_line`
+for G7.9's refused spend -- and the existing `month_span` and `quarter`
+cases move seven cells each, which is the count pass reaching a
+resolution it never ran on.
+
+### The tail that would be read back publishes neither distance (2026-09-23)
+
+**STAGE 3'S ONE ADVERSARIAL ROUND RETURNED REJECT ON ALL FOUR PASSES,
+and this is the fix pass for the finding that is the heart of the
+stage** (plan P4-D349). The integers `0` to `1100`, once each, published
+a low boundary of `11` and a high boundary of `1089`, eleven rows a
+side, a mean distance of `6` and a root-mean-square of root-46, with
+`percentiles.min` and `percentiles.max` null -- and the same description
+says **every value in this column is different**. Eleven DIFFERENT whole
+distances summing to 66 can only be 1 to 11, because 66 is the least
+eleven different whole numbers can sum to, so all twenty-two withheld
+values came back exactly. 240 consecutive dates and 240 unique minutes
+did the same.
+
+**Measured with a reader's own arithmetic** before anything was changed:
+with the all-different remark in hand, each tail of the integer column
+admits exactly ONE multiset of distances; without it, 64.
+
+**What changed.**
+
+- **A tail whose published pair would give its own cells back publishes
+  NEITHER distance.** Its boundary and its row count stand; `values`,
+  `mean_distance` and `rms_distance` are all null. Contract DT1 and TL5
+  admit that shape on both roles -- both distances or neither, never a
+  mean alone.
+- **The back-solve knows what the description publishes** and runs on
+  the numeric role for the first time: the all-different remark, the
+  published grid, the space's edges, and the smallest distance a reader
+  cannot rule out -- one on a date tail, measured from a value a cell
+  holds, and NOUGHT on a numeric tail whose boundary rung falls between
+  two grid points.
+- **The tie is withdrawn from the back-solve.** It assumed a tail wider
+  than the floor is wider because its innermost cells are tied, which
+  stopped being true when a boundary learned to move inward. Worse, it
+  could not reach the real multiset: on 240 consecutive days widened to
+  eighteen rows the tied search answered NOT PINNED on the very tail the
+  review reconstructed by hand.
+- **The widening walk fails closed.** It no longer runs a question of
+  its own with a budget of its own; it builds the side and reads the
+  answer off it, so every place it can stop leaves a tail that withholds
+  its pair where it is still pinned.
+- **P4-D346's SECOND LISTING ROAD is withdrawn.** It named values ONE
+  CELL HOLDS -- `[1089, 1100]` where one row holds 1100, `06:59` beside
+  ten cells at `06:58` -- and its premise went with the fail-closed
+  rule, because a pinned tail now publishes no pair for a list to say
+  nothing more than.
+- **A quality report no longer prints a subfloor tail measurement.** The
+  cells counted are the file's own cells beyond the DESCRIPTION's
+  boundary, so one cell at a distance of eleven days named January 1
+  exactly; the verdicts stand and the numbers are dropped.
+- **The root-mean-square distance no longer certifies an endpoint
+  bound.** `boundary - rms >= min` reported HELD for a published minimum
+  of 10 against a file whose own minimum is 9, because a LOWER bound on
+  the largest distance was read as an upper one. Both ends had it.
+- **An overflowing moment window no longer removes an exact
+  obligation.** A file replacing twelve cells of `1.7e308` with
+  `1.6e308` reported no miss and appeared in no not-checkable listing;
+  the three keys are decided one at a time now.
+- **The summary no longer contradicts itself**: "the 12 smallest values
+  are not published" was printed over a block that then printed `0.0,
+  1.0`.
+
+**HOW A WITHHELD TAIL IS READ.** Its rows stand `rows` steps of the
+column's own grid out from the boundary -- the narrowest tail the
+description still asks for. On the integers 0 to 1100 that puts the
+twin's two ends on 0.0 and 1100.0, the column's OWN smallest and largest
+values, reached without either being published; on 200 `1 000` to `1 199`
+beside 100 `3 000` to `3 099` it keeps the twin inside 1000 to 3099 and
+the census of 200 spaces and 100 narrow spaces comes back exactly. Two
+wider readings were measured and rejected: the ends of the uniform
+stretch with the column's own two published moments, which put twelve
+cells below 1000 on that second column where no thousands mark can be
+written, and Cauchy-Schwarz's bound on the mean of `m` of `K` cells.
+
+**WHAT IT COSTS, measured** (`K-S3-15`): over the fix pass's ten shapes,
+17 tail sides publish neither distance and their twins miss FOUR
+obligations in total -- `moments.mean` and `moments.std`, at both seeds,
+on one shape: 399 consecutive record numbers beside a single `12345`.
+None of the three readings can average to that column's mean, because
+that mean is what the far cell puts in it.
+
+**The gate could not see any of this**, for three reasons at once: no
+battery shape is a column of consecutive values, the back-solve read
+`low_tail` and `high_tail` and so measured a numeric block as having no
+tail, and neither used the all-different remark.
+`tests/test_stage3_gate.py` now carries every one of the round's
+reproductions as a case, with a mutation that puts the pair back.
+
+### The answer paths, and the population census (stage 3's review, floor items 1-4, 2026-09-23)
+
+**Stage 3's one review round returned REJECT on all four passes. These
+are the four items of the floor pass that are routes by which the command
+did something the person did not ask for, or counted a population it did
+not have.** Each has the reviewer's own reproduction as a test and a
+mutation that puts the old behaviour back.
+
+**1. AN IDENTIFIER ANSWER LANDED ON THE WRONG COLUMN.** The column names
+in a questions file are the names of the reading that WROTE it, and an
+answer that changes the reading gives those names to different columns.
+Measured: a header of `column_2,column_1` over 360 records whose first
+field held twelve repeating subject codes, with `names` answered for the
+first row and `identifier` for `column_1` -- the FIRST field under the
+reading in force -- reached all three writers with the declaration on the
+SECOND field, counted 350 people and published the twelve real subject
+codes with counts of thirty, where declaring the field the person meant
+refuses the table as thirteen people. **Refused rather than mapped**
+(`cli._answers_that_change_the_reading`,
+`errors.answers_change_the_reading_and_name_columns`): `column_1` is a
+column name under both readings of that file, so nothing can tell which
+was meant. Two of the three file questions move a column name -- which
+row holds the names, and which character separates the columns -- and
+either beside a `code`, `identifier`, `measurement` or `decimal-comma`
+answer is refused, with the question named, the columns named, and two
+runs to do it in. An answer that AGREES with the option typed is the
+reading already in force and is not a change. The delimiter half is not
+in the review: it is the same defect one question along.
+
+**2. AN EXPLICIT `first-record` ANSWER WAS IGNORED.** It was called "the
+reading that already stands", which it is only while nothing else moves.
+Measured: a first record of `12,HEADER|LABEL` over 360 records of
+`i,code{i}|other{i}`, answered `first-record` and `vertical-bar`,
+described 360 records and published `12,HEADER` and `LABEL` as two column
+names, where `--first-row data --delimiter '|'` keeps all 361 records and
+names the columns `column_1` and `column_2`. Both answers are applied
+now, in both directions: a typed `--first-row names` answered
+`first-record` gives the record reading, because the file is the newer
+statement.
+
+**3. THE POPULATION CENSUS READ AN UNFINISHED COLUMN.** It asked
+`taxonomy.split_missing`, the FIRST of five passes that decide what a
+column holds, and stopped there. Measured on five paddings of twenty
+readings to a hundred lines, one per pass: `-999` declared with
+`--missing-value=-999`, `-999.0` declared the same way, `-999` with
+nothing declared, `9999-12-31` in a column of dates and `-999 mg` in a
+column of amounts. Every one cleared the hundred-row floor as a hundred
+rows, and every one produced a description recording twenty present cells
+and eighty missing. **One reading, in one place:** `profile_column`'s own
+prologue is now `taxonomy._read_the_column`, the census asks it through
+`taxonomy.present_spellings_after_the_rules`, `taxonomy.Declarations`
+carries the four column declarations down to it because each of them
+changes what a column holds, and a test holds the census's surviving
+spellings equal to the description's `n_present` on all five paddings. All
+five files are refused now with nothing written, and the refusal says what
+"holds no value" covers instead of naming blanks alone.
+
+**4. AN IDENTIFIER DECLARATION SILENCED THE PERSON QUESTION.** A
+declaration is only an answer to "who are the rows about" when it settles
+that, and an identifier different on every row settles nothing: it names
+a ROW. Measured: 1,196 visits over twelve people with a unique-per-row
+`visit_id` declared left `person_columns` correctly EMPTY -- the
+population was counted in rows -- while the declaration silenced the
+question, so the run published the twelve subject codes, asked nothing,
+and printed neither the population notice nor the notice that it had
+counted rows. The gate is `settings.person_columns` now, so the question
+is asked exactly where the count is still in rows. **And one
+single-visit subject silenced it by the other route:** route two of
+`asking._names_people` asked "every different value on two rows or more",
+which one row of 1,196 made false, and the limit had been recorded beside
+the rule rather than repaired. Both routes now share route one's average,
+counted and never divided, and a per-row key still fails it by a factor
+of two whether or not one value of it repeats. The sentence the questions
+file says was SEEN moves with the rule: "so each one stands on more than
+one row" is now "on average", and both notices that say the population
+was counted in ROWS stop opening "Nothing was named with --identifier",
+which is false the moment a unique-per-row key is declared and the count
+stays in rows.
+
+Plan P4-D232, P4-D340 and P4-D341 carry the four amendments; ledger
+`K-S3-02` keeps its 4 false positives of the same 33 columns, with the
+amendment and the re-measurement in its `status_note`, two nodes added to
+its pin and one renamed where its expectation reversed.
+
+### Six sentences stage 3 left behind, each measured (2026-09-23)
+
+**A SENTENCE CLAIMING MORE THAN THE CODE CARRIES FAILS THE PRODUCT'S JOB
+AS SURELY AS A CRASH**, and stage 3's one adversarial round found six of
+them. Nothing crashed, 7,469 tests passed, and the claim inventory passed
+too, because what those checks ask is whether a page's arithmetic adds up
+and what these six got wrong is what the arithmetic is ABOUT. Each repair
+is measured, and each has a test that turns red on the wording that
+shipped (`tests/test_stage3_review_sentences.py`, seven tests, every one
+mutation-verified against the old clause).
+
+**`--code` promised a rollup the floor does not leave named.** README
+said "every rollup of that column reproduces exactly" of a column named
+with `--code`. **Measured** on 100 codes `1000` to `1099`, one row each,
+at the default floor: the description publishes no code at all, and a
+prefix `10` that all 100 source rows carried came back on 20 twin rows at
+seed 4. The promise is now stated of the codes the description PUBLISHES,
+with the pooling that decides them and that measurement beside it.
+
+**THE TWO FLOORS ARE COUNTED IN DIFFERENT UNITS, and every page that
+sets out either now says which.** The population notice read "Every count
+here is a count over that population" where the population is PEOPLE and
+every count is ROWS (plan P4-D348, an accepted limit). **Measured** on
+100 declared people of twelve visits each: a value one person holds
+publishes the count 12 at the default floor, beside 1,188. Repaired in
+the notice itself, the twin's report, the quality report, the
+lowered-floor alarm, the floor refusal, README, SECURITY and the
+governing contract -- which said the floor "is the whole of what keeps a
+published group too large to point at one person", and now says it keeps
+a group larger than the count it names, counts rows, and does not follow
+to people.
+
+**FOUR PAGES AND THREE ANSWER CHOICES PROMISED ENDS AND CHECKS STAGE 3
+TOOK AWAY.** **Measured** on 100 readings `0.125` to `99.125`: the
+description publishes `p25`, `p50` and `p75` and withholds `min`, `max`
+and six interior rungs. The summary announced "Real smallest and largest
+values"; the quality report promised "the smallest and largest exactly,
+the nine steps between them"; the twin's report said every one of the
+nine interior steps "was measured on this twin"; the measurement,
+joined-number and decimal-comma choices each offered "a smallest and a
+largest" as what an answer would publish. All of them now name the rungs
+a description carries and the tails that stand where the rest did. **The
+inverse error beside them:** a tail opened "the 12 smallest values are
+not published" two lines above naming one of them, and there are TWO
+ways it names one -- a bounded scale LISTS the values it holds (each
+whole number 0 to 10 held ten times publishes `[0, 1]` and printed `0.0,
+1.0` under that sentence) and a heaped END is published as itself where
+at least a tail's rows hold it. Either way the opening now says the outer
+values are not published ONE BY ONE and points at what is named below
+it, in one wording rather than two, because a published end is a listed
+value on every shape measured and a branch nothing reaches is a branch
+nobody reads.
+**And where the review named one site there were three.** The
+empty-edges line called its values "the same kind of fact as the
+smallest and the largest values of this column"; the finer-ladder
+listing put its ninety rungs "between the eleven your description names"
+and said those eleven "are still checked for", where a ladder names
+eleven AT MOST and published three on the measurement above; and the
+ambiguous-column remark, the no-reading-fits remark, the `--code` help,
+the code and decimal-comma screens and `asking`'s own docstrings all
+carried the same promise. SECURITY's endpoint inventory is corrected
+with them: it counted TWO exact values per numeric ladder, and the
+measurement above puts that at NONE.
+
+**A FOLDED SPELLING COUNT WAS DESCRIBED AS AN ORIGINAL SPELLING COUNT.**
+**Measured** on four labels each written nine times lower case, eight
+upper and eight with a leading space: every published `variants` map
+holds one spelling counted 25, `variants_withheld` is empty, and no
+spelling the file wrote reaches eleven. Ruling 6 of 2026-09-17 counts a
+sub-floor spelling into the label's commonest, so above a floor of one
+`variants_withheld` is always empty and the number beside a named
+spelling is not a count of that spelling. The behaviour is kept; the
+summary, README and SECURITY now describe it.
+
+**THE FLOOR WAS DESCRIBED AS UNIVERSAL beside an accepted exception.**
+The quality report said "a group fewer than 11 rows carry is named in no
+description written under it". **Measured** on 99 decimal cells beside
+one word: the description publishes `n_not_numeric` 1 and a remark
+carrying that 1. The report and README now name the scope -- the floor
+governs the naming of a VALUE -- and both exceptions: a count of cells by
+kind names no value and is published whatever its size, and the floor
+counts rows.
+
+**FIVE FILES WERE SIX, AND BOTH CLAIM-INVENTORY GUARDS PASSED ANYWAY.**
+The lowered-floor alarm, README's opening line, SECURITY and the quality
+report each counted five where a full run leaves six, and the count of
+written pages that stamp themselves said four where three say it in words
+beside a description that records the floor. The guards missed all of it
+four different ways, and all four are closed: `_text` now joins adjacent
+string literals across source lines, not only the comma-separated report
+line -- which is what hid a sentence wrapped inside one f-string, and
+means every ban in that file was one line break from being defeated;
+`pages` is a countable of its own with its total derived from the shipped
+output names (the outputs that are not the twin's own table); and two new
+reaches read a count whose subject is the commands or a full run, and a
+count standing before "written pages" or "readable files". `both pages`
+stays a true pair claim on nine surfaces and is not read, by design and
+with the reason written beside the rule. The stale artifact inventory in
+`cli.py`'s report-name docstring went with them: four endings where five
+artifacts exist by the time `validate` runs.
+
+**THREE TESTS THAT QUOTED A REPAIRED SENTENCE ARE DERIVED FROM THE RULE
+INSTEAD OF RE-QUOTED**, because copying the new output into a test is not
+fixing it: the joined column's answer choice is asked for the property
+(each number described on its own, and no end named without the floor it
+has to clear), the summary's label block is read to its own end rather
+than to 400 characters, and the population note's docstring names the
+unit it now carries.
+
+**RE-RECORDED, each with the diff read line by line first:** the
+demonstration description and the demonstration profile (ONE leaf moves,
+the first remark of the column no reading fits, with nothing arriving and
+nothing leaving), the twin's report golden (18 lines, two paragraphs) and
+the quality report golden (56 lines over four kinds of place, ten of them
+the same finer-ladder pair, with no verdict and no census count moved).
+**The twin's own bytes did not move**, so not one cell of it changed for
+any of this.
+
+### Stage 3's gate, asked of a whole description in its own words (2026-09-23)
+
+**A STAGE IS NOT DONE UNTIL A TEST LITERALLY IMPLEMENTS THE GATE ITS
+PLAN NAMES.** Stage 3's gate is "no published number is held by fewer
+than the floor, and a one-row table is refused". Pieces of it were held
+in three places -- the tail rule's own guard, the sentence-argument
+guard and the population floor's tests -- and nothing walked a whole
+description and asked the gate's own question, so a landing that
+published something NEW would have landed outside all three.
+`tests/test_stage3_gate.py` is that walk.
+
+**THE CLASSIFICATION IS CLOSED, and that is what makes the gate
+survive a landing nobody foresaw.** 323 of `profile.PUBLICATION_RULES`'
+669 stated paths can carry a number, and every one of them is in
+exactly one of ten classes -- GROUP, POOLED, SETTLED, DISTINCT,
+WRITTEN_FORM, VALUE, STRUCTURAL, WORD_BY_COUNT, SENTENCE, INDEX --
+resolved through the three mirrors the rules table is built with, so
+one decision is written once. **A path with no class fails the test.**
+
+| the class | what the gate asks of it |
+|---|---|
+| GROUP | nought or at the line, and so is every complement against a population `GATE_POPULATIONS` names; a census asked whole, through `parsing.census_nameable` |
+| VALUE | names no outer cell the tail rule withholds, unless `parsing.tail_may_list` admits it -- asked of the column, never of a list of paths |
+| SENTENCE | every whole-number argument obeys `taxonomy.ARGUMENT_BINDINGS` |
+| WORD_BY_COUNT | a non-default word stands only where the census line of the column's own cells wear it |
+| SETTLED, WRITTEN_FORM | exempt BY NAME, each with the entry that settled it |
+| POOLED, DISTINCT, STRUCTURAL, INDEX | exempt, with the reason written beside the class |
+
+At a floor of eleven the walk puts **12,724 published numbers** of the
+battery into those classes: VALUE 4,817, INDEX 1,997, SETTLED 1,895,
+GROUP 1,706, STRUCTURAL 1,616, POOLED 310, DISTINCT 294, WRITTEN_FORM
+89, beside the sentence arguments and the two words a count moves. The
+battery is sixty-seven tables at each of floors 1, 5 and 11: the forty-six
+seeded shapes of `tests/stage3_battery.py`, every role with its joined
+column, the four realistic families as delimited text AND as workbooks,
+three bounded clinical scales, two heavy tails, a sparse block, a
+repeated-measures table with a declared identifier, a blank-line-heavy
+file, and tables at 99, 100, 999 and 1,000 rows. **0 breaches**, and
+the refusal half beside it: a one-row table, a 99-row table and 500
+rows of 99 people refused through `cli.main` with nothing written; 100
+and 999 rows carrying the notice on every written page; 1,000 carrying
+none. Ledger `K-S3-13`.
+
+**FIVE MUTATIONS, EACH A TEST OF ITS OWN**, because a guard that passes
+is not a guard: a level count re-published at 1; a sentence argument one
+greater than the key it restates; the column's exact minimum put back
+into `percentiles.min`; a tail listing three values one row holds
+apiece; and `parsing.POPULATION_FLOOR` halved. Each turns the gate red.
+
+**WHAT THE GATE FOUND WHILE IT WAS BEING BUILT**, each recorded where it
+belongs rather than worked around: a band read by VALUE rather than by
+position called a boundary rung a leak on `two_readings_fit`, where five
+rows hold 3.2 at the sorted positions 9 to 13 and the ladder publishes
+the thirteenth; a second back-solve written here reported
+`boundary + mean_distance` over a TWELVE-row tail as a disclosure when
+the mean of twelve unequal distances names no row, so the gate asks the
+tail-leak driver's own walk instead; reading a census's complement off
+`n_present` called the withheld `thousands_marks` of 1,199 grouped
+prices a breach of a word rule W holds at 1,199 cells; and splitting a
+table's text on its delimiter turned `"1,234.56"` into two cells.
+
+**THE LIMIT THE OWNER ACCEPTED TODAY (plan P4-D348): the disclosure
+floor counts ROWS, not people.** On a repeated-measures table a value
+held by twelve visits of ONE patient clears a floor of eleven and is
+published with its count. It is not changed here; it is MEASURED, and
+held at a ceiling by `K-S3-14`: over three seeded repeated-measures
+shapes, **177** published values are held by fewer than eleven of the
+table's PEOPLE and **68** of those stand on eleven rows or more -- the
+rest being ordinary ladder rungs a handful of rows hold either way. It
+concentrates where plan P4-D340 said it would: 12 patients over 1,196
+visits leave 66 of the 68, the worst a rung of 65.0 on 11 rows of 5
+people. The POPULATION floor beside it does count people, so the two
+halves of stage 3 count different units on purpose.
+
+**The KPI ledger's cap is 300,000 bytes, from 275,000**, authorized by
+the orchestrator. The ledger stood at 274,933 with 67 to spare, and
+what spent the last raise is stage 3's twelve entries `K-S3-01` to
+`K-S3-12`. No measurement was trimmed to fit.
+
+### Stage 3's close: one listing rule, and six sentences that were not true (2026-09-23)
+
+**ONE RULE DECIDES WHICH TAIL MAY LIST ITS VALUES, and every role asks
+it** (plan P4-D346). `parsing.tail_may_list` is the whole statement of
+the owner's ruling of 2026-09-22 and of its premise: a tail lists only
+where every value it would name stands on at least two of that tail's
+cells AND the column's values are a small fixed set -- at most 256
+different ones, standing under at least two cells apiece on average --
+or where every listed value is held by a whole smallest group. The date
+and clock role had carried that premise since P4-D342 and the numeric
+role had carried none, so the two drifted: a continuous column of 599
+rows on a tenth-unit grid published `88.0`, its own maximum held by ONE
+row, in the same block that withheld `percentiles.max`, and a second of
+609 rows listed five values whose counts in the column were 1, 1, 1, 1
+and 9. Both are closed. A tail the rule does not admit may still list
+where its own published rows and two distances SETTLE what it would
+name -- at most two different values, which the pair leaves one
+arithmetic for -- because the description names those either way.
+
+| at a floor of eleven | before | after |
+|---|---|---|
+| six bounded scales at 1,800 rows: tail sides listing | 12 of 12 | 12 of 12 |
+| the same six at 900 rows, where a scale's top step is one cell | 12 of 12 | 7 of 12 |
+| whole-year ages at 2,000 and 5,000 rows | both sides | both sides |
+| continuous columns, 600 to 640 rows | none | none |
+| 609-row column listing `87.54, 87.8, 89.21, 90.68, 99.99` | listed | says its shape |
+| 640 readings on a hundredth grid, every tail value shared | listed | says its shape |
+| twin cells outside a Glasgow coma scale, 900 rows | 0 | 13 of 900 |
+| twin cells outside an age column, 600 rows | 0 to 2 | 7 to 9 of 600 |
+| a count of children at 900 rows: the twin's mean | -0.82% | +2.71% |
+
+The cost is stated rather than argued away, and it is paid only where a
+scale's own outer step stands on ONE cell: at 1,800 rows and above every
+one of these scales lists both sides, writes no cell outside itself and
+keeps its mean within 0.52 per cent. Every twin still writes the
+column's own smallest and largest value, and nothing of the battery
+misses a checkable obligation.
+
+**THE COUNTS OF A LISTED TAIL ARE RECOVERABLE, and six places said they
+were not.** This package SHIPS the arithmetic that works them out --
+`contract._listed_counts`, which the generator needs -- and over the
+ordinal battery it recovered 22 of 22 exactly. `README.md`,
+`SECURITY.md`, this file, the contract's 6.7a, `summary.py` and
+`quality.py` said "without how many rows hold each" and "never with a
+count beside them"; they say what is true now: a listed tail names WHICH
+values it holds and writes no count, and how many rows hold each follows
+from those values and the distances beside them -- which is what the
+owner accepted for bounded scales, and why the rule asks first whether
+the column is one.
+
+**`synthtwin validate` no longer prints the checked file's own tail
+values.** A missed `tails.<side>.values` printed the file's list beside
+the description's -- values a row may hold alone, the outermost of them
+the file's own end -- which is the one thing the report's own note
+promises never happens under any verdict. The comparison is made in full
+and the measured side is kept back, as the date and clock role has
+always done it. The reason is a fourth constant of `validation.py`, and
+`tests/test_p3v12f2_a_miss_says_what_it_found.py` holds every one of the
+four to the same bar.
+
+**NF49 WAS A LIVE FALSE SENTENCE.** A tail block publishes its histogram
+as `bin_groups` and leaves `value_histogram` empty on purpose, and the
+note "the shape of this column's numbers is not published" asked only
+the empty key -- so the demonstration's `visits`, `reading` and `amount`
+each published 9 to 14 bin groups AND said their shape was not
+published. The note asks both keys now, and a test fails on any block
+that publishes groups and says otherwise.
+
+**THE GUARD AND THE HEADLINE KPI COULD NOT SEE EITHER.** Both exempted a
+listed value because the tail had listed it, so neither could fail on a
+listing rule that had moved; the exemption is the rule's own conditions
+now, asked from the column's own cells. `tests/test_stage3_tail_rule.py`
+no longer skips `tails.*.values` by its path, and where it reads a
+page it tells a VALUE from a distance and from a construction window,
+each with the reason written beside it.
+
+**`K-S3-11`'s `edge_pinned` IS CLOSED, not accepted** (plan P4-D346). On
+an all-different clock column the two published distances, the day's
+edge and the column's own "every value different" remark left ONE
+multiset -- naming all eleven outermost times including the column's
+minimum. The boundary now moves inward while the pair still settles the
+tail, which DT2 allows, and the walk that decides it must PROVE the
+tail settled inside its budget. Four sides of the battery moved, 11 rows
+withheld per side becoming 15 or 17 of 900, and `edge_pinned` is **4 to
+0** with `literal`, `pinned` and `missed` still nought.
+
+**A WARNING WHOSE COUNT IS WITHHELD KEEPS THE WARNING** (owner,
+2026-09-23; plan P4-D347). P4-D334 withdrew such a remark whole, and
+1,199 comma-grouped prices beside one bare cell lost the decimal-comma
+warning entirely. The warning is back with no number in it -- NF61,
+which carries no argument at all -- and no sentence is withdrawn any
+more. At a census line of two, where "fewer than 2" is the count of one
+in other words, NF61 stands in NF60's place.
+
+**The time-band remark says what it reads.** It rendered "this column
+runs from X to Y" off the two tail boundaries, which understates the
+span now that the ends are withheld; it says "with the outermost values
+at each end set aside, this column reaches from X to Y". Its arity,
+its seven argument classes and every other clause are unchanged.
+
+**K-2B-47's refusal is a key now.** Two of its keys were nought by
+construction whenever `build_document` refused the low-floor read, with
+nothing structured saying so, so neither could ever fail again.
+`read_floor_refused` says which of the two states the nought means.
+
+
+### Merged: stage 3's five landings in one tree (2026-09-23)
+
+**Nothing new is built here.** Stage 3 was built as five landings on
+five branches cut from one base, each with its own skeptic and repair
+pass, and this is the last of the five merged into the other four. What
+it adds is the answer to every question a branch could not answer on its
+own, because each branch could only see itself.
+
+**Four names were claimed twice, and each landing's own text is kept.**
+Two plan decision numbers (`P4-D321`, `P4-D332`), one published sentence
+form (NF59), all twelve stage-3 KPI ids, and the loader's tail
+invariants. In every case but the last the landing that arrived LAST
+takes a new number and the rule it states does not change: landing 3.3's
+"The numeric tail" is `P4-D344`, landing 3.4's "An advisory remark may
+not outlive the facts it quotes" is `P4-D345`, the two fragments the
+sentence landing added are NF60 and NF61 while the small-table note
+keeps NF59, and stage 3's KPIs are `K-S3-01` to `K-S3-12` in landing
+order. The exception is the loader's invariants, where landing 3.4 named
+the date and clock tail's TL1 to TL4 and landing 3.3 the numeric tail's
+TL1 to TL6 in ONE dictionary -- so every date-tail refusal quoted the
+numeric rule's words. The date and clock family is **DT1 to DT4** now,
+because `tails` and section 6.7a make TL the numeric family's name
+everywhere else in the code.
+
+**TWO KPIs HAD BEEN LOST, not renumbered.** Landing 3.2's population
+battery and landing 3.4's tail-leak battery were dropped by earlier
+merges of this stage: their tests and their driver stayed in the tree
+with nothing naming them. Both are back, and the board's 30-headline cap
+is kept by making ONE of stage 3's twelve a headline -- `K-S3-11`, the
+tail leak -- and demoting the rest.
+
+**The two tail rules now stand in one tree, and the second one binds the
+first.** The time-band remark (NF51) quoted a `count` column's smallest
+and largest values a second way, as two calendar days. The numeric tail
+rule withdraws those values, so the remark now reads the two ends the
+block PUBLISHES -- a heaped end where a group of eleven rows holds one,
+and the side's boundary rung otherwise -- and a block that publishes
+neither an end nor a boundary carries no remark at all (plan P4-D345).
+The loader refuses a description whose ends are gone and whose remark
+still names them.
+
+**Nine definitions had silently shadowed one another.** Both landings
+added a `TailFacts`, a `TAIL_KEYS`, a `_tail_strata`, a
+`_tail_checks`, a `_tail_approximations` and a `_tail_fields`, and
+because the two branches touched different lines the merge took both and
+the later one won every time. Each pair is two different things with one
+name now separated. The oracle also carried a second
+`TWO_FIGURE_MEMBERS` that shadowed the real one, naming a format member
+this contract does not have and dropping one it does; there is one list
+again, and it is the shipped `parsing.TWO_FIGURE_MEMBERS`.
+
+**The reference vectors are regenerated from the merged oracle**, all
+eleven files, and the tenth carries six cases and the eleventh three.
+The contract's note-grammar census is recomputed from the code: 61
+forms, 99 argument positions, and the small-table note's two arguments
+are bound where they had never been bound at all.
+
+**A landing cut before the default floor moved brought eleven literal
+floor defaults back in with it.** Landing 3.1 had taken them out (plan
+P4-D317): a parameter named for a floor defaults to
+`parsing.DEFAULT_SMALL_CELL_FLOOR` or to nothing, because a default of 1
+reads a file at a floor nobody has chosen since the default became 11.
+The date and clock tail landing was cut from the base before that
+repair, so eleven of its functions arrived carrying `floor: int = 1` --
+`generation._clock_approximations` and ten in `validation`, among them
+`_universal_checks`, `_clock_checks`, `_rank_windows` and
+`_pin_bounds_of` -- and landing 3.1's two AST guards were red on the
+branch this merge lands on as well as after it. THE SITES ARE REPAIRED,
+NOT THE GUARDS: the default is gone where the signature allows it and
+names `parsing.DEFAULT_SMALL_CELL_FLOOR` where an earlier parameter's
+own default keeps one. Four helpers in the tests and the tools were
+reading a table at the default beside a floor of their own, which the
+same landing's second guard names; each passes its own floor now.
+
+**Two tests were written against a table a later landing refuses, and
+five more asserted a rule as though its sibling did not exist.** Each is
+repaired from the rule rather than from the new output. The numeric
+tail's moment-window witness was twenty rows, which the population floor
+refuses, so it asks the same question at a hundred rows with the floor
+raised to fifty -- the size the command will take, and the floor at
+which no percent clears two tails; landing 3.1's counted double-spaced
+file was seventy records, and it takes the plain tail its own sibling
+case already took (plan P4-D341), which leaves its seventy-one blank
+places exactly where they stood. The empty-bin
+witness asserted a per-bin census at a floor of one, where a tail block
+publishes none at any floor; it now asserts the GROUPS, thirty-two at a
+floor of one and eight at eleven. The twin's obligation census asserted
+that only `numeric.tails` files the tail subchecks; both roles file
+them, under their own field names, and it now says so and checks that
+all three roles do. And the three time-band tests read the column's own
+smallest and largest value; they read the block's two published edges
+now, worked out through `tests/tail_rule.py`.
+
+**Five golden digests are re-recorded, and THREE OF THEM WERE ALREADY
+STALE** before this merge: the date and clock tail landing re-recorded
+the twin and the quality report and left the demonstration profile, the
+description the twin is built from, and the twin's own report behind, so
+the branch this merge lands on was red on all three. Each is re-recorded
+against a read of the artifact and not of the hash: the description
+gains 329 leaves and loses 10, the twin moves 212 of 3,360 cells and
+every one of them is in a numeric column, the report's count of
+approximated facts rises from 122 to 134 and NAMES one new miss, and the
+quality report's census grows from 533 checkable obligations to 541 with
+33 more listed as not checkable and none lost.
+
+### Changed: the numeric tail (stage 3, landing 3.3, 2026-09-22)
+
+**A numeric column no longer publishes a number that one row holds.**
+Until now every numeric block published its smallest and largest values
+exactly, and the rungs beside them read the rows next to those. A
+description now WITHHOLDS every rung whose type-7 reading touches one of
+the outermost max(`--smallest-group`, 3) values, on each side, and
+publishes what those rows look like as a GROUP instead: how many there
+are, how far from the last published rung they lie on average, the
+root-mean-square of that distance, and -- on a column whose values stand
+on a grid, whose tail the listing rule admits and which holds a handful
+of them -- the tail's own values, with no count written beside them
+(contract 6.7a, method G5.3b to G5.3e; plans P4-D322 to P4-D327,
+P4-D344 and P4-D346). An end is still published where a group of at
+least that many rows holds it.
+
+| on sixteen shapes at a floor of eleven                    | before | after |
+|-----------------------------------------------------------|--------|-------|
+| published numbers equal to a value fewer than 11 rows hold | 13-46 per shape | 0 |
+| a 2,000-row age column: the twin's mean                    | +1.31% | +0.01% |
+| a 500-row Pareto charges column: the twin's spread         | +9.72% | -1.13% |
+| a pain score of 0-10: cells written outside the scale      | 50     | 0     |
+| the same column's twin mean                                | +25%   | +0.2% |
+| a 20,000-row normal column: real cells outside the twin's range | 16 | 0 |
+| twenty gauss columns at 5,000 rows: the twin's spread       | +1.07% to +3.11% | +0.04% to +0.20% |
+
+**Every consumer reads one ladder.** The rungs a tail withholds are
+filled by that tail's own reading, and the two ends the twin pins are
+DERIVED from the published facts alone (`contract.tail_ladder`), so the
+generator, the validator, both reports and the summary all read the same
+hundred and one rungs. A block too thin for two tails publishes its
+moments alone and is read as the uniform with that mean and spread; one
+below the floor publishes neither and is read as a ramp of one grid step
+a value.
+
+**What a reader is told instead.** The summary prints, per side, how
+many values are not published, how far from the boundary rung they lie
+and what that rung is; the twin's report and the quality report name the
+two distances as approximated facts with their windows; and `validate`
+checks a published (heaped) end ONE-SIDED and silently, so a check never
+prints a file's own extreme.
+
+**Found and repaired while building it**: a count column of small whole
+numbers beside a heap of zeros published the value 1 in 317 cells and
+its twin wrote 4 (the ranks of a band are now read at that band's own
+sign, method G5.2a step 1a); a derived end held to a single published
+field width pulled the low end of `0`-to-`59` from 0 up to 10; a tail's
+smooth reading rounded onto a grid put two of its rows on one value,
+which cost a 500-row column five of its thirty-one numbers; a derived
+end above what a PADDED column can write -- 1006 on 1,200 offsets
+written `+0123` and `0123` -- cost the twin's own description its
+padded census, 482 cells of 1,200 against its source's 1,200 (method
+G5.3b step 4); a joined position whose end is heaped had that one value
+named twice, as `ends.number 2 max` and again by the ladder walk; and a
+band whose every run lay inside a listed tail had no run left to
+divide, which raised an error out of an empty list on twenty-four
+offsets over eight values (method G5.3e).
+
+**And one more found by the ledger itself.** A tail's innermost listed
+value is commonly the column's value just inside the boundary as well,
+and the ladder then reads one number across the edge. Such a run lay
+wholly inside nothing, so the rule that keeps a listed tail's runs
+whole passed over it, the layout joined it to its neighbours and the
+stratum that swallowed it read its own share instead: on the 240
+clinical codes of `K-P4-11`'s ClinVar column the twin wrote five cells
+at `920759` where the table holds `920760`, `tails.high.values` MISSED,
+and one of eighteen coding systems stopped validating clean. A run that
+REACHES INTO a tail's rows is now one of the runs kept whole, where the
+band's runs must be joined at all, and the band is still levelled after
+it (method G5.3e). Each qualification was measured: cutting the run at
+the edge instead spends one of the band's strata on the tail's own part
+and took that stratum off a published MODE, 210 cells written nowhere
+on 1,140 readings; protecting such a run on a band that had a stratum
+for every run already split fifty published pluses across two values,
+so a twin wrote four spellings of three numbers; and holding the
+protected run STILL, rather than letting the levelling even the band,
+gave 49, 53 and 48 cells where the source holds fifty of each. It costs
+a seed of one battery one number: on a 4,000-row column of halves the
+twin holds 16 of its 17 different values at seed 1 where it held all
+17, because the run kept whole is one stratum where the walk could have
+divided it.
+
+**And a pooled census may not cross a checked fact.** A census of
+widths and a census of marks count a group of fewer cells than the
+smallest group into the commonest, so a column of 1 to 30 publishes the
+one field width two although nine of its cells wear one. Read as a
+ceiling, that census moved a derived low end from under 1 up to 10: on
+the 30-row reading column of a macro workbook the twin wrote five cells
+at 10 and none below it, its mean stood 5.3 above the published 15.5,
+and `validate` MISSED `ladder.p50` and `moments.mean`. Neither spelling
+clamp now pulls an end inside the tail's own published mean distance,
+which no set of rows can meet from nearer than that (method G5.3b step
+4).
+
+**A withheld end is listed under its own name.** The rungs the tail
+rule withholds are LISTED rather than checked, and an end is listed
+under the field its check bound before -- `percentiles.min` and
+`percentiles.max` -- so the same obligation goes quiet under its own
+name and no subcheck binds two registry facts. Ten lines of the
+demonstration's quality report say so and nothing else in it moved.
+
+**One obligation goes quiet for a new reason, and the report still says
+why** (validation amendment V2.4-A11). A file holding a different
+number of values describes ITSELF with its ladder and its tails at a
+different percent, so it publishes nothing at the percent the
+description names, and the rungs and tail facts there are withheld --
+beside `counts.n_used_in_statistics` MISSING in the same report, which
+is the published fact that decides it. And a coarser description
+widens G12.3's windows: on a blood-pressure column of 120 rows
+`moments.skew` now reaches the range every sample of that size lies in,
+so it is a census line rather than a pass -- which is what a skew of
+that shape already was on the second position.
+
+**Not repaired, with the number**: nine twins of a forty-twin battery of
+one-place readings still hold one or two numbers fewer than their
+description publishes, each named in the twin's own report. The tail's
+rows are described by two moments rather than named, so a tail of seven
+different values on a grid cannot always be given seven.
+
+**The KPI ledger.** Eight new entries, `K-S3-03` to `K-S3-10`: no
+published page names a value too few rows hold (the headline), the
+published facts do not solve for a withheld end, a bounded scale keeps
+its own values and ends, every twin and table of the battery is checked
+clean, the real cells outside the twin's range, a listed tail's solved
+counts, a count column beside a heap of zeros, and the histogram that
+survives a raised floor in groups. Two targets are MET and their entries
+are GREEN at their own measurements: `K-P3-03` (nothing missed at 5,000
+or 20,000 rows, the twin's spread 0.04 to 0.22 per cent from the
+published one against 1.07 to 3.83) and `K-2B-05` (0 verdicts flip of
+1,058). `K-2B-47` improves on every key -- the heavy tail misses nothing
+where it missed two checks, the band split is short of no value where it
+was short of four, a record layout misses none where it missed three.
+`K-P4-06`'s ceiling comes DOWN, from 609 agreements outside the window
+and 3 missed above-counts to 556 and 1. `K-P4-07` keeps its exact 0 with
+its rule restated. Two entries read worse and are recorded so:
+`K-2B-49`'s point-free style misses rise from 30 to 33 -- one grid at
+three seeds, whose listed tail's values the strata sizes cannot meet --
+while its distinct-count misses fall from 12 to 3; and `K-S1-01` and
+`K-P3-12` were taken on a LOADED machine, so their seconds are recorded
+and not judged (31.2 s to generate 20,000 by 20 against 23.3, 126.2 s to
+validate against 70.2) while their machine-free ratios are judged and
+hold at 3.40 and 3.89, against 3.47 and 3.97 before, on a bound of 8.
+
+**The independent oracle was re-written where it had drifted.** The
+frozen vectors are built by an oracle written from the method's own
+statements, and `K-2B-42` measures how close its functions sit to the
+shipped code: the tail cases took it from 176 functions at or above
+0.60 similarity to 190, every one of the fourteen a tail function. Each
+was re-written from the clause it implements -- the shape's
+coefficients read as one tuple, the staircase as a walk over its own
+rows, the grid text as exact arithmetic on a fraction rather than a
+format string -- and every vector file comes back byte for byte
+identical through the provenance guard. The measure is back at 176 over
+443 scored functions, where it was over 409.
+### Fixed: a table with blank lines in more places than a description can name passes its own description (stage 3, 2026-09-22)
+
+**`synthtwin validate` reported a real table as missing an obligation it
+meets.** Where a file holds blank lines in more than 64 places, the
+description stops naming the places and records how many blank lines
+there are instead. That count was taken AFTER the rule that writes a
+rare kind of blank line as the common kind -- a rule that exists to keep
+a rare kind from pointing at the one record it stands beside -- so it
+could be a number the file does not hold, while `validate` counts the
+checked file's own blank lines. Past that cap the description names no
+place and no kind, so there is nothing there for that rule to protect:
+the count is now the file's own. Both sides of the check ask one
+question at every smallest group size, and it is also the count a twin
+writes back.
+
+| blank-line-heavy files past the cap on places | before | after |
+|---|---|---|
+| the real table missing its own description, 300 seeded files | 16 | 0 |
+| 70 records each followed by a blank line, one of them preceded by a line of spaces: `profile` / `generate` / `validate` against the real table | 0 / 0 / 3 | 0 / 0 / 0 |
+| that file's 71 blank lines, as the description records them | 70 | 71 |
+
+Counting the checked file after that same rule instead -- the other
+obvious repair -- cleared those 16 and made 2 of the 300 TWINS miss: a
+count spread evenly over its places writes runs of one line beside runs
+of two, and the rarer run length is absorbed back, so 87 lines were read
+back as 81. A count of the file's own blank lines is the one number both
+a real table and its twin give back.
+
+**A description of such a file also keeps its line endings where they
+are.** The record of the line endings collapses to a single run wherever
+a description keeps fewer lines than the file holds, because the runs'
+positions would otherwise say where the missing line stood. Past the cap
+the description now keeps every blank line, so nothing collapses: a
+70-record file whose first 30 lines end with a carriage return and a
+newline records `[{crlf: 30}, {lf: 112}]` where it recorded one run of
+141.
+
+**The seeded blank-line fuzz now checks the real table as well as the
+twin**, and never writes fewer records than the cap, so the counted path
+is covered: 18 of its 40 files take it, and all 18 failed on the real
+table before this. The entry below records 27 of 40 descriptions refused
+by their own reader before plan P4-D319; that was measured on the
+narrower recipe (15 to 120 records) this pass replaced, and the same
+measurement on the new recipe is 16 of 40.
+
+### Fixed: the population floor counts the rows that hold a value, and the person question reaches the case it was built for (stage 3, landing 3.2's repair pass, 2026-09-23)
+
+**A table padded with empty rows no longer walks past the floor.** The
+population was counted on the rows the reader returned, so twenty real
+records followed by eighty `,,` lines -- or eighty `NA,NA,NA` lines --
+read as a hundred-row table, cleared the floor and were described. The
+description that came out published the mean, the spread and every
+percentile over the twenty; three numbers padded to a hundred printed
+all three back verbatim. **A row whose every cell is blank, or is one
+of this format's spellings for "no value", is now counted nowhere** --
+neither as a row of the population, nor as part of the one unknown
+person where an identifier is declared. The refusal says which rows it
+counted, and the published notice then names the population the
+description's counts actually rest on.
+
+**The person question now reaches a subject column read as a set of
+categories.** Its rule asked for more different values than a set of
+categories could hold -- which is the exact complement of the rule that
+makes a column `categorical`, so it could fire only on a column that
+publishes no labels, and never on the case plan P4-D340 cites as its
+reason for existing: 12 subjects over 1,196 rows, with every subject's
+identifier published beside its visit count. A second route asks where
+every value stands on two rows or more AND every cell is written as a
+code -- inside the code alphabet, carrying both a letter and a figure.
+The letter is what keeps a two-value `0`/`1` column, a group coded
+1/2/3 and an ordinal scale out; the figure is what keeps `site`, `arm`
+and `yes`/`no` out. `K-S3-02`'s battery gained the four label shapes
+the rule mis-fires on and now reads 4 false positives over 33 columns,
+accepted with the measurement in its `status_note`: route one alone
+read 2 of those 4, and the battery simply did not hold them.
+
+**Corrected, in three places: a description written before landing 3.2
+does NOT still load.** The settings block gained a required key, and
+contract rule C6-20 makes all twenty-three required, so the loader
+refuses an earlier build's v6 description and names the entry that is
+missing. The break is sanctioned by A-P4-41; the sentence saying it had
+not happened was not. What IS still true, and stays: the floor is the
+command's, `build_document` still describes a five-row table and
+`synthtwin validate` still checks a 50-row file.
+
+**And four smaller repairs.** `K-P0-10`'s `status_note` records that
+this landing raised the suite's tables, that the seconds were not
+re-taken and that the sharded sums suggest the suite grew by about a
+quarter, so the next quiet-machine run re-stamps it. The subject counts
+in `tests/test_p4d341_population_floor.py` and in the KPI test are
+derived from the floor and the categories ceiling instead of stated, as
+is the cell count in `tests/test_extra_round_numbers.py`.
+`describe_with_the_producer` raises on a flag it does not implement
+rather than dropping it. A stray `.;` left the ledger's measurement
+note.
+
+**What it cost the suite.** A one-column shape padded with absent cells
+is now a population of its present cells, which is the repair working;
+the harnesses that padded that way add a keeper column holding a value
+on every row, exactly where the shape's own present cells fall short.
+Twenty-three cases across six files moved that way, each still driving
+the command.
+
+### Recorded: landing 3.2's two KPIs against its own commit (stage 3, 2026-09-22)
+
+`K-S3-01` and `K-S3-02` are re-measured on `52b9eee`, the commit that
+built them: the population floor's thirteen-case battery reads 4
+refused, 6 noticed, 3 silent and 0 files written after a refusal, and
+the person question reads 0 false positives over 25 columns with the
+one `subject_id` column asked about. The measurement note names both
+beside the twelve entries already standing off `caf3079`, so
+`tests/test_kpi_ledger_integrity.py` holds the note and that set equal.
+
+### Added: synthtwin will not describe a table of fewer than 100, and says so from 100 to 999 (stage 3, 2026-09-22)
+
+**`synthtwin profile` now refuses a table that is too small to describe
+as a population.** Under 100 it writes nothing at all and tells you the
+count, the line and what to do. From 100 to 999 it describes the table
+and says so, in one plain sentence that cannot be turned off: on the
+screen, in the description, in the plain-language summary, in the
+questions file, in the twin's report and in the quality report. The
+sentence says what it means, and it does not say that a small table is
+excused anything -- the same rules produced the description, the same
+smallest group size applies, and every obligation it states is the same
+obligation. **The twin's own table carries no trace of it**, so code
+you write against the twin runs exactly as it ran before (plan
+P4-D341).
+
+**The count is taken in PEOPLE where you have said who the rows are.**
+Name a column with `--identifier` and, if its values repeat, rows
+sharing a value of it are one person; rows holding no value of it count
+as one person between them. An identifier that is different on every
+row names a row rather than a person and is never counted by -- which
+is what stops a table of 150 subjects being refused because a sparse
+sample number sat beside the subject number. Where you have named
+nothing and a column looks like it names people -- its values repeat,
+and there are more of them than a set of categories could have -- the
+questions file asks you about it, and the screen says the count was
+taken in rows (plan P4-D340). The choice is written into the
+description under a new settings key, `person_columns`.
+
+| a table of                                    | before                     | after                              |
+|-----------------------------------------------|----------------------------|------------------------------------|
+| 1 row                                         | described, 3 files written | refused, nothing written           |
+| 99 rows                                       | described, 3 files written | refused, nothing written           |
+| 100 rows                                      | described, silently        | described, with the notice on all 5 pages |
+| 999 rows                                      | described, silently        | described, with the notice         |
+| 1,000 rows                                    | described, silently        | described, silently (unchanged)    |
+| 500 visits by 99 subjects, `--identifier` given | described, silently      | refused, nothing written           |
+| 500 visits by 100 subjects, `--identifier` given | described, silently     | described, with the notice, counted in people |
+
+**What has NOT changed.** The floor is the command's and not the
+format's: `build_document` still describes a five-row table, a
+description of a small table still loads, and `synthtwin validate`
+still checks a 50-row file against one. New KPIs `K-S3-01` and
+`K-S3-02` hold the bands over a battery of thirteen sizes and person
+shapes, and hold the person question to no false positive on the
+realistic shapes.
+
+**The worked example moved with the floor.** Every page that explained
+how meeting a published count exactly can force a twin row to match a
+real one used an 11-row table -- a table synthtwin now refuses. It is
+stated at 100 rows.
+
+### Changed: no sentence of a description carries a count its keys withhold (stage 3, 2026-09-22)
+
+**A count in a key was held to the smallest group size; the same count
+in a sentence was held to nothing.** A column with one grouped cell in
+four hundred read "1 of this column's values are written with a comma
+inside the number" -- a count of one, naming one row, in the plain
+prose part of the description. Over 56 descriptions at a smallest group
+size of eleven there were 252 sentences and 145 of them carried
+numbers: 9 printed a count no key of the block beside them published at
+all, and 38 more restated a count the key itself published below that
+line.
+
+Every argument of every sentence is now bound to what it is. Most of
+them restate a count the block already publishes, and those are checked
+against it, so the key's own rule covers the sentence. Thirteen do not
+restate anything: they are the sentence's own count -- how far a
+reading got, how many cells wore a mark -- and those now say "fewer
+than 11" where the group is too small to name. The description is
+refused before it is written if any sentence breaks either rule.
+
+Three more changes came with it. The words a count moves -- how the
+negatives were written, the mark between thousands, whether wide runs
+of figures are their own values' text -- are held to the same line as
+the counts, so one cell can no longer move a word about a whole column.
+The commonest number and its count are withheld where the cells that
+are NOT the commonest number are too few to name: 395 zeros among 400
+values used to publish 395 beside 400, which names the other five.
+And the counts this release deliberately leaves published -- how many
+cells were not numbers, out of range, contradictory, unparsed, zero or
+negative -- are now held at a ceiling in the KPI ledger, so they cannot
+quietly grow.
+
+Why those last ones stay: flooring them made code developed on the twin
+run clean where the real table raises, in 7 of 7 shapes measured, and
+the count could still be worked out from the published count of missing
+cells. This is a reversible call and goes to the owner.
+
+| a column of 400 values | before | after |
+|---|---|---|
+| one grouped cell, in the remark | "1 of this column's values..." | "fewer than 11 of this column's values..." |
+| a reading that reached 4 cells, in the remark | "4 of its values are numbers wearing..." | "Fewer than 11 of its values are numbers wearing..." |
+| 395 zeros: commonest number | `mode 0.0`, `mode_count 395` | both withheld |
+| one bracketed negative, `--smallest-group 1` | `negative_form: brackets` | `negative_form: minus` |
+| one grouped cell, `--smallest-group 1` | `group_separator: ","` | `group_separator: ""` |
+| cells that were not numbers | published | published (unchanged, and held at a ceiling) |
+
+**And a sentence may not hand back the cells it does NOT count.** A
+count is a disclosure from either end. A column of 1,200 prices with
+1,199 of them written `1,795` and one written plain said "1199 of this
+column's values are written with a comma inside the number" beside a
+published row count of 1,200 -- and 1,200 less 1,199 is the one cell,
+named exactly as a key holding 1 would name it. This is the shape the
+tool already refuses in its key censuses, in prose. Four sentence
+counts are counts of cells bearing one spelling, and each of those is
+now held to the cells it leaves over as well as to itself: below the
+line either way, the sentence is not written. Where the sentence is one
+a column cannot lose -- the line that says how the column was read --
+it is written without the number at all.
+
+| a column whose small group is on the OTHER side | before | after |
+|---|---|---|
+| 1,199 grouped prices, 1 written plain | "1199 of this column's values are written with a comma..." | the remark is not written |
+| 390 dates, 10 cells no reading fits | "390 read as dates written as 2024-03-17" | "some but not all read as dates written as 2024-03-17" |
+| 59 cells wearing ` mg`, 1 wearing ` MG` | "59 of its values are numbers wearing one shared piece of text" | the remark is not written |
+
+**What the first row costs, said plainly:** that column loses its
+decimal-comma warning, which is a warning about 1,199 cells that may
+each be a thousand times their real size. One ungrouped cell withdraws
+it. The warning is worth keeping and the subtraction is not acceptable,
+so whether such a remark should be kept with no count in it -- the way
+the read-as line now is -- goes to the owner rather than being decided
+here.
+
+### Fixed: files with blank lines of two kinds describe and build again at the default (stage 3, 2026-09-22)
+
+**A description `profile` wrote could be refused by `generate` and
+`validate` as "changed since it was written".** It happened where a
+record was followed by a line holding only spaces and then an empty
+line. The default floor of 11 writes a rare kind of blank line as the
+common kind, and that left two identical blank-line entries after the
+same record, which the reader of descriptions refuses. The two are now
+one entry, as a file written that way reads, and the same order rule is
+checked before a description is written as when it is read (plan
+P4-D319).
+
+| blank-line-heavy test files                           | before     | after   |
+|-------------------------------------------------------|------------|---------|
+| refused by their own reader, 40 seeded files          | 27         | 0       |
+| a record followed by spaces, then an empty line: `profile` / `generate` / `validate` exit codes | 0 / 1 / 1 | 0 / 0 / 0 |
+
+**What the default of 11 costs elsewhere, now held by name** (plan
+P4-D320). The joined-number battery misses 4 above-counts at the
+default against 3 at a floor of one, because the default publishes less
+about each position; the ledger's ceiling moves to 4 in its own commit
+and stays with stage 6. A declared record-number column of 49 rows still
+fails its own check at the default, and one column of the fold-repair
+battery still takes minutes to generate; both are pinned so a repair
+shows. Two carried misses -- a heavy-tailed column's average and one
+record-number layout -- disappear at the default only because it
+withholds more, so they are measured at a floor of one as well.
+
+**Every test and tool that names a floor now reads the table at that
+floor** (plan P4-D321), and a check keeps it so. The `--code` help no
+longer promises every code's count, since the default pools the rare
+ones.
+
+**The KPI ledger.** `K-P4-06`, `K-2B-05`, `K-2B-47`, `K-2B-49`,
+`K-2B-50` and `K-2B-51` are re-measured on f521955, the repair's own
+commit, and written in. `K-2B-47` gains three keys -- the declared
+identifier's miss at the default, and the heavy tail and the record
+layout at a floor of one -- and holds the read-floor hole closed at
+nought. `K-2B-05` reaches its target of no flipped verdicts only
+because the default withholds more, so it stays open, and its note says
+so.
+
+### Changed: a column of dates or clock times publishes tails, not ends (stage 3, 2026-09-22)
+
+**No date or time a description publishes is one of the column's
+outermost cells any more.** `earliest`, `latest`, `earliest_utc_offset`
+and `latest_utc_offset` are gone from the `datetime` role, `earliest`
+and `latest` from `time_of_day`, and each ladder publishes `null` at
+`min` and `max` and at every rung whose rank falls inside a tail. Each
+side of such a column publishes a TAIL instead: the boundary -- the
+smallest value with at least a smallest group's worth of cells strictly
+below it, mirrored above -- the count of rows beyond it, and how far
+those rows stand, as a mean and a root-mean-square distance in the
+column's own `tail_unit`. A tail holding few different values, or one
+whose two distances would settle a count below the floor, publishes
+those values instead, with no count written beside them -- but only
+where EVERY value it would list is shared by at least two of its cells
+and the column's own values come from a small fixed set rather than a
+fine grid, or where every listed value is held by the floor's own
+number of cells. A column of all-different clock times lists nothing
+and publishes its shape (plans P4-D328 to P4-D331, P4-D342, P4-D343 and P4-D345). A
+column too small or too tied for a boundary on each side publishes no
+value of the table at all, and its twin is a made-up ramp from
+1970-01-01.
+
+MEASURED ON ONE NAMED SHAPE, so that the rows can be re-run: the tail
+battery's `uniform` column, 400 days drawn over three years at seed 0,
+described at a floor of eleven on `13fa831` and on this tree.
+
+| `uniform`, 400 rows, seed 0, floor eleven            | before | after |
+|------------------------------------------------------|--------|-------|
+| different date values published                      | 11     | 9     |
+| of those, held by exactly one row                    | 8      | 6     |
+| of those, naming one of the 11 outermost cells        | 4      | 0     |
+| rungs published between the two boundaries           | 9      | 7     |
+| checkable obligations the twin misses                | 0      | 0     |
+
+The six that a single row still holds are interior ladder rungs and the
+two boundaries: this landing's half is the EXTREMES, and a rung read
+from the middle of a column of all-different dates is one row's date
+whatever else changes. The numeric sibling landing owns the rest.
+
+**And the twin's own spread is repaired by the same change**, measured
+on the battery's `lone_far` column -- a column with one value a long
+way out -- over both sizes and every seed, as the population standard
+deviation of the twin's dates against the real column's: +7.92% to
++40.47% before, -0.96% to +0.18% after.
+
+**What it costs.** The ladder loses both of its ends on every column,
+and every interior rung whose rank falls inside a tail. MEASURED on
+all-different day-resolution columns at a floor of eleven: a column of
+fewer than twenty-three rows publishes no date at all; from
+twenty-three it publishes one rung (`p50`), from forty-two a second
+(`p75`), from forty-five a third (`p25`), seven at four hundred rows,
+and all nine from one thousand one hundred and one -- the row count at
+which `p01`'s own rank, `floor((P - 1) / 100)`, first reaches the low
+tail's eleven cells. It also costs the lone-far-value column its listed
+dates: those were nine dates one row each held, which the rule of
+P4-D342 now refuses, so that column is described by its shape like any
+other. What it buys is that a column's rarest dates -- a date of death,
+a date of birth at the edge of a cohort -- are no longer written down in
+a file that travels.
+
+**And one window was drawn tighter than its own construction.** The
+checker built a date column's tail window with "every value different"
+hard coded FALSE, while the generator reads the column's own
+distinctness and lays the tail out accordingly -- a validator that
+rejects conforming twins, which is the failure that whole class of
+windows exists to avoid. It went unseen while such a column published
+its tail's VALUES instead of its shape; with the rule above closing
+that road, a column of 120 different months missed both of its low
+tail's distances, its twin standing at a mean of 7.0 months against a
+window of 5.64 to 6.45 whose own construction reaches 7.0. The checker
+now reads distinctness exactly as the generator does.
+
+**What is measured, and where it stays measured.** The KPI ledger's new
+`K-S3-11` walks twenty-one shapes at two sizes and up to three seeds --
+105 columns, each described, generated and checked -- and holds three
+numbers at nought: values named, values settled by back-solve, and
+obligations missed by the twin or by the real table. It records four
+more as bounds that may not slip. How much room the battery's tightest
+tail leaves a reader trying to back-solve it: 2 different multisets of
+distances, on a column of quarters. How many tails still LIST their
+values rather than publish a shape: 12, all of them quarters, months or
+the forty-cell `0001-01-01` heap. How many of the real table's own
+published distances the checker's window does not reach: 2, on a
+quarters column at 400 rows and a months column at 1,500, and those are
+the two places where the real table meets an obligation by holding the
+published value exactly and the window around it is no help. And how many tails the published pair settles to ONE arithmetic
+once a reader also uses the column's own all-different remark and the
+tail's own edge: 4 when this was written, every one of them a side of
+an all-different clock column of 900 rows whose tail is pressed against
+the end of the day. **That number is 0 since plan P4-D346**, which
+moves such a boundary inward until the pair no longer settles the tail;
+what stands here is what it was, so that the entry above can be read
+against it. A
+fifth, `unsearched`, says where the measurement itself could not
+finish: 35 tails counted in SECONDS, whose sums run past what an
+exhaustive walk can enumerate, so their room is not measured rather
+than measured and found roomy.
+
+### Changed: the default smallest group is 11 (stage 3, 2026-09-22)
+
+**A description made without `--smallest-group` no longer names a group
+of fewer than eleven rows.** The owner returned the default to 11, the
+value it had before 25 August and the same number as the line under
+which every page says a description names small groups. A smaller
+number is still accepted and still alarms the screen and every page.
+The number is written once, in `parsing`, and every module reads it
+from there (plan P4-D316).
+
+| on the every-role table (240 rows, 14 columns)   | floor 1, the old default | floor 11, the default now |
+|--------------------------------------------------|--------------------------|---------------------------|
+| labels published                                 | 192                      | 9                         |
+| labels held by one row                           | 147                      | 0                         |
+| labels held by fewer than eleven rows            | 183                      | 0 (183 pooled, 224 rows)  |
+| numeric columns publishing a histogram           | 4                        | 1                         |
+| description size                                 | 100,210 bytes            | 50,517 bytes              |
+| facts the twin's own report names as unmet       | 4                        | 4                         |
+| subchecks the twin misses                        | 0                        | 0                         |
+
+The histogram is all or nothing, so a bell-shaped column with thin
+outer bins loses it until the tail landing re-anchors it. Exact minima
+and maxima are still published; that is the tail landing's too.
+
+**Three places read a file at the wrong floor, and one rule lived in
+the producer alone** (plan P4-D317). The survey's second walk after a
+broken trailing-delimiter guess, the quality check of a zero-row
+description, and the test suite's shape describer each read a file at
+the default whatever floor was asked. Blank lines, blank lines counted
+past the cap and counts of empty records were held to the disclosure
+rule by the producer alone. A hand-edited description that names one of them below
+the line is now refused by the loader and by the guard that runs before
+a description is written.
+
+**Found and not repaired, with the numbers** (plan P4-D316): at the new
+default the twin of the 49-row declared-identifier column of plan
+P4-D182 fails its own check, because the made-up spellings of its
+pooled groups read as hexadecimal; one column of the fold-repair battery
+takes 269 seconds to generate against under one second at a floor of
+one; and a whole-number column whose rarer width is pooled names
+`field_widths` in its twin's report. The tests that measure those
+mechanisms now ask for a floor of one and say why.
+
+**The KPI ledger.** `K-P4-20` pins the default at 11 and is re-measured
+on `3f6cd9f`, the landing's own commit. The fast tier of the runner
+reads no drop there (120 green, 9 open and 4 accepted limits held). The
+joined-number battery's driver, measured at the new default on the same
+commit, reads `K-P4-06` WORSE: 609 agreements outside the window, as
+recorded, and 4 rows-above counts missed against a ceiling of 3. The
+in-suite pin of that battery is measured at a floor of one, where its
+ceilings were taken.
+
+### Changed: the owner accepted the twin rebuilding 63 held-back cells, not 55 (2026-09-22)
+
+The mean-only landing of 21 September moved `K-2B-19` from 55 to 63 of
+251 held-back cells that the twin writes exactly as the table held them,
+with one column of nineteen still rebuilt whole. The owner accepted the
+new ceiling: "just showing that the value exists is not an issue; what
+matters is not showing the relation in a descriptive file." Nothing in
+the code moved. The ledger entry records the decision, and the state
+page no longer lists it as waiting.
+
+### Changed: stage 2 is closed, and the twin writes each column the way the source wrote it (2026-09-15 to 2026-09-18)
+
+**Until this stage, code that ran on the twin could still fail on the
+real table because the twin spelled things its own way.** Dates came
+back in ISO form, a declared record number came back as
+`A----------------------------------J`, a European price came back as
+punctuation, and a workbook could not be read at all. On 2026-09-15 the
+owner ruled that the twin writes everything as the source wrote it. The
+entries below are grouped by what a researcher now gets. The eighteen
+landings of stage 2b were built on separate branches, merged into one,
+reviewed three times, and closed under the owner's rulings of
+2026-09-17 and 2026-09-18.
+
+| suite, at each close                        | collected | failed |
+|---------------------------------------------|-----------|--------|
+| first review round's fixes, merged and repaired | 6,056 | 3      |
+| stage 2 closed, before the extra round      | 6,397     | 1      |
+| extra round merged and landed               | 6,626     | 57     |
+| stage 2b closed                             | 7,083     | 0          |
+
+At every close, one of the failures was the state page's own record of
+the suite size. That page is written separately.
+
+**The closing run.** On the merged tree at `fd93100`: 7,083 collected,
+7,033 passed, 49 skipped, and one failure — this page's companion, the
+state page's own record of the suite size, which moves in the commit
+that carries this entry. Four review rounds reached this point, and the
+last of them is below.
+
+### Fixed: a twin's numbers stay much closer to the column's own distribution (stage 2b, 2026-09-15 to 2026-09-18)
+
+**A twin could hold one number far more often than the real column ever
+did, move a column's published mode, or place held-back values
+nowhere near the table's own.** Some of these failed the twin's own
+validation and some passed every check while wrong; the table gives
+both.
+
+| case                                                    | before           | after                  |
+|---------------------------------------------------------|------------------|------------------------|
+| 4,000 rows, published mode count 62: most copies of one number | 760       | at most 62             |
+| 2,000 tenths publishing 517 numbers: numbers held       | 479              | 517                    |
+| the same: cells at full binary precision                | 227              | none                   |
+| 96 twins of spreadsheet decimals: checked with nothing missed | 4          | 70                     |
+| the same: leading zeros invented                        | 736              | 16                     |
+| floor of 11: most copies of one number, 30 twins        | 45 (4,000 amounts) | 10 or fewer          |
+| two reports on 44 columns: windows printed differently  | 923 of 985       | none                   |
+| readings beside labels (skeptic's case): twin spread / table | 1.9 (up to 4.9) | 0.99               |
+| six narrow-width shapes: twins failing, of 48           | 19               | none                   |
+| readings written both `4` and `4.0`: misses, of 240     | 61               | 1                      |
+| signed grouped twins: marks census misses, of 80        | 36               | 0                      |
+| published mode `-0.6` over 210 rows: twin holds it      | 0 times          | 210 times              |
+| held-back number shapes: twins failing, of 30           | 17               | 0                      |
+
+- **Numbers beside labels keep their numbers.** A column of one-decimal
+  readings beside two labels published 853 numbers at 1,200 rows and a
+  floor of twenty, and its twin held 359. Over 242 runs every twin now
+  meets its class counts and validates. Where the column published a
+  number (222 runs), the twin's mean stays within 0.42 of the table's
+  standard deviation, and the spread is within a fifth of the table's
+  in 217 runs.
+- **A column of a few levels keeps its levels.** 2,000 quantities of
+  eleven levels, and 1,423 discounts of six, wrote a whole level at a
+  number the source never held in six twins of eight (`7.4` 225 times,
+  `1.3` 199 times). The twin now uses the published levels. A level too
+  rare to be named on the published ladder can still move.
+- **A held-back number stays inside the numbers the column has.** An
+  exponent-written column's made-up cells came back `9.6E6`. The twin's
+  mean was 2,450,000 against the table's 1,173,077, its spread was 43
+  times the table's, and validation passed. A made-up number now lies
+  between the smallest and largest published values. On an amounts
+  column published from 1,100,000 to 8,800,000, the twin's mean is
+  4,957,692 against the table's 5,034,615, where it had been 4,188,462.
+- **Grouped and bare amounts are spread across the column.** The bare
+  cells had always been the largest amounts. The twin's grouped and
+  bare means are now 486k and 485k against the real 493k and 476k,
+  where they had been 289k and 795k.
+- **The twin's report and the quality report print the same window.**
+  A twin scaled by 1.03 or 1.05 is still reported MISSED, so the check
+  lost none of its power.
+
+**Cost, stated rather than hidden.** Where a held-back level lies outside
+the published span, the census is met at the statistics' expense. On
+one measured column the twin's mean was 17.9% high and its spread 34.0%
+low, and the twin's report says the placement is synthtwin's own.
+
+**Measured and left open, each held at a ceiling in the KPI ledger.**
+
+- **On columns shaped like a bell curve, the twin's spread is 1.4 to
+  3.7% too wide.** Measured on potassium, sodium, systolic pressure,
+  haemoglobin, body mass and saturation from 5,000 rows. At 20,000 rows
+  by 20 columns, 19 of 1,021 checks miss on the standard deviation; at
+  5,000 rows none do. The cause is how the twin fills the outermost 1% of
+  a column: a straight line out to the exact published minimum and
+  maximum, where the real column reaches those ends only with its last
+  few cells. The repair is known and needs only published facts. It is
+  left for stage 3, which replaces the exact extremes with a published
+  tail shape and so rewrites this same step. Until then a test holds
+  four bell-shaped columns at 5,000 rows within 2.2% of their published
+  spread, and the ledger records the rest: +1.07 to +3.11% at 5,000
+  rows and +1.74 to +3.83% at 20,000 across its twenty columns.
+- **Cells holding three or four numbers.** 597 of 2,160 pair agreements
+  fall outside their window, and 7 counts of rows where one number
+  exceeds another are missed. When recorded, the figures were 550 and 0.
+  The cause is the walk that pairs the numbers. A repair was tried and
+  withdrawn, because it moved length of stay's mean 12% further off.
+  After the merge the figures are 609 and 3: the repair of a nearly full
+  band (below) trades 12 agreements for 4 exact counts, and the
+  orchestrator accepted that trade.
+
+### Fixed: the common ways a number is spelled come back (stage 2b, 2026-09-15 to 2026-09-18)
+
+**Four spellings of a number were lost with no error.** A charge grouped
+with a space, an apostrophe or a thin space was read as free text. An
+accounting negative `(1,234.56)` came back as `-1,234.56`, and the real
+table then failed its own description. A plus on a decimal was dropped.
+`1,483.65-` and `−6.09` were published with no negatives. A bare copy
+of a grouped twin also validated at exit 0.
+
+- **Seven thousands marks, four negative notations and the signed
+  decimal are read, published and written back.** A mixed column is
+  written as a mix. 600 charges, 480 written with a minus and 120 in
+  brackets, had come back as 600 minuses. 200 cells grouped with a space
+  beside 100 grouped with a narrow no-break space had come back as 300
+  ordinary spaces. Both now come back exact at three seeds.
+- **A German count column is asked whether its point is a thousands
+  mark.** It is asked on 6 of 6 runs, where 3 of 3 seeds had asked
+  nothing, and the answered mean equals the true mean. The signed
+  decimal is exact on 6 of 6 seeds.
+- **A declared European price is read as money.** `795,64 EUR` had been
+  read as free text, with a twin of `)!!!!! !!!!!` and both files
+  passing. It now comes back as `624,60 EUR`. `92.959,11 EUR` had lost
+  its grouping point on 800 of 800 twin cells, and now keeps it on 800
+  of 800.
+- **A real export meets its own description.** Excel, SAS, Stata, SPSS
+  and Fortran exports (`4.60E+03`, `6E9`, `.05`, seventeen-figure
+  numbers) had failed their own description on 14 runs of 14, and now
+  pass. A Fortran column written with a `D` exponent still comes back as
+  stand-ins. A ledger of signed seventeen-figure keys had 398 of 800 cells
+  refused, and now passes at both seeds.
+- **Wide keys say how they were written.** 800 seventeen-figure keys,
+  790 of them respelled into neighbours a computer cannot tell apart,
+  had checked out at exit 0. The description now records whether the
+  column wrote its numbers the way the numbers write themselves, and a
+  respelled file is caught. Zero-padded keys are included: 786 of 800
+  respelled had passed, and they are now reported at exit 3.
+- **A whole-number column written `44.0` stays whole.** 23 cells of 800
+  had moved to values such as `25.6`. None move now.
+- **An undeclared blood pressure is read as two numbers.** `128/79` had
+  been free text without `--measurement`. Near the long-tail line, 22 of
+  80 round trips had been reported MISSED, and none are now.
+- Offsets written both `+0123` and `0123` keep their spellings: 917 of
+  917, where there had been 776. A zero-filled code no longer gains a
+  sixth figure in a five-figure field (`099613`).
+
+**Not yet fixed.** A column mixing notations can write `101.88` beside
+`0101.88` and hold one different number fewer than published. The twin
+fails at exit 3 and its report names it.
+
+### Fixed: timestamps and dates are written as the source wrote them (stage 2b, 2026-09-15 to 2026-09-18)
+
+**The twin wrote every date in ISO form.** `strptime('%m/%d/%Y')` parsed
+400 of 400 real cells of a month-first export and none of its twin's.
+`'%d-%b-%Y'` failed the same way on a SAS export. `2024-q1` came back as
+`2024-Q4`. A compact `YYYYMMDD` column's twin failed synthtwin's own
+validation. On eighteen export shapes at three seeds, 240 of 240 twin
+cells now parse under the export's own format, none is written as ISO,
+and the twin and the real table both validate.
+
+| case                                                | before                  | after              |
+|-----------------------------------------------------|-------------------------|--------------------|
+| per-day count variance, twin / real (54 runs)       | 0.057 to 0.514          | 0.52 to 1.41       |
+| interior percentile dates exact (54 runs)           | none (one day early)    | 54 of 54           |
+| 2,000 rows, 1,900 bare dates beside moments at midnight       | written as moments      | written bare       |
+| partly-midnight columns: midnight cells kept        | 2 of 361; 1 of 1,429    | 361; 1,429         |
+| CET/CEST export at local midnight                   | 2 of 900, a day early   | exact              |
+| midnight under three offsets: invented times        | 11 of 120 cells         | none               |
+| exact distinct-date counts                          | 4 came back as 7; 3 as 6 | 4; 3              |
+| 400 `05-Mar-2021` dates over 250 days               | 246 different dates     | 250                |
+| export of 1,077 distinct dates                      | 1,065 or 1,107          | 1,077              |
+
+- **Each spelling detail is kept:** field order, delimiter, field widths,
+  month-name case and length, quarter and zulu case, and the mark
+  between day and clock. A mark written by fewer rows than the floor is
+  the exception: under ruling 6 it is counted into the commonest mark, so
+  a rare lower-case `t` beside many `T` comes back as `T`.
+- **A twin's dates spread across days as real dates do.** The first
+  review round found a shape the table above missed: 3,000 dates over
+  60 days piled onto the published percentile days, and the twin's
+  day-to-day variance was 4.8 to 6.6 times the table's. It is now 0.61
+  to 1.02 times. The first attempt at that fix made a week of thinning
+  dates come back 0.32 standard deviations late; its repair returned
+  them to +0.06 to +0.10, where they had been.
+- **A declared day-first column is judged in its own order.** Twenty
+  January dates had been removed as placeholders, leaving 380 of 400
+  values. All 400 are now kept.
+- **A table no longer fails its own description on a placeholder day.**
+  20 judged `1900-01-01 00:00:00` beside 30 declared placeholders had
+  left the real table missing thirteen obligations. Five kept
+  `01/01/1900` cells below the floor had left it missing fourteen. Both
+  now validate.
+
+**Accepted as a limit (2026-09-18).** Fractions of a second are written
+as nought. 240 of 240 source cells held a thousandth and the twin held
+none, while both files validated. The twin's report now says so.
+Generating at the millisecond is a landing of its own.
+
+**Deferred.** The time of day inside a timestamp is not reproduced. On a
+clinical table, 932 of 2,000 twin discharges fell outside the real 07:00
+to 19:00 range. This is stage 3b.
+
+**A slowdown this stage caused, found by the KPI ledger and fixed.** One
+of the extra round's date repairs added a search that stepped one second
+at a time. Generating a 2,000-row date-time column took 28.5 s where it
+had taken 0.16 s. The search now sorts the column once and walks that
+order. Medians of three on a shared machine:
+
+| column | before | after |
+|---|---|---|
+| 400 date-times, partly at midnight | 55.3 s | 0.12 s |
+| 2,000 date-times, partly at midnight | 63.5 s | 0.52 s |
+| 20,000 US-style dates | 2.7 s | 1.3 s |
+
+The twins are byte-identical to the slow ones. A test counts the
+search's steps, so the suite fails if the one-second walk comes back.
+
+### Fixed: labels, free text and missing values keep their own spellings (stage 2b, 2026-09-15 to 2026-09-18)
+
+**A cell holding only a space was published and written as an empty
+cell.** A 500-row readings column published 315 blanks when 177 of them
+held a space, two spaces or a no-break space. `pandas.to_numeric` then
+ran on the twin and raised on the real table. Each whitespace spelling
+is now published at its own count, and the twin writes it back.
+
+- **Free text names the missing-value words it used.** A 500-row note
+  column with 101 blanks and 174 `NA` or `N/A` had its twin write 275
+  empty cells. The real table also failed its own description. The twin
+  now writes `N/A` 95 times and `NA` 79 times, and both files validate.
+  The real table of a declared identifier with 59 `NA` cells now meets
+  its own description, where it had exited 3.
+- **Codes wear their own shapes.** 800 rows whose description names
+  forty forms came back wearing none of them, 405 cells short. They now
+  meet every form at three seeds. A notes column mixing codes and prose
+  went from 320, 310, 138, 117 and 114 cells short to none. A
+  two-convention telephone column had worn its form on 531 of 532 cells
+  that owed it, and now wears it on all 532.
+- **Lower-case codes stay lower case**: 800 of 800, where none had been.
+  Held-back codes wear their column's shape instead of `group-N`: the
+  mean length is 7.204 against the table's 7.204, where it had been
+  9.907.
+- **Missing words pooled below a raised floor count as absent (ruling
+  4).** 280 record numbers beside ten `NA` and ten `N/A` at a floor of
+  twenty now validate, where the real table had exited 3.
+
+**A `-999` that synthtwin judges to mean "no value" is written as the
+source wrote it.** It used to be written blank, so pandas read the twin's
+column as decimals (`float64`) where the real column is whole numbers
+(`int64`). On the twin, `df.reading == -999` found nothing; on the table
+it found 13 rows. The twin now writes the judged spelling at its
+published count. The column reads `int64` on both files at every seed
+and floor tried. Of 16 judged shapes, none now gives a column a
+different type in pandas, where 9 did before. A judged spelling below
+the floor is still absorbed, like any spelling below the floor, and that
+column still reads as decimals. This supersedes the Phase 4 decision
+that wrote judged placeholders blank.
+
+### Fixed: record numbers and codes keep their layout (stage 2b, 2026-09-16 to 2026-09-18)
+
+**A declared record number came back as a row of hyphens.** A UUID
+column matched its own pattern on 800 real rows and 0 twin rows. A site
+code `NYC-2033` came back as `A------J`. A zero-filled `02254257` came
+back as `10000020`. A column mixing two numbering systems had its length
+mix `{10: 573, 7: 227}` collapse to `{7: 799, 10: 1}`. Both files
+validated at exit 0.
+
+The description now publishes each record number's layout: what kind of
+character stood at each position, never which one, apart from a prefix
+every record shares (ruling 1). The twin writes to that layout.
+
+| twin cells matching the source's pattern, 800 rows | before | after |
+|----------------------------------------------------|--------|-------|
+| UUID, braced GUID, site code                        | 0      | 800   |
+| `%08d` zero fill opening `00`                       | 78     | 800   |
+| `^P\d{5}$`                                          | 30     | 800   |
+| `^REC\d{7}$`                                        | 0      | 800   |
+| `^ABC-\d{4}$`                                       | 0      | 800   |
+| two systems `^(REC\d{7}|E\d{6})$`                   | 9      | 800   |
+| hexadecimal `DE-[0-9a-f]{6}`                        | 0      | 800   |
+
+- **A shared prefix is published and written (ruling 1), per system on a
+  two-system column (ruling 7).**
+- Made-up identifiers no longer lean on the figure nought: 11% noughts
+  on a 13-figure code, where there had been 45%. On the identifier test
+  battery, the runs short of a layout fell from 488 to 200 of 800.
+- **One exact rebuild of real record numbers is closed; one is not.**
+  `REC000` to `REC999` published a prefix and a layout with one
+  solution, and the twin held all 1,000 original rows. The prefix is now
+  withheld there, and the twin holds none of them. 900 record numbers
+  from `100` to `999` no longer publish their layout, but the lengths
+  and counts that remain still pin the set, and the twin still holds all
+  900 real numbers (see the limit below).
+- **The twin's report no longer says its made-up values "are not your
+  data".** 40 of 2,000 made-up subject numbers matched real ones, which
+  is the chance rate, and the report now says this can happen.
+
+**Accepted as a limit (2026-09-18).** When a column's layout has little
+room to spare, real record numbers still reach the twin. At 1,000 rows,
+`REC` plus four figures leaves 100 real record numbers in the twin,
+plus five leaves 10, plus six leaves 1, and plus seven leaves none.
+Withholding the layout does not help: `100` to `999` leaves all 900,
+and 989 numbers from `000` to `988` leave 978.
+
+### Fixed: the file itself, and Excel workbooks (stage 2b, 2026-09-15 to 2026-09-18)
+
+**synthtwin now reads Excel workbooks and writes each twin in the same
+form as its source file.** Following the owner's ruling of 2026-09-15,
+it reads Excel and delimited text only. Workbooks are read and written
+with Python's standard library. openpyxl is used only by the tests, as
+an independent check.
+
+- **The delimited form is kept:** the delimiter (including Excel's
+  `sep=` line), line endings, encoding and byte-order mark, quoting,
+  blank lines, preamble lines, index columns, padding and row order. A
+  line ending or blank line too rare to publish is not reproduced. When
+  the file form landed, five ordinary UTF-8 comma files with LF endings
+  gave twins byte-identical to before; the number, date and label fixes
+  above change twin cells where they apply.
+- **Three ordinary spreadsheets now make usable twins:** a table behind
+  a hidden notes sheet, a sheet named like "Cohort extract", and a
+  macro-enabled workbook. None of the three had worked before. Numbers
+  stored as text are read. Format codes are written as the source wrote
+  them where they use only the format language's own tokens. The twin's
+  report names the sheet it writes.
+- **A workbook twin can always be opened.** A column stored as dates
+  had its twin hold `2006-06-32` and `8204-84-03`. openpyxl could not
+  open the twin at all, while validation passed on both files. Every
+  date cell now names a real day, and openpyxl reads 118 dates and 2
+  strings. *Cost:* those made-up cells pile up at the top of each
+  field's range, and 108 of 118 fall in December.
+- **A file that reads two ways is asked about.** `id,measure|low|high`
+  had silently been read with the bar, and code splitting on the comma
+  read `029` where the column holds 100 to 103. The competing reading is
+  now recorded and asked about, and `--delimiter` declares it. The
+  twin's cells are made up under the reading taken, so code splitting
+  the twin by the other character can still find ragged rows.
+- **Other fixes.** A quoted title line, a regression of this stage
+  caught before it merged, had left a twin failing about 120
+  obligations that synthtwin could not read back. Two number formats
+  of one kind (`0%` beside `0.0`) had collapsed into one, and are now
+  refused by name. ISO dates stored as text had come back as `45315`.
+  Empty strings had become blank cells. A hostile cell reference had
+  taken 2.592 s to refuse, and now takes 0.000 s. A spreadsheet packing
+  a million cells into 5 MB had been read in 4 s and 630 MB, and is now
+  refused in 3 s at a peak of 539 MB, under the 600 MB the ledger holds
+  it to.
+
+**Accepted as a limit (2026-09-18).** The reader still accepts a workbook
+date cell that names no day, when another program wrote it.
+
+### Fixed: far fewer published counts can single out one row (stage 2b, 2026-09-16 to 2026-09-18)
+
+**Many published counts could single out one row, either directly or
+by subtraction.** In one example, 400 five-figure numbers, 399 codes
+and one `hello` published counts from which 800 − 400 − 399 = 1. The
+rule that no count, remainder or difference may name a row had been
+written out four separate times. It is now stated once and applied to
+every census of how the table was written, and since the extra review
+round to the file's own lines. A lone CRLF at record 57 had been
+published as runs of 57, 1 and 63 lines, and no longer is. It does not
+yet reach everything: the exact smallest and largest values are still
+published, and one row can hold them (stage 3), and the counts of one
+accepted as limits below still stand.
+
+**The owner's eight rulings of 2026-09-17, all built:**
+
+1. **A record number's shared prefix is published.** Results are in the
+   table above.
+2. **Held-back label levels publish a pooled total only.** On 2,000
+   Zipf codes at a floor of 11, the held-back single-row levels fell
+   from 215 to 151 and the largest held-back level from 10 to 4. The
+   distinct count of 414 was unchanged.
+3. **A workbook with a second table stays refused**, and the message now
+   asks which sheet is the table.
+4. **Missing words pooled below a raised floor count as absent.**
+5. **A label row recoverable by subtraction counts as missing.**
+   `F` 480, `M` 519 and one `U` at a floor of eleven now publish two
+   levels and one missing cell. Work at the close and in the extra
+   review round closed four more shapes that forced a count of one. These were a clinical site column with
+   three one-patient sites, one lower-case `f` beside 490 `F`, 201 − 100
+   − 100 = 1 across sibling totals, and 120 site codes written once each
+   beside `NORTH` and `SOUTH`.
+6. **A spelling below the floor counts into the commonest.** 400 stamps
+   with one `t` publish `{"upper_t": 400}`. The first repair pooled the
+   rare spellings instead, and made one `T` among 5,000 space-separated
+   stamps turn 4,998 of the twin's stamps into `T`. It was replaced.
+7. **The prefix is published per system.**
+8. **An ambiguous first row gets placeholder names and a question.** A
+   headerless export whose first record was `CASE-ZEBRA-471,Northfield
+   Clinic 3,<0.10` had published that record as the column names,
+   described 239 rows where the file holds 240, and written the record
+   into the twin. It now describes 240 rows under `column_1` to
+   `column_3` and asks the question. The same holds for `R001,North
+   Unit,<0.10` with no title above it.
+
+**Costs.** A file with fewer than the floor's number of respelled cells
+describes, and validates, as the file without them. A column name such
+as `2019_total` over numbers now gets placeholder names and a question.
+A spelling common enough to publish can be held back to hide a single
+stray cell beside it.
+
+### Fixed: what three review rounds found, and how each was closed (2026-09-16 to 2026-09-18)
+
+**Every round found real defects, and some fixes had to be repaired
+again after a second look.** Each fix was reproduced before it was made,
+pinned by a test built from that reproduction, and checked by
+withdrawing it to confirm a test turns red.
+
+- **The final Codex round of stage 2b (2026-09-16): 52 items.** These
+  were 7 on dates, 8 on numbers, 10 on labels, 19 on files and 8 on the
+  merge. They were fixed on four branches and merged. An independent
+  check re-ran all 52: 50 fixed, one partly (row order kept, but 119
+  distinct numbers of 120, closed in the repair that followed), and one
+  waiting on the owner, which became ruling 4. The check of the merge
+  found one blocker, six major and five minor items. The blocker, three
+  of the majors and two of the minors were repaired; the time of day,
+  heavy tails, a repeated count of one and three minor workbook and
+  date items were measured and carried. The round's verdict files were
+  lost in a restart. The round was not re-run, under the rule of one
+  round per landing.
+- **The independent review of the close (2026-09-18): nine items,
+  four of them blockers.** Rulings 5 and 8 held only on their sharpest
+  cases, and each broke on a common shape. Both were widened, and the
+  extra round then broke each once more on another shape; both were
+  closed again there, apart from the autofilter limit accepted below. A
+  spelling written by one row, a comma in a made-up value, and the "not
+  your data" sentence were also fixed. A separator census at a raised
+  floor was only partly fixed, and a percent column that writes two
+  fraction widths still misses both (carried). One finding stays with
+  the owner: a
+  timestamp column whose rare mark is absorbed can publish a description
+  no file satisfies. Its twin fails and describes itself again as a
+  two-value column, and the quality report names all three missed
+  obligations.
+- **The extra Codex round (2026-09-18): 39 items, nine of them
+  blockers.** These were 10 on dates, 10 on numbers, 10 on files and 9 on
+  disclosure, and all four passes rejected the tree. Each area was fixed
+  on its own branch, and each fix was checked by a second reader, which
+  found more on every branch. The four were then merged. A final check
+  re-ran all 39: 35 closed with numbers on their own reproductions, and
+  the 4 that still reproduced were confirmed as never closed rather than
+  lost in the merge. Of
+  those four, one is now fixed and the loss of fractions of a second is
+  now named in the twin's report. The other two went to the owner: the
+  identifier room ratio, since accepted as a limit, and the scale of a
+  pooled population of numbers. The same check then spent an hour on
+  realistic tables of its own and found one blocker, five major and two
+  minor problems. Four are fixed above: the headerless first record,
+  month-name dates, a count of one in the census of missing values, and
+  workbook date cells no reader could open. The notation mix and the
+  delimiter residue are not, and the red tests are the placeholder
+  below.
+
+**The four fix branches of the extra round had each run only their own
+area's tests.** Together they left 56 tests failing elsewhere, and each
+one was resolved on its own. A skeptic then worked out every changed
+number again from its rule, without looking at the fixer's number:
+
+| resolution | tests |
+|---|---|
+| a real defect, fixed in the code | 14 |
+| a number a ruling deliberately moved, re-derived from the rule | 18 |
+| a guard that had stopped catching its defect, re-armed and mutation-checked | 39 |
+
+The counts include neighbouring tests the repairs reached. No assertion
+was loosened, and no expected value was copied from the tool's output.
+The merged suite came to 6,763 collected, with one failure: the state
+page's own count.
+
+**Paid back.** Two frozen reference cases for the date merge rules had
+stopped reaching the rules they were written for. The rules were not
+dead: a census naming one width word over fewer cells than the column
+holds reaches both. Two new frozen cases reach them, each with a mutant
+that moves its cells.
+
+### Fixed: what the owner asked for on 21 September, and what the second CI run found (2026-09-21)
+
+**A pooled column of numbers beside labels now publishes its MEAN and not its spread** (owner, 2026-09-21). The first attempt at this published both, and that was worse than the defect: on the owner's own shape the published spread was exactly the smallest a pool of ten different whole numbers can have, which forces them to be ten consecutive numbers, and the mean then says which ten. The description gave away the ten values the floor was holding back. Publishing the mean alone is one equation over as many unknowns as the pool has levels.
+
+| | before | after |
+|---|---|---|
+| the twin's numeric mean, where the table's is 187.08 | 100 | 187.08 |
+| the reader's smallest number of surviving arrangements, over 72 shapes | 1 | 1,224 |
+| what the validator checks | the mean and the spread | the mean alone |
+
+Four earlier refusals gave way to one counted rule: the published mean must leave the values room to move, counted exactly — how many sets of the pool's own different numbers, on the grid its values stand on, inside the width the column shows, add up to what the mean and the count say. The bound is a thousand. It catches a shape the old rules never saw: six one-figure numbers beside a published one-figure number passed all four and the mean pinned them to sixteen answers. **The cost, stated:** a pool's spread is no longer verified, so a twin whose pooled numbers are too tightly or too widely spread is no longer caught by that check. The twin's pooled spread runs about 2 out on the owner's shape.
+
+**A twin no longer fails a description its own absorbed mark produced.** Ruling 6 counts a mark worn by five rows into the commonest, which is right; what was wrong is that the description then promised three distinct values the twin could not hold, so the tool called the twin wrong for obeying it. A new rule, G7.9, buys back the distinct count within the floor's own budget. The first attempt overshot — a twin that had been clean came back holding six values where five were published and missing two checks — and the repair lands it exactly: five held, nothing missed, the real file clean throughout. One narrower shape, a census mixing upper and lower `t`, still misses one check where it used to miss three.
+
+**The suite costs less, and CI costs far less.** Nothing was deleted, skipped or weakened: the collected set is identical. Three files stopped rebuilding the same corpus for every case — one battery of three walks went from 129 + 119 + 115 seconds to 131 + 0.06 + 0.06 — and the suite is now split five ways in CI with a job that proves the shards are exactly the collected set, no file twice and none missing. One process: 50 min 47 s for 7,174 tests. Heaviest shard: about 13 minutes, against cells that had been costing 1 h 20 m to 3 h.
+
+**The second CI run was red again, on a layer under the first.** Every one of these is a test that could only pass in the arrangement it was written in:
+
+| what CI saw | the cause |
+|---|---|
+| two failures on every cell, including the ones where nothing else failed | two tests asserted the answer for the machine they ran on rather than testing the rule; on a runner the policy answered before their patched answers were read |
+| `TypeError: read_text() got an unexpected keyword 'newline'` on 3.10, 3.11 and 3.12 | that keyword arrived in 3.13 and the floor is 3.10 |
+| seventeen Windows-only failures | the refusal message legitimately names the file, and a Windows temporary path contains `AppData`, which contains `Data` — the sheet name the test was checking had NOT leaked |
+| about 25 failures in the `minimums` cell | openpyxl is not installed there, and the tests failed instead of skipping |
+
+Each carries a guard against the next one: a reader that scans the tree for standard-library spellings newer than the floor, beside the one that already scans for platform-gated calls, and one named skip for the cross-check reader. That skip lands at the point of use — 59 of the 62 cases run synthtwin's whole half first and skip only the second reader, so a regression still turns them red where openpyxl is absent.
+
+**And the oracle was caught copying the code it checks, twice.** `K-2B-42` allows no more than 176 of its functions to score 0.60 or above against their closest shipped function. A landing added one at 0.67 — same name, same shape — and the bound was not moved: the function was rewritten from the method's statement of its rule, which had to be COMPLETED first, because three of its clauses existed only in the shipped code and one frozen case. Its skeptic then found those newly written clauses were witnessed by nothing, and added seven mutants that are now red.
+
+### Fixed: the first CI run of stages 1, 2 and 2b, and the three defects it found (2026-09-20)
+
+**Every static check passed and every test cell failed** — lint, types,
+the offline scan, provenance, decontamination, sensitive paths and build
+all green; five Pythons across Ubuntu, Windows and macOS all red (pull
+request #6, run 35508922164). None of the three was a defect in the
+product: each was a test that could only pass in the arrangement it was
+written in, and `src/synthtwin` is untouched by this landing.
+
+| what CI saw | the cause | what the suite does now |
+|---|---|---|
+| `a network operation was attempted` | the readings battery ran its twelve columns over a process pool, whose machinery takes a socket, in a suite that is network-dead by design | three columns, serially — 25 s of the battery's 95 — holding all three of its missed counts and the two columns the accepted trade moved; the whole battery stays with the driver the ledger already names |
+| `peak_mb=703 vs at_most 600` (539 here) | peak memory was judged in the ordinary suite, and it moves with the platform, the Python and the allocator | the refusal, and the cap that produced it, are judged everywhere, word for word against the sentence the cap builds; peak memory is recorded everywhere and judged only on the quiet reference machine, never on a runner |
+| `SystemExit: 2` from the KPI guard | CI installs the wheel built from the commit and tests THAT, on purpose, so the package does not sit under `src/` | the guard asks whether the imported package IS this tree's code, byte for byte, rather than where it sits — and still refuses a worktree that imports another checkout's source, which is the mistake it exists to catch |
+
+**The suite costs 54 minutes here and up to three hours on a two-core
+runner**, and one cell ended at 3 h 00 m 06 s. That is measured and left
+for the owner to decide: the twenty slowest cases are 54% of the run and
+the top three are 33.5%, two of them fixture setup shared by many tests,
+so the lever is sharing a fixture rather than deleting a test.
+
+### Fixed: what a fourth review round found, and an oracle that copied the code it checks (2026-09-20)
+
+**A missing value reopened the worst defect of the stage.** One `NA`
+anywhere in a numeric column defeated the rule that stops a headerless
+file publishing its first real record as the column names: 240 records
+described as 239, the record's own text published as the header, and no
+question asked. Two independent passes found it, in delimited text and
+in Excel. The rule now drops recognised spellings of no value from its
+evidence and reads a censored reading as a reading, and both formats are
+pinned by the reviewer's own reproduction.
+
+**The round raised 28 items across five passes, all rejected, all
+closed.** The rest of the disclosure pass: a judged placeholder's
+occurrences, less its named spellings, gave a count of one; label form
+censuses bypassed the ruling that a level recoverable by subtraction is
+missing; a mixed date and timestamp census exposed a singleton; a
+plus-sign census omitted a population you could subtract; formula counts
+revealed a lone literal cell. Numbers and dates: the mode repair
+accepted the wrong frequency; absorbed identifier counts changed a
+column's usable type; exponent spelling stayed broken; the calendar
+repair corrupted published text labels.
+
+**Five of the items were measurements that did not measure.** The
+decontamination driver counted the files it listed rather than the files
+it scanned, so an empty scan read PASS; the KPI runner printed a failed
+driver's exit status and then discarded it, so a broken driver could
+produce a complete PASS; one KPI survived the removal of UTF-16 support
+outright. A measure that cannot fail is worse than none, because it is
+believed.
+
+**And the merge caught what no branch could see.** The oracle exists to
+check the generator without being it, and `K-2B-42` measures that: no
+more than 176 of its functions may score 0.60 or above against their
+closest shipped function. One of the round's new rules was a
+line-by-line transcription of the code it checks — the same three early
+returns in the same order, the same names, the same final expression —
+and the count crossed to 177. It was rewritten from the method's own
+statement of the rule, not by moving the bound. All ten vector files
+rebuild byte-identical, so no frozen cell moved, and 324,576 measured
+pairs disagree nowhere with the transcription it replaced.
+
+### Added: a ledger of measured outcomes, with a one-command runner (2026-09-19)
+
+**Six thousand tests passing do not tell you that a UUID column still
+comes back 800 of 800, or that a 20,000-row twin still builds in
+seconds.** Every phase and stage now has its outcomes recorded as
+measured numbers, and one command re-measures all of them:
+
+    .venv/bin/python tools/measurements/kpi_run.py          # about 2 minutes
+    .venv/bin/python tools/measurements/kpi_run.py --slow   # timings and scale
+
+`tests/kpi/ledger.json` holds 147 KPIs across phases 0 to 4
+and stages 1, 2 and 2b, 29 of them headlines. Each has its
+value, the commit it was measured on, and a fixed rule for passing.
+132 are green, 11 are open with the stage that owns
+them, and 4 are limits the owner accepted. The runner prints
+every KPI against its rule and exits non-zero if any drops, even when
+every test passes. It is run at every stage close.
+
+| a few headlines | before | now |
+|---|---|---|
+| generate 20,000 rows x 20 numeric columns | 1,113 s | 23 s |
+| most copies of one number, where the real mode is 62 | 760 | 62 |
+| US dates parsed by the source's own format | 0 twin cells | every cell |
+| `^REC\d{7}$` on a prefixed record number | 0 of 800 | 800 of 800 |
+| eight realistic shapes: real tables and twins passing | twins 6 of 8 | 8 of 8 each, floors 1 and 11 |
+| twin columns whose pandas type differs from the real one | 1 | 0 |
+| cases where the generator matches the independent oracle | 95 | 107 |
+
+An open KPI asserts a ceiling rather than its target. The suite stays
+green while the ledger shows the KPI open, and fails if it gets worse.
+The ledger checks itself: every test it names must exist and be
+collected, a skipped test counts as a failure, and a mutation shows that
+each of those checks can fail.
+
+**Building it found five things the tests had missed.** Four are above:
+the speed regression, the judged `-999`, the spread, and the readings.
+The fifth concerns privacy. The headline "no twin row is a real row"
+passed only because its table's made-up record number made every row
+differ. On two of four realistic shapes, 1 twin row in 400 equals a
+real row, record number included. That happens when a made-up number
+coincides with a real one, which the owner accepted, and the rest of the
+row coincides with that record's own values. This is open, and it is
+one question for the owner.
+
+### The owner's decisions recorded in this stage
+
+- **2026-09-15.** The twin writes everything as the source wrote it,
+  which reverses the earlier decision to write dates in ISO form.
+  synthtwin reads Excel and delimited text only, and openpyxl is a test
+  dependency only.
+- **2026-09-17.** Rulings 1 to 8, as listed above.
+- **2026-09-18.** Seven limits accepted, plus fractions of a second
+  written as nought (below).
+
+**Accepted by the owner (2026-09-18), in the owner's words:**
+
+- real record numbers can reach the twin when a declared identifier has
+  little spare room: 100 of 1,000 at `REC` plus four figures, and all
+  900 when `100` to `999` are declared ("Identifier room: no worries.
+  Fine");
+- the twin can rebuild a held-back rare value: 55 of 251 held-back cells
+  on a fresh sweep, 1 of 19 columns rebuilt exactly ("Rare values: ok.
+  Fine");
+- an autofilter can still make an ambiguous first row the header ("I
+  wouldn't care");
+- the count of unreadable cells can be one, which subtraction gives
+  anyway ("If makes no difference, don't loose your time");
+- the reader accepts a workbook date cell that names no day ("wouldn't
+  be worried about").
+
+**Left as they are after the owner asked what they change.** Free text
+publishes that one cell is numeric. The missing count that ruling 5
+sends a pooled label to can be one. Neither changes the owner's code or
+results. Closing the first would move every numeric column's
+description. Closing the second would withhold missing counts on every
+column.
+
+**The orchestrator's calls under the owner's rule, each open to
+reversal:**
+
+- fractions of a second are written as nought;
+- the spread fix waits for stage 3;
+- the readings trade is accepted;
+- descriptions written by hand that no producer writes are left as they
+  are;
+- a record number's class counts can show that one record below the
+  line exists, but not its value;
+- the column-wide fill keeps its trade on grids of whole numbers.
+
+**Still with the owner:**
+
+- whether a made-up record number that coincides with a real one may
+  carry that real row whole;
+- a pooled population of numbers beside labels loses its scale: a mean
+  and standard deviation of 187.08 and 39.03 came back as 100 and 3.03,
+  and the twin's report says the placement is not a fact about the
+  table;
+- the timestamp column whose absorbed mark leaves a description no file
+  satisfies.
+
+### What later stages inherit
+
+- **Stage 3:** the exact smallest and largest values that one row can
+  hold, and the disclosure floor. At the shipped floor of 1, the
+  every-role table publishes 147 labels held by one row. Stage 3 also
+  inherits the spread of bell-shaped columns, and the mean and spread of
+  heavy-tailed columns: on one 5,000-row column the twin's mean was 41%
+  high and its spread 161% high.
+- **Stage 3b:** the time of day inside timestamps.
+- **Stage 4:** the largest tables. 100,000 rows by 20 columns runs in
+  264 s; 1 million and 2 million rows have not been measured.
+- **Stage 6:** relationships between columns (a rank correlation of
+  0.747 comes back as 0.027), and the walk that pairs the numbers of a
+  three- or four-number cell.
+- **Also carried, named one by one in the ledger's known-miss entry and
+  held there at a ceiling:**
+  - two date-width allocations;
+  - one record-number layout, `(-%)`;
+  - a sign band given more slots than it has numbers;
+  - the read floor of hand-built descriptions;
+  - two generator passes the oracle does not yet mirror;
+  - a column that mixes notations can lose one distinct number;
+  - a Fortran `D` exponent written as stand-ins;
+  - a percent column with two fraction widths.
+
+### Fixed: what a confirmation review found after stage 2 closed (2026-09-15)
+
+**An independent review of the committed stage 2 answered "not fixed",
+and six verifiers reproduced every finding.** Five are fixed here; two
+older ones are carried.
+
+- **A column of dates could still read back as a column of two values.**
+  The census repair guarded literal spellings, so it handed the last copy
+  of a day a `t` beside that day's `T`, and ten cells of three values,
+  case ignored, came back binary with nothing said, on every seed. The
+  repair now never leaves a column one value fewer once case is ignored,
+  the oracle mirrors it, and a twin whose values fall to two where the
+  description counts three or more is named.
+- **Decimal-comma recounts mixed two readings.** The generator's own
+  report and the validator read absence and class in the ordinary
+  grammar, so labels beside decimal-comma numbers were counted as numbers
+  and a grouped `-999.000` as the absent `-999,000`: the report listed
+  false deviations, and the real table failed its own description. Both
+  now read a declared column in its own grammar and translate only what
+  is left. This predates stage 2.
+- **A lost thousands mark on a currency, unit or labelled column was
+  silent.** The warning now covers the cores of every wrapper of an
+  affixed column and the numeric half of a column of numbers and labels.
+- **The round-trip tests could not see a failed check.** `cli.main()`
+  returns its exit code, and the helpers dropped it, so a validation that
+  missed an obligation passed. They read it now, and a test fails if any
+  test drops a command's result again. That is how the decimal-comma
+  failure above came to light.
+- **A day declared absent in every spelling still received values.** A
+  whole-unit rank that lands on such a day now steps to the nearest
+  present day inside its own window, and the oracle mirrors it.
+
+Each fix is pinned by a test built from the review's reproduction and
+mutation-checked by withdrawing it.
+
+**Carried, confirmed older than stage 2:**
+
+- the validator estimates the widest stratum of a numeric column from the
+  description while the generator uses the real one, so it can call a
+  faithful twin's percentile rung MISSED -- on a 2,000-row column, 6 seeds
+  of 8; this bears on the reliability of statistics and belongs to a
+  later stage;
+- a small column of numbers and labels that falls to a free-text or
+  long-tail role writes stand-ins that cannot reproduce its numeric forms.
+
+### Fixed: stage 2 closed after an independent audit (2026-09-14)
+
+**The audit found stage 2 was not done.** Five probes and a verifier who
+re-ran every reproduction measured that grouped whole numbers below a
+million, such as `12,345`, `$12,345` or `+1,234`, still came back bare:
+400 cells of 400. The rule counted a lone group as settling nothing,
+although the statistics already read it as thousands. And the stage's
+own gate, "a round-trip test per shape", had no test behind it: the
+comma witness passed with one grouped cell in six hundred.
+
+**What changed:**
+
+- a lone group now proves the comma, so whole numbers keep it;
+- the mark is published where the proving cells reach the smallest
+  group and outnumber the bare ones, so five bare cells no longer strip
+  it from 395 grouped cells; one grouped cell among many still
+  publishes nothing;
+- an accounting bracket such as `(123.45)` is no longer counted as a
+  figure, which had stripped the mark from a column of grouped charges;
+- a declared decimal-comma column grouped with points, `42.037,34`,
+  publishes `.` and its twin writes it, where the points were dropped
+  although the help promised the twin writes numbers as the table did;
+  the loader refuses a point anywhere else and a comma there (GS1);
+- the checker offers grouped spellings whatever the published mark, so
+  a real table is never missed for commas the description could not
+  prove;
+- the absent-spelling exception offers the marks the column's own
+  census names first, so a column of spaces and `t` never gains a `T`;
+- the census repair allows a repeated spelling, which it had refused on
+  every column of midnight dates, and runs in linear time (80,000 rows
+  had taken 18.9 s against 2.9 s);
+- a value left wearing a spelling the table declares absent is named in
+  the twin's report, and so is a column of moments whose absent cells
+  were pooled below the group size, where no spelling can be avoided;
+- report sentences that overstated are corrected: the marks each
+  written "as often as the description records it" on a column with a
+  pooled or mixed census, and dates reading "the same" on a column that
+  mixes bare dates with moments;
+- the describe-time summary names the mark, the census and the midnight
+  statement, and the claim guard catches contractions and near-synonyms
+  of the exemption it bans.
+
+**One review round then rejected the closure, and was right four times.**
+Allowing a repeated spelling in the census repair could erase the last
+copy of one, and five cells of three spellings came back as a column of
+two values; the repair now never leaves a column one spelling fewer.
+The decimal-comma exchange decided from the text which cells were
+numbers, so a label such as `1,234,567` beside the numbers became a
+measurement and a grouped end matching an absent spelling was left
+unexchanged and lost; the exchange now touches exactly the cells the
+numeric machinery wrote. A small column at a raised floor could lose
+the mark in its twin with nothing said; that is now a named deviation.
+And the warning about pooled absent cells fired on an ordinary blank; it
+is now a remark, raised only where missing values were declared. The
+oracle trims absent spellings as the reader does, a departure test that
+never departed now does, the claim guard lets "does not necessarily
+satisfy" stand, and the contract's GS1 scope matches the loader.
+
+**Measured.** `tests/test_stage2_round_trip.py` describes the twin again
+for 19 shapes -- whole, currency, signed, decimal, straggling, bracketed
+and decimal-comma numbers, millions, the three marks and their mix,
+midnight at three precisions, with a `T` and with an offset -- and finds
+every stage-2 fact returned, the twin checked with nothing missed and,
+where its spelling is a published one, the real table too. The shapes
+designed not to return -- a pooled mark, dates mixed with moments, a day
+declared absent -- are pinned beside it with what they do instead. Each
+new rule is mutation-checked: put back, it turns a test red.
+
+**Carried, not fixed:**
+
+- a number grouped with a space or an apostrophe is read as free text;
+- an accounting bracket or a plus sign on a decimal is not a published
+  number style, so the twin writes a minus and drops the plus, and a
+  real table with brackets misses its own spelling check;
+- a column mixing bare dates with midnight moments is written wholly as
+  moments, and a slashed format is written in ISO form;
+- a column only partly at midnight, or at midnight on the shared clock,
+  still gets invented times;
+- at a raised floor, a withheld mark can be attributed by elimination
+  when only one mark is left unnamed;
+- twins of date columns spread values across days more evenly than real
+  tables (predates stage 2);
+- continuous integration has not run on this branch.
+
+### Fixed: a moment keeps its own separator, and a date held at midnight stays a date (stage 2, part two, 2026-09-14)
+
+**A stamp written `2025-09-04 06:16:00` came back from the twin as
+`2025-09-04T06:16:00`**, so code that split or searched on the space
+worked on the twin and silently did nothing on the real table. **A date stored as the date
+plus `00:00:00` came back with invented times of day**: 800 of 800 real
+rows at midnight became 2 of 800.
+
+Every datetime block now publishes two more facts (plan P4-D39), both
+REPORT-ONLY and listed in the quality report:
+
+- **`datetime_separators`**, the census of marks between day and clock
+  (`upper_t`, `space`, `lower_t`), floored like `utc_offsets` with a
+  `(withheld)` pool. The generator spends it by an evenly spread
+  rotation that draws no random word, so each mark is written its
+  published number of times and no link is invented between how early a
+  moment is and how it was spelled. A withheld pool is written with the
+  commonest mark and named in the twin's report.
+- **`all_at_midnight`**, true only for a local column whose every parsed
+  moment stands exactly at midnight, fraction included, and whose parsed
+  cells reach the smallest group size. Such a column is generated and
+  checked in whole days and written back with a midnight clock. The
+  twin's report recounts the midnight cells it wrote and names any miss,
+  because the checker's day-counted windows could not see one.
+
+**Measured on five 400-row shapes.** A space column comes back 400 of
+400 with a space. A column mixing 300 spaces, 50 `T` and 50 `t` comes
+back with exactly those counts, about 75 spaces in every quarter of its
+dates. A date column at midnight keeps 400 of 400 cells at midnight. The
+twin and the real table both pass the checker with nothing missed.
+
+**The loader** refuses a census name outside the vocabulary, a named
+count below the floor (D12), a census whose total is not the cells that
+write a clock or that gives a slashed format a mark other than a space
+(D13), and a midnight statement on the shared clock, below the floor, or
+beside a published moment that is not at midnight (D14).
+
+**The oracle mirrors both rules** in the same commit (A-P4-59), written
+from the statement rather than the implementation, and two frozen branch
+cases pin them: `midnight_days` and `mixed_marks`, each with a mutant
+that moves its cells. A new test holds the two writings to agreeing over
+6,000 censuses and 9,000 cells, and each of three in-memory mutants
+turns it red. Every earlier frozen cell is unchanged; both vector files
+gained the two keys on their datetime cases.
+
+**One review round rejected the first build, and was right twice.** A
+generated moment could equal a spelling ANOTHER column declares absent,
+so a present value read back as missing; the writer now checks every
+column's absent spellings. And where a cell's mark had to change to step
+around an absent spelling, the census was left one short in one name
+and one over in another with nothing said; another rank now takes the
+owed mark back, the finished marks are recounted, and a shortfall no
+rank can absorb is named. The loader also refuses a withheld pool larger
+than the unnamed marks could hold, the claim guard catches clearance
+said with a preposition, and the oracle mirrors the absent-spelling
+exception and its repair, held to the generator over 4,000 columns.
+
+**Also in this landing.** The claim guard's seventh family now names
+regimes by their acronyms and catches an exemption claimed by clearing a
+regime, not only by lifting it. The sentence saying analysis code
+developed on the twin runs is qualified on all four surfaces that
+shipped it: running unchanged is the aim, and nothing guarantees it.
+
+**Carried, not fixed:**
+
+- a column grouped with a space or an apostrophe is read as free text,
+  so its twin writes stand-in text; a strict expected failure pins it;
+- a column only partly at midnight, or at midnight on the shared clock,
+  still gets invented times;
+- neither new fact is an obligation a file can miss;
+- at a floor of one, a census name can stand for one row's spelling, the
+  same posture as `utc_offsets`, until landing 3 raises the floor;
+- the two published ends take their marks from the rotation, not from
+  the real ends' own cells;
+- on a midnight column, a calendar placeholder day inside the range is
+  now hit by whole-day ranks far more often than before;
+- the assembled contract gains two more keys its build folder does not
+  hold (residual R-P4-113).
+- no frozen case declares an absent spelling, so the exception and its
+  census repair are pinned by the agreement test, not by committed
+  cells.
+
+### Fixed: a thousands comma is written back (stage 2, part one, 2026-09-14)
+
+**A column written `2,198.92` came back from the twin as `2198.92`.**
+Code built on the twin then met the comma for the first time on the
+real table and silently dropped every value above a thousand. The
+profile now publishes `group_separator` on every numeric block (`""`
+or `","`), and the generator writes the comma back.
+
+**The evidence rule** (`taxonomy._group_separator`). The mark is `","`
+only when all of these hold:
+
+- no decimal comma is declared for the column;
+- every `plain`, `leading_plus` or `decimal` cell with four or more
+  whole figures carries a comma;
+- no padded or exponent cell carries one;
+- the cells proving the grouping reach `small_cell_floor`.
+
+Otherwise it is `""`. The generator groups `plain` cells always, and
+`leading_plus` and `decimal` cells only where no leading zeros were
+written. The validator accepts grouped spellings of each permitted
+form, and the independent oracle carries the same rule. The quality
+report lists the mark on every numeric-family column as a fact no file
+is held to.
+
+**Measured.** A naive parser gives a mean of 409.97 on the twin against
+412.11 on the real table, where the true mean is 917.93. The defect now
+shows up on the twin, where it can be fixed. The twin and the real
+table both validate with nothing missed. A declared decimal-comma
+column, a column mixing grouped and bare cells, and a padded column
+all publish `""`. Three independent groupers agree on 30,000 spellings.
+
+**One review round** found nine defects, all corrected here:
+
+- the comma leaked into decimal-comma columns;
+- one grouped cell grouped a whole column;
+- padded and exponent cells were grouped;
+- the generator grouped spent zeros (`+0,001,234`);
+- the loader accepted values other than `""` and `","`;
+- the reference profiles, including the joined case's two parts,
+  lacked the key;
+- the contract's key counts and role matrix were stale.
+
+A moment-separator and midnight census built in the same pass broke
+profiling and was backed out whole; it returns as part two.
+
+**Frozen artefacts moved, by one key only.** The profile golden and
+the twin golden's description hash were re-recorded after a diff showed
+`group_separator: ""` as the only addition. Both reference vector
+files gained the empty key and no cell moved. Contract v6 gained its
+table rows, a matrix row, and a place in the post-freeze list, all
+under plan P4-D38.
+
+**Carried, not fixed:**
+
+- the validator accepts a grouped spelling but does not require one, so
+  a twin written bare still passes;
+- no frozen reference case publishes `","`;
+- at a floor of one, a single grouped cell is enough to publish the
+  mark;
+- a column grouped with a space or an apostrophe is read as free text
+  (measured after this entry was written; it said "the wrong number");
+- a moment's own separator and a date held at midnight: part two.
+
+### Fixed: describing and generating were quadratic, and it was one idiom (stage 1, 2026-09-13)
+
+**Describing a table and building a twin both grew with the SQUARE of
+the row count**, and no guard in the suite looked at growth at all.
+Measured on the tree this landed on:
+
+| case                                | before  | after |
+|-------------------------------------|---------|-------|
+| build a twin, 20,000 rows x 20 numeric | 1,113 s | 19 s |
+| describe, 200,000 rows x 2 labels      |   390 s | 10 s |
+| describe, 100,000 rows x 20 numeric    | (hours) | 96 s |
+
+A 100,000-row table now runs end to end in about three and a half
+minutes. Before this it could not be done at all.
+
+**Two causes, in two places.** Every list in the package was grown with
+`x = x + [item]`, which rebuilds the whole list on each pass, in 669
+places -- 661 with a plain name as the target and 8 more where the list
+sits in a slot of another container. `tools/offline_scan` refuses
+`list.append`, so that quadratic form was what the rules left standing;
+`x += [item]` is accepted and is amortised constant. And
+`generation._shape_sizes` reduced runs by calling `_merge_nearest` once
+per merge, which rescans every adjacent pair and rebuilds both lists; it
+now calls `_merge_down`, a binary heap over a linked list, written
+without a new import because `heapq` is not on the allowlist.
+
+**Nothing the tool produces changed.** The profile, the twin and the
+twin's report were hashed for three tables before and after: identical.
+`_merge_down` was checked against `_merge_nearest` on 4,200 randomised
+cases over six adversarial families -- all-equal values, whole and
+fractional mixes, the 1e308 and 1e-320 magnitudes that exercise the
+overflow rescale, signed zeros, and the ladder's own
+plateau-and-transition shape -- agreeing on every length and on the
+`repr` of every value. Review independently reproduced this over
+267,330 exhaustive small cases and 6,000 seeded ones.
+
+**A new guard, `tests/test_no_quadratic_list_growth.py`.** It reads the
+source and names any list grown by copying, file and line. It is static
+rather than timed because the first version was timed and review killed
+it: with the defect restored the wall-clock ratios were 2.5 and 2.2,
+under the threshold, so the guard accepted a quadratic tree, while a
+single 0.6-second pause made repaired code fail. Counting the defect
+beats timing its symptom.
+
+**Review found three blocking items and all three were repaired**: the
+eight container-slot sites above, the timing guard, and a recorded test
+count that guaranteed a gate failure.
+
+Suite: 4,407 passed, 51 skipped. Lint, strict types, the offline import
+scan, provenance, decontamination and the signed attestation all clean.
+
+
 ### Phase 4 is closed (2026-09-11)
 
 **Every column type a real table holds is read, or declined with an

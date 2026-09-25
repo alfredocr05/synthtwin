@@ -56,17 +56,58 @@ def _oracle():
 SEED = 7
 
 
-def _described(folder: pathlib.Path, rows: "list[str]", stem: str = "code"):
-    """One column through the real producer and loader."""
+def _described(
+    folder: pathlib.Path,
+    rows: "list[str]",
+    stem: str = "code",
+    floor: "int | None" = None,
+):
+    """One column through the real producer and loader.
+
+    ``floor`` None is the shipped default (11 since plan P4-D316).
+    """
     path = fixtures.write(
         folder, f"{stem}.csv", "code\n" + "\n".join(rows) + "\n"
     )
-    table = reading.read_table(
-        str(path), first_row=reading.FIRST_ROW_AUTOMATIC
+    settings = (
+        taxonomy.Settings()
+        if floor is None
+        else taxonomy.Settings(small_cell_floor=floor)
     )
-    document = profile.build_document(table, taxonomy.Settings(), [])
+    table = reading.read_table(
+        str(path),
+        first_row=reading.FIRST_ROW_AUTOMATIC,
+        small_cell_floor=settings.small_cell_floor,
+    )
+    document = profile.build_document(table, settings, [])
     written = fixtures.write_profile(folder, f"{stem}-profile.json", document)
     return document, contract.load_profile(str(written))
+
+
+def _pinned_ends(described) -> "tuple[float, float]":
+    """The two ends this walk may never move, wherever they now live.
+
+    A block written before stage 3 publishes them as `percentiles.min`
+    and `percentiles.max`. A block under the TAIL RULE of contract 6.7a
+    (landing 3.3) publishes neither: both of those rungs read the
+    outermost values, so both are withheld, and the two ends the
+    generator pins are instead DERIVED from what the tail group states
+    -- method G5.3b -- and handed to every consumer by
+    `contract.tail_ladder`. The claim of the tests below is unchanged
+    either way: whatever the description settles as the smallest and
+    the largest number of the twin, the separation walk hands it back
+    untouched.
+    """
+    facts = described.columns[0].facts
+    assert isinstance(facts, contract.NumericFacts)
+    if facts.tail_rule:
+        ladder = contract.tail_ladder(facts)
+        assert ladder is not None
+        return (ladder[0], ladder[len(ladder) - 1])
+    low = facts.percentiles.minimum
+    high = facts.percentiles.maximum
+    assert low is not None and high is not None
+    return (low, high)
 
 
 # The witness the residual was opened on: 240 cells of `NNN.N`, 99
@@ -77,6 +118,45 @@ def _code_column() -> "list[str]":
     rows = [f"{250 + step % 99:03d}.{step % 9}" for step in range(240)]
     random.Random(4).shuffle(rows)
     return rows
+
+
+# THE COLUMN THE WALK STILL HAS WORK ON, since landing 2b.1. Method G5.3
+# now gives each stratum of a column written at one width the grid value
+# of one of its own ranks, so the residual's column above keeps its 99
+# numbers without this walk at all. A crowded one does not: 200 codes
+# around 300 with a tenth drawn freely hold 106 different numbers, the
+# stratum cap moves cells between neighbours there, and one stratum
+# takes its neighbour's number. Measured at this file's seed before it
+# was written here: 106 with the walk, 105 and one `0294.0` without.
+def _crowded_code_column() -> "list[str]":
+    draw = random.Random(18)
+    return [
+        f"{int(draw.gauss(300, 4)):03d}.{draw.randrange(10)}"
+        for _ in range(200)
+    ]
+
+
+def _beside_the_mode(twin: "generation.Twin") -> "list[tuple[str, str, str]]":
+    """Every deviation but the mode's COUNT, which is report-only.
+
+    THE MODE PAIR IS LISTED AND NOT CHECKED (plan P4-D267, and
+    `validation`'s own reason): a stratum's size comes from the runs of
+    the published ladder and not from `mode_count`, so a conforming twin
+    can hold the published mode's VALUE at a size the pair does not name.
+    The generator said nothing about that until item 1 of the numbers
+    pass of the second Codex round (2026-09-19) and now names it, which
+    is the whole of the item. MEASURED on this file's own columns: the
+    fixed-width code column publishes `mode_count` 3 and its twin holds
+    the mode once; the plus-signed column of 120 rows publishes 60 and
+    its twin holds 30. Neither cell moved with the repair -- both twins
+    are byte-identical to the ones this file recorded -- and what these
+    assertions are about is everything ELSE staying silent.
+    """
+    return [
+        (one.fact, one.published, one.achieved)
+        for one in twin.deviations
+        if one.fact != "mode_count"
+    ]
 
 
 def test_a_fixed_width_code_column_keeps_its_shape_and_its_count(
@@ -100,10 +180,20 @@ def test_a_fixed_width_code_column_keeps_its_shape_and_its_count(
     assert published["n_distinct_values"] == 99
     assert len({float(cell) for cell in cells}) == 99
 
-    # SO THE TWIN FILES NOTHING AGAINST ITSELF.
-    assert not twin.deviations, [
-        (one.fact, one.published, one.achieved) for one in twin.deviations
-    ]
+    # SO THE TWIN FILES NOTHING AGAINST ITSELF, beside the mode's
+    # report-only count (`_beside_the_mode`).
+    assert _beside_the_mode(twin) == []
+
+    # ...AND THE SAME ON THE CROWDED COLUMN THE MUTANT BELOW IS RUN ON.
+    crowded = _crowded_code_column()
+    document, described = _described(tmp_path, crowded)
+    published = document["columns"][0]
+    twin = generation.generate(described, SEED)
+    cells = [cell for cell in twin.columns[0] if cell != ""]
+    assert not [cell for cell in cells if not shape.match(cell)]
+    assert published["n_distinct_values"] == 106
+    assert len({float(cell) for cell in cells}) == 106
+    assert _beside_the_mode(twin) == []
 
 
 def test_the_grid_walk_is_what_keeps_them_apart(
@@ -116,8 +206,11 @@ def test_the_grid_walk_is_what_keeps_them_apart(
     different numbers one short, and the leading-zero rule supplying
     the missing spelling with a figure no source cell had.
     """
-    rows = _code_column()
-    _document, described = _described(tmp_path, rows)
+    rows = _crowded_code_column()
+    # FLOOR ONE (plan P4-D316): the counts that pin this witness --
+    # measured with the walk withdrawn at 105 numbers and one `0294.0` --
+    # were taken where every published count of the column is named.
+    _document, described = _described(tmp_path, rows, floor=1)
     monkeypatch.setattr(  # type: ignore[attr-defined]
         generation,
         "_apart_enough",
@@ -127,9 +220,9 @@ def test_the_grid_walk_is_what_keeps_them_apart(
         cell for cell in generation.generate(described, SEED).columns[0]
         if cell != ""
     ]
-    assert len({float(cell) for cell in cells}) == 98
+    assert len({float(cell) for cell in cells}) == 105
     wide = [cell for cell in cells if len(cell.split(".")[0]) != 3]
-    assert wide == ["0250.4"], wide
+    assert wide == ["0294.0"], wide
 
 
 def test_nothing_published_is_traded_for_the_separation(
@@ -137,10 +230,12 @@ def test_nothing_published_is_traded_for_the_separation(
 ) -> None:
     """The three things the walk may never move.
 
-    The two pinned ends hold the published smallest and largest and are
-    EXACT; the zero stratum holds a published count of zeros; and no
-    candidate may cross into another sign band, because the counts of
-    negative and positive cells are published too.
+    The two pinned ends are EXACT -- the smallest and the largest number
+    the description settles on, read through `_pinned_ends` because a
+    tail block derives them rather than publishing them; the zero
+    stratum holds a published count of zeros; and no candidate may cross
+    into another sign band, because the counts of negative and positive
+    cells are published too.
     """
     rows = (
         [f"-{4 + step % 7}.{step % 9}" for step in range(60)]
@@ -157,8 +252,7 @@ def test_nothing_published_is_traded_for_the_separation(
     numbers = [float(cell) for cell in cells]
     assert sum(1 for one in numbers if one < 0) == published["n_negative"]
     assert sum(1 for one in numbers if one == 0) == published["n_zero"]
-    assert min(numbers) == published["percentiles"]["min"]
-    assert max(numbers) == published["percentiles"]["max"]
+    assert (min(numbers), max(numbers)) == _pinned_ends(described)
 
 
 def test_a_grid_finer_than_a_double_can_step_is_no_grid_at_all() -> None:
@@ -236,7 +330,24 @@ def test_a_walk_that_answers_badly_cannot_inflate_the_count(
     answer cannot inflate it. This test proves the CALLER holds that
     even when the walk is broken, which is what the helper's own tests
     cannot show.
+
+    THE PUSH IS WITHDRAWN HERE (the carried numbers repair pass of
+    2026-09-19). G6.5a's push runs after the walks and moves a collision
+    they leave along its band to a free point, so on this column it
+    reaches the published count however the walk answered -- measured,
+    74 of 74 under both broken walks -- and the last two assertions
+    stopped testing the walk's count at all. What they pin is the WALK:
+    that a walk moving nothing leaves the count where it was. So the
+    push, a separate statement with its own tests, is taken away and the
+    walk is asked alone.
     """
+    monkeypatch.setattr(  # type: ignore[attr-defined]
+        generation,
+        "_pushed_apart",
+        lambda facts, layout, rungs, moved, texts, held, figures, keep_whole: (
+            moved, texts, held,
+        ),
+    )
     generator = random.Random(31337)
     rows = [str(generator.randint(40, 120)) for _each in range(200)]
     _document, loaded = _described(tmp_path, rows, "crowded")
@@ -640,7 +751,8 @@ def test_a_pooled_width_census_is_not_read_as_a_width(
             rows.append(("%." + str(width) + "f") % (10 + step + width / 100.0))
     path = fixtures.write(tmp_path, "pooled.csv", "v\n" + "\n".join(rows) + "\n")
     table = reading.read_table(
-        str(path), first_row=reading.FIRST_ROW_AUTOMATIC
+        str(path), first_row=reading.FIRST_ROW_AUTOMATIC,
+        small_cell_floor=11,
     )
     document = profile.build_document(
         table, taxonomy.Settings(small_cell_floor=11), []
@@ -691,15 +803,13 @@ def test_the_pinned_ends_claim_their_text_before_anything_moves(
     """
     rows = [f"{4 + step % 6}.{step % 9}" for step in range(80)] + ["9.9"] * 8
     random.Random(2).shuffle(rows)
-    document, described = _described(tmp_path, rows, stem="ends")
-    published = document["columns"][0]
+    _document, described = _described(tmp_path, rows, stem="ends")
     cells = [
         cell for cell in generation.generate(described, SEED).columns[0]
         if cell != ""
     ]
     numbers = [float(cell) for cell in cells]
-    assert max(numbers) == published["percentiles"]["max"]
-    assert min(numbers) == published["percentiles"]["min"]
+    assert (min(numbers), max(numbers)) == _pinned_ends(described)
     widest = max(len(row.split(".")[0]) for row in rows)
     assert not [
         cell for cell in cells if len(cell.split(".")[0].lstrip("-")) > widest
@@ -759,6 +869,4 @@ def test_the_ceiling_counts_the_whole_column_and_not_the_walk(
         twin = generation.generate(described, seed)
         cells = [cell for cell in twin.columns[0] if cell != ""]
         assert len({float(cell) for cell in cells}) == 3, seed
-        assert not twin.deviations, [
-            (one.fact, one.published, one.achieved) for one in twin.deviations
-        ]
+        assert _beside_the_mode(twin) == [], seed

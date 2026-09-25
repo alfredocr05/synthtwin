@@ -40,6 +40,30 @@ env:
   # complete build closure (plan D5; acceptance criterion 4). CI consumes
   # it frozen: no tool installs except from this file.
   LOCK_FILE: requirements-dev.lock
+  # HOW MANY JOBS THE SUITE IS SPLIT ACROSS (landing D). Measured on the
+  # reference machine, the suite is 7,087 collected cases in 54 min 42 s
+  # of almost entirely serial CPU, so a two-core runner paid an hour and
+  # a half to three hours for it on EVERY cell below, and the floors job
+  # twice came near three hours on its own. `tools/ci/shards.py` gives
+  # each job a disjoint list of test FILES; the wall clock of a cell
+  # becomes the heaviest shard instead of the whole suite.
+  #
+  # FIVE, AND THE NUMBER IS MEASURED. No split can be shorter than its
+  # heaviest single FILE, and tests/test_p3v2a1_presence_split.py is
+  # 764 s of the suite's 3,390 on its own -- its battery is two thousand
+  # whole `validate` runs and a shard cannot hold half a battery. Four
+  # shards read 848 s, five read 764 s, six read 764 s again: five is
+  # the first count whose even share (678 s) falls under that one file,
+  # so five reaches the floor the suite itself sets and a sixth would
+  # shorten no job while asking for another eleven runners.
+  # `python tools/ci/shards.py --of N --plan` prints those projections.
+  #
+  # DECLARED ONCE, HERE. Every job asks the tool for `--of
+  # "$SHARD_COUNT"` and every matrix runs 1..SHARD_COUNT;
+  # tests/test_ci_shards.py fails if a matrix and this number disagree,
+  # because a matrix one shard short drops that shard's files and every
+  # job still goes green.
+  SHARD_COUNT: "5"
 
 jobs:
   lint:
@@ -113,12 +137,32 @@ jobs:
     needs: build
     strategy:
       fail-fast: false
+      # THE PLATFORMS AND PYTHONS ARE UNCHANGED (landing D). The only new
+      # dimension is `shard`: each cell of the old matrix now runs as
+      # SHARD_COUNT jobs over disjoint file lists, so 3.10 through 3.14
+      # on Ubuntu and Windows, and 3.14 on macOS, are all still proved.
+      # The macOS cell is written out once per shard because a matrix
+      # `include` adds one combination at a time.
       matrix:
         os: [ubuntu-latest, windows-latest]
         python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
+        shard: [1, 2, 3, 4, 5]
         include:
           - os: macos-latest
             python-version: "3.14"
+            shard: 1
+          - os: macos-latest
+            python-version: "3.14"
+            shard: 2
+          - os: macos-latest
+            python-version: "3.14"
+            shard: 3
+          - os: macos-latest
+            python-version: "3.14"
+            shard: 4
+          - os: macos-latest
+            python-version: "3.14"
+            shard: 5
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -156,8 +200,81 @@ jobs:
         # project build hook ever executes is the build job's
         # --network none container.
         run: python -m pip install --no-index --no-deps dist/*.whl
-      - name: Run the test suite
-        run: python -m pytest
+      - name: Run this shard of the test suite
+        # The file list is computed by the tool, printed into the log so
+        # a reader of one job can see exactly which files it ran, and
+        # handed to pytest. Splitting by FILE and not by case is what
+        # keeps this honest about cost: several files here pay one large
+        # module-scoped fixture and then read it from a dozen cases, and
+        # a split by case would rebuild that fixture in every shard that
+        # took one of them.
+        run: |
+          python tools/ci/shards.py --of "$SHARD_COUNT" --shard "${{ matrix.shard }}" \
+            > shard-files.txt
+          if [ ! -s shard-files.txt ]; then
+            echo "shard ${{ matrix.shard }} of $SHARD_COUNT holds no test file."
+            echo "An empty list would hand pytest no arguments, and pytest with no"
+            echo "arguments runs the WHOLE suite -- so an empty shard must stop here"
+            echo "rather than quietly cost five times what it should."
+            exit 1
+          fi
+          echo "shard ${{ matrix.shard }} of $SHARD_COUNT: $(wc -l < shard-files.txt) test files"
+          cat shard-files.txt
+          python -m pytest $(cat shard-files.txt)
+
+  shard-coverage:
+    # THE JOB THAT MAKES THE SPLIT SAFE (landing D). Every cell above
+    # runs a slice of the suite, so the one failure a speed change must
+    # not be able to buy is a file that quietly runs in no slice: every
+    # job would be green and the file would be proving nothing. This
+    # collects the WHOLE suite once, with pytest's own collector, and
+    # holds the shards to being a partition of exactly that set -- no
+    # file in two shards, none in none. It collects and never runs, so
+    # it is a job of seconds.
+    #
+    # IT ALSO CARRIES docs/STATE.md's OWN COUNT. That page states how
+    # many cases the suite collects, and a case in
+    # tests/test_claim_inventory.py holds it -- but only on a
+    # whole-suite run, because a subset collects fewer and would fail
+    # for a reason that is not a defect. Every sharded job below IS a
+    # subset, so that case now stands down in all of them; this job is
+    # the whole-suite collection, so it is where the page's count is
+    # held from here.
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.14"
+      - name: Validate the requirement files before pip runs (text only)
+        run: |
+          python tools/supply_chain/validate_lock.py
+          python tools/supply_chain/validate_lock.py \
+            --lock requirements-install.lock \
+            --input requirements-install.in
+      - name: Install locked dev tools (frozen)
+        run: |
+          if [ ! -f "$LOCK_FILE" ]; then
+            echo "The lock file $LOCK_FILE is missing from the repository root."
+            echo "It pins every development and build tool by version and hash"
+            echo "(plan D5). Restore it from version control, or ask a"
+            echo "maintainer to rebuild and commit it, then run CI again."
+            exit 1
+          fi
+          python -m pip install --require-hashes --only-binary=:all: -r "$LOCK_FILE"
+      - name: Download the wheel built inside the no-network container
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: synthtwin-wheel
+          path: dist
+      - name: Install the wheel (no index, no deps, no build hooks)
+        run: python -m pip install --no-index --no-deps dist/*.whl
+      - name: Collect the whole suite and prove the shards partition it
+        run: |
+          python -m pytest --collect-only -q > collected.txt
+          tail -n 1 collected.txt
+          python tools/ci/shards.py --of "$SHARD_COUNT" --prove --collected collected.txt
 
   build:
     # Plan D5: hash-checked wheelhouse prefetch (wheels only), then the
@@ -615,6 +732,7 @@ jobs:
           wheel required synthtwin/canonical.py
           wheel required synthtwin/cli.py
           wheel required synthtwin/contract.py
+          wheel required synthtwin/dialect.py
           wheel required synthtwin/errors.py
           wheel required synthtwin/asking.py
           wheel required synthtwin/generation.py
@@ -624,9 +742,11 @@ jobs:
           wheel required synthtwin/quality.py
           wheel required synthtwin/reading.py
           wheel required synthtwin/rendering.py
+          wheel required synthtwin/sheetwriting.py
           wheel required synthtwin/summary.py
           wheel required synthtwin/taxonomy.py
           wheel required synthtwin/validation.py
+          wheel required synthtwin/workbook.py
           wheel required synthtwin/writing.py
           wheel required DIST-INFO/METADATA
           wheel required DIST-INFO/WHEEL
@@ -644,6 +764,7 @@ jobs:
           sdist required ROOT/src/synthtwin/canonical.py
           sdist required ROOT/src/synthtwin/cli.py
           sdist required ROOT/src/synthtwin/contract.py
+          sdist required ROOT/src/synthtwin/dialect.py
           sdist required ROOT/src/synthtwin/errors.py
           sdist required ROOT/src/synthtwin/asking.py
           sdist required ROOT/src/synthtwin/generation.py
@@ -653,9 +774,11 @@ jobs:
           sdist required ROOT/src/synthtwin/quality.py
           sdist required ROOT/src/synthtwin/reading.py
           sdist required ROOT/src/synthtwin/rendering.py
+          sdist required ROOT/src/synthtwin/sheetwriting.py
           sdist required ROOT/src/synthtwin/summary.py
           sdist required ROOT/src/synthtwin/taxonomy.py
           sdist required ROOT/src/synthtwin/validation.py
+          sdist required ROOT/src/synthtwin/workbook.py
           sdist required ROOT/src/synthtwin/writing.py
           sdist optional ROOT/src/synthtwin/py.typed
           sdist optional ROOT/.gitignore
@@ -875,30 +998,44 @@ jobs:
           for name, role in expected.items():
               if roles.get(name) != role:
                   problems.append(f"{name} was read as {roles.get(name)}, expected {role}")
-          # NOTHING IS WITHHELD AT THE DEFAULT FLOOR, and this step
-          # asserts that rather than the opposite. The small-cell floor
-          # defaulted to 11 when this check was written and defaults to
-          # ONE since plan amendment A-P4-37, so every value a table
-          # holds is now named with the rows that shared it. The check
-          # went on asserting a rare label was pooled away for as long
-          # as ci.yml did not run -- which is the same way it came to
-          # assert a ten-column shape for a thirteen-column table.
+          # WHAT THE DEFAULT FLOOR WITHHOLDS IS READ FROM THE PACKAGE AND
+          # THE TABLE, never written here. This step asserted a floor of
+          # eleven, then of one (plan amendment A-P4-37), and each time
+          # went on asserting the old rule after the default moved --
+          # the second time through the whole of stage 3, which put the
+          # default back to eleven (plan P4-D316), because ci.yml runs on
+          # no developer machine. tests/test_ci_demo_steps.py runs these
+          # steps in the suite now, so the next move is red at home.
+          import csv
+
+          from synthtwin import parsing
+
+          floor = parsing.DEFAULT_SMALL_CELL_FLOOR
+          with (demo / "table.csv").open(encoding="utf-8", newline="") as handle:
+              held = {}
+              for row in csv.DictReader(handle):
+                  label = row["region"].strip()
+                  if label:
+                      held[label] = held.get(label, 0) + 1
+          rare = {label: rows for label, rows in held.items() if rows < floor}
           region = [c for c in document["columns"] if c["name"] == "region"][0]
-          if region["suppressed_levels"] != 0:
+          if region["suppressed_levels"] != len(rare):
               problems.append(
-                  "a label was withheld at the default floor of one, "
-                  f"where nothing should be: {region['suppressed_levels']}"
+                  f"{region['suppressed_levels']} label(s) withheld at the default "
+                  f"floor of {floor}, where the table holds {len(rare)} below it"
               )
-          if region["suppressed_rows"] != 0:
-              problems.append("rows were pooled away at the default floor")
-          # And the rare label itself is PUBLISHED, which is the point
-          # of the ruling: a twin of a rare finding holds the finding.
+          if region["suppressed_rows"] != sum(rare.values()):
+              problems.append(
+                  f"{region['suppressed_rows']} row(s) pooled at the default floor "
+                  f"of {floor}, where {sum(rare.values())} stand below it"
+              )
           published = {level["label"] for level in region["levels"]}
-          if len(published) != region["n_distinct_folded"]:
-              problems.append(
-                  "the published levels do not account for every folded "
-                  "value at the default floor"
-              )
+          for label, rows in sorted(held.items()):
+              if (label in published) == (label in rare):
+                  state = "published" if label in published else "withheld"
+                  problems.append(
+                      f"{label!r}, on {rows} row(s), is {state} at the default floor of {floor}"
+                  )
           # The declared identifier column publishes the SHAPE of its
           # repetition and never a value (review item P1-R8-F4, owner
           # decision 2026-08-10). Check both halves on a clean machine:
@@ -954,29 +1091,15 @@ jobs:
               problems.append(f"unexpected relationship manifest: {related}")
           elif any(value is not None for value in related.values()):
               problems.append("the relationship manifest claims structure it has none of")
-          # AT THE DEFAULT FLOOR OF ONE, THE RARE LABEL IS PUBLISHED,
-          # and this step asserts that rather than its opposite. It
-          # used to refuse the string `outlying` anywhere in an output
-          # file, which was right while the floor defaulted to eleven
-          # and that label was pooled away. Plan amendment A-P4-37
-          # dropped the default to ONE on the owner's ruling -- every
-          # value a table holds is named with the rows that shared it,
-          # so a rare finding reaches the twin -- and this check went on
-          # asserting the old rule for as long as ci.yml did not run.
-          #
-          # THE SUPPRESSION GUARANTEE IS NOT LOST BY INVERTING THIS. It
-          # is carried by 52 tests at a RAISED floor
-          # (tests/test_p1r7f2_disclosure_is_true.py and
-          # tests/test_p2c1f3_publication_guard.py), which is where a
-          # floor-dependent rule belongs: this step runs one command at
-          # one floor and can only ever check that one.
+          # A label below the default floor reaches NEITHER output file,
+          # and one at or above it is named in the description.
           for text in (json.dumps(document), summary):
-              if "outlying" not in text:
-                  problems.append(
-                      "the rare label is missing from an output file: at "
-                      "the default floor of one nothing is pooled away, "
-                      "so every label a table holds should be named"
-                  )
+              for label in sorted(rare):
+                  if label in text:
+                      problems.append(
+                          f"{label!r}, below the default floor of {floor}, "
+                          "reached an output file"
+                      )
               if "R00007" in text:
                   problems.append("an identifier value reached an output file")
           if problems:
@@ -1288,7 +1411,16 @@ jobs:
     # them. requirements-min.in holds those pins and
     # tests/test_dependencies.py fails if they ever disagree with the
     # declared floors.
+    #
+    # SHARDED TOO (landing D), and this is the cell that needed it most:
+    # the floors job runs the whole suite on the oldest interpreter in
+    # one process, and twice came near three hours. It takes the same
+    # disjoint file lists every other cell takes.
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4, 5]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
@@ -1350,8 +1482,19 @@ jobs:
               sys.exit(1)
           print("every declared floor is the version installed")
           SCRIPT
-      - name: Run the test suite against the declared floors
-        run: python -m pytest
+      - name: Run this shard of the suite against the declared floors
+        run: |
+          python tools/ci/shards.py --of "$SHARD_COUNT" --shard "${{ matrix.shard }}" \
+            > shard-files.txt
+          if [ ! -s shard-files.txt ]; then
+            echo "shard ${{ matrix.shard }} of $SHARD_COUNT holds no test file."
+            echo "An empty list would hand pytest no arguments, and pytest with no"
+            echo "arguments runs the WHOLE suite -- so an empty shard must stop here"
+            echo "rather than quietly cost five times what it should."
+            exit 1
+          fi
+          echo "shard ${{ matrix.shard }} of $SHARD_COUNT: $(wc -l < shard-files.txt) test files"
+          python -m pytest $(cat shard-files.txt)
 
   gate:
     # Plan D9 / D14: the single aggregate status context, the required
@@ -1364,6 +1507,7 @@ jobs:
         lint,
         types,
         tests,
+        shard-coverage,
         build,
         decontam,
         offline-static,
@@ -1387,6 +1531,11 @@ jobs:
               "lint",
               "types",
               "tests",
+              # The proof that the sharded `tests` and `minimums` jobs
+              # between them ran every collected file, exactly once
+              # (landing D). Without it a green `tests` matrix could be
+              # a matrix that ran four fifths of the suite.
+              "shard-coverage",
               "build",
               "decontam",
               "offline-static",

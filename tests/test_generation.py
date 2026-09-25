@@ -49,6 +49,7 @@ def _described(
     text: str,
     declared: "list[str] | None" = None,
     measured: "list[str] | None" = None,
+    floor: "int | None" = None,
 ) -> contract.Profile:
     """Write a table, describe it with the producer, load the description.
 
@@ -56,13 +57,19 @@ def _described(
     numbers in one cell is NOT the joined role, so a fixture that holds
     one and does not declare it has the column and not the role -- which
     is how this file's every-role text kept claiming a completeness it
-    did not have (review item P4-A2-R4-F1).
+    did not have (review item P4-A2-R4-F1). `floor` None is the shipped
+    default; a test that needs every small count published passes 1.
     """
     path = fixtures.write(folder, "table.csv", text)
-    table = reading.read_table(str(path))
+    settings = (
+        taxonomy.Settings()
+        if floor is None
+        else taxonomy.Settings(small_cell_floor=floor)
+    )
+    table = reading.read_table(str(path), small_cell_floor=settings.small_cell_floor)
     document = profile.build_document(
         table,
-        taxonomy.Settings(),
+        settings,
         declared if declared else [],
         [],
         measured if measured else [],
@@ -173,9 +180,20 @@ def _cells(twin_built: generation.Twin, name: str) -> tuple[str, ...]:
     raise AssertionError(f"the twin has no column named {name}")
 
 
-def _present(cells: "tuple[str, ...]") -> list[str]:
-    """The cells that hold a value."""
-    return [cell for cell in cells if cell != ""]
+def _present(
+    cells: "tuple[str, ...]",
+    column: "contract.ColumnBlock | None" = None,
+) -> list[str]:
+    """The cells that hold a value.
+
+    Not blank, and -- where the column's block is handed over -- not a
+    spelling that column publishes among its absent cells: since plan
+    P4-D6.4 the twin writes a judged stand-in such as the every-role
+    `reading` column's thirteen `-999` cells as the table wrote them,
+    and they are no value of the column (contract C6-115).
+    """
+    holes = {} if column is None else column.missing_by_source
+    return [cell for cell in cells if cell != "" and cell not in holes]
 
 
 def _block(
@@ -244,7 +262,7 @@ def test_n_present_and_n_missing_are_recounted_exactly(
 ) -> None:
     for column in every_role.columns:
         cells = _cells(twin, column.name)
-        present = _present(cells)
+        present = _present(cells, column)
         assert len(present) == column.n_present, column.name
         assert len(cells) - len(present) == column.n_missing, column.name
 
@@ -272,7 +290,7 @@ def test_the_four_class_counts_are_recounted_exactly(
             parsing.NUMBER_CONTRADICTORY: 0,
             parsing.NOT_A_NUMBER: 0,
         }
-        for cell in _present(_cells(twin, column.name)):
+        for cell in _present(_cells(twin, column.name), column):
             counted[parsing.classify_number(cell)] += 1
         assert counted[parsing.NUMBER] == column.n_numeric, column.name
         assert (
@@ -295,7 +313,7 @@ def test_the_zero_and_negative_counts_are_recounted_exactly(
             continue
         values = [
             parsing.parse_number(cell)
-            for cell in _present(_cells(twin, column.name))
+            for cell in _present(_cells(twin, column.name), column)
             if parsing.classify_number(cell) == parsing.NUMBER
         ]
         zeros = len([value for value in values if value == 0.0])
@@ -317,7 +335,7 @@ def test_integer_valued_is_recounted_from_the_written_values(
             continue
         values = [
             parsing.parse_number(cell)
-            for cell in _present(_cells(twin, column.name))
+            for cell in _present(_cells(twin, column.name), column)
             if parsing.classify_number(cell) == parsing.NUMBER
         ]
         whole = all(
@@ -327,21 +345,103 @@ def test_integer_valued_is_recounted_from_the_written_values(
         assert whole == facts.integer_valued, column.name
 
 
+def _ends_of(facts: contract.NumericFacts) -> "tuple[float, float]":
+    """The two ends of the ladder the construction reads.
+
+    The published `min` and `max` on a block written before stage 3;
+    the derived ends of method G5.3b on a tail block, which are what
+    its two pinned strata hold.
+    """
+    if facts.tail_rule:
+        ladder = contract.tail_ladder(facts)
+        assert ladder is not None
+        return ladder[0], ladder[len(ladder) - 1]
+    low = facts.percentiles.minimum
+    high = facts.percentiles.maximum
+    assert low is not None and high is not None
+    return low, high
+
+
 def test_the_two_ends_of_a_ladder_are_exact(
     every_role: contract.Profile, twin: generation.Twin
 ) -> None:
+    """The twin's two ends are the ladder's, DERIVED where the tail rule
+    withholds the published ones (method G5.3b, stage 3).
+
+    A block written before stage 3 publishes `min` and `max` and the
+    twin holds them exactly. A tail block publishes neither unless a
+    group of rows shares one, and the two pinned strata hold the derived
+    ends instead -- which is what `contract.tail_ladder` reads, and what
+    every consumer of the ladder reads with it.
+    """
     for column in every_role.columns:
         facts = column.facts
         if not isinstance(facts, contract.NumericFacts):
             continue
         values = [
             parsing.parse_number(cell)
-            for cell in _present(_cells(twin, column.name))
+            for cell in _present(_cells(twin, column.name), column)
             if parsing.classify_number(cell) == parsing.NUMBER
         ]
         held = [value for value in values if value is not None]
-        assert min(held) == facts.percentiles.minimum, column.name
-        assert max(held) == facts.percentiles.maximum, column.name
+        ends = _ends_of(facts)
+        assert min(held) == ends[0], column.name
+        assert max(held) == ends[1], column.name
+
+
+def test_the_two_tail_boundaries_are_exact(
+    every_role: contract.Profile, twin: generation.Twin
+) -> None:
+    """What stands where a column of dates or clock times had its ends.
+
+    Stage 3, plan P4-D328. The two ends are published nowhere; each side
+    of such a column publishes a BOUNDARY, the count of rows beyond it
+    and how far they stand. The boundary is EXACT-OBSERVABLE (contract
+    section 9.6), so it is recounted here from the twin's own cells: the
+    cell at `low_tail.rows` ranks in from the bottom stands on the low
+    boundary, the cell at `high_tail.rows` ranks in from the top on the
+    high one, and the counts of cells strictly beyond them are the two
+    published `rows`.
+    """
+    seen = 0
+    for column in every_role.columns:
+        facts = column.facts
+        clock = isinstance(facts, contract.ClockFacts)
+        if not clock and not isinstance(facts, contract.DatetimeFacts):
+            continue
+        if facts.low_tail is None or facts.high_tail is None:
+            continue
+        written = _present(_cells(twin, column.name), column)
+        read: "list[str]" = []
+        for cell in written:
+            if clock:
+                ordinal = parsing.clock_ordinal(cell, facts.clock_form)
+                if ordinal is not None:
+                    read += [parsing.clock_spelling(ordinal, facts.clock_form)]
+                continue
+            found = parsing.parse_datetime(cell, facts.parser_family)
+            if found is None:
+                continue
+            if facts.datetimes_read_at == "utc" and facts.resolution == "datetime":
+                shifted = parsing.utc_canonical(found[0], found[1])
+                if shifted is None:
+                    continue
+                read += [shifted]
+                continue
+            read += [found[0]]
+        ordered = sorted(read)
+        low = facts.low_tail
+        high = facts.high_tail
+        assert ordered[low.rows] == low.boundary, column.name
+        assert ordered[len(ordered) - 1 - high.rows] == high.boundary, column.name
+        assert sum(1 for value in ordered if value < low.boundary) == low.rows, (
+            column.name
+        )
+        assert sum(1 for value in ordered if value > high.boundary) == high.rows, (
+            column.name
+        )
+        seen += 1
+    assert seen >= 2, "no column of dates or clock times carried a tail"
 
 
 def test_every_value_lies_between_the_two_published_ends(
@@ -354,10 +454,8 @@ def test_every_value_lies_between_the_two_published_ends(
         facts = column.facts
         if not isinstance(facts, contract.NumericFacts):
             continue
-        low = facts.percentiles.minimum
-        high = facts.percentiles.maximum
-        assert low is not None and high is not None
-        for cell in _present(_cells(twin, column.name)):
+        low, high = _ends_of(facts)
+        for cell in _present(_cells(twin, column.name), column):
             if parsing.classify_number(cell) != parsing.NUMBER:
                 continue
             value = parsing.parse_number(cell)
@@ -433,7 +531,7 @@ def test_the_interior_rungs_sit_inside_the_two_sided_window(
             value
             for value in (
                 parsing.parse_number(cell)
-                for cell in _present(_cells(twin, column.name))
+                for cell in _present(_cells(twin, column.name), column)
                 if parsing.classify_number(cell) == parsing.NUMBER
             )
             if value is not None
@@ -496,9 +594,20 @@ def bent(tmp_path_factory: pytest.TempPathFactory) -> contract.Profile:
 
 
 def _rungs_of(described: contract.Profile) -> list:
-    """The eleven published rungs of the one column of ``described``."""
+    """The eleven rungs the construction reads, at the named percents.
+
+    On a block written before stage 3 they are the published eleven. On
+    a tail block the rungs outside the two boundaries are withheld and
+    the tail's own reading stands there (method G5.3b), so the eleven
+    are read off `contract.tail_ladder` -- the one ladder every consumer
+    reads, and the one a twin laid along it is laid along.
+    """
     facts = described.columns[0].facts
     assert isinstance(facts, contract.NumericFacts)
+    if facts.tail_rule:
+        ladder = contract.tail_ladder(facts)
+        assert ladder is not None
+        return [ladder[percent] for percent in contract.LADDER_PERCENTS]
     rungs = [rung for rung in facts.percentiles.rungs]
     assert None not in rungs, "this description must publish a whole ladder"
     return rungs
@@ -713,13 +822,13 @@ def test_label_counts_and_variants_are_recounted_exactly(
         if not isinstance(facts, contract.LabelFacts):
             continue
         counted: dict[str, int] = {}
-        for cell in _present(_cells(twin, column.name)):
+        for cell in _present(_cells(twin, column.name), column):
             identity = parsing.folded(cell)
             counted[identity] = counted.get(identity, 0) + 1
         for entry in facts.levels:
             assert counted.get(entry.label) == entry.count, entry.label
             spellings: dict[str, int] = {}
-            for cell in _present(_cells(twin, column.name)):
+            for cell in _present(_cells(twin, column.name), column):
                 if parsing.folded(cell) == entry.label:
                     spellings[cell] = spellings.get(cell, 0) + 1
             for spelling in entry.variants:
@@ -730,7 +839,12 @@ def test_label_counts_and_variants_are_recounted_exactly(
             if identity not in [entry.label for entry in facts.levels]
         ]
         assert len(held_back) == facts.suppressed_levels, column.name
-        assert sorted(held_back) == sorted(facts.suppressed_level_counts)
+        # The sizes are read off the pooled total (plan P4-D201): they
+        # cover its rows exactly, and every one stays below the floor.
+        assert sum(held_back) == facts.suppressed_rows, column.name
+        assert all(
+            size < every_role.settings.small_cell_floor for size in held_back
+        ), column.name
 
 
 def test_datetime_cells_carry_the_published_precision(
@@ -741,7 +855,7 @@ def test_datetime_cells_carry_the_published_precision(
         if not isinstance(facts, contract.DatetimeFacts):
             continue
         parsed = 0
-        for cell in _present(_cells(twin, column.name)):
+        for cell in _present(_cells(twin, column.name), column):
             found = None
             for name in parsing.DATE_FORMATS:
                 found = parsing.parse_datetime(cell, name)
@@ -765,20 +879,41 @@ def _format_for(resolution: str) -> str:
     return "iso-date"
 
 
-def test_the_two_ends_of_a_date_ladder_are_exact(
+def test_the_published_rungs_of_a_date_ladder_are_exact(
     every_role: contract.Profile, twin: generation.Twin
 ) -> None:
+    """Each rung the tail rule publishes, read off the rank it is selected from.
+
+    THE LADDER'S TWO ENDS ARE GONE (stage 3, plan P4-D328): they are
+    `null` in every description this version writes, and what stands at
+    the outside of the column is a tail, recounted by
+    `test_the_two_tail_boundaries_are_exact` above. What is left to hold
+    here is the rung: the profiler SELECTS it at a rank, and the twin
+    pins that rank to it, so the twin's own cell at that rank is the
+    published rung character for character.
+    """
+    seen = 0
     for column in every_role.columns:
         facts = column.facts
         if not isinstance(facts, contract.DatetimeFacts):
             continue
         instants = []
-        for cell in _present(_cells(twin, column.name)):
+        for cell in _present(_cells(twin, column.name), column):
             found = parsing.parse_datetime(cell, _format_for(facts.resolution))
             if found is not None:
                 instants.append(found[0])
-        assert min(instants)[:10] == facts.earliest[:10], column.name
-        assert max(instants)[:10] == facts.latest[:10], column.name
+        ordered = sorted(instants)
+        assert facts.date_percentiles.rungs[0] is None, column.name
+        assert facts.date_percentiles.rungs[10] is None, column.name
+        for place in range(1, 10):
+            rung = facts.date_percentiles.rungs[place]
+            if rung is None:
+                continue
+            percent = (1, 5, 10, 25, 50, 75, 90, 95, 99)[place - 1]
+            rank = min(len(ordered) - 1, ((len(ordered) - 1) * percent) // 100)
+            assert ordered[rank][:10] == rung[:10], (column.name, percent)
+            seen += 1
+    assert seen >= 1, "no column of dates published an interior rung"
 
 
 def test_the_word_budget_is_a_function_of_the_published_facts(
@@ -914,7 +1049,7 @@ def test_a_column_of_all_different_values_stays_all_different(
             # test is about the generator, and the generator misses.
             continue
         checked += 1
-        present = _present(_cells(twin, column.name))
+        present = _present(_cells(twin, column.name), column)
         assert len(set(present)) == len(present), column.name
     assert checked >= 2, (
         "the every-role description must carry at least two columns whose "
@@ -992,6 +1127,11 @@ def test_a_domain_too_small_refuses_generation_before_anything_is_built(
         rows = document["n_rows"]
         block["n_present"] = rows
         block["n_missing"] = 0
+        # Since landing 2b.8 a free-text column publishing nothing still
+        # accounts for its blank and pooled cells (plan P4-D85), and C5-N3
+        # holds them to `n_missing`, so they go to nought with it.
+        block["n_missing_blank"] = 0
+        block["n_missing_withheld"] = 0
         block["missing_by_class"] = {
             key: 0 for key in block["missing_by_class"]
         }
@@ -1057,7 +1197,34 @@ def test_a_column_that_meets_every_fact_names_no_deviation(
     # spread, is the ordinary case: every published fact is met, so the
     # report has nothing to name. A report that named something here
     # would teach a reader to ignore it.
+    #
+    # AND THE ONE COST THE DEFAULT LEAVES HERE IS NAMED, WHICH IS WHAT
+    # THIS TEST IS ABOUT (stage 3, plan P4-D344). 1000 to 60000 write
+    # nine cells four figures wide, fewer than the smallest group of 11,
+    # so the width census counts them into the commonest width (ruling 6
+    # of 2026-09-17) and says every cell is five figures wide. The tail
+    # rule withholds the exact smallest value and derives an end from
+    # the published facts; holding THAT end to the census would put it
+    # at 10000, nearer the boundary rung than the tail's own published
+    # mean distance, which no set of rows can meet (method G5.3b step
+    # 4). So the end stands where the sign rule leaves it, the twin
+    # writes nine cells narrower than the census names, and it says so:
+    # `field_widths` is named and nothing else is. The trade is
+    # measured: the twin's mean is 30800.3 against the published 30500.0
+    # and its spread 17721.8 against 17464.2, where holding the end to
+    # the census gave 31558.7 and 16641.1 -- twice as far out on the
+    # mean and three times on the spread, to meet a report-only census.
     values = [f"{index * 1000}" for index in range(1, 61)]
+    (tmp_path / "mixed").mkdir()
+    mixed = _described(
+        tmp_path / "mixed", fixtures.single_column_table("measured", values)
+    )
+    assert [one.fact for one in generation.generate(mixed, 3).deviations] == [
+        "field_widths"
+    ]
+    # ...and the column whose cells are ALL five figures wide, where the
+    # census states a ceiling nothing pooled, names nothing at all.
+    values = [f"{index * 1000}" for index in range(10, 70)]
     described = _described(
         tmp_path, fixtures.single_column_table("measured", values)
     )
@@ -1097,7 +1264,7 @@ def test_the_outcome_counts_are_the_twins_own(
 ) -> None:
     for index, outcome in enumerate(twin.outcomes):
         cells = twin.columns[index]
-        present = _present(cells)
+        present = _present(cells, every_role.columns[index])
         assert outcome.n_present == len(present)
         assert outcome.n_missing == len(cells) - len(present)
         assert outcome.n_distinct == len(set(present))
@@ -1170,9 +1337,15 @@ def _one_column(
     return _described(folder, fixtures.single_column_table(name, values))
 
 
-def test_a_column_of_quarters_keeps_its_form_and_its_ends(
+def test_a_column_of_quarters_keeps_its_form_and_its_boundaries(
     tmp_path: pathlib.Path,
 ) -> None:
+    """Its cells are quarters, and its two TAIL BOUNDARIES are exact.
+
+    The two ends went with stage 3 (plan P4-D328): what the column
+    publishes at its outside is a boundary on each side, with the count
+    of rows beyond it, and those are what a twin of it must give back.
+    """
     values = [f"{2020 + index % 5}-Q{index % 4 + 1}" for index in range(60)]
     described = _one_column(tmp_path / "q", "period", values)
     facts = _block(described, "period").facts
@@ -1182,8 +1355,13 @@ def test_a_column_of_quarters_keeps_its_form_and_its_ends(
     cells = _present(_cells(built, "period"))
     for cell in cells:
         assert parsing.parse_datetime(cell, "year-quarter") is not None, cell
-    assert min(cells) == facts.earliest
-    assert max(cells) == facts.latest
+    assert facts.low_tail is not None and facts.high_tail is not None
+    ordered = sorted(cells)
+    assert ordered[facts.low_tail.rows] == facts.low_tail.boundary
+    assert (
+        ordered[len(ordered) - 1 - facts.high_tail.rows]
+        == facts.high_tail.boundary
+    )
 
 
 def test_an_offset_bearing_column_keeps_its_instants_and_its_offsets(
@@ -1210,10 +1388,16 @@ def test_an_offset_bearing_column_keeps_its_instants_and_its_offsets(
         instant = parsing.utc_canonical(found[0], found[1])
         assert instant is not None
         instants.append(instant)
-    # The two ends are EXACT-OBSERVABLE as instants, which is only true
-    # if the wall clock of each cell was written on its own offset.
-    assert min(instants) == facts.earliest
-    assert max(instants) == facts.latest
+    # THE TWO TAIL BOUNDARIES are EXACT-OBSERVABLE as instants (stage 3,
+    # plan P4-D328), which is only true if the wall clock of each cell
+    # was written on its own offset.
+    assert facts.low_tail is not None and facts.high_tail is not None
+    ordered = sorted(instants)
+    assert ordered[facts.low_tail.rows] == facts.low_tail.boundary
+    assert (
+        ordered[len(ordered) - 1 - facts.high_tail.rows]
+        == facts.high_tail.boundary
+    )
     assert carried == facts.utc_offsets
     # A twin that lost the offset diversity would re-read as a column on
     # one clock, which is the corner method G7.4 names.
@@ -1505,8 +1689,10 @@ def test_a_feasible_alphabet_count_is_packed_exactly_by_whole_groups(
     folder = tmp_path / "packed"
     folder.mkdir(parents=True, exist_ok=True)
     values = ["11", "11", "22", "22", "AB", "AB", "AB"]
+    # FLOOR ONE: seven cells publish their class counts only at a floor
+    # that names groups of two and three, and the packing is the point.
     described = _described(
-        folder, fixtures.single_column_table("code", values), ["code"]
+        folder, fixtures.single_column_table("code", values), ["code"], floor=1
     )
     facts = _block(described, "code").facts
     assert isinstance(facts, contract.IdentifierFacts)
@@ -1635,8 +1821,10 @@ def test_free_text_meets_its_class_and_alphabet_counts_by_whole_groups(
     values = ["11", "11", "22", "22", "ttt", "ttt", "ttt"]
     for index in range(18):
         values = values + [f"w{index:02d}", f"w{index:02d}"]
+    # FLOOR ONE: groups of two and three publish their counts only at a
+    # floor that names them, and the packing is the point.
     described = _described(
-        folder, fixtures.single_column_table("comment", values)
+        folder, fixtures.single_column_table("comment", values), floor=1
     )
     column = _block(described, "comment")
     facts = column.facts
@@ -1683,7 +1871,20 @@ def test_a_column_of_sentences_still_meets_its_code_alphabet_count(
     alphabet, because the separator is a space, so meeting the count
     means giving the code alphabet to groups that hold one word --
     which the packing can only do if it is told that rule. The cost is
-    the average word count, which is approximated, and it is named.
+    an APPROXIMATED fact, and it is named.
+
+    WHICH approximated fact it costs MOVED, and this gate is written
+    over the invariant rather than over the one that used to pay
+    (landing 2b.8 repair). The column publishes a census -- `@@@%` on
+    20 cells and `@@@%%` on 40 -- and until the settling ask of G9.5
+    step 7 was freed of the PACKED WORD COUNT, the groups that could
+    wear those forms were refused them. The twin missed THREE facts:
+    the census itself, the word clamp, and `words.mean` at 2.033
+    against a published 3.0. It now meets all three exactly and misses
+    ONE approximated fact, `length.p50` at 11.5 against 17.5. So the
+    assertion below is the STRONGER one: the exact count is met, the
+    word average is met too, and whatever approximated fact the packing
+    costs is still named rather than passed over in silence.
     """
     folder = tmp_path / "sentences"
     folder.mkdir(parents=True, exist_ok=True)
@@ -1709,7 +1910,12 @@ def test_a_column_of_sentences_still_meets_its_code_alphabet_count(
         if deviation.column == "comment"
     }
     assert "n_code_alphabet" not in named
-    assert "words" in named
+    # THE EXACT COUNT IS MET AND ITS COST IS NAMED, which is the gate.
+    # `words.mean` is no longer the fact this costs -- it is met
+    # exactly now -- so naming it here would pin the weaker outcome.
+    assert named, "the packing costs an approximated fact and must name it"
+    for met in ("words", "words.mean", "shape_forms"):
+        assert met not in named, met
 
 
 def test_an_unheld_column_meets_its_whole_and_fraction_counts(
@@ -1850,10 +2056,25 @@ def test_a_sign_count_no_packing_reaches_is_named(
 def test_a_one_row_table_still_produces_a_twin(
     tmp_path: pathlib.Path,
 ) -> None:
+    # AT THE DEFAULT FLOOR the one value is a group of one, below the
+    # smallest group of 11: it is counted absent and withheld, the
+    # column is described as empty, and the twin still has its one row,
+    # with the cell empty (plan P4-D316). Refusing such a table is the
+    # population floor's work, not this landing's.
     described = _one_column(tmp_path / "one", "only", ["7"])
     built = generation.generate(described, 11)
     assert built.n_rows == 1
     assert len(built.rows) == 1
+    assert _block(described, "only").role == "empty"
+    assert len(_present(_cells(built, "only"))) == 0
+    # At a floor of one the value is published and the twin holds it.
+    folder = tmp_path / "one-at-one"
+    folder.mkdir()
+    lowered = _described(
+        folder, fixtures.single_column_table("only", ["7"]), floor=1
+    )
+    built = generation.generate(lowered, 11)
+    assert built.n_rows == 1
     assert len(_present(_cells(built, "only"))) == 1
 
 
@@ -1980,19 +2201,25 @@ def test_the_validator_reads_the_ladder_the_way_the_generator_writes_it(
 
     The validator may not import the generator, so the only thing
     holding their arithmetic together is that both are written the way
-    the method states. `_ladder_at` said "the convex form" and computed
+    the method states. Its reading said "the convex form" and computed
     the DIFFERENCE form, which is the one `_interpolated`'s docstring
     rules out: two rungs at opposite ends of the representable range
     make `high - low` an infinity. Every number in this description is
     finite, and the reading the validator took was not -- and that
-    reading feeds the widest stratum and every rung and moment window,
-    so a conforming twin could be reported MISSED.
+    reading feeds every rung and moment window, so a conforming twin
+    could be reported MISSED.
+
+    AND THE SHARE IS EXACT ON BOTH SIDES (residual R-P4-61, landing 2b.1
+    part 2). The validator formed its share in binary64 and the generator
+    as a whole-number fraction, so one window came out of the two
+    reports in two sets of last digits; both now read the ladder at
+    `numerator / denominator` by G5.3's own steps.
     """
     from synthtwin import validation
 
-    points = [(0.0, -1.5e308), (0.49, -1.5e308), (0.50, 1.5e308),
-              (1.0, 1.5e308)]
-    reading_taken = validation._ladder_at(points, 0.495)
+    ladder = tuple([-1.5e308] * 50 + [1.5e308] * 51)
+    # Share 0.495, between rung 49 and rung 50, as the exact fraction.
+    reading_taken = validation._ladder_read(ladder, 99, 200)
     assert reading_taken == 0.0, reading_taken
 
     # The arithmetic that failed, shown beside it: this is what the
@@ -2002,23 +2229,32 @@ def test_the_validator_reads_the_ladder_the_way_the_generator_writes_it(
     part = (0.495 - 0.49) / (0.50 - 0.49)
     assert low_value + (high_value - low_value) * part == float("inf")
 
-    # AND IT AGREES WITH THE GENERATOR'S OWN READING at the same share.
-    rest = 1 - part
-    assert reading_taken == rest * low_value + part * high_value
+    # AND IT IS THE GENERATOR'S OWN READING at the same share, bit for bit.
+    assert reading_taken == generation._interpolated(ladder, 99, 200)
 
 
 def test_every_reading_of_the_ladder_stays_inside_its_own_segment() -> None:
     """The clamp, which is not decoration (G5.3).
 
-    `1 - part` rounds, so the convex pair can leave the segment by one
-    unit in the last place, and a reading outside the published rungs
-    is a reading of a ladder the description never named.
+    `1 - t` rounds, so the convex pair can leave the segment by one unit
+    in the last place, and a reading outside the published rungs is a
+    reading of a ladder the description never named. The generator's
+    reading at every one of these shares is the same number.
     """
     from synthtwin import validation
 
-    points = [(0.0, -3.25), (0.25, 1.0), (0.5, 1.0), (0.75, 2.5),
-              (1.0, 1e300)]
+    points = [(0, -3.25), (25, 1.0), (50, 1.0), (75, 2.5), (100, 1e300)]
+    ladder: "list[float]" = []
+    for percent in range(101):
+        for index in range(len(points) - 1):
+            low_at, low_value = points[index]
+            high_at, high_value = points[index + 1]
+            if low_at <= percent <= high_at:
+                part = (percent - low_at) / (high_at - low_at)
+                ladder += [(1 - part) * low_value + part * high_value]
+                break
+    rungs = tuple(ladder)
     for step in range(0, 1001):
-        share = step / 1000.0
-        value = validation._ladder_at(points, share)
-        assert points[0][1] <= value <= points[-1][1], (share, value)
+        value = validation._ladder_read(rungs, step, 1000)
+        assert rungs[0] <= value <= rungs[-1], (step, value)
+        assert value == generation._interpolated(rungs, step, 1000), step

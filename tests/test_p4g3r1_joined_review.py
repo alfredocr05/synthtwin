@@ -386,7 +386,19 @@ def test_both_pages_say_the_same_thing_about_every_pair() -> None:
     on, one landing and two readers with only one of them changed.
     """
     _document, loaded, folder, _table = _described(_three_position_column())
-    twin = generation.generate(loaded, 9)
+    # SEED 3, AND IT WAS 9 AND THEN 0. At seed 9 the twin built since
+    # landing 2b.1's stratum cap and grid value landed all three pairs
+    # exactly on their published agreements, so all three were HELD and
+    # none carried a window -- the assertion below said so, and a test
+    # whose witness is never windowed pins nothing -- and seed 0 was
+    # taken because it windowed all three. Correcting G5.3b's fit so
+    # that a tail's rows carry the published mean and root-mean-square
+    # (stage 3's review, verdict item 3) moved every rung outside the
+    # two boundary percents, and at seed 0 all three land exactly again.
+    # Seeds 3, 4, 5, 8, 10 and 11 window all three; 3 is the first, and
+    # the seed is written here rather than searched for so that the day
+    # it stops windowing is the day this test says so.
+    twin = generation.generate(loaded, 3)
     written = fixtures.write(
         folder, "twin.csv", rendering.twin_csv(twin)
     )
@@ -765,10 +777,11 @@ def test_neither_parity_of_positions_is_starved_of_the_proposal() -> None:
 
     TWO COLUMNS, ONE FOR EACH HALF, both five positions and 150 rows:
 
-    - `_tight_column(0)` at seed 0 goes red under `tries % 2` -- pair
-      (0, 1) comes out holding 49 rows against a published 64, and
+    - `_tight_column(0)` at seed 2 goes red under `tries % 2` -- pair
+      (0, 1) misses its published above-count (at seed 0, before the
+      seeds moved, it held 49 rows against a published 64), and
       position 1 is that pair's only mover;
-    - `_tight_column(5)` at seed 0 goes red under `(tries + 1) % 2`,
+    - `_tight_column(5)` at seed 1 goes red under `(tries + 1) % 2`,
       the phase flip, which starves the other half -- pair (0, 4)
       misses, and position 4 is that pair's only mover.
 
@@ -778,8 +791,24 @@ def test_neither_parity_of_positions_is_starved_of_the_proposal() -> None:
     driver's forty-column recipe, the shipped gate leaves 44 pairs of
     9,640 short of their above-count where `tries % 2` leaves 120 and
     the phase flip leaves 153.
+
+    THE SEEDS MOVED AT THE MERGE OF THE NUMBER REVIEW'S REPAIR (plan
+    P4-D147). Each part of these columns is a saturated integer grid,
+    which that repair fills in order, so a part now holds every one of
+    its published different numbers where the walk had left one short
+    in silence (`_tight_column(0)`'s second part: 18 of 19). The rows
+    the pairing walk arranges moved with those values, and at seed 0
+    both columns now miss one above-count by one row under the shipped
+    gate too -- 8 of 80 runs over the eight tight columns and seeds 0 to
+    9, against 0 before the fill. The witnesses are therefore taken at
+    the first seed where the shipped gate meets every count and the
+    mutant still misses the pair only its starved half moves, measured
+    on the merged tree with each mutant written in: `_tight_column(0)`
+    at seed 2 misses pair (0, 1) under `tries % 2` alone, and
+    `_tight_column(5)` at seed 1 misses pair (0, 4) under the phase flip
+    alone.
     """
-    for which, seed in ((0, 0), (5, 0)):
+    for which, seed in ((0, 2), (5, 1)):
         _document, loaded, _folder, _table = _described(_tight_column(which))
         column = loaded.columns[0]
         facts = column.facts
@@ -954,9 +983,20 @@ def test_the_above_count_marks_name_the_moved_positions_own_pairs(
     # A-P4-55): the separation pass was widened to meet the count of
     # different numbers, so this column's positions hold slightly
     # different values and the arrangement they start from moves with
-    # them. What this case is about -- that the walk names the moved
-    # position's OWN pairs -- is unchanged.
-    assert started == [17, 5, 0, 1, 1, 0], started
+    # them. AND FOUR FURTHER OUT SINCE LANDING 3.3: each position of a
+    # joined column is described under the tail rule like any other
+    # column of numbers (contract 6.7a), so the values its strata take
+    # beyond each boundary are the tail's own rather than the outermost
+    # readings, and the arrangement the walk starts from moves with
+    # them again. AND THREE CLOSER SINCE PLAN P4-D346: one listing rule
+    # now decides which tail of which role may name its values, and a
+    # position of this column whose tail names a value one row of it
+    # holds says its shape instead -- so the strata beyond that boundary
+    # take the shape's values and the arrangement starts three pairs
+    # nearer its target. What this case is about -- that the walk names
+    # the moved position's OWN pairs -- is unchanged, and so is every
+    # other seat.
+    assert started == [18, 5, 0, 1, 1, 0], started
 
     # WHAT EACH MOVABLE POSITION IS OWED: its own pairs' gaps, in the
     # order the walk's `moved` list builds them, which is seat order.
@@ -968,18 +1008,19 @@ def test_the_above_count_marks_name_the_moved_positions_own_pairs(
         ]
         for place in range(1, facts.n_parts)
     }
-    # The first entry moved from 18 to 17 with amendment A-P4-55, for
+    # The first entry moved from 18 to 17 with amendment A-P4-55, from
+    # 17 to 21 with landing 3.3, and back to 18 with plan P4-D346, for
     # the reason the arrangement above did: the column's positions hold
     # slightly different values now. The SHAPE this asserts -- which
     # pairs belong to which position -- is untouched.
-    assert owed == {1: [17, 1, 1], 2: [5, 1, 0], 3: [0, 1, 0]}, owed
+    assert owed == {1: [18, 1, 1], 2: [5, 1, 0], 3: [0, 1, 0]}, owed
     # AND THE FIXTURE REALLY CAN TELL THE TWO APART, asserted instead
     # of assumed: a vector indexed by its own place in the moved list
     # reads the first three seats, and that is no position's pairs. A
     # column whose gaps happened to coincide would leave this test
     # vacuous without saying so.
     by_step = started[: facts.n_parts - 1]
-    assert by_step == [17, 5, 0], by_step
+    assert by_step == [18, 5, 0], by_step
     assert by_step not in owed.values(), (by_step, owed)
 
     assert marks, "the walk never consulted the acceptance rule"

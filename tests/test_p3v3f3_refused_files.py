@@ -42,7 +42,6 @@ Every table is built at test time by the seeded neutral builders in
 `fixtures.py`; no data-format file enters the repository (plan D13).
 """
 
-import dataclasses
 import pathlib
 
 import pytest
@@ -57,20 +56,17 @@ from synthtwin import (
     validation,
 )
 
-# The byte rules amendment A-P3-3 clause 6 rules OUTSIDE V5.1's
+# The byte rules amendment A-P3-3 clause 6 ruled OUTSIDE V5.1's
 # envelope, on the test A-P3-5 clause 3 wrote down: the producer
-# publishes them about no file at any count, so no cell, no name, no
-# count and no person is in any of them. They are the only things a
-# report may still say apart about two files the producer refuses alike,
-# and naming them here is what keeps that ruling honest -- a fourth
-# subcheck appearing in this set is a leak.
-#
-# The byte-order mark is one of them and the ENCODING is not, which is
-# the same test applied twice and not an inconsistency: a file read
-# under `utf-8-sig` is published as `utf-8-sig` whether or not it
-# carries a mark, so no description of any file says whether one is
-# there -- while `source.encoding` and `used_fallback_encoding` say in
-# as many words which reading the file was read under.
+# published them about no file at any count. SINCE PLAN P4-D86 IT
+# PUBLISHES THEM ABOUT EVERY FILE -- `source.dialect` records the line
+# endings, the final newline and the byte-order mark -- so by that same
+# test they are inside the envelope now, and on a file the producer
+# refuses they are withheld like every other rule. Two files it refuses
+# alike therefore differ at none of them. The tuple is kept, and the
+# assertions below it are subset checks, so a report that began saying
+# them apart again would still have to name one of these three to pass,
+# and the assertions that ask for no difference at all say so.
 _OUTSIDE_THE_ENVELOPE = (
     "bytes.line-endings",
     "bytes.terminal-newline",
@@ -313,13 +309,15 @@ def test_a_headerless_description_still_answers_what_no_records_show(
         assert verdicts == [validation.HELD]
 
 
-# -- the unusable-header path -----------------------------------------
+# -- the header the reader used to refuse ----------------------------
 
 
-# Files whose first row cannot name a table's columns. The profiler
-# refuses each of these at that row, before it has counted anything, so
-# the report may name the column NUMBERS at fault -- its own refusal
-# does -- and may not state the width or the record count.
+# Files whose first row repeats a name or leaves one blank. Until plan
+# P4-D86 the profiler refused each of these at that row, and the report
+# on them withheld the width and the record count. Since then the
+# reader NAMES such a column the way pandas names it and publishes the
+# cell as written, so these are files the producer DESCRIBES: their row
+# and column counts are stated, and their header misses by what it is.
 #
 # The names are spelled so that finding one in a report is finding it:
 # a one-letter name is a letter every sentence in the report holds
@@ -329,59 +327,51 @@ _REPEATED = {
     "four rows": "qqzz,qqzz\n1,2\n3,4\n5,6\n7,8\n",
     "three columns wide": "wwvv,wwvv,wwvv\n1,2,3\n",
     "many rows and wide": "xxyy,xxyy,xxyy,xxyy\n" + "1,2,3,4\n" * 30,
-    "a byte-order mark": "﻿qqzz,qqzz\n1,2\n",
+    "a byte-order mark": "\ufeffqqzz,qqzz\n1,2\n",
     "carriage returns": "qqzz,qqzz\r\n1,2\r\n",
 }
 
 
-def test_the_row_count_of_a_file_the_reader_refuses_is_not_printed(
+def test_a_repeated_name_is_described_so_its_counts_are_stated(
     tmp_path: pathlib.Path, headed: contract.Profile
 ) -> None:
-    """The review's own witness: the count moved, the refusal did not.
+    """The counts the refusal used to keep back are now the file's own.
 
-    `synthtwin profile` stops at this file's first row. Its width and
-    how many records follow it are numbers no run of the producer on
-    that file ever publishes, so no report may state them.
-    """
-    reports = {
-        label: _measure(tmp_path, headed, _REPEATED[label])
-        for label in sorted(_REPEATED)
-    }
-    first = reports["four rows"]
-    for label in sorted(reports):
-        found = _apart(first, reports[label])
-        assert set(found) <= set(_OUTSIDE_THE_ENVELOPE), (
-            f"the report on {label!r} differs at {found} from one on a "
-            f"file the producer refuses in the same class"
-        )
-    for label in sorted(reports):
-        for check in reports[label].checks:
-            if check.subcheck in ("rows.n_rows", "columns.n_columns"):
-                assert check.verdict == validation.WITHHELD, (label, check)
-                assert check.citation == validation._GATE_REFUSED
-
-
-def test_the_unusable_header_still_misses_what_the_refusal_names(
-    tmp_path: pathlib.Path, headed: contract.Profile
-) -> None:
-    """The teeth, and where the column numbers come from.
-
-    The profiler's own refusal for this file names positions -- and in
-    the form it gives the person who owns the table, it quotes the
-    repeated NAME -- so naming the numbers publishes strictly less than
-    describing the file would. Everything that refusal reaches still
-    misses, and no string of the file is anywhere in the report.
+    The producer describes each of these files, so how many records it
+    holds and how many columns are facts describing it publishes, and
+    the report states them: never WITHHELD for a refusal that no longer
+    happens.
     """
     for label in sorted(_REPEATED):
         outcome = _measure(tmp_path, headed, _REPEATED[label])
-        for subcheck in ("header.presence", "header.names", "columns.order"):
+        for check in outcome.checks:
+            if check.subcheck in ("rows.n_rows", "columns.n_columns"):
+                assert check.verdict in (
+                    validation.HELD,
+                    validation.MISSED,
+                ), (label, check)
+                assert check.citation != validation._GATE_REFUSED, label
+
+
+def test_a_repeated_name_misses_by_what_it_is_and_quotes_nothing(
+    tmp_path: pathlib.Path, headed: contract.Profile
+) -> None:
+    """The teeth, without the file's own spelling.
+
+    The header the file writes is not the header the description
+    publishes, so the names miss; the file writes header cells the
+    description does not record as written, so that rule misses too; and
+    no string of the file is anywhere in the report.
+    """
+    for label in sorted(_REPEATED):
+        outcome = _measure(tmp_path, headed, _REPEATED[label])
+        for subcheck in ("header.names", "bytes.written-names"):
             verdicts = [
                 check.verdict
                 for check in outcome.checks
                 if check.subcheck == subcheck
             ]
             assert verdicts == [validation.MISSED], (label, subcheck)
-        assert outcome.census.missed > 60, label
         body = " ".join(
             f"{check.published} {check.achieved} {check.citation}"
             for check in outcome.checks
@@ -390,25 +380,21 @@ def test_the_unusable_header_still_misses_what_the_refusal_names(
             assert spelling not in body, (label, spelling)
 
 
-def test_a_blank_name_is_the_same_path_and_names_its_position(
+def test_a_blank_name_is_read_and_misses_the_same_way(
     tmp_path: pathlib.Path, headed: contract.Profile
 ) -> None:
-    """The reader's other unusable header, and the same gate.
-
-    A blank name is refused by the profiler at the same place and its
-    refusal names one position. The report says which column number,
-    misses the three the refusal reaches, and states neither count.
-    """
+    """The other header the reader used to refuse, on the same terms."""
     outcome = _measure(tmp_path, headed, ",x\n1,2\n3,4\n")
-    named = [
-        check for check in outcome.checks if check.subcheck == "header.names"
-    ]
-    assert len(named) == 1
-    assert named[0].verdict == validation.MISSED
-    assert "column number 1" in named[0].achieved
+    for subcheck in ("header.names", "bytes.written-names"):
+        verdicts = [
+            check.verdict
+            for check in outcome.checks
+            if check.subcheck == subcheck
+        ]
+        assert verdicts == [validation.MISSED], subcheck
     for check in outcome.checks:
         if check.subcheck in ("rows.n_rows", "columns.n_columns"):
-            assert check.verdict == validation.WITHHELD
+            assert check.verdict != validation.WITHHELD, check
 
 
 # -- the line: where the gate does NOT close --------------------------
@@ -416,7 +402,7 @@ def test_a_blank_name_is_the_same_path_and_names_its_position(
 
 def _zero_row(described: contract.Profile) -> contract.Profile:
     """The same description with its row count taken down to zero."""
-    return dataclasses.replace(described, n_rows=0)
+    return fixtures.zero_rows(described)
 
 
 def test_the_zero_row_predicate_keeps_every_verdict(

@@ -20,7 +20,7 @@ Imports here stay within the allowlist (plan D6.2): this module imports
 only from this package.
 """
 
-from synthtwin import contract, parsing, taxonomy
+from synthtwin import contract, dialect, parsing, taxonomy
 
 _ROLE_WORDS = {
     taxonomy.ROLE_EMPTY: "no values at all",
@@ -147,6 +147,144 @@ def _list_of(value: object) -> list[object]:
     if isinstance(value, list):
         return value
     return []
+
+
+def _numeric_lines(column: "dict[str, object]", floor: int) -> "list[str]":
+    """What a column of numbers says about its own shape (stage 3).
+
+    A block written before stage 3 says its smallest, middle and largest
+    value. A TAIL BLOCK says its middle, then what each tail holds: how
+    many rows lie beyond the boundary rung and how far from it they lie
+    on average. It names no smallest and no largest value, because those
+    are one row's values and the description does not carry them -- only
+    an end at least a tail's own number of rows held, which is a value of
+    a group and is said so. A block below its floor says that it is, and
+    a block publishing its moments alone says only those.
+
+    AND EACH TAIL'S FIRST LINE IS ABOUT THE TAIL IN FRONT OF IT (plan
+    P4-D349, and the review of 2026-09-23 -- item 7's inverse on the
+    floor pass, item 11 on the numeric one). There are three of them: a
+    tail that NAMES its values, one that publishes its shape, and one
+    that publishes neither distance because the pair would give its
+    cells back. One sentence for all three said "not published" over a
+    block that printed two of the values below. A published END counts
+    as naming one too: at least a tail's own number of rows hold it, and
+    the very next line reads "the smallest value itself is 0.0".
+    """
+    ladder = _map_of(column["percentiles"])
+    moments = (
+        f"    average: {_text_of(column['mean'])};   "
+        f"spread (standard deviation): {_text_of(column['std'])}"
+    )
+    if "tails" not in column:
+        return [
+            (
+                f"    smallest: {_text_of(ladder['min'])};   "
+                f"middle: {_text_of(ladder['p50'])};   "
+                f"largest: {_text_of(ladder['max'])}"
+            ),
+            moments,
+        ]
+    tails = column["tails"]
+    if tails is None:
+        return [
+            "    fewer values than the smallest group size, so this "
+            "description gives no shape for them at all"
+        ]
+    sides = _map_of(tails)
+    low = sides["low"] if "low" in sides else None
+    high = sides["high"] if "high" in sides else None
+    if not isinstance(low, dict) or not isinstance(high, dict):
+        return [
+            moments,
+            "    too few values to describe either end apart from the "
+            "middle, so no step of the ladder is given",
+        ]
+    lines = [f"    middle: {_text_of(ladder['p50'])}", moments]
+    for side, end, word, which in (
+        (low, ladder["min"], "below", "smallest"),
+        (high, ladder["max"], "above", "largest"),
+    ):
+        listed = side["values"] if "values" in side else None
+        names = isinstance(listed, list) and bool(listed)
+        rung = _text_of(_rung_at_percent(column, _count_of(side["percent"])))
+        percent = _count_of(side["percent"])
+        # WHAT THIS LINE SAYS FOLLOWS FROM WHAT THE BLOCK PUBLISHES
+        # (plan P4-D349). It said "the 12 smallest values are not
+        # published" on every tail block and then printed two of them
+        # three lines later: on a column of each integer 0 to 10 ten
+        # times, whose low tail lists `0.0, 1.0` and whose high tail
+        # lists `9.0, 10.0`, one summary contradicted itself twice and
+        # which half a reader believed was whichever they read second.
+        # The three shapes a tail can take each have their own sentence
+        # now, and each is true of the block it is printed under.
+        if names or end is not None:
+            lines += [
+                (
+                    f"    the {_count_of(side['rows'])} {which} values lie "
+                    f"{word} {rung}, the value {percent} per cent of the "
+                    f"way up, and what this end stands on IS published, "
+                    f"below"
+                )
+            ]
+        elif side["mean_distance"] is None:
+            lines += [
+                (
+                    f"    the {_count_of(side['rows'])} {which} values are "
+                    f"not published, and neither is how far {word} {rung} "
+                    f"-- the value {percent} per cent of the way up -- they "
+                    f"lie: on this column the two distances together would "
+                    f"give those values back one by one"
+                )
+            ]
+        else:
+            lines += [
+                (
+                    f"    the {_count_of(side['rows'])} {which} values are "
+                    f"not published: they lie on average "
+                    f"{_text_of(side['mean_distance'])} {word} {rung}"
+                    f", the value {percent} per cent of the way up"
+                )
+            ]
+        if end is not None:
+            lines += [
+                (
+                    f"      the {which} value itself is "
+                    f"{_text_of(end)}: at least "
+                    f"{parsing.tail_units(floor)} rows hold it, so it is a "
+                    f"value of a group and not of one row"
+                )
+            ]
+        if names and isinstance(listed, list):
+            shown = ""
+            for value in listed:
+                shown = (
+                    _text_of(value) if not shown
+                    else f"{shown}, {_text_of(value)}"
+                )
+            lines += [
+                (
+                    f"      the values that end lies on: {shown} -- the "
+                    f"description names which values, and how many rows "
+                    f"hold each follows from them and the distances "
+                    f"printed above"
+                )
+            ]
+    return lines
+
+
+def _rung_at_percent(column: "dict[str, object]", percent: int) -> object:
+    """The published rung at one percent, from either half of the ladder."""
+    for name, number in (
+        ("min", 0), ("p01", 1), ("p05", 5), ("p10", 10), ("p25", 25),
+        ("p50", 50), ("p75", 75), ("p90", 90), ("p95", 95), ("p99", 99),
+        ("max", 100),
+    ):
+        if number == percent:
+            return _map_of(column["percentiles"])[name]
+    finer = _map_of(column["percentiles_between"])
+    key = f"p{percent:02d}"
+    return finer[key] if key in finer else None
 
 
 def _map_of(value: object) -> dict[str, object]:
@@ -314,7 +452,7 @@ def _sentinel_lines(column: dict[str, object]) -> list[str]:
         candidate = _text_of(entry["candidate"])
         if candidate == parsing.MISSING_WITHHELD:
             candidate = "a value not named here"
-        lines = lines + [
+        lines += [
             (
                 f"      {candidate}, in "
                 f"{_count_of(entry['n_occurrences'])} row(s): "
@@ -323,6 +461,23 @@ def _sentinel_lines(column: dict[str, object]) -> list[str]:
             )
         ]
     return lines
+
+
+def _shown_spelling(spelling: str) -> str:
+    """One absent-value spelling, shown so a reader can tell it apart.
+
+    A SPELLING MADE ONLY OF SPACE IS WRITTEN OUT CHARACTER BY CHARACTER
+    (plan P4-D74). Since contract C6-125 a whitespace-only spelling is
+    an ordinary key of `missing_by_source`, and the display boundary
+    leaves a space alone -- rightly, for a value inside a sentence. Here
+    it would print `  (30)`, where a reader cannot tell one space from
+    two, or a space from a no-break space, in the one line the report
+    has to tell them apart in. Every other spelling crosses the ordinary
+    boundary, exactly as before.
+    """
+    if spelling and not parsing.trimmed(spelling):
+        return parsing.spelled_out(spelling)
+    return _text_of(spelling)
 
 
 def _missing_spelling_words(
@@ -353,15 +508,15 @@ def _missing_spelling_words(
     spellings: list[str] = []
     blank = _count_of(column["n_missing_blank"])
     if blank:
-        spellings = spellings + [
+        spellings += [
             f"{blank} cell(s) with nothing written in them"
         ]
     for spelling in sorted(sources):
         counted = _count_of(sources[spelling])
-        spellings = spellings + [f"{_text_of(spelling)} ({counted})"]
+        spellings += [f"{_shown_spelling(spelling)} ({counted})"]
     pooled = _count_of(column["n_missing_withheld"])
     if pooled:
-        spellings = spellings + [
+        spellings += [
             (
                 f"{pooled} cell(s) whose spelling is not named "
                 f"here, because fewer than {floor} cell(s) were "
@@ -403,14 +558,351 @@ def _width_lines(column: "dict[str, object]") -> "list[str]":
         for width in sorted(census):
             if width == taxonomy.SUPPRESSED_LABEL:
                 continue
-            parts = parts + [
+            parts += [
                 f"{width} character(s) in {_count_of(census[width])} cell(s)"
             ]
         if parts:
-            said = said + [
+            said += [
                 f"    figures {words}: {_listed(parts)}"
             ]
     return said
+
+
+# HOW A NEGATIVE NUMBER WAS WRITTEN, in this page's words (landing 2b.2).
+# The hyphen-minus in front is the default and this page says nothing of
+# it, as it says nothing of a column that groups no thousands.
+_NEGATIVE_WORDS = (
+    (parsing.NEGATIVE_BRACKETS, "inside brackets, as (12.50)"),
+    (
+        parsing.NEGATIVE_MINUS_SIGN,
+        "with the minus sign of the character tables in front, which is "
+        "not the hyphen on a keyboard",
+    ),
+    (parsing.NEGATIVE_TRAILING, "with the minus after the figures, as 12.50-"),
+)
+
+
+def _group_separator_lines(column: "dict[str, object]") -> "list[str]":
+    """The mark this column's numbers wore between thousands, in words.
+
+    THE DESCRIPTION PUBLISHES `group_separator` AND THIS PAGE SAID
+    NOTHING OF IT, the gap residual R-P4-26 closed for the widths. A
+    column of charges written `2,198.92` is read as grouped with a
+    comma, the twin writes the comma back, and until this line the
+    only place a person could learn either fact was the JSON. Said out
+    loud, a reader knows the twin's cells carry the mark and that code
+    reading them has to expect it.
+
+    EVERY NUMERIC BLOCK, not only the column's own. An affixed column
+    carries the fact at the top, a joined column once per position and
+    a column of numbers with labels inside its numbers half, so the
+    blocks are found the way `_empty_bin_lines` finds them and each is
+    named where it is not the column itself.
+
+    A mark is a fact about the WRITING and never a value: the line
+    names the mark and no number of the table.
+
+    THE MARK IS NAMED IN WORDS (landing 2b.2), from
+    `parsing.GROUP_MARK_WORDS`: four of the marks a column may publish
+    since that landing cannot be seen on a page, and a line reading
+    "numbers written with ' ' between the thousands" names nothing.
+
+    Guarantees: accepts one column block; returns one line per numeric
+    block publishing a mark, and none where the block publishes the
+    empty string or carries no such key. Determinism: a function of the
+    mapping. Raises nothing. No I/O of any kind.
+    """
+    said: "list[str]" = []
+    for where, block in _quantitative_blocks(column, ""):
+        if "group_separator" not in block:
+            continue
+        mark = block["group_separator"]
+        words = ""
+        for known, named_as in parsing.GROUP_MARK_WORDS:
+            if known == mark and known != "":
+                words = named_as
+        if not words:
+            continue
+        named = f"{where}: " if where else ""
+        said += [
+            f"    {named}numbers written with {words} between the "
+            f"thousands, and the twin writes {words} between the "
+            f"thousands too"
+        ]
+    return said
+
+
+def _sign_lines(column: "dict[str, object]") -> "list[str]":
+    """How this column's negatives and signed decimals were written.
+
+    THE TWO SPELLINGS LANDING 2b.2 PUBLISHES BESIDE THE MARK, said where
+    the mark is said and for its reason: a column of charges written
+    `(1,234.56)` for a credit keeps its brackets in the twin, and a
+    reader of this page is told so here rather than in the JSON alone. Every
+    numeric block is read, as for the mark.
+
+    Guarantees: accepts one column block; returns at most two lines per
+    numeric block -- one where it publishes a notation other than the
+    minus in front, one where it counts signed decimals -- and none
+    otherwise. Determinism: a function of the mapping. Raises nothing.
+    No I/O of any kind. The count said is the published one.
+    """
+    said: "list[str]" = []
+    for where, block in _quantitative_blocks(column, ""):
+        named = f"{where}: " if where else ""
+        if "negative_form" in block:
+            form = block["negative_form"]
+            for known, words in _NEGATIVE_WORDS:
+                if known == form:
+                    said += [
+                        f"    {named}negative numbers written {words}, and "
+                        f"the twin writes them that way too"
+                    ]
+        if "decimal_plus" in block:
+            census = block["decimal_plus"]
+            count = 0
+            if isinstance(census, dict) and "+" in census:
+                count = census["+"]
+            if isinstance(count, int) and not isinstance(count, bool) and count > 0:
+                said += [
+                    f"    {named}{count} numbers written with a point carry "
+                    f"a plus in front, and the twin writes that many too"
+                ]
+        # THE TWO MIXED CONVENTIONS, SAID OUT LOUD (landing 2b.7). A column that
+        # mixes two conventions publishes a count for each, and until
+        # this line the only place a person could learn that their
+        # brackets or their narrow spaces survive into the twin was the
+        # JSON. Only a census naming MORE THAN ONE convention is worth a
+        # line: where a column writes its negatives one way, the
+        # majority key above has already said so.
+        if "negative_notations" in block:
+            for line in _mixture_lines(
+                block["negative_notations"],
+                named,
+                "negative numbers",
+                _NEGATIVE_NOTATION_WORDS,
+            ):
+                said += [line]
+        if "thousands_marks" in block:
+            for line in _mixture_lines(
+                block["thousands_marks"],
+                named,
+                "numbers grouped between their thousands",
+                parsing.GROUP_MARK_WORDS,
+            ):
+                said += [line]
+    return said
+
+
+# The four notations a negative may wear, in the words this page uses
+# for them. `_NEGATIVE_WORDS` above names three, because the fourth is
+# the default a column publishes when it mixes nothing; a census that
+# counts the default needs a word for it like any other.
+_NEGATIVE_NOTATION_WORDS = (
+    (parsing.NEGATIVE_MINUS, "with a minus in front"),
+) + _NEGATIVE_WORDS
+
+
+def _mixture_lines(
+    census: object,
+    named: str,
+    population: str,
+    words: "tuple[tuple[str, str], ...]",
+) -> "list[str]":
+    """One line per convention, where a column mixed more than one.
+
+    A MIXTURE IS WHAT THIS SAYS, and a single convention is what it
+    stays silent about: the majority key has its own line already, and
+    repeating it here would say the same fact twice on one page.
+
+    THE CONVENTION IS NAMED IN WORDS, never as itself, for the reason
+    `_group_separator_lines` names a mark in words: four of the marks a
+    column may publish cannot be seen on a page, and a line reading
+    "100 numbers grouped with ' '" names nothing at all.
+
+    A count is a count and no value of the table reaches this line.
+
+    Guarantees: accepts one census, how the block is named, what the
+    cells are called and the words for each convention; returns one line
+    per named convention where the census names two or more, and none
+    otherwise. Determinism: a function of those, in the words' own
+    order. Raises nothing. No I/O of any kind.
+    """
+    if not isinstance(census, dict):
+        return []
+    counted: "list[tuple[str, int]]" = []
+    for known, said_as in words:
+        if known not in census:
+            continue
+        count = census[known]
+        if isinstance(count, int) and not isinstance(count, bool) and count > 0:
+            counted += [(said_as, count)]
+    if len(counted) < 2:
+        return []
+    lines: "list[str]" = []
+    for said_as, count in counted:
+        lines += [
+            f"    {named}{count} of this column's {population} are "
+            f"written {said_as}, and the twin writes that many too"
+        ]
+    return lines
+
+
+# The marks a moment can wear between its day and its time of day, in
+# the words this page uses for them and in the order it says them.
+_SEPARATOR_WORDS = (
+    (parsing.SEPARATOR_SPACE, "a space"),
+    (parsing.SEPARATOR_UPPER_T, "a capital T"),
+    (parsing.SEPARATOR_LOWER_T, "a lower-case t"),
+)
+
+
+def _datetime_separator_lines(
+    column: "dict[str, object]", floor: int
+) -> "list[str]":
+    """Which mark stood between the day and the time of day, in words.
+
+    THE DESCRIPTION PUBLISHES A CENSUS OF THESE MARKS (plan P4-D39) AND
+    THIS PAGE SAID NONE OF IT. A warehouse writes `2025-09-04 06:16:00`
+    with a space, and code that splits on that space depends on it; the
+    census is what tells the twin to write it, and a person reading this
+    page is owed the same fact in words.
+
+    A POOLED NAME IS NOT A MARK (the rule `_missing_spelling_words`
+    follows). Since plan P4-D222 the census pools under `(withheld)` only
+    where every mark was worn by fewer rows than `parsing.census_floor`
+    (a rarer mark beside a named one is counted into the commonest), so
+    that entry is said as a count of values whose mark is not named, never
+    as a mark of its own, and the line is the one the census asks.
+
+    A mark is a fact about the WRITING: the line names marks and counts
+    of values and nothing else.
+
+    Guarantees: accepts one datetime column block and the floor it was
+    made under; returns one line where the census names at least one
+    mark or pools any, and none where it is empty or absent -- a column
+    that writes no time of day. Determinism: a function of the mapping
+    and the floor, in a fixed order. Raises nothing. No I/O of any kind.
+    """
+    if "datetime_separators" not in column:
+        return []
+    census = _map_of(column["datetime_separators"])
+    parts: "list[str]" = []
+    for key, words in _SEPARATOR_WORDS:
+        if key in census:
+            parts += [f"{words} in {_count_of(census[key])} value(s)"]
+    # A key this page has no words for is named as the description spells
+    # it rather than dropped: the loader refuses one, but this page is
+    # rendered before the loader has read anything.
+    known = [key for key, _words in _SEPARATOR_WORDS]
+    for key in sorted(census):
+        if key in known or key == parsing.MISSING_WITHHELD:
+            continue
+        parts += [f"'{_text_of(key)}' in {_count_of(census[key])} value(s)"]
+    if parsing.MISSING_WITHHELD in census:
+        pooled = _count_of(census[parsing.MISSING_WITHHELD])
+        parts += [
+            f"{pooled} value(s) whose mark was too rare to name here, "
+            f"because fewer than {parsing.census_floor(floor)} value(s) were "
+            f"written with each such mark"
+        ]
+    if not parts:
+        return []
+    return [
+        f"    between the day and the time of day, written with: "
+        f"{_listed(parts)}"
+    ]
+
+
+def _tail_lines(
+    column: "dict[str, object]", unit: str, clock: str
+) -> "list[str]":
+    """Where a column of dates or clock times runs, once its tails are set aside.
+
+    STAGE 3 (plan P4-D328): a column of dates publishes no first or last
+    value, so this page says what it does publish -- the two tail
+    boundaries, how many values lie beyond each, and how far beyond them on
+    average -- in one of three fixed forms: with both distances, with the
+    count of different values a tail holds where it publishes them, or
+    with nothing where the column has no tails at all. Every figure is one
+    the description itself carries.
+
+    Guarantees: accepts one datetime or clock block, the tail unit's word
+    and the clock clause; returns the lines. Determinism: a function of
+    the three. Raises nothing. No I/O of any kind.
+    """
+    low = column["low_tail"]
+    high = column["high_tail"]
+    if not isinstance(low, dict) or not isinstance(high, dict):
+        return [
+            (
+                "    too few values, or too many of them tied at either end, "
+                "for this description to publish any value of this column; "
+                "the twin writes stand-in values that keep its counts"
+            )
+        ]
+    lines = [
+        (
+            f"    from {_text_of(low['boundary'])} to "
+            f"{_text_of(high['boundary'])} once the "
+            f"{_count_of(low['rows'])} earliest and "
+            f"{_count_of(high['rows'])} latest values are set aside{clock}"
+        )
+    ]
+    parts: "list[str]" = []
+    for side, tail in (("earliest", low), ("latest", high)):
+        values = tail["values"]
+        mean = tail["mean_distance"]
+        said = f"the {side} lie"
+        if isinstance(values, list):
+            said = (
+                f"{said} on {len(values)} different value(s), which the "
+                f"description lists"
+            )
+            if mean is not None:
+                said = f"{said}, on average {_text_of(mean)} {unit}(s) beyond"
+        elif mean is None:
+            # THE TAIL THAT PUBLISHES NEITHER DISTANCE (plan P4-D349).
+            # Printing "on average None" was never a sentence; what is
+            # true of this tail is that the description says how many
+            # cells lie beyond the boundary and nothing else about them.
+            said = (
+                f"{said} beyond it and no distance is published for them: "
+                f"the two together would give those values back one by one"
+            )
+        else:
+            said = (
+                f"{said} on average {_text_of(mean)} {unit}(s) beyond "
+                f"(root-mean-square {_text_of(tail['rms_distance'])})"
+            )
+        parts += [said]
+    lines += [f"    {parts[0]}; {parts[1]}"]
+    return lines
+
+
+def _midnight_lines(column: "dict[str, object]") -> "list[str]":
+    """Said where every value of a column of moments stood at midnight.
+
+    THE DESCRIPTION PUBLISHES `all_at_midnight` (plan P4-D39) AND THIS
+    PAGE SAID NOTHING OF IT. A date stored as the date plus `00:00:00`
+    reads as a column of moments, and a reader who sees only its
+    earliest and latest value cannot tell that it is really a column of
+    dates -- nor that the twin keeps every value at midnight rather than
+    making up a time of day for each.
+
+    Guarantees: accepts one datetime column block; returns one line
+    where the block publishes `all_at_midnight` as true, and none where
+    it is false or absent. Determinism: a function of the mapping.
+    Raises nothing. No I/O of any kind.
+    """
+    if "all_at_midnight" not in column:
+        return []
+    if column["all_at_midnight"] is not True:
+        return []
+    return [
+        "    every value stood exactly at midnight, so this column holds "
+        "dates, and the twin keeps every value at midnight too"
+    ]
 
 
 def _empty_bin_lines(column: "dict[str, object]") -> "list[str]":
@@ -465,7 +957,7 @@ def _quantitative_blocks(
     """
     found: "list[tuple[str, dict[str, object]]]" = []
     if "empty_bins" in column:
-        found = found + [(where, column)]
+        found += [(where, column)]
     for key in ("numbers", "labels"):
         if key in column:
             half = column[key]
@@ -541,13 +1033,19 @@ def _one_blocks_empty_bin_lines(
                 continue
             for one in entry:
                 if isinstance(one, (int, float)) and one not in apart:
-                    apart = apart + [one]
-        lines = lines + [
+                    apart += [one]
+        # AND THE COMPARISON IT USED TO DRAW IS GONE (review of
+        # 2026-09-23, finding 7). It read "the same kind of fact as the
+        # smallest and the largest values of this column", and since
+        # stage 3 this column publishes neither of those. The fact is
+        # named for what it is instead: a value of a real cell, which is
+        # what the sentence was trying to convey.
+        lines += [
             f"      and for each of those stretches the description "
             f"names the two values your column really holds either "
             f"side of it -- {len(apart)} different value(s) of real "
-            f"cells, the same kind of fact as the smallest and the "
-            f"largest values of this column"
+            f"cells, named as themselves, where neither end of this "
+            f"column is"
         ]
     return lines
 
@@ -566,9 +1064,11 @@ def _column_lines(column: dict[str, object], floor: int) -> list[str]:
     ]
     spellings = _missing_spelling_words(column, floor)
     if spellings:
-        lines = lines + [f"    counted as missing: {_listed(spellings)}"]
+        lines += [f"    counted as missing: {_listed(spellings)}"]
     lines = lines + _sentinel_lines(column)
     lines = lines + _width_lines(column)
+    lines = lines + _group_separator_lines(column)
+    lines = lines + _sign_lines(column)
     lines = lines + _empty_bin_lines(column)
     if role in _ROLES_WITH_LABELS:
         levels = _list_of(column["levels"])
@@ -578,29 +1078,53 @@ def _column_lines(column: dict[str, object], floor: int) -> list[str]:
             for level in levels
         ]
         if shown:
-            lines = lines + [f"    values in the profile: {_listed(shown)}"]
+            lines += [f"    values in the profile: {_listed(shown)}"]
         withheld = _count_of(column["suppressed_levels"])
         if withheld:
-            lines = lines + [
+            lines += [
                 (
                     f"    values left out because too few rows share them: "
                     f"{withheld} (covering "
                     f"{_count_of(column['suppressed_rows'])} rows)"
                 )
             ]
+        # ...AND THE SCALE OF THE ONES THAT WERE NUMBERS (plan P4-D301).
+        # A person reading this page is owed every fact the
+        # description carries about the values it will not name, and
+        # this one is the reason a statistic over the twin's numbers
+        # here means something. The line stands only where the block
+        # speaks; where it says nothing there is nothing to print, and
+        # printing a "not published" line would tell a reader which of
+        # the block's several silences it was -- a column with no
+        # held-back numbers at all, or one of the refusals contract
+        # 6.3.3 states, which is what the floor exists to withhold.
+        #
+        # AND THE SENTENCE SAYS WHAT IS NOT THERE, which costs nothing
+        # and is owed (owner's decision of 2026-09-21, plan P4-D302).
+        # This line used to print a spread beside the average. It is not
+        # published any more, because a mean and a spread together solve
+        # a tightly spaced pool for its own values -- so a person
+        # reading this page would otherwise be left to assume the twin's
+        # own spread over these cells meant something. It does not. The
+        # clause is printed on EVERY column that reaches this line, so
+        # it tells a reader nothing about which column they are looking
+        # at.
+        scale = _map_of(column["suppressed_numbers"])
+        if _count_of(scale["n_cells"]):
+            lines += [
+                (
+                    f"    of those, the ones that were numbers: "
+                    f"{_count_of(scale['n_cells'])} cells, "
+                    f"average {_text_of(scale['mean'])}"
+                ),
+                (
+                    "      this description does not say how far apart "
+                    "they lay, so a spread over them is not a fact "
+                    "about your table"
+                ),
+            ]
     if role in (taxonomy.ROLE_COUNT, taxonomy.ROLE_CONTINUOUS):
-        ladder = _map_of(column["percentiles"])
-        lines = lines + [
-            (
-                f"    smallest: {_text_of(ladder['min'])};   "
-                f"middle: {_text_of(ladder['p50'])};   "
-                f"largest: {_text_of(ladder['max'])}"
-            ),
-            (
-                f"    average: {_text_of(column['mean'])};   "
-                f"spread (standard deviation): {_text_of(column['std'])}"
-            ),
-        ]
+        lines = lines + _numeric_lines(column, floor)
     if role == taxonomy.ROLE_DATETIME:
         # A column written on two clocks is published on one, and this
         # line has to say which, or a reader compares a UTC time with
@@ -611,31 +1135,64 @@ def _column_lines(column: dict[str, object], floor: int) -> list[str]:
                 "  (written in more than one time zone, so these are "
                 "given at UTC)"
             )
-        lines = lines + [
-            (
-                f"    earliest: {_text_of(column['earliest'])};   "
-                f"latest: {_text_of(column['latest'])}{clock}"
-            )
-        ]
+        lines = lines + _tail_lines(
+            column, _text_of(column["tail_unit"]), clock
+        )
+        lines = lines + _datetime_separator_lines(column, floor)
+        lines = lines + _midnight_lines(column)
+    if role == taxonomy.ROLE_CLOCK:
+        # THE SAME LINE FOR A COLUMN OF CLOCK TIMES (stage 3), counted in
+        # the form's own unit.
+        unit = "minute"
+        if _text_of(column["clock_form"]) != parsing.CLOCK_FORMS[0]:
+            unit = "second"
+        lines = lines + _tail_lines(column, unit, "")
     if role == taxonomy.ROLE_IDENTIFIER:
         # A column is here because the reader of this summary put it
         # here. Saying so keeps the words honest: synthtwin never works
         # this role out for itself (review item P1-R6-F8).
-        lines = lines + [
+        lines += [
             (
                 f"    {_count_of(column['n_distinct'])} different values, "
                 f"between {_count_of(column['min_length'])} and "
-                f"{_count_of(column['max_length'])} characters long. This "
-                f"column publishes no value of the table, so the values "
-                f"themselves are not in the profile."
+                f"{_count_of(column['max_length'])} characters long. The "
+                f"values themselves are not in the profile: this column "
+                f"publishes no value of the table."
             ),
         ]
+        # THE ONE TEXT OF THE TABLE THIS ROLE CARRIES, said where the
+        # person reads what the column publishes (owner ruling of
+        # 2026-09-17, item 1; contract 7.12a). A summary that promised
+        # nothing of the column and stayed silent about a published prefix
+        # would claim less than the profile holds.
+        prefixes: dict[str, object] = {}
+        if "layout_prefixes" in column:
+            prefixes = _map_of(column["layout_prefixes"])
+        for scope in sorted(prefixes):
+            opening = _text_of(prefixes[scope])
+            if scope == parsing.PREFIX_OF_THE_COLUMN:
+                lines += [
+                    (
+                        f"    Every value opens with the same text, "
+                        f"'{opening}', and the profile records that text so "
+                        f"the twin's values open with it too."
+                    )
+                ]
+                continue
+            lines += [
+                (
+                    f"    Every value written in the layout {_text_of(scope)} "
+                    f"opens with the same text, '{opening}', and the profile "
+                    f"records that text so the twin's values in that layout "
+                    f"open with it too."
+                )
+            ]
         # What the profile records about REPETITION, which is a fact
         # about the column and not a value of it (review item P1-R8-F4).
         # It goes before the sentence about who decided the role so that
         # the two claims about what is and is not recorded read together.
         lines = lines + _repetition_lines(column)
-        lines = lines + [
+        lines += [
             (
                 "    synthtwin never decides this for itself: a column "
                 "holds record numbers only when you say so with "
@@ -644,7 +1201,7 @@ def _column_lines(column: dict[str, object], floor: int) -> list[str]:
         ]
     if role == taxonomy.ROLE_TEXT:
         length = _map_of(column["length"])
-        lines = lines + [
+        lines += [
             (
                 f"    text between {_count_of(length['min'])} and "
                 f"{_count_of(length['max'])} characters long. The text "
@@ -660,7 +1217,7 @@ def _column_lines(column: dict[str, object], floor: int) -> list[str]:
             ),
         ]
     for remark in _list_of(column["remarks"]):
-        lines = lines + [f"    worth knowing: {_text_of(remark)}"]
+        lines += [f"    worth knowing: {_text_of(remark)}"]
     return lines
 
 
@@ -726,7 +1283,7 @@ def words_of_your_own(
             raw = _raw_text_of(spelling)
             if taxonomy.is_published_vocabulary(raw):
                 continue
-            found = found + [(raw, name, _count_of(sources[spelling]))]
+            found += [(raw, name, _count_of(sources[spelling]))]
     return found
 
 
@@ -828,9 +1385,9 @@ def _your_own_words_lines(document: dict[str, object]) -> list[str]:
             "    as your table spelled them:",
         ]
     for spelling, column, count in named:
-        lines = lines + [f"      {spelling} -- in {column} ({count} cell(s))"]
+        lines += [f"      {spelling} -- in {column} ({count} cell(s))"]
     if len(named) > words:
-        lines = lines + [
+        lines += [
             "    There are more lines there than words you named, because",
             "    your table wrote "
             + ("that word" if words == 1 else "some of those words")
@@ -890,13 +1447,21 @@ def _declaration_lines(document: dict[str, object]) -> list[str]:
     therefore held back like any other. That was false, and provably so:
     a column of 200 readings
     with three cells of `-999`, profiled with `--keep-value -999`,
-    prints `smallest: -999.0` four lines above. The publication is
+    printed `smallest: -999.0` four lines above. The publication was
     right -- declaring a value KEPT says it is real data, so it is an
     ordinary number of that column, and every column of numbers
-    publishes a real smallest and a real largest; that is what a range
-    is. What was wrong was the paragraph, and a person deciding whether
+    published a real smallest and a real largest; that is what a range
+    was. What was wrong was the paragraph, and a person deciding whether
     to move this file has to be able to trust the paragraph exactly.
     Overclaiming safety is worse than claiming less.
+
+    AND SINCE LANDING 3.3 THE SAME RUN PRINTS NO SUCH LINE: the tail
+    rule publishes an end only where at least max(`small_cell_floor`, 3)
+    rows hold it, so three cells of `-999` are counted in the group
+    beyond the low boundary and the number itself is named nowhere. The
+    paragraph says that too, because the reverse error -- telling a
+    person their kept value will be published when it will not -- is
+    the same kind of untruth in the other direction.
 
     So these lines separate the settings from the columns, and the two
     directions from each other. Each statement below was checked against
@@ -911,14 +1476,27 @@ def _declaration_lines(document: dict[str, object]) -> list[str]:
       -- but only where that column publishes values at all and at least
       `small_cell_floor` rows share it, otherwise it is pooled unnamed;
     * a value named as real data is data from that point on, so it can
-      be the smallest or largest number of a column of numbers HOWEVER
-      FEW rows hold it (a range is not governed by the floor), and it
-      can be one of the labels of a column of categories only when at
-      least `small_cell_floor` rows share it;
+      be the smallest or largest number of a column of numbers where
+      at least max(`small_cell_floor`, 3) rows hold that number, and is
+      otherwise counted in the group of outermost values the tail rule
+      of stage 3 describes without naming (contract 6.7a) -- the
+      sentence said HOWEVER FEW rows hold it until landing 3.3, which
+      was true of a range that always published its two ends and is
+      false of one that publishes an end only where a group holds it;
+      and it can be one of the labels of a column of categories only
+      when at least `small_cell_floor` rows share it;
     * a column that publishes nothing at all -- record numbers, free
-      text, numbers no format can hold -- still publishes nothing, in
-      either direction, and now in every field of its block rather than
-      in the fields somebody remembered. A value named with
+      text, numbers no format can hold -- publishes no VALUE of the
+      table, in either direction, and now in every field of its block
+      rather than in the fields somebody remembered. What it does
+      publish, since plan P4-D85, is which of SYNTHTWIN'S OWN words its
+      absent cells were spelled with: `NA`, `N/A`, `NULL` and the rest
+      of the closed vocabulary are this package's words and no table's,
+      so naming them discloses nothing of the column and lets the twin
+      write the holes the table wrote. A column that publishes no value of
+      the table publishes none of the person's own spellings either
+      way, declared or not, because no loader holding one document
+      could tell one from a value of the column. A value named with
       `--keep-value` used to travel out of a declared identifier column
       as the `candidate` of a sentinel verdict, which is the one
       remaining way a spelling could leave a column declared precisely
@@ -996,15 +1574,15 @@ def _declaration_lines(document: dict[str, object]) -> list[str]:
     if kept and declared_missing:
         # Both options were used, so the reader is about to be given two
         # rules and has to be told they are not one rule said twice.
-        lines = lines + [
+        lines += [
             "    and the two directions do not work the same way:",
         ]
     else:
-        lines = lines + [
+        lines += [
             "    and here is what that means:",
         ]
     if declared_missing:
-        lines = lines + [
+        lines += [
             "      a value you named as 'no value' is counted as absent,",
             "      and THE WORD ITSELF is then written into that column's",
             "      description and printed on this page, spelled character",
@@ -1015,17 +1593,23 @@ def _declaration_lines(document: dict[str, object]) -> list[str]:
             "      no values names no spelling at all;",
         ]
     if kept:
-        lines = lines + [
+        lines += [
             "      a value you named as real data IS data from then on,",
             "      so it appears wherever that column publishes values:",
             "      as the smallest or largest number of a column of",
-            "      numbers, however few rows hold it, or as one of the",
-            "      labels of a column of categories if at least",
-            f"      {floor} rows share it.",
+            f"      numbers if at least {max(floor, 3)} rows hold that number,",
+            "      and otherwise counted in the group of smallest or",
+            "      largest values that column describes without naming",
+            "      them; or as one of the labels of a column of",
+            f"      categories if at least {floor} rows share it.",
         ]
-    lines = lines + [
+    lines += [
         "    A column that publishes nothing -- record numbers, free",
-        "    text -- still publishes nothing either way.",
+        "    text -- names no value of yours either way. Where its empty",
+        "    cells were spelled with one of synthtwin's own words, such",
+        "    as NA, it says which word and how many, because that word",
+        "    is synthtwin's and not your table's; a spelling of your own",
+        "    it never names.",
     ]
     return (
         lines
@@ -1092,7 +1676,7 @@ def _own_words_lines(settings: dict[str, object]) -> list[str]:
         "    the description records which of them you named.",
     ]
     if named:
-        lines = lines + [
+        lines += [
             (
                 f"    {named} of the values you named "
                 + ("is" if named == 1 else "are")
@@ -1105,7 +1689,7 @@ def _own_words_lines(settings: dict[str, object]) -> list[str]:
             "    no count, column or row goes with the ones that are.",
         ]
     else:
-        lines = lines + [
+        lines += [
             "    You named none of them, so the settings record nothing",
             "    there.",
         ]
@@ -1143,31 +1727,34 @@ def _lowered_floor_lines(floor: int) -> list[str]:
     if floor >= contract.SMALL_GROUP_NOTICE_LINE:
         return []
     usual = contract.SMALL_GROUP_NOTICE_LINE
+    # THE DEFAULT IS NAMED AS THE DEFAULT (plan P4-D316), for the reason
+    # `rendering._lowered_floor_lines` gives.
+    default = contract.DEFAULT_SMALL_CELL_FLOOR
     lines = [
         (
             "  THIS PROFILE NAMES GROUPS AS SMALL AS "
             f"{floor} ROW(S)."
         ),
         "",
-        "  A profile leaves nothing out for being a small group unless it",
-        f"  is asked to. Leaving out a value unless {usual} rows share it",
-        f"  is what --smallest-group {usual} does, and this profile was not",
-        f"  made that way: it names values that as few as {floor} row(s)",
-        "  share, and says how many rows that is.",
+        f"  By default a profile leaves out a value unless {default} rows",
+        "  share it, counting it into a total that names none of them.",
+        f"  This profile was made with a smallest group of {floor}: it names",
+        f"  values that as few as {floor} row(s) share, and says how many",
+        "  rows that is.",
         "",
     ]
     # "a group of 1 is 1 people" is not English, so at a floor of one the
     # sentence is the one that is true there rather than the general one
     # with a bad number in it.
     if floor < 2:
-        lines = lines + [
+        lines += [
             "  A named group can be a single row. If one row of your table",
             "  is one person, this profile says out loud that exactly one",
             "  person -- on their own -- has that value.",
             "",
         ]
     else:
-        lines = lines + [
+        lines += [
             (
                 "  If one row of your table is one person, a group of "
                 f"{floor} is"
@@ -1196,10 +1783,14 @@ def _all_labels_held_back(column: dict[str, object]) -> bool:
 
     Two shapes reach it. The floor held every one of this column's
     levels back; or the floor held back every spelling of the levels it
-    did publish, which is reachable with no suppressed level at all. In
-    both the generator writes neutral stand-ins for every present cell,
-    so plan amendment A-P4-2 calls such a column fully invented however
-    its role publishes.
+    did publish, which needs no suppressed level at all. In both the
+    generator writes neutral stand-ins for every present cell, so plan
+    amendment A-P4-2 calls such a column fully invented however its role
+    publishes. Since plan P4-D275 the producer writes only the first:
+    every spelling below the floor is counted into the level's
+    commonest, so `variants_withheld` is empty on every level it
+    publishes. The second is still read here because the contract still
+    accepts it (invariant W5) and the twin's page reads it too.
 
     THIS ARITHMETIC IS WRITTEN TWICE, HERE AND IN `rendering`, and the
     duplication is deliberate rather than tidy: this side reads the
@@ -1237,12 +1828,12 @@ def _disclosure_lines(document: dict[str, object]) -> list[str]:
         name = _text_of(column["name"])
         role = _text_of(column["role"])
         if role in _ROLES_WITH_LABELS and _list_of(column["levels"]):
-            with_labels = with_labels + [name]
+            with_labels += [name]
         if role in _ROLES_WITHOUT_VALUES:
-            without_values = without_values + [name]
-            all_invented = all_invented + [name]
+            without_values += [name]
+            all_invented += [name]
         if role in _ROLES_WITH_RANGES:
-            with_ranges = with_ranges + [name]
+            with_ranges += [name]
         # A COMPOUND COLUMN IS IN BOTH LISTS, because it publishes
         # both: a range over its numbers and levels over its words
         # (residual R-P4-13, landing L8). Its facts sit one step deeper
@@ -1252,10 +1843,10 @@ def _disclosure_lines(document: dict[str, object]) -> list[str]:
         # It said exactly that until this branch: "No column has labels
         # visible in the profile", on a table holding one.
         if role in _ROLES_WITH_BOTH:
-            with_ranges = with_ranges + [name]
+            with_ranges += [name]
             half = _map_of(column["labels"])
             if _list_of(half["levels"]):
-                with_labels = with_labels + [name]
+                with_labels += [name]
         # THE ONE SPELLING A RANGES ROLE PUBLISHES. An affixed column
         # names the piece of text its cells share -- `mg`, `$`, `%` --
         # where enough rows wrote it, and that is text of the table
@@ -1264,7 +1855,7 @@ def _disclosure_lines(document: dict[str, object]) -> list[str]:
         # leave their machine is owed it in the place they read about
         # everything else (plan P4-D4.1).
         if role == taxonomy.ROLE_AFFIXED:
-            with_shared_text = with_shared_text + [name]
+            with_shared_text += [name]
         # A LABEL COLUMN CAN BE FULLY INVENTED WITHOUT PUBLISHING
         # NOTHING (plan amendment A-P4-2, review item P4-C2-F1). It
         # keeps its place in the disclosure lists above -- a published
@@ -1273,7 +1864,7 @@ def _disclosure_lines(document: dict[str, object]) -> list[str]:
         # forward sentence below is about what a TWIN of it would hold,
         # which is a different question with a different answer.
         if role in _ROLES_WITH_LABELS and _all_labels_held_back(column):
-            all_invented = all_invented + [name]
+            all_invented += [name]
     floor = _count_of(_map_of(document["settings"])["small_cell_floor"])
     lines = [
         "WHAT THIS PROFILE CARRIES FROM YOUR TABLE",
@@ -1313,29 +1904,57 @@ def _disclosure_lines(document: dict[str, object]) -> list[str]:
         # floor (owner decisions 9 and 11). A person deciding whether
         # the profile may leave their machine has to read that here, not
         # discover it in the file.
-        lines = lines + [
+        #
+        # AND THE NUMBER BESIDE A SPELLING IS NOT A COUNT OF THAT
+        # SPELLING (review of 2026-09-23, finding 8). Ruling 6 of
+        # 2026-09-17 counts a spelling below the floor into the label's
+        # COMMONEST spelling rather than holding it back, so the count
+        # printed beside a named spelling covers every row whose own
+        # spelling settled to it. Measured: four labels each written
+        # nine times lower case, eight upper and eight with a leading
+        # space publish one spelling counted 25 while no spelling the
+        # file wrote reaches eleven. The old wording -- "only where 11
+        # rows or more wrote it that way" -- said the opposite of what
+        # the number means.
+        lines += [
             "  Real labels you will see in the profile, with how often each",
             f"  appears (only labels shared by at least {floor} rows). Beside",
-            "  each label, the exact spellings your file uses for it --",
-            f"  capitals and spacing included -- again only where {floor} rows",
-            "  or more wrote it that way:",
+            "  each label, the spellings your file uses for it -- capitals",
+            "  and spacing included -- with how many rows are counted into",
+            f"  each. A spelling fewer than {floor} rows wrote is not named",
+            "  on its own: its rows are counted into the commonest spelling",
+            "  of the same label, so a number here can cover rows that",
+            "  wrote the label another way:",
             f"    {_listed(with_labels)}",
             "",
         ]
     else:
-        lines = lines + [
+        lines += [
             "  No column has labels visible in the profile.",
             "",
         ]
     if with_ranges:
-        lines = lines + [
-            "  Real smallest and largest values, and the points in between",
-            "  that describe the shape of the column:",
+        # NEITHER END IS ANNOUNCED ANY MORE (stage 3; review of
+        # 2026-09-23, finding 7). This heading read "Real smallest and
+        # largest values, and the points in between" on a page whose own
+        # column blocks say the smallest and largest values are not
+        # published. Measured on 100 readings 0.125 to 99.125: the
+        # description publishes p25, p50 and p75 and withholds `min`,
+        # `max` and six of the nine interior rungs, so the ladder put no
+        # end and no outer rung into the file at all.
+        lines += [
+            "  Real values from inside each column's range, and the shape",
+            "  of its two ends. An end is published as itself only where",
+            f"  at least {floor} rows share it; otherwise what stands there",
+            "  is a boundary, how many rows lie beyond it and how far",
+            "  beyond they lie. Where a bounded scale's tail holds few",
+            "  shared values, the description names which values those",
+            "  are:",
             f"    {_listed(with_ranges)}",
             "",
         ]
     if with_shared_text:
-        lines = lines + [
+        lines += [
             "  A piece of text your cells share -- the unit or the sign",
             "  written around each number, like mg or $ -- named exactly",
             f"  as your file writes it, and only where at least {floor} rows",
@@ -1367,7 +1986,7 @@ def _disclosure_lines(document: dict[str, object]) -> list[str]:
         # values, so "only counts" below still covers it, and the
         # column's own block above says it in words for the person who
         # wants to know what shape of repetition was recorded.
-        lines = lines + [
+        lines += [
             "  No value at all -- only counts, lengths, the SHAPE its values",
             "  were written in where enough shared one, and what synthtwin",
             "  decided about the column:",
@@ -1393,7 +2012,7 @@ def _disclosure_lines(document: dict[str, object]) -> list[str]:
         # sits below the floor. Both end with a twin whose every cell
         # is invented, for two different reasons, so the sentence
         # names both rather than the first one twice.
-        lines = lines + [
+        lines += [
             "  If you build a twin from this description, every value in",
             "  these columns will be one synthtwin made up. Either the",
             "  column publishes no value at all, or its spellings were",
@@ -1405,14 +2024,30 @@ def _disclosure_lines(document: dict[str, object]) -> list[str]:
         ]
     lines = lines + _declaration_lines(document)
     notes = _list_of(document["publication_notes"])
-    if notes:
-        lines = lines + ["  What was left out, column by column:"]
-        for entry in notes:
-            note = _map_of(entry)
-            lines = lines + [
+    # A NOTE THAT NAMES NO COLUMN IS ABOUT THE WHOLE TABLE (plan
+    # P4-D341), and it is said FIRST and under its own heading: a
+    # sentence about the table's population read out of a list headed
+    # "column by column" is a sentence a reader takes for a column's.
+    about_table: "list[str]" = []
+    about_columns: "list[dict[str, object]]" = []
+    for entry in notes:
+        note = _map_of(entry)
+        if not _text_of(note["column"]):
+            about_table += [_text_of(note["note"])]
+            continue
+        about_columns += [note]
+    if about_table:
+        lines += ["  About this table as a whole:"]
+        for sentence in about_table:
+            lines += [f"    {sentence}"]
+        lines += [""]
+    if about_columns:
+        lines += ["  What was left out, column by column:"]
+        for note in about_columns:
+            lines += [
                 f"    {_text_of(note['column'])}: {_text_of(note['note'])}"
             ]
-        lines = lines + [""]
+        lines += [""]
     return lines
 
 
@@ -1425,12 +2060,17 @@ def _first_row_lines(document: dict[str, object]) -> "list[str]":
     - Determinism: the text depends only on the document.
     - Errors raised: none for a document this package built.
     - Boundary: says nothing when the reading was settled by evidence or
-      by the person, and speaks only when the names were ASSUMED. An
-      assumption the reader is not told about is the defect this exists
-      to prevent; saying it on every ordinary run instead would train
-      people to skip it.
+      by the person, and speaks only when the names were ASSUMED or when
+      the first row could not be TOLD from a record (the owner's ruling
+      of 2026-09-17, item 8; plan P4-D232). An assumption the reader is
+      not told about is the defect this exists to prevent; saying it on
+      every ordinary run instead would train people to skip it.
     """
     source = _map_of(document["source"])
+    if "header_evidence" in source:
+        spoken = _text_of(source["header_evidence"])
+        if spoken == f"{taxonomy.note(taxonomy.HEADER_NAMES_NOT_TOLD)}":
+            return _names_not_told_lines()
     if "header_by_convention" not in source:
         return []
     if not source["header_by_convention"]:
@@ -1446,7 +2086,158 @@ def _first_row_lines(document: dict[str, object]) -> "list[str]":
         "  as names and it is NOT counted among the rows above.",
         "  Run the command again with --first-row data if that is the case,",
         "  and synthtwin will name the columns itself and keep every record.",
+        "  AND WHAT THAT ROW HOLDS IS PUBLISHED AS WRITTEN. Column names",
+        "  are schema: they stand in the description as they are spelt and",
+        "  are written into the twin's own header line. So a title line",
+        "  above your table -- one holding your delimiter, which is what",
+        "  makes it read as a row of cells rather than as a line before",
+        "  the table -- becomes your column names and its words are",
+        "  carried, where a line synthtwin reads as standing BEFORE the",
+        "  table has no word of it published at any smallest group.",
     ]
+
+
+def _names_not_told_lines() -> "list[str]":
+    """What the summary says where the first row could not be told apart.
+
+    The owner's ruling of 2026-09-17, item 8 (plan P4-D232). The names
+    in this description are synthtwin's own, every row of the file is
+    described including the first, and no text of that first row is
+    published anywhere -- which is the whole reason the reading was
+    taken. A person who knows the row holds their column names says so
+    with `--first-row names`, and is told here what taking that reading
+    would publish, because it publishes that row's words.
+
+    Guarantees: a fixed list of sentences; no argument, no value of any
+    table, and no I/O of any kind.
+    """
+    return [
+        "",
+        "About the first row of your file:",
+        "  synthtwin could not tell the first row apart from a record of",
+        "  your table, so it named the columns itself -- column_1,",
+        "  column_2, and so on -- and kept every row of the file, that",
+        "  first row included. No text of it appears in this description,",
+        "  in the twin, or in any report.",
+        "  The questions file beside this one asks which reading is right.",
+        "  If that row really holds your column names, run the command",
+        "  again with --first-row names: the columns are then named as",
+        "  that row names them, which publishes its words here, in the",
+        "  twin's own header line and in the quality report, and the",
+        "  table is described without that row.",
+    ]
+
+
+def _preamble_lines(document: dict[str, object]) -> "list[str]":
+    """What the summary says about lines before the names published as written.
+
+    A line before the column names is free text that may name anybody,
+    and the description publishes NO text of it at any smallest group
+    (contract FD11, plan P4-D80). What is said here is that the lines
+    are there, how many held text, and that the twin carries a neutral
+    line of the same shape in each one's place -- because a person
+    whose title line does not appear in their twin is owed the reason.
+    Nothing is said where no line held text.
+    """
+    source = _map_of(document["source"])
+    if "dialect" not in source:
+        return []
+    form = _map_of(source["dialect"])
+    held = 0
+    for run in _list_of(form["preamble"]):
+        entry = _map_of(run)
+        if _text_of(entry["kind"]) != dialect.PREAMBLE_BLANK:
+            counted = entry["lines"]
+            held = held + (counted if isinstance(counted, int) else 0)
+    if not held:
+        return []
+    return [
+        "",
+        "About the lines before your column names:",
+        f"  {held} line(s) of text stand before the column names in your",
+        "  file. Such a line can name somebody, so NONE of its text is in",
+        "  the description, at any smallest group: what is recorded is how",
+        "  many lines there are and their shape -- blank, or the mark a",
+        "  comment began with. Your twin carries a neutral line of the same",
+        "  shape in each one's place, so code that skips these lines skips",
+        "  as many in the twin as in your table.",
+    ]
+
+
+def _workbook_lines(document: dict[str, object]) -> "list[str]":
+    """What the summary says about the spreadsheet the table came from.
+
+    THREE THINGS A PERSON WAS NEVER TOLD (repair of landing 2b.10). The
+    command's own help promised synthtwin "says on screen which one it
+    chose"; the contract said "the person is told on their own screen
+    which sheet was read"; the plan carried a paragraph headed "what the
+    twin withholds, and why the report names each". None of the three
+    was true: a workbook was described with no word anywhere about which
+    sheet was read, that a sheet's name had been withheld, or that a
+    macro project had been found and not copied. The only trace of the
+    macro was a machine-readable line in a quality report.
+
+    Nothing here prints a name the description does not already
+    publish, so this page carries no word of the file that the
+    description itself withholds.
+    """
+    source = _map_of(document["source"])
+    if "workbook" not in source:
+        return []
+    block = source["workbook"]
+    if not isinstance(block, dict):
+        return []
+    form = _map_of(block)
+    position = _count_of(form["sheet_position"])
+    count = _count_of(form["sheet_count"])
+    names = _list_of(form["sheet_names"])
+    named = ""
+    if 1 <= position <= len(names):
+        found = names[position - 1]
+        if isinstance(found, str):
+            named = found
+    withheld = 0
+    for entry in names:
+        if not isinstance(entry, str):
+            withheld = withheld + 1
+    lines = ["", "About the sheet your table was read from:"]
+    if named:
+        lines += [
+            f"  Your table was read from sheet {position} of {count}, the one",
+            f"  named {named}. Another sheet is read with --sheet and its name.",
+        ]
+    else:
+        lines += [
+            f"  Your table was read from sheet {position} of {count}. Its name is",
+            "  not written here or in the description, because a sheet's name",
+            "  can be somebody's name. Another sheet is read with --sheet.",
+        ]
+    if withheld:
+        lines += [
+            f"  {withheld} sheet name(s) of this workbook are withheld for that",
+            "  reason. The twin writes those sheets under a neutral name, so",
+            "  code that names one of them by hand will not find it.",
+        ]
+    holding = 0
+    for entry in _list_of(form["sheet_extents"]):
+        if not isinstance(entry, dict):
+            continue
+        rows = entry["rows"] if "rows" in entry else 0
+        if isinstance(rows, int) and not isinstance(rows, bool) and rows > 0:
+            holding = holding + 1
+    if holding:
+        lines += [
+            f"  {holding} other sheet(s) of this workbook hold cells. The twin",
+            "  carries a sheet of the same shape there, with one word of",
+            "  synthtwin's own in every cell, so a reader meets the same",
+            "  workbook and nothing you wrote on those sheets is copied.",
+        ]
+    if form["macro_project"]:
+        lines += [
+            "  This workbook carries a macro project. synthtwin does not read",
+            "  it, does not describe it, and never copies it into the twin.",
+        ]
+    return lines
 
 
 def render(document: dict[str, object], encoding_note: str) -> str:
@@ -1482,7 +2273,9 @@ def render(document: dict[str, object], encoding_note: str) -> str:
     # page. It goes here, near the top, and not in the disclosure block
     # at the end, because it changes what every later line means.
     lines = lines + _first_row_lines(document)
-    lines = lines + [
+    lines = lines + _workbook_lines(document)
+    lines = lines + _preamble_lines(document)
+    lines += [
         "",
         "This is a description of your table, not a copy of it. Next,",
         "'synthtwin generate' uses this description to build a synthetic",
@@ -1534,12 +2327,14 @@ def render(document: dict[str, object], encoding_note: str) -> str:
         # column does.
         "One thing that sentence does NOT say. Because the twin has to",
         "match the counts in this description exactly, the arithmetic can",
-        "force a twin row to match a real one. If your table had eleven",
-        "rows and one column, and all eleven rows shared one label, this",
-        "description publishes that label with the count eleven -- so the",
-        "twin has to write it in all eleven of its rows, and each of those",
+        "force a twin row to match a real one. If your table had 100 rows",
+        "and one column, and all 100 rows shared one label, this",
+        "description publishes that label with the count 100 -- so the",
+        "twin has to write it in all 100 of its rows, and each of those",
         "rows is the row you have. Nothing was copied; there was no other",
-        "answer. synthtwin offers no formal privacy guarantee.",
+        "answer. 100 rows is the smallest table synthtwin describes, so",
+        "that is the smallest table this can happen to.",
+        "synthtwin offers no formal privacy guarantee.",
         "",
         _RULE,
         "COLUMNS, ONE BY ONE",
