@@ -222,6 +222,16 @@ ELEVENTH_BRANCH_VECTORS = (
     / "reference"
     / "generation-branch-vectors-11.json"
 )
+# THE FOURTEENTH FILE (the census of marks that is only a pool, plan
+# P4-D352): the twelfth and thirteenth stand past plan P4-D295's line.
+TWELFTH_BRANCH_GENERATOR = (
+    REPOSITORY / "tools" / "reference" / "make_generation_branch_vectors_12.py"
+)
+TWELFTH_BRANCH_VECTORS = (
+    pathlib.Path(__file__).resolve().parent
+    / "reference"
+    / "generation-branch-vectors-12.json"
+)
 # THE FOURTH FILE (landing 2b.17): the cases for the transforms that
 # produce a whole DOCUMENT rather than one column's cells.
 DOCUMENT_GENERATOR = (
@@ -309,6 +319,10 @@ def _tenth_branch_document() -> dict:
 
 def _eleventh_branch_document() -> dict:
     return json.loads(ELEVENTH_BRANCH_VECTORS.read_text(encoding="utf-8"))
+
+
+def _twelfth_branch_document() -> dict:
+    return json.loads(TWELFTH_BRANCH_VECTORS.read_text(encoding="utf-8"))
 
 
 # The nine cases method section G14.3 names, and the four the review of
@@ -675,6 +689,9 @@ ELEVENTH_BRANCH_CASES = (
     "tail_width_stands_aside",
 )
 
+# THE FOURTEENTH FILE: G6.1's census of marks that is only a pool.
+TWELFTH_BRANCH_CASES = ("pool_alone_marks",)
+
 ALL_CASES = tuple(
     sorted(
         REQUIRED_CASES
@@ -689,6 +706,7 @@ ALL_CASES = tuple(
         + NINTH_BRANCH_CASES
         + TENTH_BRANCH_CASES
         + ELEVENTH_BRANCH_CASES
+        + TWELFTH_BRANCH_CASES
     )
 )
 
@@ -797,6 +815,8 @@ SEEDS = {
     # ...and the two of the repair of its two divergences.
     "tail_marks_pooled": 406,
     "tail_pad_partial": 407,
+    # ...and the census of marks that is only a pool (plan P4-D352).
+    "pool_alone_marks": 408,
     "identifier_unnamed_partners": 184,
     "truth_values_written": 189,
     "twice_written_filled": 190,
@@ -899,6 +919,8 @@ def _case(name: str) -> dict:
         document = _tenth_branch_document()
     elif name in ELEVENTH_BRANCH_CASES:
         document = _eleventh_branch_document()
+    elif name in TWELFTH_BRANCH_CASES:
+        document = _twelfth_branch_document()
     elif name in SEVENTH_BRANCH_CASES:
         document = _seventh_branch_document()
     elif name in SIXTH_BRANCH_CASES:
@@ -1146,6 +1168,7 @@ def test_the_branch_file_is_the_same_oracle_and_says_which_half_it_is() -> None:
     ninth = _ninth_branch_document()
     tenth = _tenth_branch_document()
     eleventh = _eleventh_branch_document()
+    twelfth = _twelfth_branch_document()
     papers = _document_document()
     assert tuple(sorted(branch["cases"])) == BRANCH_CASES
     assert tuple(sorted(second["cases"])) == SECOND_BRANCH_CASES
@@ -1158,10 +1181,11 @@ def test_the_branch_file_is_the_same_oracle_and_says_which_half_it_is() -> None:
     assert tuple(sorted(ninth["cases"])) == NINTH_BRANCH_CASES
     assert tuple(sorted(tenth["cases"])) == TENTH_BRANCH_CASES
     assert tuple(sorted(eleventh["cases"])) == ELEVENTH_BRANCH_CASES
+    assert tuple(sorted(twelfth["cases"])) == TWELFTH_BRANCH_CASES
     assert tuple(sorted(papers["cases"])) == DOCUMENT_CASES
     every = (
         named, branch, second, third, fourth, fifth, sixth, seventh,
-        eighth, ninth, tenth, eleventh, papers,
+        eighth, ninth, tenth, eleventh, twelfth, papers,
     )
     for index in range(len(every)):
         for other in range(index + 1, len(every)):
@@ -1183,6 +1207,7 @@ def test_the_branch_file_is_the_same_oracle_and_says_which_half_it_is() -> None:
         (ninth, NINTH_BRANCH_VECTORS),
         (tenth, TENTH_BRANCH_VECTORS),
         (eleventh, ELEVENTH_BRANCH_VECTORS),
+        (twelfth, TWELFTH_BRANCH_VECTORS),
         (papers, DOCUMENT_VECTORS),
     )
     for document, own in files:
@@ -1211,6 +1236,7 @@ def test_the_branch_file_is_the_same_oracle_and_says_which_half_it_is() -> None:
         NINTH_BRANCH_GENERATOR,
         TENTH_BRANCH_GENERATOR,
         ELEVENTH_BRANCH_GENERATOR,
+        TWELFTH_BRANCH_GENERATOR,
         DOCUMENT_GENERATOR,
     ],
 )
@@ -1486,6 +1512,9 @@ TENTH_BRANCH_PUBLISHED_NUMBERS = 754
 TENTH_BRANCH_NAMED_COUNTS = 310
 ELEVENTH_BRANCH_PUBLISHED_NUMBERS = 944
 ELEVENTH_BRANCH_NAMED_COUNTS = 375
+# The fourteenth, at its own generator's line ("proved 190 ... beside 60").
+TWELFTH_BRANCH_PUBLISHED_NUMBERS = 190
+TWELFTH_BRANCH_NAMED_COUNTS = 60
 # The document file publishes NO binary64 at all, and that is a fact
 # about its transforms rather than a gap in its proof: the written form,
 # the arrangement, the workbook writer, the shape of a line before a
@@ -1562,6 +1591,12 @@ COMMITTED_FILES = (
         ELEVENTH_BRANCH_NAMED_COUNTS,
     ),
     (
+        TWELFTH_BRANCH_VECTORS,
+        gen.TWELFTH_BRANCH_PART,
+        TWELFTH_BRANCH_PUBLISHED_NUMBERS,
+        TWELFTH_BRANCH_NAMED_COUNTS,
+    ),
+    (
         DOCUMENT_VECTORS,
         gen.DOCUMENT_PART,
         DOCUMENT_PUBLISHED_NUMBERS,
@@ -1575,7 +1610,7 @@ def _fields(document: dict) -> frozenset:
 
 
 @pytest.mark.parametrize(
-    "committed,part,published,named", COMMITTED_FILES, ids=["named", "branches", "branches-2", "branches-3", "branches-4", "branches-5", "branches-6", "branches-8", "branches-7", "branches-9", "branches-10", "branches-11", "documents"]
+    "committed,part,published,named", COMMITTED_FILES, ids=["named", "branches", "branches-2", "branches-3", "branches-4", "branches-5", "branches-6", "branches-8", "branches-7", "branches-9", "branches-10", "branches-11", "branches-12", "documents"]
 )
 def test_the_committed_file_publishes_no_number_that_escapes_the_proof(
     committed, part, published, named
@@ -1617,7 +1652,7 @@ def test_the_committed_file_publishes_no_number_that_escapes_the_proof(
 
 
 @pytest.mark.parametrize(
-    "committed,part,published,named", COMMITTED_FILES, ids=["named", "branches", "branches-2", "branches-3", "branches-4", "branches-5", "branches-6", "branches-8", "branches-7", "branches-9", "branches-10", "branches-11", "documents"]
+    "committed,part,published,named", COMMITTED_FILES, ids=["named", "branches", "branches-2", "branches-3", "branches-4", "branches-5", "branches-6", "branches-8", "branches-7", "branches-9", "branches-10", "branches-11", "branches-12", "documents"]
 )
 def test_the_committed_bytes_are_proved_against_the_recorded_exact_values(
     committed, part, published, named
@@ -1636,7 +1671,7 @@ def test_the_committed_bytes_are_proved_against_the_recorded_exact_values(
 
 
 @pytest.mark.parametrize(
-    "committed,part,published,named", COMMITTED_FILES, ids=["named", "branches", "branches-2", "branches-3", "branches-4", "branches-5", "branches-6", "branches-8", "branches-7", "branches-9", "branches-10", "branches-11", "documents"]
+    "committed,part,published,named", COMMITTED_FILES, ids=["named", "branches", "branches-2", "branches-3", "branches-4", "branches-5", "branches-6", "branches-8", "branches-7", "branches-9", "branches-10", "branches-11", "branches-12", "documents"]
 )
 def test_the_generator_says_how_many_numbers_it_proved(
     tmp_path, capsys, committed, part, published, named
@@ -3669,6 +3704,13 @@ CASE_MUTANTS = {
         replacement=_pads_on_the_padded_form_alone,
         outcome=CHANGES_THE_CELLS,
     ),
+    "pool_alone_marks": Mutant(
+        branch="G6.1's census of marks that is only a pool (plan P4-D352); "
+        "the mutant writes every cell with no mark, as the twin did before",
+        attribute="marks_of_a_lone_pool",
+        replacement=lambda pool, groupable, floor, values: [""] * len(groupable),
+        outcome=CHANGES_THE_CELLS,
+    ),
     "pooled_mark_cells": Mutant(
         branch="plan P4-D142's pool mark; the mutant writes the pooled "
         "remainder with the published comma, so the comma count passes the "
@@ -5192,6 +5234,7 @@ def test_the_method_states_the_count_the_committed_files_hold() -> None:
         (NINTH_BRANCH_VECTORS, _ninth_branch_document()),
         (TENTH_BRANCH_VECTORS, _tenth_branch_document()),
         (ELEVENTH_BRANCH_VECTORS, _eleventh_branch_document()),
+        (TWELFTH_BRANCH_VECTORS, _twelfth_branch_document()),
     )
     flat = " ".join(section.split())
     for path, document in held:

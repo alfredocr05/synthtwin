@@ -534,6 +534,79 @@ def _shortfall_missed(rule: typing.Callable[..., object]) -> "list[str]":
     ]
 
 
+# ------------------------------------------ G6.1's census that is only a pool
+#
+# Plan P4-D352, worked by hand from the method's sentence. With the line
+# L = max(2, floor), G groupable cells and a pool P: T is G where G < P + L
+# and P otherwise, never past 6(L - 1). The T cells picked go, one run of
+# one value at a time, to the mark holding the fewest cells, the earlier on
+# a tie, and none past L - 1; then while a mark holds none and another two
+# or more, the one holding the most, the earlier on a tie, gives it the
+# last cell it took. Each row: (pool, groupable, floor) and the answer
+# (cells per mark in the method's order, groupable cells left with no
+# mark). The groupable cells each hold their own value, so the marks take
+# them in turn.
+LONE_POOL_COUNTS = (
+    ((60, 65, 11), ((9, 9, 9, 9, 8, 8, 8), 5)),  # six marks' worth: five bare
+    ((50, 55, 11), ((8, 8, 8, 8, 8, 8, 7), 0)),  # a leftover of five joins
+    ((50, 60, 11), ((9, 9, 9, 9, 8, 8, 8), 0)),  # ten join: one short of the line
+    ((50, 61, 11), ((8, 7, 7, 7, 7, 7, 7), 11)),  # eleven are the column's bare cells
+    ((60, 50, 11), ((8, 7, 7, 7, 7, 7, 7), 0)),  # short: every groupable cell
+    ((6, 7, 2), ((1, 1, 1, 1, 1, 1, 0), 1)),  # the line of two: six, one bare
+)
+# Each cell's mark, as its place in the method's order. Fourteen cells of
+# fourteen values pooled at eleven: the marks take them in turn. Thirty
+# cells of three values, ten each: each run fills one mark, and the four
+# marks left empty are each given the last cell of the fullest mark.
+LONE_POOL_CELLS = (
+    ((14, 14, 11), tuple(range(14)),
+     (0, 1, 2, 3, 4, 5, 6, 0, 1, 2, 3, 4, 5, 6)),
+    ((30, 30, 11), (0,) * 10 + (1,) * 10 + (2,) * 10,
+     (0,) * 8 + (6, 3) + (1,) * 9 + (4,) + (2,) * 9 + (5,)),
+)
+LONE_POOL_ORDER = (",", " ", "'", "’", " ", " ", " ")
+
+
+def _lone_pool_counts(rule, pool, groupable, floor):
+    flags = [True] * groupable + [False] * 5
+    worn = list(rule(pool, flags, floor, [float(i) for i in range(len(flags))]))
+    counts = tuple(worn.count(mark) for mark in LONE_POOL_ORDER)
+    return counts, sum(1 for mark in worn[:groupable] if not mark)
+
+
+def _lone_pool_cells(rule, pool, groupable, floor, runs):
+    flags = [True] * groupable + [False] * 5
+    values = [1000.0 + run for run in runs] + [float(i) for i in range(5)]
+    worn = list(rule(pool, flags, floor, values))
+    return tuple(LONE_POOL_ORDER.index(mark) for mark in worn[:groupable])
+
+
+def _lone_pool_missed(rule) -> "list[str]":
+    missed = []
+    for (pool, groupable, floor), want in LONE_POOL_COUNTS:
+        got = _asked(_lone_pool_counts, rule, pool, groupable, floor)
+        if got != want:
+            missed += [
+                f"pool {pool} of {groupable} groupable at floor {floor}:"
+                f" {got!r}, the statement gives {want!r}"
+            ]
+    for (pool, groupable, floor), runs, want in LONE_POOL_CELLS:
+        got = _asked(_lone_pool_cells, rule, pool, groupable, floor, runs)
+        if got != want:
+            missed += [
+                f"cells of pool {pool} over runs {runs!r}:"
+                f" {got!r}, the statement gives {want!r}"
+            ]
+    return missed
+
+
+def _shipped_lone_pool(pool, flags, floor, values):
+    worn, _notes = generation._pool_alone_places(
+        types.SimpleNamespace(name="value"), flags, floor, values, pool
+    )
+    return worn
+
+
 # ------------------------------------------------------------ the two readers
 
 WITNESSES = {
@@ -560,6 +633,10 @@ WITNESSES = {
     "readings": (
         lambda module: _readings_missed(_oracle_readings(module)),
         lambda: _readings_missed(_generator_readings),
+    ),
+    "lone_pool": (
+        lambda module: _lone_pool_missed(module.marks_of_a_lone_pool),
+        lambda: _lone_pool_missed(_shipped_lone_pool),
     ),
 }
 
@@ -714,6 +791,32 @@ WITNESS_MUTANTS = {
         "shortfall",
         '        column["format"] in ("iso-datetime", "iso-mixed")\n',
         "        True\n",
+    ),
+    "lone_pool_uncapped": (
+        "lone_pool", "    target = min(target, 6 * room)\n", "",
+    ),
+    "lone_pool_no_join": (
+        "lone_pool",
+        "target = len(grouped) if len(grouped) < pool + line else pool",
+        "target = min(len(grouped), pool)",
+    ),
+    "lone_pool_every_leftover_joins": (
+        "lone_pool",
+        "target = len(grouped) if len(grouped) < pool + line else pool",
+        "target = len(grouped)",
+    ),
+    "lone_pool_packed_into_the_first_mark_with_room": (
+        "lone_pool",
+        "key=lambda m: (len(held[m]), LONE_POOL_MARKS.index(m))",
+        "key=lambda m: (len(held[m]) >= room, LONE_POOL_MARKS.index(m))",
+    ),
+    "lone_pool_runs_ignored": (
+        "lone_pool",
+        "        if runs and values[runs[-1][-1]] == values[i]:\n",
+        "        if False:\n",
+    ),
+    "lone_pool_an_empty_mark_left_empty": (
+        "lone_pool", "        if len(held[most]) < 2:\n", "        if True:\n",
     ),
     "readings_by_code_first": (
         "readings",

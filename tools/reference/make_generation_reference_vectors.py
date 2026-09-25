@@ -3396,13 +3396,16 @@ def candidate_mark(census, published):
 
     The published mark as written before any exchange, and where the
     column publishes none, the first mark its census names, written the
-    same way; nothing where it names none either.
+    same way; the comma where the census is only a pool (plan P4-D352);
+    nothing where it names none and pools nothing.
     """
     if published:
         return published
     named = named_conventions(census, GROUP_MARK_ORDER)
     if named:
         return mark_written(named[0][0])
+    if list(census) == ["(withheld)"]:
+        return ","
     return ""
 
 
@@ -3414,7 +3417,9 @@ def mark_places(
     ``groupable`` says, per cell, whether writing it with a mark actually
     put a mark in it -- asked of the writer rather than restated from the
     rules about forms, orders and four whole figures.  Where the census
-    names no mark every cell wears the column's published mark.  Where it
+    names no mark and pools nothing every cell wears the column's
+    published mark; where it is only a pool, ``marks_of_a_lone_pool``
+    spends it.  Where it
     names one or more (plan P4-D142), each named mark takes its count of
     the groupable cells not yet taken; a ``(withheld)`` remainder takes its
     count next, with the first mark of ``POOL_MARK_ORDER`` the census does
@@ -3432,6 +3437,8 @@ def mark_places(
         values = [float(index) for index in range(len(groupable))]
     worn = [published] * len(groupable)
     named = named_conventions(census, GROUP_MARK_ORDER)
+    if not named and list(census) == ["(withheld)"]:
+        return marks_of_a_lone_pool(census["(withheld)"], groupable, floor, values)
     if not named:
         return worn
     spending = [(mark_written(mark), wanted) for mark, wanted in named]
@@ -3458,6 +3465,64 @@ def mark_places(
     if len(left) >= max(2, floor):
         for index in left:
             worn[index] = ""
+    return worn
+
+
+# G6.1's seven marks for a census that is only a pool, in the method's
+# order: the comma (a point once a declared decimal-comma column is
+# exchanged), then the six that are neither decimal mark.
+LONE_POOL_MARKS = (",", " ", "'", "\u2019", "\u00a0", "\u202f", "\u2009")
+
+
+def marks_of_a_lone_pool(pool, groupable, floor, values):
+    """G6.1, plan P4-D352: a census of marks that is only a pool.
+
+    Read from the method's sentence.  With ``line`` = max(2, floor), a
+    mark's room one less than it, and G the groupable cells: T is G where
+    G < pool + line and ``pool`` otherwise, and never past six rooms.
+    T cells are picked by the spread of ``plus_cells_by_value`` in order
+    and walked in cell order one run of one value at a time; each run
+    goes whole to the mark of LONE_POOL_MARKS holding the fewest cells,
+    the earlier on a tie, and a full mark hands the rest of its run on.
+    Then, while a mark holds none and another holds two or more, the
+    mark holding the most, the earlier on a tie, gives it the last cell
+    it took.  What is left wears none.
+    """
+    line = max(2, floor)
+    room = line - 1
+    grouped = [i for i, flag in enumerate(groupable) if flag]
+    target = len(grouped) if len(grouped) < pool + line else pool
+    target = min(target, 6 * room)
+    picked = plus_cells_by_value(grouped, values, target, True)
+    runs = []
+    for i in picked:
+        if runs and values[runs[-1][-1]] == values[i]:
+            runs[-1] += [i]
+        else:
+            runs += [[i]]
+    held = {mark: [] for mark in LONE_POOL_MARKS}
+
+    def fewest():
+        return min(LONE_POOL_MARKS, key=lambda m: (len(held[m]), LONE_POOL_MARKS.index(m)))
+
+    for run in runs:
+        while run:
+            mark = fewest()
+            space = room - len(held[mark])
+            held[mark] += run[:space]
+            run = run[space:]
+    for mark in LONE_POOL_MARKS:
+        if held[mark]:
+            continue
+        most = max(LONE_POOL_MARKS, key=lambda m: (len(held[m]), -LONE_POOL_MARKS.index(m)))
+        if len(held[most]) < 2:
+            break
+        held[mark] = held[most][-1:]
+        held[most] = held[most][:-1]
+    worn = [""] * len(groupable)
+    for mark in LONE_POOL_MARKS:
+        for i in held[mark]:
+            worn[i] = mark
     return worn
 
 
@@ -18808,6 +18873,10 @@ TENTH_BRANCH_PART = "branches-10"
 # The thirteenth, opened by that repair's skeptic pass: its two cases
 # cost about 70000 bytes each and the twelfth had 63000 under the cap.
 ELEVENTH_BRANCH_PART = "branches-11"
+# The fourteenth, opened by a census of marks that is only a pool (plan
+# P4-D352): the twelfth and thirteenth both stand past plan P4-D295's
+# 200000-byte line.
+TWELFTH_BRANCH_PART = "branches-12"
 
 
 NAMED_CASE_BUILDERS = {
@@ -19800,6 +19869,68 @@ def _pooled_mark_cells():
         "`12,345.5` and the last eleven `12 345.5`. The mutant writes the "
         "pool with the published comma, as the generator did before this "
         "decision, and the twin's comma count passes the published one.",
+        "column": column,
+        "rows": 44,
+        "identifier_declared": False,
+        "rungs": rungs,
+        "claims": claims,
+    }
+
+
+def _pool_alone_marks():
+    """G6.1's census of marks that is only a pool (plan P4-D352).
+
+    Forty-four whole numbers, 1001 to 1016, the sixteen values in runs
+    of two to four cells, each run written with one mark and no mark on
+    eleven cells or more: the census is `{"(withheld)": 44}` and the
+    column publishes no mark.  The sixteen runs go whole to the mark
+    holding the fewest cells, so no value is written two ways and the
+    seven marks take the values in turn.
+    """
+    ladder, ladder_claims, rungs, finer = _ladder_fields({
+        "min": "1001", "p01": "1001", "p05": "1002", "p10": "1002.3",
+        "p25": "1005", "p50": "1009", "p75": "1013", "p90": "1015",
+        "p95": "1016", "p99": "1016", "max": "1016",
+    })
+    claims = {("column",) + key: value for key, value in ladder_claims.items()}
+    moments = {}
+    for name, value in (
+        ("mean", "1008.8409090909091"),
+        ("std", "4.749262766867363"),
+        ("skew", "-0.03292395001936187"),
+        ("kurtosis", "1.7544383846932357"),
+        ("numeric_share", "1"),
+    ):
+        field, claim = nearest_field(value)
+        moments[name] = field
+        claims[("column", name)] = claim
+    column = _universal(
+        "column_1", "count", "count", "data", "ok",
+        n_present=44, n_missing=0, n_distinct=16, n_distinct_folded=16,
+        n_distinct_values=16, n_numeric=44, n_not_numeric=0,
+        n_out_of_range=0, n_contradictory=0,
+        percentiles=ladder, percentiles_between=finer,
+        std_unrepresentable=False, n_zero=0, n_negative=0,
+        n_negative_unrepresentable=0, n_used_in_statistics=44,
+        n_left_out_of_statistics=0, integer_valued=True, n_rows=44,
+        numeric_styles={"plain": 44}, mode=None, mode_count=0,
+        field_widths={"4": 44},
+        # NO MARK ON ELEVEN CELLS OR MORE, AND NO MAJORITY: the census is
+        # one pool and no mark is published.
+        group_separator="",
+        thousands_marks={"(withheld)": 44},
+        **moments,
+    )
+    return {
+        "why": "G6.1's census of marks that is only a pool (plan P4-D352): "
+        "the pool is spent over the comma, a space, an apostrophe, U+2019, "
+        "U+00A0, U+202F and U+2009, each run of one value going whole to the "
+        "mark holding the fewest cells, the earlier on a tie, and no mark "
+        "on eleven cells. Forty-four whole numbers from 1,001 to 1,016 in "
+        "runs of two to four come back with all seven marks, eight cells "
+        "at most on one, and every value written one way. The mutant writes "
+        "every cell with no mark, as the generator did before this "
+        "decision.",
         "column": column,
         "rows": 44,
         "identifier_declared": False,
@@ -24595,6 +24726,7 @@ _DOCUMENT_ACCOUNT = (
     " The six cases of the carried numbers pass of 2026-09-18 and its repair pass are a ninth file, tests/reference/generation-branch-vectors-7.json, for the same reason."
     " Stage 3's two tail landings are two more files, for the same reason again: a tenth, tests/reference/generation-branch-vectors-8.json, holding the four cases the date and clock tails grew past the room their own files had and two of the numeric rule's five, and an eleventh, tests/reference/generation-branch-vectors-9.json, holding the numeric rule's other three."
     " The repair of the oracle's derived end in stage 3's review opened a twelfth, tests/reference/generation-branch-vectors-10.json, and a thirteenth, tests/reference/generation-branch-vectors-11.json, for the same reason."
+    " A census of marks that is only a pool (plan P4-D352) opened a fourteenth, tests/reference/generation-branch-vectors-12.json, for the same reason."
 )
 
 # The transforms this file's own cases name, stated the way every other
@@ -26361,11 +26493,19 @@ ELEVENTH_BRANCH_CASE_BUILDERS = {
     "tail_pad_partial": _tail_pad_partial,
 }
 
+# THE FOURTEENTH FILE: G6.1's census of marks that is only a pool (plan
+# P4-D352), because the twelfth and thirteenth stand past plan P4-D295's
+# 200000-byte line.
+TWELFTH_BRANCH_CASE_BUILDERS = {
+    "pool_alone_marks": _pool_alone_marks,
+}
+
 CASE_SETS = {
     EIGHTH_BRANCH_PART: EIGHTH_BRANCH_CASE_BUILDERS,
     NINTH_BRANCH_PART: NINTH_BRANCH_CASE_BUILDERS,
     TENTH_BRANCH_PART: TENTH_BRANCH_CASE_BUILDERS,
     ELEVENTH_BRANCH_PART: ELEVENTH_BRANCH_CASE_BUILDERS,
+    TWELFTH_BRANCH_PART: TWELFTH_BRANCH_CASE_BUILDERS,
     FIFTH_BRANCH_PART: FIFTH_BRANCH_CASE_BUILDERS,
     SIXTH_BRANCH_PART: SIXTH_BRANCH_CASE_BUILDERS,
     SEVENTH_BRANCH_PART: SEVENTH_BRANCH_CASE_BUILDERS,
@@ -26391,6 +26531,7 @@ CASE_BUILDERS = {
     **NINTH_BRANCH_CASE_BUILDERS,
     **TENTH_BRANCH_CASE_BUILDERS,
     **ELEVENTH_BRANCH_CASE_BUILDERS,
+    **TWELFTH_BRANCH_CASE_BUILDERS,
 }
 
 # What each file says about itself, so that neither can be read as the
@@ -26424,6 +26565,7 @@ _NAMED_ACCOUNT = (
     " The six cases of the carried numbers pass of 2026-09-18 and its repair pass are a ninth file, tests/reference/generation-branch-vectors-7.json, for the same reason."
     " Stage 3's two tail landings are two more files, for the same reason again: a tenth, tests/reference/generation-branch-vectors-8.json, holding the four cases the date and clock tails grew past the room their own files had and two of the numeric rule's five, and an eleventh, tests/reference/generation-branch-vectors-9.json, holding the numeric rule's other three."
     " The repair of the oracle's derived end in stage 3's review opened a twelfth, tests/reference/generation-branch-vectors-10.json, and a thirteenth, tests/reference/generation-branch-vectors-11.json, for the same reason."
+    " A census of marks that is only a pool (plan P4-D352) opened a fourteenth, tests/reference/generation-branch-vectors-12.json, for the same reason."
 )
 _BRANCH_ACCOUNT = (
     "cases method section G14.3 adds for the branches its first nine "
@@ -26460,6 +26602,7 @@ _BRANCH_ACCOUNT = (
     " The six cases of the carried numbers pass of 2026-09-18 and its repair pass are a ninth file, tests/reference/generation-branch-vectors-7.json, for the same reason."
     " Stage 3's two tail landings are two more files, for the same reason again: a tenth, tests/reference/generation-branch-vectors-8.json, holding the four cases the date and clock tails grew past the room their own files had and two of the numeric rule's five, and an eleventh, tests/reference/generation-branch-vectors-9.json, holding the numeric rule's other three."
     " The repair of the oracle's derived end in stage 3's review opened a twelfth, tests/reference/generation-branch-vectors-10.json, and a thirteenth, tests/reference/generation-branch-vectors-11.json, for the same reason."
+    " A census of marks that is only a pool (plan P4-D352) opened a fourteenth, tests/reference/generation-branch-vectors-12.json, for the same reason."
 )
 _SECOND_BRANCH_ACCOUNT = (
     "cases method section G14.3 adds with the carried landings 2b.2, 2b.3 "
@@ -26487,6 +26630,7 @@ _SECOND_BRANCH_ACCOUNT = (
     " The six cases of the carried numbers pass of 2026-09-18 and its repair pass are a ninth file, tests/reference/generation-branch-vectors-7.json, for the same reason."
     " Stage 3's two tail landings are two more files, for the same reason again: a tenth, tests/reference/generation-branch-vectors-8.json, holding the four cases the date and clock tails grew past the room their own files had and two of the numeric rule's five, and an eleventh, tests/reference/generation-branch-vectors-9.json, holding the numeric rule's other three."
     " The repair of the oracle's derived end in stage 3's review opened a twelfth, tests/reference/generation-branch-vectors-10.json, and a thirteenth, tests/reference/generation-branch-vectors-11.json, for the same reason."
+    " A census of marks that is only a pool (plan P4-D352) opened a fourteenth, tests/reference/generation-branch-vectors-12.json, for the same reason."
 )
 
 _THIRD_BRANCH_ACCOUNT = (
@@ -26512,6 +26656,7 @@ _THIRD_BRANCH_ACCOUNT = (
     " The six cases of the carried numbers pass of 2026-09-18 and its repair pass are a ninth file, tests/reference/generation-branch-vectors-7.json, for the same reason."
     " Stage 3's two tail landings are two more files, for the same reason again: a tenth, tests/reference/generation-branch-vectors-8.json, holding the four cases the date and clock tails grew past the room their own files had and two of the numeric rule's five, and an eleventh, tests/reference/generation-branch-vectors-9.json, holding the numeric rule's other three."
     " The repair of the oracle's derived end in stage 3's review opened a twelfth, tests/reference/generation-branch-vectors-10.json, and a thirteenth, tests/reference/generation-branch-vectors-11.json, for the same reason."
+    " A census of marks that is only a pool (plan P4-D352) opened a fourteenth, tests/reference/generation-branch-vectors-12.json, for the same reason."
 )
 
 _FOURTH_BRANCH_ACCOUNT = (
@@ -26540,6 +26685,7 @@ _FOURTH_BRANCH_ACCOUNT = (
     " The six cases of the carried numbers pass of 2026-09-18 and its repair pass are a ninth file, tests/reference/generation-branch-vectors-7.json, for the same reason."
     " Stage 3's two tail landings are two more files, for the same reason again: a tenth, tests/reference/generation-branch-vectors-8.json, holding the four cases the date and clock tails grew past the room their own files had and two of the numeric rule's five, and an eleventh, tests/reference/generation-branch-vectors-9.json, holding the numeric rule's other three."
     " The repair of the oracle's derived end in stage 3's review opened a twelfth, tests/reference/generation-branch-vectors-10.json, and a thirteenth, tests/reference/generation-branch-vectors-11.json, for the same reason."
+    " A census of marks that is only a pool (plan P4-D352) opened a fourteenth, tests/reference/generation-branch-vectors-12.json, for the same reason."
 )
 
 _FIFTH_BRANCH_ACCOUNT = (
@@ -26566,6 +26712,7 @@ _FIFTH_BRANCH_ACCOUNT = (
     " The six cases of the carried numbers pass of 2026-09-18 and its repair pass are a ninth file, tests/reference/generation-branch-vectors-7.json, for the same reason."
     " Stage 3's two tail landings are two more files, for the same reason again: a tenth, tests/reference/generation-branch-vectors-8.json, holding the four cases the date and clock tails grew past the room their own files had and two of the numeric rule's five, and an eleventh, tests/reference/generation-branch-vectors-9.json, holding the numeric rule's other three."
     " The repair of the oracle's derived end in stage 3's review opened a twelfth, tests/reference/generation-branch-vectors-10.json, and a thirteenth, tests/reference/generation-branch-vectors-11.json, for the same reason."
+    " A census of marks that is only a pool (plan P4-D352) opened a fourteenth, tests/reference/generation-branch-vectors-12.json, for the same reason."
 )
 
 _SIXTH_BRANCH_ACCOUNT = (
@@ -26601,6 +26748,7 @@ _SIXTH_BRANCH_ACCOUNT = (
     " The six cases of the carried numbers pass of 2026-09-18 and its repair pass are a ninth file, tests/reference/generation-branch-vectors-7.json, for the same reason."
     " Stage 3's two tail landings are two more files, for the same reason again: a tenth, tests/reference/generation-branch-vectors-8.json, holding the four cases the date and clock tails grew past the room their own files had and two of the numeric rule's five, and an eleventh, tests/reference/generation-branch-vectors-9.json, holding the numeric rule's other three."
     " The repair of the oracle's derived end in stage 3's review opened a twelfth, tests/reference/generation-branch-vectors-10.json, and a thirteenth, tests/reference/generation-branch-vectors-11.json, for the same reason."
+    " A census of marks that is only a pool (plan P4-D352) opened a fourteenth, tests/reference/generation-branch-vectors-12.json, for the same reason."
     " And, added here by the dates pass of the second Codex round of"
     " 2026-09-19, the MIDNIGHT half of P4-D258's paid merge: forty each"
     " of three instants, eighty of them at midnight, on a column writing"
@@ -26640,6 +26788,7 @@ _SEVENTH_BRANCH_ACCOUNT = (
     "would have stood past the 250000-byte cap."
     " Stage 3's two tail landings are two more files, for the same reason again: a tenth, tests/reference/generation-branch-vectors-8.json, holding the four cases the date and clock tails grew past the room their own files had and two of the numeric rule's five, and an eleventh, tests/reference/generation-branch-vectors-9.json, holding the numeric rule's other three."
     " The repair of the oracle's derived end in stage 3's review opened a twelfth, tests/reference/generation-branch-vectors-10.json, and a thirteenth, tests/reference/generation-branch-vectors-11.json, for the same reason."
+    " A census of marks that is only a pool (plan P4-D352) opened a fourteenth, tests/reference/generation-branch-vectors-12.json, for the same reason."
 )
 
 _EIGHTH_BRANCH_ACCOUNT = (
@@ -26681,6 +26830,7 @@ _EIGHTH_BRANCH_ACCOUNT = (
     "tenth file for the reason the fourth to the ninth exist: no cap is "
     "raised and no case is dropped."
     " The repair of the oracle's derived end in stage 3's review opened a twelfth, tests/reference/generation-branch-vectors-10.json, and a thirteenth, tests/reference/generation-branch-vectors-11.json, for the same reason."
+    " A census of marks that is only a pool (plan P4-D352) opened a fourteenth, tests/reference/generation-branch-vectors-12.json, for the same reason."
 )
 _NINTH_BRANCH_ACCOUNT = (
     "cases method section G14.3 adds for the TAIL RULE of stage 3 "
@@ -26723,6 +26873,8 @@ _NINTH_BRANCH_ACCOUNT = (
     " tests/reference/generation-branch-vectors-10.json."
     " Its skeptic pass opened a thirteenth,"
     " tests/reference/generation-branch-vectors-11.json."
+    " A census of marks that is only a pool (plan P4-D352) opened a"
+    " fourteenth, tests/reference/generation-branch-vectors-12.json."
 )
 
 _TENTH_BRANCH_ACCOUNT = (
@@ -26756,6 +26908,9 @@ _TENTH_BRANCH_ACCOUNT = (
     " tail_marks_pooled here, the mark clamp counting a census's named"
     " marks and its (withheld) pool together, because this file stood"
     " under plan P4-D295's 200000-byte line."
+    " A census of marks that is only a pool (plan P4-D352) opened a"
+    " fourteenth, tests/reference/generation-branch-vectors-12.json,"
+    " because this file then stood past that line."
 )
 
 _ELEVENTH_BRANCH_ACCOUNT = (
@@ -26785,6 +26940,32 @@ _ELEVENTH_BRANCH_ACCOUNT = (
     " tail_pad_partial here, the ceiling of a PARTLY padded block whose"
     " one field width covers every cell, because the twelfth passed plan"
     " P4-D295's 200000-byte line with that repair's other case."
+    " A census of marks that is only a pool (plan P4-D352) opened a"
+    " fourteenth, tests/reference/generation-branch-vectors-12.json,"
+    " because this file then stood past that line."
+)
+
+_TWELFTH_BRANCH_ACCOUNT = (
+    "case method section G14.3 adds with the census of marks that is only "
+    "a pool (plan P4-D352): G6.1's seven marks spent over a pool by whole "
+    "runs, each run of one value going to the mark holding the fewest "
+    "cells, on forty-four whole numbers from 1,001 to 1,016 in runs of two "
+    "to four. It is computed by the same oracle and the same proof layer "
+    "as tests/reference/generation-reference-vectors.json, "
+    "tests/reference/generation-branch-vectors.json, "
+    "tests/reference/generation-branch-vectors-2.json, "
+    "tests/reference/generation-branch-vectors-3.json, "
+    "tests/reference/generation-branch-vectors-4.json, "
+    "tests/reference/generation-branch-vectors-5.json, "
+    "tests/reference/generation-branch-vectors-6.json, "
+    "tests/reference/generation-branch-vectors-7.json, "
+    "tests/reference/generation-branch-vectors-8.json, "
+    "tests/reference/generation-branch-vectors-9.json, "
+    "tests/reference/generation-branch-vectors-10.json, "
+    "tests/reference/generation-branch-vectors-11.json and "
+    "tests/reference/generation-document-vectors.json, and lives in a "
+    "fourteenth file because the twelfth and thirteenth stand past plan "
+    "P4-D295's 200000-byte line: no cap is raised and no case is dropped."
 )
 
 
@@ -26800,6 +26981,9 @@ CASE_SET_ACCOUNTS = {
     ),
     ELEVENTH_BRANCH_PART: (
         f"The {len(ELEVENTH_BRANCH_CASE_BUILDERS)} {_ELEVENTH_BRANCH_ACCOUNT}"
+    ),
+    TWELFTH_BRANCH_PART: (
+        f"The {len(TWELFTH_BRANCH_CASE_BUILDERS)} {_TWELFTH_BRANCH_ACCOUNT}"
     ),
     FIFTH_BRANCH_PART: (
         f"The {len(FIFTH_BRANCH_CASE_BUILDERS)} {_FIFTH_BRANCH_ACCOUNT}"
@@ -27117,6 +27301,29 @@ GIVEN_WORDS = {
         5066559147082998548, 9863967612665876337, 11846538372407324895,
         1992919954658304516, 16205010896491803505, 2028856745023040660,
         3065727619890136330,
+    ),
+    # ...and the census of marks that is only a pool (plan P4-D352), at
+    # seed 408.
+    "pool_alone_marks": (
+        11050098968836823323, 3945067546036844542, 3889315794634836478,
+        373500822220899373, 8626244121818923169, 12824848460760811886,
+        12260447661610319352, 12123977706340470872, 17884279928199882131,
+        6111528781901613638, 18121261711842911373, 10017926114245661623,
+        8265871782368420422, 3587740586971390924, 15204890857435680962,
+        8769300913825060937, 11013931495356919336, 15983137310315859138,
+        18231538097778908354, 17666476217384118996, 3552129667455906636,
+        14369922071475045357, 320238500753845927, 1855522601300030496,
+        10919802888353624613, 1960113037998551636, 16150226494567633522,
+        1516730443158346841, 17349898178122893136, 13289424583732564330,
+        1286298098982880489, 6215222578186303149, 5218821797979599944,
+        17675569157128209915, 4650615113872383696, 10070765761999438953,
+        4859928480019483128, 15206883013983323475, 3932081773092974525,
+        1410248797230295354, 3720912910249536803, 14382568729845472004,
+        1260202751862570335, 2707291219989818457, 3233705043896332082,
+        17225932979461968118, 7737869900216190114, 10979565451808692401,
+        3013970469229856917, 12931444120398886780, 10457464759630254392,
+        4999712113349559109, 12062900285467210190, 2015863911995217014,
+        888048278634171814, 8118027900063678646, 5262393675623182019,
     ),
     # THE TWO CASES THE GOVERNANCE PASS OF STAGE 3'S REVIEW ADDS:
     # G5.3e's floor under a listed value (item 1) and the tail that
