@@ -17,7 +17,8 @@ OPEN at its target); and kept the spread fix in stage 3 (`K-P3-03`).
 **`K-S3-15` is OPEN**: the fix pass accepted it and never put it to the
 owner, whose trade it is; stage 3's follow-up A comes first, and what it
 leaves goes to the owner. `K-2B-28` is no longer called an owner
-acceptance anywhere. Plan P4-D351.
+acceptance anywhere. Plan P4-D351. STATE's KPI row no longer says every
+open entry has a stage: three have none set.
 
 ### CI's demonstration check reads the floor it checks (2026-09-25)
 

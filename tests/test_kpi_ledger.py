@@ -1426,7 +1426,7 @@ def test_k_s3_15(record_property, tmp_path: pathlib.Path) -> None:
     obligations their twins MISS at seeds 0 and 4 together, and how many
     shapes were measured.
 
-    The second is the limit. It is not nought and the entry says why: on
+    The second is the cost. It is not nought today and the entry says why: on
     a column whose withheld tail carries the whole of its spread, the
     column's mean is what the far cell puts in it, so no reading of the
     tail that keeps that cell back can average to it.
