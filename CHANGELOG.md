@@ -6,6 +6,24 @@ exists).
 
 ## [Unreleased]
 
+### Two stale records re-measured at the close of stage 3 (2026-09-24)
+
+**`K-P0-10` recorded the suite exiting 1, and `K-P4-06` recorded 556
+and 1 where its own ceiling already said 579 and 3.** Both were
+re-measured on `1578bee`, after the whole suite passed there in five
+shards (7,601 passed, 50 skipped, 3 xfailed, 0 failed, 7,654
+collected). One process: **3,963.9 s, exit 0**, 7,602 passed and 49
+skipped, quiet machine. The one case between those two counts is the
+claim inventory's check of `docs/STATE.md`'s stated suite size, which stands
+down on every selected run and which CI's shard-coverage job carries.
+The joined battery: 579 of 2,160 agreements outside the window and 3
+above-counts missed, both pinned nodes passing. `K-P4-06`'s rule text
+now states the ceiling its `expected` already held.
+
+`docs/STATE.md` stops restating seconds the ledger holds (`K-P0-10`,
+`K-P3-12`, `K-S1-01`), and names `K-S3-13` to `K-S3-15` beside the
+stage's gate test.
+
 ### The tail's back-solve walks its own stack (2026-09-24)
 
 **`synthtwin profile` CRASHED ON AN ORDINARY TABLE.**
