@@ -6,6 +6,37 @@ exists).
 
 ## [Unreleased]
 
+### The oracle's derived end takes the method's order (2026-09-24)
+
+**The reference oracle held a derived end to the one field width BEFORE
+the sign rule and had no mark between thousands** (stage 3's review,
+verdict item 10), where G5.3b step 4 orders the sign rule, the two width
+clamps, then the mark. On sixty five-figure whole numbers whose low tail
+reaches past nought the oracle derived 1 where the product derives
+10,000; on forty-four cells written with a comma, 1 where the product
+derives 1,000. It now takes that order, with the padded ceiling, the
+mark clamp and the stand-aside inside the tail's mean distance, written
+from the clause. On sixty readings `i * 1e-200` it placed both ends on a
+grid of 1e-17 and put each on its boundary rung; it leaves them off that
+grid and holds the low end at 5e-324, as G5.3b and G5.5a say, and puts
+each row of a tail with no grid at the middle of its own share.
+
+Five cases freeze it, each watched red against the product with its
+rule withdrawn: `tail_mark_held` in the eleventh file;
+`tail_width_after_sign` and `tail_extreme_magnitude` in a twelfth,
+`tests/reference/generation-branch-vectors-10.json`; and, after a
+skeptic found the padded ceiling and the stand-aside could be withdrawn
+with every byte unchanged, `tail_pad_ceiling` (high end 999, where the
+old oracle gave 1380) and `tail_width_stands_aside` in a thirteenth,
+`-11.json`, since neither fits in the twelfth under the cap. The
+proof-floor table now covers the eleventh to thirteenth files. Every
+case frozen before is byte-identical; every other file moves only by
+the sentence naming the new files. No product code changed. Two places where the product
+and the method part company, and no case reaches, are reported rather
+than changed: the product's mark clamp stands aside on a census with a
+`(withheld)` pool, and it holds a partly padded column under `10**w`, a
+ceiling the method does not state.
+
 ### The one case CI skips is held where CI runs, and a failing suite names its failures (2026-09-24)
 
 **One process and the five shards differ by exactly one case**, found
