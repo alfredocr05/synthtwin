@@ -165,13 +165,13 @@ def test_the_twin_pools_its_marks_again_or_names_why(
 ):
     """The twin's own description publishes the pool, or its report names why.
 
-    Mutations, each run: `_pool_alone_places` writing every cell bare
-    turns every parameter red; six marks in place of seven turns every
-    parameter red; each mark's cells taken from the first free cell up
-    turns the spread assertion red; a bare remainder of the floor or more
-    joining the pool turns `beside-bare` red; the cap at seven marks'
-    worth rather than six turns the twin's own census into a named mark
-    wherever it marks more than sixty.
+    Mutations, each run: the lone pool written bare turns all forty
+    parameters red, and so do six marks in place of seven; each run given
+    to the first mark with room rather than the one holding the fewest
+    turns `point` and `uneven` red at every seed (the two run); a bare
+    remainder of the floor or more joining the pool turns `beside-bare`
+    red at every seed; the cap at seven marks' worth rather than six
+    turns `whole-numbers` red at the three seeds that mark past sixty.
     """
     comma = flags[:1] == ("--decimal-comma",)
     line = int(flags[1]) if flags[:1] == ("--smallest-group",) else LINE

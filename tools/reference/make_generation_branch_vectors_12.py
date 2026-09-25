@@ -5,12 +5,12 @@ oracle. It asks `make_generation_reference_vectors.py` for the case the
 census of marks that is only a pool adds to method section G14.3 (plan
 P4-D352): G6.1's seven marks spent over a pool by whole runs, each run
 of one value going to the mark holding the fewest cells, on forty-four
-whole numbers from 1001 to 1016 in runs of two to four
+whole numbers from 1001 to 1016 in runs of two to five
 (`pool_alone_marks`).
 
 **Why it is a fourteenth file.**  Plan P4-D295 sends the next case to a
-file whose output stands under 200000 bytes, and the twelfth (227508
-bytes) and the thirteenth (215133 bytes) both stand past that line, as
+file whose output stands under 200000 bytes, and the twelfth (227678
+bytes) and the thirteenth (215303 bytes) both stand past that line, as
 their own accounts said. No cap is raised and no case is dropped. Every
 other file's own account names this one, as each of them names all the
 others.

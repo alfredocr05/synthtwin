@@ -19881,7 +19881,7 @@ def _pool_alone_marks():
     """G6.1's census of marks that is only a pool (plan P4-D352).
 
     Forty-four whole numbers, 1001 to 1016, the sixteen values in runs
-    of two to four cells, each run written with one mark and no mark on
+    of two to five cells, each run written with one mark and no mark on
     eleven cells or more: the census is `{"(withheld)": 44}` and the
     column publishes no mark.  The sixteen runs go whole to the mark
     holding the fewest cells, so no value is written two ways and the
@@ -19889,16 +19889,16 @@ def _pool_alone_marks():
     """
     ladder, ladder_claims, rungs, finer = _ladder_fields({
         "min": "1001", "p01": "1001", "p05": "1002", "p10": "1002.3",
-        "p25": "1005", "p50": "1009", "p75": "1013", "p90": "1015",
+        "p25": "1005", "p50": "1009", "p75": "1013", "p90": "1015.7",
         "p95": "1016", "p99": "1016", "max": "1016",
     })
     claims = {("column",) + key: value for key, value in ladder_claims.items()}
     moments = {}
     for name, value in (
-        ("mean", "1008.8409090909091"),
-        ("std", "4.749262766867363"),
-        ("skew", "-0.03292395001936187"),
-        ("kurtosis", "1.7544383846932357"),
+        ("mean", "1008.8636363636364"),
+        ("std", "4.781704031628139"),
+        ("skew", "-0.01800467315523523"),
+        ("kurtosis", "1.7615835354784763"),
         ("numeric_share", "1"),
     ):
         field, claim = nearest_field(value)
@@ -19927,7 +19927,7 @@ def _pool_alone_marks():
         "U+00A0, U+202F and U+2009, each run of one value going whole to the "
         "mark holding the fewest cells, the earlier on a tie, and no mark "
         "on eleven cells. Forty-four whole numbers from 1,001 to 1,016 in "
-        "runs of two to four come back with all seven marks, eight cells "
+        "runs of two to five come back with all seven marks, nine cells "
         "at most on one, and every value written one way. The mutant writes "
         "every cell with no mark, as the generator did before this "
         "decision.",
@@ -26950,7 +26950,7 @@ _TWELFTH_BRANCH_ACCOUNT = (
     "a pool (plan P4-D352): G6.1's seven marks spent over a pool by whole "
     "runs, each run of one value going to the mark holding the fewest "
     "cells, on forty-four whole numbers from 1,001 to 1,016 in runs of two "
-    "to four. It is computed by the same oracle and the same proof layer "
+    "to five. It is computed by the same oracle and the same proof layer "
     "as tests/reference/generation-reference-vectors.json, "
     "tests/reference/generation-branch-vectors.json, "
     "tests/reference/generation-branch-vectors-2.json, "

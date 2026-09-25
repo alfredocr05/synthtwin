@@ -79,10 +79,10 @@
     },
     {
       "generator": "tools/reference/make_generation_branch_vectors_12.py",
-      "justification": "The twin cells synthtwin's generation method requires for the case docs/spec/generation-method-v1.md section G14.3 adds with the census of marks that is only a pool (plan P4-D352): pool_alone_marks, G6.1's seven marks spent over a pool by whole runs, each run of one value going to the mark holding the fewest cells, on forty-four whole numbers from 1001 to 1016 in runs of two to four. The twelfth and thirteenth files stand past plan P4-D295's 200000-byte line, so it opens a fourteenth rather than raise the cap. Computed from that specification alone by the same oracle and the same proof layer as every other vector file here, which imports neither synthtwin nor numpy nor pandas; no value in it comes from any table, and every number it publishes carries the exact value it was proved against.",
+      "justification": "The twin cells synthtwin's generation method requires for the case docs/spec/generation-method-v1.md section G14.3 adds with the census of marks that is only a pool (plan P4-D352): pool_alone_marks, G6.1's seven marks spent over a pool by whole runs, each run of one value going to the mark holding the fewest cells, on forty-four whole numbers from 1001 to 1016 in runs of two to five. The twelfth and thirteenth files stand past plan P4-D295's 200000-byte line, so it opens a fourteenth rather than raise the cap. Computed from that specification alone by the same oracle and the same proof layer as every other vector file here, which imports neither synthtwin nor numpy nor pandas; no value in it comes from any table, and every number it publishes carries the exact value it was proved against.",
       "path": "tests/reference/generation-branch-vectors-12.json",
       "seed": 0,
-      "sha256": "adb58def95123b27fe1b86434115a17a25edd1e80899f766ddb38803a8f4abb3"
+      "sha256": "7bd5957edab707617afa5e729bc9d7c2300e702a45145b2034953ddcf33df08b"
     },
     {
       "generator": "tools/reference/make_generation_document_vectors.py",
