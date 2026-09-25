@@ -19122,7 +19122,14 @@ class HeldReading:
 
     `values` is the column's own list object, compared by identity: a
     different list with the same cells is a different column as far as
-    the hand-over is concerned, and is simply read again.
+    the hand-over is concerned, and is simply read again. The list must
+    not be changed in place between the census and the description; the
+    command never does, and nothing here would notice if it were.
+
+    `reading` is exactly what `_read_the_column` returned under
+    `settings`. Taken under settings that differ in `person_columns`
+    alone, it is the same reading except for the settings its tally
+    carries, which `profile_column` replaces before describing.
     """
 
     values: "list[str]"
@@ -19154,13 +19161,20 @@ def _same_reading(
     """Whether ``held`` is the reading `_read_the_column` would return here.
 
     `_read_the_column` is a fixed function of its arguments, so the kept
-    reading answers exactly when every argument is the same: the same
-    column OBJECT, the same row count, every flag, and settings equal in
+    reading answers when every argument is the same: the same column
+    OBJECT, the same row count, every flag, and settings equal in
     everything the reading consults. The one field of the settings it
-    never reads is `person_columns`, which the command sets from the
+    never CONSULTS is `person_columns`, which the command sets from the
     census's own answer between the census and the description; the
     settings are compared with that field set aside and every other
-    field held equal.
+    field held equal. The reading still CARRIES the settings it was read
+    under (on its tally, `_Cells.settings`), so where `person_columns`
+    differs the kept reading is exact only once its tally is given the
+    settings asked with -- which `profile_column` does before it uses
+    it. Whoever takes a reading on this answer does the same.
+
+    The column list is matched by identity, not by content: it must not
+    have been changed in place since the census read it.
 
     Guarantees: a fixed function of the arguments; raises nothing; no
     I/O of any kind.
@@ -19407,7 +19421,17 @@ def profile_column(
         kept_placeholder_days,
         judged_candidates,
     ):
-        read = handed_over.reading
+        # The kept reading's tally carries the settings it was read
+        # under, which differ from these in `person_columns` alone; the
+        # tally is given these, so what is described is field for field
+        # the reading `_read_the_column` would return here. A shallow
+        # copy of two records: no cell is read again.
+        read = dataclasses.replace(
+            handed_over.reading,
+            cells=dataclasses.replace(
+                handed_over.reading.cells, settings=settings
+            ),
+        )
     else:
         read = _read_the_column(
             values,

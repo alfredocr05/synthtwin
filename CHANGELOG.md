@@ -24,7 +24,10 @@ on 50,000 rows by 20 columns with an empty row. cProfile calls on
 746.2 M to 544.8 M at 200,000 (541.7 M on `caf3079`). Every output file, exit code and message is
 byte-identical to `68be599` over a battery of 22 shapes.
 `tests/test_census_reading_handed_over.py` counts the readings and
-splits.
+splits. A reading taken over is given the description's own settings
+(they differ in `person_columns` alone), so it is field for field the
+reading `_read_the_column` returns there; the test file pins that and
+both conditions under which a split is taken over.
 
 ### Two stale records re-measured at the close of stage 3 (2026-09-24)
 

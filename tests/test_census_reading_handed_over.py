@@ -29,10 +29,17 @@ WHAT THIS FILE PINS -- call counts, which the machine does not decide:
    the identifier three times and reads the first column besides.
 2. A reading handed over under ANY different argument is not taken, and
    neither is a split handed over from other settings or another column.
+3. A reading taken over is, field for field, the reading
+   `_read_the_column` returns under the description's own settings --
+   including the settings its tally carries, which differ from the
+   census's in `person_columns`.
 
 THE RED CHECK, done by hand when this file was written: `profile_column`
 with its `handed_over` argument ignored, and the command passing no
-splits to `person_questions`, each turned item 1 red.
+splits to `person_questions`, each turned item 1 red; `person_questions`
+without its settings check, and without its column check, each turned
+item 2's split test red; the kept reading taken as it was kept, with
+the census's settings on its tally, turned item 3 red.
 """
 
 from __future__ import annotations
@@ -42,7 +49,7 @@ import pathlib
 
 import pytest
 
-from synthtwin import asking, profile, taxonomy
+from synthtwin import asking, profile, reading, taxonomy
 from synthtwin.cli import main
 
 import fixtures
@@ -257,8 +264,6 @@ def test_the_document_is_the_same_with_and_without_the_hand_over(
     the repair by the landing's own battery; this is the in-suite half,
     over a declared identifier that repeats and so is kept by the census.
     """
-    from synthtwin import reading
-
     rows = [
         [f"S{place % 60:03d}", fixtures.REGIONS[place % 4], f"{place % 37}"]
         for place in range(_ROWS)
@@ -279,3 +284,152 @@ def test_the_document_is_the_same_with_and_without_the_hand_over(
     handed = profile.build_document(table, settings, ["subject_id"], readings=held)
     read_again = profile.build_document(table, settings, ["subject_id"])
     assert handed == read_again
+
+
+def test_the_reading_described_is_the_reading_the_description_would_take(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Field for field, including the settings the reading carries.
+
+    The census reads under settings whose `person_columns` is still
+    empty; the description runs under the people the census found. The
+    match sets that one field aside, so the kept reading's tally still
+    carries the census's settings -- and the reading `profile_column`
+    goes on to describe must be the one `_read_the_column` returns under
+    the description's own settings, not a reading that differs from it
+    in a field nothing consults TODAY.
+    """
+    rows = [
+        [f"S{place % 60:03d}", fixtures.REGIONS[place % 4], f"{place % 37}"]
+        for place in range(_ROWS)
+    ]
+    path = _write(tmp_path, ["subject_id", "site", "score"], rows)
+    table = reading.read_table(f"{path}")
+    census_settings = taxonomy.Settings()
+    people, _count, held = taxonomy.population_census(
+        table.column_names,
+        table.columns,
+        ["subject_id"],
+        census_settings,
+        taxonomy.Declarations(identifiers=("subject_id",)),
+    )
+    assert people == ("subject_id",) and len(held) == 1
+    described_under = dataclasses.replace(census_settings, person_columns=people)
+    assert held[0].settings != described_under
+    fresh = taxonomy._read_the_column(
+        table.columns[0], _ROWS, described_under, forced_identifier=True
+    )
+
+    # What `profile_column` describes reaches `_decide` as the reading's
+    # tally; everything else of the reading is shared with the kept one.
+    tallies: "list[object]" = []
+    decide_as_shipped = taxonomy._decide
+
+    def watched(cells: object, *args: object, **named: object) -> object:
+        tallies.append(cells)
+        return decide_as_shipped(cells, *args, **named)  # type: ignore[arg-type]
+
+    reads = [0]
+    reading_as_shipped = taxonomy._read_the_column
+
+    def counted(*args: object, **named: object) -> object:
+        reads[0] = reads[0] + 1
+        return reading_as_shipped(*args, **named)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(taxonomy, "_decide", watched)
+    monkeypatch.setattr(taxonomy, "_read_the_column", counted)
+    taxonomy.profile_column(
+        "subject_id",
+        1,
+        table.columns[0],
+        _ROWS,
+        described_under,
+        forced_identifier=True,
+        handed_over=held[0],
+    )
+    assert reads[0] == 0, "the kept reading was not taken over"
+    assert len(tallies) == 1
+    described = dataclasses.replace(held[0].reading, cells=tallies[0])
+    assert described == fresh, (
+        "the handed-over reading is not the reading `_read_the_column` "
+        "returns under the description's settings"
+    )
+
+
+def _split_table(
+    tmp_path: pathlib.Path,
+) -> "tuple[reading.Table, dict[str, object]]":
+    rows = [
+        [
+            fixtures.REGIONS[place % 4],
+            fixtures.LABELS[place % 5],
+            f"{place % 37}",
+            f"S{place % 120:04d}",
+        ]
+        for place in range(_ROWS)
+    ]
+    path = _write(tmp_path, ["site", "grade", "score", "subject"], rows)
+    table = reading.read_table(f"{path}")
+    document = profile.build_document(table, taxonomy.Settings(), [])
+    return table, document
+
+
+def _splits_in_person_questions(
+    monkeypatch: pytest.MonkeyPatch,
+    document: "dict[str, object]",
+    columns: "list[list[str]]",
+    settings: taxonomy.Settings,
+    asked: "list[asking.Question]",
+    split: "asking.SplitColumns",
+) -> int:
+    splits = [0]
+    split_as_shipped = taxonomy.split_missing
+
+    def counted(*args: object, **named: object) -> object:
+        splits[0] = splits[0] + 1
+        return split_as_shipped(*args, **named)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(taxonomy, "split_missing", counted)
+    try:
+        asking.person_questions(document, columns, settings, [], asked, split)
+    finally:
+        monkeypatch.setattr(taxonomy, "split_missing", split_as_shipped)
+    return splits[0]
+
+
+def test_a_split_is_taken_only_from_the_same_column_under_the_same_settings(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The person question's side of the hand-over, pinned both ways."""
+    table, document = _split_table(tmp_path)
+    columns = table.columns
+    settings = taxonomy.Settings()
+    asked, split = asking.questions_and_splits_for(document, columns, settings, [])
+    unanswered = len(columns) - len(asked)
+    assert unanswered >= 2 and sorted(split.present) == list(range(len(columns)))
+
+    # The same columns under the same settings: nothing is split again,
+    # which is what makes the counts below mean something.
+    assert _splits_in_person_questions(
+        monkeypatch, document, columns, settings, asked, split
+    ) == 0
+
+    # Other settings: every column still to be asked about is split anew.
+    other = dataclasses.replace(settings, declared_missing_values=("x",))
+    assert _splits_in_person_questions(
+        monkeypatch, document, columns, other, asked, split
+    ) == unanswered
+
+    # A column that is not the object the split was taken from -- the
+    # same cells in another list -- is split anew, and only that column.
+    spoken = [question.name for question in asked]
+    place = next(
+        spot
+        for spot, name in enumerate(table.column_names)
+        if name not in spoken
+    )
+    elsewhere = list(columns)
+    elsewhere[place] = list(columns[place])
+    assert _splits_in_person_questions(
+        monkeypatch, document, elsewhere, settings, asked, split
+    ) == 1

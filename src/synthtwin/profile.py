@@ -3639,7 +3639,9 @@ def build_document(
       takes it only where every argument of the reading is the one it
       would have read under; an entry that is not a
       `taxonomy.HeldReading` is passed to nothing. The document is the
-      same with or without them.
+      same with or without them, PROVIDED no column list has been
+      changed in place since the census read it: a column is matched to
+      its reading by the identity of its list, not by its cells.
     """
     declared_codes = [] if forced_codes is None else forced_codes
     declared_measurements = (
