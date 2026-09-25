@@ -6,6 +6,23 @@ exists).
 
 ## [Unreleased]
 
+### A derived end's two divergences from the method, settled (2026-09-25)
+
+**A `(withheld)` pool in `thousands_marks` counts marked cells**
+(contract C6-87, C6-88), so the product's mark clamp now counts it with
+the named marks, as G5.3b step 4 does. Measured on 210 amounts of 1,000
+to 60,000, seven marks on thirty cells each at a floor of 31
+(`{"(withheld)": 210}`), the twin wrote `1` at seeds 1, 4, 7 and 13
+with nothing named; now it writes nothing under a thousand. **A partly
+padded block is held to `10**w - 1`** where one field width `w` covers
+every cell, as the product already did: G5.3b step 4 now states it and
+the oracle carries it (the high end 9999, where the oracle gave 15536).
+Frozen as `tail_marks_pooled` (twelfth file) and `tail_pad_partial`
+(thirteenth); G14.3 counts 129; every earlier case is byte-identical.
+Step 4's order example now names `tail_width_after_sign`. Both entry
+points send the next case to a fourteenth file, since the twelfth and
+thirteenth stand past plan P4-D295's 200000-byte line.
+
 ### The census reads by one route, and its row check is held (2026-09-25)
 
 The two points the hand-over's second skeptic left. After the

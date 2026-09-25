@@ -1404,17 +1404,47 @@ def pad_width(column):
     return -1
 
 
-def pad_held(value, low, boundary, column):
-    """A padded block's end held at `10**(w - 1) - 1` in size (G5.3b step 4).
+def partly_padded_field(column):
+    """The one field width a PARTLY padded block writes, or -1.
 
-    Signed again, placed on the whole numbers and held on its own side
-    of `b` -- which is what holding it to the widest whole number of
-    `w - 1` figures does, since the end is past that already.
+    G5.3b step 4's partly padded block: `integer_valued` true, some
+    padded width published, and `field_widths` naming ONE width of 1 to
+    15 over every numeric cell.  Every cell is then written that many
+    figures wide, and a pad only adds zeros in front, so no value
+    reaches one figure more.
+    """
+    fields = column.get("field_widths") or {}
+    if not (column["integer_valued"] and column.get("pad_widths")):
+        return -1
+    wide = [key for key in fields if key.isdigit() and 1 <= int(key) <= 15]
+    if len(fields) != 1 or len(wide) != 1:
+        return -1
+    return int(wide[0]) if fields[wide[0]] == column["n_used_in_statistics"] else -1
+
+
+def pad_held(value, low, boundary, column):
+    """A padded block's end held under its ceiling (G5.3b step 4).
+
+    Fully padded to `w`: at `10**(w - 1) - 1` in size.  Partly padded,
+    one field width `w` over every cell: at `10**w - 1`.  Signed again,
+    placed on the whole numbers and held on its own side of `b` -- which
+    is what holding it to the widest whole number of that many figures
+    does, since the end is past that already.
+    """
+    figures = pad_ceiling(column)
+    if figures < 1 or abs(value) <= 10.0 ** figures - 1.0:
+        return value
+    return width_held(value, low, boundary, figures)
+
+
+def pad_ceiling(column):
+    """How many figures a padded block's values may have at most, or -1.
+
+    One fewer than the pad width where one pad width covers every cell;
+    otherwise the one field width of a partly padded block.
     """
     width = pad_width(column)
-    if width < 0 or abs(value) <= 10.0 ** (width - 1) - 1.0:
-        return value
-    return width_held(value, low, boundary, width - 1)
+    return width - 1 if width > 0 else partly_padded_field(column)
 
 
 def mark_held(value, low, boundary, column):
@@ -26173,6 +26203,78 @@ def _tail_width_stands_aside():
     }
 
 
+def _tail_marks_pooled():
+    """The mark between thousands counted NAMED AND POOLED (G5.3b step 4).
+
+    `tail_mark_held`'s forty-four numbers, 10,000 to 182,000, with the
+    census `{",": 33, "(withheld)": 11}`: eleven cells wore a mark too
+    rare to name, and every cell still wears one.  The sign rule holds
+    the low end at 1 and the mark clamp, counting the pool with the
+    named mark, holds it at 1,000.
+    """
+    case = _tail_mark_held()
+    case["column"]["thousands_marks"] = {",": 33, "(withheld)": 11}
+    case["why"] = "The mark between thousands on a derived end counts a census's named marks AND its (withheld) pool, method G5.3b step 4: a pool is marks below the floor, each on a cell that proves one. Thirty-three cells wear a comma and eleven a mark too rare to name, so every value reaches a thousand; the sign rule holds the low end at 1 and the mark clamp holds it at 1,000. The mutant counts the named marks alone and the twin writes 1, a cell with no mark in it."
+    return case
+
+
+def _tail_pad_partial():
+    """A PARTLY padded block held to its one field width (G5.3b step 4).
+
+    Sixty-eight whole numbers written with a plus, four figures wide:
+    sixteen padded, `+0100` to `+0850` fifty apart, then `+1000` to
+    `+5300` a hundred apart, `+9900`, `+9950`, `+9990` and `+9995` to
+    `+9999`.  `pad_widths` names four on sixteen cells (a plus does not
+    hide the pad, plan P4-D145), `field_widths` four on all sixty-eight,
+    so no value reaches five figures.  The high tail's reading passes
+    9999; the ceiling holds the end there.  Plus-signed, because G6.3's
+    exchange of the padded STYLE onto values that fit reaches
+    `leading_zero` alone, and this oracle does not state it.
+    """
+    ladder, finer, claims = _tail_ladder_fields({
+        17: "669.5", 25: "1075.0", 50: "2750.0", 75: "4425.0", 83: "4961.0",
+    }, 17, 83)
+    moments = _tail_case_moments(
+        ("3323.8970588235293", "2883.894605168948", "1.2179806556632877",
+         "3.7232730239149485"),
+        claims,
+    )
+    tails, tail_claims = _numeric_tail_fields({
+        "low": {
+            "percent": 17, "rows": 12, "mean_distance": "294.5",
+            "rms_distance": "341.3530674633914", "values": [],
+        },
+        "high": {
+            "percent": 83, "rows": 12, "mean_distance": "3407.75",
+            "rms_distance": "4098.516571069749", "values": [],
+        },
+    })
+    claims.update(tail_claims)
+    column = _universal(
+        "column_1", "count", "count", "data", "ok",
+        n_present=68, n_missing=0, n_distinct=68, n_distinct_folded=68,
+        n_distinct_values=68, n_numeric=68, n_not_numeric=0,
+        n_out_of_range=0, n_contradictory=0, n_zero=0, n_negative=0,
+        n_negative_unrepresentable=0, n_used_in_statistics=68,
+        n_left_out_of_statistics=0, n_rows=68,
+        percentiles=ladder, percentiles_between=finer, tails=tails,
+        bin_groups=[{"first": 0, "last": 6, "count": 11}, {"first": 7, "last": 15, "count": 12}, {"first": 16, "last": 31, "count": 21}],
+        integer_valued=True, std_unrepresentable=False,
+        numeric_styles={"leading_plus": 68}, mode_count=0,
+        field_widths={"4": 68}, pad_widths={"4": 16},
+        negative_notations={},
+        **moments,
+    )
+    return {
+        "why": "The ceiling of a PARTLY padded block, method G5.3b step 4: sixteen of sixty-eight plus-signed cells are padded and all sixty-eight are written four figures wide, so no value reaches five figures, and the high tail's own reading passes 9999: the ceiling holds the end at 9999. The mutant withdraws it and the twin writes five figures into a field its census publishes as four.",
+        "column": column,
+        "rows": 68,
+        "identifier_declared": False,
+        "rungs": _tail_case_rungs(column),
+        "claims": claims,
+    }
+
+
 EIGHTH_BRANCH_CASE_BUILDERS = {
     # THE FOUR THAT MOVED HERE AT THE DATE AND CLOCK TAIL LANDING (stage
     # 3, plan P4-D328). Each of them grew: a column of dates or clock
@@ -26244,6 +26346,9 @@ NINTH_BRANCH_CASE_BUILDERS = {
 TENTH_BRANCH_CASE_BUILDERS = {
     "tail_extreme_magnitude": _tail_extreme_magnitude,
     "tail_width_after_sign": _tail_width_after_sign,
+    # The pooled census of marks (stage 3's repair of the two derived-end
+    # divergences): plan P4-D295 sends it here, under 200000 bytes.
+    "tail_marks_pooled": _tail_marks_pooled,
 }
 
 # THE THIRTEENTH FILE: the padded ceiling and a width clamp standing
@@ -26251,6 +26356,9 @@ TENTH_BRANCH_CASE_BUILDERS = {
 ELEVENTH_BRANCH_CASE_BUILDERS = {
     "tail_pad_ceiling": _tail_pad_ceiling,
     "tail_width_stands_aside": _tail_width_stands_aside,
+    # ...and the same repair's partly padded ceiling, the twelfth having
+    # passed that line with the pooled marks.
+    "tail_pad_partial": _tail_pad_partial,
 }
 
 CASE_SETS = {
@@ -26644,6 +26752,10 @@ _TENTH_BRANCH_ACCOUNT = (
     " The same repair's skeptic pass opened a thirteenth,"
     " tests/reference/generation-branch-vectors-11.json, for the padded"
     " ceiling and a width clamp standing aside, which did not fit here."
+    " The repair of the derived end's two divergences adds"
+    " tail_marks_pooled here, the mark clamp counting a census's named"
+    " marks and its (withheld) pool together, because this file stood"
+    " under plan P4-D295's 200000-byte line."
 )
 
 _ELEVENTH_BRANCH_ACCOUNT = (
@@ -26669,6 +26781,10 @@ _ELEVENTH_BRANCH_ACCOUNT = (
     "tests/reference/generation-document-vectors.json, and live in a "
     "thirteenth file because the twelfth could not hold them under the "
     "250000-byte cap: no cap is raised and no case is dropped."
+    " The repair of the derived end's two divergences adds"
+    " tail_pad_partial here, the ceiling of a PARTLY padded block whose"
+    " one field width covers every cell, because the twelfth passed plan"
+    " P4-D295's 200000-byte line with that repair's other case."
 )
 
 
@@ -26920,6 +27036,87 @@ GIVEN_WORDS = {
         18312191012036513037, 1258107647451188724, 8695446008523537237,
         11321367734310545171, 14017935836930078473, 12340323247801114841,
         10126579919261042465, 15031132822184721252,
+    ),
+    # ...and the two of the repair of the derived end's two divergences,
+    # at seeds 406 and 407: a pooled census of marks and a partly padded
+    # ceiling.
+    "tail_marks_pooled": (
+        1355407956036899570, 1444778331183332743, 18088772776710455581,
+        9010393419229205898, 18209594714632786290, 13376613491401130169,
+        18375924691021179449, 16557527485282888828, 12025706397752237539,
+        7498179394668911340, 9814092409758823164, 4466439207307391818,
+        12316733687074677259, 7927143662361813403, 13207082713796044504,
+        2014765874163883171, 11652058108957840769, 980889593452541573,
+        15980315821256973858, 9013302585596524300, 6756024337910337745,
+        1523263014264499853, 9285726328529203406, 14432020244390704780,
+        6203247413281913336, 7029235909201428663, 15252169011408292687,
+        17188111118266820895, 3507659387767826272, 12620271179159707212,
+        8828525694450352345, 13371752238251965794, 5403326779513677738,
+        13135006299882622417, 11530009116465554889, 7049615325150957345,
+        15697357557619985901, 16608422990616623317, 11777944794788919717,
+        12550578914560925776, 14182896879826243423, 7700202156390766597,
+        11453870072672695506, 10015797739701740127, 4512626301076779956,
+        8031095336252967804, 4242933659876785156, 10182985821855286005,
+        735668002814479667, 448959232753109614, 3285182587392119651,
+        3623594770043212611, 13472891607526072555, 17388430666845251381,
+        9790688835968097689, 181704888286242385, 17450710200526423662,
+        11763082397003446040, 12551532072754573047, 2832322124938455632,
+        5611403801527316666, 1290638207104013747, 1598454780703180017,
+        9172374278575028099, 3315489807468219291, 8261631321219056757,
+        10139912918806386373, 2349396775479827579, 15632937152668498008,
+        16917812079062146997, 11685674565542104422, 6373793817107613104,
+        15050475916376705076, 11295350415171031401, 4822049416915430014,
+        6611595693926236079, 6803111554247559080, 7927688743309116832,
+        11893862848432381456, 325471628277890068, 10817033877987383921,
+        8925033097039640282, 17069348346457576692, 10276174505467881929,
+        11875023911461176282,
+    ),
+    "tail_pad_partial": (
+        2950107238472419466, 4728159212259253614, 18111887492522755651,
+        9140328451134946095, 1314372130655586932, 5322518426578539783,
+        11992063084905341606, 15400833634122629154, 3529834547416130837,
+        7921318513022779918, 13553397257664432005, 17475294157031924348,
+        17418874862066577499, 10895320156938696614, 10936667320058789071,
+        1338209323249322002, 7216595986854475520, 4793881105000941864,
+        17073690380024410904, 7860782204846902866, 322940830386184969,
+        12195366726611035219, 11222418984637169110, 8349055554845801795,
+        17044494336387915365, 16053642853841192442, 16861138099257329580,
+        4126900765262296080, 2068413112397655695, 5957469994242359829,
+        15328134555288954908, 14524201829430656591, 2745567538331443466,
+        8086885685692100628, 14976603469188195757, 11201169556798346529,
+        14467187598624688196, 6984964357508037964, 6742419117097976057,
+        8664182351178303784, 11071890302240370881, 15382524530543830635,
+        11687230826954572494, 12491142954281795227, 8520318026230912243,
+        12643784169058074668, 9405083474957841261, 16665885909358376573,
+        18249890866355412233, 14408370353921725319, 5358326026796545073,
+        7227662311729508911, 11372757902025941013, 11801398868443663364,
+        4989039293178604692, 17135040927827564890, 5058831155030233987,
+        12086593596706850015, 7441323123089557867, 8564021712748352268,
+        8407349095320238984, 6711668886583145322, 16006541371913140928,
+        5612761449552006466, 3675534692084905543, 2783823948203323717,
+        1436817410972915555, 7834928517986292461, 4154888636683626840,
+        7989750271945481199, 13634263660288374085, 6955389973587372917,
+        9180383766860190499, 6952293320904211927, 6748782598586994979,
+        4253457156863074646, 11142837752096430069, 16997431047951265286,
+        5369747510827832123, 4350594805039403433, 16685540167242477619,
+        1090666858176729082, 2255967455722499929, 14777454640812610444,
+        2525175919623474369, 5598123152106443704, 921651463702424006,
+        3705540309197786552, 3014180255842126944, 5482386203974961745,
+        2234442819585502761, 5134011881415593901, 1186787437027581685,
+        9705661780509734953, 9691500691647653002, 3681357664223414195,
+        10056297365466280867, 12950703775444249662, 16965550601780245745,
+        10951300387926519703, 11612627400226047492, 16759426114580690998,
+        6658333598575461182, 10788575364940578614, 13050032149160132694,
+        3392219085474648900, 15293361135745042817, 11899499376296752622,
+        1713220488914090474, 8324972727435406703, 5235365573081987530,
+        11579237227853750025, 9817288030651053310, 10798152106830907078,
+        13056034300313844368, 5803688337987614998, 3875400598371934432,
+        16946233990750828764, 15827716691313524700, 5305741849612647048,
+        3721243944063802233, 10402796894441822239, 15195217157026618130,
+        17659543404841140297, 10772738976871955046, 12624015892183049521,
+        5066559147082998548, 9863967612665876337, 11846538372407324895,
+        1992919954658304516, 16205010896491803505, 2028856745023040660,
+        3065727619890136330,
     ),
     # THE TWO CASES THE GOVERNANCE PASS OF STAGE 3'S REVIEW ADDS:
     # G5.3e's floor under a listed value (item 1) and the tail that

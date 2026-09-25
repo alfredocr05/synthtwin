@@ -12125,20 +12125,26 @@ def _within_the_marks(
     `0.01 EUR` with no mark in it, and its own description counted one
     mark fewer than the 240 the source published.
 
+    A `(withheld)` POOL IS MARKED CELLS TOO: the census counts only
+    cells that PROVE a mark and pools the marks below the floor
+    (contract C6-87, C6-88), so its cells are counted named and pooled,
+    as G6.5a's `C` is. Measured before: 210 amounts of 1,000 to 60,000,
+    seven marks on thirty cells each at a floor of 31, published
+    `{"(withheld)": 210}` and the twin wrote `1` at seeds 1, 4, 7 and 13
+    with nothing named.
+
     Guarantees: accepts a derived end, which side it is, the boundary
     rung it was measured from and the block's facts; returns the end
-    at a thousand or beyond in size where the census counts a mark on
-    every numeric cell, never past the boundary, and the end unchanged
-    otherwise. Determinism: a function of those. Raises nothing. No I/O
-    of any kind.
+    at a thousand or beyond in size where the census, named and pooled,
+    counts a mark on every numeric cell, never past the boundary, and
+    the end unchanged otherwise. Determinism: a function of those.
+    Raises nothing. No I/O of any kind.
     """
     census = facts.thousands_marks
     if not census:
         return value
     counted = 0
     for mark in census:
-        if mark == WITHHELD:
-            return value
         counted = counted + census[mark]
     if counted != facts.n_used_in_statistics:
         return value

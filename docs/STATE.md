@@ -48,10 +48,10 @@ stays in scope.
 | branch | `phase-5-relationships`, cut from `main`. `main` is pull-request only. Stage 2b was built on `carried-2b-integration`, cut from it at `53bb012`, and lands on it whole |
 | phase | **Phase 4 REOPENED 2026-09-12** — it closed on 2026-09-11 with silent within-column defects live inside its own charter. Phase 5 does not start until the ordered list below reaches it |
 | plan | This page is the plan of record. `docs/plans/phase-5-relationships.md` is a DRAFT whose scope is superseded: it deferred correlation, and correlation is now mandatory |
-| suite | 7,716 collected, and about 66 minutes in one process on the quiet machine (ledger `K-P0-10` carries the seconds). In CI it runs as **five shards**, the heaviest about 20 minutes. Re-measure here whenever the count moves |
+| suite | 7,730 collected, and about 66 minutes in one process on the quiet machine (ledger `K-P0-10` carries the seconds). In CI it runs as **five shards**, the heaviest about 20 minutes. Re-measure here whenever the count moves |
 | KPIs | `tests/kpi/ledger.json`: 166 KPIs over phases 0-4 and stages 1, 2, 2b and 3, 30 of them headlines — which is the cap, so the next landing demotes one or raises it deliberately; 150 green, 10 open with the stage that owns each, 6 limits the owner accepted. Stage 3's five landings each allocated from `K-S3-01` and their integration renumbered them `K-S3-01` to `K-S3-12`, keeping ONE of them a headline (`K-S3-11`, the tail leak) and demoting the rest; the stage's gate added `K-S3-13` and `K-S3-14`, and its review's fix pass `K-S3-15`. **One command re-measures them all:** `.venv/bin/python tools/measurements/kpi_run.py` (add `--slow` for timings and scale). Run it at every stage close: **a KPI that drops is a regression even when every test is green** |
 | checks | `ruff check .`, `mypy --strict src/`, the offline import scan, the provenance check, the decontamination scan, the signed attestation and the disposition seal — all clean |
-| CI | runs on every pull request, five Pythons across Ubuntu, Windows and macOS. **It saw stages 1, 2 and 2b for the first time on 2026-09-20 (PR #6, run 35508922164): every static check green, every test cell red on three defects, all three repaired.** Its **second** run (35541541720) was red again on a deeper layer, all of it in the tests: two that asserted the answer for the machine they ran on, a `Path.read_text(newline=)` that exists only on 3.13 while the floor is 3.10, seventeen Windows failures caused by a temporary path containing `AppData` (which contains a sheet name the test forbade), and about 25 workbook cases that failed instead of skipping where openpyxl is absent. All repaired, each with a guard that now fails HERE rather than in CI. The suite is sharded five ways since, so a cell should cost about 13 minutes rather than up to three hours. A green local suite is not a green CI. Check `gh pr checks` before believing a branch is done |
+| CI | runs on every pull request, five Pythons across Ubuntu, Windows and macOS. **It saw stages 1, 2 and 2b for the first time on 2026-09-20 (PR #6, run 35508922164): every static check green, every test cell red on three defects, all three repaired.** Its **second** run (35541541720) was red again on a deeper layer, all of it in the tests: two that asserted the answer for the machine they ran on, a `Path.read_text(newline=)` that exists only on 3.13 while the floor is 3.10, seventeen Windows failures caused by a temporary path containing `AppData` (which contains a sheet name the test forbade), and about 25 workbook cases that failed instead of skipping where openpyxl is absent. All repaired, each with a guard that now fails HERE rather than in CI. The suite is sharded five ways since, so a cell should cost about 13 minutes rather than up to three hours. **Its third run (35670708722, on `eaff15f`, 2026-09-22) passed 69 of 69 jobs**; it has not seen stage 3. A green local suite is not a green CI. Check `gh pr checks` before believing a branch is done |
 | review | **ONE round per landing** (owner, 2026-09-12), `codex exec -m gpt-6-astra -c model_reasoning_effort="ultra" -s read-only`. Fix what it raises; never send the fixes back |
 
 ## What is being built, in order
@@ -180,6 +180,27 @@ cannot get worse unseen.
   one shape each: two date-width allocations, one identifier layout, a
   sign band given more slots than it has numbers. The known-miss entry
   of the ledger names them.
+- **A tail withheld at a raised floor costs the twin its spread.**
+  Where the back-solve cannot show inside its budget that a tail's facts
+  fit a second set of distances, the tail publishes neither distance
+  (P4-D349) and the twin's tail has nothing to aim at. Measured
+  2026-09-25 over fifteen ordinary shapes -- whole numbers drawn
+  uniformly and normally, two-place normal and lognormal readings, ages;
+  150, 400 and 1,500 rows; three seeds: at the default floor of 11 no
+  tail is withheld and every twin passes its own check; at a floor of 36
+  an all-different column of 150 or 400 rows withholds both tails and
+  misses its spread (uniform) or its mean (lognormal) at every seed,
+  where `caf3079` passed. `K-S3-15` is the same cost on its own battery.
+  The candidate repair is a direct witness tried before the walk: four
+  distances each moved one step, which keeps the sum and the sum of
+  squares. Accepted by no one yet; a stage-3 follow-up before 3b.
+- **A census of marks that is only a pool is never written.** Where
+  every thousands-mark convention stands below the floor,
+  `thousands_marks` publishes only `(withheld)`, and the twin writes
+  those cells bare, against contract C6-89, with nothing named by
+  validation: 210 of 210 bare at five seeds (seven marks of 30 cells,
+  floor 31). At the default floor it takes several conventions of ten
+  cells or fewer each. A stage-3 follow-up before 3b.
 - **The largest tables** are measured only to 100,000 rows. Landing 4.
 - **Checking a file costs more.** The checker now has tails to check:
   20,000 rows by 20 columns take about 30 per cent longer than the
