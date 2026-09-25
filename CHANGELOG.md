@@ -6,6 +6,26 @@ exists).
 
 ## [Unreleased]
 
+### The census's reading is handed over, not taken twice (2026-09-24)
+
+**`K-S1-05` went from 14.1 s to 19-20 s over stage 3, and all of it was
+two repeats.** The population census read a column under the finished
+reading and `profile_column` read the same column again with the same
+arguments; `person_questions` split every column `questions_for` had
+just split. Both answers are now handed over explicitly:
+`taxonomy.population_census` returns the one reading it keeps
+(`HeldReading`, with every argument it was read under),
+`profile.build_document` passes it to `profile_column`, which takes it
+only where every argument matches; `asking.questions_and_splits_for`
+returns its splits for `person_questions`. The census keeps ONE
+reading: keeping all of them raised peak memory from 218 MB to 599 MB
+on 50,000 rows by 20 columns with an empty row. cProfile calls on
+`labels2` fall from 190.4 M to 140.0 M at 50,000 rows and from
+746.2 M to 544.8 M at 200,000 (541.7 M on `caf3079`). Every output file, exit code and message is
+byte-identical to `68be599` over a battery of 22 shapes.
+`tests/test_census_reading_handed_over.py` counts the readings and
+splits.
+
 ### Two stale records re-measured at the close of stage 3 (2026-09-24)
 
 **`K-P0-10` recorded the suite exiting 1, and `K-P4-06` recorded 556

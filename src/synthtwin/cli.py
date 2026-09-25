@@ -1863,10 +1863,13 @@ def _population_of(
     codes: "list[str] | None" = None,
     measurements: "list[str] | None" = None,
     decimal_commas: "list[str] | None" = None,
-) -> "tuple[tuple[str, ...], int, str]":
+) -> "tuple[tuple[str, ...], int, str, tuple[object, ...]]":
     """The person columns, the population and the word it is counted in.
 
-    Returns (person columns, how many, the unit word). The unit is
+    Returns (person columns, how many, the unit word, the readings the
+    census took). The readings are handed to `profile.build_document`
+    right after, so a column the census read under the finished reading
+    is not read again there (`taxonomy.population_census`). The unit is
     `people` where some declared identifier REPEATS and `rows` where
     none does, which is what `taxonomy.repeating_identifiers` decides
     and says why at length.
@@ -1893,7 +1896,7 @@ def _population_of(
     Guarantees: accepts the table's column names, its columns as text
     in the same order, the settings in force and the columns declared
     with `--identifier`, `--code`, `--measurement` and
-    `--decimal-comma`; returns the three. A fixed function of them.
+    `--decimal-comma`; returns the four. A fixed function of them.
     Raises TypeError where the settings are not settings, which is an
     internal invariant. Opens no file and prints nothing.
     """
@@ -1911,16 +1914,13 @@ def _population_of(
             decimal_commas if decimal_commas is not None else []
         ),
     )
-    people = taxonomy.repeating_identifiers(
+    people, counted, readings = taxonomy.population_census(
         column_names, columns, declared, settings, declarations
-    )
-    counted = taxonomy.people_in(
-        column_names, columns, people, settings, declarations
     )
     unit = taxonomy.NOTE_UNIT_ROWS
     if people:
         unit = taxonomy.NOTE_UNIT_PEOPLE
-    return people, counted, unit
+    return people, counted, unit, readings
 
 
 def _table_sentences(document: "dict[str, object]") -> "list[str]":
@@ -2458,7 +2458,7 @@ def _run_profile(
     # NOTHING HAS BEEN WRITTEN AT THIS POINT and nothing has been
     # described. A table under the floor therefore costs the person one
     # message and no files at all.
-    person_columns, population, unit = _population_of(
+    person_columns, population, unit, census_readings = _population_of(
         read.column_names,
         read.columns,
         settings,
@@ -2489,7 +2489,10 @@ def _run_profile(
         forced_metadata_rows=metadata_rows,
         forced_delimiter=declared_delimiter,
         table_notes=population_notes,
+        readings=census_readings,
     )
+    # Handed over once: the description has taken the reading as its own.
+    census_readings = ()
 
     # THE ONE QUESTION THE VALUES CANNOT SETTLE (plan P4-D19). Asked
     # after the description is built, because what a column was READ AS
@@ -2533,7 +2536,7 @@ def _run_profile(
     already_answered = (
         forced_identifiers + forced_codes + forced_measurements
     )
-    asked_about = asking.questions_for(
+    asked_about, split_columns = asking.questions_and_splits_for(
         document,
         read.columns,
         settings,
@@ -2557,6 +2560,7 @@ def _run_profile(
         settings,
         already_answered,
         asked_about,
+        split_columns,
     )
     # EVERY COLUMN READ AS A NUMBER, LISTED UNDER ONE QUESTION
     # (owner ruling 2026-09-10, amendment A-P4-58). The questions
@@ -2650,14 +2654,19 @@ def _run_profile(
                 # asked HERE, before anything is announced and before
                 # anything is written, so a refusal still costs one
                 # message and no files.
-                person_columns, population, unit = _population_of(
-                    read.column_names,
-                    read.columns,
-                    settings,
-                    forced_identifiers,
-                    forced_codes,
-                    forced_measurements,
-                    forced_decimal_commas,
+                # READ AFRESH under the final declarations, and handed
+                # over again: the first census's readings were the
+                # first description's.
+                person_columns, population, unit, census_readings = (
+                    _population_of(
+                        read.column_names,
+                        read.columns,
+                        settings,
+                        forced_identifiers,
+                        forced_codes,
+                        forced_measurements,
+                        forced_decimal_commas,
+                    )
                 )
                 if population < parsing.POPULATION_FLOOR:
                     _warn(
@@ -2684,7 +2693,9 @@ def _run_profile(
                     forced_metadata_rows=metadata_rows,
                     forced_delimiter=declared_delimiter,
                     table_notes=population_notes,
+                    readings=census_readings,
                 )
+                census_readings = ()
                 # And the role check is asked again of the rebuilt
                 # description, for the same reason.
                 for name in sorted(forced_decimal_commas):
@@ -2951,7 +2962,7 @@ def _run_profile(
     # an answered column is gone and every reading left is the one in
     # force.
     settled = forced_identifiers + forced_codes + forced_measurements
-    asked_about = asking.questions_for(
+    asked_about, split_columns = asking.questions_and_splits_for(
         document, read.columns, settings, settled, tuple(forced_decimal_commas)
     )
     # ...AND THE PERSON QUESTION, recomputed from the FINAL
@@ -2966,6 +2977,7 @@ def _run_profile(
         settings,
         settled,
         asked_about,
+        split_columns,
     )
     listed_about = asking.checklist_for(
         document, read.columns, settings, settled, asked_about

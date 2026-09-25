@@ -3575,6 +3575,7 @@ def build_document(
     kept_placeholder_days: "dict[str, tuple[str, ...]] | None" = None,
     judged_candidates: "dict[str, tuple[str, ...]] | None" = None,
     table_notes: "list[taxonomy.Note] | None" = None,
+    readings: "tuple[object, ...]" = (),
 ) -> dict[str, object]:
     """Describe a whole table: the profile document, ready to serialize.
 
@@ -3631,6 +3632,14 @@ def build_document(
       cells as the source wrote them, and this is how the checked file
       reads them as the description did without its own values having
       to fire the judgement again. `synthtwin profile` never passes it.
+    - ``readings`` is what `synthtwin profile`'s population census read
+      (`taxonomy.population_census`), handed over so a column the census
+      read is not read again. Each is passed to `profile_column` for the
+      column whose cells it was read from, once, and `profile_column`
+      takes it only where every argument of the reading is the one it
+      would have read under; an entry that is not a
+      `taxonomy.HeldReading` is passed to nothing. The document is the
+      same with or without them.
     """
     declared_codes = [] if forced_codes is None else forced_codes
     declared_measurements = (
@@ -3691,11 +3700,27 @@ def build_document(
     # cannot say two different things.
     for spoken in table_notes if table_notes else []:
         notes += [{"column": "", "note": spoken}]
+    # EACH CENSUS READING IS HANDED OVER ONCE, to the column it was read
+    # from: the description takes the reading's lists as its own.
+    waiting = readings
     for position, name in enumerate(table.column_names, start=1):
+        cells = table.columns[position - 1]
+        handed_over: "taxonomy.HeldReading | None" = None
+        still_waiting: "tuple[object, ...]" = ()
+        for held in waiting:
+            if (
+                handed_over is None
+                and isinstance(held, taxonomy.HeldReading)
+                and held.values is cells
+            ):
+                handed_over = held
+                continue
+            still_waiting += (held,)
+        waiting = still_waiting
         described = taxonomy.profile_column(
             name,
             position,
-            table.columns[position - 1],
+            cells,
             table.n_rows,
             settings,
             name in forced_identifiers,
@@ -3705,6 +3730,7 @@ def build_document(
             name in read_as_pairs,
             kept_days[name] if name in kept_days else (),
             judged_here[name] if name in judged_here else (),
+            handed_over,
         )
         columns += [_column_block(described)]
         absent_spellings += [described.absent_spellings]
