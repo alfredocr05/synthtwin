@@ -762,6 +762,24 @@ def _joined_choices(role: str, floor: int) -> "list[Choice]":
     ]
 
 
+@dataclasses.dataclass(frozen=True, eq=False)
+class SplitColumns:
+    """The present cells `questions_for` split out of the columns it read.
+
+    Handed to `person_questions`, which asks `taxonomy.split_missing` the
+    same question of the same columns under the same settings, so each
+    column is split once. ``cells[place]`` is the column object the list
+    ``present[place]`` was split from, and `person_questions` takes a
+    list only where the table's column at that place IS that object and
+    the settings are equal to ``settings``; anything else it splits
+    itself.
+    """
+
+    settings: taxonomy.Settings
+    cells: "dict[int, list[str]]"
+    present: "dict[int, list[str]]"
+
+
 def questions_for(
     document: "dict[str, object]",
     table_columns: "list[list[str]]",
@@ -770,6 +788,27 @@ def questions_for(
     decimal_commas: "tuple[str, ...]" = (),
 ) -> "list[Question]":
     """Every column worth asking about, in the table's own order.
+
+    `questions_and_splits_for` without the present cells it split, for
+    a caller that asks nothing after it.
+    """
+    return questions_and_splits_for(
+        document, table_columns, settings, already, decimal_commas
+    )[0]
+
+
+def questions_and_splits_for(
+    document: "dict[str, object]",
+    table_columns: "list[list[str]]",
+    settings: taxonomy.Settings,
+    already: "list[str]",
+    decimal_commas: "tuple[str, ...]" = (),
+) -> "tuple[list[Question], SplitColumns]":
+    """Every column worth asking about, in the table's own order.
+
+    Returned with the present cells split out of every column read on
+    the way (`SplitColumns`), which `person_questions` takes rather than
+    splitting the same columns again.
 
     Guarantees:
 
@@ -789,9 +828,11 @@ def questions_for(
     `2.433` beside `771` was still asked whether its point was a mark
     between thousands).
     """
+    split_cells: "dict[int, list[str]]" = {}
+    split_present: "dict[int, list[str]]" = {}
     blocks = document["columns"]
     if not isinstance(blocks, list):
-        return []
+        return [], SplitColumns(settings, split_cells, split_present)
     asked: list[Question] = []
     position = 0
     for block in blocks:
@@ -809,6 +850,8 @@ def questions_for(
         present, _absent = taxonomy.split_missing(
             table_columns[position], settings
         )
+        split_cells[position] = table_columns[position]
+        split_present[position] = present
         if role not in NUMERIC_ROLES and role not in JOINED_ROLES:
             position = position + 1
             continue
@@ -871,7 +914,7 @@ def questions_for(
                 )
             ]
         position = position + 1
-    return asked
+    return asked, SplitColumns(settings, split_cells, split_present)
 
 
 def file_questions(
@@ -1642,6 +1685,7 @@ def person_questions(
     settings: taxonomy.Settings,
     already: "list[str]",
     asked: "list[Question]",
+    split: "SplitColumns | None" = None,
 ) -> "list[Question]":
     """The question about who the rows are, where nobody has said.
 
@@ -1678,8 +1722,12 @@ def person_questions(
     - Inputs: the profile document, the table's columns as text in the
       same order, the settings that produced it -- whose
       `person_columns` is what says whether anybody has settled who the
-      rows are about -- the names already declared any way at all, and
-      the questions already asked so no column is asked twice.
+      rows are about -- the names already declared any way at all, the
+      questions already asked so no column is asked twice, and what
+      `questions_and_splits_for` split out of the same columns, taken
+      where it was split from the same column under the same settings
+      so no column is split twice (none means every column is split
+      here).
     - Determinism: a fixed function of the arguments, in the table's
       own column order.
     - Errors raised: none.
@@ -1711,9 +1759,17 @@ def person_questions(
         if position >= len(table_columns):
             position = position + 1
             continue
-        present, _absent = taxonomy.split_missing(
-            table_columns[position], settings
-        )
+        if (
+            split is not None
+            and position in split.present
+            and split.cells[position] is table_columns[position]
+            and split.settings == settings
+        ):
+            present = split.present[position]
+        else:
+            present, _absent = taxonomy.split_missing(
+                table_columns[position], settings
+            )
         if _names_people(present, role, rows, settings):
             found += [
                 Question(

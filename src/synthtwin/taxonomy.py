@@ -2908,7 +2908,8 @@ def _present_spellings(
     settings: Settings,
     name: str = "",
     declared: "Declarations | None" = None,
-) -> "dict[str, int]":
+    held: "tuple[HeldReading, ...]" = (),
+) -> "tuple[dict[str, int], tuple[HeldReading, ...]]":
     """Which of a column's SPELLINGS are present under the FINISHED reading.
 
     A spelling's fate is the same on every row that wears it -- every
@@ -2931,22 +2932,31 @@ def _present_spellings(
     reading of the column.
 
     Guarantees: accepts a column's cells, the settings, the column's
-    name and the declarations in force; returns a mapping whose keys are
-    exactly the spellings that are PRESENT, each mapped to 1.
+    name, the declarations in force and the reading this census keeps
+    (`HeldReading`); returns a mapping whose keys are exactly the
+    spellings that are PRESENT, each mapped to 1, and what the census
+    keeps after this column (`_census_reading` says which) -- the reading
+    `present_spellings_after_the_rules` takes, kept so the description
+    can be handed it rather than read the column again.
     Determinism: a fixed function of the arguments. Raises nothing a
     caller can provoke -- the one refusal of the reading, a value
     declared both data and missing, is refused by the command before any
     census runs. No I/O of any kind.
     """
     stated = declared if declared is not None else Declarations()
-    return present_spellings_after_the_rules(
+    kept, held = _census_reading(
         cells,
         settings,
-        forced_identifier=name in stated.identifiers,
-        forced_code=name in stated.codes,
-        forced_measurement=name in stated.measurements,
-        forced_decimal_comma=name in stated.decimal_commas,
+        name in stated.identifiers,
+        name in stated.codes,
+        name in stated.measurements,
+        name in stated.decimal_commas,
+        held,
     )
+    standing: "dict[str, int]" = {}
+    for value in kept.reading.present:
+        standing[value] = 1
+    return standing, held
 
 
 def repeating_identifiers(
@@ -3004,6 +3014,25 @@ def repeating_identifiers(
       are COLUMN NAMES, which the settings block already carries under
       `forced_identifiers`, and no spelling of any cell.
     """
+    return _repeating_identifiers_held(
+        column_names, columns, declared, settings, declarations, ()
+    )[0]
+
+
+def _repeating_identifiers_held(
+    column_names: "list[str]",
+    columns: "list[list[str]]",
+    declared: "list[str]",
+    settings: Settings,
+    declarations: "Declarations | None",
+    held: "tuple[HeldReading, ...]",
+) -> "tuple[tuple[str, ...], tuple[HeldReading, ...]]":
+    """`repeating_identifiers`, and the readings the census holds after it.
+
+    Guarantees: `repeating_identifiers`'s own, over the same arguments,
+    plus ``held``: what this census keeps, returned as it stands after
+    the columns read here (`_census_reading`).
+    """
     found: "list[str]" = []
     for name in sorted(declared):
         if found and found[len(found) - 1] == name:
@@ -3011,7 +3040,9 @@ def repeating_identifiers(
         cells = _column_named(name, column_names, columns)
         if cells is None:
             continue
-        standing = _present_spellings(cells, settings, name, declarations)
+        standing, held = _present_spellings(
+            cells, settings, name, declarations, held
+        )
         seen: "dict[str, int]" = {}
         repeats = False
         for value in cells:
@@ -3024,7 +3055,7 @@ def repeating_identifiers(
             seen[key] = 1
         if repeats:
             found += [name]
-    return tuple(found)
+    return tuple(found), held
 
 
 def people_in(
@@ -3089,19 +3120,71 @@ def people_in(
     - Boundary: opens no file, prints nothing and publishes nothing.
       What it returns is one whole number.
     """
+    return _people_held(
+        column_names, columns, person_columns, settings, declarations, ()
+    )[0]
+
+
+def population_census(
+    column_names: "list[str]",
+    columns: "list[list[str]]",
+    declared: "list[str]",
+    settings: Settings,
+    declarations: "Declarations | None" = None,
+) -> "tuple[tuple[str, ...], int, tuple[HeldReading, ...]]":
+    """The person columns, how many people, and the reading the census kept.
+
+    `repeating_identifiers` then `people_in`, over one kept reading: the
+    first column the census reads is read once however many of its
+    questions ask after it, and that reading is RETURNED so the command
+    can hand it to `profile.build_document`, which is the one other
+    place the same column is read under the same arguments (plan
+    P4-D341: the census runs before anything is described, and the
+    description then read every census column again).
+
+    Guarantees: accepts the column names, the columns as text in the
+    same order, the names declared with `--identifier`, the settings and
+    the declarations in force; returns the repeating identifiers, the
+    population `people_in` counts over them, and what the census kept --
+    at most one reading (`_census_reading` says why one). A fixed function of the arguments. Raises
+    what `_read_the_column` raises. No I/O of any kind.
+    """
+    people, held = _repeating_identifiers_held(
+        column_names, columns, declared, settings, declarations, ()
+    )
+    counted, held = _people_held(
+        column_names, columns, people, settings, declarations, held
+    )
+    return people, counted, held
+
+
+def _people_held(
+    column_names: "list[str]",
+    columns: "list[list[str]]",
+    person_columns: "tuple[str, ...]",
+    settings: Settings,
+    declarations: "Declarations | None",
+    held: "tuple[HeldReading, ...]",
+) -> "tuple[int, tuple[HeldReading, ...]]":
+    """`people_in`, and the readings the census holds after it.
+
+    Guarantees: `people_in`'s own, over the same arguments, plus
+    ``held``: what this census keeps, returned as it stands after the
+    columns read here (`_census_reading`).
+    """
     rows = 0
-    for held in columns:
-        if len(held) > rows:
-            rows = len(held)
-    holding = _rows_holding_a_value(
-        columns, rows, settings, column_names, declarations
+    for column in columns:
+        if len(column) > rows:
+            rows = len(column)
+    holding, held = _rows_holding_a_value(
+        columns, rows, settings, column_names, declarations, held
     )
     if not person_columns:
         count = 0
         for place in range(rows):
             if holding[place]:
                 count = count + 1
-        return count
+        return count, held
     # `home[row]` is the row this one has been merged onto. Every merge
     # points at the EARLIER row of the two, so the walk to a group's
     # first row is short and the answer does not depend on the order
@@ -3122,7 +3205,9 @@ def people_in(
         cells = _column_named(name, column_names, columns)
         if cells is None:
             continue
-        standing = _present_spellings(cells, settings, name, declarations)
+        standing, held = _present_spellings(
+            cells, settings, name, declarations, held
+        )
         earliest: "dict[str, int]" = {}
         place = 0
         for value in cells:
@@ -3155,7 +3240,7 @@ def people_in(
             continue
         if first_of(place) == place:
             people = people + 1
-    return people + unknown
+    return people + unknown, held
 
 
 def _rows_holding_a_value(
@@ -3164,7 +3249,8 @@ def _rows_holding_a_value(
     settings: Settings,
     column_names: "list[str] | None" = None,
     declarations: "Declarations | None" = None,
-) -> "list[bool]":
+    held: "tuple[HeldReading, ...]" = (),
+) -> "tuple[list[bool], tuple[HeldReading, ...]]":
     """Which rows hold a PRESENT value in some column (landing 3.2 repair).
 
     The same `_present_spellings` pass `people_in` already makes over
@@ -3182,10 +3268,11 @@ def _rows_holding_a_value(
 
     Guarantees: accepts the columns as text, how many rows the longest
     of them has, the settings that say which spellings mean "no value",
-    the column names in the same order as the columns and the
-    declarations in force; returns one truth value per row, in row
-    order. A fixed function of the arguments. Raises nothing. No I/O of
-    any kind.
+    the column names in the same order as the columns, the
+    declarations in force and what the census keeps; returns one truth
+    value per row, in row order, and what the census keeps after the
+    columns read here (`_census_reading`). A fixed function of the arguments. Raises nothing.
+    No I/O of any kind.
     """
     named = column_names if column_names is not None else []
     holding: "list[bool]" = []
@@ -3193,25 +3280,27 @@ def _rows_holding_a_value(
         holding += [False]
     outstanding = rows
     place_of_column = 0
-    for held in columns:
+    for column in columns:
         name = ""
         if place_of_column < len(named):
             name = named[place_of_column]
         place_of_column = place_of_column + 1
         if not outstanding:
             break
-        standing = _present_spellings(held, settings, name, declarations)
+        standing, held = _present_spellings(
+            column, settings, name, declarations, held
+        )
         if not standing:
             continue
         place = 0
-        for value in held:
+        for value in column:
             if place >= rows:
                 break
             if not holding[place] and value in standing:
                 holding[place] = True
                 outstanding = outstanding - 1
             place = place + 1
-    return holding
+    return holding, held
 
 
 def axes_of(role: str, forced_identifier: bool) -> "tuple[str, str, str]":
@@ -19017,6 +19106,171 @@ def _read_the_column(
     )
 
 
+@dataclasses.dataclass(frozen=True, eq=False)
+class HeldReading:
+    """A column's finished reading, kept with EVERY argument it was read under.
+
+    The population census reads each column it needs under the finished
+    reading before anything is described (plan P4-D341), and
+    `profile_column` then asks the same question of the same cells. This
+    record is how the census's answer is HANDED OVER rather than asked
+    for twice: the command passes what the census kept to
+    `profile.build_document`, which passes each one to `profile_column`
+    once, and `profile_column` takes it only where `_same_reading` says
+    that every argument `_read_the_column` depends on is the one it would
+    have read under. Anything else is read as before.
+
+    `values` is the column's own list object, compared by identity: a
+    different list with the same cells is a different column as far as
+    the hand-over is concerned, and is simply read again. The list must
+    not be changed in place between the census and the description; the
+    command never does, and nothing here would notice if it were.
+
+    `reading` is exactly what `_read_the_column` returned under
+    `settings`. Taken under settings that differ in `person_columns`
+    alone, it is the same reading except for the settings its tally
+    carries, which `profile_column` replaces before describing.
+    """
+
+    values: "list[str]"
+    n_rows: int
+    settings: Settings
+    forced_identifier: bool
+    forced_code: bool
+    forced_measurement: bool
+    forced_decimal_comma: bool
+    described_as_pair: bool
+    kept_placeholder_days: "tuple[str, ...]"
+    judged_candidates: "tuple[str, ...]"
+    reading: _ColumnReading
+
+
+def _same_reading(
+    held: HeldReading,
+    values: list[str],
+    n_rows: int,
+    settings: Settings,
+    forced_identifier: bool,
+    forced_code: bool,
+    forced_measurement: bool,
+    forced_decimal_comma: bool,
+    described_as_pair: bool,
+    kept_placeholder_days: "tuple[str, ...]",
+    judged_candidates: "tuple[str, ...]",
+) -> bool:
+    """Whether ``held`` is the reading `_read_the_column` would return here.
+
+    `_read_the_column` is a fixed function of its arguments, so the kept
+    reading answers when every argument is the same: the same column
+    OBJECT, the same row count, every flag, and settings equal in
+    everything the reading consults. The one field of the settings it
+    never CONSULTS is `person_columns`, which the command sets from the
+    census's own answer between the census and the description; the
+    settings are compared with that field set aside and every other
+    field held equal. The reading still CARRIES the settings it was read
+    under (on its tally, `_Cells.settings`), so where `person_columns`
+    differs the kept reading is exact only once its tally is given the
+    settings asked with -- which `profile_column` does before it uses
+    it. Whoever takes a reading on this answer does the same.
+
+    The column list is matched by identity, not by content: it must not
+    have been changed in place since the census read it.
+
+    Guarantees: a fixed function of the arguments; raises nothing; no
+    I/O of any kind.
+    """
+    if held.values is not values:
+        return False
+    if held.n_rows != n_rows:
+        return False
+    if (
+        held.forced_identifier != forced_identifier
+        or held.forced_code != forced_code
+        or held.forced_measurement != forced_measurement
+        or held.forced_decimal_comma != forced_decimal_comma
+        or held.described_as_pair != described_as_pair
+    ):
+        return False
+    if tuple(held.kept_placeholder_days) != tuple(kept_placeholder_days):
+        return False
+    if tuple(held.judged_candidates) != tuple(judged_candidates):
+        return False
+    return dataclasses.replace(
+        held.settings, person_columns=()
+    ) == dataclasses.replace(settings, person_columns=())
+
+
+def _census_reading(
+    values: list[str],
+    settings: Settings,
+    forced_identifier: bool,
+    forced_code: bool,
+    forced_measurement: bool,
+    forced_decimal_comma: bool,
+    held: "tuple[HeldReading, ...]",
+) -> "tuple[HeldReading, tuple[HeldReading, ...]]":
+    """The census's reading of one column, and the one reading it keeps.
+
+    Returns the reading together with what the census holds after it:
+    ``held`` unchanged where a kept reading already answered or one is
+    already kept, and this reading alone where nothing was kept yet.
+
+    THE CENSUS KEEPS ONE READING, THE FIRST IT TAKES, AND NO MORE. A
+    reading holds a record per present cell, several times the column's
+    own text, and describing holds one at a time. Keeping every reading
+    the census took was measured on a table of 50,000 rows by 20 columns
+    of figures with one row holding nothing, where the census reads
+    every column: the peak memory of `synthtwin profile` went from 218
+    MB to 599 MB. One kept reading costs at most one column's reading
+    beside what describing already holds, and it is the whole of the
+    ordinary case: a table whose first column is full is settled by
+    that column alone, and an identifier is read first and then asked
+    after again by the count of rows and the count of people.
+
+    Guarantees: a fixed function of the arguments; raises what
+    `_read_the_column` raises; no I/O of any kind.
+    """
+    for kept in held:
+        if _same_reading(
+            kept,
+            values,
+            len(values),
+            settings,
+            forced_identifier,
+            forced_code,
+            forced_measurement,
+            forced_decimal_comma,
+            False,
+            (),
+            (),
+        ):
+            return kept, held
+    fresh = HeldReading(
+        values=values,
+        n_rows=len(values),
+        settings=settings,
+        forced_identifier=forced_identifier,
+        forced_code=forced_code,
+        forced_measurement=forced_measurement,
+        forced_decimal_comma=forced_decimal_comma,
+        described_as_pair=False,
+        kept_placeholder_days=(),
+        judged_candidates=(),
+        reading=_read_the_column(
+            values,
+            len(values),
+            settings,
+            forced_identifier=forced_identifier,
+            forced_code=forced_code,
+            forced_measurement=forced_measurement,
+            forced_decimal_comma=forced_decimal_comma,
+        ),
+    )
+    if held:
+        return fresh, held
+    return fresh, (fresh,)
+
+
 def present_spellings_after_the_rules(
     values: list[str],
     settings: Settings,
@@ -19082,6 +19336,7 @@ def profile_column(
     described_as_pair: bool = False,
     kept_placeholder_days: "tuple[str, ...]" = (),
     judged_candidates: "tuple[str, ...]" = (),
+    handed_over: "HeldReading | None" = None,
 ) -> ColumnProfile:
     """Describe one column: its role, its statistics, what was withheld.
 
@@ -19123,6 +19378,12 @@ def profile_column(
       P4-D6.4, validation method V2.4-A8), because the twin writes those
       cells as the source wrote them and its own values need not fire
       the rules a second time. `synthtwin profile` never passes it.
+    - ``handed_over`` is the population census's reading of this column
+      (`HeldReading`), passed on so the column is not read a second
+      time. It is taken only where `_same_reading` finds every argument
+      of `_read_the_column` the same as here; otherwise the column is
+      read as if nothing had been handed over. Whoever passes it passes
+      it once: the reading's lists become this description's.
     - Errors raised: TypeError if a value is not text (an internal
       invariant: both readers produce text), and ValueError when the
       settings name one value BOTH as data and as "no value" -- there
@@ -19147,18 +19408,43 @@ def profile_column(
       on a declared identifier, how many different values cover one row,
       two rows and so on -- and keeps not one spelling of a value.
     """
-    read = _read_the_column(
+    if handed_over is not None and _same_reading(
+        handed_over,
         values,
         n_rows,
         settings,
-        forced_identifier=forced_identifier,
-        forced_code=forced_code,
-        forced_measurement=forced_measurement,
-        forced_decimal_comma=forced_decimal_comma,
-        described_as_pair=described_as_pair,
-        kept_placeholder_days=kept_placeholder_days,
-        judged_candidates=judged_candidates,
-    )
+        forced_identifier,
+        forced_code,
+        forced_measurement,
+        forced_decimal_comma,
+        described_as_pair,
+        kept_placeholder_days,
+        judged_candidates,
+    ):
+        # The kept reading's tally carries the settings it was read
+        # under, which differ from these in `person_columns` alone; the
+        # tally is given these, so what is described is field for field
+        # the reading `_read_the_column` would return here. A shallow
+        # copy of two records: no cell is read again.
+        read = dataclasses.replace(
+            handed_over.reading,
+            cells=dataclasses.replace(
+                handed_over.reading.cells, settings=settings
+            ),
+        )
+    else:
+        read = _read_the_column(
+            values,
+            n_rows,
+            settings,
+            forced_identifier=forced_identifier,
+            forced_code=forced_code,
+            forced_measurement=forced_measurement,
+            forced_decimal_comma=forced_decimal_comma,
+            described_as_pair=described_as_pair,
+            kept_placeholder_days=kept_placeholder_days,
+            judged_candidates=judged_candidates,
+        )
     cells = read.cells
     present = read.present
     missing = read.missing
