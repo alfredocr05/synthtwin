@@ -247,6 +247,21 @@ def test_a_bare_twin_is_missed(tmp_path):
     assert _verdict(profile, [_remarked(c, "") for c in written], tmp_path / "v") == "MISSED"
 
 
+def test_a_lone_pool_is_checked_and_not_listed(tmp_path):
+    """One obligation is either checked or listed, never both (plan P4-D352).
+
+    Mutation, run: the listing's skip withdrawn -- the pool is listed as
+    well as checked.
+    """
+    profile, written = _written(tmp_path)
+    path = tmp_path / "twin.csv"
+    names, built = fixtures.rows_at_the_floor("value", written)
+    path.write_text(fixtures.rows_to_csv(names, built), encoding="utf-8", newline="")
+    outcome = validation.measure(contract.load_profile(str(profile)), str(path))
+    assert [c.verdict for c in outcome.checks if c.subcheck == "spelling.thousands_marks"] == ["HELD"]
+    assert [item for item in outcome.listings if item.fact == "numeric.thousands_marks"] == []
+
+
 def test_a_twin_naming_a_mark_the_census_pooled_is_missed(tmp_path):
     """C6-89: sixty cells with one space name a convention the census pooled."""
     profile, written = _written(tmp_path)
@@ -359,6 +374,12 @@ def test_a_pool_that_would_name_every_convention_counts_under_the_commonest(
     assert first[fact] == census and first[majority] == word
     assert second[fact] == census and second[majority] == word
     assert twin_exit == 0 and real_exit == 0
+    # AND THE REPORT NAMES NOTHING THAT IS NOT SO: every grouped cell kept
+    # its mark, and the cells under a thousand never carried one, so the
+    # P4-D265 recount has nothing to report. Mutation, run: the recount
+    # counting every cell offered the mark -- 200 published against 70.
+    profile = contract.load_profile(str(tmp_path / "real-profile.json"))
+    assert [d for d in generation.generate(profile, 0).deviations if d.fact == fact] == []
 
 
 def test_a_pool_six_marks_cannot_hold_below_the_floor_is_refused(tmp_path):
