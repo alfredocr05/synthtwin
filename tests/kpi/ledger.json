@@ -6245,6 +6245,45 @@
      "shapes": 10
     }
    }
+  },
+  {
+   "id": "K-S3-16",
+   "phase_stage": "Stage 3 follow-up B (plan P4-D352)",
+   "category": "CODE",
+   "headline": false,
+   "name": "A census of marks that is only a pool is written, named and checked",
+   "status": "GREEN",
+   "rule": "over the eight shapes of tests/test_pool_alone_marks.py at seeds 0 to 4: twins whose own census is not the published pool with nothing named in their report, bare copies of twins holding the pool's count that are not MISSED, and real files MISSED all stay 0",
+   "rule_kind": "at_most",
+   "expected": {
+    "unnamed": 0,
+    "bare_not_missed": 0,
+    "real_missed": 0,
+    "twins": 40
+   },
+   "key_kinds": {
+    "twins": "at_least"
+   },
+   "tier": "FAST",
+   "source": "pytest",
+   "nodes": [],
+   "test": "tests/test_kpi_ledger.py::test_k_s3_16",
+   "driver": null,
+   "pin_strength": "NONE",
+   "measured_on": "eight seeded one-column shapes at floors 11 and 31, every pool at most six times one less than the floor",
+   "evidence": "6a7a7d7 read 40, 32, 0 of 40: every twin wrote the pool bare with nothing named and no check filed, so none of the 32 bare copies holding the pool's count drew a verdict. After the landing, 0, 0, 0 of 40: 37 twins pool the published count again and 3 -- the whole-number shape at seeds 0, 3 and 4, 61 groupable cells beside a pool of 60 -- name the difference, and every bare copy is MISSED. Every shape pools at most six times one less than its floor: a larger pool is counted under the commonest mark (plan P4-D352), which the band nodes of the same file pin.",
+   "nodes_min_collected": 0,
+   "value_at": {
+    "commit": "caf3079",
+    "date": "2026-09-25",
+    "measured_by": "tools/measurements/kpi_run.py --only K-S3-16 --print-values",
+    "value": {
+     "unnamed": 0,
+     "bare_not_missed": 0,
+     "real_missed": 0,
+     "twins": 40
+    }
+   }
   }
  ]
 }

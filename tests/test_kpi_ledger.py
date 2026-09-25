@@ -1443,3 +1443,28 @@ def test_k_s3_15(record_property, tmp_path: pathlib.Path) -> None:
             "shapes": shapes,
         },
     )
+
+
+def test_k_s3_16(record_property, tmp_path: pathlib.Path) -> None:
+    """P4-D352: a census of marks that is only a pool is written, named and checked.
+
+    Over the eight seeded shapes of tests/test_pool_alone_marks.py at
+    seeds 0 to 4, four numbers come back: the twins whose own description
+    does not publish the pool and whose report names no difference; the
+    bare copies of twins holding the pool's count that validation does not
+    call MISSED; the real files MISSED; and how many twins were built.
+    Before the landing every twin was bare and nothing was named.
+    """
+    import test_pool_alone_marks as gate
+
+    unnamed, bare_not_missed, real_missed, twins = gate.battery(tmp_path)
+    _kpi(
+        record_property,
+        "K-S3-16",
+        {
+            "unnamed": unnamed,
+            "bare_not_missed": bare_not_missed,
+            "real_missed": real_missed,
+            "twins": twins,
+        },
+    )

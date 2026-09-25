@@ -6,6 +6,23 @@ exists).
 
 ## [Unreleased]
 
+### A census of marks that is only a pool is written, named and checked (2026-09-25)
+
+**Where no thousands mark reached the floor** the census published only
+`(withheld)` and the twin wrote every groupable cell bare with no check
+filed: 0 of 230 twins over 46 seeded shapes wrote a mark. The pool is now
+spent over all seven marks by whole runs, each under the floor (method
+G6.1, plan P4-D352); the report names the pool against the groupable cells
+where they differ by less than the floor; `validate` files it as one
+count. A pool over more cells than six marks (three notations) hold below
+the floor said every convention was written, and is now counted under the
+commonest, the majority key following it, and refused by the loader
+(TM1, NS2). After: 201 twins HELD, 29 WITHHELD and named, nothing MISSED;
+the 29 band shapes lose 10,560 real grouped cells' marks to the commonest.
+The P4-D265 recount counts only groupable cells, so 70 grouped cells beside
+130 under a thousand no longer report 200 published against 70. Frozen as `pool_alone_marks` in a fourteenth file; G14.3 counts 130;
+`K-S3-16`; K-2B-42 reads 176 of 478 (`marks_of_a_lone_pool` 0.42).
+
 ### The owner's rulings of 2026-09-21 recorded, and `K-S3-15` never put to the owner (2026-09-25)
 
 **Three answers of 2026-09-21 were in no record.** The owner accepted
