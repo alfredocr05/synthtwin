@@ -6,6 +6,22 @@ exists).
 
 ## [Unreleased]
 
+### CI's demonstration check reads the floor it checks (2026-09-25)
+
+**Stage 3's first CI run was red in the build job** (run 36121790821),
+and every test cell was skipped behind it. The end-to-end profiling
+check written into `ci.yml` still asserted the default floor of ONE
+(amendment A-P4-37): that nothing is withheld and that the 7-row label
+`outlying` is named. Stage 3 put the default back to eleven (P4-D316), so
+the description rightly pooled that label and the check called it a
+defect. It had gone stale the same way twice before, because that block
+runs on no developer machine. It now reads the default floor from the
+package and each label's rows from the table it built, and asserts the
+rule itself: a label below the floor is withheld and reaches neither
+output file, one at or above it is named. `tests/test_ci_demo_steps.py`
+runs the workflow's own MAKE, CHECK and TWIN blocks against this tree in
+the suite, and was watched red on the old `ci.yml` with CI's own words.
+
 ### A derived end's two divergences from the method, settled (2026-09-25)
 
 **A `(withheld)` pool in `thousands_marks` counts marked cells**

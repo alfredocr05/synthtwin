@@ -65,12 +65,13 @@ with no newline in it, which is most of this file's samples.)
 THE LIMIT THAT WOULD MATTER is a string of source that IS RUN --
 handed to `exec`, `eval` or `compile`, or to `runpy` -- because that
 spelling reaches the 3.10 cells while this file says nothing about it.
-The tree holds FIFTEEN such calls. They are listed in
+The tree holds TWENTY-ONE such calls. They are listed in
 `ROUTES_THAT_RUN_SOURCE` below and
 `test_the_routes_that_run_a_string_of_source_are_the_ones_named_here`
-holds the tree to that list, so an eighteenth cannot arrive unread.
-Every one of them runs a COMMITTED FILE of `tools/` or of `tests/`,
-which the folders below already read:
+holds the tree to that list, so a twenty-second cannot arrive unread.
+All but two run a COMMITTED FILE of `tools/` or of `tests/`, which the
+folders below already read, and the two that do not are held by where
+they run:
 
 - `tests/test_oracle_rule_witnesses.py` builds a module with
   `exec(compile(source, ...))`, where `source` is
@@ -88,6 +89,14 @@ which the folders below already read:
   and is four lines of whole-number arithmetic -- `shift = 128` -- so
   both forms of that file were re-read with the two readings below: the
   file is one this guard reads, and the edit adds no spelling at all.
+- `tests/test_ci_demo_steps.py` runs `exec(compile(block, ...))` on
+  the MAKE, CHECK and TWIN blocks of `.github/workflows/ci.yml`, the
+  Python the build job hands to the installed wheel. That file is not
+  one this guard reads, so the floor is held by where the test runs:
+  in every cell of the matrix, the 3.10 cell among them, so a
+  post-floor spelling added to a block fails there. On 2026-09-25 the
+  three blocks used `csv`, `json`, `os`, `pathlib`, `sys` and the
+  package, and nothing newer than the floor.
 - `runpy.run_path` runs the same kind of committed file: twice in
   `tests/`, in the two stage-2 oracle tests, and eleven times in
   `tools/` -- one for the provenance guard's own runner and one for
@@ -228,6 +237,8 @@ ROUTES_THAT_RUN_SOURCE = {
     ("tests/test_oracle_rule_witnesses.py", "exec"): 1,
     ("tests/test_stage3_tail_rule.py", "compile"): 1,
     ("tests/test_stage3_tail_rule.py", "exec"): 1,
+    ("tests/test_ci_demo_steps.py", "compile"): 1,
+    ("tests/test_ci_demo_steps.py", "exec"): 1,
     ("tests/test_stage2_datetime_oracle.py", "runpy.run_path"): 1,
     ("tests/test_stage2_grouping_oracle.py", "runpy.run_path"): 1,
     ("tools/provenance/guard_runner.py", "runpy.run_path"): 1,

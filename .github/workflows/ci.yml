@@ -998,30 +998,44 @@ jobs:
           for name, role in expected.items():
               if roles.get(name) != role:
                   problems.append(f"{name} was read as {roles.get(name)}, expected {role}")
-          # NOTHING IS WITHHELD AT THE DEFAULT FLOOR, and this step
-          # asserts that rather than the opposite. The small-cell floor
-          # defaulted to 11 when this check was written and defaults to
-          # ONE since plan amendment A-P4-37, so every value a table
-          # holds is now named with the rows that shared it. The check
-          # went on asserting a rare label was pooled away for as long
-          # as ci.yml did not run -- which is the same way it came to
-          # assert a ten-column shape for a thirteen-column table.
+          # WHAT THE DEFAULT FLOOR WITHHOLDS IS READ FROM THE PACKAGE AND
+          # THE TABLE, never written here. This step asserted a floor of
+          # eleven, then of one (plan amendment A-P4-37), and each time
+          # went on asserting the old rule after the default moved --
+          # the second time through the whole of stage 3, which put the
+          # default back to eleven (plan P4-D316), because ci.yml runs on
+          # no developer machine. tests/test_ci_demo_steps.py runs these
+          # steps in the suite now, so the next move is red at home.
+          import csv
+
+          from synthtwin import parsing
+
+          floor = parsing.DEFAULT_SMALL_CELL_FLOOR
+          with (demo / "table.csv").open(encoding="utf-8", newline="") as handle:
+              held = {}
+              for row in csv.DictReader(handle):
+                  label = row["region"].strip()
+                  if label:
+                      held[label] = held.get(label, 0) + 1
+          rare = {label: rows for label, rows in held.items() if rows < floor}
           region = [c for c in document["columns"] if c["name"] == "region"][0]
-          if region["suppressed_levels"] != 0:
+          if region["suppressed_levels"] != len(rare):
               problems.append(
-                  "a label was withheld at the default floor of one, "
-                  f"where nothing should be: {region['suppressed_levels']}"
+                  f"{region['suppressed_levels']} label(s) withheld at the default "
+                  f"floor of {floor}, where the table holds {len(rare)} below it"
               )
-          if region["suppressed_rows"] != 0:
-              problems.append("rows were pooled away at the default floor")
-          # And the rare label itself is PUBLISHED, which is the point
-          # of the ruling: a twin of a rare finding holds the finding.
+          if region["suppressed_rows"] != sum(rare.values()):
+              problems.append(
+                  f"{region['suppressed_rows']} row(s) pooled at the default floor "
+                  f"of {floor}, where {sum(rare.values())} stand below it"
+              )
           published = {level["label"] for level in region["levels"]}
-          if len(published) != region["n_distinct_folded"]:
-              problems.append(
-                  "the published levels do not account for every folded "
-                  "value at the default floor"
-              )
+          for label, rows in sorted(held.items()):
+              if (label in published) == (label in rare):
+                  state = "published" if label in published else "withheld"
+                  problems.append(
+                      f"{label!r}, on {rows} row(s), is {state} at the default floor of {floor}"
+                  )
           # The declared identifier column publishes the SHAPE of its
           # repetition and never a value (review item P1-R8-F4, owner
           # decision 2026-08-10). Check both halves on a clean machine:
@@ -1077,29 +1091,15 @@ jobs:
               problems.append(f"unexpected relationship manifest: {related}")
           elif any(value is not None for value in related.values()):
               problems.append("the relationship manifest claims structure it has none of")
-          # AT THE DEFAULT FLOOR OF ONE, THE RARE LABEL IS PUBLISHED,
-          # and this step asserts that rather than its opposite. It
-          # used to refuse the string `outlying` anywhere in an output
-          # file, which was right while the floor defaulted to eleven
-          # and that label was pooled away. Plan amendment A-P4-37
-          # dropped the default to ONE on the owner's ruling -- every
-          # value a table holds is named with the rows that shared it,
-          # so a rare finding reaches the twin -- and this check went on
-          # asserting the old rule for as long as ci.yml did not run.
-          #
-          # THE SUPPRESSION GUARANTEE IS NOT LOST BY INVERTING THIS. It
-          # is carried by 52 tests at a RAISED floor
-          # (tests/test_p1r7f2_disclosure_is_true.py and
-          # tests/test_p2c1f3_publication_guard.py), which is where a
-          # floor-dependent rule belongs: this step runs one command at
-          # one floor and can only ever check that one.
+          # A label below the default floor reaches NEITHER output file,
+          # and one at or above it is named in the description.
           for text in (json.dumps(document), summary):
-              if "outlying" not in text:
-                  problems.append(
-                      "the rare label is missing from an output file: at "
-                      "the default floor of one nothing is pooled away, "
-                      "so every label a table holds should be named"
-                  )
+              for label in sorted(rare):
+                  if label in text:
+                      problems.append(
+                          f"{label!r}, below the default floor of {floor}, "
+                          "reached an output file"
+                      )
               if "R00007" in text:
                   problems.append("an identifier value reached an output file")
           if problems:
