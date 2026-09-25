@@ -9,6 +9,9 @@ is held at 999 (`tail_pad_ceiling`), and the rule that no spelling
 clamp pulls a derived end inside the tail's own mean distance, on a
 column whose width census pools nine four-figure cells into five and
 whose low boundary rung is 10000 itself (`tail_width_stands_aside`).
+The repair of the derived end's two divergences adds a third, the
+ceiling of a PARTLY padded block whose one field width covers every
+cell (`tail_pad_partial`).
 
 **Why they are a thirteenth file.**  Plan P4-D295 sends the next case
 to the twelfth while its output stands under 200000 bytes, and it did,

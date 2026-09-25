@@ -9,7 +9,9 @@ between thousands -- on a column whose one field width holds an end
 the sign rule put at 1 (`tail_width_after_sign`), and both derived ends
 of a column of numbers near 1e-200, which no grid of seventeen places
 can hold (`tail_extreme_magnitude`). The third, `tail_mark_held`, is
-the eleventh file beside it.
+the eleventh file beside it. The repair of the derived end's two
+divergences adds `tail_marks_pooled`, the mark clamp counting a
+census's named marks and its `(withheld)` pool together.
 
 **Why they are a twelfth file.**  Plan P4-D295 draws the line: an entry
 point takes the next case until its output passes 200000 bytes, and then
@@ -32,9 +34,8 @@ permitted in tools/ (the D6 restriction applies to src/ only).  Nothing
 about the oracle's own rule changes: it still imports neither synthtwin,
 nor numpy, nor pandas, and a test asserts that of every entry point.
 
-**WHERE THE NEXT CASE GOES** (plan P4-D295): here, while this file's
-output stands under 200000 bytes; the first three files are full and
-take no case, and the seventh to the eleventh stand past that line.
+**WHERE THE NEXT CASE GOES** (plan P4-D295): not here, since
+`tail_marks_pooled` took this file past 200000 bytes; the thirteenth.
 
 Usage:  python3 make_generation_branch_vectors_10.py --seed 0 --out <path>
         (the command line the data-provenance guard uses; the seed is

@@ -660,6 +660,9 @@ NINTH_BRANCH_CASES = (
 # of a column of numbers near 1e-200.
 TENTH_BRANCH_CASES = (
     "tail_extreme_magnitude",
+    # ...and the mark between thousands counted named AND pooled, from
+    # the repair of the derived end's two divergences (plan P4-D295).
+    "tail_marks_pooled",
     "tail_width_after_sign",
 )
 
@@ -667,6 +670,8 @@ TENTH_BRANCH_CASES = (
 # aside, the parts of G5.3b step 4 the three above leave unfrozen.
 ELEVENTH_BRANCH_CASES = (
     "tail_pad_ceiling",
+    # ...and the same repair's partly padded ceiling.
+    "tail_pad_partial",
     "tail_width_stands_aside",
 )
 
@@ -789,6 +794,9 @@ SEEDS = {
     # ...and the two of its skeptic pass.
     "tail_pad_ceiling": 404,
     "tail_width_stands_aside": 405,
+    # ...and the two of the repair of its two divergences.
+    "tail_marks_pooled": 406,
+    "tail_pad_partial": 407,
     "identifier_unnamed_partners": 184,
     "truth_values_written": 189,
     "twice_written_filled": 190,
@@ -1472,10 +1480,12 @@ EIGHTH_BRANCH_NAMED_COUNTS = 110
 # eleventh had no row here before it.
 NINTH_BRANCH_PUBLISHED_NUMBERS = 925
 NINTH_BRANCH_NAMED_COUNTS = 445
-TENTH_BRANCH_PUBLISHED_NUMBERS = 576
-TENTH_BRANCH_NAMED_COUNTS = 230
-ELEVENTH_BRANCH_PUBLISHED_NUMBERS = 604
-ELEVENTH_BRANCH_NAMED_COUNTS = 243
+# The twelfth and thirteenth again at the repair of the derived end's
+# two divergences, which adds a case to each.
+TENTH_BRANCH_PUBLISHED_NUMBERS = 754
+TENTH_BRANCH_NAMED_COUNTS = 310
+ELEVENTH_BRANCH_PUBLISHED_NUMBERS = 944
+ELEVENTH_BRANCH_NAMED_COUNTS = 375
 # The document file publishes NO binary64 at all, and that is a fact
 # about its transforms rather than a gap in its proof: the written form,
 # the arrangement, the workbook writer, the shape of a line before a
@@ -2066,6 +2076,21 @@ def _clamps_never_stand_aside(signed, low, boundary, column, mean):
     for clamp in (gen.one_width_held, gen.pad_held, gen.mark_held):
         end = clamp(end, low, boundary, column)
     return end
+
+
+_real_mark_held = gen.mark_held
+
+
+def _named_marks_only(value, low, boundary, column):
+    """G5.3b step 4's mark clamp counting the named marks alone.
+
+    What the product did until the repair of the derived end's two
+    divergences: a census carrying a `(withheld)` pool left the end
+    where the sign rule put it, although every pooled cell wears a mark.
+    """
+    if "(withheld)" in (column.get("thousands_marks") or {}):
+        return value
+    return _real_mark_held(value, low, boundary, column)
 
 
 class Mutant(typing.NamedTuple):
@@ -3180,6 +3205,26 @@ CASE_MUTANTS = {
         "the tail's published mean distance allows",
         attribute="spelled_end",
         replacement=_clamps_never_stand_aside,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "tail_marks_pooled": Mutant(
+        branch="the mark between thousands on a derived end counting a "
+        "census's named marks AND its (withheld) pool (method G5.3b step "
+        "4): a pool is marks below the floor, each on a cell that proves "
+        "one. The mutant counts the named marks alone, as the product "
+        "did, and the low end stays at 1, a cell with no mark in it",
+        attribute="mark_held",
+        replacement=_named_marks_only,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "tail_pad_partial": Mutant(
+        branch="the ceiling of a PARTLY padded block (method G5.3b step "
+        "4): where one field width covers every numeric cell and only "
+        "some are padded, no value reaches ten to the power of that "
+        "width. The mutant withdraws it and the high end stays at the "
+        "tail's reading, five figures in a field of four",
+        attribute="partly_padded_field",
+        replacement=lambda column: -1,
         outcome=CHANGES_THE_CELLS,
     ),
     "date_absorbed_mark": Mutant(

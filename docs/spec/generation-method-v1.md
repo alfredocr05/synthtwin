@@ -2096,26 +2096,38 @@ boundary rung itself where that percent falls between the two tails.
    it, `+1006` wears no pad, and the twin's own description published
    `pad_widths {"4": 482}` against its source's `{"4": 1200}`, because
    P4-D148's plus route withholds the plus-signed padded cells
-   altogether once ten of them are unpadded).
+   altogether once ten of them are unpadded). A PARTLY PADDED BLOCK IS
+   HELD TO ITS ONE FIELD WIDTH'S CEILING: where `integer_valued` is
+   true, the block publishes a padded width but not the ceiling above,
+   and `field_widths` names ONE width `w`, of `1 <= w <= 15`, whose
+   count is every numeric cell, every cell is written `w` figures wide
+   and a pad only adds zeros in front, so no value reaches `10**w` --
+   the end's magnitude is held at `10**w - 1`, signed again, placed on
+   the whole numbers and held on its own side of `b` (G14.3's
+   `tail_pad_partial`: sixteen of sixty-eight cells padded, all four
+   wide, and the high tail's reading at 15536).
 
-   THE ORDER OF THE LAST THREE IS: G5.5a's SIGN RULE, then the two
-   width clamps above, then the MARK BETWEEN THOUSANDS -- where
-   `thousands_marks` counts a mark on every numeric cell, every value
-   of the column reaches a thousand in size (G6.5a's last value pass
-   puts a mark exactly there), so the end's magnitude is held at a
-   thousand or beyond and then on its own side of `b`. The two
+   THE ORDER OF THE LAST THREE IS: G5.5a's SIGN RULE, then the width
+   clamps above, then the MARK BETWEEN THOUSANDS -- where
+   `thousands_marks`, its named marks and its `(withheld)` pool
+   together, counts a mark on every numeric cell (a pool is marks below
+   the floor, each on a cell that proves one: contract C6-87, C6-88),
+   every value of the column reaches a thousand in size (G6.5a's last
+   value pass puts a mark exactly there), so the end's magnitude is
+   held at a thousand or beyond and then on its own side of `b`. The
    spelling clamps run AFTER the sign rule because that rule's own
    clamp can land an end the published spellings cannot write -- on a
    column with no negative number an end reaching past nought is held
-   at one step, which is 1 on sixty whole numbers from 1000 to 60000,
-   where the census names one width of five figures and the twin wrote
-   9 of its 60 cells at a width the census does not name, and 0.01 on
-   240 prices written `92,959.11`, a cell with no mark in it that the
-   twin's own census then counted one short -- and neither clamp
+   at one step, which is 1 on G14.3's `tail_width_after_sign`, sixty
+   whole numbers from 10,000 to 87,000, where the census names one
+   width of five figures and the width clamp then holds the end at
+   10,000, and 0.01 on 240 prices written `92,959.11`, a cell with no
+   mark in it that the twin's own census then counted one short -- and
+   no clamp
    crosses nought, each moving a MAGNITUDE, so the sign rule is not
    undone by running before them.
 
-   AND NEITHER SPELLING CLAMP PULLS THE END INSIDE THE TAIL'S OWN MEAN
+   AND NO SPELLING CLAMP PULLS THE END INSIDE THE TAIL'S OWN MEAN
    DISTANCE `d1`. Both censuses are POOLED at the floor -- a group of
    fewer cells than the smallest group is counted into the commonest
    (plan P4-D222) -- so a census naming ONE width does not say that no
@@ -12569,10 +12581,15 @@ ceiling (`tail_pad_ceiling`) and a width clamp standing aside
 (`tail_width_stands_aside`), which the oracle carried with every byte
 unchanged when either was withdrawn; at about 70000 bytes each they do
 not fit in the twelfth under the cap, so they open a thirteenth. The
-stand-aside case is not step 4's own example of sixty numbers from
-1000 to 60000: there G6.6.3 moves the tail row at 9994 onto 10000, a
-value pass this oracle does not state, so its ladder is flat at 10000
-from percent 19 to 27 and leaves that pass no free value.
+stand-aside case is not the example step 4 then gave, sixty numbers
+from 1000 to 60000: there G6.6.3 moves the tail row at 9994 onto 10000,
+a value pass this oracle does not state, so its ladder is flat at 10000
+from percent 19 to 27 and leaves that pass no free value. The repair
+of the two places where the product and step 4 parted adds TWO MORE:
+`tail_marks_pooled`, the mark clamp counting a `(withheld)` pool, in
+the twelfth, which stood under 200000 bytes, and `tail_pad_partial`,
+a partly padded block's ceiling, in the thirteenth, because the
+twelfth passed that line with the first.
 
 **A PUBLISHED (HEAPED) END HAS NO FROZEN CASE, AND THAT IS A GAP NAMED
 AS ONE.** Step 1 of G5.3b's derived end -- a published end IS the end
@@ -12604,7 +12621,7 @@ that happens -- and the clause beside it, `--missing-value`'s "CAN be
 published as the column's smallest value", is exactly right under the
 new rule.
 
-**All one hundred and twenty-seven are required.** The count is taken off the committed
+**All one hundred and twenty-nine are required.** The count is taken off the committed
 case sets and not carried forward: this sentence said fifty-two and a
 split of nine, twenty, sixteen and seven while the six files held
 seventy-three, because each repair that added a case added a clause to
@@ -12625,9 +12642,9 @@ ninth, `tests/reference/generation-branch-vectors-7.json`, holds six;
 the TENTH, `tests/reference/generation-branch-vectors-8.json`, holds
 nine; the ELEVENTH,
 `tests/reference/generation-branch-vectors-9.json`, holds six; the
-TWELFTH, `tests/reference/generation-branch-vectors-10.json`, holds two;
+TWELFTH, `tests/reference/generation-branch-vectors-10.json`, holds three;
 and the THIRTEENTH, `tests/reference/generation-branch-vectors-11.json`,
-holds two (G14.2), and a test holds this sentence to those files. The tenth grew by the
+holds three (G14.2), and a test holds this sentence to those files. The tenth grew by the
 two cases the GOVERNANCE PASS of stage 3's review added and the
 eleventh by the two the dates pass added; each number here is read off
 the committed case sets again at every landing that touches them.
@@ -12714,6 +12731,8 @@ case passed, which is the failure the count exists to prevent:
 | `tail_width_after_sign` | G5.3b step 4's ORDER of its last three (stage 3's review, verdict item 10): sixty whole numbers of five figures, whose low tail's reading reaches past nought. The sign rule holds the end at 1 and the one field width then holds it at 10,000. Its mutant runs the width clamp first, as the oracle did, and the end comes back as 1 |
 | `tail_extreme_magnitude` | G5.3b step 4's end left off a grid whose one step is no smaller than the boundary rung, and G5.5a's step of the smallest positive number (stage 3's review, verdict item 10): sixty readings `i * 1e-200`. The high end is read past its rung and the low one is held at 5e-324. Its mutant puts both ends on the rung's seventeen places with a step of one, and each falls onto its own boundary rung |
 | `tail_pad_ceiling` | G5.3b step 4's padded ceiling (the skeptic pass of the repair of the oracle's derived end): sixty-eight whole numbers written `0100` to `0999`, padded to four on every cell, whose high tail's reading reaches 1380. The ceiling holds the end at 999. Its mutant withdraws the ceiling and the twin writes four figures with no pad |
+| `tail_marks_pooled` | G5.3b step 4's mark clamp counting a census's named marks AND its `(withheld)` pool (the repair of the product's two divergences from step 4): `tail_mark_held`'s forty-four numbers with the census `{",": 33, "(withheld)": 11}`, every cell wearing a mark. The end is held at 1,000. Its mutant counts the named marks alone, as the product did, and the twin writes 1 |
+| `tail_pad_partial` | G5.3b step 4's ceiling of a PARTLY padded block (the same repair): sixty-eight whole numbers written with a plus, four wide, sixteen of them padded, whose high tail's reading reaches 15536. The one field width holds the end at 9999. Its mutant withdraws the ceiling and the twin writes five figures in a field of four |
 | `tail_width_stands_aside` | G5.3b step 4's stand-aside (the same pass): sixty whole numbers, nine of four figures and eight at 10,000, so the census names the width five and the low boundary rung is 10,000. The sign rule holds the low end at 1 and the width clamp's 10,000 is no distance from that rung, so the clamp stands aside and the end stays at 1. Its mutant applies the clamp regardless and the end moves to 10,000 |
 | `tail_moment_ladder` | G5.3c's moment ladder (stage 3): fifteen two-place readings at a floor of eleven, where no percent leaves eleven rows outside on both sides at once, so the block publishes its moments and not one rung. Its mutant reads the block as the ramp of G5.3d instead |
 | `tail_listed_floor` | G5.3e's FLOOR `q` under each listed value (the governance pass of stage 3's review, item 1; plan P4-D346): sixty whole readings of a scale from 0 to 8, whose low tail lists two values and whose high tail lists four, so the one case parts both roads of the floor -- one row apiece where contract TL6's other road lists, two where the listing rule admitted the tail by finding every value it names on at least two cells of the column. Its mutant counts from one on both, which is the allocation the shipped rule retired: the high tail goes from [2, 2, 2, 6] -- the real column's own counts beyond that boundary -- to [1, 4, 1, 6], and the staircase moves with it |
