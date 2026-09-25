@@ -240,6 +240,7 @@ ROUTES_THAT_RUN_SOURCE = {
     ("tools/reference/make_generation_branch_vectors_7.py", "runpy.run_path"): 1,
     ("tools/reference/make_generation_branch_vectors_8.py", "runpy.run_path"): 1,
     ("tools/reference/make_generation_branch_vectors_9.py", "runpy.run_path"): 1,
+    ("tools/reference/make_generation_branch_vectors_10.py", "runpy.run_path"): 1,
     ("tools/reference/make_generation_document_vectors.py", "runpy.run_path"): 1,
 }
 RUNNING_NAMES = ("exec", "eval", "compile", "runpy.run_path", "runpy.run_module")

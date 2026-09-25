@@ -51,7 +51,10 @@ nor numpy, nor pandas, and a test asserts that of every entry point.
 **WHERE THE NEXT CASE GOES** (plan P4-D295): the tenth first, while its
 output stands under 200000 bytes, and then here while this one's does;
 the first three files are full and take no case, and the seventh, eighth
-and ninth stand past that line.
+and ninth stand past that line. The repair of the oracle's derived end
+(stage 3's review, verdict item 10) put `tail_mark_held` here and took
+this file past that line too, so its other two cases opened the twelfth,
+`make_generation_branch_vectors_10.py`.
 
 Usage:  python3 make_generation_branch_vectors_9.py --seed 0 --out <path>
         (the command line the data-provenance guard uses; the seed is

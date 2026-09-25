@@ -201,6 +201,17 @@ NINTH_BRANCH_VECTORS = (
     / "reference"
     / "generation-branch-vectors-9.json"
 )
+# THE TWELFTH FILE (the repair of the oracle's derived end, stage 3's
+# review, verdict item 10), opened once the eleventh passed plan
+# P4-D295's 200000-byte line.
+TENTH_BRANCH_GENERATOR = (
+    REPOSITORY / "tools" / "reference" / "make_generation_branch_vectors_10.py"
+)
+TENTH_BRANCH_VECTORS = (
+    pathlib.Path(__file__).resolve().parent
+    / "reference"
+    / "generation-branch-vectors-10.json"
+)
 # THE FOURTH FILE (landing 2b.17): the cases for the transforms that
 # produce a whole DOCUMENT rather than one column's cells.
 DOCUMENT_GENERATOR = (
@@ -280,6 +291,10 @@ def _eighth_branch_document() -> dict:
 
 def _ninth_branch_document() -> dict:
     return json.loads(NINTH_BRANCH_VECTORS.read_text(encoding="utf-8"))
+
+
+def _tenth_branch_document() -> dict:
+    return json.loads(TENTH_BRANCH_VECTORS.read_text(encoding="utf-8"))
 
 
 # The nine cases method section G14.3 names, and the four the review of
@@ -617,8 +632,21 @@ NINTH_BRANCH_CASES = (
     "clock_declared_hole",
     "mark_spend_at_the_line",
     "tail_listed_counts",
+    # ...and the mark between thousands on a derived end, the first of
+    # the three the repair of the oracle's derived end adds (verdict
+    # item 10), routed here by plan P4-D295 while this file stood under
+    # 200000 bytes.
+    "tail_mark_held",
     "tail_moment_ladder",
     "tail_sign_clamped",
+)
+
+# THE TWELFTH FILE: the other two of that repair's three -- the order of
+# the sign rule and the one field width on a derived end, and both ends
+# of a column of numbers near 1e-200.
+TENTH_BRANCH_CASES = (
+    "tail_extreme_magnitude",
+    "tail_width_after_sign",
 )
 
 ALL_CASES = tuple(
@@ -633,6 +661,7 @@ ALL_CASES = tuple(
         + SEVENTH_BRANCH_CASES
         + EIGHTH_BRANCH_CASES
         + NINTH_BRANCH_CASES
+        + TENTH_BRANCH_CASES
     )
 )
 
@@ -730,6 +759,11 @@ SEEDS = {
     # ...and the governance pass's two.
     "tail_listed_floor": 302,
     "tail_withheld_pair": 306,
+    # ...and the three of the repair of the oracle's derived end, after
+    # the 400 of stage 3's review.
+    "tail_mark_held": 401,
+    "tail_width_after_sign": 402,
+    "tail_extreme_magnitude": 403,
     "identifier_unnamed_partners": 184,
     "truth_values_written": 189,
     "twice_written_filled": 190,
@@ -828,6 +862,8 @@ def _case(name: str) -> dict:
         document = _eighth_branch_document()
     elif name in NINTH_BRANCH_CASES:
         document = _ninth_branch_document()
+    elif name in TENTH_BRANCH_CASES:
+        document = _tenth_branch_document()
     elif name in SEVENTH_BRANCH_CASES:
         document = _seventh_branch_document()
     elif name in SIXTH_BRANCH_CASES:
@@ -1058,7 +1094,7 @@ def test_the_oracle_is_present_and_says_what_it_is() -> None:
 def test_the_branch_file_is_the_same_oracle_and_says_which_half_it_is() -> None:
     """No file may be read as the whole of the oracle.
 
-    The ten carry disjoint case sets and together carry every case
+    The twelve carry disjoint case sets and together carry every case
     method section G14.3 names, and each one's own account says where
     the others live -- so a reader who opens any of them is told at
     once that it is part of one artifact rather than all of it.
@@ -1073,6 +1109,7 @@ def test_the_branch_file_is_the_same_oracle_and_says_which_half_it_is() -> None:
     seventh = _seventh_branch_document()
     eighth = _eighth_branch_document()
     ninth = _ninth_branch_document()
+    tenth = _tenth_branch_document()
     papers = _document_document()
     assert tuple(sorted(branch["cases"])) == BRANCH_CASES
     assert tuple(sorted(second["cases"])) == SECOND_BRANCH_CASES
@@ -1083,10 +1120,11 @@ def test_the_branch_file_is_the_same_oracle_and_says_which_half_it_is() -> None:
     assert tuple(sorted(seventh["cases"])) == SEVENTH_BRANCH_CASES
     assert tuple(sorted(eighth["cases"])) == EIGHTH_BRANCH_CASES
     assert tuple(sorted(ninth["cases"])) == NINTH_BRANCH_CASES
+    assert tuple(sorted(tenth["cases"])) == TENTH_BRANCH_CASES
     assert tuple(sorted(papers["cases"])) == DOCUMENT_CASES
     every = (
         named, branch, second, third, fourth, fifth, sixth, seventh,
-        eighth, ninth, papers,
+        eighth, ninth, tenth, papers,
     )
     for index in range(len(every)):
         for other in range(index + 1, len(every)):
@@ -1106,6 +1144,7 @@ def test_the_branch_file_is_the_same_oracle_and_says_which_half_it_is() -> None:
         (seventh, SEVENTH_BRANCH_VECTORS),
         (eighth, EIGHTH_BRANCH_VECTORS),
         (ninth, NINTH_BRANCH_VECTORS),
+        (tenth, TENTH_BRANCH_VECTORS),
         (papers, DOCUMENT_VECTORS),
     )
     for document, own in files:
@@ -1132,6 +1171,7 @@ def test_the_branch_file_is_the_same_oracle_and_says_which_half_it_is() -> None:
         SEVENTH_BRANCH_GENERATOR,
         EIGHTH_BRANCH_GENERATOR,
         NINTH_BRANCH_GENERATOR,
+        TENTH_BRANCH_GENERATOR,
         DOCUMENT_GENERATOR,
     ],
 )
@@ -1923,6 +1963,38 @@ def _no_fold_guard(rows, mean, root, floor, edge, apart, words):
             min(max(1, gen.whole_unit(stretch * gen.mixture_at(shape, share))), edge)
         )
     return found
+
+
+# -- the orders and grids a derived end could have taken (stage 3's
+# review, verdict item 10). Bound before any mutant replaces them.
+_real_end_sign_held = gen.end_sign_held
+_real_spelled_end = gen.spelled_end
+_real_end_figures = gen.end_figures
+
+
+def _width_before_sign(placed, low, boundary, column, figures, mean):
+    """G5.3b step 4's order withdrawn: the spelling clamps before the sign rule.
+
+    The order the oracle carried until this review. The width clamp
+    meets an end past nought, holds its size and signs it again, and the
+    sign rule then puts it at one step -- a width the census does not
+    name.
+    """
+    spelled = _real_spelled_end(placed, low, boundary, column, mean)
+    return _real_end_sign_held(spelled, low, boundary, column, figures)
+
+
+def _places_whatever_the_rung(column, boundary):
+    """G5.3b step 4's exception withdrawn: the rung's places are a grid.
+
+    A boundary rung near 1e-200 counts seventeen places, one step of
+    which is larger than the whole column, and the end is placed there
+    all the same.
+    """
+    figures = _real_end_figures(column, boundary)
+    if figures == -1 and gen.rung_places(boundary) > 0:
+        return gen.rung_places(boundary)
+    return figures
 
 
 class Mutant(typing.NamedTuple):
@@ -2986,6 +3058,38 @@ CASE_MUTANTS = {
         attribute="moment_ladder",
         replacement=lambda column, figures: made_up_ramp_of(column, figures),
         outcome=CHANGES_THE_CELLS,
+    ),
+    "tail_mark_held": Mutant(
+        branch="the mark between thousands on a derived end (method "
+        "G5.3b step 4): where the census counts a mark on every numeric "
+        "cell, the end's size is held at a thousand or beyond. The "
+        "mutant withdraws it and the low end stays where the sign rule "
+        "put it, at 1, a cell with no mark in it",
+        attribute="mark_held",
+        replacement=lambda value, low, boundary, column: value,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "tail_width_after_sign": Mutant(
+        branch="the ORDER of a derived end's last three (method G5.3b "
+        "step 4): the sign rule, then the width clamps, then the mark. "
+        "The mutant runs the spelling clamps first, as the oracle did "
+        "until stage 3's review, and the low end comes back at 1 where "
+        "the census names five figures",
+        attribute="held_end",
+        replacement=_width_before_sign,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "tail_extreme_magnitude": Mutant(
+        branch="a derived end left off a grid whose one step is no "
+        "smaller than its boundary rung, and G5.5a's step of the "
+        "smallest positive number the format holds there. The mutant "
+        "places both ends on the rung's seventeen places and holds the "
+        "low one at a step of one, and each end falls onto its own "
+        "boundary rung",
+        attribute="end_figures",
+        replacement=_places_whatever_the_rung,
+        outcome=CHANGES_THE_CELLS,
+        also=(("sign_step", lambda figures, boundary: gen.tail_unit(figures)),),
     ),
     "date_absorbed_mark": Mutant(
         branch="G7.3d's RAMP (stage 3, plan P4-D330), which is what this "
@@ -4950,6 +5054,7 @@ def test_the_method_states_the_count_the_committed_files_hold() -> None:
         (SEVENTH_BRANCH_VECTORS, _seventh_branch_document()),
         (EIGHTH_BRANCH_VECTORS, _eighth_branch_document()),
         (NINTH_BRANCH_VECTORS, _ninth_branch_document()),
+        (TENTH_BRANCH_VECTORS, _tenth_branch_document()),
     )
     flat = " ".join(section.split())
     for path, document in held:
