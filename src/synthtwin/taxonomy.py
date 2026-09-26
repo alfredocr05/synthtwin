@@ -13284,7 +13284,12 @@ def _pairs_that_cost(
     1. where ONE side is withheld and the other publishes a pair (not a
        list), the other's pair is withheld too -- the column's exact mean
        and spread would give the withheld side back by subtraction from
-       it wherever the rungs pin the rows between the two boundaries;
+       it wherever the rungs pin the rows between the two boundaries. A
+       side that LISTS its values keeps its pair: TL5 requires a list to
+       publish both distances, and a one-value list pins its tail by
+       itself, so withholding them would close nothing. Beside such a
+       list the subtraction still gives the withheld side back (ledger
+       entry `K-S3-23`);
     2. the description that leaves is published where its windows
        contain both moments. Where they do not, candidates are offered in
        the order of what they disclose: the other side's own pair; then,

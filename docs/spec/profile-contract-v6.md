@@ -6403,12 +6403,19 @@ gives back is held at ledger entry `K-S3-18`.
 (plan P4-D353). A numeric block publishes the column's exact mean and
 spread, so where one tail's pair and the rows between the two
 boundaries are known, the other tail's sums follow by subtraction.
-Where one tail publishes neither distance and the other a pair, the
-other publishes neither distance either -- unless that costs the twin
-its mean or spread, where its pair is the first one published, or the
-withheld tail's own pair is published, where the other's goes with it.
-What the subtraction then gives back the owner allowed on 2026-09-26
-("Allow it"; ledger entry `K-S3-21`).
+Where one tail publishes neither distance and the other a pair and
+lists no values, the other publishes neither distance either -- unless
+that costs the twin its mean or spread, where its pair is the first one
+published, or the withheld tail's own pair is published, where the
+other's goes with it. What the subtraction then gives back the owner
+allowed on 2026-09-26 ("Allow it"; ledger entry `K-S3-21`). **A TAIL
+THAT LISTS ITS VALUES KEEPS ITS PAIR**: TL5 requires both distances of
+a list, and a list of one value pins its tail by itself, so withholding
+them would close nothing. Beside such a list the subtraction still gives
+the withheld tail back where the rungs pin the interior, although the
+cost rule publishes nothing there: twelve values on each of two seeded
+150-row scales at a floor of eleven, the one-row extreme among them.
+No ruling covers it (ledger entry `K-S3-23`, open).
 
 **AND SO DOES A TAIL WHOSE DISTANCES BINARY64 CANNOT HOLD** (stage 3's
 review, verdict item 2). Every distance is computed exactly and rounded

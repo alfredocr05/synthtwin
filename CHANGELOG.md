@@ -14,7 +14,9 @@ value**, the producer now publishes a pair: the other side's own first,
 then an unsettled side before a pinned one, the first that keeps both
 moments, else the one that keeps the most (plan P4-D353, the owner's
 answers of 2026-09-25 and 26). Where it publishes nothing, one withheld
-tail withholds the other. A derived tail end the width census put on
+tail withholds the other's pair unless the other lists its values, and
+beside such a list the exact moments still give the withheld tail back
+(`K-S3-23`, open). A derived tail end the width census put on
 `9999` or `-999` moves one grid step inside, so a published pair no
 longer makes the twin write a stand-in for "no value" (method G5.3b step
 5; `tail_pad_partial` regenerated). The G12.3 windows are written once,

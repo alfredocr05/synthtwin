@@ -16,7 +16,7 @@ own windows before it asserts what the rule did:
 * no twin of the battery misses a moment a published pair would keep;
 * the candidates come in their order: the other side's own pair first,
   an unsettled side before a pinned one, the low side before the high
-  where both say the same;
+  where both say the same, and ONE withheld side with the other's pair;
 * where no pair keeps either moment none is published, and where one
   keeps a single moment it is;
 * where closing the complement costs nothing it stays closed;
@@ -29,6 +29,7 @@ data-format file enters the repository (plan D13).
 from __future__ import annotations
 
 import pathlib
+import random
 
 import pytest
 
@@ -179,6 +180,45 @@ def test_the_other_sides_pair_is_offered_before_the_withheld_side(
     )
 
 
+def test_one_withheld_side_is_published_with_the_other_sides_pair(
+    tmp_path: pathlib.Path, monkeypatch
+) -> None:
+    """150 all-different whole numbers drawn uniformly, floor 36: ONE side withheld by the back-solve.
+
+    The back-solve withholds the high side alone, and the cross-side rule
+    withholds the low pair beside it. Premise, from the checker's windows:
+    closing both costs a moment, the low pair alone costs both, and the
+    two pairs together keep both. So the candidate published is the
+    withheld side WITH the other's pair. A rule that offered the withheld
+    side alone would find it costs too, publish nothing, and its twin
+    would miss its spread.
+    """
+    draw = random.Random("skeptic-A1/uniform_distinct_150")
+    cells = columns._distinct_draw(draw, 150, lambda one: str(one.randint(0, 99999)))
+    seen: "dict[str, tuple[float, float, str]]" = {}
+    real = taxonomy._pairs_that_cost
+
+    def recording(counts, shaped, held):  # type: ignore[no-untyped-def]
+        seen.update(held)
+        return real(counts, shaped, held)
+
+    opened = _opened(tmp_path / "open", "one", cells, 36, monkeypatch)
+    monkeypatch.setattr(taxonomy, "_pairs_that_cost", recording)
+    block = _block(tmp_path / "shipped", "one", cells, 36)
+    assert sorted(seen) == ["high"], f"premise: the back-solve withholds the high side alone, not {seen}"
+    assert window.missed(window.with_pairs(block, opened, ()), 36), "premise: closing both must cost"
+    assert window.missed(window.with_pairs(block, opened, ("low",)), 36), (
+        "premise: the other side's pair alone must cost"
+    )
+    assert window.missed(window.with_pairs(block, opened, ("low", "high")), 36) == [], (
+        "premise: the two pairs together keep both moments"
+    )
+    published = [side for side in ("low", "high") if block["tails"][side]["mean_distance"] is not None]
+    assert published == ["low", "high"], (
+        f"the withheld side was not published with the other side's pair: {published}"
+    )
+
+
 def test_the_low_side_is_offered_first_where_both_say_the_same(
     tmp_path: pathlib.Path, monkeypatch
 ) -> None:
@@ -270,17 +310,16 @@ def test_the_complement_stays_closed_where_closing_it_is_free(tmp_path: pathlib.
     reader took the twelve high values back by subtraction from the
     column's exact mean and spread. With both pairs withheld the column's
     windows still reach its mean and spread, so the cross-side rule
-    stands, the cost rule offers nothing back, and the reader rebuilds
-    nothing.
+    stands and the cost rule offers nothing back: no tail's sums are
+    published for a subtraction to start from.
     """
-    values, cells = columns.rung_chained(102, 11, 4)
+    cells = columns.rung_chained(102, 11, 4)[1]
     block = _block(tmp_path, "chained_s4", cells, 11)
     assert block["tails"]["high"]["mean_distance"] is None
     assert block["tails"]["low"]["mean_distance"] is None, (
         "one pair is published beside a withheld one where withholding both costs nothing"
     )
     assert window.missed(block, 11) == []
-    assert columns.by_subtraction(block, values)["values_rebuilt"] == 0
 
 
 # -- 6. a published pair never makes the twin write a stand-in number --------

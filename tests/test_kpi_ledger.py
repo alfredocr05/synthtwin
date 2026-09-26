@@ -1447,44 +1447,83 @@ def test_k_s3_15(record_property, tmp_path: pathlib.Path) -> None:
 
 
 def test_k_s3_19(record_property, tmp_path: pathlib.Path) -> None:
-    """P4-D353 part 2: where withholding both pairs costs nothing, one withheld tail withholds the other.
+    """P4-D353 part 2: where withholding both pairs costs nothing, one withheld tail withholds the other's pair.
 
-    Over the three columns on which the cross-side rule stands, two
-    numbers come back: how many published descriptions withhold BOTH
-    pairs, and how many withheld values a reader names by subtraction from
-    the column's exact mean and spread (`complement_reader.by_subtraction`).
-    Before the landing each published the open pair beside the withheld
-    one, and on the first the reader named the twelve high values.
+    Over the three columns on which the cross-side rule stands, how many
+    published descriptions withhold BOTH pairs. Before the landing each
+    published the open pair beside the withheld one, and on the first
+    `complement_reader.by_subtraction` named the twelve high values; that
+    reader reads nothing of a block withholding both pairs, so no count of
+    values is kept here. And what the rule costs the checker: over the
+    four files of `CHECKER_BOUND_FILES`, the P4-D349 bounds on a heaped end
+    left WITHHELD because the file's own pair went with its other tail,
+    and the ones still MISSED.
     """
     import complement_reader as columns
+    import test_p4d349_tail_reconstruction as bounds
     import test_stage3_gate as gate
+    from synthtwin import validation
 
     heap = dict(gate.RECONSTRUCTIONS)["heap_then_one_far"]
-    values, chained = columns.rung_chained(102, 11, 4)
     cases = (
-        ("rung_chained_s4", chained, sorted(values), 11),
-        ("heap_then_one_far", heap, sorted(int(cell) for cell in heap), 11),
-        (
-            "whole_uniform_distinct_1500",
-            columns.ordinary("whole_uniform_distinct", 1500),
-            sorted(int(cell) for cell in columns.ordinary("whole_uniform_distinct", 1500)),
-            20,
-        ),
+        ("rung_chained_s4", columns.rung_chained(102, 11, 4)[1], 11),
+        ("heap_then_one_far", heap, 11),
+        ("whole_uniform_distinct_1500", columns.ordinary("whole_uniform_distinct", 1500), 20),
     )
     standing = 0
-    rebuilt = 0
-    for name, cells, ordered, floor in cases:
+    for name, cells, floor in cases:
         block = S.describe(
             tmp_path / name, name, "value\n" + "\n".join(cells) + "\n", floor
         ).document["columns"][0]
         tails = block["tails"]
         if tails["low"]["mean_distance"] is None and tails["high"]["mean_distance"] is None:
             standing += 1
-        rebuilt += columns.by_subtraction(block, ordered)["values_rebuilt"]
+    verdicts = bounds.checker_bound_verdicts(tmp_path / "checker")
     _kpi(
         record_property,
         "K-S3-19",
-        {"closures_standing": standing, "values_by_subtraction": rebuilt},
+        {
+            "closures_standing": standing,
+            "checker_bounds_withheld": len([one for one in verdicts if one == validation.WITHHELD]),
+            "checker_bounds_missed": len([one for one in verdicts if one == validation.MISSED]),
+        },
+    )
+
+
+def test_k_s3_23(record_property, tmp_path: pathlib.Path) -> None:
+    """P4-D353 part 2's exemption: a tail that LISTS its values keeps its pair beside a withheld one.
+
+    Over the six seeded scales of `complement_reader.LISTED_SCALES` at
+    floors 11, 20 and 36, three numbers come back: the withheld tail values
+    `complement_reader.beside_a_list` names by subtraction from the
+    column's exact mean and spread beside a listed tail, the column-floors
+    on which it gives up, and how many column-floors were read.
+    """
+    import complement_reader as columns
+
+    rebuilt = 0
+    given_up = 0
+    shapes = 0
+    for name in columns.LISTED_SCALES:
+        cells = columns.listed_scale(name)
+        ordered = sorted(int(cell) for cell in cells)
+        for floor in (11, 20, 36):
+            block = S.describe(
+                tmp_path / f"{name}-{floor}", name, "value\n" + "\n".join(cells) + "\n", floor
+            ).document["columns"][0]
+            read = columns.beside_a_list(block, ordered)
+            rebuilt += read["values_rebuilt"]
+            if read["complement"] not in ("n/a", "open", "closed-by-ambiguity"):
+                given_up += 1
+            shapes += 1
+    _kpi(
+        record_property,
+        "K-S3-23",
+        {
+            "values_beside_a_list": rebuilt,
+            "columns_the_reader_gives_up_on": given_up,
+            "shapes": shapes,
+        },
     )
 
 

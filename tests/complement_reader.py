@@ -1,7 +1,7 @@
 """The readers and the seeded columns plan P4-D353 is measured on.
 
 A READER holds one published numeric block and nothing else: never the
-table. Three are here, each the arithmetic a review of the tail rule ran
+table. Four are here, each the arithmetic a review of the tail rule ran
 against this producer, lifted so the suite and the ledger ask the same
 questions the design measured:
 
@@ -16,7 +16,13 @@ questions the design measured:
   pair of ranks it reads up to its grid ambiguity, every unread segment
   enumerated); the withheld side's sums by subtraction from the column's
   EXACT mean and spread; its cells where ONE multiset fits across every
-  interior configuration (ledger entries `K-S3-19` and `K-S3-21`).
+  interior configuration (ledger entry `K-S3-21`). It reads nothing of a
+  block that withholds BOTH pairs, which is why `K-S3-19` counts the
+  closures that stand and no values.
+* `beside_a_list` -- the same subtraction where the other side LISTS its
+  values, on a column whose values may repeat: the listed tail's sums
+  from its own published pair (TL5), the interior from the rungs and
+  order alone (ledger entry `K-S3-23`).
 * `union` -- both pairs published and the interior rung-chained: every
   pair of tails fitting both pairs AND the column's exact skew and
   kurtosis (ledger entry `K-S3-17`, the limit the owner accepted).
@@ -234,6 +240,40 @@ def attack_battery(floor: int) -> "list[tuple[str, list[int], list[str]]]":
 def far_low(far: int, rows: int) -> "list[str]":
     """One far negative value beside a consecutive run from 500."""
     return [str(-far)] + [str(500 + index) for index in range(rows - 1)]
+
+
+LISTED_SCALES = (
+    "likert_far_150",
+    "likert_farlow_150",
+    "likert_far_400",
+    "ages_far_400",
+    "pain_far_high_400",
+    "scale_far_low_400",
+)
+
+
+def listed_scale(name: str) -> "list[str]":
+    """A scale of few values beside ONE far cell: the shape whose near tail LISTS its values.
+
+    Seeded as the review of plan P4-D353 drew them, so its counts can be
+    re-derived here.
+    """
+    draw = random.Random(f"skeptic-A1/list_{name}")
+    if name in ("likert_far_150", "likert_far_400"):
+        rows, far = (149, "19") if name == "likert_far_150" else (399, "23")
+        return [str(draw.choice([1, 1, 2, 2, 3, 3, 3, 4, 4, 5])) for _ in range(rows)] + [far]
+    if name == "likert_farlow_150":
+        return [str(draw.choice([1, 2, 2, 3, 3, 3, 4, 4, 5, 5])) for _ in range(149)] + ["-9"]
+    if name == "ages_far_400":
+        return [str(draw.choice(range(18, 30))) for _ in range(399)] + ["97"]
+    cells: "list[str]" = []
+    for _ in range(399):
+        u = draw.random()
+        if name == "pain_far_high_400":
+            cells += [str(0 if u < 0.2 else 1 if u < 0.35 else min(10, 2 + int(draw.expovariate(0.5))))]
+        else:
+            cells += [str(10 if u < 0.2 else 9 if u < 0.35 else max(0, 8 - int(draw.expovariate(0.5))))]
+    return cells + (["37"] if name == "pain_far_high_400" else ["-25"])
 
 
 def shape(kind: str, n: int, seed: int) -> "list[str]":
@@ -632,6 +672,266 @@ def by_subtraction(block: "dict", values: "list[int]") -> "dict":
     if len(found) == 1 and list(next(iter(found))) == sorted(truth):
         out["values_rebuilt"] = len(truth)
     out["complement"] = "open" if out["values_rebuilt"] else "closed-by-ambiguity"
+    return out
+
+
+# -- the complement beside a LISTED tail --------------------------------------
+
+_UNBOUNDED = 10 ** 15
+RANK_WIDTH_CAP = 400
+OUTCOME_CAP = 50000
+
+
+def _rung_pair_options(
+    lower: int, rest: int, whole: int, least: "list[int]", most: "list[int]", step: int
+) -> "list[tuple[int, int]] | None":
+    """The (x[lower], x[lower + 1]) one rung admits inside the ranks' bounds, or None while unbounded."""
+    found: "list[tuple[int, int]]" = []
+    top = min(most[lower], whole // 100)
+    if top - least[lower] <= RANK_WIDTH_CAP:
+        for a in range(least[lower], top + 1):
+            b, left = divmod(whole - (100 - rest) * a, rest)
+            if not left and least[lower + 1] <= b <= most[lower + 1] and b >= a + step:
+                found += [(a, b)]
+        return found
+    bottom = max(least[lower + 1], -(-whole // 100))
+    if most[lower + 1] - bottom <= RANK_WIDTH_CAP:
+        for b in range(bottom, most[lower + 1] + 1):
+            a, left = divmod(whole - rest * b, 100 - rest)
+            if not left and least[lower] <= a <= most[lower] and b >= a + step:
+                found += [(a, b)]
+        return found
+    return None
+
+
+def _rank_bounds(
+    n: int, equations: "list[tuple[int, int, int, int]]", fixed: "dict[int, tuple[int, int]]", step: int
+) -> "tuple[list[int], list[int]] | str":
+    """Each rank's least and most value from the rungs, the fixed ranks and order alone, or why not."""
+    least = [-_UNBOUNDED] * n
+    most = [_UNBOUNDED] * n
+    for rank in fixed:
+        least[rank] = max(least[rank], fixed[rank][0])
+        most[rank] = min(most[rank], fixed[rank][1])
+    for lower, rest, whole, _percent in equations:
+        if rest == 0:
+            if whole % 100:
+                return "a rung on one rank reads between two whole numbers"
+            least[lower] = max(least[lower], whole // 100)
+            most[lower] = min(most[lower], whole // 100)
+        else:
+            most[lower] = min(most[lower], whole // 100)
+            least[lower + 1] = max(least[lower + 1], -(-whole // 100))
+    for _round in range(64):
+        before = (list(least), list(most))
+        for rank in range(1, n):
+            least[rank] = max(least[rank], least[rank - 1] + step)
+        for rank in range(n - 2, -1, -1):
+            most[rank] = min(most[rank], most[rank + 1] - step)
+        for lower, rest, whole, _percent in equations:
+            if rest == 0:
+                continue
+            options = _rung_pair_options(lower, rest, whole, least, most, step)
+            if options is None:
+                continue
+            if not options:
+                return "no pair of whole numbers fits a rung"
+            least[lower] = min(a for a, _b in options)
+            most[lower] = max(a for a, _b in options)
+            least[lower + 1] = min(b for _a, b in options)
+            most[lower + 1] = max(b for _a, b in options)
+        if any(least[rank] > most[rank] for rank in range(n)):
+            return "the rungs contradict each other"
+        if (least, most) == before:
+            return least, most
+    return "the bounds do not settle"
+
+
+def _most_squares(k: int, total: int, bottom: int, top: int) -> int:
+    """The largest sum of squares `k` whole numbers in [bottom, top] summing to `total` can have.
+
+    A convex sum is largest at a vertex: every number at an end but one.
+    """
+    if top <= bottom:
+        return k * bottom * bottom
+    full, spare = divmod(total - k * bottom, top - bottom)
+    if full >= k:
+        return k * top * top
+    return full * top * top + (bottom + spare) ** 2 + (k - full - 1) * bottom * bottom
+
+
+def _tail_multisets(
+    count: int, total: int, squares: int, least: int, most: int, step: int, cap: int = 3, budget: int = 2_000_000
+) -> "tuple[list[list[int]], bool]":
+    """Up to `cap` multisets of `count` whole numbers in [least, most], `step` apart at least, with this sum and sum of squares."""
+    found: "list[list[int]]" = []
+    steps = [0]
+
+    def walk(k: int, left: int, left_squares: int, top: int, taken: "list[int]") -> None:
+        nonlocal found
+        steps[0] += 1
+        if steps[0] > budget or len(found) >= cap:
+            return
+        if k == 0:
+            if left == 0 and left_squares == 0:
+                found += [sorted(taken)]
+            return
+        if left_squares < 0 or k * left_squares < left * left:
+            return
+        reach = math.isqrt(left_squares)
+        bottom = max(least, -reach)
+        top = min(top, reach)
+        if left < k * bottom + step * k * (k - 1) // 2 or left > k * top - step * k * (k - 1) // 2:
+            return
+        if left_squares > _most_squares(k, left, bottom, top):
+            return
+        for value in range(top, -(-left // k) - 1, -1):
+            walk(k - 1, left - value, left_squares - value * value, value - step, taken + [value])
+            if steps[0] > budget or len(found) >= cap:
+                return
+
+    walk(count, total, squares, most, [])
+    return found, steps[0] <= budget
+
+
+def beside_a_list(block: "dict", values: "list[int]") -> "dict":
+    """The COMPLEMENT beside a LISTED tail: what the exact moments give back of the withheld side.
+
+    A listed tail publishes both distances (TL5), so its sums follow from
+    its own pair; the interior ranks are bounded by every published rung
+    (a rung's pair of whole numbers enumerated inside its neighbours'
+    bounds), the published ends and order alone -- the column's values
+    may repeat, and repeat they do on the scales this is asked of; the
+    withheld side's sums follow by subtraction from the column's EXACT
+    mean and spread, and its cells are named where ONE multiset fits
+    across every interior the rungs admit. Returns `values_rebuilt`,
+    `withheld_tails_consistent` and `complement`: `n/a` where the block
+    does not list one side beside one withheld side, `open` where the
+    withheld tail comes back, `closed-by-ambiguity` where more than one
+    fits, or why the reader gave up. `values` are the column's own sorted
+    values, used only to say whether what came back IS the tail.
+    """
+    tails = block["tails"]
+    sides = {side: state(tails[side]) for side in ("low", "high")}
+    out: "dict" = {"sides": sides, "values_rebuilt": 0}
+    if sorted(sides.values()) != ["list", "withheld"]:
+        out["complement"] = "n/a"
+        return out
+    if block.get("integer_valued") is not True:
+        out["complement"] = "not a whole-number column"
+        return out
+    n = block["n_used_in_statistics"]
+    step = 1 if block.get("n_distinct_values") == n else 0
+    shown = "low" if sides["low"] == "list" else "high"
+    hidden = "high" if shown == "low" else "low"
+    low_rows, high_rows = tails["low"]["rows"], tails["high"]["rows"]
+    inside_first, inside_last = low_rows, n - high_rows - 1
+    equations = rung_equations(block, n, tails["low"]["percent"], tails["high"]["percent"])
+    totals = whole_sum(block["mean"], n)
+    if len(totals) != 1:
+        out["complement"] = f"the mean gives {len(totals)} sums"
+        return out
+    squares = whole_squares(block["std"], n, totals[0])
+    if len(squares) != 1:
+        out["complement"] = f"the spread gives {len(squares)} sums of squares"
+        return out
+    # The producer measures a tail's distances from its published rung.
+    listed = tail_sums(tails[shown], rung_of(block, tails[shown]["percent"]), shown)
+    if len(listed) != 1:
+        out["complement"] = f"the listed tail's pair gives {len(listed)} sums"
+        return out
+    listed_values = [int(value) for value in tails[shown]["values"]]
+    fixed: "dict[int, tuple[int, int]]" = {}
+    listed_ranks = range(0, low_rows) if shown == "low" else range(n - high_rows, n)
+    for rank in listed_ranks:
+        fixed[rank] = (min(listed_values), max(listed_values))
+    for end, rank in (("min", 0), ("max", n - 1)):
+        if block["percentiles"].get(end) is not None:
+            fixed[rank] = (int(block["percentiles"][end]), int(block["percentiles"][end]))
+    bounds = _rank_bounds(n, equations, fixed, step)
+    if isinstance(bounds, str):
+        out["complement"] = bounds
+        return out
+    least, most = bounds
+    # THE RANKS WALKED: the interior, the listed side's innermost rank (a
+    # boundary rung may read it beside the first interior rank; its value
+    # is one of the list and its sum is the pair's), and the withheld
+    # side's innermost rank where the rungs bound it.
+    first = inside_first - 1 if shown == "low" else inside_first
+    last = inside_last + 1 if shown == "high" else inside_last
+    edge = inside_last + 1 if hidden == "high" else inside_first - 1
+    if most[edge] - least[edge] <= RANK_WIDTH_CAP:
+        first, last = min(first, edge), max(last, edge)
+    for rank in range(first, last + 1):
+        if most[rank] - least[rank] > RANK_WIDTH_CAP:
+            out["complement"] = "interior-too-free (an unbounded rank)"
+            return out
+    ties = {lower + 1: (lower, rest, whole) for lower, rest, whole, _percent in equations if rest}
+    # Walked from the last rank down: for each value of a rank, every
+    # (sum, sum of squares, value of the outermost walked rank) of the ranks
+    # above it, the interior's alone summed.
+    after: "dict[int, set[tuple[int, int, int]]]" = {}
+    for rank in range(last, first - 1, -1):
+        here: "dict[int, set[tuple[int, int, int]]]" = {}
+        counted = inside_first <= rank <= inside_last
+        for value in range(least[rank], most[rank] + 1):
+            if rank in listed_ranks and value not in listed_values:
+                continue
+            add = (value, value * value) if counted else (0, 0)
+            found: "set[tuple[int, int, int]]" = set()
+            if rank == last:
+                found.add((add[0], add[1], value))
+            for above, outcomes in after.items():
+                if above < value + step:
+                    continue
+                if rank + 1 in ties:
+                    lower, rest, whole = ties[rank + 1]
+                    if (100 - rest) * value + rest * above != whole:
+                        continue
+                for total, square, outer in outcomes:
+                    found.add((total + add[0], square + add[1], outer))
+            if found:
+                here[value] = found
+            if len(found) > OUTCOME_CAP:
+                out["complement"] = "interior-too-free (configurations)"
+                return out
+        after = here
+    rows = high_rows if hidden == "high" else low_rows
+    tails_found: "set[tuple[int, ...]]" = set()
+    finished = True
+    for start, outcomes in after.items():
+        for total, square, outer in outcomes:
+            near = outer if hidden == "high" else start
+            left = totals[0] - listed[0][0] - total
+            left_squares = squares[0] - listed[0][1] - square
+            need, known = rows, []
+            if edge in (first, last):
+                need, known = rows - 1, [near]
+                left, left_squares = left - near, left_squares - near * near
+            if hidden == "high":
+                end = most[n - 1] if most[n - 1] < _UNBOUNDED else _UNBOUNDED
+                sets, done = _tail_multisets(need, left, left_squares, near + step, end, step)
+            else:
+                end = -least[0] if least[0] > -_UNBOUNDED else _UNBOUNDED
+                mirrored, done = _tail_multisets(need, -left, left_squares, -(near - step), end, step)
+                sets = [sorted(-one for one in each) for each in mirrored]
+            finished = finished and done
+            for one in sets:
+                tails_found.add(tuple(sorted(one + known)))
+            if len(tails_found) > 2:
+                break
+        if len(tails_found) > 2:
+            break
+    out["withheld_tails_consistent"] = len(tails_found)
+    truth = values[:low_rows] if hidden == "low" else values[n - high_rows :]
+    if len(tails_found) == 1 and list(next(iter(tails_found))) == sorted(truth):
+        out["values_rebuilt"] = len(truth)
+    if out["values_rebuilt"]:
+        out["complement"] = "open"
+    elif not tails_found and not finished:
+        out["complement"] = "a tail search ran out of budget"
+    else:
+        out["complement"] = "closed-by-ambiguity"
     return out
 
 
