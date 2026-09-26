@@ -171,7 +171,11 @@ def test_the_twin_pools_its_marks_again_or_names_why(
     turns `point` and `uneven` red at every seed (the two run); a bare
     remainder of the floor or more joining the pool turns `beside-bare`
     red at every seed; the cap at seven marks' worth rather than six
-    turns `whole-numbers` red at the three seeds that mark past sixty.
+    turns `whole-numbers` red at the three seeds that mark past sixty;
+    the cells to mark taken packed, `chosen = cells[:wanted]`, rather
+    than spread, turns `beside-bare` red at every seed (its nineteen bare
+    cells all above every marked one) and `whole-numbers` at the same
+    three seeds (its one bare cell the largest).
     """
     comma = flags[:1] == ("--decimal-comma",)
     line = int(flags[1]) if flags[:1] == ("--smallest-group",) else LINE
@@ -205,6 +209,16 @@ def test_the_twin_pools_its_marks_again_or_names_why(
         middle = sorted(v for values in by_mark.values() for v in values)[len(marked) // 2]
         for values in by_mark.values():
             assert min(values) < middle <= max(values)
+    # AND THE CELLS LEFT BARE ARE NOT THE LARGEST (plan P4-D149): a bare
+    # cell lies under some marked one, and two or more bare cells reach
+    # past the smallest marked one as well. One bare cell alone is the
+    # smallest groupable value, which is where the spread leaves it.
+    bare = [_value(cell, comma) for cell in grouped if not _mark(cell, comma)]
+    worn = [_value(cell, comma) for cell in marked]
+    if bare:
+        assert min(bare) < max(worn)
+    if len(bare) >= 2:
+        assert max(bare) > min(worn)
 
 
 def test_the_whole_number_shape_reaches_the_capped_leftover(tmp_path):

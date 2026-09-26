@@ -558,11 +558,19 @@ LONE_POOL_COUNTS = (
 # fourteen values pooled at eleven: the marks take them in turn. Thirty
 # cells of three values, ten each: each run fills one mark, and the four
 # marks left empty are each given the last cell of the fullest mark.
+# Thirty cells of thirty values pooled at fourteen: thirty is not fewer
+# than fourteen and the floor together, so fourteen are marked, SPREAD
+# over the thirty (plan P4-D149), and the sixteen bare cells (-1) lie
+# among them from the lowest value to the highest. Packed onto the first
+# fourteen, the sixteen largest would be the ones left bare.
 LONE_POOL_CELLS = (
     ((14, 14, 11), tuple(range(14)),
      (0, 1, 2, 3, 4, 5, 6, 0, 1, 2, 3, 4, 5, 6)),
     ((30, 30, 11), (0,) * 10 + (1,) * 10 + (2,) * 10,
      (0,) * 8 + (6, 3) + (1,) * 9 + (4,) + (2,) * 9 + (5,)),
+    ((14, 30, 11), tuple(range(30)),
+     (-1, -1, 0, -1, 1, -1, 2, -1, 3, -1, 4, -1, 5, -1, 6,
+      -1, -1, 0, -1, 1, -1, 2, -1, 3, -1, 4, -1, 5, -1, 6)),
 )
 LONE_POOL_ORDER = (",", " ", "'", "’", " ", " ", " ")
 
@@ -578,7 +586,9 @@ def _lone_pool_cells(rule, pool, groupable, floor, runs):
     flags = [True] * groupable + [False] * 5
     values = [1000.0 + run for run in runs] + [float(i) for i in range(5)]
     worn = list(rule(pool, flags, floor, values))
-    return tuple(LONE_POOL_ORDER.index(mark) for mark in worn[:groupable])
+    return tuple(
+        LONE_POOL_ORDER.index(mark) if mark else -1 for mark in worn[:groupable]
+    )
 
 
 def _lone_pool_missed(rule) -> "list[str]":
@@ -817,6 +827,11 @@ WITNESS_MUTANTS = {
     ),
     "lone_pool_an_empty_mark_left_empty": (
         "lone_pool", "        if len(held[most]) < 2:\n", "        if True:\n",
+    ),
+    "lone_pool_cells_packed": (
+        "lone_pool",
+        "    picked = plus_cells_by_value(grouped, values, target, True)\n",
+        "    picked = grouped[:target]\n",
     ),
     "readings_by_code_first": (
         "readings",
