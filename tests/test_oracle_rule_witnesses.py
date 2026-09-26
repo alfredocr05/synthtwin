@@ -617,6 +617,92 @@ def _shipped_lone_pool(pool, flags, floor, values):
     return worn
 
 
+# ------------------------------------- G7.3b step 9's choice and placement
+#
+# THE STEP'S ORDER AND ITS KEEP-ONE CAP WERE PARTED BY NO FROZEN CASE (the
+# second skeptic of landing 3b.0, 2026-09-26). The one case that reaches
+# the step, `every_day_group`, takes every offer it has, so with the
+# oracle's order turned outer-first, or its cap lifted so a group gives
+# its last rank, every vectors file rebuilt byte for byte. The rule is
+# asked here one call at a time: each tail as its group's distance `g`,
+# its group's ranks `G` and the distances it offers, and the answer the
+# method's sentence gives -- each tail's group distances from its
+# outermost group rank inward -- worked out by hand. The offers go in
+# this order while the count is short: the smaller |d - g| first; at one
+# |d - g|, the smaller d; at one |d - g| and one d, the low tail. A group
+# keeps one rank. Units outside g go to the outermost ranks, the largest
+# outermost; units inside g to the innermost, the smallest innermost.
+GROUP_OFFERS = (
+    # (low (g, G, offered) or None, high the same, owed, low answer, high answer)
+    #
+    # THE FROZEN CASE'S TWO GROUPS, owed four, three, two, one and nought.
+    # The offers sort (1, 1, high), (1, 2, low), (1, 4, low), (2, 1, low).
+    ((3, 21, (1, 2, 4)), (2, 11, (1,)), 4,
+     (4,) + (3,) * 18 + (2, 1), (2,) * 10 + (1,)),
+    ((3, 21, (1, 2, 4)), (2, 11, (1,)), 3,
+     (4,) + (3,) * 19 + (2,), (2,) * 10 + (1,)),
+    ((3, 21, (1, 2, 4)), (2, 11, (1,)), 2,
+     (3,) * 20 + (2,), (2,) * 10 + (1,)),
+    # Owed one: the high tail's unit one out, at a remove of one, before
+    # the low tail's two out (the smaller d); taken outer-first, the low
+    # tail's four out would go instead.
+    ((3, 21, (1, 2, 4)), (2, 11, (1,)), 1,
+     (3,) * 21, (2,) * 10 + (1,)),
+    ((3, 21, (1, 2, 4)), (2, 11, (1,)), 0,
+     (3,) * 21, (2,) * 11),
+    # At one remove and one distance, the low tail first.
+    ((3, 5, (2,)), (3, 5, (2,)), 1, (3, 3, 3, 3, 2), (3,) * 5),
+    # At one remove, the smaller distance across the two tails.
+    ((5, 5, (4,)), (2, 5, (1,)), 1, (5,) * 5, (2, 2, 2, 2, 1)),
+    # A GROUP KEEPS ONE RANK: two ranks give one, however much is owed.
+    ((3, 2, (2, 4, 1)), None, 3, (3, 2), None),
+    # ...and the other tail takes what the full one cannot.
+    ((3, 2, (2, 4)), (2, 4, (1, 3, 4)), 3, (3, 2), (3, 2, 2, 1)),
+    # Several units outside g: the largest on the outermost rank.
+    ((2, 5, (3, 4, 5)), None, 3, (5, 4, 3, 2, 2), None),
+    # Several units inside g: the smallest on the innermost rank.
+    ((5, 5, (1, 2, 3)), None, 3, (5, 5, 3, 2, 1), None),
+    # One tail alone.
+    (None, (2, 3, (1, 3)), 1, None, (2, 2, 1)),
+)
+
+
+def _group_missed(rule: typing.Callable[..., object]) -> "list[str]":
+    missed = []
+    for low, high, owed, want_low, want_high in GROUP_OFFERS:
+        got = _asked(rule, low, high, owed)
+        if got != (want_low, want_high):
+            missed += [
+                f"{low!r} and {high!r} owed {owed}: {got!r}, the statement gives"
+                f" {(want_low, want_high)!r}"
+            ]
+    return missed
+
+
+def _oracle_group(module: types.ModuleType) -> typing.Callable[..., object]:
+    def placed(low, high, owed):
+        tails = {
+            name: (spec[0], spec[1], list(spec[2]))
+            for name, spec in (("low", low), ("high", high))
+            if spec is not None
+        }
+        found = module.group_offers_taken(tails, owed)
+        return tuple(
+            tuple(found[name]) if name in found else None for name in ("low", "high")
+        )
+    return placed
+
+
+def _generator_group(low, high, owed):
+    offered = [
+        None if spec is None else (spec[0], spec[1], list(spec[2])) for spec in (low, high)
+    ]
+    found = generation._group_offers_taken(offered, owed)
+    return tuple(
+        None if offered[side] is None else tuple(found[side]) for side in range(2)
+    )
+
+
 # ------------------------------------------------------------ the two readers
 
 WITNESSES = {
@@ -647,6 +733,10 @@ WITNESSES = {
     "lone_pool": (
         lambda module: _lone_pool_missed(module.marks_of_a_lone_pool),
         lambda: _lone_pool_missed(_shipped_lone_pool),
+    ),
+    "group": (
+        lambda module: _group_missed(_oracle_group(module)),
+        lambda: _group_missed(_generator_group),
     ),
 }
 
@@ -837,6 +927,43 @@ WITNESS_MUTANTS = {
         "readings",
         "return [published] + sorted(candidates, key=moved_then_counts)",
         "return [published] + sorted(candidates, key=lambda pair: (pair[1], pair[0]))",
+    ),
+    # G7.3b step 9 (the second skeptic of landing 3b.0): O1 and O2 are the
+    # two it measured leaving every vectors file byte-identical.
+    "group_outer_unit_first": (
+        "group",
+        "for _gap, d, _order, name in sorted(offered):",
+        "for _gap, d, _order, name in sorted(offered, key=lambda o: (o[0], -o[1], o[2])):",
+    ),
+    "group_gives_its_last_rank": (
+        "group",
+        "        if len(chosen[name]) + 2 > tails[name][1]:\n",
+        "        if len(chosen[name]) + 1 > tails[name][1]:\n",
+    ),
+    "group_smallest_distance_first": (
+        "group",
+        "for _gap, d, _order, name in sorted(offered):",
+        "for _gap, d, _order, name in sorted(offered, key=lambda o: (o[1], o[0], o[2])):",
+    ),
+    "group_high_tail_first_on_a_tie": (
+        "group",
+        "for _gap, d, _order, name in sorted(offered):",
+        "for _gap, d, _order, name in sorted(offered, key=lambda o: (o[0], o[1], -o[2])):",
+    ),
+    "group_outer_units_smallest_outermost": (
+        "group",
+        "outer = sorted((d for d in chosen[name] if d > group), reverse=True)",
+        "outer = sorted(d for d in chosen[name] if d > group)",
+    ),
+    "group_inner_units_largest_innermost": (
+        "group",
+        "inner = sorted(d for d in chosen[name] if d < group)",
+        "inner = sorted((d for d in chosen[name] if d < group), reverse=True)",
+    ),
+    "group_takes_past_the_count": (
+        "group",
+        "        if owed == 0:\n            break\n        if len(chosen[name]) + 2",
+        "        if len(chosen[name]) + 2",
     ),
 }
 

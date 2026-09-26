@@ -54,7 +54,11 @@ ranks as near as one and as far as its reach where step 9 may move
 them -- is the generator's (`_tail_sum_bounds`, which its report reads)
 and the validator's (`_date_tail_windows(..., summed=True)`), and
 `test_the_two_writings_of_the_summed_window_agree` holds them equal,
-rank for rank, on every description of the battery.
+rank for rank, on every description of the battery. Both widen only
+where the distinct count is reachable, and
+`test_the_window_is_summed_wider_only_where_the_count_is_reachable`
+holds that on a column whose two marks make it unreachable: its windows
+are the strata, and a file two units past them MISSES its mean.
 
 THE MUTATIONS, each run on this file (plan P4-D354): the step withdrawn
 (the group's gap left a point) turns red the four shapes that MISSED
@@ -72,7 +76,11 @@ the outermost ranks, every rank of a group given away, and a unit of
 another midnight standing offered each turn their own witness red; and
 the frozen case `every_day_group` of tests/test_generation_reference.py
 turns red on the step withdrawn and on the inner units handed out
-largest first.
+largest first. And the validator's window widened where the count is
+not reachable turns the reachable-count witness red, its file WITHIN
+where it MISSES; the report's window widened there turns it red on the
+report's bounds (the second skeptic of the landing, 2026-09-26, found
+that condition witnessed nowhere, the whole suite green without it).
 """
 
 from __future__ import annotations
@@ -267,6 +275,61 @@ def test_the_summed_window_is_wider_than_the_strata_somewhere(tmp_path: pathlib.
     assert layout.low is not None and layout.low.shape is not None
     near, far = generation._tail_sum_bounds(layout.low, True)
     assert (near, far) != (list(layout.low.near), list(layout.low.far))
+
+
+def test_the_window_is_summed_wider_only_where_the_count_is_reachable(
+    tmp_path: pathlib.Path,
+) -> None:
+    """G12.14 sums a group wider only where the distinct count is reachable.
+
+    The frozen case's column written as midnight moments, every other cell
+    marked with `T` and the rest with a space: the census publishes both
+    marks, so one instant has two spellings, the count of different values
+    is not reachable (contract `datetime_counts_reachable`) and step 9
+    never runs. Its groups could give way were it reachable, so the summed
+    window would move -- and must not: the validator's and the report's
+    windows are the strata. A file whose low tail stands two units past
+    the strata's furthest sum, inside the widened one, MISSES its mean.
+    """
+    cells = _cells_of(_EVERY_DAY_GROUP_COUNTS, _EVERY_DAY_GROUP_START)
+    marked = [f"{cell}{'T' if place % 2 else ' '}00:00:00" for place, cell in enumerate(cells)]
+    described = kpi_shapes.describe(
+        tmp_path, "two_marks", "seen_at\n" + "".join(f"{cell}\n" for cell in marked), 11
+    )
+    block = described.document["columns"][0]
+    assert sorted(block["datetime_separators"]) == ["space", "upper_t"]
+    column = described.loaded.columns[0]
+    facts = column.facts
+    assert isinstance(facts, contract.DatetimeFacts)
+    assert not contract.datetime_counts_reachable(column)
+    layout = _layout(described.loaded, 11)
+    summed = validation._date_tail_windows(column, facts, 11, "", True)
+    records = {record.fact: record for record in generation.generate(described.loaded, 0).approximations}
+    for side, plan in (("low", layout.low), ("high", layout.high)):
+        assert plan is not None and plan.shape is not None, side
+        strata = (list(plan.near), list(plan.far))
+        assert generation._tail_sum_bounds(plan, True) != strata, f"{side}: nothing to widen"
+        assert summed[side] == strata, f"{side}: the validator widened an unreachable count"
+        record = records[f"{side}_tail.mean_distance"]
+        assert (record.lowest, record.highest) == (
+            generation._bound_figure(sum(strata[0]) / plan.rows),
+            generation._bound_figure(sum(strata[1]) / plan.rows),
+        ), f"{side}: the report widened an unreachable count"
+    plan = layout.low
+    assert plan is not None and plan.shape is not None
+    distances = list(plan.far)
+    distances[plan.shape.grouped] += 1
+    distances[plan.shape.grouped + 1] += 1
+    assert sum(plan.far) < sum(distances) <= sum(generation._tail_sum_bounds(plan, True)[1])
+    boundary = datetime.date.fromisoformat(block["low_tail"]["boundary"][:10])
+    lines = kpi_shapes.twin_text(described, 0).splitlines()
+    beyond = [place for place in range(1, len(lines)) if lines[place] and lines[place][:10] < boundary.isoformat()]
+    assert len(beyond) == plan.rows
+    for place, distance in zip(beyond, distances):
+        lines[place] = (boundary - datetime.timedelta(days=distance)).isoformat() + lines[place][10:]
+    outcome = kpi_shapes.measure(described, "\n".join(lines) + "\n", "past_the_strata.csv")
+    verdicts = {check.subcheck: check.verdict for check in outcome.checks}
+    assert verdicts["tails.low.mean_distance"] == validation.MISSED
 
 
 # A column mirrored about its middle day: its two tails publish one pair,

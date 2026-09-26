@@ -17,7 +17,7 @@ the real column never wrote, and validation passed. Where the count is
 still short, the group now gives ranks to free units inside its reach
 (method G7.3b step 9, plan P4-D354), and G12.14's window widens with it;
 the order it takes them in is stated exactly, and every clause has a
-witness but two bounds no description found reaches. After: nothing missed on the 15 twins that missed, and
+witness but two bounds no description found reaches. After: nothing missed on the 25 of 240 twins that missed, and
 the two shapes that hid it write every unit. Stage 3b's gate opens with
 `test_every_day_filled`; frozen as `every_day_group` (G14.3 counts 131);
 `K-S3-30`. Not repaired: real outermost units past a tail's derived end,

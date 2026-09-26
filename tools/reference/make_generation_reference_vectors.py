@@ -10213,7 +10213,9 @@ def group_gives_way(column, ordinals, parsed, whole):
     tails the unit nearer its own boundary; at one ``|d - g|`` and one
     ``d``, the low tail first.  A tail's taken distances inside its group go
     smallest-first to its innermost ranks, and those outside it
-    largest-first to its outermost group ranks.  Step 7's step off a
+    largest-first to its outermost group ranks -- the choice and the
+    placement are ``group_offers_taken``, which
+    tests/test_oracle_rule_witnesses.py asks clause by clause.  Step 7's step off a
     hole is not mirrored here, as ``tail_side_plan`` does not mirror it:
     no frozen case publishes an absent spelling beside a tail group.
     """
@@ -10243,8 +10245,8 @@ def group_gives_way(column, ordinals, parsed, whole):
     def rank(plan, i):
         return i if plan["low_side"] else parsed - 1 - i
 
-    offered = []
-    for order, name in enumerate(("low", "high")):
+    tails = {}
+    for name in ("low", "high"):
         plan = sides.get(name)
         if not plan or plan.get("reach") is None:
             continue
@@ -10253,35 +10255,63 @@ def group_gives_way(column, ordinals, parsed, whole):
             continue
         group = plan["distances"][rows - 1]
         mine = standing_of(column, place(plan, group), day, step, widths, word)
-        offered += [
-            (abs(d - group), d, order, name)
-            for d in range(1, plan["reach"] + 1)
-            if d != group
-            and place(plan, d) // unit not in held
-            and standing_of(column, place(plan, d), day, step, widths, word) == mine
-        ]
-    chosen = {"low": [], "high": []}
+        tails[name] = (
+            group,
+            rows - max(plan["grouped"], 1),
+            [
+                d
+                for d in range(1, plan["reach"] + 1)
+                if d != group
+                and place(plan, d) // unit not in held
+                and standing_of(column, place(plan, d), day, step, widths, word) == mine
+            ],
+        )
+    for name, distances in group_offers_taken(tails, owed).items():
+        plan = sides[name]
+        first = max(plan["grouped"], 1)
+        for k, d in enumerate(distances):
+            if d != tails[name][0]:
+                ordinals[rank(plan, first + k)] = place(plan, d)
+    return ordinals
+
+
+def group_offers_taken(tails, owed):
+    """G7.3b step 9's choice and placement, read from the method's sentence.
+
+    ``tails`` maps ``"low"`` and ``"high"`` to a group's distance ``g``,
+    its ranks ``G`` and the distances ``d`` it offers.  The offers are
+    taken in this order while ``owed`` is above nought and the group keeps
+    one rank: the smaller ``|d - g|`` first; at one ``|d - g|``, the
+    smaller ``d`` first; at one ``|d - g|`` and one ``d``, the low tail
+    first.  Each tail's answer is its group's distances from its
+    OUTERMOST rank inward: its units outside ``g`` on its outermost
+    ranks, the largest outermost; its units inside ``g`` on its
+    innermost ranks, the smallest innermost; ``g`` between.
+    """
+    offered = []
+    for order, name in enumerate(("low", "high")):
+        if name in tails:
+            group, _ranks, free = tails[name]
+            offered += [(abs(d - group), d, order, name) for d in free]
+    chosen = {name: [] for name in tails}
     for _gap, d, _order, name in sorted(offered):
         if owed == 0:
             break
-        plan = sides[name]
-        if len(chosen[name]) + 2 > len(plan["spots"]) - max(plan["grouped"], 1):
+        if len(chosen[name]) + 2 > tails[name][1]:
             continue
         chosen[name] += [d]
         owed -= 1
-    for name, taken in chosen.items():
-        if not taken:
-            continue
-        plan = sides[name]
-        rows = len(plan["spots"])
-        group = plan["distances"][rows - 1]
-        inner = sorted(d for d in taken if d < group)
-        outer = sorted((d for d in taken if d > group), reverse=True)
+    placed = {}
+    for name, (group, ranks, _free) in tails.items():
+        inner = sorted(d for d in chosen[name] if d < group)
+        outer = sorted((d for d in chosen[name] if d > group), reverse=True)
+        found = [group] * ranks
         for k, d in enumerate(inner):
-            ordinals[rank(plan, rows - 1 - k)] = place(plan, d)
+            found[ranks - 1 - k] = d
         for k, d in enumerate(outer):
-            ordinals[rank(plan, max(plan["grouped"], 1) + k)] = place(plan, d)
-    return ordinals
+            found[k] = d
+        placed[name] = found
+    return placed
 
 
 def sort_unpinned_runs(ordinals, pinned):

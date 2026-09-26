@@ -37,6 +37,7 @@ import copy
 import importlib.util
 import json
 import pathlib
+import re
 import shutil
 
 import pytest
@@ -267,6 +268,45 @@ def test_the_measurement_note_names_exactly_the_entries_measured_off_the_base_co
         # value carrying keys an older driver could not emit is visible.
         assert ENTRIES[entry_id]["value_at"].get("measured_by"), (
             f"{entry_id}: re-measured off {base} and does not say what measured it"
+        )
+
+
+# The numbers the measurement note writes in words, up to the largest a
+# group of it has needed.
+_NOTE_NUMBERS = {
+    "ONE": 1, "TWO": 2, "THREE": 3, "FOUR": 4, "FIVE": 5, "SIX": 6, "SEVEN": 7,
+    "EIGHT": 8, "NINE": 9, "TEN": 10, "ELEVEN": 11, "TWELVE": 12,
+}
+
+
+def test_the_measurement_note_counts_what_it_names() -> None:
+    """The note's numerals are the counts they state.
+
+    The test above holds the entries the note NAMES to the entries off
+    the base commit; nothing held the numbers it writes beside them.
+    MEASURED on landing 3b.0 (its second skeptic, 2026-09-26): the note
+    said "40 ENTRIES STAND OFF THE BASE COMMIT" over 41 such entries, one
+    short since 69bb7f1, and every landing since restated it. So the
+    total is read and counted, and so is each "AND <n> STAND(S) OFF
+    <commit>": as many entries carry that commit as the words say.
+    """
+    base = LEDGER["base_commit"]
+    note = LEDGER["measurement_note"]
+    off_base = [
+        entry["value_at"]["commit"]
+        for entry in LEDGER["entries"]
+        if entry["value_at"]["commit"] != base
+    ]
+    total = re.findall(r"(\d+) ENTRIES STAND OFF THE BASE COMMIT", note)
+    assert total == [str(len(off_base))], (
+        f"the note says {total} entries stand off {base}; {len(off_base)} do"
+    )
+    groups = re.findall(r"AND ([A-Z]+|\d+) (?:MORE )?STANDS? OFF ([0-9a-f]{7})", note)
+    assert groups, "the note no longer counts its groups as this test reads them"
+    for said, commit in groups:
+        stated = int(said) if said.isdigit() else _NOTE_NUMBERS[said]
+        assert stated == off_base.count(commit), (
+            f"the note says {said} stand off {commit}; {off_base.count(commit)} do"
         )
 
 

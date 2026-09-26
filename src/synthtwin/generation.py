@@ -20658,7 +20658,7 @@ def _group_gives_way(
     holes = _hole_units(column, facts)
     plans = [layout.low, layout.high]
     tails = [facts.low_tail, facts.high_tail]
-    offers: "list[tuple[int, int, int]]" = []
+    offered: "list[tuple[int, int, list[int]] | None]" = [None, None]
     for side in range(2):
         plan = plans[side]
         tail = tails[side]
@@ -20679,9 +20679,12 @@ def _group_gives_way(
         by = 1
         if day == 86400 and _written_at_midnight(own, 0, step):
             by = max(1, 86400 // plan.unit)
-        found = 0
+        # The nearest `min(short, room)` free units are offered: no more of
+        # this tail's can be taken, and `_group_offers_taken` takes them in
+        # an order that never passes a nearer one of the same tail.
+        free: "list[int]" = []
         away = by
-        while found < min(short, room):
+        while len(free) < min(short, room):
             inner = shape.group - away
             outer = shape.group + away
             if inner < 1 and outer > reach:
@@ -20696,37 +20699,76 @@ def _group_gives_way(
                     continue
                 if not _same_standing(facts, own, spot, day, step, widths, word):
                     continue
-                offers += [(away, distance, side)]
-                found = found + 1
+                free += [distance]
             away = away + by
-    taken: "list[list[int]]" = [[], []]
-    for offer in sorted(offers):
-        if short == 0:
-            break
-        side = offer[2]
-        plan = plans[side]
-        if plan is None or plan.shape is None:
-            continue
-        if len(taken[side]) >= plan.rows - max(plan.shape.grouped, 1) - 1:
-            continue
-        taken[side] += [offer[1]]
-        short = short - 1
+        offered[side] = (shape.group, plan.rows - first, free)
+    placed = _group_offers_taken(offered, short)
     parsed = len(moved)
     for side in range(2):
         plan = plans[side]
-        if plan is None or plan.shape is None or not taken[side]:
+        if plan is None or plan.shape is None:
             continue
-        group = plan.shape.group
+        first = max(plan.shape.grouped, 1)
+        for place in range(len(placed[side])):
+            if placed[side][place] != plan.shape.group:
+                rank = _tail_rank_of(plan, parsed, first + place)
+                moved[rank] = _tail_place(plan, placed[side][place])
+
+
+def _group_offers_taken(
+    offered: "list[tuple[int, int, list[int]] | None]", short: int
+) -> "list[list[int]]":
+    """G7.3b step 9's choice and placement, from what each tail offers.
+
+    `offered` holds, low tail first, each tail's group distance `g`, its
+    group's ranks `G` and the distances `d` it offers, or None where it
+    offers nothing. The offers `(|d - g|, d, side)` are taken in the order
+    they sort in -- the smaller `|d - g|` first, then the smaller `d`,
+    then the low tail -- while `short` is above nought, each group keeping
+    one rank. Each tail's answer is its group's distances, OUTERMOST group
+    rank first: the taken units outside `g` on its outermost ranks, the
+    largest outermost; those inside `g` on its innermost ranks, the
+    smallest innermost; `g` between. A tail offering nothing answers an
+    empty list. Witnessed clause by clause in
+    tests/test_oracle_rule_witnesses.py (`group`), beside the oracle's
+    own statement of it.
+
+    Guarantees: returns two lists; a function of its arguments. Raises
+    nothing. No I/O of any kind.
+    """
+    offers: "list[tuple[int, int, int]]" = []
+    for side in range(2):
+        tail = offered[side]
+        if tail is None:
+            continue
+        for distance in tail[2]:
+            offers += [(abs(distance - tail[0]), distance, side)]
+    taken: "list[list[int]]" = [[], []]
+    for offer in sorted(offers):
+        if short <= 0:
+            break
+        side = offer[2]
+        tail = offered[side]
+        if tail is None or len(taken[side]) >= tail[1] - 1:
+            continue
+        taken[side] += [offer[1]]
+        short = short - 1
+    placed: "list[list[int]]" = [[], []]
+    for side in range(2):
+        tail = offered[side]
+        if tail is None:
+            continue
+        group = tail[0]
+        ranks = tail[1]
         inside = sorted([value for value in taken[side] if value < group])
         outside = sorted([value for value in taken[side] if value > group])
+        found = [group for _place in range(ranks)]
         for place in range(len(inside)):
-            rank = _tail_rank_of(plan, parsed, plan.rows - 1 - place)
-            moved[rank] = _tail_place(plan, inside[place])
-        first = max(plan.shape.grouped, 1)
+            found[ranks - 1 - place] = inside[place]
         for place in range(len(outside)):
-            rank = _tail_rank_of(plan, parsed, first + place)
-            moved[rank] = _tail_place(plan, outside[len(outside) - 1 - place])
-
+            found[place] = outside[len(outside) - 1 - place]
+        placed[side] = found
+    return placed
 
 # HOW LONG THE RESTORATION RUNS (plan P4-D258). It ran a fixed four
 # rounds and stopped, and four was too few: 379, 37, 102 and 382 cells of
