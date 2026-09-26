@@ -15,12 +15,16 @@ seed, because a tail's tie group stood on one distance the count pass
 could not split; on moments the lost unit was bought back as a spelling
 the real column never wrote, and validation passed. Where the count is
 still short, the group now gives ranks to free units inside its reach
-(method G7.3b step 9, plan P4-D354), and G12.14's window widens with it.
-After: nothing missed on the 15 twins that missed, and the two shapes
-that hid it write every unit. Stage 3b's gate opens with `test_every_day_filled`;
-frozen as `every_day_group` (G14.3 counts 131); `K-S3-30`. Not repaired:
-a real outermost day past the construction's end (600 rows over 50 days,
-49 of 50).
+(method G7.3b step 9, plan P4-D354), and G12.14's window widens with it;
+the order it takes them in is stated exactly and every clause but one
+has a witness. After: nothing missed on the 15 twins that missed, and
+the two shapes that hid it write every unit. Stage 3b's gate opens with
+`test_every_day_filled`; frozen as `every_day_group` (G14.3 counts 131);
+`K-S3-30`. Not repaired: real outermost units past a tail's derived end,
+several a side and on both sides at once -- a year whose first and last
+weeks hold a cell a day comes back 363 and 359 of 365 days at floors 11
+and 36 -- and hidden on moments by a bought spelling (898 of 900 seconds
+at floor 36), where two drawn ranks landing on one unit also lose one.
 
 ### A census of marks that is only a pool is written, named and checked (2026-09-25)
 

@@ -10205,10 +10205,13 @@ def group_gives_way(column, ordinals, parsed, whole):
     fewer than it, each tail whose group holds two ranks or more -- outer
     indices ``max(F - 1, 1)`` to ``m - 1`` -- offers every distance from
     one to its reach, other than the group's own, whose unit no rank
-    holds and whose standing is the group's.  The offers are taken in
-    order of distance from the group's own, the smaller distance first
-    at one remove, the low tail first, while the count is short and the
-    group keeps one rank; a tail's taken distances inside its group go
+    holds and whose standing is the group's.  Each offer is a tail and a
+    distance ``d``, and the offers are taken in this order while the
+    count is short and the group keeps one rank: the smaller ``|d - g|``
+    first; at one ``|d - g|``, the smaller ``d`` first -- on one tail
+    the unit inside ``g`` before the one outside it, across the two
+    tails the unit nearer its own boundary; at one ``|d - g|`` and one
+    ``d``, the low tail first.  A tail's taken distances inside its group go
     smallest-first to its innermost ranks, and those outside it
     largest-first to its outermost group ranks.  Step 7's step off a
     hole is not mirrored here, as ``tail_side_plan`` does not mirror it:
@@ -20077,8 +20080,9 @@ def _every_day_group():
         "why": "G7.3b step 9 (plan P4-D354): where the count of different "
         "days is still short once the count pass is done, each tail's tie "
         "group gives up ranks onto the days no rank holds from one to its "
-        "reach, nearest its own distance first, the inner of two first, the "
-        "low tail first, the group keeping one rank; the days inside its "
+        "reach -- the smaller remove from its own distance first, then the "
+        "smaller distance, then the low tail -- the group keeping one rank; "
+        "the days inside its "
         "distance go smallest first to its innermost ranks and the days "
         "outside it largest first to its outermost. 105 dates on every one "
         "of 22 days come back on all 22: the low group gives three ranks to "

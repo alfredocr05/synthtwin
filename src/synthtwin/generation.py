@@ -20627,11 +20627,16 @@ def _group_gives_way(
     beyond the boundary -- 17 real cells -- never written, and both
     distinct counts MISSED at every seed. So where the count of different
     units is still short once the count pass is done, the units no rank
-    holds from one to the group's reach (`_group_reach`) are offered, the
-    nearest the group's own distance first, the inner of two at one
-    distance, the low tail before the high; a unit a column's absent
-    spelling names, or of another width kind or midnight standing
-    (`_same_standing`), is not offered. Each tail's group keeps one rank.
+    holds from one to the group's reach (`_group_reach`) are offered; a
+    unit a column's absent spelling names, or of another width kind or
+    midnight standing (`_same_standing`), is not. Each offer is a tail
+    and a distance `d`, taken in the method's order until the count is
+    met: the smaller `|d - g|` first; at one `|d - g|`, the smaller `d`
+    first -- on one tail the unit inside `g` before the one outside it,
+    across the two tails the unit nearer its own boundary; at one
+    `|d - g|` and one `d`, the low tail first. That is the order the
+    tuples `(away, distance, side)` sort in. Each tail's group keeps one
+    rank, since a group that gave its last would leave `g` empty.
     The units inside the group's distance go to its innermost ranks, the
     smallest distance to the innermost; the units outside it to its
     outermost ranks, the largest distance to the outermost -- so the

@@ -82,7 +82,7 @@
       "justification": "The twin cells synthtwin's generation method requires for the case docs/spec/generation-method-v1.md section G14.3 adds with the census of marks that is only a pool (plan P4-D352): pool_alone_marks, G6.1's seven marks spent over a pool by whole runs, each run of one value going to the mark holding the fewest cells, on forty-four whole numbers from 1001 to 1016 in runs of two to five. The twelfth and thirteenth files stand past plan P4-D295's 200000-byte line, so it opens a fourteenth rather than raise the cap. A SECOND CASE at landing 3b.0 (plan P4-D354): every_day_group, G7.3b step 9's tie group giving ranks to the days no rank holds within its reach, on 105 dates holding every one of 22 days; this file stood under that line, so the case joins it. pool_alone_marks rebuilt byte-identical. Computed from that specification alone by the same oracle and the same proof layer as every other vector file here, which imports neither synthtwin nor numpy nor pandas; no value in it comes from any table, and every number it publishes carries the exact value it was proved against.",
       "path": "tests/reference/generation-branch-vectors-12.json",
       "seed": 0,
-      "sha256": "af9bd5e691b8a4589c97bc7ad7abdff59c4ee553aa9bde79d1643a419e42eb3d"
+      "sha256": "cca6a92663a6b0d61b26ed5961ed947b50f4da0e4dc2e316949acbb38d525e49"
     },
     {
       "generator": "tools/reference/make_generation_document_vectors.py",

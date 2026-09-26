@@ -5906,15 +5906,23 @@ unit by DT3.
    m)` rounded as in step 5, at least the group's distance `g` and never
    past the end. A unit an absent spelling names (step 7), or of another
    width kind or midnight standing than the group's, is not offered, so
-   a group at a midnight is offered only units at a midnight. The offers
-   are taken nearest `g` first, the inner of two at one distance, the low
-   tail before the high, until the count is met, each group keeping one
-   rank. A group's
+   a group at a midnight is offered only units at a midnight and a group
+   off one no unit at one. Each offer is a tail and a distance `d`, and
+   the offers are taken in this order until the count is met: the
+   smaller `|d - g|` first; at one `|d - g|`, the smaller `d` first --
+   on one tail the unit inside `g` before the one outside it, across the
+   two tails the unit nearer its own boundary; at one `|d - g|` and one
+   `d`, the low tail first. Each group keeps one rank, since a group that
+   gave its last would leave `g` empty and gain nothing. A group's
    units inside `g` go to its innermost ranks, the smallest to the
    innermost; its units outside `g` to its outermost ranks, the largest to
    the outermost. Every drawn rank stands at `t` or beyond, so no rank
    passes another. No word is drawn. `rows` and the boundary stand, and
-   G12.14 draws its window to hold every twin this writes.
+   G12.14 draws its window to hold every twin this writes. No
+   description found reaches the width-kind half of the standing clause:
+   over 320 month-first columns on the days 10 to 31 of a month, their
+   counts raised by up to three, no group's reach crossed a change of
+   width kind, so that half has no witness.
 
 #### G7.3c A tail that publishes which values it holds
 

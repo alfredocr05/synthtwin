@@ -25,10 +25,28 @@ written as midnight moments, every second of ten minutes, and one
 105-row column whose high tail's group stands one day off an empty unit.
 Admissions and billing are also asked at floors 1 and 36.
 
-AND ITS ORDER IS WITNESSED where no shape of the battery reaches it:
-`test_the_low_tail_gives_way_first_on_a_tie` rewrites a mirrored
-column's description one different value short, so the step takes one of
-two tied offers and must take the low tail's.
+AND EACH CLAUSE OF THE STEP IS WITNESSED where no shape of the battery
+reaches it, most of them on a description rewritten to ask for fewer
+or more different values than the real column held -- one the loader
+accepts and no producer writes:
+
+* `test_the_low_tail_gives_way_first_on_a_tie` -- a mirrored column one
+  value short, so the step takes one of two tied offers: the low tail's;
+* `test_the_offers_are_taken_nearest_the_group_first` -- the frozen
+  case's column one to four values short, so the step takes the first
+  offers in the method's order, which this test derives: nearest the
+  group's own distance, then the smaller distance, then the low tail;
+* `test_no_unit_an_absent_spelling_names_is_offered` -- a day the run
+  names as holding no value, two days inside a tail's reach;
+* `test_the_ranks_stay_in_order` -- the same column, whose low tail
+  gives two ranks outside its group, the larger distance to the outer;
+* `test_a_group_keeps_one_rank` -- a tail of twelve cells, so a group
+  of two ranks, asked for more values than it can give;
+* `test_no_rank_is_moved_onto_a_midnight` -- seconds whose high tail's
+  reach holds a midnight no cell held.
+
+The width-kind half of the standing clause has no witness: no
+description found reaches it (method G7.3b step 9).
 
 AND THE WINDOW IS WRITTEN TWICE. G12.14's summed window -- a group's
 ranks as near as one and as far as its reach where step 9 may move
@@ -44,9 +62,16 @@ strata turns red on `tails.low.mean_distance` of admissions; the
 report's window left at the strata turns red on the approximations; the
 validator's inner ranks summed one unit further out turns the agreement
 red; the high tail offered first on a tie turns
-`test_the_low_tail_gives_way_first_on_a_tie` red; and the frozen case
-`every_day_group` of tests/test_generation_reference.py turns red on the
-step withdrawn and on the inner units handed out largest first.
+`test_the_low_tail_gives_way_first_on_a_tie` red; the outer unit taken
+before the inner at one remove, the smallest distance taken first, and
+the inner unit of each tail taken before any outer one each turn
+`test_the_offers_are_taken_nearest_the_group_first` red; an absent
+spelling's unit offered, the outer units handed out smallest first to
+the outermost ranks, every rank of a group given away, and a unit of
+another midnight standing offered each turn their own witness red; and
+the frozen case `every_day_group` of tests/test_generation_reference.py
+turns red on the step withdrawn and on the inner units handed out
+largest first.
 """
 
 from __future__ import annotations
@@ -60,7 +85,7 @@ import pytest
 
 import fixtures
 import kpi_shapes
-from synthtwin import contract, generation, rendering, validation
+from synthtwin import contract, generation, profile, reading, rendering, taxonomy, validation
 
 SEEDS = (0, 1, 2, 3, 4)
 
@@ -283,3 +308,289 @@ def test_the_low_tail_gives_way_first_on_a_tie(tmp_path: pathlib.Path) -> None:
         written = set(rendering.twin_csv(generation.generate(loaded, seed)).splitlines()[1:])
         assert len(written) == block["n_distinct"] - 1, seed
         assert below.isoformat() in written and above.isoformat() not in written, seed
+
+
+def _cells_of(counts: "tuple[int, ...]", start: datetime.date) -> "list[str]":
+    """``counts[i]`` cells of the day ``i`` days after ``start``, in order."""
+    cells: "list[str]" = []
+    for step in range(len(counts)):
+        day = start + datetime.timedelta(days=step)
+        cells += [day.isoformat()] * counts[step]
+    return cells
+
+
+def _recounted(
+    tmp_path: pathlib.Path, document: dict, name: str, by: int
+) -> contract.Profile:
+    """The one-column description with both its counts of different values moved by ``by``, loaded."""
+    block = document["columns"][0]
+    rewritten = dict(document)
+    rewritten["columns"] = [
+        dict(
+            block,
+            n_distinct=block["n_distinct"] + by,
+            n_distinct_folded=block["n_distinct_folded"] + by,
+        )
+    ]
+    return contract.load_profile(
+        str(fixtures.write_profile(tmp_path, f"{name}-profile.json", rewritten))
+    )
+
+
+def _written(loaded: contract.Profile, seed: int) -> "set[str]":
+    """Every different cell the twin of a one-column description writes at ``seed``."""
+    return set(rendering.twin_csv(generation.generate(loaded, seed)).splitlines()[1:])
+
+
+def _layout(loaded: contract.Profile, floor: int) -> "generation._DateLayout":
+    column = loaded.columns[0]
+    assert isinstance(column.facts, contract.DatetimeFacts)
+    return generation._date_layout(
+        column, column.facts, column.n_present - column.facts.n_unparsed, floor
+    )
+
+
+# THE FROZEN CASE `every_day_group`'s COLUMN (tests/test_generation_reference.py):
+# 105 dates on every one of 22 days from 2024-05-06. At a floor of eleven
+# its low tail's group stands three days out and reaches five, its high
+# tail's two days out and reaching three.
+_EVERY_DAY_GROUP_COUNTS = (
+    5, 4, 1, 6, 9, 2, 4, 7, 6, 2, 7, 7, 5, 5, 3, 2, 9, 7, 1, 1, 11, 1,
+)
+_EVERY_DAY_GROUP_START = datetime.date(2024, 5, 6)
+
+
+def test_the_offers_are_taken_nearest_the_group_first(tmp_path: pathlib.Path) -> None:
+    """G7.3b step 9's order: by remove from `g`, then the smaller distance, then the low tail.
+
+    The frozen case's column with its counts of different values lowered
+    by four: the count pass leaves its twin 18 of the 22 days, so the
+    step has nothing to give, and the four days that twin lacks are the
+    units the step offers. Lowered by three, two and one, the step gives
+    one, two and three of them, so the twin lacks the rest -- which the
+    method's order decides, and which is derived here from the order and
+    not read off a twin. The column parts that order from the three it
+    rules out, which is asserted, so each of them turns this red: the
+    inner unit of each tail before any outer one, the outer unit before
+    the inner at one remove, and the smallest distance first.
+    """
+    cells = _cells_of(_EVERY_DAY_GROUP_COUNTS, _EVERY_DAY_GROUP_START)
+    text = "seen_on\n" + "".join(f"{cell}\n" for cell in cells)
+    described = kpi_shapes.describe(tmp_path, "every_day_group", text, 11)
+    block = described.document["columns"][0]
+    layout = _layout(described.loaded, 11)
+    assert layout.low is not None and layout.low.shape is not None
+    assert layout.high is not None and layout.high.shape is not None
+    low = datetime.date.fromisoformat(block["low_tail"]["boundary"])
+    high = datetime.date.fromisoformat(block["high_tail"]["boundary"])
+    groups = (layout.low.shape.group, layout.high.shape.group)
+
+    def place(day: str) -> "tuple[int, int, int]":
+        """A free day's side, its distance from its boundary and its group's distance."""
+        on = datetime.date.fromisoformat(day)
+        assert on < low or on > high, f"{day} is no tail's unit"
+        side = 0 if on < low else 1
+        distance = (low - on).days if side == 0 else (on - high).days
+        return (side, distance, groups[side])
+
+    def method(day: str) -> "tuple[int, int, int]":
+        side, distance, group = place(day)
+        return (abs(distance - group), distance, side)
+
+    def inner_first(day: str) -> "tuple[int, int, int]":
+        side, distance, group = place(day)
+        return (abs(distance - group), 0 if distance < group else 1, side)
+
+    def outer_first(day: str) -> "tuple[int, int, int]":
+        side, distance, group = place(day)
+        return (abs(distance - group), -distance, side)
+
+    def smallest_first(day: str) -> "tuple[int, int]":
+        side, distance, _group = place(day)
+        return (distance, side)
+
+    real = set(cells)
+    lowered = [_recounted(tmp_path, described.document, f"lowered-{by}", -by) for by in (0, 1, 2, 3, 4)]
+    for seed in SEEDS:
+        free = real - _written(lowered[4], seed)
+        assert len(free) == 4, (seed, sorted(free))
+        order = sorted(free, key=method)
+        for ruled_out in (inner_first, outer_first, smallest_first):
+            other = sorted(free, key=ruled_out)
+            assert any(set(other[:given]) != set(order[:given]) for given in (1, 2, 3)), (
+                f"seed {seed}: the column does not part the method's order from "
+                f"{ruled_out.__name__}"
+            )
+        for given in (1, 2, 3):
+            lacks = real - _written(lowered[4 - given], seed)
+            assert lacks == set(order[given:]), (
+                f"seed {seed}, {given} given: the twin lacks {sorted(lacks)} where "
+                f"the order leaves {sorted(order[given:])}"
+            )
+
+
+# The same column with 2024-05-12 named as holding no value: its four cells
+# and twelve more are written with that spelling, so the description
+# publishes it among the absent cells, and the low tail's boundary moves to
+# 2024-05-14 -- the absent day two units out, inside the group's reach.
+_ABSENT_DAY = "2024-05-12"
+
+
+def _with_an_absent_day(tmp_path: pathlib.Path) -> kpi_shapes.Described:
+    cells = _cells_of(_EVERY_DAY_GROUP_COUNTS, _EVERY_DAY_GROUP_START) + [_ABSENT_DAY] * 12
+    table = fixtures.write(tmp_path, "absent_day.csv", "seen_on\n" + "".join(f"{cell}\n" for cell in cells))
+    settings = taxonomy.Settings(small_cell_floor=11, declared_missing_values=(_ABSENT_DAY,))
+    document = profile.build_document(
+        reading.read_table(str(table), small_cell_floor=11), settings, [], [], []
+    )
+    written = fixtures.write_profile(tmp_path, "absent_day-profile.json", document)
+    return kpi_shapes.Described(tmp_path, table, document, contract.load_profile(str(written)))
+
+
+def test_no_unit_an_absent_spelling_names_is_offered(tmp_path: pathlib.Path) -> None:
+    """G7.3b step 9 offers no unit a column's absent spelling names.
+
+    The absent day stands inside the low group's reach and holds no rank
+    once the count pass is done. Offered, a group rank moved onto it is
+    written as a cell the description reads as absent, so the twin comes
+    back a day short with both distinct counts MISSED; not offered, the
+    step takes the next units and the twin holds every day the real
+    column holds, at every seed.
+    """
+    described = _with_an_absent_day(tmp_path)
+    block = described.document["columns"][0]
+    assert block["missing_by_source"] == {_ABSENT_DAY: 16}
+    layout = _layout(described.loaded, 11)
+    assert layout.low is not None and layout.low.shape is not None
+    boundary = datetime.date.fromisoformat(block["low_tail"]["boundary"])
+    away = (boundary - datetime.date.fromisoformat(_ABSENT_DAY)).days
+    shape = layout.low.shape
+    assert 1 <= away <= generation._group_reach(shape) and away != shape.group
+    real = set(_cells_of(_EVERY_DAY_GROUP_COUNTS, _EVERY_DAY_GROUP_START)) - {_ABSENT_DAY}
+    for seed in SEEDS:
+        text = kpi_shapes.twin_text(described, seed)
+        missed = kpi_shapes.missed(kpi_shapes.measure(described, text, f"absent-{seed}.csv"))
+        assert missed == [], f"seed {seed}: {missed}"
+        held = set(text.splitlines()[1:]) - {"", _ABSENT_DAY}
+        assert held == real, f"seed {seed}: {sorted(real ^ held)}"
+
+
+def test_the_ranks_stay_in_order(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """G7.3b step 9 keeps the ranks in order: the larger distance to the outer rank.
+
+    On the column with the absent day the low tail's group gives two
+    ranks to units outside its own distance; the one further out goes to
+    the outermost group rank, so every rank still stands at or beyond the
+    rank inside it. The twin's cells are written in a shuffled order, so
+    the ranks are read where the step leaves them.
+    """
+    described = _with_an_absent_day(tmp_path)
+    shipped = generation._group_gives_way
+    seen: "dict[int, tuple[generation._DateLayout, list[int], list[int]]]" = {}
+
+    def watched(
+        column: object,
+        facts: object,
+        layout: "generation._DateLayout",
+        moved: "list[int]",
+        *rest: object,
+    ) -> None:
+        before = list(moved)
+        shipped(column, facts, layout, moved, *rest)
+        seen[len(seen)] = (layout, before, list(moved))
+
+    monkeypatch.setattr(generation, "_group_gives_way", watched)
+    for seed in SEEDS:
+        seen.clear()
+        generation.generate(described.loaded, seed)
+        assert len(seen) == 1, seed
+        layout, before, after = seen[0]
+        assert after == sorted(after), f"seed {seed}: a rank passes another"
+        plan = layout.low
+        assert plan is not None and plan.shape is not None
+        outward = [
+            rank
+            for rank in range(len(after))
+            if after[rank] != before[rank]
+            and (plan.anchor - after[rank]) // plan.unit > plan.shape.group
+        ]
+        assert len(outward) == 2, f"seed {seed}: {len(outward)} ranks given outside the group"
+
+
+# A body of twenty days, six cells each, four empty days, then twelve cells
+# on three days: at a floor of eleven the high tail is those twelve, so its
+# group holds two ranks and may give one, four days out with a reach of five.
+_CLUSTER_COUNTS = (6,) * 20 + (0, 0, 0, 0, 8, 1, 3)
+
+
+def test_a_group_keeps_one_rank(tmp_path: pathlib.Path) -> None:
+    """G7.3b step 9: each group keeps one rank, so its own day is still written.
+
+    The description asks for three more different days than the real
+    column held, which no twin of this tail can reach, so the step is
+    still short when the high group has given its one spare rank. It
+    stops there: the group's own day, four days out, is written at every
+    seed. A group that gave its last rank would empty that day and gain
+    nothing, and the window of G12.14 is summed with one rank kept.
+    """
+    cells = _cells_of(_CLUSTER_COUNTS, datetime.date(2024, 5, 6))
+    text = "seen_on\n" + "".join(f"{cell}\n" for cell in cells if cell)
+    described = kpi_shapes.describe(tmp_path, "cluster", text, 11)
+    block = described.document["columns"][0]
+    layout = _layout(described.loaded, 11)
+    plan = layout.high
+    assert plan is not None and plan.shape is not None
+    shape = plan.shape
+    spare = plan.rows - max(shape.grouped, 1) - 1
+    assert spare == 1 and generation._group_reach(shape) - 1 > spare
+    own = datetime.date.fromisoformat(block["high_tail"]["boundary"]) + datetime.timedelta(
+        days=shape.group
+    )
+    raised = _recounted(tmp_path, described.document, "raised", 3)
+    for seed in SEEDS:
+        written = _written(raised, seed)
+        assert len(written) < block["n_distinct"] + 3, seed
+        assert own.isoformat() in written, f"seed {seed}: the group's own day is empty"
+
+
+# Seconds from 23:59:14 to 00:00:06 of the next day, every one of them held
+# but the midnight itself. At a floor of eleven the high tail's boundary is
+# 23:59:59 and its group stands two seconds out, so its reach holds the
+# free midnight one second out.
+_ACROSS_MIDNIGHT_COUNTS = (
+    11, 9, 4, 7, 7, 2, 12, 4, 11, 13, 6, 5, 14, 7, 8, 6, 7, 11, 7, 4, 4, 8,
+    8, 5, 5, 4, 6, 6, 3, 4, 9, 4, 6, 7, 4, 3, 4, 9, 6, 5, 6, 4, 4, 3, 1, 3,
+    0, 4, 2, 2, 2, 2, 2,
+)
+
+
+def test_no_rank_is_moved_onto_a_midnight(tmp_path: pathlib.Path) -> None:
+    """G7.3b step 9 offers a group no unit of another midnight standing.
+
+    The description asks for one more different second than the real
+    column held, so the step is short and the midnight in the high
+    group's reach holds no rank. It is not offered, because the group
+    stands off midnight, and the twin writes as many cells at midnight
+    as it writes where the step has nothing to do: none.
+    """
+    start = datetime.datetime(2024, 3, 4, 23, 59, 14)
+    cells: "list[str]" = []
+    for step in range(len(_ACROSS_MIDNIGHT_COUNTS)):
+        moment = start + datetime.timedelta(seconds=step)
+        cells += [moment.strftime("%Y-%m-%d %H:%M:%S")] * _ACROSS_MIDNIGHT_COUNTS[step]
+    text = "read_at\n" + "".join(f"{cell}\n" for cell in cells)
+    described = kpi_shapes.describe(tmp_path, "across_midnight", text, 11)
+    block = described.document["columns"][0]
+    assert block["high_tail"]["boundary"] == "2024-03-04 23:59:59"
+    layout = _layout(described.loaded, 11)
+    plan = layout.high
+    assert plan is not None and plan.shape is not None
+    assert plan.shape.group > 1 and generation._group_reach(plan.shape) > 1
+    raised = _recounted(tmp_path, described.document, "raised", 1)
+
+    def at_midnight(written: "set[str]") -> int:
+        return len([cell for cell in written if cell[11:19] == "00:00:00"])
+
+    for seed in SEEDS:
+        assert at_midnight(_written(described.loaded, seed)) == 0, seed
+        assert at_midnight(_written(raised, seed)) == 0, f"seed {seed}: a rank moved onto midnight"
