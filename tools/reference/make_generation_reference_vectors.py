@@ -3968,7 +3968,10 @@ def whole_number_values(
     the lesser of ``W - max(0, N - trailing)`` cells and ``free``: a
     trailing minus follows only figures with a point, so no more than
     ``N - trailing`` negatives may be point-free (the second skeptic of
-    plan P4-D352).
+    plan P4-D352).  Where it is, the walk over every stratum then takes
+    the strata that are not negative first and the negative ones nearest
+    zero first, since a negative made whole there has the fewest figures
+    (the skeptic of plan P4-D352 (5)).
 
     Returns the values, moved where the shortfall asked for it.
     """
@@ -4004,7 +4007,12 @@ def whole_number_values(
         (beside, REACHABLE[0]),
         (wanted, REACHABLE[1]),
     ):
-        for index in range(total):
+        walk = list(range(total))
+        if kept_pointed > 0 and reachable == REACHABLE[1]:
+            negative = [index for index in walk if bands[index] == "negative"]
+            walk = [index for index in walk if index not in negative]
+            walk += negative[::-1]
+        for index in walk:
             if carried(reachable) >= demand:
                 break
             if index == 0 or (index == total - 1 and total >= 2):
@@ -20013,15 +20021,17 @@ def _trailing_minus_points():
 
     Seventy-seven readings at one place between -40 and 60.5, thirty-three
     of them negative and published `{"brackets": 11, "trailing_minus":
-    22}`, beside forty-four cells written with no point.  G6.4's values
-    step gives the side that is not negative thirty-three of the
-    forty-four whole values, so twenty-two negatives keep a point; the
-    trailing minus takes those twenty-two first, and the brackets the
-    eleven whole ones.
+    22}`, beside forty-nine cells written with no point.  G6.4's values
+    step gives the side that is not negative every whole value its strata
+    can take, forty, and then the negatives nearest zero, -5.1 and -6.5,
+    the two it still owes (the skeptic of plan P4-D352 (5)); seven more
+    negatives the ladder made whole on its own, so twenty-four keep a
+    point.  The trailing minus takes twenty-two of them first, and the
+    brackets the eleven left.
     """
     ladder, ladder_claims, rungs, finer = _ladder_fields({
         "min": "-40", "p01": "-39.5", "p05": "-37.1", "p10": "-33.3",
-        "p25": "-22.7", "p50": "4.4", "p75": "30.6", "p90": "47.3",
+        "p25": "-22.7", "p50": "3.8", "p75": "30.6", "p90": "47.3",
         "p95": "52.9", "p99": "58.8", "max": "60.5",
     })
     claims = {("column",) + key: value for key, value in ladder_claims.items()}
@@ -20040,11 +20050,11 @@ def _trailing_minus_points():
         n_zero=0, n_negative=33, n_negative_unrepresentable=0,
         n_used_in_statistics=77, n_left_out_of_statistics=0,
         integer_valued=False, n_rows=77,
-        numeric_styles={"plain": 44, "decimal": 33},
-        mode=None, mode_count=0, fraction_widths={"1": 33}, pad_widths={},
+        numeric_styles={"plain": 49, "decimal": 28},
+        mode=None, mode_count=0, fraction_widths={"1": 28}, pad_widths={},
         # THE WIDTHS OF THE WHOLE CELLS ARE HELD BACK TOGETHER, so no
         # width pass moves a value this case is about.
-        field_widths={"(withheld)": 44},
+        field_widths={"(withheld)": 49},
         negative_form="trailing_minus",
         negative_notations={"brackets": 11, "trailing_minus": 22},
         **moments,
@@ -20054,15 +20064,73 @@ def _trailing_minus_points():
         "second skeptic of plan P4-D352): seventy-seven readings at one "
         "place between -40 and 60.5, thirty-three negative, published "
         "with eleven negatives in brackets and twenty-two with a trailing "
-        "minus beside forty-four cells written with no point. G6.4's values "
-        "step leaves the side that is not negative carrying thirty-three "
-        "of the forty-four whole values, so twenty-two negatives keep a "
-        "point; the trailing minus takes those first and the brackets the "
-        "eleven whole ones. The mutant asks no negative to keep a point, "
-        "as the generator did before, and the walk takes the whole values "
-        "from the most negative strata up.",
+        "minus beside forty-nine cells written with no point. G6.4's values "
+        "step gives the side that is not negative every whole value its "
+        "strata can take, forty, and then the two negatives nearest zero, "
+        "-5.1 and -6.5, as -5 and -6 (the skeptic of plan P4-D352 (5)); "
+        "with the seven the ladder made whole, twenty-four negatives keep a "
+        "point, the trailing minus takes twenty-two of them first and the "
+        "brackets the eleven left. The mutant asks no negative to keep a "
+        "point, as the generator did before, and the walk takes the whole "
+        "values from the most negative strata up.",
         "column": column,
         "rows": 77,
+        "identifier_declared": False,
+        "rungs": rungs,
+        "claims": claims,
+    }
+
+
+def _trailing_minus_exchange():
+    """G6.1's exchange that gives a trailing minus its point (the skeptic of plan P4-D352 (5)).
+
+    Twenty-two whole numbers between -40 and 60, eleven negative and
+    written at one place with a trailing minus, `5.0-`, beside eleven
+    written with no point.  The column is whole-valued, so G6.4's values
+    step asks nothing; the style walk leaves six negatives `plain`, and
+    the exchange gives each of them `decimal` from a cell that is not
+    negative, taken from the last cell downward.
+    """
+    ladder, ladder_claims, rungs, finer = _ladder_fields({
+        "min": "-40", "p01": "-39.2", "p05": "-35.9", "p10": "-32.6",
+        "p25": "-20.2", "p50": "-0.5", "p75": "28.5", "p90": "46.5",
+        "p95": "51.8", "p99": "58.3", "max": "60",
+    })
+    claims = {("column",) + key: value for key, value in ladder_claims.items()}
+    moments = {}
+    for name, text in (("mean", "4.3"), ("std", "29.9"), ("skew", "0.27"),
+                       ("kurtosis", "1.86"), ("numeric_share", "1")):
+        field, claim = nearest_field(text)
+        moments[name] = field
+        claims[("column", name)] = claim
+    column = _universal(
+        "column_1", "continuous", "continuous", "data", "ok",
+        n_present=22, n_missing=0, n_distinct=22, n_distinct_folded=22,
+        n_distinct_values=22,
+        n_numeric=22, n_not_numeric=0, n_out_of_range=0, n_contradictory=0,
+        percentiles=ladder, percentiles_between=finer, std_unrepresentable=False,
+        n_zero=0, n_negative=11, n_negative_unrepresentable=0,
+        n_used_in_statistics=22, n_left_out_of_statistics=0,
+        integer_valued=True, n_rows=22,
+        numeric_styles={"plain": 11, "decimal": 11},
+        mode=None, mode_count=0, fraction_widths={"1": 11}, pad_widths={},
+        field_widths={"(withheld)": 11},
+        negative_form="trailing_minus",
+        negative_notations={"trailing_minus": 11},
+        **moments,
+    )
+    return {
+        "why": "G6.1's exchange that gives a trailing minus its point (the "
+        "skeptic of plan P4-D352 (5)): twenty-two whole numbers between -40 "
+        "and 60, eleven negative and written at one place with a trailing "
+        "minus beside eleven written with no point. G6.4's values step asks "
+        "nothing of a whole-valued column and the style walk leaves six "
+        "negatives plain, so each takes decimal from a cell that is not "
+        "negative, from the last cell downward, and all eleven are written "
+        "with the trailing minus. The mutant withdraws the exchange, and "
+        "six negatives are written with the minus in front.",
+        "column": column,
+        "rows": 22,
         "identifier_declared": False,
         "rungs": rungs,
         "claims": claims,
@@ -26631,6 +26699,9 @@ TWELFTH_BRANCH_CASE_BUILDERS = {
     # ...and G6.1's trailing minus kept on figures with a point (the
     # second skeptic of plan P4-D352).
     "trailing_minus_points": _trailing_minus_points,
+    # ...and the exchange that gives it its point (the skeptic of plan
+    # P4-D352 (5)).
+    "trailing_minus_exchange": _trailing_minus_exchange,
 }
 
 CASE_SETS = {
@@ -27083,9 +27154,11 @@ _TWELFTH_BRANCH_ACCOUNT = (
     "a pool (plan P4-D352): G6.1's seven marks spent over a pool by whole "
     "runs, each run of one value going to the mark holding the fewest "
     "cells, on forty-four whole numbers from 1,001 to 1,016 in runs of two "
-    "to five; and, with that plan's second skeptic, G6.1's trailing minus "
+    "to five; with that plan's second skeptic, G6.1's trailing minus "
     "kept on figures with a point, on seventy-seven readings between -40 "
-    "and 60.5. It is computed by the same oracle and the same proof layer "
+    "and 60.5; and, with the skeptic of its fifth item, the exchange that "
+    "gives a trailing minus its point, on twenty-two whole numbers between "
+    "-40 and 60. It is computed by the same oracle and the same proof layer "
     "as tests/reference/generation-reference-vectors.json, "
     "tests/reference/generation-branch-vectors.json, "
     "tests/reference/generation-branch-vectors-2.json, "
@@ -27514,6 +27587,24 @@ GIVEN_WORDS = {
         6468647690789045772, 12172600184079116892, 17920590787250285087,
         17553868961376201920, 8776755558957671753, 1514484381776342144,
         13545859224938436485,
+    ),
+    # ...and G6.1's exchange that gives a trailing minus its point (the
+    # skeptic of plan P4-D352 (5)), at seed 410.
+    "trailing_minus_exchange": (
+        8413258334993288457, 16216829927024127976, 15763235604285990455,
+        8353189967939558373, 7632285419900427461, 13118846138990338472,
+        15151747998582368434, 7829602539136959978, 14280082515712482265,
+        12167482039429578805, 3486911845621407665, 13040384163672131197,
+        724741821177896613, 2279592575487574380, 2115096446612144591,
+        10991037054736798586, 2357938087444214365, 5392111026152348345,
+        16311320396082150428, 13656230708956100725, 13068258099476931482,
+        17111862384053742567, 5549853406549196007, 7334203581698489462,
+        18333428760311014875, 15913388920718417217, 12784473891832865357,
+        12308566254410232449, 14757432500172375756, 17376562069176805144,
+        16216512805249164391, 2943107082488131510, 3602791477007772498,
+        18313316885583868124, 16136056362007225481, 10428804717151395845,
+        14693199036229630466, 10764034417072528585, 2914676849153384623,
+        2112051027522449890, 8701594860653462927,
     ),
     # THE TWO CASES THE GOVERNANCE PASS OF STAGE 3'S REVIEW ADDS:
     # G5.3e's floor under a listed value (item 1) and the tail that

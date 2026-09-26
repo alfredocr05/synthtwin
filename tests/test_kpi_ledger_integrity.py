@@ -37,6 +37,7 @@ import copy
 import importlib.util
 import json
 import pathlib
+import re
 import shutil
 
 import pytest
@@ -278,6 +279,65 @@ def test_the_measurement_note_names_exactly_the_entries_measured_off_the_base_co
         assert ENTRIES[entry_id]["value_at"].get("measured_by"), (
             f"{entry_id}: re-measured off {base} and does not say what measured it"
         )
+
+
+_NOTE_UNITS = (
+    "ZERO ONE TWO THREE FOUR FIVE SIX SEVEN EIGHT NINE TEN ELEVEN TWELVE "
+    "THIRTEEN FOURTEEN FIFTEEN SIXTEEN SEVENTEEN EIGHTEEN NINETEEN"
+).split()
+_NOTE_TENS = "TWENTY THIRTY FORTY FIFTY SIXTY SEVENTY EIGHTY NINETY".split()
+
+
+def _note_word(count: int) -> str:
+    """A count under a hundred as the measurement note writes it: TWENTY-THREE."""
+    if count < 20:
+        return _NOTE_UNITS[count]
+    tens = _NOTE_TENS[count // 10 - 2]
+    return tens if count % 10 == 0 else f"{tens}-{_NOTE_UNITS[count % 10]}"
+
+
+def test_each_group_the_measurement_note_counts_holds_that_many_entries() -> None:
+    """Every count the note gives beside a commit is the number of entries stamped on it.
+
+    The guard above reads the total and the set, and neither reads the
+    counts per commit: 'AND ONE STANDS OFF f934876' written TWO,
+    'TWENTY-THREE OF THEM ARE THESE' written TWENTY-FOUR and 'AND TWO
+    STAND OFF 2bc1418' written THREE each left this file green (the
+    skeptic of plan P4-D352 (5)), and the second skeptic had already had
+    to move f934876's THREE to ONE by hand. So each 'AND <count> [MORE]
+    STAND(S) OFF <commit>' clause is held to the entries whose value_at
+    is that commit, the first group's count to the entries on the trees
+    its sentence names, and the groups to every commit off the base, each
+    once. Mutation, run: each of the three edits above turns this red.
+    """
+    note = LEDGER["measurement_note"]
+    stamped: "dict[str, int]" = {}
+    for entry in LEDGER["entries"]:
+        commit = entry["value_at"]["commit"]
+        if commit != LEDGER["base_commit"]:
+            stamped[commit] = stamped.get(commit, 0) + 1
+    word = r"[A-Z]+(?:-[A-Z]+)?"
+    clause = rf"AND ({word}) (?:MORE )?STANDS? OFF ([0-9a-f]{{7}})\b"
+    first = re.search(rf"({word}) OF THEM ARE THESE", note)
+    assert first, "the note does not say how many entries its first group holds"
+    opening = re.split(clause, note[first.end():], maxsplit=1)[0]
+    trees = re.findall(r" on ([0-9a-f]{7})\b", opening)
+    assert trees, "the note's first group names no tree"
+    held = sum(stamped.get(tree, 0) for tree in trees)
+    assert first.group(1) == _note_word(held), (
+        f"the note's first group says {first.group(1)} and its trees hold {held}"
+    )
+    counted = list(trees)
+    for said, commit in re.findall(clause, note):
+        assert said == _note_word(stamped.get(commit, 0)), (
+            f"the note says {said} stand off {commit} and "
+            f"{stamped.get(commit, 0)} entries are stamped on it"
+        )
+        counted += [commit]
+    assert sorted(counted) == sorted(stamped), (
+        f"the note counts the trees {sorted(counted)} and entries are stamped "
+        f"off the base on {sorted(stamped)}"
+    )
 
 
 def test_a_re_measured_entry_records_every_key_its_rule_bounds() -> None:

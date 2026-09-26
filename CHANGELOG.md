@@ -6,6 +6,19 @@ exists).
 
 ## [Unreleased]
 
+### Whole negatives beside a trailing minus are the ones nearest zero (2026-09-26)
+
+The repair above made the side that is not negative carry the whole
+values and then took the rest from the most negative strata, so 20
+negatives written `-007` beside 25 written `12.34-` came back with 9
+padded cells and five checks missed. G6.4's last walk now takes the
+negatives nearest zero first, and the P2-C5-F3 guard follows the walk's
+order (plan P4-D352 (6)); where the other side can carry the count no
+negative is made whole and the notations spread over the band. The
+exchange is frozen as `trailing_minus_exchange` and the order in a
+reworked `trailing_minus_points`; G14.3 counts 132; a test reads the
+ledger note's count beside each commit.
+
 ### A trailing minus is written on as many negatives as the census counts (2026-09-26)
 
 A trailing minus stands only on figures with a point, and the twin made

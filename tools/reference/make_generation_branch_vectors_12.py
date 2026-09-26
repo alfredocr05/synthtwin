@@ -6,9 +6,11 @@ census of marks that is only a pool adds to method section G14.3 (plan
 P4-D352): G6.1's seven marks spent over a pool by whole runs, each run
 of one value going to the mark holding the fewest cells, on forty-four
 whole numbers from 1001 to 1016 in runs of two to five
-(`pool_alone_marks`); and for the case that plan's second skeptic adds,
+(`pool_alone_marks`); for the case that plan's second skeptic adds,
 G6.1's trailing minus kept on figures with a point
-(`trailing_minus_points`).
+(`trailing_minus_points`); and for the case the skeptic of its fifth
+item adds, the exchange that gives a trailing minus its point
+(`trailing_minus_exchange`).
 
 **Why it is a fourteenth file.**  Plan P4-D295 sends the next case to a
 file whose output stands under 200000 bytes, and the twelfth (227678
@@ -29,8 +31,11 @@ permitted in tools/ (the D6 restriction applies to src/ only).  Nothing
 about the oracle's own rule changes: it still imports neither synthtwin,
 nor numpy, nor pandas, and a test asserts that of every entry point.
 
-**WHERE THE NEXT CASE GOES** (plan P4-D295): here, while this file's
-output stands under 200000 bytes.
+**WHERE THE NEXT CASE GOES** (plan P4-D295): a fifteenth entry point,
+`make_generation_branch_vectors_13.py` writing
+tests/reference/generation-branch-vectors-13.json, because this, the
+fourteenth, passed plan P4-D295's 200000-byte line at 213398 bytes with
+`trailing_minus_exchange`, as the twelfth and thirteenth had before it.
 
 Usage:  python3 make_generation_branch_vectors_12.py --seed 0 --out <path>
         (the command line the data-provenance guard uses; the seed is

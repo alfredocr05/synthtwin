@@ -501,11 +501,13 @@ def test_a_run_of_one_value_keeps_one_mark():
 
 def _trailing_negatives(seed: int, trailing: int, brackets: int, minus: int, sign: int,
                         positives: int, whole_others: bool = True, points: bool = True,
-                        whole_share: float = 0.5) -> "list[str]":
+                        whole_share: float = 0.5, padded: int = 0) -> "list[str]":
     """Negatives under a thousand: ``trailing`` written `12.50-`, the others as asked.
 
     ``points`` False writes the trailing ones `12.00-`, so every value is
-    whole; ``whole_share`` of the positives are written with no point.
+    whole; ``whole_share`` of the positives are written with no point;
+    ``padded`` negatives under a hundred are written three figures wide,
+    `-007`.
     """
     draw = random.Random(seed)
 
@@ -518,6 +520,7 @@ def _trailing_negatives(seed: int, trailing: int, brackets: int, minus: int, sig
     out += ["(" + figures(not whole_others) + ")" for _ in range(brackets)]
     out += ["-" + figures(not whole_others) for _ in range(minus)]
     out += ["−" + figures(not whole_others) for _ in range(sign)]
+    out += [f"-{draw.randint(1, 99):03d}" for _ in range(padded)]
     out += [figures(draw.random() >= whole_share) for _ in range(positives)]
     draw.shuffle(out)
     return out
@@ -538,6 +541,10 @@ TRAILING = (
      {"brackets": 20, "trailing_minus": 20}),
     ("named-whole-values", _trailing_negatives(901, 37, 0, 0, 0, 130, points=False, whole_share=1.0),
      {"trailing_minus": 37}),
+    # beside padded whole negatives, which need the values nearest zero
+    # (the skeptic of plan P4-D352 (5))
+    ("named-beside-padded", _trailing_negatives(2401, 25, 0, 0, 0, 90, whole_share=1.0, padded=20),
+     {"minus": 20, "trailing_minus": 25}),
 )
 
 
@@ -556,7 +563,10 @@ def test_the_twin_writes_as_many_trailing_minuses_as_the_census_counts(
     but the whole-valued one red at every seed; the exchange withdrawn
     turns `band-beside-whole` and `named-whole-values` red at every seed;
     the trailing minus taken in the contract's order turns
-    `named-beside-brackets` red at every seed.
+    `named-beside-brackets` red at every seed. At 8448e5f
+    `named-beside-padded` wrote every trailing minus and missed its
+    padded cells at every seed; the last walk of the values step taken in
+    stratum order turns it red at every seed.
     """
     first, second, written, twin_exit, real_exit = _round_trip(tmp_path, cells, (), seed=seed)
     assert first["negative_notations"] == census
@@ -567,3 +577,46 @@ def test_the_twin_writes_as_many_trailing_minuses_as_the_census_counts(
     profile = contract.load_profile(str(tmp_path / "real-profile.json"))
     named = [d for d in generation.generate(profile, int(seed)).deviations if d.fact == "negative_notations"]
     assert named == []
+
+
+def test_the_walk_nearest_zero_leaves_a_more_negative_stratum_its_number(tmp_path, monkeypatch):
+    """A negative made whole never takes a number a stratum walked after it holds.
+
+    Review item P2-C5-F3 refuses a candidate outside a stratum's own
+    share where the share of a stratum the walk reaches LATER holds it.
+    Beside a trailing minus the last walk of G6.4's values step takes the
+    negative strata nearest zero first (the skeptic of plan P4-D352 (5)),
+    so the strata it reaches later are the MORE negative ones, and a
+    nearest whole number rounded away from zero is exactly the number
+    such a stratum may be waiting for. Mutation, run: the guard read in
+    stratum order rather than the walk's turns this red.
+    """
+    shape = [entry for entry in TRAILING if entry[0] == "named-beside-padded"][0]
+    _round_trip(tmp_path, shape[1], (), seed="0")
+    profile = contract.load_profile(str(tmp_path / "real-profile.json"))
+    seen: "list[tuple[object, object, object, list[float], list[float]]]" = []
+    walked = generation._whole_enough
+
+    def watched(column, facts, layout, rungs, values):
+        nonlocal seen
+        after = walked(column, facts, layout, rungs, values)
+        seen += [(column, layout, rungs, list(values), list(after))]
+        return after
+
+    monkeypatch.setattr(generation, "_whole_enough", watched)
+    for seed in SEEDS:
+        generation.generate(profile, int(seed))
+    refused = 0
+    for column, layout, rungs, before, after in seen:
+        for place in range(1, len(after)):
+            if layout.bands[place] != "negative" or after[place] == before[place]:
+                continue
+            nearest = generation._whole_valued(before[place])
+            own = generation._share_of(place, layout, rungs, column.n_numeric)
+            for other in range(1, place):
+                theirs = generation._share_of(other, layout, rungs, column.n_numeric)
+                if not theirs[0] <= nearest <= theirs[1] or own[0] <= nearest <= own[1]:
+                    continue
+                refused = refused + 1
+                assert after[place] != nearest, (place, before[place], after[place], theirs)
+    assert refused > 0, "no nearest whole number was ever a more negative stratum's"

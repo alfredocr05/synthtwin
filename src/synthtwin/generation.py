@@ -12715,6 +12715,7 @@ def _rehomed(
     locked: "dict[int, int]",
     seen: "dict[int, int]",
     budget: "list[int]",
+    order: "tuple[int, ...] | None" = None,
 ) -> "list[tuple[int, float]] | None":
     """Whole numbers for `place`, moving whoever is holding one (R-P4-69).
 
@@ -12754,7 +12755,8 @@ def _rehomed(
     number a stratum further on could ever be given -- the seed
     dependence review item P2-C5-F3 repaired stays repaired. What this
     chain adds is only the numbers already HELD, which that guard never
-    reserved for anyone.
+    reserved for anyone. "Further on" is further along ``order``, the
+    walk's own order of strata, which is ascending where it is None.
 
     `seen` stops a chain revisiting a stratum, so the search ends;
     `locked` holds the strata that have already given a number up, so a
@@ -12787,7 +12789,7 @@ def _rehomed(
     total = len(layout.sizes)
     band = layout.bands[place]
     share = _share_of(place, layout, rungs, numbers)
-    later = _shares_after(place, layout, rungs, numbers)
+    later = _shares_after(place, layout, rungs, numbers, order)
     want = _whole_inside(moved[place], band, share, ends, reach, taken, later)
     if want is not None:
         return [(place, want)]
@@ -12843,6 +12845,7 @@ def _rehomed(
             locked,
             ahead,
             budget,
+            order,
         )
         if onward is not None:
             best_moves, best_cost = _cheaper(
@@ -12929,7 +12932,11 @@ def _whole_enough(
 
     Where the census of notations names a trailing minus, the values that
     are not negative carry the point-free count first, as far as they
-    can, so the negatives `_trailing_owed` counts keep their point.
+    can, so the negatives `_trailing_owed` counts keep their point; the
+    last walk then takes every stratum that is not negative before any
+    negative one, and the negative ones nearest zero first
+    (`_negatives_last`), and a later stratum is one that order reaches
+    later.
     """
     if facts.integer_valued:
         return values
@@ -13002,6 +13009,18 @@ def _whole_enough(
         (min(above, free), _REACHABLE[0]),
         (owed, _REACHABLE[1]),
     ):
+        # ...AND WHERE IT NAMES ONE, THE LAST WALK TAKES THE NEGATIVE
+        # STRATA LAST AND NEAREST ZERO FIRST (the skeptic of plan
+        # P4-D352 (5)). Walked in stratum order, the whole negatives the
+        # count could not avoid went to the most negative strata, which
+        # hold the most figures: 25 negatives written `12.34-` beside 20
+        # written `-007` and 90 whole positives came back with 18 of its
+        # 20 whole negatives between -924 and -210, where no field three
+        # figures wide reaches, and 9 cells padded where 20 were published.
+        order = None
+        if trailing > 0 and reachable == _REACHABLE[1]:
+            order = _negatives_last(layout.bands)
+        places = range(total) if order is None else order
         carried = 0
         for place in range(total):
             if layout.bands[place] not in reachable:
@@ -13017,7 +13036,7 @@ def _whole_enough(
         # moves nothing is the last.
         for _round in range(total):
             settled = carried
-            for place in range(total):
+            for place in places:
                 if carried >= wanted:
                     break
                 if place == 0 or (place == total - 1 and total >= 2):
@@ -13052,7 +13071,9 @@ def _whole_enough(
                     ends,
                     total + 1,
                     taken,
-                    _shares_after(place, layout, rungs, column.n_numeric),
+                    _shares_after(
+                        place, layout, rungs, column.n_numeric, order
+                    ),
                 )
                 if want is None:
                     moves = _rehomed(
@@ -13067,6 +13088,7 @@ def _whole_enough(
                         locked,
                         {},
                         budget,
+                        order,
                     )
                     if moves is None:
                         continue
@@ -13090,23 +13112,59 @@ def _whole_enough(
     return moved
 
 
+def _negatives_last(bands: "tuple[str, ...]") -> "tuple[int, ...]":
+    """The strata in the order G6.4's last walk takes them beside a trailing minus.
+
+    Every stratum that is not negative, ascending, and then every
+    negative one, NEAREST ZERO FIRST. A trailing minus is written only on
+    figures with a point, so the side that is not negative carries every
+    whole value it can before a negative is made whole; and the whole
+    negatives the count still asks for are then the ones with the fewest
+    figures, which are the ones a padded field of the published width can
+    hold (the skeptic of plan P4-D352 (5)).
+
+    Guarantees: accepts one band per stratum, in stratum order; returns
+    a permutation of their indices. Determinism: a fixed function of the
+    bands. Raises nothing. No I/O of any kind.
+    """
+    order: "list[int]" = []
+    for place in range(len(bands)):
+        if bands[place] != _BAND_NEGATIVE:
+            order += [place]
+    for place in range(len(bands) - 1, -1, -1):
+        if bands[place] == _BAND_NEGATIVE:
+            order += [place]
+    return tuple(order)
+
+
 def _shares_after(
     place: int,
     layout: "_NumericLayout",
     rungs: "tuple[float, ...] | None",
     numbers: int,
+    order: "tuple[int, ...] | None" = None,
 ) -> "tuple[tuple[float, float], ...]":
     """The shares of the strata this walk has not reached yet (G6.4).
 
     Only the strata a whole number could still be given to: the two
     pinned ends hold the published `min` and `max` and the zero stratum
-    holds `0`, so none of them is waiting for one.
+    holds `0`, so none of them is waiting for one. "Not reached yet" is
+    after `place` in ``order``, the walk's own order of strata, which is
+    every stratum ascending where it is None and otherwise must hold
+    `place`.
     """
     if rungs is None:
         return ()
     total = len(layout.sizes)
+    upcoming: "tuple[int, ...] | range" = range(place + 1, total)
+    if order is not None:
+        start = 0
+        for step in range(len(order)):
+            if order[step] == place:
+                start = step + 1
+        upcoming = order[start:]
     after: list[tuple[float, float]] = []
-    for later in range(place + 1, total):
+    for later in upcoming:
         if later == 0 or (later == total - 1 and total >= 2):
             continue
         if layout.bands[later] == _BAND_ZERO:
