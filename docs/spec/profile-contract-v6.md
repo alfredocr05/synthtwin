@@ -6399,10 +6399,11 @@ published although it gives the tail's cells back: the owner ruled
 not settle inside its budget is asked the same question. What that
 gives back is held at ledger entry `K-S3-18`.
 
-**AND ONE TAIL WITHHELD WITHHOLDS THE OTHER, WHERE THAT COSTS NOTHING**
-(plan P4-D353). A numeric block publishes the column's exact mean and
-spread, so where one tail's pair and the rows between the two
-boundaries are known, the other tail's sums follow by subtraction.
+**AND ONE TAIL WITHHELD WITHHOLDS THE OTHER'S PAIR, WHERE THAT COSTS
+NOTHING AND THE OTHER LISTS NO VALUES** (plan P4-D353). A numeric
+block publishes the column's exact mean and spread, so where one
+tail's pair and the rows between the two boundaries are known, the
+other tail's sums follow by subtraction.
 Where one tail publishes neither distance and the other a pair and
 lists no values, the other publishes neither distance either -- unless
 that costs the twin its mean or spread, where its pair is the first one
