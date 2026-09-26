@@ -5618,10 +5618,11 @@ def disclosed_census(
 def census_pools(population: int, floor: int, names: int) -> bool:
     """Whether a census none of whose names reaches the line may be one pool.
 
-    THE ONE STATEMENT, read by the producer through `absorbed_census`, by
-    the loader (contract D12 and P6) and by the checker, of where the
-    older spelling censuses hold their whole count back (plan P4-D222;
-    stage 2 closed by the owner rulings of 2026-09-17).
+    THE ONE STATEMENT, read by the producer through `absorbed_census` and
+    `taxonomy._band_commonest`, by the loader (contract D12, P6, TM1 and
+    NS2) and by the checker, of where a closed spelling census holds its
+    whole count back (plan P4-D222; stage 2 closed by the owner rulings
+    of 2026-09-17; the two mixture censuses since plan P4-D352).
 
     A POOL SAYS EVERY NAME WAS WRITTEN BY FEWER CELLS THAN THE LINE. On an
     open vocabulary -- the offsets and the widths, ``names`` nought -- that
@@ -5636,8 +5637,10 @@ def census_pools(population: int, floor: int, names: int) -> bool:
     than ``(names - 1) * (line - 1)`` cells is never a pool: above
     ``names * (line - 1)`` some name reaches the line, and in the band
     between, where none may, `absorbed_census` writes the vocabulary's
-    default name for the whole population instead. A population below the
-    line is always a pool, whatever the vocabulary.
+    default name for the whole population instead, and on the two
+    mixture censuses `taxonomy._band_commonest` the commonest convention
+    the cells wrote. A population below the line is always a pool,
+    whatever the vocabulary.
 
     Guarantees: accepts the population, the settings floor and the size
     of the closed vocabulary (nought for an open one); returns a bool.

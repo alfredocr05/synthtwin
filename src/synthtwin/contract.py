@@ -9110,7 +9110,7 @@ def _census_may_speak(
     names: int,
     what: str,
 ) -> None:
-    """D12 and P6: a closed census pools only where a pool names no one (P4-D222).
+    """D12, P6, TM1 and NS2: a closed census pools only where a pool names no one (P4-D222, P4-D352).
 
     `parsing.census_pools`, the one statement: on a closed vocabulary a
     pool over more cells than all but one name can hold below the line

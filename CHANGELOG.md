@@ -11,7 +11,9 @@ exists).
 **Where no thousands mark reached the floor** the census published only
 `(withheld)` and the twin wrote every groupable cell bare with no check
 filed: 0 of 230 twins over 46 seeded shapes wrote a mark. The pool is now
-spent over all seven marks by whole runs, each under the floor (method
+spent by whole runs, each under the floor, over all seven marks wherever
+it holds seven cells or more, and over the first marks in the method's
+order where it holds fewer -- every lone pool at a floor of 2 (method
 G6.1, plan P4-D352); the report names the pool against the groupable cells
 where they differ by less than the floor; `validate` files it as one
 count. A pool over more cells than six marks (three notations) hold below
@@ -21,7 +23,10 @@ commonest, the majority key following it, and refused by the loader
 the 29 band shapes lose 10,560 real grouped cells' marks to the commonest.
 The P4-D265 recount counts only groupable cells, so 70 grouped cells beside
 130 under a thousand no longer report 200 published against 70. Frozen as `pool_alone_marks` in a fourteenth file; G14.3 counts 130;
-`K-S3-16`; K-2B-42 reads 176 of 478 (`marks_of_a_lone_pool` 0.42).
+`K-S3-16`; K-2B-42 reads 176 of 478 (`marks_of_a_lone_pool` 0.42). The
+gate and the `lone_pool` witness hold the cells left bare to the spread
+(plan P4-D149): taken packed instead, all nineteen bare cells of one
+shape sit above every marked one, and both turn red.
 
 ### The owner's rulings of 2026-09-21 recorded, and `K-S3-15` never put to the owner (2026-09-25)
 
