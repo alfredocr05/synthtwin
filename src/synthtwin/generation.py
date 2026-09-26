@@ -20636,7 +20636,7 @@ def _group_gives_way(
     across the two tails the unit nearer its own boundary; at one
     `|d - g|` and one `d`, the low tail first. That is the order the
     tuples `(away, distance, side)` sort in. Each tail's group keeps one
-    rank, since a group that gave its last would leave `g` empty.
+    rank on `g`, where G12.14's window is summed with it.
     The units inside the group's distance go to its innermost ranks, the
     smallest distance to the innermost; the units outside it to its
     outermost ranks, the largest distance to the outermost -- so the

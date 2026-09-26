@@ -45,8 +45,9 @@ accepts and no producer writes:
 * `test_no_rank_is_moved_onto_a_midnight` -- seconds whose high tail's
   reach holds a midnight no cell held.
 
-The width-kind half of the standing clause has no witness: no
-description found reaches it (method G7.3b step 9).
+Two bounds of the step have no witness, because no description found
+reaches them: the reach itself and the width-kind half of the standing
+clause (method G7.3b step 9).
 
 AND THE WINDOW IS WRITTEN TWICE. G12.14's summed window -- a group's
 ranks as near as one and as far as its reach where step 9 may move
@@ -530,8 +531,9 @@ def test_a_group_keeps_one_rank(tmp_path: pathlib.Path) -> None:
     column held, which no twin of this tail can reach, so the step is
     still short when the high group has given its one spare rank. It
     stops there: the group's own day, four days out, is written at every
-    seed. A group that gave its last rank would empty that day and gain
-    nothing, and the window of G12.14 is summed with one rank kept.
+    seed. Here the drawn ranks stand past that day, so a group that gave
+    its last rank would empty it and gain nothing; and the window of
+    G12.14 is summed with one rank kept.
     """
     cells = _cells_of(_CLUSTER_COUNTS, datetime.date(2024, 5, 6))
     text = "seen_on\n" + "".join(f"{cell}\n" for cell in cells if cell)

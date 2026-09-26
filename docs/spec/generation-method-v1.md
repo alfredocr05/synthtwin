@@ -5912,17 +5912,19 @@ unit by DT3.
    smaller `|d - g|` first; at one `|d - g|`, the smaller `d` first --
    on one tail the unit inside `g` before the one outside it, across the
    two tails the unit nearer its own boundary; at one `|d - g|` and one
-   `d`, the low tail first. Each group keeps one rank, since a group that
-   gave its last would leave `g` empty and gain nothing. A group's
+   `d`, the low tail first. Each group keeps one rank on `g`, and the
+   window of G12.14 is summed with it there. A group's
    units inside `g` go to its innermost ranks, the smallest to the
    innermost; its units outside `g` to its outermost ranks, the largest to
    the outermost. Every drawn rank stands at `t` or beyond, so no rank
    passes another. No word is drawn. `rows` and the boundary stand, and
-   G12.14 draws its window to hold every twin this writes. No
-   description found reaches the width-kind half of the standing clause:
-   over 320 month-first columns on the days 10 to 31 of a month, their
-   counts raised by up to three, no group's reach crossed a change of
-   width kind, so that half has no witness.
+   G12.14 draws its window to hold every twin this writes. Two bounds
+   have no witness, because no description found reaches them: the
+   reach itself -- offering the unit one past `t` changed none of 1,107
+   twins of the 427 descriptions searched for it (plan P4-D354) -- and
+   the width kind, whose offer changed none of 640 twins of 80
+   month-first columns on the days 10 to 31 of a month, each at its
+   published count and raised by one, two and three.
 
 #### G7.3c A tail that publishes which values it holds
 
