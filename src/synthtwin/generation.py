@@ -17289,6 +17289,55 @@ def _tail_distance_bounds(shape: "_TailShape") -> "tuple[list[int], list[int]]":
     return (_tail_distances(shape, near), _tail_distances(shape, far))
 
 
+def _group_reach(shape: "_TailShape") -> int:
+    """How far a tail's tie group's strata reach (method G7.3b steps 7 and 9).
+
+    `k * a((m - (F - 1)) / m)` rounded halves up, kept at least the
+    group's own distance and never past the tail's end, which is never
+    past `edge` -- so a group of every rank but the end (a floor of one)
+    stays inside it. Asked only of a tail that has a group.
+    """
+    share = (shape.rows - shape.grouped) / shape.rows
+    reach = _half_up(shape.stretch * _mixture_at(shape, share))
+    return min(max(shape.group, reach), shape.end)
+
+
+def _tail_sum_bounds(
+    plan: "_TailPlan", counted: bool
+) -> "tuple[list[int], list[int]]":
+    """Each rank's nearest and furthest distance as G12.14 sums them (landing 3b.0).
+
+    The strata, except on a tail with a tie group of two ranks or more on
+    a column whose count of different values the count pass reaches
+    (`counted`, `contract.datetime_counts_reachable`): G7.3b step 9 may
+    move group ranks onto free units from one to `_group_reach`, each onto
+    a unit of its own, the group keeping one rank. With `g` the group's
+    distance, `t` its reach and `G` its ranks, the j-th innermost group
+    rank may stand as near as `j + 1` for `j < min(g - 1, G - 1)` and the
+    j-th outermost as far as `t - j` for `j < min(t - g, G - 1)`, so the
+    window holds every twin the step can write.
+
+    Guarantees: returns two lists of `plan.rows` whole distances; a
+    function of the plan and the flag. Raises nothing. No I/O.
+    """
+    near = [value for value in plan.near]
+    far = [value for value in plan.far]
+    shape = plan.shape
+    if not counted or shape is None or shape.grouped >= plan.rows:
+        return (near, far)
+    first = max(shape.grouped, 1)
+    size = plan.rows - first
+    if size < 2:
+        return (near, far)
+    group = shape.group
+    reach = _group_reach(shape)
+    for place in range(min(group - 1, size - 1)):
+        near[plan.rows - 1 - place] = place + 1
+    for place in range(min(reach - group, size - 1)):
+        far[first + place] = reach - place
+    return (near, far)
+
+
 def _values_counts(
     distances: "list[int]", rows: int, total: "int | None"
 ) -> "list[int]":
@@ -20466,7 +20515,9 @@ def _units_settled(
     in any case (plan P4-D258: a fixed four rounds left 379, 37, 102 and
     382 cells of four ISO dates holding seven different dates, and the
     same pass run again brought them to four).
-    Each gap's ranks are then sorted. A count the
+    Each gap's ranks are then sorted, and where the different values are
+    still too few a tail's tie group gives way (`_group_gives_way`, G7.3b
+    step 9), which no gap above can do. A count the
     passes leave unmet is measured on the finished cells and reported:
     the distinct counts by their approximation records, whose window is
     the published count here (`_datetime_approximations`), and the widths
@@ -20547,7 +20598,129 @@ def _units_settled(
         if off == 0 or stalled >= _RESTORATION_STALLS:
             break
     _runs_sorted(moved, pinned)
+    if distinct >= 0 and layout is not None:
+        _group_gives_way(
+            column, facts, layout, moved, day, step, unit, distinct,
+            widths >= 0, word,
+        )
     return moved
+
+
+def _group_gives_way(
+    column: contract.ColumnBlock,
+    facts: contract.DatetimeFacts,
+    layout: "_DateLayout",
+    moved: "list[int]",
+    day: int,
+    step: int,
+    unit: int,
+    wanted: int,
+    widths: bool,
+    word: str,
+) -> None:
+    """G7.3b step 9: a tie group gives up ranks where the distinct count is short.
+
+    EVERY DAY OF THE RANGE FILLED (landing 3b.0, plan P4-D354). A tail's
+    tie group stands on ONE distance and its gap is that point, so the
+    count pass can never split it: two years of admissions holding a value
+    on every one of their 731 days came back with 730, the day one unit
+    beyond the boundary -- 17 real cells -- never written, and both
+    distinct counts MISSED at every seed. So where the count of different
+    units is still short once the count pass is done, the units no rank
+    holds from one to the group's reach (`_group_reach`) are offered, the
+    nearest the group's own distance first, the inner of two at one
+    distance, the low tail before the high; a unit a column's absent
+    spelling names, or of another width kind or midnight standing
+    (`_same_standing`), is not offered. Each tail's group keeps one rank.
+    The units inside the group's distance go to its innermost ranks, the
+    smallest distance to the innermost; the units outside it to its
+    outermost ranks, the largest distance to the outermost -- so the
+    ranks stay in order and no rank passes the tail's drawn ranks, which
+    all stand at the reach or beyond. No word is drawn. The window of
+    G12.14 is drawn to hold every twin this writes (`_tail_sum_bounds`).
+
+    Guarantees: moves group ranks of `moved` in place, each to a unit no
+    rank held; changes nothing where the count is met or no group can
+    give way. Linear in the tail's ranks and the units walked. Raises
+    nothing. No I/O of any kind.
+    """
+    held: "dict[int, int]" = {}
+    for value in moved:
+        held[value // unit] = 1
+    short = wanted - len(held)
+    if short <= 0:
+        return
+    holes = _hole_units(column, facts)
+    plans = [layout.low, layout.high]
+    tails = [facts.low_tail, facts.high_tail]
+    offers: "list[tuple[int, int, int]]" = []
+    for side in range(2):
+        plan = plans[side]
+        tail = tails[side]
+        if plan is None or tail is None or plan.shape is None:
+            continue
+        shape = plan.shape
+        first = max(shape.grouped, 1)
+        room = plan.rows - first - 1
+        if shape.grouped >= plan.rows or room < 1:
+            continue
+        at = taxonomy.tail_ordinal(
+            tail.boundary, facts.tail_unit, facts.datetimes_read_at
+        )
+        own = _tail_place(plan, shape.group)
+        reach = _group_reach(shape)
+        # A GROUP AT MIDNIGHT IS OFFERED ONLY UNITS AT A MIDNIGHT, a day of
+        # tail units at a time, as `_nearest_free_unit` walks them.
+        by = 1
+        if day == 86400 and _written_at_midnight(own, 0, step):
+            by = max(1, 86400 // plan.unit)
+        found = 0
+        away = by
+        while found < min(short, room):
+            inner = shape.group - away
+            outer = shape.group + away
+            if inner < 1 and outer > reach:
+                break
+            for distance in (inner, outer):
+                if distance < 1 or distance > reach:
+                    continue
+                spot = _tail_place(plan, distance)
+                if spot // unit in held:
+                    continue
+                if (at - distance if plan.low_side else at + distance) in holes:
+                    continue
+                if not _same_standing(facts, own, spot, day, step, widths, word):
+                    continue
+                offers += [(away, distance, side)]
+                found = found + 1
+            away = away + by
+    taken: "list[list[int]]" = [[], []]
+    for offer in sorted(offers):
+        if short == 0:
+            break
+        side = offer[2]
+        plan = plans[side]
+        if plan is None or plan.shape is None:
+            continue
+        if len(taken[side]) >= plan.rows - max(plan.shape.grouped, 1) - 1:
+            continue
+        taken[side] += [offer[1]]
+        short = short - 1
+    parsed = len(moved)
+    for side in range(2):
+        plan = plans[side]
+        if plan is None or plan.shape is None or not taken[side]:
+            continue
+        group = plan.shape.group
+        inside = sorted([value for value in taken[side] if value < group])
+        outside = sorted([value for value in taken[side] if value > group])
+        for place in range(len(inside)):
+            rank = _tail_rank_of(plan, parsed, plan.rows - 1 - place)
+            moved[rank] = _tail_place(plan, inside[place])
+        first = max(plan.shape.grouped, 1)
+        for place in range(len(outside)):
+            rank = _tail_rank_of(plan, parsed, first + place)
+            moved[rank] = _tail_place(plan, outside[len(outside) - 1 - place])
 
 
 # HOW LONG THE RESTORATION RUNS (plan P4-D258). It ran a fixed four
@@ -39413,15 +39586,18 @@ def _tail_side_approximations(
     ordinals: "list[int]",
     boundary: int,
     unit: str,
+    counted: bool = False,
 ) -> "list[Approximation]":
     """One tail's published distances against the construction window (G12.14).
 
     The twin's cells beyond the PUBLISHED boundary are measured -- their
     mean distance and root-mean-square distance in tail units -- and held
     to the window the construction draws: every rank at its nearest
-    distance at one end and at its furthest at the other (`_tail_distance_bounds`).
-    A tail publishing its values holds its mean exactly. Only numbers are
-    printed; no value of the column is.
+    distance at one end and at its furthest at the other
+    (`_tail_distance_bounds`), a tie group's ranks as far as G7.3b step 9
+    can move them where the column's distinct count is reachable
+    (`counted`, `_tail_sum_bounds`). A tail publishing its values holds
+    its mean exactly. Only numbers are printed; no value of the column is.
     """
     found: "list[Approximation]" = []
     distances: "list[int]" = []
@@ -39436,15 +39612,16 @@ def _tail_side_approximations(
         total = total + distance
         squares = squares + distance * distance
     rows = max(side.rows, 1)
+    near, far = _tail_sum_bounds(side, counted)
     near_total = 0
     near_squares = 0
     far_total = 0
     far_squares = 0
     for index in range(side.rows):
-        near_total = near_total + side.near[index]
-        near_squares = near_squares + side.near[index] * side.near[index]
-        far_total = far_total + side.far[index]
-        far_squares = far_squares + side.far[index] * side.far[index]
+        near_total = near_total + near[index]
+        near_squares = near_squares + near[index] * near[index]
+        far_total = far_total + far[index]
+        far_squares = far_squares + far[index] * far[index]
     which = "low" if side.low_side else "high"
     subject = f"the cells beyond this column's {which} tail boundary"
     if tail.mean_distance is not None and count:
@@ -39677,7 +39854,8 @@ def _datetime_approximations(
         if side is None or tail is None:
             continue
         found_facts += _tail_side_approximations(
-            column.name, side, tail, ordinals, side.boundary, facts.tail_unit
+            column.name, side, tail, ordinals, side.boundary, facts.tail_unit,
+            contract.datetime_counts_reachable(column),
         )
     # The number of different values, both ways of counting. A stand-in
     # for a cell that did not read as a date is a different spelling

@@ -265,6 +265,10 @@ SECONDS = {
     # The tail rule of stage 3 (landing 3.3): forty-five cases over ten
     # shapes, each a whole run through the product.
     "tests/test_stage3_tail_rule.py": 52.0,
+    # THE STAGE-3B GATE's first clause (landing 3b.0): ten shapes of up to
+    # 10,000 rows, each described and built at five seeds. Measured at
+    # 72 s lightly loaded and 119 s at a load average of ten.
+    "tests/test_stage3b_gate.py": 80.0,
     "tests/test_stage2_round_trip.py": 21.51,
     "tests/test_stage2_spellings_survive.py": 0.72,
     "tests/test_stage2_summary.py": 0.47,

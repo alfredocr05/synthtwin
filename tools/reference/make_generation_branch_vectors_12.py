@@ -6,7 +6,10 @@ census of marks that is only a pool adds to method section G14.3 (plan
 P4-D352): G6.1's seven marks spent over a pool by whole runs, each run
 of one value going to the mark holding the fewest cells, on forty-four
 whole numbers from 1001 to 1016 in runs of two to five
-(`pool_alone_marks`).
+(`pool_alone_marks`); and for the case landing 3b.0 adds (plan
+P4-D354): G7.3b step 9's tie group giving ranks to the days no rank
+holds within its reach, on 105 dates holding every one of 22 days
+(`every_day_group`).
 
 **Why it is a fourteenth file.**  Plan P4-D295 sends the next case to a
 file whose output stands under 200000 bytes, and the twelfth (227678

@@ -6,6 +6,22 @@ exists).
 
 ## [Unreleased]
 
+### Every day of a filled range comes back: a tail's tie group gives way (2026-09-26)
+
+**Where a date column holds a value on every day of its range** the twin
+wrote a day or two fewer: two years of admissions came back with 730 of
+731 days and billing dates with 729, both distinct counts MISSED at every
+seed, because a tail's tie group stood on one distance the count pass
+could not split; on moments the lost unit was bought back as a spelling
+the real column never wrote, and validation passed. Where the count is
+still short, the group now gives ranks to free units inside its reach
+(method G7.3b step 9, plan P4-D354), and G12.14's window widens with it.
+After: nothing missed on the 15 twins that missed, and the two shapes
+that hid it write every unit. Stage 3b's gate opens with `test_every_day_filled`;
+frozen as `every_day_group` (G14.3 counts 131); `K-S3-30`. Not repaired:
+a real outermost day past the construction's end (600 rows over 50 days,
+49 of 50).
+
 ### A census of marks that is only a pool is written, named and checked (2026-09-25)
 
 **Where no thousands mark reached the floor** the census published only

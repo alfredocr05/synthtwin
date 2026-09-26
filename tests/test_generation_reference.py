@@ -689,8 +689,13 @@ ELEVENTH_BRANCH_CASES = (
     "tail_width_stands_aside",
 )
 
-# THE FOURTEENTH FILE: G6.1's census of marks that is only a pool.
-TWELFTH_BRANCH_CASES = ("pool_alone_marks",)
+# THE FOURTEENTH FILE: G6.1's census of marks that is only a pool, and
+# G7.3b step 9's tie group that gives way.
+TWELFTH_BRANCH_CASES = (
+    # ...and the tie group that gives way (plan P4-D354).
+    "every_day_group",
+    "pool_alone_marks",
+)
 
 ALL_CASES = tuple(
     sorted(
@@ -817,6 +822,8 @@ SEEDS = {
     "tail_pad_partial": 407,
     # ...and the census of marks that is only a pool (plan P4-D352).
     "pool_alone_marks": 408,
+    # ...and the tie group that gives way (plan P4-D354).
+    "every_day_group": 409,
     "identifier_unnamed_partners": 184,
     "truth_values_written": 189,
     "twice_written_filled": 190,
@@ -1512,9 +1519,9 @@ TENTH_BRANCH_PUBLISHED_NUMBERS = 754
 TENTH_BRANCH_NAMED_COUNTS = 310
 ELEVENTH_BRANCH_PUBLISHED_NUMBERS = 944
 ELEVENTH_BRANCH_NAMED_COUNTS = 375
-# The fourteenth, at its own generator's line ("proved 190 ... beside 60").
-TWELFTH_BRANCH_PUBLISHED_NUMBERS = 190
-TWELFTH_BRANCH_NAMED_COUNTS = 60
+# The fourteenth, at its own generator's line ("proved 194 ... beside 86").
+TWELFTH_BRANCH_PUBLISHED_NUMBERS = 194
+TWELFTH_BRANCH_NAMED_COUNTS = 86
 # The document file publishes NO binary64 at all, and that is a fact
 # about its transforms rather than a gap in its proof: the written form,
 # the arrangement, the workbook writer, the shape of a line before a
@@ -3702,6 +3709,14 @@ CASE_MUTANTS = {
         "two figures short of its field",
         attribute="pad_places",
         replacement=_pads_on_the_padded_form_alone,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "every_day_group": Mutant(
+        branch="G7.3b step 9 (plan P4-D354); the mutant leaves each tail's "
+        "tie group on its one distance, as the twin did before, and the "
+        "twin holds 18 of the 22 days the description publishes",
+        attribute="group_gives_way",
+        replacement=lambda column, ordinals, parsed, whole: list(ordinals),
         outcome=CHANGES_THE_CELLS,
     ),
     "pool_alone_marks": Mutant(

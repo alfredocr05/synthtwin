@@ -15811,6 +15811,7 @@ def _tail_construction(
     boundary: int,
     low_side: bool,
     group_midnight: "tuple[int, int, int, tuple[int, ...]] | None",
+    widened: bool = False,
 ) -> "tuple[list[int], list[int]]":
     """Every rank's nearest and furthest distance, outermost first (G7.3b).
 
@@ -15820,6 +15821,15 @@ def _tail_construction(
     seconds or minutes, (anchor in seconds, seconds per unit, 0, the
     shifts of the offsets it names), where the group stands at the
     nearest midnight within its strata.
+
+    `widened` asks for the window G12.14 SUMS where G7.3b step 9 may move
+    a tie group of two ranks or more (landing 3b.0): with `g` the group's
+    distance, `t` how far its strata reach -- `k * a((m - (F - 1)) / m)`
+    rounded, at least `g` and never past the end -- and `G` its ranks from
+    outer index `max(F - 1, 1)`, the j-th innermost group rank as near as
+    `j + 1` for `j < min(g - 1, G - 1)` and the j-th outermost as far as
+    `t - j` for `j < min(t - g, G - 1)`. Every other rank keeps its
+    stratum, and without it every rank does.
     """
     ratio = 1.0
     if mean > 0.0:
@@ -15915,6 +15925,17 @@ def _tail_construction(
             near = found
         else:
             far = found
+    first = max(grouped, 1)
+    if widened and grouped < rows and rows - first >= 2:
+        size = rows - first
+        reach = min(
+            max(group, _tail_round(stretch * _tail_a(curve, (rows - grouped) / rows))),
+            end_whole,
+        )
+        for place in range(min(group - 1, size - 1)):
+            near[rows - 1 - place] = place + 1
+        for place in range(min(reach - group, size - 1)):
+            far[first + place] = reach - place
     return (near, far)
 
 
@@ -16094,12 +16115,18 @@ def _date_tail_windows(
     facts: contract.DatetimeFacts,
     floor: int,
     date_system: str,
+    summed: bool = False,
 ) -> "dict[str, tuple[list[int], list[int]]]":
     """Each shape-drawn tail's nearest and furthest distances (G12.14).
 
     Keyed `low` and `high`; a tail publishing its values, or a column
     with no tails, has no entry, because its ranks stand at published
-    values rather than inside strata.
+    values rather than inside strata. `summed` asks for the window the
+    two distances are SUMMED over, which widens a tie group where the
+    column's distinct count is reachable (`contract.
+    datetime_counts_reachable`), because G7.3b step 9 may then move its
+    ranks (landing 3b.0); a rank's own stratum, which G12.4 reads, is
+    asked without it.
     """
     found: "dict[str, tuple[list[int], list[int]]]" = {}
     if facts.low_tail is None or facts.high_tail is None:
@@ -16152,7 +16179,7 @@ def _date_tail_windows(
             where = (anchor, seconds_per_unit, 0, tuple(shifts))
         found[key] = _tail_construction(
             tail.rows, mean, root, floor, edge, apart, holes, at, low_side,
-            where,
+            where, summed and contract.datetime_counts_reachable(column),
         )
     return found
 
@@ -17222,7 +17249,7 @@ def _datetime_checks(
                 taxonomy.tail_ordinal(facts.low_tail.boundary, facts.tail_unit, reading),
                 taxonomy.tail_ordinal(facts.high_tail.boundary, facts.tail_unit, reading),
             ),
-            _date_tail_windows(column, facts, floor, date_system),
+            _date_tail_windows(column, facts, floor, date_system, True),
             values_of,
             facts.tail_unit,
             floor,

@@ -8715,6 +8715,9 @@ def _datetime_content(column):
     # the counts of different values and of widths reached (P4-D192).
     ordinals = kept_off_midnight(column, ordinals, parsed, whole, gap_lows, gap_highs, offsets=offsets)
     ordinals = units_settled(column, ordinals, parsed, whole, gap_lows, gap_highs)
+    # ...and where the count is still short, each tail's group gives way
+    # (G7.3b step 9, plan P4-D354).
+    ordinals = group_gives_way(column, ordinals, parsed, whole)
     holes = set(column.get("missing_by_source", {}))
     # HOW EVERY RANK IS SPELLED (method G7.5, landing 2b.6). Allocated
     # after the instants and the offsets, because which conventions a
@@ -9430,10 +9433,20 @@ def tail_side_plan(column, side, low_side, parsed, words):
         anchor - distance * unit if low_side else anchor + distance * unit
         for distance in stood
     ]
+    # THE TIE GROUP'S REACH (G7.3b steps 7 and 9): its strata run up to
+    # k * a((m - (F - 1)) / m), rounded as step 5 rounds, never short of
+    # the group's own distance and never past the end rank 0 stands at.
+    reach = None
+    if grouped < rows:
+        stretch, end = stretched_end(shape, rows, mean, root, edge)
+        group = stood[grouped]
+        outermost = group if grouped == 0 else max(min(max(1, whole_unit(end)), edge), group)
+        reach = min(max(group, whole_unit(stretch * mixture_at(shape, (rows - grouped) / rows))), outermost)
     return {
         "spots": places, "distances": stood, "texts": [None] * rows,
         "drawn": drawn, "near": near, "far": far, "anchor": anchor,
         "unit": unit, "half": half, "shape": shape, "grouped": grouped,
+        "reach": reach, "low_side": low_side,
     }
 
 
@@ -10182,6 +10195,90 @@ def counts_off(column, ordinals, day, unit, word, distinct, widths):
         )
         off += abs(showing - widths)
     return off
+
+
+def group_gives_way(column, ordinals, parsed, whole):
+    """G7.3b step 9 (plan P4-D354): the tie group gives way where the count is short.
+
+    Read from the method's sentence.  Where the count pass runs and
+    reaches for the distinct count, and the different units still number
+    fewer than it, each tail whose group holds two ranks or more -- outer
+    indices ``max(F - 1, 1)`` to ``m - 1`` -- offers every distance from
+    one to its reach, other than the group's own, whose unit no rank
+    holds and whose standing is the group's.  The offers are taken in
+    order of distance from the group's own, the smaller distance first
+    at one remove, the low tail first, while the count is short and the
+    group keeps one rank; a tail's taken distances inside its group go
+    smallest-first to its innermost ranks, and those outside it
+    largest-first to its outermost group ranks.  Step 7's step off a
+    hole is not mirrored here, as ``tail_side_plan`` does not mirror it:
+    no frozen case publishes an absent spelling beside a tail group.
+    """
+    ordinals = list(ordinals)
+    space = ordinal_space(column)
+    if parsed < 3 or column["datetimes_read_at"] != "local" or any(whole):
+        return ordinals
+    if space not in RESOLUTIONS or not date_counts_reachable(column):
+        return ordinals
+    day = 86400 if space == "datetime" else 1
+    step = 60 if space == "datetime" and column["time_precision"] == "minute" else 1
+    unit = step if space == "datetime" else 1
+    census = column.get("date_field_widths", {})
+    widths = len(census) == 1 and (
+        column["format"] in VARIABLE_WIDTH_MEMBERS or column["format"] in TEXTUAL_MEMBERS
+    )
+    word = next(iter(census)) if widths else ""
+    owed = column["n_distinct"] - column["n_unparsed"] - len({v // unit for v in ordinals})
+    if owed <= 0:
+        return ordinals
+    _pins, _texts, _body, sides = date_pins(column, parsed)
+    held = {v // unit for v in ordinals}
+
+    def place(plan, d):
+        return plan["anchor"] + (-1 if plan["low_side"] else 1) * d * plan["unit"]
+
+    def rank(plan, i):
+        return i if plan["low_side"] else parsed - 1 - i
+
+    offered = []
+    for order, name in enumerate(("low", "high")):
+        plan = sides.get(name)
+        if not plan or plan.get("reach") is None:
+            continue
+        rows = len(plan["spots"])
+        if rows - max(plan["grouped"], 1) < 2:
+            continue
+        group = plan["distances"][rows - 1]
+        mine = standing_of(column, place(plan, group), day, step, widths, word)
+        offered += [
+            (abs(d - group), d, order, name)
+            for d in range(1, plan["reach"] + 1)
+            if d != group
+            and place(plan, d) // unit not in held
+            and standing_of(column, place(plan, d), day, step, widths, word) == mine
+        ]
+    chosen = {"low": [], "high": []}
+    for _gap, d, _order, name in sorted(offered):
+        if owed == 0:
+            break
+        plan = sides[name]
+        if len(chosen[name]) + 2 > len(plan["spots"]) - max(plan["grouped"], 1):
+            continue
+        chosen[name] += [d]
+        owed -= 1
+    for name, taken in chosen.items():
+        if not taken:
+            continue
+        plan = sides[name]
+        rows = len(plan["spots"])
+        group = plan["distances"][rows - 1]
+        inner = sorted(d for d in taken if d < group)
+        outer = sorted((d for d in taken if d > group), reverse=True)
+        for k, d in enumerate(inner):
+            ordinals[rank(plan, rows - 1 - k)] = place(plan, d)
+        for k, d in enumerate(outer):
+            ordinals[rank(plan, max(plan["grouped"], 1) + k)] = place(plan, d)
+    return ordinals
 
 
 def sort_unpinned_runs(ordinals, pinned):
@@ -19939,6 +20036,62 @@ def _pool_alone_marks():
     }
 
 
+def _every_day_group():
+    """G7.3b step 9 (plan P4-D354): a tail's tie group gives way where the count is short.
+
+    The description the producer writes, at a floor of eleven, of 105
+    dates holding every one of 22 days from 2024-05-06 -- 5, 4, 1, 6, 9,
+    2, 4, 7, 6, 2, 7, 7, 5, 5, 3, 2, 9, 7, 1, 1, 11 and 1 cells.  Both
+    tails publish their pair: the low side's group of twenty-one ranks
+    stands three days out and its strata reach five, the high side's
+    group of eleven stands two days out and reaches three, and the days
+    one, two and four out on the low side and one out on the high side
+    hold no rank once the count pass is done.
+    """
+    tails, tail_claims = _tail_fields(
+        {
+            "boundary": "2024-05-13", "rows": 31,
+            "mean_distance": "3.967741935483871",
+            "rms_distance": "4.410398270363552", "values": None,
+        },
+        {
+            "boundary": "2024-05-22", "rows": 21,
+            "mean_distance": "2.9047619047619047",
+            "rms_distance": "3.2440421581430665", "values": None,
+        },
+    )
+    ladder = {key: None for key in LADDER_KEYS}
+    ladder["p50"] = "2024-05-16"
+    ladder["p75"] = "2024-05-22"
+    column = _universal(
+        "column_1", "datetime", "datetime", "data", "ok",
+        n_present=105, n_missing=0, n_distinct=22, n_distinct_folded=22,
+        n_numeric=0, n_not_numeric=105, n_out_of_range=0, n_contradictory=0,
+        format="iso-date", resolution="date", time_precision="date",
+        subsecond_digits=0, datetimes_read_at="local",
+        tail_unit="day", date_percentiles=ladder,
+        n_unparsed=0, utc_offsets={"(none)": 105},
+        **tails,
+    )
+    return {
+        "why": "G7.3b step 9 (plan P4-D354): where the count of different "
+        "days is still short once the count pass is done, each tail's tie "
+        "group gives up ranks onto the days no rank holds from one to its "
+        "reach, nearest its own distance first, the inner of two first, the "
+        "low tail first, the group keeping one rank; the days inside its "
+        "distance go smallest first to its innermost ranks and the days "
+        "outside it largest first to its outermost. 105 dates on every one "
+        "of 22 days come back on all 22: the low group gives three ranks to "
+        "the days two, four and one out and the high group one to the day "
+        "one out. The mutant leaves each group on its one distance, as the "
+        "generator did before this decision, and the twin holds 18 days.",
+        "column": column,
+        "rows": 105,
+        "identifier_declared": False,
+        "claims": tail_claims,
+    }
+
+
 def _unpublished_majority_marks():
     column, rungs, claims = _flat_numbers(
         "12345.5", 22,
@@ -26498,6 +26651,9 @@ ELEVENTH_BRANCH_CASE_BUILDERS = {
 # 200000-byte line.
 TWELFTH_BRANCH_CASE_BUILDERS = {
     "pool_alone_marks": _pool_alone_marks,
+    # ...and the tie group that gives way (plan P4-D354), while this file
+    # stands under plan P4-D295's line.
+    "every_day_group": _every_day_group,
 }
 
 CASE_SETS = {
@@ -26946,11 +27102,13 @@ _ELEVENTH_BRANCH_ACCOUNT = (
 )
 
 _TWELFTH_BRANCH_ACCOUNT = (
-    "case method section G14.3 adds with the census of marks that is only "
-    "a pool (plan P4-D352): G6.1's seven marks spent over a pool by whole "
+    "cases method section G14.3 adds with the census of marks that is only "
+    "a pool (plan P4-D352) -- G6.1's seven marks spent over a pool by whole "
     "runs, each run of one value going to the mark holding the fewest "
     "cells, on forty-four whole numbers from 1,001 to 1,016 in runs of two "
-    "to five. It is computed by the same oracle and the same proof layer "
+    "to five -- and with the tie group that gives way (plan P4-D354): "
+    "G7.3b step 9 on 105 dates holding every one of 22 days. They are "
+    "computed by the same oracle and the same proof layer "
     "as tests/reference/generation-reference-vectors.json, "
     "tests/reference/generation-branch-vectors.json, "
     "tests/reference/generation-branch-vectors-2.json, "
@@ -26963,7 +27121,7 @@ _TWELFTH_BRANCH_ACCOUNT = (
     "tests/reference/generation-branch-vectors-9.json, "
     "tests/reference/generation-branch-vectors-10.json, "
     "tests/reference/generation-branch-vectors-11.json and "
-    "tests/reference/generation-document-vectors.json, and lives in a "
+    "tests/reference/generation-document-vectors.json, and live in a "
     "fourteenth file because the twelfth and thirteenth stand past plan "
     "P4-D295's 200000-byte line: no cap is raised and no case is dropped."
 )
@@ -27301,6 +27459,78 @@ GIVEN_WORDS = {
         5066559147082998548, 9863967612665876337, 11846538372407324895,
         1992919954658304516, 16205010896491803505, 2028856745023040660,
         3065727619890136330,
+    ),
+    # ...and the tie group that gives way (plan P4-D354), at seed 409.
+    "every_day_group": (
+        5723126325731050313, 6540454068587375397, 194228535198995354,
+        16079873709608031819, 3522824937754450556, 1013538802789719462,
+        6206742879728252327, 18214119027326488612, 10157481845363326451,
+        17671023117159672237, 12982048392614957436, 8680358956345566998,
+        14683568076181159954, 10494968917847668918, 8474141785725436698,
+        8739743837250901172, 5166491304051598754, 4007370047365132973,
+        14361009443310531043, 9415796342220764853, 3929554038919000523,
+        12818652028578033287, 3856858827344412828, 13786292920535634486,
+        10577302390325332403, 3098379312777723561, 9714099479093990321,
+        10751215887184976675, 7363910834234614409, 7980250017534750541,
+        12237573287534579784, 8038642098272064322, 16001138277233402997,
+        12946722188309911710, 425052044924422646, 17110484922487077403,
+        6393583658841171502, 2467002430640765042, 4927880720621872985,
+        9778055654993410822, 4261724978381499147, 16445903642092426846,
+        7688889934031118926, 17119369031796704063, 6897069055297663357,
+        11905960963499839518, 475769052894706807, 3408518912814382477,
+        16607460145146204247, 6533955669281027067, 4247332697069956611,
+        886471814242861402, 15266981754907099623, 7893692245182410287,
+        3445677001999323151, 12906937763339685741, 13583252066653262338,
+        4487113643750003824, 7276224883532990025, 14853453847773004952,
+        7210657444557328302, 7622050145151688817, 15714503830143575161,
+        11733845647229838365, 9104899284632513027, 3936961821053680423,
+        3770521396820378548, 9562587183383881246, 1455246374301627767,
+        10706755511173551803, 1769833788359237454, 7976540108264604500,
+        10260446317794819770, 14838302827321550848, 15900582489364532808,
+        15929597098077464112, 3900377034445355658, 3523195355440849987,
+        4808932155928156589, 741641233194611385, 1792630981302486711,
+        4689651234492199837, 6249271043839918613, 17435701025845624826,
+        5978338518283076100, 296758507275850170, 3868581786364555786,
+        6467847990219446133, 4934281648038642186, 5322373117507816248,
+        8134028334398629773, 9657880977406819620, 16695415751239493055,
+        4288177748273245280, 15899055505447040122, 6556382754855276781,
+        16850578941268930074, 4236802915576043500, 3508876237994136303,
+        10076084903727099339, 7598265311987273690, 7412444456928766686,
+        16588558085290870507, 14135599691806125276, 7140654492207905117,
+        13898403866665670337, 15509127673138114688, 6384392402442366548,
+        12124562981930275052, 6136364537517283255, 13073798243322645051,
+        7856190949942451050, 16074778089351101223, 1364118095293189878,
+        6342140243247225612, 13653134535816447404, 4899621711502468831,
+        16059526667811174320, 4727763829384385075, 8729021440839580740,
+        1831451862196055513, 17774695639698376067, 18208188860326098034,
+        10347531786126910646, 17437209635266768792, 1774900126618849728,
+        1021386296643282252, 7850757588197078066, 16329707816816749251,
+        13875548884583901851, 13639033776886610224, 3041055012506028613,
+        18102367071342563981, 15545551701754005209, 17437804467446126522,
+        15756967861612132942, 12086120536619794032, 9917664188694479212,
+        6418183003395902528, 12417920141856391593, 4503997003401930065,
+        13053936558303766131, 11207098014021156597, 9286140636856599669,
+        6468647690789045772, 12172600184079116892, 17920590787250285087,
+        17553868961376201920, 8776755558957671753, 1514484381776342144,
+        13545859224938436485, 18170982409044608564, 2639567506935236824,
+        4751225351287868866, 7783009912889300927, 1845401689718288997,
+        9325224300732562993, 18098847090152405328, 16994780340956413341,
+        435848052301845290, 7566376781024507227, 5568342697464364759,
+        14742854977585963948, 12597195525822462182, 15468308746733116068,
+        1704417126269398420, 9855637054907516816, 10684665649213612956,
+        15418320090792751156, 6453157099180715842, 8591811027764961858,
+        5397416898401264075, 14002970163619560420, 17185831609090890330,
+        9318808384843701280, 4440553081765463398, 2046728206865126702,
+        13660089229913697714, 12352446946474089899, 10303297129376733430,
+        6790739151375924539, 16897018961430107082, 6255842313183605738,
+        11582162655749802186, 17630095369355460750, 4306579437834288650,
+        18066764289210439717, 9772944200880122465, 14129604881542606289,
+        11745780205582585529, 4806223345691387072, 15763724338664925135,
+        14546571285825713024, 5503186530056459404, 5254897267339603274,
+        10409021696973824486, 18324840438044562246, 3242062166751887814,
+        17292682069479083040, 15134063942607668872, 16408842465293891747,
+        4095085676556946715, 10522138137679369697, 17111283135317611073,
+        3632842063314559153, 3829518513296712869, 103146376361316910,
     ),
     # ...and the census of marks that is only a pool (plan P4-D352), at
     # seed 408.

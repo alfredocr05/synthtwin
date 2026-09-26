@@ -6284,6 +6284,40 @@
      "twins": 40
     }
    }
+  },
+  {
+   "id": "K-S3-30",
+   "phase_stage": "Stage 3b landing 3b.0 (plan P4-D354)",
+   "category": "STATS",
+   "headline": false,
+   "name": "Every day of a filled range comes back",
+   "status": "GREEN",
+   "rule": "the three pinned nodes of tests/test_stage3b_gate.py pass on every case: six seeded shapes filling every unit of their range -- two years of admission and of billing dates at 10,000 rows, 300 days at 10,000 rows, the admission days as midnight moments, every second of ten minutes and a 105-row column -- at the floor each fell short at, and the two-year shapes at floors 1 and 36 as well; at seeds 0 to 4 every twin validates with nothing missed, holds as many units as the real column and finds every approximation inside its window, the generator's and the validator's summed tail windows agree rank for rank, and on a tie of distance the low tail gives way first",
+   "rule_kind": "exact",
+   "expected": {
+    "pinned_nodes_failing": 0
+   },
+   "tier": "FAST",
+   "source": "pytest",
+   "nodes": [
+    "tests/test_stage3b_gate.py::test_every_day_filled",
+    "tests/test_stage3b_gate.py::test_the_two_writings_of_the_summed_window_agree",
+    "tests/test_stage3b_gate.py::test_the_low_tail_gives_way_first_on_a_tie"
+   ],
+   "test": null,
+   "driver": null,
+   "pin_strength": "EXACT",
+   "measured_on": "tests/test_stage3b_gate.py EVERY_DAY_CASES: ten shape-and-floor cases, seeds 0 to 4",
+   "evidence": "e294a82 failed 6 of the 10 cases: admissions and billing at floor 11 held 730 and 729 of 731 days and 300 days at floor 36 held 299, both distinct counts MISSED at every seed; the midnight moments and the seconds held 730 and 599 units and VALIDATED, the lost value bought back as a spelling the real column never wrote; the 105-row column held 22 of 23 days. After the landing, 10 of 10. Left: an outermost day one cell holds past the construction's end (P4-D354).",
+   "nodes_min_collected": 21,
+   "value_at": {
+    "commit": "caf3079",
+    "date": "2026-09-26",
+    "measured_by": "tools/measurements/kpi_run.py --only K-S3-30 --print-values",
+    "value": {
+     "pinned_nodes_failing": 0
+    }
+   }
   }
  ]
 }

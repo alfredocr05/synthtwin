@@ -5893,6 +5893,29 @@ unit by DT3.
    -- moves a rank only inside its gap, which is what keeps every
    published tail fact inside the window of G12.14.
 
+9. **The tie group gives way where the distinct count is short** (plan
+   P4-D354, landing 3b.0). The group's gap is its one distance, so the
+   count pass can never split it, and a column holding a value on every
+   day of its range came back a day short: two years of admissions, 731
+   days, twin 730 at every seed, the day one unit beyond the boundary
+   never written and both distinct counts missed. So where the column's
+   count of different units is still below its published count once the
+   count pass is done (G7.3, plan P4-D192), each tail's group of `G >= 2`
+   ranks -- outer indices `max(F - 1, 1)` to `m - 1` -- is offered the
+   units no rank holds from one to its REACH `t`: `k * a((m - (F - 1)) /
+   m)` rounded as in step 5, at least the group's distance `g` and never
+   past the end. A unit an absent spelling names (step 7), or of another
+   width kind or midnight standing than the group's, is not offered, so
+   a group at a midnight is offered only units at a midnight. The offers
+   are taken nearest `g` first, the inner of two at one distance, the low
+   tail before the high, until the count is met, each group keeping one
+   rank. A group's
+   units inside `g` go to its innermost ranks, the smallest to the
+   innermost; its units outside `g` to its outermost ranks, the largest to
+   the outermost. Every drawn rank stands at `t` or beyond, so no rank
+   passes another. No word is drawn. `rows` and the boundary stand, and
+   G12.14 draws its window to hold every twin this writes.
+
 #### G7.3c A tail that publishes which values it holds
 
 *Stage 3, plan P4-D329 (the owner's ruling of 2026-09-22).* Where a tail
@@ -11939,7 +11962,13 @@ step off a hole, the move onto a midnight, the monotone fix, the
 all-different step and the clamp to the edge. Call the two whole
 distances of rank `i` `near[i]` and `far[i]`. Every step of the
 construction is monotone in every word, so a twin built by it has each
-rank's distance between those two, and
+rank's distance between those two. **Where the column's distinct count
+is reachable** (contract `datetime_counts_reachable`), G7.3b step 9 may
+move a tie group of `G >= 2` ranks, so its ranks are summed wider (plan
+P4-D354): the j-th innermost as near as `j + 1` for
+`j < min(g - 1, G - 1)`, the j-th outermost as far as `t - j` for
+`j < min(t - g, G - 1)` -- each moved rank takes a unit of its own and
+the group keeps one -- and every other rank as above. Then
 
 ```
 sum(near) / m   <=   mean(twin)   <=   sum(far) / m
@@ -12629,7 +12658,7 @@ that happens -- and the clause beside it, `--missing-value`'s "CAN be
 published as the column's smallest value", is exactly right under the
 new rule.
 
-**All one hundred and thirty are required.** The count is taken off the committed
+**All one hundred and thirty-one are required.** The count is taken off the committed
 case sets and not carried forward: this sentence said fifty-two and a
 split of nine, twenty, sixteen and seven while the six files held
 seventy-three, because each repair that added a case added a clause to
@@ -12653,7 +12682,7 @@ nine; the ELEVENTH,
 TWELFTH, `tests/reference/generation-branch-vectors-10.json`, holds three;
 the THIRTEENTH, `tests/reference/generation-branch-vectors-11.json`,
 holds three; and the FOURTEENTH,
-`tests/reference/generation-branch-vectors-12.json`, holds one (G14.2),
+`tests/reference/generation-branch-vectors-12.json`, holds two (G14.2),
 and a test holds this sentence to those files. The tenth grew by the
 two cases the GOVERNANCE PASS of stage 3's review added and the
 eleventh by the two the dates pass added; each number here is read off
@@ -12783,6 +12812,7 @@ case passed, which is the failure the count exists to prevent:
 | `narrow_spaced` | a narrow no-break space U+202F between thousands: `12 345.5`, and a spent cell `012345.5` with no mark |
 | `thin_spaced` | a thin space U+2009 between thousands: `12 345.5`, and a spent cell `012345.5` with no mark |
 | `bare_mark_remainder` | G6.1's bare remainder of a census of marks (plan P4-D142): thirty-three cells of twelve thousand three hundred and forty-five and a half published with `group_separator: ","` and `thousands_marks: {",": 22}`, so the first twenty-two are written `12,345.5` and the eleven the census leaves -- the census floor of them -- `12345.5`, with no mark |
+| `every_day_group` | G7.3b step 9 (plan P4-D354): 105 dates holding every one of 22 days from 2024-05-06, both tails publishing their pair, the low group of twenty-one ranks three days out and reaching five, the high group of eleven two days out and reaching three. Once the count pass is done the days one, two and four out on the low side and one out on the high side hold no rank, so the low group gives ranks to the days two, four and one out and the high group one to the day one out, and the twin holds all 22. Its mutant leaves each group on its one distance, as the twin did before this decision, and the twin holds 18 |
 | `pool_alone_marks` | G6.1's census of marks that is only a pool (plan P4-D352): forty-four whole numbers from 1,001 to 1,016, the sixteen values in runs of two to five, published with `thousands_marks: {"(withheld)": 44}` and no mark, so the pool is spent over all seven marks by whole runs, each run going to the mark holding the fewest cells: every mark is written, nine cells at most on one, and every value one way. Its mutant writes every cell with no mark, as the twin did before this decision |
 | `pooled_mark_cells` | G6.1's pooled remainder of a census of marks (plan P4-D142): forty-four cells published with `thousands_marks: {",": 33, "(withheld)": 11}`, so the first thirty-three are written `12,345.5` and the pooled eleven `12 345.5`, a space being the first pool mark the census does not name |
 | `unpublished_majority_marks` | G6.1's groupable cells asked with a mark that writes one (plan P4-D142): twenty-two cells published with no `group_separator` and `thousands_marks: {",": 11, " ": 11}`, so the first eleven are written `12,345.5` and the last eleven `12 345.5` rather than every cell bare |
