@@ -2170,7 +2170,16 @@ boundary rung itself where that percent falls between the two tails.
    present cells, its numbers and its forms; on one far `-4000` beside
    `500` to `648` the end stood at `-999` and the twin's role turned
    from continuous to count. A published end (step 1) and a listed
-   value (step 2) are the table's own and are not moved.
+   value (step 2) are the table's own and are not moved. **AND NO ROW
+   OF THE STAIRCASE STANDS ON ONE EITHER**: a row the staircase below
+   puts on a stand-in number takes the next grid point OUTWARD, the
+   step a row landing on the row before it takes, never past the end;
+   a row on the end is the end's. G6.6's width walk, which moves a
+   tail row onto the ceiling of a width, refuses the three too. Measured on 145 four-figure numbers beside five of
+   five figures at a floor of eleven, a tail row the walk moved for the
+   width census took `9999` and the twin missed seven obligations at
+   seeds 0, 4 and 9; three-figure negatives beside five of four figures
+   took `-999` at every seed.
 
 **Why each step** (measured on the 16-shape battery of plan P4-D344 at
 floors 1 and 11). The two moments are what the rows beyond the boundary
@@ -4042,9 +4051,14 @@ candidate inside it, what the move spends of the two distances is the
 least it can. Measured on the 120 record codes above: eleven cells are
 published padded at five figures, the twin's staircase put ten of its
 rows under ten thousand and the eleventh at 10009, no other stratum
-could reach four figures, and with the room that stratum takes 9999 —
-ten units of a mean distance of 6593.3 — and the twin writes the
-eleven padded cells it owes.
+could reach four figures, and with the room that stratum takes a
+four-figure value — ten units of a mean distance of 6593.3 — and the
+twin writes the eleven padded cells it owes. **THE VALUE IS NEVER A
+STAND-IN NUMBER** (plan P4-D353 part 4): the nearest candidate for any
+stratum coming down from beyond a width's ceiling is the ceiling
+itself, `9999` or `-999`, which the profiler can read as "no value", so
+the walk refuses `-9999`, `-999` and `9999` as G8.3a refuses them for a
+made-up spelling, and takes the next candidate — `9998` there.
 
 That half unit is G5.4's own, the one G12.2 already widens the rung
 window by, so this rule grants nothing the method had not granted
@@ -10039,10 +10053,16 @@ distort a distribution to protect a re-profiling artifact — and the
 report names `sentinel_verdicts` as REPORT-ONLY. This is a residual, not
 a defect, and it is named as one in G13.
 
-**The one construction that DOES step past them is G8.3a's**: a
-held-back number of a column of labels is chosen from a walk rather
-than placed on a distribution, so refusing `-9999`, `-999` and `9999`
-there costs a step of the walk and moves no published fact.
+**The constructions that DO step past them are G8.3a's and a
+tail's**: a held-back number of a column of labels is chosen from a
+walk rather than placed on a distribution, so refusing `-9999`, `-999`
+and `9999` there costs a step of the walk and moves no published fact;
+and a numeric tail's cells beyond its boundary -- the derived end and
+the staircase rows of G5.3b step 5 -- are a construction too, standing
+where the outlier rule looks first, so each steps one grid point past
+them; and G6.6's width walk, whose nearest candidate from beyond a
+width's ceiling is the ceiling itself, takes the next candidate instead
+(plan P4-D353 part 4).
 
 ### G10.4 Unparsed datetime stand-ins
 

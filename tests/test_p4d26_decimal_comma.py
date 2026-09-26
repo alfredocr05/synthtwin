@@ -1277,6 +1277,13 @@ def test_the_recount_uses_the_same_hole_identity_as_everything_else(
         if (whole, part) == (9, 0):
             continue
         values = values + [f"-99{whole},{part}"]
+    # AND SIXTY CELLS BELOW A THOUSAND, so `-999,0` stands INSIDE the
+    # ladder: a tail's staircase steps past the stand-in numbers since
+    # plan P4-D353 part 4, and without these the collision came only
+    # from a low-tail row the twin no longer writes there.
+    values = values + [
+        f"-100{generator.randint(0, 9)},{generator.randint(0, 9)}" for _ in range(60)
+    ]
     values = values + ["-999"] * 20
     generator.shuffle(values)
     folder = pathlib.Path(tempfile.mkdtemp())

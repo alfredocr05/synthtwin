@@ -1585,7 +1585,7 @@ def withheld_steps(column, side, boundary, end, low):
             if crowded:
                 at = withheld_step(last, 1, low, figures)
         past = (at < end) if low else (at > end)
-        placed += [end if past else at]
+        placed += [row_off_the_stand_ins(end if past else at, end, low, figures)]
     return placed
 
 
@@ -1630,8 +1630,24 @@ def tail_steps(column, side, boundary, shape, end, low):
             if crowded:
                 value = withheld_step(last, 1, low, figures)
         past = (value < end) if low else (value > end)
-        placed += [end if past else value]
+        placed += [row_off_the_stand_ins(end if past else value, end, low, figures)]
     return placed
+
+
+def row_off_the_stand_ins(value, end, low, figures):
+    """G5.3b step 5's rows (plan P4-D353): no staircase row is a stand-in number.
+
+    Written from the method's own words: a row the staircase puts on one
+    of the three numbers the profiler reads as a stand-in for "no value"
+    takes the next grid point OUTWARD, the step a row landing on the row
+    before it takes, and never past the tail's end; a row on the end is
+    the end's and is left. The comparison is exact.
+    """
+    if value == end or fractions.Fraction(value) not in NUMERIC_SENTINELS:
+        return value
+    moved = withheld_step(value, 1, low, figures)
+    past = (moved < end) if low else (moved > end)
+    return end if past else moved
 
 
 def derived_end(column, side, boundary, shape, low, published):

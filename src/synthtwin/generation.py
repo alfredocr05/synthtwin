@@ -13636,13 +13636,31 @@ def _figured_inside(
     from that point rather than drawn, because two implementations
     reading one description have to land on the same value.
 
+    AND NEVER A STAND-IN NUMBER (method G6.6, plan P4-D353 part 4).
+    The widest value a width census lets a cell write is `9999` for four
+    figures or a pad of five and `-999` for three, two of the three
+    numbers `parsing.NUMERIC_SENTINELS` names -- so the nearest candidate
+    for a stratum coming down from beyond that ceiling is the ceiling
+    itself, every time. A cell there can be read back by the twin's own
+    description as a stand-in for "no value", and a tail's cells are
+    the ones the profiler's outlier rule judges. Measured on 145
+    four-figure numbers beside five of five figures at a floor of
+    eleven: a tail row took `9999` and the twin MISSED seven obligations
+    at seeds 0, 4 and 9 -- its present cells, its numbers and its forms;
+    three-figure negatives beside five of four figures took `-999`, and
+    1,500 all-different Pareto readings `9999` inside the ladder, at
+    every seed. So the three are refused, as `_reads_as_its_class`
+    refuses them for a made-up spelling, and the walk takes the next
+    candidate -- `9998`, one unit nearer the stratum's own value.
+
     Guarantees: accepts a share, the values other strata hold, the
     stratum's band, a figure count of one or more, the value the
     stratum holds now and whether the column is whole; returns a value
     with exactly that many figures that this stratum's own share and
-    rounding could have reached, held by no other stratum -- or None
-    where there is no such value. Determinism: the answer depends only
-    on those inputs. Raises nothing. No I/O of any kind.
+    rounding could have reached, held by no other stratum and none of
+    the stand-in numbers -- or None where there is no such value.
+    Determinism: the answer depends only on those inputs. Raises
+    nothing. No I/O of any kind.
     """
     if share is None or figures < 1 or figures > _FIGURE_REACH:
         return None
@@ -13690,6 +13708,8 @@ def _figured_inside(
             value = float(pick)
             if value in taken:
                 continue
+            if _is_a_stand_in(value):
+                continue
             if band == _BAND_NEGATIVE and not value < 0.0:
                 continue
             if band == _BAND_POSITIVE and not value > 0.0:
@@ -13700,6 +13720,22 @@ def _figured_inside(
                 continue
             return value
     return None
+
+
+def _is_a_stand_in(value: float) -> bool:
+    """Whether a value is one of the numbers the profiler can read as absent.
+
+    `parsing.NUMERIC_SENTINELS`, compared as numbers, which is how
+    `_reads_as_its_class` asks it of a made-up spelling.
+
+    Guarantees: accepts a number; returns True exactly where it equals
+    one of the three. Determinism: a function of the value. Raises
+    nothing. No I/O of any kind.
+    """
+    for sentinel in parsing.NUMERIC_SENTINELS:
+        if value == sentinel:
+            return True
+    return False
 
 
 def _field_demands(facts: contract.NumericFacts) -> "list[tuple[int, int, int]]":

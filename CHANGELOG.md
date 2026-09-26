@@ -16,10 +16,13 @@ moments, else the one that keeps the most (plan P4-D353, the owner's
 answers of 2026-09-25 and 26). Where it publishes nothing, one withheld
 tail withholds the other's pair unless the other lists its values, and
 beside such a list the exact moments still give the withheld tail back
-(`K-S3-23`, open). A derived tail end the width census put on
-`9999` or `-999` moves one grid step inside, so a published pair no
-longer makes the twin write a stand-in for "no value" (method G5.3b step
-5; `tail_pad_partial` regenerated). The G12.3 windows are written once,
+(`K-S3-23`, open). No tail cell the twin constructs is a stand-in
+for "no value" any more: a derived end on `9999`, `-999` or `-9999`
+moves one grid step inside, a staircase row one point outward, and
+G6.6's width walk no longer takes a width's ceiling when it is one
+(method G5.3b step 5, G6.6). Before, 145 four-figure numbers beside five of five figures wrote
+`9999` inside the twin's high tail and missed seven obligations at seeds
+0, 4 and 9; now none (`tail_pad_partial` regenerated). The G12.3 windows are written once,
 in `taxonomy`, and `validation` reads them. `K-S3-15` is GREEN at (19,
 0, 12); at a floor of 36 no twin of 37 shapes misses an obligation
 (`K-S3-20`); what the pairs give back is `K-S3-17`, `K-S3-18` and

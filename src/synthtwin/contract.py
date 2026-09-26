@@ -11610,6 +11610,11 @@ def _tail_steps(side: TailReader, figures: int) -> "tuple[float, ...]":
     row before it stands takes the NEXT REPRESENTABLE value outward,
     which is what "its own grid point" means where the grid is the
     format's own.
+
+    AND NO ROW STANDS ON A STAND-IN NUMBER (method G5.3b step 5, plan
+    P4-D353 part 4): a row the staircase puts on one of
+    `parsing.NUMERIC_SENTINELS` takes the next grid point outward, as a
+    row landing on the row before it does (`_row_off_the_stand_ins`).
     """
     if side.listed or side.rows <= 0:
         return ()
@@ -11638,7 +11643,7 @@ def _tail_steps(side: TailReader, figures: int) -> "tuple[float, ...]":
                 at = side.end
             if not side.low and at > side.end:
                 at = side.end
-            walked += [at]
+            walked += [_row_off_the_stand_ins(at, side, figures)]
         return tuple(walked)
     if side.flat:
         return ()
@@ -11663,8 +11668,36 @@ def _tail_steps(side: TailReader, figures: int) -> "tuple[float, ...]":
             value = side.end
         if not side.low and value > side.end:
             value = side.end
-        placed += [value]
+        placed += [_row_off_the_stand_ins(value, side, figures)]
     return tuple(placed)
+
+
+def _row_off_the_stand_ins(value: float, side: TailReader, figures: int) -> float:
+    """A staircase row moved off the numbers the profiler reads as absent.
+
+    A ROW IS A CONSTRUCTION AND NOT A VALUE OF THE TABLE, exactly as a
+    derived end is (`_off_the_stand_ins`), and a tail's rows are the
+    cells the profiler's outlier rule judges: a twin cell on `9999`,
+    `-999` or `-9999` can be read back by the twin's own description as
+    a stand-in for "no value". So a row landing on one takes the next
+    grid point OUTWARD -- the step a row landing on the row before it
+    takes -- and never past the tail's own end, which step 5 has already
+    held off them. A row ON the end is the end's business and is left.
+
+    Guarantees: accepts a row as the staircase placed it, its tail and
+    the tail grid; returns the row, or the next grid point outward held
+    at the end where the row is a stand-in number. Determinism: a
+    function of the three. Raises nothing. No I/O of any kind.
+    """
+    if value == side.end:
+        return value
+    for sentinel in parsing.NUMERIC_SENTINELS:
+        if value == sentinel:
+            moved = _withheld_step(value, 1, side.low, figures)
+            if (moved < side.end) if side.low else (moved > side.end):
+                return side.end
+            return moved
+    return value
 
 
 def tail_read(

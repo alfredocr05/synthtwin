@@ -20,7 +20,9 @@ own windows before it asserts what the rule did:
 * where no pair keeps either moment none is published, and where one
   keeps a single moment it is;
 * where closing the complement costs nothing it stays closed;
-* a published pair never makes the twin write a stand-in number.
+* no tail cell the construction writes is a stand-in number: not the
+  derived end (method G5.3b step 5, on both of its paths), not a row
+  of the staircase -- and no value G6.6's width walk moves either.
 
 Every table is built at test time from a fixed seed string; no
 data-format file enters the repository (plan D13).
@@ -36,7 +38,7 @@ import pytest
 import complement_reader as columns
 import cost_rule_window as window
 import kpi_shapes
-from synthtwin import taxonomy
+from synthtwin import contract, parsing, taxonomy
 
 
 def _one_column(cells: "list[str]") -> str:
@@ -322,7 +324,17 @@ def test_the_complement_stays_closed_where_closing_it_is_free(tmp_path: pathlib.
     assert window.missed(block, 11) == []
 
 
-# -- 6. a published pair never makes the twin write a stand-in number --------
+# -- 6. no tail cell the construction writes is a stand-in number -----------
+#
+# Plan P4-D353 part 4. `9999`, `-999` and `-9999` are the numbers the
+# profiler reads as "no value" where they stand out from a column, and a
+# tail's cells are the ones that stand out: a twin cell on one is read back
+# by the twin's own description as absent. The derived end moves one grid
+# step inside (method G5.3b step 5), a staircase row one grid point outward,
+# and G6.6's width walk, whose nearest candidate from beyond a width's
+# ceiling is the ceiling itself, refuses them for every value it moves.
+
+_STAND_INS = tuple(parsing.NUMERIC_SENTINELS)
 
 _STAND_IN_SHAPES = (
     ("padded_149_beside_one_far", [f"{value:05}" for value in range(1, 150)] + ["12345"]),
@@ -330,8 +342,16 @@ _STAND_IN_SHAPES = (
 )
 
 
+def _held_stand_ins(written: "list[str]", cells: "list[str]") -> "list[str]":
+    """The twin cells on a stand-in number the source column never holds."""
+    held = {float(cell) for cell in cells if cell}
+    return [
+        cell for cell in written if float(cell) in _STAND_INS and float(cell) not in held
+    ]
+
+
 @pytest.mark.parametrize("name,cells", _STAND_IN_SHAPES)
-def test_a_published_pair_never_makes_the_twin_write_a_stand_in(
+def test_a_derived_end_at_the_width_ceiling_is_never_a_stand_in(
     tmp_path: pathlib.Path, name: str, cells: "list[str]"
 ) -> None:
     """The far cell's own width is pooled at the floor, so the twin's tail is held to four characters.
@@ -351,7 +371,173 @@ def test_a_published_pair_never_makes_the_twin_write_a_stand_in(
     for seed in (0, 4):
         text = kpi_shapes.twin_text(described, seed)
         written = [line for line in text.split("\n")[1:] if line]
-        stand_ins = [one for one in written if float(one) in (-9999.0, -999.0, 9999.0)]
+        stand_ins = [one for one in written if float(one) in _STAND_INS]
         assert stand_ins == [], f"{name} seed {seed}: the twin wrote {stand_ins}"
         outcome = kpi_shapes.measure(described, text, f"twin-{seed}.csv")
         assert kpi_shapes.missed(outcome) == [], f"{name} seed {seed}: {kpi_shapes.missed(outcome)}"
+
+
+def _wide_beside_narrow(name: str, narrow: "range", wide: "range", negative: bool) -> "list[str]":
+    """145 values of one figure count beside five of one more, shuffled (skeptic A2's shapes).
+
+    Five cells are fewer than the floor, so the width census pools them into
+    the commonest width and names ONE width over every cell; the far tail's
+    rows then sit past that width's ceiling, and G6.6 moves one of them back
+    inside it for the census.
+    """
+    draw = random.Random(f"skA2/{name}")
+    values = draw.sample(narrow, 145) + draw.sample(wide, 5)
+    cells = [str(-value if negative else value) for value in values]
+    draw.shuffle(cells)
+    return cells
+
+
+def _pareto_all_different() -> "list[str]":
+    """1,500 all-different whole Pareto(2) readings times a thousand (skeptic A2's `par2_distinct_1500`)."""
+    return columns._distinct_draw(
+        random.Random("skA2/par2_distinct_1500"),
+        1500,
+        lambda draw: str(int(1000 * draw.paretovariate(2.0))),
+    )
+
+
+# (name, cells, the width whose ceiling is a stand-in): the first two put the
+# walk's value in a TAIL, the third inside the ladder.
+_WIDTH_WALK_SHAPES = (
+    ("w4far5_5_150_s0", _wide_beside_narrow("w4far5_5_150_s0", range(1000, 4000), range(10000, 40000), False), "4"),
+    ("negw3_5_150_s0", _wide_beside_narrow("negw3_5_150_s0", range(100, 700), range(1000, 6000), True), "3"),
+    ("par2_distinct_1500", _pareto_all_different(), "4"),
+)
+
+
+@pytest.mark.parametrize("name,cells,width", _WIDTH_WALK_SHAPES)
+def test_no_value_the_width_walk_moves_is_a_stand_in(
+    tmp_path: pathlib.Path, name: str, cells: "list[str]", width: str
+) -> None:
+    """G6.6's width walk takes the nearest value of a census width -- never `9999` or `-999`.
+
+    Measured before the refusal, at a floor of eleven and seeds 0, 4 and 9:
+    the four-figure column's twin wrote `9999` inside its high tail and its
+    own description read it as absent, MISSING seven obligations (present
+    cells, numbers, forms); the three-figure negative column's twin wrote
+    `-999` in its low tail; the Pareto column's twin wrote `9999` inside
+    its ladder, where it was too rare to be read as absent. None of the
+    three columns holds a stand-in number.
+    """
+    described = kpi_shapes.describe(tmp_path / name, name, _one_column(cells), 11)
+    block = described.document["columns"][0]
+    assert width in block["field_widths"] and block["field_widths"][width] > len(cells) // 2, (
+        "premise: the census names the width whose ceiling is a stand-in, over most cells"
+    )
+    for seed in (0, 4, 9):
+        text = kpi_shapes.twin_text(described, seed)
+        written = [line for line in text.split("\n")[1:] if line]
+        stand_ins = _held_stand_ins(written, cells)
+        assert stand_ins == [], f"{name} seed {seed}: the twin wrote {stand_ins}"
+        outcome = kpi_shapes.measure(described, text, f"twin-{seed}.csv")
+        assert kpi_shapes.missed(outcome) == [], f"{name} seed {seed}: {kpi_shapes.missed(outcome)}"
+
+
+def _oracle() -> object:
+    """The reference oracle (`tools/reference`), as the reference test already loads it."""
+    import test_generation_reference as reference
+
+    return reference.gen
+
+
+def _generator_and_oracle(described: "kpi_shapes.Described") -> "tuple[object, object]":
+    """The generator's tail ladder and the oracle's, read from one description."""
+    facts = described.loaded.columns[0].facts
+    ours = contract.tail_ladder(facts)
+    block = dict(described.document["columns"][0])
+    block["_rungs"] = {**block["percentiles"], **block["percentiles_between"]}
+    return ours, _oracle().tail_ladder(block)
+
+
+# (name, cells, side): consecutive whole numbers whose tail on `side` runs
+# through a stand-in number. The tail publishes neither distance, so its
+# staircase is one grid step a row from the boundary -- through the stand-in.
+_STAIRCASE_SHAPES = (
+    ("through_9999", [str(value) for value in range(8900, 10001)], "high"),
+    ("through_minus_999", [str(value) for value in range(-1009, 92)], "low"),
+)
+
+
+@pytest.mark.parametrize("name,cells,side", _STAIRCASE_SHAPES)
+def test_no_staircase_row_stands_on_a_stand_in(
+    tmp_path: pathlib.Path, name: str, cells: "list[str]", side: str
+) -> None:
+    """G5.3b step 5's rows, in the generator and in the oracle alike.
+
+    1,101 consecutive whole numbers at a floor of eleven: eleven rows a side,
+    both pairs withheld, so each tail's staircase stands on the eleven grid
+    points past its boundary -- `9990` to `10000` above, `-1009` to `-999`
+    below -- and one of them is a stand-in number. The row there takes the
+    next grid point outward, held at the end.
+    """
+    described = kpi_shapes.describe(tmp_path / name, name, _one_column(cells), 11)
+    tail = described.document["columns"][0]["tails"][side]
+    ours, theirs = _generator_and_oracle(described)
+    reader = ours.high if side == "high" else ours.low
+    boundary = reader.boundary
+    reach = [boundary + step if side == "high" else boundary - step for step in range(1, tail["rows"] + 1)]
+    assert tail["mean_distance"] is None and [one for one in reach if one in _STAND_INS], (
+        "premise: the tail publishes neither distance and its one-step staircase runs through a stand-in"
+    )
+    rows = list(reader.steps)
+    assert [row for row in rows if row in _STAND_INS] == [], f"{name}: a staircase row is a stand-in: {rows}"
+    oracle_rows = list((theirs.high if side == "high" else theirs.low)["steps"])
+    assert oracle_rows == rows, (
+        f"{name}: the oracle, reading method G5.3b step 5, places the rows at {oracle_rows}"
+    )
+
+
+# (name, cells, side, moved): 8899 to 9988, then 9989 to 9998, then one far
+# 10005 -- and its mirror. At a floor of eleven the far side's eleven rows
+# publish neither distance, so its end is eleven grid steps past the boundary
+# rung 9988, which is 9999: step 5's WITHHELD path moves it to 9998.
+_WITHHELD_END_SHAPES = (
+    (
+        "withheld_end_on_9999",
+        [str(value) for value in range(8899, 9999)] + ["10005"],
+        "high",
+        9998.0,
+    ),
+    (
+        "withheld_end_on_minus_9999",
+        [str(-value) for value in range(8899, 9999)] + ["-10005"],
+        "low",
+        -9998.0,
+    ),
+)
+
+
+@pytest.mark.parametrize("name,cells,side,moved", _WITHHELD_END_SHAPES)
+def test_a_withheld_end_on_a_stand_in_moves_one_step_inside(
+    tmp_path: pathlib.Path, name: str, cells: "list[str]", side: str, moved: float
+) -> None:
+    """G5.3b step 5 on its WITHHELD path (`contract._derived_end`, step 2a's end).
+
+    The end of a tail publishing neither distance is `rows` grid steps past
+    its boundary; here that is `9999` (`-9999`), and the column holds no
+    stand-in number. The generator's end and the oracle's must both stand
+    one step inside, and no twin cell may be a stand-in at seeds 0, 4, 9.
+    Withdrawn, the twin writes `9999` (`-9999`) at every seed.
+    """
+    described = kpi_shapes.describe(tmp_path / name, name, _one_column(cells), 11)
+    tail = described.document["columns"][0]["tails"][side]
+    ours, theirs = _generator_and_oracle(described)
+    reader = ours.high if side == "high" else ours.low
+    step = 1.0 if side == "high" else -1.0
+    assert tail["mean_distance"] is None and reader.boundary + step * tail["rows"] in _STAND_INS, (
+        "premise: the far side publishes neither distance and its end would be a stand-in"
+    )
+    assert reader.end == moved, f"{name}: the withheld end stands at {reader.end}"
+    assert (theirs.high if side == "high" else theirs.low)["end"] == moved, (
+        f"{name}: the oracle, reading method G5.3b step 5, puts the end elsewhere"
+    )
+    for seed in (0, 4, 9):
+        text = kpi_shapes.twin_text(described, seed)
+        written = [line for line in text.split("\n")[1:] if line]
+        stand_ins = _held_stand_ins(written, cells)
+        assert stand_ins == [], f"{name} seed {seed}: the twin wrote {stand_ins}"
