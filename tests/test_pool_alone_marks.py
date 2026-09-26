@@ -497,3 +497,73 @@ def test_a_run_of_one_value_keeps_one_mark():
     assert len(marked) == 42 and named == []
     assert all(len(marks) == 1 for marks in ways.values())
     assert len(set(marked)) == 7
+
+
+def _trailing_negatives(seed: int, trailing: int, brackets: int, minus: int, sign: int,
+                        positives: int, whole_others: bool = True, points: bool = True,
+                        whole_share: float = 0.5) -> "list[str]":
+    """Negatives under a thousand: ``trailing`` written `12.50-`, the others as asked.
+
+    ``points`` False writes the trailing ones `12.00-`, so every value is
+    whole; ``whole_share`` of the positives are written with no point.
+    """
+    draw = random.Random(seed)
+
+    def figures(point: bool) -> str:
+        if not point:
+            return f"{draw.randint(1, 999)}"
+        return f"{draw.randint(1, 999)}.{draw.randint(0, 99) if points else 0:02d}"
+
+    out = [figures(True) + "-" for _ in range(trailing)]
+    out += ["(" + figures(not whole_others) + ")" for _ in range(brackets)]
+    out += ["-" + figures(not whole_others) for _ in range(minus)]
+    out += ["−" + figures(not whole_others) for _ in range(sign)]
+    out += [figures(draw.random() >= whole_share) for _ in range(positives)]
+    draw.shuffle(out)
+    return out
+
+
+# A TRAILING MINUS IS WRITTEN ONLY ON FIGURES WITH A POINT, so the twin must
+# keep a point on as many negatives as the census counts under it (the
+# second skeptic of plan P4-D352). (name, cells, census).
+TRAILING = (
+    # the band counted under its commonest, a trailing minus, beside
+    # twenty-seven whole-number negatives
+    ("band-beside-whole", _trailing_negatives(601, 10, 9, 9, 9, 130), {"trailing_minus": 37}),
+    ("band-all-points", _trailing_negatives(602, 10, 9, 9, 9, 130, whole_others=False),
+     {"trailing_minus": 37}),
+    # the named controls
+    ("named", _trailing_negatives(701, 37, 0, 0, 0, 130), {"trailing_minus": 37}),
+    ("named-beside-brackets", _trailing_negatives(802, 20, 20, 0, 0, 130),
+     {"brackets": 20, "trailing_minus": 20}),
+    ("named-whole-values", _trailing_negatives(901, 37, 0, 0, 0, 130, points=False, whole_share=1.0),
+     {"trailing_minus": 37}),
+)
+
+
+@pytest.mark.parametrize("seed", SEEDS)
+@pytest.mark.parametrize("name,cells,census", TRAILING, ids=[shape[0] for shape in TRAILING])
+def test_the_twin_writes_as_many_trailing_minuses_as_the_census_counts(
+    name, cells, census, seed, tmp_path
+):
+    """Every negative the census counts under a trailing minus is written with one.
+
+    At e294a82 the two band shapes and the two named ones beside no
+    whole value wrote 0 or 1 trailing minus, missing both notation checks
+    at every seed, and the whole-valued one 34 of 37. Mutations, each
+    run: `_trailing_owed` answering nought turns all twenty-five red; the
+    values step's walk for a trailing minus withdrawn turns every shape
+    but the whole-valued one red at every seed; the exchange withdrawn
+    turns `band-beside-whole` and `named-whole-values` red at every seed;
+    the trailing minus taken in the contract's order turns
+    `named-beside-brackets` red at every seed.
+    """
+    first, second, written, twin_exit, real_exit = _round_trip(tmp_path, cells, (), seed=seed)
+    assert first["negative_notations"] == census
+    assert second["negative_notations"] == census
+    assert second["negative_form"] == first["negative_form"]
+    assert twin_exit == 0 and real_exit == 0
+    assert sum(1 for cell in written if cell.endswith("-")) == census["trailing_minus"]
+    profile = contract.load_profile(str(tmp_path / "real-profile.json"))
+    named = [d for d in generation.generate(profile, int(seed)).deviations if d.fact == "negative_notations"]
+    assert named == []

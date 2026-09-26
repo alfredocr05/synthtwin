@@ -617,6 +617,105 @@ def _shipped_lone_pool(pool, flags, floor, values):
     return worn
 
 
+# ------------------------------- G6.1's trailing minus, and the points it needs
+#
+# The second skeptic of plan P4-D352, worked by hand from the method's
+# sentences. THE EXCHANGE: while fewer cells allocated `decimal` hold a
+# negative value than R -- the named `trailing_minus`, no larger than the
+# negative cells -- each `plain` cell on a negative value, first upward,
+# takes `decimal` from the `decimal` cell on a value not below zero that has
+# a point-free spelling, last downward, which takes `plain`; and the
+# `decimal` cells not below zero stay at least the named `decimal_plus`.
+# THE ORDER: the trailing minus takes its count before the notations the
+# contract orders ahead of it. The frozen case `trailing_minus_points`
+# reaches the values step and the order and never the exchange: no
+# negative there is whole before the step. Each row: (R, decimal_plus,
+# styles, values) and the styles the statement gives.
+TRAILING_EXCHANGES = (
+    # two pairs: every donor spent
+    ((2, 0, ("plain", "plain", "decimal", "decimal", "plain"),
+      (-3.0, -2.0, 1.0, 5.0, 7.0)),
+     ("decimal", "decimal", "plain", "plain", "plain")),
+    # one decimal cell kept for the plus: one pair, the last donor
+    ((2, 1, ("plain", "plain", "decimal", "decimal", "plain"),
+      (-3.0, -2.0, 1.0, 5.0, 7.0)),
+     ("decimal", "plain", "decimal", "plain", "plain")),
+    # 5.5 has no point-free spelling, so it gives nothing
+    ((2, 0, ("plain", "plain", "decimal", "decimal", "plain"),
+      (-3.0, -2.0, 1.0, 5.5, 7.0)),
+     ("decimal", "plain", "plain", "decimal", "plain")),
+    # a negative already carries the point the count asks for
+    ((1, 0, ("decimal", "plain", "decimal", "decimal"),
+      (-3.0, -2.0, 1.0, 5.0)),
+     ("decimal", "plain", "decimal", "decimal")),
+    # R past the two negatives; nought is not below zero and gives first
+    ((5, 0, ("plain", "plain", "decimal", "decimal", "decimal"),
+      (-3.0, -2.0, 1.0, 5.0, 0.0)),
+     ("decimal", "decimal", "decimal", "plain", "plain")),
+    # only a `plain` cell takes: the padded negative keeps its form
+    ((2, 0, ("leading_zero", "plain", "decimal", "decimal"),
+      (-3.0, -2.0, 1.0, 5.0)),
+     ("leading_zero", "decimal", "decimal", "plain")),
+)
+# (census, styles, values) and each cell's notation: the trailing minus
+# takes the one cell with a point before the brackets can.
+TRAILING_ORDERS = (
+    (({"brackets": 1, "trailing_minus": 1}, ("plain", "decimal"), (-2.0, -1.5)),
+     ("brackets", "trailing_minus")),
+    (({"minus": 1, "trailing_minus": 2}, ("decimal", "plain", "decimal"),
+      (-4.5, -3.0, -1.5)),
+     ("trailing_minus", "minus", "trailing_minus")),
+)
+
+
+def _trailing_missed(exchange, order) -> "list[str]":
+    missed = []
+    for (count, plus, styles, values), want in TRAILING_EXCHANGES:
+        got = _asked(exchange, count, plus, list(styles), list(values))
+        if got is None or isinstance(got, str) or tuple(got) != want:
+            missed += [
+                f"exchange of {count} over {styles!r} at {values!r}: {got!r},"
+                f" the statement gives {want!r}"
+            ]
+    for (census, styles, values), want in TRAILING_ORDERS:
+        got = _asked(order, census, list(styles), list(values))
+        if got is None or isinstance(got, str) or tuple(got) != want:
+            missed += [
+                f"notations of {census!r} over {styles!r}: {got!r},"
+                f" the statement gives {want!r}"
+            ]
+    return missed
+
+
+def _oracle_trailing(module):
+    return (
+        lambda count, plus, styles, values: module.trailing_style_exchange(
+            count, plus, styles, values, False
+        ),
+        lambda census, styles, values: module.notation_places(
+            census, "minus", styles, values
+        ),
+    )
+
+
+def _shipped_exchange(count, plus, styles, values):
+    facts = types.SimpleNamespace(
+        negative_notations={"trailing_minus": count},
+        decimal_plus={"+": plus} if plus else {},
+    )
+    return generation._trailing_style_swaps(facts, styles, values, False)
+
+
+def _shipped_order(census, styles, values):
+    worn, _notes = generation._notation_places(
+        types.SimpleNamespace(name="value"),
+        types.SimpleNamespace(negative_form="minus", negative_notations=census),
+        styles,
+        values,
+    )
+    return worn
+
+
 # ------------------------------------------------------------ the two readers
 
 WITNESSES = {
@@ -647,6 +746,10 @@ WITNESSES = {
     "lone_pool": (
         lambda module: _lone_pool_missed(module.marks_of_a_lone_pool),
         lambda: _lone_pool_missed(_shipped_lone_pool),
+    ),
+    "trailing": (
+        lambda module: _trailing_missed(*_oracle_trailing(module)),
+        lambda: _trailing_missed(_shipped_exchange, _shipped_order),
     ),
 }
 
@@ -832,6 +935,49 @@ WITNESS_MUTANTS = {
         "lone_pool",
         "    picked = plus_cells_by_value(grouped, values, target, True)\n",
         "    picked = grouped[:target]\n",
+    ),
+    "trailing_exchange_withdrawn": (
+        "trailing",
+        '        exchanged[taker], exchanged[giver] = "decimal", "plain"\n',
+        "        pass\n",
+    ),
+    "trailing_exchange_spends_the_plus": (
+        "trailing",
+        '    room = kinds.count(("decimal", False)) - signed\n',
+        '    room = kinds.count(("decimal", False))\n',
+    ),
+    "trailing_exchange_counts_none_held": (
+        "trailing",
+        '    short = min(count, below.count(True)) - kinds.count(("decimal", True))\n',
+        "    short = min(count, below.count(True))\n",
+    ),
+    "trailing_exchange_donors_first_upward": (
+        "trailing",
+        '        for i in range(len(values) - 1, -1, -1)\n'
+        '        if kinds[i] == ("decimal", False)\n',
+        '        for i in range(len(values))\n'
+        '        if kinds[i] == ("decimal", False)\n',
+    ),
+    "trailing_exchange_any_donor": (
+        "trailing",
+        '        if kinds[i] == ("decimal", False)\n'
+        "        and point_free_spelling(values[i], integer_valued) is not None\n",
+        '        if kinds[i] == ("decimal", False)\n',
+    ),
+    "trailing_exchange_nought_below_zero": (
+        "trailing",
+        "    below = [value < 0 for value in values]\n",
+        "    below = [value <= 0 for value in values]\n",
+    ),
+    "trailing_exchange_any_negative_takes": (
+        "trailing",
+        '    needing = [i for i, kind in enumerate(kinds) if kind == ("plain", True)]\n',
+        '    needing = [i for i, kind in enumerate(kinds) if kind[1] and kind[0] != "decimal"]\n',
+    ),
+    "trailing_taken_in_the_contract_order": (
+        "trailing",
+        '        key=lambda pair: pair[0] != "trailing_minus",\n',
+        "        key=lambda pair: 0,\n",
     ),
     "readings_by_code_first": (
         "readings",

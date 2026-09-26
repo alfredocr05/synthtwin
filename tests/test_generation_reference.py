@@ -689,8 +689,9 @@ ELEVENTH_BRANCH_CASES = (
     "tail_width_stands_aside",
 )
 
-# THE FOURTEENTH FILE: G6.1's census of marks that is only a pool.
-TWELFTH_BRANCH_CASES = ("pool_alone_marks",)
+# THE FOURTEENTH FILE: G6.1's census of marks that is only a pool, and
+# its trailing minus kept on figures with a point.
+TWELFTH_BRANCH_CASES = ("pool_alone_marks", "trailing_minus_points")
 
 ALL_CASES = tuple(
     sorted(
@@ -817,6 +818,9 @@ SEEDS = {
     "tail_pad_partial": 407,
     # ...and the census of marks that is only a pool (plan P4-D352).
     "pool_alone_marks": 408,
+    # ...and the trailing minus kept on figures with a point (the second
+    # skeptic of plan P4-D352).
+    "trailing_minus_points": 409,
     "identifier_unnamed_partners": 184,
     "truth_values_written": 189,
     "twice_written_filled": 190,
@@ -1512,9 +1516,9 @@ TENTH_BRANCH_PUBLISHED_NUMBERS = 754
 TENTH_BRANCH_NAMED_COUNTS = 310
 ELEVENTH_BRANCH_PUBLISHED_NUMBERS = 944
 ELEVENTH_BRANCH_NAMED_COUNTS = 375
-# The fourteenth, at its own generator's line ("proved 190 ... beside 60").
-TWELFTH_BRANCH_PUBLISHED_NUMBERS = 190
-TWELFTH_BRANCH_NAMED_COUNTS = 60
+# The fourteenth, at its own generator's line ("proved 746 ... beside 244").
+TWELFTH_BRANCH_PUBLISHED_NUMBERS = 746
+TWELFTH_BRANCH_NAMED_COUNTS = 244
 # The document file publishes NO binary64 at all, and that is a fact
 # about its transforms rather than a gap in its proof: the written form,
 # the arrangement, the workbook writer, the shape of a line before a
@@ -3709,6 +3713,14 @@ CASE_MUTANTS = {
         "the mutant writes every cell with no mark, as the twin did before",
         attribute="marks_of_a_lone_pool",
         replacement=lambda pool, groupable, floor, values: [""] * len(groupable),
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "trailing_minus_points": Mutant(
+        branch="G6.1's trailing minus kept on figures with a point (the "
+        "second skeptic of plan P4-D352); the mutant asks no negative to keep "
+        "a point, as the twin did before",
+        attribute="trailing_points",
+        replacement=lambda census: 0,
         outcome=CHANGES_THE_CELLS,
     ),
     "pooled_mark_cells": Mutant(

@@ -261,6 +261,16 @@ def test_the_measurement_note_names_exactly_the_entries_measured_off_the_base_co
         + " are "
         + (", ".join(sorted(off_base)) or "none")
     )
+    # AND THE NOTE'S OWN COUNT OF THEM (the second skeptic of plan
+    # P4-D352): it said 38 over 39 entries, then 39 over 40, while the
+    # set above held -- nothing read the numeral. Mutation, run: the
+    # numeral one short, and one over -- red both ways.
+    head, stands, _rest = note.partition(" ENTRIES STAND OFF")
+    assert stands, "the note does not say how many entries stand off the base commit"
+    said = head.rsplit(" ", 1)[-1]
+    assert said == str(len(off_base)), (
+        f"the note says {said} entries stand off {base} and {len(off_base)} do"
+    )
     for entry_id, commit in sorted(off_base.items()):
         assert commit in note, f"{entry_id} was measured on {commit}, which the note does not name"
         # A re-measured entry says which driver or run took it, so a

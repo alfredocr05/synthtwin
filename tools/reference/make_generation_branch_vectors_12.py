@@ -6,7 +6,9 @@ census of marks that is only a pool adds to method section G14.3 (plan
 P4-D352): G6.1's seven marks spent over a pool by whole runs, each run
 of one value going to the mark holding the fewest cells, on forty-four
 whole numbers from 1001 to 1016 in runs of two to five
-(`pool_alone_marks`).
+(`pool_alone_marks`); and for the case that plan's second skeptic adds,
+G6.1's trailing minus kept on figures with a point
+(`trailing_minus_points`).
 
 **Why it is a fourteenth file.**  Plan P4-D295 sends the next case to a
 file whose output stands under 200000 bytes, and the twelfth (227678

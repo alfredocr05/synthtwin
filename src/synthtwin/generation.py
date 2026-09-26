@@ -12926,6 +12926,10 @@ def _whole_enough(
     instead of giving up the published form (review item P2-C4-F3): a
     value inside its own share is what G5.6's window already allows, so
     that step costs the window nothing.
+
+    Where the census of notations names a trailing minus, the values that
+    are not negative carry the point-free count first, as far as they
+    can, so the negatives `_trailing_owed` counts keep their point.
     """
     if facts.integer_valued:
         return values
@@ -12934,9 +12938,12 @@ def _whole_enough(
         return values
     total = len(values)
     free = 0
+    negatives = 0
     for place in range(total):
         if layout.bands[place] != _BAND_NEGATIVE:
             free = free + layout.sizes[place]
+        else:
+            negatives = negatives + layout.sizes[place]
     quotas = _style_quotas(facts.numeric_styles)
     taken = {value: 1 for value in values}
     moved = [value for value in values]
@@ -12974,9 +12981,25 @@ def _whole_enough(
     below = 0
     if signed > 0:
         below = max(0, owed - max(0, free - signed))
+    # ...AND THE SIDE THAT IS NOT NEGATIVE CARRIES WHAT A TRAILING MINUS
+    # LEAVES IT (the second skeptic of plan P4-D352). A trailing minus is
+    # written only on figures carrying a point, so the negatives
+    # `negative_notations` counts under it must stay in the form written
+    # with one: at most `negatives - trailing` of them may be point-free,
+    # and the rest of the point-free count has to be carried by values
+    # that are not negative. Walked in stratum order, the count went to
+    # the most negative strata first: 37 negatives written `12.50-`
+    # beside 65 whole positives published `{"trailing_minus": 37}`, and
+    # the twin wrote 36 of them whole, with the minus in front, and
+    # missed both notation checks at five seeds of five.
+    trailing = _trailing_owed(facts, negatives)
+    above = 0
+    if trailing > 0:
+        above = max(0, owed - max(0, negatives - trailing))
     for wanted, reachable in (
         (min(quotas["leading_plus"], free), _REACHABLE[0]),
         (below, (_BAND_NEGATIVE,)),
+        (min(above, free), _REACHABLE[0]),
         (owed, _REACHABLE[1]),
     ):
         carried = 0
@@ -15486,6 +15509,11 @@ def _number_cells(
     # its own value's width, and seventeen `+5.0` missed a census of
     # `+5.00` that the exchange had just made reachable.
     styles = _plus_style_swaps(facts, styles, holds, facts.integer_valued)
+    # ...AND THE TRAILING-MINUS EXCHANGE AFTER IT, which never takes the
+    # plus's cells back.
+    styles = _trailing_style_swaps(
+        facts, styles, holds, facts.integer_valued
+    )
     widths = _width_places(
         facts.fraction_widths,
         styles,
@@ -15978,6 +16006,91 @@ def _plus_style_swaps(
     return moved
 
 
+def _trailing_owed(facts: contract.NumericFacts, negatives: int) -> int:
+    """How many negative cells a trailing minus needs a point on (G6.1).
+
+    The count `negative_notations` names under `trailing_minus`, never
+    more than the ``negatives`` the twin holds, and nought where it names
+    none: `_whole_enough` keeps that many negative values off whole
+    numbers and `_trailing_style_swaps` gives them `decimal`.
+
+    Guarantees: accepts a numeric block and a count of negative cells;
+    returns a whole number from nought to ``negatives``. Determinism: a
+    fixed function of the two. Raises nothing. No I/O of any kind.
+    """
+    if parsing.NEGATIVE_TRAILING not in facts.negative_notations:
+        return 0
+    named = facts.negative_notations[parsing.NEGATIVE_TRAILING]
+    return max(0, min(named, negatives))
+
+
+def _trailing_style_swaps(
+    facts: contract.NumericFacts,
+    styles: "list[str]",
+    holds: "list[float]",
+    whole_column: bool,
+) -> "list[str]":
+    """Move `decimal` onto negative values a trailing minus needs (G6.1).
+
+    THE MIRROR OF `_plus_style_swaps`, FOR THE OTHER SIGN (the second
+    skeptic of plan P4-D352). A trailing minus is written only where the
+    figures carry a point, so every negative `negative_notations` counts
+    under it needs a cell allocated `decimal`. `_whole_enough` leaves the
+    point-free count to the values that are not negative, but a negative
+    value the ladder made whole on its own can still take `plain` by the
+    largest remaining count: 37 negatives published `{"trailing_minus":
+    37}` came back with 36, one of them written `-957`.
+
+    So, while fewer cells allocated `decimal` hold a negative value than
+    `_trailing_owed` asks, cells exchange forms: each cell allocated `plain`
+    whose value is negative, from the first cell upward, takes `decimal`
+    from the first cell, from the last cell downward, allocated `decimal`
+    whose value is not negative and has a point-free spelling, which
+    takes `plain`. No form count moves. The cells allocated `decimal`
+    whose value is not negative stay at least the named `decimal_plus`,
+    so the plus exchange's work is not undone.
+    A column naming no trailing minus, or already holding enough such
+    cells, is returned untouched.
+
+    Guarantees: accepts the numeric block, one style per cell, one value
+    per cell and whether the column is whole; returns a permutation of
+    the styles. Determinism: both walks are over a fixed index order.
+    Raises nothing. No I/O of any kind.
+    """
+    have = 0
+    takers: "list[int]" = []
+    unsigned = 0
+    negatives = 0
+    for index in range(len(holds)):
+        if not holds[index] < 0.0:
+            if styles[index] == "decimal":
+                unsigned = unsigned + 1
+            continue
+        negatives = negatives + 1
+        if styles[index] == "decimal":
+            have = have + 1
+        elif styles[index] == "plain":
+            takers += [index]
+    wanted = _trailing_owed(facts, negatives)
+    if have >= wanted:
+        return styles
+    kept = 0
+    if "+" in facts.decimal_plus:
+        kept = facts.decimal_plus["+"]
+    givers: "list[int]" = []
+    for index in range(len(holds) - 1, -1, -1):
+        if styles[index] != "decimal" or holds[index] < 0.0:
+            continue
+        if _can_wear("plain", holds[index], whole_column):
+            givers += [index]
+    moved = list(styles)
+    short = min(wanted - have, len(takers), len(givers), unsigned - kept)
+    for step in range(max(0, short)):
+        moved[takers[step]] = "decimal"
+        moved[givers[step]] = "plain"
+    return moved
+
+
 def _plus_cells_by_value(
     eligible: "list[int]",
     holds: "list[float]",
@@ -16168,15 +16281,26 @@ def _notation_places(
     deviation named. Only `decimal` cells are offered it; where the
     count cannot be met the report names the shortfall.
 
+    AND IT TAKES ITS COUNT FIRST (the second skeptic of plan P4-D352).
+    Every other notation can stand on any negative, so taken in the
+    contract's order they spread over the `decimal` cells too and left
+    the trailing minus short of cells that could carry it: with every
+    negative the census needed already given a point, 20 negatives
+    written `(12)` beside 20 written `12.50-` came back with 10 trailing
+    minuses, 20 `-12` beside 20 `12.50-` with 12, and 25 `-12` beside 15
+    `12.50-` with 6, at five seeds of five.
+
     Guarantees: accepts the column, its numeric block, one style per
     cell and one value per cell; returns one notation per cell and at
     most one deviation per named notation. Determinism: a function of
     those inputs, over a fixed index order. Raises nothing. No I/O.
     """
     worn = [facts.negative_form] * len(holds)
-    named = _named_conventions(
+    order = _named_conventions(
         facts.negative_notations, parsing.NEGATIVE_FORMS
     )
+    named = [pair for pair in order if pair[0] == parsing.NEGATIVE_TRAILING]
+    named += [pair for pair in order if pair[0] != parsing.NEGATIVE_TRAILING]
     if not named:
         return worn, []
     taken: "dict[int, int]" = {}

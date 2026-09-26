@@ -3222,6 +3222,47 @@ def plus_style_exchange(count, styles, values, integer_valued):
     return exchanged
 
 
+def trailing_points(census):
+    """How many negatives a census of notations asks to keep a point (G6.1).
+
+    The count it names under ``trailing_minus``, nought where it names
+    none: a trailing minus follows only figures with a point, so the
+    values step and ``trailing_style_exchange`` keep that many negatives
+    pointed (the second skeptic of plan P4-D352).
+    """
+    return census.get("trailing_minus", 0)
+
+
+def trailing_style_exchange(count, signed, styles, values, integer_valued):
+    """Styles exchanged so a trailing minus has a point to follow (G6.1).
+
+    Read from the method's sentence (the second skeptic of plan P4-D352).
+    R is ``count``, the named ``trailing_minus``, taken no larger than the
+    negative cells.  Where fewer cells allocated ``decimal`` hold a
+    negative value than R, the cells allocated ``plain`` on a negative
+    value, first upward, are paired with the cells allocated ``decimal``
+    on a value not below zero that has a point-free spelling, last
+    downward, and each pair swaps its two forms -- for as many pairs as
+    the shortfall allows while the cells allocated ``decimal`` on a value
+    not below zero stay at least ``signed``, the named ``decimal_plus``.
+    """
+    below = [value < 0 for value in values]
+    kinds = list(zip(styles, below))
+    short = min(count, below.count(True)) - kinds.count(("decimal", True))
+    room = kinds.count(("decimal", False)) - signed
+    needing = [i for i, kind in enumerate(kinds) if kind == ("plain", True)]
+    offering = [
+        i
+        for i in range(len(values) - 1, -1, -1)
+        if kinds[i] == ("decimal", False)
+        and point_free_spelling(values[i], integer_valued) is not None
+    ]
+    exchanged = list(styles)
+    for taker, giver in list(zip(needing, offering))[: max(0, min(short, room))]:
+        exchanged[taker], exchanged[giver] = "decimal", "plain"
+    return exchanged
+
+
 # -- the two mixture censuses (landing 2b.7) --------------------------
 
 NEGATIVE_NOTATION_ORDER = ("minus", "brackets", "minus_sign", "trailing_minus")
@@ -3262,10 +3303,15 @@ def notation_places(census, default, styles, values):
     and not from the first of them upward; what no named count covers
     wears the column's published ``negative_form``.  A trailing minus is
     offered only to a ``decimal`` cell, because `negative_spelled` writes
-    one only where the figures carry a point.
+    one only where the figures carry a point, and it takes its count
+    FIRST, before the notations the contract orders ahead of it, which
+    could stand on any negative (the second skeptic of plan P4-D352).
     """
     worn = [default] * len(values)
-    named = named_conventions(census, NEGATIVE_NOTATION_ORDER)
+    named = sorted(
+        named_conventions(census, NEGATIVE_NOTATION_ORDER),
+        key=lambda pair: pair[0] != "trailing_minus",
+    )
     if not named:
         return worn
     taken = set()
@@ -3885,7 +3931,7 @@ def whole_inside(value, band, share, ends, reach, taken):
 
 def whole_number_values(
     published, values, sizes, starts, bands, ladder, numeric, integer_valued,
-    signed=0,
+    signed=0, trailing=0,
 ):
     """The VALUES step of method section G6.4, taken before the styles.
 
@@ -3916,6 +3962,14 @@ def whole_number_values(
     ``W - max(0, free - signed)`` cells (the verification of landing
     2b.2).
 
+    Where ``trailing``, the named count of ``trailing_minus`` taken no
+    larger than the negative cells N, is above nought, a walk over the
+    strata that are not negative comes after that one, until they carry
+    the lesser of ``W - max(0, N - trailing)`` cells and ``free``: a
+    trailing minus follows only figures with a point, so no more than
+    ``N - trailing`` negatives may be point-free (the second skeptic of
+    plan P4-D352).
+
     Returns the values, moved where the shortfall asked for it.
     """
     total = len(values)
@@ -3937,9 +3991,17 @@ def whole_number_values(
 
     taken = list(values)
     below = max(0, wanted - max(0, free - signed)) if signed > 0 else 0
+    negative_cells = cells - free
+    kept_pointed = min(trailing, negative_cells)
+    beside = (
+        min(wanted - max(0, negative_cells - kept_pointed), free)
+        if kept_pointed > 0
+        else 0
+    )
     for demand, reachable in (
         (min(remaining["leading_plus"], free), REACHABLE[0]),
         (below, ("negative",)),
+        (beside, REACHABLE[0]),
         (wanted, REACHABLE[1]),
     ):
         for index in range(total):
@@ -14810,6 +14872,7 @@ def _numeric_content(column):
     # and the values are one question: a point-free quota needs cells
     # whose values are whole.
     signed = column.get("decimal_plus", {}).get("+", 0)
+    trailing = trailing_points(column.get("negative_notations", {}))
     values = whole_number_values(
         column["numeric_styles"],
         values,
@@ -14820,6 +14883,7 @@ def _numeric_content(column):
         numeric,
         integer_valued,
         signed,
+        trailing,
     )
     # AND TWO STRATA ARE NOT WRITTEN AS ONE CELL (G6.5a), after the
     # carrier walk because that walk moves values onto whole numbers
@@ -14881,6 +14945,11 @@ def _numeric_content(column):
         column["numeric_styles"], cell_values, integer_valued
     )
     styles = plus_style_exchange(signed, styles, cell_values, integer_valued)
+    # ...and a trailing minus its points, after the plus (the second
+    # skeptic of plan P4-D352).
+    styles = trailing_style_exchange(
+        trailing, signed, styles, cell_values, integer_valued
+    )
     # THE NAMED FIELD WIDTHS (G6.3), placed once the styles are settled.
     pads = pad_places(
         column.get("pad_widths", {}), styles, cell_values, integer_valued,
@@ -19933,6 +20002,67 @@ def _pool_alone_marks():
         "decision.",
         "column": column,
         "rows": 44,
+        "identifier_declared": False,
+        "rungs": rungs,
+        "claims": claims,
+    }
+
+
+def _trailing_minus_points():
+    """G6.1's trailing minus kept on figures with a point (the second skeptic of plan P4-D352).
+
+    Seventy-seven readings at one place between -40 and 60.5, thirty-three
+    of them negative and published `{"brackets": 11, "trailing_minus":
+    22}`, beside forty-four cells written with no point.  G6.4's values
+    step gives the side that is not negative thirty-three of the
+    forty-four whole values, so twenty-two negatives keep a point; the
+    trailing minus takes those twenty-two first, and the brackets the
+    eleven whole ones.
+    """
+    ladder, ladder_claims, rungs, finer = _ladder_fields({
+        "min": "-40", "p01": "-39.5", "p05": "-37.1", "p10": "-33.3",
+        "p25": "-22.7", "p50": "4.4", "p75": "30.6", "p90": "47.3",
+        "p95": "52.9", "p99": "58.8", "max": "60.5",
+    })
+    claims = {("column",) + key: value for key, value in ladder_claims.items()}
+    moments = {}
+    for name, text in (("mean", "5.1"), ("std", "28.4"), ("skew", "-0.1"),
+                       ("kurtosis", "1.9"), ("numeric_share", "1")):
+        field, claim = nearest_field(text)
+        moments[name] = field
+        claims[("column", name)] = claim
+    column = _universal(
+        "column_1", "continuous", "continuous", "data", "ok",
+        n_present=77, n_missing=0, n_distinct=77, n_distinct_folded=77,
+        n_distinct_values=77,
+        n_numeric=77, n_not_numeric=0, n_out_of_range=0, n_contradictory=0,
+        percentiles=ladder, percentiles_between=finer, std_unrepresentable=False,
+        n_zero=0, n_negative=33, n_negative_unrepresentable=0,
+        n_used_in_statistics=77, n_left_out_of_statistics=0,
+        integer_valued=False, n_rows=77,
+        numeric_styles={"plain": 44, "decimal": 33},
+        mode=None, mode_count=0, fraction_widths={"1": 33}, pad_widths={},
+        # THE WIDTHS OF THE WHOLE CELLS ARE HELD BACK TOGETHER, so no
+        # width pass moves a value this case is about.
+        field_widths={"(withheld)": 44},
+        negative_form="trailing_minus",
+        negative_notations={"brackets": 11, "trailing_minus": 22},
+        **moments,
+    )
+    return {
+        "why": "G6.1's trailing minus kept on figures with a point (the "
+        "second skeptic of plan P4-D352): seventy-seven readings at one "
+        "place between -40 and 60.5, thirty-three negative, published "
+        "with eleven negatives in brackets and twenty-two with a trailing "
+        "minus beside forty-four cells written with no point. G6.4's values "
+        "step leaves the side that is not negative carrying thirty-three "
+        "of the forty-four whole values, so twenty-two negatives keep a "
+        "point; the trailing minus takes those first and the brackets the "
+        "eleven whole ones. The mutant asks no negative to keep a point, "
+        "as the generator did before, and the walk takes the whole values "
+        "from the most negative strata up.",
+        "column": column,
+        "rows": 77,
         "identifier_declared": False,
         "rungs": rungs,
         "claims": claims,
@@ -26498,6 +26628,9 @@ ELEVENTH_BRANCH_CASE_BUILDERS = {
 # 200000-byte line.
 TWELFTH_BRANCH_CASE_BUILDERS = {
     "pool_alone_marks": _pool_alone_marks,
+    # ...and G6.1's trailing minus kept on figures with a point (the
+    # second skeptic of plan P4-D352).
+    "trailing_minus_points": _trailing_minus_points,
 }
 
 CASE_SETS = {
@@ -26946,11 +27079,13 @@ _ELEVENTH_BRANCH_ACCOUNT = (
 )
 
 _TWELFTH_BRANCH_ACCOUNT = (
-    "case method section G14.3 adds with the census of marks that is only "
+    "cases method section G14.3 adds with the census of marks that is only "
     "a pool (plan P4-D352): G6.1's seven marks spent over a pool by whole "
     "runs, each run of one value going to the mark holding the fewest "
     "cells, on forty-four whole numbers from 1,001 to 1,016 in runs of two "
-    "to five. It is computed by the same oracle and the same proof layer "
+    "to five; and, with that plan's second skeptic, G6.1's trailing minus "
+    "kept on figures with a point, on seventy-seven readings between -40 "
+    "and 60.5. It is computed by the same oracle and the same proof layer "
     "as tests/reference/generation-reference-vectors.json, "
     "tests/reference/generation-branch-vectors.json, "
     "tests/reference/generation-branch-vectors-2.json, "
@@ -27324,6 +27459,61 @@ GIVEN_WORDS = {
         3013970469229856917, 12931444120398886780, 10457464759630254392,
         4999712113349559109, 12062900285467210190, 2015863911995217014,
         888048278634171814, 8118027900063678646, 5262393675623182019,
+    ),
+    # ...and G6.1's trailing minus kept on figures with a point (the second
+    # skeptic of plan P4-D352), at seed 409.
+    "trailing_minus_points": (
+        5723126325731050313, 6540454068587375397, 194228535198995354,
+        16079873709608031819, 3522824937754450556, 1013538802789719462,
+        6206742879728252327, 18214119027326488612, 10157481845363326451,
+        17671023117159672237, 12982048392614957436, 8680358956345566998,
+        14683568076181159954, 10494968917847668918, 8474141785725436698,
+        8739743837250901172, 5166491304051598754, 4007370047365132973,
+        14361009443310531043, 9415796342220764853, 3929554038919000523,
+        12818652028578033287, 3856858827344412828, 13786292920535634486,
+        10577302390325332403, 3098379312777723561, 9714099479093990321,
+        10751215887184976675, 7363910834234614409, 7980250017534750541,
+        12237573287534579784, 8038642098272064322, 16001138277233402997,
+        12946722188309911710, 425052044924422646, 17110484922487077403,
+        6393583658841171502, 2467002430640765042, 4927880720621872985,
+        9778055654993410822, 4261724978381499147, 16445903642092426846,
+        7688889934031118926, 17119369031796704063, 6897069055297663357,
+        11905960963499839518, 475769052894706807, 3408518912814382477,
+        16607460145146204247, 6533955669281027067, 4247332697069956611,
+        886471814242861402, 15266981754907099623, 7893692245182410287,
+        3445677001999323151, 12906937763339685741, 13583252066653262338,
+        4487113643750003824, 7276224883532990025, 14853453847773004952,
+        7210657444557328302, 7622050145151688817, 15714503830143575161,
+        11733845647229838365, 9104899284632513027, 3936961821053680423,
+        3770521396820378548, 9562587183383881246, 1455246374301627767,
+        10706755511173551803, 1769833788359237454, 7976540108264604500,
+        10260446317794819770, 14838302827321550848, 15900582489364532808,
+        15929597098077464112, 3900377034445355658, 3523195355440849987,
+        4808932155928156589, 741641233194611385, 1792630981302486711,
+        4689651234492199837, 6249271043839918613, 17435701025845624826,
+        5978338518283076100, 296758507275850170, 3868581786364555786,
+        6467847990219446133, 4934281648038642186, 5322373117507816248,
+        8134028334398629773, 9657880977406819620, 16695415751239493055,
+        4288177748273245280, 15899055505447040122, 6556382754855276781,
+        16850578941268930074, 4236802915576043500, 3508876237994136303,
+        10076084903727099339, 7598265311987273690, 7412444456928766686,
+        16588558085290870507, 14135599691806125276, 7140654492207905117,
+        13898403866665670337, 15509127673138114688, 6384392402442366548,
+        12124562981930275052, 6136364537517283255, 13073798243322645051,
+        7856190949942451050, 16074778089351101223, 1364118095293189878,
+        6342140243247225612, 13653134535816447404, 4899621711502468831,
+        16059526667811174320, 4727763829384385075, 8729021440839580740,
+        1831451862196055513, 17774695639698376067, 18208188860326098034,
+        10347531786126910646, 17437209635266768792, 1774900126618849728,
+        1021386296643282252, 7850757588197078066, 16329707816816749251,
+        13875548884583901851, 13639033776886610224, 3041055012506028613,
+        18102367071342563981, 15545551701754005209, 17437804467446126522,
+        15756967861612132942, 12086120536619794032, 9917664188694479212,
+        6418183003395902528, 12417920141856391593, 4503997003401930065,
+        13053936558303766131, 11207098014021156597, 9286140636856599669,
+        6468647690789045772, 12172600184079116892, 17920590787250285087,
+        17553868961376201920, 8776755558957671753, 1514484381776342144,
+        13545859224938436485,
     ),
     # THE TWO CASES THE GOVERNANCE PASS OF STAGE 3'S REVIEW ADDS:
     # G5.3e's floor under a listed value (item 1) and the tail that

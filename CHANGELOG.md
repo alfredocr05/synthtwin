@@ -6,6 +6,21 @@ exists).
 
 ## [Unreleased]
 
+### A trailing minus is written on as many negatives as the census counts (2026-09-26)
+
+A trailing minus stands only on figures with a point, and the twin made
+its whole values from the most negative strata up, so a census counting
+negatives under `trailing_minus` -- named, or a band counted there by
+P4-D352 -- came back with 0 or 1 of 37 and both notation checks missed.
+G6.4's values step now keeps that many negatives pointed, an exchange
+gives `decimal` to a negative the ladder made whole, and the trailing
+minus takes its count first (method G6.1, plan P4-D352 (5)); every twin
+of five such shapes at five seeds writes the count and is HELD. Where the
+published forms leave too few pointed negatives the shortfall stays
+named: `12-` reads as text. Frozen as `trailing_minus_points`; G14.3
+counts 131; the `trailing` witness; the ledger note's count of entries
+off its base commit said 39 of 40, and a test now reads it.
+
 ### A census of marks that is only a pool is written, named and checked (2026-09-25)
 
 **Where no thousands mark reached the floor** the census published only
