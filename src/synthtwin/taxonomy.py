@@ -182,7 +182,7 @@ modules. Nothing in this module reads a file.
 import dataclasses
 import math
 
-from synthtwin import parsing
+from synthtwin import contract, parsing
 
 # The eleven points of the percentile ladder: the shape-carrying
 # summary of a numeric column (plan P1-D4).
@@ -4539,6 +4539,15 @@ def _held_in(values: "list[int]", wanted: int) -> int:
     return held
 
 
+# THE BACK-SOLVE'S THREE VERDICTS (plan P4-D353). The cost rule offers a
+# withheld pair back in the order of what it discloses, and an unsettled
+# side -- one the walk could not show open inside its budget -- discloses
+# less than one the walk finished and pinned.
+TAIL_OPEN = "open"
+TAIL_PINNED = "pinned"
+TAIL_UNSETTLED = "unsettled"
+
+
 def _tail_pinned(
     distances: "list[int]",
     floor: int,
@@ -4547,6 +4556,30 @@ def _tail_pinned(
     least: int = 1,
 ) -> bool:
     """Whether the published tail would pin what the floor protects (P4-D329).
+
+    `_tail_verdict` asked and read as a yes or no: a pinned tail and an
+    unsettled one both answer True, the answer that publishes less. The
+    cost rule of P4-D353 is the one caller that needs the difference.
+
+    Guarantees: as `_tail_verdict`. Determinism: a function of the five.
+    Raises nothing. No I/O.
+    """
+    return _tail_verdict(distances, floor, edge, distinct, least) != TAIL_OPEN
+
+
+def _tail_verdict(
+    distances: "list[int]",
+    floor: int,
+    edge: int,
+    distinct: bool,
+    least: int = 1,
+) -> str:
+    """What the back-solve says of a published tail (P4-D329, P4-D353).
+
+    `TAIL_OPEN` where a witness was found for the top and for every count
+    the floor protects; `TAIL_PINNED` where the walk FINISHED without one;
+    `TAIL_UNSETTLED` where it spent `TAIL_LATTICE_STEPS` first. P4-D353's
+    cost rule offers an unsettled side before a pinned one.
 
     THE BACK-SOLVE A READER CAN RUN, run here first (the skeptic of the
     tail design, blocker B1). A reader gives back the whole sum of the
@@ -4568,19 +4601,19 @@ def _tail_pinned(
     The search looks for WITNESSES: another allowed multiset whose
     largest distance differs, and for each count the floor protects,
     another whose count there differs. Where it cannot find one within
-    `TAIL_LATTICE_STEPS` it answers True, the answer that publishes
-    less -- and the listing rule decides what may be done with that
-    answer, which is why a spent walk cannot open the values road on a
-    column the ruling does not reach (plan P4-D346).
+    `TAIL_LATTICE_STEPS` it answers `TAIL_UNSETTLED`, which publishes as
+    little as `TAIL_PINNED` -- and the listing rule decides what may be
+    done with that answer, which is why a spent walk cannot open the
+    values road on a column the ruling does not reach (plan P4-D346).
 
     Guarantees: accepts the real distances, the floor, the furthest a
     distance can reach, whether they must be all different and the
-    smallest a distance can be; returns a bool. Determinism: a function
-    of the five. Raises nothing. No I/O.
+    smallest a distance can be; returns one of the three verdicts.
+    Determinism: a function of the five. Raises nothing. No I/O.
     """
     size = len(distances)
     if size == 0:
-        return False
+        return TAIL_OPEN
     counts = _tally_of(distances)
     top = max(distances)
     open_top = counts[top] < floor
@@ -4589,7 +4622,7 @@ def _tail_pinned(
         if counts[distance] < floor:
             guarded[distance] = True
     if not open_top and not guarded:
-        return False
+        return TAIL_OPEN
     total = 0
     squares = 0
     for distance in distances:
@@ -4620,9 +4653,9 @@ def _tail_pinned(
                 witnesses += [found]
                 open_top = False
             elif lattice.spent:
-                return True
+                return TAIL_UNSETTLED
         if open_top:
-            return True
+            return TAIL_PINNED
     for distance in sorted(guarded):
         held = counts[distance]
         settled = False
@@ -4643,10 +4676,10 @@ def _tail_pinned(
                 witnesses += [found]
                 settled = True
             elif lattice.spent:
-                return True
+                return TAIL_UNSETTLED
         if not settled:
-            return True
-    return False
+            return TAIL_PINNED
+    return TAIL_OPEN
 
 
 def _values_mean_pins(
@@ -12664,14 +12697,15 @@ def _tail_parts(
     return (parts, cap, 0)
 
 
-def _numeric_pinned(
+def _numeric_answer(
     parts: "list[int]",
     cap: int,
     least: int,
     floor: int,
     distinct: bool,
-) -> bool:
-    """Whether a numeric tail's published pair would give its cells back.
+) -> str:
+    """Whether a numeric tail's published pair would give its cells back,
+    in three words: `TAIL_OPEN`, `TAIL_PINNED` or `TAIL_UNSETTLED`.
 
     THE SAME BACK-SOLVE THE DATE AND CLOCK ROLE RUNS, asked here for the
     first time (plan P4-D349). Before this pass the numeric role had no
@@ -12692,18 +12726,21 @@ def _numeric_pinned(
     still holds one -- no part's square can exceed the whole sum of
     squares.
 
+    AN UNSETTLED SIDE IS TOLD FROM A PINNED ONE (plan P4-D353): both are
+    withheld, and the cost rule offers an unsettled side back first.
+
     Guarantees: accepts the whole parts, the sign cap, the smallest part,
     the floor and whether the column publishes that its values are all
-    different; returns a bool. Determinism: a function of the five.
-    Raises nothing. No I/O of any kind.
+    different; returns one of the three verdicts. Determinism: a function
+    of the five. Raises nothing. No I/O of any kind.
     """
     if not parts:
-        return False
+        return TAIL_OPEN
     squares = 0
     for part in parts:
         squares = squares + part * part
     edge = cap if cap >= 0 else _root_of(squares)
-    return _tail_pinned(parts, floor, max(edge, 1), distinct, least=least)
+    return _tail_verdict(parts, floor, max(edge, 1), distinct, least=least)
 
 
 def _listed_tail(
@@ -12998,6 +13035,9 @@ def _numeric_tails(
     all_apart = distinct_numbers == count
     floor = cells.settings.small_cell_floor
     sides: "dict[str, object]" = {}
+    # THE PAIRS THE BACK-SOLVE WITHHOLDS, kept for the cost rule of plan
+    # P4-D353 and never published unless that rule publishes them.
+    withheld_pairs: "dict[str, tuple[float, float, str]]" = {}
     for side, first, last, side_percent, distances in (
         ("low", low_first, low_last, percent, low),
         ("high", high_first, high_last, high_percent, high),
@@ -13041,11 +13081,22 @@ def _numeric_tails(
         # A TAIL WITH NO PAIR IS NOT ASKED EITHER: there is nothing left
         # to withhold, and the back-solve is the most expensive question
         # this block asks.
-        if mean is not None and not listed and parts is not None and (
-            _numeric_pinned(parts[0], parts[1], parts[2], floor, all_apart)
+        # THE BACK-SOLVE'S VERDICT IS KEPT (plan P4-D353): a side it
+        # withholds is offered back by the cost rule where withholding it
+        # costs the twin its mean or spread, an unsettled side first.
+        if (
+            mean is not None
+            and root is not None
+            and not listed
+            and parts is not None
         ):
-            mean = None
-            root = None
+            answer = _numeric_answer(
+                parts[0], parts[1], parts[2], floor, all_apart
+            )
+            if answer != TAIL_OPEN:
+                withheld_pairs[side] = (mean, root, answer)
+                mean = None
+                root = None
         sides[side] = {
             "percent": side_percent,
             "rows": last - first + 1,
@@ -13066,7 +13117,235 @@ def _numeric_tails(
     shaped["empty_edges"] = edges
     shaped["bin_groups"] = groups
     shaped["tails"] = sides
+    if withheld_pairs:
+        return _pairs_that_cost(cells, shaped, withheld_pairs)
     return shaped
+
+
+# P4-D353: the disclosure order in which the cost rule offers withheld
+# pairs back. An UNSETTLED side (the walk spent its budget) is offered
+# before a PINNED one (the walk finished and settled what the floor
+# protects), and the low side before the high where both say the same.
+_OFFER_RANK = {TAIL_UNSETTLED: 0, TAIL_PINNED: 1}
+
+
+def _tails_with(
+    shaped: "dict[str, object]",
+    offers: "dict[str, tuple[float, float]]",
+    publish: "tuple[str, ...]",
+) -> "dict[str, object]":
+    """The block with each offered side's pair published or withheld.
+
+    Guarantees: accepts a shaped numeric block, the pairs on offer and the
+    sides to publish; returns a new block -- the given one untouched -- in
+    which each offered side named in `publish` carries its pair and every
+    other offered side neither distance. Determinism: a function of the
+    three. Raises nothing. No I/O of any kind.
+    """
+    tails: "dict[str, object]" = {}
+    given = shaped["tails"]
+    if isinstance(given, dict):
+        tails = dict(given)
+    for side in sorted(offers):
+        one: "dict[str, object]" = {}
+        was = tails[side]
+        if isinstance(was, dict):
+            one = dict(was)
+        if side in publish:
+            one["mean_distance"] = offers[side][0]
+            one["rms_distance"] = offers[side][1]
+        else:
+            one["mean_distance"] = None
+            one["rms_distance"] = None
+        tails[side] = one
+    trial = dict(shaped)
+    trial["tails"] = tails
+    return trial
+
+
+# THE COST RULE'S ANSWERS, REMEMBERED BY EVERYTHING THEY READ (plan
+# P4-D353). `_read_the_column` describes a column up to four times under
+# different readings, and each asks the same windows of the same would-be
+# blocks: on 20,000 all-different readings with both tails withheld that
+# was sixteen window evaluations where four answer. The key is the WHOLE
+# would-be block, the cells' four counts and the five settings the loader
+# reads it under, so a remembered answer is the answer the question would
+# give; the store is emptied whenever it holds `_MISSED_HELD` answers.
+_MOMENTS_MISSED: "dict[tuple[object, ...], int]" = {}
+_MISSED_HELD = 64
+
+
+def _frozen(value: object) -> object:
+    """A published value as a key that tells apart what JSON tells apart.
+
+    A mapping becomes its sorted `(key, value)` pairs and a list its
+    items, each frozen the same way; every other value becomes its own
+    `repr`, which tells `True` from `1`, `1` from `1.0` and `'1'`, and
+    `0.0` from `-0.0`, and names exactly one binary64 for a number with
+    a point -- the shortest round-trip text. No reader of numbers is
+    named here: the keys of a published mapping are read as the text
+    they are (review item P3-V8-F5).
+    """
+    if isinstance(value, dict):
+        pairs: "list[tuple[object, object]]" = []
+        for key in sorted(value):
+            pairs += [(key, _frozen(value[key]))]
+        return ("d", tuple(pairs))
+    if isinstance(value, (list, tuple)):
+        items: "list[object]" = []
+        for one in value:
+            items += [_frozen(one)]
+        return ("l", tuple(items))
+    return repr(value)
+
+
+def _moments_missed(cells: _Cells, block: "dict[str, object]") -> int:
+    """How many of the mean and the spread this description's own G12.3
+    windows miss: 0, 1 or 2.
+
+    THE PREDICATE OF PLAN P4-D353, asked per moment. A withheld side is
+    read as `rows` consecutive grid steps beyond its boundary
+    (`contract._withheld_end`, method G5.3b), and the validator draws the
+    windows of `moments.mean` and `moments.std` from that same reading
+    (method G12.3), so they are centred on what the construction can
+    reach and not on the published value. Where a window REACHES its
+    published value no twin the construction can build misses that
+    moment; where it does not, a twin must stand within half the window's
+    width of the value (validation V6.1-A2), and a twin near the middle
+    of its window never does. So the question is asked of the
+    description, never of a draw.
+
+    The window is the checker's own writing (`moment_windows`, which
+    `validation` reads) over the loader's own reading of the block
+    (`contract.numeric_block_facts`) under the cells' four counts and the
+    five settings, so the producer and the checker cannot disagree.
+
+    Guarantees: accepts the column's cells and one would-be numeric
+    block; returns 0, 1 or 2. Determinism: a function of the block, the
+    four counts and the five settings, remembered by all of them. Raises
+    ProfileError where the loader would refuse the block. No I/O.
+    """
+    settings = cells.settings
+    key = (
+        _frozen(block),
+        len(cells.present),
+        len(cells.numbers),
+        cells.n_out_of_range,
+        cells.n_contradictory,
+        settings.small_cell_floor,
+        settings.minimum_parse_rate,
+        settings.categorical_share,
+        settings.categorical_ceiling,
+        settings.categorical_floor,
+    )
+    if key in _MOMENTS_MISSED:
+        return _MOMENTS_MISSED[key]
+    # THE COUNTS THE LOADER HOLDS THE BLOCK TO ARE THE CELLS' OWN.
+    facts = contract.numeric_block_facts(
+        block,
+        settings.small_cell_floor,
+        settings.minimum_parse_rate,
+        settings.categorical_share,
+        settings.categorical_ceiling,
+        settings.categorical_floor,
+        len(cells.present),
+        len(cells.numbers),
+        cells.n_out_of_range,
+        cells.n_contradictory,
+    )
+    drawn = moment_windows(facts, settings.small_cell_floor)
+    missed = 0
+    for name in ("mean", "std"):
+        if name not in drawn:
+            continue
+        window = drawn[name]
+        value = block[name]
+        if not isinstance(value, float):
+            continue
+        if not window[0] <= value <= window[1]:
+            missed = missed + 1
+    if len(_MOMENTS_MISSED) >= _MISSED_HELD:
+        for old in list(_MOMENTS_MISSED):
+            del _MOMENTS_MISSED[old]
+    _MOMENTS_MISSED[key] = missed
+    return missed
+
+
+def _pairs_that_cost(
+    cells: _Cells,
+    shaped: "dict[str, object]",
+    held: "dict[str, tuple[float, float, str]]",
+) -> "dict[str, object]":
+    """THE CROSS-SIDE RULE AND THE COST RULE (plan P4-D353).
+
+    ``held`` names each side the back-solve withheld, with its real pair
+    and whether the walk PINNED it or left it UNSETTLED. In order:
+
+    1. where ONE side is withheld and the other publishes a pair (not a
+       list), the other's pair is withheld too -- the column's exact mean
+       and spread would give the withheld side back by subtraction from
+       it wherever the rungs pin the rows between the two boundaries;
+    2. the description that leaves is published where its windows
+       contain both moments. Where they do not, candidates are offered in
+       the order of what they disclose: the other side's own pair; then,
+       where the back-solve withheld two sides, each alone -- an
+       unsettled side before a pinned one, the low before the high where
+       both say the same -- then both; where it withheld one, that side
+       WITH the other's pair, because part 1 withholds that pair for
+       no reason but to protect it. The first candidate whose windows
+       contain both moments is published; where none does, the first
+       that keeps the MOST of them, and where none keeps either,
+       nothing more.
+
+    Guarantees: accepts the block's cells, the shaped block and the held
+    pairs; returns the block to publish. Determinism: a function of the
+    three. Raises nothing the loader would not raise on the same block.
+    """
+    withheld = [side for side in ("low", "high") if side in held]
+    offers: "dict[str, tuple[float, float]]" = {}
+    for side in withheld:
+        offers[side] = (held[side][0], held[side][1])
+    other: "list[str]" = []
+    given = shaped["tails"]
+    if len(withheld) == 1 and isinstance(given, dict):
+        name = "high" if withheld[0] == "low" else "low"
+        one = given[name]
+        if isinstance(one, dict) and not one["values"]:
+            mean = one["mean_distance"]
+            root = one["rms_distance"]
+            if isinstance(mean, float) and isinstance(root, float):
+                other = [name]
+                offers[name] = (mean, root)
+    # An unsettled side before a pinned one, the low before the high where
+    # both say the same. No sort key: the offline audit admits no function
+    # handed to a callee outside the scanned tree.
+    ordered = list(withheld)
+    if len(ordered) == 2 and (
+        _OFFER_RANK[held["high"][2]] < _OFFER_RANK[held["low"][2]]
+    ):
+        ordered = ["high", "low"]
+    candidates: "list[tuple[str, ...]]" = [()]
+    if other:
+        candidates += [tuple(other)]
+    if len(ordered) == 2:
+        candidates += [(ordered[0],), (ordered[1],), (ordered[0], ordered[1])]
+    else:
+        candidates += [tuple(ordered + other)]
+    best = _tails_with(shaped, offers, ())
+    fewest = 3
+    for publish in candidates:
+        trial = _tails_with(shaped, offers, publish)
+        missed = _moments_missed(cells, trial)
+        if missed == 0:
+            return trial
+        # A LATER CANDIDATE IS TAKEN ONLY WHERE IT KEEPS MORE: the owner's
+        # ruling 4 publishes where withholding would make the twin miss
+        # its mean OR its spread, so a pair that keeps one of the two is
+        # published although no pair keeps both.
+        if missed < fewest:
+            best = trial
+            fewest = missed
+    return best
 
 
 def _numeric_details(cells: _Cells, whole: bool) -> dict[str, object]:
@@ -19922,3 +20201,693 @@ def _spellings_of(missing: "list[tuple[str, str]]") -> "tuple[str, ...]":
     for spelling, _kind in missing:
         seen[spelling] = True
     return tuple(sorted(seen))
+
+# -- the G12.3 windows, written once (plan P4-D353) ---------------------
+#
+# The windows method G12.3 draws around a description's mean, spread and
+# skew. `validation` checks a file against them and the cost rule of plan
+# P4-D353 asks them of a description before it is published, so they are
+# written here, where `average_of` and `spread_of` already are, and
+# `validation` reads these names. Moved from `validation` with their
+# bodies unchanged.
+
+
+# ONE UNIT IN THE LAST PLACE, AWAY FROM ZERO (review item P4-G6-R6-F1).
+#
+# The universal bounds a moment is held to -- the largest skew a sample
+# of this size can take, the largest tail weight -- are stated as exact
+# expressions and computed in binary64, where two roundings can land the
+# endpoint one place INSIDE the true limit. `(3 - 2) / sqrt(3 - 1)`
+# comes out 0.7071067811865475 while the true limit rounds to
+# ...76, so a column whose skew IS the maximum is outside a bound it
+# exactly meets. Reproduced on the three cells `-1e20`, `0` and `1`:
+# the description publishes -0.7071067811865476, the twin holds
+# -0.7071067811865476, and the report said OUTSIDE and told the reader
+# to treat the fact as not reproduced.
+#
+# A bound stated as a limit must therefore be widened by one place
+# before it is compared against anything. The direction is always
+# outward, so the widening can never turn a real miss into a pass: it
+# admits exactly the values the limit itself admits.
+#
+# `math.nextafter` is not among the names this package's offline audit
+# allows, and widening the audit to admit one is the wrong way round --
+# `frexp` and `ldexp` are allowed and say the same thing.
+# The smallest positive number this format holds, which is also the gap
+# between any two neighbouring subnormals.
+_SMALLEST = math.ldexp(1.0, -1074)
+
+
+def window_stepped(bound: float, upward: bool) -> float:
+    """The number this format holds next to ``bound``, in one direction.
+
+    THE GAP IS NOT THE SAME ON BOTH SIDES OF A VALUE, and the first
+    version of this function assumed it was (review item P4-G6-R7-F2).
+    It added a fixed `2 ** -53` to the fraction `frexp` returns, which
+    is the gap ABOVE a value whose fraction is exactly one half and
+    twice the gap BELOW it -- so `window_lowered(1.0)` returned
+    0.9999999999999998 where the number next to 1.0 is
+    0.9999999999999999, stepping two places instead of one. It also
+    moved no subnormal at all, because the gap it computed there
+    underflows to nothing, and it raised `OverflowError` on the largest
+    number the format holds.
+
+    Two of those three only ever widened a bound further than intended,
+    which weakens a check without breaking it; the third was a crash
+    and the second left the very smallest bounds unwidened, which is
+    the case the widening exists for.
+
+    So the gap is worked out on the side being moved toward: `2 ** (e -
+    53)` going away from zero, and half of that going toward zero from
+    a value sitting exactly on the edge of its binade. Subnormals take
+    the one gap they have. A bound already at the edge of the range is
+    returned unchanged, since there is no number beyond it to widen to
+    and it already admits everything this format can write.
+
+    `math.nextafter` says all of this in one call and is not among the
+    names this package's offline audit allows. Widening that audit to
+    admit one would be the wrong way round; `frexp` and `ldexp` are
+    allowed and say the same thing. `tests/` checks this against
+    `math.nextafter` over the whole range, which is what an audit's
+    allowlist costing a line of arithmetic is supposed to look like.
+    """
+    if not math.isfinite(bound):
+        return bound
+    if bound == 0.0:
+        return _SMALLEST if upward else -_SMALLEST
+    magnitude = abs(bound)
+    growing = (bound > 0.0) == upward
+    fraction, exponent = math.frexp(magnitude)
+    gap = math.ldexp(1.0, exponent - 53)
+    if not growing and fraction == 0.5:
+        gap = math.ldexp(1.0, exponent - 54)
+    if gap < _SMALLEST:
+        gap = _SMALLEST
+    stepped = magnitude + gap if growing else magnitude - gap
+    if not math.isfinite(stepped):
+        return bound
+    if bound < 0.0:
+        return -stepped
+    return stepped
+
+
+def window_raised(bound: float) -> float:
+    """The smallest number this format holds above ``bound``.
+
+    An UPPER limit is widened with this, so a value that is correctly
+    rounded onto the limit itself cannot fall outside it.
+    """
+    return window_stepped(bound, True)
+
+
+def window_lowered(bound: float) -> float:
+    """The largest number this format holds below ``bound``.
+
+    A LOWER limit is widened with this, for the same reason -- and the
+    direction is what makes it a widening rather than a shift. Moving
+    an upper limit away from zero and a lower limit away from zero are
+    the same thing only when the pair straddles zero, which the skew
+    bound does and the tail weight's does not: its two ends are both
+    positive, and widening its low end AWAY from zero moved that end
+    UP, past the very value the window was drawn to admit.
+    """
+    return window_stepped(bound, False)
+
+
+def window_filled_ladder(
+    facts: contract.NumericFacts,
+) -> "tuple[float, ...] | None":
+    """The hundred and one rungs, each null one filled (method G5.1).
+
+    A null rung takes the nearest rung below it that holds a number, or
+    the first that holds one where none below does, which is the ladder
+    the construction reads. None where no rung holds a number at all.
+
+    Written from G5.1 and never from the generator, which this module
+    may not import (V1.4).
+
+    A TAIL BLOCK'S LADDER IS THE ONE THE DESCRIPTION'S READER BUILDS
+    (method G5.1a, G5.3b to G5.3e): `contract.tail_ladder`, a reading of
+    the published facts both the construction and this module take, so
+    the windows are drawn through the ladder the twin was placed on.
+    """
+    if facts.tail_rule:
+        return contract.tail_ladder(facts)
+    named: "dict[int, float | None]" = {}
+    for index in range(len(contract.LADDER_PERCENTS)):
+        named[contract.LADDER_PERCENTS[index]] = facts.percentiles.rungs[
+            index
+        ]
+    finer: "dict[int, float | None]" = {}
+    for index in range(len(contract.FINER_LADDER_KEYS)):
+        name = contract.FINER_LADDER_KEYS[index]
+        finer[int(name[1:])] = facts.percentiles_between[index]
+    rungs: "list[float | None]" = []
+    for percent in range(101):
+        rungs += [named[percent] if percent in named else finer[percent]]
+    held = [place for place in range(101) if rungs[place] is not None]
+    if not held:
+        return None
+    filled: "list[float]" = []
+    for place in range(101):
+        found = rungs[place]
+        if found is None:
+            below = [step for step in held if step < place]
+            found = rungs[below[len(below) - 1] if below else held[0]]
+        filled += [found if found is not None else 0.0]
+    return tuple(filled)
+
+
+def window_ladder_read(
+    ladder: "tuple[float, ...]", numerator: int, denominator: int
+) -> float:
+    """The ladder at the exact share ``numerator / denominator`` (G5.3).
+
+    THE SHARE IS NEVER A FLOAT (residual R-P4-61, landing 2b.1 part 2).
+    This module read the ladder at a share formed in binary64 -- a rung
+    at `0.25 - (g + 2) / K` -- while the generator reads it at the exact
+    fraction `(25 K - 100 (g + 2)) / (100 K)`, so one window came out of
+    the two reports in two sets of last digits. G5.3 states the reading
+    operation by operation, and this follows that text:
+
+    - the segment `j` is the one with `j * D <= 100 * N < (j + 1) * D`,
+      the last where `N` is `D`;
+    - `A = 100 * N - j * D`, `t = ldexp((A << 53) // D, -53)`, exact;
+    - `v = (1 - t) * L[j] + t * L[j + 1]`, four operations in that
+      order -- THE CONVEX FORM, because the difference form makes an
+      infinity of two rungs at opposite ends of the range;
+    - then the clamp into `[L[j], L[j + 1]]`, because `1 - t` rounds.
+
+    Guarantees: accepts the hundred-and-one-rung ladder and a share with
+    `0 <= numerator <= denominator` and a positive denominator; returns
+    a number between two adjacent rungs. Determinism: a fixed function
+    of the three. Raises nothing. No I/O of any kind.
+    """
+    # INSIDE A TAIL THE TAIL'S OWN READING RULES (method G5.3b, G5.3e).
+    if isinstance(ladder, contract.ShapedLadder):
+        found = contract.tail_read(ladder, numerator, denominator)
+        if found is not None:
+            return found
+    scaled = 100 * numerator
+    step = scaled // denominator
+    last = len(ladder) - 2
+    if step > last:
+        step = last
+    if step < 0:
+        step = 0
+    low = ladder[step]
+    high = ladder[step + 1]
+    above = scaled - step * denominator
+    share = math.ldexp((above << 53) // denominator, -53)
+    rest = 1 - share
+    first = rest * low
+    second = share * high
+    value = first + second
+    value = max(value, low)
+    return min(value, high)
+
+
+def window_rounded_up(number: int, divisor: int) -> int:
+    """``number`` divided by ``divisor``, rounded up, in whole numbers."""
+    if divisor <= 0:
+        return 0
+    return -((-number) // divisor)
+
+
+def window_numeric_cells(facts: contract.NumericFacts) -> int:
+    """How many cells of this column read as a number the format holds."""
+    return max(
+        1, facts.n_used_in_statistics + facts.n_left_out_of_statistics
+    )
+
+
+def window_stratum_bound(facts: contract.NumericFacts, floor: int) -> int:
+    """The most cells method G5.2a lets one stratum hold, from the description.
+
+    Written from the rule and never from the generator, which this module
+    may not import. G5.2a caps every stratum at the published
+    `mode_count`; where the mode pair is withheld, at the smaller of
+    `K - n_distinct_values + 1` -- every other number holds a cell -- and
+    the most cells one value can hold without the hundred-and-one-rung
+    ladder showing a longer run of equal rungs than it does.
+
+    THE WIDEST STRATUM THE CONSTRUCTION BUILDS IS NO WIDER (landing 2b.1,
+    part 2). G5.2b gives every band at least `ceil(cells / cap)` strata,
+    so no band's even share rises above the cap, and the levelling of
+    G5.2a holds every stratum under it -- wherever the carrier and reach
+    steps move no cell, which is the one exception G5.6 names. So this
+    is the widest stratum both reports read, and nothing here estimates
+    the layout: the two estimates that stood beside it, the even split
+    and the longest plateau, were each narrower than the strata the
+    construction built and accused twins it had built.
+    """
+    numbers = window_numeric_cells(facts)
+    if facts.mode is not None and facts.mode_count > 0:
+        return facts.mode_count
+    # Every other number holds a cell, so one holds at most what is left.
+    counted = 0
+    if facts.n_distinct_values > 0:
+        counted = max(1, numbers - facts.n_distinct_values + 1)
+    # A NULL RUNG TAKES THE NEAREST RUNG BELOW IT THAT HOLDS A NUMBER, or
+    # the first that holds one where none below does (method G5.1): the
+    # same filling the construction reads, so a run of equal rungs is
+    # counted here exactly as long as it is there.
+    filled = window_filled_ladder(facts)
+    bound = counted
+    longest = 0
+    # A MADE-UP LADDER BOUNDS NO STRATUM (stage 3, method G5.3c and
+    # G5.3d): a block publishing only its moments, or nothing at all, is
+    # read through a straight ramp built from those facts, and a ramp
+    # has no plateau because the construction has none. The generator
+    # reads the same rule off the same block.
+    made_up = facts.tail_rule and (
+        facts.tails is None or facts.tails.low is None
+    )
+    if filled is not None and numbers >= 2 and not made_up:
+        longest = 1
+        run = 1
+        for place in range(1, 101):
+            if filled[place] == filled[place - 1]:
+                run = run + 1
+                longest = max(longest, run)
+            else:
+                run = 1
+        ladder = ((longest + 1) * (numbers - 1)) // 100 + 2
+        bound = min(counted, ladder) if counted > 0 else ladder
+    # AND A WITHHELD PAIR UNDER A FLOOR OF 3 OR MORE PROVES NO NUMBER WAS
+    # HELD BY `floor` CELLS (landing 2b.1, repair): the profiler withholds
+    # the pair exactly there -- wherever the description does not itself
+    # prove such a number, by the fewest cells the commonest number can
+    # hold or by the cells a run of equal rungs forces onto one number.
+    #
+    # UNLESS THE HEAP READING IS STILL OPEN (stage 3 landing 3.5, plan
+    # P4-D335). The pair is withheld on a second ground now -- a count
+    # whose complement against the numbers the statistics used is a
+    # group below the line, which is what a heap of 395 among 400 is --
+    # so the floor proves the small reading only where some other bound
+    # already puts the count at or below `numbers - line`. This mirror
+    # is written from the method clause and not from the generator,
+    # which this module may not import.
+    if floor < 3:
+        return bound
+    proven = 0
+    if facts.n_distinct_values > 0:
+        proven = max(proven, -((-numbers) // facts.n_distinct_values))
+    if proven >= floor:
+        return bound
+    line = parsing.census_floor(floor)
+    if bound <= 0 or bound > numbers - line:
+        return bound
+    held = floor - 1
+    return min(bound, held)
+
+
+def window_stratum(facts: contract.NumericFacts, floor: int) -> int:
+    """The widest stratum every rung and moment window reads (G5.6, G12.2).
+
+    `_stratum_bound`, read off the block alone, or the numeric cell count
+    where nothing bounds a stratum. The generator's twin report reads the
+    same number off the same block, so the two reports print one window.
+    """
+    bound = window_stratum_bound(facts, floor)
+    if bound > 0:
+        return bound
+    return window_numeric_cells(facts)
+
+
+def window_one_grid(facts: contract.NumericFacts) -> int:
+    """The one fraction width every numeric cell is written at, or -1."""
+    census = facts.fraction_widths
+    if len(census) != 1:
+        return -1
+    for figures in census:
+        if not figures:
+            return -1
+        for letter in figures:
+            if letter not in "0123456789":
+                return -1
+        if census[figures] != window_numeric_cells(facts):
+            return -1
+        return int(figures)
+    return -1
+
+
+def window_half_unit(facts: contract.NumericFacts) -> float:
+    """The half unit method G12.2 lets exactly two rules spend.
+
+    A column publishing whole numbers rounds each value once, and a
+    column whose own style map holds a point-free form may take a
+    stratum to the nearest whole number so that form can be written at
+    all. Either way the widening is one half unit and nothing more, and
+    a column whose map holds none of the three keeps the tighter window.
+    """
+    if facts.integer_valued:
+        return 0.5
+    # A WITHHELD STYLE SHARE IS WRITTEN PLAIN (method G6.4), so it can
+    # spend the half unit exactly as a published `plain` count can, and
+    # the twin report grants it there.
+    owed = 0
+    for style in sorted(facts.numeric_styles):
+        if style in (
+            parsing.STYLE_PLAIN,
+            parsing.STYLE_LEADING_ZERO,
+            parsing.STYLE_LEADING_PLUS,
+            contract.WITHHELD,
+        ):
+            owed = owed + facts.numeric_styles[style]
+    if owed > 0:
+        return 0.5
+    # AND HALF A GRID UNIT ON A COLUMN WRITTEN AT ONE FRACTION WIDTH
+    # (method G5.3, G12.2). Each stratum of such a column holds the grid
+    # value of one of its own ranks, which stands at most half a unit of
+    # the last place from the ladder there.
+    figures = window_one_grid(facts)
+    if facts.integer_valued or figures <= 0:
+        return 0.0
+    reach = 0.5
+    for _step in range(figures):
+        reach = reach / 10.0
+    return reach
+
+
+def windows_of(
+    column: "contract.ColumnBlock | None",
+    facts: contract.NumericFacts,
+    floor: int,
+) -> "dict[str, tuple[float, float]]":
+    """The three G12.3 windows this description draws, or none at all.
+
+    Drawn from the published ladder alone, so the answer is a function
+    of the description and never of the measured file. An empty mapping
+    says the ladder is null at every rung: G12.3's "one column with no
+    bound at all", where the three moments are listing entries.
+
+    Guarantees:
+
+    - Inputs: one published column's numeric facts. No measured value.
+    - Determinism: a fixed function of the published ladder, the
+      published cell counts and the half unit G12.2 grants.
+    - Errors raised: none.
+    """
+    rungs = window_filled_ladder(facts)
+    if rungs is None:
+        return {}
+    numbers = window_numeric_cells(facts)
+    widest = window_stratum(facts, floor)
+    half = window_half_unit(facts)
+    lows: list[float] = []
+    highs: list[float] = []
+    ladder: list[float] = []
+    if numbers < 2:
+        value = window_ladder_read(rungs, 0, 1)
+        return window_moments([value - half], [value + half], [value], 1)
+    # RANK `k` STANDS AT THE EXACT SHARE `k / (K - 1)`, and the window
+    # reaches `(g + 2) / K` either side of it, both formed over the one
+    # denominator `K (K - 1)` (G12.2's rank form, G5.3's reading).
+    denominator = numbers * (numbers - 1)
+    span = (widest + 2) * (numbers - 1)
+    for rank in range(numbers):
+        middle = rank * numbers
+        lows += [window_ladder_read(rungs, max(0, middle - span), denominator) - half]
+        highs += [
+            window_ladder_read(rungs, min(denominator, middle + span), denominator)
+            + half
+        ]
+        ladder += [window_ladder_read(rungs, middle, denominator)]
+    return window_moments(lows, highs, ladder, numbers)
+
+
+def window_moments(
+    lows: "list[float]",
+    highs: "list[float]",
+    ladder: "list[float]",
+    numbers: int,
+) -> "dict[str, tuple[float, float]]":
+    """The three moment windows of method G12.3, from the rank form."""
+    found: dict[str, tuple[float, float]] = {}
+    # THE MEAN IS THE PROFILER'S EXACT ONE AND NOT A RUNNING TOTAL
+    # (review item P4-G6-R2-F2). `math.fsum` is exact until its final
+    # rounding and STILL raises where the running total leaves the
+    # representable range, which sixty values near 1e308 do although
+    # their mean is an ordinary number. The first repair of this family
+    # put its guard below this line and the crash simply moved up to
+    # it: `synthtwin validate` went on dying, one line earlier, on a
+    # column nothing was wrong with.
+    mean_low = average_of(list(lows))
+    mean_high = average_of(list(highs))
+    if mean_low is None or mean_high is None:
+        return found
+    found["mean"] = (mean_low, mean_high)
+    if numbers < 2:
+        return found
+    # EACH REACH IS DIVIDED BY THE LARGEST BEFORE IT IS SQUARED, for
+    # the reason the tail weight below already states (item
+    # P4-K-R1-F1, and this is its sibling, item P4-G6-R1-F5): raising
+    # first is the same number in exact arithmetic and not the same
+    # computation in binary64. A column of values around 1e300 has
+    # reaches whose squares have nowhere to go, and this sum came out
+    # an infinity, which made the whole window `(0, inf)` -- a check
+    # that can never report a miss and never says it went quiet.
+    # AND EACH REACH IS A DIFFERENCE OF TWO PUBLISHED VALUES, so it
+    # overflows in its own right where a rank's window has ends at
+    # opposite extremes. A reach that is not finite is a rank this
+    # window cannot be drawn through, and the whole window is withheld
+    # rather than drawn around an infinity.
+    reaches = [
+        max(ladder[rank] - lows[rank], highs[rank] - ladder[rank])
+        for rank in range(numbers)
+    ]
+    for reach in reaches:
+        if not math.isfinite(reach):
+            return found
+    widest = max(reaches)
+    displacement = 0.0
+    if widest > 0.0:
+        parts = math.fsum(
+            [(reach / widest) * (reach / widest) for reach in reaches]
+        )
+        displacement = widest * math.sqrt(parts / numbers)
+    sample = window_sample_deviation(ladder, numbers)
+    if not math.isfinite(sample) or not math.isfinite(displacement):
+        # A SPREAD THE FORMAT CANNOT HOLD IS NOT A WINDOW OF NO WIDTH.
+        # Returning the mean window alone withholds the three that
+        # cannot be drawn, which the census then names, rather than
+        # handing back a bound every twin satisfies.
+        return found
+    # A WINDOW IS FILED ONLY WHERE BOTH OF ITS ENDS ARE NUMBERS
+    # (review item P4-G6-R3-F1). Guarding the INPUTS to a window is not
+    # the same as guarding the window, and this is the ninth site of
+    # the family to prove it: the scaled displacement above comes out
+    # finite near 1.47e308 on the three cells `0`, `8.5e307` and
+    # `1.7e308`, and then the widening factor of `sqrt(n / (n - 1))`
+    # -- about 1.22 on three values -- carries it past the end of the
+    # range. The quality report printed "between 0.0 and inf", which is
+    # the vacuous pass this whole family keeps producing.
+    #
+    # So every window from here down goes through `_bounded`, which
+    # files it where both ends are numbers and withholds it where
+    # either is not. A guard on the products of an expression is a
+    # guard on one expression; a guard at the point of FILING covers
+    # every product, including the ones nobody has written yet.
+    def _bounded(name: str, low: float, high: float) -> bool:
+        if not math.isfinite(low) or not math.isfinite(high):
+            return False
+        found[name] = (low, high)
+        return True
+
+    widen = displacement * math.sqrt(numbers / (numbers - 1))
+    if not _bounded("std", max(0.0, sample - widen), sample + widen):
+        return found
+    if numbers < 3:
+        return found
+    population = window_population_deviation(ladder, numbers)
+    low_end = max(0.0, population - displacement)
+    high_end = population + displacement
+    if not math.isfinite(low_end) or not math.isfinite(high_end):
+        return found
+    # AND THE CUBES ARE DIVIDED BEFORE THEY ARE RAISED, the third
+    # member of the same family. `(lows[rank] - mean_high) ** 3` on a
+    # column around 1e300 is a number with nowhere to go, and the four
+    # ratios below are what the cubes were only ever wanted for.
+    def cubed(edges: "list[float]", centre: float, spread: float) -> float:
+        parts: "list[float]" = []
+        for rank in range(numbers):
+            ratio = (edges[rank] - centre) / spread
+            parts += [ratio * ratio * ratio]
+        for part in parts:
+            if not math.isfinite(part):
+                return float("inf")
+        return math.fsum(parts) / numbers
+    reach = window_raised((numbers - 2) / math.sqrt(numbers - 1))
+    ceiling = window_raised(numbers - 2 + 1 / (numbers - 1))
+    if low_end <= 0.0:
+        found["skew"] = (-reach, reach)
+        # AND THE TAIL WEIGHT'S OWN FALLBACK IN THE SAME BREATH (item
+        # P4-K-R1-F2). Returning here without it left the validator
+        # calling the kurtosis WITHHELD -- telling a reader that
+        # re-describing the file would not publish it -- on a
+        # description that publishes it and a generator that draws its
+        # full window.
+        if numbers >= 4:
+            found["kurtosis"] = (window_lowered(1.0), ceiling)
+        return found
+    # THE LOWER END IS THE LOWER OF THE TWO READINGS OF THE LOW EDGES AND
+    # THE UPPER END THE HIGHER OF THE TWO READINGS OF THE HIGH EDGES,
+    # which is the sign rule of G12.3 (a negative end is lowest over the
+    # smaller spread, a positive one over the larger). The other two
+    # readings can never be the extremes: every high edge stands above
+    # its low edge, and each operation keeps that order.
+    lower = min(cubed(lows, mean_high, low_end), cubed(lows, mean_high, high_end))
+    upper = max(
+        cubed(highs, mean_low, low_end), cubed(highs, mean_low, high_end)
+    )
+    if not math.isfinite(lower) or not math.isfinite(upper):
+        # The same fallback the flat-spread branch above takes: the
+        # window is the whole range this many values can reach, and
+        # `_skew_admits_every_value` files it as a listing rather than
+        # counting a check that cannot fail.
+        found["skew"] = (-reach, reach)
+        if numbers >= 4:
+            found["kurtosis"] = (window_lowered(1.0), ceiling)
+        return found
+    # THE QUOTIENT'S ENDS ARE NOT STEPPED, AND THE UNIVERSAL RANGE IS
+    # STEPPED ONCE WHERE IT IS FORMED (residual R-P4-61; review item
+    # P4-G6-R8). This stepped both ends after clamping them, so a clamped
+    # end moved two places while the twin report's moved one, and every
+    # unclamped end moved one place the twin report's did not.
+    if not _bounded("skew", max(-reach, lower), min(reach, upper)):
+        return found
+    if numbers < 4:
+        return found
+    # THE TAIL WEIGHT, on the same terms one moment along (G12.3a). Two
+    # things differ from the cube above and both are easy to miss.
+    #
+    # THE FOURTH POWER DOES NOT KEEP THE ORDER: a rank's window
+    # straddling the mean has its SMALLEST fourth power in the middle
+    # and not at either end, so the low end of its contribution is zero
+    # there rather than one of the two ends raised.
+    #
+    # AND THE SPREAD ENTERS TO THE FOURTH POWER, not the third, because
+    # that is what makes the ratio free of the column's units.
+    # EACH DEVIATION IS DIVIDED BY THE SPREAD BEFORE IT IS RAISED, for
+    # the reason the generator's own window states: raising first is the
+    # same number in exact arithmetic and not the same computation in
+    # binary64, and a hundred ordinary values around 1e79 made this
+    # raise `OverflowError` where a report was owed (item P4-K-R1-F1).
+    low_fourths: "list[float]" = []
+    high_fourths: "list[float]" = []
+    for rank in range(numbers):
+        below = lows[rank] - mean_high
+        above = highs[rank] - mean_low
+        nearest = 0.0
+        if below > 0.0:
+            nearest = below
+        if above < 0.0:
+            nearest = -above
+        furthest = max(-below, above, 0.0)
+        near = nearest / high_end
+        far = furthest / low_end
+        low_fourths += [near * near * near * near]
+        high_fourths += [far * far * far * far]
+    tails_low = math.fsum(low_fourths) / numbers
+    tails_high = math.fsum(high_fourths) / numbers
+    if not math.isfinite(tails_low) or not math.isfinite(tails_high):
+        found["kurtosis"] = (window_lowered(1.0), ceiling)
+        return found
+    # AND EVERY WINDOW THAT CLAMPS TO A UNIVERSAL LIMIT IS WIDENED
+    # OUTWARD AT THE POINT IT IS FILED (review item P4-G6-R6-F1). On
+    # the four-value extreme both ends of this window clamp to the same
+    # ceiling, so once that ceiling is stated correctly the two meet and
+    # the window admits nothing -- while the statistic it was drawn for
+    # sits on the ceiling. The generator's own copy of this window takes
+    # the same step, which is what keeps the two modules agreeing.
+    # THE SAME ONE STEP THE GENERATOR'S COPY TAKES (review item
+    # P4-G6-R8). Both limits are widened where they are formed and the
+    # clamped pair is not widened again: two steps is a bound two
+    # places looser than the method states.
+    lowest = max(window_lowered(1.0), tails_low)
+    highest = min(ceiling, tails_high)
+    if lowest >= highest:
+        # Only a window whose ends have MET is widened further, and the
+        # generator's copy takes the same step for the same reason: a
+        # window of no width sits one place above the statistic it was
+        # drawn for (review item P4-G6-R8).
+        _bounded(
+            "kurtosis",
+            window_lowered(min(lowest, highest)),
+            window_raised(max(lowest, highest)),
+        )
+        return found
+    _bounded("kurtosis", lowest, highest)
+    return found
+
+
+def window_sample_deviation(values: "list[float]", count: int) -> float:
+    """The standard deviation the profiler's own formula computes.
+
+    THE PROFILER'S OWN FORMULA, AND NOT A SECOND ONE THAT AGREES ON
+    ORDINARY COLUMNS (review item P4-G6-R1-F5). This said what it says
+    above and then computed `sum((x - mean) ** 2)` in binary64, which
+    is not what the profiler computes at all: `taxonomy._moments`
+    works the exact variance out in whole numbers over a shared power
+    of two and rounds once, for the stated reason that the square of a
+    large value has nowhere to go. Sixty ordinary values around 1e300
+    made this raise `OverflowError` -- out of `synthtwin validate`, as
+    a Python traceback rather than one of this package's own messages,
+    on a table `synthtwin profile` and `synthtwin generate` had both
+    just handled without complaint.
+
+    So it calls that function. The validator may not import the
+    GENERATOR, which is the independence the charter names; the
+    profiler is the module whose published numbers this one is
+    checking, and computing the same statistic a second way is how the
+    two come to disagree.
+
+    A spread larger than the format can hold has no deviation to
+    return, and the caller withholds its windows rather than drawing
+    one around a number that does not exist.
+    """
+    if count < 2:
+        return 0.0
+    spread = spread_of(list(values))
+    if spread is None or not math.isfinite(spread):
+        return float("inf")
+    return spread
+
+
+def window_population_deviation(values: "list[float]", count: int) -> float:
+    """The population deviation the skewness divides by.
+
+    The same exact variance one factor along: the population deviation
+    is the sample one times the square root of `(n - 1) / n`, which is
+    exact in the ratio and cannot overflow, since the sample deviation
+    is a number the format already holds.
+    """
+    if count < 2:
+        return 0.0
+    spread = window_sample_deviation(values, count)
+    if not math.isfinite(spread):
+        return float("inf")
+    return spread * math.sqrt((count - 1) / count)
+
+
+def moment_windows(
+    facts: contract.NumericFacts, floor: int
+) -> "dict[str, tuple[float, float]]":
+    """The G12.3 windows of a description's mean and spread (P4-D353).
+
+    The two of `windows_of`'s three the cost rule asks, drawn by the one
+    writing `validation` checks a file against, so a pair is published
+    exactly where the checker's own window would otherwise miss.
+
+    Guarantees: accepts one block's numeric facts and the floor; returns
+    `mean` and `std` where the ladder draws them, and nothing where it
+    is null at every rung. Determinism: a function of the two. Raises
+    nothing. No I/O of any kind.
+    """
+    drawn = windows_of(None, facts, floor)
+    found: "dict[str, tuple[float, float]]" = {}
+    for name in ("mean", "std"):
+        if name in drawn:
+            found[name] = drawn[name]
+    return found

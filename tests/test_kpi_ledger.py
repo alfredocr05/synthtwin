@@ -1426,10 +1426,11 @@ def test_k_s3_15(record_property, tmp_path: pathlib.Path) -> None:
     obligations their twins MISS at seeds 0 and 4 together, and how many
     shapes were measured.
 
-    The second is the cost. It is not nought today and the entry says why: on
-    a column whose withheld tail carries the whole of its spread, the
-    column's mean is what the far cell puts in it, so no reading of the
-    tail that keeps that cell back can average to it.
+    The second is nought since plan P4-D353: a pair whose withholding
+    would leave the column's own G12.3 window of its mean or spread short
+    of the published value is published, and a published pair costs the
+    twin no other obligation. The first may not fall, so the second cannot
+    be bought by publishing pairs the rule does not need.
     """
     import test_stage3_gate as gate
 
@@ -1442,6 +1443,48 @@ def test_k_s3_15(record_property, tmp_path: pathlib.Path) -> None:
             "obligations_their_twins_miss": missing,
             "shapes": shapes,
         },
+    )
+
+
+def test_k_s3_19(record_property, tmp_path: pathlib.Path) -> None:
+    """P4-D353 part 2: where withholding both pairs costs nothing, one withheld tail withholds the other.
+
+    Over the three columns on which the cross-side rule stands, two
+    numbers come back: how many published descriptions withhold BOTH
+    pairs, and how many withheld values a reader names by subtraction from
+    the column's exact mean and spread (`complement_reader.by_subtraction`).
+    Before the landing each published the open pair beside the withheld
+    one, and on the first the reader named the twelve high values.
+    """
+    import complement_reader as columns
+    import test_stage3_gate as gate
+
+    heap = dict(gate.RECONSTRUCTIONS)["heap_then_one_far"]
+    values, chained = columns.rung_chained(102, 11, 4)
+    cases = (
+        ("rung_chained_s4", chained, sorted(values), 11),
+        ("heap_then_one_far", heap, sorted(int(cell) for cell in heap), 11),
+        (
+            "whole_uniform_distinct_1500",
+            columns.ordinary("whole_uniform_distinct", 1500),
+            sorted(int(cell) for cell in columns.ordinary("whole_uniform_distinct", 1500)),
+            20,
+        ),
+    )
+    standing = 0
+    rebuilt = 0
+    for name, cells, ordered, floor in cases:
+        block = S.describe(
+            tmp_path / name, name, "value\n" + "\n".join(cells) + "\n", floor
+        ).document["columns"][0]
+        tails = block["tails"]
+        if tails["low"]["mean_distance"] is None and tails["high"]["mean_distance"] is None:
+            standing += 1
+        rebuilt += columns.by_subtraction(block, ordered)["values_rebuilt"]
+    _kpi(
+        record_property,
+        "K-S3-19",
+        {"closures_standing": standing, "values_by_subtraction": rebuilt},
     )
 
 

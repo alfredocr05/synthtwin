@@ -75,7 +75,7 @@ import pathlib
 import random
 
 from synthtwin import parsing, taxonomy
-from tests import workbooks
+from tests import cost_rule_window, workbooks
 from tests.test_final_review_labels import _round_trip
 from tests.test_stage2_round_trip import _exit_of
 
@@ -510,20 +510,19 @@ def test_the_questions_file_cannot_restore_an_absorbed_count(
     the source and said "399 of them carry a leading zero", which beside
     `n_present 400` is the one unpadded record.
 
-    AND THE TWIN OF THIS SHAPE MISSES ITS COLUMN'S MEAN AND SPREAD, which
-    is the measured cost of plan P4-D349 and not this repair coming
-    undone. The 399 codes run consecutively, so each of the column's
+    AND THE TWIN OF THIS SHAPE KEEPS ITS COLUMN'S MEAN AND SPREAD (plan
+    P4-D353), derived here from the cost rule and not copied from an
+    output. The 399 codes run consecutively, so each of the column's
     tails would hand its own cells back -- twelve DIFFERENT whole
     distances summing to the least twelve different whole numbers can sum
-    to -- and the description publishes neither distance for either of
-    them. The HIGH tail is where the single `12345` lives, and the
-    column's mean is what that one cell puts in it: no reading of a tail
-    that keeps the cell back can average to 230.3625, and three were
-    measured. So the twin is checked here for exactly the two obligations
-    that limit predicts and for nothing else going wrong beside them, and
-    the REAL table still passes at exit 0 -- which is what says the
-    description itself is still true of the table it was made from.
-    Ledger entry `K-S3-15` holds the number.
+    to -- and P4-D349 withholds both pairs. The HIGH tail is where the
+    single `12345` lives, and the column's mean is what that one cell puts
+    in it: with both pairs withheld the window of the column's mean does
+    not reach 230.3625. The owner ruled on 2026-09-25 that a pair is then
+    published although it gives its tail back, and only where withholding
+    it costs, so the twin meets its mean and spread and the real table
+    still passes at exit 0. Ledger entry `K-S3-15` holds the number and
+    `K-S3-18` what the published pair gives back.
     """
     cells = [f"{index:05}" for index in range(1, 400)] + ["12345"]
     result = _round_trip(tmp_path, {"value": cells}, FLOOR)
@@ -537,40 +536,25 @@ def test_the_questions_file_cannot_restore_an_absorbed_count(
     assert result["generated"] == 0
     assert result["real_exit"] == 0, (
         "the real table no longer meets its own description, which would "
-        "be a defect of this pass and not the measured cost"
+        "be a defect of this pass and not the cost rule"
     )
-    assert result["twin_exit"] == 3, (
-        "the twin of a column whose withheld tail carries its whole spread "
-        "is expected to miss its mean and its spread (K-S3-15); exit 0 here "
-        "means the limit closed and this expectation must be re-derived"
+    floor = int(FLOOR[1])
+    both = cost_rule_window.withheld(block, ("low", "high"))
+    assert cost_rule_window.costs(both, floor), (
+        "with both pairs withheld this column's window still reaches its "
+        "mean and spread: the case no longer asks the cost rule anything"
     )
     tails = block["tails"]
     assert isinstance(tails, dict)
-    for side in ("low", "high"):
-        assert tails[side]["mean_distance"] is None, (
-            f"the {side} tail of 399 consecutive codes publishes no "
-            f"distance, which is why the twin misses the two moments"
-        )
-    # THE QUALITY REPORT IS THE PAGE THAT NAMES THEM, and it is written
-    # into the folder `validate` was pointed at rather than beside the
-    # description, so it is read from there.
-    quality = "".join(
-        path.read_text(encoding="utf-8")
-        for path in sorted((result["profile"].parent / "twin_exit").iterdir())
-        if path.is_file() and path.suffix == ".txt"
+    assert any(tails[side]["mean_distance"] is not None for side in ("low", "high")), (
+        "withholding both pairs costs the twin its mean and neither is published"
     )
-    verdicts = [
-        line.strip() for line in quality.splitlines()
-        if "MISSED" in line and "[" in line and "]" in line
-    ]
-    assert verdicts, "the quality report names no missed obligation at all"
-    for line in verdicts:
-        assert "moments.mean" in line or "moments.std" in line, (
-            f"the twin misses something other than the two moments the "
-            f"measured cost predicts: {line}"
-        )
-    assert any("moments.mean" in line for line in verdicts)
-    assert any("moments.std" in line for line in verdicts)
+    assert not cost_rule_window.costs(block, floor)
+    assert cost_rule_window.published_where_it_costs_nothing(block, floor) == []
+    assert result["twin_exit"] == 0, (
+        "the twin misses an obligation although the published pair keeps "
+        "its column's mean and spread windows on their values"
+    )
 
 
 def test_a_count_that_names_a_group_is_still_spoken() -> None:

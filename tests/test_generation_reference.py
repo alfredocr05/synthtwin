@@ -4349,6 +4349,30 @@ def test_each_case_fails_when_its_own_branch_is_reverted(
         )
 
 
+def test_withdrawing_step_five_puts_the_partly_padded_ceiling_on_a_stand_in(
+    monkeypatch,
+) -> None:
+    """G5.3b step 5 (plan P4-D353), withdrawn from the oracle.
+
+    `tail_pad_partial` carries step 4's own mutant in the table above; this
+    is the second branch the same case holds up. Its partly padded ceiling
+    is held at the widest value four figures can write, which is `9999`,
+    a number the profiler reads as a stand-in for "no value". Step 5 moves
+    such a derived end one grid step toward its boundary; withdrawn, the
+    committed cells move and the stand-in comes back.
+    """
+    before, _claims = gen.build_case("tail_pad_partial")
+    assert "+9999" not in before["cells"], "step 5 left the ceiling on a stand-in"
+    monkeypatch.setattr(gen, "off_the_stand_ins", lambda value, *_rest: value)
+    monkeypatch.setattr(gen, "RECOUNT_DISTINCT", False)
+    after, _mutant_claims = gen.build_case("tail_pad_partial")
+    assert after["cells"] != before["cells"], (
+        "tail_pad_partial is written the same way with G5.3b step 5 "
+        "withdrawn, so no committed byte holds that step up"
+    )
+    assert "+9999" in after["cells"]
+
+
 _GENERATOR_NEAREST_HELD_UNIT = generation._nearest_held_unit
 
 

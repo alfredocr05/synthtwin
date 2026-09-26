@@ -10001,6 +10001,57 @@ def _affix_variants(
     return tuple(found)
 
 
+def numeric_block_facts(
+    mapping: "dict[str, object]",
+    floor: int,
+    parse_rate: float,
+    category_share: float,
+    category_ceiling: int,
+    category_floor: int,
+    n_present: int,
+    n_numeric: int,
+    n_out_of_range: int,
+    n_contradictory: int,
+) -> NumericFacts:
+    """One would-be numeric block read as the loader reads it (P4-D353).
+
+    The producer asks the G12.3 windows of a description before it
+    publishes a tail pair, and those windows are drawn from the facts
+    this loader reads, so it asks them of this reading and not of one
+    of its own. The block is read under the five settings a profile
+    records and the cells' own four counts, as a column of its own,
+    echoing its own `n_rows`.
+
+    Guarantees: accepts one numeric block, the five settings and the
+    four counts; returns its `NumericFacts`. Determinism: a function of
+    the ten. Raises ProfileError exactly where the loader would refuse
+    the block. No I/O of any kind.
+    """
+    rows = _whole(mapping["n_rows"], "n_rows", "the would-be block", 0)
+    frame = _Frame(
+        floor=floor,
+        n_rows=rows,
+        n_columns=1,
+        declared=(),
+        declared_codes=(),
+        declared_commas=(),
+        parse_rate=parse_rate,
+        category_share=category_share,
+        category_ceiling=category_ceiling,
+        category_floor=category_floor,
+    )
+    return _numeric_facts(
+        mapping,
+        "the would-be block",
+        frame,
+        n_present,
+        n_numeric,
+        n_out_of_range,
+        n_contradictory,
+        echoes=rows,
+    )
+
+
 def _numeric_facts(
     mapping: "dict[str, object]",
     where: str,
@@ -11905,7 +11956,11 @@ def _derived_end(
     `d1 + sqrt((m - 1)(rms**2 - d1**2))` from its boundary -- then placed
     on the grid (`_on_tail_grid`) and stepped one grid step inward where
     that passed the bound, then held to the sign counts
-    (`_signed_end`). A flat tail's end is its boundary.
+    (`_signed_end`). A flat tail's end is its boundary. A derived end --
+    the withheld one or the fitted one -- that lands on a number the
+    profiler reads as a stand-in for "no value" moves one grid step
+    toward its boundary (`_off_the_stand_ins`, G5.3b step 5); a
+    published end and a listed value are never moved.
 
     THE BOUND IS TAKEN AS `rms` TIMES A FRACTION, which is the same
     number and is the only form this format can hold at both ends of
@@ -11923,11 +11978,16 @@ def _derived_end(
     mean = side.mean_distance
     root = side.rms_distance
     if mean is None or root is None:
-        return _signed_end(
-            _withheld_end(facts, boundary, side.rows, low, figures),
+        return _off_the_stand_ins(
+            _signed_end(
+                _withheld_end(facts, boundary, side.rows, low, figures),
+                low,
+                boundary,
+                facts,
+                figures,
+            ),
             low,
             boundary,
-            facts,
             figures,
         )
     if shape[0]:
@@ -12033,8 +12093,52 @@ def _derived_end(
     # published 15.5 and `validate` MISSED `ladder.p50` and
     # `moments.mean`.
     if abs(spelled - boundary) < mean:
-        return held
-    return spelled
+        return _off_the_stand_ins(held, low, boundary, figures)
+    return _off_the_stand_ins(spelled, low, boundary, figures)
+
+
+def _off_the_stand_ins(
+    value: float, low: bool, boundary: float, figures: int
+) -> float:
+    """A derived end moved off the numbers the profiler reads as absent.
+
+    A DERIVED END IS A CONSTRUCTION AND NOT A VALUE OF THE TABLE (plan
+    P4-D353), and the spelling rules above hold it to the widest value
+    the published census lets a cell write -- `9999` where every cell
+    wears four figures or a pad of five, `-999` where every cell wears
+    three. Those are two of the three numbers `parsing.NUMERIC_SENTINELS`
+    names, and the outermost cell of a tail is the one the profiler's
+    outlier rule judges: the twin's re-description read the cell as a
+    stand-in for "no value" and the twin missed its count of present
+    cells, its numbers, its forms -- and, on a negative column, its role.
+    Measured on `00001` to `00149` beside one `12345` at a floor of
+    eleven: seven obligations MISSED at seeds 0, 4 and 9, the twin ending
+    `09998`, `09999`. The generator already refuses these three numbers
+    for a made-up spelling (`generation._reads_as_its_class`); a derived
+    end is refused them the same way, and moved ONE grid step toward its
+    boundary, never past it. A published end and a listed value are the
+    table's own and never reach this function.
+
+    Guarantees: accepts a derived end, which side it is, its boundary and
+    the tail grid; returns the end, or the end one step inside where it
+    is a stand-in number. Determinism: a function of the four. Raises
+    nothing. No I/O of any kind.
+    """
+    if value == boundary:
+        return value
+    for sentinel in parsing.NUMERIC_SENTINELS:
+        if value == sentinel:
+            if figures == -1:
+                moved = _next_representable(value, not low)
+            else:
+                unit = _tail_unit(figures)
+                moved = _on_tail_grid(
+                    value + unit if low else value - unit, figures
+                )
+            if (moved > boundary) if low else (moved < boundary):
+                return value
+            return moved
+    return value
 
 
 def _within_the_one_width(

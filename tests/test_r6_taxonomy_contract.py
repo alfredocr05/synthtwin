@@ -32,6 +32,7 @@ import typing
 
 import pytest
 
+import cost_rule_window
 import fixtures
 import tail_rule
 from synthtwin import cli, parsing, profile, reading, taxonomy
@@ -808,14 +809,8 @@ def test_a_column_of_twenty_thousand_values_completes() -> None:
     assert described.n_present == 20000
     # The largest value is held by one row, so the tail rule withholds
     # it (contract 6.7a) and the group beyond the high boundary is what
-    # the description states about those rows -- which on THIS column is
-    # its boundary and its row count alone (plan P4-D349). The twenty
-    # thousand values step half a unit at a time, so the two hundred rows
-    # beyond each boundary stand at two hundred DIFFERENT whole distances
-    # summing to the least two hundred different whole numbers can sum to:
-    # one possible answer, which would give all four hundred outer values
-    # back, so neither distance is published. `tail_rule.holds` asks the
-    # percent and the rows against the rule either way.
+    # the description states about those rows. `tail_rule.holds` asks the
+    # percent and the rows against the rule.
     assert described.details["percentiles"]["max"] is None
     assert tail_rule.holds(
         described.details["tails"]["high"],
@@ -823,8 +818,31 @@ def test_a_column_of_twenty_thousand_values_completes() -> None:
         [float(value) for value in values],
         low=False,
     )
-    assert described.details["tails"]["high"]["mean_distance"] is None
-    assert described.details["tails"]["low"]["mean_distance"] is None
+    # THE PAIRS, DERIVED FROM THE COST RULE (plan P4-D353), NOT COPIED
+    # FROM AN OUTPUT. The back-solve asks each tail's pair and spends its
+    # budget on both before it shows a second answer, so P4-D349 withholds
+    # both pairs (the two hundred distances step ten grid points apart on
+    # this column's grid of a tenth, which is not the least sum two
+    # hundred different distances can have, so no arithmetic settles
+    # them: they are UNSETTLED, not pinned). With both withheld, each
+    # tail is read one grid point apart -- a tenth where the column steps
+    # a whole unit -- and the window of the column's spread falls short
+    # of the published spread. So the rule publishes a pair, and only
+    # where withholding it costs.
+    block = profile._column_block(described)
+    both = cost_rule_window.withheld(block, ("low", "high"))
+    assert cost_rule_window.costs(both, 11), (
+        "with both pairs withheld this column's own window still reaches "
+        "its mean and spread: the case no longer asks the cost rule anything"
+    )
+    tails = block["tails"]
+    assert any(tails[side]["mean_distance"] is not None for side in ("low", "high")), (
+        "withholding both pairs costs the twin its spread and neither is published"
+    )
+    assert not cost_rule_window.costs(block, 11), (
+        "the published description leaves its own mean or spread window short"
+    )
+    assert cost_rule_window.published_where_it_costs_nothing(block, 11) == []
 
 
 def test_a_large_date_column_is_not_built_quadratically() -> None:

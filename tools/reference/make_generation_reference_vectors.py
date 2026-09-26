@@ -1655,11 +1655,16 @@ def derived_end(column, side, boundary, shape, low, published):
         return listed[0] if low else listed[len(listed) - 1]
     if tail_withheld(side):
         narrow = tail_figures(column)
-        return end_sign_held(
-            withheld_step(boundary, side["rows"], low, narrow),
+        return off_the_stand_ins(
+            end_sign_held(
+                withheld_step(boundary, side["rows"], low, narrow),
+                low,
+                boundary,
+                column,
+                narrow,
+            ),
             low,
             boundary,
-            column,
             narrow,
         )
     mean = side["mean_distance"]
@@ -1681,7 +1686,37 @@ def derived_end(column, side, boundary, shape, low, published):
     if figures != -1 and abs(placed - boundary) > bound * (1.0 + 1e-12):
         step = tail_unit(figures)
         placed = tail_grid(placed + step if low else placed - step, figures)
-    return held_end(placed, low, boundary, column, figures, mean)
+    return off_the_stand_ins(
+        held_end(placed, low, boundary, column, figures, mean),
+        low,
+        boundary,
+        figures,
+    )
+
+
+def off_the_stand_ins(value, low, boundary, figures):
+    """G5.3b step 5 (plan P4-D353): a derived end is never a stand-in number.
+
+    Written from the method's own words: whichever of step 2a or step 4
+    gave the end, where it equals one of the three numbers the profiler
+    reads as a stand-in for "no value" it moves ONE step of step 4's grid
+    toward the boundary -- the next number this format holds where no
+    width is named -- and never past the boundary. The comparison is
+    exact (`NUMERIC_SENTINELS` are fractions).
+    """
+    if value == boundary:
+        return value
+    if fractions.Fraction(value) not in NUMERIC_SENTINELS:
+        return value
+    if figures == -1:
+        moved = next_representable(abs(value), (not low) == (value > 0))
+        moved = moved if value > 0 else -moved
+    else:
+        unit = tail_unit(figures)
+        moved = tail_grid(value + unit if low else value - unit, figures)
+    if (moved > boundary) if low else (moved < boundary):
+        return value
+    return moved
 
 
 def shared_unit(values):

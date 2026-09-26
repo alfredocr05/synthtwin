@@ -74,6 +74,7 @@ written.
 | `kpi_suite_time.py` | K-P0-10: what the suite itself costs -- one ordinary single-process `pytest -q` from the repository root, timed by the wall clock, with the collected count beside it so seconds can never be bought by running fewer cases |
 | `kpi_oracle_similarity.py` | K-2B-42: oracle functions whose syntax sits at 0.60 or above against their closest shipped function, named |
 | `kpi_stage3_tail_leak.py` | K-S3-11: published values, summary lines and report lines equal to one of the eleven outermost values of a date or clock column; the tails the published facts settle by back-solve; how much room the tightest of them leaves; and how many of the real table's own tail distances the construction window does not reach, so that the real table passes that obligation only by exact equality -- over the tail design's own battery |
+| `kpi_cost_rule.py` | K-S3-17, K-S3-18, K-S3-20, K-S3-21 and K-S3-22: what plan P4-D353's cost rule publishes and gives back -- the tail values the exact skew and kurtosis rebuild beside both pairs, the sides the rule publishes by the back-solve's verdict and the cells a reader names from them, every obligation the twins miss and leave withheld at a floor of 36, the values a reader names by subtraction beside a published pair, and the moments no published pair keeps |
 
 **This table went stale before landing L8 and is repaired there**: it
 listed four of the ten scripts, so six measured claims in the phase
