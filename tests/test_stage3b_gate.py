@@ -49,6 +49,11 @@ Two bounds of the step have no witness, because no description found
 reaches them: the reach itself and the width-kind half of the standing
 clause (method G7.3b step 9).
 
+AND A MERGED RUN KEEPS EVERY RANK INSIDE ITS GAP (the landing's fix
+pass): `test_a_merged_run_keeps_every_rank_inside_its_gap` holds G7.3's
+merges to the gap of every rank of a run, on the random column that
+missed its low tail's spread when they asked the run's first rank alone.
+
 AND THE WINDOW IS WRITTEN TWICE. G12.14's summed window -- a group's
 ranks as near as one and as far as its reach where step 9 may move
 them -- is the generator's (`_tail_sum_bounds`, which its report reads)
@@ -81,6 +86,8 @@ not reachable turns the reachable-count witness red, its file WITHIN
 where it MISSES; the report's window widened there turns it red on the
 report's bounds (the second skeptic of the landing, 2026-09-26, found
 that condition witnessed nowhere, the whole suite green without it).
+The count pass asking a merged run's room of its first rank alone turns
+the gapped year red at seed 3, three ranks outside their gaps.
 """
 
 from __future__ import annotations
@@ -659,3 +666,93 @@ def test_no_rank_is_moved_onto_a_midnight(tmp_path: pathlib.Path) -> None:
     for seed in SEEDS:
         assert at_midnight(_written(described.loaded, seed)) == 0, seed
         assert at_midnight(_written(raised, seed)) == 0, f"seed {seed}: a rank moved onto midnight"
+
+
+def _gapped_year() -> "tuple[list[str], int]":
+    """392 days from a seeded start, a fifth of them empty and the first and
+    last twenty all but empty, 2,469 dates, described at a floor of 36.
+
+    Drawn exactly as the landing's second skeptic drew its random column
+    40, so the column is the one that measured the defect.
+    """
+    draw = random.Random(900040)
+    assert draw.choice(["date", "date", "date", "second", "minute", "usdate"]) == "date"
+    span = draw.randint(12, 400)
+    rows = min(max(100, draw.randint(span // 2, span * 12)), 6000)
+    empty = draw.choice([0.0, 0.0, 0.05, 0.2])
+    light = draw.random() < 0.3
+    assert (span, rows, empty, light) == (392, 2469, 0.2, True)
+    weights: "list[float]" = []
+    for step in range(span):
+        weight = 0.0 if draw.random() < empty else draw.random() + 0.1
+        if step < span // 20 + 1 or step >= span - span // 20 - 1:
+            weight = weight * 0.02
+        weights += [weight]
+    steps = draw.choices(range(span), weights=weights, k=rows)
+    if draw.random() < 0.5:
+        steps = list(range(span)) + steps[: rows - span]
+    start = datetime.date(2020, 1, 1) + datetime.timedelta(days=draw.randint(0, 900))
+    cells = [(start + datetime.timedelta(days=step)).isoformat() for step in steps]
+    draw.shuffle(cells)
+    floor = draw.choice([1, 5, 11, 11, 20, 36])
+    assert floor == 36
+    return cells, floor
+
+
+def test_a_merged_run_keeps_every_rank_inside_its_gap(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """G7.3's merges move a run whole only where EVERY rank of it may go.
+
+    The count pass merges a run of ranks on one day onto a day ranks
+    already hold, and asked the run's FIRST rank alone whether that day
+    lay inside its gap. A tail rank's gap is its own stratum (G7.3b step
+    8), so the rest of a tail run went past theirs: on this column two
+    low-tail ranks stood a day outside their strata and the tail's
+    root-mean-square distance came out 5.063 against a window of 4.747 to
+    5.057, MISSED at seeds 3 and 8 while the real table passed (plan
+    P4-D354, the fix pass of landing 3b.0). Here every rank but a tail
+    group's -- which step 9 alone may move -- stands inside its gap once
+    the count pass is done, and the twin misses nothing.
+    """
+    cells, floor = _gapped_year()
+    described = kpi_shapes.describe(
+        tmp_path, "gapped_year", "c\n" + "".join(f"{cell}\n" for cell in cells), floor
+    )
+    shipped = generation._units_settled
+    seen: "list[tuple[list[int], list[int], list[int], generation._DateLayout | None]]" = []
+
+    def watched(
+        column: contract.ColumnBlock,
+        facts: contract.DatetimeFacts,
+        ordinals: "list[int]",
+        parsed: int,
+        whole: "list[bool]",
+        lows: "list[int]",
+        highs: "list[int]",
+        small: int,
+        layout: "generation._DateLayout | None" = None,
+    ) -> "list[int]":
+        moved = shipped(column, facts, ordinals, parsed, whole, lows, highs, small, layout)
+        seen[:] = [(list(moved), list(lows), list(highs), layout)]
+        return moved
+
+    monkeypatch.setattr(generation, "_units_settled", watched)
+    for seed in (3, 8):
+        text = kpi_shapes.twin_text(described, seed)
+        assert len(seen) == 1, seed
+        moved, lows, highs, layout = seen[0]
+        assert layout is not None
+        group: "set[int]" = set()
+        for plan in (layout.low, layout.high):
+            assert plan is not None and plan.shape is not None
+            for index in range(max(plan.shape.grouped, 1), plan.rows):
+                group.add(generation._tail_rank_of(plan, len(moved), index))
+        off = [
+            rank
+            for rank in range(len(moved))
+            if rank not in group and not lows[rank] <= moved[rank] <= highs[rank]
+        ]
+        assert off == [], f"seed {seed}: ranks {off} stand outside their gaps"
+        missed = kpi_shapes.missed(kpi_shapes.measure(described, text, f"gapped-{seed}.csv"))
+        assert missed == [], f"seed {seed}: {missed}"

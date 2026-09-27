@@ -112,6 +112,7 @@ published column produces, a first stratum standing above the published
 """
 
 import collections
+import datetime
 import fractions
 import math
 import pathlib
@@ -703,6 +704,146 @@ def _generator_group(low, high, owed):
     )
 
 
+# ------------------------------------------- G7.3's merges move a run whole
+#
+# A RUN MOVES WHOLE, SO IT MOVES ONLY WHERE EVERY RANK OF IT MAY GO (the
+# fix pass of landing 3b.0, plan P4-D354). The count pass merges a run of
+# ranks on one unit onto an instant ranks already hold, and asked the
+# run's FIRST rank alone whether the instant lay inside its gap. A body
+# run shares one gap; a tail run does not, each rank's gap being its own
+# stratum (G7.3b step 8), so the rest of the run went past theirs. Asked
+# here on hand-built ranks: an unpinned run between pinned ends, each
+# rank's gap given, and the answer the statement gives -- the instant must
+# lie inside the gap of EVERY rank of the run -- worked out by hand. Days
+# are whole numbers; the rows in seconds (a day of 86400) put the run's
+# rank neighbours at midnight, so only the nearest held unit of its own
+# standing is offered, and the trade moves a run onto the other standing.
+DAY = 86400
+
+
+def _day(month: int, day: int) -> int:
+    """A day of 2020 as the day number both implementations read (days since 1970-01-01)."""
+    return (datetime.date(2020, month, day) - datetime.date(1970, 1, 1)).days
+
+
+RUN_MERGES = (
+    # (ordinals, pinned, lows, highs, day, distinct, width word, ordinals after)
+    #
+    # THE NEIGHBOUR. The run of ranks 2 and 3 on day 3 may go to day 2
+    # (its first rank's gap) or to day 4 (both ranks' gaps). Asked of its
+    # first rank, day 2 is taken, nearer the start, and rank 3 stands a
+    # day below its gap; asked of every rank, day 4.
+    ((0, 2, 3, 3, 4, 6), (True, False, False, False, False, True),
+     (0, 1, 2, 3, 4, 6), (0, 2, 4, 4, 5, 6), 1, 4, "",
+     (0, 2, 4, 4, 4, 6)),
+    # THE HELD UNIT NO RANK NEIGHBOUR IS. The run's neighbours stand at
+    # midnight and it does not, so they are not offered; the one held unit
+    # of its own standing, second 50, lies in its first rank's gap and not
+    # in its last's. Rank 1 at midnight has no other midnight in its gap,
+    # and its trade finds no payer. Nothing moves; the count stays one over.
+    ((50, DAY, DAY + 500, DAY + 500, 2 * DAY, 3 * DAY),
+     (True, False, False, False, False, True),
+     (50, 50, 50, DAY + 100, 100000, 3 * DAY),
+     (50, DAY + 1000, DAY + 1000, DAY + 1000, 200000, 3 * DAY), DAY, 4, "",
+     (50, DAY, DAY + 500, DAY + 500, 2 * DAY, 3 * DAY)),
+    # THE NEIGHBOUR READ AGAIN. Rank 1 merges onto day 1 first; the run of
+    # ranks 2 and 3, offered rank 1's day 3, then finds day 1 there, which
+    # its first rank's gap holds and its last's does not. It stays.
+    ((1, 3, 5, 5, 9), (True, False, False, False, True),
+     (1, 1, 1, 3, 9), (1, 3, 6, 6, 9), 1, 2, "",
+     (1, 1, 5, 5, 9)),
+    # THE NEAREST HELD UNIT IS LOOKED FOR INSIDE THE ROOM. Month-first
+    # dates of 2020 under the census word `first-field-padded`: the ninth
+    # of April and the first of May show the other width kind, so the
+    # run's neighbours are not offered. The nearest held unit of its own
+    # kind in its first rank's gap is the 31st of March, twelve days off,
+    # outside its last rank's gap; inside the gap of both is the 20th of
+    # May, thirty-eight off, and the run moves there. Looked for in the
+    # first rank's gap, the 31st is found, refused, and nothing moves.
+    ((_day(3, 31), _day(4, 9), _day(4, 12), _day(4, 12), _day(5, 1), _day(5, 20)),
+     (True, False, False, False, False, True),
+     (_day(3, 31), _day(3, 31), _day(3, 31), _day(4, 5), _day(4, 20), _day(5, 20)),
+     (_day(3, 31), _day(4, 9), _day(5, 20), _day(5, 20), _day(5, 20), _day(5, 20)),
+     1, 4, "first-field-padded",
+     (_day(3, 31), _day(4, 9), _day(5, 20), _day(5, 20), _day(5, 1), _day(5, 20))),
+)
+RUN_TRADES = (
+    # (ordinals, pinned, lows, highs, owed, ordinals after, trades made)
+    #
+    # THE TRADE. The run of ranks 1 and 2 stands off midnight; the only
+    # midnight in its first rank's gap is second 0, outside its second
+    # rank's, so it is offered nothing. The run of three at midnight on
+    # day 3 is offered 3D + 300, and its payment needs three ranks off
+    # midnight to move onto one: rank 1 can, and rank 2 then stands alone.
+    # Nothing trades. (Asked of the first rank alone, ranks 1 and 2 move
+    # onto second 0, rank 2 below its gap, paid for by ranks 4 and 5.)
+    ((0, DAY + 100, DAY + 100, 2 * DAY, 3 * DAY, 3 * DAY, 3 * DAY, 3 * DAY + 300, 4 * DAY),
+     (True, False, False, True, False, False, False, False, True),
+     (0, 0, DAY + 50, 2 * DAY) + (3 * DAY - 1000,) * 4 + (4 * DAY,),
+     (0, DAY + 200, DAY + 200, 2 * DAY) + (3 * DAY + 1000,) * 4 + (4 * DAY,), 1,
+     (0, DAY + 100, DAY + 100, 2 * DAY, 3 * DAY, 3 * DAY, 3 * DAY, 3 * DAY + 300, 4 * DAY), 0),
+)
+# The member the width rows are read under, month-first, so its first
+# field is the month.
+RUN_MEMBER = "month-first-date"
+
+
+def _run_missed(merge: typing.Callable[..., object], trade: typing.Callable[..., object]) -> "list[str]":
+    missed = []
+    for ordinals, pinned, lows, highs, day, distinct, word, want in RUN_MERGES:
+        got = _asked(
+            merge, list(ordinals), list(pinned), list(lows), list(highs), day, distinct, word
+        )
+        if got != want:
+            missed += [f"merge of {ordinals!r}: {got!r}, the statement gives {want!r}"]
+    for ordinals, pinned, lows, highs, owed, want, made in RUN_TRADES:
+        got = _asked(trade, list(ordinals), list(pinned), list(lows), list(highs), owed)
+        if got != (want, made):
+            missed += [f"trade of {ordinals!r}: {got!r}, the statement gives {(want, made)!r}"]
+    return missed
+
+
+def _held(ordinals: "list[int]") -> "dict[int, int]":
+    return dict(collections.Counter(ordinals))
+
+
+def _oracle_run(module: types.ModuleType) -> "tuple[typing.Callable[..., object], typing.Callable[..., object]]":
+    def merge(ordinals, pinned, lows, highs, day, distinct, word):
+        module.distinct_pass(
+            {"format": RUN_MEMBER}, ordinals, pinned, lows, highs, day, 1, distinct,
+            bool(word), word,
+        )
+        return tuple(ordinals)
+
+    def trade(ordinals, pinned, lows, highs, owed):
+        made = module.traded_merges(
+            {"format": RUN_MEMBER}, ordinals, pinned, lows, highs, DAY, 1, 1,
+            _held(ordinals), False, "", owed, True,
+        )
+        return (tuple(ordinals), made)
+
+    return merge, trade
+
+
+_RUN_FACTS = types.SimpleNamespace(parser_family=RUN_MEMBER)
+
+
+def _generator_merge(ordinals, pinned, lows, highs, day, distinct, word):
+    generation._distinct_reached(
+        typing.cast(contract.DatetimeFacts, _RUN_FACTS), ordinals, pinned, lows, highs,
+        day, 1, distinct, bool(word), word,
+    )
+    return tuple(ordinals)
+
+
+def _generator_trade(ordinals, pinned, lows, highs, owed):
+    made = generation._traded_merges(
+        typing.cast(contract.DatetimeFacts, _RUN_FACTS), ordinals, pinned, lows, highs,
+        DAY, 1, 1, _held(ordinals), False, "", owed, True,
+    )
+    return (tuple(ordinals), made)
+
+
 # ------------------------------------------------------------ the two readers
 
 WITNESSES = {
@@ -737,6 +878,10 @@ WITNESSES = {
     "group": (
         lambda module: _group_missed(_oracle_group(module)),
         lambda: _group_missed(_generator_group),
+    ),
+    "run": (
+        lambda module: _run_missed(*_oracle_run(module)),
+        lambda: _run_missed(_generator_merge, _generator_trade),
     ),
 }
 
@@ -959,6 +1104,32 @@ WITNESS_MUTANTS = {
         "group",
         "inner = sorted(d for d in chosen[name] if d < group)",
         "inner = sorted((d for d in chosen[name] if d < group), reverse=True)",
+    ),
+    # G7.3's merges (the fix pass of landing 3b.0). The room asked of the
+    # run's first rank alone, everywhere; then each place on its own. The
+    # neighbour offered at the start of a round needs no mutant of its own:
+    # it is asked again when its turn comes, and a neighbour cannot move
+    # INTO the room between -- it moves onto a held unit, and every held
+    # unit between it and the run is the run's own.
+    "run_room_of_the_first_rank": (
+        "run",
+        "    return max(lows[first:last + 1]), min(highs[first:last + 1])\n",
+        "    return lows[first], highs[first]\n",
+    ),
+    "run_held_unit_looked_for_past_the_room": (
+        "run",
+        "ordinals[first], low, high, unit, held, spot, standing,",
+        "ordinals[first], lows[first], highs[first], unit, held, spot, standing,",
+    ),
+    "run_neighbour_read_again_past_the_room": (
+        "run",
+        "            low, high = run_room(lows, highs, first, first + size - 1)\n",
+        "            low, high = lows[first], highs[first]\n",
+    ),
+    "run_trade_looked_for_past_the_room": (
+        "run",
+        "                room = run_room(lows, highs, first, last)\n",
+        "                room = (lows[first], highs[first])\n",
     ),
     "group_takes_past_the_count": (
         "group",

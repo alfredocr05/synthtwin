@@ -10108,7 +10108,8 @@ def units_settled(column, ordinals, parsed, whole, lows, highs):
     minutes or seconds -- number `n_distinct` less the stand-ins: too
     many, with each unpinned run sorted, a run of ranks on one unit
     holding no pinned rank moves whole onto an instant ranks already
-    hold, inside its gap, of the same width kind and midnight standing,
+    hold, inside the gap of every rank of it (``run_room``), of the same
+    width kind and midnight standing,
     nearest first, then the shorter run, then the lower rank -- the
     instants offered being the rank just below it, the rank just above
     it and the nearest held unit of its own kind, which need not be
@@ -10438,12 +10439,13 @@ def distinct_pass(column, ordinals, pinned, lows, highs, day, step, distinct, wi
             while last + 1 < parsed and ordinals[last + 1] // unit == ordinals[first] // unit:
                 last += 1
             if not any(pinned[first:last + 1]):
+                low, high = run_room(lows, highs, first, last)
                 reached = set()
                 for other in (first - 1, last + 1):
                     if not 0 <= other < parsed:
                         continue
                     target = ordinals[other]
-                    if lows[first] <= target <= highs[first] and standing(ordinals[first], target):
+                    if low <= target <= high and standing(ordinals[first], target):
                         reached.add(target)
                         options.append(
                             (abs(target - ordinals[first]), last - first + 1, first, target, other)
@@ -10452,8 +10454,7 @@ def distinct_pass(column, ordinals, pinned, lows, highs, day, step, distinct, wi
                 # rank neighbours need not be (plan P4-D258).
                 spot = {value // unit: value for value in ordinals}
                 target = nearest_held_unit(
-                    ordinals[first], lows[first], highs[first], unit, held,
-                    spot, standing,
+                    ordinals[first], low, high, unit, held, spot, standing,
                 )
                 if target is not None and target not in reached:
                     options.append(
@@ -10472,7 +10473,8 @@ def distinct_pass(column, ordinals, pinned, lows, highs, day, step, distinct, wi
             own = ordinals[first] // unit
             if target // unit == own or held[own] != size or held.get(target // unit, 0) <= 0:
                 continue
-            if not lows[first] <= target <= highs[first]:
+            low, high = run_room(lows, highs, first, first + size - 1)
+            if not low <= target <= high:
                 continue
             if any(value // unit != own for value in ordinals[first:first + size]):
                 continue
@@ -10544,6 +10546,18 @@ def distinct_pass(column, ordinals, pinned, lows, highs, day, step, distinct, wi
             widths, distinct - count, word,
         ) or changed
     return changed
+
+
+def run_room(lows, highs, first, last):
+    """Where the run of ranks ``first`` to ``last`` may move WHOLE (G7.3).
+
+    Inside the gap of every rank of it: the highest of their lower bounds
+    and the lowest of their upper ones.  A body run's ranks share one gap;
+    a tail run's do not, each rank's gap being its own stratum (G7.3b step
+    8), and asked of the run's first rank alone the rest of it went past
+    theirs (the fix pass of landing 3b.0, plan P4-D354).
+    """
+    return max(lows[first:last + 1]), min(highs[first:last + 1])
 
 
 def nearest_held_unit(value, low, high, unit, held, spot, fits):
@@ -10631,10 +10645,11 @@ def traded_merges(column, ordinals, pinned, lows, highs, day, step, unit, held, 
                 ordinals[first] // unit
             ] == last - first + 1:
                 tried = set()
+                room = run_room(lows, highs, first, last)
                 while len(tried) < (TRADE_TARGETS if clock else 1):
                     found = nearest_fitting(
-                        ordinals[first], lows[first], highs[first],
-                        lambda candidate, own=ordinals[first], low=lows[first], high=highs[first], seen=tried: (
+                        ordinals[first], room[0], room[1],
+                        lambda candidate, own=ordinals[first], low=room[0], high=room[1], seen=tried: (
                             candidate // unit not in seen
                             and held.get(candidate // unit, 0) > 0
                             and spot.get(candidate // unit) is not None
@@ -25449,7 +25464,7 @@ def _nonadjacent_merge_restoration():
     spec["why"] = (
         "the merge onto a unit that is not a rank neighbour (plan "
         "P4-D258): a run moves whole onto the nearest held unit of its "
-        "own width kind inside its gap, which the rank just below it and "
+        "own width kind inside the gap of every rank of it, which the rank just below it and "
         "the rank just above it need not be. This case's mutant offers "
         "the neighbours alone, and the runs whose neighbours are of the "
         "other kind stay where they were, so the twin holds more "

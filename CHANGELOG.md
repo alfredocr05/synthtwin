@@ -6,6 +6,19 @@ exists).
 
 ## [Unreleased]
 
+### A run the count pass merges keeps every rank inside its gap (2026-09-26)
+
+**Where the count of different dates is too high**, G7.3 merges a run of
+ranks on one day onto a day ranks already hold, and asked only the run's
+first rank whether that day lay inside its gap. A tail rank's gap is its
+own stratum, so the rest of a tail run went past theirs: 2,469 dates
+over 392 days at floor 36 MISSED their low tail's root-mean-square
+distance at two seeds of two, and two session tables missed a tail
+distance the same way. A run now moves only where every rank of it may
+go (method G7.3, plan P4-D354). Over 600 twins of 300 random date and
+clock columns, 18 ranks outside their gaps and 2 misses go to none, with
+no new miss; nine frozen cases move. `K-S3-39`.
+
 ### Every day of a filled range comes back: a tail's tie group gives way (2026-09-26)
 
 **Where a date column holds a value on every day of its range** the twin

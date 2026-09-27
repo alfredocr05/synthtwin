@@ -5642,15 +5642,25 @@ that way.
   Too many:
   each unpinned run sorted, a run of ranks on one unit holding no pinned
   rank moves whole onto the instant of the rank just below or just
-  above it, where that lies inside its gap and is of the same width kind
-  and midnight standing -- nearest first, then the shorter run, then the
-  lower rank; and, where no such instant exists, onto the nearest
-  instant any rank holds inside its gap of that same standing, earlier
-  before later at one distance (plan P4-D258). **AND WHERE NO UNIT OF
+  above it, where that lies inside its ROOM -- the gap of EVERY rank of
+  the run, from the highest of their lower bounds to the lowest of their
+  upper ones -- and is of the same width kind and midnight standing --
+  nearest first, then the shorter run, then the lower rank; and, where
+  no such instant exists, onto the nearest instant any rank holds
+  inside its room of that same standing, earlier before later at one
+  distance (plan P4-D258). A neighbour's instant is read again when its
+  turn comes and asked again whether it lies in the room. **THE ROOM IS
+  EVERY RANK'S GAP AND NOT THE FIRST'S** (plan P4-D354, the fix pass of
+  landing 3b.0): a body run shares one gap, but a tail rank's gap is its
+  own stratum (G7.3b step 8), and asked of the first rank alone the rest
+  of a tail run went past theirs -- 2,469 dates over 392 days at a floor
+  of 36 missed their low tail's root-mean-square distance at two seeds of
+  two, 5.063 against a window of 4.747 to 5.057, with two ranks a day
+  outside their strata. **AND WHERE NO UNIT OF
   THE RUN'S OWN STANDING LIES IN ITS GAP AT ALL, THE MERGE IS MADE WITH
   A PAYMENT** (plan P4-D258 for the width kind; extended to midnight by
   item 2 of the dates pass of the second Codex round, 2026-09-19). The
-  run moves whole onto the nearest instant ranks hold inside its gap of
+  run moves whole onto the nearest instant ranks hold inside its room of
   the OTHER standing in one respect, and exactly as many ranks elsewhere
   move BETWEEN HELD UNITS the other way -- each leaving a unit other
   ranks still hold, each landing on a unit ranks already hold, each

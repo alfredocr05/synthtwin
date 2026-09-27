@@ -6324,6 +6324,41 @@
      "pinned_nodes_failing": 0
     }
    }
+  },
+  {
+   "id": "K-S3-39",
+   "phase_stage": "Stage 3b landing 3b.0, its fix pass (plan P4-D354)",
+   "category": "STATS",
+   "headline": false,
+   "name": "A run the count pass merges keeps every rank inside its gap",
+   "status": "GREEN",
+   "rule": "the four pinned nodes pass: a year of 2,469 dates over 392 days, a fifth of them empty, described at floor 36, validates at seeds 3 and 8 with nothing missed and every rank but a tail group's inside its gap once the count pass is done; the oracle and the shipped count pass give the method's answer on five hand-built runs (a neighbour, a held unit no neighbour is, a neighbour read again, a held unit looked for inside the room, a trade); and each of four oracle mutants asking the room of the run's first rank turns them red, as every other registered witness mutant turns its own rule red",
+   "rule_kind": "exact",
+   "expected": {
+    "pinned_nodes_failing": 0
+   },
+   "tier": "FAST",
+   "source": "pytest",
+   "nodes": [
+    "tests/test_stage3b_gate.py::test_a_merged_run_keeps_every_rank_inside_its_gap",
+    "tests/test_oracle_rule_witnesses.py::test_the_oracle_gives_the_statement_s_answers",
+    "tests/test_oracle_rule_witnesses.py::test_the_shipped_rule_gives_the_statement_s_answers",
+    "tests/test_oracle_rule_witnesses.py::test_each_witness_fails_when_its_rule_is_broken"
+   ],
+   "test": null,
+   "driver": null,
+   "pin_strength": "EXACT",
+   "measured_on": "tests/test_stage3b_gate.py (the gapped year) and tests/test_oracle_rule_witnesses.py (RUN_MERGES, RUN_TRADES)",
+   "evidence": "e4a5d34, asking the room of a run's first rank alone: 600 twins of 300 random date and clock columns (seeds 3 and 8) left 18 ranks outside their gaps in 9 twins and MISSED a tail distance on 2 (the gapped year's low tail, 5.063 against 4.747 to 5.057); 12 twins of four 1,000-row session tables left 9 ranks outside in 7, hidden by step 9's summed window where d93fd43 MISSED two. After: 0 ranks outside and 0 missed in both, no new miss, every twin's count of different units unchanged; 420 twins of two filled-range batteries unchanged. Nine frozen cases of three vectors files move, each a tail run the pass had merged past a rank's stratum, and the shipped generator writes the rebuilt cells. The generator's asking the first rank alone turns the gapped year, the five shipped rows and the nine cases red.",
+   "nodes_min_collected": 71,
+   "value_at": {
+    "commit": "caf3079",
+    "date": "2026-09-26",
+    "measured_by": "tools/measurements/kpi_run.py --only K-S3-39 --print-values",
+    "value": {
+     "pinned_nodes_failing": 0
+    }
+   }
   }
  ]
 }

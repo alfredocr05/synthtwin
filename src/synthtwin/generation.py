@@ -20495,8 +20495,10 @@ def _units_settled(
        or a second at the column's precision -- less the stand-ins must
        be the published count. Too many: each gap's ranks sorted, a RUN
        of ranks on one unit holding no pinned rank moves whole onto an
-       instant ranks already hold, where that lies inside its gap and is
-       of the same width kind and midnight standing -- nearest first,
+       instant ranks already hold, where that lies inside the gap of
+       every rank of the run (`_run_room`: a tail rank's gap is its own
+       stratum) and is of the same width kind and midnight standing --
+       nearest first,
        then the shorter run, then the lower rank. The instants offered
        are the rank just below it, the rank just above it and the
        nearest held unit of its own kind, which need not be either of
@@ -20964,8 +20966,9 @@ def _distinct_reached(
     if count > wanted:
         _runs_sorted(moved, pinned)
         # A RUN IS EVERY RANK ON ONE UNIT, consecutive once each gap's ranks
-        # are sorted; a run holding no pinned rank lies inside one gap and
-        # may move whole onto the unit just below or just above it.
+        # are sorted; a run holding no pinned rank may move whole onto the
+        # unit just below or just above it where that lies inside the gap
+        # of EVERY rank of the run (`_run_room`).
         # Five parts: how far the move is, how long the run is, where it
         # starts, the instant offered, and WHICH RANK offered it -- the
         # last being -1 for the held unit that is no rank neighbour. A
@@ -20988,12 +20991,13 @@ def _distinct_reached(
                 if pinned[rank]:
                     loose = False
             if loose:
+                lowest, highest = _run_room(lows, highs, first, last)
                 reached: "dict[int, bool]" = {}
                 for other in (first - 1, last + 1):
                     if other < 0 or other >= parsed:
                         continue
                     target = moved[other]
-                    if target < lows[first] or target > highs[first]:
+                    if target < lowest or target > highest:
                         continue
                     if not _same_standing(
                         facts, moved[first], target, day, step, widths, word
@@ -21021,7 +21025,7 @@ def _distinct_reached(
                 # keeps the width count exact was never offered and the
                 # run stayed where it was however many rounds ran.
                 other_unit = _nearest_held_unit(
-                    facts, moved[first], lows[first], highs[first], day, step,
+                    facts, moved[first], lowest, highest, day, step,
                     unit, held, spot, order, widths, word,
                 )
                 if other_unit is not None and other_unit not in reached:
@@ -21046,7 +21050,8 @@ def _distinct_reached(
                 continue
             if target // unit not in held or held[target // unit] <= 0:
                 continue
-            if target < lows[first] or target > highs[first]:
+            lowest, highest = _run_room(lows, highs, first, first + size - 1)
+            if target < lowest or target > highest:
                 continue
             steady = True
             for rank in range(first, first + size):
@@ -21182,7 +21187,8 @@ def _traded_merges(
     exists for it and the twin held four dates however many rounds ran.
 
     So the merge is made WITH ITS PAYMENT: the run moves onto the nearest
-    held unit of the other width kind and the same midnight standing,
+    held unit of the other width kind and the same midnight standing
+    inside the gap of every rank of the run (`_run_room`),
     and exactly as many ranks elsewhere move BETWEEN HELD UNITS the other
     way, each from a unit that keeps other ranks and onto a unit ranks
     already hold. Neither half changes the count of different units, the
@@ -21233,9 +21239,10 @@ def _traded_merges(
                 # item of this round names, so the older trade keeps its
                 # one offer and its one attempt.
                 room = _TRADE_TARGETS if clock else 1
+                lowest, highest = _run_room(lows, highs, first, last)
                 while len(tried) < room:
                     target = _nearest_held_unit(
-                        facts, moved[first], lows[first], highs[first], day,
+                        facts, moved[first], lowest, highest, day,
                         step, unit, held, spot, order, widths, word,
                         not clock, -1, clock, tried,
                     )
@@ -21500,6 +21507,34 @@ def _nearest_free_where(
             if (found == standing) == same:
                 return candidate
         away = away + 1
+
+
+def _run_room(
+    lows: "list[int]", highs: "list[int]", first: int, last: int
+) -> "tuple[int, int]":
+    """Where the run of ranks `first` to `last` may move whole: inside every one's gap.
+
+    A TAIL RANK'S GAP IS ITS OWN STRATUM (G7.3b step 8), so a run of tail
+    ranks on one unit does NOT lie inside one gap, as a run of body ranks
+    between two pins does. The merges of `_distinct_reached` and
+    `_traded_merges` asked the run's FIRST rank alone, and moved the rest
+    past their strata: 2,469 dates over 392 days at a floor of 36 wrote
+    two low-tail ranks a unit outside theirs, and the tail's
+    root-mean-square distance came out 5.063 against a window of 4.747 to
+    5.057, MISSED at seeds 3 and 8, a real table of its own passing; two
+    1,000-row session tables missed a tail distance the same way at seed
+    2. Plan P4-D354, the fix pass of landing 3b.0.
+
+    Guarantees: returns the highest lower bound and the lowest upper
+    bound over the ranks `first` to `last`; a function of its arguments.
+    Raises nothing. No I/O of any kind.
+    """
+    lowest = lows[first]
+    highest = highs[first]
+    for rank in range(first + 1, last + 1):
+        lowest = max(lowest, lows[rank])
+        highest = min(highest, highs[rank])
+    return (lowest, highest)
 
 
 def _runs_sorted(moved: "list[int]", pinned: "list[bool]") -> None:
