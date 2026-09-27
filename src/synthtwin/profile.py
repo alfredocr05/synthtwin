@@ -45,6 +45,7 @@ import importlib.metadata
 import pathlib
 
 from synthtwin import (
+    calendar_rules,
     canonical,
     dialect,
     errors,
@@ -848,6 +849,13 @@ _EMPTY_BIN = "histogram-bin-number-holding-nothing"
 # floored them would read "bin 3" as a group of three.
 _TAIL_PERCENT = "tail-boundary-percent"
 _BIN_INDEX = "histogram-bin-number-of-a-group"
+# THE WEEKDAY CENSUS OF A COLUMN OF DATES (landing 3b.1, plan P4-D355):
+# a group's first and last weekday, Monday 0 to Sunday 6, and its count,
+# nought or at the census line. Which groupings may stand, and whether
+# the census may stand at all, are invariants WC1 to WC8, asked with the
+# block's other facts beside them.
+_WEEKDAY = "a-weekday-number"
+_WEEKDAY_COUNT = "a-weekday-group-count-zero-or-at-the-census-line"
 _SHAPE_FORM = "a-written-form-a-cell-could-not-be-spelled-with"
 _LAYOUT_FORM = "a-layout-a-record-number-could-not-be-spelled-with"
 # The two kinds `layout_prefixes` carries (owner ruling 2026-09-17,
@@ -1637,6 +1645,13 @@ _STATED_RULES: "dict[tuple[str, ...], str]" = {
     ("columns", _EACH, "zulu_case"): _OBJECT,
     ("columns", _EACH, "zulu_case", _KEY_OF): _WORD,
     ("columns", _EACH, "zulu_case", _ANY_KEY): _DISCLOSED_ENTRY,
+    # WHICH DAYS OF THE WEEK THE BODY FALLS ON (landing 3b.1): groups of
+    # weekdays, each counted nought or at the census line.
+    ("columns", _EACH, "weekday_census"): _ARRAY,
+    ("columns", _EACH, "weekday_census", _EACH): _OBJECT,
+    ("columns", _EACH, "weekday_census", _EACH, "first"): _WEEKDAY,
+    ("columns", _EACH, "weekday_census", _EACH, "last"): _WEEKDAY,
+    ("columns", _EACH, "weekday_census", _EACH, "count"): _WEEKDAY_COUNT,
     # The roles that publish no value at all.
     ("columns", _EACH, "min_length"): _COUNT,
     ("columns", _EACH, "max_length"): _COUNT,
@@ -2488,6 +2503,14 @@ def _leaf_is_published(
         if isinstance(value, bool) or not isinstance(value, int):
             return False
         return 0 <= value < parsing.HISTOGRAM_BINS
+    if kind == _WEEKDAY:
+        if isinstance(value, bool) or not isinstance(value, int):
+            return False
+        return 0 <= value < calendar_rules.WEEKDAYS
+    if kind == _WEEKDAY_COUNT:
+        if isinstance(value, bool) or not isinstance(value, int):
+            return False
+        return value == 0 or value >= parsing.census_floor(context.floor)
     if kind == _TAIL_PERCENT:
         if isinstance(value, bool) or not isinstance(value, int):
             return False
@@ -3576,6 +3599,7 @@ def build_document(
     judged_candidates: "dict[str, tuple[str, ...]] | None" = None,
     table_notes: "list[taxonomy.Note] | None" = None,
     readings: "tuple[object, ...]" = (),
+    calendar_censuses: bool = True,
 ) -> dict[str, object]:
     """Describe a whole table: the profile document, ready to serialize.
 
@@ -3719,6 +3743,14 @@ def build_document(
                 continue
             still_waiting += (held,)
         waiting = still_waiting
+        # ONE STORAGE CLASS PER WORKBOOK COLUMN, or no weekday census
+        # (landing 3b.1): a column whose dates are stored partly as dates
+        # and partly as text is read back differently cell by cell.
+        stored_one_way = True
+        if table.sheet is not None and position - 1 < len(table.sheet.classes):
+            stored_one_way = calendar_rules.stored_one_way(
+                table.sheet.classes[position - 1]
+            )
         described = taxonomy.profile_column(
             name,
             position,
@@ -3733,6 +3765,8 @@ def build_document(
             kept_days[name] if name in kept_days else (),
             judged_here[name] if name in judged_here else (),
             handed_over,
+            calendar_censuses,
+            stored_one_way,
         )
         columns += [_column_block(described)]
         absent_spellings += [described.absent_spellings]

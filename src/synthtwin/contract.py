@@ -27,8 +27,9 @@ profile document and nothing else. It never constructs a table path, a
 table handle, a table object or a collection of raw cells, and it
 imports neither the reader nor pandas, directly or through anything it
 does import: `canonical` imports json alone, `errors` and `parsing`
-import nothing outside this package, and `paths` imports os, pathlib,
-sys and typing (plan P2-D1).
+import nothing outside this package -- nor do `calendar_rules` and
+`calendar_certificate`, which import `parsing` alone -- and `paths`
+imports os, pathlib, sys and typing (plan P2-D1).
 
 THE ORDER OF THE CHECKS IS NORMATIVE (contract section 10.1), because it
 decides which message a person sees when a file is wrong in more than
@@ -90,7 +91,14 @@ import json
 import math
 import pathlib
 
-from synthtwin import canonical, dialect, errors, parsing
+from synthtwin import (
+    calendar_certificate,
+    calendar_rules,
+    canonical,
+    dialect,
+    errors,
+    parsing,
+)
 from synthtwin.paths import validate_local_path
 
 # The one version this loader reads. `profile_version` must be exactly
@@ -559,6 +567,10 @@ DATETIME_KEYS = (
     "month_name_styles",
     "quarter_marker_case",
     "zulu_case",
+    # WHICH DAYS OF THE WEEK THE BODY FALLS ON (landing 3b.1, plan
+    # P4-D355, invariants WC1 to WC8): groups of weekdays, empty on every
+    # column that publishes none.
+    "weekday_census",
 )
 
 NUMERIC_KEYS = (
@@ -1567,6 +1579,49 @@ INVARIANTS = {
         "size, names no pool, and is named only when at least the smallest "
         "group size of cells, and never fewer than two, wrote it"
     ),
+    # THE WEEKDAY CENSUS OF A COLUMN OF DATES (landing 3b.1, plan
+    # P4-D355). Its groups count the cells between the two tail
+    # boundaries, both included -- the body.
+    "WC1": (
+        "the groups of a weekday census cover Monday (0) to Sunday (6) "
+        "in order, each weekday exactly once"
+    ),
+    "WC2": (
+        "every group of a weekday census counts nought or at least the "
+        "census line, the smallest group size and never fewer than two"
+    ),
+    "WC3": (
+        "a weekday census stands only on a column of whole dates read on "
+        "the local clock, not in the joint member, with both tails, and "
+        "its groups add up to the values between the two tail boundaries"
+    ),
+    "WC4": (
+        "a weekday census is one of three groupings -- each weekday on its "
+        "own; Monday to Friday on their own with Saturday and Sunday "
+        "together; or Monday to Friday together and Saturday and Sunday "
+        "together -- chosen by the census line alone"
+    ),
+    "WC5": (
+        "no group of a weekday census is left holding one to the census "
+        "line less one once the rows its boundary and rung days hold for "
+        "certain are taken out"
+    ),
+    "WC6": (
+        "a weekday census stands only where the censuses of written forms "
+        "give every date one text, so that different values count "
+        "different days"
+    ),
+    "WC7": (
+        "every non-zero group of a weekday census can hold at least four "
+        "dates besides its boundary and rung days, so no group is the "
+        "count of a few single dates"
+    ),
+    "WC8": (
+        "every day of a weekday the census counts can hold at least the "
+        "census line in some table meeting the whole description, or lies "
+        "where the rank facts already hold it below the line and the "
+        "census allows everything stage 3's facts allow there"
+    ),
     "Q1": (
         "the row count a column of numbers repeats is the row count of "
         "the table"
@@ -2519,6 +2574,11 @@ class DatetimeFacts:
         default_factory=dict
     )
     zulu_case: "dict[str, int]" = dataclasses.field(default_factory=dict)
+    # WHICH DAYS OF THE WEEK THE BODY FALLS ON (landing 3b.1, plan
+    # P4-D355): `(first, last, count)` per group, Monday 0 to Sunday 6,
+    # counting the cells between the two tail boundaries, both included.
+    # Empty where the column publishes no census.
+    weekday_census: "tuple[tuple[int, int, int], ...]" = ()
 
 
 @dataclasses.dataclass(frozen=True)
@@ -7031,7 +7091,9 @@ def _facts(
         )
         return tail
     if role == ROLE_DATETIME:
-        return _datetime_facts(mapping, where, frame.floor, n_present)
+        return _datetime_facts(
+            mapping, where, frame.floor, n_present, n_distinct
+        )
     if role == ROLE_COUNT or role == ROLE_CONTINUOUS:
         numeric = _numeric_facts(
             mapping,
@@ -8134,7 +8196,11 @@ def _resolution_mix(
 
 
 def _datetime_facts(
-    mapping: "dict[str, object]", where: str, floor: int, n_present: int
+    mapping: "dict[str, object]",
+    where: str,
+    floor: int,
+    n_present: int,
+    n_distinct: int = 0,
 ) -> DatetimeFacts:
     """A column of dates and times (contract 6.6.2).
 
@@ -8472,6 +8538,25 @@ def _datetime_facts(
                 f"{mix['iso-date']} values are counted as whole dates",
                 f"only {without} values are counted with no offset",
             )
+    weekdays = _weekday_census(
+        mapping["weekday_census"],
+        where,
+        floor,
+        n_present - unparsed,
+        n_distinct,
+        unparsed,
+        (parser_family, resolution, clock),
+        low,
+        high,
+        ladder,
+        {
+            "datetime_separators": separators,
+            "date_field_widths": widths,
+            "month_name_styles": name_styles,
+            "quarter_marker_case": markers,
+            "zulu_case": zulu,
+        },
+    )
     return DatetimeFacts(
         parser_family=parser_family,
         resolution=resolution,
@@ -8492,7 +8577,101 @@ def _datetime_facts(
         month_name_styles=name_styles,
         quarter_marker_case=markers,
         zulu_case=zulu,
+        weekday_census=weekdays,
     )
+
+
+def _weekday_census(
+    value: object,
+    where: str,
+    floor: int,
+    parsed: int,
+    n_distinct: int,
+    unparsed: int,
+    reading: "tuple[str, str, str]",
+    low: "TailFacts | None",
+    high: "TailFacts | None",
+    ladder: DateLadder,
+    forms: "dict[str, dict[str, int]]",
+) -> "tuple[tuple[int, int, int], ...]":
+    """A column's `weekday_census`, read and held to WC1 to WC8 (landing 3b.1).
+
+    `reading` is the column's parser family, resolution and clock. An
+    empty census is always legal. A published one must stand on a column
+    of whole dates read on the local clock, not in the joint member,
+    with both tails (WC3); then `calendar_certificate.breach` asks every
+    other rule on the reader's own numbers -- the groups' shape, the
+    floor, the body, the menu, one spelling per day, the knot days' sure
+    cells, no few-date group and the full-fill certificate -- and the
+    first broken one is refused by name.
+
+    Guarantees: accepts the value and the facts beside it; returns the
+    groups as `(first, last, count)`. Raises ProfileError for a wrong
+    type and for any broken rule. No I/O of any kind.
+    """
+    groups = _listing(value, "weekday_census", where)
+    found: "list[tuple[int, int, int]]" = []
+    for entry in groups:
+        group = _mapping(entry, "weekday_census", where)
+        _keys(group, where, ("count", "first", "last"), "every weekday group")
+        found += [
+            (
+                _whole(group["first"], "weekday_census -> first", where, 0),
+                _whole(group["last"], "weekday_census -> last", where, 0),
+                _whole(group["count"], "weekday_census -> count", where, 0),
+            )
+        ]
+    if not found:
+        return ()
+    parser_family, resolution, clock = reading
+    if (
+        resolution != "date"
+        or clock != "local"
+        or parser_family == FORMAT_ISO_MIXED
+        or low is None
+        or high is None
+    ):
+        raise _broken(
+            "WC3",
+            where,
+            "a weekday census is published",
+            "only a column of whole dates read on the local clock, not in "
+            "the joint member, and with both tails publishes one",
+        )
+    rungs: "list[tuple[int, int]]" = []
+    for index in range(len(LADDER_KEYS)):
+        rung = ladder.rungs[index]
+        if rung is None:
+            continue
+        percent = LADDER_PERCENTS[index]
+        rank = min(parsed - 1, ((parsed - 1) * percent) // 100)
+        rungs += [(rank, _day_number(rung))]
+    listed_low = len(low.values) if low.values is not None else -1
+    listed_high = len(high.values) if high.values is not None else -1
+    fewest, most = calendar_certificate.reader_days(
+        n_distinct, unparsed, low.rows, listed_low, high.rows, listed_high
+    )
+    broken = calendar_certificate.breach(
+        tuple(found),
+        parsed,
+        low.rows,
+        high.rows,
+        _day_number(low.boundary),
+        _day_number(high.boundary),
+        tuple(rungs),
+        fewest,
+        most,
+        parsing.census_floor(floor),
+        calendar_rules.one_spelling_published(forms, parser_family, parsed),
+    )
+    if broken is not None:
+        raise _broken(broken[0], where, broken[1], broken[2])
+    return tuple(found)
+
+
+def _day_number(text: str) -> int:
+    """The day number of a canonical date text, counted from 1970-01-01."""
+    return parsing.days_from_civil(int(text[0:4]), int(text[5:7]), int(text[8:10]))
 
 
 def _joint_offsets_name_no_row(

@@ -161,7 +161,16 @@ import math
 from synthtwin.paths import validate_local_path
 import pathlib
 
-from synthtwin import contract, dialect, errors, parsing, profile, reading, taxonomy
+from synthtwin import (
+    calendar_rules,
+    contract,
+    dialect,
+    errors,
+    parsing,
+    profile,
+    reading,
+    taxonomy,
+)
 
 
 # ONE UNIT IN THE LAST PLACE, AWAY FROM ZERO (review item P4-G6-R6-F1).
@@ -4943,6 +4952,11 @@ def measure(
             described_pairs,
             kept_placeholder_days=kept_days,
             judged_candidates=judged_here,
+            # THE FILE'S WEEKDAY CENSUS IS NEVER PRODUCED HERE (landing
+            # 3b.1): `_weekday_checks` counts the file's body against the
+            # PUBLISHED groups, so the certificate would be paid for a
+            # census nothing reads.
+            calendar_censuses=False,
         )
         over_the_split = profile.build_document(
             table,
@@ -4955,6 +4969,11 @@ def measure(
             described_pairs,
             kept_placeholder_days=kept_days,
             judged_candidates=judged_here,
+            # THE FILE'S WEEKDAY CENSUS IS NEVER PRODUCED HERE (landing
+            # 3b.1): `_weekday_checks` counts the file's body against the
+            # PUBLISHED groups, so the certificate would be paid for a
+            # census nothing reads.
+            calendar_censuses=False,
         )
     except MemoryError as error:
         raise errors.ProfileError(
@@ -17321,7 +17340,111 @@ def _datetime_checks(
     checks = checks + _date_ladder_checks(
         column, facts, block, floor, date_system
     )
+    checks = checks + _weekday_checks(column, facts, block, floor, cells)
     return checks
+
+
+# The names a weekday census's groups are printed with, Monday first.
+_WEEKDAY_NAMES = (
+    "Monday",
+    "Tuesday",
+    "Wednesday",
+    "Thursday",
+    "Friday",
+    "Saturday",
+    "Sunday",
+)
+
+
+def _weekday_group_named(first: int, last: int) -> str:
+    """A group of weekdays as the report names it."""
+    if first == last:
+        return _WEEKDAY_NAMES[first]
+    return f"{_WEEKDAY_NAMES[first]} to {_WEEKDAY_NAMES[last]}"
+
+
+def _weekday_checks(
+    column: contract.ColumnBlock,
+    facts: contract.DatetimeFacts,
+    block: "dict[str, object]",
+    floor: int,
+    cells: "list[str]",
+) -> "list[Check]":
+    """The weekday census, held exactly (landing 3b.1, validation V5-W1).
+
+    The file's own BODY -- its dates between the two PUBLISHED tail
+    boundaries, both included, less the days its own description reads
+    as holes (`_dates_the_file_reads`) -- counted per weekday and per
+    published group. HELD where every group holds its count, MISSED
+    otherwise. The file's census is counted here, from its cells, and
+    never produced: the validator's re-description of the file skips the
+    census producer (`profile.build_document`'s `calendar_censuses`), so
+    no validate run enters the calendar certificate.
+
+    A MISSED LINE KEEPS ITS VERDICT AND DROPS ANY NUMBER BELOW THE LINE
+    (plan P4-D347): a group the file holds one to the line less one of
+    is printed "fewer than" the line, and the note says so.
+
+    Guarantees: accepts the column, its facts, the file's own block, the
+    floor and the file's cells; returns one check where a census is
+    published and none otherwise. Determinism: a function of the
+    arguments. Raises nothing. No I/O of any kind.
+    """
+    census = facts.weekday_census
+    if not census or facts.low_tail is None or facts.high_tail is None:
+        return []
+    low = _weekday_day(facts.low_tail.boundary)
+    high = _weekday_day(facts.high_tail.boundary)
+    bins = [0 for _ in range(calendar_rules.WEEKDAYS)]
+    for cell in _dates_the_file_reads(block, facts, cells):
+        read = parsing.parse_datetime(cell, facts.parser_family)
+        if read is None:
+            continue
+        day = _weekday_day(read[0])
+        if low <= day <= high:
+            weekday = calendar_rules.weekday_of(day)
+            bins[weekday] = bins[weekday] + 1
+    found = calendar_rules.group_counts(census, bins)
+    line = parsing.census_floor(floor)
+    asked = ""
+    shown = ""
+    dropped = False
+    for index in range(len(census)):
+        first, last, count = census[index]
+        named = _weekday_group_named(first, last)
+        between = ", " if index else ""
+        asked = f"{asked}{between}{named} {_shown_count(count)}"
+        held = found[index]
+        if 0 < held < line:
+            shown = f"{shown}{between}{named} {_below_the_floor(line)}"
+            dropped = True
+        else:
+            shown = f"{shown}{between}{named} {_shown_count(held)}"
+    wanted = [count for _first, _last, count in census]
+    note: "tuple[str, ...]" = ()
+    if dropped:
+        note = (
+            f"A group this file holds fewer than {line} of is not "
+            "counted out: the description's own floor keeps that number "
+            "back, and the verdict stands without it.",
+        )
+    return [
+        Check(
+            column.name,
+            "datetime.weekday_census",
+            "weekday_census.groups",
+            HELD if found == wanted else MISSED,
+            asked,
+            shown,
+            "",
+            note,
+        )
+    ]
+
+
+def _weekday_day(text: str) -> int:
+    """The day number of a canonical date or moment text."""
+    return parsing.days_from_civil(int(text[0:4]), int(text[5:7]), int(text[8:10]))
 
 
 def _mixed_forms_unwritten(facts: contract.DatetimeFacts) -> bool:

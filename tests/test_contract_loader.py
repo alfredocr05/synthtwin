@@ -338,6 +338,13 @@ def edit_in(_place: str, **changes: object) -> Change:
     return change
 
 
+def edit_weekdays(_column: str, _group: int, count: int) -> Change:
+    """Replace one group's count of a column's weekday census."""
+    def change(document: Document) -> None:
+        at(document, _column)["weekday_census"][_group]["count"] = count
+    return change
+
+
 def edit_inside(_column: str, _key: str, **changes: object) -> Change:
     """Replace keys inside one block of one column."""
     def change(document: Document) -> None:
@@ -1423,6 +1430,86 @@ def battery() -> list[Mutation]:
         Mutation(
             "D20", "a zulu-case census where no zulu offset is named",
             edit("recorded_on", zulu_case={"upper": 12}),
+        ),
+        # THE WEEKDAY CENSUS, landing 3b.1 (plan P4-D355). `recorded_on`
+        # publishes the seven weekday counts of its 217 body values,
+        # Monday first: 30, 27, 33, 36, 30, 26 and 35. Its knot days --
+        # the two boundaries and five rungs -- fall four on a Wednesday,
+        # two rows for certain on the Thursday the high boundary and the
+        # 95th rung share, and one each on a Tuesday and a Saturday.
+        Mutation(
+            "WC1", "a weekday census whose groups run out of order",
+            edit(
+                "recorded_on",
+                weekday_census=[
+                    {"first": 1, "last": 1, "count": 27},
+                    {"first": 0, "last": 0, "count": 30},
+                    {"first": 2, "last": 6, "count": 160},
+                ],
+            ),
+        ),
+        Mutation(
+            "WC2", "a weekday group counting fewer than the census line",
+            edit(
+                "recorded_on",
+                weekday_census=[
+                    {"first": 0, "last": 0, "count": 5},
+                    {"first": 1, "last": 6, "count": 212},
+                ],
+            ),
+        ),
+        Mutation(
+            "WC3", "a weekday census on a column of moments",
+            edit(
+                "logged_at",
+                weekday_census=[{"first": 0, "last": 6, "count": 218}],
+            ),
+        ),
+        Mutation(
+            "WC3", "weekday counts adding to more than the body",
+            edit_weekdays("recorded_on", 0, 31),
+        ),
+        Mutation(
+            "WC4", "a grouping of weekdays the census never uses",
+            edit(
+                "recorded_on",
+                weekday_census=[
+                    {"first": 0, "last": 1, "count": 57},
+                    {"first": 2, "last": 6, "count": 160},
+                ],
+            ),
+        ),
+        Mutation(
+            "WC5", "a Wednesday count its four knot days leave short",
+            edit(
+                "recorded_on",
+                weekday_census=[
+                    {"first": 0, "last": 0, "count": 51},
+                    {"first": 1, "last": 1, "count": 27},
+                    {"first": 2, "last": 2, "count": 12},
+                    {"first": 3, "last": 3, "count": 36},
+                    {"first": 4, "last": 4, "count": 30},
+                    {"first": 5, "last": 5, "count": 26},
+                    {"first": 6, "last": 6, "count": 35},
+                ],
+            ),
+        ),
+        Mutation(
+            "WC6", "a weekday census beside dates written two widths",
+            edit(
+                "recorded_on",
+                format="month-first-date",
+                resolution_mix={"month-first-date": 240},
+                date_field_widths={"padded": 117, "unpadded": 123},
+            ),
+        ),
+        Mutation(
+            "WC7", "a weekday group a reader holds to a few dates",
+            edit("recorded_on", n_distinct=13, n_distinct_folded=13),
+        ),
+        Mutation(
+            "WC8", "a weekday census beside dates that never repeat",
+            edit("recorded_on", n_distinct=240, n_distinct_folded=240),
         ),
         # -- the numeric roles ----------------------------------------
         Mutation("Q1", "a row count of its own", edit("visits", n_rows=5)),
