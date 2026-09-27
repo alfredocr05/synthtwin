@@ -204,6 +204,16 @@ though it existed:
   obligation is a defect and not a shorthand, and the seventh family of
   the claim inventory in `tests/test_claim_inventory.py` turns the
   suite red on it.
+- A reader can rebuild some or all of a column's OWN values from its
+  description on the shapes the KPI ledger names - through the exact
+  skew and kurtosis beside a published tail pair (`K-S3-17`), by
+  subtraction from the exact mean and spread beside a published pair
+  or a tail that lists its values (`K-S3-21`, `K-S3-23`), and from the
+  whole description where the count of different values, the mode's
+  count, the sign counts and the rungs pin the column (`K-S3-24`) -
+  but never which row holds one and never anything about another
+  column, and the owner accepted each of these limits on 2026-09-25
+  and 2026-09-26.
 - The offline guarantee is a property of the code, verified by source
   audit and scans - it is not an OS-level sandbox. Institutions that
   require enforcement run the tool inside their own network-isolated

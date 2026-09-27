@@ -199,10 +199,15 @@ def test_a_column_whose_pair_would_be_read_back_publishes_neither_distance(
         ("minutes", _consecutive_minutes(240)),
     ],
 )
-def test_no_tail_of_those_columns_is_settled_by_the_whole_description(
+def test_no_tail_of_those_columns_is_settled_by_the_tail_walk(
     tmp_path: pathlib.Path, name: str, cells: "list[str]"
 ) -> None:
-    """The reader's own walk, with every fact the description publishes."""
+    """The reader's own tail walk, with every fact the description publishes beside a pair.
+
+    A claim about the PAIR: the whole description, with no pair at all,
+    still gives every value of the integer column back (ledger entry
+    `K-S3-24`, the owner's answer 8 of 2026-09-26, "Accept both").
+    """
     driver = _driver()
     described = _described(tmp_path, name, cells)
     block = described.document["columns"][0]

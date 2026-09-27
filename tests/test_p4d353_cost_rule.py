@@ -20,9 +20,9 @@ own windows before it asserts what the rule did:
 * where no pair keeps either moment none is published, and where one
   keeps a single moment it is;
 * where closing the complement costs nothing it stays closed;
-* no tail cell the construction writes is a stand-in number: not the
-  derived end (method G5.3b step 5, on both of its paths), not a row
-  of the staircase -- and no value G6.6's width walk moves either.
+* no derived end is a stand-in number (method G5.3b step 5, on both of
+  its paths), no row of the staircase, and no value G6.6's width walk
+  moves. G6.5a's separation walk is not held to it (plan P4-D353 part 4).
 
 Every table is built at test time from a fixed seed string; no
 data-format file enters the repository (plan D13).
@@ -324,7 +324,7 @@ def test_the_complement_stays_closed_where_closing_it_is_free(tmp_path: pathlib.
     assert window.missed(block, 11) == []
 
 
-# -- 6. no tail cell the construction writes is a stand-in number -----------
+# -- 6. no derived end, staircase row or width-walk value is a stand-in ------
 #
 # Plan P4-D353 part 4. `9999`, `-999` and `-9999` are the numbers the
 # profiler reads as "no value" where they stand out from a column, and a

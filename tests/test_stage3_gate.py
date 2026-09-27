@@ -1893,7 +1893,7 @@ def attacked(tmp_path_factory: pytest.TempPathFactory) -> "dict[str, Case]":
 
 
 def _reader_settles(block: "dict", driver: object) -> int:
-    """How many of one block's tails the WHOLE description settles.
+    """How many of one block's published tails the driver's walk settles.
 
     The driver's own walk, asked with the facts a reader of that
     description holds beside a tail's three numbers: for a numeric block
@@ -1997,7 +1997,7 @@ def test_no_reconstruction_attack_names_a_value_one_row_holds(
 def test_no_reconstruction_attack_has_a_tail_the_description_settles(
     attacked: "dict[str, Case]", name: str
 ) -> None:
-    """THE ARITHMETIC HALF, with the whole description in the reader's hands.
+    """THE ARITHMETIC HALF: the tail walk, with the facts beside each pair in the reader's hands.
 
     The integers 0 to 1100 once each published eleven rows, a mean
     distance of 6 and a root-mean-square of root-46 on each side, and the
@@ -2006,11 +2006,18 @@ def test_no_reconstruction_attack_has_a_tail_the_description_settles(
     came back exactly. Measured with the driver's own walk before the fix:
     each side admitted ONE multiset with the remark and 64 without it.
 
-    THE EIGHT STILL SETTLE NOTHING, and since plan P4-D353 the reason is
-    `test_a_settled_pair_is_published_only_where_withholding_it_costs`:
+    NO TAIL OF THE EIGHT IS SETTLED BY THIS WALK, and since plan P4-D353
+    the reason is `test_a_settled_pair_is_published_only_where_withholding_it_costs`:
     a pair the walk settles is published only where withholding it would
     leave the column's mean or spread window short, and on none of these
-    eight does it.
+    eight does it. THAT IS A CLAIM ABOUT THE PAIR AND NOT ABOUT THE
+    COLUMN: with no pair at all, the whole description -- the exact mean
+    and spread, the rungs, the count of different values, the mode's
+    count and the sign counts -- gives back every value of two of them,
+    `integers_0_to_1100` and `heap_then_one_far`, 1100 among them. The
+    owner accepted that on 2026-09-26 (answer 8, "Accept both"):
+    `test_the_whole_description_rebuild_which_the_owner_accepted`,
+    ledger entry `K-S3-24`.
     """
     driver = _tail_leak_driver()
     case = attacked[name]
@@ -2183,6 +2190,41 @@ def test_the_skew_and_kurtosis_rebuild_which_the_owner_accepted(
     )
     entry = kpi_rules.entries_by_id(kpi_rules.load_ledger())["K-S3-17"]
     assert read["values_rebuilt"] <= entry["expected"]["values_rebuilt"]
+
+
+def test_the_whole_description_rebuild_which_the_owner_accepted(
+    attacked: "dict[str, Case]",
+) -> None:
+    """THE LIMIT, MEASURED HERE AND HELD AT A CEILING BY `K-S3-24`.
+
+    The owner's answer 8 of 2026-09-26, "Accept both", given after asking
+    how much it shows about the RELATION of the data and being told: a
+    column's own values and their row counts, never which row, never
+    another column. Where the count of different values, the mode's
+    count, the sign counts and the rungs pin a column, its exact mean and
+    spread give every value back although both tails withhold their
+    pairs. `complement_reader.whole_description` reads two of the eight
+    attacks whole at this floor, each one-row maximum among the values.
+    A landing that closed the limit would make the first assertion fail,
+    which is the right way for it to be noticed.
+    """
+    import complement_reader as columns
+
+    entry = kpi_rules.entries_by_id(kpi_rules.load_ledger())["K-S3-24"]
+    for name in ("integers_0_to_1100", "heap_then_one_far"):
+        case = attacked[name]
+        block = case.document["columns"][0]
+        tails = block["tails"]
+        assert [side for side in ("low", "high") if tails[side]["mean_distance"] is not None] == [], (
+            f"premise: {name} publishes no tail pair at this floor"
+        )
+        read = columns.whole_description(block, sorted(int(cell) for cell in case.cells["value"]))
+        assert read["read"] == "whole" and read["maximum_named"], (
+            f"{name}: the whole description no longer gives the column back ({read['read']}): "
+            "the limit `K-S3-24` records has closed, so that entry and plan decision P4-D353 "
+            "are out of date"
+        )
+        assert read["values_rebuilt"] <= entry["expected"]["values_rebuilt"]
 
 
 def test_the_reconstruction_gate_turns_red_when_the_pair_goes_back(

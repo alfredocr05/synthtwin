@@ -229,7 +229,16 @@ Stated here so that no reader has to discover them independently:
   values the tail holds. So the honest inventory of exact values a
   numeric block carries is the tail boundaries, any end a group shares,
   `empty_edges` below, and the written-form extremes the owner kept
-  published on 2026-09-22.
+  published on 2026-09-22. **That is what it carries, not what it
+  gives back.** On some shapes the rest of the block -- its exact
+  mean, spread, skew and kurtosis beside its steps, its count of
+  different values, its commonest value's count and its sign counts --
+  lets a reader work some or all of the column's own values out, a
+  one-row extreme among them: every value of the whole numbers 0 to
+  1,100 written once comes back. Never which row holds one, and nothing
+  about another column; the owner accepted each such case on 2026-09-25
+  and 26, and the KPI ledger holds them at a ceiling (`K-S3-17`,
+  `K-S3-21`, `K-S3-23`, `K-S3-24`).
 
   **AND `empty_edges` PUTS MORE THERE, which is stated with its real
   ceiling rather than by comparison** (owner ruling 2026-09-04, plan
@@ -363,7 +372,9 @@ Stated here so that no reader has to discover them independently:
   rows, the two distances, the grid, the space's edges and the column's
   own remark that every value in it is different leave one possible set
   of distances, that set names every outer cell exactly, so the tail
-  publishes its boundary and its row count and stops. What that costs
+  publishes its boundary and its row count and stops -- unless
+  withholding them would cost the twin the column's mean or spread,
+  where they are published anyway (owner, 2026-09-25). What that costs
   the twin is measured and recorded rather than claimed away. An end at
   least that many rows share is published as itself, because it is a
   value of a group. A tail may

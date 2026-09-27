@@ -1666,27 +1666,24 @@ def derived_end(column, side, boundary, shape, low, published):
     """
     if heaped_end(published) is not None:
         return published
-    listed = list(side["values"])
-    if listed:
-        return listed[0] if low else listed[len(listed) - 1]
-    if tail_withheld(side):
-        narrow = tail_figures(column)
-        return off_the_stand_ins(
-            end_sign_held(
-                withheld_step(boundary, side["rows"], low, narrow),
-                low,
-                boundary,
-                column,
-                narrow,
-            ),
-            low,
-            boundary,
-            narrow,
-        )
+    if side["values"]:
+        return side["values"][0] if low else side["values"][len(side["values"]) - 1]
+    return (withheld_end if tail_withheld(side) else fitted_end)(column, side, boundary, shape, low)
+
+
+def fitted_end(column, side, boundary, shape, low):
+    """G5.3b step 4, then step 5: the end of a tail read through its fitted shape.
+
+    The shape read at the outermost row's own share, moved outward, held
+    inside the tail's own bound, placed on the column's grid, stepped one
+    grid step toward `b` where the grid put it past that bound, then the
+    last three in the method's order (`held_end`) and off the stand-in
+    numbers.
+    """
     mean = side["mean_distance"]
-    root = side["rms_distance"]
     if not mean > 0.0:
         return boundary
+    root = side["rms_distance"]
     rows = side["rows"]
     width = 2 * rows
     reach = shape_at(math.ldexp(((width - 1) << 53) // width, -53), shape)
@@ -1702,12 +1699,20 @@ def derived_end(column, side, boundary, shape, low, published):
     if figures != -1 and abs(placed - boundary) > bound * (1.0 + 1e-12):
         step = tail_unit(figures)
         placed = tail_grid(placed + step if low else placed - step, figures)
-    return off_the_stand_ins(
-        held_end(placed, low, boundary, column, figures, mean),
-        low,
-        boundary,
-        figures,
-    )
+    held = held_end(placed, low, boundary, column, figures, mean)
+    return off_the_stand_ins(held, low, boundary, figures)
+
+
+def withheld_end(column, side, boundary, _shape, low):
+    """G5.3b step 2a, then step 5: the end of a tail publishing NEITHER distance.
+
+    `m` grid steps past the boundary (plan P4-D349), held to the sign
+    counts, and then off the stand-in numbers like every derived end.
+    """
+    narrow = tail_figures(column)
+    stepped = withheld_step(boundary, side["rows"], low, narrow)
+    held = end_sign_held(stepped, low, boundary, column, narrow)
+    return off_the_stand_ins(held, low, boundary, narrow)
 
 
 def off_the_stand_ins(value, low, boundary, figures):
@@ -1717,22 +1722,14 @@ def off_the_stand_ins(value, low, boundary, figures):
     gave the end, where it equals one of the three numbers the profiler
     reads as a stand-in for "no value" it moves ONE step of step 4's grid
     toward the boundary -- the next number this format holds where no
-    width is named -- and never past the boundary. The comparison is
-    exact (`NUMERIC_SENTINELS` are fractions).
+    width is named, which is `withheld_step` taken the other way -- and
+    never past the boundary. The comparison is exact
+    (`NUMERIC_SENTINELS` are fractions).
     """
-    if value == boundary:
+    if value == boundary or fractions.Fraction(value) not in NUMERIC_SENTINELS:
         return value
-    if fractions.Fraction(value) not in NUMERIC_SENTINELS:
-        return value
-    if figures == -1:
-        moved = next_representable(abs(value), (not low) == (value > 0))
-        moved = moved if value > 0 else -moved
-    else:
-        unit = tail_unit(figures)
-        moved = tail_grid(value + unit if low else value - unit, figures)
-    if (moved > boundary) if low else (moved < boundary):
-        return value
-    return moved
+    inside = withheld_step(value, 1, not low, figures)
+    return value if (inside > boundary if low else inside < boundary) else inside
 
 
 def shared_unit(values):

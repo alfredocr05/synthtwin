@@ -1527,6 +1527,48 @@ def test_k_s3_23(record_property, tmp_path: pathlib.Path) -> None:
     )
 
 
+def test_k_s3_24(record_property, tmp_path: pathlib.Path) -> None:
+    """P4-D353, the owner's answer 8: what the WHOLE description gives back with no tail pair.
+
+    Over the gate's eight reconstruction attacks and skeptic A2's five
+    columns at floors 11, 20, 36 and 50, four numbers come back from
+    `complement_reader.whole_description`: the values it gives back
+    exactly, the column-floors it rebuilds whole, those whose one-row
+    maximum it names, and how many column-floors were read.
+    """
+    import complement_reader as columns
+    import test_stage3_gate as gate
+
+    rebuilt = 0
+    whole = 0
+    maxima = 0
+    shapes = 0
+    for name, cells in list(gate.RECONSTRUCTIONS) + list(columns.WHOLE_DESCRIPTION_FAMILY):
+        numbers: "list[int]" = []
+        for cell in cells:
+            if cell.lstrip("-").isdigit():
+                numbers += [int(cell)]
+        for floor in (11, 20, 36, 50):
+            block = S.describe(
+                tmp_path / f"{name}-{floor}", name, "value\n" + "\n".join(cells) + "\n", floor
+            ).document["columns"][0]
+            read = columns.whole_description(block, sorted(numbers))
+            rebuilt += read["values_rebuilt"]
+            whole += 1 if read["read"] == "whole" else 0
+            maxima += 1 if read["maximum_named"] else 0
+            shapes += 1
+    _kpi(
+        record_property,
+        "K-S3-24",
+        {
+            "values_rebuilt": rebuilt,
+            "columns_rebuilt_whole": whole,
+            "maxima_named": maxima,
+            "shapes": shapes,
+        },
+    )
+
+
 def test_k_s3_16(record_property, tmp_path: pathlib.Path) -> None:
     """P4-D352: a census of marks that is only a pool is written, named and checked.
 

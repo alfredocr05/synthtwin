@@ -6375,7 +6375,7 @@
    "headline": false,
    "name": "Where withholding both pairs costs the twin nothing, one withheld tail withholds the other's pair, and what that costs the checker",
    "status": "GREEN",
-   "rule": "over the three columns on which the cross-side rule stands -- the review's rung-chained column at seed 4 (102 rows) at a floor of eleven, heap_then_one_far at eleven, and 1,500 all-different whole numbers drawn uniformly at twenty -- count the published descriptions that withhold both pairs, which may not fall. And over the four files of tests/test_p4d349_tail_reconstruction.py::CHECKER_BOUND_FILES, checked at eleven against a description publishing a heaped end -- eleven cells stepping ten apart beyond it, beside the file's own other tail as a run of consecutive whole numbers and as uneven steps, at the minimum and at the maximum -- count the P4-D349 bounds on that end left WITHHELD, which may not rise, and MISSED, which may not fall. The complement reader reads no block that withholds both pairs, so no count of values is kept",
+   "rule": "over the three columns on which the cross-side rule stands -- the review's rung-chained column at seed 4 (102 rows) at a floor of eleven, heap_then_one_far at eleven, and 1,500 all-different whole numbers drawn uniformly at twenty -- count the published descriptions that withhold both pairs, which may not fall. And over the four files of tests/test_p4d349_tail_reconstruction.py::CHECKER_BOUND_FILES, checked at eleven against a description publishing a heaped end -- eleven cells stepping ten apart beyond it, beside the file's own other tail as a run of consecutive whole numbers and as uneven steps, at the minimum and at the maximum -- count the P4-D349 bounds on that end left WITHHELD, which may not rise, and MISSED, which may not fall. The complement reader reads no block that withholds both pairs, so no count of values is kept here: a closure closes the subtraction beside a pair and not every reading (what the whole description still gives back is K-S3-24)",
    "rule_kind": "exact",
    "expected": {
     "closures_standing": 3,
@@ -6398,7 +6398,7 @@
    "driver": null,
    "pin_strength": "EXACT",
    "measured_on": "tests/complement_reader.py's rung-chained column at seed 4, tests/test_stage3_gate.py's heap_then_one_far and the whole-uniform all-different 1,500-row column, each described once; the four checker files, each checked once against its heaped-end description",
-   "evidence": "3 closures stand. e294a82, this landing's base, published the open low pair beside the withheld high run on the rung-chained column, and complement_reader.by_subtraction named its 12 high values; that reader answers n/a on a block withholding both pairs, so it measures no closure. On each, withholding both pairs leaves the column's windows of its mean and spread on their values, so the cost rule offers nothing back. WHAT IT COSTS THE CHECKER (plan P4-D353, 'Measured'): a checked file whose own other tail is a run has its own near pair withheld beside it, so the bound on the heaped end has nothing to be drawn from -- WITHHELD on 2 of the 4 files, where e294a82 said MISSED on all 4; the files with uneven steps are still MISSED.",
+   "evidence": "3 closures stand against the subtraction; with no pair at all the whole-description reader of K-S3-24 still rebuilds heap_then_one_far at eleven, its one-row maximum 1100 among the values. e294a82, this landing's base, published the open low pair beside the withheld high run on the rung-chained column, and complement_reader.by_subtraction named its 12 high values; that reader answers n/a on a block withholding both pairs, so it measures no closure. On each, withholding both pairs leaves the column's windows of its mean and spread on their values, so the cost rule offers nothing back. WHAT IT COSTS THE CHECKER (plan P4-D353, 'Measured'): a checked file whose own other tail is a run has its own near pair withheld beside it, so the bound on the heaped end has nothing to be drawn from -- WITHHELD on 2 of the 4 files, where e294a82 said MISSED on all 4; the files with uneven steps are still MISSED.",
    "nodes_min_collected": 2,
    "value_at": {
     "commit": "e760d27",
@@ -6547,11 +6547,11 @@
   },
   {
    "id": "K-S3-23",
-   "phase_stage": "Stage 3's follow-up A (plan P4-D353, part 2), a listed tail beside a withheld one",
+   "phase_stage": "Stage 3's follow-up A, the owner's accepted limit of 2026-09-26 (plan P4-D353, answer 8)",
    "category": "PRIVACY",
    "headline": false,
    "name": "Withheld tail values the column's exact mean and spread give back beside a LISTED tail",
-   "status": "OPEN",
+   "status": "ACCEPTED_LIMIT",
    "rule": "over six seeded scales of few values beside ONE far cell -- Likert 1 to 5 at 150 rows beside 19 and beside -9 and at 400 rows beside 23, ages 18 to 29 at 400 rows beside 97, a pain score of 0 to 10 beside 37 and a scale of 0 to 10 beside -25 at 400 rows -- each at floors eleven, twenty and thirty-six, count the withheld tail values a reader names by SUBTRACTION from the column's exact mean and spread beside a tail that LISTS its values (tests/complement_reader.py::beside_a_list: the listed tail's sums from its own pair, the interior from the rungs and order alone), and the column-floors on which that reader gives up. Neither may rise",
    "rule_kind": "at_most",
    "expected": {
@@ -6562,10 +6562,6 @@
    "key_kinds": {
     "shapes": "at_least"
    },
-   "target": {
-    "values_beside_a_list": 0
-   },
-   "target_stage": "none set: put to the owner on 2026-09-26. Answer 5 ('Allow it') reaches a pair the cost rule publishes, and here it publishes nothing",
    "tier": "FAST",
    "source": "pytest",
    "nodes": [],
@@ -6574,6 +6570,7 @@
    "pin_strength": "NONE",
    "measured_on": "tests/complement_reader.py::listed_scale, six columns at floors 11, 20 and 36, each described once",
    "evidence": "24 withheld values come back, each column's one-row extreme among them: at floor eleven the high tail of Likert 1 to 5 beside 19 (150 rows) as eleven 5s and the 19, and the low tail beside -9 as the -9 and eleven 1s. On both the back-solve pins the far side and the near side lists one value with the pair (0, 0); withholding costs no moment, so the cost rule publishes nothing, and the cross-side rule leaves a listed side's pair, which TL5 requires and which a one-value list makes redundant. The reader finds two tails on the 400-row Likert column at every floor and three on the ages column at 11 and 20; the other eleven column-floors publish the far side's pair. e294a82, this landing's base, publishes the same 18 blocks and gives back the same 24.",
+   "status_note": "ACCEPTED BY THE OWNER ON 2026-09-26 (plan P4-D353, answer 8: 'Accept both') and NOT to be re-asked, after the owner asked how much it shows about the RELATION of the data and was told: a column's own values and their row counts, never which row, never another column. Beside a tail that LISTS its values the cost rule publishes nothing where withholding costs no moment, and the column's exact mean and spread give the withheld far tail back by subtraction.",
    "nodes_min_collected": 0,
    "value_at": {
     "commit": "e760d27",
@@ -6583,6 +6580,46 @@
      "values_beside_a_list": 24,
      "columns_the_reader_gives_up_on": 0,
      "shapes": 18
+    }
+   }
+  },
+  {
+   "id": "K-S3-24",
+   "phase_stage": "Stage 3's follow-up A, the owner's accepted limit of 2026-09-26 (plan P4-D353, answer 8)",
+   "category": "PRIVACY",
+   "headline": false,
+   "name": "Every value the WHOLE description gives back with no tail pair at all",
+   "status": "ACCEPTED_LIMIT",
+   "rule": "over tests/test_stage3_gate.py's eight reconstruction attacks and skeptic A2's five columns (tests/complement_reader.py::WHOLE_DESCRIPTION_FAMILY), each at floors 11, 20, 36 and 50, run complement_reader.whole_description -- the rungs, n_distinct_values, the mode and its count, the sign counts and the column's exact mean and spread, never a tail pair, skew or kurtosis -- and count the values it gives back exactly, the column-floors it rebuilds whole and those whose maximum it names. None may rise",
+   "rule_kind": "at_most",
+   "expected": {
+    "values_rebuilt": 14115,
+    "columns_rebuilt_whole": 15,
+    "maxima_named": 15,
+    "shapes": 52
+   },
+   "key_kinds": {
+    "shapes": "at_least"
+   },
+   "tier": "FAST",
+   "source": "pytest",
+   "nodes": [],
+   "test": "tests/test_kpi_ledger.py::test_k_s3_24",
+   "driver": null,
+   "pin_strength": "NONE",
+   "measured_on": "tests/test_stage3_gate.py::RECONSTRUCTIONS and tests/complement_reader.py::WHOLE_DESCRIPTION_FAMILY, thirteen columns at floors 11, 20, 36 and 50, each described once",
+   "evidence": "14,115 values come back over 15 of 52 column-floors, each whole with its one-row maximum: the integers 0 to 1,100 at all four floors and run_far_401 and run_far_near_1101 at all four, both pairs withheld; heap_then_one_far (one of K-S3-19's closures) and heap12_far_1101 at eleven, both withheld; heap_low_far_1501 at eleven beside a list and a pair it does not read. It gives up on the other 37 -- 16 date and clock blocks, 8 off a whole grid or whole ranks, 9 where a value beside the mode repeats (the pairs are published there), 4 on gappy_far_1501's free runs -- so 14,115 is a floor on what comes back. e294a82, this landing's base, gives back the same.",
+   "status_note": "ACCEPTED BY THE OWNER ON 2026-09-26 (plan P4-D353, answer 8: 'Accept both') and NOT to be re-asked, after the owner asked how much it shows about the RELATION of the data and was told: a column's own values and their row counts, never which row, never another column. tests/test_stage3_gate.py::test_the_whole_description_rebuild_which_the_owner_accepted fails if the limit CLOSES, so a landing that closes it cannot leave this entry standing unread.",
+   "nodes_min_collected": 0,
+   "value_at": {
+    "commit": "caf3079",
+    "date": "2026-09-26",
+    "measured_by": "tools/measurements/kpi_run.py --only K-S3-24 --print-values",
+    "value": {
+     "values_rebuilt": 14115,
+     "columns_rebuilt_whole": 15,
+     "maxima_named": 15,
+     "shapes": 52
     }
    }
   }

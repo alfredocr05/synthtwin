@@ -6416,7 +6416,20 @@ them would close nothing. Beside such a list the subtraction still gives
 the withheld tail back where the rungs pin the interior, although the
 cost rule publishes nothing there: twelve values on each of two seeded
 150-row scales at a floor of eleven, the one-row extreme among them.
-No ruling covers it (ledger entry `K-S3-23`, open).
+The owner accepted it on 2026-09-26 ("Accept both"; ledger entry
+`K-S3-23`).
+
+**AND WITHHOLDING EVERY PAIR DOES NOT WITHHOLD EVERY VALUE.** What this
+section withholds closes the readings through a pair; it does not close
+the rest of the block. Where `n_distinct_values`, the mode and its
+count, the sign counts and the rungs pin a column, its exact mean and
+spread give every value back with no pair published at all: the
+integers 0 to 1,100 once each at every floor from 11 to 50, and a heap
+of eleven beside one far value at 11, whose one-row maximum comes back
+with the rest. The owner accepted it on 2026-09-26 with the channel
+above ("Accept both"; ledger entry `K-S3-24`): what comes back is a
+column's own values and how many rows hold each, never which row holds
+one and never anything about another column.
 
 **AND SO DOES A TAIL WHOSE DISTANCES BINARY64 CANNOT HOLD** (stage 3's
 review, verdict item 2). Every distance is computed exactly and rounded

@@ -10,19 +10,31 @@ exists).
 
 **Where withholding a tail's pair would leave the description's own
 G12.3 window of the column's mean or spread short of the published
-value**, the producer now publishes a pair: the other side's own first,
-then an unsettled side before a pinned one, the first that keeps both
-moments, else the one that keeps the most (plan P4-D353, the owner's
-answers of 2026-09-25 and 26). Where it publishes nothing, one withheld
-tail withholds the other's pair unless the other lists its values, and
-beside such a list the exact moments still give the withheld tail back
-(`K-S3-23`, open). No tail cell the twin constructs is a stand-in
-for "no value" any more: a derived end on `9999`, `-999` or `-9999`
-moves one grid step inside, a staircase row one point outward, and
-G6.6's width walk no longer takes a width's ceiling when it is one
-(method G5.3b step 5, G6.6). Before, 145 four-figure numbers beside five of five figures wrote
+value**, the producer now publishes a pinned tail's pair (the owner's
+answers 3 and 4 of 2026-09-25, "Only where it costs"), and -- plan
+P4-D353's own reading, not the owner's words -- an unsettled side's
+too, offered in the plan's order: the other side's own first, then an
+unsettled side before a pinned one, the first that keeps both moments,
+else the one that keeps the most. Where it publishes nothing, one
+withheld tail withholds the other's pair unless the other lists its
+values, and beside such a list the exact moments still give the withheld
+tail back (`K-S3-23`); with no pair at all the whole description gives
+every value of some columns back, 0 to 1,100 among them
+(`complement_reader.whole_description`, `K-S3-24`). The owner accepted
+both on 2026-09-26 ("Accept both"), and README, SECURITY.md, `CLAUDE.md`
+and the gate no longer say a withheld pair closes every reading. A derived tail end, a staircase row and a value
+G6.6's width walk moves are no longer a stand-in for "no value": an end
+on `9999`, `-999` or `-9999` moves one grid step inside, a row one point
+outward, and the walk no longer takes a width's ceiling when it is one
+(method G5.3b step 5, G6.6). G6.5a's separation walk still can, where
+the stand-in stands among the column's own neighbouring values and is no
+outlier: 8900 to 9998 beside 10000 and 10001 writes `9999`, nothing
+missed. Before, 145 four-figure numbers beside five of five figures wrote
 `9999` inside the twin's high tail and missed seven obligations at seeds
-0, 4 and 9; now none (`tail_pad_partial` regenerated). The G12.3 windows are written once,
+0, 4 and 9; now none (`tail_pad_partial` regenerated). The oracle reads
+steps 2a, 4 and 5 in functions of their own, so `K-2B-42` is back at its
+ceiling of 176 close copies, where the first mirror of step 5 had put it
+at 178. The G12.3 windows are written once,
 in `taxonomy`, and `validation` reads them. `K-S3-15` is GREEN at (19,
 0, 12); at a floor of 36 no twin of 37 shapes misses an obligation
 (`K-S3-20`); what the pairs give back is `K-S3-17`, `K-S3-18` and

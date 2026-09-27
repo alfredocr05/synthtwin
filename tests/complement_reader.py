@@ -1,7 +1,7 @@
 """The readers and the seeded columns plan P4-D353 is measured on.
 
 A READER holds one published numeric block and nothing else: never the
-table. Four are here, each the arithmetic a review of the tail rule ran
+table. Five are here, each the arithmetic a review of the tail rule ran
 against this producer, lifted so the suite and the ledger ask the same
 questions the design measured:
 
@@ -26,6 +26,10 @@ questions the design measured:
 * `union` -- both pairs published and the interior rung-chained: every
   pair of tails fitting both pairs AND the column's exact skew and
   kurtosis (ledger entry `K-S3-17`, the limit the owner accepted).
+* `whole_description` -- NO pair at all: every sorted column the rungs,
+  the count of different values, the mode and its count, the sign
+  counts and the exact mean and spread admit (ledger entry `K-S3-24`,
+  the limit the owner accepted on 2026-09-26).
 
 Each reader works on whole-number columns and gives up -- answers that it
 read nothing -- where its enumeration exceeds its caps; a stronger reader
@@ -1127,3 +1131,241 @@ def named_directly(block: "dict", side: str, values: "list[float]", budget: int 
         return {"status": "unique" if named == rows else ("partial" if named else "open"), "values": named}
     finally:
         taxonomy.TAIL_LATTICE_STEPS = held_budget
+
+
+# -- the whole description, with no pair at all (ledger entry K-S3-24) -------
+
+# The column family the review of plan P4-D353 measured this reader on
+# (skeptic A2, 2026-09-26), beside the gate's own reconstruction attacks:
+# one far value above a consecutive run, and a run whose top is a heap.
+WHOLE_DESCRIPTION_FAMILY = (
+    ("heap12_far_1101", [str(v) for v in range(1, 1089)] + ["1089"] * 12 + ["1250"]),
+    ("heap_low_far_1501", ["0"] * 16 + [str(v) for v in range(1, 1484)] + ["1600", "1484"]),
+    ("run_far_401", [str(v) for v in range(400)] + ["460"]),
+    ("run_far_near_1101", [str(v) for v in range(1, 1100)] + ["1100", "1113"]),
+    (
+        "gappy_far_1501",
+        [str(v) for v in sorted(random.Random("skA2/gappy_far_1501").sample(range(1, 30000), 1500))]
+        + ["40000"],
+    ),
+)
+
+WHOLE_COMBO_CAP = 300_000
+WHOLE_STATE_CAP = 3_000_000
+WHOLE_TAIL_CAP = 3
+
+
+def _whole_segment(k: int, low: int, high: int, low_in: bool, mode: "int | None") -> "dict | None":
+    """Every way `k` ranks between two pinned values can be filled, by what it adds.
+
+    The values stand in `[low, high]`, each end admitted only where `low_in`
+    says so (a low tail may reach its own least value) or as the mode; they
+    are all different except the mode, which may repeat. Keyed by (sum, sum
+    of squares, mode copies, zeros, negatives) -> [ways, one example, copies].
+    None where the enumeration passes its cap.
+    """
+    free = [u for u in range(low, high + 1) if u != mode and (low_in or u != low) and u != high]
+    inside = mode is not None and low <= mode <= high
+    options: "dict" = {}
+    for copies in range(0, k + 1) if inside else (0,):
+        rest = k - copies
+        if rest > len(free):
+            continue
+        if math.comb(len(free), rest) > WHOLE_COMBO_CAP:
+            return None
+        for chosen in itertools.combinations(free, rest):
+            held = mode if copies else 0
+            key = (
+                sum(chosen) + copies * held,
+                sum(u * u for u in chosen) + copies * held * held,
+                copies,
+                sum(1 for u in chosen if u == 0) + (copies if mode == 0 else 0),
+                sum(1 for u in chosen if u < 0) + (copies if mode is not None and mode < 0 else 0),
+            )
+            if key not in options:
+                options[key] = [0, chosen, copies]
+            options[key][0] += 1
+    return options
+
+
+def _different_sets(count: int, total: int, squares: int, least: int, avoid: "int | None") -> "list[list[int]]":
+    """Up to `WHOLE_TAIL_CAP` sets of `count` different whole numbers at or above `least`.
+
+    Their sum is `total` and their sum of squares `squares`; `avoid` is never
+    one of them (the mode, whose copies are counted apart).
+    """
+    found: "list[list[int]]" = []
+
+    def walk(left: int, first: int, second: int, bottom: int, taken: "list[int]") -> None:
+        nonlocal found
+        if len(found) >= WHOLE_TAIL_CAP:
+            return
+        if left == 0:
+            if first == 0 and second == 0:
+                found += [list(taken)]
+            return
+        if first < left * bottom + left * (left - 1) // 2:
+            return
+        if left == 1:
+            if first >= bottom and first * first == second and first != avoid:
+                found += [taken + [first]]
+            return
+        top = (first - left * (left - 1) // 2) // left
+        for value in range(bottom, top + 1):
+            if value == avoid:
+                continue
+            rest_first = first - value
+            rest_second = second - value * value
+            others = left - 1
+            if rest_second < sum((value + 1 + i) ** 2 for i in range(others)):
+                break
+            low_part = sum(value + 1 + i for i in range(others - 1))
+            peak = rest_first - low_part
+            most = sum((value + 1 + i) ** 2 for i in range(others - 1)) + peak * peak
+            if rest_second > most:
+                continue
+            walk(others, rest_first, rest_second, value + 1, taken + [value])
+
+    walk(count, total, squares, least, [])
+    return found
+
+
+def whole_description(block: "dict", values: "list[int]") -> "dict":
+    """Every column the WHOLE published block admits, with no tail pair used at all.
+
+    The channel the owner accepted on 2026-09-26 (ruling 8b, ledger entry
+    `K-S3-24`): where `n_distinct_values`, the mode and its count, the sign
+    counts and the rungs pin a column, its exact mean and spread give its
+    values back although both tails withhold their pairs. Skeptic A2's
+    reader, lifted: it reads `n_used_in_statistics`, `mean`, `std`, the
+    hundred and one rungs, `integer_valued`, `n_distinct_values`, `mode`,
+    `mode_count`, `n_zero`, `n_negative` and a listed low tail's values --
+    never a mean or root-mean-square distance, never the skew or kurtosis.
+    It enumerates every sorted column those admit, exactly: each run of
+    ranks between two rungs, the low tail where no value is negative, and
+    the high tail by what the mean and spread leave.
+
+    It reads only a whole-number column whose rungs stand on whole ranks
+    (`n - 1` a multiple of a hundred), whose one repeated value is the
+    mode, and whose low side is bounded by the sign counts; anywhere else,
+    or past its caps, it says why and names nothing -- so every count it
+    gives is a floor on what comes back.
+
+    Returns `read` (`whole` where one column fits, `high tail` where only
+    the high tail is settled, else the reason), `values_rebuilt` (ranks
+    whose value comes back exactly AND equals the column's own) and
+    `maximum_named` (the settled high tail's largest value is the column's).
+    `values` are the column's own sorted values, used only for that check.
+    """
+    out: "dict" = {"read": "n/a", "values_rebuilt": 0, "maximum_named": False}
+    if "tails" not in block or not isinstance(block.get("tails"), dict):
+        return out
+    n = block["n_used_in_statistics"]
+    if block.get("integer_valued") is not True:
+        out["read"] = "not a whole-number column"
+        return out
+    if (n - 1) % 100:
+        out["read"] = "rungs off whole ranks"
+        return out
+    distinct = block["n_distinct_values"]
+    copies_of_mode = block["mode_count"]
+    mode = block["mode"]
+    if distinct == n:
+        copies_of_mode, mode = 0, None
+    elif not isinstance(copies_of_mode, int) or mode is None or n - distinct != copies_of_mode - 1:
+        out["read"] = "a value other than the mode repeats"
+        return out
+    mode = int(mode) if mode is not None else None
+    totals = whole_sum(block["mean"], n)
+    if len(totals) != 1:
+        out["read"] = "the mean admits no one whole sum"
+        return out
+    total = totals[0]
+    squares_found = whole_squares(block["std"], n, total)
+    if len(squares_found) != 1:
+        out["read"] = "the spread admits no one whole sum of squares"
+        return out
+    squares = squares_found[0]
+    zeros, negatives = block["n_zero"], block["n_negative"]
+    pins: "dict[int, int]" = {}
+    for percent in range(101):
+        rung = rung_of(block, percent)
+        if rung is not None:
+            pins[(n - 1) * percent // 100] = int(rung)
+    ranks = sorted(pins)
+    fixed = (
+        sum(pins.values()),
+        sum(v * v for v in pins.values()),
+        sum(1 for v in pins.values() if v == mode),
+        sum(1 for v in pins.values() if v == 0),
+        sum(1 for v in pins.values() if v < 0),
+    )
+    pieces: "list[dict]" = []
+    for below, above in zip(ranks, ranks[1:]):
+        if above - below > 1:
+            found = _whole_segment(above - below - 1, pins[below], pins[above], False, mode)
+            if found is None or not found:
+                out["read"] = "a run between two rungs is too free" if found is None else "no run fits"
+                return out
+            pieces += [found]
+    first, last = ranks[0], ranks[len(ranks) - 1]
+    if first:
+        if negatives != 0:
+            out["read"] = "both sides unbounded"
+            return out
+        found = _whole_segment(first, 0 if zeros > 0 else 1, pins[first], True, mode)
+        listed = block["tails"]["low"].get("values") or []
+        if found is not None and listed:
+            allowed = {int(v) for v in listed} | {pins[first]}
+            found = {
+                key: option for key, option in found.items()
+                if set(option[1]) | ({mode} if option[2] else set()) <= allowed
+            }
+        if found is None or not found:
+            out["read"] = "the low tail is too free" if found is None else "no low tail fits"
+            return out
+        pieces += [found]
+    states = {fixed: 1}
+    for found in pieces:
+        after: "dict" = {}
+        for (s1, s2, m, z, g), ways in states.items():
+            for (t1, t2, tm, tz, tg), option in found.items():
+                key = (s1 + t1, s2 + t2, m + tm, z + tz, g + tg)
+                if key[2] > copies_of_mode or key[3] > zeros or key[4] > negatives:
+                    continue
+                after[key] = (after[key] if key in after else 0) + ways * option[0]
+        states = after
+        if len(states) > WHOLE_STATE_CAP:
+            out["read"] = "too many interiors"
+            return out
+    high_rows = n - 1 - last
+    edge = pins[last]
+    settled: "list[tuple[int, list[int]]]" = []
+    for (s1, s2, m, z, g), ways in states.items():
+        extra = copies_of_mode - m
+        if extra < 0 or extra > high_rows or (extra and (mode is None or mode < edge)):
+            continue
+        if negatives - g != 0 and edge >= 0:
+            continue
+        held = mode if extra else 0
+        for tail in _different_sets(
+            high_rows - extra, total - s1 - extra * held, squares - s2 - extra * held * held, edge + 1, mode
+        ):
+            if sum(1 for u in tail if u == 0) == zeros - z:
+                settled += [(ways, sorted([held] * extra + tail))]
+        if len(settled) > WHOLE_TAIL_CAP:
+            break
+    truth = sorted(values)
+    if len(settled) != 1:
+        out["read"] = "no column fits" if not settled else "more than one high tail fits"
+        return out
+    ways, high = settled[0]
+    right = [a == b for a, b in zip(high, truth[n - high_rows:])]
+    out["maximum_named"] = bool(high) and high[len(high) - 1] == truth[n - 1]
+    if ways == 1 and all(right):
+        out["read"] = "whole"
+        out["values_rebuilt"] = n
+        return out
+    out["read"] = "high tail"
+    out["values_rebuilt"] = sum(1 for one in right if one)
+    return out
