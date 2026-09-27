@@ -10502,6 +10502,14 @@ def distinct_pass(column, ordinals, pinned, lows, highs, day, step, distinct, wi
             )
             count -= traded
             changed = changed or traded > 0
+        if count > distinct:
+            # AND A RUN NO MERGE CAN TAKE IS SPLIT across its neighbours'
+            # units (the third skeptic of landing 3b.0, plan P4-D354).
+            split = runs_split(
+                ordinals, pinned, lows, highs, unit, held, standing, count - distinct,
+            )
+            count -= split
+            changed = changed or split > 0
     elif count < distinct:
         options, full = [], set()
         for rank in range(parsed):
@@ -10558,6 +10566,60 @@ def run_room(lows, highs, first, last):
     theirs (the fix pass of landing 3b.0, plan P4-D354).
     """
     return max(lows[first:last + 1]), min(highs[first:last + 1])
+
+
+def runs_split(ordinals, pinned, lows, highs, unit, held, standing, owed):
+    """Split each run no merge can take across its two neighbours' units (G7.3).
+
+    Once the merges and both trades leave the count over, in rank order: a
+    run of two or more ranks, none pinned and alone on its unit, between two
+    ranks, whose room (`run_room`) holds no other unit ranks hold of its own
+    standing, gives its unit up rank by rank -- its ranks, in order, onto the
+    instant of the rank just below the run while that lies inside each one's
+    own gap, the rest onto the instant of the rank just above it, each of its
+    own standing, and only where every rank of the run has one.  Two tail
+    ranks whose strata meet on one day have that day as their room, and the
+    count stayed over (the third skeptic of landing 3b.0, plan P4-D354).
+    Returns how many runs it split, at most ``owed``; each frees one unit.
+    """
+    parsed = len(ordinals)
+    spot = {value // unit: value for value in ordinals}
+    made = 0
+    first = 0
+    while first < parsed and made < owed:
+        last = first
+        while last + 1 < parsed and ordinals[last + 1] // unit == ordinals[first] // unit:
+            last += 1
+        own = ordinals[first] // unit
+        size = last - first + 1
+        if (
+            size > 1 and 0 < first and last + 1 < parsed and held[own] == size
+            and not any(pinned[first:last + 1])
+            and nearest_held_unit(
+                ordinals[first], *run_room(lows, highs, first, last), unit, held, spot, standing,
+            ) is None
+        ):
+            below, above = ordinals[first - 1], ordinals[last + 1]
+
+            def fits(rank, target):
+                return lows[rank] <= target <= highs[rank] and standing(ordinals[rank], target)
+
+            goes = []
+            for rank in range(first, last + 1):
+                if above not in goes and fits(rank, below):
+                    goes += [below]
+                elif fits(rank, above):
+                    goes += [above]
+                else:
+                    break
+            if len(goes) == size:
+                ordinals[first:first + len(goes)] = goes
+                for target in goes:
+                    held[target // unit] += 1
+                held[own] = 0
+                made += 1
+        first = last + 1
+    return made
 
 
 def nearest_held_unit(value, low, high, unit, held, spot, fits):

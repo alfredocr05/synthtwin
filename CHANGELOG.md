@@ -6,6 +6,20 @@ exists).
 
 ## [Unreleased]
 
+### A run no merge can take is split across its neighbours (2026-09-26)
+
+**Where a run of tail ranks has only its own day as room**, the repair
+below left it where it stood: two tail ranks whose strata meet on one day
+can move together nowhere, and 83 dates over 59 days, 37 different, at
+floor 36 came back holding 41 and 43 different days at two seeds, both
+distinct counts MISSED, where shipped stage 3 met them with ranks outside
+their gaps. Such a run now gives its day up rank by rank, onto the days
+of the ranks just below and just above it, each inside its own gap
+(method G7.3, plan P4-D354). Over 2,665 twins of 1,131 seeded date and
+clock columns the five twins it had made miss meet their counts, no twin
+gains a miss and no rank leaves its gap; three frozen cases move.
+`K-S3-39`.
+
 ### A run the count pass merges keeps every rank inside its gap (2026-09-26)
 
 **Where the count of different dates is too high**, G7.3 merges a run of
@@ -17,7 +31,8 @@ distance at two seeds of two, and two session tables missed a tail
 distance the same way. A run now moves only where every rank of it may
 go (method G7.3, plan P4-D354). Over 600 twins of 300 random date and
 clock columns, 18 ranks outside their gaps and 2 misses go to none, with
-no new miss; nine frozen cases move. `K-S3-39`.
+no new miss on those; on 1,600 more twins it made five, which the split of
+a run no merge can take repairs; nine frozen cases move. `K-S3-39`.
 
 ### Every day of a filled range comes back: a tail's tie group gives way (2026-09-26)
 

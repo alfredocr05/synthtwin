@@ -766,6 +766,40 @@ RUN_MERGES = (
      (_day(3, 31), _day(4, 9), _day(5, 20), _day(5, 20), _day(5, 20), _day(5, 20)),
      1, 4, "first-field-padded",
      (_day(3, 31), _day(4, 9), _day(5, 20), _day(5, 20), _day(5, 1), _day(5, 20))),
+    #
+    # A RUN NO MERGE CAN TAKE IS SPLIT (the third skeptic of landing 3b.0).
+    # THE SPLIT. Ranks 2 and 3 on day 3 have gaps meeting on day 3 alone,
+    # so their room is their own day and no rank neighbour lies in it.
+    # Rank 2 goes onto rank 1's day 2, inside its gap; rank 3 cannot, and
+    # goes onto rank 4's day 5, inside its own. Day 3 is freed.
+    ((0, 2, 3, 3, 5, 7), (True, False, False, False, False, True),
+     (0, 1, 2, 3, 4, 7), (0, 2, 3, 5, 6, 7), 1, 4, "",
+     (0, 2, 2, 5, 5, 7)),
+    # IN ORDER. Rank 2 reaches only the day above the run and rank 3 only
+    # the day below it; the ranks keep their order, so once one rank has
+    # gone up none goes down, and rank 3 has nowhere. Nothing moves. (Taken
+    # rank by rank, rank 2 goes up and rank 3 down, past each other.)
+    ((0, 2, 3, 3, 5, 7), (True, False, False, False, False, True),
+     (0, 1, 3, 2, 4, 7), (0, 2, 5, 4, 6, 7), 1, 4, "",
+     (0, 2, 3, 3, 5, 7)),
+    # OF ITS OWN STANDING. In seconds, the run stands off midnight and its
+    # neighbours at midnight: rank 2's gap holds the day below and rank 3's
+    # the day above, and neither may take a unit of the other standing.
+    # No midnight lies inside the room, so there is no trade. Nothing moves.
+    ((0, DAY, DAY + 500, DAY + 500, 2 * DAY, 3 * DAY),
+     (True, True, False, False, True, True),
+     (0, DAY, DAY, DAY + 400, 2 * DAY, 3 * DAY),
+     (0, DAY, DAY + 600, 2 * DAY, 2 * DAY, 3 * DAY), DAY, 4, "",
+     (0, DAY, DAY + 500, DAY + 500, 2 * DAY, 3 * DAY)),
+    # ONLY WHERE THE ROOM HOLDS NO OTHER HELD UNIT. The run on day 5 is
+    # offered day 6, the nearest held unit in its room 3 to 6; rank 5 merges
+    # off day 6 first, onto day 7, so that merge is not made. Day 3, held by
+    # a pinned rank out of order, still lies in the room, so the run is
+    # left for the next round's merge rather than split across days 2 and 9.
+    ((0, 2, 5, 5, 9, 6, 7, 3, 10),
+     (True, True, False, False, True, False, True, True, True),
+     (0, 2, 2, 3, 9, 6, 7, 3, 10), (0, 2, 6, 9, 9, 7, 7, 3, 10), 1, 6, "",
+     (0, 2, 5, 5, 9, 7, 7, 3, 10)),
 )
 RUN_TRADES = (
     # (ordinals, pinned, lows, highs, owed, ordinals after, trades made)
@@ -1130,6 +1164,34 @@ WITNESS_MUTANTS = {
         "run",
         "                room = run_room(lows, highs, first, last)\n",
         "                room = (lows[first], highs[first])\n",
+    ),
+    # The split of a run no merge can take (the third skeptic of landing
+    # 3b.0): withdrawn, made where the room holds a held unit, made out of
+    # rank order, made onto a unit of the other standing, made in part.
+    "run_split_withdrawn": (
+        "run", "            split = runs_split(\n", "            split = 0 and runs_split(\n",
+    ),
+    "run_split_past_a_held_unit_in_the_room": (
+        "run",
+        "            and nearest_held_unit(\n"
+        "                ordinals[first], *run_room(lows, highs, first, last), unit, held, spot, standing,\n"
+        "            ) is None\n",
+        "",
+    ),
+    "run_split_out_of_order": (
+        "run",
+        "if above not in goes and fits(rank, below):",
+        "if fits(rank, below):",
+    ),
+    "run_split_of_any_standing": (
+        "run",
+        "return lows[rank] <= target <= highs[rank] and standing(ordinals[rank], target)",
+        "return lows[rank] <= target <= highs[rank]",
+    ),
+    "run_split_in_part": (
+        "run",
+        "            if len(goes) == size:\n",
+        "            if goes:\n",
     ),
     "group_takes_past_the_count": (
         "group",

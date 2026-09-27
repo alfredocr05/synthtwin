@@ -5681,7 +5681,21 @@ that way.
   midnight pins, with no unit of its own standing anywhere in its gap --
   missing both distinct counts, four against three, while the source
   passed and the twin kept all eleven rungs and the 80 cells the census
-  puts at midnight. Too few: each unpinned rank sharing its unit is offered
+  puts at midnight. **AND A RUN NO MERGE CAN TAKE IS SPLIT** (plan
+  P4-D354, the third skeptic of landing 3b.0). Where the merges and both
+  trades leave the count over, in rank order, a run of two or more ranks
+  on one unit, none pinned and none of that unit's ranks elsewhere,
+  between two ranks, whose room holds no other unit ranks hold of its
+  own standing, gives its unit up rank by rank: its ranks, in order,
+  move onto the instant of the rank just below the run while that lies
+  inside each one's own gap and is of its standing, and the rest onto
+  the instant of the rank just above it on the same terms -- only where
+  every rank of the run has one, and one unit freed per run. Two tail
+  ranks whose strata meet on one day have that day as their room: 83
+  dates over 59 days, 37 different, at a floor of 36 came back holding
+  41 and 43 different days at seeds 3 and 8, both distinct counts
+  missed, until each such run gave its day up this way. Too few: each
+  unpinned rank sharing its unit is offered
   the nearest unit no rank holds inside its gap, of the same width kind
   and midnight standing, earlier first, nearest first, ties to the lower
   rank.

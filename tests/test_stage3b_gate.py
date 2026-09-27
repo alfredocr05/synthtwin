@@ -699,6 +699,52 @@ def _gapped_year() -> "tuple[list[str], int]":
     return cells, floor
 
 
+def _settled_off_their_gaps(
+    described: kpi_shapes.Described, seeds: "tuple[int, ...]", monkeypatch: pytest.MonkeyPatch
+) -> "list[tuple[list[int], str]]":
+    """Per seed, the ranks the count pass leaves outside their gaps, and the twin.
+
+    A tail group's ranks are left out: step 9 alone may move those.
+    """
+    shipped = generation._units_settled
+    seen: "list[tuple[list[int], list[int], list[int], generation._DateLayout | None]]" = []
+
+    def watched(
+        column: contract.ColumnBlock,
+        facts: contract.DatetimeFacts,
+        ordinals: "list[int]",
+        parsed: int,
+        whole: "list[bool]",
+        lows: "list[int]",
+        highs: "list[int]",
+        small: int,
+        layout: "generation._DateLayout | None" = None,
+    ) -> "list[int]":
+        moved = shipped(column, facts, ordinals, parsed, whole, lows, highs, small, layout)
+        seen[:] = [(list(moved), list(lows), list(highs), layout)]
+        return moved
+
+    monkeypatch.setattr(generation, "_units_settled", watched)
+    found: "list[tuple[list[int], str]]" = []
+    for seed in seeds:
+        text = kpi_shapes.twin_text(described, seed)
+        assert len(seen) == 1, seed
+        moved, lows, highs, layout = seen[0]
+        assert layout is not None
+        group: "set[int]" = set()
+        for plan in (layout.low, layout.high):
+            assert plan is not None and plan.shape is not None
+            for index in range(max(plan.shape.grouped, 1), plan.rows):
+                group.add(generation._tail_rank_of(plan, len(moved), index))
+        off = [
+            rank
+            for rank in range(len(moved))
+            if rank not in group and not lows[rank] <= moved[rank] <= highs[rank]
+        ]
+        found += [(off, text)]
+    return found
+
+
 def test_a_merged_run_keeps_every_rank_inside_its_gap(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -719,40 +765,64 @@ def test_a_merged_run_keeps_every_rank_inside_its_gap(
     described = kpi_shapes.describe(
         tmp_path, "gapped_year", "c\n" + "".join(f"{cell}\n" for cell in cells), floor
     )
-    shipped = generation._units_settled
-    seen: "list[tuple[list[int], list[int], list[int], generation._DateLayout | None]]" = []
-
-    def watched(
-        column: contract.ColumnBlock,
-        facts: contract.DatetimeFacts,
-        ordinals: "list[int]",
-        parsed: int,
-        whole: "list[bool]",
-        lows: "list[int]",
-        highs: "list[int]",
-        small: int,
-        layout: "generation._DateLayout | None" = None,
-    ) -> "list[int]":
-        moved = shipped(column, facts, ordinals, parsed, whole, lows, highs, small, layout)
-        seen[:] = [(list(moved), list(lows), list(highs), layout)]
-        return moved
-
-    monkeypatch.setattr(generation, "_units_settled", watched)
-    for seed in (3, 8):
-        text = kpi_shapes.twin_text(described, seed)
-        assert len(seen) == 1, seed
-        moved, lows, highs, layout = seen[0]
-        assert layout is not None
-        group: "set[int]" = set()
-        for plan in (layout.low, layout.high):
-            assert plan is not None and plan.shape is not None
-            for index in range(max(plan.shape.grouped, 1), plan.rows):
-                group.add(generation._tail_rank_of(plan, len(moved), index))
-        off = [
-            rank
-            for rank in range(len(moved))
-            if rank not in group and not lows[rank] <= moved[rank] <= highs[rank]
-        ]
+    settled = _settled_off_their_gaps(described, (3, 8), monkeypatch)
+    for seed, (off, text) in zip((3, 8), settled):
         assert off == [], f"seed {seed}: ranks {off} stand outside their gaps"
         missed = kpi_shapes.missed(kpi_shapes.measure(described, text, f"gapped-{seed}.csv"))
+        assert missed == [], f"seed {seed}: {missed}"
+
+
+def _small_dense_dates() -> "tuple[list[str], int]":
+    """59 days from a seeded start, 83 dates, 37 of them different, at a floor of 36.
+
+    Drawn exactly as the landing's third skeptic drew its column q283, and
+    written as ISO dates, so the column is the one that measured the defect.
+    """
+    draw = random.Random(720283)
+    assert draw.choice(["date", "midnight", "midnight", "tmark", "usdate"]) == "midnight"
+    span = draw.randint(15, 150)
+    rows = draw.randint(max(60, span), min(900, span * 12))
+    empty = draw.choice([0.0, 0.05, 0.2])
+    light = draw.random() < 0.5
+    assert (span, rows, empty, light) == (59, 83, 0.05, False)
+    weights: "list[float]" = []
+    for _step in range(span):
+        weights += [0.0 if draw.random() < empty else draw.random() + 0.1]
+    steps = draw.choices(range(span), weights=weights, k=rows)
+    assert draw.random() >= 0.5
+    start = datetime.date(2019, 6, 1) + datetime.timedelta(days=draw.randint(0, 900))
+    cells = [(start + datetime.timedelta(days=step)).isoformat() for step in steps]
+    draw.shuffle(cells)
+    floor = draw.choice([11, 20, 36, 50])
+    assert floor == 36
+    return cells, floor
+
+
+def test_a_run_no_merge_can_take_is_split(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """G7.3's count pass splits a run whose room holds no other held unit.
+
+    A run moves whole only inside the gap of every rank of it (the test
+    above), and two tail ranks whose strata meet on one day have that day
+    as their room: no merge can take them. This column came back holding
+    41 and 43 different days at seeds 3 and 8 against 37, both distinct
+    counts MISSED, where shipped stage 3 met them with ranks outside their
+    gaps (plan P4-D354, the third skeptic of landing 3b.0). Such a run now
+    gives its day up rank by rank, onto its two neighbours' days, each
+    inside its own gap. Here both counts are met, the twin misses nothing,
+    and every rank but a tail group's stands inside its gap.
+    """
+    cells, floor = _small_dense_dates()
+    described = kpi_shapes.describe(
+        tmp_path, "small_dense", "c\n" + "".join(f"{cell}\n" for cell in cells), floor
+    )
+    block = described.document["columns"][0]
+    assert block["n_distinct"] == len(set(cells))
+    settled = _settled_off_their_gaps(described, (3, 8), monkeypatch)
+    for seed, (off, text) in zip((3, 8), settled):
+        assert off == [], f"seed {seed}: ranks {off} stand outside their gaps"
+        written = {line for line in text.split("\n")[1:] if line}
+        assert len(written) == block["n_distinct"], f"seed {seed}: {len(written)} different days"
+        missed = kpi_shapes.missed(kpi_shapes.measure(described, text, f"dense-{seed}.csv"))
         assert missed == [], f"seed {seed}: {missed}"

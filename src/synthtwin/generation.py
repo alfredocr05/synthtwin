@@ -20505,7 +20505,10 @@ def _units_settled(
        those (plan P4-D258); and where its gap holds no unit of its own
        kind at all, it moves onto one of the other kind while as many
        ranks elsewhere move between held units the other way, leaving
-       the width census exactly where it stood (`_traded_merges`).
+       the width census exactly where it stood (`_traded_merges`); and a
+       run whose room holds no other held unit of its standing gives its
+       unit up rank by rank, onto its two rank neighbours' instants, each
+       inside its own gap (`_runs_split`).
        Too few: a rank sharing its unit moves to the nearest unit no rank
        holds inside its gap, of the same width kind, not onto a midnight
        it did not stand at and not off one it did, nearest first, ties to
@@ -21094,6 +21097,13 @@ def _distinct_reached(
             )
             count = count - traded
             changed = changed or traded > 0
+        if count > wanted:
+            given = _runs_split(
+                facts, moved, pinned, lows, highs, day, step, unit, held,
+                widths, word, count - wanted,
+            )
+            count = count - given
+            changed = changed or given > 0
         return changed
     splits: "list[tuple[int, int, int]]" = []
     # A GAP WITH NO FREE UNIT STAYS WITHOUT ONE while ranks only split, so
@@ -21151,6 +21161,104 @@ def _distinct_reached(
             wanted - count, word,
         ) or changed
     return changed
+
+
+def _runs_split(
+    facts: contract.DatetimeFacts,
+    moved: "list[int]",
+    pinned: "list[bool]",
+    lows: "list[int]",
+    highs: "list[int]",
+    day: int,
+    step: int,
+    unit: int,
+    held: "dict[int, int]",
+    widths: bool,
+    word: str,
+    owed: int,
+) -> int:
+    """Split a run no merge can take across the units of its two neighbours.
+
+    A RUN'S ROOM CAN BE ITS OWN UNIT ALONE (the third skeptic of landing
+    3b.0, plan P4-D354). A run moves whole only inside the gap of every
+    rank of it (`_run_room`), and two tail ranks whose strata meet on one
+    day have that day as their room: nowhere to merge. 83 ISO dates over
+    59 days, 37 of them different, described at a floor of 36, came back
+    holding 41 and 43 different days at seeds 3 and 8, both distinct
+    counts MISSED, where the run's first rank alone had been asked and the
+    column met them with ranks outside their gaps. Each such run could
+    still give its unit up rank by rank: the lower rank onto the day the
+    rank below the run holds, the upper onto the day the rank above it
+    holds, each inside its own stratum.
+
+    So, once the merges and both trades are done and the count is still
+    over, in rank order: a run of two or more ranks, none pinned and
+    alone on its unit, between two ranks, whose room holds no other unit
+    ranks hold of its own standing, is split -- its ranks, in order, onto
+    the instant of the rank just below the run while that lies inside
+    each one's own gap, and the rest onto the instant of the rank just
+    above it, each of its own standing (`_same_standing`), and only where
+    every rank of the run has one. Each split frees the run's unit and
+    lands every rank on a unit ranks already hold, so the count of
+    different units falls by exactly one and no count of a standing
+    moves.
+
+    Guarantees: moves ranks of `moved` and counts of `held` in place;
+    returns how many runs it split, at most ``owed``. Linear in the ranks
+    with one held-unit search per run. Determinism: a fixed function of
+    its arguments; draws no word. Raises nothing. No I/O of any kind.
+    """
+    parsed = len(moved)
+    spot: "dict[int, int]" = {}
+    for rank in range(parsed):
+        spot[moved[rank] // unit] = moved[rank]
+    order = _held_order(facts, spot, day, step, widths, word)
+    made = 0
+    first = 0
+    while first < parsed and made < owed:
+        last = first
+        while last + 1 < parsed and moved[last + 1] // unit == moved[first] // unit:
+            last = last + 1
+        own = moved[first] // unit
+        size = last - first + 1
+        loose = size > 1 and first > 0 and last + 1 < parsed and held[own] == size
+        for rank in range(first, last + 1):
+            if pinned[rank]:
+                loose = False
+        if loose:
+            lowest, highest = _run_room(lows, highs, first, last)
+            if _nearest_held_unit(
+                facts, moved[first], lowest, highest, day, step, unit, held,
+                spot, order, widths, word,
+            ) is not None:
+                loose = False
+        if loose:
+            below = moved[first - 1]
+            above = moved[last + 1]
+            goes: "list[int]" = []
+            for rank in range(first, last + 1):
+                upward = len(goes) > 0 and goes[len(goes) - 1] == above
+                if (
+                    not upward
+                    and lows[rank] <= below <= highs[rank]
+                    and _same_standing(facts, moved[rank], below, day, step, widths, word)
+                ):
+                    goes += [below]
+                elif lows[rank] <= above <= highs[rank] and _same_standing(
+                    facts, moved[rank], above, day, step, widths, word
+                ):
+                    goes += [above]
+                else:
+                    break
+            if len(goes) == size:
+                for index in range(size):
+                    moved[first + index] = goes[index]
+                    key = goes[index] // unit
+                    held[key] = held[key] + 1
+                held[own] = 0
+                made = made + 1
+        first = last + 1
+    return made
 
 
 # HOW MANY HELD UNITS ONE RUN IS OFFERED FOR A PAID MERGE (item 2 of the
