@@ -161,16 +161,7 @@ import math
 from synthtwin.paths import validate_local_path
 import pathlib
 
-from synthtwin import (
-    calendar_rules,
-    contract,
-    dialect,
-    errors,
-    parsing,
-    profile,
-    reading,
-    taxonomy,
-)
+from synthtwin import calendar_rules, contract, dialect, errors, parsing, profile, reading, taxonomy
 
 
 # ONE UNIT IN THE LAST PLACE, AWAY FROM ZERO (review item P4-G6-R6-F1).

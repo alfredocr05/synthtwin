@@ -91,14 +91,7 @@ import json
 import math
 import pathlib
 
-from synthtwin import (
-    calendar_certificate,
-    calendar_rules,
-    canonical,
-    dialect,
-    errors,
-    parsing,
-)
+from synthtwin import calendar_certificate, calendar_rules, canonical, dialect, errors, parsing
 from synthtwin.paths import validate_local_path
 
 # The one version this loader reads. `profile_version` must be exactly

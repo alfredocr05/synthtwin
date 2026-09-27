@@ -695,6 +695,14 @@ TWELFTH_BRANCH_CASES = (
     # ...and the tie group that gives way (plan P4-D354).
     "every_day_group",
     "pool_alone_marks",
+    # ...and the weekday pass of G7.3f, one case a step (plan P4-D355).
+    "weekday_count_put_back",
+    "weekday_days_moved",
+    "weekday_gap_shares",
+    "weekday_hole_left",
+    "weekday_keeping_first",
+    "weekday_runs_merged",
+    "weekday_whole_runs",
 )
 
 ALL_CASES = tuple(
@@ -824,6 +832,14 @@ SEEDS = {
     "pool_alone_marks": 408,
     # ...and the tie group that gives way (plan P4-D354).
     "every_day_group": 409,
+    # ...and the weekday pass of G7.3f (plan P4-D355).
+    "weekday_days_moved": 410,
+    "weekday_gap_shares": 411,
+    "weekday_whole_runs": 412,
+    "weekday_keeping_first": 413,
+    "weekday_count_put_back": 414,
+    "weekday_hole_left": 415,
+    "weekday_runs_merged": 30751,
     "identifier_unnamed_partners": 184,
     "truth_values_written": 189,
     "twice_written_filled": 190,
@@ -1519,9 +1535,9 @@ TENTH_BRANCH_PUBLISHED_NUMBERS = 754
 TENTH_BRANCH_NAMED_COUNTS = 310
 ELEVENTH_BRANCH_PUBLISHED_NUMBERS = 944
 ELEVENTH_BRANCH_NAMED_COUNTS = 375
-# The fourteenth, at its own generator's line ("proved 194 ... beside 86").
-TWELFTH_BRANCH_PUBLISHED_NUMBERS = 194
-TWELFTH_BRANCH_NAMED_COUNTS = 86
+# The fourteenth, at its own generator's line ("proved 215 ... beside 311").
+TWELFTH_BRANCH_PUBLISHED_NUMBERS = 216
+TWELFTH_BRANCH_NAMED_COUNTS = 311
 # The document file publishes NO binary64 at all, and that is a fact
 # about its transforms rather than a gap in its proof: the written form,
 # the arrangement, the workbook writer, the shape of a line before a
@@ -3719,6 +3735,57 @@ CASE_MUTANTS = {
         replacement=lambda column, ordinals, parsed, whole: list(ordinals),
         outcome=CHANGES_THE_CELLS,
     ),
+    # THE WEEKDAY PASS (method G7.3f, plan P4-D355), one case a step,
+    # each moved by withdrawing its own step and no other.
+    "weekday_days_moved": Mutant(
+        branch="G7.3f (plan P4-D355); the mutant withdraws the day pass, as "
+        "the twin was written before this decision",
+        attribute="weekday_settled",
+        replacement=lambda column, ordinals, parsed, whole, lows, highs, holes: list(ordinals),
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "weekday_gap_shares": Mutant(
+        branch="G7.3f step 3 (plan P4-D355); the mutant keeps each gap at "
+        "the holding it was drawn with, so only the leftover moves ranks",
+        attribute="weekday_shares",
+        replacement=lambda walk, gaps, owed: _shares_as_drawn(walk, gaps, owed),
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "weekday_whole_runs": Mutant(
+        branch="G7.3f step 5 (plan P4-D355); the mutant withdraws the whole "
+        "runs, so single ranks carry the census alone",
+        attribute="weekday_runs",
+        replacement=lambda walk, ranks, have, want: None,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "weekday_keeping_first": Mutant(
+        branch="G7.3f step 6 (plan P4-D355); the mutant offers the nearest "
+        "destination whatever it does to the count of different days",
+        attribute="weekday_offer",
+        replacement=lambda walk, rank, have, want: _nearest_destination(walk, rank, have, want),
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "weekday_count_put_back": Mutant(
+        branch="G7.3f step 8.1 (plan P4-D355); the mutant withdraws the single "
+        "moves that put the count of different days back",
+        attribute="weekday_repair_singles",
+        replacement=lambda walk, movable, wanted: None,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "weekday_hole_left": Mutant(
+        branch="G7.3f step 2 (plan P4-D355); the mutant leaves a rank on the "
+        "absent day for the spelling pass to move without asking its weekday",
+        attribute="weekday_holes_left",
+        replacement=lambda walk, gaps: None,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "weekday_runs_merged": Mutant(
+        branch="G7.3f step 8.2 (plan P4-D355); the mutant withdraws the runs "
+        "merged onto a held day of their own group",
+        attribute="weekday_merged_runs",
+        replacement=lambda walk, movable, wanted: None,
+        outcome=CHANGES_THE_CELLS,
+    ),
     "pool_alone_marks": Mutant(
         branch="G6.1's census of marks that is only a pool (plan P4-D352); "
         "the mutant writes every cell with no mark, as the twin did before",
@@ -4362,6 +4429,28 @@ def test_each_case_fails_when_its_own_branch_is_reverted(
             f"{name}: the mutant of {mutant.branch} stopped the oracle for "
             "some other reason than its own"
         )
+
+
+def _shares_as_drawn(walk: object, gaps: "list[list[int]]", owed: "list[int]") -> "list[list[int]]":
+    """The weekday mutant's shares: each gap's holding as drawn (G7.3f step 3 withdrawn)."""
+    return [
+        [
+            sum(1 for rank in ranks if walk.group(walk.days[rank]) == group)  # type: ignore[attr-defined]
+            for group in range(len(owed))
+        ]
+        for ranks in gaps
+    ]
+
+
+def _nearest_destination(walk: object, rank: int, have: "list[int]", want: "list[int]") -> object:
+    """The weekday mutant's offer: the nearest destination, keeping or not (G7.3f step 6)."""
+    days = walk.days  # type: ignore[attr-defined]
+    lows = walk.lows  # type: ignore[attr-defined]
+    highs = walk.highs  # type: ignore[attr-defined]
+    for other in gen.weekday_candidates(days[rank], lows[rank], highs[rank]):
+        if gen.weekday_destination(walk, rank, other, have, want, 1):
+            return (0, other)
+    return None
 
 
 _GENERATOR_NEAREST_HELD_UNIT = generation._nearest_held_unit

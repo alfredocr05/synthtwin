@@ -17891,7 +17891,9 @@ def _weekday_gaps(
 def _weekday_prior(
     state: _WeekdayPass, low: int, high: int, groups: int
 ) -> "list[int]":
-    """Each group's days inside [low, high], at the share scale."""
+    """Each group's days inside [low, high] that are no hole, at the share
+    scale, the two end days of the gap -- the pinned days it is drawn
+    between -- at half a day each, as the construction draws it."""
     found = [0 for _ in range(groups)]
     for weekday in range(calendar_rules.WEEKDAYS):
         first = low + (weekday - calendar_rules.weekday_of(low)) % 7
@@ -17899,6 +17901,16 @@ def _weekday_prior(
             continue
         index = state.where[weekday]
         found[index] = found[index] + ((high - first) // 7 + 1) * _WEEKDAY_SCALE
+    for end in sorted({low, high}):
+        index = _weekday_group(state, end)
+        found[index] = found[index] - _WEEKDAY_SCALE // 2
+    for hole in state.holes:
+        if low < hole < high:
+            index = _weekday_group(state, hole)
+            found[index] = found[index] - _WEEKDAY_SCALE
+        elif hole == low or hole == high:
+            index = _weekday_group(state, hole)
+            found[index] = found[index] - _WEEKDAY_SCALE // 2
     return found
 
 
@@ -17907,7 +17919,7 @@ def _weekday_shares(
     gaps: "list[list[int]]",
     owed: "list[int]",
 ) -> "list[list[int]]":
-    """How many of each gap's ranks each group takes (method G7.3f, step 2).
+    """How many of each gap's ranks each group takes (method G7.3f, step 3).
 
     The prior is each group's days inside the gap; it is raked, gap by gap
     and then group by group, `_WEEKDAY_RAKES` times, to each gap's rank
@@ -17921,6 +17933,15 @@ def _weekday_shares(
         _weekday_prior(state, state.lows[ranks[0]], state.highs[ranks[0]], groups)
         for ranks in gaps
     ]
+    for index in range(len(gaps)):
+        held = [0 for _ in range(groups)]
+        for rank in gaps[index]:
+            group = _weekday_group(state, state.moved[rank])
+            held[group] = held[group] + 1
+        prior[index] = [
+            held[group] * _WEEKDAY_SCALE + prior[index][group] // 1024
+            for group in range(groups)
+        ]
     shares = [[value for value in row] for row in prior]
     for _round in range(_WEEKDAY_RAKES):
         for index in range(len(gaps)):
@@ -18000,14 +18021,14 @@ def _weekday_free(
 
 def _weekday_run_target(
     state: _WeekdayPass, rank: int, size: int, have: "list[int]", want: "list[int]"
-) -> int:
-    """The nearest free day of a group with room for a whole run, or -1."""
+) -> "int | None":
+    """The nearest free day of a group with room for a whole run, or None."""
     day = state.moved[rank]
     low, high = state.lows[rank], state.highs[rank]
     kind = _weekday_kind(state, day)
     for away in range(1, _WEEKDAY_REACH + 1):
         if day - away < low and day + away > high:
-            return -1
+            return None
         for other in (day - away, day + away):
             if other < low or other > high:
                 continue
@@ -18018,24 +18039,28 @@ def _weekday_run_target(
             if other in state.held and state.held[other] > 0:
                 continue
             return other
-    return -1
+    return None
 
 
 def _weekday_single_target(
     state: _WeekdayPass, rank: int, have: "list[int]", want: "list[int]"
-) -> "tuple[int, int]":
-    """The nearest day a single rank may move to, and whether the move
-    changes the count of different days (1) or not (0); (-1, -1) for none.
+) -> "tuple[int, int] | None":
+    """The day a single rank is offered, and whether the move changes the
+    count of different days (1) or not (0); None where it has none.
 
     A move keeps the count where a rank alone on its day moves to a day
     no rank holds, or a rank sharing its day moves to a day one holds.
-    The nearest keeping move is taken; failing one, the nearest other.
+    Of the destinations that keep it, the one holding the fewest ranks
+    is offered, the nearer on a tie; failing any, the same of every
+    destination. Spread so, the ranks a gap sends to one group land on
+    all of that group's days rather than on the nearest one.
     """
     day = state.moved[rank]
     low, high = state.lows[rank], state.highs[rank]
     kind = _weekday_kind(state, day)
     alone = state.held[day] <= 1
-    fallback = (-1, -1)
+    keeping: "tuple[int, int] | None" = None
+    changing: "tuple[int, int] | None" = None
     for away in range(1, _WEEKDAY_REACH + 1):
         if day - away < low and day + away > high:
             break
@@ -18046,20 +18071,27 @@ def _weekday_single_target(
                 continue
             if _weekday_kind(state, other) != kind:
                 continue
-            if not state.keep_units:
-                return (0, other)
             there = state.held[other] if other in state.held else 0
-            if (alone and there == 0) or (not alone and there > 0):
-                return (0, other)
-            if fallback[0] < 0:
-                fallback = (1, other)
-    return fallback
+            if (
+                not state.keep_units
+                or (alone and there == 0)
+                or (not alone and there > 0)
+            ):
+                if keeping is None or there < keeping[0]:
+                    keeping = (there, other)
+            elif changing is None or there < changing[0]:
+                changing = (there, other)
+    if keeping is not None:
+        return (0, keeping[1])
+    if changing is not None:
+        return (1, changing[1])
+    return None
 
 
 def _weekday_runs_moved(
     state: _WeekdayPass, ranks: "list[int]", have: "list[int]", want: "list[int]"
 ) -> None:
-    """Whole runs first (method G7.3f, step 4): every rank of one day,
+    """Whole runs first (method G7.3f, step 5): every rank of one day,
     when no other rank of the column stands on it, moves together onto a
     free day of a group with room for all of them."""
     for _round in range(_WEEKDAY_RUN_ROUNDS):
@@ -18083,7 +18115,7 @@ def _weekday_runs_moved(
             if have[source] - want[source] < size:
                 continue
             target = _weekday_run_target(state, members[0], size, have, want)
-            if target < 0:
+            if target is None:
                 continue
             for rank in members:
                 _weekday_step(state, rank, target)
@@ -18104,7 +18136,7 @@ def _weekday_singles_moved(
     rounds: int,
     changing: bool,
 ) -> None:
-    """Single ranks, nearest first (method G7.3f, steps 5 and 6).
+    """Single ranks, nearest first (method G7.3f, steps 6 and 7).
 
     Each round offers every rank of a group over its share the nearest
     day it may move to, and makes the offers in order of whether they
@@ -18121,10 +18153,10 @@ def _weekday_singles_moved(
             source = _weekday_group(state, state.moved[rank])
             if have[source] <= want[source]:
                 continue
-            kind, target = _weekday_single_target(state, rank, have, want)
-            if target < 0 or (kind and not allow):
+            offer = _weekday_single_target(state, rank, have, want)
+            if offer is None or (offer[0] and not allow):
                 continue
-            offers += [(kind, abs(target - state.moved[rank]), rank)]
+            offers += [(offer[0], abs(offer[1] - state.moved[rank]), rank)]
         if not offers:
             if allow:
                 return
@@ -18135,9 +18167,10 @@ def _weekday_singles_moved(
             source = _weekday_group(state, state.moved[rank])
             if have[source] <= want[source]:
                 continue
-            kind, target = _weekday_single_target(state, rank, have, want)
-            if target < 0 or (kind and not allow):
+            offer = _weekday_single_target(state, rank, have, want)
+            if offer is None or (offer[0] and not allow):
                 continue
+            target = offer[1]
             _weekday_step(state, rank, target)
             have[source] = have[source] - 1
             have[_weekday_group(state, target)] = (
@@ -18151,9 +18184,12 @@ def _weekday_singles_moved(
 
 
 def _weekday_holes_swept(state: _WeekdayPass, gaps: "list[list[int]]") -> None:
-    """A rank on a hole moves inside its gap before any cell is spelled
-    (method G7.3f, step 7): to the nearest day of its group and width
-    kind that is no hole, one another rank already holds first."""
+    """A rank drawn onto a hole leaves it before anything else moves
+    (method G7.3f, step 2): to its first candidate that is no hole and of
+    its width kind, keeping the count of different days where one does --
+    alone on the hole onto a day no rank holds, sharing it onto a day one
+    holds -- and otherwise to the first such candidate at all. The census
+    moves after it never put a rank back on a hole."""
     if not state.holes:
         return
     for ranks in gaps:
@@ -18162,27 +18198,28 @@ def _weekday_holes_swept(state: _WeekdayPass, gaps: "list[list[int]]") -> None:
             if day not in state.holes:
                 continue
             low, high = state.lows[rank], state.highs[rank]
-            group = _weekday_group(state, day)
             kind = _weekday_kind(state, day)
-            best = -1
+            alone = state.held[day] <= 1
+            first: "int | None" = None
+            keeping: "int | None" = None
             for away in range(1, _WEEKDAY_REACH + 1):
                 if day - away < low and day + away > high:
                     break
                 for other in (day - away, day + away):
                     if other < low or other > high or other in state.holes:
                         continue
-                    if _weekday_group(state, other) != group:
-                        continue
                     if _weekday_kind(state, other) != kind:
                         continue
-                    other_held = other in state.held and state.held[other] > 0
-                    best_held = best in state.held and state.held[best] > 0
-                    if best < 0 or (other_held and not best_held):
-                        best = other
-                if best >= 0 and best in state.held and state.held[best] > 0:
+                    if first is None:
+                        first = other
+                    if keeping is None and alone != _weekday_holds(state, other):
+                        keeping = other
+                if keeping is not None:
                     break
-            if best >= 0:
-                _weekday_step(state, rank, best)
+            if keeping is not None:
+                _weekday_step(state, rank, keeping)
+            elif first is not None:
+                _weekday_step(state, rank, first)
 
 
 def _weekday_nearest(
@@ -18192,17 +18229,17 @@ def _weekday_nearest(
     kind: bool,
     held: bool,
     limit: int,
-) -> int:
+) -> "int | None":
     """The nearest day inside a rank's gap of this group and width kind,
     held or free as asked, that is no hole and not the rank's own day;
-    -1 where none is found among the first `limit` such days (0: no
+    None where none is found among the first `limit` such days (0: no
     limit)."""
     day = state.moved[rank]
     low, high = state.lows[rank], state.highs[rank]
     asked = 0
     for away in range(1, _WEEKDAY_REACH + 1):
         if day - away < low and day + away > high:
-            return -1
+            return None
         for other in (day - away, day + away):
             if other < low or other > high or other in state.holes:
                 continue
@@ -18212,11 +18249,15 @@ def _weekday_nearest(
                 continue
             asked = asked + 1
             if limit and asked > limit:
-                return -1
-            there = other in state.held and state.held[other] > 0
-            if there == held:
+                return None
+            if _weekday_holds(state, other) == held:
                 return other
-    return -1
+    return None
+
+
+def _weekday_holds(state: _WeekdayPass, day: int) -> bool:
+    """Whether any rank of the column stands on this day."""
+    return day in state.held and state.held[day] > 0
 
 
 def _weekday_count(state: _WeekdayPass) -> int:
@@ -18232,8 +18273,8 @@ def _weekday_repaired(
 ) -> None:
     """The count of different days put back (method G7.3f, step 8).
 
-    Three moves, each keeping every group's count, tried in turn while
-    the count is off:
+    Two moves, each keeping every group's count, tried in turn while the
+    count is off:
 
     1. A SINGLE RANK, ranks in rank order: one sharing its day moves to
        a day of its own group and width kind no rank holds (the count is
@@ -18244,12 +18285,6 @@ def _weekday_repaired(
        other rank of the column on it, all in one gap -- moves onto the
        nearest day of its own standing another rank holds, the smallest
        run first, then the earlier day.
-    3. A TRADE: rank r1, in rank order, moves as step 1 would but onto a
-       day of ANOTHER group of its width kind, the nearest; then the first
-       rank r3 of that group in rank order moves to a day of r1's group
-       inside its own gap without changing the count -- alone on its day
-       onto a day no rank holds, sharing it onto a day one holds. With no
-       such r3, r1 goes back.
 
     Draws no word. Guarantees: moves body ranks the layout does not pin,
     inside their own gaps; raises nothing. No I/O of any kind.
@@ -18273,7 +18308,7 @@ def _weekday_repaired(
                 state, rank, _weekday_group(state, day),
                 _weekday_kind(state, day), not more, _WEEKDAY_PROBES,
             )
-            if found < 0:
+            if found is None:
                 continue
             _weekday_step(state, rank, found)
             count = count + (1 if more else -1)
@@ -18282,13 +18317,8 @@ def _weekday_repaired(
             break
     for _round in range(_WEEKDAY_REPAIR_ROUNDS):
         if _weekday_count(state) <= wanted:
-            break
-        if not _weekday_runs_merged(state, body_low, body_high, pinned, wanted):
-            break
-    for _round in range(_WEEKDAY_REPAIR_ROUNDS):
-        if _weekday_count(state) == wanted:
             return
-        if not _weekday_traded(state, body_low, body_high, pinned, wanted):
+        if not _weekday_runs_merged(state, body_low, body_high, pinned, wanted):
             return
 
 
@@ -18317,86 +18347,22 @@ def _weekday_runs_merged(
         members = runs[day]
         if state.held[day] != len(members):
             continue
-        low = max(state.lows[rank] for rank in members)
-        high = min(state.highs[rank] for rank in members)
-        if low != state.lows[members[0]] or high != state.highs[members[0]]:
+        first = members[0]
+        if [state.lows[rank] for rank in members] != [
+            state.lows[first] for _rank in members
+        ] or [state.highs[rank] for rank in members] != [
+            state.highs[first] for _rank in members
+        ]:
             continue
         target = _weekday_nearest(
             state, members[0], _weekday_group(state, day),
             _weekday_kind(state, day), True, 0,
         )
-        if target < 0:
+        if target is None:
             continue
         for rank in members:
             _weekday_step(state, rank, target)
         changed = True
-    return changed
-
-
-def _weekday_traded(
-    state: _WeekdayPass,
-    body_low: int,
-    body_high: int,
-    pinned: "list[bool]",
-    wanted: int,
-) -> bool:
-    """One round of step 8.3 (`_weekday_repaired`); whether any trade held."""
-    changed = False
-    for first in range(body_low, body_high + 1):
-        count = _weekday_count(state)
-        if count == wanted:
-            return changed
-        more = count < wanted
-        if pinned[first]:
-            continue
-        day = state.moved[first]
-        here = state.held[day]
-        if (more and here < 2) or (not more and here != 1):
-            continue
-        group = _weekday_group(state, day)
-        kind = _weekday_kind(state, day)
-        target = -1
-        low, high = state.lows[first], state.highs[first]
-        for away in range(1, _WEEKDAY_REACH + 1):
-            if day - away < low and day + away > high:
-                break
-            for other in (day - away, day + away):
-                if other < low or other > high or other in state.holes:
-                    continue
-                if _weekday_group(state, other) == group:
-                    continue
-                if _weekday_kind(state, other) != kind:
-                    continue
-                there = other in state.held and state.held[other] > 0
-                if there != more:
-                    target = other
-                    break
-            if target >= 0:
-                break
-        if target < 0:
-            continue
-        other_group = _weekday_group(state, target)
-        _weekday_step(state, first, target)
-        traded = False
-        for second in range(body_low, body_high + 1):
-            if second == first or pinned[second]:
-                continue
-            if _weekday_group(state, state.moved[second]) != other_group:
-                continue
-            alone = state.held[state.moved[second]] <= 1
-            back = _weekday_nearest(
-                state, second, group, _weekday_kind(state, state.moved[second]),
-                not alone, 0,
-            )
-            if back < 0:
-                continue
-            _weekday_step(state, second, back)
-            traded = True
-            break
-        if traded:
-            changed = True
-            continue
-        _weekday_step(state, first, day)
     return changed
 
 
@@ -18416,10 +18382,11 @@ def _weekday_settled(
     Only BODY ranks the layout does not pin move, and only inside their
     own gap: no tail rank, boundary or published rung moves, so every
     tail fact and every rung stands. In order: each group's OWED total
-    (its count less the pinned body ranks it holds); each gap's SHARE of
-    every group (`_weekday_shares`); the moves, gap by gap -- whole runs,
-    then single ranks, count-keeping moves first; the leftover, over the
-    whole body; the holes swept; the count of different days put back
+    (its count less the pinned body ranks it holds); every rank drawn
+    onto a hole moved off it (`_weekday_holes_swept`); each gap's SHARE
+    of every group (`_weekday_shares`); the moves, gap by gap -- whole
+    runs, then single ranks, count-keeping moves first; the leftover,
+    over the whole body; the count of different days put back
     (`_weekday_repaired`); each run of unpinned ranks sorted. A moved day
     keeps its width kind where the column has one width convention, and
     no rank is ever moved onto a hole: a day every spelling of which
@@ -18495,6 +18462,7 @@ def _weekday_settled(
             group = _weekday_group(state, moved[rank])
             owed[group] = owed[group] - 1
     gaps = _weekday_gaps(state, body_low, body_high, pinned)
+    _weekday_holes_swept(state, gaps)
     quota = _weekday_shares(state, gaps, owed)
     for index in range(len(gaps)):
         ranks = gaps[index]
@@ -18517,7 +18485,6 @@ def _weekday_settled(
         _weekday_singles_moved(
             state, everything, have, target, _WEEKDAY_LEFTOVER_ROUNDS, True
         )
-    _weekday_holes_swept(state, gaps)
     if state.keep_units:
         _weekday_repaired(state, body_low, body_high, pinned, wanted)
     _runs_sorted(moved, pinned)

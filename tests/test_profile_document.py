@@ -525,8 +525,16 @@ def test_nothing_that_varies_between_runs_is_written(
 # sentences pass because that tree predates it, and are null again here,
 # so the NET of the two passes is this one sentence. No key arrives, none
 # leaves, and no published number of any column moves.
+# AND RE-RECORDED AT LANDING 3b.1 (2026-09-26, plan P4-D355), read as a
+# line-by-line diff against a git archive of e4a5d34, whose digest was
+# the one above: ONE KEY ARRIVES and two sentences with it, all on
+# `recorded_on`, the one column of dates. It publishes a weekday census of
+# the first entry of the menu -- seven groups, one day each, counts 30,
+# 27, 33, 36, 30, 26 and 35 -- and its `remarks`, empty before, gain the
+# two remarks that say what the census counts and that it shows no count
+# below the floor. Nothing leaves and no other line of 2,143 differs.
 GOLDEN_SHA256 = (
-    "2e1919686d557dc11ce15842497a84e8e01ad5e13de521f2e945f760d6f0f238"
+    "fe870d8841fe7406c4b34e94053c4079cdfea6c2146da19e5177c48b8ed2e1af"
 )
 
 

@@ -5024,6 +5024,10 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("tail-piled-recorded_on", "tails.low.rms_distance"),
             ("tail-piled-recorded_on", "tails.high.mean_distance"),
             ("tail-piled-recorded_on", "tails.high.rms_distance"),
+            # THE WEEKDAY CENSUS (landing 3b.1): the edit that moves the
+            # body's cells onto other days moves them onto other
+            # weekdays too, and no tail edit is needed to reach it.
+            ("crushed-recorded_on", "weekday_census.groups"),
             ("one-worded-recorded_on", "offsets.(none)"),
             ("mixed-recorded_on", "offsets.read-at"),
             ("renamed-recorded_on", "position.at"),
@@ -6520,6 +6524,9 @@ SUBCHECK_FACTS: "dict[tuple[str, str], str]" = {
         "datetime.high_tail.rms_distance"
     ),
     ("datetime", "offsets.read-at"): "datetime.datetimes_read_at",
+    # THE WEEKDAY CENSUS (landing 3b.1, plan P4-D355): the body's
+    # cells counted against every published group at once.
+    ("datetime", "weekday_census.groups"): "datetime.weekday_census",
     ("datetime", "position.at"): "universal.position",
     ("datetime", "precision.resolution"): "datetime.resolution",
     ("datetime", "precision.time_precision"): "datetime.time_precision",

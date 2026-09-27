@@ -160,6 +160,7 @@
         "utc_offsets": {
           "(none)": 60
         },
+        "weekday_census": [],
         "zulu_case": {}
       },
       "content": [
@@ -532,6 +533,7 @@
         "utc_offsets": {
           "(none)": 80
         },
+        "weekday_census": [],
         "zulu_case": {}
       },
       "content": [
@@ -3140,6 +3142,7 @@
         "utc_offsets": {
           "(none)": 60
         },
+        "weekday_census": [],
         "zulu_case": {}
       },
       "content": [

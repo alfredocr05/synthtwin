@@ -140,6 +140,7 @@
         "utc_offsets": {
           "(none)": 40
         },
+        "weekday_census": [],
         "zulu_case": {}
       },
       "content": [
@@ -396,6 +397,7 @@
         "utc_offsets": {
           "(none)": 26
         },
+        "weekday_census": [],
         "zulu_case": {}
       },
       "content": [
@@ -644,6 +646,7 @@
         "utc_offsets": {
           "(none)": 60
         },
+        "weekday_census": [],
         "zulu_case": {}
       },
       "content": [
@@ -974,6 +977,7 @@
         "utc_offsets": {
           "(none)": 40
         },
+        "weekday_census": [],
         "zulu_case": {}
       },
       "content": [
@@ -1692,6 +1696,7 @@
         "utc_offsets": {
           "(none)": 60
         },
+        "weekday_census": [],
         "zulu_case": {}
       },
       "content": [
@@ -1966,6 +1971,7 @@
         "utc_offsets": {
           "(none)": 11
         },
+        "weekday_census": [],
         "zulu_case": {}
       },
       "content": [
@@ -2202,6 +2208,7 @@
         "utc_offsets": {
           "(none)": 80
         },
+        "weekday_census": [],
         "zulu_case": {}
       },
       "content": [
@@ -5225,6 +5232,7 @@
           "+02:00": 11,
           "Z": 13
         },
+        "weekday_census": [],
         "zulu_case": {}
       },
       "content": [
@@ -5387,6 +5395,7 @@
         "utc_offsets": {
           "(none)": 12
         },
+        "weekday_census": [],
         "zulu_case": {}
       },
       "content": [
@@ -5597,6 +5606,7 @@
         "utc_offsets": {
           "(none)": 60
         },
+        "weekday_census": [],
         "zulu_case": {}
       },
       "content": [

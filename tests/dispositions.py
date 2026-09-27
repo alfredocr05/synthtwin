@@ -432,6 +432,12 @@ PLAN4_REGIONS = {
         "### P4-D35 The stretch edges (owner ruling 2026-09-04)"
     ),
     "kurtosis": "### P4-D4.8 The kurtosis (owner instruction 2026-08-26)",
+    # The weekday census (stage 3b landing 3b.1), disposed in the decision
+    # that published it.
+    "weekday-census": (
+        "## Decision P4-D355 — the weekday census of a column of dates "
+        "(stage 3b landing 3b.1, 2026-09-26)"
+    ),
     "group-separator": (
         "### P4-D38 The mark between thousands (stage 2, 2026-09-14)"
     ),
@@ -1061,6 +1067,19 @@ REGISTRY += (
         EXACT_OBSERVABLE,
         plan_words="the case of a zulu offset marker",
         plan_region="moment-spellings",
+        aliases=(),
+    ),
+    # ...and the weekday census (stage 3b landing 3b.1, plan P4-D355): the
+    # file's own body holds every published group's count exactly.
+    Fact(
+        "datetime",
+        "weekday_census",
+        EXACT_OBSERVABLE,
+        plan_words=(
+            "the file's own cells between the two published boundaries hold "
+            "every group's published count exactly"
+        ),
+        plan_region="weekday-census",
         aliases=(),
     ),
 )

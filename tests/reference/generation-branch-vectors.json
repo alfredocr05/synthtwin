@@ -3805,6 +3805,7 @@
         "utc_offsets": {
           "(none)": 26
         },
+        "weekday_census": [],
         "zulu_case": {}
       },
       "content": [
@@ -5487,6 +5488,7 @@
         "utc_offsets": {
           "(none)": 24
         },
+        "weekday_census": [],
         "zulu_case": {}
       },
       "content": [
@@ -5649,6 +5651,7 @@
         "utc_offsets": {
           "(none)": 12
         },
+        "weekday_census": [],
         "zulu_case": {}
       },
       "content": [
