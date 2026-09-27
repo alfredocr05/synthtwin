@@ -10934,7 +10934,9 @@ def _empty_edges(numbers: "list[float]") -> "list[list[float]]":
     real cell -- the same kind of fact a percentile rung is, and a
     ladder publishes eleven of them on every numeric column. It says
     that some row holds 26.9 and some row holds 74.0, and nothing about
-    which rows, how many, or what those rows hold anywhere else. The
+    how many, or what those rows hold anywhere else, or which rows they
+    are except on a table sorted by that column, whose published order
+    (`row_order`) makes a value's place in that order its row. The
     ruling that covers a rung covers this.
 
     Guarantees: accepts the numbers the statistics used; returns one

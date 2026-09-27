@@ -1247,9 +1247,10 @@ def whole_description(block: "dict", values: "list[int]") -> "dict":
 
     It reads only a whole-number column whose rungs stand on whole ranks
     (`n - 1` a multiple of a hundred), whose one repeated value is the
-    mode, and whose low side is bounded by the sign counts; anywhere else,
-    or past its caps, it says why and names nothing -- so every count it
-    gives is a floor on what comes back.
+    PUBLISHED mode, and whose low side is bounded by the sign counts;
+    anywhere else, or past its caps, it says why and names nothing -- a
+    column that repeats a value beside a mode the floor withholds is its own
+    reason -- so every count it gives is a floor on what comes back.
 
     Returns `read` (`whole` where one column fits, `high tail` where only
     the high tail is settled, else the reason), `values_rebuilt` (ranks
@@ -1272,7 +1273,10 @@ def whole_description(block: "dict", values: "list[int]") -> "dict":
     mode = block["mode"]
     if distinct == n:
         copies_of_mode, mode = 0, None
-    elif not isinstance(copies_of_mode, int) or mode is None or n - distinct != copies_of_mode - 1:
+    elif not isinstance(copies_of_mode, int) or mode is None:
+        out["read"] = "the floor withholds the mode and its count"
+        return out
+    elif n - distinct != copies_of_mode - 1:
         out["read"] = "a value other than the mode repeats"
         return out
     mode = int(mode) if mode is not None else None

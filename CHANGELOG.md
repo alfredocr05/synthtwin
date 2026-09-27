@@ -6,6 +6,24 @@ exists).
 
 ## [Unreleased]
 
+### A sorted table's rebuilt values are placed in their rows, said where the surfaces denied it (2026-09-26)
+
+**Every sentence saying a description never names which row holds a
+value** now says what a table sorted by that column publishes: its
+order, `source.dialect.row_order`, so row k holds the k-th value. On
+`heap_then_one_far` at a floor of eleven the whole description gives
+all 1,101 values back and the order places each, the one-row maximum in
+row 1,101; the owner's answer 8 was given on the unqualified premise,
+and the corrected one is recorded beside it (plan P4-D353). A gate test
+describes that table and fails on any surface stating the denial
+without `row_order` near it. Three stand-in guards of the previous
+entry had no test: G6.6's refusal of `-9999`, the fitted staircase's
+refusal and the staircase's refusal of `-9999`; each now turns a test
+red when withdrawn. `complement_reader.whole_description` names a
+withheld mode as its own reason for giving up, which is why 9 of
+`K-S3-24`'s column-floors are not read, and README lists the sign
+counts among what gives values back.
+
 ### A withheld tail pair that costs the twin its mean or spread is published (2026-09-26)
 
 **Where withholding a tail's pair would leave the description's own

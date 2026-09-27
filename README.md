@@ -148,11 +148,13 @@ column's own mean or spread, where they are published anyway (the
 owner's ruling of 2026-09-25). **What a description names is not all a
 reader can work out from it.** On some shapes the rest of it -- the
 column's exact mean, spread, skew and kurtosis beside its steps, its
-count of different values and how many rows hold its commonest one --
-gives some or all of that column's own values back, its outermost among
-them: every value of the whole numbers 0 to 1,100 written once comes
-back that way. It never says which row holds a value, and nothing about
-any other column; the owner accepted this on 2026-09-25 and 26, and the
+count of different values, how many rows hold its commonest one and its
+sign counts -- gives some or all of that column's own values back, its
+outermost among them: every value of the whole numbers 0 to 1,100
+written once comes back that way. It says nothing about any other
+column, and never which row holds a value except on a table sorted by
+that column, whose description publishes the order (`row_order`), so row
+k holds the k-th value; the owner accepted this on 2026-09-25 and 26, and the
 KPI ledger holds each case at a ceiling (`K-S3-17`, `K-S3-21`,
 `K-S3-23`, `K-S3-24`). A column of dates or clock
 times is described the same way, from a BOUNDARY -- the earliest date

@@ -191,8 +191,10 @@ Stated here so that no reader has to discover them independently:
   be described as labels and published none of its readings, and the
   compound role now describes its numeric half. The reasoning is the
   reasoning above — the description records that the column holds
-  `1.7` and where in its order it sits, not which row holds it and not
-  what that row holds anywhere else.
+  `1.7` and where in its order it sits, not what that row holds anywhere
+  else, and not which row holds it except on a table sorted by that
+  column, whose description publishes the order (`row_order`), so its
+  place in that order is its row.
 
   **HOW MANY OF THOSE NUMBERS THERE REALLY ARE, corrected here
   (2026-09-04).** This paragraph used to say a ladder is made of order
@@ -235,8 +237,10 @@ Stated here so that no reader has to discover them independently:
   different values, its commonest value's count and its sign counts --
   lets a reader work some or all of the column's own values out, a
   one-row extreme among them: every value of the whole numbers 0 to
-  1,100 written once comes back. Never which row holds one, and nothing
-  about another column; the owner accepted each such case on 2026-09-25
+  1,100 written once comes back. Nothing about another column, and never
+  which row holds one except on a table sorted by that column, whose
+  description publishes the order (`row_order`), so row k holds the k-th
+  value; the owner accepted each such case on 2026-09-25
   and 26, and the KPI ledger holds them at a ceiling (`K-S3-17`,
   `K-S3-21`, `K-S3-23`, `K-S3-24`).
 
@@ -612,8 +616,9 @@ Stated here so that no reader has to discover them independently:
   The compound role describes such a column as what it is, so its
   numeric half now carries a mean, a spread and a percentile ladder --
   and a ladder's rungs are values the column really holds. Nothing
-  about which ROW holds a reading is published, and the ruling above
-  covers the rest; what changed is that this option's page now has a
+  about which ROW holds a reading is published except on a table sorted
+  by that column, whose published order (`row_order`) makes a rung's
+  place in that order its row, and the ruling above covers the rest; what changed is that this option's page now has a
   distribution behind it where it used to have none.
 
   **What that gives up, at its size.** A reader of the settings block

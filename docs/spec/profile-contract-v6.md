@@ -763,7 +763,7 @@ below (`contract._dialect_block`, `contract._dialect_rules`).
 | `byte_order_mark` | boolean | — | a byte-order mark leads the file |
 | `columns` | array of objects `{pad, quoting, sequence_start}` | one per column | `quoting`: one rule per cell class `absent`, `empty`, `number`, `text` — `needed`, `bare`, `always`, `mixed`; `pad`: `null` or `{side: left or right, width}`; `sequence_start`: `null`, `0` or `1` for a column holding the row sequence — published ONLY for a first column named as a written row index is (`Unnamed: 0`, `rownames`), never for a column declared with `--identifier`, and never for a column with an absent cell (FD12, plan P4-D76) |
 | `delimiter` | string | `,` `;` tab `\|` | the field delimiter |
-| `empty_rows` | object `{interior, leading, trailing}` | whole numbers | records holding nothing in every cell, where they stand. A cell holding nothing but spaces and tabs holds NOTHING here, which is what the column's own description counts absent and what the twin writes empty (plan P4-D84, review item CODEX-7); counting it as something published no such record for a file of ninety ` , ` records whose twin held ninety, and the twin then missed `bytes.empty-rows` against its own description. Only the counts are published, never which rows they are, and a count below the census line, max(2, `small_cell_floor`), is published as NOUGHT (plan P4-D290, ruling 4 of 2026-09-17: an empty row is a record of the table, and replacing record 57 of 120 with a bare comma published `interior 1`). The line is the floor itself at the default of 11 and at every floor of two or more, and is not asked at a floor of one, at which the column censuses beside it publish a level covering one row (the amendment of 2026-09-18). The loader asks the same line of each of the three counts (FD5, plan P4-D317) |
+| `empty_rows` | object `{interior, leading, trailing}` | whole numbers | records holding nothing in every cell, where they stand. A cell holding nothing but spaces and tabs holds NOTHING here, which is what the column's own description counts absent and what the twin writes empty (plan P4-D84, review item CODEX-7); counting it as something published no such record for a file of ninety ` , ` records whose twin held ninety, and the twin then missed `bytes.empty-rows` against its own description. Only the counts are published, never which rows they are (the published order, `row_order`, is read without such records and places none of them), and a count below the census line, max(2, `small_cell_floor`), is published as NOUGHT (plan P4-D290, ruling 4 of 2026-09-17: an empty row is a record of the table, and replacing record 57 of 120 with a bare comma published `interior 1`). The line is the floor itself at the default of 11 and at every floor of two or more, and is not asked at a floor of one, at which the column censuses beside it publish a level covering one row (the amendment of 2026-09-18). The loader asks the same line of each of the three counts (FD5, plan P4-D317) |
 | `end_of_file_mark` | boolean | — | a Ctrl-Z byte follows the last line |
 | `escape` | string | `doubled`, `backslash` | how a quote character is written inside a quoted field |
 | `final_line_ending` | boolean | — | the last line ends with a line ending |
@@ -1517,7 +1517,9 @@ names are all empty, and invariant S12 keeps them that way — so a
 description says what each column holds ONE COLUMN AT A TIME and never
 which values met in a row. What a named rare value therefore discloses
 is that somebody in the table had it, and nothing else about them: not
-their other columns, not which row they are. The owner ruled that this
+their other columns, and not which row they are except on a table sorted
+by that column, whose published order (`row_order`) makes a value's
+place in that order its row. The owner ruled that this
 is the disclosure the tool is for, that a rare finding must reach the
 twin or the twin is not one, and that the pooling be available to
 anybody whose review board asks for it rather than imposed on
@@ -6428,8 +6430,10 @@ integers 0 to 1,100 once each at every floor from 11 to 50, and a heap
 of eleven beside one far value at 11, whose one-row maximum comes back
 with the rest. The owner accepted it on 2026-09-26 with the channel
 above ("Accept both"; ledger entry `K-S3-24`): what comes back is a
-column's own values and how many rows hold each, never which row holds
-one and never anything about another column.
+column's own values and how many rows hold each, never anything about
+another column, and never which row holds one except on a table sorted
+by that column, whose description publishes the order (`row_order`), so
+row k holds the k-th value.
 
 **AND SO DOES A TAIL WHOSE DISTANCES BINARY64 CANNOT HOLD** (stage 3's
 review, verdict item 2). Every distance is computed exactly and rounded
@@ -10229,8 +10233,10 @@ generator needs.
 
 **WHAT IT COSTS A READER TO KNOW, priced on its own and not by
 comparison.** Each edge IS the value of a real cell. It says that some
-row holds 26.6 and some row holds 72.7, and nothing about which rows,
-how many, or what those rows hold anywhere else — which is the ground
+row holds 26.6 and some row holds 72.7, and nothing about how many, or
+what those rows hold anywhere else, or which rows they are except on a
+table sorted by that column, whose published order (`row_order`) makes a
+value's place in that order its row — which is the ground
 the owner's rulings of 2026-08-31 and 2026-09-03 stand on, and their
 ruling of 2026-09-04 ("follow you recommendation") settles this key.
 
@@ -13316,8 +13322,10 @@ a marked row.
 
     **The weighing, stated as a ceiling rather than as a comparison.**
     An edge says that some row holds 26.6 and some row holds 72.7 —
-    and nothing about which rows, how many, or what those rows hold
-    anywhere else, which is the ground the owner's rulings of
+    and nothing about how many, or what those rows hold anywhere else,
+    or which rows they are except on a table sorted by that column,
+    whose published order (`row_order`) makes a value's place in that
+    order its row, which is the ground the owner's rulings of
     2026-08-31 and 2026-09-03 stand on. A reach is divided into
     thirty-two bins whose first and last always hold the two
     endpoints, so this row names **at most fifteen pairs and thirty

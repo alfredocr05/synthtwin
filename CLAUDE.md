@@ -211,9 +211,10 @@ though it existed:
   or a tail that lists its values (`K-S3-21`, `K-S3-23`), and from the
   whole description where the count of different values, the mode's
   count, the sign counts and the rungs pin the column (`K-S3-24`) -
-  but never which row holds one and never anything about another
-  column, and the owner accepted each of these limits on 2026-09-25
-  and 2026-09-26.
+  but never anything about another column, and never which row holds
+  one except on a table sorted by that column, whose description
+  publishes the order (`row_order`), so row k holds the k-th value; the
+  owner accepted each of these limits on 2026-09-25 and 2026-09-26.
 - The offline guarantee is a property of the code, verified by source
   audit and scans - it is not an OS-level sandbox. Institutions that
   require enforcement run the tool inside their own network-isolated

@@ -2200,7 +2200,10 @@ def test_the_whole_description_rebuild_which_the_owner_accepted(
     The owner's answer 8 of 2026-09-26, "Accept both", given after asking
     how much it shows about the RELATION of the data and being told: a
     column's own values and their row counts, never which row, never
-    another column. Where the count of different values, the mode's
+    another column -- a premise short of the truth on a table sorted by
+    the column, whose published `row_order` puts the k-th value in row k
+    (`test_a_sorted_table_places_every_rebuilt_value_in_its_row`). Where
+    the count of different values, the mode's
     count, the sign counts and the rungs pin a column, its exact mean and
     spread give every value back although both tails withhold their
     pairs. `complement_reader.whole_description` reads two of the eight
@@ -2225,6 +2228,71 @@ def test_the_whole_description_rebuild_which_the_owner_accepted(
             "are out of date"
         )
         assert read["values_rebuilt"] <= entry["expected"]["values_rebuilt"]
+
+
+# WHERE A SENTENCE DENYING THAT A ROW IS NAMED MUST SAY WHAT A SORTED TABLE
+# PUBLISHES. `source.dialect.row_order` names the column the rows are sorted
+# by, so on such a table a value's place in that column's order IS its row.
+_ROW_DENIAL = re.compile(r"\b(?:never|not|nor|nothing about)\s+(?:says\s+)?which\s+rows?\b")
+_ROW_QUALIFIER = "row_order"
+_ROW_WINDOW = 400
+_ROW_SURFACES = ("*.md", "docs/**/*.md", "src/synthtwin/*.py", "tests/*.py", "tests/kpi/ledger.json")
+
+
+def _unqualified_row_denials(text: str) -> "list[str]":
+    """Each denial that a row is named with no `row_order` qualifier within `_ROW_WINDOW` characters."""
+    flat = " ".join(text.lower().split())
+    found: "list[str]" = []
+    for match in _ROW_DENIAL.finditer(flat):
+        near = flat[max(0, match.start() - _ROW_WINDOW) : match.end() + _ROW_WINDOW]
+        if _ROW_QUALIFIER not in near:
+            found += [flat[max(0, match.start() - 80) : match.end() + 80]]
+    return found
+
+
+def test_a_sorted_table_places_every_rebuilt_value_in_its_row(
+    attacked: "dict[str, Case]",
+) -> None:
+    """A description of a SORTED table says which row holds each rebuilt value.
+
+    `heap_then_one_far` -- 0 to 1,088 once each, 1,089 eleven times and
+    1,100 once, written in order as the gate writes it -- publishes
+    `row_order` ascending by its one column, and the whole description gives
+    every value back (`K-S3-24`), so row k holds the k-th value and a reader
+    knows every row, row 1,101's one-row maximum among them. Every public
+    surface that says the description names no row must say so beside
+    `row_order`; the owner was told "never which row" when answering 8, and
+    the premise is short of the truth here.
+    """
+    import complement_reader as columns
+
+    case = attacked["heap_then_one_far"]
+    order = case.document["source"]["dialect"]["row_order"]
+    assert order == {"collation": "number", "column": 1, "direction": "ascending"}, (
+        f"premise: the attack's own file order is published as the rows' order ({order})"
+    )
+    written = [int(cell) for cell in case.cells["value"]]
+    read = columns.whole_description(case.document["columns"][0], sorted(written))
+    assert read["read"] == "whole" and read["values_rebuilt"] == len(written), read
+    assert sorted(written) == written, "premise: row k of the file holds the k-th value"
+    root = pathlib.Path(__file__).resolve().parents[1]
+    offenders: "list[str]" = []
+    for pattern in _ROW_SURFACES:
+        for path in sorted(root.glob(pattern)):
+            for snippet in _unqualified_row_denials(path.read_text(encoding="utf-8")):
+                offenders += [f"{path.relative_to(root)}: ...{snippet}..."]
+    assert offenders == [], (
+        "these sentences say the description names no row, and on a table sorted by the "
+        "column it does -- say so beside `row_order`:\n  " + "\n  ".join(offenders)
+    )
+
+
+def test_the_row_claim_guard_would_notice_an_unqualified_denial() -> None:
+    """A guard that passes is not a guard: the denial alone is caught, and the qualified one is not."""
+    bare = "a column's own values come back, and it never says " + "which row holds one."
+    assert _unqualified_row_denials(bare) != []
+    qualified = bare + " except on a table sorted by that column, whose order (`row_order`) is published"
+    assert _unqualified_row_denials(qualified) == []
 
 
 def test_the_reconstruction_gate_turns_red_when_the_pair_goes_back(
