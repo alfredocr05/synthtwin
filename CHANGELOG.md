@@ -6,6 +6,22 @@ exists).
 
 ## [Unreleased]
 
+### A signed decimal beside a trailing minus takes its whole negatives nearest zero too (2026-09-26)
+
+Where `decimal_plus` and a trailing minus are both named, G6.4's walk
+over the negative strata alone took the whole negatives it owed from
+the most negative strata, so 30 negatives written `-007` beside 40
+written `12.34-` and 30 written `+12.34` came back with 14 of 30 padded
+cells at seed 0 and five checks missed at every seed. That walk now takes them nearest
+zero first, as the last walk does, and a walk's count after a chain
+move covers only the strata it walks, which had let a whole positive
+meet the negatives' demand and cost a `decimal_plus` cell (plan P4-D352
+(7)). The walks over the side that is not negative keep stratum order.
+New `trailing_values` rows hold the walk beside's demand, the order of
+the side that is not negative and the negative walk's order. The
+ledger note names its entries, their trees and what took them, and no
+longer restates their values; a test holds that.
+
 ### Whole negatives beside a trailing minus are the ones nearest zero (2026-09-26)
 
 The repair above made the side that is not negative carry the whole

@@ -12933,10 +12933,10 @@ def _whole_enough(
     Where the census of notations names a trailing minus, the values that
     are not negative carry the point-free count first, as far as they
     can, so the negatives `_trailing_owed` counts keep their point; the
-    last walk then takes every stratum that is not negative before any
-    negative one, and the negative ones nearest zero first
-    (`_negatives_last`), and a later stratum is one that order reaches
-    later.
+    walk over the negative strata alone and the last walk then take every
+    stratum that is not negative before any negative one, and the
+    negative ones nearest zero first (`_negatives_last`), and a later
+    stratum is one that order reaches later.
     """
     if facts.integer_valued:
         return values
@@ -13017,8 +13017,18 @@ def _whole_enough(
         # written `-007` and 90 whole positives came back with 18 of its
         # 20 whole negatives between -924 and -210, where no field three
         # figures wide reaches, and 9 cells padded where 20 were published.
+        # ...AND SO DOES THE WALK OVER THE NEGATIVE STRATA ALONE (the
+        # skeptic of plan P4-D352 (6), round 3). A signed decimal beside a
+        # trailing minus asks that walk for whole negatives, and in stratum
+        # order it gave them the most negative strata too: 40 negatives
+        # written `12.34-` beside 30 written `-007`, 30 written `+12.34`
+        # and 70 whole positives missed five checks at five seeds of five,
+        # and at seed 0 28 of its 30 whole negatives stood between -949
+        # and -213 with 14 cells padded where 30 were published. The two
+        # walks over the side that is not negative reach no negative, so
+        # they keep stratum order.
         order = None
-        if trailing > 0 and reachable == _REACHABLE[1]:
+        if trailing > 0 and reachable != _REACHABLE[0]:
             order = _negatives_last(layout.bands)
         places = range(total) if order is None else order
         carried = 0
@@ -13098,9 +13108,20 @@ def _whole_enough(
                         moved[seat] = value
                         if not _carries_plainly(value, False):
                             locked[seat] = 1
+                    # RECOUNTED OVER THE STRATA THIS WALK REACHES, as it was
+                    # counted before the walk (the skeptic of plan P4-D352
+                    # (6), round 3). Counted over every stratum, a whole
+                    # value on the other side of zero met part of this
+                    # walk's demand: in the shape above, walked nearest
+                    # zero, a chain made the negative walk stop a cell
+                    # short at seed 0, the last walk took that cell from a
+                    # value that is not negative, and `decimal_plus` was
+                    # missed at five seeds of five.
                     taken = {value: 1 for value in moved}
                     carried = 0
                     for seat in range(total):
+                        if layout.bands[seat] not in reachable:
+                            continue
                         if _carries_plainly(moved[seat], False):
                             carried = carried + layout.sizes[seat]
                     continue
@@ -13113,7 +13134,7 @@ def _whole_enough(
 
 
 def _negatives_last(bands: "tuple[str, ...]") -> "tuple[int, ...]":
-    """The strata in the order G6.4's last walk takes them beside a trailing minus.
+    """The strata in the order G6.4's walks reaching a negative take them beside a trailing minus.
 
     Every stratum that is not negative, ascending, and then every
     negative one, NEAREST ZERO FIRST. A trailing minus is written only on

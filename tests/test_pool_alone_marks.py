@@ -501,13 +501,14 @@ def test_a_run_of_one_value_keeps_one_mark():
 
 def _trailing_negatives(seed: int, trailing: int, brackets: int, minus: int, sign: int,
                         positives: int, whole_others: bool = True, points: bool = True,
-                        whole_share: float = 0.5, padded: int = 0) -> "list[str]":
+                        whole_share: float = 0.5, padded: int = 0,
+                        signed: int = 0) -> "list[str]":
     """Negatives under a thousand: ``trailing`` written `12.50-`, the others as asked.
 
     ``points`` False writes the trailing ones `12.00-`, so every value is
     whole; ``whole_share`` of the positives are written with no point;
     ``padded`` negatives under a hundred are written three figures wide,
-    `-007`.
+    `-007`; ``signed`` more positives are written `+12.50`.
     """
     draw = random.Random(seed)
 
@@ -521,6 +522,7 @@ def _trailing_negatives(seed: int, trailing: int, brackets: int, minus: int, sig
     out += ["-" + figures(not whole_others) for _ in range(minus)]
     out += ["−" + figures(not whole_others) for _ in range(sign)]
     out += [f"-{draw.randint(1, 99):03d}" for _ in range(padded)]
+    out += ["+" + figures(True) for _ in range(signed)]
     out += [figures(draw.random() >= whole_share) for _ in range(positives)]
     draw.shuffle(out)
     return out
@@ -545,6 +547,15 @@ TRAILING = (
     # (the skeptic of plan P4-D352 (5))
     ("named-beside-padded", _trailing_negatives(2401, 25, 0, 0, 0, 90, whole_share=1.0, padded=20),
      {"minus": 20, "trailing_minus": 25}),
+    # a signed decimal beside them asks the walk over the negatives for
+    # whole ones, which the padded fields need nearest zero too (the
+    # skeptic of plan P4-D352 (6), round 3)
+    ("signed-beside-padded",
+     _trailing_negatives(2501, 25, 0, 0, 0, 60, whole_share=1.0, padded=20, signed=25),
+     {"minus": 20, "trailing_minus": 25}),
+    ("signed-beside-padded-wide",
+     _trailing_negatives(2504, 40, 0, 0, 0, 70, whole_share=1.0, padded=30, signed=30),
+     {"minus": 30, "trailing_minus": 40}),
 )
 
 
@@ -558,7 +569,7 @@ def test_the_twin_writes_as_many_trailing_minuses_as_the_census_counts(
     At e294a82 the two band shapes and the two named ones beside no
     whole value wrote 0 or 1 trailing minus, missing both notation checks
     at every seed, and the whole-valued one 34 of 37. Mutations, each
-    run: `_trailing_owed` answering nought turns all thirty red; the
+    run: `_trailing_owed` answering nought turns all forty red; the
     values step's walk for a trailing minus withdrawn turns every shape
     but the whole-valued one red at every seed; the exchange withdrawn
     turns `band-beside-whole` and `named-whole-values` red at every seed;
@@ -566,7 +577,12 @@ def test_the_twin_writes_as_many_trailing_minuses_as_the_census_counts(
     `named-beside-brackets` red at every seed. At 8448e5f
     `named-beside-padded` wrote every trailing minus and missed its
     padded cells at every seed; the last walk of the values step taken in
-    stratum order turns it red at every seed.
+    stratum order turns it red at every seed. At 331ad47 both
+    `signed-beside-padded` shapes missed their padded cells and four
+    style checks at every seed; the walk over the negative strata taken
+    in stratum order turns both red at every seed, and its count after a
+    chain taken over every stratum turns `signed-beside-padded-wide` red
+    at every seed (its `decimal_plus`).
     """
     first, second, written, twin_exit, real_exit = _round_trip(tmp_path, cells, (), seed=seed)
     assert first["negative_notations"] == census
@@ -675,3 +691,43 @@ def test_the_chain_asks_in_the_walk_s_order_which_a_trailing_minus_sets(census, 
         negative_notations=census,
     )
     assert tuple(generation._whole_enough(column, facts, layout, rungs, list(CHAIN_VALUES))) == answer
+
+
+def test_the_walks_over_the_side_that_is_not_negative_keep_stratum_order():
+    """Beside a trailing minus, only the walks reaching a negative take its order.
+
+    Four strata of 10, 40, 20 and 30 cells on a 101-rung ladder, shares
+    (-6, -5), (-5, 1.3), (1.3, 1.9) and (1.9, 10), values -6, -0.4, 1.4
+    and 10; 80 cells asked point-free and 10 of the 50 negatives under a
+    trailing minus. The walk beside is asked for 80 - (50 - 10) = 40 and
+    the end 10 carries 30, so it asks 1.4, whose nearest whole number, 1,
+    is outside its own share and inside -0.4's. In stratum order -0.4 is
+    not after 1.4, so 1.4 takes 1; the last walk then gives -0.4 its -1,
+    since 0 would carry it across zero. The two walks over the side that
+    is not negative reach no negative, so a negative's share is nothing
+    they wait for (the skeptic of plan P4-D352 (6), round 3: that order
+    taken on every walk moves 22 of 277 fuzzed twins, changes no verdict,
+    and no other test holds it). Mutation, run: the order taken on every
+    walk gives 1.4 the 2 instead.
+    """
+    starts = (0, 10, 50, 70)
+    lows = (-6.0, -5.0, 1.3, 1.9)
+    rungs = tuple(
+        lows[max(k for k in range(4) if starts[k] <= place)] for place in range(100)
+    ) + (10.0,)
+    layout = types.SimpleNamespace(
+        sizes=(10, 40, 20, 30), starts=starts, bands=("negative",) * 2 + ("positive",) * 2
+    )
+    column = types.SimpleNamespace(n_numeric=100)
+    shares = [generation._share_of(k, layout, rungs, 100) for k in range(4)]
+    assert shares == [(-6.0, -5.0), (-5.0, 1.3), (1.3, 1.9), (1.9, 10.0)]
+    facts = types.SimpleNamespace(
+        integer_valued=False,
+        numeric_styles={"plain": 80, "decimal": 20},
+        decimal_plus={},
+        negative_notations={"minus": 40, "trailing_minus": 10},
+    )
+    values = [-6.0, -0.4, 1.4, 10.0]
+    assert tuple(generation._whole_enough(column, facts, layout, rungs, values)) == (
+        -6.0, -1.0, 1.0, 10.0,
+    )

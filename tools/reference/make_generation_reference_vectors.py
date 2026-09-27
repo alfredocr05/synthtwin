@@ -3971,7 +3971,9 @@ def whole_number_values(
     plan P4-D352).  Where it is, the walk over every stratum then takes
     the strata that are not negative first and the negative ones nearest
     zero first, since a negative made whole there has the fewest figures
-    (the skeptic of plan P4-D352 (5)).
+    (the skeptic of plan P4-D352 (5)), and the walk over the negative
+    strata alone takes them nearest zero first too, for the same reason
+    (the skeptic of that plan's sixth item).
 
     Returns the values, moved where the shortfall asked for it.
     """
@@ -4008,7 +4010,7 @@ def whole_number_values(
         (wanted, REACHABLE[1]),
     ):
         walk = list(range(total))
-        if kept_pointed > 0 and reachable == REACHABLE[1]:
+        if kept_pointed > 0 and reachable != REACHABLE[0]:
             negative = [index for index in walk if bands[index] == "negative"]
             walk = [index for index in walk if index not in negative]
             walk += negative[::-1]

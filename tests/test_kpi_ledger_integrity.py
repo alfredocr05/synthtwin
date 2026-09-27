@@ -340,25 +340,16 @@ def test_each_group_the_measurement_note_counts_holds_that_many_entries() -> Non
     )
 
 
-def test_each_clause_of_the_measurement_note_names_the_entries_stamped_on_its_commit() -> None:
-    """Every clause names exactly the entries whose value_at is its commit.
+_ENTRY_ID = r"\bK-[0-9A-Z]{2}-[0-9]{2}[a-z]?\b"
 
-    The two guards above read the set of ids and the count beside each
-    commit, and neither reads WHICH ids a clause names: K-S1-05 and
-    K-S3-16 swapped between the 1c9e767 and f934876 clauses, and K-P0-05
-    and K-2B-19 swapped between their trees in the first group, each left
-    this file green (the second skeptic of plan P4-D352 (6)). So each part
-    of the first group, split at its semicolons, and each 'AND <count>
-    [MORE] STAND(S) OFF <commit>' clause is held to the entries stamped on
-    its one commit, and every commit off the base is named once.
-    Mutation, run: each swap turns this red.
+
+def _note_clauses() -> "list[tuple[str, str]]":
+    """The measurement note's clauses, each with the one commit it names.
+
+    Each part of the first group, split at its semicolons, and each 'AND
+    <count> [MORE] STAND(S) OFF <commit>' clause after it.
     """
     note = LEDGER["measurement_note"]
-    stamped: "dict[str, set[str]]" = {}
-    for entry in LEDGER["entries"]:
-        commit = entry["value_at"]["commit"]
-        if commit != LEDGER["base_commit"]:
-            stamped[commit] = stamped.get(commit, set()) | {entry["id"]}
     word = r"[A-Z]+(?:-[A-Z]+)?"
     first = re.search(rf"{word} OF THEM ARE THESE", note)
     assert first, "the note does not say how many entries its first group holds"
@@ -372,8 +363,30 @@ def test_each_clause_of_the_measurement_note_names_the_entries_stamped_on_its_co
         clauses += [(trees[0], piece)]
     for place in range(1, len(parts), 2):
         clauses += [(parts[place], parts[place + 1])]
+    return clauses
+
+
+def test_each_clause_of_the_measurement_note_names_the_entries_stamped_on_its_commit() -> None:
+    """Every clause names exactly the entries whose value_at is its commit.
+
+    The two guards above read the set of ids and the count beside each
+    commit, and neither reads WHICH ids a clause names: K-S1-05 and
+    K-S3-16 swapped between the 1c9e767 and f934876 clauses, and K-P0-05
+    and K-2B-19 swapped between their trees in the first group, each left
+    this file green (the second skeptic of plan P4-D352 (6)). So each part
+    of the first group, split at its semicolons, and each 'AND <count>
+    [MORE] STAND(S) OFF <commit>' clause is held to the entries stamped on
+    its one commit, and every commit off the base is named once.
+    Mutation, run: each swap turns this red.
+    """
+    stamped: "dict[str, set[str]]" = {}
+    for entry in LEDGER["entries"]:
+        commit = entry["value_at"]["commit"]
+        if commit != LEDGER["base_commit"]:
+            stamped[commit] = stamped.get(commit, set()) | {entry["id"]}
+    clauses = _note_clauses()
     for commit, text in clauses:
-        named = set(re.findall(r"\bK-[0-9A-Z]{2}-[0-9]{2}[a-z]?\b", text))
+        named = set(re.findall(_ENTRY_ID, text))
         assert named == stamped.get(commit, set()), (
             f"the note names {sorted(named)} on {commit} and the entries stamped "
             f"on it are {sorted(stamped.get(commit, set()))}"
@@ -383,6 +396,53 @@ def test_each_clause_of_the_measurement_note_names_the_entries_stamped_on_its_co
         f"the note's clauses name the trees {sorted(commits)} and entries are "
         f"stamped off the base on {sorted(stamped)}"
     )
+
+
+def _numbers_held(value: object) -> "list[float]":
+    """Every number a value_at's value holds, however deep; a flag is none."""
+    if isinstance(value, bool):
+        return []
+    if isinstance(value, (int, float)):
+        return [float(value)]
+    held: "list[float]" = []
+    if isinstance(value, dict):
+        for part in value.values():
+            held += _numbers_held(part)
+    if isinstance(value, list):
+        for part in value:
+            held += _numbers_held(part)
+    return held
+
+
+# A numeral standing alone: not inside a commit, an id or a date.
+_NUMERAL = r"(?<![\w.\-])(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?(?!\w)"
+
+
+def test_no_clause_of_the_measurement_note_restates_a_value_its_entries_hold() -> None:
+    """One fact, one place: a value is read from value_at, never from the note.
+
+    The note restated what its trees measured -- 132 cases, 176 of 481,
+    0, 0 and 0 of 40 twins -- and nothing read those numbers against
+    value_at: 132 written 131, or 0, 0 and 0 written 0, 1 and 0, left
+    this file green (the skeptic of plan P4-D352 (6), round 3). So a
+    clause names its entries, their tree and what took them, and holds
+    no number of two figures or more, or with a fraction, that a value of
+    an entry it names holds; a single figure is let stand, because the
+    note numbers stages, landings and items with them. Mutation, run:
+    each of those values written back into its clause turns this red.
+    """
+    for commit, text in _note_clauses():
+        held: "set[float]" = set()
+        for entry_id in set(re.findall(_ENTRY_ID, text)):
+            held |= set(_numbers_held(ENTRIES[entry_id]["value_at"].get("value")))
+        said = {float(numeral.replace(",", "")) for numeral in re.findall(_NUMERAL, text)}
+        restated = sorted(
+            number for number in said & held if abs(number) >= 10 or number != int(number)
+        )
+        assert restated == [], (
+            f"the note's clause on {commit} restates {restated}, which its entries' "
+            "value_at holds"
+        )
 
 
 def test_a_re_measured_entry_records_every_key_its_rule_bounds() -> None:

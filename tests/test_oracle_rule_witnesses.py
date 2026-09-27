@@ -722,25 +722,44 @@ def _shipped_order(census, styles, values):
 # `trailing_minus` no larger than N. Where R is above nought a walk over
 # the strata that are not negative comes before the walk over every
 # stratum, until they carry the lesser of W - max(0, N - R) and F, and the
-# last walk then takes the strata that are not negative first and the
-# negative ones nearest zero first; where R is nought it walks them in
-# stratum order. No frozen case reaches the first walk: withdrawn, every
-# committed vectors file and every row above stood (the second skeptic of
-# plan P4-D352 (6)). One cell per stratum and no ladder, so each stratum
+# last walk then takes the strata that are not negative first, ascending,
+# and the negative ones nearest zero first, and so does the walk over the
+# negative strata alone that a D above nought asks for; where R is nought
+# both walk them in stratum order. No frozen case reaches the first walk,
+# nor a D beside an R: withdrawn, every committed vectors file and every
+# row above stood (the second skeptic of plan P4-D352 (6), and its round
+# 3). One cell per stratum and no ladder, so each stratum
 # takes its nearest whole number, ties toward positive infinity (G5.4),
-# and the ends stay. Each row: (styles, values, R) and the values the
-# statement gives.
+# and the ends stay. Each row: (styles, values, R, D), D the named
+# `decimal_plus`, and the values the statement gives.
 TRAILING_VALUES = (
     # -9 and -6 are whole already, so the last walk is met at three; R = N
     # leaves no negative point-free, so 1.5 and 2.5 are taken first.
-    (({"plain": 3, "decimal": 5}, (-9.0, -6.0, -4.3, -3.2, 1.5, 2.5, 3.5, 8.0), 4),
+    (({"plain": 3, "decimal": 5}, (-9.0, -6.0, -4.3, -3.2, 1.5, 2.5, 3.5, 8.0), 4, 0),
      (-9.0, -6.0, -4.3, -3.2, 2.0, 3.0, 3.5, 8.0)),
     # W - (N - R) = 1: 1.5 first; then 2.5, and -2.2, the negative nearest zero
-    (({"plain": 3, "decimal": 4}, (-9.5, -6.5, -4.3, -2.2, 1.5, 2.5, 8.5), 2),
+    (({"plain": 3, "decimal": 4}, (-9.5, -6.5, -4.3, -2.2, 1.5, 2.5, 8.5), 2, 0),
      (-9.5, -6.5, -4.3, -2.0, 2.0, 3.0, 8.5)),
     # no trailing minus: the lowest strata first
-    (({"plain": 2, "decimal": 4}, (-9.5, -6.5, -4.3, 1.5, 2.5, 8.5), 0),
+    (({"plain": 2, "decimal": 4}, (-9.5, -6.5, -4.3, 1.5, 2.5, 8.5), 0, 0),
      (-9.5, -6.0, -4.0, 1.5, 2.5, 8.5)),
+    # N - R = 2 and -9 and -6 are whole already, so W - (N - R) = 1, which
+    # 8 carries: the walk beside moves nothing, and -9, -6 and 8 meet the
+    # last walk. Asked for W, the walk beside would make 1.5 and 2.5 whole.
+    (({"plain": 3, "decimal": 4}, (-9.0, -6.0, -4.3, 1.5, 2.5, 3.5, 8.0), 1, 0),
+     (-9.0, -6.0, -4.3, 1.5, 2.5, 3.5, 8.0)),
+    # one cell asked, two strata that are not negative before any negative:
+    # the lower, 1.5, and not 2.4
+    (({"plain": 1, "decimal": 4}, (-9.5, -4.3, 1.5, 2.4, 9.5), 1, 0),
+     (-9.5, -4.3, 2.0, 2.4, 9.5)),
+    # D = 2 of F = 3 keep a point, so W - (F - D) = 2 negatives are made
+    # whole, nearest zero first: -2.5 and -4.5; then the last walk, 1.5
+    (({"plain": 3, "decimal": 4}, (-9.5, -6.5, -4.5, -2.5, 1.5, 3.5, 9.5), 1, 2),
+     (-9.5, -6.5, -4.0, -2.0, 2.0, 3.5, 9.5)),
+    # the same with no trailing minus: the lowest negatives, -6.5 and -4.5,
+    # and then -2.5, the next in stratum order
+    (({"plain": 3, "decimal": 4}, (-9.5, -6.5, -4.5, -2.5, 1.5, 3.5, 9.5), 0, 2),
+     (-9.5, -6.0, -4.0, -2.0, 1.5, 3.5, 9.5)),
 )
 
 
@@ -753,28 +772,28 @@ def _bands(values):
 
 def _trailing_values_missed(rule) -> "list[str]":
     missed = []
-    for (styles, values, count), want in TRAILING_VALUES:
-        got = _asked(rule, styles, values, count)
+    for (styles, values, count, signed), want in TRAILING_VALUES:
+        got = _asked(rule, styles, values, count, signed)
         if got is None or isinstance(got, str) or tuple(got) != want:
             missed += [
                 f"values step of {styles!r} over {values!r} beside {count}"
-                f" trailing: {got!r}, the statement gives {want!r}"
+                f" trailing and {signed} signed: {got!r}, the statement gives {want!r}"
             ]
     return missed
 
 
 def _oracle_trailing_values(module):
-    return lambda styles, values, count: module.whole_number_values(
+    return lambda styles, values, count, signed: module.whole_number_values(
         styles, list(values), [1] * len(values), list(range(len(values))),
-        list(_bands(values)), None, len(values), False, 0, count,
+        list(_bands(values)), None, len(values), False, signed, count,
     )
 
 
-def _shipped_trailing_values(styles, values, count):
+def _shipped_trailing_values(styles, values, count, signed):
     facts = types.SimpleNamespace(
         integer_valued=False,
         numeric_styles=styles,
-        decimal_plus={},
+        decimal_plus={"+": signed} if signed else {},
         negative_notations={"trailing_minus": count} if count else {},
     )
     layout = types.SimpleNamespace(
@@ -1063,18 +1082,33 @@ WITNESS_MUTANTS = {
     ),
     "trailing_values_walk_order_with_no_trailing_minus": (
         "trailing_values",
-        "        if kept_pointed > 0 and reachable == REACHABLE[1]:\n",
-        "        if reachable == REACHABLE[1]:\n",
+        "        if kept_pointed > 0 and reachable != REACHABLE[0]:\n",
+        "        if reachable != REACHABLE[0]:\n",
     ),
     "trailing_values_last_walk_in_stratum_order": (
         "trailing_values",
-        "        if kept_pointed > 0 and reachable == REACHABLE[1]:\n",
+        "        if kept_pointed > 0 and reachable != REACHABLE[0]:\n",
         "        if False:\n",
+    ),
+    "trailing_values_negative_walk_in_stratum_order": (
+        "trailing_values",
+        "        if kept_pointed > 0 and reachable != REACHABLE[0]:\n",
+        "        if kept_pointed > 0 and reachable == REACHABLE[1]:\n",
     ),
     "trailing_values_most_negative_first": (
         "trailing_values",
         "            walk += negative[::-1]\n",
         "            walk += negative\n",
+    ),
+    "trailing_values_beside_asks_for_every_point_free_cell": (
+        "trailing_values",
+        "        min(wanted - max(0, negative_cells - kept_pointed), free)\n",
+        "        min(wanted, free)\n",
+    ),
+    "trailing_values_non_negative_descending": (
+        "trailing_values",
+        "            walk = [index for index in walk if index not in negative]\n",
+        "            walk = [index for index in walk if index not in negative][::-1]\n",
     ),
     "readings_by_code_first": (
         "readings",
