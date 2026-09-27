@@ -37,7 +37,7 @@ nor numpy, nor pandas, and a test asserts that of every entry point.
 **WHERE THE NEXT CASE GOES** (plan P4-D295): a fifteenth entry point,
 `make_generation_branch_vectors_13.py` writing
 tests/reference/generation-branch-vectors-13.json, because this, the
-twelfth (227508 bytes), the thirteenth (215133 bytes) and the fourteenth
+twelfth (227678 bytes), the thirteenth (215303 bytes) and the fourteenth
 (213398 bytes) all stand past plan P4-D295's 200000-byte line.
 
 Usage:  python3 make_generation_branch_vectors_10.py --seed 0 --out <path>

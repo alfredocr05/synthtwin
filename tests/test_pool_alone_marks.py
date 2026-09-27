@@ -558,7 +558,7 @@ def test_the_twin_writes_as_many_trailing_minuses_as_the_census_counts(
     At e294a82 the two band shapes and the two named ones beside no
     whole value wrote 0 or 1 trailing minus, missing both notation checks
     at every seed, and the whole-valued one 34 of 37. Mutations, each
-    run: `_trailing_owed` answering nought turns all twenty-five red; the
+    run: `_trailing_owed` answering nought turns all thirty red; the
     values step's walk for a trailing minus withdrawn turns every shape
     but the whole-valued one red at every seed; the exchange withdrawn
     turns `band-beside-whole` and `named-whole-values` red at every seed;
@@ -620,3 +620,58 @@ def test_the_walk_nearest_zero_leaves_a_more_negative_stratum_its_number(tmp_pat
                 refused = refused + 1
                 assert after[place] != nearest, (place, before[place], after[place], theirs)
     assert refused > 0, "no nearest whole number was ever a more negative stratum's"
+
+
+# One column of 100 cells on a 101-rung ladder whose rungs stand at each
+# stratum's start, so stratum k's share is (rung[start], rung[start + size]):
+# (-6, -5.2), (-5.2, -1.7), (-1.7, -1.5), (-1.5, 0.1) and (0.1, 10). Sixty
+# cells asked point-free, the pinned ends holding thirty-five of them.
+CHAIN_STARTS = (0, 10, 50, 55, 75)
+CHAIN_SIZES = (10, 40, 5, 20, 25)
+CHAIN_LOWS = (-6.0, -5.2, -1.7, -1.5, 0.1)
+CHAIN_VALUES = (-6.0, -2.8, -1.6, -0.9, 10.0)
+# (census, the values G6.4's values step gives), worked by hand.
+CHAIN_ANSWERS = (
+    # The walk takes -0.9 first, to -1 (55 cells). -1.6's nearest, -2, is
+    # outside its share and inside the share of -2.8, which the walk reaches
+    # later; -1 is held and -3 too far, so -1.6 asks the holder of -1. That
+    # holder's one other number is -2, refused the same way, and it covers
+    # more cells, so it keeps -1: -1.6 keeps its point and -2.8 takes -3
+    # (95 cells).
+    ({"minus": 65, "trailing_minus": 10}, (-6.0, -3.0, -1.6, -1.0, 10.0)),
+    # No trailing minus: stratum order, so -2.8 takes -3 first (75 cells).
+    ({"minus": 75}, (-6.0, -3.0, -1.6, -0.9, 10.0)),
+)
+
+
+@pytest.mark.parametrize("census,answer", CHAIN_ANSWERS, ids=("trailing", "no-trailing"))
+def test_the_chain_asks_in_the_walk_s_order_which_a_trailing_minus_sets(census, answer):
+    """A number the chain asks for is refused where the walk reaches its share later.
+
+    Review item P2-C5-F3's refusal holds inside R-P4-69's chain too, and
+    beside a trailing minus "later" is later in the walk's order (method
+    G6.4); with no trailing minus the walk is in stratum order. No test
+    held either (the second skeptic of plan P4-D352 (6): withdrawn, the
+    whole suite stood). Mutations, each run: the chain's own question
+    read in stratum order gives -1.6 the -2 outright; the holder's
+    question read so moves -0.9 to -2 and hands -1 on, and -2.8 keeps its
+    point; the walk's order taken with no trailing minus gives -0.9 its
+    -1 before -2.8 -- each turns its row red.
+    """
+    rungs = tuple(
+        CHAIN_LOWS[max(k for k in range(5) if CHAIN_STARTS[k] <= place)]
+        for place in range(100)
+    ) + (10.0,)
+    layout = types.SimpleNamespace(
+        sizes=CHAIN_SIZES, starts=CHAIN_STARTS, bands=("negative",) * 4 + ("positive",)
+    )
+    column = types.SimpleNamespace(n_numeric=100)
+    shares = [generation._share_of(k, layout, rungs, 100) for k in range(5)]
+    assert shares == [(-6.0, -5.2), (-5.2, -1.7), (-1.7, -1.5), (-1.5, 0.1), (0.1, 10.0)]
+    facts = types.SimpleNamespace(
+        integer_valued=False,
+        numeric_styles={"plain": 60, "decimal": 40},
+        decimal_plus={},
+        negative_notations=census,
+    )
+    assert tuple(generation._whole_enough(column, facts, layout, rungs, list(CHAIN_VALUES))) == answer

@@ -340,6 +340,51 @@ def test_each_group_the_measurement_note_counts_holds_that_many_entries() -> Non
     )
 
 
+def test_each_clause_of_the_measurement_note_names_the_entries_stamped_on_its_commit() -> None:
+    """Every clause names exactly the entries whose value_at is its commit.
+
+    The two guards above read the set of ids and the count beside each
+    commit, and neither reads WHICH ids a clause names: K-S1-05 and
+    K-S3-16 swapped between the 1c9e767 and f934876 clauses, and K-P0-05
+    and K-2B-19 swapped between their trees in the first group, each left
+    this file green (the second skeptic of plan P4-D352 (6)). So each part
+    of the first group, split at its semicolons, and each 'AND <count>
+    [MORE] STAND(S) OFF <commit>' clause is held to the entries stamped on
+    its one commit, and every commit off the base is named once.
+    Mutation, run: each swap turns this red.
+    """
+    note = LEDGER["measurement_note"]
+    stamped: "dict[str, set[str]]" = {}
+    for entry in LEDGER["entries"]:
+        commit = entry["value_at"]["commit"]
+        if commit != LEDGER["base_commit"]:
+            stamped[commit] = stamped.get(commit, set()) | {entry["id"]}
+    word = r"[A-Z]+(?:-[A-Z]+)?"
+    first = re.search(rf"{word} OF THEM ARE THESE", note)
+    assert first, "the note does not say how many entries its first group holds"
+    parts = re.split(
+        rf"AND {word} (?:MORE )?STANDS? OFF ([0-9a-f]{{7}})\b", note[first.end():]
+    )
+    clauses: "list[tuple[str, str]]" = []
+    for piece in parts[0].split(";"):
+        trees = re.findall(r" on ([0-9a-f]{7})\b", piece)
+        assert len(trees) == 1, f"a part of the note's first group names {trees}: {piece!r}"
+        clauses += [(trees[0], piece)]
+    for place in range(1, len(parts), 2):
+        clauses += [(parts[place], parts[place + 1])]
+    for commit, text in clauses:
+        named = set(re.findall(r"\bK-[0-9A-Z]{2}-[0-9]{2}[a-z]?\b", text))
+        assert named == stamped.get(commit, set()), (
+            f"the note names {sorted(named)} on {commit} and the entries stamped "
+            f"on it are {sorted(stamped.get(commit, set()))}"
+        )
+    commits = [commit for commit, _text in clauses]
+    assert sorted(commits) == sorted(stamped), (
+        f"the note's clauses name the trees {sorted(commits)} and entries are "
+        f"stamped off the base on {sorted(stamped)}"
+    )
+
+
 def test_a_re_measured_entry_records_every_key_its_rule_bounds() -> None:
     """Finding 2, the other half: a stamp is only as good as the value under it.
 

@@ -17,7 +17,12 @@ order (plan P4-D352 (6)); where the other side can carry the count no
 negative is made whole and the notations spread over the band. The
 exchange is frozen as `trailing_minus_exchange` and the order in a
 reworked `trailing_minus_points`; G14.3 counts 132; a test reads the
-ledger note's count beside each commit.
+ledger note's count beside each commit and the entries each clause
+names. The `trailing_values` witness holds the oracle's walk beside a
+trailing minus, which no frozen case reached, and a hand-worked chain
+holds R-P4-69's holders to the walk's order. Where the real whole
+negatives are the large ones the separation by notation is reversed:
+minus cells' mean -1157.5 against a real -4890.0.
 
 ### A trailing minus is written on as many negatives as the census counts (2026-09-26)
 

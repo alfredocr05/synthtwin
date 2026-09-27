@@ -716,6 +716,81 @@ def _shipped_order(census, styles, values):
     return worn
 
 
+# ----------------------------- G6.4's values step beside a trailing minus
+#
+# W point-free cells, N negative, F not negative, R the named
+# `trailing_minus` no larger than N. Where R is above nought a walk over
+# the strata that are not negative comes before the walk over every
+# stratum, until they carry the lesser of W - max(0, N - R) and F, and the
+# last walk then takes the strata that are not negative first and the
+# negative ones nearest zero first; where R is nought it walks them in
+# stratum order. No frozen case reaches the first walk: withdrawn, every
+# committed vectors file and every row above stood (the second skeptic of
+# plan P4-D352 (6)). One cell per stratum and no ladder, so each stratum
+# takes its nearest whole number, ties toward positive infinity (G5.4),
+# and the ends stay. Each row: (styles, values, R) and the values the
+# statement gives.
+TRAILING_VALUES = (
+    # -9 and -6 are whole already, so the last walk is met at three; R = N
+    # leaves no negative point-free, so 1.5 and 2.5 are taken first.
+    (({"plain": 3, "decimal": 5}, (-9.0, -6.0, -4.3, -3.2, 1.5, 2.5, 3.5, 8.0), 4),
+     (-9.0, -6.0, -4.3, -3.2, 2.0, 3.0, 3.5, 8.0)),
+    # W - (N - R) = 1: 1.5 first; then 2.5, and -2.2, the negative nearest zero
+    (({"plain": 3, "decimal": 4}, (-9.5, -6.5, -4.3, -2.2, 1.5, 2.5, 8.5), 2),
+     (-9.5, -6.5, -4.3, -2.0, 2.0, 3.0, 8.5)),
+    # no trailing minus: the lowest strata first
+    (({"plain": 2, "decimal": 4}, (-9.5, -6.5, -4.3, 1.5, 2.5, 8.5), 0),
+     (-9.5, -6.0, -4.0, 1.5, 2.5, 8.5)),
+)
+
+
+def _bands(values):
+    return tuple(
+        "negative" if value < 0 else "zero" if value == 0 else "positive"
+        for value in values
+    )
+
+
+def _trailing_values_missed(rule) -> "list[str]":
+    missed = []
+    for (styles, values, count), want in TRAILING_VALUES:
+        got = _asked(rule, styles, values, count)
+        if got is None or isinstance(got, str) or tuple(got) != want:
+            missed += [
+                f"values step of {styles!r} over {values!r} beside {count}"
+                f" trailing: {got!r}, the statement gives {want!r}"
+            ]
+    return missed
+
+
+def _oracle_trailing_values(module):
+    return lambda styles, values, count: module.whole_number_values(
+        styles, list(values), [1] * len(values), list(range(len(values))),
+        list(_bands(values)), None, len(values), False, 0, count,
+    )
+
+
+def _shipped_trailing_values(styles, values, count):
+    facts = types.SimpleNamespace(
+        integer_valued=False,
+        numeric_styles=styles,
+        decimal_plus={},
+        negative_notations={"trailing_minus": count} if count else {},
+    )
+    layout = types.SimpleNamespace(
+        sizes=(1,) * len(values),
+        starts=tuple(range(len(values))),
+        bands=_bands(values),
+    )
+    return generation._whole_enough(
+        types.SimpleNamespace(n_numeric=len(values)),
+        typing.cast(contract.NumericFacts, facts),
+        typing.cast(typing.Any, layout),
+        None,
+        list(values),
+    )
+
+
 # ------------------------------------------------------------ the two readers
 
 WITNESSES = {
@@ -750,6 +825,10 @@ WITNESSES = {
     "trailing": (
         lambda module: _trailing_missed(*_oracle_trailing(module)),
         lambda: _trailing_missed(_shipped_exchange, _shipped_order),
+    ),
+    "trailing_values": (
+        lambda module: _trailing_values_missed(_oracle_trailing_values(module)),
+        lambda: _trailing_values_missed(_shipped_trailing_values),
     ),
 }
 
@@ -978,6 +1057,24 @@ WITNESS_MUTANTS = {
         "trailing",
         '        key=lambda pair: pair[0] != "trailing_minus",\n',
         "        key=lambda pair: 0,\n",
+    ),
+    "trailing_values_no_walk_beside": (
+        "trailing_values", "        (beside, REACHABLE[0]),\n", "",
+    ),
+    "trailing_values_walk_order_with_no_trailing_minus": (
+        "trailing_values",
+        "        if kept_pointed > 0 and reachable == REACHABLE[1]:\n",
+        "        if reachable == REACHABLE[1]:\n",
+    ),
+    "trailing_values_last_walk_in_stratum_order": (
+        "trailing_values",
+        "        if kept_pointed > 0 and reachable == REACHABLE[1]:\n",
+        "        if False:\n",
+    ),
+    "trailing_values_most_negative_first": (
+        "trailing_values",
+        "            walk += negative[::-1]\n",
+        "            walk += negative\n",
     ),
     "readings_by_code_first": (
         "readings",
