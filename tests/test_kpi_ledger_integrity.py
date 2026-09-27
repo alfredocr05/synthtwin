@@ -271,12 +271,29 @@ def test_the_measurement_note_names_exactly_the_entries_measured_off_the_base_co
         )
 
 
-# The numbers the measurement note writes in words, up to the largest a
-# group of it has needed.
+# The numbers the measurement note writes in words: one to nineteen, the
+# tens, and a ten joined to a unit by a hyphen (TWENTY-THREE).
 _NOTE_NUMBERS = {
     "ONE": 1, "TWO": 2, "THREE": 3, "FOUR": 4, "FIVE": 5, "SIX": 6, "SEVEN": 7,
     "EIGHT": 8, "NINE": 9, "TEN": 10, "ELEVEN": 11, "TWELVE": 12,
+    "THIRTEEN": 13, "FOURTEEN": 14, "FIFTEEN": 15, "SIXTEEN": 16,
+    "SEVENTEEN": 17, "EIGHTEEN": 18, "NINETEEN": 19,
 }
+_NOTE_TENS = {
+    "TWENTY": 20, "THIRTY": 30, "FORTY": 40, "FIFTY": 50, "SIXTY": 60,
+    "SEVENTY": 70, "EIGHTY": 80, "NINETY": 90,
+}
+
+
+def _note_number(said: str) -> int:
+    """The count a numeral of the note states, in figures or in words."""
+    if said.isdigit():
+        return int(said)
+    if said in _NOTE_NUMBERS:
+        return _NOTE_NUMBERS[said]
+    tens, _, unit = said.partition("-")
+    return _NOTE_TENS[tens] + (_NOTE_NUMBERS[unit] if unit else 0)
+
 
 
 def test_the_measurement_note_counts_what_it_names() -> None:
@@ -289,6 +306,15 @@ def test_the_measurement_note_counts_what_it_names() -> None:
     short since 69bb7f1, and every landing since restated it. So the
     total is read and counted, and so is each "AND <n> STAND(S) OFF
     <commit>": as many entries carry that commit as the words say.
+
+    AND THE FIRST BLOCK, AND EVERY GROUP (the third skeptic of landing
+    3b.0, 2026-09-26). The guard read neither "TWENTY-THREE OF THEM ARE
+    THESE" nor a group worded outside its pattern: the block's word made
+    TWENTY-FOUR, and "AND SIX STAND OFF a7bbc21" made "AND SEVEN MORE
+    ENTRIES STAND OFF a7bbc21", each passed. So the block is counted too
+    -- its entries are those whose commit no group names -- every "STAND
+    OFF" of the note must be the total's or a group this reads, and the
+    block and the groups must add up to the total.
     """
     base = LEDGER["base_commit"]
     note = LEDGER["measurement_note"]
@@ -303,11 +329,24 @@ def test_the_measurement_note_counts_what_it_names() -> None:
     )
     groups = re.findall(r"AND ([A-Z]+|\d+) (?:MORE )?STANDS? OFF ([0-9a-f]{7})", note)
     assert groups, "the note no longer counts its groups as this test reads them"
+    assert len(re.findall(r"STANDS? OFF", note)) == len(groups) + 1, (
+        "the note counts a group in words this test does not read"
+    )
     for said, commit in groups:
-        stated = int(said) if said.isdigit() else _NOTE_NUMBERS[said]
+        stated = _note_number(said)
         assert stated == off_base.count(commit), (
             f"the note says {said} stand off {commit}; {off_base.count(commit)} do"
         )
+    named = [commit for _said, commit in groups]
+    block = re.findall(r"([A-Z]+(?:-[A-Z]+)?) OF THEM ARE THESE", note)
+    assert len(block) == 1, "the note no longer counts its first block as this test reads it"
+    first = len([commit for commit in off_base if commit not in named])
+    assert _note_number(block[0]) == first, (
+        f"the note says {block[0]} of them are its first block; {first} are"
+    )
+    assert first + sum(_note_number(said) for said, _commit in groups) == int(total[0]), (
+        "the note's first block and its groups do not add up to its total"
+    )
 
 
 def test_a_re_measured_entry_records_every_key_its_rule_bounds() -> None:

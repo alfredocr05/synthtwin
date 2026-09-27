@@ -189,8 +189,8 @@ cannot get worse unseen.
   of the ledger names them. And one that fails no check, as no end is
   published: a date or clock tail's derived end can stand past the real
   column's first or last value, so the twin writes a unit the real
-  column never reached -- 12 of 36 filled-range shape-and-floor cases
-  at every seed, one unit out (plan P4-D354).
+  column never reached -- 12 of 36 cases of twelve filled-range shapes
+  at every seed, one unit out there, one or more elsewhere (P4-D354).
 - **A tail withheld at a raised floor costs the twin its spread.**
   Where the back-solve cannot show inside its budget that a tail's facts
   fit a second set of distances, the tail publishes neither distance
