@@ -276,13 +276,28 @@ def _numeric_lines(column: "dict[str, object]", floor: int) -> "list[str]":
 
 
 # WHY A TAIL PUBLISHES NEITHER DISTANCE, in the words true of it (plan
-# P4-D353). The description says the reason where it is not the tail's own
-# pair (`taxonomy.tail_withheld_because`); a side saying none is one whose
-# own two distances would give its values back.
+# P4-D353). The description says the reason (`taxonomy.tail_withheld_because`),
+# and where its own pair is the reason, what that pair would give back
+# (plan P4-D357 A): every value, the outermost, or how many rows hold one.
+# A side saying none is one whose pair would give back one of the last two,
+# and the sentence claims no more than that.
 _WITHHELD_BECAUSE = {
     taxonomy.TAIL_PINNED: (
+        "on this column the two distances together would give back "
+        "something the smallest group protects: the outermost of those "
+        "values, or how many rows hold one of them"
+    ),
+    taxonomy.TAIL_PINS_EVERY: (
         "on this column the two distances together would give those values "
         "back one by one"
+    ),
+    taxonomy.TAIL_PINS_END: (
+        "on this column the two distances together would give back at "
+        "least the outermost of those values"
+    ),
+    taxonomy.TAIL_PINS_A_COUNT: (
+        "on this column the two distances together would give back at "
+        "least how many rows hold one of those values"
     ),
     taxonomy.TAIL_WITHHELD_FOR_THE_OTHER: (
         "on their own the two distances would not give those values back, "

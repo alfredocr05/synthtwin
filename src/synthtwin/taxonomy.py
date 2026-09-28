@@ -852,6 +852,20 @@ REMARK_LOW_TAIL_UNSETTLED = "remark_low_tail_withheld_unsettled"
 REMARK_HIGH_TAIL_UNSETTLED = "remark_high_tail_withheld_unsettled"
 REMARK_LOW_TAIL_UNHOLDABLE = "remark_low_tail_withheld_unholdable"
 REMARK_HIGH_TAIL_UNHOLDABLE = "remark_high_tail_withheld_unholdable"
+# ...AND WHAT A SIDE ITS OWN PAIR PINNED WOULD GIVE BACK (plan P4-D357 A,
+# review item 5 of follow-up A). "Pinned" means the pair fixes something
+# the floor protects, and that is not always every value: 1,090 whole
+# numbers beside `1089` seven more times and `1090`, `1093`, `1093`,
+# `1189` publish a high tail whose distances `[0]*7 + [1, 4, 4, 100]` and
+# `[0]*7 + [2, 2, 5, 100]` share their rows, sum and sum of squares -- the
+# pair fixes the outermost value and not the rest. So the side says which:
+# every value, the outermost, or how many rows hold one of them.
+REMARK_LOW_TAIL_EVERY_VALUE = "remark_low_tail_withheld_every_value"
+REMARK_HIGH_TAIL_EVERY_VALUE = "remark_high_tail_withheld_every_value"
+REMARK_LOW_TAIL_ITS_END = "remark_low_tail_withheld_its_end"
+REMARK_HIGH_TAIL_ITS_END = "remark_high_tail_withheld_its_end"
+REMARK_LOW_TAIL_A_COUNT = "remark_low_tail_withheld_a_count"
+REMARK_HIGH_TAIL_A_COUNT = "remark_high_tail_withheld_a_count"
 REMARK_ALL_DIFFERENT_TEXT = "remark_every_value_is_different"
 # THE AFFIXED ROLE'S DECLINE, SAID OUT LOUD (plan P4-D30, residual
 # R-P4-39, contract NF50). `_wrapped_in_an_address` refuses to read
@@ -1049,6 +1063,12 @@ NOTE_ARITY: "dict[str, int]" = {
     REMARK_HIGH_TAIL_UNSETTLED: 0,
     REMARK_LOW_TAIL_UNHOLDABLE: 0,
     REMARK_HIGH_TAIL_UNHOLDABLE: 0,
+    REMARK_LOW_TAIL_EVERY_VALUE: 0,
+    REMARK_HIGH_TAIL_EVERY_VALUE: 0,
+    REMARK_LOW_TAIL_ITS_END: 0,
+    REMARK_HIGH_TAIL_ITS_END: 0,
+    REMARK_LOW_TAIL_A_COUNT: 0,
+    REMARK_HIGH_TAIL_A_COUNT: 0,
     REMARK_ALL_DIFFERENT_TEXT: 0,
     # IT CARRIES NO ARGUMENT ON PURPOSE. A count of the cells that wore
     # the address would be a count of a reading this column does NOT
@@ -2570,6 +2590,21 @@ def rendered(form: str, arguments: "tuple[object, ...]") -> str:
                 f"{said} because the check of whether they would give those "
                 f"values back did not finish, and a tail is withheld where "
                 f"that cannot be ruled out, not only where it is shown"
+            )
+        if cause == TAIL_PINS_EVERY:
+            return (
+                f"{said} because together they would give every one of "
+                f"those values back"
+            )
+        if cause == TAIL_PINS_END:
+            return (
+                f"{said} because together they would give back at least "
+                f"the outermost of those values"
+            )
+        if cause == TAIL_PINS_A_COUNT:
+            return (
+                f"{said} because together they would give back at least "
+                f"how many rows hold one of those values"
             )
         return (
             f"{said} because they are too large for this file format to "
@@ -4216,6 +4251,15 @@ tail_may_list = parsing.tail_may_list
 # hundred.
 TAIL_LATTICE_STEPS = 131072
 
+# ...AND HOW MANY THE QUESTION OF WHAT A PINNED SIDE GIVES BACK MAY TAKE
+# (`_pinned_reach`, plan P4-D357 A). Proving that one multiset fits asks
+# every distance the tail holds, and a tail of the integers 1 to 22 among
+# distances up to 61 needs 183,969 steps to be shown unique and 44 of 45
+# needs 135,537: at the verdict's own budget both read as "the outermost"
+# where every value comes back, which is the direction a page must not
+# err in. Asked only of a side left withheld, once.
+TAIL_REACH_STEPS = 1 << 20
+
 # The largest whole sum `_values_mean_pins` tabulates. Beyond it the mean
 # beside a tail's values is withheld, the answer that publishes less.
 TAIL_MEAN_TABLE_LIMIT = 16777216
@@ -4366,6 +4410,9 @@ class _Lattice:
     least: int = 1
     steps: int = 0
     spent: bool = False
+    # The budget this search may spend, where it is not the verdict's own
+    # `TAIL_LATTICE_STEPS` (nought): `_pinned_reach` gives its own.
+    budget: int = 0
     dead: "dict[tuple[int, int, int, int, int, int], bool]" = dataclasses.field(
         default_factory=dict
     )
@@ -4439,7 +4486,7 @@ def _lattice_enter(
     if lattice.spent:
         return (None, None)
     lattice.steps = lattice.steps + 1
-    if lattice.steps > TAIL_LATTICE_STEPS:
+    if lattice.steps > (lattice.budget or TAIL_LATTICE_STEPS):
         lattice.spent = True
         return (None, None)
     if count == 0:
@@ -4707,10 +4754,23 @@ TAIL_UNSETTLED = "unsettled"
 TAIL_WITHHELD_FOR_THE_OTHER = "for_the_other"
 TAIL_WITHHELD_UNSETTLED = TAIL_UNSETTLED
 TAIL_WITHHELD_UNHOLDABLE = "unholdable"
+# WHAT A PINNED SIDE'S OWN PAIR WOULD GIVE BACK (plan P4-D357 A), said in a
+# remark of its own: every value, where the published facts allow one
+# multiset of distances and no other; the outermost value, where every
+# multiset they allow shares its largest distance; a count, where they
+# share how many rows stand at one distance and not the largest. A side
+# carrying none of the six remarks is `TAIL_PINNED`, whose reading claims
+# no more than "one of those".
+TAIL_PINS_EVERY = "pins_every_value"
+TAIL_PINS_END = "pins_its_end"
+TAIL_PINS_A_COUNT = "pins_a_count"
 TAIL_WITHHELD_CAUSES = (
     TAIL_WITHHELD_FOR_THE_OTHER,
     TAIL_WITHHELD_UNSETTLED,
     TAIL_WITHHELD_UNHOLDABLE,
+    TAIL_PINS_EVERY,
+    TAIL_PINS_END,
+    TAIL_PINS_A_COUNT,
 )
 TAIL_WITHHELD_REMARKS: "dict[tuple[str, str], str]" = {
     ("low", TAIL_WITHHELD_FOR_THE_OTHER): REMARK_LOW_TAIL_FOR_THE_HIGH,
@@ -4719,6 +4779,12 @@ TAIL_WITHHELD_REMARKS: "dict[tuple[str, str], str]" = {
     ("high", TAIL_WITHHELD_UNSETTLED): REMARK_HIGH_TAIL_UNSETTLED,
     ("low", TAIL_WITHHELD_UNHOLDABLE): REMARK_LOW_TAIL_UNHOLDABLE,
     ("high", TAIL_WITHHELD_UNHOLDABLE): REMARK_HIGH_TAIL_UNHOLDABLE,
+    ("low", TAIL_PINS_EVERY): REMARK_LOW_TAIL_EVERY_VALUE,
+    ("high", TAIL_PINS_EVERY): REMARK_HIGH_TAIL_EVERY_VALUE,
+    ("low", TAIL_PINS_END): REMARK_LOW_TAIL_ITS_END,
+    ("high", TAIL_PINS_END): REMARK_HIGH_TAIL_ITS_END,
+    ("low", TAIL_PINS_A_COUNT): REMARK_LOW_TAIL_A_COUNT,
+    ("high", TAIL_PINS_A_COUNT): REMARK_HIGH_TAIL_A_COUNT,
 }
 # ...and the words each form is rendered with: this side, the other, why.
 _TAIL_REMARK_WORDS: "dict[str, tuple[str, str, str]]" = {
@@ -4728,6 +4794,12 @@ _TAIL_REMARK_WORDS: "dict[str, tuple[str, str, str]]" = {
     REMARK_HIGH_TAIL_UNSETTLED: ("upper", "lower", TAIL_WITHHELD_UNSETTLED),
     REMARK_LOW_TAIL_UNHOLDABLE: ("lower", "upper", TAIL_WITHHELD_UNHOLDABLE),
     REMARK_HIGH_TAIL_UNHOLDABLE: ("upper", "lower", TAIL_WITHHELD_UNHOLDABLE),
+    REMARK_LOW_TAIL_EVERY_VALUE: ("lower", "upper", TAIL_PINS_EVERY),
+    REMARK_HIGH_TAIL_EVERY_VALUE: ("upper", "lower", TAIL_PINS_EVERY),
+    REMARK_LOW_TAIL_ITS_END: ("lower", "upper", TAIL_PINS_END),
+    REMARK_HIGH_TAIL_ITS_END: ("upper", "lower", TAIL_PINS_END),
+    REMARK_LOW_TAIL_A_COUNT: ("lower", "upper", TAIL_PINS_A_COUNT),
+    REMARK_HIGH_TAIL_A_COUNT: ("upper", "lower", TAIL_PINS_A_COUNT),
 }
 
 
@@ -4736,7 +4808,9 @@ def tail_withheld_because(remarks: object, side: str) -> str:
 
     Guarantees: accepts a block's `remarks` (anything; only a list of
     sentences is read) and `"low"` or `"high"`; returns the reason whose
-    remark the list carries for that side, or `TAIL_PINNED` where it
+    remark the list carries for that side -- one of the three refined
+    readings of a pinned side among them (`TAIL_PINS_EVERY`,
+    `TAIL_PINS_END`, `TAIL_PINS_A_COUNT`) -- or `TAIL_PINNED` where it
     carries none. Only a block whose producer writes these remarks -- a
     column of counts or continuous values, or a date or clock column --
     may be read this way; elsewhere the answer says nothing. Determinism:
@@ -4886,6 +4960,90 @@ def _tail_verdict(
         if not settled:
             return TAIL_PINNED
     return TAIL_OPEN
+
+
+def _pinned_reach(
+    distances: "list[int]",
+    floor: int,
+    edge: int,
+    distinct: bool,
+    least: int = 1,
+) -> str:
+    """What a PINNED tail's pair would give back (plan P4-D357 A, review item 5).
+
+    `_tail_verdict` answers PINNED where the facts a reader holds -- the
+    rows, the whole sum of the distances and of their squares, the edge,
+    the least part and whether they are all different -- fix the largest
+    distance while fewer than the floor hold it, OR fix how many rows
+    stand at some distance held by fewer than the floor. That is not
+    always every value, and the page said it was. So, asked again:
+
+    - `TAIL_PINS_EVERY` where no other multiset fits: for each distance
+      the real one holds, no multiset holding it a different number of
+      times exists (a multiset matching every one of those counts is the
+      real one, the sizes being equal);
+    - `TAIL_PINS_END` where that is not shown -- a second multiset found,
+      or the walk spent -- and the largest distance is fixed;
+    - `TAIL_PINS_A_COUNT` otherwise: the largest distance can differ, so
+      what PINNED fixed is a count.
+
+    The search for another multiset has its own budget of
+    `TAIL_REACH_STEPS`, and a spent one claims the less -- "at least the
+    outermost", "at least a count" -- so a sentence never says more than
+    was shown, and never says less than is true either.
+
+    Guarantees: accepts what `_tail_verdict` accepts, for a tail it
+    answered PINNED; returns one of the three. Determinism: a function of
+    the five. Raises nothing. No I/O.
+    """
+    size = len(distances)
+    counts = _tally_of(distances)
+    top = max(distances)
+    total = 0
+    squares = 0
+    for distance in distances:
+        total = total + distance
+        squares = squares + distance * distance
+    lattice = _Lattice(
+        size, total, squares, edge, distinct, least=least, budget=TAIL_REACH_STEPS
+    )
+    every = True
+    for distance in sorted(counts):
+        held = counts[distance]
+        fewer = held - 1
+        more = held + 1
+        while every and (fewer >= 0 or more <= size):
+            other = fewer if fewer >= 0 else more
+            if fewer >= 0:
+                fewer = fewer - 1
+            else:
+                more = more + 1
+            if _lattice_with_count(lattice, distance, other) is not None:
+                every = False
+            elif lattice.spent:
+                every = False
+        if not every:
+            break
+    if every:
+        return TAIL_PINS_EVERY
+    if counts[top] >= floor:
+        return TAIL_PINS_A_COUNT
+    reader = _Lattice(size, total, squares, edge, distinct, least=least)
+    below = top - 1
+    above = top + 1
+    lowest = max(least, -(-total // size))
+    highest = min(edge, _root_of(max(0, squares - (size - 1) * least * least)))
+    while below >= lowest or above <= highest:
+        candidate = below if below >= lowest else above
+        if below >= lowest:
+            below = below - 1
+        else:
+            above = above + 1
+        if _lattice_with_top(reader, candidate) is not None:
+            return TAIL_PINS_A_COUNT
+        if reader.spent:
+            return TAIL_PINS_END
+    return TAIL_PINS_END
 
 
 def _values_mean_pins(
@@ -5089,8 +5247,12 @@ def _tail_side_and_verdict(
     if not few and not (single and may_list and pinned):
         if pinned:
             # FAIL CLOSED (P4-D349). The values road is shut and the pair
-            # would give this tail back exactly; the tail says how many
-            # rows lie beyond its boundary and nothing else.
+            # would give back what the floor protects; the tail says how
+            # many rows lie beyond its boundary and nothing else -- and,
+            # where its own walk PINNED it, what the pair would give back
+            # (plan P4-D357 A), which the remark says.
+            if verdict == TAIL_PINNED:
+                verdict = _pinned_reach(distances, floor, edge, distinct)
             return (
                 {
                     "boundary": boundary,
@@ -5385,12 +5547,13 @@ def ordered_tails_and_verdicts(
 def _unsettled_tail_remarks(
     low: object, high: object, verdicts: "dict[str, str]"
 ) -> "list[Note]":
-    """The remark of each date or clock side withheld because its walk did not finish.
+    """The remark of each date or clock side that publishes neither distance, saying why.
 
-    A side publishing neither distance and no values was PINNED or left
-    UNSETTLED by the back-solve (`_tail_side_and_verdict`); the second is
-    said, so a page does not say of it that its pair would give it back
-    (plan P4-D353). Determinism: a function of the three. No I/O.
+    A side publishing neither distance and no values was left UNSETTLED
+    by the back-solve, or PINNED -- and then `_tail_side_and_verdict`
+    says what its pair would give back (plan P4-D357 A): every value, the
+    outermost, or a count. Each is said, so a page says of it only what
+    is true (plan P4-D353). Determinism: a function of the three. No I/O.
     """
     said: "list[Note]" = []
     for side, tail in (("low", low), ("high", high)):
@@ -5398,8 +5561,8 @@ def _unsettled_tail_remarks(
             continue
         if tail["mean_distance"] is not None:
             continue
-        if side in verdicts and verdicts[side] == TAIL_UNSETTLED:
-            said += [note(TAIL_WITHHELD_REMARKS[(side, TAIL_WITHHELD_UNSETTLED)])]
+        if side in verdicts and (side, verdicts[side]) in TAIL_WITHHELD_REMARKS:
+            said += [note(TAIL_WITHHELD_REMARKS[(side, verdicts[side])])]
     return said
 
 
@@ -13019,6 +13182,22 @@ def _numeric_answer(
     return _tail_verdict(parts, floor, max(edge, 1), distinct, least=least)
 
 
+def _numeric_reach(
+    parts: "list[int]", cap: int, least: int, floor: int, distinct: bool
+) -> str:
+    """`_pinned_reach` of a numeric tail `_numeric_answer` answered PINNED.
+
+    The same five facts, the sign cap turned into the lattice's edge the
+    way `_numeric_answer` turns it (plan P4-D357 A). Determinism: a
+    function of the five. Raises nothing. No I/O.
+    """
+    squares = 0
+    for part in parts:
+        squares = squares + part * part
+    edge = cap if cap >= 0 else _root_of(squares)
+    return _pinned_reach(parts, floor, max(edge, 1), distinct, least=least)
+
+
 def _listed_tail(
     ordered: "list[float]",
     first: int,
@@ -13331,6 +13510,9 @@ def _numeric_tails_and_causes(
     # THE PAIRS THE BACK-SOLVE WITHHOLDS, kept for the cost rule of plan
     # P4-D353 and never published unless that rule publishes them.
     withheld_pairs: "dict[str, tuple[float, float, str]]" = {}
+    # ...and the parts of each side it PINNED, so the reason said of a side
+    # that stays withheld is what its pair would give back (P4-D357 A).
+    pinned_parts: "dict[str, tuple[list[int], int, int]]" = {}
     unholdable: "list[str]" = []
     for side, first, last, side_percent, distances in (
         ("low", low_first, low_last, percent, low),
@@ -13390,6 +13572,8 @@ def _numeric_tails_and_causes(
             )
             if answer != TAIL_OPEN:
                 withheld_pairs[side] = (mean, root, answer)
+                if answer == TAIL_PINNED:
+                    pinned_parts[side] = parts
                 mean = None
                 root = None
         sides[side] = {
@@ -13432,6 +13616,11 @@ def _numeric_tails_and_causes(
             continue
         if side in unholdable:
             causes[side] = TAIL_WITHHELD_UNHOLDABLE
+        elif side in pinned_parts:
+            held = pinned_parts[side]
+            causes[side] = _numeric_reach(
+                held[0], held[1], held[2], floor, all_apart
+            )
         elif side in withheld_pairs:
             causes[side] = withheld_pairs[side][2]
         else:
@@ -19619,7 +19808,7 @@ def _numeric_verdict(
     # page must not say of such a side that its two distances would give
     # it back.
     for side in ("low", "high"):
-        if side in causes and causes[side] != TAIL_PINNED:
+        if side in causes and (side, causes[side]) in TAIL_WITHHELD_REMARKS:
             remarks += [note(TAIL_WITHHELD_REMARKS[(side, causes[side])])]
     # AND A SHAPE THIS COLUMN COULD NOT PUBLISH IS SAID IN WORDS. The
     # histogram is all or nothing, so a column whose values spread too

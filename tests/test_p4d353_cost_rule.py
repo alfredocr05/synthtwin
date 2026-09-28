@@ -33,6 +33,8 @@ data-format file enters the repository (plan D13).
 
 from __future__ import annotations
 
+import fractions
+import math
 import pathlib
 import random
 
@@ -873,13 +875,19 @@ def far_apart_100() -> "list[str]":
 # page saying the wrong one is the defect this section exists for.
 NOT_ASKED = "not_asked"
 SUMMARY_WORDS = {
-    taxonomy.TAIL_PINNED: "the two distances together would give those values back one by one",
+    taxonomy.TAIL_PINNED: "would give back something the smallest group protects",
+    taxonomy.TAIL_PINS_EVERY: "the two distances together would give those values back one by one",
+    taxonomy.TAIL_PINS_END: "would give back at least the outermost of those values",
+    taxonomy.TAIL_PINS_A_COUNT: "would give back at least how many rows hold one of those values",
     taxonomy.TAIL_WITHHELD_FOR_THE_OTHER: "they could give back the other end's, which are withheld",
     taxonomy.TAIL_WITHHELD_UNSETTLED: "could not be settled, so they are withheld",
     taxonomy.TAIL_WITHHELD_UNHOLDABLE: "too large for this file format to hold",
 }
 REPORT_WORDS = {
-    taxonomy.TAIL_PINNED: "would give the file's own outer cells back one by one",
+    taxonomy.TAIL_PINNED: "would give back something of the file's own outer cells that the smallest group protects",
+    taxonomy.TAIL_PINS_EVERY: "would give the file's own outer cells back one by one",
+    taxonomy.TAIL_PINS_END: "would give back at least the file's own outermost cell",
+    taxonomy.TAIL_PINS_A_COUNT: "would give back at least how many of the file's own outer cells hold one value",
     taxonomy.TAIL_WITHHELD_FOR_THE_OTHER: "they could give back the other tail's, whose own two distances that description withholds",
     taxonomy.TAIL_WITHHELD_UNSETTLED: "could not be settled, and the rule this description follows withholds them where that cannot be ruled out",
     taxonomy.TAIL_WITHHELD_UNHOLDABLE: "the two numbers are too large for this file format to hold",
@@ -888,6 +896,9 @@ REMARK_WORDS = {
     taxonomy.TAIL_WITHHELD_FOR_THE_OTHER: "they could give back, by subtraction, the two distances withheld from its",
     taxonomy.TAIL_WITHHELD_UNSETTLED: "did not finish, and a tail is withheld where that cannot be ruled out",
     taxonomy.TAIL_WITHHELD_UNHOLDABLE: "because they are too large for this file format to hold",
+    taxonomy.TAIL_PINS_EVERY: "because together they would give every one of those values back",
+    taxonomy.TAIL_PINS_END: "because together they would give back at least the outermost of those values",
+    taxonomy.TAIL_PINS_A_COUNT: "because together they would give back at least how many rows hold one of those values",
 }
 SIDE_WORDS = {"low": ("lower", "upper"), "high": ("upper", "lower")}
 
@@ -908,7 +919,11 @@ def withheld_sides(
     The own verdict is `TAIL_PINNED` or `TAIL_UNSETTLED` where the walk
     withheld it, `TAIL_OPEN` where the walk did not (the cross-side rule
     withheld it), `NOT_ASKED` where binary64 cannot hold its pair, each
-    recorded off the real producer's own calls.
+    recorded off the real producer's own calls -- and a PINNED side is
+    read again by `pinned_reading`, which enumerates the multisets its
+    facts admit without the producer's lattice (plan P4-D357 A): every
+    value, the outermost, a count, or `TAIL_PINNED` where the enumeration
+    could not decide.
     """
     verdicts: "dict[str, str]" = {}
     unholdable: "list[str]" = []
@@ -948,6 +963,8 @@ def withheld_sides(
         ]
         assert len(lines) == 1, (name, floor, side, lines)
         own = NOT_ASKED if side in unholdable else verdicts.get(side, taxonomy.TAIL_OPEN)
+        if own == taxonomy.TAIL_PINNED:
+            own = pinned_reading(block, side, cells, floor)
         found += [(
             side,
             own,
@@ -958,34 +975,95 @@ def withheld_sides(
     return block, found
 
 
-# The reason true of a withheld side, from the back-solve's own verdict on it.
+def pinned_reading(block: "dict", side: str, cells: "list[str]", floor: int) -> str:
+    """What a PINNED numeric side's pair gives back, by enumerating the multisets its facts admit.
+
+    Independent of the producer's lattice: the tail's own whole parts are
+    read off the column's cells and its published boundary on the block's
+    grid, and `complement_reader._tail_multisets` lists the multisets of
+    that many parts, nought or more and no larger than the sign cap, with
+    their sum and sum of squares -- different from one another where the
+    column's numbers all are. One multiset: every value. Several, every one
+    with the same largest part, held by fewer rows than the floor: the
+    outermost. Several with different largest parts: a count. Anything the
+    enumeration cannot finish, or a column off a grid: `TAIL_PINNED`,
+    which `misstated` reads as undecided.
+    """
+    figures = columns._grid(block)
+    tail = block["tails"][side]
+    if figures is None or not isinstance(tail, dict):
+        return taxonomy.TAIL_PINNED
+    scale = 10**figures
+    numbers = sorted(float(cell) for cell in cells if _is_number(cell))
+    boundary = fractions.Fraction(columns.rung_of(block, tail["percent"])) * scale
+    home = math.floor(boundary) if side == "low" else math.ceil(boundary)
+    rows = tail["rows"]
+    outer = numbers[:rows] if side == "low" else numbers[len(numbers) - rows:]
+    parts = [home - round(value * scale) if side == "low" else round(value * scale) - home for value in outer]
+    total = sum(parts)
+    squares = sum(part * part for part in parts)
+    edge = max(1, columns._cap(block, side, home, squares))
+    apart = block["n_distinct_values"] == block["n_used_in_statistics"]
+    found, finished = columns._tail_multisets(rows, total, squares, 0, edge, 1 if apart else 0, cap=64)
+    if not finished or len(found) >= 64 or sorted(parts) not in found:
+        return taxonomy.TAIL_PINNED
+    if len(found) == 1:
+        return taxonomy.TAIL_PINS_EVERY
+    top = max(parts)
+    if {max(one) for one in found} == {top} and parts.count(top) < floor:
+        return taxonomy.TAIL_PINS_END
+    return taxonomy.TAIL_PINS_A_COUNT
+
+
+def _is_number(cell: str) -> bool:
+    try:
+        float(cell)
+    except ValueError:
+        return False
+    return True
+
+
+# The reason true of a withheld side, from the back-solve's own verdict on it
+# and, for a PINNED side, from `pinned_reading`.
 TRUE_CAUSE = {
-    taxonomy.TAIL_PINNED: taxonomy.TAIL_PINNED,
+    taxonomy.TAIL_PINS_EVERY: taxonomy.TAIL_PINS_EVERY,
+    taxonomy.TAIL_PINS_END: taxonomy.TAIL_PINS_END,
+    taxonomy.TAIL_PINS_A_COUNT: taxonomy.TAIL_PINS_A_COUNT,
     taxonomy.TAIL_UNSETTLED: taxonomy.TAIL_WITHHELD_UNSETTLED,
     taxonomy.TAIL_OPEN: taxonomy.TAIL_WITHHELD_FOR_THE_OTHER,
     NOT_ASKED: taxonomy.TAIL_WITHHELD_UNHOLDABLE,
 }
+_PINNED_READINGS = (taxonomy.TAIL_PINS_EVERY, taxonomy.TAIL_PINS_END, taxonomy.TAIL_PINS_A_COUNT)
 
 
 def misstated(sides: "list[tuple[str, str, str, str, str]]") -> "list[tuple[str, str, str, str, str]]":
     """The sides whose pages say a reason that is not the one true of them.
 
-    True of a side: its own verdict where the walk withheld it, the cross-side
-    rule where the walk left it open, and binary64 where the pair was never
-    asked. The old sentence -- the pair gives the values back -- is true only
-    of a PINNED side.
+    True of a side: its own verdict where the walk left it unsettled, the
+    cross-side rule where the walk left it open, binary64 where the pair
+    was never asked -- and, where the walk PINNED it, what the enumeration
+    of `pinned_reading` finds its pair gives back: every value, the
+    outermost, or a count (plan P4-D357 A; the pages said "one by one" of
+    every pinned side until then). Where that enumeration cannot decide,
+    any of the three readings is taken as said, and no other.
     """
-    return [
-        one for one in sides
-        if not (one[2] == one[3] == one[4] == TRUE_CAUSE[one[1]])
-    ]
+    wrong: "list[tuple[str, str, str, str, str]]" = []
+    for one in sides:
+        if not one[2] == one[3] == one[4]:
+            wrong += [one]
+        elif one[1] == taxonomy.TAIL_PINNED:
+            if one[2] not in _PINNED_READINGS:
+                wrong += [one]
+        elif one[2] != TRUE_CAUSE[one[1]]:
+            wrong += [one]
+    return wrong
 
 
 # (name, cells, floor, side, the reason, the other side's own verdict or ""):
 # the three columns the review found, and the two other reasons.
 _WITHHELD_REASONS = (
-    ("heap_then_one_far", heap_then_one_far(), 11, "low", taxonomy.TAIL_WITHHELD_FOR_THE_OTHER, taxonomy.TAIL_PINNED),
-    ("run_then_scatter", run_then_scatter(), 11, "high", taxonomy.TAIL_WITHHELD_FOR_THE_OTHER, taxonomy.TAIL_PINNED),
+    ("heap_then_one_far", heap_then_one_far(), 11, "low", taxonomy.TAIL_WITHHELD_FOR_THE_OTHER, taxonomy.TAIL_PINS_EVERY),
+    ("run_then_scatter", run_then_scatter(), 11, "high", taxonomy.TAIL_WITHHELD_FOR_THE_OTHER, taxonomy.TAIL_PINS_EVERY),
     ("uniform_distinct_1500", uniform_distinct_1500(), 20, "high", taxonomy.TAIL_WITHHELD_FOR_THE_OTHER, taxonomy.TAIL_UNSETTLED),
     ("uniform_distinct_1500", uniform_distinct_1500(), 20, "low", taxonomy.TAIL_WITHHELD_UNSETTLED, ""),
     ("far_apart_100", far_apart_100(), 11, "low", taxonomy.TAIL_WITHHELD_UNHOLDABLE, ""),
@@ -1033,13 +1111,21 @@ def test_a_side_withheld_for_another_reason_says_which(
     assert cited == reason, f"{name} {side}: the report says {cited}"
 
 
-def test_a_pinned_side_is_still_told_its_own_pair_would_give_it_back(tmp_path: pathlib.Path) -> None:
-    """The other side of `heap_then_one_far`, whose own walk PINNED it, carries no remark and the old sentence."""
+def test_a_pinned_side_says_what_its_own_pair_would_give_back(tmp_path: pathlib.Path) -> None:
+    """The other side of `heap_then_one_far`, whose own walk PINNED it: one multiset fits, so every value.
+
+    Its eleven rows are ten at the boundary and `1100`, distances
+    `[0]*10 + [11]`: sum 11 and squares 121 admit no other multiset, which
+    `pinned_reading` finds by enumeration, and the remark and both pages say
+    the pair gives every value back (plan P4-D357 A).
+    """
     block, sides = withheld_sides(tmp_path / "heap", "heap", heap_then_one_far(), 11)
     found = {one[0]: one for one in sides}
-    assert found["high"][1] == taxonomy.TAIL_PINNED, sides
-    assert found["high"][2:] == (taxonomy.TAIL_PINNED,) * 3, sides
-    assert not [line for line in block["remarks"] if "upper tail boundary" in line]
+    assert found["high"][1] == taxonomy.TAIL_PINS_EVERY, sides
+    assert found["high"][2:] == (taxonomy.TAIL_PINS_EVERY,) * 3, sides
+    assert [line for line in block["remarks"] if "upper tail boundary" in line] == [
+        taxonomy.rendered(taxonomy.REMARK_HIGH_TAIL_EVERY_VALUE, ())
+    ]
     assert misstated(sides) == []
 
 
@@ -1059,7 +1145,7 @@ _CHECKED_REASONS = (
         _repeating_draw(1101),
         11,
         heap_then_one_far(),
-        {"low": taxonomy.TAIL_WITHHELD_FOR_THE_OTHER, "high": taxonomy.TAIL_PINNED},
+        {"low": taxonomy.TAIL_WITHHELD_FOR_THE_OTHER, "high": taxonomy.TAIL_PINS_EVERY},
     ),
     (
         "uniform_distinct_1500",
@@ -1120,7 +1206,7 @@ _HEAPED_REASONS = (
         _heaped_draw(1101, 60),
         11,
         heap_then_one_far(),
-        {"low": taxonomy.TAIL_WITHHELD_FOR_THE_OTHER, "high": taxonomy.TAIL_PINNED},
+        {"low": taxonomy.TAIL_WITHHELD_FOR_THE_OTHER, "high": taxonomy.TAIL_PINS_EVERY},
     ),
     (
         "uniform_distinct_1500",
@@ -1206,7 +1292,10 @@ def _date_lines_say(page: str) -> "list[str]":
         said = f"the {side} lie beyond it and no distance is published for them: "
         lines = [line for line in page.split("\n") if said in line]
         assert len(lines) == 1, (side, lines)
-        found += [_which_page_words(lines[0][lines[0].index(said):], SUMMARY_WORDS)]
+        clause = lines[0][lines[0].index(said):]
+        if "; the latest lie" in clause:
+            clause = clause[: clause.index("; the latest lie")]
+        found += [_which_page_words(clause, SUMMARY_WORDS)]
     return found
 
 
@@ -1227,7 +1316,8 @@ def test_a_date_or_clock_side_whose_walk_did_not_finish_says_so(
 
     900 all-different minutes of the day (seed `fA3/clock_3`) and 240
     consecutive days withhold both pairs, each PINNED by its own walk
-    (premise: no remark, the old sentence). A walk that spends its budget
+    (premise: each side's remark says what the pair gives back, plan
+    P4-D357 A, and the page says the same). A walk that spends its budget
     answers UNSETTLED instead, which no seeded column here reaches, so the
     verdict is turned: each side must then carry its remark, and the page
     must say the question could not be settled.
@@ -1236,8 +1326,9 @@ def test_a_date_or_clock_side_whose_walk_did_not_finish_says_so(
     block = pinned["columns"][0]
     for key in ("low_tail", "high_tail"):
         assert block[key]["mean_distance"] is None and block[key]["values"] is None, "premise: both pairs withheld"
-    assert not [line for line in block["remarks"] if "tail boundary" in line], block["remarks"]
-    assert _date_lines_say(summary.render(pinned, "")) == [taxonomy.TAIL_PINNED] * 2
+    readings = [taxonomy.tail_withheld_because(block["remarks"], side) for side in ("low", "high")]
+    assert [one for one in readings if one not in _PINNED_READINGS] == [], block["remarks"]
+    assert _date_lines_say(summary.render(pinned, "")) == readings
     real = taxonomy._tail_verdict
 
     def spent(*arguments, **named):  # type: ignore[no-untyped-def]
@@ -1278,5 +1369,5 @@ def test_a_block_that_says_no_reason_gets_the_whole_rule_and_no_cause() -> None:
             assert _which_page_words(sentence, REPORT_WORDS) == expected, block
         else:
             assert sentence == validation._GATE_TAIL_WITHHELD_UNSAID, block
-            assert "which withholds them where they would give the outer cells back" in sentence
+            assert "which withholds them where they would give back an outer cell or how many" in sentence
     assert _which_page_words(validation._GATE_TAIL_WITHHELD_UNSAID, REPORT_WORDS).startswith("none of the four")

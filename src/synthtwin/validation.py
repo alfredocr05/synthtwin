@@ -1053,9 +1053,39 @@ _GATE_TAIL_WITHHELD = (
     "the file's own description publishes nothing about this tail beyond "
     "the count of cells past its boundary -- neither distance, and so no "
     "list of the values it holds: its rows and those two numbers together "
+    "would give back something of the file's own outer cells that the "
+    "smallest group protects -- the outermost of them, or how many hold one "
+    "value -- which is the same rule this description follows. There is "
+    "nothing here for the comparison, and neither it nor its outcome is "
+    "shown"
+)
+# ...AND WHAT THE FILE'S OWN PAIR WOULD GIVE BACK, where its description
+# says (plan P4-D357 A): every outer cell, the outermost, or a count.
+_GATE_TAIL_WITHHELD_EVERY = (
+    "the file's own description publishes nothing about this tail beyond "
+    "the count of cells past its boundary -- neither distance, and so no "
+    "list of the values it holds: its rows and those two numbers together "
     "would give the file's own outer cells back one by one, which is the "
     "same rule this description follows. There is nothing here for the "
     "comparison, and neither it nor its outcome is shown"
+)
+_GATE_TAIL_WITHHELD_END = (
+    "the file's own description publishes nothing about this tail beyond "
+    "the count of cells past its boundary -- neither distance, and so no "
+    "list of the values it holds: its rows and those two numbers together "
+    "would give back at least the file's own outermost cell, which is the "
+    "same rule "
+    "this description follows. There is nothing here for the comparison, "
+    "and neither it nor its outcome is shown"
+)
+_GATE_TAIL_WITHHELD_A_COUNT = (
+    "the file's own description publishes nothing about this tail beyond "
+    "the count of cells past its boundary -- neither distance, and so no "
+    "list of the values it holds: its rows and those two numbers together "
+    "would give back at least how many of the file's own outer cells hold "
+    "one value, "
+    "which is the same rule this description follows. There is nothing here "
+    "for the comparison, and neither it nor its outcome is shown"
 )
 # ...AND THE SAME SILENCE FOR EVERY OTHER REASON THE FILE'S OWN TAIL HAS
 # (plan P4-D353). The file's description says which, in a remark per side
@@ -1093,14 +1123,18 @@ _GATE_TAIL_WITHHELD_UNSAID = (
     "the file's own description publishes nothing about this tail beyond "
     "the count of cells past its boundary -- neither distance, and so no "
     "list of the values it holds -- under the same tail rule this "
-    "description follows, which withholds them where they would give the "
-    "outer cells back, where that could not be ruled out, where beside the "
+    "description follows, which withholds them where they would give back "
+    "an outer cell or how many outer cells hold one value, where that could "
+    "not be ruled out, where beside the "
     "exact mean and spread they could give the other tail's back, or where "
     "this file format cannot hold them. There is nothing here for the "
     "comparison, and neither it nor its outcome is shown"
 )
 _GATE_TAIL_WITHHELD_BY_CAUSE = {
     taxonomy.TAIL_PINNED: _GATE_TAIL_WITHHELD,
+    taxonomy.TAIL_PINS_EVERY: _GATE_TAIL_WITHHELD_EVERY,
+    taxonomy.TAIL_PINS_END: _GATE_TAIL_WITHHELD_END,
+    taxonomy.TAIL_PINS_A_COUNT: _GATE_TAIL_WITHHELD_A_COUNT,
     taxonomy.TAIL_WITHHELD_FOR_THE_OTHER: _GATE_TAIL_WITHHELD_FOR_THE_OTHER,
     taxonomy.TAIL_WITHHELD_UNSETTLED: _GATE_TAIL_WITHHELD_UNSETTLED,
     taxonomy.TAIL_WITHHELD_UNHOLDABLE: _GATE_TAIL_WITHHELD_UNHOLDABLE,

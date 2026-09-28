@@ -17,6 +17,8 @@
    the oracle alike.
 4. ONE SIDE WITHHELD FOR ANY REASON CLOSES THE OTHER'S PAIR, binary64's
    among them.
+5. A PINNED SIDE SAYS WHAT ITS PAIR GIVES BACK: every value, the outermost,
+   or a count -- held against competing multisets, not against the enum.
 
 Every table is built at test time from a fixed seed string or a closed
 formula; no data-format file enters the repository (plan D13).
@@ -32,9 +34,10 @@ import random
 
 import pytest
 
+import complement_reader as columns
 import cost_rule_window as window
 import kpi_shapes
-from synthtwin import contract, parsing, taxonomy, validation
+from synthtwin import contract, parsing, summary, taxonomy, validation
 
 
 def _one_column(cells: "list[str]") -> str:
@@ -499,3 +502,101 @@ def test_the_twice_written_fill_counts_no_stand_in_among_its_points() -> None:
     rungs = (9998.0,) + (9999.0,) * 99 + (10000.0,)
     filled = generation._twice_filled(facts, layout, rungs, points, 1)  # type: ignore[arg-type]
     assert filled is None or [one for one in filled if one in _STAND_INS] == [], filled
+
+
+# -- 5. a pinned side says what its pair gives back: every value, or less ------
+
+
+def _review_item_5() -> "list[str]":
+    """0 to 1,089 once each, `1089` seven more times, and `1090`, `1093`, `1093`, `1189` (the review's column)."""
+    return [str(value) for value in list(range(1090)) + [1089] * 7 + [1090, 1093, 1093, 1189]]
+
+
+def test_a_pinned_tail_two_multisets_fit_says_only_its_outermost_value(tmp_path: pathlib.Path) -> None:
+    """The review's column: two multisets of distances fit the high tail, so its pages name the outermost value, not every value.
+
+    THE COMPETING MULTISETS, written out: `[0]*7 + [1, 4, 4, 100]` (the
+    column's own, above the boundary `1089`) and `[0]*7 + [2, 2, 5, 100]`
+    both hold eleven rows, sum 109 and sum of squares 10033, so the pair
+    beside those rows fixes the outermost value `1189` and not the four
+    between it and the boundary. On 2af1f03 the summary and the quality
+    report both said the two distances would give those values back one
+    by one; the remark, the summary's line and the report's sentence now
+    say at least the outermost.
+    """
+    real = [0] * 7 + [1, 4, 4, 100]
+    other = [0] * 7 + [2, 2, 5, 100]
+    assert sorted(real) != sorted(other)
+    assert (len(real), sum(real), sum(one * one for one in real)) == (len(other), sum(other), sum(one * one for one in other))
+    described = kpi_shapes.describe(tmp_path, "review5", _one_column(_review_item_5()), 11)
+    block = described.document["columns"][0]
+    tail = block["tails"]["high"]
+    assert tail["rows"] == 11 and tail["mean_distance"] is None and not tail["values"], "premise: eleven rows, withheld"
+    boundary = validation._file_rung(block, tail["percent"])
+    outer = sorted(float(cell) for cell in _review_item_5())[-11:]
+    assert sorted(int(value - boundary) for value in outer) == sorted(real), "premise: those are the tail's distances"
+    assert taxonomy.tail_withheld_because(block["remarks"], "high") == taxonomy.TAIL_PINS_END
+    page = summary.render(described.document, "")
+    line = [one for one in page.split("\n") if "the 11 largest values are not published" in one]
+    assert len(line) == 1 and "would give back at least the outermost of those values" in line[0], line
+    assert "one by one" not in line[0]
+    report = validation._tail_withheld_reason(block, "high")
+    assert "would give back at least the file's own outermost cell" in report and "one by one" not in report
+
+
+def _reading_by_enumeration(distances: "list[int]", floor: int, edge: int, distinct: bool, least: int) -> "str | None":
+    """What the facts of a tail fix, by listing every multiset they admit (tests/complement_reader.py's walk)."""
+    total = sum(distances)
+    squares = sum(one * one for one in distances)
+    found, finished = columns._tail_multisets(
+        len(distances), total, squares, least, edge, 1 if distinct else 0, cap=100_000, budget=5_000_000
+    )
+    if not finished:
+        return None
+    assert sorted(distances) in found, "the enumeration misses the real multiset"
+    if len(found) == 1:
+        return taxonomy.TAIL_PINS_EVERY
+    top = max(distances)
+    if {max(one) for one in found} == {top} and distances.count(top) < floor:
+        return taxonomy.TAIL_PINS_END
+    return taxonomy.TAIL_PINS_A_COUNT
+
+
+def test_every_pinned_reading_is_the_one_the_multisets_give() -> None:
+    """Over 3,000 seeded small tails the back-solve PINS, the reading equals a brute-force enumeration's.
+
+    Parts from nought (a numeric tail) or one (a date or clock tail), all
+    different or not, capped by an edge: where `_tail_verdict` answers
+    PINNED, `_pinned_reach` says every value exactly where one multiset
+    fits, the outermost exactly where every fitting multiset shares the
+    largest part and fewer rows than the floor hold it, and a count
+    otherwise -- each of the three reached (premise), and a count among them
+    on tails whose largest part the floor does not protect.
+    """
+    draw = random.Random("p4d357/reach")
+    seen: "dict[str, int]" = {}
+    for _case in range(3000):
+        least = draw.choice((0, 1))
+        distinct = draw.random() < 0.3
+        size = draw.randint(3, 9)
+        edge = draw.randint(least + size + 1, 30)
+        if distinct:
+            distances = draw.sample(range(least, edge + 1), size)
+        else:
+            reach = draw.choice((2, 5, edge - least))
+            distances = [draw.randint(least, least + reach) for _row in range(size)]
+        floor = draw.randint(2, 11)
+        if not distinct and draw.random() < 0.3:
+            # A LARGEST PART THE FLOOR DOES NOT PROTECT: held `floor` times.
+            distances = distances + [max(distances)] * (floor - distances.count(max(distances)))
+        if taxonomy._tail_verdict(distances, floor, edge, distinct, least) != taxonomy.TAIL_PINNED:
+            continue
+        expected = _reading_by_enumeration(distances, floor, edge, distinct, least)
+        if expected is None:
+            continue
+        found = taxonomy._pinned_reach(distances, floor, edge, distinct, least)
+        assert found == expected, (distances, floor, edge, distinct, least, found, expected)
+        seen[found] = seen.get(found, 0) + 1
+    assert sorted(seen) == sorted(
+        (taxonomy.TAIL_PINS_EVERY, taxonomy.TAIL_PINS_END, taxonomy.TAIL_PINS_A_COUNT)
+    ), f"premise: every reading reached, {seen}"
