@@ -23,19 +23,24 @@ every seed and writes 40 with none, and over a 138-twin battery the
 recount alone moves 11 twins, 9 with no trailing minus -- eight losing
 five or six missed checks and one dense signed decimal, missing five
 checks either way, gaining `styles.spill` (the orchestrator accepted
-it). Over 1,332 more twins the recount alone moves 120, 3 of them to
-more missed checks and none from pass to fail; at floor 1, on columns
-whose values outnumber the whole numbers between their ends, 9 of the
-120 miss `widths.published.2` or a tail's values where they held them --
-30 `+N` beside 30 `N.dd`, 80 `-N` and 40 `-N.dd` on 1..9 writes a
-nineteenth plus and 69 two-figure decimals of 70 -- and the orchestrator
-accepted that too. The walks over the side that is not negative keep
-stratum order. New
+it). Over 2,322 more twins the recount alone moves 252, 6 of them to
+more missed checks and none from pass to fail. On columns whose 75 to
+117 different values outnumber the whole numbers between their ends, 20
+of the 252 miss `widths.published.2`, a tail's values or a percentile
+rung where they held them, 16 at floor 1 and 4 at the default floor of
+11, none of them a twin that held every check: at one draw and seed,
+40 `+N.dd` beside 40 `N`, 40 `-N` and 40 `-N.dd` on 1..9 writes 13
+whole values with a point, such as `-9.0`, and misses
+`widths.published.2` beside the one check it missed before. Accepting
+that full reach is the orchestrator's call of 2026-09-28 (not an owner
+ruling; the owner may reverse it). The walks over the side that is not
+negative keep stratum order. New
 `trailing_values` rows hold the walk beside's demand, the order of the
 side that is not negative and the negative walk's order; the gate's
 `plus-beside-whole-negatives` holds the plus walk's count, a third
-hand-worked chain row the negative walk's order, and a hand-worked walk
-beside that walk's own count after a chain, which nothing held. The
+hand-worked chain row the negative walk's order, and a hand-worked row
+for each walk its count again after a chain, over the strata it walks,
+which nothing held. The
 ledger note names its entries, their trees and what took them, and no
 longer restates their values; a test holds that, and reads a numeral
 glued to a unit of any case or length.

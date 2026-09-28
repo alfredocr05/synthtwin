@@ -797,51 +797,89 @@ def test_the_walks_over_the_side_that_is_not_negative_keep_stratum_order():
     )
 
 
-def test_the_walk_beside_counts_only_the_side_that_is_not_negative_after_a_chain():
-    """After a chain, the walk beside a trailing minus counts the strata it walks.
+# ONE HAND-WORKED ROW FOR EACH OF G6.4'S WALKS, each with a chain whose holder
+# changes the walk's count. On a 101-rung ladder whose rungs stand at each
+# stratum's start, stratum k's share is (rung[start], rung[start + size]).
+# (sizes, lows, values, census of styles, decimal_plus, notations, answer).
+_UP = ((45, 5, 20, 10, 5, 15), (0.1, 0.75, 1.25, 1.375, 6.0, 8.0),
+       (0.1, 1.0, 1.3, 5.4, 7.4, 10.0))
+AGAIN_AFTER_A_CHAIN = (
+    # Shares (0.1, 0.75), (0.75, 1.25), (1.25, 1.375), (1.375, 6), (6, 8) and
+    # (8, 10); 40 pluses asked, and 1 and the end 10 carry 20. 1.3's one whole
+    # number, 1, is held by the narrower 1, which has no other -- 0 and 2 are
+    # more than half a unit past its share -- so the chain gives 1.3 the 1
+    # and the holder 1.125 from its own share (35); 5.4 then takes 5 (45),
+    # and 7.4 keeps its point.
+    _UP + ({"leading_plus": 40, "decimal": 60}, {}, {}, (0.1, 1.125, 1.0, 5.0, 7.4, 10.0)),
+    # The same strata asked for 40 plain cells, which the last walk serves.
+    _UP + ({"plain": 40, "decimal": 60}, {}, {}, (0.1, 1.125, 1.0, 5.0, 7.4, 10.0)),
+    # Shares (-10, -5.25), (-5.25, -4.75), (-4.75, -4.625), (-4.625, -3),
+    # (-3, 0.5), (0.5, 6) and (6, 10); 50 asked point-free and 35 of the 50
+    # cells that are not negative signed with a point, so the walk over the
+    # negative strata alone is asked for 50 - (50 - 35) = 35, and -10 and -5
+    # carry 15. -4.7's one whole number, -5, is held by the narrower -5 the
+    # walk reached first, so the chain gives -4.7 the -5 and the holder
+    # -4.875 (30); -3.4 then takes -3 (40), and -2.4 keeps its point. The last
+    # walk, asked for 50, finds 55.
+    ((10, 5, 20, 10, 5, 35, 15), (-10.0, -5.25, -4.75, -4.625, -3.0, 0.5, 6.0),
+     (-10.0, -5.0, -4.7, -3.4, -2.4, 2.5, 10.0), {"plain": 50, "decimal": 50}, {"+": 35},
+     {"minus": 50}, (-10.0, -4.875, -5.0, -3.0, -2.4, 2.5, 10.0)),
+    # Shares (-6, -5), (-5, -2), (-2, 0.75), (0.75, 1.25), (1.25, 1.375),
+    # (1.375, 6), (6, 8) and (8, 10); 60 asked point-free and 25 of the 50
+    # negatives under a trailing minus, so the walk beside is asked for
+    # 60 - (50 - 25) = 35 by the side that is not negative, where 1 and the
+    # end 10 carry 15. The chain of the first row gives 1.3 the 1 and the
+    # holder 1.125 (30); 5.4 then takes 5 (40), and 7.4 keeps its point. The
+    # last walk, asked for 60, finds 70.
+    ((10, 20, 20, 5, 20, 10, 5, 10), (-6.0, -5.0, -2.0, 0.75, 1.25, 1.375, 6.0, 8.0),
+     (-6.0, -3.0, -1.5, 1.0, 1.3, 5.4, 7.4, 10.0), {"plain": 60, "decimal": 40}, {},
+     {"minus": 25, "trailing_minus": 25}, (-6.0, -3.0, -1.5, 1.125, 1.0, 5.0, 7.4, 10.0)),
+)
 
-    Seven strata of 10, 20, 20, 5, 20, 10 and 15 cells on a 101-rung
-    ladder, shares (-6, -5), (-5, -2), (-2, 0.75), (0.75, 1.25), (1.25,
-    1.375), (1.375, 6) and (6, 10), values -6, -3, -1.5, 1, 1.3, 5.4 and
-    10; 65 cells asked point-free and 25 of the 50 negatives under a
-    trailing minus. The walk beside is asked for 65 - (50 - 25) = 40 by
-    the side that is not negative, where 1 and the end 10 carry 20.
-    1.3's one whole number, 1, is held by the narrower 1, which has no
-    other -- 2 is more than half a unit past its share and 0 is not
-    positive -- so the chain gives 1.3 the 1 and the holder 1.125 from
-    its own share (35), and 5.4 then takes 5 (45). The last walk, asked
-    for 65, finds 75 and moves nothing. Counted over every stratum after
-    the chain, the whole -6 and -3 would have met the 40 at 65, the last
-    walk would have found its 65 too, and 5.4 would have kept its point:
-    30 point-free cells left to the negatives, and 20 with a point for 25
-    trailing minuses, which is what 67e6a93 gives. So mutated on this
-    walk alone, the gate, the witness rows and the frozen cases stood
-    (the second skeptic of plan P4-D352 (7), 2026-09-28). Mutation, run:
-    that count taken over every stratum on the walk beside alone turns
-    this red.
+
+@pytest.mark.parametrize(
+    "sizes,lows,values,styles,decimal_plus,notations,answer",
+    AGAIN_AFTER_A_CHAIN,
+    ids=("plus-walk", "last-walk", "negative-walk", "walk-beside"),
+)
+def test_each_walk_counts_the_strata_it_walks_again_after_a_chain(
+    sizes, lows, values, styles, decimal_plus, notations, answer
+):
+    """After a chain move, each walk counts again, over the strata it walks.
+
+    Method G6.4 counts before a walk and again after every move. In each
+    row a chain gives a stratum of 20 cells the whole number a stratum of
+    5 held and gives that one a point, so the count is 15 cells higher
+    after it, and the walk stops a stratum sooner than it would on the
+    count it took before the chain: not counted again, it gives 7.4 the
+    7, or -2.4 the -2. So mutated on the plus walk alone, 35 `+N` beside 35 `N.d`, 70
+    `-N` and 35 `-N.d` on 1..6 went from no missed check to five at floor
+    11, seed 0, and on any one walk the gate, the witness rows and the
+    frozen cases stood (the third skeptic of plan P4-D352 (7),
+    2026-09-28). The walk beside also counts only the side that is not
+    negative: counted over every stratum after the chain, the whole -6
+    and -3 meet its 35 at 60, 5.4 keeps its point too, and that side
+    carries 30 of the 35 cells it was asked for; so mutated, 30 `+N.d`
+    beside 40 `N.d-`, 30 `-N` and 70 whole values on 1..9 wrote 37
+    trailing minuses of 40 at floor 11, seed 0 (the second skeptic of
+    (7)). Mutations, each run: no count after a chain on one walk alone
+    turns that walk's row red, and on every walk all four; the count over
+    every stratum on the walk beside turns its row red.
     """
-    starts = (0, 10, 30, 50, 55, 75, 85)
-    lows = (-6.0, -5.0, -2.0, 0.75, 1.25, 1.375, 6.0)
+    count = len(sizes)
+    starts = tuple(sum(sizes[:k]) for k in range(count))
     rungs = tuple(
-        lows[max(k for k in range(7) if starts[k] <= place)] for place in range(100)
+        lows[max(k for k in range(count) if starts[k] <= place)] for place in range(100)
     ) + (10.0,)
-    layout = types.SimpleNamespace(
-        sizes=(10, 20, 20, 5, 20, 10, 15), starts=starts,
-        bands=("negative",) * 3 + ("positive",) * 4,
-    )
+    bands = tuple("negative" if value < 0 else "positive" for value in values)
+    layout = types.SimpleNamespace(sizes=sizes, starts=starts, bands=bands)
     column = types.SimpleNamespace(n_numeric=100)
-    shares = [generation._share_of(k, layout, rungs, 100) for k in range(7)]
-    assert shares == [
-        (-6.0, -5.0), (-5.0, -2.0), (-2.0, 0.75), (0.75, 1.25), (1.25, 1.375),
-        (1.375, 6.0), (6.0, 10.0),
-    ]
+    shares = [generation._share_of(k, layout, rungs, 100) for k in range(count)]
+    assert shares == [(lows[k], (lows + (10.0,))[k + 1]) for k in range(count)]
     facts = types.SimpleNamespace(
         integer_valued=False,
-        numeric_styles={"plain": 65, "decimal": 35},
-        decimal_plus={},
-        negative_notations={"minus": 25, "trailing_minus": 25},
+        numeric_styles=styles,
+        decimal_plus=decimal_plus,
+        negative_notations=notations,
     )
-    values = [-6.0, -3.0, -1.5, 1.0, 1.3, 5.4, 10.0]
-    assert tuple(generation._whole_enough(column, facts, layout, rungs, values)) == (
-        -6.0, -3.0, -1.5, 1.125, 1.0, 5.0, 10.0,
-    )
+    assert tuple(generation._whole_enough(column, facts, layout, rungs, list(values))) == answer
