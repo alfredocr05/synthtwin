@@ -1426,10 +1426,11 @@ def test_k_s3_15(record_property, tmp_path: pathlib.Path) -> None:
     obligations their twins MISS at seeds 0 and 4 together, and how many
     shapes were measured.
 
-    The second is the cost. It is not nought today and the entry says why: on
-    a column whose withheld tail carries the whole of its spread, the
-    column's mean is what the far cell puts in it, so no reading of the
-    tail that keeps that cell back can average to it.
+    The second is nought since plan P4-D353: a pair whose withholding
+    would leave the column's own G12.3 window of its mean or spread short
+    of the published value is published, and a published pair costs the
+    twin no other obligation. The first may not fall, so the second cannot
+    be bought by publishing pairs the rule does not need.
     """
     import test_stage3_gate as gate
 
@@ -1440,6 +1441,129 @@ def test_k_s3_15(record_property, tmp_path: pathlib.Path) -> None:
         {
             "sides_publishing_neither_distance": sides,
             "obligations_their_twins_miss": missing,
+            "shapes": shapes,
+        },
+    )
+
+
+def test_k_s3_19(record_property, tmp_path: pathlib.Path) -> None:
+    """P4-D353 part 2: where withholding both pairs costs nothing, one withheld tail withholds the other's pair.
+
+    Over the three columns on which the cross-side rule stands, how many
+    published descriptions withhold BOTH pairs. Before the landing each
+    published the open pair beside the withheld one, and on the first
+    `complement_reader.by_subtraction` named the twelve high values; that
+    reader reads nothing of a block withholding both pairs, so no count of
+    values is kept here. And what the rule costs the checker: over the
+    four files of `CHECKER_BOUND_FILES`, the P4-D349 bounds on a heaped end
+    left WITHHELD because the file's own pair went with its other tail,
+    and the ones still MISSED.
+    """
+    import complement_reader as columns
+    import test_p4d349_tail_reconstruction as bounds
+    import test_stage3_gate as gate
+    from synthtwin import validation
+
+    heap = dict(gate.RECONSTRUCTIONS)["heap_then_one_far"]
+    cases = (
+        ("rung_chained_s4", columns.rung_chained(102, 11, 4)[1], 11),
+        ("heap_then_one_far", heap, 11),
+        ("whole_uniform_distinct_1500", columns.ordinary("whole_uniform_distinct", 1500), 20),
+    )
+    standing = 0
+    for name, cells, floor in cases:
+        block = S.describe(
+            tmp_path / name, name, "value\n" + "\n".join(cells) + "\n", floor
+        ).document["columns"][0]
+        tails = block["tails"]
+        if tails["low"]["mean_distance"] is None and tails["high"]["mean_distance"] is None:
+            standing += 1
+    verdicts = bounds.checker_bound_verdicts(tmp_path / "checker")
+    _kpi(
+        record_property,
+        "K-S3-19",
+        {
+            "closures_standing": standing,
+            "checker_bounds_withheld": len([one for one in verdicts if one == validation.WITHHELD]),
+            "checker_bounds_missed": len([one for one in verdicts if one == validation.MISSED]),
+        },
+    )
+
+
+def test_k_s3_23(record_property, tmp_path: pathlib.Path) -> None:
+    """P4-D353 part 2's exemption: a tail that LISTS its values keeps its pair beside a withheld one.
+
+    Over the six seeded scales of `complement_reader.LISTED_SCALES` at
+    floors 11, 20 and 36, three numbers come back: the withheld tail values
+    `complement_reader.beside_a_list` names by subtraction from the
+    column's exact mean and spread beside a listed tail, the column-floors
+    on which it gives up, and how many column-floors were read.
+    """
+    import complement_reader as columns
+
+    rebuilt = 0
+    given_up = 0
+    shapes = 0
+    for name in columns.LISTED_SCALES:
+        cells = columns.listed_scale(name)
+        ordered = sorted(int(cell) for cell in cells)
+        for floor in (11, 20, 36):
+            block = S.describe(
+                tmp_path / f"{name}-{floor}", name, "value\n" + "\n".join(cells) + "\n", floor
+            ).document["columns"][0]
+            read = columns.beside_a_list(block, ordered)
+            rebuilt += read["values_rebuilt"]
+            if read["complement"] not in ("n/a", "open", "closed-by-ambiguity"):
+                given_up += 1
+            shapes += 1
+    _kpi(
+        record_property,
+        "K-S3-23",
+        {
+            "values_beside_a_list": rebuilt,
+            "columns_the_reader_gives_up_on": given_up,
+            "shapes": shapes,
+        },
+    )
+
+
+def test_k_s3_24(record_property, tmp_path: pathlib.Path) -> None:
+    """P4-D353, the owner's answer 8: what the WHOLE description gives back with no tail pair.
+
+    Over the gate's eight reconstruction attacks and skeptic A2's five
+    columns at floors 11, 20, 36 and 50, four numbers come back from
+    `complement_reader.whole_description`: the values it gives back
+    exactly, the column-floors it rebuilds whole, those whose one-row
+    maximum it names, and how many column-floors were read.
+    """
+    import complement_reader as columns
+    import test_stage3_gate as gate
+
+    rebuilt = 0
+    whole = 0
+    maxima = 0
+    shapes = 0
+    for name, cells in list(gate.RECONSTRUCTIONS) + list(columns.WHOLE_DESCRIPTION_FAMILY):
+        numbers: "list[int]" = []
+        for cell in cells:
+            if cell.lstrip("-").isdigit():
+                numbers += [int(cell)]
+        for floor in (11, 20, 36, 50):
+            block = S.describe(
+                tmp_path / f"{name}-{floor}", name, "value\n" + "\n".join(cells) + "\n", floor
+            ).document["columns"][0]
+            read = columns.whole_description(block, sorted(numbers))
+            rebuilt += read["values_rebuilt"]
+            whole += 1 if read["read"] == "whole" else 0
+            maxima += 1 if read["maximum_named"] else 0
+            shapes += 1
+    _kpi(
+        record_property,
+        "K-S3-24",
+        {
+            "values_rebuilt": rebuilt,
+            "columns_rebuilt_whole": whole,
+            "maxima_named": maxima,
             "shapes": shapes,
         },
     )
@@ -1467,4 +1591,43 @@ def test_k_s3_16(record_property, tmp_path: pathlib.Path) -> None:
             "real_missed": real_missed,
             "twins": twins,
         },
+    )
+
+
+def test_k_s3_25(record_property, tmp_path: pathlib.Path) -> None:
+    """P4-D353 part 2, skeptic A1's item 2: every withheld tail side's pages say the reason true of it.
+
+    Over the gate's four numeric reconstruction attacks and its four cost
+    shapes, skeptic A2's five columns and the review's three -- 0 to 299
+    beside 101 scattered values, 1,500 all-different values, eleven cells
+    near -1.7e308 beside 89 near 1.68e308 -- at floors 11, 20 and 36: the
+    tail sides publishing neither distance and no values, and among them
+    the sides whose remark, summary line or quality-report sentence says a
+    reason other than the back-solve's own verdict, the cross-side rule or
+    binary64 (`test_p4d353_cost_rule.misstated`).
+    """
+    import complement_reader as columns
+    import test_p4d353_cost_rule as causes
+    import test_stage3_gate as gate
+
+    shapes = [one for one in gate.RECONSTRUCTIONS if one[1][0].replace(".", "").isdigit()]
+    shapes += list(gate.COST_SHAPES) + list(columns.WHOLE_DESCRIPTION_FAMILY)
+    shapes += [
+        ("run_then_scatter", causes.run_then_scatter()),
+        ("uniform_distinct_1500", causes.uniform_distinct_1500()),
+        ("far_apart_100", causes.far_apart_100()),
+    ]
+    withheld = 0
+    wrong = 0
+    read = 0
+    for name, cells in shapes:
+        for floor in (11, 20, 36):
+            _block, sides = causes.withheld_sides(tmp_path / f"{name}-{floor}", name, list(cells), floor)
+            withheld += len(sides)
+            wrong += len(causes.misstated(sides))
+            read += 1
+    _kpi(
+        record_property,
+        "K-S3-25",
+        {"misstated_sides": wrong, "withheld_sides": withheld, "shapes": read},
     )

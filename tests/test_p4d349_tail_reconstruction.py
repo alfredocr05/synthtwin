@@ -199,10 +199,15 @@ def test_a_column_whose_pair_would_be_read_back_publishes_neither_distance(
         ("minutes", _consecutive_minutes(240)),
     ],
 )
-def test_no_tail_of_those_columns_is_settled_by_the_whole_description(
+def test_no_tail_of_those_columns_is_settled_by_the_tail_walk(
     tmp_path: pathlib.Path, name: str, cells: "list[str]"
 ) -> None:
-    """The reader's own walk, with every fact the description publishes."""
+    """The reader's own tail walk, with every fact the description publishes beside a pair.
+
+    A claim about the PAIR: the whole description, with no pair at all,
+    still gives every value of the integer column back (ledger entry
+    `K-S3-24`, the owner's answer 8 of 2026-09-26, "Accept both").
+    """
     driver = _driver()
     described = _described(tmp_path, name, cells)
     block = described.document["columns"][0]
@@ -227,6 +232,13 @@ def test_the_pair_put_back_is_settled_and_the_walk_says_so(
             taxonomy,
             "_tail_pinned",
             lambda distances, floor, edge, distinct, least=1: False,
+        )
+        # P4-D353: the numeric role asks the three-word verdict, so the
+        # guard is withdrawn where that role reads it too.
+        patch.setattr(
+            taxonomy,
+            "_tail_verdict",
+            lambda distances, floor, edge, distinct, least=1: taxonomy.TAIL_OPEN,
         )
         described = _described(tmp_path, "unguarded", cells)
     block = described.document["columns"][0]
@@ -466,7 +478,19 @@ def test_a_file_the_bounds_convict_still_misses(tmp_path: pathlib.Path) -> None:
     cells = ["10"] * 11 + [str(value) for value in range(20, 1509)]
     described = _described(tmp_path, "heapedmin2", cells)
     bad = [str(-100 + 10 * step) for step in range(11)]
-    bad = bad + [str(value) for value in range(20, 1509)]
+    # THE FILE'S OWN HIGH TAIL MAY NOT BE A RUN (plan P4-D353). The checker
+    # describes the file with the producer, and where one of the file's
+    # tails is withheld the other's pair is withheld beside it, so a bound
+    # drawn from that pair has nothing to stand on. Its top eleven cells
+    # step unevenly, which the back-solve leaves open.
+    top = [1498, 1500, 1503, 1504, 1509, 1511, 1512, 1518, 1520, 1527, 1531]
+    bad = bad + [str(value) for value in range(20, 1498)] + [str(value) for value in top]
+    own = kpi_shapes.describe(
+        tmp_path / "own", "own", _one_column("value", bad), FLOOR
+    ).document["columns"][0]["tails"]
+    assert own["low"]["mean_distance"] is not None, (
+        "the file's own description withholds the pair the bound is drawn from"
+    )
     outcome = kpi_shapes.measure(described, _one_column("value", bad), "far.csv")
     found = [
         check for check in outcome.checks
@@ -475,6 +499,96 @@ def test_a_file_the_bounds_convict_still_misses(tmp_path: pathlib.Path) -> None:
     assert len(found) == 1
     assert found[0].verdict == validation.MISSED, found[0]
     assert found[0].achieved == "", "the file's own extreme was printed"
+
+
+def test_a_file_whose_other_tail_is_withheld_is_not_convicted(tmp_path: pathlib.Path) -> None:
+    """P4-D353's cost to the checker, stated: the bound goes quiet, it does not pass.
+
+    The same far low cells beside a high tail that IS a run of consecutive
+    whole numbers: the file's own description withholds that run's pair,
+    withholds the low pair beside it (one tail withheld withholds the
+    other, where that costs the file nothing), and the bound of P4-D349
+    has no pair to be drawn from. The verdict is WITHHELD -- never HELD.
+    Counted, beside its mirror at a heaped maximum, by ledger entry
+    `K-S3-19` over `CHECKER_BOUND_FILES`.
+    """
+    cells = ["10"] * 11 + [str(value) for value in range(20, 1509)]
+    described = _described(tmp_path, "heapedmin3", cells)
+    bad = [str(-100 + 10 * step) for step in range(11)]
+    bad = bad + [str(value) for value in range(20, 1509)]
+    own = kpi_shapes.describe(
+        tmp_path / "own", "own", _one_column("value", bad), FLOOR
+    ).document["columns"][0]["tails"]
+    assert own["high"]["mean_distance"] is None and own["low"]["mean_distance"] is None
+    outcome = kpi_shapes.measure(described, _one_column("value", bad), "far.csv")
+    found = [
+        check for check in outcome.checks
+        if check.subcheck.startswith("ladder.min")
+    ]
+    assert len(found) == 1
+    assert found[0].verdict == validation.WITHHELD, found[0]
+
+
+# THE FOUR FILES LEDGER ENTRY `K-S3-19` COUNTS THAT COST OVER (plan
+# P4-D353, "Measured"): eleven cells stepping ten apart beyond a published
+# heaped end -- the minimum ten, held by eleven rows below 20 to 1508, and
+# the maximum 1500, held by eleven above 1 to 1489 -- beside the file's own
+# other tail as a run of consecutive whole numbers, whose pair the file's
+# own description withholds and the near pair with it, and as uneven
+# steps, which it publishes.
+_HEAPED_MIN = ["10"] * 11 + [str(value) for value in range(20, 1509)]
+_HEAPED_MAX = [str(value) for value in range(1, 1490)] + ["1500"] * 11
+_FAR_BELOW = [str(-100 + 10 * step) for step in range(11)]
+_FAR_ABOVE = [str(1600 + 10 * step) for step in range(11)]
+_UNEVEN_TOP = [1498, 1500, 1503, 1504, 1509, 1511, 1512, 1518, 1520, 1527, 1531]
+_UNEVEN_BOTTOM = [1, 3, 4, 8, 10, 11, 17, 19, 22, 23, 29]
+CHECKER_BOUND_FILES = (
+    (
+        "min_beside_a_run",
+        _HEAPED_MIN,
+        _FAR_BELOW + [str(value) for value in range(20, 1509)],
+        "ladder.min",
+    ),
+    (
+        "min_beside_uneven_steps",
+        _HEAPED_MIN,
+        _FAR_BELOW
+        + [str(value) for value in range(20, 1498)]
+        + [str(value) for value in _UNEVEN_TOP],
+        "ladder.min",
+    ),
+    (
+        "max_beside_a_run",
+        _HEAPED_MAX,
+        [str(value) for value in range(1, 1490)] + _FAR_ABOVE,
+        "ladder.max",
+    ),
+    (
+        "max_beside_uneven_steps",
+        _HEAPED_MAX,
+        [str(value) for value in _UNEVEN_BOTTOM]
+        + [str(value) for value in range(30, 1508)]
+        + _FAR_ABOVE,
+        "ladder.max",
+    ),
+)
+
+
+def checker_bound_verdicts(folder: pathlib.Path) -> "list[str]":
+    """The verdict of P4-D349's bound on a heaped end, for each of `CHECKER_BOUND_FILES` in order."""
+    found: "list[str]" = []
+    for name, published, cells, subcheck in CHECKER_BOUND_FILES:
+        described = _described(folder, name, published)
+        outcome = kpi_shapes.measure(
+            described, _one_column("value", cells), f"{name}.csv"
+        )
+        verdicts = [
+            check.verdict for check in outcome.checks
+            if check.subcheck.startswith(subcheck)
+        ]
+        assert len(verdicts) == 1, (name, verdicts)
+        found += [verdicts[0]]
+    return found
 
 
 # -- 3c. the exact check that a window cannot reach ----------------------

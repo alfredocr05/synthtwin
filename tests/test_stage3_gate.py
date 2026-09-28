@@ -123,6 +123,7 @@ import pytest
 import fixtures
 import kpi_rules
 import kpi_shapes
+import cost_rule_window
 import stage3_battery
 import test_p4d334_sentence_arguments as bound
 from synthtwin import (
@@ -1812,13 +1813,23 @@ KEPT_SCALES = (
 # first is the review's own padded column: 399 consecutive record numbers
 # beside one far value, where the withheld tail carries the whole of the
 # column's spread. The second is that column without the far value, so
-# the measurement says which half the cost belongs to.
+# the measurement says which half the cost belongs to. Since plan P4-D353
+# the cost rule publishes the far side's pair on the first, third and
+# fourth, and the twin keeps every obligation.
 COST_SHAPES = (
     (
         "padded_399_beside_one_far",
         [f"{value:05}" for value in range(1, 400)] + ["12345"],
     ),
     ("padded_399_alone", [f"{value:05}" for value in range(1, 400)] + ["00400"]),
+    # AND THE TWO WHERE A PUBLISHED PAIR MET THE WIDTH CEILING (plan P4-D353,
+    # skeptic A3's blocker). At 150 rows the far cell's own width is pooled
+    # at the floor, so its tail is held to four characters, whose ceiling --
+    # `9999`, `-999` -- is a number the profiler reads as "no value". The
+    # rule publishes the far side's pair on both, and the twin must keep
+    # every obligation with it (`contract._off_the_stand_ins`).
+    ("padded_149_beside_one_far", [f"{value:05}" for value in range(1, 150)] + ["12345"]),
+    ("far_negative_beside_a_run", ["-4000"] + [str(500 + index) for index in range(149)]),
 )
 
 
@@ -1826,13 +1837,14 @@ def withheld_cost(folder: pathlib.Path) -> "tuple[int, int, int]":
     """The withheld pair's own cost, measured (ledger entry `K-S3-15`).
 
     Three numbers over the fix pass's own shapes -- every reconstruction
-    attack and the two `COST_SHAPES`: how many tail SIDES publish neither
+    attack and the four `COST_SHAPES`: how many tail SIDES publish neither
     distance, how many checkable obligations their twins MISS at seeds 0
     and 4 together, and how many shapes were measured. The second number
-    is the cost: a tail with no pair of its own is read through the
-    column's own published mean and spread, and where the withheld tail
-    IS the column's spread no reading can average to a mean the far cell
-    carries.
+    was the cost, and plan P4-D353 holds it at nought: a pair whose
+    withholding would leave the column's own G12.3 window of its mean or
+    spread short of the published value is published. The first may not
+    fall, so nought cannot be bought by publishing pairs the rule does
+    not need.
     """
     sides = 0
     missing = 0
@@ -1881,7 +1893,7 @@ def attacked(tmp_path_factory: pytest.TempPathFactory) -> "dict[str, Case]":
 
 
 def _reader_settles(block: "dict", driver: object) -> int:
-    """How many of one block's tails the WHOLE description settles.
+    """How many of one block's published tails the driver's walk settles.
 
     The driver's own walk, asked with the facts a reader of that
     description holds beside a tail's three numbers: for a numeric block
@@ -1985,7 +1997,7 @@ def test_no_reconstruction_attack_names_a_value_one_row_holds(
 def test_no_reconstruction_attack_has_a_tail_the_description_settles(
     attacked: "dict[str, Case]", name: str
 ) -> None:
-    """THE ARITHMETIC HALF, with the whole description in the reader's hands.
+    """THE ARITHMETIC HALF: the tail walk, with the facts beside each pair in the reader's hands.
 
     The integers 0 to 1100 once each published eleven rows, a mean
     distance of 6 and a root-mean-square of root-46 on each side, and the
@@ -1993,6 +2005,19 @@ def test_no_reconstruction_attack_has_a_tail_the_description_settles(
     distances summing to 66 are 1 to 11 and nothing else, so both ends
     came back exactly. Measured with the driver's own walk before the fix:
     each side admitted ONE multiset with the remark and 64 without it.
+
+    NO TAIL OF THE EIGHT IS SETTLED BY THIS WALK, and since plan P4-D353
+    the reason is `test_a_settled_pair_is_published_only_where_withholding_it_costs`:
+    a pair the walk settles is published only where withholding it would
+    leave the column's mean or spread window short, and on none of these
+    eight does it. THAT IS A CLAIM ABOUT THE PAIR AND NOT ABOUT THE
+    COLUMN: with no pair at all, the whole description -- the exact mean
+    and spread, the rungs, the count of different values, the mode's
+    count and the sign counts -- gives back every value of two of them,
+    `integers_0_to_1100` and `heap_then_one_far`, 1100 among them. The
+    owner accepted that on 2026-09-26 (answer 8, "Accept both"):
+    `test_the_whole_description_rebuild_which_the_owner_accepted`,
+    ledger entry `K-S3-24`.
     """
     driver = _tail_leak_driver()
     case = attacked[name]
@@ -2029,6 +2054,282 @@ def test_the_scales_the_owner_keeps_still_name_their_values(
         assert one["mean_distance"] is not None, (
             f"{name} {side}: a listed tail publishes its two distances"
         )
+
+
+# -- P4-D353: A SETTLED PAIR IS PUBLISHED ONLY WHERE WITHHOLDING IT COSTS --
+#
+# The owner's rulings 3 and 4 of 2026-09-25: a tail whose two published
+# distances would give its outer values back publishes them ANYWAY where
+# withholding them would make the twin miss its column's mean or spread,
+# and nowhere else. Each case below is asked that question from the rule
+# itself -- the same block with the settled side's pair withheld, its
+# G12.3 windows drawn by the checker's own writing -- and never from a
+# list of which cases happen to publish.
+
+
+def _settled_published_sides(block: "dict", driver: object) -> "list[str]":
+    """The published numeric sides the reader's own walk settles, one at a time.
+
+    The driver's walk and nothing of this file's: `_numeric_walk_parts`
+    reads a tail whose boundary rung falls between two grid points from
+    its grid home, so every published pair of a gridded block is asked.
+    """
+    found: "list[str]" = []
+    tails = block.get("tails")
+    if not isinstance(tails, dict):
+        return found
+    apart = driver._numeric_all_different(block)
+    figures = driver._numeric_grid(block)
+    for side in ("low", "high"):
+        one = tails[side]
+        if not isinstance(one, dict) or one["mean_distance"] is None or one["values"]:
+            continue
+        read = driver._numeric_walk_parts(block, side, figures)
+        if read is None:
+            continue
+        rows, total, squares, cap = read
+        settled, _spent = driver._settled(rows, total, squares, cap, apart)
+        if settled:
+            found += [side]
+    return found
+
+
+@pytest.mark.parametrize("name", [one for one, _cells in RECONSTRUCTIONS + COST_SHAPES])
+def test_a_settled_pair_is_published_only_where_withholding_it_costs(
+    tmp_path: pathlib.Path, name: str
+) -> None:
+    """P4-D353, asked of every attack and cost shape at the default floor.
+
+    DERIVED FROM THE RULE, NOT COPIED FROM AN OUTPUT: each pair the
+    reader's own walk settles is taken back out of the published block,
+    and the checker's own G12.3 windows must then miss the column's mean
+    or spread. A pair published where withholding it costs nothing would
+    give its tail back for nothing, which the owner's ruling 4 refuses.
+    """
+    driver = _tail_leak_driver()
+    cells = dict(RECONSTRUCTIONS + COST_SHAPES)[name]
+    case = _attack(tmp_path, name, cells)
+    for block in case.document["columns"]:
+        for side in _settled_published_sides(block, driver):
+            withheld = cost_rule_window.withheld(block, (side,))
+            assert cost_rule_window.costs(withheld, 11), (
+                f"{name} {side}: a pair the reader settles is published although "
+                f"withholding it leaves the column's own mean and spread windows "
+                f"on their published values"
+            )
+
+
+def test_the_cost_rule_is_not_vacuous_on_its_own_cost_shape(
+    tmp_path: pathlib.Path,
+) -> None:
+    """THE POSITIVE CASE, derived from the rule and not copied from an output.
+
+    399 consecutive record numbers beside one far `12345`: with both pairs
+    withheld, the G12.3 window of the column's mean does not reach the
+    published mean (the far cell IS the mean), so the rule must publish a
+    pair -- and the pair it publishes is the one the reader settles.
+    """
+    driver = _tail_leak_driver()
+    name, cells = COST_SHAPES[0]
+    case = _attack(tmp_path, name, cells)
+    block = case.document["columns"][0]
+    both = cost_rule_window.withheld(block, ("low", "high"))
+    assert cost_rule_window.costs(both, 11), (
+        "the cost shape stopped costing; the case proves nothing"
+    )
+    assert _settled_published_sides(block, driver), (
+        "withholding costs this column its mean, and no settled pair was published"
+    )
+    assert not cost_rule_window.costs(block, 11), (
+        "the published description still misses its own window"
+    )
+
+
+@pytest.mark.parametrize("name", [one for one, _cells in COST_SHAPES])
+def test_a_cost_shape_round_trips_at_exit_nought(tmp_path: pathlib.Path, name: str) -> None:
+    """Every cost shape, through the command line: the twin AND the real table pass (P4-D353).
+
+    The rule publishes a pair wherever withholding it costs the twin its
+    mean or spread; a published pair must then cost the twin nothing else.
+    Measured before the width-ceiling repair: `padded_149_beside_one_far`
+    exited 3 on seven obligations (its twin wrote `09999`) and
+    `far_negative_beside_a_run` on ten (`-999`, and the role flipped).
+    """
+    cells = dict(COST_SHAPES)[name]
+    path = fixtures.write(tmp_path, f"{name}.csv", _one_column("value", cells))
+    run = kpi_shapes.cycle(path, [])  # the shipped floor, eleven
+    assert run["profile"] == 0 and run["generate"] == 0, run
+    assert run["validate_real"] == 0, f"{name}: the real table fails its own description"
+    assert run["validate_twin"] == 0, f"{name}: the twin misses an obligation"
+
+
+def test_the_skew_and_kurtosis_rebuild_which_the_owner_accepted(
+    tmp_path: pathlib.Path,
+) -> None:
+    """THE LIMIT, MEASURED HERE AND HELD AT A CEILING BY `K-S3-17`.
+
+    The owner's answer 1 of 2026-09-25, "Accept it": where the published
+    rungs chain a column's middle, the exact skew and kurtosis pin the
+    tails' third and fourth power sums too, and beside both published
+    pairs they give withheld tail values back. One of the entry's five
+    columns (both tails dense, 102 rows, seed 3) is read by the union
+    reader here. Withholding costs it nothing, so the cost rule publishes
+    no pair on it: both pairs are the back-solve's own. A landing that
+    closed the limit would make the first assertion fail, which is the
+    right way for it to be noticed.
+    """
+    import complement_reader as columns
+
+    values, cells = columns.both_dense(40, 11, 3)
+    case = _attack(tmp_path, "both_dense_s3", cells)
+    read = columns.union(case.document["columns"][0], values)
+    assert read["values_rebuilt"] > 0, (
+        "the exact skew and kurtosis rebuild no withheld tail value of this column: "
+        "the limit `K-S3-17` records has closed, so that entry and plan decision "
+        "P4-D353 are out of date"
+    )
+    entry = kpi_rules.entries_by_id(kpi_rules.load_ledger())["K-S3-17"]
+    assert read["values_rebuilt"] <= entry["expected"]["values_rebuilt"]
+
+
+def test_the_whole_description_rebuild_which_the_owner_accepted(
+    attacked: "dict[str, Case]",
+) -> None:
+    """THE LIMIT, MEASURED HERE AND HELD AT A CEILING BY `K-S3-24`.
+
+    The owner's answer 8 of 2026-09-26, "Accept both", given after asking
+    how much it shows about the RELATION of the data and being told, in
+    the orchestrator's record of the question: a column's own values and
+    their row counts, never which row (except a table SORTED by that
+    column, which publishes its row order), never another column; on such
+    a table the published `row_order` puts the k-th value in row k
+    (`test_a_sorted_table_places_every_rebuilt_value_in_its_row`). Where
+    the count of different values, the mode's
+    count, the sign counts and the rungs pin a column, its exact mean and
+    spread give every value back although both tails withhold their
+    pairs. `complement_reader.whole_description` reads two of the eight
+    attacks whole at this floor, each one-row maximum among the values.
+    A landing that closed the limit would make the first assertion fail,
+    which is the right way for it to be noticed.
+    """
+    import complement_reader as columns
+
+    entry = kpi_rules.entries_by_id(kpi_rules.load_ledger())["K-S3-24"]
+    for name in ("integers_0_to_1100", "heap_then_one_far"):
+        case = attacked[name]
+        block = case.document["columns"][0]
+        tails = block["tails"]
+        assert [side for side in ("low", "high") if tails[side]["mean_distance"] is not None] == [], (
+            f"premise: {name} publishes no tail pair at this floor"
+        )
+        read = columns.whole_description(block, sorted(int(cell) for cell in case.cells["value"]))
+        assert read["read"] == "whole" and read["maximum_named"], (
+            f"{name}: the whole description no longer gives the column back ({read['read']}): "
+            "the limit `K-S3-24` records has closed, so that entry and plan decision P4-D353 "
+            "are out of date"
+        )
+        assert read["values_rebuilt"] <= entry["expected"]["values_rebuilt"]
+
+
+# WHERE A SENTENCE DENYING THAT A ROW IS NAMED MUST SAY WHAT A SORTED TABLE
+# PUBLISHES. `source.dialect.row_order` names the column the rows are sorted
+# by, so on such a table a value's place in that column's order IS its row.
+# A denial is "not/never/nor/nothing about", up to three words, then "which
+# row" -- "does not record WHICH row", "never tells a reader which row",
+# "nothing about which row" -- or "names no row, no order" (skeptic Ac, item 2:
+# both escaped the first pattern; skeptic Ad: a three-word gap escaped the
+# second). The row that holds a sheet's NAMES is the header's question (plan
+# P4-D281), not a value's. The qualifier counts within `_ROW_WINDOW`
+# characters on either side -- the paragraph, not the file.
+_ROW_DENIAL = re.compile(
+    r"\b(?:never|not|nor|nothing\s+about)\s+(?:\w+\s+){0,3}which\s+rows?\b(?!\s+holds?\s+the\s+names\b)"
+    r"|\bnames?\s+no\s+row,?\s+no\s+order\b"
+)
+_ROW_QUALIFIER = "row_order"
+_ROW_WINDOW = 400
+_ROW_SURFACES = ("*.md", "docs/**/*.md", "src/synthtwin/*.py", "tests/*.py", "tests/kpi/ledger.json")
+
+
+def _unqualified_row_denials(text: str) -> "list[str]":
+    """Each denial that a row is named with no `row_order` qualifier within `_ROW_WINDOW` characters."""
+    flat = " ".join(text.lower().split())
+    found: "list[str]" = []
+    for match in _ROW_DENIAL.finditer(flat):
+        near = flat[max(0, match.start() - _ROW_WINDOW) : match.end() + _ROW_WINDOW]
+        if _ROW_QUALIFIER not in near:
+            found += [flat[max(0, match.start() - 80) : match.end() + 80]]
+    return found
+
+
+def test_a_sorted_table_places_every_rebuilt_value_in_its_row(
+    attacked: "dict[str, Case]",
+) -> None:
+    """A description of a SORTED table says which row holds each rebuilt value.
+
+    `heap_then_one_far` -- 0 to 1,088 once each, 1,089 eleven times and
+    1,100 once, written in order as the gate writes it -- publishes
+    `row_order` ascending by its one column, and the whole description gives
+    every value back (`K-S3-24`), so row k holds the k-th value and a reader
+    knows every row, row 1,101's one-row maximum among them. Every public
+    surface that says the description names no row must say so beside
+    `row_order`, as the premise the owner answered 8 on did.
+    """
+    import complement_reader as columns
+
+    case = attacked["heap_then_one_far"]
+    order = case.document["source"]["dialect"]["row_order"]
+    assert order == {"collation": "number", "column": 1, "direction": "ascending"}, (
+        f"premise: the attack's own file order is published as the rows' order ({order})"
+    )
+    written = [int(cell) for cell in case.cells["value"]]
+    read = columns.whole_description(case.document["columns"][0], sorted(written))
+    assert read["read"] == "whole" and read["values_rebuilt"] == len(written), read
+    assert sorted(written) == written, "premise: row k of the file holds the k-th value"
+    root = pathlib.Path(__file__).resolve().parents[1]
+    offenders: "list[str]" = []
+    for pattern in _ROW_SURFACES:
+        for path in sorted(root.glob(pattern)):
+            for snippet in _unqualified_row_denials(path.read_text(encoding="utf-8")):
+                offenders += [f"{path.relative_to(root)}: ...{snippet}..."]
+    assert offenders == [], (
+        "these sentences say the description names no row, and on a table sorted by the "
+        "column it does -- say so beside `row_order`:\n  " + "\n  ".join(offenders)
+    )
+
+
+def test_the_row_claim_guard_would_notice_an_unqualified_denial() -> None:
+    """A guard that passes is not a guard: the denial alone is caught, and the qualified one is not."""
+    qualifier = " except on a table sorted by that column, whose order (`row_order`) is published"
+    for bare in (
+        "a column's own values come back, and it never says " + "which row holds one.",
+        "it records that a column holds 20.4 and how many rows do. it does not record " + "WHICH row.",
+        "a percentile ladder does not record " + "which row holds it.",
+        "nothing about " + "which row holds a reading is published.",
+        "naming every value names the column's whole set of values, and still names " + "no row, no order, no time.",
+        "it still names " + "no row no order and no pairing.",
+        "it names neither the value's rank nor " + "which row holds it.",
+        "the ladder does not say exactly " + "which row holds a rung.",
+        "a percentile never tells a reader " + "which row holds it.",
+    ):
+        assert _unqualified_row_denials(bare) != [], bare
+        assert _unqualified_row_denials(bare + qualifier) == [], bare
+    header = "a freeze is not evidence about " + "which row holds the names of the columns."
+    assert _unqualified_row_denials(header) == [], "the header row is not a value's row"
+    # THE WORD LIMIT HOLDS BOTH WAYS: three words between the negation and
+    # "which row" are a denial (above), five are a different sentence.
+    asked = "it is not only the owner who asks " + "which row holds a value."
+    assert _unqualified_row_denials(asked) == [], "five words away, the negation is not the denial's"
+    # THE QUALIFIER COUNTS IN THE DENIAL'S OWN PARAGRAPH, NOT ANYWHERE IN THE
+    # FILE: `row_order` about 150 characters away qualifies it, on either
+    # side, and about a thousand characters away does not.
+    bare = "it does not record " + "which row holds it."
+    near = " the rows are counted. " * 6
+    far = " the rows are counted. " * 45
+    assert len(near) < 150 and len(far) > 1000, "premise: the two distances"
+    assert _unqualified_row_denials(bare + near + qualifier) == [], "a qualifier in the paragraph"
+    assert _unqualified_row_denials(qualifier + near + bare) == [], "a qualifier in the paragraph"
+    assert _unqualified_row_denials(bare + far + qualifier) != [], "a qualifier a thousand characters on"
+    assert _unqualified_row_denials(qualifier + far + bare) != [], "a qualifier a thousand characters back"
 
 
 def test_the_reconstruction_gate_turns_red_when_the_pair_goes_back(

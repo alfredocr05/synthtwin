@@ -763,7 +763,7 @@ below (`contract._dialect_block`, `contract._dialect_rules`).
 | `byte_order_mark` | boolean | — | a byte-order mark leads the file |
 | `columns` | array of objects `{pad, quoting, sequence_start}` | one per column | `quoting`: one rule per cell class `absent`, `empty`, `number`, `text` — `needed`, `bare`, `always`, `mixed`; `pad`: `null` or `{side: left or right, width}`; `sequence_start`: `null`, `0` or `1` for a column holding the row sequence — published ONLY for a first column named as a written row index is (`Unnamed: 0`, `rownames`), never for a column declared with `--identifier`, and never for a column with an absent cell (FD12, plan P4-D76) |
 | `delimiter` | string | `,` `;` tab `\|` | the field delimiter |
-| `empty_rows` | object `{interior, leading, trailing}` | whole numbers | records holding nothing in every cell, where they stand. A cell holding nothing but spaces and tabs holds NOTHING here, which is what the column's own description counts absent and what the twin writes empty (plan P4-D84, review item CODEX-7); counting it as something published no such record for a file of ninety ` , ` records whose twin held ninety, and the twin then missed `bytes.empty-rows` against its own description. Only the counts are published, never which rows they are, and a count below the census line, max(2, `small_cell_floor`), is published as NOUGHT (plan P4-D290, ruling 4 of 2026-09-17: an empty row is a record of the table, and replacing record 57 of 120 with a bare comma published `interior 1`). The line is the floor itself at the default of 11 and at every floor of two or more, and is not asked at a floor of one, at which the column censuses beside it publish a level covering one row (the amendment of 2026-09-18). The loader asks the same line of each of the three counts (FD5, plan P4-D317) |
+| `empty_rows` | object `{interior, leading, trailing}` | whole numbers | records holding nothing in every cell, where they stand. A cell holding nothing but spaces and tabs holds NOTHING here, which is what the column's own description counts absent and what the twin writes empty (plan P4-D84, review item CODEX-7); counting it as something published no such record for a file of ninety ` , ` records whose twin held ninety, and the twin then missed `bytes.empty-rows` against its own description. Only the counts are published, never which rows they are (the published order, `row_order`, is read without such records and places none of them), and a count below the census line, max(2, `small_cell_floor`), is published as NOUGHT (plan P4-D290, ruling 4 of 2026-09-17: an empty row is a record of the table, and replacing record 57 of 120 with a bare comma published `interior 1`). The line is the floor itself at the default of 11 and at every floor of two or more, and is not asked at a floor of one, at which the column censuses beside it publish a level covering one row (the amendment of 2026-09-18). The loader asks the same line of each of the three counts (FD5, plan P4-D317) |
 | `end_of_file_mark` | boolean | — | a Ctrl-Z byte follows the last line |
 | `escape` | string | `doubled`, `backslash` | how a quote character is written inside a quoted field |
 | `final_line_ending` | boolean | — | the last line ends with a line ending |
@@ -1517,7 +1517,9 @@ names are all empty, and invariant S12 keeps them that way — so a
 description says what each column holds ONE COLUMN AT A TIME and never
 which values met in a row. What a named rare value therefore discloses
 is that somebody in the table had it, and nothing else about them: not
-their other columns, not which row they are. The owner ruled that this
+their other columns, and not which row they are except on a table sorted
+by that column, whose published order (`row_order`) makes a value's
+place in that order its row. The owner ruled that this
 is the disclosure the tool is for, that a rare finding must reach the
 twin or the twin is not one, and that the pooling be available to
 anybody whose review board asks for it rather than imposed on
@@ -1889,7 +1891,7 @@ contract:
    widening it to arbitrary strings would be exactly the hole that lets
    a source-derived value into a sentence and be rebuilt successfully.
 
-**The census.** The table holds 61 forms and 99 argument positions.
+**The census.** The table holds 67 forms and 99 argument positions.
 Of those, 72 are whole numbers, 5 are package words, 17 are nested
 forms, and 5 are bound affix strings. No position is a string of any
 other kind.
@@ -1932,7 +1934,7 @@ class over a committed battery, so it is a number a reader can run.
 
 So every argument position of every form is bound to WHAT IT IS, and
 the table below is closed over all 99 of them exactly as the form table
-is closed over the 61 forms. A position nobody bound is a number a
+is closed over the 67 forms. A position nobody bound is a number a
 sentence may print that no rule governs, and a producer that adds one
 is a producer this contract does not describe. The bindings are these:
 
@@ -3480,7 +3482,7 @@ names:
 
 | id | statement |
 |---|---|
-| NG14 | the form is one of the 61 in section 4.5.1 |
+| NG14 | the form is one of the 67 in section 4.5.1 |
 | NG15 | the argument count equals that form's arity |
 | NG16 | every argument is of one of C6-119's four classes |
 | NG17 | re-rendering the form with those arguments writes the leaf's text character for character |
@@ -3641,6 +3643,43 @@ withdrawn, while the guard refused exactly that — so the first binding
 to name a population would have turned 390 dates beside ten words into
 a refusal reading "this is a fault in synthtwin itself". Both halves
 now write and accept NF61 there.
+
+**NF62. `remark_low_tail_withheld_for_the_high_tail` — the lower tail withheld for the upper** — arity 0.
+
+> the two distances of the values beyond this column's lower tail boundary are not published although on their own they would not give those values back: beside the column's exact mean and spread they could give back, by subtraction, the two distances withheld from its upper tail
+
+**NF63. `remark_high_tail_withheld_for_the_low_tail` — the upper tail withheld for the lower** — arity 0.
+
+> the two distances of the values beyond this column's upper tail boundary are not published although on their own they would not give those values back: beside the column's exact mean and spread they could give back, by subtraction, the two distances withheld from its lower tail
+
+**NF64. `remark_low_tail_withheld_unsettled` — the lower tail whose check did not finish** — arity 0.
+
+> the two distances of the values beyond this column's lower tail boundary are not published because the check of whether they would give those values back did not finish, and a tail is withheld where that cannot be ruled out, not only where it is shown
+
+**NF65. `remark_high_tail_withheld_unsettled` — the upper tail whose check did not finish** — arity 0.
+
+> the two distances of the values beyond this column's upper tail boundary are not published because the check of whether they would give those values back did not finish, and a tail is withheld where that cannot be ruled out, not only where it is shown
+
+**NF66. `remark_low_tail_withheld_unholdable` — the lower tail binary64 cannot hold** — arity 0.
+
+> the two distances of the values beyond this column's lower tail boundary are not published because they are too large for this file format to hold
+
+**NF67. `remark_high_tail_withheld_unholdable` — the upper tail binary64 cannot hold** — arity 0.
+
+> the two distances of the values beyond this column's upper tail boundary are not published because they are too large for this file format to hold
+
+**WHY A TAIL PUBLISHES NEITHER DISTANCE, SAID WHERE ITS OWN PAIR IS NOT
+THE REASON** (plan P4-D353). A column of counts or continuous values
+carries NF62 or NF63 on a side whose own back-solve left it open and
+that TL5 withholds only because the other side's pair is withheld, NF64
+or NF65 on a side whose back-solve did not finish, and NF66 or NF67 on a
+side binary64 cannot hold; a date or clock column carries NF64 or NF65
+on such a side. A side withheld because its own pair would give its
+values back carries none, and no side carries two. The summary's line
+for each tail and the quality report's reason for a file's own silent
+tail read these remarks (`taxonomy.tail_withheld_because`), so neither
+says of a side that its own two distances would give its values back
+where that is not why they are withheld. They route nothing.
 
 ---
 
@@ -6327,7 +6366,7 @@ changes.
 | `tails` | object or `null` | TL1 to TL6 | `null` on a block of fewer values than a tail's own rows; otherwise `low` and `high`, each `null` where only the moments are published, and otherwise an object naming the boundary percent, the rows beyond it, and how far from it they lie | the leaves below carry the classes |
 | `tails.low.percent`, `tails.high.percent` | whole number | 1 to 99 | the percent the published ladder stops at on that side | LOADER-ONLY: it follows from the count of values and the smallest group size, and the loader holds the description to it |
 | `tails.low.rows`, `tails.high.rows` | whole number | TL4 | how many rows lie beyond that percent | LOADER-ONLY: it follows from the percent and the count of values, and the loader holds the description to it |
-| `tails.low.mean_distance`, `tails.high.mean_distance` | number ≥ 0, or `null` | TL5 | the mean distance of those rows from the boundary rung, in the column's own unit; `null` on a tail that publishes neither distance because the pair would give its own cells back (plan P4-D349) | APPROXIMATED, inside the window of `docs/spec/generation-method-v1.md` G12.13; a `null` is a LISTING and not a check |
+| `tails.low.mean_distance`, `tails.high.mean_distance` | number ≥ 0, or `null` | TL5 | the mean distance of those rows from the boundary rung, in the column's own unit; `null` on a tail that publishes neither distance because the pair would give its own cells back or the back-solve could not show otherwise inside its budget (plan P4-D349), or because the other tail's pair is withheld (plan P4-D353) -- never where the description's own G12.3 window of `mean` or `std` would then miss its published value and publishing the pair would bring more of the two inside | APPROXIMATED, inside the window of `docs/spec/generation-method-v1.md` G12.13; a `null` is a LISTING and not a check |
 | `tails.low.rms_distance`, `tails.high.rms_distance` | number ≥ 0, or `null` | TL5 | the root-mean-square of the same distances, computed exactly and rounded once; `null` with its mean beside it and never alone (plan P4-D349) | APPROXIMATED, inside the window of `docs/spec/generation-method-v1.md` G12.13; a `null` is a LISTING and not a check |
 | `tails.low.values`, `tails.high.values` | array of numbers | TL6 | on a block the listing rule admits whose values stand on a grid, the tail's own different values, ascending, and no count beside them; `[]` elsewhere | EXACT-OBSERVABLE and SILENT: the file's own tail at that percent lists the same values, and the file's values are never printed |
 | `bin_groups` | array of objects | BG1 | the histogram of the rows between the two tails, in groups of bins: `{"first": bin, "last": bin, "count": rows}` | REPORT-ONLY, for the reason `value_histogram` is |
@@ -6349,7 +6388,7 @@ published that equalled a value fewer than eleven rows held went from
 | TL2 | `tails` is `null` exactly where `n_used_in_statistics` is below max(`small_cell_floor`, 3), and such a block publishes no rung and no moment at all | yes |
 | TL3 | `low` and `high` are both `null` or both objects; both `null` exactly where no percent clears two tails at once, and then every rung is `null` | yes |
 | TL4 | `rows` is `ceil((n - 1) * low.percent / 100)` on the low side and `n - 1 - floor((n - 1) * high.percent / 100)` on the high, `n` being `n_used_in_statistics`, and never below max(`small_cell_floor`, 3) | yes |
-| TL5 | `mean_distance` and `rms_distance` are either both numbers of nought or more, the mean no larger than the root-mean-square, or both `null` -- never one of each, because a mean standing alone is still half the back-solve the pair is withheld to close (plan P4-D349). A tail that LISTS its values publishes both | yes |
+| TL5 | `mean_distance` and `rms_distance` are either both numbers of nought or more, the mean no larger than the root-mean-square, or both `null` -- never one of each, because a mean standing alone is still half the back-solve the pair is withheld to close (plan P4-D349). A tail that LISTS its values publishes both. A producer writes `null` only where the pair would give the tail's cells back, or its back-solve could not show otherwise inside its budget, or the other tail's pair is withheld (plan P4-D353) -- and only where the description's own G12.3 windows of `mean` and `std` still contain their published values, or where no pair would bring more of them inside; the loader checks the shape and not the reason, and a side withheld for any reason but its own pair says which in a remark (NF62 to NF67) | yes |
 | TL6 | `values` is ascending and different, no longer than `rows`, whole on a block publishing `integer_valued: true`, at or beyond the side's boundary rung, and led by the published end where there is one | yes |
 | BG1 | `bin_groups` is empty, or groups that follow one another from bin 0 to the last bin of C6-31f's division, each counting at least max(`small_cell_floor`, 3) and together counting `n_used_in_statistics` less the two tails' rows | yes |
 
@@ -6387,10 +6426,55 @@ outer cell exactly -- the integers 0 to 1100 once each publish eleven
 rows, a mean of 6 and a root-mean-square of root-46 a side, and eleven
 DIFFERENT whole distances summing to 66 can only be 1 to 11. Where the
 listing rule does not let such a tail name its values, it publishes its
-boundary and its rows and NEITHER distance. Its rows are then read
-through the column's own mean and spread, which stay exact, and what
-that costs the twin is measured in plan P4-D349 and held at ledger entry
-`K-S3-15`.
+boundary and its rows and NEITHER distance -- unless withholding them
+costs the twin the column's mean or spread (plan P4-D353, the owner's
+rulings of 2026-09-25). A tail publishing neither distance is read as
+`rows` grid steps past its boundary, and the windows of `moments.mean`
+and `moments.std` are drawn from that reading (method G12.3); where
+either window would then not contain the published value and
+publishing the pair brings more of the two inside, the pair is
+published although it gives the tail's cells back: the owner ruled
+"Publish anyway", "Only where it costs". A tail the back-solve could
+not settle inside its budget is asked the same question. What that
+gives back is held at ledger entry `K-S3-18`.
+
+**AND ONE TAIL WITHHELD WITHHOLDS THE OTHER'S PAIR, WHERE THAT COSTS
+NOTHING AND THE OTHER LISTS NO VALUES** (plan P4-D353). A numeric
+block publishes the column's exact mean and spread, so where one
+tail's pair and the rows between the two boundaries are known, the
+other tail's sums follow by subtraction.
+Where one tail publishes neither distance and the other a pair and
+lists no values, the other publishes neither distance either -- unless
+that costs the twin its mean or spread, where its pair is the first one
+published, or the withheld tail's own pair is published, where the
+other's goes with it. What the subtraction then gives back the owner
+allowed on 2026-09-26 ("Allow it"; ledger entry `K-S3-21`). A side
+withheld this way says so in a remark (NF62, NF63), as a side whose
+back-solve did not finish (NF64, NF65) and one binary64 cannot hold
+(NF66, NF67) do, so no page says of it that its own pair would give it
+back. **A TAIL
+THAT LISTS ITS VALUES KEEPS ITS PAIR**: TL5 requires both distances of
+a list, and a list of one value pins its tail by itself, so withholding
+them would close nothing. Beside such a list the subtraction still gives
+the withheld tail back where the rungs pin the interior, although the
+cost rule publishes nothing there: twelve values on each of two seeded
+150-row scales at a floor of eleven, the one-row extreme among them.
+The owner accepted it on 2026-09-26 ("Accept both"; ledger entry
+`K-S3-23`).
+
+**AND WITHHOLDING EVERY PAIR DOES NOT WITHHOLD EVERY VALUE.** What this
+section withholds closes the readings through a pair; it does not close
+the rest of the block. Where `n_distinct_values`, the mode and its
+count, the sign counts and the rungs pin a column, its exact mean and
+spread give every value back with no pair published at all: the
+integers 0 to 1,100 once each at every floor from 11 to 50, and a heap
+of eleven beside one far value at 11, whose one-row maximum comes back
+with the rest. The owner accepted it on 2026-09-26 with the channel
+above ("Accept both"; ledger entry `K-S3-24`): what comes back is a
+column's own values and how many rows hold each, never anything about
+another column, and never which row holds one except on a table sorted
+by that column, whose description publishes the order (`row_order`), so
+row k holds the k-th value.
 
 **AND SO DOES A TAIL WHOSE DISTANCES BINARY64 CANNOT HOLD** (stage 3's
 review, verdict item 2). Every distance is computed exactly and rounded
@@ -10190,8 +10274,10 @@ generator needs.
 
 **WHAT IT COSTS A READER TO KNOW, priced on its own and not by
 comparison.** Each edge IS the value of a real cell. It says that some
-row holds 26.6 and some row holds 72.7, and nothing about which rows,
-how many, or what those rows hold anywhere else — which is the ground
+row holds 26.6 and some row holds 72.7, and nothing about how many, or
+what those rows hold anywhere else, or which rows they are except on a
+table sorted by that column, whose published order (`row_order`) makes a
+value's place in that order its row — which is the ground
 the owner's rulings of 2026-08-31 and 2026-09-03 stand on, and their
 ruling of 2026-09-04 ("follow you recommendation") settles this key.
 
@@ -10224,8 +10310,11 @@ standing ALONE — no row attached, no date beside it, nothing else from
 that row — is a fact about a distribution and not about a person, and
 that this holds in the sparse case too: naming every value a small
 column holds names the column's SET of values and still names no row,
-no order, no pairing with another column and no time. `SECURITY.md`
-carries the ruling and what it does not cover.
+no order, no pairing with another column and no time. That ground does
+not hold on a table sorted by that column: its description publishes
+the order (`row_order`), so the set comes in its rows' order and row k
+holds the k-th value. `SECURITY.md` carries the
+ruling and what it does not cover.
 
 **THE FLOOR DOES NOT REACH IT**, for the reason 7.11 gives for
 `empty_bins` and for one more: a pair names two values, not a group,
@@ -11549,6 +11638,12 @@ it answers to.
 | D19 | every key of `quarter_marker_case` is `upper` or `lower`; the census is held to D18's disclosure rule; the census is `{}` unless `format` is `year-quarter`; and its values sum to at most `n_present - n_unparsed` (landing 2b.6) | yes |
 | D20 | every key of `zulu_case` is `upper` or `lower`; the census is held to D18's disclosure rule over `utc_offsets["Z"]`; the census is `{}` unless `utc_offsets` names `Z`; and its values sum to at most `utc_offsets["Z"]` (landing 2b.6) | yes |
 
+A date or clock block publishes no mean and no spread, so the cost rule
+of plan P4-D353 does not reach it: a date or clock tail that would be
+read back publishes neither distance whatever its twin's own spread
+does. A cost rule of its own is a later landing the owner asked for on
+2026-09-26 (plan P4-D353).
+
 #### The V family — `sentinel_verdicts`, wherever a block carries one
 
 | id | statement | loader? |
@@ -11701,7 +11796,7 @@ month-first parsed.
 | NG11 | on `remark_affixed_numbers_may_be_codes`: argument 3 equals the named block's `n_affixed` |
 | NG12 | argument 1 is character-for-character that block's `affix_prefix` and argument 2 its `affix_suffix`, AT THOSE POSITIONS, not merely as members of the pair |
 | NG13 | on `remark_a_label_is_a_built_in_stand_in`: argument 1 is 1, 2 or 3 |
-| NG14 | for every form: one of the 61 the note grammar enumerates |
+| NG14 | for every form: one of the 67 the note grammar enumerates |
 | NG15 | the argument count equals that form's arity |
 | NG16 | every argument is of one of the four argument classes |
 | NG17 | re-rendering the form with those arguments writes the leaf's text character for character |
@@ -12888,7 +12983,7 @@ this document, and the battery the plan requires turns red on it.
 | nothing-class blocks (`numeric_unrepresentable`, `identifier`, `free_text`) | lengths, word statistics, digit and code-alphabet counts, the whole-number test, the repetition multiset, on `numeric_unrepresentable` the whole-number and sign counts, on `free_text` the census of WRITTEN FORMS its cells wore (`shape_forms`), and on `identifier` the census of LAYOUTS (`layout_forms`, 7.12) and, by the owner's ruling of 2026-09-17, the literal PREFIX every cell of the column or of one named layout opens with (`layout_prefixes`, 7.12a, row 22) | no value, no spelling, no fragment of one but the prefix of row 22 — the form census included, whose every key is built from `%`, `@` and thirteen named marks -- characters no cell that has a form may contain, so a key can carry no letter and no figure of any cell; the multiplicity map publishes SIZES of unnamed groups under no floor, the form census under the floor with a `(withheld)` pool |
 | `empty` columns nobody declared | the absent SPELLINGS their cells wore and the two absence counts, exactly as any column that is not nothing-publishing | floor-governed |
 | `settings` | the rules the run applied, the floor's own value, how many values each declaration named, and which of THIS package's published words were among them | carries no cell, no column and no count of the table; a person's own spelling never enters |
-| `source.header_evidence`, `publication_notes[].note`, `detection_evidence`, `remarks` | sentences of the 61 closed forms: 99 argument positions, of which 72 are whole numbers, 5 package words, 17 nested forms and 5 bound affix strings | the whole numbers are counts the block beside them already publishes, EXCEPT the positions priced at rows 16 and 18 |
+| `source.header_evidence`, `publication_notes[].note`, `detection_evidence`, `remarks` | sentences of the 67 closed forms: 99 argument positions, of which 72 are whole numbers, 5 package words, 17 nested forms and 5 bound affix strings | the whole numbers are counts the block beside them already publishes, EXCEPT the positions priced at rows 16 and 18 |
 | `relationships` | nothing: eight nulls | — |
 
 ### 12.3 The rows, each priced
@@ -13271,8 +13366,10 @@ a marked row.
 
     **The weighing, stated as a ceiling rather than as a comparison.**
     An edge says that some row holds 26.6 and some row holds 72.7 —
-    and nothing about which rows, how many, or what those rows hold
-    anywhere else, which is the ground the owner's rulings of
+    and nothing about how many, or what those rows hold anywhere else,
+    or which rows they are except on a table sorted by that column,
+    whose published order (`row_order`) makes a value's place in that
+    order its row, which is the ground the owner's rulings of
     2026-08-31 and 2026-09-03 stand on. A reach is divided into
     thirty-two bins whose first and last always hold the two
     endpoints, so this row names **at most fifteen pairs and thirty
@@ -13940,7 +14037,7 @@ width at least ONE (`1`, `2`, `10`), a cell written as a whole number
 writing at least one figure (C6-29c). `(withheld)` is again the only
 non-numeric key permitted.
 
-### 14.8 The note grammar — 61 forms
+### 14.8 The note grammar — 67 forms
 
 Defined in 4.5.1, which is the authority on every rendering and every
 argument. 99 argument positions: 72 whole numbers, 5 package words, 17
@@ -14022,6 +14119,12 @@ nested forms, 5 bound affix strings.
 | NG59 | `population_under_a_thousand` | 2 |
 | NG60 | `said_fewer_than_the_line` | 1 |
 | NG61 | `said_some_but_not_all` | 0 |
+| NG62 | `remark_low_tail_withheld_for_the_high_tail` | 0 |
+| NG63 | `remark_high_tail_withheld_for_the_low_tail` | 0 |
+| NG64 | `remark_low_tail_withheld_unsettled` | 0 |
+| NG65 | `remark_high_tail_withheld_unsettled` | 0 |
+| NG66 | `remark_low_tail_withheld_unholdable` | 0 |
+| NG67 | `remark_high_tail_withheld_unholdable` | 0 |
 
 **The package-word vocabulary — 26**, the whole of the second argument
 class (4.5.1): the twenty `format` members of 14.6, plus `day-first`

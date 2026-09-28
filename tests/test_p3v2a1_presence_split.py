@@ -373,25 +373,33 @@ _TAIL_COUNT = "counts.n_used_in_statistics"
 #   where that description withholds its end and publishes only a tail's
 #   shape, the two sound bounds on the file's extreme can fall either side
 #   of the published value without reaching it.
+_TAIL_SILENCE_SUBCHECKS = (
+    "tails.low.mean_distance",
+    "tails.low.rms_distance",
+    "tails.low.values",
+    "tails.high.mean_distance",
+    "tails.high.rms_distance",
+    "tails.high.values",
+    # A tail that publishes neither distance publishes no list of its
+    # values either, so a published END read off that description has
+    # nothing to be read off: the same sentence answers for it.
+    "ladder.min (heaped end, one-sided)",
+    "ladder.max (heaped end, one-sided)",
+)
+# ...and the file's own tail may be silent for any reason its description
+# gives (plan P4-D353): each reason's sentence stands inside the same fence.
 _SELF_EXPLAINING = {
-    validation._GATE_TAIL_WITHHELD: (
-        "tails.low.mean_distance",
-        "tails.low.rms_distance",
-        "tails.low.values",
-        "tails.high.mean_distance",
-        "tails.high.rms_distance",
-        "tails.high.values",
-        # A tail that publishes neither distance publishes no list of its
-        # values either, so a published END read off that description has
-        # nothing to be read off: the same sentence answers for it.
-        "ladder.min (heaped end, one-sided)",
-        "ladder.max (heaped end, one-sided)",
-    ),
+    validation._GATE_TAIL_WITHHELD: _TAIL_SILENCE_SUBCHECKS,
+    validation._GATE_TAIL_WITHHELD_FOR_THE_OTHER: _TAIL_SILENCE_SUBCHECKS,
+    validation._GATE_TAIL_WITHHELD_UNSETTLED: _TAIL_SILENCE_SUBCHECKS,
+    validation._GATE_TAIL_WITHHELD_UNHOLDABLE: _TAIL_SILENCE_SUBCHECKS,
+    validation._GATE_TAIL_WITHHELD_UNSAID: _TAIL_SILENCE_SUBCHECKS,
     validation._GATE_TAIL_BOUNDS: (
         "ladder.min (heaped end, one-sided)",
         "ladder.max (heaped end, one-sided)",
     ),
 }
+
 
 def test_silence_is_never_free_and_never_the_validator_s_own_difficulty(
     battery: "list[tuple[str, str, str, validation.Outcome, validation.Outcome]]",

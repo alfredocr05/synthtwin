@@ -1883,7 +1883,14 @@ against it and neither ships: the ends of the uniform stretch with the
 column's own two published moments, and Cauchy-Schwarz's bound on the
 mean of `m` of `K` cells. Plan P4-D349 records what each does, on which
 shape, and what none of the three can do -- average to a mean a single
-withheld cell carries, which is held at ledger entry `K-S3-15`.
+withheld cell carries. SINCE PLAN P4-D353 NO DESCRIPTION WITHHOLDS A PAIR
+WHOSE PUBLICATION WOULD KEEP MORE OF THE COLUMN'S MEAN AND SPREAD: the
+producer draws this reading's G12.3 windows before it withholds a pair,
+and publishes the pair wherever the window of the column's mean or
+spread would otherwise not contain the published value and the pair
+brings more of them inside (`K-S3-15`). Where no pair would keep
+either, nothing more is published, and the twin's miss is held at
+`K-S3-22`.
 
 For one side that publishes its pair -- boundary percent `P`, boundary
 rung `b` (the published rung at `P`), rows `m`, mean distance `d1` and
@@ -2106,8 +2113,8 @@ boundary rung itself where that percent falls between the two tails.
    not always what the table holds, because a width group below the
    floor is counted into the commonest width (plan P4-D222) exactly as
    under the one-width clamp: two five-figure cells, 10100 and 10400,
-   among 125 publish `{"4": 125}`, and the twin stops at 9999 where the
-   table reaches 10400 -- the end's magnitude is held at
+   among 125 publish `{"4": 125}`, and the twin stops below 10000 where
+   the table reaches 10400 -- the end's magnitude is held at
    `10**w - 1`, signed again, placed on
    the whole numbers and held on its own side of `b` (G14.3's
    `tail_pad_partial`: sixteen of sixty-eight cells padded, all four
@@ -2149,6 +2156,36 @@ boundary rung itself where that percent falls between the two tails.
    from under 1 up to 10, the twin wrote five cells at 10 and none
    below it, its mean stood 5.3 above the published 15.5, and
    `validate` MISSED `ladder.p50` and `moments.mean`.
+5. and, whichever of 2a or 4 gave it, a derived end that equals a
+   number the profiler reads as a stand-in for "no value" -- `-9999`,
+   `-999`, `9999` (`parsing.NUMERIC_SENTINELS`) -- moves ONE step of the
+   grid of step 4 toward the boundary (the next representable number
+   where no width is named), never past the boundary (plan P4-D353
+   part 4). The spelling rules of step 4 hold an end inside the width
+   the column publishes, and the ceiling of four characters is one of
+   those numbers; the outermost cell of a tail is an outlier by
+   construction, so the twin's own description read it as absent.
+   Measured on `00001` to `00149` beside one `12345` at a floor of
+   eleven: the end stood at `09999` and the twin missed its count of
+   present cells, its numbers and its forms; on one far `-4000` beside
+   `500` to `648` the end stood at `-999` and the twin's role turned
+   from continuous to count. A published end (step 1) and a listed
+   value (step 2) are the table's own and are not moved. **AND NO ROW
+   OF THE STAIRCASE STANDS ON ONE EITHER**: a row the staircase below
+   puts on a stand-in number takes the next grid point OUTWARD, the
+   step a row landing on the row before it takes, never past the end;
+   a row on the end is the end's. G6.6's width walk, which moves a
+   tail row onto the ceiling of a width, refuses the three too, and so
+   does a stratum G5.3 reads between the two tails (G5.4's last rule).
+   The other value passes of G6 are not held to it, and two of them are
+   measured to write one: G6.5a's fill of a grid with no spare point and
+   its walk to the published count of different numbers can each put a
+   stratum on a stand-in that is a gap between two values the column
+   holds (plan P4-D353 part 4). Measured on 145 four-figure numbers beside five of
+   five figures at a floor of eleven, a tail row the walk moved for the
+   width census took `9999` and the twin missed seven obligations at
+   seeds 0, 4 and 9; three-figure negatives beside five of four figures
+   took `-999` at every seed.
 
 **Why each step** (measured on the 16-shape battery of plan P4-D344 at
 floors 1 and 11). The two moments are what the rows beyond the boundary
@@ -2173,7 +2210,13 @@ held into `[lo, hi]`, with `L[0] = lo` and `L[100] = hi`. Where the mean
 or the spread is withheld the ramp of G5.3d stands in. Measured on a
 15-value block at floor 11: the twin's mean 1.9 per cent from the
 table's and its spread 6 per cent, nothing missed on the twin or the
-table.
+table. This ladder is the reading of a block whose two SIDES are null
+(TL3). A side publishing neither distance under plan P4-D349 is not
+read through it: it is G5.3b's narrowest reading, and plan P4-D353
+publishes its pair wherever that reading would leave the column's mean
+or spread window short of the published value. A block read through
+this ladder at a raised floor has no pair to publish, and where its
+twin misses a moment that is held at `K-S3-22`.
 
 **AND THE STRETCH IS HELD INSIDE THE NUMBERS THIS FORMAT HOLDS** (stage
 3's review, verdict item 2). Where `mean - sqrt(3) std` or
@@ -2407,6 +2450,28 @@ is true (every value was whole, so the extremes are), and rounding a
 value inside `[min, max]` to a nearest integer cannot leave that
 interval. The pinned strata are not rounded — they already carry the
 published rungs — which is what keeps the endpoints exact.
+
+**AND NO STRATUM READ BETWEEN THE TWO TAILS IS A STAND-IN NUMBER** (plan
+P4-D353 part 4). After this rule — or, on a column written at one width,
+after the grid value G5.3 reads there — a stratum whose value the convex
+form gave and which equals `-9999`, `-999` or `9999`
+(`parsing.NUMERIC_SENTINELS`) takes the neighbouring point of its grid
+TOWARD NOUGHT: one unit on a whole-valued column, one step of the one
+width, and the next number binary64 holds where there is neither. Where
+that point lies outside the published `min` to `max` it takes the
+neighbouring point away from nought, and where that one does too it
+keeps the value. Toward nought keeps the stand-in's figure count —
+`-998`, `9998`, `-9998`, the answer G6.6's width walk takes — and a
+magnitude of 998 or more keeps its sign, so G5.5 has nothing to repair.
+A stratum read inside a tail is the tail's (G5.3b step 5); a pinned
+end, a listed value and the zero stratum are not drawn. Measured by
+skeptic Ad on the 899 whole numbers `-1400` to `-1000` and `-998` to
+`-501`, which hold no `-999`: at floors 11, 20, 36 and 50 and seeds 0, 4
+and 9 one or two strata read `-999` and every twin wrote it deep in its
+interior. With the rule no stratum does, and the twin at seed 0 writes
+none; at seeds 4 and 9 G6.5a's walk, which is not held to it, still
+takes `-999`, the one free point between the column's own `-1000` and
+`-998`.
 
 ### G5.5 Placing `n_zero` and `n_negative` exactly
 
@@ -4017,9 +4082,14 @@ candidate inside it, what the move spends of the two distances is the
 least it can. Measured on the 120 record codes above: eleven cells are
 published padded at five figures, the twin's staircase put ten of its
 rows under ten thousand and the eleventh at 10009, no other stratum
-could reach four figures, and with the room that stratum takes 9999 —
-ten units of a mean distance of 6593.3 — and the twin writes the
-eleven padded cells it owes.
+could reach four figures, and with the room that stratum takes a
+four-figure value — ten units of a mean distance of 6593.3 — and the
+twin writes the eleven padded cells it owes. **THE VALUE IS NEVER A
+STAND-IN NUMBER** (plan P4-D353 part 4): the nearest candidate for any
+stratum coming down from beyond a width's ceiling is the ceiling
+itself, `9999` or `-999`, which the profiler can read as "no value", so
+the walk refuses `-9999`, `-999` and `9999` as G8.3a refuses them for a
+made-up spelling, and takes the next candidate — `9998` there.
 
 That half unit is G5.4's own, the one G12.2 already widens the rung
 window by, so this rule grants nothing the method had not granted
@@ -10008,16 +10078,25 @@ left to chance.** The profiler reads `-9999`, `-999` and `9999` as
 "no value" when they are also distribution outliers and cover at least
 `sentinel_minimum_share` of the column. A twin cell that lands on one of
 those numbers can therefore be read as missing when the twin is
-re-profiled, exactly as the real column's own cells were. The method
-does not steer values away from those three numbers — doing so would
-distort a distribution to protect a re-profiling artifact — and the
-report names `sentinel_verdicts` as REPORT-ONLY. This is a residual, not
+re-profiled, exactly as the real column's own cells were. Outside the
+constructions named below the method does not steer values away from
+those three numbers — doing so would distort a distribution to protect
+a re-profiling artifact — and the report names `sentinel_verdicts` as
+REPORT-ONLY. This is a residual, not
 a defect, and it is named as one in G13.
 
-**The one construction that DOES step past them is G8.3a's**: a
-held-back number of a column of labels is chosen from a walk rather
-than placed on a distribution, so refusing `-9999`, `-999` and `9999`
-there costs a step of the walk and moves no published fact.
+**The constructions that DO step past them are G8.3a's and a
+tail's**: a held-back number of a column of labels is chosen from a
+walk rather than placed on a distribution, so refusing `-9999`, `-999`
+and `9999` there costs a step of the walk and moves no published fact;
+and a numeric tail's cells beyond its boundary -- the derived end and
+the staircase rows of G5.3b step 5 -- are a construction too, standing
+where the outlier rule looks first, so each steps one grid point past
+them; G6.6's width walk, whose nearest candidate from beyond a
+width's ceiling is the ceiling itself, takes the next candidate instead;
+and a stratum G5.3 reads between the two tails takes the neighbouring
+point of its grid toward nought (G5.4), one step on one stratum (plan
+P4-D353 part 4).
 
 ### G10.4 Unparsed datetime stand-ins
 
@@ -12004,8 +12083,9 @@ report says the window does not reach the value.
 - **R-P2-13 (new here)** — a generated numeric value can land on one of
   the three numbers the profiler treats as stand-ins for "no value"
   (`-9999`, `-999`, `9999`) and be read as missing when the twin is
-  re-profiled, exactly as the real column's own cells were. The method
-  does not steer values away from them, because distorting a
+  re-profiled, exactly as the real column's own cells were. Beyond the
+  constructions G10.3 names, the method does not steer values away from
+  them, because distorting a
   distribution to protect a re-profiling artifact is the worse trade.
   `sentinel_verdicts` is REPORT-ONLY and the report names the column.
 - **R-P2-14 (new here, review item P2-C3-F1)** — the packing of G9.5
@@ -12745,7 +12825,7 @@ case passed, which is the failure the count exists to prevent:
 | `tail_extreme_magnitude` | G5.3b step 4's end left off a grid whose one step is no smaller than the boundary rung, and G5.5a's step of the smallest positive number (stage 3's review, verdict item 10): sixty readings `i * 1e-200`. The high end is read past its rung and the low one is held at 5e-324. Its mutant puts both ends on the rung's seventeen places with a step of one, and each falls onto its own boundary rung |
 | `tail_pad_ceiling` | G5.3b step 4's padded ceiling (the skeptic pass of the repair of the oracle's derived end): sixty-eight whole numbers written `0100` to `0999`, padded to four on every cell, whose high tail's reading reaches 1380. The ceiling holds the end at 999. Its mutant withdraws the ceiling and the twin writes four figures with no pad |
 | `tail_marks_pooled` | G5.3b step 4's mark clamp counting a census's named marks AND its `(withheld)` pool (the repair of the product's two divergences from step 4): `tail_mark_held`'s forty-four numbers with the census `{",": 33, "(withheld)": 11}`, every cell wearing a mark. The end is held at 1,000. Its mutant counts the named marks alone, as the product did, and the twin writes 1 |
-| `tail_pad_partial` | G5.3b step 4's ceiling of a PARTLY padded block (the same repair): sixty-eight whole numbers written with a plus, four wide, sixteen of them padded, whose high tail's reading reaches 15536. The one field width holds the end at 9999. Its mutant withdraws the ceiling and the twin writes five figures in a field of four |
+| `tail_pad_partial` | G5.3b step 4's ceiling of a PARTLY padded block (the same repair): sixty-eight whole numbers written with a plus, four wide, sixteen of them padded, whose high tail's reading reaches 15536. The one field width holds the end at 9999, a stand-in number, which G5.3b step 5 moves one step to 9998 (plan P4-D353); withdrawing step 5 writes the case's earlier bytes exactly. Its mutant withdraws the ceiling and the twin writes five figures in a field of four |
 | `tail_width_stands_aside` | G5.3b step 4's stand-aside (the same pass): sixty whole numbers, nine of four figures and eight at 10,000, so the census names the width five and the low boundary rung is 10,000. The sign rule holds the low end at 1 and the width clamp's 10,000 is no distance from that rung, so the clamp stands aside and the end stays at 1. Its mutant applies the clamp regardless and the end moves to 10,000 |
 | `tail_moment_ladder` | G5.3c's moment ladder (stage 3): fifteen two-place readings at a floor of eleven, where no percent leaves eleven rows outside on both sides at once, so the block publishes its moments and not one rung. Its mutant reads the block as the ramp of G5.3d instead |
 | `tail_listed_floor` | G5.3e's FLOOR `q` under each listed value (the governance pass of stage 3's review, item 1; plan P4-D346): sixty whole readings of a scale from 0 to 8, whose low tail lists two values and whose high tail lists four, so the one case parts both roads of the floor -- one row apiece where contract TL6's other road lists, two where the listing rule admitted the tail by finding every value it names on at least two cells of the column. Its mutant counts from one on both, which is the allocation the shipped rule retired: the high tail goes from [2, 2, 2, 6] -- the real column's own counts beyond that boundary -- to [1, 4, 1, 6], and the staircase moves with it |

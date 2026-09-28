@@ -33,7 +33,7 @@ import sys
 
 import pytest
 
-from tests import fixtures
+from tests import cost_rule_window, fixtures
 
 from synthtwin import contract, errors, parsing
 
@@ -666,28 +666,29 @@ def test_the_width_censuses_leave_no_one_to_subtract(
         # they lie -- instead of being handed a straight run up to a
         # value it then spread cells along.
         #
-        # AND IT IS OPEN AGAIN ON THAT ONE CASE, for a reason the census
-        # this test is about does not touch (plan P4-D349, ledger
-        # `K-S3-15`). The 800 codes run CONSECUTIVELY, so the twelve rows
-        # beyond each boundary stand at twelve different whole distances
-        # summing to the least twelve different whole numbers can sum to:
-        # one possible answer, which would give all twenty-four outer
-        # cells back, so the description publishes NEITHER distance. The
-        # twin's tail is then read through the column's own published mean
-        # and spread, and where the withheld tail holds a single far value
-        # -- `12345` here -- no reading can average to a mean that value
-        # puts in: the twin misses `moments.mean` and `moments.std` and
-        # its report names both. The `+00123` case has no far value and
-        # meets everything. The REAL table meets everything in every
+        # AND IT MEETS THEM AGAIN SINCE PLAN P4-D353, derived here from
+        # the cost rule and not copied from an output. The 800 codes run
+        # CONSECUTIVELY and so do the fifty short ones, so each tail's
+        # rows stand at different whole distances summing to the least
+        # that many different whole numbers can sum to, and P4-D349
+        # withholds both pairs. Where the withheld high tail holds the
+        # single far `12345`, the window of the column's mean drawn from
+        # the narrowest reading does not reach the published mean, and the
+        # owner ruled on 2026-09-25 that a pair is then published although
+        # it gives its tail back -- only where withholding it costs. The
+        # `+00123` case has no far value, costs nothing withheld and
+        # publishes nothing. The REAL table meets everything in every
         # case, which is what says the description is still true of it.
         far = label == "with" and not plus
         if far:
-            assert run["twin_exit"] == 3, run["twin_missed"]
-            assert sorted(set(run["twin_missed"])) == [
-                "moments.mean", "moments.std"
-            ], run["twin_missed"]
-        else:
-            assert run["twin_exit"] == 0, run["twin_missed"]
+            both = cost_rule_window.withheld(block, ("low", "high"))
+            assert cost_rule_window.costs(both, floor), (
+                "with both pairs withheld the far-value column's window "
+                "still reaches its mean: the case asks the rule nothing"
+            )
+            assert not cost_rule_window.costs(block, floor), block["tails"]
+            assert cost_rule_window.published_where_it_costs_nothing(block, floor) == []
+        assert run["twin_exit"] == 0, run["twin_missed"]
         assert run["real_exit"] == 0, run["real_missed"]
         if label == "with":
             # SINCE PLAN P4-D222 (stage 2 closed by the owner rulings of

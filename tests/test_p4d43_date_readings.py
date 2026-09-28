@@ -38,6 +38,7 @@ import tempfile
 
 import pytest
 
+import cost_rule_window
 import fixtures
 import tail_rule
 from synthtwin import (
@@ -794,19 +795,20 @@ def test_a_stand_in_number_reaches_its_share_as_a_count() -> None:
         block["tails"]["low"],
         block, numbers, 11, True
     )
-    # AND NEITHER COLUMN PUBLISHES A TAIL DISTANCE ANY MORE (plan
-    # P4-D349), so the comparison this test makes is made on a fact that
-    # is still published and is still exactly what it is about. BOTH tails
-    # are withheld for the same reason and it is not the same shape: the
-    # comparison column's two hundred values are CONSECUTIVE, so its low
-    # tail's eleven distances are 1 to 11; this column's are 1010 and then
-    # 1 to 10, which one arithmetic also settles because the squares leave
-    # the largest nowhere else to be. Where the `-999` shows is the
-    # column's own MEAN, which the owner's ruling keeps EXACT: a column
-    # that read `-999` as a NUMBER averages `(-999 + 1 + ... + 199) / 200`
-    # and one that read it as a missing marker could not. That is the
-    # arithmetic below, and it is the whole claim -- the `-999` reached the
-    # statistics as a count of its own.
+    # THE TWO COLUMNS' LOW PAIRS ARE ASKED THE COST RULE (plan P4-D353).
+    # Both low tails would be read back -- the comparison column's eleven
+    # distances are 1 to 11, this column's 1010 and then 1 to 10, which
+    # one arithmetic also settles because the squares leave the largest
+    # nowhere else to be -- so P4-D349 withholds both. The comparison
+    # column's run IS its narrowest reading, so its windows keep its mean
+    # and spread withheld and the pair stays withheld. This column's
+    # narrowest reading cannot carry the `-999`, so with its low pair
+    # withheld the window of its mean falls short of the published mean,
+    # and the owner ruled that such a pair is published: the `-999` shows
+    # in the pair as well as in the column's own MEAN, which the owner's
+    # ruling keeps EXACT. The mean is the arithmetic below, and it is the
+    # whole claim -- the `-999` reached the statistics as a count of its
+    # own.
     without = profile.build_document(
         reading.read_table(
             f"{fixtures.write(folder, 'without.csv', fixtures.single_column_table('score', values[1:] + ['200']))}",
@@ -817,7 +819,15 @@ def test_a_stand_in_number_reaches_its_share_as_a_count() -> None:
     )["columns"][0]
     assert without["tails"]["low"]["mean_distance"] is None
     assert without["tails"]["low"]["rms_distance"] is None
-    assert block["tails"]["low"]["mean_distance"] is None
+    assert not cost_rule_window.costs(without, 11)
+    assert cost_rule_window.costs(cost_rule_window.withheld(block, ("low",)), 11), (
+        "with its low pair withheld this column's windows still reach its "
+        "mean and spread: the case no longer asks the cost rule anything"
+    )
+    assert block["tails"]["low"]["mean_distance"] is not None, (
+        "withholding the low pair costs the twin its mean and it is not published"
+    )
+    assert not cost_rule_window.costs(block, 11)
     assert block["mean"] == (-999 + sum(range(1, 200))) / 200
     assert without["mean"] == (sum(range(1, 200)) + 200) / 200
     assert block["mean"] < without["mean"]

@@ -165,8 +165,11 @@ def _numeric_lines(column: "dict[str, object]", floor: int) -> "list[str]":
     P4-D349, and the review of 2026-09-23 -- item 7's inverse on the
     floor pass, item 11 on the numeric one). There are three of them: a
     tail that NAMES its values, one that publishes its shape, and one
-    that publishes neither distance because the pair would give its
-    cells back. One sentence for all three said "not published" over a
+    that publishes neither distance -- and says why, in the words of
+    the block's own remark (`_withheld_because`, plan P4-D353): its own
+    pair would give its cells back, or the other tail's is withheld, or
+    the check did not finish, or this format cannot hold the pair. One
+    sentence for all three said "not published" over a
     block that printed two of the values below. A published END counts
     as naming one too: at least a tail's own number of rows hold it, and
     the very next line reads "the smallest value itself is 0.0".
@@ -201,9 +204,9 @@ def _numeric_lines(column: "dict[str, object]", floor: int) -> "list[str]":
             "middle, so no step of the ladder is given",
         ]
     lines = [f"    middle: {_text_of(ladder['p50'])}", moments]
-    for side, end, word, which in (
-        (low, ladder["min"], "below", "smallest"),
-        (high, ladder["max"], "above", "largest"),
+    for name, side, end, word, which in (
+        ("low", low, ladder["min"], "below", "smallest"),
+        ("high", high, ladder["max"], "above", "largest"),
     ):
         listed = side["values"] if "values" in side else None
         names = isinstance(listed, list) and bool(listed)
@@ -233,8 +236,7 @@ def _numeric_lines(column: "dict[str, object]", floor: int) -> "list[str]":
                     f"    the {_count_of(side['rows'])} {which} values are "
                     f"not published, and neither is how far {word} {rung} "
                     f"-- the value {percent} per cent of the way up -- they "
-                    f"lie: on this column the two distances together would "
-                    f"give those values back one by one"
+                    f"lie: {_withheld_because(column, name)}"
                 )
             ]
         else:
@@ -271,6 +273,35 @@ def _numeric_lines(column: "dict[str, object]", floor: int) -> "list[str]":
                 )
             ]
     return lines
+
+
+# WHY A TAIL PUBLISHES NEITHER DISTANCE, in the words true of it (plan
+# P4-D353). The description says the reason where it is not the tail's own
+# pair (`taxonomy.tail_withheld_because`); a side saying none is one whose
+# own two distances would give its values back.
+_WITHHELD_BECAUSE = {
+    taxonomy.TAIL_PINNED: (
+        "on this column the two distances together would give those values "
+        "back one by one"
+    ),
+    taxonomy.TAIL_WITHHELD_FOR_THE_OTHER: (
+        "on their own the two distances would not give those values back, "
+        "but beside the column's exact average and spread they could give "
+        "back the other end's, which are withheld"
+    ),
+    taxonomy.TAIL_WITHHELD_UNSETTLED: (
+        "whether the two distances together would give those values back "
+        "could not be settled, so they are withheld"
+    ),
+    taxonomy.TAIL_WITHHELD_UNHOLDABLE: (
+        "the two distances are too large for this file format to hold"
+    ),
+}
+
+
+def _withheld_because(column: "dict[str, object]", side: str) -> str:
+    """The reason one side of a column publishes neither distance, as a clause."""
+    return _WITHHELD_BECAUSE[taxonomy.tail_withheld_because(column["remarks"], side)]
 
 
 def _rung_at_percent(column: "dict[str, object]", percent: int) -> object:
@@ -824,8 +855,10 @@ def _tail_lines(
     boundaries, how many values lie beyond each, and how far beyond them on
     average -- in one of three fixed forms: with both distances, with the
     count of different values a tail holds where it publishes them, or
-    with nothing where the column has no tails at all. Every figure is one
-    the description itself carries.
+    with nothing where the column has no tails at all; a tail publishing
+    neither distance says why in the words of the block's own remark
+    (`_withheld_because`). Every figure is one the description itself
+    carries.
 
     Guarantees: accepts one datetime or clock block, the tail unit's word
     and the clock clause; returns the lines. Determinism: a function of
@@ -850,7 +883,7 @@ def _tail_lines(
         )
     ]
     parts: "list[str]" = []
-    for side, tail in (("earliest", low), ("latest", high)):
+    for name, side, tail in (("low", "earliest", low), ("high", "latest", high)):
         values = tail["values"]
         mean = tail["mean_distance"]
         said = f"the {side} lie"
@@ -868,7 +901,7 @@ def _tail_lines(
             # cells lie beyond the boundary and nothing else about them.
             said = (
                 f"{said} beyond it and no distance is published for them: "
-                f"the two together would give those values back one by one"
+                f"{_withheld_because(column, name)}"
             )
         else:
             said = (

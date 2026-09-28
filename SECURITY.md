@@ -160,8 +160,10 @@ Stated here so that no reader has to discover them independently:
   because it is what makes the floor defensible and it is not a claim
   about how much is published. A description is a set of PER-COLUMN
   facts. It records that a column holds `20.4` and how many rows do.
-  It does not record WHICH row, and it does not record what that row
-  holds in any other column. So a description shows a reader the shape
+  It does not record WHICH row except on a table sorted by that column,
+  whose description publishes the order (`row_order`), so row k holds
+  the k-th value; and it does not record what that row holds in any
+  other column. So a description shows a reader the shape
   of each column on its own, and no person can be assembled out of
   them: the
   thing that identifies is the joining of one row's values across
@@ -191,8 +193,10 @@ Stated here so that no reader has to discover them independently:
   be described as labels and published none of its readings, and the
   compound role now describes its numeric half. The reasoning is the
   reasoning above — the description records that the column holds
-  `1.7` and where in its order it sits, not which row holds it and not
-  what that row holds anywhere else.
+  `1.7` and where in its order it sits, not what that row holds anywhere
+  else, and not which row holds it except on a table sorted by that
+  column, whose description publishes the order (`row_order`), so its
+  place in that order is its row.
 
   **HOW MANY OF THOSE NUMBERS THERE REALLY ARE, corrected here
   (2026-09-04).** This paragraph used to say a ladder is made of order
@@ -229,7 +233,18 @@ Stated here so that no reader has to discover them independently:
   values the tail holds. So the honest inventory of exact values a
   numeric block carries is the tail boundaries, any end a group shares,
   `empty_edges` below, and the written-form extremes the owner kept
-  published on 2026-09-22.
+  published on 2026-09-22. **That is what it carries, not what it
+  gives back.** On some shapes the rest of the block -- its exact
+  mean, spread, skew and kurtosis beside its steps, its count of
+  different values, its commonest value's count and its sign counts --
+  lets a reader work some or all of the column's own values out, a
+  one-row extreme among them: every value of the whole numbers 0 to
+  1,100 written once comes back. Nothing about another column, and never
+  which row holds one except on a table sorted by that column, whose
+  description publishes the order (`row_order`), so row k holds the k-th
+  value; the owner accepted each such case on 2026-09-25
+  and 26, and the KPI ledger holds them at a ceiling (`K-S3-17`,
+  `K-S3-21`, `K-S3-23`, `K-S3-24`).
 
   **AND `empty_edges` PUTS MORE THERE, which is stated with its real
   ceiling rather than by comparison** (owner ruling 2026-09-04, plan
@@ -285,7 +300,11 @@ Stated here so that no reader has to discover them independently:
   too**, which is the case worth stating plainly: naming every value a
   small column holds names the column's whole SET of values, and
   still names no row, no order, no pairing with any other column and
-  no time. This document's threat model already says statistical
+  no time. That ground does not hold on one kind of table, which this
+  document says and the owner's words do not: on a table sorted by that
+  column the description publishes the order (`row_order`), so the set
+  comes in its rows' order and row k holds the k-th value. This
+  document's threat model already says statistical
   disclosure is out of scope and that synthtwin offers no formal
   privacy guarantee; the ruling is inside that model rather than an
   exception to it.
@@ -363,7 +382,9 @@ Stated here so that no reader has to discover them independently:
   rows, the two distances, the grid, the space's edges and the column's
   own remark that every value in it is different leave one possible set
   of distances, that set names every outer cell exactly, so the tail
-  publishes its boundary and its row count and stops. What that costs
+  publishes its boundary and its row count and stops -- unless
+  withholding them would cost the twin the column's mean or spread,
+  where they are published anyway (owner, 2026-09-25). What that costs
   the twin is measured and recorded rather than claimed away. An end at
   least that many rows share is published as itself, because it is a
   value of a group. A tail may
@@ -601,8 +622,9 @@ Stated here so that no reader has to discover them independently:
   The compound role describes such a column as what it is, so its
   numeric half now carries a mean, a spread and a percentile ladder --
   and a ladder's rungs are values the column really holds. Nothing
-  about which ROW holds a reading is published, and the ruling above
-  covers the rest; what changed is that this option's page now has a
+  about which ROW holds a reading is published except on a table sorted
+  by that column, whose published order (`row_order`) makes a rung's
+  place in that order its row, and the ruling above covers the rest; what changed is that this option's page now has a
   distribution behind it where it used to have none.
 
   **What that gives up, at its size.** A reader of the settings block

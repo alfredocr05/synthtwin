@@ -938,6 +938,61 @@ def _numeric_sums(tail, boundary, figures):
     return int(home), whole, whole_squares
 
 
+def _numeric_walk_parts(block, side, figures):
+    """A published numeric tail as the reader's walk takes it, or None.
+
+    Returns `(rows, total, squares, cap)` in whole grid units counted from
+    one, which is how `_multisets` and `_settled` count. Where the
+    boundary rung is ON the grid these are `_numeric_sums`'s. Where it
+    falls BETWEEN two grid points, which the producer allows (plan
+    P4-D349 part 2), every distance is the same offset plus a whole
+    number of grid steps from the grid point at or beyond the rung on the
+    tail's own side -- its grid HOME -- so the reader takes that offset
+    off, and the parts, which then count from nought, are shifted by one
+    to count from one (plan P4-D353: the gate asks this walk of every
+    pair the description publishes). None where the block has no grid,
+    the tail no pair, or the sums do not come out whole.
+    """
+    tails = block.get("tails")
+    if figures is None or not isinstance(tails, dict):
+        return None
+    tail = tails.get(side)
+    if not isinstance(tail, dict) or tail.get("values"):
+        return None
+    boundary = _numeric_rung(block, tail.get("percent"))
+    if not isinstance(boundary, (int, float)):
+        return None
+    rows = tail["rows"]
+    mean = tail.get("mean_distance")
+    root = tail.get("rms_distance")
+    if mean is None or root is None or rows <= 0:
+        return None
+    scale = 10 ** figures
+    rung = fractions.Fraction(boundary) * scale
+    if rung.denominator == 1:
+        read = _numeric_sums(tail, boundary, figures)
+        if read is None:
+            return None
+        home, total, squares = read
+        return rows, total, squares, _numeric_cap(block, side, home, total)
+    home = math.floor(rung) if side == "low" else math.ceil(rung)
+    offset = (rung - home) if side == "low" else (home - rung)
+    first = fractions.Fraction(mean) * scale * rows - offset * rows
+    second = (
+        fractions.Fraction(root) * fractions.Fraction(root) * scale * scale * rows
+        - 2 * offset * first
+        - rows * offset * offset
+    )
+    total = round(first)
+    squares = round(second)
+    if abs(first - total) > fractions.Fraction(1, 64):
+        return None
+    if abs(second - squares) > fractions.Fraction(1, 4):
+        return None
+    cap = _numeric_cap(block, side, home, total)
+    return rows, total + rows, squares + 2 * total + rows, cap + 1
+
+
 def _numeric_cap(block, side, home, total):
     """The largest grid-unit distance a numeric tail's sign counts allow."""
     negatives = block.get("n_negative", 0) - block.get(
@@ -978,18 +1033,14 @@ def _numeric_pinned(block, floor, apart):
             continue
         if tail.get("values"):
             continue
-        boundary = _numeric_rung(block, tail.get("percent"))
-        if not isinstance(boundary, (int, float)):
-            continue
-        read = _numeric_sums(tail, boundary, figures)
+        read = _numeric_walk_parts(block, side, figures)
         if read is None:
             continue
-        home, total, squares = read
+        _rows, total, squares, cap = read
         if total > _EXACT_WHOLE or squares > _EXACT_WHOLE:
             unsearched += 1
             continue
         spent = [False]
-        cap = _numeric_cap(block, side, home, total)
         count = _multisets(
             tail["rows"], total, squares, cap, [ROOM_STEPS], spent, apart,
         )
