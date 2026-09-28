@@ -2,7 +2,7 @@
  "what": "The KPI ledger: one entry per thing a phase or stage delivered, stated as a value and a rule. Single record; the owner's board and tools/measurements/kpi_run.py read it; tests/kpi_rules.py judges every value; tests/test_kpi_ledger_integrity.py keeps it honest.",
  "schema": 1,
  "base_commit": "caf3079",
- "measurement_note": "Every value_at was measured on the product of caf3079 (the integrated tree of 2026-09-19) by one run of tools/measurements/kpi_run.py --slow --print-values on the QUIET reference machine -- load average 1.54 to 1.91, so seconds were judged -- and written in unchanged, except where this note names another tree below. Seconds and peak memory are judged only where kpi_rules.seconds_judged_here says so; elsewhere they are RECORDED, and one that breaks its rule under load is marked RED in its evidence. 51 ENTRIES STAND OFF THE BASE COMMIT in all, each carrying the tree it was taken on, and test_kpi_ledger_integrity.py holds the entries this note names and that set equal; TWENTY-THREE OF THEM ARE THESE, and the later trees are named after them: K-P0-05 on 05e7d89, the round-2 ledger pass of 2026-09-19; K-2B-19 on 230fc89, 2026-09-21, the repair pass of the mean-only landing; K-2B-38 on 335fec3, 2026-09-20, the hostile workbook, whose peak memory is recorded everywhere and judged only here; K-S3-12 on 3587709, 2026-09-23, the repair pass of stage 3 landing 3.5, whose own seeded battery the entry counts; K-P4-20 on 3f6cd9f, 2026-09-22, stage 3 landing 3.1's own commit, where the default smallest group was raised (plan P4-D316); K-S3-03, K-S3-04, K-S3-06, K-S3-07, K-S3-08, K-S3-09, K-S3-10 on 0317f5d, 2026-09-23, stage 3 landing 3.3's own commit; K-2B-03, K-2B-05, K-2B-16, K-2B-49, K-2B-50, K-2B-51, K-P2-08, K-P2-09, K-P3-03, K-P4-07, K-P4-22 on 1fc2ec1, THE INTEGRATION OF STAGE 3'S FIVE LANDINGS, its own tree, where the numeric tail rule moved what the other four had measured and every one of these was re-measured. Every other value_at is caf3079's. AND ONE MORE STANDS OFF 27eecbe, stage 3's GATE and its own commit: K-S3-14, the owner's accepted limit of 2026-09-23 that the disclosure floor counts rows and not people (plan P4-D348). AND ONE STANDS OFF a3c0cd1, the close of stage 3 (plans P4-D346 and P4-D347): K-2B-47, which gains `read_floor_refused`. AND SIX STAND OFF a7bbc21, THE CLOSE OF STAGE 3'S REVIEW (2026-09-24) and its own commit, all six taken by one tools/measurements/kpi_run.py --slow --print-values on the quiet machine -- one-minute load average 1.7 to 2.7 against a bound of 3.0, so seconds were judged. Three moved because that tree moved their MEASUREMENT: K-S3-01 and K-S3-02 record pinned_nodes_failing, which their rule bounds and their record omitted (governance item 9); and K-S3-05 is measured over the 1,800-row population it actually tests and over a second node bounding what the 900-row refusal costs (item 6). One moved because its DRIVER did and its numbers did NOT: K-S3-11 gives back every one of the nine it gave at a3c0cd1 -- literal, pinned and edge_pinned still nought -- under a back-solve that now asks whether the tail's outermost value and its count vary across the solutions rather than whether the whole multiset is unique, and a literal sweep that reads a value printed inside a sentence (items 3 and 4). And two are RE-STAMPED SECONDS, taken on a quiet machine where the recorded ones were taken under load, each entry naming the seconds it recorded before: K-S1-01, to profile and to generate 20,000 rows by 20, and K-P3-12, to validate the same. AND ONE STANDS OFF 5cd28db, the repair that made the tail's back-solve walk its own stack (2026-09-24) and its own commit: K-S1-06, whose driver crashed with RecursionError on every tree from ee56999 to a7bbc21 and runs again here, taken by one tools/measurements/kpi_run.py --slow --print-values on the quiet reference machine -- its one-minute load average sampled between 1.8 and 2.7 against a bound of 3.0, and the run's own report records machine_kinds_judged, so seconds were judged. AND TWO STAND OFF 1578bee, the tree that closed stage 3 (2026-09-24) and its own commit, each taken by its own driver after the whole suite passed there in five shards: K-P0-10, the whole suite in one process, at a one-minute load average of 2.5 falling to 1.9 against the bound of 3.0, so seconds were judged; and K-P4-06 with both its pinned nodes passing, at the ceiling its own entry already stated where its record still carried the merged tree's lower counts. AND ONE STANDS OFF 1c9e767, stage 3's last merge (2026-09-25) and its own commit: K-S1-05, faster than 5cd28db read it, taken by kpi_run.py --slow --only K-S1-05 on the quiet machine, load 1.6 to 1.9, so seconds were judged. AND ONE STANDS OFF f934876, a census of marks that is only a pool (plan P4-D352) and its own commit: K-S3-16 by tools/measurements/kpi_run.py --only K-S3-16 --print-values, a value no earlier tree gives (its evidence names 6a7a7d7's), and 2bc1418 and 47f20ef read the same. AND ONE STANDS OFF 47f20ef, whole negatives beside a trailing minus taken nearest zero (plan P4-D352 (6)) and its own commit: K-P2-01 by tools/measurements/kpi_run.py --only K-P2-01 --print-values. AND SEVEN STAND OFF 21f7b8b, stage 3's follow-up A (plan P4-D353) and its own commit, all taken by one tools/measurements/kpi_run.py --slow --print-values after the whole suite passed there in five shards (one-minute load average 13.5 to 9.1 against a bound of 3.0, so no seconds were judged, and none of the seven carries a seconds rule): K-S3-13, the gate, three of its pinned nodes new there; K-S3-15, over the ten shapes ee56999 read and two more; and K-S3-17, K-S3-18, K-S3-20, K-S3-21 and K-S3-22 by tools/measurements/kpi_cost_rule.py --kpi, K-S3-17 at the base's own value and the other four at values the base does not give. AND TWO STAND OFF e760d27, the repair of follow-up A's review and its own commit, both taken by one tools/measurements/kpi_run.py --only K-S3-19 --only K-S3-23 --print-values (one-minute load average 8.7 to 10.3, so no seconds were judged, and neither carries a seconds rule): K-S3-19, counting the checker's bounds WITHHELD and MISSED where it had counted values its reader could not raise; and K-S3-23, new, which e294a82 gives back too. AND ONE STANDS OFF 54d22f3, follow-up A's second repair and the owner's answer 8 (2026-09-26), its own commit, taken by one tools/measurements/kpi_run.py --slow --print-values over four entries, this one among them, after the whole suite passed there (one-minute load average above fifteen, so no seconds were judged, and it carries no seconds rule): K-S3-24, new, which e294a82 gives back too. AND ONE STANDS OFF 455076c, follow-up A's third repair, the review's item 2 (2026-09-27), its own commit, by tools/measurements/kpi_run.py --only K-S3-25 --print-values after the whole suite passed there in five shards: K-S3-25, new, where 72d2c35 misstated sides. AND ONE STANDS OFF 604ebbd, landing 3b.0's fix pass (plan P4-D354) and its own commit, taken after the whole suite passed there in five shards: K-S3-30 by tools/measurements/kpi_run.py --only K-S3-30 --print-values, a value e294a82 does not give (it fails 6 of the gate's cases); it reads the same at 00f57b9, at 84f09b9 and at 2f03adc. AND TWO STAND OFF 2f03adc, a count no placement inside the gaps reaches met past the strata (plan P4-D354) and its own commit, each taken after the whole suite passed there in five shards: K-S3-39 by tools/measurements/kpi_run.py --only K-S3-39 --print-values, a value d3d794f's generator does not give (it fails the three columns met past the strata and the pass's shipped rows); and K-2B-42 by tools/measurements/kpi_oracle_similarity.py --kpi, where 84f09b9 read the same share of two fewer scored functions. EACH VALUE IS READ FROM ITS ENTRY'S value_at AND NEVER RESTATED HERE.",
+ "measurement_note": "Every value_at was measured on the product of caf3079 (the integrated tree of 2026-09-19) by one run of tools/measurements/kpi_run.py --slow --print-values on the QUIET reference machine -- load average 1.54 to 1.91, so seconds were judged -- and written in unchanged, except where this note names another tree below. Seconds and peak memory are judged only where kpi_rules.seconds_judged_here says so; elsewhere they are RECORDED, and one that breaks its rule under load is marked RED in its evidence. 54 ENTRIES STAND OFF THE BASE COMMIT in all, each carrying the tree it was taken on, and test_kpi_ledger_integrity.py holds the entries this note names and that set equal; TWENTY-THREE OF THEM ARE THESE, and the later trees are named after them: K-P0-05 on 05e7d89, the round-2 ledger pass of 2026-09-19; K-2B-19 on 230fc89, 2026-09-21, the repair pass of the mean-only landing; K-2B-38 on 335fec3, 2026-09-20, the hostile workbook, whose peak memory is recorded everywhere and judged only here; K-S3-12 on 3587709, 2026-09-23, the repair pass of stage 3 landing 3.5, whose own seeded battery the entry counts; K-P4-20 on 3f6cd9f, 2026-09-22, stage 3 landing 3.1's own commit, where the default smallest group was raised (plan P4-D316); K-S3-03, K-S3-04, K-S3-06, K-S3-07, K-S3-08, K-S3-09, K-S3-10 on 0317f5d, 2026-09-23, stage 3 landing 3.3's own commit; K-2B-03, K-2B-05, K-2B-16, K-2B-49, K-2B-50, K-2B-51, K-P2-08, K-P2-09, K-P3-03, K-P4-07, K-P4-22 on 1fc2ec1, THE INTEGRATION OF STAGE 3'S FIVE LANDINGS, its own tree, where the numeric tail rule moved what the other four had measured and every one of these was re-measured. Every other value_at is caf3079's. AND ONE MORE STANDS OFF 27eecbe, stage 3's GATE and its own commit: K-S3-14, the owner's accepted limit of 2026-09-23 that the disclosure floor counts rows and not people (plan P4-D348). AND ONE STANDS OFF a3c0cd1, the close of stage 3 (plans P4-D346 and P4-D347): K-2B-47, which gains `read_floor_refused`. AND SIX STAND OFF a7bbc21, THE CLOSE OF STAGE 3'S REVIEW (2026-09-24) and its own commit, all six taken by one tools/measurements/kpi_run.py --slow --print-values on the quiet machine -- one-minute load average 1.7 to 2.7 against a bound of 3.0, so seconds were judged. Three moved because that tree moved their MEASUREMENT: K-S3-01 and K-S3-02 record pinned_nodes_failing, which their rule bounds and their record omitted (governance item 9); and K-S3-05 is measured over the 1,800-row population it actually tests and over a second node bounding what the 900-row refusal costs (item 6). One moved because its DRIVER did and its numbers did NOT: K-S3-11 gives back every one of the nine it gave at a3c0cd1 -- literal, pinned and edge_pinned still nought -- under a back-solve that now asks whether the tail's outermost value and its count vary across the solutions rather than whether the whole multiset is unique, and a literal sweep that reads a value printed inside a sentence (items 3 and 4). And two are RE-STAMPED SECONDS, taken on a quiet machine where the recorded ones were taken under load, each entry naming the seconds it recorded before: K-S1-01, to profile and to generate 20,000 rows by 20, and K-P3-12, to validate the same. AND ONE STANDS OFF 5cd28db, the repair that made the tail's back-solve walk its own stack (2026-09-24) and its own commit: K-S1-06, whose driver crashed with RecursionError on every tree from ee56999 to a7bbc21 and runs again here, taken by one tools/measurements/kpi_run.py --slow --print-values on the quiet reference machine -- its one-minute load average sampled between 1.8 and 2.7 against a bound of 3.0, and the run's own report records machine_kinds_judged, so seconds were judged. AND TWO STAND OFF 1578bee, the tree that closed stage 3 (2026-09-24) and its own commit, each taken by its own driver after the whole suite passed there in five shards: K-P0-10, the whole suite in one process, at a one-minute load average of 2.5 falling to 1.9 against the bound of 3.0, so seconds were judged; and K-P4-06 with both its pinned nodes passing, at the ceiling its own entry already stated where its record still carried the merged tree's lower counts. AND ONE STANDS OFF 1c9e767, stage 3's last merge (2026-09-25) and its own commit: K-S1-05, faster than 5cd28db read it, taken by kpi_run.py --slow --only K-S1-05 on the quiet machine, load 1.6 to 1.9, so seconds were judged. AND ONE STANDS OFF f934876, a census of marks that is only a pool (plan P4-D352) and its own commit: K-S3-16 by tools/measurements/kpi_run.py --only K-S3-16 --print-values, a value no earlier tree gives (its evidence names 6a7a7d7's), and 2bc1418 and 47f20ef read the same. AND SEVEN STAND OFF 21f7b8b, stage 3's follow-up A (plan P4-D353) and its own commit, all taken by one tools/measurements/kpi_run.py --slow --print-values after the whole suite passed there in five shards (one-minute load average 13.5 to 9.1 against a bound of 3.0, so no seconds were judged, and none of the seven carries a seconds rule): K-S3-13, the gate, three of its pinned nodes new there; K-S3-15, over the ten shapes ee56999 read and two more; and K-S3-17, K-S3-18, K-S3-20, K-S3-21 and K-S3-22 by tools/measurements/kpi_cost_rule.py --kpi, K-S3-17 at the base's own value and the other four at values the base does not give. AND TWO STAND OFF e760d27, the repair of follow-up A's review and its own commit, both taken by one tools/measurements/kpi_run.py --only K-S3-19 --only K-S3-23 --print-values (one-minute load average 8.7 to 10.3, so no seconds were judged, and neither carries a seconds rule): K-S3-19, counting the checker's bounds WITHHELD and MISSED where it had counted values its reader could not raise; and K-S3-23, new, which e294a82 gives back too. AND ONE STANDS OFF 54d22f3, follow-up A's second repair and the owner's answer 8 (2026-09-26), its own commit, taken by one tools/measurements/kpi_run.py --slow --print-values over four entries, this one among them, after the whole suite passed there (one-minute load average above fifteen, so no seconds were judged, and it carries no seconds rule): K-S3-24, new, which e294a82 gives back too. AND ONE STANDS OFF 455076c, follow-up A's third repair, the review's item 2 (2026-09-27), its own commit, by tools/measurements/kpi_run.py --only K-S3-25 --print-values after the whole suite passed there in five shards: K-S3-25, new, where 72d2c35 misstated sides. AND ONE STANDS OFF 604ebbd, landing 3b.0's fix pass (plan P4-D354) and its own commit, taken after the whole suite passed there in five shards: K-S3-30 by tools/measurements/kpi_run.py --only K-S3-30 --print-values, a value e294a82 does not give (it fails 6 of the gate's cases); it reads the same at 00f57b9, at 84f09b9 and at 2f03adc. AND TWO STAND OFF 2f03adc, a count no placement inside the gaps reaches met past the strata (plan P4-D354) and its own commit, each taken after the whole suite passed there in five shards: K-S3-39 by tools/measurements/kpi_run.py --only K-S3-39 --print-values, a value d3d794f's generator does not give (it fails the three columns met past the strata and the pass's shipped rows); and K-2B-42 by tools/measurements/kpi_oracle_similarity.py --kpi, where 84f09b9 read the same share of two fewer scored functions. AND THREE STAND OFF 6b167c4, the weekday census of a column of dates (plan P4-D355) with its own driver repaired and its merges case picked again, and its own commit, each by tools/measurements/kpi_run.py --slow --only <id> --print-values after the whole suite passed there in five shards: K-S3-31, a value no earlier tree gives; K-S3-33, counted machine-free where a first writing in seconds read 2.52 under load; and K-P2-01, where d2dcf40 and 3f51316 read seven cases fewer and 47f20ef six. AND ONE STANDS OFF bedf8eb, the second review's repair of that census (both halves of the form holes witnessed, and a placeholder day read as missing held as a hole, plan P4-D355) and its own commit, taken after the whole suite passed there in five shards: K-S3-32 by tools/measurements/kpi_run.py --only K-S3-32 --print-values at none of its twenty-nine pinned cases failing, the landing's fifteen, the review's seven and the second review's seven, a value no earlier tree gives (128a30b's product fails two of the twenty-nine, the placeholder-hole witnesses: one of the 65 witnesses there stands on the placeholder day, and the five-week column around it falls to `narrowed`). EACH VALUE IS READ FROM ITS ENTRY'S value_at AND NEVER RESTATED HERE.",
  "reference_machine": {
   "name": "Apple M4, 10 cores",
   "platform_machine": "arm64",
@@ -919,15 +919,15 @@
    "driver": null,
    "pin_strength": "EXACT",
    "measured_on": "14 committed tests/reference/generation-*.json files",
-   "evidence": "132 of 132 (123 column cases, 4,883 cells, plus 9 whole-document cases); the method states 132. At d2dcf40, landing 3b.0's own commit, 131 of 131 (122 column cases, 4,889 cells, plus 9 whole-document cases)",
+   "evidence": "138 of 138 (129 column cases, 5,671 cells, plus 9 whole-document cases) at 6b167c4, landing 3b.1's own commit; at 47f20ef, follow-up B's, 132 of 132 (123 column cases, 4,883 cells, plus 9 whole-document cases); at d2dcf40, landing 3b.0's, 131 of 131 (122 column cases, 4,889 cells, plus 9 whole-document cases); each the count its tree's method stated",
    "value_at": {
-    "commit": "47f20ef",
-    "date": "2026-09-26",
-    "measured_by": "tools/measurements/kpi_run.py --only K-P2-01 --print-values",
+    "commit": "6b167c4",
+    "date": "2026-09-27",
+    "measured_by": "tools/measurements/kpi_run.py --slow --only K-P2-01 --print-values",
     "value": {
-     "cases": 132,
-     "column_cases": 123,
-     "column_cells": 4883,
+     "cases": 138,
+     "column_cases": 129,
+     "column_cells": 5671,
      "pinned_nodes_failing": 0
     }
    },
@@ -4361,7 +4361,7 @@
    "id": "K-2B-22b",
    "phase_stage": "Stage 2b, ruling 8 (P4-D292)",
    "category": "PRIVACY",
-   "headline": true,
+   "headline": false,
    "name": "A headerless table with NO title line publishes none of its first record as names",
    "status": "GREEN",
    "rule": "0 cells of the first record published as names, 0 of its words in any published file, and every one of the 240 records counted",
@@ -5145,7 +5145,7 @@
    "driver": "tools/measurements/kpi_oracle_similarity.py --kpi",
    "pin_strength": "NONE",
    "measured_on": "normalised-AST similarity, oracle vs src",
-   "evidence": "AT THE COUNT MET PAST THE STRATA (2f03adc): 175 of 485; count_met_past_the_strata, the pass's oracle function, scores 0.32 and tails_as_summed 0.41 against their closest shipped functions, and ranks_restacked 0.50 against _ranks_restacked. AT THE GAP RULE'S COST RECORDED (84f09b9): 175 of 483; ranks_restacked, the stack's oracle function (7ce9c8f), scores below 0.60 against every shipped function. AT THE SPLIT OF A RUN NO MERGE CAN TAKE (00f57b9): 175 of 482; runs_split scores 0.50 against _runs_split, below 0.60. AT FOLLOW-UP A's SECOND REPAIR (54d22f3): 176 of 480; the first mirror of method G5.3b step 5 had lifted derived_end and off_the_stand_ins to 0.61 (178 of 479 at af31c57), and the oracle now reads steps 2a, 4 and 5 in functions of their own, the dispatcher under six statements. AT WHOLE NEGATIVES NEAREST ZERO (47f20ef): 176 of 481; the new case builder scores 0.43 against _lowered_floor_lines, and whole_number_values 0.52 against _whole_enough. AT LANDING 3b.0 (d2dcf40): 176 of 480; group_gives_way scores 0.38 and the case builder 0.46 against their closest shipped functions. AT A TRAILING MINUS KEPT ON FIGURES WITH A POINT (2bc1418): 176 of 480; the two new functions score below 0.60 -- trailing_style_exchange 0.49 against _unconditional_hole_excess, the case builder 0.43 -- and the two it changed stay below it, notation_places 0.52 and whole_number_values 0.51 against their shipped mirrors. AT A CENSUS OF MARKS THAT IS ONLY A POOL (f934876): 176 of 478; the two new functions score below 0.60 -- marks_of_a_lone_pool 0.42 against _width_allocation, the case builder 0.39 -- and candidate_mark's pair stays at 0.67. AT THE REPAIR OF ITS TWO DIVERGENCES (37f583f): 176 of 476; pad_held first scored 0.61 against the unrelated _envelope_admits_every_count and was split below six statements. AT ITS SKEPTIC PASS (e014ebd): 176 of 474, both new case builders below 0.60. AT THE REPAIR OF THE ORACLE'S DERIVED END (d51054c): 176 of 472; derived_end falls below 0.60 and spelled_end scores 0.70 against the unrelated _wide_number. RE-MEASURED AT THE CLOSE OF STAGE 3'S REVIEW: 176 of 465 oracle functions of six statements or more score at or above 0.60, so the bound is met with NO headroom again and 7 more functions are scored. The withheld-tail reading (plan P4-D349) added two functions to the oracle and the FIRST writing of them drifted the count to 178 -- `withheld_step` at 0.93 and a next-representable helper at 0.96 against their closest shipped ones -- and both were rewritten FROM method G5.3b step 4 rather than from the shipped code until neither scores at all: the step is one loop over three grids and the format's own neighbour is taken through the oracle's existing `next_representable` with the sign put back around it. 176 of 458 oracle functions of six statements or more score >= 0.60 against their closest shipped function, on the merged tree of stage 3's five landings: the bound is met with NO headroom, and the driver names every scoring pair. Both tail landings wrote mirrors into the oracle and every function either wrote stands below 0.60 against its closest shipped one, no already-scored pair rose, and every vectors file rebuilds byte for byte through the guard runner. THE MEASURE IS NOT G14.2's 13 of 53: the skeptic's script was not kept, and kpi_oracle_similarity.py re-states the measure over ALL the oracle's functions. WHAT THE SCORE IS NOT: it is difflib over syntax-node kinds with names ignored, so a rewrite that changes a function's SHAPE and not its checks moves it without buying independence. Independence is witnessed instead by tests/test_oracle_rule_witnesses.py, one clause at a time against oracle and shipped function, with 109 registered oracle mutants each turning it red (plan P4-D299) -- and 'each clause' is QUALIFIED (round-2 ledger pass, item 6): a clause is witnessed only where a case parts its two roads, and the whole refusal and the end refusal are unwitnessed by construction. Every earlier reading of this number is in CHANGELOG.md under the landing that moved it.",
+   "evidence": "AT THE COUNT MET PAST THE STRATA (2f03adc): 175 of 485; count_met_past_the_strata, the pass's oracle function, scores 0.32 and tails_as_summed 0.41 against their closest shipped functions, and ranks_restacked 0.50 against _ranks_restacked. AT THE GAP RULE'S COST RECORDED (84f09b9): 175 of 483; ranks_restacked, the stack's oracle function (7ce9c8f), scores below 0.60 against every shipped function. AT LANDING 3b.1 (6b167c4): 176 of 496; the seven mirrors of G7.3f's day pass were first written at 180 -- weekday_shares 0.69, weekday_runs 0.65, weekday_singles 0.63 and weekday_repair_singles 0.64 against their closest shipped functions -- and rewritten from the step's own sentences into helpers under six statements until none scores. AT THE SPLIT OF A RUN NO MERGE CAN TAKE (00f57b9): 175 of 482; runs_split scores 0.50 against _runs_split, below 0.60. AT FOLLOW-UP A's SECOND REPAIR (54d22f3): 176 of 480; the first mirror of method G5.3b step 5 had lifted derived_end and off_the_stand_ins to 0.61 (178 of 479 at af31c57), and the oracle now reads steps 2a, 4 and 5 in functions of their own, the dispatcher under six statements. AT WHOLE NEGATIVES NEAREST ZERO (47f20ef): 176 of 481; the new case builder scores 0.43 against _lowered_floor_lines, and whole_number_values 0.52 against _whole_enough. AT LANDING 3b.0 (d2dcf40): 176 of 480; group_gives_way scores 0.38 and the case builder 0.46 against their closest shipped functions. AT A TRAILING MINUS KEPT ON FIGURES WITH A POINT (2bc1418): 176 of 480; the two new functions score below 0.60 -- trailing_style_exchange 0.49 against _unconditional_hole_excess, the case builder 0.43 -- and the two it changed stay below it, notation_places 0.52 and whole_number_values 0.51 against their shipped mirrors. AT A CENSUS OF MARKS THAT IS ONLY A POOL (f934876): 176 of 478; the two new functions score below 0.60 -- marks_of_a_lone_pool 0.42 against _width_allocation, the case builder 0.39 -- and candidate_mark's pair stays at 0.67. AT THE REPAIR OF ITS TWO DIVERGENCES (37f583f): 176 of 476; pad_held first scored 0.61 against the unrelated _envelope_admits_every_count and was split below six statements. AT ITS SKEPTIC PASS (e014ebd): 176 of 474, both new case builders below 0.60. AT THE REPAIR OF THE ORACLE'S DERIVED END (d51054c): 176 of 472; derived_end falls below 0.60 and spelled_end scores 0.70 against the unrelated _wide_number. RE-MEASURED AT THE CLOSE OF STAGE 3'S REVIEW: 176 of 465 oracle functions of six statements or more score at or above 0.60, so the bound is met with NO headroom again and 7 more functions are scored. The withheld-tail reading (plan P4-D349) added two functions to the oracle and the FIRST writing of them drifted the count to 178 -- `withheld_step` at 0.93 and a next-representable helper at 0.96 against their closest shipped ones -- and both were rewritten FROM method G5.3b step 4 rather than from the shipped code until neither scores at all: the step is one loop over three grids and the format's own neighbour is taken through the oracle's existing `next_representable` with the sign put back around it. 176 of 458 oracle functions of six statements or more score >= 0.60 against their closest shipped function, on the merged tree of stage 3's five landings: the bound is met with NO headroom, and the driver names every scoring pair. Both tail landings wrote mirrors into the oracle and every function either wrote stands below 0.60 against its closest shipped one, no already-scored pair rose, and every vectors file rebuilds byte for byte through the guard runner. THE MEASURE IS NOT G14.2's 13 of 53: the skeptic's script was not kept, and kpi_oracle_similarity.py re-states the measure over ALL the oracle's functions. WHAT THE SCORE IS NOT: it is difflib over syntax-node kinds with names ignored, so a rewrite that changes a function's SHAPE and not its checks moves it without buying independence. Independence is witnessed instead by tests/test_oracle_rule_witnesses.py, one clause at a time against oracle and shipped function, with 109 registered oracle mutants each turning it red (plan P4-D299) -- and 'each clause' is QUALIFIED (round-2 ledger pass, item 6): a clause is witnessed only where a case parts its two roads, and the whole refusal and the end refusal are unwitnessed by construction. Every earlier reading of this number is in CHANGELOG.md under the landing that moved it.",
    "value_at": {
     "commit": "2f03adc",
     "date": "2026-09-28",
@@ -6322,6 +6322,145 @@
     "measured_by": "tools/measurements/kpi_run.py --only K-S3-30 --print-values",
     "value": {
      "pinned_nodes_failing": 0
+    }
+   }
+  },
+  {
+   "id": "K-S3-31",
+   "phase_stage": "Stage 3b landing 3b.1 (plan P4-D355)",
+   "category": "STATS",
+   "headline": true,
+   "name": "Dates keep their weekday: weekend share and weekday come back",
+   "status": "GREEN",
+   "rule": "over the six date columns of tests/test_stage3b_gate.py's battery -- two years of admissions, billing dates heaped on the 1st and 15th, birth dates over seventy years, a weekly Monday clinic, a 28-day cycle and a monthly visit -- at 1,000 and 10,000 rows, a floor of eleven and seeds 0 to 4: every column publishes its weekday census, no twin or real table misses a checkable obligation, and no scoped clause fails: BOUND, the twin's weekend share and weekday distribution within (tail cells + cells the census leaves unresolved) / parsed of the real column's; CAP, that bound at most 0.10 at 1,000 rows and 0.02 at 10,000 where the census resolves the statistic; SHAPE, the twin's gap at most a quarter of the real column's distance from flat wherever that distance is three times its sampling scale. `censuses` and `cases` may not shrink; the pinned node holds the 1,000-row battery at seeds 0 and 4 (fast tier)",
+   "rule_kind": "at_most",
+   "expected": {
+    "over_bound": 0,
+    "over_cap": 0,
+    "shape": 0,
+    "missed": 0,
+    "censuses": 12,
+    "cases": 120,
+    "pinned_nodes_failing": 0
+   },
+   "key_kinds": {
+    "censuses": "at_least",
+    "cases": "at_least",
+    "pinned_nodes_failing": "exact"
+   },
+   "tier": "SLOW",
+   "source": "driver",
+   "nodes": [
+    "tests/test_stage3b_gate.py::test_the_battery_twins_meet_their_census"
+   ],
+   "test": null,
+   "driver": "tools/measurements/kpi_weekday_census.py --kpi",
+   "pin_strength": "WEAKER",
+   "measured_on": "the gate's battery, six date columns at 1,000 and 10,000 rows, floor 11, seeds 0 to 4, through the real producer, generator and checker",
+   "evidence": "Before, no column published a weekday census and twin weekdays were flat: on the golden demonstration the 217 cells between the tails fell 19, 34, 29, 49, 32, 20 and 34 on Monday to Sunday against the real 30, 27, 33, 36, 30, 26 and 35, and seasonal and admissions columns at 3,000 rows reached a per-day variance ratio of 0.421 to 0.565 (tests/test_date_spread.py). After, all twelve censuses publish and every twin meets its own.",
+   "nodes_min_collected": 3,
+   "value_at": {
+    "commit": "6b167c4",
+    "date": "2026-09-27",
+    "measured_by": "tools/measurements/kpi_run.py --slow --only K-S3-31 --print-values",
+    "value": {
+     "over_bound": 0,
+     "over_cap": 0,
+     "shape": 0,
+     "missed": 0,
+     "censuses": 12,
+     "cases": 120,
+     "pinned_nodes_failing": 0
+    }
+   }
+  },
+  {
+   "id": "K-S3-32",
+   "phase_stage": "Stage 3b landing 3b.1 (plan P4-D355)",
+   "category": "PRIVACY",
+   "headline": false,
+   "name": "No calendar count below the floor: every census certified",
+   "status": "GREEN",
+   "rule": "the pinned nodes of tests/test_stage3b_gate.py pass: every census of the 1,000-row battery passes the independent verifier witness by witness and day by day; over 400 tiny bodies and 200 larger ones the brute force finds no published census confining a set of days below the line, no witness that is not a table of the facts and no certified class no table fills; each rule's seeded witness publishes what the rule derives (seven, among them `[]` for ties, few dates and a count of different days that is not the real one); a declared missing day is a hole no witness stands on, and so is a day the censuses of written forms leave empty -- dates all past the ninth written `m/d/yyyy` and `d/m/yyyy`, two years of October to December written either way, and dates all in May are withheld, their census asked blind to the holes has witnesses on them the verifier finds and the loader refuses, while a heavy column past the ninth publishes its seven counts and passes the verifier with a stretch of holes between two knot days, and one autumn written `d/m/yyyy` has no hole and publishes -- and WC7 counts no hole among a group's dates; a placeholder day the block reads as missing is a hole too -- no witness stands on it, the verifier finds the witnesses asked blind to it, and a census it leaves few dates is withheld and refused on load -- while a placeholder day kept as a value is none; a date written two ways publishes no census and its loader refuses one, and one written with a trailing blank that no census of written forms shows publishes none; the reader's fewest days take every unparsed cell away; a workbook storing dates two ways publishes none; a validate run never enters the certificate; and a MISSED census line prints no group count below the line",
+   "rule_kind": "exact",
+   "expected": {
+    "pinned_nodes_failing": 0
+   },
+   "tier": "FAST",
+   "source": "pytest",
+   "nodes": [
+    "tests/test_stage3b_gate.py::test_the_battery_keeps_its_weekday_census",
+    "tests/test_stage3b_gate.py::test_the_certificate_survives_the_brute_force",
+    "tests/test_stage3b_gate.py::test_each_rule_publishes_what_it_derives",
+    "tests/test_stage3b_gate.py::test_a_declared_missing_day_is_a_hole_no_witness_stands_on",
+    "tests/test_stage3b_gate.py::test_a_date_written_two_ways_publishes_no_census_and_its_loader_refuses_one",
+    "tests/test_stage3b_gate.py::test_a_workbook_storing_dates_two_ways_publishes_no_census",
+    "tests/test_stage3b_gate.py::test_validating_a_file_never_enters_the_certificate",
+    "tests/test_stage3b_gate.py::test_a_day_the_form_censuses_leave_empty_is_a_hole",
+    "tests/test_stage3b_gate.py::test_a_column_with_form_holes_publishes_where_every_open_day_can_hold_the_line",
+    "tests/test_stage3b_gate.py::test_a_day_first_column_with_no_hole_between_its_boundaries_publishes",
+    "tests/test_stage3b_gate.py::test_a_group_left_few_dates_by_its_holes_is_withheld",
+    "tests/test_stage3b_gate.py::test_a_placeholder_day_read_as_missing_is_a_hole_no_witness_stands_on",
+    "tests/test_stage3b_gate.py::test_a_placeholder_day_the_block_keeps_is_no_hole",
+    "tests/test_stage3b_gate.py::test_a_placeholder_day_between_the_boundaries_is_a_hole_the_loader_holds",
+    "tests/test_stage3b_gate.py::test_the_reader_leaves_every_unparsed_cell_out_of_its_fewest_days",
+    "tests/test_stage3b_gate.py::test_a_day_written_with_a_trailing_blank_is_two_spellings",
+    "tests/test_stage3b_gate.py::test_a_missed_weekday_group_below_the_line_prints_no_count"
+   ],
+   "test": null,
+   "driver": null,
+   "pin_strength": "EXACT",
+   "measured_on": "tests/test_stage3b_gate.py: the 1,000-row battery, 600 brute-force bodies, seven seeded witnesses, the review's seven and the second review's seven",
+   "evidence": "Each checker imports nothing of the calendar code (tests/calendar_certificate_verify.py, tests/calendar_certificate_brute.py). b994990 treated only declared missing days as holes, so it published 104 visits past the ninth (`{first-field-unpadded}`) and 149 dates of three Mays (`either`) with every open day pinned between 1 and the line less one for a reader holding the form censuses -- 41 of 41 and 71 of 71 -- while the verifier passed every witness. Withdrawing any rule the gate's mutation record lists turns a pinned node red. 128a30b left the second-field half and the day-first reading unwitnessed: withdrawing the second-field half published 104 visits past the ninth written `d/m/yyyy` and two years of October to December written `m/d/yyyy` with every open day pinned, 41 of 41 and 51 of 51, and every witness on a column whose body ran from December 1899 stood on its placeholder day.",
+   "nodes_min_collected": 29,
+   "value_at": {
+    "commit": "bedf8eb",
+    "date": "2026-09-28",
+    "measured_by": "tools/measurements/kpi_run.py --only K-S3-32 --print-values",
+    "value": {
+     "pinned_nodes_failing": 0
+    }
+   }
+  },
+  {
+   "id": "K-S3-33",
+   "phase_stage": "Stage 3b landing 3b.1 (plan P4-D355)",
+   "category": "SPEED",
+   "headline": false,
+   "name": "The weekday certificate's cost stays bounded",
+   "status": "GREEN",
+   "rule": "over the 1,000-row battery's six date columns at a floor of eleven, the network solves the full-fill certificate spends on one census: at most 1,000 where no residue is checked and at most 20,000 where it is, over at least six censuses; and on one admissions column at 2,500 to 40,000 rows (its driver), counted machine-free, the certificate's network solves in describe and the day pass's rank moves and day searches in generate each grow less than 2.5 times over every doubling",
+   "rule_kind": "at_most",
+   "expected": {
+    "solves_plain": 1000,
+    "solves_residue": 20000,
+    "censuses": 6,
+    "describe_growth": 2.5,
+    "generate_growth": 2.5
+   },
+   "key_kinds": {
+    "censuses": "at_least",
+    "describe_growth": "ratio_below",
+    "generate_growth": "ratio_below"
+   },
+   "tier": "FAST",
+   "source": "pytest",
+   "nodes": [],
+   "test": "tests/test_kpi_ledger.py::test_k_s3_33",
+   "driver": "tools/measurements/kpi_weekday_census.py --kpi",
+   "pin_strength": "NONE",
+   "measured_on": "calendar_certificate.Verdict.solves on the gate's battery; calls of calendar_certificate._solve in describe and of the day pass's move and search functions in generate on tests/test_stage3b_gate.py's admissions column, seconds printed beside them and never judged",
+   "evidence": "The design's prototype certified the monthly visit in 7,814 solves and 42 s; the product's primal-dual solver with bucketed distances takes 3,907, and a census without residue at most 65 (one solve a class). First written in seconds, the ladder read 2.52 on generate under load at the 5,000-to-10,000 step where the counts read 1.77; describe's solves stay near 130 to 148 (two certificates a description) at every size.",
+   "value_at": {
+    "commit": "6b167c4",
+    "date": "2026-09-27",
+    "measured_by": "tools/measurements/kpi_run.py --slow --only K-S3-33 --print-values",
+    "value": {
+     "solves_plain": 65,
+     "solves_residue": 3907,
+     "censuses": 6,
+     "describe_growth": 1.062,
+     "generate_growth": 1.994
     }
    }
   },

@@ -40,6 +40,14 @@ question for the stage that sets the disclosure floor. The generator
 says so in the twin's own report, and the last test here is what holds
 it to saying it.
 
+THE WEEKDAY CAME BACK WHERE IT IS PUBLISHED (landing 3b.1, plan
+P4-D355). A column whose counts per day of the week clear the floor now
+publishes them, and the twin meets them over the values between its two
+tail boundaries. On the seasonal and admissions columns at 3,000 rows
+that moved the ratio from 0.421-0.565 to 0.702-0.792 over seeds 4, 7
+and 11; what is left short is how the density moves WITHIN a gap, which
+nothing publishes.
+
 AND A GAP'S TWO PINNED DAYS STOPPED TAKING A WHOLE DAY EACH (plan
 P4-D130; review of 158c811, item 2). Every gap drew over `[low, high]`
 inclusive, so a rung's day took a day's mass from the gap below it, a
@@ -90,12 +98,13 @@ HIGHEST = 1.6
 
 # What a column whose shape is carried by the weekday is held to at
 # 3,000 rows, where the evenly-filled gap cannot reach the band. The
-# measured range there is 0.421 to 0.565 over seeds 4, 7 and 11 (0.524 to
-# 0.617 while each rung's day carried a spike, plan P4-D130); the
-# stratified construction before it reached 0.057 to 0.066 on the same
-# columns, so this floor is still six times what that defect allowed and
-# is a bound on the RESIDUAL, not a weakened form of the band above.
-RESIDUAL_LOWEST = 0.38
+# measured range there is 0.702 to 0.792 over seeds 4, 7 and 11 since the
+# weekday census (landing 3b.1, plan P4-D355); 0.421 to 0.565 before it,
+# and 0.057 to 0.066 under the stratified construction before that. The
+# floor sits below the lowest of the three seeds and above everything the
+# twin reached without the census, so withdrawing the census turns it
+# red; it is a bound on the RESIDUAL, not a weakened form of the band.
+RESIDUAL_LOWEST = 0.65
 
 # WHAT A COLUMN THE ELEVEN RUNGS DO CARRY REACHES AT 3,000 ROWS, which
 # is what a shaped column there is SHORT of: uniform arrivals measured
@@ -427,11 +436,13 @@ def test_a_large_column_shaped_by_the_weekday_is_short_and_says_so(
     """THE NAMED LIMIT, pinned so that closing it is a visible decision.
 
     At 3,000 rows most of a seasonal or admissions column's day-to-day
-    variance is structure the description does not publish: which weekday
-    a value falls on, and how the density moves WITHIN a gap between two
-    published rungs. The gap is filled evenly, so the twin cannot reach
-    it -- measured 0.421 to 0.565 against the 0.911 to 1.115 a column
-    with no calendar shape reaches at the same size (plan P4-D130).
+    variance was structure the description did not publish: which
+    weekday a value falls on, and how the density moves WITHIN a gap
+    between two published rungs. The weekday census carries the first
+    (landing 3b.1, plan P4-D355) and lifted the ratio from 0.421-0.565 to
+    0.702-0.792; the second is still filled evenly, against the 0.911 to
+    1.115 a column with no calendar shape reaches at the same size (plan
+    P4-D130).
 
     This is asserted as a floor and a ceiling rather than left silent,
     because the number is what a later landing will move: the withdrawn
@@ -447,10 +458,10 @@ def test_a_large_column_shaped_by_the_weekday_is_short_and_says_so(
     )
     assert ratio < CARRIED_LOWEST, (
         f"{shape} at 3000 rows now reaches {ratio:.3f}, which is inside the "
-        f"band this test records it as SHORT of. If a landing carried the "
-        f"weekday census or a finer ladder, this test and the report "
-        f"sentence it guards are what should be rewritten -- and the plan's "
-        f"residual closed -- rather than this assertion deleted."
+        f"band this test records it as SHORT of. The weekday census is "
+        f"carried already (landing 3b.1); if a landing carried a finer "
+        f"ladder, this test and the report sentence it guards are what "
+        f"should be rewritten rather than this assertion deleted."
     )
 
 
@@ -501,17 +512,40 @@ def test_an_outbreak_column_is_short_of_the_band_and_says_so(
 def test_the_report_names_what_a_column_of_dates_does_not_reproduce(
     tmp_path: pathlib.Path,
 ) -> None:
-    """The enumerated remark, and all four things it must name.
+    """The enumerated remark, and every thing it must name.
 
     Part A repairs the day-to-day variance and leaves four kinds of
     structure behind. A report that said only that the distinctness
     counts were inside their window would be true and would tell a
     reader nothing about any of them, so the generator says it plainly
     and this holds it to saying it.
+
+    WHERE THE WEEKDAY CENSUS IS PUBLISHED (landing 3b.1, plan P4-D355)
+    the first of the four is met, so the sentence says that it is and
+    names the other three. At 400 rows this column publishes its census;
+    at 100 its weekend holds fewer than the floor of eleven and it
+    publishes none, and the sentence names all four.
     """
+    for rows, published in ((400, True), (100, False)):
+        spread = _spread_paragraph(tmp_path / f"named-{rows}", rows)
+        clauses = [
+            "the time of day",
+            "far more values than their neighbours",
+            "a few scheduled dates",
+        ]
+        if published:
+            clauses += ["the published counts per day of the week are met"]
+            assert "which days of the week" not in spread, spread
+        else:
+            clauses += ["which days of the week"]
+        for clause in clauses:
+            assert clause in spread, f"{rows} rows: the report no longer names: {clause}"
+
+
+def _spread_paragraph(folder: pathlib.Path, rows: int) -> str:
+    """The twin report's sentence on how one admissions column is spread."""
     draw = random.Random(11)
-    days = sorted(_admissions(draw, 400))
-    folder = tmp_path / "named"
+    days = sorted(_admissions(draw, rows))
     folder.mkdir()
     table = folder / "real.csv"
     table.write_text(
@@ -535,14 +569,11 @@ def test_the_report_names_what_a_column_of_dates_does_not_reproduce(
         == 0
     )
     report = (folder / "real-twin-report.txt").read_text(encoding="utf-8")
-    assert "how these dates are spread across the calendar" in report
-    for clause in (
-        "which days of the week",
-        "the time of day",
-        "far more values than their neighbours",
-        "a few scheduled dates",
-    ):
-        assert clause in report, f"the report no longer names: {clause}"
+    subject = "how these dates are spread across the calendar"
+    assert subject in report
+    start = report.index(subject)
+    end = report.find("\n  The twin writes", start)
+    return report[start:] if end < 0 else report[start:end]
 
 
 def test_a_twin_written_one_day_early_is_missed_at_every_rung(

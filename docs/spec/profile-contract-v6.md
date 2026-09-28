@@ -1891,10 +1891,12 @@ contract:
    widening it to arbitrary strings would be exactly the hole that lets
    a source-derived value into a sentence and be rebuilt successfully.
 
-**The census.** The table holds 67 forms and 99 argument positions.
-Of those, 72 are whole numbers, 5 are package words, 17 are nested
+**The census.** The table holds 78 forms and 106 argument positions.
+Of those, 79 are whole numbers, 5 are package words, 17 are nested
 forms, and 5 are bound affix strings. No position is a string of any
-other kind.
+other kind. The weekday census (landing 3b.1, plan P4-D355) added the
+eleven forms NF68 to NF78 and seven whole-number positions, each the
+census line.
 
 **Thirteen of the seventeen nested positions carry a whole number
 instead, and which of the two they carry is decided by the floor.**
@@ -1933,8 +1935,8 @@ shipped. `tests/test_p4d334_sentence_arguments.py` re-measures the
 class over a committed battery, so it is a number a reader can run.
 
 So every argument position of every form is bound to WHAT IT IS, and
-the table below is closed over all 99 of them exactly as the form table
-is closed over the 67 forms. A position nobody bound is a number a
+the table below is closed over all 106 of them exactly as the form table
+is closed over the 78 forms. A position nobody bound is a number a
 sentence may print that no rule governs, and a producer that adds one
 is a producer this contract does not describe. The bindings are these:
 
@@ -2104,6 +2106,13 @@ and why the sentence that cannot be withdrawn now has NF61 to say.
 | `population_under_a_thousand` | 1 | population |
 | `population_under_a_thousand` | 2 | package word |
 | `said_fewer_than_the_line` | 1 | setting (census line) |
+| `weekday_census_counts_each_day` | 1 | setting (census line) |
+| `weekday_census_counts_the_weekdays_together` | 1 | setting (census line) |
+| `weekday_census_counts_the_weekend_together` | 1 | setting (census line) |
+| `weekday_census_shows_no_count_below_the_line` | 1 | setting (census line) |
+| `weekday_census_withheld_could_be_narrowed` | 1 | setting (census line) |
+| `weekday_census_withheld_no_grouping` | 1 | setting (census line) |
+| `weekday_census_withheld_too_few_repeats` | 1 | setting (census line) |
 | `said_read_as_dates` | 1 | floored against `n_present` |
 | `said_read_as_dates` | 2 | package word |
 | `said_written_as_numbers` | 1 | sum `n_numeric` + `n_out_of_range` + `n_contradictory` |
@@ -3482,7 +3491,7 @@ names:
 
 | id | statement |
 |---|---|
-| NG14 | the form is one of the 67 in section 4.5.1 |
+| NG14 | the form is one of the 78 in section 4.5.1 |
 | NG15 | the argument count equals that form's arity |
 | NG16 | every argument is of one of C6-119's four classes |
 | NG17 | re-rendering the form with those arguments writes the leaf's text character for character |
@@ -3682,6 +3691,71 @@ says of a side that its own two distances would give its values back
 where that is not why they are withheld. They route nothing.
 
 ---
+
+
+**NF68. `weekday_census_counts_each_day` — the census of a column of
+dates counted for each day of the week** — arity 1 (landing 3b.1, plan
+P4-D355). Argument 1: the census line. A remark, carried by a block
+publishing entry 1 of the weekday menu (WC4).
+
+> which days of the week this column's values fall on is counted for each day, over the values between its two tail boundaries; every count is nought or at least «1» rows
+
+**NF69. `weekday_census_counts_the_weekend_together` — the weekend
+counted together** — arity 1. Argument 1: the census line. A remark,
+carried by a block publishing entry 2.
+
+> which days of the week this column's values fall on is counted over the values between its two tail boundaries: Monday to Friday one by one, Saturday and Sunday together, because one of those two holds fewer than «1» rows
+
+**NF70. `weekday_census_counts_the_weekdays_together` — the weekdays
+counted together** — arity 1. Argument 1: the census line. A remark,
+carried by a block publishing entry 3.
+
+> which days of the week this column's values fall on is counted over the values between its two tail boundaries: Monday to Friday together, because one of them holds fewer than «1» rows, and Saturday and Sunday together
+
+**NF71. `weekday_census_shows_no_count_below_the_line` — what a weekday
+census does not show** — arity 1. Argument 1: the census line. A remark,
+carried beside NF68, NF69 or NF70 by every block publishing a census:
+it states the full-fill certificate (WC8) in the words a reader acts on.
+
+> these counts show no count below «1» rows of any set of dates that the rest of this description does not already show
+
+**NF72 to NF78 — why a column of dates publishes no weekday census**,
+one publication note per reason (landing 3b.1). NF72
+`weekday_census_withheld_no_grouping`, NF73
+`weekday_census_withheld_too_few_repeats` and NF74
+`weekday_census_withheld_could_be_narrowed` each take one argument, the
+census line; NF75 `weekday_census_withheld_a_few_dates`, NF76
+`weekday_census_withheld_two_spellings`, NF77
+`weekday_census_withheld_two_storages` and NF78
+`weekday_census_withheld_no_tails` take none.
+
+**NF72. `weekday_census_withheld_no_grouping`** — arity 1.
+
+> the days of the week this column's values fall on are not counted: neither each day alone, nor the weekend together, nor the weekdays and the weekend each together holds at least «1» rows in every group
+
+**NF73. `weekday_census_withheld_too_few_repeats`** — arity 1.
+
+> the days of the week this column's values fall on are not counted: its dates repeat too little for any date to hold «1» rows
+
+**NF74. `weekday_census_withheld_could_be_narrowed`** — arity 1.
+
+> the days of the week this column's values fall on are not counted: counted by day of the week, some of its dates could be narrowed to fewer than «1» rows
+
+**NF75. `weekday_census_withheld_a_few_dates`** — arity 0.
+
+> the days of the week this column's values fall on are not counted: a count would be the count of a few single dates
+
+**NF76. `weekday_census_withheld_two_spellings`** — arity 0.
+
+> the days of the week this column's values fall on are not counted: a date may be written in more than one way here, so different values do not count different days
+
+**NF77. `weekday_census_withheld_two_storages`** — arity 0.
+
+> the days of the week this column's values fall on are not counted: the workbook stores this column's dates in more than one way
+
+**NF78. `weekday_census_withheld_no_tails`** — arity 0.
+
+> the days of the week this column's values fall on are not counted: the column has no tails, so it has no values between them to count
 
 ## 5. The column block
 
@@ -5167,9 +5241,10 @@ claimed it — rule 6 of the order in section 5.2, with the line
 as a compared share. Where no single member clears the line, the joint
 ISO reading below may still claim the column.
 
-**Added keys: nineteen** (stage 3: `earliest`, `latest`,
+**Added keys: twenty** (stage 3: `earliest`, `latest`,
 `earliest_utc_offset` and `latest_utc_offset` are gone, and `tail_unit`,
-`low_tail` and `high_tail` stand in their place).
+`low_tail` and `high_tail` stand in their place; landing 3b.1 adds
+`weekday_census`).
 
 | key | JSON type | permitted values | meaning |
 |---|---|---|---|
@@ -5192,6 +5267,7 @@ ISO reading below may still claim the column.
 | `month_name_styles` | object | one of the THIRTY-SIX joint style words → count | how many parsed cells wrote a month NAME in each joint style — case, length, field mark, and whether a comma followed the day — a name of May counted under the length its column's other cells of that case, mark and comma wrote, or as `either` where none did (P4-D133, P4-D139), under the disclosure rule of P4-D131; `{}` outside the two textual members, and where the census is withheld whole (landing 2b.6) |
 | `quarter_marker_case` | object | `upper` or `lower` → count | how many parsed cells wrote a quarter's marker as `Q` and how many as `q`, under the disclosure rule of P4-D131; `{}` outside `year-quarter`, and where the census is withheld whole (landing 2b.6) |
 | `zulu_case` | object | `upper` or `lower` → count | how many parsed cells wrote a zulu offset marker as `Z` and how many as `z`, under the disclosure rule of P4-D131; `{}` unless `utc_offsets` NAMES `Z`, and where the census is withheld whole (landing 2b.6) |
+| `weekday_census` | array | groups `{first, last, count}`, weekdays 0 (Monday) to 6 (Sunday) | how many cells between the two tail boundaries, both included, fall on each group of weekdays -- one of the three groupings WC4 names, each count nought or at least the census line; `[]` where no census is published, and always on a column that is not whole dates read on the local clock (landing 3b.1, WC1 to WC8) |
 
 **Eight closed vocabularies stand in that table** — `format` with
 TWENTY members, `resolution` with FOUR, `time_precision` with SIX,
@@ -6095,6 +6171,49 @@ same reason: this census counts a
 subset of the cells carrying ONE offset, so publishing it beside a
 POOLED `Z` would hand back in one field the count another field of the
 same block promises to withhold.
+
+**The weekday census, WC1 to WC8 (landing 3b.1, plan P4-D355).** A
+column of whole dates read on the local clock, not in the joint member,
+with both tails, may publish `weekday_census`: groups of weekdays
+covering Monday (0) to Sunday (6) in order, each once (WC1), each
+counting nought or at least the census line `max(2, small_cell_floor)`
+(WC2), adding up to the BODY -- the `P - low_tail.rows -
+high_tail.rows` cells between the two boundaries, both included -- and
+`[]` on every other column (WC3). The grouping is chosen by the line
+alone, from a MENU of three (WC4): each weekday on its own, consecutive
+empty weekdays one group of nought, where every weekday counts nought
+or at least the line; else Monday to Friday on their own and Saturday
+with Sunday, where those pass -- so Saturday or Sunday holds one to the
+line less one; else Monday to Friday together and Saturday with Sunday
+-- so one of Monday to Friday does. A reader reads exactly that and
+nothing more from the grouping. No group is left one to the line less
+one once the cells its boundary and rung days hold for certain are
+taken out (WC5). The census stands only where the censuses of written
+forms give every date one text, so `n_distinct` counts days (WC6); where
+no non-zero group can be the count of a few single dates -- the least
+of its calendar days, its count and the reader's most different days,
+each less its knot days, below four (WC7); and where the FULL-FILL
+CERTIFICATE holds (WC8): every day of a counted weekday can hold the
+line in some table meeting the whole description and what the grouping
+tells, or lies in a stretch the rank facts already hold below the line,
+where the census allows every arrangement stage 3's facts allow. A
+FORM HOLE is a day no cell can be written on under the forms WC6 lets
+stand: where the width census's one word shows one field alone
+(`first-field-*`, `second-field-*`), every day whose other field is
+below ten, and where the month-name census's one word has the length
+`either`, every day outside May. A PLACEHOLDER HOLE is a placeholder
+day `sentinel_verdicts` publishes as `read_as_missing` between the two
+boundaries: every cell written on it is counted absent. WC7 counts no
+form or placeholder hole among a group's calendar days and WC8 puts no
+cell on one. The producer asks WC8 on the body's real count of
+different days and with the days the table's declared missing values
+name left out as well; the loader asks
+it on the reader's bounds read from `n_distinct` and the tails, a
+relaxation, and refuses a census that fails it. What a census withholds
+is said in one sentence per reason, and a published one carries two
+remarks: how its days are grouped, and that it shows no count below the
+line of any set of dates the rest of the description does not already
+show.
 
 **A consequence, stated rather than left to be discovered.** The
 canonical `datetime` form carries seconds and no fractional part, so
@@ -7385,6 +7504,7 @@ rather than a list of its own, so the two cannot part again.
 | `month_name_styles` | | | | | | | ● | | | | | | | | |
 | `quarter_marker_case` | | | | | | | ● | | | | | | | | |
 | `zulu_case` | | | | | | | ● | | | | | | | | |
+| `weekday_census` | | | | | | | ● | | | | | | | | |
 | `time_precision` | | | | | | | ● | | | | | | | | |
 | `subsecond_digits` | | | | | | | ● | | | | | | | | |
 | `datetimes_read_at` | | | | | | | ● | | | | | | | | |
@@ -7470,14 +7590,20 @@ rather than a list of its own, so the two cannot part again.
 | `numbers` | | | | | | | | | | | | | | | ● |
 | `labels` | | | | | | | | | | | | | | | ● |
 
-**Ninety-nine rows, one hundred and eighty-eight marked cells**,
+**One hundred rows, one hundred and eighty-nine marked cells**,
 distributed `empty` 0, `numeric_unrepresentable` 9, `constant` 5,
-`binary` 5, `categorical` 6, `long_tail_labels` 5, `datetime` 19,
+`binary` 5, `categorical` 6, `long_tail_labels` 5, `datetime` 20,
 `time_of_day` 5, `count` 32, `continuous` 31, `affixed_number` 41,
 `identifier` 8, `free_text` 6, `joined_numbers` 8,
 `numbers_with_labels` 8. The counts are stated so that a reader can
 check a column of the matrix against the role's own section without
 counting twice.
+
+**RESTATED AT THE WEEKDAY CENSUS** (stage 3b landing 3b.1, plan
+P4-D355): `weekday_census` is one row and one mark on `datetime`, so
+the rows go from ninety-nine to a hundred, the marked cells from a
+hundred and eighty-eight to a hundred and eighty-nine, and `datetime`
+from 19 to 20.
 
 **RESTATED AT THE TAIL LANDING** (stage 3, plan P4-D328). Four rows
 left the matrix -- `earliest`, `latest`, `earliest_utc_offset` and
@@ -11637,6 +11763,14 @@ it answers to.
 | D18 | every key of `month_name_styles` is one of the thirty-six joint style words, a name of May with the length `either` (P4-D133), and on `textual-day-first-date` one of the eighteen `no-comma` words; the census is held to the disclosure rule over `n_present - n_unparsed`, a count at least the floor and never below two and a remainder of nought or at least that many; the census is `{}` unless `format` is one of the two textual members; and its values sum to at most `n_present - n_unparsed` (landing 2b.6) | yes |
 | D19 | every key of `quarter_marker_case` is `upper` or `lower`; the census is held to D18's disclosure rule; the census is `{}` unless `format` is `year-quarter`; and its values sum to at most `n_present - n_unparsed` (landing 2b.6) | yes |
 | D20 | every key of `zulu_case` is `upper` or `lower`; the census is held to D18's disclosure rule over `utc_offsets["Z"]`; the census is `{}` unless `utc_offsets` names `Z`; and its values sum to at most `utc_offsets["Z"]` (landing 2b.6) | yes |
+| WC1 | the groups of `weekday_census` cover weekdays 0 to 6 in order, each exactly once | yes |
+| WC2 | every group counts nought or at least `max(2, small_cell_floor)` | yes |
+| WC3 | a non-empty census stands only on a column of whole dates read on the local clock, not in the joint member, with both tails, and adds up to `P - low_tail.rows - high_tail.rows` | yes |
+| WC4 | the grouping is one of the menu's three: each weekday alone; Monday to Friday alone with `[Sat-Sun]` non-zero; `[Mon-Fri]` non-zero with `[Sat-Sun]` | yes |
+| WC5 | no non-zero group less the cells its knot days hold for certain -- `le - lt` of each boundary and rung day in it, at least one -- counts one to the line less one | yes |
+| WC6 | the five censuses of written forms give every date one text: each names at most one form holding every parsed cell, and a member that can show a width or a month name names its one form | yes |
+| WC7 | every non-zero group can hold at least four dates besides its knot days: the least of its calendar days between the boundaries that are not form holes, its count and the reader's most different days less the other knot-free non-zero groups, each less its knot days | yes |
+| WC8 | the full-fill certificate holds on the reader's bounds and the form holes: every class of a counted weekday is certified by a witness table, or is residue whose every stage-3 configuration the census allows (method of plan P4-D355) | yes |
 
 A date or clock block publishes no mean and no spread, so the cost rule
 of plan P4-D353 does not reach it: a date or clock tail that would be
@@ -11796,7 +11930,7 @@ month-first parsed.
 | NG11 | on `remark_affixed_numbers_may_be_codes`: argument 3 equals the named block's `n_affixed` |
 | NG12 | argument 1 is character-for-character that block's `affix_prefix` and argument 2 its `affix_suffix`, AT THOSE POSITIONS, not merely as members of the pair |
 | NG13 | on `remark_a_label_is_a_built_in_stand_in`: argument 1 is 1, 2 or 3 |
-| NG14 | for every form: one of the 67 the note grammar enumerates |
+| NG14 | for every form: one of the 78 the note grammar enumerates |
 | NG15 | the argument count equals that form's arity |
 | NG16 | every argument is of one of the four argument classes |
 | NG17 | re-rendering the form with those arguments writes the leaf's text character for character |
@@ -12183,6 +12317,8 @@ form, the stand-in is written in it (7.9.1).
 | `n_unparsed` | EXACT-OBSERVABLE as counted neutral stand-ins, explicitly OUTSIDE the parsed-value representation obligation |
 | `n_distinct`, `n_distinct_folded` | APPROXIMATED — the envelope is G12.5, and it is stated there that it need not contain the published count; held to the published count itself where that count lies inside the envelope on a column method G7.3's count pass applies to (`contract.datetime_counts_reachable`), which the pass reaches (plan P4-D192) |
 | `date_field_widths`, `month_name_styles`, `quarter_marker_case`, `zulu_case` | EXACT-OBSERVABLE IN THEIR KEY SET for the first two and EXACT for the last two (landing 2b.6, plan P4-D61, the reversal of owner decision 5; plan P4-D134). Every convention the description names must come back on at least a floor's worth of the file's own cells — on the two marker censuses at exactly its published count, since every cell they count over shows the marker — and no convention it does not name beyond the cells the named counts leave over. On the first two each convention is counted on the file's own cells as the producer folds them, and a one-field width or an `either` name is owed on a floor's worth or on every cell of that kind the file holds, whichever is fewer (plan P4-D139). On the first two the COUNTS are not compared, and that is the rule rather than a weaker reading of it: whether a cell can show a convention depends on its own value — a day above the ninth shows no field width, a month of May shows no name length — so how many of a file's cells could carry one is a fact about that file's values, and a twin whose interior instants fall a day either side of the real ones carries a different number of them. C6-25d to C6-25g state each census and D17 to D20 hold them |
+
+| `weekday_census` | EXACT-OBSERVABLE (landing 3b.1, plan P4-D355): the file's own cells between the two PUBLISHED boundaries, both included, hold every group's published count exactly. A MISSED line keeps its verdict and prints a group the file holds one to the line less one of as fewer than the line (plan P4-D347). The validator counts the file's body against the published groups and never produces a census of its own |
 
 `datetime_separators`, `all_at_midnight` and `n_at_midnight` have no
 row here: all three were added after the freeze and are EXACT-OBSERVABLE
@@ -12983,7 +13119,7 @@ this document, and the battery the plan requires turns red on it.
 | nothing-class blocks (`numeric_unrepresentable`, `identifier`, `free_text`) | lengths, word statistics, digit and code-alphabet counts, the whole-number test, the repetition multiset, on `numeric_unrepresentable` the whole-number and sign counts, on `free_text` the census of WRITTEN FORMS its cells wore (`shape_forms`), and on `identifier` the census of LAYOUTS (`layout_forms`, 7.12) and, by the owner's ruling of 2026-09-17, the literal PREFIX every cell of the column or of one named layout opens with (`layout_prefixes`, 7.12a, row 22) | no value, no spelling, no fragment of one but the prefix of row 22 — the form census included, whose every key is built from `%`, `@` and thirteen named marks -- characters no cell that has a form may contain, so a key can carry no letter and no figure of any cell; the multiplicity map publishes SIZES of unnamed groups under no floor, the form census under the floor with a `(withheld)` pool |
 | `empty` columns nobody declared | the absent SPELLINGS their cells wore and the two absence counts, exactly as any column that is not nothing-publishing | floor-governed |
 | `settings` | the rules the run applied, the floor's own value, how many values each declaration named, and which of THIS package's published words were among them | carries no cell, no column and no count of the table; a person's own spelling never enters |
-| `source.header_evidence`, `publication_notes[].note`, `detection_evidence`, `remarks` | sentences of the 67 closed forms: 99 argument positions, of which 72 are whole numbers, 5 package words, 17 nested forms and 5 bound affix strings | the whole numbers are counts the block beside them already publishes, EXCEPT the positions priced at rows 16 and 18 |
+| `source.header_evidence`, `publication_notes[].note`, `detection_evidence`, `remarks` | sentences of the 78 closed forms: 106 argument positions, of which 79 are whole numbers, 5 package words, 17 nested forms and 5 bound affix strings | the whole numbers are counts the block beside them already publishes, EXCEPT the positions priced at rows 16 and 18 |
 | `relationships` | nothing: eight nulls | — |
 
 ### 12.3 The rows, each priced
@@ -14037,10 +14173,10 @@ width at least ONE (`1`, `2`, `10`), a cell written as a whole number
 writing at least one figure (C6-29c). `(withheld)` is again the only
 non-numeric key permitted.
 
-### 14.8 The note grammar — 67 forms
+### 14.8 The note grammar — 78 forms
 
 Defined in 4.5.1, which is the authority on every rendering and every
-argument. 99 argument positions: 72 whole numbers, 5 package words, 17
+argument. 106 argument positions: 79 whole numbers, 5 package words, 17
 nested forms, 5 bound affix strings.
 
 > **THE CENSUS IS RECOMPUTED FROM THE CODE, NOT TAKEN FROM EITHER
@@ -14125,6 +14261,17 @@ nested forms, 5 bound affix strings.
 | NG65 | `remark_high_tail_withheld_unsettled` | 0 |
 | NG66 | `remark_low_tail_withheld_unholdable` | 0 |
 | NG67 | `remark_high_tail_withheld_unholdable` | 0 |
+| NG68 | `weekday_census_counts_each_day` | 1 |
+| NG69 | `weekday_census_counts_the_weekend_together` | 1 |
+| NG70 | `weekday_census_counts_the_weekdays_together` | 1 |
+| NG71 | `weekday_census_shows_no_count_below_the_line` | 1 |
+| NG72 | `weekday_census_withheld_no_grouping` | 1 |
+| NG73 | `weekday_census_withheld_too_few_repeats` | 1 |
+| NG74 | `weekday_census_withheld_could_be_narrowed` | 1 |
+| NG75 | `weekday_census_withheld_a_few_dates` | 0 |
+| NG76 | `weekday_census_withheld_two_spellings` | 0 |
+| NG77 | `weekday_census_withheld_two_storages` | 0 |
+| NG78 | `weekday_census_withheld_no_tails` | 0 |
 
 **The package-word vocabulary — 26**, the whole of the second argument
 class (4.5.1): the twenty `format` members of 14.6, plus `day-first`

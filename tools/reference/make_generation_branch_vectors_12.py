@@ -34,13 +34,15 @@ permitted in tools/ (the D6 restriction applies to src/ only).  Nothing
 about the oracle's own rule changes: it still imports neither synthtwin,
 nor numpy, nor pandas, and a test asserts that of every entry point.
 
-**WHERE THE NEXT CASE GOES** (plan P4-D295): a fifteenth entry point,
+**WHERE THE NEXT CASE GOES** (plan P4-D295): the fifteenth entry point,
 `make_generation_branch_vectors_13.py` writing
 tests/reference/generation-branch-vectors-13.json, because this, the
 fourteenth, passed plan P4-D295's 200000-byte line at 213398 bytes with
 `trailing_minus_exchange`, as the twelfth and thirteenth had before it,
-and stands at 229836 bytes since landing 3b.0's `every_day_group`, which
-joined it on that landing's own branch while it stood under the line.
+and stands at 230037 bytes with landing 3b.0's `every_day_group`, which
+joined it on that landing's own branch while it stood under the line;
+landing 3b.1's seven weekday cases, frozen here on its own branch, are
+the fifteenth file's since the integration of the two.
 
 Usage:  python3 make_generation_branch_vectors_12.py --seed 0 --out <path>
         (the command line the data-provenance guard uses; the seed is

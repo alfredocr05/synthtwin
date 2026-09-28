@@ -1631,3 +1631,36 @@ def test_k_s3_25(record_property, tmp_path: pathlib.Path) -> None:
         "K-S3-25",
         {"misstated_sides": wrong, "withheld_sides": withheld, "shapes": read},
     )
+
+
+def test_k_s3_33(record_property, tmp_path: pathlib.Path) -> None:
+    """P4-D355: what the weekday census's certificate costs, in network solves.
+
+    Over the six date columns of tests/test_stage3b_gate.py's battery at
+    1,000 rows and a floor of eleven, the solves the full-fill certificate
+    spends on each census it publishes: the most on one certified without
+    residue, the most on one whose residue it had to check, and how many
+    censuses were measured. The slow half, describe and generate on a
+    ladder of rows, is its driver's.
+    """
+    import test_stage3b_gate as gate
+
+    plain = residue = censuses = 0
+    for shape in sorted(gate._BATTERY):
+        columns = gate._BATTERY[shape](1000)
+        described = S.describe(tmp_path / shape, shape, gate._table_text(columns), 11)
+        for name, cells in columns.items():
+            block = described.block(name)
+            if not block["weekday_census"]:
+                continue
+            verdict = gate._certified(block, cells)
+            censuses += 1
+            if verdict.residue:
+                residue = max(residue, verdict.solves)
+            else:
+                plain = max(plain, verdict.solves)
+    _kpi(
+        record_property,
+        "K-S3-33",
+        {"solves_plain": plain, "solves_residue": residue, "censuses": censuses},
+    )

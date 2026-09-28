@@ -1378,6 +1378,17 @@ rather than in ISO:
   not named there and never as a count (plan P4-D134): that description
   holds each census to the disclosure rule of plan P4-D131, so an absent
   key can stand for a handful of cells or for a census withheld whole.
+- `weekday_census` is compared GROUP FOR GROUP (`weekday_census.groups`,
+  landing 3b.1, plan P4-D355): the file's own dates between the two
+  PUBLISHED tail boundaries, both included, less the days its own
+  description reads as holes, are counted per weekday and summed per
+  published group, and the obligation is HELD where every group holds
+  its published count and MISSED otherwise. A group the file holds one
+  to the line less one of is printed as fewer than the line, never as
+  the number, and the verdict stands (plan P4-D347). The file's census
+  is counted here, never PRODUCED: both re-descriptions of the file
+  skip the census producer, so no validate run asks the certificate of
+  WC8. A description publishing `[]` obliges nothing and lists nothing.
 - each of the four is LISTED where the column's member cannot show that
   convention at all: the widths on a member of fixed field width, the
   name styles outside the two textual members, the marker outside

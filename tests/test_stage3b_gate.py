@@ -106,6 +106,96 @@ count; and the pass past the strata withdrawn, its splits taken
 farthest first, or taken from the ranks where the rounds left them
 rather than from the stack, turns all three red, and its splits taken
 with no regard to how many ranks leave turns one red.
+
+LANDING 3b.1 (plan P4-D355) makes the second clause true on DATE
+columns: the weekday census, published only where the full-fill
+certificate holds (`calendar_certificate`). Its clauses are the second
+half of this file, and each of its rules has the mutation record
+below, every mutation run on a copy of this tree with the rule
+withdrawn and nothing else changed:
+
+* the certificate withdrawn (every census the menu offers published)
+  turns red the verifier on all three battery shapes, the brute force,
+  five of the seven seeded witnesses and the declared missing day;
+* compaction withdrawn, the brute force and `w_month_wide_1000_s0`;
+* the real count of different days withdrawn (the reader's bounds on
+  both sides), the verifier on the three shapes, `sessions20_s0`,
+  `w_month_wide_1000_s0` and the declared missing day;
+* the residue check withdrawn, the brute force (unsound censuses);
+* the entry's inference withdrawn from the witness (no short weekday
+  kept), the brute force and `gr_wedthu_6_8_s1`;
+* menu entry 2 withdrawn, `sessions20_s0`; entry 3, `gr_wedthu_6_8_s1`;
+* WC7 withdrawn, `B2_oneweek_1201_s0` and `k7_sessions_s0`;
+* one spelling per day withdrawn, the column written two widths; the
+  holes withdrawn, the declared missing day; the one-storage rule
+  withdrawn, the workbook stored two ways; the validator's
+  re-descriptions producing the census, the validate run;
+* the day pass withdrawn, the battery's twins and the seven frozen
+  `weekday_*` cases of tests/test_generation_reference.py;
+* the loader's check withdrawn, the eight WC mutations of
+  tests/test_contract_loader.py and the copied census the loader
+  refuses;
+* the ties fast path withdrawn changes what two withheld censuses SAY
+  (`walkcase4_s0` and `bizlog_x1_s1` fall to the residue's sentence
+  rather than the repeats', still withheld), and the residue's rank cap
+  withdrawn changes nothing here, as the design measured.
+
+THE REVIEW OF LANDING 3b.1 found the certificate's premise -- every
+published fact unchanged by exchanging two days of one class -- false
+where a census of written forms names a form only some days are written
+in, and three rules with no witness. Its witnesses, each with the
+mutation that turns it red:
+
+* the FORM HOLES (`calendar_rules.form_holes`): 104 visits past the ninth
+  written `m/d/yyyy` and 149 dates of three Mays, whose census a reader
+  holding the holes pins on every open day, are withheld -- red when the
+  holes are withdrawn from the producer (the census publishes), from its
+  certificate alone (its self-check still withholds, but the verdict
+  holds), from the loader or from `breach` (the copied census loads),
+  and from the verifier (it finds no witness on a hole); and each half
+  of the rule -- the OTHER field of a one-field width word, the month of
+  May -- turns its own column red when it is read wrong;
+* a heavy column past the ninth PUBLISHES, a stretch of holes between
+  two of its knot days: red when the verifier keeps holes in its
+  classes, and when the producer's certificate is asked blind to them
+  (its witnesses stand on holes);
+* WC7 counts no hole: red when `few_dates_group`, its caller or `breach`
+  counts them;
+* a MISSED weekday line prints no count below the line: red when the
+  line prints the group's count (plan P4-D347);
+* the reader's fewest days take every unparsed cell away: red when they
+  take one text (the census then falls to `ties` from `narrowed`);
+* a day written with a trailing blank no census shows is two spellings:
+  red when WC6 (b) is withdrawn (the census then PUBLISHES, its count of
+  different values a count of texts and not of days).
+
+THE SECOND REVIEW found half of the form holes unwitnessed and a hole
+the design names that the code did not hold. Its witnesses:
+
+* the SECOND-FIELD and DAY-FIRST halves: the same visits past the ninth
+  written `d/m/yyyy` (`{second-field-unpadded}`, the day the other
+  field) and two years of October to December written `m/d/yyyy`
+  (`{second-field-unpadded}`) and `d/m/yyyy` (`{first-field-unpadded}`),
+  the month the other field, are withheld as the first two are; one
+  autumn written `d/m/yyyy` has no hole and PUBLISHES. Red: a
+  second-field word read as leaving no hole, in the producer (both
+  second-field columns publish) or the verifier; a day-first member read
+  as month-first, in the producer (the day-first column past the ninth
+  falls to `few_dates`, and the autumn is withheld) or the verifier (the
+  three day-first columns);
+* the PLACEHOLDER HOLES (`calendar_rules.placeholder_holes`): a column
+  whose body runs from December 1899 holds 1900-01-01, read as missing,
+  and publishes with no witness on it; the same day kept as a value is
+  no hole; and a five-week column around it, the day read as missing,
+  is withheld `few_dates` and its copied census refused on load (WC7).
+  Red when the rule is withdrawn; when the producer is blind to it (its
+  witnesses stand on the day) or its caller drops the decisions (the
+  five-week column's sentence becomes `narrowed`); when the loader is
+  blind to it or drops the decisions (the copied census loads); when the
+  verifier is (it finds no witness on the day); and when the producer,
+  the loader or the verifier takes a kept day as a hole. The day
+  withdrawn from the producer's self-check alone changes nothing here:
+  the certificate it runs first already asks with it.
 """
 
 from __future__ import annotations
@@ -114,12 +204,28 @@ import datetime
 import math
 import pathlib
 import random
+import re
 
 import pytest
 
+import calendar_certificate_brute as brute_force
+import calendar_certificate_verify as verifier
 import fixtures
 import kpi_shapes
-from synthtwin import contract, generation, profile, reading, rendering, taxonomy, validation
+import workbooks
+from synthtwin import (
+    calendar_certificate,
+    calendar_rules,
+    contract,
+    errors,
+    generation,
+    profile,
+    quality,
+    reading,
+    rendering,
+    taxonomy,
+    validation,
+)
 
 SEEDS = (0, 1, 2, 3, 4)
 
@@ -1114,3 +1220,1268 @@ def test_the_count_is_met_where_no_placement_inside_the_gaps_reaches_it(
         assert 0 < len(off) <= fewest - block["n_distinct"], (
             f"seed {seed}: {len(off)} ranks outside their gaps, the fewest days inside them {fewest}"
         )
+
+
+# ======================================================================
+# LANDING 3b.1 (plan P4-D355): THE WEEKDAY CENSUS OF A COLUMN OF DATES.
+#
+# "Weekend share and weekday come back; no calendar count below the
+# floor." A column of whole dates publishes which days of the week its
+# body falls on, in groups the floor alone chooses from a fixed menu, and
+# only where the full-fill certificate holds (calendar_certificate). The
+# clauses below are the landing's: the battery keeps every census and its
+# twins meet them with nothing missed and the weekday statistics inside
+# their scoped bounds; the certificate is checked by two checkers that
+# import nothing of the calendar code -- the verifier, witness by witness
+# and day by day, and the brute force over every table of tiny bodies;
+# each rule has a seeded witness publishing what the rule derives; and a
+# validate run never enters the certificate.
+# ======================================================================
+
+_LINE = 11
+_BATTERY_DAYS = [datetime.date(2023, 1, 1) + datetime.timedelta(days=step) for step in range(731)]
+_SEASON = [1.0 + 0.25 * math.cos(2 * math.pi * (day.month - 1) / 12) for day in _BATTERY_DAYS]
+
+
+def _battery_admissions(rows: int) -> "dict[str, list[str]]":
+    """Admission days, Monday heaviest and the weekend lightest, a winter season."""
+    draw = random.Random(rows)
+    weights = [_WEEKDAY[day.weekday()] * _SEASON[step] for step, day in enumerate(_BATTERY_DAYS)]
+    return {"admission_date": [draw.choices(_BATTERY_DAYS, weights=weights, k=1)[0].isoformat() for _ in range(rows)]}
+
+
+_BIRTH_YEARS = list(range(1935, 2006))
+_BIRTH_WEIGHTS = [math.exp(-((year - 1958) / 16.0) ** 2) + 0.15 for year in _BIRTH_YEARS]
+
+
+def _battery_heaps(rows: int) -> "dict[str, list[str]]":
+    """Billing on the 1st and 15th for four rows in ten; births heaped on 1 January and firsts."""
+    draw = random.Random(3000 + rows)
+    billing: "list[str]" = []
+    births: "list[str]" = []
+    for _row in range(rows):
+        if draw.random() < 0.40:
+            day = draw.choice(_BATTERY_DAYS)
+            bill = datetime.date(day.year, day.month, draw.choice((1, 15)))
+        else:
+            bill = draw.choice(_BATTERY_DAYS)
+        year = draw.choices(_BIRTH_YEARS, weights=_BIRTH_WEIGHTS, k=1)[0]
+        pick = draw.random()
+        if pick < 0.06:
+            born = datetime.date(year, 1, 1)
+        elif pick < 0.15:
+            born = datetime.date(year, draw.randint(1, 12), 1)
+        else:
+            first = datetime.date(year, 1, 1)
+            born = first + datetime.timedelta(days=draw.randrange((datetime.date(year + 1, 1, 1) - first).days))
+        billing += [bill.isoformat()]
+        births += [born.isoformat()]
+    return {"billing_date": billing, "birth_date": births}
+
+
+_MONDAYS = [day for day in _BATTERY_DAYS if day.weekday() == 0]
+_CYCLE = [
+    datetime.date(2023, 1, 3) + datetime.timedelta(days=28 * step)
+    for step in range(40)
+    if datetime.date(2023, 1, 3) + datetime.timedelta(days=28 * step) <= datetime.date(2024, 12, 31)
+]
+_TENTHS = [datetime.date(year, month, 10) for year in (2023, 2024) for month in range(1, 13)]
+
+
+def _battery_schedules(rows: int) -> "dict[str, list[str]]":
+    """A weekly clinic on Mondays, a 28-day cycle and a monthly visit, one in ten moved."""
+    draw = random.Random(5000 + rows)
+    weekly: "list[str]" = []
+    cycle: "list[str]" = []
+    monthly: "list[str]" = []
+
+    def moved(day: datetime.date) -> datetime.date:
+        return day + datetime.timedelta(days=draw.choice((-3, -2, -1, 1, 2, 3)))
+
+    for _row in range(rows):
+        week = draw.choice(_MONDAYS)
+        if draw.random() >= 0.90:
+            week = week + datetime.timedelta(days=draw.choice((1, 2, 3)))
+        turn = draw.choice(_CYCLE)
+        if draw.random() >= 0.90:
+            turn = moved(turn)
+        tenth = draw.choice(_TENTHS)
+        if draw.random() >= 0.90:
+            tenth = moved(tenth)
+        weekly += [week.isoformat()]
+        cycle += [turn.isoformat()]
+        monthly += [tenth.isoformat()]
+    return {"weekly_clinic": weekly, "cycle_28": cycle, "monthly_visit": monthly}
+
+
+_BATTERY = {
+    "admissions": _battery_admissions,
+    "heaps": _battery_heaps,
+    "schedules": _battery_schedules,
+}
+
+
+def _table_text(columns: "dict[str, list[str]]") -> str:
+    names = list(columns)
+    rows = len(columns[names[0]])
+    lines = [",".join(names)]
+    for row in range(rows):
+        lines += [",".join(columns[name][row] for name in names)]
+    return "\n".join(lines) + "\n"
+
+
+def _days_of(cells: "list[str]") -> "list[int]":
+    return sorted(verifier.day_number(cell) for cell in cells if cell)
+
+
+def _certified(block: dict, cells: "list[str]", floor: int = 11, holes: "tuple[str, ...]" = ()) -> "calendar_certificate.Verdict":
+    """The certificate the producer asked for this block, asked again."""
+    decided = taxonomy.weekday_decision(
+        block,
+        tuple(_days_of(cells)),
+        block["n_distinct"],
+        taxonomy.Settings(small_cell_floor=floor, declared_missing_values=holes),
+    )
+    assert decided.verdict is not None
+    return decided.verdict
+
+
+def _verified(block: dict, cells: "list[str]", holes: "tuple[str, ...]" = ()) -> "list[str]":
+    """What the independent verifier says of a published census, and nothing else."""
+    verdict = _certified(block, cells, holes=holes)
+    days = _days_of([cell for cell in cells if cell not in holes])
+    body = days[block["low_tail"]["rows"]: len(days) - block["high_tail"]["rows"]]
+    witnesses = [(witness.klass, witness.day, witness.table) for witness in verdict.witnesses]
+    return verifier.census_problems(
+        block,
+        _LINE,
+        witnesses,
+        real_days=len(set(body)),
+        holes=tuple(verifier.day_number(hole) for hole in holes),
+    )
+
+
+def _weekday_statistics(cells: "list[str]") -> "tuple[float, list[float]]":
+    """The weekend share and the share of each weekday, over every cell."""
+    counts = [0] * 7
+    for cell in cells:
+        counts[datetime.date.fromisoformat(cell[:10]).weekday()] += 1
+    total = sum(counts)
+    return (counts[5] + counts[6]) / total, [count / total for count in counts]
+
+
+def _statistics_failures(block: dict, real: "list[str]", twin: "list[str]") -> "list[str]":
+    """The scoped statistics clauses of the gate (BOUND, CAP, SHAPE), for one twin.
+
+    BOUND holds everywhere: the twin's weekend share and weekday
+    distribution lie within `(tail cells + cells the census leaves
+    unresolved) / parsed` of the real column's. CAP and SHAPE hold where
+    the census resolves the statistic, on tables of 1,000 rows or more:
+    the bound itself at most 0.10 below 10,000 rows and 0.02 from them,
+    and the twin's gap at most a quarter of the real column's distance
+    from flat wherever that distance is three times its sampling scale.
+    """
+    parsed = block["n_present"] - block["n_unparsed"]
+    groups = block["weekday_census"]
+    tails = block["low_tail"]["rows"] + block["high_tail"]["rows"]
+    mixed = sum(group["count"] for group in groups if group["first"] <= 4 and group["last"] >= 5)
+    joined = sum(group["count"] for group in groups if group["last"] > group["first"])
+    real_weekend, real_share = _weekday_statistics(real)
+    twin_weekend, twin_share = _weekday_statistics(twin)
+    found: "list[str]" = []
+    for statistic in ("weekend", "weekday"):
+        unresolved = mixed if statistic == "weekend" else joined
+        bound = (tails + unresolved) / parsed
+        if statistic == "weekend":
+            gap = abs(twin_weekend - real_weekend)
+            flat = abs(real_weekend - 2 / 7)
+            scale = (real_weekend * (1 - real_weekend) / len(real)) ** 0.5
+        else:
+            gap = 0.5 * sum(abs(a - b) for a, b in zip(twin_share, real_share))
+            flat = 0.5 * sum(abs(a - 1 / 7) for a in real_share)
+            scale = 0.5 * sum((q * (1 - q) / len(real)) ** 0.5 for q in real_share)
+        if gap > bound + 1e-12:
+            found += [f"BOUND {statistic}: {gap:.4f} > {bound:.4f}"]
+        if unresolved == 0 and parsed >= 1000:
+            cap = 0.02 if parsed >= 10000 else 0.10
+            if bound > cap:
+                found += [f"CAP {statistic}: {bound:.4f} > {cap}"]
+            if flat > 3 * scale and gap > 0.25 * flat:
+                found += [f"SHAPE {statistic}: {gap:.4f} > a quarter of {flat:.4f}"]
+    return found
+
+
+@pytest.mark.parametrize("shape", sorted(_BATTERY))
+def test_the_battery_keeps_its_weekday_census(tmp_path: pathlib.Path, shape: str) -> None:
+    """Every date column of the battery publishes its census, and the verifier passes it.
+
+    At 1,000 rows and a floor of eleven each of the six columns -- two
+    years of admissions, billing dates heaped on the 1st and 15th, birth
+    dates over seventy years, a weekly Monday clinic, a 28-day cycle and a
+    monthly visit -- publishes the seven weekday counts, the clinic's
+    empty Friday to Sunday as one group of nought. The 28-day cycle and
+    the monthly visit certify with RESIDUE, stretches the rank facts hold
+    below the line beside a boundary. Every witness is re-checked day by
+    day by the verifier, which imports nothing of the calendar code, and
+    every class it cannot see covered it re-derives as capped.
+    """
+    columns = _BATTERY[shape](1000)
+    described = kpi_shapes.describe(tmp_path, shape, _table_text(columns), 11)
+    for name, cells in columns.items():
+        block = described.block(name)
+        groups = [(group["first"], group["last"], group["count"]) for group in block["weekday_census"]]
+        assert calendar_rules.entry_of(tuple(groups)) == calendar_rules.ENTRY_SEVEN, (name, groups)
+        assert _verified(block, cells) == [], name
+        if name in ("cycle_28", "monthly_visit"):
+            assert _certified(block, cells).residue, f"{name} certifies with no residue"
+
+
+@pytest.mark.parametrize("shape", sorted(_BATTERY))
+def test_the_battery_twins_meet_their_census(tmp_path: pathlib.Path, shape: str) -> None:
+    """Clause (d) and the statistics clauses, at seeds 0 and 4 of the 1,000-row battery.
+
+    Every twin validates with nothing missed -- its weekday census HELD
+    among the rest -- and its weekend share and weekday distribution lie
+    inside the scoped bounds (`_statistics_failures`). The real table
+    validates with nothing missed too. PRICE: a census counting days
+    together is priced, not asserted -- no battery column counts any.
+    """
+    columns = _BATTERY[shape](1000)
+    text = _table_text(columns)
+    described = kpi_shapes.describe(tmp_path, shape, text, 11)
+    assert kpi_shapes.missed(kpi_shapes.measure(described, text, "real.csv")) == []
+    for seed in (0, 4):
+        written = kpi_shapes.twin_text(described, seed)
+        outcome = kpi_shapes.measure(described, written, f"twin-{seed}.csv")
+        assert kpi_shapes.missed(outcome) == [], (shape, seed)
+        held = [check for check in outcome.checks if check.fact == "datetime.weekday_census"]
+        assert len(held) == len(columns) and all(check.verdict == validation.HELD for check in held)
+        rows = [line.split(",") for line in written.splitlines()[1:] if line]
+        header = written.splitlines()[0].split(",")
+        for name, cells in columns.items():
+            twin = [row[header.index(name)] for row in rows]
+            failures = _statistics_failures(described.block(name), cells, twin)
+            assert failures == [], (shape, name, seed, failures)
+
+
+def brute_force_battery(trials: int = 400, larger: int = 200) -> "dict[str, int]":
+    """The certificate against the brute force: every published census judged.
+
+    `trials` tiny bodies at seed 0 and `larger` larger ones at seed 1, the
+    census the menu offers each, asked of `calendar_certificate.certify`
+    at the brute force's line of three with the count of different days
+    exact. WC7, which is the heavy-date ruling's and not the floor's, is
+    not asked: a body of seven days is all few dates.
+    """
+    totals = {
+        "censuses": 0, "published": 0, "unsound": 0, "not_a_table": 0,
+        "unfillable": 0, "vertices": 0, "full": 0,
+    }
+    for seed, count, larger_bodies in ((0, trials, False), (1, larger, True)):
+        draw = random.Random(seed)
+        for _trial in range(count):
+            instance = brute_force.instance(draw, larger_bodies)
+            if instance is None:
+                continue
+            totals["censuses"] += 1
+            facts = calendar_certificate.facts_of(
+                instance["body"], 0, 0, instance["low"], instance["high"],
+                tuple(instance["rungs"]), instance["different"], instance["different"],
+                brute_force.LINE, tuple(instance["groups"]), -1, (),
+            )
+            verdict = calendar_certificate.certify(facts)
+            judged = brute_force.judge(
+                instance, verdict.holds, [(witness.day, witness.table) for witness in verdict.witnesses]
+            )
+            if not verdict.holds:
+                continue
+            totals["published"] += 1
+            if verdict.mode:
+                totals[verdict.mode] += 1
+            for key in ("unsound", "not_a_table", "unfillable"):
+                totals[key] += judged[key]
+    return totals
+
+
+def test_the_certificate_survives_the_brute_force() -> None:
+    """No published census confines any set of days below the line.
+
+    Over 400 tiny bodies and 200 larger ones: every census the
+    certificate publishes has no census-caused pin, every witness is a
+    table of the facts, and every certified class has a table filling
+    its day. Both of the residue's paths publish -- the vertex slices and
+    the full enumeration -- so neither is exercised vacuously.
+    """
+    totals = brute_force_battery()
+    assert totals["unsound"] == 0 and totals["not_a_table"] == 0 and totals["unfillable"] == 0, totals
+    assert totals["published"] > 0 and totals["vertices"] > 0 and totals["full"] > 0, totals
+
+
+# THE EXPECTED PUBLICATIONS: a seeded witness per rule, each asserting
+# what that rule derives (plan P4-D355).
+
+
+def _walk_case(seed: int) -> "list[str]":
+    """1,001 different dates: dense runs and two sparse stretches, no day repeated."""
+    draw = random.Random(8100 + seed)
+    state = [datetime.date(2019, 1, 7)]
+    cells: "list[datetime.date]" = []
+
+    def dense(count: int) -> "list[datetime.date]":
+        found = [state[0] + datetime.timedelta(days=step) for step in range(count)]
+        state[0] = state[0] + datetime.timedelta(days=count)
+        return found
+
+    def sparse(count: int, span: int, saturdays: int, ranks: "list[int]") -> "list[datetime.date]":
+        days = [state[0] + datetime.timedelta(days=step) for step in range(span)]
+        while days[-1].weekday() == 5:
+            days = days[:-1]
+        state[0] = days[-1] + datetime.timedelta(days=1)
+        while True:
+            on = [day for day in days[:-1] if day.weekday() == 5]
+            off = [day for day in days[:-1] if day.weekday() != 5]
+            chosen = sorted(draw.sample(on, saturdays) + draw.sample(off, count - 1 - saturdays)) + [days[-1]]
+            if all(chosen[rank].weekday() != 5 for rank in ranks + [count - 1]):
+                return chosen
+
+    cells += dense(11) + dense(40)
+    cells += sparse(200, 600, 3, [49])
+    cells += dense(250)
+    cells += sparse(400, 1200, 4, [249])
+    cells += dense(100)
+    texts = [day.isoformat() for day in cells]
+    draw.shuffle(texts)
+    return texts
+
+
+def _thin_midweek(seed: int) -> "list[str]":
+    """Mondays and Tuesdays heavy, Wednesday on 6 days and Thursday on 8, nothing Friday to Sunday."""
+    draw = random.Random(seed)
+    start = datetime.date(2023, 1, 2)
+    end = start + datetime.timedelta(days=7 * 104)
+
+    def on(first: datetime.date, last: datetime.date, weekday: int) -> "list[datetime.date]":
+        day = first
+        while day.weekday() != weekday:
+            day += datetime.timedelta(days=1)
+        found: "list[datetime.date]" = []
+        while day <= last:
+            found += [day]
+            day += datetime.timedelta(days=7)
+        return found
+
+    cells = [start] * 11
+    low = on(start + datetime.timedelta(days=1), end, 2)[0]
+    high = on(start, end - datetime.timedelta(days=3), 3)[-1]
+    beyond = high + datetime.timedelta(days=1)
+    while beyond.weekday() in (2, 3):
+        beyond += datetime.timedelta(days=1)
+    cells += [beyond] * 11
+    for weekday in (0, 1):
+        for day in on(low + datetime.timedelta(days=1), high - datetime.timedelta(days=1), weekday):
+            cells += [day] * draw.randint(0, 4)
+    wednesdays = on(low + datetime.timedelta(days=1), high - datetime.timedelta(days=1), 2)
+    thursdays = on(low + datetime.timedelta(days=1), high - datetime.timedelta(days=1), 3)
+    cells += [low] + draw.sample(wednesdays, 5)
+    cells += [high] + draw.sample(thursdays, 7)
+    draw.shuffle(cells)
+    return [day.isoformat() for day in cells]
+
+
+def _twenty_sessions(seed: int) -> "list[str]":
+    """Twenty session dates on weekdays over five months, 30 to 80 rows each, a thin spread beside."""
+    draw = random.Random(1000 + seed)
+    start = datetime.date(2024, 1, 8)
+    weekdays = [start + datetime.timedelta(days=step) for step in range(150)
+                if (start + datetime.timedelta(days=step)).weekday() < 5]
+    cells: "list[str]" = []
+    for day in sorted(draw.sample(weekdays, 20)):
+        cells += [day.isoformat()] * (30 + draw.randrange(51))
+    spread = len(cells) // 19
+    for _cell in range(spread):
+        cells += [(start + datetime.timedelta(days=draw.randrange(150))).isoformat()]
+    draw.shuffle(cells)
+    return cells
+
+
+def _seven_sessions(seed: int) -> "list[str]":
+    """Seven session dates, one per weekday, each tail on one date."""
+    draw = random.Random(seed)
+    start = datetime.date(2024, 3, 4)
+    cells: "list[str]" = []
+    for offset in (0, 1, 16, 17, 32, 33, 34):
+        cells += [(start + datetime.timedelta(days=offset)).isoformat()] * (140 + draw.randrange(25))
+    cells += [(start - datetime.timedelta(days=10)).isoformat()] * 12
+    cells += [(start + datetime.timedelta(days=44)).isoformat()] * 12
+    draw.shuffle(cells)
+    return cells
+
+
+def _one_week(rows: int, seed: int) -> "list[str]":
+    """A body of one week, its span widened by two far boundary cells."""
+    draw = random.Random(seed)
+    base = datetime.date(2024, 1, 1)
+    days = [base + datetime.timedelta(days=step) for step in range(11)] + [base + datetime.timedelta(days=12)]
+    week = base + datetime.timedelta(days=21)
+    for _row in range(rows - 24):
+        days += [week + datetime.timedelta(days=draw.choices(range(7), [30, 25, 20, 15, 6, 2, 2])[0])]
+    high = base + datetime.timedelta(days=45)
+    days += [high] + [high + datetime.timedelta(days=2 + step) for step in range(11)]
+    draw.shuffle(days)
+    return [day.isoformat() for day in days]
+
+
+def _business_days(extra: int, seed: int) -> "list[str]":
+    """One row per business day over about four and a half years, and `extra` more."""
+    draw = random.Random(100 + seed)
+    day = datetime.date(2020, 1, 6)
+    days: "list[datetime.date]" = []
+    while len(days) < 1180:
+        if day.weekday() < 5:
+            days += [day]
+        day += datetime.timedelta(days=1)
+    cells = [each.isoformat() for each in days]
+    cells += [each.isoformat() for each in draw.sample(days[20:-20], extra)]
+    draw.shuffle(cells)
+    return cells
+
+
+def _one_month_wide(rows: int, seed: int) -> "list[str]":
+    """The bulk inside March 2024, twelve cells each side about three months away."""
+    draw = random.Random(500 + seed)
+    march = [datetime.date(2024, 3, day) for day in range(1, 32)]
+    weights = [3.0 if day.weekday() < 5 else 1.0 for day in march]
+    weights[29] = 0.12
+    low = datetime.date(2024, 3, 1) - datetime.timedelta(days=85)
+    high = datetime.date(2024, 3, 31) + datetime.timedelta(days=85)
+    days = [low - datetime.timedelta(days=1 + step) for step in range(11)] + [low]
+    days += [draw.choices(march, weights)[0] for _row in range(rows - 24)]
+    days += [high] + [high + datetime.timedelta(days=1 + step) for step in range(11)]
+    draw.shuffle(days)
+    return [day.isoformat() for day in days]
+
+
+_HOLE_DAY = "2024-01-01"
+
+
+def _with_a_declared_day(seed: int) -> "list[str]":
+    """Dates over two years, weekday-shaped, six in a hundred written 2024-01-01."""
+    draw = random.Random(700 + seed)
+    cells: "list[str]" = []
+    for _row in range(1000):
+        if draw.random() < 0.06:
+            cells += [_HOLE_DAY]
+            continue
+        while True:
+            day = datetime.date(2023, 1, 1) + datetime.timedelta(days=draw.randrange(731))
+            if day.weekday() < 5 or draw.random() < 0.3:
+                break
+        cells += [day.isoformat()]
+    return cells
+
+
+# name -> (column name, cells, the groups expected or [] with the reason word)
+_EXPECTED = {
+    "walkcase4_s0": ("seen_on", lambda: _walk_case(0), [], calendar_rules.REASON_TIES),
+    "gr_wedthu_6_8_s1": ("visit_date", lambda: _thin_midweek(1), [(0, 4, 453), (5, 6, 0)], ""),
+    "sessions20_s0": (
+        "session_date", lambda: _twenty_sessions(0),
+        [(0, 0, 352), (1, 1, 201), (2, 2, 261), (3, 3, 114), (4, 4, 143), (5, 6, 16)], "",
+    ),
+    "k7_sessions_s0": ("session_date", lambda: _seven_sessions(0), [], calendar_rules.REASON_FEW_DATES),
+    "B2_oneweek_1201_s0": ("visit_date", lambda: _one_week(1201, 0), [], calendar_rules.REASON_FEW_DATES),
+    "bizlog_x1_s1": ("log_date", lambda: _business_days(1, 1), [], calendar_rules.REASON_TIES),
+    "w_month_wide_1000_s0": ("visit_date", lambda: _one_month_wide(1000, 0), [], calendar_rules.REASON_NARROWED),
+}
+
+
+@pytest.mark.parametrize("name", sorted(_EXPECTED))
+def test_each_rule_publishes_what_it_derives(tmp_path: pathlib.Path, name: str) -> None:
+    """The seeded witnesses of the rules, each publishing what its rule derives.
+
+    * `walkcase4_s0`: 1,001 different dates, so no date can hold eleven
+      rows (the reader's repeated cells are none): withheld, `ties`.
+    * `gr_wedthu_6_8_s1`: Wednesday on six days and Thursday on eight,
+      so neither the seven counts nor the weekend grouping holds the line
+      in every group: entry 3, `[Mon-Fri] [Sat-Sun]`, certified with a
+      weekday kept short in every witness.
+    * `sessions20_s0`: every weekday alone reaches the line, the weekend
+      together does too: entry 2.
+    * `k7_sessions_s0` and `B2_oneweek_1201_s0`: each group would be the
+      count of a few single dates (WC7): withheld, `few_dates`.
+    * `bizlog_x1_s1`: one row a business day and one more, so no day can
+      hold eleven: withheld, `ties`.
+    * `w_month_wide_1000_s0`: certified only on a count of different
+      days that is not the real one, so the census keeps a day below the
+      line where stage 3 does not: withheld, `narrowed`.
+
+    Every published census here passes the verifier; every withheld one
+    says why in the one sentence its reason carries.
+    """
+    column, build, expected, reason = _EXPECTED[name]
+    cells = build()
+    described = kpi_shapes.describe(tmp_path, name, f"{column}\n" + "".join(f"{cell}\n" for cell in cells), 11)
+    block = described.block(column)
+    groups = [(group["first"], group["last"], group["count"]) for group in block["weekday_census"]]
+    assert groups == expected, (name, groups)
+    decided = taxonomy.weekday_decision(
+        block, tuple(_days_of(cells)), block["n_distinct"], taxonomy.Settings(small_cell_floor=11)
+    )
+    assert decided.reason == reason, (name, decided.reason)
+    if expected:
+        assert _verified(block, cells) == [], name
+        return
+    said = [entry["note"] for entry in described.document["publication_notes"] if entry["column"] == column]
+    assert any("are not counted" in sentence for sentence in said), said
+
+
+def test_a_declared_missing_day_is_a_hole_no_witness_stands_on(tmp_path: pathlib.Path) -> None:
+    """A day the table declares missing holds no body cell in any table, and no witness uses it.
+
+    Six rows in a hundred are written 2024-01-01 and that spelling is
+    declared missing, so a cell written so is absent, never a body cell:
+    the census publishes the seven counts, every witness keeps the day
+    empty (the verifier asked with the hole), and the twins meet the census
+    with nothing missed at three seeds -- the day pass never moves a rank
+    onto the hole.
+    """
+    cells = _with_a_declared_day(0)
+    table = fixtures.write(tmp_path, "declared.csv", "seen_on\n" + "".join(f"{cell}\n" for cell in cells))
+    settings = taxonomy.Settings(small_cell_floor=11, declared_missing_values=(_HOLE_DAY,))
+    document = profile.build_document(reading.read_table(str(table), small_cell_floor=11), settings, [], [], [])
+    written = fixtures.write_profile(tmp_path, "declared-profile.json", document)
+    described = kpi_shapes.Described(tmp_path, table, document, contract.load_profile(str(written)))
+    block = document["columns"][0]
+    assert calendar_rules.entry_of(
+        tuple((group["first"], group["last"], group["count"]) for group in block["weekday_census"])
+    ) == calendar_rules.ENTRY_SEVEN
+    present = [cell for cell in cells if cell != _HOLE_DAY]
+    verdict = _certified(block, present, holes=(_HOLE_DAY,))
+    hole = verifier.day_number(_HOLE_DAY)
+    assert all(dict(witness.table).get(hole, 0) == 0 for witness in verdict.witnesses)
+    assert _verified(block, present, holes=(_HOLE_DAY,)) == []
+    for seed in (0, 1, 2):
+        text = kpi_shapes.twin_text(described, seed)
+        assert kpi_shapes.missed(kpi_shapes.measure(described, text, f"twin-{seed}.csv")) == [], seed
+
+
+# THE FORM HOLES (review of landing 3b.1, finding 1): days the censuses of
+# written forms tell a reader no cell holds.
+
+
+def _past_the_ninth() -> "list[datetime.date]":
+    """Two visits on every day past the ninth, 2025-01-21 to 2025-03-20; eleven-day tails beside.
+
+    Written `m/d/yyyy`, no cell falls on the first to the ninth of a
+    month, so the width census names one form, `first-field-unpadded`,
+    and the tails hold 2025-01-10 to 01-20 and 2025-03-21 to 03-31, one
+    cell a day.
+    """
+    one = datetime.timedelta(days=1)
+    days = [datetime.date(2025, 1, 10) + one * step for step in range(11)]
+    days += [datetime.date(2025, 3, 21) + one * step for step in range(11)]
+    day = datetime.date(2025, 1, 21)
+    while day <= datetime.date(2025, 3, 20):
+        if day.day >= 10:
+            days += [day, day]
+        day += one
+    random.Random(11).shuffle(days)
+    return days
+
+
+def _mays_only() -> "list[datetime.date]":
+    """Every day of May 2023 to May 2025 between the tails, one or two cells; eleven-day tails.
+
+    Written `17 May 2023`, every cell is in May, so the month-name
+    census names one form of length `either`; the tails hold 2023-05-01
+    to 05-11 and 2025-05-21 to 05-31.
+    """
+    one = datetime.timedelta(days=1)
+    days = [datetime.date(2023, 5, 1) + one * step for step in range(11)]
+    days += [datetime.date(2025, 5, 21) + one * step for step in range(11)]
+    body = [
+        datetime.date(year, 5, 1) + one * step
+        for year in (2023, 2024, 2025)
+        for step in range(31)
+        if datetime.date(2023, 5, 12) <= datetime.date(year, 5, 1) + one * step <= datetime.date(2025, 5, 20)
+    ]
+    for place, day in enumerate(body):
+        days += [day] * (1 if place % 5 == 0 else 2)
+    random.Random(5).shuffle(days)
+    return days
+
+
+def _october_to_december() -> "list[datetime.date]":
+    """Two visits on every day of October to December between the tails, over two years; eleven-day tails.
+
+    The tails hold 2024-11-15 to 11-25 and 2025-10-21 to 10-31, one cell
+    a day, and the body 2024-12-01 to 2025-10-20, so every day of
+    January to September between the boundaries holds none.
+    """
+    one = datetime.timedelta(days=1)
+    days = [datetime.date(2024, 11, 15) + one * step for step in range(11)]
+    days += [datetime.date(2025, 10, 21) + one * step for step in range(11)]
+    day = datetime.date(2024, 12, 1)
+    while day <= datetime.date(2025, 10, 20):
+        if day.month >= 10:
+            days += [day, day]
+        day += one
+    random.Random(7).shuffle(days)
+    return days
+
+
+def _month_first(day: datetime.date) -> str:
+    return f"{day.month}/{day.day}/{day.year}"
+
+
+def _day_first(day: datetime.date) -> str:
+    return f"{day.day}/{day.month}/{day.year}"
+
+
+# name -> (the days, how each is written, the one form the censuses of
+# written forms name, which days a reader holds empty). A one-field width
+# word leaves empty every day whose OTHER field is below ten: the day of
+# a month-first member, the month of a day-first one.
+_FORM_HOLES = {
+    "past_the_ninth": (
+        _past_the_ninth, _month_first, "first-field-unpadded", lambda day: day.day < 10,
+    ),
+    "past_the_ninth_day_first": (
+        _past_the_ninth, _day_first, "second-field-unpadded", lambda day: day.day < 10,
+    ),
+    "october_to_december_month_first": (
+        _october_to_december, _month_first, "second-field-unpadded", lambda day: day.month < 10,
+    ),
+    "october_to_december_day_first": (
+        _october_to_december, _day_first, "first-field-unpadded", lambda day: day.month < 10,
+    ),
+    "mays_only": (
+        _mays_only, lambda day: f"{day.day} May {day.year}", "title-either-space-no-comma",
+        lambda day: day.month != 5,
+    ),
+}
+
+
+@pytest.mark.parametrize("name", sorted(_FORM_HOLES))
+def test_a_day_the_form_censuses_leave_empty_is_a_hole(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, name: str
+) -> None:
+    """A census that would pin every day a reader holds, once the form censuses' holes are known, is withheld.
+
+    `past_the_ninth` publishes `date_field_widths {first-field-unpadded}`
+    and `mays_only` `month_name_styles {title-either-space-no-comma}`: a
+    reader holds the first to the ninth of every month, and every day
+    outside May, empty. The same days past the ninth written `d/m/yyyy`
+    publish `{second-field-unpadded}`, whose other field is the day; two
+    years of October to December publish `{second-field-unpadded}`
+    written `m/d/yyyy` and `{first-field-unpadded}` written `d/m/yyyy`,
+    whose other field is the month either way, so a reader holds January
+    to September empty. THE READER HERE knows those holes (the
+    verifier's own `form_holes`, restated from each table's rule) and
+    nothing of the calendar code: its least count of different days
+    equals the days left between the boundaries, so each of them holds
+    a cell in every table, and under the census the menu offers each
+    day's weekday count less one cell for every other day of its group
+    leaves EVERY day below the line. So:
+
+    * the certificate itself refuses (its verdict does not hold) and the
+      column publishes `[]` with the narrowed sentence;
+    * asked blind to the form holes, the certificate would have
+      published that census, and the verifier finds its witnesses
+      standing on holes;
+    * that census copied onto the description is refused on load (WC8),
+      because the loader reads the holes off the same censuses.
+    """
+    build, written, form, empty = _FORM_HOLES[name]
+    dates = build()
+    described = kpi_shapes.describe(
+        tmp_path, name, "visit\n" + "".join(f"{written(day)}\n" for day in dates), 11
+    )
+    block = described.block("visit")
+    named = block["month_name_styles"] if block["format"].startswith("textual-") else block["date_field_widths"]
+    assert list(named) == [form], (block["format"], named)
+    days = sorted((day - datetime.date(1970, 1, 1)).days for day in dates)
+    body = days[block["low_tail"]["rows"]: len(days) - block["high_tail"]["rows"]]
+    low, high = body[0], body[-1]
+    epoch = datetime.date(1970, 1, 1)
+    holes = verifier.form_holes(block)
+    assert holes == {day for day in range(low, high + 1) if empty(epoch + datetime.timedelta(days=day))}
+    assert holes and not holes & set(body)
+    allowed = [day for day in range(low, high + 1) if day not in holes]
+    fewest = verifier.reader_facts(dict(block, weekday_census=[]), _LINE)["fewest"]
+    assert len(allowed) == fewest, "every day a reader leaves open holds a cell in every table"
+    offered, _entry = calendar_rules.menu_groups(calendar_rules.body_bins(body), _LINE)
+    pinned = 0
+    for first, last, count in offered:
+        members = [day for day in allowed if first <= verifier.weekday(day) <= last]
+        if count and count - (len(members) - 1) < _LINE:
+            pinned += len(members)
+    assert pinned == len(allowed), (pinned, len(allowed))
+
+    assert block["weekday_census"] == []
+    decided = taxonomy.weekday_decision(
+        block, tuple(days), block["n_distinct"], taxonomy.Settings(small_cell_floor=11)
+    )
+    assert decided.verdict is not None and not decided.verdict.holds
+    assert decided.reason == calendar_rules.REASON_NARROWED
+    said = [entry["note"] for entry in described.document["publication_notes"]]
+    assert any("could be narrowed to fewer than 11 rows" in sentence for sentence in said), said
+
+    with monkeypatch.context() as blind:
+        blind.setattr(calendar_rules, "form_holes", lambda *_arguments: ())
+        calendar_certificate._ANSWERS.clear()
+        unaware = taxonomy.weekday_decision(
+            block, tuple(days), block["n_distinct"], taxonomy.Settings(small_cell_floor=11)
+        )
+    calendar_certificate._ANSWERS.clear()
+    assert unaware.groups == offered and unaware.verdict is not None
+    census = [{"first": first, "last": last, "count": count} for first, last, count in offered]
+    problems = verifier.census_problems(
+        dict(block, weekday_census=census),
+        _LINE,
+        [(witness.klass, witness.day, witness.table) for witness in unaware.verdict.witnesses],
+        real_days=len(set(body)),
+    )
+    assert any("on a hole" in problem for problem in problems), problems
+
+    doctored = dict(described.document)
+    doctored["columns"] = [dict(block, weekday_census=census)]
+    with pytest.raises(errors.ProfileError) as refusal:
+        contract.load_profile(str(fixtures.write_profile(tmp_path, "doctored-profile.json", doctored)))
+    assert contract.INVARIANTS["WC8"] in str(refusal.value)
+
+
+def _straddling_february() -> "list[datetime.date]":
+    """981 visits past the ninth, 2024-01-10 to 04-30, with 120 on January 31 and 250 on February 10.
+
+    Written `m/d/yyyy`, the width census names `first-field-unpadded`.
+    The two heavy days are consecutive knot days of the ladder, so the
+    open stretch between them is the first to the ninth of February:
+    every day of it a hole.
+    """
+    draw = random.Random(0)
+
+    def open_days(first: datetime.date, last: datetime.date) -> "list[datetime.date]":
+        span = [first + datetime.timedelta(days=step) for step in range((last - first).days + 1)]
+        return [day for day in span if day.day >= 10]
+
+    early = open_days(datetime.date(2024, 1, 21), datetime.date(2024, 1, 30))
+    late = open_days(datetime.date(2024, 2, 11), datetime.date(2024, 4, 30))
+    days = [datetime.date(2024, 1, 10) + datetime.timedelta(days=step) for step in range(11)]
+    days += [draw.choices(early, [_WEEKDAY[day.weekday()] for day in early])[0] for _row in range(150)]
+    days += [datetime.date(2024, 1, 31)] * 120 + [datetime.date(2024, 2, 10)] * 250
+    days += [draw.choices(late, [_WEEKDAY[day.weekday()] for day in late])[0] for _row in range(450)]
+    draw.shuffle(days)
+    return days
+
+
+def test_a_column_with_form_holes_publishes_where_every_open_day_can_hold_the_line(tmp_path: pathlib.Path) -> None:
+    """Holes withhold nothing a table can fill: a heavy column past the ninth publishes the seven counts.
+
+    `_straddling_february`'s width census leaves the first to the ninth
+    of every month empty, and two of its knot days enclose February's
+    nine: a stretch of holes only, whose weekdays form no class. The
+    census publishes the seven counts, and the verifier -- deriving the
+    same holes itself, leaving them out of its classes and standing no
+    witness cell on one -- passes every witness day by day.
+    """
+    dates = _straddling_february()
+    text = "seen_on\n" + "".join(f"{day.month}/{day.day}/{day.year}\n" for day in dates)
+    described = kpi_shapes.describe(tmp_path, "straddle", text, 11)
+    block = described.block("seen_on")
+    groups = tuple((group["first"], group["last"], group["count"]) for group in block["weekday_census"])
+    assert calendar_rules.entry_of(groups) == calendar_rules.ENTRY_SEVEN, groups
+    holes = verifier.form_holes(block)
+    knots = verifier.reader_facts(block, _LINE)["knots"]
+    assert any(
+        after - before > 1 and all(day in holes for day in range(before + 1, after))
+        for before, after in zip(knots, knots[1:])
+    ), knots
+    days = sorted((day - datetime.date(1970, 1, 1)).days for day in dates)
+    body = days[block["low_tail"]["rows"]: len(days) - block["high_tail"]["rows"]]
+    verdict = taxonomy.weekday_decision(
+        block, tuple(days), block["n_distinct"], taxonomy.Settings(small_cell_floor=11)
+    ).verdict
+    assert verdict is not None and verdict.holds
+    assert verifier.census_problems(
+        block, _LINE, [(witness.klass, witness.day, witness.table) for witness in verdict.witnesses],
+        real_days=len(set(body)),
+    ) == []
+
+
+def _one_autumn() -> "list[datetime.date]":
+    """300 visits, 2024-10-12 to 12-20, weekday-shaped; eleven-day tails beside, one cell a day."""
+    draw = random.Random(0)
+    one = datetime.timedelta(days=1)
+    days = [datetime.date(2024, 10, 1) + one * step for step in range(11)]
+    days += [datetime.date(2024, 12, 21) + one * step for step in range(11)]
+    span = [datetime.date(2024, 10, 12) + one * step for step in range(70)]
+    days += [draw.choices(span, [_WEEKDAY[day.weekday()] for day in span])[0] for _row in range(278)]
+    draw.shuffle(days)
+    return days
+
+
+def test_a_day_first_column_with_no_hole_between_its_boundaries_publishes(tmp_path: pathlib.Path) -> None:
+    """A day-first column's form census reads its OTHER field as the month, and one autumn leaves no hole.
+
+    `_one_autumn` written `d/m/yyyy` publishes `{first-field-unpadded}`:
+    every cell's month is ten or more, and every day from October 12 to
+    December 20 can be written so. Read as a month-first member the same
+    word would leave the first to the ninth of November and December
+    empty, days the column holds. The census publishes the seven counts,
+    the verifier derives no hole, and it passes every witness.
+    """
+    dates = _one_autumn()
+    described = kpi_shapes.describe(
+        tmp_path, "autumn", "visit\n" + "".join(f"{_day_first(day)}\n" for day in dates), 11
+    )
+    block = described.block("visit")
+    assert block["format"] == "day-first-date" and list(block["date_field_widths"]) == ["first-field-unpadded"]
+    groups = tuple((group["first"], group["last"], group["count"]) for group in block["weekday_census"])
+    assert calendar_rules.entry_of(groups) == calendar_rules.ENTRY_SEVEN, groups
+    assert verifier.form_holes(block) == set()
+    days = sorted((day - datetime.date(1970, 1, 1)).days for day in dates)
+    body = days[block["low_tail"]["rows"]: len(days) - block["high_tail"]["rows"]]
+    verdict = taxonomy.weekday_decision(
+        block, tuple(days), block["n_distinct"], taxonomy.Settings(small_cell_floor=11)
+    ).verdict
+    assert verdict is not None and verdict.holds
+    assert verifier.census_problems(
+        block, _LINE, [(witness.klass, witness.day, witness.table) for witness in verdict.witnesses],
+        real_days=len(set(body)),
+    ) == []
+
+
+def test_a_group_left_few_dates_by_its_holes_is_withheld() -> None:
+    """WC7 counts a group's calendar days less its holes.
+
+    Five weeks, Monday to Sunday, with only the two boundaries as knot
+    days and every weekday counting twenty: each group has four or five
+    calendar days besides its knot days. Two of the five Saturdays
+    holes, the Saturday group can hold three dates at most, a few single
+    dates, and WC7 withholds; the same question with no holes passes
+    WC7 and reaches the certificate.
+    """
+    low = verifier.day_number("2024-01-01")
+    high = low + 34
+    groups = tuple((weekday, weekday, 20) for weekday in range(7))
+    asked = (160, 10, 10, low, high, (), 25, 35, _LINE, groups, -1)
+    calendar_certificate._ANSWERS.clear()
+    assert calendar_certificate.check(*asked).reason != calendar_rules.REASON_FEW_DATES
+    holed = calendar_certificate.check(*asked, (low + 5, low + 12))
+    assert holed.reason == calendar_rules.REASON_FEW_DATES
+    assert calendar_certificate.breach(
+        groups, 160, 10, 10, low, high, (), 25, 35, _LINE, True, (low + 5, low + 12)
+    )[0] == "WC7"
+
+
+# THE PLACEHOLDER HOLES (second review of landing 3b.1, finding 2): a
+# placeholder day the block publishes as read as missing holds no cell.
+
+_PLACEHOLDER = "1900-01-01"
+
+
+def _with_a_placeholder_day() -> "list[str]":
+    """Birth dates around a placeholder day: eleven in November 1899, a dense December and January, 800 in 2020 to 2022.
+
+    December 1899 and January 1900 hold one to three cells a day, and
+    twenty cells are written 1900-01-01: they stand far outside the
+    dates' quartiles and are many, so the description reads that day as
+    a placeholder meaning no value. The low tail is November's eleven,
+    so the body runs from 1899-12-01 and holds the placeholder day.
+    """
+    draw = random.Random(1)
+    one = datetime.timedelta(days=1)
+    days = [datetime.date(1899, 11, 1) + one * step for step in range(11)]
+    day = datetime.date(1899, 12, 1)
+    while day <= datetime.date(1900, 1, 31):
+        if day != datetime.date(1900, 1, 1):
+            days += [day] * draw.choice([1, 2, 3])
+        day += one
+    days += draw.choices([datetime.date(2020, 1, 1) + one * step for step in range(365 * 3)], k=800)
+    cells = [day.isoformat() for day in days] + [_PLACEHOLDER] * 20
+    draw.shuffle(cells)
+    return cells
+
+
+def test_a_placeholder_day_read_as_missing_is_a_hole_no_witness_stands_on(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A placeholder day the block reads as no value holds no body cell in any table, and no witness uses it.
+
+    `sentinel_verdicts` publishes 1900-01-01 as `read_as_missing`, and
+    the day lies between the two tail boundaries, so a reader holds it
+    empty. The census publishes the seven counts, no witness puts a cell
+    on the day, and the verifier -- reading the same hole off the block
+    -- passes every witness. Asked blind to the placeholder, a witness
+    of the certificate stands on it, and the verifier finds it there.
+    """
+    cells = _with_a_placeholder_day()
+    described = kpi_shapes.describe(tmp_path, "placeholder", "born\n" + "".join(f"{cell}\n" for cell in cells), 11)
+    block = described.block("born")
+    decisions = [(entry["candidate"], entry["verdict"]) for entry in block["sentinel_verdicts"]]
+    assert decisions == [(_PLACEHOLDER, "read_as_missing")], decisions
+    hole = verifier.day_number(_PLACEHOLDER)
+    assert verifier.placeholder_holes(block) == {hole}
+    groups = tuple((group["first"], group["last"], group["count"]) for group in block["weekday_census"])
+    assert calendar_rules.entry_of(groups) == calendar_rules.ENTRY_SEVEN, groups
+    present = [cell for cell in cells if cell != _PLACEHOLDER]
+    verdict = _certified(block, present)
+    assert verdict.holds and verdict.witnesses
+    assert all(dict(witness.table).get(hole, 0) == 0 for witness in verdict.witnesses)
+    assert _verified(block, present) == []
+
+    with monkeypatch.context() as blind:
+        blind.setattr(calendar_rules, "placeholder_holes", lambda *_arguments: ())
+        calendar_certificate._ANSWERS.clear()
+        unaware = _certified(block, present)
+    calendar_certificate._ANSWERS.clear()
+    days = _days_of(present)
+    body = days[block["low_tail"]["rows"]: len(days) - block["high_tail"]["rows"]]
+    problems = verifier.census_problems(
+        block,
+        _LINE,
+        [(witness.klass, witness.day, witness.table) for witness in unaware.witnesses],
+        real_days=len(set(body)),
+    )
+    assert any("on a hole" in problem for problem in problems), problems
+
+
+_HEAVY_DAYS = {
+    datetime.date(1899, 12, 5): 30,
+    datetime.date(1899, 12, 13): 40,
+    datetime.date(1899, 12, 21): 40,
+    datetime.date(1899, 12, 29): 40,
+    datetime.date(1900, 1, 7): 30,
+}
+
+
+def _around_a_placeholder_day() -> "list[str]":
+    """Five weeks, Tuesday 1899-12-05 to Sunday 1900-01-07, with eleven-day tails, and twenty cells written 1900-01-01.
+
+    Five heavy days -- the two boundaries and December 13, 21 and 29 --
+    hold every rung, so the knot days fall on a Tuesday, a Wednesday, a
+    Thursday, a Friday and a Sunday; the Mondays December 11, 18 and 25
+    hold six cells each and every other day four to six. No cell but the
+    twenty written as the placeholder falls on Monday 1900-01-01.
+    """
+    one = datetime.timedelta(days=1)
+    first, last = datetime.date(1899, 12, 5), datetime.date(1900, 1, 7)
+    days = [first - one * (1 + step) for step in range(11)] + [last + one * (1 + step) for step in range(11)]
+    day = first
+    while day <= last:
+        if day in _HEAVY_DAYS:
+            days += [day] * _HEAVY_DAYS[day]
+        elif day != datetime.date(1900, 1, 1):
+            days += [day] * (6 if day.weekday() == 0 else 4 + day.toordinal() % 3)
+        day += one
+    cells = [day.isoformat() for day in days] + [_PLACEHOLDER] * 20
+    random.Random(3).shuffle(cells)
+    return cells
+
+
+def test_a_placeholder_day_the_block_keeps_is_no_hole(tmp_path: pathlib.Path) -> None:
+    """A placeholder day the block keeps as a value is a day like any other, and witnesses may stand on it.
+
+    Described plainly, `_around_a_placeholder_day`'s twenty cells of
+    1900-01-01 sit inside the dates' quartiles, so `sentinel_verdicts`
+    keeps the day (`kept_as_a_number`): it holds twenty body cells. No
+    hole is read off the block, the census publishes the seven counts,
+    and the verifier passes every witness.
+    """
+    cells = _around_a_placeholder_day()
+    described = kpi_shapes.describe(tmp_path, "kept", "seen_on\n" + "".join(f"{cell}\n" for cell in cells), 11)
+    block = described.block("seen_on")
+    decisions = [(entry["candidate"], entry["verdict"]) for entry in block["sentinel_verdicts"]]
+    assert decisions == [(_PLACEHOLDER, "kept_as_a_number")], decisions
+    assert verifier.block_holes(block) == set()
+    groups = tuple((group["first"], group["last"], group["count"]) for group in block["weekday_census"])
+    assert calendar_rules.entry_of(groups) == calendar_rules.ENTRY_SEVEN, groups
+    assert _verified(block, cells) == []
+
+
+def test_a_placeholder_day_between_the_boundaries_is_a_hole_the_loader_holds(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The loader reads the placeholder holes off the block: a census they leave few dates is refused (WC7).
+
+    Described with 1900-01-01 read as missing -- the hand-over by which
+    the validator reads a checked file as its description did -- the
+    column's Monday group has three dates besides its knot days once the
+    placeholder day is a hole, and four without. So the census is
+    withheld, `few_dates`, which its sentence says; the seven counts the
+    menu offers, copied onto the description, are refused on load by
+    WC7; and they load where the loader is blind to the placeholder.
+    """
+    cells = _around_a_placeholder_day()
+    table = fixtures.write(tmp_path, "around.csv", "seen_on\n" + "".join(f"{cell}\n" for cell in cells))
+    document = profile.build_document(
+        reading.read_table(str(table), small_cell_floor=11),
+        taxonomy.Settings(small_cell_floor=11),
+        [],
+        [],
+        [],
+        judged_candidates={"seen_on": (_PLACEHOLDER,)},
+    )
+    contract.load_profile(str(fixtures.write_profile(tmp_path, "around-profile.json", document)))
+    block = document["columns"][0]
+    decisions = [(entry["candidate"], entry["verdict"]) for entry in block["sentinel_verdicts"]]
+    assert decisions == [(_PLACEHOLDER, "read_as_missing")], decisions
+    assert verifier.placeholder_holes(block) == {verifier.day_number(_PLACEHOLDER)}
+    assert block["weekday_census"] == []
+    present = [cell for cell in cells if cell != _PLACEHOLDER]
+    decided = taxonomy.weekday_decision(
+        block, tuple(_days_of(present)), block["n_distinct"], taxonomy.Settings(small_cell_floor=11)
+    )
+    assert decided.reason == calendar_rules.REASON_FEW_DATES, decided.reason
+    said = [entry["note"] for entry in document["publication_notes"] if entry["column"] == "seen_on"]
+    assert any("few single dates" in sentence for sentence in said), said
+
+    days = _days_of(present)
+    body = days[block["low_tail"]["rows"]: len(days) - block["high_tail"]["rows"]]
+    offered, _entry = calendar_rules.menu_groups(calendar_rules.body_bins(body), _LINE)
+    doctored = dict(document)
+    doctored["columns"] = [
+        dict(block, weekday_census=[{"first": first, "last": last, "count": count} for first, last, count in offered])
+    ]
+    written = fixtures.write_profile(tmp_path, "doctored-profile.json", doctored)
+    calendar_certificate._ANSWERS.clear()
+    with pytest.raises(errors.ProfileError) as refusal:
+        contract.load_profile(str(written))
+    assert contract.INVARIANTS["WC7"] in str(refusal.value)
+    with monkeypatch.context() as blind:
+        blind.setattr(calendar_rules, "placeholder_holes", lambda *_arguments: ())
+        calendar_certificate._ANSWERS.clear()
+        contract.load_profile(str(written))
+    calendar_certificate._ANSWERS.clear()
+
+
+def _unpadded(cells: "list[str]") -> "list[str]":
+    written: "list[str]" = []
+    for cell in cells:
+        day = datetime.date.fromisoformat(cell)
+        written += [f"{day.month}/{day.day}/{day.year}"]
+    return written
+
+
+def test_a_date_written_two_ways_publishes_no_census_and_its_loader_refuses_one(
+    tmp_path: pathlib.Path,
+) -> None:
+    """One spelling per day (WC6): a column writing its dates two widths publishes `[]`.
+
+    The battery's admissions written month first: every other row padded
+    and the rest not. The width census names two forms, so the column's
+    count of different values is not a count of days: the census is
+    withheld with its reason, and a census copied onto that description
+    from the same admissions written one way is refused on load by name.
+    """
+    days = _battery_admissions(1000)["admission_date"]
+    one_way = _unpadded(days)
+    mixed = [
+        (datetime.date.fromisoformat(cell).strftime("%m/%d/%Y") if place % 2 else one_way[place])
+        for place, cell in enumerate(days)
+    ]
+    single = kpi_shapes.describe(tmp_path / "single", "single", "admission_date\n" + "".join(f"{c}\n" for c in one_way), 11)
+    two = kpi_shapes.describe(tmp_path / "two", "two", "admission_date\n" + "".join(f"{c}\n" for c in mixed), 11)
+    published = single.block("admission_date")["weekday_census"]
+    assert published, "the admissions written one way publish their census"
+    block = two.block("admission_date")
+    assert block["weekday_census"] == [] and len(block["date_field_widths"]) == 2
+    said = [entry["note"] for entry in two.document["publication_notes"]]
+    assert any("more than one way here" in sentence for sentence in said), said
+    doctored = dict(two.document)
+    doctored["columns"] = [dict(block, weekday_census=published)]
+    with pytest.raises(errors.ProfileError) as refusal:
+        contract.load_profile(str(fixtures.write_profile(tmp_path, "doctored-profile.json", doctored)))
+    assert contract.INVARIANTS["WC6"] in str(refusal.value)
+
+
+def test_a_missed_weekday_group_below_the_line_prints_no_count(tmp_path: pathlib.Path) -> None:
+    """A file holding one to ten of a published group is MISSED, and that number is never printed.
+
+    The battery's admissions, and a file of them with every Sunday
+    strictly between the two published boundaries moved to the Monday
+    after it but three: the Sunday group holds one to ten cells. The
+    census check is MISSED; its line reads `Sunday fewer than 11`, the
+    note says why the number is kept back, and no number below the line
+    appears on the line, in the note or anywhere in the quality report
+    beside the census (plan P4-D347).
+    """
+    cells = _battery_admissions(1000)["admission_date"]
+    described = kpi_shapes.describe(tmp_path, "admissions", "admission_date\n" + "".join(f"{c}\n" for c in cells), 11)
+    block = described.block("admission_date")
+    low = datetime.date.fromisoformat(block["low_tail"]["boundary"])
+    high = datetime.date.fromisoformat(block["high_tail"]["boundary"])
+    kept = 0
+    moved: "list[str]" = []
+    for cell in cells:
+        day = datetime.date.fromisoformat(cell)
+        if low < day < high and day.weekday() == 6:
+            if kept < 3:
+                kept += 1
+            else:
+                day += datetime.timedelta(days=1)
+        moved += [day.isoformat()]
+    held = sum(1 for cell in moved if low <= datetime.date.fromisoformat(cell) <= high
+               and datetime.date.fromisoformat(cell).weekday() == 6)
+    assert 0 < held < _LINE, held
+    outcome = kpi_shapes.measure(described, "admission_date\n" + "".join(f"{c}\n" for c in moved), "moved.csv")
+    [check] = [check for check in outcome.checks if check.fact == "datetime.weekday_census"]
+    assert check.verdict == validation.MISSED
+    assert "Sunday fewer than 11" in check.achieved, check.achieved
+    assert any("fewer than 11" in line for line in check.note), check.note
+    for text in (check.achieved, " ".join(check.note)):
+        numbers = [int(word) for word in text.replace(",", " ").split() if word.isdigit()]
+        assert all(number >= _LINE for number in numbers), (text, numbers)
+    printed = quality.quality_report(described.loaded, outcome)
+    census = [line for line in printed.splitlines() if "Monday" in line and "Sunday" in line]
+    counts = [int(found) for line in census for found in re.findall(r"day (\d+)\b", line)]
+    assert any("Sunday fewer than 11" in line for line in census), census
+    assert counts and min(counts) >= _LINE, counts
+
+
+def test_the_reader_leaves_every_unparsed_cell_out_of_its_fewest_days(tmp_path: pathlib.Path) -> None:
+    """The reader's least count of different days takes EVERY unparsed cell away, not one text.
+
+    One row a business day over four and a half years, five days
+    repeated, and ten cells written as three impossible dates. The
+    count of different values holds the three texts, and a reader
+    cannot tell three texts from ten, so its fewest days take all ten
+    unparsed cells away and its most takes one: the bounds equal the
+    verifier's own and those numbers. The body's own count of
+    different days leaves five repeated cells, so no census witness can
+    put eleven on a day, while a stage-3 table on the reader's bounds
+    can: withheld, `narrowed`. Taking one text away instead would leave
+    the reader no room for eleven either, and the census would fall to
+    the repeats' sentence (`ties`).
+    """
+    draw = random.Random(100)
+    day = datetime.date(2020, 1, 6)
+    days: "list[datetime.date]" = []
+    while len(days) < 1180:
+        if day.weekday() < 5:
+            days += [day]
+        day += datetime.timedelta(days=1)
+    wrong = ("2021-02-30", "2021-02-31", "2021-04-31")
+    cells = [each.isoformat() for each in days] + [each.isoformat() for each in draw.sample(days[20:-20], 5)]
+    cells += [wrong[place % 3] for place in range(10)]
+    draw.shuffle(cells)
+    described = kpi_shapes.describe(tmp_path, "log", "log_date\n" + "".join(f"{cell}\n" for cell in cells), 11)
+    block = described.block("log_date")
+    assert block["n_unparsed"] == 10 and block["n_distinct"] == 1180 + 3
+    low_tail, high_tail = block["low_tail"], block["high_tail"]
+    bounds = calendar_certificate.reader_days(
+        block["n_distinct"], block["n_unparsed"],
+        low_tail["rows"], len(low_tail["values"]) if low_tail["values"] else -1,
+        high_tail["rows"], len(high_tail["values"]) if high_tail["values"] else -1,
+    )
+    facts = verifier.reader_facts(dict(block, weekday_census=[]), _LINE)
+    assert bounds == (facts["fewest"], facts["most_days"])
+    assert bounds == (1183 - 10 - low_tail["rows"] - high_tail["rows"], 1183 - 1 - 2)
+    good = sorted(verifier.day_number(cell) for cell in cells if cell not in wrong)
+    decided = taxonomy.weekday_decision(block, tuple(good), block["n_distinct"], taxonomy.Settings(small_cell_floor=11))
+    assert decided.reason == calendar_rules.REASON_NARROWED, decided.reason
+    assert block["weekday_census"] == []
+
+
+def test_a_day_written_with_a_trailing_blank_is_two_spellings(tmp_path: pathlib.Path) -> None:
+    """Two texts for one day that no census of written forms shows still withhold the census.
+
+    The battery's admissions, published with the seven counts, and the
+    same column with every fortieth cell written with a blank after it
+    (quoted, so it is kept): no census of written forms counts a
+    trailing blank, so WC6's published half passes, but the count of
+    different values exceeds the real days (WC6 (b)): `[]`, reason
+    `spellings`, and the sentence says so.
+    """
+    cells = _battery_admissions(1000)["admission_date"]
+    blanked = [f'"{cell} "' if place % 40 == 0 else cell for place, cell in enumerate(cells)]
+    plain = kpi_shapes.describe(tmp_path / "plain", "plain", "admission_date\n" + "".join(f"{c}\n" for c in cells), 11)
+    assert plain.block("admission_date")["weekday_census"]
+    described = kpi_shapes.describe(tmp_path / "blank", "blank", "admission_date\n" + "".join(f"{c}\n" for c in blanked), 11)
+    block = described.block("admission_date")
+    days = tuple(_days_of(cells))
+    assert block["n_distinct"] > len(set(days))
+    assert calendar_rules.one_spelling_published(
+        {name: block[name] or {} for name in calendar_rules.FORM_CENSUSES}, block["format"], len(days)
+    )
+    decided = taxonomy.weekday_decision(block, days, block["n_distinct"], taxonomy.Settings(small_cell_floor=11))
+    assert decided.reason == calendar_rules.REASON_SPELLINGS, decided.reason
+    assert block["weekday_census"] == []
+    said = [entry["note"] for entry in described.document["publication_notes"]]
+    assert any("more than one way here" in sentence for sentence in said), said
+
+
+def _date_book(cells: "list[str]", text_every: int) -> bytes:
+    """A workbook of one date column: date cells, and every `text_every`-th cell ISO text."""
+    body = [(1, [workbooks.cell("A1", "seen_on", "inlineStr")])]
+    for place, text in enumerate(cells):
+        number = place + 2
+        day = datetime.date.fromisoformat(text)
+        if text_every and place % text_every == 0:
+            one = workbooks.cell(f"A{number}", text, "inlineStr")
+        else:
+            one = workbooks.cell(f"A{number}", str((day - datetime.date(1899, 12, 30)).days), "", 1)
+        body += [(number, [one])]
+    return workbooks.package(
+        [
+            ("[Content_Types].xml", workbooks._content_types(1, False, False, False)),
+            ("_rels/.rels", workbooks._root_rels()),
+            ("xl/workbook.xml", workbooks._workbook([("Data", "")])),
+            ("xl/_rels/workbook.xml.rels", workbooks._workbook_rels(1, False)),
+            ("xl/styles.xml", workbooks._styles()),
+            ("xl/worksheets/sheet1.xml", workbooks.sheet(body, dimension=f"A1:A{len(cells) + 1}")),
+        ]
+    )
+
+
+def test_a_workbook_storing_dates_two_ways_publishes_no_census(tmp_path: pathlib.Path) -> None:
+    """One storage class per workbook column: dates stored as dates and as text publish `[]`.
+
+    The same weekday-shaped dates stored as date cells publish a census;
+    with every sixth cell stored as ISO text instead, the column is read
+    back differently cell by cell, so the census is withheld and says why.
+    """
+    draw = random.Random(3100)
+    cells: "list[str]" = []
+    for step in range(730):
+        day = datetime.date(2022, 1, 3) + datetime.timedelta(days=step)
+        times = draw.choice((0, 1, 2, 3)) if day.weekday() < 5 else draw.choice((0, 0, 0, 1))
+        cells += [day.isoformat()] * times
+    draw.shuffle(cells)
+    found = {}
+    for name, every in (("dates", 0), ("mixed", 6)):
+        path = tmp_path / f"{name}.xlsx"
+        path.write_bytes(_date_book(cells, every))
+        document = profile.build_document(
+            reading.read_table(str(path), small_cell_floor=11), taxonomy.Settings(small_cell_floor=11), [], [], []
+        )
+        found[name] = document
+    assert found["dates"]["columns"][0]["weekday_census"], "date cells alone publish a census"
+    assert found["mixed"]["columns"][0]["weekday_census"] == []
+    said = [entry["note"] for entry in found["mixed"]["publication_notes"]]
+    assert any("stores this column's dates in more than one way" in sentence for sentence in said), said
+
+
+def test_validating_a_file_never_enters_the_certificate(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The validator counts the file's body against the PUBLISHED groups and asks no certificate.
+
+    Its two re-descriptions of the file skip the census producer, so a
+    validate run of a twin whose description publishes three censuses --
+    one of them certified with residue -- completes with the certificate
+    made to fail on entry, and still holds every census.
+    """
+    columns = _battery_schedules(1000)
+    described = kpi_shapes.describe(tmp_path, "schedules", _table_text(columns), 11)
+    written = kpi_shapes.twin_text(described, 0)
+
+    def refused(*_arguments: object, **_named: object) -> None:
+        raise AssertionError("a validate run entered the calendar certificate")
+
+    monkeypatch.setattr(calendar_certificate, "check", refused)
+    monkeypatch.setattr(calendar_certificate, "certify", refused)
+    outcome = kpi_shapes.measure(described, written, "twin.csv")
+    held = [check for check in outcome.checks if check.fact == "datetime.weekday_census"]
+    assert len(held) == 3 and all(check.verdict == validation.HELD for check in held)

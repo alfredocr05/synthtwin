@@ -318,6 +318,14 @@ SPELLING_SUBCHECKS = (
 # of dates, so it is one check. Re-recording 416 as 417 would retire the
 # only thing this baseline buys.
 MEMBER_SUBCHECK = "format.member"
+# ...and the ONE check landing 3b.1 added (plan P4-D355), set aside on
+# the same doctrine. The demonstration's one column of dates publishes a
+# weekday census, so the run counts the file's cells between the two
+# tail boundaries against every group of it at once: one check, on
+# `recorded_on`. MEASURED before this entry was written: with it left in
+# the wide list read 417, and set aside the frozen digests came back
+# character for character.
+WEEKDAY_CHECK = "recorded_on|datetime.weekday_census|weekday_census.groups"
 # ...and the ONE check landing 2b.18 added (contract 7.12, plan
 # P4-D120), set aside on the same doctrine. The demonstration's
 # `record_code` column is a DECLARED identifier, so it now publishes a
@@ -627,7 +635,11 @@ NARROW_COLUMN_DIGESTS = {
     # both validate with nothing missed, and the check census reproduces
     # the frozen 407 and 416 with the thirteen withdrawn obligations put
     # back and the sixteen tail checks set aside.
-    "recorded_on": "ebae28ac44a90a0c588fe7e8a8aab668",
+    # RE-RECORDED AT LANDING 3b.1 (2026-09-27, plan P4-D355): the same
+    # 66 cells as the wide twin digest below, the weekday census met by
+    # the day pass of G7.3f; no other column of the narrow twin moved,
+    # measured against a git archive of e4a5d34.
+    "recorded_on": "a6288631682251a5cfd27f24e172ce70",
     "answer": "f96508b26b4c8cae171b5bf0984d34a3",
     "comment": "87f0e3ed56d0f91358fb60fe8b3c9c29",
     "unused": "73be54e263565328cf0122ffc4c15570",
@@ -698,7 +710,9 @@ NARROW_COLUMN_ORDER_DIGESTS = {
     # moved cells as the sorted digest above, as written.
     # Re-recorded for plan P4-D192 with the sorted digest above: the same
     # 105 cells, as written.
-    "recorded_on": "e9bfe1b5f6ab87930b13009970120aaa",
+    # Re-recorded for plan P4-D355 with the sorted digest above: the same
+    # 66 cells, as written.
+    "recorded_on": "96c5e5a3cdece6e72c2bbf1d7a06b355",
     "answer": "780ad3693f49d90a1fd2273eb91a6dc7",
     "comment": "8ec45aed18839baa03592651323aa6f6",
     "unused": "73be54e263565328cf0122ffc4c15570",
@@ -785,6 +799,8 @@ def test_widening_the_demonstration_lost_no_obligation(
                 return True
         if entry == JUDGED_KEY_CHECK:
             return True
+        if entry == WEEKDAY_CHECK:
+            return True
         # ...and every obligation the two TAILS of a column of dates or
         # clock times brought (stage 3, plan P4-D328).
         if TAIL_SUBCHECK in entry:
@@ -803,6 +819,8 @@ def test_widening_the_demonstration_lost_no_obligation(
         assert entry not in checks, entry
     # The check plan P4-D6.4 added is in the run, once, named.
     assert checks.count(JUDGED_KEY_CHECK) == 1, JUDGED_KEY_CHECK
+    # ...and so is the one landing 3b.1 added, on the one column of dates.
+    assert checks.count(WEEKDAY_CHECK) == 1, WEEKDAY_CHECK
     counted = sorted(
         [entry for entry in checks if not _since(entry)]
         + list(WITHDRAWN_CHECKS)
@@ -1655,7 +1673,14 @@ GOLDEN_DESCRIPTION_SHA256 = (
     # above did not move, so not one cell changed with it; the report
     # golden moves by the same one line, and the quality report not at
     # all.
-    "f7feeefc1b7083ce631bccb8f7bbed2abdfa98ccefe49f42ef2e9174d772b41d"
+    # RE-RECORDED AT LANDING 3b.1 (2026-09-26, plan P4-D355), read line
+    # by line against a git archive of e4a5d34, whose digest was the one
+    # above: `recorded_on` gains ONE KEY, `weekday_census`, of the first
+    # entry of the menu (counts 30, 27, 33, 36, 30, 26 and 35, Monday to
+    # Sunday), and its empty `remarks` gain the two remarks saying what
+    # the census counts. Nothing leaves and no other line of 2,470
+    # differs.
+    "79bb0ccbbd17a86e40fe05f5a983770279ff4ea0625477682758ff4924de0f46"
 )
 
 
@@ -1904,7 +1929,19 @@ GOLDEN_TWIN_SHA256 = (
     # record-number column is byte-identical. That is the numeric tail
     # rule and nothing else: those four columns are built from a ladder
     # that no longer runs to two published extremes.
-    "e6437069e13a909f773402205cdfc89a77d246e80bfcc4fa03afee04d249a04e"
+    # RE-RECORDED AT LANDING 3b.1 (2026-09-27, plan P4-D355), read cell
+    # by cell against a git archive of e4a5d34: 66 of the 3,360 cells
+    # differ and every one of them is in `recorded_on`, the one column
+    # of dates, whose description now publishes a weekday census. The
+    # day pass of G7.3f moves body ranks inside their own gaps: the 217
+    # cells between the two tail boundaries fell 19, 34, 29, 49, 32, 20
+    # and 34 on Monday to Sunday and now fall 30, 27, 33, 36, 30, 26 and
+    # 35 as published; the column still holds 84 different dates, both
+    # ends and both tails are where they were, and the twin validates
+    # with nothing missed over its 542 checks. (A first writing of step
+    # 3's prior moved 37 cells; the prior that weighs the drawn ranks
+    # and the calendar the same moves 66.)
+    "bdee72b6c01e14da966d509842be30a597fc7f769640eb9bc2dd23b2591a09c3"
 )
 
 
@@ -2508,7 +2545,14 @@ GOLDEN_REPORT_SHA256 = (
     # 11.413 days, where they read 9.583 to 10.5 and 10.5 to 11.380). The
     # twin digest above did not move, and both values still read "inside
     # the range".
-    "d4203ca89375609158a6e47cd43c4cdb2c5d717f0c684f9b462b9924d85e3f2b"
+    # RE-RECORDED AT LANDING 3b.1 (plan P4-D355), read line by line
+    # against e4a5d34: the report holds 866 lines where it held 864. Two
+    # arrive, the description's two remarks on `recorded_on`'s weekday
+    # census, and two change, the sentence on how that column is spread:
+    # it says the published counts per day of the week are met between
+    # the two tail boundaries and names THREE things not reproduced where
+    # it named four, the weekday gone from the list.
+    "f2bcab2751a549313f62d771d0b0ad6c1edb835d4fa7aea25fd8f0f4e719bd61"
 )
 
 
@@ -3294,11 +3338,20 @@ GOLDEN_QUALITY_SHA256 = (
     # line against e294a82: TWO LINES differ, the window the same date
     # tail's two distances are allowed in, widened as the twin's report
     # widens it. No verdict and no census number moved.
-    # ...AND RE-RECORDED AT THEIR INTEGRATION (2026-09-28), read line by
-    # line against both: the merged report differs from e294a82's in
-    # exactly the four lines follow-up A moved and the two landing 3b.0
-    # moved, each as that side wrote it, and in no other line.
-    "07fe627878024aeac2a461138614e53eb069c821ec01b53b3495fe3cb7f58e31"
+    # ...AND RE-RECORDED AT THE INTEGRATION OF FOLLOW-UP A AND LANDING
+    # 3b.0 (2026-09-28), read line by line against both: the merged
+    # report differs from e294a82's in exactly the four lines follow-up
+    # A moved and the two landing 3b.0 moved, each as that side wrote it.
+    # ...AND RE-RECORDED AT LANDING 3b.1 (plan P4-D355), read line by
+    # line against e4a5d34: ONE OBLIGATION ARRIVES, `weekday_census.groups`
+    # on `recorded_on`, HELD, with the counts asked for and found printed
+    # beneath it, so 541 obligations become 542 and 473 HELD become 474.
+    # No other line moved and no verdict moved.
+    # ...AND RE-RECORDED AT THE INTEGRATION OF LANDING 3b.1 (2026-09-28),
+    # read line by line against both parents and e4a5d34: the report is
+    # e4a5d34's with every line either parent moved, as that parent wrote
+    # it, and no other line moved.
+    "93977cc7d1b6ec32086bab3ec2249c0959b334fb93f3b7a5a4ca6ac5f32ef9bb"
 )
 
 

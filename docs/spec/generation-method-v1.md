@@ -6164,6 +6164,116 @@ date" value of two common systems -- is floor-safe, and its twin writes
 that day exactly (measured: 40 cells of 40, against 0 under a one-day
 inset).
 
+#### G7.3f The weekday census: the day pass
+
+*Stage 3b, landing 3b.1, plan P4-D355.* Where a column of whole dates
+publishes a non-empty `weekday_census` (contract WC1 to WC8), with both
+tails, at least three parsed cells and no bare date, its ranks are moved
+once G7.3's count passes and G7.3b step 9 are done and before any cell
+is spelled, until the cells between the two boundary ranks fall on the
+published groups. No word is drawn.
+
+A day `d`, counted from 1970-01-01, falls on weekday `(d + 3) mod 7`,
+Monday nought; its GROUP is the census group holding that weekday. Its
+KIND is whether a date on it counts into the width census's one word,
+where the member can show a width and that census names exactly one
+word, and one kind for every day otherwise. A HOLE is a day an absent
+spelling of the run names under the column's member. `held(d)` is how
+many ranks of the column stand on `d`. A rank is MOVABLE where it lies
+between the two boundary ranks, both included, the layout does not pin
+it and its gap (G7.3) is more than one day; the movable ranks form GAPS,
+each a run of consecutive movable ranks sharing one gap. A rank's
+CANDIDATES are the days `d - 1, d + 1, d - 2, d + 2, ...` from its own
+day `d`, up to 400 days away, those inside its gap only, the search
+ending once both sides lie outside it.
+
+1. **Owed.** Each group owes its published count less the ranks
+   between the two boundary ranks, both included, that are not movable
+   and whose day falls in it.
+2. **The holes.** A movable rank drawn onto a hole moves off it before
+   anything else moves: to its first candidate that is no hole and of
+   its own kind and that KEEPS the count of different days -- the rank
+   alone on the hole and no rank on the candidate, or sharing the hole
+   and a rank on the candidate -- or, failing one, to its first
+   candidate that is no hole and of its kind. No later step puts a rank
+   on a hole.
+3. **Shares.** For gap `j` of `n_j` ranks and group `g`, the prior
+   `a[j][g]` is how many of the gap's ranks stand on a day of `g`,
+   times `2**20`, plus `d * n_j // D`, where `d` counts the gap's days
+   of `g` that are no hole at `2**20` each and its two end days -- the
+   pinned days it is drawn between -- at `2**19`, and `D` is the sum of
+   `d` over the groups divided by `2**20`, rounded down (`d * n_j // D`
+   is nought where `D` is); and `x = a`. The ranks as drawn and the
+   calendar weigh the same: the drawn ranks keep the moves few and a
+   gap drawn only a few days wide from piling its share of a weekday
+   onto its one day of it, and the days give a gap drawn with no rank
+   on a weekday its part of that weekday, so the census's few cells of
+   one weekday are not all sent to the one gap whose draw held them.
+   Sixty times over: each gap whose
+   `S = sum_g x[j][g]` is above nought takes
+   `x[j][g] = x[j][g] * n_j * 2**20 // S`; then each group whose
+   `C = sum_j x[j][g]` is above nought takes
+   `x[j][g] = x[j][g] * max(owed_g, 0) * 2**20 // C`. Each gap is then
+   rounded: where `S > 0`, `q[j][g] = x[j][g] * n_j // S`, and the ranks
+   left over go one each to the groups in order of
+   `(x[j][g] * n_j) mod S`, largest first and then the lower group,
+   passing over a group whose prior is nought; where `S` is nought,
+   every `q[j][g]` is nought. While one group's total `sum_j q[j][g]`
+   stands above its owed total, taken at nought or above, and another's
+   below, one share moves, at most 20,000 times: of every group over,
+   every group under and every gap, in that order, the move from `g+` to
+   `g-` inside a gap where `q[j][g+] > 0` and `a[j][g-] > 0` whose
+   `(x[j][g-] - q[j][g-] * 2**20) - (x[j][g+] - q[j][g+] * 2**20)` is
+   largest, the first met on a tie.
+4. **Where a rank may go.** A candidate is a DESTINATION for `k` ranks
+   where it is no hole, its kind is the rank's, and its group then
+   holds no more than its share: `have + k <= want`.
+5. **Whole runs**, gap by gap, up to eight rounds while the gap's
+   holding is not its shares: every run of the gap's ranks on one day,
+   days ascending, of two ranks or more, with no other rank of the
+   column on its day, whose group holds at least its size above its
+   share, moves whole onto its first candidate that is a destination for
+   all of it and that no rank holds.
+6. **Single ranks**, gap by gap after its runs, up to sixteen rounds
+   while the gap's holding is not its shares. Each rank whose group
+   holds more than its share is OFFERED, of its candidates that are
+   destinations and KEEP the count of different days -- the rank alone
+   on its day and no rank on the candidate, or sharing its day and a
+   rank on the candidate -- the one holding the fewest ranks, the
+   earlier candidate on a tie; or, failing any, the same of every
+   destination, which CHANGES the count. Where the column's distinct
+   count is not reachable (contract `datetime_counts_reachable`) every
+   destination keeps it. Taking the fewest rather than the nearest
+   spreads what a gap sends to a group over all of that group's days. The offers are taken in order of keeping
+   first, then distance, then rank, each offered again when its turn
+   comes. A changing offer is taken only once a round has made no
+   keeping offer, or moved nothing, and from then on; a round that
+   moves nothing then ends the step.
+7. **The leftover.** Where the movable ranks together still do not hold
+   the owed totals, taken at nought or above, step 6 runs once over all
+   of them against those totals, up to sixty-four rounds, a changing
+   offer taken from the start.
+8. **The count of different days**, where the column's distinct count
+   is reachable, put back to what it was before step 2, by moves that
+   keep every group's count:
+   1. up to eight rounds, ranks in rank order: where the count is
+      short, a rank sharing its day moves to the first candidate of its
+      own group and kind that no rank holds; where it is long, a rank
+      alone on its day moves to the first such candidate a rank holds;
+      holes are never candidates, and at most 64 candidates of that
+      group and kind are asked;
+   2. where the count is still long, up to eight rounds: each RUN --
+      the movable ranks of one day, all of one gap, with no other rank
+      of the column on it -- the smallest first and then the earlier
+      day, moves whole onto the first candidate of its own group and
+      kind that a rank holds and that is no hole, until the count is
+      back. What the two leave off is reported as the column's count of
+      different values.
+9. Each run of ranks the layout does not pin is sorted.
+
+Where the census still does not hold, the report names `weekday_census`
+as a published fact the twin missed.
+
 ### G7.4 Offsets: only where recorded
 
 `utc_offsets` maps an offset text to a count, under the small-cell
@@ -12826,7 +12936,7 @@ that happens -- and the clause beside it, `--missing-value`'s "CAN be
 published as the column's smallest value", is exactly right under the
 new rule.
 
-**All one hundred and thirty-three are required.** The count is taken off the committed
+**All one hundred and forty are required.** The count is taken off the committed
 case sets and not carried forward: this sentence said fifty-two and a
 split of nine, twenty, sixteen and seven while the six files held
 seventy-three, because each repair that added a case added a clause to
@@ -12849,8 +12959,10 @@ nine; the ELEVENTH,
 `tests/reference/generation-branch-vectors-9.json`, holds six; the
 TWELFTH, `tests/reference/generation-branch-vectors-10.json`, holds three;
 the THIRTEENTH, `tests/reference/generation-branch-vectors-11.json`,
-holds three; and the FOURTEENTH,
-`tests/reference/generation-branch-vectors-12.json`, holds four (G14.2),
+holds three; the FOURTEENTH,
+`tests/reference/generation-branch-vectors-12.json`, holds four; and the
+FIFTEENTH, `tests/reference/generation-branch-vectors-13.json`, holds
+seven (G14.2),
 and a test holds this sentence to those files. The tenth grew by the
 two cases the GOVERNANCE PASS of stage 3's review added and the
 eleventh by the two the dates pass added; each number here is read off
@@ -12986,6 +13098,13 @@ case passed, which is the failure the count exists to prevent:
 | `trailing_minus_exchange` | G6.1's exchange that gives a trailing minus its point (the skeptic of plan P4-D352 (5)): twenty-two whole numbers between -40 and 60, eleven negative and published with `negative_notations: {"trailing_minus": 11}` beside `numeric_styles: {"decimal": 11, "plain": 11}` and `fraction_widths: {"1": 11}`. G6.4's values step asks nothing of a whole-valued column and the style walk leaves six negatives `plain`, so each takes `decimal` from a cell that is not negative, from the last cell downward, and all eleven are written `5.0-`. Its mutant withdraws the exchange, which no other case reaches, and twelve cells move |
 | `pooled_mark_cells` | G6.1's pooled remainder of a census of marks (plan P4-D142): forty-four cells published with `thousands_marks: {",": 33, "(withheld)": 11}`, so the first thirty-three are written `12,345.5` and the pooled eleven `12 345.5`, a space being the first pool mark the census does not name |
 | `unpublished_majority_marks` | G6.1's groupable cells asked with a mark that writes one (plan P4-D142): twenty-two cells published with no `group_separator` and `thousands_marks: {",": 11, " ": 11}`, so the first eleven are written `12,345.5` and the last eleven `12 345.5` rather than every cell bare |
+| `weekday_count_put_back` | G7.3f step 8.1 (plan P4-D355): 120 whole dates over four weeks with no weekend, published `[Mon-Fri] 92, [Sat-Sun] 0`, whose day pass leaves the count of different days off what it was before the pass. Single ranks, in rank order and inside their own group, put it back. Its mutant withdraws those moves |
+| `weekday_days_moved` | G7.3f (plan P4-D355): 100 whole dates over seven weeks published `[Mon-Fri] 66, [Sat-Sun] 12`, so body ranks move inside their own gaps until the cells between the two boundaries fall on those groups. Its mutant withdraws the pass, as the twin was written before this decision |
+| `weekday_gap_shares` | G7.3f step 3 (plan P4-D355): 100 whole dates published `[Mon-Fri] 43, [Sat-Sun] 34`, each gap's share of the two groups its prior raked to the gap's ranks and the groups' owed totals. Its mutant keeps each gap at the holding it was drawn with, so only the leftover moves ranks |
+| `weekday_hole_left` | G7.3f step 2 (plan P4-D355): 152 cells, twenty of them written 2024-02-23 and declared absent, the census `[Mon-Fri] 81, [Sat-Sun] 23`. A rank drawn onto the absent day moves off it before the census moves anything. Its mutant withdraws the step, and the spelling pass's own step off the hole moves the rank without asking its weekday |
+| `weekday_keeping_first` | G7.3f step 6 (plan P4-D355): 100 whole dates published `[Mon-Fri] 44, [Sat-Sun] 32`, whose single ranks take, of the days that keep the count of different days, the one holding the fewest ranks, before any day that changes it. Its mutant offers the nearest destination whatever it does to the count |
+| `weekday_runs_merged` | G7.3f step 8.2 (plan P4-D355): 110 dates of a four-weekly cycle of Sundays, some moved a few days, published `[Mon-Fri] 15, [Sat-Sun] 73`, whose count of different days is still long once single ranks have moved; the ranks of one day, alone on it, move whole onto a held day of their own group. Its mutant withdraws the step. Picked again once step 3's prior weighed the calendar as the drawn ranks: the fortnightly Saturdays it was first frozen on no longer reach step 8.2 |
+| `weekday_whole_runs` | G7.3f step 5 (plan P4-D355): 100 whole dates over three weeks with no weekend, published `[Mon-Fri] 77, [Sat-Sun] 0`, whose ranks of one day move whole onto a free day of a group with room for all of them before any single rank moves. Its mutant withdraws the step |
 | `plus_padded_field` | G6.3's second tier of named field widths (plan P4-D145): twenty-two cells of twelve thousand three hundred and forty-five published `leading_plus` with `pad_widths: {"7": 22}`, every one written `+0012345` |
 | `saturated_integers` | G6.5a's fill of a saturated integer grid (plan P4-D147): thirty-three whole numbers publishing twenty-two different values between the ends one and twenty-two, so the strata take those integers in order, each once, and all twenty-two are written |
 | `spread_conventions` | G6.1's spread of both censuses of conventions (plan P4-D149): the twenty-two whole numbers from minus 1,021 to minus 1,000, published with `thousands_marks: {",": 11}` and `negative_notations: {"brackets": 11, "minus": 11}`, so the brackets, the minus signs, the grouped cells and the bare ones each fall across the whole range of values rather than on its most negative half |

@@ -232,6 +232,16 @@ TWELFTH_BRANCH_VECTORS = (
     / "reference"
     / "generation-branch-vectors-12.json"
 )
+# THE FIFTEENTH FILE (the weekday census, plan P4-D355): the fourteenth
+# stands past plan P4-D295's line.
+THIRTEENTH_BRANCH_GENERATOR = (
+    REPOSITORY / "tools" / "reference" / "make_generation_branch_vectors_13.py"
+)
+THIRTEENTH_BRANCH_VECTORS = (
+    pathlib.Path(__file__).resolve().parent
+    / "reference"
+    / "generation-branch-vectors-13.json"
+)
 # THE FOURTH FILE (landing 2b.17): the cases for the transforms that
 # produce a whole DOCUMENT rather than one column's cells.
 DOCUMENT_GENERATOR = (
@@ -323,6 +333,10 @@ def _eleventh_branch_document() -> dict:
 
 def _twelfth_branch_document() -> dict:
     return json.loads(TWELFTH_BRANCH_VECTORS.read_text(encoding="utf-8"))
+
+
+def _thirteenth_branch_document() -> dict:
+    return json.loads(THIRTEENTH_BRANCH_VECTORS.read_text(encoding="utf-8"))
 
 
 # The nine cases method section G14.3 names, and the four the review of
@@ -701,6 +715,19 @@ TWELFTH_BRANCH_CASES = (
     "trailing_minus_points",
 )
 
+# THE FIFTEENTH FILE: the weekday pass of G7.3f, one case a step (plan
+# P4-D355), frozen in the fourteenth by landing 3b.1 and moved here by
+# the integration, the fourteenth standing past plan P4-D295's line.
+THIRTEENTH_BRANCH_CASES = (
+    "weekday_count_put_back",
+    "weekday_days_moved",
+    "weekday_gap_shares",
+    "weekday_hole_left",
+    "weekday_keeping_first",
+    "weekday_runs_merged",
+    "weekday_whole_runs",
+)
+
 ALL_CASES = tuple(
     sorted(
         REQUIRED_CASES
@@ -716,6 +743,7 @@ ALL_CASES = tuple(
         + TENTH_BRANCH_CASES
         + ELEVENTH_BRANCH_CASES
         + TWELFTH_BRANCH_CASES
+        + THIRTEENTH_BRANCH_CASES
     )
 )
 
@@ -834,6 +862,14 @@ SEEDS = {
     # ...and the tie group that gives way (plan P4-D354), at the seed the
     # trailing minus above opens too: a seed may open more than one case.
     "every_day_group": 409,
+    # ...and the weekday pass of G7.3f (plan P4-D355).
+    "weekday_days_moved": 410,
+    "weekday_gap_shares": 411,
+    "weekday_whole_runs": 412,
+    "weekday_keeping_first": 413,
+    "weekday_count_put_back": 414,
+    "weekday_hole_left": 415,
+    "weekday_runs_merged": 34041,
     "identifier_unnamed_partners": 184,
     "truth_values_written": 189,
     "twice_written_filled": 190,
@@ -938,6 +974,8 @@ def _case(name: str) -> dict:
         document = _eleventh_branch_document()
     elif name in TWELFTH_BRANCH_CASES:
         document = _twelfth_branch_document()
+    elif name in THIRTEENTH_BRANCH_CASES:
+        document = _thirteenth_branch_document()
     elif name in SEVENTH_BRANCH_CASES:
         document = _seventh_branch_document()
     elif name in SIXTH_BRANCH_CASES:
@@ -1186,6 +1224,7 @@ def test_the_branch_file_is_the_same_oracle_and_says_which_half_it_is() -> None:
     tenth = _tenth_branch_document()
     eleventh = _eleventh_branch_document()
     twelfth = _twelfth_branch_document()
+    thirteenth = _thirteenth_branch_document()
     papers = _document_document()
     assert tuple(sorted(branch["cases"])) == BRANCH_CASES
     assert tuple(sorted(second["cases"])) == SECOND_BRANCH_CASES
@@ -1199,10 +1238,11 @@ def test_the_branch_file_is_the_same_oracle_and_says_which_half_it_is() -> None:
     assert tuple(sorted(tenth["cases"])) == TENTH_BRANCH_CASES
     assert tuple(sorted(eleventh["cases"])) == ELEVENTH_BRANCH_CASES
     assert tuple(sorted(twelfth["cases"])) == TWELFTH_BRANCH_CASES
+    assert tuple(sorted(thirteenth["cases"])) == THIRTEENTH_BRANCH_CASES
     assert tuple(sorted(papers["cases"])) == DOCUMENT_CASES
     every = (
         named, branch, second, third, fourth, fifth, sixth, seventh,
-        eighth, ninth, tenth, eleventh, twelfth, papers,
+        eighth, ninth, tenth, eleventh, twelfth, thirteenth, papers,
     )
     for index in range(len(every)):
         for other in range(index + 1, len(every)):
@@ -1225,6 +1265,7 @@ def test_the_branch_file_is_the_same_oracle_and_says_which_half_it_is() -> None:
         (tenth, TENTH_BRANCH_VECTORS),
         (eleventh, ELEVENTH_BRANCH_VECTORS),
         (twelfth, TWELFTH_BRANCH_VECTORS),
+        (thirteenth, THIRTEENTH_BRANCH_VECTORS),
         (papers, DOCUMENT_VECTORS),
     )
     for document, own in files:
@@ -1254,6 +1295,7 @@ def test_the_branch_file_is_the_same_oracle_and_says_which_half_it_is() -> None:
         TENTH_BRANCH_GENERATOR,
         ELEVENTH_BRANCH_GENERATOR,
         TWELFTH_BRANCH_GENERATOR,
+        THIRTEENTH_BRANCH_GENERATOR,
         DOCUMENT_GENERATOR,
     ],
 )
@@ -1532,6 +1574,9 @@ ELEVENTH_BRANCH_NAMED_COUNTS = 375
 # The fourteenth, at its own generator's line ("proved 976 ... beside 343").
 TWELFTH_BRANCH_PUBLISHED_NUMBERS = 976
 TWELFTH_BRANCH_NAMED_COUNTS = 343
+# The fifteenth, at its own generator's line ("proved 22 ... beside 226").
+THIRTEENTH_BRANCH_PUBLISHED_NUMBERS = 22
+THIRTEENTH_BRANCH_NAMED_COUNTS = 226
 # The document file publishes NO binary64 at all, and that is a fact
 # about its transforms rather than a gap in its proof: the written form,
 # the arrangement, the workbook writer, the shape of a line before a
@@ -1614,6 +1659,12 @@ COMMITTED_FILES = (
         TWELFTH_BRANCH_NAMED_COUNTS,
     ),
     (
+        THIRTEENTH_BRANCH_VECTORS,
+        gen.THIRTEENTH_BRANCH_PART,
+        THIRTEENTH_BRANCH_PUBLISHED_NUMBERS,
+        THIRTEENTH_BRANCH_NAMED_COUNTS,
+    ),
+    (
         DOCUMENT_VECTORS,
         gen.DOCUMENT_PART,
         DOCUMENT_PUBLISHED_NUMBERS,
@@ -1627,7 +1678,7 @@ def _fields(document: dict) -> frozenset:
 
 
 @pytest.mark.parametrize(
-    "committed,part,published,named", COMMITTED_FILES, ids=["named", "branches", "branches-2", "branches-3", "branches-4", "branches-5", "branches-6", "branches-8", "branches-7", "branches-9", "branches-10", "branches-11", "branches-12", "documents"]
+    "committed,part,published,named", COMMITTED_FILES, ids=["named", "branches", "branches-2", "branches-3", "branches-4", "branches-5", "branches-6", "branches-8", "branches-7", "branches-9", "branches-10", "branches-11", "branches-12", "branches-13", "documents"]
 )
 def test_the_committed_file_publishes_no_number_that_escapes_the_proof(
     committed, part, published, named
@@ -1669,7 +1720,7 @@ def test_the_committed_file_publishes_no_number_that_escapes_the_proof(
 
 
 @pytest.mark.parametrize(
-    "committed,part,published,named", COMMITTED_FILES, ids=["named", "branches", "branches-2", "branches-3", "branches-4", "branches-5", "branches-6", "branches-8", "branches-7", "branches-9", "branches-10", "branches-11", "branches-12", "documents"]
+    "committed,part,published,named", COMMITTED_FILES, ids=["named", "branches", "branches-2", "branches-3", "branches-4", "branches-5", "branches-6", "branches-8", "branches-7", "branches-9", "branches-10", "branches-11", "branches-12", "branches-13", "documents"]
 )
 def test_the_committed_bytes_are_proved_against_the_recorded_exact_values(
     committed, part, published, named
@@ -1688,7 +1739,7 @@ def test_the_committed_bytes_are_proved_against_the_recorded_exact_values(
 
 
 @pytest.mark.parametrize(
-    "committed,part,published,named", COMMITTED_FILES, ids=["named", "branches", "branches-2", "branches-3", "branches-4", "branches-5", "branches-6", "branches-8", "branches-7", "branches-9", "branches-10", "branches-11", "branches-12", "documents"]
+    "committed,part,published,named", COMMITTED_FILES, ids=["named", "branches", "branches-2", "branches-3", "branches-4", "branches-5", "branches-6", "branches-8", "branches-7", "branches-9", "branches-10", "branches-11", "branches-12", "branches-13", "documents"]
 )
 def test_the_generator_says_how_many_numbers_it_proved(
     tmp_path, capsys, committed, part, published, named
@@ -3730,6 +3781,57 @@ CASE_MUTANTS = {
         replacement=lambda column, ordinals, parsed, whole: list(ordinals),
         outcome=CHANGES_THE_CELLS,
     ),
+    # THE WEEKDAY PASS (method G7.3f, plan P4-D355), one case a step,
+    # each moved by withdrawing its own step and no other.
+    "weekday_days_moved": Mutant(
+        branch="G7.3f (plan P4-D355); the mutant withdraws the day pass, as "
+        "the twin was written before this decision",
+        attribute="weekday_settled",
+        replacement=lambda column, ordinals, parsed, whole, lows, highs, holes: list(ordinals),
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "weekday_gap_shares": Mutant(
+        branch="G7.3f step 3 (plan P4-D355); the mutant keeps each gap at "
+        "the holding it was drawn with, so only the leftover moves ranks",
+        attribute="weekday_shares",
+        replacement=lambda walk, gaps, owed: _shares_as_drawn(walk, gaps, owed),
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "weekday_whole_runs": Mutant(
+        branch="G7.3f step 5 (plan P4-D355); the mutant withdraws the whole "
+        "runs, so single ranks carry the census alone",
+        attribute="weekday_runs",
+        replacement=lambda walk, ranks, have, want: None,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "weekday_keeping_first": Mutant(
+        branch="G7.3f step 6 (plan P4-D355); the mutant offers the nearest "
+        "destination whatever it does to the count of different days",
+        attribute="weekday_offer",
+        replacement=lambda walk, rank, have, want: _nearest_destination(walk, rank, have, want),
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "weekday_count_put_back": Mutant(
+        branch="G7.3f step 8.1 (plan P4-D355); the mutant withdraws the single "
+        "moves that put the count of different days back",
+        attribute="weekday_repair_singles",
+        replacement=lambda walk, movable, wanted: None,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "weekday_hole_left": Mutant(
+        branch="G7.3f step 2 (plan P4-D355); the mutant leaves a rank on the "
+        "absent day for the spelling pass to move without asking its weekday",
+        attribute="weekday_holes_left",
+        replacement=lambda walk, gaps: None,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "weekday_runs_merged": Mutant(
+        branch="G7.3f step 8.2 (plan P4-D355); the mutant withdraws the runs "
+        "merged onto a held day of their own group",
+        attribute="weekday_merged_runs",
+        replacement=lambda walk, movable, wanted: None,
+        outcome=CHANGES_THE_CELLS,
+    ),
     "pool_alone_marks": Mutant(
         branch="G6.1's census of marks that is only a pool (plan P4-D352); "
         "the mutant writes every cell with no mark, as the twin did before",
@@ -4413,6 +4515,28 @@ def test_withdrawing_step_five_puts_the_partly_padded_ceiling_on_a_stand_in(
         "withdrawn, so no committed byte holds that step up"
     )
     assert "+9999" in after["cells"]
+
+
+def _shares_as_drawn(walk: object, gaps: "list[list[int]]", owed: "list[int]") -> "list[list[int]]":
+    """The weekday mutant's shares: each gap's holding as drawn (G7.3f step 3 withdrawn)."""
+    return [
+        [
+            sum(1 for rank in ranks if walk.group(walk.days[rank]) == group)  # type: ignore[attr-defined]
+            for group in range(len(owed))
+        ]
+        for ranks in gaps
+    ]
+
+
+def _nearest_destination(walk: object, rank: int, have: "list[int]", want: "list[int]") -> object:
+    """The weekday mutant's offer: the nearest destination, keeping or not (G7.3f step 6)."""
+    days = walk.days  # type: ignore[attr-defined]
+    lows = walk.lows  # type: ignore[attr-defined]
+    highs = walk.highs  # type: ignore[attr-defined]
+    for other in gen.weekday_candidates(days[rank], lows[rank], highs[rank]):
+        if gen.weekday_destination(walk, rank, other, have, want, 1):
+            return (0, other)
+    return None
 
 
 _GENERATOR_NEAREST_HELD_UNIT = generation._nearest_held_unit
@@ -5301,6 +5425,7 @@ def test_the_method_states_the_count_the_committed_files_hold() -> None:
         (TENTH_BRANCH_VECTORS, _tenth_branch_document()),
         (ELEVENTH_BRANCH_VECTORS, _eleventh_branch_document()),
         (TWELFTH_BRANCH_VECTORS, _twelfth_branch_document()),
+        (THIRTEENTH_BRANCH_VECTORS, _thirteenth_branch_document()),
     )
     flat = " ".join(section.split())
     for path, document in held:

@@ -8874,6 +8874,9 @@ def _datetime_content(column):
     # (G7.3b step 9, plan P4-D354).
     ordinals = group_gives_way(column, ordinals, parsed, whole)
     holes = set(column.get("missing_by_source", {}))
+    # ...and the weekday census met, before any cell is spelled (G7.3f,
+    # plan P4-D355).
+    ordinals = weekday_settled(column, ordinals, parsed, whole, gap_lows, gap_highs, holes)
     # HOW EVERY RANK IS SPELLED (method G7.5, landing 2b.6). Allocated
     # after the instants and the offsets, because which conventions a
     # cell can show depends on the day it writes and the clock it writes
@@ -10478,6 +10481,456 @@ def group_offers_taken(tails, owed):
             found[k] = d
         placed[name] = found
     return placed
+
+
+# ------------------------------------------------ G7.3f, the weekday pass
+#
+# Written from method section G7.3f (plan P4-D355) and from nothing else:
+# the day pass that puts a column of whole dates on the groups its
+# weekday census publishes.  Each step is a function of its own so that
+# a frozen case can withdraw it alone.
+
+WEEKDAY_SHARE_SCALE = 2 ** 20
+WEEKDAY_RAKES = 60
+WEEKDAY_REACH = 400
+WEEKDAY_ASKED = 64
+
+
+def weekday_candidates(day, low, high):
+    """G7.3f: d - 1, d + 1, d - 2, ... up to 400 away, inside [low, high]."""
+    for away in range(1, WEEKDAY_REACH + 1):
+        if day - away < low and day + away > high:
+            return
+        for other in (day - away, day + away):
+            if low <= other <= high:
+                yield other
+
+
+class WeekdayWalk:
+    """The facts G7.3f reads, and the days every rank stands on."""
+
+    def __init__(self, column, ordinals, lows, highs, hole_days):
+        census = column["weekday_census"]
+        self.counts = [group["count"] for group in census]
+        self.group_of_weekday = [0] * 7
+        for index, group in enumerate(census):
+            for weekday in range(group["first"], group["last"] + 1):
+                self.group_of_weekday[weekday] = index
+        self.days = ordinals
+        self.lows, self.highs = lows, highs
+        self.holes = hole_days
+        self.held = {}
+        for day in ordinals:
+            self.held[day] = self.held.get(day, 0) + 1
+        widths = column.get("date_field_widths", {})
+        self.word = None
+        if len(widths) == 1 and (
+            column["format"] in VARIABLE_WIDTH_MEMBERS or column["format"] in TEXTUAL_MEMBERS
+        ):
+            self.word = next(iter(widths))
+        self.column = column
+        self.keeps_always = not date_counts_reachable(column)
+
+    def group(self, day):
+        return self.group_of_weekday[(day + 3) % 7]
+
+    def kind(self, day):
+        if self.word is None:
+            return True
+        return counts_into_width(self.column, day, self.word)
+
+    def holding(self, day):
+        return self.held.get(day, 0)
+
+    def move(self, rank, day):
+        self.held[self.days[rank]] -= 1
+        self.held[day] = self.held.get(day, 0) + 1
+        self.days[rank] = day
+
+    def different(self):
+        return sum(1 for day in self.held if self.held[day] > 0)
+
+
+def weekday_shares(walk, gaps, owed):
+    """G7.3f step 3: each gap's share of every group, in whole numbers.
+
+    The prior, sixty rakes, the rounding and the exact totals, each its
+    own function below, in the order the step states them.
+    """
+    prior = [weekday_prior_row(walk, ranks, len(owed)) for ranks in gaps]
+    x = weekday_raked(prior, [len(ranks) for ranks in gaps], owed)
+    q = [weekday_rounded(x[j], prior[j], len(gaps[j])) for j in range(len(gaps))]
+    return weekday_made_exact(q, x, prior, owed)
+
+
+# a[j][g]: the gap's ranks on a day of g at 2**20 each, plus d * n_j // D,
+# where d counts the gap's days of g that are no hole, at 2**20 each and
+# its two end days at 2**19, and D is the sum of d over the groups divided
+# by 2**20, rounded down; nought where D is.
+def weekday_prior_row(walk, ranks, groups):
+    low, high = walk.lows[ranks[0]], walk.highs[ranks[0]]
+    d = [
+        sum(
+            WEEKDAY_SHARE_SCALE // (2 if day in (low, high) else 1)
+            for day in range(low, high + 1)
+            if day not in walk.holes and walk.group(day) == g
+        )
+        for g in range(groups)
+    ]
+    whole = sum(d) // WEEKDAY_SHARE_SCALE
+    return [
+        sum(1 for rank in ranks if walk.group(walk.days[rank]) == g) * WEEKDAY_SHARE_SCALE
+        + (d[g] * len(ranks) // whole if whole > 0 else 0)
+        for g in range(groups)
+    ]
+
+
+# Sixty times over: each gap to its rank count, then each group to its
+# owed total, taken at nought or above.
+def weekday_raked(prior, sizes, owed):
+    x = [list(row) for row in prior]
+    for _ in range(WEEKDAY_RAKES):
+        x = weekday_scaled_columns([weekday_scaled_row(row, n) for row, n in zip(x, sizes)], owed)
+    return x
+
+
+def weekday_scaled_row(row, n):
+    total = sum(row)
+    return [value * n * WEEKDAY_SHARE_SCALE // total for value in row] if total > 0 else row
+
+
+def weekday_scaled_columns(x, owed):
+    totals = [sum(row[g] for row in x) for g in range(len(owed))]
+    return [
+        [
+            value * max(owed[g], 0) * WEEKDAY_SHARE_SCALE // totals[g] if totals[g] > 0 else value
+            for g, value in enumerate(row)
+        ]
+        for row in x
+    ]
+
+
+# One gap rounded: the floor of x * n / S, and the ranks left over one
+# each to the groups by the remainder, largest first and then the lower
+# group, passing over a group whose prior is nought.
+def weekday_rounded(xrow, prow, n):
+    total = sum(xrow)
+    floors = [value * n // total if total > 0 else 0 for value in xrow]
+    order = [
+        g
+        for _remainder, g in sorted((-((xrow[g] * n) % total) if total > 0 else 0, g) for g in range(len(xrow)))
+        if prow[g] > 0 and total > 0
+    ]
+    return [floors[g] + (1 if g in order[: max(0, n - sum(floors))] else 0) for g in range(len(xrow))]
+
+
+# While one group is over its owed total and another under, one share
+# moves, at most 20,000 times.
+def weekday_made_exact(q, x, prior, owed):
+    moved = 0
+    while moved < 20000 and (move := weekday_best_move(q, x, prior, owed)) is not None:
+        q[move[0]][move[1]], q[move[0]][move[2]] = q[move[0]][move[1]] - 1, q[move[0]][move[2]] + 1
+        moved += 1
+    return q
+
+
+# Of every group over, every group under and every gap, in that order,
+# the move whose gain is largest, the first met on a tie: (gap, from, to).
+def weekday_best_move(q, x, prior, owed):
+    totals = [sum(row[g] for row in q) - max(owed[g], 0) for g in range(len(owed))]
+    triples = [
+        (giving, taking, j)
+        for giving in range(len(owed)) if totals[giving] > 0
+        for taking in range(len(owed)) if totals[taking] < 0
+        for j in range(len(q))
+        if q[j][giving] > 0 and prior[j][taking] > 0
+    ]
+    scored = [
+        ((x[j][taking] - q[j][taking] * WEEKDAY_SHARE_SCALE) - (x[j][giving] - q[j][giving] * WEEKDAY_SHARE_SCALE), -order, j, giving, taking)
+        for order, (giving, taking, j) in enumerate(triples)
+    ]
+    return max(scored)[2:] if scored else None
+
+
+def weekday_destination(walk, rank, other, have, want, size):
+    """G7.3f step 4: may `size` ranks of this rank's kind go to `other`?"""
+    return (
+        other not in walk.holes
+        and walk.kind(other) == walk.kind(walk.days[rank])
+        and have[walk.group(other)] + size <= want[walk.group(other)]
+    )
+
+
+def weekday_runs(walk, ranks, have, want):
+    """G7.3f step 5: a gap's whole runs, up to eight rounds."""
+    for _ in range(8):
+        if not any([weekday_run_moved(walk, run, have, want) for run in (weekday_runs_of(walk, ranks) if have != want else [])]):
+            return
+
+
+# The gap's ranks on each day, days ascending, as the round begins.
+def weekday_runs_of(walk, ranks):
+    days = sorted({walk.days[rank] for rank in ranks})
+    return [[rank for rank in ranks if walk.days[rank] == day] for day in days]
+
+
+# A run of two or more, alone on its day, whose group holds at least its
+# size above its share, onto its first candidate no rank holds that is
+# a destination for all of it.
+def weekday_run_moved(walk, run, have, want):
+    day = walk.days[run[0]]
+    if len(run) < 2 or walk.holding(day) != len(run) or have[walk.group(day)] - want[walk.group(day)] < len(run):
+        return False
+    target = next(
+        (
+            other
+            for other in weekday_candidates(day, walk.lows[run[0]], walk.highs[run[0]])
+            if walk.holding(other) == 0 and weekday_destination(walk, run[0], other, have, want, len(run))
+        ),
+        None,
+    )
+    return target is not None and weekday_moved_whole(walk, run, target, have)
+
+
+# Every rank of a run onto one day, and the groups' holdings with it.
+def weekday_moved_whole(walk, run, target, have):
+    have[walk.group(walk.days[run[0]])] -= len(run)
+    have[walk.group(target)] += len(run)
+    return all([weekday_step(walk, rank, target) for rank in run])
+
+
+def weekday_step(walk, rank, target):
+    walk.move(rank, target)
+    return True
+
+
+def weekday_offer(walk, rank, have, want):
+    """G7.3f step 6: (0 keeping, or 1 changing, day) or None.
+
+    Of the destinations keeping the count, the one holding the fewest
+    ranks, the earlier candidate on a tie; failing any, the same of
+    every destination.
+    """
+    day = walk.days[rank]
+    alone = walk.holding(day) == 1
+    kept, changed = [], []
+    for order, other in enumerate(weekday_candidates(day, walk.lows[rank], walk.highs[rank])):
+        if not weekday_destination(walk, rank, other, have, want, 1):
+            continue
+        keeps = walk.keeps_always or alone == (walk.holding(other) == 0)
+        if keeps:
+            kept += [(walk.holding(other), order, other)]
+        else:
+            changed += [(walk.holding(other), order, other)]
+    if kept:
+        return (0, min(kept)[2])
+    if changed:
+        return (1, min(changed)[2])
+    return None
+
+
+def weekday_singles(walk, ranks, have, want, rounds, changing):
+    """G7.3f steps 6 and 7: single ranks, up to `rounds` rounds."""
+    for _ in range(rounds):
+        if (changing := weekday_single_round(walk, ranks, have, want, changing)) is None:
+            return
+
+
+# One round: None where the step ends, else whether changing offers are
+# taken from the next round on.
+def weekday_single_round(walk, ranks, have, want, changing):
+    if have == want:
+        return None
+    offers = sorted(weekday_offers_made(walk, ranks, have, want, changing))
+    stalled = not offers or not any([weekday_offer_taken(walk, rank, have, want, changing) for _kind, _distance, rank in offers])
+    return None if stalled and changing else (changing or stalled)
+
+
+# Every rank whose group holds more than its share, offered against the
+# holdings as the round begins: (changing, distance, rank).
+def weekday_offers_made(walk, ranks, have, want, changing):
+    return [
+        (offer[0], abs(offer[1] - walk.days[rank]), rank)
+        for rank, offer in (
+            (rank, weekday_offer(walk, rank, have, want))
+            for rank in ranks
+            if have[walk.group(walk.days[rank])] > want[walk.group(walk.days[rank])]
+        )
+        if offer is not None and (offer[0] == 0 or changing)
+    ]
+
+
+# Each offer is asked again when its turn comes.
+def weekday_offer_taken(walk, rank, have, want, changing):
+    group = walk.group(walk.days[rank])
+    offer = weekday_offer(walk, rank, have, want) if have[group] > want[group] else None
+    if offer is None or (offer[0] == 1 and not changing):
+        return False
+    return weekday_moved_whole(walk, [rank], offer[1], have)
+
+
+def weekday_leftover(walk, movable, owed):
+    """G7.3f step 7: what the gaps left, over every movable rank together."""
+    have = [0] * len(owed)
+    for rank in movable:
+        have[walk.group(walk.days[rank])] += 1
+    target = [max(value, 0) for value in owed]
+    if have != target:
+        weekday_singles(walk, movable, have, target, 64, True)
+
+
+def weekday_holes_left(walk, gaps):
+    """G7.3f step 2: every movable rank drawn onto a hole moves off it first."""
+    for ranks in gaps:
+        for rank in ranks:
+            day = walk.days[rank]
+            if day not in walk.holes:
+                continue
+            fitting = [
+                other
+                for other in weekday_candidates(day, walk.lows[rank], walk.highs[rank])
+                if other not in walk.holes and walk.kind(other) == walk.kind(day)
+            ]
+            alone = walk.holding(day) == 1
+            keeping = [other for other in fitting if alone == (walk.holding(other) == 0)]
+            if keeping:
+                walk.move(rank, keeping[0])
+            elif fitting:
+                walk.move(rank, fitting[0])
+
+
+def weekday_standing_day(walk, rank, group, kind, want_held, most):
+    """The first candidate of this group and kind, no hole, held or not as
+    asked; at most `most` such candidates asked (0: no limit)."""
+    asked = 0
+    for other in weekday_candidates(walk.days[rank], walk.lows[rank], walk.highs[rank]):
+        if other in walk.holes or walk.group(other) != group or walk.kind(other) != kind:
+            continue
+        asked += 1
+        if most and asked > most:
+            return None
+        if (walk.holding(other) > 0) == want_held:
+            return other
+    return None
+
+
+def weekday_repair(walk, movable, wanted):
+    """G7.3f step 8: the count of different days put back, in two moves."""
+    weekday_repair_singles(walk, movable, wanted)
+    weekday_merged_runs(walk, movable, wanted)
+
+
+def weekday_repair_singles(walk, movable, wanted):
+    """G7.3f step 8.1: single ranks inside their own group and kind."""
+    for _ in range(8):
+        if walk.different() == wanted or not weekday_repair_round(walk, movable, wanted, walk.different() < wanted):
+            return
+
+
+# Ranks in rank order, until the count is back: whether any moved.
+def weekday_repair_round(walk, movable, wanted, short):
+    return any([weekday_repair_move(walk, rank, short) for rank in movable if walk.different() != wanted])
+
+
+# Short: a rank sharing its day onto a free day; long: a lone rank onto
+# a held one; of its own group and kind, at most 64 asked.
+def weekday_repair_move(walk, rank, short):
+    day = walk.days[rank]
+    if (short and walk.holding(day) < 2) or (not short and walk.holding(day) != 1):
+        return False
+    target = weekday_standing_day(walk, rank, walk.group(day), walk.kind(day), not short, WEEKDAY_ASKED)
+    return target is not None and weekday_step(walk, rank, target)
+
+
+def weekday_merged_runs(walk, movable, wanted):
+    """G7.3f step 8.2: whole runs onto a held day of their own standing."""
+    for _ in range(8):
+        if walk.different() <= wanted:
+            return
+        on_day = {}
+        for rank in movable:
+            runs_of = on_day.setdefault(walk.days[rank], [])
+            runs_of += [rank]
+        moved = False
+        for _size, day in sorted((len(run), day) for day, run in on_day.items()):
+            if walk.different() <= wanted:
+                return
+            run = on_day[day]
+            if walk.holding(day) != len(run):
+                continue
+            if any((walk.lows[r], walk.highs[r]) != (walk.lows[run[0]], walk.highs[run[0]]) for r in run):
+                continue
+            target = weekday_standing_day(walk, run[0], walk.group(day), walk.kind(day), True, 0)
+            if target is None:
+                continue
+            for rank in run:
+                walk.move(rank, target)
+            moved = True
+        if not moved:
+            return
+
+
+def weekday_hole_days(column, holes):
+    """The days the absent spellings name, read as ISO dates.
+
+    G7.3f reads each absent spelling under the column's own member; this
+    oracle reads the ISO member alone, the one member of every frozen
+    case that publishes a weekday census, and says so here.
+    """
+    found = set()
+    for text in holes:
+        text = text.strip()
+        if len(text) == 10 and text[4] == "-" and text[7] == "-" and (text[:4] + text[5:7] + text[8:]).isdigit():
+            found.add(days_from_civil(int(text[:4]), int(text[5:7]), int(text[8:])))
+    return found
+
+
+def weekday_settled(column, ordinals, parsed, whole, lows, highs, holes):
+    """G7.3f, the weekday pass, from the method's own text (plan P4-D355)."""
+    ordinals = list(ordinals)
+    census = column.get("weekday_census") or []
+    if (
+        not census
+        or parsed < 3
+        or ordinal_space(column) != "date"
+        or not column.get("low_tail")
+        or not column.get("high_tail")
+        or any(whole)
+    ):
+        return ordinals
+    walk = WeekdayWalk(column, ordinals, lows, highs, weekday_hole_days(column, holes))
+    wanted = walk.different()
+    fixed = ranks_the_tail_pins(column, parsed)
+    first = column["low_tail"]["rows"]
+    last = parsed - 1 - column["high_tail"]["rows"]
+    movable = [
+        rank for rank in range(first, last + 1)
+        if not fixed[rank] and lows[rank] < highs[rank]
+    ]
+    owed = list(walk.counts)
+    for rank in range(first, last + 1):
+        if rank not in movable:
+            owed[walk.group(walk.days[rank])] -= 1
+    gaps = []
+    for rank in movable:
+        if gaps and gaps[-1][-1] == rank - 1 and (lows[gaps[-1][0]], highs[gaps[-1][0]]) == (lows[rank], highs[rank]):
+            gaps[-1] += [rank]
+        else:
+            gaps += [[rank]]
+    weekday_holes_left(walk, gaps)
+    shares = weekday_shares(walk, gaps, owed)
+    for j, ranks in enumerate(gaps):
+        have = [0] * len(owed)
+        for rank in ranks:
+            have[walk.group(walk.days[rank])] += 1
+        weekday_runs(walk, ranks, have, shares[j])
+        weekday_singles(walk, ranks, have, shares[j], 16, False)
+    weekday_leftover(walk, movable, owed)
+    if date_counts_reachable(column):
+        weekday_repair(walk, movable, wanted)
+    pinned = [fixed[rank] or lows[rank] >= highs[rank] for rank in range(parsed)]
+    sort_unpinned_runs(walk.days, pinned)
+    return walk.days
 
 
 def sort_unpinned_runs(ordinals, pinned):
@@ -16282,6 +16735,13 @@ def _universal(name, role, statistical_type, structural_role, quality_state, **f
         ):
             if census not in block:
                 block[census] = {}
+    # ...and the weekday census (landing 3b.1, contract WC1 to WC8), EMPTY
+    # for every case that does not state its own: a census is published
+    # only where its certificate holds, and an empty one asks nothing of
+    # the day pass of G7.3f, so every cell frozen before the key existed
+    # stands.
+    if role == "datetime" and "weekday_census" not in block:
+        block["weekday_census"] = []
     # ...and the census of WHOLE-NUMBER field widths (P4-D30) is NOT
     # defaulted, which is deliberate.  The two above are empty for
     # almost every case here because almost no case has a decimal or a
@@ -19475,6 +19935,11 @@ ELEVENTH_BRANCH_PART = "branches-11"
 # P4-D352): the twelfth and thirteenth both stand past plan P4-D295's
 # 200000-byte line.
 TWELFTH_BRANCH_PART = "branches-12"
+# The fifteenth, opened by the weekday census of a column of dates (plan
+# P4-D355) where the integration of stage 3's follow-ups and landings
+# 3b.0 and 3b.1 met its cases: the fourteenth stands past plan P4-D295's
+# 200000-byte line, and with them it would pass the 250000-byte cap.
+THIRTEENTH_BRANCH_PART = "branches-13"
 
 
 NAMED_CASE_BUILDERS = {
@@ -20710,6 +21175,311 @@ def _every_day_group():
         "generator did before this decision, and the twin holds 18 days.",
         "column": column,
         "rows": 105,
+        "identifier_declared": False,
+        "claims": tail_claims,
+    }
+
+
+# THE WEEKDAY PASS (method G7.3f, plan P4-D355): one column per step,
+# each the description the producer writes of a seeded table, and each
+# moved by withdrawing its own step.
+
+
+def _weekday_days_moved():
+    """G7.3f (plan P4-D355): the case's own column, as the producer writes it.
+
+    100 whole dates at a floor of eleven, seeded; the census is
+    [0-4] 66, [5-6] 12.
+    """
+    tails, tail_claims = _tail_fields(
+        {"boundary": "2024-10-09", "rows": 11, "mean_distance": "5.090909090909091", "rms_distance": "5.4272042023997455", "values": None},
+        {"boundary": "2024-11-28", "rows": 11, "mean_distance": "5.545454545454546", "rms_distance": "6.302957458786528", "values": None},
+    )
+    ladder = {key: None for key in LADDER_KEYS}
+    ladder["p25"] = "2024-10-18"
+    ladder["p50"] = "2024-10-30"
+    ladder["p75"] = "2024-11-19"
+    column = _universal(
+        "column_1", "datetime", "datetime", "data", "ok",
+        n_present=100, n_missing=0, n_distinct=46,
+        n_distinct_folded=46, n_numeric=0, n_not_numeric=100,
+        n_out_of_range=0, n_contradictory=0,
+        format="iso-date", resolution="date", time_precision="date",
+        subsecond_digits=0, datetimes_read_at="local",
+        tail_unit="day", date_percentiles=ladder,
+        n_unparsed=0, utc_offsets={"(none)": 100},
+        weekday_census=[{"first": 0, "last": 4, "count": 66}, {"first": 5, "last": 6, "count": 12}],
+        **tails,
+    )
+    return {
+        "why": (
+        "G7.3f (plan P4-D355): body ranks move inside their own gaps until "
+        "the cells between the two tail boundaries fall on the published "
+        "weekday groups -- here Monday to Friday together and Saturday and "
+        "Sunday together. The mutant withdraws the pass, as the twin was "
+        "written before this decision, and the twin's weekend is not the "
+        "published one."
+        ),
+        "column": column,
+        "rows": 100,
+        "identifier_declared": False,
+        "claims": tail_claims,
+    }
+
+
+def _weekday_gap_shares():
+    """G7.3f step 3 (plan P4-D355): the case's own column, as the producer writes it.
+
+    100 whole dates at a floor of eleven, seeded; the census is
+    [0-4] 43, [5-6] 34.
+    """
+    tails, tail_claims = _tail_fields(
+        {"boundary": "2024-06-22", "rows": 11, "mean_distance": "5.636363636363637", "rms_distance": "6.0", "values": None},
+        {"boundary": "2024-08-15", "rows": 12, "mean_distance": "4.416666666666667", "rms_distance": "5.008326400438906", "values": None},
+    )
+    ladder = {key: None for key in LADDER_KEYS}
+    ladder["p25"] = "2024-06-30"
+    ladder["p50"] = "2024-07-20"
+    ladder["p75"] = "2024-08-03"
+    column = _universal(
+        "column_1", "datetime", "datetime", "data", "ok",
+        n_present=100, n_missing=0, n_distinct=50,
+        n_distinct_folded=50, n_numeric=0, n_not_numeric=100,
+        n_out_of_range=0, n_contradictory=0,
+        format="iso-date", resolution="date", time_precision="date",
+        subsecond_digits=0, datetimes_read_at="local",
+        tail_unit="day", date_percentiles=ladder,
+        n_unparsed=0, utc_offsets={"(none)": 100},
+        weekday_census=[{"first": 0, "last": 4, "count": 43}, {"first": 5, "last": 6, "count": 34}],
+        **tails,
+    )
+    return {
+        "why": (
+        "G7.3f step 3 (plan P4-D355): each gap's share of every group is its "
+        "prior -- the gap's ranks as drawn, and as many again spread as its "
+        "days are -- raked "
+        "to the gap's rank count and the groups' owed totals, rounded by "
+        "largest remainder and made exact one share at a time. The mutant "
+        "gives each gap the holding it was drawn with, so only the leftover "
+        "moves ranks, and the twin's days are others."
+        ),
+        "column": column,
+        "rows": 100,
+        "identifier_declared": False,
+        "claims": tail_claims,
+    }
+
+
+def _weekday_whole_runs():
+    """G7.3f step 5 (plan P4-D355): the case's own column, as the producer writes it.
+
+    100 whole dates at a floor of eleven, seeded; the census is
+    [0-4] 77, [5-6] 0.
+    """
+    tails, tail_claims = _tail_fields(
+        {"boundary": "2024-01-02", "rows": 11, "mean_distance": "1.0", "rms_distance": None, "values": ['2024-01-01']},
+        {"boundary": "2024-01-23", "rows": 12, "mean_distance": "1.9166666666666667", "rms_distance": None, "values": ['2024-01-24', '2024-01-25', '2024-01-26']},
+    )
+    ladder = {key: None for key in LADDER_KEYS}
+    ladder["p25"] = "2024-01-04"
+    ladder["p50"] = "2024-01-12"
+    ladder["p75"] = "2024-01-19"
+    column = _universal(
+        "column_1", "datetime", "datetime", "data", "ok",
+        n_present=100, n_missing=0, n_distinct=20,
+        n_distinct_folded=20, n_numeric=0, n_not_numeric=100,
+        n_out_of_range=0, n_contradictory=0,
+        format="iso-date", resolution="date", time_precision="date",
+        subsecond_digits=0, datetimes_read_at="local",
+        tail_unit="day", date_percentiles=ladder,
+        n_unparsed=0, utc_offsets={"(none)": 100},
+        weekday_census=[{"first": 0, "last": 4, "count": 77}, {"first": 5, "last": 6, "count": 0}],
+        **tails,
+    )
+    return {
+        "why": (
+        "G7.3f step 5 (plan P4-D355): the ranks of one day, where no other "
+        "rank of the column stands on it, move whole onto a free day of a "
+        "group with room for all of them, before any single rank moves. The "
+        "mutant withdraws the step, and single ranks carry the census alone."
+        ),
+        "column": column,
+        "rows": 100,
+        "identifier_declared": False,
+        "claims": tail_claims,
+    }
+
+
+def _weekday_keeping_first():
+    """G7.3f step 6 (plan P4-D355): the case's own column, as the producer writes it.
+
+    100 whole dates at a floor of eleven, seeded; the census is
+    [0-4] 44, [5-6] 32.
+    """
+    tails, tail_claims = _tail_fields(
+        {"boundary": "2024-09-10", "rows": 12, "mean_distance": "2.8333333333333335", "rms_distance": None, "values": ['2024-09-06', '2024-09-07', '2024-09-08']},
+        {"boundary": "2024-10-18", "rows": 12, "mean_distance": "2.5833333333333335", "rms_distance": "2.9860788111948193", "values": None},
+    )
+    ladder = {key: None for key in LADDER_KEYS}
+    ladder["p25"] = "2024-09-14"
+    ladder["p50"] = "2024-09-28"
+    ladder["p75"] = "2024-10-09"
+    column = _universal(
+        "column_1", "datetime", "datetime", "data", "ok",
+        n_present=100, n_missing=0, n_distinct=41,
+        n_distinct_folded=41, n_numeric=0, n_not_numeric=100,
+        n_out_of_range=0, n_contradictory=0,
+        format="iso-date", resolution="date", time_precision="date",
+        subsecond_digits=0, datetimes_read_at="local",
+        tail_unit="day", date_percentiles=ladder,
+        n_unparsed=0, utc_offsets={"(none)": 100},
+        weekday_census=[{"first": 0, "last": 4, "count": 44}, {"first": 5, "last": 6, "count": 32}],
+        **tails,
+    )
+    return {
+        "why": (
+        "G7.3f step 6 (plan P4-D355): a single rank is offered, of the days "
+        "that keep the count of different days -- alone onto a free day, "
+        "sharing onto a held one -- the one holding the fewest ranks, before "
+        "any day that changes it. The mutant offers the nearest destination "
+        "whatever it does to the count."
+        ),
+        "column": column,
+        "rows": 100,
+        "identifier_declared": False,
+        "claims": tail_claims,
+    }
+
+
+def _weekday_count_put_back():
+    """G7.3f step 8.1 (plan P4-D355): the case's own column, as the producer writes it.
+
+    120 whole dates at a floor of eleven, seeded; the census is
+    [0-4] 92, [5-6] 0.
+    """
+    tails, tail_claims = _tail_fields(
+        {"boundary": "2024-08-23", "rows": 14, "mean_distance": "2.0", "rms_distance": None, "values": ['2024-08-20', '2024-08-21', '2024-08-22']},
+        {"boundary": "2024-09-19", "rows": 14, "mean_distance": None, "rms_distance": None, "values": ['2024-09-20', '2024-09-23']},
+    )
+    ladder = {key: None for key in LADDER_KEYS}
+    ladder["p25"] = "2024-08-27"
+    ladder["p50"] = "2024-09-06"
+    ladder["p75"] = "2024-09-17"
+    column = _universal(
+        "column_1", "datetime", "datetime", "data", "ok",
+        n_present=120, n_missing=0, n_distinct=25,
+        n_distinct_folded=25, n_numeric=0, n_not_numeric=120,
+        n_out_of_range=0, n_contradictory=0,
+        format="iso-date", resolution="date", time_precision="date",
+        subsecond_digits=0, datetimes_read_at="local",
+        tail_unit="day", date_percentiles=ladder,
+        n_unparsed=0, utc_offsets={"(none)": 120},
+        weekday_census=[{"first": 0, "last": 4, "count": 92}, {"first": 5, "last": 6, "count": 0}],
+        **tails,
+    )
+    return {
+        "why": (
+        "G7.3f step 8.1 (plan P4-D355): where the pass changed the count of "
+        "different days, ranks in rank order move inside their own group and "
+        "width kind -- a rank sharing its day onto a free day, a lone rank "
+        "onto a held one -- until the count the column held before the pass "
+        "is back. The mutant withdraws the step."
+        ),
+        "column": column,
+        "rows": 120,
+        "identifier_declared": False,
+        "claims": tail_claims,
+    }
+
+
+def _weekday_hole_left():
+    """G7.3f step 2 (plan P4-D355): the case's own column, as the producer writes it.
+
+    152 whole dates at a floor of eleven, seeded; the census is
+    [0-4] 81, [5-6] 23.
+    """
+    tails, tail_claims = _tail_fields(
+        {"boundary": "2024-02-18", "rows": 16, "mean_distance": "2.0625", "rms_distance": "2.331844763272204", "values": None},
+        {"boundary": "2024-03-08", "rows": 12, "mean_distance": "2.5833333333333335", "rms_distance": "2.7838821814150108", "values": None},
+    )
+    ladder = {key: None for key in LADDER_KEYS}
+    ladder["p25"] = "2024-02-21"
+    ladder["p50"] = "2024-02-28"
+    ladder["p75"] = "2024-03-04"
+    ladder["p90"] = "2024-03-08"
+    column = _universal(
+        "column_1", "datetime", "datetime", "data", "ok",
+        n_present=132, n_missing=20, n_distinct=27,
+        n_distinct_folded=27, n_numeric=0, n_not_numeric=132,
+        n_out_of_range=0, n_contradictory=0,
+        format="iso-date", resolution="date", time_precision="date",
+        subsecond_digits=0, datetimes_read_at="local",
+        tail_unit="day", date_percentiles=ladder,
+        n_unparsed=0, utc_offsets={"(none)": 132},
+        missing_by_source={"2024-02-23": 20},
+        weekday_census=[{"first": 0, "last": 4, "count": 81}, {"first": 5, "last": 6, "count": 23}],
+        **tails,
+    )
+    # THE ABSENT CELLS ARE THE DECLARED SPELLING'S, counted under it and
+    # under their own class, and none of them is held back.
+    column["missing_by_class"] = dict(column["missing_by_class"])
+    column["missing_by_class"]["(withheld)"] = 0
+    column["missing_by_class"]["(declared-missing)"] = 20
+    column["n_missing_withheld"] = 0
+    return {
+        "why": (
+        "G7.3f step 2 (plan P4-D355): a rank drawn onto a day the table "
+        "declares absent -- 2024-02-23, published among the absent cells -- "
+        "moves off it before the census moves anything, to its first "
+        "candidate that is no hole and keeps the count of different days, "
+        "and no later step puts a rank back on it. The mutant withdraws the "
+        "step, and the spelling pass's own step off the hole moves such a "
+        "rank without asking its weekday."
+        ),
+        "column": column,
+        "rows": 152,
+        "identifier_declared": False,
+        "claims": tail_claims,
+    }
+
+
+def _weekday_runs_merged():
+    """G7.3f step 8.2 (plan P4-D355): the case's own column, as the producer writes it.
+
+    110 whole dates at a floor of eleven, seeded; the census is
+    [0-4] 15, [5-6] 73.
+    """
+    tails, tail_claims = _tail_fields(
+        {"boundary": "2024-05-09", "rows": 11, "mean_distance": "24.818181818181817", "rms_distance": "24.83582456489379", "values": None},
+        {"boundary": "2024-10-24", "rows": 11, "mean_distance": "3.272727272727273", "rms_distance": "3.567530340063379", "values": None},
+    )
+    ladder = {key: None for key in LADDER_KEYS}
+    ladder["p25"] = "2024-05-13"
+    ladder["p50"] = "2024-07-10"
+    ladder["p75"] = "2024-09-01"
+    ladder["p90"] = "2024-10-24"
+    column = _universal(
+        "column_1", "datetime", "datetime", "data", "ok",
+        n_present=110, n_missing=0, n_distinct=27,
+        n_distinct_folded=27, n_numeric=0, n_not_numeric=110,
+        n_out_of_range=0, n_contradictory=0,
+        format="iso-date", resolution="date", time_precision="date",
+        subsecond_digits=0, datetimes_read_at="local",
+        tail_unit="day", date_percentiles=ladder,
+        n_unparsed=0, utc_offsets={"(none)": 110},
+        weekday_census=[{"first": 0, "last": 4, "count": 15}, {"first": 5, "last": 6, "count": 73}],
+        **tails,
+    )
+    return {
+        "why": (
+        "G7.3f step 8.2 (plan P4-D355): where the count of different days is "
+        "still long once single ranks have moved, the ranks of one day, all "
+        "of one gap and alone on it, move whole onto the nearest day of "
+        "their own group a rank holds, the smallest run first. The mutant "
+        "withdraws the step."
+        ),
+        "column": column,
+        "rows": 110,
         "identifier_declared": False,
         "claims": tail_claims,
     }
@@ -25503,6 +26273,7 @@ _DOCUMENT_ACCOUNT = (
     " Stage 3's two tail landings are two more files, for the same reason again: a tenth, tests/reference/generation-branch-vectors-8.json, holding the four cases the date and clock tails grew past the room their own files had and two of the numeric rule's five, and an eleventh, tests/reference/generation-branch-vectors-9.json, holding the numeric rule's other three."
     " The repair of the oracle's derived end in stage 3's review opened a twelfth, tests/reference/generation-branch-vectors-10.json, and a thirteenth, tests/reference/generation-branch-vectors-11.json, for the same reason."
     " A census of marks that is only a pool (plan P4-D352) opened a fourteenth, tests/reference/generation-branch-vectors-12.json, for the same reason."
+    " The weekday census of a column of dates (plan P4-D355) opened a fifteenth, tests/reference/generation-branch-vectors-13.json, for the same reason."
 )
 
 # The transforms this file's own cases name, stated the way every other
@@ -27285,12 +28056,26 @@ TWELFTH_BRANCH_CASE_BUILDERS = {
     "every_day_group": _every_day_group,
 }
 
+# THE FIFTEENTH FILE: G7.3f's weekday pass, one case a step (plan
+# P4-D355), because the fourteenth stands past plan P4-D295's
+# 200000-byte line.
+THIRTEENTH_BRANCH_CASE_BUILDERS = {
+    "weekday_days_moved": _weekday_days_moved,
+    "weekday_gap_shares": _weekday_gap_shares,
+    "weekday_whole_runs": _weekday_whole_runs,
+    "weekday_keeping_first": _weekday_keeping_first,
+    "weekday_count_put_back": _weekday_count_put_back,
+    "weekday_hole_left": _weekday_hole_left,
+    "weekday_runs_merged": _weekday_runs_merged,
+}
+
 CASE_SETS = {
     EIGHTH_BRANCH_PART: EIGHTH_BRANCH_CASE_BUILDERS,
     NINTH_BRANCH_PART: NINTH_BRANCH_CASE_BUILDERS,
     TENTH_BRANCH_PART: TENTH_BRANCH_CASE_BUILDERS,
     ELEVENTH_BRANCH_PART: ELEVENTH_BRANCH_CASE_BUILDERS,
     TWELFTH_BRANCH_PART: TWELFTH_BRANCH_CASE_BUILDERS,
+    THIRTEENTH_BRANCH_PART: THIRTEENTH_BRANCH_CASE_BUILDERS,
     FIFTH_BRANCH_PART: FIFTH_BRANCH_CASE_BUILDERS,
     SIXTH_BRANCH_PART: SIXTH_BRANCH_CASE_BUILDERS,
     SEVENTH_BRANCH_PART: SEVENTH_BRANCH_CASE_BUILDERS,
@@ -27317,6 +28102,7 @@ CASE_BUILDERS = {
     **TENTH_BRANCH_CASE_BUILDERS,
     **ELEVENTH_BRANCH_CASE_BUILDERS,
     **TWELFTH_BRANCH_CASE_BUILDERS,
+    **THIRTEENTH_BRANCH_CASE_BUILDERS,
 }
 
 # What each file says about itself, so that neither can be read as the
@@ -27351,6 +28137,7 @@ _NAMED_ACCOUNT = (
     " Stage 3's two tail landings are two more files, for the same reason again: a tenth, tests/reference/generation-branch-vectors-8.json, holding the four cases the date and clock tails grew past the room their own files had and two of the numeric rule's five, and an eleventh, tests/reference/generation-branch-vectors-9.json, holding the numeric rule's other three."
     " The repair of the oracle's derived end in stage 3's review opened a twelfth, tests/reference/generation-branch-vectors-10.json, and a thirteenth, tests/reference/generation-branch-vectors-11.json, for the same reason."
     " A census of marks that is only a pool (plan P4-D352) opened a fourteenth, tests/reference/generation-branch-vectors-12.json, for the same reason."
+    " The weekday census of a column of dates (plan P4-D355) opened a fifteenth, tests/reference/generation-branch-vectors-13.json, for the same reason."
 )
 _BRANCH_ACCOUNT = (
     "cases method section G14.3 adds for the branches its first nine "
@@ -27388,6 +28175,7 @@ _BRANCH_ACCOUNT = (
     " Stage 3's two tail landings are two more files, for the same reason again: a tenth, tests/reference/generation-branch-vectors-8.json, holding the four cases the date and clock tails grew past the room their own files had and two of the numeric rule's five, and an eleventh, tests/reference/generation-branch-vectors-9.json, holding the numeric rule's other three."
     " The repair of the oracle's derived end in stage 3's review opened a twelfth, tests/reference/generation-branch-vectors-10.json, and a thirteenth, tests/reference/generation-branch-vectors-11.json, for the same reason."
     " A census of marks that is only a pool (plan P4-D352) opened a fourteenth, tests/reference/generation-branch-vectors-12.json, for the same reason."
+    " The weekday census of a column of dates (plan P4-D355) opened a fifteenth, tests/reference/generation-branch-vectors-13.json, for the same reason."
 )
 _SECOND_BRANCH_ACCOUNT = (
     "cases method section G14.3 adds with the carried landings 2b.2, 2b.3 "
@@ -27416,6 +28204,7 @@ _SECOND_BRANCH_ACCOUNT = (
     " Stage 3's two tail landings are two more files, for the same reason again: a tenth, tests/reference/generation-branch-vectors-8.json, holding the four cases the date and clock tails grew past the room their own files had and two of the numeric rule's five, and an eleventh, tests/reference/generation-branch-vectors-9.json, holding the numeric rule's other three."
     " The repair of the oracle's derived end in stage 3's review opened a twelfth, tests/reference/generation-branch-vectors-10.json, and a thirteenth, tests/reference/generation-branch-vectors-11.json, for the same reason."
     " A census of marks that is only a pool (plan P4-D352) opened a fourteenth, tests/reference/generation-branch-vectors-12.json, for the same reason."
+    " The weekday census of a column of dates (plan P4-D355) opened a fifteenth, tests/reference/generation-branch-vectors-13.json, for the same reason."
 )
 
 _THIRD_BRANCH_ACCOUNT = (
@@ -27442,6 +28231,7 @@ _THIRD_BRANCH_ACCOUNT = (
     " Stage 3's two tail landings are two more files, for the same reason again: a tenth, tests/reference/generation-branch-vectors-8.json, holding the four cases the date and clock tails grew past the room their own files had and two of the numeric rule's five, and an eleventh, tests/reference/generation-branch-vectors-9.json, holding the numeric rule's other three."
     " The repair of the oracle's derived end in stage 3's review opened a twelfth, tests/reference/generation-branch-vectors-10.json, and a thirteenth, tests/reference/generation-branch-vectors-11.json, for the same reason."
     " A census of marks that is only a pool (plan P4-D352) opened a fourteenth, tests/reference/generation-branch-vectors-12.json, for the same reason."
+    " The weekday census of a column of dates (plan P4-D355) opened a fifteenth, tests/reference/generation-branch-vectors-13.json, for the same reason."
 )
 
 _FOURTH_BRANCH_ACCOUNT = (
@@ -27471,6 +28261,7 @@ _FOURTH_BRANCH_ACCOUNT = (
     " Stage 3's two tail landings are two more files, for the same reason again: a tenth, tests/reference/generation-branch-vectors-8.json, holding the four cases the date and clock tails grew past the room their own files had and two of the numeric rule's five, and an eleventh, tests/reference/generation-branch-vectors-9.json, holding the numeric rule's other three."
     " The repair of the oracle's derived end in stage 3's review opened a twelfth, tests/reference/generation-branch-vectors-10.json, and a thirteenth, tests/reference/generation-branch-vectors-11.json, for the same reason."
     " A census of marks that is only a pool (plan P4-D352) opened a fourteenth, tests/reference/generation-branch-vectors-12.json, for the same reason."
+    " The weekday census of a column of dates (plan P4-D355) opened a fifteenth, tests/reference/generation-branch-vectors-13.json, for the same reason."
 )
 
 _FIFTH_BRANCH_ACCOUNT = (
@@ -27498,6 +28289,7 @@ _FIFTH_BRANCH_ACCOUNT = (
     " Stage 3's two tail landings are two more files, for the same reason again: a tenth, tests/reference/generation-branch-vectors-8.json, holding the four cases the date and clock tails grew past the room their own files had and two of the numeric rule's five, and an eleventh, tests/reference/generation-branch-vectors-9.json, holding the numeric rule's other three."
     " The repair of the oracle's derived end in stage 3's review opened a twelfth, tests/reference/generation-branch-vectors-10.json, and a thirteenth, tests/reference/generation-branch-vectors-11.json, for the same reason."
     " A census of marks that is only a pool (plan P4-D352) opened a fourteenth, tests/reference/generation-branch-vectors-12.json, for the same reason."
+    " The weekday census of a column of dates (plan P4-D355) opened a fifteenth, tests/reference/generation-branch-vectors-13.json, for the same reason."
 )
 
 _SIXTH_BRANCH_ACCOUNT = (
@@ -27534,6 +28326,7 @@ _SIXTH_BRANCH_ACCOUNT = (
     " Stage 3's two tail landings are two more files, for the same reason again: a tenth, tests/reference/generation-branch-vectors-8.json, holding the four cases the date and clock tails grew past the room their own files had and two of the numeric rule's five, and an eleventh, tests/reference/generation-branch-vectors-9.json, holding the numeric rule's other three."
     " The repair of the oracle's derived end in stage 3's review opened a twelfth, tests/reference/generation-branch-vectors-10.json, and a thirteenth, tests/reference/generation-branch-vectors-11.json, for the same reason."
     " A census of marks that is only a pool (plan P4-D352) opened a fourteenth, tests/reference/generation-branch-vectors-12.json, for the same reason."
+    " The weekday census of a column of dates (plan P4-D355) opened a fifteenth, tests/reference/generation-branch-vectors-13.json, for the same reason."
     " And, added here by the dates pass of the second Codex round of"
     " 2026-09-19, the MIDNIGHT half of P4-D258's paid merge: forty each"
     " of three instants, eighty of them at midnight, on a column writing"
@@ -27574,6 +28367,7 @@ _SEVENTH_BRANCH_ACCOUNT = (
     " Stage 3's two tail landings are two more files, for the same reason again: a tenth, tests/reference/generation-branch-vectors-8.json, holding the four cases the date and clock tails grew past the room their own files had and two of the numeric rule's five, and an eleventh, tests/reference/generation-branch-vectors-9.json, holding the numeric rule's other three."
     " The repair of the oracle's derived end in stage 3's review opened a twelfth, tests/reference/generation-branch-vectors-10.json, and a thirteenth, tests/reference/generation-branch-vectors-11.json, for the same reason."
     " A census of marks that is only a pool (plan P4-D352) opened a fourteenth, tests/reference/generation-branch-vectors-12.json, for the same reason."
+    " The weekday census of a column of dates (plan P4-D355) opened a fifteenth, tests/reference/generation-branch-vectors-13.json, for the same reason."
 )
 
 _EIGHTH_BRANCH_ACCOUNT = (
@@ -27616,6 +28410,7 @@ _EIGHTH_BRANCH_ACCOUNT = (
     "raised and no case is dropped."
     " The repair of the oracle's derived end in stage 3's review opened a twelfth, tests/reference/generation-branch-vectors-10.json, and a thirteenth, tests/reference/generation-branch-vectors-11.json, for the same reason."
     " A census of marks that is only a pool (plan P4-D352) opened a fourteenth, tests/reference/generation-branch-vectors-12.json, for the same reason."
+    " The weekday census of a column of dates (plan P4-D355) opened a fifteenth, tests/reference/generation-branch-vectors-13.json, for the same reason."
 )
 _NINTH_BRANCH_ACCOUNT = (
     "cases method section G14.3 adds for the TAIL RULE of stage 3 "
@@ -27660,6 +28455,9 @@ _NINTH_BRANCH_ACCOUNT = (
     " tests/reference/generation-branch-vectors-11.json."
     " A census of marks that is only a pool (plan P4-D352) opened a"
     " fourteenth, tests/reference/generation-branch-vectors-12.json."
+    " The weekday census of a column of dates (plan P4-D355) opened a"
+    " fifteenth, tests/reference/generation-branch-vectors-13.json,"
+    " because the fourteenth then stood past that line."
 )
 
 _TENTH_BRANCH_ACCOUNT = (
@@ -27696,6 +28494,9 @@ _TENTH_BRANCH_ACCOUNT = (
     " A census of marks that is only a pool (plan P4-D352) opened a"
     " fourteenth, tests/reference/generation-branch-vectors-12.json,"
     " because this file then stood past that line."
+    " The weekday census of a column of dates (plan P4-D355) opened a"
+    " fifteenth, tests/reference/generation-branch-vectors-13.json,"
+    " because the fourteenth then stood past that line."
 )
 
 _ELEVENTH_BRANCH_ACCOUNT = (
@@ -27728,6 +28529,9 @@ _ELEVENTH_BRANCH_ACCOUNT = (
     " A census of marks that is only a pool (plan P4-D352) opened a"
     " fourteenth, tests/reference/generation-branch-vectors-12.json,"
     " because this file then stood past that line."
+    " The weekday census of a column of dates (plan P4-D355) opened a"
+    " fifteenth, tests/reference/generation-branch-vectors-13.json,"
+    " because the fourteenth then stood past that line."
 )
 
 _TWELFTH_BRANCH_ACCOUNT = (
@@ -27757,6 +28561,32 @@ _TWELFTH_BRANCH_ACCOUNT = (
     "tests/reference/generation-document-vectors.json, and live in a "
     "fourteenth file because the twelfth and thirteenth stand past plan "
     "P4-D295's 200000-byte line: no cap is raised and no case is dropped."
+    " The weekday census of a column of dates (plan P4-D355) opened a"
+    " fifteenth, tests/reference/generation-branch-vectors-13.json,"
+    " because this file then stood past that line."
+)
+
+_THIRTEENTH_BRANCH_ACCOUNT = (
+    "cases method section G14.3 adds with the weekday census of a column "
+    "of dates (plan P4-D355): G7.3f's day pass, one seeded column of 100 "
+    "to 152 whole dates for each of its steps. They are computed by the "
+    "same oracle and the same proof layer "
+    "as tests/reference/generation-reference-vectors.json, "
+    "tests/reference/generation-branch-vectors.json, "
+    "tests/reference/generation-branch-vectors-2.json, "
+    "tests/reference/generation-branch-vectors-3.json, "
+    "tests/reference/generation-branch-vectors-4.json, "
+    "tests/reference/generation-branch-vectors-5.json, "
+    "tests/reference/generation-branch-vectors-6.json, "
+    "tests/reference/generation-branch-vectors-7.json, "
+    "tests/reference/generation-branch-vectors-8.json, "
+    "tests/reference/generation-branch-vectors-9.json, "
+    "tests/reference/generation-branch-vectors-10.json, "
+    "tests/reference/generation-branch-vectors-11.json, "
+    "tests/reference/generation-branch-vectors-12.json and "
+    "tests/reference/generation-document-vectors.json, and live in a "
+    "fifteenth file because the fourteenth stands past plan P4-D295's "
+    "200000-byte line: no cap is raised and no case is dropped."
 )
 
 
@@ -27775,6 +28605,9 @@ CASE_SET_ACCOUNTS = {
     ),
     TWELFTH_BRANCH_PART: (
         f"The {len(TWELFTH_BRANCH_CASE_BUILDERS)} {_TWELFTH_BRANCH_ACCOUNT}"
+    ),
+    THIRTEENTH_BRANCH_PART: (
+        f"The {len(THIRTEENTH_BRANCH_CASE_BUILDERS)} {_THIRTEENTH_BRANCH_ACCOUNT}"
     ),
     FIFTH_BRANCH_PART: (
         f"The {len(FIFTH_BRANCH_CASE_BUILDERS)} {_FIFTH_BRANCH_ACCOUNT}"
@@ -28164,6 +28997,537 @@ GIVEN_WORDS = {
         17292682069479083040, 15134063942607668872, 16408842465293891747,
         4095085676556946715, 10522138137679369697, 17111283135317611073,
         3632842063314559153, 3829518513296712869, 103146376361316910,
+    ),
+    # ...and the weekday pass, G7.3f, at seed 410.
+    "weekday_days_moved": (
+        8413258334993288457, 16216829927024127976, 15763235604285990455,
+        8353189967939558373, 7632285419900427461, 13118846138990338472,
+        15151747998582368434, 7829602539136959978, 14280082515712482265,
+        12167482039429578805, 3486911845621407665, 13040384163672131197,
+        724741821177896613, 2279592575487574380, 2115096446612144591,
+        10991037054736798586, 2357938087444214365, 5392111026152348345,
+        16311320396082150428, 13656230708956100725, 13068258099476931482,
+        17111862384053742567, 5549853406549196007, 7334203581698489462,
+        18333428760311014875, 15913388920718417217, 12784473891832865357,
+        12308566254410232449, 14757432500172375756, 17376562069176805144,
+        16216512805249164391, 2943107082488131510, 3602791477007772498,
+        18313316885583868124, 16136056362007225481, 10428804717151395845,
+        14693199036229630466, 10764034417072528585, 2914676849153384623,
+        2112051027522449890, 8701594860653462927, 4156560998030767824,
+        10536328066801119263, 15925964521384909145, 8931123460081072636,
+        14375681396317360543, 8036280765319928152, 6913077003752533132,
+        9240326793656585710, 4504534208745450640, 2817222562971063903,
+        15899571375342528163, 14390829143407761583, 2790155009099809758,
+        8621002311776221852, 4441248170843083186, 4878609921610280417,
+        13922176628316402377, 14148111232787203102, 8115670757323849119,
+        4405994150616324310, 13264776772859713264, 13441100411167022197,
+        5168514587609577625, 8952520854615198204, 9359629302791627065,
+        8454203768519344322, 14162956984812471692, 6415004890627301685,
+        938910365888873472, 5098828751756541837, 12179141535299089232,
+        11924023790620241408, 16241290856690609846, 11332918759407938189,
+        9867692889297357637, 12623525947647677217, 3383179332497018697,
+        13490039025429246622, 13069548079489356389, 4362395800568255363,
+        3036610477724101120, 12136262570689523013, 18051376932208970545,
+        18251581959161301651, 1685860271211535162, 2932862358424203397,
+        12618263862203963566, 15411428657385704166, 6495789955713168153,
+        18442418203900583936, 12029386885663814147, 15395559950538020522,
+        9293727830309190213, 2824240483166033496, 13315452135536723090,
+        16182031559185130773, 14550006940639786272, 3049645280465170978,
+        6276077552010652940, 6035032822876869269, 616736922768909824,
+        1370810088830306578, 7979824828037141912, 9089920910917046704,
+        111218008002229160, 13379552435146632200, 16974671997889868805,
+        9352395836802479222, 15907601799983276997, 7861789243360647384,
+        3026641124908729021, 13405296088612055886, 10925474765682795791,
+        17740962770594660306, 4166277411245103556, 17536999481152325487,
+        11706541913340048855, 9561573003851318727, 4343781641552817192,
+        2470601832235461023, 4184668361405742539, 12471831035915548773,
+        13044675990765127318, 3020584781759919230, 9345864883806723665,
+        17936924347651887496, 23394374324044028, 10954719764240894117,
+        4618048123325545808, 3783698903030438488, 17011525710797952228,
+        17689693690092157845, 16067389195968572027, 17467469988030987336,
+        11295743805688062320, 12171577668813616885, 6173881973878064228,
+        16627497753465149662, 17217688380271724932, 8455849765499362078,
+        12305417006577801549, 6044749268284630189, 15431912673334837391,
+        5537004559045028470, 9884363515566459164, 3616703381427163551,
+        4288762226191061628, 2638878382688491264, 9300392363792790895,
+        10944133331096394790, 13347218150975221774, 4114919582975307185,
+        9604841773712779615, 2407434860612503930, 4408365977124210494,
+        10815916720058586525, 8215791172396167099, 10239755516321022055,
+        2628265181558722835, 3859691591850492695, 1912215684666338476,
+        2360033420580157710, 2459284922856031252, 1321663731029634928,
+        7889618638418554861, 3719961424320102320, 6689902824256127821,
+        555759674599591002, 13273626881760609404, 15463760371630566605,
+        14290396895709809030, 16080158291614598605, 8813036475996029964,
+        12252581260939251737, 14624827577210140577, 14271400054403768940,
+        10756382738447217821, 524350724895600798, 4745613445135804469,
+        4576042241745420908, 6833552472323249407, 16566264865513200447,
+        11495379938177268065, 1887697986216481360, 16185000064221960959,
+        12716116622184340558, 6782842509774513867, 14332859230655513368,
+        16912628362257446866, 2444628623746445207, 12249112336368394286,
+        9597848977350528196, 9802789077803848097, 7199938954255368118,
+        697829692510877095, 13260060311514922197,
+    ),
+    # ...and the weekday pass, G7.3f step 3, at seed 411.
+    "weekday_gap_shares": (
+        2160231408200192786, 16609755891590337454, 18402274286083838096,
+        13856081164329308766, 16467448385852639460, 7656112573378178286,
+        14376808743606005557, 18394850221967253970, 13233097709104934542,
+        6435045551715405660, 10183196767938120571, 11766954797360514376,
+        1252577587036322182, 13362709802903828253, 288960445709038757,
+        14980100367160270925, 1125868868906231869, 702236267927965457,
+        11084356994697039091, 9272377157985369424, 11073861675466584534,
+        6468291494430750483, 8417519112673189443, 9347757569797843916,
+        6873729082096037900, 1341310972500881849, 5116049287547585576,
+        215049639969310588, 4804098210714977560, 14652219111926619804,
+        8007113792041499578, 7214237684470145094, 12038408648295812501,
+        8580386973176271011, 9412090338754739793, 8272988329208205182,
+        14476378485113864578, 2281962314940133992, 11455095259095058664,
+        6505723074020789901, 16698420172717507531, 4429447223893268337,
+        16302431048552659083, 14126627198392057695, 7994983053286988743,
+        13666640530204060156, 1744171548780857283, 4924466815044783472,
+        6948817332253291624, 12355057766697708890, 3778978552875420341,
+        4694617335893607685, 18303920277106192781, 8944092243866468984,
+        15401944033812876819, 8105886367865949296, 6566910819387194830,
+        10027135931792987167, 8345744326186602980, 9669013007043558712,
+        12633233628625612390, 1265230895591750700, 14090000069444510295,
+        13064865400100271151, 18245278257959477711, 7710829308987148295,
+        168652298510853289, 3710118289663093, 9861892883099652264,
+        9578416229139529005, 13495332463770063906, 7829474553723100072,
+        5865787152617549116, 9785220066820110160, 11190457493195602422,
+        3903951553011302034, 17702881422553466442, 11551421486630619728,
+        3323446655163358371, 18024133559849407402, 13499991011527123015,
+        8640391228375214045, 5424639239012406762, 16295493939461218641,
+        15439205321982219967, 6003289612499951077, 4244489652224542992,
+        15683028247569771842, 5809497694456226195, 11840669433118945816,
+        5403684526143006267, 5159902352821630538, 11982858809902293476,
+        16443492190284818239, 12587587003560968328, 2709904801357103851,
+        15070450922620579893, 8017090662157047787, 4013511592860213766,
+        12528586184466934397, 9657510477667742411, 6634331619121007895,
+        16178839863617144651, 12140838827225743642, 17595910150405829851,
+        4381153451541667141, 7645437136544226772, 17722560662638872522,
+        14420616186020014543, 2091299239201008196, 6370665646059946990,
+        11232955351170100908, 194168904381505470, 12633983027667258875,
+        179824653946727106, 6109918215820538879, 15273434255080564207,
+        12296652261903360241, 9622665228475501695, 1496828647618453137,
+        11408408559070462754, 13318845248471837679, 6631420467733465972,
+        11667764033355552769, 15263770878461509381, 11558746337892342978,
+        1597673755035097413, 11421860274745033128, 15978308747960178192,
+        10986755013633334496, 534660481928417740, 14441821930632192939,
+        17026783057360961408, 12998717452350771541, 7822911000113548331,
+        5710732665092665695, 18118732951060068775, 6074261647234589879,
+        14478555778587696215, 8789527349206566069, 669604709768625291,
+        3667852673036432467, 12487900772037672363, 4400008883808630024,
+        3407632184324585455, 10419600044384147440, 2713681638867634999,
+        3499468126858643411, 10423560034143834455, 328665815887744587,
+        11584127811793423397, 16053804522274179162, 13610732309255813020,
+        16360442486801032155, 10890774177691850799, 1417837317635406681,
+        10550649910541693850, 7483779491453308103, 1646244959418181319,
+        16891896962375580325, 847169000646594219, 1991344973944319974,
+        11296511816495600771, 6008228931197128609, 9148728723050392893,
+        6118343709936098767, 14422893640402118748, 16061601821988745405,
+        944192797479847284, 14234626364805954721, 12515962502560027213,
+        1538460203217430290, 7673559054605190310, 7792663420383775762,
+        15285803551907417955, 7725667291535852163, 7046017885609363297,
+        13128226480690313651, 9783158880039431874, 12825931684098960317,
+        10211734916224323510, 12556925682244244334, 5167060301812417255,
+        10256405759968188869, 4392230916546753680, 9793161941365202042,
+        11091720069763655432, 9227850408150747334, 10077724591471106607,
+        4830039034654524677, 12194918977466275454, 9686523273446424273,
+        13277136142614055200, 5677720504604793310, 15305562918256469078,
+        11286395568784828835, 358218427065142531,
+    ),
+    # ...and the weekday pass, G7.3f step 5, at seed 412.
+    "weekday_whole_runs": (
+        12941503070969119101, 9228864211337172496, 2990866107343501351,
+        1975296584062294990, 11943018011480057241, 17436483369230220065,
+        11667189176826696553, 548545583269338952, 14071308420012385417,
+        4836320185635169949, 13807828379166375148, 12471658077209253821,
+        5161338556578548256, 15000177590819282072, 4969763617003149127,
+        7137243017381619979, 1643689287763632284, 15519001094558694041,
+        13270092520227476713, 5268958281357446020, 6358943172925352441,
+        11310603321517597180, 14085680752028135496, 1231036253133887388,
+        11558841496807368214, 884636148296611334, 12899878320262510960,
+        3630247370068733295, 5403407912985912020, 7209218504933359768,
+        8303590731410737760, 15607657880019306474, 813140403151807904,
+        11028034665921799527, 13315217433847564174, 9846609012499711983,
+        2419663245395547749, 4360709954030931301, 1613498357327585358,
+        4565631792048324531, 9853206008653507278, 5598002130514819436,
+        5371618919694292426, 10705919678827266825, 474398885351282639,
+        7643202339763960599, 8489619881377062063, 14183354248437858136,
+        15446125801178097562, 3268570919153233239, 7227259324282704125,
+        10925195672557063589, 14813512561572491520, 10951408595097842607,
+        8016600387076298605, 18241198077867242910, 2805520485206070023,
+        18248075639265779284, 1218926108603011090, 16584597968438746920,
+        3758818938192584092, 5743248647276732035, 15730739398039796157,
+        17847505147569941118, 553732197943502903, 3452877068104886226,
+        10443196862771349855, 17226505025251390012, 17086788066342110016,
+        2889484150862325749, 17206322241820182265, 2210670486379848268,
+        4219752938784624773, 1637543900178568827, 9493083163911314885,
+        3280167575490010321, 10484884340850713844, 3795852315121794867,
+        6191206151629132982, 10731509342757820178, 4585218954064688524,
+        16261361567222047683, 17714919799230012997, 11032856383501857050,
+        4449226193920209107, 17084322055029076886, 13826318667908560062,
+        18254906935624089699, 2524387308277592836, 17548359298459247210,
+        10603185600648545755, 11198020528198105674, 17772897480290736866,
+        18153347452509352418, 5635729601321388178, 12997462182024455207,
+        17873869343306858172, 11309293650807975686, 10890137449617179556,
+        11423768681520744535, 7342868265297226686, 15772414554604773117,
+        17673722632456318938, 13537400235592224901, 17112344484135892086,
+        8837257967117822268, 9962988214439230877, 6452406565991899662,
+        11607596489424179531, 781641367447789786, 16123448252410545484,
+        12930151838680141090, 5178250984501434963, 8655554404950131808,
+        6644873024924131254, 15506785610731561636, 1414629065981203215,
+        11263602880414049577, 4395477572113549949, 6962277066356668131,
+        12220183091608853003, 15904731075453071250, 13186197901085847660,
+        14626053867219307588, 3296365698510738132, 17873002411456016977,
+        3004575754972692034, 1672966380435801973, 14896005272647327859,
+        16943059904859024191, 15526522917157092484, 6627232563860393134,
+        455536782714906962, 13482890160449933654, 5645675341468086212,
+        3869356603423928934, 10407162860020775699, 1581199236257273661,
+        6709570656459956220, 8187712587630021700, 16733468822402529507,
+        12853135894427304229, 3521502612824053306, 4466133665733411897,
+        10583533818588602020, 1457992049744021706, 17128488734062975445,
+        11194071845410078436, 8240150373265073417, 202971968714171982,
+        14448455050103766758, 7411256838097158020, 12778553968236149076,
+        17541721715092431128, 12300465356038364352, 4417289655940683897,
+        1883416848923544736, 4212741627875137639, 16688793866778262625,
+        14879006174455829885, 12591307020402189201, 9474159729743432602,
+        5572955456467616711, 14613114365650733001, 15937902433082356314,
+        4638551967699975939, 14405845006881880950, 6786472479685646804,
+        312971998666751659, 12768600227032855197, 9931397217689452952,
+        15961109956805832107, 17596387461443599252, 237219772045308120,
+        2417092652890406782, 17125449939299734364, 5109885323167921544,
+        3535503170503797585, 2671873705613914326, 11619179092216376003,
+        1027356568400795373, 15667373755479068008, 2388571409687495233,
+        12663637884294309073, 5338641936189708043, 16110186608663672033,
+        12359214010213874092, 1394113267918906012, 1955613351712824555,
+        336864393648582513, 2478931529979657971, 14231146304856586270,
+        17325145920673308664, 6896051599113316026, 1941707011171741652,
+        12527800195059955725, 2119330016375038866,
+    ),
+    # ...and the weekday pass, G7.3f step 6, at seed 413.
+    "weekday_keeping_first": (
+        852617328044301563, 8969878413559186294, 592203473337620449,
+        1448105808456952757, 18427142877357536981, 14619361340262590666,
+        2600352455146286789, 3788844253631390826, 7250856948745163767,
+        2599193756152275472, 18365083123019403719, 12591699897834101536,
+        7073821531794758624, 16428086378564389853, 5031934891681731378,
+        14226911529656488907, 3613686811776644814, 8612896795857067438,
+        634871830624662216, 1271739431282425492, 8020903747846796432,
+        6739487652900924029, 11773328183484401026, 3934339070520047644,
+        15843994616275750762, 7832065910456504945, 16582695055404007274,
+        17059528258491629797, 12040538038553935186, 10899687085363798484,
+        10980958592439391779, 13367059016680041281, 17188093946582563562,
+        12394163464734337555, 1157725298433924006, 1213345547398820394,
+        9401018412122185443, 17999830154396227635, 5350635694942226961,
+        17395241918150854866, 8553999797795537466, 2811235026009196544,
+        14782401129560309537, 1839199859144521953, 17797842191667741826,
+        5871366618319001202, 6812482644396661570, 9980768433462702303,
+        7245285714410628991, 11554737146200711924, 12199786845696318694,
+        10743007780105673358, 822142610973173177, 17987989340101166838,
+        11748302589556622395, 9020097121650072773, 9115812200608544975,
+        12286080362920676715, 7243455030200527375, 9449365308985900176,
+        10600260070971364215, 8896419471011051668, 7802013313782630987,
+        15046357113303160840, 5335400960991482304, 10766489667886359659,
+        5230227254891774682, 4527204419274899507, 12932699491449070083,
+        5189366915932789233, 10880712215710559290, 7736677935871567106,
+        16538385067988098916, 249751310874503428, 5156601730654583795,
+        467109473556771520, 10513697172332293704, 5524958057932421254,
+        10226934191947654808, 8391877065816713569, 11303338559528901486,
+        13810295494686995697, 5201661897850152037, 9165849585829907501,
+        13310642133961066576, 13081247159164976216, 5185755252676983917,
+        16684987860463271710, 8901752453446879395, 10935065882527206142,
+        12281240809229979886, 10885487026010684468, 9179800427273331865,
+        10646872010154470215, 3185648763119457986, 12452990753887275190,
+        5266804679531530288, 12528053201134865054, 3063177952635458243,
+        16500685744510790375, 14605105499623662108, 11527588555576457053,
+        12263814051104814351, 1450598659753835183, 15291458422193145591,
+        3328857391140642223, 4223581286749258795, 2598257966099766830,
+        9675743332648483196, 8653763578306172764, 14619868040918533631,
+        6847777179739546979, 2820806138872272791, 6237576327337716330,
+        15436632607073263746, 14592433021711243079, 15576384705406918371,
+        8809568392377051387, 11100758653534670926, 13672418843095074031,
+        11383072996836125325, 7718071070069469563, 417383347611506164,
+        2681480015014604025, 4285476709306182645, 828380933717596919,
+        9152609073415707255, 931583944307016850, 6090001752206306098,
+        1635074598405945347, 10551736219618269484, 5450811299202088820,
+        13719701433391955158, 13962006352131058372, 5970504719298820905,
+        11439463115035458054, 12686659515303324631, 13365487205528776207,
+        16765259715952199191, 3297989542317145735, 2511089031204732022,
+        12791908203558985949, 18234116562877389602, 17676372931472854308,
+        3389664503076085543, 7935941750548900228, 3158305690534153586,
+        7006645554603346612, 11876443920297136357, 17990833463225039434,
+        15267628523264008001, 6203157491986007403, 18407945413238597806,
+        8316396725514246353, 16260988111905002858, 8562193075837893312,
+        4296193456168604762, 18272806235382902309, 2480155114097320353,
+        11867100790641215353, 13400594434012675901, 9242220367806589182,
+        7672137809059019714, 6715333879488598405, 7411037498286778943,
+        13466417235705751510, 8732453151440064186, 8536819765207553425,
+        5843608481147935349, 1124596677405032750, 5038203847541793799,
+        4460243612190237833, 436177099759511190, 17527530638552752035,
+        994773804371094128, 10105519922921503830, 17489770807834449163,
+        4105442575347915904, 1059780029992944546, 11523243604877885796,
+        14879362860474597851, 17838752485298926127, 10928515586243991370,
+        7647550186249195220, 13960468312649289865, 2165578271374904609,
+        17885184723368251085, 7126599516167307829, 1384793420030162792,
+        17778473621835277983, 11111611799999209138, 4260301999961368160,
+        2787046972313093447, 353325853554963247, 18400886893819794244,
+        9956209625078443920, 17937200724321999946,
+    ),
+    # ...and the weekday pass, G7.3f step 8.1, at seed 414.
+    "weekday_count_put_back": (
+        8205753327845548517, 10103831916114829252, 10158257675794620658,
+        9357748769109271335, 8578928275043448912, 17746937195968081638,
+        15744731340427162448, 10785425046791099790, 11074957962132691383,
+        5666370062384000068, 2101606931103605021, 673266900898229811,
+        1558970458623844493, 11666130333647899671, 6781093439164449425,
+        1730874335394580240, 10238826166383831683, 9321087721358069268,
+        6357455650451368121, 5983011955566664662, 5571829787868100171,
+        14314185522276817158, 16371514135409767965, 109723812096255705,
+        15428554657210559828, 11892267851347548911, 11813942451191939572,
+        3347160791882116361, 911627381567001489, 4803334784304647976,
+        4322709978421472312, 5776724527156809131, 10228313809021326983,
+        14032023559694075655, 10441534176467726620, 18097853285922026290,
+        12505293115204110519, 6230440561478493168, 12488030771732868450,
+        6731642271552585830, 506089955481501868, 12145502486825016127,
+        999692193099527141, 497488830804163917, 3391283244922439854,
+        3787197027706214087, 8342750366535418436, 1099828706207933267,
+        2636985471719534242, 18138328965524269641, 12674068853064330719,
+        8367859203595021287, 16955490187108545524, 7909703719130111333,
+        2546644946943039451, 14520160764917724260, 14145295017885212390,
+        10165584794199422045, 2484106394863305415, 15800473609131128324,
+        5618516339386489659, 693129092433622532, 9594404607543250163,
+        1037444271727999480, 13843541990208404083, 11227523452235413179,
+        5799895050591993968, 14209798918110551297, 14596832463504282608,
+        1863713527713189730, 10849812949960154671, 4449282402675240670,
+        9604608641177026812, 5803682681756733144, 9504906187901261753,
+        11391245384629825155, 12342700629804461636, 543944489850623358,
+        16830433232996739026, 1754466431304841767, 4151366995038132615,
+        12581937831155103217, 11235363277892239110, 11610523886190763299,
+        13749392798355007651, 19429408078149887, 16841497297905892642,
+        4333919891080754724, 3712247477789710123, 490137554277771349,
+        7900071137491722292, 14841775278581274522, 9338222848701909638,
+        9325840723347692381, 3822078591235538652, 18275884306686677041,
+        7905127224251902612, 9084405233966083445, 11843813344214295328,
+        7271971059795578050, 8696447662842004007, 15931621461476750516,
+        7077770060120871632, 15535424673869251788, 5465071739781982179,
+        13988530001960039242, 7503071398988299021, 2047491154609547513,
+        12584527908177712650, 15249173794957419809, 10376325968422677975,
+        527805182133349274, 5889798818296764784, 5792595880078488541,
+        15155163740424813139, 10806837357616635420, 13212459854434118423,
+        5917819996221609619, 15240742443627447625, 14542407546901817710,
+        5640567974879422156, 3651100823826676881, 4951655902601877554,
+        8785838041287919884, 6379250163815303992, 17267516157155693631,
+        13562319768973404648, 13503363798745928604, 9905960928392635423,
+        591187516510833538, 1441385473555119944, 14338975128054608024,
+        6430554037892460702, 8092577836441072020, 7479014812872543197,
+        7079680356373818220, 10828667240641394465, 7957976943845711189,
+        16492596071481813141, 3250444684325677669, 13055529632425964015,
+        16669791348355000261, 17521303086263154612, 17806969665588792172,
+        10317033109353770529, 598840585357225047, 7875834800494952060,
+        8099903144585120962, 13238529700603331640, 16107523920874602946,
+        12365753162018467897, 11618531758644721894, 17832633961237000699,
+        4324038606044476152, 2841768839718628486, 13750466809284927629,
+        10677014749998812665, 6108457423010265015, 7640085053897013303,
+        11413156155330236271, 16329573912267174365, 1023255889873589984,
+        17126662361067493613, 7917338006698310364, 12726920772968817643,
+        16821330939824299650, 17107645024076752256, 7094665916279358759,
+        3754979154693207782, 3277881548366273443, 772539474538415936,
+        16232359728040915745, 11128100096025030065, 8498300540937298623,
+        12106032299612910456, 4712414350201239783, 7572368647099089600,
+        17218020591491919030, 3484049034581523323, 7885033009864948345,
+        18297009391018415155, 6385356714268493411, 2380469133777691116,
+        277886138964249121, 12638095357567393077, 7537978213903672785,
+        15240068275479575165, 1557120505934090648, 4036878058921706793,
+        12453395619740478764, 11670832401781201851, 12859718435389605721,
+        13997978919433385690, 10047389880900800356, 11716312663462755554,
+        8872660348731853148, 1453492509850242392, 14045960846010878297,
+        7437343733325501330, 9962304021983328663, 2390549191486557714,
+        4488480155869759019, 2092847742117274000, 16988620128548249681,
+        10426429908535736348, 10630174041501923432, 5872129637099468700,
+        10373858675614498536, 13619984792565369334, 17568087913044397275,
+        4214069043415270056, 11299652706930638679, 8556586559375500945,
+        18143448240651610836, 14736903055676273264, 9610962113499490017,
+        5246591968974657832, 11552020193073122149, 8689123281229064000,
+        15577190131894516267, 5375092382904068237, 17224546143938733431,
+        15146367847673595167, 12067617511802256547, 7093304283330422218,
+        1844981652458561249, 12280340722767742122, 1658759450215577112,
+        17038037135320267544, 2634172447031944258, 9257925127774223801,
+        3441642559298547894, 8950915823197768091, 6833750055606253281,
+        14473203570670022913, 16704070754946316293, 6039125652222688887,
+    ),
+    # ...and the weekday pass, G7.3f step 2, at seed 415.
+    "weekday_hole_left": (
+        14191674100549741061, 13490031115827975827, 15434929123336019354,
+        10196456896981728452, 15630165269625014565, 15776286912932636574,
+        13536963569869377946, 16455857867792677945, 16986644662325636585,
+        10425293006457097690, 3457245671511909538, 9278748396788466827,
+        11822258498233536730, 932166300490264939, 9614413026195263044,
+        11887014888333358980, 14630678299214300201, 17125039685952791576,
+        3953306702394724604, 7681821738224289174, 5648049450475586024,
+        7160333635603278760, 14562495135533061686, 6840059933901885163,
+        12710928550634404680, 16802242858603450072, 14994087087303362930,
+        9902797865892097262, 2434789399818429607, 16693110107102206933,
+        6898333690346634503, 4940714662342341369, 12732362672234136683,
+        4742452648618046165, 927842012338043446, 3293507759313379094,
+        42397805220896240, 8182812218095367305, 13675845551445870789,
+        7315527827605865149, 5447011510255016639, 10700059146529517536,
+        3200251404315213348, 14134150171580200438, 4336004758560247011,
+        10179935025356590192, 3535267136331425709, 4852202533060902813,
+        12202794115841763894, 1014567276365872710, 17878027390528254585,
+        6300479864846562831, 3557467242051322747, 6768056603158795388,
+        14716211564550813723, 12084960917845340911, 11791288044435821019,
+        1630393534016209173, 10212789350120308023, 1253978825986859228,
+        9165449977187375747, 11038142826043911836, 12378429595888053292,
+        2218672567276588930, 15963558370993791533, 3412799268299954327,
+        7692523556511916806, 14180652392172447791, 8009568586899007473,
+        10608205648315050128, 8713664450089966793, 16365391543224999089,
+        1219067772409010755, 9623448332427479909, 8187634357128487916,
+        2610012407782044535, 4336242890255796641, 14731856819246427615,
+        8155443718788144716, 4939399889535811434, 8324165473324339188,
+        5551137035448263678, 15905068448371218320, 7305510973128644042,
+        4912060754170886959, 13889955271247216104, 18220511678962442108,
+        15225183418223758392, 775651094232360532, 687310775374466168,
+        7639153318837083933, 11558524654593940749, 742551215504944316,
+        1758459503020004864, 11921783078713912765, 5412782140010598915,
+        18344972984852755149, 14010712754594248143, 7580378552619851443,
+        7304788997528543977, 5408704611038123258, 14635061480703613892,
+        17043139993931938413, 941479379933391522, 5170899891315806518,
+        9057850893261240554, 14552355942566461998, 15936445471660476473,
+        2648641054096548326, 8918835331528313965, 17504758283467028768,
+        15738015693744660727, 1561820114876306193, 15289964674842264786,
+        10648522321234251373, 1522039433667964416, 18006736974014030968,
+        943530182999050351, 9592497334502276763, 11226450137739387606,
+        3318915111946169690, 15321861829910810046, 13710653959345551600,
+        14546616467921858635, 2453249516498873561, 14542334103664088703,
+        14952645001802396855, 5736838960587212879, 9725799652796468669,
+        4245746078463552705, 710585557066038710, 6409690348696784102,
+        6521798418617453215, 10813779032441714318, 6925364255639251659,
+        15185184272423957003, 10583904403797368020, 12756440549188052478,
+        5607925638177792747, 17390517641072616729, 14886832826330642361,
+        17035268977279401735, 6157946989326254795, 13258770434840170989,
+        15141220451608307937, 14717193207879226961, 5753210128648390678,
+        6985281923672167756, 5097315580304566762, 3999215881726060050,
+        2540272252402450706, 11846236490108403934, 6973896326636325192,
+        5339883068264630246, 17017071850531327683, 5137596291854872285,
+        1371838388331623210, 17623271095012395021, 348785040345648520,
+        556115118677826169, 8518655361820800453, 15026439478995657539,
+        9207480609408621058, 752847280738597890, 6690235639812319409,
+        10123085849202551042, 13210254400775366808, 9918687674698558456,
+        14787406087428470593, 14106709617764609262, 15218126455851860559,
+        14574248153988569887, 18016728505165707314, 5031453840278400799,
+        14216943773354248712, 14065544047462396944, 4862904682562975160,
+        490606820115825734, 15078781762358100988, 15927677045299311118,
+        18430873581716666450, 7738977529305861681, 10736038478934389374,
+        683464506437439628, 8158423933098334434, 17923391201522563235,
+        6829539642854587140, 5969904331803651168, 9602728781463928988,
+        8364847878131578291, 419537487151340106, 607739042740481782,
+        6145208817560949250, 15106824817899389115, 15166802834082416705,
+        9675226749339671960, 14560872866091056510, 9342102184730249907,
+        13401586893839292613, 18163069664844319126, 10079189113480602482,
+        2839595678443677174, 7967800860356325825, 1723757638961941538,
+        577269966418339884, 8869284412221518861, 389550474951171356,
+        14460861608789159343, 13007893625167057661, 13074806814001718832,
+        12696471971354062828, 1562157527776469586, 10394704672799454582,
+        16165007040349732404, 13853309803613048030, 15709492511234117153,
+        4448657231620636053, 16281282346624421098, 3364318173549649583,
+        17886996714694012930, 1083203806406657957, 16154127478465076380,
+        1767144618290754612, 10721919231892140893, 16620498831459893742,
+        15791960408812886840, 14019841096465429952, 3395240151727894816,
+        2683881460248041950, 17012545561410151001, 7440834800005781776,
+        4217600092564023405, 13763981591832874367, 6742534142540230070,
+        17749347440744548215, 8566567413107815459, 12279906226748273585,
+        17691057831627282226, 17995798973898880272, 16673814794729036292,
+        16809598603949010147, 5935451859051080576, 11688043920537131299,
+        11743986735715787850, 12263051926617532419, 1895839312313902483,
+        16011052415074801125, 5462223472032310561, 7705672671559592001,
+        5248965489021980101, 13323727907872081467, 8883024665963713206,
+        14006703911737708942, 3130347051030920797, 5144647081537189490,
+        15612610835810571793, 10214200038652698294, 3969607462243969197,
+        11038854227704842337, 11854803418683413527, 11483829213373365076,
+        13788217698520366653, 7858790396141321237, 1604786095429002580,
+        13271096362886848043, 7839464208532861348, 17896233721312670569,
+        3843095721897809010, 5837365127502313135, 12426220010056555667,
+        7585124116715146697, 12258488749774073851, 8140968353280219729,
+        10682367118724275556, 5669197814946459294, 10343129144463265472,
+        16745897290636294635, 7572810565309749503, 10858335486632226674,
+        9172654046261401502, 13277357431664992806,
+    ),
+    # ...and the weekday pass, G7.3f step 8.2, at seed 34041.
+    "weekday_runs_merged": (
+        11242326256107152842, 18359258606913747294, 10074236975087076632,
+        231141881753526161, 7785148348763365359, 6900349532623766465,
+        14901866278049850483, 11032069260145611362, 4275880329329846983,
+        7398487416154752838, 12369504220466950668, 18227183250479528146,
+        15569732570103161979, 7937269274354594942, 12158590265078886156,
+        18066732713308703967, 5439655540634288291, 3815393242435473837,
+        1492151652885433396, 8739969286440414399, 617990282950910718,
+        6203808328417777694, 13263417770951258276, 3515381897381658443,
+        18168979562444536262, 5597863810549861097, 5749664704519767747,
+        17435004811176561541, 3138516946046859156, 9948311625370183065,
+        3680947709314060085, 3192672505272965622, 1867602971483169900,
+        15860618877031593189, 11286866248664559920, 6484000940079540472,
+        9333039063279289409, 14236717071798738247, 3461783120652672029,
+        17505861539341831271, 13312229611325542674, 13805032537238139624,
+        9003359989085528699, 16829311827350377213, 11161549278229933462,
+        1077485532004108740, 12649159074987188527, 5724325532268459286,
+        12488009344757124084, 1980649942250081391, 11682433064129766176,
+        1826117757992095167, 7622271343857564465, 10791629743494798957,
+        3098938683948617929, 9148679529579009280, 4709907019568307965,
+        10319381554703684666, 15652668275382486313, 3678220600853873189,
+        9271313670836740068, 715171154685100113, 696386137548350721,
+        16353939446689926130, 5931653551660607462, 6058933295627656429,
+        4232665582601101650, 10410981163045672367, 16073438706541289755,
+        17010832949109016803, 5160021354977425451, 13819369661481223534,
+        9486450277065737852, 6445312790394943139, 11005533270423306564,
+        7744701203024102124, 2820029359120586742, 5460623409317470170,
+        5523563046668508782, 9882745743552853870, 16771127439651551169,
+        15116030089030198851, 6303693281567804139, 13325575362969278421,
+        2410889768748475729, 18195995782654082967, 9234535573714994223,
+        17631660011247312670, 16570344624994318418, 12415886362325551431,
+        10961496848123337809, 6911086591721217566, 5923269837233579087,
+        5257092536006181606, 7791786230414546329, 1448336633342431592,
+        1815109251394927148, 11233363569596929963, 16629476265842063437,
+        14996525292339774277, 8901556448787610074, 5379897901911282688,
+        17942165577775939488, 4524786554673271178, 5859773591557649924,
+        11733350737194391425, 14876337688306885421, 5769187006625031042,
+        9672686981636135807, 6712293982529587250, 14643776394470646974,
+        6371282463681292447, 12524366632117627124, 14424831100690056147,
+        6670404795579137273, 14119700802133057909, 3677471392104744211,
+        11122489459826217665, 3360622247209658342, 16440159886024744167,
+        1758906843332165696, 6238992257909897665, 12077094790418533747,
+        7672493528241062873, 17258145508521041046, 1187349955022919194,
+        11039881491240389962, 14631634005051698112, 18341538127044697072,
+        10792353015761768052, 16832203404171833196, 5474636399393875662,
+        8223277265350455951, 573898275262454017, 10290829478588941749,
+        13024344843707332797, 17525022847485822936, 17110159029504747360,
+        8261347592092526433, 17896687466350434052, 5804643679703022381,
+        818492710893676285, 2378652856897568567, 6398810999109920828,
+        12452039593714260866, 16075716189236980655, 10902081024939815881,
+        7096267122150564815, 5681946242778915316, 5728993400039451739,
+        3407698713903715432, 9082922486691765605, 10549492067532746290,
+        8285786418392007409, 15355884204143015483, 10462065801416400331,
+        1762400728145021640, 8677735748788941075, 220354947977240831,
+        13566265170098306776, 10876361945994750927, 3177614873415497828,
+        14711963816123032022, 3635445507751312455, 7520272845797669551,
+        9999185339394816552, 10686300210299699429, 7221334439182057784,
+        5740770124610806777, 13593460441386648840, 5034954473738419765,
+        10901837349546111409, 3987260413756664969, 6381573243039663534,
+        8777144650170122845, 7996629175894408893, 7626717206673864898,
+        15593266825037698358, 16250965820523810646, 7559212465801901968,
+        8513600472990788011, 15409755092650661175, 6771437425136390454,
+        11884210469050183434, 16409862443337556799, 359715458365535179,
+        4745907444558666418, 1712967881528110461, 17662257275622703014,
+        8107022650403205011, 11014952277390988264, 7941790804567721057,
+        6181560796221147712, 6397908236643148731, 10122631080425333470,
+        11816751089424696578, 11955930074388935774, 16142384341288356923,
+        13157303042287026902, 4148510401363146782, 15456640871182111644,
+        1106423048735355719, 10337737716963252227, 9794538804891221570,
+        3853006492579424659, 751348176557736903, 2747235809592957085,
+        14057043702361891130, 13148800257571694702, 11202074978383847027,
+        624244953253492827, 5454983468013257843, 8127464145902295404,
+        5526612623684433665, 4051655782094549637, 14393035541017784711,
+        15127767596453472000,
     ),
     # ...and the census of marks that is only a pool (plan P4-D352), at
     # seed 408.
@@ -30978,6 +32342,16 @@ def whole_number_fields(document):
             if (
                 len(inside) == 3
                 and inside[0] == "bin_groups"
+                and inside[2] in ("first", "last", "count")
+            ):
+                allowed.add(path)
+                continue
+            # ...and the three numbers of every group of a WEEKDAY census
+            # (landing 3b.1, contract WC1 to WC8): a first weekday, a last
+            # weekday and a count of rows.
+            if (
+                len(inside) == 3
+                and inside[0] == "weekday_census"
                 and inside[2] in ("first", "last", "count")
             ):
                 allowed.add(path)
