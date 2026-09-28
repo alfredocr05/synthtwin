@@ -17,7 +17,7 @@ import pytest
 import calendar_certificate_verify as verifier
 import fixtures
 import kpi_shapes
-from synthtwin import calendar_certificate, calendar_rules, contract, errors, parsing, taxonomy
+from synthtwin import calendar_certificate, calendar_rules, contract, errors, parsing, profile, reading, taxonomy
 
 
 # -- finding 10: a refusal the published numbers decide walks no day ---------
@@ -192,3 +192,87 @@ def test_ten_copies_of_one_impossible_date_hide_no_second_spelling(tmp_path: pat
         block, days, block["n_distinct"], taxonomy.Settings(small_cell_floor=11), texts=len(set(cells)) + 1
     )
     assert decided.reason == calendar_rules.REASON_SPELLINGS, decided.reason
+
+
+# -- finding 6: the loader holds the holes a published absent spelling names ----
+
+
+def test_a_published_absent_day_is_a_hole_the_loader_holds(tmp_path: pathlib.Path) -> None:
+    """A declared missing day the description publishes leaves a group few dates, on load as at the producer.
+
+    The gate's five weeks around 1900-01-01, described with that day
+    DECLARED missing rather than judged: `sentinel_verdicts` is empty,
+    and `missing_by_source` and the settings' `built_in_dates` publish
+    the day. Its Mondays leave three dates besides the knot days once the
+    day is a hole, so the producer withholds; the seven counts the menu
+    offers, copied onto the description, loaded on the reviewed tree,
+    whose loader read holes off the forms and the decisions alone. Now
+    they are refused (WC7). Red when the loader leaves the published
+    absent spellings out of its holes.
+    """
+    import test_stage3b_gate as gate
+
+    cells = gate._around_a_placeholder_day()
+    table = fixtures.write(tmp_path, "around.csv", "seen_on\n" + "".join(f"{cell}\n" for cell in cells))
+    settings = taxonomy.Settings(small_cell_floor=11, declared_missing_values=("1900-01-01",))
+    document = profile.build_document(reading.read_table(str(table), small_cell_floor=11), settings, [], [], [])
+    block = document["columns"][0]
+    assert block["sentinel_verdicts"] == [] and block["missing_by_source"] == {"1900-01-01": 20}
+    assert document["settings"]["declared_missing_values"]["built_in_dates"] == ["1900-01-01"]
+    assert block["weekday_census"] == []
+    present = [cell for cell in cells if cell != "1900-01-01"]
+    days = sorted(verifier.day_number(cell) for cell in present)
+    body = days[block["low_tail"]["rows"]: len(days) - block["high_tail"]["rows"]]
+    offered, _entry = calendar_rules.menu_groups(calendar_rules.body_bins(body), 11)
+    doctored = dict(document)
+    doctored["columns"] = [
+        dict(block, weekday_census=[{"first": first, "last": last, "count": count} for first, last, count in offered])
+    ]
+    calendar_certificate._ANSWERS.clear()
+    with pytest.raises(errors.ProfileError) as refusal:
+        contract.load_profile(str(fixtures.write_profile(tmp_path, "doctored-profile.json", doctored)))
+    calendar_certificate._ANSWERS.clear()
+    assert contract.INVARIANTS["WC7"] in str(refusal.value)
+
+
+# -- finding 8: the loader holds the storage a workbook publishes ------------------
+
+
+def test_a_census_beside_values_a_workbook_publishes_stored_two_ways_is_refused(tmp_path: pathlib.Path) -> None:
+    """The counts of an all-number book copied beside `text: 138, number: 687` are refused on load (WC6).
+
+    The gate's 825 weekday-shaped dates stored as date cells publish the
+    seven counts; stored with every sixth cell as ISO text they publish
+    none, and the workbook block publishes both classes holding cells.
+    The reviewed tree's loader never compared the two, so the first
+    description's census copied onto the second loaded. Red when the
+    loader's storage half of WC6 is withdrawn.
+    """
+    import test_stage3b_gate as gate
+
+    draw = random.Random(3100)
+    cells: "list[str]" = []
+    for step in range(730):
+        day = datetime.date(2022, 1, 3) + datetime.timedelta(days=step)
+        times = draw.choice((0, 1, 2, 3)) if day.weekday() < 5 else draw.choice((0, 0, 0, 1))
+        cells += [day.isoformat()] * times
+    draw.shuffle(cells)
+    found = {}
+    for name, every in (("dates", 0), ("mixed", 6)):
+        path = tmp_path / f"{name}.xlsx"
+        path.write_bytes(gate._date_book(cells, every))
+        found[name] = profile.build_document(
+            reading.read_table(str(path), small_cell_floor=11), taxonomy.Settings(small_cell_floor=11), [], [], []
+        )
+    census = found["dates"]["columns"][0]["weekday_census"]
+    mixed = found["mixed"]
+    classes = mixed["source"]["workbook"]["columns"][0]["cell_classes"]
+    assert census and classes["text"] > 0 and classes["number"] > 0, classes
+    assert mixed["columns"][0]["weekday_census"] == []
+    doctored = dict(mixed)
+    doctored["columns"] = [dict(mixed["columns"][0], weekday_census=census)]
+    calendar_certificate._ANSWERS.clear()
+    with pytest.raises(errors.ProfileError) as refusal:
+        contract.load_profile(str(fixtures.write_profile(tmp_path, "doctored-profile.json", doctored)))
+    calendar_certificate._ANSWERS.clear()
+    assert contract.INVARIANTS["WC6"] in str(refusal.value)

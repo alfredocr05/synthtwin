@@ -2139,6 +2139,10 @@ def test_a_placeholder_day_read_as_missing_is_a_hole_no_witness_stands_on(
 
     with monkeypatch.context() as blind:
         blind.setattr(calendar_rules, "placeholder_holes", lambda *_arguments: ())
+        # The day's spelling is also a published absent spelling, which
+        # names the same hole (review of landing 3b.1, finding 6); blind
+        # to the day means blind to both.
+        blind.setattr(calendar_rules, "declared_holes", lambda *_arguments: ())
         calendar_certificate._ANSWERS.clear()
         unaware = _certified(block, present)
     calendar_certificate._ANSWERS.clear()
@@ -2258,6 +2262,10 @@ def test_a_placeholder_day_between_the_boundaries_is_a_hole_the_loader_holds(
     assert contract.INVARIANTS["WC7"] in str(refusal.value)
     with monkeypatch.context() as blind:
         blind.setattr(calendar_rules, "placeholder_holes", lambda *_arguments: ())
+        # The day's spelling is also a published absent spelling, which
+        # names the same hole (review of landing 3b.1, finding 6); blind
+        # to the day means blind to both.
+        blind.setattr(calendar_rules, "declared_holes", lambda *_arguments: ())
         calendar_certificate._ANSWERS.clear()
         contract.load_profile(str(written))
     calendar_certificate._ANSWERS.clear()

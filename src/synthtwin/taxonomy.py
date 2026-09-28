@@ -14632,70 +14632,6 @@ def _census_rungs(
     return tuple(found)
 
 
-def _census_holes(
-    declared: "tuple[str, ...]",
-    details: "dict[str, object]",
-    held: "set[int]",
-) -> "tuple[int, ...]":
-    """The days no body cell of this column can hold: its HOLES.
-
-    A day the column writes in one way (contract WC6) is a hole where
-    that one spelling is a value the person declared missing: a cell
-    written so is read as missing, never as a body cell. A day some
-    parsed cell holds is never a hole. Matched as the declaration rule
-    matches (`_declarations`): by the exact number where the declaration
-    reads as one, by the folded spelling otherwise.
-
-    Guarantees: accepts the declared missing spellings, the published
-    details and the days the column holds; returns the holes ascending.
-    Determinism: a function of the three. Raises nothing. No I/O.
-    """
-    format_name = details["format"]
-    if not isinstance(format_name, str) or not declared:
-        return ()
-    width = parsing.DEFAULT_FIELD_WIDTH
-    widths = details["date_field_widths"]
-    if isinstance(widths, dict) and len(widths) == 1:
-        for word in widths:
-            width = str(word)
-    style = parsing.DEFAULT_NAME_STYLE
-    styles = details["month_name_styles"]
-    if isinstance(styles, dict) and len(styles) == 1:
-        for word in styles:
-            style = str(word)
-    holes: "set[int]" = set()
-    for made in _declarations(declared):
-        read = parsing.parse_datetime(made.folded, format_name)
-        if read is None:
-            read = parsing.parse_datetime(_trimmed(made.text), format_name)
-        if read is None:
-            continue
-        canonical = read[0]
-        year = int(canonical[0:4])
-        month = int(canonical[5:7])
-        day = int(canonical[8:10])
-        number = parsing.days_from_civil(year, month, day)
-        if number in held:
-            continue
-        written = parsing.written_date(year, month, day, format_name, width, style)
-        if made.exact is not None:
-            if exact_of_spelling(written) == made.exact:
-                holes = holes | {number}
-        elif parsing.folded(written) == made.folded:
-            holes = holes | {number}
-    return tuple(sorted(holes))
-
-
-def _trimmed(text: str) -> str:
-    """A declared spelling without the blanks around it."""
-    if not isinstance(text, str):
-        raise TypeError(
-            "synthtwin internal check: a declared spelling reached the "
-            "weekday census as something other than text; please report it."
-        )
-    return text.strip()
-
-
 _WITHHELD_WEEKDAY_NOTES = {
     calendar_rules.REASON_NO_TAILS: NOTE_WEEKDAY_WITHHELD_NO_TAILS,
     calendar_rules.REASON_SPELLINGS: NOTE_WEEKDAY_WITHHELD_SPELLINGS,
@@ -14760,16 +14696,15 @@ def weekday_decision(
     small: review of landing 3b.1, finding 7) or stored two ways,
     nothing; the menu takes the
     body's seven weekday counts; the certificate is asked with the body's
-    REAL count of different days and the holes -- the days a declared
-    missing value names (`_census_holes`), the days the published form
-    censuses leave empty (`calendar_rules.form_holes`) and the
-    placeholder days `sentinel_verdicts` publishes as `read_as_missing`
-    (`calendar_rules.placeholder_holes`) -- and WC7 before it
-    (`calendar_certificate`); and the census is published only where
-    the loader's own check accepts it too (`calendar_certificate.breach`,
-    asked with the form and placeholder holes, which the loader reads
-    off the same block), so the producer never writes what the loader
-    refuses.
+    REAL count of different days and the holes a reader holds
+    (`calendar_rules.public_holes`: the days the published form censuses
+    leave empty, the placeholder days `sentinel_verdicts` publishes as
+    `read_as_missing`, and the days a published absent spelling names,
+    `published_absent`) -- and WC7 before it (`calendar_certificate`);
+    and the census is published only where the loader's own check,
+    asked with the same holes, accepts it too
+    (`calendar_certificate.breach`), so the producer never writes what
+    the loader refuses.
 
     Guarantees: accepts the published block, the days, the published
     count, the settings and the storage flag; returns the decision.
@@ -14832,19 +14767,22 @@ def weekday_decision(
     judged: "tuple[str, ...]" = ()
     if "sentinel_verdicts" in details:
         judged = _read_as_missing(details["sentinel_verdicts"])
-    shown = calendar_rules.form_holes(
-        forms, format_name, body[0], body[len(body) - 1]
+    # THE HOLES A READER HOLDS, AND NO OTHER (review of landing 3b.1,
+    # finding 6): what the forms leave empty, the placeholder days read
+    # as no value, and the days a PUBLISHED absent spelling names -- the
+    # block's `missing_by_source` keys and the vocabulary's days the
+    # declaration named -- asked through the one rule the loader asks.
+    # A declared day no key publishes is a day like any other to a
+    # reader, so it is one here too.
+    holes = calendar_rules.public_holes(
+        forms, format_name, body[0], body[len(body) - 1], judged,
+        published_absent(details, settings),
     )
-    placed = calendar_rules.placeholder_holes(
-        judged, body[0], body[len(body) - 1]
-    )
-    shown = tuple(sorted(set(shown) | set(placed)))
-    holes = tuple(
-        sorted(
-            set(_census_holes(settings.declared_missing_values, details, set(days)))
-            | set(shown)
-        )
-    )
+    if set(holes) & set(body):
+        # A day the published forms or absent spellings say no cell can
+        # stand on holds one: the forms do not account for how that day
+        # was written.
+        return WeekdayDecision(empty, calendar_rules.REASON_SPELLINGS, entry, None)
     verdict = calendar_certificate.check(
         parsed, rows_low, rows_high, body[0], body[len(body) - 1], rungs,
         fewest, most, line, groups, len(set(body)), holes,
@@ -14853,11 +14791,36 @@ def weekday_decision(
         return WeekdayDecision(empty, verdict.reason, entry, verdict)
     breach = calendar_certificate.breach(
         groups, parsed, rows_low, rows_high, body[0], body[len(body) - 1],
-        rungs, fewest, most, line, one_spelling, shown,
+        rungs, fewest, most, line, one_spelling, holes,
     )
     if breach:
         return WeekdayDecision(empty, calendar_rules.REASON_NARROWED, entry, verdict)
     return WeekdayDecision(groups, "", entry, verdict)
+
+
+def published_absent(
+    details: "dict[str, object]", settings: Settings
+) -> "tuple[str, ...]":
+    """The absent spellings a column of dates publishes, for its holes.
+
+    The block's own `missing_by_source` keys, where the block carries
+    them, and the placeholder days of this package's vocabulary the
+    declaration of missing values named (`built_in_values_named`), which
+    the settings block publishes as `built_in_dates`. Nothing the person
+    typed that no key publishes (review of landing 3b.1, finding 6).
+
+    Guarantees: accepts a column block and the run's settings; returns
+    the spellings sorted and each once. Determinism: a function of the
+    two. Raises nothing. No I/O of any kind.
+    """
+    found: "set[str]" = set()
+    if "missing_by_source" in details:
+        keys = details["missing_by_source"]
+        if isinstance(keys, dict):
+            found = found | {str(key) for key in keys}
+    _texts, _numbers, days = built_in_values_named(settings.declared_missing_values)
+    found = found | set(days)
+    return tuple(sorted(found))
 
 
 def _read_as_missing(entries: object) -> "tuple[str, ...]":
@@ -14890,6 +14853,7 @@ def _weekday_published(
     stored_one_way: bool,
     verdicts: "list[dict[str, object]]",
     texts: int,
+    absent: "dict[str, int]",
 ) -> "tuple[dict[str, object], list[Note], list[Note]]":
     """A column block of dates with its `weekday_census`, and its sentences.
 
@@ -14901,8 +14865,9 @@ def _weekday_published(
     `produced` false -- the validator's own re-description of a file,
     which never reads the census -- asks nothing and publishes `[]` with
     no sentence. `verdicts` are the block's published `sentinel_verdicts`,
-    which the decision reads its placeholder holes from, and `texts` the
-    different texts the parsed cells were written in.
+    which the decision reads its placeholder holes from, `texts` the
+    different texts the parsed cells were written in, and `absent` the
+    block's published `missing_by_source`, whose keys name holes too.
 
     Guarantees: accepts the block, the days, the published count, the
     settings, the two flags and the decisions; returns a new block, the
@@ -14914,7 +14879,7 @@ def _weekday_published(
     if not produced:
         return block, [], []
     decided = weekday_decision(
-        dict(details, sentinel_verdicts=verdicts),
+        dict(details, sentinel_verdicts=verdicts, missing_by_source=absent),
         days,
         n_distinct,
         settings,
@@ -20635,6 +20600,7 @@ def profile_column(
             stored_one_way,
             entries,
             verdict.texts,
+            by_source,
         )
         publication_notes = verdict.notes + weekday_notes
     statistical_type, quality_state, structural_role = axes_of(

@@ -519,6 +519,117 @@ def placeholder_holes(
     return tuple(sorted(found))
 
 
+def declared_holes(
+    spellings: "tuple[str, ...]",
+    forms: "dict[str, dict[str, int]]",
+    format_name: str,
+    low: int,
+    high: int,
+) -> "tuple[int, ...]":
+    """The days from `low` to `high` a PUBLISHED absent spelling names.
+
+    WHAT A READER HOLDS OF THE DECLARED MISSING VALUES (review of landing
+    3b.1, finding 6). A description publishes two lists of spellings every
+    cell of which was counted absent: the column's `missing_by_source`
+    keys, and the placeholder days a declaration named out of this
+    package's own vocabulary (`built_in_dates` of the settings'
+    `declared_missing_values`). Where one of them is the text a day is
+    written in -- the column's member, its one width word and its one
+    month-name word, which WC6 asks for -- no parsed cell can stand on
+    that day, so it is a HOLE; matched as the declaration rule matches,
+    by the exact number where the spelling reads as one and by the
+    folded spelling otherwise. Only what is published counts: a day the
+    person declared that no key names is a day like any other to a
+    reader, and so to the certificate on both sides.
+
+    Guarantees: accepts the published spellings, the five censuses of
+    written forms, the parser family and the two boundary days; returns
+    the holes between them ascending. Determinism: a function of the
+    five. Raises nothing. No I/O of any kind.
+    """
+    width = parsing.DEFAULT_FIELD_WIDTH
+    if "date_field_widths" in forms and len(forms["date_field_widths"]) == 1:
+        for word in forms["date_field_widths"]:
+            width = word
+    style = parsing.DEFAULT_NAME_STYLE
+    if "month_name_styles" in forms and len(forms["month_name_styles"]) == 1:
+        for word in forms["month_name_styles"]:
+            style = word
+    found: "set[int]" = set()
+    for spelling in spellings:
+        folded = parsing.folded(spelling)
+        read = parsing.parse_datetime(folded, format_name)
+        if read is None:
+            read = parsing.parse_datetime(parsing.trimmed(spelling), format_name)
+        if read is None:
+            continue
+        canonical = read[0]
+        year = int(canonical[0:4])
+        month = int(canonical[5:7])
+        date = int(canonical[8:10])
+        day = parsing.days_from_civil(year, month, date)
+        if day < low or day > high:
+            continue
+        written = parsing.written_date(year, month, date, format_name, width, style)
+        exact = parsing.exact_of_spelling(spelling)
+        if exact is not None:
+            if parsing.exact_of_spelling(written) == exact:
+                found = found | {day}
+        elif parsing.folded(written) == folded:
+            found = found | {day}
+    return tuple(sorted(found))
+
+
+def public_holes(
+    forms: "dict[str, dict[str, int]]",
+    format_name: str,
+    low: int,
+    high: int,
+    judged: "tuple[str, ...]",
+    absent: "tuple[str, ...]",
+) -> "tuple[int, ...]":
+    """Every hole a description publishes between its two boundaries.
+
+    THE ONE STATEMENT the producer, the loader, the generator and the
+    validator each ask (review of landing 3b.1, items 4, 6 and 9): the
+    days the censuses of written forms leave empty (`form_holes`), the
+    placeholder days the block reads as no value (`placeholder_holes`,
+    `judged` its decisions' candidates) and the days a published absent
+    spelling names (`declared_holes`, `absent` those spellings).
+
+    Guarantees: accepts the published facts; returns the holes
+    ascending. Determinism: a function of the six. Raises nothing. No
+    I/O of any kind.
+    """
+    found = set(form_holes(forms, format_name, low, high))
+    found = found | set(placeholder_holes(judged, low, high))
+    found = found | set(declared_holes(absent, forms, format_name, low, high))
+    return tuple(sorted(found))
+
+
+def published_one_way(classes: "dict[str, int | None]") -> bool:
+    """Whether a workbook's PUBLISHED cell classes leave its values stored one way.
+
+    False where two value classes are published holding cells: a reader
+    then knows the column is read back differently cell by cell, and no
+    twin can meet a weekday census of it (review of landing 3b.1,
+    finding 8). A class withheld (`None`) may hold nought, so it says
+    nothing either way; the producer's own rule (`stored_one_way`) reads
+    the cells and is the stricter.
+
+    Guarantees: accepts the published census of cell classes; returns
+    the answer. Determinism: a function of the census. Raises nothing.
+    No I/O of any kind.
+    """
+    holding = 0
+    for kind in _VALUE_CLASSES:
+        if kind in classes:
+            counted = classes[kind]
+            if counted is not None and counted > 0:
+                holding = holding + 1
+    return holding <= 1
+
+
 def stored_one_way(classes: "list[str]") -> bool:
     """Whether a workbook column stores every cell holding a value one way.
 
