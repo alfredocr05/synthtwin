@@ -10416,11 +10416,11 @@ def _drawn_off_the_stand_ins(
     THE INTERIOR DRAW IS A CONSTRUCTION TOO (plan P4-D353 part 4). A
     derived tail end, a staircase row and G6.6's width walk already step
     past `-9999`, `-999` and `9999`; the convex form of G5.3 did not, and
-    after G5.4's integer rule a stratum read between two rungs landed on
-    one wherever the column's values run across it. Measured by skeptic
+    after G5.4's integer rule a stratum read between two rungs could land
+    on one where the column's values run across it. Measured by skeptic
     Ad on the 899 whole numbers `-1400` to `-1000` and `-998` to `-501`
     -- all different, `-999` NOT among them -- at floors 11, 20, 36 and
-    50, seeds 0, 4 and 9: strata 400 and 401 read `-999`, and every twin
+    50, seeds 0, 4 and 9: one or two strata read `-999`, and every twin
     wrote one `-999` deep in its interior, a number the column does not
     hold. So a stratum read there that lands on one of the three takes
     the neighbouring point of its grid TOWARD NOUGHT -- `-998`, `9998`,
