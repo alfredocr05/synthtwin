@@ -108,6 +108,10 @@ def ladder(home: pathlib.Path) -> "tuple[dict[str, float], list[str]]":
     counted: "list[tuple[int, int, int, float, float]]" = []
     for rows in LADDER:
         text = gate._table_text(gate._battery_admissions(rows))
+        # THE CERTIFICATE IS CACHED ON ITS QUESTION, and the battery above
+        # asked this column's question at two of the ladder's sizes: the
+        # cache is emptied so every size counts its own solves.
+        calendar_certificate._ANSWERS.clear()
         started = time.perf_counter()
         with _Counted(calendar_certificate, "_solve") as solves:
             described = kpi_shapes.describe(home / f"ladder-{rows}", "ladder", text, 11)
