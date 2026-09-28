@@ -595,6 +595,54 @@ def test_the_twin_writes_as_many_trailing_minuses_as_the_census_counts(
     assert named == []
 
 
+def _plus_beside_whole_negatives(seed: int, plus: int, decimals: int, pointed: int,
+                                 whole: int, high: int = 60) -> "list[str]":
+    """``plus`` cells `+NN`, ``decimals`` `NN.dd`, ``pointed`` `-NN.dd`, ``whole`` `-NN`, on 1..``high``."""
+    draw = random.Random(seed)
+    out = [f"+{draw.randint(1, high)}" for _ in range(plus)]
+    out += [f"{draw.randint(1, high)}.{draw.randint(0, 99):02d}" for _ in range(decimals)]
+    out += [f"-{draw.randint(1, high)}.{draw.randint(0, 99):02d}" for _ in range(pointed)]
+    out += [f"-{draw.randint(1, high)}" for _ in range(whole)]
+    draw.shuffle(out)
+    return out
+
+
+# A LEADING PLUS NEEDS A WHOLE VALUE THAT IS NOT NEGATIVE, and the walk that
+# serves it counts only the strata it walks, with or without a trailing
+# minus (the skeptic of plan P4-D352 (7)). (name, cells, census of styles).
+PLUS_BESIDE_WHOLE = (
+    ("plus-beside-whole-negatives", _plus_beside_whole_negatives(2603, 40, 50, 40, 30),
+     {"decimal": 90, "leading_plus": 40, "plain": 30}),
+)
+
+
+@pytest.mark.parametrize("seed", SEEDS)
+@pytest.mark.parametrize(
+    "name,cells,census", PLUS_BESIDE_WHOLE, ids=[shape[0] for shape in PLUS_BESIDE_WHOLE]
+)
+def test_the_twin_writes_as_many_leading_pluses_as_the_census_counts(
+    name, cells, census, seed, tmp_path
+):
+    """Every leading plus the census counts is written, beside whole negatives a chain reaches.
+
+    The walk that serves `leading_plus` reaches no negative, and its
+    count after a chain move covers only the strata it walks (method
+    G6.4): the recount of plan P4-D352 (7) repairs every walk that is not
+    over every stratum, not the trailing minus's alone. At 67e6a93 this
+    shape, which names no trailing minus, wrote 36 pluses of 40 and
+    missed five checks at every seed, the whole negatives having met four
+    cells of the plus walk's demand after a chain; after, 40 and none.
+    Mutations, each run: the count after a chain taken over every stratum
+    -- on every walk, on the two walks over the side that is not negative,
+    or on the plus walk alone -- turns this red at every seed.
+    """
+    first, second, written, twin_exit, real_exit = _round_trip(tmp_path, cells, (), seed=seed)
+    assert first["numeric_styles"] == census
+    assert second["numeric_styles"] == census
+    assert twin_exit == 0 and real_exit == 0
+    assert sum(1 for cell in written if cell.startswith("+")) == census["leading_plus"]
+
+
 def test_the_walk_nearest_zero_leaves_a_more_negative_stratum_its_number(tmp_path, monkeypatch):
     """A negative made whole never takes a number a stratum walked after it holds.
 

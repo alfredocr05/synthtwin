@@ -16,11 +16,20 @@ cells at seed 0 and five checks missed at every seed. That walk now takes them n
 zero first, as the last walk does, and a walk's count after a chain
 move covers only the strata it walks, which had let a whole positive
 meet the negatives' demand and cost a `decimal_plus` cell (plan P4-D352
-(7)). The walks over the side that is not negative keep stratum order.
-New `trailing_values` rows hold the walk beside's demand, the order of
-the side that is not negative and the negative walk's order. The
-ledger note names its entries, their trees and what took them, and no
-longer restates their values; a test holds that.
+(7)). That count repairs every walk that is not over every stratum, not
+the trailing minus's alone: 40 `+NN` beside 30 `-NN` and 90 decimals,
+no trailing minus, wrote 36 pluses of 40 with five checks missed at
+every seed and writes 40 with none, and over a 138-twin battery the
+recount alone moves 11 twins, 9 with no trailing minus -- eight losing
+five or six missed checks and one dense signed decimal, missing five
+style checks either way, gaining `styles.spill` (accepted). The walks
+over the side that is not negative keep stratum order. New
+`trailing_values` rows hold the walk beside's demand, the order of the
+side that is not negative and the negative walk's order; the gate's
+`plus-beside-whole-negatives` holds the plus walk's count and a third
+hand-worked chain row the negative walk's order. The ledger note names
+its entries, their trees and what took them, and no longer restates
+their values; a test holds that, and reads a numeral glued to its unit.
 
 ### Whole negatives beside a trailing minus are the ones nearest zero (2026-09-26)
 
