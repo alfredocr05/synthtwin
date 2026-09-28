@@ -839,6 +839,19 @@ REMARK_PADDED_NUMBERS = "remark_padded_numbers_may_be_codes"
 # NF44).
 REMARK_GROUP_COMMAS = "remark_commas_read_as_thousands"
 REMARK_SPREAD_OUT_OF_RANGE = "remark_spread_out_of_range"
+# WHY A TAIL PUBLISHES NEITHER DISTANCE, WHERE THE REASON IS NOT THAT ITS
+# OWN PAIR WOULD GIVE ITS VALUES BACK (plan P4-D353, contract 6.7a). A
+# withheld side carries none of these where its own back-solve PINNED it,
+# and one of them otherwise, so the summary and the quality report say the
+# reason that is true of it: the other tail's values would come back by
+# subtraction beside it, the back-solve could not finish, or binary64 cannot
+# hold the two numbers. One form per side, and none takes an argument.
+REMARK_LOW_TAIL_FOR_THE_HIGH = "remark_low_tail_withheld_for_the_high_tail"
+REMARK_HIGH_TAIL_FOR_THE_LOW = "remark_high_tail_withheld_for_the_low_tail"
+REMARK_LOW_TAIL_UNSETTLED = "remark_low_tail_withheld_unsettled"
+REMARK_HIGH_TAIL_UNSETTLED = "remark_high_tail_withheld_unsettled"
+REMARK_LOW_TAIL_UNHOLDABLE = "remark_low_tail_withheld_unholdable"
+REMARK_HIGH_TAIL_UNHOLDABLE = "remark_high_tail_withheld_unholdable"
 REMARK_ALL_DIFFERENT_TEXT = "remark_every_value_is_different"
 # THE AFFIXED ROLE'S DECLINE, SAID OUT LOUD (plan P4-D30, residual
 # R-P4-39, contract NF50). `_wrapped_in_an_address` refuses to read
@@ -1010,6 +1023,13 @@ NOTE_ARITY: "dict[str, int]" = {
     REMARK_PADDED_NUMBERS: 1,
     REMARK_GROUP_COMMAS: 2,
     REMARK_SPREAD_OUT_OF_RANGE: 0,
+    # NO ARGUMENT: which side and which reason are the form itself.
+    REMARK_LOW_TAIL_FOR_THE_HIGH: 0,
+    REMARK_HIGH_TAIL_FOR_THE_LOW: 0,
+    REMARK_LOW_TAIL_UNSETTLED: 0,
+    REMARK_HIGH_TAIL_UNSETTLED: 0,
+    REMARK_LOW_TAIL_UNHOLDABLE: 0,
+    REMARK_HIGH_TAIL_UNHOLDABLE: 0,
     REMARK_ALL_DIFFERENT_TEXT: 0,
     # IT CARRIES NO ARGUMENT ON PURPOSE. A count of the cells that wore
     # the address would be a count of a reading this column does NOT
@@ -2421,6 +2441,29 @@ def rendered(form: str, arguments: "tuple[object, ...]") -> str:
             "record the column in larger units -- thousands or millions "
             "instead of units, with the unit in the column name -- and "
             "run the command again"
+        )
+    if form in _TAIL_REMARK_WORDS:
+        this, other, cause = _TAIL_REMARK_WORDS[form]
+        said = (
+            f"the two distances of the values beyond this column's {this} "
+            f"tail boundary are not published"
+        )
+        if cause == TAIL_WITHHELD_FOR_THE_OTHER:
+            return (
+                f"{said} although on their own they would not give those "
+                f"values back: beside the column's exact mean and spread "
+                f"they could give back, by subtraction, the two distances "
+                f"withheld from its {other} tail"
+            )
+        if cause == TAIL_WITHHELD_UNSETTLED:
+            return (
+                f"{said} because the check of whether they would give those "
+                f"values back did not finish, and a tail is withheld where "
+                f"that cannot be ruled out, not only where it is shown"
+            )
+        return (
+            f"{said} because they are too large for this file format to "
+            f"hold"
         )
     if form == REMARK_ALL_DIFFERENT_TEXT:
         return (
@@ -4547,6 +4590,59 @@ TAIL_OPEN = "open"
 TAIL_PINNED = "pinned"
 TAIL_UNSETTLED = "unsettled"
 
+# WHY A WITHHELD SIDE IS WITHHELD, as the description says it (plan
+# P4-D353). `TAIL_PINNED` is said by no remark: a side carrying none of
+# the forms below publishes neither distance because its own pair would
+# give its values back. Each other reason is a remark per side.
+TAIL_WITHHELD_FOR_THE_OTHER = "for_the_other"
+TAIL_WITHHELD_UNSETTLED = TAIL_UNSETTLED
+TAIL_WITHHELD_UNHOLDABLE = "unholdable"
+TAIL_WITHHELD_CAUSES = (
+    TAIL_WITHHELD_FOR_THE_OTHER,
+    TAIL_WITHHELD_UNSETTLED,
+    TAIL_WITHHELD_UNHOLDABLE,
+)
+TAIL_WITHHELD_REMARKS: "dict[tuple[str, str], str]" = {
+    ("low", TAIL_WITHHELD_FOR_THE_OTHER): REMARK_LOW_TAIL_FOR_THE_HIGH,
+    ("high", TAIL_WITHHELD_FOR_THE_OTHER): REMARK_HIGH_TAIL_FOR_THE_LOW,
+    ("low", TAIL_WITHHELD_UNSETTLED): REMARK_LOW_TAIL_UNSETTLED,
+    ("high", TAIL_WITHHELD_UNSETTLED): REMARK_HIGH_TAIL_UNSETTLED,
+    ("low", TAIL_WITHHELD_UNHOLDABLE): REMARK_LOW_TAIL_UNHOLDABLE,
+    ("high", TAIL_WITHHELD_UNHOLDABLE): REMARK_HIGH_TAIL_UNHOLDABLE,
+}
+# ...and the words each form is rendered with: this side, the other, why.
+_TAIL_REMARK_WORDS: "dict[str, tuple[str, str, str]]" = {
+    REMARK_LOW_TAIL_FOR_THE_HIGH: ("lower", "upper", TAIL_WITHHELD_FOR_THE_OTHER),
+    REMARK_HIGH_TAIL_FOR_THE_LOW: ("upper", "lower", TAIL_WITHHELD_FOR_THE_OTHER),
+    REMARK_LOW_TAIL_UNSETTLED: ("lower", "upper", TAIL_WITHHELD_UNSETTLED),
+    REMARK_HIGH_TAIL_UNSETTLED: ("upper", "lower", TAIL_WITHHELD_UNSETTLED),
+    REMARK_LOW_TAIL_UNHOLDABLE: ("lower", "upper", TAIL_WITHHELD_UNHOLDABLE),
+    REMARK_HIGH_TAIL_UNHOLDABLE: ("upper", "lower", TAIL_WITHHELD_UNHOLDABLE),
+}
+
+
+def tail_withheld_because(remarks: object, side: str) -> str:
+    """Why one side of a block publishes neither distance, read off its remarks.
+
+    Guarantees: accepts a block's `remarks` (anything; only a list of
+    sentences is read) and `"low"` or `"high"`; returns the reason whose
+    remark the list carries for that side, or `TAIL_PINNED` where it
+    carries none. Only a block whose producer writes these remarks -- a
+    column of counts or continuous values, or a date or clock column --
+    may be read this way; elsewhere the answer says nothing. Determinism:
+    a function of the two. Raises nothing. No I/O of any kind.
+    """
+    said: "list[str]" = []
+    if isinstance(remarks, list):
+        for remark in remarks:
+            said += [f"{remark}"]
+    for cause in TAIL_WITHHELD_CAUSES:
+        if (side, cause) not in TAIL_WITHHELD_REMARKS:
+            continue
+        if rendered(TAIL_WITHHELD_REMARKS[(side, cause)], ()) in said:
+            return cause
+    return TAIL_PINNED
+
 
 def _tail_pinned(
     distances: "list[int]",
@@ -4748,7 +4844,28 @@ def _tail_side(
     grid: int,
     cells: int,
 ) -> "dict[str, object]":
-    """The published object of one tail (contract DT1).
+    """The published object of one tail (contract DT1): `_tail_side_and_verdict`'s side."""
+    return _tail_side_and_verdict(
+        distances, texts, boundary, floor, edge, distinct, grid, cells
+    )[0]
+
+
+def _tail_side_and_verdict(
+    distances: "list[int]",
+    texts: "list[str]",
+    boundary: str,
+    floor: int,
+    edge: int,
+    distinct: bool,
+    grid: int,
+    cells: int,
+) -> "tuple[dict[str, object], str]":
+    """The published object of one tail (contract DT1), and the back-solve's verdict.
+
+    THE VERDICT IS RETURNED BESIDE THE SIDE (plan P4-D353), so a side that
+    publishes neither distance can say whether its own pair PINNED it or
+    the walk spent its budget first (`TAIL_UNSETTLED`); it is `TAIL_OPEN`
+    wherever the side was not asked.
 
     `distances` are the outer cells' whole distances beyond the boundary
     and `texts` the canonical text of each of those cells, in the same
@@ -4789,8 +4906,9 @@ def _tail_side(
     * Otherwise it publishes ITS TWO DISTANCES, the shape rather than
       the values.
 
-    Guarantees: returns the five keys of `TAIL_KEYS`. Determinism: a
-    function of the arguments. Raises nothing. No I/O of any kind.
+    Guarantees: returns the five keys of `TAIL_KEYS` and one of the three
+    verdicts. Determinism: a function of the arguments. Raises nothing. No
+    I/O of any kind.
     """
     size = len(distances)
     total = 0
@@ -4856,26 +4974,33 @@ def _tail_side(
     # same way and gives the reader the day each outer cell stands on;
     # the answer that publishes less does not depend on how many
     # spellings that day wore.
-    pinned = False if few else _tail_pinned(distances, floor, edge, distinct)
+    verdict = TAIL_OPEN if few else _tail_verdict(distances, floor, edge, distinct)
+    pinned = verdict != TAIL_OPEN
     if not few and not (single and may_list and pinned):
         if pinned:
             # FAIL CLOSED (P4-D349). The values road is shut and the pair
             # would give this tail back exactly; the tail says how many
             # rows lie beyond its boundary and nothing else.
-            return {
+            return (
+                {
+                    "boundary": boundary,
+                    "rows": size,
+                    "mean_distance": None,
+                    "rms_distance": None,
+                    "values": None,
+                },
+                verdict,
+            )
+        return (
+            {
                 "boundary": boundary,
                 "rows": size,
-                "mean_distance": None,
-                "rms_distance": None,
+                "mean_distance": _rounded_ratio(total, size),
+                "rms_distance": _rounded_root(squares, size),
                 "values": None,
-            }
-        return {
-            "boundary": boundary,
-            "rows": size,
-            "mean_distance": _rounded_ratio(total, size),
-            "rms_distance": _rounded_root(squares, size),
-            "values": None,
-        }
+            },
+            verdict,
+        )
     first: "dict[int, str]" = {}
     for place in range(size):
         distance = distances[place]
@@ -4885,13 +5010,16 @@ def _tail_side(
     mean: "float | None" = _rounded_ratio(total, size)
     if _values_mean_pins(counts, size, total, floor):
         mean = None
-    return {
-        "boundary": boundary,
-        "rows": size,
-        "mean_distance": mean,
-        "rms_distance": None,
-        "values": values,
-    }
+    return (
+        {
+            "boundary": boundary,
+            "rows": size,
+            "mean_distance": mean,
+            "rms_distance": None,
+            "values": values,
+        },
+        verdict,
+    )
 
 
 def _side_settles(
@@ -5050,7 +5178,22 @@ def ordered_tails(
     edges: "tuple[int, int]",
     distinct: bool,
 ) -> "tuple[dict[str, object] | None, dict[str, object] | None, tuple[int, int] | None]":
-    """Both tails of an ordered column, and the two boundary ranks.
+    """Both tails of an ordered column and the two boundary ranks (`ordered_tails_and_verdicts`)."""
+    found = ordered_tails_and_verdicts(ordered, ordinals, floor, edges, distinct)
+    return (found[0], found[1], found[2])
+
+
+def ordered_tails_and_verdicts(
+    ordered: "list[str]",
+    ordinals: "list[int]",
+    floor: int,
+    edges: "tuple[int, int]",
+    distinct: bool,
+) -> "tuple[dict[str, object] | None, dict[str, object] | None, tuple[int, int] | None, dict[str, str]]":
+    """Both tails of an ordered column, the two boundary ranks, and each side's verdict.
+
+    THE VERDICTS (plan P4-D353) are the back-solve's answer for each side
+    as `_tail_side_and_verdict` gives it, `{}` where there are no tails.
 
     `ordered` is the canonical text of every parsed cell in the order the
     column is published in, `ordinals` the same cells in tail units, and
@@ -5073,7 +5216,7 @@ def ordered_tails(
     """
     ranks = tail_ranks(ordinals, floor)
     if ranks is None:
-        return (None, None, None)
+        return (None, None, None, {})
     count = len(ordinals)
     grid = len(set(ordinals))
     # THE BOUNDARY MOVES IN WHILE THE PAIR STILL SETTLES THE TAIL (plan
@@ -5106,7 +5249,7 @@ def ordered_tails(
     # spellings of one day, or one day under two offsets, are two values
     # of the column and one distance. The reader's constraint applies only
     # where it is true of the tail itself.
-    low = _tail_side(
+    low, low_verdict = _tail_side_and_verdict(
         low_distances,
         low_texts,
         ordered[low_rank],
@@ -5116,7 +5259,7 @@ def ordered_tails(
         grid,
         count,
     )
-    high = _tail_side(
+    high, high_verdict = _tail_side_and_verdict(
         high_distances,
         high_texts,
         ordered[high_rank],
@@ -5126,7 +5269,28 @@ def ordered_tails(
         grid,
         count,
     )
-    return (low, high, ranks)
+    return (low, high, ranks, {"low": low_verdict, "high": high_verdict})
+
+
+def _unsettled_tail_remarks(
+    low: object, high: object, verdicts: "dict[str, str]"
+) -> "list[Note]":
+    """The remark of each date or clock side withheld because its walk did not finish.
+
+    A side publishing neither distance and no values was PINNED or left
+    UNSETTLED by the back-solve (`_tail_side_and_verdict`); the second is
+    said, so a page does not say of it that its pair would give it back
+    (plan P4-D353). Determinism: a function of the three. No I/O.
+    """
+    said: "list[Note]" = []
+    for side, tail in (("low", low), ("high", high)):
+        if not isinstance(tail, dict) or tail["values"] is not None:
+            continue
+        if tail["mean_distance"] is not None:
+            continue
+        if side in verdicts and verdicts[side] == TAIL_UNSETTLED:
+            said += [note(TAIL_WITHHELD_REMARKS[(side, TAIL_WITHHELD_UNSETTLED)])]
+    return said
 
 
 def tail_edges(
@@ -12918,7 +13082,20 @@ def _withheld_ladder(details: "dict[str, object]") -> "dict[str, object]":
 def _numeric_tails(
     cells: _Cells, details: "dict[str, object]"
 ) -> "dict[str, object]":
-    """A numeric block under the tail rule (contract L4, method G5.3b).
+    """A numeric block under the tail rule: `_numeric_tails_and_causes`'s block."""
+    return _numeric_tails_and_causes(cells, details)[0]
+
+
+def _numeric_tails_and_causes(
+    cells: _Cells, details: "dict[str, object]"
+) -> "tuple[dict[str, object], dict[str, str]]":
+    """A numeric block under the tail rule (contract L4, method G5.3b), and why each withheld side is.
+
+    THE REASONS (plan P4-D353), one per side that publishes neither
+    distance and no values: `TAIL_PINNED` or `TAIL_UNSETTLED` where its own
+    back-solve withheld it, `TAIL_WITHHELD_FOR_THE_OTHER` where only the
+    cross-side rule did, `TAIL_WITHHELD_UNHOLDABLE` where binary64 cannot
+    hold the pair. `{}` where no side is withheld.
 
     THE BLOCK POPULATION FLOOR FIRST. With `units = tail_units(floor)`
     and `n` the values the statistics used:
@@ -12948,30 +13125,30 @@ def _numeric_tails(
     shaped["bin_groups"] = []
     if count == 0:
         shaped["tails"] = None
-        return shaped
+        return (shaped, {})
     if count < units:
         withheld = _withheld_ladder(shaped)
         for key in ("mean", "std", "skew", "kurtosis"):
             withheld[key] = None
         withheld["std_unrepresentable"] = False
         withheld["tails"] = None
-        return withheld
+        return (withheld, {})
     percent = parsing.tail_percent(count, units)
     moments_only = _withheld_ladder(shaped)
     moments_only["tails"] = {"low": None, "high": None}
     if percent is None:
-        return moments_only
+        return (moments_only, {})
     high_percent = 100 - percent
     ladder = details["percentiles"]
     finer = details["percentiles_between"]
     if not isinstance(ladder, dict) or not isinstance(finer, dict):
-        return moments_only
+        return (moments_only, {})
     found: "dict[int, float]" = {}
     for side_percent in (percent, high_percent):
         where, name = _rung_name(side_percent)
         value = ladder[name] if where == "percentiles" else finer[name]
         if not isinstance(value, float):
-            return moments_only
+            return (moments_only, {})
         found[side_percent] = value
     low_first, low_last = _tail_positions(count, percent, "low")
     high_first, high_last = _tail_positions(count, high_percent, "high")
@@ -13040,6 +13217,7 @@ def _numeric_tails(
     # THE PAIRS THE BACK-SOLVE WITHHOLDS, kept for the cost rule of plan
     # P4-D353 and never published unless that rule publishes them.
     withheld_pairs: "dict[str, tuple[float, float, str]]" = {}
+    unholdable: "list[str]" = []
     for side, first, last, side_percent, distances in (
         ("low", low_first, low_last, percent, low),
         ("high", high_first, high_last, high_percent, high),
@@ -13072,6 +13250,7 @@ def _numeric_tails(
         if distances is None:
             # NO PAIR THIS FORMAT HOLDS, SO NO LIST EITHER (TL5).
             listed = []
+            unholdable += [side]
         else:
             mean = distances[0]
             root = distances[1]
@@ -13120,8 +13299,22 @@ def _numeric_tails(
     shaped["bin_groups"] = groups
     shaped["tails"] = sides
     if withheld_pairs:
-        return _pairs_that_cost(cells, shaped, withheld_pairs)
-    return shaped
+        shaped = _pairs_that_cost(cells, shaped, withheld_pairs)
+    # WHY EACH SIDE LEFT WITHOUT A PAIR IS WITHOUT ONE, read off the block
+    # that is published: a side the cost rule gave its pair back has none.
+    causes: "dict[str, str]" = {}
+    published = shaped["tails"]
+    for side in ("low", "high"):
+        one = published[side] if isinstance(published, dict) else None
+        if not isinstance(one, dict) or one["values"] or one["mean_distance"] is not None:
+            continue
+        if side in unholdable:
+            causes[side] = TAIL_WITHHELD_UNHOLDABLE
+        elif side in withheld_pairs:
+            causes[side] = withheld_pairs[side][2]
+        else:
+            causes[side] = TAIL_WITHHELD_FOR_THE_OTHER
+    return (shaped, causes)
 
 
 # P4-D353: the disclosure order in which the cost rule offers withheld
@@ -13357,6 +13550,13 @@ def _pairs_that_cost(
 
 def _numeric_details(cells: _Cells, whole: bool) -> dict[str, object]:
     """The published description of a numeric column."""
+    return _numeric_details_and_causes(cells, whole)[0]
+
+
+def _numeric_details_and_causes(
+    cells: _Cells, whole: bool
+) -> "tuple[dict[str, object], dict[str, str]]":
+    """The published description of a numeric column, and why each withheld tail side is (`_numeric_tails_and_causes`)."""
     numbers = cells.numbers
     n_present = len(cells.present)
     # THE FORMS MAP AND THE TWO WIDTH CENSUSES A READER SUBTRACTS FROM
@@ -13503,7 +13703,7 @@ def _numeric_details(cells: _Cells, whole: bool) -> dict[str, object]:
     # AND UNDER THE TAIL RULE (stage 3, plan P4-D344): the outer rows on
     # each side are described by their shape, and the rungs that would
     # read them are withheld.
-    return _numeric_tails(cells, details)
+    return _numeric_tails_and_causes(cells, details)
 
 
 def _offset_counts(
@@ -14143,12 +14343,15 @@ def _datetime_details(
     unparsed: int,
     settings: Settings,
     distinct: bool = False,
+    remarks: "list[Note] | None" = None,
 ) -> dict[str, object]:
     """The published description of a datetime column.
 
     `distinct` says whether every present cell of the column differs
     from every other, which the universal counts publish, so the tail's
-    back-solve can hold a reader to it (`_tail_pinned`).
+    back-solve can hold a reader to it (`_tail_pinned`). Where `remarks`
+    is given, the remark of each side withheld UNSETTLED is added to it
+    (`_unsettled_tail_remarks`).
     """
     # Order by the INSTANT each value names, not by its local text. Two
     # values written in different offsets sorted the wrong way round
@@ -14209,13 +14412,15 @@ def _datetime_details(
     ordinals = [
         tail_ordinal(moment, unit, reading) for moment in canonical_order
     ]
-    low_tail, high_tail, ranks = ordered_tails(
+    low_tail, high_tail, ranks, verdicts = ordered_tails_and_verdicts(
         canonical_order,
         ordinals,
         settings.small_cell_floor,
         tail_edges(format_name, unit, reading, offsets),
         distinct,
     )
+    if remarks is not None:
+        remarks += _unsettled_tail_remarks(low_tail, high_tail, verdicts)
     return {
         "format": format_name,
         "resolution_mix": _resolution_mix(format_name, sources),
@@ -15614,13 +15819,14 @@ def _clock_verdict(
     for value in ordered:
         found = parsing.clock_ordinal(value, clock.form)
         ordinals += [0 if found is None else found]
-    low_tail, high_tail, ranks = ordered_tails(
+    low_tail, high_tail, ranks, verdicts = ordered_tails_and_verdicts(
         ordered,
         ordinals,
         cells.settings.small_cell_floor,
         (0, parsing.CLOCK_CAPACITY[clock.form] - 1),
         cells.raw_distinct == len(cells.present),
     )
+    remarks += _unsettled_tail_remarks(low_tail, high_tail, verdicts)
     details: "dict[str, object]" = {
         "clock_form": clock.form,
         "low_tail": low_tail,
@@ -17472,6 +17678,7 @@ def _decide(
                 unparsed,
                 settings,
                 cells.raw_distinct == len(cells.present),
+                remarks,
             )
             if numeric_looking >= strict_needed:
                 # BOTH COUNTS, AND THEY ARE ALREADY COMPUTED HERE
@@ -18835,7 +19042,7 @@ def _numeric_verdict(
     # this very block, so the block has to exist first; the remark's
     # place among the others is unchanged, which is what keeps every
     # description's sentence order the same.
-    details = _numeric_details(cells, whole_everywhere)
+    details, causes = _numeric_details_and_causes(cells, whole_everywhere)
     if role == ROLE_COUNT:
         evidence = note(EVIDENCE_COUNTS, (numeric_looking,))
         # ...AND A COLUMN OF WHOLE NUMBERS THAT ARE ALL MOMENTS IN TIME
@@ -18864,6 +19071,13 @@ def _numeric_verdict(
     # (review item P1-R6-F3).
     if details["std_unrepresentable"]:
         remarks += [note(REMARK_SPREAD_OUT_OF_RANGE)]
+    # ...AND A TAIL WITHHELD FOR ANY REASON BUT ITS OWN PAIR SAYS WHICH
+    # (plan P4-D353): the summary and the quality report read it, and a
+    # page must not say of such a side that its two distances would give
+    # it back.
+    for side in ("low", "high"):
+        if side in causes and causes[side] != TAIL_PINNED:
+            remarks += [note(TAIL_WITHHELD_REMARKS[(side, causes[side])])]
     # AND A SHAPE THIS COLUMN COULD NOT PUBLISH IS SAID IN WORDS. The
     # histogram is all or nothing, so a column whose values spread too
     # thinly for the floor publishes an EMPTY object -- and an empty

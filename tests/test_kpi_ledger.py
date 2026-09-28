@@ -1592,3 +1592,42 @@ def test_k_s3_16(record_property, tmp_path: pathlib.Path) -> None:
             "twins": twins,
         },
     )
+
+
+def test_k_s3_25(record_property, tmp_path: pathlib.Path) -> None:
+    """P4-D353 part 2, skeptic A1's item 2: every withheld tail side's pages say the reason true of it.
+
+    Over the gate's four numeric reconstruction attacks and its four cost
+    shapes, skeptic A2's five columns and the review's three -- 0 to 299
+    beside 101 scattered values, 1,500 all-different values, eleven cells
+    near -1.7e308 beside 89 near 1.68e308 -- at floors 11, 20 and 36: the
+    tail sides publishing neither distance and no values, and among them
+    the sides whose remark, summary line or quality-report sentence says a
+    reason other than the back-solve's own verdict, the cross-side rule or
+    binary64 (`test_p4d353_cost_rule.misstated`).
+    """
+    import complement_reader as columns
+    import test_p4d353_cost_rule as causes
+    import test_stage3_gate as gate
+
+    shapes = [one for one in gate.RECONSTRUCTIONS if one[1][0].replace(".", "").isdigit()]
+    shapes += list(gate.COST_SHAPES) + list(columns.WHOLE_DESCRIPTION_FAMILY)
+    shapes += [
+        ("run_then_scatter", causes.run_then_scatter()),
+        ("uniform_distinct_1500", causes.uniform_distinct_1500()),
+        ("far_apart_100", causes.far_apart_100()),
+    ]
+    withheld = 0
+    wrong = 0
+    read = 0
+    for name, cells in shapes:
+        for floor in (11, 20, 36):
+            _block, sides = causes.withheld_sides(tmp_path / f"{name}-{floor}", name, list(cells), floor)
+            withheld += len(sides)
+            wrong += len(causes.misstated(sides))
+            read += 1
+    _kpi(
+        record_property,
+        "K-S3-25",
+        {"misstated_sides": wrong, "withheld_sides": withheld, "shapes": read},
+    )

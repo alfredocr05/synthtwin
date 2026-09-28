@@ -6,6 +6,22 @@ exists).
 
 ## [Unreleased]
 
+### A tail withheld for the other tail's sake says so (2026-09-27)
+
+**The summary and the quality report said of every tail without a pair
+that its own two distances would give its values back one by one.**
+False on a side withheld only because the other side's pair is (plan
+P4-D353 part 2), unproven on a side whose back-solve did not finish,
+false on one binary64 cannot hold. Each such side now carries a remark
+saying its reason (contract NF62 to NF67; dates and clocks say an
+unsettled side), both pages read it, and a block that says no reason --
+a joined part, a wrapper's numbers -- gets the whole rule, and the
+report's census line for a withheld tail key states it too (the golden
+quality digest moves with that one sentence, four lines of 2,296, the
+census unchanged). `K-S3-25`
+counts the misstated sides at 0 of 64 over 48 column-floors, where the
+base misstated 20.
+
 ### A sorted table's rebuilt values are placed in their rows, said where the surfaces denied it (2026-09-26)
 
 **Every sentence saying a description never names which row holds a

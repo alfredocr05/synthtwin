@@ -39,7 +39,7 @@ import pytest
 import complement_reader as columns
 import cost_rule_window as window
 import kpi_shapes
-from synthtwin import contract, parsing, taxonomy
+from synthtwin import contract, parsing, summary, taxonomy, validation
 
 
 def _one_column(cells: "list[str]") -> str:
@@ -613,3 +613,356 @@ def test_a_withheld_end_on_a_stand_in_moves_one_step_inside(
         written = [line for line in text.split("\n")[1:] if line]
         stand_ins = _held_stand_ins(written, cells)
         assert stand_ins == [], f"{name} seed {seed}: the twin wrote {stand_ins}"
+
+
+
+# -- 7. a side withheld for any other reason than its own pair says which ----
+#
+# Plan P4-D353 part 2 withholds a side whose own back-solve found it OPEN,
+# because beside the column's exact mean and spread its pair would give the
+# other, withheld side's back by subtraction. The summary and the quality
+# report said of EVERY side without a pair that its own two distances would
+# give its values back one by one: false there, unproven on a side whose
+# walk did not finish, and false on one binary64 cannot hold (skeptic A1,
+# item 2). The producer says each such reason in a remark per side
+# (contract NF62 to NF67); both pages read it, and the premise of every
+# case here is the back-solve's OWN verdict, recorded where the cost rule
+# is handed it. The sentences are asserted by their WORDS, not through the
+# tables the pages read, so a table with two causes swapped is red here.
+
+
+def heap_then_one_far() -> "list[str]":
+    """0 to 1,088 once each, 1,089 eleven times and 1,100 once (the stage-3 gate's attack)."""
+    return [str(value) for value in range(1089)] + ["1089"] * 11 + ["1100"]
+
+
+def run_then_scatter() -> "list[str]":
+    """0 to 299, then 101 all-different values drawn from 301 to 2,999."""
+    return [str(value) for value in range(300)] + [
+        str(value) for value in random.Random("skA1/x").sample(range(301, 3000), 101)
+    ]
+
+
+def uniform_distinct_1500() -> "list[str]":
+    """1,500 all-different whole numbers drawn from 1 to 29,999."""
+    return [str(value) for value in random.Random("skA1/cross2").sample(range(1, 30000), 1500)]
+
+
+def far_apart_100() -> "list[str]":
+    """Eleven cells near `-1.7e308` beside 89 near `1.68e308` (stage 3's review, verdict item 2)."""
+    return [repr(-1.7e308 + place * 1e305) for place in range(11)] + [
+        repr(1.68e308 - place * 1e305) for place in range(89)
+    ]
+
+
+# The words each page uses for each cause, and nothing but the words: a
+# page saying the wrong one is the defect this section exists for.
+NOT_ASKED = "not_asked"
+SUMMARY_WORDS = {
+    taxonomy.TAIL_PINNED: "the two distances together would give those values back one by one",
+    taxonomy.TAIL_WITHHELD_FOR_THE_OTHER: "they could give back the other end's, which are withheld",
+    taxonomy.TAIL_WITHHELD_UNSETTLED: "could not be settled, so they are withheld",
+    taxonomy.TAIL_WITHHELD_UNHOLDABLE: "too large for this file format to hold",
+}
+REPORT_WORDS = {
+    taxonomy.TAIL_PINNED: "would give the file's own outer cells back one by one",
+    taxonomy.TAIL_WITHHELD_FOR_THE_OTHER: "they could give back the other tail's, whose own two distances that description withholds",
+    taxonomy.TAIL_WITHHELD_UNSETTLED: "could not be settled, and the rule this description follows withholds them where that cannot be ruled out",
+    taxonomy.TAIL_WITHHELD_UNHOLDABLE: "the two numbers are too large for this file format to hold",
+}
+REMARK_WORDS = {
+    taxonomy.TAIL_WITHHELD_FOR_THE_OTHER: "they could give back, by subtraction, the two distances withheld from its",
+    taxonomy.TAIL_WITHHELD_UNSETTLED: "did not finish, and a tail is withheld where that cannot be ruled out",
+    taxonomy.TAIL_WITHHELD_UNHOLDABLE: "because they are too large for this file format to hold",
+}
+SIDE_WORDS = {"low": ("lower", "upper"), "high": ("upper", "lower")}
+
+
+def _which_page_words(said: str, words: "dict[str, str]") -> str:
+    """The one cause whose words a page's sentence carries, or what it carries instead."""
+    found = [cause for cause in words if words[cause] in said]
+    return found[0] if len(found) == 1 else f"none of the four: {said.strip()!r}"
+
+
+def withheld_sides(
+    folder: pathlib.Path, name: str, cells: "list[str]", floor: int
+) -> "tuple[dict, list[tuple[str, str, str, str, str]]]":
+    """The column described, and for each numeric side withheld without a pair and without values:
+    (side, the back-solve's OWN verdict, the cause its remarks say, the cause
+    the summary's words say, the cause the quality report's words say).
+
+    The own verdict is `TAIL_PINNED` or `TAIL_UNSETTLED` where the walk
+    withheld it, `TAIL_OPEN` where the walk did not (the cross-side rule
+    withheld it), `NOT_ASKED` where binary64 cannot hold its pair, each
+    recorded off the real producer's own calls.
+    """
+    verdicts: "dict[str, str]" = {}
+    unholdable: "list[str]" = []
+    real_cost = taxonomy._pairs_that_cost
+    real_distances = taxonomy._tail_distances
+
+    def recording(counts, shaped, held):  # type: ignore[no-untyped-def]
+        for side in held:
+            verdicts[side] = held[side][2]
+        return real_cost(counts, shaped, held)
+
+    def distances(ordered, first, last, boundary, side):  # type: ignore[no-untyped-def]
+        nonlocal unholdable
+        found = real_distances(ordered, first, last, boundary, side)
+        if found is None:
+            unholdable += [side]
+        return found
+
+    with pytest.MonkeyPatch.context() as patched:
+        patched.setattr(taxonomy, "_pairs_that_cost", recording)
+        patched.setattr(taxonomy, "_tail_distances", distances)
+        described = kpi_shapes.describe(folder, name, _one_column(cells), floor)
+    block = described.document["columns"][0]
+    page = summary.render(described.document, "")
+    found: "list[tuple[str, str, str, str, str]]" = []
+    tails = block["tails"] if "tails" in block else None
+    if not isinstance(tails, dict):
+        return block, found
+    for side in ("low", "high"):
+        tail = tails[side]
+        if not isinstance(tail, dict) or tail["mean_distance"] is not None or tail["values"]:
+            continue
+        which = "smallest" if side == "low" else "largest"
+        lines = [
+            line for line in page.split("\n")
+            if f"the {tail['rows']} {which} values are not published, and neither is how far" in line
+        ]
+        assert len(lines) == 1, (name, floor, side, lines)
+        own = NOT_ASKED if side in unholdable else verdicts.get(side, taxonomy.TAIL_OPEN)
+        found += [(
+            side,
+            own,
+            taxonomy.tail_withheld_because(block["remarks"], side),
+            _which_page_words(lines[0], SUMMARY_WORDS),
+            _which_page_words(validation._tail_withheld_reason(block, side), REPORT_WORDS),
+        )]
+    return block, found
+
+
+def misstated(sides: "list[tuple[str, str, str, str, str]]") -> "list[tuple[str, str, str, str, str]]":
+    """The sides whose pages say a reason that is not the one true of them.
+
+    True of a side: its own verdict where the walk withheld it, the cross-side
+    rule where the walk left it open, and binary64 where the pair was never
+    asked. The old sentence -- the pair gives the values back -- is true only
+    of a PINNED side.
+    """
+    true_cause = {
+        taxonomy.TAIL_PINNED: taxonomy.TAIL_PINNED,
+        taxonomy.TAIL_UNSETTLED: taxonomy.TAIL_WITHHELD_UNSETTLED,
+        taxonomy.TAIL_OPEN: taxonomy.TAIL_WITHHELD_FOR_THE_OTHER,
+        NOT_ASKED: taxonomy.TAIL_WITHHELD_UNHOLDABLE,
+    }
+    return [
+        one for one in sides
+        if not (one[2] == one[3] == one[4] == true_cause[one[1]])
+    ]
+
+
+# (name, cells, floor, side, the reason, the other side's own verdict or ""):
+# the three columns the review found, and the two other reasons.
+_WITHHELD_REASONS = (
+    ("heap_then_one_far", heap_then_one_far(), 11, "low", taxonomy.TAIL_WITHHELD_FOR_THE_OTHER, taxonomy.TAIL_PINNED),
+    ("run_then_scatter", run_then_scatter(), 11, "high", taxonomy.TAIL_WITHHELD_FOR_THE_OTHER, taxonomy.TAIL_PINNED),
+    ("uniform_distinct_1500", uniform_distinct_1500(), 20, "high", taxonomy.TAIL_WITHHELD_FOR_THE_OTHER, taxonomy.TAIL_UNSETTLED),
+    ("uniform_distinct_1500", uniform_distinct_1500(), 20, "low", taxonomy.TAIL_WITHHELD_UNSETTLED, ""),
+    ("far_apart_100", far_apart_100(), 11, "low", taxonomy.TAIL_WITHHELD_UNHOLDABLE, ""),
+)
+
+
+@pytest.mark.parametrize("name,cells,floor,side,reason,other", _WITHHELD_REASONS)
+def test_a_side_withheld_for_another_reason_says_which(
+    tmp_path: pathlib.Path,
+    name: str,
+    cells: "list[str]",
+    floor: int,
+    side: str,
+    reason: str,
+    other: str,
+) -> None:
+    """The remark, the summary's line and the report's sentence each say the reason true of the side.
+
+    PREMISE, the back-solve's own: a side withheld FOR THE OTHER was left
+    open by its own walk and the other side was withheld by its own; an
+    UNSETTLED side's walk did not finish; an UNHOLDABLE side was never
+    asked. Then the remark names THIS side and this reason in its words,
+    and neither page says the pair would give the values back.
+    """
+    block, sides = withheld_sides(tmp_path / name, name, cells, floor)
+    found = {one[0]: one for one in sides}
+    assert side in found, f"premise: {side} publishes no pair ({sides})"
+    _side, own, cause, said, cited = found[side]
+    if reason == taxonomy.TAIL_WITHHELD_FOR_THE_OTHER:
+        twin = "high" if side == "low" else "low"
+        assert own == taxonomy.TAIL_OPEN and found[twin][1] == other, (
+            f"premise: {side}'s own walk left it open and {twin}'s withheld it ({sides})"
+        )
+    elif reason == taxonomy.TAIL_WITHHELD_UNSETTLED:
+        assert own == taxonomy.TAIL_UNSETTLED, f"premise: {sides}"
+    else:
+        assert own == NOT_ASKED, f"premise: {sides}"
+    assert cause == reason
+    this, that = SIDE_WORDS[side]
+    remark = [line for line in block["remarks"] if f"beyond this column's {this} tail boundary" in line]
+    assert len(remark) == 1 and REMARK_WORDS[reason] in remark[0], (name, side, block["remarks"])
+    if reason == taxonomy.TAIL_WITHHELD_FOR_THE_OTHER:
+        assert remark[0].endswith(f"withheld from its {that} tail"), remark[0]
+    assert said == reason, f"{name} {side}: the summary says {said}"
+    assert cited == reason, f"{name} {side}: the report says {cited}"
+
+
+def test_a_pinned_side_is_still_told_its_own_pair_would_give_it_back(tmp_path: pathlib.Path) -> None:
+    """The other side of `heap_then_one_far`, whose own walk PINNED it, carries no remark and the old sentence."""
+    block, sides = withheld_sides(tmp_path / "heap", "heap", heap_then_one_far(), 11)
+    found = {one[0]: one for one in sides}
+    assert found["high"][1] == taxonomy.TAIL_PINNED, sides
+    assert found["high"][2:] == (taxonomy.TAIL_PINNED,) * 3, sides
+    assert not [line for line in block["remarks"] if "upper tail boundary" in line]
+    assert misstated(sides) == []
+
+
+def _repeating_draw(size: int) -> "list[str]":
+    """`size` whole numbers drawn from 1 to 30,000, repeats allowed: both pairs publish at 11 and at 20."""
+    draw = random.Random(f"fA3/pairs_{size}_0")
+    return [str(draw.randint(1, 30000)) for _ in range(size)]
+
+
+# (name, the description's column, its floor, the checked file's column,
+# side -> the reason the file's own description gives): the description
+# publishes both pairs at the checked file's own percent, so each tail
+# distance is compared and the file's own silence is what the report says.
+_CHECKED_REASONS = (
+    (
+        "heap_then_one_far",
+        _repeating_draw(1101),
+        11,
+        heap_then_one_far(),
+        {"low": taxonomy.TAIL_WITHHELD_FOR_THE_OTHER, "high": taxonomy.TAIL_PINNED},
+    ),
+    (
+        "uniform_distinct_1500",
+        _repeating_draw(1500),
+        20,
+        uniform_distinct_1500(),
+        {"low": taxonomy.TAIL_WITHHELD_UNSETTLED, "high": taxonomy.TAIL_WITHHELD_FOR_THE_OTHER},
+    ),
+)
+
+
+@pytest.mark.parametrize("name,described_cells,floor,checked_cells,reasons", _CHECKED_REASONS)
+def test_the_report_says_why_the_file_s_own_tail_is_silent(
+    tmp_path: pathlib.Path,
+    name: str,
+    described_cells: "list[str]",
+    floor: int,
+    checked_cells: "list[str]",
+    reasons: "dict[str, str]",
+) -> None:
+    """The quality report's reason for a WITHHELD tail distance is the reason the file's own description gives.
+
+    The description publishes both pairs (premise); the checked file's own
+    description publishes neither, and each distance check cites, in the
+    words of that side's reason, why -- never the sentence saying its own
+    two numbers give the outer cells back where they do not.
+    """
+    described = kpi_shapes.describe(tmp_path / "described", "described", _one_column(described_cells), floor)
+    tails = described.document["columns"][0]["tails"]
+    assert [side for side in ("low", "high") if tails[side]["mean_distance"] is not None] == ["low", "high"], (
+        "premise: the description publishes both pairs"
+    )
+    outcome = kpi_shapes.measure(described, _one_column(checked_cells), f"{name}.csv")
+    for side, reason in sorted(reasons.items()):
+        cited = [
+            check.citation for check in outcome.checks
+            if check.subcheck in (f"tails.{side}.mean_distance", f"tails.{side}.rms_distance")
+        ]
+        assert len(cited) == 2, (name, side, cited)
+        assert [_which_page_words(one, REPORT_WORDS) for one in cited] == [reason, reason], (name, side, cited)
+
+
+def _date_lines_say(page: str) -> "list[str]":
+    """The cause the summary's words give for the earliest and the latest tail of a date or clock column."""
+    found: "list[str]" = []
+    for side in ("earliest", "latest"):
+        said = f"the {side} lie beyond it and no distance is published for them: "
+        lines = [line for line in page.split("\n") if said in line]
+        assert len(lines) == 1, (side, lines)
+        found += [_which_page_words(lines[0][lines[0].index(said):], SUMMARY_WORDS)]
+    return found
+
+
+def _minutes_900() -> "list[str]":
+    minutes = random.Random("fA3/clock_3").sample(range(24 * 60), 900)
+    return ["%02d:%02d" % divmod(minute, 60) for minute in minutes]
+
+
+@pytest.mark.parametrize(
+    "name,cells",
+    (("clock", _minutes_900()), ("dates", columns.consecutive_dates(240))),
+    ids=("clock", "dates"),
+)
+def test_a_date_or_clock_side_whose_walk_did_not_finish_says_so(
+    tmp_path: pathlib.Path, monkeypatch, name: str, cells: "list[str]"
+) -> None:
+    """The date and clock roles say an UNSETTLED side too, and its summary line is not the pinned one.
+
+    900 all-different minutes of the day (seed `fA3/clock_3`) and 240
+    consecutive days withhold both pairs, each PINNED by its own walk
+    (premise: no remark, the old sentence). A walk that spends its budget
+    answers UNSETTLED instead, which no seeded column here reaches, so the
+    verdict is turned: each side must then carry its remark, and the page
+    must say the question could not be settled.
+    """
+    pinned = kpi_shapes.describe(tmp_path / "pinned", name, _one_column(cells), 11).document
+    block = pinned["columns"][0]
+    for key in ("low_tail", "high_tail"):
+        assert block[key]["mean_distance"] is None and block[key]["values"] is None, "premise: both pairs withheld"
+    assert not [line for line in block["remarks"] if "tail boundary" in line], block["remarks"]
+    assert _date_lines_say(summary.render(pinned, "")) == [taxonomy.TAIL_PINNED] * 2
+    real = taxonomy._tail_verdict
+
+    def spent(*arguments, **named):  # type: ignore[no-untyped-def]
+        verdict = real(*arguments, **named)
+        return taxonomy.TAIL_UNSETTLED if verdict == taxonomy.TAIL_PINNED else verdict
+
+    with monkeypatch.context() as patched:
+        patched.setattr(taxonomy, "_tail_verdict", spent)
+        unsettled = kpi_shapes.describe(tmp_path / "unsettled", name, _one_column(cells), 11).document
+    block = unsettled["columns"][0]
+    for side, this in (("low", "lower"), ("high", "upper")):
+        remark = [line for line in block["remarks"] if f"beyond this column's {this} tail boundary" in line]
+        assert len(remark) == 1 and REMARK_WORDS[taxonomy.TAIL_WITHHELD_UNSETTLED] in remark[0], block["remarks"]
+        assert taxonomy.tail_withheld_because(block["remarks"], side) == taxonomy.TAIL_WITHHELD_UNSETTLED
+    page = summary.render(unsettled, "")
+    assert "one by one" not in page
+    assert _date_lines_say(page) == [taxonomy.TAIL_WITHHELD_UNSETTLED] * 2
+
+
+def test_a_block_that_says_no_reason_gets_the_whole_rule_and_no_cause() -> None:
+    """A tail the report reads off a block whose producer writes no remark -- a joined part, a wrapper's
+    numbers -- is explained by the whole rule, never by a cause the block cannot vouch for.
+
+    `_heaped_end_check` hands a joined part's own block, which carries no
+    role; the remark is written by `_numeric_verdict` alone, so on any
+    other block a missing remark does not mean PINNED.
+    """
+    remark = taxonomy.rendered(taxonomy.REMARK_LOW_TAIL_FOR_THE_HIGH, ())
+    tails = {"low": {"percent": 1, "rows": 12, "mean_distance": None, "rms_distance": None, "values": []}}
+    for block, expected in (
+        ({"tails": tails, "remarks": [remark]}, taxonomy.TAIL_PINNED),
+        ({"role": "affixed_number", "tails": tails, "remarks": [remark]}, taxonomy.TAIL_PINNED),
+        ({"role": "count", "tails": tails, "remarks": [remark]}, taxonomy.TAIL_WITHHELD_FOR_THE_OTHER),
+        ({"role": "continuous", "tails": tails, "remarks": []}, taxonomy.TAIL_PINNED),
+    ):
+        sentence = validation._tail_withheld_reason(block, "low")
+        if "role" in block and block["role"] in ("count", "continuous"):
+            assert _which_page_words(sentence, REPORT_WORDS) == expected, block
+        else:
+            assert sentence == validation._GATE_TAIL_WITHHELD_UNSAID, block
+            assert "which withholds them where they would give the outer cells back" in sentence
+    assert _which_page_words(validation._GATE_TAIL_WITHHELD_UNSAID, REPORT_WORDS).startswith("none of the four")

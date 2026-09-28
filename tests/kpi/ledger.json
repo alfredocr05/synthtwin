@@ -6622,6 +6622,43 @@
      "shapes": 52
     }
    }
+  },
+  {
+   "id": "K-S3-25",
+   "phase_stage": "Stage 3's follow-up A, its review of 2026-09-26 (plan P4-D353 part 2)",
+   "category": "TRUST",
+   "headline": false,
+   "name": "Withheld tail sides whose summary line or quality-report sentence misstates why they are withheld",
+   "status": "GREEN",
+   "rule": "over sixteen single-column shapes -- the stage-3 gate's four numeric reconstruction attacks and four cost shapes, skeptic A2's five columns (tests/complement_reader.py::WHOLE_DESCRIPTION_FAMILY), and the review's 0 to 299 beside 101 scattered values, 1,500 all-different whole numbers and eleven cells near -1.7e308 beside 89 near 1.68e308 -- at floors 11, 20 and 36, count the tail sides publishing neither distance and no values, and among them those whose remark, summary line or quality-report sentence names a reason other than the true one: the back-solve's own verdict, the cross-side rule where it left the side open, or binary64 where the pair was never asked (tests/test_p4d353_cost_rule.py::misstated). The second stays at nought; the others may not fall",
+   "rule_kind": "exact",
+   "expected": {
+    "misstated_sides": 0,
+    "withheld_sides": 64,
+    "shapes": 48
+   },
+   "key_kinds": {
+    "withheld_sides": "at_least",
+    "shapes": "at_least"
+   },
+   "tier": "FAST",
+   "source": "pytest",
+   "nodes": [],
+   "test": "tests/test_kpi_ledger.py::test_k_s3_25",
+   "driver": null,
+   "pin_strength": "NONE",
+   "measured_on": "sixteen single-column shapes at floors 11, 20 and 36, each described once",
+   "evidence": "0 of 64 sides over 48 column-floors: 44 pinned by their own walk keep the old sentence; 12 unsettled, 5 withheld for the other tail and 3 binary64 cannot hold carry their remark, and both pages say so. 72d2c35, the base, said the old sentence on all 64: 20 misstated.",
+   "value_at": {
+    "commit": "caf3079",
+    "date": "2026-09-27",
+    "measured_by": "tools/measurements/kpi_run.py --only K-S3-25 --print-values",
+    "value": {
+     "misstated_sides": 0,
+     "withheld_sides": 64,
+     "shapes": 48
+    }
+   }
   }
  ]
 }

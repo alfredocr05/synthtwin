@@ -853,11 +853,12 @@ _NOT_CHECKABLE_TAIL_KEY_WITHHELD = (
     "the description's tail publishes nothing under this key: the values "
     "a tail holds are published only where it holds few of them or where "
     "its distances would settle a count below the floor, and the two "
-    "distances are published only where they would not give the tail's "
-    "own cells back -- where its rows, those two numbers, the grid and "
-    "the column's own remark that every value in it is different leave "
-    "one possible set of distances, the tail publishes neither of them "
-    "(docs/spec/profile-contract-v6.md TL1 and TL5)"
+    "distances are withheld where they would give the tail's own cells "
+    "back, where the check of that could not finish, where beside the "
+    "column's exact mean and spread they could give the other tail's "
+    "withheld distances back by subtraction, or where this file format "
+    "cannot hold them -- unless withholding them would cost the column its "
+    "mean or spread (docs/spec/profile-contract-v6.md TL1, TL5 and 6.7a)"
 )
 _NOT_CHECKABLE_SPELLING_ENVELOPE = (
     "the description's own permitted spellings settle nothing about how "
@@ -1056,6 +1057,75 @@ _GATE_TAIL_WITHHELD = (
     "same rule this description follows. There is nothing here for the "
     "comparison, and neither it nor its outcome is shown"
 )
+# ...AND THE SAME SILENCE FOR EVERY OTHER REASON THE FILE'S OWN TAIL HAS
+# (plan P4-D353). The file's description says which, in a remark per side
+# (`taxonomy.tail_withheld_because`), and the report says the reason true
+# of it: a side withheld beside the other tail's, one whose check did not
+# finish, one binary64 cannot hold -- and, on a block that carries no such
+# remarks, the rule without a reason it cannot vouch for.
+_GATE_TAIL_WITHHELD_FOR_THE_OTHER = (
+    "the file's own description publishes nothing about this tail beyond "
+    "the count of cells past its boundary -- neither distance, and so no "
+    "list of the values it holds: on their own those two numbers would not "
+    "give the file's outer cells back, but beside the file's exact mean and "
+    "spread they could give back the other tail's, whose own two distances "
+    "that description withholds, which is the same rule this description "
+    "follows. There is nothing here for the comparison, and neither it nor "
+    "its outcome is shown"
+)
+_GATE_TAIL_WITHHELD_UNSETTLED = (
+    "the file's own description publishes nothing about this tail beyond "
+    "the count of cells past its boundary -- neither distance, and so no "
+    "list of the values it holds: whether its rows and those two numbers "
+    "together would give the file's own outer cells back could not be "
+    "settled, and the rule this description follows withholds them where "
+    "that cannot be ruled out. There is nothing here for the comparison, "
+    "and neither it nor its outcome is shown"
+)
+_GATE_TAIL_WITHHELD_UNHOLDABLE = (
+    "the file's own description publishes nothing about this tail beyond "
+    "the count of cells past its boundary -- neither distance, and so no "
+    "list of the values it holds: the two numbers are too large for this "
+    "file format to hold. There is nothing here for the comparison, and "
+    "neither it nor its outcome is shown"
+)
+_GATE_TAIL_WITHHELD_UNSAID = (
+    "the file's own description publishes nothing about this tail beyond "
+    "the count of cells past its boundary -- neither distance, and so no "
+    "list of the values it holds -- under the same tail rule this "
+    "description follows, which withholds them where they would give the "
+    "outer cells back, where that could not be ruled out, where beside the "
+    "exact mean and spread they could give the other tail's back, or where "
+    "this file format cannot hold them. There is nothing here for the "
+    "comparison, and neither it nor its outcome is shown"
+)
+_GATE_TAIL_WITHHELD_BY_CAUSE = {
+    taxonomy.TAIL_PINNED: _GATE_TAIL_WITHHELD,
+    taxonomy.TAIL_WITHHELD_FOR_THE_OTHER: _GATE_TAIL_WITHHELD_FOR_THE_OTHER,
+    taxonomy.TAIL_WITHHELD_UNSETTLED: _GATE_TAIL_WITHHELD_UNSETTLED,
+    taxonomy.TAIL_WITHHELD_UNHOLDABLE: _GATE_TAIL_WITHHELD_UNHOLDABLE,
+}
+# The roles whose producer says each side's reason in a remark
+# (`taxonomy._numeric_verdict`); any other block holding a numeric tail --
+# a compound column's numbers, a wrapper, a joined part -- says none.
+_ROLES_SAYING_TAIL_REASONS = (taxonomy.ROLE_COUNT, taxonomy.ROLE_CONTINUOUS)
+
+
+def _tail_withheld_reason(block: "dict[str, object]", side: str) -> str:
+    """The sentence for a file's own tail that publishes neither distance.
+
+    Guarantees: accepts the file's own description block and `"low"` or
+    `"high"`; returns the `_GATE_TAIL_WITHHELD_*` sentence for the reason
+    that block's remarks give for that side, and `_GATE_TAIL_WITHHELD_UNSAID`
+    where the block is not one whose producer says a reason. Determinism: a
+    function of the two. Raises nothing. No I/O.
+    """
+    role = block["role"] if "role" in block else None
+    if role not in _ROLES_SAYING_TAIL_REASONS:
+        return _GATE_TAIL_WITHHELD_UNSAID
+    remarks = block["remarks"] if "remarks" in block else None
+    return _GATE_TAIL_WITHHELD_BY_CAUSE[taxonomy.tail_withheld_because(remarks, side)]
+
 
 _GATE_TAIL_BOUNDS = (
     "the file's own description withholds its end under the same tail "
@@ -12020,7 +12090,7 @@ def _heaped_end_check(
         side = _file_tail(block, name_of)
         if side is None:
             if _tail_is_quiet_at_any_percent(block, name_of):
-                why = _GATE_TAIL_WITHHELD
+                why = _tail_withheld_reason(block, name_of)
         else:
             listed = side[3]
             if listed:
@@ -12037,7 +12107,7 @@ def _heaped_end_check(
                     # file that describes this column as something else.
                     # The report says which of the three it is.
                     if side[1] is None or side[2] is None:
-                        why = _GATE_TAIL_WITHHELD
+                        why = _tail_withheld_reason(block, name_of)
                     else:
                         why = _GATE_TAIL_BOUNDS
     return _silent(
@@ -12396,7 +12466,7 @@ def _tail_checks(
                     window,
                     ENVELOPE_TAILS,
                     published,
-                    why=_GATE_TAIL_WITHHELD if quiet else _GATE_CLOSED,
+                    why=_tail_withheld_reason(block, name) if quiet else _GATE_CLOSED,
                 )
             ]
         if side.values:
@@ -12425,7 +12495,7 @@ def _tail_checks(
                     wanted,
                     listed,
                     _NOT_SHOWN_THEY_ARE_THE_TAIL_VALUES_OF_THE_FILE,
-                    _GATE_TAIL_WITHHELD if quiet else _GATE_CLOSED,
+                    _tail_withheld_reason(block, name) if quiet else _GATE_CLOSED,
                 )
             ]
     return checks

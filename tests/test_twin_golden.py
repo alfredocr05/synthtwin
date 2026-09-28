@@ -3272,7 +3272,18 @@ GOLDEN_QUALITY_SHA256 = (
     # LEFT OR MOVED, and no verdict moved; the description and twin
     # digests above hold, so neither input changed either. What moved is
     # only what the page SAYS, which is what this pass changed it to say.
-    "3d2ab44006cde7c1d45e471c55ae1bc6124a3157cec09e24f130a6557f8dc33c"
+    # ...AND RE-RECORDED AT FOLLOW-UP A'S THIRD REPAIR (2026-09-27, plan
+    # P4-D353 part 2), read line by line against 72d2c35: FOUR LINES of
+    # 2,296 differ and they are that same sentence printed four times,
+    # which now states the whole tail rule -- withheld where the pair
+    # would give the cells back, where the check could not finish, where
+    # beside the exact mean and spread it could give the other tail's
+    # back, or where this format cannot hold it, unless withholding it
+    # costs a moment. The census is the same on both trees to the
+    # number: 473 HELD, 68 WITHIN-BOUND, 0 WITHHELD, 0 MISSED and 214
+    # not checkable; no verdict moved, and the description and twin
+    # digests above hold.
+    "fb53613d7a76fad8cd1841a5ea6147045d622224e94877d0c847cc280f71d5b0"
 )
 
 
