@@ -14,20 +14,21 @@ STRETCHES AND CLASSES. Each knot day is a stretch, and so is each run
 of days strictly between two consecutive knots. A CLASS is a knot day,
 or the days of one open stretch that fall on one weekday, less any
 HOLE -- a day no body cell can hold: one the column's declared missing
-values name, or one the censuses of written forms leave empty
-(`calendar_rules.form_holes`: a width word one field alone shows says
-the other field is ten or more in every cell, a month name of either
-length says every cell is in May). Every published fact is unchanged
-by exchanging two days of one class, and ONLY of one class: the rank
-facts see stretch totals, the census and the menu weekday totals, the
-count of different days is a count, the tails are not touched, and a
-form census names the same form for either day because neither is a
-hole. A hole is not exchangeable with anything, which is why it is no
-member of a class (review of landing 3b.1, finding 1: `m/d/yyyy` dates
-all past the ninth published `{first-field-unpadded}`, a reader held
-the first to the ninth of every month empty, and a witness standing
-there certified days the count of different days pinned below the
-line).
+values name, a placeholder day its `sentinel_verdicts` publish as
+`read_as_missing` (`calendar_rules.placeholder_holes`), or one the
+censuses of written forms leave empty (`calendar_rules.form_holes`: a
+width word one field alone shows says the other field is ten or more in
+every cell, a month name of either length says every cell is in May).
+Every published fact is unchanged by exchanging two days of one class,
+and ONLY of one class: the rank facts see stretch totals, the census
+and the menu weekday totals, the count of different days is a count,
+the tails are not touched, and a form census names the same form for
+either day because neither is a hole. A hole is not exchangeable with
+anything, which is why it is no member of a class (review of landing
+3b.1, finding 1: `m/d/yyyy` dates all past the ninth published
+`{first-field-unpadded}`, a reader held the first to the ninth of
+every month empty, and a witness standing there certified days the
+count of different days pinned below the line).
 
 THE CERTIFICATE. For every class whose weekday lies in a non-zero
 group, a WITNESS: a table meeting every published fact, what the menu
@@ -57,9 +58,9 @@ of days is confined inside one to the line less one by the census.
 THE PRODUCER asks it with the REAL count of different days on the
 census side and the reader's bounds on stage 3's side, and with every
 hole; the LOADER asks it with the reader's bounds on both sides and
-the holes the published form censuses show, leaving out only the
-declared missing days no description publishes. Either answer is
-cached on its question.
+the holes the published form censuses and placeholder decisions show,
+leaving out only the declared missing days no description publishes.
+Either answer is cached on its question.
 
 Guarantees for the whole module: every function is a function of its
 arguments; nothing reads a table, a clock, an environment variable or
@@ -1019,8 +1020,8 @@ def check(
     Asked by the producer (with the body's real count of different days
     and every hole) and by the loader (with `real_days` -1, so the
     reader's bounds stand on both sides, and the holes the form censuses
-    show). The groups must already be a menu grouping whose counts add
-    to the body. WC7 first: a group a reader can hold to fewer than four
+    and the placeholder decisions show). The groups must already be a
+    menu grouping whose counts add to the body. WC7 first: a group a reader can hold to fewer than four
     dates besides the knot days and the holes withholds (reason
     `few_dates`); then the certificate.
 
@@ -1125,9 +1126,10 @@ def breach(
     to the line less one once the knot days' sure cells are taken out;
     then WC7 and WC8 (`check`, on the reader's bounds, with `holes` --
     the days the published form censuses leave empty,
-    `calendar_rules.form_holes`). The first broken rule is returned as
-    (rule, what the census says, what the rule asks), the two phrases a
-    person reads beside the rule's own words.
+    `calendar_rules.form_holes`, and the placeholder days the block reads
+    as no value, `calendar_rules.placeholder_holes`). The first broken
+    rule is returned as (rule, what the census says, what the rule
+    asks), the two phrases a person reads beside the rule's own words.
 
     Guarantees: accepts the census and the description's numbers;
     returns None or the broken rule. Determinism: a function of the

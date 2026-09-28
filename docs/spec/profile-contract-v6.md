@@ -6162,10 +6162,13 @@ FORM HOLE is a day no cell can be written on under the forms WC6 lets
 stand: where the width census's one word shows one field alone
 (`first-field-*`, `second-field-*`), every day whose other field is
 below ten, and where the month-name census's one word has the length
-`either`, every day outside May. WC7 counts no form hole among a
-group's calendar days and WC8 puts no cell on one. The producer asks
-WC8 on the body's real count of different days and with the days the
-table's declared missing values name left out as well; the loader asks
+`either`, every day outside May. A PLACEHOLDER HOLE is a placeholder
+day `sentinel_verdicts` publishes as `read_as_missing` between the two
+boundaries: every cell written on it is counted absent. WC7 counts no
+form or placeholder hole among a group's calendar days and WC8 puts no
+cell on one. The producer asks WC8 on the body's real count of
+different days and with the days the table's declared missing values
+name left out as well; the loader asks
 it on the reader's bounds read from `n_distinct` and the tails, a
 relaxation, and refuses a census that fails it. What a census withholds
 is said in one sentence per reason, and a published one carries two

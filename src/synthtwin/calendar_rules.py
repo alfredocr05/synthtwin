@@ -326,11 +326,11 @@ def few_dates_group(
     For a non-zero group, the most different dates it can hold besides
     the knot days a reader already holds is the least of three: its
     calendar days between the boundaries that are not knot days, less
-    its HOLES (days no body cell can hold, `form_holes` and the days a
-    declared missing value names); its count less one per knot day in
-    it; and the body's most different days (`most_days`, the reader's
-    `D_max`) less every knot day and one date for each other non-zero
-    group holding no knot day. Fewer than `FEWEST_DATES` makes the
+    its HOLES (days no body cell can hold: `form_holes`,
+    `placeholder_holes` and the days a declared missing value names);
+    its count less one per knot day in it; and the body's most
+    different days (`most_days`, the reader's `D_max`) less every knot
+    day and one date for each other non-zero group holding no knot day. Fewer than `FEWEST_DATES` makes the
     group the count of a few single dates, which is the heavy-date
     landing's business (owner ruling 7 of 2026-09-26), not this
     census's.
@@ -476,6 +476,35 @@ def form_holes(
         if hole:
             found += [day]
     return tuple(found)
+
+
+def placeholder_holes(
+    judged: "tuple[str, ...]", low: int, high: int
+) -> "tuple[int, ...]":
+    """The placeholder days from `low` to `high` a block reads as no value.
+
+    A placeholder day (`parsing.CALENDAR_PLACEHOLDERS`) whose decision
+    the block publishes as `read_as_missing` in `sentinel_verdicts` has
+    every cell written on it counted absent, so a reader holds it empty:
+    a HOLE wherever it falls between the two boundaries (second review
+    of landing 3b.1, finding 2). `judged` are the candidates of those
+    decisions; a candidate that is a number names no day. The ONE
+    statement of the rule, asked by the producer and the loader.
+
+    Guarantees: accepts the candidates and the two boundary days;
+    returns the holes between them ascending. Determinism: a function of
+    the three. Raises nothing. No I/O of any kind.
+    """
+    found: "list[int]" = []
+    for candidate in parsing.CALENDAR_PLACEHOLDERS:
+        if candidate not in judged:
+            continue
+        day = parsing.days_from_civil(
+            int(candidate[0:4]), int(candidate[5:7]), int(candidate[8:10])
+        )
+        if low <= day <= high:
+            found += [day]
+    return tuple(sorted(found))
 
 
 def stored_one_way(classes: "list[str]") -> bool:

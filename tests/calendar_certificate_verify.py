@@ -21,15 +21,19 @@ and that every class of a counted weekday is covered by a witness day,
 or lies in a stretch the rank facts cap below the line (the residue's
 rule, re-derived here from the description).
 
-THE HOLES ARE RE-DERIVED HERE TOO, from the block's own censuses of
-written forms (`form_holes`), beside the declared ones handed in: a
-width word one field alone shows (`first-field-*`, `second-field-*`)
-says the OTHER field is ten or more in every cell, and a month name
-whose length is `either` says every cell is in May, so a reader holds
-every other day empty (review of landing 3b.1, finding 1). A hole is
-no member of a class and no witness may stand on it. The residue's configuration
-equivalence is the one part of the certificate it does not redo; the
-brute force beside it (`calendar_certificate_brute`) exercises that.
+THE HOLES ARE RE-DERIVED HERE TOO, from the block itself
+(`block_holes`), beside the declared ones handed in: in its censuses of
+written forms (`form_holes`) a width word one field alone shows
+(`first-field-*`, `second-field-*`) says the OTHER field is ten or more
+in every cell, and a month name whose length is `either` says every
+cell is in May, so a reader holds every other day empty (review of
+landing 3b.1, finding 1); and a placeholder day `sentinel_verdicts`
+publishes as `read_as_missing` has every cell written on it counted
+absent (`placeholder_holes`, second review, finding 2). A hole is no
+member of a class and no witness may stand on it. The residue's
+configuration equivalence is the one part of the certificate it does
+not redo; the brute force beside it (`calendar_certificate_brute`)
+exercises that.
 
 Every function is a function of its arguments; nothing is read or
 written.
@@ -98,9 +102,36 @@ def form_holes(block: dict) -> "set[int]":
     return found
 
 
+def placeholder_holes(block: dict) -> "set[int]":
+    """The days between the two boundaries the block's decisions read as no value.
+
+    A decision of `sentinel_verdicts` whose verdict is `read_as_missing`
+    and whose candidate is a day written `yyyy-mm-dd` says every cell on
+    that day was counted absent. A candidate that is a number names no day.
+    """
+    low = day_number(block["low_tail"]["boundary"])
+    high = day_number(block["high_tail"]["boundary"])
+    found = set()
+    for decision in block.get("sentinel_verdicts") or []:
+        text = decision["candidate"]
+        shaped = len(text) == 10 and text[4] == text[7] == "-"
+        digits = all(character in "0123456789" for character in text[:4] + text[5:7] + text[8:])
+        if decision["verdict"] != "read_as_missing" or not shaped or not digits:
+            continue
+        day = day_number(text)
+        if low <= day <= high:
+            found.add(day)
+    return found
+
+
+def block_holes(block: dict) -> "set[int]":
+    """Every hole the block itself publishes: its form holes and its placeholder days."""
+    return form_holes(block) | placeholder_holes(block)
+
+
 def reader_facts(block: dict, line: int, holes: "set[int] | None" = None) -> dict:
     """What a reader of this block holds about its body, `holes` left out of every class."""
-    holes = form_holes(block) if holes is None else holes
+    holes = block_holes(block) if holes is None else holes
     parsed = block["n_present"] - block["n_unparsed"]
     low_tail, high_tail = block["low_tail"], block["high_tail"]
     rows_low, rows_high = low_tail["rows"], high_tail["rows"]
@@ -219,9 +250,9 @@ def census_problems(
     `witnesses` are (class, day, table as (day, cells) pairs); `real_days`
     the real body's count of different days where the real table is in
     hand; `holes` the declared days no body cell may stand on, to which
-    the block's own form holes are added (`form_holes`).
+    the block's own holes are added (`block_holes`).
     """
-    hole_days = set(holes) | form_holes(block)
+    hole_days = set(holes) | block_holes(block)
     facts = reader_facts(block, line, hole_days)
     found = []
     if facts["entry"] == 0:

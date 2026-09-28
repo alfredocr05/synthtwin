@@ -6810,6 +6810,7 @@ def _column(
         n_out_of_range,
         n_contradictory,
         remarks,
+        verdicts,
     )
     return ColumnBlock(
         name=name,
@@ -7030,8 +7031,14 @@ def _facts(
     n_out_of_range: int,
     n_contradictory: int,
     remarks: "list[str]",
+    verdicts: "tuple[SentinelVerdict, ...]",
 ) -> ColumnFacts:
-    """Everything the ROLE adds, checked by the rules of its section."""
+    """Everything the ROLE adds, checked by the rules of its section.
+
+    `verdicts` are the block's decisions about stand-in values, already
+    checked: a column of dates reads the placeholder days they publish
+    as `read_as_missing` as holes of its weekday census.
+    """
     if role == ROLE_EMPTY:
         return _empty_facts(mapping, where)
     if role == ROLE_UNREPRESENTABLE:
@@ -7085,7 +7092,16 @@ def _facts(
         return tail
     if role == ROLE_DATETIME:
         return _datetime_facts(
-            mapping, where, frame.floor, n_present, n_distinct
+            mapping,
+            where,
+            frame.floor,
+            n_present,
+            n_distinct,
+            tuple(
+                verdict.candidate
+                for verdict in verdicts
+                if verdict.verdict == VERDICT_MISSING
+            ),
         )
     if role == ROLE_COUNT or role == ROLE_CONTINUOUS:
         numeric = _numeric_facts(
@@ -8194,8 +8210,13 @@ def _datetime_facts(
     floor: int,
     n_present: int,
     n_distinct: int = 0,
+    judged: "tuple[str, ...]" = (),
 ) -> DatetimeFacts:
     """A column of dates and times (contract 6.6.2).
+
+    `judged` are the candidates the block's `sentinel_verdicts` publish
+    as `read_as_missing`, whose placeholder days the weekday census holds
+    as holes (`calendar_rules.placeholder_holes`).
 
     Raises ProfileError for a wrong type or a value outside its list,
     and for D1 to D11. D5 is checked in the one direction the document
@@ -8549,6 +8570,7 @@ def _datetime_facts(
             "quarter_marker_case": markers,
             "zulu_case": zulu,
         },
+        judged,
     )
     return DatetimeFacts(
         parser_family=parser_family,
@@ -8586,6 +8608,7 @@ def _weekday_census(
     high: "TailFacts | None",
     ladder: DateLadder,
     forms: "dict[str, dict[str, int]]",
+    judged: "tuple[str, ...]",
 ) -> "tuple[tuple[int, int, int], ...]":
     """A column's `weekday_census`, read and held to WC1 to WC8 (landing 3b.1).
 
@@ -8596,9 +8619,10 @@ def _weekday_census(
     other rule on the reader's own numbers -- the groups' shape, the
     floor, the body, the menu, one spelling per day, the knot days' sure
     cells, no few-date group and the full-fill certificate, both with
-    the days the published form censuses leave empty as holes
-    (`calendar_rules.form_holes`) -- and the first broken one is refused
-    by name.
+    the days the published form censuses leave empty
+    (`calendar_rules.form_holes`) and the placeholder days `judged` names
+    (`calendar_rules.placeholder_holes`) as holes -- and the first
+    broken one is refused by name.
 
     Guarantees: accepts the value and the facts beside it; returns the
     groups as `(first, last, count)`. Raises ProfileError for a wrong
@@ -8646,24 +8670,24 @@ def _weekday_census(
     fewest, most = calendar_certificate.reader_days(
         n_distinct, unparsed, low.rows, listed_low, high.rows, listed_high
     )
+    first_day = _day_number(low.boundary)
+    last_day = _day_number(high.boundary)
+    holes = set(
+        calendar_rules.form_holes(forms, parser_family, first_day, last_day)
+    ) | set(calendar_rules.placeholder_holes(judged, first_day, last_day))
     broken = calendar_certificate.breach(
         tuple(found),
         parsed,
         low.rows,
         high.rows,
-        _day_number(low.boundary),
-        _day_number(high.boundary),
+        first_day,
+        last_day,
         tuple(rungs),
         fewest,
         most,
         parsing.census_floor(floor),
         calendar_rules.one_spelling_published(forms, parser_family, parsed),
-        calendar_rules.form_holes(
-            forms,
-            parser_family,
-            _day_number(low.boundary),
-            _day_number(high.boundary),
-        ),
+        tuple(sorted(holes)),
     )
     if broken is not None:
         raise _broken(broken[0], where, broken[1], broken[2])

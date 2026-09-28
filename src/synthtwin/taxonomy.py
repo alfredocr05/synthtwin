@@ -14264,13 +14264,15 @@ def weekday_decision(
     on the real days) or stored two ways, nothing; the menu takes the
     body's seven weekday counts; the certificate is asked with the body's
     REAL count of different days and the holes -- the days a declared
-    missing value names (`_census_holes`) and the days the published
-    form censuses leave empty (`calendar_rules.form_holes`) -- and WC7
-    before it (`calendar_certificate`); and the census is published only
-    where the loader's own check accepts it too
-    (`calendar_certificate.breach`, asked with the form holes, which the
-    loader reads off the same censuses), so the producer never writes
-    what the loader refuses.
+    missing value names (`_census_holes`), the days the published form
+    censuses leave empty (`calendar_rules.form_holes`) and the
+    placeholder days `sentinel_verdicts` publishes as `read_as_missing`
+    (`calendar_rules.placeholder_holes`) -- and WC7 before it
+    (`calendar_certificate`); and the census is published only where
+    the loader's own check accepts it too (`calendar_certificate.breach`,
+    asked with the form and placeholder holes, which the loader reads
+    off the same block), so the producer never writes what the loader
+    refuses.
 
     Guarantees: accepts the published block, the days, the published
     count, the settings and the storage flag; returns the decision.
@@ -14326,9 +14328,16 @@ def weekday_decision(
         n_distinct, unparsed, rows_low, _tail_listed(low_tail),
         rows_high, _tail_listed(high_tail),
     )
+    judged: "tuple[str, ...]" = ()
+    if "sentinel_verdicts" in details:
+        judged = _read_as_missing(details["sentinel_verdicts"])
     shown = calendar_rules.form_holes(
         forms, format_name, body[0], body[len(body) - 1]
     )
+    placed = calendar_rules.placeholder_holes(
+        judged, body[0], body[len(body) - 1]
+    )
+    shown = tuple(sorted(set(shown) | set(placed)))
     holes = tuple(
         sorted(
             set(_census_holes(settings.declared_missing_values, details, set(days)))
@@ -14350,6 +14359,27 @@ def weekday_decision(
     return WeekdayDecision(groups, "", entry, verdict)
 
 
+def _read_as_missing(entries: object) -> "tuple[str, ...]":
+    """The candidates a block's `sentinel_verdicts` publish as `read_as_missing`.
+
+    Guarantees: accepts the published decisions; returns their
+    candidates in order. Determinism: a function of the decisions.
+    Raises nothing. No I/O of any kind.
+    """
+    found: "list[str]" = []
+    if not isinstance(entries, (list, tuple)):
+        return ()
+    for entry in entries:
+        if not isinstance(entry, dict) or "verdict" not in entry:
+            continue
+        if "candidate" not in entry or entry["verdict"] != VERDICT_MISSING:
+            continue
+        candidate = entry["candidate"]
+        if isinstance(candidate, str):
+            found += [candidate]
+    return tuple(found)
+
+
 def _weekday_published(
     details: "dict[str, object]",
     days: "tuple[int, ...]",
@@ -14357,6 +14387,7 @@ def _weekday_published(
     settings: Settings,
     produced: bool,
     stored_one_way: bool,
+    verdicts: "list[dict[str, object]]",
 ) -> "tuple[dict[str, object], list[Note], list[Note]]":
     """A column block of dates with its `weekday_census`, and its sentences.
 
@@ -14367,18 +14398,25 @@ def _weekday_published(
     remarks, which are what a person is told about the column.
     `produced` false -- the validator's own re-description of a file,
     which never reads the census -- asks nothing and publishes `[]` with
-    no sentence.
+    no sentence. `verdicts` are the block's published `sentinel_verdicts`,
+    which the decision reads its placeholder holes from.
 
     Guarantees: accepts the block, the days, the published count, the
-    settings and the two flags; returns a new block, the notes and the
-    remarks to add. Determinism: a function of the arguments. Raises
-    nothing. No I/O of any kind.
+    settings, the two flags and the decisions; returns a new block, the
+    notes and the remarks to add. Determinism: a function of the
+    arguments. Raises nothing. No I/O of any kind.
     """
     block = dict(details)
     block[calendar_rules.WEEKDAY_CENSUS] = []
     if not produced:
         return block, [], []
-    decided = weekday_decision(details, days, n_distinct, settings, stored_one_way)
+    decided = weekday_decision(
+        dict(details, sentinel_verdicts=verdicts),
+        days,
+        n_distinct,
+        settings,
+        stored_one_way,
+    )
     line = parsing.census_floor(settings.small_cell_floor)
     if not decided.groups:
         if not decided.reason:
@@ -20075,6 +20113,7 @@ def profile_column(
             settings,
             calendar_census,
             stored_one_way,
+            entries,
         )
         publication_notes = verdict.notes + weekday_notes
     statistical_type, quality_state, structural_role = axes_of(

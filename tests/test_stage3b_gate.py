@@ -135,6 +135,34 @@ mutation that turns it red:
 * a day written with a trailing blank no census shows is two spellings:
   red when WC6 (b) is withdrawn (the census then PUBLISHES, its count of
   different values a count of texts and not of days).
+
+THE SECOND REVIEW found half of the form holes unwitnessed and a hole
+the design names that the code did not hold. Its witnesses:
+
+* the SECOND-FIELD and DAY-FIRST halves: the same visits past the ninth
+  written `d/m/yyyy` (`{second-field-unpadded}`, the day the other
+  field) and two years of October to December written `m/d/yyyy`
+  (`{second-field-unpadded}`) and `d/m/yyyy` (`{first-field-unpadded}`),
+  the month the other field, are withheld as the first two are; one
+  autumn written `d/m/yyyy` has no hole and PUBLISHES. Red: a
+  second-field word read as leaving no hole, in the producer (both
+  second-field columns publish) or the verifier; a day-first member read
+  as month-first, in the producer (the day-first column past the ninth
+  falls to `few_dates`, and the autumn is withheld) or the verifier (the
+  three day-first columns);
+* the PLACEHOLDER HOLES (`calendar_rules.placeholder_holes`): a column
+  whose body runs from December 1899 holds 1900-01-01, read as missing,
+  and publishes with no witness on it; the same day kept as a value is
+  no hole; and a five-week column around it, the day read as missing,
+  is withheld `few_dates` and its copied census refused on load (WC7).
+  Red when the rule is withdrawn; when the producer is blind to it (its
+  witnesses stand on the day) or its caller drops the decisions (the
+  five-week column's sentence becomes `narrowed`); when the loader is
+  blind to it or drops the decisions (the copied census loads); when the
+  verifier is (it finds no witness on the day); and when the producer,
+  the loader or the verifier takes a kept day as a hole. The day
+  withdrawn from the producer's self-check alone changes nothing here:
+  the certificate it runs first already asks with it.
 """
 
 from __future__ import annotations
@@ -1265,10 +1293,54 @@ def _mays_only() -> "list[datetime.date]":
     return days
 
 
-# name -> (the days, how each is written, which days a reader holds empty)
+def _october_to_december() -> "list[datetime.date]":
+    """Two visits on every day of October to December between the tails, over two years; eleven-day tails.
+
+    The tails hold 2024-11-15 to 11-25 and 2025-10-21 to 10-31, one cell
+    a day, and the body 2024-12-01 to 2025-10-20, so every day of
+    January to September between the boundaries holds none.
+    """
+    one = datetime.timedelta(days=1)
+    days = [datetime.date(2024, 11, 15) + one * step for step in range(11)]
+    days += [datetime.date(2025, 10, 21) + one * step for step in range(11)]
+    day = datetime.date(2024, 12, 1)
+    while day <= datetime.date(2025, 10, 20):
+        if day.month >= 10:
+            days += [day, day]
+        day += one
+    random.Random(7).shuffle(days)
+    return days
+
+
+def _month_first(day: datetime.date) -> str:
+    return f"{day.month}/{day.day}/{day.year}"
+
+
+def _day_first(day: datetime.date) -> str:
+    return f"{day.day}/{day.month}/{day.year}"
+
+
+# name -> (the days, how each is written, the one form the censuses of
+# written forms name, which days a reader holds empty). A one-field width
+# word leaves empty every day whose OTHER field is below ten: the day of
+# a month-first member, the month of a day-first one.
 _FORM_HOLES = {
-    "past_the_ninth": (_past_the_ninth, lambda day: f"{day.month}/{day.day}/{day.year}", lambda day: day.day < 10),
-    "mays_only": (_mays_only, lambda day: f"{day.day} May {day.year}", lambda day: day.month != 5),
+    "past_the_ninth": (
+        _past_the_ninth, _month_first, "first-field-unpadded", lambda day: day.day < 10,
+    ),
+    "past_the_ninth_day_first": (
+        _past_the_ninth, _day_first, "second-field-unpadded", lambda day: day.day < 10,
+    ),
+    "october_to_december_month_first": (
+        _october_to_december, _month_first, "second-field-unpadded", lambda day: day.month < 10,
+    ),
+    "october_to_december_day_first": (
+        _october_to_december, _day_first, "first-field-unpadded", lambda day: day.month < 10,
+    ),
+    "mays_only": (
+        _mays_only, lambda day: f"{day.day} May {day.year}", "title-either-space-no-comma",
+        lambda day: day.month != 5,
+    ),
 }
 
 
@@ -1281,7 +1353,12 @@ def test_a_day_the_form_censuses_leave_empty_is_a_hole(
     `past_the_ninth` publishes `date_field_widths {first-field-unpadded}`
     and `mays_only` `month_name_styles {title-either-space-no-comma}`: a
     reader holds the first to the ninth of every month, and every day
-    outside May, empty. THE READER HERE knows those holes (the
+    outside May, empty. The same days past the ninth written `d/m/yyyy`
+    publish `{second-field-unpadded}`, whose other field is the day; two
+    years of October to December publish `{second-field-unpadded}`
+    written `m/d/yyyy` and `{first-field-unpadded}` written `d/m/yyyy`,
+    whose other field is the month either way, so a reader holds January
+    to September empty. THE READER HERE knows those holes (the
     verifier's own `form_holes`, restated from each table's rule) and
     nothing of the calendar code: its least count of different days
     equals the days left between the boundaries, so each of them holds
@@ -1297,12 +1374,14 @@ def test_a_day_the_form_censuses_leave_empty_is_a_hole(
     * that census copied onto the description is refused on load (WC8),
       because the loader reads the holes off the same censuses.
     """
-    build, written, empty = _FORM_HOLES[name]
+    build, written, form, empty = _FORM_HOLES[name]
     dates = build()
     described = kpi_shapes.describe(
         tmp_path, name, "visit\n" + "".join(f"{written(day)}\n" for day in dates), 11
     )
     block = described.block("visit")
+    named = block["month_name_styles"] if block["format"].startswith("textual-") else block["date_field_widths"]
+    assert list(named) == [form], (block["format"], named)
     days = sorted((day - datetime.date(1970, 1, 1)).days for day in dates)
     body = days[block["low_tail"]["rows"]: len(days) - block["high_tail"]["rows"]]
     low, high = body[0], body[-1]
@@ -1412,6 +1491,49 @@ def test_a_column_with_form_holes_publishes_where_every_open_day_can_hold_the_li
     ) == []
 
 
+def _one_autumn() -> "list[datetime.date]":
+    """300 visits, 2024-10-12 to 12-20, weekday-shaped; eleven-day tails beside, one cell a day."""
+    draw = random.Random(0)
+    one = datetime.timedelta(days=1)
+    days = [datetime.date(2024, 10, 1) + one * step for step in range(11)]
+    days += [datetime.date(2024, 12, 21) + one * step for step in range(11)]
+    span = [datetime.date(2024, 10, 12) + one * step for step in range(70)]
+    days += [draw.choices(span, [_WEEKDAY[day.weekday()] for day in span])[0] for _row in range(278)]
+    draw.shuffle(days)
+    return days
+
+
+def test_a_day_first_column_with_no_hole_between_its_boundaries_publishes(tmp_path: pathlib.Path) -> None:
+    """A day-first column's form census reads its OTHER field as the month, and one autumn leaves no hole.
+
+    `_one_autumn` written `d/m/yyyy` publishes `{first-field-unpadded}`:
+    every cell's month is ten or more, and every day from October 12 to
+    December 20 can be written so. Read as a month-first member the same
+    word would leave the first to the ninth of November and December
+    empty, days the column holds. The census publishes the seven counts,
+    the verifier derives no hole, and it passes every witness.
+    """
+    dates = _one_autumn()
+    described = kpi_shapes.describe(
+        tmp_path, "autumn", "visit\n" + "".join(f"{_day_first(day)}\n" for day in dates), 11
+    )
+    block = described.block("visit")
+    assert block["format"] == "day-first-date" and list(block["date_field_widths"]) == ["first-field-unpadded"]
+    groups = tuple((group["first"], group["last"], group["count"]) for group in block["weekday_census"])
+    assert calendar_rules.entry_of(groups) == calendar_rules.ENTRY_SEVEN, groups
+    assert verifier.form_holes(block) == set()
+    days = sorted((day - datetime.date(1970, 1, 1)).days for day in dates)
+    body = days[block["low_tail"]["rows"]: len(days) - block["high_tail"]["rows"]]
+    verdict = taxonomy.weekday_decision(
+        block, tuple(days), block["n_distinct"], taxonomy.Settings(small_cell_floor=11)
+    ).verdict
+    assert verdict is not None and verdict.holds
+    assert verifier.census_problems(
+        block, _LINE, [(witness.klass, witness.day, witness.table) for witness in verdict.witnesses],
+        real_days=len(set(body)),
+    ) == []
+
+
 def test_a_group_left_few_dates_by_its_holes_is_withheld() -> None:
     """WC7 counts a group's calendar days less its holes.
 
@@ -1433,6 +1555,188 @@ def test_a_group_left_few_dates_by_its_holes_is_withheld() -> None:
     assert calendar_certificate.breach(
         groups, 160, 10, 10, low, high, (), 25, 35, _LINE, True, (low + 5, low + 12)
     )[0] == "WC7"
+
+
+# THE PLACEHOLDER HOLES (second review of landing 3b.1, finding 2): a
+# placeholder day the block publishes as read as missing holds no cell.
+
+_PLACEHOLDER = "1900-01-01"
+
+
+def _with_a_placeholder_day() -> "list[str]":
+    """Birth dates around a placeholder day: eleven in November 1899, a dense December and January, 800 in 2020 to 2022.
+
+    December 1899 and January 1900 hold one to three cells a day, and
+    twenty cells are written 1900-01-01: they stand far outside the
+    dates' quartiles and are many, so the description reads that day as
+    a placeholder meaning no value. The low tail is November's eleven,
+    so the body runs from 1899-12-01 and holds the placeholder day.
+    """
+    draw = random.Random(1)
+    one = datetime.timedelta(days=1)
+    days = [datetime.date(1899, 11, 1) + one * step for step in range(11)]
+    day = datetime.date(1899, 12, 1)
+    while day <= datetime.date(1900, 1, 31):
+        if day != datetime.date(1900, 1, 1):
+            days += [day] * draw.choice([1, 2, 3])
+        day += one
+    days += draw.choices([datetime.date(2020, 1, 1) + one * step for step in range(365 * 3)], k=800)
+    cells = [day.isoformat() for day in days] + [_PLACEHOLDER] * 20
+    draw.shuffle(cells)
+    return cells
+
+
+def test_a_placeholder_day_read_as_missing_is_a_hole_no_witness_stands_on(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A placeholder day the block reads as no value holds no body cell in any table, and no witness uses it.
+
+    `sentinel_verdicts` publishes 1900-01-01 as `read_as_missing`, and
+    the day lies between the two tail boundaries, so a reader holds it
+    empty. The census publishes the seven counts, no witness puts a cell
+    on the day, and the verifier -- reading the same hole off the block
+    -- passes every witness. Asked blind to the placeholder, the
+    certificate's witnesses stand on it, and the verifier finds them
+    there.
+    """
+    cells = _with_a_placeholder_day()
+    described = kpi_shapes.describe(tmp_path, "placeholder", "born\n" + "".join(f"{cell}\n" for cell in cells), 11)
+    block = described.block("born")
+    decisions = [(entry["candidate"], entry["verdict"]) for entry in block["sentinel_verdicts"]]
+    assert decisions == [(_PLACEHOLDER, "read_as_missing")], decisions
+    hole = verifier.day_number(_PLACEHOLDER)
+    assert verifier.placeholder_holes(block) == {hole}
+    groups = tuple((group["first"], group["last"], group["count"]) for group in block["weekday_census"])
+    assert calendar_rules.entry_of(groups) == calendar_rules.ENTRY_SEVEN, groups
+    present = [cell for cell in cells if cell != _PLACEHOLDER]
+    verdict = _certified(block, present)
+    assert verdict.holds and verdict.witnesses
+    assert all(dict(witness.table).get(hole, 0) == 0 for witness in verdict.witnesses)
+    assert _verified(block, present) == []
+
+    with monkeypatch.context() as blind:
+        blind.setattr(calendar_rules, "placeholder_holes", lambda *_arguments: ())
+        calendar_certificate._ANSWERS.clear()
+        unaware = _certified(block, present)
+    calendar_certificate._ANSWERS.clear()
+    days = _days_of(present)
+    body = days[block["low_tail"]["rows"]: len(days) - block["high_tail"]["rows"]]
+    problems = verifier.census_problems(
+        block,
+        _LINE,
+        [(witness.klass, witness.day, witness.table) for witness in unaware.witnesses],
+        real_days=len(set(body)),
+    )
+    assert any("on a hole" in problem for problem in problems), problems
+
+
+_HEAVY_DAYS = {
+    datetime.date(1899, 12, 5): 30,
+    datetime.date(1899, 12, 13): 40,
+    datetime.date(1899, 12, 21): 40,
+    datetime.date(1899, 12, 29): 40,
+    datetime.date(1900, 1, 7): 30,
+}
+
+
+def _around_a_placeholder_day() -> "list[str]":
+    """Five weeks, Tuesday 1899-12-05 to Sunday 1900-01-07, with eleven-day tails, and twenty cells written 1900-01-01.
+
+    Five heavy days -- the two boundaries and December 13, 21 and 29 --
+    hold every rung, so the knot days fall on a Tuesday, a Wednesday, a
+    Thursday, a Friday and a Sunday; the Mondays December 11, 18 and 25
+    hold six cells each and every other day four to six. No cell but the
+    twenty written as the placeholder falls on Monday 1900-01-01.
+    """
+    one = datetime.timedelta(days=1)
+    first, last = datetime.date(1899, 12, 5), datetime.date(1900, 1, 7)
+    days = [first - one * (1 + step) for step in range(11)] + [last + one * (1 + step) for step in range(11)]
+    day = first
+    while day <= last:
+        if day in _HEAVY_DAYS:
+            days += [day] * _HEAVY_DAYS[day]
+        elif day != datetime.date(1900, 1, 1):
+            days += [day] * (6 if day.weekday() == 0 else 4 + day.toordinal() % 3)
+        day += one
+    cells = [day.isoformat() for day in days] + [_PLACEHOLDER] * 20
+    random.Random(3).shuffle(cells)
+    return cells
+
+
+def test_a_placeholder_day_the_block_keeps_is_no_hole(tmp_path: pathlib.Path) -> None:
+    """A placeholder day the block keeps as a value is a day like any other, and witnesses may stand on it.
+
+    Described plainly, `_around_a_placeholder_day`'s twenty cells of
+    1900-01-01 sit inside the dates' quartiles, so `sentinel_verdicts`
+    keeps the day (`kept_as_a_number`): it holds twenty body cells. No
+    hole is read off the block, the census publishes the seven counts,
+    and the verifier passes every witness.
+    """
+    cells = _around_a_placeholder_day()
+    described = kpi_shapes.describe(tmp_path, "kept", "seen_on\n" + "".join(f"{cell}\n" for cell in cells), 11)
+    block = described.block("seen_on")
+    decisions = [(entry["candidate"], entry["verdict"]) for entry in block["sentinel_verdicts"]]
+    assert decisions == [(_PLACEHOLDER, "kept_as_a_number")], decisions
+    assert verifier.block_holes(block) == set()
+    groups = tuple((group["first"], group["last"], group["count"]) for group in block["weekday_census"])
+    assert calendar_rules.entry_of(groups) == calendar_rules.ENTRY_SEVEN, groups
+    assert _verified(block, cells) == []
+
+
+def test_a_placeholder_day_between_the_boundaries_is_a_hole_the_loader_holds(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The loader reads the placeholder holes off the block: a census they leave few dates is refused (WC7).
+
+    Described with 1900-01-01 read as missing -- the hand-over by which
+    the validator reads a checked file as its description did -- the
+    column's Monday group has three dates besides its knot days once the
+    placeholder day is a hole, and four without. So the census is
+    withheld, `few_dates`, which its sentence says; the seven counts the
+    menu offers, copied onto the description, are refused on load by
+    WC7; and they load where the loader is blind to the placeholder.
+    """
+    cells = _around_a_placeholder_day()
+    table = fixtures.write(tmp_path, "around.csv", "seen_on\n" + "".join(f"{cell}\n" for cell in cells))
+    document = profile.build_document(
+        reading.read_table(str(table), small_cell_floor=11),
+        taxonomy.Settings(small_cell_floor=11),
+        [],
+        [],
+        [],
+        judged_candidates={"seen_on": (_PLACEHOLDER,)},
+    )
+    contract.load_profile(str(fixtures.write_profile(tmp_path, "around-profile.json", document)))
+    block = document["columns"][0]
+    decisions = [(entry["candidate"], entry["verdict"]) for entry in block["sentinel_verdicts"]]
+    assert decisions == [(_PLACEHOLDER, "read_as_missing")], decisions
+    assert verifier.placeholder_holes(block) == {verifier.day_number(_PLACEHOLDER)}
+    assert block["weekday_census"] == []
+    present = [cell for cell in cells if cell != _PLACEHOLDER]
+    decided = taxonomy.weekday_decision(
+        block, tuple(_days_of(present)), block["n_distinct"], taxonomy.Settings(small_cell_floor=11)
+    )
+    assert decided.reason == calendar_rules.REASON_FEW_DATES, decided.reason
+    said = [entry["note"] for entry in document["publication_notes"] if entry["column"] == "seen_on"]
+    assert any("few single dates" in sentence for sentence in said), said
+
+    days = _days_of(present)
+    body = days[block["low_tail"]["rows"]: len(days) - block["high_tail"]["rows"]]
+    offered, _entry = calendar_rules.menu_groups(calendar_rules.body_bins(body), _LINE)
+    doctored = dict(document)
+    doctored["columns"] = [
+        dict(block, weekday_census=[{"first": first, "last": last, "count": count} for first, last, count in offered])
+    ]
+    written = fixtures.write_profile(tmp_path, "doctored-profile.json", doctored)
+    calendar_certificate._ANSWERS.clear()
+    with pytest.raises(errors.ProfileError) as refusal:
+        contract.load_profile(str(written))
+    assert contract.INVARIANTS["WC7"] in str(refusal.value)
+    with monkeypatch.context() as blind:
+        blind.setattr(calendar_rules, "placeholder_holes", lambda *_arguments: ())
+        calendar_certificate._ANSWERS.clear()
+        contract.load_profile(str(written))
+    calendar_certificate._ANSWERS.clear()
 
 
 def _unpadded(cells: "list[str]") -> "list[str]":
