@@ -735,7 +735,8 @@ def test_the_chain_asks_in_the_walk_s_order_which_a_trailing_minus_sets(
     asks for whole negatives: its holder and share questions asked in
     stratum order while the walk itself keeps the nearest-zero order give
     -1.6 the -2 outright and turn that row alone red (the skeptic of plan
-    P4-D352 (7): so mutated, the whole suite stood).
+    P4-D352 (7): so mutated, the gate, the witness rows and the frozen
+    cases stood).
     """
     rungs = tuple(
         CHAIN_LOWS[max(k for k in range(5) if CHAIN_STARTS[k] <= place)]

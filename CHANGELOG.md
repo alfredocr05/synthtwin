@@ -22,7 +22,7 @@ no trailing minus, wrote 36 pluses of 40 with five checks missed at
 every seed and writes 40 with none, and over a 138-twin battery the
 recount alone moves 11 twins, 9 with no trailing minus -- eight losing
 five or six missed checks and one dense signed decimal, missing five
-style checks either way, gaining `styles.spill` (accepted). The walks
+checks either way, gaining `styles.spill` (accepted). The walks
 over the side that is not negative keep stratum order. New
 `trailing_values` rows hold the walk beside's demand, the order of the
 side that is not negative and the negative walk's order; the gate's
