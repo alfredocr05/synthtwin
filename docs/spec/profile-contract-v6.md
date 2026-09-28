@@ -6157,10 +6157,16 @@ each less its knot days, below four (WC7); and where the FULL-FILL
 CERTIFICATE holds (WC8): every day of a counted weekday can hold the
 line in some table meeting the whole description and what the grouping
 tells, or lies in a stretch the rank facts already hold below the line,
-where the census allows every arrangement stage 3's facts allow. The
-producer asks WC8 on the body's real count of different days and with
-the days the table's declared missing values name left out; the loader
-asks it on the reader's bounds read from `n_distinct` and the tails, a
+where the census allows every arrangement stage 3's facts allow. A
+FORM HOLE is a day no cell can be written on under the forms WC6 lets
+stand: where the width census's one word shows one field alone
+(`first-field-*`, `second-field-*`), every day whose other field is
+below ten, and where the month-name census's one word has the length
+`either`, every day outside May. WC7 counts no form hole among a
+group's calendar days and WC8 puts no cell on one. The producer asks
+WC8 on the body's real count of different days and with the days the
+table's declared missing values name left out as well; the loader asks
+it on the reader's bounds read from `n_distinct` and the tails, a
 relaxation, and refuses a census that fails it. What a census withholds
 is said in one sentence per reason, and a published one carries two
 remarks: how its days are grouped, and that it shows no count below the
@@ -11671,8 +11677,8 @@ it answers to.
 | WC4 | the grouping is one of the menu's three: each weekday alone; Monday to Friday alone with `[Sat-Sun]` non-zero; `[Mon-Fri]` non-zero with `[Sat-Sun]` | yes |
 | WC5 | no non-zero group less the cells its knot days hold for certain -- `le - lt` of each boundary and rung day in it, at least one -- counts one to the line less one | yes |
 | WC6 | the five censuses of written forms give every date one text: each names at most one form holding every parsed cell, and a member that can show a width or a month name names its one form | yes |
-| WC7 | every non-zero group can hold at least four dates besides its knot days: the least of its calendar days between the boundaries, its count and the reader's most different days less the other knot-free non-zero groups, each less its knot days | yes |
-| WC8 | the full-fill certificate holds on the reader's bounds: every class of a counted weekday is certified by a witness table, or is residue whose every stage-3 configuration the census allows (method of plan P4-D355) | yes |
+| WC7 | every non-zero group can hold at least four dates besides its knot days: the least of its calendar days between the boundaries that are not form holes, its count and the reader's most different days less the other knot-free non-zero groups, each less its knot days | yes |
+| WC8 | the full-fill certificate holds on the reader's bounds and the form holes: every class of a counted weekday is certified by a witness table, or is residue whose every stage-3 configuration the census allows (method of plan P4-D355) | yes |
 
 #### The V family — `sentinel_verdicts`, wherever a block carries one
 

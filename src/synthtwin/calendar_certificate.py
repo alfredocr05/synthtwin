@@ -13,11 +13,21 @@ WC6); and the census, an entry of the menu (`calendar_rules`).
 STRETCHES AND CLASSES. Each knot day is a stretch, and so is each run
 of days strictly between two consecutive knots. A CLASS is a knot day,
 or the days of one open stretch that fall on one weekday, less any
-HOLE -- a day the column's declared missing values name, which no body
-cell can hold. Every published fact is unchanged by exchanging two days
-of one class: the rank facts see stretch totals, the census and the
-menu weekday totals, the count of different days is a count, and the
-tails are not touched.
+HOLE -- a day no body cell can hold: one the column's declared missing
+values name, or one the censuses of written forms leave empty
+(`calendar_rules.form_holes`: a width word one field alone shows says
+the other field is ten or more in every cell, a month name of either
+length says every cell is in May). Every published fact is unchanged
+by exchanging two days of one class, and ONLY of one class: the rank
+facts see stretch totals, the census and the menu weekday totals, the
+count of different days is a count, the tails are not touched, and a
+form census names the same form for either day because neither is a
+hole. A hole is not exchangeable with anything, which is why it is no
+member of a class (review of landing 3b.1, finding 1: `m/d/yyyy` dates
+all past the ninth published `{first-field-unpadded}`, a reader held
+the first to the ninth of every month empty, and a witness standing
+there certified days the count of different days pinned below the
+line).
 
 THE CERTIFICATE. For every class whose weekday lies in a non-zero
 group, a WITNESS: a table meeting every published fact, what the menu
@@ -45,9 +55,11 @@ days -- the census must allow too (`_residue_equivalent`). Then no set
 of days is confined inside one to the line less one by the census.
 
 THE PRODUCER asks it with the REAL count of different days on the
-census side and the reader's bounds on stage 3's side, and with the
-holes; the LOADER asks it with the reader's bounds on both sides and
-no holes, a relaxation. Either answer is cached on its question.
+census side and the reader's bounds on stage 3's side, and with every
+hole; the LOADER asks it with the reader's bounds on both sides and
+the holes the published form censuses show, leaving out only the
+declared missing days no description publishes. Either answer is
+cached on its question.
 
 Guarantees for the whole module: every function is a function of its
 arguments; nothing reads a table, a clock, an environment variable or
@@ -138,6 +150,7 @@ class Facts:
     most_days: int
     reader_fewest: int
     reader_most: int
+    holes: "frozenset[int]"
 
 
 def facts_of(
@@ -262,6 +275,7 @@ def facts_of(
         most_days=most_days,
         reader_fewest=reader_fewest,
         reader_most=reader_most,
+        holes=frozenset(holed),
     )
 
 
@@ -1003,11 +1017,12 @@ def check(
     """WC7 and WC8 of one weekday census, from the description's numbers.
 
     Asked by the producer (with the body's real count of different days
-    and the holes) and by the loader (with `real_days` -1 and no holes,
-    so the reader's bounds stand on both sides). The groups must already
-    be a menu grouping whose counts add to the body. WC7 first: a group
-    a reader can hold to fewer than four dates besides the knot days
-    withholds (reason `few_dates`); then the certificate.
+    and every hole) and by the loader (with `real_days` -1, so the
+    reader's bounds stand on both sides, and the holes the form censuses
+    show). The groups must already be a menu grouping whose counts add
+    to the body. WC7 first: a group a reader can hold to fewer than four
+    dates besides the knot days and the holes withholds (reason
+    `few_dates`); then the certificate.
 
     CACHED ON THE WHOLE QUESTION: the producer, its self-check, the
     generator's loader and the validator's loader ask the same
@@ -1043,7 +1058,8 @@ def _decided(facts: Facts) -> Verdict:
             (), (), 0, "",
         )
     short = calendar_rules.few_dates_group(
-        facts.groups, facts.low, facts.high, facts.knot_days, facts.reader_most
+        facts.groups, facts.low, facts.high, facts.knot_days, facts.reader_most,
+        facts.holes,
     )
     if short >= 0:
         return Verdict(
@@ -1098,6 +1114,7 @@ def breach(
     most: int,
     line: int,
     one_spelling: bool,
+    holes: "tuple[int, ...]" = (),
 ) -> "tuple[str, str, str] | None":
     """The loader's check of one published weekday census, or None.
 
@@ -1106,10 +1123,11 @@ def breach(
     to the body; WC4 the grouping is an entry of the menu; WC6 the
     published forms give every date one text; WC5 no group is left one
     to the line less one once the knot days' sure cells are taken out;
-    then WC7 and WC8 (`check`, on the reader's bounds, no holes). The
-    first broken rule is returned as (rule, what the census says, what
-    the rule asks), the two phrases a person reads beside the rule's
-    own words.
+    then WC7 and WC8 (`check`, on the reader's bounds, with `holes` --
+    the days the published form censuses leave empty,
+    `calendar_rules.form_holes`). The first broken rule is returned as
+    (rule, what the census says, what the rule asks), the two phrases a
+    person reads beside the rule's own words.
 
     Guarantees: accepts the census and the description's numbers;
     returns None or the broken rule. Determinism: a function of the
@@ -1161,7 +1179,7 @@ def breach(
         )
     facts = facts_of(
         parsed, rows_low, rows_high, low, high, rungs, fewest, most, line,
-        groups, -1, (),
+        groups, -1, holes,
     )
     sure = [0 for _ in range(calendar_rules.WEEKDAYS)]
     for day in facts.knot_days:
@@ -1179,7 +1197,7 @@ def breach(
         )
     verdict = check(
         parsed, rows_low, rows_high, low, high, rungs, fewest, most, line,
-        groups, -1, (),
+        groups, -1, holes,
     )
     if verdict.holds:
         return None

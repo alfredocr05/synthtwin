@@ -18,7 +18,8 @@ two tail boundaries counted per group of weekdays, the grouping chosen
 by the census line alone from a menu of three -- and only where the
 FULL-FILL CERTIFICATE holds: every class of a counted weekday (a boundary
 or rung day; the days of one stretch between two of them falling on one
-weekday, less the days a declared missing value names) has a witness
+weekday, less its holes -- the days a declared missing value names and
+the days the censuses of written forms leave empty) has a witness
 table meeting the whole description that puts the line on one of its
 days, or is residue the rank facts already cap, whose every arrangement
 stage 3 allows the census allows too (contract WC1 to WC8, plan
@@ -39,8 +40,16 @@ readers report 0 pins. Frozen as seven `weekday_*` cases (G14.3 counts
 gave the calendar a trace beside the drawn ranks, so a clinic's few
 Tuesday cells piled into one gap and the repair could not put the count
 of different days back (39 of 306 seeded twins missed it); the ranks
-and the calendar now weigh the same, and 0 miss. The mutation record is
-the gate's docstring. Not in this landing (design SECTION 9): low-tie
+and the calendar now weigh the same, and 0 miss. Found at review: a
+census of written forms can tell a reader which days hold no cell --
+`{first-field-unpadded}` on `m/d/yyyy` leaves the first to the ninth of
+every month empty, a month name of length `either` every day outside
+May -- and the certificate had put witnesses on those days, so 104
+visits past the ninth and 149 dates over three Mays published counts
+that held every open day below the line. Those days are now holes on
+both sides of the certificate, in WC7, in the loader and in the
+verifier, and both columns are withheld. The mutation record is the
+gate's docstring. Not in this landing (design SECTION 9): low-tie
 columns, few-date schedules whose squeezed stretches are wide, dense
 logs the census would narrow and groupings beyond the menu are withheld
 and say why; timestamp columns publish `[]` until 3b.2.

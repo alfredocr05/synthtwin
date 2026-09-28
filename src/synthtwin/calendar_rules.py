@@ -61,6 +61,9 @@ SATURDAY = 5
 SUNDAY = 6
 FRIDAY = 4
 
+# The one month whose name is the same at either length (`form_holes`).
+MAY = 5
+
 # The three entries of the menu, and nought for a grouping that is none
 # of them (`entry_of`).
 ENTRY_NONE = 0
@@ -316,22 +319,26 @@ def few_dates_group(
     high: int,
     knot_days: "tuple[int, ...]",
     most_days: int,
+    holes: "frozenset[int]" = frozenset(),
 ) -> int:
     """WC7: the first non-zero group a reader can hold to few dates, or -1.
 
     For a non-zero group, the most different dates it can hold besides
     the knot days a reader already holds is the least of three: its
-    calendar days between the boundaries that are not knot days; its
-    count less one per knot day in it; and the body's most different
-    days (`most_days`, the reader's `D_max`) less every knot day and
-    one date for each other non-zero group holding no knot day. Fewer
-    than `FEWEST_DATES` makes the group the count of a few single
-    dates, which is the heavy-date landing's business (owner ruling 7
-    of 2026-09-26), not this census's.
+    calendar days between the boundaries that are not knot days, less
+    its HOLES (days no body cell can hold, `form_holes` and the days a
+    declared missing value names); its count less one per knot day in
+    it; and the body's most different days (`most_days`, the reader's
+    `D_max`) less every knot day and one date for each other non-zero
+    group holding no knot day. Fewer than `FEWEST_DATES` makes the
+    group the count of a few single dates, which is the heavy-date
+    landing's business (owner ruling 7 of 2026-09-26), not this
+    census's.
 
     Guarantees: accepts the groups, the two boundary days, the knot
-    days and the reader's most different days; returns a group index or
-    -1. Determinism: a function of the five. Raises nothing. No I/O.
+    days, the reader's most different days and the holes; returns a
+    group index or -1. Determinism: a function of the six. Raises
+    nothing. No I/O of any kind.
     """
     where = where_of(groups)
     calendar = [0 for _ in groups]
@@ -339,9 +346,11 @@ def few_dates_group(
     knots = set(knot_days)
     for day in range(low, high + 1):
         index = where[weekday_of(day)]
-        calendar[index] = calendar[index] + 1
         if day in knots:
             knotted[index] = knotted[index] + 1
+        elif day in holes:
+            continue
+        calendar[index] = calendar[index] + 1
     nonzero = [index for index in range(len(groups)) if groups[index][2] > 0]
     for index in nonzero:
         others = 0
@@ -399,6 +408,74 @@ def one_spelling_published(
     if format_name in parsing.TEXTUAL_MEMBERS and len(styles) != 1:
         return False
     return True
+
+
+def form_holes(
+    forms: "dict[str, dict[str, int]]", format_name: str, low: int, high: int
+) -> "tuple[int, ...]":
+    """The days from `low` to `high` the censuses of written forms leave empty.
+
+    WHAT A READER HOLDS BESIDE THE COUNTS (review of landing 3b.1,
+    finding 1). WC6 (a) asks every census of written forms to name one
+    form holding every parsed cell, and two kinds of form can be
+    written only on some days:
+
+    * a WIDTH word one field alone shows (`parsing.width_is_value_bound`)
+      is written by a cell whose OTHER field is ten or more. A cell both
+      of whose fields are ten or more shows no width and is counted into
+      it (`taxonomy.absorbed_width_tally`); a cell whose other field is
+      below ten shows a joint word, into which the one-field word would
+      have been folded (`parsing.folded_width_tally`), or the other
+      field's own word, a second form. So every day whose other field --
+      the day of a month-first member, the month of a day-first one --
+      is below ten is a HOLE: `{first-field-unpadded: 104}` on
+      `m/d/yyyy` says no cell falls on the first to the ninth of any
+      month;
+    * a month-name word of length `either` (`parsing.name_is_value_bound`)
+      is written by a name of May alone, and a cell of any other month
+      would show a length the May cells fold into, or a second form:
+      every day outside May is a hole.
+
+    Every other word -- a joint width, the one-field width of a textual
+    member, a name of a length -- can be written on any day. The ONE
+    statement of the rule, asked by the producer and the loader, so
+    that both sides of the certificate (`calendar_certificate.facts_of`)
+    and WC7 leave the holes out.
+
+    Guarantees: accepts the five censuses by name, the parser family and
+    the two boundary days; returns the holes between them ascending.
+    Determinism: a function of the four. Raises nothing. No I/O of any
+    kind.
+    """
+    width = ""
+    if "date_field_widths" in forms and len(forms["date_field_widths"]) == 1:
+        for word in forms["date_field_widths"]:
+            width = word
+    first_field = ""
+    if format_name in parsing.VARIABLE_WIDTH_MEMBERS and parsing.width_is_value_bound(width):
+        first_field = "month" if format_name in parsing.MONTH_FIRST_MEMBERS else "day"
+    shows_first = width in parsing.FIELD_WIDTH_STYLES_FIRST
+    may_only = False
+    if (
+        format_name in parsing.TEXTUAL_MEMBERS
+        and "month_name_styles" in forms
+        and len(forms["month_name_styles"]) == 1
+    ):
+        for word in forms["month_name_styles"]:
+            may_only = parsing.name_is_value_bound(word)
+    if not first_field and not may_only:
+        return ()
+    found: "list[int]" = []
+    for day in range(low, high + 1):
+        _year, month, date = parsing.civil_from_days(day)
+        hole = may_only and month != MAY
+        if first_field:
+            first, second = (month, date) if first_field == "month" else (date, month)
+            other = second if shows_first else first
+            hole = hole or other < 10
+        if hole:
+            found += [day]
+    return tuple(found)
 
 
 def stored_one_way(classes: "list[str]") -> bool:

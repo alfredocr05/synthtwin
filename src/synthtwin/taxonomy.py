@@ -14263,10 +14263,14 @@ def weekday_decision(
     dates may be written two ways (WC6 (a) on the published forms, (b)
     on the real days) or stored two ways, nothing; the menu takes the
     body's seven weekday counts; the certificate is asked with the body's
-    REAL count of different days and the holes (`calendar_certificate`),
-    and WC7 before it; and the census is published only where the
-    loader's own check accepts it too (`calendar_certificate.breach`), so
-    the producer never writes what the loader refuses.
+    REAL count of different days and the holes -- the days a declared
+    missing value names (`_census_holes`) and the days the published
+    form censuses leave empty (`calendar_rules.form_holes`) -- and WC7
+    before it (`calendar_certificate`); and the census is published only
+    where the loader's own check accepts it too
+    (`calendar_certificate.breach`, asked with the form holes, which the
+    loader reads off the same censuses), so the producer never writes
+    what the loader refuses.
 
     Guarantees: accepts the published block, the days, the published
     count, the settings and the storage flag; returns the decision.
@@ -14322,7 +14326,15 @@ def weekday_decision(
         n_distinct, unparsed, rows_low, _tail_listed(low_tail),
         rows_high, _tail_listed(high_tail),
     )
-    holes = _census_holes(settings.declared_missing_values, details, set(days))
+    shown = calendar_rules.form_holes(
+        forms, format_name, body[0], body[len(body) - 1]
+    )
+    holes = tuple(
+        sorted(
+            set(_census_holes(settings.declared_missing_values, details, set(days)))
+            | set(shown)
+        )
+    )
     verdict = calendar_certificate.check(
         parsed, rows_low, rows_high, body[0], body[len(body) - 1], rungs,
         fewest, most, line, groups, len(set(body)), holes,
@@ -14331,7 +14343,7 @@ def weekday_decision(
         return WeekdayDecision(empty, verdict.reason, entry, verdict)
     breach = calendar_certificate.breach(
         groups, parsed, rows_low, rows_high, body[0], body[len(body) - 1],
-        rungs, fewest, most, line, one_spelling,
+        rungs, fewest, most, line, one_spelling, shown,
     )
     if breach:
         return WeekdayDecision(empty, calendar_rules.REASON_NARROWED, entry, verdict)

@@ -8595,8 +8595,10 @@ def _weekday_census(
     with both tails (WC3); then `calendar_certificate.breach` asks every
     other rule on the reader's own numbers -- the groups' shape, the
     floor, the body, the menu, one spelling per day, the knot days' sure
-    cells, no few-date group and the full-fill certificate -- and the
-    first broken one is refused by name.
+    cells, no few-date group and the full-fill certificate, both with
+    the days the published form censuses leave empty as holes
+    (`calendar_rules.form_holes`) -- and the first broken one is refused
+    by name.
 
     Guarantees: accepts the value and the facts beside it; returns the
     groups as `(first, last, count)`. Raises ProfileError for a wrong
@@ -8656,6 +8658,12 @@ def _weekday_census(
         most,
         parsing.census_floor(floor),
         calendar_rules.one_spelling_published(forms, parser_family, parsed),
+        calendar_rules.form_holes(
+            forms,
+            parser_family,
+            _day_number(low.boundary),
+            _day_number(high.boundary),
+        ),
     )
     if broken is not None:
         raise _broken(broken[0], where, broken[1], broken[2])

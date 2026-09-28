@@ -19,7 +19,15 @@ producer's certificate returned DAY BY DAY:
 
 and that every class of a counted weekday is covered by a witness day,
 or lies in a stretch the rank facts cap below the line (the residue's
-rule, re-derived here from the description). The residue's configuration
+rule, re-derived here from the description).
+
+THE HOLES ARE RE-DERIVED HERE TOO, from the block's own censuses of
+written forms (`form_holes`), beside the declared ones handed in: a
+width word one field alone shows (`first-field-*`, `second-field-*`)
+says the OTHER field is ten or more in every cell, and a month name
+whose length is `either` says every cell is in May, so a reader holds
+every other day empty (review of landing 3b.1, finding 1). A hole is
+no member of a class and no witness may stand on it. The residue's configuration
 equivalence is the one part of the certificate it does not redo; the
 brute force beside it (`calendar_certificate_brute`) exercises that.
 
@@ -61,8 +69,38 @@ def entry_of(groups: "list[tuple[int, int, int]]") -> int:
     return 0
 
 
-def reader_facts(block: dict, line: int) -> dict:
-    """What a reader of this block holds about its body."""
+def form_holes(block: dict) -> "set[int]":
+    """The days between the two boundaries the block's form censuses leave empty.
+
+    Written from the vocabulary alone: a width word naming ONE field is
+    written only where the other field -- the day where the month comes
+    first, the month where the day does -- is ten or more; a month name
+    of length `either` is May's. Every other word says nothing.
+    """
+    low = day_number(block["low_tail"]["boundary"])
+    high = day_number(block["high_tail"]["boundary"])
+    widths = block.get("date_field_widths") or {}
+    names = block.get("month_name_styles") or {}
+    width = next(iter(widths)) if len(widths) == 1 else ""
+    name = next(iter(names)) if len(names) == 1 else ""
+    month_first = "month-first" in block["format"]
+    textual = block["format"].startswith("textual-")
+    found = set()
+    for day in range(low, high + 1):
+        date = _EPOCH + datetime.timedelta(days=day)
+        first, second = (date.month, date.day) if month_first else (date.day, date.month)
+        if not textual and width.startswith("first-field-") and second < 10:
+            found.add(day)
+        if not textual and width.startswith("second-field-") and first < 10:
+            found.add(day)
+        if textual and name.split("-")[1:2] == ["either"] and date.month != 5:
+            found.add(day)
+    return found
+
+
+def reader_facts(block: dict, line: int, holes: "set[int] | None" = None) -> dict:
+    """What a reader of this block holds about its body, `holes` left out of every class."""
+    holes = form_holes(block) if holes is None else holes
     parsed = block["n_present"] - block["n_unparsed"]
     low_tail, high_tail = block["low_tail"], block["high_tail"]
     rows_low, rows_high = low_tail["rows"], high_tail["rows"]
@@ -104,8 +142,10 @@ def reader_facts(block: dict, line: int) -> dict:
         if index + 1 < len(knots) and knots[index + 1] - day > 1:
             stretches += [("open", day + 1, knots[index + 1] - 1)]
     classes: "dict[tuple[int, int], list[int]]" = {}
-    for place, (_kind, first, last) in enumerate(stretches):
+    for place, (kind, first, last) in enumerate(stretches):
         for day in range(first, last + 1):
+            if kind == "open" and day in holes:
+                continue
             members = classes.setdefault((place, weekday(day)), [])
             members += [day]
     count = len(stretches)
@@ -178,9 +218,11 @@ def census_problems(
 
     `witnesses` are (class, day, table as (day, cells) pairs); `real_days`
     the real body's count of different days where the real table is in
-    hand; `holes` days no body cell may stand on.
+    hand; `holes` the declared days no body cell may stand on, to which
+    the block's own form holes are added (`form_holes`).
     """
-    facts = reader_facts(block, line)
+    hole_days = set(holes) | form_holes(block)
+    facts = reader_facts(block, line, hole_days)
     found = []
     if facts["entry"] == 0:
         found += ["the census is not a grouping of the menu"]
@@ -191,7 +233,7 @@ def census_problems(
         occupied = sum(1 for cells in table.values() if cells > 0)
         if real_days is not None and occupied != real_days:
             problems += [f"{occupied} different days, the real body {real_days}"]
-        on_holes = sum(cells for day, cells in table.items() if day in holes and cells > 0)
+        on_holes = sum(cells for day, cells in table.items() if day in hole_days and cells > 0)
         if on_holes:
             problems += [f"{on_holes} cells on a hole"]
         found += [f"witness on day {target}: {problem}" for problem in problems]
