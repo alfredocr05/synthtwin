@@ -14819,6 +14819,10 @@ def weekday_decision(
         n_distinct, unparsed, rows_low, _tail_listed(low_tail),
         rows_high, _tail_listed(high_tail),
     )
+    # A REFUSAL THE PUBLISHED NUMBERS DECIDE WALKS NO DAY (review of
+    # landing 3b.1, finding 10): the holes below walk the span.
+    if calendar_certificate.ties_refused(len(body), fewest, line):
+        return WeekdayDecision(empty, calendar_rules.REASON_TIES, entry, None)
     judged: "tuple[str, ...]" = ()
     if "sentinel_verdicts" in details:
         judged = _read_as_missing(details["sentinel_verdicts"])

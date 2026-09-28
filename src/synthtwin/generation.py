@@ -22858,7 +22858,7 @@ def _traded_merges(
                 if pinned[rank]:
                     loose = False
             if loose and held[moved[first] // unit] == last - first + 1:
-                tried: "tuple[int, ...]" = ()
+                tried: "list[int]" = []
                 # ONE TARGET FOR A WIDTH TRADE, WHICH IS P4-D258 EXACTLY
                 # AS IT WAS, and the nearest few for a midnight trade,
                 # which is new (item 2 of the dates pass of the second
@@ -22882,7 +22882,7 @@ def _traded_merges(
                         first,
                         target,
                     )]
-                    tried = tried + (target // unit,)
+                    tried += [target // unit]
             first = last + 1
         if not offers:
             return made
@@ -23276,7 +23276,7 @@ def _nearest_held_unit(
     flip: bool = False,
     skip: int = -1,
     flip_clock: bool = False,
-    avoid: "tuple[int, ...]" = (),
+    avoid: "list[int] | tuple[int, ...]" = (),
 ) -> "int | None":
     """The nearest instant some other rank already holds, keeping the standing.
 
@@ -25122,7 +25122,7 @@ def _settled_by_sums(
     names: "list[str]",
     supply: "dict[str, int]",
     biggest_first: bool,
-    avoid: "tuple[int, ...]" = (),
+    avoid: "list[int] | tuple[int, ...]" = (),
 ) -> "list[str] | None":
     """An arrangement settling every debt exactly, or None.
 
@@ -28759,7 +28759,7 @@ def _class_split(
     first: "dict[int, str] | None" = None
     if len(places) * largest <= _CLASS_SUM_WORK:
         for biggest_first in (True, False):
-            avoid: "tuple[int, ...]" = ()
+            avoid: "list[int]" = []
             for _again in range(_CLASS_RETRIES):
                 settled = _settled_by_sums(
                     sizes, places, debts, names, dict(supply),
@@ -28788,7 +28788,7 @@ def _class_split(
                 ]
                 if not spent:
                     break
-                avoid = avoid + (spent[0],)
+                avoid += [spent[0]]
     if first is not None:
         return first
     left = {name: debts[name] for name in names}

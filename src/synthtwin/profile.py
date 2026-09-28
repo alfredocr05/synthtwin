@@ -3728,11 +3728,11 @@ def build_document(
         notes += [{"column": "", "note": spoken}]
     # EACH CENSUS READING IS HANDED OVER ONCE, to the column it was read
     # from: the description takes the reading's lists as its own.
-    waiting = readings
+    waiting: "list[object]" = [held for held in readings]
     for position, name in enumerate(table.column_names, start=1):
         cells = table.columns[position - 1]
         handed_over: "taxonomy.HeldReading | None" = None
-        still_waiting: "tuple[object, ...]" = ()
+        still_waiting: "list[object]" = []
         for held in waiting:
             if (
                 handed_over is None
@@ -3741,7 +3741,7 @@ def build_document(
             ):
                 handed_over = held
                 continue
-            still_waiting += (held,)
+            still_waiting += [held]
         waiting = still_waiting
         # ONE STORAGE CLASS PER WORKBOOK COLUMN, or no weekday census
         # (landing 3b.1): a column whose dates are stored partly as dates

@@ -344,13 +344,25 @@ def few_dates_group(
     calendar = [0 for _ in groups]
     knotted = [0 for _ in groups]
     knots = set(knot_days)
-    for day in range(low, high + 1):
-        index = where[weekday_of(day)]
-        if day in knots:
+    # COUNTED, NOT WALKED (review of landing 3b.1, finding 10): each
+    # weekday's days between the boundaries by arithmetic, then the knot
+    # days and the holes one by one, so the cost is theirs and not the
+    # span's.
+    for weekday in range(WEEKDAYS):
+        if high < low:
+            break
+        first = low + (weekday - weekday_of(low)) % WEEKDAYS
+        if first <= high:
+            index = where[weekday]
+            calendar[index] = calendar[index] + (high - first) // WEEKDAYS + 1
+    for day in knots:
+        if low <= day <= high:
+            index = where[weekday_of(day)]
             knotted[index] = knotted[index] + 1
-        elif day in holes:
-            continue
-        calendar[index] = calendar[index] + 1
+    for day in holes:
+        if low <= day <= high and day not in knots:
+            index = where[weekday_of(day)]
+            calendar[index] = calendar[index] - 1
     nonzero = [index for index in range(len(groups)) if groups[index][2] > 0]
     for index in nonzero:
         others = 0

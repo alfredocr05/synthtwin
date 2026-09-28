@@ -143,3 +143,43 @@ def test_no_product_source_grows_a_list_by_copying_it() -> None:
         "200,000-row table take 390 seconds and building a twin of "
         "20,000 rows take 1,113 seconds."
     )
+
+
+def test_no_product_source_grows_a_tuple_by_copying_it() -> None:
+    """`x = x + (item,)` and `x += (item,)` appear nowhere in the product.
+
+    THE SAME DEFECT IN A TUPLE (review of landing 3b.1, finding 10). The
+    weekday certificate grew each class of days as
+    `classes[key] = classes[key] + (day,)`, which copies everything the
+    class held on every day: 100 dates of June 15 spread over 6,000
+    years took 316 seconds to build their classes before a refusal the
+    published numbers alone decide, and 2,000 years took 19. A tuple
+    cannot grow in place, so the accepted form is a list grown with
+    `x += [item]` and frozen once. `x += (item,)` is refused as well:
+    on a tuple it is the same copy, and on a list it is the accepted
+    form written in a way this guard cannot tell from the copy.
+    """
+    found: "list[str]" = []
+    for source in sorted(PRODUCT.glob("*.py")):
+        tree = ast.parse(source.read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AugAssign):
+                if isinstance(node.op, ast.Add) and isinstance(node.value, ast.Tuple):
+                    found += [f"{source.name}:{node.lineno}"]
+                continue
+            if not isinstance(node, ast.Assign) or len(node.targets) != 1:
+                continue
+            value = node.value
+            if not isinstance(value, ast.BinOp) or not isinstance(value.op, ast.Add):
+                continue
+            if not isinstance(value.right, ast.Tuple):
+                continue
+            if not _same_storage(node.targets[0], value.left):
+                continue
+            found += [f"{source.name}:{node.lineno}"]
+    assert not found, (
+        "a tuple is grown by copying it, which makes the loop around it "
+        "quadratic in what it holds:\n  " + "\n  ".join(found)
+        + "\n\nGrow a list with `x += [item]` and freeze it once with "
+        "`tuple(x)`."
+    )

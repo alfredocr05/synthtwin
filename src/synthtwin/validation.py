@@ -4335,9 +4335,9 @@ def _within(
             () if reaches else _MET_OUTSIDE_ITS_WINDOW,
         )
     verdict = WITHIN_BOUND if low <= measured <= high else MISSED
-    note: tuple[str, ...] = ()
+    lines: "list[str]" = []
     if not reaches:
-        note = (
+        lines += [
             (
                 "      this window does NOT reach the description's own "
                 "value. It is"
@@ -4345,16 +4345,17 @@ def _within(
             "      what the method allows the file here, worked out from",
             "      the description and the size of this column; it is not",
             "      a margin around that value.",
-        )
+        ]
     if anchored and not reaches and value is not None:
         half = (high - low) / 2.0
         if not value - half <= measured <= value + half:
             verdict = MISSED
-            note = note + (
+            lines += [
                 "      and the file stands farther from the description's",
                 "      own value than half this window's width, so the",
                 "      window is not taken as a pass (V6.1-A2).",
-            )
+            ]
+    note: tuple[str, ...] = tuple(lines)
     return Check(
         column,
         fact,
@@ -14162,12 +14163,12 @@ def _named_styles(facts: contract.NumericFacts) -> "tuple[str, ...]":
     The pooled remainder is not one of them, exactly as in
     `_published_widths`: it names no style and so authorizes none.
     """
-    names: "tuple[str, ...]" = ()
+    names: "list[str]" = []
     for style in sorted(facts.numeric_styles):
         if style == taxonomy.SUPPRESSED_LABEL:
             continue
-        names = names + (style,)
-    return names
+        names += [style]
+    return tuple(names)
 
 
 def _published_widths(

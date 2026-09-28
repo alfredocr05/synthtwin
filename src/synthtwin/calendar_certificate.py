@@ -46,8 +46,10 @@ class can hold the line: exchanging the witness's day with any day of
 its class changes no fact.
 
 A class no witness certifies is asked on stage 3's facts alone -- the
-same network with no census, the weekdays the census publishes as
-empty taking nothing, on the reader's bounds. If stage 3 could put the
+same network with no census at all, every weekday open, the ones the
+census publishes as empty included, on the reader's bounds (a count of
+nought is census information too: review of landing 3b.1, finding 1).
+If stage 3 could put the
 line on its day, the census is what keeps it below and the census is
 WITHHELD. Otherwise the class is RESIDUE: it must lie in a stretch the
 rank facts cap below the line, and every CONFIGURATION of the residue
@@ -180,20 +182,7 @@ def facts_of(
     Determinism: a function of the arguments. Raises nothing. No I/O.
     """
     body = parsed - rows_low - rows_high
-    knots: "dict[int, tuple[int, int]]" = {low: (0, 1)}
-    if high in knots:
-        knots[high] = (0, body)
-    else:
-        knots[high] = (body - 1, body)
-    for rank, day in rungs:
-        inside = rank - rows_low
-        if day in knots:
-            before, upto = knots[day]
-            knots[day] = (min(before, inside), max(upto, inside + 1))
-        else:
-            knots[day] = (inside, inside + 1)
-    knots[low] = (0, knots[low][1])
-    knots[high] = (knots[high][0], body)
+    knots = _knots_of(parsed, rows_low, rows_high, low, high, rungs)
     knot_days = tuple(sorted(knots))
     stretches: "list[tuple[bool, int, int]]" = []
     for index in range(len(knot_days)):
@@ -229,17 +218,25 @@ def facts_of(
         before = rising[place - 1] if place > 0 else 0
         most += [max(0, falling[place] - before)]
     holed = set(holes)
-    classes: "dict[tuple[int, int], tuple[int, ...]]" = {}
+    # EACH CLASS IS GROWN AS A LIST AND FROZEN ONCE (review of landing
+    # 3b.1, finding 10): a class grown as a tuple copied everything it
+    # held on every day, so 100 dates spread over 6,000 years took 316
+    # seconds here before a refusal the numbers alone decide.
+    growing: "dict[tuple[int, int], list[int]]" = {}
     for place in range(count):
         is_knot, first, last = stretches[place]
         for day in range(first, last + 1):
             if not is_knot and day in holed:
                 continue
             key = (place, calendar_rules.weekday_of(day))
-            if key in classes:
-                classes[key] = classes[key] + (day,)
+            if key in growing:
+                members = growing[key]
+                members += [day]
             else:
-                classes[key] = (day,)
+                growing[key] = [day]
+    classes: "dict[tuple[int, int], tuple[int, ...]]" = {
+        key: tuple(growing[key]) for key in growing
+    }
     where = calendar_rules.where_of(groups)
     zero = frozenset(
         weekday
@@ -278,6 +275,37 @@ def facts_of(
         reader_most=reader_most,
         holes=frozenset(holed),
     )
+
+
+def _knots_of(
+    parsed: int,
+    rows_low: int,
+    rows_high: int,
+    low: int,
+    high: int,
+    rungs: "tuple[tuple[int, int], ...]",
+) -> "dict[int, tuple[int, int]]":
+    """Every knot day with its two rank facts (module docstring).
+
+    Counted from the boundaries and the rungs alone, so WC5 and the
+    cheap refusals read them without walking a single day of the span.
+    """
+    body = parsed - rows_low - rows_high
+    knots: "dict[int, tuple[int, int]]" = {low: (0, 1)}
+    if high in knots:
+        knots[high] = (0, body)
+    else:
+        knots[high] = (body - 1, body)
+    for rank, day in rungs:
+        inside = rank - rows_low
+        if day in knots:
+            before, upto = knots[day]
+            knots[day] = (min(before, inside), max(upto, inside + 1))
+        else:
+            knots[day] = (inside, inside + 1)
+    knots[low] = (0, knots[low][1])
+    knots[high] = (knots[high][0], body)
+    return knots
 
 
 # -- the network ------------------------------------------------------------
@@ -596,10 +624,16 @@ def _stage3_table(
 ) -> "_Table | None":
     """A table meeting stage 3's facts alone, on the reader's bounds.
 
-    No census: one group holds every weekday the census does not publish
-    as empty, and the empty weekdays' days take nothing (a count of
-    nought is published and allowed). The taken days together hold
-    `least` to `greatest` cells.
+    NO CENSUS AT ALL: one group holds every weekday, the ones the census
+    publishes as empty included. The baseline is what a reader holds
+    WITHOUT the census, so none of the census's information may stand in
+    it, and a count of nought is information too (review of landing
+    3b.1, finding 1): with the weekend held empty on this side, 1,035
+    business dates whose p05 left ten body rows before January 16 had
+    every business day of January 2 to 15 pinned to one row by the
+    census -- a Saturday could take any of them -- and the certificate
+    counted those days as residue both sides agreed on. The taken days
+    together hold `least` to `greatest` cells.
     """
     count = len(facts.stretches)
     chain = 2
@@ -613,10 +647,6 @@ def _stage3_table(
     arcs: "list[tuple[tuple[int, int], bool, int, int, int]]" = []
     for key in facts.keys:
         place, weekday = key
-        if weekday in facts.zero:
-            if facts.stretches[place][0]:
-                return None
-            continue
         if key in fixed:
             if fixed[key] > 0:
                 _add(net, rows + place, top, fixed[key], fixed[key], 0)
@@ -639,10 +669,28 @@ def _stage3_table(
     cost = _solve(net)
     if cost is None or cost > facts.body - facts.reader_fewest - spent:
         return None
+    # THIS SIDE MAY CLAIM TOO MUCH, NEVER TOO LITTLE (review of landing
+    # 3b.1, finding 1). The least-cost table spreads its cells over as
+    # many parts as it can, so asking IT to fit the reader's most
+    # different days refused tables a reader allows -- a smaller spread
+    # fits where the cheapest does not -- and a class stage 3 could fill
+    # was taken for residue both sides agreed on. What every table
+    # holds is asked instead: a cell on each knot day, one more day for
+    # a taken class between two knots, and the residue's occupied days,
+    # all different days. The census side keeps the whole check: there a
+    # refusal withholds.
+    held = occupied
+    for place in range(count):
+        is_knot, day, _last = facts.stretches[place]
+        if is_knot and (place, calendar_rules.weekday_of(day)) not in fixed:
+            held = held + 1
+    for key in take:
+        if take[key] > 0 and least > 0 and not facts.stretches[key[0]][0]:
+            held = held + 1
+    if held > facts.reader_most:
+        return None
     parts = _read(net, arcs)
     nonempty = len([part for part in parts if part[2] > 0])
-    if nonempty + occupied > facts.reader_most:
-        return None
     return _Table(parts=parts, nonempty=nonempty, cost=cost)
 
 
@@ -957,7 +1005,7 @@ def certify(facts: Facts) -> Verdict:
     """
     tally = [0]
     line = facts.line
-    if facts.body - facts.reader_fewest < line - 1:
+    if ties_refused(facts.body, facts.reader_fewest, line):
         return Verdict(
             False, calendar_rules.REASON_TIES,
             "no day can hold the line: too few repeated cells",
@@ -1021,9 +1069,12 @@ def check(
     and every hole) and by the loader (with `real_days` -1, so the
     reader's bounds stand on both sides, and the holes the form censuses
     and the placeholder decisions show). The groups must already be a
-    menu grouping whose counts add to the body. WC7 first: a group a reader can hold to fewer than four
-    dates besides the knot days and the holes withholds (reason
-    `few_dates`); then the certificate.
+    menu grouping whose counts add to the body. The refusals a handful
+    of published numbers decide come first and walk no day
+    (`_refused`: a grouping of no menu entry, and too few repeated
+    cells for any day to hold the line); then WC7 -- a group a reader
+    can hold to fewer than four dates besides the knot days and the
+    holes withholds (reason `few_dates`); then the certificate.
 
     CACHED ON THE WHOLE QUESTION: the producer, its self-check, the
     generator's loader and the validator's loader ask the same
@@ -1040,16 +1091,61 @@ def check(
     )
     if key in _ANSWERS:
         return _ANSWERS[key]
-    facts = facts_of(
-        parsed, rows_low, rows_high, low, high, rungs, reader_fewest,
-        reader_most, line, groups, real_days, holes,
-    )
-    verdict = _decided(facts)
+    verdict = _refused(parsed - rows_low - rows_high, reader_fewest, line, groups)
+    if verdict is None:
+        facts = facts_of(
+            parsed, rows_low, rows_high, low, high, rungs, reader_fewest,
+            reader_most, line, groups, real_days, holes,
+        )
+        verdict = _decided(facts)
     if len(_ANSWERS) >= _ANSWERS_KEPT:
         for known in list(_ANSWERS):
             del _ANSWERS[known]
     _ANSWERS[key] = verdict
     return verdict
+
+
+def _refused(
+    body: int,
+    reader_fewest: int,
+    line: int,
+    groups: "tuple[tuple[int, int, int], ...]",
+) -> "Verdict | None":
+    """The refusals the published numbers decide before any day is walked.
+
+    A grouping no entry of the menu is, and a body whose repeated cells
+    cannot put the line on any day (`ties_refused`), are decided from a
+    handful of numbers; asking them first keeps a column spread over
+    thousands of years from enumerating its span only to be refused
+    (review of landing 3b.1, finding 10). None where neither refuses.
+    """
+    if calendar_rules.entry_of(groups) == calendar_rules.ENTRY_NONE:
+        return Verdict(
+            False, calendar_rules.REASON_MENU, "not a grouping of the menu",
+            (), (), 0, "",
+        )
+    if ties_refused(body, reader_fewest, line):
+        return Verdict(
+            False, calendar_rules.REASON_TIES,
+            "no day can hold the line: too few repeated cells",
+            (), (), 0, "",
+        )
+    return None
+
+
+def ties_refused(body: int, reader_fewest: int, line: int) -> bool:
+    """Whether no day of the body can hold the line in any table a reader allows.
+
+    A day holding the line needs `line - 1` cells beyond the one each
+    occupied day holds, and a reader's tables hold at most
+    `body - reader_fewest` such cells. A function of three published
+    numbers: it walks no day.
+
+    Guarantees: accepts the body, the reader's least different days and
+    the line; returns the answer. Determinism: a function of the three.
+    Raises nothing. No I/O of any kind.
+    """
+    return body - reader_fewest < line - 1
 
 
 def _decided(facts: Facts) -> Verdict:
@@ -1179,13 +1275,10 @@ def breach(
             "a weekday census is published",
             "the censuses of written forms must give every date one text",
         )
-    facts = facts_of(
-        parsed, rows_low, rows_high, low, high, rungs, fewest, most, line,
-        groups, -1, holes,
-    )
+    knots = _knots_of(parsed, rows_low, rows_high, low, high, rungs)
     sure = [0 for _ in range(calendar_rules.WEEKDAYS)]
-    for day in facts.knot_days:
-        before, upto = facts.knots[day]
+    for day in sorted(knots):
+        before, upto = knots[day]
         weekday = calendar_rules.weekday_of(day)
         sure[weekday] = sure[weekday] + max(1, upto - before)
     short = calendar_rules.sure_cells_breach(groups, sure, line)
