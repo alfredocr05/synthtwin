@@ -839,7 +839,7 @@ SEEDS = {
     "weekday_keeping_first": 413,
     "weekday_count_put_back": 414,
     "weekday_hole_left": 415,
-    "weekday_runs_merged": 30751,
+    "weekday_runs_merged": 34041,
     "identifier_unnamed_partners": 184,
     "truth_values_written": 189,
     "twice_written_filled": 190,
