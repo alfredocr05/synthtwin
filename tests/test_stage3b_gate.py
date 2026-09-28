@@ -1595,9 +1595,8 @@ def test_a_placeholder_day_read_as_missing_is_a_hole_no_witness_stands_on(
     the day lies between the two tail boundaries, so a reader holds it
     empty. The census publishes the seven counts, no witness puts a cell
     on the day, and the verifier -- reading the same hole off the block
-    -- passes every witness. Asked blind to the placeholder, the
-    certificate's witnesses stand on it, and the verifier finds them
-    there.
+    -- passes every witness. Asked blind to the placeholder, a witness
+    of the certificate stands on it, and the verifier finds it there.
     """
     cells = _with_a_placeholder_day()
     described = kpi_shapes.describe(tmp_path, "placeholder", "born\n" + "".join(f"{cell}\n" for cell in cells), 11)
