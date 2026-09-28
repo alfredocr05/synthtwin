@@ -11897,11 +11897,32 @@ def _row_off_the_stand_ins(value: float, side: TailReader, figures: int) -> floa
         return value
     for sentinel in parsing.NUMERIC_SENTINELS:
         if value == sentinel:
-            moved = _withheld_step(value, 1, side.low, figures)
+            moved = _step_apart(value, side.low, figures)
             if (moved < side.end) if side.low else (moved > side.end):
                 return side.end
             return moved
     return value
+
+
+def _step_apart(value: float, downward: bool, figures: int) -> float:
+    """One step of the tail grid from ``value``, that binary64 can tell from it.
+
+    `_withheld_step`'s one step, except where the grid is finer than
+    binary64 near ``value`` -- fourteen figures after the point beside
+    `-999`, whose next binary64 number is about eleven of those steps
+    away -- and the step reads back as ``value`` itself: there it is the
+    next number binary64 holds that way (plan P4-D357 A, review item 3).
+    A stand-in moved by a step that did not move it is still the
+    stand-in.
+
+    Guarantees: accepts a value, the direction and the tail grid; returns
+    a number different from ``value`` wherever one exists that way.
+    Determinism: a function of the three. Raises nothing. No I/O.
+    """
+    moved = _withheld_step(value, 1, downward, figures)
+    if moved == value:
+        moved = _next_representable(value, downward)
+    return moved
 
 
 def tail_read(
@@ -12357,21 +12378,20 @@ def _off_the_stand_ins(
     table's own and never reach this function.
 
     Guarantees: accepts a derived end, which side it is, its boundary and
-    the tail grid; returns the end, or the end one step inside where it
-    is a stand-in number. Determinism: a function of the four. Raises
-    nothing. No I/O of any kind.
+    the tail grid; returns the end, or the end one step inside -- one
+    binary64 can tell from it (`_step_apart`) -- where it is a stand-in
+    number. Determinism: a function of the four. Raises nothing. No I/O
+    of any kind.
     """
     if value == boundary:
         return value
     for sentinel in parsing.NUMERIC_SENTINELS:
         if value == sentinel:
-            if figures == -1:
-                moved = _next_representable(value, not low)
-            else:
-                unit = _tail_unit(figures)
-                moved = _on_tail_grid(
-                    value + unit if low else value - unit, figures
-                )
+            # ONE STEP BINARY64 CAN TELL FROM THE STAND-IN (plan P4-D357
+            # A): on a grid finer than the format near it the grid step
+            # reads back as the stand-in, and the next number binary64
+            # holds toward the boundary is taken instead.
+            moved = _step_apart(value, not low, figures)
             if (moved > boundary) if low else (moved < boundary):
                 return value
             return moved

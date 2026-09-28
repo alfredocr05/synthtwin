@@ -23,10 +23,9 @@ own windows before it asserts what the rule did:
 * no derived end is a stand-in number (method G5.3b step 5, on both of
   its paths), no row of the staircase on either path, no value G6.6's
   width walk moves, `-9999` among them, and no stratum the convex form
-  reads between the tails (G5.4's last rule), in the oracle too. G6.5a's
-  separation walk is not held to it (plan P4-D353 part 4): where it takes
-  one, in a gap between two values the column holds, each of the three
-  is held at its one cell.
+  reads between the tails (G5.4's last rule), in the oracle too -- nor any
+  point G6.5a's fills, walk or push take, even in a gap between two values
+  the column holds (plan P4-D357 A, which withdrew P4-D353's exemption).
 
 Every table is built at test time from a fixed seed string; no
 data-format file enters the repository (plan D13).
@@ -497,10 +496,10 @@ def test_no_staircase_row_stands_on_a_stand_in(
     withheld, so each tail's staircase stands on the eleven grid points past
     its boundary -- `9990` to `10000` above, `-1009` to `-999` below, `-9999`
     to `-10009` below -- and one of them is a stand-in number. The row there
-    takes the next grid point outward, held at the end. On the third column
-    the twin still writes `-9999` through G6.5a's separation walk, which is
-    not held to the refusal (plan P4-D353 part 4), so the rows are asserted
-    and not the twin.
+    takes the next grid point outward, held at the end. On the third column,
+    which holds no `-9999`, the twin wrote one through G6.5a's separation
+    walk on 2af1f03, whose exemption plan P4-D357 A withdrew: no twin of the
+    three writes a stand-in its column does not hold at seeds 0, 4 and 9.
     """
     described = kpi_shapes.describe(tmp_path / name, name, _one_column(cells), 11)
     tail = described.document["columns"][0]["tails"][side]
@@ -517,6 +516,10 @@ def test_no_staircase_row_stands_on_a_stand_in(
     assert oracle_rows == rows, (
         f"{name}: the oracle, reading method G5.3b step 5, places the rows at {oracle_rows}"
     )
+    for seed in (0, 4, 9):
+        written = [line for line in kpi_shapes.twin_text(described, seed).split("\n")[1:] if line]
+        stand_ins = _held_stand_ins(written, cells)
+        assert stand_ins == [], f"{name} seed {seed}: the twin wrote {stand_ins}"
 
 
 # (name, cells, side): a tail that PUBLISHES its pair, so its staircase is the
@@ -625,9 +628,10 @@ def _run_beside(low: int, high: int, beside: "tuple[int, ...]") -> "list[str]":
 
 # (name, cells, the stand-in, the side whose tail it lands in): a column whose
 # own gap holds a stand-in number. G6.5a's walk to the published count of
-# different numbers is not held to the refusal (plan P4-D353 part 4) and takes
-# it. One case per number of `parsing.NUMERIC_SENTINELS`, and `-999` twice:
-# in a low tail, and in a high tail between the column's own -1000 and -998.
+# different numbers took it on 2af1f03, where the plan exempted that pass;
+# the exemption is withdrawn (plan P4-D357 A, review item 2). One case per
+# number of `parsing.NUMERIC_SENTINELS`, and `-999` twice: in a low tail, and
+# in a high tail between the column's own -1000 and -998.
 _WALK_STAND_IN_SHAPES = (
     ("run_9000_9998_beside_10000", _run_beside(9000, 9998, (10000, 10001)), "9999", "high"),
     ("run_m998_0_beside_m1001", _run_beside(-998, 0, (-1001, -1003)), "-999", "low"),
@@ -641,21 +645,21 @@ _WALK_STAND_IN_SHAPES = (
     _WALK_STAND_IN_SHAPES,
     ids=[case[0] for case in _WALK_STAND_IN_SHAPES],
 )
-def test_the_separation_walk_takes_a_stand_in_only_in_a_gap_of_the_column_s_own(
+def test_the_separation_walk_takes_no_stand_in_even_in_a_gap_of_the_column_s_own(
     tmp_path: pathlib.Path, name: str, cells: "list[str]", stand_in: str, side: str
 ) -> None:
-    """THE DISCLOSED LIMIT, HELD AT ITS COUNT: G6.5a writes a stand-in in ONE cell, in a gap of the column's own.
+    """G6.5a writes no stand-in, not even in a gap of the column's own, and misses nothing.
 
     PREMISE: the column holds no stand-in number, holds a value on each
     side of this one, and every number it holds is different, so a twin
     holding the published count of different numbers in as many rows
     writes each number once; the stand-in lies beyond that side's
-    published boundary. At seeds 0, 4 and 9 the twin writes that stand-in
-    in one cell and no other stand-in, and misses nothing. A landing that
-    stops the walk taking it makes the first assertion fail, which is how
-    the disclosure (plan P4-D353 part 4, method G5.3b step 5, the
-    changelog) is noticed to be out of date; one that writes it past the
-    column's own values, in more cells or with a miss fails too.
+    published boundary. On 2af1f03 the twin wrote that stand-in in one
+    cell at seeds 0, 4 and 9 and validation reported nothing: code that
+    reads the number as "no value" met a missing cell the source does not
+    have. Now the fill and the walk pass it over as a point another stratum
+    holds (method G6.5a, plan P4-D357 A) and the twin still meets every
+    obligation, its count of different numbers among them.
     """
     described = kpi_shapes.describe(tmp_path / name, name, _one_column(cells), 11)
     block = described.document["columns"][0]
@@ -673,9 +677,7 @@ def test_the_separation_walk_takes_a_stand_in_only_in_a_gap_of_the_column_s_own(
         text = kpi_shapes.twin_text(described, seed)
         written = [line for line in text.split("\n")[1:] if line]
         stand_ins = _held_stand_ins(written, cells)
-        assert stand_ins == [stand_in], (
-            f"{name} seed {seed}: the twin wrote {stand_ins} where the disclosed class is one {stand_in}"
-        )
+        assert stand_ins == [], f"{name} seed {seed}: the twin wrote {stand_ins}"
         outcome = kpi_shapes.measure(described, text, f"twin-{seed}.csv")
         assert kpi_shapes.missed(outcome) == [], f"{name} seed {seed}: {kpi_shapes.missed(outcome)}"
 
@@ -760,13 +762,12 @@ def test_no_stratum_read_between_the_tails_is_a_stand_in(
     for a stratum at seeds 0, 4 and 9, and before the rule every twin of
     skeptic Ad's column wrote it deep in its interior. The draw now holds
     no stand-in; the oracle, reading the method's sentences, builds the
-    column's content from seed 0's words cell for cell (on skeptic Ad's
-    column the one seed whose twin the rule keeps off `-999`, and the
-    oracle's own exact arithmetic takes seconds a seed); and the twin
-    writes `-999` in at most one cell -- G6.5a's walk to the published count
-    of different numbers, which is not held to the rule (plan P4-D353 part
-    4), takes the one free point between two of the column's own values --
-    and misses nothing.
+    column's content from seed 0's words cell for cell (the oracle's own
+    exact arithmetic takes seconds a seed); and the twin writes `-999` in
+    no cell -- on 2af1f03 G6.5a's walk to the published count of different
+    numbers, then exempt, took the one free point between two of the
+    column's own values at seeds 4 and 9; the exemption is withdrawn (plan
+    P4-D357 A) -- and misses nothing.
     """
     from synthtwin import generation
 
@@ -824,9 +825,7 @@ def test_no_stratum_read_between_the_tails_is_a_stand_in(
             )
         written = [line for line in text.split("\n")[1:] if line]
         stand_ins = _held_stand_ins(written, cells)
-        assert len(stand_ins) <= 1 and [one for one in stand_ins if float(one) != -999.0] == [], (
-            f"seed {seed}: the twin wrote {stand_ins}"
-        )
+        assert stand_ins == [], f"seed {seed}: the twin wrote {stand_ins}"
         outcome = kpi_shapes.measure(described, text, f"twin-{seed}.csv")
         assert kpi_shapes.missed(outcome) == [], f"seed {seed}: {kpi_shapes.missed(outcome)}"
 

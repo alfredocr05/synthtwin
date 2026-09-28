@@ -9,6 +9,14 @@
    role by asking, of each block a cost-rule call returns, that it IS
    the block published and that the call asked the loader's own reading
    of it.
+2. NO TWIN CELL ON A STAND-IN NUMBER THE COLUMN DOES NOT HOLD, anywhere in
+   value construction: G6.5a's fills, walk and push were exempt, and on 9000
+   to 9998 beside 10000 and 10001 every twin wrote `9999` once.
+3. A STAND-IN MOVED ON A GRID FINER THAN BINARY64 LEAVES IT: one step of
+   fourteen places beside `-999` read back as `-999`, in the product and in
+   the oracle alike.
+4. ONE SIDE WITHHELD FOR ANY REASON CLOSES THE OTHER'S PAIR, binary64's
+   among them.
 
 Every table is built at test time from a fixed seed string or a closed
 formula; no data-format file enters the repository (plan D13).
@@ -18,6 +26,7 @@ from __future__ import annotations
 
 import copy
 import dataclasses
+import math
 import pathlib
 import random
 
@@ -25,7 +34,7 @@ import pytest
 
 import cost_rule_window as window
 import kpi_shapes
-from synthtwin import contract, taxonomy, validation
+from synthtwin import contract, parsing, taxonomy, validation
 
 
 def _one_column(cells: "list[str]") -> str:
@@ -240,3 +249,253 @@ def test_a_side_binary64_cannot_hold_closes_the_other_side_s_pair(
         f"the {other} side published its pair beside a side binary64 cannot hold"
     )
     assert taxonomy.tail_withheld_because(remarks, other) == taxonomy.TAIL_WITHHELD_FOR_THE_OTHER
+
+
+# -- 2 and 3. no twin cell on a stand-in number the column does not hold -------
+
+_STAND_INS = tuple(parsing.NUMERIC_SENTINELS)
+
+
+def _oracle() -> object:
+    """The reference oracle (`tools/reference`), as the reference test already loads it."""
+    import test_generation_reference as reference
+
+    return reference.gen
+
+
+def _held_stand_ins(written: "list[str]", cells: "list[str]") -> "list[str]":
+    """The twin cells that read as a stand-in number the source column never holds."""
+    held = {float(cell) for cell in cells if cell}
+    return [cell for cell in written if float(cell) in _STAND_INS and float(cell) not in held]
+
+
+def _read_at(value: float, figures: int) -> float:
+    """What a value written at ``figures`` places reads back as."""
+    return float(f"{value:.{figures}f}")
+
+
+# The grid widths finer than binary64 beside every stand-in: at 14 figures a
+# grid step is under half the binary64 gap beside `-999`, `9999` and `-9999`
+# alike, and at 16 it is under a tenth of it.
+_FINE_GRIDS = (14, 16)
+
+
+@pytest.mark.parametrize("figures", _FINE_GRIDS)
+@pytest.mark.parametrize("stand_in", _STAND_INS)
+def test_a_drawn_stand_in_on_a_fine_grid_moves_to_a_number_the_format_tells_apart(
+    stand_in: float, figures: int
+) -> None:
+    """G5.4's last rule moves a stand-in to a different binary64, in the generator and the oracle alike.
+
+    On 2af1f03 the step of one grid unit toward nought read back as the
+    stand-in itself, so the rule answered the value unchanged and the
+    oracle, reading the same sentence, agreed: agreement masked the defect
+    (review item 3). Both now answer a number that is not the stand-in and
+    whose written text at the grid's width does not read back as one.
+    """
+    from synthtwin import generation
+
+    lowest, highest = (stand_in - 50.0, stand_in + 50.0)
+    rungs = (lowest,) + (stand_in,) * 99 + (highest,)
+    ours = generation._drawn_off_the_stand_ins(stand_in, rungs, 1, 2, figures)
+    theirs = _oracle().drawn_off_the_stand_ins(stand_in, lowest, highest, figures)
+    assert ours != stand_in and _read_at(ours, figures) not in _STAND_INS, (
+        f"{stand_in} at {figures} places stayed on a stand-in: {ours!r}"
+    )
+    assert abs(ours) < abs(stand_in), f"{stand_in} moved away from nought: {ours!r}"
+    assert ours == theirs, f"the generator moves {stand_in} to {ours!r}, the oracle to {theirs!r}"
+
+
+@pytest.mark.parametrize("figures", _FINE_GRIDS)
+@pytest.mark.parametrize("stand_in", _STAND_INS)
+@pytest.mark.parametrize("low", (True, False))
+def test_a_derived_end_or_staircase_row_on_a_fine_grid_leaves_the_stand_in(
+    stand_in: float, figures: int, low: bool
+) -> None:
+    """G5.3b step 5's end and its staircase row, on a fine grid, in the generator and the oracle alike.
+
+    The end moves toward its boundary and the row outward, each by a number
+    binary64 can tell from the stand-in; the review measured
+    `contract._off_the_stand_ins(-999, True, -998, 14)` answering `-999`.
+    """
+    boundary = stand_in + 1.0 if low else stand_in - 1.0
+    end = contract._off_the_stand_ins(stand_in, low, boundary, figures)
+    their_end = _oracle().off_the_stand_ins(stand_in, low, boundary, figures)
+    assert end != stand_in and _read_at(end, figures) not in _STAND_INS, f"the end stayed on {end!r}"
+    assert (stand_in < end <= boundary) if low else (boundary <= end < stand_in)
+    assert end == their_end, f"the generator's end {end!r}, the oracle's {their_end!r}"
+    far = stand_in - 5.0 if low else stand_in + 5.0
+    side = contract.TailReader(
+        low=low, percent=1, boundary=boundary, rows=11, numbers=1000, flat=False,
+        power=1, blend=0.0, reach=0.0, end=far, listed=(), counts=(),
+    )
+    row = contract._row_off_the_stand_ins(stand_in, side, figures)
+    their_row = _oracle().row_off_the_stand_ins(stand_in, far, low, figures)
+    assert row != stand_in and _read_at(row, figures) not in _STAND_INS, f"the row stayed on {row!r}"
+    assert (far <= row < stand_in) if low else (stand_in < row <= far)
+    assert row == their_row, f"the generator's row {row!r}, the oracle's {their_row!r}"
+
+
+def _fine_around(stand_in: float) -> "list[str]":
+    """200 values a few binary64 steps either side of a stand-in, at fourteen places, none of them it (review item 3)."""
+    return [f"{stand_in + place * math.ulp(stand_in):.14f}" for place in range(-100, 101) if place]
+
+
+@pytest.mark.parametrize("stand_in", _STAND_INS)
+def test_no_twin_of_a_fine_grid_around_a_stand_in_writes_it(tmp_path: pathlib.Path, stand_in: float) -> None:
+    """The whole twin, at seeds 0, 4 and 9: no cell reads as the stand-in the column does not hold.
+
+    On 2af1f03 every twin wrote the stand-in once at fourteen places, and
+    validation reported no miss. THE COST, named: the column's own values
+    are every binary64 number of the range but the stand-in, so the only
+    number left for the stratum the draw put there lies outside the range,
+    and the twin holds one different number fewer than the 200 published
+    (`distinct.n_distinct_values`), and misses nothing else.
+    """
+    cells = _fine_around(stand_in)
+    assert [cell for cell in cells if float(cell) in _STAND_INS] == [], "premise: the column holds no stand-in"
+    described = kpi_shapes.describe(tmp_path, "fine", _one_column(cells), 11)
+    for seed in (0, 4, 9):
+        text = kpi_shapes.twin_text(described, seed)
+        written = [line for line in text.split("\n")[1:] if line]
+        assert _held_stand_ins(written, cells) == [], f"seed {seed}: {_held_stand_ins(written, cells)}"
+        missed = kpi_shapes.missed(kpi_shapes.measure(described, text, f"twin-{seed}.csv"))
+        assert [one for one in missed if not one.endswith(":distinct.n_distinct_values")] == [], (
+            f"seed {seed}: {missed}"
+        )
+
+
+def _normal_whole(centre: float, spread: float, rows: int, name: str) -> "list[str]":
+    draw = random.Random(f"p4d357/{name}")
+    cells = [str(round(draw.gauss(centre, spread))) for _row in range(rows)]
+    return [cell for cell in cells if float(cell) not in _STAND_INS]
+
+
+def _normal_tenths(centre: float, spread: float, rows: int, name: str) -> "list[str]":
+    draw = random.Random(f"p4d357/{name}")
+    cells = [f"{draw.gauss(centre, spread):.1f}" for _row in range(rows)]
+    return [cell for cell in cells if float(cell) not in _STAND_INS]
+
+
+# (name, cells): ordinary columns whose values run across a stand-in number
+# without holding it -- the review's run of 9000 to 9998 beside 10000 and
+# 10001, a gap at -999 inside whole numbers and inside tenths, and seeded
+# normal readings around each stand-in, whole and in tenths. On 2af1f03 these
+# wrote 1 to 3 stand-in cells a twin, every one through G6.5a.
+_ACROSS_A_STAND_IN = (
+    ("run_9000_9998_beside_10000", [str(value) for value in range(9000, 9999)] + ["10000", "10001"]),
+    ("gap_at_minus_999", [str(value) for value in range(-1400, -999)] + [str(value) for value in range(-998, -500)]),
+    ("tenths_gap_at_minus_999", [f"{tenths / 10:.1f}" for tenths in range(-10100, -9900) if tenths != -9990]),
+    ("normal_whole_9999", _normal_whole(9999.0, 30.0, 600, "w9999")),
+    ("normal_whole_minus_999", _normal_whole(-999.0, 30.0, 600, "wm999")),
+    ("normal_whole_minus_9999", _normal_whole(-9999.0, 30.0, 600, "wm9999")),
+    ("normal_tenths_minus_999", _normal_tenths(-999.0, 4.0, 600, "tm999")),
+    ("normal_tenths_9999", _normal_tenths(9999.0, 4.0, 600, "t9999")),
+)
+
+
+@pytest.mark.parametrize("name,cells", _ACROSS_A_STAND_IN, ids=[case[0] for case in _ACROSS_A_STAND_IN])
+def test_no_value_pass_puts_a_twin_cell_on_a_stand_in_the_column_does_not_hold(
+    tmp_path: pathlib.Path, name: str, cells: "list[str]"
+) -> None:
+    """Every construction of G5 and G6 -- draw, end, rows, fills, walks, pushes -- refuses the three.
+
+    PREMISE: the column holds no stand-in number and runs across one. At
+    seeds 0, 4 and 9 the twin writes none and misses nothing: G6.5a's fill,
+    walk and push pass a stand-in over as a point another stratum holds,
+    which is the exemption plan P4-D353 part 4 made and P4-D357 A withdrew.
+    """
+    held = [float(cell) for cell in cells]
+    assert [one for one in held if one in _STAND_INS] == [], "premise: no stand-in held"
+    assert [one for one in _STAND_INS if min(held) < one < max(held)], "premise: the column runs across one"
+    described = kpi_shapes.describe(tmp_path, name, _one_column(cells), 11)
+    for seed in (0, 4, 9):
+        text = kpi_shapes.twin_text(described, seed)
+        written = [line for line in text.split("\n")[1:] if line]
+        assert _held_stand_ins(written, cells) == [], f"seed {seed}: {_held_stand_ins(written, cells)}"
+        missed = kpi_shapes.missed(kpi_shapes.measure(described, text, f"twin-{seed}.csv"))
+        assert missed == [], f"seed {seed}: {missed}"
+
+
+# THE PASSES NO SEEDED COLUMN ABOVE REACHES, each asked where its own next
+# candidate is a stand-in: the generator's answer is not one, and where the
+# oracle states the same step it gives the same answer. Each case below was
+# the stand-in itself on e07020e.
+
+
+def test_the_carrier_walk_takes_no_stand_in() -> None:
+    """G6.4's walk to a whole number: `-999.3` rounds to `-999`, which is refused for `-998`."""
+    from synthtwin import generation
+
+    ours = generation._whole_inside(-999.3, "negative", (-1000.0, -998.0), (-2000.0, 0.0), 10, {})
+    theirs = _oracle().whole_inside(-999.3, "negative", (-1000.0, -998.0), (-2000.0, 0.0), 10, {})
+    assert ours not in _STAND_INS and ours == theirs == -998.0, (ours, theirs)
+
+
+def test_the_separation_walk_passes_a_stand_in_over() -> None:
+    """G6.5a's walk from `9998` with `9997` written: `9999` is refused and `9996` taken, in both."""
+    from synthtwin import generation
+
+    written = {generation._grid_text(9997.0, 0): 1, generation._grid_text(9998.0, 0): 2}
+    ours = generation._apart_inside(9998.0, 0, "positive", (9990.0, 10010.0), (0.0, 20000.0), written)
+    theirs = _oracle().apart_inside(9998.0, 0, "positive", (9990.0, 10010.0), (0.0, 20000.0), written)
+    assert ours not in _STAND_INS and ours == theirs == 9996.0, (ours, theirs)
+
+
+def test_the_sign_step_passes_a_stand_in_over() -> None:
+    """G5.5's grid step of sign with every tenth down to `-998.9` held: `-999.0` is passed for `-999.1`."""
+    from synthtwin import generation
+
+    held = {-(tenths / 10): 1 for tenths in range(1, 9990)}
+    ladder = (-2000.0,) + (0.0,) * 99 + (5.0,)
+    ours = generation._grid_step_of_sign("negative", ladder, 1, held, 10000)
+    theirs = _oracle().grid_step_of_sign("negative", ladder, 1, held, 10000)
+    assert ours not in _STAND_INS and ours == theirs == -999.1, (ours, theirs)
+
+
+def test_the_representable_grid_steps_off_a_stand_in() -> None:
+    """G6.5a's last resort: a middle stratum on `9999` takes the next binary64 above it, in both."""
+    import types
+
+    from synthtwin import generation
+
+    values = [9998.0, 9999.0, 10000.0]
+    ours = generation._apart_on_the_representable_grid(types.SimpleNamespace(bands=["positive"] * 3), values)
+    theirs = _oracle().representable_grid(3, ["positive"] * 3, values)
+    assert [one for one in ours if one in _STAND_INS] == [] and ours == theirs, (ours, theirs)
+
+
+def test_the_marks_run_passes_a_stand_in_over() -> None:
+    """The grouping run's free points (plan P4-D185): `9999` is passed over, and `999` where the column is turned about nought."""
+    from synthtwin import generation
+
+    assert generation._free_grid_points(9998, 1, 2, 0, {}) == [9998, 10000]
+    assert generation._free_grid_points(998, 1, 2, 0, {}, -1.0) == [998, 1000]
+    assert generation._free_grid_points(998, 1, 2, 0, {}) == [998, 999], "a positive 999 is no stand-in"
+
+
+def test_the_clearing_walk_takes_no_stand_in() -> None:
+    """G6.7 moving `-900` out of a stretch whose lower edge is `-999`: the edge itself is refused."""
+    from synthtwin import generation
+
+    found = generation._cleared_value(
+        (-2000.0, 0.0), {}, (0, 0), (-999.0, -500.0), ((-999.0, -500.0),), -900.0,
+        "negative", True, {}, {-900.0: 1}, True, (-1,),
+    )
+    assert found is not None and found not in _STAND_INS, found
+
+
+def test_the_twice_written_fill_counts_no_stand_in_among_its_points() -> None:
+    """Plan P4-D193's fill of tenths from 9998.0 to 10000.0: twenty points once `9999.0` is refused, not 21."""
+    import types
+
+    from synthtwin import generation
+
+    points = [9998.0 + tenths / 10 for tenths in range(21)]
+    facts = types.SimpleNamespace(
+        n_distinct_values=21, empty_edges=(), integer_valued=False, numeric_styles={"decimal": 21}
+    )
+    layout = types.SimpleNamespace(bands=["positive"] * 21, sizes=[1] * 21)
+    rungs = (9998.0,) + (9999.0,) * 99 + (10000.0,)
+    filled = generation._twice_filled(facts, layout, rungs, points, 1)  # type: ignore[arg-type]
+    assert filled is None or [one for one in filled if one in _STAND_INS] == [], filled

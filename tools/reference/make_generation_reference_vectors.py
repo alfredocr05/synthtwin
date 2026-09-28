@@ -1645,9 +1645,28 @@ def row_off_the_stand_ins(value, end, low, figures):
     """
     if value == end or fractions.Fraction(value) not in NUMERIC_SENTINELS:
         return value
-    moved = withheld_step(value, 1, low, figures)
+    moved = step_apart(value, low, figures)
     past = (moved < end) if low else (moved > end)
     return end if past else moved
+
+
+def step_apart(value, low, figures):
+    """One grid step from ``value`` that binary64 can tell from it (plan P4-D357 A).
+
+    Written from the method's words: on a grid finer than binary64 near
+    the value, where the grid step reads back as the value itself, the
+    step is the next number binary64 holds that way instead -- the step
+    `withheld_step` takes where no width is named.
+    """
+    moved = withheld_step(value, 1, low, figures)
+    if moved == value:
+        return withheld_step(value, 1, low, -1)
+    return moved
+
+
+def is_stand_in(value):
+    """Whether a number is one of the three the profiler reads as absent (exact)."""
+    return math.isfinite(value) and fractions.Fraction(value) in NUMERIC_SENTINELS
 
 
 def derived_end(column, side, boundary, shape, low, published):
@@ -1728,7 +1747,7 @@ def off_the_stand_ins(value, low, boundary, figures):
     """
     if value == boundary or fractions.Fraction(value) not in NUMERIC_SENTINELS:
         return value
-    inside = withheld_step(value, 1, not low, figures)
+    inside = step_apart(value, not low, figures)
     return value if (inside > boundary if low else inside < boundary) else inside
 
 
@@ -1757,6 +1776,13 @@ def drawn_off_the_stand_ins(value, lowest, highest, figures):
         elif figures > 0:
             unit = fractions.Fraction(1, 10 ** figures)
             moved = float(sign * (size - unit if toward_nought else size + unit))
+            if moved == value:
+                # A grid finer than binary64 near the stand-in (plan
+                # P4-D357 A): the next number binary64 holds that way.
+                step = next_representable(float(size), downward=toward_nought)
+                if step is None:
+                    continue
+                moved = sign * step
         else:
             step = next_representable(float(size), downward=toward_nought)
             if step is None:
@@ -3017,7 +3043,7 @@ def grid_step_of_sign(band, ladder, figures, held, total):
             break
         if first is None:
             first = candidate
-        if candidate not in held:
+        if candidate not in held and not is_stand_in(candidate):
             return candidate
     if first is not None:
         return first
@@ -3996,6 +4022,8 @@ def whole_inside(value, band, share, ends, reach, taken):
         for candidate in ([want] if step == 0 else [want + step, want - step]):
             if any(candidate == other for other in taken):
                 continue
+            if is_stand_in(candidate):
+                continue
             if point_free_spelling(candidate, False) is None:
                 continue
             if band == "negative" and not candidate < 0:
@@ -4340,6 +4368,8 @@ def grouped_enough(column, values, sizes, bands, integer_valued, numeric, floor)
             point += stride
             if spelt in held or grid_text(float(spelt), figures) != spelt:
                 continue
+            if is_stand_in(float(spelt)):
+                continue
             found.append(float(spelt))
         return found if len(found) == count else None
 
@@ -4643,6 +4673,9 @@ def apart_inside(value, figures, band, share, ends, written, reach=64, whole=Non
                 continue
             if spelt in written:
                 continue
+            # Never a stand-in number (plan P4-D357 A).
+            if is_stand_in(candidate):
+                continue
             # THE STRATUM'S OWN KIND, where the column writes some cells
             # with no point (amendment A-P4-55): a whole value moves only
             # onto a whole number and a fractional one only off them.
@@ -4765,7 +4798,17 @@ def representable_grid(total, bands, values):
             if above is None:
                 return None
             taken = max(taken, above)
-        grid.append(min(taken, ceilings[place]))
+        taken = min(taken, ceilings[place])
+        # NOR A STAND-IN NUMBER (plan P4-D357 A): between the two ends, the
+        # number above it where the order allows, else the one below it.
+        if is_stand_in(taken) and 0 < place < total - 1:
+            up = next_representable(taken)
+            down = next_representable(taken, True)
+            if up is not None and up <= ceilings[place]:
+                taken = up
+            elif down is not None and down > grid[place - 1] and down >= floors[place]:
+                taken = down
+        grid.append(taken)
     if not all(_band_holds(bands[place], grid[place]) for place in range(total)):
         return None
     return grid
@@ -4783,24 +4826,30 @@ def saturated_grid(wanted, figures, total, bands, ladder):
     """
     if ladder is None or wanted is None or total != wanted or total < 2:
         return None
+    # THE GRID'S POINTS LESS THE THREE STAND-IN NUMBERS (plan P4-D357 A),
+    # counted from one end to the other.
     if figures == 0:
         if not (float(ladder[0]).is_integer() and float(ladder[-1]).is_integer()):
             return None
-        if ladder[-1] - ladder[0] + 1 != wanted:
-            return None
-        filled = [float(ladder[0] + place) for place in range(total)]
+        low = fractions.Fraction(int(ladder[0]))
+        high = fractions.Fraction(int(ladder[-1]))
+        unit = fractions.Fraction(1)
     else:
         if not (_on_grid(ladder[0], figures) and _on_grid(ladder[-1], figures)):
             return None
         unit = fractions.Fraction(1, 10 ** figures)
         low = _exact_decimal(ladder[0])
         high = _exact_decimal(ladder[-1])
-        if (high - low) / unit + 1 != wanted:
-            return None
-        filled = [
-            float(_fraction_text(low + place * unit, figures))
-            for place in range(total)
-        ]
+    filled = []
+    point = low
+    while point <= high and len(filled) <= wanted:
+        number = float(point) if figures == 0 else float(_fraction_text(point, figures))
+        point = point + unit
+        if is_stand_in(number):
+            continue
+        filled.append(number)
+    if len(filled) != wanted:
+        return None
     if all(_band_holds(bands[place], filled[place]) for place in range(total)):
         return filled
     return None
@@ -4924,7 +4973,7 @@ def twice_written(column, values, sizes, bands, ladder, integer_valued, numeric,
             number = float(_fraction_text(point, figures))
             if not any(
                 pair[0] < number < pair[1] for pair in column.get("empty_edges", [])
-            ):
+            ) and not is_stand_in(number):
                 exact_points.append(point)
             point = point + unit
         if len(exact_points) == wanted:
@@ -5069,6 +5118,8 @@ def saturated_bands(
             if not _on_grid(number, figures):
                 whole = False
                 break
+            if is_stand_in(number):
+                continue
             points.append(number)
         if not whole or len(points) != len(places):
             continue
@@ -5282,6 +5333,9 @@ def pushed_apart(
                     point = min(c for c in candidates if reads(c) >= far)
                 else:
                     point = max(c for c in candidates if reads(c) <= far)
+                continue
+            if is_stand_in(number):
+                point = point + step * unit
                 continue
             if whole is None or (point.denominator == 1) == whole:
                 return point

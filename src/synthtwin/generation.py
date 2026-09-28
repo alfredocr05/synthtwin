@@ -10107,7 +10107,9 @@ def _grouped_enough(
         elif band == _BAND_POSITIVE:
             band = _BAND_NEGATIVE
         bands += [band]
-    turned = _grouped_run(mirrored, sizes, bands, figures, owed, reached, floor)
+    turned = _grouped_run(
+        mirrored, sizes, bands, figures, owed, reached, floor, -1.0
+    )
     if turned is None:
         return values
     return [-turned[total - 1 - place] for place in range(total)]
@@ -10121,8 +10123,13 @@ def _grouped_run(
     owed: int,
     reached: int,
     floor: int,
+    sign: float = 1.0,
 ) -> "list[float] | None":
     """One side of `_grouped_enough`: the run just below or from a thousand.
+
+    ``sign`` is -1 where ``values`` are the column's own turned about
+    nought, so a point is asked whether it is a stand-in number with the
+    column's own sign.
 
     Guarantees: returns the moved values, or None where no run moves.
     Determinism: a fixed function. Raises nothing. No I/O.
@@ -10157,7 +10164,7 @@ def _grouped_run(
         if not run:
             return None
         ceiling = values[run[-1] + 1] if run[-1] + 1 < total else None
-        points = _free_grid_points(boundary, 1, len(run), figures, held)
+        points = _free_grid_points(boundary, 1, len(run), figures, held, sign)
         if not points:
             return None
         if ceiling is not None and float(_grid_at(points[-1], figures)) >= ceiling:
@@ -10180,7 +10187,9 @@ def _grouped_run(
             place = place + 1
         if not run:
             return None
-        below = _free_grid_points(boundary - 1, -1, len(run), figures, held)
+        below = _free_grid_points(
+            boundary - 1, -1, len(run), figures, held, sign
+        )
         if not below:
             return None
         points = [below[len(below) - 1 - step] for step in range(len(below))]
@@ -10196,13 +10205,20 @@ def _grouped_run(
 
 
 def _free_grid_points(
-    start: int, stride: int, count: int, figures: int, held: "dict[str, int]"
+    start: int,
+    stride: int,
+    count: int,
+    figures: int,
+    held: "dict[str, int]",
+    sign: float = 1.0,
 ) -> "list[int]":
     """``count`` grid units from ``start`` by ``stride`` whose text is free.
 
     A unit whose text does not survive being read back and written again
-    is passed over, as G6.5a's walk passes it over; the walk looks at
-    most sixty-four units past what it needs, and answers what it found.
+    is passed over, as G6.5a's walk passes it over, and so is one that is
+    a stand-in number once ``sign`` gives it the column's own sign (plan
+    P4-D357 A); the walk looks at most sixty-four units past what it
+    needs, and answers what it found.
     """
     found: list[int] = []
     unit = start
@@ -10214,6 +10230,8 @@ def _free_grid_points(
         if spelt in held:
             continue
         if _grid_text(float(spelt), figures) != spelt:
+            continue
+        if _is_a_stand_in(sign * float(spelt)):
             continue
         found += [unit - stride]
     if len(found) < count:
@@ -10463,6 +10481,16 @@ def _stand_in_neighbour(
     the writer's grid text for it reads back as -- and to the next
     number binary64 holds otherwise; the sign is kept, which a magnitude
     of 998 or more always allows. None where no such number exists.
+
+    AND A GRID FINER THAN BINARY64 THERE STEPS BY BINARY64 (plan P4-D357
+    A, review item 3). One step of fourteen figures after the point is
+    smaller than half the gap between `999` and the next number the
+    format holds, so the step's grid text read back IS the stand-in: on
+    200 values a few binary64 steps either side of `-999`, none of them
+    `-999`, every twin wrote `-999.00000000000000` once. Where the step
+    reads back as the value itself, the answer is the next number
+    binary64 holds that way, whose grid text at that width reads back as
+    itself because the width is finer than its gap.
     """
     size = -value if value < 0.0 else value
     if figures == 0:
@@ -10475,6 +10503,10 @@ def _stand_in_neighbour(
         if read is None or not math.isfinite(read):
             return None
         moved = read
+        if moved == size:
+            moved = _next_representable(size, toward_nought)
+            if moved <= 0.0:
+                return None
     else:
         moved = _next_representable(size, toward_nought)
         if moved <= 0.0:
@@ -10593,7 +10625,7 @@ def _grid_step_of_sign(
             break
         if step == 1:
             first = candidate
-        if candidate not in held:
+        if candidate not in held and not _is_a_stand_in(candidate):
             return candidate
     if first != 0.0:
         return first
@@ -10666,6 +10698,9 @@ def _whole_inside(
     while step <= reach:
         for candidate in ([want] if step == 0 else [want + step, want - step]):
             if candidate in taken or not _carries_plainly(candidate, False):
+                continue
+            # Never a stand-in number (plan P4-D357 A).
+            if _is_a_stand_in(candidate):
                 continue
             if band == _BAND_NEGATIVE and candidate >= 0.0:
                 continue
@@ -11184,6 +11219,12 @@ def _apart_inside(
                 continue
             if spelt in written:
                 continue
+            # NOR A STAND-IN NUMBER (plan P4-D357 A, review item 2): the
+            # walk is a construction like the draw, and a point it takes
+            # is a cell the twin writes -- `9999` between the column's own
+            # 9998 and 10000 was one the column never held.
+            if _is_a_stand_in(candidate):
+                continue
             # THE CANDIDATE KEEPS THE STRATUM'S OWN KIND where the
             # caller asks for it (amendment A-P4-55): on a column that
             # writes some cells with no point, a whole stratum may move
@@ -11397,7 +11438,8 @@ def _twice_filled(
         for edges in facts.empty_edges:
             if edges[0] < point < edges[1]:
                 inside = True
-        if inside:
+        # ...and no stand-in number (plan P4-D357 A).
+        if inside or _is_a_stand_in(point):
             continue
         points += [point]
         units += [unit]
@@ -11775,6 +11817,11 @@ def _band_step(
             unit = beyond
             continue
         on_whole = unit % every == 0
+        if _is_a_stand_in(point):
+            # Never onto a stand-in number (plan P4-D357 A): passed over
+            # as a point another stratum holds is.
+            unit = unit + step
+            continue
         if whole is None or on_whole == whole:
             return unit
         if whole:
@@ -12083,22 +12130,35 @@ def _saturated_integers(
     if figures == 0:
         if low != _whole_valued(low) or high != _whole_valued(high):
             return None
-        if high - low + 1.0 != float(wanted):
-            return None
-    first = -1
-    if figures > 0:
+        bottom = int(low)
+        top = int(high)
+    else:
         if _on_the_grid(low, figures) != low or _on_the_grid(high, figures) != high:
             return None
-        bottom = _grid_units(_grid_text(low, figures), figures)
-        top = _grid_units(_grid_text(high, figures), figures)
-        if bottom is None or top is None or top - bottom + 1 != wanted:
+        lowest = _grid_units(_grid_text(low, figures), figures)
+        highest = _grid_units(_grid_text(high, figures), figures)
+        if lowest is None or highest is None:
             return None
-        first = bottom
+        bottom = lowest
+        top = highest
+    # THE POINTS ARE THE GRID'S LESS THE STAND-IN NUMBERS (plan P4-D357
+    # A, review item 2): a fill is a construction, and the one number of
+    # 9000 to 10001 the column never held was `9999`. The count is asked
+    # of what is left, so a range holding one has one point too few and
+    # the rule stands aside for the walk, which refuses it too.
+    points: "list[float]" = []
+    for unit in range(bottom, top + 1):
+        point = float(unit) if figures == 0 else float(_grid_at(unit, figures))
+        if _is_a_stand_in(point):
+            continue
+        points += [point]
+        if len(points) > wanted:
+            return None
+    if len(points) != wanted:
+        return None
     given: "list[float]" = []
     for place in range(total):
-        value = low + float(place)
-        if figures > 0:
-            value = float(_grid_at(first + place, figures))
+        value = points[place]
         band = layout.bands[place]
         if band == _BAND_ZERO and value != 0.0:
             return None
@@ -12151,7 +12211,7 @@ def _band_points(
                     upper = upper + 1
                 if upper > beyond:
                     beyond = upper
-        if not inside:
+        if not inside and not _is_a_stand_in(point):
             if len(points) >= wanted:
                 return None
             points += [point]
@@ -12492,6 +12552,15 @@ def _apart_on_the_representable_grid(
             want = highest[place]
         if want < lowest[place]:
             want = lowest[place]
+        # NOR A STAND-IN NUMBER (plan P4-D357 A): the next point up where
+        # the order still allows it, else the one below it.
+        if _is_a_stand_in(want) and place > 0 and place < total - 1:
+            up = _next_representable(want)
+            down = _next_representable(want, True)
+            if up <= highest[place]:
+                want = up
+            elif down > made[place - 1] and down >= lowest[place]:
+                want = down
         made += [want]
     return made
 
@@ -14737,6 +14806,9 @@ def _cleared_value(
             # EXACT-OBSERVABLE and this fact is REPORT-ONLY, so where
             # they meet this one gives way.
             if found < lowest or found > highest:
+                continue
+            # Never a stand-in number (plan P4-D357 A).
+            if _is_a_stand_in(found):
                 continue
             if not _reads_outside(
                 found, ends, barred, widths, whole_column, tail_rule
