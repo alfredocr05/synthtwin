@@ -204,9 +204,9 @@ def test_one_withheld_side_is_published_with_the_other_sides_pair(
     seen: "dict[str, tuple[float, float, str]]" = {}
     real = taxonomy._pairs_that_cost
 
-    def recording(counts, shaped, held):  # type: ignore[no-untyped-def]
+    def recording(counts, shaped, held, *present):  # type: ignore[no-untyped-def]
         seen.update(held)
-        return real(counts, shaped, held)
+        return real(counts, shaped, held, *present)
 
     opened = _opened(tmp_path / "open", "one", cells, 36, monkeypatch)
     monkeypatch.setattr(taxonomy, "_pairs_that_cost", recording)
@@ -238,9 +238,9 @@ def test_the_low_side_is_offered_first_where_both_say_the_same(
     seen: "dict[str, tuple[float, float, str]]" = {}
     real = taxonomy._pairs_that_cost
 
-    def recording(counts, shaped, held):  # type: ignore[no-untyped-def]
+    def recording(counts, shaped, held, *present):  # type: ignore[no-untyped-def]
         seen.update(held)
-        return real(counts, shaped, held)
+        return real(counts, shaped, held, *present)
 
     opened = _opened(tmp_path / "open", "tie", cells, 36, monkeypatch)
     monkeypatch.setattr(taxonomy, "_pairs_that_cost", recording)
@@ -916,10 +916,10 @@ def withheld_sides(
     real_cost = taxonomy._pairs_that_cost
     real_distances = taxonomy._tail_distances
 
-    def recording(counts, shaped, held):  # type: ignore[no-untyped-def]
+    def recording(counts, shaped, held, *present):  # type: ignore[no-untyped-def]
         for side in held:
             verdicts[side] = held[side][2]
-        return real_cost(counts, shaped, held)
+        return real_cost(counts, shaped, held, *present)
 
     def distances(ordered, first, last, boundary, side):  # type: ignore[no-untyped-def]
         nonlocal unholdable

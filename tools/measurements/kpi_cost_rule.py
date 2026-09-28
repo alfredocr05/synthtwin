@@ -59,10 +59,10 @@ def _described(home, name, cells, floor):
     real = taxonomy._pairs_that_cost
     calls = []
 
-    def recording(cells_of, shaped, held):
+    def recording(cells_of, shaped, held, *present):
         nonlocal calls
-        chosen = real(cells_of, shaped, held)
-        calls += [(cells_of, dict(held), chosen)]
+        chosen = real(cells_of, shaped, held, *present)
+        calls += [(cells_of, dict(held), chosen, present)]
         return chosen
 
     taxonomy._pairs_that_cost = recording
@@ -77,7 +77,7 @@ def _ruled(calls):
     """The sides the RULE published, each with the back-solve's verdict, from its last call."""
     if not calls:
         return {}
-    _cells, held, chosen = calls[-1]
+    _cells, held, chosen, _present = calls[-1]
     return {
         side: held[side][2]
         for side in held
@@ -275,8 +275,8 @@ def residual(home):
         value["shapes"] += 1
         kept = None
         if calls:
-            cells_of, _held, chosen = calls[-1]
-            kept = 2 - taxonomy._moments_missed(cells_of, chosen)
+            cells_of, _held, chosen, present = calls[-1]
+            kept = 2 - taxonomy._moments_missed(cells_of, chosen, *present)
             if kept == 0:
                 value["blocks_no_candidate_keeps_either"] += 1
             elif kept == 1:

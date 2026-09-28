@@ -13197,9 +13197,13 @@ def _numeric_tails(
 
 
 def _numeric_tails_and_causes(
-    cells: _Cells, details: "dict[str, object]"
+    cells: _Cells, details: "dict[str, object]", n_present: "int | None" = None
 ) -> "tuple[dict[str, object], dict[str, str]]":
     """A numeric block under the tail rule (contract L4, method G5.3b), and why each withheld side is.
+
+    ``n_present`` is the count of present cells the loader reads the
+    block's population keys over, where that is not ``cells``' own
+    (`_Population`); the cost rule hands it to the loader's reading.
 
     THE REASONS (plan P4-D353), one per side that publishes neither
     distance and no values: `TAIL_PINNED` or `TAIL_UNSETTLED` where its own
@@ -13409,7 +13413,7 @@ def _numeric_tails_and_causes(
     shaped["bin_groups"] = groups
     shaped["tails"] = sides
     if withheld_pairs:
-        shaped = _pairs_that_cost(cells, shaped, withheld_pairs)
+        shaped = _pairs_that_cost(cells, shaped, withheld_pairs, n_present)
     # WHY EACH SIDE LEFT WITHOUT A PAIR IS WITHOUT ONE, read off the block
     # that is published: a side the cost rule gave its pair back has none.
     causes: "dict[str, str]" = {}
@@ -13504,7 +13508,9 @@ def _frozen(value: object) -> object:
     return repr(value)
 
 
-def _moments_missed(cells: _Cells, block: "dict[str, object]") -> int:
+def _moments_missed(
+    cells: _Cells, block: "dict[str, object]", n_present: "int | None" = None
+) -> int:
     """How many of the mean and the spread this description's own G12.3
     windows miss: 0, 1 or 2.
 
@@ -13524,16 +13530,20 @@ def _moments_missed(cells: _Cells, block: "dict[str, object]") -> int:
     `validation` reads) over the loader's own reading of the block
     (`contract.numeric_block_facts`) under the cells' four counts and the
     five settings, so the producer and the checker cannot disagree.
+    ``n_present`` is the loader's count of present cells where a nested
+    block's population keys are read over more than ``cells`` hold
+    (`_Population`, plan P4-D357 A).
 
-    Guarantees: accepts the column's cells and one would-be numeric
-    block; returns 0, 1 or 2. Determinism: a function of the block, the
+    Guarantees: accepts the column's cells, one would-be numeric block
+    and optionally the present count; returns 0, 1 or 2. Determinism: a function of the block, the
     four counts and the five settings, remembered by all of them. Raises
     ProfileError where the loader would refuse the block. No I/O.
     """
     settings = cells.settings
+    present = len(cells.present) if n_present is None else n_present
     key = (
         _frozen(block),
-        len(cells.present),
+        present,
         len(cells.numbers),
         cells.n_out_of_range,
         cells.n_contradictory,
@@ -13553,7 +13563,7 @@ def _moments_missed(cells: _Cells, block: "dict[str, object]") -> int:
         settings.categorical_share,
         settings.categorical_ceiling,
         settings.categorical_floor,
-        len(cells.present),
+        present,
         len(cells.numbers),
         cells.n_out_of_range,
         cells.n_contradictory,
@@ -13580,6 +13590,7 @@ def _pairs_that_cost(
     cells: _Cells,
     shaped: "dict[str, object]",
     held: "dict[str, tuple[float, float, str]]",
+    n_present: "int | None" = None,
 ) -> "dict[str, object]":
     """THE CROSS-SIDE RULE AND THE COST RULE (plan P4-D353).
 
@@ -13607,9 +13618,14 @@ def _pairs_that_cost(
        that keeps the MOST of them, and where none keeps either,
        nothing more.
 
-    Guarantees: accepts the block's cells, the shaped block and the held
-    pairs; returns the block to publish. Determinism: a function of the
-    three. Raises nothing the loader would not raise on the same block.
+    Every candidate is asked of the block AS PUBLISHED: ``shaped``
+    already carries its final population keys and ``n_present`` is the
+    loader's count where it is not the cells' own (plan P4-D357 A).
+
+    Guarantees: accepts the block's cells, the shaped block, the held
+    pairs and the loader's present count; returns the block to publish.
+    Determinism: a function of the four. Raises nothing the loader would
+    not raise on the same block.
     """
     withheld = [side for side in ("low", "high") if side in held]
     offers: "dict[str, tuple[float, float]]" = {}
@@ -13645,7 +13661,7 @@ def _pairs_that_cost(
     fewest = 3
     for publish in candidates:
         trial = _tails_with(shaped, offers, publish)
-        missed = _moments_missed(cells, trial)
+        missed = _moments_missed(cells, trial, n_present)
         if missed == 0:
             return trial
         # A LATER CANDIDATE IS TAKEN ONLY WHERE IT KEEPS MORE: the owner's
@@ -13658,17 +13674,54 @@ def _pairs_that_cost(
     return best
 
 
-def _numeric_details(cells: _Cells, whole: bool) -> dict[str, object]:
+@dataclasses.dataclass(frozen=True)
+class _Population:
+    """The present cells a NESTED block's two cell-population keys answer for.
+
+    PLAN P4-D357 A (review item 1 of follow-up A). A block read over a
+    tally of CORES -- an affixed column wearing one wrapper -- publishes
+    `n_left_out_of_statistics` and `numeric_share` over the column's
+    present CELLS, stragglers of ordinary text included, because that
+    is what the two keys mean. Those keys were set after the tail rule
+    had run, so the cost rule of P4-D353 asked the windows of a block
+    the loader never reads: on `1 mg` to `99 mg`, `210 mg` and one text
+    cell at a floor of eleven it published the high tail's pair where
+    the final block, both pairs withheld, keeps both moments. Handed to
+    `_numeric_details_and_causes`, this sets the two keys BEFORE the
+    tail rule, and the cost rule asks the loader's reading of exactly
+    the block that is published.
+
+    `n_present` is how many present cells the keys are read over and
+    `n_looking` how many of them were written as a number.
+    """
+
+    n_present: int
+    n_looking: int
+
+
+def _numeric_details(
+    cells: _Cells, whole: bool, population: "_Population | None" = None
+) -> dict[str, object]:
     """The published description of a numeric column."""
-    return _numeric_details_and_causes(cells, whole)[0]
+    return _numeric_details_and_causes(cells, whole, population)[0]
 
 
 def _numeric_details_and_causes(
-    cells: _Cells, whole: bool
+    cells: _Cells, whole: bool, population: "_Population | None" = None
 ) -> "tuple[dict[str, object], dict[str, str]]":
-    """The published description of a numeric column, and why each withheld tail side is (`_numeric_tails_and_causes`)."""
+    """The published description of a numeric column, and why each withheld tail side is (`_numeric_tails_and_causes`).
+
+    Where ``population`` is given, the block's two cell-population keys
+    are read over it rather than over ``cells`` (`_Population`), before
+    the tail rule runs, so the block the cost rule asks is the block
+    published.
+    """
     numbers = cells.numbers
     n_present = len(cells.present)
+    looking = _numeric_looking(cells)
+    if population is not None:
+        n_present = population.n_present
+        looking = population.n_looking
     # THE FORMS MAP AND THE TWO WIDTH CENSUSES A READER SUBTRACTS FROM
     # IT, built together so the disclosure rule can be asked of all three
     # at once (plan P4-D148).
@@ -13750,7 +13803,7 @@ def _numeric_details_and_causes(
         # that part of the column was left out (review item P1-R1-F9).
         "n_used_in_statistics": len(numbers),
         "n_left_out_of_statistics": n_present - len(numbers),
-        "numeric_share": _share(_numeric_looking(cells), n_present),
+        "numeric_share": _share(looking, n_present),
         # How the numbers were WRITTEN, which is not a fact about what
         # they are (owner decision 10). Without it, a column of `0`, `00`
         # and `000` and a column of `0.0`, `00.0` and `000.0` are the
@@ -13813,7 +13866,7 @@ def _numeric_details_and_causes(
     # AND UNDER THE TAIL RULE (stage 3, plan P4-D344): the outer rows on
     # each side are described by their shape, and the rungs that would
     # read them are withheld.
-    return _numeric_tails_and_causes(cells, details)
+    return _numeric_tails_and_causes(cells, details, n_present)
 
 
 def _offset_counts(
@@ -17512,7 +17565,6 @@ def _affixed_verdict(
         whole_everywhere = (
             core_cells.n_whole == core_looking and core_looking > 0
         )
-        details = _numeric_details(core_cells, whole_everywhere)
         # The two keys whose population the core substitution does NOT
         # reach. Version 4 defines them over PRESENT CELLS -- "how many
         # present cells the statistics were computed from", "the share
@@ -17520,8 +17572,12 @@ def _affixed_verdict(
         # them over the cores would leave a straggler in NEITHER count
         # and make both answer for a narrower population than their own
         # published meaning.
-        details["n_left_out_of_statistics"] = n_present - n_core_numeric
-        details["numeric_share"] = _share(core_looking, n_present)
+        # ...AND THEY ARE SET BEFORE THE TAIL RULE, NOT AFTER IT (plan
+        # P4-D357 A): the cost rule asks the windows of the block the
+        # loader reads, and those are drawn over these two keys.
+        details = _numeric_details(
+            core_cells, whole_everywhere, _Population(n_present, core_looking)
+        )
         common_distinct = core_cells
     else:
         # A SET, SO THIS BLOCK IS THE COMMONEST WRAPPER'S AND ITS
