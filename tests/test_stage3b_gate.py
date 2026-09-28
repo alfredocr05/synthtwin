@@ -58,7 +58,10 @@ room is its own day, on the small dense column that then missed its
 counts; and `test_the_count_is_met_where_a_chain_of_runs_reaches_it`
 holds the stack of the ranks afresh where no one run can give a unit up,
 on the two columns of the fourth skeptic whose tail pairs on alternate
-days could give a day up only as a chain.
+days could give a day up only as a chain; and
+`test_the_count_stays_missed_where_no_placement_inside_the_gaps_reaches_it`
+holds the rule's recorded cost, on three columns of the fifth skeptic
+whose count no placement inside every gap reaches.
 
 AND THE WINDOW IS WRITTEN TWICE. G12.14's summed window -- a group's
 ranks as near as one and as far as its reach where step 9 may move
@@ -93,7 +96,10 @@ where it MISSES; the report's window widened there turns it red on the
 report's bounds (the second skeptic of the landing, 2026-09-26, found
 that condition witnessed nowhere, the whole suite green without it).
 The count pass asking a merged run's room of its first rank alone turns
-the gapped year red at seed 3, three ranks outside their gaps.
+the gapped year red at seed 3, three ranks outside their gaps, and the
+three columns of the recorded cost red, their ranks outside their gaps;
+every gap given one more day below turns those three red on the fewest
+days inside the gaps, which then reach the count.
 """
 
 from __future__ import annotations
@@ -705,15 +711,12 @@ def _gapped_year() -> "tuple[list[str], int]":
     return cells, floor
 
 
-def _settled_off_their_gaps(
+def _settled(
     described: kpi_shapes.Described, seeds: "tuple[int, ...]", monkeypatch: pytest.MonkeyPatch
-) -> "list[tuple[list[int], str]]":
-    """Per seed, the ranks the count pass leaves outside their gaps, and the twin.
-
-    A tail group's ranks are left out: step 9 alone may move those.
-    """
+) -> "list[tuple[list[int], list[int], list[int], generation._DateLayout, contract.DatetimeFacts, str]]":
+    """Per seed, the instants the count pass leaves, the gaps, the layout, the facts, the twin."""
     shipped = generation._units_settled
-    seen: "list[tuple[list[int], list[int], list[int], generation._DateLayout | None]]" = []
+    seen: "list[tuple[list[int], list[int], list[int], generation._DateLayout | None, contract.DatetimeFacts]]" = []
 
     def watched(
         column: contract.ColumnBlock,
@@ -727,28 +730,47 @@ def _settled_off_their_gaps(
         layout: "generation._DateLayout | None" = None,
     ) -> "list[int]":
         moved = shipped(column, facts, ordinals, parsed, whole, lows, highs, small, layout)
-        seen[:] = [(list(moved), list(lows), list(highs), layout)]
+        seen[:] = [(list(moved), list(lows), list(highs), layout, facts)]
         return moved
 
     monkeypatch.setattr(generation, "_units_settled", watched)
-    found: "list[tuple[list[int], str]]" = []
+    found: "list[tuple[list[int], list[int], list[int], generation._DateLayout, contract.DatetimeFacts, str]]" = []
     for seed in seeds:
         text = kpi_shapes.twin_text(described, seed)
         assert len(seen) == 1, seed
-        moved, lows, highs, layout = seen[0]
+        moved, lows, highs, layout, facts = seen[0]
         assert layout is not None
-        group: "set[int]" = set()
-        for plan in (layout.low, layout.high):
-            assert plan is not None and plan.shape is not None
-            for index in range(max(plan.shape.grouped, 1), plan.rows):
-                group.add(generation._tail_rank_of(plan, len(moved), index))
-        off = [
-            rank
-            for rank in range(len(moved))
-            if rank not in group and not lows[rank] <= moved[rank] <= highs[rank]
-        ]
-        found += [(off, text)]
+        found += [(moved, lows, highs, layout, facts, text)]
     return found
+
+
+def _settled_off_their_gaps(
+    described: kpi_shapes.Described, seeds: "tuple[int, ...]", monkeypatch: pytest.MonkeyPatch
+) -> "list[tuple[list[int], str]]":
+    """Per seed, the ranks the count pass leaves outside their gaps, and the twin.
+
+    A tail group's ranks are left out: step 9 alone may move those.
+    """
+    found: "list[tuple[list[int], str]]" = []
+    for moved, lows, highs, layout, _facts, text in _settled(described, seeds, monkeypatch):
+        found += [(_off_their_gaps(moved, lows, highs, layout), text)]
+    return found
+
+
+def _off_their_gaps(
+    moved: "list[int]", lows: "list[int]", highs: "list[int]", layout: "generation._DateLayout"
+) -> "list[int]":
+    """The ranks standing outside their gaps, a tail group's left out: step 9 alone may move those."""
+    group: "set[int]" = set()
+    for plan in (layout.low, layout.high):
+        assert plan is not None and plan.shape is not None
+        for index in range(max(plan.shape.grouped, 1), plan.rows):
+            group.add(generation._tail_rank_of(plan, len(moved), index))
+    return [
+        rank
+        for rank in range(len(moved))
+        if rank not in group and not lows[rank] <= moved[rank] <= highs[rank]
+    ]
 
 
 def test_a_merged_run_keeps_every_rank_inside_its_gap(
@@ -929,3 +951,136 @@ def test_the_count_is_met_where_a_chain_of_runs_reaches_it(
         assert len(written) == block["n_distinct"], f"seed {seed}: {len(written)} different days"
         missed = kpi_shapes.missed(kpi_shapes.measure(described, text, f"{shape}-{seed}.csv"))
         assert missed == [], f"seed {seed}: {missed}"
+
+
+def _chain_prone(index: int) -> "list[str]":
+    """Few rows a day over a sparse range, alternate days empty in stretches.
+
+    Drawn exactly as the landing's fifth skeptic drew its column ch<index>,
+    so each column is one that measured the cost.
+    """
+    draw = random.Random(780000 + index)
+    kind = draw.choice(["iso", "us", "tmark", "mid", "mon"])
+    span = draw.randint(40, 220)
+    rows = draw.randint(100, max(101, min(400, span * 3)))
+    assert (kind, span, rows) == _GAP_RULE_COSTS[index][0]
+    weights: "list[float]" = []
+    for _step in range(span):
+        weight = draw.lognormvariate(0.0, draw.choice([0.4, 0.9, 1.4]))
+        if draw.random() < 0.15:
+            weight = 0.0
+        weights += [weight]
+    for _stretch in range(draw.randint(1, 4)):
+        low = draw.randrange(span)
+        for step in range(low, min(span, low + draw.randint(6, 30))):
+            if (step - low) % 2 == 1:
+                weights[step] = 0.0
+            else:
+                weights[step] = weights[step] * draw.choice([0.1, 0.3, 1.0])
+    if draw.random() < 0.6:
+        edge = draw.randint(4, max(5, span // 5))
+        for step in range(edge):
+            if step % 2 == 1:
+                weights[step] = 0.0
+                weights[span - 1 - step] = 0.0
+            else:
+                weights[step] = weights[step] * 0.2
+                weights[span - 1 - step] = weights[span - 1 - step] * 0.2
+    assert sum(weights) > 0
+    steps = draw.choices(range(span), weights=weights, k=rows)
+    start = datetime.date(2017, 6, 1) + datetime.timedelta(days=draw.randint(0, 2000))
+    cells = []
+    for step in steps:
+        day = start + datetime.timedelta(days=step)
+        if kind == "us":
+            cells += [f"{day.month}/{day.day}/{day.year}"]
+        elif kind == "tmark":
+            cells += [day.isoformat() + "T00:00:00"]
+        else:
+            cells += [day.isoformat()]
+    draw.shuffle(cells)
+    return cells
+
+
+# The fifth skeptic's columns: (its kind, days and rows; the floor).
+_GAP_RULE_COSTS = {
+    6: (("iso", 56, 123), 36),
+    18: (("us", 92, 123), 36),
+    32: (("tmark", 140, 114), 50),
+}
+
+
+def _fewest_inside_the_gaps(
+    moved: "list[int]", lows: "list[int]", highs: "list[int]", layout: "generation._DateLayout"
+) -> int:
+    """The fewest different days any placement of the ranks inside their gaps holds.
+
+    A rank the count pass may not move -- one the tail pins, or one whose
+    gap is a single day -- stands where it stands; every other rank may
+    stand anywhere inside its gap. Taken by the gaps' upper ends, each gap
+    either holds the day last stacked or stacks its own upper end: the
+    stabbing of intervals, the least number of days meeting every gap.
+    Width kind and midnight are ignored, so it is a lower bound on what a
+    placement keeping every standing holds.
+    """
+    pinned = generation._ranks_the_tail_pins(layout)
+    bounds: "list[tuple[int, int]]" = []
+    for rank in range(len(moved)):
+        if pinned[rank] or lows[rank] >= highs[rank]:
+            bounds += [(moved[rank], moved[rank])]
+        else:
+            bounds += [(highs[rank], lows[rank])]
+    stacked: "int | None" = None
+    days = 0
+    for high, low in sorted(bounds):
+        if stacked is None or stacked < low:
+            stacked = high
+            days = days + 1
+    return days
+
+
+@pytest.mark.parametrize("index", sorted(_GAP_RULE_COSTS))
+def test_the_count_stays_missed_where_no_placement_inside_the_gaps_reaches_it(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, index: int
+) -> None:
+    """THE GAP RULE'S COST: a count no placement inside every gap reaches stays missed.
+
+    123 ISO dates over 56 days, 24 different, and 123 month-first dates
+    over 92 days, 35 different, at floor 36, and 114 midnight moments over
+    140 days, 43 different, at floor 50, come back holding 26, 38 and 46
+    different days, both distinct counts MISSED -- where shipped stage 3
+    (d93fd43) and e4a5d34 met them at seeds 3 and 8, the third at seed 8,
+    with 3, 8 and 12 tail ranks a day below their strata, and validated
+    (the fifth skeptic of landing 3b.0, plan P4-D354). They
+    missed from 604ebbd on, the rule that keeps a run's every rank inside
+    its gap. No placement inside every gap holds fewer than 25, 37 and 44
+    days, so no pass keeping every rank inside its gap meets them; letting
+    a tail rank leave its stratum to meet a count trades one published
+    obligation for another, and no one has ruled on it. So the cost is
+    recorded and held here: at seeds 3 and 8 every rank but a tail
+    group's stands inside its gap, the fewest days inside the gaps stands
+    above the published count, and the twin misses both distinct counts
+    and nothing else. A pass meeting the count past a gap turns this red,
+    and so does a layout bringing the count within the gaps' reach:
+    either moves the record.
+    """
+    cells = _chain_prone(index)
+    floor = _GAP_RULE_COSTS[index][1]
+    described = kpi_shapes.describe(
+        tmp_path, f"chain{index}", "c\n" + "".join(f"{cell}\n" for cell in cells), floor
+    )
+    block = described.document["columns"][0]
+    assert block["n_distinct"] == len(set(cells))
+    for seed, (moved, lows, highs, layout, facts, text) in zip(
+        (3, 8), _settled(described, (3, 8), monkeypatch)
+    ):
+        assert generation._ordinal_space(facts) == "date"
+        assert facts.n_unparsed == 0
+        off = _off_their_gaps(moved, lows, highs, layout)
+        assert off == [], f"seed {seed}: ranks {off} stand outside their gaps"
+        fewest = _fewest_inside_the_gaps(moved, lows, highs, layout)
+        assert fewest > block["n_distinct"], f"seed {seed}: {fewest} days reach the count"
+        missed = kpi_shapes.missed(kpi_shapes.measure(described, text, f"chain{index}-{seed}.csv"))
+        assert missed == ["c:distinct.n_distinct", "c:distinct.n_distinct_folded"], (
+            f"seed {seed}: {missed}"
+        )

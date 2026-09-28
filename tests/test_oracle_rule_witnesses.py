@@ -876,6 +876,45 @@ RUN_MERGES = (
     ((0, 2, 3, 3, 5), (True, True, False, False, True),
      (0, 1, 2, 3, 5), (0, 3, 3, 4, 5), 1, 3, "",
      (0, 2, 3, 3, 5)),
+    #
+    # THE RAISE, clause by clause (the fifth skeptic of landing 3b.0).
+    # A PINNED RANK IS NOT RAISED, AND THE RAISE STAYS INSIDE THE GAP. The
+    # stack holds days 6 (the pin and rank 1), 8, 11 and 13, four of five.
+    # The pin, gap 5 to 6 (which the layout never gives a pin), is passed
+    # by; rank 1's nearest free day inside its gap 6 to 7 is day 7, and
+    # the count is met. (Raising the pin puts it on day 5; searched past
+    # the gap, rank 1 goes to day 5, earlier first.)
+    ((6, 7, 7, 9, 10, 10, 12, 13), (True, False, False, False, False, False, False, True),
+     (5, 6, 7, 8, 8, 10, 11, 12), (6, 7, 8, 9, 10, 11, 12, 13), 1, 5, "",
+     (6, 7, 8, 8, 8, 11, 11, 13)),
+    # The same below the gap's lower end: the stack holds days 0 (the pin
+    # and rank 1), 3, 6 and 8, and rank 1 goes to day 1 inside its gap 0
+    # to 2; day -1, as near and earlier, lies outside it.
+    ((0, 2, 2, 4, 5, 5, 7, 8, 8), (True, False, False, False, False, False, False, False, True),
+     (0, 0, 2, 3, 3, 5, 6, 7, 8), (0, 2, 3, 4, 5, 6, 7, 8, 10), 1, 5, "",
+     (0, 1, 3, 3, 3, 6, 6, 8, 8)),
+    # ONLY A RANK SHARING ITS UNIT IS RAISED. The stack holds days 0, 2,
+    # 3 (the pin and rank 3), 5, 8 and 11, six of seven. Rank 1 stands
+    # alone on day 2 and is passed by (raised, it would leave day 2 empty
+    # and count day 1 as a seventh unit); rank 3 goes to day 4.
+    ((0, 1, 3, 4, 4, 6, 7, 7, 10, 11),
+     (True, False, True, False, False, False, False, False, False, True),
+     (0, 1, 3, 3, 4, 5, 5, 7, 8, 9), (1, 2, 3, 4, 5, 6, 7, 8, 10, 11), 1, 7, "unpadded",
+     (0, 2, 3, 4, 5, 5, 5, 8, 8, 11)),
+    # OF ITS STANDING. Month-first dates under `first-field-padded`: a day
+    # below the 10th counts outside the word. The stack holds the 9th of
+    # January (the pin and rank 1), the 11th, 14th and 16th, four of five.
+    # Rank 1's one free day inside its gap is the 10th, of the other kind,
+    # so it is passed by; rank 2 goes from the 11th to the 10th, of its own.
+    ((_day(1, 9), _day(1, 9), _day(1, 10), _day(1, 12), _day(1, 13), _day(1, 13),
+      _day(1, 15), _day(1, 16)),
+     (True, False, False, False, False, False, False, True),
+     (_day(1, 9), _day(1, 9), _day(1, 10), _day(1, 11), _day(1, 11), _day(1, 13),
+      _day(1, 14), _day(1, 16)),
+     (_day(1, 9), _day(1, 10), _day(1, 11), _day(1, 12), _day(1, 13), _day(1, 14),
+      _day(1, 15), _day(1, 16)), 1, 5, "first-field-padded",
+     (_day(1, 9), _day(1, 9), _day(1, 10), _day(1, 11), _day(1, 11), _day(1, 14),
+      _day(1, 14), _day(1, 16))),
 )
 RUN_TRADES = (
     # (ordinals, pinned, lows, highs, owed, ordinals after, trades made)
@@ -1331,6 +1370,31 @@ WITNESS_MUTANTS = {
         "run",
         "    for rank in range(len(ordinals)):\n        if len(now) >= distinct:\n",
         "    for rank in reversed(range(len(ordinals))):\n        if len(now) >= distinct:\n",
+    ),
+    # The raise's own clauses (the fifth skeptic): raised past the gap,
+    # onto a day of either width kind, a pinned rank raised, and a rank
+    # alone on its unit raised.
+    "restack_raised_past_the_gap": (
+        "run",
+        "            column, placed[rank], lows[rank], highs[rank], day, step, unit, now, widths,\n",
+        "            column, placed[rank], lows[rank] - 2 * unit, highs[rank] + 2 * unit, day, step, unit, now, widths,\n",
+    ),
+    "restack_raised_of_any_width": (
+        "run",
+        "            column, placed[rank], lows[rank], highs[rank], day, step, unit, now, widths,\n"
+        "            stands(placed[rank]), True, word,\n",
+        "            column, placed[rank], lows[rank], highs[rank], day, step, unit, now, False,\n"
+        "            (False, stands(placed[rank])[1]), True, word,\n",
+    ),
+    "restack_raised_a_pinned_rank": (
+        "run",
+        "        if pinned[rank] or now[placed[rank] // unit] < 2:\n            continue\n        found = nearest_free_where(",
+        "        if now[placed[rank] // unit] < 2:\n            continue\n        found = nearest_free_where(",
+    ),
+    "restack_raised_a_rank_alone": (
+        "run",
+        "        if pinned[rank] or now[placed[rank] // unit] < 2:\n            continue\n        found = nearest_free_where(",
+        "        if pinned[rank] or now[placed[rank] // unit] < 1:\n            continue\n        found = nearest_free_where(",
     ),
     "group_takes_past_the_count": (
         "group",

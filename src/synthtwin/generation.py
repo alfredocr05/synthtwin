@@ -21295,7 +21295,7 @@ def _ranks_restacked(
     each pair's own day as its room and their rank neighbours two days
     off, so neither a merge nor the split takes any pair -- while every
     pair moving one day onto the next frees a day where the chain ends.
-    123 midnight moments over 100 days, 52 of them different, read in
+    123 midnight moments over 111 days, 52 of them different, read in
     days at a floor of 50, came back holding 54 at seeds 3 and 8, both
     distinct counts MISSED, though a placement inside every gap holding
     52 existed and validated; 77 month-first dates, 33 different, held
@@ -21312,11 +21312,19 @@ def _ranks_restacked(
     stabbing of intervals at their upper ends, taken in that order). Its
     instants are then sorted within each unpinned run, as every round
     sorts them, and every rank must stand inside its gap. Where the
-    stack holds fewer units than the count, in rank order, a rank
-    sharing its unit moves onto the nearest free unit of its standing
-    inside its gap (`_nearest_free_unit`) until the count is met. The
-    ranks take the stack only where that meets the count exactly;
-    otherwise nothing moves.
+    stack holds fewer units than the count, in rank order, an unpinned
+    rank sharing its unit moves onto the nearest free unit of its
+    standing inside its gap (`_nearest_free_unit`) until the count is
+    met. The ranks take the stack only where that meets the count
+    exactly; otherwise nothing moves.
+
+    WHERE EVEN THE STACK HOLDS MORE UNITS THAN THE COUNT, THE COUNT IS
+    MISSED: no rank leaves its gap to meet it. That is the cost of the gap
+    rule (plan P4-D354, the fifth skeptic of landing 3b.0): 123 dates over
+    56 days, 24 different, at a floor of 36, where no placement inside
+    every gap holds fewer than 25, come back holding 26, both distinct
+    counts MISSED, where shipped stage 3 met them with low-tail ranks a
+    day below their strata.
 
     Guarantees: moves ranks of `moved` and counts of `held` in place
     only where the count is met, keeping every rank inside its gap and

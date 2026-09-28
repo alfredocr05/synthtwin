@@ -10645,10 +10645,11 @@ def ranks_restacked(column, ordinals, pinned, lows, highs, day, step, unit, held
     the highest unit of its standing inside its gap (a midnight a day at a
     time).  The stack's instants are sorted within each unpinned run, as
     every round sorts them, and every rank must then stand inside its gap.
-    Where the stack holds fewer units than the count, in rank order, a
-    rank sharing its unit takes the nearest free unit of its standing
-    inside its gap.  The ranks take the stack only where the count is met
-    exactly.
+    Where the stack holds fewer units than the count, in rank order, an
+    unpinned rank sharing its unit takes the nearest free unit of its
+    standing inside its gap.  The ranks take the stack only where the
+    count is met exactly; where even the stack holds more, no rank leaves
+    its gap to meet it.
     """
     def stands(value):
         return standing_of(column, value, day, step, widths, word)

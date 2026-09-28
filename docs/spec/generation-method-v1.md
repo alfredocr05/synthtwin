@@ -5715,10 +5715,14 @@ that way.
   any placement inside every gap keeping every standing can hold. Its
   instants are sorted within each unpinned run, as every round sorts
   them, and every rank must then stand inside its gap; where the stack
-  holds fewer units than the count, in rank order, a rank sharing its
-  unit moves onto the nearest free unit of its standing inside its gap
-  until the count is met; and the ranks take the stack only where that
-  meets the count exactly, else nothing moves. Too few: each
+  holds fewer units than the count, in rank order, an unpinned rank
+  sharing its unit moves onto the nearest free unit of its standing
+  inside its gap until the count is met; and the ranks take the stack
+  only where that meets the count exactly, else nothing moves. Where
+  even the stack holds more units than the count, the count is missed:
+  no rank leaves its gap to meet it (123 dates over 56 days, 24
+  different, at a floor of 36, where no placement inside every gap
+  holds fewer than 25). Too few: each
   unpinned rank sharing its unit is offered
   the nearest unit no rank holds inside its gap, of the same width kind
   and midnight standing, earlier first, nearest first, ties to the lower

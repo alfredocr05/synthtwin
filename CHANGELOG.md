@@ -6,6 +6,25 @@ exists).
 
 ## [Unreleased]
 
+### The gap rule's cost is recorded, and the raise is witnessed clause by clause (2026-09-28)
+
+**A count no placement inside every gap reaches stays missed.** Over
+1,860 twins of the fifth skeptic's 310 date and clock columns, five
+twins of three columns miss both distinct counts that shipped stage 3
+met and validated: 123 ISO dates over 56 days, 24 different, hold 26 at
+floor 36 and two seeds; 123 month-first dates, 35 different, hold 38 the
+same way; 114 midnight moments, 43 different, hold 46 at floor 50, one
+seed. Shipped stage 3 met them only with 3, 8 and 12 tail ranks a day
+below their strata, and the fewest days any placement inside every gap
+holds is 25, 37 and 44. They have missed since the gap rule (604ebbd), and
+meeting them trades a tail's strata against the column's distinct count,
+which no one has ruled on, so the cost is recorded as open (plan
+P4-D354, STATE) and held by the stage-3b gate. "No twin gains a miss"
+below held on the third and fourth skeptics' batteries only. The raise
+of the stack gains four `run` rows and four oracle mutants -- inside its
+gap, of its standing, only a rank sharing its unit, a pinned rank passed
+by -- that no row had parted in either road. `K-S3-39`.
+
 ### The ranks are stacked afresh where no one run can give a unit up (2026-09-28)
 
 **Where tail ranks stand in pairs on alternate days**, their two-day
@@ -22,7 +41,8 @@ raised to the count, and taken only where that meets it (method G7.3,
 plan P4-D354). Over 2,400 twins of the fourth skeptic's 400 columns and
 1,600 of the third's 800, six twins meet their counts, no twin gains a
 miss, only those six twins' bytes move and no rank leaves its gap; no
-frozen case moves. `K-S3-39`.
+frozen case moves. `K-S3-39`. (On those batteries only: see the gap
+rule's cost above.)
 
 ### A run no merge can take is split across its neighbours (2026-09-26)
 
