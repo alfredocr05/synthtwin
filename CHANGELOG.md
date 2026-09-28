@@ -22,14 +22,23 @@ no trailing minus, wrote 36 pluses of 40 with five checks missed at
 every seed and writes 40 with none, and over a 138-twin battery the
 recount alone moves 11 twins, 9 with no trailing minus -- eight losing
 five or six missed checks and one dense signed decimal, missing five
-checks either way, gaining `styles.spill` (accepted). The walks
-over the side that is not negative keep stratum order. New
+checks either way, gaining `styles.spill` (the orchestrator accepted
+it). Over 1,332 more twins the recount alone moves 120, 3 of them to
+more missed checks and none from pass to fail; at floor 1, on columns
+whose values outnumber the whole numbers between their ends, 9 of the
+120 miss `widths.published.2` or a tail's values where they held them --
+30 `+N` beside 30 `N.dd`, 80 `-N` and 40 `-N.dd` on 1..9 writes a
+nineteenth plus and 69 two-figure decimals of 70 -- and the orchestrator
+accepted that too. The walks over the side that is not negative keep
+stratum order. New
 `trailing_values` rows hold the walk beside's demand, the order of the
 side that is not negative and the negative walk's order; the gate's
-`plus-beside-whole-negatives` holds the plus walk's count and a third
-hand-worked chain row the negative walk's order. The ledger note names
-its entries, their trees and what took them, and no longer restates
-their values; a test holds that, and reads a numeral glued to its unit.
+`plus-beside-whole-negatives` holds the plus walk's count, a third
+hand-worked chain row the negative walk's order, and a hand-worked walk
+beside that walk's own count after a chain, which nothing held. The
+ledger note names its entries, their trees and what took them, and no
+longer restates their values; a test holds that, and reads a numeral
+glued to a unit of any case or length.
 
 ### Whole negatives beside a trailing minus are the ones nearest zero (2026-09-26)
 

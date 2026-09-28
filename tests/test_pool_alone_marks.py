@@ -709,7 +709,7 @@ CHAIN_ANSWERS = (
     # strata alone for 60 - (25 - 10) = 45, the pinned -6 carrying 10, and
     # that walk reaches every stratum above before the last walk does: the
     # same questions, asked in the same nearest-zero order, give the same
-    # answer (45 cells at -1, 40 more at -3).
+    # answer (30 cells at -1, 70 at -3).
     ({"minus": 65, "trailing_minus": 10}, {"+": 10}, (-6.0, -3.0, -1.6, -1.0, 10.0)),
 )
 
@@ -794,4 +794,54 @@ def test_the_walks_over_the_side_that_is_not_negative_keep_stratum_order():
     values = [-6.0, -0.4, 1.4, 10.0]
     assert tuple(generation._whole_enough(column, facts, layout, rungs, values)) == (
         -6.0, -1.0, 1.0, 10.0,
+    )
+
+
+def test_the_walk_beside_counts_only_the_side_that_is_not_negative_after_a_chain():
+    """After a chain, the walk beside a trailing minus counts the strata it walks.
+
+    Seven strata of 10, 20, 20, 5, 20, 10 and 15 cells on a 101-rung
+    ladder, shares (-6, -5), (-5, -2), (-2, 0.75), (0.75, 1.25), (1.25,
+    1.375), (1.375, 6) and (6, 10), values -6, -3, -1.5, 1, 1.3, 5.4 and
+    10; 65 cells asked point-free and 25 of the 50 negatives under a
+    trailing minus. The walk beside is asked for 65 - (50 - 25) = 40 by
+    the side that is not negative, where 1 and the end 10 carry 20.
+    1.3's one whole number, 1, is held by the narrower 1, which has no
+    other -- 2 is more than half a unit past its share and 0 is not
+    positive -- so the chain gives 1.3 the 1 and the holder 1.125 from
+    its own share (35), and 5.4 then takes 5 (45). The last walk, asked
+    for 65, finds 75 and moves nothing. Counted over every stratum after
+    the chain, the whole -6 and -3 would have met the 40 at 65, the last
+    walk would have found its 65 too, and 5.4 would have kept its point:
+    30 point-free cells left to the negatives, and 20 with a point for 25
+    trailing minuses, which is what 67e6a93 gives. So mutated on this
+    walk alone, the gate, the witness rows and the frozen cases stood
+    (the second skeptic of plan P4-D352 (7), 2026-09-28). Mutation, run:
+    that count taken over every stratum on the walk beside alone turns
+    this red.
+    """
+    starts = (0, 10, 30, 50, 55, 75, 85)
+    lows = (-6.0, -5.0, -2.0, 0.75, 1.25, 1.375, 6.0)
+    rungs = tuple(
+        lows[max(k for k in range(7) if starts[k] <= place)] for place in range(100)
+    ) + (10.0,)
+    layout = types.SimpleNamespace(
+        sizes=(10, 20, 20, 5, 20, 10, 15), starts=starts,
+        bands=("negative",) * 3 + ("positive",) * 4,
+    )
+    column = types.SimpleNamespace(n_numeric=100)
+    shares = [generation._share_of(k, layout, rungs, 100) for k in range(7)]
+    assert shares == [
+        (-6.0, -5.0), (-5.0, -2.0), (-2.0, 0.75), (0.75, 1.25), (1.25, 1.375),
+        (1.375, 6.0), (6.0, 10.0),
+    ]
+    facts = types.SimpleNamespace(
+        integer_valued=False,
+        numeric_styles={"plain": 65, "decimal": 35},
+        decimal_plus={},
+        negative_notations={"minus": 25, "trailing_minus": 25},
+    )
+    values = [-6.0, -3.0, -1.5, 1.0, 1.3, 5.4, 10.0]
+    assert tuple(generation._whole_enough(column, facts, layout, rungs, values)) == (
+        -6.0, -3.0, -1.5, 1.125, 1.0, 5.0, 10.0,
     )

@@ -414,9 +414,17 @@ def _numbers_held(value: object) -> "list[float]":
     return held
 
 
-# A numeral standing alone, or glued to a unit of one or two letters: not
-# inside a commit, an id or a date.
-_NUMERAL = r"(?<![\w.\-])(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?(?:(?!\w)|(?=[a-z]{1,2}\b))"
+# A numeral standing alone, or glued to a unit that is a run of letters no
+# figure follows: never one inside an id, the month or day of a date, or a
+# commit's seven hex figures, even where its letters all follow its figures.
+_NUMERAL = (
+    r"(?<![\w.\-])(?!(?=[0-9a-f]{7}\b)\d*[a-f])(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?"
+    r"(?:(?!\w)|(?=[^\W\d_]+(?!\w)))"
+)
+# What the reader must make of units of every case and length and of such a
+# commit (the second skeptic of plan P4-D352 (7)).
+_READ_WHOLE = ("23.8s, 23.8sec, 540MB, 161.3\u00b5s and 4,883cells on 27eecbe",
+               ["23.8", "23.8", "540", "161.3", "4,883"])
 
 
 def test_no_clause_of_the_measurement_note_restates_a_value_its_entries_hold() -> None:
@@ -430,13 +438,19 @@ def test_no_clause_of_the_measurement_note_restates_a_value_its_entries_hold() -
     no number of two figures or more, or with a fraction, that a value of
     an entry it names holds; a single figure is let stand, because the
     note numbers stages, landings and items with them. A numeral glued to
-    a unit, `23.8s`, is read whole: read up to a word character it fell
-    back to `23`, which no value holds (the skeptic of the same round's
-    landing). Two limits stand by design: a value written in words, and a
-    value restated in a clause that names no entry holding it. Mutation,
-    run: each of those values written back into its clause, with or
-    without a space before its unit, turns this red.
+    a unit is read whole, whatever the unit's case or length: read up to
+    a word character, `23.8s` fell back to `23` (the skeptic of the same
+    round's landing), and read up to one or two lowercase letters,
+    `23.8sec` still fell back to `23`, `4,883cells` to `4`, `161.3µs` to
+    `161` and `540MB` to nothing, none of which a value holds (the
+    second skeptic of plan P4-D352 (7)). A commit's seven hex figures are
+    no numeral, `27eecbe` included. Two limits stand by design: a value
+    written in words, and a value restated in a clause that names no
+    entry holding it. Mutations, run: each of those values written back
+    into its clause, with or without a space before its unit, turns this
+    red, and so does either half of the reader taken back.
     """
+    assert re.findall(_NUMERAL, _READ_WHOLE[0]) == _READ_WHOLE[1]
     for commit, text in _note_clauses():
         held: "set[float]" = set()
         for entry_id in set(re.findall(_ENTRY_ID, text)):
