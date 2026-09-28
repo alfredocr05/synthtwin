@@ -59,9 +59,11 @@ counts; and `test_the_count_is_met_where_a_chain_of_runs_reaches_it`
 holds the stack of the ranks afresh where no one run can give a unit up,
 on the two columns of the fourth skeptic whose tail pairs on alternate
 days could give a day up only as a chain; and
-`test_the_count_stays_missed_where_no_placement_inside_the_gaps_reaches_it`
-holds the rule's recorded cost, on three columns of the fifth skeptic
-whose count no placement inside every gap reaches.
+`test_the_count_is_met_where_no_placement_inside_the_gaps_reaches_it`
+holds the count met past the strata -- a tail rank leaving its stratum
+by the least amount that meets it, the orchestrator's call of 2026-09-28
+(not an owner ruling; the owner may reverse it) -- on three columns of
+the fifth skeptic whose count no placement inside every gap reaches.
 
 AND THE WINDOW IS WRITTEN TWICE. G12.14's summed window -- a group's
 ranks as near as one and as far as its reach where step 9 may move
@@ -97,9 +99,13 @@ report's bounds (the second skeptic of the landing, 2026-09-26, found
 that condition witnessed nowhere, the whole suite green without it).
 The count pass asking a merged run's room of its first rank alone turns
 the gapped year red at seed 3, three ranks outside their gaps, and the
-three columns of the recorded cost red, their ranks outside their gaps;
-every gap given one more day below turns those three red on the fewest
-days inside the gaps, which then reach the count.
+three columns met past the strata red, more ranks outside their gaps
+than the count needs; every gap given one more day below turns those
+three red on the fewest days inside the gaps, which then reach the
+count; and the pass past the strata withdrawn, its splits taken
+farthest first, or taken from the ranks where the rounds left them
+rather than from the stack, turns all three red, and its splits taken
+with no regard to how many ranks leave turns one red.
 """
 
 from __future__ import annotations
@@ -1039,30 +1045,44 @@ def _fewest_inside_the_gaps(
     return days
 
 
+def _drawn_tail_ranks(layout: "generation._DateLayout", parsed: int) -> "dict[int, generation._TailPlan]":
+    """Every tail rank that draws a word -- neither its tail's end nor its group -- with its tail."""
+    found: "dict[int, generation._TailPlan]" = {}
+    for plan in (layout.low, layout.high):
+        assert plan is not None
+        if plan.shape is None:
+            continue
+        for index in range(1, plan.shape.grouped):
+            found[generation._tail_rank_of(plan, parsed, index)] = plan
+    return found
+
+
 @pytest.mark.parametrize("index", sorted(_GAP_RULE_COSTS))
-def test_the_count_stays_missed_where_no_placement_inside_the_gaps_reaches_it(
+def test_the_count_is_met_where_no_placement_inside_the_gaps_reaches_it(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, index: int
 ) -> None:
-    """THE GAP RULE'S COST: a count no placement inside every gap reaches stays missed.
+    """THE GAP RULE'S COST, REPAIRED: a tail rank leaves its stratum by the least amount.
 
     123 ISO dates over 56 days, 24 different, and 123 month-first dates
     over 92 days, 35 different, at floor 36, and 114 midnight moments over
-    140 days, 43 different, at floor 50, come back holding 26, 38 and 46
-    different days, both distinct counts MISSED -- where shipped stage 3
-    (d93fd43) and e4a5d34 met them at seeds 3 and 8, the third at seed 8,
-    with 3, 8 and 12 tail ranks a day below their strata, and validated
-    (the fifth skeptic of landing 3b.0, plan P4-D354). They
-    missed from 604ebbd on, the rule that keeps a run's every rank inside
-    its gap. No placement inside every gap holds fewer than 25, 37 and 44
-    days, so no pass keeping every rank inside its gap meets them; letting
-    a tail rank leave its stratum to meet a count trades one published
-    obligation for another, and no one has ruled on it. So the cost is
-    recorded and held here: at seeds 3 and 8 every rank but a tail
-    group's stands inside its gap, the fewest days inside the gaps stands
-    above the published count, and the twin misses both distinct counts
-    and nothing else. A pass meeting the count past a gap turns this red,
-    and so does a layout bringing the count within the gaps' reach:
-    either moves the record.
+    140 days, 43 different, at floor 50, came back holding 26, 38 and 46
+    different days with every rank inside its gap, both distinct counts
+    MISSED, where shipped stage 3 (d93fd43) met them with tail ranks a day
+    below their strata and validated (the fifth skeptic of landing 3b.0).
+    No placement inside every gap holds fewer than 25, 37 and 44 days.
+    The orchestrator's call of 2026-09-28 (not an owner ruling; the owner
+    may reverse it; plan P4-D354): where no placement with every rank
+    inside its gap can meet the distinct count, a tail rank may leave its
+    stratum by the least amount that meets it, and only where the tail's
+    published windows and every other published check still hold. Here,
+    at seeds 3 and 8: the fewest days inside the gaps stands above the
+    count, so the rule is the one that acts; the twin holds exactly the
+    published count and misses nothing -- every tail window, rung and
+    count held; and every rank outside its gap is a tail rank that draws a
+    word, strictly beyond its boundary, ONE unit outside -- no leaving is
+    shorter -- and no more of them than the fewest days inside the gaps
+    exceed the count, which is the fewest any placement needs, since
+    letting one rank out lowers the fewest by at most one.
     """
     cells = _chain_prone(index)
     floor = _GAP_RULE_COSTS[index][1]
@@ -1076,11 +1096,21 @@ def test_the_count_stays_missed_where_no_placement_inside_the_gaps_reaches_it(
     ):
         assert generation._ordinal_space(facts) == "date"
         assert facts.n_unparsed == 0
-        off = _off_their_gaps(moved, lows, highs, layout)
-        assert off == [], f"seed {seed}: ranks {off} stand outside their gaps"
         fewest = _fewest_inside_the_gaps(moved, lows, highs, layout)
-        assert fewest > block["n_distinct"], f"seed {seed}: {fewest} days reach the count"
+        assert fewest > block["n_distinct"], f"seed {seed}: {fewest} days inside the gaps reach the count"
+        written = {line for line in text.split("\n")[1:] if line}
+        assert len(written) == block["n_distinct"], f"seed {seed}: {len(written)} different days"
         missed = kpi_shapes.missed(kpi_shapes.measure(described, text, f"chain{index}-{seed}.csv"))
-        assert missed == ["c:distinct.n_distinct", "c:distinct.n_distinct_folded"], (
-            f"seed {seed}: {missed}"
+        assert missed == [], f"seed {seed}: {missed}"
+        drawn = _drawn_tail_ranks(layout, len(moved))
+        off = _off_their_gaps(moved, lows, highs, layout)
+        for rank in off:
+            assert rank in drawn, f"seed {seed}: rank {rank} outside its gap draws no tail word"
+            assert generation._tail_distance_of(drawn[rank], moved[rank]) >= 1, (
+                f"seed {seed}: rank {rank} stands on or inside its boundary"
+            )
+            away = max(lows[rank] - moved[rank], moved[rank] - highs[rank])
+            assert away == drawn[rank].unit, f"seed {seed}: rank {rank} stands {away} outside its gap"
+        assert 0 < len(off) <= fewest - block["n_distinct"], (
+            f"seed {seed}: {len(off)} ranks outside their gaps, the fewest days inside them {fewest}"
         )

@@ -3584,10 +3584,11 @@ CASE_MUTANTS = {
         outcome=CHANGES_THE_CELLS,
     ),
     "date_distinct_reached": Mutant(
-        branch="plan P4-D192's pass on the count of different values; the "
-        "mutant leaves the ranks where they were drawn, and the twin holds "
-        "more different days than the description publishes",
-        attribute="distinct_pass",
+        branch="plan P4-D354's count met past the strata, where no placement "
+        "inside the gaps reaches it; the mutant keeps every rank inside its "
+        "gap, and the twin holds fifteen different days against the "
+        "description's twelve",
+        attribute="count_met_past_the_strata",
         replacement=lambda *arguments: False,
         outcome=CHANGES_THE_CELLS,
     ),

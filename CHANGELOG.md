@@ -6,6 +6,35 @@ exists).
 
 ## [Unreleased]
 
+### A count no placement inside the gaps reaches is met past the strata (2026-09-28)
+
+**A tail rank leaves its stratum by the least amount that meets the
+count** (the orchestrator's call of 2026-09-28, not an owner ruling; the
+owner may reverse it). Where the count passes leave the distinct count
+over and even the stack holds more units than it, the ranks take the
+stack and give units up one at a time: a run of the stack's ranks, none
+pinned and alone on its unit, splits onto the instants of the ranks just
+below and above it, each rank inside its gap or, being an unpinned rank
+of a shape-drawn tail, strictly beyond its boundary; the split whose rank
+stands least far outside its gap first, then the fewest ranks outside;
+and the ranks take the result only where the count is met and every
+tail's summed distance and square lie inside G12.14's window (method
+G7.3, plan P4-D354). The five twins of the gap rule's cost below meet
+both counts with 1, 2 and 1 tail ranks one day outside their strata.
+Over the fifth skeptic's 1,860 twins 32 misses go and none is new
+against d3d794f, 140 and 146 go against e4a5d34 and d93fd43; over the
+fourth skeptic's 2,400 twins 4 go; over the third skeptic's 1,600 nothing
+moves; no twin of the three batteries gains a miss against e4a5d34 or
+d93fd43. The pass acts on 140 of the 1,860 twins and puts 3,035 tail
+ranks outside their strata there, most of them on clock-pool columns
+counted in seconds or minutes, whose neighbouring held instants lie
+hours apart;
+every tail window holds and every twin validates. Two frozen cases move
+and now hold their published counts: `date_distinct_reached` 12 (it held
+15) and `date_gap_places` 10 (13). The raise's nearest FREE unit gains a
+`run` row and an oracle mutant (the landing's sixth skeptic). The gap
+rule's cost below is repaired. `K-S3-39`.
+
 ### The gap rule's cost is recorded, and the raise is witnessed clause by clause (2026-09-28)
 
 **A count no placement inside every gap reaches stays missed.** Over

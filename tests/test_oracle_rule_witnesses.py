@@ -915,6 +915,19 @@ RUN_MERGES = (
       _day(1, 15), _day(1, 16)), 1, 5, "first-field-padded",
      (_day(1, 9), _day(1, 9), _day(1, 10), _day(1, 11), _day(1, 11), _day(1, 14),
       _day(1, 14), _day(1, 16))),
+    # THE NEAREST FREE UNIT IS ONE NO RANK HOLDS, A UNIT RAISED ONTO
+    # INCLUDED (the landing's sixth skeptic). Nothing merges, trades or
+    # splits, and the stack holds ten days: 0, 2 (ranks 1 to 3), 4 (4 and
+    # 5), 6, 8, 10, 12, 14, 16 and 18, each later pair on its upper day.
+    # Raised in rank order to twelve: rank 1 onto day 1, the one free day
+    # in its gap of 1 to 2; ranks 2 and 3 then find none, day 1 being held;
+    # rank 4 onto day 3. (With a day raised onto read as free again, rank
+    # 2 goes to day 1 too and the stack is taken holding eleven.)
+    ((0, 2, 2, 2, 3, 5, 5, 6, 8, 8, 9, 11, 11, 12, 14, 14, 15, 17, 18),
+     (True,) + (False,) * 17 + (True,),
+     (0, 1, 1, 1, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 18),
+     (0, 2, 2, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18), 1, 12, "",
+     (0, 1, 2, 2, 3, 4, 6, 6, 8, 8, 10, 10, 12, 12, 14, 14, 16, 16, 18)),
 )
 RUN_TRADES = (
     # (ordinals, pinned, lows, highs, owed, ordinals after, trades made)
@@ -993,6 +1006,166 @@ def _generator_trade(ordinals, pinned, lows, highs, owed):
     return (tuple(ordinals), made)
 
 
+
+# --------------------------------------- G7.3's count met past the strata
+#
+# WHERE NO PLACEMENT INSIDE THE GAPS REACHES THE COUNT (the orchestrator's
+# call of 2026-09-28, not an owner ruling; the owner may reverse it; plan
+# P4-D354). Where even the stack holds more units than the count, the
+# ranks take the stack and give units up one at a time: a run of the
+# stack's ranks, none pinned, alone on its unit and between two ranks,
+# splits -- its lower ranks onto the instant of the rank just below it,
+# the rest onto the instant of the rank just above it, each of its own
+# standing -- where each lands inside its gap or, being an unpinned rank of
+# a shape-drawn tail, strictly beyond its tail's boundary; the split whose
+# farthest rank stands least far outside its gap first, then the fewest
+# ranks outside, then the lower run, then more ranks down; taken only where
+# the count is met and each tail's summed distance and summed square lie
+# inside G12.14's window. Asked on hand-built ranks, days as whole
+# numbers: each tail given as its ranks from the outermost in, its
+# anchor, its unit, its half unit, its side, and the nearest and furthest
+# distance each rank is summed over (given here, and where a row needs
+# room, wider than a real tail's). The answer is worked out by hand.
+STRATA = (
+    # (ordinals, pinned, lows, highs, tails, day, distinct, width word, ordinals after)
+    #
+    # THE COUNT MET, BY THE LEAST AMOUNT. The stack holds days 10, 13, 15,
+    # 18 and 20, five of four. Rank 1 onto day 10 or 15 stands two days
+    # outside its gap; rank 2 onto day 13 one day, onto 18 three; rank 3
+    # onto 15 two, and onto day 20, the boundary's, not at all. Rank 2 goes
+    # down: distances 10, 7, 7 and 2 sum to 26 inside 24 to 27, squares to
+    # 202 inside 178 to 209.
+    ((10, 12, 14, 17, 20), (True, False, False, False, True), (10, 12, 14, 17, 20),
+     (10, 13, 15, 18, 20), (((0, 1, 2, 3), 20, 1, 0, True, (10, 7, 5, 2), (10, 8, 6, 3)),),
+     1, 4, "", (10, 13, 13, 18, 20)),
+    # ONLY WHERE THE STACK HOLDS MORE UNITS THAN THE COUNT. The same ranks
+    # asked for five: the stack holds five, a placement inside every gap
+    # reaches the count, and nothing moves.
+    ((10, 12, 14, 17, 20), (True, False, False, False, True), (10, 12, 14, 17, 20),
+     (10, 13, 15, 18, 20), (((0, 1, 2, 3), 20, 1, 0, True, (10, 7, 5, 2), (10, 8, 6, 3)),),
+     1, 5, "", (10, 12, 14, 17, 20)),
+    # NEVER ONTO THE BOUNDARY'S UNIT. The stack holds days 8, 12 and 13,
+    # three of two. Rank 1's day 13 is the boundary's, one day past its gap
+    # and not offered; it goes down to day 8, three days past its gap:
+    # distances 5 and 5, sum 10 inside 6 to 10, squares 50 inside 26 to 68.
+    ((8, 12, 13, 13), (True, False, True, True), (8, 11, 13, 13), (8, 12, 13, 13),
+     (((0, 1), 13, 1, 0, True, (5, 1), (8, 2)),), 1, 2, "", (8, 8, 13, 13)),
+    # EVERY TAIL'S SUMMED DISTANCE INSIDE ITS WINDOW. The stack holds days
+    # 7, 11 (rank 1), 12 (the boundary and the body rank 3) and 15. Rank 1
+    # can only go down to day 7, and its tail's distances then sum to 10
+    # against a window of 6 to 9: nothing moves.
+    ((7, 10, 12, 14, 15), (True, False, True, False, True), (7, 10, 12, 12, 15),
+     (7, 11, 12, 15, 15), (((0, 1), 12, 1, 0, True, (5, 1), (7, 2)),), 1, 3, "",
+     (7, 10, 12, 14, 15)),
+    # ...AND ITS SUMMED SQUARE. The stack holds days 2, 4, 9, 11 and 14.
+    # Rank 1 onto day 2 stands one day outside its gap and is taken first;
+    # the tail's distances 9, 9 and 2 sum to 20 inside 18 to 21, but their
+    # squares to 166 against 134 to 161: nothing moves.
+    ((2, 4, 8, 11, 14, 14), (True, False, False, True, False, True), (2, 3, 7, 11, 11, 14),
+     (2, 4, 9, 11, 14, 14), (((0, 1, 2), 11, 1, 0, True, (9, 7, 2), (9, 8, 4)),), 1, 4, "",
+     (2, 4, 8, 11, 14, 14)),
+    # THE LEAST FAR BEFORE THE FEWEST. The stack holds days 6, 11, 13
+    # (ranks 2 and 3), 15 and 17. Ranks 2 and 3 both onto day 11 stand one
+    # day outside their gaps; rank 1 onto day 13 alone stands two. The two
+    # go down: distances 9, 4, 4 and 4 inside the window.
+    ((6, 10, 12, 13, 15, 15, 17), (True, False, False, False, True, False, True),
+     (6, 10, 12, 12, 15, 15, 17), (6, 11, 13, 13, 15, 17, 17),
+     (((0, 1, 2, 3), 15, 1, 0, True, (9, 4, 2, 2), (12, 5, 3, 3)),), 1, 4, "",
+     (6, 11, 11, 11, 15, 15, 17)),
+    # ...AND THE FEWEST OUTSIDE BEFORE THE LOWER RUN. The stack holds days 7,
+    # 10 (ranks 1 and 2), 12, 13 and 14. The run of ranks 1 and 2 splits
+    # onto days 7 and 12, each one day outside its gap; rank 3 onto day 10
+    # stands one day outside too, alone. Rank 3 goes.
+    ((7, 9, 10, 11, 13, 14), (True, False, False, False, True, True), (7, 8, 10, 11, 13, 14),
+     (7, 10, 11, 12, 13, 14), (((0, 1, 2, 3), 13, 1, 0, True, (6, 3, 2, 1), (6, 5, 3, 2)),),
+     1, 4, "", (7, 10, 10, 10, 13, 14)),
+    # MORE RANKS DOWN ON A TIE. The stack holds days 2, 4, 5 and 10. Rank 1
+    # stands one day outside its gap on day 2 and on day 5; it goes down,
+    # and its tail's distances 8, 8 and 5 lie inside the window, where
+    # 8, 5 and 5 would not.
+    ((2, 4, 5, 10, 10), (True, False, True, True, True), (2, 3, 5, 10, 10), (2, 4, 5, 10, 10),
+     (((0, 1, 2), 10, 1, 0, True, (8, 6, 5), (10, 7, 5)),), 1, 3, "", (2, 2, 5, 10, 10)),
+    # OF ITS OWN STANDING. Month-first dates under `first-field-padded`: the
+    # 8th of January counts outside the word and the 11th inside it. Rank
+    # 1's only offer is the 8th, of the other kind: nothing moves.
+    ((_day(1, 8), _day(1, 11), _day(1, 12), _day(1, 12)), (True, False, True, True),
+     (_day(1, 8), _day(1, 10), _day(1, 12), _day(1, 12)),
+     (_day(1, 8), _day(1, 11), _day(1, 12), _day(1, 12)),
+     (((0, 1), _day(1, 12), 1, 0, True, (4, 1), (7, 2)),), 1, 2, "first-field-padded",
+     (_day(1, 8), _day(1, 11), _day(1, 12), _day(1, 12))),
+    # A BODY RANK NEVER LEAVES ITS GAP. Rank 2's gap of 9 to 10 reaches
+    # neither neighbour, days 7 and 12 (a body gap runs from pin to pin, so
+    # only a row can give it this one), and it is no tail's: nothing moves.
+    ((4, 7, 10, 12), (True, True, False, True), (4, 7, 9, 12), (4, 7, 10, 12),
+     (((0,), 7, 1, 0, True, (3,), (3,)),), 1, 3, "", (4, 7, 10, 12)),
+    # THE LOWER RUN ON A TIE. The stack holds days 10, 13, 16 and 20. Rank
+    # 1 onto day 10 and rank 2 onto day 13 each stand two days outside
+    # their gaps; rank 1 goes.
+    ((10, 12, 15, 20), (True, False, False, True), (10, 12, 15, 20), (10, 13, 16, 20),
+     (((0, 1, 2), 20, 1, 0, True, (10, 7, 4), (12, 8, 5)),), 1, 3, "", (10, 10, 16, 20)),
+    # NONE PINNED. Rank 2 is pinned on day 7 though its gap is 6 to 10,
+    # which the layout never gives a pin, and the stack puts rank 1 on day
+    # 7 beside it. Split, rank 1 would go down to day 4 and rank 2 up to day
+    # 10 inside its gap, the count met and the window held; the run holds a
+    # pinned rank, so nothing moves.
+    ((4, 7, 7, 10), (True, False, True, True), (4, 6, 6, 10), (4, 7, 10, 10),
+     (((0, 1), 10, 1, 0, True, (6, 3), (6, 6)),), 1, 2, "", (4, 7, 7, 10)),
+    # A PINNED RANK IS STACKED ON ITS OWN INSTANT. Rank 2 is pinned on day
+    # 13, its gap 13 to 14. The stack holds 6, 8 and 13; rank 1 goes down
+    # one day outside its gap onto day 6.
+    ((6, 7, 13), (False, False, True), (5, 7, 13), (6, 8, 14),
+     (((0, 1), 13, 1, 0, True, (7, 5), (9, 6)),), 1, 2, "", (6, 6, 13)),
+    # STACKED BY THE UPPER ENDS. Rank 2 is pinned on day 12 below rank 1's
+    # day 16. Taken by the upper ends, rank 1 joins day 12 and the stack
+    # holds two days, as many as the count: nothing moves.
+    ((11, 16, 12), (True, False, True), (11, 12, 12), (11, 16, 12),
+     (((0,), 12, 1, 0, True, (1,), (3,)),), 1, 2, "", (11, 16, 12)),
+    # THE STACK SORTED, EVERY RANK THEN INSIDE ITS GAP. Rank 1's gap of 8 to
+    # 9 lies below rank 0's of 10 to 11. Sorted, rank 0 takes day 9, outside
+    # its gap: there is no stack, and nothing moves.
+    ((10, 8, 12), (False, False, True), (10, 8, 12), (11, 9, 12),
+     (((0, 1), 12, 1, 0, True, (1, 1), (4, 4)),), 1, 2, "", (10, 8, 12)),
+    # BETWEEN TWO RANKS. The last two ranks share day 18 and nothing stands
+    # above them: nothing moves.
+    ((15, 16, 20), (True, False, False), (15, 16, 16), (15, 18, 20),
+     (((0,), 16, 1, 0, True, (1,), (1,)),), 1, 1, "", (15, 16, 20)),
+    # ALONE ON ITS UNIT. The stack puts rank 0 on day 11 with rank 2, the
+    # pinned rank 1 between them; rank 2 going up frees no day: nothing moves.
+    ((14, 14, 11, 16), (False, True, False, True), (11, 14, 9, 15), (14, 14, 11, 17),
+     (((0, 1, 2), 15, 1, 0, True, (1, 1, 4), (4, 1, 6)),), 1, 2, "", (14, 14, 11, 16)),
+)
+
+
+def _strata_missed(settle: typing.Callable[..., object]) -> "list[str]":
+    missed = []
+    for ordinals, pinned, lows, highs, tails, day, distinct, word, want in STRATA:
+        got = _asked(
+            settle, list(ordinals), list(pinned), list(lows), list(highs), tails, day,
+            distinct, word,
+        )
+        if got != want:
+            missed += [f"strata of {ordinals!r}: {got!r}, the statement gives {want!r}"]
+    return missed
+
+
+def _oracle_strata(module: types.ModuleType) -> typing.Callable[..., object]:
+    def settle(ordinals, pinned, lows, highs, tails, day, distinct, word):
+        module.count_met_past_the_strata(
+            {"format": RUN_MEMBER}, ordinals, pinned, lows, highs, day, 1, 1,
+            bool(word), word, distinct, list(tails),
+        )
+        return tuple(ordinals)
+
+    return settle
+
+
+def _generator_strata(ordinals, pinned, lows, highs, tails, day, distinct, word):
+    generation._count_met_past_the_strata(
+        typing.cast(contract.DatetimeFacts, _RUN_FACTS), ordinals, pinned, lows, highs,
+        day, 1, 1, bool(word), word, distinct, list(tails),
+    )
+    return tuple(ordinals)
+
 # ------------------------------------------------------------ the two readers
 
 WITNESSES = {
@@ -1031,6 +1204,10 @@ WITNESSES = {
     "run": (
         lambda module: _run_missed(*_oracle_run(module)),
         lambda: _run_missed(_generator_merge, _generator_trade),
+    ),
+    "strata": (
+        lambda module: _strata_missed(_oracle_strata(module)),
+        lambda: _strata_missed(_generator_strata),
     ),
 }
 
@@ -1395,6 +1572,118 @@ WITNESS_MUTANTS = {
         "run",
         "        if pinned[rank] or now[placed[rank] // unit] < 2:\n            continue\n        found = nearest_free_where(",
         "        if pinned[rank] or now[placed[rank] // unit] < 1:\n            continue\n        found = nearest_free_where(",
+    ),
+    # The raise onto the nearest FREE unit: a unit an earlier raise took is
+    # no longer free (the landing's sixth skeptic).
+    "restack_raised_onto_a_taken_unit": (
+        "run", "        now[found // unit] = 1\n", "        now[found // unit] = 0\n",
+    ),
+    # The count met past the strata, clause by clause (the orchestrator's
+    # call of 2026-09-28, plan P4-D354).
+    "strata_withdrawn": (
+        "strata",
+        '    kind = [standing_of(column, value, day, step, widths, word) for value in ordinals]\n',
+        '    return False\n    kind = [standing_of(column, value, day, step, widths, word) for value in ordinals]\n',
+    ),
+    "strata_where_the_stack_reaches_the_count": (
+        "strata",
+        '    if len(held) <= distinct:\n        return False\n',
+        '',
+    ),
+    "strata_from_the_ranks_as_they_stand": (
+        "strata",
+        '    held = {}\n    for value in laid:\n',
+        '    laid = list(ordinals)\n    held = {}\n    for value in laid:\n',
+    ),
+    "strata_a_body_rank_leaves": (
+        "strata",
+        '        beyond = rank in tail_of and ',
+        '        beyond = rank not in tail_of or ',
+    ),
+    "strata_onto_the_boundary": (
+        "strata",
+        '*tail_of[rank][1:5]) > 0\n',
+        '*tail_of[rank][1:5]) >= 0\n',
+    ),
+    "strata_farthest_first": (
+        "strata",
+        'offers.append(((max(costs), sum(1 for c in costs if c > 0), start, -down), start, goes))',
+        'offers.append(((-max(costs), sum(1 for c in costs if c > 0), start, -down), start, goes))',
+    ),
+    "strata_fewest_outside_first": (
+        "strata",
+        'offers.append(((max(costs), sum(1 for c in costs if c > 0), start, -down), start, goes))',
+        'offers.append(((sum(1 for c in costs if c > 0), max(costs), start, -down), start, goes))',
+    ),
+    "strata_any_number_outside": (
+        "strata",
+        'offers.append(((max(costs), sum(1 for c in costs if c > 0), start, -down), start, goes))',
+        'offers.append(((max(costs), 0, start, -down), start, goes))',
+    ),
+    "strata_the_higher_run_first": (
+        "strata",
+        'offers.append(((max(costs), sum(1 for c in costs if c > 0), start, -down), start, goes))',
+        'offers.append(((max(costs), sum(1 for c in costs if c > 0), -start, -down), start, goes))',
+    ),
+    "strata_more_ranks_up": (
+        "strata",
+        'offers.append(((max(costs), sum(1 for c in costs if c > 0), start, -down), start, goes))',
+        'offers.append(((max(costs), sum(1 for c in costs if c > 0), start, down), start, goes))',
+    ),
+    "strata_of_any_standing": (
+        "strata",
+        '        same = standing_of(column, target, day, step, widths, word) == standing_of(column, laid[rank], day, step, widths, word)\n',
+        '        same = True\n',
+    ),
+    "strata_a_shared_unit": (
+        "strata",
+        '\n                and held[laid[start] // unit] == len(run)\n',
+        '\n',
+    ),
+    "strata_a_pinned_rank_split": (
+        "strata",
+        '                not any(pinned[rank] for rank in run)\n',
+        '                True\n',
+    ),
+    "strata_the_sum_unwindowed": (
+        "strata",
+        '        if not sum(near) <= sum(away) <= sum(far):\n            return False\n',
+        '',
+    ),
+    "strata_the_square_unwindowed": (
+        "strata",
+        '        if not sum(d * d for d in near) <= sum(d * d for d in away) <= sum(d * d for d in far):\n            return False\n',
+        '',
+    ),
+    "strata_stacked_in_rank_order": (
+        "strata",
+        'key=lambda r: (room[r][1], room[r][0], r)',
+        'key=lambda r: r',
+    ),
+    "strata_stacked_at_the_lower_ends": (
+        "strata",
+        'for c in range(top, low - 1, -by)',
+        'for c in range(low, top + 1, by)',
+    ),
+    "strata_stack_unsorted": (
+        "strata",
+        '    sort_unpinned_runs(laid, pinned)\n    if not all(',
+        '    if not all(',
+    ),
+    "strata_a_pinned_rank_stacked_by_its_gap": (
+        "strata",
+        '    room = [(value, value) if fixed else (low, high) for value, fixed, low, high in zip(ordinals, pinned, lows, highs)]\n',
+        '    room = [(low, high) for value, fixed, low, high in zip(ordinals, pinned, lows, highs)]\n',
+    ),
+    "strata_stack_past_a_gap": (
+        "strata",
+        '    if not all(low <= value <= high for value, (low, high) in zip(laid, room)):\n        return False\n',
+        '',
+    ),
+    "strata_between_two_ranks": (
+        "strata",
+        '                and start > 0 and stop + 1 < size_of\n',
+        '                and start > 0\n',
     ),
     "group_takes_past_the_count": (
         "group",

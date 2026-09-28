@@ -20511,7 +20511,10 @@ def _units_settled(
        inside its own gap (`_runs_split`); and where the count is still
        over, the ranks are stacked afresh on the fewest units their gaps
        and standings allow and raised to the count, taken only where
-       that meets it (`_ranks_restacked`).
+       that meets it (`_ranks_restacked`); and where even that stack
+       holds more units than the count once the rounds are done, a tail
+       rank leaves its stratum by the least amount that meets it
+       (`_count_met_past_the_strata`).
        Too few: a rank sharing its unit moves to the nearest unit no rank
        holds inside its gap, of the same width kind, not onto a midnight
        it did not stand at and not off one it did, nearest first, ties to
@@ -20605,6 +20608,31 @@ def _units_settled(
         off = now
         if off == 0 or stalled >= _RESTORATION_STALLS:
             break
+    if distinct >= 0 and layout is not None:
+        # AND WHERE NO PLACEMENT INSIDE THE GAPS REACHES THE COUNT, a tail
+        # rank leaves its stratum by the least amount that meets it (the
+        # orchestrator's call of 2026-09-28, not an owner ruling; the owner
+        # may reverse it; plan P4-D354).
+        units_now: "dict[int, bool]" = {}
+        for value in moved:
+            units_now[value // unit] = True
+        tails: "list[tuple[tuple[int, ...], int, int, int, bool, tuple[int, ...], tuple[int, ...]]]" = []
+        for plan in (layout.low, layout.high):
+            if len(units_now) <= distinct or plan is None or plan.shape is None:
+                continue
+            near, far = _tail_sum_bounds(plan, True)
+            tails += [
+                (
+                    tuple(_tail_rank_of(plan, parsed, index) for index in range(plan.rows)),
+                    plan.anchor, plan.unit, plan.half, plan.low_side,
+                    tuple(near), tuple(far),
+                )
+            ]
+        if tails:
+            _count_met_past_the_strata(
+                facts, moved, pinned, gap_lows, gap_highs, day, step, unit,
+                widths >= 0, word, distinct, tails,
+            )
     _runs_sorted(moved, pinned)
     if distinct >= 0 and layout is not None:
         _group_gives_way(
@@ -21273,6 +21301,76 @@ def _runs_split(
     return made
 
 
+def _ranks_stacked(
+    facts: contract.DatetimeFacts,
+    moved: "list[int]",
+    pinned: "list[bool]",
+    lows: "list[int]",
+    highs: "list[int]",
+    day: int,
+    step: int,
+    unit: int,
+    widths: bool,
+    word: str,
+) -> "list[int] | None":
+    """The ranks stacked afresh on the fewest units their gaps allow (G7.3).
+
+    Taken in the order of their gaps' upper ends, then their lower ends,
+    then their rank -- a pinned rank's gap being its own instant -- each
+    rank stands on the unit last stacked for its standing where that lies
+    inside its gap, else on the highest unit of its standing inside its
+    gap, which is stacked next (a midnight sought a day at a time). That
+    stack holds the fewest units any placement inside every gap keeping
+    every standing can hold (the stabbing of intervals at their upper
+    ends, taken in that order). Its instants are then sorted within each
+    unpinned run, as every round sorts them.
+
+    Guarantees: returns one instant per rank, every one inside its gap
+    and of its rank's own standing, or None where a gap holds no instant
+    of its rank's standing or a sorted rank stands outside its gap. Reads
+    its arguments and changes none of them. Linear in the ranks but for
+    the sort and the walk down each gap to an instant of its standing.
+    Determinism: a fixed function of its arguments; draws no word. Raises
+    nothing. No I/O of any kind.
+    """
+    parsed = len(moved)
+    low = [moved[rank] if pinned[rank] else lows[rank] for rank in range(parsed)]
+    high = [moved[rank] if pinned[rank] else highs[rank] for rank in range(parsed)]
+    keys: "list[tuple[int, int, int]]" = []
+    for rank in range(parsed):
+        keys += [(high[rank], low[rank], rank)]
+    placed = [value for value in moved]
+    top: "dict[tuple[bool, bool], int]" = {}
+    for key in sorted(keys):
+        rank = key[2]
+        standing = _standing_of(facts, moved[rank], day, step, widths, word)
+        if standing in top and low[rank] <= top[standing] <= high[rank]:
+            placed[rank] = top[standing]
+            continue
+        by = unit
+        if day == 86400 and unit == step and 86400 % step == 0 and standing[1]:
+            # A MIDNIGHT IS SOUGHT A DAY AT A TIME, as `_nearest_free_unit`
+            # seeks one: the candidates that keep its standing start a day.
+            by = 86400
+        candidate = moved[rank] + ((high[rank] - moved[rank]) // by) * by
+        while candidate >= low[rank] and not _same_standing(
+            facts, moved[rank], candidate, day, step, widths, word
+        ):
+            candidate = candidate - by
+        if candidate < low[rank]:
+            return None
+        placed[rank] = candidate
+        top[standing] = candidate
+    # THE RANKS KEEP THEIR ORDER, as every round sorts them, and each must
+    # then stand inside its own gap; a rank passing another whose gap lies
+    # elsewhere would sort out of its gap (the split's `IN ORDER` witness).
+    _runs_sorted(placed, pinned)
+    for rank in range(parsed):
+        if placed[rank] < low[rank] or placed[rank] > high[rank]:
+            return None
+    return placed
+
+
 def _ranks_restacked(
     facts: contract.DatetimeFacts,
     moved: "list[int]",
@@ -21318,13 +21416,10 @@ def _ranks_restacked(
     met. The ranks take the stack only where that meets the count
     exactly; otherwise nothing moves.
 
-    WHERE EVEN THE STACK HOLDS MORE UNITS THAN THE COUNT, THE COUNT IS
-    MISSED: no rank leaves its gap to meet it. That is the cost of the gap
-    rule (plan P4-D354, the fifth skeptic of landing 3b.0): 123 dates over
-    56 days, 24 different, at a floor of 36, where no placement inside
-    every gap holds fewer than 25, come back holding 26, both distinct
-    counts MISSED, where shipped stage 3 met them with low-tail ranks a
-    day below their strata.
+    Where even the stack holds more units than the count, no placement
+    inside every gap reaches it, and once the rounds are done a tail rank
+    leaves its stratum by the least amount that meets it
+    (`_count_met_past_the_strata`).
 
     Guarantees: moves ranks of `moved` and counts of `held` in place
     only where the count is met, keeping every rank inside its gap and
@@ -21334,40 +21429,12 @@ def _ranks_restacked(
     Raises nothing. No I/O of any kind.
     """
     parsed = len(moved)
-    low = [moved[rank] if pinned[rank] else lows[rank] for rank in range(parsed)]
-    high = [moved[rank] if pinned[rank] else highs[rank] for rank in range(parsed)]
-    keys: "list[tuple[int, int, int]]" = []
-    for rank in range(parsed):
-        keys += [(high[rank], low[rank], rank)]
-    placed = [value for value in moved]
-    top: "dict[tuple[bool, bool], int]" = {}
-    for key in sorted(keys):
-        rank = key[2]
-        standing = _standing_of(facts, moved[rank], day, step, widths, word)
-        if standing in top and low[rank] <= top[standing] <= high[rank]:
-            placed[rank] = top[standing]
-            continue
-        by = unit
-        if day == 86400 and unit == step and 86400 % step == 0 and standing[1]:
-            # A MIDNIGHT IS SOUGHT A DAY AT A TIME, as `_nearest_free_unit`
-            # seeks one: the candidates that keep its standing start a day.
-            by = 86400
-        candidate = moved[rank] + ((high[rank] - moved[rank]) // by) * by
-        while candidate >= low[rank] and not _same_standing(
-            facts, moved[rank], candidate, day, step, widths, word
-        ):
-            candidate = candidate - by
-        if candidate < low[rank]:
-            return False
-        placed[rank] = candidate
-        top[standing] = candidate
-    # THE RANKS KEEP THEIR ORDER, as every round sorts them, and each must
-    # then stand inside its own gap; a rank passing another whose gap lies
-    # elsewhere would sort out of its gap (the split's `IN ORDER` witness).
-    _runs_sorted(placed, pinned)
-    for rank in range(parsed):
-        if placed[rank] < low[rank] or placed[rank] > high[rank]:
-            return False
+    stacked_at = _ranks_stacked(
+        facts, moved, pinned, lows, highs, day, step, unit, widths, word
+    )
+    if stacked_at is None:
+        return False
+    placed = stacked_at
     stacked: "dict[int, int]" = {}
     for rank in range(parsed):
         key_now = placed[rank] // unit
@@ -21405,6 +21472,217 @@ def _ranks_restacked(
     for key_now in stacked:
         held[key_now] = stacked[key_now]
     return True
+
+
+
+def _count_met_past_the_strata(
+    facts: contract.DatetimeFacts,
+    moved: "list[int]",
+    pinned: "list[bool]",
+    lows: "list[int]",
+    highs: "list[int]",
+    day: int,
+    step: int,
+    unit: int,
+    widths: bool,
+    word: str,
+    wanted: int,
+    tails: "list[tuple[tuple[int, ...], int, int, int, bool, tuple[int, ...], tuple[int, ...]]]",
+) -> bool:
+    """Meet a count no placement inside the gaps reaches, a tail rank past its stratum.
+
+    THE GAP RULE'S COST, REPAIRED (the orchestrator's call of 2026-09-28,
+    not an owner ruling; the owner may reverse it; plan P4-D354). Keeping
+    every rank inside its gap (`_run_room`) left a count no placement
+    inside every gap reaches MISSED: 123 ISO dates over 56 days, 24 of
+    them different, described at a floor of 36, came back holding 26 at
+    seeds 3 and 8, where the fewest days any placement inside every gap
+    holds is 25 -- and shipped stage 3 had met that count with low-tail
+    ranks a day below their strata, and validated. The call: where no
+    placement with every rank inside its gap can meet the distinct count,
+    a tail rank may leave its stratum by the least amount that meets it,
+    and only where the tail's published windows and every other published
+    check still hold.
+
+    So where the count passes leave the count over and even the stack
+    (`_ranks_stacked`) holds more units than it, the ranks take the stack
+    and give units up one at a time. A run of the stack's ranks, none
+    pinned, alone on its unit and between two ranks, is split -- its
+    lower ranks onto the instant of the rank just below it, the rest onto
+    the instant of the rank just above it, each of its own standing
+    (`_same_standing`) -- where each rank lands inside its gap or, being
+    an unpinned rank of a shape-drawn tail, strictly beyond its tail's
+    boundary. Only a run holding a tail rank is asked: a run of body
+    ranks alone could split only inside every gap, which would leave the
+    stack holding a unit fewer than the fewest it can hold. Of every split
+    on offer the one taken is the one whose rank lands farthest outside
+    its gap by the least amount, then the one leaving the fewest ranks
+    outside their gaps, then the lower run, then the one sending more of
+    its ranks down; each frees the run's unit onto units ranks already
+    hold, so the count falls by exactly one and no unit is written that
+    the stack did not hold. The ranks take the result only where the
+    count is met exactly and every shape-drawn tail's summed distance and
+    summed square then lie inside the window G12.14 sums them over (the
+    `near` and `far` of `_tail_sum_bounds`); otherwise nothing moves.
+    A body rank never leaves its gap, so the ladder's pins stand; a
+    moved tail rank lands on a held unit of its own standing beyond its
+    boundary, so the tail's rows, the width census and the count at
+    midnight stand.
+
+    `tails` holds each shape-drawn tail as its ranks from the outermost
+    in, its anchor, how many space ordinals one tail unit is, the half
+    unit it is widened by, whether it is the low tail, and each rank's
+    nearest and furthest distance as G12.14 sums them.
+
+    Guarantees: moves ranks of `moved` in place only where the count is
+    met with every tail window held, and returns whether it did. Linear in
+    the ranks for the stack and in the tails' ranks for each unit given
+    up. Determinism: a fixed function of its arguments; draws no word.
+    Raises nothing. No I/O of any kind.
+    """
+    stacked_at = _ranks_stacked(
+        facts, moved, pinned, lows, highs, day, step, unit, widths, word
+    )
+    if stacked_at is None:
+        return False
+    placed = stacked_at
+    held: "dict[int, int]" = {}
+    for value in placed:
+        key = value // unit
+        held[key] = (held[key] if key in held else 0) + 1
+    count = len(held)
+    if count <= wanted:
+        return False
+    parsed = len(placed)
+    # WHICH TAIL EACH RANK MAY LEAVE ITS STRATUM IN: an unpinned rank of a
+    # shape-drawn tail, and only such a rank.
+    tail_of: "dict[int, int]" = {}
+    for place in range(len(tails)):
+        for rank in tails[place][0]:
+            if not pinned[rank]:
+                tail_of[rank] = place
+    ranks = sorted(tail_of)
+
+    def past(rank: int, target: int) -> int:
+        """How far outside its gap `target` stands for `rank`, or -1 where it may not go."""
+        if not _same_standing(facts, placed[rank], target, day, step, widths, word):
+            return -1
+        if lows[rank] <= target <= highs[rank]:
+            return 0
+        if rank not in tail_of:
+            return -1
+        tail = tails[tail_of[rank]]
+        if _beyond_the_boundary(target, tail[1], tail[2], tail[3], tail[4]) < 1:
+            return -1
+        if target < lows[rank]:
+            return lows[rank] - target
+        return target - highs[rank]
+
+    while count > wanted:
+        best: "tuple[int, int, int, int] | None" = None
+        # ONLY A RUN HOLDING A TAIL RANK IS ASKED (see above).
+        asked: "dict[int, bool]" = {}
+        for rank_of_tail in ranks:
+            first = rank_of_tail
+            while first > 0 and placed[first - 1] // unit == placed[rank_of_tail] // unit:
+                first = first - 1
+            if first in asked:
+                continue
+            asked[first] = True
+            last = rank_of_tail
+            while last + 1 < parsed and placed[last + 1] // unit == placed[rank_of_tail] // unit:
+                last = last + 1
+            size = last - first + 1
+            loose = first > 0 and last + 1 < parsed and held[placed[first] // unit] == size
+            for rank in range(first, last + 1):
+                if pinned[rank]:
+                    loose = False
+            if not loose:
+                continue
+            below = placed[first - 1]
+            above = placed[last + 1]
+            # The ranks sent down are the lowest `down` of the run: how far
+            # outside its gap each would stand, the farthest and how many,
+            # for every `down` from the bottom and from the top.
+            down_far = [0 for _place in range(size + 1)]
+            down_out = [0 for _place in range(size + 1)]
+            down_ok = [True for _place in range(size + 1)]
+            for place in range(size):
+                away = past(first + place, below)
+                down_ok[place + 1] = down_ok[place] and away >= 0
+                down_far[place + 1] = max(down_far[place], away)
+                down_out[place + 1] = down_out[place] + (1 if away > 0 else 0)
+            up_far = [0 for _place in range(size + 1)]
+            up_out = [0 for _place in range(size + 1)]
+            up_ok = [True for _place in range(size + 1)]
+            for place in range(size - 1, -1, -1):
+                away = past(first + place, above)
+                up_ok[place] = up_ok[place + 1] and away >= 0
+                up_far[place] = max(up_far[place + 1], away)
+                up_out[place] = up_out[place + 1] + (1 if away > 0 else 0)
+            for down in range(size, -1, -1):
+                if not down_ok[down] or not up_ok[down]:
+                    continue
+                offer = (
+                    max(down_far[down], up_far[down]),
+                    down_out[down] + up_out[down],
+                    first,
+                    size - down,
+                )
+                if best is None or offer < best:
+                    best = offer
+        if best is None:
+            return False
+        first = best[2]
+        own = placed[first] // unit
+        size = held[own]
+        down = size - best[3]
+        below = placed[first - 1]
+        above = placed[first + size]
+        for place in range(size):
+            target = below if place < down else above
+            placed[first + place] = target
+            held[target // unit] = held[target // unit] + 1
+        del held[own]
+        count = count - 1
+    # EVERY TAIL'S PUBLISHED WINDOW STILL HOLDS, or nothing moves.
+    for tail in tails:
+        total = 0
+        square = 0
+        for rank in tail[0]:
+            distance = _beyond_the_boundary(placed[rank], tail[1], tail[2], tail[3], tail[4])
+            total = total + distance
+            square = square + distance * distance
+        near_total = 0
+        near_square = 0
+        for distance in tail[5]:
+            near_total = near_total + distance
+            near_square = near_square + distance * distance
+        far_total = 0
+        far_square = 0
+        for distance in tail[6]:
+            far_total = far_total + distance
+            far_square = far_square + distance * distance
+        if not near_total <= total <= far_total or not near_square <= square <= far_square:
+            return False
+    for rank in range(parsed):
+        moved[rank] = placed[rank]
+    return True
+
+
+def _beyond_the_boundary(value: int, anchor: int, size: int, half: int, low_side: bool) -> int:
+    """How many whole tail units one space ordinal stands beyond a tail's boundary.
+
+    `_tail_distance_of` over a tail's anchor, unit size, half-unit widening
+    and side rather than its plan: nought or less on or inside the boundary.
+    """
+    here = value // size
+    if half > 0:
+        here = (value + half) // size
+    there = anchor // size
+    if low_side:
+        return there - here
+    return here - there
 
 
 # HOW MANY HELD UNITS ONE RUN IS OFFERED FOR A PAID MERGE (item 2 of the
