@@ -6,6 +6,19 @@ exists).
 
 ## [Unreleased]
 
+### The review of landing 3b.0: no count offers a missing day (2026-09-28)
+
+**No count pass puts a rank on a day an absent spelling names** (plan
+P4-D358, the review's items 2 and 4). The stack put two present ranks on
+a declared-missing day to reach 24 days, the spelling step moved them
+apart, and the twin held 25: every pass of method G7.3 and G7.3b step 9
+now skips such a day, whichever column's absent spelling names it; a
+rank drawn onto one leaves it before the passes count; and a tail rank
+stuck on one is counted as the absent cell it is. The oracle holds the
+rule from the method's text, and G7.3b step 7's step off a hole, which
+it held nowhere. Three frozen cases, seventeen witness rows and ten
+oracle mutants hold it; one frozen case moves a cell.
+
 ### A count no placement inside the gaps reaches is met past the strata (2026-09-28)
 
 **A tail rank leaves its stratum by the least amount that meets the

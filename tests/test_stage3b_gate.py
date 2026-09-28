@@ -107,6 +107,22 @@ farthest first, or taken from the ranks where the rounds left them
 rather than from the stack, turns all three red, and its splits taken
 with no regard to how many ranks leave turns one red.
 
+THE REVIEW OF LANDING 3b.0 (plan P4-D358), items 2 and 4: no count pass
+offers a rank a day an absent spelling of the run names, a rank drawn
+onto one leaves it before the passes count, and a stuck tail rank's day
+is counted as the absent cell it is.
+`test_no_rank_is_stacked_on_a_day_the_table_declares_missing` (the
+review's column), `test_a_rank_drawn_onto_a_missing_day_leaves_it_before_the_count`
+and `test_no_rank_is_offered_a_day_another_column_declares_missing` fail
+on the reviewed tree (2af1f03); the review's column turns red only with
+every hole clause withdrawn together, each alone being covered by
+another, so the clauses are witnessed one call at a time by the `hole`
+rows of tests/test_oracle_rule_witnesses.py, where each of twelve
+generator mutants turns the shipped rows red. The step off withdrawn
+turns the second red, the group step's own holes alone the third, and
+the stuck count withdrawn
+`test_a_tail_rank_stuck_on_a_missing_day_is_counted_as_absent`.
+
 LANDING 3b.1 (plan P4-D355) makes the second clause true on DATE
 columns: the weekday census, published only where the full-fill
 certificate holds (`calendar_certificate`). Its clauses are the second
@@ -840,8 +856,9 @@ def _settled(
         highs: "list[int]",
         small: int,
         layout: "generation._DateLayout | None" = None,
+        *rest: object,
     ) -> "list[int]":
-        moved = shipped(column, facts, ordinals, parsed, whole, lows, highs, small, layout)
+        moved = shipped(column, facts, ordinals, parsed, whole, lows, highs, small, layout, *rest)
         seen[:] = [(list(moved), list(lows), list(highs), layout, facts)]
         return moved
 
@@ -1221,6 +1238,201 @@ def test_the_count_is_met_where_no_placement_inside_the_gaps_reaches_it(
             f"seed {seed}: {len(off)} ranks outside their gaps, the fewest days inside them {fewest}"
         )
 
+
+
+# ---------------------------------------------------------------------
+# THE REVIEW OF LANDING 3b.0, ITEMS 2 AND 4 (plan P4-D358): a day the
+# table declares missing is offered to no rank by any count pass, a rank
+# drawn onto one leaves it before the passes count, and a tail rank no
+# pass may move that stands on one is counted as the absent cell it is.
+
+
+def _described_with_a_missing_day(
+    tmp_path: pathlib.Path, stem: str, cells: "list[str]", floor: int, day: str
+) -> kpi_shapes.Described:
+    """The table of ``cells`` described at ``floor`` with ``day`` declared missing."""
+    table = fixtures.write(tmp_path, f"{stem}.csv", "c\n" + "".join(f"{cell}\n" for cell in cells))
+    settings = taxonomy.Settings(small_cell_floor=floor, declared_missing_values=(day,))
+    document = profile.build_document(
+        reading.read_table(str(table), small_cell_floor=floor), settings, [], [], []
+    )
+    written = fixtures.write_profile(tmp_path, f"{stem}-profile.json", document)
+    return kpi_shapes.Described(tmp_path, table, document, contract.load_profile(str(written)))
+
+
+def _day_number(text: str) -> int:
+    """An ISO date as the day the count pass counts it in (days from 1970-01-01)."""
+    return (datetime.date.fromisoformat(text) - datetime.date(1970, 1, 1)).days
+
+
+_RESTACK_HOLE = "2019-03-11"
+
+
+def test_no_rank_is_stacked_on_a_day_the_table_declares_missing(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The review of landing 3b.0, item 2: the stack offers no rank a missing day.
+
+    The fifth skeptic's 123 ISO dates over 56 days, 24 different, with 36
+    cells of 2019-03-11, a day inside their range, declared missing, at a
+    floor of 36: stage 3 (d93fd43) met both distinct counts at seed 3.
+    The landing's stack put two present ranks on the missing day to reach
+    24 units, the spelling step then moved them apart, and the twin held
+    25 different days, both distinct counts MISSED. Here, at seeds 3 and
+    8, no rank stands on the missing day once the count pass is done, the
+    written cells hold the published 24 days, and nothing is missed.
+    """
+    cells = _chain_prone(6) + [_RESTACK_HOLE] * 36
+    described = _described_with_a_missing_day(tmp_path, "restack_hole", cells, 36, _RESTACK_HOLE)
+    block = described.document["columns"][0]
+    assert (block["n_present"], block["n_distinct"], block["missing_by_source"]) == (
+        123, 24, {_RESTACK_HOLE: 36}
+    )
+    assert block["weekday_census"] == []
+    hole = _day_number(_RESTACK_HOLE)
+    for seed, (moved, _lows, _highs, _layout, _facts, text) in zip(
+        (3, 8), _settled(described, (3, 8), monkeypatch)
+    ):
+        assert hole not in moved, f"seed {seed}: a rank stands on the missing day"
+        written = {line for line in text.split("\n")[1:] if line} - {_RESTACK_HOLE}
+        assert len(written) == 24, f"seed {seed}: {len(written)} different days"
+        missed = kpi_shapes.missed(kpi_shapes.measure(described, text, f"restack-{seed}.csv"))
+        assert missed == [], f"seed {seed}: {missed}"
+
+
+def test_no_rank_is_offered_a_day_another_column_declares_missing(tmp_path: pathlib.Path) -> None:
+    """G7.3b step 9 offers no day ANY column's absent spelling names (P4-D358).
+
+    The frozen case's column without its four cells of 2024-05-12, beside
+    a column of kinds sixteen of whose cells are `2024-05-12`, declared
+    missing: the dates publish no absent spelling of their own, the kinds
+    publish that one. A date cell written 2024-05-12 reads back absent, so
+    the spelling step moved the rank the low group gave that day onto a
+    day ranks held, and the dates came back with 20 of their 21 days,
+    both distinct counts MISSED at seeds 0 to 4. The step now takes every
+    absent spelling of the run: 21 days, nothing missed.
+    """
+    days = [
+        cell for cell in _cells_of(_EVERY_DAY_GROUP_COUNTS, _EVERY_DAY_GROUP_START)
+        if cell != _ABSENT_DAY
+    ]
+    kinds = ([_ABSENT_DAY] * 16 + ["x", "y", "z"] * 40)[: len(days)]
+    table = fixtures.write(
+        tmp_path, "two.csv", "seen_on,kind\n" + "".join(f"{a},{b}\n" for a, b in zip(days, kinds))
+    )
+    settings = taxonomy.Settings(small_cell_floor=11, declared_missing_values=(_ABSENT_DAY,))
+    document = profile.build_document(
+        reading.read_table(str(table), small_cell_floor=11), settings, [], [], []
+    )
+    written = fixtures.write_profile(tmp_path, "two-profile.json", document)
+    described = kpi_shapes.Described(tmp_path, table, document, contract.load_profile(str(written)))
+    dates, labels = document["columns"]
+    assert (dates["missing_by_source"], labels["missing_by_source"]) == ({}, {_ABSENT_DAY: 16})
+    for seed in SEEDS:
+        text = kpi_shapes.twin_text(described, seed)
+        held = {line.split(",")[0] for line in text.split("\n")[1:] if line}
+        assert _ABSENT_DAY not in held, f"seed {seed}"
+        assert len(held - {""}) == dates["n_distinct"], f"seed {seed}: {len(held - {''})} days"
+        missed = kpi_shapes.missed(kpi_shapes.measure(described, text, f"two-{seed}.csv"))
+        assert missed == [], f"seed {seed}: {missed}"
+
+
+# 116 ISO dates over the 41 days from 2020-10-02, 37 of them on
+# 2020-10-20, which is declared missing (a seeded column of the review's
+# hole battery). At a floor of eleven three body ranks are drawn onto it.
+_DRAWN_HOLE_COUNTS = (
+    3, 5, 1, 1, 1, 1, 0, 7, 0, 2, 3, 5, 0, 0, 1, 1, 0, 0, 37, 0, 0, 4, 3,
+    12, 1, 2, 1, 2, 0, 3, 2, 2, 5, 2, 0, 4, 0, 0, 1, 2, 2,
+)
+
+
+def test_a_rank_drawn_onto_a_missing_day_leaves_it_before_the_count(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A rank drawn onto a missing day is counted where its cell will stand (P4-D358).
+
+    The count pass counted the missing day three body ranks were drawn
+    onto and met its 28; the spelling step then moved the three onto the
+    day beside it, which other ranks held, and the twin held 27 at seeds
+    3 and 8, both distinct counts MISSED -- on stage 3 (d93fd43) and on
+    the reviewed tree alike. Each such rank now moves off the day before
+    the passes' first round: none stands there once they are done, the
+    cells hold the published 28 days, and nothing is missed. The frozen
+    case `count_off_the_hole` of tests/test_generation_reference.py holds
+    the oracle to the same column.
+    """
+    cells: "list[str]" = []
+    for step in range(len(_DRAWN_HOLE_COUNTS)):
+        day = datetime.date(2020, 10, 2) + datetime.timedelta(days=step)
+        cells += [day.isoformat()] * _DRAWN_HOLE_COUNTS[step]
+    random.Random(20201020).shuffle(cells)
+    described = _described_with_a_missing_day(tmp_path, "drawn_hole", cells, 11, "2020-10-20")
+    block = described.document["columns"][0]
+    assert (block["n_present"], block["n_distinct"], block["weekday_census"]) == (79, 28, [])
+    hole = _day_number("2020-10-20")
+    for seed, (moved, _lows, _highs, _layout, _facts, text) in zip(
+        (3, 8), _settled(described, (3, 8), monkeypatch)
+    ):
+        assert hole not in moved, f"seed {seed}: a rank stands on the missing day"
+        written = {line for line in text.split("\n")[1:] if line} - {"2020-10-20"}
+        assert len(written) == 28, f"seed {seed}: {len(written)} different days"
+        missed = kpi_shapes.missed(kpi_shapes.measure(described, text, f"drawn-{seed}.csv"))
+        assert missed == [], f"seed {seed}: {missed}"
+
+
+# 116 ISO dates over the 41 days from 2019-11-08, eleven of them on
+# 2019-11-11, which is declared missing (a seeded column of the review's
+# search at a floor of eleven). A low-tail rank's stratum is that one day.
+_STUCK_HOLE_COUNTS = (
+    4, 0, 0, 11, 0, 2, 3, 0, 1, 3, 0, 0, 0, 0, 0, 4, 2, 14, 1, 2, 2, 3, 3,
+    3, 2, 7, 0, 0, 5, 0, 5, 20, 11, 0, 7, 0, 0, 0, 0, 0, 1,
+)
+
+# What that twin misses whatever the count pass does: the stuck rank's
+# cell is written absent (a carried edge case, plan P4-D358).
+_STUCK_HOLE_MISSES = {
+    "c:counts.n_not_numeric",
+    "c:holes.by_source.2019-11-11",
+    "c:offsets.(none)",
+    "c:presence.n_missing",
+    "c:presence.n_present",
+    "c:tails.low.rows",
+}
+
+
+def test_a_tail_rank_stuck_on_a_missing_day_is_counted_as_absent(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A stuck tail rank's missing day is none of the column's present values (P4-D358).
+
+    A low-tail rank whose stratum is the one day 2019-11-11 stands there
+    at seed 0, and its cell is written absent: six checks are missed, on
+    the reviewed tree as on stage 3, and that carried edge case is held
+    here at those six. Once no pass offers a rank the missing day, the
+    passes counted that day among the column's values and the written
+    cells held one day fewer than the published count, both distinct
+    counts MISSED beside the six; they now reach the count with that day
+    added, and the cells hold the published count of present days.
+    """
+    cells: "list[str]" = []
+    for step in range(len(_STUCK_HOLE_COUNTS)):
+        day = datetime.date(2019, 11, 8) + datetime.timedelta(days=step)
+        cells += [day.isoformat()] * _STUCK_HOLE_COUNTS[step]
+    random.Random(20191111).shuffle(cells)
+    described = _described_with_a_missing_day(tmp_path, "stuck_hole", cells, 11, "2019-11-11")
+    block = described.document["columns"][0]
+    hole = _day_number("2019-11-11")
+    for moved, lows, highs, layout, _facts, text in _settled(described, (0,), monkeypatch):
+        assert layout.low is not None
+        stuck = [
+            rank for rank in range(layout.low.rows)
+            if moved[rank] == hole and lows[rank] == highs[rank] == hole
+        ]
+        assert stuck, "no low-tail rank's stratum is the missing day"
+        written = {line for line in text.split("\n")[1:] if line} - {"2019-11-11"}
+        assert len(written) == block["n_distinct"], f"{len(written)} different days"
+        missed = set(kpi_shapes.missed(kpi_shapes.measure(described, text, "stuck.csv")))
+        assert missed == _STUCK_HOLE_MISSES, sorted(missed ^ _STUCK_HOLE_MISSES)
 
 # ======================================================================
 # LANDING 3b.1 (plan P4-D355): THE WEEKDAY CENSUS OF A COLUMN OF DATES.

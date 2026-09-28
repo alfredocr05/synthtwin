@@ -5823,6 +5823,33 @@ that way.
   and midnight standing, earlier first, nearest first, ties to the lower
   rank.
 
+**NO PASS OFFERS A HOLE, AND NONE COUNTS ONE A RANK CANNOT LEAVE** (plan
+P4-D358; the review of landing 3b.0, items 2 and 4). A HOLE is a unit an
+absent spelling of the run -- the column's own and every other column's
+-- names, read under the column's own member, on a column counted in
+days, months or quarters; a column counted in seconds or minutes has
+none, since it keeps a cell off an absent spelling by its mark (G7.5).
+Before the first round, each rank the passes may move that was drawn
+onto a hole moves, in rank order, to the nearest unit inside its gap
+that is no hole and of its own standing, earlier before later at one
+distance, and stays where there is none -- except a body rank of a
+column publishing a weekday census, which G7.3f step 2 moves itself. No
+merge, trade or payment, split, stack or raise, free unit or width move
+puts a rank on a hole, here or past the strata, and neither does G7.3b
+step 9. And a tail rank no pass may move that stands on a hole is
+written as an absent cell, so its unit is none of the column's present
+values: the passes reach the published count with those units added.
+Measured: the fifth skeptic's 123 ISO dates with 36 cells of a day inside
+their range declared missing, at a floor of 36, were stacked onto 24
+days with two ranks on that day, and the spelling step moved them apart
+-- 25 days, both distinct counts MISSED at seed 3, where stage 3 met
+them; and 116 dates, 37 of them a declared missing 2020-10-20, drew three
+body ranks onto it and held 27 days against 28 at seeds 3 and 8, on
+stage 3 too. Over 1,600 twins of 400 seeded columns with a declared
+missing day at a floor of eleven, 93 that held another count of
+different days than the published one now hold it, and none that held
+it holds another.
+
 The two passes of P4-D192 run with the different values FIRST and the
 widths second, again while either moved, at most four times; the count
 met past the strata runs once after them, where the different values
@@ -6052,8 +6079,9 @@ unit by DT3.
    ranks -- outer indices `max(F - 1, 1)` to `m - 1` -- is offered the
    units no rank holds from one to its REACH `t`: `k * a((m - (F - 1)) /
    m)` rounded as in step 5, at least the group's distance `g` and never
-   past the end. A unit an absent spelling names (step 7), or of another
-   width kind or midnight standing than the group's, is not offered, so
+   past the end. A unit an absent spelling of the run names (step 7,
+   G7.3), or of another width kind or midnight standing than the group's,
+   is not offered, so
    a group at a midnight is offered only units at a midnight and a group
    off one no unit at one. Each offer is a tail and a distance `d`, and
    the offers are taken in this order until the count is met: the
@@ -12936,7 +12964,7 @@ that happens -- and the clause beside it, `--missing-value`'s "CAN be
 published as the column's smallest value", is exactly right under the
 new rule.
 
-**All one hundred and forty are required.** The count is taken off the committed
+**All one hundred and forty-three are required.** The count is taken off the committed
 case sets and not carried forward: this sentence said fifty-two and a
 split of nine, twenty, sixteen and seven while the six files held
 seventy-three, because each repair that added a case added a clause to
@@ -12962,7 +12990,7 @@ the THIRTEENTH, `tests/reference/generation-branch-vectors-11.json`,
 holds three; the FOURTEENTH,
 `tests/reference/generation-branch-vectors-12.json`, holds four; and the
 FIFTEENTH, `tests/reference/generation-branch-vectors-13.json`, holds
-seven (G14.2),
+ten (G14.2),
 and a test holds this sentence to those files. The tenth grew by the
 two cases the GOVERNANCE PASS of stage 3's review added and the
 eleventh by the two the dates pass added; each number here is read off
@@ -13098,6 +13126,9 @@ case passed, which is the failure the count exists to prevent:
 | `trailing_minus_exchange` | G6.1's exchange that gives a trailing minus its point (the skeptic of plan P4-D352 (5)): twenty-two whole numbers between -40 and 60, eleven negative and published with `negative_notations: {"trailing_minus": 11}` beside `numeric_styles: {"decimal": 11, "plain": 11}` and `fraction_widths: {"1": 11}`. G6.4's values step asks nothing of a whole-valued column and the style walk leaves six negatives `plain`, so each takes `decimal` from a cell that is not negative, from the last cell downward, and all eleven are written `5.0-`. Its mutant withdraws the exchange, which no other case reaches, and twelve cells move |
 | `pooled_mark_cells` | G6.1's pooled remainder of a census of marks (plan P4-D142): forty-four cells published with `thousands_marks: {",": 33, "(withheld)": 11}`, so the first thirty-three are written `12,345.5` and the pooled eleven `12 345.5`, a space being the first pool mark the census does not name |
 | `unpublished_majority_marks` | G6.1's groupable cells asked with a mark that writes one (plan P4-D142): twenty-two cells published with no `group_separator` and `thousands_marks: {",": 11, " ": 11}`, so the first eleven are written `12,345.5` and the last eleven `12 345.5` rather than every cell bare |
+| `count_off_the_hole` | G7.3 (plan P4-D358): 116 ISO dates over 41 days from 2020-10-02, 37 of them written 2020-10-20 and declared absent, at seed 3. Three body ranks drawn onto 2020-10-20 move off it before the count passes' first round, and the twin holds the published 28 days. Its mutant leaves them there; the passes count the absent day, the spelling step moves them onto a day ranks hold, and the twin holds 27 |
+| `every_day_absent` | G7.3 and G7.3b step 9 (plan P4-D358; the review of landing 3b.0, item 4): `every_day_group`'s 105 dates with 2024-05-12 declared absent, 101 present over 21 days, at seed 0. The low group's reach holds 2024-05-12, and the step offers the days beside it and never it: the twin holds all 21. Its mutant offers the absent day as any other, a group rank is put on it and moved off by the spelling step, and the twin holds 20 |
+| `tail_group_off_the_hole` | G7.3b step 7 (plan P4-D358): 121 ISO dates over 35 days from 2017-10-28, 20 of them written 2017-11-30 and declared absent, at seed 0. A rank of the high tail standing at one place falls on 2017-11-30 and steps one day inward off it. Its mutant leaves it there, and its cell is written with the absent spelling: 21 cells read back absent where the column holds 20. Before this case the oracle held no part of step 7 |
 | `weekday_count_put_back` | G7.3f step 8.1 (plan P4-D355): 120 whole dates over four weeks with no weekend, published `[Mon-Fri] 92, [Sat-Sun] 0`, whose day pass leaves the count of different days off what it was before the pass. Single ranks, in rank order and inside their own group, put it back. Its mutant withdraws those moves |
 | `weekday_days_moved` | G7.3f (plan P4-D355): 100 whole dates over seven weeks published `[Mon-Fri] 66, [Sat-Sun] 12`, so body ranks move inside their own gaps until the cells between the two boundaries fall on those groups. Its mutant withdraws the pass, as the twin was written before this decision |
 | `weekday_gap_shares` | G7.3f step 3 (plan P4-D355): 100 whole dates published `[Mon-Fri] 43, [Sat-Sun] 34`, each gap's share of the two groups its prior raked to the gap's ranks and the groups' owed totals. Its mutant keeps each gap at the holding it was drawn with, so only the leftover moves ranks |

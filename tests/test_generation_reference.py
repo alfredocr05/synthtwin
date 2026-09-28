@@ -719,6 +719,10 @@ TWELFTH_BRANCH_CASES = (
 # P4-D355), frozen in the fourteenth by landing 3b.1 and moved here by
 # the integration, the fourteenth standing past plan P4-D295's line.
 THIRTEENTH_BRANCH_CASES = (
+    # ...and the absent day of the review of landing 3b.0 (plan P4-D358).
+    "count_off_the_hole",
+    "every_day_absent",
+    "tail_group_off_the_hole",
     "weekday_count_put_back",
     "weekday_days_moved",
     "weekday_gap_shares",
@@ -870,6 +874,11 @@ SEEDS = {
     "weekday_count_put_back": 414,
     "weekday_hole_left": 415,
     "weekday_runs_merged": 34041,
+    # ...and the absent day of the review of landing 3b.0 (plan P4-D358),
+    # at the seeds the review measured: 0 for the group's column, and 3.
+    "every_day_absent": 0,
+    "count_off_the_hole": 3,
+    "tail_group_off_the_hole": 0,
     "identifier_unnamed_partners": 184,
     "truth_values_written": 189,
     "twice_written_filled": 190,
@@ -1575,8 +1584,8 @@ ELEVENTH_BRANCH_NAMED_COUNTS = 375
 TWELFTH_BRANCH_PUBLISHED_NUMBERS = 976
 TWELFTH_BRANCH_NAMED_COUNTS = 343
 # The fifteenth, at its own generator's line ("proved 22 ... beside 226").
-THIRTEENTH_BRANCH_PUBLISHED_NUMBERS = 22
-THIRTEENTH_BRANCH_NAMED_COUNTS = 226
+THIRTEENTH_BRANCH_PUBLISHED_NUMBERS = 34
+THIRTEENTH_BRANCH_NAMED_COUNTS = 307
 # The document file publishes NO binary64 at all, and that is a fact
 # about its transforms rather than a gap in its proof: the written form,
 # the arrangement, the workbook writer, the shape of a line before a
@@ -2056,14 +2065,14 @@ def _stratum_end_instead(shape, rows, mean, root, edge):
     return 1.0, min(end, float(edge))
 
 
-def _never_apart(rows, mean, root, floor, edge, apart, words):
+def _never_apart(rows, mean, root, floor, edge, apart, words, off=None):
     """G7.3b step 5's two-pass step withdrawn: the tail may fold onto one value.
 
     The ranks are raised to the one inside them and no further, so a
     column whose own values were all different comes back holding two
     of its tail's ranks on one value.
     """
-    return _real_tail_distances(rows, mean, root, floor, edge, False, words)
+    return _real_tail_distances(rows, mean, root, floor, edge, False, words, off)
 
 
 def _no_day_of_room(column):
@@ -2107,7 +2116,7 @@ def _ramp_from_one(column, parsed):
     return pins
 
 
-def _always_apart(rows, mean, root, floor, edge, apart, words):
+def _always_apart(rows, mean, root, floor, edge, apart, words, off=None):
     """G7A.4's CONDITION withdrawn: every tail kept apart, all-different or not.
 
     The two-pass step belongs to a column whose own values all differ;
@@ -2115,10 +2124,10 @@ def _always_apart(rows, mean, root, floor, edge, apart, words):
     shared a value comes back holding as many different ones as it has
     ranks.
     """
-    return _real_tail_distances(rows, mean, root, floor, edge, True, words)
+    return _real_tail_distances(rows, mean, root, floor, edge, True, words, off)
 
 
-def _no_fold_guard(rows, mean, root, floor, edge, apart, words):
+def _no_fold_guard(rows, mean, root, floor, edge, apart, words, off=None):
     """G7.3b step 5's ordering withdrawn: each rank at its own stratum alone.
 
     The distances are left exactly as the shape gives them, with no rank
@@ -3830,6 +3839,28 @@ CASE_MUTANTS = {
         "merged onto a held day of their own group",
         attribute="weekday_merged_runs",
         replacement=lambda walk, movable, wanted: None,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "every_day_absent": Mutant(
+        branch="G7.3 and G7.3b step 9 (plan P4-D358); the mutant offers a "
+        "day an absent spelling names as any other, and a group rank is put "
+        "on it",
+        attribute="absent_units",
+        replacement=lambda column: set(),
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "tail_group_off_the_hole": Mutant(
+        branch="G7.3b step 7 (plan P4-D358); the mutant leaves a tail rank "
+        "standing at one place on an absent day",
+        attribute="tail_holes_named",
+        replacement=lambda column, at, low_side: None,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "count_off_the_hole": Mutant(
+        branch="G7.3 (plan P4-D358); the mutant leaves a rank drawn onto an "
+        "absent day there while the passes count",
+        attribute="stepped_off_absent_days",
+        replacement=lambda column, ordinals, pinned, lows, highs, day, step, unit, widths, word: None,
         outcome=CHANGES_THE_CELLS,
     ),
     "pool_alone_marks": Mutant(

@@ -17833,6 +17833,56 @@ def _hole_units(
     return found
 
 
+_COUNT_HOLE_UNITS = {
+    "date": parsing.TAIL_UNIT_DAY,
+    "month": parsing.TAIL_UNIT_MONTH,
+    "quarter": parsing.TAIL_UNIT_QUARTER,
+}
+
+
+def _count_holes(
+    facts: contract.DatetimeFacts, holes: "tuple[str, ...]"
+) -> "frozenset[int]":
+    """Every unit of the count pass an absent spelling of the run names (G7.3).
+
+    A HOLE IS OFFERED TO NO RANK (plan P4-D358, the review of landing
+    3b.0, items 2 and 4). The count pass counted a unit a rank was moved
+    onto, and the spelling step then moved the rank off it, because its
+    cell read back as absent: `_chain_prone(6)` of the stage-3b gate with
+    36 cells of `2019-03-11` declared missing, at a floor of 36, was
+    stacked onto 24 days with two ranks on that one, and the step moved
+    them apart -- 25 different days, both distinct counts MISSED, where
+    stage 3 met them. So each absent spelling of the run -- the column's
+    own and every other column's, as the spelling step asks them -- is
+    read under the column's own member, and the unit it names in the
+    pass's own space, a day, a month or a quarter, is offered by no pass.
+    A column counted in seconds or minutes writes a clock beside every
+    instant and keeps a cell off an absent spelling by its mark
+    (`_kept_datetime_cell`), never by its instant, so it names none.
+
+    Guarantees: accepts the facts and every absent spelling of the run;
+    returns the units named, as `value // unit` keys of the pass. A
+    function of the two; draws no word. Raises nothing. No I/O.
+    """
+    space = _ordinal_space(facts)
+    if (
+        space not in _COUNT_HOLE_UNITS
+        or facts.datetimes_read_at != taxonomy.READ_AT_LOCAL
+    ):
+        return frozenset()
+    found: "dict[int, bool]" = {}
+    for spelling in holes:
+        read = parsing.parse_datetime(spelling, facts.parser_family)
+        if read is None:
+            continue
+        found[
+            taxonomy.tail_ordinal(
+                read[0], _COUNT_HOLE_UNITS[space], taxonomy.READ_AT_LOCAL
+            )
+        ] = True
+    return frozenset(found)
+
+
 def _off_the_holes(
     distance: int, boundary: int, low_side: bool, holes: "dict[int, bool]"
 ) -> int:
@@ -18973,13 +19023,14 @@ def _datetime_content(
         facts, ordinals, parsed, whole, gap_lows, gap_highs,
         plan.small_cell_floor, offsets, layout,
     )
+    # The spellings ANY column publishes among its absent cells, so that
+    # no cell this run writes wears one (review item P4-DATE-F2), and no
+    # count pass offers a rank the unit one names (plan P4-D358).
+    holes = _all_holes_of(plan)
     ordinals = _units_settled(
         column, facts, ordinals, parsed, whole, gap_lows, gap_highs,
-        plan.small_cell_floor, layout,
+        plan.small_cell_floor, layout, holes,
     )
-    # The spellings ANY column publishes among its absent cells, so that
-    # no cell this run writes wears one (review item P4-DATE-F2).
-    holes = _all_holes_of(plan)
     # THE WEEKDAY CENSUS (landing 3b.1, method G7.3f): body ranks move
     # inside their own gaps until every published group holds its count,
     # before any cell is spelled. It draws no word.
@@ -21562,6 +21613,7 @@ def _units_settled(
     gap_highs: "list[int]",
     floor: int,
     layout: "_DateLayout | None" = None,
+    holes: "tuple[str, ...]" = (),
 ) -> "list[int]":
     """Reach the published count of different values and of widths (P4-D192).
 
@@ -21615,6 +21667,12 @@ def _units_settled(
        holds inside its gap, of the same width kind, not onto a midnight
        it did not stand at and not off one it did, nearest first, ties to
        the lower rank and then to the earlier unit.
+
+    NO PASS OFFERS A HOLE (plan P4-D358): a unit an absent spelling of the
+    run names (`_count_holes`, from ``holes``) is no merge's, trade's,
+    split's, stack's, raise's, free search's or width move's instant,
+    here or in G7.3b step 9, because its cell would read back as absent
+    and the spelling step would move the rank after the count was met.
 
     The different values are taken before the widths, and again while
     each round brings the twin CLOSER to the two counts, stopping after
@@ -21683,6 +21741,16 @@ def _units_settled(
     if widths < 0 and distinct < 0:
         return moved
     unit = step if space == "datetime" else 1
+    gone = _count_holes(facts, holes)
+    if gone:
+        _stepped_off_the_holes(
+            facts, moved, pinned, gap_lows, gap_highs, day, step, unit,
+            widths >= 0, word, gone, _left_to_the_weekday_pass(facts, layout),
+        )
+        if distinct >= 0:
+            distinct = distinct + _held_by_stuck_tail_ranks(
+                moved, pinned, gone, unit, layout
+            )
     off = _counts_off(facts, moved, day, unit, word, distinct, widths)
     stalled = 0
     for _round in range(_RESTORATION_ROUNDS):
@@ -21690,12 +21758,12 @@ def _units_settled(
         if distinct >= 0:
             changed = _distinct_reached(
                 facts, moved, pinned, gap_lows, gap_highs, day, step,
-                distinct, widths >= 0, word,
+                distinct, widths >= 0, word, gone,
             ) or changed
         if widths >= 0:
             changed = _widths_reached(
                 facts, moved, pinned, gap_lows, gap_highs, day, step, widths,
-                distinct >= 0, word,
+                distinct >= 0, word, gone,
             ) or changed
         if not changed:
             break
@@ -21727,15 +21795,127 @@ def _units_settled(
         if tails:
             _count_met_past_the_strata(
                 facts, moved, pinned, gap_lows, gap_highs, day, step, unit,
-                widths >= 0, word, distinct, tails,
+                widths >= 0, word, distinct, tails, gone,
             )
     _runs_sorted(moved, pinned)
     if distinct >= 0 and layout is not None:
         _group_gives_way(
             column, facts, layout, moved, day, step, unit, distinct,
-            widths >= 0, word,
+            widths >= 0, word, gone,
         )
     return moved
+
+
+def _left_to_the_weekday_pass(
+    facts: contract.DatetimeFacts, layout: "_DateLayout | None"
+) -> "tuple[int, int]":
+    """The ranks G7.3f step 2 moves off a hole itself, as a first and last rank.
+
+    A column of whole dates publishing a weekday census has its body
+    ranks moved off a hole by the day pass, which keeps the count of
+    different days and puts it back (method G7.3f steps 2 and 8), so the
+    count pass leaves those to it. `(0, -1)`, no rank, everywhere else.
+    """
+    if (
+        not facts.weekday_census
+        or _ordinal_space(facts) != "date"
+        or layout is None
+        or layout.low is None
+        or layout.high is None
+    ):
+        return (0, -1)
+    return (layout.low.rows, layout.parsed - 1 - layout.high.rows)
+
+
+def _held_by_stuck_tail_ranks(
+    moved: "list[int]",
+    pinned: "list[bool]",
+    gone: "frozenset[int]",
+    unit: int,
+    layout: "_DateLayout | None",
+) -> int:
+    """How many holes a tail rank no pass may move stands on (plan P4-D358).
+
+    A tail rank whose stratum is one unit stands where its construction
+    put it, and where an absent spelling names that unit its cell is
+    written absent: the spelling step keeps a tail rank inside its
+    stratum. No pass moves another rank there (`_count_holes`), so each
+    such unit is counted by the passes and is none of the column's
+    present values, and they reach the published count with those units
+    added. Measured on 1,600 twins of 400 seeded columns at a floor of
+    eleven: three twins, each already missing six checks where such a
+    rank wrote an absent cell, kept both distinct counts that way.
+    """
+    if layout is None or layout.low is None or layout.high is None:
+        return 0
+    parsed = len(moved)
+    found: "dict[int, bool]" = {}
+    for rank in range(parsed):
+        if not pinned[rank] or moved[rank] // unit not in gone:
+            continue
+        if layout.low.rows <= rank <= parsed - 1 - layout.high.rows:
+            continue
+        found[moved[rank] // unit] = True
+    return len(found)
+
+
+def _stepped_off_the_holes(
+    facts: contract.DatetimeFacts,
+    moved: "list[int]",
+    pinned: "list[bool]",
+    lows: "list[int]",
+    highs: "list[int]",
+    day: int,
+    step: int,
+    unit: int,
+    widths: bool,
+    word: str,
+    gone: "frozenset[int]",
+    left: "tuple[int, int]",
+) -> None:
+    """Every rank the count pass may move off a hole it was drawn onto (G7.3).
+
+    THE COUNT IS TAKEN ON THE UNITS THE CELLS WILL HOLD (plan P4-D358,
+    the review of landing 3b.0). A rank drawn onto a unit an absent
+    spelling names was counted there, and the spelling step then moved it
+    to the day beside it, which other ranks held: 116 ISO dates at a floor
+    of eleven, 37 of them `2020-10-20` declared missing, drew three body
+    ranks onto that day, the count pass met its 28, and the twin held 27
+    at seeds 3 and 8 -- both distinct counts MISSED, on stage 3 too. So
+    before the first round each unpinned rank on such a unit (``gone``),
+    in rank order, moves to the nearest unit inside its gap that is none
+    and keeps its standing (`_same_standing`), earlier before later at
+    one distance, and stays where there is none -- except the ranks
+    ``left``, first to last, which G7.3f step 2 moves off itself.
+
+    Guarantees: moves ranks of `moved` in place, each inside its gap; a
+    function of its arguments; draws no word. Raises nothing. No I/O.
+    """
+    for rank in range(len(moved)):
+        if pinned[rank] or moved[rank] // unit not in gone:
+            continue
+        if left[0] <= rank <= left[1]:
+            continue
+        value = moved[rank]
+        away = 1
+        while True:
+            earlier = value - away * unit
+            later = value + away * unit
+            if earlier < lows[rank] and later > highs[rank]:
+                break
+            found: "int | None" = None
+            for candidate in (earlier, later):
+                if candidate < lows[rank] or candidate > highs[rank]:
+                    continue
+                if candidate // unit in gone:
+                    continue
+                if _same_standing(facts, value, candidate, day, step, widths, word):
+                    found = candidate
+                    break
+            if found is not None:
+                moved[rank] = found
+                break
+            away = away + 1
 
 
 def _group_gives_way(
@@ -21749,6 +21929,7 @@ def _group_gives_way(
     wanted: int,
     widths: bool,
     word: str,
+    gone: "frozenset[int]" = frozenset(),
 ) -> None:
     """G7.3b step 9: a tie group gives up ranks where the distinct count is short.
 
@@ -21760,8 +21941,10 @@ def _group_gives_way(
     distinct counts MISSED at every seed. So where the count of different
     units is still short once the count pass is done, the units no rank
     holds from one to the group's reach (`_group_reach`) are offered; a
-    unit a column's absent spelling names, or of another width kind or
-    midnight standing (`_same_standing`), is not. Each offer is a tail
+    unit an absent spelling names -- the column's own read in tail units
+    (`_hole_units`), or any of the run's in the pass's units (``gone``,
+    `_count_holes`) -- or of another width kind or midnight standing
+    (`_same_standing`), is not. Each offer is a tail
     and a distance `d`, taken in the method's order until the count is
     met: the smaller `|d - g|` first; at one `|d - g|`, the smaller `d`
     first -- on one tail the unit inside `g` before the one outside it,
@@ -21825,7 +22008,7 @@ def _group_gives_way(
                 if distance < 1 or distance > reach:
                     continue
                 spot = _tail_place(plan, distance)
-                if spot // unit in held:
+                if spot // unit in held or spot // unit in gone:
                     continue
                 if (at - distance if plan.low_side else at + distance) in holes:
                     continue
@@ -21964,6 +22147,7 @@ def _widths_reached(
     wanted: int,
     distinct: bool = False,
     word: str = "",
+    gone: "frozenset[int]" = frozenset(),
 ) -> bool:
     """Step 1 of `_units_settled`: move ranks until the widths count holds.
 
@@ -21998,7 +22182,7 @@ def _widths_reached(
             continue
         found = _nearest_day_of_kind(
             facts, moved[rank], lows[rank], highs[rank], day, step, not fewer,
-            held if distinct else None, unit, word,
+            held if distinct else None, unit, word, gone,
         )
         if found is None:
             if day == 1 and not distinct:
@@ -22014,7 +22198,7 @@ def _widths_reached(
         if distinct:
             offered = _nearest_day_of_kind(
                 facts, moved[rank], lows[rank], highs[rank], day, step,
-                not fewer, held, unit, word,
+                not fewer, held, unit, word, gone,
             )
             if offered is None:
                 continue
@@ -22039,14 +22223,16 @@ def _nearest_day_of_kind(
     held: "dict[int, int] | None" = None,
     unit: int = 1,
     word: str = "",
+    gone: "frozenset[int]" = frozenset(),
 ) -> "int | None":
     """The nearest instant a whole number of days away whose day shows or not.
 
     Inside `[lowest, highest]`, earlier before later at one distance, and
     kept off a midnight the instant did not stand at (moving by whole days
     keeps the clock, so none is gained or lost). Given ``held``, a unit no
-    rank holds is taken first, and any unit only where none is free.
-    None where there is none.
+    rank holds is taken first, and any unit only where none is free. A
+    unit in ``gone`` is never taken (`_count_holes`). None where there is
+    none.
     """
     fallback: "int | None" = None
     away = 1
@@ -22059,6 +22245,8 @@ def _nearest_day_of_kind(
             if candidate < lowest or candidate > highest:
                 continue
             if _counts_into_width(facts, candidate // day, word) != showing:
+                continue
+            if candidate // unit in gone:
                 continue
             if held is None:
                 return candidate
@@ -22081,8 +22269,12 @@ def _distinct_reached(
     wanted: int,
     widths: bool,
     word: str = "",
+    gone: "frozenset[int]" = frozenset(),
 ) -> bool:
-    """Step 2 of `_units_settled`: move ranks until the distinct count holds."""
+    """Step 2 of `_units_settled`: move ranks until the distinct count holds.
+
+    No unit in ``gone`` is offered to any rank (`_count_holes`).
+    """
     parsed = len(moved)
     unit = step if day == 86400 else 1
     held: "dict[int, int]" = {}
@@ -22156,7 +22348,7 @@ def _distinct_reached(
                 # run stayed where it was however many rounds ran.
                 other_unit = _nearest_held_unit(
                     facts, moved[first], lowest, highest, day, step,
-                    unit, held, spot, order, widths, word,
+                    unit, held, spot, order, widths, word, False, -1, False, (), gone,
                 )
                 if other_unit is not None and other_unit not in reached:
                     options += [
@@ -22177,6 +22369,8 @@ def _distinct_reached(
             own = moved[first] // unit
             target = option[3] if option[4] < 0 else moved[option[4]]
             if target // unit == own or held[own] != size:
+                continue
+            if target // unit in gone:
                 continue
             if target // unit not in held or held[target // unit] <= 0:
                 continue
@@ -22200,7 +22394,7 @@ def _distinct_reached(
         if count > wanted:
             traded = _traded_merges(
                 facts, moved, pinned, lows, highs, day, step, unit, held,
-                widths, word, count - wanted,
+                widths, word, count - wanted, False, gone,
             )
             count = count - traded
             changed = changed or traded > 0
@@ -22220,20 +22414,20 @@ def _distinct_reached(
             # already settled moves.
             traded = _traded_merges(
                 facts, moved, pinned, lows, highs, day, step, unit, held,
-                widths, word, count - wanted, True,
+                widths, word, count - wanted, True, gone,
             )
             count = count - traded
             changed = changed or traded > 0
         if count > wanted:
             given = _runs_split(
                 facts, moved, pinned, lows, highs, day, step, unit, held,
-                widths, word, count - wanted,
+                widths, word, count - wanted, gone,
             )
             count = count - given
             changed = changed or given > 0
         if count > wanted and not changed and _ranks_restacked(
             facts, moved, pinned, lows, highs, day, step, unit, held, widths,
-            word, wanted,
+            word, wanted, gone,
         ):
             # AND WHERE NO ONE RUN CAN GIVE A UNIT UP, THE RANKS ARE STACKED
             # AFRESH (the fourth skeptic of landing 3b.0, plan P4-D354): once
@@ -22257,7 +22451,7 @@ def _distinct_reached(
             continue
         found = _nearest_free_unit(
             facts, moved[rank], lows[rank], highs[rank], day, step, unit, held,
-            widths, word,
+            widths, word, gone,
         )
         if found is None:
             if gap is not None:
@@ -22280,7 +22474,7 @@ def _distinct_reached(
             if gap is None or gap not in full:
                 found_now = _nearest_free_unit(
                     facts, moved[rank], lows[rank], highs[rank], day, step, unit,
-                    held, widths, word,
+                    held, widths, word, gone,
                 )
                 if found_now is None and gap is not None:
                     full[gap] = True
@@ -22294,7 +22488,7 @@ def _distinct_reached(
     if count < wanted:
         changed = _standing_swaps(
             facts, moved, pinned, lows, highs, day, step, unit, held, widths,
-            wanted - count, word,
+            wanted - count, word, gone,
         ) or changed
     return changed
 
@@ -22312,6 +22506,7 @@ def _runs_split(
     widths: bool,
     word: str,
     owed: int,
+    gone: "frozenset[int]" = frozenset(),
 ) -> int:
     """Split a run no merge can take across the units of its two neighbours.
 
@@ -22365,7 +22560,7 @@ def _runs_split(
             lowest, highest = _run_room(lows, highs, first, last)
             if _nearest_held_unit(
                 facts, moved[first], lowest, highest, day, step, unit, held,
-                spot, order, widths, word,
+                spot, order, widths, word, False, -1, False, (), gone,
             ) is not None:
                 loose = False
         if loose:
@@ -22377,11 +22572,14 @@ def _runs_split(
                 if (
                     not upward
                     and lows[rank] <= below <= highs[rank]
+                    and below // unit not in gone
                     and _same_standing(facts, moved[rank], below, day, step, widths, word)
                 ):
                     goes += [below]
-                elif lows[rank] <= above <= highs[rank] and _same_standing(
-                    facts, moved[rank], above, day, step, widths, word
+                elif (
+                    lows[rank] <= above <= highs[rank]
+                    and above // unit not in gone
+                    and _same_standing(facts, moved[rank], above, day, step, widths, word)
                 ):
                     goes += [above]
                 else:
@@ -22408,6 +22606,7 @@ def _ranks_stacked(
     unit: int,
     widths: bool,
     word: str,
+    gone: "frozenset[int]" = frozenset(),
 ) -> "list[int] | None":
     """The ranks stacked afresh on the fewest units their gaps allow (G7.3).
 
@@ -22419,7 +22618,10 @@ def _ranks_stacked(
     stack holds the fewest units any placement inside every gap keeping
     every standing can hold (the stabbing of intervals at their upper
     ends, taken in that order). Its instants are then sorted within each
-    unpinned run, as every round sorts them.
+    unpinned run, as every round sorts them. No unpinned rank is stacked
+    on a unit in ``gone`` (`_count_holes`): the walk down its gap passes
+    such a unit, and the unit last stacked is joined only where it is
+    none.
 
     Guarantees: returns one instant per rank, every one inside its gap
     and of its rank's own standing, or None where a gap holds no instant
@@ -22440,7 +22642,12 @@ def _ranks_stacked(
     for key in sorted(keys):
         rank = key[2]
         standing = _standing_of(facts, moved[rank], day, step, widths, word)
-        if standing in top and low[rank] <= top[standing] <= high[rank]:
+        loose = not pinned[rank]
+        if (
+            standing in top
+            and low[rank] <= top[standing] <= high[rank]
+            and not (loose and top[standing] // unit in gone)
+        ):
             placed[rank] = top[standing]
             continue
         by = unit
@@ -22449,8 +22656,9 @@ def _ranks_stacked(
             # seeks one: the candidates that keep its standing start a day.
             by = 86400
         candidate = moved[rank] + ((high[rank] - moved[rank]) // by) * by
-        while candidate >= low[rank] and not _same_standing(
-            facts, moved[rank], candidate, day, step, widths, word
+        while candidate >= low[rank] and (
+            not _same_standing(facts, moved[rank], candidate, day, step, widths, word)
+            or (loose and candidate // unit in gone)
         ):
             candidate = candidate - by
         if candidate < low[rank]:
@@ -22480,6 +22688,7 @@ def _ranks_restacked(
     widths: bool,
     word: str,
     wanted: int,
+    gone: "frozenset[int]" = frozenset(),
 ) -> bool:
     """Stack every rank afresh on the fewest units its gap allows, raised to the count.
 
@@ -22526,7 +22735,7 @@ def _ranks_restacked(
     """
     parsed = len(moved)
     stacked_at = _ranks_stacked(
-        facts, moved, pinned, lows, highs, day, step, unit, widths, word
+        facts, moved, pinned, lows, highs, day, step, unit, widths, word, gone
     )
     if stacked_at is None:
         return False
@@ -22549,7 +22758,7 @@ def _ranks_restacked(
             continue
         found = _nearest_free_unit(
             facts, placed[rank], lows[rank], highs[rank], day, step, unit, stacked,
-            widths, word,
+            widths, word, gone,
         )
         if found is None:
             if gap is not None:
@@ -22584,6 +22793,7 @@ def _count_met_past_the_strata(
     word: str,
     wanted: int,
     tails: "list[tuple[tuple[int, ...], int, int, int, bool, tuple[int, ...], tuple[int, ...]]]",
+    gone: "frozenset[int]" = frozenset(),
 ) -> bool:
     """Meet a count no placement inside the gaps reaches, a tail rank past its stratum.
 
@@ -22637,7 +22847,7 @@ def _count_met_past_the_strata(
     Raises nothing. No I/O of any kind.
     """
     stacked_at = _ranks_stacked(
-        facts, moved, pinned, lows, highs, day, step, unit, widths, word
+        facts, moved, pinned, lows, highs, day, step, unit, widths, word, gone
     )
     if stacked_at is None:
         return False
@@ -22661,6 +22871,8 @@ def _count_met_past_the_strata(
 
     def past(rank: int, target: int) -> int:
         """How far outside its gap `target` stands for `rank`, or -1 where it may not go."""
+        if target // unit in gone:
+            return -1
         if not _same_standing(facts, placed[rank], target, day, step, widths, word):
             return -1
         if lows[rank] <= target <= highs[rank]:
@@ -22803,6 +23015,7 @@ def _traded_merges(
     word: str,
     owed: int,
     clock: bool = False,
+    gone: "frozenset[int]" = frozenset(),
 ) -> int:
     """Merge a run onto a unit of the other standing, and pay the count back.
 
@@ -22872,7 +23085,7 @@ def _traded_merges(
                     target = _nearest_held_unit(
                         facts, moved[first], lowest, highest, day,
                         step, unit, held, spot, order, widths, word,
-                        not clock, -1, clock, tried,
+                        not clock, -1, clock, tried, gone,
                     )
                     if target is None:
                         break
@@ -22912,7 +23125,7 @@ def _traded_merges(
             paid = _repaid_standings(
                 facts, moved, pinned, lows, highs, day, step, unit, held, spot,
                 order, word, size, not gaining, own, target // unit, clock,
-                widths,
+                widths, gone,
             )
             if len(paid) < size:
                 for rank in sorted(paid):
@@ -22965,6 +23178,7 @@ def _repaid_standings(
     onto: int,
     clock: bool = False,
     widths: bool = True,
+    gone: "frozenset[int]" = frozenset(),
 ) -> "dict[int, int]":
     """Move ranks between held units to pay a trade's count back (P4-D258).
 
@@ -22997,7 +23211,7 @@ def _repaid_standings(
         target = _nearest_held_unit(
             facts, moved[rank], lows[rank], highs[rank], day, step, unit,
             held, spot, order, widths or not clock, word, not clock, skip,
-            clock,
+            clock, (), gone,
         )
         if target is None:
             continue
@@ -23033,6 +23247,7 @@ def _standing_swaps(
     widths: bool,
     owed: int,
     word: str = "",
+    gone: "frozenset[int]" = frozenset(),
 ) -> bool:
     """Split a shared unit by trading its standing with another rank.
 
@@ -23058,7 +23273,7 @@ def _standing_swaps(
         own = _standing_of(facts, moved[rank], day, step, widths, word)
         off = _nearest_free_where(
             facts, moved[rank], lows[rank], highs[rank], day, step, unit,
-            held, widths, own, False, word,
+            held, widths, own, False, word, gone,
         )
         if off is None:
             continue
@@ -23075,7 +23290,7 @@ def _standing_swaps(
                 continue
             onto = _nearest_free_where(
                 facts, value, lows[other], highs[other], day, step, unit,
-                held, widths, own, True, word,
+                held, widths, own, True, word, gone,
             )
             if onto is None or onto // unit == off // unit:
                 continue
@@ -23104,6 +23319,7 @@ def _nearest_free_where(
     standing: "tuple[bool, bool]",
     same: bool,
     word: str = "",
+    gone: "frozenset[int]" = frozenset(),
 ) -> "int | None":
     """The nearest free unit inside the bounds, of (or not of) a standing.
 
@@ -23111,7 +23327,8 @@ def _nearest_free_where(
     other. Where a unit at a midnight is asked for, each day's midnight is
     asked, from the one starting the value's own day outward; otherwise
     the units `unit` apart from the value, outward, earlier first at one
-    distance. None where there is none.
+    distance. A unit in ``gone`` is never free (`_count_holes`). None
+    where there is none.
     """
     by = unit
     base = value
@@ -23130,6 +23347,8 @@ def _nearest_free_where(
                 continue
             key = candidate // unit
             if key in held and held[key] > 0:
+                continue
+            if key in gone:
                 continue
             found = _standing_of(facts, candidate, day, step, widths, word)
             if (found == standing) == same:
@@ -23277,6 +23496,7 @@ def _nearest_held_unit(
     skip: int = -1,
     flip_clock: bool = False,
     avoid: "tuple[int, ...]" = (),
+    gone: "frozenset[int]" = frozenset(),
 ) -> "int | None":
     """The nearest instant some other rank already holds, keeping the standing.
 
@@ -23376,6 +23596,11 @@ def _nearest_held_unit(
         # exactly as ledger K-2B-14 left it.
         if key in avoid:
             continue
+        # AND NO UNIT AN ABSENT SPELLING NAMES (plan P4-D358,
+        # `_count_holes`): a rank drawn onto one holds it, and a run
+        # merged there would be moved off by the spelling step.
+        if key in gone:
+            continue
         return found
 
 
@@ -23436,13 +23661,15 @@ def _nearest_free_unit(
     held: "dict[int, int]",
     widths: bool,
     word: str = "",
+    gone: "frozenset[int]" = frozenset(),
 ) -> "int | None":
     """The nearest instant on a unit no rank holds, keeping its standing.
 
     The rule is a walk outward one unit at a time, earlier before later at
     one distance: the first candidate `value - away * unit` or `value +
-    away * unit` inside the bounds, on a unit no rank holds, that keeps
-    the run's standing (`_same_standing`). None where there is none.
+    away * unit` inside the bounds, on a unit no rank holds and not in
+    ``gone`` (`_count_holes`), that keeps the run's standing
+    (`_same_standing`). None where there is none.
 
     A MIDNIGHT IS SOUGHT A DAY AT A TIME (ledger K-2B-14). On a column
     counted in seconds or minutes a unit is one precision step, and a run
@@ -23485,6 +23712,8 @@ def _nearest_free_unit(
                 continue
             key = candidate // unit
             if key in held and held[key] > 0:
+                continue
+            if key in gone:
                 continue
             if _same_standing(facts, value, candidate, day, step, widths, word):
                 return candidate

@@ -1360,6 +1360,232 @@ def _generator_strata(ordinals, pinned, lows, highs, tails, day, distinct, word)
     return tuple(ordinals)
 
 
+# ------------------------------------------ G7.3's passes offer no hole
+#
+# A DAY AN ABSENT SPELLING NAMES IS OFFERED TO NO RANK (the review of
+# landing 3b.0, items 2 and 4; plan P4-D358). Every pass of G7.3 and step
+# 9 of G7.3b skips such a day wherever it would put a rank on one, a rank
+# drawn onto one moves off it before the passes count, and a tail rank no
+# pass may move that stands on one adds its day to the count they reach.
+# Asked on hand-built ranks, days as whole numbers, each row once with its
+# holes; the answer is worked out by hand from that statement, and each
+# row's answer with the holes ignored is another, so every row parts the
+# rule from its absence.
+HOLE_ROWS = (
+    # (pass, ordinals, pinned, lows, highs, distinct, holes, ordinals after)
+    #
+    # A MERGE. Units 10, 12, 14 and 20, one over three: rank 1 is offered
+    # day 10 and day 14, both two away, and takes the lower -- unless day 10
+    # is a hole, when it takes day 14.
+    ("merge", (10, 12, 14, 20), (True, False, False, True), (10, 10, 10, 20),
+     (10, 19, 19, 20), 3, (10,), (10, 14, 14, 20)),
+    # A FREE UNIT. Units 10, 12 and 20, one short of four: rank 1 shares
+    # day 12 and takes the nearest free day, 11 -- or 13 where 11 is a hole.
+    ("merge", (10, 12, 12, 20), (True, False, False, True), (10, 10, 10, 20),
+     (10, 19, 19, 20), 4, (11,), (10, 13, 12, 20)),
+    # A SPLIT. Ranks 1 and 2 share day 11, their room that day alone: no
+    # merge takes them, and the split would send rank 1 down onto day 10
+    # and rank 2 up onto day 12 -- but day 10 is a hole, rank 1 has no
+    # other way, and the split is not made; the stack then holds three
+    # units against the count of two, and nothing moves.
+    ("merge", (10, 11, 11, 12), (True, False, False, True), (10, 10, 11, 12),
+     (10, 11, 12, 12), 2, (10,), (10, 11, 11, 12)),
+    # ...and the same split with day 12, above, the hole: rank 2 has no
+    # other way.
+    ("merge", (10, 11, 11, 12), (True, False, False, True), (10, 10, 11, 12),
+     (10, 11, 12, 12), 2, (12,), (10, 11, 11, 12)),
+    # A PAID MERGE, month-first under `first-field-padded`. Rank 4 on 12
+    # October has no held day of its own kind in its room and would move
+    # onto 8 October, the pinned rank 3's, paid for by rank 1 moving from
+    # 5 October onto 18 October -- but 8 October is a hole. No other merge,
+    # trade, split or stack meets the count of four, and nothing moves.
+    ("merge-widths",
+     (_day(10, 3), _day(10, 5), _day(10, 5), _day(10, 8), _day(10, 12), _day(10, 18)),
+     (True, False, False, True, False, True),
+     (_day(10, 3), _day(10, 4), _day(10, 4), _day(10, 8), _day(10, 8), _day(10, 18)),
+     (_day(10, 3), _day(10, 20), _day(10, 20), _day(10, 8), _day(10, 13), _day(10, 18)), 4,
+     (_day(10, 8),),
+     (_day(10, 3), _day(10, 5), _day(10, 5), _day(10, 8), _day(10, 12), _day(10, 18))),
+    # A TRADE OF STANDINGS, month-first under `first-field-padded` (a day
+    # of 1 to 9 October is of one width kind, every other day here of the
+    # other). Ranks 1 and 2 share 9 October, and their gap's one free day,
+    # 10 October, is of the other kind; rank 3, alone on 12 October, could
+    # take 7 October, of theirs, so the two would move together -- but
+    # 10 October is a hole, and nothing moves.
+    ("merge-widths", (_day(10, 8), _day(10, 9), _day(10, 9), _day(10, 12), _day(10, 14)),
+     (True, False, False, False, True),
+     (_day(10, 8), _day(10, 9), _day(10, 9), _day(10, 7), _day(10, 14)),
+     (_day(10, 8), _day(10, 10), _day(10, 10), _day(10, 14), _day(10, 14)), 5, (_day(10, 10),),
+     (_day(10, 8), _day(10, 9), _day(10, 9), _day(10, 12), _day(10, 14))),
+    # THE STACK. Taken by upper ends, rank 1 stacks the top of its gap,
+    # day 14, and rank 2 joins it; with day 14 a hole rank 1 walks down to
+    # day 13 and rank 2 joins that. Three units: the count.
+    ("stack", (10, 13, 15, 20), (True, False, False, True), (10, 11, 13, 20),
+     (10, 14, 16, 20), 3, (14,), (10, 13, 13, 20)),
+    # ...NOR JOINS ONE. The pinned rank 0 stands on day 10, a hole, and is
+    # stacked first; rank 1, whose gap reaches day 10, stacks its own day
+    # 12 rather than join it, so the stack holds three units against the
+    # count of two, and nothing moves.
+    ("stack", (10, 12, 20), (True, False, True), (10, 10, 20), (10, 12, 20), 2, (10,),
+     (10, 12, 20)),
+    # ...AND ITS RAISE. Asked for four, the stack holds three and rank 1,
+    # sharing day 13, is raised to the nearest free day of its gap: 12,
+    # 14 and 12 being holes, day 11.
+    ("stack", (10, 13, 15, 20), (True, False, False, True), (10, 11, 13, 20),
+     (10, 14, 16, 20), 4, (12, 14), (10, 11, 13, 20)),
+    # PAST THE STRATA. The stack puts rank 1 on day 12, below the hole at
+    # 13, and holds days 10, 12, 15, 18 and 20; every split on offer leaves
+    # a rank two days outside its gap, and rank 1's down onto day 10 is
+    # the lower run. With day 13 no hole the stack holds it, and rank 2
+    # goes down onto it, one day outside.
+    ("strata", (10, 12, 14, 17, 20), (True, False, False, False, True),
+     (10, 12, 14, 17, 20), (10, 13, 15, 18, 20), 4, (13,), (10, 10, 15, 18, 20)),
+    # ...THE STACK PASSING A HOLE THERE TOO. Rank 3's gap tops at day 18, a
+    # hole, so the stack puts it on day 17; the least split is rank 2 down
+    # onto day 13, one day outside, and rank 3 stays on day 17.
+    ("strata", (10, 12, 14, 17, 20), (True, False, False, False, True),
+     (10, 12, 14, 17, 20), (10, 13, 15, 18, 20), 4, (18,), (10, 13, 13, 17, 20)),
+    # ...AND NO SPLIT LANDS ON ONE. The stack holds days 10, 13, 17, 19
+    # and 20, the pinned rank 0 standing on day 10, a hole. The least
+    # splits are rank 1 down onto day 10 and rank 3 down onto day 17,
+    # each one day outside its gap; rank 1's is the lower run, but its
+    # day is a hole, so rank 3 goes down, and the window holds.
+    ("strata", (10, 12, 16, 18, 20), (True, False, False, False, True),
+     (10, 11, 16, 18, 20), (10, 13, 17, 19, 20), 4, (10,), (10, 13, 17, 17, 20)),
+    # A WIDTH MOVE, month-first under `first-field-padded`: a day of
+    # September or from 10 October counts into the word, 1 to 9 October
+    # does not. Two of four count and three are owed: rank 2 on 6 October
+    # is four days from 10 October and rank 1 on 5 October five from 30
+    # September, so rank 2 moves -- unless 10 October is a hole, when its
+    # nearest is 11 October, five days off, and rank 1, the lower, moves.
+    ("widths", (_day(9, 30), _day(10, 5), _day(10, 6), _day(10, 20)),
+     (True, False, False, True), (_day(9, 30), _day(9, 30), _day(9, 30), _day(10, 20)),
+     (_day(9, 30), _day(10, 20), _day(10, 20), _day(10, 20)), 3, (_day(10, 10),),
+     (_day(9, 30), _day(9, 30), _day(10, 6), _day(10, 20))),
+    # THE STEP OFF A HOLE BEFORE THE COUNT. Rank 1 on day 12 moves to day
+    # 11, the earlier of two free days; rank 2 on day 13 finds day 12 a
+    # hole and moves to day 14. A rank whose gap holds holes alone stays.
+    ("off", (10, 12, 13, 20), (True, False, False, True), (10, 11, 11, 20),
+     (10, 15, 15, 20), 0, (12, 13), (10, 11, 14, 20)),
+    ("off", (10, 12, 20), (True, False, True), (10, 12, 20), (10, 13, 20), 0,
+     (12, 13), (10, 12, 20)),
+)
+
+# THE STUCK TAIL RANK. Two low-tail ranks and one high-tail rank; ranks 0,
+# 2 and 4 are pinned. Days 5, 9 and 15 are holes: rank 0 and rank 4 are
+# pinned tail ranks on holes and count, rank 2 is a body rank and rank 3
+# is not pinned. Two days.
+STUCK_ROWS = (
+    # (ordinals, pinned, low rows, high rows, holes, days counted)
+    ((5, 7, 9, 12, 15), (True, False, True, False, True), 2, 1, (5, 9, 12, 15), 2),
+    ((5, 7, 9, 12, 15), (False, False, True, False, True), 2, 1, (5, 9, 12, 15), 1),
+)
+
+# The tail every `strata` row above is summed over: wide enough for both
+# rows' answers and for the answers the holes ignored would give.
+HOLE_TAILS = (((0, 1, 2, 3), 20, 1, 0, True, (10, 6, 2, 1), (10, 10, 6, 3)),)
+
+
+def _iso(day: int) -> str:
+    return (datetime.date(1970, 1, 1) + datetime.timedelta(days=day)).isoformat()
+
+
+def _month_first(day: int) -> str:
+    date = datetime.date(1970, 1, 1) + datetime.timedelta(days=day)
+    return f"{date.month}/{date.day}/{date.year}"
+
+
+def _hole_missed(asked: typing.Callable[..., object], stuck: typing.Callable[..., object]) -> "list[str]":
+    missed = []
+    for kind, ordinals, pinned, lows, highs, distinct, holes, want in HOLE_ROWS:
+        got = _asked(asked, kind, list(ordinals), list(pinned), list(lows), list(highs), distinct, holes)
+        if got != want:
+            missed += [f"{kind} of {ordinals!r} beside {holes!r}: {got!r}, the statement gives {want!r}"]
+    for ordinals, pinned, low_rows, high_rows, holes, want in STUCK_ROWS:
+        got = _asked(stuck, list(ordinals), list(pinned), low_rows, high_rows, holes)
+        if got != want:
+            missed += [f"stuck of {ordinals!r} beside {holes!r}: {got!r}, the statement gives {want!r}"]
+    return missed
+
+
+def _oracle_hole(module: types.ModuleType) -> "tuple[typing.Callable[..., object], typing.Callable[..., object]]":
+    def column(holes, low_rows=0, high_rows=0, member="iso-date"):
+        found = {
+            "format": member, "resolution": "date", "datetimes_read_at": "local",
+            "missing_by_source": {
+                _iso(day) if member == "iso-date" else _month_first(day): 1 for day in holes
+            },
+        }
+        if low_rows:
+            found["low_tail"], found["high_tail"] = {"rows": low_rows}, {"rows": high_rows}
+        return found
+
+    def asked(kind, ordinals, pinned, lows, highs, distinct, holes):
+        if kind == "merge":
+            module.distinct_pass(column(holes), ordinals, pinned, lows, highs, 1, 1, distinct, False, "")
+        elif kind == "merge-widths":
+            module.distinct_pass(
+                column(holes, member=RUN_MEMBER), ordinals, pinned, lows, highs, 1, 1, distinct,
+                True, "first-field-padded",
+            )
+        elif kind == "stack":
+            module.ranks_restacked(
+                column(holes), ordinals, pinned, lows, highs, 1, 1, 1, _held(ordinals), False, "", distinct,
+            )
+        elif kind == "strata":
+            module.count_met_past_the_strata(
+                column(holes), ordinals, pinned, lows, highs, 1, 1, 1, False, "", distinct, list(HOLE_TAILS),
+            )
+        elif kind == "widths":
+            module.widths_pass(
+                column(holes, member=RUN_MEMBER), ordinals, pinned, lows, highs, 1, distinct, 1,
+                False, "first-field-padded",
+            )
+        else:
+            module.stepped_off_absent_days(column(holes), ordinals, pinned, lows, highs, 1, 1, 1, False, "")
+        return tuple(ordinals)
+
+    def stuck(ordinals, pinned, low_rows, high_rows, holes):
+        return len(module.absent_days_stuck(column(holes, low_rows, high_rows), ordinals, pinned, 1, len(ordinals)))
+
+    return asked, stuck
+
+
+def _generator_hole(kind, ordinals, pinned, lows, highs, distinct, holes):
+    facts = typing.cast(contract.DatetimeFacts, _RUN_FACTS)
+    gone = frozenset(holes)
+    if kind == "merge":
+        generation._distinct_reached(facts, ordinals, pinned, lows, highs, 1, 1, distinct, False, "", gone)
+    elif kind == "merge-widths":
+        generation._distinct_reached(
+            facts, ordinals, pinned, lows, highs, 1, 1, distinct, True, "first-field-padded", gone,
+        )
+    elif kind == "stack":
+        generation._ranks_restacked(
+            facts, ordinals, pinned, lows, highs, 1, 1, 1, _held(ordinals), False, "", distinct, gone,
+        )
+    elif kind == "strata":
+        generation._count_met_past_the_strata(
+            facts, ordinals, pinned, lows, highs, 1, 1, 1, False, "", distinct, list(HOLE_TAILS), gone,
+        )
+    elif kind == "widths":
+        generation._widths_reached(
+            facts, ordinals, pinned, lows, highs, 1, 1, distinct, False, "first-field-padded", gone,
+        )
+    else:
+        generation._stepped_off_the_holes(
+            facts, ordinals, pinned, lows, highs, 1, 1, 1, False, "", gone, (0, -1),
+        )
+    return tuple(ordinals)
+
+
+def _generator_stuck(ordinals, pinned, low_rows, high_rows, holes):
+    layout = types.SimpleNamespace(low=types.SimpleNamespace(rows=low_rows), high=types.SimpleNamespace(rows=high_rows))
+    return generation._held_by_stuck_tail_ranks(
+        ordinals, pinned, frozenset(holes), 1, typing.cast("generation._DateLayout", layout)
+    )
+
+
 # ------------------------------------------------------------ the two readers
 
 WITNESSES = {
@@ -1410,6 +1636,10 @@ WITNESSES = {
     "strata": (
         lambda module: _strata_missed(_oracle_strata(module)),
         lambda: _strata_missed(_generator_strata),
+    ),
+    "hole": (
+        lambda module: _hole_missed(*_oracle_hole(module)),
+        lambda: _hole_missed(_generator_hole, _generator_stuck),
     ),
 }
 
@@ -1798,11 +2028,11 @@ WITNESS_MUTANTS = {
     "restack_at_the_lower_ends": (
         "run",
         "        candidate = ordinals[rank] + (high - ordinals[rank]) // by * by\n"
-        "        while candidate >= low and stands(candidate) != own:\n"
+        "        while candidate >= low and (stands(candidate) != own or not may_hold(rank, candidate)):\n"
         "            candidate -= by\n"
         "        if candidate < low:\n",
         "        candidate = ordinals[rank] - (ordinals[rank] - low) // by * by\n"
-        "        while candidate <= high and stands(candidate) != own:\n"
+        "        while candidate <= high and (stands(candidate) != own or not may_hold(rank, candidate)):\n"
         "            candidate += by\n"
         "        if candidate > high:\n",
     ),
@@ -1969,6 +2199,54 @@ WITNESS_MUTANTS = {
         "        if len(chosen[name]) + 2",
     ),
 }
+
+# The hole clauses (plan P4-D358): each withdrawn alone turns `hole` red.
+WITNESS_MUTANTS.update({
+    "hole_a_merge_onto_a_hole": (
+        "hole", "        if target // unit in absent:\n            return False\n", "",
+    ),
+    "hole_a_free_unit_on_a_hole": (
+        "hole", "            if candidate // unit in absent:\n                continue\n", "",
+    ),
+    "hole_stacked_on_a_hole": (
+        "hole",
+        "    def may_hold(rank, value):\n        return pinned[rank] or value // unit not in absent\n",
+        "    def may_hold(rank, value):\n        return True\n",
+    ),
+    "hole_split_past_the_strata_onto_a_hole": (
+        "hole", "        same = same and target // unit not in absent\n", "",
+    ),
+    "hole_stacked_past_the_strata_on_a_hole": (
+        "hole",
+        "    def lands(rank, value):\n        return pinned[rank] or value // unit not in absent\n",
+        "    def lands(rank, value):\n        return True\n",
+    ),
+    "hole_a_width_move_onto_a_hole": (
+        "hole",
+        "                counts_into_width(column, candidate // day, word) != fewer\n"
+        "                and candidate // unit not in absent\n",
+        "                counts_into_width(column, candidate // day, word) != fewer\n",
+    ),
+    "hole_a_paid_merge_onto_a_hole": (
+        "hole",
+        "                            candidate // unit not in seen\n"
+        "                            and candidate // unit not in absent\n",
+        "                            candidate // unit not in seen\n",
+    ),
+    "hole_no_step_off_before_the_count": (
+        "hole", "        if found is not None:\n            ordinals[rank] = found\n", "",
+    ),
+    "hole_stuck_counted_unpinned": (
+        "hole",
+        "if pinned[rank] and ordinals[rank] // unit in absent and not first <= rank <= last",
+        "if ordinals[rank] // unit in absent and not first <= rank <= last",
+    ),
+    "hole_stuck_counted_in_the_body": (
+        "hole",
+        "if pinned[rank] and ordinals[rank] // unit in absent and not first <= rank <= last",
+        "if pinned[rank] and ordinals[rank] // unit in absent",
+    ),
+})
 
 
 @pytest.mark.parametrize("rule", sorted(WITNESSES))
