@@ -17921,8 +17921,9 @@ def _weekday_shares(
 ) -> "list[list[int]]":
     """How many of each gap's ranks each group takes (method G7.3f, step 3).
 
-    The prior is each group's days inside the gap; it is raked, gap by gap
-    and then group by group, `_WEEKDAY_RAKES` times, to each gap's rank
+    The prior is the gap's ranks on each group, and the gap's rank count
+    again, spread over the groups as the gap's days are; it is raked, gap
+    by gap and then group by group, `_WEEKDAY_RAKES` times, to each gap's rank
     count and each group's owed total, every step a floor division at
     the share scale. Each gap is then rounded by largest remainder (ties
     to the lower group, only groups holding a day of the gap), and the
@@ -17938,8 +17939,17 @@ def _weekday_shares(
         for rank in gaps[index]:
             group = _weekday_group(state, state.moved[rank])
             held[group] = held[group] + 1
+        # THE RANKS AS DRAWN AND THE CALENDAR WEIGH THE SAME: the gap's
+        # ranks on each group, and as many again spread over the groups
+        # as its days are. With the days a trace only, a gap drawn with
+        # no rank on a Monday took no Monday share, and a column of
+        # weekdays whose census names few Tuesdays piled them into one
+        # narrow gap and lost days the repair could not put back.
+        days = sum(prior[index]) // _WEEKDAY_SCALE
+        size = len(gaps[index])
         prior[index] = [
-            held[group] * _WEEKDAY_SCALE + prior[index][group] // 1024
+            held[group] * _WEEKDAY_SCALE
+            + (prior[index][group] * size // days if days > 0 else 0)
             for group in range(groups)
         ]
     shares = [[value for value in row] for row in prior]

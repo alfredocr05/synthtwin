@@ -6323,6 +6323,135 @@
      "pinned_nodes_failing": 0
     }
    }
+  },
+  {
+   "id": "K-S3-31",
+   "phase_stage": "Stage 3b landing 3b.1 (plan P4-D355)",
+   "category": "STATS",
+   "headline": false,
+   "name": "Dates keep their weekday: weekend share and weekday come back",
+   "status": "GREEN",
+   "rule": "over the six date columns of tests/test_stage3b_gate.py's battery -- two years of admissions, billing dates heaped on the 1st and 15th, birth dates over seventy years, a weekly Monday clinic, a 28-day cycle and a monthly visit -- at 1,000 and 10,000 rows, a floor of eleven and seeds 0 to 4: every column publishes its weekday census, no twin and no real table misses a checkable obligation, and no scoped statistics clause fails: BOUND, the twin's weekend share and weekday distribution within (tail cells + cells the census leaves unresolved) / parsed of the real column's; CAP, that bound at most 0.10 at 1,000 rows and 0.02 at 10,000 where the census resolves the statistic; SHAPE, the twin's gap at most a quarter of the real column's distance from flat wherever that distance is three times its sampling scale. `censuses` and `cases` may not shrink, and the pinned node holds the 1,000-row battery at seeds 0 and 4 in the fast tier",
+   "rule_kind": "at_most",
+   "expected": {
+    "over_bound": 0,
+    "over_cap": 0,
+    "shape": 0,
+    "missed": 0,
+    "censuses": 12,
+    "cases": 120,
+    "pinned_nodes_failing": 0
+   },
+   "key_kinds": {
+    "censuses": "at_least",
+    "cases": "at_least",
+    "pinned_nodes_failing": "exact"
+   },
+   "tier": "SLOW",
+   "source": "driver",
+   "nodes": [
+    "tests/test_stage3b_gate.py::test_the_battery_twins_meet_their_census"
+   ],
+   "test": null,
+   "driver": "tools/measurements/kpi_weekday_census.py --kpi",
+   "pin_strength": "WEAKER",
+   "measured_on": "the gate's battery, six date columns at 1,000 and 10,000 rows, floor 11, seeds 0 to 4, through the real producer, generator and checker",
+   "evidence": "Before the landing no column published a weekday census and the twin's weekdays were flat: on the golden demonstration the 217 cells between the tails fell 19, 34, 29, 49, 32, 20 and 34 on Monday to Sunday against the real 30, 27, 33, 36, 30, 26 and 35, and seasonal and admissions columns at 3,000 rows reached a per-day variance ratio of 0.421 to 0.565 (tests/test_date_spread.py). After it the battery publishes all twelve censuses and every twin meets its own.",
+   "nodes_min_collected": 3,
+   "value_at": {
+    "commit": "caf3079",
+    "date": "2026-09-27",
+    "measured_by": "tools/measurements/kpi_run.py --slow --only K-S3-31 --print-values",
+    "value": {
+     "over_bound": 0,
+     "over_cap": 0,
+     "shape": 0,
+     "missed": 0,
+     "censuses": 12,
+     "cases": 120,
+     "pinned_nodes_failing": 0
+    }
+   }
+  },
+  {
+   "id": "K-S3-32",
+   "phase_stage": "Stage 3b landing 3b.1 (plan P4-D355)",
+   "category": "PRIVACY",
+   "headline": false,
+   "name": "No calendar count below the floor: every census certified",
+   "status": "GREEN",
+   "rule": "the pinned nodes of tests/test_stage3b_gate.py pass on every case: every census of the 1,000-row battery passes the independent verifier witness by witness and day by day; over 400 tiny bodies and 200 larger ones the brute force finds no published census confining a set of days below the line, no witness that is not a table of the facts and no certified class no table fills; each rule's seeded witness publishes what the rule derives (seven, among them `[]` for ties, few dates and a count of different days that is not the real one); a declared missing day is a hole no witness stands on; a date written two ways publishes no census and its loader refuses one; a workbook storing dates two ways publishes none; and a validate run never enters the certificate",
+   "rule_kind": "exact",
+   "expected": {
+    "pinned_nodes_failing": 0
+   },
+   "tier": "FAST",
+   "source": "pytest",
+   "nodes": [
+    "tests/test_stage3b_gate.py::test_the_battery_keeps_its_weekday_census",
+    "tests/test_stage3b_gate.py::test_the_certificate_survives_the_brute_force",
+    "tests/test_stage3b_gate.py::test_each_rule_publishes_what_it_derives",
+    "tests/test_stage3b_gate.py::test_a_declared_missing_day_is_a_hole_no_witness_stands_on",
+    "tests/test_stage3b_gate.py::test_a_date_written_two_ways_publishes_no_census_and_its_loader_refuses_one",
+    "tests/test_stage3b_gate.py::test_a_workbook_storing_dates_two_ways_publishes_no_census",
+    "tests/test_stage3b_gate.py::test_validating_a_file_never_enters_the_certificate"
+   ],
+   "test": null,
+   "driver": null,
+   "pin_strength": "EXACT",
+   "measured_on": "tests/test_stage3b_gate.py: the 1,000-row battery, 600 brute-force bodies and seven seeded witnesses",
+   "evidence": "Each checker imports nothing of the calendar code (tests/calendar_certificate_verify.py, tests/calendar_certificate_brute.py). Withdrawing the certificate, compaction, the real count of different days, the residue check, the entry's inference, the menu, few dates, one spelling or the holes turns a pinned node red (the landing's mutation record, CHANGELOG).",
+   "nodes_min_collected": 15,
+   "value_at": {
+    "commit": "caf3079",
+    "date": "2026-09-27",
+    "measured_by": "tools/measurements/kpi_run.py --only K-S3-32 --print-values",
+    "value": {
+     "pinned_nodes_failing": 0
+    }
+   }
+  },
+  {
+   "id": "K-S3-33",
+   "phase_stage": "Stage 3b landing 3b.1 (plan P4-D355)",
+   "category": "SPEED",
+   "headline": false,
+   "name": "The weekday certificate's cost stays bounded",
+   "status": "GREEN",
+   "rule": "over the 1,000-row battery's six date columns at a floor of eleven, the network solves the full-fill certificate spends on one census: at most 1,000 where no residue is checked and at most 20,000 where it is, over at least six censuses; and on one admissions column at 2,500 to 40,000 rows (its driver), counted machine-free, the certificate's network solves in describe and the day pass's rank moves and day searches in generate each grow less than 2.5 times over every doubling",
+   "rule_kind": "at_most",
+   "expected": {
+    "solves_plain": 1000,
+    "solves_residue": 20000,
+    "censuses": 6,
+    "describe_growth": 2.5,
+    "generate_growth": 2.5
+   },
+   "key_kinds": {
+    "censuses": "at_least",
+    "describe_growth": "ratio_below",
+    "generate_growth": "ratio_below"
+   },
+   "tier": "FAST",
+   "source": "pytest",
+   "nodes": [],
+   "test": "tests/test_kpi_ledger.py::test_k_s3_33",
+   "driver": "tools/measurements/kpi_weekday_census.py --kpi",
+   "pin_strength": "NONE",
+   "measured_on": "calendar_certificate.Verdict.solves on the gate's battery; calls of calendar_certificate._solve in describe and of the day pass's move and search functions in generate on tests/test_stage3b_gate.py's admissions column, seconds printed beside them and never judged",
+   "evidence": "The design's prototype certified the monthly visit in 7,814 solves and 42 s; the product's primal-dual solver with bucketed distances takes 3,907, and a census without residue at most 65 (one solve a class). The ladder was first written in seconds and read 2.52 on generate under load at the 5,000-to-10,000 step where the counts read 1.77; describe's solves stay near 130 to 148 (two certificates a description) at every size.",
+   "value_at": {
+    "commit": "caf3079",
+    "date": "2026-09-27",
+    "measured_by": "tools/measurements/kpi_run.py --slow --only K-S3-33 --print-values",
+    "value": {
+     "solves_plain": 65,
+     "solves_residue": 3907,
+     "censuses": 6,
+     "describe_growth": 1.062,
+     "generate_growth": 1.994
+    }
+   }
   }
  ]
 }

@@ -73,6 +73,39 @@ another midnight standing offered each turn their own witness red; and
 the frozen case `every_day_group` of tests/test_generation_reference.py
 turns red on the step withdrawn and on the inner units handed out
 largest first.
+
+LANDING 3b.1 (plan P4-D355) makes the second clause true on DATE
+columns: the weekday census, published only where the full-fill
+certificate holds (`calendar_certificate`). Its clauses are the second
+half of this file, and each of its rules has the mutation record
+below, every mutation run on a copy of this tree with the rule
+withdrawn and nothing else changed:
+
+* the certificate withdrawn (every census the menu offers published)
+  turns red the verifier on all three battery shapes, the brute force,
+  five of the seven seeded witnesses and the declared missing day;
+* compaction withdrawn, the brute force and `w_month_wide_1000_s0`;
+* the real count of different days withdrawn (the reader's bounds on
+  both sides), the verifier on the three shapes, `sessions20_s0`,
+  `w_month_wide_1000_s0` and the declared missing day;
+* the residue check withdrawn, the brute force (unsound censuses);
+* the entry's inference withdrawn from the witness (no short weekday
+  kept), the brute force and `gr_wedthu_6_8_s1`;
+* menu entry 2 withdrawn, `sessions20_s0`; entry 3, `gr_wedthu_6_8_s1`;
+* WC7 withdrawn, `B2_oneweek_1201_s0` and `k7_sessions_s0`;
+* one spelling per day withdrawn, the column written two widths; the
+  holes withdrawn, the declared missing day; the one-storage rule
+  withdrawn, the workbook stored two ways; the validator's
+  re-descriptions producing the census, the validate run;
+* the day pass withdrawn, the battery's twins and the seven frozen
+  `weekday_*` cases of tests/test_generation_reference.py;
+* the loader's check withdrawn, the eight WC mutations of
+  tests/test_contract_loader.py and the copied census the loader
+  refuses;
+* the ties fast path withdrawn changes what two withheld censuses SAY
+  (`walkcase4_s0` and `bizlog_x1_s1` fall to the residue's sentence
+  rather than the repeats', still withheld), and the residue's rank cap
+  withdrawn changes nothing here, as the design measured.
 """
 
 from __future__ import annotations
@@ -737,7 +770,7 @@ def _certified(block: dict, cells: "list[str]", floor: int = 11, holes: "tuple[s
 
 
 def _verified(block: dict, cells: "list[str]", holes: "tuple[str, ...]" = ()) -> "list[str]":
-    """The independent verifier's findings on a published census, and nothing else."""
+    """What the independent verifier says of a published census, and nothing else."""
     verdict = _certified(block, cells, holes=holes)
     days = _days_of([cell for cell in cells if cell not in holes])
     body = days[block["low_tail"]["rows"]: len(days) - block["high_tail"]["rows"]]

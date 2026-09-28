@@ -767,11 +767,12 @@ def test_a_full_gap_of_a_width_census_is_searched_once_a_pass(
 # weekday census of the first entry of the menu, and the day pass of
 # G7.3f puts the 3,962 cells between the two tail boundaries on it --
 # 593, 575, 523, 617, 552, 535 and 567 on Monday to Sunday before, 573,
-# 564, 593, 589, 527, 543 and 573 as published now. 1,269 of the 4,000
-# cells stand on another date; the column still holds 797 different
-# dates, and the search is asked exactly what it was asked before, 2,195
-# calls and 299,291 questions.
-_MONTH_FIRST_TWIN = "acbe008a5b725f1beb8c72d97698f74435fd0f36504cd220e315c67f07b35845"
+# 564, 593, 589, 527, 543 and 573 as published now. 1,533 of the 4,000
+# cells stand on another date (1,269 under a first writing of step 3's
+# prior); the column still holds 797 different dates, and the search is
+# asked exactly what it was asked before, 2,195 calls and 299,291
+# questions.
+_MONTH_FIRST_TWIN = "acb7f278f8d2195b601c723725b15e24151ffa52160b378b946efdf51897760e"
 
 
 def test_the_figures_the_searches_cite_are_the_ones_counted_here() -> None:

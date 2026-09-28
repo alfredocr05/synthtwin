@@ -635,11 +635,11 @@ NARROW_COLUMN_DIGESTS = {
     # both validate with nothing missed, and the check census reproduces
     # the frozen 407 and 416 with the thirteen withdrawn obligations put
     # back and the sixteen tail checks set aside.
-    # RE-RECORDED AT LANDING 3b.1 (2026-09-26, plan P4-D355): the same
-    # 37 cells as the wide twin digest below, the weekday census met by
+    # RE-RECORDED AT LANDING 3b.1 (2026-09-27, plan P4-D355): the same
+    # 66 cells as the wide twin digest below, the weekday census met by
     # the day pass of G7.3f; no other column of the narrow twin moved,
     # measured against a git archive of e4a5d34.
-    "recorded_on": "3972ebfb9116a308d9ccf836c69bd538",
+    "recorded_on": "a6288631682251a5cfd27f24e172ce70",
     "answer": "f96508b26b4c8cae171b5bf0984d34a3",
     "comment": "87f0e3ed56d0f91358fb60fe8b3c9c29",
     "unused": "73be54e263565328cf0122ffc4c15570",
@@ -711,8 +711,8 @@ NARROW_COLUMN_ORDER_DIGESTS = {
     # Re-recorded for plan P4-D192 with the sorted digest above: the same
     # 105 cells, as written.
     # Re-recorded for plan P4-D355 with the sorted digest above: the same
-    # 37 cells, as written.
-    "recorded_on": "967aa6c76fe36febc31bd8badf081664",
+    # 66 cells, as written.
+    "recorded_on": "96c5e5a3cdece6e72c2bbf1d7a06b355",
     "answer": "780ad3693f49d90a1fd2273eb91a6dc7",
     "comment": "8ec45aed18839baa03592651323aa6f6",
     "unused": "73be54e263565328cf0122ffc4c15570",
@@ -1929,16 +1929,19 @@ GOLDEN_TWIN_SHA256 = (
     # record-number column is byte-identical. That is the numeric tail
     # rule and nothing else: those four columns are built from a ladder
     # that no longer runs to two published extremes.
-    # RE-RECORDED AT LANDING 3b.1 (2026-09-26, plan P4-D355), read cell
-    # by cell against a git archive of e4a5d34: 37 of the 3,360 cells
+    # RE-RECORDED AT LANDING 3b.1 (2026-09-27, plan P4-D355), read cell
+    # by cell against a git archive of e4a5d34: 66 of the 3,360 cells
     # differ and every one of them is in `recorded_on`, the one column
     # of dates, whose description now publishes a weekday census. The
     # day pass of G7.3f moves body ranks inside their own gaps: the 217
     # cells between the two tail boundaries fell 19, 34, 29, 49, 32, 20
     # and 34 on Monday to Sunday and now fall 30, 27, 33, 36, 30, 26 and
-    # 35 as published; the column still holds 84 different dates, and
-    # both ends and both tails are where they were.
-    "6eb37681b23ab09de701e4152c28ff0ae0874bd659ecc8b2a2f8eb18e09e8946"
+    # 35 as published; the column still holds 84 different dates, both
+    # ends and both tails are where they were, and the twin validates
+    # with nothing missed over its 542 checks. (A first writing of step
+    # 3's prior moved 37 cells; the prior that weighs the drawn ranks
+    # and the calendar the same moves 66.)
+    "bdee72b6c01e14da966d509842be30a597fc7f769640eb9bc2dd23b2591a09c3"
 )
 
 

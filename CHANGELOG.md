@@ -6,6 +6,45 @@ exists).
 
 ## [Unreleased]
 
+### A column of dates keeps its weekday: the census, certified (2026-09-27)
+
+**A column of dates came back with its days of the week spread evenly.**
+On the loss battery's two years of admissions the weekend held 14.7 per
+cent of the real rows and 28.5 of the twin's, and a weekly Monday clinic
+came back with a weekend, because no published fact carried a weekday. A
+column of whole dates read on the local clock, with both tails and one
+text per date, now publishes `weekday_census` -- the cells between its
+two tail boundaries counted per group of weekdays, the grouping chosen
+by the census line alone from a menu of three -- and only where the
+FULL-FILL CERTIFICATE holds: every class of a counted weekday (a boundary
+or rung day; the days of one stretch between two of them falling on one
+weekday, less the days a declared missing value names) has a witness
+table meeting the whole description that puts the line on one of its
+days, or is residue the rank facts already cap, whose every arrangement
+stage 3 allows the census allows too (contract WC1 to WC8, plan
+P4-D355). The loader asks the same certificate on the reader's bounds
+and refuses what fails it; the producer publishes only what its loader
+accepts. The twin meets the census by moving body ranks inside their own
+gaps (method G7.3f), keeping every tail, rung, width kind and hole;
+validation counts the file's body against the published groups and
+never produces one. After: all twelve censuses of the loss battery
+publish and the admissions twin's weekend share reads 14.8 against 14.7
+with a weekday distance of 0.002 where it was 0.139, nothing missed on
+60 twins; two checkers that import nothing of the calendar code hold
+it -- the verifier passes every witness of 98 published censuses over
+232 fixtures day by day, and the brute force finds no published census
+confining a set of days over 600 tiny bodies -- and the three privacy
+readers report 0 pins. Frozen as seven `weekday_*` cases (G14.3 counts
+138); `K-S3-31` to `K-S3-33`. Found on the way: G7.3f step 3's prior
+gave the calendar a trace beside the drawn ranks, so a clinic's few
+Tuesday cells piled into one gap and the repair could not put the count
+of different days back (39 of 306 seeded twins missed it); the ranks
+and the calendar now weigh the same, and 0 miss. The mutation record is
+the gate's docstring. Not in this landing (design SECTION 9): low-tie
+columns, few-date schedules whose squeezed stretches are wide, dense
+logs the census would narrow and groupings beyond the menu are withheld
+and say why; timestamp columns publish `[]` until 3b.2.
+
 ### Every day of a filled range comes back: a tail's tie group gives way (2026-09-26)
 
 **Where a date column holds a value on every day of its range** the twin

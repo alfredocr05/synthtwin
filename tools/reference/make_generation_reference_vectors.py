@@ -10356,67 +10356,104 @@ class WeekdayWalk:
 
 
 def weekday_shares(walk, gaps, owed):
-    """G7.3f step 3: each gap's share of every group, in whole numbers."""
-    groups = len(owed)
-    prior = []
-    for ranks in gaps:
-        low, high = walk.lows[ranks[0]], walk.highs[ranks[0]]
-        days = [0] * groups
-        for day in range(low, high + 1):
-            if day not in walk.holes:
-                days[walk.group(day)] += WEEKDAY_SHARE_SCALE // 2 if day in (low, high) else WEEKDAY_SHARE_SCALE
-        held = [0] * groups
-        for rank in ranks:
-            held[walk.group(walk.days[rank])] += 1
-        prior += [[held[g] * WEEKDAY_SHARE_SCALE + days[g] // 1024 for g in range(groups)]]
+    """G7.3f step 3: each gap's share of every group, in whole numbers.
+
+    The prior, sixty rakes, the rounding and the exact totals, each its
+    own function below, in the order the step states them.
+    """
+    prior = [weekday_prior_row(walk, ranks, len(owed)) for ranks in gaps]
+    x = weekday_raked(prior, [len(ranks) for ranks in gaps], owed)
+    q = [weekday_rounded(x[j], prior[j], len(gaps[j])) for j in range(len(gaps))]
+    return weekday_made_exact(q, x, prior, owed)
+
+
+# a[j][g]: the gap's ranks on a day of g at 2**20 each, plus d * n_j // D,
+# where d counts the gap's days of g that are no hole, at 2**20 each and
+# its two end days at 2**19, and D is the sum of d over the groups divided
+# by 2**20, rounded down; nought where D is.
+def weekday_prior_row(walk, ranks, groups):
+    low, high = walk.lows[ranks[0]], walk.highs[ranks[0]]
+    d = [
+        sum(
+            WEEKDAY_SHARE_SCALE // (2 if day in (low, high) else 1)
+            for day in range(low, high + 1)
+            if day not in walk.holes and walk.group(day) == g
+        )
+        for g in range(groups)
+    ]
+    whole = sum(d) // WEEKDAY_SHARE_SCALE
+    return [
+        sum(1 for rank in ranks if walk.group(walk.days[rank]) == g) * WEEKDAY_SHARE_SCALE
+        + (d[g] * len(ranks) // whole if whole > 0 else 0)
+        for g in range(groups)
+    ]
+
+
+# Sixty times over: each gap to its rank count, then each group to its
+# owed total, taken at nought or above.
+def weekday_raked(prior, sizes, owed):
     x = [list(row) for row in prior]
     for _ in range(WEEKDAY_RAKES):
-        for j, ranks in enumerate(gaps):
-            total = sum(x[j])
-            if total > 0:
-                x[j] = [v * len(ranks) * WEEKDAY_SHARE_SCALE // total for v in x[j]]
-        for g in range(groups):
-            total = sum(x[j][g] for j in range(len(gaps)))
-            if total > 0:
-                for j in range(len(gaps)):
-                    x[j][g] = x[j][g] * max(owed[g], 0) * WEEKDAY_SHARE_SCALE // total
-    q = []
-    for j, ranks in enumerate(gaps):
-        n = len(ranks)
-        total = sum(x[j])
-        row = [0] * groups
-        if total > 0:
-            row = [v * n // total for v in x[j]]
-            left = n - sum(row)
-            for _key, g in sorted((-((x[j][g] * n) % total), g) for g in range(groups)):
-                if left <= 0:
-                    break
-                if prior[j][g] > 0:
-                    row[g] += 1
-                    left -= 1
-        q += [row]
-    for _ in range(20000):
-        totals = [sum(q[j][g] for j in range(len(gaps))) - max(owed[g], 0) for g in range(groups)]
-        over = [g for g in range(groups) if totals[g] > 0]
-        under = [g for g in range(groups) if totals[g] < 0]
-        if not over or not under:
-            break
-        chosen = None
-        for giving in over:
-            for taking in under:
-                for j in range(len(gaps)):
-                    if q[j][giving] > 0 and prior[j][taking] > 0:
-                        score = (x[j][taking] - q[j][taking] * WEEKDAY_SHARE_SCALE) - (
-                            x[j][giving] - q[j][giving] * WEEKDAY_SHARE_SCALE
-                        )
-                        if chosen is None or score > chosen[0]:
-                            chosen = (score, j, giving, taking)
-        if chosen is None:
-            break
-        _score, j, giving, taking = chosen
-        q[j][giving] -= 1
-        q[j][taking] += 1
+        x = weekday_scaled_columns([weekday_scaled_row(row, n) for row, n in zip(x, sizes)], owed)
+    return x
+
+
+def weekday_scaled_row(row, n):
+    total = sum(row)
+    return [value * n * WEEKDAY_SHARE_SCALE // total for value in row] if total > 0 else row
+
+
+def weekday_scaled_columns(x, owed):
+    totals = [sum(row[g] for row in x) for g in range(len(owed))]
+    return [
+        [
+            value * max(owed[g], 0) * WEEKDAY_SHARE_SCALE // totals[g] if totals[g] > 0 else value
+            for g, value in enumerate(row)
+        ]
+        for row in x
+    ]
+
+
+# One gap rounded: the floor of x * n / S, and the ranks left over one
+# each to the groups by the remainder, largest first and then the lower
+# group, passing over a group whose prior is nought.
+def weekday_rounded(xrow, prow, n):
+    total = sum(xrow)
+    floors = [value * n // total if total > 0 else 0 for value in xrow]
+    order = [
+        g
+        for _remainder, g in sorted((-((xrow[g] * n) % total) if total > 0 else 0, g) for g in range(len(xrow)))
+        if prow[g] > 0 and total > 0
+    ]
+    return [floors[g] + (1 if g in order[: max(0, n - sum(floors))] else 0) for g in range(len(xrow))]
+
+
+# While one group is over its owed total and another under, one share
+# moves, at most 20,000 times.
+def weekday_made_exact(q, x, prior, owed):
+    moved = 0
+    while moved < 20000 and (move := weekday_best_move(q, x, prior, owed)) is not None:
+        q[move[0]][move[1]], q[move[0]][move[2]] = q[move[0]][move[1]] - 1, q[move[0]][move[2]] + 1
+        moved += 1
     return q
+
+
+# Of every group over, every group under and every gap, in that order,
+# the move whose gain is largest, the first met on a tie: (gap, from, to).
+def weekday_best_move(q, x, prior, owed):
+    totals = [sum(row[g] for row in q) - max(owed[g], 0) for g in range(len(owed))]
+    triples = [
+        (giving, taking, j)
+        for giving in range(len(owed)) if totals[giving] > 0
+        for taking in range(len(owed)) if totals[taking] < 0
+        for j in range(len(q))
+        if q[j][giving] > 0 and prior[j][taking] > 0
+    ]
+    scored = [
+        ((x[j][taking] - q[j][taking] * WEEKDAY_SHARE_SCALE) - (x[j][giving] - q[j][giving] * WEEKDAY_SHARE_SCALE), -order, j, giving, taking)
+        for order, (giving, taking, j) in enumerate(triples)
+    ]
+    return max(scored)[2:] if scored else None
 
 
 def weekday_destination(walk, rank, other, have, want, size):
@@ -10429,38 +10466,46 @@ def weekday_destination(walk, rank, other, have, want, size):
 
 
 def weekday_runs(walk, ranks, have, want):
-    """G7.3f step 5: a gap's whole runs, eight rounds."""
+    """G7.3f step 5: a gap's whole runs, up to eight rounds."""
     for _ in range(8):
-        if have == want:
+        if not any([weekday_run_moved(walk, run, have, want) for run in (weekday_runs_of(walk, ranks) if have != want else [])]):
             return
-        on_day = {}
-        for rank in ranks:
-            runs_of = on_day.setdefault(walk.days[rank], [])
-            runs_of += [rank]
-        moved = False
-        for day in sorted(on_day):
-            run = on_day[day]
-            if len(run) < 2 or walk.holding(day) != len(run):
-                continue
-            g = walk.group(day)
-            if have[g] - want[g] < len(run):
-                continue
-            target = None
-            for other in weekday_candidates(day, walk.lows[run[0]], walk.highs[run[0]]):
-                if walk.holding(other) == 0 and weekday_destination(
-                    walk, run[0], other, have, want, len(run)
-                ):
-                    target = other
-                    break
-            if target is None:
-                continue
-            for rank in run:
-                walk.move(rank, target)
-            have[g] -= len(run)
-            have[walk.group(target)] += len(run)
-            moved = True
-        if not moved:
-            return
+
+
+# The gap's ranks on each day, days ascending, as the round begins.
+def weekday_runs_of(walk, ranks):
+    days = sorted({walk.days[rank] for rank in ranks})
+    return [[rank for rank in ranks if walk.days[rank] == day] for day in days]
+
+
+# A run of two or more, alone on its day, whose group holds at least its
+# size above its share, onto its first candidate no rank holds that is
+# a destination for all of it.
+def weekday_run_moved(walk, run, have, want):
+    day = walk.days[run[0]]
+    if len(run) < 2 or walk.holding(day) != len(run) or have[walk.group(day)] - want[walk.group(day)] < len(run):
+        return False
+    target = next(
+        (
+            other
+            for other in weekday_candidates(day, walk.lows[run[0]], walk.highs[run[0]])
+            if walk.holding(other) == 0 and weekday_destination(walk, run[0], other, have, want, len(run))
+        ),
+        None,
+    )
+    return target is not None and weekday_moved_whole(walk, run, target, have)
+
+
+# Every rank of a run onto one day, and the groups' holdings with it.
+def weekday_moved_whole(walk, run, target, have):
+    have[walk.group(walk.days[run[0]])] -= len(run)
+    have[walk.group(target)] += len(run)
+    return all([weekday_step(walk, rank, target) for rank in run])
+
+
+def weekday_step(walk, rank, target):
+    walk.move(rank, target)
+    return True
 
 
 def weekday_offer(walk, rank, have, want):
@@ -10489,33 +10534,43 @@ def weekday_offer(walk, rank, have, want):
 
 
 def weekday_singles(walk, ranks, have, want, rounds, changing):
-    """G7.3f steps 6 and 7: single ranks, nearest first."""
+    """G7.3f steps 6 and 7: single ranks, up to `rounds` rounds."""
     for _ in range(rounds):
-        if have == want:
+        if (changing := weekday_single_round(walk, ranks, have, want, changing)) is None:
             return
-        offers = []
-        for rank in ranks:
-            if have[walk.group(walk.days[rank])] <= want[walk.group(walk.days[rank])]:
-                continue
-            offer = weekday_offer(walk, rank, have, want)
-            if offer is not None and (offer[0] == 0 or changing):
-                offers += [(offer[0], abs(offer[1] - walk.days[rank]), rank)]
-        moved = False
-        for _kind, _distance, rank in sorted(offers):
-            g = walk.group(walk.days[rank])
-            if have[g] <= want[g]:
-                continue
-            offer = weekday_offer(walk, rank, have, want)
-            if offer is None or (offer[0] == 1 and not changing):
-                continue
-            walk.move(rank, offer[1])
-            have[g] -= 1
-            have[walk.group(offer[1])] += 1
-            moved = True
-        if not offers or not moved:
-            if changing:
-                return
-            changing = True
+
+
+# One round: None where the step ends, else whether changing offers are
+# taken from the next round on.
+def weekday_single_round(walk, ranks, have, want, changing):
+    if have == want:
+        return None
+    offers = sorted(weekday_offers_made(walk, ranks, have, want, changing))
+    stalled = not offers or not any([weekday_offer_taken(walk, rank, have, want, changing) for _kind, _distance, rank in offers])
+    return None if stalled and changing else (changing or stalled)
+
+
+# Every rank whose group holds more than its share, offered against the
+# holdings as the round begins: (changing, distance, rank).
+def weekday_offers_made(walk, ranks, have, want, changing):
+    return [
+        (offer[0], abs(offer[1] - walk.days[rank]), rank)
+        for rank, offer in (
+            (rank, weekday_offer(walk, rank, have, want))
+            for rank in ranks
+            if have[walk.group(walk.days[rank])] > want[walk.group(walk.days[rank])]
+        )
+        if offer is not None and (offer[0] == 0 or changing)
+    ]
+
+
+# Each offer is asked again when its turn comes.
+def weekday_offer_taken(walk, rank, have, want, changing):
+    group = walk.group(walk.days[rank])
+    offer = weekday_offer(walk, rank, have, want) if have[group] > want[group] else None
+    if offer is None or (offer[0] == 1 and not changing):
+        return False
+    return weekday_moved_whole(walk, [rank], offer[1], have)
 
 
 def weekday_leftover(walk, movable, owed):
@@ -10572,24 +10627,23 @@ def weekday_repair(walk, movable, wanted):
 def weekday_repair_singles(walk, movable, wanted):
     """G7.3f step 8.1: single ranks inside their own group and kind."""
     for _ in range(8):
-        count = walk.different()
-        if count == wanted:
+        if walk.different() == wanted or not weekday_repair_round(walk, movable, wanted, walk.different() < wanted):
             return
-        short = count < wanted
-        moved = False
-        for rank in movable:
-            if walk.different() == wanted:
-                return
-            here = walk.holding(walk.days[rank])
-            if (short and here < 2) or (not short and here != 1):
-                continue
-            day = walk.days[rank]
-            target = weekday_standing_day(walk, rank, walk.group(day), walk.kind(day), not short, WEEKDAY_ASKED)
-            if target is not None:
-                walk.move(rank, target)
-                moved = True
-        if not moved:
-            return
+
+
+# Ranks in rank order, until the count is back: whether any moved.
+def weekday_repair_round(walk, movable, wanted, short):
+    return any([weekday_repair_move(walk, rank, short) for rank in movable if walk.different() != wanted])
+
+
+# Short: a rank sharing its day onto a free day; long: a lone rank onto
+# a held one; of its own group and kind, at most 64 asked.
+def weekday_repair_move(walk, rank, short):
+    day = walk.days[rank]
+    if (short and walk.holding(day) < 2) or (not short and walk.holding(day) != 1):
+        return False
+    target = weekday_standing_day(walk, rank, walk.group(day), walk.kind(day), not short, WEEKDAY_ASKED)
+    return target is not None and weekday_step(walk, rank, target)
 
 
 def weekday_merged_runs(walk, movable, wanted):
@@ -20578,7 +20632,8 @@ def _weekday_gap_shares():
     return {
         "why": (
         "G7.3f step 3 (plan P4-D355): each gap's share of every group is its "
-        "prior -- the gap's ranks as drawn, and a trace of its days -- raked "
+        "prior -- the gap's ranks as drawn, and as many again spread as its "
+        "days are -- raked "
         "to the gap's rank count and the groups' owed totals, rounded by "
         "largest remainder and made exact one share at a time. The mutant "
         "gives each gap the holding it was drawn with, so only the leftover "

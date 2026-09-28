@@ -6051,13 +6051,17 @@ ending once both sides lie outside it.
    on a hole.
 3. **Shares.** For gap `j` of `n_j` ranks and group `g`, the prior
    `a[j][g]` is how many of the gap's ranks stand on a day of `g`,
-   times `2**20`, plus `d // 1024`, where `d` counts the gap's days of
-   `g` that are no hole at `2**20` each and its two end days -- the
-   pinned days it is drawn between -- at `2**19`; and `x = a`. The
-   ranks as drawn lead, so the census moves as few of them as it can
-   and a gap drawn only a few days wide does not pile its share of a
-   weekday onto its one day of it; the days keep a group with a day in
-   the gap but no rank on it from a prior of nought. Sixty times over: each gap whose
+   times `2**20`, plus `d * n_j // D`, where `d` counts the gap's days
+   of `g` that are no hole at `2**20` each and its two end days -- the
+   pinned days it is drawn between -- at `2**19`, and `D` is the sum of
+   `d` over the groups divided by `2**20`, rounded down (`d * n_j // D`
+   is nought where `D` is); and `x = a`. The ranks as drawn and the
+   calendar weigh the same: the drawn ranks keep the moves few and a
+   gap drawn only a few days wide from piling its share of a weekday
+   onto its one day of it, and the days give a gap drawn with no rank
+   on a weekday its part of that weekday, so the census's few cells of
+   one weekday are not all sent to the one gap whose draw held them.
+   Sixty times over: each gap whose
    `S = sum_g x[j][g]` is above nought takes
    `x[j][g] = x[j][g] * n_j * 2**20 // S`; then each group whose
    `C = sum_j x[j][g]` is above nought takes
