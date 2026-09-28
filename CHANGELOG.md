@@ -29,8 +29,8 @@ value** now says what a table sorted by that column publishes: its
 order, `source.dialect.row_order`, so row k holds the k-th value. On
 `heap_then_one_far` at a floor of eleven the whole description gives
 all 1,101 values back and the order places each, the one-row maximum in
-row 1,101; the owner's answer 8 was given on the unqualified premise,
-and the corrected one is recorded beside it (plan P4-D353). A gate test
+row 1,101; the premise the owner's answer 8 was given on names this
+exception (plan P4-D353). A gate test
 describes that table and fails on any surface stating the denial
 without `row_order` near it. Three stand-in guards of the previous
 entry had no test: G6.6's refusal of `-9999`, the fitted staircase's
@@ -60,10 +60,15 @@ and the gate no longer say a withheld pair closes every reading. A derived tail 
 G6.6's width walk moves are no longer a stand-in for "no value": an end
 on `9999`, `-999` or `-9999` moves one grid step inside, a row one point
 outward, and the walk no longer takes a width's ceiling when it is one
-(method G5.3b step 5, G6.6). G6.5a's separation walk still can, where
-the stand-in stands among the column's own neighbouring values and is no
-outlier: 8900 to 9998 beside 10000 and 10001 writes `9999`, nothing
-missed. Before, 145 four-figure numbers beside five of five figures wrote
+(method G5.3b step 5, G6.6). G6.5a still can -- its fill of a grid with
+no spare point and its walk to the published count of different numbers
+-- where the stand-in is a gap between two values the column holds and
+is no outlier: 9000 to 9998 beside 10000 and 10001 writes `9999` in its
+high tail, -998 to 0 beside -1001 and -1003 writes `-999` in its low
+tail, -9998 to -9000 beside -10000 and -10003 writes `-9999` in its low
+tail, and -1300 to -1000 beside -998 and -997 writes `-999` in its high
+tail between -1000 and -998, each in one cell at a floor of eleven and
+seeds 0, 4 and 9, nothing missed. Before, 145 four-figure numbers beside five of five figures wrote
 `9999` inside the twin's high tail and missed seven obligations at seeds
 0, 4 and 9; now none (`tail_pad_partial` regenerated). The oracle reads
 steps 2a, 4 and 5 in functions of their own, so `K-2B-42` is back at its

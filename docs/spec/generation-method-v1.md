@@ -2175,7 +2175,11 @@ boundary rung itself where that percent falls between the two tails.
    puts on a stand-in number takes the next grid point OUTWARD, the
    step a row landing on the row before it takes, never past the end;
    a row on the end is the end's. G6.6's width walk, which moves a
-   tail row onto the ceiling of a width, refuses the three too. Measured on 145 four-figure numbers beside five of
+   tail row onto the ceiling of a width, refuses the three too. G6.5a
+   is not held to it: its fill of a grid with no spare point and its
+   walk to the published count of different numbers can each put a
+   stratum on a stand-in that is a gap between two values the column
+   holds (plan P4-D353 part 4). Measured on 145 four-figure numbers beside five of
    five figures at a floor of eleven, a tail row the walk moved for the
    width census took `9999` and the twin missed seven obligations at
    seeds 0, 4 and 9; three-figure negatives beside five of four figures

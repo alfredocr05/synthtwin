@@ -23,7 +23,8 @@ own windows before it asserts what the rule did:
 * no derived end is a stand-in number (method G5.3b step 5, on both of
   its paths), no row of the staircase on either path, and no value G6.6's
   width walk moves, `-9999` among them. G6.5a's separation walk is not
-  held to it (plan P4-D353 part 4).
+  held to it (plan P4-D353 part 4): where it takes one, in a gap between
+  two values the column holds, each of the three is held at its one cell.
 
 Every table is built at test time from a fixed seed string; no
 data-format file enters the repository (plan D13).
@@ -615,6 +616,68 @@ def test_a_withheld_end_on_a_stand_in_moves_one_step_inside(
         assert stand_ins == [], f"{name} seed {seed}: the twin wrote {stand_ins}"
 
 
+def _run_beside(low: int, high: int, beside: "tuple[int, ...]") -> "list[str]":
+    """Every whole number from `low` to `high`, and the few `beside` them, each once (skeptic Ac's shapes)."""
+    return [str(value) for value in range(low, high + 1)] + [str(value) for value in beside]
+
+
+# (name, cells, the stand-in, the side whose tail it lands in): a column whose
+# own gap holds a stand-in number. G6.5a's walk to the published count of
+# different numbers is not held to the refusal (plan P4-D353 part 4) and takes
+# it. One case per number of `parsing.NUMERIC_SENTINELS`, and `-999` twice:
+# in a low tail, and in a high tail between the column's own -1000 and -998.
+_WALK_STAND_IN_SHAPES = (
+    ("run_9000_9998_beside_10000", _run_beside(9000, 9998, (10000, 10001)), "9999", "high"),
+    ("run_m998_0_beside_m1001", _run_beside(-998, 0, (-1001, -1003)), "-999", "low"),
+    ("run_m9998_m9000_beside_m10000", _run_beside(-9998, -9000, (-10000, -10003)), "-9999", "low"),
+    ("run_m1300_m1000_beside_m998", _run_beside(-1300, -1000, (-998, -997)), "-999", "high"),
+)
+
+
+@pytest.mark.parametrize(
+    "name,cells,stand_in,side",
+    _WALK_STAND_IN_SHAPES,
+    ids=[case[0] for case in _WALK_STAND_IN_SHAPES],
+)
+def test_the_separation_walk_takes_a_stand_in_only_in_a_gap_of_the_column_s_own(
+    tmp_path: pathlib.Path, name: str, cells: "list[str]", stand_in: str, side: str
+) -> None:
+    """THE DISCLOSED LIMIT, HELD AT ITS COUNT: G6.5a writes a stand-in in ONE cell, in a gap of the column's own.
+
+    PREMISE: the column holds no stand-in number, holds a value on each
+    side of this one, and every number it holds is different, so a twin
+    holding the published count of different numbers in as many rows
+    writes each number once; the stand-in lies beyond that side's
+    published boundary. At seeds 0, 4 and 9 the twin writes that stand-in
+    in one cell and no other stand-in, and misses nothing. A landing that
+    stops the walk taking it makes the first assertion fail, which is how
+    the disclosure (plan P4-D353 part 4, method G5.3b step 5, the
+    changelog) is noticed to be out of date; one that writes it past the
+    column's own values, in more cells or with a miss fails too.
+    """
+    described = kpi_shapes.describe(tmp_path / name, name, _one_column(cells), 11)
+    block = described.document["columns"][0]
+    number = float(stand_in)
+    held = [float(cell) for cell in cells]
+    assert number not in held and min(held) < number < max(held), (
+        "premise: the stand-in is a gap of the column's own, between two values it holds"
+    )
+    assert block["n_distinct_values"] == len(cells), "premise: every number is different"
+    boundary = validation._file_rung(block, block["tails"][side]["percent"])
+    assert boundary is not None and (number > boundary if side == "high" else number < boundary), (
+        f"premise: {stand_in} lies beyond the {side} boundary ({boundary})"
+    )
+    for seed in (0, 4, 9):
+        text = kpi_shapes.twin_text(described, seed)
+        written = [line for line in text.split("\n")[1:] if line]
+        stand_ins = _held_stand_ins(written, cells)
+        assert stand_ins == [stand_in], (
+            f"{name} seed {seed}: the twin wrote {stand_ins} where the disclosed class is one {stand_in}"
+        )
+        outcome = kpi_shapes.measure(described, text, f"twin-{seed}.csv")
+        assert kpi_shapes.missed(outcome) == [], f"{name} seed {seed}: {kpi_shapes.missed(outcome)}"
+
+
 
 # -- 7. a side withheld for any other reason than its own pair says which ----
 #
@@ -744,6 +807,15 @@ def withheld_sides(
     return block, found
 
 
+# The reason true of a withheld side, from the back-solve's own verdict on it.
+TRUE_CAUSE = {
+    taxonomy.TAIL_PINNED: taxonomy.TAIL_PINNED,
+    taxonomy.TAIL_UNSETTLED: taxonomy.TAIL_WITHHELD_UNSETTLED,
+    taxonomy.TAIL_OPEN: taxonomy.TAIL_WITHHELD_FOR_THE_OTHER,
+    NOT_ASKED: taxonomy.TAIL_WITHHELD_UNHOLDABLE,
+}
+
+
 def misstated(sides: "list[tuple[str, str, str, str, str]]") -> "list[tuple[str, str, str, str, str]]":
     """The sides whose pages say a reason that is not the one true of them.
 
@@ -752,15 +824,9 @@ def misstated(sides: "list[tuple[str, str, str, str, str]]") -> "list[tuple[str,
     asked. The old sentence -- the pair gives the values back -- is true only
     of a PINNED side.
     """
-    true_cause = {
-        taxonomy.TAIL_PINNED: taxonomy.TAIL_PINNED,
-        taxonomy.TAIL_UNSETTLED: taxonomy.TAIL_WITHHELD_UNSETTLED,
-        taxonomy.TAIL_OPEN: taxonomy.TAIL_WITHHELD_FOR_THE_OTHER,
-        NOT_ASKED: taxonomy.TAIL_WITHHELD_UNHOLDABLE,
-    }
     return [
         one for one in sides
-        if not (one[2] == one[3] == one[4] == true_cause[one[1]])
+        if not (one[2] == one[3] == one[4] == TRUE_CAUSE[one[1]])
     ]
 
 
@@ -883,6 +949,103 @@ def test_the_report_says_why_the_file_s_own_tail_is_silent(
         ]
         assert len(cited) == 2, (name, side, cited)
         assert [_which_page_words(one, REPORT_WORDS) for one in cited] == [reason, reason], (name, side, cited)
+
+
+def _heaped_draw(size: int, heap: int) -> "list[str]":
+    """`_repeating_draw(size)` with its first `heap` cells set to -500 and its last `heap` to 40,000: both ends heaped."""
+    cells = _repeating_draw(size)
+    return ["-500"] * heap + cells[heap:size - heap] + ["40000"] * heap
+
+
+# (name, the description's column, its floor, the checked file's column,
+# side -> the reason the file's own description gives): the description
+# publishes BOTH ENDS, heaped, so each is checked one-sided (method G5.6a)
+# against the file's own tail -- and that tail publishes neither distance,
+# so the check says why in the words of the file's own reason (skeptic Ac,
+# item 1: a report saying the pinned sentence at both ends stayed green).
+_HEAPED_REASONS = (
+    (
+        "heap_then_one_far",
+        _heaped_draw(1101, 60),
+        11,
+        heap_then_one_far(),
+        {"low": taxonomy.TAIL_WITHHELD_FOR_THE_OTHER, "high": taxonomy.TAIL_PINNED},
+    ),
+    (
+        "uniform_distinct_1500",
+        _heaped_draw(1500, 60),
+        20,
+        uniform_distinct_1500(),
+        {"low": taxonomy.TAIL_WITHHELD_UNSETTLED, "high": taxonomy.TAIL_WITHHELD_FOR_THE_OTHER},
+    ),
+    (
+        "far_apart_100",
+        _heaped_draw(100, 25),
+        11,
+        far_apart_100(),
+        {"low": taxonomy.TAIL_WITHHELD_UNHOLDABLE},
+    ),
+)
+
+
+@pytest.mark.parametrize(
+    "name,described_cells,floor,checked_cells,reasons",
+    _HEAPED_REASONS,
+    ids=[case[0] for case in _HEAPED_REASONS],
+)
+def test_the_report_says_why_the_file_s_own_tail_is_silent_at_a_heaped_end(
+    tmp_path: pathlib.Path,
+    name: str,
+    described_cells: "list[str]",
+    floor: int,
+    checked_cells: "list[str]",
+    reasons: "dict[str, str]",
+) -> None:
+    """A heaped end the file's own tail cannot settle is WITHHELD for the reason true of that tail.
+
+    PREMISE, the back-solve's own: the description publishes its minimum
+    and maximum; the checked file's own description publishes neither end
+    and, on each side named, neither distance nor a value, and that side's
+    own verdict is the reason named. Then the one-sided check of that end
+    is WITHHELD and its citation carries that reason's words and no
+    other's.
+    """
+    described = kpi_shapes.describe(tmp_path / "described", "described", _one_column(described_cells), floor)
+    ends = described.document["columns"][0]["percentiles"]
+    assert ends["min"] is not None and ends["max"] is not None, "premise: the description publishes both ends"
+    own, sides = withheld_sides(tmp_path / "own", name, checked_cells, floor)
+    found = {one[0]: one for one in sides}
+    for side, reason in sorted(reasons.items()):
+        assert side in found and TRUE_CAUSE[found[side][1]] == reason, f"premise: {name} {side} ({sides})"
+        key = "min" if side == "low" else "max"
+        assert key not in own["percentiles"] or own["percentiles"][key] is None, f"premise: no {key} of its own"
+    outcome = kpi_shapes.measure(described, _one_column(checked_cells), f"{name}.csv")
+    for side, reason in sorted(reasons.items()):
+        key = "min" if side == "low" else "max"
+        checked = [check for check in outcome.checks if check.subcheck == f"ladder.{key} (heaped end, one-sided)"]
+        assert len(checked) == 1, (name, side, checked)
+        assert checked[0].verdict == validation.WITHHELD, (name, side, checked[0])
+        assert _which_page_words(checked[0].citation, REPORT_WORDS) == reason, (name, side, checked[0].citation)
+
+
+def test_a_heaped_end_over_a_tail_that_does_not_read_says_the_file_s_own_reason() -> None:
+    """The heaped-end check's other quiet branch: the file's own tail publishes no distance and
+    does not read as a tail (its values are not a list), so no bound is taken from it, and the
+    reason is still the one that block's remarks give -- or the whole rule where its role says none.
+    """
+    remark = taxonomy.rendered(taxonomy.REMARK_LOW_TAIL_FOR_THE_HIGH, ())
+    quiet = {"percent": 1, "rows": 12, "mean_distance": None, "rms_distance": None, "values": None}
+    for role, remarks, expected in (
+        ("count", [remark], taxonomy.TAIL_WITHHELD_FOR_THE_OTHER),
+        ("continuous", [], taxonomy.TAIL_PINNED),
+    ):
+        block = {"role": role, "tails": {"low": quiet}, "remarks": remarks}
+        assert validation._file_tail(block, "low") is None, "premise: the tail does not read"
+        checked = validation._heaped_end_check("value", "min", -500.0, block, True)
+        assert checked.verdict == validation.WITHHELD, checked
+        assert _which_page_words(checked.citation, REPORT_WORDS) == expected, checked.citation
+    unsaid = validation._heaped_end_check("value", "min", -500.0, {"tails": {"low": quiet}, "remarks": [remark]}, True)
+    assert unsaid.citation == validation._GATE_TAIL_WITHHELD_UNSAID, unsaid.citation
 
 
 def _date_lines_say(page: str) -> "list[str]":

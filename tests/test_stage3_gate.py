@@ -2198,10 +2198,11 @@ def test_the_whole_description_rebuild_which_the_owner_accepted(
     """THE LIMIT, MEASURED HERE AND HELD AT A CEILING BY `K-S3-24`.
 
     The owner's answer 8 of 2026-09-26, "Accept both", given after asking
-    how much it shows about the RELATION of the data and being told: a
-    column's own values and their row counts, never which row, never
-    another column -- a premise short of the truth on a table sorted by
-    the column, whose published `row_order` puts the k-th value in row k
+    how much it shows about the RELATION of the data and being told, in
+    the orchestrator's record of the question: a column's own values and
+    their row counts, never which row (except a table SORTED by that
+    column, which publishes its row order), never another column; on such
+    a table the published `row_order` puts the k-th value in row k
     (`test_a_sorted_table_places_every_rebuilt_value_in_its_row`). Where
     the count of different values, the mode's
     count, the sign counts and the rungs pin a column, its exact mean and
@@ -2233,7 +2234,14 @@ def test_the_whole_description_rebuild_which_the_owner_accepted(
 # WHERE A SENTENCE DENYING THAT A ROW IS NAMED MUST SAY WHAT A SORTED TABLE
 # PUBLISHES. `source.dialect.row_order` names the column the rows are sorted
 # by, so on such a table a value's place in that column's order IS its row.
-_ROW_DENIAL = re.compile(r"\b(?:never|not|nor|nothing about)\s+(?:says\s+)?which\s+rows?\b")
+# A denial is "not/never/nor/nothing about", up to two words, then "which row" --
+# "does not record WHICH row", "nothing about which row" -- or "names no row,
+# no order" (skeptic Ac, item 2: both escaped the first pattern). The row that
+# holds a sheet's NAMES is the header's question (plan P4-D281), not a value's.
+_ROW_DENIAL = re.compile(
+    r"\b(?:never|not|nor|nothing\s+about)\s+(?:\w+\s+){0,2}which\s+rows?\b(?!\s+holds?\s+the\s+names\b)"
+    r"|\bnames?\s+no\s+row,?\s+no\s+order\b"
+)
 _ROW_QUALIFIER = "row_order"
 _ROW_WINDOW = 400
 _ROW_SURFACES = ("*.md", "docs/**/*.md", "src/synthtwin/*.py", "tests/*.py", "tests/kpi/ledger.json")
@@ -2261,8 +2269,7 @@ def test_a_sorted_table_places_every_rebuilt_value_in_its_row(
     every value back (`K-S3-24`), so row k holds the k-th value and a reader
     knows every row, row 1,101's one-row maximum among them. Every public
     surface that says the description names no row must say so beside
-    `row_order`; the owner was told "never which row" when answering 8, and
-    the premise is short of the truth here.
+    `row_order`, as the premise the owner answered 8 on did.
     """
     import complement_reader as columns
 
@@ -2289,10 +2296,19 @@ def test_a_sorted_table_places_every_rebuilt_value_in_its_row(
 
 def test_the_row_claim_guard_would_notice_an_unqualified_denial() -> None:
     """A guard that passes is not a guard: the denial alone is caught, and the qualified one is not."""
-    bare = "a column's own values come back, and it never says " + "which row holds one."
-    assert _unqualified_row_denials(bare) != []
-    qualified = bare + " except on a table sorted by that column, whose order (`row_order`) is published"
-    assert _unqualified_row_denials(qualified) == []
+    qualifier = " except on a table sorted by that column, whose order (`row_order`) is published"
+    for bare in (
+        "a column's own values come back, and it never says " + "which row holds one.",
+        "it records that a column holds 20.4 and how many rows do. it does not record " + "WHICH row.",
+        "a percentile ladder does not record " + "which row holds it.",
+        "nothing about " + "which row holds a reading is published.",
+        "naming every value names the column's whole set of values, and still names " + "no row, no order, no time.",
+        "it still names " + "no row no order and no pairing.",
+    ):
+        assert _unqualified_row_denials(bare) != [], bare
+        assert _unqualified_row_denials(bare + qualifier) == [], bare
+    header = "a freeze is not evidence about " + "which row holds the names of the columns."
+    assert _unqualified_row_denials(header) == [], "the header row is not a value's row"
 
 
 def test_the_reconstruction_gate_turns_red_when_the_pair_goes_back(

@@ -160,8 +160,10 @@ Stated here so that no reader has to discover them independently:
   because it is what makes the floor defensible and it is not a claim
   about how much is published. A description is a set of PER-COLUMN
   facts. It records that a column holds `20.4` and how many rows do.
-  It does not record WHICH row, and it does not record what that row
-  holds in any other column. So a description shows a reader the shape
+  It does not record WHICH row except on a table sorted by that column,
+  whose description publishes the order (`row_order`), so row k holds
+  the k-th value; and it does not record what that row holds in any
+  other column. So a description shows a reader the shape
   of each column on its own, and no person can be assembled out of
   them: the
   thing that identifies is the joining of one row's values across
@@ -298,7 +300,11 @@ Stated here so that no reader has to discover them independently:
   too**, which is the case worth stating plainly: naming every value a
   small column holds names the column's whole SET of values, and
   still names no row, no order, no pairing with any other column and
-  no time. This document's threat model already says statistical
+  no time. That ground does not hold on one kind of table, which this
+  document says and the owner's words do not: on a table sorted by that
+  column the description publishes the order (`row_order`), so the set
+  comes in its rows' order and row k holds the k-th value. This
+  document's threat model already says statistical
   disclosure is out of scope and that synthtwin offers no formal
   privacy guarantee; the ruling is inside that model rather than an
   exception to it.
