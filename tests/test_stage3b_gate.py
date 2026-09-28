@@ -119,18 +119,22 @@ mutation that turns it red:
   holes are withdrawn from the producer (the census publishes), from its
   certificate alone (its self-check still withholds, but the verdict
   holds), from the loader or from `breach` (the copied census loads),
-  and from the verifier (it finds no witness on a hole);
+  and from the verifier (it finds no witness on a hole); and each half
+  of the rule -- the OTHER field of a one-field width word, the month of
+  May -- turns its own column red when it is read wrong;
 * a heavy column past the ninth PUBLISHES, a stretch of holes between
   two of its knot days: red when the verifier keeps holes in its
-  classes;
-* WC7 counts no hole: red when `few_dates_group` or its caller counts
-  them;
+  classes, and when the producer's certificate is asked blind to them
+  (its witnesses stand on holes);
+* WC7 counts no hole: red when `few_dates_group`, its caller or `breach`
+  counts them;
 * a MISSED weekday line prints no count below the line: red when the
   line prints the group's count (plan P4-D347);
 * the reader's fewest days take every unparsed cell away: red when they
   take one text (the census then falls to `ties` from `narrowed`);
 * a day written with a trailing blank no census shows is two spellings:
-  red when WC6 (b) is withdrawn (`narrowed` instead of `spellings`).
+  red when WC6 (b) is withdrawn (the census then PUBLISHES, its count of
+  different values a count of texts and not of days).
 """
 
 from __future__ import annotations
