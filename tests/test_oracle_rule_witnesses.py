@@ -534,6 +534,282 @@ def _shortfall_missed(rule: typing.Callable[..., object]) -> "list[str]":
     ]
 
 
+# ------------------------------------------ G6.1's census that is only a pool
+#
+# Plan P4-D352, worked by hand from the method's sentence. With the line
+# L = max(2, floor), G groupable cells and a pool P: T is G where G < P + L
+# and P otherwise, never past 6(L - 1). The T cells picked go, one run of
+# one value at a time, to the mark holding the fewest cells, the earlier on
+# a tie, and none past L - 1; then while a mark holds none and another two
+# or more, the one holding the most, the earlier on a tie, gives it the
+# last cell it took. Each row: (pool, groupable, floor) and the answer
+# (cells per mark in the method's order, groupable cells left with no
+# mark). The groupable cells each hold their own value, so the marks take
+# them in turn.
+LONE_POOL_COUNTS = (
+    ((60, 65, 11), ((9, 9, 9, 9, 8, 8, 8), 5)),  # six marks' worth: five bare
+    ((50, 55, 11), ((8, 8, 8, 8, 8, 8, 7), 0)),  # a leftover of five joins
+    ((50, 60, 11), ((9, 9, 9, 9, 8, 8, 8), 0)),  # ten join: one short of the line
+    ((50, 61, 11), ((8, 7, 7, 7, 7, 7, 7), 11)),  # eleven are the column's bare cells
+    ((60, 50, 11), ((8, 7, 7, 7, 7, 7, 7), 0)),  # short: every groupable cell
+    ((6, 7, 2), ((1, 1, 1, 1, 1, 1, 0), 1)),  # the line of two: six, one bare
+)
+# Each cell's mark, as its place in the method's order. Fourteen cells of
+# fourteen values pooled at eleven: the marks take them in turn. Thirty
+# cells of three values, ten each: each run fills one mark, and the four
+# marks left empty are each given the last cell of the fullest mark.
+# Thirty cells of thirty values pooled at fourteen: thirty is not fewer
+# than fourteen and the floor together, so fourteen are marked, SPREAD
+# over the thirty (plan P4-D149), and the sixteen bare cells (-1) lie
+# among them from the lowest value to the highest. Packed onto the first
+# fourteen, the sixteen largest would be the ones left bare.
+LONE_POOL_CELLS = (
+    ((14, 14, 11), tuple(range(14)),
+     (0, 1, 2, 3, 4, 5, 6, 0, 1, 2, 3, 4, 5, 6)),
+    ((30, 30, 11), (0,) * 10 + (1,) * 10 + (2,) * 10,
+     (0,) * 8 + (6, 3) + (1,) * 9 + (4,) + (2,) * 9 + (5,)),
+    ((14, 30, 11), tuple(range(30)),
+     (-1, -1, 0, -1, 1, -1, 2, -1, 3, -1, 4, -1, 5, -1, 6,
+      -1, -1, 0, -1, 1, -1, 2, -1, 3, -1, 4, -1, 5, -1, 6)),
+)
+LONE_POOL_ORDER = (",", " ", "'", "’", " ", " ", " ")
+
+
+def _lone_pool_counts(rule, pool, groupable, floor):
+    flags = [True] * groupable + [False] * 5
+    worn = list(rule(pool, flags, floor, [float(i) for i in range(len(flags))]))
+    counts = tuple(worn.count(mark) for mark in LONE_POOL_ORDER)
+    return counts, sum(1 for mark in worn[:groupable] if not mark)
+
+
+def _lone_pool_cells(rule, pool, groupable, floor, runs):
+    flags = [True] * groupable + [False] * 5
+    values = [1000.0 + run for run in runs] + [float(i) for i in range(5)]
+    worn = list(rule(pool, flags, floor, values))
+    return tuple(
+        LONE_POOL_ORDER.index(mark) if mark else -1 for mark in worn[:groupable]
+    )
+
+
+def _lone_pool_missed(rule) -> "list[str]":
+    missed = []
+    for (pool, groupable, floor), want in LONE_POOL_COUNTS:
+        got = _asked(_lone_pool_counts, rule, pool, groupable, floor)
+        if got != want:
+            missed += [
+                f"pool {pool} of {groupable} groupable at floor {floor}:"
+                f" {got!r}, the statement gives {want!r}"
+            ]
+    for (pool, groupable, floor), runs, want in LONE_POOL_CELLS:
+        got = _asked(_lone_pool_cells, rule, pool, groupable, floor, runs)
+        if got != want:
+            missed += [
+                f"cells of pool {pool} over runs {runs!r}:"
+                f" {got!r}, the statement gives {want!r}"
+            ]
+    return missed
+
+
+def _shipped_lone_pool(pool, flags, floor, values):
+    worn, _notes = generation._pool_alone_places(
+        types.SimpleNamespace(name="value"), flags, floor, values, pool
+    )
+    return worn
+
+
+# ------------------------------- G6.1's trailing minus, and the points it needs
+#
+# The second skeptic of plan P4-D352, worked by hand from the method's
+# sentences. THE EXCHANGE: while fewer cells allocated `decimal` hold a
+# negative value than R -- the named `trailing_minus`, no larger than the
+# negative cells -- each `plain` cell on a negative value, first upward,
+# takes `decimal` from the `decimal` cell on a value not below zero that has
+# a point-free spelling, last downward, which takes `plain`; and the
+# `decimal` cells not below zero stay at least the named `decimal_plus`.
+# THE ORDER: the trailing minus takes its count before the notations the
+# contract orders ahead of it. The frozen case `trailing_minus_points`
+# reaches the values step and the order and never the exchange: no
+# negative there is whole before the step. Each row: (R, decimal_plus,
+# styles, values) and the styles the statement gives.
+TRAILING_EXCHANGES = (
+    # two pairs: every donor spent
+    ((2, 0, ("plain", "plain", "decimal", "decimal", "plain"),
+      (-3.0, -2.0, 1.0, 5.0, 7.0)),
+     ("decimal", "decimal", "plain", "plain", "plain")),
+    # one decimal cell kept for the plus: one pair, the last donor
+    ((2, 1, ("plain", "plain", "decimal", "decimal", "plain"),
+      (-3.0, -2.0, 1.0, 5.0, 7.0)),
+     ("decimal", "plain", "decimal", "plain", "plain")),
+    # 5.5 has no point-free spelling, so it gives nothing
+    ((2, 0, ("plain", "plain", "decimal", "decimal", "plain"),
+      (-3.0, -2.0, 1.0, 5.5, 7.0)),
+     ("decimal", "plain", "plain", "decimal", "plain")),
+    # a negative already carries the point the count asks for
+    ((1, 0, ("decimal", "plain", "decimal", "decimal"),
+      (-3.0, -2.0, 1.0, 5.0)),
+     ("decimal", "plain", "decimal", "decimal")),
+    # R past the two negatives; nought is not below zero and gives first
+    ((5, 0, ("plain", "plain", "decimal", "decimal", "decimal"),
+      (-3.0, -2.0, 1.0, 5.0, 0.0)),
+     ("decimal", "decimal", "decimal", "plain", "plain")),
+    # only a `plain` cell takes: the padded negative keeps its form
+    ((2, 0, ("leading_zero", "plain", "decimal", "decimal"),
+      (-3.0, -2.0, 1.0, 5.0)),
+     ("leading_zero", "decimal", "decimal", "plain")),
+)
+# (census, styles, values) and each cell's notation: the trailing minus
+# takes the one cell with a point before the brackets can.
+TRAILING_ORDERS = (
+    (({"brackets": 1, "trailing_minus": 1}, ("plain", "decimal"), (-2.0, -1.5)),
+     ("brackets", "trailing_minus")),
+    (({"minus": 1, "trailing_minus": 2}, ("decimal", "plain", "decimal"),
+      (-4.5, -3.0, -1.5)),
+     ("trailing_minus", "minus", "trailing_minus")),
+)
+
+
+def _trailing_missed(exchange, order) -> "list[str]":
+    missed = []
+    for (count, plus, styles, values), want in TRAILING_EXCHANGES:
+        got = _asked(exchange, count, plus, list(styles), list(values))
+        if got is None or isinstance(got, str) or tuple(got) != want:
+            missed += [
+                f"exchange of {count} over {styles!r} at {values!r}: {got!r},"
+                f" the statement gives {want!r}"
+            ]
+    for (census, styles, values), want in TRAILING_ORDERS:
+        got = _asked(order, census, list(styles), list(values))
+        if got is None or isinstance(got, str) or tuple(got) != want:
+            missed += [
+                f"notations of {census!r} over {styles!r}: {got!r},"
+                f" the statement gives {want!r}"
+            ]
+    return missed
+
+
+def _oracle_trailing(module):
+    return (
+        lambda count, plus, styles, values: module.trailing_style_exchange(
+            count, plus, styles, values, False
+        ),
+        lambda census, styles, values: module.notation_places(
+            census, "minus", styles, values
+        ),
+    )
+
+
+def _shipped_exchange(count, plus, styles, values):
+    facts = types.SimpleNamespace(
+        negative_notations={"trailing_minus": count},
+        decimal_plus={"+": plus} if plus else {},
+    )
+    return generation._trailing_style_swaps(facts, styles, values, False)
+
+
+def _shipped_order(census, styles, values):
+    worn, _notes = generation._notation_places(
+        types.SimpleNamespace(name="value"),
+        types.SimpleNamespace(negative_form="minus", negative_notations=census),
+        styles,
+        values,
+    )
+    return worn
+
+
+# ----------------------------- G6.4's values step beside a trailing minus
+#
+# W point-free cells, N negative, F not negative, R the named
+# `trailing_minus` no larger than N. Where R is above nought a walk over
+# the strata that are not negative comes before the walk over every
+# stratum, until they carry the lesser of W - max(0, N - R) and F, and the
+# last walk then takes the strata that are not negative first, ascending,
+# and the negative ones nearest zero first, and so does the walk over the
+# negative strata alone that a D above nought asks for; where R is nought
+# both walk them in stratum order. No frozen case reaches the first walk,
+# nor a D beside an R: withdrawn, every committed vectors file and every
+# row above stood (the second skeptic of plan P4-D352 (6), and its round
+# 3). One cell per stratum and no ladder, so each stratum
+# takes its nearest whole number, ties toward positive infinity (G5.4),
+# and the ends stay. Each row: (styles, values, R, D), D the named
+# `decimal_plus`, and the values the statement gives.
+TRAILING_VALUES = (
+    # -9 and -6 are whole already, so the last walk is met at three; R = N
+    # leaves no negative point-free, so 1.5 and 2.5 are taken first.
+    (({"plain": 3, "decimal": 5}, (-9.0, -6.0, -4.3, -3.2, 1.5, 2.5, 3.5, 8.0), 4, 0),
+     (-9.0, -6.0, -4.3, -3.2, 2.0, 3.0, 3.5, 8.0)),
+    # W - (N - R) = 1: 1.5 first; then 2.5, and -2.2, the negative nearest zero
+    (({"plain": 3, "decimal": 4}, (-9.5, -6.5, -4.3, -2.2, 1.5, 2.5, 8.5), 2, 0),
+     (-9.5, -6.5, -4.3, -2.0, 2.0, 3.0, 8.5)),
+    # no trailing minus: the lowest strata first
+    (({"plain": 2, "decimal": 4}, (-9.5, -6.5, -4.3, 1.5, 2.5, 8.5), 0, 0),
+     (-9.5, -6.0, -4.0, 1.5, 2.5, 8.5)),
+    # N - R = 2 and -9 and -6 are whole already, so W - (N - R) = 1, which
+    # 8 carries: the walk beside moves nothing, and -9, -6 and 8 meet the
+    # last walk. Asked for W, the walk beside would make 1.5 and 2.5 whole.
+    (({"plain": 3, "decimal": 4}, (-9.0, -6.0, -4.3, 1.5, 2.5, 3.5, 8.0), 1, 0),
+     (-9.0, -6.0, -4.3, 1.5, 2.5, 3.5, 8.0)),
+    # one cell asked, two strata that are not negative before any negative:
+    # the lower, 1.5, and not 2.4
+    (({"plain": 1, "decimal": 4}, (-9.5, -4.3, 1.5, 2.4, 9.5), 1, 0),
+     (-9.5, -4.3, 2.0, 2.4, 9.5)),
+    # D = 2 of F = 3 keep a point, so W - (F - D) = 2 negatives are made
+    # whole, nearest zero first: -2.5 and -4.5; then the last walk, 1.5
+    (({"plain": 3, "decimal": 4}, (-9.5, -6.5, -4.5, -2.5, 1.5, 3.5, 9.5), 1, 2),
+     (-9.5, -6.5, -4.0, -2.0, 2.0, 3.5, 9.5)),
+    # the same with no trailing minus: the lowest negatives, -6.5 and -4.5,
+    # and then -2.5, the next in stratum order
+    (({"plain": 3, "decimal": 4}, (-9.5, -6.5, -4.5, -2.5, 1.5, 3.5, 9.5), 0, 2),
+     (-9.5, -6.0, -4.0, -2.0, 1.5, 3.5, 9.5)),
+)
+
+
+def _bands(values):
+    return tuple(
+        "negative" if value < 0 else "zero" if value == 0 else "positive"
+        for value in values
+    )
+
+
+def _trailing_values_missed(rule) -> "list[str]":
+    missed = []
+    for (styles, values, count, signed), want in TRAILING_VALUES:
+        got = _asked(rule, styles, values, count, signed)
+        if got is None or isinstance(got, str) or tuple(got) != want:
+            missed += [
+                f"values step of {styles!r} over {values!r} beside {count}"
+                f" trailing and {signed} signed: {got!r}, the statement gives {want!r}"
+            ]
+    return missed
+
+
+def _oracle_trailing_values(module):
+    return lambda styles, values, count, signed: module.whole_number_values(
+        styles, list(values), [1] * len(values), list(range(len(values))),
+        list(_bands(values)), None, len(values), False, signed, count,
+    )
+
+
+def _shipped_trailing_values(styles, values, count, signed):
+    facts = types.SimpleNamespace(
+        integer_valued=False,
+        numeric_styles=styles,
+        decimal_plus={"+": signed} if signed else {},
+        negative_notations={"trailing_minus": count} if count else {},
+    )
+    layout = types.SimpleNamespace(
+        sizes=(1,) * len(values),
+        starts=tuple(range(len(values))),
+        bands=_bands(values),
+    )
+    return generation._whole_enough(
+        types.SimpleNamespace(n_numeric=len(values)),
+        typing.cast(contract.NumericFacts, facts),
+        typing.cast(typing.Any, layout),
+        None,
+        list(values),
+    )
+
+
 # ------------------------------------------------------------ the two readers
 
 WITNESSES = {
@@ -560,6 +836,18 @@ WITNESSES = {
     "readings": (
         lambda module: _readings_missed(_oracle_readings(module)),
         lambda: _readings_missed(_generator_readings),
+    ),
+    "lone_pool": (
+        lambda module: _lone_pool_missed(module.marks_of_a_lone_pool),
+        lambda: _lone_pool_missed(_shipped_lone_pool),
+    ),
+    "trailing": (
+        lambda module: _trailing_missed(*_oracle_trailing(module)),
+        lambda: _trailing_missed(_shipped_exchange, _shipped_order),
+    ),
+    "trailing_values": (
+        lambda module: _trailing_values_missed(_oracle_trailing_values(module)),
+        lambda: _trailing_values_missed(_shipped_trailing_values),
     ),
 }
 
@@ -714,6 +1002,113 @@ WITNESS_MUTANTS = {
         "shortfall",
         '        column["format"] in ("iso-datetime", "iso-mixed")\n',
         "        True\n",
+    ),
+    "lone_pool_uncapped": (
+        "lone_pool", "    target = min(target, 6 * room)\n", "",
+    ),
+    "lone_pool_no_join": (
+        "lone_pool",
+        "target = len(grouped) if len(grouped) < pool + line else pool",
+        "target = min(len(grouped), pool)",
+    ),
+    "lone_pool_every_leftover_joins": (
+        "lone_pool",
+        "target = len(grouped) if len(grouped) < pool + line else pool",
+        "target = len(grouped)",
+    ),
+    "lone_pool_packed_into_the_first_mark_with_room": (
+        "lone_pool",
+        "key=lambda m: (len(held[m]), LONE_POOL_MARKS.index(m))",
+        "key=lambda m: (len(held[m]) >= room, LONE_POOL_MARKS.index(m))",
+    ),
+    "lone_pool_runs_ignored": (
+        "lone_pool",
+        "        if runs and values[runs[-1][-1]] == values[i]:\n",
+        "        if False:\n",
+    ),
+    "lone_pool_an_empty_mark_left_empty": (
+        "lone_pool", "        if len(held[most]) < 2:\n", "        if True:\n",
+    ),
+    "lone_pool_cells_packed": (
+        "lone_pool",
+        "    picked = plus_cells_by_value(grouped, values, target, True)\n",
+        "    picked = grouped[:target]\n",
+    ),
+    "trailing_exchange_withdrawn": (
+        "trailing",
+        '        exchanged[taker], exchanged[giver] = "decimal", "plain"\n',
+        "        pass\n",
+    ),
+    "trailing_exchange_spends_the_plus": (
+        "trailing",
+        '    room = kinds.count(("decimal", False)) - signed\n',
+        '    room = kinds.count(("decimal", False))\n',
+    ),
+    "trailing_exchange_counts_none_held": (
+        "trailing",
+        '    short = min(count, below.count(True)) - kinds.count(("decimal", True))\n',
+        "    short = min(count, below.count(True))\n",
+    ),
+    "trailing_exchange_donors_first_upward": (
+        "trailing",
+        '        for i in range(len(values) - 1, -1, -1)\n'
+        '        if kinds[i] == ("decimal", False)\n',
+        '        for i in range(len(values))\n'
+        '        if kinds[i] == ("decimal", False)\n',
+    ),
+    "trailing_exchange_any_donor": (
+        "trailing",
+        '        if kinds[i] == ("decimal", False)\n'
+        "        and point_free_spelling(values[i], integer_valued) is not None\n",
+        '        if kinds[i] == ("decimal", False)\n',
+    ),
+    "trailing_exchange_nought_below_zero": (
+        "trailing",
+        "    below = [value < 0 for value in values]\n",
+        "    below = [value <= 0 for value in values]\n",
+    ),
+    "trailing_exchange_any_negative_takes": (
+        "trailing",
+        '    needing = [i for i, kind in enumerate(kinds) if kind == ("plain", True)]\n',
+        '    needing = [i for i, kind in enumerate(kinds) if kind[1] and kind[0] != "decimal"]\n',
+    ),
+    "trailing_taken_in_the_contract_order": (
+        "trailing",
+        '        key=lambda pair: pair[0] != "trailing_minus",\n',
+        "        key=lambda pair: 0,\n",
+    ),
+    "trailing_values_no_walk_beside": (
+        "trailing_values", "        (beside, REACHABLE[0]),\n", "",
+    ),
+    "trailing_values_walk_order_with_no_trailing_minus": (
+        "trailing_values",
+        "        if kept_pointed > 0 and reachable != REACHABLE[0]:\n",
+        "        if reachable != REACHABLE[0]:\n",
+    ),
+    "trailing_values_last_walk_in_stratum_order": (
+        "trailing_values",
+        "        if kept_pointed > 0 and reachable != REACHABLE[0]:\n",
+        "        if False:\n",
+    ),
+    "trailing_values_negative_walk_in_stratum_order": (
+        "trailing_values",
+        "        if kept_pointed > 0 and reachable != REACHABLE[0]:\n",
+        "        if kept_pointed > 0 and reachable == REACHABLE[1]:\n",
+    ),
+    "trailing_values_most_negative_first": (
+        "trailing_values",
+        "            walk += negative[::-1]\n",
+        "            walk += negative\n",
+    ),
+    "trailing_values_beside_asks_for_every_point_free_cell": (
+        "trailing_values",
+        "        min(wanted - max(0, negative_cells - kept_pointed), free)\n",
+        "        min(wanted, free)\n",
+    ),
+    "trailing_values_non_negative_descending": (
+        "trailing_values",
+        "            walk = [index for index in walk if index not in negative]\n",
+        "            walk = [index for index in walk if index not in negative][::-1]\n",
     ),
     "readings_by_code_first": (
         "readings",

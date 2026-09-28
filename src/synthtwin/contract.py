@@ -9110,7 +9110,7 @@ def _census_may_speak(
     names: int,
     what: str,
 ) -> None:
-    """D12 and P6: a closed census pools only where a pool names no one (P4-D222).
+    """D12, P6, TM1 and NS2: a closed census pools only where a pool names no one (P4-D222, P4-D352).
 
     `parsing.census_pools`, the one statement: on a closed vocabulary a
     pool over more cells than all but one name can hold below the line
@@ -12774,8 +12774,10 @@ def _negative_notations(
     column, whose parts carry no sign, publishes none at all.
 
     Raises ProfileError for a wrong type, an unknown notation, a count
-    below the floor, a census larger than the column's negatives and a
-    remainder a reader could take that names fewer than the floor.
+    below the floor, a lone pool over more negatives than three
+    notations hold below the floor (plan P4-D352), a census larger than
+    the column's negatives and a remainder a reader could take that
+    names fewer than the floor.
     """
     counted = _mixture_census(
         mapping,
@@ -12785,6 +12787,12 @@ def _negative_notations(
         parsing.NEGATIVE_FORMS,
         "NS2",
         "negative numbers",
+    )
+    # A POOL NO LARGER THAN THREE NOTATIONS HOLD BELOW THE LINE (plan
+    # P4-D352): a larger one says every notation was written, and the
+    # producer counts it under its commonest notation instead.
+    _census_may_speak(
+        counted, "NS2", where, floor, len(parsing.NEGATIVE_FORMS), "negative numbers"
     )
     total = _added(counted)
     if total > n_negative:
@@ -12826,8 +12834,9 @@ def _thousands_marks(
     is refused for what it is.
 
     Raises ProfileError for a wrong type, an unknown mark, a count below
-    the floor, the unavailable state and a remainder a reader could take
-    that names fewer than the floor.
+    the floor, the unavailable state, a lone pool over more grouped
+    numbers than six marks hold below the floor (plan P4-D352) and a
+    remainder a reader could take that names fewer than the floor.
     """
     counted = _mixture_census(
         mapping,
@@ -12849,6 +12858,13 @@ def _thousands_marks(
             "the census of marks is said to be unavailable",
             "a census of marks that cannot be published is empty",
         )
+    # A POOL NO LARGER THAN SIX MARKS HOLD BELOW THE LINE (plan P4-D352):
+    # a larger one says every mark was written -- at seven times one less
+    # than the line it fixes each mark's count -- and the producer counts
+    # it under its commonest mark instead. No twin could pool it again.
+    _census_may_speak(
+        counted, "TM1", where, floor, len(parsing.GROUP_MARKS), "grouped numbers"
+    )
     if counted and UNAVAILABLE not in counted:
         printed: "list[int]" = []
         for name in sorted(counted):

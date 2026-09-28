@@ -1528,8 +1528,8 @@ withheld): `spelling.negative_notations` and `spelling.thousands_marks`
 hold the counts the majority keys collapse. Each is one check and not
 one per convention, because the fact is the census itself: a twin
 meeting one count and not the other has not reproduced the column's
-convention. Where the census names none, the fact is LISTED rather than
-checked. Where it names any, each is compared exactly with what
+convention. Where the census names none and pools nothing, the fact is
+LISTED rather than checked. Where it names any, each is compared exactly with what
 describing the file on its own publishes for it; the pooled remainder
 does not widen the bar, because the generator writes a pooled cell with
 a convention the census does not name. The comparison is WITHHELD where
@@ -1547,7 +1547,16 @@ whose own description names no convention although the published counts
 could have been named from the file's own totals is MISSED, and the page
 prints no count for it: its counts are then not the published ones, and
 withholding there would let a twin that dropped every mark of a column
-with no majority pass with no verdict at all. Because the
+with no majority pass with no verdict at all. **A census of marks that is
+only a pool** names no convention and is CHECKED rather than listed, as one
+count (plan P4-D352): a file whose own description names a mark is MISSED
+before any population is asked, since no mark the method writes reaches
+the floor and the real column's description names none; a silent file
+that could have spoken the pool against its own totals is MISSED; a
+population short of the pool or a leftover strictly between nought and
+the floor is WITHHELD, and the generator's report names the difference;
+and a file pooling the same number is HELD however it splits it under
+the floor, and one pooling another number MISSED. Because the
 comparison is made against the file's own description, every edge of the
 producer's rule comes with it: a padded or exponent cell holding a mark,
 the cores each wrapper wears, the numeric half of a column with labels,

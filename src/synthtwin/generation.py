@@ -12715,6 +12715,7 @@ def _rehomed(
     locked: "dict[int, int]",
     seen: "dict[int, int]",
     budget: "list[int]",
+    order: "tuple[int, ...] | None" = None,
 ) -> "list[tuple[int, float]] | None":
     """Whole numbers for `place`, moving whoever is holding one (R-P4-69).
 
@@ -12754,7 +12755,8 @@ def _rehomed(
     number a stratum further on could ever be given -- the seed
     dependence review item P2-C5-F3 repaired stays repaired. What this
     chain adds is only the numbers already HELD, which that guard never
-    reserved for anyone.
+    reserved for anyone. "Further on" is further along ``order``, the
+    walk's own order of strata, which is ascending where it is None.
 
     `seen` stops a chain revisiting a stratum, so the search ends;
     `locked` holds the strata that have already given a number up, so a
@@ -12787,7 +12789,7 @@ def _rehomed(
     total = len(layout.sizes)
     band = layout.bands[place]
     share = _share_of(place, layout, rungs, numbers)
-    later = _shares_after(place, layout, rungs, numbers)
+    later = _shares_after(place, layout, rungs, numbers, order)
     want = _whole_inside(moved[place], band, share, ends, reach, taken, later)
     if want is not None:
         return [(place, want)]
@@ -12843,6 +12845,7 @@ def _rehomed(
             locked,
             ahead,
             budget,
+            order,
         )
         if onward is not None:
             best_moves, best_cost = _cheaper(
@@ -12926,6 +12929,14 @@ def _whole_enough(
     instead of giving up the published form (review item P2-C4-F3): a
     value inside its own share is what G5.6's window already allows, so
     that step costs the window nothing.
+
+    Where the census of notations names a trailing minus, the values that
+    are not negative carry the point-free count first, as far as they
+    can, so the negatives `_trailing_owed` counts keep their point; the
+    walk over the negative strata alone and the last walk then take every
+    stratum that is not negative before any negative one, and the
+    negative ones nearest zero first (`_negatives_last`), and a later
+    stratum is one that order reaches later.
     """
     if facts.integer_valued:
         return values
@@ -12934,9 +12945,12 @@ def _whole_enough(
         return values
     total = len(values)
     free = 0
+    negatives = 0
     for place in range(total):
         if layout.bands[place] != _BAND_NEGATIVE:
             free = free + layout.sizes[place]
+        else:
+            negatives = negatives + layout.sizes[place]
     quotas = _style_quotas(facts.numeric_styles)
     taken = {value: 1 for value in values}
     moved = [value for value in values]
@@ -12974,11 +12988,49 @@ def _whole_enough(
     below = 0
     if signed > 0:
         below = max(0, owed - max(0, free - signed))
+    # ...AND THE SIDE THAT IS NOT NEGATIVE CARRIES WHAT A TRAILING MINUS
+    # LEAVES IT (the second skeptic of plan P4-D352). A trailing minus is
+    # written only on figures carrying a point, so the negatives
+    # `negative_notations` counts under it must stay in the form written
+    # with one: at most `negatives - trailing` of them may be point-free,
+    # and the rest of the point-free count has to be carried by values
+    # that are not negative. Walked in stratum order, the count went to
+    # the most negative strata first: 37 negatives written `12.50-`
+    # beside 65 whole positives published `{"trailing_minus": 37}`, and
+    # the twin wrote 36 of them whole, with the minus in front, and
+    # missed both notation checks at five seeds of five.
+    trailing = _trailing_owed(facts, negatives)
+    above = 0
+    if trailing > 0:
+        above = max(0, owed - max(0, negatives - trailing))
     for wanted, reachable in (
         (min(quotas["leading_plus"], free), _REACHABLE[0]),
         (below, (_BAND_NEGATIVE,)),
+        (min(above, free), _REACHABLE[0]),
         (owed, _REACHABLE[1]),
     ):
+        # ...AND WHERE IT NAMES ONE, THE LAST WALK TAKES THE NEGATIVE
+        # STRATA LAST AND NEAREST ZERO FIRST (the skeptic of plan
+        # P4-D352 (5)). Walked in stratum order, the whole negatives the
+        # count could not avoid went to the most negative strata, which
+        # hold the most figures: 25 negatives written `12.34-` beside 20
+        # written `-007` and 90 whole positives came back with 18 of its
+        # 20 whole negatives between -924 and -210, where no field three
+        # figures wide reaches, and 9 cells padded where 20 were published.
+        # ...AND SO DOES THE WALK OVER THE NEGATIVE STRATA ALONE (the
+        # skeptic of plan P4-D352 (6), round 3). A signed decimal beside a
+        # trailing minus asks that walk for whole negatives, and in stratum
+        # order it gave them the most negative strata too: 40 negatives
+        # written `12.34-` beside 30 written `-007`, 30 written `+12.34`
+        # and 70 whole positives missed five checks at five seeds of five,
+        # and at seed 0 28 of its 30 whole negatives stood between -949
+        # and -213 with 14 cells padded where 30 were published. The two
+        # walks over the side that is not negative reach no negative, so
+        # they keep stratum order.
+        order = None
+        if trailing > 0 and reachable != _REACHABLE[0]:
+            order = _negatives_last(layout.bands)
+        places = range(total) if order is None else order
         carried = 0
         for place in range(total):
             if layout.bands[place] not in reachable:
@@ -12994,7 +13046,7 @@ def _whole_enough(
         # moves nothing is the last.
         for _round in range(total):
             settled = carried
-            for place in range(total):
+            for place in places:
                 if carried >= wanted:
                     break
                 if place == 0 or (place == total - 1 and total >= 2):
@@ -13029,7 +13081,9 @@ def _whole_enough(
                     ends,
                     total + 1,
                     taken,
-                    _shares_after(place, layout, rungs, column.n_numeric),
+                    _shares_after(
+                        place, layout, rungs, column.n_numeric, order
+                    ),
                 )
                 if want is None:
                     moves = _rehomed(
@@ -13044,6 +13098,7 @@ def _whole_enough(
                         locked,
                         {},
                         budget,
+                        order,
                     )
                     if moves is None:
                         continue
@@ -13053,9 +13108,20 @@ def _whole_enough(
                         moved[seat] = value
                         if not _carries_plainly(value, False):
                             locked[seat] = 1
+                    # RECOUNTED OVER THE STRATA THIS WALK REACHES, as it was
+                    # counted before the walk (the skeptic of plan P4-D352
+                    # (6), round 3). Counted over every stratum, a whole
+                    # value on the other side of zero met part of this
+                    # walk's demand: in the shape above, walked nearest
+                    # zero, a chain made the negative walk stop a cell
+                    # short at seed 0, the last walk took that cell from a
+                    # value that is not negative, and `decimal_plus` was
+                    # missed at five seeds of five.
                     taken = {value: 1 for value in moved}
                     carried = 0
                     for seat in range(total):
+                        if layout.bands[seat] not in reachable:
+                            continue
                         if _carries_plainly(moved[seat], False):
                             carried = carried + layout.sizes[seat]
                     continue
@@ -13067,23 +13133,59 @@ def _whole_enough(
     return moved
 
 
+def _negatives_last(bands: "tuple[str, ...]") -> "tuple[int, ...]":
+    """The strata in the order G6.4's walks reaching a negative take them beside a trailing minus.
+
+    Every stratum that is not negative, ascending, and then every
+    negative one, NEAREST ZERO FIRST. A trailing minus is written only on
+    figures with a point, so the side that is not negative carries every
+    whole value it can before a negative is made whole; and the whole
+    negatives the count still asks for are then the ones with the fewest
+    figures, which are the ones a padded field of the published width can
+    hold (the skeptic of plan P4-D352 (5)).
+
+    Guarantees: accepts one band per stratum, in stratum order; returns
+    a permutation of their indices. Determinism: a fixed function of the
+    bands. Raises nothing. No I/O of any kind.
+    """
+    order: "list[int]" = []
+    for place in range(len(bands)):
+        if bands[place] != _BAND_NEGATIVE:
+            order += [place]
+    for place in range(len(bands) - 1, -1, -1):
+        if bands[place] == _BAND_NEGATIVE:
+            order += [place]
+    return tuple(order)
+
+
 def _shares_after(
     place: int,
     layout: "_NumericLayout",
     rungs: "tuple[float, ...] | None",
     numbers: int,
+    order: "tuple[int, ...] | None" = None,
 ) -> "tuple[tuple[float, float], ...]":
     """The shares of the strata this walk has not reached yet (G6.4).
 
     Only the strata a whole number could still be given to: the two
     pinned ends hold the published `min` and `max` and the zero stratum
-    holds `0`, so none of them is waiting for one.
+    holds `0`, so none of them is waiting for one. "Not reached yet" is
+    after `place` in ``order``, the walk's own order of strata, which is
+    every stratum ascending where it is None and otherwise must hold
+    `place`.
     """
     if rungs is None:
         return ()
     total = len(layout.sizes)
+    upcoming: "tuple[int, ...] | range" = range(place + 1, total)
+    if order is not None:
+        start = 0
+        for step in range(len(order)):
+            if order[step] == place:
+                start = step + 1
+        upcoming = order[start:]
     after: list[tuple[float, float]] = []
-    for later in range(place + 1, total):
+    for later in upcoming:
         if later == 0 or (later == total - 1 and total >= 2):
             continue
         if layout.bands[later] == _BAND_ZERO:
@@ -15486,6 +15588,11 @@ def _number_cells(
     # its own value's width, and seventeen `+5.0` missed a census of
     # `+5.00` that the exchange had just made reachable.
     styles = _plus_style_swaps(facts, styles, holds, facts.integer_valued)
+    # ...AND THE TRAILING-MINUS EXCHANGE AFTER IT, which never takes the
+    # plus's cells back.
+    styles = _trailing_style_swaps(
+        facts, styles, holds, facts.integer_valued
+    )
     widths = _width_places(
         facts.fraction_widths,
         styles,
@@ -15676,11 +15783,14 @@ def _number_cells(
     # and can take an allocated mark back off a cell, so a recount is the
     # only thing that sees the finished column. The walk now expands
     # unmarked duplicates first and leaves the marks alone wherever it
-    # can, and this says so whenever it could not.
+    # can, and this says so whenever it could not. ONLY A GROUPABLE CELL
+    # IS COUNTED (plan P4-D352): every other cell is offered the published
+    # mark and can never show it, so 70 grouped cells beside 130 under a
+    # thousand were reported as 200 published against 70 achieved.
     allocated = 0
     surviving = 0
     for index in range(len(holds)):
-        if not marks[index]:
+        if not marks[index] or not groupable[index]:
             continue
         allocated = allocated + 1
         if marks[index] in cells[index]:
@@ -15975,6 +16085,91 @@ def _plus_style_swaps(
     return moved
 
 
+def _trailing_owed(facts: contract.NumericFacts, negatives: int) -> int:
+    """How many negative cells a trailing minus needs a point on (G6.1).
+
+    The count `negative_notations` names under `trailing_minus`, never
+    more than the ``negatives`` the twin holds, and nought where it names
+    none: `_whole_enough` keeps that many negative values off whole
+    numbers and `_trailing_style_swaps` gives them `decimal`.
+
+    Guarantees: accepts a numeric block and a count of negative cells;
+    returns a whole number from nought to ``negatives``. Determinism: a
+    fixed function of the two. Raises nothing. No I/O of any kind.
+    """
+    if parsing.NEGATIVE_TRAILING not in facts.negative_notations:
+        return 0
+    named = facts.negative_notations[parsing.NEGATIVE_TRAILING]
+    return max(0, min(named, negatives))
+
+
+def _trailing_style_swaps(
+    facts: contract.NumericFacts,
+    styles: "list[str]",
+    holds: "list[float]",
+    whole_column: bool,
+) -> "list[str]":
+    """Move `decimal` onto negative values a trailing minus needs (G6.1).
+
+    THE MIRROR OF `_plus_style_swaps`, FOR THE OTHER SIGN (the second
+    skeptic of plan P4-D352). A trailing minus is written only where the
+    figures carry a point, so every negative `negative_notations` counts
+    under it needs a cell allocated `decimal`. `_whole_enough` leaves the
+    point-free count to the values that are not negative, but a negative
+    value the ladder made whole on its own can still take `plain` by the
+    largest remaining count: 37 negatives published `{"trailing_minus":
+    37}` came back with 36, one of them written `-957`.
+
+    So, while fewer cells allocated `decimal` hold a negative value than
+    `_trailing_owed` asks, cells exchange forms: each cell allocated `plain`
+    whose value is negative, from the first cell upward, takes `decimal`
+    from the first cell, from the last cell downward, allocated `decimal`
+    whose value is not negative and has a point-free spelling, which
+    takes `plain`. No form count moves. The cells allocated `decimal`
+    whose value is not negative stay at least the named `decimal_plus`,
+    so the plus exchange's work is not undone.
+    A column naming no trailing minus, or already holding enough such
+    cells, is returned untouched.
+
+    Guarantees: accepts the numeric block, one style per cell, one value
+    per cell and whether the column is whole; returns a permutation of
+    the styles. Determinism: both walks are over a fixed index order.
+    Raises nothing. No I/O of any kind.
+    """
+    have = 0
+    takers: "list[int]" = []
+    unsigned = 0
+    negatives = 0
+    for index in range(len(holds)):
+        if not holds[index] < 0.0:
+            if styles[index] == "decimal":
+                unsigned = unsigned + 1
+            continue
+        negatives = negatives + 1
+        if styles[index] == "decimal":
+            have = have + 1
+        elif styles[index] == "plain":
+            takers += [index]
+    wanted = _trailing_owed(facts, negatives)
+    if have >= wanted:
+        return styles
+    kept = 0
+    if "+" in facts.decimal_plus:
+        kept = facts.decimal_plus["+"]
+    givers: "list[int]" = []
+    for index in range(len(holds) - 1, -1, -1):
+        if styles[index] != "decimal" or holds[index] < 0.0:
+            continue
+        if _can_wear("plain", holds[index], whole_column):
+            givers += [index]
+    moved = list(styles)
+    short = min(wanted - have, len(takers), len(givers), unsigned - kept)
+    for step in range(max(0, short)):
+        moved[takers[step]] = "decimal"
+        moved[givers[step]] = "plain"
+    return moved
+
+
 def _plus_cells_by_value(
     eligible: "list[int]",
     holds: "list[float]",
@@ -16108,9 +16303,11 @@ def _named_conventions(
     """The conventions a mixture census NAMES, in the enumeration's order.
 
     The pooled remainder and the unavailable state name no convention,
-    so neither reaches the cells: what they cover is written in the
-    column's published majority, exactly as a pooled style count is
-    written plainly. That is the same rule `_plus_places` follows for a
+    so neither reaches the cells through this list: what they cover is
+    written in the column's published majority, exactly as a pooled
+    style count is written plainly -- except a census of marks that is
+    only a pool, which `_pool_alone_places` spends (plan P4-D352). That
+    is the same rule `_plus_places` follows for a
     pooled `decimal_plus`, and it is why a census that says nothing
     leaves the generator writing precisely what it wrote before this
     landing existed.
@@ -16163,15 +16360,26 @@ def _notation_places(
     deviation named. Only `decimal` cells are offered it; where the
     count cannot be met the report names the shortfall.
 
+    AND IT TAKES ITS COUNT FIRST (the second skeptic of plan P4-D352).
+    Every other notation can stand on any negative, so taken in the
+    contract's order they spread over the `decimal` cells too and left
+    the trailing minus short of cells that could carry it: with every
+    negative the census needed already given a point, 20 negatives
+    written `(12)` beside 20 written `12.50-` came back with 10 trailing
+    minuses, 20 `-12` beside 20 `12.50-` with 12, and 25 `-12` beside 15
+    `12.50-` with 6, at five seeds of five.
+
     Guarantees: accepts the column, its numeric block, one style per
     cell and one value per cell; returns one notation per cell and at
     most one deviation per named notation. Determinism: a function of
     those inputs, over a fixed index order. Raises nothing. No I/O.
     """
     worn = [facts.negative_form] * len(holds)
-    named = _named_conventions(
+    order = _named_conventions(
         facts.negative_notations, parsing.NEGATIVE_FORMS
     )
+    named = [pair for pair in order if pair[0] == parsing.NEGATIVE_TRAILING]
+    named += [pair for pair in order if pair[0] != parsing.NEGATIVE_TRAILING]
     if not named:
         return worn, []
     taken: "dict[int, int]" = {}
@@ -16216,11 +16424,15 @@ def _candidate_mark(facts: contract.NumericFacts) -> str:
     any exchange. Which mark is asked does not change the answer --
     whether writing a cell with a mark puts one in it depends on its form
     and its figures, never on which mark -- so any mark that writes
-    would do; this is the one the column itself offers first.
+    would do; this is the one the column itself offers first. A census
+    that is only a pool is asked with the comma (plan P4-D352): it names
+    no mark to ask with, and the comma is the first of the seven marks
+    `_pool_alone_places` spends it over.
 
     Guarantees: accepts one numeric block; returns "" only where the
-    column publishes no mark and its census names none. Determinism: a
-    fixed function of the block. Raises nothing. No I/O of any kind.
+    column publishes no mark and its census names none and pools
+    nothing. Determinism: a fixed function of the block. Raises nothing.
+    No I/O of any kind.
     """
     published = _grouping_mark(facts)
     if published:
@@ -16229,6 +16441,8 @@ def _candidate_mark(facts: contract.NumericFacts) -> str:
         facts.thousands_marks, parsing.PUBLISHED_GROUP_MARKS
     ):
         return _mark_written(mark)
+    if taxonomy.SUPPRESSED_LABEL in facts.thousands_marks:
+        return parsing.GROUP_MARKS[0]
     return ""
 
 
@@ -16260,9 +16474,10 @@ def _mark_places(
     orders and four whole figures, because a second statement of those
     rules is a second thing to keep in step with `_styled_base`.
 
-    WHERE THE CENSUS NAMES NO MARK every groupable cell wears the
-    column's published mark, which is what every cell wore before the
-    census existed. WHERE IT NAMES ONE OR MORE (plan P4-D142, the final
+    WHERE THE CENSUS NAMES NO MARK AND POOLS NOTHING every groupable
+    cell wears the column's published mark, which is what every cell
+    wore before the census existed; where it names none and pools some,
+    `_pool_alone_places` spends the pool. WHERE IT NAMES ONE OR MORE (plan P4-D142, the final
     Codex review's grouping item 3), the census is the whole of the
     column's grouped cells and is spent as such, in three parts:
 
@@ -16313,7 +16528,12 @@ def _mark_places(
         facts.thousands_marks, parsing.PUBLISHED_GROUP_MARKS
     )
     if not named:
-        return worn, []
+        alone = 0
+        if taxonomy.SUPPRESSED_LABEL in facts.thousands_marks:
+            alone = facts.thousands_marks[taxonomy.SUPPRESSED_LABEL]
+        if alone < 1:
+            return worn, []
+        return _pool_alone_places(column, groupable, floor, holds, alone)
     taken: "dict[int, int]" = {}
     notes: list[Deviation] = []
     spending: "list[tuple[str, int]]" = []
@@ -16388,6 +16608,156 @@ def _mark_places(
     for index in range(len(groupable)):
         if groupable[index] and index not in taken:
             worn[index] = ""
+    return worn, notes
+
+
+def _pool_alone_places(
+    column: contract.ColumnBlock,
+    groupable: "list[bool]",
+    floor: int,
+    holds: "list[float] | None",
+    pool: int,
+) -> "tuple[list[str], list[Deviation]]":
+    """Which mark each grouped cell wears where the census is ONLY a pool (G6.1).
+
+    THE POOL WAS NEVER WRITTEN (plan P4-D352). Where no mark reached the
+    census floor the census is the one key `(withheld)`, the column
+    publishes no mark, and the twin wrote every groupable cell bare with
+    nothing named: 180 amounts grouped with six marks on thirty cells
+    each, at a floor of 31, came back with no mark at all.
+
+    THE SEVEN MARKS SHARE IT, each on fewer cells than the census floor,
+    because which marks the pool held is not published and code written
+    on the twin meets every mark the real column could have written only
+    where the twin writes them all. The comma is one of the seven; the
+    exchange writes it as the point on a declared decimal-comma column.
+    The pool holds at most six times one less than the floor: a larger
+    one would say every mark was written, so the producer counts it under
+    its commonest mark and the loader refuses it (TM1).
+
+    1. HOW MANY, T. The groupable cells, where they number fewer than the
+       pool and the census floor together -- a leftover under the floor
+       cannot be the real column's own bare cells, which the census is
+       published beside only at nought or at least the floor -- and the
+       pool otherwise; never more than six times one less than the floor,
+       so the twin's own description pools the count again rather than
+       counting it under one mark.
+    2. WHICH CELLS. The T are taken over the groupable cells by the
+       spread `_plus_cells_by_value` states (plan P4-D149), so the cells
+       left bare are not the largest ones.
+    3. WHICH MARK, BY WHOLE RUNS. The chosen cells are walked in cell
+       order, one run of one value at a time, and each run goes whole to
+       the mark of `parsing.GROUP_MARKS` holding the fewest cells, the
+       earlier mark on a tie; a mark stops one short of the floor, and
+       the rest of the run goes on to the next with the fewest. So a
+       value is written two ways only where a mark fills, and the marks
+       take the values in turn across the whole range. Measured against
+       fixed shares of floor((k+1)T/7) - floor(kT/7) per mark, over 17
+       pool-only shapes at five seeds: both show every real mark, and
+       whole runs raise the twin's count of spellings past the published
+       one on 5 twins by 5, fixed shares on 10 by 35.
+    4. EVERY MARK IS SHOWN wherever T reaches seven: while a mark holds
+       no cell, the mark holding the most, the earlier on a tie, gives it
+       the last cell it took.
+
+    NAMED WHERE THE TWIN CANNOT POOL THE SAME COUNT (contract C6-89):
+    wherever the groupable cells are not the pool and number fewer than
+    the pool and the census floor together, the report names
+    `thousands_marks` with the pool and the groupable cells. That is
+    where the checker withholds the comparison, and the capped case is
+    in it: sixty pooled at a floor of eleven beside sixty-five groupable
+    cells marks sixty, writes five bare and names 60 against 65.
+
+    Guarantees: accepts the column, one flag per cell, the settings
+    floor, one value per cell (or None, every cell its own run) and the
+    pool; returns one mark per cell, as written before any exchange, and
+    at most one deviation. Determinism: a function of those inputs, over
+    a fixed index order. Raises nothing. No I/O.
+    """
+    line = parsing.census_floor(floor)
+    marks = parsing.GROUP_MARKS
+    cells: "list[int]" = []
+    for index in range(len(groupable)):
+        if groupable[index]:
+            cells += [index]
+    wanted = pool
+    if len(cells) < pool + line:
+        wanted = len(cells)
+    wanted = min(wanted, (len(marks) - 1) * (line - 1))
+    values = holds
+    if values is None:
+        values = [float(index) for index in range(len(groupable))]
+    worn = [""] * len(groupable)
+    chosen = _plus_cells_by_value(cells, values, wanted, True)
+    held = [0] * len(marks)
+    last = [-1] * len(marks)
+    start = 0
+    while start < len(chosen):
+        end = start + 1
+        while end < len(chosen) and values[chosen[end]] == values[chosen[start]]:
+            end = end + 1
+        step = start
+        while step < end:
+            place = 0
+            for other in range(len(marks)):
+                if held[other] < held[place]:
+                    place = other
+            take = min(line - 1 - held[place], end - step)
+            for index in chosen[step : step + take]:
+                worn[index] = marks[place]
+                last[place] = index
+            held[place] = held[place] + take
+            step = step + take
+        start = end
+    for place in range(len(marks)):
+        if held[place] > 0:
+            continue
+        giver = 0
+        for other in range(len(marks)):
+            if held[other] > held[giver]:
+                giver = other
+        if held[giver] < 2:
+            break
+        worn[last[giver]] = marks[place]
+        last[place] = last[giver]
+        held[place] = 1
+        held[giver] = held[giver] - 1
+        last[giver] = -1
+        for index in chosen:
+            if worn[index] == marks[giver]:
+                last[giver] = index
+    notes: list[Deviation] = []
+    if len(cells) < pool:
+        notes += [
+            _deviation(
+                column.name,
+                "thousands_marks",
+                f"{pool}",
+                f"{len(cells)}",
+                "The twin groups its thousands with every mark the "
+                "description holds back, each on fewer cells than the "
+                "smallest group size, but its published ladder and forms "
+                "left fewer cells large enough to be grouped than the "
+                "description counts, so fewer of them carry a mark.",
+            )
+        ]
+    if pool < len(cells) < pool + line:
+        notes += [
+            _deviation(
+                column.name,
+                "thousands_marks",
+                f"{pool}",
+                f"{len(cells)}",
+                "The twin groups its thousands with every mark the "
+                "description holds back, each on fewer cells than the "
+                "smallest group size, but its published ladder and forms "
+                "left more cells large enough to be grouped than the "
+                "description counts, too few more to stand as cells "
+                "written with no mark, so the twin marks them as well, as "
+                "far as a count the description may hold back reaches, "
+                "and writes any past that with none.",
+            )
+        ]
     return worn, notes
 
 

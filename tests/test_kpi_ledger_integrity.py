@@ -37,6 +37,7 @@ import copy
 import importlib.util
 import json
 import pathlib
+import re
 import shutil
 
 import pytest
@@ -261,12 +262,206 @@ def test_the_measurement_note_names_exactly_the_entries_measured_off_the_base_co
         + " are "
         + (", ".join(sorted(off_base)) or "none")
     )
+    # AND THE NOTE'S OWN COUNT OF THEM (the second skeptic of plan
+    # P4-D352): it said 38 over 39 entries, then 39 over 40, while the
+    # set above held -- nothing read the numeral. Mutation, run: the
+    # numeral one short, and one over -- red both ways.
+    head, stands, _rest = note.partition(" ENTRIES STAND OFF")
+    assert stands, "the note does not say how many entries stand off the base commit"
+    said = head.rsplit(" ", 1)[-1]
+    assert said == str(len(off_base)), (
+        f"the note says {said} entries stand off {base} and {len(off_base)} do"
+    )
     for entry_id, commit in sorted(off_base.items()):
         assert commit in note, f"{entry_id} was measured on {commit}, which the note does not name"
         # A re-measured entry says which driver or run took it, so a
         # value carrying keys an older driver could not emit is visible.
         assert ENTRIES[entry_id]["value_at"].get("measured_by"), (
             f"{entry_id}: re-measured off {base} and does not say what measured it"
+        )
+
+
+_NOTE_UNITS = (
+    "ZERO ONE TWO THREE FOUR FIVE SIX SEVEN EIGHT NINE TEN ELEVEN TWELVE "
+    "THIRTEEN FOURTEEN FIFTEEN SIXTEEN SEVENTEEN EIGHTEEN NINETEEN"
+).split()
+_NOTE_TENS = "TWENTY THIRTY FORTY FIFTY SIXTY SEVENTY EIGHTY NINETY".split()
+
+
+def _note_word(count: int) -> str:
+    """A count under a hundred as the measurement note writes it: TWENTY-THREE."""
+    if count < 20:
+        return _NOTE_UNITS[count]
+    tens = _NOTE_TENS[count // 10 - 2]
+    return tens if count % 10 == 0 else f"{tens}-{_NOTE_UNITS[count % 10]}"
+
+
+def test_each_group_the_measurement_note_counts_holds_that_many_entries() -> None:
+    """Every count the note gives beside a commit is the number of entries stamped on it.
+
+    The guard above reads the total and the set, and neither reads the
+    counts per commit: 'AND ONE STANDS OFF f934876' written TWO,
+    'TWENTY-THREE OF THEM ARE THESE' written TWENTY-FOUR and 'AND TWO
+    STAND OFF 2bc1418' written THREE each left this file green (the
+    skeptic of plan P4-D352 (5)), and the second skeptic had already had
+    to move f934876's THREE to ONE by hand. So each 'AND <count> [MORE]
+    STAND(S) OFF <commit>' clause is held to the entries whose value_at
+    is that commit, the first group's count to the entries on the trees
+    its sentence names, and the groups to every commit off the base, each
+    once. Mutation, run: each of the three edits above turns this red.
+    """
+    note = LEDGER["measurement_note"]
+    stamped: "dict[str, int]" = {}
+    for entry in LEDGER["entries"]:
+        commit = entry["value_at"]["commit"]
+        if commit != LEDGER["base_commit"]:
+            stamped[commit] = stamped.get(commit, 0) + 1
+    word = r"[A-Z]+(?:-[A-Z]+)?"
+    clause = rf"AND ({word}) (?:MORE )?STANDS? OFF ([0-9a-f]{{7}})\b"
+    first = re.search(rf"({word}) OF THEM ARE THESE", note)
+    assert first, "the note does not say how many entries its first group holds"
+    opening = re.split(clause, note[first.end():], maxsplit=1)[0]
+    trees = re.findall(r" on ([0-9a-f]{7})\b", opening)
+    assert trees, "the note's first group names no tree"
+    held = sum(stamped.get(tree, 0) for tree in trees)
+    assert first.group(1) == _note_word(held), (
+        f"the note's first group says {first.group(1)} and its trees hold {held}"
+    )
+    counted = list(trees)
+    for said, commit in re.findall(clause, note):
+        assert said == _note_word(stamped.get(commit, 0)), (
+            f"the note says {said} stand off {commit} and "
+            f"{stamped.get(commit, 0)} entries are stamped on it"
+        )
+        counted += [commit]
+    assert sorted(counted) == sorted(stamped), (
+        f"the note counts the trees {sorted(counted)} and entries are stamped "
+        f"off the base on {sorted(stamped)}"
+    )
+
+
+_ENTRY_ID = r"\bK-[0-9A-Z]{2}-[0-9]{2}[a-z]?\b"
+
+
+def _note_clauses() -> "list[tuple[str, str]]":
+    """The measurement note's clauses, each with the one commit it names.
+
+    Each part of the first group, split at its semicolons, and each 'AND
+    <count> [MORE] STAND(S) OFF <commit>' clause after it.
+    """
+    note = LEDGER["measurement_note"]
+    word = r"[A-Z]+(?:-[A-Z]+)?"
+    first = re.search(rf"{word} OF THEM ARE THESE", note)
+    assert first, "the note does not say how many entries its first group holds"
+    parts = re.split(
+        rf"AND {word} (?:MORE )?STANDS? OFF ([0-9a-f]{{7}})\b", note[first.end():]
+    )
+    clauses: "list[tuple[str, str]]" = []
+    for piece in parts[0].split(";"):
+        trees = re.findall(r" on ([0-9a-f]{7})\b", piece)
+        assert len(trees) == 1, f"a part of the note's first group names {trees}: {piece!r}"
+        clauses += [(trees[0], piece)]
+    for place in range(1, len(parts), 2):
+        clauses += [(parts[place], parts[place + 1])]
+    return clauses
+
+
+def test_each_clause_of_the_measurement_note_names_the_entries_stamped_on_its_commit() -> None:
+    """Every clause names exactly the entries whose value_at is its commit.
+
+    The two guards above read the set of ids and the count beside each
+    commit, and neither reads WHICH ids a clause names: K-S1-05 and
+    K-S3-16 swapped between the 1c9e767 and f934876 clauses, and K-P0-05
+    and K-2B-19 swapped between their trees in the first group, each left
+    this file green (the second skeptic of plan P4-D352 (6)). So each part
+    of the first group, split at its semicolons, and each 'AND <count>
+    [MORE] STAND(S) OFF <commit>' clause is held to the entries stamped on
+    its one commit, and every commit off the base is named once.
+    Mutation, run: each swap turns this red.
+    """
+    stamped: "dict[str, set[str]]" = {}
+    for entry in LEDGER["entries"]:
+        commit = entry["value_at"]["commit"]
+        if commit != LEDGER["base_commit"]:
+            stamped[commit] = stamped.get(commit, set()) | {entry["id"]}
+    clauses = _note_clauses()
+    for commit, text in clauses:
+        named = set(re.findall(_ENTRY_ID, text))
+        assert named == stamped.get(commit, set()), (
+            f"the note names {sorted(named)} on {commit} and the entries stamped "
+            f"on it are {sorted(stamped.get(commit, set()))}"
+        )
+    commits = [commit for commit, _text in clauses]
+    assert sorted(commits) == sorted(stamped), (
+        f"the note's clauses name the trees {sorted(commits)} and entries are "
+        f"stamped off the base on {sorted(stamped)}"
+    )
+
+
+def _numbers_held(value: object) -> "list[float]":
+    """Every number a value_at's value holds, however deep; a flag is none."""
+    if isinstance(value, bool):
+        return []
+    if isinstance(value, (int, float)):
+        return [float(value)]
+    held: "list[float]" = []
+    if isinstance(value, dict):
+        for part in value.values():
+            held += _numbers_held(part)
+    if isinstance(value, list):
+        for part in value:
+            held += _numbers_held(part)
+    return held
+
+
+# A numeral standing alone, or glued to a unit that is a run of letters no
+# figure follows: never one inside an id, the month or day of a date, or a
+# commit's seven hex figures, even where its letters all follow its figures.
+_NUMERAL = (
+    r"(?<![\w.\-])(?!(?=[0-9a-f]{7}\b)\d*[a-f])(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?"
+    r"(?:(?!\w)|(?=[^\W\d_]+(?!\w)))"
+)
+# What the reader must make of units of every case and length and of such a
+# commit (the second skeptic of plan P4-D352 (7)).
+_READ_WHOLE = ("23.8s, 23.8sec, 540MB, 161.3\u00b5s and 4,883cells on 27eecbe",
+               ["23.8", "23.8", "540", "161.3", "4,883"])
+
+
+def test_no_clause_of_the_measurement_note_restates_a_value_its_entries_hold() -> None:
+    """One fact, one place: a value is read from value_at, never from the note.
+
+    The note restated what its trees measured -- 132 cases, 176 of 481,
+    0, 0 and 0 of 40 twins -- and nothing read those numbers against
+    value_at: 132 written 131, or 0, 0 and 0 written 0, 1 and 0, left
+    this file green (the skeptic of plan P4-D352 (6), round 3). So a
+    clause names its entries, their tree and what took them, and holds
+    no number of two figures or more, or with a fraction, that a value of
+    an entry it names holds; a single figure is let stand, because the
+    note numbers stages, landings and items with them. A numeral glued to
+    a unit is read whole, whatever the unit's case or length: read up to
+    a word character, `23.8s` fell back to `23` (the skeptic of the same
+    round's landing), and read up to one or two lowercase letters,
+    `23.8sec` still fell back to `23`, `4,883cells` to `4`, `161.3µs` to
+    `161` and `540MB` to nothing, none of which a value holds (the
+    second skeptic of plan P4-D352 (7)). A commit's seven hex figures are
+    no numeral, `27eecbe` included. Two limits stand by design: a value
+    written in words, and a value restated in a clause that names no
+    entry holding it. Mutations, run: each of those values written back
+    into its clause, with or without a space before its unit, turns this
+    red, and so does either half of the reader taken back.
+    """
+    assert re.findall(_NUMERAL, _READ_WHOLE[0]) == _READ_WHOLE[1]
+    for commit, text in _note_clauses():
+        held: "set[float]" = set()
+        for entry_id in set(re.findall(_ENTRY_ID, text)):
+            held |= set(_numbers_held(ENTRIES[entry_id]["value_at"].get("value")))
+        said = {float(numeral.replace(",", "")) for numeral in re.findall(_NUMERAL, text)}
+        restated = sorted(
+            number for number in said & held if abs(number) >= 10 or number != int(number)
+        )
+        assert restated == [], (
+            f"the note's clause on {commit} restates {restated}, which its entries' "
+            "value_at holds"
         )
 
 
@@ -519,6 +714,14 @@ def test_the_ledger_file_is_canonical_json() -> None:
     text = kpi_rules.LEDGER_PATH.read_text(encoding="utf-8")
     assert text.endswith("\n")
     assert json.loads(text) == LEDGER
+    # 330,000 from 300,000, AUTHORIZED BY THE ORCHESTRATOR (2026-09-25)
+    # FOR THE TWO STAGE-3 FOLLOW-UPS AND STAGE 3B, each of which adds
+    # entries. The ledger stood at 299,706 bytes with 294 to spare, and
+    # follow-up B's `K-S3-16` -- a census of marks that is only a pool,
+    # written, named and checked (plan P4-D352) -- does not fit beside
+    # it. A MEASUREMENT IS NEVER TRIMMED TO FIT: the cap moves, and the
+    # prose is trimmed before it moves again.
+    #
     # 300,000 from 275,000, AUTHORIZED BY THE ORCHESTRATOR FOR STAGE 3'S
     # GATE (2026-09-23). The ledger stood at 274,933 bytes with 67 to
     # spare, and what spent the last raise is stage 3's TWELVE entries --
@@ -539,7 +742,7 @@ def test_the_ledger_file_is_canonical_json() -> None:
     # its bytes are K-P4-20's new value and the notes of the ceilings and
     # re-measurements its repair pass recorded. The cap is still a cap; the
     # prose is trimmed before it is raised again.
-    assert pathlib.Path(kpi_rules.LEDGER_PATH).stat().st_size < 300_000
+    assert pathlib.Path(kpi_rules.LEDGER_PATH).stat().st_size < 330_000
 
 
 def test_a_fast_pinned_entry_with_no_collection_floor_is_named() -> None:

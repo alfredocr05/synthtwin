@@ -11374,6 +11374,10 @@ def _group_separator(cells: _Cells) -> str:
        `42.037,34` writes. The other marks are not exchanged, so
        `1 234,56` publishes a space. Under that declaration a lone group
        reads as thousands for the same reason as above.
+    4. **A POOL THE CENSUS MAY NOT PUBLISH** (plan P4-D352): where no
+       mark reaches the line and `thousands_marks` counts every grouped
+       cell under its commonest mark (`_band_commonest`), the majority
+       is asked of the column as that census describes it.
 
     Guarantees: accepts the column's tally; returns a mark of
     `parsing.PUBLISHED_GROUP_MARKS`, "." only under a declared decimal
@@ -11416,7 +11420,18 @@ def _group_separator(cells: _Cells) -> str:
     # spelling censuses beside it already read. At the default floor of
     # eleven nothing here moves.
     if held < parsing.census_floor(cells.settings.small_cell_floor):
-        return ""
+        # ...AND WHERE THE CENSUS BESIDE IT COUNTS EVERY GROUPED CELL
+        # UNDER ITS COMMONEST MARK (plan P4-D352), so does this key: a
+        # pool the band refuses is written as that mark, and the majority
+        # is asked of the column as its census describes it.
+        best = _band_commonest(
+            proven, parsing.GROUP_MARKS, cells.settings, len(parsing.GROUP_MARKS)
+        )
+        if not best:
+            return ""
+        held = 0
+        for mark in parsing.GROUP_MARKS:
+            held = held + proven[mark]
     if held <= others - held:
         return ""
     if decimal and best == ",":
@@ -11444,7 +11459,9 @@ def _negative_form(cells: _Cells) -> str:
     first in `parsing.NEGATIVE_FORMS` on a tie. Otherwise the column
     publishes `minus`. The twin writes every negative in the published
     notation, so a column mixing two is written as its majority, as a
-    grouped column is.
+    grouped column is. Where no notation reaches the line and
+    `negative_notations` counts every negative under its commonest
+    notation (`_band_commonest`, plan P4-D352), that notation is published.
 
     Guarantees: accepts the column's tally; returns one name of
     `parsing.NEGATIVE_FORMS`. Determinism: a fixed function of the
@@ -11460,6 +11477,16 @@ def _negative_form(cells: _Cells) -> str:
         form = parsing.negative_notation(cell.numeric_text)
         counts[form] = counts[form] + 1
         negatives += 1
+    # WHERE THE CENSUS BESIDE IT COUNTS EVERY NEGATIVE UNDER ITS COMMONEST
+    # NOTATION (plan P4-D352), that notation is the majority here too.
+    band = _band_commonest(
+        counts,
+        parsing.NEGATIVE_FORMS,
+        cells.settings,
+        len(parsing.NEGATIVE_FORMS),
+    )
+    if band:
+        return band
     best = parsing.NEGATIVE_MINUS
     for form in parsing.NEGATIVE_FORMS:
         if form == parsing.NEGATIVE_MINUS:
@@ -11527,12 +11554,61 @@ def census_floor_of(floor: int) -> int:
     return parsing.census_floor(floor)
 
 
+def _band_commonest(
+    counts: "dict[str, int]",
+    order: "tuple[str, ...]",
+    settings: Settings,
+    names: int,
+) -> str:
+    """The convention a mixture census that may not pool is counted under.
+
+    A POOL OF A CLOSED VOCABULARY SAYS EVERY NAME WAS WRITTEN once it
+    holds more cells than all but one of them can hold below the line
+    (`parsing.census_pools`, plan P4-D222), and at ``names`` times one
+    less than the line it fixes every name's count below it: seven marks
+    of ten cells each at a floor of eleven published `{"(withheld)": 70}`,
+    which says each mark was written by exactly ten cells. The two
+    mixture censuses never asked that rule while every other closed
+    census did (plan P4-D352). So where NO convention reaches the census
+    floor, the census would pool (a floor above one and at least the
+    line of cells) and `census_pools` refuses the pool, every such cell
+    is counted under the COMMONEST convention the cells wrote, ties to
+    the first in ``order`` -- ruling 6 of 2026-09-17, a spelling below
+    the floor counts into the commonest -- and the majority key the
+    census stands beside reads the same answer, because what depends on
+    a census follows it.
+
+    Guarantees: accepts the counts per convention, the enumeration
+    fixing the order, the settings and the size of the closed
+    vocabulary; returns that convention, or "" wherever the census may
+    pool or names a convention of its own. Determinism: a fixed function
+    of the four. Raises nothing. No I/O of any kind.
+    """
+    line = _census_floor(settings)
+    total = 0
+    written = ""
+    for name in order:
+        if name not in counts or counts[name] < 1:
+            continue
+        if counts[name] >= line:
+            return ""
+        total = total + counts[name]
+        if not written or counts[name] > counts[written]:
+            written = name
+    if total < line or settings.small_cell_floor < 2:
+        return ""
+    if parsing.census_pools(total, settings.small_cell_floor, names):
+        return ""
+    return written
+
+
 def _mixture_census(
     counts: "dict[str, int]",
     order: "tuple[str, ...]",
     settings: Settings,
     populations: "list[int]",
     silent: "dict[str, int]",
+    names: int,
 ) -> "dict[str, int]":
     """One census of a column's MIXED conventions, floored per convention.
 
@@ -11576,7 +11652,10 @@ def _mixture_census(
       one to take them in, and what is left is pooled under `(withheld)`
       -- these censuses have FOUR and SEVEN possible keys, so a pool here
       names no convention, which is exactly the property `decimal_plus`
-      lacks and the reason that key may not pool at all;
+      lacks and the reason that key may not pool at all -- EXCEPT A POOL
+      OVER MORE CELLS THAN ``names`` LESS ONE CAN HOLD BELOW THE LINE,
+      which would say every convention was written, and is counted under
+      the commonest one instead (`_band_commonest`, plan P4-D352);
     * but a pool that is itself below the floor would name the cells it
       holds as surely as publishing them would, so a census that cannot
       pool safely publishes `(unavailable)` and no number whatever.
@@ -11599,10 +11678,11 @@ def _mixture_census(
 
     Guarantees: accepts the counts per convention, the enumeration
     fixing the key order, the settings, the totals a reader can subtract
-    from and the silent state; returns `{}` where no cell wears a
-    convention and the silent state is empty, a mapping of named
-    conventions with possibly a `(withheld)` remainder, or a copy of the
-    silent state. Determinism: the answer depends only on those five,
+    from, the silent state and the size of the closed vocabulary;
+    returns `{}` where no cell wears a convention and the silent state
+    is empty, a mapping of named conventions, a lone `(withheld)` pool
+    no larger than ``names`` less one hold below the line, or a copy of
+    the silent state. Determinism: the answer depends only on those six,
     and the keys are built in the enumeration's order. Raises nothing.
     No I/O of any kind.
     """
@@ -11648,6 +11728,9 @@ def _mixture_census(
     # takes no key S13 reads.
     if pooled < floor or settings.small_cell_floor < 2:
         return dict(silent)
+    band = _band_commonest(counts, order, settings, names)
+    if band:
+        return _spoken_or_silent({band: pooled}, populations, settings, silent)
     published[SUPPRESSED_LABEL] = pooled
     return _spoken_or_silent(published, populations, settings, silent)
 
@@ -11726,6 +11809,7 @@ def _negative_notations(cells: _Cells) -> "dict[str, int]":
         cells.settings,
         [negatives],
         {UNAVAILABLE_LABEL: 0},
+        len(parsing.NEGATIVE_FORMS),
     )
 
 
@@ -11806,6 +11890,7 @@ def _thousands_marks(cells: _Cells) -> "dict[str, int]":
         cells.settings,
         [groupable, numeric],
         {},
+        len(parsing.GROUP_MARKS),
     )
 
 

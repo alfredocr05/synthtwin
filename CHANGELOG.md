@@ -6,6 +6,100 @@ exists).
 
 ## [Unreleased]
 
+### A signed decimal beside a trailing minus takes its whole negatives nearest zero too (2026-09-26)
+
+Where `decimal_plus` and a trailing minus are both named, G6.4's walk
+over the negative strata alone took the whole negatives it owed from
+the most negative strata, so 30 negatives written `-007` beside 40
+written `12.34-` and 30 written `+12.34` came back with 14 of 30 padded
+cells at seed 0 and five checks missed at every seed. That walk now takes them nearest
+zero first, as the last walk does, and a walk's count after a chain
+move covers only the strata it walks, which had let a whole positive
+meet the negatives' demand and cost a `decimal_plus` cell (plan P4-D352
+(7)). That count repairs every walk that is not over every stratum, not
+the trailing minus's alone: 40 `+NN` beside 30 `-NN` and 90 decimals,
+no trailing minus, wrote 36 pluses of 40 with five checks missed at
+every seed and writes 40 with none, and over a 138-twin battery the
+recount alone moves 11 twins, 9 with no trailing minus -- eight losing
+five or six missed checks and one dense signed decimal, missing five
+checks either way, gaining `styles.spill` (the orchestrator accepted
+it). Over 2,322 more twins the recount alone moves 252, 6 of them to
+more missed checks and none from pass to fail. On columns whose 75 to
+117 different values outnumber the whole numbers between their ends, 20
+of the 252 miss `widths.published.2`, a tail's values or a percentile
+rung where they held them, 16 at floor 1 and 4 at the default floor of
+11, none of them a twin that held every check: at one draw and seed,
+40 `+N.dd` beside 40 `N`, 40 `-N` and 40 `-N.dd` on 1..9 writes 13
+whole values with a point, such as `-9.0`, and misses
+`widths.published.2` beside the one check it missed before. Accepting
+that full reach is the orchestrator's call of 2026-09-28 (not an owner
+ruling; the owner may reverse it). The walks over the side that is not
+negative keep stratum order. New
+`trailing_values` rows hold the walk beside's demand, the order of the
+side that is not negative and the negative walk's order; the gate's
+`plus-beside-whole-negatives` holds the plus walk's count, a third
+hand-worked chain row the negative walk's order, and a hand-worked row
+for each walk its count again after a chain, over the strata it walks,
+which nothing held. The
+ledger note names its entries, their trees and what took them, and no
+longer restates their values; a test holds that, and reads a numeral
+glued to a unit of any case or length.
+
+### Whole negatives beside a trailing minus are the ones nearest zero (2026-09-26)
+
+The repair above made the side that is not negative carry the whole
+values and then took the rest from the most negative strata, so 20
+negatives written `-007` beside 25 written `12.34-` came back with 9
+padded cells and five checks missed. G6.4's last walk now takes the
+negatives nearest zero first, and the P2-C5-F3 guard follows the walk's
+order (plan P4-D352 (6)); where the other side can carry the count no
+negative is made whole and the notations spread over the band. The
+exchange is frozen as `trailing_minus_exchange` and the order in a
+reworked `trailing_minus_points`; G14.3 counts 132; a test reads the
+ledger note's count beside each commit and the entries each clause
+names. The `trailing_values` witness holds the oracle's walk beside a
+trailing minus, which no frozen case reached, and a hand-worked chain
+holds R-P4-69's holders to the walk's order. Where the real whole
+negatives are the large ones the separation by notation is reversed:
+minus cells' mean -1157.5 against a real -4890.0.
+
+### A trailing minus is written on as many negatives as the census counts (2026-09-26)
+
+A trailing minus stands only on figures with a point, and the twin made
+its whole values from the most negative strata up, so a census counting
+negatives under `trailing_minus` -- named, or a band counted there by
+P4-D352 -- came back with 0 or 1 of 37 and both notation checks missed.
+G6.4's values step now keeps that many negatives pointed, an exchange
+gives `decimal` to a negative the ladder made whole, and the trailing
+minus takes its count first (method G6.1, plan P4-D352 (5)); every twin
+of five such shapes at five seeds writes the count and is HELD. Where the
+published forms leave too few pointed negatives the shortfall stays
+named: `12-` reads as text. Frozen as `trailing_minus_points`; G14.3
+counts 131; the `trailing` witness; the ledger note's count of entries
+off its base commit said 39 of 40, and a test now reads it.
+
+### A census of marks that is only a pool is written, named and checked (2026-09-25)
+
+**Where no thousands mark reached the floor** the census published only
+`(withheld)` and the twin wrote every groupable cell bare with no check
+filed: 0 of 230 twins over 46 seeded shapes wrote a mark. The pool is now
+spent by whole runs, each under the floor, over all seven marks wherever
+it holds seven cells or more, and over the first marks in the method's
+order where it holds fewer -- every lone pool at a floor of 2 (method
+G6.1, plan P4-D352); the report names the pool against the groupable cells
+where they differ by less than the floor; `validate` files it as one
+count. A pool over more cells than six marks (three notations) hold below
+the floor said every convention was written, and is now counted under the
+commonest, the majority key following it, and refused by the loader
+(TM1, NS2). After: 201 twins HELD, 29 WITHHELD and named, nothing MISSED;
+the 29 band shapes lose 10,560 real grouped cells' marks to the commonest.
+The P4-D265 recount counts only groupable cells, so 70 grouped cells beside
+130 under a thousand no longer report 200 published against 70. Frozen as `pool_alone_marks` in a fourteenth file; G14.3 counts 130;
+`K-S3-16`; K-2B-42 reads 176 of 478 (`marks_of_a_lone_pool` 0.42). The
+gate and the `lone_pool` witness hold the cells left bare to the spread
+(plan P4-D149): taken packed instead, all nineteen bare cells of one
+shape sit above every marked one, and both turn red.
+
 ### The owner's rulings of 2026-09-21 recorded, and `K-S3-15` never put to the owner (2026-09-25)
 
 **Three answers of 2026-09-21 were in no record.** The owner accepted
