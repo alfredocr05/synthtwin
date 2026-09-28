@@ -1732,6 +1732,41 @@ def off_the_stand_ins(value, low, boundary, figures):
     return value if (inside > boundary if low else inside < boundary) else inside
 
 
+def drawn_off_the_stand_ins(value, lowest, highest, figures):
+    """G5.4's last rule (plan P4-D353 part 4): no stratum read between the tails is a stand-in.
+
+    Written from the method's own words: where the value the convex form
+    of G5.3 and the integer rule of G5.4 give a stratum -- or the grid
+    value G5.3 reads on a column written at one width -- equals one of
+    the three numbers the profiler reads as a stand-in for "no value", it
+    takes the neighbouring point of its grid TOWARD NOUGHT, and the
+    neighbouring point away from nought where that one lies outside the
+    published ``min`` to ``max``; where both do, the value is kept. The
+    grid is one unit on a whole-valued column (``figures`` 0), one step
+    of the one width (``figures`` above 0), and the next number binary64
+    holds where there is neither. The step is taken on fractions, so the
+    point is the exact one, rounded once to the nearest binary64.
+    """
+    if fractions.Fraction(value) not in NUMERIC_SENTINELS:
+        return value
+    size = abs(fractions.Fraction(value))
+    sign = -1 if value < 0 else 1
+    for toward_nought in (True, False):
+        if figures == 0:
+            moved = float(sign * (size - 1 if toward_nought else size + 1))
+        elif figures > 0:
+            unit = fractions.Fraction(1, 10 ** figures)
+            moved = float(sign * (size - unit if toward_nought else size + unit))
+        else:
+            step = next_representable(float(size), downward=toward_nought)
+            if step is None:
+                continue
+            moved = sign * step
+        if lowest <= moved <= highest:
+            return moved
+    return value
+
+
 def shared_unit(values):
     """The exponent of one power of two every value is a whole multiple of."""
     places = [
@@ -14822,6 +14857,15 @@ def _numeric_content(column):
             value = integer_rule(value)
         elif fractional > 0:
             value = float(grid_text(value, fractional))
+        # AND NO STRATUM READ BETWEEN THE TAILS IS A STAND-IN NUMBER
+        # (method G5.4, plan P4-D353 part 4): one grid point toward
+        # nought, or away from it where that leaves the published range.
+        value = drawn_off_the_stand_ins(
+            value,
+            ladder[0],
+            ladder[-1],
+            0 if integer_valued else (fractional if fractional > 0 else -1),
+        )
         repaired = False
         if fractional <= 0:
             value, repaired = class_repair(value, bands[index], ladder[0], ladder[-1])

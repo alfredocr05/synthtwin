@@ -2175,9 +2175,11 @@ boundary rung itself where that percent falls between the two tails.
    puts on a stand-in number takes the next grid point OUTWARD, the
    step a row landing on the row before it takes, never past the end;
    a row on the end is the end's. G6.6's width walk, which moves a
-   tail row onto the ceiling of a width, refuses the three too. G6.5a
-   is not held to it: its fill of a grid with no spare point and its
-   walk to the published count of different numbers can each put a
+   tail row onto the ceiling of a width, refuses the three too, and so
+   does a stratum G5.3 reads between the two tails (G5.4's last rule).
+   The other value passes of G6 are not held to it, and two of them are
+   measured to write one: G6.5a's fill of a grid with no spare point and
+   its walk to the published count of different numbers can each put a
    stratum on a stand-in that is a gap between two values the column
    holds (plan P4-D353 part 4). Measured on 145 four-figure numbers beside five of
    five figures at a floor of eleven, a tail row the walk moved for the
@@ -2448,6 +2450,28 @@ is true (every value was whole, so the extremes are), and rounding a
 value inside `[min, max]` to a nearest integer cannot leave that
 interval. The pinned strata are not rounded — they already carry the
 published rungs — which is what keeps the endpoints exact.
+
+**AND NO STRATUM READ BETWEEN THE TWO TAILS IS A STAND-IN NUMBER** (plan
+P4-D353 part 4). After this rule — or, on a column written at one width,
+after the grid value G5.3 reads there — a stratum whose value the convex
+form gave and which equals `-9999`, `-999` or `9999`
+(`parsing.NUMERIC_SENTINELS`) takes the neighbouring point of its grid
+TOWARD NOUGHT: one unit on a whole-valued column, one step of the one
+width, and the next number binary64 holds where there is neither. Where
+that point lies outside the published `min` to `max` it takes the
+neighbouring point away from nought, and where that one does too it
+keeps the value. Toward nought keeps the stand-in's figure count —
+`-998`, `9998`, `-9998`, the answer G6.6's width walk takes — and a
+magnitude of 998 or more keeps its sign, so G5.5 has nothing to repair.
+A stratum read inside a tail is the tail's (G5.3b step 5); a pinned
+end, a listed value and the zero stratum are not drawn. Measured by
+skeptic Ad on the 899 whole numbers `-1400` to `-1000` and `-998` to
+`-501`, which hold no `-999`: at floors 11, 20, 36 and 50 and seeds 0, 4
+and 9 one or two strata read `-999` and every twin wrote it deep in its
+interior. With the rule no stratum does, and the twin at seed 0 writes
+none; at seeds 4 and 9 G6.5a's walk, which is not held to it, still
+takes `-999`, the one free point between the column's own `-1000` and
+`-998`.
 
 ### G5.5 Placing `n_zero` and `n_negative` exactly
 
@@ -10051,10 +10075,11 @@ left to chance.** The profiler reads `-9999`, `-999` and `9999` as
 "no value" when they are also distribution outliers and cover at least
 `sentinel_minimum_share` of the column. A twin cell that lands on one of
 those numbers can therefore be read as missing when the twin is
-re-profiled, exactly as the real column's own cells were. The method
-does not steer values away from those three numbers — doing so would
-distort a distribution to protect a re-profiling artifact — and the
-report names `sentinel_verdicts` as REPORT-ONLY. This is a residual, not
+re-profiled, exactly as the real column's own cells were. Outside the
+constructions named below the method does not steer values away from
+those three numbers — doing so would distort a distribution to protect
+a re-profiling artifact — and the report names `sentinel_verdicts` as
+REPORT-ONLY. This is a residual, not
 a defect, and it is named as one in G13.
 
 **The constructions that DO step past them are G8.3a's and a
@@ -10064,9 +10089,11 @@ and `9999` there costs a step of the walk and moves no published fact;
 and a numeric tail's cells beyond its boundary -- the derived end and
 the staircase rows of G5.3b step 5 -- are a construction too, standing
 where the outlier rule looks first, so each steps one grid point past
-them; and G6.6's width walk, whose nearest candidate from beyond a
-width's ceiling is the ceiling itself, takes the next candidate instead
-(plan P4-D353 part 4).
+them; G6.6's width walk, whose nearest candidate from beyond a
+width's ceiling is the ceiling itself, takes the next candidate instead;
+and a stratum G5.3 reads between the two tails takes the neighbouring
+point of its grid toward nought (G5.4), one step on one stratum (plan
+P4-D353 part 4).
 
 ### G10.4 Unparsed datetime stand-ins
 
@@ -12053,8 +12080,9 @@ report says the window does not reach the value.
 - **R-P2-13 (new here)** — a generated numeric value can land on one of
   the three numbers the profiler treats as stand-ins for "no value"
   (`-9999`, `-999`, `9999`) and be read as missing when the twin is
-  re-profiled, exactly as the real column's own cells were. The method
-  does not steer values away from them, because distorting a
+  re-profiled, exactly as the real column's own cells were. Beyond the
+  constructions G10.3 names, the method does not steer values away from
+  them, because distorting a
   distribution to protect a re-profiling artifact is the worse trade.
   `sentinel_verdicts` is REPORT-ONLY and the report names the column.
 - **R-P2-14 (new here, review item P2-C3-F1)** — the packing of G9.5

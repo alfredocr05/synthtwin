@@ -21,10 +21,12 @@ own windows before it asserts what the rule did:
   keeps a single moment it is;
 * where closing the complement costs nothing it stays closed;
 * no derived end is a stand-in number (method G5.3b step 5, on both of
-  its paths), no row of the staircase on either path, and no value G6.6's
-  width walk moves, `-9999` among them. G6.5a's separation walk is not
-  held to it (plan P4-D353 part 4): where it takes one, in a gap between
-  two values the column holds, each of the three is held at its one cell.
+  its paths), no row of the staircase on either path, no value G6.6's
+  width walk moves, `-9999` among them, and no stratum the convex form
+  reads between the tails (G5.4's last rule), in the oracle too. G6.5a's
+  separation walk is not held to it (plan P4-D353 part 4): where it takes
+  one, in a gap between two values the column holds, each of the three
+  is held at its one cell.
 
 Every table is built at test time from a fixed seed string; no
 data-format file enters the repository (plan D13).
@@ -677,6 +679,156 @@ def test_the_separation_walk_takes_a_stand_in_only_in_a_gap_of_the_column_s_own(
         outcome = kpi_shapes.measure(described, text, f"twin-{seed}.csv")
         assert kpi_shapes.missed(outcome) == [], f"{name} seed {seed}: {kpi_shapes.missed(outcome)}"
 
+
+# (value, lowest, highest, figures): the refusal of method G5.4's last rule at
+# each grid it names -- whole numbers (0), one width (1 and 2 places) and none
+# (-1) -- toward nought, away from it where nought's side leaves the published
+# range, and kept where both sides do.
+_DRAWN_STAND_INS = (
+    (-999.0, -2000.0, 0.0, 0),
+    (9999.0, 0.0, 20000.0, 0),
+    (-9999.0, -20000.0, 0.0, 0),
+    (-999.0, -2000.0, -999.0, 0),
+    (-999.0, -999.0, -999.0, 0),
+    (-999.0, -2000.0, 0.0, 1),
+    (9999.0, 0.0, 20000.0, 2),
+    (-9999.0, -20000.0, -9999.0, 1),
+    (9999.0, 0.0, 20000.0, -1),
+    (-999.0, -2000.0, -999.0, -1),
+    (-998.0, -2000.0, 0.0, 0),
+)
+
+
+@pytest.mark.parametrize("value,lowest,highest,figures", _DRAWN_STAND_INS)
+def test_the_oracle_moves_a_drawn_stand_in_where_the_generator_does(
+    value: float, lowest: float, highest: float, figures: int
+) -> None:
+    """G5.4's last rule read from the method's sentence (the oracle) and from the generator agree.
+
+    The generator's ladder here is a plain tuple, so no tail reads the share
+    and the value stands between the two tails.
+    """
+    from synthtwin import generation
+
+    rungs = (lowest,) + (value,) * 99 + (highest,)
+    ours = generation._drawn_off_the_stand_ins(value, rungs, 1, 2, figures)
+    theirs = _oracle().drawn_off_the_stand_ins(value, lowest, highest, figures)
+    assert ours == theirs, f"the generator moves {value} to {ours}, the oracle to {theirs}"
+    assert lowest <= ours <= highest, f"{value} left the published range for {ours}"
+    kept = value not in _STAND_INS or lowest == highest
+    assert (ours == value) == kept, f"{value} at grid {figures} in [{lowest}, {highest}] became {ours}"
+
+
+def test_a_stand_in_read_inside_a_tail_is_the_tail_s(tmp_path: pathlib.Path) -> None:
+    """G5.4's last rule stops at a tail: G5.3b step 5 answers for the rows there.
+
+    `through_minus_999` publishes a low tail of eleven rows over 1,101
+    numbers. A share inside it is read by the tail, so `-999` read there is
+    left to step 5 (a row on the tail's end is the end's); the same number
+    read at a share between the two tails moves one unit toward nought.
+    """
+    from synthtwin import generation
+
+    name, cells, _side = _STAIRCASE_SHAPES[1]
+    described = kpi_shapes.describe(tmp_path / name, name, _one_column(cells), 11)
+    ladder = contract.tail_ladder(described.loaded.columns[0].facts)
+    numbers = len(cells)
+    assert isinstance(ladder, contract.ShapedLadder) and ladder.low is not None, "premise: a low tail"
+    assert contract.tail_read(ladder, 1, numbers) is not None, "premise: share 1/K is the tail's"
+    assert contract.tail_read(ladder, numbers // 2, numbers) is None, "premise: the middle is no tail's"
+    assert generation._drawn_off_the_stand_ins(-999.0, ladder, 1, numbers, 0) == -999.0
+    assert generation._drawn_off_the_stand_ins(-999.0, ladder, numbers // 2, numbers, 0) == -998.0
+
+
+# (name, cells): a column whose values run across `-999` without holding it,
+# read between its tails -- skeptic Ad's 899 whole numbers, on G5.4's whole
+# grid, and 199 tenths from -1010.0 to -990.1, on G5.3's one-width grid.
+_DRAWN_STAND_IN_SHAPES = (
+    ("gap_interior_m999", _run_beside(-1400, -1000, ()) + _run_beside(-998, -501, ())),
+    ("tenths_gap_m999", [f"{tenths / 10:.1f}" for tenths in range(-10100, -9900) if tenths != -9990]),
+)
+
+
+@pytest.mark.parametrize("name,cells", _DRAWN_STAND_IN_SHAPES, ids=[case[0] for case in _DRAWN_STAND_IN_SHAPES])
+def test_no_stratum_read_between_the_tails_is_a_stand_in(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, name: str, cells: "list[str]"
+) -> None:
+    """G5.4's last rule on both of its grids, in the generator and in the oracle alike.
+
+    PREMISE: the column holds no stand-in number, and `-999` lies between
+    the two published tail boundaries. The convex form of G5.3 reads `-999`
+    for a stratum at seeds 0, 4 and 9, and before the rule every twin of
+    skeptic Ad's column wrote it deep in its interior. The draw now holds
+    no stand-in; the oracle, reading the method's sentences, builds the
+    column's content from seed 0's words cell for cell (on skeptic Ad's
+    column the one seed whose twin the rule keeps off `-999`, and the
+    oracle's own exact arithmetic takes seconds a seed); and the twin
+    writes `-999` in at most one cell -- G6.5a's walk to the published count
+    of different numbers, which is not held to the rule (plan P4-D353 part
+    4), takes the one free point between two of the column's own values --
+    and misses nothing.
+    """
+    from synthtwin import generation
+
+    described = kpi_shapes.describe(tmp_path / name, name, _one_column(cells), 11)
+    block = dict(described.document["columns"][0])
+    low = validation._file_rung(block, block["tails"]["low"]["percent"])
+    high = validation._file_rung(block, block["tails"]["high"]["percent"])
+    assert [cell for cell in cells if float(cell) in _STAND_INS] == [], "premise: no stand-in held"
+    assert low is not None and high is not None and low < -999.0 < high, (
+        f"premise: -999 lies between the boundaries ({low}, {high})"
+    )
+    block["_rungs"] = {**block["percentiles"], **block["percentiles_between"]}
+    reached: "list[float]" = []
+    drawn: "list[list[float]]" = []
+    built: "list[tuple[list[int], list[str]]]" = []
+    refuse = generation._drawn_off_the_stand_ins
+    draw = generation._stratum_values
+    content = generation._numeric_content
+
+    def refused(
+        value: float, rungs: "tuple[float, ...]", numerator: int, denominator: int, figures: int
+    ) -> float:
+        if value in _STAND_INS:
+            reached.extend([value])
+        return refuse(value, rungs, numerator, denominator, figures)
+
+    def values(*arguments, **named):
+        found = draw(*arguments, **named)
+        drawn.extend([list(found[0])])
+        return found
+
+    def cells_of(plan, words):
+        found = content(plan, words)
+        built.extend([(list(words), list(found[0]))])
+        return found
+
+    monkeypatch.setattr(generation, "_drawn_off_the_stand_ins", refused)
+    monkeypatch.setattr(generation, "_stratum_values", values)
+    monkeypatch.setattr(generation, "_numeric_content", cells_of)
+    for seed in (0, 4, 9):
+        reached.clear()
+        drawn.clear()
+        built.clear()
+        text = kpi_shapes.twin_text(described, seed)
+        assert reached, f"premise: the convex form reads a stand-in at seed {seed}"
+        assert len(drawn) == 1 and [one for one in drawn[0] if one in _STAND_INS] == [], (
+            f"seed {seed}: the draw holds {[one for one in drawn[0] if one in _STAND_INS]}"
+        )
+        if seed == 0:
+            words, ours = built[0]
+            theirs = _oracle()._numeric_content(dict(block, _content_words=words))[0]
+            assert theirs == ours, (
+                f"seed {seed}: the oracle, reading method G5.4, builds other cells: "
+                f"{[(one, two) for one, two in zip(theirs, ours) if one != two][:5]}"
+            )
+        written = [line for line in text.split("\n")[1:] if line]
+        stand_ins = _held_stand_ins(written, cells)
+        assert len(stand_ins) <= 1 and [one for one in stand_ins if float(one) != -999.0] == [], (
+            f"seed {seed}: the twin wrote {stand_ins}"
+        )
+        outcome = kpi_shapes.measure(described, text, f"twin-{seed}.csv")
+        assert kpi_shapes.missed(outcome) == [], f"seed {seed}: {kpi_shapes.missed(outcome)}"
 
 
 # -- 7. a side withheld for any other reason than its own pair says which ----

@@ -10380,16 +10380,106 @@ def _stratum_values(
         if grid > 0:
             rank = layout.starts[place] + (layout.sizes[place] * word >> 64)
             found = _rank_values(rank, 1, rungs, numbers, False, grid)[0]
-            values += [found]
+            values += [
+                _drawn_off_the_stand_ins(
+                    found, rungs, rank * _WORD_SCALE, numbers * _WORD_SCALE, grid
+                )
+            ]
             continue
         found = _interpolated(rungs, numerator, numbers * _WORD_SCALE)
         if facts.integer_valued:
             found = _whole_valued(found)
-        values += [found]
+        values += [
+            _drawn_off_the_stand_ins(
+                found,
+                rungs,
+                numerator,
+                numbers * _WORD_SCALE,
+                0 if facts.integer_valued else -1,
+            )
+        ]
     repaired, repair_notes = _sign_repairs(
         column, facts, layout, rungs, values, grid
     )
     return repaired, notes + repair_notes
+
+
+def _drawn_off_the_stand_ins(
+    value: float,
+    rungs: "tuple[float, ...]",
+    numerator: int,
+    denominator: int,
+    figures: int,
+) -> float:
+    """A stratum read between the two tails, moved off the stand-ins (G5.4).
+
+    THE INTERIOR DRAW IS A CONSTRUCTION TOO (plan P4-D353 part 4). A
+    derived tail end, a staircase row and G6.6's width walk already step
+    past `-9999`, `-999` and `9999`; the convex form of G5.3 did not, and
+    after G5.4's integer rule a stratum read between two rungs landed on
+    one wherever the column's values run across it. Measured by skeptic
+    Ad on the 899 whole numbers `-1400` to `-1000` and `-998` to `-501`
+    -- all different, `-999` NOT among them -- at floors 11, 20, 36 and
+    50, seeds 0, 4 and 9: strata 400 and 401 read `-999`, and every twin
+    wrote one `-999` deep in its interior, a number the column does not
+    hold. So a stratum read there that lands on one of the three takes
+    the neighbouring point of its grid TOWARD NOUGHT -- `-998`, `9998`,
+    `-9998`, the figure count the stand-in has, which is the answer
+    G6.6's walk takes -- and the neighbouring point away from nought
+    where that one would leave the published `min` to `max`; where both
+    would, the value is kept. The grid is one unit on a whole-valued
+    column, one step of the one width G5.3 reads it at, and the next
+    number the format holds where there is neither. A stratum read
+    inside a tail is the tail's (G5.3b step 5), and a pinned end, a
+    listed value and the zero band never reach this function.
+
+    Guarantees: accepts the value G5.3 and G5.4 gave, the ladder, the
+    share it was read at and the grid in figures (0 for whole numbers,
+    -1 or less for none); returns the value, or its neighbour on the
+    grid where it is a stand-in read between the tails. Determinism: a
+    function of the five. Raises nothing. No I/O of any kind.
+    """
+    if not _is_a_stand_in(value):
+        return value
+    if isinstance(rungs, contract.ShapedLadder) and (
+        contract.tail_read(rungs, numerator, denominator) is not None
+    ):
+        return value
+    for toward_nought in (True, False):
+        moved = _stand_in_neighbour(value, toward_nought, figures)
+        if moved is None or moved < rungs[0] or moved > rungs[-1]:
+            continue
+        return moved
+    return value
+
+
+def _stand_in_neighbour(
+    value: float, toward_nought: bool, figures: int
+) -> "float | None":
+    """The grid point beside a stand-in number, toward nought or away.
+
+    The magnitude moves by one unit on whole numbers (`figures` 0), by
+    one step of `figures` places where a width is named -- the number
+    the writer's grid text for it reads back as -- and to the next
+    number binary64 holds otherwise; the sign is kept, which a magnitude
+    of 998 or more always allows. None where no such number exists.
+    """
+    size = -value if value < 0.0 else value
+    if figures == 0:
+        moved = size - 1.0 if toward_nought else size + 1.0
+    elif figures > 0:
+        unit = 1.0 / float(_ten_to(figures))
+        read = parsing.parse_number(
+            _grid_text(size - unit if toward_nought else size + unit, figures)
+        )
+        if read is None or not math.isfinite(read):
+            return None
+        moved = read
+    else:
+        moved = _next_representable(size, toward_nought)
+        if moved <= 0.0:
+            return None
+    return -moved if value < 0.0 else moved
 
 
 def _sign_fallback(band: str, rungs: "tuple[float, ...] | None") -> float:

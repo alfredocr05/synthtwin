@@ -2234,12 +2234,15 @@ def test_the_whole_description_rebuild_which_the_owner_accepted(
 # WHERE A SENTENCE DENYING THAT A ROW IS NAMED MUST SAY WHAT A SORTED TABLE
 # PUBLISHES. `source.dialect.row_order` names the column the rows are sorted
 # by, so on such a table a value's place in that column's order IS its row.
-# A denial is "not/never/nor/nothing about", up to two words, then "which row" --
-# "does not record WHICH row", "nothing about which row" -- or "names no row,
-# no order" (skeptic Ac, item 2: both escaped the first pattern). The row that
-# holds a sheet's NAMES is the header's question (plan P4-D281), not a value's.
+# A denial is "not/never/nor/nothing about", up to three words, then "which
+# row" -- "does not record WHICH row", "never tells a reader which row",
+# "nothing about which row" -- or "names no row, no order" (skeptic Ac, item 2:
+# both escaped the first pattern; skeptic Ad: a three-word gap escaped the
+# second). The row that holds a sheet's NAMES is the header's question (plan
+# P4-D281), not a value's. The qualifier counts within `_ROW_WINDOW`
+# characters on either side -- the paragraph, not the file.
 _ROW_DENIAL = re.compile(
-    r"\b(?:never|not|nor|nothing\s+about)\s+(?:\w+\s+){0,2}which\s+rows?\b(?!\s+holds?\s+the\s+names\b)"
+    r"\b(?:never|not|nor|nothing\s+about)\s+(?:\w+\s+){0,3}which\s+rows?\b(?!\s+holds?\s+the\s+names\b)"
     r"|\bnames?\s+no\s+row,?\s+no\s+order\b"
 )
 _ROW_QUALIFIER = "row_order"
@@ -2304,11 +2307,29 @@ def test_the_row_claim_guard_would_notice_an_unqualified_denial() -> None:
         "nothing about " + "which row holds a reading is published.",
         "naming every value names the column's whole set of values, and still names " + "no row, no order, no time.",
         "it still names " + "no row no order and no pairing.",
+        "it names neither the value's rank nor " + "which row holds it.",
+        "the ladder does not say exactly " + "which row holds a rung.",
+        "a percentile never tells a reader " + "which row holds it.",
     ):
         assert _unqualified_row_denials(bare) != [], bare
         assert _unqualified_row_denials(bare + qualifier) == [], bare
     header = "a freeze is not evidence about " + "which row holds the names of the columns."
     assert _unqualified_row_denials(header) == [], "the header row is not a value's row"
+    # THE WORD LIMIT HOLDS BOTH WAYS: three words between the negation and
+    # "which row" are a denial (above), five are a different sentence.
+    asked = "it is not only the owner who asks " + "which row holds a value."
+    assert _unqualified_row_denials(asked) == [], "five words away, the negation is not the denial's"
+    # THE QUALIFIER COUNTS IN THE DENIAL'S OWN PARAGRAPH, NOT ANYWHERE IN THE
+    # FILE: `row_order` about 150 characters away qualifies it, on either
+    # side, and about a thousand characters away does not.
+    bare = "it does not record " + "which row holds it."
+    near = " the rows are counted. " * 6
+    far = " the rows are counted. " * 45
+    assert len(near) < 150 and len(far) > 1000, "premise: the two distances"
+    assert _unqualified_row_denials(bare + near + qualifier) == [], "a qualifier in the paragraph"
+    assert _unqualified_row_denials(qualifier + near + bare) == [], "a qualifier in the paragraph"
+    assert _unqualified_row_denials(bare + far + qualifier) != [], "a qualifier a thousand characters on"
+    assert _unqualified_row_denials(qualifier + far + bare) != [], "a qualifier a thousand characters back"
 
 
 def test_the_reconstruction_gate_turns_red_when_the_pair_goes_back(

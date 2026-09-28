@@ -6,6 +6,23 @@ exists).
 
 ## [Unreleased]
 
+### No stratum read between the tails is a stand-in number (2026-09-28)
+
+**A stratum the convex form of G5.3 reads between the two tails** now
+steps off `-9999`, `-999` and `9999` to the neighbouring point of its
+grid toward nought (method G5.4's last rule), as a derived tail end, a
+staircase row and G6.6's width walk already did; the oracle carries the
+step and no frozen case moves. On skeptic Ad's 899 whole numbers -1400
+to -1000 and -998 to -501 every twin wrote `-999` deep in its interior
+at floors 11, 20, 36 and 50, seeds 0, 4 and 9; now no stratum is drawn
+on it and the twin at seed 0 writes none, while at seeds 4 and 9 G6.5a's
+walk, which is not held to the rule, still takes that one free point.
+Over 37 shapes at those floors and seeds, 90 twins drew a stand-in and
+none does now; 4 twins changed and none misses more. The gate's guard
+on sentences that deny a row is named now reads three words between the
+negation and "which row", and its self-test holds `nor`, the word limit
+and the closeness window.
+
 ### A tail withheld for the other tail's sake says so (2026-09-27)
 
 **The summary and the quality report said of every tail without a pair
@@ -60,10 +77,10 @@ and the gate no longer say a withheld pair closes every reading. A derived tail 
 G6.6's width walk moves are no longer a stand-in for "no value": an end
 on `9999`, `-999` or `-9999` moves one grid step inside, a row one point
 outward, and the walk no longer takes a width's ceiling when it is one
-(method G5.3b step 5, G6.6). G6.5a still can -- its fill of a grid with
-no spare point and its walk to the published count of different numbers
--- where the stand-in is a gap between two values the column holds and
-is no outlier: 9000 to 9998 beside 10000 and 10001 writes `9999` in its
+(method G5.3b step 5, G6.6). Passes not held to the refusal still can,
+two of them measured -- G6.5a's fill of a grid with no spare point and
+its walk to the published count of different numbers -- where the
+stand-in is a gap between two values the column holds and is no outlier: 9000 to 9998 beside 10000 and 10001 writes `9999` in its
 high tail, -998 to 0 beside -1001 and -1003 writes `-999` in its low
 tail, -9998 to -9000 beside -10000 and -10003 writes `-9999` in its low
 tail, and -1300 to -1000 beside -998 and -997 writes `-999` in its high
