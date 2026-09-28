@@ -13412,8 +13412,16 @@ def _numeric_tails_and_causes(
     shaped["empty_edges"] = edges
     shaped["bin_groups"] = groups
     shaped["tails"] = sides
-    if withheld_pairs:
-        shaped = _pairs_that_cost(cells, shaped, withheld_pairs, n_present)
+    # ...AND A SIDE BINARY64 CANNOT HOLD CLOSES THE OTHER'S PAIR TOO
+    # (plan P4-D357 A, review item 4). The cross-side rule is about what
+    # the other side's pair gives back beside the exact mean and spread,
+    # and that does not depend on why this side publishes none: 11 cells
+    # near `-1.7e304` beside 89 near `1.68e308` published the high pair
+    # although it kept neither moment.
+    if withheld_pairs or unholdable:
+        shaped = _pairs_that_cost(
+            cells, shaped, withheld_pairs, n_present, tuple(unholdable)
+        )
     # WHY EACH SIDE LEFT WITHOUT A PAIR IS WITHOUT ONE, read off the block
     # that is published: a side the cost rule gave its pair back has none.
     causes: "dict[str, str]" = {}
@@ -13591,14 +13599,18 @@ def _pairs_that_cost(
     shaped: "dict[str, object]",
     held: "dict[str, tuple[float, float, str]]",
     n_present: "int | None" = None,
+    unholdable: "tuple[str, ...]" = (),
 ) -> "dict[str, object]":
     """THE CROSS-SIDE RULE AND THE COST RULE (plan P4-D353).
 
     ``held`` names each side the back-solve withheld, with its real pair
-    and whether the walk PINNED it or left it UNSETTLED. In order:
+    and whether the walk PINNED it or left it UNSETTLED; ``unholdable``
+    names each side whose pair binary64 cannot hold, which publishes none
+    and is never offered. In order:
 
-    1. where ONE side is withheld and the other publishes a pair (not a
-       list), the other's pair is withheld too -- the column's exact mean
+    1. where ONE side is withheld -- by its back-solve or because its pair
+       cannot be held, whichever (plan P4-D357 A) -- and the other
+       publishes a pair (not a list), the other's pair is withheld too -- the column's exact mean
        and spread would give the withheld side back by subtraction from
        it wherever the rungs pin the rows between the two boundaries. A
        side that LISTS its values keeps its pair: TL5 requires a list to
@@ -13628,13 +13640,16 @@ def _pairs_that_cost(
     not raise on the same block.
     """
     withheld = [side for side in ("low", "high") if side in held]
+    closed = [
+        side for side in ("low", "high") if side in held or side in unholdable
+    ]
     offers: "dict[str, tuple[float, float]]" = {}
     for side in withheld:
         offers[side] = (held[side][0], held[side][1])
     other: "list[str]" = []
     given = shaped["tails"]
-    if len(withheld) == 1 and isinstance(given, dict):
-        name = "high" if withheld[0] == "low" else "low"
+    if len(closed) == 1 and isinstance(given, dict):
+        name = "high" if closed[0] == "low" else "low"
         one = given[name]
         if isinstance(one, dict) and not one["values"]:
             mean = one["mean_distance"]
@@ -13655,7 +13670,7 @@ def _pairs_that_cost(
         candidates += [tuple(other)]
     if len(ordered) == 2:
         candidates += [(ordered[0],), (ordered[1],), (ordered[0], ordered[1])]
-    else:
+    elif ordered:
         candidates += [tuple(ordered + other)]
     best = _tails_with(shaped, offers, ())
     fewest = 3

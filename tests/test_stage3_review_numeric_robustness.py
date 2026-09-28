@@ -58,7 +58,7 @@ import pathlib
 
 import pytest
 
-from synthtwin import contract, errors, generation, parsing
+from synthtwin import contract, errors, generation, parsing, validation
 from tests import fixtures
 from tests.test_stage2_round_trip import _exit_of
 
@@ -262,6 +262,15 @@ def test_an_overflowing_tail_distance_keeps_the_published_scale(
     MUTATION (run): restoring `if low is None or high is None: return
     moments_only` in `taxonomy._numeric_tails` puts `tails` back to two
     nulls, every rung back to null, and the twin back between -11 and 88.
+
+    AND THE OTHER SIDE IS CLOSED BESIDE IT (plan P4-D357 A, review item 4
+    of follow-up A): the cross-side rule asks nothing about why one side
+    publishes no pair, and the high pair keeps no moment here, so it is
+    withheld too. What that costs is measured and named, not hidden: the
+    high tail's rows are read as the next binary64 numbers past its
+    boundary, which this column's written form, a mantissa and an
+    exponent, cannot tell apart, so the twin holds 79 different numbers
+    against a published 90 and its check exits 3 on that count alone.
     """
     block, written, twin_exit, real_exit = _run(
         tmp_path / "overflow", _huge_column(89)
@@ -272,6 +281,7 @@ def test_an_overflowing_tail_distance_keeps_the_published_scale(
     assert block["tails"]["low"]["mean_distance"] is None
     assert block["tails"]["low"]["rms_distance"] is None
     assert block["tails"]["low"]["values"] == []
+    assert block["tails"]["high"]["mean_distance"] is None
     assert block["percentiles"]["p50"] is not None
     # THE SCALE IS THE DESCRIPTION'S OWN. A twin built from a ramp holds
     # whole numbers a few dozen either side of nought; this one holds the
@@ -286,7 +296,10 @@ def test_an_overflowing_tail_distance_keeps_the_published_scale(
     spread = Fraction(math.isqrt(int(variance * 10**40)), 10**20)
     assert _apart(spread, block["std"]) < 0.5
     assert real_exit == 0
-    assert twin_exit == 0
+    loaded = contract.load_profile(str(tmp_path / "overflow" / "real-profile.json"))
+    outcome = validation.measure(loaded, str(tmp_path / "overflow" / "real-twin.csv"))
+    missed = sorted(check.subcheck for check in outcome.checks if check.verdict == validation.MISSED)
+    assert missed == ["distinct.n_distinct_values"] and twin_exit == 3, missed
 
 
 def test_a_moment_only_block_past_the_range_keeps_its_mean(

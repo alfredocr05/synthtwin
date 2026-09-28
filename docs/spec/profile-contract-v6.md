@@ -6562,8 +6562,9 @@ NOTHING AND THE OTHER LISTS NO VALUES** (plan P4-D353). A numeric
 block publishes the column's exact mean and spread, so where one
 tail's pair and the rows between the two boundaries are known, the
 other tail's sums follow by subtraction.
-Where one tail publishes neither distance and the other a pair and
-lists no values, the other publishes neither distance either -- unless
+Where one tail publishes neither distance -- for whatever reason, a pair
+binary64 cannot hold among them (plan P4-D357 A) -- and the other a pair
+and lists no values, the other publishes neither distance either -- unless
 that costs the twin its mean or spread, where its pair is the first one
 published, or the withheld tail's own pair is published, where the
 other's goes with it. What the subtraction then gives back the owner

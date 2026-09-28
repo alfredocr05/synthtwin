@@ -276,7 +276,7 @@ def residual(home):
         kept = None
         if calls:
             cells_of, _held, chosen, present = calls[-1]
-            kept = 2 - taxonomy._moments_missed(cells_of, chosen, *present)
+            kept = 2 - taxonomy._moments_missed(cells_of, chosen, *present[:1])
             if kept == 0:
                 value["blocks_no_candidate_keeps_either"] += 1
             elif kept == 1:

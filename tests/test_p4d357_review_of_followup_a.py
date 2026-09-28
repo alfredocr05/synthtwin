@@ -195,3 +195,48 @@ def test_every_nested_block_the_cost_rule_decides_is_the_block_the_loader_reads(
                 f"{label}: the cost rule asked a reading the loader does not make of the published block"
             )
     assert decided > 0, "premise: the cost rule decided at least one published block"
+
+
+# -- 4. the cross-side closure, whatever withheld the first side ---------------
+
+
+def _far_apart(low_first: bool) -> "list[str]":
+    """Eleven values near `-1.7e308` beside 89 near `1.68e308` (the review's item 4), or its mirror."""
+    near = [str((-17000 + place) * 1e304) for place in range(11)]
+    far = [str((16800 + place) * 1e304) for place in range(89)]
+    if low_first:
+        return near + far
+    return [str(-float(cell)) for cell in near + far]
+
+
+@pytest.mark.parametrize("unheld", ("low", "high"))
+def test_a_side_binary64_cannot_hold_closes_the_other_side_s_pair(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, unheld: str
+) -> None:
+    """The other side's pair is withheld, and says why, where it keeps no moment.
+
+    PREMISE: the far side's own pair is too large for binary64 (its remark
+    says so) and the other side's back-solve leaves it open. The cross-side
+    rule (plan P4-D353 part 2) withholds that open pair wherever the rule
+    publishes nothing, and it asks nothing about why the first side has no
+    pair: on 2af1f03 the pair was published, about `6.38e304` and
+    `7.254e304`, and the checker's windows missed both moments with it and
+    without it.
+    """
+    other = "high" if unheld == "low" else "low"
+    cells = _one_column(_far_apart(unheld == "low"))
+    with monkeypatch.context() as patched:
+        patched.setattr(taxonomy, "_pairs_that_cost", lambda _cells, shaped, *_rest: shaped)
+        opened = kpi_shapes.describe(tmp_path / "open", "far", cells, 11).document["columns"][0]
+    described = kpi_shapes.describe(tmp_path, f"far-{unheld}", cells, 11)
+    block = described.document["columns"][0]
+    remarks = block["remarks"]
+    assert taxonomy.tail_withheld_because(remarks, unheld) == taxonomy.TAIL_WITHHELD_UNHOLDABLE, (
+        "premise: binary64 cannot hold the far side's pair"
+    )
+    assert opened["tails"][other]["mean_distance"] is not None, "premise: the other side's own walk leaves it open"
+    assert window.missed(opened, 11) == window.missed(block, 11), "premise: the pair keeps no moment the closure loses"
+    assert block["tails"][other]["mean_distance"] is None, (
+        f"the {other} side published its pair beside a side binary64 cannot hold"
+    )
+    assert taxonomy.tail_withheld_because(remarks, other) == taxonomy.TAIL_WITHHELD_FOR_THE_OTHER
