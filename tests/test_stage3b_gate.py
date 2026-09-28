@@ -1341,6 +1341,7 @@ def _certified(block: dict, cells: "list[str]", floor: int = 11, holes: "tuple[s
         tuple(_days_of(cells)),
         block["n_distinct"],
         taxonomy.Settings(small_cell_floor=floor, declared_missing_values=holes),
+        texts=len({cell for cell in cells if cell}),
     )
     assert decided.verdict is not None
     return decided.verdict
@@ -1725,7 +1726,8 @@ def test_each_rule_publishes_what_it_derives(tmp_path: pathlib.Path, name: str) 
     groups = [(group["first"], group["last"], group["count"]) for group in block["weekday_census"]]
     assert groups == expected, (name, groups)
     decided = taxonomy.weekday_decision(
-        block, tuple(_days_of(cells)), block["n_distinct"], taxonomy.Settings(small_cell_floor=11)
+        block, tuple(_days_of(cells)), block["n_distinct"], taxonomy.Settings(small_cell_floor=11),
+        texts=len(set(cells)),
     )
     assert decided.reason == reason, (name, decided.reason)
     if expected:
@@ -1920,7 +1922,8 @@ def test_a_day_the_form_censuses_leave_empty_is_a_hole(
 
     assert block["weekday_census"] == []
     decided = taxonomy.weekday_decision(
-        block, tuple(days), block["n_distinct"], taxonomy.Settings(small_cell_floor=11)
+        block, tuple(days), block["n_distinct"], taxonomy.Settings(small_cell_floor=11),
+        texts=len(set(days)),
     )
     assert decided.verdict is not None and not decided.verdict.holds
     assert decided.reason == calendar_rules.REASON_NARROWED
@@ -1931,7 +1934,8 @@ def test_a_day_the_form_censuses_leave_empty_is_a_hole(
         blind.setattr(calendar_rules, "form_holes", lambda *_arguments: ())
         calendar_certificate._ANSWERS.clear()
         unaware = taxonomy.weekday_decision(
-            block, tuple(days), block["n_distinct"], taxonomy.Settings(small_cell_floor=11)
+            block, tuple(days), block["n_distinct"], taxonomy.Settings(small_cell_floor=11),
+            texts=len(set(days)),
         )
     calendar_certificate._ANSWERS.clear()
     assert unaware.groups == offered and unaware.verdict is not None
@@ -2000,7 +2004,8 @@ def test_a_column_with_form_holes_publishes_where_every_open_day_can_hold_the_li
     days = sorted((day - datetime.date(1970, 1, 1)).days for day in dates)
     body = days[block["low_tail"]["rows"]: len(days) - block["high_tail"]["rows"]]
     verdict = taxonomy.weekday_decision(
-        block, tuple(days), block["n_distinct"], taxonomy.Settings(small_cell_floor=11)
+        block, tuple(days), block["n_distinct"], taxonomy.Settings(small_cell_floor=11),
+        texts=len(set(days)),
     ).verdict
     assert verdict is not None and verdict.holds
     assert verifier.census_problems(
@@ -2043,7 +2048,8 @@ def test_a_day_first_column_with_no_hole_between_its_boundaries_publishes(tmp_pa
     days = sorted((day - datetime.date(1970, 1, 1)).days for day in dates)
     body = days[block["low_tail"]["rows"]: len(days) - block["high_tail"]["rows"]]
     verdict = taxonomy.weekday_decision(
-        block, tuple(days), block["n_distinct"], taxonomy.Settings(small_cell_floor=11)
+        block, tuple(days), block["n_distinct"], taxonomy.Settings(small_cell_floor=11),
+        texts=len(set(days)),
     ).verdict
     assert verdict is not None and verdict.holds
     assert verifier.census_problems(
@@ -2231,7 +2237,8 @@ def test_a_placeholder_day_between_the_boundaries_is_a_hole_the_loader_holds(
     assert block["weekday_census"] == []
     present = [cell for cell in cells if cell != _PLACEHOLDER]
     decided = taxonomy.weekday_decision(
-        block, tuple(_days_of(present)), block["n_distinct"], taxonomy.Settings(small_cell_floor=11)
+        block, tuple(_days_of(present)), block["n_distinct"], taxonomy.Settings(small_cell_floor=11),
+        texts=len(set(present)),
     )
     assert decided.reason == calendar_rules.REASON_FEW_DATES, decided.reason
     said = [entry["note"] for entry in document["publication_notes"] if entry["column"] == "seen_on"]
@@ -2379,7 +2386,10 @@ def test_the_reader_leaves_every_unparsed_cell_out_of_its_fewest_days(tmp_path: 
     assert bounds == (facts["fewest"], facts["most_days"])
     assert bounds == (1183 - 10 - low_tail["rows"] - high_tail["rows"], 1183 - 1 - 2)
     good = sorted(verifier.day_number(cell) for cell in cells if cell not in wrong)
-    decided = taxonomy.weekday_decision(block, tuple(good), block["n_distinct"], taxonomy.Settings(small_cell_floor=11))
+    decided = taxonomy.weekday_decision(
+        block, tuple(good), block["n_distinct"], taxonomy.Settings(small_cell_floor=11),
+        texts=len({cell for cell in cells if cell not in wrong}),
+    )
     assert decided.reason == calendar_rules.REASON_NARROWED, decided.reason
     assert block["weekday_census"] == []
 
@@ -2405,7 +2415,9 @@ def test_a_day_written_with_a_trailing_blank_is_two_spellings(tmp_path: pathlib.
     assert calendar_rules.one_spelling_published(
         {name: block[name] or {} for name in calendar_rules.FORM_CENSUSES}, block["format"], len(days)
     )
-    decided = taxonomy.weekday_decision(block, days, block["n_distinct"], taxonomy.Settings(small_cell_floor=11))
+    decided = taxonomy.weekday_decision(
+        block, days, block["n_distinct"], taxonomy.Settings(small_cell_floor=11), texts=len(set(blanked)),
+    )
     assert decided.reason == calendar_rules.REASON_SPELLINGS, decided.reason
     assert block["weekday_census"] == []
     said = [entry["note"] for entry in described.document["publication_notes"]]

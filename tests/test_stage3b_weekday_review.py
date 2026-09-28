@@ -160,3 +160,35 @@ def test_a_weekday_counted_empty_is_no_part_of_the_baseline(tmp_path: pathlib.Pa
         contract.load_profile(str(fixtures.write_profile(tmp_path, "doctored-profile.json", doctored)))
     calendar_certificate._ANSWERS.clear()
     assert contract.INVARIANTS["WC8"] in str(refusal.value)
+
+
+# -- finding 7: repeated unparsed cells do not hide a second spelling ----------
+
+
+def test_ten_copies_of_one_impossible_date_hide_no_second_spelling(tmp_path: pathlib.Path) -> None:
+    """A day written twice beside ten copies of one unreadable text publishes no census.
+
+    The gate's 1,000 admissions, one repeated date of them written once
+    with a blank after it, and ten cells of `2021-02-30`: 520 different
+    values of which ONE is unreadable, so 519 texts name 518 days. The
+    reviewed tree asked the published count less the unparsed ROWS --
+    520 less 10 -- which is no more than 518, and published the seven
+    counts although one day had two spellings (WC6 (b)). Red when the
+    rule is asked of those rows again.
+    """
+    import test_stage3b_gate as gate
+
+    cells = gate._battery_admissions(1000)["admission_date"]
+    repeated = next(cell for cell in cells if cells.count(cell) > 1)
+    place = cells.index(repeated)
+    written = [f'"{cell} "' if index == place else cell for index, cell in enumerate(cells)]
+    written += ["2021-02-30"] * 10
+    described = kpi_shapes.describe(tmp_path, "admissions", "admission_date\n" + "".join(f"{cell}\n" for cell in written), 11)
+    block = described.block("admission_date")
+    assert (block["n_distinct"], block["n_unparsed"]) == (len(set(cells)) + 2, 10), block["n_distinct"]
+    assert block["weekday_census"] == []
+    days = tuple(sorted(verifier.day_number(cell) for cell in cells))
+    decided = taxonomy.weekday_decision(
+        block, days, block["n_distinct"], taxonomy.Settings(small_cell_floor=11), texts=len(set(cells)) + 1
+    )
+    assert decided.reason == calendar_rules.REASON_SPELLINGS, decided.reason

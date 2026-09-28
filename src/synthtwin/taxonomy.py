@@ -14743,6 +14743,8 @@ def weekday_decision(
     n_distinct: int,
     settings: Settings,
     stored_one_way: bool = True,
+    *,
+    texts: int,
 ) -> WeekdayDecision:
     """The weekday census of one column of whole dates (plan P4-D355).
 
@@ -14752,7 +14754,11 @@ def weekday_decision(
     whether a workbook stores every cell of the column one way. In
     order: a column without both tails publishes nothing (WC3); one whose
     dates may be written two ways (WC6 (a) on the published forms, (b)
-    on the real days) or stored two ways, nothing; the menu takes the
+    `texts`, the different texts the parsed cells were written in,
+    against their different days -- never the published count less the
+    unparsed ROWS, which several copies of one unreadable text leave too
+    small: review of landing 3b.1, finding 7) or stored two ways,
+    nothing; the menu takes the
     body's seven weekday counts; the certificate is asked with the body's
     REAL count of different days and the holes -- the days a declared
     missing value names (`_census_holes`), the days the published form
@@ -14802,7 +14808,7 @@ def weekday_decision(
     one_spelling = calendar_rules.one_spelling_published(
         forms, format_name, parsed
     )
-    if not one_spelling or n_distinct - unparsed > len(set(days)):
+    if not one_spelling or texts > len(set(days)):
         return WeekdayDecision(empty, calendar_rules.REASON_SPELLINGS, 0, None)
     if not stored_one_way:
         return WeekdayDecision(empty, calendar_rules.REASON_WORKBOOK, 0, None)
@@ -14883,6 +14889,7 @@ def _weekday_published(
     produced: bool,
     stored_one_way: bool,
     verdicts: "list[dict[str, object]]",
+    texts: int,
 ) -> "tuple[dict[str, object], list[Note], list[Note]]":
     """A column block of dates with its `weekday_census`, and its sentences.
 
@@ -14894,7 +14901,8 @@ def _weekday_published(
     `produced` false -- the validator's own re-description of a file,
     which never reads the census -- asks nothing and publishes `[]` with
     no sentence. `verdicts` are the block's published `sentinel_verdicts`,
-    which the decision reads its placeholder holes from.
+    which the decision reads its placeholder holes from, and `texts` the
+    different texts the parsed cells were written in.
 
     Guarantees: accepts the block, the days, the published count, the
     settings, the two flags and the decisions; returns a new block, the
@@ -14911,6 +14919,7 @@ def _weekday_published(
         n_distinct,
         settings,
         stored_one_way,
+        texts=texts,
     )
     line = parsing.census_floor(settings.small_cell_floor)
     if not decided.groups:
@@ -15525,6 +15534,12 @@ class _Verdict:
     # P4-D355): what the weekday census is counted from once the block
     # beside it is settled (`_weekday_published`). Never published.
     days: "tuple[int, ...]" = ()
+    # HOW MANY DIFFERENT TEXTS THOSE CELLS WERE WRITTEN IN (review of
+    # landing 3b.1, finding 7): one spelling per day is asked of the
+    # texts themselves, never of the published count less the unparsed
+    # ROWS, which ten copies of one impossible date made nine texts too
+    # few. Never published.
+    texts: int = 0
 
 
 def _all_different(cells: _Cells) -> bool:
@@ -18215,6 +18230,7 @@ def _decide(
                 remarks=remarks,
                 details=details,
                 days=_census_days(details, pairs),
+                texts=len(set(sources)),
             )
 
         # RULE 6 -- numbers, at the one parse rate there is. A column that
@@ -20618,6 +20634,7 @@ def profile_column(
             calendar_census,
             stored_one_way,
             entries,
+            verdict.texts,
         )
         publication_notes = verdict.notes + weekday_notes
     statistical_type, quality_state, structural_role = axes_of(
