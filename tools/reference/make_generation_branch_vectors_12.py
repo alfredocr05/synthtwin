@@ -16,8 +16,8 @@ holds within its reach, on 105 dates holding every one of 22 days
 (`every_day_group`).
 
 **Why it is a fourteenth file.**  Plan P4-D295 sends the next case to a
-file whose output stands under 200000 bytes, and the twelfth (227678
-bytes) and the thirteenth (215303 bytes) both stand past that line, as
+file whose output stands under 200000 bytes, and the twelfth (227854
+bytes) and the thirteenth (215479 bytes) both stand past that line, as
 their own accounts said. No cap is raised and no case is dropped. Every
 other file's own account names this one, as each of them names all the
 others.
