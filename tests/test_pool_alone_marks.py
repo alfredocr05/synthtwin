@@ -646,7 +646,7 @@ CHAIN_STARTS = (0, 10, 50, 55, 75)
 CHAIN_SIZES = (10, 40, 5, 20, 25)
 CHAIN_LOWS = (-6.0, -5.2, -1.7, -1.5, 0.1)
 CHAIN_VALUES = (-6.0, -2.8, -1.6, -0.9, 10.0)
-# (census, the values G6.4's values step gives), worked by hand.
+# (census, decimal_plus, the values G6.4's values step gives), worked by hand.
 CHAIN_ANSWERS = (
     # The walk takes -0.9 first, to -1 (55 cells). -1.6's nearest, -2, is
     # outside its share and inside the share of -2.8, which the walk reaches
@@ -654,14 +654,24 @@ CHAIN_ANSWERS = (
     # holder's one other number is -2, refused the same way, and it covers
     # more cells, so it keeps -1: -1.6 keeps its point and -2.8 takes -3
     # (95 cells).
-    ({"minus": 65, "trailing_minus": 10}, (-6.0, -3.0, -1.6, -1.0, 10.0)),
+    ({"minus": 65, "trailing_minus": 10}, {}, (-6.0, -3.0, -1.6, -1.0, 10.0)),
     # No trailing minus: stratum order, so -2.8 takes -3 first (75 cells).
-    ({"minus": 75}, (-6.0, -3.0, -1.6, -0.9, 10.0)),
+    ({"minus": 75}, {}, (-6.0, -3.0, -1.6, -0.9, 10.0)),
+    # A D of 10 beside the trailing minus asks the walk over the negative
+    # strata alone for 60 - (25 - 10) = 45, the pinned -6 carrying 10, and
+    # that walk reaches every stratum above before the last walk does: the
+    # same questions, asked in the same nearest-zero order, give the same
+    # answer (45 cells at -1, 40 more at -3).
+    ({"minus": 65, "trailing_minus": 10}, {"+": 10}, (-6.0, -3.0, -1.6, -1.0, 10.0)),
 )
 
 
-@pytest.mark.parametrize("census,answer", CHAIN_ANSWERS, ids=("trailing", "no-trailing"))
-def test_the_chain_asks_in_the_walk_s_order_which_a_trailing_minus_sets(census, answer):
+@pytest.mark.parametrize(
+    "census,decimal_plus,answer", CHAIN_ANSWERS, ids=("trailing", "no-trailing", "negative-walk")
+)
+def test_the_chain_asks_in_the_walk_s_order_which_a_trailing_minus_sets(
+    census, decimal_plus, answer
+):
     """A number the chain asks for is refused where the walk reaches its share later.
 
     Review item P2-C5-F3's refusal holds inside R-P4-69's chain too, and
@@ -672,7 +682,12 @@ def test_the_chain_asks_in_the_walk_s_order_which_a_trailing_minus_sets(census, 
     read in stratum order gives -1.6 the -2 outright; the holder's
     question read so moves -0.9 to -2 and hands -1 on, and -2.8 keeps its
     point; the walk's order taken with no trailing minus gives -0.9 its
-    -1 before -2.8 -- each turns its row red.
+    -1 before -2.8 -- each turns its row red. The third row reaches the
+    chain on the walk over the negative strata alone, which a D beside R
+    asks for whole negatives: its holder and share questions asked in
+    stratum order while the walk itself keeps the nearest-zero order give
+    -1.6 the -2 outright and turn that row alone red (the skeptic of plan
+    P4-D352 (7): so mutated, the whole suite stood).
     """
     rungs = tuple(
         CHAIN_LOWS[max(k for k in range(5) if CHAIN_STARTS[k] <= place)]
@@ -687,7 +702,7 @@ def test_the_chain_asks_in_the_walk_s_order_which_a_trailing_minus_sets(census, 
     facts = types.SimpleNamespace(
         integer_valued=False,
         numeric_styles={"plain": 60, "decimal": 40},
-        decimal_plus={},
+        decimal_plus=decimal_plus,
         negative_notations=census,
     )
     assert tuple(generation._whole_enough(column, facts, layout, rungs, list(CHAIN_VALUES))) == answer
