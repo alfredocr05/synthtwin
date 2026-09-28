@@ -6,6 +6,35 @@ exists).
 
 ## [Unreleased]
 
+### A count no placement inside the gaps reaches is met past the strata (2026-09-28)
+
+**A tail rank leaves its stratum by the least amount that meets the
+count** (the orchestrator's call of 2026-09-28, not an owner ruling; the
+owner may reverse it). Where the count passes leave the distinct count
+over and even the stack holds more units than it, the ranks take the
+stack and give units up one at a time: a run of the stack's ranks, none
+pinned and alone on its unit, splits onto the instants of the ranks just
+below and above it, each rank inside its gap or, being an unpinned rank
+of a shape-drawn tail, strictly beyond its boundary; the split whose rank
+stands least far outside its gap first, then the fewest ranks outside;
+and the ranks take the result only where the count is met and every
+tail's summed distance and square lie inside G12.14's window (method
+G7.3, plan P4-D354). The five twins of the gap rule's cost below meet
+both counts with 1, 2 and 1 tail ranks one day outside their strata.
+Over the fifth skeptic's 1,860 twins 32 misses go and none is new
+against d3d794f, 140 and 146 go against e4a5d34 and d93fd43; over the
+fourth skeptic's 2,400 twins 4 go; over the third skeptic's 1,600 nothing
+moves; no twin of the three batteries gains a miss against e4a5d34 or
+d93fd43. The pass acts on 140 of the 1,860 twins and puts 3,035 tail
+ranks outside their strata there, most of them on clock-pool columns
+counted in seconds or minutes, whose neighbouring held instants lie
+hours apart;
+every tail window holds and every twin validates. Two frozen cases move
+and now hold their published counts: `date_distinct_reached` 12 (it held
+15) and `date_gap_places` 10 (13). The raise's nearest FREE unit gains a
+`run` row and an oracle mutant (the landing's sixth skeptic). The gap
+rule's cost below is repaired. `K-S3-39`.
+
 ### No stratum read between the tails is a stand-in number (2026-09-28)
 
 **A stratum the convex form of G5.3 reads between the two tails** now
@@ -22,6 +51,44 @@ none does now; 4 twins changed and none misses more. The gate's guard
 on sentences that deny a row is named now reads three words between the
 negation and "which row", and its self-test holds `nor`, the word limit
 and the closeness window.
+
+### The gap rule's cost is recorded, and the raise is witnessed clause by clause (2026-09-28)
+
+**A count no placement inside every gap reaches stays missed.** Over
+1,860 twins of the fifth skeptic's 310 date and clock columns, five
+twins of three columns miss both distinct counts that shipped stage 3
+met and validated: 123 ISO dates over 56 days, 24 different, hold 26 at
+floor 36 and two seeds; 123 month-first dates, 35 different, hold 38 the
+same way; 114 midnight moments, 43 different, hold 46 at floor 50, one
+seed. Shipped stage 3 met them only with 3, 8 and 12 tail ranks a day
+below their strata, and the fewest days any placement inside every gap
+holds is 25, 37 and 44. They have missed since the gap rule (604ebbd), and
+meeting them trades a tail's strata against the column's distinct count,
+which no one has ruled on, so the cost is recorded as open (plan
+P4-D354, STATE) and held by the stage-3b gate. "No twin gains a miss"
+below held on the third and fourth skeptics' batteries only. The raise
+of the stack gains four `run` rows and four oracle mutants -- inside its
+gap, of its standing, only a rank sharing its unit, a pinned rank passed
+by -- that no row had parted in either road. `K-S3-39`.
+
+### The ranks are stacked afresh where no one run can give a unit up (2026-09-28)
+
+**Where tail ranks stand in pairs on alternate days**, their two-day
+strata shifted by one rank each, each pair's room is its own day and its
+neighbours stand two days off, so neither the merge nor the split below
+takes any pair, while every pair moving one day onto the next frees a
+day: 123 midnight moments over 111 days, 52 different, came back holding
+54 at floor 50 and two seeds, and 77 month-first dates, 33 different,
+held 35 at floor 36, both distinct counts MISSED where shipped stage 3
+met them, though a placement inside every gap holding the count existed.
+Once a round's merges, trades and split move nothing, the ranks are now
+stacked afresh on the fewest units their gaps and standings allow,
+raised to the count, and taken only where that meets it (method G7.3,
+plan P4-D354). Over 2,400 twins of the fourth skeptic's 400 columns and
+1,600 of the third's 800, six twins meet their counts, no twin gains a
+miss, only those six twins' bytes move and no rank leaves its gap; no
+frozen case moves. `K-S3-39`. (On those batteries only: see the gap
+rule's cost above.)
 
 ### A tail withheld for the other tail's sake says so (2026-09-27)
 
@@ -56,6 +123,20 @@ red when withdrawn. `complement_reader.whole_description` names a
 withheld mode as its own reason for giving up, which is why 9 of
 `K-S3-24`'s column-floors are not read, and README lists the sign
 counts among what gives values back.
+
+### A run no merge can take is split across its neighbours (2026-09-26)
+
+**Where a run of tail ranks has only its own day as room**, the repair
+below left it where it stood: two tail ranks whose strata meet on one day
+can move together nowhere, and 83 dates over 59 days, 37 different, at
+floor 36 came back holding 41 and 43 different days at two seeds, both
+distinct counts MISSED, where shipped stage 3 met them with ranks outside
+their gaps. Such a run now gives its day up rank by rank, onto the days
+of the ranks just below and just above it, each inside its own gap
+(method G7.3, plan P4-D354). Over 2,665 twins of 1,131 seeded date and
+clock columns the five twins it had made miss meet their counts, no twin
+gains a miss and no rank leaves its gap; three frozen cases move.
+`K-S3-39`.
 
 ### A signed decimal beside a trailing minus takes its whole negatives nearest zero too (2026-09-26)
 
@@ -96,6 +177,20 @@ ledger note names its entries, their trees and what took them, and no
 longer restates their values; a test holds that, and reads a numeral
 glued to a unit of any case or length.
 
+### A run the count pass merges keeps every rank inside its gap (2026-09-26)
+
+**Where the count of different dates is too high**, G7.3 merges a run of
+ranks on one day onto a day ranks already hold, and asked only the run's
+first rank whether that day lay inside its gap. A tail rank's gap is its
+own stratum, so the rest of a tail run went past theirs: 2,469 dates
+over 392 days at floor 36 MISSED their low tail's root-mean-square
+distance at two seeds of two, and two session tables missed a tail
+distance the same way. A run now moves only where every rank of it may
+go (method G7.3, plan P4-D354). Over 600 twins of 300 random date and
+clock columns, 18 ranks outside their gaps and 2 misses go to none, with
+no new miss on those; on 1,600 more twins it made five, which the split of
+a run no merge can take repairs; nine frozen cases move. `K-S3-39`.
+
 ### Whole negatives beside a trailing minus are the ones nearest zero (2026-09-26)
 
 The repair above made the side that is not negative carry the whole
@@ -113,6 +208,26 @@ trailing minus, which no frozen case reached, and a hand-worked chain
 holds R-P4-69's holders to the walk's order. Where the real whole
 negatives are the large ones the separation by notation is reversed:
 minus cells' mean -1157.5 against a real -4890.0.
+
+### Every day of a filled range comes back: a tail's tie group gives way (2026-09-26)
+
+**Where a date column holds a value on every day of its range** the twin
+wrote a day or two fewer: two years of admissions came back with 730 of
+731 days and billing dates with 729, both distinct counts MISSED at every
+seed, because a tail's tie group stood on one distance the count pass
+could not split; on moments the lost unit was bought back as a spelling
+the real column never wrote, and validation passed. Where the count is
+still short, the group now gives ranks to free units inside its reach
+(method G7.3b step 9, plan P4-D354), and G12.14's window widens with it;
+the order it takes them in is stated exactly, and every clause has a
+witness but two bounds no description found reaches. After: nothing missed on the 25 of 240 twins that missed, and
+the two shapes that hid it write every unit. Stage 3b's gate opens with
+`test_every_day_filled`; frozen as `every_day_group` (G14.3 counts 131);
+`K-S3-30`. Not repaired: real outermost units past a tail's derived end,
+several a side and on both sides at once -- a year whose first and last
+weeks hold a cell a day comes back 363 and 359 of 365 days at floors 11
+and 36 -- and hidden on moments by a bought spelling (898 or 899 of 900
+seconds at floor 36), where two drawn ranks landing on one unit also lose one.
 
 ### A withheld tail pair that costs the twin its mean or spread is published (2026-09-26)
 

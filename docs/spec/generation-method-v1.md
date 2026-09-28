@@ -5715,15 +5715,25 @@ that way.
   Too many:
   each unpinned run sorted, a run of ranks on one unit holding no pinned
   rank moves whole onto the instant of the rank just below or just
-  above it, where that lies inside its gap and is of the same width kind
-  and midnight standing -- nearest first, then the shorter run, then the
-  lower rank; and, where no such instant exists, onto the nearest
-  instant any rank holds inside its gap of that same standing, earlier
-  before later at one distance (plan P4-D258). **AND WHERE NO UNIT OF
+  above it, where that lies inside its ROOM -- the gap of EVERY rank of
+  the run, from the highest of their lower bounds to the lowest of their
+  upper ones -- and is of the same width kind and midnight standing --
+  nearest first, then the shorter run, then the lower rank; and, where
+  no such instant exists, onto the nearest instant any rank holds
+  inside its room of that same standing, earlier before later at one
+  distance (plan P4-D258). A neighbour's instant is read again when its
+  turn comes and asked again whether it lies in the room. **THE ROOM IS
+  EVERY RANK'S GAP AND NOT THE FIRST'S** (plan P4-D354, the fix pass of
+  landing 3b.0): a body run shares one gap, but a tail rank's gap is its
+  own stratum (G7.3b step 8), and asked of the first rank alone the rest
+  of a tail run went past theirs -- 2,469 dates over 392 days at a floor
+  of 36 missed their low tail's root-mean-square distance at two seeds of
+  two, 5.063 against a window of 4.747 to 5.057, with two ranks a day
+  outside their strata. **AND WHERE NO UNIT OF
   THE RUN'S OWN STANDING LIES IN ITS GAP AT ALL, THE MERGE IS MADE WITH
   A PAYMENT** (plan P4-D258 for the width kind; extended to midnight by
   item 2 of the dates pass of the second Codex round, 2026-09-19). The
-  run moves whole onto the nearest instant ranks hold inside its gap of
+  run moves whole onto the nearest instant ranks hold inside its room of
   the OTHER standing in one respect, and exactly as many ranks elsewhere
   move BETWEEN HELD UNITS the other way -- each leaving a unit other
   ranks still hold, each landing on a unit ranks already hold, each
@@ -5744,14 +5754,79 @@ that way.
   midnight pins, with no unit of its own standing anywhere in its gap --
   missing both distinct counts, four against three, while the source
   passed and the twin kept all eleven rungs and the 80 cells the census
-  puts at midnight. Too few: each unpinned rank sharing its unit is offered
+  puts at midnight. **AND A RUN NO MERGE CAN TAKE IS SPLIT** (plan
+  P4-D354, the third skeptic of landing 3b.0). Where the merges and both
+  trades leave the count over, in rank order, a run of two or more ranks
+  on one unit, none pinned and none of that unit's ranks elsewhere,
+  between two ranks, whose room holds no other unit ranks hold of its
+  own standing, gives its unit up rank by rank: its ranks, in order,
+  move onto the instant of the rank just below the run while that lies
+  inside each one's own gap and is of its standing, and the rest onto
+  the instant of the rank just above it on the same terms -- only where
+  every rank of the run has one, and one unit freed per run. Two tail
+  ranks whose strata meet on one day have that day as their room: 83
+  dates over 59 days, 37 different, at a floor of 36 came back holding
+  41 and 43 different days at seeds 3 and 8, both distinct counts
+  missed, until each such run gave its day up this way. **AND WHERE NO
+  ONE RUN CAN GIVE A UNIT UP, THE RANKS ARE STACKED AFRESH** (plan
+  P4-D354, the fourth skeptic of landing 3b.0). Tail ranks in pairs on
+  alternate days, their two-day strata shifted by one rank each, have
+  each pair's own day as its room and their rank neighbours two days
+  off, so neither a merge nor the split takes any pair, while every pair
+  moving one day onto the next frees a day where the chain ends: 123
+  midnight moments over 111 days, 52 different, read in days at a floor
+  of 50 came back holding 54 at seeds 3 and 8, and 77 month-first dates,
+  33 different, held 35 at a floor of 36, both distinct counts missed,
+  though a placement inside every gap holding the count existed. So once
+  a round's merges, both trades and the split move nothing and the count
+  is still over, the ranks are stacked afresh: taken in the order of
+  their gaps' upper ends, then their lower ends, then their rank -- a
+  pinned rank's gap being its own instant -- each rank stands on the unit
+  last stacked for its standing where that lies inside its gap, else on
+  the highest unit of its standing inside its gap, which is stacked next
+  (a midnight sought a day at a time). That stack holds the fewest units
+  any placement inside every gap keeping every standing can hold. Its
+  instants are sorted within each unpinned run, as every round sorts
+  them, and every rank must then stand inside its gap; where the stack
+  holds fewer units than the count, in rank order, an unpinned rank
+  sharing its unit moves onto the nearest free unit of its standing
+  inside its gap -- a unit no rank holds, one an earlier rank was raised
+  onto included -- until the count is met; and the ranks take the stack
+  only where that meets the count exactly, else nothing moves. **AND
+  WHERE EVEN THE STACK HOLDS MORE UNITS THAN THE COUNT, A TAIL RANK
+  LEAVES ITS STRATUM BY THE LEAST AMOUNT THAT MEETS IT** (plan P4-D354;
+  the orchestrator's call of 2026-09-28, not an owner ruling; the owner
+  may reverse it). Kept inside every gap, 123 dates over 56 days, 24
+  different, at a floor of 36 came back holding 26, both distinct counts
+  missed, where no placement inside every gap holds fewer than 25 and
+  shipped stage 3 had met the count with tail ranks a day below their
+  strata. So where the count passes leave the count over and the stack
+  holds more units than it, the ranks take the stack and give units up
+  one at a time: a run of the stack's ranks, none pinned, alone on its
+  unit and between two ranks, splits -- its lower ranks onto the instant
+  of the rank just below it, the rest onto the instant of the rank just
+  above it, each of its own standing -- where each rank lands inside its
+  gap or, being an unpinned rank of a tail drawn through its shape
+  (G7.3b), strictly beyond its tail's boundary. Of every split on offer
+  the one taken is the one whose rank farthest outside its gap stands
+  least far outside it, then the one leaving the fewest ranks outside
+  their gaps, then the lower run, then the one sending more of its ranks
+  down. Each frees the run's unit onto units ranks already hold, so no
+  unit is written that the stack did not hold and no standing's count
+  moves; a body rank never leaves its gap, so no rung moves, and a tail
+  rank stays beyond its boundary, so no tail's rows move. The ranks take
+  the result only where the count is then met and every such tail's
+  summed distance and summed square lie inside the window G12.14 sums
+  them over; otherwise nothing moves. Too few: each
+  unpinned rank sharing its unit is offered
   the nearest unit no rank holds inside its gap, of the same width kind
   and midnight standing, earlier first, nearest first, ties to the lower
   rank.
 
 The two passes of P4-D192 run with the different values FIRST and the
-widths second, again while either moved, at most four times, and each
-unpinned run is then sorted. Where the different values are held too,
+widths second, again while either moved, at most four times; the count
+met past the strata runs once after them, where the different values
+are still over; and each unpinned run is then sorted. Where the different values are held too,
 the widths pass offers each rank the nearest day of the other kind on a
 unit no rank holds, and one already held only where none is free; a
 split whose unit an earlier split took is offered the nearest unit still
@@ -5965,6 +6040,39 @@ unit by DT3.
    different values and of widths, and the moves onto and off midnight
    -- moves a rank only inside its gap, which is what keeps every
    published tail fact inside the window of G12.14.
+
+9. **The tie group gives way where the distinct count is short** (plan
+   P4-D354, landing 3b.0). The group's gap is its one distance, so the
+   count pass can never split it, and a column holding a value on every
+   day of its range came back a day short: two years of admissions, 731
+   days, twin 730 at every seed, the day one unit beyond the boundary
+   never written and both distinct counts missed. So where the column's
+   count of different units is still below its published count once the
+   count pass is done (G7.3, plan P4-D192), each tail's group of `G >= 2`
+   ranks -- outer indices `max(F - 1, 1)` to `m - 1` -- is offered the
+   units no rank holds from one to its REACH `t`: `k * a((m - (F - 1)) /
+   m)` rounded as in step 5, at least the group's distance `g` and never
+   past the end. A unit an absent spelling names (step 7), or of another
+   width kind or midnight standing than the group's, is not offered, so
+   a group at a midnight is offered only units at a midnight and a group
+   off one no unit at one. Each offer is a tail and a distance `d`, and
+   the offers are taken in this order until the count is met: the
+   smaller `|d - g|` first; at one `|d - g|`, the smaller `d` first --
+   on one tail the unit inside `g` before the one outside it, across the
+   two tails the unit nearer its own boundary; at one `|d - g|` and one
+   `d`, the low tail first. Each group keeps one rank on `g`, and the
+   window of G12.14 is summed with it there. A group's
+   units inside `g` go to its innermost ranks, the smallest to the
+   innermost; its units outside `g` to its outermost ranks, the largest to
+   the outermost. Every drawn rank stands at `t` or beyond, so no rank
+   passes another. No word is drawn. `rows` and the boundary stand, and
+   G12.14 draws its window to hold every twin this writes. Two bounds
+   have no witness, because no description found reaches them: the
+   reach itself -- offering the unit one past `t` changed none of 1,107
+   twins of the 427 descriptions searched for it (plan P4-D354) -- and
+   the width kind, whose offer changed none of 640 twins of 80
+   month-first columns on the days 10 to 31 of a month, each at its
+   published count and raised by one, two and three.
 
 #### G7.3c A tail that publishes which values it holds
 
@@ -12021,7 +12129,13 @@ step off a hole, the move onto a midnight, the monotone fix, the
 all-different step and the clamp to the edge. Call the two whole
 distances of rank `i` `near[i]` and `far[i]`. Every step of the
 construction is monotone in every word, so a twin built by it has each
-rank's distance between those two, and
+rank's distance between those two. **Where the column's distinct count
+is reachable** (contract `datetime_counts_reachable`), G7.3b step 9 may
+move a tie group of `G >= 2` ranks, so its ranks are summed wider (plan
+P4-D354): the j-th innermost as near as `j + 1` for
+`j < min(g - 1, G - 1)`, the j-th outermost as far as `t - j` for
+`j < min(t - g, G - 1)` -- each moved rank takes a unit of its own and
+the group keeps one -- and every other rank as above. Then
 
 ```
 sum(near) / m   <=   mean(twin)   <=   sum(far) / m
@@ -12712,7 +12826,7 @@ that happens -- and the clause beside it, `--missing-value`'s "CAN be
 published as the column's smallest value", is exactly right under the
 new rule.
 
-**All one hundred and thirty-two are required.** The count is taken off the committed
+**All one hundred and thirty-three are required.** The count is taken off the committed
 case sets and not carried forward: this sentence said fifty-two and a
 split of nine, twenty, sixteen and seven while the six files held
 seventy-three, because each repair that added a case added a clause to
@@ -12736,7 +12850,7 @@ nine; the ELEVENTH,
 TWELFTH, `tests/reference/generation-branch-vectors-10.json`, holds three;
 the THIRTEENTH, `tests/reference/generation-branch-vectors-11.json`,
 holds three; and the FOURTEENTH,
-`tests/reference/generation-branch-vectors-12.json`, holds three (G14.2),
+`tests/reference/generation-branch-vectors-12.json`, holds four (G14.2),
 and a test holds this sentence to those files. The tenth grew by the
 two cases the GOVERNANCE PASS of stage 3's review added and the
 eleventh by the two the dates pass added; each number here is read off
@@ -12866,6 +12980,7 @@ case passed, which is the failure the count exists to prevent:
 | `narrow_spaced` | a narrow no-break space U+202F between thousands: `12 345.5`, and a spent cell `012345.5` with no mark |
 | `thin_spaced` | a thin space U+2009 between thousands: `12 345.5`, and a spent cell `012345.5` with no mark |
 | `bare_mark_remainder` | G6.1's bare remainder of a census of marks (plan P4-D142): thirty-three cells of twelve thousand three hundred and forty-five and a half published with `group_separator: ","` and `thousands_marks: {",": 22}`, so the first twenty-two are written `12,345.5` and the eleven the census leaves -- the census floor of them -- `12345.5`, with no mark |
+| `every_day_group` | G7.3b step 9 (plan P4-D354): 105 dates holding every one of 22 days from 2024-05-06, both tails publishing their pair, the low group of twenty-one ranks three days out and reaching five, the high group of eleven two days out and reaching three. Once the count pass is done the days one, two and four out on the low side and one out on the high side hold no rank, so the low group gives ranks to the days two, four and one out and the high group one to the day one out, and the twin holds all 22. Its mutant leaves each group on its one distance, as the twin did before this decision, and the twin holds 18 |
 | `pool_alone_marks` | G6.1's census of marks that is only a pool (plan P4-D352): forty-four whole numbers from 1,001 to 1,016, the sixteen values in runs of two to five, published with `thousands_marks: {"(withheld)": 44}` and no mark, so the pool is spent over all seven marks by whole runs, each run going to the mark holding the fewest cells: every mark is written, nine cells at most on one, and every value one way. Its mutant writes every cell with no mark, as the twin did before this decision |
 | `trailing_minus_points` | G6.1's trailing minus kept on figures with a point (the second skeptic of plan P4-D352): seventy-seven readings at one place between -40 and 60.5, thirty-three negative, published with `negative_notations: {"brackets": 11, "trailing_minus": 22}` beside forty-nine cells written with no point, so G6.4's values step gives the side that is not negative every whole value its strata can take, forty, and then the two negatives nearest zero, `-5.1` and `-6.5`, as `-5` and `-6` (the skeptic of that plan's fifth item); with the seven the ladder made whole, twenty-four negatives keep a point, the trailing minus takes twenty-two of them first, written `14.8-`, and the brackets the eleven left, `(5)` and `(39.3)`. Its mutant asks no negative to keep a point, as the twin did before this decision, and fifty-two cells move; walking the negatives from the most negative up instead moves seven |
 | `trailing_minus_exchange` | G6.1's exchange that gives a trailing minus its point (the skeptic of plan P4-D352 (5)): twenty-two whole numbers between -40 and 60, eleven negative and published with `negative_notations: {"trailing_minus": 11}` beside `numeric_styles: {"decimal": 11, "plain": 11}` and `fraction_widths: {"1": 11}`. G6.4's values step asks nothing of a whole-valued column and the style walk leaves six negatives `plain`, so each takes `decimal` from a cell that is not negative, from the last cell downward, and all eleven are written `5.0-`. Its mutant withdraws the exchange, which no other case reaches, and twelve cells move |
@@ -12911,7 +13026,7 @@ case passed, which is the failure the count exists to prevent:
 | `row_arrangement` | G2.1 in both its halves, which no single file can carry: the sort under the number collation with the row sequence written in place LAST, and the records holding nothing placed one leading, one trailing and one interior by exchanging cells within each column alone. It carries TWO mutants, one for each |
 | `withheld_line_marks` | G2 and contract FD11: the shape a line before the table is published as, the narrowing of a mark the twin could not write — a quotation mark, and the table's own delimiter — to a line of TEXT, the run-length encoding of lines of one shape, and the neutral line written for each |
 | `delimiter_reading` | review item CODEX-5's own measured file: every setting scored WITH the delimiter, the semicolon reading as two columns only once the space after it is skipped, and the comma reading the whole line as one field because text follows a closing quote |
-| `date_distinct_reached` | G7.3's pass on the count of different values (plan P4-D192): sixty ISO dates over thirty days publishing twelve different days, one more than its pins hold, reached by runs of ranks on one day moving whole onto a neighbour's day inside their gaps. Its mutant withdraws the pass and the twin holds more days |
+| `date_distinct_reached` | G7.3's pass on the count of different values (plan P4-D192): sixty ISO dates over thirty days publishing twelve different days, one more than its pins hold. No placement inside every gap holds so few, so the count is met past the strata (plan P4-D354): the ranks take the stack and four tail ranks stand a day outside their strata. Its mutant withdraws that pass and the twin holds fifteen days |
 | `date_midnight_feasible` | G7.4's feasible spend of the offsets (plan P4-D254): forty-eight moments on two days at local midnight under `Z`, `+01:00` and `-05:00`, sixteen of each, published on the shared clock, whose gaps hold a midnight under one offset and none under the other two. Its mutant makes every offset look feasible, which is the lexical spend it replaces, and the ranks it leaves off midnight are written with a time of day |
 | `date_absorbed_mark` | G7.9's spend of a mark the census leaves unnamed (plan P4-D245, ledger K-2B-51, the owner on 2026-09-21): a hundred and twenty-five moments at midnight on two days at a floor of eleven, a hundred and twenty written with a space and five with a `T`, so ruling 6 of 2026-09-17 counts the five into the commonest mark and the census publishes `{"space": 125}` beside a published three different values. Read as an instruction about the cells that census writes 125 spaces over two days -- two different values, a twin that reads back as binary rather than as a column of dates, and a report saying the twin missed its role, its statistical type and its count at midnight while the real table missed none. The construction gives the SHORTFALL the description publishes, one value here and never the five the table held, to the first permitted mark the census does not name, and spends fewer ranks on it than the census could print, so the twin described again counts the mark back into the commonest name. Its mutant withdraws the spend and the two different values come back |
 | `date_endpoint_ties` | G7.4's hold on the ranks tied at an end (plan P4-D255): forty-eight moments on three days at midnight or noon under `+01:00` and `+02:00`, twenty-four of each, published on the shared clock, several ranks standing on the latest instant. Its mutant holds none of them and the larger offset is published for that end |

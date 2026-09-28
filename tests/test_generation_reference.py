@@ -690,9 +690,12 @@ ELEVENTH_BRANCH_CASES = (
 )
 
 # THE FOURTEENTH FILE: G6.1's census of marks that is only a pool, its
-# trailing minus kept on figures with a point, and the exchange that gives
-# the trailing minus its point.
+# trailing minus kept on figures with a point, the exchange that gives
+# the trailing minus its point, and G7.3b step 9's tie group that gives
+# way.
 TWELFTH_BRANCH_CASES = (
+    # ...and the tie group that gives way (plan P4-D354).
+    "every_day_group",
     "pool_alone_marks",
     "trailing_minus_exchange",
     "trailing_minus_points",
@@ -828,6 +831,9 @@ SEEDS = {
     # (the skeptic of that plan's fifth item).
     "trailing_minus_points": 409,
     "trailing_minus_exchange": 410,
+    # ...and the tie group that gives way (plan P4-D354), at the seed the
+    # trailing minus above opens too: a seed may open more than one case.
+    "every_day_group": 409,
     "identifier_unnamed_partners": 184,
     "truth_values_written": 189,
     "twice_written_filled": 190,
@@ -1523,9 +1529,9 @@ TENTH_BRANCH_PUBLISHED_NUMBERS = 754
 TENTH_BRANCH_NAMED_COUNTS = 310
 ELEVENTH_BRANCH_PUBLISHED_NUMBERS = 944
 ELEVENTH_BRANCH_NAMED_COUNTS = 375
-# The fourteenth, at its own generator's line ("proved 972 ... beside 317").
-TWELFTH_BRANCH_PUBLISHED_NUMBERS = 972
-TWELFTH_BRANCH_NAMED_COUNTS = 317
+# The fourteenth, at its own generator's line ("proved 976 ... beside 343").
+TWELFTH_BRANCH_PUBLISHED_NUMBERS = 976
+TWELFTH_BRANCH_NAMED_COUNTS = 343
 # The document file publishes NO binary64 at all, and that is a fact
 # about its transforms rather than a gap in its proof: the written form,
 # the arrangement, the workbook writer, the shape of a line before a
@@ -3588,10 +3594,11 @@ CASE_MUTANTS = {
         outcome=CHANGES_THE_CELLS,
     ),
     "date_distinct_reached": Mutant(
-        branch="plan P4-D192's pass on the count of different values; the "
-        "mutant leaves the ranks where they were drawn, and the twin holds "
-        "more different days than the description publishes",
-        attribute="distinct_pass",
+        branch="plan P4-D354's count met past the strata, where no placement "
+        "inside the gaps reaches it; the mutant keeps every rank inside its "
+        "gap, and the twin holds fifteen different days against the "
+        "description's twelve",
+        attribute="count_met_past_the_strata",
         replacement=lambda *arguments: False,
         outcome=CHANGES_THE_CELLS,
     ),
@@ -3713,6 +3720,14 @@ CASE_MUTANTS = {
         "two figures short of its field",
         attribute="pad_places",
         replacement=_pads_on_the_padded_form_alone,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "every_day_group": Mutant(
+        branch="G7.3b step 9 (plan P4-D354); the mutant leaves each tail's "
+        "tie group on its one distance, as the twin did before, and the "
+        "twin holds 18 of the 22 days the description publishes",
+        attribute="group_gives_way",
+        replacement=lambda column, ordinals, parsed, whole: list(ordinals),
         outcome=CHANGES_THE_CELLS,
     ),
     "pool_alone_marks": Mutant(

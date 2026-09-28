@@ -2501,7 +2501,14 @@ GOLDEN_REPORT_SHA256 = (
     # largest value", and a measurement column publishes neither end.
     # One line differs, the note on the column no reading fits, and
     # nothing else -- 18 lines against the tree before both passes.
-    "50c2bc2bed376932fb8377618a21d7b21ce98455cb4f6c70f4d7d295560e9221"
+    # RE-RECORDED AT LANDING 3b.0 (plan P4-D354), read line by line
+    # against e294a82: TWO LINES differ, the window of one date tail's
+    # mean and root-mean-square distance, which G12.14 now sums as wide as
+    # G7.3b step 9 may move its tie group (9.333 to 10.583 and 10.440 to
+    # 11.413 days, where they read 9.583 to 10.5 and 10.5 to 11.380). The
+    # twin digest above did not move, and both values still read "inside
+    # the range".
+    "d4203ca89375609158a6e47cd43c4cdb2c5d717f0c684f9b462b9924d85e3f2b"
 )
 
 
@@ -3283,7 +3290,15 @@ GOLDEN_QUALITY_SHA256 = (
     # number: 473 HELD, 68 WITHIN-BOUND, 0 WITHHELD, 0 MISSED and 214
     # not checkable; no verdict moved, and the description and twin
     # digests above hold.
-    "fb53613d7a76fad8cd1841a5ea6147045d622224e94877d0c847cc280f71d5b0"
+    # ...AND RE-RECORDED AT LANDING 3b.0 (plan P4-D354), read line by
+    # line against e294a82: TWO LINES differ, the window the same date
+    # tail's two distances are allowed in, widened as the twin's report
+    # widens it. No verdict and no census number moved.
+    # ...AND RE-RECORDED AT THEIR INTEGRATION (2026-09-28), read line by
+    # line against both: the merged report differs from e294a82's in
+    # exactly the four lines follow-up A moved and the two landing 3b.0
+    # moved, each as that side wrote it, and in no other line.
+    "07fe627878024aeac2a461138614e53eb069c821ec01b53b3495fe3cb7f58e31"
 )
 
 

@@ -112,6 +112,7 @@ published column produces, a first stratum standing above the published
 """
 
 import collections
+import datetime
 import fractions
 import math
 import pathlib
@@ -810,6 +811,555 @@ def _shipped_trailing_values(styles, values, count, signed):
     )
 
 
+# ------------------------------------- G7.3b step 9's choice and placement
+#
+# THE STEP'S ORDER AND ITS KEEP-ONE CAP WERE PARTED BY NO FROZEN CASE (the
+# second skeptic of landing 3b.0, 2026-09-26). The one case that reaches
+# the step, `every_day_group`, takes every offer it has, so with the
+# oracle's order turned outer-first, or its cap lifted so a group gives
+# its last rank, every vectors file rebuilt byte for byte. The rule is
+# asked here one call at a time: each tail as its group's distance `g`,
+# its group's ranks `G` and the distances it offers, and the answer the
+# method's sentence gives -- each tail's group distances from its
+# outermost group rank inward -- worked out by hand. The offers go in
+# this order while the count is short: the smaller |d - g| first; at one
+# |d - g|, the smaller d; at one |d - g| and one d, the low tail. A group
+# keeps one rank. Units outside g go to the outermost ranks, the largest
+# outermost; units inside g to the innermost, the smallest innermost.
+GROUP_OFFERS = (
+    # (low (g, G, offered) or None, high the same, owed, low answer, high answer)
+    #
+    # THE FROZEN CASE'S TWO GROUPS, owed four, three, two, one and nought.
+    # The offers sort (1, 1, high), (1, 2, low), (1, 4, low), (2, 1, low).
+    ((3, 21, (1, 2, 4)), (2, 11, (1,)), 4,
+     (4,) + (3,) * 18 + (2, 1), (2,) * 10 + (1,)),
+    ((3, 21, (1, 2, 4)), (2, 11, (1,)), 3,
+     (4,) + (3,) * 19 + (2,), (2,) * 10 + (1,)),
+    ((3, 21, (1, 2, 4)), (2, 11, (1,)), 2,
+     (3,) * 20 + (2,), (2,) * 10 + (1,)),
+    # Owed one: the high tail's unit one out, at a remove of one, before
+    # the low tail's two out (the smaller d); taken outer-first, the low
+    # tail's four out would go instead.
+    ((3, 21, (1, 2, 4)), (2, 11, (1,)), 1,
+     (3,) * 21, (2,) * 10 + (1,)),
+    ((3, 21, (1, 2, 4)), (2, 11, (1,)), 0,
+     (3,) * 21, (2,) * 11),
+    # At one remove and one distance, the low tail first.
+    ((3, 5, (2,)), (3, 5, (2,)), 1, (3, 3, 3, 3, 2), (3,) * 5),
+    # At one remove, the smaller distance across the two tails.
+    ((5, 5, (4,)), (2, 5, (1,)), 1, (5,) * 5, (2, 2, 2, 2, 1)),
+    # A GROUP KEEPS ONE RANK: two ranks give one, however much is owed.
+    ((3, 2, (2, 4, 1)), None, 3, (3, 2), None),
+    # ...and the other tail takes what the full one cannot.
+    ((3, 2, (2, 4)), (2, 4, (1, 3, 4)), 3, (3, 2), (3, 2, 2, 1)),
+    # Several units outside g: the largest on the outermost rank.
+    ((2, 5, (3, 4, 5)), None, 3, (5, 4, 3, 2, 2), None),
+    # Several units inside g: the smallest on the innermost rank.
+    ((5, 5, (1, 2, 3)), None, 3, (5, 5, 3, 2, 1), None),
+    # One tail alone.
+    (None, (2, 3, (1, 3)), 1, None, (2, 2, 1)),
+)
+
+
+def _group_missed(rule: typing.Callable[..., object]) -> "list[str]":
+    missed = []
+    for low, high, owed, want_low, want_high in GROUP_OFFERS:
+        got = _asked(rule, low, high, owed)
+        if got != (want_low, want_high):
+            missed += [
+                f"{low!r} and {high!r} owed {owed}: {got!r}, the statement gives"
+                f" {(want_low, want_high)!r}"
+            ]
+    return missed
+
+
+def _oracle_group(module: types.ModuleType) -> typing.Callable[..., object]:
+    def placed(low, high, owed):
+        tails = {
+            name: (spec[0], spec[1], list(spec[2]))
+            for name, spec in (("low", low), ("high", high))
+            if spec is not None
+        }
+        found = module.group_offers_taken(tails, owed)
+        return tuple(
+            tuple(found[name]) if name in found else None for name in ("low", "high")
+        )
+    return placed
+
+
+def _generator_group(low, high, owed):
+    offered = [
+        None if spec is None else (spec[0], spec[1], list(spec[2])) for spec in (low, high)
+    ]
+    found = generation._group_offers_taken(offered, owed)
+    return tuple(
+        None if offered[side] is None else tuple(found[side]) for side in range(2)
+    )
+
+
+# ------------------------------------------- G7.3's merges move a run whole
+#
+# A RUN MOVES WHOLE, SO IT MOVES ONLY WHERE EVERY RANK OF IT MAY GO (the
+# fix pass of landing 3b.0, plan P4-D354). The count pass merges a run of
+# ranks on one unit onto an instant ranks already hold, and asked the
+# run's FIRST rank alone whether the instant lay inside its gap. A body
+# run shares one gap; a tail run does not, each rank's gap being its own
+# stratum (G7.3b step 8), so the rest of the run went past theirs. Asked
+# here on hand-built ranks: an unpinned run between pinned ends, each
+# rank's gap given, and the answer the statement gives -- the instant must
+# lie inside the gap of EVERY rank of the run -- worked out by hand. Days
+# are whole numbers; the rows in seconds (a day of 86400) put the run's
+# rank neighbours at midnight, so only the nearest held unit of its own
+# standing is offered, and the trade moves a run onto the other standing.
+DAY = 86400
+
+
+def _day(month: int, day: int) -> int:
+    """A day of 2020 as the day number both implementations read (days since 1970-01-01)."""
+    return (datetime.date(2020, month, day) - datetime.date(1970, 1, 1)).days
+
+
+RUN_MERGES = (
+    # (ordinals, pinned, lows, highs, day, distinct, width word, ordinals after)
+    #
+    # THE NEIGHBOUR. The run of ranks 2 and 3 on day 3 may go to day 2
+    # (its first rank's gap) or to day 4 (both ranks' gaps). Asked of its
+    # first rank, day 2 is taken, nearer the start, and rank 3 stands a
+    # day below its gap; asked of every rank, day 4.
+    ((0, 2, 3, 3, 4, 6), (True, False, False, False, False, True),
+     (0, 1, 2, 3, 4, 6), (0, 2, 4, 4, 5, 6), 1, 4, "",
+     (0, 2, 4, 4, 4, 6)),
+    # THE HELD UNIT NO RANK NEIGHBOUR IS. The run's neighbours stand at
+    # midnight and it does not, so they are not offered; the one held unit
+    # of its own standing, second 50, lies in its first rank's gap and not
+    # in its last's. Rank 1 at midnight has no other midnight in its gap,
+    # and its trade finds no payer. Nothing moves; the count stays one over.
+    ((50, DAY, DAY + 500, DAY + 500, 2 * DAY, 3 * DAY),
+     (True, False, False, False, False, True),
+     (50, 50, 50, DAY + 100, 100000, 3 * DAY),
+     (50, DAY + 1000, DAY + 1000, DAY + 1000, 200000, 3 * DAY), DAY, 4, "",
+     (50, DAY, DAY + 500, DAY + 500, 2 * DAY, 3 * DAY)),
+    # THE NEIGHBOUR READ AGAIN. Rank 1 merges onto day 1 first; the run of
+    # ranks 2 and 3, offered rank 1's day 3, then finds day 1 there, which
+    # its first rank's gap holds and its last's does not. It stays.
+    ((1, 3, 5, 5, 9), (True, False, False, False, True),
+     (1, 1, 1, 3, 9), (1, 3, 6, 6, 9), 1, 2, "",
+     (1, 1, 5, 5, 9)),
+    # THE NEAREST HELD UNIT IS LOOKED FOR INSIDE THE ROOM. Month-first
+    # dates of 2020 under the census word `first-field-padded`: the ninth
+    # of April and the first of May show the other width kind, so the
+    # run's neighbours are not offered. The nearest held unit of its own
+    # kind in its first rank's gap is the 31st of March, twelve days off,
+    # outside its last rank's gap; inside the gap of both is the 20th of
+    # May, thirty-eight off, and the run moves there. Looked for in the
+    # first rank's gap, the 31st is found, refused, and nothing moves.
+    ((_day(3, 31), _day(4, 9), _day(4, 12), _day(4, 12), _day(5, 1), _day(5, 20)),
+     (True, False, False, False, False, True),
+     (_day(3, 31), _day(3, 31), _day(3, 31), _day(4, 5), _day(4, 20), _day(5, 20)),
+     (_day(3, 31), _day(4, 9), _day(5, 20), _day(5, 20), _day(5, 20), _day(5, 20)),
+     1, 4, "first-field-padded",
+     (_day(3, 31), _day(4, 9), _day(5, 20), _day(5, 20), _day(5, 1), _day(5, 20))),
+    #
+    # A RUN NO MERGE CAN TAKE IS SPLIT (the third skeptic of landing 3b.0).
+    # THE SPLIT. Ranks 2 and 3 on day 3 have gaps meeting on day 3 alone,
+    # so their room is their own day and no rank neighbour lies in it.
+    # Rank 2 goes onto rank 1's day 2, inside its gap; rank 3 cannot, and
+    # goes onto rank 4's day 5, inside its own. Day 3 is freed.
+    ((0, 2, 3, 3, 5, 7), (True, False, False, False, False, True),
+     (0, 1, 2, 3, 4, 7), (0, 2, 3, 5, 6, 7), 1, 4, "",
+     (0, 2, 2, 5, 5, 7)),
+    # IN ORDER. Rank 2 reaches only the day above the run and rank 3 only
+    # the day below it; the ranks keep their order, so once one rank has
+    # gone up none goes down, and rank 3 has nowhere. Nothing moves. (Taken
+    # rank by rank, rank 2 goes up and rank 3 down, past each other.)
+    ((0, 2, 3, 3, 5, 7), (True, False, False, False, False, True),
+     (0, 1, 3, 2, 4, 7), (0, 2, 5, 4, 6, 7), 1, 4, "",
+     (0, 2, 3, 3, 5, 7)),
+    # OF ITS OWN STANDING. In seconds, the run stands off midnight and its
+    # neighbours at midnight: rank 2's gap holds the day below and rank 3's
+    # the day above, and neither may take a unit of the other standing.
+    # No midnight lies inside the room, so there is no trade. Nothing moves.
+    ((0, DAY, DAY + 500, DAY + 500, 2 * DAY, 3 * DAY),
+     (True, True, False, False, True, True),
+     (0, DAY, DAY, DAY + 400, 2 * DAY, 3 * DAY),
+     (0, DAY, DAY + 600, 2 * DAY, 2 * DAY, 3 * DAY), DAY, 4, "",
+     (0, DAY, DAY + 500, DAY + 500, 2 * DAY, 3 * DAY)),
+    # ONLY WHERE THE ROOM HOLDS NO OTHER HELD UNIT. The run on day 5 is
+    # offered day 6, the nearest held unit in its room 3 to 6; rank 5 merges
+    # off day 6 first, onto day 7, so that merge is not made. Day 3, held by
+    # a pinned rank out of order, still lies in the room, so the run is
+    # left for the next round's merge rather than split across days 2 and 9.
+    ((0, 2, 5, 5, 9, 6, 7, 3, 10),
+     (True, True, False, False, True, False, True, True, True),
+     (0, 2, 2, 3, 9, 6, 7, 3, 10), (0, 2, 6, 9, 9, 7, 7, 3, 10), 1, 6, "",
+     (0, 2, 5, 5, 9, 7, 7, 3, 10)),
+    # ALONE ON ITS UNIT (the fourth skeptic). The run of ranks 2 and 3 on
+    # day 5 shares that day with the pinned rank 7, out of order; its room
+    # 3 to 6 holds no other held unit, and rank 2 could go to day 2 and
+    # rank 3 to day 9. The run is not alone on its unit, so it is not
+    # split, and day 5 stays held. Nothing moves.
+    ((0, 2, 5, 5, 9, 8, 8, 5, 10),
+     (True, True, False, False, True, False, True, True, True),
+     (0, 2, 2, 3, 9, 8, 8, 5, 10), (0, 2, 6, 9, 9, 8, 8, 5, 10), 1, 5, "",
+     (0, 2, 5, 5, 9, 8, 8, 5, 10)),
+    # AT MOST OWED. Two runs could be split, on day 3 and on day 8, and
+    # one unit is owed: the first in rank order is split, the second is
+    # left where it stands.
+    ((0, 2, 3, 3, 5, 7, 8, 8, 10, 12),
+     (True, False, False, False, False, False, False, False, False, True),
+     (0, 1, 2, 3, 4, 6, 7, 8, 9, 12), (0, 2, 3, 5, 6, 7, 8, 10, 11, 12), 1, 7, "",
+     (0, 2, 2, 5, 5, 7, 8, 8, 10, 12)),
+    # OF ITS OWN STANDING ON THE WAY DOWN. Rank 2 could go down onto the
+    # pinned midnight of day 1, which is inside its gap, and rank 3 up
+    # onto the pinned second 300 of day 2, inside its own and of its
+    # standing; the way down changes the standing, so the run is not
+    # split (asked of the way up alone, it would be). Nothing moves.
+    ((0, DAY, DAY + 500, DAY + 500, 2 * DAY + 300, 3 * DAY),
+     (True, True, False, False, True, True),
+     (0, DAY, DAY, DAY + 400, 2 * DAY + 300, 3 * DAY),
+     (0, DAY, DAY + 600, 2 * DAY + 300, 2 * DAY + 300, 3 * DAY), DAY, 4, "",
+     (0, DAY, DAY + 500, DAY + 500, 2 * DAY + 300, 3 * DAY)),
+    # OF ITS OWN STANDING ON THE WAY UP, the mirror: rank 2 could go down
+    # onto the pinned second 300 of day 1, of its standing, and rank 3 up
+    # onto the pinned midnight of day 3, which is not. Nothing moves.
+    ((0, DAY + 300, 2 * DAY + 500, 2 * DAY + 500, 3 * DAY, 4 * DAY),
+     (True, True, False, False, True, True),
+     (0, DAY + 300, DAY + 300, 2 * DAY + 400, 3 * DAY, 4 * DAY),
+     (0, DAY + 300, 2 * DAY + 600, 3 * DAY, 3 * DAY, 4 * DAY), DAY, 4, "",
+     (0, DAY + 300, 2 * DAY + 500, 2 * DAY + 500, 3 * DAY, 4 * DAY)),
+    #
+    # WHERE NO ONE RUN CAN GIVE A UNIT UP, THE RANKS ARE STACKED AFRESH
+    # (the fourth skeptic of landing 3b.0).
+    # THE STACK. Rank 1 alone on day 1, the pairs on days 3 and 5 with
+    # two-day strata shifted by one rank each, rank 6 alone on day 6: each
+    # pair's room is its own day and its neighbours stand two days off, so
+    # no merge and no split takes any of them, while every rank moving one
+    # day onto the next frees day 1. Taken by upper ends, rank 1 stacks day
+    # 2 and rank 2 joins it, rank 3 stacks day 4 and rank 4 joins, rank 5
+    # stacks day 6 and rank 6 joins: five units, the count, and taken.
+    ((0, 1, 3, 3, 5, 5, 6, 8), (True, False, False, False, False, False, False, True),
+     (0, 1, 2, 3, 4, 5, 6, 8), (0, 2, 3, 4, 5, 6, 7, 8), 1, 5, "",
+     (0, 2, 2, 4, 4, 6, 6, 8)),
+    # THE RAISE. The same chain twice over, ranks 1 to 10 over days 1 to
+    # 10, stacks seven units where eight are wanted; in rank order, rank 1,
+    # sharing day 2, moves onto day 1, the nearest free unit inside its gap,
+    # and the count is met.
+    ((0, 1, 3, 3, 4, 6, 6, 7, 9, 9, 10, 12),
+     (True, False, False, False, False, False, False, False, False, False, False, True),
+     (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12), (0, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12), 1, 8, "",
+     (0, 1, 2, 4, 4, 6, 6, 8, 8, 10, 10, 12)),
+    # ONLY WHERE THE COUNT IS MET. The stack of these ranks holds four
+    # units, days 0, 2, 4 and 6, and three are wanted: it is not taken, and
+    # nothing moves.
+    ((0, 1, 3, 3, 4, 6), (True, False, False, False, False, True),
+     (0, 1, 2, 3, 4, 6), (0, 2, 3, 4, 5, 6), 1, 3, "",
+     (0, 1, 3, 3, 4, 6)),
+    # BY THE UPPER ENDS. Rank 2's gap reaches day 5, past rank 3's day 4:
+    # taken by upper ends, rank 3 stacks day 4 before rank 2's turn and
+    # rank 2 joins it, as rank 4 does. Taken in rank order, rank 2 would
+    # join rank 1's day 2 and rank 3 stack day 4: the count met on other
+    # days.
+    ((0, 1, 3, 3, 5, 6), (True, False, False, False, False, True),
+     (0, 1, 2, 3, 4, 6), (0, 2, 5, 4, 5, 6), 1, 4, "",
+     (0, 2, 4, 4, 4, 6)),
+    # THE PINNED RANK STANDS. The pinned rank 1 stands on day 2 with a gap
+    # of days 1 to 3 (which the layout never gives a pin); taken by that
+    # gap it would stack day 3 and ranks 2 and 3 join it, three units, the
+    # count. Taken where it stands, the stack holds four: nothing moves.
+    ((0, 2, 3, 3, 5), (True, True, False, False, True),
+     (0, 1, 2, 3, 5), (0, 3, 3, 4, 5), 1, 3, "",
+     (0, 2, 3, 3, 5)),
+    #
+    # THE RAISE, clause by clause (the fifth skeptic of landing 3b.0).
+    # A PINNED RANK IS NOT RAISED, AND THE RAISE STAYS INSIDE THE GAP. The
+    # stack holds days 6 (the pin and rank 1), 8, 11 and 13, four of five.
+    # The pin, gap 5 to 6 (which the layout never gives a pin), is passed
+    # by; rank 1's nearest free day inside its gap 6 to 7 is day 7, and
+    # the count is met. (Raising the pin puts it on day 5; searched past
+    # the gap, rank 1 goes to day 5, earlier first.)
+    ((6, 7, 7, 9, 10, 10, 12, 13), (True, False, False, False, False, False, False, True),
+     (5, 6, 7, 8, 8, 10, 11, 12), (6, 7, 8, 9, 10, 11, 12, 13), 1, 5, "",
+     (6, 7, 8, 8, 8, 11, 11, 13)),
+    # The same below the gap's lower end: the stack holds days 0 (the pin
+    # and rank 1), 3, 6 and 8, and rank 1 goes to day 1 inside its gap 0
+    # to 2; day -1, as near and earlier, lies outside it.
+    ((0, 2, 2, 4, 5, 5, 7, 8, 8), (True, False, False, False, False, False, False, False, True),
+     (0, 0, 2, 3, 3, 5, 6, 7, 8), (0, 2, 3, 4, 5, 6, 7, 8, 10), 1, 5, "",
+     (0, 1, 3, 3, 3, 6, 6, 8, 8)),
+    # ONLY A RANK SHARING ITS UNIT IS RAISED. The stack holds days 0, 2,
+    # 3 (the pin and rank 3), 5, 8 and 11, six of seven. Rank 1 stands
+    # alone on day 2 and is passed by (raised, it would leave day 2 empty
+    # and count day 1 as a seventh unit); rank 3 goes to day 4.
+    ((0, 1, 3, 4, 4, 6, 7, 7, 10, 11),
+     (True, False, True, False, False, False, False, False, False, True),
+     (0, 1, 3, 3, 4, 5, 5, 7, 8, 9), (1, 2, 3, 4, 5, 6, 7, 8, 10, 11), 1, 7, "unpadded",
+     (0, 2, 3, 4, 5, 5, 5, 8, 8, 11)),
+    # OF ITS STANDING. Month-first dates under `first-field-padded`: a day
+    # below the 10th counts outside the word. The stack holds the 9th of
+    # January (the pin and rank 1), the 11th, 14th and 16th, four of five.
+    # Rank 1's one free day inside its gap is the 10th, of the other kind,
+    # so it is passed by; rank 2 goes from the 11th to the 10th, of its own.
+    ((_day(1, 9), _day(1, 9), _day(1, 10), _day(1, 12), _day(1, 13), _day(1, 13),
+      _day(1, 15), _day(1, 16)),
+     (True, False, False, False, False, False, False, True),
+     (_day(1, 9), _day(1, 9), _day(1, 10), _day(1, 11), _day(1, 11), _day(1, 13),
+      _day(1, 14), _day(1, 16)),
+     (_day(1, 9), _day(1, 10), _day(1, 11), _day(1, 12), _day(1, 13), _day(1, 14),
+      _day(1, 15), _day(1, 16)), 1, 5, "first-field-padded",
+     (_day(1, 9), _day(1, 9), _day(1, 10), _day(1, 11), _day(1, 11), _day(1, 14),
+      _day(1, 14), _day(1, 16))),
+    # THE NEAREST FREE UNIT IS ONE NO RANK HOLDS, A UNIT RAISED ONTO
+    # INCLUDED (the landing's sixth skeptic). Nothing merges, trades or
+    # splits, and the stack holds ten days: 0, 2 (ranks 1 to 3), 4 (4 and
+    # 5), 6, 8, 10, 12, 14, 16 and 18, each later pair on its upper day.
+    # Raised in rank order to twelve: rank 1 onto day 1, the one free day
+    # in its gap of 1 to 2; ranks 2 and 3 then find none, day 1 being held;
+    # rank 4 onto day 3. (With a day raised onto read as free again, rank
+    # 2 goes to day 1 too and the stack is taken holding eleven.)
+    ((0, 2, 2, 2, 3, 5, 5, 6, 8, 8, 9, 11, 11, 12, 14, 14, 15, 17, 18),
+     (True,) + (False,) * 17 + (True,),
+     (0, 1, 1, 1, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 18),
+     (0, 2, 2, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18), 1, 12, "",
+     (0, 1, 2, 2, 3, 4, 6, 6, 8, 8, 10, 10, 12, 12, 14, 14, 16, 16, 18)),
+)
+RUN_TRADES = (
+    # (ordinals, pinned, lows, highs, owed, ordinals after, trades made)
+    #
+    # THE TRADE. The run of ranks 1 and 2 stands off midnight; the only
+    # midnight in its first rank's gap is second 0, outside its second
+    # rank's, so it is offered nothing. The run of three at midnight on
+    # day 3 is offered 3D + 300, and its payment needs three ranks off
+    # midnight to move onto one: rank 1 can, and rank 2 then stands alone.
+    # Nothing trades. (Asked of the first rank alone, ranks 1 and 2 move
+    # onto second 0, rank 2 below its gap, paid for by ranks 4 and 5.)
+    ((0, DAY + 100, DAY + 100, 2 * DAY, 3 * DAY, 3 * DAY, 3 * DAY, 3 * DAY + 300, 4 * DAY),
+     (True, False, False, True, False, False, False, False, True),
+     (0, 0, DAY + 50, 2 * DAY) + (3 * DAY - 1000,) * 4 + (4 * DAY,),
+     (0, DAY + 200, DAY + 200, 2 * DAY) + (3 * DAY + 1000,) * 4 + (4 * DAY,), 1,
+     (0, DAY + 100, DAY + 100, 2 * DAY, 3 * DAY, 3 * DAY, 3 * DAY, 3 * DAY + 300, 4 * DAY), 0),
+)
+# The member the width rows are read under, month-first, so its first
+# field is the month.
+RUN_MEMBER = "month-first-date"
+
+
+def _run_missed(merge: typing.Callable[..., object], trade: typing.Callable[..., object]) -> "list[str]":
+    missed = []
+    for ordinals, pinned, lows, highs, day, distinct, word, want in RUN_MERGES:
+        got = _asked(
+            merge, list(ordinals), list(pinned), list(lows), list(highs), day, distinct, word
+        )
+        if got != want:
+            missed += [f"merge of {ordinals!r}: {got!r}, the statement gives {want!r}"]
+    for ordinals, pinned, lows, highs, owed, want, made in RUN_TRADES:
+        got = _asked(trade, list(ordinals), list(pinned), list(lows), list(highs), owed)
+        if got != (want, made):
+            missed += [f"trade of {ordinals!r}: {got!r}, the statement gives {(want, made)!r}"]
+    return missed
+
+
+def _held(ordinals: "list[int]") -> "dict[int, int]":
+    return dict(collections.Counter(ordinals))
+
+
+def _oracle_run(module: types.ModuleType) -> "tuple[typing.Callable[..., object], typing.Callable[..., object]]":
+    def merge(ordinals, pinned, lows, highs, day, distinct, word):
+        module.distinct_pass(
+            {"format": RUN_MEMBER}, ordinals, pinned, lows, highs, day, 1, distinct,
+            bool(word), word,
+        )
+        return tuple(ordinals)
+
+    def trade(ordinals, pinned, lows, highs, owed):
+        made = module.traded_merges(
+            {"format": RUN_MEMBER}, ordinals, pinned, lows, highs, DAY, 1, 1,
+            _held(ordinals), False, "", owed, True,
+        )
+        return (tuple(ordinals), made)
+
+    return merge, trade
+
+
+_RUN_FACTS = types.SimpleNamespace(parser_family=RUN_MEMBER)
+
+
+def _generator_merge(ordinals, pinned, lows, highs, day, distinct, word):
+    generation._distinct_reached(
+        typing.cast(contract.DatetimeFacts, _RUN_FACTS), ordinals, pinned, lows, highs,
+        day, 1, distinct, bool(word), word,
+    )
+    return tuple(ordinals)
+
+
+def _generator_trade(ordinals, pinned, lows, highs, owed):
+    made = generation._traded_merges(
+        typing.cast(contract.DatetimeFacts, _RUN_FACTS), ordinals, pinned, lows, highs,
+        DAY, 1, 1, _held(ordinals), False, "", owed, True,
+    )
+    return (tuple(ordinals), made)
+
+
+
+# --------------------------------------- G7.3's count met past the strata
+#
+# WHERE NO PLACEMENT INSIDE THE GAPS REACHES THE COUNT (the orchestrator's
+# call of 2026-09-28, not an owner ruling; the owner may reverse it; plan
+# P4-D354). Where even the stack holds more units than the count, the
+# ranks take the stack and give units up one at a time: a run of the
+# stack's ranks, none pinned, alone on its unit and between two ranks,
+# splits -- its lower ranks onto the instant of the rank just below it,
+# the rest onto the instant of the rank just above it, each of its own
+# standing -- where each lands inside its gap or, being an unpinned rank of
+# a shape-drawn tail, strictly beyond its tail's boundary; the split whose
+# farthest rank stands least far outside its gap first, then the fewest
+# ranks outside, then the lower run, then more ranks down; taken only where
+# the count is met and each tail's summed distance and summed square lie
+# inside G12.14's window. Asked on hand-built ranks, days as whole
+# numbers: each tail given as its ranks from the outermost in, its
+# anchor, its unit, its half unit, its side, and the nearest and furthest
+# distance each rank is summed over (given here, and where a row needs
+# room, wider than a real tail's). The answer is worked out by hand.
+STRATA = (
+    # (ordinals, pinned, lows, highs, tails, day, distinct, width word, ordinals after)
+    #
+    # THE COUNT MET, BY THE LEAST AMOUNT. The stack holds days 10, 13, 15,
+    # 18 and 20, five of four. Rank 1 onto day 10 or 15 stands two days
+    # outside its gap; rank 2 onto day 13 one day, onto 18 three; rank 3
+    # onto 15 two, and onto day 20, the boundary's, not at all. Rank 2 goes
+    # down: distances 10, 7, 7 and 2 sum to 26 inside 24 to 27, squares to
+    # 202 inside 178 to 209.
+    ((10, 12, 14, 17, 20), (True, False, False, False, True), (10, 12, 14, 17, 20),
+     (10, 13, 15, 18, 20), (((0, 1, 2, 3), 20, 1, 0, True, (10, 7, 5, 2), (10, 8, 6, 3)),),
+     1, 4, "", (10, 13, 13, 18, 20)),
+    # ONLY WHERE THE STACK HOLDS MORE UNITS THAN THE COUNT. The same ranks
+    # asked for five: the stack holds five, a placement inside every gap
+    # reaches the count, and nothing moves.
+    ((10, 12, 14, 17, 20), (True, False, False, False, True), (10, 12, 14, 17, 20),
+     (10, 13, 15, 18, 20), (((0, 1, 2, 3), 20, 1, 0, True, (10, 7, 5, 2), (10, 8, 6, 3)),),
+     1, 5, "", (10, 12, 14, 17, 20)),
+    # NEVER ONTO THE BOUNDARY'S UNIT. The stack holds days 8, 12 and 13,
+    # three of two. Rank 1's day 13 is the boundary's, one day past its gap
+    # and not offered; it goes down to day 8, three days past its gap:
+    # distances 5 and 5, sum 10 inside 6 to 10, squares 50 inside 26 to 68.
+    ((8, 12, 13, 13), (True, False, True, True), (8, 11, 13, 13), (8, 12, 13, 13),
+     (((0, 1), 13, 1, 0, True, (5, 1), (8, 2)),), 1, 2, "", (8, 8, 13, 13)),
+    # EVERY TAIL'S SUMMED DISTANCE INSIDE ITS WINDOW. The stack holds days
+    # 7, 11 (rank 1), 12 (the boundary and the body rank 3) and 15. Rank 1
+    # can only go down to day 7, and its tail's distances then sum to 10
+    # against a window of 6 to 9: nothing moves.
+    ((7, 10, 12, 14, 15), (True, False, True, False, True), (7, 10, 12, 12, 15),
+     (7, 11, 12, 15, 15), (((0, 1), 12, 1, 0, True, (5, 1), (7, 2)),), 1, 3, "",
+     (7, 10, 12, 14, 15)),
+    # ...AND ITS SUMMED SQUARE. The stack holds days 2, 4, 9, 11 and 14.
+    # Rank 1 onto day 2 stands one day outside its gap and is taken first;
+    # the tail's distances 9, 9 and 2 sum to 20 inside 18 to 21, but their
+    # squares to 166 against 134 to 161: nothing moves.
+    ((2, 4, 8, 11, 14, 14), (True, False, False, True, False, True), (2, 3, 7, 11, 11, 14),
+     (2, 4, 9, 11, 14, 14), (((0, 1, 2), 11, 1, 0, True, (9, 7, 2), (9, 8, 4)),), 1, 4, "",
+     (2, 4, 8, 11, 14, 14)),
+    # THE LEAST FAR BEFORE THE FEWEST. The stack holds days 6, 11, 13
+    # (ranks 2 and 3), 15 and 17. Ranks 2 and 3 both onto day 11 stand one
+    # day outside their gaps; rank 1 onto day 13 alone stands two. The two
+    # go down: distances 9, 4, 4 and 4 inside the window.
+    ((6, 10, 12, 13, 15, 15, 17), (True, False, False, False, True, False, True),
+     (6, 10, 12, 12, 15, 15, 17), (6, 11, 13, 13, 15, 17, 17),
+     (((0, 1, 2, 3), 15, 1, 0, True, (9, 4, 2, 2), (12, 5, 3, 3)),), 1, 4, "",
+     (6, 11, 11, 11, 15, 15, 17)),
+    # ...AND THE FEWEST OUTSIDE BEFORE THE LOWER RUN. The stack holds days 7,
+    # 10 (ranks 1 and 2), 12, 13 and 14. The run of ranks 1 and 2 splits
+    # onto days 7 and 12, each one day outside its gap; rank 3 onto day 10
+    # stands one day outside too, alone. Rank 3 goes.
+    ((7, 9, 10, 11, 13, 14), (True, False, False, False, True, True), (7, 8, 10, 11, 13, 14),
+     (7, 10, 11, 12, 13, 14), (((0, 1, 2, 3), 13, 1, 0, True, (6, 3, 2, 1), (6, 5, 3, 2)),),
+     1, 4, "", (7, 10, 10, 10, 13, 14)),
+    # MORE RANKS DOWN ON A TIE. The stack holds days 2, 4, 5 and 10. Rank 1
+    # stands one day outside its gap on day 2 and on day 5; it goes down,
+    # and its tail's distances 8, 8 and 5 lie inside the window, where
+    # 8, 5 and 5 would not.
+    ((2, 4, 5, 10, 10), (True, False, True, True, True), (2, 3, 5, 10, 10), (2, 4, 5, 10, 10),
+     (((0, 1, 2), 10, 1, 0, True, (8, 6, 5), (10, 7, 5)),), 1, 3, "", (2, 2, 5, 10, 10)),
+    # OF ITS OWN STANDING. Month-first dates under `first-field-padded`: the
+    # 8th of January counts outside the word and the 11th inside it. Rank
+    # 1's only offer is the 8th, of the other kind: nothing moves.
+    ((_day(1, 8), _day(1, 11), _day(1, 12), _day(1, 12)), (True, False, True, True),
+     (_day(1, 8), _day(1, 10), _day(1, 12), _day(1, 12)),
+     (_day(1, 8), _day(1, 11), _day(1, 12), _day(1, 12)),
+     (((0, 1), _day(1, 12), 1, 0, True, (4, 1), (7, 2)),), 1, 2, "first-field-padded",
+     (_day(1, 8), _day(1, 11), _day(1, 12), _day(1, 12))),
+    # A BODY RANK NEVER LEAVES ITS GAP. Rank 2's gap of 9 to 10 reaches
+    # neither neighbour, days 7 and 12 (a body gap runs from pin to pin, so
+    # only a row can give it this one), and it is no tail's: nothing moves.
+    ((4, 7, 10, 12), (True, True, False, True), (4, 7, 9, 12), (4, 7, 10, 12),
+     (((0,), 7, 1, 0, True, (3,), (3,)),), 1, 3, "", (4, 7, 10, 12)),
+    # THE LOWER RUN ON A TIE. The stack holds days 10, 13, 16 and 20. Rank
+    # 1 onto day 10 and rank 2 onto day 13 each stand two days outside
+    # their gaps; rank 1 goes.
+    ((10, 12, 15, 20), (True, False, False, True), (10, 12, 15, 20), (10, 13, 16, 20),
+     (((0, 1, 2), 20, 1, 0, True, (10, 7, 4), (12, 8, 5)),), 1, 3, "", (10, 10, 16, 20)),
+    # NONE PINNED. Rank 2 is pinned on day 7 though its gap is 6 to 10,
+    # which the layout never gives a pin, and the stack puts rank 1 on day
+    # 7 beside it. Split, rank 1 would go down to day 4 and rank 2 up to day
+    # 10 inside its gap, the count met and the window held; the run holds a
+    # pinned rank, so nothing moves.
+    ((4, 7, 7, 10), (True, False, True, True), (4, 6, 6, 10), (4, 7, 10, 10),
+     (((0, 1), 10, 1, 0, True, (6, 3), (6, 6)),), 1, 2, "", (4, 7, 7, 10)),
+    # A PINNED RANK IS STACKED ON ITS OWN INSTANT. Rank 2 is pinned on day
+    # 13, its gap 13 to 14. The stack holds 6, 8 and 13; rank 1 goes down
+    # one day outside its gap onto day 6.
+    ((6, 7, 13), (False, False, True), (5, 7, 13), (6, 8, 14),
+     (((0, 1), 13, 1, 0, True, (7, 5), (9, 6)),), 1, 2, "", (6, 6, 13)),
+    # STACKED BY THE UPPER ENDS. Rank 2 is pinned on day 12 below rank 1's
+    # day 16. Taken by the upper ends, rank 1 joins day 12 and the stack
+    # holds two days, as many as the count: nothing moves.
+    ((11, 16, 12), (True, False, True), (11, 12, 12), (11, 16, 12),
+     (((0,), 12, 1, 0, True, (1,), (3,)),), 1, 2, "", (11, 16, 12)),
+    # THE STACK SORTED, EVERY RANK THEN INSIDE ITS GAP. Rank 1's gap of 8 to
+    # 9 lies below rank 0's of 10 to 11. Sorted, rank 0 takes day 9, outside
+    # its gap: there is no stack, and nothing moves.
+    ((10, 8, 12), (False, False, True), (10, 8, 12), (11, 9, 12),
+     (((0, 1), 12, 1, 0, True, (1, 1), (4, 4)),), 1, 2, "", (10, 8, 12)),
+    # BETWEEN TWO RANKS. The last two ranks share day 18 and nothing stands
+    # above them: nothing moves.
+    ((15, 16, 20), (True, False, False), (15, 16, 16), (15, 18, 20),
+     (((0,), 16, 1, 0, True, (1,), (1,)),), 1, 1, "", (15, 16, 20)),
+    # ALONE ON ITS UNIT. The stack puts rank 0 on day 11 with rank 2, the
+    # pinned rank 1 between them; rank 2 going up frees no day: nothing moves.
+    ((14, 14, 11, 16), (False, True, False, True), (11, 14, 9, 15), (14, 14, 11, 17),
+     (((0, 1, 2), 15, 1, 0, True, (1, 1, 4), (4, 1, 6)),), 1, 2, "", (14, 14, 11, 16)),
+)
+
+
+def _strata_missed(settle: typing.Callable[..., object]) -> "list[str]":
+    missed = []
+    for ordinals, pinned, lows, highs, tails, day, distinct, word, want in STRATA:
+        got = _asked(
+            settle, list(ordinals), list(pinned), list(lows), list(highs), tails, day,
+            distinct, word,
+        )
+        if got != want:
+            missed += [f"strata of {ordinals!r}: {got!r}, the statement gives {want!r}"]
+    return missed
+
+
+def _oracle_strata(module: types.ModuleType) -> typing.Callable[..., object]:
+    def settle(ordinals, pinned, lows, highs, tails, day, distinct, word):
+        module.count_met_past_the_strata(
+            {"format": RUN_MEMBER}, ordinals, pinned, lows, highs, day, 1, 1,
+            bool(word), word, distinct, list(tails),
+        )
+        return tuple(ordinals)
+
+    return settle
+
+
+def _generator_strata(ordinals, pinned, lows, highs, tails, day, distinct, word):
+    generation._count_met_past_the_strata(
+        typing.cast(contract.DatetimeFacts, _RUN_FACTS), ordinals, pinned, lows, highs,
+        day, 1, 1, bool(word), word, distinct, list(tails),
+    )
+    return tuple(ordinals)
+
+
 # ------------------------------------------------------------ the two readers
 
 WITNESSES = {
@@ -848,6 +1398,18 @@ WITNESSES = {
     "trailing_values": (
         lambda module: _trailing_values_missed(_oracle_trailing_values(module)),
         lambda: _trailing_values_missed(_shipped_trailing_values),
+    ),
+    "group": (
+        lambda module: _group_missed(_oracle_group(module)),
+        lambda: _group_missed(_generator_group),
+    ),
+    "run": (
+        lambda module: _run_missed(*_oracle_run(module)),
+        lambda: _run_missed(_generator_merge, _generator_trade),
+    ),
+    "strata": (
+        lambda module: _strata_missed(_oracle_strata(module)),
+        lambda: _strata_missed(_generator_strata),
     ),
 }
 
@@ -1114,6 +1676,297 @@ WITNESS_MUTANTS = {
         "readings",
         "return [published] + sorted(candidates, key=moved_then_counts)",
         "return [published] + sorted(candidates, key=lambda pair: (pair[1], pair[0]))",
+    ),
+    # G7.3b step 9 (the second skeptic of landing 3b.0): O1 and O2 are the
+    # two it measured leaving every vectors file byte-identical.
+    "group_outer_unit_first": (
+        "group",
+        "for _gap, d, _order, name in sorted(offered):",
+        "for _gap, d, _order, name in sorted(offered, key=lambda o: (o[0], -o[1], o[2])):",
+    ),
+    "group_gives_its_last_rank": (
+        "group",
+        "        if len(chosen[name]) + 2 > tails[name][1]:\n",
+        "        if len(chosen[name]) + 1 > tails[name][1]:\n",
+    ),
+    "group_smallest_distance_first": (
+        "group",
+        "for _gap, d, _order, name in sorted(offered):",
+        "for _gap, d, _order, name in sorted(offered, key=lambda o: (o[1], o[0], o[2])):",
+    ),
+    "group_high_tail_first_on_a_tie": (
+        "group",
+        "for _gap, d, _order, name in sorted(offered):",
+        "for _gap, d, _order, name in sorted(offered, key=lambda o: (o[0], o[1], -o[2])):",
+    ),
+    "group_outer_units_smallest_outermost": (
+        "group",
+        "outer = sorted((d for d in chosen[name] if d > group), reverse=True)",
+        "outer = sorted(d for d in chosen[name] if d > group)",
+    ),
+    "group_inner_units_largest_innermost": (
+        "group",
+        "inner = sorted(d for d in chosen[name] if d < group)",
+        "inner = sorted((d for d in chosen[name] if d < group), reverse=True)",
+    ),
+    # G7.3's merges (the fix pass of landing 3b.0). The room asked of the
+    # run's first rank alone, everywhere; then each place on its own. The
+    # neighbour offered at the start of a round needs no mutant of its own:
+    # it is asked again when its turn comes, and a neighbour cannot move
+    # INTO the room between -- it moves onto a held unit, and every held
+    # unit between it and the run is the run's own.
+    "run_room_of_the_first_rank": (
+        "run",
+        "    return max(lows[first:last + 1]), min(highs[first:last + 1])\n",
+        "    return lows[first], highs[first]\n",
+    ),
+    "run_held_unit_looked_for_past_the_room": (
+        "run",
+        "ordinals[first], low, high, unit, held, spot, standing,",
+        "ordinals[first], lows[first], highs[first], unit, held, spot, standing,",
+    ),
+    "run_neighbour_read_again_past_the_room": (
+        "run",
+        "            low, high = run_room(lows, highs, first, first + size - 1)\n",
+        "            low, high = lows[first], highs[first]\n",
+    ),
+    "run_trade_looked_for_past_the_room": (
+        "run",
+        "                room = run_room(lows, highs, first, last)\n",
+        "                room = (lows[first], highs[first])\n",
+    ),
+    # The split of a run no merge can take (the third skeptic of landing
+    # 3b.0): withdrawn, made where the room holds a held unit, made out of
+    # rank order, made onto a unit of the other standing, made in part.
+    "run_split_withdrawn": (
+        "run", "            split = runs_split(\n", "            split = 0 and runs_split(\n",
+    ),
+    "run_split_past_a_held_unit_in_the_room": (
+        "run",
+        "            and nearest_held_unit(\n"
+        "                ordinals[first], *run_room(lows, highs, first, last), unit, held, spot, standing,\n"
+        "            ) is None\n",
+        "",
+    ),
+    "run_split_out_of_order": (
+        "run",
+        "if above not in goes and fits(rank, below):",
+        "if fits(rank, below):",
+    ),
+    "run_split_of_any_standing": (
+        "run",
+        "return lows[rank] <= target <= highs[rank] and standing(ordinals[rank], target)",
+        "return lows[rank] <= target <= highs[rank]",
+    ),
+    "run_split_in_part": (
+        "run",
+        "            if len(goes) == size:\n",
+        "            if goes:\n",
+    ),
+    # The fourth skeptic's two unwitnessed clauses of the split: made of a
+    # run that shares its unit with a rank elsewhere, and made past the
+    # count owed.
+    "run_split_of_a_shared_unit": (
+        "run", " and held[own] == size\n", "\n",
+    ),
+    "run_split_past_the_count": (
+        "run", "    while first < parsed and made < owed:\n", "    while first < parsed:\n",
+    ),
+    # The stack of the ranks where no one run can give a unit up (the
+    # fourth skeptic): withdrawn, taken short of the count, stacked at the
+    # lower ends, stacked in rank order, of any standing, and of a pinned
+    # rank by its gap.
+    "restack_withdrawn": (
+        "run",
+        "        if count > distinct and not changed and ranks_restacked(\n",
+        "        if count > distinct and False and ranks_restacked(\n",
+    ),
+    "restack_out_of_order": (
+        "run", "    sort_unpinned_runs(placed, pinned)\n", "",
+    ),
+    "restack_past_a_gap": (
+        "run",
+        "    if any(not low <= placed[r] <= high for r, (low, high) in enumerate(bounds)):\n"
+        "        return False\n",
+        "",
+    ),
+    "restack_taken_short_of_the_count": (
+        "run",
+        "    if len(now) != distinct:\n        return False\n    ordinals[:] = placed\n",
+        "    ordinals[:] = placed\n",
+    ),
+    "restack_at_the_lower_ends": (
+        "run",
+        "        candidate = ordinals[rank] + (high - ordinals[rank]) // by * by\n"
+        "        while candidate >= low and stands(candidate) != own:\n"
+        "            candidate -= by\n"
+        "        if candidate < low:\n",
+        "        candidate = ordinals[rank] - (ordinals[rank] - low) // by * by\n"
+        "        while candidate <= high and stands(candidate) != own:\n"
+        "            candidate += by\n"
+        "        if candidate > high:\n",
+    ),
+    "restack_in_rank_order": (
+        "run",
+        "    order = sorted((bounds[r][1], bounds[r][0], r) for r in range(len(ordinals)))\n",
+        "    order = sorted((r, bounds[r][0], r) for r in range(len(ordinals)))\n",
+    ),
+    "restack_of_any_standing": (
+        "run",
+        "    def stands(value):\n        return standing_of(column, value, day, step, widths, word)\n",
+        "    def stands(value):\n        return (False, False)\n",
+    ),
+    "restack_of_a_pinned_rank_by_its_gap": (
+        "run",
+        "    bounds = [(ordinals[r], ordinals[r]) if pinned[r] else (lows[r], highs[r]) for r in range(len(ordinals))]\n",
+        "    bounds = [(lows[r], highs[r]) for r in range(len(ordinals))]\n",
+    ),
+    "restack_raised_from_the_top": (
+        "run",
+        "    for rank in range(len(ordinals)):\n        if len(now) >= distinct:\n",
+        "    for rank in reversed(range(len(ordinals))):\n        if len(now) >= distinct:\n",
+    ),
+    # The raise's own clauses (the fifth skeptic): raised past the gap,
+    # onto a day of either width kind, a pinned rank raised, and a rank
+    # alone on its unit raised.
+    "restack_raised_past_the_gap": (
+        "run",
+        "            column, placed[rank], lows[rank], highs[rank], day, step, unit, now, widths,\n",
+        "            column, placed[rank], lows[rank] - 2 * unit, highs[rank] + 2 * unit, day, step, unit, now, widths,\n",
+    ),
+    "restack_raised_of_any_width": (
+        "run",
+        "            column, placed[rank], lows[rank], highs[rank], day, step, unit, now, widths,\n"
+        "            stands(placed[rank]), True, word,\n",
+        "            column, placed[rank], lows[rank], highs[rank], day, step, unit, now, False,\n"
+        "            (False, stands(placed[rank])[1]), True, word,\n",
+    ),
+    "restack_raised_a_pinned_rank": (
+        "run",
+        "        if pinned[rank] or now[placed[rank] // unit] < 2:\n            continue\n        found = nearest_free_where(",
+        "        if now[placed[rank] // unit] < 2:\n            continue\n        found = nearest_free_where(",
+    ),
+    "restack_raised_a_rank_alone": (
+        "run",
+        "        if pinned[rank] or now[placed[rank] // unit] < 2:\n            continue\n        found = nearest_free_where(",
+        "        if pinned[rank] or now[placed[rank] // unit] < 1:\n            continue\n        found = nearest_free_where(",
+    ),
+    # The raise onto the nearest FREE unit: a unit an earlier raise took is
+    # no longer free (the landing's sixth skeptic).
+    "restack_raised_onto_a_taken_unit": (
+        "run", "        now[found // unit] = 1\n", "        now[found // unit] = 0\n",
+    ),
+    # The count met past the strata, clause by clause (the orchestrator's
+    # call of 2026-09-28, plan P4-D354).
+    "strata_withdrawn": (
+        "strata",
+        '    kind = [standing_of(column, value, day, step, widths, word) for value in ordinals]\n',
+        '    return False\n    kind = [standing_of(column, value, day, step, widths, word) for value in ordinals]\n',
+    ),
+    "strata_where_the_stack_reaches_the_count": (
+        "strata",
+        '    if len(held) <= distinct:\n        return False\n',
+        '',
+    ),
+    "strata_from_the_ranks_as_they_stand": (
+        "strata",
+        '    held = {}\n    for value in laid:\n',
+        '    laid = list(ordinals)\n    held = {}\n    for value in laid:\n',
+    ),
+    "strata_a_body_rank_leaves": (
+        "strata",
+        '        beyond = rank in tail_of and ',
+        '        beyond = rank not in tail_of or ',
+    ),
+    "strata_onto_the_boundary": (
+        "strata",
+        '*tail_of[rank][1:5]) > 0\n',
+        '*tail_of[rank][1:5]) >= 0\n',
+    ),
+    "strata_farthest_first": (
+        "strata",
+        'offers.append(((max(costs), sum(1 for c in costs if c > 0), start, -down), start, goes))',
+        'offers.append(((-max(costs), sum(1 for c in costs if c > 0), start, -down), start, goes))',
+    ),
+    "strata_fewest_outside_first": (
+        "strata",
+        'offers.append(((max(costs), sum(1 for c in costs if c > 0), start, -down), start, goes))',
+        'offers.append(((sum(1 for c in costs if c > 0), max(costs), start, -down), start, goes))',
+    ),
+    "strata_any_number_outside": (
+        "strata",
+        'offers.append(((max(costs), sum(1 for c in costs if c > 0), start, -down), start, goes))',
+        'offers.append(((max(costs), 0, start, -down), start, goes))',
+    ),
+    "strata_the_higher_run_first": (
+        "strata",
+        'offers.append(((max(costs), sum(1 for c in costs if c > 0), start, -down), start, goes))',
+        'offers.append(((max(costs), sum(1 for c in costs if c > 0), -start, -down), start, goes))',
+    ),
+    "strata_more_ranks_up": (
+        "strata",
+        'offers.append(((max(costs), sum(1 for c in costs if c > 0), start, -down), start, goes))',
+        'offers.append(((max(costs), sum(1 for c in costs if c > 0), start, down), start, goes))',
+    ),
+    "strata_of_any_standing": (
+        "strata",
+        '        same = standing_of(column, target, day, step, widths, word) == standing_of(column, laid[rank], day, step, widths, word)\n',
+        '        same = True\n',
+    ),
+    "strata_a_shared_unit": (
+        "strata",
+        '\n                and held[laid[start] // unit] == len(run)\n',
+        '\n',
+    ),
+    "strata_a_pinned_rank_split": (
+        "strata",
+        '                not any(pinned[rank] for rank in run)\n',
+        '                True\n',
+    ),
+    "strata_the_sum_unwindowed": (
+        "strata",
+        '        if not sum(near) <= sum(away) <= sum(far):\n            return False\n',
+        '',
+    ),
+    "strata_the_square_unwindowed": (
+        "strata",
+        '        if not sum(d * d for d in near) <= sum(d * d for d in away) <= sum(d * d for d in far):\n            return False\n',
+        '',
+    ),
+    "strata_stacked_in_rank_order": (
+        "strata",
+        'key=lambda r: (room[r][1], room[r][0], r)',
+        'key=lambda r: r',
+    ),
+    "strata_stacked_at_the_lower_ends": (
+        "strata",
+        'for c in range(top, low - 1, -by)',
+        'for c in range(low, top + 1, by)',
+    ),
+    "strata_stack_unsorted": (
+        "strata",
+        '    sort_unpinned_runs(laid, pinned)\n    if not all(',
+        '    if not all(',
+    ),
+    "strata_a_pinned_rank_stacked_by_its_gap": (
+        "strata",
+        '    room = [(value, value) if fixed else (low, high) for value, fixed, low, high in zip(ordinals, pinned, lows, highs)]\n',
+        '    room = [(low, high) for value, fixed, low, high in zip(ordinals, pinned, lows, highs)]\n',
+    ),
+    "strata_stack_past_a_gap": (
+        "strata",
+        '    if not all(low <= value <= high for value, (low, high) in zip(laid, room)):\n        return False\n',
+        '',
+    ),
+    "strata_between_two_ranks": (
+        "strata",
+        '                and start > 0 and stop + 1 < size_of\n',
+        '                and start > 0\n',
+    ),
+    "group_takes_past_the_count": (
+        "group",
+        "        if owed == 0:\n            break\n        if len(chosen[name]) + 2",
+        "        if len(chosen[name]) + 2",
     ),
 }
 

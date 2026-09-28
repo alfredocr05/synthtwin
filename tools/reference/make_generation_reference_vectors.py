@@ -8870,6 +8870,9 @@ def _datetime_content(column):
     # the counts of different values and of widths reached (P4-D192).
     ordinals = kept_off_midnight(column, ordinals, parsed, whole, gap_lows, gap_highs, offsets=offsets)
     ordinals = units_settled(column, ordinals, parsed, whole, gap_lows, gap_highs)
+    # ...and where the count is still short, each tail's group gives way
+    # (G7.3b step 9, plan P4-D354).
+    ordinals = group_gives_way(column, ordinals, parsed, whole)
     holes = set(column.get("missing_by_source", {}))
     # HOW EVERY RANK IS SPELLED (method G7.5, landing 2b.6). Allocated
     # after the instants and the offsets, because which conventions a
@@ -9585,10 +9588,20 @@ def tail_side_plan(column, side, low_side, parsed, words):
         anchor - distance * unit if low_side else anchor + distance * unit
         for distance in stood
     ]
+    # THE TIE GROUP'S REACH (G7.3b steps 7 and 9): its strata run up to
+    # k * a((m - (F - 1)) / m), rounded as step 5 rounds, never short of
+    # the group's own distance and never past the end rank 0 stands at.
+    reach = None
+    if grouped < rows:
+        stretch, end = stretched_end(shape, rows, mean, root, edge)
+        group = stood[grouped]
+        outermost = group if grouped == 0 else max(min(max(1, whole_unit(end)), edge), group)
+        reach = min(max(group, whole_unit(stretch * mixture_at(shape, (rows - grouped) / rows))), outermost)
     return {
         "spots": places, "distances": stood, "texts": [None] * rows,
         "drawn": drawn, "near": near, "far": far, "anchor": anchor,
         "unit": unit, "half": half, "shape": shape, "grouped": grouped,
+        "reach": reach, "low_side": low_side,
     }
 
 
@@ -10250,7 +10263,8 @@ def units_settled(column, ordinals, parsed, whole, lows, highs):
     minutes or seconds -- number `n_distinct` less the stand-ins: too
     many, with each unpinned run sorted, a run of ranks on one unit
     holding no pinned rank moves whole onto an instant ranks already
-    hold, inside its gap, of the same width kind and midnight standing,
+    hold, inside the gap of every rank of it (``run_room``), of the same
+    width kind and midnight standing,
     nearest first, then the shorter run, then the lower rank -- the
     instants offered being the rank just below it, the rank just above
     it and the nearest held unit of its own kind, which need not be
@@ -10312,6 +10326,16 @@ def units_settled(column, ordinals, parsed, whole, lows, highs):
         off = now
         if off == 0 or stalled >= RESTORATION_STALLS:
             break
+    # AND WHERE NO PLACEMENT INSIDE THE GAPS REACHES THE COUNT, a tail rank
+    # leaves its stratum by the least amount that meets it (the orchestrator's
+    # call of 2026-09-28, not an owner ruling; the owner may reverse it).
+    if distinct is not None and len({value // unit for value in ordinals}) > distinct:
+        sums = tails_as_summed(column, parsed)
+        if sums:
+            count_met_past_the_strata(
+                column, ordinals, pinned, lows, highs, day, step, unit,
+                widths is not None, word, distinct, sums,
+            )
     sort_unpinned_runs(ordinals, pinned)
     return ordinals
 
@@ -10337,6 +10361,123 @@ def counts_off(column, ordinals, day, unit, word, distinct, widths):
         )
         off += abs(showing - widths)
     return off
+
+
+def group_gives_way(column, ordinals, parsed, whole):
+    """G7.3b step 9 (plan P4-D354): the tie group gives way where the count is short.
+
+    Read from the method's sentence.  Where the count pass runs and
+    reaches for the distinct count, and the different units still number
+    fewer than it, each tail whose group holds two ranks or more -- outer
+    indices ``max(F - 1, 1)`` to ``m - 1`` -- offers every distance from
+    one to its reach, other than the group's own, whose unit no rank
+    holds and whose standing is the group's.  Each offer is a tail and a
+    distance ``d``, and the offers are taken in this order while the
+    count is short and the group keeps one rank: the smaller ``|d - g|``
+    first; at one ``|d - g|``, the smaller ``d`` first -- on one tail
+    the unit inside ``g`` before the one outside it, across the two
+    tails the unit nearer its own boundary; at one ``|d - g|`` and one
+    ``d``, the low tail first.  A tail's taken distances inside its group go
+    smallest-first to its innermost ranks, and those outside it
+    largest-first to its outermost group ranks -- the choice and the
+    placement are ``group_offers_taken``, which
+    tests/test_oracle_rule_witnesses.py asks clause by clause.  Step 7's step off a
+    hole is not mirrored here, as ``tail_side_plan`` does not mirror it:
+    no frozen case publishes an absent spelling beside a tail group.
+    """
+    ordinals = list(ordinals)
+    space = ordinal_space(column)
+    if parsed < 3 or column["datetimes_read_at"] != "local" or any(whole):
+        return ordinals
+    if space not in RESOLUTIONS or not date_counts_reachable(column):
+        return ordinals
+    day = 86400 if space == "datetime" else 1
+    step = 60 if space == "datetime" and column["time_precision"] == "minute" else 1
+    unit = step if space == "datetime" else 1
+    census = column.get("date_field_widths", {})
+    widths = len(census) == 1 and (
+        column["format"] in VARIABLE_WIDTH_MEMBERS or column["format"] in TEXTUAL_MEMBERS
+    )
+    word = next(iter(census)) if widths else ""
+    owed = column["n_distinct"] - column["n_unparsed"] - len({v // unit for v in ordinals})
+    if owed <= 0:
+        return ordinals
+    _pins, _texts, _body, sides = date_pins(column, parsed)
+    held = {v // unit for v in ordinals}
+
+    def place(plan, d):
+        return plan["anchor"] + (-1 if plan["low_side"] else 1) * d * plan["unit"]
+
+    def rank(plan, i):
+        return i if plan["low_side"] else parsed - 1 - i
+
+    tails = {}
+    for name in ("low", "high"):
+        plan = sides.get(name)
+        if not plan or plan.get("reach") is None:
+            continue
+        rows = len(plan["spots"])
+        if rows - max(plan["grouped"], 1) < 2:
+            continue
+        group = plan["distances"][rows - 1]
+        mine = standing_of(column, place(plan, group), day, step, widths, word)
+        tails[name] = (
+            group,
+            rows - max(plan["grouped"], 1),
+            [
+                d
+                for d in range(1, plan["reach"] + 1)
+                if d != group
+                and place(plan, d) // unit not in held
+                and standing_of(column, place(plan, d), day, step, widths, word) == mine
+            ],
+        )
+    for name, distances in group_offers_taken(tails, owed).items():
+        plan = sides[name]
+        first = max(plan["grouped"], 1)
+        for k, d in enumerate(distances):
+            if d != tails[name][0]:
+                ordinals[rank(plan, first + k)] = place(plan, d)
+    return ordinals
+
+
+def group_offers_taken(tails, owed):
+    """G7.3b step 9's choice and placement, read from the method's sentence.
+
+    ``tails`` maps ``"low"`` and ``"high"`` to a group's distance ``g``,
+    its ranks ``G`` and the distances ``d`` it offers.  The offers are
+    taken in this order while ``owed`` is above nought and the group keeps
+    one rank: the smaller ``|d - g|`` first; at one ``|d - g|``, the
+    smaller ``d`` first; at one ``|d - g|`` and one ``d``, the low tail
+    first.  Each tail's answer is its group's distances from its
+    OUTERMOST rank inward: its units outside ``g`` on its outermost
+    ranks, the largest outermost; its units inside ``g`` on its
+    innermost ranks, the smallest innermost; ``g`` between.
+    """
+    offered = []
+    for order, name in enumerate(("low", "high")):
+        if name in tails:
+            group, _ranks, free = tails[name]
+            offered += [(abs(d - group), d, order, name) for d in free]
+    chosen = {name: [] for name in tails}
+    for _gap, d, _order, name in sorted(offered):
+        if owed == 0:
+            break
+        if len(chosen[name]) + 2 > tails[name][1]:
+            continue
+        chosen[name] += [d]
+        owed -= 1
+    placed = {}
+    for name, (group, ranks, _free) in tails.items():
+        inner = sorted(d for d in chosen[name] if d < group)
+        outer = sorted((d for d in chosen[name] if d > group), reverse=True)
+        found = [group] * ranks
+        for k, d in enumerate(inner):
+            found[ranks - 1 - k] = d
+        for k, d in enumerate(outer):
+            found[k] = d
+        placed[name] = found
+    return placed
 
 
 def sort_unpinned_runs(ordinals, pinned):
@@ -10463,12 +10604,13 @@ def distinct_pass(column, ordinals, pinned, lows, highs, day, step, distinct, wi
             while last + 1 < parsed and ordinals[last + 1] // unit == ordinals[first] // unit:
                 last += 1
             if not any(pinned[first:last + 1]):
+                low, high = run_room(lows, highs, first, last)
                 reached = set()
                 for other in (first - 1, last + 1):
                     if not 0 <= other < parsed:
                         continue
                     target = ordinals[other]
-                    if lows[first] <= target <= highs[first] and standing(ordinals[first], target):
+                    if low <= target <= high and standing(ordinals[first], target):
                         reached.add(target)
                         options.append(
                             (abs(target - ordinals[first]), last - first + 1, first, target, other)
@@ -10477,8 +10619,7 @@ def distinct_pass(column, ordinals, pinned, lows, highs, day, step, distinct, wi
                 # rank neighbours need not be (plan P4-D258).
                 spot = {value // unit: value for value in ordinals}
                 target = nearest_held_unit(
-                    ordinals[first], lows[first], highs[first], unit, held,
-                    spot, standing,
+                    ordinals[first], low, high, unit, held, spot, standing,
                 )
                 if target is not None and target not in reached:
                     options.append(
@@ -10497,7 +10638,8 @@ def distinct_pass(column, ordinals, pinned, lows, highs, day, step, distinct, wi
             own = ordinals[first] // unit
             if target // unit == own or held[own] != size or held.get(target // unit, 0) <= 0:
                 continue
-            if not lows[first] <= target <= highs[first]:
+            low, high = run_room(lows, highs, first, first + size - 1)
+            if not low <= target <= high:
                 continue
             if any(value // unit != own for value in ordinals[first:first + size]):
                 continue
@@ -10525,6 +10667,22 @@ def distinct_pass(column, ordinals, pinned, lows, highs, day, step, distinct, wi
             )
             count -= traded
             changed = changed or traded > 0
+        if count > distinct:
+            # AND A RUN NO MERGE CAN TAKE IS SPLIT across its neighbours'
+            # units (the third skeptic of landing 3b.0, plan P4-D354).
+            split = runs_split(
+                ordinals, pinned, lows, highs, unit, held, standing, count - distinct,
+            )
+            count -= split
+            changed = changed or split > 0
+        if count > distinct and not changed and ranks_restacked(
+            column, ordinals, pinned, lows, highs, day, step, unit, held, widths, word, distinct,
+        ):
+            # AND WHERE NO ONE RUN CAN GIVE A UNIT UP, THE RANKS ARE STACKED
+            # AFRESH (the fourth skeptic of landing 3b.0, plan P4-D354): once
+            # a round's merges, trades and split move nothing.
+            count = distinct
+            changed = True
     elif count < distinct:
         options, full = [], set()
         for rank in range(parsed):
@@ -10569,6 +10727,270 @@ def distinct_pass(column, ordinals, pinned, lows, highs, day, step, distinct, wi
             widths, distinct - count, word,
         ) or changed
     return changed
+
+
+def run_room(lows, highs, first, last):
+    """Where the run of ranks ``first`` to ``last`` may move WHOLE (G7.3).
+
+    Inside the gap of every rank of it: the highest of their lower bounds
+    and the lowest of their upper ones.  A body run's ranks share one gap;
+    a tail run's do not, each rank's gap being its own stratum (G7.3b step
+    8), and asked of the run's first rank alone the rest of it went past
+    theirs (the fix pass of landing 3b.0, plan P4-D354).
+    """
+    return max(lows[first:last + 1]), min(highs[first:last + 1])
+
+
+def runs_split(ordinals, pinned, lows, highs, unit, held, standing, owed):
+    """Split each run no merge can take across its two neighbours' units (G7.3).
+
+    Once the merges and both trades leave the count over, in rank order: a
+    run of two or more ranks, none pinned and alone on its unit, between two
+    ranks, whose room (`run_room`) holds no other unit ranks hold of its own
+    standing, gives its unit up rank by rank -- its ranks, in order, onto the
+    instant of the rank just below the run while that lies inside each one's
+    own gap, the rest onto the instant of the rank just above it, each of its
+    own standing, and only where every rank of the run has one.  Two tail
+    ranks whose strata meet on one day have that day as their room, and the
+    count stayed over (the third skeptic of landing 3b.0, plan P4-D354).
+    Returns how many runs it split, at most ``owed``; each frees one unit.
+    """
+    parsed = len(ordinals)
+    spot = {value // unit: value for value in ordinals}
+    made = 0
+    first = 0
+    while first < parsed and made < owed:
+        last = first
+        while last + 1 < parsed and ordinals[last + 1] // unit == ordinals[first] // unit:
+            last += 1
+        own = ordinals[first] // unit
+        size = last - first + 1
+        if (
+            size > 1 and 0 < first and last + 1 < parsed and held[own] == size
+            and not any(pinned[first:last + 1])
+            and nearest_held_unit(
+                ordinals[first], *run_room(lows, highs, first, last), unit, held, spot, standing,
+            ) is None
+        ):
+            below, above = ordinals[first - 1], ordinals[last + 1]
+
+            def fits(rank, target):
+                return lows[rank] <= target <= highs[rank] and standing(ordinals[rank], target)
+
+            goes = []
+            for rank in range(first, last + 1):
+                if above not in goes and fits(rank, below):
+                    goes += [below]
+                elif fits(rank, above):
+                    goes += [above]
+                else:
+                    break
+            if len(goes) == size:
+                ordinals[first:first + len(goes)] = goes
+                for target in goes:
+                    held[target // unit] += 1
+                held[own] = 0
+                made += 1
+        first = last + 1
+    return made
+
+
+def ranks_restacked(column, ordinals, pinned, lows, highs, day, step, unit, held, widths, word, distinct):
+    """Stack the ranks afresh on the fewest units their gaps and standings
+    allow, raised to the count (G7.3, plan P4-D354, the fourth skeptic of
+    landing 3b.0).
+
+    Pairs of tail ranks on alternate days whose strata shift by one rank
+    each give a day up only as a chain, each pair moving one day onto the
+    next, which no one run's merge or split is.  So once a round's merges,
+    both trades and the split move nothing and the count is still over:
+    taken by their gaps' upper ends, then lower ends, then rank -- a pinned
+    rank's gap being its own instant -- each rank joins the unit last
+    stacked for its standing where that lies inside its gap, else stacks
+    the highest unit of its standing inside its gap (a midnight a day at a
+    time).  The stack's instants are sorted within each unpinned run, as
+    every round sorts them, and every rank must then stand inside its gap.
+    Where the stack holds fewer units than the count, in rank order, an
+    unpinned rank sharing its unit takes the nearest free unit of its
+    standing inside its gap.  The ranks take the stack only where the
+    count is met exactly; where even the stack holds more, the count is met
+    past the strata once the rounds are done (``count_met_past_the_strata``).
+    """
+    def stands(value):
+        return standing_of(column, value, day, step, widths, word)
+
+    bounds = [(ordinals[r], ordinals[r]) if pinned[r] else (lows[r], highs[r]) for r in range(len(ordinals))]
+    order = sorted((bounds[r][1], bounds[r][0], r) for r in range(len(ordinals)))
+    placed, top = list(ordinals), {}
+    for _high, _low, rank in order:
+        own, (low, high) = stands(ordinals[rank]), bounds[rank]
+        if own in top and low <= top[own] <= high:
+            placed[rank] = top[own]
+            continue
+        by = 86400 if own[1] and unit == step and 86400 % step == 0 else unit
+        candidate = ordinals[rank] + (high - ordinals[rank]) // by * by
+        while candidate >= low and stands(candidate) != own:
+            candidate -= by
+        if candidate < low:
+            return False
+        placed[rank] = top[own] = candidate
+    sort_unpinned_runs(placed, pinned)
+    if any(not low <= placed[r] <= high for r, (low, high) in enumerate(bounds)):
+        return False
+    now = {}
+    for value in placed:
+        now[value // unit] = now.get(value // unit, 0) + 1
+    for rank in range(len(ordinals)):
+        if len(now) >= distinct:
+            break
+        if pinned[rank] or now[placed[rank] // unit] < 2:
+            continue
+        found = nearest_free_where(
+            column, placed[rank], lows[rank], highs[rank], day, step, unit, now, widths,
+            stands(placed[rank]), True, word,
+        )
+        if found is None:
+            continue
+        now[placed[rank] // unit] -= 1
+        now[found // unit] = 1
+        placed[rank] = found
+    if len(now) != distinct:
+        return False
+    ordinals[:] = placed
+    held.clear()
+    held.update(now)
+    return True
+
+
+
+def tails_as_summed(column, parsed):
+    """Each shape-drawn tail as G12.14 sums its two distances (plan P4-D354).
+
+    One entry per tail drawn through its shape -- a tail standing on its
+    published values has no stratum to leave -- holding its ranks from the
+    outermost in, its anchor, the space ordinals of one tail unit, the
+    half unit it is widened by, whether it is the low tail, and every
+    rank's nearest and furthest distance: its stratum, except that where
+    a tie group holds two ranks or more the j-th innermost may stand as
+    near as ``j + 1`` for ``j < min(g - 1, G - 1)`` and the j-th outermost as
+    far as ``t - j`` for ``j < min(t - g, G - 1)``, ``g`` the group's
+    distance and ``t`` its reach.
+    """
+    found = []
+    for name in ("low", "high"):
+        plan = date_pins(column, parsed)[3].get(name)
+        if not plan or "shape" not in plan:
+            continue
+        rows = len(plan["near"])
+        near, far = list(plan["near"]), list(plan["far"])
+        members = rows - max(plan["grouped"], 1)
+        if plan["reach"] is not None and members >= 2:
+            group, reach = plan["distances"][rows - 1], plan["reach"]
+            for j in range(min(group - 1, members - 1)):
+                near[rows - 1 - j] = j + 1
+            for j in range(min(reach - group, members - 1)):
+                far[max(plan["grouped"], 1) + j] = reach - j
+        ranks = tuple(i if plan["low_side"] else parsed - 1 - i for i in range(rows))
+        found.append(
+            (ranks, plan["anchor"], plan["unit"], plan["half"], plan["low_side"], tuple(near), tuple(far))
+        )
+    return found
+
+
+def units_past_the_boundary(value, anchor, size, half, low_side):
+    """Whole tail units between a tail's boundary and one ordinal, counted outward."""
+    here, there = (value + half) // size, anchor // size
+    return there - here if low_side else here - there
+
+
+def count_met_past_the_strata(column, ordinals, pinned, lows, highs, day, step, unit, widths, word, distinct, tails):
+    """Meet a count no placement inside the gaps reaches (G7.3, plan P4-D354).
+
+    Read from the method's sentence, which states the orchestrator's call of
+    2026-09-28 (not an owner ruling; the owner may reverse it): where the
+    count passes leave the count over and even the stack holds more units
+    than it, the ranks take the stack and give units up one at a time.  A
+    run of the stack's unpinned TAIL ranks, alone on its unit and between
+    two ranks, is split -- its lower ranks onto the instant of the rank just
+    below it, the rest onto the instant of the rank just above it, each of
+    its own standing -- where each lands inside its gap or, being a tail
+    rank, strictly beyond its tail's boundary.  The split taken is the one
+    whose farthest rank stands least far outside its gap, then the one
+    leaving the fewest ranks outside, then the lower run, then the one
+    sending more ranks down; each frees one unit.  The ranks take the
+    result only where the count is met and every shape-drawn tail's summed
+    distance and summed square lie inside G12.14's window; else nothing
+    moves.
+    """
+    size_of = len(ordinals)
+    kind = [standing_of(column, value, day, step, widths, word) for value in ordinals]
+    room = [(value, value) if fixed else (low, high) for value, fixed, low, high in zip(ordinals, pinned, lows, highs)]
+    laid, last = list(ordinals), {}
+    for rank in sorted(range(size_of), key=lambda r: (room[r][1], room[r][0], r)):
+        low, high = room[rank]
+        if kind[rank] in last and low <= last[kind[rank]] <= high:
+            laid[rank] = last[kind[rank]]
+            continue
+        by = 86400 if kind[rank][1] and unit == step and 86400 % step == 0 else unit
+        top = ordinals[rank] + (high - ordinals[rank]) // by * by
+        spot = next(
+            (c for c in range(top, low - 1, -by) if standing_of(column, c, day, step, widths, word) == kind[rank]),
+            None,
+        )
+        if spot is None:
+            return False
+        laid[rank] = last[kind[rank]] = spot
+    sort_unpinned_runs(laid, pinned)
+    if not all(low <= value <= high for value, (low, high) in zip(laid, room)):
+        return False
+    held = {}
+    for value in laid:
+        held[value // unit] = held.get(value // unit, 0) + 1
+    if len(held) <= distinct:
+        return False
+    tail_of = {rank: tail for tail in tails for rank in tail[0] if not pinned[rank]}
+
+    def outside(rank, target):
+        """How far past its gap ``target`` puts ``rank``; None where it may not go."""
+        same = standing_of(column, target, day, step, widths, word) == standing_of(column, laid[rank], day, step, widths, word)
+        inside = lows[rank] <= target <= highs[rank]
+        beyond = rank in tail_of and units_past_the_boundary(target, *tail_of[rank][1:5]) > 0
+        return (0 if inside else max(lows[rank] - target, target - highs[rank])) if same and (inside or beyond) else None
+
+    while len(held) > distinct:
+        offers = []
+        start = 0
+        while start < size_of:
+            stop = start
+            while stop + 1 < size_of and laid[stop + 1] // unit == laid[start] // unit:
+                stop += 1
+            run = list(range(start, stop + 1))
+            if (
+                not any(pinned[rank] for rank in run)
+                and start > 0 and stop + 1 < size_of
+                and held[laid[start] // unit] == len(run)
+            ):
+                for down in range(len(run) + 1):
+                    goes = [laid[start - 1]] * down + [laid[stop + 1]] * (len(run) - down)
+                    costs = [outside(rank, target) for rank, target in zip(run, goes)]
+                    if None not in costs:
+                        offers.append(((max(costs), sum(1 for c in costs if c > 0), start, -down), start, goes))
+            start = stop + 1
+        if not offers:
+            return False
+        _order, start, goes = min(offers)
+        del held[laid[start] // unit]
+        for place, target in enumerate(goes):
+            laid[start + place] = target
+            held[target // unit] += 1
+    for ranks, anchor, size, half, low_side, near, far in tails:
+        away = [units_past_the_boundary(laid[rank], anchor, size, half, low_side) for rank in ranks]
+        if not sum(near) <= sum(away) <= sum(far):
+            return False
+        if not sum(d * d for d in near) <= sum(d * d for d in away) <= sum(d * d for d in far):
+            return False
+    ordinals[:] = laid
+    return True
 
 
 def nearest_held_unit(value, low, high, unit, held, spot, fits):
@@ -10656,10 +11078,11 @@ def traded_merges(column, ordinals, pinned, lows, highs, day, step, unit, held, 
                 ordinals[first] // unit
             ] == last - first + 1:
                 tried = set()
+                room = run_room(lows, highs, first, last)
                 while len(tried) < (TRADE_TARGETS if clock else 1):
                     found = nearest_fitting(
-                        ordinals[first], lows[first], highs[first],
-                        lambda candidate, own=ordinals[first], low=lows[first], high=highs[first], seen=tried: (
+                        ordinals[first], room[0], room[1],
+                        lambda candidate, own=ordinals[first], low=room[0], high=room[1], seen=tried: (
                             candidate // unit not in seen
                             and held.get(candidate // unit, 0) > 0
                             and spot.get(candidate // unit) is not None
@@ -18278,8 +18701,10 @@ def _date_distinct_reached():
     """A month of dates holding fewer different days than its ranks (P4-D192).
 
     Sixty ISO dates over thirty days publishing twelve different days, one
-    more than the eleven the pins hold: runs of ranks on one day move whole
-    onto a neighbouring rank's day, nearest first, until twelve are held.
+    more than the eleven the pins hold. No placement with every rank inside
+    its gap holds as few as twelve, so the ranks are stacked afresh and
+    tail ranks leave their strata by the least amount that meets the count
+    (the orchestrator's call of 2026-09-28, plan P4-D354).
     """
     rungs = [
         "2024-03-01", "2024-03-02", "2024-03-04", "2024-03-07", "2024-03-10",
@@ -18300,9 +18725,11 @@ def _date_distinct_reached():
     return {
         "why": "the count of different values of G7.3's count passes (plan "
         "P4-D192): one instant written one way, so the different days the twin "
-        "holds must be the published twelve, reached by moving runs of ranks on "
-        "one day whole onto a neighbour's inside their gaps. Drawn alone, the "
-        "ranks spread over more days, and that is this case's mutant.",
+        "holds must be the published twelve. No placement with every rank "
+        "inside its gap holds so few, so the ranks are stacked afresh and a "
+        "tail rank leaves its stratum by the least amount that meets the count "
+        "(plan P4-D354). Kept inside every gap, the ranks hold fifteen days, "
+        "and that is this case's mutant.",
         "column": column,
         "rows": 60,
         "identifier_declared": False,
@@ -20228,6 +20655,63 @@ def _trailing_minus_exchange():
         "identifier_declared": False,
         "rungs": rungs,
         "claims": claims,
+    }
+
+
+def _every_day_group():
+    """G7.3b step 9 (plan P4-D354): a tail's tie group gives way where the count is short.
+
+    The description the producer writes, at a floor of eleven, of 105
+    dates holding every one of 22 days from 2024-05-06 -- 5, 4, 1, 6, 9,
+    2, 4, 7, 6, 2, 7, 7, 5, 5, 3, 2, 9, 7, 1, 1, 11 and 1 cells.  Both
+    tails publish their pair: the low side's group of twenty-one ranks
+    stands three days out and its strata reach five, the high side's
+    group of eleven stands two days out and reaches three, and the days
+    one, two and four out on the low side and one out on the high side
+    hold no rank once the count pass is done.
+    """
+    tails, tail_claims = _tail_fields(
+        {
+            "boundary": "2024-05-13", "rows": 31,
+            "mean_distance": "3.967741935483871",
+            "rms_distance": "4.410398270363552", "values": None,
+        },
+        {
+            "boundary": "2024-05-22", "rows": 21,
+            "mean_distance": "2.9047619047619047",
+            "rms_distance": "3.2440421581430665", "values": None,
+        },
+    )
+    ladder = {key: None for key in LADDER_KEYS}
+    ladder["p50"] = "2024-05-16"
+    ladder["p75"] = "2024-05-22"
+    column = _universal(
+        "column_1", "datetime", "datetime", "data", "ok",
+        n_present=105, n_missing=0, n_distinct=22, n_distinct_folded=22,
+        n_numeric=0, n_not_numeric=105, n_out_of_range=0, n_contradictory=0,
+        format="iso-date", resolution="date", time_precision="date",
+        subsecond_digits=0, datetimes_read_at="local",
+        tail_unit="day", date_percentiles=ladder,
+        n_unparsed=0, utc_offsets={"(none)": 105},
+        **tails,
+    )
+    return {
+        "why": "G7.3b step 9 (plan P4-D354): where the count of different "
+        "days is still short once the count pass is done, each tail's tie "
+        "group gives up ranks onto the days no rank holds from one to its "
+        "reach -- the smaller remove from its own distance first, then the "
+        "smaller distance, then the low tail -- the group keeping one rank; "
+        "the days inside its "
+        "distance go smallest first to its innermost ranks and the days "
+        "outside it largest first to its outermost. 105 dates on every one "
+        "of 22 days come back on all 22: the low group gives three ranks to "
+        "the days two, four and one out and the high group one to the day "
+        "one out. The mutant leaves each group on its one distance, as the "
+        "generator did before this decision, and the twin holds 18 days.",
+        "column": column,
+        "rows": 105,
+        "identifier_declared": False,
+        "claims": tail_claims,
     }
 
 
@@ -25554,7 +26038,7 @@ def _nonadjacent_merge_restoration():
     spec["why"] = (
         "the merge onto a unit that is not a rank neighbour (plan "
         "P4-D258): a run moves whole onto the nearest held unit of its "
-        "own width kind inside its gap, which the rank just below it and "
+        "own width kind inside the gap of every rank of it, which the rank just below it and "
         "the rank just above it need not be. This case's mutant offers "
         "the neighbours alone, and the runs whose neighbours are of the "
         "other kind stay where they were, so the twin holds more "
@@ -26796,6 +27280,9 @@ TWELFTH_BRANCH_CASE_BUILDERS = {
     # ...and the exchange that gives it its point (the skeptic of plan
     # P4-D352 (5)).
     "trailing_minus_exchange": _trailing_minus_exchange,
+    # ...and the tie group that gives way (plan P4-D354), routed here by
+    # landing 3b.0 while this file stood under plan P4-D295's line.
+    "every_day_group": _every_day_group,
 }
 
 CASE_SETS = {
@@ -27250,9 +27737,11 @@ _TWELFTH_BRANCH_ACCOUNT = (
     "cells, on forty-four whole numbers from 1,001 to 1,016 in runs of two "
     "to five; with that plan's second skeptic, G6.1's trailing minus "
     "kept on figures with a point, on seventy-seven readings between -40 "
-    "and 60.5; and, with the skeptic of its fifth item, the exchange that "
+    "and 60.5; with the skeptic of its fifth item, the exchange that "
     "gives a trailing minus its point, on twenty-two whole numbers between "
-    "-40 and 60. It is computed by the same oracle and the same proof layer "
+    "-40 and 60; and with the tie group that gives way (plan P4-D354), "
+    "G7.3b step 9 on 105 dates holding every one of 22 days. It is "
+    "computed by the same oracle and the same proof layer "
     "as tests/reference/generation-reference-vectors.json, "
     "tests/reference/generation-branch-vectors.json, "
     "tests/reference/generation-branch-vectors-2.json, "
@@ -27265,7 +27754,7 @@ _TWELFTH_BRANCH_ACCOUNT = (
     "tests/reference/generation-branch-vectors-9.json, "
     "tests/reference/generation-branch-vectors-10.json, "
     "tests/reference/generation-branch-vectors-11.json and "
-    "tests/reference/generation-document-vectors.json, and lives in a "
+    "tests/reference/generation-document-vectors.json, and live in a "
     "fourteenth file because the twelfth and thirteenth stand past plan "
     "P4-D295's 200000-byte line: no cap is raised and no case is dropped."
 )
@@ -27603,6 +28092,78 @@ GIVEN_WORDS = {
         5066559147082998548, 9863967612665876337, 11846538372407324895,
         1992919954658304516, 16205010896491803505, 2028856745023040660,
         3065727619890136330,
+    ),
+    # ...and the tie group that gives way (plan P4-D354), at seed 409.
+    "every_day_group": (
+        5723126325731050313, 6540454068587375397, 194228535198995354,
+        16079873709608031819, 3522824937754450556, 1013538802789719462,
+        6206742879728252327, 18214119027326488612, 10157481845363326451,
+        17671023117159672237, 12982048392614957436, 8680358956345566998,
+        14683568076181159954, 10494968917847668918, 8474141785725436698,
+        8739743837250901172, 5166491304051598754, 4007370047365132973,
+        14361009443310531043, 9415796342220764853, 3929554038919000523,
+        12818652028578033287, 3856858827344412828, 13786292920535634486,
+        10577302390325332403, 3098379312777723561, 9714099479093990321,
+        10751215887184976675, 7363910834234614409, 7980250017534750541,
+        12237573287534579784, 8038642098272064322, 16001138277233402997,
+        12946722188309911710, 425052044924422646, 17110484922487077403,
+        6393583658841171502, 2467002430640765042, 4927880720621872985,
+        9778055654993410822, 4261724978381499147, 16445903642092426846,
+        7688889934031118926, 17119369031796704063, 6897069055297663357,
+        11905960963499839518, 475769052894706807, 3408518912814382477,
+        16607460145146204247, 6533955669281027067, 4247332697069956611,
+        886471814242861402, 15266981754907099623, 7893692245182410287,
+        3445677001999323151, 12906937763339685741, 13583252066653262338,
+        4487113643750003824, 7276224883532990025, 14853453847773004952,
+        7210657444557328302, 7622050145151688817, 15714503830143575161,
+        11733845647229838365, 9104899284632513027, 3936961821053680423,
+        3770521396820378548, 9562587183383881246, 1455246374301627767,
+        10706755511173551803, 1769833788359237454, 7976540108264604500,
+        10260446317794819770, 14838302827321550848, 15900582489364532808,
+        15929597098077464112, 3900377034445355658, 3523195355440849987,
+        4808932155928156589, 741641233194611385, 1792630981302486711,
+        4689651234492199837, 6249271043839918613, 17435701025845624826,
+        5978338518283076100, 296758507275850170, 3868581786364555786,
+        6467847990219446133, 4934281648038642186, 5322373117507816248,
+        8134028334398629773, 9657880977406819620, 16695415751239493055,
+        4288177748273245280, 15899055505447040122, 6556382754855276781,
+        16850578941268930074, 4236802915576043500, 3508876237994136303,
+        10076084903727099339, 7598265311987273690, 7412444456928766686,
+        16588558085290870507, 14135599691806125276, 7140654492207905117,
+        13898403866665670337, 15509127673138114688, 6384392402442366548,
+        12124562981930275052, 6136364537517283255, 13073798243322645051,
+        7856190949942451050, 16074778089351101223, 1364118095293189878,
+        6342140243247225612, 13653134535816447404, 4899621711502468831,
+        16059526667811174320, 4727763829384385075, 8729021440839580740,
+        1831451862196055513, 17774695639698376067, 18208188860326098034,
+        10347531786126910646, 17437209635266768792, 1774900126618849728,
+        1021386296643282252, 7850757588197078066, 16329707816816749251,
+        13875548884583901851, 13639033776886610224, 3041055012506028613,
+        18102367071342563981, 15545551701754005209, 17437804467446126522,
+        15756967861612132942, 12086120536619794032, 9917664188694479212,
+        6418183003395902528, 12417920141856391593, 4503997003401930065,
+        13053936558303766131, 11207098014021156597, 9286140636856599669,
+        6468647690789045772, 12172600184079116892, 17920590787250285087,
+        17553868961376201920, 8776755558957671753, 1514484381776342144,
+        13545859224938436485, 18170982409044608564, 2639567506935236824,
+        4751225351287868866, 7783009912889300927, 1845401689718288997,
+        9325224300732562993, 18098847090152405328, 16994780340956413341,
+        435848052301845290, 7566376781024507227, 5568342697464364759,
+        14742854977585963948, 12597195525822462182, 15468308746733116068,
+        1704417126269398420, 9855637054907516816, 10684665649213612956,
+        15418320090792751156, 6453157099180715842, 8591811027764961858,
+        5397416898401264075, 14002970163619560420, 17185831609090890330,
+        9318808384843701280, 4440553081765463398, 2046728206865126702,
+        13660089229913697714, 12352446946474089899, 10303297129376733430,
+        6790739151375924539, 16897018961430107082, 6255842313183605738,
+        11582162655749802186, 17630095369355460750, 4306579437834288650,
+        18066764289210439717, 9772944200880122465, 14129604881542606289,
+        11745780205582585529, 4806223345691387072, 15763724338664925135,
+        14546571285825713024, 5503186530056459404, 5254897267339603274,
+        10409021696973824486, 18324840438044562246, 3242062166751887814,
+        17292682069479083040, 15134063942607668872, 16408842465293891747,
+        4095085676556946715, 10522138137679369697, 17111283135317611073,
+        3632842063314559153, 3829518513296712869, 103146376361316910,
     ),
     # ...and the census of marks that is only a pool (plan P4-D352), at
     # seed 408.

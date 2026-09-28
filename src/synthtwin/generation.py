@@ -17618,6 +17618,55 @@ def _tail_distance_bounds(shape: "_TailShape") -> "tuple[list[int], list[int]]":
     return (_tail_distances(shape, near), _tail_distances(shape, far))
 
 
+def _group_reach(shape: "_TailShape") -> int:
+    """How far a tail's tie group's strata reach (method G7.3b steps 7 and 9).
+
+    `k * a((m - (F - 1)) / m)` rounded halves up, kept at least the
+    group's own distance and never past the tail's end, which is never
+    past `edge` -- so a group of every rank but the end (a floor of one)
+    stays inside it. Asked only of a tail that has a group.
+    """
+    share = (shape.rows - shape.grouped) / shape.rows
+    reach = _half_up(shape.stretch * _mixture_at(shape, share))
+    return min(max(shape.group, reach), shape.end)
+
+
+def _tail_sum_bounds(
+    plan: "_TailPlan", counted: bool
+) -> "tuple[list[int], list[int]]":
+    """Each rank's nearest and furthest distance as G12.14 sums them (landing 3b.0).
+
+    The strata, except on a tail with a tie group of two ranks or more on
+    a column whose count of different values the count pass reaches
+    (`counted`, `contract.datetime_counts_reachable`): G7.3b step 9 may
+    move group ranks onto free units from one to `_group_reach`, each onto
+    a unit of its own, the group keeping one rank. With `g` the group's
+    distance, `t` its reach and `G` its ranks, the j-th innermost group
+    rank may stand as near as `j + 1` for `j < min(g - 1, G - 1)` and the
+    j-th outermost as far as `t - j` for `j < min(t - g, G - 1)`, so the
+    window holds every twin the step can write.
+
+    Guarantees: returns two lists of `plan.rows` whole distances; a
+    function of the plan and the flag. Raises nothing. No I/O.
+    """
+    near = [value for value in plan.near]
+    far = [value for value in plan.far]
+    shape = plan.shape
+    if not counted or shape is None or shape.grouped >= plan.rows:
+        return (near, far)
+    first = max(shape.grouped, 1)
+    size = plan.rows - first
+    if size < 2:
+        return (near, far)
+    group = shape.group
+    reach = _group_reach(shape)
+    for place in range(min(group - 1, size - 1)):
+        near[plan.rows - 1 - place] = place + 1
+    for place in range(min(reach - group, size - 1)):
+        far[first + place] = reach - place
+    return (near, far)
+
+
 def _values_counts(
     distances: "list[int]", rows: int, total: "int | None"
 ) -> "list[int]":
@@ -20775,15 +20824,26 @@ def _units_settled(
        or a second at the column's precision -- less the stand-ins must
        be the published count. Too many: each gap's ranks sorted, a RUN
        of ranks on one unit holding no pinned rank moves whole onto an
-       instant ranks already hold, where that lies inside its gap and is
-       of the same width kind and midnight standing -- nearest first,
+       instant ranks already hold, where that lies inside the gap of
+       every rank of the run (`_run_room`: a tail rank's gap is its own
+       stratum) and is of the same width kind and midnight standing --
+       nearest first,
        then the shorter run, then the lower rank. The instants offered
        are the rank just below it, the rank just above it and the
        nearest held unit of its own kind, which need not be either of
        those (plan P4-D258); and where its gap holds no unit of its own
        kind at all, it moves onto one of the other kind while as many
        ranks elsewhere move between held units the other way, leaving
-       the width census exactly where it stood (`_traded_merges`).
+       the width census exactly where it stood (`_traded_merges`); and a
+       run whose room holds no other held unit of its standing gives its
+       unit up rank by rank, onto its two rank neighbours' instants, each
+       inside its own gap (`_runs_split`); and where the count is still
+       over, the ranks are stacked afresh on the fewest units their gaps
+       and standings allow and raised to the count, taken only where
+       that meets it (`_ranks_restacked`); and where even that stack
+       holds more units than the count once the rounds are done, a tail
+       rank leaves its stratum by the least amount that meets it
+       (`_count_met_past_the_strata`).
        Too few: a rank sharing its unit moves to the nearest unit no rank
        holds inside its gap, of the same width kind, not onto a midnight
        it did not stand at and not off one it did, nearest first, ties to
@@ -20795,7 +20855,9 @@ def _units_settled(
     in any case (plan P4-D258: a fixed four rounds left 379, 37, 102 and
     382 cells of four ISO dates holding seven different dates, and the
     same pass run again brought them to four).
-    Each gap's ranks are then sorted. A count the
+    Each gap's ranks are then sorted, and where the different values are
+    still too few a tail's tie group gives way (`_group_gives_way`, G7.3b
+    step 9), which no gap above can do. A count the
     passes leave unmet is measured on the finished cells and reported:
     the distinct counts by their approximation records, whose window is
     the published count here (`_datetime_approximations`), and the widths
@@ -20875,9 +20937,203 @@ def _units_settled(
         off = now
         if off == 0 or stalled >= _RESTORATION_STALLS:
             break
+    if distinct >= 0 and layout is not None:
+        # AND WHERE NO PLACEMENT INSIDE THE GAPS REACHES THE COUNT, a tail
+        # rank leaves its stratum by the least amount that meets it (the
+        # orchestrator's call of 2026-09-28, not an owner ruling; the owner
+        # may reverse it; plan P4-D354).
+        units_now: "dict[int, bool]" = {}
+        for value in moved:
+            units_now[value // unit] = True
+        tails: "list[tuple[tuple[int, ...], int, int, int, bool, tuple[int, ...], tuple[int, ...]]]" = []
+        for plan in (layout.low, layout.high):
+            if len(units_now) <= distinct or plan is None or plan.shape is None:
+                continue
+            near, far = _tail_sum_bounds(plan, True)
+            tails += [
+                (
+                    tuple(_tail_rank_of(plan, parsed, index) for index in range(plan.rows)),
+                    plan.anchor, plan.unit, plan.half, plan.low_side,
+                    tuple(near), tuple(far),
+                )
+            ]
+        if tails:
+            _count_met_past_the_strata(
+                facts, moved, pinned, gap_lows, gap_highs, day, step, unit,
+                widths >= 0, word, distinct, tails,
+            )
     _runs_sorted(moved, pinned)
+    if distinct >= 0 and layout is not None:
+        _group_gives_way(
+            column, facts, layout, moved, day, step, unit, distinct,
+            widths >= 0, word,
+        )
     return moved
 
+
+def _group_gives_way(
+    column: contract.ColumnBlock,
+    facts: contract.DatetimeFacts,
+    layout: "_DateLayout",
+    moved: "list[int]",
+    day: int,
+    step: int,
+    unit: int,
+    wanted: int,
+    widths: bool,
+    word: str,
+) -> None:
+    """G7.3b step 9: a tie group gives up ranks where the distinct count is short.
+
+    EVERY DAY OF THE RANGE FILLED (landing 3b.0, plan P4-D354). A tail's
+    tie group stands on ONE distance and its gap is that point, so the
+    count pass can never split it: two years of admissions holding a value
+    on every one of their 731 days came back with 730, the day one unit
+    beyond the boundary -- 17 real cells -- never written, and both
+    distinct counts MISSED at every seed. So where the count of different
+    units is still short once the count pass is done, the units no rank
+    holds from one to the group's reach (`_group_reach`) are offered; a
+    unit a column's absent spelling names, or of another width kind or
+    midnight standing (`_same_standing`), is not. Each offer is a tail
+    and a distance `d`, taken in the method's order until the count is
+    met: the smaller `|d - g|` first; at one `|d - g|`, the smaller `d`
+    first -- on one tail the unit inside `g` before the one outside it,
+    across the two tails the unit nearer its own boundary; at one
+    `|d - g|` and one `d`, the low tail first. That is the order the
+    tuples `(away, distance, side)` sort in. Each tail's group keeps one
+    rank on `g`, where G12.14's window is summed with it.
+    The units inside the group's distance go to its innermost ranks, the
+    smallest distance to the innermost; the units outside it to its
+    outermost ranks, the largest distance to the outermost -- so the
+    ranks stay in order and no rank passes the tail's drawn ranks, which
+    all stand at the reach or beyond. No word is drawn. The window of
+    G12.14 is drawn to hold every twin this writes (`_tail_sum_bounds`).
+
+    Guarantees: moves group ranks of `moved` in place, each to a unit no
+    rank held; changes nothing where the count is met or no group can
+    give way. Linear in the tail's ranks and the units walked. Raises
+    nothing. No I/O of any kind.
+    """
+    held: "dict[int, int]" = {}
+    for value in moved:
+        held[value // unit] = 1
+    short = wanted - len(held)
+    if short <= 0:
+        return
+    holes = _hole_units(column, facts)
+    plans = [layout.low, layout.high]
+    tails = [facts.low_tail, facts.high_tail]
+    offered: "list[tuple[int, int, list[int]] | None]" = [None, None]
+    for side in range(2):
+        plan = plans[side]
+        tail = tails[side]
+        if plan is None or tail is None or plan.shape is None:
+            continue
+        shape = plan.shape
+        first = max(shape.grouped, 1)
+        room = plan.rows - first - 1
+        if shape.grouped >= plan.rows or room < 1:
+            continue
+        at = taxonomy.tail_ordinal(
+            tail.boundary, facts.tail_unit, facts.datetimes_read_at
+        )
+        own = _tail_place(plan, shape.group)
+        reach = _group_reach(shape)
+        # A GROUP AT MIDNIGHT IS OFFERED ONLY UNITS AT A MIDNIGHT, a day of
+        # tail units at a time, as `_nearest_free_unit` walks them.
+        by = 1
+        if day == 86400 and _written_at_midnight(own, 0, step):
+            by = max(1, 86400 // plan.unit)
+        # The nearest `min(short, room)` free units are offered: no more of
+        # this tail's can be taken, and `_group_offers_taken` takes them in
+        # an order that never passes a nearer one of the same tail.
+        free: "list[int]" = []
+        away = by
+        while len(free) < min(short, room):
+            inner = shape.group - away
+            outer = shape.group + away
+            if inner < 1 and outer > reach:
+                break
+            for distance in (inner, outer):
+                if distance < 1 or distance > reach:
+                    continue
+                spot = _tail_place(plan, distance)
+                if spot // unit in held:
+                    continue
+                if (at - distance if plan.low_side else at + distance) in holes:
+                    continue
+                if not _same_standing(facts, own, spot, day, step, widths, word):
+                    continue
+                free += [distance]
+            away = away + by
+        offered[side] = (shape.group, plan.rows - first, free)
+    placed = _group_offers_taken(offered, short)
+    parsed = len(moved)
+    for side in range(2):
+        plan = plans[side]
+        if plan is None or plan.shape is None:
+            continue
+        first = max(plan.shape.grouped, 1)
+        for place in range(len(placed[side])):
+            if placed[side][place] != plan.shape.group:
+                rank = _tail_rank_of(plan, parsed, first + place)
+                moved[rank] = _tail_place(plan, placed[side][place])
+
+
+def _group_offers_taken(
+    offered: "list[tuple[int, int, list[int]] | None]", short: int
+) -> "list[list[int]]":
+    """G7.3b step 9's choice and placement, from what each tail offers.
+
+    `offered` holds, low tail first, each tail's group distance `g`, its
+    group's ranks `G` and the distances `d` it offers, or None where it
+    offers nothing. The offers `(|d - g|, d, side)` are taken in the order
+    they sort in -- the smaller `|d - g|` first, then the smaller `d`,
+    then the low tail -- while `short` is above nought, each group keeping
+    one rank. Each tail's answer is its group's distances, OUTERMOST group
+    rank first: the taken units outside `g` on its outermost ranks, the
+    largest outermost; those inside `g` on its innermost ranks, the
+    smallest innermost; `g` between. A tail offering nothing answers an
+    empty list. Witnessed clause by clause in
+    tests/test_oracle_rule_witnesses.py (`group`), beside the oracle's
+    own statement of it.
+
+    Guarantees: returns two lists; a function of its arguments. Raises
+    nothing. No I/O of any kind.
+    """
+    offers: "list[tuple[int, int, int]]" = []
+    for side in range(2):
+        tail = offered[side]
+        if tail is None:
+            continue
+        for distance in tail[2]:
+            offers += [(abs(distance - tail[0]), distance, side)]
+    taken: "list[list[int]]" = [[], []]
+    for offer in sorted(offers):
+        if short <= 0:
+            break
+        side = offer[2]
+        tail = offered[side]
+        if tail is None or len(taken[side]) >= tail[1] - 1:
+            continue
+        taken[side] += [offer[1]]
+        short = short - 1
+    placed: "list[list[int]]" = [[], []]
+    for side in range(2):
+        tail = offered[side]
+        if tail is None:
+            continue
+        group = tail[0]
+        ranks = tail[1]
+        inside = sorted([value for value in taken[side] if value < group])
+        outside = sorted([value for value in taken[side] if value > group])
+        found = [group for _place in range(ranks)]
+        for place in range(len(inside)):
+            found[ranks - 1 - place] = inside[place]
+        for place in range(len(outside)):
+            found[place] = outside[len(outside) - 1 - place]
+        placed[side] = found
+    return placed
 
 # HOW LONG THE RESTORATION RUNS (plan P4-D258). It ran a fixed four
 # rounds and stopped, and four was too few: 379, 37, 102 and 382 cells of
@@ -21073,8 +21329,9 @@ def _distinct_reached(
     if count > wanted:
         _runs_sorted(moved, pinned)
         # A RUN IS EVERY RANK ON ONE UNIT, consecutive once each gap's ranks
-        # are sorted; a run holding no pinned rank lies inside one gap and
-        # may move whole onto the unit just below or just above it.
+        # are sorted; a run holding no pinned rank may move whole onto the
+        # unit just below or just above it where that lies inside the gap
+        # of EVERY rank of the run (`_run_room`).
         # Five parts: how far the move is, how long the run is, where it
         # starts, the instant offered, and WHICH RANK offered it -- the
         # last being -1 for the held unit that is no rank neighbour. A
@@ -21097,12 +21354,13 @@ def _distinct_reached(
                 if pinned[rank]:
                     loose = False
             if loose:
+                lowest, highest = _run_room(lows, highs, first, last)
                 reached: "dict[int, bool]" = {}
                 for other in (first - 1, last + 1):
                     if other < 0 or other >= parsed:
                         continue
                     target = moved[other]
-                    if target < lows[first] or target > highs[first]:
+                    if target < lowest or target > highest:
                         continue
                     if not _same_standing(
                         facts, moved[first], target, day, step, widths, word
@@ -21130,7 +21388,7 @@ def _distinct_reached(
                 # keeps the width count exact was never offered and the
                 # run stayed where it was however many rounds ran.
                 other_unit = _nearest_held_unit(
-                    facts, moved[first], lows[first], highs[first], day, step,
+                    facts, moved[first], lowest, highest, day, step,
                     unit, held, spot, order, widths, word,
                 )
                 if other_unit is not None and other_unit not in reached:
@@ -21155,7 +21413,8 @@ def _distinct_reached(
                 continue
             if target // unit not in held or held[target // unit] <= 0:
                 continue
-            if target < lows[first] or target > highs[first]:
+            lowest, highest = _run_room(lows, highs, first, first + size - 1)
+            if target < lowest or target > highest:
                 continue
             steady = True
             for rank in range(first, first + size):
@@ -21198,6 +21457,22 @@ def _distinct_reached(
             )
             count = count - traded
             changed = changed or traded > 0
+        if count > wanted:
+            given = _runs_split(
+                facts, moved, pinned, lows, highs, day, step, unit, held,
+                widths, word, count - wanted,
+            )
+            count = count - given
+            changed = changed or given > 0
+        if count > wanted and not changed and _ranks_restacked(
+            facts, moved, pinned, lows, highs, day, step, unit, held, widths,
+            word, wanted,
+        ):
+            # AND WHERE NO ONE RUN CAN GIVE A UNIT UP, THE RANKS ARE STACKED
+            # AFRESH (the fourth skeptic of landing 3b.0, plan P4-D354): once
+            # a round's merges, trades and split move nothing.
+            count = wanted
+            changed = True
         return changed
     splits: "list[tuple[int, int, int]]" = []
     # A GAP WITH NO FREE UNIT STAYS WITHOUT ONE while ranks only split, so
@@ -21257,6 +21532,488 @@ def _distinct_reached(
     return changed
 
 
+def _runs_split(
+    facts: contract.DatetimeFacts,
+    moved: "list[int]",
+    pinned: "list[bool]",
+    lows: "list[int]",
+    highs: "list[int]",
+    day: int,
+    step: int,
+    unit: int,
+    held: "dict[int, int]",
+    widths: bool,
+    word: str,
+    owed: int,
+) -> int:
+    """Split a run no merge can take across the units of its two neighbours.
+
+    A RUN'S ROOM CAN BE ITS OWN UNIT ALONE (the third skeptic of landing
+    3b.0, plan P4-D354). A run moves whole only inside the gap of every
+    rank of it (`_run_room`), and two tail ranks whose strata meet on one
+    day have that day as their room: nowhere to merge. 83 ISO dates over
+    59 days, 37 of them different, described at a floor of 36, came back
+    holding 41 and 43 different days at seeds 3 and 8, both distinct
+    counts MISSED, where the run's first rank alone had been asked and the
+    column met them with ranks outside their gaps. Each such run could
+    still give its unit up rank by rank: the lower rank onto the day the
+    rank below the run holds, the upper onto the day the rank above it
+    holds, each inside its own stratum.
+
+    So, once the merges and both trades are done and the count is still
+    over, in rank order: a run of two or more ranks, none pinned and
+    alone on its unit, between two ranks, whose room holds no other unit
+    ranks hold of its own standing, is split -- its ranks, in order, onto
+    the instant of the rank just below the run while that lies inside
+    each one's own gap, and the rest onto the instant of the rank just
+    above it, each of its own standing (`_same_standing`), and only where
+    every rank of the run has one. Each split frees the run's unit and
+    lands every rank on a unit ranks already hold, so the count of
+    different units falls by exactly one and no count of a standing
+    moves.
+
+    Guarantees: moves ranks of `moved` and counts of `held` in place;
+    returns how many runs it split, at most ``owed``. Linear in the ranks
+    with one held-unit search per run. Determinism: a fixed function of
+    its arguments; draws no word. Raises nothing. No I/O of any kind.
+    """
+    parsed = len(moved)
+    spot: "dict[int, int]" = {}
+    for rank in range(parsed):
+        spot[moved[rank] // unit] = moved[rank]
+    order = _held_order(facts, spot, day, step, widths, word)
+    made = 0
+    first = 0
+    while first < parsed and made < owed:
+        last = first
+        while last + 1 < parsed and moved[last + 1] // unit == moved[first] // unit:
+            last = last + 1
+        own = moved[first] // unit
+        size = last - first + 1
+        loose = size > 1 and first > 0 and last + 1 < parsed and held[own] == size
+        for rank in range(first, last + 1):
+            if pinned[rank]:
+                loose = False
+        if loose:
+            lowest, highest = _run_room(lows, highs, first, last)
+            if _nearest_held_unit(
+                facts, moved[first], lowest, highest, day, step, unit, held,
+                spot, order, widths, word,
+            ) is not None:
+                loose = False
+        if loose:
+            below = moved[first - 1]
+            above = moved[last + 1]
+            goes: "list[int]" = []
+            for rank in range(first, last + 1):
+                upward = len(goes) > 0 and goes[len(goes) - 1] == above
+                if (
+                    not upward
+                    and lows[rank] <= below <= highs[rank]
+                    and _same_standing(facts, moved[rank], below, day, step, widths, word)
+                ):
+                    goes += [below]
+                elif lows[rank] <= above <= highs[rank] and _same_standing(
+                    facts, moved[rank], above, day, step, widths, word
+                ):
+                    goes += [above]
+                else:
+                    break
+            if len(goes) == size:
+                for index in range(size):
+                    moved[first + index] = goes[index]
+                    key = goes[index] // unit
+                    held[key] = held[key] + 1
+                held[own] = 0
+                made = made + 1
+        first = last + 1
+    return made
+
+
+def _ranks_stacked(
+    facts: contract.DatetimeFacts,
+    moved: "list[int]",
+    pinned: "list[bool]",
+    lows: "list[int]",
+    highs: "list[int]",
+    day: int,
+    step: int,
+    unit: int,
+    widths: bool,
+    word: str,
+) -> "list[int] | None":
+    """The ranks stacked afresh on the fewest units their gaps allow (G7.3).
+
+    Taken in the order of their gaps' upper ends, then their lower ends,
+    then their rank -- a pinned rank's gap being its own instant -- each
+    rank stands on the unit last stacked for its standing where that lies
+    inside its gap, else on the highest unit of its standing inside its
+    gap, which is stacked next (a midnight sought a day at a time). That
+    stack holds the fewest units any placement inside every gap keeping
+    every standing can hold (the stabbing of intervals at their upper
+    ends, taken in that order). Its instants are then sorted within each
+    unpinned run, as every round sorts them.
+
+    Guarantees: returns one instant per rank, every one inside its gap
+    and of its rank's own standing, or None where a gap holds no instant
+    of its rank's standing or a sorted rank stands outside its gap. Reads
+    its arguments and changes none of them. Linear in the ranks but for
+    the sort and the walk down each gap to an instant of its standing.
+    Determinism: a fixed function of its arguments; draws no word. Raises
+    nothing. No I/O of any kind.
+    """
+    parsed = len(moved)
+    low = [moved[rank] if pinned[rank] else lows[rank] for rank in range(parsed)]
+    high = [moved[rank] if pinned[rank] else highs[rank] for rank in range(parsed)]
+    keys: "list[tuple[int, int, int]]" = []
+    for rank in range(parsed):
+        keys += [(high[rank], low[rank], rank)]
+    placed = [value for value in moved]
+    top: "dict[tuple[bool, bool], int]" = {}
+    for key in sorted(keys):
+        rank = key[2]
+        standing = _standing_of(facts, moved[rank], day, step, widths, word)
+        if standing in top and low[rank] <= top[standing] <= high[rank]:
+            placed[rank] = top[standing]
+            continue
+        by = unit
+        if day == 86400 and unit == step and 86400 % step == 0 and standing[1]:
+            # A MIDNIGHT IS SOUGHT A DAY AT A TIME, as `_nearest_free_unit`
+            # seeks one: the candidates that keep its standing start a day.
+            by = 86400
+        candidate = moved[rank] + ((high[rank] - moved[rank]) // by) * by
+        while candidate >= low[rank] and not _same_standing(
+            facts, moved[rank], candidate, day, step, widths, word
+        ):
+            candidate = candidate - by
+        if candidate < low[rank]:
+            return None
+        placed[rank] = candidate
+        top[standing] = candidate
+    # THE RANKS KEEP THEIR ORDER, as every round sorts them, and each must
+    # then stand inside its own gap; a rank passing another whose gap lies
+    # elsewhere would sort out of its gap (the split's `IN ORDER` witness).
+    _runs_sorted(placed, pinned)
+    for rank in range(parsed):
+        if placed[rank] < low[rank] or placed[rank] > high[rank]:
+            return None
+    return placed
+
+
+def _ranks_restacked(
+    facts: contract.DatetimeFacts,
+    moved: "list[int]",
+    pinned: "list[bool]",
+    lows: "list[int]",
+    highs: "list[int]",
+    day: int,
+    step: int,
+    unit: int,
+    held: "dict[int, int]",
+    widths: bool,
+    word: str,
+    wanted: int,
+) -> bool:
+    """Stack every rank afresh on the fewest units its gap allows, raised to the count.
+
+    A CHAIN OF RUNS CAN GIVE A UNIT UP WHERE NO ONE RUN CAN (the fourth
+    skeptic of landing 3b.0, plan P4-D354). Tail ranks in pairs on
+    alternate days, their two-day strata shifted by one rank each, have
+    each pair's own day as its room and their rank neighbours two days
+    off, so neither a merge nor the split takes any pair -- while every
+    pair moving one day onto the next frees a day where the chain ends.
+    123 midnight moments over 111 days, 52 of them different, read in
+    days at a floor of 50, came back holding 54 at seeds 3 and 8, both
+    distinct counts MISSED, though a placement inside every gap holding
+    52 existed and validated; 77 month-first dates, 33 different, held
+    35 at a floor of 36, seed 3.
+
+    So, once a round's merges, both trades and the split move nothing
+    and the count is still over, the ranks are stacked afresh: taken in
+    the order of their gaps' upper ends, then their lower ends, then
+    their rank -- a pinned rank's gap being its own instant -- each rank
+    stands on the unit last stacked for its standing where that lies
+    inside its gap, else on the highest unit of its standing inside its
+    gap, which is stacked next. That stack holds the fewest units any
+    placement inside every gap keeping every standing can hold (the
+    stabbing of intervals at their upper ends, taken in that order). Its
+    instants are then sorted within each unpinned run, as every round
+    sorts them, and every rank must stand inside its gap. Where the
+    stack holds fewer units than the count, in rank order, an unpinned
+    rank sharing its unit moves onto the nearest free unit of its
+    standing inside its gap (`_nearest_free_unit`) until the count is
+    met. The ranks take the stack only where that meets the count
+    exactly; otherwise nothing moves.
+
+    Where even the stack holds more units than the count, no placement
+    inside every gap reaches it, and once the rounds are done a tail rank
+    leaves its stratum by the least amount that meets it
+    (`_count_met_past_the_strata`).
+
+    Guarantees: moves ranks of `moved` and counts of `held` in place
+    only where the count is met, keeping every rank inside its gap and
+    every standing's count where it stood, and returns whether it did.
+    Linear in the ranks but for the sorts and the free-unit walks of the
+    raise. Determinism: a fixed function of its arguments; draws no word.
+    Raises nothing. No I/O of any kind.
+    """
+    parsed = len(moved)
+    stacked_at = _ranks_stacked(
+        facts, moved, pinned, lows, highs, day, step, unit, widths, word
+    )
+    if stacked_at is None:
+        return False
+    placed = stacked_at
+    stacked: "dict[int, int]" = {}
+    for rank in range(parsed):
+        key_now = placed[rank] // unit
+        stacked[key_now] = (stacked[key_now] if key_now in stacked else 0) + 1
+    units = len(stacked)
+    # A GAP WITH NO FREE UNIT STAYS WITHOUT ONE while units are only added,
+    # as in the too-few pass (`_full_gap`).
+    full: "dict[tuple[int, int, bool], bool]" = {}
+    for rank in range(parsed):
+        if units >= wanted:
+            break
+        if pinned[rank] or stacked[placed[rank] // unit] < 2:
+            continue
+        gap = _full_gap(facts, placed[rank], lows[rank], highs[rank], day, widths, word)
+        if gap is not None and gap in full:
+            continue
+        found = _nearest_free_unit(
+            facts, placed[rank], lows[rank], highs[rank], day, step, unit, stacked,
+            widths, word,
+        )
+        if found is None:
+            if gap is not None:
+                full[gap] = True
+            continue
+        stacked[placed[rank] // unit] = stacked[placed[rank] // unit] - 1
+        stacked[found // unit] = 1
+        placed[rank] = found
+        units = units + 1
+    if units != wanted:
+        return False
+    for rank in range(parsed):
+        moved[rank] = placed[rank]
+    for key_held in held:
+        held[key_held] = 0
+    for key_now in stacked:
+        held[key_now] = stacked[key_now]
+    return True
+
+
+
+def _count_met_past_the_strata(
+    facts: contract.DatetimeFacts,
+    moved: "list[int]",
+    pinned: "list[bool]",
+    lows: "list[int]",
+    highs: "list[int]",
+    day: int,
+    step: int,
+    unit: int,
+    widths: bool,
+    word: str,
+    wanted: int,
+    tails: "list[tuple[tuple[int, ...], int, int, int, bool, tuple[int, ...], tuple[int, ...]]]",
+) -> bool:
+    """Meet a count no placement inside the gaps reaches, a tail rank past its stratum.
+
+    THE GAP RULE'S COST, REPAIRED (the orchestrator's call of 2026-09-28,
+    not an owner ruling; the owner may reverse it; plan P4-D354). Keeping
+    every rank inside its gap (`_run_room`) left a count no placement
+    inside every gap reaches MISSED: 123 ISO dates over 56 days, 24 of
+    them different, described at a floor of 36, came back holding 26 at
+    seeds 3 and 8, where the fewest days any placement inside every gap
+    holds is 25 -- and shipped stage 3 had met that count with low-tail
+    ranks a day below their strata, and validated. The call: where no
+    placement with every rank inside its gap can meet the distinct count,
+    a tail rank may leave its stratum by the least amount that meets it,
+    and only where the tail's published windows and every other published
+    check still hold.
+
+    So where the count passes leave the count over and even the stack
+    (`_ranks_stacked`) holds more units than it, the ranks take the stack
+    and give units up one at a time. A run of the stack's ranks, none
+    pinned, alone on its unit and between two ranks, is split -- its
+    lower ranks onto the instant of the rank just below it, the rest onto
+    the instant of the rank just above it, each of its own standing
+    (`_same_standing`) -- where each rank lands inside its gap or, being
+    an unpinned rank of a shape-drawn tail, strictly beyond its tail's
+    boundary. Only a run holding a tail rank is asked: a run of body
+    ranks alone could split only inside every gap, which would leave the
+    stack holding a unit fewer than the fewest it can hold. Of every split
+    on offer the one taken is the one whose rank lands farthest outside
+    its gap by the least amount, then the one leaving the fewest ranks
+    outside their gaps, then the lower run, then the one sending more of
+    its ranks down; each frees the run's unit onto units ranks already
+    hold, so the count falls by exactly one and no unit is written that
+    the stack did not hold. The ranks take the result only where the
+    count is met exactly and every shape-drawn tail's summed distance and
+    summed square then lie inside the window G12.14 sums them over (the
+    `near` and `far` of `_tail_sum_bounds`); otherwise nothing moves.
+    A body rank never leaves its gap, so the ladder's pins stand; a
+    moved tail rank lands on a held unit of its own standing beyond its
+    boundary, so the tail's rows, the width census and the count at
+    midnight stand.
+
+    `tails` holds each shape-drawn tail as its ranks from the outermost
+    in, its anchor, how many space ordinals one tail unit is, the half
+    unit it is widened by, whether it is the low tail, and each rank's
+    nearest and furthest distance as G12.14 sums them.
+
+    Guarantees: moves ranks of `moved` in place only where the count is
+    met with every tail window held, and returns whether it did. Linear in
+    the ranks for the stack and in the tails' ranks for each unit given
+    up. Determinism: a fixed function of its arguments; draws no word.
+    Raises nothing. No I/O of any kind.
+    """
+    stacked_at = _ranks_stacked(
+        facts, moved, pinned, lows, highs, day, step, unit, widths, word
+    )
+    if stacked_at is None:
+        return False
+    placed = stacked_at
+    held: "dict[int, int]" = {}
+    for value in placed:
+        key = value // unit
+        held[key] = (held[key] if key in held else 0) + 1
+    count = len(held)
+    if count <= wanted:
+        return False
+    parsed = len(placed)
+    # WHICH TAIL EACH RANK MAY LEAVE ITS STRATUM IN: an unpinned rank of a
+    # shape-drawn tail, and only such a rank.
+    tail_of: "dict[int, int]" = {}
+    for place in range(len(tails)):
+        for rank in tails[place][0]:
+            if not pinned[rank]:
+                tail_of[rank] = place
+    ranks = sorted(tail_of)
+
+    def past(rank: int, target: int) -> int:
+        """How far outside its gap `target` stands for `rank`, or -1 where it may not go."""
+        if not _same_standing(facts, placed[rank], target, day, step, widths, word):
+            return -1
+        if lows[rank] <= target <= highs[rank]:
+            return 0
+        if rank not in tail_of:
+            return -1
+        tail = tails[tail_of[rank]]
+        if _beyond_the_boundary(target, tail[1], tail[2], tail[3], tail[4]) < 1:
+            return -1
+        if target < lows[rank]:
+            return lows[rank] - target
+        return target - highs[rank]
+
+    while count > wanted:
+        best: "tuple[int, int, int, int] | None" = None
+        # ONLY A RUN HOLDING A TAIL RANK IS ASKED (see above).
+        asked: "dict[int, bool]" = {}
+        for rank_of_tail in ranks:
+            first = rank_of_tail
+            while first > 0 and placed[first - 1] // unit == placed[rank_of_tail] // unit:
+                first = first - 1
+            if first in asked:
+                continue
+            asked[first] = True
+            last = rank_of_tail
+            while last + 1 < parsed and placed[last + 1] // unit == placed[rank_of_tail] // unit:
+                last = last + 1
+            size = last - first + 1
+            loose = first > 0 and last + 1 < parsed and held[placed[first] // unit] == size
+            for rank in range(first, last + 1):
+                if pinned[rank]:
+                    loose = False
+            if not loose:
+                continue
+            below = placed[first - 1]
+            above = placed[last + 1]
+            # The ranks sent down are the lowest `down` of the run: how far
+            # outside its gap each would stand, the farthest and how many,
+            # for every `down` from the bottom and from the top.
+            down_far = [0 for _place in range(size + 1)]
+            down_out = [0 for _place in range(size + 1)]
+            down_ok = [True for _place in range(size + 1)]
+            for place in range(size):
+                away = past(first + place, below)
+                down_ok[place + 1] = down_ok[place] and away >= 0
+                down_far[place + 1] = max(down_far[place], away)
+                down_out[place + 1] = down_out[place] + (1 if away > 0 else 0)
+            up_far = [0 for _place in range(size + 1)]
+            up_out = [0 for _place in range(size + 1)]
+            up_ok = [True for _place in range(size + 1)]
+            for place in range(size - 1, -1, -1):
+                away = past(first + place, above)
+                up_ok[place] = up_ok[place + 1] and away >= 0
+                up_far[place] = max(up_far[place + 1], away)
+                up_out[place] = up_out[place + 1] + (1 if away > 0 else 0)
+            for down in range(size, -1, -1):
+                if not down_ok[down] or not up_ok[down]:
+                    continue
+                offer = (
+                    max(down_far[down], up_far[down]),
+                    down_out[down] + up_out[down],
+                    first,
+                    size - down,
+                )
+                if best is None or offer < best:
+                    best = offer
+        if best is None:
+            return False
+        first = best[2]
+        own = placed[first] // unit
+        size = held[own]
+        down = size - best[3]
+        below = placed[first - 1]
+        above = placed[first + size]
+        for place in range(size):
+            target = below if place < down else above
+            placed[first + place] = target
+            held[target // unit] = held[target // unit] + 1
+        del held[own]
+        count = count - 1
+    # EVERY TAIL'S PUBLISHED WINDOW STILL HOLDS, or nothing moves.
+    for tail in tails:
+        total = 0
+        square = 0
+        for rank in tail[0]:
+            distance = _beyond_the_boundary(placed[rank], tail[1], tail[2], tail[3], tail[4])
+            total = total + distance
+            square = square + distance * distance
+        near_total = 0
+        near_square = 0
+        for distance in tail[5]:
+            near_total = near_total + distance
+            near_square = near_square + distance * distance
+        far_total = 0
+        far_square = 0
+        for distance in tail[6]:
+            far_total = far_total + distance
+            far_square = far_square + distance * distance
+        if not near_total <= total <= far_total or not near_square <= square <= far_square:
+            return False
+    for rank in range(parsed):
+        moved[rank] = placed[rank]
+    return True
+
+
+def _beyond_the_boundary(value: int, anchor: int, size: int, half: int, low_side: bool) -> int:
+    """How many whole tail units one space ordinal stands beyond a tail's boundary.
+
+    `_tail_distance_of` over a tail's anchor, unit size, half-unit widening
+    and side rather than its plan: nought or less on or inside the boundary.
+    """
+    here = value // size
+    if half > 0:
+        here = (value + half) // size
+    there = anchor // size
+    if low_side:
+        return there - here
+    return here - there
+
+
 # HOW MANY HELD UNITS ONE RUN IS OFFERED FOR A PAID MERGE (item 2 of the
 # dates pass of the second Codex round, 2026-09-19). Whether a merge can
 # be paid for is a fact about the ranks elsewhere, so the nearest target
@@ -21291,7 +22048,8 @@ def _traded_merges(
     exists for it and the twin held four dates however many rounds ran.
 
     So the merge is made WITH ITS PAYMENT: the run moves onto the nearest
-    held unit of the other width kind and the same midnight standing,
+    held unit of the other width kind and the same midnight standing
+    inside the gap of every rank of the run (`_run_room`),
     and exactly as many ranks elsewhere move BETWEEN HELD UNITS the other
     way, each from a unit that keeps other ranks and onto a unit ranks
     already hold. Neither half changes the count of different units, the
@@ -21342,9 +22100,10 @@ def _traded_merges(
                 # item of this round names, so the older trade keeps its
                 # one offer and its one attempt.
                 room = _TRADE_TARGETS if clock else 1
+                lowest, highest = _run_room(lows, highs, first, last)
                 while len(tried) < room:
                     target = _nearest_held_unit(
-                        facts, moved[first], lows[first], highs[first], day,
+                        facts, moved[first], lowest, highest, day,
                         step, unit, held, spot, order, widths, word,
                         not clock, -1, clock, tried,
                     )
@@ -21609,6 +22368,34 @@ def _nearest_free_where(
             if (found == standing) == same:
                 return candidate
         away = away + 1
+
+
+def _run_room(
+    lows: "list[int]", highs: "list[int]", first: int, last: int
+) -> "tuple[int, int]":
+    """Where the run of ranks `first` to `last` may move whole: inside every one's gap.
+
+    A TAIL RANK'S GAP IS ITS OWN STRATUM (G7.3b step 8), so a run of tail
+    ranks on one unit does NOT lie inside one gap, as a run of body ranks
+    between two pins does. The merges of `_distinct_reached` and
+    `_traded_merges` asked the run's FIRST rank alone, and moved the rest
+    past their strata: 2,469 dates over 392 days at a floor of 36 wrote
+    two low-tail ranks a unit outside theirs, and the tail's
+    root-mean-square distance came out 5.063 against a window of 4.747 to
+    5.057, MISSED at seeds 3 and 8, a real table of its own passing; two
+    1,000-row session tables missed a tail distance the same way at seed
+    2. Plan P4-D354, the fix pass of landing 3b.0.
+
+    Guarantees: returns the highest lower bound and the lowest upper
+    bound over the ranks `first` to `last`; a function of its arguments.
+    Raises nothing. No I/O of any kind.
+    """
+    lowest = lows[first]
+    highest = highs[first]
+    for rank in range(first + 1, last + 1):
+        lowest = max(lowest, lows[rank])
+        highest = min(highest, highs[rank])
+    return (lowest, highest)
 
 
 def _runs_sorted(moved: "list[int]", pinned: "list[bool]") -> None:
@@ -39742,15 +40529,18 @@ def _tail_side_approximations(
     ordinals: "list[int]",
     boundary: int,
     unit: str,
+    counted: bool = False,
 ) -> "list[Approximation]":
     """One tail's published distances against the construction window (G12.14).
 
     The twin's cells beyond the PUBLISHED boundary are measured -- their
     mean distance and root-mean-square distance in tail units -- and held
     to the window the construction draws: every rank at its nearest
-    distance at one end and at its furthest at the other (`_tail_distance_bounds`).
-    A tail publishing its values holds its mean exactly. Only numbers are
-    printed; no value of the column is.
+    distance at one end and at its furthest at the other
+    (`_tail_distance_bounds`), a tie group's ranks as far as G7.3b step 9
+    can move them where the column's distinct count is reachable
+    (`counted`, `_tail_sum_bounds`). A tail publishing its values holds
+    its mean exactly. Only numbers are printed; no value of the column is.
     """
     found: "list[Approximation]" = []
     distances: "list[int]" = []
@@ -39765,15 +40555,16 @@ def _tail_side_approximations(
         total = total + distance
         squares = squares + distance * distance
     rows = max(side.rows, 1)
+    near, far = _tail_sum_bounds(side, counted)
     near_total = 0
     near_squares = 0
     far_total = 0
     far_squares = 0
     for index in range(side.rows):
-        near_total = near_total + side.near[index]
-        near_squares = near_squares + side.near[index] * side.near[index]
-        far_total = far_total + side.far[index]
-        far_squares = far_squares + side.far[index] * side.far[index]
+        near_total = near_total + near[index]
+        near_squares = near_squares + near[index] * near[index]
+        far_total = far_total + far[index]
+        far_squares = far_squares + far[index] * far[index]
     which = "low" if side.low_side else "high"
     subject = f"the cells beyond this column's {which} tail boundary"
     if tail.mean_distance is not None and count:
@@ -40006,7 +40797,8 @@ def _datetime_approximations(
         if side is None or tail is None:
             continue
         found_facts += _tail_side_approximations(
-            column.name, side, tail, ordinals, side.boundary, facts.tail_unit
+            column.name, side, tail, ordinals, side.boundary, facts.tail_unit,
+            contract.datetime_counts_reachable(column),
         )
     # The number of different values, both ways of counting. A stand-in
     # for a cell that did not read as a date is a different spelling

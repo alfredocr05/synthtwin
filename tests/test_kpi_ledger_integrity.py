@@ -465,6 +465,86 @@ def test_no_clause_of_the_measurement_note_restates_a_value_its_entries_hold() -
         )
 
 
+# The numbers the measurement note writes in words: one to nineteen, the
+# tens, and a ten joined to a unit by a hyphen (TWENTY-THREE). Read here,
+# where the guards above WRITE a count as a word from `_NOTE_UNITS` and
+# `_NOTE_TENS`; the tens are named apart so neither table shadows the other.
+_NOTE_NUMBERS = {
+    "ONE": 1, "TWO": 2, "THREE": 3, "FOUR": 4, "FIVE": 5, "SIX": 6, "SEVEN": 7,
+    "EIGHT": 8, "NINE": 9, "TEN": 10, "ELEVEN": 11, "TWELVE": 12,
+    "THIRTEEN": 13, "FOURTEEN": 14, "FIFTEEN": 15, "SIXTEEN": 16,
+    "SEVENTEEN": 17, "EIGHTEEN": 18, "NINETEEN": 19,
+}
+_NOTE_TEN_WORDS = {
+    "TWENTY": 20, "THIRTY": 30, "FORTY": 40, "FIFTY": 50, "SIXTY": 60,
+    "SEVENTY": 70, "EIGHTY": 80, "NINETY": 90,
+}
+
+
+def _note_number(said: str) -> int:
+    """The count a numeral of the note states, in figures or in words."""
+    if said.isdigit():
+        return int(said)
+    if said in _NOTE_NUMBERS:
+        return _NOTE_NUMBERS[said]
+    tens, _, unit = said.partition("-")
+    return _NOTE_TEN_WORDS[tens] + (_NOTE_NUMBERS[unit] if unit else 0)
+
+
+
+def test_the_measurement_note_counts_what_it_names() -> None:
+    """The note's numerals are the counts they state.
+
+    The test above holds the entries the note NAMES to the entries off
+    the base commit; nothing held the numbers it writes beside them.
+    MEASURED on landing 3b.0 (its second skeptic, 2026-09-26): the note
+    said "40 ENTRIES STAND OFF THE BASE COMMIT" over 41 such entries, one
+    short since 69bb7f1, and every landing since restated it. So the
+    total is read and counted, and so is each "AND <n> STAND(S) OFF
+    <commit>": as many entries carry that commit as the words say.
+
+    AND THE FIRST BLOCK, AND EVERY GROUP (the third skeptic of landing
+    3b.0, 2026-09-26). The guard read neither "TWENTY-THREE OF THEM ARE
+    THESE" nor a group worded outside its pattern: the block's word made
+    TWENTY-FOUR, and "AND SIX STAND OFF a7bbc21" made "AND SEVEN MORE
+    ENTRIES STAND OFF a7bbc21", each passed. So the block is counted too
+    -- its entries are those whose commit no group names -- every "STAND
+    OFF" of the note must be the total's or a group this reads, and the
+    block and the groups must add up to the total.
+    """
+    base = LEDGER["base_commit"]
+    note = LEDGER["measurement_note"]
+    off_base = [
+        entry["value_at"]["commit"]
+        for entry in LEDGER["entries"]
+        if entry["value_at"]["commit"] != base
+    ]
+    total = re.findall(r"(\d+) ENTRIES STAND OFF THE BASE COMMIT", note)
+    assert total == [str(len(off_base))], (
+        f"the note says {total} entries stand off {base}; {len(off_base)} do"
+    )
+    groups = re.findall(r"AND ([A-Z]+|\d+) (?:MORE )?STANDS? OFF ([0-9a-f]{7})", note)
+    assert groups, "the note no longer counts its groups as this test reads them"
+    assert len(re.findall(r"STANDS? OFF", note)) == len(groups) + 1, (
+        "the note counts a group in words this test does not read"
+    )
+    for said, commit in groups:
+        stated = _note_number(said)
+        assert stated == off_base.count(commit), (
+            f"the note says {said} stand off {commit}; {off_base.count(commit)} do"
+        )
+    named = [commit for _said, commit in groups]
+    block = re.findall(r"([A-Z]+(?:-[A-Z]+)?) OF THEM ARE THESE", note)
+    assert len(block) == 1, "the note no longer counts its first block as this test reads it"
+    first = len([commit for commit in off_base if commit not in named])
+    assert _note_number(block[0]) == first, (
+        f"the note says {block[0]} of them are its first block; {first} are"
+    )
+    assert first + sum(_note_number(said) for said, _commit in groups) == int(total[0]), (
+        "the note's first block and its groups do not add up to its total"
+    )
+
+
 def test_a_re_measured_entry_records_every_key_its_rule_bounds() -> None:
     """Finding 2, the other half: a stamp is only as good as the value under it.
 
@@ -714,6 +794,14 @@ def test_the_ledger_file_is_canonical_json() -> None:
     text = kpi_rules.LEDGER_PATH.read_text(encoding="utf-8")
     assert text.endswith("\n")
     assert json.loads(text) == LEDGER
+    # 350,000 from 330,000, AUTHORIZED BY THE ORCHESTRATOR (2026-09-28)
+    # FOR THE INTEGRATION OF FOLLOW-UP B, FOLLOW-UP A AND LANDING 3b.0,
+    # with landing 3b.1 to follow. The entries they added -- `K-S3-16` to
+    # `K-S3-25`, `K-S3-30` and `K-S3-39` -- were made lean first, prose
+    # only and never a figure (3,181 bytes went), and the merged ledger
+    # still stood at 341,663 bytes. A MEASUREMENT IS NEVER TRIMMED TO FIT:
+    # the cap moves, and the prose is trimmed before it moves again.
+    #
     # 330,000 from 300,000, AUTHORIZED BY THE ORCHESTRATOR (2026-09-25)
     # FOR THE TWO STAGE-3 FOLLOW-UPS AND STAGE 3B, each of which adds
     # entries. The ledger stood at 299,706 bytes with 294 to spare, and
@@ -742,7 +830,7 @@ def test_the_ledger_file_is_canonical_json() -> None:
     # its bytes are K-P4-20's new value and the notes of the ceilings and
     # re-measurements its repair pass recorded. The cap is still a cap; the
     # prose is trimmed before it is raised again.
-    assert pathlib.Path(kpi_rules.LEDGER_PATH).stat().st_size < 330_000
+    assert pathlib.Path(kpi_rules.LEDGER_PATH).stat().st_size < 350_000
 
 
 def test_a_fast_pinned_entry_with_no_collection_floor_is_named() -> None:

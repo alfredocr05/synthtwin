@@ -8,9 +8,12 @@ of one value going to the mark holding the fewest cells, on forty-four
 whole numbers from 1001 to 1016 in runs of two to five
 (`pool_alone_marks`); for the case that plan's second skeptic adds,
 G6.1's trailing minus kept on figures with a point
-(`trailing_minus_points`); and for the case the skeptic of its fifth
-item adds, the exchange that gives a trailing minus its point
-(`trailing_minus_exchange`).
+(`trailing_minus_points`); for the case the skeptic of its fifth item
+adds, the exchange that gives a trailing minus its point
+(`trailing_minus_exchange`); and for the case landing 3b.0 adds (plan
+P4-D354): G7.3b step 9's tie group giving ranks to the days no rank
+holds within its reach, on 105 dates holding every one of 22 days
+(`every_day_group`).
 
 **Why it is a fourteenth file.**  Plan P4-D295 sends the next case to a
 file whose output stands under 200000 bytes, and the twelfth (227678
@@ -35,7 +38,9 @@ nor numpy, nor pandas, and a test asserts that of every entry point.
 `make_generation_branch_vectors_13.py` writing
 tests/reference/generation-branch-vectors-13.json, because this, the
 fourteenth, passed plan P4-D295's 200000-byte line at 213398 bytes with
-`trailing_minus_exchange`, as the twelfth and thirteenth had before it.
+`trailing_minus_exchange`, as the twelfth and thirteenth had before it,
+and stands at 229836 bytes since landing 3b.0's `every_day_group`, which
+joined it on that landing's own branch while it stood under the line.
 
 Usage:  python3 make_generation_branch_vectors_12.py --seed 0 --out <path>
         (the command line the data-provenance guard uses; the seed is
