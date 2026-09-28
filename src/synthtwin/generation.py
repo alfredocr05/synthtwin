@@ -20508,7 +20508,10 @@ def _units_settled(
        the width census exactly where it stood (`_traded_merges`); and a
        run whose room holds no other held unit of its standing gives its
        unit up rank by rank, onto its two rank neighbours' instants, each
-       inside its own gap (`_runs_split`).
+       inside its own gap (`_runs_split`); and where the count is still
+       over, the ranks are stacked afresh on the fewest units their gaps
+       and standings allow and raised to the count, taken only where
+       that meets it (`_ranks_restacked`).
        Too few: a rank sharing its unit moves to the nearest unit no rank
        holds inside its gap, of the same width kind, not onto a midnight
        it did not stand at and not off one it did, nearest first, ties to
@@ -21104,6 +21107,15 @@ def _distinct_reached(
             )
             count = count - given
             changed = changed or given > 0
+        if count > wanted and not changed and _ranks_restacked(
+            facts, moved, pinned, lows, highs, day, step, unit, held, widths,
+            word, wanted,
+        ):
+            # AND WHERE NO ONE RUN CAN GIVE A UNIT UP, THE RANKS ARE STACKED
+            # AFRESH (the fourth skeptic of landing 3b.0, plan P4-D354): once
+            # a round's merges, trades and split move nothing.
+            count = wanted
+            changed = True
         return changed
     splits: "list[tuple[int, int, int]]" = []
     # A GAP WITH NO FREE UNIT STAYS WITHOUT ONE while ranks only split, so
@@ -21259,6 +21271,132 @@ def _runs_split(
                 made = made + 1
         first = last + 1
     return made
+
+
+def _ranks_restacked(
+    facts: contract.DatetimeFacts,
+    moved: "list[int]",
+    pinned: "list[bool]",
+    lows: "list[int]",
+    highs: "list[int]",
+    day: int,
+    step: int,
+    unit: int,
+    held: "dict[int, int]",
+    widths: bool,
+    word: str,
+    wanted: int,
+) -> bool:
+    """Stack every rank afresh on the fewest units its gap allows, raised to the count.
+
+    A CHAIN OF RUNS CAN GIVE A UNIT UP WHERE NO ONE RUN CAN (the fourth
+    skeptic of landing 3b.0, plan P4-D354). Tail ranks in pairs on
+    alternate days, their two-day strata shifted by one rank each, have
+    each pair's own day as its room and their rank neighbours two days
+    off, so neither a merge nor the split takes any pair -- while every
+    pair moving one day onto the next frees a day where the chain ends.
+    123 midnight moments over 100 days, 52 of them different, read in
+    days at a floor of 50, came back holding 54 at seeds 3 and 8, both
+    distinct counts MISSED, though a placement inside every gap holding
+    52 existed and validated; 77 month-first dates, 33 different, held
+    35 at a floor of 36, seed 3.
+
+    So, once a round's merges, both trades and the split move nothing
+    and the count is still over, the ranks are stacked afresh: taken in
+    the order of their gaps' upper ends, then their lower ends, then
+    their rank -- a pinned rank's gap being its own instant -- each rank
+    stands on the unit last stacked for its standing where that lies
+    inside its gap, else on the highest unit of its standing inside its
+    gap, which is stacked next. That stack holds the fewest units any
+    placement inside every gap keeping every standing can hold (the
+    stabbing of intervals at their upper ends, taken in that order). Its
+    instants are then sorted within each unpinned run, as every round
+    sorts them, and every rank must stand inside its gap. Where the
+    stack holds fewer units than the count, in rank order, a rank
+    sharing its unit moves onto the nearest free unit of its standing
+    inside its gap (`_nearest_free_unit`) until the count is met. The
+    ranks take the stack only where that meets the count exactly;
+    otherwise nothing moves.
+
+    Guarantees: moves ranks of `moved` and counts of `held` in place
+    only where the count is met, keeping every rank inside its gap and
+    every standing's count where it stood, and returns whether it did.
+    Linear in the ranks but for the sorts and the free-unit walks of the
+    raise. Determinism: a fixed function of its arguments; draws no word.
+    Raises nothing. No I/O of any kind.
+    """
+    parsed = len(moved)
+    low = [moved[rank] if pinned[rank] else lows[rank] for rank in range(parsed)]
+    high = [moved[rank] if pinned[rank] else highs[rank] for rank in range(parsed)]
+    keys: "list[tuple[int, int, int]]" = []
+    for rank in range(parsed):
+        keys += [(high[rank], low[rank], rank)]
+    placed = [value for value in moved]
+    top: "dict[tuple[bool, bool], int]" = {}
+    for key in sorted(keys):
+        rank = key[2]
+        standing = _standing_of(facts, moved[rank], day, step, widths, word)
+        if standing in top and low[rank] <= top[standing] <= high[rank]:
+            placed[rank] = top[standing]
+            continue
+        by = unit
+        if day == 86400 and unit == step and 86400 % step == 0 and standing[1]:
+            # A MIDNIGHT IS SOUGHT A DAY AT A TIME, as `_nearest_free_unit`
+            # seeks one: the candidates that keep its standing start a day.
+            by = 86400
+        candidate = moved[rank] + ((high[rank] - moved[rank]) // by) * by
+        while candidate >= low[rank] and not _same_standing(
+            facts, moved[rank], candidate, day, step, widths, word
+        ):
+            candidate = candidate - by
+        if candidate < low[rank]:
+            return False
+        placed[rank] = candidate
+        top[standing] = candidate
+    # THE RANKS KEEP THEIR ORDER, as every round sorts them, and each must
+    # then stand inside its own gap; a rank passing another whose gap lies
+    # elsewhere would sort out of its gap (the split's `IN ORDER` witness).
+    _runs_sorted(placed, pinned)
+    for rank in range(parsed):
+        if placed[rank] < low[rank] or placed[rank] > high[rank]:
+            return False
+    stacked: "dict[int, int]" = {}
+    for rank in range(parsed):
+        key_now = placed[rank] // unit
+        stacked[key_now] = (stacked[key_now] if key_now in stacked else 0) + 1
+    units = len(stacked)
+    # A GAP WITH NO FREE UNIT STAYS WITHOUT ONE while units are only added,
+    # as in the too-few pass (`_full_gap`).
+    full: "dict[tuple[int, int, bool], bool]" = {}
+    for rank in range(parsed):
+        if units >= wanted:
+            break
+        if pinned[rank] or stacked[placed[rank] // unit] < 2:
+            continue
+        gap = _full_gap(facts, placed[rank], lows[rank], highs[rank], day, widths, word)
+        if gap is not None and gap in full:
+            continue
+        found = _nearest_free_unit(
+            facts, placed[rank], lows[rank], highs[rank], day, step, unit, stacked,
+            widths, word,
+        )
+        if found is None:
+            if gap is not None:
+                full[gap] = True
+            continue
+        stacked[placed[rank] // unit] = stacked[placed[rank] // unit] - 1
+        stacked[found // unit] = 1
+        placed[rank] = found
+        units = units + 1
+    if units != wanted:
+        return False
+    for rank in range(parsed):
+        moved[rank] = placed[rank]
+    for key_held in held:
+        held[key_held] = 0
+    for key_now in stacked:
+        held[key_now] = stacked[key_now]
+    return True
 
 
 # HOW MANY HELD UNITS ONE RUN IS OFFERED FOR A PAID MERGE (item 2 of the

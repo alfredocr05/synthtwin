@@ -52,7 +52,13 @@ clause (method G7.3b step 9).
 AND A MERGED RUN KEEPS EVERY RANK INSIDE ITS GAP (the landing's fix
 pass): `test_a_merged_run_keeps_every_rank_inside_its_gap` holds G7.3's
 merges to the gap of every rank of a run, on the random column that
-missed its low tail's spread when they asked the run's first rank alone.
+missed its low tail's spread when they asked the run's first rank alone;
+`test_a_run_no_merge_can_take_is_split` holds the split of a run whose
+room is its own day, on the small dense column that then missed its
+counts; and `test_the_count_is_met_where_a_chain_of_runs_reaches_it`
+holds the stack of the ranks afresh where no one run can give a unit up,
+on the two columns of the fourth skeptic whose tail pairs on alternate
+days could give a day up only as a chain.
 
 AND THE WINDOW IS WRITTEN TWICE. G12.14's summed window -- a group's
 ranks as near as one and as far as its reach where step 9 may move
@@ -825,4 +831,101 @@ def test_a_run_no_merge_can_take_is_split(
         written = {line for line in text.split("\n")[1:] if line}
         assert len(written) == block["n_distinct"], f"seed {seed}: {len(written)} different days"
         missed = kpi_shapes.missed(kpi_shapes.measure(described, text, f"dense-{seed}.csv"))
+        assert missed == [], f"seed {seed}: {missed}"
+
+
+def _midnight_moments_over_111_days() -> "tuple[list[str], int]":
+    """123 T-marked midnight moments over 111 days, 52 of them different, at a floor of 50.
+
+    Drawn exactly as the landing's fourth skeptic drew its column dense136,
+    so the column is the one that measured the defect.
+    """
+    draw = random.Random(740136)
+    assert draw.choice(["date", "date", "midnight", "tmark", "usdate"]) == "tmark"
+    span = draw.randint(12, 120)
+    rows = draw.randint(max(40, span), min(700, span * 10))
+    empty = draw.choice([0.0, 0.05, 0.1, 0.25])
+    assert (span, rows, empty) == (111, 123, 0.1)
+    weights: "list[float]" = []
+    for _step in range(span):
+        weights += [
+            0.0 if draw.random() < empty else draw.lognormvariate(0.0, draw.choice([0.5, 1.0, 1.5]))
+        ]
+    assert draw.random() >= 0.4
+    steps = draw.choices(range(span), weights=weights, k=rows)
+    assert draw.random() >= 0.3
+    start = datetime.date(2018, 1, 1) + datetime.timedelta(days=draw.randint(0, 1500))
+    cells = [(start + datetime.timedelta(days=step)).isoformat() + "T00:00:00" for step in steps]
+    draw.shuffle(cells)
+    return cells, 50
+
+
+def _month_first_dates_over_48_days() -> "tuple[list[str], int]":
+    """77 dates written m/d/yyyy over 48 days, 33 of them different, at a floor of 36.
+
+    Drawn exactly as the landing's fourth skeptic drew its column za190.
+    """
+    draw = random.Random(730190)
+    assert draw.choice(["date", "date", "usdate", "midnight", "tmark", "second", "minute"]) == "usdate"
+    span = draw.randint(10, 400)
+    rows = min(max(60, draw.randint(span // 2, span * 8)), 4000)
+    empty = draw.choice([0.0, 0.05, 0.15, 0.3])
+    edge = draw.random() < 0.5
+    draw.choice([0.01, 0.05, 0.2])
+    heavy = draw.random() < 0.5
+    assert (span, rows, empty, edge, heavy) == (48, 77, 0.0, False, True)
+    weights: "list[float]" = []
+    for _step in range(span):
+        weights += [0.0 if draw.random() < empty else draw.lognormvariate(0.0, 1.0)]
+    assert draw.random() < 0.3
+    for _hot in range(draw.randint(1, 3)):
+        weights[draw.randrange(span)] *= 10.0
+    steps = draw.choices(range(span), weights=weights, k=rows)
+    assert draw.random() >= 0.3
+    start = datetime.date(2018, 1, 1) + datetime.timedelta(days=draw.randint(0, 1500))
+    cells = []
+    for step in steps:
+        day = start + datetime.timedelta(days=step)
+        cells += [f"{day.month}/{day.day}/{day.year}"]
+    draw.shuffle(cells)
+    return cells, 36
+
+
+@pytest.mark.parametrize(
+    "shape", ["midnight_moments_over_111_days", "month_first_dates_over_48_days"]
+)
+def test_the_count_is_met_where_a_chain_of_runs_reaches_it(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, shape: str
+) -> None:
+    """G7.3's count pass stacks the ranks afresh where no one run can give a unit up.
+
+    Tail ranks in pairs on alternate days, their two-day strata shifted
+    by one rank each, have each pair's own day as its room and their
+    neighbours two days off, so neither a merge nor the split takes any
+    pair -- while every pair moving one day onto the next frees a day.
+    These two columns came back holding 54 different days against 52 at
+    floor 50, seeds 3 and 8, and 35 against 33 at floor 36, seed 3, both
+    distinct counts MISSED, where shipped stage 3 met them with ranks
+    outside their gaps (plan P4-D354, the fourth skeptic of landing
+    3b.0), though a placement inside every gap holding the count existed.
+    The ranks are now stacked afresh on the fewest units their gaps and
+    standings allow and raised to the count. Here both counts are met,
+    the twin misses nothing, and every rank but a tail group's stands
+    inside its gap.
+    """
+    cells, floor = {
+        "midnight_moments_over_111_days": _midnight_moments_over_111_days,
+        "month_first_dates_over_48_days": _month_first_dates_over_48_days,
+    }[shape]()
+    described = kpi_shapes.describe(
+        tmp_path, shape, "c\n" + "".join(f"{cell}\n" for cell in cells), floor
+    )
+    block = described.document["columns"][0]
+    assert block["n_distinct"] == len(set(cells))
+    settled = _settled_off_their_gaps(described, (3, 8), monkeypatch)
+    for seed, (off, text) in zip((3, 8), settled):
+        assert off == [], f"seed {seed}: ranks {off} stand outside their gaps"
+        written = {line for line in text.split("\n")[1:] if line}
+        assert len(written) == block["n_distinct"], f"seed {seed}: {len(written)} different days"
+        missed = kpi_shapes.missed(kpi_shapes.measure(described, text, f"{shape}-{seed}.csv"))
         assert missed == [], f"seed {seed}: {missed}"

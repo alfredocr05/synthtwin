@@ -10510,6 +10510,14 @@ def distinct_pass(column, ordinals, pinned, lows, highs, day, step, distinct, wi
             )
             count -= split
             changed = changed or split > 0
+        if count > distinct and not changed and ranks_restacked(
+            column, ordinals, pinned, lows, highs, day, step, unit, held, widths, word, distinct,
+        ):
+            # AND WHERE NO ONE RUN CAN GIVE A UNIT UP, THE RANKS ARE STACKED
+            # AFRESH (the fourth skeptic of landing 3b.0, plan P4-D354): once
+            # a round's merges, trades and split move nothing.
+            count = distinct
+            changed = True
     elif count < distinct:
         options, full = [], set()
         for rank in range(parsed):
@@ -10620,6 +10628,72 @@ def runs_split(ordinals, pinned, lows, highs, unit, held, standing, owed):
                 made += 1
         first = last + 1
     return made
+
+
+def ranks_restacked(column, ordinals, pinned, lows, highs, day, step, unit, held, widths, word, distinct):
+    """Stack the ranks afresh on the fewest units their gaps and standings
+    allow, raised to the count (G7.3, plan P4-D354, the fourth skeptic of
+    landing 3b.0).
+
+    Pairs of tail ranks on alternate days whose strata shift by one rank
+    each give a day up only as a chain, each pair moving one day onto the
+    next, which no one run's merge or split is.  So once a round's merges,
+    both trades and the split move nothing and the count is still over:
+    taken by their gaps' upper ends, then lower ends, then rank -- a pinned
+    rank's gap being its own instant -- each rank joins the unit last
+    stacked for its standing where that lies inside its gap, else stacks
+    the highest unit of its standing inside its gap (a midnight a day at a
+    time).  The stack's instants are sorted within each unpinned run, as
+    every round sorts them, and every rank must then stand inside its gap.
+    Where the stack holds fewer units than the count, in rank order, a
+    rank sharing its unit takes the nearest free unit of its standing
+    inside its gap.  The ranks take the stack only where the count is met
+    exactly.
+    """
+    def stands(value):
+        return standing_of(column, value, day, step, widths, word)
+
+    bounds = [(ordinals[r], ordinals[r]) if pinned[r] else (lows[r], highs[r]) for r in range(len(ordinals))]
+    order = sorted((bounds[r][1], bounds[r][0], r) for r in range(len(ordinals)))
+    placed, top = list(ordinals), {}
+    for _high, _low, rank in order:
+        own, (low, high) = stands(ordinals[rank]), bounds[rank]
+        if own in top and low <= top[own] <= high:
+            placed[rank] = top[own]
+            continue
+        by = 86400 if own[1] and unit == step and 86400 % step == 0 else unit
+        candidate = ordinals[rank] + (high - ordinals[rank]) // by * by
+        while candidate >= low and stands(candidate) != own:
+            candidate -= by
+        if candidate < low:
+            return False
+        placed[rank] = top[own] = candidate
+    sort_unpinned_runs(placed, pinned)
+    if any(not low <= placed[r] <= high for r, (low, high) in enumerate(bounds)):
+        return False
+    now = {}
+    for value in placed:
+        now[value // unit] = now.get(value // unit, 0) + 1
+    for rank in range(len(ordinals)):
+        if len(now) >= distinct:
+            break
+        if pinned[rank] or now[placed[rank] // unit] < 2:
+            continue
+        found = nearest_free_where(
+            column, placed[rank], lows[rank], highs[rank], day, step, unit, now, widths,
+            stands(placed[rank]), True, word,
+        )
+        if found is None:
+            continue
+        now[placed[rank] // unit] -= 1
+        now[found // unit] = 1
+        placed[rank] = found
+    if len(now) != distinct:
+        return False
+    ordinals[:] = placed
+    held.clear()
+    held.update(now)
+    return True
 
 
 def nearest_held_unit(value, low, high, unit, held, spot, fits):

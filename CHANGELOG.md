@@ -6,6 +6,24 @@ exists).
 
 ## [Unreleased]
 
+### The ranks are stacked afresh where no one run can give a unit up (2026-09-28)
+
+**Where tail ranks stand in pairs on alternate days**, their two-day
+strata shifted by one rank each, each pair's room is its own day and its
+neighbours stand two days off, so neither the merge nor the split below
+takes any pair, while every pair moving one day onto the next frees a
+day: 123 midnight moments over 111 days, 52 different, came back holding
+54 at floor 50 and two seeds, and 77 month-first dates, 33 different,
+held 35 at floor 36, both distinct counts MISSED where shipped stage 3
+met them, though a placement inside every gap holding the count existed.
+Once a round's merges, trades and split move nothing, the ranks are now
+stacked afresh on the fewest units their gaps and standings allow,
+raised to the count, and taken only where that meets it (method G7.3,
+plan P4-D354). Over 2,400 twins of the fourth skeptic's 400 columns and
+1,600 of the third's 800, six twins meet their counts, no twin gains a
+miss, only those six twins' bytes move and no rank leaves its gap; no
+frozen case moves. `K-S3-39`.
+
 ### A run no merge can take is split across its neighbours (2026-09-26)
 
 **Where a run of tail ranks has only its own day as room**, the repair

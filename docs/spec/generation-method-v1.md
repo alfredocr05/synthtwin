@@ -5694,7 +5694,31 @@ that way.
   ranks whose strata meet on one day have that day as their room: 83
   dates over 59 days, 37 different, at a floor of 36 came back holding
   41 and 43 different days at seeds 3 and 8, both distinct counts
-  missed, until each such run gave its day up this way. Too few: each
+  missed, until each such run gave its day up this way. **AND WHERE NO
+  ONE RUN CAN GIVE A UNIT UP, THE RANKS ARE STACKED AFRESH** (plan
+  P4-D354, the fourth skeptic of landing 3b.0). Tail ranks in pairs on
+  alternate days, their two-day strata shifted by one rank each, have
+  each pair's own day as its room and their rank neighbours two days
+  off, so neither a merge nor the split takes any pair, while every pair
+  moving one day onto the next frees a day where the chain ends: 123
+  midnight moments over 111 days, 52 different, read in days at a floor
+  of 50 came back holding 54 at seeds 3 and 8, and 77 month-first dates,
+  33 different, held 35 at a floor of 36, both distinct counts missed,
+  though a placement inside every gap holding the count existed. So once
+  a round's merges, both trades and the split move nothing and the count
+  is still over, the ranks are stacked afresh: taken in the order of
+  their gaps' upper ends, then their lower ends, then their rank -- a
+  pinned rank's gap being its own instant -- each rank stands on the unit
+  last stacked for its standing where that lies inside its gap, else on
+  the highest unit of its standing inside its gap, which is stacked next
+  (a midnight sought a day at a time). That stack holds the fewest units
+  any placement inside every gap keeping every standing can hold. Its
+  instants are sorted within each unpinned run, as every round sorts
+  them, and every rank must then stand inside its gap; where the stack
+  holds fewer units than the count, in rank order, a rank sharing its
+  unit moves onto the nearest free unit of its standing inside its gap
+  until the count is met; and the ranks take the stack only where that
+  meets the count exactly, else nothing moves. Too few: each
   unpinned rank sharing its unit is offered
   the nearest unit no rank holds inside its gap, of the same width kind
   and midnight standing, earlier first, nearest first, ties to the lower

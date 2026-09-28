@@ -800,6 +800,82 @@ RUN_MERGES = (
      (True, True, False, False, True, False, True, True, True),
      (0, 2, 2, 3, 9, 6, 7, 3, 10), (0, 2, 6, 9, 9, 7, 7, 3, 10), 1, 6, "",
      (0, 2, 5, 5, 9, 7, 7, 3, 10)),
+    # ALONE ON ITS UNIT (the fourth skeptic). The run of ranks 2 and 3 on
+    # day 5 shares that day with the pinned rank 7, out of order; its room
+    # 3 to 6 holds no other held unit, and rank 2 could go to day 2 and
+    # rank 3 to day 9. The run is not alone on its unit, so it is not
+    # split, and day 5 stays held. Nothing moves.
+    ((0, 2, 5, 5, 9, 8, 8, 5, 10),
+     (True, True, False, False, True, False, True, True, True),
+     (0, 2, 2, 3, 9, 8, 8, 5, 10), (0, 2, 6, 9, 9, 8, 8, 5, 10), 1, 5, "",
+     (0, 2, 5, 5, 9, 8, 8, 5, 10)),
+    # AT MOST OWED. Two runs could be split, on day 3 and on day 8, and
+    # one unit is owed: the first in rank order is split, the second is
+    # left where it stands.
+    ((0, 2, 3, 3, 5, 7, 8, 8, 10, 12),
+     (True, False, False, False, False, False, False, False, False, True),
+     (0, 1, 2, 3, 4, 6, 7, 8, 9, 12), (0, 2, 3, 5, 6, 7, 8, 10, 11, 12), 1, 7, "",
+     (0, 2, 2, 5, 5, 7, 8, 8, 10, 12)),
+    # OF ITS OWN STANDING ON THE WAY DOWN. Rank 2 could go down onto the
+    # pinned midnight of day 1, which is inside its gap, and rank 3 up
+    # onto the pinned second 300 of day 2, inside its own and of its
+    # standing; the way down changes the standing, so the run is not
+    # split (asked of the way up alone, it would be). Nothing moves.
+    ((0, DAY, DAY + 500, DAY + 500, 2 * DAY + 300, 3 * DAY),
+     (True, True, False, False, True, True),
+     (0, DAY, DAY, DAY + 400, 2 * DAY + 300, 3 * DAY),
+     (0, DAY, DAY + 600, 2 * DAY + 300, 2 * DAY + 300, 3 * DAY), DAY, 4, "",
+     (0, DAY, DAY + 500, DAY + 500, 2 * DAY + 300, 3 * DAY)),
+    # OF ITS OWN STANDING ON THE WAY UP, the mirror: rank 2 could go down
+    # onto the pinned second 300 of day 1, of its standing, and rank 3 up
+    # onto the pinned midnight of day 3, which is not. Nothing moves.
+    ((0, DAY + 300, 2 * DAY + 500, 2 * DAY + 500, 3 * DAY, 4 * DAY),
+     (True, True, False, False, True, True),
+     (0, DAY + 300, DAY + 300, 2 * DAY + 400, 3 * DAY, 4 * DAY),
+     (0, DAY + 300, 2 * DAY + 600, 3 * DAY, 3 * DAY, 4 * DAY), DAY, 4, "",
+     (0, DAY + 300, 2 * DAY + 500, 2 * DAY + 500, 3 * DAY, 4 * DAY)),
+    #
+    # WHERE NO ONE RUN CAN GIVE A UNIT UP, THE RANKS ARE STACKED AFRESH
+    # (the fourth skeptic of landing 3b.0).
+    # THE STACK. Rank 1 alone on day 1, the pairs on days 3 and 5 with
+    # two-day strata shifted by one rank each, rank 6 alone on day 6: each
+    # pair's room is its own day and its neighbours stand two days off, so
+    # no merge and no split takes any of them, while every rank moving one
+    # day onto the next frees day 1. Taken by upper ends, rank 1 stacks day
+    # 2 and rank 2 joins it, rank 3 stacks day 4 and rank 4 joins, rank 5
+    # stacks day 6 and rank 6 joins: five units, the count, and taken.
+    ((0, 1, 3, 3, 5, 5, 6, 8), (True, False, False, False, False, False, False, True),
+     (0, 1, 2, 3, 4, 5, 6, 8), (0, 2, 3, 4, 5, 6, 7, 8), 1, 5, "",
+     (0, 2, 2, 4, 4, 6, 6, 8)),
+    # THE RAISE. The same chain twice over, ranks 1 to 10 over days 1 to
+    # 10, stacks seven units where eight are wanted; in rank order, rank 1,
+    # sharing day 2, moves onto day 1, the nearest free unit inside its gap,
+    # and the count is met.
+    ((0, 1, 3, 3, 4, 6, 6, 7, 9, 9, 10, 12),
+     (True, False, False, False, False, False, False, False, False, False, False, True),
+     (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12), (0, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12), 1, 8, "",
+     (0, 1, 2, 4, 4, 6, 6, 8, 8, 10, 10, 12)),
+    # ONLY WHERE THE COUNT IS MET. The stack of these ranks holds four
+    # units, days 0, 2, 4 and 6, and three are wanted: it is not taken, and
+    # nothing moves.
+    ((0, 1, 3, 3, 4, 6), (True, False, False, False, False, True),
+     (0, 1, 2, 3, 4, 6), (0, 2, 3, 4, 5, 6), 1, 3, "",
+     (0, 1, 3, 3, 4, 6)),
+    # BY THE UPPER ENDS. Rank 2's gap reaches day 5, past rank 3's day 4:
+    # taken by upper ends, rank 3 stacks day 4 before rank 2's turn and
+    # rank 2 joins it, as rank 4 does. Taken in rank order, rank 2 would
+    # join rank 1's day 2 and rank 3 stack day 4: the count met on other
+    # days.
+    ((0, 1, 3, 3, 5, 6), (True, False, False, False, False, True),
+     (0, 1, 2, 3, 4, 6), (0, 2, 5, 4, 5, 6), 1, 4, "",
+     (0, 2, 4, 4, 4, 6)),
+    # THE PINNED RANK STANDS. The pinned rank 1 stands on day 2 with a gap
+    # of days 1 to 3 (which the layout never gives a pin); taken by that
+    # gap it would stack day 3 and ranks 2 and 3 join it, three units, the
+    # count. Taken where it stands, the stack holds four: nothing moves.
+    ((0, 2, 3, 3, 5), (True, True, False, False, True),
+     (0, 1, 2, 3, 5), (0, 3, 3, 4, 5), 1, 3, "",
+     (0, 2, 3, 3, 5)),
 )
 RUN_TRADES = (
     # (ordinals, pinned, lows, highs, owed, ordinals after, trades made)
@@ -1192,6 +1268,69 @@ WITNESS_MUTANTS = {
         "run",
         "            if len(goes) == size:\n",
         "            if goes:\n",
+    ),
+    # The fourth skeptic's two unwitnessed clauses of the split: made of a
+    # run that shares its unit with a rank elsewhere, and made past the
+    # count owed.
+    "run_split_of_a_shared_unit": (
+        "run", " and held[own] == size\n", "\n",
+    ),
+    "run_split_past_the_count": (
+        "run", "    while first < parsed and made < owed:\n", "    while first < parsed:\n",
+    ),
+    # The stack of the ranks where no one run can give a unit up (the
+    # fourth skeptic): withdrawn, taken short of the count, stacked at the
+    # lower ends, stacked in rank order, of any standing, and of a pinned
+    # rank by its gap.
+    "restack_withdrawn": (
+        "run",
+        "        if count > distinct and not changed and ranks_restacked(\n",
+        "        if count > distinct and False and ranks_restacked(\n",
+    ),
+    "restack_out_of_order": (
+        "run", "    sort_unpinned_runs(placed, pinned)\n", "",
+    ),
+    "restack_past_a_gap": (
+        "run",
+        "    if any(not low <= placed[r] <= high for r, (low, high) in enumerate(bounds)):\n"
+        "        return False\n",
+        "",
+    ),
+    "restack_taken_short_of_the_count": (
+        "run",
+        "    if len(now) != distinct:\n        return False\n    ordinals[:] = placed\n",
+        "    ordinals[:] = placed\n",
+    ),
+    "restack_at_the_lower_ends": (
+        "run",
+        "        candidate = ordinals[rank] + (high - ordinals[rank]) // by * by\n"
+        "        while candidate >= low and stands(candidate) != own:\n"
+        "            candidate -= by\n"
+        "        if candidate < low:\n",
+        "        candidate = ordinals[rank] - (ordinals[rank] - low) // by * by\n"
+        "        while candidate <= high and stands(candidate) != own:\n"
+        "            candidate += by\n"
+        "        if candidate > high:\n",
+    ),
+    "restack_in_rank_order": (
+        "run",
+        "    order = sorted((bounds[r][1], bounds[r][0], r) for r in range(len(ordinals)))\n",
+        "    order = sorted((r, bounds[r][0], r) for r in range(len(ordinals)))\n",
+    ),
+    "restack_of_any_standing": (
+        "run",
+        "    def stands(value):\n        return standing_of(column, value, day, step, widths, word)\n",
+        "    def stands(value):\n        return (False, False)\n",
+    ),
+    "restack_of_a_pinned_rank_by_its_gap": (
+        "run",
+        "    bounds = [(ordinals[r], ordinals[r]) if pinned[r] else (lows[r], highs[r]) for r in range(len(ordinals))]\n",
+        "    bounds = [(lows[r], highs[r]) for r in range(len(ordinals))]\n",
+    ),
+    "restack_raised_from_the_top": (
+        "run",
+        "    for rank in range(len(ordinals)):\n        if len(now) >= distinct:\n",
+        "    for rank in reversed(range(len(ordinals))):\n        if len(now) >= distinct:\n",
     ),
     "group_takes_past_the_count": (
         "group",
