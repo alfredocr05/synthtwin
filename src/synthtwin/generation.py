@@ -18170,8 +18170,9 @@ def _count_holes(
     stamps whose missing moment is published, 8 to 11 checks missed).
 
     Guarantees: accepts the facts and every absent spelling of the run;
-    returns the units named, as `value // unit` keys of the pass. A
-    function of the two; draws no word. Raises nothing. No I/O.
+    returns the units named, as `value // unit` keys of the pass, a
+    spelling the member cannot read naming none and hiding none after it.
+    A function of the two; draws no word. Raises nothing. No I/O.
     """
     space = _ordinal_space(facts)
     if (

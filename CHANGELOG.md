@@ -81,9 +81,11 @@ rule from the method's text, and G7.3b step 7's step off a hole, which
 it held nowhere. Six frozen cases -- three at the second round, for a
 tie group's step off a hole and a stuck rank's absent day in the count
 G7.3 reaches and in the one step 9 owes -- eighteen witness rows and ten
-oracle mutants hold it for days; ten rows reading a day, a month or a
-quarter, seven oracle mutants and a month and a quarter gate column hold
-the month and the quarter, which no test held (the final review). One
+oracle mutants hold it for days; fourteen rows reading a day, a month or
+a quarter, nine oracle mutants and a month and a quarter gate column hold
+the month and the quarter, which no test held (the final review), and a
+month column beside a `-` the reading past a spelling the member cannot
+read, which none held either (its second skeptic). One
 frozen case moves a cell. **The envelope of
 a date column's distinct count follows the pass** (item 1): counted in
 the strata alone its lower end stood at 39 above a published 35 the pass

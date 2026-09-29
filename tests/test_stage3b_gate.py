@@ -131,7 +131,11 @@ the `absent` rows there; the month or the quarter withdrawn from
 `generation._COUNT_HOLE_UNITS` turns its own `absent` row red and
 `test_no_rank_is_offered_a_month_the_table_declares_missing` or
 `test_no_rank_is_offered_a_quarter_the_table_declares_missing` (the
-final review of 3b.0, where it turned no test red).
+final review of 3b.0, where it turned no test red). The reading stopped
+at the first spelling the member cannot read turns the `absent` rows
+opening on `-` or `#N/A` red and
+`test_a_missing_month_is_read_past_a_spelling_the_member_cannot_read`
+(its second skeptic, where it turned no test red).
 
 LANDING 3b.1 (plan P4-D355) makes the second clause true on DATE
 columns: the weekday census, published only where the full-fill
@@ -1577,11 +1581,11 @@ def test_a_count_the_summed_window_keeps_out_of_reach_is_missed(
 
 
 def _described_with_a_missing_day(
-    tmp_path: pathlib.Path, stem: str, cells: "list[str]", floor: int, day: str
+    tmp_path: pathlib.Path, stem: str, cells: "list[str]", floor: int, day: str, *others: str
 ) -> kpi_shapes.Described:
-    """The table of ``cells`` described at ``floor`` with ``day`` declared missing."""
+    """The table of ``cells`` described at ``floor`` with ``day`` and ``others`` declared missing."""
     table = fixtures.write(tmp_path, f"{stem}.csv", "c\n" + "".join(f"{cell}\n" for cell in cells))
-    settings = taxonomy.Settings(small_cell_floor=floor, declared_missing_values=(day,))
+    settings = taxonomy.Settings(small_cell_floor=floor, declared_missing_values=(day, *others))
     document = profile.build_document(
         reading.read_table(str(table), small_cell_floor=floor), settings, [], [], []
     )
@@ -1725,16 +1729,22 @@ _QUARTER_HOLE_COUNTS = (
 
 
 def _span_hole_held(
-    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, cells: "list[str]", hole: str, unit: int
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+    cells: "list[str]",
+    hole: str,
+    unit: int,
+    floor: int = 11,
+    others: "tuple[str, ...]" = (),
 ) -> dict:
     """At seeds 3 and 8 no rank stands on ``unit``, the cells hold the published count, nothing missed."""
-    described = _described_with_a_missing_day(tmp_path, "span_hole", cells, 11, hole)
+    described = _described_with_a_missing_day(tmp_path, "span_hole", cells, floor, hole, *others)
     block = described.document["columns"][0]
     for seed, (moved, _lows, _highs, _layout, _facts, text) in zip(
         (3, 8), _settled(described, (3, 8), monkeypatch)
     ):
         assert unit not in moved, f"seed {seed}: a rank stands on the missing {hole}"
-        written = {line for line in text.split("\n")[1:] if line} - {hole}
+        written = {line for line in text.split("\n")[1:] if line} - {hole, *others}
         assert len(written) == block["n_distinct"], f"seed {seed}: {len(written)} different values"
         missed = kpi_shapes.missed(kpi_shapes.measure(described, text, f"span-{seed}.csv"))
         assert missed == [], f"seed {seed}: {missed}"
@@ -1779,6 +1789,38 @@ def test_no_rank_is_offered_a_quarter_the_table_declares_missing(
     block = _span_hole_held(tmp_path, monkeypatch, cells, "1998-Q1", 4 * 28)
     assert (block["format"], block["n_present"], block["n_distinct"], block["missing_by_source"]) == (
         "year-quarter", 141, 20, {"1998-Q1": 30}
+    )
+
+
+# 494 months over the 72 from 2012-03, beside 27 cells of 2013-06 and 13
+# of `-`, both declared missing (the final review's second skeptic,
+# `random.Random(460004)`, at a floor of 11).
+_DASHED_MONTH_COUNTS = (
+    10, 1, 0, 0, 21, 0, 0, 6, 6, 20, 0, 7, 0, 12, 0, 27, 1, 3, 18, 1, 12, 0,
+    61, 0, 81, 0, 28, 7, 8, 7, 69, 0, 4, 12, 11, 2, 1, 0, 0, 1, 0, 1, 22, 0,
+    0, 4, 0, 1, 1, 3, 2, 5, 0, 0, 0, 1, 8, 0, 1, 0, 0, 2, 1, 0, 0, 1, 2, 0,
+    21, 0, 0, 8,
+)
+
+
+def test_a_missing_month_is_read_past_a_spelling_the_member_cannot_read(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """An absent spelling the member cannot read hides no hole after it (P4-D358).
+
+    `-` sorts before `2013-06`, and `iso-month` reads no month in it. With
+    the reading stopped at the first spelling it cannot read, a rank was
+    offered 2013-06, the spelling step moved it onto a month ranks held,
+    and the twin held 42 months against the published 43, both distinct
+    counts MISSED at seeds 3 and 8 -- 167 of 400 twins of the battery.
+    """
+    cells: "list[str]" = ["-"] * 13
+    for step, count in enumerate(_DASHED_MONTH_COUNTS):
+        cells += [f"{2012 + (step + 2) // 12}-{(step + 2) % 12 + 1:02d}"] * count
+    random.Random(460004).shuffle(cells)
+    block = _span_hole_held(tmp_path, monkeypatch, cells, "2013-06", 12 * 43 + 5, 11, ("-",))
+    assert (block["format"], block["n_present"], block["n_distinct"], block["missing_by_source"]) == (
+        "iso-month", 494, 43, {"-": 13, "2013-06": 27}
     )
 
 

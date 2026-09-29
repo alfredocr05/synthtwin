@@ -1677,6 +1677,12 @@ ABSENT_ROWS = (
     ("iso-month", "month", False, ("2015-13", "0000-05", "2015-02-03", "1998-Q1"), set()),
     ("year-quarter", "quarter", False, ("1998-01", "1998-Q5"), set()),
     ("month-first-date", "date", False, ("2019-03-11",), set()),
+    # One the member does not read is passed over and the next still read:
+    # a declared `-` or `#N/A` sorts before every date the run publishes.
+    ("iso-date", "date", False, ("-", "2019-03-11"), {17966}),
+    ("month-first-date", "date", False, ("#N/A", "3/11/2019"), {17966}),
+    ("iso-month", "month", False, ("-", "2015-02"), {541}),
+    ("year-quarter", "quarter", False, ("#N/A", "1998-Q1"), {112}),
     # Moments at midnight on a member with another mark keep their day by
     # that mark; a column counted in minutes is not asked.
     ("iso-datetime", "datetime", True, ("2019-03-11T00:00:00",), set()),
@@ -2440,6 +2446,15 @@ WITNESS_MUTANTS.update({
         "absent",
         '    if column.get("resolution") == "datetime" and column.get("format") in ("iso-datetime", "iso-mixed"):\n',
         "    if False:\n",
+    ),
+    "absent_span_read_stops_at_an_unread_spelling": (
+        "absent", "            continue\n        year = int(text[:4])", "            break\n        year = int(text[:4])",
+    ),
+    "absent_day_read_stops_at_an_unread_spelling": (
+        "absent",
+        "            found.add(days_from_civil(int(parts[2]), int(parts[0]), int(parts[1])))\n    return found\n",
+        "            found.add(days_from_civil(int(parts[2]), int(parts[0]), int(parts[1])))\n"
+        "        else:\n            break\n    return found\n",
     ),
 })
 

@@ -10468,10 +10468,9 @@ def absent_units(column):
     offers a rank that unit, since its cell would read back as absent --
     where the spelling step would move the rank: not where a moment at
     midnight keeps its day by taking another mark (G7.5), nor on a column
-    counted in seconds or minutes.  This oracle reads an ISO date on an
-    ISO member, a month-first date on a month-first member, a `yyyy-mm`
-    month on `iso-month` and a `yyyy-Qn` quarter, either case of `Q`, on
-    `year-quarter` (`spans_named`), and names nothing else.
+    counted in seconds or minutes.  This oracle reads a day as
+    `days_named` does and a month or a quarter as `spans_named` does, and
+    names nothing else.
     """
     spellings = column.get("missing_by_source", {})
     if not spellings:
@@ -10485,12 +10484,21 @@ def absent_units(column):
         # A moment at midnight on a member with another mark to give keeps
         # its day and takes that mark (G7.5), so the pass is not asked.
         return set()
-    member = column.get("format", "")
+    return days_named(column.get("format", ""), spellings)
+
+
+def days_named(member, spellings):
+    """The days absent spellings name on a day member (G7.3, G7.3b step 7).
+
+    An ISO member reads `yyyy-mm-dd`, bare or with a midnight clock, and
+    `month-first-date` reads `m/d/yyyy`; the day is counted from
+    1970-01-01, as G7.1 counts the column's values. A spelling the member
+    does not read names nothing, and every spelling after it is still read.
+    """
     found = set()
     for text in spellings:
         text = text.strip()
-        day = text[:10]
-        clock = text[10:]
+        day, clock, parts = text[:10], text[10:], text.split("/")
         if (
             member.startswith("iso-")
             and len(day) == 10 and day[4] == "-" and day[7] == "-"
@@ -10498,9 +10506,7 @@ def absent_units(column):
             and clock in ("", "T00:00:00", " 00:00:00")
         ):
             found.add(days_from_civil(int(day[:4]), int(day[5:7]), int(day[8:])))
-            continue
-        parts = text.split("/")
-        if (
+        elif (
             member == "month-first-date" and len(parts) == 3
             and all(part.isdigit() for part in parts) and len(parts[2]) == 4
         ):
@@ -10514,6 +10520,8 @@ def spans_named(member, spellings):
     `iso-month` reads `yyyy-mm`, a month 01 to 12, and `year-quarter`
     reads `yyyy-Qn` or `yyyy-qn`, a quarter 1 to 4, each of a year from 1
     on; the unit is counted from 1970, as G7.1 counts the column's values.
+    A spelling the member does not read names nothing, and every spelling
+    after it is still read.
     """
     found = set()
     for text in spellings:
