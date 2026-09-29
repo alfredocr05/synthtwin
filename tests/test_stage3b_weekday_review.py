@@ -664,9 +664,9 @@ def test_a_column_of_few_dates_certifies_its_withholding(tmp_path: pathlib.Path)
     cells over every class: 471 rows on 26 to 36 days over 57 classes
     found none, so the withholding of 39 of 80 sparse schedules could not
     be certified and their censuses were withheld whatever they held.
-    Merging the cells of one stretch's half of the week into one part --
-    no bounded total moves -- finds the tables. Red when the merge is
-    withdrawn (the census is withheld, `uncertified`).
+    Moving a part's cells into another part wherever every bound still
+    holds finds the tables. Red when the merge is withdrawn (the census
+    is withheld, `uncertified`).
     """
     cells = _weekly_clinic(6)
     described = kpi_shapes.describe(tmp_path, "clinic", "visit\n" + "".join(f"{cell}\n" for cell in cells), 11)
@@ -675,3 +675,87 @@ def test_a_column_of_few_dates_certifies_its_withholding(tmp_path: pathlib.Path)
     days = tuple(sorted(verifier.day_number(cell) for cell in cells))
     decided = taxonomy.weekday_decision(block, days, block["n_distinct"], taxonomy.Settings(small_cell_floor=11), texts=len(set(cells)))
     assert decided.withheld is not None and decided.withheld.holds
+
+
+# -- the review of the third review's repair: the band search, and the
+# -- withholding's certificate alone ---------------------------------------------
+
+
+def _one_weekday_clinic(seed: int, weeks: int, weekday: int, rows: int) -> "list[str]":
+    """`rows` visits drawn with `Random(seed)` over `weeks` weekly clinic days on one weekday of 2024."""
+    draw = random.Random(seed)
+    days = [datetime.date(2024, 1, 1) + datetime.timedelta(days=7 * week + weekday) for week in range(weeks)]
+    weights = [draw.uniform(0.5, 1.5) for _ in days]
+    return [draw.choices(days, weights)[0].isoformat() for _ in range(rows)]
+
+
+def _decided(cells: "list[str]") -> "tuple[taxonomy.ColumnProfile, taxonomy.WeekdayDecision]":
+    described = taxonomy.profile_column("visit", 1, cells, len(cells), taxonomy.Settings())
+    block = dict(described.details, n_present=described.n_present, n_distinct=described.n_distinct, sentinel_verdicts=[])
+    days = tuple(sorted(verifier.day_number(cell) for cell in cells))
+    return described, taxonomy.weekday_decision(block, days, described.n_distinct, taxonomy.Settings(), texts=len(set(cells)))
+
+
+def test_a_one_weekday_clinic_certifies_its_withholding_with_tables_that_meet_its_facts() -> None:
+    """800 visits over 20 Fridays: the band search finds tables of 18 days, each one a table, and the census publishes.
+
+    Seven knot days and six stretches between them, each with a part in
+    both halves of the week once merged inside one stretch and one half:
+    nineteen parts for 18 different days, so neither band found a table
+    and the census was withheld whatever it held (review of the third
+    review's repair). A part's cells now move into any stretch and either
+    half where every bound holds. Every table the withholding's
+    certificate lays out is checked here against the facts a reader
+    holds, by the verifier, which shares no code with the network: its
+    rank facts, its count of different days, the line on its day, and
+    its weekend or Monday to Friday inside the band. Red when a part may
+    merge only inside its own stretch and half (`uncertified`).
+    """
+    cells = _one_weekday_clinic(1, 20, 4, 800)
+    described, decided = _decided(cells)
+    assert described.details["weekday_census"], described.publication_notes
+    answer = decided.withheld
+    assert answer is not None and answer.holds, answer
+    block = dict(described.details, n_present=described.n_present, n_distinct=described.n_distinct, weekday_census=[])
+    parsed = len(cells)
+    rows_low, rows_high = block["low_tail"]["rows"], block["high_tail"]["rows"]
+    days = sorted(verifier.day_number(cell) for cell in cells)
+    body = days[rows_low: parsed - rows_high]
+    rungs = taxonomy._census_rungs(block["date_percentiles"], parsed)
+    fewest, most = calendar_certificate.reader_days(
+        block["n_distinct"], 0, rows_low, taxonomy._tail_listed(block["low_tail"]),
+        rows_high, taxonomy._tail_listed(block["high_tail"]),
+    )
+    facts = calendar_certificate._halves_facts(calendar_certificate.facts_of(
+        parsed, rows_low, rows_high, body[0], body[-1], rungs, fewest, most, 11,
+        calendar_certificate._HALVES, -1, (),
+    ))
+    size = facts.body
+    sides = [
+        ((size - answer.weekend[1], size - answer.weekend[0]), answer.weekend),
+        (answer.weekdays, (size - answer.weekdays[1], size - answer.weekdays[0])),
+    ]
+    laid = 0
+    for klass in facts.keys:
+        take = {klass: 1}
+        for top in sides:
+            table = calendar_certificate._census_table(facts, take, {klass[1]: (11, size)}, {}, {}, 0, 0, [0], tuple(top))
+            if table is None:
+                continue
+            held = dict(calendar_certificate._laid_out(facts, table, take))
+            halves = [sum(cells for day, cells in held.items() if verifier.weekday(day) < 5)]
+            halves += [size - halves[0]]
+            groups = [{"first": 0, "last": 4, "count": halves[0]}, {"first": 5, "last": 6, "count": halves[1]}]
+            reader = verifier.reader_facts(dict(block, weekday_census=groups), 11)
+            assert verifier.table_problems(reader, held, facts.classes[klass][0]) == [], klass
+            assert top[0][0] <= halves[0] <= top[0][1] and top[1][0] <= halves[1] <= top[1][1], (klass, halves)
+            laid += 1
+            break
+    assert laid == len(facts.keys), (laid, len(facts.keys))
+    # One weekend row asked, and the merges pour no Monday-to-Friday cell into it.
+    table = calendar_certificate._census_table(facts, {}, {}, {}, {}, 0, 0, [0], ((size - 1, size - 1), (1, 1)))
+    assert table is not None
+    held = dict(calendar_certificate._laid_out(facts, table, {}))
+    groups = [{"first": 0, "last": 4, "count": size - 1}, {"first": 5, "last": 6, "count": 1}]
+    reader = verifier.reader_facts(dict(block, weekday_census=groups), 11)
+    assert verifier.table_problems(reader, held, max(held, key=lambda day: held[day])) == []

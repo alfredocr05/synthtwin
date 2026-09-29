@@ -616,7 +616,10 @@ def _census_table(
     if nonempty + occupied > facts.most_days:
         if top_bounds is None:
             return None
-        merged = _merged(facts, parts, cost, facts.body - facts.fewest - spent, occupied)
+        merged = _merged(
+            facts, parts, cost, facts.body - facts.fewest - spent, occupied,
+            (need, bounds, fixed, top_bounds),
+        )
         if merged is None:
             return None
         parts, cost = merged
@@ -630,6 +633,7 @@ def _merged(
     cost: int,
     budget: int,
     occupied: int,
+    sides: "tuple[dict[int, tuple[int, int]], dict[int, tuple[int, int]], dict[tuple[int, int], int], tuple[tuple[int, int], ...]]",
 ) -> "tuple[tuple[tuple[tuple[int, int], bool, int, int], ...], int] | None":
     """A table's parts merged until they fit the most different days, or None.
 
@@ -638,36 +642,90 @@ def _merged(
     to 36 different days over 57 classes found no table at all, so its
     withholding could not be certified (review of landing 3b.1, item 2,
     measured on sparse schedules). Where only group TOTALS are bounded
-    -- the withholding's two halves of the week -- moving every cell of
-    one untaken part into another untaken part of the same stretch and
-    the same group changes no bounded total, so it is still a table of
-    the facts; each merge takes the pair that raises the cost least, and
-    the cost may not pass `budget`. A table found this way is a table,
-    which is all a witness needs.
+    -- the withholding's two halves of the week -- every cell of one
+    untaken part of a stretch between two knots moves into another
+    non-empty part, of any stretch and either half, wherever every bound
+    still holds after the move: each prefix of stretches the move passes
+    stays within its rank facts, both group totals within `top_bounds`,
+    both weekday totals within `bounds`, and a taken part within `need`.
+    A merge inside one stretch and one half was not enough: 800 visits
+    of a weekly Friday clinic on 18 different days, seven of them knot
+    days, kept a part in each half of each of six stretches between the
+    knots -- nineteen -- and neither band found a table (review of the
+    third review's repair). Each merge takes the move that raises the
+    cost least -- into the part with the most room left, which only the
+    room decides -- and the cost may not pass `budget`. Every move keeps
+    every bound the network holds, so a table found this way is a table,
+    which is all a witness needs. `sides` is `(need, bounds, fixed,
+    top_bounds)` as `_census_table` holds them.
     """
+    need, bounds, fixed, top_bounds = sides
     keys = [part[0] for part in parts]
     taken = [part[1] for part in parts]
     cells = [part[2] for part in parts]
     days = [part[3] for part in parts]
     spent = cost
+    count = len(facts.stretches)
+    held = [0 for _ in range(count)]
+    weekday_held = [0 for _ in range(calendar_rules.WEEKDAYS)]
+    hub = [0 for _ in range(calendar_rules.WEEKDAYS)]
+    for key in fixed:
+        held[key[0]] = held[key[0]] + fixed[key]
+        weekday_held[key[1]] = weekday_held[key[1]] + fixed[key]
+    for place in range(len(keys)):
+        stretch, weekday = keys[place]
+        held[stretch] = held[stretch] + cells[place]
+        weekday_held[weekday] = weekday_held[weekday] + cells[place]
+        if taken[place] and weekday in need:
+            hub[weekday] = hub[weekday] + cells[place]
+    group_held = [0 for _ in top_bounds]
+    for weekday in range(calendar_rules.WEEKDAYS):
+        group_held[facts.where[weekday]] = group_held[facts.where[weekday]] + weekday_held[weekday]
 
-    def over(held: int, room: int) -> int:
-        return max(0, held - room)
+    def over(cells_held: int, room: int) -> int:
+        return max(0, cells_held - room)
 
-    count = len([held for held in cells if held > 0])
-    while count + occupied > facts.most_days:
+    def movable(first: int, second: int, prefix: "list[int]") -> bool:
+        moved = cells[first]
+        source, from_day = keys[first]
+        target, to_day = keys[second]
+        for place in range(min(source, target), max(source, target)):
+            if source < target and prefix[place] - moved < facts.prefix_low[place]:
+                return False
+            if source > target and prefix[place] + moved > facts.prefix_high[place]:
+                return False
+        if from_day != to_day:
+            if from_day in bounds and weekday_held[from_day] - moved < bounds[from_day][0]:
+                return False
+            if to_day in bounds and weekday_held[to_day] + moved > bounds[to_day][1]:
+                return False
+        losing = facts.where[from_day]
+        gaining = facts.where[to_day]
+        if losing != gaining and (
+            group_held[losing] - moved < top_bounds[losing][0]
+            or group_held[gaining] + moved > top_bounds[gaining][1]
+        ):
+            return False
+        return not (taken[second] and to_day in need and hub[to_day] + moved > need[to_day][1])
+
+    nonempty = len([cells_held for cells_held in cells if cells_held > 0])
+    while nonempty + occupied > facts.most_days:
+        prefix: "list[int]" = []
+        running = 0
+        for place in range(count):
+            running = running + held[place]
+            prefix += [running]
+        into = sorted(
+            (-max(0, days[place] - cells[place]), place)
+            for place in range(len(keys))
+            if cells[place] > 0
+        )
         best: "tuple[int, int, int, int] | None" = None
         for first in range(len(keys)):
-            if cells[first] <= 0 or taken[first]:
+            if cells[first] <= 0 or taken[first] or facts.stretches[keys[first][0]][0]:
                 continue
-            for second in range(len(keys)):
-                if (
-                    second == first
-                    or cells[second] <= 0
-                    or taken[second]
-                    or keys[second][0] != keys[first][0]
-                    or facts.where[keys[second][1]] != facts.where[keys[first][1]]
-                ):
+            for _room, second in into:
+                if second == first or not movable(first, second, prefix):
                     continue
                 raised = (
                     spent
@@ -675,17 +733,26 @@ def _merged(
                     - over(cells[second], days[second])
                     + over(cells[first] + cells[second], days[second])
                 )
-                if raised > budget:
-                    continue
-                if best is None or (raised, cells[first], first, second) < best:
+                if raised <= budget and (best is None or (raised, cells[first], first, second) < best):
                     best = (raised, cells[first], first, second)
+                break
         if best is None:
             return None
-        raised, _held, first, second = best
-        cells[second] = cells[second] + cells[first]
+        raised, moved, first, second = best
+        source, from_day = keys[first]
+        target, to_day = keys[second]
+        held[source] = held[source] - moved
+        held[target] = held[target] + moved
+        weekday_held[from_day] = weekday_held[from_day] - moved
+        weekday_held[to_day] = weekday_held[to_day] + moved
+        group_held[facts.where[from_day]] = group_held[facts.where[from_day]] - moved
+        group_held[facts.where[to_day]] = group_held[facts.where[to_day]] + moved
+        if taken[second] and to_day in need:
+            hub[to_day] = hub[to_day] + moved
+        cells[second] = cells[second] + moved
         cells[first] = 0
         spent = raised
-        count = count - 1
+        nonempty = nonempty - 1
     return (
         tuple(
             (keys[place], taken[place], cells[place], days[place])

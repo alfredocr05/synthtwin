@@ -126,9 +126,10 @@ withdrawn and nothing else changed:
   kept), the brute force and `gr_wedthu_6_8_s1`;
 * menu entry 2 withdrawn, `sessions20_s0`; entry 3, `gr_wedthu_6_8_s1`;
 * WC7 withdrawn, the five-week column around the placeholder day
-  (`test_a_placeholder_day_between_the_boundaries_is_a_hole_the_loader_holds`);
-  `B2_oneweek_1201_s0` and `k7_sessions_s0` witnessed it until the third
-  review, whose earlier rules now withhold them first;
+  (`test_a_placeholder_day_between_the_boundaries_is_a_hole_the_loader_holds`)
+  and `k7_sessions_s0`, whose withholding the band search certifies since
+  its parts move across stretches; `B2_oneweek_1201_s0` witnessed it
+  until the third review, whose band now withholds it first;
 * one spelling per day withdrawn, the column written two widths; the
   holes withdrawn, the declared missing day; the one-storage rule
   withdrawn, the workbook stored two ways; the validator's
@@ -1709,7 +1710,7 @@ _EXPECTED = {
         "session_date", lambda: _twenty_sessions(0),
         [(0, 0, 352), (1, 1, 201), (2, 2, 261), (3, 3, 114), (4, 4, 143), (5, 6, 16)], "",
     ),
-    "k7_sessions_s0": ("session_date", lambda: _seven_sessions(0), [], calendar_rules.REASON_UNCERTIFIED),
+    "k7_sessions_s0": ("session_date", lambda: _seven_sessions(0), [], calendar_rules.REASON_FEW_DATES),
     "B2_oneweek_1201_s0": ("visit_date", lambda: _one_week(1201, 0), [], calendar_rules.REASON_BAND),
     "bizlog_x1_s1": ("log_date", lambda: _business_days(1, 1), [], calendar_rules.REASON_TIES),
     "w_month_wide_1000_s0": ("visit_date", lambda: _one_month_wide(1000, 0), [], calendar_rules.REASON_NARROWED),
@@ -1729,15 +1730,16 @@ def test_each_rule_publishes_what_it_derives(tmp_path: pathlib.Path, name: str) 
     * `sessions20_s0`: every weekday alone reaches the line, the weekend
       together does too: entry 2.
     * `k7_sessions_s0` and `B2_oneweek_1201_s0`: each group would be the
-      count of a few single dates (WC7), and since the third review of
-      the landing (plan P4-D359) a rule the published numbers alone
-      decide comes first: seven sessions leave no table on the reader's
-      bounds that the census side's network can lay out, so no band is
-      reached and the withholding itself cannot be certified,
-      `uncertified`; one week of 1,201 visits puts its weekend inside its
-      band -- at least three rows and at most the line more than the
-      least any table of its facts holds there -- `band`. Both are said in
-      the one sentence every rule the table's own numbers decide shares.
+      count of a few single dates (WC7). Seven sessions are withheld for
+      it, `few_dates`, their withholding certified: the band search finds
+      tables of the reader's few days once a part's cells may move into
+      another stretch (plan P4-D359; before, no band was reached and the
+      withholding was `uncertified`). One week of 1,201 visits puts its
+      weekend inside its band -- at least three rows and at most the line
+      more than the least any table of its facts holds there -- `band`,
+      the rule asked first since the third review of the landing. Both
+      are said in the one sentence every rule the table's own numbers
+      decide shares.
     * `bizlog_x1_s1`: one row a business day and one more, so no day can
       hold eleven: withheld, `ties`.
     * `w_month_wide_1000_s0`: certified only on a count of different

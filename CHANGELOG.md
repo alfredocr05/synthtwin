@@ -19,7 +19,10 @@ May-only column stays in May and a straddling column keeps its count of
 different days. One spelling per day is asked of the cells' own texts,
 the loader holds workbook storage, and a refusal on the published
 numbers walks no day. Over 56 date columns one census moved, the review's
-own attack; over 80 sparse schedules 42 publish where 45 did.
+own attack; over 80 sparse schedules 42 publish where 45 did. The band
+search moves a part's cells across stretches and halves, so a weekly
+clinic on one weekday publishes again: 120 seeded schedules publish 73
+where 2af1f03 published 79 and 486c2c8 71.
 
 ### A count no placement inside the gaps reaches is met past the strata (2026-09-28)
 
