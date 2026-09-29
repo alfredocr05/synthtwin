@@ -11450,6 +11450,11 @@ class TailReader:
     and not a reach of nought, because a FITTED tail whose reach rounds
     to nought is a real answer -- every row at the boundary -- and this
     is the absence of an answer.
+
+    ``kept`` are the stand-ins the numeric block itself publishes as
+    held (`_kept_stand_ins` without the column's decisions, so the
+    checker's windows and the producer's cost rule read this ladder off
+    the block alone); no row steps off one (G5.3b step 5).
     """
 
     low: bool
@@ -11466,6 +11471,7 @@ class TailReader:
     counts: "tuple[int, ...]"
     steps: "tuple[float, ...]" = ()
     withheld: bool = False
+    kept: "tuple[float, ...]" = ()
 
 
 class ShapedLadder(tuple[float, ...]):
@@ -11986,8 +11992,9 @@ def _tail_steps(side: TailReader, figures: int) -> "tuple[float, ...]":
 
     AND NO ROW STANDS ON A STAND-IN NUMBER (method G5.3b step 5, plan
     P4-D353 part 4): a row the staircase puts on one of
-    `parsing.NUMERIC_SENTINELS` takes the next grid point outward, as a
-    row landing on the row before it does (`_row_off_the_stand_ins`).
+    `parsing.NUMERIC_SENTINELS` the block does not publish as held takes
+    the next grid point outward, as a row landing on the row before it
+    does (`_row_off_the_stand_ins`).
     """
     if side.listed or side.rows <= 0:
         return ()
@@ -12055,14 +12062,16 @@ def _row_off_the_stand_ins(value: float, side: TailReader, figures: int) -> floa
     a stand-in for "no value". So a row landing on one takes the next
     grid point OUTWARD -- the step a row landing on the row before it
     takes -- and never past the tail's own end, which step 5 has already
-    held off them. A row ON the end is the end's business and is left.
+    held off them. A row ON the end is the end's business and is left,
+    and so is one on a stand-in the block publishes as held
+    (`TailReader.kept`).
 
     Guarantees: accepts a row as the staircase placed it, its tail and
     the tail grid; returns the row, or the next grid point outward held
     at the end where the row is a stand-in number. Determinism: a
     function of the three. Raises nothing. No I/O of any kind.
     """
-    if value == side.end:
+    if value == side.end or value in side.kept:
         return value
     for sentinel in parsing.NUMERIC_SENTINELS:
         if value == sentinel:
@@ -12385,9 +12394,10 @@ def _derived_end(
     that passed the bound, then held to the sign counts
     (`_signed_end`). A flat tail's end is its boundary. A derived end --
     the withheld one or the fitted one -- that lands on a number the
-    profiler reads as a stand-in for "no value" moves one grid step
-    toward its boundary (`_off_the_stand_ins`, G5.3b step 5); a
-    published end and a listed value are never moved.
+    profiler reads as a stand-in for "no value", and one the block does
+    not publish as held, moves one grid step toward its boundary
+    (`_off_the_stand_ins`, G5.3b step 5); a published end and a listed
+    value are never moved.
 
     THE BOUND IS TAKEN AS `rms` TIMES A FRACTION, which is the same
     number and is the only form this format can hold at both ends of
@@ -12402,6 +12412,7 @@ def _derived_end(
     if side.values:
         return side.values[0] if low else side.values[len(side.values) - 1]
     figures = _tail_figures(facts)
+    kept = _kept_stand_ins((), facts)
     mean = side.mean_distance
     root = side.rms_distance
     if mean is None or root is None:
@@ -12416,6 +12427,7 @@ def _derived_end(
             low,
             boundary,
             figures,
+            kept,
         )
     if shape[0]:
         return boundary
@@ -12520,12 +12532,16 @@ def _derived_end(
     # published 15.5 and `validate` MISSED `ladder.p50` and
     # `moments.mean`.
     if abs(spelled - boundary) < mean:
-        return _off_the_stand_ins(held, low, boundary, figures)
-    return _off_the_stand_ins(spelled, low, boundary, figures)
+        return _off_the_stand_ins(held, low, boundary, figures, kept)
+    return _off_the_stand_ins(spelled, low, boundary, figures, kept)
 
 
 def _off_the_stand_ins(
-    value: float, low: bool, boundary: float, figures: int
+    value: float,
+    low: bool,
+    boundary: float,
+    figures: int,
+    kept: "tuple[float, ...]" = (),
 ) -> float:
     """A derived end moved off the numbers the profiler reads as absent.
 
@@ -12544,15 +12560,20 @@ def _off_the_stand_ins(
     for a made-up spelling (`generation._reads_as_its_class`); a derived
     end is refused them the same way, and moved ONE grid step toward its
     boundary, never past it. A published end and a listed value are the
-    table's own and never reach this function.
+    table's own and never reach this function, and neither is moved off a
+    stand-in the block publishes as held (``kept``, `TailReader.kept`): a
+    count column holding `9999` in 12 rows, its mode, beside `9000` to
+    `9990` and `10000` six times, ended its high tail at `9998` and the
+    twin held the heap there at seeds 0, 4 and 9 (d93fd43 held it at
+    `9999`).
 
-    Guarantees: accepts a derived end, which side it is, its boundary and
-    the tail grid; returns the end, or the end one step inside -- one
-    binary64 can tell from it (`_step_apart`) -- where it is a stand-in
-    number. Determinism: a function of the four. Raises nothing. No I/O
-    of any kind.
+    Guarantees: accepts a derived end, which side it is, its boundary,
+    the tail grid and the block's held stand-ins; returns the end, or the
+    end one step inside -- one binary64 can tell from it (`_step_apart`)
+    -- where it is a stand-in number not held. Determinism: a function
+    of the five. Raises nothing. No I/O of any kind.
     """
-    if value == boundary:
+    if value == boundary or value in kept:
         return value
     for sentinel in parsing.NUMERIC_SENTINELS:
         if value == sentinel:
@@ -13048,6 +13069,7 @@ def tail_ladder(facts: NumericFacts) -> "ShapedLadder | None":
             listed=listed,
             counts=counts,
             withheld=withheld,
+            kept=_kept_stand_ins((), facts),
         )
         # ...and each row of an unlisted tail on its own grid point
         # (G5.3b's grid staircase), which needs the end this reader

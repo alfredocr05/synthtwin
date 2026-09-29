@@ -1186,14 +1186,20 @@ def _mode_heap_shapes() -> "dict[str, tuple[list[str], list[str]]]":
     labs = random.Random("p4d357/final/compound")
     pairs = random.Random("p4d357/final/joined")
     wrapped = random.Random("p4d357/final/affixed")
+    tailed = random.Random("p4d357/final/tail")
     compound = [str(round(labs.gauss(-1100.0, 150.0))) for _row in range(1200)] + ["-999"] * 45
     joined = [f"{pairs.randint(100, 180)}/{round(pairs.gauss(9500.0, 400.0))}" for _row in range(1400)]
     affixed = [f"{round(wrapped.gauss(500.0, 100.0))} mg" for _row in range(1000)]
     affixed += [f"{round(wrapped.gauss(9800.0, 300.0))} kg" for _row in range(600)]
+    # The heap beyond the high boundary, where the reader's derived end and
+    # staircase rows stand (G5.3b step 5).
+    tail = [str(tailed.randint(9000, 9990)) for _row in range(1000)] + ["9999"] * 12 + ["10000"] * 6
     return {
         "compound_heap": (compound + ["NOT DETECTED"] * 120, []),
         "joined_heap": (joined + [f"{pairs.randint(100, 180)}/9999" for _row in range(40)], ["value"]),
         "affixed_variant_heap": (affixed + ["9999 kg"] * 40, []),
+        "count_tail_heap": (tail, []),
+        "compound_tail_heap": (tail + ["NOT DETECTED"] * 100, []),
     }
 
 
@@ -1285,7 +1291,10 @@ def _numbers_of(line: str, name: str) -> "float | None":
         return None
 
 
-_HEAPED = (("compound_heap", 11), ("compound_heap", 36), ("joined_heap", 11), ("affixed_variant_heap", 11))
+_HEAPED = (
+    ("compound_heap", 11), ("compound_heap", 36), ("joined_heap", 11), ("affixed_variant_heap", 11),
+    ("count_tail_heap", 11), ("compound_tail_heap", 11),
+)
 _RUNG_HEAPED = (
     ("compound_rung_heap", 11), ("compound_rung_heap", 36), ("joined_rung_heap", 11), ("compound_rung_heap_9999", 11)
 )
@@ -1390,6 +1399,59 @@ def test_a_stand_in_a_block_publishes_through_equal_rungs_comes_back(
         assert least <= got <= most, f"seed {seed}: rungs p{run[0]} to p{run[-1]} span {least} to {most} rows, the twin {got}"
         missed = kpi_shapes.missed(kpi_shapes.measure(described, text, f"twin-{seed}.csv"))
         assert missed == [], f"seed {seed}: {missed}"
+
+
+@pytest.mark.parametrize("stand_in", _STAND_INS)
+@pytest.mark.parametrize("low", (True, False))
+def test_a_derived_end_or_staircase_row_on_a_held_stand_in_stays(stand_in: float, low: bool) -> None:
+    """G5.3b step 5 steps the reader's end and rows off a stand-in only where the block does not publish it as held.
+
+    In the product and the oracle alike. On db49437 a count column holding
+    `9999` in 12 rows, its mode, beside `9000` to `9990` and `10000` six
+    times ended its high tail at `9998`, and the twin held the heap there
+    at seeds 0, 4 and 9 (`count_tail_heap` above; d93fd43 held it at `9999`).
+    """
+    oracle = _oracle()
+    boundary = stand_in + 1.0 if low else stand_in - 1.0
+    far = stand_in - 5.0 if low else stand_in + 5.0
+    kept = (stand_in,)
+    assert contract._off_the_stand_ins(stand_in, low, boundary, 0, kept) == stand_in
+    assert oracle.off_the_stand_ins(stand_in, low, boundary, 0, kept) == stand_in
+    side = contract.TailReader(
+        low=low, percent=1, boundary=boundary, rows=11, numbers=1000, flat=False,
+        power=1, blend=0.0, reach=0.0, end=far, listed=(), counts=(), kept=kept,
+    )
+    assert contract._row_off_the_stand_ins(stand_in, side, 0) == stand_in
+    assert oracle.row_off_the_stand_ins(stand_in, far, low, 0, kept) == stand_in
+    assert contract._off_the_stand_ins(stand_in, low, boundary, 0) != stand_in, "premise: one not held still moves"
+
+
+def test_the_reader_s_ladder_holds_the_stand_ins_of_the_block_alone(tmp_path: pathlib.Path) -> None:
+    """The derived end and the staircase rows keep what the numeric block publishes as held, and never a decision.
+
+    The producer's cost rule reads the reader's ladder off a would-be block
+    that carries no decision (`contract.numeric_block_facts`), and the
+    checker's windows must read the same ladder, so a stand-in held only by
+    a `kept_as_a_number` decision is still stepped off there; the value
+    passes keep it. Fifteen rows of `9999` beside thirty of `10000`, the
+    published end, and 300 of `5000`, the mode.
+    """
+    draw = random.Random("p4d357/final/tail/decision")
+    cells = [str(draw.randint(9000, 9990)) for _row in range(1000)] + ["5000"] * 300 + ["9999"] * 15 + ["10000"] * 30
+    described = kpi_shapes.describe(tmp_path / "decision", "decision", _one_column(cells), 11)
+    column = described.document["columns"][0]
+    assert _kept_published(column) == {9999.0: 15} and column["mode"] == 5000.0, "premise: a decision alone holds 9999"
+    facts = described.loaded.columns[0].facts
+    assert isinstance(facts, contract.NumericFacts) and facts.kept_stand_ins == (9999.0,)
+    ladder = contract.tail_ladder(facts)
+    assert ladder is not None and ladder.low is not None and ladder.high is not None
+    assert (ladder.low.kept, ladder.high.kept) == ((), ())
+    assert _oracle().held_by_the_block(column) == ()
+    tailed = _described_heap(tmp_path, "count_tail_heap")
+    held = _nested_facts(tailed.loaded.columns[0].facts)[0]
+    ladder = contract.tail_ladder(held)
+    assert ladder is not None and ladder.high is not None and ladder.high.kept == held.kept_stand_ins == (9999.0,)
+    assert _oracle().held_by_the_block(tailed.document["columns"][0]) == (9999.0,)
 
 
 def test_a_stand_in_no_block_publishes_as_held_is_refused_in_every_role(tmp_path: pathlib.Path) -> None:

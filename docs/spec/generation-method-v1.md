@@ -2201,10 +2201,13 @@ boundary rung itself where that percent falls between the two tails.
    `-999` in 46 and a position holding `9999` in 46, published only as
    p41 to p43 and p86 to p88. The derived end and the staircase rows are the
    reader's ladder (G5.1a), which the checker's windows and the
-   producer's cost rule read from the numeric block alone, so they
-   refuse the three whatever the column holds; each moves at most one
-   row a side, and over ten heap shapes at floors 11 and 36 neither met
-   a kept stand-in. **A STEP THAT BINARY64 CANNOT TELL FROM THE
+   producer's cost rule read from the numeric block alone, so they keep
+   only a stand-in the block itself publishes as held -- its mode, a
+   tail block's end, two adjacent equal rungs, never a decision -- and
+   step off the rest: a count column holding `9999` in 12 rows, its
+   mode, beside `9000` to `9990` and `10000` six times, ended its high
+   tail at `9998` and the twin held the heap there at seeds 0, 4 and 9
+   until they kept it. **A STEP THAT BINARY64 CANNOT TELL FROM THE
    STAND-IN IS NO STEP**: on a grid finer than the format near it -- 14
    figures after the point beside `-999` -- one grid step reads back as
    the stand-in, so the end, the row and G5.4's stratum each take the
