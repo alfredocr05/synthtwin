@@ -18499,8 +18499,8 @@ def _date_layout(
 # numbers, each stated once: the raking rounds of the shares, the scale
 # a share is counted in, the rounds of whole runs and of single ranks,
 # the rounds of the leftover and of the repair, the farthest a
-# destination is looked for, and how many units the repair asks for one
-# rank.
+# destination is looked for, how many units the repair asks for one
+# rank, and how many exchanges step 8.3 makes at most.
 _WEEKDAY_RAKES = 60
 _WEEKDAY_SCALE = 1048576
 _WEEKDAY_RUN_ROUNDS = 8
@@ -18509,6 +18509,19 @@ _WEEKDAY_LEFTOVER_ROUNDS = 64
 _WEEKDAY_REPAIR_ROUNDS = 8
 _WEEKDAY_REACH = 400
 _WEEKDAY_PROBES = 64
+_WEEKDAY_EXCHANGES = 64
+
+# WHICH GAVE WAY, where the census and the count of different days cannot
+# both be met (method G7.3f, step 8.3). The count's own recount
+# (`_recount_notes`) prints this in place of its general reason, which
+# said the ways of writing a value ran short: false on a column whose
+# census cost it a day (review of landing 3b.1, item 5).
+_WEEKDAY_DAYS_GIVEN_WAY = (
+    "No placement of this column's dates between the published rungs "
+    "meets both the published counts per day of the week and the count "
+    "of different values, so the twin kept the counts per day of the "
+    "week and holds fewer different values than the description records."
+)
 
 
 @dataclasses.dataclass(frozen=True)
@@ -19068,6 +19081,230 @@ def _weekday_runs_merged(
     return changed
 
 
+def _weekday_exchanged(
+    state: _WeekdayPass,
+    body_low: int,
+    body_high: int,
+    pinned: "list[bool]",
+    wanted: int,
+) -> None:
+    """The count of different days put back ACROSS groups (method G7.3f, step 8.3).
+
+    Steps 8.1 and 8.2 move a rank only inside its own group, so where the
+    count is short and a free day stands only in ANOTHER group of a
+    rank's gap, they left it short: 500 visits over 70 days, published
+    on four single weekdays, held 38 of their 39 days at seeds 1, 2 and
+    4 while a twin with the pass bypassed held 39 (review of landing
+    3b.1, item 5, its second probe). A CELL is a gap and a width kind.
+    Moving one rank of a cell from a day of group `g` to a day of group
+    `h` gives `give(g) + take(h)`: `give` is nought where a rank of `g`
+    in the cell shares its day and minus one where each is alone, `take`
+    one where a day of `h` in the cell is free and no hole, and nought
+    where only held ones stand. A CYCLE of such moves, `g1` to `g2` to
+    ... back to `g1`, each group once, keeps every group's count and
+    every cell's size, and its gain is the sum. The count of different
+    days, as a function of how many ranks each cell puts on each group,
+    is `sum min(ranks, free days)` over cells and groups -- concave --
+    so while a cycle of positive gain exists the count is below the most
+    the census allows, and where none exists it is that most
+    (`_weekday_cycle`). Each round takes the cycle whose gain is the
+    largest not past what is short, else the smallest, and moves its
+    ranks (`_weekday_exchange_moves`); a long count left behind is
+    step 8.1 and 8.2's again.
+
+    Guarantees: moves body ranks the layout does not pin, inside their
+    own gaps and width kinds and never onto a hole; keeps every group's
+    count. Draws no word. Raises nothing. No I/O of any kind.
+    """
+    for _round in range(_WEEKDAY_EXCHANGES):
+        count = _weekday_count(state)
+        if count >= wanted:
+            break
+        cycle = _weekday_cycle(
+            state, _weekday_cells(state, body_low, body_high, pinned),
+            wanted - count,
+        )
+        if not cycle:
+            break
+        _weekday_exchange_moves(state, cycle, body_low, body_high, pinned)
+        if _weekday_count(state) <= count:
+            break
+    if _weekday_count(state) > wanted:
+        _weekday_repaired(state, body_low, body_high, pinned, wanted)
+
+
+def _weekday_cells(
+    state: _WeekdayPass, body_low: int, body_high: int, pinned: "list[bool]"
+) -> "dict[tuple[int, int, bool], dict[int, list[int]]]":
+    """Every movable rank by cell -- its gap and width kind -- and group."""
+    cells: "dict[tuple[int, int, bool], dict[int, list[int]]]" = {}
+    for rank in range(body_low, body_high + 1):
+        if pinned[rank]:
+            continue
+        day = state.moved[rank]
+        key = (state.lows[rank], state.highs[rank], _weekday_kind(state, day))
+        group = _weekday_group(state, day)
+        if key not in cells:
+            cells[key] = {}
+        members = cells[key]
+        if group in members:
+            ranks = members[group]
+            ranks += [rank]
+        else:
+            members[group] = [rank]
+    return cells
+
+
+def _weekday_take(
+    state: _WeekdayPass, key: "tuple[int, int, bool]", group: int
+) -> "int | None":
+    """What putting one more rank of a cell on `group` adds to the count:
+    one where a day of the group in the cell is free and no hole, nought
+    where only held ones stand, None where the cell has no such day."""
+    low, high, kind = key
+    held = False
+    for weekday in range(calendar_rules.WEEKDAYS):
+        if state.where[weekday] != group:
+            continue
+        day = low + (weekday - calendar_rules.weekday_of(low)) % 7
+        while day <= high:
+            if day not in state.holes and _weekday_kind(state, day) == kind:
+                if not _weekday_holds(state, day):
+                    return 1
+                held = True
+            day = day + 7
+    return 0 if held else None
+
+
+def _weekday_cycle(
+    state: _WeekdayPass,
+    cells: "dict[tuple[int, int, bool], dict[int, list[int]]]",
+    short: int,
+) -> "list[tuple[tuple[int, int, bool], int, int]]":
+    """The cycle of moves step 8.3 takes, or an empty list (method G7.3f).
+
+    Each ordered pair of groups `(g, h)` -- `g` and `h` the same too --
+    is the best cell's `give(g) + take(h)`, cells in order on a tie. Of
+    every cycle of groups, each group at most once, whose gain is above
+    nought, the one with the largest gain not past `short`, else the
+    smallest gain, then the fewest moves, then the earliest groups.
+    Returns its moves as (cell, from group, to group).
+    """
+    groups = max(state.where) + 1
+    give: "dict[tuple[tuple[int, int, bool], int], int]" = {}
+    take: "dict[tuple[tuple[int, int, bool], int], int]" = {}
+    for key in sorted(cells):
+        members = cells[key]
+        for group in range(groups):
+            if group in members:
+                shared = False
+                for rank in members[group]:
+                    if state.held[state.moved[rank]] >= 2:
+                        shared = True
+                        break
+                give[(key, group)] = 0 if shared else -1
+            gained = _weekday_take(state, key, group)
+            if gained is not None:
+                take[(key, group)] = gained
+    best: "dict[tuple[int, int], tuple[int, tuple[int, int, bool]]]" = {}
+    for key in sorted(cells):
+        for giving in range(groups):
+            if (key, giving) not in give:
+                continue
+            for taking in range(groups):
+                if (key, taking) not in take:
+                    continue
+                gain = give[(key, giving)] + take[(key, taking)]
+                if (giving, taking) not in best or gain > best[(giving, taking)][0]:
+                    best[(giving, taking)] = (gain, key)
+    chosen: "dict[str, tuple[tuple[int, int, int], tuple[int, ...]]]" = {}
+
+    def extend(first: int, path: "tuple[int, ...]", gain: int) -> None:
+        last = path[len(path) - 1]
+        if (last, first) in best:
+            total = gain + best[(last, first)][0]
+            if total > 0:
+                order = (0 if total <= short else 1, -total if total <= short else total, len(path))
+                if "cycle" not in chosen or (order, path) < chosen["cycle"]:
+                    chosen["cycle"] = (order, path)
+        for following in range(first + 1, groups):
+            if following not in path and (last, following) in best:
+                extend(first, path + (following,), gain + best[(last, following)][0])
+
+    for first in range(groups):
+        extend(first, (first,), 0)
+    if "cycle" not in chosen:
+        return []
+    path = chosen["cycle"][1]
+    moves: "list[tuple[tuple[int, int, bool], int, int]]" = []
+    for place in range(len(path)):
+        giving = path[place]
+        taking = path[(place + 1) % len(path)]
+        moves += [(best[(giving, taking)][1], giving, taking)]
+    return moves
+
+
+def _weekday_exchange_moves(
+    state: _WeekdayPass,
+    cycle: "list[tuple[tuple[int, int, bool], int, int]]",
+    body_low: int,
+    body_high: int,
+    pinned: "list[bool]",
+) -> None:
+    """Make one cycle of step 8.3's moves, in its order: in each move's
+    cell, the rank of the giving group on the day holding the most ranks
+    (the lower rank on a tie) moves to the day of the taking group nearest
+    it that no rank holds and is no hole, else the nearest one a rank
+    holds; its own width kind, inside its own gap."""
+    for key, giving, taking in cycle:
+        low, high, kind = key
+        chosen = -1
+        most = 0
+        for rank in range(body_low, body_high + 1):
+            day = state.moved[rank]
+            if (
+                pinned[rank]
+                or state.lows[rank] != low
+                or state.highs[rank] != high
+                or _weekday_group(state, day) != giving
+                or _weekday_kind(state, day) != kind
+            ):
+                continue
+            if state.held[day] > most:
+                most = state.held[day]
+                chosen = rank
+        if chosen < 0:
+            continue
+        target = _weekday_day_near(state, chosen, taking, kind, False)
+        if target is None:
+            target = _weekday_day_near(state, chosen, taking, kind, True)
+        if target is not None:
+            _weekday_step(state, chosen, target)
+
+
+def _weekday_day_near(
+    state: _WeekdayPass, rank: int, group: int, kind: bool, held: bool
+) -> "int | None":
+    """The day of this group and width kind nearest a rank's own, inside its
+    gap and no hole, held or free as asked, the earlier on a tie; None
+    where its gap has none. The whole gap is asked, not step 4's reach."""
+    day = state.moved[rank]
+    low, high = state.lows[rank], state.highs[rank]
+    away = 1
+    while day - away >= low or day + away <= high:
+        for other in (day - away, day + away):
+            if (
+                low <= other <= high
+                and other not in state.holes
+                and _weekday_group(state, other) == group
+                and _weekday_kind(state, other) == kind
+                and _weekday_holds(state, other) == held
+            ):
+                return other
+        away = away + 1
+    return None
+
+
 def _weekday_settled(
     column: contract.ColumnBlock,
     facts: contract.DatetimeFacts,
@@ -19089,8 +19326,9 @@ def _weekday_settled(
     onto a hole moved off it (`_weekday_holes_swept`); each gap's SHARE
     of every group (`_weekday_shares`); the moves, gap by gap -- whole
     runs, then single ranks, count-keeping moves first; the leftover,
-    over the whole body; the count of different days put back
-    (`_weekday_repaired`); each run of unpinned ranks sorted. A moved day
+    over the whole body; the count of different days put back, inside
+    each group (`_weekday_repaired`) and across them
+    (`_weekday_exchanged`); each run of unpinned ranks sorted. A moved day
     keeps its width kind where the column has one width convention, and
     no rank is ever moved onto a hole: a day every spelling of which
     the table declares absent, and every day the description publishes as
@@ -19101,8 +19339,10 @@ def _weekday_settled(
     column of May dates had ranks moved to April and June).
 
     Draws no word. Where the census still does not hold, the returned
-    deviation names it; the count of different values is named by the
-    column's own notes.
+    deviation names it; where it holds and the count of different days
+    the pass found does not, the returned deviation says the count gave
+    way to it (`_WEEKDAY_DAYS_GIVEN_WAY`), the cause the column's recount
+    prints.
 
     Guarantees: accepts the column and its ranks' days and gaps; returns
     the new days and at most one deviation. Determinism: a function of
@@ -19196,6 +19436,7 @@ def _weekday_settled(
         )
     if state.keep_units:
         _weekday_repaired(state, body_low, body_high, pinned, wanted)
+        _weekday_exchanged(state, body_low, body_high, pinned, wanted)
     _runs_sorted(moved, pinned)
     found = [0 for _ in census]
     for rank in range(body_low, body_high + 1):
@@ -19212,6 +19453,16 @@ def _weekday_settled(
                 "The twin could not place every date on the days of the "
                 "week the description counts, so its counts per weekday "
                 "differ from the published ones.",
+            )
+        ]
+    elif state.keep_units and _weekday_count(state) < wanted:
+        notes += [
+            _deviation(
+                column.name,
+                "n_distinct",
+                f"{wanted} different days",
+                f"{_weekday_count(state)} different days",
+                _WEEKDAY_DAYS_GIVEN_WAY,
             )
         ]
     return moved, notes
@@ -38106,6 +38357,14 @@ def generate(profile: contract.Profile, seed: int) -> Twin:
             _holes_reserved(column, elsewhere),
             _declared_a_decimal_comma(column, profile),
         )
+        # THE CAUSE A COLUMN'S OWN PASS NAMED for a short count of
+        # different values stands in the recount's place (method G7.3f,
+        # step 8.3), so the count is named once, measured, with its cause.
+        cause = ""
+        for note in notes:
+            if note.note == _WEEKDAY_DAYS_GIVEN_WAY:
+                cause = note.note
+        notes = [note for note in notes if note.note != _WEEKDAY_DAYS_GIVEN_WAY]
         notes = (
             list(each.notes)
             + notes
@@ -38115,6 +38374,7 @@ def generate(profile: contract.Profile, seed: int) -> Twin:
                 spelled,
                 _declared_a_decimal_comma(column, profile),
                 elsewhere,
+                cause,
             )
             + _value_count_notes(view, measured)
             + _joined_value_count_notes(view, measured)
@@ -38458,6 +38718,7 @@ def _recount_notes(
     spelled: "list[str]",
     decimal_comma: bool = False,
     elsewhere: "tuple[str, ...]" = (),
+    cause: str = "",
 ) -> "list[Deviation]":
     """Name every distinctness count the written column did not reach.
 
@@ -38465,7 +38726,9 @@ def _recount_notes(
     from the description, so a shortfall no rule predicted is named just
     as loudly as one a rule did. This runs on EVERY column, a declared
     column of record numbers included: that is where two of the three
-    facts owner decision 6 gives up are measured.
+    facts owner decision 6 gives up are measured. `cause`, where given,
+    is the reason the column's own pass named for a count of different
+    values that came out short, printed in place of the general one.
     """
     notes: list[Deviation] = []
     # PRESENCE FIRST, because a cell counted on the wrong side of it
@@ -38561,6 +38824,8 @@ def _recount_notes(
             "description records, because the ways of writing a value "
             "that the description allows could not supply that many."
         )
+        if cause:
+            reason = cause
         if counted[2] > column.n_distinct:
             reason = (
                 "The twin holds MORE different spellings than the "

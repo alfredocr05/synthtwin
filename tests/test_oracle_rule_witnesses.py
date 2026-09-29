@@ -1647,6 +1647,108 @@ def _generator_stuck(ordinals, pinned, low_rows, high_rows, holes):
     )
 
 
+# ------------------------------------------- G7.3f step 8.3's exchanges
+#
+# THE COUNT OF DIFFERENT DAYS PUT BACK ACROSS GROUPS (the review of landing
+# 3b.1, item 5, plan P4-D359). Steps 8.1 and 8.2 move a rank only inside
+# its own group, so a count short where the free day stands only in
+# ANOTHER group of a rank's gap stayed short. Asked on hand-built ranks,
+# days as whole numbers (day 0 a Thursday), two groups -- Monday to
+# Friday (0) and the weekend (1) -- no width kind; each answer is worked
+# out by hand from the statement of G7.3f step 8.3.
+_EXCHANGE_WHERE = (0, 0, 0, 0, 0, 1, 1)
+_TWO_GAPS = (
+    (0, 1, 2, 2, 3, 4, 6, 7, 8, 9, 10, 11, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20),
+    (True,) + (False,) * 9 + (True,) + (False,) * 10 + (True,),
+    (0,) * 10 + (10,) * 11 + (20,),
+    (0,) + (10,) * 10 + (20,) * 11,
+)
+EXCHANGE_ROWS = (
+    # (days, pinned, lows, highs, wanted, days after): step 8.3 alone
+    #
+    # THE EXCHANGE. Gap 0..10 holds its weekend ranks on days 2, 2, 3 and 9
+    # -- every weekend day it has, two sharing -- and its one free day is
+    # Tuesday 5; gap 10..20 holds a weekday rank twice on Monday 11 and
+    # every other day of its own. Twenty days against 21. The cycle
+    # Monday-to-Friday -> weekend -> back gains 0 + 1: in gap 10..20 the
+    # lower rank on day 11 moves onto the nearest weekend day, all held,
+    # Sunday 10; in gap 0..10 the lower rank on day 2 onto the nearest
+    # free weekday, Tuesday 5. Twenty-one days, both groups' counts kept.
+    _TWO_GAPS[:4] + (21, (0, 1, 5, 2, 3, 4, 6, 7, 8, 9, 10, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20)),
+    # ...NOTHING WHERE THE COUNT IS NOT SHORT.
+    _TWO_GAPS[:4] + (20, _TWO_GAPS[0]),
+    # ...AND NOTHING WHERE NO CYCLE GAINS: the second Monday rank stands on
+    # Saturday 16 instead, so every weekday rank of gap 10..20 is alone;
+    # the census and the count cannot both hold, and twenty days stay.
+    ((0, 1, 2, 2, 3, 4, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 16, 17, 18, 19, 20),)
+    + _TWO_GAPS[1:4]
+    + (21, (0, 1, 2, 2, 3, 4, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 16, 17, 18, 19, 20)),
+    # THE LARGEST GAIN NOT PAST WHAT IS SHORT. One gap 0..10: two weekend
+    # ranks share Saturday 2 and two weekday ranks Monday 4. The weekday
+    # group alone gains one (Monday 4 onto Tuesday 5), the weekend alone
+    # one, the cycle of both two. One short: the weekday group alone.
+    ((0, 2, 2, 4, 4, 10), (True, False, False, False, False, True), (0, 0, 0, 0, 0, 10),
+     (0, 10, 10, 10, 10, 10), 5, (0, 2, 2, 5, 4, 10)),
+    # ...two short: the cycle -- the lower rank on Monday 4 onto the nearest
+    # free weekend day, Sunday 3, and the lower on Saturday 2 onto the
+    # nearest free weekday, Friday 1.
+    ((0, 2, 2, 4, 4, 10), (True, False, False, False, False, True), (0, 0, 0, 0, 0, 10),
+     (0, 10, 10, 10, 10, 10), 6, (0, 1, 2, 3, 4, 10)),
+)
+# STEP 8.1 FIRST, and step 8.3 only after it: the whole of step 8. Two
+# Monday ranks share day 4 and three Wednesday ranks day 6, one day short.
+# Step 8.1 moves the first sharing rank in rank order, rank 1, onto its
+# nearest free weekday, Tuesday 5, and the count is back. Were step 8.1
+# withdrawn, step 8.3 would move the lower rank on the day holding the
+# most, rank 3, onto Tuesday 5 instead -- so this row holds step 8.1 up
+# alone, where the frozen case `weekday_count_put_back` withdraws both.
+STEP_EIGHT_ROWS = (
+    ((0, 4, 4, 6, 6, 6, 10), (True, False, False, False, False, False, True),
+     (0, 0, 0, 0, 0, 0, 10), (0, 10, 10, 10, 10, 10, 10), 5, (0, 5, 4, 6, 6, 6, 10)),
+)
+
+
+def _exchange_missed(asked: typing.Callable[..., object]) -> "list[str]":
+    return [
+        f"{kind} of {days!r} for {wanted}: {_asked(asked, kind, days, pinned, lows, highs, wanted)!r},"
+        f" the statement gives {want!r}"
+        for kind, rows in (("exchange", EXCHANGE_ROWS), ("step 8", STEP_EIGHT_ROWS))
+        for days, pinned, lows, highs, wanted, want in rows
+        if _asked(asked, kind, days, pinned, lows, highs, wanted) != want
+    ]
+
+
+def _oracle_exchange(module: types.ModuleType) -> typing.Callable[..., object]:
+    def asked(kind, days, pinned, lows, highs, wanted):
+        walk = module.WeekdayWalk.__new__(module.WeekdayWalk)
+        walk.counts = [0, 0]
+        walk.group_of_weekday = list(_EXCHANGE_WHERE)
+        walk.days, walk.lows, walk.highs = list(days), list(lows), list(highs)
+        walk.holes, walk.word, walk.column, walk.keeps_always = set(), None, {}, False
+        walk.held = dict(collections.Counter(days))
+        movable = [rank for rank in range(len(days)) if not pinned[rank]]
+        if kind == "exchange":
+            module.weekday_exchanged(walk, movable, wanted)
+        else:
+            module.weekday_repair(walk, movable, wanted)
+        return tuple(walk.days)
+
+    return asked
+
+
+def _generator_exchange(kind, days, pinned, lows, highs, wanted):
+    moved = list(days)
+    state = generation._WeekdayPass(
+        moved=moved, held=dict(collections.Counter(days)), where=_EXCHANGE_WHERE,
+        facts=typing.cast(contract.DatetimeFacts, None), word="", widths=False, kinds={},
+        holes=frozenset(), lows=list(lows), highs=list(highs), keep_units=True,
+    )
+    if kind != "exchange":
+        generation._weekday_repaired(state, 0, len(moved) - 1, list(pinned), wanted)
+    generation._weekday_exchanged(state, 0, len(moved) - 1, list(pinned), wanted)
+    return tuple(moved)
+
+
 # ------------------------------------------------------------ the two readers
 
 WITNESSES = {
@@ -1705,6 +1807,10 @@ WITNESSES = {
     "hole": (
         lambda module: _hole_missed(*_oracle_hole(module)),
         lambda: _hole_missed(_generator_hole, _generator_stuck),
+    ),
+    "exchange": (
+        lambda module: _exchange_missed(_oracle_exchange(module)),
+        lambda: _exchange_missed(_generator_exchange),
     ),
 }
 
@@ -2347,6 +2453,44 @@ WITNESS_MUTANTS.update({
         "hole",
         "if pinned[rank] and ordinals[rank] // unit in absent and not first <= rank <= last",
         "if pinned[rank] and ordinals[rank] // unit in absent",
+    ),
+})
+
+# G7.3f step 8.3's clauses (plan P4-D359): each withdrawn alone turns
+# `exchange` red.
+WITNESS_MUTANTS.update({
+    "exchange_withdrawn": (
+        "exchange",
+        "        cycle = weekday_best_cycle(walk, movable, wanted - before)\n",
+        "        cycle = None\n",
+    ),
+    "exchange_an_alone_rank_gives_for_nothing": (
+        "exchange", "    return 0 if max(holdings) >= 2 else -1\n", "    return 0\n",
+    ),
+    "exchange_a_held_day_taken_as_free": (
+        "exchange",
+        "    return 1 if any(walk.holding(day) == 0 for day in days) else 0\n",
+        "    return 1\n",
+    ),
+    "exchange_the_smallest_gain_first": (
+        "exchange",
+        "key = ((0, -gain) if gain <= short else (1, gain), size, order)",
+        "key = ((gain,), size, order)",
+    ),
+    "exchange_the_nearest_day_held_or_not": (
+        "exchange",
+        "    if free:\n        walk.move(rank, free[0])\n    elif fitting:",
+        "    if fitting:",
+    ),
+    "exchange_the_least_held_rank_gives": (
+        "exchange",
+        "key=lambda each: (-walk.holding(walk.days[each]), each))",
+        "key=lambda each: (walk.holding(walk.days[each]), each))",
+    ),
+    "exchange_step_eight_one_withdrawn": (
+        "exchange",
+        '    """G7.3f step 8.1: single ranks inside their own group and kind."""\n    for _ in range(8):',
+        '    """G7.3f step 8.1: single ranks inside their own group and kind."""\n    for _ in range(0):',
     ),
 })
 

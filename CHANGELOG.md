@@ -26,6 +26,12 @@ class a stretch's half of the week, the classes it can tell apart: 80
 sparse schedules publish 45 as 2af1f03 did, and 120 seeded schedules 78
 where 2af1f03 published 79.
 
+**Its second round (2026-09-29).** The day pass puts the count of
+different days back across groups (G7.3f step 8.3): of the review's 505
+heaped twins, ten had lost a day to the census, none now, and a count
+that gives way to the census says so. The quality report's hole note
+says what it counts.
+
 ### The review of follow-up A: the cost rule, stand-ins and the withheld-tail sentences (2026-09-28)
 
 Plan P4-D357 A, six items of the one review round. **The cost rule asks
