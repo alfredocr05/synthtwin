@@ -19,6 +19,8 @@
    among them.
 5. A PINNED SIDE SAYS WHAT ITS PAIR GIVES BACK: every value, the outermost,
    or a count -- held against competing multisets, not against the enum.
+6. "EVERY VALUE IS DIFFERENT" ONLY WHERE EVERY CELL IS, as written, as
+   folded and as the role reads it.
 
 Every table is built at test time from a fixed seed string or a closed
 formula; no data-format file enters the repository (plan D13).
@@ -639,6 +641,9 @@ _UNIQUE_AND_NEARLY = (
     ("affixed", [f"{value} mg" for value in range(300)], [f"{value} mg" for value in range(296)] + ["5 mg"] * 4, taxonomy.ROLE_AFFIXED),
     ("clock", _minutes(900, "p4d357/clock"), _minutes(890, "p4d357/clock") + _minutes(890, "p4d357/clock")[:10], taxonomy.ROLE_CLOCK),
     ("text", _codes(300, "p4d357/codes"), _codes(292, "p4d357/codes") + _codes(292, "p4d357/codes")[:8], taxonomy.ROLE_TEXT),
+    # Every cell different as written, two alike once folded: the second
+    # review's case, where the sentence's own "as folded" clause decides.
+    ("text_alike_as_folded", _codes(300, "p4d357/folded"), _codes(299, "p4d357/folded") + [_codes(299, "p4d357/folded")[0].upper()], taxonomy.ROLE_TEXT),
 )
 
 
@@ -655,7 +660,8 @@ def test_the_all_different_sentence_is_printed_only_where_every_value_differs(
     present cells, and the review's 1,101 counts hold `1089` eight times
     and `1093` twice. `0398` beside `398` is two spellings of one number;
     `5 mg` five times, ten clock times twice and eight codes twice are the
-    other roles' repeats. Each near column is still over the line
+    other roles' repeats, and one code beside itself in capitals is two
+    cells alike only as folded. Each near column is still over the line
     (premise), so it is told the near sentence.
     """
     for values, exact in ((unique, True), (nearly, False)):
