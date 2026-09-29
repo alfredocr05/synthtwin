@@ -2632,8 +2632,11 @@ def test_the_band_refusal_states_the_capped_stretches(tmp_path: pathlib.Path, ba
     here -- so it refused totals its own words allowed (the review's
     second round). `recorded_on` at 150 different values: Monday to
     Friday holds at least 34 rows in every table of its facts and its
-    capped stretches ten more, and forty rows lie inside. Red when the
-    capped term leaves the sentence.
+    capped stretches ten more, and forty rows lie inside. The term is
+    ADDED to the least, which "and" left to be read as a second bound
+    (the skeptic's second round: read so, 35 to 44 would pass). Red when
+    the capped term leaves the sentence, or is joined by "and" again in
+    the sentence or the invariant.
     """
     document = copy.deepcopy(base)
     edit(
@@ -2645,7 +2648,8 @@ def test_the_band_refusal_states_the_capped_stretches(tmp_path: pathlib.Path, ba
     message = refusal(tmp_path, document)
     assert contract.INVARIANTS["WC9"] in message, message
     said = message.split(contract.INVARIANTS["WC9"], 1)[1]
-    assert "the most it can hold in the stretches the rank facts keep below the line" in said, said
+    assert "plus the most it can hold in the stretches the rank facts keep below the line" in said, said
+    assert "through that least plus the most it can hold" in contract.INVARIANTS["WC9"]
     assert "Monday to Friday of 34 to 44" in said, said
 
 

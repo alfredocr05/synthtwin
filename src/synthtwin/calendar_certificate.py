@@ -1866,7 +1866,7 @@ def breach(
                 "the weekday census",
                 "the weekend, and Monday to Friday together, must each hold "
                 "none, or more than the larger of one and the least the rest "
-                "of this description allows that half, and the most it can "
+                "of this description allows that half, plus the most it can "
                 "hold in the stretches the rank facts keep below the line: a "
                 "weekend of "
                 f"{banded.weekend[0]} to {banded.weekend[1]} rows, and Monday "
