@@ -2561,7 +2561,10 @@ GOLDEN_REPORT_SHA256 = (
     # RE-RECORDED BY PLAN P4-D357 A, read line by line against 2af1f03:
     # ONE LINE of 866 differs, the note quoting `amount`'s remark, which
     # now says nearly every value differs (the description above).
-    "dd002f5c6b9226ed221a297a5292af8ef2d5beafaae0d6f20bc4ec889f33aecd"
+    # ...AND AT ITS FINAL FIX, read against 54d2ebb: THREE LINES of the
+    # closing paragraph say a tail's distances are approximated where
+    # they are published. No other line moved.
+    "5d2fd3ab63cde50456db57497917d0a9a9493a9a36cea080ecbc9e523982e6bf"
 )
 
 
@@ -3363,8 +3366,11 @@ GOLDEN_QUALITY_SHA256 = (
     # ...AND AT THE FINAL FIX OF FOLLOW-UP A (plan P4-D357 A), read line
     # by line against 410841a: the same sentence's four lines say what a
     # withheld pair gives back -- an outer cell or how many hold one
-    # value -- and no other line moved.
-    "3fb31ef05c949e32e1102509e4e64e15230d89b3ad42f0e4b6e5f630c3f19e3f"
+    # value -- and no other line moved. Then against 54d2ebb: the 22 lines
+    # of a withheld rung's listing and the account of what is checked say
+    # the tail's distances only where they are published (the account
+    # gains one line), and no other line moved.
+    "f1d615dfd42b422914d4850441e25e112d6bcf462eac508df80ab64751f1bb77"
 )
 
 

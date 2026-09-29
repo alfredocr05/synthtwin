@@ -17,7 +17,10 @@ block's end publish, in the oracle too, and one no block names is still
 refused. **No sentence on a withheld pair says more than the pair
 fixes**: the report's line on every withheld distance said the pair
 would give "the tail's own cells back" where it fixes only the
-outermost value or a count.
+outermost value or a count; and the report's line on a withheld rung,
+its account of what it checks, the twin's report, the summary page and
+the measurement answer's promise named a tail's distances as published
+beside a tail publishing neither.
 
 ### The weekday census's third review, repaired (2026-09-28)
 

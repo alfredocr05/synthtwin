@@ -1475,3 +1475,46 @@ def test_every_sentence_on_a_withheld_pair_claims_what_the_multisets_fix(
         assert claimed & fixed if len(claimed) > 1 else claimed <= fixed, (
             f"claims {sorted(claimed)} where the multisets fix {sorted(fixed)}: {sentence!r}"
         )
+
+
+
+def test_no_page_says_the_distances_of_a_tail_withholding_them_are_published(tmp_path: pathlib.Path) -> None:
+    """Every sentence on every page about how far a tail's rows lie says it conditionally, or says it is withheld.
+
+    Siblings of the sentences above, found on the review's column, whose two
+    tails both publish neither distance: on 54d2ebb the quality report's
+    listing on each withheld rung said the rows "are described by the tail's
+    shape -- how many there are and how far they lie from the boundary", and
+    the report's account of its checks, the twin's report, the summary page
+    and the measurement answer's promise each named the distances as
+    published.
+    """
+    import re
+
+    from synthtwin import asking, generation, quality, rendering
+
+    cells = [str(value) for value in list(range(1089)) + [1089] + [1089 + one for one in _READINGS[1][1]]]
+    described = kpi_shapes.describe(tmp_path, "pages", _one_column(cells), 11)
+    block = described.document["columns"][0]
+    assert [block["tails"][side]["mean_distance"] for side in ("low", "high")] == [None, None], (
+        "premise: both pairs withheld"
+    )
+    outcome = validation.measure(described.loaded, str(described.table))
+    pages = (
+        summary.render(described.document, ""),
+        rendering.report(described.loaded, generation.generate(described.loaded, 0)),
+        quality.quality_report(described.loaded, outcome),
+        asking._publishes_under(asking.ANSWER_MEASUREMENT, block["role"], 11),
+    )
+    said = [
+        sentence
+        for page in pages
+        for sentence in re.split(r"(?<=[.;:])\s", re.sub(r"\s+", " ", page))
+        if re.search(r"how far\b.*\blies?\b", sentence)
+    ]
+    assert len(said) >= 5, f"premise: the pages speak of the distances ({len(said)})"
+    # The condition governs the distances themselves: a "where" clause
+    # standing next to them, or "neither is how far".
+    governed = re.compile(r"where [^,.;]*,\s*how far|how far[^.;]*\bwhere\b|neither is how far")
+    for sentence in said:
+        assert governed.search(sentence), sentence

@@ -668,10 +668,11 @@ _NOT_CHECKABLE_MODE = (
 # vacuity V3.4 refuses by name.
 _WITHHELD_BY_THE_TAIL_RULE = (
     "the description withholds this rung by its tail rule: the rung "
-    "would read one of the rows beyond the tail's boundary, and those "
-    "rows are described by the tail's shape -- how many there are and "
-    "how far they lie from the boundary -- and never one by one "
-    "(contract TL1, generation method G5.3b)"
+    "would read one of the rows beyond the tail's boundary, and the "
+    "description says of those rows how many there are and, where its "
+    "tail rule lets it, how far they lie from the boundary or which "
+    "values they hold -- never one by one (contract TL1, TL5 and TL6, "
+    "generation method G5.3b)"
 )
 _NOT_CHECKABLE_BIN_GROUPS = (
     "the description records how many of the real column's numbers fall "
