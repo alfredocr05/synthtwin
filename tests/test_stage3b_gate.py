@@ -1837,6 +1837,52 @@ def test_a_tail_rank_stuck_on_a_missing_day_is_counted_as_absent(
         assert missed == _STUCK_HOLE_MISSES, sorted(missed ^ _STUCK_HOLE_MISSES)
 
 
+# 259 quarters over the 47 from 1986-Q2, 31 of them 1986-Q4, declared
+# missing (the final review's quarter battery, `random.Random(997059)`).
+_STUCK_QUARTER_COUNTS = (
+    2, 1, 31, 40, 1, 0, 1, 3, 1, 1, 0, 0, 2, 0, 4, 1, 4, 0, 7, 1, 3, 0, 2,
+    2, 9, 0, 5, 0, 7, 1, 5, 42, 0, 1, 0, 4, 3, 27, 1, 8, 11, 0, 4, 3, 9, 0, 12,
+)
+
+
+def test_a_tail_rank_stuck_on_a_missing_quarter_costs_rungs_and_a_boundary(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A recorded limit (plan P4-D358): the stuck rank's absent cell costs more than its counts.
+
+    A low-tail rank whose stratum is 1986-Q4 alone stands there at seeds 3
+    and 8 and is written absent. The count of different quarters is held,
+    and beside the absent cells' own checks the twin misses a ladder rung,
+    the low tail's boundary and its `Q` marks. A repair that moves such a
+    rank turns this red and restates the record, which gave this limit as
+    six checks on days alone.
+    """
+    cells: "list[str]" = []
+    for step, count in enumerate(_STUCK_QUARTER_COUNTS):
+        cells += [f"{1986 + (step + 1) // 4}-Q{(step + 1) % 4 + 1}"] * count
+    random.Random(997059).shuffle(cells)
+    described = _described_with_a_missing_day(tmp_path, "stuck_quarter", cells, 11, "1986-Q4")
+    block = described.document["columns"][0]
+    assert (block["format"], block["n_distinct"], block["missing_by_source"]) == (
+        "year-quarter", 34, {"1986-Q4": 31}
+    )
+    hole = 4 * 16 + 3
+    for seed, (moved, lows, highs, layout, _facts, text) in zip(
+        (3, 8), _settled(described, (3, 8), monkeypatch)
+    ):
+        assert layout.low is not None
+        assert any(
+            moved[rank] == lows[rank] == highs[rank] == hole for rank in range(layout.low.rows)
+        ), f"seed {seed}: no low-tail rank's stratum is the missing quarter"
+        written = {line for line in text.split("\n")[1:] if line} - {"1986-Q4"}
+        assert len(written) == block["n_distinct"], f"seed {seed}: {len(written)} different quarters"
+        missed = set(kpi_shapes.missed(kpi_shapes.measure(described, text, f"stuckq-{seed}.csv")))
+        assert {
+            "c:holes.by_source.1986-Q4", "c:presence.n_present", "c:date-ladder.p25",
+            "c:tails.low.boundary", "c:markers.upper",
+        } <= missed, f"seed {seed}: {sorted(missed)}"
+
+
 def test_a_minute_on_a_missing_moment_is_written_absent_and_named(tmp_path: pathlib.Path) -> None:
     """A recorded limit (plan P4-D358): a column counted in minutes names no hole.
 
