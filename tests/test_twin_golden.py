@@ -3360,7 +3360,11 @@ GOLDEN_QUALITY_SHA256 = (
     # read line by line against both parents and e4a5d34: the report is
     # e4a5d34's with every line either parent moved, as that parent wrote
     # it, and no other line moved.
-    "93977cc7d1b6ec32086bab3ec2249c0959b334fb93f3b7a5a4ca6ac5f32ef9bb"
+    # ...AND AT THE FINAL FIX OF FOLLOW-UP A (plan P4-D357 A), read line
+    # by line against 410841a: the same sentence's four lines say what a
+    # withheld pair gives back -- an outer cell or how many hold one
+    # value -- and no other line moved.
+    "3fb31ef05c949e32e1102509e4e64e15230d89b3ad42f0e4b6e5f630c3f19e3f"
 )
 
 

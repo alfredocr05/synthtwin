@@ -853,8 +853,9 @@ _NOT_CHECKABLE_TAIL_KEY_WITHHELD = (
     "the description's tail publishes nothing under this key: the values "
     "a tail holds are published only where it holds few of them or where "
     "its distances would settle a count below the floor, and the two "
-    "distances are withheld where they would give the tail's own cells "
-    "back, where the check of that could not finish, where beside the "
+    "distances are withheld where they would give back an outer cell or "
+    "how many outer cells hold one value, where the check of that could "
+    "not finish, where beside the "
     "column's exact mean and spread they could give the other tail's "
     "withheld distances back by subtraction, or where this file format "
     "cannot hold them -- unless withholding them would cost the column its "
@@ -1295,9 +1296,9 @@ _NOT_SHOWN_IT_IS_A_SUBFLOOR_GROUP_OF_THE_FILE = (
 # rather than the one that keeps a number back.
 _GATE_SUBFLOOR_TAIL = (
     "the file holds fewer cells beyond this description's boundary than "
-    "the smallest group size, so a count of them and their distances "
-    "would give those cells back, and neither the measurement nor its "
-    "outcome is shown with a number"
+    "the smallest group size, so a count of them would name a group "
+    "below that size, and neither the measurement nor its outcome is "
+    "shown with a number"
 )
 
 _NOT_SHOWN_IT_IS_A_COUNT_OF_THE_FILE = (

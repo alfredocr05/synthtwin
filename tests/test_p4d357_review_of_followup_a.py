@@ -26,7 +26,10 @@ And the second review of this landing: A STAND-IN THE COLUMN KEEPS IS ITS
 OWN VALUE. The refusals of item 2 asked only whether a point was one of the
 three, so a heap the description publishes as `kept_as_a_number` came back
 in no cell; every pass now passes over only a stand-in the column does not
-keep, one held below the floor included.
+keep, one held below the floor included. And the final fix: every numeric
+block of every role keeps what it publishes as held -- a compound half's or
+a joined position's mode among them -- and every sentence on a withheld pair
+says no more than the multisets fix.
 
 Every table is built at test time from a fixed seed string or a closed
 formula; no data-format file enters the repository (plan D13).
@@ -797,12 +800,18 @@ def test_a_stand_in_held_below_the_floor_is_still_refused(tmp_path: pathlib.Path
 
 
 def test_the_loader_reads_the_kept_stand_ins_off_the_published_decisions() -> None:
-    """Only a `kept_as_a_number` decision about one of the three numbers names a kept stand-in."""
+    """A `kept_as_a_number` decision, the mode or a tail block's end names a kept stand-in; nothing else does."""
 
     def decision(candidate: str, verdict: str) -> contract.SentinelVerdict:
         return contract.SentinelVerdict(
             candidate=candidate, verdict=verdict, reason="not_an_outlier", n_occurrences=20, spellings=()
         )
+
+    import types
+
+    def block(mode: "float | None", tail_rule: bool, low: "float | None") -> contract.NumericFacts:
+        ladder = types.SimpleNamespace(minimum=low, maximum=None)
+        return types.SimpleNamespace(mode=mode, tail_rule=tail_rule, percentiles=ladder)  # type: ignore[return-value]
 
     kept = "kept_as_a_number"
     decisions = (
@@ -811,8 +820,14 @@ def test_the_loader_reads_the_kept_stand_ins_off_the_published_decisions() -> No
         decision("9999", kept),
         decision("1900-01-01", kept),
     )
-    assert contract._kept_stand_ins(decisions) == (-999.0, 9999.0)
-    assert contract._kept_stand_ins(decisions[:1]) == ()
+    plain = block(12.0, True, 0.0)
+    assert contract._kept_stand_ins(decisions, plain) == (-999.0, 9999.0)
+    assert contract._kept_stand_ins(decisions[:1], plain) == ()
+    # THE BLOCK'S OWN MODE AND A TAIL BLOCK'S END ARE HELD TOO (Q18, TL1);
+    # an end of a block written before the tail rule says no count.
+    assert contract._kept_stand_ins(decisions[:1], block(-9999.0, False, None)) == (-9999.0,)
+    assert contract._kept_stand_ins((), block(None, True, -999.0)) == (-999.0,)
+    assert contract._kept_stand_ins((), block(None, False, -999.0)) == ()
 
 
 def _refused_and_kept() -> "dict[str, tuple[object, object, object]]":
@@ -1141,3 +1156,322 @@ def test_the_band_fill_counts_a_refused_stand_in_as_the_band_s_spare_point() -> 
     spread = [9995.0, 9996.0, 9996.0, 10001.0]
     assert generation._band_points(9995, 10001, 0, (), 4) is None
     assert oracle.saturated_bands(4, 0, spread, ["positive"] * 4, wide, (), True, False, True) == spread
+
+
+# -- the final fix: every numeric block keeps what it publishes as held ------
+
+
+def _mode_heap_shapes() -> "dict[str, tuple[list[str], list[str]]]":
+    """Seeded columns whose stand-in heap only the block's mode publishes, and their declared measurements.
+
+    The compound half and the joined position are skeptic rfA2's shapes; the
+    two-wrapper column is its affixed one, the heap in the second wrapper.
+    """
+    labs = random.Random("p4d357/final/compound")
+    pairs = random.Random("p4d357/final/joined")
+    wrapped = random.Random("p4d357/final/affixed")
+    compound = [str(round(labs.gauss(-1100.0, 150.0))) for _row in range(1200)] + ["-999"] * 45
+    joined = [f"{pairs.randint(100, 180)}/{round(pairs.gauss(9500.0, 400.0))}" for _row in range(1400)]
+    affixed = [f"{round(wrapped.gauss(500.0, 100.0))} mg" for _row in range(1000)]
+    affixed += [f"{round(wrapped.gauss(9800.0, 300.0))} kg" for _row in range(600)]
+    return {
+        "compound_heap": (compound + ["NOT DETECTED"] * 120, []),
+        "joined_heap": (joined + [f"{pairs.randint(100, 180)}/9999" for _row in range(40)], ["value"]),
+        "affixed_variant_heap": (affixed + ["9999 kg"] * 40, []),
+    }
+
+
+_MODE_HEAPS = _mode_heap_shapes()
+
+
+def _held_by_the_page(block: "dict", verdicts: "list[dict]") -> "tuple[float, ...]":
+    """The stand-ins a published numeric block names as held, read off the page alone.
+
+    A `kept_as_a_number` decision, the block's mode, and on a tail block a
+    published end: each is published only where the floor of rows held it
+    (contract Q18, TL1).
+    """
+    named = [float(entry["candidate"]) for entry in verdicts if entry["verdict"] == "kept_as_a_number"]
+    named += [block["mode"]] if block["mode"] is not None else []
+    if "tails" in block:
+        named += [end for end in (block["percentiles"]["min"], block["percentiles"]["max"]) if end is not None]
+    return tuple(one for one in _STAND_INS if one in named)
+
+
+def _every_numeric_block(facts: object) -> "list[contract.NumericFacts]":
+    """Every `NumericFacts` a column's facts carry, found by walking their fields."""
+    if isinstance(facts, contract.NumericFacts):
+        return [facts]
+    if isinstance(facts, tuple):
+        found: "list[contract.NumericFacts]" = []
+        for one in facts:
+            found += _every_numeric_block(one)
+        return found
+    if dataclasses.is_dataclass(facts) and not isinstance(facts, type):
+        found = []
+        for field in dataclasses.fields(facts):
+            found += _every_numeric_block(getattr(facts, field.name))
+        return found
+    return []
+
+
+def _described_heap(tmp_path: pathlib.Path, name: str, floor: int = 11) -> kpi_shapes.Described:
+    cells, measured = _MODE_HEAPS[name]
+    draw = random.Random(f"p4d357/final/order/{name}")
+    cells = list(cells)
+    draw.shuffle(cells)
+    return kpi_shapes.describe(tmp_path / f"{name}-{floor}", name, _one_column(cells), floor, measured=measured)
+
+
+def _numbers_of(line: str, name: str) -> "float | None":
+    """The number a twin cell holds where its heap lies: a joined cell's second, an affixed core, a plain cell."""
+    cell = line.strip().strip('"')
+    if name == "joined_heap":
+        cell = cell.split("/")[1] if "/" in cell else ""
+    elif name == "affixed_variant_heap":
+        cell = cell[: len(cell) - 3] if cell.endswith(" kg") else ""
+    try:
+        return float(cell)
+    except ValueError:
+        return None
+
+
+_HEAPED = (("compound_heap", 11), ("compound_heap", 36), ("joined_heap", 11), ("affixed_variant_heap", 11))
+
+
+@pytest.mark.parametrize("name,floor", _HEAPED, ids=[f"{name}-{floor}" for name, floor in _HEAPED])
+def test_every_numeric_block_holds_the_stand_ins_its_page_names(
+    tmp_path: pathlib.Path, name: str, floor: int
+) -> None:
+    """Every `NumericFacts` of every role keeps exactly the stand-ins its own published block names as held.
+
+    Read off the page by this test alone: a kept decision, the mode, a tail
+    block's end. On 410841a only the count, continuous and affixed roles read
+    the decisions, and a compound half or a joined position publishing
+    `-999` or `9999` as its mode kept nothing. The walk finds every block the
+    facts carry, so a role nesting one elsewhere fails here.
+    """
+    described = _described_heap(tmp_path, name, floor)
+    column = described.document["columns"][0]
+    blocks = [block for _where, block in _nested_blocks(column)]
+    found = _every_numeric_block(described.loaded.columns[0].facts)
+    assert len(found) == len(blocks), f"the facts carry {len(found)} numeric blocks, the page {len(blocks)}"
+    wanted = [_held_by_the_page(block, column["sentinel_verdicts"]) for block in blocks]
+    assert any(wanted), f"premise: {name} publishes a stand-in as held"
+    assert [block.kept_stand_ins for block in _nested_facts(described.loaded.columns[0].facts)] == wanted
+
+
+@pytest.mark.parametrize("name,floor", _HEAPED, ids=[f"{name}-{floor}" for name, floor in _HEAPED])
+def test_a_stand_in_a_block_publishes_as_its_mode_comes_back(tmp_path: pathlib.Path, name: str, floor: int) -> None:
+    """A heap the block publishes as held is written near its published rows at seeds 0, 4 and 9, and nothing is missed.
+
+    Owner decision (ii) of this round, the orchestrator's: the twin writes a
+    stand-in the column holds. On 410841a the compound half's `-999` (its
+    mode, 49 rows at a floor of eleven) and the joined position's `9999`
+    (its mode, 41 rows) came back in no cell -- the heap one unit off at
+    `-998` or `9998` -- and the twin's report blamed the ladder for a
+    `numbers.mode` it had refused. The window is the held-heap test's: a
+    quarter of the published rows or one percent of the numbers.
+    """
+    from synthtwin import generation
+
+    described = _described_heap(tmp_path, name, floor)
+    column = described.document["columns"][0]
+    heaps = [
+        (block, one)
+        for _where, block in _nested_blocks(column)
+        for one in _held_by_the_page(block, column["sentinel_verdicts"])
+    ]
+    assert heaps, f"premise: {name} publishes a stand-in as held"
+    for seed in (0, 4, 9):
+        twin = generation.generate(described.loaded, seed)
+        text = kpi_shapes.twin_text(described, seed)
+        written = [_numbers_of(line, name) for line in text.split("\n")[1:] if line]
+        for block, one in heaps:
+            rows = block["mode_count"] if block["mode"] == one else _kept_published(column)[one]
+            got = len([value for value in written if value == one])
+            assert abs(got - rows) <= max(rows // 4, block["n_used_in_statistics"] // 100), (
+                f"seed {seed}: {one} is published held in {rows} rows and the twin holds it in {got}"
+            )
+        refused = [one.fact for one in twin.deviations if one.fact.endswith("numbers.mode") or one.fact == "numbers.mode"]
+        assert refused == [], f"seed {seed}: the twin's commonest number is not the published mode"
+        missed = kpi_shapes.missed(kpi_shapes.measure(described, text, f"twin-{seed}.csv"))
+        assert missed == [], f"seed {seed}: {missed}"
+
+
+def test_a_stand_in_no_block_publishes_as_held_is_refused_in_every_role(tmp_path: pathlib.Path) -> None:
+    """Five rows of `-999` in a compound half and of `9999` in a joined position: no block names them, no twin cell holds them."""
+    labs = random.Random("p4d357/final/compound/unheld")
+    pairs = random.Random("p4d357/final/joined/unheld")
+    compound = [str(labs.choice((-1000, -998)) + labs.randint(-100, 100) * 2) for _row in range(1200)]
+    compound += ["-999"] * 5 + ["NOT DETECTED"] * 120
+    joined = [f"{pairs.randint(100, 180)}/{pairs.choice((9998, 10000)) + pairs.randint(-50, 50) * 2}" for _row in range(1400)]
+    joined += [f"{pairs.randint(100, 180)}/9999" for _row in range(5)]
+    for name, cells, measured, stand_in in (
+        ("compound_heap", compound, [], -999.0),
+        ("joined_heap", joined, ["value"], 9999.0),
+    ):
+        held = len([cell for cell in cells if _numbers_of(cell, name) == stand_in])
+        assert 0 < held < 11, f"premise: {name} holds {stand_in} below the floor ({held})"
+        described = kpi_shapes.describe(tmp_path / name, name, _one_column(cells), 11, measured=measured)
+        blocks = _nested_facts(described.loaded.columns[0].facts)
+        assert [block.kept_stand_ins for block in blocks] == [()] * len(blocks)
+        for seed in (0, 4, 9):
+            text = kpi_shapes.twin_text(described, seed)
+            written = [_numbers_of(line, name) for line in text.split("\n")[1:] if line]
+            assert stand_in not in written, f"{name} seed {seed}: the twin wrote a stand-in no block names"
+
+
+def test_every_value_pass_in_a_nested_block_is_handed_that_block_s_stand_ins(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The threading spy over the compound, joined and two-wrapper columns.
+
+    Each call a value pass makes carries the stand-ins of one of the
+    column's blocks, and every block that keeps one is handed its set. The
+    two-wrapper column's decision reaches both wrappers, so a variant wrapper
+    handed nothing is caught here where its heap's count is not.
+    """
+    import inspect
+
+    from synthtwin import generation
+
+    handed: "list[tuple[float, ...]]" = []
+
+    def spied(name: str) -> object:
+        shipped = getattr(generation, name)
+        signature = inspect.signature(shipped)
+
+        def spy(*arguments: object, **named: object) -> object:
+            bound = signature.bind(*arguments, **named)
+            bound.apply_defaults()
+            handed.extend([tuple(bound.arguments["kept"])])
+            return shipped(*arguments, **named)
+
+        return spy
+
+    for name in _HANDED_KEPT:
+        monkeypatch.setattr(generation, name, spied(name))
+    for name in ("compound_heap", "joined_heap", "affixed_variant_heap"):
+        described = _described_heap(tmp_path, name)
+        kept = [block.kept_stand_ins for block in _nested_facts(described.loaded.columns[0].facts)]
+        for seed in (0, 4, 9):
+            handed.clear()
+            kpi_shapes.twin_text(described, seed)
+            assert set(handed) <= set(kept), f"{name} seed {seed}: handed {sorted(set(handed))} against {kept}"
+            assert {one for one in kept if one} <= set(handed), f"{name} seed {seed}: a keeping block was handed nothing"
+        if name == "affixed_variant_heap":
+            assert len(kept) == 2 and kept[0] == kept[1] == (9999.0,), f"premise: both wrappers keep 9999 ({kept})"
+
+
+def test_the_oracle_keeps_what_the_page_names_as_held(tmp_path: pathlib.Path) -> None:
+    """The oracle's `kept_stand_ins`, written from G5.3b step 5, reads a block as the loader does: decisions, mode, a tail block's end."""
+    oracle = _oracle()
+    kept = {"candidate": "9999", "verdict": "kept_as_a_number", "reason": "not_an_outlier", "n_occurrences": 40, "spellings": []}
+    missing = dict(kept, candidate="-9999", verdict="read_as_missing")
+    ends = {"min": -999.0, "max": None}
+    for block, wanted in (
+        ({"sentinel_verdicts": [kept, missing], "mode": None, "percentiles": ends}, (9999.0,)),
+        ({"sentinel_verdicts": [], "mode": -999.0, "percentiles": ends}, (-999.0,)),
+        ({"sentinel_verdicts": [], "mode": {"float64": 9999.0}, "percentiles": ends}, (9999.0,)),
+        ({"sentinel_verdicts": [], "mode": None, "percentiles": ends, "tails": None}, (-999.0,)),
+        ({"sentinel_verdicts": [], "mode": 12.0, "percentiles": ends}, ()),
+    ):
+        assert tuple(sorted(oracle.kept_stand_ins(block))) == wanted, block
+    for name in ("compound_heap", "joined_heap"):
+        column = _described_heap(tmp_path, name).document["columns"][0]
+        verdicts = column["sentinel_verdicts"]
+        views = (
+            [oracle.joined_part_view(column, place) for place in range(column["n_parts"])]
+            if name == "joined_heap"
+            else [dict(column["numbers"], sentinel_verdicts=verdicts)]
+        )
+        blocks = [block for _where, block in _nested_blocks(column)]
+        assert [tuple(sorted(oracle.kept_stand_ins(view))) for view in views] == [
+            _held_by_the_page(block, verdicts) for block in blocks
+        ]
+
+
+# -- the final fix: every sentence on a withheld pair says what the pair fixes -
+
+# (the reading, the high tail's distances past the boundary `1089`): eleven
+# rows at a floor of eleven, beside `0` to `1089` once each.
+_READINGS = (
+    (taxonomy.TAIL_PINS_EVERY, [0] * 10 + [100]),
+    (taxonomy.TAIL_PINS_END, [0] * 7 + [1, 4, 4, 100]),
+    (taxonomy.TAIL_PINS_A_COUNT, [0] * 6 + [1, 1, 2, 3, 3]),
+)
+
+# What a sentence claims the pair gives back, by the words that claim it.
+_CLAIMS = (
+    ("one by one", "every"),
+    ("every one of those values back", "every"),
+    ("cells back", "every"),
+    ("outermost", "end"),
+    ("an outer cell", "end"),
+    ("how many", "count"),
+)
+
+
+def _fixed_by_the_multisets(distances: "list[int]", floor: int) -> "set[str]":
+    """What rows, sum and sum of squares fix, by listing every multiset of parts from nought they admit."""
+    squares = sum(one * one for one in distances)
+    found, finished = columns._tail_multisets(
+        len(distances), sum(distances), squares, 0, math.isqrt(squares), 0, cap=100_000, budget=5_000_000
+    )
+    assert finished and sorted(distances) in found, "premise: the enumeration finished and holds the tail"
+    fixed = {"count"} if len(found) == 1 else set()
+    fixed |= {"every", "end"} if len(found) == 1 else set()
+    top = max(distances)
+    if {max(one) for one in found} == {top} and distances.count(top) < floor:
+        fixed |= {"end"}
+    for part in set(distances):
+        if 0 < distances.count(part) < floor and {one.count(part) for one in found} == {distances.count(part)}:
+            fixed |= {"count"}
+    return fixed
+
+
+def _claimed(sentence: str) -> "set[str]":
+    """What one sentence says the pair gives back; a sentence naming two things claims either of them."""
+    named = set()
+    for words, claim in _CLAIMS:
+        if words in sentence:
+            named |= {claim}
+    return named
+
+
+@pytest.mark.parametrize("reading,distances", _READINGS, ids=[one for one, _distances in _READINGS])
+def test_every_sentence_on_a_withheld_pair_claims_what_the_multisets_fix(
+    tmp_path: pathlib.Path, reading: str, distances: "list[int]"
+) -> None:
+    """The remark, the summary, the report's listing and its gate sentence say only what the pair fixes.
+
+    Every sentence printed about a pinned side's withheld pair names what
+    the pair gives back -- every value, the outermost, or how many rows
+    hold one -- and a sentence naming one of them is true of the multisets
+    the tail's rows, sum and sum of squares admit; one naming two claims
+    either. On 410841a the report's listing on every withheld distance said
+    the pair would give "the tail's own cells back" over tails whose pair
+    fixes only the outermost value or a count.
+    """
+    cells = [str(value) for value in list(range(1089)) + [1089] + [1089 + one for one in distances]]
+    described = kpi_shapes.describe(tmp_path, "reading", _one_column(cells), 11)
+    block = described.document["columns"][0]
+    tail = block["tails"]["high"]
+    assert tail["rows"] == 11 and tail["mean_distance"] is None, "premise: eleven rows, the pair withheld"
+    assert taxonomy.tail_withheld_because(block["remarks"], "high") == reading, "premise: the tail's reading"
+    fixed = _fixed_by_the_multisets(distances, 11)
+    assert (reading == taxonomy.TAIL_PINS_EVERY) == ("every" in fixed), "premise: the multisets agree"
+    said = [one for one in block["remarks"] if "upper tail boundary" in one]
+    page = summary.render(described.document, "").split("\n")
+    said += [one for one in page if "largest values are not published" in one or "upper tail boundary" in one]
+    outcome = validation.measure(described.loaded, str(described.table))
+    said += [one.reason for one in outcome.listings if one.fact.startswith("numeric.tails.high.")]
+    said += [validation._tail_withheld_reason(block, "high")]
+    assert len(said) == 6, f"premise: the remark, its two summary lines, two listings and the gate sentence ({len(said)})"
+    for sentence in said:
+        claimed = _claimed(sentence)
+        assert claimed, f"names nothing the pair gives back: {sentence!r}"
+        assert claimed & fixed if len(claimed) > 1 else claimed <= fixed, (
+            f"claims {sorted(claimed)} where the multisets fix {sorted(fixed)}: {sentence!r}"
+        )

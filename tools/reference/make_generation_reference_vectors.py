@@ -1675,22 +1675,36 @@ def is_stand_in(value, kept=()):
 
 
 def kept_stand_ins(column):
-    """The stand-in numbers a column's decisions publish as ``kept_as_a_number``.
+    """The stand-in numbers a numeric block holds, each in at least the floor of rows.
 
     Written from the method's words (G5.3b step 5, plan P4-D357 A): a
-    stand-in the description says the column holds, and in how many rows,
-    is the table's own value, and no value pass refuses it.
+    stand-in its decisions publish as ``kept_as_a_number``, its mode, or a
+    tail block's published end is the table's own value, and no value pass
+    refuses it. ``column`` is the block as the numeric rules see it -- a
+    joined position's or an affixed core's view included.
     """
-    kept = []
+    named = []
     for verdict in column.get("sentinel_verdicts", []):
         if verdict.get("verdict") != "kept_as_a_number":
             continue
         try:
-            number = float(verdict.get("candidate"))
+            named += [float(verdict.get("candidate"))]
         except (TypeError, ValueError):
             continue
-        if math.isfinite(number) and fractions.Fraction(number) in NUMERIC_SENTINELS:
-            kept += [number]
+    named += [column.get("mode")]
+    if "tails" in column:
+        named += [column["percentiles"]["min"], column["percentiles"]["max"]]
+    kept = []
+    for number in named:
+        if isinstance(number, dict):
+            number = number[FLOAT64]
+        if (
+            isinstance(number, (int, float))
+            and not isinstance(number, bool)
+            and math.isfinite(number)
+            and fractions.Fraction(number) in NUMERIC_SENTINELS
+        ):
+            kept += [float(number)]
     return tuple(kept)
 
 

@@ -167,8 +167,9 @@ def _numeric_lines(column: "dict[str, object]", floor: int) -> "list[str]":
     tail that NAMES its values, one that publishes its shape, and one
     that publishes neither distance -- and says why, in the words of
     the block's own remark (`_withheld_because`, plan P4-D353): its own
-    pair would give its cells back, or the other tail's is withheld, or
-    the check did not finish, or this format cannot hold the pair. One
+    pair would give back an outer cell or how many hold one value, or the
+    other tail's is withheld, or the check did not finish, or this format
+    cannot hold the pair. One
     sentence for all three said "not published" over a
     block that printed two of the values below. A published END counts
     as naming one too: at least a tail's own number of rows hold it, and

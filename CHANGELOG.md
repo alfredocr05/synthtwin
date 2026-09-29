@@ -6,6 +6,19 @@ exists).
 
 ## [Unreleased]
 
+### The review of follow-up A, finished (2026-09-29)
+
+**A stand-in a block publishes as held is written, in every role** (plan
+P4-D357 A). A compound column's numeric half and a joined column's
+positions publish no decision about `-999` or `9999`, so a heap of 49
+rows published only as the half's mode came back in no cell. Every
+numeric block now keeps the stand-ins its decisions, its mode or a tail
+block's end publish, in the oracle too, and one no block names is still
+refused. **No sentence on a withheld pair says more than the pair
+fixes**: the report's line on every withheld distance said the pair
+would give "the tail's own cells back" where it fixes only the
+outermost value or a count.
+
 ### The weekday census's third review, repaired (2026-09-28)
 
 **Being told a census is withheld says nothing a count may not** (plan

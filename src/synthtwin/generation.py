@@ -14088,15 +14088,15 @@ def _is_a_stand_in(value: float, kept: "tuple[float, ...]") -> bool:
 
     `parsing.NUMERIC_SENTINELS`, compared as numbers, which is how
     `_reads_as_its_class` asks it of a made-up spelling -- LESS ``kept``,
-    the ones the column's `sentinel_verdicts` publish as
-    `kept_as_a_number` (`NumericFacts.kept_stand_ins`, plan P4-D357 A).
-    Every value pass refuses a stand-in as a point no row of the table
-    holds; one the description says the table holds, and in how many
-    rows, is the table's own value. Refusing it too took a heap away:
-    1,200 whole numbers around `-1000` and `10000` holding `-999` 44
-    times and `9999` 47 times, both published kept, came back holding
+    the ones the block publishes as held: a `kept_as_a_number` decision,
+    its mode, a tail block's end (`NumericFacts.kept_stand_ins`, plan
+    P4-D357 A). Every value pass refuses a stand-in as a point no row of
+    the table holds; one the description says the table holds, and in
+    how many rows, is the table's own value. Refusing it too took a heap
+    away: 1,200 whole numbers around `-1000` and `10000` holding `-999`
+    44 times and `9999` 47 times, both published kept, came back holding
     neither at seeds 0, 4 and 9, and nothing was missed. A stand-in held
-    by fewer rows than the floor publishes no decision and is refused.
+    by fewer rows than the floor is none of the three and is refused.
 
     Guarantees: accepts a number and the column's kept stand-ins;
     returns True exactly where it equals one of the three and is not
