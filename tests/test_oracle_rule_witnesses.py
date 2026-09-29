@@ -539,7 +539,9 @@ def _shortfall_missed(rule: typing.Callable[..., object]) -> "list[str]":
 #
 # Plan P4-D352, worked by hand from the method's sentence. With the line
 # L = max(2, floor), G groupable cells and a pool P: T is G where G < P + L
-# and P otherwise, never past 6(L - 1). The T cells picked go, one run of
+# and P otherwise, never past the most seven marks let stand as a pool --
+# 6(L - 1) where L is past seven, and at a line of three no odd count, a
+# one being in every reading of it (plan P4-D356). The T cells picked go, one run of
 # one value at a time, to the mark holding the fewest cells, the earlier on
 # a tie, and none past L - 1; then while a mark holds none and another two
 # or more, the one holding the most, the earlier on a tie, gives it the
@@ -553,12 +555,14 @@ LONE_POOL_COUNTS = (
     ((50, 60, 11), ((9, 9, 9, 9, 8, 8, 8), 0)),  # ten join: one short of the line
     ((50, 61, 11), ((8, 7, 7, 7, 7, 7, 7), 11)),  # eleven are the column's bare cells
     ((60, 50, 11), ((8, 7, 7, 7, 7, 7, 7), 0)),  # short: every groupable cell
-    ((6, 7, 2), ((1, 1, 1, 1, 1, 1, 0), 1)),  # the line of two: six, one bare
+    ((4, 5, 3), ((1, 1, 1, 1, 0, 0, 0), 1)),  # the line of three: five would hold a one in every reading
 )
 # Each cell's mark, as its place in the method's order. Fourteen cells of
 # fourteen values pooled at eleven: the marks take them in turn. Thirty
-# cells of three values, ten each: each run fills one mark, and the four
-# marks left empty are each given the last cell of the fullest mark.
+# cells of three values, ten each: each run gives nine to one mark -- two
+# short of the line, so no value fills a mark alone (plan P4-D356) -- and
+# its tenth to the next, and the one mark left empty is given the last
+# cell of the fullest, the comma's.
 # Thirty cells of thirty values pooled at fourteen: thirty is not fewer
 # than fourteen and the floor together, so fourteen are marked, SPREAD
 # over the thirty (plan P4-D149), and the sixteen bare cells (-1) lie
@@ -568,7 +572,7 @@ LONE_POOL_CELLS = (
     ((14, 14, 11), tuple(range(14)),
      (0, 1, 2, 3, 4, 5, 6, 0, 1, 2, 3, 4, 5, 6)),
     ((30, 30, 11), (0,) * 10 + (1,) * 10 + (2,) * 10,
-     (0,) * 8 + (6, 3) + (1,) * 9 + (4,) + (2,) * 9 + (5,)),
+     (0,) * 8 + (6, 1) + (2,) * 9 + (3,) + (4,) * 9 + (5,)),
     ((14, 30, 11), tuple(range(30)),
      (-1, -1, 0, -1, 1, -1, 2, -1, 3, -1, 4, -1, 5, -1, 6,
       -1, -1, 0, -1, 1, -1, 2, -1, 3, -1, 4, -1, 5, -1, 6)),
@@ -625,19 +629,22 @@ def _shipped_lone_pool(pool, flags, floor, values):
 # more different folded spellings than the count G6.5 aims at; then the
 # first of six, five and on down to k whose cells hold no more, and where
 # none does, the count from k to seven whose cells hold the fewest, the
-# most marks on a tie -- k the fewest marks, two or more, with the pool no
-# more than (k - 1)(L - 1), L = max(2, floor). Each row: (pool, floor,
-# budget, the spellings at seven marks down to two) and K.
+# most marks on a tie -- k the fewest marks, two or more, whose number as
+# the room lets the pool stand: every reading of at most k marks under
+# L = max(2, floor) leaves one of the seven out and none holds a count in
+# every reading (plan P4-D356). Each row: (pool, floor, budget, the
+# spellings at seven marks down to two) and K.
 POOL_MARK_COUNTS = (
     ((14, 11, 4, (8, 7, 6, 5, 4, 3)), 3),  # the review's shape: 4 of 4 at three
+    ((14, 11, 3, (8, 7, 6, 5, 4, 3)), 2),  # seven and seven: two hold 4..10 each
     ((14, 11, 16, (16, 16, 16, 16, 16, 16)), 7),  # room for all seven
-    ((60, 11, 10, (99, 98, 97, 96, 95, 94)), 7),  # sixty needs all seven
-    ((25, 11, 2, (9, 8, 7, 6, 5, 4)), 4),  # none fits: the fewest, four
+    ((60, 11, 10, (99, 98, 97, 96, 95, 94)), 7),  # sixty: six marks read ten each
+    ((25, 11, 2, (9, 8, 7, 6, 5, 4)), 3),  # three hold 10 10 5 and 9 9 7: the fewest
     ((40, 31, 6, (9, 8, 7, 6, 5, 4)), 4),  # at thirty-one: six at four marks
-    ((5, 2, 1, (9, 8, 7, 6, 5, 4)), 6),  # the line of two: five needs six
-    ((11, 11, 5, (7, 6, 6, 6, 5, 5)), 3),  # eleven needs three; five at three
-    ((50, 11, 55, (56, 56, 56, 56, 55, 55)), 7),  # fifty needs six: none fits, seven as few
-    ((40, 11, 3, (9, 8, 6, 7, 5, 4)), 5),  # forty needs five: none fits, five the fewest
+    ((4, 3, 1, (9, 8, 7, 6, 5, 4)), 4),  # the line of three: 2 2, 2 1 1, 1 1 1 1
+    ((11, 11, 5, (7, 6, 6, 6, 5, 5)), 3),  # eleven: two hold it; five at three
+    ((50, 11, 55, (56, 56, 56, 56, 55, 55)), 7),  # fifty: five read ten each; none fits
+    ((40, 11, 3, (9, 8, 6, 7, 5, 4)), 5),  # forty: four read ten each; five the fewest
 )
 
 
@@ -1615,7 +1622,16 @@ WITNESS_MUTANTS = {
         "        True\n",
     ),
     "lone_pool_uncapped": (
-        "lone_pool", "    target = min(target, (len(spent) - 1) * room)\n", "",
+        "lone_pool",
+        "    while target >= line and not lone_pool_stands(target, floor, len(spent)):\n"
+        "        target -= 1\n",
+        "",
+    ),
+    "lone_pool_capped_by_the_room_less_one": (
+        "lone_pool",
+        "    while target >= line and not lone_pool_stands(target, floor, len(spent)):\n"
+        "        target -= 1\n",
+        "    target = min(target, (len(spent) - 1) * room)\n",
     ),
     "lone_pool_no_join": (
         "lone_pool",
@@ -1632,6 +1648,9 @@ WITNESS_MUTANTS = {
         "key=lambda m: (len(held[m]), spent.index(m))",
         "key=lambda m: (len(held[m]) >= room, spent.index(m))",
     ),
+    "lone_pool_a_run_fills_a_mark": (
+        "lone_pool", "    most = max(1, line - 2)\n", "    most = room\n",
+    ),
     "lone_pool_runs_ignored": (
         "lone_pool",
         "        if runs and values[runs[-1][-1]] == values[i]:\n",
@@ -1645,10 +1664,10 @@ WITNESS_MUTANTS = {
         "    if list(census) != [\"(withheld)\"]:\n",
         "    if True:\n",
     ),
-    "pool_mark_count_fewest_with_a_room_too_many": (
+    "pool_mark_count_fewest_by_the_room_less_one": (
         "pool_mark_count",
-        "if pool <= (k - 1) * room or k == 7)",
-        "if pool <= k * room or k == 7)",
+        "if lone_pool_stands(pool, floor, k) or k == 7)",
+        "if pool <= (k - 1) * (max(2, floor) - 1) or k == 7)",
     ),
     "pool_mark_count_fewest_taken_first": (
         "pool_mark_count",

@@ -1607,7 +1607,13 @@ too**, on a column, on each part of a composite column and on the
 `numbers` block of a compound or affixed column. Those four censuses
 name no count below `parsing.census_floor` either (P2, P5, P6b, P6c),
 and a pool of theirs is held by P6, P8 and P9c at every floor; the same
-list carries them.
+list carries them. A pool of forms stands only where
+`parsing.census_pools` lets it on what the block bounds, as a pool of the
+two mixture censuses does (plan P4-D356): no more forms than the numbers' own
+spellings, not case-folded, a whole-number form only on a whole value,
+and each value the block counts on no more forms than its spellings. Ten
+`007`, ten `+7` and ten `7e0` published a pool of 30 beside three
+spellings, three forms of ten each.
 
 **Amended by plan P4-D222 (stage 2 closed by the owner rulings of
 2026-09-17), and the list stands.** These six censuses count a name
@@ -6047,8 +6053,10 @@ when the pooled remainder is non-zero. **A `(withheld)` count stands
 ALONE: no mark is named beside it** (plan P4-D220), and **it stands only
 over a population a pool names no one in** (plan P4-D222; stage 2 closed
 by the owner rulings of 2026-09-17; `parsing.census_pools`): fewer
-clock-writing values than the line, or no more than the permitted marks
-less one can hold below it. The permitted marks are the three names, or
+clock-writing values than the line, or where any permitted mark could be
+absent and no count stands in every reading, the clocks writing no more
+marks than their own different spellings, not case-folded (plan
+P4-D356). The permitted marks are the three names, or
 `space` alone on a `month-first-datetime`, `day-first-datetime` or
 `slashed-iso-datetime` column. A pool over more values than that says
 every permitted mark was written, which is the state nought reaches told
@@ -9780,14 +9788,20 @@ column as that census counts it (plan P4-D352: ruling 6 of 2026-09-17, a
 spelling below the floor counts into the commonest, asked of these two
 censuses as `parsing.census_pools` asks it of every other closed one).
 **WHAT THE REST OF THE BLOCK BOUNDS, NOT THE VOCABULARY'S SIZE** (plan
-P4-D356, the review of follow-up B). A pool stands only where one
-convention fewer than a reader can see among its cells could hold it and
-any one of them could be absent (`parsing.mixture_pool_holds`): a reader
+P4-D356, the two reviews of follow-up B). A pool stands only where, over
+every reading the block admits, any one convention could be absent and
+no count stands in every reading (`parsing.mixture_pool_holds`): a reader
 sees no more conventions than the pooled cells' different spellings,
-since two cells wearing two conventions are two spellings, and a
-trailing minus on no more cells than carry a point. Ten `1,234`, ten
-`1 234` and eighty `12` published `{"(withheld)": 20}` beside three
-different spellings, so the pool held two marks, both at ten. And the
+since two cells wearing two conventions are two spellings, a trailing
+minus on no more cells than carry a point, and each value whose rows the
+block publishes -- the mode, a tail's values -- on no more conventions
+than its own spellings. Ten `1,234`, ten `1 234` and eighty `12`
+published `{"(withheld)": 20}` beside three different spellings, so the
+pool held two marks, both at ten; ten `-12.00` and ten `(12.00)` beside
+55 cells of one spelling each published a pool of 30 beside `mode -12`,
+`mode_count 20`, 57 spellings and 56 values, so -12's twenty rows sat on
+two notations of ten. How many conventions were written is not asked:
+it names none and counts none. And the
 one convention is the commonest the cells wrote that EVERY such cell can
 be written in, the first in the key order on a tie -- not a trailing
 minus unless every negative carries a point, and not a mark whose
@@ -11739,8 +11753,8 @@ that has an exact published answer beside it.
 | NS1 | `negative_form` other than `"minus"` only where `n_negative` ≥ max(2, `small_cell_floor`), the CENSUS FLOOR (rule W of the stage-3 count inventory, plan P4-D335: the word names the form of the cells it is about, so one cell moving it tells a reader who knows every other cell what that cell wrote) | yes |
 | WR1 | `wide_runs` is one of `"none"`, `"canonical"` and `"respelled"`, and anything but `"none"` only where the point-free counts of `numeric_styles` — `plain`, `leading_plus` and `leading_zero` — plus its `(withheld)` remainder leave room for at least max(2, `small_cell_floor`) cells, the CENSUS FLOOR since plan P4-D335 (the third form added by landing 2b.16 part 2, plan P4-D107; without it a padded column's own producer wrote a description this loader refused). It carries no count and never pools, and the floor holds it for the reason NS1 holds `negative_form` (plan P4-D91) | yes |
 | DP1 | `decimal_plus` names `+` only at ≥ max(2, `small_cell_floor`) and never pools, carrying `{"(unavailable)": 0}` where it cannot name a count; its total ≤ the `decimal` count of `numeric_styles` plus its `(withheld)` remainder, and where that count is named what `+` leaves of it is nought or at least max(2, `small_cell_floor`) (plan P4-D140); `{}` on a position of a `joined_numbers` column | yes |
-| NS2 | `negative_notations` names a notation only at ≥ max(2, `small_cell_floor`), counts a notation below that line into the COMMONEST NAMED one (plan P4-D274: with no such absorption `n_negative 12` beside `negative_form brackets` and `{"(unavailable)": 0}` proved eleven bracketed cells and one other notation), pools under `(withheld)` only where no notation reaches the line, never beside a named one, and only where `small_cell_floor` > 1, else `{"(unavailable)": 0}`; a lone `(withheld)` pool holds at most 3 × (census floor − 1) (plan P4-D352) and stands only where `parsing.mixture_pool_holds` holds with the room `n_distinct_folded` less one where the column has a present cell outside the pool (plan P4-D356); its total ≤ `n_negative`, and what it leaves of `n_negative` less `n_negative_unrepresentable` is nought or at least max(2, `small_cell_floor`) (plan P4-D140); `{}` on a position of a `joined_numbers` column | yes |
-| TM1 | `thousands_marks` names a mark other than `""` on NS2's counting terms, never carries `(unavailable)` — a census that cannot speak is `{}` — leaves of `n_numeric` nought or at least max(2, `small_cell_floor`), and names whatever mark `group_separator` publishes wherever it names any (that last clause asked after GS1, plan P4-D140); it pools nothing beside a named mark, and a lone `(withheld)` pool holds at most 6 × (census floor − 1) (plan P4-D352) and stands only where `parsing.mixture_pool_holds` holds with NS2's room (plan P4-D356); `{}` on a position of a `joined_numbers` column | yes |
+| NS2 | `negative_notations` names a notation only at ≥ max(2, `small_cell_floor`), counts a notation below that line into the COMMONEST NAMED one (plan P4-D274: with no such absorption `n_negative 12` beside `negative_form brackets` and `{"(unavailable)": 0}` proved eleven bracketed cells and one other notation), pools under `(withheld)` only where no notation reaches the line, never beside a named one, and only where `small_cell_floor` > 1, else `{"(unavailable)": 0}`; a lone `(withheld)` pool holds at most 3 × (census floor − 1) (plan P4-D352) and stands only where `parsing.mixture_pool_holds` holds with the room `n_distinct_folded` less one where the column has a present cell outside the pool, and with the mode and each tail listing its values but not the mode as a value of that many rows, less those a negative outside the pool could hold, on no more notations than `n_distinct_folded` less one per other value (plan P4-D356); its total ≤ `n_negative`, and what it leaves of `n_negative` less `n_negative_unrepresentable` is nought or at least max(2, `small_cell_floor`) (plan P4-D140); `{}` on a position of a `joined_numbers` column | yes |
+| TM1 | `thousands_marks` names a mark other than `""` on NS2's counting terms, never carries `(unavailable)` — a census that cannot speak is `{}` — leaves of `n_numeric` nought or at least max(2, `small_cell_floor`), and names whatever mark `group_separator` publishes wherever it names any (that last clause asked after GS1, plan P4-D140); it pools nothing beside a named mark, and a lone `(withheld)` pool holds at most 6 × (census floor − 1) (plan P4-D352) and stands only where `parsing.mixture_pool_holds` holds with NS2's room and values of at least 1,000, their rows less those a number the statistics used could hold outside the pool -- a whole-written field too narrow for the value never can (plan P4-D356); `{}` on a position of a `joined_numbers` column | yes |
 
 #### The U family — `numeric_unrepresentable`
 
@@ -11776,7 +11790,7 @@ it answers to.
 | D9 | every key of `utc_offsets`, and both endpoint offset fields, are `(none)` or `(withheld)` unless `resolution` is `datetime` AND `format` is an ISO member; under D1 that reaches every format member but TWO — only `iso-datetime` and `iso-mixed` may carry an offset at all, because the three slashed stamp members take a clock in the `time_of_day` role's two forms and no offset (review item P4-DATE5-F4; landing 2b.3) | yes |
 | D10 | where `resolution` is `datetime`, the seconds field of every moment a tail publishes — its `boundary` and each entry of its `values` — is `00` when `time_precision` is `minute`, and is not `60` when `datetimes_read_at` is `utc`. The calendar's edge is method G7.3e's obligation on the generator since stage 3, no end being published | yes — the loader holds the moments and the clock |
 | D11 | the ladder around its tails: `min` and `max` are `null`; an interior rung at percent `c` is `null` exactly where its rank `floor((P - 1) * c / 100)` lies below `low_tail.rows` or above `P - 1 - high_tail.rows`, and exactly where there are no tails; a published rung read off a boundary's own rank IS that boundary; every published rung lies between the two boundaries | yes — the loader holds `P`, the two `rows` and the floor |
-| D12 | every key of `datetime_separators` is `upper_t`, `space`, `lower_t` or `(withheld)`; every key other than `(withheld)` maps to a count at least the floor and never below two, and `(withheld)` appears only when the pooled remainder is non-zero; a `(withheld)` count stands alone, with no mark named beside it (plan P4-D220), and only over a population `parsing.census_pools` lets a pool stand on -- fewer values than the line, or no more than the permitted marks less one hold below it (plan P4-D222; stage 2 closed by the owner rulings of 2026-09-17) | yes |
+| D12 | every key of `datetime_separators` is `upper_t`, `space`, `lower_t` or `(withheld)`; every key other than `(withheld)` maps to a count at least the floor and never below two, and `(withheld)` appears only when the pooled remainder is non-zero; a `(withheld)` count stands alone, with no mark named beside it (plan P4-D220), and only over a population `parsing.census_pools` lets a pool stand on -- fewer values than the line, or any permitted mark absent in one reading and no count in every reading (plan P4-D222; stage 2 closed by the owner rulings of 2026-09-17), with the room `n_distinct` less one where the column has a present cell outside the pool (plan P4-D356) | yes |
 | D13 | `datetime_separators` is `{}` where `resolution` is not `datetime`; on a datetime column whose `format` is not `iso-mixed` its values sum to `n_present - n_unparsed`, and on `iso-mixed` to `resolution_mix["iso-datetime"]`; a `month-first-datetime`, `day-first-datetime` or `slashed-iso-datetime` column carries only `space` or `(withheld)` | yes |
 | D14 | `all_at_midnight` is `true` only where `resolution` is `datetime`, `n_present - n_unparsed` is at least the floor, every moment the block publishes — both boundaries, every value a tail lists and every published rung — stands at midnight under some offset `utc_offsets` names, and on the `utc` clock no offset is pooled; a `false` is never refused, because the canonical form drops the fraction (MN-P) | yes |
 | DT1 | a tail is `null` or a block of exactly `boundary`, `rows`, `mean_distance`, `rms_distance` and `values`, publishing either both distances and no values, or NEITHER distance and no values (plan P4-D349), or its values with at most its mean beside them | yes |

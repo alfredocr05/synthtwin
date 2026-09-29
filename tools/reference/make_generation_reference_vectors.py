@@ -3596,6 +3596,44 @@ def mark_places(
 LONE_POOL_MARKS = (",", " ", "'", "\u2019", "\u00a0", "\u202f", "\u2009")
 
 
+def lone_pool_stands(pool, floor, room):
+    """Whether a census of marks pooling ``pool`` may stand, ``room`` marks seen.
+
+    Read from the rule's sentence (plan P4-D356, the second review of
+    follow-up B): with ``line`` = max(2, floor), a pool under the line
+    always stands; otherwise every reading -- at most ``room`` of the seven
+    marks, each on one to ``line`` - 1 cells, summing to ``pool`` -- is
+    walked, and it stands only where one reading leaves a mark out and,
+    for every count under the line, one reading holds no mark at it.
+    """
+    line = max(2, floor)
+    if pool < line:
+        return True
+    readings = [
+        reading
+        for parts in range(1, min(room, 7) + 1)
+        for reading in counts_summing(pool, parts, line - 1)
+    ]
+    if not any(len(reading) < 7 for reading in readings):
+        return False
+    return all(
+        any(count not in reading for reading in readings)
+        for count in range(1, line)
+    )
+
+
+def counts_summing(total, parts, most):
+    """Every way to write ``total`` as ``parts`` counts of 1 to ``most``, descending."""
+    if parts == 0:
+        return [()] if total == 0 else []
+    return [
+        (part,) + rest
+        for part in range(min(most, total), 0, -1)
+        if part * parts >= total
+        for rest in counts_summing(total - part, parts - 1, part)
+    ]
+
+
 def marks_of_a_lone_pool(pool, groupable, floor, values, count=7):
     """G6.1, plan P4-D352: a census of marks that is only a pool.
 
@@ -3603,11 +3641,14 @@ def marks_of_a_lone_pool(pool, groupable, floor, values, count=7):
     mark's room one less than it, the first ``count`` marks of
     LONE_POOL_MARKS (the review of follow-up B, item 4) and G the
     groupable cells: T is G where G < pool + line and ``pool`` otherwise,
-    and never past ``count`` less one rooms.  T cells are picked by the
+    and never past the most ``count`` marks, read as the room, let stand
+    (``lone_pool_stands``).  T cells are picked by the
     spread of ``plus_cells_by_value`` in order and walked in cell order
     one run of one value at a time; each run goes whole to the mark
-    holding the fewest cells, the earlier on a tie, and a full mark hands
-    the rest of its run on.  Then, while a mark holds none and another
+    holding the fewest cells, the earlier on a tie, a full mark or one
+    already holding ``line`` - 2 of the run (where that is one or more)
+    handing the rest of it on, and only where every open mark holds that
+    much of it does the rest go to the fewest open one.  Then, while a mark holds none and another
     holds two or more, the mark holding the most, the earlier on a tie,
     gives it the last cell it took.  What is left wears none.
     """
@@ -3616,7 +3657,8 @@ def marks_of_a_lone_pool(pool, groupable, floor, values, count=7):
     spent = LONE_POOL_MARKS[:count]
     grouped = [i for i, flag in enumerate(groupable) if flag]
     target = len(grouped) if len(grouped) < pool + line else pool
-    target = min(target, (len(spent) - 1) * room)
+    while target >= line and not lone_pool_stands(target, floor, len(spent)):
+        target -= 1
     picked = plus_cells_by_value(grouped, values, target, True)
     runs = []
     for i in picked:
@@ -3625,15 +3667,25 @@ def marks_of_a_lone_pool(pool, groupable, floor, values, count=7):
         else:
             runs += [[i]]
     held = {mark: [] for mark in spent}
+    most = max(1, line - 2)
 
-    def fewest():
-        return min(spent, key=lambda m: (len(held[m]), spent.index(m)))
+    def fewest(share, cap):
+        open_marks = [m for m in spent if len(held[m]) < room and share[m] < cap]
+        if not open_marks:
+            return None
+        return min(open_marks, key=lambda m: (len(held[m]), spent.index(m)))
 
     for run in runs:
+        share = {mark: 0 for mark in spent}
         while run:
-            mark = fewest()
+            mark = fewest(share, most) or fewest(share, room)
+            if mark is None:
+                break
             space = room - len(held[mark])
+            if share[mark] < most:
+                space = min(space, most - share[mark])
             held[mark] += run[:space]
+            share[mark] += len(run[:space])
             run = run[space:]
     for mark in spent:
         if held[mark]:
@@ -3656,17 +3708,16 @@ def lone_pool_count(census, floor, folded_budget, spelled_with):
     Read from the method's sentence (the review of follow-up B, item 4):
     seven, unless the cells written with seven hold more different
     folded spellings than ``folded_budget``; then the first of six, five
-    and on down to the fewest marks -- two or more, their rooms one fewer
-    than them holding the pool -- whose cells hold no more, and where
-    none does, of those counts the one whose cells hold the fewest, the
-    most marks on a tie.  ``spelled_with`` writes the column's number
-    cells over a given count of marks.
+    and on down to the fewest marks -- two or more, whose number as the
+    room lets the pool stand (``lone_pool_stands``) -- whose cells hold no
+    more, and where none does, of those counts the one whose cells hold
+    the fewest, the most marks on a tie.  ``spelled_with`` writes the
+    column's number cells over a given count of marks.
     """
     if list(census) != ["(withheld)"]:
         return 7
     pool = census["(withheld)"]
-    room = max(2, floor) - 1
-    least = next(k for k in range(2, 8) if pool <= (k - 1) * room or k == 7)
+    least = next(k for k in range(2, 8) if lone_pool_stands(pool, floor, k) or k == 7)
     for count in range(7, least - 1, -1):
         if len({folded(text) for text in spelled_with(count)}) <= folded_budget:
             return count

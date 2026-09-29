@@ -16508,11 +16508,13 @@ def _pool_mark_count(
     publishes where fewer marks would hold none too many -- and G12.8
     lets a count be passed only where the spellings cannot supply it. So
     the most marks, of seven down to the fewest -- two or more, whose
-    rooms, one fewer than them, hold the pool under the census floor, so
-    the twin's own description pools it again -- whose cells hold no more
-    different spellings than ``budget``; where none does, the most marks
-    among those whose cells hold the fewest, so a mark is given up only
-    where giving it up brings the count nearer.
+    number as the room lets the pool stand (`parsing.mixture_pool_holds`),
+    so the twin's own description pools it again -- whose cells hold no
+    more different spellings than ``budget``; where none does, the most
+    marks among those whose cells hold the fewest, so a mark is given up
+    only where giving it up brings the count nearer. Seven `1,234.00` and
+    seven `1 234.00` pool fourteen beside three spellings, and two marks
+    hold it: the twin writes three (the second review, finding 3).
 
     Guarantees: accepts the pool, the settings floor, the folded count
     of different spellings G6.5 aims the numbers at and, for each count
@@ -16521,10 +16523,11 @@ def _pool_mark_count(
     to seven. Determinism: a fixed function of the four. Raises KeyError
     where a count it asks for is missing. No I/O of any kind.
     """
-    line = parsing.census_floor(floor)
     seven = len(parsing.GROUP_MARKS)
     fewest = 2
-    while fewest < seven and pool > (fewest - 1) * (line - 1):
+    while fewest < seven and not parsing.mixture_pool_holds(
+        pool, floor, [pool] * seven, fewest
+    ):
         fewest = fewest + 1
     best = seven
     for most in range(seven, fewest - 1, -1):
@@ -16533,6 +16536,17 @@ def _pool_mark_count(
         if spelled[most] < spelled[best]:
             best = most
     return best
+
+
+def _fewest_open(held: "list[int]", share: "list[int]", full: int, most: int) -> int:
+    """The mark holding the fewest cells, the earlier on a tie, among those under ``full`` whose ``share`` is under ``most``; -1 where none is."""
+    place = -1
+    for other in range(len(held)):
+        if held[other] >= full or share[other] >= most:
+            continue
+        if place < 0 or held[other] < held[place]:
+            place = other
+    return place
 
 
 def _pool_alone_of(facts: contract.NumericFacts) -> int:
@@ -16846,9 +16860,10 @@ def _pool_alone_places(
        pool and the census floor together -- a leftover under the floor
        cannot be the real column's own bare cells, which the census is
        published beside only at nought or at least the floor -- and the
-       pool otherwise; never more than ``most`` less one times one less
-       than the floor, so the twin's own description pools the count
-       again rather than counting it under one mark.
+       pool otherwise; never more than ``most`` marks, read as the room,
+       let stand (`parsing.mixture_pool_holds`), so the twin's own
+       description pools the count again rather than counting it under
+       one mark.
     2. WHICH CELLS. The T are taken over the groupable cells by the
        spread `_plus_cells_by_value` states (plan P4-D149), so the cells
        left bare are not the largest ones.
@@ -16856,7 +16871,14 @@ def _pool_alone_places(
        order, one run of one value at a time, and each run goes whole to
        the mark of `parsing.GROUP_MARKS` holding the fewest cells, the
        earlier mark on a tie; a mark stops one short of the floor, and
-       the rest of the run goes on to the next with the fewest. So a
+       takes at most two short of it from one run where the floor is past
+       two, and the rest of the run goes on to the next with the fewest
+       it has not given that much. No value then fills a mark alone, so
+       the twin's own description pools again where it counts that value
+       (the second review of follow-up B): 38 cells of one value filling
+       three marks of ten and one of eight fixed a ten in every reading
+       and the twin's census went silent, where nine a mark keeps it
+       pooled. So a
        value is written two ways only where a mark fills, and the marks
        take the values in turn across the whole range. Measured against
        fixed shares of floor((k+1)T/7) - floor(kT/7) per mark, over 17
@@ -16894,7 +16916,10 @@ def _pool_alone_places(
     wanted = pool
     if len(cells) < pool + line:
         wanted = len(cells)
-    wanted = min(wanted, (len(marks) - 1) * (line - 1))
+    while wanted >= line and not parsing.mixture_pool_holds(
+        wanted, floor, [wanted] * len(parsing.GROUP_MARKS), len(marks)
+    ):
+        wanted = wanted - 1
     values = holds
     if values is None:
         values = [float(index) for index in range(len(groupable))]
@@ -16902,22 +16927,28 @@ def _pool_alone_places(
     chosen = _plus_cells_by_value(cells, values, wanted, True)
     held = [0] * len(marks)
     last = [-1] * len(marks)
+    one = max(1, line - 2)
     start = 0
     while start < len(chosen):
         end = start + 1
         while end < len(chosen) and values[chosen[end]] == values[chosen[start]]:
             end = end + 1
+        share = [0] * len(marks)
         step = start
         while step < end:
-            place = 0
-            for other in range(len(marks)):
-                if held[other] < held[place]:
-                    place = other
+            place = _fewest_open(held, share, line - 1, one)
+            if place < 0:
+                place = _fewest_open(held, share, line - 1, line - 1)
+            if place < 0:
+                break
             take = min(line - 1 - held[place], end - step)
+            if share[place] < one:
+                take = min(take, one - share[place])
             for index in chosen[step : step + take]:
                 worn[index] = marks[place]
                 last[place] = index
             held[place] = held[place] + take
+            share[place] = share[place] + take
             step = step + take
         start = end
     for place in range(len(marks)):

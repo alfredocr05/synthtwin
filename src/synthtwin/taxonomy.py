@@ -9744,12 +9744,22 @@ def _numeric_styles(cells: _Cells) -> dict[str, int]:
     for value in cells.numbers:
         if not math.isfinite(value) or int(value) != value:
             default = parsing.STYLE_DECIMAL
+    # WHAT A READER BOUNDS OF A POOL OF FORMS (the second review of
+    # follow-up B, finding 2): the numbers' own count of different
+    # spellings, a whole-number form only on a whole value, and the values
+    # the block counts (`_forms_bounds`). Ten `007`, ten `+7` and ten `7e0`
+    # published `{"(withheld)": 30}` beside three spellings: three forms
+    # at most, under eleven each, so ten each.
+    room, capacities, groups = _forms_bounds(cells)
     census = parsing.absorbed_census(
         counts,
         total,
         cells.settings.small_cell_floor,
         len(NUMERIC_STYLES),
         default,
+        room,
+        capacities,
+        groups,
     )
     published_counts: dict[str, int] = {}
     for style in NUMERIC_STYLES:
@@ -9758,6 +9768,43 @@ def _numeric_styles(cells: _Cells) -> dict[str, int]:
     if SUPPRESSED_LABEL in census:
         published_counts[SUPPRESSED_LABEL] = census[SUPPRESSED_LABEL]
     return published_counts
+
+
+def _forms_bounds(
+    cells: _Cells,
+) -> "tuple[int, list[int], tuple[tuple[int, int, tuple[int, ...]], ...]]":
+    """What a pool of the six forms lets a reader bound: room, capacities, groups.
+
+    Over the cells the forms map counts: their different spellings, trimmed
+    and not case-folded, because `7e0` and `7E0` are two forms; each form's
+    capacity in `NUMERIC_STYLES` order, a form written only on a whole
+    number (`plain`, `leading_zero`, `leading_plus`) holding no more than
+    the whole values; and `_published_groups` over the same cells.
+
+    Guarantees: accepts the column's tally; returns (room, capacities,
+    groups). Determinism: a fixed function of the tally. Raises nothing.
+    No I/O of any kind.
+    """
+    counted: "list[_Cell]" = []
+    spellings: "dict[str, int]" = {}
+    whole = 0
+    for cell in cells.classified:
+        if cell.kind != parsing.NUMBER:
+            continue
+        counted += [cell]
+        spellings[parsing.trimmed(cell.numeric_text)] = 1
+        if _is_whole(cell):
+            whole += 1
+    capacities: "list[int]" = []
+    for style in NUMERIC_STYLES:
+        capacities += [whole if style in POINT_FREE_STYLES else len(counted)]
+    return (len(spellings), capacities, _published_groups(cells, counted, FORMS_KIND))
+
+
+def _is_whole(cell: _Cell) -> bool:
+    """Whether a numeric cell's value is a whole number, which every form can write."""
+    value = cell.value
+    return value is not None and math.isfinite(value) and int(value) == value
 
 
 def fraction_width(text: str) -> int:
@@ -11921,9 +11968,9 @@ def _mixture_band(
         total = total + counts[name]
     if total < line or settings.small_cell_floor < 2:
         return ("", False)
-    capacities, room, wearable = _reader_bounds(cells, notations)
+    capacities, room, wearable, groups = _reader_bounds(cells, notations)
     if parsing.mixture_pool_holds(
-        total, settings.small_cell_floor, capacities, room
+        total, settings.small_cell_floor, capacities, room, groups
     ):
         return ("", False)
     written = ""
@@ -11939,11 +11986,11 @@ def _mixture_band(
 
 def _reader_bounds(
     cells: _Cells, notations: bool
-) -> "tuple[list[int], int, dict[str, int] | None]":
+) -> "tuple[list[int], int, dict[str, int] | None, tuple[tuple[int, int, tuple[int, ...]], ...]]":
     """What a mixture that holds every convention under the line lets a reader bound.
 
     Asked only by `_mixture_band`, once no convention reaches the line
-    (the review of follow-up B). Three things, each over the cells the
+    (the two reviews of follow-up B). Four things, each over the cells the
     census counts -- every negative, or every cell that proves a mark:
 
     1. ONE CAPACITY PER CONVENTION of the vocabulary: a trailing minus is
@@ -11961,10 +12008,14 @@ def _reader_bounds(
        comma, not a mark whose writing on every one of these cells would
        change how many of them `parsing.comma_reading` reads either way,
        or as a decimal comma -- the two counts the comma warning publishes.
+    4. THE GROUPS (`_published_groups`): the values whose rows the block
+       publishes or bounds, each with its counted rows, its spellings and
+       what each convention can hold of it.
 
     Guarantees: accepts the column's tally and which census this is;
-    returns (capacities in the vocabulary's order, room, wearable).
-    Determinism: a fixed function of the two. Raises nothing. No I/O.
+    returns (capacities in the vocabulary's order, room, wearable,
+    groups). Determinism: a fixed function of the two. Raises nothing.
+    No I/O of any kind.
     """
     counted: "list[_Cell]" = []
     for cell in cells.classified:
@@ -11982,6 +12033,9 @@ def _reader_bounds(
         spellings[cell.folded] = 1
     room = len(spellings)
     everyone = len(counted)
+    groups = _published_groups(
+        cells, counted, NOTATIONS_KIND if notations else MARKS_KIND
+    )
     if notations:
         pointed = 0
         for cell in counted:
@@ -11989,15 +12043,15 @@ def _reader_bounds(
                 pointed += 1
         capacities = [everyone, everyone, everyone, pointed]
         if pointed >= everyone:
-            return (capacities, room, None)
+            return (capacities, room, None, groups)
         wearable: "dict[str, int]" = {}
         for form in parsing.NEGATIVE_FORMS:
             if form != parsing.NEGATIVE_TRAILING:
                 wearable[form] = 1
-        return (capacities, room, wearable)
+        return (capacities, room, wearable, groups)
     capacities = [everyone] * len(parsing.GROUP_MARKS)
     if cells.decimal_comma:
-        return (capacities, room, None)
+        return (capacities, room, None, groups)
     before = _comma_readings([cell.numeric_text for cell in counted])
     marks: "dict[str, int]" = {}
     for mark in parsing.GROUP_MARKS:
@@ -12006,7 +12060,106 @@ def _reader_bounds(
         )
         if after == before:
             marks[mark] = 1
-    return (capacities, room, marks)
+    return (capacities, room, marks, groups)
+
+
+# WHICH CENSUS `_published_groups` READS ITS GROUPS FOR: the notations,
+# the marks, or the six forms.
+NOTATIONS_KIND = "notations"
+MARKS_KIND = "marks"
+FORMS_KIND = "forms"
+
+
+def _published_groups(
+    cells: _Cells, counted: "list[_Cell]", kind: str
+) -> "tuple[tuple[int, int, tuple[int, ...]], ...]":
+    """The values whose rows the block publishes or bounds, as `parsing.mixture_pool_holds` reads them.
+
+    THE SECOND REVIEW OF FOLLOW-UP B, FINDING 1. A reader of the whole
+    block bounds one value's spellings as well as the pool's: every other
+    value takes a spelling, so the mode's are at most
+    `n_distinct_folded - (n_distinct_values - 1)`, and its rows are
+    `mode_count`. Measured at a floor of eleven: ten `-12.00` and ten
+    `(12.00)` beside 55 cells of one spelling each published a pool of 30
+    beside `mode -12`, `mode_count 20`, 57 spellings and 56 values, so
+    -12's twenty rows sat on two notations under eleven -- ten each.
+
+    So each group is a set of values a reader can name with a count or a
+    floor under it, taken apart in this order, a value in no two: the
+    published mode (`_mode_published`); then each side's tail
+    (`_tail_positions`) -- every value it holds, whether or not the side
+    lists them, because its rows are published and its distances can
+    name its one value (a mean distance equal to the root-mean-square
+    one), and the heaped end a ladder publishes is its outermost value.
+    For each: the counted cells holding one of its values (at least the
+    rows a reader is told, which is only ever stricter), their different
+    spellings -- folded on the two mixture censuses, trimmed on the forms, where
+    `e` and `E` are two -- and what each convention can hold of them: a
+    trailing minus only its cells with a point, a whole-number form only
+    its whole values. The true spellings are never more than a reader's
+    bound, so the readings asked of are never more than a reader's.
+
+    Guarantees: accepts the column's tally, the counted cells and which
+    census this is (`NOTATIONS_KIND`, `MARKS_KIND`, `FORMS_KIND`);
+    returns one (rows, spellings, capacity per convention) per group
+    holding a counted cell. Determinism: a fixed function of the three.
+    Raises nothing. No I/O of any kind.
+    """
+    floor = cells.settings.small_cell_floor
+    named: "list[list[float]]" = []
+    taken: "dict[float, int]" = {}
+    mode = _mode_published(cells, floor)["mode"]
+    if isinstance(mode, float):
+        named += [[mode]]
+        taken[mode] = 1
+    ordered = sorted(cells.numbers)
+    count = len(ordered)
+    units = parsing.tail_units(floor)
+    percent = parsing.tail_percent(count, units) if count >= units else None
+    if percent is not None:
+        for side_percent, side in ((percent, "low"), (100 - percent, "high")):
+            first, last = _tail_positions(count, side_percent, side)
+            values: "list[float]" = []
+            for place in range(first, last + 1):
+                value = ordered[place]
+                if value not in taken:
+                    values += [value]
+                    taken[value] = 1
+            if values:
+                named += [values]
+    groups: "tuple[tuple[int, int, tuple[int, ...]], ...]" = ()
+    for values in named:
+        members: "dict[float, int]" = {}
+        for value in values:
+            members[value] = 1
+        rows = 0
+        pointed = 0
+        whole = 0
+        written: "dict[str, int]" = {}
+        for cell in counted:
+            if cell.value is None or cell.value not in members:
+                continue
+            rows += 1
+            if kind == FORMS_KIND:
+                written[parsing.trimmed(cell.numeric_text)] = 1
+            else:
+                written[cell.folded] = 1
+            if "." in parsing.number_core(cell.numeric_text):
+                pointed += 1
+            if _is_whole(cell):
+                whole += 1
+        if rows < 1:
+            continue
+        reach: "tuple[int, ...]" = ()
+        if kind == NOTATIONS_KIND:
+            reach = (rows, rows, rows, pointed)
+        elif kind == MARKS_KIND:
+            reach = (rows,) * len(parsing.GROUP_MARKS)
+        else:
+            for style in NUMERIC_STYLES:
+                reach = reach + ((whole if style in POINT_FREE_STYLES else rows),)
+        groups = groups + ((rows, len(written), reach),)
+    return groups
 
 
 def _comma_readings(texts: "list[str]") -> "tuple[int, int]":
@@ -15289,21 +15442,27 @@ def _separator_counts(
     """
     counts: dict[str, int] = {}
     clocks = 0
+    spellings: "dict[str, int]" = {}
     for value in sources:
         name = parsing.datetime_separator(value, format_name)
         if name is None:
             continue
         clocks = clocks + 1
+        spellings[value] = 1
         if name in counts:
             counts[name] = counts[name] + 1
         else:
             counts[name] = 1
+    # NO MORE MARKS THAN THE CLOCKS' OWN DIFFERENT SPELLINGS (the second
+    # review of follow-up B, finding 2): a pool of twenty over two
+    # spellings is two marks of ten, whatever the vocabulary allows.
     return parsing.absorbed_census(
         counts,
         clocks,
         settings.small_cell_floor,
         parsing.separator_names(format_name),
         parsing.SEPARATOR_UPPER_T,
+        len(spellings),
     )
 
 

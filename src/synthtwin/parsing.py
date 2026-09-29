@@ -5615,87 +5615,125 @@ def disclosed_census(
     return named
 
 
-def census_pools(population: int, floor: int, names: int) -> bool:
+def census_pools(
+    population: int,
+    floor: int,
+    names: int,
+    room: int = -1,
+    capacities: "list[int] | None" = None,
+    groups: "tuple[tuple[int, int, tuple[int, ...]], ...]" = (),
+) -> bool:
     """Whether a census none of whose names reaches the line may be one pool.
 
     THE ONE STATEMENT, read by the producer through `absorbed_census`, by
-    the loader (contract D12, P6, TM1 and NS2) and by the checker, of
-    where a closed spelling census holds its whole count back (plan
-    P4-D222; stage 2 closed by the owner rulings of 2026-09-17). The two
-    mixture censuses ask `mixture_pool_holds`, which is this rule asked
-    of what their block lets a reader bound (plan P4-D352 and the review
-    of follow-up B).
+    the loader (contract D3, D12, P5, P5b, P6, P6c) and by the checker, of
+    where a spelling census holds its whole count back (plan P4-D222;
+    stage 2 closed by the owner rulings of 2026-09-17), asked since the
+    second review of follow-up B (plan P4-D356) as `mixture_pool_holds`
+    asks the two mixture censuses: of what the block lets a reader bound.
 
-    A POOL SAYS EVERY NAME WAS WRITTEN BY FEWER CELLS THAN THE LINE. On an
-    open vocabulary -- the offsets and the widths, ``names`` nought -- that
-    names nobody. On a CLOSED one -- three marks between day and clock,
-    one on a slashed stamp, six forms of a number -- a pool over more
-    cells than ``names - 1`` names can hold below the line tells a reader
-    that EVERY name was written by at least one cell: the state nought
-    reaches is told apart from the state a below-floor count reaches.
-    Measured on the branch this repairs: 7, +8, 09, 1.5e3 and 2.5E3 among
-    995 prices at a floor of one published a pool of five beside the
-    decimals, each form exactly one cell. So a closed census over more
-    than ``(names - 1) * (line - 1)`` cells is never a pool: above
-    ``names * (line - 1)`` some name reaches the line, and in the band
-    between, where none may, `absorbed_census` writes the vocabulary's
-    default name for the whole population instead. A population below
-    the line is always a pool, whatever the vocabulary.
+    A POOL SAYS EVERY NAME WAS WRITTEN BY FEWER CELLS THAN THE LINE. On a
+    CLOSED vocabulary -- three marks between day and clock, one on a
+    slashed stamp, six forms of a number -- a pool over more cells than
+    ``names - 1`` names can hold below the line tells a reader that EVERY
+    name was written: 7, +8, 09, 1.5e3 and 2.5E3 among 995 prices at a
+    floor of one published a pool of five beside the decimals, each form
+    exactly one cell. And the pooled cells' own count of different
+    spellings bounds how many names they wrote, open vocabulary or
+    closed: ten `007`, ten `+7` and ten `7e0` at a floor of eleven
+    published `{"(withheld)": 30}` beside three spellings, three forms at
+    most under eleven each, so each form exactly ten.
 
-    Guarantees: accepts the population, the settings floor and the size
-    of the closed vocabulary (nought for an open one); returns a bool.
-    Determinism: a fixed function of the three. Raises nothing. No I/O.
+    So ``room`` is the most names a reader can see among the pooled
+    cells (their different spellings for the producer, the column's for
+    the loader; below nought where the caller bounds nothing), the
+    vocabulary is ``names`` -- or one more than the room on an open one,
+    ``names`` nought -- each holding at most ``capacities`` of the cells
+    where one is given, and ``groups`` are the values whose rows the
+    block publishes, each a (rows, spellings, capacity per name). A
+    population below the line is always a pool; an open census with no
+    room bounds nothing and pools.
+
+    Guarantees: accepts the population, the settings floor, the size of
+    the closed vocabulary (nought for an open one), the room, the
+    capacities and the groups; returns a bool. Determinism: a fixed
+    function of the six. Raises nothing. No I/O of any kind.
     """
-    line = census_floor(floor)
-    if population < line or names < 1:
+    if population < census_floor(floor):
         return True
-    return population <= (names - 1) * (line - 1)
+    size = names
+    if size < 1:
+        if room < 0:
+            return True
+        size = room + 1
+    held = [population] * size if capacities is None else capacities
+    seen = size if room < 0 else room
+    return mixture_pool_holds(population, floor, held, seen, groups)
 
 
 def mixture_pool_holds(
-    population: int, floor: int, capacities: "list[int]", room: int
+    population: int,
+    floor: int,
+    capacities: "list[int]",
+    room: int,
+    groups: "tuple[tuple[int, int, tuple[int, ...]], ...]" = (),
 ) -> bool:
-    """Whether a MIXTURE census none of whose conventions reaches the line may pool.
+    """Whether a census none of whose conventions reaches the line may pool.
 
-    `census_pools` ASKED OF WHAT THE BLOCK LETS A READER BOUND, NOT OF THE
-    VOCABULARY'S SIZE (plan P4-D356, the review of follow-up B, items 1
-    and 2). A pool of the two mixture censuses says every convention it
-    holds stood under the line, and the other facts of the block bound
-    more than the vocabulary does. Measured at a floor of eleven: ten
-    `1,234`, ten `1 234` and eighty `12` published `{"(withheld)": 20}`
-    beside three different spellings, so the pool held two marks at most
-    and both at exactly ten, and the comma warning named one of them --
-    while seven marks' room let the pool stand. So each convention holds
-    at most one less than the line or its own ``capacities`` entry,
-    whichever is smaller (a trailing minus stands only on a figure with a
-    point), and at most ``room`` conventions are written (a reader counts
-    them no higher than the pool's own count of different spellings), and
-    over the counts that allows -- the readings of the pool -- it stands
-    only where:
+    ASKED OF WHAT THE BLOCK LETS A READER BOUND, NOT OF THE VOCABULARY'S
+    SIZE (plan P4-D356, the two reviews of follow-up B). A pool says every
+    convention it holds stood under the line, and the rest of the block
+    bounds more than the vocabulary does. Measured at a floor of eleven:
+    ten `1,234`, ten `1 234` and eighty `12` published `{"(withheld)":
+    20}` beside three different spellings, two marks at most and both at
+    exactly ten; and ten `-12.00`, ten `(12.00)` and 55 negatives and
+    positives of one spelling each published `{"(withheld)": 30}` beside
+    `mode -12`, `mode_count 20`, 57 spellings and 56 values -- so -12 had
+    two spellings at most, its twenty rows sat on two notations of ten.
 
-    1. ONE CONVENTION FEWER than ``room`` could hold it, so no reader can
-       tell how many were written -- `census_pools`' own clause;
-    2. EVERY CONVENTION COULD BE ABSENT, so none is shown written; and
-    3. NO COUNT IS IN EVERY READING, so no reader can say a convention was
+    So each convention holds at most one less than the line or its own
+    ``capacities`` entry, whichever is smaller (a trailing minus stands
+    only on a figure with a point), at most ``room`` conventions are
+    written (no reader counts them higher than the pool's own count of
+    different spellings), and each of ``groups`` -- a value whose rows
+    the block publishes, as (its rows among the pooled cells, the most
+    conventions its spellings let it wear, what each convention can hold
+    of it) -- sits on its own conventions, no more of them than its
+    spellings. Two groups a reader lets share a convention are kept
+    apart here, which only ever leaves fewer readings: one group is
+    exact, and a pool standing on fewer readings stands on more. Over
+    the counts that allows -- the readings of the pool -- it stands only
+    where:
+
+    1. EVERY CONVENTION COULD BE ABSENT, so none is shown written; and
+    2. NO COUNT IS IN EVERY READING, so no reader can say a convention was
        written by exactly that many rows even without saying which: at a
        floor of three a pool of three over three notations reads two and
        one, or three ones, and one row wrote a notation alone in both.
 
-    On a vocabulary of ``n`` equal capacities with ``room`` of ``n`` this
-    is `census_pools` wherever the line is more than ``n``, as it is at
-    the default floor of eleven for both censuses; under it the third
-    clause refuses more, and with ``room`` of one or none a pool of the
-    line or more would put one convention at the line, so it never stands.
+    HOW MANY CONVENTIONS WERE WRITTEN IS NOT ASKED (the second review,
+    finding 3). The first repair asked that one convention fewer than
+    the room could hold the pool, which on a full room is the first
+    clause again and under it refused pools that say only how many were
+    written -- never which, never a count: seven `1,234.00` and seven
+    `1 234.00` were counted under the comma for it.
 
-    One statement, read by the producer (`taxonomy._mixture_band`, with
-    the true count of different spellings among the pooled cells) and by
-    the loader (TM1 and NS2, with the most a published block admits).
+    On a vocabulary of ``n`` equal capacities with a full room and no
+    group this is the rule `census_pools` asked of the vocabulary alone
+    wherever the line is more than ``n``, as it is at the default floor
+    of eleven for every closed census; under it the second clause
+    refuses more.
+
+    One statement, read by the producer (`taxonomy._mixture_band` and
+    `absorbed_census`, with the pooled cells' true spellings and groups)
+    and by the loader (with the most a published block admits).
 
     Guarantees: accepts the pooled count, the settings floor, one capacity
     per convention of the vocabulary (the pooled count or more where
-    nothing bounds it) and the most conventions a reader can see; returns
-    a bool, True for a population below the line. Determinism: a fixed
-    function of the four. Raises nothing. No I/O of any kind.
+    nothing bounds it), the most conventions a reader can see and the
+    groups; returns a bool, True for a population below the line.
+    Determinism: a fixed function of the five. Raises nothing. No I/O of
+    any kind.
     """
     line = census_floor(floor)
     if population < line:
@@ -5704,44 +5742,126 @@ def mixture_pool_holds(
     for capacity in capacities:
         held += [min(line - 1, max(0, capacity))]
     seen = min(room, len(held))
-    if seen < 2:
+    if seen < 1:
         return False
-    if population > sum(sorted(held, reverse=True)[: seen - 1]):
-        return False
+    kept: "list[tuple[int, int, tuple[int, ...]]]" = []
+    for rows, spellings, reach in groups:
+        # A GROUP OF ONE ROW, OR ONE FREE TO WEAR EVERY CONVENTION A
+        # READING WRITES, bounds nothing a reader of the pool alone does
+        # not: set aside, so it takes no convention from another group.
+        if rows > 1 and spellings < seen:
+            kept += [(rows, spellings, reach)]
+    asked: "list[tuple[int, ...]]" = []
     for place in range(len(held)):
-        if not _counts_reach(population, held[:place] + held[place + 1 :], seen, 0):
+        if held[place] < 1:
+            continue
+        kind = (held[place],) + tuple(min(held[place], group[2][place]) for group in kept)
+        if kind in asked:
+            continue
+        asked += [kind]
+        if not _readings_reach(population, held, seen, kept, 0, place):
             return False
     for count in range(1, line):
-        if not _counts_reach(population, held, seen, count):
+        if not _readings_reach(population, held, seen, kept, count, -1):
             return False
     return True
 
 
-def _counts_reach(population: int, held: "list[int]", room: int, barred: int) -> bool:
-    """Whether counts of nought to each ``held``, none ``barred``, at most ``room`` above nought, sum to ``population``.
+def _readings_reach(
+    population: int,
+    held: "list[int]",
+    room: int,
+    groups: "list[tuple[int, int, tuple[int, ...]]]",
+    barred: int,
+    empty: int,
+) -> bool:
+    """Whether some reading of a pool holds no count ``barred`` and nothing at ``empty``.
 
-    Each count of reached sums is a whole number read as a set of bits, one
-    per sum from nought to the population, one such number per count of
-    conventions above nought.
+    Counts of nought to each ``held``, at most ``room`` above nought,
+    summing to ``population``, every group's rows placed on conventions
+    of its own. Each state -- conventions written, and per group the
+    conventions it took and the rows they hold for it, the latter no
+    higher than its rows -- keeps the sums it reaches as one whole number
+    read as a set of bits.
     """
     within = (1 << (population + 1)) - 1
-    sums = [1] + [0] * room
-    for most in held:
-        grown = list(sums)
-        for written in range(1, room + 1):
-            below = sums[written - 1]
-            if below == 0:
+    start: "tuple[int, ...]" = (0,)
+    for _group in groups:
+        start = start + (0, 0)
+    layer: "dict[tuple[int, ...], int]" = {start: 1}
+    for place in range(len(held)):
+        most = 0 if place == empty else held[place]
+        grown: "dict[tuple[int, ...], int]" = {}
+        for state in sorted(layer):
+            sums = layer[state]
+            _reached(grown, state, sums)
+            if most < 1 or state[0] >= room:
                 continue
-            added = 0
-            for count in range(1, most + 1):
-                if count != barred:
-                    added = added | (below << count)
-            grown[written] = grown[written] | (added & within)
-        sums = grown
-    for reached in sums:
-        if (reached >> population) & 1:
+            free = _spread(sums, 1, most, barred) & within
+            if free:
+                key = (state[0] + 1,) + state[1:]
+                _reached(grown, key, free)
+            for index in range(len(groups)):
+                rows, spellings, reach = groups[index]
+                took = state[1 + 2 * index]
+                holds = state[2 + 2 * index]
+                share = min(most, reach[place])
+                if took >= spellings or holds >= rows or share < 1:
+                    continue
+                for count in range(1, most + 1):
+                    if count == barred:
+                        continue
+                    moved = (sums << count) & within
+                    if not moved:
+                        break
+                    parts = list(state)
+                    parts[0] = state[0] + 1
+                    parts[1 + 2 * index] = took + 1
+                    parts[2 + 2 * index] = min(rows, holds + min(count, share))
+                    key = tuple(parts)
+                    _reached(grown, key, moved)
+        layer = grown
+    for state in layer:
+        if not (layer[state] >> population) & 1:
+            continue
+        placed = True
+        for index in range(len(groups)):
+            if state[2 + 2 * index] < groups[index][0]:
+                placed = False
+        if placed:
             return True
     return False
+
+
+def _reached(
+    layer: "dict[tuple[int, ...], int]", state: "tuple[int, ...]", sums: int
+) -> None:
+    """Add ``sums`` to what ``state`` reaches in ``layer``."""
+    if state in layer:
+        layer[state] = layer[state] | sums
+    else:
+        layer[state] = sums
+
+
+def _spread(sums: int, low: int, high: int, barred: int) -> int:
+    """The sums ``sums`` reaches, each moved up by every count from ``low`` to ``high`` but ``barred``."""
+    if high < low:
+        return 0
+    if low <= barred <= high:
+        return _spread(sums, low, barred - 1, -1) | _spread(sums, barred + 1, high, -1)
+    out = 0
+    step = sums
+    span = 1
+    offset = low
+    width = high - low + 1
+    while width:
+        if width & 1:
+            out = out | (step << offset)
+            offset = offset + span
+        step = step | (step << span)
+        span = span * 2
+        width = width >> 1
+    return out
 
 
 def with_thousands_mark(text: str, mark: str) -> str:
@@ -5782,6 +5902,9 @@ def absorbed_census(
     floor: int,
     names: int,
     default: str = "",
+    room: int = -1,
+    capacities: "list[int] | None" = None,
+    groups: "tuple[tuple[int, int, tuple[int, ...]], ...]" = (),
 ) -> "dict[str, int]":
     """A tally of marks, offsets, forms or widths, as the disclosure rule allows.
 
@@ -5812,8 +5935,9 @@ def absorbed_census(
     told apart from a name no cell wrote.
 
     WHERE NO NAME REACHES THE LINE the census is one pool of the
-    population the block already prints -- except on a closed vocabulary
-    where `census_pools` refuses the pool, and there the whole population
+    population the block already prints -- except where `census_pools`
+    refuses the pool, asked with the caller's ``room``, ``capacities``
+    and ``groups`` (the second review of follow-up B), and there the whole population
     is counted under the COMMONEST NAME THE CELLS WROTE, ties to the
     first in sorted order, exactly as a rare count is counted into the
     commonest named one above. ``default``, the name the caller gives
@@ -5836,12 +5960,13 @@ def absorbed_census(
 
     Guarantees: accepts the full tally (no `(withheld)` key), the
     published total it covers, the settings floor, the size of the
-    closed vocabulary (nought for an open one) and its default name;
+    closed vocabulary (nought for an open one), its default name and
+    what `census_pools` reads beside them;
     returns `{}` for no population, a single `(withheld)` pool or the
     single commonest name the cells wrote where no count reaches the
     line, and otherwise the names at the line or above, keys in sorted
-    order, summing to the population. Determinism: a function of the five. Raises nothing. No
-    I/O of any kind.
+    order, summing to the population. Determinism: a function of the
+    eight. Raises nothing. No I/O of any kind.
     """
     if population <= 0:
         return {}
@@ -5857,7 +5982,7 @@ def absorbed_census(
         if not commonest or counts[name] > named[commonest]:
             commonest = name
     if not commonest:
-        if not census_pools(population, floor, names):
+        if not census_pools(population, floor, names, room, capacities, groups):
             # ...AND THE NAME IT TAKES IS ONE THE CELLS WROTE (plan
             # P4-D242). The vocabulary's own default name stood here and
             # published a name NO CELL of the column wore: twenty-four
