@@ -1622,12 +1622,15 @@ INVARIANTS = {
     ),
     "WC9": (
         "a weekday census is published only where neither its weekend "
-        "nor its Monday to Friday together holds from one row to the "
-        "census line, and the most that half of the week can hold in the "
-        "stretches the rank facts keep below the line, more than the "
-        "least the rest of the description allows it: a census so near "
-        "that least is always withheld, so that being withheld says "
-        "nothing about how few rows a set of dates holds"
+        "nor its Monday to Friday together lies in its band: from the "
+        "larger of one and the least the rest of the description allows "
+        "that half, through the most it can hold in the stretches the rank "
+        "facts keep below the line and as few rows more, at most the "
+        "census line, as leave the tables always withheld certified; a "
+        "census so near that least "
+        "is always withheld, so that being withheld says nothing about how "
+        "few rows a set of dates holds, and the loader refuses one inside "
+        "the band with no rows more"
     ),
     "Q1": (
         "the row count a column of numbers repeats is the row count of "

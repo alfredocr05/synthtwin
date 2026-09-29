@@ -1228,16 +1228,21 @@ def certify(facts: Facts) -> Verdict:
 # thirteen published the seven counts. So every withholding the table's own
 # numbers decide is said in ONE sentence, and that sentence is published
 # only where its set is certified the way a census is: its sure part W0 --
-# the tables whose weekend, or whose Monday to Friday together, holds at
-# least one row and at most the line, and what the capped stretches can
-# take in that half, more than the least any table of stage 3's facts
-# lets it hold, the BAND, which the producer always
-# withholds -- has a witness putting the line on a day of every class, or
-# the class is residue whose every stage-3 configuration W0 allows. Every
-# table withheld is then in a set holding W0, and a set holding a
-# certified set confines nothing either. Where W0 is not certified the
-# census is withheld whatever the table, which the published numbers
-# alone decide and so says nothing. W0's CLASSES ARE COARSER than a
+# the tables whose weekend, or whose Monday to Friday together, lies in its
+# BAND, which the producer always withholds -- has a witness putting the
+# line on a day of every class, or the class is residue whose every
+# stage-3 configuration W0 allows. Every table withheld is then in a set
+# holding W0, and a set holding a certified set confines nothing either.
+# ANY CERTIFIED W0 WILL DO, so the band is the NARROWEST that certifies
+# (the review's second round): from the larger of one and the least any
+# table of stage 3's facts puts in that half, through what the capped
+# stretches can take there and `width` rows more, the least `width` whose
+# W0 is certified -- at most the census line past the least, as the band
+# always reached, whose cost was real censuses kept back: a weekend market
+# with thirty to forty Wednesday rows stood inside the band that line
+# spanned, and publishes now. Where no width certifies, the census is
+# withheld whatever the table, which the published numbers alone decide
+# and so says nothing. W0's CLASSES ARE COARSER than a
 # census's: what W0 asks of a table is its rank facts, its count of
 # different days and its two half totals, so exchanging two days of one
 # stretch between two knots and one half of the week changes nothing W0
@@ -1342,11 +1347,33 @@ def _least_half(facts: Facts, weekend: bool, tally: "list[int]") -> int:
 
 
 def _band(least: int, line: int, capped: int) -> "tuple[int, int]":
-    """At least one row, and at most the line and what the capped stretches
-    can put in this half beyond the least the half can hold."""
+    """The WIDEST band: at least one row, and at most the line and what the
+    capped stretches can put in this half beyond the least the half can
+    hold."""
     if least < 0:
         return (1, 0)
     return (max(1, least), least + line + capped)
+
+
+def _narrowed(banded: "Bands", width: int, solves: int) -> "Bands":
+    """The bands `width` rows past the larger of one and each half's least
+    and what its capped stretches can take, never past the widest band."""
+    halves: "list[tuple[int, int]]" = []
+    for band, capped in ((banded.weekend, banded.capped[0]), (banded.weekdays, banded.capped[1])):
+        if band[0] > band[1]:
+            halves += [band]
+        else:
+            halves += [(band[0], min(band[0] + capped + width, band[1]))]
+    return dataclasses.replace(banded, weekend=halves[0], weekdays=halves[1], solves=solves)
+
+
+def _widest_width(banded: "Bands") -> int:
+    """The width at which `_narrowed` gives the widest bands back."""
+    width = 0
+    for band, capped in ((banded.weekend, banded.capped[0]), (banded.weekdays, banded.capped[1])):
+        if band[0] <= band[1]:
+            width = max(width, band[1] - band[0] - capped)
+    return width
 
 
 def _capped_cells(facts: Facts, weekend: bool) -> int:
@@ -1386,9 +1413,13 @@ def withholding(
 
     The BANDS: the least cells the weekend, and the least Monday to
     Friday together, hold over the tables meeting stage 3's facts on the
-    reader's bounds and the holes; each band runs from the larger of one
-    and that least to the least plus the line plus what the capped
-    stretches can take in that half (`bands`). Then W0, the tables whose
+    reader's bounds and the holes (`bands`); each band runs from the
+    larger of one and that least through what the capped stretches can
+    take in that half and `width` rows more (`_narrowed`), and the width
+    is the least whose W0 is certified: nought first, then the widest --
+    the least plus the line plus the capped stretches, the band as it
+    stood before -- then halving between them. Where the widest is not
+    certified either, its answer stands. W0 is the tables whose
     weekend lies in its band or whose weekdays lie in theirs: every class
     -- a knot day, or the days of one stretch between two knots in one
     half of the week (`_pooled`) -- needs a witness in W0 putting the
@@ -1412,13 +1443,27 @@ def withholding(
         parsed, rows_low, rows_high, low, high, rungs, reader_fewest,
         reader_most, line, holes,
     )
-    answer = _withheld_certified(
-        facts_of(
-            parsed, rows_low, rows_high, low, high, rungs, reader_fewest,
-            reader_most, line, _HALVES, -1, holes,
-        ),
-        banded,
+    given = facts_of(
+        parsed, rows_low, rows_high, low, high, rungs, reader_fewest,
+        reader_most, line, _HALVES, -1, holes,
     )
+    answer = _withheld_certified(given, _narrowed(banded, 0, banded.solves))
+    widest = _widest_width(banded)
+    if not answer.holds and widest > 0:
+        answer = _withheld_certified(given, _narrowed(banded, widest, answer.solves))
+        found = answer
+        first, last = 1, widest
+        while answer.holds and first < last:
+            middle = (first + last) // 2
+            tried = _withheld_certified(given, _narrowed(banded, middle, found.solves))
+            if tried.holds:
+                last = middle
+                found = tried
+            else:
+                first = middle + 1
+                found = dataclasses.replace(found, solves=tried.solves)
+        if answer.holds:
+            answer = found
     if len(_WITHHOLDINGS) >= _ANSWERS_KEPT:
         for known in list(_WITHHOLDINGS):
             del _WITHHOLDINGS[known]
@@ -1432,15 +1477,17 @@ _BANDS: "dict[tuple[object, ...], Bands]" = {}
 
 @dataclasses.dataclass(frozen=True)
 class Bands:
-    """The two BANDS: the weekend and Monday to Friday totals always withheld.
+    """Two BANDS: weekend and Monday to Friday totals, each `(least, most)`.
 
-    Each `(least, most)`, `(1, 0)` where no table meeting stage 3's facts
-    is found; `solves` how many networks were solved.
+    `(1, 0)` where no table meeting stage 3's facts is found; `solves`
+    how many networks were solved; `capped` what the capped stretches can
+    take in the weekend and in Monday to Friday (`_capped_cells`).
     """
 
     weekend: "tuple[int, int]"
     weekdays: "tuple[int, int]"
     solves: int
+    capped: "tuple[int, int]" = (0, 0)
 
 
 def bands(
@@ -1455,16 +1502,16 @@ def bands(
     line: int,
     holes: "tuple[int, ...]" = (),
 ) -> Bands:
-    """The two bands, from the published numbers alone (`withholding`).
+    """The two WIDEST bands, from the published numbers alone (`withholding`).
 
     The least cells the weekend, and Monday to Friday together, hold
     over the tables meeting stage 3's facts on the reader's bounds and
     the holes, asked on the census side's network so every table found
     is a table; each band runs from the larger of one and that least to
     the least plus the line plus the most that half can take in the
-    stretches the rank facts cap below the line (`_capped_cells`). Asked
-    by the producer and by the loader (WC9). CACHED ON THE WHOLE
-    QUESTION.
+    stretches the rank facts cap below the line (`_capped_cells`), which
+    it carries. `withholding` narrows them to the least width certified,
+    and the loader (WC9) to width nought. CACHED ON THE WHOLE QUESTION.
 
     Guarantees: accepts the description's numbers; returns the bands.
     Determinism: a function of the arguments. Raises nothing. No I/O.
@@ -1483,10 +1530,12 @@ def bands(
             reader_most, line, _HALVES, -1, holes,
         )
     )
+    capped = (_capped_cells(facts, True), _capped_cells(facts, False))
     answer = Bands(
-        _band(_least_half(facts, True, tally), line, _capped_cells(facts, True)),
-        _band(_least_half(facts, False, tally), line, _capped_cells(facts, False)),
+        _band(_least_half(facts, True, tally), line, capped[0]),
+        _band(_least_half(facts, False, tally), line, capped[1]),
         tally[0],
+        capped,
     )
     if len(_BANDS) >= _ANSWERS_KEPT:
         for known in list(_BANDS):
@@ -1730,8 +1779,11 @@ def breach(
     to the body; WC4 the grouping is an entry of the menu; WC6 the
     published forms give every date one text; WC5 no group is left one
     to the line less one once the knot days' sure cells are taken out;
-    then WC9, no weekend and no Monday to Friday inside its BAND, the
-    totals the producer always withholds (`bands`, `in_band`), asked
+    then WC9, no weekend and no Monday to Friday inside its NARROWEST
+    band, the band at width nought (`_narrowed`), which every band the
+    producer withholds holds -- asked without the withholding's own
+    certificate, which the producer asks and the loader need not repeat
+    to refuse what the producer never writes (`bands`, `in_band`) -- asked
     where any day can hold the line at all; then WC7 and WC8 (`check`, on
     the reader's bounds, with `holes` -- every hole the description
     publishes, `calendar_rules.public_holes`). The
@@ -1803,19 +1855,23 @@ def breach(
             f"counted must be nought or at least {line}",
         )
     if not ties_refused(body, fewest, line):
-        banded = bands(
+        widest = bands(
             parsed, rows_low, rows_high, low, high, rungs, fewest, most,
             line, holes,
         )
+        banded = _narrowed(widest, 0, widest.solves)
         if in_band(groups, banded):
             return (
                 "WC9",
                 "the weekday census",
                 "the weekend, and Monday to Friday together, must each hold "
-                "none or more than the census line beyond the least the rest "
-                f"of this description allows it: a weekend of {banded.weekend[0]} "
-                f"to {banded.weekend[1]} rows, and Monday to Friday of "
-                f"{banded.weekdays[0]} to {banded.weekdays[1]}, are withheld",
+                "none, or more than the larger of one and the least the rest "
+                "of this description allows that half, and the most it can "
+                "hold in the stretches the rank facts keep below the line: a "
+                "weekend of "
+                f"{banded.weekend[0]} to {banded.weekend[1]} rows, and Monday "
+                f"to Friday of {banded.weekdays[0]} to {banded.weekdays[1]}, "
+                "are always withheld",
             )
     verdict = check(
         parsed, rows_low, rows_high, low, high, rungs, fewest, most, line,
@@ -1834,5 +1890,7 @@ def breach(
         "WC8",
         "the weekday census",
         f"every day of a counted weekday must be able to hold {line} rows in "
-        f"some table meeting this description ({verdict.detail})",
+        "some table meeting this description, or lie where the rank facts "
+        "already hold it below the line and the census allows everything "
+        f"the rest of the description allows there ({verdict.detail})",
     )

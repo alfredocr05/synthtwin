@@ -300,8 +300,9 @@ def test_a_withheld_census_names_no_rule_the_table_decides() -> None:
     grouping holds the line in every group" told a reader the weekend
     held one to ten rows, while the same facts with thirteen weekend rows
     published the seven counts. Now the census is withheld because its
-    weekend lies in its BAND -- one row to the line more than the least
-    any table of its facts holds there -- which the producer ALWAYS
+    weekend lies in its BAND -- from the least any table of its facts
+    holds there, through the fewest rows more whose tables certify, at
+    most the line -- which the producer ALWAYS
     withholds, and the withholding is certified: the tables it keeps back
     include one putting the line on a day of every class, so being told
     "withheld" confines no set of days. The sentence names no rule. The
@@ -325,7 +326,7 @@ def test_a_withheld_census_names_no_rule_the_table_decides() -> None:
     assert decided.reason == calendar_rules.REASON_BAND and decided.said == calendar_rules.REASON_UNSAID
     assert decided.withheld is not None and decided.withheld.holds
     least, most = decided.withheld.weekend
-    assert least <= 1 and most >= 11, decided.withheld.weekend
+    assert least <= 1 <= most, decided.withheld.weekend
 
 
 def _outcome(instance: dict, table: "tuple[int, ...]", answer: calendar_certificate.Withholding) -> object:
@@ -1011,3 +1012,63 @@ def test_no_twin_of_the_reviews_draws_loses_a_day_to_the_census(tmp_path: pathli
                 lost += [(draw, seed)]
     assert columns >= 100, columns
     assert lost == [], lost
+
+
+# -- the review's second round: the band is the narrowest that certifies -----------
+
+
+def _weekend_market(seed: int, midweek: int) -> "list[str]":
+    """400 to 1,200 weekend rows over 180 to 364 days of 2024 and `midweek`
+    Wednesday rows, drawn with `Random(4000 + seed)` (the second skeptic's markets)."""
+    draw = random.Random(4000 + seed)
+    span = [datetime.date(2024, 1, 1) + datetime.timedelta(days=step) for step in range(draw.randint(180, 364))]
+    weekends = [day for day in span if day.weekday() >= 5]
+    wednesdays = [day for day in span if day.weekday() == 2]
+    weights = [draw.uniform(0.5, 1.5) for _ in weekends]
+    cells = [draw.choices(weekends, weights)[0].isoformat() for _ in range(draw.randint(400, 1200))]
+    cells += [draw.choice(wednesdays).isoformat() for _ in range(midweek)]
+    draw.shuffle(cells)
+    return cells
+
+
+def _business_log(seed: int, weekend: int) -> "list[str]":
+    """400 to 2,000 business-day rows over 120 to 364 days of 2023 and `weekend`
+    weekend rows, drawn with `Random(4100 + seed)` (the second skeptic's logs)."""
+    draw = random.Random(4100 + seed)
+    span = [datetime.date(2023, 1, 2) + datetime.timedelta(days=step) for step in range(draw.randint(120, 364))]
+    weekdays = [day for day in span if day.weekday() < 5]
+    weekends = [day for day in span if day.weekday() >= 5]
+    weights = [draw.uniform(0.5, 1.5) for _ in weekdays]
+    cells = [draw.choices(weekdays, weights)[0].isoformat() for _ in range(draw.randint(400, 2000))]
+    cells += [draw.choice(weekends).isoformat() for _ in range(weekend)]
+    draw.shuffle(cells)
+    return cells
+
+
+def test_the_band_is_the_narrowest_whose_withheld_tables_certify(tmp_path: pathlib.Path) -> None:
+    """A weekend market beside 40 Wednesday rows publishes; a business log's band widens only as far as it must.
+
+    The band always reached the census line past its least: the market's
+    count of different days forces some 29 Wednesdays, so its Monday to
+    Friday band ran to 40 and the forty real rows were withheld whatever
+    they held (the second skeptic's measurement). Any certified W0 will
+    do, so the band is the narrowest whose tables certify, and the census
+    publishes, and loads. A business log beside 40 weekend rows certifies
+    at no width of nought or one: its band widens as far as it must, and
+    stays narrower than the line past its least. Red when the band is the
+    widest (the market is withheld), when the width of nought is taken
+    uncertified (the log is withheld), and when the loader asks the widest
+    band (the market's census is refused).
+    """
+    for name, cells in (("market", _weekend_market(2, 40)), ("log", _business_log(0, 40))):
+        text = "visit\n" + "".join(f"{cell}\n" for cell in cells)
+        described = kpi_shapes.describe(tmp_path / name, name, text, 11)
+        assert described.block("visit")["weekday_census"], (name, described.document["publication_notes"])
+        _profile, decided = _decided(cells)
+        assert decided.withheld is not None and decided.withheld.holds, name
+        if name == "market":
+            least, most = decided.withheld.weekdays
+            assert least <= 29 and most < 40, decided.withheld.weekdays
+        else:
+            first, last = decided.withheld.weekend
+            assert 0 < last - first < 11, decided.withheld.weekend
