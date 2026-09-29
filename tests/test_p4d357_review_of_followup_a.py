@@ -932,6 +932,46 @@ def test_every_value_pass_writes_a_stand_in_the_column_keeps() -> None:
             assert theirs == kept, f"{name}: the generator answers {kept!r}, the oracle {theirs!r}"
 
 
+def test_the_mirrored_marks_run_asks_the_stand_in_with_the_column_s_own_sign() -> None:
+    """The negative side of plan P4-D194's run: `999` turned about nought is `-999`, refused unless kept.
+
+    Five negative strata, 45 cells reaching a thousand in size against a
+    census of 40 marks: the run from a thousand takes the stratum of 5 on
+    `-1000` to the free point just inside a thousand. Turned about nought
+    that point is `999`, which is no stand-in; with the column's own sign it
+    is `-999`, which is, so the stratum takes `-998` -- and `-999` where the
+    column keeps it. The oracle, which walks the negative side as written,
+    agrees on both.
+    """
+    import types
+
+    from synthtwin import generation
+
+    values = [-1500.0, -1001.0, -1000.0, -500.0, -100.0]
+    sizes = [20, 20, 5, 20, 20]
+    layout = types.SimpleNamespace(sizes=tuple(sizes), bands=("negative",) * 5)
+    column: "dict[str, object]" = {
+        "thousands_marks": {",": 40},
+        "fraction_widths": {},
+        "numeric_styles": {"plain": 85},
+        "n_negative": 85,
+        "sentinel_verdicts": [],
+    }
+    for kept, want in (((), -998.0), ((-999.0,), -999.0)):
+        facts = types.SimpleNamespace(
+            thousands_marks={",": 40}, integer_valued=True, fraction_widths={}, pad_widths={},
+            numeric_styles={"plain": 85}, n_negative=85, kept_stand_ins=kept,
+        )
+        ours = generation._grouped_enough(types.SimpleNamespace(), facts, layout, list(values), 11)  # type: ignore[arg-type]
+        if kept:
+            column["sentinel_verdicts"] = [
+                {"candidate": "-999", "verdict": "kept_as_a_number", "reason": "not_an_outlier",
+                 "n_occurrences": 20, "spellings": []}
+            ]
+        theirs = _oracle().grouped_enough(column, list(values), sizes, ["negative"] * 5, True, 85, 11)
+        assert ours == theirs == [-1500.0, -1001.0, want, -500.0, -100.0], (kept, ours, theirs)
+
+
 # The value passes that ask a helper whether a point is a stand-in, by the
 # helper each hands the column's kept stand-ins to.
 _HANDED_KEPT = (
