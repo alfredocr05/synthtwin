@@ -6,10 +6,14 @@ the floor" is stage 3b's gate as the plan of record states it
 it true, and landing 3b.0 (plan P4-D354) makes the first one true:
 
 * `test_every_day_filled` -- where a column of dates holds a value on
-  EVERY day of its range, its twin holds every one of those days: the
-  twin validates with nothing missed, holds as many different days (or
-  seconds) as the real column, and its own report finds each published
-  approximation inside its window. Before the landing a tail's tie group
+  EVERY day of its range, its twin validates with nothing missed, holds
+  as many different days (or seconds) as the real column and none past
+  the two ends its tails derive, and its own report finds each published
+  approximation inside its window; where the derived ends are the real
+  first and last unit it holds exactly the real units, and where one
+  stands past a real end (four of the eleven cases, `_UNSETTLED`, the
+  review of landing 3b.0's item 3) it writes that end in place of one
+  real unit inside. Before the landing a tail's tie group
   stood on ONE distance and its gap was that point, so the count pass
   could not split it: two years of admissions, 731 days, came back as
   730 at every seed, both distinct counts MISSED; billing dates as 729;
@@ -322,6 +326,22 @@ def _small_tail_group() -> "tuple[str, list[str], int]":
     return "seen_on", cells, len(_SMALL_COUNTS)
 
 
+# How many cells each of the 32 days from 2024-01-01 holds: the review of
+# landing 3b.0's item 3, 100 dates filling every day of their range.
+_THIRTY_TWO_COUNTS = (
+    5, 1, 3, 1, 4, 4, 4, 4, 2, 1, 4, 1, 4, 4, 5, 1, 13, 3, 2, 5, 1, 3, 1, 1,
+    1, 5, 1, 4, 2, 4, 1, 5,
+)
+
+
+def _thirty_two_days() -> "tuple[str, list[str], int]":
+    cells: "list[str]" = []
+    for step in range(len(_THIRTY_TWO_COUNTS)):
+        day = datetime.date(2024, 1, 1) + datetime.timedelta(days=step)
+        cells += [day.isoformat()] * _THIRTY_TWO_COUNTS[step]
+    return "seen_on", cells, len(_THIRTY_TWO_COUNTS)
+
+
 _BUILDERS = {
     "admissions": _admissions,
     "billing": _billing,
@@ -329,6 +349,7 @@ _BUILDERS = {
     "midnight_moments": _midnight_moments,
     "every_second": _every_second,
     "small_tail_group": _small_tail_group,
+    "thirty_two_days": _thirty_two_days,
 }
 
 # Each shape at the floor its base twin fell short at, and the two
@@ -344,7 +365,22 @@ EVERY_DAY_CASES = (
     ("admissions", 36),
     ("billing", 1),
     ("billing", 36),
+    ("thirty_two_days", 11),
 )
+
+# THE CASES WHOSE PUBLISHED FACTS DO NOT SETTLE WHICH UNITS THE TWIN HOLDS
+# (plan P4-D354's recorded limit, P4-D358): a tail's derived end stands one
+# unit past the real column's first or last, so the twin writes that unit
+# and holds one real unit fewer inside the range -- billing's day before
+# 2023, the 300 days' day before 2024, the second after the ten minutes,
+# and both of the 32 days' neighbours. Every other case's two derived ends
+# are the real ends, and there the twin holds the real column's units.
+_UNSETTLED = {
+    ("billing", 11),
+    ("short_range", 36),
+    ("every_second", 11),
+    ("thirty_two_days", 11),
+}
 
 
 def _unit(cell: str) -> str:
@@ -356,7 +392,15 @@ def _unit(cell: str) -> str:
     "shape,floor", EVERY_DAY_CASES, ids=[f"{shape}-{floor}" for shape, floor in EVERY_DAY_CASES]
 )
 def test_every_day_filled(tmp_path: pathlib.Path, shape: str, floor: int) -> None:
-    """Every day of the range filled comes back as every day, at seeds 0 to 4."""
+    """A filled range comes back with as many units, and the same ones where the facts settle them.
+
+    At seeds 0 to 4: nothing missed, as many different units as the real
+    column, no unit beyond the two ends the tails derive, and -- where
+    those ends are the real column's first and last unit -- exactly the
+    real column's units. Where a derived end stands past a real end
+    (`_UNSETTLED`), the units beyond the real ends are those derived ends
+    and nothing else, each in place of one real unit inside.
+    """
     name, cells, span = _BUILDERS[shape]()
     real = {_unit(cell) for cell in cells}
     assert len(real) == span, (
@@ -365,6 +409,28 @@ def test_every_day_filled(tmp_path: pathlib.Path, shape: str, floor: int) -> Non
     )
     text = name + "\n" + "".join(f"{cell}\n" for cell in cells)
     described = kpi_shapes.describe(tmp_path, f"{shape}-{floor}", text, floor)
+    facts = described.loaded.columns[0].facts
+    assert isinstance(facts, contract.DatetimeFacts)
+    layout = _layout(described.loaded, floor)
+    assert layout.low is not None and layout.high is not None
+    # A TAIL'S DERIVED END, or the outermost value a tail that lists its
+    # values publishes.
+    ends = (
+        generation._tail_place(
+            layout.low, layout.low.shape.end if layout.low.shape is not None else layout.low.fixed[0]
+        ),
+        generation._tail_place(
+            layout.high, layout.high.shape.end if layout.high.shape is not None else layout.high.fixed[0]
+        ),
+    )
+    units = sorted({generation._written_ordinal(cell, facts) for cell in cells})
+    first, last = units[0], units[len(units) - 1]
+    assert first is not None and last is not None
+    settled = ends == (first, last)
+    assert settled is ((shape, floor) not in _UNSETTLED), (
+        f"{shape} at floor {floor}: derived ends {ends}, real ends {(first, last)}"
+    )
+    beyond_the_ends = {end for end in ends if not first <= end <= last}
     for seed in SEEDS:
         twin = generation.generate(described.loaded, seed)
         written = rendering.twin_csv(twin)
@@ -375,6 +441,19 @@ def test_every_day_filled(tmp_path: pathlib.Path, shape: str, floor: int) -> Non
             f"{shape} at floor {floor}, seed {seed}: the twin holds {len(held)} "
             f"different units where the real column holds all {span}"
         )
+        placed = {generation._written_ordinal(line, facts) for line in written.splitlines()[1:] if line}
+        assert None not in placed, f"{shape} at floor {floor}, seed {seed}"
+        assert {unit for unit in placed if unit is not None and not ends[0] <= unit <= ends[1]} == set(), (
+            f"{shape} at floor {floor}, seed {seed}: a unit beyond the derived ends"
+        )
+        if settled:
+            assert held == real, f"{shape} at floor {floor}, seed {seed}: {sorted(held ^ real)}"
+        else:
+            outside_the_real = {unit for unit in placed if unit is not None and not first <= unit <= last}
+            assert outside_the_real == beyond_the_ends, (
+                f"{shape} at floor {floor}, seed {seed}: {sorted(outside_the_real)}"
+            )
+            assert len(real - held) == len(beyond_the_ends), f"{shape} at floor {floor}, seed {seed}"
         outside = sorted(
             approximation.fact
             for approximation in twin.approximations
@@ -1239,6 +1318,156 @@ def test_the_count_is_met_where_no_placement_inside_the_gaps_reaches_it(
         )
 
 
+
+
+def _drawn_past_the_strata() -> "tuple[list[str], int]":
+    """114 ISO dates over the 245 days from 2023-01-01, 35 different, at a floor of 50.
+
+    Drawn exactly as the review of landing 3b.0 drew its item 1, so the
+    column is the one that measured the defect.
+    """
+    draw = random.Random(982004)
+    rows = draw.randrange(100, 241)
+    span = draw.randrange(35, 350)
+    floor = draw.choice((11, 36, 50))
+    weights = [
+        draw.lognormvariate(0, draw.choice((0.4, 1, 2))) if draw.random() > 0.25 else 0
+        for _step in range(span)
+    ]
+    steps = draw.choices(range(span), weights=weights, k=rows)
+    cells = [(datetime.date(2023, 1, 1) + datetime.timedelta(days=step)).isoformat() for step in steps]
+    assert (rows, floor, len(set(cells))) == (114, 50, 35)
+    return cells, floor
+
+
+def test_a_count_the_pass_meets_past_the_strata_is_held_exactly(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The review of landing 3b.0, item 1: the envelope follows the pass (P4-D358).
+
+    Counted in the strata alone, G12.5's lower end for this column stood
+    at 39, above the 35 different dates it publishes, so neither the
+    validator nor the twin's report held the count exactly: the twin the
+    pass writes held 35, and a file holding 60 -- the pass past the strata
+    withdrawn -- was WITHIN-BOUND of 39 to 114 with nothing missed, and
+    inside the report's bound. Where the count is reachable, an unpinned
+    rank of a shape-drawn tail is now windowed as far as the pass may
+    take it, the published count lies inside the envelope, and both hold
+    it exactly: the twin's count HELD, the file of 60 MISSED on both
+    counts, the report's bound the published count alone.
+    """
+    cells, floor = _drawn_past_the_strata()
+    described = kpi_shapes.describe(
+        tmp_path, "past_the_strata", "c\n" + "".join(f"{cell}\n" for cell in cells), floor
+    )
+    column = described.loaded.columns[0]
+    facts = column.facts
+    assert isinstance(facts, contract.DatetimeFacts)
+    assert contract.datetime_counts_reachable(column)
+    lowest, highest = validation._datetime_distinct_window(column, facts, floor, "")
+    assert lowest <= column.n_distinct <= highest, (lowest, highest)
+    text = kpi_shapes.twin_text(described, 3)
+    verdicts = {
+        check.subcheck: check.verdict
+        for check in kpi_shapes.measure(described, text, "met.csv").checks
+    }
+    assert verdicts["distinct.n_distinct"] == validation.HELD
+    assert verdicts["distinct.n_distinct_folded"] == validation.HELD
+    monkeypatch.setattr(generation, "_count_met_past_the_strata", lambda *arguments: False)
+    twin = generation.generate(described.loaded, 3)
+    written = rendering.twin_csv(twin)
+    assert len({line for line in written.split("\n")[1:] if line}) == 60
+    outcome = kpi_shapes.measure(described, written, "withdrawn.csv")
+    missed = kpi_shapes.missed(outcome)
+    assert "c:distinct.n_distinct" in missed and "c:distinct.n_distinct_folded" in missed, missed
+    records = {record.fact: record for record in twin.approximations}
+    for fact in ("n_distinct", "n_distinct_folded"):
+        record = records[fact]
+        assert (record.lowest, record.highest, record.inside) == ("35", "35", False), fact
+
+
+def test_the_fewest_units_are_counted_in_the_order_of_the_windows_upper_ends() -> None:
+    """G12.5's lower end is the stabbing of the windows, in upper-end order (P4-D358).
+
+    Windows past the strata need not arrive in order of both ends, and a
+    walk in rank order keeps a wide first window and skips every window
+    it touches: over [0, 10], [2, 3] and [5, 6] it counts one where two
+    are forced apart. Both writings of the count, the validator's and the
+    report's, count two.
+    """
+    assert validation._ranks_forced_apart([0, 2, 5], [10, 3, 6]) == 2
+    assert generation._forced_apart([0, 2, 5], [10, 3, 6]) == 2
+
+
+def test_the_envelope_follows_the_pass_only_where_the_count_is_reachable(
+    tmp_path: pathlib.Path,
+) -> None:
+    """G12.5's windows past the strata stand only where the pass may use them.
+
+    The column above written as midnight moments, every other cell marked
+    with `T` and the rest with a space: two marks, so one instant has two
+    spellings, the count is not reachable (contract
+    `datetime_counts_reachable`) and the pass never runs. The validator's
+    rank windows and the report's are then the strata as G12.4 draws them,
+    where the reachable column's are wider.
+    """
+    cells, floor = _drawn_past_the_strata()
+    for marked in (False, True):
+        written = [
+            f"{cell}{'T' if place % 2 else ' '}00:00:00" if marked else cell
+            for place, cell in enumerate(cells)
+        ]
+        described = kpi_shapes.describe(
+            tmp_path, f"envelope-{marked}", "c\n" + "".join(f"{cell}\n" for cell in written), floor
+        )
+        column = described.loaded.columns[0]
+        facts = column.facts
+        assert isinstance(facts, contract.DatetimeFacts)
+        assert contract.datetime_counts_reachable(column) is not marked
+        dated = column.n_present - facts.n_unparsed
+        lows, highs = validation._rank_windows(facts, dated, column, floor, "")
+        past = validation._past_the_strata(column, facts, dated, floor, "", lows, highs)
+        layout = _layout(described.loaded, floor)
+        drawn = generation._datetime_window(layout, facts, dated)
+        report = generation._past_the_strata_windows(layout, drawn[0], drawn[1])
+        assert (past == (lows, highs)) is marked, f"marked {marked}: the validator"
+        records = {record.fact: record for record in generation.generate(described.loaded, 3).approximations}
+        strata = generation._forced_apart(drawn[0], drawn[1])
+        widened = generation._forced_apart(report[0], report[1])
+        assert widened < strata, "the pass could meet no lower count here"
+        if marked:
+            assert int(records["n_distinct"].lowest) >= strata, "the report widened an unreachable count"
+            continue
+        # EACH UNPINNED RANK OF A SHAPE-DRAWN TAIL reaches from the tail's
+        # outermost rank to one tail unit short of the boundary, and keeps
+        # its own reading allowance: the validator's windows in seconds, the
+        # report's in days.
+        assert layout.low is not None and layout.high is not None
+        tails = (
+            (layout.low, facts.low_tail, range(layout.low.rows)),
+            (layout.high, facts.high_tail, range(dated - 1, dated - 1 - layout.high.rows, -1)),
+        )
+        for plan, tail, ranks in tails:
+            assert tail is not None
+            boundary = validation._ordinal_of(tail.boundary, facts.resolution)
+            ranks = [rank for rank in ranks if lows[rank] < highs[rank]]
+            assert ranks, "no unpinned rank in the tail"
+            for rank in ranks:
+                if plan.low_side:
+                    assert (past[0][rank], past[1][rank]) == (
+                        min(lows[rank], lows[0]), max(highs[rank], boundary - 86400)
+                    ), rank
+                    assert (report[0][rank], report[1][rank]) == (
+                        min(drawn[0][rank], drawn[0][0]), max(drawn[1][rank], plan.anchor - 1)
+                    ), rank
+                else:
+                    assert (past[0][rank], past[1][rank]) == (
+                        min(lows[rank], boundary + 86400), max(highs[rank], highs[dated - 1])
+                    ), rank
+                    assert (report[0][rank], report[1][rank]) == (
+                        min(drawn[0][rank], plan.anchor + 1), max(drawn[1][rank], drawn[1][dated - 1])
+                    ), rank
+            assert any(past[0][rank] < lows[rank] or past[1][rank] > highs[rank] for rank in ranks)
 
 # ---------------------------------------------------------------------
 # THE REVIEW OF LANDING 3b.0, ITEMS 2 AND 4 (plan P4-D358): a day the

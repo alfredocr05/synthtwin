@@ -5827,8 +5827,10 @@ that way.
 P4-D358; the review of landing 3b.0, items 2 and 4). A HOLE is a unit an
 absent spelling of the run -- the column's own and every other column's
 -- names, read under the column's own member, on a column counted in
-days, months or quarters; a column counted in seconds or minutes has
-none, since it keeps a cell off an absent spelling by its mark (G7.5).
+days, months or quarters, wherever the spelling step would move a rank
+off it; a column counted in seconds or minutes has none, and neither has
+one of moments at midnight whose member has another mark to give, since
+each keeps a cell off an absent spelling by its mark (G7.5).
 Before the first round, each rank the passes may move that was drawn
 onto a hole moves, in rank order, to the nearest unit inside its gap
 that is no hole and of its own standing, earlier before later at one
@@ -11649,11 +11651,19 @@ two ends are that rank's own two ends above.
 ### G12.5 The envelope on datetime `n_distinct` and `n_distinct_folded`
 
 **The lower end.** Two ranks whose windows of G12.4 do not overlap
-cannot hold the same instant. Let `F` be the largest number of ranks
-whose windows are pairwise separate — taken in one walk, since the
-windows arrive in non-decreasing order of both ends: keep the first
-rank, then keep each later rank whose lower end is strictly above the
-last kept rank's upper end. Every cell that did not read as a date is a
+cannot hold the same instant. Where the column's count is reachable
+(contract `datetime_counts_reachable`), G7.3 may meet it with an
+unpinned rank of a tail drawn through its shape standing past its
+stratum, so each such rank's window reaches from its own out to its
+tail's outermost rank's and in to the tail unit next to the boundary
+(plan P4-D358; the review of landing 3b.0, item 1: counted in the strata
+alone, 114 dates of 35 different days at a floor of 50 drew a lower end
+of 39, the twin held 35, and a file of 60 was WITHIN-BOUND and inside
+the report's bound). Let `F` be the largest number of ranks whose
+windows are pairwise separate — taken in one walk over the windows in
+the order of their upper ends: keep the first, then keep each later one
+whose lower end is strictly above the last kept one's upper end. Every
+cell that did not read as a date is a
 counted stand-in spelled differently from every other cell of the
 column (G10.4). So
 

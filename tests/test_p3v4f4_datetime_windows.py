@@ -421,8 +421,9 @@ def _compare_the_envelopes(
 ) -> None:
     """The validator's envelope against the generator's, on a twin.
 
-    THE LOWER END MUST BE EQUAL, always: it is G12.4's windows walked,
-    and a difference there is a difference in the windows. THE UPPER END
+    THE LOWER END MUST BE EQUAL, always: it is G12.4's windows walked --
+    past the strata where the count is reachable (plan P4-D358) -- and a
+    difference there is a difference in the windows. THE UPPER END
     IS COMPARED AS AN INEQUALITY, and the one place the two readings
     differ is pinned rather than papered over -- see
     `validation._spellings_of_an_instant`: a cell G7.4 routes to `(none)`
@@ -445,6 +446,10 @@ def _compare_the_envelopes(
     ]
     layout = generation._date_layout(column, facts, len(written), floor)
     lows, highs = generation._datetime_window(layout, facts, len(written))
+    # ...past the strata where the count is reachable, as the count pass
+    # may place a tail rank there and the report counts it (plan P4-D358).
+    if contract.datetime_counts_reachable(column):
+        lows, highs = generation._past_the_strata_windows(layout, lows, highs)
     lowest = generation._forced_apart(lows, highs)
     # THE UPPER END, in the construction's own terms since stage 3: the
     # instants between the two BOUNDARIES, once per way an instant can

@@ -1427,7 +1427,13 @@ count is held wherever the construction can reach it; a twin holding
 1107 different dates against a published 1077 was WITHIN-BOUND of an
 envelope from 11 to 1460 and passed. Where the published count lies
 outside the envelope, or on a column the pass does not apply to, the
-window stands, WITHIN-BOUND as before.
+window stands, WITHIN-BOUND as before. **Amended 2026-09-28 (plan
+P4-D358): the envelope is the pass's as it now is.** Where no placement
+inside the gaps meets the count, method G7.3 lets an unpinned rank of a
+shape-drawn tail stand past its stratum, and G12.5's lower end is drawn
+over windows that let it; counted in the strata alone the published
+count of 114 dates, 35 different, stood below a lower end of 39, and a
+file holding 60 passed WITHIN-BOUND where the twin held 35.
 
 **Amended by the dates pass of the stage-3 review, item 4: the clause
 reaches months, quarters and one published offset.** The clause is

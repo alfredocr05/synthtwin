@@ -16,8 +16,16 @@ now skips such a day, whichever column's absent spelling names it; a
 rank drawn onto one leaves it before the passes count; and a tail rank
 stuck on one is counted as the absent cell it is. The oracle holds the
 rule from the method's text, and G7.3b step 7's step off a hole, which
-it held nowhere. Three frozen cases, seventeen witness rows and ten
-oracle mutants hold it; one frozen case moves a cell.
+it held nowhere. Three frozen cases, eighteen witness rows and ten
+oracle mutants hold it; one frozen case moves a cell. **The envelope of
+a date column's distinct count follows the pass** (item 1): counted in
+the strata alone its lower end stood at 39 above a published 35 the pass
+meets past them, and a file of 60 was WITHIN-BOUND; the validator and the
+twin's report now draw it over the windows the pass may use and hold the
+count exactly. **The filled-range gate asserts the days, not their
+count** (item 3): where each tail's derived end is the real end the twin
+holds the real days, and where one stands a unit past it (4 of 11 cases,
+among them the review's 32 days) that unit in place of a real one inside.
 
 ### A count no placement inside the gaps reaches is met past the strata (2026-09-28)
 
@@ -273,7 +281,7 @@ holds R-P4-69's holders to the walk's order. Where the real whole
 negatives are the large ones the separation by notation is reversed:
 minus cells' mean -1157.5 against a real -4890.0.
 
-### Every day of a filled range comes back: a tail's tie group gives way (2026-09-26)
+### A filled range comes back with as many days: a tail's tie group gives way (2026-09-26)
 
 **Where a date column holds a value on every day of its range** the twin
 wrote a day or two fewer: two years of admissions came back with 730 of

@@ -17855,10 +17855,14 @@ def _count_holes(
     stage 3 met them. So each absent spelling of the run -- the column's
     own and every other column's, as the spelling step asks them -- is
     read under the column's own member, and the unit it names in the
-    pass's own space, a day, a month or a quarter, is offered by no pass.
-    A column counted in seconds or minutes writes a clock beside every
-    instant and keeps a cell off an absent spelling by its mark
-    (`_kept_datetime_cell`), never by its instant, so it names none.
+    pass's own space, a day, a month or a quarter, is offered by no pass,
+    wherever the spelling step would MOVE a rank off it: on a column
+    writing each unit bare, and on moments at midnight whose member has
+    no other mark to give. A column of moments whose member has one keeps
+    its cell off an absent spelling by its mark (`_kept_datetime_cell`),
+    on the same day, which is a value the source could not write and
+    `test_stage2_round_trip` holds; so does every column counted in
+    seconds or minutes. Those name none.
 
     Guarantees: accepts the facts and every absent spelling of the run;
     returns the units named, as `value // unit` keys of the pass. A
@@ -17868,6 +17872,10 @@ def _count_holes(
     if (
         space not in _COUNT_HOLE_UNITS
         or facts.datetimes_read_at != taxonomy.READ_AT_LOCAL
+        or (
+            facts.resolution == taxonomy.RESOLUTION_DATETIME
+            and facts.parser_family in _ISO_MARK_MEMBERS
+        )
     ):
         return frozenset()
     found: "dict[int, bool]" = {}
@@ -22321,6 +22329,13 @@ def _distinct_reached(
                     target = moved[other]
                     if target < lowest or target > highest:
                         continue
+                    # NOR ONTO A HOLE A NEIGHBOUR STANDS ON (plan P4-D358): a
+                    # weekday column's body rank is left on one for G7.3f
+                    # step 2, and its instant is offered to no run. Read
+                    # again at the option's turn it is on no hole, since no
+                    # pass moves a rank onto one.
+                    if target // unit in gone:
+                        continue
                     if not _same_standing(
                         facts, moved[first], target, day, step, widths, word
                     ):
@@ -22369,8 +22384,6 @@ def _distinct_reached(
             own = moved[first] // unit
             target = option[3] if option[4] < 0 else moved[option[4]]
             if target // unit == own or held[own] != size:
-                continue
-            if target // unit in gone:
                 continue
             if target // unit not in held or held[target // unit] <= 0:
                 continue
@@ -41349,18 +41362,67 @@ def _forced_apart(lows: "list[int]", highs: "list[int]") -> int:
 
     Two ranks whose windows do not overlap cannot hold the same instant,
     so the largest set of ranks with pairwise separate windows is a
-    lower bound on the number of different values the twin holds. The
-    windows arrive in non-decreasing order of both ends, so the count is
-    taken in one walk: keep a window, then skip every later one that
-    still touches it.
+    lower bound on the number of different values the twin holds. It is
+    taken in one walk over the windows in the order of their upper ends:
+    keep a window, then skip every later one that still touches it. The
+    windows of G12.4 arrive in that order already; those past the strata
+    (`_past_the_strata_windows`) need not, and a walk in rank order then
+    keeps a wide window and counts fewer than are forced apart (plan
+    P4-D358).
     """
     count = 0
     frontier = 0
-    for rank in range(len(lows)):
-        if count == 0 or lows[rank] > frontier:
+    for high, low in sorted(zip(highs, lows)):
+        if count == 0 or low > frontier:
             count = count + 1
-            frontier = highs[rank]
+            frontier = high
     return count
+
+
+def _past_the_strata_windows(
+    layout: "_DateLayout", lows: "list[int]", highs: "list[int]"
+) -> "tuple[list[int], list[int]]":
+    """The windows of G12.4 as the count pass may meet a count (G12.5, P4-D358).
+
+    THE REPORT FOLLOWS THE PASS AS IT NOW IS (the review of landing 3b.0,
+    item 1). Where no placement inside the gaps meets the count,
+    `_count_met_past_the_strata` may put an unpinned rank of a tail drawn
+    through its shape anywhere strictly beyond its tail's boundary, as
+    far out as the tail's outermost rank; counted in the strata alone the
+    lower end of the count stood above counts the pass meets, and a twin
+    holding far more than the published count was reported inside its
+    bound. So each such rank -- one whose window is no single point --
+    reaches from its own window out to its tail's outermost rank's, and
+    in to the tail unit next to the boundary, keeping its own reading
+    allowance. The validator draws the same windows from the method
+    (`validation._past_the_strata`).
+
+    Guarantees: returns new windows, one per entry given, each rank of
+    the layout read at its place as `_datetime_window` reads it. A
+    function of the arguments. Raises nothing. No I/O of any kind.
+    """
+    lows = [value for value in lows]
+    highs = [value for value in highs]
+    parsed = layout.parsed
+    for plan in (layout.low, layout.high):
+        if plan is None or plan.shape is None or plan.rows < 1 or parsed < 1:
+            continue
+        outermost = _tail_rank_of(plan, parsed, 0)
+        inner = _tail_place(plan, 1)
+        for rank in range(len(lows)):
+            place = min(rank, parsed - 1)
+            index = place if plan.low_side else parsed - 1 - place
+            if index < 0 or index >= plan.rows or lows[rank] >= highs[rank]:
+                continue
+            if outermost >= len(lows):
+                continue
+            if plan.low_side:
+                lows[rank] = min(lows[rank], lows[outermost])
+                highs[rank] = max(highs[rank], inner + max(plan.half - 1, 0))
+            else:
+                lows[rank] = min(lows[rank], inner - plan.half)
+                highs[rank] = max(highs[rank], highs[outermost])
+    return (lows, highs)
 
 
 def _marks_spendable(facts: contract.DatetimeFacts, floor: int) -> int:
@@ -41800,6 +41862,8 @@ def _datetime_approximations(
     # for a cell that did not read as a date is a different spelling
     # from every other cell of the column, so both ends carry them.
     stand_ins = len(present) - held
+    if contract.datetime_counts_reachable(column):
+        lows, highs = _past_the_strata_windows(layout, lows, highs)
     lowest_count = _forced_apart(lows, highs) + stand_ins
     # THE UPPER END COUNTS THE BODY'S UNITS AND THE TAILS' CELLS (stage 3,
     # G12.5): every body rank lies between the two boundaries, and each

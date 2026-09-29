@@ -1383,6 +1383,13 @@ HOLE_ROWS = (
     # day 12 and takes the nearest free day, 11 -- or 13 where 11 is a hole.
     ("merge", (10, 12, 12, 20), (True, False, False, True), (10, 10, 10, 20),
      (10, 19, 19, 20), 4, (11,), (10, 13, 12, 20)),
+    # AN OFFER IS MADE ONLY WHERE THE NEIGHBOUR STANDS OFF A HOLE. Rank 1
+    # stands on the hole at day 12 and merges down onto day 10 first; rank
+    # 2 was offered no merge onto rank 1, which stood on the hole when the
+    # offers were made, so it merges up onto day 16 rather than onto
+    # rank 1's new day 10.
+    ("merge", (10, 12, 14, 16, 20), (True, False, False, False, True), (10, 10, 10, 11, 20),
+     (10, 13, 19, 19, 20), 3, (12,), (10, 10, 16, 16, 20)),
     # A SPLIT. Ranks 1 and 2 share day 11, their room that day alone: no
     # merge takes them, and the split would send rank 1 down onto day 10
     # and rank 2 up onto day 12 -- but day 10 is a hole, rank 1 has no

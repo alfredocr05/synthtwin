@@ -9549,13 +9549,24 @@ def tail_holes_named(column, at, low_side):
     """What G7.3b step 7's step off a hole asks of one tail (plan P4-D358).
 
     The boundary's tail unit, the side, and the tail units the column's
-    own absent spellings name, read as ``absent_units`` reads them --
-    days, on a column whose tail unit is a day of its own clock; None
-    elsewhere, where no case of this oracle's puts an absent spelling.
+    own absent spellings name -- read here as ISO dates, bare or with a
+    midnight clock, on a column whose tail unit is a day of its own
+    clock; None elsewhere, where no case of this oracle's puts an absent
+    spelling.
     """
     if column["tail_unit"] != "day" or column["datetimes_read_at"] != "local":
         return None
-    return (at, low_side, absent_units(column))
+    named = set()
+    for text in column.get("missing_by_source", {}):
+        text = text.strip()
+        day, clock = text[:10], text[10:]
+        if (
+            len(day) == 10 and day[4] == "-" and day[7] == "-"
+            and (day[:4] + day[5:7] + day[8:]).isdigit()
+            and clock in ("", "T00:00:00", " 00:00:00")
+        ):
+            named.add(days_from_civil(int(day[:4]), int(day[5:7]), int(day[8:])))
+    return (at, low_side, named)
 
 
 def tail_side_plan(column, side, low_side, parsed, words):
@@ -10292,14 +10303,20 @@ def absent_units(column):
     unit of the count pass's own space, and no pass of G7.3 -- a merge, a
     trade or its payment, a split, the stack or its raise, a free unit, a
     width move -- nor G7.3b step 9 offers a rank that unit, since its cell
-    would read back as absent.  This oracle reads an ISO date, bare or with
-    a midnight clock, and a month-first date on a month-first member, on a
-    column counted in days, and names nothing else -- no case of its puts
-    an absent spelling beside a column counted in seconds, months or
-    quarters -- and says so here.
+    would read back as absent -- where the spelling step would move the
+    rank, not where a moment at midnight keeps its day by taking another
+    mark (G7.5).  This oracle reads an ISO date on an ISO member and a
+    month-first date on a month-first member, on a column counted in
+    days, and names nothing else -- no case of its puts an absent spelling
+    beside a column counted in seconds, months or quarters -- and says so
+    here.
     """
     spellings = column.get("missing_by_source", {})
     if not spellings or ordinal_space(column) != "date":
+        return set()
+    if column.get("resolution") == "datetime" and column.get("format") in ("iso-datetime", "iso-mixed"):
+        # A moment at midnight on a member with another mark to give keeps
+        # its day and takes that mark (G7.5), so the pass is not asked.
         return set()
     member = column.get("format", "")
     found = set()
