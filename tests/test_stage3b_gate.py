@@ -145,7 +145,11 @@ withdrawn and nothing else changed:
 * the entry's inference withdrawn from the witness (no short weekday
   kept), the brute force and `gr_wedthu_6_8_s1`;
 * menu entry 2 withdrawn, `sessions20_s0`; entry 3, `gr_wedthu_6_8_s1`;
-* WC7 withdrawn, `B2_oneweek_1201_s0` and `k7_sessions_s0`;
+* WC7 withdrawn, the five-week column around the placeholder day
+  (`test_a_placeholder_day_between_the_boundaries_is_a_hole_the_loader_holds`)
+  and `k7_sessions_s0`, whose withholding the band search certifies since
+  its parts move across stretches; `B2_oneweek_1201_s0` witnessed it
+  until the third review, whose band now withholds it first;
 * one spelling per day withdrawn, the column written two widths; the
   holes withdrawn, the declared missing day; the one-storage rule
   withdrawn, the workbook stored two ways; the validator's
@@ -216,6 +220,18 @@ the design names that the code did not hold. Its witnesses:
   the loader or the verifier takes a kept day as a hole. The day
   withdrawn from the producer's self-check alone changes nothing here:
   the certificate it runs first already asks with it.
+
+THE THIRD REVIEW (plan P4-D359) is witnessed in
+tests/test_stage3b_weekday_review.py. Two of its rules move what the
+lines above say, and the lines are left as each round measured them:
+a withholding the table's own numbers decide -- no grouping, few dates,
+narrowed, two texts, two storages, the band -- is said in ONE shared
+sentence and asked only after the rules the published numbers decide
+and the withholding's own certificate, so where a line above says a
+column "falls to" another reason, the sentence it names is now the
+shared one; and a placeholder day read as missing is also a published
+absent spelling where `missing_by_source` names it, so a mutation blind
+to the day must be blind to both (`calendar_rules.public_holes`).
 """
 
 from __future__ import annotations
@@ -1894,14 +1910,20 @@ def _days_of(cells: "list[str]") -> "list[int]":
     return sorted(verifier.day_number(cell) for cell in cells if cell)
 
 
-def _certified(block: dict, cells: "list[str]", floor: int = 11, holes: "tuple[str, ...]" = ()) -> "calendar_certificate.Verdict":
-    """The certificate the producer asked for this block, asked again."""
-    decided = taxonomy.weekday_decision(
+def _decided(block: dict, cells: "list[str]", floor: int = 11, holes: "tuple[str, ...]" = ()) -> taxonomy.WeekdayDecision:
+    """The producer's decision for this block, asked again."""
+    return taxonomy.weekday_decision(
         block,
         tuple(_days_of(cells)),
         block["n_distinct"],
         taxonomy.Settings(small_cell_floor=floor, declared_missing_values=holes),
+        texts=len({cell for cell in cells if cell}),
     )
+
+
+def _certified(block: dict, cells: "list[str]", floor: int = 11, holes: "tuple[str, ...]" = ()) -> "calendar_certificate.Verdict":
+    """The certificate the producer asked for this block, asked again."""
+    decided = _decided(block, cells, floor, holes)
     assert decided.verdict is not None
     return decided.verdict
 
@@ -2249,7 +2271,7 @@ _EXPECTED = {
         [(0, 0, 352), (1, 1, 201), (2, 2, 261), (3, 3, 114), (4, 4, 143), (5, 6, 16)], "",
     ),
     "k7_sessions_s0": ("session_date", lambda: _seven_sessions(0), [], calendar_rules.REASON_FEW_DATES),
-    "B2_oneweek_1201_s0": ("visit_date", lambda: _one_week(1201, 0), [], calendar_rules.REASON_FEW_DATES),
+    "B2_oneweek_1201_s0": ("visit_date", lambda: _one_week(1201, 0), [], calendar_rules.REASON_BAND),
     "bizlog_x1_s1": ("log_date", lambda: _business_days(1, 1), [], calendar_rules.REASON_TIES),
     "w_month_wide_1000_s0": ("visit_date", lambda: _one_month_wide(1000, 0), [], calendar_rules.REASON_NARROWED),
 }
@@ -2268,7 +2290,16 @@ def test_each_rule_publishes_what_it_derives(tmp_path: pathlib.Path, name: str) 
     * `sessions20_s0`: every weekday alone reaches the line, the weekend
       together does too: entry 2.
     * `k7_sessions_s0` and `B2_oneweek_1201_s0`: each group would be the
-      count of a few single dates (WC7): withheld, `few_dates`.
+      count of a few single dates (WC7). Seven sessions are withheld for
+      it, `few_dates`, their withholding certified: the band search finds
+      tables of the reader's few days once a part's cells may move into
+      another stretch (plan P4-D359; before, no band was reached and the
+      withholding was `uncertified`). One week of 1,201 visits puts its
+      weekend inside its band -- at least three rows and at most the line
+      more than the least any table of its facts holds there -- `band`,
+      the rule asked first since the third review of the landing. Both
+      are said in the one sentence every rule the table's own numbers
+      decide shares.
     * `bizlog_x1_s1`: one row a business day and one more, so no day can
       hold eleven: withheld, `ties`.
     * `w_month_wide_1000_s0`: certified only on a count of different
@@ -2276,7 +2307,8 @@ def test_each_rule_publishes_what_it_derives(tmp_path: pathlib.Path, name: str) 
       line where stage 3 does not: withheld, `narrowed`.
 
     Every published census here passes the verifier; every withheld one
-    says why in the one sentence its reason carries.
+    says so, in its own sentence where the published numbers alone decide
+    it and in the shared one otherwise.
     """
     column, build, expected, reason = _EXPECTED[name]
     cells = build()
@@ -2285,7 +2317,8 @@ def test_each_rule_publishes_what_it_derives(tmp_path: pathlib.Path, name: str) 
     groups = [(group["first"], group["last"], group["count"]) for group in block["weekday_census"]]
     assert groups == expected, (name, groups)
     decided = taxonomy.weekday_decision(
-        block, tuple(_days_of(cells)), block["n_distinct"], taxonomy.Settings(small_cell_floor=11)
+        block, tuple(_days_of(cells)), block["n_distinct"], taxonomy.Settings(small_cell_floor=11),
+        texts=len(set(cells)),
     )
     assert decided.reason == reason, (name, decided.reason)
     if expected:
@@ -2444,13 +2477,19 @@ def test_a_day_the_form_censuses_leave_empty_is_a_hole(
     day's weekday count less one cell for every other day of its group
     leaves EVERY day below the line. So:
 
-    * the certificate itself refuses (its verdict does not hold) and the
-      column publishes `[]` with the narrowed sentence;
+    * the column publishes `[]` with the shared sentence, and the
+      certificate itself, asked with the holes, refuses the census the
+      menu offers (`narrowed`) -- since the third review (plan P4-D359)
+      the producer refuses before it, because being told "withheld" on
+      these facts could itself narrow a day, so the withholding is
+      uncertified and the census withheld whatever the table holds;
     * asked blind to the form holes, the certificate would have
       published that census, and the verifier finds its witnesses
       standing on holes;
-    * that census copied onto the description is refused on load (WC8),
-      because the loader reads the holes off the same censuses.
+    * that census copied onto the description is refused on load (WC8,
+      or WC9 where its weekend or weekdays lie in the band the holes
+      leave them -- the band is asked first, plan P4-D359), because the
+      loader reads the holes off the same censuses.
     """
     build, written, form, empty = _FORM_HOLES[name]
     dates = build()
@@ -2480,18 +2519,32 @@ def test_a_day_the_form_censuses_leave_empty_is_a_hole(
 
     assert block["weekday_census"] == []
     decided = taxonomy.weekday_decision(
-        block, tuple(days), block["n_distinct"], taxonomy.Settings(small_cell_floor=11)
+        block, tuple(days), block["n_distinct"], taxonomy.Settings(small_cell_floor=11),
+        texts=len(set(days)),
     )
-    assert decided.verdict is not None and not decided.verdict.holds
-    assert decided.reason == calendar_rules.REASON_NARROWED
+    assert decided.groups == () and decided.said == calendar_rules.REASON_UNSAID
     said = [entry["note"] for entry in described.document["publication_notes"]]
-    assert any("could be narrowed to fewer than 11 rows" in sentence for sentence in said), said
+    assert any("could narrow some of its dates to fewer than 11 rows" in sentence for sentence in said), said
+    fewest = verifier.reader_facts(dict(block, weekday_census=[]), _LINE)["fewest"]
+    most = verifier.reader_facts(dict(block, weekday_census=[]), _LINE)["most_days"]
+    parsed = len(days)
+    rungs = tuple(
+        (min(parsed - 1, (parsed - 1) * percent // 100), verifier.day_number(block["date_percentiles"][f"p{percent:02d}"]))
+        for percent in verifier.PERCENTS
+        if block["date_percentiles"].get(f"p{percent:02d}")
+    )
+    alone = calendar_certificate.check(
+        parsed, block["low_tail"]["rows"], block["high_tail"]["rows"], low, high, rungs,
+        fewest, most, _LINE, offered, len(set(body)), tuple(sorted(holes)),
+    )
+    assert not alone.holds and alone.reason == calendar_rules.REASON_NARROWED, alone.reason
 
     with monkeypatch.context() as blind:
         blind.setattr(calendar_rules, "form_holes", lambda *_arguments: ())
         calendar_certificate._ANSWERS.clear()
         unaware = taxonomy.weekday_decision(
-            block, tuple(days), block["n_distinct"], taxonomy.Settings(small_cell_floor=11)
+            block, tuple(days), block["n_distinct"], taxonomy.Settings(small_cell_floor=11),
+            texts=len(set(days)),
         )
     calendar_certificate._ANSWERS.clear()
     assert unaware.groups == offered and unaware.verdict is not None
@@ -2508,7 +2561,10 @@ def test_a_day_the_form_censuses_leave_empty_is_a_hole(
     doctored["columns"] = [dict(block, weekday_census=census)]
     with pytest.raises(errors.ProfileError) as refusal:
         contract.load_profile(str(fixtures.write_profile(tmp_path, "doctored-profile.json", doctored)))
-    assert contract.INVARIANTS["WC8"] in str(refusal.value)
+    assert (
+        contract.INVARIANTS["WC8"] in str(refusal.value)
+        or contract.INVARIANTS["WC9"] in str(refusal.value)
+    ), str(refusal.value)
 
 
 def _straddling_february() -> "list[datetime.date]":
@@ -2560,7 +2616,8 @@ def test_a_column_with_form_holes_publishes_where_every_open_day_can_hold_the_li
     days = sorted((day - datetime.date(1970, 1, 1)).days for day in dates)
     body = days[block["low_tail"]["rows"]: len(days) - block["high_tail"]["rows"]]
     verdict = taxonomy.weekday_decision(
-        block, tuple(days), block["n_distinct"], taxonomy.Settings(small_cell_floor=11)
+        block, tuple(days), block["n_distinct"], taxonomy.Settings(small_cell_floor=11),
+        texts=len(set(days)),
     ).verdict
     assert verdict is not None and verdict.holds
     assert verifier.census_problems(
@@ -2603,7 +2660,8 @@ def test_a_day_first_column_with_no_hole_between_its_boundaries_publishes(tmp_pa
     days = sorted((day - datetime.date(1970, 1, 1)).days for day in dates)
     body = days[block["low_tail"]["rows"]: len(days) - block["high_tail"]["rows"]]
     verdict = taxonomy.weekday_decision(
-        block, tuple(days), block["n_distinct"], taxonomy.Settings(small_cell_floor=11)
+        block, tuple(days), block["n_distinct"], taxonomy.Settings(small_cell_floor=11),
+        texts=len(set(days)),
     ).verdict
     assert verdict is not None and verdict.holds
     assert verifier.census_problems(
@@ -2693,6 +2751,10 @@ def test_a_placeholder_day_read_as_missing_is_a_hole_no_witness_stands_on(
 
     with monkeypatch.context() as blind:
         blind.setattr(calendar_rules, "placeholder_holes", lambda *_arguments: ())
+        # The day's spelling is also a published absent spelling, which
+        # names the same hole (review of landing 3b.1, finding 6); blind
+        # to the day means blind to both.
+        blind.setattr(calendar_rules, "declared_holes", lambda *_arguments: ())
         calendar_certificate._ANSWERS.clear()
         unaware = _certified(block, present)
     calendar_certificate._ANSWERS.clear()
@@ -2769,7 +2831,7 @@ def test_a_placeholder_day_between_the_boundaries_is_a_hole_the_loader_holds(
     the validator reads a checked file as its description did -- the
     column's Monday group has three dates besides its knot days once the
     placeholder day is a hole, and four without. So the census is
-    withheld, `few_dates`, which its sentence says; the seven counts the
+    withheld, `few_dates`, said in the shared sentence; the seven counts the
     menu offers, copied onto the description, are refused on load by
     WC7; and they load where the loader is blind to the placeholder.
     """
@@ -2791,11 +2853,12 @@ def test_a_placeholder_day_between_the_boundaries_is_a_hole_the_loader_holds(
     assert block["weekday_census"] == []
     present = [cell for cell in cells if cell != _PLACEHOLDER]
     decided = taxonomy.weekday_decision(
-        block, tuple(_days_of(present)), block["n_distinct"], taxonomy.Settings(small_cell_floor=11)
+        block, tuple(_days_of(present)), block["n_distinct"], taxonomy.Settings(small_cell_floor=11),
+        texts=len(set(present)),
     )
     assert decided.reason == calendar_rules.REASON_FEW_DATES, decided.reason
     said = [entry["note"] for entry in document["publication_notes"] if entry["column"] == "seen_on"]
-    assert any("few single dates" in sentence for sentence in said), said
+    assert any("and why is not said" in sentence for sentence in said), said
 
     days = _days_of(present)
     body = days[block["low_tail"]["rows"]: len(days) - block["high_tail"]["rows"]]
@@ -2811,6 +2874,10 @@ def test_a_placeholder_day_between_the_boundaries_is_a_hole_the_loader_holds(
     assert contract.INVARIANTS["WC7"] in str(refusal.value)
     with monkeypatch.context() as blind:
         blind.setattr(calendar_rules, "placeholder_holes", lambda *_arguments: ())
+        # The day's spelling is also a published absent spelling, which
+        # names the same hole (review of landing 3b.1, finding 6); blind
+        # to the day means blind to both.
+        blind.setattr(calendar_rules, "declared_holes", lambda *_arguments: ())
         calendar_certificate._ANSWERS.clear()
         contract.load_profile(str(written))
     calendar_certificate._ANSWERS.clear()
@@ -2939,7 +3006,10 @@ def test_the_reader_leaves_every_unparsed_cell_out_of_its_fewest_days(tmp_path: 
     assert bounds == (facts["fewest"], facts["most_days"])
     assert bounds == (1183 - 10 - low_tail["rows"] - high_tail["rows"], 1183 - 1 - 2)
     good = sorted(verifier.day_number(cell) for cell in cells if cell not in wrong)
-    decided = taxonomy.weekday_decision(block, tuple(good), block["n_distinct"], taxonomy.Settings(small_cell_floor=11))
+    decided = taxonomy.weekday_decision(
+        block, tuple(good), block["n_distinct"], taxonomy.Settings(small_cell_floor=11),
+        texts=len({cell for cell in cells if cell not in wrong}),
+    )
     assert decided.reason == calendar_rules.REASON_NARROWED, decided.reason
     assert block["weekday_census"] == []
 
@@ -2952,7 +3022,8 @@ def test_a_day_written_with_a_trailing_blank_is_two_spellings(tmp_path: pathlib.
     (quoted, so it is kept): no census of written forms counts a
     trailing blank, so WC6's published half passes, but the count of
     different values exceeds the real days (WC6 (b)): `[]`, reason
-    `spellings`, and the sentence says so.
+    `texts`, said in the one sentence every rule the table's own numbers
+    decide shares (plan P4-D359).
     """
     cells = _battery_admissions(1000)["admission_date"]
     blanked = [f'"{cell} "' if place % 40 == 0 else cell for place, cell in enumerate(cells)]
@@ -2965,11 +3036,13 @@ def test_a_day_written_with_a_trailing_blank_is_two_spellings(tmp_path: pathlib.
     assert calendar_rules.one_spelling_published(
         {name: block[name] or {} for name in calendar_rules.FORM_CENSUSES}, block["format"], len(days)
     )
-    decided = taxonomy.weekday_decision(block, days, block["n_distinct"], taxonomy.Settings(small_cell_floor=11))
-    assert decided.reason == calendar_rules.REASON_SPELLINGS, decided.reason
+    decided = taxonomy.weekday_decision(
+        block, days, block["n_distinct"], taxonomy.Settings(small_cell_floor=11), texts=len(set(blanked)),
+    )
+    assert decided.reason == calendar_rules.REASON_TEXTS, decided.reason
     assert block["weekday_census"] == []
     said = [entry["note"] for entry in described.document["publication_notes"]]
-    assert any("more than one way here" in sentence for sentence in said), said
+    assert any("and why is not said" in sentence for sentence in said), said
 
 
 def _date_book(cells: "list[str]", text_every: int) -> bytes:
@@ -3020,7 +3093,7 @@ def test_a_workbook_storing_dates_two_ways_publishes_no_census(tmp_path: pathlib
     assert found["dates"]["columns"][0]["weekday_census"], "date cells alone publish a census"
     assert found["mixed"]["columns"][0]["weekday_census"] == []
     said = [entry["note"] for entry in found["mixed"]["publication_notes"]]
-    assert any("stores this column's dates in more than one way" in sentence for sentence in said), said
+    assert any("and why is not said" in sentence for sentence in said), said
 
 
 def test_validating_a_file_never_enters_the_certificate(

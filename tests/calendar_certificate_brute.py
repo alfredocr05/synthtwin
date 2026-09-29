@@ -9,8 +9,13 @@ set of days of the span:
   a CENSUS-CAUSED PIN is a set whose count, shifted by an exact offset
   `a` in 0 .. line (a count a reader could add from days it holds
   exactly), lies inside 1 .. line - 1 over every table meeting the facts
-  and the census, while over every table meeting the facts alone -- the
-  census's empty weekdays still empty in both -- it does not.
+  and the census, while over every table meeting the facts alone -- no
+  census information at all, its empty weekdays open like any other
+  (review of landing 3b.1, finding 1: a count of nought is census
+  information too) -- it does not. The sets asked hold no day of a
+  weekday the census publishes as EMPTY: that such a day holds nought
+  is what the census says, and a count of nought is no count below the
+  line, so a set is asked without them and never pinned by them alone.
 
 A census the certificate publishes must have no census-caused pin
 (`unsound` otherwise); every witness it returns must be one of the
@@ -18,6 +23,11 @@ enumerated tables; every class it certifies must have an enumerated
 table holding the line on its witness's day. The menu is written here a
 second time, from its statement, so the census asked is the one the
 floor alone chooses.
+
+AND A WITHHOLDING IS JUDGED THE SAME WAY (review of landing 3b.1, item
+2): `pins_of` asks, of the tables a rule withholds, whether they confine
+a set of days that the tables meeting the facts alone do not -- what a
+reader told "withheld" and nothing more would learn.
 
 Every function is a function of its arguments; nothing is read or
 written.
@@ -100,14 +110,11 @@ def _meets(inst: dict, table: "tuple[int, ...]", census: bool) -> bool:
             return False
     if len(set(table)) != inst["different"]:
         return False
+    if not census:
+        return True
     bins = [0] * 7
     for day in table:
         bins[weekday(day)] += 1
-    empty = {day for first, last, count in inst["groups"] if count == 0 for day in range(first, last + 1)}
-    if any(bins[day] for day in empty):
-        return False
-    if not census:
-        return True
     for first, last, count in inst["groups"]:
         if sum(bins[first:last + 1]) != count:
             return False
@@ -146,6 +153,42 @@ def _ranges(inst: dict, found: "list[tuple[int, ...]]") -> "tuple[list[int], lis
     return least, most
 
 
+def pins_of(
+    inst: dict,
+    chosen: "list[tuple[int, ...]]",
+    everything: "list[tuple[int, ...]]",
+    skipped: int = 0,
+) -> int:
+    """How many sets of days `chosen` confines that `everything` does not.
+
+    A set is confined where its count, shifted by an offset in 0 ..
+    line, lies inside 1 .. line - 1 over every table of `chosen` and not
+    over every table of `everything`. `skipped` is a mask of days no set
+    asked may hold.
+    """
+    least, most = _ranges(inst, chosen)
+    least3, most3 = _ranges(inst, everything)
+    pins = 0
+    for mask in range(1, 1 << inst["span"]):
+        if mask & skipped:
+            continue
+        for offset in range(LINE + 1):
+            inside = 1 <= least[mask] + offset and most[mask] + offset <= LINE - 1
+            inside3 = 1 <= least3[mask] + offset and most3[mask] + offset <= LINE - 1
+            if inside and not inside3:
+                pins += 1
+                break
+    return pins
+
+
+def census_of(table: "tuple[int, ...]") -> "list[int]":
+    """The seven weekday counts of one table, Monday first."""
+    bins = [0] * 7
+    for day in table:
+        bins[weekday(day)] += 1
+    return bins
+
+
 def judge(
     inst: dict,
     published: bool,
@@ -157,16 +200,12 @@ def judge(
     """
     with_census = tables(inst, True)
     without = tables(inst, False)
-    least, most = _ranges(inst, with_census)
-    least3, most3 = _ranges(inst, without)
-    pins = 0
-    for mask in range(1, 1 << inst["span"]):
-        for offset in range(LINE + 1):
-            inside = 1 <= least[mask] + offset and most[mask] + offset <= LINE - 1
-            inside3 = 1 <= least3[mask] + offset and most3[mask] + offset <= LINE - 1
-            if inside and not inside3:
-                pins += 1
-                break
+    empty = {day for first, last, count in inst["groups"] if count == 0 for day in range(first, last + 1)}
+    zero = 0
+    for place in range(inst["span"]):
+        if weekday(inst["low"] + place) in empty:
+            zero |= 1 << place
+    pins = pins_of(inst, with_census, without, zero)
     verdict = {"unsound": 0, "not_a_table": 0, "unfillable": 0, "pins": pins}
     if not published:
         return verdict

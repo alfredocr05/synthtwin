@@ -6,6 +6,26 @@ exists).
 
 ## [Unreleased]
 
+### The weekday census's third review, repaired (2026-09-28)
+
+**Being told a census is withheld says nothing a count may not** (plan
+P4-D359). A withholding the table's own numbers decide is said in one
+sentence and certified like a publication, around a band of weekend and
+weekday totals it always keeps; the certificate's baseline holds no
+census information, its empty weekdays included. A report keeps a short
+count back from its complements too, and beside a short written form
+shows a verdict only where the ranges it prints settle it. The producer,
+loader, day pass, validator and oracle hold one set of published holes,
+so the twin of a May-only column stays in May and a straddling column
+keeps its count of different days. One spelling per day is asked of the
+cells' own texts, the loader holds workbook storage, and a refusal on
+the published numbers walks no day. Over 56 date columns one census
+moved, the review's own attack. The withholding's band search moves a
+part's cells across stretches and halves, and its certificate asks a
+class a stretch's half of the week, the classes it can tell apart: 80
+sparse schedules publish 45 as 2af1f03 did, and 120 seeded schedules 78
+where 2af1f03 published 79.
+
 ### The review of follow-up A: the cost rule, stand-ins and the withheld-tail sentences (2026-09-28)
 
 Plan P4-D357 A, six items of the one review round. **The cost rule asks

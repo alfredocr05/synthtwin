@@ -6242,8 +6242,8 @@ inset).
 
 #### G7.3f The weekday census: the day pass
 
-*Stage 3b, landing 3b.1, plan P4-D355.* Where a column of whole dates
-publishes a non-empty `weekday_census` (contract WC1 to WC8), with both
+*Stage 3b, landing 3b.1, plans P4-D355 and P4-D359.* Where a column of whole dates
+publishes a non-empty `weekday_census` (contract WC1 to WC9), with both
 tails, at least three parsed cells and no bare date, its ranks are moved
 once G7.3's count passes and G7.3b step 9 are done and before any cell
 is spelled, until the cells between the two boundary ranks fall on the
@@ -6253,8 +6253,18 @@ A day `d`, counted from 1970-01-01, falls on weekday `(d + 3) mod 7`,
 Monday nought; its GROUP is the census group holding that weekday. Its
 KIND is whether a date on it counts into the width census's one word,
 where the member can show a width and that census names exactly one
-word, and one kind for every day otherwise. A HOLE is a day an absent
-spelling of the run names under the column's member. `held(d)` is how
+word, and one kind for every day otherwise. A HOLE is a day between
+the two boundary days that the description holds empty: one the
+column's own member writes -- at its one width word and its one
+month-name word, the defaults where it has none -- in an absent spelling
+of the run, folded (every column's `missing_by_source` keys, and the
+placeholder days the settings' declaration of missing values names);
+one its `sentinel_verdicts` read as no value; and one its censuses of
+written forms leave empty -- a width word naming the first field alone
+leaves every day whose second field is below ten, one naming the second
+field alone every day whose first is, and a month name of the length
+`either` every day outside May (contract WC6 to WC8, the holes the
+certificate was asked with). `held(d)` is how
 many ranks of the column stand on `d`. A rank is MOVABLE where it lies
 between the two boundary ranks, both included, the layout does not pin
 it and its gap (G7.3) is more than one day; the movable ranks form GAPS,
@@ -13197,7 +13207,7 @@ case passed, which is the failure the count exists to prevent:
 | `weekday_gap_shares` | G7.3f step 3 (plan P4-D355): 100 whole dates published `[Mon-Fri] 43, [Sat-Sun] 34`, each gap's share of the two groups its prior raked to the gap's ranks and the groups' owed totals. Its mutant keeps each gap at the holding it was drawn with, so only the leftover moves ranks |
 | `weekday_hole_left` | G7.3f step 2 (plan P4-D355): 152 cells, twenty of them written 2024-02-23 and declared absent, the census `[Mon-Fri] 81, [Sat-Sun] 23`. A rank drawn onto the absent day moves off it before the census moves anything. Its mutant withdraws the step, and the spelling pass's own step off the hole moves the rank without asking its weekday |
 | `weekday_keeping_first` | G7.3f step 6 (plan P4-D355): 100 whole dates published `[Mon-Fri] 44, [Sat-Sun] 32`, whose single ranks take, of the days that keep the count of different days, the one holding the fewest ranks, before any day that changes it. Its mutant offers the nearest destination whatever it does to the count |
-| `weekday_runs_merged` | G7.3f step 8.2 (plan P4-D355): 110 dates of a four-weekly cycle of Sundays, some moved a few days, published `[Mon-Fri] 15, [Sat-Sun] 73`, whose count of different days is still long once single ranks have moved; the ranks of one day, alone on it, move whole onto a held day of their own group. Its mutant withdraws the step. Picked again once step 3's prior weighed the calendar as the drawn ranks: the fortnightly Saturdays it was first frozen on no longer reach step 8.2 |
+| `weekday_runs_merged` | G7.3f step 8.2 (plan P4-D355): 110 dates of a four-weekly cycle of Sundays, some moved a few days, published `[Mon-Fri] 16, [Sat-Sun] 72` (one row moved from the weekend at the review of landing 3b.1, plan P4-D359, where fifteen weekday rows stood inside the band a withholding always keeps), whose count of different days is still long once single ranks have moved; the ranks of one day, alone on it, move whole onto a held day of their own group. Its mutant withdraws the step. Picked again once step 3's prior weighed the calendar as the drawn ranks: the fortnightly Saturdays it was first frozen on no longer reach step 8.2 |
 | `weekday_whole_runs` | G7.3f step 5 (plan P4-D355): 100 whole dates over three weeks with no weekend, published `[Mon-Fri] 77, [Sat-Sun] 0`, whose ranks of one day move whole onto a free day of a group with room for all of them before any single rank moves. Its mutant withdraws the step |
 | `plus_padded_field` | G6.3's second tier of named field widths (plan P4-D145): twenty-two cells of twelve thousand three hundred and forty-five published `leading_plus` with `pad_widths: {"7": 22}`, every one written `+0012345` |
 | `saturated_integers` | G6.5a's fill of a saturated integer grid (plan P4-D147): thirty-three whole numbers publishing twenty-two different values between the ends one and twenty-two, so the strata take those integers in order, each once, and all twenty-two are written |

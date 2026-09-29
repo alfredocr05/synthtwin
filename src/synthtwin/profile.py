@@ -852,7 +852,7 @@ _BIN_INDEX = "histogram-bin-number-of-a-group"
 # THE WEEKDAY CENSUS OF A COLUMN OF DATES (landing 3b.1, plan P4-D355):
 # a group's first and last weekday, Monday 0 to Sunday 6, and its count,
 # nought or at the census line. Which groupings may stand, and whether
-# the census may stand at all, are invariants WC1 to WC8, asked with the
+# the census may stand at all, are invariants WC1 to WC9, asked with the
 # block's other facts beside them.
 _WEEKDAY = "a-weekday-number"
 _WEEKDAY_COUNT = "a-weekday-group-count-zero-or-at-the-census-line"
@@ -3728,11 +3728,11 @@ def build_document(
         notes += [{"column": "", "note": spoken}]
     # EACH CENSUS READING IS HANDED OVER ONCE, to the column it was read
     # from: the description takes the reading's lists as its own.
-    waiting = readings
+    waiting: "list[object]" = [held for held in readings]
     for position, name in enumerate(table.column_names, start=1):
         cells = table.columns[position - 1]
         handed_over: "taxonomy.HeldReading | None" = None
-        still_waiting: "tuple[object, ...]" = ()
+        still_waiting: "list[object]" = []
         for held in waiting:
             if (
                 handed_over is None
@@ -3741,7 +3741,7 @@ def build_document(
             ):
                 handed_over = held
                 continue
-            still_waiting += (held,)
+            still_waiting += [held]
         waiting = still_waiting
         # ONE STORAGE CLASS PER WORKBOOK COLUMN, or no weekday census
         # (landing 3b.1): a column whose dates are stored partly as dates

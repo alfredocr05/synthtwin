@@ -46,8 +46,10 @@ class can hold the line: exchanging the witness's day with any day of
 its class changes no fact.
 
 A class no witness certifies is asked on stage 3's facts alone -- the
-same network with no census, the weekdays the census publishes as
-empty taking nothing, on the reader's bounds. If stage 3 could put the
+same network with no census at all, every weekday open, the ones the
+census publishes as empty included, on the reader's bounds (a count of
+nought is census information too: review of landing 3b.1, finding 1).
+If stage 3 could put the
 line on its day, the census is what keeps it below and the census is
 WITHHELD. Otherwise the class is RESIDUE: it must lie in a stretch the
 rank facts cap below the line, and every CONFIGURATION of the residue
@@ -180,20 +182,7 @@ def facts_of(
     Determinism: a function of the arguments. Raises nothing. No I/O.
     """
     body = parsed - rows_low - rows_high
-    knots: "dict[int, tuple[int, int]]" = {low: (0, 1)}
-    if high in knots:
-        knots[high] = (0, body)
-    else:
-        knots[high] = (body - 1, body)
-    for rank, day in rungs:
-        inside = rank - rows_low
-        if day in knots:
-            before, upto = knots[day]
-            knots[day] = (min(before, inside), max(upto, inside + 1))
-        else:
-            knots[day] = (inside, inside + 1)
-    knots[low] = (0, knots[low][1])
-    knots[high] = (knots[high][0], body)
+    knots = _knots_of(parsed, rows_low, rows_high, low, high, rungs)
     knot_days = tuple(sorted(knots))
     stretches: "list[tuple[bool, int, int]]" = []
     for index in range(len(knot_days)):
@@ -229,17 +218,25 @@ def facts_of(
         before = rising[place - 1] if place > 0 else 0
         most += [max(0, falling[place] - before)]
     holed = set(holes)
-    classes: "dict[tuple[int, int], tuple[int, ...]]" = {}
+    # EACH CLASS IS GROWN AS A LIST AND FROZEN ONCE (review of landing
+    # 3b.1, finding 10): a class grown as a tuple copied everything it
+    # held on every day, so 100 dates spread over 6,000 years took 316
+    # seconds here before a refusal the numbers alone decide.
+    growing: "dict[tuple[int, int], list[int]]" = {}
     for place in range(count):
         is_knot, first, last = stretches[place]
         for day in range(first, last + 1):
             if not is_knot and day in holed:
                 continue
             key = (place, calendar_rules.weekday_of(day))
-            if key in classes:
-                classes[key] = classes[key] + (day,)
+            if key in growing:
+                members = growing[key]
+                members += [day]
             else:
-                classes[key] = (day,)
+                growing[key] = [day]
+    classes: "dict[tuple[int, int], tuple[int, ...]]" = {
+        key: tuple(growing[key]) for key in growing
+    }
     where = calendar_rules.where_of(groups)
     zero = frozenset(
         weekday
@@ -278,6 +275,37 @@ def facts_of(
         reader_most=reader_most,
         holes=frozenset(holed),
     )
+
+
+def _knots_of(
+    parsed: int,
+    rows_low: int,
+    rows_high: int,
+    low: int,
+    high: int,
+    rungs: "tuple[tuple[int, int], ...]",
+) -> "dict[int, tuple[int, int]]":
+    """Every knot day with its two rank facts (module docstring).
+
+    Counted from the boundaries and the rungs alone, so WC5 and the
+    cheap refusals read them without walking a single day of the span.
+    """
+    body = parsed - rows_low - rows_high
+    knots: "dict[int, tuple[int, int]]" = {low: (0, 1)}
+    if high in knots:
+        knots[high] = (0, body)
+    else:
+        knots[high] = (body - 1, body)
+    for rank, day in rungs:
+        inside = rank - rows_low
+        if day in knots:
+            before, upto = knots[day]
+            knots[day] = (min(before, inside), max(upto, inside + 1))
+        else:
+            knots[day] = (inside, inside + 1)
+    knots[low] = (0, knots[low][1])
+    knots[high] = (knots[high][0], body)
+    return knots
 
 
 # -- the network ------------------------------------------------------------
@@ -523,6 +551,7 @@ def _census_table(
     spent: int,
     occupied: int,
     tally: "list[int]",
+    top_bounds: "tuple[tuple[int, int], ...] | None" = None,
 ) -> "_Table | None":
     """A table meeting every fact and the census, or None.
 
@@ -532,6 +561,8 @@ def _census_table(
     `calendar_rules.branches_of`); `fixed` holds residue classes at
     exact cells, whose overflow `spent` and occupied days `occupied` are
     counted against the budget and the count of different days.
+    `top_bounds`, where given, bounds each group's total `(least, most)` in place of
+    its published count: the withholding's own side (`withholding`).
     """
     count = len(facts.stretches)
     chain = 2
@@ -571,7 +602,10 @@ def _census_table(
         _add(net, days + weekday, tops + facts.where[weekday], least, greatest, 0)
     for index in range(len(facts.groups)):
         held = facts.groups[index][2]
-        _add(net, tops + index, 1, held, held, 0)
+        least, greatest = held, held
+        if top_bounds is not None:
+            least, greatest = top_bounds[index]
+        _add(net, tops + index, 1, least, greatest, 0)
     _add(net, 1, 0, body, body, 0)
     tally[0] = tally[0] + 1
     cost = _solve(net)
@@ -580,8 +614,152 @@ def _census_table(
     parts = _read(net, arcs)
     nonempty = len([part for part in parts if part[2] > 0])
     if nonempty + occupied > facts.most_days:
-        return None
+        if top_bounds is None:
+            return None
+        merged = _merged(
+            facts, parts, cost, facts.body - facts.fewest - spent, occupied,
+            (need, bounds, fixed, top_bounds),
+        )
+        if merged is None:
+            return None
+        parts, cost = merged
+        nonempty = len([part for part in parts if part[2] > 0])
     return _Table(parts=parts, nonempty=nonempty, cost=cost)
+
+
+def _merged(
+    facts: Facts,
+    parts: "tuple[tuple[tuple[int, int], bool, int, int], ...]",
+    cost: int,
+    budget: int,
+    occupied: int,
+    sides: "tuple[dict[int, tuple[int, int]], dict[int, tuple[int, int]], dict[tuple[int, int], int], tuple[tuple[int, int], ...]]",
+) -> "tuple[tuple[tuple[tuple[int, int], bool, int, int], ...], int] | None":
+    """A table's parts merged until they fit the most different days, or None.
+
+    THE CHEAPEST TABLE SPREADS ITS CELLS OVER EVERY PART IT CAN, and a
+    column of few dates has far fewer days than classes: 471 rows on 26
+    to 36 different days over 57 classes found no table at all, so its
+    withholding could not be certified (review of landing 3b.1, item 2,
+    measured on sparse schedules). Where only group TOTALS are bounded
+    -- the withholding's two halves of the week -- every cell of one
+    untaken part of a stretch between two knots moves into another
+    non-empty part, of any stretch and either half, wherever every bound
+    still holds after the move: each prefix of stretches the move passes
+    stays within its rank facts, both group totals within `top_bounds`,
+    both weekday totals within `bounds`, and a taken part within `need`.
+    A merge inside one stretch and one half was not enough: 800 visits
+    of a weekly Friday clinic on 18 different days, seven of them knot
+    days, kept a part in each half of each of six stretches between the
+    knots -- nineteen -- and neither band found a table (review of the
+    third review's repair). Each merge takes the move that raises the
+    cost least -- into the part with the most room left, which only the
+    room decides -- and the cost may not pass `budget`. Every move keeps
+    every bound the network holds, so a table found this way is a table,
+    which is all a witness needs. `sides` is `(need, bounds, fixed,
+    top_bounds)` as `_census_table` holds them.
+    """
+    need, bounds, fixed, top_bounds = sides
+    keys = [part[0] for part in parts]
+    taken = [part[1] for part in parts]
+    cells = [part[2] for part in parts]
+    days = [part[3] for part in parts]
+    spent = cost
+    count = len(facts.stretches)
+    held = [0 for _ in range(count)]
+    weekday_held = [0 for _ in range(calendar_rules.WEEKDAYS)]
+    hub = [0 for _ in range(calendar_rules.WEEKDAYS)]
+    for key in fixed:
+        held[key[0]] = held[key[0]] + fixed[key]
+        weekday_held[key[1]] = weekday_held[key[1]] + fixed[key]
+    for place in range(len(keys)):
+        stretch, weekday = keys[place]
+        held[stretch] = held[stretch] + cells[place]
+        weekday_held[weekday] = weekday_held[weekday] + cells[place]
+        if taken[place] and weekday in need:
+            hub[weekday] = hub[weekday] + cells[place]
+    group_held = [0 for _ in top_bounds]
+    for weekday in range(calendar_rules.WEEKDAYS):
+        group_held[facts.where[weekday]] = group_held[facts.where[weekday]] + weekday_held[weekday]
+
+    def over(cells_held: int, room: int) -> int:
+        return max(0, cells_held - room)
+
+    def movable(first: int, second: int, prefix: "list[int]") -> bool:
+        moved = cells[first]
+        source, from_day = keys[first]
+        target, to_day = keys[second]
+        for place in range(min(source, target), max(source, target)):
+            if source < target and prefix[place] - moved < facts.prefix_low[place]:
+                return False
+            if source > target and prefix[place] + moved > facts.prefix_high[place]:
+                return False
+        if from_day != to_day:
+            if from_day in bounds and weekday_held[from_day] - moved < bounds[from_day][0]:
+                return False
+            if to_day in bounds and weekday_held[to_day] + moved > bounds[to_day][1]:
+                return False
+        losing = facts.where[from_day]
+        gaining = facts.where[to_day]
+        if losing != gaining and (
+            group_held[losing] - moved < top_bounds[losing][0]
+            or group_held[gaining] + moved > top_bounds[gaining][1]
+        ):
+            return False
+        return not (taken[second] and to_day in need and hub[to_day] + moved > need[to_day][1])
+
+    nonempty = len([cells_held for cells_held in cells if cells_held > 0])
+    while nonempty + occupied > facts.most_days:
+        prefix: "list[int]" = []
+        running = 0
+        for place in range(count):
+            running = running + held[place]
+            prefix += [running]
+        into = sorted(
+            (-max(0, days[place] - cells[place]), place)
+            for place in range(len(keys))
+            if cells[place] > 0
+        )
+        best: "tuple[int, int, int, int] | None" = None
+        for first in range(len(keys)):
+            if cells[first] <= 0 or taken[first] or facts.stretches[keys[first][0]][0]:
+                continue
+            for _room, second in into:
+                if second == first or not movable(first, second, prefix):
+                    continue
+                raised = (
+                    spent
+                    - over(cells[first], days[first])
+                    - over(cells[second], days[second])
+                    + over(cells[first] + cells[second], days[second])
+                )
+                if raised <= budget and (best is None or (raised, cells[first], first, second) < best):
+                    best = (raised, cells[first], first, second)
+                break
+        if best is None:
+            return None
+        raised, moved, first, second = best
+        source, from_day = keys[first]
+        target, to_day = keys[second]
+        held[source] = held[source] - moved
+        held[target] = held[target] + moved
+        weekday_held[from_day] = weekday_held[from_day] - moved
+        weekday_held[to_day] = weekday_held[to_day] + moved
+        group_held[facts.where[from_day]] = group_held[facts.where[from_day]] - moved
+        group_held[facts.where[to_day]] = group_held[facts.where[to_day]] + moved
+        if taken[second] and to_day in need:
+            hub[to_day] = hub[to_day] + moved
+        cells[second] = cells[second] + moved
+        cells[first] = 0
+        spent = raised
+        nonempty = nonempty - 1
+    return (
+        tuple(
+            (keys[place], taken[place], cells[place], days[place])
+            for place in range(len(keys))
+        ),
+        spent,
+    )
 
 
 def _stage3_table(
@@ -596,10 +774,16 @@ def _stage3_table(
 ) -> "_Table | None":
     """A table meeting stage 3's facts alone, on the reader's bounds.
 
-    No census: one group holds every weekday the census does not publish
-    as empty, and the empty weekdays' days take nothing (a count of
-    nought is published and allowed). The taken days together hold
-    `least` to `greatest` cells.
+    NO CENSUS AT ALL: one group holds every weekday, the ones the census
+    publishes as empty included. The baseline is what a reader holds
+    WITHOUT the census, so none of the census's information may stand in
+    it, and a count of nought is information too (review of landing
+    3b.1, finding 1): with the weekend held empty on this side, 1,035
+    business dates whose p05 left ten body rows before January 16 had
+    every business day of January 2 to 15 pinned to one row by the
+    census -- a Saturday could take any of them -- and the certificate
+    counted those days as residue both sides agreed on. The taken days
+    together hold `least` to `greatest` cells.
     """
     count = len(facts.stretches)
     chain = 2
@@ -613,10 +797,6 @@ def _stage3_table(
     arcs: "list[tuple[tuple[int, int], bool, int, int, int]]" = []
     for key in facts.keys:
         place, weekday = key
-        if weekday in facts.zero:
-            if facts.stretches[place][0]:
-                return None
-            continue
         if key in fixed:
             if fixed[key] > 0:
                 _add(net, rows + place, top, fixed[key], fixed[key], 0)
@@ -639,10 +819,28 @@ def _stage3_table(
     cost = _solve(net)
     if cost is None or cost > facts.body - facts.reader_fewest - spent:
         return None
+    # THIS SIDE MAY CLAIM TOO MUCH, NEVER TOO LITTLE (review of landing
+    # 3b.1, finding 1). The least-cost table spreads its cells over as
+    # many parts as it can, so asking IT to fit the reader's most
+    # different days refused tables a reader allows -- a smaller spread
+    # fits where the cheapest does not -- and a class stage 3 could fill
+    # was taken for residue both sides agreed on. What every table
+    # holds is asked instead: a cell on each knot day, one more day for
+    # a taken class between two knots, and the residue's occupied days,
+    # all different days. The census side keeps the whole check: there a
+    # refusal withholds.
+    held = occupied
+    for place in range(count):
+        is_knot, day, _last = facts.stretches[place]
+        if is_knot and (place, calendar_rules.weekday_of(day)) not in fixed:
+            held = held + 1
+    for key in take:
+        if take[key] > 0 and least > 0 and not facts.stretches[key[0]][0]:
+            held = held + 1
+    if held > facts.reader_most:
+        return None
     parts = _read(net, arcs)
     nonempty = len([part for part in parts if part[2] > 0])
-    if nonempty + occupied > facts.reader_most:
-        return None
     return _Table(parts=parts, nonempty=nonempty, cost=cost)
 
 
@@ -761,6 +959,7 @@ def _residue_equivalent(
     facts: Facts,
     residue: "list[tuple[int, int]]",
     tally: "list[int]",
+    alternatives: "list[tuple[dict[int, tuple[int, int]], tuple[tuple[int, int], ...] | None]] | None" = None,
 ) -> "tuple[bool, str, str]":
     """Every residue configuration stage 3 allows, the census allows too.
 
@@ -779,8 +978,10 @@ def _residue_equivalent(
     Where the count could bind, every configuration is enumerated, up
     to `CONFIGURATION_CAP`; more withholds, and so do more slices.
 
-    Returns whether it holds, the mode (`vertices` or `full`) and what
-    decided it.
+    `alternatives` are what the side asked tells a reader, each weekday
+    bounds and group-total bounds (`_census_table`); by default the
+    census's own, one per `calendar_rules.branches_of`. Returns whether
+    it holds, the mode (`vertices` or `full`) and what decided it.
     """
     by_stretch: "dict[int, list[tuple[int, int]]]" = {}
     for key in residue:
@@ -803,9 +1004,14 @@ def _residue_equivalent(
         [key for key in facts.keys if key[1] not in facts.zero and key not in residue_set]
     )
     occupied_most = sum(min(facts.most[place], days_in[place]) for place in stretches)
-    branches = calendar_rules.branches_of(
-        facts.groups, facts.line, facts.shortable, -1
-    )
+    branches: "list[tuple[dict[int, tuple[int, int]], tuple[tuple[int, int], ...] | None]]" = []
+    if alternatives is None:
+        for bounds in calendar_rules.branches_of(
+            facts.groups, facts.line, facts.shortable, -1
+        ):
+            branches += [(bounds, None)]
+    else:
+        branches = alternatives
     zeros = {key: 0 for key in residue}
     if rest_parts + occupied_most > facts.most_days:
         return _residue_full(facts, by_stretch, stretches, branches, zeros, tally)
@@ -849,11 +1055,14 @@ def _residue_equivalent(
         if first <= most_days:
             spent = cells - first
             realised = False
-            for bounds in branches:
+            for bounds, top_bounds in branches:
                 every = True
                 for config in vertices:
                     if (
-                        _census_table(facts, {}, {}, bounds, config, spent, first, tally)
+                        _census_table(
+                            facts, {}, {}, bounds, config, spent, first, tally,
+                            top_bounds,
+                        )
                         is None
                     ):
                         every = False
@@ -883,7 +1092,7 @@ def _residue_full(
     facts: Facts,
     by_stretch: "dict[int, list[tuple[int, int]]]",
     stretches: "list[int]",
-    branches: "list[dict[int, tuple[int, int]]]",
+    branches: "list[tuple[dict[int, tuple[int, int]], tuple[tuple[int, int], ...] | None]]",
     zeros: "dict[tuple[int, int], int]",
     tally: "list[int]",
 ) -> "tuple[bool, str, str]":
@@ -922,8 +1131,14 @@ def _residue_full(
             if _stage3_table(facts, {}, 0, 0, config, spent, occupied, tally) is None:
                 continue
             realised = False
-            for bounds in branches:
-                if _census_table(facts, {}, {}, bounds, config, spent, occupied, tally) is not None:
+            for bounds, top_bounds in branches:
+                if (
+                    _census_table(
+                        facts, {}, {}, bounds, config, spent, occupied, tally,
+                        top_bounds,
+                    )
+                    is not None
+                ):
                     realised = True
                     break
             if not realised:
@@ -957,7 +1172,7 @@ def certify(facts: Facts) -> Verdict:
     """
     tally = [0]
     line = facts.line
-    if facts.body - facts.reader_fewest < line - 1:
+    if ties_refused(facts.body, facts.reader_fewest, line):
         return Verdict(
             False, calendar_rules.REASON_TIES,
             "no day can hold the line: too few repeated cells",
@@ -1001,6 +1216,349 @@ def certify(facts: Facts) -> Verdict:
     return Verdict(True, "", "", tuple(witnesses), tuple(residue), tally[0], mode)
 
 
+# -- the withholding's own certificate ------------------------------------------------
+#
+# THE FIRING OF A WITHHOLDING IS A PUBLICATION TOO (review of landing
+# 3b.1, item 2). A reader who is told a census is withheld knows that the
+# table is one whose census the rules withhold, and where that set confines
+# some set of days to one to the line less one, the sentence has said what
+# a census may not: 1,040 business-day rows beside ONE Saturday row were
+# withheld because no grouping met the line, which told a reader holding
+# the count of different days that the weekend held one to ten rows, where
+# thirteen published the seven counts. So every withholding the table's own
+# numbers decide is said in ONE sentence, and that sentence is published
+# only where its set is certified the way a census is: its sure part W0 --
+# the tables whose weekend, or whose Monday to Friday together, holds at
+# least one row and at most the line, and what the capped stretches can
+# take in that half, more than the least any table of stage 3's facts
+# lets it hold, the BAND, which the producer always
+# withholds -- has a witness putting the line on a day of every class, or
+# the class is residue whose every stage-3 configuration W0 allows. Every
+# table withheld is then in a set holding W0, and a set holding a
+# certified set confines nothing either. Where W0 is not certified the
+# census is withheld whatever the table, which the published numbers
+# alone decide and so says nothing. W0's CLASSES ARE COARSER than a
+# census's: what W0 asks of a table is its rank facts, its count of
+# different days and its two half totals, so exchanging two days of one
+# stretch between two knots and one half of the week changes nothing W0
+# asks (`_pooled`).
+
+
+@dataclasses.dataclass(frozen=True)
+class Withholding:
+    """Whether withholding a census on the table's own numbers is certified.
+
+    `holds` says whether it is; `detail` what decided it where it is not,
+    for a test to read; `weekend` and `weekdays` are the two BANDS, each
+    `(least, most)` of that total that the producer always withholds, and
+    `(1, 0)` where no table meeting stage 3's facts reaches one; `solves`
+    how many networks were solved.
+    """
+
+    holds: bool
+    detail: str
+    weekend: "tuple[int, int]"
+    weekdays: "tuple[int, int]"
+    solves: int
+
+
+# The two totals every entry of the menu publishes: Monday to Friday, and
+# Saturday with Sunday.
+_HALVES = ((0, calendar_rules.FRIDAY, 0), (calendar_rules.SATURDAY, calendar_rules.SUNDAY, 0))
+
+
+def _halves_facts(facts: Facts) -> Facts:
+    """The facts asked with the two halves of the week as the only groups.
+
+    No weekday is empty and every weekday holding a class can be the
+    short one, because the halves say neither.
+    """
+    return dataclasses.replace(
+        facts,
+        groups=_HALVES,
+        where=calendar_rules.where_of(_HALVES),
+        zero=frozenset(),
+        shortable=tuple(sorted({key[1] for key in facts.classes})),
+        entry=calendar_rules.ENTRY_WEEKDAYS,
+    )
+
+
+def _pooled(facts: Facts) -> Facts:
+    """The halves' facts with each stretch between two knots one class a half.
+
+    THE WITHHOLDING'S CLASSES (review of the third review's repair). W0
+    tells two days apart only by what it asks of a table -- its rank
+    facts, its count of different days, and its weekend and Monday to
+    Friday totals -- so every day of one stretch between two knots in one
+    half of the week is exchangeable with every other, holes left out as
+    before. Asked a class per weekday, a stretch of a column of few
+    dates had up to seven residue classes where two stand, and 6 of 120
+    seeded schedules were withheld whatever they held, their residue
+    having more arrangements than `CONFIGURATION_CAP`. A knot day stays
+    its own class. The class's weekday is Monday or Saturday, the one
+    each half's network reads.
+    """
+    grown: "dict[tuple[int, int], list[int]]" = {}
+    for key in facts.keys:
+        place, weekday = key
+        if not facts.stretches[place][0]:
+            weekday = 0 if weekday < calendar_rules.SATURDAY else calendar_rules.SATURDAY
+        if (place, weekday) in grown:
+            members = grown[(place, weekday)]
+            members += list(facts.classes[key])
+        else:
+            grown[(place, weekday)] = list(facts.classes[key])
+    classes = {key: tuple(sorted(grown[key])) for key in grown}
+    return dataclasses.replace(
+        facts,
+        classes=classes,
+        keys=tuple(sorted(classes)),
+        shortable=tuple(sorted({key[1] for key in classes})),
+    )
+
+
+def _least_half(facts: Facts, weekend: bool, tally: "list[int]") -> int:
+    """The least cells one half of the week holds over the tables of `facts`, or -1.
+
+    Asked on the census side's network (every table it finds is a
+    table), by halving the most the half may hold.
+    """
+    body = facts.body
+
+    def fits(most: int) -> bool:
+        bounds = ((body - most, body), (0, most)) if weekend else ((0, most), (body - most, body))
+        return _census_table(facts, {}, {}, {}, {}, 0, 0, tally, bounds) is not None
+
+    if not fits(body):
+        return -1
+    first, last = 0, body
+    while first < last:
+        middle = (first + last) // 2
+        if fits(middle):
+            last = middle
+        else:
+            first = middle + 1
+    return first
+
+
+def _band(least: int, line: int, capped: int) -> "tuple[int, int]":
+    """At least one row, and at most the line and what the capped stretches
+    can put in this half beyond the least the half can hold."""
+    if least < 0:
+        return (1, 0)
+    return (max(1, least), least + line + capped)
+
+
+def _capped_cells(facts: Facts, weekend: bool) -> int:
+    """The most cells one half of the week can take in the stretches the
+    rank facts cap below the line -- the stretches whose classes can only
+    ever be residue. The band reaches that far past the least and the
+    line, so every arrangement of the residue stage 3 allows fits a table
+    of the band (measured: 400 admissions whose four capped stretches by
+    the boundaries hold fifteen weekend days' worth of cells had their
+    withholding uncertified with a band of the line alone)."""
+    total = 0
+    for place in range(len(facts.stretches)):
+        if facts.most[place] >= facts.line:
+            continue
+        for weekday in range(calendar_rules.WEEKDAYS):
+            if (weekday >= calendar_rules.SATURDAY) != weekend:
+                continue
+            if (place, weekday) in facts.classes:
+                total = total + facts.most[place]
+                break
+    return total
+
+
+def withholding(
+    parsed: int,
+    rows_low: int,
+    rows_high: int,
+    low: int,
+    high: int,
+    rungs: "tuple[tuple[int, int], ...]",
+    reader_fewest: int,
+    reader_most: int,
+    line: int,
+    holes: "tuple[int, ...]" = (),
+) -> Withholding:
+    """The withholding's certificate, from the published numbers alone.
+
+    The BANDS: the least cells the weekend, and the least Monday to
+    Friday together, hold over the tables meeting stage 3's facts on the
+    reader's bounds and the holes; each band runs from the larger of one
+    and that least to the least plus the line plus what the capped
+    stretches can take in that half (`bands`). Then W0, the tables whose
+    weekend lies in its band or whose weekdays lie in theirs: every class
+    -- a knot day, or the days of one stretch between two knots in one
+    half of the week (`_pooled`) -- needs a witness in W0 putting the
+    line on one of its days, or no table of stage 3's facts may put the
+    line there (else W0, and with it the withholding, narrows the
+    class) and the class is residue, whose every stage-3 configuration
+    W0 allows (`_residue_equivalent` with W0's two alternatives).
+
+    CACHED ON THE WHOLE QUESTION, as `check` is. Guarantees: accepts the
+    description's numbers; returns the answer. Determinism: a function
+    of the arguments. Raises nothing. No I/O of any kind.
+    """
+    key: "tuple[object, ...]" = (
+        "withholding", parsed, rows_low, rows_high, low, high,
+        tuple(sorted(rungs)), reader_fewest, reader_most, line,
+        tuple(sorted(set(holes))),
+    )
+    if key in _WITHHOLDINGS:
+        return _WITHHOLDINGS[key]
+    banded = bands(
+        parsed, rows_low, rows_high, low, high, rungs, reader_fewest,
+        reader_most, line, holes,
+    )
+    answer = _withheld_certified(
+        facts_of(
+            parsed, rows_low, rows_high, low, high, rungs, reader_fewest,
+            reader_most, line, _HALVES, -1, holes,
+        ),
+        banded,
+    )
+    if len(_WITHHOLDINGS) >= _ANSWERS_KEPT:
+        for known in list(_WITHHOLDINGS):
+            del _WITHHOLDINGS[known]
+    _WITHHOLDINGS[key] = answer
+    return answer
+
+
+_WITHHOLDINGS: "dict[tuple[object, ...], Withholding]" = {}
+_BANDS: "dict[tuple[object, ...], Bands]" = {}
+
+
+@dataclasses.dataclass(frozen=True)
+class Bands:
+    """The two BANDS: the weekend and Monday to Friday totals always withheld.
+
+    Each `(least, most)`, `(1, 0)` where no table meeting stage 3's facts
+    is found; `solves` how many networks were solved.
+    """
+
+    weekend: "tuple[int, int]"
+    weekdays: "tuple[int, int]"
+    solves: int
+
+
+def bands(
+    parsed: int,
+    rows_low: int,
+    rows_high: int,
+    low: int,
+    high: int,
+    rungs: "tuple[tuple[int, int], ...]",
+    reader_fewest: int,
+    reader_most: int,
+    line: int,
+    holes: "tuple[int, ...]" = (),
+) -> Bands:
+    """The two bands, from the published numbers alone (`withholding`).
+
+    The least cells the weekend, and Monday to Friday together, hold
+    over the tables meeting stage 3's facts on the reader's bounds and
+    the holes, asked on the census side's network so every table found
+    is a table; each band runs from the larger of one and that least to
+    the least plus the line plus the most that half can take in the
+    stretches the rank facts cap below the line (`_capped_cells`). Asked
+    by the producer and by the loader (WC9). CACHED ON THE WHOLE
+    QUESTION.
+
+    Guarantees: accepts the description's numbers; returns the bands.
+    Determinism: a function of the arguments. Raises nothing. No I/O.
+    """
+    key: "tuple[object, ...]" = (
+        "bands", parsed, rows_low, rows_high, low, high,
+        tuple(sorted(rungs)), reader_fewest, reader_most, line,
+        tuple(sorted(set(holes))),
+    )
+    if key in _BANDS:
+        return _BANDS[key]
+    tally = [0]
+    facts = _halves_facts(
+        facts_of(
+            parsed, rows_low, rows_high, low, high, rungs, reader_fewest,
+            reader_most, line, _HALVES, -1, holes,
+        )
+    )
+    answer = Bands(
+        _band(_least_half(facts, True, tally), line, _capped_cells(facts, True)),
+        _band(_least_half(facts, False, tally), line, _capped_cells(facts, False)),
+        tally[0],
+    )
+    if len(_BANDS) >= _ANSWERS_KEPT:
+        for known in list(_BANDS):
+            del _BANDS[known]
+    _BANDS[key] = answer
+    return answer
+
+
+def _withheld_certified(given: Facts, banded: Bands) -> Withholding:
+    tally = [banded.solves]
+    facts = _pooled(_halves_facts(given))
+    line = facts.line
+    body = facts.body
+    weekend = banded.weekend
+    weekdays = banded.weekdays
+    alternatives: "list[tuple[dict[int, tuple[int, int]], tuple[tuple[int, int], ...] | None]]" = []
+    if weekend[0] <= weekend[1]:
+        alternatives += [({}, ((body - weekend[1], body - weekend[0]), weekend))]
+    if weekdays[0] <= weekdays[1]:
+        alternatives += [({}, (weekdays, (body - weekdays[1], body - weekdays[0])))]
+    residue: "list[tuple[int, int]]" = []
+    for klass in facts.keys:
+        weekday = klass[1]
+        take = {klass: 1}
+        need = {weekday: (line, body)}
+        found = False
+        for _bounds, top_bounds in alternatives:
+            if _census_table(facts, take, need, {}, {}, 0, 0, tally, top_bounds) is not None:
+                found = True
+                break
+        if found:
+            continue
+        if _stage3_table(facts, take, line, body, {}, 0, 0, tally) is not None:
+            return Withholding(
+                False, "the withheld tables keep a day below the line where stage 3 does not",
+                weekend, weekdays, tally[0],
+            )
+        residue += [klass]
+    if residue:
+        held, _mode, detail = _residue_equivalent(facts, residue, tally, alternatives)
+        if not held:
+            return Withholding(False, detail, weekend, weekdays, tally[0])
+    return Withholding(True, "", weekend, weekdays, tally[0])
+
+
+def in_band(
+    groups: "tuple[tuple[int, int, int], ...]", withheld: "Withholding | Bands"
+) -> bool:
+    """Whether a census's weekend, or its Monday to Friday, lies in its band.
+
+    Every entry of the menu publishes both totals: a group of nought
+    counts nought, and every non-zero group lies inside one half.
+
+    Guarantees: accepts a menu grouping and the bands (or the
+    withholding's answer, which carries them); returns the answer. Determinism: a function of the two. Raises
+    nothing. No I/O of any kind.
+    """
+    weekend = 0
+    weekdays = 0
+    for first, last, count in groups:
+        if count == 0:
+            continue
+        if first >= calendar_rules.SATURDAY:
+            weekend = weekend + count
+        else:
+            weekdays = weekdays + count
+    return (
+        withheld.weekend[0] <= weekend <= withheld.weekend[1]
+        or withheld.weekdays[0] <= weekdays <= withheld.weekdays[1]
+    )
+
+
 def check(
     parsed: int,
     rows_low: int,
@@ -1021,9 +1579,12 @@ def check(
     and every hole) and by the loader (with `real_days` -1, so the
     reader's bounds stand on both sides, and the holes the form censuses
     and the placeholder decisions show). The groups must already be a
-    menu grouping whose counts add to the body. WC7 first: a group a reader can hold to fewer than four
-    dates besides the knot days and the holes withholds (reason
-    `few_dates`); then the certificate.
+    menu grouping whose counts add to the body. The refusals a handful
+    of published numbers decide come first and walk no day
+    (`_refused`: a grouping of no menu entry, and too few repeated
+    cells for any day to hold the line); then WC7 -- a group a reader
+    can hold to fewer than four dates besides the knot days and the
+    holes withholds (reason `few_dates`); then the certificate.
 
     CACHED ON THE WHOLE QUESTION: the producer, its self-check, the
     generator's loader and the validator's loader ask the same
@@ -1040,16 +1601,61 @@ def check(
     )
     if key in _ANSWERS:
         return _ANSWERS[key]
-    facts = facts_of(
-        parsed, rows_low, rows_high, low, high, rungs, reader_fewest,
-        reader_most, line, groups, real_days, holes,
-    )
-    verdict = _decided(facts)
+    verdict = _refused(parsed - rows_low - rows_high, reader_fewest, line, groups)
+    if verdict is None:
+        facts = facts_of(
+            parsed, rows_low, rows_high, low, high, rungs, reader_fewest,
+            reader_most, line, groups, real_days, holes,
+        )
+        verdict = _decided(facts)
     if len(_ANSWERS) >= _ANSWERS_KEPT:
         for known in list(_ANSWERS):
             del _ANSWERS[known]
     _ANSWERS[key] = verdict
     return verdict
+
+
+def _refused(
+    body: int,
+    reader_fewest: int,
+    line: int,
+    groups: "tuple[tuple[int, int, int], ...]",
+) -> "Verdict | None":
+    """The refusals the published numbers decide before any day is walked.
+
+    A grouping no entry of the menu is, and a body whose repeated cells
+    cannot put the line on any day (`ties_refused`), are decided from a
+    handful of numbers; asking them first keeps a column spread over
+    thousands of years from enumerating its span only to be refused
+    (review of landing 3b.1, finding 10). None where neither refuses.
+    """
+    if calendar_rules.entry_of(groups) == calendar_rules.ENTRY_NONE:
+        return Verdict(
+            False, calendar_rules.REASON_MENU, "not a grouping of the menu",
+            (), (), 0, "",
+        )
+    if ties_refused(body, reader_fewest, line):
+        return Verdict(
+            False, calendar_rules.REASON_TIES,
+            "no day can hold the line: too few repeated cells",
+            (), (), 0, "",
+        )
+    return None
+
+
+def ties_refused(body: int, reader_fewest: int, line: int) -> bool:
+    """Whether no day of the body can hold the line in any table a reader allows.
+
+    A day holding the line needs `line - 1` cells beyond the one each
+    occupied day holds, and a reader's tables hold at most
+    `body - reader_fewest` such cells. A function of three published
+    numbers: it walks no day.
+
+    Guarantees: accepts the body, the reader's least different days and
+    the line; returns the answer. Determinism: a function of the three.
+    Raises nothing. No I/O of any kind.
+    """
+    return body - reader_fewest < line - 1
 
 
 def _decided(facts: Facts) -> Verdict:
@@ -1124,12 +1730,14 @@ def breach(
     to the body; WC4 the grouping is an entry of the menu; WC6 the
     published forms give every date one text; WC5 no group is left one
     to the line less one once the knot days' sure cells are taken out;
-    then WC7 and WC8 (`check`, on the reader's bounds, with `holes` --
-    the days the published form censuses leave empty,
-    `calendar_rules.form_holes`, and the placeholder days the block reads
-    as no value, `calendar_rules.placeholder_holes`). The first broken
-    rule is returned as (rule, what the census says, what the rule
-    asks), the two phrases a person reads beside the rule's own words.
+    then WC9, no weekend and no Monday to Friday inside its BAND, the
+    totals the producer always withholds (`bands`, `in_band`), asked
+    where any day can hold the line at all; then WC7 and WC8 (`check`, on
+    the reader's bounds, with `holes` -- every hole the description
+    publishes, `calendar_rules.public_holes`). The
+    first broken rule is returned as (rule, what the census says, what
+    the rule asks), the two phrases a person reads beside the rule's own
+    words.
 
     Guarantees: accepts the census and the description's numbers;
     returns None or the broken rule. Determinism: a function of the
@@ -1179,13 +1787,10 @@ def breach(
             "a weekday census is published",
             "the censuses of written forms must give every date one text",
         )
-    facts = facts_of(
-        parsed, rows_low, rows_high, low, high, rungs, fewest, most, line,
-        groups, -1, holes,
-    )
+    knots = _knots_of(parsed, rows_low, rows_high, low, high, rungs)
     sure = [0 for _ in range(calendar_rules.WEEKDAYS)]
-    for day in facts.knot_days:
-        before, upto = facts.knots[day]
+    for day in sorted(knots):
+        before, upto = knots[day]
         weekday = calendar_rules.weekday_of(day)
         sure[weekday] = sure[weekday] + max(1, upto - before)
     short = calendar_rules.sure_cells_breach(groups, sure, line)
@@ -1197,6 +1802,21 @@ def breach(
             f"what is left of it once its boundary and rung days are "
             f"counted must be nought or at least {line}",
         )
+    if not ties_refused(body, fewest, line):
+        banded = bands(
+            parsed, rows_low, rows_high, low, high, rungs, fewest, most,
+            line, holes,
+        )
+        if in_band(groups, banded):
+            return (
+                "WC9",
+                "the weekday census",
+                "the weekend, and Monday to Friday together, must each hold "
+                "none or more than the census line beyond the least the rest "
+                f"of this description allows it: a weekend of {banded.weekend[0]} "
+                f"to {banded.weekend[1]} rows, and Monday to Friday of "
+                f"{banded.weekdays[0]} to {banded.weekdays[1]}, are withheld",
+            )
     verdict = check(
         parsed, rows_low, rows_high, low, high, rungs, fewest, most, line,
         groups, -1, holes,

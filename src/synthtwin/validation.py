@@ -4369,9 +4369,9 @@ def _within(
             () if reaches else _MET_OUTSIDE_ITS_WINDOW,
         )
     verdict = WITHIN_BOUND if low <= measured <= high else MISSED
-    note: tuple[str, ...] = ()
+    lines: "list[str]" = []
     if not reaches:
-        note = (
+        lines += [
             (
                 "      this window does NOT reach the description's own "
                 "value. It is"
@@ -4379,16 +4379,17 @@ def _within(
             "      what the method allows the file here, worked out from",
             "      the description and the size of this column; it is not",
             "      a margin around that value.",
-        )
+        ]
     if anchored and not reaches and value is not None:
         half = (high - low) / 2.0
         if not value - half <= measured <= value + half:
             verdict = MISSED
-            note = note + (
+            lines += [
                 "      and the file stands farther from the description's",
                 "      own value than half this window's width, so the",
                 "      window is not taken as a pass (V6.1-A2).",
-            )
+            ]
+    note: tuple[str, ...] = tuple(lines)
     return Check(
         column,
         fact,
@@ -7433,12 +7434,15 @@ def _obligations(
         and column.name not in description.settings.forced_measurements
     )
     writable = not subsecond_figures_unwritable(description, column)
+    declared = description.settings.declared_missing_values.built_in_dates
     gated = gated + _role_checks(
-        column, block, own_cells, floor, mine, pairs, writable, system
+        column, block, own_cells, floor, mine, pairs, writable, system,
+        declared,
     )
     measured = _universal_checks(column, split, mine, floor, system)
     measured = measured + _role_checks(
-        column, split, split_cells, floor, mine, pairs, writable, system
+        column, split, split_cells, floor, mine, pairs, writable, system,
+        declared,
     )
     return checks + _governed(gated, measured, split_published)
 
@@ -9714,6 +9718,7 @@ def _role_checks(
     plain_pairs: bool = False,
     figures_writable: bool = True,
     date_system: str = "",
+    declared_days: "tuple[str, ...]" = (),
 ) -> "list[Check]":
     """Everything the column's own role adds.
 
@@ -9754,7 +9759,7 @@ def _role_checks(
     if isinstance(facts, contract.DatetimeFacts):
         return _datetime_checks(
             column, facts, block, floor, mine, cells, figures_writable,
-            date_system,
+            date_system, declared_days,
         )
     if isinstance(facts, contract.TextFacts):
         return _text_checks(column, facts, block, floor, cells)
@@ -14212,12 +14217,12 @@ def _named_styles(facts: contract.NumericFacts) -> "tuple[str, ...]":
     The pooled remainder is not one of them, exactly as in
     `_published_widths`: it names no style and so authorizes none.
     """
-    names: "tuple[str, ...]" = ()
+    names: "list[str]" = []
     for style in sorted(facts.numeric_styles):
         if style == taxonomy.SUPPRESSED_LABEL:
             continue
-        names = names + (style,)
-    return names
+        names += [style]
+    return tuple(names)
 
 
 def _published_widths(
@@ -16706,6 +16711,7 @@ def _datetime_checks(
     cells: "list[str]",
     figures_writable: bool = True,
     date_system: str = "",
+    declared_days: "tuple[str, ...]" = (),
 ) -> "list[Check]":
     """A column of dates and times.
 
@@ -16815,7 +16821,9 @@ def _datetime_checks(
     checks = checks + _date_ladder_checks(
         column, facts, block, floor, date_system
     )
-    checks = checks + _weekday_checks(column, facts, block, floor, cells)
+    checks = checks + _weekday_checks(
+        column, facts, block, floor, cells, declared_days
+    )
     return checks
 
 
@@ -16844,6 +16852,7 @@ def _weekday_checks(
     block: "dict[str, object]",
     floor: int,
     cells: "list[str]",
+    declared_days: "tuple[str, ...]" = (),
 ) -> "list[Check]":
     """The weekday census, held exactly (landing 3b.1, validation V5-W1).
 
@@ -16860,6 +16869,16 @@ def _weekday_checks(
     (plan P4-D347): a group the file holds one to the line less one of
     is printed "fewer than" the line, and the note says so.
 
+    AND NO CELL STANDS ON A DAY THE DESCRIPTION HOLDS EMPTY (review of
+    landing 3b.1, item 4). The census was certified with every day the
+    description publishes as holding no body cell left out -- the days
+    its censuses of written forms leave empty, the placeholder days it
+    reads as no value and the days a published absent spelling names
+    (`calendar_rules.public_holes`, `declared_days` the placeholder days
+    the settings' declaration named) -- so a file with a body cell on one
+    misses the census whatever its counts; the line says so without a
+    number.
+
     Guarantees: accepts the column, its facts, the file's own block, the
     floor and the file's cells; returns one check where a census is
     published and none otherwise. Determinism: a function of the
@@ -16870,6 +16889,8 @@ def _weekday_checks(
         return []
     low = _weekday_day(facts.low_tail.boundary)
     high = _weekday_day(facts.high_tail.boundary)
+    holes = set(_published_holes(column, facts, low, high, declared_days))
+    on_holes = 0
     bins = [0 for _ in range(calendar_rules.WEEKDAYS)]
     for cell in _dates_the_file_reads(block, facts, cells):
         read = parsing.parse_datetime(cell, facts.parser_family)
@@ -16879,42 +16900,142 @@ def _weekday_checks(
         if low <= day <= high:
             weekday = calendar_rules.weekday_of(day)
             bins[weekday] = bins[weekday] + 1
+            if day in holes:
+                on_holes = on_holes + 1
     found = calendar_rules.group_counts(census, bins)
     line = parsing.census_floor(floor)
+    # COMPLEMENTARY, OR NOT AT ALL (review of landing 3b.1, item 3). A
+    # count below the line printed as "fewer than" the line beside every
+    # other group's count gave itself back: the report prints the file's
+    # present cells, its unparsed cells and both tails' rows, and so its
+    # body, and 1,000 less 14 less 12 less the six counts printed was the
+    # Sunday count of 3. So where any group holds one to the line less
+    # one, NO group's count is printed: the short groups say they are
+    # short, and every other group is kept back. And where even which
+    # groups are short would give a count back beside the body -- a body
+    # of twelve with one short group holds one there, the other eleven
+    # on one weekday -- no group is named at all.
+    short = [index for index in range(len(found)) if 0 < found[index] < line]
+    named_short = bool(short) and not _short_counts_pinned(found, short, line)
     asked = ""
     shown = ""
-    dropped = False
     for index in range(len(census)):
         first, last, count = census[index]
         named = _weekday_group_named(first, last)
         between = ", " if index else ""
         asked = f"{asked}{between}{named} {_shown_count(count)}"
         held = found[index]
-        if 0 < held < line:
-            shown = f"{shown}{between}{named} {_below_the_floor(line)}"
-            dropped = True
-        else:
+        if not short:
             shown = f"{shown}{between}{named} {_shown_count(held)}"
+        elif index in short and named_short:
+            shown = f"{shown}{between}{named} {_below_the_floor(line)}"
+        else:
+            shown = f"{shown}{between}{named} {_KEPT_BACK}"
     wanted = [count for _first, _last, count in census]
-    note: "tuple[str, ...]" = ()
-    if dropped:
-        note = (
+    lines: "list[str]" = []
+    if short and named_short:
+        lines += [
             f"A group this file holds fewer than {line} of is not "
-            "counted out: the description's own floor keeps that number "
-            "back, and the verdict stands without it.",
-        )
+            "counted out, and neither is any other group: beside the "
+            "file's own total, the other groups' counts would give that "
+            "number back. The description's own floor keeps it back, and "
+            "the verdict stands without it."
+        ]
+    elif short:
+        lines += [
+            f"Some group this file holds fewer than {line} of, and no "
+            "group is counted out or named: beside the file's own total, "
+            "even which groups are short would give such a number back. "
+            "The description's own floor keeps it back, and the verdict "
+            "stands without it."
+        ]
+    if on_holes:
+        lines += [
+            "Some of this file's dates between the two boundaries stand on "
+            "days its description holds no value on -- days its written "
+            "forms, its placeholder decisions or its absent spellings "
+            "leave empty -- and the census was counted without them."
+        ]
+    note: "tuple[str, ...]" = tuple(lines)
     return [
         Check(
             column.name,
             "datetime.weekday_census",
             "weekday_census.groups",
-            HELD if found == wanted else MISSED,
+            HELD if found == wanted and not on_holes else MISSED,
             asked,
             shown,
             "",
             note,
         )
     ]
+
+
+def _published_holes(
+    column: contract.ColumnBlock,
+    facts: contract.DatetimeFacts,
+    low: int,
+    high: int,
+    declared_days: "tuple[str, ...]",
+) -> "tuple[int, ...]":
+    """The days from `low` to `high` the description holds empty.
+
+    `calendar_rules.public_holes` on what the description publishes --
+    the producer's, the loader's and the generator's one rule.
+    """
+    forms = {
+        "datetime_separators": dict(facts.datetime_separators),
+        "date_field_widths": dict(facts.date_field_widths),
+        "month_name_styles": dict(facts.month_name_styles),
+        "quarter_marker_case": dict(facts.quarter_marker_case),
+        "zulu_case": dict(facts.zulu_case),
+    }
+    judged = tuple(
+        verdict.candidate
+        for verdict in column.sentinel_verdicts
+        if verdict.verdict == contract.VERDICT_MISSING
+    )
+    absent = tuple(sorted(set(column.missing_by_source) | set(declared_days)))
+    return calendar_rules.public_holes(
+        forms, facts.parser_family, low, high, judged, absent
+    )
+
+
+# What a group's count prints as where another group of the same census
+# holds fewer than the line (`_weekday_checks`).
+_KEPT_BACK = "kept back"
+
+
+def _short_counts_pinned(
+    found: "list[int]", short: "list[int]", line: int
+) -> bool:
+    """Whether naming the short groups would give one of their counts back.
+
+    A reader of the report holds the counts' total (the file's own
+    body, from the lines beside), knows every named short group holds
+    one to `line - 1` and every other group nought or at least `line`.
+    The short groups' total `s` then lies in `[k, k * (line - 1)]`, `k`
+    of them, with `total - s` nought or at least `line` (or nought only,
+    where every group is short); a short count is pinned where those
+    totals leave one group a single possible value.
+
+    Guarantees: accepts the counts, the short groups and the line;
+    returns the answer. Determinism: a function of the three. Raises
+    nothing. No I/O of any kind.
+    """
+    total = sum(found)
+    many = len(short)
+    others = len(found) - many
+    possible: "set[int]" = set()
+    for together in range(many, many * (line - 1) + 1):
+        rest = total - together
+        if rest < 0 or (rest != 0 and (others == 0 or rest < line)):
+            continue
+        for value in range(1, line):
+            left = together - value
+            if (many - 1) <= left <= (many - 1) * (line - 1):
+                possible = possible | {value}
+    return len(possible) <= 1
 
 
 def _weekday_day(text: str) -> int:
@@ -17088,6 +17209,10 @@ def _written_form_checks(
         measured = _map_at(block, key)
         raw = _raw_written_tally(key, cells, facts.parser_family)
         tally = _folded_written_tally(key, raw)
+        # Where each count this census prints stands, and what its verdict
+        # asks of it, for the complementary rule below (review of landing
+        # 3b.1, item 3): `(check, count, rule, threshold)`.
+        printed: "list[tuple[int, int, str, int]]" = []
         published_total = 0
         for named in census:
             published_total = published_total + census[named]
@@ -17175,8 +17300,21 @@ def _written_form_checks(
             shown = _shown_count(tallied)
             if 0 < tallied < line:
                 shown = _below_the_floor(line)
+            # What the verdict asks of the count printed: a width of
+            # several asks its floor of the tally BEFORE absorbing, a
+            # number no line prints, and so does a style only a date's
+            # value shows.
+            rule = _RULE_OPEN
+            threshold = floor
+            if counted_exactly:
+                rule = _RULE_EQUAL
+                threshold = census[named]
+            elif key == "month_name_styles" and not parsing.name_is_value_bound(named):
+                rule = _RULE_AT_LEAST
             if tallied == 0 and named not in measured:
                 shown = _FORM_NOT_NAMED
+            else:
+                printed += [(len(checks), tallied, rule, threshold)]
             # A CONVENTION MET AT ITS FLOOR BUT NOT AT ITS COUNT IS NOT HELD
             # (plan P4-D195). A census of several widths was printed HELD on
             # a twin holding 381 and 393 against a published 369 and 381,
@@ -17233,6 +17371,8 @@ def _written_form_checks(
         shown_unnamed = _shown_count(unnamed)
         if 0 < unnamed < line:
             shown_unnamed = _below_the_floor(line)
+        if not exact:
+            printed += [(len(checks), unnamed, _RULE_AT_MOST, bound)]
         checks += [
             Check(
                 name,
@@ -17243,7 +17383,129 @@ def _written_form_checks(
                 shown_unnamed,
             )
         ]
+        # THE SAME SUBTRACTION AS THE WEEKDAY LINE'S (review of landing
+        # 3b.1, item 3, where a review names one site): the counts a width
+        # or a month-name census prints cover the file's parsed cells,
+        # which the lines beside it print, so one below the line printed
+        # "fewer than" the line beside the others printed as numbers gave
+        # itself back. Where one is below the line, none is printed.
+        # AND NO VERDICT SAYS WHAT THE COUNT WOULD HAVE (review of the
+        # third review's repair): a named style printed HELD only where
+        # the file's tally equalled the published count a reader holds,
+        # and the unnamed line printed its bound, so 549 rows written
+        # two ways publishing 275 and 274, beside five more written a
+        # third way, printed present 554, both named styles HELD and the
+        # third "fewer than 11" -- 554 less 275 less 274 is the five.
+        # Where one is below the line, each verdict is shown only where
+        # the ranges this census prints settle it (`_settled_verdict`),
+        # HELD is never shown for a count a reader would then hold, and
+        # the bound is printed as no number.
+        values = [value for _index, value, _rule, _threshold in printed]
+        short = [place for place in range(len(values)) if 0 < values[place] < line]
+        if short:
+            pinned = _short_counts_pinned(values, short, line)
+            total = sum(values)
+            ranges: "list[tuple[int, int]]" = []
+            for place in range(len(printed)):
+                ranges += [
+                    (1, line - 1) if place in short and not pinned else (0, total)
+                ]
+            for place in range(len(printed)):
+                index, _value, rule, threshold = printed[place]
+                text = _KEPT_BACK
+                if place in short and not pinned:
+                    text = _below_the_floor(line)
+                settled = _settled_verdict(
+                    ranges, place, total, rule, threshold, checks[index].verdict
+                )
+                asked = checks[index].published
+                if rule == _RULE_AT_MOST:
+                    asked = _AT_MOST_BEYOND
+                citation = _GATE_SHORT_BESIDE if settled == WITHHELD else ""
+                checks[index] = dataclasses.replace(
+                    checks[index],
+                    verdict=settled,
+                    published=asked,
+                    achieved=text,
+                    citation=citation,
+                )
     return checks
+
+
+# What a line of a written-form census asks of its count, for the
+# complementary rule (`_settled_verdict`): at least a floor's worth,
+# exactly the published count, at most a bound, or a rule on a count of
+# the file's own that no line prints (a style only a date's value shows).
+_RULE_AT_LEAST = "at_least"
+_RULE_EQUAL = "equal"
+_RULE_AT_MOST = "at_most"
+_RULE_OPEN = "open"
+
+# What the unnamed line asks where another line of its census is short.
+_AT_MOST_BEYOND = "at most the cells this file holds beyond the published total"
+
+# THE GATE BESIDE A SHORT LINE (review of the third review's repair). A
+# written-form census whose file holds one form on fewer cells than the
+# line prints no count of any form; a verdict would say one anyway where
+# what the lines print leaves it open.
+_GATE_SHORT_BESIDE = (
+    "another line of this census holds fewer cells than the description's "
+    "floor, and beside the file's own total and the lines around it this "
+    "outcome would give that count back, so neither the count nor the "
+    "outcome is shown"
+)
+
+
+def _settled_verdict(
+    ranges: "list[tuple[int, int]]",
+    place: int,
+    total: int,
+    rule: str,
+    threshold: int,
+    verdict: str,
+) -> str:
+    """One line's verdict where the ranges its census prints settle it, else WITHHELD.
+
+    `ranges` are what a reader holds of every line's count -- one to the
+    line less one where it is named short, anything up to the total
+    otherwise -- and the counts add to `total`, which a reader is taken
+    to hold. The line's own count then lies between the most and the
+    least the others leave; its rule (`_RULE_*`, against `threshold`)
+    is shown only where every count there answers it alike: a floor's
+    worth met as WITHIN-BOUND, never HELD, whose equality with the
+    published count a reader holds would give the count back; the
+    published count equalled only where nothing else is possible; the
+    bound kept or passed by every count. `verdict` is the line's own,
+    which a settled answer always equals.
+
+    Guarantees: accepts the ranges, the line, the total, the rule and
+    the verdict; returns the verdict to show. Determinism: a function
+    of the arguments. Raises nothing. No I/O of any kind.
+    """
+    others_low = 0
+    others_high = 0
+    for other in range(len(ranges)):
+        if other != place:
+            others_low = others_low + ranges[other][0]
+            others_high = others_high + ranges[other][1]
+    least = max(ranges[place][0], total - others_high)
+    most = min(ranges[place][1], total - others_low)
+    if rule == _RULE_AT_LEAST:
+        if least >= threshold:
+            return WITHIN_BOUND
+        if most < threshold:
+            return MISSED
+    elif rule == _RULE_EQUAL:
+        if least == most == threshold:
+            return verdict
+        if threshold < least or threshold > most:
+            return MISSED
+    elif rule == _RULE_AT_MOST:
+        if most <= threshold:
+            return HELD
+        if least > threshold:
+            return MISSED
+    return WITHHELD
 
 
 def _style_published(

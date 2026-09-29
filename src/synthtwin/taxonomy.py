@@ -963,22 +963,23 @@ HEADER_NAMES_SHOWN_BY_COLUMN = "header_names_shown_by_a_column"
 HEADER_NAMES_NOT_TOLD = "header_names_could_not_be_told"
 
 # WHAT A COLUMN OF DATES SAYS ABOUT ITS WEEKDAY CENSUS (stage 3b landing
-# 3b.1, plan P4-D355, contract WC1 to WC8). A PUBLISHED census carries two
+# 3b.1, plan P4-D355, contract WC1 to WC9). A PUBLISHED census carries two
 # remarks -- one per entry of the menu, saying how the days are grouped,
 # and one saying what the counts do not show -- and a WITHHELD one a
-# publication note per reason. Each takes the census line as its one
+# publication note: its own for each reason the published numbers alone
+# decide, and one shared by every reason the table's own numbers decide
+# (`calendar_rules.SAID_REASONS`; review of landing 3b.1, item 2, which
+# retired the no-grouping, few-dates and two-storages sentences because
+# each told a reader what its rule saw). Each takes the census line as its one
 # argument where it names a number at all: the line is a setting of the
 # run and never a count of anybody's rows.
 REMARK_WEEKDAY_SEVEN = "weekday_census_counts_each_day"
 REMARK_WEEKDAY_WEEKEND = "weekday_census_counts_the_weekend_together"
 REMARK_WEEKDAY_WEEKDAYS = "weekday_census_counts_the_weekdays_together"
 REMARK_WEEKDAY_FLOOR = "weekday_census_shows_no_count_below_the_line"
-NOTE_WEEKDAY_WITHHELD_MENU = "weekday_census_withheld_no_grouping"
 NOTE_WEEKDAY_WITHHELD_TIES = "weekday_census_withheld_too_few_repeats"
 NOTE_WEEKDAY_WITHHELD_NARROWED = "weekday_census_withheld_could_be_narrowed"
-NOTE_WEEKDAY_WITHHELD_FEW_DATES = "weekday_census_withheld_a_few_dates"
 NOTE_WEEKDAY_WITHHELD_SPELLINGS = "weekday_census_withheld_two_spellings"
-NOTE_WEEKDAY_WITHHELD_WORKBOOK = "weekday_census_withheld_two_storages"
 NOTE_WEEKDAY_WITHHELD_NO_TAILS = "weekday_census_withheld_no_tails"
 
 # EVERY form, with how many arguments it takes. This mapping is the
@@ -1121,12 +1122,9 @@ NOTE_ARITY: "dict[str, int]" = {
     REMARK_WEEKDAY_WEEKEND: 1,
     REMARK_WEEKDAY_WEEKDAYS: 1,
     REMARK_WEEKDAY_FLOOR: 1,
-    NOTE_WEEKDAY_WITHHELD_MENU: 1,
     NOTE_WEEKDAY_WITHHELD_TIES: 1,
     NOTE_WEEKDAY_WITHHELD_NARROWED: 1,
-    NOTE_WEEKDAY_WITHHELD_FEW_DATES: 0,
     NOTE_WEEKDAY_WITHHELD_SPELLINGS: 0,
-    NOTE_WEEKDAY_WITHHELD_WORKBOOK: 0,
     NOTE_WEEKDAY_WITHHELD_NO_TAILS: 0,
 }
 
@@ -1329,7 +1327,6 @@ ARGUMENT_BINDINGS: "dict[tuple[str, int], tuple[object, ...]]" = {
     (REMARK_WEEKDAY_WEEKEND, 0): (BIND_SETTING, "census line"),
     (REMARK_WEEKDAY_WEEKDAYS, 0): (BIND_SETTING, "census line"),
     (REMARK_WEEKDAY_FLOOR, 0): (BIND_SETTING, "census line"),
-    (NOTE_WEEKDAY_WITHHELD_MENU, 0): (BIND_SETTING, "census line"),
     (NOTE_WEEKDAY_WITHHELD_TIES, 0): (BIND_SETTING, "census line"),
     (NOTE_WEEKDAY_WITHHELD_NARROWED, 0): (BIND_SETTING, "census line"),
     (REMARK_OUT_OF_RANGE, 0): (BIND_KEY, "n_out_of_range"),
@@ -1954,13 +1951,6 @@ def rendered(form: str, arguments: "tuple[object, ...]") -> str:
             f"rows of any set of dates that the rest of this description "
             f"does not already show"
         )
-    if form == NOTE_WEEKDAY_WITHHELD_MENU:
-        return (
-            f"the days of the week this column's values fall on are not "
-            f"counted: neither each day alone, nor the weekend together, "
-            f"nor the weekdays and the weekend each together holds at "
-            f"least {_whole(arguments, 0)} rows in every group"
-        )
     if form == NOTE_WEEKDAY_WITHHELD_TIES:
         return (
             f"the days of the week this column's values fall on are not "
@@ -1970,25 +1960,15 @@ def rendered(form: str, arguments: "tuple[object, ...]") -> str:
     if form == NOTE_WEEKDAY_WITHHELD_NARROWED:
         return (
             f"the days of the week this column's values fall on are not "
-            f"counted: counted by day of the week, some of its dates "
-            f"could be narrowed to fewer than {_whole(arguments, 0)} rows"
-        )
-    if form == NOTE_WEEKDAY_WITHHELD_FEW_DATES:
-        return (
-            "the days of the week this column's values fall on are not "
-            "counted: a count would be the count of a few single dates"
+            f"counted, and why is not said: counting them, or saying which "
+            f"rule kept them back, could narrow some of its dates to fewer "
+            f"than {_whole(arguments, 0)} rows"
         )
     if form == NOTE_WEEKDAY_WITHHELD_SPELLINGS:
         return (
             "the days of the week this column's values fall on are not "
             "counted: a date may be written in more than one way here, "
             "so different values do not count different days"
-        )
-    if form == NOTE_WEEKDAY_WITHHELD_WORKBOOK:
-        return (
-            "the days of the week this column's values fall on are not "
-            "counted: the workbook stores this column's dates in more "
-            "than one way"
         )
     if form == NOTE_WEEKDAY_WITHHELD_NO_TAILS:
         return (
@@ -12332,7 +12312,7 @@ def _published_groups(
                     taken[value] = 1
             if values:
                 named += [values]
-    groups: "tuple[tuple[int, int, tuple[int, ...]], ...]" = ()
+    groups: "list[tuple[int, int, tuple[int, ...]]]" = []
     for values in named:
         members: "dict[float, int]" = {}
         for value in values:
@@ -12361,10 +12341,12 @@ def _published_groups(
         elif kind == MARKS_KIND:
             reach = (rows,) * len(parsing.GROUP_MARKS)
         else:
+            parts: "list[int]" = []
             for style in NUMERIC_STYLES:
-                reach = reach + ((whole if style in POINT_FREE_STYLES else rows),)
-        groups = groups + ((rows, len(written), reach),)
-    return groups
+                parts += [whole if style in POINT_FREE_STYLES else rows]
+            reach = tuple(parts)
+        groups += [(rows, len(written), reach)]
+    return tuple(groups)
 
 
 def _comma_readings(texts: "list[str]") -> "tuple[int, int]":
@@ -15199,78 +15181,11 @@ def _census_rungs(
     return tuple(found)
 
 
-def _census_holes(
-    declared: "tuple[str, ...]",
-    details: "dict[str, object]",
-    held: "set[int]",
-) -> "tuple[int, ...]":
-    """The days no body cell of this column can hold: its HOLES.
-
-    A day the column writes in one way (contract WC6) is a hole where
-    that one spelling is a value the person declared missing: a cell
-    written so is read as missing, never as a body cell. A day some
-    parsed cell holds is never a hole. Matched as the declaration rule
-    matches (`_declarations`): by the exact number where the declaration
-    reads as one, by the folded spelling otherwise.
-
-    Guarantees: accepts the declared missing spellings, the published
-    details and the days the column holds; returns the holes ascending.
-    Determinism: a function of the three. Raises nothing. No I/O.
-    """
-    format_name = details["format"]
-    if not isinstance(format_name, str) or not declared:
-        return ()
-    width = parsing.DEFAULT_FIELD_WIDTH
-    widths = details["date_field_widths"]
-    if isinstance(widths, dict) and len(widths) == 1:
-        for word in widths:
-            width = str(word)
-    style = parsing.DEFAULT_NAME_STYLE
-    styles = details["month_name_styles"]
-    if isinstance(styles, dict) and len(styles) == 1:
-        for word in styles:
-            style = str(word)
-    holes: "set[int]" = set()
-    for made in _declarations(declared):
-        read = parsing.parse_datetime(made.folded, format_name)
-        if read is None:
-            read = parsing.parse_datetime(_trimmed(made.text), format_name)
-        if read is None:
-            continue
-        canonical = read[0]
-        year = int(canonical[0:4])
-        month = int(canonical[5:7])
-        day = int(canonical[8:10])
-        number = parsing.days_from_civil(year, month, day)
-        if number in held:
-            continue
-        written = parsing.written_date(year, month, day, format_name, width, style)
-        if made.exact is not None:
-            if exact_of_spelling(written) == made.exact:
-                holes = holes | {number}
-        elif parsing.folded(written) == made.folded:
-            holes = holes | {number}
-    return tuple(sorted(holes))
-
-
-def _trimmed(text: str) -> str:
-    """A declared spelling without the blanks around it."""
-    if not isinstance(text, str):
-        raise TypeError(
-            "synthtwin internal check: a declared spelling reached the "
-            "weekday census as something other than text; please report it."
-        )
-    return text.strip()
-
-
 _WITHHELD_WEEKDAY_NOTES = {
     calendar_rules.REASON_NO_TAILS: NOTE_WEEKDAY_WITHHELD_NO_TAILS,
     calendar_rules.REASON_SPELLINGS: NOTE_WEEKDAY_WITHHELD_SPELLINGS,
-    calendar_rules.REASON_WORKBOOK: NOTE_WEEKDAY_WITHHELD_WORKBOOK,
-    calendar_rules.REASON_MENU: NOTE_WEEKDAY_WITHHELD_MENU,
     calendar_rules.REASON_TIES: NOTE_WEEKDAY_WITHHELD_TIES,
-    calendar_rules.REASON_FEW_DATES: NOTE_WEEKDAY_WITHHELD_FEW_DATES,
-    calendar_rules.REASON_NARROWED: NOTE_WEEKDAY_WITHHELD_NARROWED,
+    calendar_rules.REASON_UNSAID: NOTE_WEEKDAY_WITHHELD_NARROWED,
 }
 
 _ENTRY_NOTES = {
@@ -15293,15 +15208,31 @@ class WeekdayDecision:
     """What the weekday census producer decided for one column.
 
     `groups` is the published census, empty where none is published;
-    `reason` a `calendar_rules.REASON_*` word where it is withheld (and
-    empty where no census can stand on the column at all, which says
-    nothing); `verdict` the certificate's answer where it was asked.
+    `reason` the `calendar_rules.REASON_*` word of the rule that withheld
+    it (and empty where no census can stand on the column at all, which
+    says nothing); `said` the reason whose sentence the description
+    carries -- the rule itself where the published numbers alone decide
+    it (`calendar_rules.SAID_REASONS`), `calendar_rules.REASON_UNSAID`
+    wherever the table's own numbers do, because naming THAT rule would
+    tell a reader what the rule saw (review of landing 3b.1, item 2);
+    `verdict` the certificate's answer where it was asked, and
+    `withheld` the withholding's own certificate where it was asked.
     """
 
     groups: "tuple[tuple[int, int, int], ...]"
     reason: str
     entry: int
     verdict: "calendar_certificate.Verdict | None"
+    said: str = ""
+    withheld: "calendar_certificate.Withholding | None" = None
+
+
+def _weekday_said(reason: str) -> str:
+    """The reason a withholding's sentence names: its own where the published
+    numbers decide it, and the one sentence of every other."""
+    if reason in calendar_rules.SAID_REASONS:
+        return reason
+    return calendar_rules.REASON_UNSAID
 
 
 def weekday_decision(
@@ -15310,40 +15241,65 @@ def weekday_decision(
     n_distinct: int,
     settings: Settings,
     stored_one_way: bool = True,
+    *,
+    texts: int,
 ) -> WeekdayDecision:
     """The weekday census of one column of whole dates (plan P4-D355).
 
     THE PRODUCER. `details` is the column's published block, `days` the
     day of every parsed cell ascending (`_census_days`), `n_distinct` the
-    column's published count of different values, and `stored_one_way`
-    whether a workbook stores every cell of the column one way. In
-    order: a column without both tails publishes nothing (WC3); one whose
-    dates may be written two ways (WC6 (a) on the published forms, (b)
-    on the real days) or stored two ways, nothing; the menu takes the
-    body's seven weekday counts; the certificate is asked with the body's
-    REAL count of different days and the holes -- the days a declared
-    missing value names (`_census_holes`), the days the published form
-    censuses leave empty (`calendar_rules.form_holes`) and the
-    placeholder days `sentinel_verdicts` publishes as `read_as_missing`
-    (`calendar_rules.placeholder_holes`) -- and WC7 before it
-    (`calendar_certificate`); and the census is published only where
-    the loader's own check accepts it too (`calendar_certificate.breach`,
-    asked with the form and placeholder holes, which the loader reads
-    off the same block), so the producer never writes what the loader
-    refuses.
+    column's published count of different values, `stored_one_way`
+    whether a workbook stores every cell of the column one way, and
+    `texts` the different texts the parsed cells were written in.
+
+    FIRST, WHAT THE PUBLISHED NUMBERS ALONE DECIDE, each said in its own
+    sentence: a column without both tails publishes nothing (WC3); one
+    whose published forms may write a date two ways (WC6 (a)), nothing;
+    one whose repeated cells cannot put the line on any day in a table a
+    reader allows, nothing (`calendar_certificate.ties_refused`); and one
+    whose WITHHOLDING is not certified -- where being told "withheld"
+    could itself confine a set of dates below the line
+    (`calendar_certificate.withholding`) -- nothing, whatever its table.
+    The holes are the ones a reader holds (`calendar_rules.public_holes`:
+    the days the published form censuses leave empty, the placeholder
+    days `sentinel_verdicts` publishes as `read_as_missing`, and the days
+    a published absent spelling names, `published_absent`).
+
+    THEN WHAT THE TABLE'S OWN NUMBERS DECIDE, every one said in ONE
+    sentence (review of landing 3b.1, item 2): a day with two texts
+    (WC6 (b), `texts` against the different days -- never the published
+    count less the unparsed ROWS, item 7), a workbook storing the column
+    two ways, a body day on a published hole, a weekend or Monday to
+    Friday inside its BAND -- the totals the withholding's certificate
+    asks every table near to be withheld -- no menu entry, then WC7 and the
+    certificate with the body's REAL count of different days, and last
+    the loader's own check (`calendar_certificate.breach`) on the same
+    holes, so the producer never writes what the loader refuses.
 
     Guarantees: accepts the published block, the days, the published
-    count, the settings and the storage flag; returns the decision.
-    Determinism: a function of the arguments. Raises nothing. No I/O.
+    count, the settings, the storage flag and the texts; returns the
+    decision. Determinism: a function of the arguments. Raises nothing.
+    No I/O.
     """
     empty: "tuple[tuple[int, int, int], ...]" = ()
+
+    def withheld(
+        reason: str,
+        entry: int = 0,
+        verdict: "calendar_certificate.Verdict | None" = None,
+        answer: "calendar_certificate.Withholding | None" = None,
+    ) -> WeekdayDecision:
+        return WeekdayDecision(
+            empty, reason, entry, verdict, _weekday_said(reason), answer
+        )
+
     if not days:
         return WeekdayDecision(empty, "", 0, None)
     line = parsing.census_floor(settings.small_cell_floor)
     low_tail = details["low_tail"]
     high_tail = details["high_tail"]
     if not isinstance(low_tail, dict) or not isinstance(high_tail, dict):
-        return WeekdayDecision(empty, calendar_rules.REASON_NO_TAILS, 0, None)
+        return withheld(calendar_rules.REASON_NO_TAILS)
     rows_low = low_tail["rows"]
     rows_high = high_tail["rows"]
     unparsed = details["n_unparsed"]
@@ -15354,7 +15310,7 @@ def weekday_decision(
         or not isinstance(unparsed, int)
         or not isinstance(format_name, str)
     ):
-        return WeekdayDecision(empty, calendar_rules.REASON_NO_TAILS, 0, None)
+        return withheld(calendar_rules.REASON_NO_TAILS)
     parsed = len(days)
     forms: "dict[str, dict[str, int]]" = {}
     for name in calendar_rules.FORM_CENSUSES:
@@ -15369,52 +15325,95 @@ def weekday_decision(
     one_spelling = calendar_rules.one_spelling_published(
         forms, format_name, parsed
     )
-    if not one_spelling or n_distinct - unparsed > len(set(days)):
-        return WeekdayDecision(empty, calendar_rules.REASON_SPELLINGS, 0, None)
-    if not stored_one_way:
-        return WeekdayDecision(empty, calendar_rules.REASON_WORKBOOK, 0, None)
+    if not one_spelling:
+        return withheld(calendar_rules.REASON_SPELLINGS)
     body = days[rows_low : parsed - rows_high]
     if not body:
-        return WeekdayDecision(empty, calendar_rules.REASON_NO_TAILS, 0, None)
-    groups, entry = calendar_rules.menu_groups(
-        calendar_rules.body_bins(list(body)), line
-    )
-    if not groups:
-        return WeekdayDecision(empty, calendar_rules.REASON_MENU, 0, None)
+        return withheld(calendar_rules.REASON_NO_TAILS)
+    low, high = body[0], body[len(body) - 1]
     rungs = _census_rungs(details["date_percentiles"], parsed)
     fewest, most = calendar_certificate.reader_days(
         n_distinct, unparsed, rows_low, _tail_listed(low_tail),
         rows_high, _tail_listed(high_tail),
     )
+    # A REFUSAL THE PUBLISHED NUMBERS DECIDE WALKS NO DAY (review of
+    # landing 3b.1, item 10): the holes below walk the span.
+    if calendar_certificate.ties_refused(len(body), fewest, line):
+        return withheld(calendar_rules.REASON_TIES)
     judged: "tuple[str, ...]" = ()
     if "sentinel_verdicts" in details:
         judged = _read_as_missing(details["sentinel_verdicts"])
-    shown = calendar_rules.form_holes(
-        forms, format_name, body[0], body[len(body) - 1]
+    # THE HOLES A READER HOLDS, AND NO OTHER (review of landing 3b.1,
+    # item 6): what the forms leave empty, the placeholder days read as
+    # no value, and the days a PUBLISHED absent spelling names -- the
+    # block's `missing_by_source` keys and the vocabulary's days the
+    # declaration named -- asked through the one rule the loader asks.
+    # A declared day no key publishes is a day like any other to a
+    # reader, so it is one here too.
+    holes = calendar_rules.public_holes(
+        forms, format_name, low, high, judged, published_absent(details, settings),
     )
-    placed = calendar_rules.placeholder_holes(
-        judged, body[0], body[len(body) - 1]
+    answer = calendar_certificate.withholding(
+        parsed, rows_low, rows_high, low, high, rungs, fewest, most, line, holes,
     )
-    shown = tuple(sorted(set(shown) | set(placed)))
-    holes = tuple(
-        sorted(
-            set(_census_holes(settings.declared_missing_values, details, set(days)))
-            | set(shown)
-        )
+    if not answer.holds:
+        return withheld(calendar_rules.REASON_UNCERTIFIED, 0, None, answer)
+    if texts > len(set(days)):
+        return withheld(calendar_rules.REASON_TEXTS, 0, None, answer)
+    if not stored_one_way:
+        return withheld(calendar_rules.REASON_WORKBOOK, 0, None, answer)
+    if set(holes) & set(body):
+        # A day the published forms or absent spellings say no cell can
+        # stand on holds one: the certificate's premise is false here.
+        return withheld(calendar_rules.REASON_TEXTS, 0, None, answer)
+    bins = calendar_rules.body_bins(list(body))
+    halves = (
+        (0, calendar_rules.FRIDAY, sum(bins[0 : calendar_rules.SATURDAY])),
+        (calendar_rules.SATURDAY, calendar_rules.SUNDAY, bins[calendar_rules.SATURDAY] + bins[calendar_rules.SUNDAY]),
     )
+    if calendar_certificate.in_band(halves, answer):
+        return withheld(calendar_rules.REASON_BAND, 0, None, answer)
+    groups, entry = calendar_rules.menu_groups(bins, line)
+    if not groups:
+        return withheld(calendar_rules.REASON_MENU, 0, None, answer)
     verdict = calendar_certificate.check(
-        parsed, rows_low, rows_high, body[0], body[len(body) - 1], rungs,
+        parsed, rows_low, rows_high, low, high, rungs,
         fewest, most, line, groups, len(set(body)), holes,
     )
     if not verdict.holds:
-        return WeekdayDecision(empty, verdict.reason, entry, verdict)
+        return withheld(verdict.reason, entry, verdict, answer)
     breach = calendar_certificate.breach(
-        groups, parsed, rows_low, rows_high, body[0], body[len(body) - 1],
-        rungs, fewest, most, line, one_spelling, shown,
+        groups, parsed, rows_low, rows_high, low, high,
+        rungs, fewest, most, line, one_spelling, holes,
     )
     if breach:
-        return WeekdayDecision(empty, calendar_rules.REASON_NARROWED, entry, verdict)
-    return WeekdayDecision(groups, "", entry, verdict)
+        return withheld(calendar_rules.REASON_NARROWED, entry, verdict, answer)
+    return WeekdayDecision(groups, "", entry, verdict, "", answer)
+
+
+def published_absent(
+    details: "dict[str, object]", settings: Settings
+) -> "tuple[str, ...]":
+    """The absent spellings a column of dates publishes, for its holes.
+
+    The block's own `missing_by_source` keys, where the block carries
+    them, and the placeholder days of this package's vocabulary the
+    declaration of missing values named (`built_in_values_named`), which
+    the settings block publishes as `built_in_dates`. Nothing the person
+    typed that no key publishes (review of landing 3b.1, finding 6).
+
+    Guarantees: accepts a column block and the run's settings; returns
+    the spellings sorted and each once. Determinism: a function of the
+    two. Raises nothing. No I/O of any kind.
+    """
+    found: "set[str]" = set()
+    if "missing_by_source" in details:
+        keys = details["missing_by_source"]
+        if isinstance(keys, dict):
+            found = found | {str(key) for key in keys}
+    _texts, _numbers, days = built_in_values_named(settings.declared_missing_values)
+    found = found | set(days)
+    return tuple(sorted(found))
 
 
 def _read_as_missing(entries: object) -> "tuple[str, ...]":
@@ -15446,6 +15445,8 @@ def _weekday_published(
     produced: bool,
     stored_one_way: bool,
     verdicts: "list[dict[str, object]]",
+    texts: int,
+    absent: "dict[str, int]",
 ) -> "tuple[dict[str, object], list[Note], list[Note]]":
     """A column block of dates with its `weekday_census`, and its sentences.
 
@@ -15457,7 +15458,9 @@ def _weekday_published(
     `produced` false -- the validator's own re-description of a file,
     which never reads the census -- asks nothing and publishes `[]` with
     no sentence. `verdicts` are the block's published `sentinel_verdicts`,
-    which the decision reads its placeholder holes from.
+    which the decision reads its placeholder holes from, `texts` the
+    different texts the parsed cells were written in, and `absent` the
+    block's published `missing_by_source`, whose keys name holes too.
 
     Guarantees: accepts the block, the days, the published count, the
     settings, the two flags and the decisions; returns a new block, the
@@ -15469,17 +15472,18 @@ def _weekday_published(
     if not produced:
         return block, [], []
     decided = weekday_decision(
-        dict(details, sentinel_verdicts=verdicts),
+        dict(details, sentinel_verdicts=verdicts, missing_by_source=absent),
         days,
         n_distinct,
         settings,
         stored_one_way,
+        texts=texts,
     )
     line = parsing.census_floor(settings.small_cell_floor)
     if not decided.groups:
         if not decided.reason:
             return block, [], []
-        return block, [_weekday_withheld(decided.reason, line)], []
+        return block, [_weekday_withheld(decided.said, line)], []
     block[calendar_rules.WEEKDAY_CENSUS] = [
         {"first": first, "last": last, "count": count}
         for first, last, count in decided.groups
@@ -16094,6 +16098,12 @@ class _Verdict:
     # P4-D355): what the weekday census is counted from once the block
     # beside it is settled (`_weekday_published`). Never published.
     days: "tuple[int, ...]" = ()
+    # HOW MANY DIFFERENT TEXTS THOSE CELLS WERE WRITTEN IN (review of
+    # landing 3b.1, finding 7): one spelling per day is asked of the
+    # texts themselves, never of the published count less the unparsed
+    # ROWS, which ten copies of one impossible date made nine texts too
+    # few. Never published.
+    texts: int = 0
 
 
 def _all_different(cells: _Cells) -> bool:
@@ -18829,6 +18839,7 @@ def _decide(
                 remarks=remarks,
                 details=details,
                 days=_census_days(details, pairs),
+                texts=len(set(sources)),
             )
 
         # RULE 6 -- numbers, at the one parse rate there is. A column that
@@ -21246,6 +21257,8 @@ def profile_column(
             calendar_census,
             stored_one_way,
             entries,
+            verdict.texts,
+            by_source,
         )
         publication_notes = verdict.notes + weekday_notes
     statistical_type, quality_state, structural_role = axes_of(

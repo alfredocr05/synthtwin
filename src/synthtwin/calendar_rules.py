@@ -1,6 +1,6 @@
 """The weekday census of a column of dates: its menu and its rules.
 
-Stage 3b, landing 3b.1 (plan P4-D355, contract WC1 to WC8). A column
+Stage 3b, landing 3b.1 (plan P4-D355, contract WC1 to WC9). A column
 of whole dates read on the local clock publishes `weekday_census`: how
 many cells of its BODY -- the cells between the two tail boundaries,
 both included -- fall on each day of the week, in GROUPS whose count is
@@ -71,10 +71,8 @@ ENTRY_SEVEN = 1
 ENTRY_WEEKEND = 2
 ENTRY_WEEKDAYS = 3
 
-# WHY A COLUMN OF DATES PUBLISHES NO WEEKDAY CENSUS, one word per
-# reason. Each is the argument of one enumerated sentence of the
-# description (`taxonomy.NOTE_WEEKDAY_WITHHELD_*`), never printed as it
-# stands.
+# WHY A COLUMN OF DATES PUBLISHES NO WEEKDAY CENSUS, one word per rule
+# that withholds it. Never printed as it stands.
 REASON_NO_TAILS = "no_tails"
 REASON_SPELLINGS = "spellings"
 REASON_WORKBOOK = "workbook"
@@ -82,6 +80,16 @@ REASON_MENU = "menu"
 REASON_TIES = "ties"
 REASON_FEW_DATES = "few_dates"
 REASON_NARROWED = "narrowed"
+# A day written in two texts by the table's own cells, or standing on a
+# day the published forms or absent spellings hold empty: what the forms
+# publish does not account for how the column was written.
+REASON_TEXTS = "texts"
+# The weekend, or Monday to Friday, inside its band
+# (`calendar_certificate.withholding`).
+REASON_BAND = "band"
+# The withholding itself is not certified, so the census is withheld
+# whatever the table holds.
+REASON_UNCERTIFIED = "uncertified"
 REASONS = (
     REASON_NO_TAILS,
     REASON_SPELLINGS,
@@ -90,7 +98,21 @@ REASONS = (
     REASON_TIES,
     REASON_FEW_DATES,
     REASON_NARROWED,
+    REASON_TEXTS,
+    REASON_BAND,
+    REASON_UNCERTIFIED,
 )
+# WHICH REASONS A SENTENCE MAY NAME (review of landing 3b.1, item 2).
+# A withholding says what decided it only where the published numbers
+# alone decide it -- no tails, forms that may write a date two ways, too
+# few repeated cells for any day to hold the line -- because a reader
+# already holds those. Every other rule reads the table's own numbers,
+# and naming which one fired would tell a reader what it saw: "no
+# grouping holds the line" beside a count of different days that forces
+# 135 weekday rows says the weekend holds one to ten. Those are all said
+# in ONE sentence, `REASON_UNSAID`'s (`taxonomy.NOTE_WEEKDAY_WITHHELD_NARROWED`).
+SAID_REASONS = (REASON_NO_TAILS, REASON_SPELLINGS, REASON_TIES)
+REASON_UNSAID = "unsaid"
 
 # WC7: a non-zero group must be able to hold at least this many
 # different dates besides the knot days a reader already holds.
@@ -344,13 +366,25 @@ def few_dates_group(
     calendar = [0 for _ in groups]
     knotted = [0 for _ in groups]
     knots = set(knot_days)
-    for day in range(low, high + 1):
-        index = where[weekday_of(day)]
-        if day in knots:
+    # COUNTED, NOT WALKED (review of landing 3b.1, finding 10): each
+    # weekday's days between the boundaries by arithmetic, then the knot
+    # days and the holes one by one, so the cost is theirs and not the
+    # span's.
+    for weekday in range(WEEKDAYS):
+        if high < low:
+            break
+        first = low + (weekday - weekday_of(low)) % WEEKDAYS
+        if first <= high:
+            index = where[weekday]
+            calendar[index] = calendar[index] + (high - first) // WEEKDAYS + 1
+    for day in knots:
+        if low <= day <= high:
+            index = where[weekday_of(day)]
             knotted[index] = knotted[index] + 1
-        elif day in holes:
-            continue
-        calendar[index] = calendar[index] + 1
+    for day in holes:
+        if low <= day <= high and day not in knots:
+            index = where[weekday_of(day)]
+            calendar[index] = calendar[index] - 1
     nonzero = [index for index in range(len(groups)) if groups[index][2] > 0]
     for index in nonzero:
         others = 0
@@ -505,6 +539,117 @@ def placeholder_holes(
         if low <= day <= high:
             found += [day]
     return tuple(sorted(found))
+
+
+def declared_holes(
+    spellings: "tuple[str, ...]",
+    forms: "dict[str, dict[str, int]]",
+    format_name: str,
+    low: int,
+    high: int,
+) -> "tuple[int, ...]":
+    """The days from `low` to `high` a PUBLISHED absent spelling names.
+
+    WHAT A READER HOLDS OF THE DECLARED MISSING VALUES (review of landing
+    3b.1, finding 6). A description publishes two lists of spellings every
+    cell of which was counted absent: the column's `missing_by_source`
+    keys, and the placeholder days a declaration named out of this
+    package's own vocabulary (`built_in_dates` of the settings'
+    `declared_missing_values`). Where one of them is the text a day is
+    written in -- the column's member, its one width word and its one
+    month-name word, which WC6 asks for -- no parsed cell can stand on
+    that day, so it is a HOLE; matched as the declaration rule matches,
+    by the exact number where the spelling reads as one and by the
+    folded spelling otherwise. Only what is published counts: a day the
+    person declared that no key names is a day like any other to a
+    reader, and so to the certificate on both sides.
+
+    Guarantees: accepts the published spellings, the five censuses of
+    written forms, the parser family and the two boundary days; returns
+    the holes between them ascending. Determinism: a function of the
+    five. Raises nothing. No I/O of any kind.
+    """
+    width = parsing.DEFAULT_FIELD_WIDTH
+    if "date_field_widths" in forms and len(forms["date_field_widths"]) == 1:
+        for word in forms["date_field_widths"]:
+            width = word
+    style = parsing.DEFAULT_NAME_STYLE
+    if "month_name_styles" in forms and len(forms["month_name_styles"]) == 1:
+        for word in forms["month_name_styles"]:
+            style = word
+    found: "set[int]" = set()
+    for spelling in spellings:
+        folded = parsing.folded(spelling)
+        read = parsing.parse_datetime(folded, format_name)
+        if read is None:
+            read = parsing.parse_datetime(parsing.trimmed(spelling), format_name)
+        if read is None:
+            continue
+        canonical = read[0]
+        year = int(canonical[0:4])
+        month = int(canonical[5:7])
+        date = int(canonical[8:10])
+        day = parsing.days_from_civil(year, month, date)
+        if day < low or day > high:
+            continue
+        written = parsing.written_date(year, month, date, format_name, width, style)
+        exact = parsing.exact_of_spelling(spelling)
+        if exact is not None:
+            if parsing.exact_of_spelling(written) == exact:
+                found = found | {day}
+        elif parsing.folded(written) == folded:
+            found = found | {day}
+    return tuple(sorted(found))
+
+
+def public_holes(
+    forms: "dict[str, dict[str, int]]",
+    format_name: str,
+    low: int,
+    high: int,
+    judged: "tuple[str, ...]",
+    absent: "tuple[str, ...]",
+) -> "tuple[int, ...]":
+    """Every hole a description publishes between its two boundaries.
+
+    THE ONE STATEMENT the producer, the loader, the generator and the
+    validator each ask (review of landing 3b.1, items 4, 6 and 9): the
+    days the censuses of written forms leave empty (`form_holes`), the
+    placeholder days the block reads as no value (`placeholder_holes`,
+    `judged` its decisions' candidates) and the days a published absent
+    spelling names (`declared_holes`, `absent` those spellings).
+
+    Guarantees: accepts the published facts; returns the holes
+    ascending. Determinism: a function of the six. Raises nothing. No
+    I/O of any kind.
+    """
+    found = set(form_holes(forms, format_name, low, high))
+    found = found | set(placeholder_holes(judged, low, high))
+    found = found | set(declared_holes(absent, forms, format_name, low, high))
+    return tuple(sorted(found))
+
+
+def published_one_way(classes: "dict[str, int | None]") -> bool:
+    """Whether a workbook's PUBLISHED cell classes leave its values stored one way.
+
+    False where two value classes are published holding cells: a reader
+    then knows the column is read back differently cell by cell, and no
+    twin can meet a weekday census of it (review of landing 3b.1,
+    finding 8). A class withheld (`None`) may hold nought, so it says
+    nothing either way; the producer's own rule (`stored_one_way`) reads
+    the cells and is the stricter.
+
+    Guarantees: accepts the published census of cell classes; returns
+    the answer. Determinism: a function of the census. Raises nothing.
+    No I/O of any kind.
+    """
+    holding = 0
+    for kind in _VALUE_CLASSES:
+        if kind in classes:
+            counted = classes[kind]
+            if counted is not None and counted > 0:
+                holding = holding + 1
+    return holding <= 1
 
 
 def stored_one_way(classes: "list[str]") -> bool:

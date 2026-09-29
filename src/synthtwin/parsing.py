@@ -5785,9 +5785,7 @@ def _readings_reach(
     read as a set of bits.
     """
     within = (1 << (population + 1)) - 1
-    start: "tuple[int, ...]" = (0,)
-    for _group in groups:
-        start = start + (0, 0)
+    start: "tuple[int, ...]" = (0,) + (0, 0) * len(groups)
     layer: "dict[tuple[int, ...], int]" = {start: 1}
     for place in range(len(held)):
         most = 0 if place == empty else held[place]

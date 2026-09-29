@@ -1511,6 +1511,20 @@ def battery() -> list[Mutation]:
             "WC8", "a weekday census beside dates that never repeat",
             edit("recorded_on", n_distinct=240, n_distinct_folded=240),
         ),
+        # WC9 (plan P4-D359): `recorded_on`'s weekend holds at least one
+        # row in every table of its facts -- a Saturday is a knot day --
+        # so its band runs from one to one more than the line; twelve
+        # weekend rows lie in it, which the producer always withholds.
+        Mutation(
+            "WC9", "a weekend inside the band a withholding always keeps",
+            edit(
+                "recorded_on",
+                weekday_census=[
+                    {"first": 0, "last": 4, "count": 205},
+                    {"first": 5, "last": 6, "count": 12},
+                ],
+            ),
+        ),
         # -- the numeric roles ----------------------------------------
         Mutation("Q1", "a row count of its own", edit("visits", n_rows=5)),
         Mutation(

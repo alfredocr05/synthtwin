@@ -790,6 +790,12 @@ class _ColumnPlan:
     # or "" (stage 3, plan P4-D331): a tail's outer values are kept inside
     # the days that system can store (`parsing.readable_days`).
     date_system: str = ""
+    # THE PLACEHOLDER DAYS THE DECLARATION OF MISSING VALUES NAMED, as the
+    # settings publish them (`built_in_dates`): with the column's own
+    # absent spellings they name days its weekday census holds empty, and
+    # the day pass keeps every rank off them (review of landing 3b.1,
+    # item 4; `calendar_rules.public_holes`).
+    declared_days: "tuple[str, ...]" = ()
 
 
 @dataclasses.dataclass(frozen=True)
@@ -19072,6 +19078,7 @@ def _weekday_settled(
     gap_highs: "list[int]",
     layout: "_DateLayout",
     holes: "tuple[str, ...]",
+    declared_days: "tuple[str, ...]" = (),
 ) -> "tuple[list[int], list[Deviation]]":
     """Meet the published weekday census (landing 3b.1, method G7.3f).
 
@@ -19086,7 +19093,12 @@ def _weekday_settled(
     (`_weekday_repaired`); each run of unpinned ranks sorted. A moved day
     keeps its width kind where the column has one width convention, and
     no rank is ever moved onto a hole: a day every spelling of which
-    the table declares absent.
+    the table declares absent, and every day the description publishes as
+    holding no body cell -- the days its censuses of written forms leave
+    empty, the placeholder days it reads as no value and the days a
+    published absent spelling names, the very holes its certificate held
+    (`calendar_rules.public_holes`; review of landing 3b.1, item 4: a
+    column of May dates had ranks moved to April and June).
 
     Draws no word. Where the census still does not hold, the returned
     deviation names it; the count of different values is named by the
@@ -19133,6 +19145,7 @@ def _weekday_settled(
                 int(canonical[0:4]), int(canonical[5:7]), int(canonical[8:10])
             )
         }
+    hole_days = hole_days | set(_published_holes(column, facts, declared_days))
     state = _WeekdayPass(
         moved=moved,
         held=held,
@@ -19202,6 +19215,48 @@ def _weekday_settled(
             )
         ]
     return moved, notes
+
+
+def _published_holes(
+    column: contract.ColumnBlock,
+    facts: contract.DatetimeFacts,
+    declared_days: "tuple[str, ...]",
+) -> "tuple[int, ...]":
+    """The days between the two published boundaries the description holds empty.
+
+    `calendar_rules.public_holes` on what the description publishes: its
+    censuses of written forms, the candidates its `sentinel_verdicts`
+    read as no value, and its absent spellings -- the column's
+    `missing_by_source` keys and the placeholder days the declaration
+    named. The ONE rule the producer, the loader and the validator ask,
+    so the twin keeps off exactly the days its census was certified
+    without. Empty where the column has no two tails.
+    """
+    if facts.low_tail is None or facts.high_tail is None:
+        return ()
+    low = _boundary_day(facts.low_tail.boundary)
+    high = _boundary_day(facts.high_tail.boundary)
+    forms = {
+        "datetime_separators": dict(facts.datetime_separators),
+        "date_field_widths": dict(facts.date_field_widths),
+        "month_name_styles": dict(facts.month_name_styles),
+        "quarter_marker_case": dict(facts.quarter_marker_case),
+        "zulu_case": dict(facts.zulu_case),
+    }
+    judged = tuple(
+        verdict.candidate
+        for verdict in column.sentinel_verdicts
+        if verdict.verdict == contract.VERDICT_MISSING
+    )
+    absent = tuple(sorted(set(column.missing_by_source) | set(declared_days)))
+    return calendar_rules.public_holes(
+        forms, facts.parser_family, low, high, judged, absent
+    )
+
+
+def _boundary_day(text: str) -> int:
+    """The day number of a canonical date or moment text."""
+    return parsing.days_from_civil(int(text[0:4]), int(text[5:7]), int(text[8:10]))
 
 
 def _tail_spots(plan: "_TailPlan", words: "dict[int, int]") -> "list[int]":
@@ -19343,7 +19398,7 @@ def _datetime_content(
     # before any cell is spelled. It draws no word.
     ordinals, weekday_notes = _weekday_settled(
         column, facts, ordinals, parsed, whole, gap_lows, gap_highs, layout,
-        holes,
+        holes, plan.declared_days,
     )
     # HOW EVERY RANK IS SPELLED (landing 2b.6, the reversal of owner
     # decision 5). Allocated after the instants and the offsets, because
@@ -23383,7 +23438,7 @@ def _traded_merges(
                 if pinned[rank]:
                     loose = False
             if loose and held[moved[first] // unit] == last - first + 1:
-                tried: "tuple[int, ...]" = ()
+                tried: "list[int]" = []
                 # ONE TARGET FOR A WIDTH TRADE, WHICH IS P4-D258 EXACTLY
                 # AS IT WAS, and the nearest few for a midnight trade,
                 # which is new (item 2 of the dates pass of the second
@@ -23407,7 +23462,7 @@ def _traded_merges(
                         first,
                         target,
                     )]
-                    tried = tried + (target // unit,)
+                    tried += [target // unit]
             first = last + 1
         if not offers:
             return made
@@ -23807,7 +23862,7 @@ def _nearest_held_unit(
     flip: bool = False,
     skip: int = -1,
     flip_clock: bool = False,
-    avoid: "tuple[int, ...]" = (),
+    avoid: "list[int] | tuple[int, ...]" = (),
     gone: "frozenset[int]" = frozenset(),
 ) -> "int | None":
     """The nearest instant some other rank already holds, keeping the standing.
@@ -25663,7 +25718,7 @@ def _settled_by_sums(
     names: "list[str]",
     supply: "dict[str, int]",
     biggest_first: bool,
-    avoid: "tuple[int, ...]" = (),
+    avoid: "list[int] | tuple[int, ...]" = (),
 ) -> "list[str] | None":
     """An arrangement settling every debt exactly, or None.
 
@@ -29300,7 +29355,7 @@ def _class_split(
     first: "dict[int, str] | None" = None
     if len(places) * largest <= _CLASS_SUM_WORK:
         for biggest_first in (True, False):
-            avoid: "tuple[int, ...]" = ()
+            avoid: "list[int]" = []
             for _again in range(_CLASS_RETRIES):
                 settled = _settled_by_sums(
                     sizes, places, debts, names, dict(supply),
@@ -29329,7 +29384,7 @@ def _class_split(
                 ]
                 if not spent:
                     break
-                avoid = avoid + (spent[0],)
+                avoid += [spent[0]]
     if first is not None:
         return first
     left = {name: debts[name] for name in names}
@@ -37355,6 +37410,7 @@ def plan_generation(profile: contract.Profile) -> GenerationPlan:
             _declared_a_decimal_comma(column, profile),
             _truth_cells(profile, place),
             _date_system_of(profile, place),
+            profile.settings.declared_missing_values.built_in_dates,
         )
         plans += [plan]
         words = words + plan.content_words + plan.placement_words
@@ -37387,6 +37443,7 @@ def _plan_column(
     decimal_comma: bool = False,
     truths: int = 0,
     date_system: str = "",
+    declared_days: "tuple[str, ...]" = (),
 ) -> "_ColumnPlan":
     """One column's plan: its word budget, its layout, its refusals."""
     facts = column.facts
@@ -37515,6 +37572,7 @@ def _plan_column(
         remarks=tuple(remarks),
         carriers=carriers,
         date_system=date_system,
+        declared_days=declared_days,
     )
 
 

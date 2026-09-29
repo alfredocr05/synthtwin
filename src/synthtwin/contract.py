@@ -561,7 +561,7 @@ DATETIME_KEYS = (
     "quarter_marker_case",
     "zulu_case",
     # WHICH DAYS OF THE WEEK THE BODY FALLS ON (landing 3b.1, plan
-    # P4-D355, invariants WC1 to WC8): groups of weekdays, empty on every
+    # P4-D355, invariants WC1 to WC9): groups of weekdays, empty on every
     # column that publishes none.
     "weekday_census",
 )
@@ -1606,7 +1606,8 @@ INVARIANTS = {
     "WC6": (
         "a weekday census stands only where the censuses of written forms "
         "give every date one text, so that different values count "
-        "different days"
+        "different days, and where a workbook's published cell classes "
+        "do not show the column's values stored in two ways"
     ),
     "WC7": (
         "every non-zero group of a weekday census can hold at least four "
@@ -1618,6 +1619,15 @@ INVARIANTS = {
         "census line in some table meeting the whole description, or lies "
         "where the rank facts already hold it below the line and the "
         "census allows everything stage 3's facts allow there"
+    ),
+    "WC9": (
+        "a weekday census is published only where neither its weekend "
+        "nor its Monday to Friday together holds from one row to the "
+        "census line, and the most that half of the week can hold in the "
+        "stretches the rank facts keep below the line, more than the "
+        "least the rest of the description allows it: a census so near "
+        "that least is always withheld, so that being withheld says "
+        "nothing about how few rows a set of dates holds"
     ),
     "Q1": (
         "the row count a column of numbers repeats is the row count of "
@@ -3226,6 +3236,11 @@ class _Frame:
     category_share: float
     category_ceiling: int
     category_floor: int
+    # The placeholder days a declaration of missing values named, as the
+    # settings publish them (`built_in_dates`): with a column's own
+    # `missing_by_source` keys, the absent spellings whose days a weekday
+    # census holds as holes (review of landing 3b.1, finding 6).
+    declared_days: "tuple[str, ...]" = ()
 
 
 def _category_ceiling(frame: _Frame) -> int:
@@ -4762,6 +4777,37 @@ def _present_sheet_cells(column: WorkbookColumn) -> "int | None":
             continue
         present = present + counted
     return present
+
+
+def _weekday_storage(
+    source: SourceBlock, columns: "tuple[ColumnBlock, ...]"
+) -> None:
+    """WC6's storage half: no weekday census beside values a workbook stores two ways.
+
+    A column whose values the workbook stores partly as one class and
+    partly as another is read back differently cell by cell, and the
+    producer publishes no census of it; where the published cell classes
+    show two value classes holding cells, a reader knows it, and so does
+    this loader (review of landing 3b.1, finding 8: the counts of an
+    all-number book copied beside `text: 138, number: 687` loaded). A
+    class the census withholds may hold nought and says nothing.
+    """
+    form = source.workbook
+    if form is None:
+        return
+    for place in range(min(len(columns), len(form.columns))):
+        facts = columns[place].facts
+        if not isinstance(facts, (DatetimeFacts,)) or not facts.weekday_census:
+            continue
+        if not calendar_rules.published_one_way(form.columns[place].cell_classes):
+            raise _broken(
+                "WC6",
+                f"in the block for the column named '{columns[place].name}'",
+                "a weekday census is published beside values the workbook "
+                "stores in two ways",
+                "the census stands only where every value of the column is "
+                "stored one way",
+            )
 
 
 def _workbook_rules(
@@ -7142,6 +7188,7 @@ def _facts(
                 for verdict in verdicts
                 if verdict.verdict == VERDICT_MISSING
             ),
+            _absent_spellings(mapping, frame.declared_days),
         )
     if role == ROLE_COUNT or role == ROLE_CONTINUOUS:
         numeric = _numeric_facts(
@@ -8276,12 +8323,15 @@ def _datetime_facts(
     n_present: int,
     n_distinct: int = 0,
     judged: "tuple[str, ...]" = (),
+    absent: "tuple[str, ...]" = (),
 ) -> DatetimeFacts:
     """A column of dates and times (contract 6.6.2).
 
     `judged` are the candidates the block's `sentinel_verdicts` publish
     as `read_as_missing`, whose placeholder days the weekday census holds
-    as holes (`calendar_rules.placeholder_holes`).
+    as holes (`calendar_rules.placeholder_holes`), and `absent` the
+    absent spellings the description publishes for the column, whose
+    days it holds as holes too (`calendar_rules.declared_holes`).
 
     Raises ProfileError for a wrong type or a value outside its list,
     and for D1 to D11. D5 is checked in the one direction the document
@@ -8636,6 +8686,7 @@ def _datetime_facts(
             "zulu_case": zulu,
         },
         judged,
+        absent,
     )
     return DatetimeFacts(
         parser_family=parser_family,
@@ -8674,8 +8725,9 @@ def _weekday_census(
     ladder: DateLadder,
     forms: "dict[str, dict[str, int]]",
     judged: "tuple[str, ...]",
+    absent: "tuple[str, ...]" = (),
 ) -> "tuple[tuple[int, int, int], ...]":
-    """A column's `weekday_census`, read and held to WC1 to WC8 (landing 3b.1).
+    """A column's `weekday_census`, read and held to WC1 to WC9 (landing 3b.1).
 
     `reading` is the column's parser family, resolution and clock. An
     empty census is always legal. A published one must stand on a column
@@ -8685,9 +8737,11 @@ def _weekday_census(
     floor, the body, the menu, one spelling per day, the knot days' sure
     cells, no few-date group and the full-fill certificate, both with
     the days the published form censuses leave empty
-    (`calendar_rules.form_holes`) and the placeholder days `judged` names
-    (`calendar_rules.placeholder_holes`) as holes -- and the first
-    broken one is refused by name.
+    (`calendar_rules.form_holes`), the placeholder days `judged` names
+    (`calendar_rules.placeholder_holes`) and the days a published absent
+    spelling names (`absent`, `calendar_rules.declared_holes`) as holes,
+    through the producer's own `calendar_rules.public_holes` -- and the
+    first broken one is refused by name.
 
     Guarantees: accepts the value and the facts beside it; returns the
     groups as `(first, last, count)`. Raises ProfileError for a wrong
@@ -8737,9 +8791,9 @@ def _weekday_census(
     )
     first_day = _day_number(low.boundary)
     last_day = _day_number(high.boundary)
-    holes = set(
-        calendar_rules.form_holes(forms, parser_family, first_day, last_day)
-    ) | set(calendar_rules.placeholder_holes(judged, first_day, last_day))
+    holes = calendar_rules.public_holes(
+        forms, parser_family, first_day, last_day, judged, absent
+    )
     broken = calendar_certificate.breach(
         tuple(found),
         parsed,
@@ -8757,6 +8811,23 @@ def _weekday_census(
     if broken is not None:
         raise _broken(broken[0], where, broken[1], broken[2])
     return tuple(found)
+
+
+def _absent_spellings(
+    mapping: "dict[str, object]", declared_days: "tuple[str, ...]"
+) -> "tuple[str, ...]":
+    """The absent spellings a column block and its settings publish.
+
+    The block's `missing_by_source` keys and the placeholder days the
+    settings' declaration of missing values names -- the producer's
+    `taxonomy.published_absent`, read here off the document. A value
+    that is not a mapping names none; its own rule refuses it elsewhere.
+    """
+    found: "set[str]" = set(declared_days)
+    keys = mapping["missing_by_source"] if "missing_by_source" in mapping else None
+    if isinstance(keys, dict):
+        found = found | {str(key) for key in keys}
+    return tuple(sorted(found))
 
 
 def _day_number(text: str) -> int:
@@ -16279,7 +16350,7 @@ def _published_groups(
             if block.mode is not None and block.mode in side.values:
                 continue
             named += [(side.rows, side.values)]
-    groups: "tuple[tuple[int, int, tuple[int, ...]], ...]" = ()
+    groups: "list[tuple[int, int, tuple[int, ...]]]" = []
     spelled = column.n_distinct if kind == FORMS_GROUPS else column.n_distinct_folded
     for rows, values in named:
         outside = 0
@@ -16296,8 +16367,8 @@ def _published_groups(
         held = rows - max(0, outside)
         spellings = spelled - (others - len(values))
         if held > 1:
-            groups = groups + ((held, spellings, (held,) * names),)
-    return groups
+            groups += [(held, spellings, (held,) * names)]
+    return tuple(groups)
 
 
 def _outside_the_marks(
@@ -16920,6 +16991,7 @@ def _validated(document: "dict[str, object]") -> Profile:
             category_share=settings.categorical_share,
             category_ceiling=settings.categorical_ceiling,
             category_floor=settings.categorical_floor,
+            declared_days=settings.declared_missing_values.built_in_dates,
         ),
     )
     _cross_checks(columns, settings, notes)
@@ -16935,6 +17007,7 @@ def _validated(document: "dict[str, object]") -> Profile:
     _workbook_rules(
         source, columns, n_rows, settings.small_cell_floor
     )
+    _weekday_storage(source, columns)
     return Profile(
         profile_version=PROFILE_VERSION,
         created_with=created_with,
