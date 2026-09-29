@@ -13435,8 +13435,9 @@ def _numeric_answer(
     floor: int,
     distinct: bool,
 ) -> str:
-    """Whether a numeric tail's published pair would give its cells back,
-    in three words: `TAIL_OPEN`, `TAIL_PINNED` or `TAIL_UNSETTLED`.
+    """Whether a numeric tail's published pair would give back an outer
+    cell or how many outer cells hold one value, in three words:
+    `TAIL_OPEN`, `TAIL_PINNED` or `TAIL_UNSETTLED`.
 
     THE SAME BACK-SOLVE THE DATE AND CLOCK ROLE RUNS, asked here for the
     first time (plan P4-D349). Before this pass the numeric role had no

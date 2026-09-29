@@ -1282,24 +1282,15 @@ _NOT_SHOWN_IT_IS_A_SUBFLOOR_GROUP_OF_THE_FILE = (
     "      what this file holds here is NOT SHOWN, and this is why: the",
     "      cells counted are the file's own cells beyond the boundary",
     "      this description publishes, and there are fewer of them than",
-    "      the smallest group size -- so their count, and how far they",
-    "      lie from that boundary, would between them give back the",
-    "      values of a group smaller than any description publishes a",
-    "      number for. The comparison above was made in full and the",
+    "      the smallest group size -- so their count would be a number",
+    "      for a group smaller than any description publishes one for,",
+    "      and how far they lie from that boundary a measurement of that",
+    "      same group. The comparison above was made in full and the",
     "      verdict is its outcome; only the measured side is kept back.",
     "      To read what stands there, describe the file itself with",
     "      `synthtwin profile` and read the tail that description",
     "      publishes -- which draws its own boundary and holds its own",
     "      floor.",
-)
-
-# The gate's own sentence for that group, for the verdict that goes quiet
-# rather than the one that keeps a number back.
-_GATE_SUBFLOOR_TAIL = (
-    "the file holds fewer cells beyond this description's boundary than "
-    "the smallest group size, so a count of them would name a group "
-    "below that size, and neither the measurement nor its outcome is "
-    "shown with a number"
 )
 
 _NOT_SHOWN_IT_IS_A_COUNT_OF_THE_FILE = (
@@ -16050,7 +16041,6 @@ def _tail_side_checks(
                 _shown_count(tail.rows),
                 len(beyond) == tail.rows,
                 _NOT_SHOWN_IT_IS_A_SUBFLOOR_GROUP_OF_THE_FILE,
-                _GATE_SUBFLOOR_TAIL,
             )
             if held_back
             else _exact(
@@ -16097,7 +16087,6 @@ def _tail_side_checks(
                             total, len(beyond), tail.mean_distance, False
                         ),
                         _NOT_SHOWN_IT_IS_A_SUBFLOOR_GROUP_OF_THE_FILE,
-                        _GATE_SUBFLOOR_TAIL,
                     )
                     if held_back
                     else _exact(

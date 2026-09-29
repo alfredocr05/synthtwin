@@ -39,6 +39,7 @@ from __future__ import annotations
 
 import copy
 import dataclasses
+import datetime
 import math
 import pathlib
 import random
@@ -1575,6 +1576,37 @@ def test_every_sentence_on_a_withheld_pair_claims_what_the_multisets_fix(
             f"claims {sorted(claimed)} where the multisets fix {sorted(fixed)}: {sentence!r}"
         )
 
+
+def test_a_file_s_group_under_the_floor_beyond_the_boundary_is_said_to_be_one_and_no_more(
+    tmp_path: pathlib.Path,
+) -> None:
+    """The reason a check prints for keeping back a file's cells beyond the boundary, fewer than the floor, claims no more than they fix.
+
+    Item 1's sibling in the checker (skeptic ffA1). A date file's cells
+    beyond the description's boundary may be fewer than the floor, and the
+    report keeps their count and distances back: on db49437 it said those
+    "would between them give back the values" of the group, beside three
+    days two, two and five days out, which one, four and four days out fit
+    as well -- a count, a sum and a sum of squares fix no value of them.
+    The gate's own sentence for that group could never print (its checks'
+    verdicts are never open) and is gone.
+    """
+    first = datetime.date(2020, 1, 1)
+    days = [(first + datetime.timedelta(days=step)).isoformat() for step in range(200)]
+    described = kpi_shapes.describe(tmp_path, "dates", _one_column(days), 11)
+    boundary = datetime.date.fromisoformat(described.document["columns"][0]["low_tail"]["boundary"])
+    distances = [2, 2, 5]
+    fixed = _fixed_by_the_multisets(distances, 11)
+    assert fixed == set(), f"premise: the three days' count and two sums fix nothing of them ({fixed})"
+    beyond = [(boundary - datetime.timedelta(days=one)).isoformat() for one in distances]
+    kept = beyond + [day for day in days if day >= boundary.isoformat()]
+    outcome = kpi_shapes.measure(described, _one_column(kept), "subfloor.csv")
+    said = [" ".join(" ".join(check.note).split()) for check in outcome.checks if check.subcheck == "tails.low.rows"]
+    assert len(said) == 1 and "there are fewer of them than the smallest group size" in said[0], (
+        f"premise: the count is kept back ({said})"
+    )
+    claimed = _claimed(said[0]) | ({"every"} if "give back the values" in said[0] else set())
+    assert claimed <= fixed, f"claims {sorted(claimed)} where the three days fix {sorted(fixed)}: {said[0]!r}"
 
 
 def test_no_page_says_the_distances_of_a_tail_withholding_them_are_published(tmp_path: pathlib.Path) -> None:

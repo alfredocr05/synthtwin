@@ -9844,8 +9844,9 @@ def _tail_object(
     distance or not at all; beside its values the mean distance may be
     null. WITHOUT them it publishes both distances or NEITHER (plan
     P4-D349): a mean alone would still be half the back-solve, so the
-    tail that may not hand its cells back says how many rows lie beyond
-    its boundary and stops there. Every distance is
+    tail whose pair would give back an outer cell or how many outer
+    cells hold one value says how many rows lie beyond its boundary and
+    stops there. Every distance is
     at least one unit, because each outer cell lies at least one unit
     beyond the boundary, and the root-mean-square distance is never below
     the mean (with a relative allowance of one part in 2**50, for the two
