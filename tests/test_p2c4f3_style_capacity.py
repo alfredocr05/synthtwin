@@ -2095,9 +2095,9 @@ def test_the_share_walk_is_what_places_a_flat_ladder(
     keep = generation._whole_inside
     seeds = [seed for seed in SEEDS]
 
-    def nearest(value, band, share, ends, reach, taken, later=()):
+    def nearest(value, band, share, ends, reach, taken, later=(), kept=()):
         """The repair with its share walk removed: the nearest, or none."""
-        return keep(value, band, None, ends, 0, taken, later)
+        return keep(value, band, None, ends, 0, taken, later, kept=kept)
 
     before = [_styles(generation.generate(loaded, seed)) for seed in seeds]
     monkeypatch.setattr(generation, "_whole_inside", nearest)

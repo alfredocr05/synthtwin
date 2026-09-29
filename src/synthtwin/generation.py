@@ -10083,7 +10083,15 @@ def _grouped_enough(
         if abs(values[place]) >= 1000.0:
             reached = reached + layout.sizes[place]
     moved = _grouped_run(
-        values, list(layout.sizes), list(layout.bands), figures, owed, reached, floor
+        values,
+        list(layout.sizes),
+        list(layout.bands),
+        figures,
+        owed,
+        reached,
+        floor,
+        1.0,
+        facts.kept_stand_ins,
     )
     if moved is None:
         moved = values
@@ -10107,7 +10115,17 @@ def _grouped_enough(
         elif band == _BAND_POSITIVE:
             band = _BAND_NEGATIVE
         bands += [band]
-    turned = _grouped_run(mirrored, sizes, bands, figures, owed, reached, floor)
+    turned = _grouped_run(
+        mirrored,
+        sizes,
+        bands,
+        figures,
+        owed,
+        reached,
+        floor,
+        -1.0,
+        facts.kept_stand_ins,
+    )
     if turned is None:
         return values
     return [-turned[total - 1 - place] for place in range(total)]
@@ -10121,8 +10139,15 @@ def _grouped_run(
     owed: int,
     reached: int,
     floor: int,
+    sign: float,
+    kept: "tuple[float, ...]",
 ) -> "list[float] | None":
     """One side of `_grouped_enough`: the run just below or from a thousand.
+
+    ``sign`` is -1 where ``values`` are the column's own turned about
+    nought, so a point is asked whether it is a stand-in number with the
+    column's own sign; ``kept`` are the stand-ins the column keeps as
+    numbers, in its own sign (plan P4-D357 A).
 
     Guarantees: returns the moved values, or None where no run moves.
     Determinism: a fixed function. Raises nothing. No I/O.
@@ -10157,7 +10182,9 @@ def _grouped_run(
         if not run:
             return None
         ceiling = values[run[-1] + 1] if run[-1] + 1 < total else None
-        points = _free_grid_points(boundary, 1, len(run), figures, held)
+        points = _free_grid_points(
+            boundary, 1, len(run), figures, held, sign, kept=kept
+        )
         if not points:
             return None
         if ceiling is not None and float(_grid_at(points[-1], figures)) >= ceiling:
@@ -10180,7 +10207,9 @@ def _grouped_run(
             place = place + 1
         if not run:
             return None
-        below = _free_grid_points(boundary - 1, -1, len(run), figures, held)
+        below = _free_grid_points(
+            boundary - 1, -1, len(run), figures, held, sign, kept=kept
+        )
         if not below:
             return None
         points = [below[len(below) - 1 - step] for step in range(len(below))]
@@ -10196,12 +10225,20 @@ def _grouped_run(
 
 
 def _free_grid_points(
-    start: int, stride: int, count: int, figures: int, held: "dict[str, int]"
+    start: int,
+    stride: int,
+    count: int,
+    figures: int,
+    held: "dict[str, int]",
+    sign: float = 1.0,
+    kept: "tuple[float, ...]" = (),
 ) -> "list[int]":
     """``count`` grid units from ``start`` by ``stride`` whose text is free.
 
     A unit whose text does not survive being read back and written again
-    is passed over, as G6.5a's walk passes it over; the walk looks at
+    is passed over, as G6.5a's walk passes it over, and so is one that is
+    a stand-in number the column does not keep (``kept``) once ``sign``
+    gives it the column's own sign (plan P4-D357 A); the walk looks at
     most sixty-four units past what it needs, and answers what it found.
     """
     found: list[int] = []
@@ -10214,6 +10251,8 @@ def _free_grid_points(
         if spelt in held:
             continue
         if _grid_text(float(spelt), figures) != spelt:
+            continue
+        if _is_a_stand_in(sign * float(spelt), kept):
             continue
         found += [unit - stride]
     if len(found) < count:
@@ -10382,7 +10421,12 @@ def _stratum_values(
             found = _rank_values(rank, 1, rungs, numbers, False, grid)[0]
             values += [
                 _drawn_off_the_stand_ins(
-                    found, rungs, rank * _WORD_SCALE, numbers * _WORD_SCALE, grid
+                    found,
+                    rungs,
+                    rank * _WORD_SCALE,
+                    numbers * _WORD_SCALE,
+                    grid,
+                    kept=facts.kept_stand_ins,
                 )
             ]
             continue
@@ -10396,6 +10440,7 @@ def _stratum_values(
                 numerator,
                 numbers * _WORD_SCALE,
                 0 if facts.integer_valued else -1,
+                kept=facts.kept_stand_ins,
             )
         ]
     repaired, repair_notes = _sign_repairs(
@@ -10410,6 +10455,7 @@ def _drawn_off_the_stand_ins(
     numerator: int,
     denominator: int,
     figures: int,
+    kept: "tuple[float, ...]" = (),
 ) -> float:
     """A stratum read between the two tails, moved off the stand-ins (G5.4).
 
@@ -10433,13 +10479,21 @@ def _drawn_off_the_stand_ins(
     inside a tail is the tail's (G5.3b step 5), and a pinned end, a
     listed value and the zero band never reach this function.
 
+    A STAND-IN THE COLUMN KEEPS IS NOT MOVED (plan P4-D357 A, the second
+    review of follow-up A): ``kept`` holds the ones its
+    `sentinel_verdicts` publish as `kept_as_a_number`, and a stratum the
+    ladder reads there holds the table's own value. Moving it took the
+    heap away -- `9999` held by 59 of 1,000 whole numbers around it,
+    published kept, came back in no cell at seeds 0, 4 and 9.
+
     Guarantees: accepts the value G5.3 and G5.4 gave, the ladder, the
-    share it was read at and the grid in figures (0 for whole numbers,
-    -1 or less for none); returns the value, or its neighbour on the
-    grid where it is a stand-in read between the tails. Determinism: a
-    function of the five. Raises nothing. No I/O of any kind.
+    share it was read at, the grid in figures (0 for whole numbers,
+    -1 or less for none) and the kept stand-ins; returns the value, or
+    its neighbour on the grid where it is a stand-in the column does
+    not keep, read between the tails. Determinism: a function of the
+    six. Raises nothing. No I/O of any kind.
     """
-    if not _is_a_stand_in(value):
+    if not _is_a_stand_in(value, kept):
         return value
     if isinstance(rungs, contract.ShapedLadder) and (
         contract.tail_read(rungs, numerator, denominator) is not None
@@ -10463,6 +10517,16 @@ def _stand_in_neighbour(
     the writer's grid text for it reads back as -- and to the next
     number binary64 holds otherwise; the sign is kept, which a magnitude
     of 998 or more always allows. None where no such number exists.
+
+    AND A GRID FINER THAN BINARY64 THERE STEPS BY BINARY64 (plan P4-D357
+    A, review item 3). One step of fourteen figures after the point is
+    smaller than half the gap between `999` and the next number the
+    format holds, so the step's grid text read back IS the stand-in: on
+    200 values a few binary64 steps either side of `-999`, none of them
+    `-999`, every twin wrote `-999.00000000000000` once. Where the step
+    reads back as the value itself, the answer is the next number
+    binary64 holds that way, whose grid text at that width reads back as
+    itself because the width is finer than its gap.
     """
     size = -value if value < 0.0 else value
     if figures == 0:
@@ -10475,6 +10539,10 @@ def _stand_in_neighbour(
         if read is None or not math.isfinite(read):
             return None
         moved = read
+        if moved == size:
+            moved = _next_representable(size, toward_nought)
+            if moved <= 0.0:
+                return None
     else:
         moved = _next_representable(size, toward_nought)
         if moved <= 0.0:
@@ -10530,7 +10598,11 @@ def _sign_repairs(
                 (repaired + values[place:])[other]: 1
                 for other in range(total) if other != place
             }
-            repaired += [_grid_step_of_sign(band, rungs, grid, held, total)]
+            repaired += [
+                _grid_step_of_sign(
+                    band, rungs, grid, held, total, kept=facts.kept_stand_ins
+                )
+            ]
             continue
         if wrong:
             if band == _BAND_NEGATIVE and fallback >= 0.0:
@@ -10562,6 +10634,7 @@ def _grid_step_of_sign(
     grid: int,
     held: "dict[float, int]",
     total: int,
+    kept: "tuple[float, ...]" = (),
 ) -> float:
     """The sign fallback of G5.5 on a column written at one width (landing 2b.1).
 
@@ -10593,7 +10666,7 @@ def _grid_step_of_sign(
             break
         if step == 1:
             first = candidate
-        if candidate not in held:
+        if candidate not in held and not _is_a_stand_in(candidate, kept):
             return candidate
     if first != 0.0:
         return first
@@ -10608,6 +10681,7 @@ def _whole_inside(
     reach: int,
     taken: "dict[float, int]",
     later: "tuple[tuple[float, float], ...]" = (),
+    kept: "tuple[float, ...]" = (),
 ) -> "float | None":
     """A whole number this stratum can take, or None (method G6.4).
 
@@ -10666,6 +10740,10 @@ def _whole_inside(
     while step <= reach:
         for candidate in ([want] if step == 0 else [want + step, want - step]):
             if candidate in taken or not _carries_plainly(candidate, False):
+                continue
+            # Never a stand-in number the column does not keep (plan
+            # P4-D357 A).
+            if _is_a_stand_in(candidate, kept):
                 continue
             if band == _BAND_NEGATIVE and candidate >= 0.0:
                 continue
@@ -11101,6 +11179,7 @@ def _apart_inside(
     written: "dict[str, int]",
     reach: int = 0,
     whole: "bool | None" = None,
+    kept: "tuple[float, ...]" = (),
 ) -> "float | None":
     """The nearest free point of the grid inside this stratum's share.
 
@@ -11183,6 +11262,13 @@ def _apart_inside(
             if _grid_text(candidate, figures) != spelt:
                 continue
             if spelt in written:
+                continue
+            # NOR A STAND-IN NUMBER THE COLUMN DOES NOT KEEP (plan P4-D357
+            # A, review item 2): the walk is a construction like the draw,
+            # and a point it takes is a cell the twin writes -- `9999`
+            # between the column's own 9998 and 10000 was one the column
+            # never held. One its decisions publish as kept is its own.
+            if _is_a_stand_in(candidate, kept):
                 continue
             # THE CANDIDATE KEEPS THE STRATUM'S OWN KIND where the
             # caller asks for it (amendment A-P4-55): on a column that
@@ -11397,7 +11483,9 @@ def _twice_filled(
         for edges in facts.empty_edges:
             if edges[0] < point < edges[1]:
                 inside = True
-        if inside:
+        # ...and no stand-in number the column does not keep (plan
+        # P4-D357 A).
+        if inside or _is_a_stand_in(point, facts.kept_stand_ins):
             continue
         points += [point]
         units += [unit]
@@ -11603,7 +11691,9 @@ def _apart_enough(
         # on one binary64 -- two strata written as one cell, which is
         # exactly what this pass exists to stop, at the one boundary
         # where the step between neighbours is not a decimal.
-        return _apart_on_the_representable_grid(layout, values)
+        return _apart_on_the_representable_grid(
+            layout, values, kept=facts.kept_stand_ins
+        )
     total = len(values)
     if total < 2:
         return values
@@ -11730,6 +11820,7 @@ def _band_step(
     figures: int,
     gaps: "tuple[tuple[float, float], ...]",
     whole: "bool | None" = None,
+    kept: "tuple[float, ...]" = (),
 ) -> "int | None":
     """The next point of one band's grid from ``units``, one way.
 
@@ -11775,6 +11866,12 @@ def _band_step(
             unit = beyond
             continue
         on_whole = unit % every == 0
+        if _is_a_stand_in(point, kept):
+            # Never onto a stand-in number the column does not keep
+            # (plan P4-D357 A): passed over as a point another stratum
+            # holds is.
+            unit = unit + step
+            continue
         if whole is None or on_whole == whole:
             return unit
         if whole:
@@ -11908,6 +12005,7 @@ def _pushed_apart(
                 plan = _push_plan(
                     texts, held, collision, target_units, step, lowest,
                     highest, figures, gaps, kind,
+                    kept=facts.kept_stand_ins,
                 )
                 if plan is None:
                     continue
@@ -11994,6 +12092,7 @@ def _push_plan(
     figures: int,
     gaps: "tuple[tuple[float, float], ...]",
     whole: "bool | None",
+    kept: "tuple[float, ...]" = (),
 ) -> "tuple[list[tuple[int, int]], int] | None":
     """Which strata one push passes, and to which grid unit, or None.
 
@@ -12009,7 +12108,9 @@ def _push_plan(
     passed: "dict[int, int]" = {}
     unit = start
     while True:
-        after = _band_step(unit, step, lowest, highest, figures, gaps, whole)
+        after = _band_step(
+            unit, step, lowest, highest, figures, gaps, whole, kept=kept
+        )
         if after is None:
             return None
         passed[unit] = after
@@ -12083,22 +12184,36 @@ def _saturated_integers(
     if figures == 0:
         if low != _whole_valued(low) or high != _whole_valued(high):
             return None
-        if high - low + 1.0 != float(wanted):
-            return None
-    first = -1
-    if figures > 0:
+        bottom = int(low)
+        top = int(high)
+    else:
         if _on_the_grid(low, figures) != low or _on_the_grid(high, figures) != high:
             return None
-        bottom = _grid_units(_grid_text(low, figures), figures)
-        top = _grid_units(_grid_text(high, figures), figures)
-        if bottom is None or top is None or top - bottom + 1 != wanted:
+        lowest = _grid_units(_grid_text(low, figures), figures)
+        highest = _grid_units(_grid_text(high, figures), figures)
+        if lowest is None or highest is None:
             return None
-        first = bottom
+        bottom = lowest
+        top = highest
+    # THE POINTS ARE THE GRID'S LESS THE STAND-IN NUMBERS THE COLUMN DOES
+    # NOT KEEP (plan P4-D357 A, review item 2): a fill is a construction,
+    # and the one number of 9000 to 10001 the column never held was
+    # `9999`. The count is asked of what is left, so a range holding one
+    # has one point too few and the rule stands aside for the walk, which
+    # refuses it too. A stand-in the column keeps is one of its points.
+    points: "list[float]" = []
+    for unit in range(bottom, top + 1):
+        point = float(unit) if figures == 0 else float(_grid_at(unit, figures))
+        if _is_a_stand_in(point, facts.kept_stand_ins):
+            continue
+        points += [point]
+        if len(points) > wanted:
+            return None
+    if len(points) != wanted:
+        return None
     given: "list[float]" = []
     for place in range(total):
-        value = low + float(place)
-        if figures > 0:
-            value = float(_grid_at(first + place, figures))
+        value = points[place]
         band = layout.bands[place]
         if band == _BAND_ZERO and value != 0.0:
             return None
@@ -12116,6 +12231,7 @@ def _band_points(
     figures: int,
     gaps: "tuple[tuple[float, float], ...]",
     wanted: int,
+    kept: "tuple[float, ...]" = (),
 ) -> "list[float] | None":
     """The grid points of one band, outside every published empty pair.
 
@@ -12125,7 +12241,9 @@ def _band_points(
     edge -- so the walk is bounded by the points it collects and not by
     the width of the range. Returns the points in ascending order where
     there are exactly ``wanted`` of them, and None where there are more,
-    fewer, or a point no double holds.
+    fewer, a point no double holds, or a stand-in number the column does
+    not keep (``kept``): that is a spare point, and the band is left to
+    the walk (plan P4-D357 A, its second review).
 
     Guarantees: a fixed function of its inputs. Raises nothing. No I/O.
     """
@@ -12151,6 +12269,8 @@ def _band_points(
                     upper = upper + 1
                 if upper > beyond:
                     beyond = upper
+        if not inside and _is_a_stand_in(point, kept):
+            return None
         if not inside:
             if len(points) >= wanted:
                 return None
@@ -12205,6 +12325,20 @@ def _saturated_bands(
     A band's first and last points are the pinned ends wherever the band
     holds them, because the walk starts at `min` and ends at `max`.
 
+    A BAND WHOSE GRID HOLDS A STAND-IN IT MAY NOT WRITE IS LEFT TO THE
+    WALK (the second review of plan P4-D357 A). That point is the band's
+    spare one, so the band is not saturated; counting the band's points
+    less it made one that was, and the fill then gave every stratum a
+    point of its own in order however far that was from where the ladder
+    put it. Measured on 1,116 whole numbers heaped near `-1000` and
+    `10000`, holding neither `-999` nor `9999`, at a floor of eleven: the
+    positive band's 31 strata, seven of them the ladder's reading across
+    the published empty pair, took the 31 points from 9985 to 10016 less
+    `9999`, the heap moved up three to five units, and the twin MISSED
+    `ladder.p75` (10003 against 9998) and `ladder.p90` (10008 against
+    10003) at seeds 0, 4 and 9. The walk and the push, which refuse the
+    stand-in too, move the strata by one unit and miss nothing.
+
     Guarantees: accepts the column, its numeric block, the layout, the
     published rungs, the stratum values and the grid's figures; returns
     the values with every saturated band filled, unchanged where no band
@@ -12246,7 +12380,9 @@ def _saturated_bands(
             start = 1
         if end < start:
             continue
-        points = _band_points(start, end, figures, gaps, len(places))
+        points = _band_points(
+            start, end, figures, gaps, len(places), kept=facts.kept_stand_ins
+        )
         if points is None:
             continue
         for index in range(len(places)):
@@ -12400,7 +12536,9 @@ def _next_representable(value: float, downward: bool = False) -> float:
 
 
 def _apart_on_the_representable_grid(
-    layout: "_NumericLayout", values: "list[float]"
+    layout: "_NumericLayout",
+    values: "list[float]",
+    kept: "tuple[float, ...]" = (),
 ) -> "list[float]":
     """The representable grid is filled in order (plan P4-D269).
 
@@ -12492,6 +12630,16 @@ def _apart_on_the_representable_grid(
             want = highest[place]
         if want < lowest[place]:
             want = lowest[place]
+        # NOR A STAND-IN NUMBER THE COLUMN DOES NOT KEEP (plan P4-D357 A):
+        # the next point up where the order still allows it, else the one
+        # below it.
+        if _is_a_stand_in(want, kept) and place > 0 and place < total - 1:
+            up = _next_representable(want)
+            down = _next_representable(want, True)
+            if up <= highest[place]:
+                want = up
+            elif down > made[place - 1] and down >= lowest[place]:
+                want = down
         made += [want]
     return made
 
@@ -12519,6 +12667,9 @@ def _apart_walk(
     stratum's own share alone, 1 on its neighbours' ground as well, and
     2 by the distance its share is wide as well.
     """
+    # The stand-ins the column keeps, which every point the walk asks
+    # of `_apart_inside` may be (plan P4-D357 A).
+    kept = facts.kept_stand_ins
     total = len(moved)
     for place in range(total):
         if wanted is not None and len(held) >= wanted:
@@ -12555,6 +12706,7 @@ def _apart_walk(
             held,
             0,
             kind,
+            kept,
         )
 
         if want is None and share is not None and reach >= 1:
@@ -12612,6 +12764,7 @@ def _apart_walk(
                 held,
                 0,
                 kind,
+                kept,
             )
 
         if want is None and share is not None and reach >= 2:
@@ -12648,6 +12801,7 @@ def _apart_walk(
                 held,
                 steps,
                 kind,
+                kept,
             )
 
         if want is None:
@@ -12806,6 +12960,7 @@ def _rehomed(
     seen: "dict[int, int]",
     budget: "list[int]",
     order: "tuple[int, ...] | None" = None,
+    kept: "tuple[float, ...]" = (),
 ) -> "list[tuple[int, float]] | None":
     """Whole numbers for `place`, moving whoever is holding one (R-P4-69).
 
@@ -12880,7 +13035,9 @@ def _rehomed(
     band = layout.bands[place]
     share = _share_of(place, layout, rungs, numbers)
     later = _shares_after(place, layout, rungs, numbers, order)
-    want = _whole_inside(moved[place], band, share, ends, reach, taken, later)
+    want = _whole_inside(
+        moved[place], band, share, ends, reach, taken, later, kept=kept
+    )
     if want is not None:
         return [(place, want)]
     if len(seen) >= _CHAIN_DEPTH:
@@ -12907,7 +13064,7 @@ def _rehomed(
             if value != offered:
                 probe[value] = taken[value]
         mine = _whole_inside(
-            moved[place], band, share, ends, reach, probe, later
+            moved[place], band, share, ends, reach, probe, later, kept=kept
         )
         if mine is None or mine != offered:
             continue
@@ -12936,6 +13093,7 @@ def _rehomed(
             ahead,
             budget,
             order,
+            kept=kept,
         )
         if onward is not None:
             best_moves, best_cost = _cheaper(
@@ -13174,6 +13332,7 @@ def _whole_enough(
                     _shares_after(
                         place, layout, rungs, column.n_numeric, order
                     ),
+                    kept=facts.kept_stand_ins,
                 )
                 if want is None:
                     moves = _rehomed(
@@ -13189,6 +13348,7 @@ def _whole_enough(
                         {},
                         budget,
                         order,
+                        kept=facts.kept_stand_ins,
                     )
                     if moves is None:
                         continue
@@ -13793,6 +13953,7 @@ def _figured_inside(
     figures: int,
     near: float,
     whole_column: bool,
+    kept: "tuple[float, ...]" = (),
 ) -> "float | None":
     """A whole value of exactly this many figures for this stratum (G6.6).
 
@@ -13847,10 +14008,11 @@ def _figured_inside(
 
     Guarantees: accepts a share, the values other strata hold, the
     stratum's band, a figure count of one or more, the value the
-    stratum holds now and whether the column is whole; returns a value
-    with exactly that many figures that this stratum's own share and
-    rounding could have reached, held by no other stratum and none of
-    the stand-in numbers -- or None where there is no such value.
+    stratum holds now, whether the column is whole and the stand-ins it
+    keeps; returns a value with exactly that many figures that this
+    stratum's own share and rounding could have reached, held by no
+    other stratum and none of the stand-in numbers the column does not
+    keep -- or None where there is no such value.
     Determinism: the answer depends only on those inputs. Raises
     nothing. No I/O of any kind.
     """
@@ -13900,7 +14062,7 @@ def _figured_inside(
             value = float(pick)
             if value in taken:
                 continue
-            if _is_a_stand_in(value):
+            if _is_a_stand_in(value, kept):
                 continue
             if band == _BAND_NEGATIVE and not value < 0.0:
                 continue
@@ -13914,19 +14076,30 @@ def _figured_inside(
     return None
 
 
-def _is_a_stand_in(value: float) -> bool:
-    """Whether a value is one of the numbers the profiler can read as absent.
+def _is_a_stand_in(value: float, kept: "tuple[float, ...]") -> bool:
+    """Whether a value is a number the profiler can read as absent that
+    the column does not hold as a number.
 
     `parsing.NUMERIC_SENTINELS`, compared as numbers, which is how
-    `_reads_as_its_class` asks it of a made-up spelling.
+    `_reads_as_its_class` asks it of a made-up spelling -- LESS ``kept``,
+    the ones the column's `sentinel_verdicts` publish as
+    `kept_as_a_number` (`NumericFacts.kept_stand_ins`, plan P4-D357 A).
+    Every value pass refuses a stand-in as a point no row of the table
+    holds; one the description says the table holds, and in how many
+    rows, is the table's own value. Refusing it too took a heap away:
+    1,200 whole numbers around `-1000` and `10000` holding `-999` 44
+    times and `9999` 47 times, both published kept, came back holding
+    neither at seeds 0, 4 and 9, and nothing was missed. A stand-in held
+    by fewer rows than the floor publishes no decision and is refused.
 
-    Guarantees: accepts a number; returns True exactly where it equals
-    one of the three. Determinism: a function of the value. Raises
-    nothing. No I/O of any kind.
+    Guarantees: accepts a number and the column's kept stand-ins;
+    returns True exactly where it equals one of the three and is not
+    kept. Determinism: a function of the two. Raises nothing. No I/O of
+    any kind.
     """
     for sentinel in parsing.NUMERIC_SENTINELS:
         if value == sentinel:
-            return True
+            return value not in kept
     return False
 
 
@@ -14183,6 +14356,7 @@ def _wide_enough(
                     count,
                     moved[place],
                     facts.integer_valued,
+                    kept=facts.kept_stand_ins,
                 )
                 if found is None:
                     continue
@@ -14507,6 +14681,7 @@ def _cleared_value(
     grid: int = -1,
     point_free: bool = True,
     tail_rule: bool = False,
+    kept: "tuple[float, ...]" = (),
 ) -> "float | None":
     """A value outside the empty stretch this one landed in (G6.7).
 
@@ -14737,6 +14912,10 @@ def _cleared_value(
             # EXACT-OBSERVABLE and this fact is REPORT-ONLY, so where
             # they meet this one gives way.
             if found < lowest or found > highest:
+                continue
+            # Never a stand-in number the column does not keep (plan
+            # P4-D357 A).
+            if _is_a_stand_in(found, kept):
                 continue
             if not _reads_outside(
                 found, ends, barred, widths, whole_column, tail_rule
@@ -15509,6 +15688,7 @@ def _cleared_into(
         grid,
         _whole_demand(facts) > 0,
         facts.tail_rule,
+        kept=facts.kept_stand_ins,
     )
     if found is None:
         # NO NOTE IS WRITTEN HERE, and that is the repair of review

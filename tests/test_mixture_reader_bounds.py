@@ -884,8 +884,14 @@ def _band_leak(block, cells, floor, counted, worn, kind, name) -> str:
     return ""
 
 
-# The remark that reads the count of different spellings against the rows.
-EVERY_DIFFERENT = "every value in this column is different"
+# The remark that reads the count of different spellings against the rows,
+# in both its forms: "every value ..." and, where some cells share a
+# value, "nearly every value ..." (NF32 and NF85, plan P4-D357 A). Both
+# are said only where that count reaches the uniqueness line.
+EVERY_DIFFERENT = (
+    "every value in this column is different",
+    "nearly every value in this column is different",
+)
 
 
 def _mode_of_counted(block: "dict[str, object]", counted: "list[str]") -> "tuple[int, int, int]":

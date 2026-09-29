@@ -1680,7 +1680,13 @@ GOLDEN_DESCRIPTION_SHA256 = (
     # Sunday), and its empty `remarks` gain the two remarks saying what
     # the census counts. Nothing leaves and no other line of 2,470
     # differs.
-    "79bb0ccbbd17a86e40fe05f5a983770279ff4ea0625477682758ff4924de0f46"
+    # RE-RECORDED BY PLAN P4-D357 A (review item 6 of follow-up A), read
+    # line by line against a git archive of 2af1f03, whose digest was the
+    # one above: ONE LINE differs, the remark on `amount`, whose 240 cells
+    # hold 238 different values and were told "every value in this column
+    # is different"; they are told "nearly every value" now. The twin's
+    # digest below did not move.
+    "f2cad811ba6b715522c8fc2eedd1b2c325f09fc31a48e47b8388e0b777cecb31"
 )
 
 
@@ -2552,7 +2558,10 @@ GOLDEN_REPORT_SHA256 = (
     # it says the published counts per day of the week are met between
     # the two tail boundaries and names THREE things not reproduced where
     # it named four, the weekday gone from the list.
-    "f2bcab2751a549313f62d771d0b0ad6c1edb835d4fa7aea25fd8f0f4e719bd61"
+    # RE-RECORDED BY PLAN P4-D357 A, read line by line against 2af1f03:
+    # ONE LINE of 866 differs, the note quoting `amount`'s remark, which
+    # now says nearly every value differs (the description above).
+    "dd002f5c6b9226ed221a297a5292af8ef2d5beafaae0d6f20bc4ec889f33aecd"
 )
 
 

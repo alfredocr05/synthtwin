@@ -1897,12 +1897,13 @@ contract:
    widening it to arbitrary strings would be exactly the hole that lets
    a source-derived value into a sentence and be rebuilt successfully.
 
-**The census.** The table holds 78 forms and 106 argument positions.
+**The census.** The table holds 86 forms and 106 argument positions.
 Of those, 79 are whole numbers, 5 are package words, 17 are nested
 forms, and 5 are bound affix strings. No position is a string of any
 other kind. The weekday census (landing 3b.1, plan P4-D355) added the
 eleven forms NF68 to NF78 and seven whole-number positions, each the
-census line.
+census line; plan P4-D357 A added the eight forms NF79 to NF86 and no
+position.
 
 **Thirteen of the seventeen nested positions carry a whole number
 instead, and which of the two they carry is decided by the floor.**
@@ -1942,7 +1943,7 @@ class over a committed battery, so it is a number a reader can run.
 
 So every argument position of every form is bound to WHAT IT IS, and
 the table below is closed over all 106 of them exactly as the form table
-is closed over the 78 forms. A position nobody bound is a number a
+is closed over the 86 forms. A position nobody bound is a number a
 sentence may print that no rule governs, and a producer that adds one
 is a producer this contract does not describe. The bindings are these:
 
@@ -3497,7 +3498,7 @@ names:
 
 | id | statement |
 |---|---|
-| NG14 | the form is one of the 78 in section 4.5.1 |
+| NG14 | the form is one of the 86 in section 4.5.1 |
 | NG15 | the argument count equals that form's arity |
 | NG16 | every argument is of one of C6-119's four classes |
 | NG17 | re-rendering the form with those arguments writes the leaf's text character for character |
@@ -3689,8 +3690,9 @@ carries NF62 or NF63 on a side whose own back-solve left it open and
 that TL5 withholds only because the other side's pair is withheld, NF64
 or NF65 on a side whose back-solve did not finish, and NF66 or NF67 on a
 side binary64 cannot hold; a date or clock column carries NF64 or NF65
-on such a side. A side withheld because its own pair would give its
-values back carries none, and no side carries two. The summary's line
+on such a side. A side withheld because its own pair would give back
+what the floor protects says what (NF79 to NF84), and no side carries
+two. The summary's line
 for each tail and the quality report's reason for a file's own silent
 tail read these remarks (`taxonomy.tail_withheld_because`), so neither
 says of a side that its own two distances would give its values back
@@ -3762,6 +3764,68 @@ census line; NF75 `weekday_census_withheld_a_few_dates`, NF76
 **NF78. `weekday_census_withheld_no_tails`** — arity 0.
 
 > the days of the week this column's values fall on are not counted: the column has no tails, so it has no values between them to count
+
+**NF79. `remark_low_tail_withheld_every_value` — the lower tail whose pair would give every value back** — arity 0.
+
+> the two distances of the values beyond this column's lower tail boundary are not published because together they would give every one of those values back
+
+**NF80. `remark_high_tail_withheld_every_value` — the upper tail whose pair would give every value back** — arity 0.
+
+> the two distances of the values beyond this column's upper tail boundary are not published because together they would give every one of those values back
+
+**NF81. `remark_low_tail_withheld_its_end` — the lower tail whose pair would give its outermost value back** — arity 0.
+
+> the two distances of the values beyond this column's lower tail boundary are not published because together they would give back at least the outermost of those values
+
+**NF82. `remark_high_tail_withheld_its_end` — the upper tail whose pair would give its outermost value back** — arity 0.
+
+> the two distances of the values beyond this column's upper tail boundary are not published because together they would give back at least the outermost of those values
+
+**NF83. `remark_low_tail_withheld_a_count` — the lower tail whose pair would give a count back** — arity 0.
+
+> the two distances of the values beyond this column's lower tail boundary are not published because together they would give back at least how many rows hold one of those values
+
+**NF84. `remark_high_tail_withheld_a_count` — the upper tail whose pair would give a count back** — arity 0.
+
+> the two distances of the values beyond this column's upper tail boundary are not published because together they would give back at least how many rows hold one of those values
+
+**WHAT A PINNED SIDE'S OWN PAIR WOULD GIVE BACK, SAID** (plan P4-D357 A,
+review item 5 of follow-up A). A side withheld because its own pair,
+beside its rows, the edge and whether its distances are all different,
+pins what the floor protects carries NF79 or NF80 where those facts
+allow one multiset of distances and no other, NF81 or NF82 where every
+multiset they allow shares the largest distance and another multiset
+was found or none could be ruled out, and NF83 or NF84 where the
+largest distance can differ and a count the floor protects cannot --
+"at least", because a search that spends its own budget before it shows
+one multiset fits claims the less and no more. A
+side of a column of counts, continuous values, dates or clock times
+withheld for its own pair carries exactly one of the six; a side
+carrying none of NF62 to NF67 and NF79 to NF84 is read as giving back
+the outermost value or a count, and no page says more of it. Measured
+on the review's column -- 0 to 1,089, `1089` seven more times, `1090`,
+`1093`, `1093`, `1189` -- the high tail's distances `[0]*7 + [1, 4, 4,
+100]` and `[0]*7 + [2, 2, 5, 100]` share their rows, sum and sum of
+squares, and both pages said the pair gave its values back one by one.
+
+**NF85. `remark_nearly_every_number_is_different` — the code-shaped numeric remark where some values repeat** — arity 0.
+
+> nearly every value in this column is different, and some are shared with another row. That is not treated as evidence of anything: the column is described as numbers, which keeps its distribution. If it is really a record number, run the command again with --identifier NAME, where NAME is this column's name, and its values will be left out of the profile altogether
+
+**NF86. `remark_nearly_every_value_is_different` — the code-shaped text remark where some values repeat** — arity 0.
+
+> nearly every value in this column is different, some are shared with another row, and none of the forms synthtwin can read fits them. synthtwin did NOT assume they are record numbers: it cannot tell from the values alone whether these are record numbers or measurements written in a form it does not read yet, and a wrong guess would throw away the whole distribution. Nothing from this column is published either way -- no value of it, and no distribution. If these ARE record numbers, run the command again with --identifier NAME, where NAME is this column's name, and the profile will say so. If they are measurements written with a currency sign, a per-cent sign, a unit such as mg, or a clock time, write them as plain numbers -- one column for the number, and the unit in the column name -- and their distribution will be described. Do not use --identifier on a measurement: it withholds the column entirely
+
+**"EVERY VALUE IS DIFFERENT" ONLY WHERE IT IS** (plan P4-D357 A, review
+item 6 of follow-up A). The producer writes NF32 or NF34 -- in its first
+rendering, the only one it writes -- only where no two present cells of
+the column hold one value: none alike as written or folded, and on a
+numeric, affixed or clock column none alike as the number or clock time
+it reads them as. Where the different values reach the uniqueness line
+and some repeat, it writes NF85 or NF86 instead, which names no count.
+Until then the line alone decided, and 1,101 counts holding `1089` eight
+times and `1093` twice were told every value differs, while the tail
+back-solve beside the sentence correctly assumed they did not.
 
 ## 5. The column block
 
@@ -6515,7 +6579,7 @@ published that equalled a value fewer than eleven rows held went from
 | TL2 | `tails` is `null` exactly where `n_used_in_statistics` is below max(`small_cell_floor`, 3), and such a block publishes no rung and no moment at all | yes |
 | TL3 | `low` and `high` are both `null` or both objects; both `null` exactly where no percent clears two tails at once, and then every rung is `null` | yes |
 | TL4 | `rows` is `ceil((n - 1) * low.percent / 100)` on the low side and `n - 1 - floor((n - 1) * high.percent / 100)` on the high, `n` being `n_used_in_statistics`, and never below max(`small_cell_floor`, 3) | yes |
-| TL5 | `mean_distance` and `rms_distance` are either both numbers of nought or more, the mean no larger than the root-mean-square, or both `null` -- never one of each, because a mean standing alone is still half the back-solve the pair is withheld to close (plan P4-D349). A tail that LISTS its values publishes both. A producer writes `null` only where the pair would give the tail's cells back, or its back-solve could not show otherwise inside its budget, or the other tail's pair is withheld (plan P4-D353) -- and only where the description's own G12.3 windows of `mean` and `std` still contain their published values, or where no pair would bring more of them inside; the loader checks the shape and not the reason, and a side withheld for any reason but its own pair says which in a remark (NF62 to NF67) | yes |
+| TL5 | `mean_distance` and `rms_distance` are either both numbers of nought or more, the mean no larger than the root-mean-square, or both `null` -- never one of each, because a mean standing alone is still half the back-solve the pair is withheld to close (plan P4-D349). A tail that LISTS its values publishes both. A producer writes `null` only where the pair would give the tail's cells back, or its back-solve could not show otherwise inside its budget, or the other tail's pair is withheld (plan P4-D353) -- and only where the description's own G12.3 windows of `mean` and `std` still contain their published values, or where no pair would bring more of them inside; the loader checks the shape and not the reason, and a side withheld for any reason but its own pair says which in a remark (NF62 to NF67), and one withheld for its own pair what that pair would give back (NF79 to NF84) | yes |
 | TL6 | `values` is ascending and different, no longer than `rows`, whole on a block publishing `integer_valued: true`, at or beyond the side's boundary rung, and led by the published end where there is one | yes |
 | BG1 | `bin_groups` is empty, or groups that follow one another from bin 0 to the last bin of C6-31f's division, each counting at least max(`small_cell_floor`, 3) and together counting `n_used_in_statistics` less the two tails' rows | yes |
 
@@ -6570,8 +6634,9 @@ NOTHING AND THE OTHER LISTS NO VALUES** (plan P4-D353). A numeric
 block publishes the column's exact mean and spread, so where one
 tail's pair and the rows between the two boundaries are known, the
 other tail's sums follow by subtraction.
-Where one tail publishes neither distance and the other a pair and
-lists no values, the other publishes neither distance either -- unless
+Where one tail publishes neither distance -- for whatever reason, a pair
+binary64 cannot hold among them (plan P4-D357 A) -- and the other a pair
+and lists no values, the other publishes neither distance either -- unless
 that costs the twin its mean or spread, where its pair is the first one
 published, or the withheld tail's own pair is published, where the
 other's goes with it. What the subtraction then gives back the owner
@@ -11970,7 +12035,7 @@ month-first parsed.
 | NG11 | on `remark_affixed_numbers_may_be_codes`: argument 3 equals the named block's `n_affixed` |
 | NG12 | argument 1 is character-for-character that block's `affix_prefix` and argument 2 its `affix_suffix`, AT THOSE POSITIONS, not merely as members of the pair |
 | NG13 | on `remark_a_label_is_a_built_in_stand_in`: argument 1 is 1, 2 or 3 |
-| NG14 | for every form: one of the 78 the note grammar enumerates |
+| NG14 | for every form: one of the 86 the note grammar enumerates |
 | NG15 | the argument count equals that form's arity |
 | NG16 | every argument is of one of the four argument classes |
 | NG17 | re-rendering the form with those arguments writes the leaf's text character for character |
@@ -13159,7 +13224,7 @@ this document, and the battery the plan requires turns red on it.
 | nothing-class blocks (`numeric_unrepresentable`, `identifier`, `free_text`) | lengths, word statistics, digit and code-alphabet counts, the whole-number test, the repetition multiset, on `numeric_unrepresentable` the whole-number and sign counts, on `free_text` the census of WRITTEN FORMS its cells wore (`shape_forms`), and on `identifier` the census of LAYOUTS (`layout_forms`, 7.12) and, by the owner's ruling of 2026-09-17, the literal PREFIX every cell of the column or of one named layout opens with (`layout_prefixes`, 7.12a, row 22) | no value, no spelling, no fragment of one but the prefix of row 22 — the form census included, whose every key is built from `%`, `@` and thirteen named marks -- characters no cell that has a form may contain, so a key can carry no letter and no figure of any cell; the multiplicity map publishes SIZES of unnamed groups under no floor, the form census under the floor with a `(withheld)` pool |
 | `empty` columns nobody declared | the absent SPELLINGS their cells wore and the two absence counts, exactly as any column that is not nothing-publishing | floor-governed |
 | `settings` | the rules the run applied, the floor's own value, how many values each declaration named, and which of THIS package's published words were among them | carries no cell, no column and no count of the table; a person's own spelling never enters |
-| `source.header_evidence`, `publication_notes[].note`, `detection_evidence`, `remarks` | sentences of the 78 closed forms: 106 argument positions, of which 79 are whole numbers, 5 package words, 17 nested forms and 5 bound affix strings | the whole numbers are counts the block beside them already publishes, EXCEPT the positions priced at rows 16 and 18 |
+| `source.header_evidence`, `publication_notes[].note`, `detection_evidence`, `remarks` | sentences of the 86 closed forms: 106 argument positions, of which 79 are whole numbers, 5 package words, 17 nested forms and 5 bound affix strings | the whole numbers are counts the block beside them already publishes, EXCEPT the positions priced at rows 16 and 18 |
 | `relationships` | nothing: eight nulls | — |
 
 ### 12.3 The rows, each priced
@@ -14213,7 +14278,7 @@ width at least ONE (`1`, `2`, `10`), a cell written as a whole number
 writing at least one figure (C6-29c). `(withheld)` is again the only
 non-numeric key permitted.
 
-### 14.8 The note grammar — 78 forms
+### 14.8 The note grammar — 86 forms
 
 Defined in 4.5.1, which is the authority on every rendering and every
 argument. 106 argument positions: 79 whole numbers, 5 package words, 17
@@ -14312,6 +14377,14 @@ nested forms, 5 bound affix strings.
 | NG76 | `weekday_census_withheld_two_spellings` | 0 |
 | NG77 | `weekday_census_withheld_two_storages` | 0 |
 | NG78 | `weekday_census_withheld_no_tails` | 0 |
+| NG79 | `remark_low_tail_withheld_every_value` | 0 |
+| NG80 | `remark_high_tail_withheld_every_value` | 0 |
+| NG81 | `remark_low_tail_withheld_its_end` | 0 |
+| NG82 | `remark_high_tail_withheld_its_end` | 0 |
+| NG83 | `remark_low_tail_withheld_a_count` | 0 |
+| NG84 | `remark_high_tail_withheld_a_count` | 0 |
+| NG85 | `remark_nearly_every_number_is_different` | 0 |
+| NG86 | `remark_nearly_every_value_is_different` | 0 |
 
 **The package-word vocabulary — 26**, the whole of the second argument
 class (4.5.1): the twenty `format` members of 14.6, plus `day-first`

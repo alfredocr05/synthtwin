@@ -6,6 +6,32 @@ exists).
 
 ## [Unreleased]
 
+### The review of follow-up A: the cost rule, stand-ins and the withheld-tail sentences (2026-09-28)
+
+Plan P4-D357 A, six items of the one review round. **The cost rule asks
+the block the loader reads**: an affixed column set its two
+cell-population keys after the rule had run, so `1 mg` to `99 mg`, `210
+mg` and one text cell published a pinned pair whose withholding costs
+nothing; a test now holds, for every nested numeric role, that the block
+each cost-rule call returns is the block published, read as the loader
+reads it. **A side binary64 cannot hold closes the other side's pair**,
+as any withheld side does. **No value pass writes `-9999`, `-999` or
+`9999`** where the column does not hold it: G6.5a's fills, walk, push and
+last resort, the carrier walk, the twice-written fill, the clearing walk,
+the grouping run and the grid step of sign pass them over, and on a grid
+finer than binary64 a stand-in moves to the next binary64 rather than a
+step that reads back as itself, in the oracle too (82 stand-in cells over
+102 twins of 17 shapes to none). **A pinned side says what its pair gives
+back** -- every value, at least the outermost, or at least a count -- in
+six new remarks, held against brute-force enumeration and the review's
+competing multisets. **"Every value in this column is different" only
+where every value is**; a near-unique column says so without a count.
+**At its second review** the refusal stopped reaching a stand-in the
+column's decisions publish as kept: those heaps (44 to 196 rows) had
+vanished from every twin and are written again. A sign band whose grid
+holds a refused stand-in is left to the walk instead of filled without
+it, which had moved a heap several units and missed two rungs.
+
 ### A lone pool stands only where no reader of the whole block pins it (2026-09-28)
 
 **The two reviews of follow-up B** (plan P4-D356). A census that pools

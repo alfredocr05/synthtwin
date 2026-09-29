@@ -2177,11 +2177,34 @@ boundary rung itself where that percent falls between the two tails.
    a row on the end is the end's. G6.6's width walk, which moves a
    tail row onto the ceiling of a width, refuses the three too, and so
    does a stratum G5.3 reads between the two tails (G5.4's last rule).
-   The other value passes of G6 are not held to it, and two of them are
-   measured to write one: G6.5a's fill of a grid with no spare point and
-   its walk to the published count of different numbers can each put a
-   stratum on a stand-in that is a gap between two values the column
-   holds (plan P4-D353 part 4). Measured on 145 four-figure numbers beside five of
+   **AND SO DOES EVERY OTHER VALUE PASS** (plan P4-D357 A, which withdrew
+   the exemption P4-D353 part 4 gave G6.5a): G6.4's carrier walk, G6.5a's
+   fills, walk, push and last resort, the twice-written fill, G6.7's
+   clearing walk, the grouping run of plan P4-D185 and G5.5's grid step
+   of sign each pass a stand-in over as a point another stratum holds,
+   the column-wide fill counts the points of its grid less the three,
+   and a sign band whose grid holds one is left to the walk (G6.5a). Only a value
+   the description publishes -- an end, a rung, a listed value, the mode,
+   or a stand-in its `sentinel_verdicts` publish as `kept_as_a_number`
+   -- is written on one. On 9000 to 9998 beside 10000 and 10001 G6.5a's
+   walk took `9999`, a gap between two values the column holds, in one
+   cell at seeds 0, 4 and 9. **A STAND-IN THE COLUMN KEEPS IS ITS OWN
+   VALUE** (the second review of plan P4-D357 A): G5.4's draw, G6.6's
+   width walk and every pass above refuse only a stand-in no published
+   decision names kept (`NumericFacts.kept_stand_ins`), so one held
+   below the floor is still refused. Refusing a kept one took the heap
+   away: 1,200 whole numbers around `-1000` and `10000` holding `-999`
+   44 times and `9999` 47 times, both published kept, came back holding
+   neither at seeds 0, 4 and 9, and nothing was missed. The derived end
+   and the staircase rows are the reader's ladder (G5.1a), which the
+   checker's windows and the producer's cost rule read from the numeric
+   block alone, so they refuse the three whatever the decisions say;
+   each moves at most one row a side, and over ten heap shapes at floors
+   11 and 36 neither met a kept stand-in. **A STEP THAT BINARY64 CANNOT TELL FROM THE
+   STAND-IN IS NO STEP**: on a grid finer than the format near it -- 14
+   figures after the point beside `-999` -- one grid step reads back as
+   the stand-in, so the end, the row and G5.4's stratum each take the
+   next number binary64 holds that way instead. Measured on 145 four-figure numbers beside five of
    five figures at a floor of eleven, a tail row the walk moved for the
    width census took `9999` and the twin missed seven obligations at
    seeds 0, 4 and 9; three-figure negatives beside five of four figures
@@ -2455,12 +2478,18 @@ published rungs — which is what keeps the endpoints exact.
 P4-D353 part 4). After this rule — or, on a column written at one width,
 after the grid value G5.3 reads there — a stratum whose value the convex
 form gave and which equals `-9999`, `-999` or `9999`
-(`parsing.NUMERIC_SENTINELS`) takes the neighbouring point of its grid
+(`parsing.NUMERIC_SENTINELS`) and is not one the column keeps (G5.3b
+step 5) takes the neighbouring point of its grid
 TOWARD NOUGHT: one unit on a whole-valued column, one step of the one
 width, and the next number binary64 holds where there is neither. Where
 that point lies outside the published `min` to `max` it takes the
 neighbouring point away from nought, and where that one does too it
-keeps the value. Toward nought keeps the stand-in's figure count —
+keeps the value. Where the grid is finer than binary64 near the
+stand-in, so that the point's grid text reads back as the stand-in
+itself, the neighbouring point is the next number binary64 holds that
+way (plan P4-D357 A): on 200 values a few binary64 steps either side of
+`-999` at fourteen figures, none of them `-999`, every twin wrote
+`-999.00000000000000` once before this sentence. Toward nought keeps the stand-in's figure count —
 `-998`, `9998`, `-9998`, the answer G6.6's width walk takes — and a
 magnitude of 998 or more keeps its sign, so G5.5 has nothing to repair.
 A stratum read inside a tail is the tail's (G5.3b step 5); a pinned
@@ -2468,10 +2497,10 @@ end, a listed value and the zero stratum are not drawn. Measured by
 skeptic Ad on the 899 whole numbers `-1400` to `-1000` and `-998` to
 `-501`, which hold no `-999`: at floors 11, 20, 36 and 50 and seeds 0, 4
 and 9 one or two strata read `-999` and every twin wrote it deep in its
-interior. With the rule no stratum does, and the twin at seed 0 writes
-none; at seeds 4 and 9 G6.5a's walk, which is not held to it, still
-takes `-999`, the one free point between the column's own `-1000` and
-`-998`.
+interior. With the rule no stratum does; G6.5a's walk, which took `-999`
+at seeds 4 and 9 as the one free point between the column's own `-1000`
+and `-998`, now passes it over too (G5.3b step 5) and the twin writes
+none.
 
 ### G5.5 Placing `n_zero` and `n_negative` exactly
 
@@ -3666,7 +3695,12 @@ neighbour's point keeps that value exactly — so a column whose values
 are already apart leaves with them unchanged. Where the two ends hold
 EXACTLY `K` representable numbers, `low[i]` and `high[i]` are one
 number and the result is the grid's own points in order, which is what
-this clause said before it said anything about spare points. The rule is
+this clause said before it said anything about spare points. A stratum
+between the two ends whose `out[i]` is a stand-in number the column
+does not keep takes the next
+representable number above it where that is no more than `high[i]`, and
+otherwise the one below it where that is above `out[i - 1]` and no less
+than `low[i]` (plan P4-D357 A). The rule is
 withdrawn whole where any stratum's sign band would not hold the point
 it would take. Measured with the equality alone: 120 numbers
 `i * 5e-324`, one binary64 step apart, held 120 different TEXTS and 95
@@ -3708,7 +3742,13 @@ from `min` to `max`, of the band's own sign, that lie strictly inside no
 published `empty_edges` pair (a point on a pair's edge is outside it).
 Where those points number exactly the band's strata, the band's strata
 take them in ascending order, each once; a band with a spare point is
-left as it is. The zero stratum never moves. On a column whose styles
+left as it is, and a stand-in number the column does not keep (G5.3b
+step 5) is one of the band's points, its spare one where the others
+number the strata, so a band holding one is left too (the second
+review of plan P4-D357 A: counted less it, a band of 1,116 two-heap
+integers near `-1000` and `10000` was filled up to its derived end, the
+heap moved three to five units, and the twin missed `ladder.p75` and
+`ladder.p90` at every seed). The zero stratum never moves. On a column whose styles
 map asks for any point-free cell, the whole rule stands aside where any
 stratum it would fill would change whether its value has a point-free
 spelling. The walk below then runs over the result as it would have run
@@ -3798,6 +3838,9 @@ about, and it is what the stratum takes.
 
 **WHAT IS REFUSED.** A candidate that is not a finite number; a
 candidate whose text is already written by another stratum; a candidate
+that is `-9999`, `-999` or `9999` and not one the column keeps, which
+every fill, walk and push of this pass counts as a point another stratum
+holds (G5.3b step 5, plan P4-D357 A); a candidate
 outside the stratum's share, whose two ends are INCLUSIVE; a candidate
 outside the published `min` and `max`, inclusive likewise; and a
 candidate that would cross into another sign band — the counts of negative, zero and positive cells are published

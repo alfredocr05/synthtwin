@@ -2730,6 +2730,42 @@ class NumericFacts:
     tail_rule: bool = False
     tails: "NumericTailFacts | None" = None
     bin_groups: "tuple[tuple[int, int, int], ...]" = ()
+    # THE STAND-IN NUMBERS THE COLUMN HOLDS AS NUMBERS (plan P4-D357 A,
+    # the second review of follow-up A). Not a key: read off the
+    # column's own `sentinel_verdicts` -- a `kept_as_a_number` decision
+    # names its candidate and its rows -- by `_kept_stand_ins`, and
+    # empty on every block no such decision reaches. The construction
+    # refuses `-9999`, `-999` and `9999` as points no row of the table
+    # holds; one the table holds, and says so, is a value like any
+    # other.
+    kept_stand_ins: "tuple[float, ...]" = ()
+
+
+def _kept_stand_ins(
+    verdicts: "tuple[SentinelVerdict, ...]",
+) -> "tuple[float, ...]":
+    """The stand-in numbers a column's decisions publish as kept numbers.
+
+    A decision is published only where at least the floor of rows held
+    its candidate, so a stand-in held by fewer is not here and the
+    construction goes on refusing it. A placeholder day is no number and
+    names nothing here.
+
+    Guarantees: accepts a block's checked decisions; returns the
+    candidates published `kept_as_a_number` that are one of
+    `parsing.NUMERIC_SENTINELS`, in that tuple's order. Determinism: a
+    function of the decisions. Raises nothing. No I/O of any kind.
+    """
+    kept: "list[float]" = []
+    for sentinel in parsing.NUMERIC_SENTINELS:
+        for verdict in verdicts:
+            if verdict.verdict == VERDICT_MISSING:
+                continue
+            number = parsing.parse_number(verdict.candidate)
+            if number is not None and number == sentinel:
+                kept += [sentinel]
+                break
+    return tuple(kept)
 
 
 @dataclasses.dataclass(frozen=True)
@@ -7117,6 +7153,11 @@ def _facts(
             n_out_of_range,
             n_contradictory,
         )
+        # ...HOLDING EVERY STAND-IN ITS DECISIONS PUBLISH AS KEPT (plan
+        # P4-D357 A): the construction may write those.
+        numeric = dataclasses.replace(
+            numeric, kept_stand_ins=_kept_stand_ins(verdicts)
+        )
         if role == ROLE_CONTINUOUS:
             return numeric
         return dataclasses.replace(
@@ -7141,7 +7182,27 @@ def _facts(
             isinstance(named, str) and named in frame.declared_commas,
         )
     if role == ROLE_AFFIXED:
-        return _affixed_facts(mapping, where, frame, n_present, remarks)
+        affixed = _affixed_facts(mapping, where, frame, n_present, remarks)
+        # The decisions of an affixed column are about its CORES, which
+        # every wrapper's block reads (plan P4-D357 A).
+        kept = _kept_stand_ins(verdicts)
+        if not kept:
+            return affixed
+        wrappers: "list[AffixWrapper]" = []
+        for one in affixed.affix_variants:
+            wrappers += [
+                dataclasses.replace(
+                    one,
+                    numbers=dataclasses.replace(
+                        one.numbers, kept_stand_ins=kept
+                    ),
+                )
+            ]
+        return dataclasses.replace(
+            affixed,
+            numbers=dataclasses.replace(affixed.numbers, kept_stand_ins=kept),
+            affix_variants=tuple(wrappers),
+        )
     if role == ROLE_IDENTIFIER:
         return _identifier_facts(
             mapping, where, n_present, n_distinct, frame.floor
@@ -11901,11 +11962,32 @@ def _row_off_the_stand_ins(value: float, side: TailReader, figures: int) -> floa
         return value
     for sentinel in parsing.NUMERIC_SENTINELS:
         if value == sentinel:
-            moved = _withheld_step(value, 1, side.low, figures)
+            moved = _step_apart(value, side.low, figures)
             if (moved < side.end) if side.low else (moved > side.end):
                 return side.end
             return moved
     return value
+
+
+def _step_apart(value: float, downward: bool, figures: int) -> float:
+    """One step of the tail grid from ``value``, that binary64 can tell from it.
+
+    `_withheld_step`'s one step, except where the grid is finer than
+    binary64 near ``value`` -- fourteen figures after the point beside
+    `-999`, whose next binary64 number is about eleven of those steps
+    away -- and the step reads back as ``value`` itself: there it is the
+    next number binary64 holds that way (plan P4-D357 A, review item 3).
+    A stand-in moved by a step that did not move it is still the
+    stand-in.
+
+    Guarantees: accepts a value, the direction and the tail grid; returns
+    a number different from ``value`` wherever one exists that way.
+    Determinism: a function of the three. Raises nothing. No I/O.
+    """
+    moved = _withheld_step(value, 1, downward, figures)
+    if moved == value:
+        moved = _next_representable(value, downward)
+    return moved
 
 
 def tail_read(
@@ -12361,21 +12443,20 @@ def _off_the_stand_ins(
     table's own and never reach this function.
 
     Guarantees: accepts a derived end, which side it is, its boundary and
-    the tail grid; returns the end, or the end one step inside where it
-    is a stand-in number. Determinism: a function of the four. Raises
-    nothing. No I/O of any kind.
+    the tail grid; returns the end, or the end one step inside -- one
+    binary64 can tell from it (`_step_apart`) -- where it is a stand-in
+    number. Determinism: a function of the four. Raises nothing. No I/O
+    of any kind.
     """
     if value == boundary:
         return value
     for sentinel in parsing.NUMERIC_SENTINELS:
         if value == sentinel:
-            if figures == -1:
-                moved = _next_representable(value, not low)
-            else:
-                unit = _tail_unit(figures)
-                moved = _on_tail_grid(
-                    value + unit if low else value - unit, figures
-                )
+            # ONE STEP BINARY64 CAN TELL FROM THE STAND-IN (plan P4-D357
+            # A): on a grid finer than the format near it the grid step
+            # reads back as the stand-in, and the next number binary64
+            # holds toward the boundary is taken instead.
+            moved = _step_apart(value, not low, figures)
             if (moved > boundary) if low else (moved < boundary):
                 return value
             return moved

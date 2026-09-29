@@ -3097,11 +3097,11 @@ def _apart_without_the_fill(*_arguments, **_keywords):
     return None
 
 
-def _no_tenths_fill(wanted, figures, total, bands, ladder):
+def _no_tenths_fill(wanted, figures, total, bands, ladder, kept=()):
     """Plan P4-D176's fill withdrawn on a written grid, the integers' kept."""
     if figures > 0:
         return None
-    return gen_saturated_grid(wanted, figures, total, bands, ladder)
+    return gen_saturated_grid(wanted, figures, total, bands, ladder, kept)
 
 
 def _no_band_fill(wanted, figures, values, *_rest):
@@ -3452,7 +3452,7 @@ CASE_MUTANTS = {
         "the ladder interpolates between rungs one binary64 apart, and "
         "several strata land on one number",
         attribute="representable_grid",
-        replacement=lambda total, bands, values: _only_when_saturated(
+        replacement=lambda total, bands, values, kept=(): _only_when_saturated(
             total, bands, values
         ),
         outcome=CHANGES_THE_CELLS,

@@ -376,12 +376,12 @@ def test_a_walk_that_answers_badly_cannot_inflate_the_count(
     # share bound, and a requirement that the point it lands on be
     # whole exactly as the stratum's own value is.
     def refusing(value, figures, band, share, ends, written, reach=0,
-                 whole=None):
+                 whole=None, kept=()):
         refused.append(1)
         return None
 
     def unmoving(value, figures, band, share, ends, written, reach=0,
-                 whole=None):
+                 whole=None, kept=()):
         idle.append(1)
         return value
 
