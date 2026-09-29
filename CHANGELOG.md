@@ -6,6 +6,21 @@ exists).
 
 ## [Unreleased]
 
+### The weekday census's third review, repaired (2026-09-28)
+
+**Being told a census is withheld says nothing a count may not** (plan
+P4-D359). A withholding the table's own numbers decide is said in one
+sentence and certified like a publication, around a band of weekend and
+weekday totals it always keeps; the certificate's baseline holds no
+census information, its empty weekdays included. A report keeps a short
+count back from its complements too. The producer, loader, day pass,
+validator and oracle hold one set of published holes, so the twin of a
+May-only column stays in May and a straddling column keeps its count of
+different days. One spelling per day is asked of the cells' own texts,
+the loader holds workbook storage, and a refusal on the published
+numbers walks no day. Over 56 date columns one census moved, the review's
+own attack; over 80 sparse schedules 42 publish where 45 did.
+
 ### A count no placement inside the gaps reaches is met past the strata (2026-09-28)
 
 **A tail rank leaves its stratum by the least amount that meets the

@@ -10871,17 +10871,46 @@ def weekday_merged_runs(walk, movable, wanted):
 
 
 def weekday_hole_days(column, holes):
-    """The days the absent spellings name, read as ISO dates.
+    """G7.3f's HOLES between the two boundaries, from the step's own sentence.
 
-    G7.3f reads each absent spelling under the column's own member; this
-    oracle reads the ISO member alone, the one member of every frozen
-    case that publishes a weekday census, and says so here.
+    A day is a hole where the text the column's own member writes it in
+    -- at its one width word and its one month-name word -- is an absent
+    spelling of the run, folded; where the column's decisions read that
+    day as no value; and where the written forms leave it empty: a width
+    word naming the first field alone leaves every day whose second
+    field is below ten, one naming the second field alone every day
+    whose first is, and a month name of the length `either` every day
+    outside May. (Written from the text, over every day of the span:
+    this oracle read the ISO spelling alone until the review of landing
+    3b.1, item 9, found seven rows apart on a month-first column.)
     """
+    member = column["format"]
+    widths = column.get("date_field_widths") or {}
+    width = next(iter(widths)) if len(widths) == 1 else DEFAULT_WIDTH
+    names = column.get("month_name_styles") or {}
+    style = next(iter(names)) if len(names) == 1 else DEFAULT_NAME_STYLE
+    absent = {folded(text) for text in holes} | {folded(text) for text in column.get("_declared_days", ())}
+    judged = {
+        decision["candidate"]
+        for decision in column.get("sentinel_verdicts") or []
+        if decision["verdict"] == "read_as_missing"
+    }
+    low = ordinal_of(column["low_tail"]["boundary"], "date")
+    high = ordinal_of(column["high_tail"]["boundary"], "date")
     found = set()
-    for text in holes:
-        text = text.strip()
-        if len(text) == 10 and text[4] == "-" and text[7] == "-" and (text[:4] + text[5:7] + text[8:]).isdigit():
-            found.add(days_from_civil(int(text[:4]), int(text[5:7]), int(text[8:])))
+    for day in range(low, high + 1):
+        year, month, date = civil_from_days(day)
+        text = written_date(year, month, date, member, width, style)
+        first, second = (month, date) if member in MONTH_FIRST_MEMBERS else (date, month)
+        emptied = (
+            folded(text) in absent
+            or f"{year:04d}-{month:02d}-{date:02d}" in judged
+            or (member in VARIABLE_WIDTH_MEMBERS and width.startswith("first-field-") and second < 10)
+            or (member in VARIABLE_WIDTH_MEMBERS and width.startswith("second-field-") and first < 10)
+            or (member in TEXTUAL_MEMBERS and name_parts(style)[1] == "either" and month != 5)
+        )
+        if emptied:
+            found.add(day)
     return found
 
 

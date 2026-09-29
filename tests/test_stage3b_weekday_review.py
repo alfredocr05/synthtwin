@@ -499,6 +499,154 @@ def test_a_written_form_below_the_line_gives_no_count_back_by_subtraction(tmp_pa
     assert all(not any(ch.isdigit() for ch in text.replace("11", "")) for text in shown.values()), shown
 
 
+# -- items 4 and 5: the twin meets the census on the holes it was certified with,
+# -- and keeps its count of different days --------------------------------------
+
+
+def _mays_five_times() -> "list[str]":
+    """The gate's three Mays five times over, written `17 May 2023`, shuffled with `Random(3)`."""
+    import test_stage3b_gate as gate
+
+    cells = [f"{day.day} May {day.year}" for day in gate._mays_only() * 5]
+    random.Random(3).shuffle(cells)
+    return cells
+
+
+def test_the_day_pass_keeps_every_date_off_the_form_holes(tmp_path: pathlib.Path) -> None:
+    """745 dates of three Mays: the twin's body holds no day outside May, and meets its census.
+
+    `month_name_styles {title-either-space-no-comma}` tells a reader every
+    cell is in May, and the census was certified with every other day a
+    hole. On the reviewed tree the twin at seed 0 held 350 cells outside
+    May, five of them moved there by the day pass itself, and validation
+    missed nothing. Now the pass keeps every rank off the holes the
+    description publishes (`calendar_rules.public_holes`) and the twin's
+    cells between the two boundaries all fall in May. Red when the day
+    pass reads its holes off the absent spellings alone again.
+    """
+    cells = _mays_five_times()
+    described = kpi_shapes.describe(tmp_path, "mays", "visit\n" + "".join(f"{cell}\n" for cell in cells), 11)
+    block = described.block("visit")
+    assert block["month_name_styles"] == {"title-either-space-no-comma": 745} and block["weekday_census"]
+    low = datetime.date.fromisoformat(block["low_tail"]["boundary"])
+    high = datetime.date.fromisoformat(block["high_tail"]["boundary"])
+    twin = kpi_shapes.twin_text(described, 0)
+    written = [datetime.datetime.strptime(cell, "%d %B %Y").date() for cell in twin.splitlines()[1:] if cell]
+    inside = [day for day in written if low <= day <= high]
+    assert inside and all(day.month == 5 for day in inside), sorted({day for day in inside if day.month != 5})[:5]
+    assert kpi_shapes.missed(kpi_shapes.measure(described, twin, "twin.csv")) == []
+
+
+def test_a_file_with_a_date_on_a_form_hole_misses_the_census(tmp_path: pathlib.Path) -> None:
+    """The validator holds the same holes: a body date moved outside May, same weekday, misses the census.
+
+    Three of the real column's body dates moved five weeks earlier, into
+    April, keep every weekday count; on the reviewed tree the file was
+    HELD. It stands on days the description holds empty, so the census
+    is MISSED and the line says so without a number. Red when the
+    validator counts no hole.
+    """
+    from synthtwin import validation
+
+    cells = _mays_five_times()
+    described = kpi_shapes.describe(tmp_path, "mays", "visit\n" + "".join(f"{cell}\n" for cell in cells), 11)
+    block = described.block("visit")
+    low = datetime.date.fromisoformat(block["low_tail"]["boundary"])
+    high = datetime.date.fromisoformat(block["high_tail"]["boundary"])
+    moved: "list[str]" = []
+    changed = 0
+    for cell in cells:
+        day = datetime.datetime.strptime(cell, "%d %B %Y").date()
+        if changed < 3 and low < day - datetime.timedelta(days=35) and day.day <= 20 and day < high:
+            earlier = day - datetime.timedelta(days=35)
+            moved += [f"{earlier.day} {earlier.strftime('%B')} {earlier.year}"]
+            changed += 1
+        else:
+            moved += [cell]
+    assert changed == 3
+    outcome = kpi_shapes.measure(described, "visit\n" + "".join(f"{cell}\n" for cell in moved), "moved.csv")
+    [check] = [check for check in outcome.checks if check.fact == "datetime.weekday_census"]
+    assert check.verdict == validation.MISSED, check
+    assert check.achieved == check.published, (check.achieved, check.published)
+    assert any("days its description holds no value on" in line for line in check.note), check.note
+
+
+def _certified_fixtures() -> "dict[str, tuple[str, list[str]]]":
+    """Every fixture the gate certifies a census on, and the review's May column."""
+    import test_stage3b_gate as gate
+
+    return {
+        "straddling_february": ("seen_on", [f"{day.month}/{day.day}/{day.year}" for day in gate._straddling_february()]),
+        "one_autumn": ("visit", [gate._day_first(day) for day in gate._one_autumn()]),
+        "placeholder_read_as_missing": ("born", gate._with_a_placeholder_day()),
+        "placeholder_kept": ("seen_on", gate._around_a_placeholder_day()),
+        "thin_midweek": ("visit_date", gate._thin_midweek(1)),
+        "twenty_sessions": ("session_date", gate._twenty_sessions(0)),
+        "mays_five_times": ("visit", _mays_five_times()),
+    }
+
+
+@pytest.mark.parametrize("name", sorted(_certified_fixtures()))
+def test_every_certified_fixture_generates_twins_that_meet_it(tmp_path: pathlib.Path, name: str) -> None:
+    """Every column the gate certifies generates twins meeting everything, the count of different days included.
+
+    The gate certified `_straddling_february` and never generated it; on
+    the reviewed tree its twins at seeds 0 to 4 held 84 different days
+    against 85 published, both distinct counts MISSED while the census
+    was HELD -- the census moves stranded a day the count repair could
+    not put back. Every fixture the gate publishes a census on is
+    generated here at five seeds and validated: nothing is missed. Red
+    when the day pass reads its holes off the absent spellings alone (the
+    straddling column's twins lose a day again).
+    """
+    column, cells = _certified_fixtures()[name]
+    described = kpi_shapes.describe(tmp_path, name, f"{column}\n" + "".join(f"{cell}\n" for cell in cells), 11)
+    assert described.block(column)["weekday_census"], name
+    for seed in range(5):
+        twin = kpi_shapes.twin_text(described, seed)
+        assert kpi_shapes.missed(kpi_shapes.measure(described, twin, f"twin-{seed}.csv")) == [], (name, seed)
+
+
+# -- item 9: the oracle reads the holes under the column's own member ------------
+
+
+def test_the_oracle_reads_an_absent_day_under_the_columns_own_member(tmp_path: pathlib.Path) -> None:
+    """`weekday_hole_left` written `mm/dd/yyyy`: oracle and generator agree cell for cell.
+
+    The frozen case's own column, its twenty absent cells spelled
+    `02/23/2024` and its dates read month first at padded widths, its
+    tails, rungs, seed 415 and given words kept. On the reviewed tree the
+    oracle read an absent spelling as an ISO date alone, so it held no
+    hole here and seven rows parted from the shipped generator's; G7.3f
+    reads every spelling under the column's own member. Red when the
+    oracle reads the ISO spelling alone again.
+    """
+    import test_generation_reference as reference
+    from synthtwin import generation
+
+    oracle = reference.gen
+    original = oracle.CASE_BUILDERS["weekday_hole_left"]
+
+    def month_first() -> dict:
+        spec = original()
+        column = dict(spec["column"])
+        column["format"] = "month-first-date"
+        column["resolution_mix"] = {"month-first-date": 132}
+        column["date_field_widths"] = {"padded": 132}
+        column["missing_by_source"] = {"02/23/2024": 20}
+        return dict(spec, column=column)
+
+    with pytest.MonkeyPatch.context() as patched:
+        patched.setitem(oracle.CASE_BUILDERS, "weekday_hole_left", month_first)
+        built = oracle.build_case("weekday_hole_left")
+    case = built[0] if isinstance(built, tuple) else built
+    profile_ = reference._load(case, "weekday_hole_left", tmp_path)
+    written = [row[0] for row in generation.generate(profile_, reference.SEEDS["weekday_hole_left"]).rows]
+    assert "02/23/2024" in case["cells"]
+    apart = [(place, mine, theirs) for place, (mine, theirs) in enumerate(zip(written, case["cells"])) if mine != theirs]
+    assert apart == [], apart[:8]
+
+
 def _weekly_clinic(shape: int) -> "list[str]":
     """500 visits over 39 weekly clinic days, some moved a day either way (the sparse schedules measured)."""
     draw = random.Random(1000 + shape)

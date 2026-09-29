@@ -7400,12 +7400,15 @@ def _obligations(
         and column.name not in description.settings.forced_measurements
     )
     writable = not subsecond_figures_unwritable(description, column)
+    declared = description.settings.declared_missing_values.built_in_dates
     gated = gated + _role_checks(
-        column, block, own_cells, floor, mine, pairs, writable, system
+        column, block, own_cells, floor, mine, pairs, writable, system,
+        declared,
     )
     measured = _universal_checks(column, split, mine, floor, system)
     measured = measured + _role_checks(
-        column, split, split_cells, floor, mine, pairs, writable, system
+        column, split, split_cells, floor, mine, pairs, writable, system,
+        declared,
     )
     return checks + _governed(gated, measured, split_published)
 
@@ -9681,6 +9684,7 @@ def _role_checks(
     plain_pairs: bool = False,
     figures_writable: bool = True,
     date_system: str = "",
+    declared_days: "tuple[str, ...]" = (),
 ) -> "list[Check]":
     """Everything the column's own role adds.
 
@@ -9721,7 +9725,7 @@ def _role_checks(
     if isinstance(facts, contract.DatetimeFacts):
         return _datetime_checks(
             column, facts, block, floor, mine, cells, figures_writable,
-            date_system,
+            date_system, declared_days,
         )
     if isinstance(facts, contract.TextFacts):
         return _text_checks(column, facts, block, floor, cells)
@@ -16657,6 +16661,7 @@ def _datetime_checks(
     cells: "list[str]",
     figures_writable: bool = True,
     date_system: str = "",
+    declared_days: "tuple[str, ...]" = (),
 ) -> "list[Check]":
     """A column of dates and times.
 
@@ -16766,7 +16771,9 @@ def _datetime_checks(
     checks = checks + _date_ladder_checks(
         column, facts, block, floor, date_system
     )
-    checks = checks + _weekday_checks(column, facts, block, floor, cells)
+    checks = checks + _weekday_checks(
+        column, facts, block, floor, cells, declared_days
+    )
     return checks
 
 
@@ -16795,6 +16802,7 @@ def _weekday_checks(
     block: "dict[str, object]",
     floor: int,
     cells: "list[str]",
+    declared_days: "tuple[str, ...]" = (),
 ) -> "list[Check]":
     """The weekday census, held exactly (landing 3b.1, validation V5-W1).
 
@@ -16811,6 +16819,16 @@ def _weekday_checks(
     (plan P4-D347): a group the file holds one to the line less one of
     is printed "fewer than" the line, and the note says so.
 
+    AND NO CELL STANDS ON A DAY THE DESCRIPTION HOLDS EMPTY (review of
+    landing 3b.1, item 4). The census was certified with every day the
+    description publishes as holding no body cell left out -- the days
+    its censuses of written forms leave empty, the placeholder days it
+    reads as no value and the days a published absent spelling names
+    (`calendar_rules.public_holes`, `declared_days` the placeholder days
+    the settings' declaration named) -- so a file with a body cell on one
+    misses the census whatever its counts; the line says so without a
+    number.
+
     Guarantees: accepts the column, its facts, the file's own block, the
     floor and the file's cells; returns one check where a census is
     published and none otherwise. Determinism: a function of the
@@ -16821,6 +16839,8 @@ def _weekday_checks(
         return []
     low = _weekday_day(facts.low_tail.boundary)
     high = _weekday_day(facts.high_tail.boundary)
+    holes = set(_published_holes(column, facts, low, high, declared_days))
+    on_holes = 0
     bins = [0 for _ in range(calendar_rules.WEEKDAYS)]
     for cell in _dates_the_file_reads(block, facts, cells):
         read = parsing.parse_datetime(cell, facts.parser_family)
@@ -16830,6 +16850,8 @@ def _weekday_checks(
         if low <= day <= high:
             weekday = calendar_rules.weekday_of(day)
             bins[weekday] = bins[weekday] + 1
+            if day in holes:
+                on_holes = on_holes + 1
     found = calendar_rules.group_counts(census, bins)
     line = parsing.census_floor(floor)
     # COMPLEMENTARY, OR NOT AT ALL (review of landing 3b.1, item 3). A
@@ -16860,35 +16882,73 @@ def _weekday_checks(
         else:
             shown = f"{shown}{between}{named} {_KEPT_BACK}"
     wanted = [count for _first, _last, count in census]
-    note: "tuple[str, ...]" = ()
+    lines: "list[str]" = []
     if short and named_short:
-        note = (
+        lines += [
             f"A group this file holds fewer than {line} of is not "
             "counted out, and neither is any other group: beside the "
             "file's own total, the other groups' counts would give that "
             "number back. The description's own floor keeps it back, and "
-            "the verdict stands without it.",
-        )
+            "the verdict stands without it."
+        ]
     elif short:
-        note = (
+        lines += [
             f"Some group this file holds fewer than {line} of, and no "
             "group is counted out or named: beside the file's own total, "
             "even which groups are short would give such a number back. "
             "The description's own floor keeps it back, and the verdict "
-            "stands without it.",
-        )
+            "stands without it."
+        ]
+    if on_holes:
+        lines += [
+            "Some of this file's dates between the two boundaries stand on "
+            "days its description holds no value on -- days its written "
+            "forms, its placeholder decisions or its absent spellings "
+            "leave empty -- and the census was counted without them."
+        ]
+    note: "tuple[str, ...]" = tuple(lines)
     return [
         Check(
             column.name,
             "datetime.weekday_census",
             "weekday_census.groups",
-            HELD if found == wanted else MISSED,
+            HELD if found == wanted and not on_holes else MISSED,
             asked,
             shown,
             "",
             note,
         )
     ]
+
+
+def _published_holes(
+    column: contract.ColumnBlock,
+    facts: contract.DatetimeFacts,
+    low: int,
+    high: int,
+    declared_days: "tuple[str, ...]",
+) -> "tuple[int, ...]":
+    """The days from `low` to `high` the description holds empty.
+
+    `calendar_rules.public_holes` on what the description publishes --
+    the producer's, the loader's and the generator's one rule.
+    """
+    forms = {
+        "datetime_separators": dict(facts.datetime_separators),
+        "date_field_widths": dict(facts.date_field_widths),
+        "month_name_styles": dict(facts.month_name_styles),
+        "quarter_marker_case": dict(facts.quarter_marker_case),
+        "zulu_case": dict(facts.zulu_case),
+    }
+    judged = tuple(
+        verdict.candidate
+        for verdict in column.sentinel_verdicts
+        if verdict.verdict == contract.VERDICT_MISSING
+    )
+    absent = tuple(sorted(set(column.missing_by_source) | set(declared_days)))
+    return calendar_rules.public_holes(
+        forms, facts.parser_family, low, high, judged, absent
+    )
 
 
 # What a group's count prints as where another group of the same census

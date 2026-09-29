@@ -6166,8 +6166,8 @@ inset).
 
 #### G7.3f The weekday census: the day pass
 
-*Stage 3b, landing 3b.1, plan P4-D355.* Where a column of whole dates
-publishes a non-empty `weekday_census` (contract WC1 to WC8), with both
+*Stage 3b, landing 3b.1, plans P4-D355 and P4-D359.* Where a column of whole dates
+publishes a non-empty `weekday_census` (contract WC1 to WC9), with both
 tails, at least three parsed cells and no bare date, its ranks are moved
 once G7.3's count passes and G7.3b step 9 are done and before any cell
 is spelled, until the cells between the two boundary ranks fall on the
@@ -6177,8 +6177,18 @@ A day `d`, counted from 1970-01-01, falls on weekday `(d + 3) mod 7`,
 Monday nought; its GROUP is the census group holding that weekday. Its
 KIND is whether a date on it counts into the width census's one word,
 where the member can show a width and that census names exactly one
-word, and one kind for every day otherwise. A HOLE is a day an absent
-spelling of the run names under the column's member. `held(d)` is how
+word, and one kind for every day otherwise. A HOLE is a day between
+the two boundary days that the description holds empty: one the
+column's own member writes -- at its one width word and its one
+month-name word, the defaults where it has none -- in an absent spelling
+of the run, folded (every column's `missing_by_source` keys, and the
+placeholder days the settings' declaration of missing values names);
+one its `sentinel_verdicts` read as no value; and one its censuses of
+written forms leave empty -- a width word naming the first field alone
+leaves every day whose second field is below ten, one naming the second
+field alone every day whose first is, and a month name of the length
+`either` every day outside May (contract WC6 to WC8, the holes the
+certificate was asked with). `held(d)` is how
 many ranks of the column stand on `d`. A rank is MOVABLE where it lies
 between the two boundary ranks, both included, the layout does not pin
 it and its gap (G7.3) is more than one day; the movable ranks form GAPS,
