@@ -1162,8 +1162,9 @@ def certify(facts: Facts) -> Verdict:
 # numbers decide is said in ONE sentence, and that sentence is published
 # only where its set is certified the way a census is: its sure part W0 --
 # the tables whose weekend, or whose Monday to Friday together, holds at
-# least one row and at most the line more than the least any table of
-# stage 3's facts lets it hold, the BAND, which the producer always
+# least one row and at most the line, and what the capped stretches can
+# take in that half, more than the least any table of stage 3's facts
+# lets it hold, the BAND, which the producer always
 # withholds -- has a witness putting the line on a day of every class, or
 # the class is residue whose every stage-3 configuration W0 allows. Every
 # table withheld is then in a set holding W0, and a set holding a
@@ -1281,7 +1282,8 @@ def withholding(
     The BANDS: the least cells the weekend, and the least Monday to
     Friday together, hold over the tables meeting stage 3's facts on the
     reader's bounds and the holes; each band runs from the larger of one
-    and that least to the least plus the line. Then W0, the tables whose
+    and that least to the least plus the line plus what the capped
+    stretches can take in that half (`bands`). Then W0, the tables whose
     weekend lies in its band or whose weekdays lie in theirs: every class
     of every weekday needs a witness in W0 putting the line on one of its
     days, or no table of stage 3's facts may put the line there (else

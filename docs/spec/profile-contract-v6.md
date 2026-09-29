@@ -6214,8 +6214,10 @@ a census is withheld tells a reader the table is one the rules
 withhold, so every withholding the table's own numbers decide is said in
 one sentence, and it is published only where the tables it always
 withholds -- those whose weekend, or whose Monday to Friday together,
-holds from one row to the census line more than the least any table of
-the rest of the description holds there, the BAND -- have a table
+holds from one row to the census line, and the most that half of the
+week can hold in the stretches the rank facts keep below the line, more
+than the least any table of the rest of the description holds there,
+the BAND -- have a table
 putting the line on a day of every class, or leave the class residue
 whose every arrangement the rest of the description allows; where they
 do not, the census is withheld whatever the table holds. A census whose
@@ -11780,7 +11782,7 @@ it answers to.
 | WC6 | the five censuses of written forms give every date one text: each names at most one form holding every parsed cell, and a member that can show a width or a month name names its one form; and a workbook's published cell classes show at most one value class holding cells | yes |
 | WC7 | every non-zero group can hold at least four dates besides its knot days: the least of its calendar days between the boundaries that are not holes (form, placeholder or declared), its count and the reader's most different days less the other knot-free non-zero groups, each less its knot days | yes |
 | WC8 | the full-fill certificate holds on the reader's bounds and the holes: every class of a counted weekday is certified by a witness table, or is residue whose every stage-3 configuration the census allows, the stage-3 side asked with no census information at all, its empty weekdays included (method of plan P4-D355, P4-D359) | yes |
-| WC9 | neither the weekend nor Monday to Friday together lies in its BAND: from the larger of one and the least that total holds over the tables of the rest of the description, to that least plus the census line (plan P4-D359) | yes |
+| WC9 | neither the weekend nor Monday to Friday together lies in its BAND: from the larger of one and the least that total holds over the tables of the rest of the description, to that least plus the census line plus the most that half of the week can hold in the stretches the rank facts keep below the line (plan P4-D359) | yes |
 
 A date or clock block publishes no mean and no spread, so the cost rule
 of plan P4-D353 does not reach it: a date or clock tail that would be

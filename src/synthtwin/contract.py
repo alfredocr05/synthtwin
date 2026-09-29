@@ -1619,10 +1619,11 @@ INVARIANTS = {
     "WC9": (
         "a weekday census is published only where neither its weekend "
         "nor its Monday to Friday together holds from one row to the "
-        "census line more than the least the rest of the description "
-        "allows it: a census so near that least is always withheld, so "
-        "that being withheld says nothing about how few rows a set of "
-        "dates holds"
+        "census line, and the most that half of the week can hold in the "
+        "stretches the rank facts keep below the line, more than the "
+        "least the rest of the description allows it: a census so near "
+        "that least is always withheld, so that being withheld says "
+        "nothing about how few rows a set of dates holds"
     ),
     "Q1": (
         "the row count a column of numbers repeats is the row count of "
