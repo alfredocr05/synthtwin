@@ -3413,12 +3413,6 @@ def notation_places(census, default, styles, values):
     return worn
 
 
-# The marks a pooled remainder may be written with, in the order one is
-# offered (G6.1, plan P4-D142): neither decimal mark, and never one the
-# census names.
-POOL_MARK_ORDER = (" ", "'", "\u2019", "\u00a0", "\u202f", "\u2009")
-
-
 def pad_need(value, integer_valued):
     """How many figures a value's own point-free spelling writes, sign aside."""
     text = point_free_spelling(value, integer_valued)
@@ -3539,7 +3533,8 @@ def candidate_mark(census, published):
 
 
 def mark_places(
-    census, published, groupable, floor=CASE_SMALL_CELL_FLOOR, values=None
+    census, published, groupable, floor=CASE_SMALL_CELL_FLOOR, values=None,
+    count=7,
 ):
     """Which mark each grouped cell wears (landing 2b.7, G6.1).
 
@@ -3548,13 +3543,13 @@ def mark_places(
     rules about forms, orders and four whole figures.  Where the census
     names no mark and pools nothing every cell wears the column's
     published mark; where it is only a pool, ``marks_of_a_lone_pool``
-    spends it.  Where it
-    names one or more (plan P4-D142), each named mark takes its count of
-    the groupable cells not yet taken; a ``(withheld)`` remainder takes its
-    count next, with the first mark of ``POOL_MARK_ORDER`` the census does
-    not name; and the groupable cells still left are written with no mark
-    where they number at least the census floor -- two, or ``floor`` where
-    that is larger -- and with the published mark otherwise.
+    spends it over the first ``count`` of its marks.  Where it names one
+    or more (plan P4-D142), each named mark takes its count of the
+    groupable cells not yet taken -- nothing is pooled beside a named
+    mark, which the loader refuses (TM1) -- and the groupable cells still
+    left are written with no mark where they number at least the census
+    floor -- two, or ``floor`` where that is larger -- and with the
+    published mark otherwise.
 
     Each count is taken by the spread rule of ``plus_cells_by_value``
     over the cells still untaken, in cell order, and not from the first
@@ -3567,14 +3562,12 @@ def mark_places(
     worn = [published] * len(groupable)
     named = named_conventions(census, GROUP_MARK_ORDER)
     if not named and list(census) == ["(withheld)"]:
-        return marks_of_a_lone_pool(census["(withheld)"], groupable, floor, values)
+        return marks_of_a_lone_pool(
+            census["(withheld)"], groupable, floor, values, count
+        )
     if not named:
         return worn
     spending = [(mark_written(mark), wanted) for mark, wanted in named]
-    pool = census.get("(withheld)", 0)
-    if pool > 0:
-        unnamed = [mark for mark in POOL_MARK_ORDER if mark not in census]
-        spending.append((unnamed[0], pool))
     taken = set()
     for mark, wanted in spending:
         eligible = [
@@ -3603,25 +3596,27 @@ def mark_places(
 LONE_POOL_MARKS = (",", " ", "'", "\u2019", "\u00a0", "\u202f", "\u2009")
 
 
-def marks_of_a_lone_pool(pool, groupable, floor, values):
+def marks_of_a_lone_pool(pool, groupable, floor, values, count=7):
     """G6.1, plan P4-D352: a census of marks that is only a pool.
 
     Read from the method's sentence.  With ``line`` = max(2, floor), a
-    mark's room one less than it, and G the groupable cells: T is G where
-    G < pool + line and ``pool`` otherwise, and never past six rooms.
-    T cells are picked by the spread of ``plus_cells_by_value`` in order
-    and walked in cell order one run of one value at a time; each run
-    goes whole to the mark of LONE_POOL_MARKS holding the fewest cells,
-    the earlier on a tie, and a full mark hands the rest of its run on.
-    Then, while a mark holds none and another holds two or more, the
-    mark holding the most, the earlier on a tie, gives it the last cell
-    it took.  What is left wears none.
+    mark's room one less than it, the first ``count`` marks of
+    LONE_POOL_MARKS (the review of follow-up B, item 4) and G the
+    groupable cells: T is G where G < pool + line and ``pool`` otherwise,
+    and never past ``count`` less one rooms.  T cells are picked by the
+    spread of ``plus_cells_by_value`` in order and walked in cell order
+    one run of one value at a time; each run goes whole to the mark
+    holding the fewest cells, the earlier on a tie, and a full mark hands
+    the rest of its run on.  Then, while a mark holds none and another
+    holds two or more, the mark holding the most, the earlier on a tie,
+    gives it the last cell it took.  What is left wears none.
     """
     line = max(2, floor)
     room = line - 1
+    spent = LONE_POOL_MARKS[:count]
     grouped = [i for i, flag in enumerate(groupable) if flag]
     target = len(grouped) if len(grouped) < pool + line else pool
-    target = min(target, 6 * room)
+    target = min(target, (len(spent) - 1) * room)
     picked = plus_cells_by_value(grouped, values, target, True)
     runs = []
     for i in picked:
@@ -3629,10 +3624,10 @@ def marks_of_a_lone_pool(pool, groupable, floor, values):
             runs[-1] += [i]
         else:
             runs += [[i]]
-    held = {mark: [] for mark in LONE_POOL_MARKS}
+    held = {mark: [] for mark in spent}
 
     def fewest():
-        return min(LONE_POOL_MARKS, key=lambda m: (len(held[m]), LONE_POOL_MARKS.index(m)))
+        return min(spent, key=lambda m: (len(held[m]), spent.index(m)))
 
     for run in runs:
         while run:
@@ -3640,19 +3635,46 @@ def marks_of_a_lone_pool(pool, groupable, floor, values):
             space = room - len(held[mark])
             held[mark] += run[:space]
             run = run[space:]
-    for mark in LONE_POOL_MARKS:
+    for mark in spent:
         if held[mark]:
             continue
-        most = max(LONE_POOL_MARKS, key=lambda m: (len(held[m]), -LONE_POOL_MARKS.index(m)))
+        most = max(spent, key=lambda m: (len(held[m]), -spent.index(m)))
         if len(held[most]) < 2:
             break
         held[mark] = held[most][-1:]
         held[most] = held[most][:-1]
     worn = [""] * len(groupable)
-    for mark in LONE_POOL_MARKS:
+    for mark in spent:
         for i in held[mark]:
             worn[i] = mark
     return worn
+
+
+def lone_pool_count(census, floor, folded_budget, spelled_with):
+    """How many marks G6.1 spends a census that is only a pool over.
+
+    Read from the method's sentence (the review of follow-up B, item 4):
+    seven, unless the cells written with seven hold more different
+    folded spellings than ``folded_budget``; then the first of six, five
+    and on down to the fewest marks -- two or more, their rooms one fewer
+    than them holding the pool -- whose cells hold no more, and where
+    none does, of those counts the one whose cells hold the fewest, the
+    most marks on a tie.  ``spelled_with`` writes the column's number
+    cells over a given count of marks.
+    """
+    if list(census) != ["(withheld)"]:
+        return 7
+    pool = census["(withheld)"]
+    room = max(2, floor) - 1
+    least = next(k for k in range(2, 8) if pool <= (k - 1) * room or k == 7)
+    for count in range(7, least - 1, -1):
+        if len({folded(text) for text in spelled_with(count)}) <= folded_budget:
+            return count
+    held = {
+        count: len({folded(text) for text in spelled_with(count)})
+        for count in range(least, 8)
+    }
+    return max(held, key=lambda count: (-held[count], count))
 
 
 def padded_sign_exchange(
@@ -15957,10 +15979,6 @@ def _numeric_content(column):
         )
         for index, (style, value) in enumerate(zip(styles, cell_values))
     ]
-    marks = mark_places(
-        column.get("thousands_marks", {}), mark, groupable,
-        CASE_SMALL_CELL_FLOOR, cell_values,
-    )
     # THE WIDTH THE FRACTION CENSUS NAMES FOR A DECIMAL CELL (G6.6),
     # where it names one width and that width covers every decimal cell:
     # the cell is written with exactly that many figures after its
@@ -15974,13 +15992,27 @@ def _numeric_content(column):
             "decimal", 0
         ):
             spelt_at = int(only)
-    content = [
-        styled_spelling(
-            style, value, integer_valued, 0, marks[index], notations[index],
-            plussed[index], pads[index], spelt_at,
+    census = column.get("thousands_marks", {})
+
+    def spelled_with(count):
+        worn = mark_places(
+            census, mark, groupable, CASE_SMALL_CELL_FLOOR, cell_values, count
         )
-        for index, (style, value) in enumerate(zip(styles, cell_values))
-    ]
+        return worn, [
+            styled_spelling(
+                style, value, integer_valued, 0, worn[index],
+                notations[index], plussed[index], pads[index], spelt_at,
+            )
+            for index, (style, value) in enumerate(zip(styles, cell_values))
+        ]
+
+    # G6.1's lone pool is spent over as many marks as the count of
+    # different spellings leaves room for (the review of follow-up B).
+    count = lone_pool_count(
+        census, CASE_SMALL_CELL_FLOOR, folded_budget,
+        lambda k: spelled_with(k)[1],
+    )
+    marks, content = spelled_with(count)
     # G6.5's padded sign exchange (plan P4-D145) comes before any zero is
     # spent: a cell at a named width cannot spend one.
     owed = max(0, folded_budget - len({folded(text) for text in content}))
@@ -20906,34 +20938,6 @@ def _bare_mark_remainder():
         "grouped, which is the twin the final Codex review measured.",
         "column": column,
         "rows": 33,
-        "identifier_declared": False,
-        "rungs": rungs,
-        "claims": claims,
-    }
-
-
-def _pooled_mark_cells():
-    column, rungs, claims = _flat_numbers(
-        "12345.5", 44,
-        n_missing=0, n_distinct=2, n_distinct_folded=2, n_negative=0,
-        numeric_styles={"decimal": 44},
-        fraction_widths={"1": 44}, pad_widths={}, field_widths={},
-        group_separator=",",
-        # A POOLED REMAINDER OF ELEVEN beside thirty-three commas: marks
-        # each worn by fewer cells than the floor, together a group.
-        thousands_marks={",": 33, "(withheld)": 11},
-    )
-    return {
-        "why": "G6.1's pooled remainder of a census of marks (plan P4-D142): "
-        "it is written with the first of a space, an apostrophe, U+2019, "
-        "U+00A0, U+202F and U+2009 that the census does not name, never with "
-        "a named mark. Every cell is twelve thousand three hundred and "
-        "forty-five and a half: the first thirty-three are written "
-        "`12,345.5` and the last eleven `12 345.5`. The mutant writes the "
-        "pool with the published comma, as the generator did before this "
-        "decision, and the twin's comma count passes the published one.",
-        "column": column,
-        "rows": 44,
         "identifier_declared": False,
         "rungs": rungs,
         "claims": claims,
@@ -26521,7 +26525,6 @@ THIRD_BRANCH_CASE_BUILDERS = {
     # G9.6's layout packing (plan P4-D182), which fits beside them.
     "identifier_layout_packing": _identifier_layout_packing,
     "plus_padded_field": _plus_padded_field,
-    "pooled_mark_cells": _pooled_mark_cells,
     "saturated_integers": _saturated_integers,
     "signed_pads": _signed_pads,
     "spread_conventions": _spread_conventions,
@@ -27883,17 +27886,20 @@ def _tail_width_stands_aside():
 
 
 def _tail_marks_pooled():
-    """The mark between thousands counted NAMED AND POOLED (G5.3b step 4).
+    """The mark between thousands counted over a POOL (G5.3b step 4).
 
     `tail_mark_held`'s forty-four numbers, 10,000 to 182,000, with the
-    census `{",": 33, "(withheld)": 11}`: eleven cells wore a mark too
-    rare to name, and every cell still wears one.  The sign rule holds
-    the low end at 1 and the mark clamp, counting the pool with the
-    named mark, holds it at 1,000.
+    census `{"(withheld)": 44}` and no mark published: every cell wore a
+    mark too rare to name, and every cell still wears one.  The sign rule
+    holds the low end at 1 and the mark clamp, counting the pool, holds
+    it at 1,000.  It counted a comma named at thirty-three beside a pool
+    of eleven until the loader refused a pool beside a named mark (TM1,
+    the review of follow-up B, item 3).
     """
     case = _tail_mark_held()
-    case["column"]["thousands_marks"] = {",": 33, "(withheld)": 11}
-    case["why"] = "The mark between thousands on a derived end counts a census's named marks AND its (withheld) pool, method G5.3b step 4: a pool is marks below the floor, each on a cell that proves one. Thirty-three cells wear a comma and eleven a mark too rare to name, so every value reaches a thousand; the sign rule holds the low end at 1 and the mark clamp holds it at 1,000. The mutant counts the named marks alone and the twin writes 1, a cell with no mark in it."
+    case["column"]["thousands_marks"] = {"(withheld)": 44}
+    case["column"]["group_separator"] = ""
+    case["why"] = "The mark between thousands on a derived end counts a census's (withheld) pool, method G5.3b step 4: a pool is marks below the floor, each on a cell that proves one. Every one of the forty-four cells wears a mark too rare to name, spent over the seven marks (G6.1), so every value reaches a thousand; the sign rule holds the low end at 1 and the mark clamp holds it at 1,000. The mutant counts the named marks alone and the twin writes 1, a cell with no mark in it."
     return case
 
 
@@ -28210,9 +28216,11 @@ _SECOND_BRANCH_ACCOUNT = (
 _THIRD_BRANCH_ACCOUNT = (
     "cases method section G14.3 adds with the repair of the final Codex "
     "review of the number censuses: a census of marks spent as the whole "
-    "of the grouped cells -- its bare remainder, its pooled remainder and "
-    "the cells asked with a mark where the column publishes none (plan "
-    "P4-D142) -- the plus-signed tier of a named field width (plan "
+    "of the grouped cells -- its bare remainder and the cells asked with a "
+    "mark where the column publishes none (plan P4-D142; its pooled "
+    "remainder's case left when the loader refused a pool beside a named "
+    "mark, the review of follow-up B) -- the plus-signed tier of a named "
+    "field width (plan "
     "P4-D145), the saturated integer grid (plan P4-D147), both censuses of "
     "conventions spread across a column's values (plan P4-D149) and the "
     "padded sign exchange (plan P4-D145, as amended). They are "
@@ -28488,9 +28496,9 @@ _TENTH_BRANCH_ACCOUNT = (
     " tests/reference/generation-branch-vectors-11.json, for the padded"
     " ceiling and a width clamp standing aside, which did not fit here."
     " The repair of the derived end's two divergences adds"
-    " tail_marks_pooled here, the mark clamp counting a census's named"
-    " marks and its (withheld) pool together, because this file stood"
-    " under plan P4-D295's 200000-byte line."
+    " tail_marks_pooled here, the mark clamp counting a census's"
+    " (withheld) pool, because this file stood under plan P4-D295's"
+    " 200000-byte line."
     " A census of marks that is only a pool (plan P4-D352) opened a"
     " fourteenth, tests/reference/generation-branch-vectors-12.json,"
     " because this file then stood past that line."
@@ -31052,23 +31060,6 @@ GIVEN_WORDS = {
         17124417922633490440, 10563810070520916058, 4530325858210985661,
         8175653497514675007, 13683103267468974161, 911020027536109385,
         15770637544372271411, 8150443195637369686, 7986483148572826507,
-    ),
-    "pooled_mark_cells": (
-        1322960043824829993, 4304802946738339076, 11895184769386787494,
-        15009259507049410023, 78993831906502904, 10971129210712623180,
-        4454802098459831302, 3919104916175081190, 11301454504177651760,
-        10876104050411173251, 3818899092672013249, 14689249687027394562,
-        3151252208776280391, 18235135037081768198, 835930238996300419,
-        7503890040188187972, 9114893047779386832, 7017482890592370321,
-        7147789796798429405, 5347282328632239398, 771449634150066618,
-        1131677457324217486, 17632547210338453579, 5080361708878916008,
-        13558759084650799507, 2421595825779520715, 7474172207584753057,
-        5163264729849672854, 12350491381345414113, 9903918297005948690,
-        6255565913863860433, 7442815280172368983, 15858502137304993443,
-        15658150804610581967, 6552320915313180100, 17442561852129629341,
-        12162652257482499351, 3980212925754409253, 12601674924802918477,
-        10510655947281068492, 15827142554425099459, 14901164406314707724,
-        4769898078730312955,
     ),
     "saturated_integers": (
         14879902173004397569, 503399789666721949, 10476823234844804248,

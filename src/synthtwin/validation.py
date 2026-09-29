@@ -11573,12 +11573,28 @@ def _mixture_check(
         found = found + mine
         if mine != census[convention]:
             agreed = False
+    if pool > 0:
+        # THE POOL IS AN OBLIGATION TOO (the review of follow-up B, item
+        # 3). It says the rest were written in conventions the census does
+        # not name, each by fewer cells than the line, so a file whose own
+        # description pools another count -- and that description pools
+        # nothing beside a named convention -- has not written it: five
+        # marks named at sixteen beside a pool of twenty came back with all
+        # twenty on one unnamed mark, and only the five named counts were
+        # compared. The loader refuses such a census now (TM1, NS2), so
+        # this holds what nothing else would if one reached here.
+        mine = 0
+        if taxonomy.SUPPRESSED_LABEL in measured:
+            mine = measured[taxonomy.SUPPRESSED_LABEL]
+        found = found + mine
+        if mine != pool:
+            agreed = False
     return Check(
         name,
         f"numeric.{fact}",
         f"spelling.{fact}",
         HELD if agreed else MISSED,
-        _shown_count(owed),
+        _shown_count(owed + pool),
         _shown_count(found),
     )
 

@@ -6,6 +6,23 @@ exists).
 
 ## [Unreleased]
 
+### The mixture censuses bound what the whole block tells a reader (2026-09-28)
+
+**The review of follow-up B** (plan P4-D356). A lone pool of marks or
+notations stands only where no reader of the whole block can pin a count
+from it -- the pooled cells' own count of different spellings, a trailing
+minus on no more cells than carry a point -- by one statement,
+`parsing.mixture_pool_holds`, that the producer and the loader both
+read; a pool that may not stand is counted under the commonest
+convention every counted cell can be written in and that keeps the
+comma warning's counts, and the census of marks is silent where none
+can. The loader refuses a pool beside a named convention and the checker
+compares such a pool as one count (`pooled_mark_cells` withdrawn,
+`tail_marks_pooled` pooling all 44). A lone pool of marks is spent over
+no more marks than the published count of different spellings leaves
+room for. Held by `tests/test_mixture_reader_bounds.py`, whose reader
+over 240 seeded columns finds 8 pinned pools at 2af1f03 and none now.
+
 ### A count no placement inside the gaps reaches is met past the strata (2026-09-28)
 
 **A tail rank leaves its stratum by the least amount that meets the

@@ -1541,9 +1541,14 @@ one per convention, because the fact is the census itself: a twin
 meeting one count and not the other has not reproduced the column's
 convention. Where the census names none and pools nothing, the fact is
 LISTED rather than checked. Where it names any, each is compared exactly with what
-describing the file on its own publishes for it; the pooled remainder
-does not widen the bar, because the generator writes a pooled cell with
-a convention the census does not name. The comparison is WITHHELD where
+describing the file on its own publishes for it. A census naming a
+convention pools nothing beside it and the loader refuses one that does
+(TM1, NS2; the review of follow-up B, item 3); were one to reach the
+check, its pool is compared too, as one count, and a file pooling
+another number -- a file's own description pools nothing beside a named
+convention -- is MISSED: five marks named at sixteen beside a pool of
+twenty came back with all twenty on one unnamed mark, and only the five
+named counts were compared. The comparison is WITHHELD where
 the file holds fewer cells that could wear a convention — its negative
 cells, or its cells reaching four whole figures in a groupable form —
 than the census and its pool count, or leaves over a number of them

@@ -618,6 +618,51 @@ def _shipped_lone_pool(pool, flags, floor, values):
     return worn
 
 
+# ---------------------------- G6.1's lone pool, over how many marks it is spent
+#
+# The review of follow-up B, item 4, worked by hand from the method's
+# sentence. K is seven unless the number cells written with seven hold
+# more different folded spellings than the count G6.5 aims at; then the
+# first of six, five and on down to k whose cells hold no more, and where
+# none does, the count from k to seven whose cells hold the fewest, the
+# most marks on a tie -- k the fewest marks, two or more, with the pool no
+# more than (k - 1)(L - 1), L = max(2, floor). Each row: (pool, floor,
+# budget, the spellings at seven marks down to two) and K.
+POOL_MARK_COUNTS = (
+    ((14, 11, 4, (8, 7, 6, 5, 4, 3)), 3),  # the review's shape: 4 of 4 at three
+    ((14, 11, 16, (16, 16, 16, 16, 16, 16)), 7),  # room for all seven
+    ((60, 11, 10, (99, 98, 97, 96, 95, 94)), 7),  # sixty needs all seven
+    ((25, 11, 2, (9, 8, 7, 6, 5, 4)), 4),  # none fits: the fewest, four
+    ((40, 31, 6, (9, 8, 7, 6, 5, 4)), 4),  # at thirty-one: six at four marks
+    ((5, 2, 1, (9, 8, 7, 6, 5, 4)), 6),  # the line of two: five needs six
+    ((11, 11, 5, (7, 6, 6, 6, 5, 5)), 3),  # eleven needs three; five at three
+    ((50, 11, 55, (56, 56, 56, 56, 55, 55)), 7),  # fifty needs six: none fits, seven as few
+    ((40, 11, 3, (9, 8, 6, 7, 5, 4)), 5),  # forty needs five: none fits, five the fewest
+)
+
+
+def _pool_mark_counts_missed(rule) -> "list[str]":
+    missed = []
+    for (pool, floor, budget, down), want in POOL_MARK_COUNTS:
+        spelled = {7 - place: down[place] for place in range(6)}
+        got = _asked(rule, pool, floor, budget, spelled)
+        if got != want:
+            missed += [
+                f"pool {pool} at floor {floor} beside {budget} spellings:"
+                f" {got!r}, the statement gives {want!r}"
+            ]
+    return missed
+
+
+def _oracle_pool_mark_count(module):
+    def rule(pool, floor, budget, spelled):
+        return module.lone_pool_count(
+            {"(withheld)": pool}, floor, budget,
+            lambda count: [str(text) for text in range(spelled[count])],
+        )
+    return rule
+
+
 # ------------------------------- G6.1's trailing minus, and the points it needs
 #
 # The second skeptic of plan P4-D352, worked by hand from the method's
@@ -1391,6 +1436,10 @@ WITNESSES = {
         lambda module: _lone_pool_missed(module.marks_of_a_lone_pool),
         lambda: _lone_pool_missed(_shipped_lone_pool),
     ),
+    "pool_mark_count": (
+        lambda module: _pool_mark_counts_missed(_oracle_pool_mark_count(module)),
+        lambda: _pool_mark_counts_missed(generation._pool_mark_count),
+    ),
     "trailing": (
         lambda module: _trailing_missed(*_oracle_trailing(module)),
         lambda: _trailing_missed(_shipped_exchange, _shipped_order),
@@ -1566,7 +1615,7 @@ WITNESS_MUTANTS = {
         "        True\n",
     ),
     "lone_pool_uncapped": (
-        "lone_pool", "    target = min(target, 6 * room)\n", "",
+        "lone_pool", "    target = min(target, (len(spent) - 1) * room)\n", "",
     ),
     "lone_pool_no_join": (
         "lone_pool",
@@ -1580,8 +1629,8 @@ WITNESS_MUTANTS = {
     ),
     "lone_pool_packed_into_the_first_mark_with_room": (
         "lone_pool",
-        "key=lambda m: (len(held[m]), LONE_POOL_MARKS.index(m))",
-        "key=lambda m: (len(held[m]) >= room, LONE_POOL_MARKS.index(m))",
+        "key=lambda m: (len(held[m]), spent.index(m))",
+        "key=lambda m: (len(held[m]) >= room, spent.index(m))",
     ),
     "lone_pool_runs_ignored": (
         "lone_pool",
@@ -1590,6 +1639,31 @@ WITNESS_MUTANTS = {
     ),
     "lone_pool_an_empty_mark_left_empty": (
         "lone_pool", "        if len(held[most]) < 2:\n", "        if True:\n",
+    ),
+    "pool_mark_count_always_seven": (
+        "pool_mark_count",
+        "    if list(census) != [\"(withheld)\"]:\n",
+        "    if True:\n",
+    ),
+    "pool_mark_count_fewest_with_a_room_too_many": (
+        "pool_mark_count",
+        "if pool <= (k - 1) * room or k == 7)",
+        "if pool <= k * room or k == 7)",
+    ),
+    "pool_mark_count_fewest_taken_first": (
+        "pool_mark_count",
+        "    for count in range(7, least - 1, -1):\n",
+        "    for count in range(least, 8):\n",
+    ),
+    "pool_mark_count_the_fewest_marks_where_none_fits": (
+        "pool_mark_count",
+        "    return max(held, key=lambda count: (-held[count], count))\n",
+        "    return least\n",
+    ),
+    "pool_mark_count_budget_strict": (
+        "pool_mark_count",
+        "for text in spelled_with(count)}) <= folded_budget:",
+        "for text in spelled_with(count)}) < folded_budget:",
     ),
     "lone_pool_cells_packed": (
         "lone_pool",
