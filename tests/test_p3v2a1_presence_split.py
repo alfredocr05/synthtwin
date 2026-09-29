@@ -394,6 +394,10 @@ _SELF_EXPLAINING = {
     validation._GATE_TAIL_WITHHELD_UNSETTLED: _TAIL_SILENCE_SUBCHECKS,
     validation._GATE_TAIL_WITHHELD_UNHOLDABLE: _TAIL_SILENCE_SUBCHECKS,
     validation._GATE_TAIL_WITHHELD_UNSAID: _TAIL_SILENCE_SUBCHECKS,
+    # ...and what a pinned side's own pair would give back (plan P4-D357 A).
+    validation._GATE_TAIL_WITHHELD_EVERY: _TAIL_SILENCE_SUBCHECKS,
+    validation._GATE_TAIL_WITHHELD_END: _TAIL_SILENCE_SUBCHECKS,
+    validation._GATE_TAIL_WITHHELD_A_COUNT: _TAIL_SILENCE_SUBCHECKS,
     validation._GATE_TAIL_BOUNDS: (
         "ladder.min (heaped end, one-sided)",
         "ladder.max (heaped end, one-sided)",

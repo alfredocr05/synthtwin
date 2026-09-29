@@ -1258,33 +1258,41 @@ def test_the_recount_uses_the_same_hole_identity_as_everything_else(
     which need BOTH -- stayed silent while the quality report named the
     loss.
 
-    `--missing-value -999` is a SAFE declaration: its number does not
+    `--missing-value -998` is a SAFE declaration: its number does not
     depend on the grammar, so R-P4-54's refusal leaves it available,
     and this is the shape that remains.
+
+    THE HOLE IS `-998` AND NO LONGER `-999` (plan P4-D357 A). `-999` is
+    one of the three stand-in numbers, and since that plan no value pass
+    writes one the column does not hold as a value, so a twin can no
+    longer write a present `-999,0` at all -- the collision this fixture
+    was built for is gone for `-999` (asserted at the end), and it stands
+    for every other declared hole, which the recount must still count.
 
     Goes red if `_recounted` stops taking the column's reading.
     """
     # THE TWO SPELLINGS MUST DIFFER while the numbers agree, or the
     # test cannot tell the two identities apart: a cell whose TEXT
     # equals the published hole is matched by either rule. So the
-    # column publishes the hole `-999` and the twin writes `-999,0`,
+    # column publishes the hole `-998` and the twin writes `-998,0`,
     # and the source is kept clear of that spelling.
     generator = random.Random(2)
     values: "list[str]" = []
     while len(values) < 180:
         whole = generator.randint(0, 9)
         part = generator.randint(0, 9)
-        if (whole, part) == (9, 0):
+        if (whole, part) == (8, 0):
             continue
         values = values + [f"-99{whole},{part}"]
-    # AND SIXTY CELLS BELOW A THOUSAND, so `-999,0` stands INSIDE the
-    # ladder: a tail's staircase steps past the stand-in numbers since
-    # plan P4-D353 part 4, and without these the collision came only
-    # from a low-tail row the twin no longer writes there.
+    # AND SIXTY CELLS BELOW A THOUSAND, so the hole stands INSIDE the
+    # ladder and not only in a tail.
     values = values + [
         f"-100{generator.randint(0, 9)},{generator.randint(0, 9)}" for _ in range(60)
     ]
-    values = values + ["-999"] * 20
+    # THE SAME COLUMN WITH THE STAND-IN `-999` AS ITS HOLE, for the last
+    # assertion: its values, less the one spelling `-999,0` would collide.
+    stand_in_values = [value for value in values if value != "-999,0"] + ["-999"] * 20
+    values = values + ["-998"] * 20
     generator.shuffle(values)
     folder = pathlib.Path(tempfile.mkdtemp())
     table = fixtures.write(
@@ -1292,16 +1300,16 @@ def test_the_recount_uses_the_same_hole_identity_as_everything_else(
     )
     document = profile.build_document(
         reading.read_table(f"{table}"),
-        taxonomy.Settings(declared_missing_values=("-999",)),
+        taxonomy.Settings(declared_missing_values=("-998",)),
         [],
         [],
         [],
         ["amount"],
     )
     holes = document["columns"][0]["missing_by_source"]
-    assert holes == {"-999": 20}, (
-        "the column must publish the hole as `-999`, so that the "
-        f"twin's `-999,0` differs from it in TEXT: {holes}"
+    assert holes == {"-998": 20}, (
+        "the column must publish the hole as `-998`, so that the "
+        f"twin's `-998,0` differs from it in TEXT: {holes}"
     )
     loaded = contract.load_profile(
         f"{fixtures.write_profile(folder, 't.json', document)}"
@@ -1309,7 +1317,7 @@ def test_the_recount_uses_the_same_hole_identity_as_everything_else(
     # The seed is chosen so the twin actually writes the colliding
     # spelling; the assertion below refuses the fixture if it stops.
     twin = generation.generate(loaded, 5)
-    assert [cell for cell in twin.columns[0] if cell == "-999,0"], (
+    assert [cell for cell in twin.columns[0] if cell == "-998,0"], (
         "this fixture no longer produces the collision it was built "
         "for, so any agreement below is between two silences"
     )
@@ -1329,3 +1337,24 @@ def test_the_recount_uses_the_same_hole_identity_as_everything_else(
         "report does not, which is the two pages of one run "
         "disagreeing about what happened"
     )
+    # AND WHERE THE HOLE IS A STAND-IN NUMBER NO VALUE COLLIDES WITH IT
+    # (plan P4-D357 A): no value pass writes `-999` for a column that does
+    # not hold it as a value, at this seed or any of the four beside it.
+    stand_in_table = fixtures.write(
+        folder, "s.csv", fixtures.single_column_table("amount", stand_in_values)
+    )
+    stand_in_document = profile.build_document(
+        reading.read_table(f"{stand_in_table}"),
+        taxonomy.Settings(declared_missing_values=("-999",)),
+        [],
+        [],
+        [],
+        ["amount"],
+    )
+    assert stand_in_document["columns"][0]["missing_by_source"] == {"-999": 20}
+    stand_in_loaded = contract.load_profile(
+        f"{fixtures.write_profile(folder, 's.json', stand_in_document)}"
+    )
+    for seed in range(3, 8):
+        cells = generation.generate(stand_in_loaded, seed).columns[0]
+        assert [cell for cell in cells if cell == "-999,0"] == [], f"seed {seed}"

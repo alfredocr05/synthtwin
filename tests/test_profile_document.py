@@ -533,8 +533,13 @@ def test_nothing_that_varies_between_runs_is_written(
 # 27, 33, 36, 30, 26 and 35 -- and its `remarks`, empty before, gain the
 # two remarks that say what the census counts and that it shows no count
 # below the floor. Nothing leaves and no other line of 2,143 differs.
+# AND RE-RECORDED BY PLAN P4-D357 A (review item 6 of follow-up A), read
+# line by line against a git archive of 2af1f03: ONE LINE of 2,143 moves,
+# the remark on `amount`, whose 240 cells hold 238 different values and
+# were told "every value in this column is different"; it now says nearly
+# every value is. No key arrives or leaves and no number moves.
 GOLDEN_SHA256 = (
-    "fe870d8841fe7406c4b34e94053c4079cdfea6c2146da19e5177c48b8ed2e1af"
+    "83e1fc4fbb48903866f9290a9e5a93675772b121d602c09ac0e58c753da93400"
 )
 
 
