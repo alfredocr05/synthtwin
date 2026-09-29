@@ -48,6 +48,33 @@ count allows, no value filling a mark alone. Held by
 `tests/test_mixture_reader_bounds.py`, whose reader over 300 seeded
 columns finds 25 pinned pools at 2af1f03, 8 at 178bde2 and none now.
 
+### The review of landing 3b.0: no count offers a missing day (2026-09-28)
+
+**No count pass puts a rank on a day an absent spelling names** (plan
+P4-D358, the review's items 2 and 4). The stack put two present ranks on
+a declared-missing day to reach 24 days, the spelling step moved them
+apart, and the twin held 25: every pass of method G7.3 and G7.3b step 9
+now skips such a day, whichever column's absent spelling names it; a
+rank drawn onto one leaves it before the passes count; and a tail rank
+stuck on one is counted as the absent cell it is. The oracle holds the
+rule from the method's text, and G7.3b step 7's step off a hole, which
+it held nowhere. Six frozen cases -- three at the second round, for a
+tie group's step off a hole and a stuck rank's absent day in the count
+G7.3 reaches and in the one step 9 owes -- eighteen witness rows and ten
+oracle mutants hold it; one frozen case moves a cell. **The envelope of
+a date column's distinct count follows the pass** (item 1): counted in
+the strata alone its lower end stood at 39 above a published 35 the pass
+meets past them, and a file of 60 was WITHIN-BOUND; the validator and the
+twin's report now draw it over the windows the pass may use and hold the
+count exactly -- MISSED where the pass's splits break a tail's summed
+window and it moves nothing, 6 of 1,200 twins of a floor-50 family, a
+limit recorded. **The filled-range gate asserts the days, not their
+count** (item 3): on its 11 cases, where each tail's derived end is the
+real end the twin holds the real days, and where one stands a unit past
+it (4 cases, among them the review's 32 days) that unit in place of a
+real one inside; over small filled columns about three in ten still come
+back with fewer days.
+
 ### A count no placement inside the gaps reaches is met past the strata (2026-09-28)
 
 **A tail rank leaves its stratum by the least amount that meets the
@@ -302,7 +329,7 @@ holds R-P4-69's holders to the walk's order. Where the real whole
 negatives are the large ones the separation by notation is reversed:
 minus cells' mean -1157.5 against a real -4890.0.
 
-### Every day of a filled range comes back: a tail's tie group gives way (2026-09-26)
+### A filled range comes back with as many days: a tail's tie group gives way (2026-09-26)
 
 **Where a date column holds a value on every day of its range** the twin
 wrote a day or two fewer: two years of admissions came back with 730 of

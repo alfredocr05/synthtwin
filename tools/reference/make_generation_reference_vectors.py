@@ -9537,7 +9537,7 @@ def stretched_end(shape, rows, mean, root, edge):
     return stretch, end
 
 
-def tail_distances(rows, mean, root, floor, edge, apart, words):
+def tail_distances(rows, mean, root, floor, edge, apart, words, off=None):
     """Every rank's whole distance beyond the boundary, outermost first (G7.3b).
 
     ``words`` maps an outer index to the word that rank read; an index
@@ -9545,7 +9545,13 @@ def tail_distances(rows, mean, root, floor, edge, apart, words):
     takes the derived end, the ranks from ``floor - 1`` inward share the
     tie group's one distance where the tail holds more cells than the
     floor and its ranks need not differ, and every other rank stands at
-    the shape's value over its own share.
+    the shape's value over its own share.  ``off`` is the boundary's tail
+    unit, the side and the tail units the column's own absent spellings
+    name: step 7 steps the end and the group, each standing at one place,
+    one unit inward while an absent spelling names its unit, never below
+    one, and the end is then raised to the group's distance (plan
+    P4-D358, where the oracle came to hold this step); the distances are
+    then made at least the one inside, as step 5 makes them.
     """
     shape = mixture_of(rows, mean, root)
     stretch, end = stretched_end(shape, rows, mean, root, edge)
@@ -9558,6 +9564,18 @@ def tail_distances(rows, mean, root, floor, edge, apart, words):
             stretch * ((rows * mixture_upto(shape, share)) / (rows - grouped))
         )), edge)
     found = [min(max(1, whole_unit(end)), edge)] + [0] * (rows - 1)
+    if off is not None:
+        at, low_side, holes = off
+
+        def stepped(distance):
+            while distance > 1 and (at - distance if low_side else at + distance) in holes:
+                distance -= 1
+            return distance
+
+        found[0] = stepped(found[0])
+        if grouped < rows:
+            group = stepped(group)
+        found[0] = max(found[0], group)
     if grouped == 0:
         found[0] = group
     for index in range(1, rows):
@@ -9689,6 +9707,30 @@ def tail_step_of(column):
     return steps[column["tail_unit"]]
 
 
+def tail_holes_named(column, at, low_side):
+    """What G7.3b step 7's step off a hole asks of one tail (plan P4-D358).
+
+    The boundary's tail unit, the side, and the tail units the column's
+    own absent spellings name -- read here as ISO dates, bare or with a
+    midnight clock, on a column whose tail unit is a day of its own
+    clock; None elsewhere, where no case of this oracle's puts an absent
+    spelling.
+    """
+    if column["tail_unit"] != "day" or column["datetimes_read_at"] != "local":
+        return None
+    named = set()
+    for text in column.get("missing_by_source", {}):
+        text = text.strip()
+        day, clock = text[:10], text[10:]
+        if (
+            len(day) == 10 and day[4] == "-" and day[7] == "-"
+            and (day[:4] + day[5:7] + day[8:]).isdigit()
+            and clock in ("", "T00:00:00", " 00:00:00")
+        ):
+            named.add(days_from_civil(int(day[:4]), int(day[5:7]), int(day[8:])))
+    return (at, low_side, named)
+
+
 def tail_side_plan(column, side, low_side, parsed, words):
     """One tail of a column of dates, laid out in the column's own space.
 
@@ -9738,16 +9780,17 @@ def tail_side_plan(column, side, low_side, parsed, words):
     if rows > CASE_SMALL_CELL_FLOOR >= 1 and not apart:
         grouped = CASE_SMALL_CELL_FLOOR - 1
     drawn = tuple(index for index in range(1, grouped))
+    off = tail_holes_named(column, at, low_side)
     stood = tail_distances(
-        rows, mean, root, CASE_SMALL_CELL_FLOOR, edge, apart, words
+        rows, mean, root, CASE_SMALL_CELL_FLOOR, edge, apart, words, off
     )
     near = tail_distances(
         rows, mean, root, CASE_SMALL_CELL_FLOOR, edge, apart,
-        {index: 0 for index in drawn},
+        {index: 0 for index in drawn}, off,
     )
     far = tail_distances(
         rows, mean, root, CASE_SMALL_CELL_FLOOR, edge, apart,
-        {index: TWO64 - 1 for index in drawn},
+        {index: TWO64 - 1 for index in drawn}, off,
     )
     places = [
         anchor - distance * unit if low_side else anchor + distance * unit
@@ -10414,6 +10457,105 @@ def counts_into_width(column, day_number, word):
     return not shows_a_width(column, day_number)
 
 
+def absent_units(column):
+    """The days no count pass offers a rank (method G7.3, plan P4-D358).
+
+    Read from the method's sentence: each spelling the column publishes
+    among its absent cells, read under the column's own member, names a
+    unit of the count pass's own space, and no pass of G7.3 -- a merge, a
+    trade or its payment, a split, the stack or its raise, a free unit, a
+    width move -- nor G7.3b step 9 offers a rank that unit, since its cell
+    would read back as absent -- where the spelling step would move the
+    rank, not where a moment at midnight keeps its day by taking another
+    mark (G7.5).  This oracle reads an ISO date on an ISO member and a
+    month-first date on a month-first member, on a column counted in
+    days, and names nothing else -- no case of its puts an absent spelling
+    beside a column counted in seconds, months or quarters -- and says so
+    here.
+    """
+    spellings = column.get("missing_by_source", {})
+    if not spellings or ordinal_space(column) != "date":
+        return set()
+    if column.get("resolution") == "datetime" and column.get("format") in ("iso-datetime", "iso-mixed"):
+        # A moment at midnight on a member with another mark to give keeps
+        # its day and takes that mark (G7.5), so the pass is not asked.
+        return set()
+    member = column.get("format", "")
+    found = set()
+    for text in spellings:
+        text = text.strip()
+        day = text[:10]
+        clock = text[10:]
+        if (
+            member.startswith("iso-")
+            and len(day) == 10 and day[4] == "-" and day[7] == "-"
+            and (day[:4] + day[5:7] + day[8:]).isdigit()
+            and clock in ("", "T00:00:00", " 00:00:00")
+        ):
+            found.add(days_from_civil(int(day[:4]), int(day[5:7]), int(day[8:])))
+            continue
+        parts = text.split("/")
+        if (
+            member == "month-first-date" and len(parts) == 3
+            and all(part.isdigit() for part in parts) and len(parts[2]) == 4
+        ):
+            found.add(days_from_civil(int(parts[2]), int(parts[0]), int(parts[1])))
+    return found
+
+
+def absent_days_stuck(column, ordinals, pinned, unit, parsed):
+    """The absent days a tail rank no pass may move stands on (G7.3, plan P4-D358).
+
+    Read from the method's sentence: a tail rank whose stratum is one unit
+    stays where its construction put it, and on a day an absent spelling
+    names its cell is written absent, so that day is none of the column's
+    present values while the passes count it; they reach the published
+    count with those days added.
+    """
+    absent = absent_units(column)
+    if not absent or not column.get("low_tail") or not column.get("high_tail"):
+        return set()
+    first, last = column["low_tail"]["rows"], parsed - 1 - column["high_tail"]["rows"]
+    return {
+        ordinals[rank] // unit
+        for rank in range(parsed)
+        if pinned[rank] and ordinals[rank] // unit in absent and not first <= rank <= last
+    }
+
+
+def stepped_off_absent_days(column, ordinals, pinned, lows, highs, day, step, unit, widths, word):
+    """No rank the passes may move stands on an absent day while they count
+    (method G7.3, plan P4-D358).
+
+    Read from the method's sentence: before the first round, in rank order,
+    a rank the passes may move that stands on a day an absent spelling
+    names (``absent_units``) moves to the nearest day inside its gap that
+    none names and that keeps its standing, the earlier first at one
+    distance, and stays where there is none -- except a body rank of a
+    column publishing a weekday census, which G7.3f step 2 moves off
+    itself.
+    """
+    absent = absent_units(column)
+    parsed = len(ordinals)
+    body = (0, -1)
+    if column.get("weekday_census") and column.get("low_tail") and column.get("high_tail"):
+        body = (column["low_tail"]["rows"], parsed - 1 - column["high_tail"]["rows"])
+    for rank in range(parsed):
+        if pinned[rank] or ordinals[rank] // unit not in absent or body[0] <= rank <= body[1]:
+            continue
+        own = standing_of(column, ordinals[rank], day, step, widths, word)
+        found = nearest_fitting(
+            ordinals[rank], lows[rank], highs[rank],
+            lambda candidate, own=own: (
+                candidate // unit not in absent
+                and standing_of(column, candidate, day, step, widths, word) == own
+            ),
+            unit,
+        )
+        if found is not None:
+            ordinals[rank] = found
+
+
 def units_settled(column, ordinals, parsed, whole, lows, highs):
     """Method G7.3's two count passes (plan P4-D192).
 
@@ -10470,6 +10612,11 @@ def units_settled(column, ordinals, parsed, whole, lows, highs):
 
     word = next(iter(census)) if widths is not None else ""
     unit = step if space == "datetime" else 1
+    stepped_off_absent_days(
+        column, ordinals, pinned, lows, highs, day, step, unit, widths is not None, word,
+    )
+    if distinct is not None:
+        distinct += len(absent_days_stuck(column, ordinals, pinned, unit, parsed))
     off = counts_off(column, ordinals, day, unit, word, distinct, widths)
     stalled = 0
     for _round in range(RESTORATION_ROUNDS):
@@ -10546,9 +10693,9 @@ def group_gives_way(column, ordinals, parsed, whole):
     smallest-first to its innermost ranks, and those outside it
     largest-first to its outermost group ranks -- the choice and the
     placement are ``group_offers_taken``, which
-    tests/test_oracle_rule_witnesses.py asks clause by clause.  Step 7's step off a
-    hole is not mirrored here, as ``tail_side_plan`` does not mirror it:
-    no frozen case publishes an absent spelling beside a tail group.
+    tests/test_oracle_rule_witnesses.py asks clause by clause.  A unit an
+    absent spelling names is not offered (``absent_units``), and step 7
+    has already stepped the group off one (``tail_holes_named``).
     """
     ordinals = list(ordinals)
     space = ordinal_space(column)
@@ -10565,10 +10712,19 @@ def group_gives_way(column, ordinals, parsed, whole):
     )
     word = next(iter(census)) if widths else ""
     owed = column["n_distinct"] - column["n_unparsed"] - len({v // unit for v in ordinals})
+    if absent_units(column):
+        # ...the published count with the absent days stuck tail ranks hold
+        # added, as ``units_settled`` reaches it (plan P4-D358).
+        lows, highs = pin_bounds(column, parsed)
+        fixed = ranks_the_tail_pins(column, parsed)
+        pinned = [fixed[rank] or lows[rank] >= highs[rank] for rank in range(parsed)]
+        owed += len(absent_days_stuck(column, ordinals, pinned, unit, parsed))
     if owed <= 0:
         return ordinals
     _pins, _texts, _body, sides = date_pins(column, parsed)
     held = {v // unit for v in ordinals}
+    # ...and no unit an absent spelling names is offered (plan P4-D358).
+    absent = absent_units(column)
 
     def place(plan, d):
         return plan["anchor"] + (-1 if plan["low_side"] else 1) * d * plan["unit"]
@@ -10594,6 +10750,7 @@ def group_gives_way(column, ordinals, parsed, whole):
                 for d in range(1, plan["reach"] + 1)
                 if d != group
                 and place(plan, d) // unit not in held
+                and place(plan, d) // unit not in absent
                 and standing_of(column, place(plan, d), day, step, widths, word) == mine
             ],
         )
@@ -11145,14 +11302,19 @@ def widths_pass(column, ordinals, pinned, lows, highs, day, widths, step=1, dist
     if showing == widths:
         return False
     fewer = showing > widths
+    absent = absent_units(column)
 
     def offer(value, low, high):
         def kind(candidate):
             # THE DAY'S KIND IS WHETHER IT COUNTS INTO THE WORD, not
             # whether it shows the width (method G7.3, plan P4-D294):
             # the pass counts the absorbed census, so an offer that
-            # leaves that count where it was is no offer at all.
-            return counts_into_width(column, candidate // day, word) != fewer
+            # leaves that count where it was is no offer at all.  And a
+            # day an absent spelling names is no offer (plan P4-D358).
+            return (
+                counts_into_width(column, candidate // day, word) != fewer
+                and candidate // unit not in absent
+            )
 
         if not distinct:
             return nearest_fitting(value, low, high, kind, day)
@@ -11197,8 +11359,13 @@ def distinct_pass(column, ordinals, pinned, lows, highs, day, step, distinct, wi
     """Pass 2 of `units_settled` (plan P4-D192): the count of different units."""
     parsed = len(ordinals)
     unit = step if day == 86400 else 1
+    absent = absent_units(column)
 
     def standing(value, target):
+        # A UNIT AN ABSENT SPELLING NAMES IS OFFERED TO NO RANK (plan
+        # P4-D358): no merge, split or free unit lands there.
+        if target // unit in absent:
+            return False
         if widths and counts_into_width(
             column, value // day, word
         ) != counts_into_width(column, target // day, word):
@@ -11434,17 +11601,24 @@ def ranks_restacked(column, ordinals, pinned, lows, highs, day, step, unit, held
     def stands(value):
         return standing_of(column, value, day, step, widths, word)
 
+    # No rank that moves is stacked on a day an absent spelling names
+    # (plan P4-D358); a pinned rank stands where it stands.
+    absent = absent_units(column)
+
+    def may_hold(rank, value):
+        return pinned[rank] or value // unit not in absent
+
     bounds = [(ordinals[r], ordinals[r]) if pinned[r] else (lows[r], highs[r]) for r in range(len(ordinals))]
     order = sorted((bounds[r][1], bounds[r][0], r) for r in range(len(ordinals)))
     placed, top = list(ordinals), {}
     for _high, _low, rank in order:
         own, (low, high) = stands(ordinals[rank]), bounds[rank]
-        if own in top and low <= top[own] <= high:
+        if own in top and low <= top[own] <= high and may_hold(rank, top[own]):
             placed[rank] = top[own]
             continue
         by = 86400 if own[1] and unit == step and 86400 % step == 0 else unit
         candidate = ordinals[rank] + (high - ordinals[rank]) // by * by
-        while candidate >= low and stands(candidate) != own:
+        while candidate >= low and (stands(candidate) != own or not may_hold(rank, candidate)):
             candidate -= by
         if candidate < low:
             return False
@@ -11540,16 +11714,25 @@ def count_met_past_the_strata(column, ordinals, pinned, lows, highs, day, step, 
     size_of = len(ordinals)
     kind = [standing_of(column, value, day, step, widths, word) for value in ordinals]
     room = [(value, value) if fixed else (low, high) for value, fixed, low, high in zip(ordinals, pinned, lows, highs)]
+    # No moving rank lands on a day an absent spelling names (plan P4-D358).
+    absent = absent_units(column)
+
+    def lands(rank, value):
+        return pinned[rank] or value // unit not in absent
+
     laid, last = list(ordinals), {}
     for rank in sorted(range(size_of), key=lambda r: (room[r][1], room[r][0], r)):
         low, high = room[rank]
-        if kind[rank] in last and low <= last[kind[rank]] <= high:
+        if kind[rank] in last and low <= last[kind[rank]] <= high and lands(rank, last[kind[rank]]):
             laid[rank] = last[kind[rank]]
             continue
         by = 86400 if kind[rank][1] and unit == step and 86400 % step == 0 else unit
         top = ordinals[rank] + (high - ordinals[rank]) // by * by
         spot = next(
-            (c for c in range(top, low - 1, -by) if standing_of(column, c, day, step, widths, word) == kind[rank]),
+            (
+                c for c in range(top, low - 1, -by)
+                if standing_of(column, c, day, step, widths, word) == kind[rank] and lands(rank, c)
+            ),
             None,
         )
         if spot is None:
@@ -11568,6 +11751,7 @@ def count_met_past_the_strata(column, ordinals, pinned, lows, highs, day, step, 
     def outside(rank, target):
         """How far past its gap ``target`` puts ``rank``; None where it may not go."""
         same = standing_of(column, target, day, step, widths, word) == standing_of(column, laid[rank], day, step, widths, word)
+        same = same and target // unit not in absent
         inside = lows[rank] <= target <= highs[rank]
         beyond = rank in tail_of and units_past_the_boundary(target, *tail_of[rank][1:5]) > 0
         return (0 if inside else max(lows[rank] - target, target - highs[rank])) if same and (inside or beyond) else None
@@ -11662,6 +11846,7 @@ def traded_merges(column, ordinals, pinned, lows, highs, day, step, unit, held, 
         return 0
     parsed = len(ordinals)
     made = 0
+    absent = absent_units(column)
 
     def flips(value, target):
         """Whether the move flips the traded standing and keeps the other."""
@@ -11699,6 +11884,7 @@ def traded_merges(column, ordinals, pinned, lows, highs, day, step, unit, held, 
                         ordinals[first], room[0], room[1],
                         lambda candidate, own=ordinals[first], low=room[0], high=room[1], seen=tried: (
                             candidate // unit not in seen
+                            and candidate // unit not in absent
                             and held.get(candidate // unit, 0) > 0
                             and spot.get(candidate // unit) is not None
                             and low <= spot[candidate // unit] <= high
@@ -11773,6 +11959,7 @@ def repaid_standings(column, ordinals, pinned, lows, highs, day, step, unit, hel
             target, 0, step
         ) == written_at_midnight(value, 0, step)
 
+    absent = absent_units(column)
     paid = {}
     for rank in range(len(ordinals)):
         if len(paid) >= wanted:
@@ -11789,6 +11976,7 @@ def repaid_standings(column, ordinals, pinned, lows, highs, day, step, unit, hel
             value, lows[rank], highs[rank],
             lambda candidate, own_value=value, low=lows[rank], high=highs[rank]: (
                 candidate // unit != skip
+                and candidate // unit not in absent
                 and held.get(candidate // unit, 0) > 0
                 and spot.get(candidate // unit) is not None
                 and low <= spot[candidate // unit] <= high
@@ -11823,16 +12011,20 @@ def nearest_free_where(column, value, low, high, day, step, unit, held, widths, 
     """The nearest free unit inside [low, high] of (``same``) or not of a
     standing; a unit at a midnight is sought one day at a time, from the
     one starting the value's own day outward, and every other among the
-    units ``unit`` apart from the value, outward; earlier first."""
+    units ``unit`` apart from the value, outward; earlier first.  A unit an
+    absent spelling names is never free (``absent_units``)."""
     by, base, away = unit, value, 1
     if same and standing[1]:
         by, base, away = 86400, value - value % 86400, 0
+    absent = absent_units(column)
     while True:
         earlier, later = base - away * by, base + away * by
         if earlier < low and later > high:
             return None
         for candidate in (earlier, later):
             if not low <= candidate <= high or held.get(candidate // unit, 0) > 0:
+                continue
+            if candidate // unit in absent:
                 continue
             if (standing_of(column, candidate, day, step, widths, word) == standing) == same:
                 return candidate
@@ -21328,6 +21520,291 @@ def _every_day_group():
     }
 
 
+def _every_day_absent():
+    """G7.3b step 9 beside an absent day (plan P4-D358; the review of landing 3b.0, item 4).
+
+    The description the producer writes, at a floor of eleven, of the
+    frozen case `every_day_group`'s 105 dates with 2024-05-12 declared
+    missing: its four cells and twelve more are written with that
+    spelling, so 101 are present over 21 days and the low tail's
+    boundary moves to 2024-05-14, the absent day two units out and
+    inside the group's reach.
+    """
+    tails, tail_claims = _tail_fields(
+        {"boundary": "2024-05-14", "rows": 34, "mean_distance": "4.5", "rms_distance": "5.061387858959589", "values": None},
+        {"boundary": "2024-05-22", "rows": 21, "mean_distance": "2.9047619047619047", "rms_distance": "3.2440421581430665", "values": None},
+    )
+    ladder = {key: None for key in LADDER_KEYS}
+    ladder["p50"] = "2024-05-17"
+    ladder["p75"] = "2024-05-22"
+    column = _universal(
+        "column_1", "datetime", "datetime", "data", "ok",
+        n_present=101, n_missing=16, n_distinct=21, n_distinct_folded=21,
+        n_numeric=0, n_not_numeric=101, n_out_of_range=0, n_contradictory=0,
+        format="iso-date", resolution="date", time_precision="date",
+        subsecond_digits=0, datetimes_read_at="local",
+        tail_unit="day", date_percentiles=ladder,
+        n_unparsed=0, utc_offsets={"(none)": 101},
+        missing_by_source={"2024-05-12": 16},
+        **tails,
+    )
+    # THE ABSENT CELLS ARE THE DECLARED SPELLING'S, and none is held back.
+    column["missing_by_class"] = dict(column["missing_by_class"])
+    column["missing_by_class"]["(withheld)"] = 0
+    column["missing_by_class"]["(declared-missing)"] = 16
+    column["n_missing_withheld"] = 0
+    return {
+        "why": "G7.3b step 9 and G7.3 (plan P4-D358): a day an absent "
+        "spelling names is offered to no rank. The low group's reach holds "
+        "2024-05-12, declared missing, and the step gives its ranks the "
+        "days no rank holds beside it, so the twin holds all 21 days. The "
+        "mutant offers that day as any other: a group rank is put on it, "
+        "the spelling step moves it onto a day ranks hold, and the twin "
+        "holds 20.",
+        "column": column,
+        "rows": 117,
+        "identifier_declared": False,
+        "claims": tail_claims,
+    }
+
+
+def _count_off_the_hole():
+    """G7.3 (plan P4-D358): a rank drawn onto an absent day leaves it before the count.
+
+    The description the producer writes, at a floor of eleven, of 116
+    ISO dates over the 41 days from 2020-10-02, 37 of them written
+    2020-10-20 and declared missing: 79 present, 28 different days, and
+    no weekday census.
+    """
+    tails, tail_claims = _tail_fields(
+        {"boundary": "2020-10-07", "rows": 11, "mean_distance": "3.727272727272727", "rms_distance": "3.9196474795109273", "values": None},
+        {"boundary": "2020-11-03", "rows": 11, "mean_distance": "4.545454545454546", "rms_distance": "5.222329678670935", "values": None},
+    )
+    ladder = {key: None for key in LADDER_KEYS}
+    ladder["p25"] = "2020-10-11"
+    ladder["p50"] = "2020-10-25"
+    ladder["p75"] = "2020-10-31"
+    column = _universal(
+        "column_1", "datetime", "datetime", "data", "ok",
+        n_present=79, n_missing=37, n_distinct=28, n_distinct_folded=28,
+        n_numeric=0, n_not_numeric=79, n_out_of_range=0, n_contradictory=0,
+        format="iso-date", resolution="date", time_precision="date",
+        subsecond_digits=0, datetimes_read_at="local",
+        tail_unit="day", date_percentiles=ladder,
+        n_unparsed=0, utc_offsets={"(none)": 79},
+        missing_by_source={"2020-10-20": 37},
+        **tails,
+    )
+    # THE ABSENT CELLS ARE THE DECLARED SPELLING'S, and none is held back.
+    column["missing_by_class"] = dict(column["missing_by_class"])
+    column["missing_by_class"]["(withheld)"] = 0
+    column["missing_by_class"]["(declared-missing)"] = 37
+    column["n_missing_withheld"] = 0
+    return {
+        "why": "G7.3 (plan P4-D358): three body ranks drawn onto "
+        "2020-10-20, a day the table declares absent, move off it before "
+        "the count passes take their first round, so the count of 28 "
+        "different days is reached on the days the cells will hold. The "
+        "mutant leaves them there: the passes count the absent day, the "
+        "spelling step moves the three onto a day ranks hold, and the twin "
+        "holds 27.",
+        "column": column,
+        "rows": 116,
+        "identifier_declared": False,
+        "claims": tail_claims,
+    }
+
+
+def _tail_end_off_the_hole():
+    """G7.3b step 7 (plan P4-D358): a tail's end steps inward off an absent day.
+
+    The description the producer writes, at a floor of eleven, of 121
+    ISO dates over the 35 days from 2017-10-28, 20 of them written
+    2017-11-30 and declared missing (a seeded column of the review of
+    landing 3b.0): 101 present, 19 different days. The high tail's end
+    is drawn six days past its boundary, onto 2017-11-30; its tie group
+    stands one day past it and never on the hole.
+    """
+    tails, tail_claims = _tail_fields(
+        {"boundary": "2017-11-03", "rows": 11, "mean_distance": "2.727272727272727", "rms_distance": "3.015113445777636", "values": None},
+        {"boundary": "2017-11-24", "rows": 14, "mean_distance": "2.4285714285714284", "rms_distance": "2.9760952365713798", "values": None},
+    )
+    ladder = {key: None for key in LADDER_KEYS}
+    ladder["p25"] = "2017-11-11"
+    ladder["p50"] = "2017-11-18"
+    ladder["p75"] = "2017-11-21"
+    column = _universal(
+        "column_1", "datetime", "datetime", "data", "ok",
+        n_present=101, n_missing=20, n_distinct=19, n_distinct_folded=19,
+        n_numeric=0, n_not_numeric=101, n_out_of_range=0, n_contradictory=0,
+        format="iso-date", resolution="date", time_precision="date",
+        subsecond_digits=0, datetimes_read_at="local",
+        tail_unit="day", date_percentiles=ladder,
+        n_unparsed=0, utc_offsets={"(none)": 101},
+        missing_by_source={"2017-11-30": 20},
+        **tails,
+    )
+    # THE ABSENT CELLS ARE THE DECLARED SPELLING'S, and none is held back.
+    column["missing_by_class"] = dict(column["missing_by_class"])
+    column["missing_by_class"]["(withheld)"] = 0
+    column["missing_by_class"]["(declared-missing)"] = 20
+    column["n_missing_withheld"] = 0
+    return {
+        "why": "G7.3b step 7 (plan P4-D358): the high tail's end, its "
+        "outermost rank, standing at one place, falls on 2017-11-30, which "
+        "the table declares absent, and steps one day inward off it. The "
+        "mutant leaves it there, as the oracle did before this case, and "
+        "its cell is written with the absent spelling: 21 cells read back "
+        "absent where the column holds 20. Its tie group stands a day past "
+        "the boundary, never on the hole; tie_group_off_the_hole holds the "
+        "group's step.",
+        "column": column,
+        "rows": 121,
+        "identifier_declared": False,
+        "claims": tail_claims,
+    }
+
+
+def _tie_group_off_the_hole():
+    """G7.3b step 7 (plan P4-D358): a tail's tie group steps inward off an absent day.
+
+    The description the producer writes, at a floor of eleven, of 111
+    ISO dates over the 40 days from 2020-02-09, 11 of them written
+    2020-03-10 and declared missing: 100 present, 22 different days. The
+    high tail's tie group, five ranks, is drawn five days past its
+    boundary, onto 2020-03-10.
+    """
+    tails, tail_claims = _tail_fields(
+        {"boundary": "2020-02-17", "rows": 21, "mean_distance": "2.0476190476190474", "rms_distance": "2.8535691936340255", "values": None},
+        {"boundary": "2020-03-05", "rows": 15, "mean_distance": "8.933333333333334", "rms_distance": "9.444575162494075", "values": None},
+    )
+    ladder = {key: None for key in LADDER_KEYS}
+    ladder["p25"] = "2020-02-17"
+    ladder["p50"] = "2020-02-28"
+    ladder["p75"] = "2020-03-01"
+    column = _universal(
+        "column_1", "datetime", "datetime", "data", "ok",
+        n_present=100, n_missing=11, n_distinct=22, n_distinct_folded=22,
+        n_numeric=0, n_not_numeric=100, n_out_of_range=0, n_contradictory=0,
+        format="iso-date", resolution="date", time_precision="date",
+        subsecond_digits=0, datetimes_read_at="local",
+        tail_unit="day", date_percentiles=ladder,
+        n_unparsed=0, utc_offsets={"(none)": 100},
+        missing_by_source={"2020-03-10": 11},
+        **tails,
+    )
+    # THE ABSENT CELLS ARE THE DECLARED SPELLING'S, and none is held back.
+    column["missing_by_class"] = dict(column["missing_by_class"])
+    column["missing_by_class"]["(withheld)"] = 0
+    column["missing_by_class"]["(declared-missing)"] = 11
+    column["n_missing_withheld"] = 0
+    return {
+        "why": "G7.3b step 7 (plan P4-D358): the high tail's tie group of five "
+        "ranks stands at one place, five days past its boundary, on "
+        "2020-03-10, which the table declares absent, and steps one day "
+        "inward off it. The mutant steps the tail's end and leaves the group "
+        "there, as the oracle did before this case: its five cells are "
+        "written with the absent spelling, and 16 cells read back absent "
+        "where the column holds 11.",
+        "column": column,
+        "rows": 111,
+        "identifier_declared": False,
+        "claims": tail_claims,
+    }
+
+
+def _stuck_day_counted():
+    """G7.3 (plan P4-D358): the count passes add a stuck tail rank's absent day.
+
+    The description the producer writes, at a floor of eleven, of 116
+    ISO dates over the 41 days from 2019-11-08, 11 of them written
+    2019-11-11 and declared missing: 105 present, 22 different days. A
+    low-tail rank whose stratum is 2019-11-11 alone stands there.
+    """
+    tails, tail_claims = _tail_fields(
+        {"boundary": "2019-11-23", "rows": 13, "mean_distance": "10.153846153846153", "rms_distance": "10.741723110591494", "values": None},
+        {"boundary": "2019-12-09", "rows": 19, "mean_distance": "2.1578947368421053", "rms_distance": "2.856202852887397", "values": None},
+    )
+    ladder = {key: None for key in LADDER_KEYS}
+    ladder["p25"] = "2019-11-25"
+    ladder["p50"] = "2019-12-03"
+    ladder["p75"] = "2019-12-09"
+    column = _universal(
+        "column_1", "datetime", "datetime", "data", "ok",
+        n_present=105, n_missing=11, n_distinct=22, n_distinct_folded=22,
+        n_numeric=0, n_not_numeric=105, n_out_of_range=0, n_contradictory=0,
+        format="iso-date", resolution="date", time_precision="date",
+        subsecond_digits=0, datetimes_read_at="local",
+        tail_unit="day", date_percentiles=ladder,
+        n_unparsed=0, utc_offsets={"(none)": 105},
+        missing_by_source={"2019-11-11": 11},
+        **tails,
+    )
+    # THE ABSENT CELLS ARE THE DECLARED SPELLING'S, and none is held back.
+    column["missing_by_class"] = dict(column["missing_by_class"])
+    column["missing_by_class"]["(withheld)"] = 0
+    column["missing_by_class"]["(declared-missing)"] = 11
+    column["n_missing_withheld"] = 0
+    return {
+        "why": "G7.3 (plan P4-D358): a low-tail rank whose stratum is the one day "
+        "2019-11-11, which the table declares absent, stands there and its "
+        "cell is written absent, so the count passes reach the published 22 "
+        "days with that day added. The mutant counts the day among the 22: "
+        "the passes leave the cells a day short, G7.3b step 9 gives one back, "
+        "and seven cells move.",
+        "column": column,
+        "rows": 116,
+        "identifier_declared": False,
+        "claims": tail_claims,
+    }
+
+
+def _stuck_day_owed():
+    """G7.3b step 9 (plan P4-D358): a tail's tie group owes a stuck rank's absent day.
+
+    The description the producer writes, at a floor of eleven, of 113
+    ISO dates over the 32 days from 2019-01-23, 11 of them written
+    2019-02-21 and declared missing: 102 present, 31 different days.
+    High-tail ranks whose stratum is 2019-02-21 alone stand there.
+    """
+    tails, tail_claims = _tail_fields(
+        {"boundary": "2019-01-27", "rows": 15, "mean_distance": "2.2666666666666666", "rms_distance": "2.449489742783178", "values": None},
+        {"boundary": "2019-02-17", "rows": 23, "mean_distance": "2.5652173913043477", "rms_distance": "3.0716091236834893", "values": None},
+    )
+    ladder = {key: None for key in LADDER_KEYS}
+    ladder["p25"] = "2019-02-01"
+    ladder["p50"] = "2019-02-08"
+    ladder["p75"] = "2019-02-17"
+    column = _universal(
+        "column_1", "datetime", "datetime", "data", "ok",
+        n_present=102, n_missing=11, n_distinct=31, n_distinct_folded=31,
+        n_numeric=0, n_not_numeric=102, n_out_of_range=0, n_contradictory=0,
+        format="iso-date", resolution="date", time_precision="date",
+        subsecond_digits=0, datetimes_read_at="local",
+        tail_unit="day", date_percentiles=ladder,
+        n_unparsed=0, utc_offsets={"(none)": 102},
+        missing_by_source={"2019-02-21": 11},
+        **tails,
+    )
+    # THE ABSENT CELLS ARE THE DECLARED SPELLING'S, and none is held back.
+    column["missing_by_class"] = dict(column["missing_by_class"])
+    column["missing_by_class"]["(withheld)"] = 0
+    column["missing_by_class"]["(declared-missing)"] = 11
+    column["n_missing_withheld"] = 0
+    return {
+        "why": "G7.3b step 9 (plan P4-D358): high-tail ranks whose stratum is the "
+        "one day 2019-02-21, which the table declares absent, stand there "
+        "and are written absent, and the count pass leaves the column short; "
+        "the tie group gives way for the shortfall with that day added, and "
+        "the twin holds the published 31 present days. The mutant owes the "
+        "count without it: the group gives a day fewer, and the twin holds 30.",
+        "column": column,
+        "rows": 113,
+        "identifier_declared": False,
+        "claims": tail_claims,
+    }
+
+
 # THE WEEKDAY PASS (method G7.3f, plan P4-D355): one column per step,
 # each the description the producer writes of a seeded table, and each
 # moved by withdrawing its own step.
@@ -28217,6 +28694,17 @@ THIRTEENTH_BRANCH_CASE_BUILDERS = {
     "weekday_count_put_back": _weekday_count_put_back,
     "weekday_hole_left": _weekday_hole_left,
     "weekday_runs_merged": _weekday_runs_merged,
+    # ...and a day an absent spelling names, offered to no rank and left
+    # by a rank drawn onto it (the review of landing 3b.0, plan P4-D358).
+    "every_day_absent": _every_day_absent,
+    "count_off_the_hole": _count_off_the_hole,
+    "tail_end_off_the_hole": _tail_end_off_the_hole,
+    # ...and the second review's three clauses of that rule no case held:
+    # G7.3b step 7's step for a tie group, and a stuck tail rank's absent
+    # day in the count G7.3 reaches and in the one G7.3b step 9 owes.
+    "tie_group_off_the_hole": _tie_group_off_the_hole,
+    "stuck_day_counted": _stuck_day_counted,
+    "stuck_day_owed": _stuck_day_owed,
 }
 
 CASE_SETS = {
@@ -28721,7 +29209,13 @@ _TWELFTH_BRANCH_ACCOUNT = (
 _THIRTEENTH_BRANCH_ACCOUNT = (
     "cases method section G14.3 adds with the weekday census of a column "
     "of dates (plan P4-D355): G7.3f's day pass, one seeded column of 100 "
-    "to 152 whole dates for each of its steps. They are computed by the "
+    "to 152 whole dates for each of its steps; and, with the review of "
+    "landing 3b.0 (plan P4-D358), a day an absent spelling names offered "
+    "to no rank of G7.3b step 9, a rank drawn onto one moved off it "
+    "before G7.3 counts, a tail's end and a tail's tie group each "
+    "stepped inward off one by G7.3b step 7, and a stuck tail rank's "
+    "absent day added to the count G7.3 reaches and to the one G7.3b "
+    "step 9 owes. They are computed by the "
     "same oracle and the same proof layer "
     "as tests/reference/generation-reference-vectors.json, "
     "tests/reference/generation-branch-vectors.json, "
@@ -29680,6 +30174,447 @@ GIVEN_WORDS = {
         624244953253492827, 5454983468013257843, 8127464145902295404,
         5526612623684433665, 4051655782094549637, 14393035541017784711,
         15127767596453472000,
+    ),
+    # ...and the absent day of the review of landing 3b.0 (plan P4-D358),
+    # at seeds 0 and 3.
+    "every_day_absent": (
+        11749869230777074271, 4976686463289251617, 755828109848996024,
+        304881062738325533, 15002187965291974971, 16837368535893154894,
+        11190454901533422207, 13456836363123071557, 10028111089635196863,
+        17249041691996241901, 15049841714506250060, 50516411784532144,
+        15816317257914971632, 619544512228201759, 13459767282281468793,
+        3240274278364030886, 15922840670408769294, 9988196555773475118,
+        5528708540590789176, 7797202992660666097, 522405725871973132,
+        2292621794229537384, 12370836947434662824, 11938539287199277755,
+        11351851658265912881, 7077601650295773797, 18395276473263912218,
+        18093218472855323967, 12646017539498340653, 11998855799682745918,
+        12699600647224206780, 7174333972925213103, 2492090653401037754,
+        13309110763725718549, 9691076734726793787, 5722952479383703064,
+        8962080526328859928, 16408154436914164547, 17230061692552783506,
+        6600156424494784668, 10542864517962442193, 5937442282338639597,
+        10962900560091666083, 6233361896563643458, 7224095477144916668,
+        16422663126820014570, 4190317992309996195, 11495773768049230524,
+        1549809541329029871, 15359573496234257596, 14519401039093689935,
+        4415586853957397856, 16168280290407227140, 1080389548951534700,
+        6200265394693335470, 2772166865342604472, 8307295042895848470,
+        14689590013673228975, 4254597801902691692, 959623627116559752,
+        7462664253736073131, 3661919327355147708, 1674098206445630176,
+        10705243001984662299, 5509971117917422114, 12396117532504645908,
+        3680410333634169582, 17378919437999810788, 6735093832321390100,
+        1946044423216464364, 11604997066137502855, 17102982757217513103,
+        8123524668950463668, 17609086532309083952, 9221450138614817331,
+        7844083615406347888, 11440918820399615665, 18356290560718802792,
+        17504921111942386499, 8486334947188954216, 13977630086669507101,
+        9175829160114866882, 9764085954252175390, 14495187717848137682,
+        7649050331730722637, 13548830475130767701, 13118270670118174124,
+        17193466500378917481, 2120132871850371088, 13447955290572086403,
+        17107951859171531685, 17855086707780737239, 271283443966091747,
+        15931347716555558556, 18099853790497043721, 17657411208032999235,
+        2744211661031086175, 17941834807307746912, 16416413438470932068,
+        15170119529603977013, 8854214388954281865, 4286523778246914958,
+        14792085813294732880, 17036124501877752041, 4909237023242558809,
+        9941585089922745854, 8167348124004078731, 17174238156096344565,
+        747290721537017297, 13503130951646337559, 11333186052202100708,
+        523248630806453912, 13267263082086403355, 294995341817317923,
+        13981728160880655693, 9458728939577615035, 17138947778845704842,
+        1219006904820757873, 15519564541799172791, 1230213524000167526,
+        6351398061024058435, 7937610583483430125, 17820699963539064894,
+        10371346903678594711, 4775208899969129532, 4458130046729382271,
+        16382891368372605275, 4166555540089443118, 2297628781719652720,
+        5318763683097720836, 10812062172298759684, 10221165687263478623,
+        14936527456987796941, 10338956446126827981, 5320432328041044517,
+        7616593162405106252, 15091668172835147490, 11557004372782324040,
+        17691859821656370306, 6814308631107632758, 10193883106772238577,
+        10955967746340389371, 15648210819027878020, 2683513128423965893,
+        7498792145310181013, 16785780083362874465, 794443871468630082,
+        15176252198341752331, 7662483029691186498, 15307181747769411064,
+        183629235578296167, 6733913047257823013, 1450468172100829850,
+        12038614068454355806, 5051624236682084358, 12961642920323158887,
+        17410063379202633515, 2339362629582691613, 15952343895756879756,
+        1096919986131711504, 7023976117627275225, 7927932116079995888,
+        9017682480985807853, 18012550550374397968, 14308976827146125171,
+        5697412725363090756, 4977610123805721977, 15921757511528277694,
+        16257247865816701746, 9420872204542153269, 6351135234732771770,
+        18352985696018233498, 5828129723138410141, 3370448493156939994,
+        16234944803448759882, 14984943190973265578, 12320384934116719166,
+        17679610982162383402, 17076419891176623364, 13802748643943675258,
+        15877138625807082057, 4559052667373470651, 2605539086445985707,
+        12360459447869159180, 13182385255999053172, 3081582624010203816,
+        7296743783460082513, 16791255161005956994, 10356016281783069243,
+        10668414611279613210, 3581062237603829479, 9703397797331161750,
+        9655666455546014184, 1640572994654484465, 18113645555157466495,
+        10540388406451268786, 118223018306965298, 14252862073760856964,
+        18045817259293952700, 10881181449188379555, 5897085329571024698,
+        3458906843876333357, 12405926698617842817, 3599096246219957580,
+        10656460707757580594, 11109351957836584377, 17753572489493392441,
+        1333058858648303211, 9222870721840452950, 13726175766219408119,
+        3269256324553774918, 7158567684749915780, 1160217163387252714,
+        13390138522074981133, 1619031744942575289,
+    ),
+    "count_off_the_hole": (
+        1579948266424812280, 4368382809143759861, 14780904992460893238,
+        10738994088709064484, 1736366973414412046, 7989781817971124487,
+        8836936694982298082, 2946662876922325281, 13550556714440373042,
+        2096878659831742719, 7216886304493965981, 9532173901418233837,
+        7943684883548510480, 10824523070137754927, 13610704830090625354,
+        17640017316030303502, 5242586133124378272, 11963584348720645464,
+        12842918310596978837, 5399744742097918221, 27487189135956673,
+        17957172554538996409, 5504530992274234989, 5792019422254659378,
+        16449165904195404135, 10794350993587067421, 8694128773074981607,
+        14264443095075148147, 559785037008436020, 13041204188604880511,
+        6903580217341327143, 1675936754415100254, 12184075704510278967,
+        17182475342324737720, 3822002451923169830, 11623112658792743637,
+        5500138225583773853, 13682995642203393017, 13321589394837202527,
+        4034587461993465690, 15308710779869015020, 12131542023487984699,
+        12595416707108270717, 15127727484451233053, 7905774682520144359,
+        13995645469250575876, 16205099140363493297, 1887469413338451098,
+        15675459043179791916, 7266676688707740762, 8848606573303804513,
+        2699396357465885519, 12883692039575422854, 5386054804123807901,
+        16069680948831267854, 5079760656018402619, 10363560099551475591,
+        7372356028659334729, 11306184537471653874, 3627353730925175375,
+        3325718125611035202, 13777142392874579349, 13876072884909009150,
+        10458895745488699301, 16990921078333194947, 3795879651435951611,
+        15696355277373841221, 3117265683755038911, 17789260072842603148,
+        11505100136007897103, 11195029919904144715, 17903649112003602420,
+        14518191048898558869, 14571405520756146743, 997853707430908781,
+        6812129978449332371, 1566032135332271007, 3569953766498321425,
+        3945149643112463223, 15839147973619914892, 2338216670931826561,
+        5474214605365348659, 9091422087718090664, 15669778805961468617,
+        17805376992090106937, 13062965352003286597, 3941833448657936522,
+        10053156049459778608, 13022645792500024114, 957063710870194613,
+        12541649232549595048, 6793600759806722163, 10878050270409184193,
+        12350709086051323796, 12343223674086152489, 9648565346936703569,
+        10233099444790238815, 3655217055307684299, 9134595080181371813,
+        2313396446305865572, 8868216908733265521, 9891972902811741420,
+        14279713432702388803, 7261833687193597386, 361563904759131822,
+        9735267952906805056, 3785871263836300889, 13673787823078344483,
+        7170198331657256530, 7018491085672296424, 16776475879667291834,
+        7249025208173764228, 6435175763424709372, 6419830990753878707,
+        8868559434822746785, 1720935654234010609, 10085709507338671913,
+        16997336574624896911, 10384079264280627259, 13722721208815751136,
+        17471661415220792001, 15534287026346519155, 13724494609835849063,
+        15000223386942767030, 15128895005749896048, 4680957135149550706,
+        8890648984469294105, 6322008189170958066, 4828127083136860104,
+        10543265778786697315, 5863960263281496578, 11412198969393297068,
+        10743688678221015620, 1925821161981986447, 8161165192002025917,
+        7191553086201402764, 13035436176638586197, 1625764014258404555,
+        3116728166531250862, 9455754082845552633, 7463436969883491251,
+        12273479929604457595, 6140122132254823739, 3638044146192352651,
+        17189514039212162619, 4499096192805235435, 2712857641598221675,
+        5163135832435448795, 6266808644548689806, 4152657103486322579,
+        9893292315296196262, 17283378865028530842, 2324637502362051140,
+        7658435362319921208, 12325329315698331139, 16320110860084764835,
+        18443110586896843135, 2649633988804906403, 9911393613897223552,
+        16255280631016690389, 978224840425338795, 10852093286386720019,
+        3208098153679338439, 14163968338214976988, 17296239733174824600,
+        9929664527911210337, 165402237294553036, 1185209240094954631,
+        7668347001486574779, 15629999491502344911, 4367578827619378652,
+        12343409561672324322, 7476610034727661500, 4891249932845431874,
+        12984462232049214561, 5686333481663648475, 6859992695955627580,
+        14117483402809351256, 9134825979250814100, 14460745068568666425,
+        9524063763615712062, 2950956363669098741, 8184780209055680308,
+        16099673746865562833, 10420894910004028089, 17797705521563615993,
+        21184494424406518, 6278653090529876746, 14186471374216789568,
+        12657251179372321403, 10348229482923608911, 12243897807970551378,
+    ),
+    # ...and the tail end off the hole (plan P4-D358), at seed 0.
+    "tail_end_off_the_hole": (
+        11749869230777074271, 4976686463289251617, 755828109848996024,
+        304881062738325533, 15002187965291974971, 16837368535893154894,
+        11190454901533422207, 13456836363123071557, 10028111089635196863,
+        17249041691996241901, 15049841714506250060, 50516411784532144,
+        15816317257914971632, 619544512228201759, 13459767282281468793,
+        3240274278364030886, 15922840670408769294, 9988196555773475118,
+        5528708540590789176, 7797202992660666097, 522405725871973132,
+        2292621794229537384, 12370836947434662824, 11938539287199277755,
+        11351851658265912881, 7077601650295773797, 18395276473263912218,
+        18093218472855323967, 12646017539498340653, 11998855799682745918,
+        12699600647224206780, 7174333972925213103, 2492090653401037754,
+        13309110763725718549, 9691076734726793787, 5722952479383703064,
+        8962080526328859928, 16408154436914164547, 17230061692552783506,
+        6600156424494784668, 10542864517962442193, 5937442282338639597,
+        10962900560091666083, 6233361896563643458, 7224095477144916668,
+        16422663126820014570, 4190317992309996195, 11495773768049230524,
+        1549809541329029871, 15359573496234257596, 14519401039093689935,
+        4415586853957397856, 16168280290407227140, 1080389548951534700,
+        6200265394693335470, 2772166865342604472, 8307295042895848470,
+        14689590013673228975, 4254597801902691692, 959623627116559752,
+        7462664253736073131, 3661919327355147708, 1674098206445630176,
+        10705243001984662299, 5509971117917422114, 12396117532504645908,
+        3680410333634169582, 17378919437999810788, 6735093832321390100,
+        1946044423216464364, 11604997066137502855, 17102982757217513103,
+        8123524668950463668, 17609086532309083952, 9221450138614817331,
+        7844083615406347888, 11440918820399615665, 18356290560718802792,
+        17504921111942386499, 8486334947188954216, 13977630086669507101,
+        9175829160114866882, 9764085954252175390, 14495187717848137682,
+        7649050331730722637, 13548830475130767701, 13118270670118174124,
+        17193466500378917481, 2120132871850371088, 13447955290572086403,
+        17107951859171531685, 17855086707780737239, 271283443966091747,
+        15931347716555558556, 18099853790497043721, 17657411208032999235,
+        2744211661031086175, 17941834807307746912, 16416413438470932068,
+        15170119529603977013, 8854214388954281865, 4286523778246914958,
+        14792085813294732880, 17036124501877752041, 4909237023242558809,
+        9941585089922745854, 8167348124004078731, 17174238156096344565,
+        747290721537017297, 13503130951646337559, 11333186052202100708,
+        523248630806453912, 13267263082086403355, 294995341817317923,
+        13981728160880655693, 9458728939577615035, 17138947778845704842,
+        1219006904820757873, 15519564541799172791, 1230213524000167526,
+        6351398061024058435, 7937610583483430125, 17820699963539064894,
+        10371346903678594711, 4775208899969129532, 4458130046729382271,
+        16382891368372605275, 4166555540089443118, 2297628781719652720,
+        5318763683097720836, 10812062172298759684, 10221165687263478623,
+        14936527456987796941, 10338956446126827981, 5320432328041044517,
+        7616593162405106252, 15091668172835147490, 11557004372782324040,
+        17691859821656370306, 6814308631107632758, 10193883106772238577,
+        10955967746340389371, 15648210819027878020, 2683513128423965893,
+        7498792145310181013, 16785780083362874465, 794443871468630082,
+        15176252198341752331, 7662483029691186498, 15307181747769411064,
+        183629235578296167, 6733913047257823013, 1450468172100829850,
+        12038614068454355806, 5051624236682084358, 12961642920323158887,
+        17410063379202633515, 2339362629582691613, 15952343895756879756,
+        1096919986131711504, 7023976117627275225, 7927932116079995888,
+        9017682480985807853, 18012550550374397968, 14308976827146125171,
+        5697412725363090756, 4977610123805721977, 15921757511528277694,
+        16257247865816701746, 9420872204542153269, 6351135234732771770,
+        18352985696018233498, 5828129723138410141, 3370448493156939994,
+        16234944803448759882, 14984943190973265578, 12320384934116719166,
+        17679610982162383402, 17076419891176623364, 13802748643943675258,
+        15877138625807082057, 4559052667373470651, 2605539086445985707,
+        12360459447869159180, 13182385255999053172, 3081582624010203816,
+        7296743783460082513, 16791255161005956994, 10356016281783069243,
+        10668414611279613210, 3581062237603829479, 9703397797331161750,
+        9655666455546014184, 1640572994654484465, 18113645555157466495,
+        10540388406451268786, 118223018306965298, 14252862073760856964,
+        18045817259293952700, 10881181449188379555, 5897085329571024698,
+        3458906843876333357, 12405926698617842817, 3599096246219957580,
+        10656460707757580594, 11109351957836584377, 17753572489493392441,
+        1333058858648303211, 9222870721840452950, 13726175766219408119,
+        3269256324553774918, 7158567684749915780, 1160217163387252714,
+        13390138522074981133, 1619031744942575289, 7288155629724121122,
+        16113648418877541084, 8712403437954300213, 16834903245927359157,
+    ),
+    # ...and tie_group_off_the_hole (plan P4-D358), at seed 0.
+    "tie_group_off_the_hole": (
+        11749869230777074271, 4976686463289251617, 755828109848996024,
+        304881062738325533, 15002187965291974971, 16837368535893154894,
+        11190454901533422207, 13456836363123071557, 10028111089635196863,
+        17249041691996241901, 15049841714506250060, 50516411784532144,
+        15816317257914971632, 619544512228201759, 13459767282281468793,
+        3240274278364030886, 15922840670408769294, 9988196555773475118,
+        5528708540590789176, 7797202992660666097, 522405725871973132,
+        2292621794229537384, 12370836947434662824, 11938539287199277755,
+        11351851658265912881, 7077601650295773797, 18395276473263912218,
+        18093218472855323967, 12646017539498340653, 11998855799682745918,
+        12699600647224206780, 7174333972925213103, 2492090653401037754,
+        13309110763725718549, 9691076734726793787, 5722952479383703064,
+        8962080526328859928, 16408154436914164547, 17230061692552783506,
+        6600156424494784668, 10542864517962442193, 5937442282338639597,
+        10962900560091666083, 6233361896563643458, 7224095477144916668,
+        16422663126820014570, 4190317992309996195, 11495773768049230524,
+        1549809541329029871, 15359573496234257596, 14519401039093689935,
+        4415586853957397856, 16168280290407227140, 1080389548951534700,
+        6200265394693335470, 2772166865342604472, 8307295042895848470,
+        14689590013673228975, 4254597801902691692, 959623627116559752,
+        7462664253736073131, 3661919327355147708, 1674098206445630176,
+        10705243001984662299, 5509971117917422114, 12396117532504645908,
+        3680410333634169582, 17378919437999810788, 6735093832321390100,
+        1946044423216464364, 11604997066137502855, 17102982757217513103,
+        8123524668950463668, 17609086532309083952, 9221450138614817331,
+        7844083615406347888, 11440918820399615665, 18356290560718802792,
+        17504921111942386499, 8486334947188954216, 13977630086669507101,
+        9175829160114866882, 9764085954252175390, 14495187717848137682,
+        7649050331730722637, 13548830475130767701, 13118270670118174124,
+        17193466500378917481, 2120132871850371088, 13447955290572086403,
+        17107951859171531685, 17855086707780737239, 271283443966091747,
+        15931347716555558556, 18099853790497043721, 17657411208032999235,
+        2744211661031086175, 17941834807307746912, 16416413438470932068,
+        15170119529603977013, 8854214388954281865, 4286523778246914958,
+        14792085813294732880, 17036124501877752041, 4909237023242558809,
+        9941585089922745854, 8167348124004078731, 17174238156096344565,
+        747290721537017297, 13503130951646337559, 11333186052202100708,
+        523248630806453912, 13267263082086403355, 294995341817317923,
+        13981728160880655693, 9458728939577615035, 17138947778845704842,
+        1219006904820757873, 15519564541799172791, 1230213524000167526,
+        6351398061024058435, 7937610583483430125, 17820699963539064894,
+        10371346903678594711, 4775208899969129532, 4458130046729382271,
+        16382891368372605275, 4166555540089443118, 2297628781719652720,
+        5318763683097720836, 10812062172298759684, 10221165687263478623,
+        14936527456987796941, 10338956446126827981, 5320432328041044517,
+        7616593162405106252, 15091668172835147490, 11557004372782324040,
+        17691859821656370306, 6814308631107632758, 10193883106772238577,
+        10955967746340389371, 15648210819027878020, 2683513128423965893,
+        7498792145310181013, 16785780083362874465, 794443871468630082,
+        15176252198341752331, 7662483029691186498, 15307181747769411064,
+        183629235578296167, 6733913047257823013, 1450468172100829850,
+        12038614068454355806, 5051624236682084358, 12961642920323158887,
+        17410063379202633515, 2339362629582691613, 15952343895756879756,
+        1096919986131711504, 7023976117627275225, 7927932116079995888,
+        9017682480985807853, 18012550550374397968, 14308976827146125171,
+        5697412725363090756, 4977610123805721977, 15921757511528277694,
+        16257247865816701746, 9420872204542153269, 6351135234732771770,
+        18352985696018233498, 5828129723138410141, 3370448493156939994,
+        16234944803448759882, 14984943190973265578, 12320384934116719166,
+        17679610982162383402, 17076419891176623364, 13802748643943675258,
+        15877138625807082057, 4559052667373470651, 2605539086445985707,
+        12360459447869159180, 13182385255999053172, 3081582624010203816,
+        7296743783460082513, 16791255161005956994, 10356016281783069243,
+        10668414611279613210, 3581062237603829479, 9703397797331161750,
+        9655666455546014184, 1640572994654484465, 18113645555157466495,
+        10540388406451268786, 118223018306965298, 14252862073760856964,
+        18045817259293952700, 10881181449188379555, 5897085329571024698,
+        3458906843876333357, 12405926698617842817, 3599096246219957580,
+        10656460707757580594, 11109351957836584377, 17753572489493392441,
+        1333058858648303211,
+    ),
+    # ...and stuck_day_counted (plan P4-D358), at seed 0.
+    "stuck_day_counted": (
+        11749869230777074271, 4976686463289251617, 755828109848996024,
+        304881062738325533, 15002187965291974971, 16837368535893154894,
+        11190454901533422207, 13456836363123071557, 10028111089635196863,
+        17249041691996241901, 15049841714506250060, 50516411784532144,
+        15816317257914971632, 619544512228201759, 13459767282281468793,
+        3240274278364030886, 15922840670408769294, 9988196555773475118,
+        5528708540590789176, 7797202992660666097, 522405725871973132,
+        2292621794229537384, 12370836947434662824, 11938539287199277755,
+        11351851658265912881, 7077601650295773797, 18395276473263912218,
+        18093218472855323967, 12646017539498340653, 11998855799682745918,
+        12699600647224206780, 7174333972925213103, 2492090653401037754,
+        13309110763725718549, 9691076734726793787, 5722952479383703064,
+        8962080526328859928, 16408154436914164547, 17230061692552783506,
+        6600156424494784668, 10542864517962442193, 5937442282338639597,
+        10962900560091666083, 6233361896563643458, 7224095477144916668,
+        16422663126820014570, 4190317992309996195, 11495773768049230524,
+        1549809541329029871, 15359573496234257596, 14519401039093689935,
+        4415586853957397856, 16168280290407227140, 1080389548951534700,
+        6200265394693335470, 2772166865342604472, 8307295042895848470,
+        14689590013673228975, 4254597801902691692, 959623627116559752,
+        7462664253736073131, 3661919327355147708, 1674098206445630176,
+        10705243001984662299, 5509971117917422114, 12396117532504645908,
+        3680410333634169582, 17378919437999810788, 6735093832321390100,
+        1946044423216464364, 11604997066137502855, 17102982757217513103,
+        8123524668950463668, 17609086532309083952, 9221450138614817331,
+        7844083615406347888, 11440918820399615665, 18356290560718802792,
+        17504921111942386499, 8486334947188954216, 13977630086669507101,
+        9175829160114866882, 9764085954252175390, 14495187717848137682,
+        7649050331730722637, 13548830475130767701, 13118270670118174124,
+        17193466500378917481, 2120132871850371088, 13447955290572086403,
+        17107951859171531685, 17855086707780737239, 271283443966091747,
+        15931347716555558556, 18099853790497043721, 17657411208032999235,
+        2744211661031086175, 17941834807307746912, 16416413438470932068,
+        15170119529603977013, 8854214388954281865, 4286523778246914958,
+        14792085813294732880, 17036124501877752041, 4909237023242558809,
+        9941585089922745854, 8167348124004078731, 17174238156096344565,
+        747290721537017297, 13503130951646337559, 11333186052202100708,
+        523248630806453912, 13267263082086403355, 294995341817317923,
+        13981728160880655693, 9458728939577615035, 17138947778845704842,
+        1219006904820757873, 15519564541799172791, 1230213524000167526,
+        6351398061024058435, 7937610583483430125, 17820699963539064894,
+        10371346903678594711, 4775208899969129532, 4458130046729382271,
+        16382891368372605275, 4166555540089443118, 2297628781719652720,
+        5318763683097720836, 10812062172298759684, 10221165687263478623,
+        14936527456987796941, 10338956446126827981, 5320432328041044517,
+        7616593162405106252, 15091668172835147490, 11557004372782324040,
+        17691859821656370306, 6814308631107632758, 10193883106772238577,
+        10955967746340389371, 15648210819027878020, 2683513128423965893,
+        7498792145310181013, 16785780083362874465, 794443871468630082,
+        15176252198341752331, 7662483029691186498, 15307181747769411064,
+        183629235578296167, 6733913047257823013, 1450468172100829850,
+        12038614068454355806, 5051624236682084358, 12961642920323158887,
+        17410063379202633515, 2339362629582691613, 15952343895756879756,
+        1096919986131711504, 7023976117627275225, 7927932116079995888,
+        9017682480985807853, 18012550550374397968, 14308976827146125171,
+        5697412725363090756, 4977610123805721977, 15921757511528277694,
+        16257247865816701746, 9420872204542153269, 6351135234732771770,
+        18352985696018233498, 5828129723138410141, 3370448493156939994,
+        16234944803448759882, 14984943190973265578, 12320384934116719166,
+        17679610982162383402, 17076419891176623364, 13802748643943675258,
+        15877138625807082057, 4559052667373470651, 2605539086445985707,
+        12360459447869159180, 13182385255999053172, 3081582624010203816,
+        7296743783460082513, 16791255161005956994, 10356016281783069243,
+        10668414611279613210, 3581062237603829479, 9703397797331161750,
+        9655666455546014184, 1640572994654484465, 18113645555157466495,
+        10540388406451268786, 118223018306965298, 14252862073760856964,
+        18045817259293952700, 10881181449188379555, 5897085329571024698,
+        3458906843876333357, 12405926698617842817, 3599096246219957580,
+        10656460707757580594, 11109351957836584377, 17753572489493392441,
+        1333058858648303211, 9222870721840452950, 13726175766219408119,
+        3269256324553774918, 7158567684749915780, 1160217163387252714,
+        13390138522074981133, 1619031744942575289, 7288155629724121122,
+        16113648418877541084, 8712403437954300213,
+    ),
+    # ...and stuck_day_owed (plan P4-D358), at seed 0.
+    "stuck_day_owed": (
+        11749869230777074271, 4976686463289251617, 755828109848996024,
+        304881062738325533, 15002187965291974971, 16837368535893154894,
+        11190454901533422207, 13456836363123071557, 10028111089635196863,
+        17249041691996241901, 15049841714506250060, 50516411784532144,
+        15816317257914971632, 619544512228201759, 13459767282281468793,
+        3240274278364030886, 15922840670408769294, 9988196555773475118,
+        5528708540590789176, 7797202992660666097, 522405725871973132,
+        2292621794229537384, 12370836947434662824, 11938539287199277755,
+        11351851658265912881, 7077601650295773797, 18395276473263912218,
+        18093218472855323967, 12646017539498340653, 11998855799682745918,
+        12699600647224206780, 7174333972925213103, 2492090653401037754,
+        13309110763725718549, 9691076734726793787, 5722952479383703064,
+        8962080526328859928, 16408154436914164547, 17230061692552783506,
+        6600156424494784668, 10542864517962442193, 5937442282338639597,
+        10962900560091666083, 6233361896563643458, 7224095477144916668,
+        16422663126820014570, 4190317992309996195, 11495773768049230524,
+        1549809541329029871, 15359573496234257596, 14519401039093689935,
+        4415586853957397856, 16168280290407227140, 1080389548951534700,
+        6200265394693335470, 2772166865342604472, 8307295042895848470,
+        14689590013673228975, 4254597801902691692, 959623627116559752,
+        7462664253736073131, 3661919327355147708, 1674098206445630176,
+        10705243001984662299, 5509971117917422114, 12396117532504645908,
+        3680410333634169582, 17378919437999810788, 6735093832321390100,
+        1946044423216464364, 11604997066137502855, 17102982757217513103,
+        8123524668950463668, 17609086532309083952, 9221450138614817331,
+        7844083615406347888, 11440918820399615665, 18356290560718802792,
+        17504921111942386499, 8486334947188954216, 13977630086669507101,
+        9175829160114866882, 9764085954252175390, 14495187717848137682,
+        7649050331730722637, 13548830475130767701, 13118270670118174124,
+        17193466500378917481, 2120132871850371088, 13447955290572086403,
+        17107951859171531685, 17855086707780737239, 271283443966091747,
+        15931347716555558556, 18099853790497043721, 17657411208032999235,
+        2744211661031086175, 17941834807307746912, 16416413438470932068,
+        15170119529603977013, 8854214388954281865, 4286523778246914958,
+        14792085813294732880, 17036124501877752041, 4909237023242558809,
+        9941585089922745854, 8167348124004078731, 17174238156096344565,
+        747290721537017297, 13503130951646337559, 11333186052202100708,
+        523248630806453912, 13267263082086403355, 294995341817317923,
+        13981728160880655693, 9458728939577615035, 17138947778845704842,
+        1219006904820757873, 15519564541799172791, 1230213524000167526,
+        6351398061024058435, 7937610583483430125, 17820699963539064894,
+        10371346903678594711, 4775208899969129532, 4458130046729382271,
+        16382891368372605275, 4166555540089443118, 2297628781719652720,
+        5318763683097720836, 10812062172298759684, 10221165687263478623,
+        14936527456987796941, 10338956446126827981, 5320432328041044517,
+        7616593162405106252, 15091668172835147490, 11557004372782324040,
+        17691859821656370306, 6814308631107632758, 10193883106772238577,
+        10955967746340389371, 15648210819027878020, 2683513128423965893,
+        7498792145310181013, 16785780083362874465, 794443871468630082,
+        15176252198341752331, 7662483029691186498, 15307181747769411064,
+        183629235578296167, 6733913047257823013, 1450468172100829850,
+        12038614068454355806, 5051624236682084358, 12961642920323158887,
+        17410063379202633515, 2339362629582691613, 15952343895756879756,
+        1096919986131711504, 7023976117627275225, 7927932116079995888,
+        9017682480985807853, 18012550550374397968, 14308976827146125171,
+        5697412725363090756, 4977610123805721977, 15921757511528277694,
+        16257247865816701746, 9420872204542153269, 6351135234732771770,
+        18352985696018233498, 5828129723138410141, 3370448493156939994,
+        16234944803448759882, 14984943190973265578, 12320384934116719166,
+        17679610982162383402, 17076419891176623364, 13802748643943675258,
+        15877138625807082057, 4559052667373470651, 2605539086445985707,
+        12360459447869159180, 13182385255999053172, 3081582624010203816,
+        7296743783460082513, 16791255161005956994, 10356016281783069243,
+        10668414611279613210, 3581062237603829479, 9703397797331161750,
+        9655666455546014184, 1640572994654484465, 18113645555157466495,
+        10540388406451268786, 118223018306965298, 14252862073760856964,
+        18045817259293952700, 10881181449188379555, 5897085329571024698,
+        3458906843876333357, 12405926698617842817, 3599096246219957580,
+        10656460707757580594, 11109351957836584377, 17753572489493392441,
+        1333058858648303211, 9222870721840452950, 13726175766219408119,
+        3269256324553774918, 7158567684749915780,
     ),
     # ...and the census of marks that is only a pool (plan P4-D352), at
     # seed 408.

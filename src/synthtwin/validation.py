@@ -17808,10 +17808,12 @@ def _datetime_distinct_window(
 ) -> "tuple[float, float]":
     """How many different values a column of dates may hold (G12.5).
 
-    The LOWER end counts ranks whose windows of G12.4 do not overlap:
-    two ranks that cannot hold the same instant are two identities the
-    twin must carry, and every cell that did not read as a date is a
-    counted stand-in spelled differently from every other. The UPPER
+    The LOWER end counts ranks whose windows of G12.4 do not overlap --
+    past their strata where the count pass may meet the count there
+    (`_past_the_strata`) -- since two ranks that cannot hold the same
+    instant are two identities the twin must carry, and every cell that
+    did not read as a date is a counted stand-in spelled differently from
+    every other. The UPPER
     end is how many instants lie between the two tail boundaries at the
     published precision, once per way an instant can be written, plus one
     for each cell of the two tails, plus those same stand-ins, and never
@@ -17827,6 +17829,9 @@ def _datetime_distinct_window(
     """
     dated = max(1, column.n_present - facts.n_unparsed)
     lows, highs = _rank_windows(facts, dated, column, floor, date_system)
+    lows, highs = _past_the_strata(
+        column, facts, dated, floor, date_system, lows, highs
+    )
     separate = _ranks_forced_apart(lows, highs)
     upper = column.n_present
     if facts.low_tail is None or facts.high_tail is None:
@@ -18120,18 +18125,87 @@ def _ranks_forced_apart(lows: "list[int]", highs: "list[int]") -> int:
 
     Two ranks whose windows of G12.4 do not overlap cannot hold the same
     instant, so the largest set of ranks with pairwise separate windows
-    is a lower bound on how many different values the twin holds. The
-    windows arrive in non-decreasing order of both ends, so the count is
-    taken in one walk: keep the first rank, then keep each later rank
-    whose lower end is strictly above the last kept rank's upper end.
+    is a lower bound on how many different values the twin holds. It is
+    taken in one walk over the windows in the order of their upper ends:
+    keep the first, then keep each later one whose lower end is strictly
+    above the last kept one's upper end. The windows of G12.4 arrive in
+    that order already; those past the strata (`_past_the_strata`) need
+    not, and a walk in rank order then keeps a wide window and counts
+    fewer than are forced apart (plan P4-D358).
     """
     count = 0
     frontier = 0
-    for rank in range(len(lows)):
-        if count == 0 or lows[rank] > frontier:
+    for high, low in sorted(zip(highs, lows)):
+        if count == 0 or low > frontier:
             count = count + 1
-            frontier = highs[rank]
+            frontier = high
     return count
+
+
+def _past_the_strata(
+    column: contract.ColumnBlock,
+    facts: contract.DatetimeFacts,
+    dated: int,
+    floor: int,
+    date_system: str,
+    lows: "list[int]",
+    highs: "list[int]",
+) -> "tuple[list[int], list[int]]":
+    """The rank windows the count pass may meet a count in (G12.5, plan P4-D358).
+
+    THE LOWER END FOLLOWS THE PASS AS IT NOW IS (the review of landing
+    3b.0, item 1). Where no placement inside the gaps meets the count,
+    G7.3 lets an unpinned rank of a tail drawn through its shape stand
+    past its stratum, anywhere strictly beyond its tail's boundary and no
+    further out than the tail's outermost rank. Counted in the strata
+    alone, 114 dates of 35 different days at a floor of 50 drew a lower
+    end of 39, so the count was never held exactly: the twin the pass
+    wrote held 35, and a file holding 60 was WITHIN-BOUND of 39 to 114
+    with nothing missed. So wherever the count is reachable, each such
+    rank -- one whose window here is no single point -- reaches from its
+    own window out to its tail's outermost rank's, and in to the tail
+    unit next to the boundary, keeping its own reading allowance.
+    Written out from the method, never imported (V1.4).
+
+    Guarantees: returns new windows, those of every other rank as given;
+    a function of the arguments. Raises nothing for a loaded
+    description. No I/O of any kind.
+    """
+    lows = list(lows)
+    highs = list(highs)
+    if (
+        not contract.datetime_counts_reachable(column)
+        or facts.low_tail is None
+        or facts.high_tail is None
+    ):
+        return (lows, highs)
+    windows = _date_tail_windows(column, facts, floor, date_system)
+    unit = _tail_unit_size(facts)
+    half = 0
+    if facts.tail_unit == parsing.TAIL_UNIT_DAY and not _counts_in_days(facts):
+        half = 43200
+    for side, tail, low_side in (
+        ("low", facts.low_tail, True),
+        ("high", facts.high_tail, False),
+    ):
+        if side not in windows or tail.rows < 1:
+            continue
+        boundary = _ordinal_of(tail.boundary, facts.resolution)
+        anchor = boundary
+        if half > 0:
+            anchor = ((boundary + half) // unit) * unit
+        outermost = 0 if low_side else dated - 1
+        for index in range(tail.rows):
+            rank = index if low_side else dated - 1 - index
+            if lows[rank] >= highs[rank]:
+                continue
+            if low_side:
+                lows[rank] = min(lows[rank], lows[outermost])
+                highs[rank] = max(highs[rank], anchor - unit + max(half - 1, 0))
+            else:
+                lows[rank] = min(lows[rank], anchor + unit - half)
+                highs[rank] = max(highs[rank], highs[outermost])
+    return (lows, highs)
 
 
 def _rank_windows(
