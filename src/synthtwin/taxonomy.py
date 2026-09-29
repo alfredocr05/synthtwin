@@ -830,6 +830,16 @@ REMARK_NO_READING_FITS = "remark_no_reading_fits"
 REMARK_SOME_NOT_NUMBERS = "remark_some_values_are_not_numbers"
 REMARK_NEAR_NUMERIC_LINE = "remark_close_to_the_numeric_line"
 REMARK_ALL_DIFFERENT_NUMBERS = "remark_every_number_is_different"
+# ...AND ITS NEAR SIBLING, where the values hardly ever repeat and some do
+# (plan P4-D357 A, review item 6 of follow-up A). "Every value in this
+# column is different" was printed wherever the different values reached
+# `identifier_uniqueness` of the present cells -- 0.95 -- so 1,101 counts
+# holding `1089` eight times and `1093` twice were told every value
+# differs, and a reader running the tail back-solve on that sentence
+# excluded the repeated-value solutions. The exact sentence is now kept
+# for a column no two cells of which hold one value, and this one says
+# the rest without a count.
+REMARK_NEARLY_ALL_DIFFERENT_NUMBERS = "remark_nearly_every_number_is_different"
 # A number written with a leading zero is usually a code, and a column
 # of them is described as quantities unless a person says otherwise
 # (plan P4-D16, contract NF43).
@@ -867,6 +877,7 @@ REMARK_HIGH_TAIL_ITS_END = "remark_high_tail_withheld_its_end"
 REMARK_LOW_TAIL_A_COUNT = "remark_low_tail_withheld_a_count"
 REMARK_HIGH_TAIL_A_COUNT = "remark_high_tail_withheld_a_count"
 REMARK_ALL_DIFFERENT_TEXT = "remark_every_value_is_different"
+REMARK_NEARLY_ALL_DIFFERENT_TEXT = "remark_nearly_every_value_is_different"
 # THE AFFIXED ROLE'S DECLINE, SAID OUT LOUD (plan P4-D30, residual
 # R-P4-39, contract NF50). `_wrapped_in_an_address` refuses to read
 # `user12345@example.org` as a number wearing affixes, and the refusal
@@ -1053,6 +1064,7 @@ NOTE_ARITY: "dict[str, int]" = {
     REMARK_SOME_NOT_NUMBERS: 1,
     REMARK_NEAR_NUMERIC_LINE: 3,
     REMARK_ALL_DIFFERENT_NUMBERS: 0,
+    REMARK_NEARLY_ALL_DIFFERENT_NUMBERS: 0,
     REMARK_PADDED_NUMBERS: 1,
     REMARK_GROUP_COMMAS: 2,
     REMARK_SPREAD_OUT_OF_RANGE: 0,
@@ -1070,6 +1082,7 @@ NOTE_ARITY: "dict[str, int]" = {
     REMARK_LOW_TAIL_A_COUNT: 0,
     REMARK_HIGH_TAIL_A_COUNT: 0,
     REMARK_ALL_DIFFERENT_TEXT: 0,
+    REMARK_NEARLY_ALL_DIFFERENT_TEXT: 0,
     # IT CARRIES NO ARGUMENT ON PURPOSE. A count of the cells that wore
     # the address would be a count of a reading this column does NOT
     # publish -- the block that would have held `n_affixed` is the one
@@ -2560,6 +2573,16 @@ def rendered(form: str, arguments: "tuple[object, ...]") -> str:
             "NAME, where NAME is this column's name, and its values "
             "will be left out of the profile altogether"
         )
+    if form == REMARK_NEARLY_ALL_DIFFERENT_NUMBERS:
+        return (
+            "nearly every value in this column is different, and some "
+            "are shared with another row. That is not treated as "
+            "evidence of anything: the column is described as numbers, "
+            "which keeps its distribution. If it is really a record "
+            "number, run the command again with --identifier NAME, where "
+            "NAME is this column's name, and its values will be left out "
+            "of the profile altogether"
+        )
     if form == REMARK_SPREAD_OUT_OF_RANGE:
         return (
             "the values in this column are so far apart that their "
@@ -2609,6 +2632,25 @@ def rendered(form: str, arguments: "tuple[object, ...]") -> str:
         return (
             f"{said} because they are too large for this file format to "
             f"hold"
+        )
+    if form == REMARK_NEARLY_ALL_DIFFERENT_TEXT:
+        return (
+            "nearly every value in this column is different, some are "
+            "shared with another row, and none of the forms synthtwin can "
+            "read fits them. synthtwin did NOT assume they are record "
+            "numbers: it cannot tell from the values alone whether these "
+            "are record numbers or measurements written in a form it does "
+            "not read yet, and a wrong guess would throw away the whole "
+            "distribution. Nothing from this column is published either "
+            "way -- no value of it, and no distribution. If these ARE "
+            "record numbers, run the command again with --identifier "
+            "NAME, where NAME is this column's name, and the profile will "
+            "say so. If they are measurements written with a currency "
+            "sign, a per-cent sign, a unit such as mg, or a clock time, "
+            "write them as plain numbers -- one column for the number, "
+            "and the unit in the column name -- and their distribution "
+            "will be described. Do not use --identifier on a measurement: "
+            "it withholds the column entirely"
         )
     if form == REMARK_ALL_DIFFERENT_TEXT:
         return (
@@ -15806,6 +15848,34 @@ def _all_different(cells: _Cells) -> bool:
     )
 
 
+def _difference_remark(
+    cells: _Cells, values_apart: bool, every: str, nearly: str
+) -> "Note":
+    """The all-different sentence a column that hardly ever repeats may carry (plan P4-D357 A).
+
+    `_all_different` says whether to say anything; this says WHICH
+    sentence is true. ``every`` -- "every value in this column is
+    different" -- only where no two present cells hold one value: no two
+    alike as written, as folded, or, where ``values_apart`` is False, as
+    the values the role reads them as (two spellings of one number, one
+    clock time written two ways). ``nearly`` otherwise, which names no
+    count. On 1,101 counts holding `1089` eight times and `1093` twice the
+    first was printed and was false (review item 6 of follow-up A).
+
+    Guarantees: accepts the tally, whether the role's own values are all
+    different and the two forms; returns the note. Determinism: a
+    function of the four. Raises nothing. No I/O.
+    """
+    n_present = len(cells.present)
+    if (
+        values_apart
+        and cells.raw_distinct == n_present
+        and len(cells.folded_counts) == n_present
+    ):
+        return note(every)
+    return note(nearly)
+
+
 def _categorical_ceiling(cells: _Cells) -> int:
     """The most different values a set of categories may hold here.
 
@@ -16563,7 +16633,14 @@ def _clock_verdict(
         "n_unparsed": clock.n_unparsed,
     }
     if _all_different(cells):
-        remarks += [note(REMARK_ALL_DIFFERENT_NUMBERS)]
+        remarks += [
+            _difference_remark(
+                cells,
+                len(set(ordinals)) == len(ordinals),
+                REMARK_ALL_DIFFERENT_NUMBERS,
+                REMARK_NEARLY_ALL_DIFFERENT_NUMBERS,
+            )
+        ]
     return _Verdict(
         role=ROLE_CLOCK,
         evidence=note(
@@ -17895,7 +17972,14 @@ def _affixed_verdict(
     # stands in; the contract assigns this role the NUMBERS form, and
     # that is the one a column of `$1` to `$100` now carries.
     if _all_different(cells):
-        remarks += [note(REMARK_ALL_DIFFERENT_NUMBERS)]
+        remarks += [
+            _difference_remark(
+                cells,
+                _distinct_numbers(core_cells) == len(core_cells.numbers),
+                REMARK_ALL_DIFFERENT_NUMBERS,
+                REMARK_NEARLY_ALL_DIFFERENT_NUMBERS,
+            )
+        ]
     # ...AND A WRAPPER THAT BRACKETS ITS WHOLE CELL IS NAMED (landing
     # 2b.2, contract NF56). It is a wrapper like any other -- its prefix
     # opens a bracket and its suffix closes one -- so nothing about the
@@ -19294,7 +19378,14 @@ def _free_text_verdict(
     # P1-R8-F4.
     notes += [note(NOTE_FREE_TEXT_WITHHELD)]
     if _all_different(cells):
-        remarks += [note(REMARK_ALL_DIFFERENT_TEXT)]
+        remarks += [
+            _difference_remark(
+                cells,
+                True,
+                REMARK_ALL_DIFFERENT_TEXT,
+                REMARK_NEARLY_ALL_DIFFERENT_TEXT,
+            )
+        ]
     remarks = remarks + _comma_remarks(cells)
     return _Verdict(
         role=ROLE_TEXT,
@@ -19723,7 +19814,14 @@ def _numeric_verdict(
     if cells.raw_distinct >= _needed(
         settings.identifier_uniqueness, n_present
     ):
-        remarks += [note(REMARK_ALL_DIFFERENT_NUMBERS)]
+        remarks += [
+            _difference_remark(
+                cells,
+                _distinct_numbers(cells) == len(cells.numbers),
+                REMARK_ALL_DIFFERENT_NUMBERS,
+                REMARK_NEARLY_ALL_DIFFERENT_NUMBERS,
+            )
+        ]
     # ...AND A COLUMN WRITTEN WITH LEADING ZEROS SAYS SO TOO. The
     # all-different remark reaches a column whose every value differs,
     # which a column of codes is not: codes repeat, so that sentence

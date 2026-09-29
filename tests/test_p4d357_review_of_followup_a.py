@@ -600,3 +600,72 @@ def test_every_pinned_reading_is_the_one_the_multisets_give() -> None:
     assert sorted(seen) == sorted(
         (taxonomy.TAIL_PINS_EVERY, taxonomy.TAIL_PINS_END, taxonomy.TAIL_PINS_A_COUNT)
     ), f"premise: every reading reached, {seen}"
+
+
+# -- 6. "every value in this column is different" only where every one is -----
+
+_EVERY = "every value in this column is different"
+_NEARLY = "nearly every value in this column is different"
+
+
+def _profiled(values: "list[str]") -> "taxonomy.ColumnProfile":
+    return taxonomy.profile_column("column", 1, values, len(values), taxonomy.Settings(), False)
+
+
+def _said(values: "list[str]") -> "tuple[str, list[str]]":
+    """The role and the all-different sentences one column's remarks carry."""
+    described = _profiled(values)
+    return described.role, [
+        remark for remark in described.remarks if _EVERY in remark and "tail boundary" not in remark
+    ]
+
+
+def _minutes(count: int, name: str) -> "list[str]":
+    return ["%02d:%02d" % divmod(minute, 60) for minute in random.Random(name).sample(range(24 * 60), count)]
+
+
+def _codes(count: int, name: str) -> "list[str]":
+    draw = random.Random(name)
+    letters = "qxzjkvw"
+    return ["".join(draw.choice(letters) for _place in range(6)) + "#" + str(place) for place in range(count)]
+
+
+# (name, a column no two cells of which hold one value, the same column with a
+# few repeats and still over the uniqueness line, the role, the forms): the
+# review's counts, and the three other roles that print the sentence.
+_UNIQUE_AND_NEARLY = (
+    ("counts", [str(value) for value in range(1101)], _review_item_5(), taxonomy.ROLE_COUNT),
+    ("counts_spelled_twice", [str(value) for value in range(1, 400)], [str(value) for value in range(1, 399)] + ["0398"], taxonomy.ROLE_COUNT),
+    ("affixed", [f"{value} mg" for value in range(300)], [f"{value} mg" for value in range(296)] + ["5 mg"] * 4, taxonomy.ROLE_AFFIXED),
+    ("clock", _minutes(900, "p4d357/clock"), _minutes(890, "p4d357/clock") + _minutes(890, "p4d357/clock")[:10], taxonomy.ROLE_CLOCK),
+    ("text", _codes(300, "p4d357/codes"), _codes(292, "p4d357/codes") + _codes(292, "p4d357/codes")[:8], taxonomy.ROLE_TEXT),
+)
+
+
+@pytest.mark.parametrize(
+    "name,unique,nearly,role", _UNIQUE_AND_NEARLY, ids=[case[0] for case in _UNIQUE_AND_NEARLY]
+)
+def test_the_all_different_sentence_is_printed_only_where_every_value_differs(
+    name: str, unique: "list[str]", nearly: "list[str]", role: str
+) -> None:
+    """The exact sentence where no two cells hold one value; the near one, with no count, where some do.
+
+    On 2af1f03 both columns of each pair printed "every value in this
+    column is different": the line is `identifier_uniqueness`, 0.95 of the
+    present cells, and the review's 1,101 counts hold `1089` eight times
+    and `1093` twice. `0398` beside `398` is two spellings of one number;
+    `5 mg` five times, ten clock times twice and eight codes twice are the
+    other roles' repeats. Each near column is still over the line
+    (premise), so it is told the near sentence.
+    """
+    for values, exact in ((unique, True), (nearly, False)):
+        described_role, said = _said(values)
+        assert described_role == role, f"premise: {name} read as {described_role}"
+        assert len(said) == 1, f"{name}: {said}"
+        if exact:
+            assert said[0].startswith(_EVERY), f"{name}: {said[0][:80]}"
+        else:
+            assert said[0].startswith(_NEARLY), f"{name}: the near column was told {said[0][:80]!r}"
+            assert not [one for one in said[0].split(".") if "shared" in one and any(ch.isdigit() for ch in one)], (
+                "the near sentence names no count"
+            )

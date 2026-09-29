@@ -1891,12 +1891,12 @@ contract:
    widening it to arbitrary strings would be exactly the hole that lets
    a source-derived value into a sentence and be rebuilt successfully.
 
-**The census.** The table holds 84 forms and 106 argument positions.
+**The census.** The table holds 86 forms and 106 argument positions.
 Of those, 79 are whole numbers, 5 are package words, 17 are nested
 forms, and 5 are bound affix strings. No position is a string of any
 other kind. The weekday census (landing 3b.1, plan P4-D355) added the
 eleven forms NF68 to NF78 and seven whole-number positions, each the
-census line; plan P4-D357 A added the six forms NF79 to NF84 and no
+census line; plan P4-D357 A added the eight forms NF79 to NF86 and no
 position.
 
 **Thirteen of the seventeen nested positions carry a whole number
@@ -1937,7 +1937,7 @@ class over a committed battery, so it is a number a reader can run.
 
 So every argument position of every form is bound to WHAT IT IS, and
 the table below is closed over all 106 of them exactly as the form table
-is closed over the 84 forms. A position nobody bound is a number a
+is closed over the 86 forms. A position nobody bound is a number a
 sentence may print that no rule governs, and a producer that adds one
 is a producer this contract does not describe. The bindings are these:
 
@@ -3492,7 +3492,7 @@ names:
 
 | id | statement |
 |---|---|
-| NG14 | the form is one of the 84 in section 4.5.1 |
+| NG14 | the form is one of the 86 in section 4.5.1 |
 | NG15 | the argument count equals that form's arity |
 | NG16 | every argument is of one of C6-119's four classes |
 | NG17 | re-rendering the form with those arguments writes the leaf's text character for character |
@@ -3801,6 +3801,25 @@ on the review's column -- 0 to 1,089, `1089` seven more times, `1090`,
 `1093`, `1093`, `1189` -- the high tail's distances `[0]*7 + [1, 4, 4,
 100]` and `[0]*7 + [2, 2, 5, 100]` share their rows, sum and sum of
 squares, and both pages said the pair gave its values back one by one.
+
+**NF85. `remark_nearly_every_number_is_different` — the code-shaped numeric remark where some values repeat** — arity 0.
+
+> nearly every value in this column is different, and some are shared with another row. That is not treated as evidence of anything: the column is described as numbers, which keeps its distribution. If it is really a record number, run the command again with --identifier NAME, where NAME is this column's name, and its values will be left out of the profile altogether
+
+**NF86. `remark_nearly_every_value_is_different` — the code-shaped text remark where some values repeat** — arity 0.
+
+> nearly every value in this column is different, some are shared with another row, and none of the forms synthtwin can read fits them. synthtwin did NOT assume they are record numbers: it cannot tell from the values alone whether these are record numbers or measurements written in a form it does not read yet, and a wrong guess would throw away the whole distribution. Nothing from this column is published either way -- no value of it, and no distribution. If these ARE record numbers, run the command again with --identifier NAME, where NAME is this column's name, and the profile will say so. If they are measurements written with a currency sign, a per-cent sign, a unit such as mg, or a clock time, write them as plain numbers -- one column for the number, and the unit in the column name -- and their distribution will be described. Do not use --identifier on a measurement: it withholds the column entirely
+
+**"EVERY VALUE IS DIFFERENT" ONLY WHERE IT IS** (plan P4-D357 A, review
+item 6 of follow-up A). The producer writes NF32 or NF34 -- in its first
+rendering, the only one it writes -- only where no two present cells of
+the column hold one value: none alike as written or folded, and on a
+numeric, affixed or clock column none alike as the number or clock time
+it reads them as. Where the different values reach the uniqueness line
+and some repeat, it writes NF85 or NF86 instead, which names no count.
+Until then the line alone decided, and 1,101 counts holding `1089` eight
+times and `1093` twice were told every value differs, while the tail
+back-solve beside the sentence correctly assumed they did not.
 
 ## 5. The column block
 
@@ -11976,7 +11995,7 @@ month-first parsed.
 | NG11 | on `remark_affixed_numbers_may_be_codes`: argument 3 equals the named block's `n_affixed` |
 | NG12 | argument 1 is character-for-character that block's `affix_prefix` and argument 2 its `affix_suffix`, AT THOSE POSITIONS, not merely as members of the pair |
 | NG13 | on `remark_a_label_is_a_built_in_stand_in`: argument 1 is 1, 2 or 3 |
-| NG14 | for every form: one of the 84 the note grammar enumerates |
+| NG14 | for every form: one of the 86 the note grammar enumerates |
 | NG15 | the argument count equals that form's arity |
 | NG16 | every argument is of one of the four argument classes |
 | NG17 | re-rendering the form with those arguments writes the leaf's text character for character |
@@ -13165,7 +13184,7 @@ this document, and the battery the plan requires turns red on it.
 | nothing-class blocks (`numeric_unrepresentable`, `identifier`, `free_text`) | lengths, word statistics, digit and code-alphabet counts, the whole-number test, the repetition multiset, on `numeric_unrepresentable` the whole-number and sign counts, on `free_text` the census of WRITTEN FORMS its cells wore (`shape_forms`), and on `identifier` the census of LAYOUTS (`layout_forms`, 7.12) and, by the owner's ruling of 2026-09-17, the literal PREFIX every cell of the column or of one named layout opens with (`layout_prefixes`, 7.12a, row 22) | no value, no spelling, no fragment of one but the prefix of row 22 — the form census included, whose every key is built from `%`, `@` and thirteen named marks -- characters no cell that has a form may contain, so a key can carry no letter and no figure of any cell; the multiplicity map publishes SIZES of unnamed groups under no floor, the form census under the floor with a `(withheld)` pool |
 | `empty` columns nobody declared | the absent SPELLINGS their cells wore and the two absence counts, exactly as any column that is not nothing-publishing | floor-governed |
 | `settings` | the rules the run applied, the floor's own value, how many values each declaration named, and which of THIS package's published words were among them | carries no cell, no column and no count of the table; a person's own spelling never enters |
-| `source.header_evidence`, `publication_notes[].note`, `detection_evidence`, `remarks` | sentences of the 84 closed forms: 106 argument positions, of which 79 are whole numbers, 5 package words, 17 nested forms and 5 bound affix strings | the whole numbers are counts the block beside them already publishes, EXCEPT the positions priced at rows 16 and 18 |
+| `source.header_evidence`, `publication_notes[].note`, `detection_evidence`, `remarks` | sentences of the 86 closed forms: 106 argument positions, of which 79 are whole numbers, 5 package words, 17 nested forms and 5 bound affix strings | the whole numbers are counts the block beside them already publishes, EXCEPT the positions priced at rows 16 and 18 |
 | `relationships` | nothing: eight nulls | — |
 
 ### 12.3 The rows, each priced
@@ -14219,7 +14238,7 @@ width at least ONE (`1`, `2`, `10`), a cell written as a whole number
 writing at least one figure (C6-29c). `(withheld)` is again the only
 non-numeric key permitted.
 
-### 14.8 The note grammar — 84 forms
+### 14.8 The note grammar — 86 forms
 
 Defined in 4.5.1, which is the authority on every rendering and every
 argument. 106 argument positions: 79 whole numbers, 5 package words, 17
@@ -14324,6 +14343,8 @@ nested forms, 5 bound affix strings.
 | NG82 | `remark_high_tail_withheld_its_end` | 0 |
 | NG83 | `remark_low_tail_withheld_a_count` | 0 |
 | NG84 | `remark_high_tail_withheld_a_count` | 0 |
+| NG85 | `remark_nearly_every_number_is_different` | 0 |
+| NG86 | `remark_nearly_every_value_is_different` | 0 |
 
 **The package-word vocabulary — 26**, the whole of the second argument
 class (4.5.1): the twenty `format` members of 14.6, plus `day-first`
