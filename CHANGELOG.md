@@ -52,6 +52,17 @@ vanished from every twin and are written again. A sign band whose grid
 holds a refused stand-in is left to the walk instead of filled without
 it, which had moved a heap several units and missed two rungs.
 
+### The unpadded field widths are asked too (2026-09-29)
+
+**The skeptic of follow-up B's final fix** (plan P4-D356). `123` and
+`4567` on ten rows each beside 5,880 `5.5` and a hundred `9999.5`
+published `field_widths {"(withheld)": 20}`: two plain spellings on two
+widths under eleven, ten each. A field-width pool's unpadded part is now
+asked of its own spellings and placed values, and counted at the
+commonest unpadded width every placed value stands at where it may not
+stand; the loader asks it (P6c). Tests now hold the room clause alone on
+a census of marks, and the loader's answer where a walk stops short.
+
 ### A lone pool is asked of every value a reader can count (2026-09-29)
 
 **The final fix of follow-up B** (plan P4-D356). The producer asks a pool

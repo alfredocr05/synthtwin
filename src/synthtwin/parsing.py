@@ -5623,11 +5623,12 @@ def census_pools(
     capacities: "list[int] | None" = None,
     groups: "tuple[tuple[int, int, tuple[int, ...]], ...]" = (),
     unfinished: bool = False,
+    shown: bool = False,
 ) -> bool:
     """Whether a census none of whose names reaches the line may be one pool.
 
     THE ONE STATEMENT, read by the producer through `absorbed_census`, by
-    the loader (contract D3, D12, P5, P5b, P6, P6c) and by the checker, of
+    the loader (contract D3, D12, P5, P5b, P6, P6b, P6c) and by the checker, of
     where a spelling census holds its whole count back (plan P4-D222;
     stage 2 closed by the owner rulings of 2026-09-17), asked since the
     second review of follow-up B (plan P4-D356) as `mixture_pool_holds`
@@ -5657,9 +5658,10 @@ def census_pools(
 
     Guarantees: accepts the population, the settings floor, the size of
     the closed vocabulary (nought for an open one), the room, the
-    capacities, the groups and the answer where the walk stops short;
-    returns a bool. Determinism: a fixed function of the seven. Raises
-    nothing. No I/O of any kind.
+    capacities, the groups, the answer where the walk stops short and
+    whether a name a value stands on alone is shown by the block
+    (`mixture_pool_holds`); returns a bool. Determinism: a fixed function
+    of the eight. Raises nothing. No I/O of any kind.
     """
     if population < census_floor(floor):
         return True
@@ -5670,7 +5672,7 @@ def census_pools(
         size = room + 1
     held = [population] * size if capacities is None else capacities
     seen = size if room < 0 else room
-    return mixture_pool_holds(population, floor, held, seen, groups, unfinished)
+    return mixture_pool_holds(population, floor, held, seen, groups, unfinished, shown)
 
 
 # HOW FAR `mixture_pool_holds` WALKS before it answers without finishing
@@ -5692,6 +5694,7 @@ def mixture_pool_holds(
     room: int,
     groups: "tuple[tuple[int, int, tuple[int, ...]], ...]" = (),
     unfinished: bool = False,
+    shown: bool = False,
 ) -> bool:
     """Whether a census none of whose conventions reaches the line may pool.
 
@@ -5728,7 +5731,11 @@ def mixture_pool_holds(
        one, or three ones, and one row wrote a notation alone in both.
 
     HOW MANY CONVENTIONS WERE WRITTEN IS NOT ASKED (the second review,
-    finding 3): it names none and counts none.
+    finding 3): it names none and counts none. And where ``shown`` is
+    set, clause 1 is not asked of a convention some value can stand on
+    alone: the block's placement of that value shows it written, not the
+    pool -- an unpadded whole number is exactly as wide as its figures,
+    so a placed `123` shows width 3 whatever the census says.
 
     On a vocabulary of ``n`` equal capacities with a full room and no
     group this is the rule `census_pools` asked of the vocabulary alone
@@ -5751,9 +5758,10 @@ def mixture_pool_holds(
     Guarantees: accepts the pooled count, the settings floor, one capacity
     per convention of the vocabulary (the pooled count or more where
     nothing bounds it), the most conventions a reader can see, the groups
-    and the answer where the walk stops short; returns a bool, True for a
-    population below the line. Determinism: a fixed function of the six.
-    Raises nothing. No I/O of any kind.
+    the answer where the walk stops short and whether a convention a
+    value stands on alone is exempt from clause 1; returns a bool, True
+    for a population below the line. Determinism: a fixed function of
+    the seven. Raises nothing. No I/O of any kind.
     """
     line = census_floor(floor)
     if population < line:
@@ -5775,7 +5783,7 @@ def mixture_pool_holds(
     heaviest: "list[tuple[int, int, tuple[int, ...]]]" = []
     for _rows, _worn, index in sorted(ordered):
         heaviest += [kept[index]]
-    answer = _pool_readings(population, held, seen, heaviest, line)
+    answer = _pool_readings(population, held, seen, heaviest, line, shown)
     if answer is None:
         return unfinished
     return answer
@@ -5799,6 +5807,7 @@ def _pool_readings(
     seen: int,
     groups: "list[tuple[int, int, tuple[int, ...]]]",
     line: int,
+    shown: bool = False,
 ) -> "bool | None":
     """Whether readings meet both clauses of `mixture_pool_holds`; None where the walk stops short.
 
@@ -5809,7 +5818,8 @@ def _pool_readings(
     conventions than its spellings, and every state that places them all
     is topped up with the free cells (`_topped_up`) once per clause still
     open: a reading holding no count ``k`` for each ``k`` under the line,
-    and one leaving a convention of each kind empty.
+    and one leaving a convention of each kind empty -- where ``shown``,
+    not of a kind of one convention some value can stand on alone.
     """
     kinds: "list[tuple[int, ...]]" = []
     sizes: "list[int]" = []
@@ -5832,7 +5842,10 @@ def _pool_readings(
     if not kinds:
         return False
     avoided: "list[int]" = list(range(1, line))
-    emptied: "list[int]" = list(range(len(kinds)))
+    emptied: "list[int]" = []
+    for index in range(len(kinds)):
+        if not shown or sizes[index] > 1 or not _stood_on_alone(kinds, index, len(groups)):
+            emptied += [index]
     empty: "list[tuple[int, ...]]" = []
     for size in sizes:
         empty += [(0,) * size]
@@ -5874,6 +5887,20 @@ def _pool_readings(
                 depth = depth + 1
         if budget[0] < 1:
             return None
+    return False
+
+
+def _stood_on_alone(kinds: "list[tuple[int, ...]]", index: int, groups: int) -> bool:
+    """Whether some value can stand on this kind's conventions and on no other kind's."""
+    for group in range(groups):
+        if kinds[index][1 + group] < 1:
+            continue
+        alone = True
+        for other in range(len(kinds)):
+            if other != index and kinds[other][1 + group] > 0:
+                alone = False
+        if alone:
+            return True
     return False
 
 

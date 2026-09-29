@@ -11,7 +11,8 @@ B2, and its second skeptic). Each is reproduced red at 410841a:
    descriptions;
 2. the open censuses passed no room, so ten `1.5` and ten `2.25` beside
    eighty whole numbers of two spellings published a pool of 20 widths:
-   two widths of ten;
+   two widths of ten -- and at 35898ee the field widths were still asked
+   of nothing: `123` and `4567` on ten rows each beside decimals pooled 20;
 3. a band of marks whose comma warning said "fewer than 11" was silent;
 4. withdrawing the room clause left every producer test green, and no
    test held the loader's day-clock half (D12).
@@ -254,6 +255,58 @@ def _stated(population: int, floor: int, capacities: "list[int]", room: int, gro
     return True
 
 
+def _shown_alone(held: "list[int]", place: int, groups: "list[tuple[int, int, tuple[int, ...]]]") -> bool:
+    """Whether some value can stand on this convention and on no other the reading holds."""
+    for _rows, _spellings, reach in groups:
+        if min(held[place], reach[place]) > 0 and all(
+            min(held[other], reach[other]) == 0 for other in range(len(held)) if other != place and held[other] >= 1
+        ):
+            return True
+    return False
+
+
+def test_the_shown_clause_is_its_statement_on_small_blocks() -> None:
+    """Six hundred seeded small blocks, most values on one convention: the walk with `shown` answers the listing.
+
+    Clause 1 is not asked of a convention some value can stand on alone,
+    and every other clause is as `_stated` lists it.
+    """
+    draw = random.Random("shown, stated")
+    for _ in range(600):
+        floor = draw.choice((2, 3, 4, 5, 6))
+        line = parsing.census_floor(floor)
+        names = draw.choice((2, 3, 4))
+        held = [line - 1] * names
+        population = draw.randint(line, max(line, min(names * (line - 1) + 1, 3 * line)))
+        room = draw.randint(1, names + 1)
+        groups: "list[tuple[int, int, tuple[int, ...]]]" = []
+        left = population
+        for _ in range(draw.randint(0, 3)):
+            if left < 1:
+                break
+            rows = draw.randint(1, min(left, 2 * line))
+            left -= rows
+            alone = draw.randrange(names) if draw.random() < 0.6 else -1
+            reach = tuple(
+                rows if (place == alone or (alone < 0 and draw.random() < 0.7)) else 0 for place in range(names)
+            )
+            groups += [(rows, draw.randint(1, names), reach)]
+        seen = min(room, names)
+        readings = [
+            totals
+            for totals in itertools.product(*[range(most + 1) for most in held])
+            if sum(totals) == population
+            and sum(1 for total in totals if total) <= seen
+            and _packable(totals, [(rows, min(spellings, seen), reach) for rows, spellings, reach in groups])
+        ]
+        stated = all(
+            _shown_alone(held, place, groups) or any(totals[place] == 0 for totals in readings)
+            for place in range(names)
+        ) and all(any(all(total != count for total in totals) for totals in readings) for count in range(1, line))
+        walked = parsing.mixture_pool_holds(population, floor, [99] * names, room, tuple(groups), False, True)
+        assert walked is stated, (population, floor, room, groups)
+
+
 def test_the_pool_rule_is_its_statement_on_small_blocks() -> None:
     """Six hundred seeded small blocks: the walk answers what listing every reading answers.
 
@@ -337,6 +390,119 @@ def test_the_loader_refuses_an_open_pool_its_spellings_pin(cells, key, pool, rul
     assert rule in said and f"all {pool}" in said
 
 
+# THE FIELD WIDTHS (the skeptic of the final fix): 123 and 4567 on ten rows
+# each beside decimals, alone, beside eleven padded `007`, and -- 12 on the
+# nine lowest rows, which the low tail places -- beside 4567 on ten rows no
+# rung reads. Shuffled with `Random(2)`: a sorted column publishes its order.
+FIELDS_BIG = ["5.5"] * 5880 + ["123"] * 10 + ["4567"] * 10 + ["9999.5"] * 100
+FIELDS_PADDED = ["007"] * 11 + ["123"] * 10 + ["4567"] * 10 + ["5.5"] * 70
+FIELDS_PLACED = ["12"] * 9 + ["4567"] * 10 + ["50.5"] * 3000 + ["7000.5"] * 2981
+# 123 on rows the low tail places, beside single values of four widths.
+_SINGLES = ["1000", "1001", "20000", "20001", "300000", "4000000"]
+FIELDS_FULL = ["123"] * 10 + _SINGLES + ["1002", "20002", "300001", "4000001"] + ["150.5"] * 5980
+FIELDS_OPEN = ["123"] * 6 + _SINGLES + ["1002", "1003", "20002", "20003", "300001", "300002", "4000001", "4000002"] + ["150.5"] * 5980
+
+
+def _shuffled(cells: "list[str]") -> "list[str]":
+    mixed = list(cells)
+    random.Random(2).shuffle(mixed)
+    return mixed
+
+
+@pytest.mark.parametrize(
+    "cells,census",
+    (
+        (FIELDS_BIG, {"3": 20}),
+        (FIELDS_PADDED, {"3": 31}),
+        (FIELDS_PLACED, {"2": 19}),
+        (FIELDS_FULL, {"3": 20}),
+    ),
+    ids=("fields-big", "beside-padded", "placed-width", "placed-fills-its-width"),
+)
+def test_a_pool_of_unpadded_widths_its_spellings_pin_is_counted_at_one_width(cells, census) -> None:
+    """Two plain spellings on two widths under eleven: ten each, so no pool.
+
+    An unpadded width is its value's own figures. Beside four spellings,
+    a mode of 5.5 and both tails decimal, the twenty plain cells hold two
+    spellings; one width would have been named, so two widths of ten --
+    and beside `pad_widths {"3": 11}` a reader takes the eleven padded
+    cells off first. Counted at the commonest unpadded width, the
+    narrowest on a tie; where a value a reader places stands on one width,
+    at the commonest such width, so the table writing every plain cell
+    there is one the block allows: `12` is two figures wide, and a band at
+    `4` beside it told a reader the band had spoken. And `123` on ten
+    rows the low tail places fills its width, so ten stands in every
+    reading however the ten single values fall. At 410841a and at
+    35898ee all four pooled.
+    Mutation: `taxonomy._unpadded_band` answering -1 turns all four red;
+    never taking a width every placed value stands at, the third and the
+    fourth; asking no value group, the fourth.
+    """
+    assert _block(_shuffled(cells))["field_widths"] == census
+
+
+@pytest.mark.parametrize(
+    "cells,pool", ((FIELDS_BIG, 20), (FIELDS_PADDED, 31)), ids=("fields-big", "beside-padded")
+)
+def test_the_loader_refuses_a_pool_of_unpadded_widths_its_spellings_pin(cells, pool, tmp_path) -> None:
+    """The same censuses pooled by hand: refused (P6c).
+
+    The unpadded part is the pool less the cells a named padded census
+    counts, over the column's spellings less those outside the pool and
+    those the padded cells certainly hold (`contract._padded_spellings`).
+    Mutation: the P6c entry withdrawn from `contract._closed_pools_bounded`
+    turns both red; `_padded_spellings` answering nought, the second.
+    """
+    document = _document(_shuffled(cells))
+    column = document["columns"][0]
+    column["field_widths"] = {"(withheld)": pool}
+    said = _refusal(document, tmp_path)
+    assert "P6c" in said and "unpadded whole numbers' widths" in said
+
+
+def test_a_pool_of_unpadded_widths_no_reading_pins_stands_beside_a_placed_value() -> None:
+    """`123` on six rows the low tail places, beside fourteen single values: the pool stands.
+
+    The width `123` stands on is written in every reading, but its
+    placement shows that, not the pool, and no count is in every reading.
+    Mutation: clause 1 asked of a width a placed value stands on alone
+    (`parsing._pool_readings` ignoring `shown`) turns it red.
+    """
+    assert _block(_shuffled(FIELDS_OPEN))["field_widths"] == {"(withheld)": 20}
+
+
+def test_a_pool_of_unpadded_widths_whose_placed_values_stand_apart_stands_where_the_room_pins_nothing() -> None:
+    """`7`, `45`, `6789` and `123456`, each on its own rows: no width could hold every one, so the pool stands.
+
+    The tails and the rungs of thirty whole numbers place all four values,
+    each on its own width, so a band at any width is a table no reader of
+    them believes: it says what the pool says, and a twin of it cannot
+    write the listed tails. Four spellings leave four widths of thirty
+    cells under eleven many readings. Taken at the commonest width, the
+    band `{"4": 30}` stood here, and twins of such bands missed their
+    tails at every seed.
+    Mutation: `taxonomy._unpadded_band` taking the commonest width where
+    no width holds every placed value and the room pins nothing turns it
+    red.
+    """
+    cells = ["7"] * 8 + ["45"] * 6 + ["6789"] * 9 + ["123456"] * 7
+    assert _block(_shuffled(cells))["field_widths"] == {"(withheld)": 30}
+
+
+def test_a_width_a_placed_value_stands_on_alone_is_shown_by_the_block() -> None:
+    """Five rows of one value that can stand on the first width only, fifteen free.
+
+    That width is written in every reading, and the value's placement
+    shows it, not the pool; where the caller says so (`shown`) clause 1 is
+    not asked of it, and no count is in every reading, so the pool stands.
+    Mutation: `parsing._pool_readings` asking clause 1 of every kind turns
+    it red.
+    """
+    confined = ((5, 1, (5, 0, 0, 0)),)
+    assert parsing.census_pools(20, LINE, 4, 3, [20] * 4, confined) is False
+    assert parsing.census_pools(20, LINE, 4, 3, [20] * 4, confined, False, True) is True
+
+
 # A sibling, the band of forms: the table with every counted cell written
 # in the band's one form. Four `7`, three `+8` and three `0.25` or `9e0` at
 # a floor of five hold three spellings, so three forms of 4, 3 and 3.
@@ -415,10 +581,36 @@ def test_a_pool_its_room_alone_pins_is_counted_at_one_name() -> None:
     The offsets are asked with no value group, so only their eleven
     spellings bound the pool: eleven offsets under eleven holding 110
     are ten each.
-    Mutation: `parsing.mixture_pool_holds` reading the vocabulary's size
-    for the room turns it red (and the day-clock marks' test beside it).
+    Mutation: the room withdrawn at `taxonomy._offset_counts` turns it
+    red. Reading the vocabulary's size for the room does not: an open
+    census's vocabulary is one name more than its room, so the marks'
+    test below holds that clause.
     """
     assert _block(OFFSETS)["utc_offsets"] == {"+00:00": 110}
+
+
+def _room_alone_column() -> "list[str]":
+    """1234 on twenty rows over two marks among 5,980, shuffled with `Random(11)`."""
+    draw = random.Random(11)
+    cells = ["500"] * 100 + [str(draw.randint(100, 999)) for _ in range(2322)]
+    cells += ["1,234"] * 10 + ["1 234"] * 10
+    cells += [str(draw.randint(10000, 50000)) for _ in range(3538)]
+    draw.shuffle(cells)
+    return cells
+
+
+def test_a_pool_of_marks_its_room_alone_pins_is_counted_under_one_mark() -> None:
+    """Twenty `1234` over two marks, off every rung and not the mode: only the room pins them.
+
+    1234 stands on rows 2,422 to 2,441 of 5,980, between the rows p40 and
+    p41 read, and the mode is 500, so no value group bounds the grouped
+    cells -- their two spellings do: two marks under eleven holding twenty
+    are ten each. Counted under the comma. At 410841a the census was
+    silent (`{}`); with the room clause withdrawn a pool of twenty stood.
+    Mutation: `parsing.mixture_pool_holds` reading the vocabulary's size
+    for the room turns it red.
+    """
+    assert _block(_room_alone_column())["thousands_marks"] == {",": 20}
 
 
 def test_the_loader_refuses_a_pool_of_day_clock_marks_the_column_bounds(tmp_path) -> None:
@@ -453,3 +645,33 @@ def test_a_pool_an_unwritable_end_makes_is_asked_as_the_loader_reads_it() -> Non
     """
     block = _block(["1.5"] * 12 + ["2.375"] + ["1"] * 40 + ["2"] * 47)
     assert block["fraction_widths"] == {"3": 13}
+
+
+@pytest.mark.parametrize(
+    "cells,key,pool",
+    (
+        (_rungs_column(), "thousands_marks", 32),
+        (FRACTIONS, "fraction_widths", 20),
+    ),
+    ids=("mixture", "closed"),
+)
+def test_the_loader_admits_a_pool_its_walk_stops_short_of(cells, key, pool, tmp_path, monkeypatch) -> None:
+    """Two hand pools the loader refuses above load where the walk runs out of steps at once.
+
+    `parsing.mixture_pool_holds` answers what its caller asks where the
+    walk stops short, and the loader asks True at both call sites -- TM1
+    and NS2 (`contract._mixture_pools_bounded`), P6, P6b, P6c, D3 and D12
+    (`contract._closed_pools_bounded`) -- so it refuses only a pool it has
+    shown pinned, and no census the producer counts under one name for a
+    walk stopped short can be refused. A budget of one step stops every
+    walk before it settles; the description is built before it is spent.
+    Mutation: either call site asking False turns its case red.
+    """
+    document = _document(cells)
+    column = document["columns"][0]
+    column[key] = {"(withheld)": pool}
+    if key == "thousands_marks":
+        column["group_separator"] = ""
+    assert _refusal(document, tmp_path) != "accepted"
+    monkeypatch.setattr(parsing, "POOL_SEARCH_STEPS", 1)
+    assert _refusal(document, tmp_path) == "accepted"

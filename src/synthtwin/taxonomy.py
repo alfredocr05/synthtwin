@@ -11551,6 +11551,9 @@ def _width_censuses(
     padded_cells: "list[tuple[_Cell, int, int]]" = []
     plus_cells_padded: "list[tuple[_Cell, int, int]]" = []
     band_pads: "list[_Cell]" = []
+    # The cells the unpadded part counts, each at its own width, and those
+    # a whole-number form took in, at none (`_unpadded_band`).
+    whole_cells: "list[tuple[_Cell, int]]" = []
     for cell in cells.classified:
         if cell.kind != parsing.NUMBER:
             continue
@@ -11563,7 +11566,10 @@ def _width_censuses(
                     padded_cells += [(cell, -1, _least_pad(cell, 0))]
             elif banded and style not in styles and _is_whole(cell):
                 _added_to(unpadded, _least_pad(cell, 1) - 1, 1)
+                whole_cells += [(cell, _least_pad(cell, 1) - 1)]
                 taken = taken - 1
+            elif style not in styles and form in POINT_FREE_STYLES:
+                whole_cells += [(cell, -1)]
             continue
         width = pad_width(cell.numeric_text)
         if style == parsing.STYLE_LEADING_ZERO:
@@ -11574,6 +11580,7 @@ def _width_censuses(
             plus_cells_padded += [(cell, width, _least_pad(cell, width))]
         else:
             _added_to(unpadded, width, 1)
+            whole_cells += [(cell, width)]
     # 1. THE PLUS ROUTE.
     plus_cells = 0
     for width in plus_pads:
@@ -11592,6 +11599,9 @@ def _width_censuses(
             _added_to(unpadded, width, plus_pads[width])
     if counted_plus:
         padded_cells = padded_cells + plus_cells_padded
+    else:
+        for cell, width, _least in plus_cells_padded:
+            whole_cells += [(cell, width)]
     # ...and padded, under a band of the padded form, at the commonest
     # width the padded cells wrote that holds the value, or the narrowest
     # that does.
@@ -11625,6 +11635,20 @@ def _width_censuses(
         _added_to(pads, padded_named, taken)
     elif taken > 0 and form == parsing.STYLE_LEADING_ZERO:
         pooled_fields = True
+    # ...and a pool of the unpadded part its own spellings or placed values
+    # would pin is counted at one width (`_unpadded_band`, the final fix
+    # of follow-up B, its skeptic's field widths).
+    unpadded_band = _unpadded_band(whole_cells, unpadded, floor, cells)
+    if unpadded_band >= 0:
+        absorbed_whole = 0
+        for _cell, width in whole_cells:
+            if width < 0:
+                absorbed_whole += 1
+        total_unpadded = 0
+        for width in unpadded:
+            total_unpadded = total_unpadded + unpadded[width]
+        unpadded = {unpadded_band: total_unpadded + absorbed_whole}
+        taken = taken - absorbed_whole
     unpadded_named = _into_commonest_named(unpadded, line)
     if unpadded_named >= 0 and form in POINT_FREE_STYLES and (
         form != parsing.STYLE_LEADING_ZERO
@@ -11681,6 +11705,106 @@ def _width_censuses(
             return padded_census, {}
         return padded_census, {SUPPRESSED_LABEL: total}
     return padded_census, _absorbed_widths(fields, floor)
+
+
+def _unpadded_band(
+    counted: "list[tuple[_Cell, int]]",
+    unpadded: "dict[int, int]",
+    floor: int,
+    cells: _Cells,
+) -> int:
+    """The width a pool of unpadded whole numbers is counted at, or -1 where it may stand.
+
+    AN UNPADDED WIDTH IS ITS VALUE'S OWN FIGURES, AND ITS POOL WAS ASKED
+    OF NOTHING (the final fix of follow-up B, its skeptic's field widths).
+    `5.5` on 5,880 rows, `123` and `4567` on ten each and `9999.5` on a
+    hundred published `field_widths {"(withheld)": 20}` beside four
+    spellings, a mode of `5.5` and both tails decimal: the twenty plain
+    cells held two spellings, one width would have been named, so two
+    widths of ten. Where no unpadded width reaches the line, the cells
+    the unpadded part counts -- a reader takes them off the forms map and
+    the padded census -- are asked of `parsing.census_pools` as a closed
+    census of the widths up past the widest by the room: their own
+    spellings, each value a reader places (`_placed_values`) on the
+    widths its cells stand at, a cell a whole-number form took in free,
+    and a width a placed value stands on alone shown by the block. Where
+    the pool may not stand, every such cell is counted at the commonest
+    width they wrote at which every placed value stands, the narrowest on
+    a tie -- ruling 6's commonest, which the unpadded cells under the
+    line are already counted into (rule 3 of `_width_censuses`), at a
+    width the table writing every one of them there could hold.
+    WHERE NO SUCH WIDTH EXISTS a band is told apart from a named census
+    by the placed values themselves, so it says what the pool says, and
+    costs the twin the values it cannot write there (28 whole numbers
+    whose listed tails hold `1`, `73` and `938054`, counted at `4`,
+    missed their tails at every seed). The pool stands there unless the
+    room alone pins it, which the loader refuses (P6c); then the
+    commonest width is taken.
+
+    Guarantees: accepts the counted cells with their own widths (-1 for
+    one taken in), the unpadded tally, the settings floor and the
+    column's tally; returns -1 or a width. Determinism: a fixed function
+    of the four. Raises nothing. No I/O of any kind.
+    """
+    line = parsing.census_floor(floor)
+    if len(counted) < line:
+        return -1
+    for width in unpadded:
+        if unpadded[width] >= line:
+            return -1
+    spellings: "dict[str, int]" = {}
+    highest = 1
+    for cell, width in counted:
+        spellings[parsing.trimmed(cell.numeric_text)] = 1
+        highest = max(highest, width, _least_pad(cell, 1) - 1)
+    room = len(spellings)
+    widths = list(range(1, highest + room + 1))
+    placed = _placed_values(cells)
+    rows: "dict[float, int]" = {}
+    worn: "dict[float, dict[str, int]]" = {}
+    stands: "dict[float, dict[int, int]]" = {}
+    for cell, width in counted:
+        value = cell.value
+        if value is None or value not in placed or not math.isfinite(value):
+            continue
+        if value not in rows:
+            rows[value] = 0
+            worn[value] = {}
+            stands[value] = {}
+        rows[value] += 1
+        worn[value][parsing.trimmed(cell.numeric_text)] = 1
+        stands[value][width if width >= 0 else _least_pad(cell, 1) - 1] = 1
+    groups: "list[tuple[int, int, tuple[int, ...]]]" = []
+    for value in sorted(rows):
+        if rows[value] < 2:
+            continue
+        reach: "list[int]" = []
+        for width in widths:
+            reach += [rows[value] if width in stands[value] else 0]
+        groups += [(rows[value], len(worn[value]), tuple(reach))]
+    if parsing.census_pools(
+        len(counted), floor, len(widths), room, [len(counted)] * len(widths),
+        tuple(groups), False, True,
+    ):
+        return -1
+    best = -1
+    anywhere = -1
+    for width in sorted(unpadded):
+        if unpadded[width] < 1:
+            continue
+        if anywhere < 0 or unpadded[width] > unpadded[anywhere]:
+            anywhere = width
+        everyone = True
+        for value in rows:
+            if rows[value] > 1 and width not in stands[value]:
+                everyone = False
+        if everyone and (best < 0 or unpadded[width] > unpadded[best]):
+            best = width
+    if best >= 0:
+        return best
+    if parsing.census_pools(len(counted), floor, 0, room):
+        return -1
+    return anywhere
 
 
 def _into_commonest_named(counts: "dict[int, int]", line: int) -> int:

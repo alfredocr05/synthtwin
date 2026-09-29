@@ -10201,7 +10201,16 @@ names, and the cells that map counted into one of them at that form's
 commonest width**; the unpadded cells at a width, where fewer than the
 line, are counted into the commonest unpadded width at the line; and the
 census is one pool where no unpadded width reaches the line beside
-unpadded cells, or where no width reaches it. Plan P4-D221 left out the
+unpadded cells, or where no width reaches it -- the first only where
+`parsing.census_pools` lets the unpadded cells stand as one (plan
+P4-D356): their own spellings, each value a reader places on the widths
+its cells stand at, a width such a value stands on alone shown by the
+block. Where it may not, the unpadded cells are counted at the commonest
+width every placed value stands at, the narrowest on a tie; where no
+width holds every placed value a band says what the pool says, so the
+pool stands unless the room alone pins it, and then the commonest width
+is taken. Ten `123` and ten `4567` beside decimals held two spellings on
+two widths under eleven, ten each. Plan P4-D221 left out the
 held-back cells whose count or complement named rows (the pool route),
 which no longer arises, since no pool stands beside a named form.
 
@@ -10272,7 +10281,11 @@ column no cell of which was written as a whole number publishes.
 - **P6c.** Every NAMED width's count, and a `(withheld)` count, is at or
   above max(2, `small_cell_floor`) (plan P4-D221, citing the owner
   rulings of 2026-09-17), and a `(withheld)` key stands alone (plan
-  P4-D222).
+  P4-D222). Beside a `pad_widths` that is `{}` or names its widths, the
+  pool less that census's cells stands only where `parsing.census_pools`
+  lets it: no more widths than the column's different spellings less
+  those the cells outside the pool, and the padded ones, certainly hold
+  (plan P4-D356).
   **And at a width `pad_widths` names too, the difference is nought or
   a group** (plan P4-D148, the repair pass of the final Codex review):
   this census's count less `pad_widths`' count at that width — the cells

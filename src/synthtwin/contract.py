@@ -16248,7 +16248,7 @@ def _mixture_pools_bounded(
 def _closed_pools_bounded(
     columns: "tuple[ColumnBlock, ...]", settings: SettingsBlock
 ) -> None:
-    """P6, P6b, D3 and D12: a lone pool of forms, widths, offsets or day-clock marks stands only where the block pins none of it.
+    """P6, P6b, P6c, D3 and D12: a lone pool of forms, widths, offsets or day-clock marks stands only where the block pins none of it.
 
     `parsing.census_pools` asked of what a published block admits (the
     second review and the final fix of follow-up B), as
@@ -16264,8 +16264,11 @@ def _closed_pools_bounded(
     each; ten `1.5` and ten `2.25` pooled 20 widths beside four spellings
     and a mode of 40, two widths of ten. Both are refused.
 
+    The field widths are asked of their unpadded part: the pool less the
+    cells a named padded census counts, over the spellings those leave.
+
     Guarantees: accepts every column and the settings; returns nothing.
-    Raises ProfileError for P6, P6b, D3 and D12. No I/O of any kind.
+    Raises ProfileError for P6, P6b, P6c, D3 and D12. No I/O of any kind.
     """
     floor = settings.small_cell_floor
     line = _census_floor(floor)
@@ -16299,13 +16302,27 @@ def _closed_pools_bounded(
                 (block.numeric_styles, "P6", len(NUMERIC_STYLES), "numbers' forms", block, FORMS_GROUPS),
                 (block.fraction_widths, "P6", 0, "decimals' widths", block, DECIMAL_STYLE),
                 (block.pad_widths, "P6b", 0, "padded numbers' widths", block, LEADING_ZERO_STYLE),
+                (block.field_widths, "P6c", 0, "unpadded whole numbers' widths", block, UNPADDED_WIDTHS),
             ]
         for census, rule, names, thing, numbers, kind in asked:
             if WITHHELD not in census or len(census) != 1:
                 continue
             pool = census[WITHHELD]
             room = column.n_distinct - _spellings_outside(column, numbers, pool, kind)
-            if kind == DECIMAL_STYLE and pool > room * (line - 1):
+            if kind == UNPADDED_WIDTHS and numbers is not None:
+                # THE UNPADDED PART IS ASKED, off the padded census where it
+                # names its widths (the final fix of follow-up B, its
+                # skeptic's field widths): a pool of field widths says no
+                # unpadded width reached the line, and the cells it leaves
+                # beside the padded ones, with their spellings, are what a
+                # reader bounds. Beside a pooled padded census the pool may
+                # be one the padded cells made, and nothing is asked.
+                if WITHHELD in numbers.pad_widths:
+                    continue
+                padded = _added(numbers.pad_widths)
+                pool = pool - padded
+                room = room - _padded_spellings(numbers, padded)
+            if kind in (DECIMAL_STYLE, UNPADDED_WIDTHS) and pool > room * (line - 1):
                 # A POOL OF WIDTHS NO WIDTHS UNDER THE LINE COULD HOLD is
                 # the one a named census gives where its widths cannot
                 # write a published end (P6, plan P4-D222), not one of
@@ -16373,6 +16390,22 @@ def _spellings_outside(
     if inside >= pool:
         outside = max(outside, block.n_distinct_values - fractional)
     return outside
+
+
+# THE FIELD WIDTHS' KIND in `_closed_pools_bounded`: their unpadded part.
+UNPADDED_WIDTHS = "unpadded"
+
+
+def _padded_spellings(block: "NumericFacts", padded: int) -> int:
+    """How many different spellings the padded cells a named padded census counts certainly hold (P6c).
+
+    One per width it names, and at least its cells shared out no more than
+    `mode_count` to a value.
+    """
+    spellings = len(block.pad_widths)
+    if block.mode_count > 0 and padded > 0:
+        spellings = max(spellings, (padded + block.mode_count - 1) // block.mode_count)
+    return spellings
 
 
 # WHICH CENSUS `_published_groups` READS ITS GROUPS FOR, as the producer's
