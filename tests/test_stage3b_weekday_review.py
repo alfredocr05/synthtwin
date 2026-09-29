@@ -841,3 +841,65 @@ def test_a_withholding_is_certified_on_classes_of_one_stretchs_half_of_the_week(
     described, decided = _decided(cells)
     assert described.details["weekday_census"], described.publication_notes
     assert decided.withheld is not None and decided.withheld.holds
+
+
+def _moved(cells: "list[str]", source: str, target: str, rows: int) -> "list[str]":
+    """`cells` with the first `rows` cells written `source` written `target` instead."""
+    left = rows
+    moved: "list[str]" = []
+    for cell in cells:
+        if cell == source and left > 0:
+            cell, left = target, left - 1
+        moved += [cell]
+    return moved
+
+
+def _stage3_facts(described: taxonomy.ColumnProfile) -> str:
+    """Everything a column's description publishes but its weekday census and its sentences."""
+    kept = {key: value for key, value in described.details.items() if key != "weekday_census"}
+    return repr((sorted(kept.items()), described.n_distinct, described.n_present))
+
+
+def test_a_withholding_that_cannot_be_certified_withholds_whatever_the_table_holds() -> None:
+    """Two tables of the same facts, one and thirty rows moved across the week: both withheld; and a certified pair decided by its band.
+
+    Weekly Wednesday sessions, with one row, or thirty, of the Wednesday
+    of 26 July 2023 written on the Sunday before: every fact stage 3
+    publishes is the same, and the withholding's residue has more
+    arrangements a half than its certificate enumerates, so it is not
+    certified and both tables are withheld in the shared sentence
+    (`uncertified`). Taken as certified, the one-row table is withheld
+    inside its band while the thirty-row table, past it, publishes its
+    census. Red when the withholding's certificate alone is withdrawn,
+    its bands kept (the thirty-row table publishes).
+
+    Beside it, the third review's own pair: a weekly Tuesday clinic with
+    one row, or thirteen, of 23 January 2024 moved to the Saturday after.
+    On the repair under review both were withheld, uncertified, for want
+    of a band -- and taken as certified, the one-row table was withheld
+    for want of a grouping, telling a reader the weekend held one to ten
+    rows, while the thirteen-row table published Saturday 13. The band is
+    found and certified now: the one-row table is withheld inside it and
+    the thirteen-row table publishes.
+    """
+    sessions = _weekly_schedule(60)
+    assert {datetime.date.fromisoformat(cell).weekday() for cell in sessions} == {2}
+    assert "2023-07-23" not in sessions and sessions.count("2023-07-26") > 30
+    one, one_said = _decided(_moved(sessions, "2023-07-26", "2023-07-23", 1))
+    thirty, thirty_said = _decided(_moved(sessions, "2023-07-26", "2023-07-23", 30))
+    assert _stage3_facts(one) == _stage3_facts(thirty)
+    for described, decided in ((one, one_said), (thirty, thirty_said)):
+        assert described.details["weekday_census"] == [], decided.reason
+        assert decided.reason == calendar_rules.REASON_UNCERTIFIED and decided.said == calendar_rules.REASON_UNSAID
+    assert [note for note in one.publication_notes if "not counted" in note] == [
+        note for note in thirty.publication_notes if "not counted" in note
+    ]
+
+    clinic = _one_weekday_clinic(3, 16, 1, 600)
+    one, one_said = _decided(_moved(clinic, "2024-01-23", "2024-01-27", 1))
+    thirteen, _thirteen_said = _decided(_moved(clinic, "2024-01-23", "2024-01-27", 13))
+    assert _stage3_facts(one) == _stage3_facts(thirteen)
+    assert one.details["weekday_census"] == [] and one_said.reason == calendar_rules.REASON_BAND
+    assert one_said.withheld is not None and one_said.withheld.holds
+    saturday = [group["count"] for group in thirteen.details["weekday_census"] if group["first"] == 5]
+    assert saturday == [13], thirteen.details["weekday_census"]
