@@ -11,6 +11,7 @@ import dataclasses
 import datetime
 import pathlib
 import random
+import re
 
 import pytest
 
@@ -405,6 +406,97 @@ def test_no_withholding_confines_a_set_of_days() -> None:
     totals = withholding_battery()
     assert totals["withheld_unsound"] == 0 and totals["published_unsound"] == 0, totals
     assert totals["published"] > 0, totals
+
+
+# -- item 3: a report keeps a short count back from its complements too -----------
+
+
+def test_a_missed_weekday_line_gives_no_count_back_by_subtraction(tmp_path: pathlib.Path) -> None:
+    """The gate's missed-weekday file: its report prints no group count a subtraction reaches.
+
+    The battery's admissions, every Sunday strictly between the
+    boundaries moved to the Monday after it but three. On the reviewed
+    tree the report printed present 1000, unparsed 0, tail rows 14 and
+    12 and the six counts Monday to Saturday beside "Sunday fewer than
+    11", and 1000 - 14 - 12 - 971 is 3. Now the line prints no count of
+    any group: Sunday is named short, the others are kept back, so the
+    body less what is printed is no number of a group. Red when the
+    other groups' counts are printed again.
+    """
+    import test_stage3b_gate as gate
+    from synthtwin import quality, validation
+
+    cells = gate._battery_admissions(1000)["admission_date"]
+    described = kpi_shapes.describe(tmp_path, "admissions", "admission_date\n" + "".join(f"{c}\n" for c in cells), 11)
+    block = described.block("admission_date")
+    low = datetime.date.fromisoformat(block["low_tail"]["boundary"])
+    high = datetime.date.fromisoformat(block["high_tail"]["boundary"])
+    kept = 0
+    moved: "list[str]" = []
+    for cell in cells:
+        day = datetime.date.fromisoformat(cell)
+        if low < day < high and day.weekday() == 6:
+            if kept < 3:
+                kept += 1
+            else:
+                day += datetime.timedelta(days=1)
+        moved += [day.isoformat()]
+    outcome = kpi_shapes.measure(described, "admission_date\n" + "".join(f"{c}\n" for c in moved), "moved.csv")
+    [check] = [check for check in outcome.checks if check.fact == "datetime.weekday_census"]
+    assert check.verdict == validation.MISSED
+    assert "Sunday fewer than 11" in check.achieved, check.achieved
+    numbers = [int(word) for word in check.achieved.replace(",", " ").split() if word.isdigit()]
+    assert numbers == [11], check.achieved
+    printed = quality.quality_report(described.loaded, outcome)
+    found = [line for line in printed.splitlines() if "found to hold" in line and "Sunday" in line]
+    assert found and all(re.findall(r"day (\d+)\b", line) == [] for line in found), found
+
+
+def test_naming_the_short_groups_is_withheld_where_it_would_give_a_count_back() -> None:
+    """Beside a total of twelve, one short group holds one: no group is named.
+
+    `_short_counts_pinned` is the rule, asked here of the counts
+    themselves: eleven on Monday and one on Sunday leave the Sunday one
+    and only one value once a reader holds the total, so naming it is
+    withheld; the gate's moved admissions leave Sunday any of one to ten.
+    Red when the short groups are named whatever their total.
+    """
+    from synthtwin import validation
+
+    assert validation._short_counts_pinned([11, 0, 0, 0, 0, 0, 1], [6], 11)
+    assert validation._short_counts_pinned([0, 0, 0, 0, 0, 0, 7], [6], 11)
+    assert not validation._short_counts_pinned([273, 173, 155, 149, 149, 72, 3], [6], 11)
+    assert not validation._short_counts_pinned([30, 5, 0, 0, 0, 0, 4], [1, 6], 11)
+
+
+def test_a_written_form_below_the_line_gives_no_count_back_by_subtraction(tmp_path: pathlib.Path) -> None:
+    """A width census's counts are kept back beside one below the line (the weekday line's sibling).
+
+    600 visits written `mm/dd/yyyy` publish `date_field_widths
+    {padded}`. A file of the same visits with five of them written
+    `m/d/yyyy` holds five cells of a width nobody published: the line for
+    them prints "fewer than 11", and on the reviewed tree the `padded`
+    line printed 595 beside it, while the file's parsed cells, 600, are
+    printed by the lines beside -- 600 less 595 is the five. Now neither
+    prints a count. Red when the complementary rule is withdrawn from the
+    written forms.
+    """
+    draw = random.Random(4)
+    days = [datetime.date(2024, 1, 1) + datetime.timedelta(days=draw.randrange(700)) for _ in range(600)]
+    real = [f"{day.month:02d}/{day.day:02d}/{day.year}" for day in days]
+    described = kpi_shapes.describe(tmp_path, "visits", "visit\n" + "".join(f"{cell}\n" for cell in real), 11)
+    assert list(described.block("visit")["date_field_widths"]) == ["padded"]
+    small = [place for place, day in enumerate(days) if day.month < 10 and day.day < 10][:5]
+    assert len(small) == 5
+    written = [
+        f"{day.month}/{day.day}/{day.year}" if place in small else real[place]
+        for place, day in enumerate(days)
+    ]
+    outcome = kpi_shapes.measure(described, "visit\n" + "".join(f"{cell}\n" for cell in written), "file.csv")
+    widths = [check for check in outcome.checks if check.fact == "datetime.date_field_widths"]
+    shown = {check.subcheck: check.achieved for check in widths}
+    assert shown["widths.unnamed"] == "fewer than 11", shown
+    assert all(not any(ch.isdigit() for ch in text.replace("11", "")) for text in shown.values()), shown
 
 
 def _weekly_clinic(shape: int) -> "list[str]":

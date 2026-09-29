@@ -16832,27 +16832,50 @@ def _weekday_checks(
             bins[weekday] = bins[weekday] + 1
     found = calendar_rules.group_counts(census, bins)
     line = parsing.census_floor(floor)
+    # COMPLEMENTARY, OR NOT AT ALL (review of landing 3b.1, item 3). A
+    # count below the line printed as "fewer than" the line beside every
+    # other group's count gave itself back: the report prints the file's
+    # present cells, its unparsed cells and both tails' rows, and so its
+    # body, and 1,000 less 14 less 12 less the six counts printed was the
+    # Sunday count of 3. So where any group holds one to the line less
+    # one, NO group's count is printed: the short groups say they are
+    # short, and every other group is kept back. And where even which
+    # groups are short would give a count back beside the body -- a body
+    # of twelve with one short group holds one there, the other eleven
+    # on one weekday -- no group is named at all.
+    short = [index for index in range(len(found)) if 0 < found[index] < line]
+    named_short = bool(short) and not _short_counts_pinned(found, short, line)
     asked = ""
     shown = ""
-    dropped = False
     for index in range(len(census)):
         first, last, count = census[index]
         named = _weekday_group_named(first, last)
         between = ", " if index else ""
         asked = f"{asked}{between}{named} {_shown_count(count)}"
         held = found[index]
-        if 0 < held < line:
-            shown = f"{shown}{between}{named} {_below_the_floor(line)}"
-            dropped = True
-        else:
+        if not short:
             shown = f"{shown}{between}{named} {_shown_count(held)}"
+        elif index in short and named_short:
+            shown = f"{shown}{between}{named} {_below_the_floor(line)}"
+        else:
+            shown = f"{shown}{between}{named} {_KEPT_BACK}"
     wanted = [count for _first, _last, count in census]
     note: "tuple[str, ...]" = ()
-    if dropped:
+    if short and named_short:
         note = (
             f"A group this file holds fewer than {line} of is not "
-            "counted out: the description's own floor keeps that number "
-            "back, and the verdict stands without it.",
+            "counted out, and neither is any other group: beside the "
+            "file's own total, the other groups' counts would give that "
+            "number back. The description's own floor keeps it back, and "
+            "the verdict stands without it.",
+        )
+    elif short:
+        note = (
+            f"Some group this file holds fewer than {line} of, and no "
+            "group is counted out or named: beside the file's own total, "
+            "even which groups are short would give such a number back. "
+            "The description's own floor keeps it back, and the verdict "
+            "stands without it.",
         )
     return [
         Check(
@@ -16866,6 +16889,43 @@ def _weekday_checks(
             note,
         )
     ]
+
+
+# What a group's count prints as where another group of the same census
+# holds fewer than the line (`_weekday_checks`).
+_KEPT_BACK = "kept back"
+
+
+def _short_counts_pinned(
+    found: "list[int]", short: "list[int]", line: int
+) -> bool:
+    """Whether naming the short groups would give one of their counts back.
+
+    A reader of the report holds the counts' total (the file's own
+    body, from the lines beside), knows every named short group holds
+    one to `line - 1` and every other group nought or at least `line`.
+    The short groups' total `s` then lies in `[k, k * (line - 1)]`, `k`
+    of them, with `total - s` nought or at least `line` (or nought only,
+    where every group is short); a short count is pinned where those
+    totals leave one group a single possible value.
+
+    Guarantees: accepts the counts, the short groups and the line;
+    returns the answer. Determinism: a function of the three. Raises
+    nothing. No I/O of any kind.
+    """
+    total = sum(found)
+    many = len(short)
+    others = len(found) - many
+    possible: "set[int]" = set()
+    for together in range(many, many * (line - 1) + 1):
+        rest = total - together
+        if rest < 0 or (rest != 0 and (others == 0 or rest < line)):
+            continue
+        for value in range(1, line):
+            left = together - value
+            if (many - 1) <= left <= (many - 1) * (line - 1):
+                possible = possible | {value}
+    return len(possible) <= 1
 
 
 def _weekday_day(text: str) -> int:
@@ -17039,6 +17099,9 @@ def _written_form_checks(
         measured = _map_at(block, key)
         raw = _raw_written_tally(key, cells, facts.parser_family)
         tally = _folded_written_tally(key, raw)
+        # Where each count this census prints stands, for the
+        # complementary rule below (review of landing 3b.1, item 3).
+        printed: "list[tuple[int, int]]" = []
         published_total = 0
         for named in census:
             published_total = published_total + census[named]
@@ -17128,6 +17191,8 @@ def _written_form_checks(
                 shown = _below_the_floor(line)
             if tallied == 0 and named not in measured:
                 shown = _FORM_NOT_NAMED
+            else:
+                printed += [(len(checks), tallied)]
             # A CONVENTION MET AT ITS FLOOR BUT NOT AT ITS COUNT IS NOT HELD
             # (plan P4-D195). A census of several widths was printed HELD on
             # a twin holding 381 and 393 against a published 369 and 381,
@@ -17184,6 +17249,8 @@ def _written_form_checks(
         shown_unnamed = _shown_count(unnamed)
         if 0 < unnamed < line:
             shown_unnamed = _below_the_floor(line)
+        if not exact:
+            printed += [(len(checks), unnamed)]
         checks += [
             Check(
                 name,
@@ -17194,6 +17261,22 @@ def _written_form_checks(
                 shown_unnamed,
             )
         ]
+        # THE SAME SUBTRACTION AS THE WEEKDAY LINE'S (review of landing
+        # 3b.1, item 3, where a review names one site): the counts a width
+        # or a month-name census prints cover the file's parsed cells,
+        # which the lines beside it print, so one below the line printed
+        # "fewer than" the line beside the others printed as numbers gave
+        # itself back. Where one is below the line, none is printed.
+        values = [value for _index, value in printed]
+        short = [place for place in range(len(values)) if 0 < values[place] < line]
+        if short:
+            pinned = _short_counts_pinned(values, short, line)
+            for place in range(len(printed)):
+                index = printed[place][0]
+                text = _KEPT_BACK
+                if place in short and not pinned:
+                    text = _below_the_floor(line)
+                checks[index] = dataclasses.replace(checks[index], achieved=text)
     return checks
 
 
