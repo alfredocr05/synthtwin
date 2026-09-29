@@ -527,7 +527,6 @@ THIRD_BRANCH_CASES = (
     # margin lays out exactly.
     "identifier_layout_packing",
     "plus_padded_field",
-    "pooled_mark_cells",
     "saturated_integers",
     "signed_pads",
     "spread_conventions",
@@ -801,7 +800,6 @@ SEEDS = {
     # repairs took.
     "bare_mark_remainder": 160,
     "plus_padded_field": 161,
-    "pooled_mark_cells": 162,
     "saturated_integers": 163,
     "unpublished_majority_marks": 164,
     "spread_conventions": 165,
@@ -1537,8 +1535,11 @@ BRANCH_PUBLISHED_NUMBERS = 23
 BRANCH_NAMED_COUNTS = 121
 SECOND_BRANCH_PUBLISHED_NUMBERS = 336
 SECOND_BRANCH_NAMED_COUNTS = 370
-THIRD_BRANCH_PUBLISHED_NUMBERS = 1083
-THIRD_BRANCH_NAMED_COUNTS = 339
+# The fifth file at its own generator's line ("proved 979 ... beside
+# 338") once `pooled_mark_cells` left it: the loader refuses a pool beside
+# a named mark (TM1, the review of follow-up B), so no case may carry one.
+THIRD_BRANCH_PUBLISHED_NUMBERS = 979
+THIRD_BRANCH_NAMED_COUNTS = 338
 FOURTH_BRANCH_PUBLISHED_NUMBERS = 864
 FOURTH_BRANCH_NAMED_COUNTS = 270
 # The seventh file's floor was measured again at the repair pass of the
@@ -1567,8 +1568,11 @@ NINTH_BRANCH_PUBLISHED_NUMBERS = 925
 NINTH_BRANCH_NAMED_COUNTS = 445
 # The twelfth and thirteenth again at the repair of the derived end's
 # two divergences, which adds a case to each.
+# The twelfth once more at the review of follow-up B, whose
+# `tail_marks_pooled` pools all forty-four marks rather than naming a
+# comma at thirty-three beside eleven ("proved 754 ... beside 309").
 TENTH_BRANCH_PUBLISHED_NUMBERS = 754
-TENTH_BRANCH_NAMED_COUNTS = 310
+TENTH_BRANCH_NAMED_COUNTS = 309
 ELEVENTH_BRANCH_PUBLISHED_NUMBERS = 944
 ELEVENTH_BRANCH_NAMED_COUNTS = 375
 # The fourteenth, at its own generator's line ("proved 976 ... beside 343").
@@ -3036,27 +3040,13 @@ gen_plus_cells_by_value = gen.plus_cells_by_value
 
 
 def _marks_without_the_bare_remainder(
-    census, published, groupable, floor=gen.CASE_SMALL_CELL_FLOOR, values=None
+    census, published, groupable, floor=gen.CASE_SMALL_CELL_FLOOR, values=None,
+    count=7,
 ):
     """Plan P4-D142's bare remainder withdrawn: the leftover wears the mark."""
-    worn = gen_mark_places(census, published, groupable, floor, values)
+    worn = gen_mark_places(census, published, groupable, floor, values, count)
     return [
         published if groupable[index] and worn[index] == "" else worn[index]
-        for index in range(len(worn))
-    ]
-
-
-def _pool_on_the_published_mark(
-    census, published, groupable, floor=gen.CASE_SMALL_CELL_FLOOR, values=None
-):
-    """Plan P4-D142's pool mark withdrawn: the pool wears the published mark."""
-    named = {gen.mark_written(mark) for mark, _count in gen.named_conventions(
-        census, gen.GROUP_MARK_ORDER
-    )}
-    worn = gen_mark_places(census, published, groupable, floor, values)
-    return [
-        published if groupable[index] and worn[index] and worn[index] not in named
-        else worn[index]
         for index in range(len(worn))
     ]
 
@@ -3312,10 +3302,10 @@ CASE_MUTANTS = {
     ),
     "tail_marks_pooled": Mutant(
         branch="the mark between thousands on a derived end counting a "
-        "census's named marks AND its (withheld) pool (method G5.3b step "
-        "4): a pool is marks below the floor, each on a cell that proves "
-        "one. The mutant counts the named marks alone, as the product "
-        "did, and the low end stays at 1, a cell with no mark in it",
+        "census's (withheld) pool (method G5.3b step 4): a pool is marks "
+        "below the floor, each on a cell that proves one. The mutant "
+        "counts the named marks alone, as the product did, and the low "
+        "end stays at 1, a cell with no mark in it",
         attribute="mark_held",
         replacement=_named_marks_only,
         outcome=CHANGES_THE_CELLS,
@@ -3836,7 +3826,7 @@ CASE_MUTANTS = {
         branch="G6.1's census of marks that is only a pool (plan P4-D352); "
         "the mutant writes every cell with no mark, as the twin did before",
         attribute="marks_of_a_lone_pool",
-        replacement=lambda pool, groupable, floor, values: [""] * len(groupable),
+        replacement=lambda pool, groupable, floor, values, count=7: [""] * len(groupable),
         outcome=CHANGES_THE_CELLS,
     ),
     "trailing_minus_points": Mutant(
@@ -3853,14 +3843,6 @@ CASE_MUTANTS = {
         "which no other case reaches",
         attribute="trailing_style_exchange",
         replacement=lambda count, signed, styles, values, integer_valued: styles,
-        outcome=CHANGES_THE_CELLS,
-    ),
-    "pooled_mark_cells": Mutant(
-        branch="plan P4-D142's pool mark; the mutant writes the pooled "
-        "remainder with the published comma, so the comma count passes the "
-        "published one",
-        attribute="mark_places",
-        replacement=_pool_on_the_published_mark,
         outcome=CHANGES_THE_CELLS,
     ),
     "saturated_integers": Mutant(

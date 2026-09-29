@@ -545,10 +545,15 @@ def test_a_respelled_pooled_cell_is_withheld_because_nothing_can_see_it(
     # is below `2 * max(floor, 3) + 1` and publishes its moments alone
     # (contract TL3), so its twin had no ladder to be spelled from and
     # the subcheck this test is about was withheld for that reason
-    # instead of the one it is here for.
+    # instead of the one it is here for. And the eight decimals were one
+    # value, `1.5`, until the second review of follow-up B: the high tail
+    # holding them on one spelling put the decimals at eight in every
+    # reading of the pool, and the map is counted under `plain` for it
+    # (plan P4-D356), so they are two values of four here.
     values = (
         ["1" for _index in range(10)]
-        + ["1.5" for _index in range(8)]
+        + ["1.5" for _index in range(4)]
+        + ["2.5" for _index in range(4)]
         + ["01" for _index in range(5)]
     )
     described = _describe(

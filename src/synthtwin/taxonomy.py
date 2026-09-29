@@ -9744,12 +9744,22 @@ def _numeric_styles(cells: _Cells) -> dict[str, int]:
     for value in cells.numbers:
         if not math.isfinite(value) or int(value) != value:
             default = parsing.STYLE_DECIMAL
+    # WHAT A READER BOUNDS OF A POOL OF FORMS (the second review of
+    # follow-up B, finding 2): the numbers' own count of different
+    # spellings, a whole-number form only on a whole value, and the values
+    # the block counts (`_forms_bounds`). Ten `007`, ten `+7` and ten `7e0`
+    # published `{"(withheld)": 30}` beside three spellings: three forms
+    # at most, under eleven each, so ten each.
+    room, capacities, groups = _forms_bounds(cells)
     census = parsing.absorbed_census(
         counts,
         total,
         cells.settings.small_cell_floor,
         len(NUMERIC_STYLES),
         default,
+        room,
+        capacities,
+        groups,
     )
     published_counts: dict[str, int] = {}
     for style in NUMERIC_STYLES:
@@ -9758,6 +9768,43 @@ def _numeric_styles(cells: _Cells) -> dict[str, int]:
     if SUPPRESSED_LABEL in census:
         published_counts[SUPPRESSED_LABEL] = census[SUPPRESSED_LABEL]
     return published_counts
+
+
+def _forms_bounds(
+    cells: _Cells,
+) -> "tuple[int, list[int], tuple[tuple[int, int, tuple[int, ...]], ...]]":
+    """What a pool of the six forms lets a reader bound: room, capacities, groups.
+
+    Over the cells the forms map counts: their different spellings, trimmed
+    and not case-folded, because `7e0` and `7E0` are two forms; each form's
+    capacity in `NUMERIC_STYLES` order, a form written only on a whole
+    number (`plain`, `leading_zero`, `leading_plus`) holding no more than
+    the whole values; and `_published_groups` over the same cells.
+
+    Guarantees: accepts the column's tally; returns (room, capacities,
+    groups). Determinism: a fixed function of the tally. Raises nothing.
+    No I/O of any kind.
+    """
+    counted: "list[_Cell]" = []
+    spellings: "dict[str, int]" = {}
+    whole = 0
+    for cell in cells.classified:
+        if cell.kind != parsing.NUMBER:
+            continue
+        counted += [cell]
+        spellings[parsing.trimmed(cell.numeric_text)] = 1
+        if _is_whole(cell):
+            whole += 1
+    capacities: "list[int]" = []
+    for style in NUMERIC_STYLES:
+        capacities += [whole if style in POINT_FREE_STYLES else len(counted)]
+    return (len(spellings), capacities, _published_groups(cells, counted, FORMS_KIND))
+
+
+def _is_whole(cell: _Cell) -> bool:
+    """Whether a numeric cell's value is a whole number, which every form can write."""
+    value = cell.value
+    return value is not None and math.isfinite(value) and int(value) == value
 
 
 def fraction_width(text: str) -> int:
@@ -11685,8 +11732,9 @@ def _group_separator(cells: _Cells) -> str:
        reads as thousands for the same reason as above.
     4. **A POOL THE CENSUS MAY NOT PUBLISH** (plan P4-D352): where no
        mark reaches the line and `thousands_marks` counts every grouped
-       cell under its commonest mark (`_band_commonest`), the majority
-       is asked of the column as that census describes it.
+       cell under one mark (`_mixture_band`), the majority is asked of
+       the column as that census describes it; where that census is
+       silent, no mark is published.
 
     Guarantees: accepts the column's tally; returns a mark of
     `parsing.PUBLISHED_GROUP_MARKS`, "." only under a declared decimal
@@ -11730,11 +11778,12 @@ def _group_separator(cells: _Cells) -> str:
     # eleven nothing here moves.
     if held < parsing.census_floor(cells.settings.small_cell_floor):
         # ...AND WHERE THE CENSUS BESIDE IT COUNTS EVERY GROUPED CELL
-        # UNDER ITS COMMONEST MARK (plan P4-D352), so does this key: a
-        # pool the band refuses is written as that mark, and the majority
-        # is asked of the column as its census describes it.
-        best = _band_commonest(
-            proven, parsing.GROUP_MARKS, cells.settings, len(parsing.GROUP_MARKS)
+        # UNDER ONE MARK (plan P4-D352, and the review of follow-up B), so
+        # does this key: a pool the band refuses is written as that mark,
+        # and the majority is asked of the column as its census describes
+        # it. A census the band leaves silent publishes no mark here.
+        best, _silent = _mixture_band(
+            proven, parsing.GROUP_MARKS, cells, False
         )
         if not best:
             return ""
@@ -11769,8 +11818,8 @@ def _negative_form(cells: _Cells) -> str:
     publishes `minus`. The twin writes every negative in the published
     notation, so a column mixing two is written as its majority, as a
     grouped column is. Where no notation reaches the line and
-    `negative_notations` counts every negative under its commonest
-    notation (`_band_commonest`, plan P4-D352), that notation is published.
+    `negative_notations` counts every negative under one notation
+    (`_mixture_band`, plan P4-D352), that notation is published.
 
     Guarantees: accepts the column's tally; returns one name of
     `parsing.NEGATIVE_FORMS`. Determinism: a fixed function of the
@@ -11786,14 +11835,10 @@ def _negative_form(cells: _Cells) -> str:
         form = parsing.negative_notation(cell.numeric_text)
         counts[form] = counts[form] + 1
         negatives += 1
-    # WHERE THE CENSUS BESIDE IT COUNTS EVERY NEGATIVE UNDER ITS COMMONEST
-    # NOTATION (plan P4-D352), that notation is the majority here too.
-    band = _band_commonest(
-        counts,
-        parsing.NEGATIVE_FORMS,
-        cells.settings,
-        len(parsing.NEGATIVE_FORMS),
-    )
+    # WHERE THE CENSUS BESIDE IT COUNTS EVERY NEGATIVE UNDER ONE NOTATION
+    # (plan P4-D352, and the review of follow-up B), that notation is the
+    # majority here too.
+    band, _silent = _mixture_band(counts, parsing.NEGATIVE_FORMS, cells, True)
     if band:
         return band
     best = parsing.NEGATIVE_MINUS
@@ -11863,61 +11908,280 @@ def census_floor_of(floor: int) -> int:
     return parsing.census_floor(floor)
 
 
-def _band_commonest(
+def _mixture_band(
     counts: "dict[str, int]",
     order: "tuple[str, ...]",
-    settings: Settings,
-    names: int,
-) -> str:
+    cells: _Cells,
+    notations: bool,
+) -> "tuple[str, bool]":
     """The convention a mixture census that may not pool is counted under.
 
     A POOL OF A CLOSED VOCABULARY SAYS EVERY NAME WAS WRITTEN once it
     holds more cells than all but one of them can hold below the line
-    (`parsing.census_pools`, plan P4-D222), and at ``names`` times one
-    less than the line it fixes every name's count below it: seven marks
-    of ten cells each at a floor of eleven published `{"(withheld)": 70}`,
-    which says each mark was written by exactly ten cells. The two
-    mixture censuses never asked that rule while every other closed
-    census did (plan P4-D352). So where NO convention reaches the census
-    floor, the census would pool (a floor above one and at least the
-    line of cells) and `census_pools` refuses the pool, every such cell
-    is counted under the COMMONEST convention the cells wrote, ties to
-    the first in ``order`` -- ruling 6 of 2026-09-17, a spelling below
-    the floor counts into the commonest -- and the majority key the
-    census stands beside reads the same answer, because what depends on
-    a census follows it.
+    (`parsing.census_pools`, plan P4-D222), and at the vocabulary's size
+    times one less than the line it fixes every name's count below it:
+    seven marks of ten cells each at a floor of eleven published
+    `{"(withheld)": 70}`, which says each mark was written by exactly ten
+    cells. So where NO convention reaches the census floor, the census
+    would pool (a floor above one and at least the line of cells) and the
+    pool may not stand, every such cell is counted under ONE convention
+    -- ruling 6 of 2026-09-17, a spelling below the floor counts into the
+    commonest (plan P4-D352) -- and the majority key the census stands
+    beside reads the same answer, because what depends on a census
+    follows it.
+
+    WHAT A READER CAN BOUND, NOT THE VOCABULARY'S SIZE (the review of
+    follow-up B, items 1 and 2). Whether the pool may stand is
+    `parsing.mixture_pool_holds` over `_reader_bounds`: the pooled cells'
+    own count of different spellings, and a trailing minus only on a
+    figure with a point. And the band holds its count back only where the
+    table it describes -- every counted cell written in that one
+    convention -- could be the real one. Measured at a floor of eleven:
+    ten `12.00-` beside nine each of `-12`, `(12)` and `\u221212`, among 111
+    cells of which eleven carry a point, published `{"trailing_minus":
+    37}` beside the forms map, which no table writing 37 negatives with a
+    point can stand beside, so a reader knew the band had spoken, that no
+    notation reached eleven, and so that the commonest held exactly ten.
+    So the band takes the commonest convention EVERY counted cell can be
+    written in (`_reader_bounds`' wearable set: not a trailing minus on a
+    figure with no point, and not a mark whose writing on every grouped
+    cell would move the comma warning's counts), ties to the first in
+    ``order``; where none can, the census is silent -- ``True`` second --
+    which only a census of marks reaches, a written notation other than
+    the trailing minus always being one every negative can wear.
 
     Guarantees: accepts the counts per convention, the enumeration
-    fixing the order, the settings and the size of the closed
-    vocabulary; returns that convention, or "" wherever the census may
-    pool or names a convention of its own. Determinism: a fixed function
-    of the four. Raises nothing. No I/O of any kind.
+    fixing the order, the column's tally and which census this is;
+    returns (the convention, silent): ("", False) wherever a convention
+    reaches the line, the cells are fewer than the line, the floor is one
+    or the pool may stand. Determinism: a fixed function of the four.
+    Raises nothing. No I/O of any kind.
     """
+    settings = cells.settings
     line = _census_floor(settings)
     total = 0
-    written = ""
     for name in order:
         if name not in counts or counts[name] < 1:
             continue
         if counts[name] >= line:
-            return ""
+            return ("", False)
         total = total + counts[name]
+    if total < line or settings.small_cell_floor < 2:
+        return ("", False)
+    capacities, room, wearable, groups = _reader_bounds(cells, notations)
+    if parsing.mixture_pool_holds(
+        total, settings.small_cell_floor, capacities, room, groups
+    ):
+        return ("", False)
+    written = ""
+    for name in order:
+        if name not in counts or counts[name] < 1:
+            continue
+        if wearable is not None and name not in wearable:
+            continue
         if not written or counts[name] > counts[written]:
             written = name
-    if total < line or settings.small_cell_floor < 2:
-        return ""
-    if parsing.census_pools(total, settings.small_cell_floor, names):
-        return ""
-    return written
+    return (written, not written)
+
+
+def _reader_bounds(
+    cells: _Cells, notations: bool
+) -> "tuple[list[int], int, dict[str, int] | None, tuple[tuple[int, int, tuple[int, ...]], ...]]":
+    """What a mixture that holds every convention under the line lets a reader bound.
+
+    Asked only by `_mixture_band`, once no convention reaches the line
+    (the two reviews of follow-up B). Four things, each over the cells the
+    census counts -- every negative, or every cell that proves a mark:
+
+    1. ONE CAPACITY PER CONVENTION of the vocabulary: a trailing minus is
+       read only on figures with a point (`parsing.negative_notation`), so
+       it holds no more cells than carry one; every other convention may
+       hold them all.
+    2. THE ROOM: how many different spellings those cells hold, folded.
+       Two cells wearing two conventions are two spellings, so no reader
+       who counts the column's spellings can see more conventions among
+       them than this, and the published count of different spellings
+       bounds it from above.
+    3. WHICH CONVENTIONS THE BAND MAY TAKE, or None for every one: on
+       the notations, not the trailing minus unless every negative carries
+       a point; on the marks of a column not declared to write a decimal
+       comma, not a mark whose writing on every one of these cells would
+       change how many of them `parsing.comma_reading` reads either way,
+       or as a decimal comma -- the two counts the comma warning publishes.
+    4. THE GROUPS (`_published_groups`): the values whose rows the block
+       publishes or bounds, each with its counted rows, its spellings and
+       what each convention can hold of it.
+
+    Guarantees: accepts the column's tally and which census this is;
+    returns (capacities in the vocabulary's order, room, wearable,
+    groups). Determinism: a fixed function of the two. Raises nothing.
+    No I/O of any kind.
+    """
+    counted: "list[_Cell]" = []
+    for cell in cells.classified:
+        if cell.kind != parsing.NUMBER:
+            continue
+        if notations:
+            if cell.sign == parsing.SIGN_NEGATIVE:
+                counted += [cell]
+            continue
+        refuses, eligible, mark = _grouping_evidence(cell, cells.decimal_comma)
+        if eligible and mark and not refuses:
+            counted += [cell]
+    spellings: "dict[str, int]" = {}
+    for cell in counted:
+        spellings[cell.folded] = 1
+    room = len(spellings)
+    everyone = len(counted)
+    groups = _published_groups(
+        cells, counted, NOTATIONS_KIND if notations else MARKS_KIND
+    )
+    if notations:
+        pointed = 0
+        for cell in counted:
+            if "." in parsing.number_core(cell.numeric_text):
+                pointed += 1
+        capacities = [everyone, everyone, everyone, pointed]
+        if pointed >= everyone:
+            return (capacities, room, None, groups)
+        wearable: "dict[str, int]" = {}
+        for form in parsing.NEGATIVE_FORMS:
+            if form != parsing.NEGATIVE_TRAILING:
+                wearable[form] = 1
+        return (capacities, room, wearable, groups)
+    capacities = [everyone] * len(parsing.GROUP_MARKS)
+    if cells.decimal_comma:
+        return (capacities, room, None, groups)
+    before = _comma_readings([cell.numeric_text for cell in counted])
+    marks: "dict[str, int]" = {}
+    for mark in parsing.GROUP_MARKS:
+        after = _comma_readings(
+            [parsing.with_thousands_mark(cell.numeric_text, mark) for cell in counted]
+        )
+        if after == before:
+            marks[mark] = 1
+    return (capacities, room, marks, groups)
+
+
+# WHICH CENSUS `_published_groups` READS ITS GROUPS FOR: the notations,
+# the marks, or the six forms.
+NOTATIONS_KIND = "notations"
+MARKS_KIND = "marks"
+FORMS_KIND = "forms"
+
+
+def _published_groups(
+    cells: _Cells, counted: "list[_Cell]", kind: str
+) -> "tuple[tuple[int, int, tuple[int, ...]], ...]":
+    """The values whose rows the block publishes or bounds, as `parsing.mixture_pool_holds` reads them.
+
+    THE SECOND REVIEW OF FOLLOW-UP B, FINDING 1. A reader of the whole
+    block bounds one value's spellings as well as the pool's: every other
+    value takes a spelling, so the mode's are at most
+    `n_distinct_folded - (n_distinct_values - 1)`, and its rows are
+    `mode_count`. Measured at a floor of eleven: ten `-12.00` and ten
+    `(12.00)` beside 55 cells of one spelling each published a pool of 30
+    beside `mode -12`, `mode_count 20`, 57 spellings and 56 values, so
+    -12's twenty rows sat on two notations under eleven -- ten each.
+
+    So each group is a set of values a reader can name with a count or a
+    floor under it, taken apart in this order, a value in no two: the
+    published mode (`_mode_published`); then each side's tail
+    (`_tail_positions`) -- every value it holds, whether or not the side
+    lists them, because its rows are published and its distances can
+    name its one value (a mean distance equal to the root-mean-square
+    one), and the heaped end a ladder publishes is its outermost value.
+    For each: the counted cells holding one of its values (at least the
+    rows a reader is told, which is only ever stricter), their different
+    spellings -- folded on the two mixture censuses, trimmed on the forms, where
+    `e` and `E` are two -- and what each convention can hold of them: a
+    trailing minus only its cells with a point, a whole-number form only
+    its whole values. The true spellings are never more than a reader's
+    bound, so the readings asked of are never more than a reader's.
+
+    Guarantees: accepts the column's tally, the counted cells and which
+    census this is (`NOTATIONS_KIND`, `MARKS_KIND`, `FORMS_KIND`);
+    returns one (rows, spellings, capacity per convention) per group
+    holding a counted cell. Determinism: a fixed function of the three.
+    Raises nothing. No I/O of any kind.
+    """
+    floor = cells.settings.small_cell_floor
+    named: "list[list[float]]" = []
+    taken: "dict[float, int]" = {}
+    mode = _mode_published(cells, floor)["mode"]
+    if isinstance(mode, float):
+        named += [[mode]]
+        taken[mode] = 1
+    ordered = sorted(cells.numbers)
+    count = len(ordered)
+    units = parsing.tail_units(floor)
+    percent = parsing.tail_percent(count, units) if count >= units else None
+    if percent is not None:
+        for side_percent, side in ((percent, "low"), (100 - percent, "high")):
+            first, last = _tail_positions(count, side_percent, side)
+            values: "list[float]" = []
+            for place in range(first, last + 1):
+                value = ordered[place]
+                if value not in taken:
+                    values += [value]
+                    taken[value] = 1
+            if values:
+                named += [values]
+    groups: "tuple[tuple[int, int, tuple[int, ...]], ...]" = ()
+    for values in named:
+        members: "dict[float, int]" = {}
+        for value in values:
+            members[value] = 1
+        rows = 0
+        pointed = 0
+        whole = 0
+        written: "dict[str, int]" = {}
+        for cell in counted:
+            if cell.value is None or cell.value not in members:
+                continue
+            rows += 1
+            if kind == FORMS_KIND:
+                written[parsing.trimmed(cell.numeric_text)] = 1
+            else:
+                written[cell.folded] = 1
+            if "." in parsing.number_core(cell.numeric_text):
+                pointed += 1
+            if _is_whole(cell):
+                whole += 1
+        if rows < 1:
+            continue
+        reach: "tuple[int, ...]" = ()
+        if kind == NOTATIONS_KIND:
+            reach = (rows, rows, rows, pointed)
+        elif kind == MARKS_KIND:
+            reach = (rows,) * len(parsing.GROUP_MARKS)
+        else:
+            for style in NUMERIC_STYLES:
+                reach = reach + ((whole if style in POINT_FREE_STYLES else rows),)
+        groups = groups + ((rows, len(written), reach),)
+    return groups
+
+
+def _comma_readings(texts: "list[str]") -> "tuple[int, int]":
+    """How many of these texts `parsing.comma_reading` reads either way, and as a decimal comma."""
+    either = 0
+    decimal = 0
+    for text in texts:
+        reading = parsing.comma_reading(text)
+        if reading == parsing.COMMA_EITHER:
+            either += 1
+        elif reading == parsing.COMMA_DECIMAL:
+            decimal += 1
+    return (either, decimal)
 
 
 def _mixture_census(
     counts: "dict[str, int]",
     order: "tuple[str, ...]",
-    settings: Settings,
+    cells: _Cells,
     populations: "list[int]",
     silent: "dict[str, int]",
-    names: int,
+    notations: bool,
 ) -> "dict[str, int]":
     """One census of a column's MIXED conventions, floored per convention.
 
@@ -11962,9 +12226,10 @@ def _mixture_census(
       -- these censuses have FOUR and SEVEN possible keys, so a pool here
       names no convention, which is exactly the property `decimal_plus`
       lacks and the reason that key may not pool at all -- EXCEPT A POOL
-      OVER MORE CELLS THAN ``names`` LESS ONE CAN HOLD BELOW THE LINE,
-      which would say every convention was written, and is counted under
-      the commonest one instead (`_band_commonest`, plan P4-D352);
+      A READER COULD TELL SOMETHING FROM, which is counted under one
+      convention every such cell can be written in, or leaves the census
+      silent where none can (`_mixture_band`: plan P4-D352 and the review
+      of follow-up B);
     * but a pool that is itself below the floor would name the cells it
       holds as surely as publishing them would, so a census that cannot
       pool safely publishes `(unavailable)` and no number whatever.
@@ -11986,15 +12251,16 @@ def _mixture_census(
     count below the floor.
 
     Guarantees: accepts the counts per convention, the enumeration
-    fixing the key order, the settings, the totals a reader can subtract
-    from, the silent state and the size of the closed vocabulary;
-    returns `{}` where no cell wears a convention and the silent state
-    is empty, a mapping of named conventions, a lone `(withheld)` pool
-    no larger than ``names`` less one hold below the line, or a copy of
-    the silent state. Determinism: the answer depends only on those six,
-    and the keys are built in the enumeration's order. Raises nothing.
-    No I/O of any kind.
+    fixing the key order, the column's tally, the totals a reader can
+    subtract from, the silent state and which census this is; returns
+    `{}` where no cell wears a convention and the silent state is empty,
+    a mapping of named conventions, a lone `(withheld)` pool
+    `parsing.mixture_pool_holds` lets stand, or a copy of the silent
+    state. Determinism: the answer depends only on those six, and the
+    keys are built in the enumeration's order. Raises nothing. No I/O of
+    any kind.
     """
+    settings = cells.settings
     total = 0
     for name in order:
         if name in counts:
@@ -12037,7 +12303,9 @@ def _mixture_census(
     # takes no key S13 reads.
     if pooled < floor or settings.small_cell_floor < 2:
         return dict(silent)
-    band = _band_commonest(counts, order, settings, names)
+    band, hush = _mixture_band(counts, order, cells, notations)
+    if hush:
+        return dict(silent)
     if band:
         return _spoken_or_silent({band: pooled}, populations, settings, silent)
     published[SUPPRESSED_LABEL] = pooled
@@ -12115,10 +12383,10 @@ def _negative_notations(cells: _Cells) -> "dict[str, int]":
     return _mixture_census(
         counts,
         parsing.NEGATIVE_FORMS,
-        cells.settings,
+        cells,
         [negatives],
         {UNAVAILABLE_LABEL: 0},
-        len(parsing.NEGATIVE_FORMS),
+        True,
     )
 
 
@@ -12196,10 +12464,10 @@ def _thousands_marks(cells: _Cells) -> "dict[str, int]":
     return _mixture_census(
         counts,
         parsing.PUBLISHED_GROUP_MARKS,
-        cells.settings,
+        cells,
         [groupable, numeric],
         {},
-        len(parsing.GROUP_MARKS),
+        False,
     )
 
 
@@ -15174,21 +15442,27 @@ def _separator_counts(
     """
     counts: dict[str, int] = {}
     clocks = 0
+    spellings: "dict[str, int]" = {}
     for value in sources:
         name = parsing.datetime_separator(value, format_name)
         if name is None:
             continue
         clocks = clocks + 1
+        spellings[value] = 1
         if name in counts:
             counts[name] = counts[name] + 1
         else:
             counts[name] = 1
+    # NO MORE MARKS THAN THE CLOCKS' OWN DIFFERENT SPELLINGS (the second
+    # review of follow-up B, finding 2): a pool of twenty over two
+    # spellings is two marks of ten, whatever the vocabulary allows.
     return parsing.absorbed_census(
         counts,
         clocks,
         settings.small_cell_floor,
         parsing.separator_names(format_name),
         parsing.SEPARATOR_UPPER_T,
+        len(spellings),
     )
 
 

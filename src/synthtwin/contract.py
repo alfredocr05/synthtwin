@@ -1512,19 +1512,23 @@ INVARIANTS = {
     ),
     "NS2": (
         "every notation the negatives were written in is counted for at "
-        "least two of them and never one, what is left over is either "
-        "nothing or a remainder covering at least two, no more numbers "
-        "are counted than the column says are negative, and what the "
-        "count leaves of those negatives is either nothing or at least two"
+        "least two of them and never one, a notation counted for fewer is "
+        "counted into the commonest one named, so the negatives are held "
+        "back only all together and only where the rest of the block pins "
+        "none of their counts, no more numbers are counted than the "
+        "column says are negative, and what the count leaves of those "
+        "negatives is either nothing or at least two"
     ),
     "TM1": (
         "every mark the grouped numbers were written with is counted for "
-        "at least two of them and never one, what is left over is either "
-        "nothing or a remainder covering at least two, what the count "
-        "leaves of the column's numbers is either nothing or at least two, "
-        "a count that cannot be published is empty rather than "
-        "unavailable, and the one mark the column publishes between its "
-        "thousands is a mark this count names"
+        "at least two of them and never one, a mark counted for fewer is "
+        "counted into the commonest one named, so the grouped numbers are "
+        "held back only all together and only where the rest of the block "
+        "pins none of their counts, what the count leaves of the column's "
+        "numbers is either nothing or at least two, a count that cannot "
+        "be published is empty rather than unavailable, and the one mark "
+        "the column publishes between its thousands is a mark this count "
+        "names"
     ),
     "D14": (
         "a column said to stand at midnight is a column of moments large "
@@ -9281,7 +9285,7 @@ def _written_census(
 def _pool_stands_alone(
     census: "dict[str, int]", rule: str, where: str, what: str
 ) -> None:
-    """D3, P6, P5, P5b and P6c: no pool beside a named count (plan P4-D222).
+    """D3, P6, P5, P5b, P6c, TM1 and NS2: no pool beside a named count (plan P4-D222).
 
     The older spelling censuses count a name below `parsing.census_floor`
     into the commonest named count (`parsing.absorbed_census`), so a pool
@@ -13115,10 +13119,10 @@ def _negative_notations(
     column, whose parts carry no sign, publishes none at all.
 
     Raises ProfileError for a wrong type, an unknown notation, a count
-    below the floor, a lone pool over more negatives than three
-    notations hold below the floor (plan P4-D352), a census larger than
-    the column's negatives and a remainder a reader could take that
-    names fewer than the floor.
+    below the floor, a pool beside a named notation, a lone pool over
+    more negatives than three notations hold below the floor (plan
+    P4-D352), a census larger than the column's negatives and a
+    remainder a reader could take that names fewer than the floor.
     """
     counted = _mixture_census(
         mapping,
@@ -13129,9 +13133,15 @@ def _negative_notations(
         "NS2",
         "negative numbers",
     )
+    # NO POOL BESIDE A NAMED NOTATION (the review of follow-up B, item 3):
+    # the producer counts a notation under the line into the commonest
+    # named one (plan P4-D274), so a pool stands only where none is named,
+    # and beside three named notations it would fix the fourth's count.
+    _pool_stands_alone(counted, "NS2", where, "negative numbers")
     # A POOL NO LARGER THAN THREE NOTATIONS HOLD BELOW THE LINE (plan
     # P4-D352): a larger one says every notation was written, and the
-    # producer counts it under its commonest notation instead.
+    # producer counts it under one notation instead. What the rest of the
+    # block bounds is asked beside the columns (`_mixture_pools_bounded`).
     _census_may_speak(
         counted, "NS2", where, floor, len(parsing.NEGATIVE_FORMS), "negative numbers"
     )
@@ -13175,9 +13185,10 @@ def _thousands_marks(
     is refused for what it is.
 
     Raises ProfileError for a wrong type, an unknown mark, a count below
-    the floor, the unavailable state, a lone pool over more grouped
-    numbers than six marks hold below the floor (plan P4-D352) and a
-    remainder a reader could take that names fewer than the floor.
+    the floor, the unavailable state, a pool beside a named mark, a lone
+    pool over more grouped numbers than six marks hold below the floor
+    (plan P4-D352) and a remainder a reader could take that names fewer
+    than the floor.
     """
     counted = _mixture_census(
         mapping,
@@ -13199,10 +13210,19 @@ def _thousands_marks(
             "the census of marks is said to be unavailable",
             "a census of marks that cannot be published is empty",
         )
+    # NO POOL BESIDE A NAMED MARK (the review of follow-up B, item 3): the
+    # producer counts a mark under the line into the commonest named one
+    # (plan P4-D274), so no description it writes carries one, and five
+    # marks named at sixteen beside `(withheld)` 20 at a floor of eleven
+    # fixed the two unnamed marks at ten each while its twin wrote all
+    # twenty with one mark and validation held.
+    _pool_stands_alone(counted, "TM1", where, "grouped numbers")
     # A POOL NO LARGER THAN SIX MARKS HOLD BELOW THE LINE (plan P4-D352):
     # a larger one says every mark was written -- at seven times one less
     # than the line it fixes each mark's count -- and the producer counts
-    # it under its commonest mark instead. No twin could pool it again.
+    # it under one mark instead. No twin could pool it again. What the
+    # rest of the block bounds is asked beside the columns
+    # (`_mixture_pools_bounded`).
     _census_may_speak(
         counted, "TM1", where, floor, len(parsing.GROUP_MARKS), "grouped numbers"
     )
@@ -16001,6 +16021,250 @@ def _columns(
     return tuple(blocks)
 
 
+def _mixture_pools_bounded(
+    columns: "tuple[ColumnBlock, ...]", settings: SettingsBlock
+) -> None:
+    """TM1 and NS2: a lone pool stands only where the block lets no reader pin it.
+
+    `parsing.mixture_pool_holds`, the producer's own statement, asked of
+    what a PUBLISHED block admits (the two reviews of follow-up B): each
+    convention holds no more than one less than the census floor, a pool
+    shows no more conventions than the column's different spellings, one
+    fewer where any of its cells stand outside the pool, and each value
+    whose rows the block publishes (`_published_groups`) sits on no more
+    conventions than its own spellings can be. The producer asks the
+    same question of the pooled cells' own spellings and rows, which a
+    published block never bounds more tightly, so every description it
+    writes passes here. A pool that does not -- twenty grouped cells
+    beside three different spellings at a floor of eleven, two marks at
+    most and so ten each -- fixes its counts, and is refused.
+
+    Guarantees: accepts every column and the settings; returns nothing.
+    Raises ProfileError for TM1 and NS2. No I/O of any kind.
+    """
+    floor = settings.small_cell_floor
+    line = _census_floor(floor)
+    for column in columns:
+        facts = column.facts
+        blocks: "list[NumericFacts]" = []
+        if isinstance(facts, (NumericFacts,)):
+            blocks += [facts]
+        elif isinstance(facts, (AffixedFacts,)):
+            blocks += [facts.numbers]
+            for wrapper in facts.affix_variants:
+                blocks += [wrapper.numbers]
+        elif isinstance(facts, (CompoundFacts,)):
+            blocks += [facts.numbers]
+        where = f"in the block for the column named '{column.name}'"
+        for block in blocks:
+            for census, rule, names, thing, notations in (
+                (block.thousands_marks, "TM1", len(parsing.GROUP_MARKS), "grouped numbers", False),
+                (block.negative_notations, "NS2", len(parsing.NEGATIVE_FORMS), "negative numbers", True),
+            ):
+                if WITHHELD not in census or len(census) != 1:
+                    continue
+                pool = census[WITHHELD]
+                room = column.n_distinct_folded
+                if column.n_present > pool:
+                    room = room - 1
+                groups = _published_groups(
+                    column,
+                    block,
+                    pool,
+                    names,
+                    NOTATIONS_GROUPS if notations else MARKS_GROUPS,
+                )
+                if not parsing.mixture_pool_holds(
+                    pool, floor, [pool] * names, room, groups
+                ):
+                    raise _broken(
+                        rule,
+                        where,
+                        f"all {pool} {thing} are held back beside "
+                        f"{column.n_distinct_folded} different spellings",
+                        "a pool stands only where any convention could be "
+                        "absent and no count stands in every reading of it, "
+                        "each value the block counts on no more conventions "
+                        f"than its spellings (the line is {line})",
+                    )
+
+
+def _closed_pools_bounded(
+    columns: "tuple[ColumnBlock, ...]", settings: SettingsBlock
+) -> None:
+    """P6 and D12: a lone pool of forms or of day-clock marks stands only where the block pins none of it.
+
+    `parsing.census_pools` asked of what a published block admits (the
+    second review of follow-up B, finding 2), as `_mixture_pools_bounded`
+    asks it of the two mixture censuses: no more forms or marks than the column's
+    different spellings -- not folded, since `7e0` and `7E0` are two forms
+    and `T` and `t` two marks -- one fewer where a present cell stands
+    outside the pool, and on the forms each value the block counts on no
+    more forms than its spellings. The producer asks it of the pooled
+    cells' own spellings and rows. Ten `007`, ten `+7` and ten `7e0` at a
+    floor of eleven pooled 30 beside three spellings, which fixes three
+    forms at ten each, and is refused.
+
+    Guarantees: accepts every column and the settings; returns nothing.
+    Raises ProfileError for P6 and D12. No I/O of any kind.
+    """
+    floor = settings.small_cell_floor
+    line = _census_floor(floor)
+    for column in columns:
+        facts = column.facts
+        where = f"in the block for the column named '{column.name}'"
+        asked: "list[tuple[dict[str, int], str, int, str, tuple[tuple[int, int, tuple[int, ...]], ...], NumericFacts | None]]" = []
+        blocks: "list[NumericFacts]" = []
+        if isinstance(facts, (NumericFacts,)):
+            blocks += [facts]
+        elif isinstance(facts, (AffixedFacts,)):
+            blocks += [facts.numbers]
+            for wrapper in facts.affix_variants:
+                blocks += [wrapper.numbers]
+        elif isinstance(facts, (CompoundFacts,)):
+            blocks += [facts.numbers]
+        elif isinstance(facts, (DatetimeFacts,)):
+            asked += [
+                (
+                    facts.datetime_separators,
+                    "D12",
+                    parsing.separator_names(facts.parser_family),
+                    "values' marks",
+                    (),
+                    None,
+                )
+            ]
+        for block in blocks:
+            asked += [(block.numeric_styles, "P6", len(NUMERIC_STYLES), "numbers' forms", (), block)]
+        for census, rule, names, thing, groups, numbers in asked:
+            if WITHHELD not in census or len(census) != 1:
+                continue
+            pool = census[WITHHELD]
+            room = column.n_distinct
+            if column.n_present > pool:
+                room = room - 1
+            if numbers is not None:
+                groups = _published_groups(column, numbers, pool, names, FORMS_GROUPS)
+            if not parsing.census_pools(pool, floor, names, room, None, groups):
+                raise _broken(
+                    rule,
+                    where,
+                    f"all {pool} {thing} are held back beside "
+                    f"{column.n_distinct} different spellings",
+                    "a pool stands only where any name could be absent and "
+                    "no count stands in every reading of it, each value the "
+                    "block counts on no more names than its spellings "
+                    f"(the line is {line})",
+                )
+
+
+# WHICH CENSUS `_published_groups` READS ITS GROUPS FOR, as the producer's
+# `taxonomy._published_groups` names them.
+MARKS_GROUPS = "marks"
+NOTATIONS_GROUPS = "notations"
+FORMS_GROUPS = "forms"
+
+
+def _published_groups(
+    column: "ColumnBlock",
+    block: "NumericFacts",
+    pool: int,
+    names: int,
+    kind: str,
+) -> "tuple[tuple[int, int, tuple[int, ...]], ...]":
+    """The values a published block counts, as `parsing.mixture_pool_holds` reads them (TM1, NS2, P6).
+
+    The loader's side of `taxonomy._published_groups` (the second review
+    of follow-up B, finding 1): the mode, and each tail that lists its
+    values and does not hold the mode. Each value's spellings are at most
+    the column's less one for every other value -- folded on the two
+    mixture censuses, not folded on the forms -- and its rows inside the pool at
+    least its published rows less the cells that could hold it outside the
+    pool: none on the forms, whose pool is every number; on the notations
+    the negatives the pool leaves; and on the marks every number the
+    statistics used that the pool does not hold, less the whole-written
+    ones whose field is too narrow to write it (`_too_narrow`). Every
+    bound is one the producer's true counts meet, so no group here is
+    stricter than its.
+    """
+    others = block.n_distinct_values
+    named: "list[tuple[int, tuple[float, ...]]]" = []
+    if block.mode is not None and block.mode_count > 1:
+        named += [(block.mode_count, (block.mode,))]
+    if block.tails is not None:
+        for side in (block.tails.low, block.tails.high):
+            if side is None or not side.values:
+                continue
+            if block.mode is not None and block.mode in side.values:
+                continue
+            named += [(side.rows, side.values)]
+    groups: "tuple[tuple[int, int, tuple[int, ...]], ...]" = ()
+    spelled = column.n_distinct if kind == FORMS_GROUPS else column.n_distinct_folded
+    for rows, values in named:
+        outside = 0
+        if kind == NOTATIONS_GROUPS:
+            if max(values) >= 0:
+                continue
+            outside = (
+                block.n_negative - block.n_negative_unrepresentable - pool
+            )
+        elif kind == MARKS_GROUPS:
+            if min(abs(value) for value in values) < 1000:
+                continue
+            outside = _outside_the_marks(block, pool, values)
+        held = rows - max(0, outside)
+        spellings = spelled - (others - len(values))
+        if held > 1:
+            groups = groups + ((held, spellings, (held,) * names),)
+    return groups
+
+
+def _outside_the_marks(
+    block: "NumericFacts", pool: int, values: "tuple[float, ...]"
+) -> int:
+    """How many cells the statistics used could hold one of ``values`` outside a pool of marks.
+
+    Every number used less the pooled cells it certainly used (the pool
+    less every cell it left out), less the whole-written cells whose
+    field is narrower than the least of ``values`` needs: a field under
+    four figures is never grouped, and one of four figures or more may
+    be, so only what the pool cannot hold of those counts.
+    """
+    figures = len(str(int(min(abs(value) for value in values))))
+    narrow, groupable = _too_narrow(block.field_widths, figures)
+    certain = max(0, pool - block.n_left_out_of_statistics)
+    outside = block.n_used_in_statistics - certain - narrow
+    return outside - max(0, groupable - pool)
+
+
+def _too_narrow(widths: "dict[str, int]", figures: int) -> "tuple[int, int]":
+    """Whole-written cells whose field is under ``figures`` wide: under four, and four or more.
+
+    A width census counts a rare width into its commonest
+    (`parsing.absorbed_room`), so what the commonest may have taken in
+    is not counted as too narrow; a pooled census counts nothing.
+    """
+    absorbed, most = parsing.absorbed_room(widths, 2)
+    under = 0
+    groupable = 0
+    for name in sorted(widths):
+        if name == WITHHELD or not name or not all(
+            character in "0123456789" for character in name
+        ):
+            return (0, 0)
+        width = int(name)
+        if width >= figures:
+            continue
+        count = widths[name]
+        if name == absorbed:
+            count = count - most
+        if width < 4:
+            under = under + max(0, count)
+        else:
+            groupable = groupable + max(0, count)
+    return (under, groupable)
+
+
 def _group_marks_agree(
     columns: "tuple[ColumnBlock, ...]", settings: SettingsBlock
 ) -> None:
@@ -16196,6 +16460,8 @@ def _cross_checks(
                 "this table has no column of that name",
             )
     _group_marks_agree(columns, settings)
+    _mixture_pools_bounded(columns, settings)
+    _closed_pools_bounded(columns, settings)
     # AND NOT BESIDE A DECLARATION THAT WOULD SILENCE IT (review item
     # P4-G3-R3-F3). The contract forbids the overlap and nothing
     # enforced it, so a hand-written description could name a column

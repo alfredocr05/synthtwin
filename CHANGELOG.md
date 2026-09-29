@@ -6,6 +6,22 @@ exists).
 
 ## [Unreleased]
 
+### A lone pool stands only where no reader of the whole block pins it (2026-09-28)
+
+**The two reviews of follow-up B** (plan P4-D356). A census that pools
+because no name reaches the line -- marks, notations, forms, the marks
+between day and clock -- stands only where every convention could be
+absent and no count is in every reading the block admits: no more
+conventions than the pooled cells' own spellings, and the mode's and a
+tail's rows on no more conventions than their own spellings
+(`parsing.mixture_pool_holds`, read by the producer and the loader); a
+pool that may not stand is counted under one convention. The loader
+refuses a pool beside a named convention. G6.1 spends a lone pool of
+marks over as few marks as let it stand and no more than the spelling
+count allows, no value filling a mark alone. Held by
+`tests/test_mixture_reader_bounds.py`, whose reader over 300 seeded
+columns finds 25 pinned pools at 2af1f03, 8 at 178bde2 and none now.
+
 ### A count no placement inside the gaps reaches is met past the strata (2026-09-28)
 
 **A tail rank leaves its stratum by the least amount that meets the

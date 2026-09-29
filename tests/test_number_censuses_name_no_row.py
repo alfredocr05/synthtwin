@@ -400,14 +400,22 @@ def test_the_publication_guard_names_no_count_of_one_at_a_floor_of_one(
     assert "before writing anything" in f"{refused.value}"
 
 
-def test_the_publication_guard_lets_a_pool_stand_at_a_floor_of_one(
+def test_the_publication_guard_meets_no_pool_of_ones_at_a_floor_of_one(
     tmp_path: pathlib.Path,
 ) -> None:
-    """S13 as amended, on the writing half: a pool here is the rule working."""
+    """S13 as amended, on the writing half, and what the pool rule leaves of it.
+
+    It pooled five forms of one cell each here, `{"(withheld)": 5}`, the
+    rule working as S13 reads it. But at the line of two a pool of two or
+    more is ones in every reading, a count of one a reader takes without
+    being told which form (plan P4-D356, the second review of follow-up
+    B), so the five are counted under the commonest form the cells wrote,
+    `decimal` first in sorted order on the tie, and the guard lets that.
+    """
     document = _document(tmp_path, 1, ["70", "7.5", "+80", "090", "1.5e2"])
     columns = document["columns"]
     assert isinstance(columns, list)
-    assert columns[0]["numeric_styles"] == {"(withheld)": 5}
+    assert columns[0]["numeric_styles"] == {"decimal": 5}
     profile.check_publication(document)
 
 
@@ -485,9 +493,22 @@ def test_a_wide_run_counted_into_the_decimals_is_no_wide_run(
 def test_a_pooled_forms_map_says_nothing_of_signed_decimals(
     tmp_path: pathlib.Path,
 ) -> None:
-    """Beside a pooled map, `decimal_plus` is unavailable with or without a point."""
-    with_point = _document(tmp_path / "a", 1, ["70", "7.5", "+80", "090", "1.5e2"])
-    without = _document(tmp_path / "b", 1, ["70", "+75", "8.0e1", "090", "1.5E2"])
+    """Beside a pooled map, `decimal_plus` is unavailable with or without a point.
+
+    Ten numbers in each of three forms at a floor of eleven, every one a
+    different value, pool thirty: at a floor of one five forms of one
+    cell each no longer pool, a one being in every reading (plan P4-D356).
+    """
+    with_point = _document(
+        tmp_path / "a", 11,
+        [f"{k}.5" for k in range(10)] + [f"+{20 + k}" for k in range(10)]
+        + [f"0{40 + k}" for k in range(10)],
+    )
+    without = _document(
+        tmp_path / "b", 11,
+        [f"{k}e1" for k in range(1, 11)] + [f"+{20 + k}" for k in range(10)]
+        + [f"0{40 + k}" for k in range(10)],
+    )
     for document in (with_point, without):
         columns = document["columns"]
         assert isinstance(columns, list)

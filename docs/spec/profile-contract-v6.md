@@ -1607,7 +1607,13 @@ too**, on a column, on each part of a composite column and on the
 `numbers` block of a compound or affixed column. Those four censuses
 name no count below `parsing.census_floor` either (P2, P5, P6b, P6c),
 and a pool of theirs is held by P6, P8 and P9c at every floor; the same
-list carries them.
+list carries them. A pool of forms stands only where
+`parsing.census_pools` lets it on what the block bounds, as a pool of the
+two mixture censuses does (plan P4-D356): no more forms than the numbers' own
+spellings, not case-folded, a whole-number form only on a whole value,
+and each value the block counts on no more forms than its spellings. Ten
+`007`, ten `+7` and ten `7e0` published a pool of 30 beside three
+spellings, three forms of ten each.
 
 **Amended by plan P4-D222 (stage 2 closed by the owner rulings of
 2026-09-17), and the list stands.** These six censuses count a name
@@ -6047,8 +6053,10 @@ when the pooled remainder is non-zero. **A `(withheld)` count stands
 ALONE: no mark is named beside it** (plan P4-D220), and **it stands only
 over a population a pool names no one in** (plan P4-D222; stage 2 closed
 by the owner rulings of 2026-09-17; `parsing.census_pools`): fewer
-clock-writing values than the line, or no more than the permitted marks
-less one can hold below it. The permitted marks are the three names, or
+clock-writing values than the line, or where any permitted mark could be
+absent and no count stands in every reading, the clocks writing no more
+marks than their own different spellings, not case-folded (plan
+P4-D356). The permitted marks are the three names, or
 `space` alone on a `month-first-datetime`, `day-first-datetime` or
 `slashed-iso-datetime` column. A pool over more values than that says
 every permitted mark was written, which is the state nought reaches told
@@ -6450,12 +6458,12 @@ consumer off the role name.
 | `integer_valued` | boolean | — | true when every numeric-looking cell is a whole number | EXACT-OBSERVABLE, routed by the published FACT and not by role; REPORT-ONLY only where no stratum that may take a value has a share holding a number a double can represent with anything after the point, which the report then names (A-P4-48, `beyond-whole-steps`) |
 | `n_rows` | integer ≥ 0 | `== n_rows` at the top level | the table's row count, echoed | LOADER-ONLY |
 | `numeric_styles` | object | section 7.5 | how many cells were written in each spelling style, under the floor | EXACT-OBSERVABLE against the recount identity of section 7.5.7 |
-| `group_separator` | string | `""`, `","`, `"."`, a space, `"'"`, U+2019, U+00A0, U+202F or U+2009 | the mark the column writes between thousands. A cell PROVES a mark where it has four or more whole figures, is written `plain`, `leading_plus` or `decimal`, and its whole part reads as groups of three around that one mark, a lone group such as `12,345` or `12 345` included; such a cell carrying no valid grouping is BARE, and accounting brackets and signs are not figures. The commonest proven mark is published where its cells reach the census floor max(2, `small_cell_floor`) AND outnumber every other such cell, bare or grouped with another mark, and no mark is published where a padded or exponent cell holds one. Where no mark reaches that floor and `thousands_marks` counts every grouped cell under the commonest mark (C6-88), the majority is asked of the column as that census counts it (plan P4-D352). That line read the SETTINGS floor until rule W of the stage-3 count inventory (plan P4-D335): one grouped cell among 400 at a floor of one published the mark and named that cell's spelling. On a column named in `settings.forced_decimal_commas` that the declaration reaches, each cell is read with its points and commas exchanged and a proven comma is published as `"."`, the one `42.037,34` writes; the other marks are not exchanged (GS1). `""` otherwise (the stage 2 audit, 2026-09-14; landing 2b.2, 2026-09-15) | EXACT-OBSERVABLE (plan P4-D41) |
-| `negative_form` | string | `"minus"`, `"brackets"`, `"minus_sign"` or `"trailing_minus"` | how the column writes its negative numbers: the hyphen-minus in front, accounting brackets around the figures, the minus sign U+2212 in front, or the hyphen-minus after figures carrying a decimal point (after whole figures it is not read, and NF57 names it). Each numeric cell reading as a negative number counts under the notation it wrote; a notation other than `minus` is published where its cells reach the census floor max(2, `small_cell_floor`) and outnumber every other negative cell together, or where no notation reaches that floor and `negative_notations` counts every negative under it as the commonest (C6-88, plan P4-D352), and `minus` otherwise (NS1; landing 2b.2, the line raised from the settings floor to the census floor by rule W of the stage-3 count inventory, plan P4-D335) | EXACT-OBSERVABLE (plan P4-D41) |
+| `group_separator` | string | `""`, `","`, `"."`, a space, `"'"`, U+2019, U+00A0, U+202F or U+2009 | the mark the column writes between thousands. A cell PROVES a mark where it has four or more whole figures, is written `plain`, `leading_plus` or `decimal`, and its whole part reads as groups of three around that one mark, a lone group such as `12,345` or `12 345` included; such a cell carrying no valid grouping is BARE, and accounting brackets and signs are not figures. The commonest proven mark is published where its cells reach the census floor max(2, `small_cell_floor`) AND outnumber every other such cell, bare or grouped with another mark, and no mark is published where a padded or exponent cell holds one. Where no mark reaches that floor and `thousands_marks` counts every grouped cell under one mark (C6-88), the majority is asked of the column as that census counts it (plan P4-D352), and where that census is silent no mark is published (plan P4-D356). That line read the SETTINGS floor until rule W of the stage-3 count inventory (plan P4-D335): one grouped cell among 400 at a floor of one published the mark and named that cell's spelling. On a column named in `settings.forced_decimal_commas` that the declaration reaches, each cell is read with its points and commas exchanged and a proven comma is published as `"."`, the one `42.037,34` writes; the other marks are not exchanged (GS1). `""` otherwise (the stage 2 audit, 2026-09-14; landing 2b.2, 2026-09-15) | EXACT-OBSERVABLE (plan P4-D41) |
+| `negative_form` | string | `"minus"`, `"brackets"`, `"minus_sign"` or `"trailing_minus"` | how the column writes its negative numbers: the hyphen-minus in front, accounting brackets around the figures, the minus sign U+2212 in front, or the hyphen-minus after figures carrying a decimal point (after whole figures it is not read, and NF57 names it). Each numeric cell reading as a negative number counts under the notation it wrote; a notation other than `minus` is published where its cells reach the census floor max(2, `small_cell_floor`) and outnumber every other negative cell together, or where no notation reaches that floor and `negative_notations` counts every negative under it (C6-88, plans P4-D352 and P4-D356), and `minus` otherwise (NS1; landing 2b.2, the line raised from the settings floor to the census floor by rule W of the stage-3 count inventory, plan P4-D335) | EXACT-OBSERVABLE (plan P4-D41) |
 | `wide_runs` | string | `"none"`, `"canonical"` or `"respelled"` | whether the column's WIDE runs of figures are the text their own values write. A cell is such a run where its CORE — the cell with any surrounding space, accounting brackets, minus sign of the character tables and thousands marks taken off, exactly as section 7.5.4 reads a form off it — is a point-free run of base-ten figures with or without a sign, its form is `plain`, `leading_plus` or `leading_zero`, and its value is at or past 2**53 in either direction — the bound past which more than one run of figures reads back as one double, so that "a spelling of its own value" stops naming a single text. A cell written `leading_zero` IS one, once its pad is read off (landing 2b.16 part 2, plan P4-D107; the defining clause above went on naming two forms while this sentence admitted the third, and that contradiction is repaired in the clause itself by plan P4-D108 rather than left for a re-implementer to resolve): its figures are not its value's figures until the padding comes off, and the leading zeros ARE the padding, because past 2**53 every value is a whole number and the figures a whole number writes never begin with a zero. The split is therefore a fact of the cell's text and NOT of the published width — a column pooling its width under `(withheld)`, or publishing none, is read exactly as one naming `19` — so no census decides it and the producer consults none. Measured before this reading: 800 zero-padded nineteen-wide keys, every cell respelled, published `"none"` and were checked by nothing, and a column of 800 plus-signed PADDED keys, every one canonical, was counted 800 of 800 respelled. `"none"` where fewer such cells than the census floor max(2, `small_cell_floor`) were written — that line read the SETTINGS floor until rule W of the stage-3 count inventory (plan P4-D335), where one wide run among 799 charge amounts at a floor of one published `canonical` and named the form of exactly one cell; `"canonical"` where at least that many were and FEWER than the census floor max(2, `small_cell_floor`) of them are anything but the figures their own values write; `"respelled"` where at least that many were and at least the census floor of them are not. THE LINE BETWEEN THE LAST TWO WORDS IS THE CENSUS FLOOR AND NOT ONE (plan P4-D140, the final Codex review's first BLOCKER): measured with the line at one, 800 canonical keys at a floor of eleven published `"canonical"` and the same column with ONE key respelled into its binary64 neighbour published `"respelled"`, both loading, so a reader who knew the other 799 cells read the last one's spelling off the word. It carries no count and never pools, but the floor holds it as NS1 holds the notation beside it, because the word names the FORM of the cells it is about and below the floor the forms map has pooled that form away: the word is a fact about the column's WRITER, naming no cell, no count and no figure (WR1; landing 2b.13, repaired by plan P4-D91) | EXACT-OBSERVABLE (plan P4-D90) |
 | `decimal_plus` | object | `{}`, `{"+": n}` with n ≥ max(2, `small_cell_floor`), or `{"(unavailable)": 0}` | how many cells written with a point carried a plus in front, which the first-match ladder files under `decimal`. `{}` only where the column wrote no cell with a point at all; `{"+": n}` only where n reaches the census floor AND the cells with a point that carried no plus are nought or reach it too; `{"(unavailable)": 0}` otherwise, which is the one state nought and every below-floor count share. Both halves are the disclosure rule every census of this section is held to, stated once as `parsing.census_nameable` (plan P4-D140): every printed count reaches the census floor, and so does every complement a reader can take from a total, or it is nought. It never pools: `+` is this census's only category, so a `(withheld)` remainder beside it would name the category it held back. The total is no more than the cells the forms map can place in `decimal` (DP1; landing 2b.2, amended by landing 2b.7) | EXACT-OBSERVABLE (plan P4-D41, P4-D65.1) |
-| `negative_notations` | object | `{}`, or a map of `"minus"`, `"brackets"`, `"minus_sign"` and `"trailing_minus"` to counts ≥ max(2, `small_cell_floor`) with an optional `"(withheld)"` remainder of at least that, or `{"(unavailable)": 0}` | how many of the column's negative cells wore each notation, counted over the cells `negative_form` is counted over and under the notation each wrote. `negative_form` publishes the MAJORITY and the twin used to write every negative that way, so a column mixing two came back written wholly as one; this census carries the mixture and the generator spends it cell by cell. A notation used by fewer cells than the census floor is counted into the commonest named one, and where none reaches the floor they are pooled, a pool that is itself below the floor making the whole census unavailable and one over three times one less than the floor counted under the commonest notation instead (C6-88, plan P4-D352); so does a census whose printed counts leave of the column's negatives a remainder neither nought nor at the census floor (P4-D140), which every negative wearing exactly one notation makes nought by construction. `{}` where the column has no negative cell, and on a position of a `joined_numbers` column (NS2; landing 2b.7) | EXACT-OBSERVABLE (plan P4-D65.2) |
-| `thousands_marks` | object | `{}`, or a map of the marks `group_separator` may publish other than `""` to counts ≥ max(2, `small_cell_floor`) with an optional `"(withheld)"` remainder of at least that, a lone one holding at most 6 × (census floor − 1) (C6-88, plan P4-D352) | how many of the column's grouped cells wore each mark, counted over the cells that PROVE a mark by `group_separator`'s own evidence rule — ONE rule, asked of each cell once for both keys, so a declared decimal comma that proves a point for the one proves it for the other (plan P4-D141) — and read in the column's own grammar, so a declared decimal comma counts the point it writes. A BARE groupable cell names no mark, but it IS counted by the disclosure rule: the census is published only where its counts, its remainder, and what it leaves of the groupable cells AND of every number of the column each reach the census floor or are nought (plan P4-D140; measured without the groupable clause, 1,200 grouped prices at a floor of eleven with one rewritten bare published `{",": 1199}` beside a row count of 1,200). Where the rule refuses, and wherever a cell refuses `group_separator` its mark, the census is `{}` — the state a column in which no cell proves a mark reaches, so nought and a count below the floor are one published state — and never `{"(unavailable)": 0}`. Where the column publishes a mark of its own, a non-empty census names that mark. `{}` on a position of a `joined_numbers` column (TM1; landing 2b.7) | EXACT-OBSERVABLE (plan P4-D65.2) |
+| `negative_notations` | object | `{}`, a map of `"minus"`, `"brackets"`, `"minus_sign"` and `"trailing_minus"` to counts ≥ max(2, `small_cell_floor`), a lone `"(withheld)"` pool of at least that, or `{"(unavailable)": 0}` | how many of the column's negative cells wore each notation, counted over the cells `negative_form` is counted over and under the notation each wrote. `negative_form` publishes the MAJORITY and the twin used to write every negative that way, so a column mixing two came back written wholly as one; this census carries the mixture and the generator spends it cell by cell. A notation used by fewer cells than the census floor is counted into the commonest named one, and where none reaches the floor they are pooled, a pool that is itself below the floor making the whole census unavailable and one the rest of the block would let a reader pin counted under one notation instead (C6-88, plans P4-D352 and P4-D356); so does a census whose printed counts leave of the column's negatives a remainder neither nought nor at the census floor (P4-D140), which every negative wearing exactly one notation makes nought by construction. `{}` where the column has no negative cell, and on a position of a `joined_numbers` column (NS2; landing 2b.7) | EXACT-OBSERVABLE (plan P4-D65.2) |
+| `thousands_marks` | object | `{}`, a map of the marks `group_separator` may publish other than `""` to counts ≥ max(2, `small_cell_floor`), or a lone `"(withheld)"` pool of at least that holding at most 6 × (census floor − 1) (C6-88, plans P4-D352 and P4-D356) | how many of the column's grouped cells wore each mark, counted over the cells that PROVE a mark by `group_separator`'s own evidence rule — ONE rule, asked of each cell once for both keys, so a declared decimal comma that proves a point for the one proves it for the other (plan P4-D141) — and read in the column's own grammar, so a declared decimal comma counts the point it writes. A BARE groupable cell names no mark, but it IS counted by the disclosure rule: the census is published only where its counts, its remainder, and what it leaves of the groupable cells AND of every number of the column each reach the census floor or are nought (plan P4-D140; measured without the groupable clause, 1,200 grouped prices at a floor of eleven with one rewritten bare published `{",": 1199}` beside a row count of 1,200). Where the rule refuses, and wherever a cell refuses `group_separator` its mark, the census is `{}` — the state a column in which no cell proves a mark reaches, so nought and a count below the floor are one published state — and never `{"(unavailable)": 0}`. Where the column publishes a mark of its own, a non-empty census names that mark. `{}` on a position of a `joined_numbers` column (TM1; landing 2b.7) | EXACT-OBSERVABLE (plan P4-D65.2) |
 | `fraction_widths` | object | C6-28 to C6-30 below | how many `decimal`-styled cells were written at each fraction width, under the floor | EXACT-OBSERVABLE, under the producer obligation FW-P |
 | `pad_widths` | object | C6-27b to C6-30b below | how many PADDED cells wrote each field width, under the floor: every `leading_zero`-styled cell, and every `leading_plus` cell whose figures begin with a redundant zero (plan P4-D145), except in the two cases C6-28b names, where the census writes what a column with no plus-signed padded cell writes (plans P4-D145 as amended and P4-D148) | EXACT-OBSERVABLE, under the producer obligation PW-P |
 | `field_widths` | object | C6-27c to C6-30c below | how many cells written as a WHOLE NUMBER — padded or not — wrote each field width, under the floor, a width pooled where what it leaves beside `pad_widths` would be a count below the census floor (P6c, plan P4-D148) | REPORT-ONLY, under the producer obligation XW-P |
@@ -6885,13 +6893,15 @@ that map's `(withheld)` remainder; it is `{}` on a position of a
 
 **Invariant NS2 (the notations a negative wore)** (landing 2b.7).
 `negative_notations` names a notation of `negative_form`'s own four only
-with a count of at least the census floor, pools what is left under
-`(withheld)` only at that floor and only where `small_cell_floor` is
-above one — below which C5-S13 leaves nothing to hold back — and carries
-`{"(unavailable)": 0}` where it can do neither. The counts together are
-no more than `n_negative`. A census that is only a pool holds at most
-three times one less than the census floor (plan P4-D352), for TM1's
-reason. It is `{}` on a position of a `joined_numbers` column.
+with a count of at least the census floor, pools under `(withheld)` only
+where it names none, only at that floor and only where
+`small_cell_floor` is above one — below which C5-S13 leaves nothing to
+hold back — and carries `{"(unavailable)": 0}` where it can do neither.
+The counts together are no more than `n_negative`. A census that is only
+a pool holds at most three times one less than the census floor (plan
+P4-D352), and no more than one notation fewer than the column's
+different spellings allow could hold (plan P4-D356), for TM1's reason.
+It is `{}` on a position of a `joined_numbers` column.
 
 **Invariant TM1 (the marks a grouped number wore)** (landing 2b.7,
 amended by plan P4-D140). `thousands_marks` names a mark
@@ -6899,14 +6909,18 @@ amended by plan P4-D140). `thousands_marks` names a mark
 pooling as NS2 does, but it NEVER carries `{"(unavailable)": 0}`: where
 it cannot speak it is `{}`, the state a column no cell of which proves a
 mark reaches, so a reader cannot tell nought from a count below the
-floor. What its total leaves of `n_numeric` is nought or at least the
-census floor. Where `group_separator` publishes a mark and the census
-names any, it names that mark: a majority the mixture does not carry is
-a majority no cell proved; that clause is read after GS1. A census that
-is only a pool holds at most six times one less than the census floor
-(plan P4-D352): a larger one says every mark was written, so the producer
-counts it under the commonest mark and no twin could write it again. It
-is `{}` on a position of a `joined_numbers` column.
+floor. It pools only where it names no mark. What its total leaves of
+`n_numeric` is nought or at least the census floor. Where
+`group_separator` publishes a mark and the census names any, it names
+that mark: a majority the mixture does not carry is a majority no cell
+proved; that clause is read after GS1. A census that is only a pool
+holds at most six times one less than the census floor (plan P4-D352):
+a larger one says every mark was written, so the producer counts it
+under one mark and no twin could write it again; and no more than one
+mark fewer than the column's different spellings allow could hold --
+one fewer again where any cell stands outside the pool -- since two
+cells wearing two marks are two spellings (plan P4-D356). It is `{}` on
+a position of a `joined_numbers` column.
 
 ---
 
@@ -9768,12 +9782,37 @@ ALL BUT ONE CONVENTION HOLD BELOW THE FLOOR** -- three notations, six
 marks, each times one less than the floor -- would say every convention
 was written, and at four or seven times it fixes each one's count below
 the floor: seven marks of ten cells at a floor of eleven published
-`{"(withheld)": 70}`. There the census names the COMMONEST convention the
-cells wrote with every such cell, the first in the key order on a tie,
-and `negative_form` and `group_separator` are read from the column as that
-census counts it (plan P4-D352: ruling 6 of 2026-09-17, a spelling below
-the floor counts into the commonest, asked of these two censuses as
-`parsing.census_pools` asks it of every other closed one). At
+`{"(withheld)": 70}`. There the census names ONE convention with every
+such cell, and `negative_form` and `group_separator` are read from the
+column as that census counts it (plan P4-D352: ruling 6 of 2026-09-17, a
+spelling below the floor counts into the commonest, asked of these two
+censuses as `parsing.census_pools` asks it of every other closed one).
+**WHAT THE REST OF THE BLOCK BOUNDS, NOT THE VOCABULARY'S SIZE** (plan
+P4-D356, the two reviews of follow-up B). A pool stands only where, over
+every reading the block admits, any one convention could be absent and
+no count stands in every reading (`parsing.mixture_pool_holds`): a reader
+sees no more conventions than the pooled cells' different spellings,
+since two cells wearing two conventions are two spellings, a trailing
+minus on no more cells than carry a point, and each value whose rows the
+block publishes -- the mode, a tail's values -- on no more conventions
+than its own spellings. Ten `1,234`, ten `1 234` and eighty `12`
+published `{"(withheld)": 20}` beside three different spellings, so the
+pool held two marks, both at ten; ten `-12.00` and ten `(12.00)` beside
+55 cells of one spelling each published a pool of 30 beside `mode -12`,
+`mode_count 20`, 57 spellings and 56 values, so -12's twenty rows sat on
+two notations of ten. How many conventions were written is not asked:
+it names none and counts none. And the
+one convention is the commonest the cells wrote that EVERY such cell can
+be written in, the first in the key order on a tie -- not a trailing
+minus unless every negative carries a point, and not a mark whose
+writing on every such cell would move either count of the comma warning
+(NF44) -- because a census no table writing every cell that way could
+publish beside the rest of the block tells a reader that no convention
+reached the floor: ten `12.00-` beside nine each of three other notations
+and a forms map with eleven cells written with a point published
+`{"trailing_minus": 37}`, and fixed the trailing minuses at ten. Where no
+convention can be taken the census is silent, which only a census of
+marks reaches. At
 `small_cell_floor` of one nothing may be pooled (C5-S13) and the
 unavailable state stands instead. The complement clause of the owner's
 twin definition is ASKED and not assumed (plan P4-D140, which withdraws
@@ -9790,10 +9829,11 @@ the checker all read it.
 
 **C6-89 (disposition).** Both EXACT-OBSERVABLE (plan P4-D65.2). **The
 twin writes each named convention on that many cells**, spending the
-census cell by cell as generation method G6.1 states; a pooled remainder
-is written with a mark the census does not name, a census of marks that is
-only a pool is written over the seven marks each on fewer cells than the
-census floor (method G6.1), and the groupable cells
+census cell by cell as generation method G6.1 states; a census of marks
+that is only a pool is written over the seven marks each on fewer cells
+than the census floor, or over as many as the published count of
+different spellings leaves room for and never fewer than the pool needs
+to be pooled again (method G6.1, plan P4-D356), and the groupable cells
 left over are written BARE wherever at least the census floor of them
 are left, since the census is published beside no smaller bare remainder
 (plan P4-D142). The quality report compares each named convention —
@@ -11713,8 +11753,8 @@ that has an exact published answer beside it.
 | NS1 | `negative_form` other than `"minus"` only where `n_negative` ≥ max(2, `small_cell_floor`), the CENSUS FLOOR (rule W of the stage-3 count inventory, plan P4-D335: the word names the form of the cells it is about, so one cell moving it tells a reader who knows every other cell what that cell wrote) | yes |
 | WR1 | `wide_runs` is one of `"none"`, `"canonical"` and `"respelled"`, and anything but `"none"` only where the point-free counts of `numeric_styles` — `plain`, `leading_plus` and `leading_zero` — plus its `(withheld)` remainder leave room for at least max(2, `small_cell_floor`) cells, the CENSUS FLOOR since plan P4-D335 (the third form added by landing 2b.16 part 2, plan P4-D107; without it a padded column's own producer wrote a description this loader refused). It carries no count and never pools, and the floor holds it for the reason NS1 holds `negative_form` (plan P4-D91) | yes |
 | DP1 | `decimal_plus` names `+` only at ≥ max(2, `small_cell_floor`) and never pools, carrying `{"(unavailable)": 0}` where it cannot name a count; its total ≤ the `decimal` count of `numeric_styles` plus its `(withheld)` remainder, and where that count is named what `+` leaves of it is nought or at least max(2, `small_cell_floor`) (plan P4-D140); `{}` on a position of a `joined_numbers` column | yes |
-| NS2 | `negative_notations` names a notation only at ≥ max(2, `small_cell_floor`), counts a notation below that line into the COMMONEST NAMED one (plan P4-D274: with no such absorption `n_negative 12` beside `negative_form brackets` and `{"(unavailable)": 0}` proved eleven bracketed cells and one other notation), pools under `(withheld)` only where no notation reaches the line and only where `small_cell_floor` > 1, else `{"(unavailable)": 0}`; a lone `(withheld)` pool holds at most 3 × (census floor − 1) (plan P4-D352); its total ≤ `n_negative`, and what it leaves of `n_negative` less `n_negative_unrepresentable` is nought or at least max(2, `small_cell_floor`) (plan P4-D140); `{}` on a position of a `joined_numbers` column | yes |
-| TM1 | `thousands_marks` names a mark other than `""` on NS2's counting terms, never carries `(unavailable)` — a census that cannot speak is `{}` — leaves of `n_numeric` nought or at least max(2, `small_cell_floor`), and names whatever mark `group_separator` publishes wherever it names any (that last clause asked after GS1, plan P4-D140); a lone `(withheld)` pool holds at most 6 × (census floor − 1) (plan P4-D352); `{}` on a position of a `joined_numbers` column | yes |
+| NS2 | `negative_notations` names a notation only at ≥ max(2, `small_cell_floor`), counts a notation below that line into the COMMONEST NAMED one (plan P4-D274: with no such absorption `n_negative 12` beside `negative_form brackets` and `{"(unavailable)": 0}` proved eleven bracketed cells and one other notation), pools under `(withheld)` only where no notation reaches the line, never beside a named one, and only where `small_cell_floor` > 1, else `{"(unavailable)": 0}`; a lone `(withheld)` pool holds at most 3 × (census floor − 1) (plan P4-D352) and stands only where `parsing.mixture_pool_holds` holds with the room `n_distinct_folded` less one where the column has a present cell outside the pool, and with the mode and each tail listing its values but not the mode as a value of that many rows, less those a negative outside the pool could hold, on no more notations than `n_distinct_folded` less one per other value (plan P4-D356); its total ≤ `n_negative`, and what it leaves of `n_negative` less `n_negative_unrepresentable` is nought or at least max(2, `small_cell_floor`) (plan P4-D140); `{}` on a position of a `joined_numbers` column | yes |
+| TM1 | `thousands_marks` names a mark other than `""` on NS2's counting terms, never carries `(unavailable)` — a census that cannot speak is `{}` — leaves of `n_numeric` nought or at least max(2, `small_cell_floor`), and names whatever mark `group_separator` publishes wherever it names any (that last clause asked after GS1, plan P4-D140); it pools nothing beside a named mark, and a lone `(withheld)` pool holds at most 6 × (census floor − 1) (plan P4-D352) and stands only where `parsing.mixture_pool_holds` holds with NS2's room and values of at least 1,000, their rows less those a number the statistics used could hold outside the pool -- a whole-written field too narrow for the value never can (plan P4-D356); `{}` on a position of a `joined_numbers` column | yes |
 
 #### The U family — `numeric_unrepresentable`
 
@@ -11750,7 +11790,7 @@ it answers to.
 | D9 | every key of `utc_offsets`, and both endpoint offset fields, are `(none)` or `(withheld)` unless `resolution` is `datetime` AND `format` is an ISO member; under D1 that reaches every format member but TWO — only `iso-datetime` and `iso-mixed` may carry an offset at all, because the three slashed stamp members take a clock in the `time_of_day` role's two forms and no offset (review item P4-DATE5-F4; landing 2b.3) | yes |
 | D10 | where `resolution` is `datetime`, the seconds field of every moment a tail publishes — its `boundary` and each entry of its `values` — is `00` when `time_precision` is `minute`, and is not `60` when `datetimes_read_at` is `utc`. The calendar's edge is method G7.3e's obligation on the generator since stage 3, no end being published | yes — the loader holds the moments and the clock |
 | D11 | the ladder around its tails: `min` and `max` are `null`; an interior rung at percent `c` is `null` exactly where its rank `floor((P - 1) * c / 100)` lies below `low_tail.rows` or above `P - 1 - high_tail.rows`, and exactly where there are no tails; a published rung read off a boundary's own rank IS that boundary; every published rung lies between the two boundaries | yes — the loader holds `P`, the two `rows` and the floor |
-| D12 | every key of `datetime_separators` is `upper_t`, `space`, `lower_t` or `(withheld)`; every key other than `(withheld)` maps to a count at least the floor and never below two, and `(withheld)` appears only when the pooled remainder is non-zero; a `(withheld)` count stands alone, with no mark named beside it (plan P4-D220), and only over a population `parsing.census_pools` lets a pool stand on -- fewer values than the line, or no more than the permitted marks less one hold below it (plan P4-D222; stage 2 closed by the owner rulings of 2026-09-17) | yes |
+| D12 | every key of `datetime_separators` is `upper_t`, `space`, `lower_t` or `(withheld)`; every key other than `(withheld)` maps to a count at least the floor and never below two, and `(withheld)` appears only when the pooled remainder is non-zero; a `(withheld)` count stands alone, with no mark named beside it (plan P4-D220), and only over a population `parsing.census_pools` lets a pool stand on -- fewer values than the line, or any permitted mark absent in one reading and no count in every reading (plan P4-D222; stage 2 closed by the owner rulings of 2026-09-17), with the room `n_distinct` less one where the column has a present cell outside the pool (plan P4-D356) | yes |
 | D13 | `datetime_separators` is `{}` where `resolution` is not `datetime`; on a datetime column whose `format` is not `iso-mixed` its values sum to `n_present - n_unparsed`, and on `iso-mixed` to `resolution_mix["iso-datetime"]`; a `month-first-datetime`, `day-first-datetime` or `slashed-iso-datetime` column carries only `space` or `(withheld)` | yes |
 | D14 | `all_at_midnight` is `true` only where `resolution` is `datetime`, `n_present - n_unparsed` is at least the floor, every moment the block publishes — both boundaries, every value a tail lists and every published rung — stands at midnight under some offset `utc_offsets` names, and on the `utc` clock no offset is pooled; a `false` is never refused, because the canonical form drops the fraction (MN-P) | yes |
 | DT1 | a tail is `null` or a block of exactly `boundary`, `rows`, `mean_distance`, `rms_distance` and `values`, publishing either both distances and no values, or NEITHER distance and no values (plan P4-D349), or its values with at most its mean beside them | yes |

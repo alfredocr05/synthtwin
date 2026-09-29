@@ -382,7 +382,7 @@ def test_a_pool_that_would_name_every_convention_counts_under_the_commonest(
     ten. The census now names the commonest mark with all seventy -- the
     first in the contract's order on a tie -- the majority key follows it,
     and the twin and the real table both meet the description.
-    Mutation, run: `_band_commonest` answering "" -- the pool comes back.
+    Mutation, run: `_mixture_band` answering no convention -- the pool comes back.
     """
     first, second, _written, twin_exit, real_exit = _round_trip(tmp_path, cells, flags, seed="0")
     assert first[fact] == census and first[majority] == word
@@ -532,9 +532,11 @@ def _trailing_negatives(seed: int, trailing: int, brackets: int, minus: int, sig
 # keep a point on as many negatives as the census counts under it (the
 # second skeptic of plan P4-D352). (name, cells, census).
 TRAILING = (
-    # the band counted under its commonest, a trailing minus, beside
-    # twenty-seven whole-number negatives
-    ("band-beside-whole", _trailing_negatives(601, 10, 9, 9, 9, 130), {"trailing_minus": 37}),
+    # the band counted under its commonest, a trailing minus, every
+    # negative carrying a point. Beside twenty-seven whole-number negatives
+    # the band is counted under the hyphen-minus instead, which every one
+    # can wear (the review of follow-up B, item 1): that shape,
+    # `band-beside-whole`, is held in tests/test_mixture_reader_bounds.py.
     ("band-all-points", _trailing_negatives(602, 10, 9, 9, 9, 130, whole_others=False),
      {"trailing_minus": 37}),
     # the named controls
@@ -569,10 +571,12 @@ def test_the_twin_writes_as_many_trailing_minuses_as_the_census_counts(
     At e294a82 the two band shapes and the two named ones beside no
     whole value wrote 0 or 1 trailing minus, missing both notation checks
     at every seed, and the whole-valued one 34 of 37. Mutations, each
-    run: `_trailing_owed` answering nought turns all forty red; the
+    run: `_trailing_owed` answering nought turns all thirty-five red; the
     values step's walk for a trailing minus withdrawn turns every shape
     but the whole-valued one red at every seed; the exchange withdrawn
-    turns `band-beside-whole` and `named-whole-values` red at every seed;
+    turns `named-whole-values` red at every seed (and `band-beside-whole`,
+    until the review of follow-up B counted that band under the
+    hyphen-minus);
     the trailing minus taken in the contract's order turns
     `named-beside-brackets` red at every seed. At 8448e5f
     `named-beside-padded` wrote every trailing minus and missed its
