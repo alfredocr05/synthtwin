@@ -392,7 +392,7 @@ def _unit(cell: str) -> str:
     "shape,floor", EVERY_DAY_CASES, ids=[f"{shape}-{floor}" for shape, floor in EVERY_DAY_CASES]
 )
 def test_every_day_filled(tmp_path: pathlib.Path, shape: str, floor: int) -> None:
-    """A filled range comes back with as many units, and the same ones where the facts settle them.
+    """On the gate's filled ranges: as many units, and the same ones where the facts settle them.
 
     At seeds 0 to 4: nothing missed, as many different units as the real
     column, no unit beyond the two ends the tails derive, and -- where
@@ -1376,14 +1376,21 @@ def test_a_count_the_pass_meets_past_the_strata_is_held_exactly(
     monkeypatch.setattr(generation, "_count_met_past_the_strata", lambda *arguments: False)
     twin = generation.generate(described.loaded, 3)
     written = rendering.twin_csv(twin)
-    assert len({line for line in written.split("\n")[1:] if line}) == 60
+    # THE FILE THE REVIEW PASSED: its count is not the published one, and
+    # it lies inside the envelope counted in the strata alone, whose lower
+    # end stands above the published count.
+    held = len({line for line in written.split("\n")[1:] if line})
+    dated = column.n_present - facts.n_unparsed
+    strata = validation._ranks_forced_apart(*validation._rank_windows(facts, dated, column, floor, ""))
+    assert column.n_distinct < strata + facts.n_unparsed <= held <= highest, (strata, held)
     outcome = kpi_shapes.measure(described, written, "withdrawn.csv")
     missed = kpi_shapes.missed(outcome)
     assert "c:distinct.n_distinct" in missed and "c:distinct.n_distinct_folded" in missed, missed
     records = {record.fact: record for record in twin.approximations}
+    shown = str(column.n_distinct)
     for fact in ("n_distinct", "n_distinct_folded"):
         record = records[fact]
-        assert (record.lowest, record.highest, record.inside) == ("35", "35", False), fact
+        assert (record.lowest, record.highest, record.inside) == (shown, shown, False), fact
 
 
 def test_the_fewest_units_are_counted_in_the_order_of_the_windows_upper_ends() -> None:
@@ -1468,6 +1475,77 @@ def test_the_envelope_follows_the_pass_only_where_the_count_is_reachable(
                         min(drawn[0][rank], plan.anchor + 1), max(drawn[1][rank], drawn[1][dated - 1])
                     ), rank
             assert any(past[0][rank] < lows[rank] or past[1][rank] > highs[rank] for rank in ranks)
+
+
+def _drawn_short_of_the_window() -> "tuple[list[str], int]":
+    """127 ISO dates over the 78 days from 2023-01-01, 29 different, at a floor of 50.
+
+    Drawn as the second review of landing 3b.0 drew its strata family,
+    at 983174, so the column is the one that measured the limit.
+    """
+    draw = random.Random(983174)
+    rows = draw.randrange(100, 241)
+    span = draw.randrange(35, 350)
+    floor = draw.choice((36, 50, 50))
+    weights = [
+        draw.lognormvariate(0, draw.choice((0.4, 1, 2))) if draw.random() > 0.25 else 0
+        for _step in range(span)
+    ]
+    steps = draw.choices(range(span), weights=weights, k=rows)
+    cells = [(datetime.date(2023, 1, 1) + datetime.timedelta(days=step)).isoformat() for step in steps]
+    assert (rows, floor, len(set(cells))) == (127, 50, 29)
+    return cells, floor
+
+
+def test_a_count_the_summed_window_keeps_out_of_reach_is_missed(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A recorded limit (plan P4-D358): the envelope does not ask the summed window.
+
+    G12.5 widens each rank the pass may move past its stratum on its own,
+    so this column's lower end falls below its 29 different dates, and
+    the count is held exactly. The pass reaches 29 by its splits and then
+    finds the high tail's summed square past G12.14's window, so nothing
+    moves and the twin holds more: the validator MISSES both counts and
+    the twin's own report says it does not hold them. The second review
+    measured it on 4 of 900 columns of its strata family, 6 of 1,200
+    twins, all at a floor of 50; counted in the strata alone, the lower
+    end stood above 29 and those twins were WITHIN-BOUND. A repair that
+    meets the count, or widens only where the pass can, turns this red
+    and restates the record.
+    """
+    cells, floor = _drawn_short_of_the_window()
+    described = kpi_shapes.describe(
+        tmp_path, "short_of_the_window", "c\n" + "".join(f"{cell}\n" for cell in cells), floor
+    )
+    column = described.loaded.columns[0]
+    facts = column.facts
+    assert isinstance(facts, contract.DatetimeFacts)
+    lowest, highest = validation._datetime_distinct_window(column, facts, floor, "")
+    dated = column.n_present - facts.n_unparsed
+    strata = validation._ranks_forced_apart(*validation._rank_windows(facts, dated, column, floor, ""))
+    assert lowest <= column.n_distinct < strata + facts.n_unparsed <= highest, (lowest, strata)
+    taken: "list[bool]" = []
+    pass_itself = generation._count_met_past_the_strata
+
+    def spied(*arguments: object) -> bool:
+        nonlocal taken
+        met = pass_itself(*arguments)  # type: ignore[arg-type]
+        taken += [met]
+        return met
+
+    monkeypatch.setattr(generation, "_count_met_past_the_strata", spied)
+    twin = generation.generate(described.loaded, 3)
+    assert taken == [False], taken
+    written = rendering.twin_csv(twin)
+    assert len({line for line in written.split("\n")[1:] if line}) > column.n_distinct
+    missed = kpi_shapes.missed(kpi_shapes.measure(described, written, "short.csv"))
+    assert "c:distinct.n_distinct" in missed and "c:distinct.n_distinct_folded" in missed, missed
+    records = {record.fact: record for record in twin.approximations}
+    shown = str(column.n_distinct)
+    for fact in ("n_distinct", "n_distinct_folded"):
+        record = records[fact]
+        assert (record.lowest, record.highest, record.inside) == (shown, shown, False), fact
 
 # ---------------------------------------------------------------------
 # THE REVIEW OF LANDING 3b.0, ITEMS 2 AND 4 (plan P4-D358): a day the
@@ -1662,6 +1740,47 @@ def test_a_tail_rank_stuck_on_a_missing_day_is_counted_as_absent(
         assert len(written) == block["n_distinct"], f"{len(written)} different days"
         missed = set(kpi_shapes.missed(kpi_shapes.measure(described, text, "stuck.csv")))
         assert missed == _STUCK_HOLE_MISSES, sorted(missed ^ _STUCK_HOLE_MISSES)
+
+
+def test_a_minute_on_a_missing_moment_is_written_absent_and_named(tmp_path: pathlib.Path) -> None:
+    """A recorded limit (plan P4-D358): a column counted in minutes names no hole.
+
+    210 stamps written `yyyy/mm/dd hh:mm` over 362 minutes, with 20 cells
+    of `2021/05/03 10:24`, a minute inside their range no present cell
+    holds, declared missing, at a floor of eleven. The member has one
+    mark to write, so nothing keeps a rank off that minute: at seed 0 the
+    twin writes present ranks with it, and they read back absent. The
+    twin's report names them rather than passing them in silence. A
+    repair that offers no rank the missing minute turns this red and
+    restates the record.
+    """
+    draw = random.Random(8803)
+    rows = draw.randrange(120, 300)
+    start = datetime.datetime(2021, 5, 3, 8, 0)
+    span = draw.randrange(60, 400)
+    weights = [draw.lognormvariate(0, 1.2) if draw.random() > 0.4 else 0 for _minute in range(span)]
+    picks = draw.choices(range(span), weights=weights, k=rows)
+
+    def stamp(minute: int) -> str:
+        return (start + datetime.timedelta(minutes=minute)).strftime("%Y/%m/%d %H:%M")
+
+    hole = stamp(draw.randrange(5, span - 5))
+    cells = [stamp(minute) for minute in picks] + [hole] * draw.choice((11, 20))
+    draw.shuffle(cells)
+    assert (rows, span, hole, hole in {stamp(minute) for minute in picks}) == (
+        210, 362, "2021/05/03 10:24", False
+    )
+    described = _described_with_a_missing_day(tmp_path, "minute_hole", cells, 11, hole)
+    block = described.document["columns"][0]
+    assert (block["format"], block["time_precision"]) == ("slashed-iso-datetime", "minute")
+    twin = generation.generate(described.loaded, 0)
+    written = rendering.twin_csv(twin).split("\n")[1:]
+    assert written.count(hole) > block["missing_by_source"][hole]
+    named = [
+        deviation for deviation in twin.deviations
+        if deviation.fact == "n_present" and "spelling the table declares absent" in deviation.achieved
+    ]
+    assert named, [(deviation.fact, deviation.achieved) for deviation in twin.deviations]
 
 # ======================================================================
 # LANDING 3b.1 (plan P4-D355): THE WEEKDAY CENSUS OF A COLUMN OF DATES.

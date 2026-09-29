@@ -17861,8 +17861,11 @@ def _count_holes(
     no other mark to give. A column of moments whose member has one keeps
     its cell off an absent spelling by its mark (`_kept_datetime_cell`),
     on the same day, which is a value the source could not write and
-    `test_stage2_round_trip` holds; so does every column counted in
-    seconds or minutes. Those name none.
+    `test_stage2_round_trip` holds; that names none. Nor does a column
+    counted in seconds or minutes, where the spelling step moves no rank:
+    on a member with one mark such a rank landing on an absent spelling
+    is written with it, a limit (plan P4-D358: 9 of 25 twins of minute
+    stamps whose missing moment is published, 8 to 11 checks missed).
 
     Guarantees: accepts the facts and every absent spelling of the run;
     returns the units named, as `value // unit` keys of the pass. A

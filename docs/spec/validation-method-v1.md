@@ -1433,7 +1433,9 @@ inside the gaps meets the count, method G7.3 lets an unpinned rank of a
 shape-drawn tail stand past its stratum, and G12.5's lower end is drawn
 over windows that let it; counted in the strata alone the published
 count of 114 dates, 35 different, stood below a lower end of 39, and a
-file holding 60 passed WITHIN-BOUND where the twin held 35.
+file holding 60 passed WITHIN-BOUND where the twin held 35. Where the
+pass falls short of such a count, its splits breaking a tail's summed
+window, the count stays exact and the twin is MISSED, a limit recorded.
 
 **Amended by the dates pass of the stage-3 review, item 4: the clause
 reaches months, quarters and one published offset.** The clause is

@@ -22,10 +22,14 @@ a date column's distinct count follows the pass** (item 1): counted in
 the strata alone its lower end stood at 39 above a published 35 the pass
 meets past them, and a file of 60 was WITHIN-BOUND; the validator and the
 twin's report now draw it over the windows the pass may use and hold the
-count exactly. **The filled-range gate asserts the days, not their
-count** (item 3): where each tail's derived end is the real end the twin
-holds the real days, and where one stands a unit past it (4 of 11 cases,
-among them the review's 32 days) that unit in place of a real one inside.
+count exactly -- MISSED where the pass's splits break a tail's summed
+window and it moves nothing, 6 of 1,200 twins of a floor-50 family, a
+limit recorded. **The filled-range gate asserts the days, not their
+count** (item 3): on its 11 cases, where each tail's derived end is the
+real end the twin holds the real days, and where one stands a unit past
+it (4 cases, among them the review's 32 days) that unit in place of a
+real one inside; over small filled columns about three in ten still come
+back with fewer days.
 
 ### A count no placement inside the gaps reaches is met past the strata (2026-09-28)
 

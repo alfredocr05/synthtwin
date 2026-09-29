@@ -5828,9 +5828,12 @@ P4-D358; the review of landing 3b.0, items 2 and 4). A HOLE is a unit an
 absent spelling of the run -- the column's own and every other column's
 -- names, read under the column's own member, on a column counted in
 days, months or quarters, wherever the spelling step would move a rank
-off it; a column counted in seconds or minutes has none, and neither has
-one of moments at midnight whose member has another mark to give, since
-each keeps a cell off an absent spelling by its mark (G7.5).
+off it. A column of moments at midnight whose member has another mark
+to give has none, since it keeps a cell off an absent spelling by that
+mark (G7.5); nor has a column counted in seconds or minutes, and there,
+on a member with one mark, a rank landing on an absent spelling is
+written with it -- a limit (plan P4-D358: 9 of 25 twins of minute
+stamps whose missing moment is published, 8 to 11 checks missed each).
 Before the first round, each rank the passes may move that was drawn
 onto a hole moves, in rank order, to the nearest unit inside its gap
 that is no hole and of its own standing, earlier before later at one
@@ -11659,7 +11662,10 @@ tail's outermost rank's and in to the tail unit next to the boundary
 (plan P4-D358; the review of landing 3b.0, item 1: counted in the strata
 alone, 114 dates of 35 different days at a floor of 50 drew a lower end
 of 39, the twin held 35, and a file of 60 was WITHIN-BOUND and inside
-the report's bound). Let `F` be the largest number of ranks whose
+the report's bound). The widening asks no summed window of G12.14, and
+where the pass's splits break one the pass moves nothing: the count is
+then held exactly and MISSED, a limit recorded (plan P4-D358: 6 of 1,200
+twins of a floor-50 family). Let `F` be the largest number of ranks whose
 windows are pairwise separate — taken in one walk over the windows in
 the order of their upper ends: keep the first, then keep each later one
 whose lower end is strictly above the last kept one's upper end. Every
