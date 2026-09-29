@@ -2743,11 +2743,11 @@ class NumericFacts:
     bin_groups: "tuple[tuple[int, int, int], ...]" = ()
     # THE STAND-IN NUMBERS THIS BLOCK HOLDS AS NUMBERS (plan P4-D357 A).
     # Not a key: read by `_kept_stand_ins` off what is published -- a
-    # `kept_as_a_number` decision, the mode, a tail block's end -- on
-    # every numeric block of every role. The construction refuses
-    # `-9999`, `-999` and `9999` as points no row of the table holds;
-    # one the description says the table holds is a value like any
-    # other.
+    # `kept_as_a_number` decision, the mode, a tail block's end, two
+    # adjacent rungs of one value -- on every numeric block of every
+    # role. The construction refuses `-9999`, `-999` and `9999` as
+    # points no row of the table holds; one the description says the
+    # table holds is a value like any other.
     kept_stand_ins: "tuple[float, ...]" = ()
 
 
@@ -2755,20 +2755,22 @@ def _kept_stand_ins(
     verdicts: "tuple[SentinelVerdict, ...]",
     block: "NumericFacts",
 ) -> "tuple[float, ...]":
-    """The stand-in numbers a numeric block holds, each in at least the floor of rows.
+    """The stand-in numbers a numeric block publishes as held.
 
-    Three published facts say a column holds one, and each is published
-    only where at least the floor of rows held it: a `kept_as_a_number`
-    decision; the block's `mode` (Q18); and, on a tail block, a published
-    end (TL1). A compound column's numeric half and a joined column's
-    positions publish no decision, so on 410841a a half heaping `-999`
-    in 49 rows, published as its mode, came back in no cell. A stand-in
-    held by fewer rows is in none of the three and is refused. A
-    placeholder day is no number and names nothing here.
+    Four published facts say a column holds one: a `kept_as_a_number`
+    decision; the block's `mode` (Q18); on a tail block, a published end
+    (TL1); and two adjacent published rungs of its value, which type-7
+    reads only off rows holding it (to within binary64's rounding). A
+    compound column's numeric half and a joined column's positions
+    publish no decision, so on 410841a a half heaping `-999` in 49 rows,
+    published as its mode, came back in no cell, and on db49437 one
+    heaping it in 46, published as p41 to p43, came back in none. A
+    stand-in no published fact shows held is refused. A placeholder day
+    is no number and names nothing here.
 
     Guarantees: accepts the column's checked decisions and one of its
     numeric blocks; returns those of `parsing.NUMERIC_SENTINELS` the
-    three name, in that tuple's order. Determinism: a function of the
+    four name, in that tuple's order. Determinism: a function of the
     two. Raises nothing. No I/O of any kind.
     """
     named: "list[float]" = []
@@ -2783,6 +2785,15 @@ def _kept_stand_ins(
         for end in (block.percentiles.minimum, block.percentiles.maximum):
             if end is not None:
                 named += [end]
+    rungs: "dict[int, float | None]" = {}
+    for index in range(len(LADDER_PERCENTS)):
+        rungs[LADDER_PERCENTS[index]] = block.percentiles.rungs[index]
+    for index in range(len(FINER_LADDER_KEYS)):
+        rungs[int(FINER_LADDER_KEYS[index][1:])] = block.percentiles_between[index]
+    for percent in range(100):
+        one = rungs[percent]
+        if one is not None and one == rungs[percent + 1]:
+            named += [one]
     return tuple(one for one in parsing.NUMERIC_SENTINELS if one in named)
 
 
@@ -2793,8 +2804,8 @@ def _holding_stand_ins(
 
     Every role carrying a numeric block reads each of them so: the
     column's decisions are about its cells -- an affixed column's cores,
-    which every wrapper's block reads -- and each block adds its own mode
-    and ends (plan P4-D357 A). Determinism: a function of the two. Raises
+    which every wrapper's block reads -- and each block adds its own mode,
+    ends and equal rungs (plan P4-D357 A). Determinism: a function of the two. Raises
     nothing. No I/O of any kind.
     """
     return dataclasses.replace(

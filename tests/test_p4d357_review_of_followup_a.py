@@ -809,9 +809,16 @@ def test_the_loader_reads_the_kept_stand_ins_off_the_published_decisions() -> No
 
     import types
 
-    def block(mode: "float | None", tail_rule: bool, low: "float | None") -> contract.NumericFacts:
-        ladder = types.SimpleNamespace(minimum=low, maximum=None)
-        return types.SimpleNamespace(mode=mode, tail_rule=tail_rule, percentiles=ladder)  # type: ignore[return-value]
+    def block(
+        mode: "float | None", tail_rule: bool, low: "float | None", rungs: "dict[int, float] | None" = None
+    ) -> contract.NumericFacts:
+        at = dict(rungs or {})
+        named = tuple(at.get(percent, low if percent == 0 else None) for percent in contract.LADDER_PERCENTS)
+        finer = tuple(at.get(int(name[1:])) for name in contract.FINER_LADDER_KEYS)
+        ladder = types.SimpleNamespace(minimum=low, maximum=None, rungs=named)
+        return types.SimpleNamespace(  # type: ignore[return-value]
+            mode=mode, tail_rule=tail_rule, percentiles=ladder, percentiles_between=finer
+        )
 
     kept = "kept_as_a_number"
     decisions = (
@@ -828,6 +835,14 @@ def test_the_loader_reads_the_kept_stand_ins_off_the_published_decisions() -> No
     assert contract._kept_stand_ins(decisions[:1], block(-9999.0, False, None)) == (-9999.0,)
     assert contract._kept_stand_ins((), block(None, True, -999.0)) == (-999.0,)
     assert contract._kept_stand_ins((), block(None, False, -999.0)) == ()
+    # AND TWO ADJACENT RUNGS OF ONE VALUE, which type-7 reads only off rows
+    # holding it, within a half of the ladder or across the two; one rung
+    # alone, or two apart, names nothing.
+    assert contract._kept_stand_ins((), block(None, True, None, {41: -999.0, 42: -999.0})) == (-999.0,)
+    assert contract._kept_stand_ins((), block(None, True, None, {4: 9999.0, 5: 9999.0})) == (9999.0,)
+    assert contract._kept_stand_ins((), block(None, False, -9999.0, {1: -9999.0})) == (-9999.0,)
+    assert contract._kept_stand_ins((), block(None, True, None, {41: -999.0})) == ()
+    assert contract._kept_stand_ins((), block(None, True, None, {41: -999.0, 43: -999.0})) == ()
 
 
 def _refused_and_kept() -> "dict[str, tuple[object, object, object]]":
@@ -1184,17 +1199,50 @@ def _mode_heap_shapes() -> "dict[str, tuple[list[str], list[str]]]":
 _MODE_HEAPS = _mode_heap_shapes()
 
 
+def _rung_heap_shapes() -> "dict[str, tuple[list[str], list[str], float]]":
+    """Seeded columns heaping a stand-in well over the floor that only two or three equal rungs publish.
+
+    Skeptic ffA1's shapes: the heap is neither the block's mode nor an end,
+    and a compound half or a joined position publishes no decision.
+    """
+    labs = random.Random("p4d357/rungs/compound")
+    pairs = random.Random("p4d357/rungs/joined")
+    highs = random.Random("p4d357/rungs/compound/9999")
+    compound = [str(round(labs.gauss(-1000.0, 300.0))) for _row in range(1200)] + ["0"] * 200 + ["-999"] * 45
+    joined = [f"{pairs.randint(90, 170)}/{round(pairs.gauss(9000.0, 900.0))}" for _row in range(1300)]
+    joined += [f"{pairs.randint(90, 170)}/5000" for _row in range(250)]
+    joined += [f"{pairs.randint(90, 170)}/9999" for _row in range(45)]
+    high = [str(round(highs.gauss(9000.0, 900.0))) for _row in range(1200)] + ["20"] * 300 + ["9999"] * 40
+    return {
+        "compound_rung_heap": (compound + ["NOT DETECTED"] * 120, [], -999.0),
+        "joined_rung_heap": (joined, ["value"], 9999.0),
+        "compound_rung_heap_9999": (high + ["HAEMOLYSED"] * 90, [], 9999.0),
+    }
+
+
+_RUNG_HEAPS = _rung_heap_shapes()
+
+
+def _page_rungs(block: "dict") -> "list[float | None]":
+    """A published block's hundred and one rungs in percent order, both halves of its ladder."""
+    named = dict(block.get("percentiles_between", {}))
+    named.update(block["percentiles"])
+    return [named.get("min" if percent == 0 else "max" if percent == 100 else f"p{percent:02d}") for percent in range(101)]
+
+
 def _held_by_the_page(block: "dict", verdicts: "list[dict]") -> "tuple[float, ...]":
     """The stand-ins a published numeric block names as held, read off the page alone.
 
-    A `kept_as_a_number` decision, the block's mode, and on a tail block a
-    published end: each is published only where the floor of rows held it
-    (contract Q18, TL1).
+    A `kept_as_a_number` decision, the block's mode, on a tail block a
+    published end (contract Q18, TL1), and two adjacent published rungs of
+    one value, which type-7 reads only off rows holding it.
     """
     named = [float(entry["candidate"]) for entry in verdicts if entry["verdict"] == "kept_as_a_number"]
     named += [block["mode"]] if block["mode"] is not None else []
     if "tails" in block:
         named += [end for end in (block["percentiles"]["min"], block["percentiles"]["max"]) if end is not None]
+    rungs = _page_rungs(block)
+    named += [rungs[percent] for percent in range(100) if rungs[percent] is not None and rungs[percent] == rungs[percent + 1]]
     return tuple(one for one in _STAND_INS if one in named)
 
 
@@ -1216,7 +1264,7 @@ def _every_numeric_block(facts: object) -> "list[contract.NumericFacts]":
 
 
 def _described_heap(tmp_path: pathlib.Path, name: str, floor: int = 11) -> kpi_shapes.Described:
-    cells, measured = _MODE_HEAPS[name]
+    cells, measured = _MODE_HEAPS[name] if name in _MODE_HEAPS else _RUNG_HEAPS[name][:2]
     draw = random.Random(f"p4d357/final/order/{name}")
     cells = list(cells)
     draw.shuffle(cells)
@@ -1226,7 +1274,7 @@ def _described_heap(tmp_path: pathlib.Path, name: str, floor: int = 11) -> kpi_s
 def _numbers_of(line: str, name: str) -> "float | None":
     """The number a twin cell holds where its heap lies: a joined cell's second, an affixed core, a plain cell."""
     cell = line.strip().strip('"')
-    if name == "joined_heap":
+    if name.startswith("joined"):
         cell = cell.split("/")[1] if "/" in cell else ""
     elif name == "affixed_variant_heap":
         cell = cell[: len(cell) - 3] if cell.endswith(" kg") else ""
@@ -1237,16 +1285,21 @@ def _numbers_of(line: str, name: str) -> "float | None":
 
 
 _HEAPED = (("compound_heap", 11), ("compound_heap", 36), ("joined_heap", 11), ("affixed_variant_heap", 11))
+_RUNG_HEAPED = (
+    ("compound_rung_heap", 11), ("compound_rung_heap", 36), ("joined_rung_heap", 11), ("compound_rung_heap_9999", 11)
+)
 
 
-@pytest.mark.parametrize("name,floor", _HEAPED, ids=[f"{name}-{floor}" for name, floor in _HEAPED])
+@pytest.mark.parametrize(
+    "name,floor", _HEAPED + _RUNG_HEAPED, ids=[f"{name}-{floor}" for name, floor in _HEAPED + _RUNG_HEAPED]
+)
 def test_every_numeric_block_holds_the_stand_ins_its_page_names(
     tmp_path: pathlib.Path, name: str, floor: int
 ) -> None:
     """Every `NumericFacts` of every role keeps exactly the stand-ins its own published block names as held.
 
     Read off the page by this test alone: a kept decision, the mode, a tail
-    block's end. On 410841a only the count, continuous and affixed roles read
+    block's end, two adjacent equal rungs. On 410841a only the count, continuous and affixed roles read
     the decisions, and a compound half or a joined position publishing
     `-999` or `9999` as its mode kept nothing. The walk finds every block the
     facts carry, so a role nesting one elsewhere fails here.
@@ -1265,8 +1318,8 @@ def test_every_numeric_block_holds_the_stand_ins_its_page_names(
 def test_a_stand_in_a_block_publishes_as_its_mode_comes_back(tmp_path: pathlib.Path, name: str, floor: int) -> None:
     """A heap the block publishes as held is written near its published rows at seeds 0, 4 and 9, and nothing is missed.
 
-    Owner decision (ii) of this round, the orchestrator's: the twin writes a
-    stand-in the column holds. On 410841a the compound half's `-999` (its
+    Decision (ii) of this round, the orchestrator's call (not the owner's):
+    the twin writes a stand-in the column holds. On 410841a the compound half's `-999` (its
     mode, 49 rows at a floor of eleven) and the joined position's `9999`
     (its mode, 41 rows) came back in no cell -- the heap one unit off at
     `-998` or `9998` -- and the twin's report blamed the ladder for a
@@ -1295,6 +1348,45 @@ def test_a_stand_in_a_block_publishes_as_its_mode_comes_back(tmp_path: pathlib.P
             )
         refused = [one.fact for one in twin.deviations if one.fact.endswith("numbers.mode") or one.fact == "numbers.mode"]
         assert refused == [], f"seed {seed}: the twin's commonest number is not the published mode"
+        missed = kpi_shapes.missed(kpi_shapes.measure(described, text, f"twin-{seed}.csv"))
+        assert missed == [], f"seed {seed}: {missed}"
+
+
+@pytest.mark.parametrize("name,floor", _RUNG_HEAPED, ids=[f"{name}-{floor}" for name, floor in _RUNG_HEAPED])
+def test_a_stand_in_a_block_publishes_through_equal_rungs_comes_back(
+    tmp_path: pathlib.Path, name: str, floor: int
+) -> None:
+    """A heap only equal rungs publish is written in as many rows as they span, at seeds 0, 4 and 9, and nothing is missed.
+
+    Skeptic ffA1's sibling of the mode heaps. A compound half or a joined
+    position publishes no decision, so a heap that is neither its mode nor
+    an end is on the page only as adjacent rungs of its value. On db49437
+    `-999` in 46 rows of a compound half (p41 to p43), `9999` in 46 of a
+    joined position (p86 to p88) and `9999` in 40 of a compound half (p87,
+    p88) came back in no cell, one unit off; d93fd43 wrote 31, 48 and 18.
+    Decision (ii) of this round, the orchestrator's call (not the owner's):
+    the twin writes a stand-in the column holds. The window is the rungs':
+    at least the rows between the first and last equal rung, at most those
+    between the rungs either side.
+    """
+    described = _described_heap(tmp_path, name, floor)
+    column = described.document["columns"][0]
+    stand_in = _RUNG_HEAPS[name][2]
+    heaped = [block for _where, block in _nested_blocks(column) if stand_in in _held_by_the_page(block, column["sentinel_verdicts"])]
+    assert len(heaped) == 1, f"premise: one block of {name} publishes {stand_in} as held"
+    block = heaped[0]
+    assert column["sentinel_verdicts"] == [] and block["mode"] != stand_in, "premise: no decision and no mode names it"
+    assert stand_in not in (block["percentiles"]["min"], block["percentiles"]["max"]), "premise: no end names it"
+    run = [percent for percent, rung in enumerate(_page_rungs(block)) if rung == stand_in]
+    assert len(run) >= 2 and run == list(range(run[0], run[-1] + 1)), f"premise: adjacent equal rungs ({run})"
+    numbers = block["n_used_in_statistics"]
+    least = (run[-1] - run[0]) * (numbers - 1) // 100
+    most = (run[-1] - run[0] + 2) * (numbers - 1) // 100 + 2
+    for seed in (0, 4, 9):
+        text = kpi_shapes.twin_text(described, seed)
+        written = [_numbers_of(line, name) for line in text.split("\n")[1:] if line]
+        got = len([value for value in written if value == stand_in])
+        assert least <= got <= most, f"seed {seed}: rungs p{run[0]} to p{run[-1]} span {least} to {most} rows, the twin {got}"
         missed = kpi_shapes.missed(kpi_shapes.measure(described, text, f"twin-{seed}.csv"))
         assert missed == [], f"seed {seed}: {missed}"
 
@@ -1365,25 +1457,32 @@ def test_every_value_pass_in_a_nested_block_is_handed_that_block_s_stand_ins(
 
 
 def test_the_oracle_keeps_what_the_page_names_as_held(tmp_path: pathlib.Path) -> None:
-    """The oracle's `kept_stand_ins`, written from G5.3b step 5, reads a block as the loader does: decisions, mode, a tail block's end."""
+    """The oracle's `kept_stand_ins`, written from G5.3b step 5, reads a block as the loader does: decisions, mode, a tail block's end, equal rungs."""
     oracle = _oracle()
     kept = {"candidate": "9999", "verdict": "kept_as_a_number", "reason": "not_an_outlier", "n_occurrences": 40, "spellings": []}
     missing = dict(kept, candidate="-9999", verdict="read_as_missing")
     ends = {"min": -999.0, "max": None}
+    pair = {"p41": -999.0, "p42": {"float64": -999.0}}
     for block, wanted in (
         ({"sentinel_verdicts": [kept, missing], "mode": None, "percentiles": ends}, (9999.0,)),
         ({"sentinel_verdicts": [], "mode": -999.0, "percentiles": ends}, (-999.0,)),
         ({"sentinel_verdicts": [], "mode": {"float64": 9999.0}, "percentiles": ends}, (9999.0,)),
         ({"sentinel_verdicts": [], "mode": None, "percentiles": ends, "tails": None}, (-999.0,)),
         ({"sentinel_verdicts": [], "mode": 12.0, "percentiles": ends}, ()),
+        # Two adjacent equal rungs, within a half of the ladder or across
+        # the two; one rung alone, or two apart, names nothing.
+        ({"sentinel_verdicts": [], "mode": None, "percentiles": ends, "percentiles_between": pair}, (-999.0,)),
+        ({"sentinel_verdicts": [], "mode": None, "percentiles": dict(ends, p05=9999.0), "percentiles_between": {"p04": 9999.0}}, (9999.0,)),
+        ({"sentinel_verdicts": [], "mode": None, "percentiles": ends, "percentiles_between": {"p41": -999.0}}, ()),
+        ({"sentinel_verdicts": [], "mode": None, "percentiles": ends, "percentiles_between": {"p41": -999.0, "p43": -999.0}}, ()),
     ):
         assert tuple(sorted(oracle.kept_stand_ins(block))) == wanted, block
-    for name in ("compound_heap", "joined_heap"):
+    for name in ("compound_heap", "joined_heap", "compound_rung_heap", "joined_rung_heap"):
         column = _described_heap(tmp_path, name).document["columns"][0]
         verdicts = column["sentinel_verdicts"]
         views = (
             [oracle.joined_part_view(column, place) for place in range(column["n_parts"])]
-            if name == "joined_heap"
+            if name.startswith("joined")
             else [dict(column["numbers"], sentinel_verdicts=verdicts)]
         )
         blocks = [block for _where, block in _nested_blocks(column)]

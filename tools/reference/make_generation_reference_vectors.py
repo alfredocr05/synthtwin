@@ -1675,13 +1675,14 @@ def is_stand_in(value, kept=()):
 
 
 def kept_stand_ins(column):
-    """The stand-in numbers a numeric block holds, each in at least the floor of rows.
+    """The stand-in numbers a numeric block publishes as held.
 
     Written from the method's words (G5.3b step 5, plan P4-D357 A): a
-    stand-in its decisions publish as ``kept_as_a_number``, its mode, or a
-    tail block's published end is the table's own value, and no value pass
-    refuses it. ``column`` is the block as the numeric rules see it -- a
-    joined position's or an affixed core's view included.
+    stand-in its decisions publish as ``kept_as_a_number``, its mode, a
+    tail block's published end, or two adjacent published rungs of its
+    value is the table's own value, and no value pass refuses it.
+    ``column`` is the block as the numeric rules see it -- a joined
+    position's or an affixed core's view included.
     """
     named = []
     for verdict in column.get("sentinel_verdicts", []):
@@ -1694,6 +1695,17 @@ def kept_stand_ins(column):
     named += [column.get("mode")]
     if "tails" in column:
         named += [column["percentiles"]["min"], column["percentiles"]["max"]]
+    rungs = []
+    for percent in range(101):
+        name = _NAME_AT_PERCENT.get(percent)
+        if name is not None:
+            rung = column.get("percentiles", {}).get(name)
+        else:
+            rung = column.get("percentiles_between", {}).get(f"p{percent:02d}")
+        rungs += [rung[FLOAT64] if isinstance(rung, dict) else rung]
+    for percent in range(100):
+        if rungs[percent] is not None and rungs[percent] == rungs[percent + 1]:
+            named += [rungs[percent]]
     kept = []
     for number in named:
         if isinstance(number, dict):
@@ -1703,6 +1715,7 @@ def kept_stand_ins(column):
             and not isinstance(number, bool)
             and math.isfinite(number)
             and fractions.Fraction(number) in NUMERIC_SENTINELS
+            and float(number) not in kept
         ):
             kept += [float(number)]
     return tuple(kept)

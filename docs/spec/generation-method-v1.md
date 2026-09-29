@@ -2183,23 +2183,23 @@ boundary rung itself where that percent falls between the two tails.
    clearing walk, the grouping run of plan P4-D185 and G5.5's grid step
    of sign each pass a stand-in over as a point another stratum holds,
    the column-wide fill counts the points of its grid less the three,
-   and a sign band whose grid holds one is left to the walk (G6.5a). Only a value
-   the description publishes -- an end, a rung, a listed value, the mode,
-   or a stand-in its `sentinel_verdicts` publish as `kept_as_a_number`
-   -- is written on one. On 9000 to 9998 beside 10000 and 10001 G6.5a's
-   walk took `9999`, a gap between two values the column holds, in one
-   cell at seeds 0, 4 and 9. **A STAND-IN THE COLUMN HOLDS IS ITS OWN
-   VALUE** (plan P4-D357 A): G5.4's draw, G6.6's width walk and every
-   pass above refuse only a stand-in the block does not publish as
-   held -- by a `kept_as_a_number` decision, as its mode, or as a tail
-   block's end, each published only where the floor of rows held it
-   (`NumericFacts.kept_stand_ins`, on every numeric block of every
-   role) -- so one held below the floor is still refused. Refusing a
-   held one took the heap away with nothing missed: `-999` 44 times
-   beside `9999` 47 times, both published kept, came back in no cell,
-   and so did a compound column's numeric half holding `-999` in 49
-   rows and a joined position holding `9999` in 41, each published only
-   as the block's mode. The derived end and the staircase rows are the
+   and a sign band whose grid holds one is left to the walk (G6.5a). On
+   9000 to 9998 beside 10000 and 10001 G6.5a's walk took `9999`, a gap
+   between two values the column holds, in one cell at seeds 0, 4 and
+   9. **A STAND-IN THE COLUMN HOLDS IS ITS OWN VALUE** (plan P4-D357
+   A), and this is the one rule: G5.4's draw, G6.6's width walk and
+   every pass above refuse only a stand-in the block does not publish
+   as held -- by a `kept_as_a_number` decision, as its mode, as a tail
+   block's end, or as two adjacent rungs of its value, which type-7
+   reads only off rows holding it (`NumericFacts.kept_stand_ins`, on
+   every numeric block of every role) -- so one no published fact shows
+   held is refused. Refusing a held one took the heap away with nothing
+   missed: `-999` 44 times beside `9999` 47 times, both published kept,
+   came back in no cell; so did a compound column's numeric half
+   holding `-999` in 49 rows and a joined position holding `9999` in
+   41, each published only as the block's mode, and a half holding
+   `-999` in 46 and a position holding `9999` in 46, published only as
+   p41 to p43 and p86 to p88. The derived end and the staircase rows are the
    reader's ladder (G5.1a), which the checker's windows and the
    producer's cost rule read from the numeric block alone, so they
    refuse the three whatever the column holds; each moves at most one
