@@ -205,10 +205,13 @@ cannot get worse unseen.
   cases of twelve filled-range shapes at every seed, one unit out there,
   one or more elsewhere (P4-D354); of 316 twins of 158 small filled ISO
   columns, 224 hold as many days as the real column, 61 the same days,
-  and 90 fewer, both distinct counts MISSED (P4-D358). And a tail rank
+  and 90 fewer, both distinct counts MISSED (P4-D358); a range filled
+  in every day or month but a declared-missing one comes back a unit
+  short the same way, 6 of 600 twins of a seeded battery. And a tail rank
   whose stratum is one declared-missing day, month or quarter writes an
-  absent cell, 5 to 13 checks missed on 64 of 1,972 twins whose missing
-  unit is published, over four seeded batteries; a moment
+  absent cell, 5 to 13 checks missed, at a rate that rises with the
+  floor: about 1 twin in 40 whose missing unit is published at a floor
+  of 11, 1 in 5 at 36, and 1 in 3 at 36 on another seeded battery; a moment
   counted in minutes on a member with one mark is written with an absent
   spelling it lands on, 8 to 11 checks missed on 9 of 25 twins; and
   where the count pass's splits break a tail's summed window it moves
