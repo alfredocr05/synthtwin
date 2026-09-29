@@ -2187,13 +2187,13 @@ boundary rung itself where that percent falls between the two tails.
    9000 to 9998 beside 10000 and 10001 G6.5a's walk took `9999`, a gap
    between two values the column holds, in one cell at seeds 0, 4 and
    9. **A STAND-IN THE COLUMN HOLDS IS ITS OWN VALUE** (plan P4-D357
-   A), and this is the one rule: G5.4's draw, G6.6's width walk and
-   every pass above refuse only a stand-in the block does not publish
-   as held -- by a `kept_as_a_number` decision, as its mode, as a tail
-   block's end, or as two adjacent rungs of its value, which type-7
-   reads only off rows holding it (`NumericFacts.kept_stand_ins`, on
-   every numeric block of every role) -- so one no published fact shows
-   held is refused. Refusing a held one took the heap away with nothing
+   A): G5.4's draw, G6.6's width walk and every value pass above refuse
+   only a stand-in the block does not publish as held -- by a
+   `kept_as_a_number` decision, as its mode, as a tail block's end, or
+   as two adjacent rungs of its value, which type-7 reads only off rows
+   holding it (`NumericFacts.kept_stand_ins`, on every numeric block of
+   every role) -- so one no published fact shows held is refused, and
+   the reader's own end and rows keep the narrower set below. Refusing a held one took the heap away with nothing
    missed: `-999` 44 times beside `9999` 47 times, both published kept,
    came back in no cell; so did a compound column's numeric half
    holding `-999` in 49 rows and a joined position holding `9999` in
