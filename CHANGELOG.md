@@ -16,7 +16,9 @@ now skips such a day, whichever column's absent spelling names it; a
 rank drawn onto one leaves it before the passes count; and a tail rank
 stuck on one is counted as the absent cell it is. The oracle holds the
 rule from the method's text, and G7.3b step 7's step off a hole, which
-it held nowhere. Three frozen cases, eighteen witness rows and ten
+it held nowhere. Six frozen cases -- three at the second round, for a
+tie group's step off a hole and a stuck rank's absent day in the count
+G7.3 reaches and in the one step 9 owes -- eighteen witness rows and ten
 oracle mutants hold it; one frozen case moves a cell. **The envelope of
 a date column's distinct count follows the pass** (item 1): counted in
 the strata alone its lower end stood at 39 above a published 35 the pass

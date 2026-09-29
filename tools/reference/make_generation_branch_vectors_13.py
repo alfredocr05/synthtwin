@@ -31,8 +31,14 @@ permitted in tools/ (the D6 restriction applies to src/ only).  Nothing
 about the oracle's own rule changes: it still imports neither synthtwin,
 nor numpy, nor pandas, and a test asserts that of every entry point.
 
-**WHERE THE NEXT CASE GOES** (plan P4-D295): here, while this file's
-output stands under 200000 bytes.
+**THE REVIEW OF LANDING 3b.0** (plan P4-D358) added six cases of the rule
+that no count pass offers a day an absent spelling names:
+`count_off_the_hole`, `every_day_absent`, `tail_end_off_the_hole`,
+`tie_group_off_the_hole`, `stuck_day_counted` and `stuck_day_owed`.
+
+**WHERE THE NEXT CASE GOES** (plan P4-D295): a sixteenth entry point. The
+last three joined this file while its output stood under 200000 bytes,
+and it stands past that line with them.
 
 Usage:  python3 make_generation_branch_vectors_13.py --seed 0 --out <path>
         (the command line the data-provenance guard uses; the seed is

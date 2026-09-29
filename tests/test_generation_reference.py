@@ -722,7 +722,10 @@ THIRTEENTH_BRANCH_CASES = (
     # ...and the absent day of the review of landing 3b.0 (plan P4-D358).
     "count_off_the_hole",
     "every_day_absent",
-    "tail_group_off_the_hole",
+    "stuck_day_counted",
+    "stuck_day_owed",
+    "tail_end_off_the_hole",
+    "tie_group_off_the_hole",
     "weekday_count_put_back",
     "weekday_days_moved",
     "weekday_gap_shares",
@@ -878,7 +881,12 @@ SEEDS = {
     # at the seeds the review measured: 0 for the group's column, and 3.
     "every_day_absent": 0,
     "count_off_the_hole": 3,
-    "tail_group_off_the_hole": 0,
+    "tail_end_off_the_hole": 0,
+    # ...and the three clauses of that rule its second review found no case
+    # held (plan P4-D358), each at seed 0.
+    "tie_group_off_the_hole": 0,
+    "stuck_day_counted": 0,
+    "stuck_day_owed": 0,
     "identifier_unnamed_partners": 184,
     "truth_values_written": 189,
     "twice_written_filled": 190,
@@ -1584,8 +1592,8 @@ ELEVENTH_BRANCH_NAMED_COUNTS = 375
 TWELFTH_BRANCH_PUBLISHED_NUMBERS = 976
 TWELFTH_BRANCH_NAMED_COUNTS = 343
 # The fifteenth, at its own generator's line ("proved 22 ... beside 226").
-THIRTEENTH_BRANCH_PUBLISHED_NUMBERS = 34
-THIRTEENTH_BRANCH_NAMED_COUNTS = 307
+THIRTEENTH_BRANCH_PUBLISHED_NUMBERS = 46
+THIRTEENTH_BRANCH_NAMED_COUNTS = 388
 # The document file publishes NO binary64 at all, and that is a fact
 # about its transforms rather than a gap in its proof: the written form,
 # the arrangement, the workbook writer, the shape of a line before a
@@ -2046,6 +2054,43 @@ def _marks_on_the_positive_side_alone(column, *arguments):
 _real_tail_distances = gen.tail_distances
 _real_tail_step = gen.tail_step_of
 _real_ramp_places = gen.ramp_places
+_real_units_settled = gen.units_settled
+_real_group_gives_way = gen.group_gives_way
+
+
+def _group_left_on_the_hole(rows, mean, root, floor, edge, apart, words, off=None):
+    """G7.3b step 7 withdrawn for a tie group alone (plan P4-D358).
+
+    The absent day under the group's own distance is taken out of the
+    step's view, so the group stays on it while the end still steps off
+    every absent day it stands on.
+    """
+    if off is None or not rows > floor >= 1 or apart:
+        return _real_tail_distances(rows, mean, root, floor, edge, apart, words, off)
+    group = _real_tail_distances(rows, mean, root, floor, edge, apart, words, None)[rows - 1]
+    at, low_side, holes = off
+    spot = at - group if low_side else at + group
+    return _real_tail_distances(
+        rows, mean, root, floor, edge, apart, words, (at, low_side, set(holes) - {spot})
+    )
+
+
+def _without_the_stuck_days(rule):
+    """One rule run as if no stuck tail rank stood on an absent day (plan P4-D358).
+
+    The other rule that counts those days is left as it is, so each of the
+    two is withdrawn alone.
+    """
+
+    def withdrawn(*arguments):
+        kept = gen.absent_days_stuck
+        gen.absent_days_stuck = lambda *_arguments: set()
+        try:
+            return rule(*arguments)
+        finally:
+            gen.absent_days_stuck = kept
+
+    return withdrawn
 
 
 def _stratum_end_instead(shape, rows, mean, root, edge):
@@ -3849,11 +3894,32 @@ CASE_MUTANTS = {
         replacement=lambda column: set(),
         outcome=CHANGES_THE_CELLS,
     ),
-    "tail_group_off_the_hole": Mutant(
-        branch="G7.3b step 7 (plan P4-D358); the mutant leaves a tail rank "
+    "tail_end_off_the_hole": Mutant(
+        branch="G7.3b step 7 (plan P4-D358); the mutant leaves a tail's end "
         "standing at one place on an absent day",
         attribute="tail_holes_named",
         replacement=lambda column, at, low_side: None,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "tie_group_off_the_hole": Mutant(
+        branch="G7.3b step 7 for a tie group (plan P4-D358); the mutant steps "
+        "a tail's end off an absent day and leaves its group on one",
+        attribute="tail_distances",
+        replacement=_group_left_on_the_hole,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "stuck_day_counted": Mutant(
+        branch="G7.3 (plan P4-D358); the mutant counts a stuck tail rank's "
+        "absent day among the units the count passes reach",
+        attribute="units_settled",
+        replacement=_without_the_stuck_days(_real_units_settled),
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "stuck_day_owed": Mutant(
+        branch="G7.3b step 9 (plan P4-D358); the mutant owes the count "
+        "without a stuck tail rank's absent day",
+        attribute="group_gives_way",
+        replacement=_without_the_stuck_days(_real_group_gives_way),
         outcome=CHANGES_THE_CELLS,
     ),
     "count_off_the_hole": Mutant(

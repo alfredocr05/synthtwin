@@ -12980,7 +12980,7 @@ that happens -- and the clause beside it, `--missing-value`'s "CAN be
 published as the column's smallest value", is exactly right under the
 new rule.
 
-**All one hundred and forty-three are required.** The count is taken off the committed
+**All one hundred and forty-six are required.** The count is taken off the committed
 case sets and not carried forward: this sentence said fifty-two and a
 split of nine, twenty, sixteen and seven while the six files held
 seventy-three, because each repair that added a case added a clause to
@@ -13006,7 +13006,7 @@ the THIRTEENTH, `tests/reference/generation-branch-vectors-11.json`,
 holds three; the FOURTEENTH,
 `tests/reference/generation-branch-vectors-12.json`, holds four; and the
 FIFTEENTH, `tests/reference/generation-branch-vectors-13.json`, holds
-ten (G14.2),
+thirteen (G14.2),
 and a test holds this sentence to those files. The tenth grew by the
 two cases the GOVERNANCE PASS of stage 3's review added and the
 eleventh by the two the dates pass added; each number here is read off
@@ -13144,7 +13144,10 @@ case passed, which is the failure the count exists to prevent:
 | `unpublished_majority_marks` | G6.1's groupable cells asked with a mark that writes one (plan P4-D142): twenty-two cells published with no `group_separator` and `thousands_marks: {",": 11, " ": 11}`, so the first eleven are written `12,345.5` and the last eleven `12 345.5` rather than every cell bare |
 | `count_off_the_hole` | G7.3 (plan P4-D358): 116 ISO dates over 41 days from 2020-10-02, 37 of them written 2020-10-20 and declared absent, at seed 3. Three body ranks drawn onto 2020-10-20 move off it before the count passes' first round, and the twin holds the published 28 days. Its mutant leaves them there; the passes count the absent day, the spelling step moves them onto a day ranks hold, and the twin holds 27 |
 | `every_day_absent` | G7.3 and G7.3b step 9 (plan P4-D358; the review of landing 3b.0, item 4): `every_day_group`'s 105 dates with 2024-05-12 declared absent, 101 present over 21 days, at seed 0. The low group's reach holds 2024-05-12, and the step offers the days beside it and never it: the twin holds all 21. Its mutant offers the absent day as any other, a group rank is put on it and moved off by the spelling step, and the twin holds 20 |
-| `tail_group_off_the_hole` | G7.3b step 7 (plan P4-D358): 121 ISO dates over 35 days from 2017-10-28, 20 of them written 2017-11-30 and declared absent, at seed 0. A rank of the high tail standing at one place falls on 2017-11-30 and steps one day inward off it. Its mutant leaves it there, and its cell is written with the absent spelling: 21 cells read back absent where the column holds 20. Before this case the oracle held no part of step 7 |
+| `stuck_day_counted` | G7.3 (plan P4-D358; the second review of landing 3b.0): 116 ISO dates over 41 days from 2019-11-08, 11 of them written 2019-11-11 and declared absent, at seed 0. A low-tail rank whose stratum is 2019-11-11 alone stands there and is written absent, so the count passes reach the published 22 days with that day added. Its mutant counts the day among the 22: the passes leave the cells a day short, G7.3b step 9 gives one back, and seven cells move |
+| `stuck_day_owed` | G7.3b step 9 (plan P4-D358; the second review of landing 3b.0): 113 ISO dates over 32 days from 2019-01-23, 11 of them written 2019-02-21 and declared absent, at seed 0. High-tail ranks whose stratum is 2019-02-21 alone stand there and are written absent; the count pass leaves the column short, and the tie group gives way for the shortfall with that day added, so the twin holds the published 31 present days. Its mutant owes the count without the day, and the twin holds 30 |
+| `tail_end_off_the_hole` | G7.3b step 7 (plan P4-D358): 121 ISO dates over 35 days from 2017-10-28, 20 of them written 2017-11-30 and declared absent, at seed 0. The high tail's end, its outermost rank, falls on 2017-11-30 and steps one day inward off it; its tie group stands a day past the boundary and never on the hole. Its mutant withdraws step 7, and the end's cell is written with the absent spelling: 21 cells read back absent where the column holds 20. Before this case the oracle held no part of step 7 |
+| `tie_group_off_the_hole` | G7.3b step 7 for a tie group (plan P4-D358; the second review of landing 3b.0): 111 ISO dates over 40 days from 2020-02-09, 11 of them written 2020-03-10 and declared absent, at seed 0. The high tail's tie group of five ranks stands five days past its boundary, on 2020-03-10, and steps one day inward off it. Its mutant steps the tail's end and leaves the group there: its five cells are written with the absent spelling, 16 read back absent where the column holds 11 |
 | `weekday_count_put_back` | G7.3f step 8.1 (plan P4-D355): 120 whole dates over four weeks with no weekend, published `[Mon-Fri] 92, [Sat-Sun] 0`, whose day pass leaves the count of different days off what it was before the pass. Single ranks, in rank order and inside their own group, put it back. Its mutant withdraws those moves |
 | `weekday_days_moved` | G7.3f (plan P4-D355): 100 whole dates over seven weeks published `[Mon-Fri] 66, [Sat-Sun] 12`, so body ranks move inside their own gaps until the cells between the two boundaries fall on those groups. Its mutant withdraws the pass, as the twin was written before this decision |
 | `weekday_gap_shares` | G7.3f step 3 (plan P4-D355): 100 whole dates published `[Mon-Fri] 43, [Sat-Sun] 34`, each gap's share of the two groups its prior raked to the gap's ranks and the groups' owed totals. Its mutant keeps each gap at the holding it was drawn with, so only the leftover moves ranks |
