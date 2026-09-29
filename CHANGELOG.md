@@ -26,6 +26,11 @@ back** -- every value, at least the outermost, or at least a count -- in
 six new remarks, held against brute-force enumeration and the review's
 competing multisets. **"Every value in this column is different" only
 where every value is**; a near-unique column says so without a count.
+**At its second review** the refusal stopped reaching a stand-in the
+column's decisions publish as kept: those heaps (44 to 196 rows) had
+vanished from every twin and are written again. A sign band whose grid
+holds a refused stand-in is left to the walk instead of filled without
+it, which had moved a heap several units and missed two rungs.
 
 ### A count no placement inside the gaps reaches is met past the strata (2026-09-28)
 

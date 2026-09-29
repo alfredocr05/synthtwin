@@ -1037,15 +1037,22 @@ def test_every_value_pass_is_handed_the_stand_ins_the_column_keeps(
     their published rows. PREMISE: each column keeps a stand-in, and between
     them the columns reach every helper of `_HANDED_KEPT`, at seeds 0, 4 and 9.
     """
+    import inspect
+
     from synthtwin import generation
 
     handed: "list[tuple[str, object]]" = []
 
     def spied(name: str) -> object:
         shipped = getattr(generation, name)
+        signature = inspect.signature(shipped)
 
         def spy(*arguments: object, **named: object) -> object:
-            handed.extend([(name, named.get("kept", "not handed"))])
+            # Bound as the helper binds them, so a stand-in set handed on by
+            # position counts, and one not handed at all reads as the default.
+            bound = signature.bind(*arguments, **named)
+            bound.apply_defaults()
+            handed.extend([(name, bound.arguments["kept"])])
             return shipped(*arguments, **named)
 
         return spy
@@ -1064,3 +1071,73 @@ def test_every_value_pass_is_handed_the_stand_ins_the_column_keeps(
             assert wrong == [], f"{shape} at seed {seed}: handed {wrong[:4]} against {facts.kept_stand_ins}"
             reached = reached | {name for name, _kept in handed}
     assert reached == set(_HANDED_KEPT), f"premise: never reached {sorted(set(_HANDED_KEPT) - reached)}"
+
+
+# -- the second review: a stand-in the band may not write is its spare point --
+
+
+def _two_heaps(name: str) -> "list[str]":
+    """1,200 whole numbers heaped near -1000 and 10000, the two stand-ins beside them taken out."""
+    draw = random.Random(name)
+    cells = [str(round(draw.choice((9999.0, -999.9)) + draw.gauss(0.0, 5.0))) for _row in range(1200)]
+    return [cell for cell in cells if float(cell) not in _STAND_INS]
+
+
+_TWO_HEAPS = ("p4d357/band/2", "p4d357/band/5", "p4d357/band/7")
+
+
+@pytest.mark.parametrize("name", _TWO_HEAPS)
+def test_a_band_whose_spare_point_is_a_stand_in_keeps_its_rungs(tmp_path: pathlib.Path, name: str) -> None:
+    """The band fill leaves a band whose grid holds a refused stand-in, and the twin keeps its ladder.
+
+    PREMISE: the column runs across `-999` and `9999` and holds neither. On
+    086d669 the positive band's grid counted less `9999` had exactly as many
+    points as the band has strata, seven of them the ladder's reading across
+    the published empty pair, so the band fill gave each a point in order up
+    to the derived end and moved the heap three to five units: each of
+    these three columns MISSED `ladder.p75` at seeds 0, 4 and 9, two of them
+    `ladder.p90` as well (the review's own column of 1,116 read 10003
+    against 9998). The walk and the push, which refuse the stand-in too,
+    miss nothing and write no stand-in.
+    """
+    cells = _two_heaps(name)
+    held = [float(cell) for cell in cells]
+    assert [one for one in held if one in _STAND_INS] == [], "premise: no stand-in held"
+    assert min(held) < -999.0 < max(held) and min(held) < 9999.0 < max(held), "premise: the column runs across both"
+    described = kpi_shapes.describe(tmp_path, "heaps", _one_column(cells), 11)
+    for seed in (0, 4, 9):
+        text = kpi_shapes.twin_text(described, seed)
+        written = [line for line in text.split("\n")[1:] if line]
+        assert _held_stand_ins(written, cells) == [], f"seed {seed}: {_held_stand_ins(written, cells)}"
+        missed = kpi_shapes.missed(kpi_shapes.measure(described, text, f"twin-{seed}.csv"))
+        assert missed == [], f"seed {seed}: {missed}"
+
+
+def test_the_band_fill_counts_a_refused_stand_in_as_the_band_s_spare_point() -> None:
+    """`_band_points` over 9997 to 10001: four strata are not a saturated band, five are only where `9999` is kept.
+
+    In the oracle alike: a band of four strata over those five points is
+    left unfilled, and so is a band of five unless the column keeps `9999`,
+    and so is a band of four over 9995 to 10001, whose first four points
+    come before the stand-in.
+    """
+    from synthtwin import generation
+
+    assert generation._band_points(9997, 10001, 0, (), 4) is None
+    assert generation._band_points(9997, 10001, 0, (), 5) is None
+    assert generation._band_points(9997, 10001, 0, (), 5, kept=(9999.0,)) == [9997.0, 9998.0, 9999.0, 10000.0, 10001.0]
+    oracle = _oracle()
+    ladder = (9997.0,) + (9998.0,) * 99 + (10001.0,)
+    four = [9997.0, 9998.0, 9998.0, 10001.0]
+    assert oracle.saturated_bands(4, 0, four, ["positive"] * 4, ladder, (), True, False, True) == four
+    five = [9997.0, 9998.0, 9998.0, 10000.0, 10001.0]
+    assert oracle.saturated_bands(5, 0, five, ["positive"] * 5, ladder, (), True, False, True) == five
+    assert oracle.saturated_bands(
+        5, 0, five, ["positive"] * 5, ladder, (), True, False, True, (9999.0,)
+    ) == [9997.0, 9998.0, 9999.0, 10000.0, 10001.0]
+    # Four strata over 9995 to 10001: the first four points number the
+    # strata before the stand-in is reached, and the band still has spares.
+    wide = (9995.0,) + (9996.0,) * 99 + (10001.0,)
+    spread = [9995.0, 9996.0, 9996.0, 10001.0]
+    assert generation._band_points(9995, 10001, 0, (), 4) is None
+    assert oracle.saturated_bands(4, 0, spread, ["positive"] * 4, wide, (), True, False, True) == spread

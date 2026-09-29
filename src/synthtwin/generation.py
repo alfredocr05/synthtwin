@@ -12241,7 +12241,9 @@ def _band_points(
     edge -- so the walk is bounded by the points it collects and not by
     the width of the range. Returns the points in ascending order where
     there are exactly ``wanted`` of them, and None where there are more,
-    fewer, or a point no double holds.
+    fewer, a point no double holds, or a stand-in number the column does
+    not keep (``kept``): that is a spare point, and the band is left to
+    the walk (plan P4-D357 A, its second review).
 
     Guarantees: a fixed function of its inputs. Raises nothing. No I/O.
     """
@@ -12267,7 +12269,9 @@ def _band_points(
                     upper = upper + 1
                 if upper > beyond:
                     beyond = upper
-        if not inside and not _is_a_stand_in(point, kept):
+        if not inside and _is_a_stand_in(point, kept):
+            return None
+        if not inside:
             if len(points) >= wanted:
                 return None
             points += [point]
@@ -12320,6 +12324,20 @@ def _saturated_bands(
     spelling, because G6.4's carrier walk has already placed that count.
     A band's first and last points are the pinned ends wherever the band
     holds them, because the walk starts at `min` and ends at `max`.
+
+    A BAND WHOSE GRID HOLDS A STAND-IN IT MAY NOT WRITE IS LEFT TO THE
+    WALK (the second review of plan P4-D357 A). That point is the band's
+    spare one, so the band is not saturated; counting the band's points
+    less it made one that was, and the fill then gave every stratum a
+    point of its own in order however far that was from where the ladder
+    put it. Measured on 1,116 whole numbers heaped near `-1000` and
+    `10000`, holding neither `-999` nor `9999`, at a floor of eleven: the
+    positive band's 31 strata, seven of them the ladder's reading across
+    the published empty pair, took the 31 points from 9985 to 10016 less
+    `9999`, the heap moved up three to five units, and the twin MISSED
+    `ladder.p75` (10003 against 9998) and `ladder.p90` (10008 against
+    10003) at seeds 0, 4 and 9. The walk and the push, which refuse the
+    stand-in too, move the strata by one unit and miss nothing.
 
     Guarantees: accepts the column, its numeric block, the layout, the
     published rungs, the stratum values and the grid's figures; returns
@@ -12649,6 +12667,9 @@ def _apart_walk(
     stratum's own share alone, 1 on its neighbours' ground as well, and
     2 by the distance its share is wide as well.
     """
+    # The stand-ins the column keeps, which every point the walk asks
+    # of `_apart_inside` may be (plan P4-D357 A).
+    kept = facts.kept_stand_ins
     total = len(moved)
     for place in range(total):
         if wanted is not None and len(held) >= wanted:
@@ -12685,7 +12706,7 @@ def _apart_walk(
             held,
             0,
             kind,
-            kept=facts.kept_stand_ins,
+            kept,
         )
 
         if want is None and share is not None and reach >= 1:
@@ -12743,7 +12764,7 @@ def _apart_walk(
                 held,
                 0,
                 kind,
-                kept=facts.kept_stand_ins,
+                kept,
             )
 
         if want is None and share is not None and reach >= 2:
@@ -12780,7 +12801,7 @@ def _apart_walk(
                 held,
                 steps,
                 kind,
-                kept=facts.kept_stand_ins,
+                kept,
             )
 
         if want is None:

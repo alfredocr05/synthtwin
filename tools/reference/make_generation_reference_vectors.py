@@ -5114,7 +5114,9 @@ def saturated_bands(
     ``max`` of the band's own sign lying strictly inside no published
     ``empty_edges`` pair.  Where they number exactly the band's strata, the
     band's strata take them in ascending order, each once; a band with a
-    spare point is left.  The zero stratum never moves.  On a column whose
+    spare point is left, and so is a band one of whose points is a
+    stand-in number the column does not keep (plan P4-D357 A, its second
+    review): that point is its spare one.  The zero stratum never moves.  On a column whose
     styles ask for a point-free cell the whole rule stands aside where any
     stratum it fills would change whether its value has a point-free
     spelling.  Every point is counted in exact grid units, so no step
@@ -5138,6 +5140,7 @@ def saturated_bands(
         points = []
         exact = low
         whole = True
+        spare = False
         while exact <= high and len(points) <= len(places):
             number = float(_fraction_text(exact, figures))
             exact = exact + unit
@@ -5149,9 +5152,10 @@ def saturated_bands(
                 whole = False
                 break
             if is_stand_in(number, kept):
-                continue
+                spare = True
+                break
             points.append(number)
-        if not whole or len(points) != len(places):
+        if not whole or spare or len(points) != len(places):
             continue
         for index, place in enumerate(places):
             if point_free and (

@@ -2182,7 +2182,8 @@ boundary rung itself where that percent falls between the two tails.
    fills, walk, push and last resort, the twice-written fill, G6.7's
    clearing walk, the grouping run of plan P4-D185 and G5.5's grid step
    of sign each pass a stand-in over as a point another stratum holds,
-   and a fill counts the points of its grid less the three. Only a value
+   the column-wide fill counts the points of its grid less the three,
+   and a sign band whose grid holds one is left to the walk (G6.5a). Only a value
    the description publishes -- an end, a rung, a listed value, the mode,
    or a stand-in its `sentinel_verdicts` publish as `kept_as_a_number`
    -- is written on one. On 9000 to 9998 beside 10000 and 10001 G6.5a's
@@ -3741,7 +3742,13 @@ from `min` to `max`, of the band's own sign, that lie strictly inside no
 published `empty_edges` pair (a point on a pair's edge is outside it).
 Where those points number exactly the band's strata, the band's strata
 take them in ascending order, each once; a band with a spare point is
-left as it is. The zero stratum never moves. On a column whose styles
+left as it is, and a stand-in number the column does not keep (G5.3b
+step 5) is one of the band's points, its spare one where the others
+number the strata, so a band holding one is left too (the second
+review of plan P4-D357 A: counted less it, a band of 1,116 two-heap
+integers near `-1000` and `10000` was filled up to its derived end, the
+heap moved three to five units, and the twin missed `ladder.p75` and
+`ladder.p90` at every seed). The zero stratum never moves. On a column whose styles
 map asks for any point-free cell, the whole rule stands aside where any
 stratum it would fill would change whether its value has a point-free
 spelling. The walk below then runs over the result as it would have run
