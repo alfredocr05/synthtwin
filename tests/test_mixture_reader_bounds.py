@@ -211,21 +211,23 @@ def test_a_band_keeps_a_trailing_minus_where_every_negative_has_a_point() -> Non
     assert _block(cells)["negative_notations"] == {"trailing_minus": 37}
 
 
-def test_the_comma_warning_keeps_a_band_of_marks_from_speaking() -> None:
+def test_a_band_under_the_comma_drops_the_warning_s_number() -> None:
     """Seven marks of ten whole lone groups each, beside the comma warning.
 
     At 2af1f03 the band published `{",": 70}` while the comma warning said
     fewer than eleven cells wrote a comma that reads either way: seventy
     commas would have said seventy, so a reader knew the band had spoken
-    and each mark held exactly ten. Counted under the comma the warning's
-    count moves up, under any other mark down to nought, so no mark keeps
-    it and the census is silent, `{}`, with no mark published.
-    Mutation: `_reader_bounds` answering every mark wearable turns it red.
+    and each mark held exactly ten. The census went silent at 178bde2; at
+    the final fix of follow-up B the warning keeps its sentence and drops
+    its number instead (P4-D347, the orchestrator's decision (i)), as the
+    table writing all seventy with a comma does, and the band stands.
+    Mutation: `taxonomy._comma_count_unsaid` answering False turns it red.
     """
     block = _block(_seven_marks_of_ten())
-    assert block["thousands_marks"] == {}
-    assert block["group_separator"] == ""
-    assert any("comma" in remark for remark in block["remarks"])
+    assert block["thousands_marks"] == {",": 70}
+    assert block["group_separator"] == ","
+    said = [remark for remark in block["remarks"] if "written with a comma" in remark]
+    assert len(said) == 1 and said[0].startswith("some but not all of")
 
 
 # -------------------------------------------------- item 2, the lone pool
@@ -236,16 +238,17 @@ def test_a_pool_its_spellings_fix_is_not_published() -> None:
 
     Derived from the rule: the pooled cells hold two spellings, so a
     reader sees at most two marks, and twenty is more than one mark holds
-    below eleven -- the pool may not stand. Counted under the comma the
-    warning would count twenty, under the space nought, so the census is
-    silent. At 2af1f03 it published `{"(withheld)": 20}`.
-    Mutation: `parsing.mixture_pool_holds` reading the room as the
-    vocabulary's size turns it red.
+    below eleven -- the pool may not stand. Counted under the comma, whose
+    warning then says "some but not all" for its count; under the space
+    the warning would go. At 2af1f03 it published `{"(withheld)": 20}`.
+    Mutation: `taxonomy._value_groups` answering nothing and
+    `parsing.mixture_pool_holds` reading the room as the vocabulary's
+    size together turn it red.
     """
     block = _block(ITEM_TWO)
     assert block["n_distinct"] == 3
-    assert block["thousands_marks"] == {}
-    assert block["group_separator"] == ""
+    assert block["thousands_marks"] == {",": 20}
+    assert block["group_separator"] == ","
 
 
 def test_a_pool_of_notations_its_spellings_fix_is_counted_under_one() -> None:
@@ -364,6 +367,7 @@ def test_the_loader_refuses_a_pool_its_spellings_fix(tmp_path) -> None:
     document = _document(ITEM_TWO)
     column = document["columns"][0]
     column["thousands_marks"] = {"(withheld)": 20}
+    column["group_separator"] = ""
     said = _refusal(document, tmp_path)
     assert "TM1" in said and "20 grouped numbers are held back beside 3" in said
 

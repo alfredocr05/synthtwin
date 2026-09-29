@@ -5622,6 +5622,7 @@ def census_pools(
     room: int = -1,
     capacities: "list[int] | None" = None,
     groups: "tuple[tuple[int, int, tuple[int, ...]], ...]" = (),
+    unfinished: bool = False,
 ) -> bool:
     """Whether a census none of whose names reaches the line may be one pool.
 
@@ -5656,8 +5657,9 @@ def census_pools(
 
     Guarantees: accepts the population, the settings floor, the size of
     the closed vocabulary (nought for an open one), the room, the
-    capacities and the groups; returns a bool. Determinism: a fixed
-    function of the six. Raises nothing. No I/O of any kind.
+    capacities, the groups and the answer where the walk stops short;
+    returns a bool. Determinism: a fixed function of the seven. Raises
+    nothing. No I/O of any kind.
     """
     if population < census_floor(floor):
         return True
@@ -5668,7 +5670,19 @@ def census_pools(
         size = room + 1
     held = [population] * size if capacities is None else capacities
     seen = size if room < 0 else room
-    return mixture_pool_holds(population, floor, held, seen, groups)
+    return mixture_pool_holds(population, floor, held, seen, groups, unfinished)
+
+
+# HOW FAR `mixture_pool_holds` WALKS before it answers without finishing
+# (the final fix of follow-up B): every step placing a value's rows and
+# every reading of the free cells it asks counts one, about half a second
+# for the million. Where the walk stops short the producer counts the
+# census under one convention -- a band holds no count back -- and the
+# loader refuses only what it has shown, so no description the producer
+# writes is refused. Measured: fifteen values of four rows on two
+# spellings over seven marks settle in 153,000 steps; twenty of ten rows
+# at a floor of 31 did not in fifty million.
+POOL_SEARCH_STEPS = 1000000
 
 
 def mixture_pool_holds(
@@ -5677,6 +5691,7 @@ def mixture_pool_holds(
     capacities: "list[int]",
     room: int,
     groups: "tuple[tuple[int, int, tuple[int, ...]], ...]" = (),
+    unfinished: bool = False,
 ) -> bool:
     """Whether a census none of whose conventions reaches the line may pool.
 
@@ -5696,14 +5711,15 @@ def mixture_pool_holds(
     only on a figure with a point), at most ``room`` conventions are
     written (no reader counts them higher than the pool's own count of
     different spellings), and each of ``groups`` -- a value whose rows
-    the block publishes, as (its rows among the pooled cells, the most
-    conventions its spellings let it wear, what each convention can hold
-    of it) -- sits on its own conventions, no more of them than its
-    spellings. Two groups a reader lets share a convention are kept
-    apart here, which only ever leaves fewer readings: one group is
-    exact, and a pool standing on fewer readings stands on more. Over
-    the counts that allows -- the readings of the pool -- it stands only
-    where:
+    the block counts or bounds, as (its rows among the pooled cells, the
+    most conventions its spellings let it wear, what each convention can
+    hold of it) -- sits on no more conventions than its spellings. TWO
+    VALUES MAY SHARE A CONVENTION (the final fix of follow-up B): kept
+    apart, twenty values of two rows and one spelling each could not sit
+    on seven marks at all, and a pool no reader can pin was refused. A
+    value of one row, or one free to wear every convention a reading
+    writes and open to every convention, bounds nothing a free cell does not. Over the counts that
+    allows -- the readings of the pool -- it stands only where:
 
     1. EVERY CONVENTION COULD BE ABSENT, so none is shown written; and
     2. NO COUNT IS IN EVERY READING, so no reader can say a convention was
@@ -5712,11 +5728,7 @@ def mixture_pool_holds(
        one, or three ones, and one row wrote a notation alone in both.
 
     HOW MANY CONVENTIONS WERE WRITTEN IS NOT ASKED (the second review,
-    finding 3). The first repair asked that one convention fewer than
-    the room could hold the pool, which on a full room is the first
-    clause again and under it refused pools that say only how many were
-    written -- never which, never a count: seven `1,234.00` and seven
-    `1 234.00` were counted under the comma for it.
+    finding 3): it names none and counts none.
 
     On a vocabulary of ``n`` equal capacities with a full room and no
     group this is the rule `census_pools` asked of the vocabulary alone
@@ -5724,16 +5736,24 @@ def mixture_pool_holds(
     of eleven for every closed census; under it the second clause
     refuses more.
 
+    THE WALK IS BOUNDED (`POOL_SEARCH_STEPS`), and where it stops short
+    the answer is ``unfinished``: False for the producer, which then
+    counts the census under one convention, True for the loader, which
+    refuses only a pool it has shown pinned. The producer's readings are
+    never more than the loader's, so it never pools what the loader
+    refuses.
+
     One statement, read by the producer (`taxonomy._mixture_band` and
-    `absorbed_census`, with the pooled cells' true spellings and groups)
-    and by the loader (with the most a published block admits).
+    `absorbed_census`, with the pooled cells' true spellings and every
+    value's true rows) and by the loader (with the most a published block
+    admits).
 
     Guarantees: accepts the pooled count, the settings floor, one capacity
     per convention of the vocabulary (the pooled count or more where
-    nothing bounds it), the most conventions a reader can see and the
-    groups; returns a bool, True for a population below the line.
-    Determinism: a fixed function of the five. Raises nothing. No I/O of
-    any kind.
+    nothing bounds it), the most conventions a reader can see, the groups
+    and the answer where the walk stops short; returns a bool, True for a
+    population below the line. Determinism: a fixed function of the six.
+    Raises nothing. No I/O of any kind.
     """
     line = census_floor(floor)
     if population < line:
@@ -5746,99 +5766,240 @@ def mixture_pool_holds(
         return False
     kept: "list[tuple[int, int, tuple[int, ...]]]" = []
     for rows, spellings, reach in groups:
-        # A GROUP OF ONE ROW, OR ONE FREE TO WEAR EVERY CONVENTION A
-        # READING WRITES, bounds nothing a reader of the pool alone does
-        # not: set aside, so it takes no convention from another group.
-        if rows > 1 and spellings < seen:
-            kept += [(rows, spellings, reach)]
-    asked: "list[tuple[int, ...]]" = []
+        worn = min(spellings, seen)
+        if rows > 0 and not _bounds_nothing(rows, worn, reach, held, seen):
+            kept += [(rows, worn, reach)]
+    ordered: "list[tuple[int, int, int]]" = []
+    for index in range(len(kept)):
+        ordered += [(-kept[index][0], kept[index][1], index)]
+    heaviest: "list[tuple[int, int, tuple[int, ...]]]" = []
+    for _rows, _worn, index in sorted(ordered):
+        heaviest += [kept[index]]
+    answer = _pool_readings(population, held, seen, heaviest, line)
+    if answer is None:
+        return unfinished
+    return answer
+
+
+def _bounds_nothing(
+    rows: int, worn: int, reach: "tuple[int, ...]", held: "list[int]", seen: int
+) -> bool:
+    """Whether a value's rows could be any free cells: as many spellings as it can use, every convention open to all of them."""
+    if worn < min(rows, seen):
+        return False
     for place in range(len(held)):
-        if held[place] < 1:
-            continue
-        kind = (held[place],) + tuple(min(held[place], group[2][place]) for group in kept)
-        if kind in asked:
-            continue
-        asked += [kind]
-        if not _readings_reach(population, held, seen, kept, 0, place):
-            return False
-    for count in range(1, line):
-        if not _readings_reach(population, held, seen, kept, count, -1):
+        if min(held[place], reach[place]) < min(held[place], rows):
             return False
     return True
 
 
-def _readings_reach(
+def _pool_readings(
     population: int,
     held: "list[int]",
-    room: int,
+    seen: int,
     groups: "list[tuple[int, int, tuple[int, ...]]]",
-    barred: int,
-    empty: int,
-) -> bool:
-    """Whether some reading of a pool holds no count ``barred`` and nothing at ``empty``.
+    line: int,
+) -> "bool | None":
+    """Whether readings meet both clauses of `mixture_pool_holds`; None where the walk stops short.
 
-    Counts of nought to each ``held``, at most ``room`` above nought,
-    summing to ``population``, every group's rows placed on conventions
-    of its own. Each state -- conventions written, and per group the
-    conventions it took and the rows they hold for it, the latter no
-    higher than its rows -- keeps the sums it reaches as one whole number
-    read as a set of bits.
+    The conventions are gathered into kinds a reading cannot tell apart
+    -- the same capacity, and the same share of every value -- and a
+    state is the load the values put on each convention, sorted within
+    its kind. The values are placed one at a time, each over no more
+    conventions than its spellings, and every state that places them all
+    is topped up with the free cells (`_topped_up`) once per clause still
+    open: a reading holding no count ``k`` for each ``k`` under the line,
+    and one leaving a convention of each kind empty.
     """
-    within = (1 << (population + 1)) - 1
-    start: "tuple[int, ...]" = (0,) + (0, 0) * len(groups)
-    layer: "dict[tuple[int, ...], int]" = {start: 1}
+    kinds: "list[tuple[int, ...]]" = []
+    sizes: "list[int]" = []
     for place in range(len(held)):
-        most = 0 if place == empty else held[place]
-        grown: "dict[tuple[int, ...], int]" = {}
-        for state in sorted(layer):
-            sums = layer[state]
-            _reached(grown, state, sums)
-            if most < 1 or state[0] >= room:
-                continue
-            free = _spread(sums, 1, most, barred) & within
-            if free:
-                key = (state[0] + 1,) + state[1:]
-                _reached(grown, key, free)
-            for index in range(len(groups)):
-                rows, spellings, reach = groups[index]
-                took = state[1 + 2 * index]
-                holds = state[2 + 2 * index]
-                share = min(most, reach[place])
-                if took >= spellings or holds >= rows or share < 1:
-                    continue
-                for count in range(1, most + 1):
-                    if count == barred:
-                        continue
-                    moved = (sums << count) & within
-                    if not moved:
-                        break
-                    parts = list(state)
-                    parts[0] = state[0] + 1
-                    parts[1 + 2 * index] = took + 1
-                    parts[2 + 2 * index] = min(rows, holds + min(count, share))
-                    key = tuple(parts)
-                    _reached(grown, key, moved)
-        layer = grown
-    for state in layer:
-        if not (layer[state] >> population) & 1:
+        if held[place] < 1:
             continue
-        placed = True
-        for index in range(len(groups)):
-            if state[2 + 2 * index] < groups[index][0]:
-                placed = False
-        if placed:
-            return True
+        shares: "list[int]" = [held[place]]
+        for group in groups:
+            shares += [min(held[place], group[2][place])]
+        kind = tuple(shares)
+        known = -1
+        for other in range(len(kinds)):
+            if kinds[other] == kind:
+                known = other
+        if known >= 0:
+            sizes[known] += 1
+        else:
+            kinds += [kind]
+            sizes += [1]
+    if not kinds:
+        return False
+    avoided: "list[int]" = list(range(1, line))
+    emptied: "list[int]" = list(range(len(kinds)))
+    empty: "list[tuple[int, ...]]" = []
+    for size in sizes:
+        empty += [(0,) * size]
+    start = tuple(empty)
+    budget = [POOL_SEARCH_STEPS]
+    visited: "dict[tuple[int, tuple[tuple[int, ...], ...]], bool]" = {(0, start): True}
+    stack: "list[tuple[int, tuple[tuple[int, ...], ...]]]" = [(0, start)]
+    depth = 1
+    while depth > 0:
+        depth = depth - 1
+        level, state = stack[depth]
+        if level == len(groups):
+            still: "list[int]" = []
+            for barred in avoided:
+                budget[0] = budget[0] - 1
+                if not _topped_up(population, kinds, state, seen, barred, -1):
+                    still += [barred]
+            avoided = still
+            still = []
+            for index in emptied:
+                budget[0] = budget[0] - 1
+                if state[index][len(state[index]) - 1] != 0 or not _topped_up(
+                    population, kinds, state, seen, -1, index
+                ):
+                    still += [index]
+            emptied = still
+            if not avoided and not emptied:
+                return True
+        else:
+            rows, spellings, _reach = groups[level]
+            for grown in _placements(state, kinds, level, rows, spellings, budget):
+                if (level + 1, grown) in visited:
+                    continue
+                visited[(level + 1, grown)] = True
+                if depth < len(stack):
+                    stack[depth] = (level + 1, grown)
+                else:
+                    stack += [(level + 1, grown)]
+                depth = depth + 1
+        if budget[0] < 1:
+            return None
     return False
 
 
-def _reached(
-    layer: "dict[tuple[int, ...], int]", state: "tuple[int, ...]", sums: int
+def _placements(
+    state: "tuple[tuple[int, ...], ...]",
+    kinds: "list[tuple[int, ...]]",
+    index: int,
+    rows: int,
+    spellings: int,
+    budget: "list[int]",
+) -> "list[tuple[tuple[int, ...], ...]]":
+    """Every state one value's rows reach from ``state``, over no more than ``spellings`` conventions.
+
+    Two conventions of one kind under one load are one convention to a
+    reading, so the amounts given them are taken in falling order and each
+    resulting state is met once. Every step of the walk spends one of
+    ``budget``, and at nought it stops.
+    """
+    slots: "list[tuple[int, int, int]]" = []
+    for kind in range(len(kinds)):
+        loads = state[kind]
+        for position in range(len(loads)):
+            share = min(kinds[kind][0] - loads[position], kinds[kind][1 + index])
+            slots += [(kind, position, max(0, share))]
+    after = [0] * (len(slots) + 1)
+    for slot in range(len(slots) - 1, -1, -1):
+        after[slot] = after[slot + 1] + slots[slot][2]
+    found: "dict[tuple[tuple[int, ...], ...], bool]" = {}
+    _fill(state, slots, after, [0] * len(slots), 0, rows, spellings, found, budget)
+    return sorted(found)
+
+
+def _fill(
+    state: "tuple[tuple[int, ...], ...]",
+    slots: "list[tuple[int, int, int]]",
+    after: "list[int]",
+    amounts: "list[int]",
+    slot: int,
+    left: int,
+    parts: int,
+    found: "dict[tuple[tuple[int, ...], ...], bool]",
+    budget: "list[int]",
 ) -> None:
-    """Add ``sums`` to what ``state`` reaches in ``layer``."""
-    if state in layer:
-        layer[state] = layer[state] | sums
-    else:
-        layer[state] = sums
+    """`_placements`' walk from ``slot`` on, ``left`` rows still to place over at most ``parts`` conventions."""
+    budget[0] = budget[0] - 1
+    if budget[0] < 1:
+        return
+    if left == 0:
+        grown: "list[tuple[int, ...]]" = []
+        start = 0
+        for kind in range(len(state)):
+            loads: "list[int]" = []
+            for position in range(len(state[kind])):
+                loads += [state[kind][position] + amounts[start + position]]
+            start = start + len(state[kind])
+            grown += [tuple(sorted(loads, reverse=True))]
+        found[tuple(grown)] = True
+        return
+    if slot >= len(slots) or parts < 1 or after[slot] < left:
+        return
+    kind, position, share = slots[slot]
+    top = min(share, left)
+    if position > 0 and state[kind][position - 1] == state[kind][position]:
+        top = min(top, amounts[slot - 1])
+    for amount in range(top, -1, -1):
+        amounts[slot] = amount
+        _fill(
+            state, slots, after, amounts, slot + 1, left - amount,
+            parts - (1 if amount > 0 else 0), found, budget,
+        )
+    amounts[slot] = 0
+
+
+def _topped_up(
+    population: int,
+    kinds: "list[tuple[int, ...]]",
+    state: "tuple[tuple[int, ...], ...]",
+    seen: int,
+    barred: int,
+    empty: int,
+) -> bool:
+    """Whether the free cells can fill ``state`` to ``population``: no count ``barred``, one convention of kind ``empty`` left empty.
+
+    Every convention holds its load or more, up to its capacity; at most
+    ``seen`` are written. The conventions of one kind the values left
+    empty are one batch: ``t`` of them written reach the sums one more
+    spread reaches from ``t - 1``.
+    """
+    within = (1 << (population + 1)) - 1
+    layers: "list[int]" = [1] + [0] * seen
+    for kind in range(len(kinds)):
+        most = kinds[kind][0]
+        loads = state[kind]
+        idle = 0
+        for load in loads:
+            if load == 0:
+                idle += 1
+        if kind == empty:
+            idle = idle - 1
+        for load in loads:
+            if load < 1:
+                continue
+            grown = [0] * (seen + 1)
+            for written in range(seen):
+                if layers[written]:
+                    grown[written + 1] = _spread(layers[written], load, most, barred) & within
+            layers = grown
+        if idle < 1:
+            continue
+        batch = [0] * (seen + 1)
+        for written in range(seen + 1):
+            batch[written] = layers[written]
+        reach = layers
+        for _ in range(min(idle, seen)):
+            step = [0] * (seen + 1)
+            for written in range(seen):
+                if reach[written]:
+                    step[written + 1] = _spread(reach[written], 1, most, barred) & within
+            for written in range(seen + 1):
+                batch[written] = batch[written] | step[written]
+            reach = step
+        layers = batch
+    for written in range(seen + 1):
+        if (layers[written] >> population) & 1:
+            return True
+    return False
 
 
 def _spread(sums: int, low: int, high: int, barred: int) -> int:
