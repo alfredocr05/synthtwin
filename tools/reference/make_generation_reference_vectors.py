@@ -9711,24 +9711,17 @@ def tail_holes_named(column, at, low_side):
     """What G7.3b step 7's step off a hole asks of one tail (plan P4-D358).
 
     The boundary's tail unit, the side, and the tail units the column's
-    own absent spellings name -- read here as ISO dates, bare or with a
-    midnight clock, on a column whose tail unit is a day of its own
-    clock; None elsewhere, where no case of this oracle's puts an absent
-    spelling.
+    own absent spellings name, read under its own member: a month or a
+    quarter as `spans_named` reads one, and a day of a column whose tail
+    unit is a day of its own clock as `days_named` does; None elsewhere,
+    where no case of this oracle's puts an absent spelling.
     """
+    member, spellings = column.get("format", ""), column.get("missing_by_source", {})
+    if column["tail_unit"] in ("month", "quarter"):
+        return (at, low_side, spans_named(member, spellings))
     if column["tail_unit"] != "day" or column["datetimes_read_at"] != "local":
         return None
-    named = set()
-    for text in column.get("missing_by_source", {}):
-        text = text.strip()
-        day, clock = text[:10], text[10:]
-        if (
-            len(day) == 10 and day[4] == "-" and day[7] == "-"
-            and (day[:4] + day[5:7] + day[8:]).isdigit()
-            and clock in ("", "T00:00:00", " 00:00:00")
-        ):
-            named.add(days_from_civil(int(day[:4]), int(day[5:7]), int(day[8:])))
-    return (at, low_side, named)
+    return (at, low_side, days_named(member, spellings))
 
 
 def tail_side_plan(column, side, low_side, parsed, words):

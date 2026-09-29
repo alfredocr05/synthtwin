@@ -1717,6 +1717,70 @@ def _generator_absent(member, resolution, midnight, spellings):
     return set(generation._count_holes(typing.cast(contract.DatetimeFacts, facts), spellings))
 
 
+# --------------------------------- G7.3b step 7's holes, read off the spellings
+#
+# WHICH TAIL UNIT A COLUMN'S OWN ABSENT SPELLING NAMES (plan P4-D358). A
+# tail's end and tie group step inward off a unit one of the column's own
+# absent spellings names, read under the column's own member: a day, a
+# month or a quarter. The frozen cases hold the step on ISO days; these
+# rows ask the reading on every member the oracle reads, which the gate
+# columns of `tests/test_stage3b_gate.py` stepping off a missing month and
+# a missing month-first day show carries weight.
+TAIL_HOLE_ROWS = (
+    # (member, resolution, tail unit, the column's absent spellings, units named)
+    #
+    # A day, days from 1970-01-01: 2019-03-11 is 17966 and 1992-01-18 is
+    # 8035 + 17, 8035 being 1992-01-01.
+    ("iso-date", "date", "day", ("2019-03-11",), {17966}),
+    ("iso-datetime", "datetime", "day", ("2019-03-11T00:00:00",), {17966}),
+    ("month-first-date", "date", "day", ("1/18/1992",), {8052}),
+    # A month or a quarter from 1970: 1993-06 is 12 * 23 + 5, 1998-Q1 is
+    # 4 * 28 and 1998-q3 is 4 * 28 + 2.
+    ("iso-month", "month", "month", ("1993-06",), {281}),
+    ("year-quarter", "quarter", "quarter", ("1998-Q1", "1998-q3"), {112, 114}),
+    # One the member does not read is passed over and the next still read.
+    ("iso-date", "date", "day", ("-", "2019-03-11"), {17966}),
+    ("month-first-date", "date", "day", ("#N/A", "1/18/1992"), {8052}),
+    ("iso-month", "month", "month", ("-", "1993-06"), {281}),
+    ("year-quarter", "quarter", "quarter", ("-", "1998-Q1"), {112}),
+    # An ISO day beside month-first dates, a quarter or a thirteenth month
+    # beside months, a month beside quarters: none names a unit.
+    ("month-first-date", "date", "day", ("2019-03-11",), set()),
+    ("iso-month", "month", "month", ("1998-Q1", "2015-13"), set()),
+    ("year-quarter", "quarter", "quarter", ("1998-01",), set()),
+)
+
+
+def _tail_holes_missed(named: typing.Callable[..., object]) -> "list[str]":
+    missed = []
+    for member, resolution, unit, spellings, want in TAIL_HOLE_ROWS:
+        got = _asked(named, member, resolution, unit, spellings)
+        if got != want:
+            missed += [f"{spellings!r} under {member} in {unit}s: {got!r}, the statement gives {want!r}"]
+    return missed
+
+
+def _oracle_tail_holes(module: types.ModuleType) -> typing.Callable[..., object]:
+    def named(member, resolution, unit, spellings):
+        off = module.tail_holes_named({
+            "format": member, "resolution": resolution, "tail_unit": unit,
+            "datetimes_read_at": "local", "missing_by_source": {spelling: 1 for spelling in spellings},
+        }, 0, True)
+        return set() if off is None else set(off[2])
+
+    return named
+
+
+def _generator_tail_holes(member, resolution, unit, spellings):
+    column = types.SimpleNamespace(missing_by_source={spelling: 1 for spelling in spellings})
+    facts = types.SimpleNamespace(
+        parser_family=member, resolution=resolution, tail_unit=unit, datetimes_read_at="local",
+    )
+    return set(generation._hole_units(
+        typing.cast(contract.ColumnBlock, column), typing.cast(contract.DatetimeFacts, facts)
+    ))
+
+
 # ------------------------------------------------------------ the two readers
 
 WITNESSES = {
@@ -1779,6 +1843,10 @@ WITNESSES = {
     "absent": (
         lambda module: _absent_missed(_oracle_absent(module)),
         lambda: _absent_missed(_generator_absent),
+    ),
+    "tail_hole": (
+        lambda module: _tail_holes_missed(_oracle_tail_holes(module)),
+        lambda: _tail_holes_missed(_generator_tail_holes),
     ),
 }
 
@@ -2455,6 +2523,19 @@ WITNESS_MUTANTS.update({
         "            found.add(days_from_civil(int(parts[2]), int(parts[0]), int(parts[1])))\n    return found\n",
         "            found.add(days_from_civil(int(parts[2]), int(parts[0]), int(parts[1])))\n"
         "        else:\n            break\n    return found\n",
+    ),
+    "tail_hole_days_only": (
+        "tail_hole",
+        '    if column["tail_unit"] in ("month", "quarter"):\n        return (at, low_side, spans_named(member, spellings))\n',
+        "",
+    ),
+    "tail_hole_months_only": (
+        "tail_hole", 'if column["tail_unit"] in ("month", "quarter"):', 'if column["tail_unit"] == "month":',
+    ),
+    "tail_hole_every_member_read_as_iso": (
+        "tail_hole",
+        "    return (at, low_side, days_named(member, spellings))\n",
+        '    return (at, low_side, days_named("iso-date", spellings))\n',
     ),
 })
 

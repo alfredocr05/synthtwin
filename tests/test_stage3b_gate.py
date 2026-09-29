@@ -135,7 +135,13 @@ final review of 3b.0, where it turned no test red). The reading stopped
 at the first spelling the member cannot read turns the `absent` rows
 opening on `-` or `#N/A` red and
 `test_a_missing_month_is_read_past_a_spelling_the_member_cannot_read`
-(its second skeptic, where it turned no test red).
+(its second skeptic, where it turned no test red). G7.3b step 7 reads
+the column's own hole under its member by the `tail_hole` rows there;
+its reading withdrawn on months and quarters, on every member but an
+ISO one, or stopped at the first spelling it cannot read turns those
+rows red and a column of
+`test_a_tail_group_steps_off_a_missing_month_or_month_first_day`
+(that skeptic again).
 
 LANDING 3b.1 (plan P4-D355) makes the second clause true on DATE
 columns: the weekday census, published only where the full-fill
@@ -1821,6 +1827,47 @@ def test_a_missing_month_is_read_past_a_spelling_the_member_cannot_read(
     block = _span_hole_held(tmp_path, monkeypatch, cells, "2013-06", 12 * 43 + 5, 11, ("-",))
     assert (block["format"], block["n_present"], block["n_distinct"], block["missing_by_source"]) == (
         "iso-month", 494, 43, {"-": 13, "2013-06": 27}
+    )
+
+
+# 124 values over the 110 units from the first, beside 56 cells of the
+# seventeenth and 40 of `-`, both declared missing, at a floor of 36:
+# months from 1992-02, the seventeenth 1993-06, or month-first days from
+# 1992-01-02, the seventeenth 1992-01-18 (the final review's second
+# skeptic, `random.Random(450226)`).
+_STEP_OFF_COUNTS = (
+    2, 0, 0, 5, 0, 0, 0, 14, 0, 5, 0, 0, 2, 0, 0, 16, 56, 0, 6, 0, 1, 0, 1,
+    2, 0, 0, 2, 0, 0, 0, 1, 3, 0, 0, 3, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0,
+    0, 0, 0, 1, 0, 1, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 3, 0, 0,
+    0, 0, 0, 0, 0, 2, 3, 1, 1, 5, 0, 0, 1, 0, 1, 0, 1, 5, 0, 8, 0, 6, 0, 0,
+    0, 4, 0, 1, 4, 0, 0, 0, 2, 1, 0, 1, 0, 0, 1,
+)
+
+
+@pytest.mark.parametrize("member", ("iso-month", "month-first-date"))
+def test_a_tail_group_steps_off_a_missing_month_or_month_first_day(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, member: str
+) -> None:
+    """G7.3b step 7 reads the column's own hole under its own member (P4-D358).
+
+    The low tail's tie group of nine ranks falls on the missing unit and
+    steps one unit inward off it. With step 7's reading withdrawn on
+    months and quarters, or on every member but an ISO one, or stopped at
+    the `-` that sorts before the unit, the group stood there: 65 cells
+    read back absent where the column holds 56, and ten checks MISSED at
+    seeds 3 and 8, the median and the low tail's boundary, mean, spread
+    and rows among them.
+    """
+    cells: "list[str]" = ["-"] * 40
+    for step, count in enumerate(_STEP_OFF_COUNTS):
+        day = datetime.date(1992, 1, 2) + datetime.timedelta(days=step)
+        month = f"{1992 + (step + 1) // 12}-{(step + 1) % 12 + 1:02d}"
+        cells += [month if member == "iso-month" else f"{day.month}/{day.day}/{day.year}"] * count
+    random.Random(450226).shuffle(cells)
+    hole, unit = ("1993-06", 12 * 23 + 5) if member == "iso-month" else ("1/18/1992", 8052)
+    block = _span_hole_held(tmp_path, monkeypatch, cells, hole, unit, 36, ("-",))
+    assert (block["format"], block["n_present"], block["n_distinct"], block["missing_by_source"]) == (
+        member, 124, 43, {"-": 40, hole: 56}
     )
 
 

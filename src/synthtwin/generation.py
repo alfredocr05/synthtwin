@@ -18112,9 +18112,11 @@ def _hole_units(
     """Every tail unit one of this column's own absent spellings names.
 
     A spelling the column publishes among its absent cells that its own
-    member reads as a date names one unit; a derived end or group standing
-    on that unit would be written as a cell the twin's description reads
-    as absent, so it steps inward off it (G7.3b).
+    member reads as a date names one unit -- a day, a month, a quarter or
+    a moment's own tail unit -- and one it cannot read names none and
+    hides none after it; a derived end or group standing on that unit
+    would be written as a cell the twin's description reads as absent, so
+    it steps inward off it (G7.3b step 7).
     """
     found: "dict[int, bool]" = {}
     for spelling in _hole_spellings(column):

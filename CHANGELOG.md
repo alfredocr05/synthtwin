@@ -78,7 +78,10 @@ now skips such a day, whichever column's absent spelling names it; a
 rank drawn onto one leaves it before the passes count; and a tail rank
 stuck on one is counted as the absent cell it is. The oracle holds the
 rule from the method's text, and G7.3b step 7's step off a hole, which
-it held nowhere. Six frozen cases -- three at the second round, for a
+it held nowhere -- on ISO days, and since the final review's second
+skeptic on months, quarters and month-first days, where twelve
+`tail_hole` rows, three oracle mutants and a month and a month-first
+gate column hold the reading no test held. Six frozen cases -- three at the second round, for a
 tie group's step off a hole and a stuck rank's absent day in the count
 G7.3 reaches and in the one step 9 owes -- eighteen witness rows and ten
 oracle mutants hold it for days; fourteen rows reading a day, a month or
