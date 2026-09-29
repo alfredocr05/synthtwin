@@ -1671,11 +1671,14 @@ ABSENT_ROWS = (
     # member reads a lower-case q as well, 1998-q3 being 4 * 28 + 2.
     ("year-quarter", "quarter", False, ("1998-Q1",), {112}),
     ("year-quarter", "quarter", False, ("1998-q3",), {114}),
+    # The member reads a spelling past the spaces around it.
+    ("iso-month", "month", False, (" 2015-02 ",), {541}),
     # Spellings the member does not read name nothing: a thirteenth month,
-    # year 0, a day beside months, a quarter beside months, a month beside
-    # quarters, a fifth quarter, an ISO day beside month-first dates.
-    ("iso-month", "month", False, ("2015-13", "0000-05", "2015-02-03", "1998-Q1"), set()),
-    ("year-quarter", "quarter", False, ("1998-01", "1998-Q5"), set()),
+    # a month nought, year 0, a day beside months, a quarter beside months,
+    # a month beside quarters, a fifth quarter and a quarter nought, an ISO
+    # day beside month-first dates.
+    ("iso-month", "month", False, ("2015-13", "2015-00", "0000-05", "2015-02-03", "1998-Q1"), set()),
+    ("year-quarter", "quarter", False, ("1998-01", "1998-Q5", "1998-Q0"), set()),
     ("month-first-date", "date", False, ("2019-03-11",), set()),
     # One the member does not read is passed over and the next still read:
     # a declared `-` or `#N/A` sorts before every date the run publishes.
@@ -2509,6 +2512,15 @@ WITNESS_MUTANTS.update({
     ),
     "absent_year_zero_read": (
         "absent", " or int(text[:4]) < 1:", ":",
+    ),
+    "absent_month_nought_read": (
+        "absent", "and 1 <= int(text[5:])", "and 0 <= int(text[5:])",
+    ),
+    "absent_quarter_nought_read": (
+        "absent", 'text[6] in "1234"', 'text[6] in "01234"',
+    ),
+    "absent_span_spaces_kept": (
+        "absent", "        text = text.strip()\n        if len(text) != 7", "        if len(text) != 7",
     ),
     "absent_marked_moments_asked": (
         "absent",

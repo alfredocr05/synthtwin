@@ -84,8 +84,8 @@ skeptic on months, quarters and month-first days, where twelve
 gate column hold the reading no test held. Six frozen cases -- three at the second round, for a
 tie group's step off a hole and a stuck rank's absent day in the count
 G7.3 reaches and in the one step 9 owes -- eighteen witness rows and ten
-oracle mutants hold it for days; fourteen rows reading a day, a month or
-a quarter, nine oracle mutants and a month and a quarter gate column hold
+oracle mutants hold it for days; fifteen rows reading a day, a month or
+a quarter, twelve oracle mutants and a month and a quarter gate column hold
 the month and the quarter, which no test held (the final review), and a
 month column beside a `-` the reading past a spelling the member cannot
 read, which none held either (its second skeptic). One
