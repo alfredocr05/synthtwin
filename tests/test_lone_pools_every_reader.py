@@ -438,3 +438,18 @@ def test_the_loader_refuses_a_pool_of_day_clock_marks_the_column_bounds(tmp_path
     column["datetime_separators"] = {"(withheld)": 20}
     said = _refusal(document, tmp_path)
     assert "D12" in said and "all 20" in said
+
+
+def test_a_pool_an_unwritable_end_makes_is_asked_as_the_loader_reads_it() -> None:
+    """Twelve `1.5` and one `2.375` for a maximum: the pool the end makes told the one.
+
+    The widths name `1` for all thirteen decimals, and `2.375` needs three
+    figures, so the census used to be a pool of thirteen (plan P4-D222).
+    A reader of that pool sees two decimal spellings -- `1.5` on twelve
+    rows, one spelling, one width -- so the other width held one row.
+    Asked with the fewest widths a loader could read (`_end_pool_band`),
+    it is counted at the width every decimal can be written at, `3`.
+    Mutation: the end rule's pool never asked turns it red.
+    """
+    block = _block(["1.5"] * 12 + ["2.375"] + ["1"] * 40 + ["2"] * 47)
+    assert block["fraction_widths"] == {"3": 13}
