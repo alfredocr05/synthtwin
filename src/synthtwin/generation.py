@@ -18511,17 +18511,30 @@ _WEEKDAY_REACH = 400
 _WEEKDAY_PROBES = 64
 _WEEKDAY_EXCHANGES = 64
 
-# WHICH GAVE WAY, where the census and the count of different days cannot
-# both be met (method G7.3f, step 8.3). The count's own recount
-# (`_recount_notes`) prints this in place of its general reason, which
-# said the ways of writing a value ran short: false on a column whose
-# census cost it a day (review of landing 3b.1, item 5).
+# WHICH GAVE WAY, where the day pass meets the census and not the count
+# of different days (method G7.3f, step 8.3). The count's own recount
+# (`_recount_notes`) prints it in place of its general reason, which
+# blamed the ways of writing a value (review of landing 3b.1, item 5).
+# It speaks of the TWIN's placements: the real table is one meeting
+# both, and the twin's tails, rebuilt from a boundary, rows and
+# distances, may hold fewer different days than the real ones (the
+# review's second round: 20,000 visits held 260 of 261). Where every day
+# the census allows between the boundaries holds a date, the tails are
+# what fell short, and it says so.
 _WEEKDAY_DAYS_GIVEN_WAY = (
-    "No placement of this column's dates between the published rungs "
+    "The day pass found no placement of the twin's own dates, between "
+    "the published rungs and around the tail dates the twin wrote, that "
     "meets both the published counts per day of the week and the count "
     "of different values, so the twin kept the counts per day of the "
     "week and holds fewer different values than the description records."
 )
+_WEEKDAY_DAYS_IN_THE_TAILS = _WEEKDAY_DAYS_GIVEN_WAY + (
+    " Every day between the tail boundaries that those counts allow and "
+    "the description does not hold empty already holds a date, so the "
+    "dates the twin wrote in its tails hold fewer different days than "
+    "the description's count needs."
+)
+_WEEKDAY_CAUSES = (_WEEKDAY_DAYS_GIVEN_WAY, _WEEKDAY_DAYS_IN_THE_TAILS)
 
 
 @dataclasses.dataclass(frozen=True)
@@ -19341,8 +19354,9 @@ def _weekday_settled(
     Draws no word. Where the census still does not hold, the returned
     deviation names it; where it holds and the count of different days
     the pass found does not, the returned deviation says the count gave
-    way to it (`_WEEKDAY_DAYS_GIVEN_WAY`), the cause the column's recount
-    prints.
+    way to it (`_WEEKDAY_DAYS_GIVEN_WAY`, or `_WEEKDAY_DAYS_IN_THE_TAILS`
+    where every day the census allows between the boundaries holds a
+    date), the cause the column's recount prints.
 
     Guarantees: accepts the column and its ranks' days and gaps; returns
     the new days and at most one deviation. Determinism: a function of
@@ -19456,16 +19470,39 @@ def _weekday_settled(
             )
         ]
     elif state.keep_units and _weekday_count(state) < wanted:
+        cause = _WEEKDAY_DAYS_GIVEN_WAY
+        if _weekday_body_full(
+            state, layout.low.boundary, layout.high.boundary, census
+        ):
+            cause = _WEEKDAY_DAYS_IN_THE_TAILS
         notes += [
             _deviation(
                 column.name,
                 "n_distinct",
                 f"{wanted} different days",
                 f"{_weekday_count(state)} different days",
-                _WEEKDAY_DAYS_GIVEN_WAY,
+                cause,
             )
         ]
     return moved, notes
+
+
+def _weekday_body_full(
+    state: _WeekdayPass,
+    first: int,
+    last: int,
+    census: "tuple[tuple[int, int, int], ...]",
+) -> bool:
+    """Whether every day from `first` to `last` that a non-zero group of the
+    census counts, and that is no hole, holds a rank: then no table meeting
+    the census holds more different days there, and a count short of the
+    description's is short in the tails (`_WEEKDAY_DAYS_IN_THE_TAILS`)."""
+    for day in range(first, last + 1):
+        if census[_weekday_group(state, day)][2] == 0 or day in state.holes:
+            continue
+        if not _weekday_holds(state, day):
+            return False
+    return True
 
 
 def _published_holes(
@@ -38362,9 +38399,9 @@ def generate(profile: contract.Profile, seed: int) -> Twin:
         # step 8.3), so the count is named once, measured, with its cause.
         cause = ""
         for note in notes:
-            if note.note == _WEEKDAY_DAYS_GIVEN_WAY:
+            if note.note in _WEEKDAY_CAUSES:
                 cause = note.note
-        notes = [note for note in notes if note.note != _WEEKDAY_DAYS_GIVEN_WAY]
+        notes = [note for note in notes if note.note not in _WEEKDAY_CAUSES]
         notes = (
             list(each.notes)
             + notes

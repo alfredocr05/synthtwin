@@ -961,15 +961,16 @@ def test_where_the_census_costs_a_day_the_report_says_the_count_gave_way(
 ) -> None:
     """A twin short of a day the census cost it names that cause, not a shortage of spellings.
 
-    Where no placement meets both the census and the count of different
-    days, the census is kept and the count gives way, and the report says
-    so: its general reason for a short count -- "the ways of writing a
-    value ... could not supply that many" -- was false there. No column
-    the reader's bounds admit reaches that end with step 8.3 in place (a
-    census WC8 certifies has a table holding both), so it is reached here
-    by withdrawing step 8.3 on the review's probe, whose seed 1 then holds
-    38 of 39 days. Red when the day pass names no cause, or the recount
-    prints its own over it.
+    Where the day pass finds no placement of the twin's dates meeting both
+    the census and the count of different days, the census is kept and the
+    count gives way, and the report says so: its general reason for a
+    short count -- "the ways of writing a value ... could not supply that
+    many" -- was false there. Reached here by withdrawing step 8.3 on the
+    review's probe, whose seed 1 then holds 38 of 39 days with a day of
+    its body still free, so the note blames no tail (a column that reaches
+    it with step 8.3 in place is the next test's). Red when the day pass
+    names no cause, the recount prints its own over it, or the note blames
+    the tails while a day the census allows stands free.
     """
     from synthtwin import generation
 
@@ -982,8 +983,78 @@ def test_where_the_census_costs_a_day_the_report_says_the_count_gave_way(
     named = [note for note in short.deviations if note.fact == "n_distinct"]
     caused = [note for note in named if "kept the counts per day of the week" in note.note]
     assert [(note.published, note.achieved) for note in caused] == [("39", "38")], named
+    assert not [note for note in caused if "in its tails" in note.note], named
     assert not [note for note in short.deviations if "could not supply" in note.note], named
     assert not [note for note in short.deviations if note.fact == calendar_rules.WEEKDAY_CENSUS]
+
+
+def _business_days_spilling_over_a_weekend(seed: int) -> "list[str]":
+    """13 weeks of Monday-to-Friday visits from 2 January 2023, 20 to 30 a day
+    drawn with `Random(seed)`, then 25, 5 and 1 on the Saturday, Sunday and
+    Monday after the last Friday."""
+    draw = random.Random(seed)
+    cells: "list[str]" = []
+    for step in range(7 * 13):
+        day = datetime.date(2023, 1, 2) + datetime.timedelta(days=step)
+        if day.weekday() < 5:
+            cells += [day.isoformat()] * draw.randint(20, 30)
+    for step, rows in ((0, 25), (1, 5), (2, 1)):
+        cells += [(datetime.date(2023, 4, 1) + datetime.timedelta(days=step)).isoformat()] * rows
+    draw.shuffle(cells)
+    return cells
+
+
+def _heaped_year(seed: int) -> "list[str]":
+    """The second skeptic's draw (`Random(seed)`): 5,000 to 20,000 ISO visits
+    over one to four years from 2 January 2023, seeded weekday weights, one
+    to three days of the month heaped."""
+    draw = random.Random(seed)
+    rows = draw.choice([5000, 10000, 20000])
+    span = draw.choice([365, 730, 1460])
+    days = [datetime.date(2023, 1, 2) + datetime.timedelta(days=step) for step in range(span)]
+    weights = [draw.choice([0, 0, 1, 2, 10, 20]) for _ in range(7)]
+    heaped = draw.sample(range(1, 29), draw.choice([1, 2, 3]))
+    times = draw.choice([4, 8, 16])
+    weighted = [weights[day.weekday()] * (times if day.day in heaped else 1) for day in days]
+    return [day.isoformat() for day in draw.choices(days, weights=weighted, k=rows)]
+
+
+def test_a_day_the_twins_own_tails_cost_is_not_called_unplaceable(tmp_path: pathlib.Path) -> None:
+    """SLOW. A count short in the twin's own tails says so, and never that no placement of the dates exists.
+
+    A business-day log whose last rows spill over a weekend: its Monday's
+    one row keeps the high tail's values back, so the twin rebuilds that
+    tail from its boundary, rows and distances with fewer different days
+    than the real one, and its body already holds every weekday between
+    the boundaries, so no move can put the day back. The report said no
+    placement of the column's dates between the rungs met both counts --
+    which the real table refutes, being one. Beside it the second
+    skeptic's column (`Random(9320)`, 20,000 visits over 2023 on five
+    weekdays). Red when the note is the old one, and when it does not
+    name the tails.
+    """
+    from synthtwin import generation
+
+    for name, cells, seeds in (
+        ("log", _business_days_spilling_over_a_weekend(1), (0, 1, 2)),
+        ("year", _heaped_year(9320), (0,)),
+    ):
+        described = kpi_shapes.describe(tmp_path / name, name, "visit\n" + "".join(f"{cell}\n" for cell in cells), 11)
+        block = described.block("visit")
+        assert block["weekday_census"] and block["n_distinct"] == len(set(cells)), name
+        assert block["high_tail"]["values"] is None, name
+        low, high = block["low_tail"]["boundary"], block["high_tail"]["boundary"]
+        for seed in seeds:
+            written = set(kpi_shapes.twin_text(described, seed).splitlines()[1:])
+            if name == "log":
+                weekdays = {cell for cell in cells if low <= cell <= high}
+                assert {cell for cell in written if low <= cell <= high} == weekdays, seed
+            named = [note for note in generation.generate(described.loaded, seed).deviations if note.fact == "n_distinct"]
+            caused = [note for note in named if "kept the counts per day of the week" in note.note]
+            assert [note.published for note in caused] == [str(len(set(cells)))], (name, seed, named)
+            assert int(caused[0].achieved) == len(written) < len(set(cells)), (name, seed)
+            assert "No placement of this column's dates" not in caused[0].note, caused[0].note
+            assert "in its tails hold fewer different days" in caused[0].note, caused[0].note
 
 
 def test_no_twin_of_the_reviews_draws_loses_a_day_to_the_census(tmp_path: pathlib.Path) -> None:

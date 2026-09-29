@@ -6376,10 +6376,13 @@ ending once both sides lie outside it.
       nearest one a rank holds. The count, as a function of how many
       ranks each cell puts on each group, is a sum of `min(ranks, free
       days)` -- concave -- so where no cycle gains it is the most the
-      census allows. A count left long is steps 1 and 2's again. What
-      the three leave off is reported as the column's count of different
-      values, and where the census holds, as the count that gave way to
-      it.
+      census allows the body around the tail dates the twin wrote, which
+      may hold fewer different days than the real tails. A count left
+      long is steps 1 and 2's again. What the three leave off is
+      reported as the column's count of different values, and where the
+      census holds, as the count that gave way to it -- in the twin's
+      own tails where every day the census allows between the
+      boundaries, no hole, holds a date.
 9. Each run of ranks the layout does not pin is sorted.
 
 Where the census still does not hold, the report names `weekday_census`
