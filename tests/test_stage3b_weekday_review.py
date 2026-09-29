@@ -759,3 +759,38 @@ def test_a_one_weekday_clinic_certifies_its_withholding_with_tables_that_meet_it
     groups = [{"first": 0, "last": 4, "count": size - 1}, {"first": 5, "last": 6, "count": 1}]
     reader = verifier.reader_facts(dict(block, weekday_census=groups), 11)
     assert verifier.table_problems(reader, held, max(held, key=lambda day: held[day])) == []
+
+
+def _weekly_schedule(shape: int) -> "list[str]":
+    """Weekly sessions on one to three weekdays, drawn with `Random(77000 + shape)` (the review's seeded schedules)."""
+    draw = random.Random(77000 + shape)
+    first = datetime.date(2023, 1, 1) + datetime.timedelta(days=draw.randrange(300))
+    weeks = draw.randint(15, 70)
+    allowed = sorted(draw.sample(range(7), draw.randint(1, 3)))
+    days = sorted({
+        first + datetime.timedelta(days=7 * week + draw.choice(allowed))
+        for week in range(weeks)
+        if draw.random() < 0.9
+    })
+    rows = draw.randint(200, 1500)
+    weights = [draw.choice([draw.uniform(0.2, 1), draw.paretovariate(1.3)]) for _ in days]
+    return [draw.choices(days, weights)[0].isoformat() for _ in range(rows)]
+
+
+def test_a_withholding_is_certified_on_classes_of_one_stretchs_half_of_the_week() -> None:
+    """Weekly sessions on Tuesdays and Saturdays publish their census, the withholding's residue asked a class a half.
+
+    What the withholding always keeps back, W0, tells two days apart only
+    by the rank facts, the count of different days and the two half
+    totals, so the days of one stretch between two knots in one half of
+    the week are one class. Asked a class per weekday, the stretch
+    before the first rung held seven residue classes whose arrangements
+    passed the certificate's cap, and these sessions were withheld
+    whatever they held (review of the third review's repair). Red when
+    the withholding asks a class per weekday (`uncertified`).
+    """
+    cells = _weekly_schedule(42)
+    assert sorted({datetime.date.fromisoformat(cell).weekday() for cell in cells}) == [1, 5]
+    described, decided = _decided(cells)
+    assert described.details["weekday_census"], described.publication_notes
+    assert decided.withheld is not None and decided.withheld.holds

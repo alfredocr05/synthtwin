@@ -1237,7 +1237,11 @@ def certify(facts: Facts) -> Verdict:
 # table withheld is then in a set holding W0, and a set holding a
 # certified set confines nothing either. Where W0 is not certified the
 # census is withheld whatever the table, which the published numbers
-# alone decide and so says nothing.
+# alone decide and so says nothing. W0's CLASSES ARE COARSER than a
+# census's: what W0 asks of a table is its rank facts, its count of
+# different days and its two half totals, so exchanging two days of one
+# stretch between two knots and one half of the week changes nothing W0
+# asks (`_pooled`).
 
 
 @dataclasses.dataclass(frozen=True)
@@ -1276,6 +1280,40 @@ def _halves_facts(facts: Facts) -> Facts:
         zero=frozenset(),
         shortable=tuple(sorted({key[1] for key in facts.classes})),
         entry=calendar_rules.ENTRY_WEEKDAYS,
+    )
+
+
+def _pooled(facts: Facts) -> Facts:
+    """The halves' facts with each stretch between two knots one class a half.
+
+    THE WITHHOLDING'S CLASSES (review of the third review's repair). W0
+    tells two days apart only by what it asks of a table -- its rank
+    facts, its count of different days, and its weekend and Monday to
+    Friday totals -- so every day of one stretch between two knots in one
+    half of the week is exchangeable with every other, holes left out as
+    before. Asked a class per weekday, a stretch of a column of few
+    dates had up to seven residue classes where two stand, and 6 of 120
+    seeded schedules were withheld whatever they held, their residue
+    having more arrangements than `CONFIGURATION_CAP`. A knot day stays
+    its own class. The class's weekday is Monday or Saturday, the one
+    each half's network reads.
+    """
+    grown: "dict[tuple[int, int], list[int]]" = {}
+    for key in facts.keys:
+        place, weekday = key
+        if not facts.stretches[place][0]:
+            weekday = 0 if weekday < calendar_rules.SATURDAY else calendar_rules.SATURDAY
+        if (place, weekday) in grown:
+            members = grown[(place, weekday)]
+            members += list(facts.classes[key])
+        else:
+            grown[(place, weekday)] = list(facts.classes[key])
+    classes = {key: tuple(sorted(grown[key])) for key in grown}
+    return dataclasses.replace(
+        facts,
+        classes=classes,
+        keys=tuple(sorted(classes)),
+        shortable=tuple(sorted({key[1] for key in classes})),
     )
 
 
@@ -1352,11 +1390,12 @@ def withholding(
     and that least to the least plus the line plus what the capped
     stretches can take in that half (`bands`). Then W0, the tables whose
     weekend lies in its band or whose weekdays lie in theirs: every class
-    of every weekday needs a witness in W0 putting the line on one of its
-    days, or no table of stage 3's facts may put the line there (else
-    W0, and with it the withholding, narrows the class) and the class is
-    residue, whose every stage-3 configuration W0 allows
-    (`_residue_equivalent` with W0's two alternatives).
+    -- a knot day, or the days of one stretch between two knots in one
+    half of the week (`_pooled`) -- needs a witness in W0 putting the
+    line on one of its days, or no table of stage 3's facts may put the
+    line there (else W0, and with it the withholding, narrows the
+    class) and the class is residue, whose every stage-3 configuration
+    W0 allows (`_residue_equivalent` with W0's two alternatives).
 
     CACHED ON THE WHOLE QUESTION, as `check` is. Guarantees: accepts the
     description's numbers; returns the answer. Determinism: a function
@@ -1458,7 +1497,7 @@ def bands(
 
 def _withheld_certified(given: Facts, banded: Bands) -> Withholding:
     tally = [banded.solves]
-    facts = _halves_facts(given)
+    facts = _pooled(_halves_facts(given))
     line = facts.line
     body = facts.body
     weekend = banded.weekend
