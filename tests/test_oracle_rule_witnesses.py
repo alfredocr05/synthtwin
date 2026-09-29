@@ -1647,6 +1647,70 @@ def _generator_stuck(ordinals, pinned, low_rows, high_rows, holes):
     )
 
 
+# ------------------------------------------ G7.3's holes, read off the spellings
+#
+# WHICH UNIT AN ABSENT SPELLING NAMES (plan P4-D358). Each absent spelling,
+# read under the column's own member, names a unit of the count pass's own
+# space -- a day, a month or a quarter -- and no other column names one:
+# not moments at midnight whose member has another mark to give (G7.5),
+# not a column counted in minutes. The rows above are handed their holes;
+# these ask the reading itself, which the month and quarter columns of
+# `tests/test_stage3b_gate.py` show carries weight (the review's month and
+# quarter entries withdrawn, 88 and 121 of 400 twins missed both distinct
+# counts, and no test turned red).
+ABSENT_ROWS = (
+    # (member, resolution, all at midnight, absent spellings, units named)
+    #
+    # A day, days from 1970-01-01: 2019-03-11 is 17897 + 31 + 28 + 10.
+    ("iso-date", "date", False, ("2019-03-11",), {17966}),
+    ("month-first-date", "date", False, ("3/11/2019",), {17966}),
+    # A month, twelve to the year from 1970: 2015-02 is 12 * 45 + 1, and
+    # 2016-11 is 12 * 46 + 10.
+    ("iso-month", "month", False, ("2015-02", "2016-11"), {541, 562}),
+    # A quarter, four to the year from 1970: 1998-Q1 is 4 * 28, and the
+    # member reads a lower-case q as well, 1998-q3 being 4 * 28 + 2.
+    ("year-quarter", "quarter", False, ("1998-Q1",), {112}),
+    ("year-quarter", "quarter", False, ("1998-q3",), {114}),
+    # Spellings the member does not read name nothing: a thirteenth month,
+    # year 0, a day beside months, a quarter beside months, a month beside
+    # quarters, a fifth quarter, an ISO day beside month-first dates.
+    ("iso-month", "month", False, ("2015-13", "0000-05", "2015-02-03", "1998-Q1"), set()),
+    ("year-quarter", "quarter", False, ("1998-01", "1998-Q5"), set()),
+    ("month-first-date", "date", False, ("2019-03-11",), set()),
+    # Moments at midnight on a member with another mark keep their day by
+    # that mark; a column counted in minutes is not asked.
+    ("iso-datetime", "datetime", True, ("2019-03-11T00:00:00",), set()),
+    ("slashed-iso-datetime", "datetime", False, ("2021/05/03 10:24",), set()),
+)
+
+
+def _absent_missed(named: typing.Callable[..., object]) -> "list[str]":
+    missed = []
+    for member, resolution, midnight, spellings, want in ABSENT_ROWS:
+        got = _asked(named, member, resolution, midnight, spellings)
+        if got != want:
+            missed += [f"{spellings!r} under {member}: {got!r}, the statement gives {want!r}"]
+    return missed
+
+
+def _oracle_absent(module: types.ModuleType) -> typing.Callable[..., object]:
+    def named(member, resolution, midnight, spellings):
+        return set(module.absent_units({
+            "format": member, "resolution": resolution, "all_at_midnight": midnight,
+            "datetimes_read_at": "local", "missing_by_source": {spelling: 1 for spelling in spellings},
+        }))
+
+    return named
+
+
+def _generator_absent(member, resolution, midnight, spellings):
+    facts = types.SimpleNamespace(
+        parser_family=member, resolution=resolution, all_at_midnight=midnight,
+        datetimes_read_at="local",
+    )
+    return set(generation._count_holes(typing.cast(contract.DatetimeFacts, facts), spellings))
+
+
 # ------------------------------------------------------------ the two readers
 
 WITNESSES = {
@@ -1705,6 +1769,10 @@ WITNESSES = {
     "hole": (
         lambda module: _hole_missed(*_oracle_hole(module)),
         lambda: _hole_missed(_generator_hole, _generator_stuck),
+    ),
+    "absent": (
+        lambda module: _absent_missed(_oracle_absent(module)),
+        lambda: _absent_missed(_generator_absent),
     ),
 }
 
@@ -2347,6 +2415,31 @@ WITNESS_MUTANTS.update({
         "hole",
         "if pinned[rank] and ordinals[rank] // unit in absent and not first <= rank <= last",
         "if pinned[rank] and ordinals[rank] // unit in absent",
+    ),
+    "absent_days_only": (
+        "absent",
+        '    if space not in ("date", "month", "quarter"):\n',
+        '    if space != "date":\n',
+    ),
+    "absent_no_month": (
+        "absent", "found.add(12 * (year - 1970) + int(text[5:]) - 1)", "pass",
+    ),
+    "absent_no_quarter": (
+        "absent", "found.add(4 * (year - 1970) + int(text[6]) - 1)", "pass",
+    ),
+    "absent_quarter_upper_case_only": (
+        "absent", 'text[5] in "Qq"', 'text[5] == "Q"',
+    ),
+    "absent_thirteenth_month_read": (
+        "absent", "text[5:].isdigit() and 1 <= int(text[5:]) <= 12", "text[5:].isdigit()",
+    ),
+    "absent_year_zero_read": (
+        "absent", " or int(text[:4]) < 1:", ":",
+    ),
+    "absent_marked_moments_asked": (
+        "absent",
+        '    if column.get("resolution") == "datetime" and column.get("format") in ("iso-datetime", "iso-mixed"):\n',
+        "    if False:\n",
     ),
 })
 

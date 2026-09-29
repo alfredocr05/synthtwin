@@ -401,6 +401,28 @@ def functions_in(path: pathlib.Path) -> "frozenset[str]":
     return _PARSED[key]
 
 
+_UNITS = "zero one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen nineteen".split()
+_TENS = {"twenty": 20, "thirty": 30, "forty": 40}
+
+
+def pinned_counts_named(rule: str) -> "list[int]":
+    """Each count of pinned nodes a rule states, as 'the nine pinned nodes' states nine.
+
+    A rule stating its pinned nodes' number must state the number it pins
+    (the final review of 3b.0: K-S3-39 said seven while it pinned sixteen).
+    """
+    found: "list[int]" = []
+    for word in re.findall(r"\b([A-Za-z]+(?:-[A-Za-z]+)?|\d+) pinned nodes\b", rule):
+        tens, _dash, unit = word.lower().partition("-")
+        if word.isdigit():
+            found += [int(word)]
+        elif tens in _UNITS and not unit:
+            found += [_UNITS.index(tens)]
+        elif tens in _TENS and (not unit or unit in _UNITS[1:10]):
+            found += [_TENS[tens] + (_UNITS.index(unit) if unit else 0)]
+    return found
+
+
 def driver_script(command: str) -> str:
     """'tools/measurements/x.py --kpi' -> 'tools/measurements/x.py'."""
     return command.split()[0]
@@ -465,6 +487,9 @@ def integrity_problems(ledger: "dict", root: pathlib.Path = REPO_ROOT) -> "list[
                 f"per fast pinned node ({len(fast_nodes)}), so a shrinking parametrize "
                 f"list is seen; it is {least!r}"
             )
+        for named in pinned_counts_named(entry.get("rule") or ""):
+            if named != len(entry.get("nodes", [])):
+                problems += [f"{entry_id}: its rule states {named} pinned nodes and it pins {len(entry.get('nodes', []))}"]
         for node in entry.get("allowed_skips", []):
             if node not in entry.get("nodes", []):
                 problems.append(f"{entry_id}: allowed skip {node} is not one of its pinned nodes")

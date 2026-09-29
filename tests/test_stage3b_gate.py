@@ -125,7 +125,13 @@ rows of tests/test_oracle_rule_witnesses.py, where each of twelve
 generator mutants turns the shipped rows red. The step off withdrawn
 turns the second red, the group step's own holes alone the third, and
 the stuck count withdrawn
-`test_a_tail_rank_stuck_on_a_missing_day_is_counted_as_absent`.
+`test_a_tail_rank_stuck_on_a_missing_day_is_counted_as_absent`. The
+unit an absent spelling names is read a day, a month or a quarter by
+the `absent` rows there; the month or the quarter withdrawn from
+`generation._COUNT_HOLE_UNITS` turns its own `absent` row red and
+`test_no_rank_is_offered_a_month_the_table_declares_missing` or
+`test_no_rank_is_offered_a_quarter_the_table_declares_missing` (the
+final review of 3b.0, where it turned no test red).
 
 LANDING 3b.1 (plan P4-D355) makes the second clause true on DATE
 columns: the weekday census, published only where the full-fill
@@ -1701,6 +1707,79 @@ def test_a_rank_drawn_onto_a_missing_day_leaves_it_before_the_count(
         assert len(written) == 28, f"seed {seed}: {len(written)} different days"
         missed = kpi_shapes.missed(kpi_shapes.measure(described, text, f"drawn-{seed}.csv"))
         assert missed == [], f"seed {seed}: {missed}"
+
+
+# 336 months over the 54 from 2012-01, 13 of them 2015-02, declared
+# missing; and 171 quarters over the 30 from 1992-Q1, 30 of them 1998-Q1,
+# declared missing (the final review's month and quarter batteries,
+# `random.Random(996000)` and `random.Random(997002)`, at a floor of 11).
+_MONTH_HOLE_COUNTS = (
+    13, 1, 24, 6, 0, 2, 7, 2, 11, 3, 0, 0, 19, 0, 1, 5, 5, 8, 77, 0, 3, 0,
+    4, 0, 3, 7, 6, 4, 7, 2, 4, 0, 0, 5, 1, 9, 1, 13, 15, 1, 1, 1, 3, 2, 2,
+    3, 4, 26, 0, 5, 0, 0, 1, 19,
+)
+_QUARTER_HOLE_COUNTS = (
+    4, 8, 2, 0, 3, 0, 0, 2, 10, 0, 0, 2, 0, 1, 2, 3, 2, 14, 5, 6, 0, 2, 3,
+    57, 30, 3, 4, 0, 0, 8,
+)
+
+
+def _span_hole_held(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, cells: "list[str]", hole: str, unit: int
+) -> dict:
+    """At seeds 3 and 8 no rank stands on ``unit``, the cells hold the published count, nothing missed."""
+    described = _described_with_a_missing_day(tmp_path, "span_hole", cells, 11, hole)
+    block = described.document["columns"][0]
+    for seed, (moved, _lows, _highs, _layout, _facts, text) in zip(
+        (3, 8), _settled(described, (3, 8), monkeypatch)
+    ):
+        assert unit not in moved, f"seed {seed}: a rank stands on the missing {hole}"
+        written = {line for line in text.split("\n")[1:] if line} - {hole}
+        assert len(written) == block["n_distinct"], f"seed {seed}: {len(written)} different values"
+        missed = kpi_shapes.missed(kpi_shapes.measure(described, text, f"span-{seed}.csv"))
+        assert missed == [], f"seed {seed}: {missed}"
+    return block
+
+
+def test_no_rank_is_offered_a_month_the_table_declares_missing(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A month an absent spelling names is a hole of the count pass (P4-D358).
+
+    `2015-02` read under `iso-month` names month 12 * 45 + 1 from 1970.
+    With the month withdrawn from the pass's holes a rank was offered it,
+    the spelling step moved that rank onto a month ranks held, and the
+    twin held 40 months against the published 41, both distinct counts
+    MISSED at seeds 3 and 8 -- 88 of 400 twins of the battery.
+    """
+    cells: "list[str]" = []
+    for step, count in enumerate(_MONTH_HOLE_COUNTS):
+        cells += [f"{2012 + step // 12}-{step % 12 + 1:02d}"] * count
+    random.Random(996000).shuffle(cells)
+    block = _span_hole_held(tmp_path, monkeypatch, cells, "2015-02", 12 * 45 + 1)
+    assert (block["format"], block["n_present"], block["n_distinct"], block["missing_by_source"]) == (
+        "iso-month", 323, 41, {"2015-02": 13}
+    )
+
+
+def test_no_rank_is_offered_a_quarter_the_table_declares_missing(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A quarter an absent spelling names is a hole of the count pass (P4-D358).
+
+    `1998-Q1` read under `year-quarter` names quarter 4 * 28 from 1970.
+    With the quarter withdrawn from the pass's holes the twin held 19
+    quarters against the published 20, both distinct counts MISSED at
+    seeds 3 and 8 -- 121 of 400 twins of the battery.
+    """
+    cells: "list[str]" = []
+    for step, count in enumerate(_QUARTER_HOLE_COUNTS):
+        cells += [f"{1992 + step // 4}-Q{step % 4 + 1}"] * count
+    random.Random(997002).shuffle(cells)
+    block = _span_hole_held(tmp_path, monkeypatch, cells, "1998-Q1", 4 * 28)
+    assert (block["format"], block["n_present"], block["n_distinct"], block["missing_by_source"]) == (
+        "year-quarter", 141, 20, {"1998-Q1": 30}
+    )
 
 
 # 116 ISO dates over the 41 days from 2019-11-08, eleven of them on

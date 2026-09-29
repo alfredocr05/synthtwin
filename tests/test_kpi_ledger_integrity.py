@@ -691,6 +691,22 @@ def test_a_renamed_pinned_node_is_named() -> None:
     assert any("pinned node" in p and "_renamed_away" in p for p in problems), problems
 
 
+def test_a_rule_stating_another_count_of_pinned_nodes_is_named() -> None:
+    """(a) can fail: a rule's 'the nine pinned nodes' is held to the nodes it pins.
+
+    K-S3-39 said 'the seven pinned nodes' while it pinned sixteen, and no
+    check read the word (the final review of landing 3b.0).
+    """
+    stated = "the nine pinned nodes; twenty-one pinned nodes, 16 pinned nodes, its pinned nodes"
+    assert kpi_rules.pinned_counts_named(stated) == [9, 21, 16]
+
+    def miscount(ledger: "dict") -> None:
+        entry = _first_with("nodes", ledger)
+        entry["rule"] = f"the {len(entry['nodes']) + 1} pinned nodes pass"
+
+    assert any("pinned nodes and it pins" in p for p in _problems_after(miscount))
+
+
 def test_a_pinned_file_that_is_gone_is_named() -> None:
     def move(ledger: "dict") -> None:
         entry = _first_with("nodes", ledger)

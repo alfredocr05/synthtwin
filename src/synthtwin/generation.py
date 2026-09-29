@@ -22205,8 +22205,8 @@ def _held_by_stuck_tail_ranks(
     such unit is counted by the passes and is none of the column's
     present values, and they reach the published count with those units
     added. Measured on 1,600 twins of 400 seeded columns at a floor of
-    eleven: three twins, each already missing six checks where such a
-    rank wrote an absent cell, kept both distinct counts that way.
+    eleven: three twins kept both distinct counts that way. The absent
+    cell such a rank writes is a recorded limit (plan P4-D358).
     """
     if layout is None or layout.low is None or layout.high is None:
         return 0

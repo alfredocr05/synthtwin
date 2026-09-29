@@ -10458,24 +10458,29 @@ def counts_into_width(column, day_number, word):
 
 
 def absent_units(column):
-    """The days no count pass offers a rank (method G7.3, plan P4-D358).
+    """The units no count pass offers a rank (method G7.3, plan P4-D358).
 
     Read from the method's sentence: each spelling the column publishes
     among its absent cells, read under the column's own member, names a
-    unit of the count pass's own space, and no pass of G7.3 -- a merge, a
-    trade or its payment, a split, the stack or its raise, a free unit, a
-    width move -- nor G7.3b step 9 offers a rank that unit, since its cell
-    would read back as absent -- where the spelling step would move the
-    rank, not where a moment at midnight keeps its day by taking another
-    mark (G7.5).  This oracle reads an ISO date on an ISO member and a
-    month-first date on a month-first member, on a column counted in
-    days, and names nothing else -- no case of its puts an absent spelling
-    beside a column counted in seconds, months or quarters -- and says so
-    here.
+    unit of the count pass's own space -- a day, a month or a quarter --
+    and no pass of G7.3 -- a merge, a trade or its payment, a split, the
+    stack or its raise, a free unit, a width move -- nor G7.3b step 9
+    offers a rank that unit, since its cell would read back as absent --
+    where the spelling step would move the rank: not where a moment at
+    midnight keeps its day by taking another mark (G7.5), nor on a column
+    counted in seconds or minutes.  This oracle reads an ISO date on an
+    ISO member, a month-first date on a month-first member, a `yyyy-mm`
+    month on `iso-month` and a `yyyy-Qn` quarter, either case of `Q`, on
+    `year-quarter` (`spans_named`), and names nothing else.
     """
     spellings = column.get("missing_by_source", {})
-    if not spellings or ordinal_space(column) != "date":
+    if not spellings:
         return set()
+    space = ordinal_space(column)
+    if space not in ("date", "month", "quarter"):
+        return set()
+    if space != "date":
+        return spans_named(column.get("format", ""), spellings)
     if column.get("resolution") == "datetime" and column.get("format") in ("iso-datetime", "iso-mixed"):
         # A moment at midnight on a member with another mark to give keeps
         # its day and takes that mark (G7.5), so the pass is not asked.
@@ -10500,6 +10505,26 @@ def absent_units(column):
             and all(part.isdigit() for part in parts) and len(parts[2]) == 4
         ):
             found.add(days_from_civil(int(parts[2]), int(parts[0]), int(parts[1])))
+    return found
+
+
+def spans_named(member, spellings):
+    """The months or quarters absent spellings name on a span member (G7.3).
+
+    `iso-month` reads `yyyy-mm`, a month 01 to 12, and `year-quarter`
+    reads `yyyy-Qn` or `yyyy-qn`, a quarter 1 to 4, each of a year from 1
+    on; the unit is counted from 1970, as G7.1 counts the column's values.
+    """
+    found = set()
+    for text in spellings:
+        text = text.strip()
+        if len(text) != 7 or text[4] != "-" or not text[:4].isdigit() or int(text[:4]) < 1:
+            continue
+        year = int(text[:4])
+        if member == "iso-month" and text[5:].isdigit() and 1 <= int(text[5:]) <= 12:
+            found.add(12 * (year - 1970) + int(text[5:]) - 1)
+        if member == "year-quarter" and text[5] in "Qq" and text[6] in "1234":
+            found.add(4 * (year - 1970) + int(text[6]) - 1)
     return found
 
 
