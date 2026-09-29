@@ -1638,10 +1638,11 @@ def test_k_s3_33(record_property, tmp_path: pathlib.Path) -> None:
 
     Over the six date columns of tests/test_stage3b_gate.py's battery at
     1,000 rows and a floor of eleven, the solves the full-fill certificate
-    spends on each census it publishes: the most on one certified without
-    residue, the most on one whose residue it had to check, and how many
-    censuses were measured. The slow half, describe and generate on a
-    ladder of rows, is its driver's.
+    spends on each census it publishes, with those its withholding's own
+    certificate and bands spend beside it (plan P4-D359): the most on one
+    certified without residue, the most on one whose residue it had to
+    check, and how many censuses were measured. The slow half, describe
+    and generate on a ladder of rows, is its driver's.
     """
     import test_stage3b_gate as gate
 
@@ -1654,11 +1655,15 @@ def test_k_s3_33(record_property, tmp_path: pathlib.Path) -> None:
             if not block["weekday_census"]:
                 continue
             verdict = gate._certified(block, cells)
+            decided = gate._decided(block, cells)
+            spent = verdict.solves
+            if decided.withheld is not None:
+                spent = spent + decided.withheld.solves
             censuses += 1
             if verdict.residue:
-                residue = max(residue, verdict.solves)
+                residue = max(residue, spent)
             else:
-                plain = max(plain, verdict.solves)
+                plain = max(plain, spent)
     _kpi(
         record_property,
         "K-S3-33",

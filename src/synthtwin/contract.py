@@ -561,7 +561,7 @@ DATETIME_KEYS = (
     "quarter_marker_case",
     "zulu_case",
     # WHICH DAYS OF THE WEEK THE BODY FALLS ON (landing 3b.1, plan
-    # P4-D355, invariants WC1 to WC8): groups of weekdays, empty on every
+    # P4-D355, invariants WC1 to WC9): groups of weekdays, empty on every
     # column that publishes none.
     "weekday_census",
 )
@@ -1615,6 +1615,14 @@ INVARIANTS = {
         "census line in some table meeting the whole description, or lies "
         "where the rank facts already hold it below the line and the "
         "census allows everything stage 3's facts allow there"
+    ),
+    "WC9": (
+        "a weekday census is published only where neither its weekend "
+        "nor its Monday to Friday together holds from one row to the "
+        "census line more than the least the rest of the description "
+        "allows it: a census so near that least is always withheld, so "
+        "that being withheld says nothing about how few rows a set of "
+        "dates holds"
     ),
     "Q1": (
         "the row count a column of numbers repeats is the row count of "
@@ -8653,7 +8661,7 @@ def _weekday_census(
     judged: "tuple[str, ...]",
     absent: "tuple[str, ...]" = (),
 ) -> "tuple[tuple[int, int, int], ...]":
-    """A column's `weekday_census`, read and held to WC1 to WC8 (landing 3b.1).
+    """A column's `weekday_census`, read and held to WC1 to WC9 (landing 3b.1).
 
     `reading` is the column's parser family, resolution and clock. An
     empty census is always legal. A published one must stand on a column

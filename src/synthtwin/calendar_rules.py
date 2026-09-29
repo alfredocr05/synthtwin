@@ -1,6 +1,6 @@
 """The weekday census of a column of dates: its menu and its rules.
 
-Stage 3b, landing 3b.1 (plan P4-D355, contract WC1 to WC8). A column
+Stage 3b, landing 3b.1 (plan P4-D355, contract WC1 to WC9). A column
 of whole dates read on the local clock publishes `weekday_census`: how
 many cells of its BODY -- the cells between the two tail boundaries,
 both included -- fall on each day of the week, in GROUPS whose count is
@@ -71,10 +71,8 @@ ENTRY_SEVEN = 1
 ENTRY_WEEKEND = 2
 ENTRY_WEEKDAYS = 3
 
-# WHY A COLUMN OF DATES PUBLISHES NO WEEKDAY CENSUS, one word per
-# reason. Each is the argument of one enumerated sentence of the
-# description (`taxonomy.NOTE_WEEKDAY_WITHHELD_*`), never printed as it
-# stands.
+# WHY A COLUMN OF DATES PUBLISHES NO WEEKDAY CENSUS, one word per rule
+# that withholds it. Never printed as it stands.
 REASON_NO_TAILS = "no_tails"
 REASON_SPELLINGS = "spellings"
 REASON_WORKBOOK = "workbook"
@@ -82,6 +80,16 @@ REASON_MENU = "menu"
 REASON_TIES = "ties"
 REASON_FEW_DATES = "few_dates"
 REASON_NARROWED = "narrowed"
+# A day written in two texts by the table's own cells, or standing on a
+# day the published forms or absent spellings hold empty: what the forms
+# publish does not account for how the column was written.
+REASON_TEXTS = "texts"
+# The weekend, or Monday to Friday, inside its band
+# (`calendar_certificate.withholding`).
+REASON_BAND = "band"
+# The withholding itself is not certified, so the census is withheld
+# whatever the table holds.
+REASON_UNCERTIFIED = "uncertified"
 REASONS = (
     REASON_NO_TAILS,
     REASON_SPELLINGS,
@@ -90,7 +98,21 @@ REASONS = (
     REASON_TIES,
     REASON_FEW_DATES,
     REASON_NARROWED,
+    REASON_TEXTS,
+    REASON_BAND,
+    REASON_UNCERTIFIED,
 )
+# WHICH REASONS A SENTENCE MAY NAME (review of landing 3b.1, item 2).
+# A withholding says what decided it only where the published numbers
+# alone decide it -- no tails, forms that may write a date two ways, too
+# few repeated cells for any day to hold the line -- because a reader
+# already holds those. Every other rule reads the table's own numbers,
+# and naming which one fired would tell a reader what it saw: "no
+# grouping holds the line" beside a count of different days that forces
+# 135 weekday rows says the weekend holds one to ten. Those are all said
+# in ONE sentence, `REASON_UNSAID`'s (`taxonomy.NOTE_WEEKDAY_WITHHELD_NARROWED`).
+SAID_REASONS = (REASON_NO_TAILS, REASON_SPELLINGS, REASON_TIES)
+REASON_UNSAID = "unsaid"
 
 # WC7: a non-zero group must be able to hold at least this many
 # different dates besides the knot days a reader already holds.

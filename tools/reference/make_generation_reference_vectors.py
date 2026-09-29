@@ -21447,7 +21447,12 @@ def _weekday_runs_merged():
     """G7.3f step 8.2 (plan P4-D355): the case's own column, as the producer writes it.
 
     110 whole dates at a floor of eleven, seeded; the census is
-    [0-4] 15, [5-6] 73.
+    [0-4] 16, [5-6] 72. It read [0-4] 15, [5-6] 73 until the review of
+    landing 3b.1 (plan P4-D359): fifteen weekday rows stand inside the
+    band a withholding always keeps -- one row to the census line more
+    than the four any table of the column's facts holds there -- so one
+    row moved to Monday to Friday, where the certificate finds tables
+    meeting every fact of it and step 8.2 still moves runs.
     """
     tails, tail_claims = _tail_fields(
         {"boundary": "2024-05-09", "rows": 11, "mean_distance": "24.818181818181817", "rms_distance": "24.83582456489379", "values": None},
@@ -21467,7 +21472,7 @@ def _weekday_runs_merged():
         subsecond_digits=0, datetimes_read_at="local",
         tail_unit="day", date_percentiles=ladder,
         n_unparsed=0, utc_offsets={"(none)": 110},
-        weekday_census=[{"first": 0, "last": 4, "count": 15}, {"first": 5, "last": 6, "count": 73}],
+        weekday_census=[{"first": 0, "last": 4, "count": 16}, {"first": 5, "last": 6, "count": 72}],
         **tails,
     )
     return {

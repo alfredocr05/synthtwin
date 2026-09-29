@@ -14,6 +14,7 @@ import random
 
 import pytest
 
+import calendar_certificate_brute as brute_force
 import calendar_certificate_verify as verifier
 import fixtures
 import kpi_shapes
@@ -191,7 +192,7 @@ def test_ten_copies_of_one_impossible_date_hide_no_second_spelling(tmp_path: pat
     decided = taxonomy.weekday_decision(
         block, days, block["n_distinct"], taxonomy.Settings(small_cell_floor=11), texts=len(set(cells)) + 1
     )
-    assert decided.reason == calendar_rules.REASON_SPELLINGS, decided.reason
+    assert decided.reason == calendar_rules.REASON_TEXTS, decided.reason
 
 
 # -- finding 6: the loader holds the holes a published absent spelling names ----
@@ -276,3 +277,161 @@ def test_a_census_beside_values_a_workbook_publishes_stored_two_ways_is_refused(
         contract.load_profile(str(fixtures.write_profile(tmp_path, "doctored-profile.json", doctored)))
     calendar_certificate._ANSWERS.clear()
     assert contract.INVARIANTS["WC6"] in str(refusal.value)
+
+
+# -- item 2: a withholding is certified the way a publication is ---------------
+
+
+def _business_weeks(weekend: "list[str]") -> "list[str]":
+    """Four rows on every business date of 2024's first 364 days, and `weekend`, shuffled with `Random(2)`."""
+    start = datetime.date(2024, 1, 1)
+    days = [start + datetime.timedelta(days=step) for step in range(364)]
+    cells = [day.isoformat() for day in days if day.weekday() < 5 for _ in range(4)] + weekend
+    random.Random(2).shuffle(cells)
+    return cells
+
+
+def test_a_withheld_census_names_no_rule_the_table_decides() -> None:
+    """1,040 business-day rows beside ONE Saturday row are withheld in the shared sentence, inside a certified band.
+
+    The review's shape: the published count of different days forces at
+    least 135 weekday rows, so on the reviewed tree the sentence "no
+    grouping holds the line in every group" told a reader the weekend
+    held one to ten rows, while the same facts with thirteen weekend rows
+    published the seven counts. Now the census is withheld because its
+    weekend lies in its BAND -- one row to the line more than the least
+    any table of its facts holds there -- which the producer ALWAYS
+    withholds, and the withholding is certified: the tables it keeps back
+    include one putting the line on a day of every class, so being told
+    "withheld" confines no set of days. The sentence names no rule. The
+    thirteen-row table still publishes. Red when the no-grouping sentence
+    comes back, or the band is withdrawn (the reason falls to `menu`).
+    """
+    cells = _business_weeks(["2024-06-15"])
+    change = dict(zip(["2024-05-06", "2024-05-13", "2024-05-20"], ["2024-05-11", "2024-05-18", "2024-05-25"]))
+    moved = [change.get(cell, cell) for cell in cells]
+    one = taxonomy.profile_column("event_day", 1, cells, len(cells), taxonomy.Settings())
+    thirteen = taxonomy.profile_column("event_day", 1, moved, len(moved), taxonomy.Settings())
+    assert one.details["weekday_census"] == []
+    assert [sentence for sentence in one.publication_notes if "not counted" in sentence] == [
+        taxonomy.rendered(taxonomy.NOTE_WEEKDAY_WITHHELD_NARROWED, (11,))
+    ]
+    assert not any("neither each day alone" in sentence for sentence in one.publication_notes)
+    assert thirteen.details["weekday_census"], "thirteen weekend rows lie outside the band and publish"
+    block = dict(one.details, n_present=one.n_present, n_distinct=one.n_distinct, sentinel_verdicts=[])
+    days = tuple(sorted(verifier.day_number(cell) for cell in cells))
+    decided = taxonomy.weekday_decision(block, days, one.n_distinct, taxonomy.Settings(), texts=len(set(cells)))
+    assert decided.reason == calendar_rules.REASON_BAND and decided.said == calendar_rules.REASON_UNSAID
+    assert decided.withheld is not None and decided.withheld.holds
+    least, most = decided.withheld.weekend
+    assert least <= 1 and most >= 11, decided.withheld.weekend
+
+
+def _outcome(instance: dict, table: "tuple[int, ...]", answer: calendar_certificate.Withholding) -> object:
+    """What the producer publishes for one table of a tiny body: `withheld`, or its census.
+
+    The producer's order, written from `taxonomy.weekday_decision`, on
+    the brute force's line of three with the count of different days
+    exact; WC7 is not asked, as in the gate's brute force (a body of
+    seven days is all few dates), and leaving it out withholds less.
+    """
+    different = instance["different"]
+    if not answer.holds:
+        return "withheld"
+    groups, _entry = calendar_rules.menu_groups(brute_force.census_of(table), brute_force.LINE)
+    if not groups or calendar_certificate.in_band(tuple(groups), answer):
+        return "withheld"
+    facts = calendar_certificate.facts_of(
+        instance["body"], 0, 0, instance["low"], instance["high"], tuple(instance["rungs"]),
+        different, different, brute_force.LINE, tuple(groups), -1, (),
+    )
+    if not calendar_certificate.certify(facts).holds:
+        return "withheld"
+    return tuple(groups)
+
+
+def withholding_battery(trials: int = 400, larger: int = 200) -> "dict[str, int]":
+    """Every table of every tiny body, grouped by what the producer says of it, judged.
+
+    For each set of stage-3 facts the brute force draws, EVERY table
+    meeting them alone is enumerated and given its outcome
+    (`_outcome`); the tables withheld together, and the tables of each
+    published census, are asked whether they confine a set of days the
+    facts alone do not (`brute_force.pins_of`) -- what a reader told
+    only that outcome can conclude.
+    """
+    totals = {"facts": 0, "withheld_unsound": 0, "published_unsound": 0, "published": 0}
+    for seed, count, larger_bodies in ((0, trials, False), (1, larger, True)):
+        draw = random.Random(seed)
+        for _trial in range(count):
+            instance = brute_force.instance(draw, larger_bodies)
+            if instance is None:
+                continue
+            totals["facts"] += 1
+            different = instance["different"]
+            everything = brute_force.tables(instance, False)
+            answer = calendar_certificate.withholding(
+                instance["body"], 0, 0, instance["low"], instance["high"], tuple(instance["rungs"]),
+                different, different, brute_force.LINE,
+            )
+            outcomes: "dict[object, list[tuple[int, ...]]]" = {}
+            for table in everything:
+                bucket = outcomes.setdefault(_outcome(instance, table, answer), [])
+                bucket += [table]
+            for outcome, chosen in outcomes.items():
+                if outcome == "withheld":
+                    totals["withheld_unsound"] += bool(brute_force.pins_of(instance, chosen, everything))
+                    continue
+                totals["published"] += 1
+                empty = {day for first, last, count in outcome for day in range(first, last + 1) if count == 0}
+                zero = 0
+                for place in range(instance["span"]):
+                    if brute_force.weekday(instance["low"] + place) in empty:
+                        zero |= 1 << place
+                totals["published_unsound"] += bool(brute_force.pins_of(instance, chosen, everything, zero))
+    return totals
+
+
+def test_no_withholding_confines_a_set_of_days() -> None:
+    """Over 400 tiny bodies and 200 larger ones, no outcome confines a set of days the facts alone do not.
+
+    The reviewed tree's rule -- withhold wherever no grouping met the
+    line, and say so -- left a withheld set confining a set of days on
+    one of the 400 tiny bodies. Now no withheld set and no published
+    census's own tables confine any, and some censuses still publish.
+    Red when the withholding's certificate is withdrawn (every
+    withholding taken as certified, no band).
+    """
+    totals = withholding_battery()
+    assert totals["withheld_unsound"] == 0 and totals["published_unsound"] == 0, totals
+    assert totals["published"] > 0, totals
+
+
+def _weekly_clinic(shape: int) -> "list[str]":
+    """500 visits over 39 weekly clinic days, some moved a day either way (the sparse schedules measured)."""
+    draw = random.Random(1000 + shape)
+    first = datetime.date(2024, 1, 1) + datetime.timedelta(days=draw.randrange(100))
+    days = [first + datetime.timedelta(days=7 * week + draw.choice([0, 0, 0, 1, -1])) for week in range(39)]
+    weights = [draw.uniform(0.2, 3.0) for _ in days]
+    return [draw.choices(days, weights)[0].isoformat() for _ in range(500)]
+
+
+def test_a_column_of_few_dates_certifies_its_withholding(tmp_path: pathlib.Path) -> None:
+    """500 visits over 39 weekly clinic days still publish their census beside a certified withholding.
+
+    The withholding's certificate asks its network for tables of the
+    column's own few different days, and the cheapest table spreads its
+    cells over every class: 471 rows on 26 to 36 days over 57 classes
+    found none, so the withholding of 39 of 80 sparse schedules could not
+    be certified and their censuses were withheld whatever they held.
+    Merging the cells of one stretch's half of the week into one part --
+    no bounded total moves -- finds the tables. Red when the merge is
+    withdrawn (the census is withheld, `uncertified`).
+    """
+    cells = _weekly_clinic(6)
+    described = kpi_shapes.describe(tmp_path, "clinic", "visit\n" + "".join(f"{cell}\n" for cell in cells), 11)
+    block = described.block("visit")
+    assert block["weekday_census"], [entry["note"] for entry in described.document["publication_notes"]]
+    days = tuple(sorted(verifier.day_number(cell) for cell in cells))
+    decided = taxonomy.weekday_decision(block, days, block["n_distinct"], taxonomy.Settings(small_cell_floor=11), texts=len(set(cells)))
+    assert decided.withheld is not None and decided.withheld.holds
