@@ -17159,9 +17159,10 @@ def _written_form_checks(
         measured = _map_at(block, key)
         raw = _raw_written_tally(key, cells, facts.parser_family)
         tally = _folded_written_tally(key, raw)
-        # Where each count this census prints stands, for the
-        # complementary rule below (review of landing 3b.1, item 3).
-        printed: "list[tuple[int, int]]" = []
+        # Where each count this census prints stands, and what its verdict
+        # asks of it, for the complementary rule below (review of landing
+        # 3b.1, item 3): `(check, count, rule, threshold)`.
+        printed: "list[tuple[int, int, str, int]]" = []
         published_total = 0
         for named in census:
             published_total = published_total + census[named]
@@ -17249,10 +17250,21 @@ def _written_form_checks(
             shown = _shown_count(tallied)
             if 0 < tallied < line:
                 shown = _below_the_floor(line)
+            # What the verdict asks of the count printed: a width of
+            # several asks its floor of the tally BEFORE absorbing, a
+            # number no line prints, and so does a style only a date's
+            # value shows.
+            rule = _RULE_OPEN
+            threshold = floor
+            if counted_exactly:
+                rule = _RULE_EQUAL
+                threshold = census[named]
+            elif key == "month_name_styles" and not parsing.name_is_value_bound(named):
+                rule = _RULE_AT_LEAST
             if tallied == 0 and named not in measured:
                 shown = _FORM_NOT_NAMED
             else:
-                printed += [(len(checks), tallied)]
+                printed += [(len(checks), tallied, rule, threshold)]
             # A CONVENTION MET AT ITS FLOOR BUT NOT AT ITS COUNT IS NOT HELD
             # (plan P4-D195). A census of several widths was printed HELD on
             # a twin holding 381 and 393 against a published 369 and 381,
@@ -17310,7 +17322,7 @@ def _written_form_checks(
         if 0 < unnamed < line:
             shown_unnamed = _below_the_floor(line)
         if not exact:
-            printed += [(len(checks), unnamed)]
+            printed += [(len(checks), unnamed, _RULE_AT_MOST, bound)]
         checks += [
             Check(
                 name,
@@ -17327,17 +17339,123 @@ def _written_form_checks(
         # which the lines beside it print, so one below the line printed
         # "fewer than" the line beside the others printed as numbers gave
         # itself back. Where one is below the line, none is printed.
-        values = [value for _index, value in printed]
+        # AND NO VERDICT SAYS WHAT THE COUNT WOULD HAVE (review of the
+        # third review's repair): a named style printed HELD only where
+        # the file's tally equalled the published count a reader holds,
+        # and the unnamed line printed its bound, so 549 rows written
+        # two ways publishing 275 and 274, beside five more written a
+        # third way, printed present 554, both named styles HELD and the
+        # third "fewer than 11" -- 554 less 275 less 274 is the five.
+        # Where one is below the line, each verdict is shown only where
+        # the ranges this census prints settle it (`_settled_verdict`),
+        # HELD is never shown for a count a reader would then hold, and
+        # the bound is printed as no number.
+        values = [value for _index, value, _rule, _threshold in printed]
         short = [place for place in range(len(values)) if 0 < values[place] < line]
         if short:
             pinned = _short_counts_pinned(values, short, line)
+            total = sum(values)
+            ranges: "list[tuple[int, int]]" = []
             for place in range(len(printed)):
-                index = printed[place][0]
+                ranges += [
+                    (1, line - 1) if place in short and not pinned else (0, total)
+                ]
+            for place in range(len(printed)):
+                index, _value, rule, threshold = printed[place]
                 text = _KEPT_BACK
                 if place in short and not pinned:
                     text = _below_the_floor(line)
-                checks[index] = dataclasses.replace(checks[index], achieved=text)
+                settled = _settled_verdict(
+                    ranges, place, total, rule, threshold, checks[index].verdict
+                )
+                asked = checks[index].published
+                if rule == _RULE_AT_MOST:
+                    asked = _AT_MOST_BEYOND
+                citation = _GATE_SHORT_BESIDE if settled == WITHHELD else ""
+                checks[index] = dataclasses.replace(
+                    checks[index],
+                    verdict=settled,
+                    published=asked,
+                    achieved=text,
+                    citation=citation,
+                )
     return checks
+
+
+# What a line of a written-form census asks of its count, for the
+# complementary rule (`_settled_verdict`): at least a floor's worth,
+# exactly the published count, at most a bound, or a rule on a count of
+# the file's own that no line prints (a style only a date's value shows).
+_RULE_AT_LEAST = "at_least"
+_RULE_EQUAL = "equal"
+_RULE_AT_MOST = "at_most"
+_RULE_OPEN = "open"
+
+# What the unnamed line asks where another line of its census is short.
+_AT_MOST_BEYOND = "at most the cells this file holds beyond the published total"
+
+# THE GATE BESIDE A SHORT LINE (review of the third review's repair). A
+# written-form census whose file holds one form on fewer cells than the
+# line prints no count of any form; a verdict would say one anyway where
+# what the lines print leaves it open.
+_GATE_SHORT_BESIDE = (
+    "another line of this census holds fewer cells than the description's "
+    "floor, and beside the file's own total and the lines around it this "
+    "outcome would give that count back, so neither the count nor the "
+    "outcome is shown"
+)
+
+
+def _settled_verdict(
+    ranges: "list[tuple[int, int]]",
+    place: int,
+    total: int,
+    rule: str,
+    threshold: int,
+    verdict: str,
+) -> str:
+    """One line's verdict where the ranges its census prints settle it, else WITHHELD.
+
+    `ranges` are what a reader holds of every line's count -- one to the
+    line less one where it is named short, anything up to the total
+    otherwise -- and the counts add to `total`, which a reader is taken
+    to hold. The line's own count then lies between the most and the
+    least the others leave; its rule (`_RULE_*`, against `threshold`)
+    is shown only where every count there answers it alike: a floor's
+    worth met as WITHIN-BOUND, never HELD, whose equality with the
+    published count a reader holds would give the count back; the
+    published count equalled only where nothing else is possible; the
+    bound kept or passed by every count. `verdict` is the line's own,
+    which a settled answer always equals.
+
+    Guarantees: accepts the ranges, the line, the total, the rule and
+    the verdict; returns the verdict to show. Determinism: a function
+    of the arguments. Raises nothing. No I/O of any kind.
+    """
+    others_low = 0
+    others_high = 0
+    for other in range(len(ranges)):
+        if other != place:
+            others_low = others_low + ranges[other][0]
+            others_high = others_high + ranges[other][1]
+    least = max(ranges[place][0], total - others_high)
+    most = min(ranges[place][1], total - others_low)
+    if rule == _RULE_AT_LEAST:
+        if least >= threshold:
+            return WITHIN_BOUND
+        if most < threshold:
+            return MISSED
+    elif rule == _RULE_EQUAL:
+        if least == most == threshold:
+            return verdict
+        if threshold < least or threshold > most:
+            return MISSED
+    elif rule == _RULE_AT_MOST:
+        if most <= threshold:
+            return HELD
+        if least > threshold:
+            return MISSED
+    return WITHHELD
 
 
 def _style_published(

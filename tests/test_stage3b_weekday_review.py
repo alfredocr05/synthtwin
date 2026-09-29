@@ -499,6 +499,53 @@ def test_a_written_form_below_the_line_gives_no_count_back_by_subtraction(tmp_pa
     assert all(not any(ch.isdigit() for ch in text.replace("11", "")) for text in shown.values()), shown
 
 
+@pytest.mark.parametrize(("ways", "extra"), [(2, 1), (2, 5), (1, 5)])
+def test_no_verdict_beside_a_short_written_form_gives_its_count_back(tmp_path: pathlib.Path, ways: int, extra: int) -> None:
+    """549 dates written two ways (or one), and `extra` more written another way: no verdict gives the extra back.
+
+    The description publishes the month-name styles' counts. On the
+    repair under review the report of the longer file printed its present
+    cells and no unparsed ones, every named style HELD -- the file's tally
+    equal to the count a reader holds -- and the extra style "fewer than
+    11" asked "at most" the extra rows: the present cells less the
+    published counts is the extra, and with one extra row "at most 1"
+    beside "fewer than 11" said it outright. Now a verdict is shown only
+    where the ranges the lines print settle it, and the bound prints as
+    no number: written two ways, nothing is settled and every line is
+    withheld; written one way, the one style holds far more than its
+    floor whatever the extra rows hold, so it is shown met -- WITHIN-BOUND,
+    never the HELD that equals its count. The file without the extra
+    rows still prints its counts, HELD. Red when the verdicts beside a
+    short line are shown again (`validation._settled_verdict` bypassed),
+    when a floor's worth met is shown HELD, or when the bound prints its
+    number.
+    """
+    draw = random.Random(9)
+    days = [datetime.date(2023, 1, 1) + datetime.timedelta(days=draw.randrange(700)) for _ in range(600)]
+    days = [day for day in days if day.month != 5]
+    real = [
+        f"{day.day} {day.strftime('%B') if place % ways else day.strftime('%b')} {day.year}"
+        for place, day in enumerate(days)
+    ]
+    described = kpi_shapes.describe(tmp_path, "visits", "visit\n" + "".join(f"{cell}\n" for cell in real), 11)
+    styles = described.block("visit")["month_name_styles"]
+    assert sorted(styles.values()) == sorted([len(real) - len(real) // ways, len(real) // ways][2 - ways:]), styles
+    third = [f"{day.day} {day.strftime('%b').upper()} {day.year}" for day in days[:extra]]
+    for cells, short in ((real + third, True), (real, False)):
+        outcome = kpi_shapes.measure(described, "visit\n" + "".join(f"{cell}\n" for cell in cells), "file.csv")
+        names = {check.subcheck: check for check in outcome.checks if check.fact == "datetime.month_name_styles"}
+        assert len(names) == ways + 1, sorted(names)
+        if not short:
+            assert {check.verdict for check in names.values()} == {"HELD"}, names
+            continue
+        unnamed = names.pop("names.unnamed")
+        assert unnamed.achieved == "fewer than 11" and unnamed.verdict == "WITHHELD" and unnamed.citation, unnamed
+        expected = "WITHHELD" if ways == 2 else "WITHIN-BOUND"
+        assert all(check.verdict == expected for check in names.values()), names
+        shown = [check.published + " " + check.achieved for check in [unnamed, *names.values()]]
+        assert all(not any(ch.isdigit() for ch in text.replace("11", "")) for text in shown), shown
+
+
 # -- items 4 and 5: the twin meets the census on the holes it was certified with,
 # -- and keeps its count of different days --------------------------------------
 
