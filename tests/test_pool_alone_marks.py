@@ -753,6 +753,7 @@ def test_the_chain_asks_in_the_walk_s_order_which_a_trailing_minus_sets(
         numeric_styles={"plain": 60, "decimal": 40},
         decimal_plus=decimal_plus,
         negative_notations=census,
+        kept_stand_ins=(),
     )
     assert tuple(generation._whole_enough(column, facts, layout, rungs, list(CHAIN_VALUES))) == answer
 
@@ -790,6 +791,7 @@ def test_the_walks_over_the_side_that_is_not_negative_keep_stratum_order():
         numeric_styles={"plain": 80, "decimal": 20},
         decimal_plus={},
         negative_notations={"minus": 40, "trailing_minus": 10},
+        kept_stand_ins=(),
     )
     values = [-6.0, -0.4, 1.4, 10.0]
     assert tuple(generation._whole_enough(column, facts, layout, rungs, values)) == (
@@ -881,5 +883,6 @@ def test_each_walk_counts_the_strata_it_walks_again_after_a_chain(
         numeric_styles=styles,
         decimal_plus=decimal_plus,
         negative_notations=notations,
+        kept_stand_ins=(),
     )
     assert tuple(generation._whole_enough(column, facts, layout, rungs, list(values))) == answer

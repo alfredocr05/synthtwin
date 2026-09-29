@@ -22,6 +22,12 @@
 6. "EVERY VALUE IS DIFFERENT" ONLY WHERE EVERY CELL IS, as written, as
    folded and as the role reads it.
 
+And the second review of this landing: A STAND-IN THE COLUMN KEEPS IS ITS
+OWN VALUE. The refusals of item 2 asked only whether a point was one of the
+three, so a heap the description publishes as `kept_as_a_number` came back
+in no cell; every pass now passes over only a stand-in the column does not
+keep, one held below the floor included.
+
 Every table is built at test time from a fixed seed string or a closed
 formula; no data-format file enters the repository (plan D13).
 """
@@ -498,7 +504,11 @@ def test_the_twice_written_fill_counts_no_stand_in_among_its_points() -> None:
 
     points = [9998.0 + tenths / 10 for tenths in range(21)]
     facts = types.SimpleNamespace(
-        n_distinct_values=21, empty_edges=(), integer_valued=False, numeric_styles={"decimal": 21}
+        n_distinct_values=21,
+        empty_edges=(),
+        integer_valued=False,
+        numeric_styles={"decimal": 21},
+        kept_stand_ins=(),
     )
     layout = types.SimpleNamespace(bands=["positive"] * 21, sizes=[1] * 21)
     rungs = (9998.0,) + (9999.0,) * 99 + (10000.0,)
@@ -675,3 +685,342 @@ def test_the_all_different_sentence_is_printed_only_where_every_value_differs(
             assert not [one for one in said[0].split(".") if "shared" in one and any(ch.isdigit() for ch in one)], (
                 "the near sentence names no count"
             )
+
+
+# -- the second review: a stand-in the column keeps is its own value ----------
+
+
+def _kept_published(block: "dict") -> "dict[float, int]":
+    """The stand-ins a block's decisions publish as kept numbers, with their rows."""
+    return {
+        float(entry["candidate"]): entry["n_occurrences"]
+        for entry in block["sentinel_verdicts"]
+        if entry["verdict"] == "kept_as_a_number"
+    }
+
+
+def _held_heaps() -> "tuple[tuple[str, list[str]], ...]":
+    """Seeded columns holding a stand-in in a heap the outlier rule keeps as a number."""
+    bimodal = random.Random("p4d357/held/bimodal")
+    tenths = random.Random("p4d357/held/tenths")
+    whole = random.Random("p4d357/held/m9999")
+    cents = random.Random("p4d357/held/cents")
+    dosed = random.Random("p4d357/held/affixed/40")
+    return (
+        (
+            "dense_bimodal",
+            [str(round(bimodal.gauss(10000.0, 5.0))) for _row in range(600)]
+            + [str(round(bimodal.gauss(-1000.0, 5.0))) for _row in range(600)],
+        ),
+        ("tenths_around_minus_999", [f"{tenths.gauss(-999.0, 0.5):.1f}" for _row in range(1000)]),
+        ("integers_around_minus_9999", [str(whole.randint(-10050, -9950)) for _row in range(2000)]),
+        (
+            "prices_in_cents",
+            [str(cents.choice((499, 999, 1499, 1999, 2999, 4999, 9999, 9999, 12999))) for _row in range(900)]
+            + [str(cents.randint(100, 15000)) for _row in range(300)],
+        ),
+        # An affixed column, whose decisions are about its cores.
+        ("affixed_mg_around_9999", [f"{round(dosed.gauss(9999.0, 40.0))} mg" for _row in range(2000)]),
+    )
+
+
+def _core(cell: str) -> float:
+    """The number a cell of `_HELD_HEAPS` holds, its unit taken off."""
+    return float(cell[: len(cell) - 3] if cell.endswith(" mg") else cell)
+
+
+_HELD_HEAPS = _held_heaps()
+
+
+@pytest.mark.parametrize("name,cells", _HELD_HEAPS, ids=[case[0] for case in _HELD_HEAPS])
+def test_a_stand_in_the_column_keeps_comes_back_near_its_published_rows(
+    tmp_path: pathlib.Path, name: str, cells: "list[str]"
+) -> None:
+    """A heap published `kept_as_a_number` is written, near its published rows, at seeds 0, 4 and 9.
+
+    PREMISE: every stand-in the column holds is published kept, with its
+    rows, at a floor of eleven, and the loader reads it so. The published
+    decision names the value and its count, so writing it reveals nothing
+    the description does not. On 7a70fad every value pass refused the three
+    as points no row holds and no check noticed: 1,200 whole numbers around
+    `-1000` and `10000` holding `-999` 44 times and `9999` 47 times came
+    back holding neither, and a price column in cents holding `9999` 196
+    times held none from 2af1f03 on (d93fd43 wrote 183). The twin now holds
+    each within a quarter of its published rows or one percent of the
+    numbers, a rung's worth, whichever is more, and misses nothing.
+    """
+    described = kpi_shapes.describe(tmp_path, name, _one_column(cells), 11)
+    block = described.document["columns"][0]
+    kept = _kept_published(block)
+    held = {one: len([cell for cell in cells if _core(cell) == one]) for one in _STAND_INS}
+    assert kept and kept == {one: rows for one, rows in held.items() if rows}, (
+        f"premise: every stand-in held is published kept ({kept} against {held})"
+    )
+    assert min(kept.values()) >= 11, "premise: each heap is over the floor"
+    facts = described.loaded.columns[0].facts
+    if isinstance(facts, contract.AffixedFacts):
+        facts = facts.numbers
+    assert isinstance(facts, contract.NumericFacts)
+    assert facts.kept_stand_ins == tuple(one for one in _STAND_INS if one in kept), (
+        f"the loader reads {facts.kept_stand_ins}"
+    )
+    numbers = block["n_used_in_statistics"]
+    for seed in (0, 4, 9):
+        text = kpi_shapes.twin_text(described, seed)
+        written = [_core(line) for line in text.split("\n")[1:] if line]
+        for one, rows in kept.items():
+            got = len([value for value in written if value == one])
+            assert abs(got - rows) <= max(rows // 4, numbers // 100), (
+                f"seed {seed}: {one} is published kept in {rows} rows and the twin holds it in {got}"
+            )
+        missed = kpi_shapes.missed(kpi_shapes.measure(described, text, f"twin-{seed}.csv"))
+        assert missed == [], f"seed {seed}: {missed}"
+
+
+def test_a_stand_in_held_below_the_floor_is_still_refused(tmp_path: pathlib.Path) -> None:
+    """Three rows of `-999` among 600 whole numbers publish no decision, and the twin writes it in no cell."""
+    draw = random.Random("p4d357/held/below")
+    cells = [str(draw.randint(-1100, -900)) for _row in range(600)]
+    assert 0 < len([cell for cell in cells if cell == "-999"]) < 11, "premise: held, below the floor"
+    described = kpi_shapes.describe(tmp_path, "below", _one_column(cells), 11)
+    block = described.document["columns"][0]
+    assert block["sentinel_verdicts"] == [] and block["n_sentinel_candidates_unpublished"] == 1, (
+        "premise: the decision is counted, not named"
+    )
+    facts = described.loaded.columns[0].facts
+    assert isinstance(facts, contract.NumericFacts) and facts.kept_stand_ins == ()
+    for seed in (0, 4, 9):
+        text = kpi_shapes.twin_text(described, seed)
+        written = [float(line) for line in text.split("\n")[1:] if line]
+        assert -999.0 not in written, f"seed {seed}: the twin wrote a stand-in no decision names"
+        assert kpi_shapes.missed(kpi_shapes.measure(described, text, f"twin-{seed}.csv")) == []
+
+
+def test_the_loader_reads_the_kept_stand_ins_off_the_published_decisions() -> None:
+    """Only a `kept_as_a_number` decision about one of the three numbers names a kept stand-in."""
+
+    def decision(candidate: str, verdict: str) -> contract.SentinelVerdict:
+        return contract.SentinelVerdict(
+            candidate=candidate, verdict=verdict, reason="not_an_outlier", n_occurrences=20, spellings=()
+        )
+
+    kept = "kept_as_a_number"
+    decisions = (
+        decision("-9999", contract.VERDICT_MISSING),
+        decision("-999", kept),
+        decision("9999", kept),
+        decision("1900-01-01", kept),
+    )
+    assert contract._kept_stand_ins(decisions) == (-999.0, 9999.0)
+    assert contract._kept_stand_ins(decisions[:1]) == ()
+
+
+def _refused_and_kept() -> "dict[str, tuple[object, object, object]]":
+    """Per value pass: its answer with the stand-in refused, with it kept, and the oracle's with it kept (or None)."""
+    import types
+
+    from synthtwin import generation
+
+    oracle = _oracle()
+    every = tuple(_STAND_INS)
+    written = {generation._grid_text(9997.0, 0): 1, generation._grid_text(9998.0, 0): 2}
+    held = {-(tenths / 10): 1 for tenths in range(1, 9990)}
+    signed = (-2000.0,) + (0.0,) * 99 + (5.0,)
+    three = types.SimpleNamespace(bands=["positive"] * 3)
+    cleared = (
+        (-2000.0, 0.0), {}, (0, 0), (-999.0, -500.0), ((-999.0, -500.0),), -900.0,
+        "negative", True, {}, {-900.0: 1}, True, (-1,),
+    )
+    tenths = [9998.0 + step / 10 for step in range(21)]
+    twenty_one = types.SimpleNamespace(bands=["positive"] * 21, sizes=[1] * 21)
+    tenths_ladder = (9998.0,) + (9999.0,) * 99 + (10000.0,)
+    five = types.SimpleNamespace(bands=["positive"] * 5, sizes=[1] * 5)
+    five_ladder = (9997.0,) + (9998.0,) * 99 + (10001.0,)
+    draw_ladder = (-1049.0,) + (-999.0,) * 99 + (-949.0,)
+
+    def twice(kept: "tuple[float, ...]") -> object:
+        facts = types.SimpleNamespace(
+            n_distinct_values=21, empty_edges=(), integer_valued=False,
+            numeric_styles={"decimal": 21}, kept_stand_ins=kept,
+        )
+        return generation._twice_filled(facts, twenty_one, tenths_ladder, tenths, 1)  # type: ignore[arg-type]
+
+    def saturated(kept: "tuple[float, ...]") -> object:
+        facts = types.SimpleNamespace(n_distinct_values=5, kept_stand_ins=kept)
+        return generation._saturated_integers(
+            five, five_ladder, [9997.0, 9998.0, 9998.0, 10000.0, 10001.0], 0, facts  # type: ignore[arg-type]
+        )
+
+    return {
+        "carrier walk": (
+            generation._whole_inside(-999.3, "negative", (-1000.0, -998.0), (-2000.0, 0.0), 10, {}),
+            generation._whole_inside(-999.3, "negative", (-1000.0, -998.0), (-2000.0, 0.0), 10, {}, kept=every),
+            oracle.whole_inside(-999.3, "negative", (-1000.0, -998.0), (-2000.0, 0.0), 10, {}, every),
+        ),
+        "separation walk": (
+            generation._apart_inside(9998.0, 0, "positive", (9990.0, 10010.0), (0.0, 20000.0), written),
+            generation._apart_inside(9998.0, 0, "positive", (9990.0, 10010.0), (0.0, 20000.0), written, kept=every),
+            oracle.apart_inside(9998.0, 0, "positive", (9990.0, 10010.0), (0.0, 20000.0), written, kept=every),
+        ),
+        "sign step": (
+            generation._grid_step_of_sign("negative", signed, 1, held, 10000),
+            generation._grid_step_of_sign("negative", signed, 1, held, 10000, kept=every),
+            oracle.grid_step_of_sign("negative", signed, 1, held, 10000, every),
+        ),
+        "representable grid": (
+            generation._apart_on_the_representable_grid(three, [9998.0, 9999.0, 10000.0]),  # type: ignore[arg-type]
+            generation._apart_on_the_representable_grid(three, [9998.0, 9999.0, 10000.0], kept=every),  # type: ignore[arg-type]
+            oracle.representable_grid(3, ["positive"] * 3, [9998.0, 9999.0, 10000.0], every),
+        ),
+        "marks run": (
+            generation._free_grid_points(9998, 1, 2, 0, {}),
+            generation._free_grid_points(9998, 1, 2, 0, {}, kept=every),
+            None,
+        ),
+        "clearing walk": (
+            generation._cleared_value(*cleared),  # type: ignore[arg-type]
+            generation._cleared_value(*cleared, kept=every),  # type: ignore[arg-type]
+            None,
+        ),
+        "twice-written fill": (twice(()), twice(every), None),
+        "push": (
+            generation._band_step(9998, 1, 9990, 10010, 0, ()),
+            generation._band_step(9998, 1, 9990, 10010, 0, (), kept=every),
+            None,
+        ),
+        "band fill": (
+            generation._band_points(9997, 10001, 0, (), 5),
+            generation._band_points(9997, 10001, 0, (), 5, kept=every),
+            None,
+        ),
+        "saturated fill": (
+            saturated(()),
+            saturated(every),
+            oracle.saturated_grid(5, 0, 5, ["positive"] * 5, five_ladder, every),
+        ),
+        "width walk": (
+            generation._figured_inside((9990.0, 10010.0), {}, "positive", 4, 10005.0, True),
+            generation._figured_inside((9990.0, 10010.0), {}, "positive", 4, 10005.0, True, kept=every),
+            None,
+        ),
+        "draw": (
+            generation._drawn_off_the_stand_ins(-999.0, draw_ladder, 1, 2, 0),
+            generation._drawn_off_the_stand_ins(-999.0, draw_ladder, 1, 2, 0, kept=every),
+            oracle.drawn_off_the_stand_ins(-999.0, -1049.0, -949.0, 0, every),
+        ),
+    }
+
+
+def _stand_ins_in(answer: object) -> "list[float]":
+    """The stand-in numbers one answer holds, a point or a list of points (grid units read as numbers)."""
+    found = answer if isinstance(answer, list) else [answer]
+    return [float(one) for one in found if isinstance(one, (int, float)) and float(one) in _STAND_INS]
+
+
+def test_every_value_pass_writes_a_stand_in_the_column_keeps() -> None:
+    """Each refusal of item 2, asked with the stand-in kept: it is the pass's answer, in the oracle alike.
+
+    Refused, each pass answers another point (the tests above); kept, the
+    same call answers the stand-in, and where the oracle states the step it
+    answers the same. The twelve are every place a value pass asks whether a
+    point is one of the three.
+    """
+    for name, (refused, kept, theirs) in _refused_and_kept().items():
+        assert _stand_ins_in(refused) == [], f"{name}: premise: refused, no stand-in ({refused!r})"
+        assert _stand_ins_in(kept) != [], f"{name}: the kept stand-in was still refused ({kept!r})"
+        if theirs is not None:
+            assert theirs == kept, f"{name}: the generator answers {kept!r}, the oracle {theirs!r}"
+
+
+# The value passes that ask a helper whether a point is a stand-in, by the
+# helper each hands the column's kept stand-ins to.
+_HANDED_KEPT = (
+    "_drawn_off_the_stand_ins",
+    "_grid_step_of_sign",
+    "_whole_inside",
+    "_rehomed",
+    "_apart_inside",
+    "_push_plan",
+    "_band_step",
+    "_band_points",
+    "_apart_on_the_representable_grid",
+    "_figured_inside",
+    "_cleared_value",
+)
+
+
+def _handing_shapes() -> "tuple[tuple[str, int, list[str]], ...]":
+    """Seeded columns holding a kept stand-in, which between them reach every pass of `_HANDED_KEPT`."""
+    tenths = random.Random("p4d357/handed/tenths")
+    edge = random.Random("p4d357/handed/edge")
+    widths = random.Random("p4d357/handed/widths")
+    pooled = random.Random("p4d357/handed/pooled")
+    changes = random.Random("p4d357/handed/changes")
+    return (
+        # G5.4's draw on a grid of tenths, and the band fill.
+        ("tenths_around_minus_999", 11, [f"{tenths.gauss(-999.0, 0.5):.1f}" for _row in range(1000)]),
+        # The draw off a grid, the walk at its three reaches, the push, the
+        # band fill, G6.6's width walk and G6.7's clearing walk.
+        (
+            "gap_at_the_edge_of_a_heap",
+            11,
+            [str(edge.randint(-1400, -999)) for _row in range(500)]
+            + [str(edge.randint(-500, -1)) for _row in range(500)]
+            + ["-999"] * 30,
+        ),
+        # G6.4's carrier walk and its trades, beside five widths.
+        (
+            "five_widths_around_minus_999",
+            11,
+            [repr(round(widths.gauss(-999.0, 2.0), widths.choice((2, 3, 4, 5, 6)))) for _row in range(600)]
+            + ["-999"] * 20,
+        ),
+        # Widths each held below the floor: the representable grid.
+        (
+            "pooled_widths_around_minus_999",
+            36,
+            [f"{pooled.gauss(-999.0, 5.0):.{pooled.randint(1, 6)}f}" for _row in range(150)] + ["-999"] * 40,
+        ),
+        # Changes at two places beside a rare kept heap: G5.5's grid step of sign.
+        ("changes_beside_a_rare_heap", 11, [f"{changes.gauss(0.2, 0.6):.2f}" for _row in range(3000)] + ["-999.00"] * 12),
+    )
+
+
+def test_every_value_pass_is_handed_the_stand_ins_the_column_keeps(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Every call a value pass makes to a refusing helper carries the column's kept stand-ins.
+
+    The helpers' own answers are held above; this holds the threading, which
+    no seeded heap's count can: where one pass refuses a kept stand-in another
+    often puts the heap back, so a pass handed nothing left the counts near
+    their published rows. PREMISE: each column keeps a stand-in, and between
+    them the columns reach every helper of `_HANDED_KEPT`, at seeds 0, 4 and 9.
+    """
+    from synthtwin import generation
+
+    handed: "list[tuple[str, object]]" = []
+
+    def spied(name: str) -> object:
+        shipped = getattr(generation, name)
+
+        def spy(*arguments: object, **named: object) -> object:
+            handed.extend([(name, named.get("kept", "not handed"))])
+            return shipped(*arguments, **named)
+
+        return spy
+
+    for name in _HANDED_KEPT:
+        monkeypatch.setattr(generation, name, spied(name))
+    reached: "set[str]" = set()
+    for shape, floor, cells in _handing_shapes():
+        described = kpi_shapes.describe(tmp_path / shape, shape, _one_column(cells), floor)
+        facts = described.loaded.columns[0].facts
+        assert isinstance(facts, contract.NumericFacts) and facts.kept_stand_ins, f"premise: {shape} keeps a stand-in"
+        for seed in (0, 4, 9):
+            handed.clear()
+            kpi_shapes.twin_text(described, seed)
+            wrong = [(name, kept) for name, kept in handed if kept != facts.kept_stand_ins]
+            assert wrong == [], f"{shape} at seed {seed}: handed {wrong[:4]} against {facts.kept_stand_ins}"
+            reached = reached | {name for name, _kept in handed}
+    assert reached == set(_HANDED_KEPT), f"premise: never reached {sorted(set(_HANDED_KEPT) - reached)}"

@@ -790,11 +790,16 @@ def test_no_stratum_read_between_the_tails_is_a_stand_in(
     content = generation._numeric_content
 
     def refused(
-        value: float, rungs: "tuple[float, ...]", numerator: int, denominator: int, figures: int
+        value: float,
+        rungs: "tuple[float, ...]",
+        numerator: int,
+        denominator: int,
+        figures: int,
+        kept: "tuple[float, ...]" = (),
     ) -> float:
         if value in _STAND_INS:
             reached.extend([value])
-        return refuse(value, rungs, numerator, denominator, figures)
+        return refuse(value, rungs, numerator, denominator, figures, kept=kept)
 
     def values(*arguments, **named):
         found = draw(*arguments, **named)

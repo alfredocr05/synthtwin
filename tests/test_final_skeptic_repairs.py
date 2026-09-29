@@ -457,8 +457,8 @@ def test_the_rare_level_is_kept_by_the_edge_rule(
     """
     shipped = generation._cleared_value
 
-    def as_if_point_free(*arguments):  # type: ignore[no-untyped-def]
-        return shipped(*arguments[:13], True)
+    def as_if_point_free(*arguments, **named):  # type: ignore[no-untyped-def]
+        return shipped(*arguments[:13], True, **named)
 
     monkeypatch.setattr(
         generation,
@@ -504,8 +504,8 @@ def test_the_edge_rule_keeps_a_rare_level_with_nothing_patched_off(
     assert acted == []
     shipped = generation._cleared_value
 
-    def as_if_point_free(*arguments):  # type: ignore[no-untyped-def]
-        return shipped(*arguments[:13], True)
+    def as_if_point_free(*arguments, **named):  # type: ignore[no-untyped-def]
+        return shipped(*arguments[:13], True, **named)
 
     monkeypatch.setattr(generation, "_cleared_value", as_if_point_free)
     moved = _foreign_numbers(loaded, cells, (1, 4, 7))

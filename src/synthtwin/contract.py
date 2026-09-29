@@ -2726,6 +2726,42 @@ class NumericFacts:
     tail_rule: bool = False
     tails: "NumericTailFacts | None" = None
     bin_groups: "tuple[tuple[int, int, int], ...]" = ()
+    # THE STAND-IN NUMBERS THE COLUMN HOLDS AS NUMBERS (plan P4-D357 A,
+    # the second review of follow-up A). Not a key: read off the
+    # column's own `sentinel_verdicts` -- a `kept_as_a_number` decision
+    # names its candidate and its rows -- by `_kept_stand_ins`, and
+    # empty on every block no such decision reaches. The construction
+    # refuses `-9999`, `-999` and `9999` as points no row of the table
+    # holds; one the table holds, and says so, is a value like any
+    # other.
+    kept_stand_ins: "tuple[float, ...]" = ()
+
+
+def _kept_stand_ins(
+    verdicts: "tuple[SentinelVerdict, ...]",
+) -> "tuple[float, ...]":
+    """The stand-in numbers a column's decisions publish as kept numbers.
+
+    A decision is published only where at least the floor of rows held
+    its candidate, so a stand-in held by fewer is not here and the
+    construction goes on refusing it. A placeholder day is no number and
+    names nothing here.
+
+    Guarantees: accepts a block's checked decisions; returns the
+    candidates published `kept_as_a_number` that are one of
+    `parsing.NUMERIC_SENTINELS`, in that tuple's order. Determinism: a
+    function of the decisions. Raises nothing. No I/O of any kind.
+    """
+    kept: "list[float]" = []
+    for sentinel in parsing.NUMERIC_SENTINELS:
+        for verdict in verdicts:
+            if verdict.verdict == VERDICT_MISSING:
+                continue
+            number = parsing.parse_number(verdict.candidate)
+            if number is not None and number == sentinel:
+                kept += [sentinel]
+                break
+    return tuple(kept)
 
 
 @dataclasses.dataclass(frozen=True)
@@ -7113,6 +7149,11 @@ def _facts(
             n_out_of_range,
             n_contradictory,
         )
+        # ...HOLDING EVERY STAND-IN ITS DECISIONS PUBLISH AS KEPT (plan
+        # P4-D357 A): the construction may write those.
+        numeric = dataclasses.replace(
+            numeric, kept_stand_ins=_kept_stand_ins(verdicts)
+        )
         if role == ROLE_CONTINUOUS:
             return numeric
         return dataclasses.replace(
@@ -7137,7 +7178,27 @@ def _facts(
             isinstance(named, str) and named in frame.declared_commas,
         )
     if role == ROLE_AFFIXED:
-        return _affixed_facts(mapping, where, frame, n_present, remarks)
+        affixed = _affixed_facts(mapping, where, frame, n_present, remarks)
+        # The decisions of an affixed column are about its CORES, which
+        # every wrapper's block reads (plan P4-D357 A).
+        kept = _kept_stand_ins(verdicts)
+        if not kept:
+            return affixed
+        wrappers: "list[AffixWrapper]" = []
+        for one in affixed.affix_variants:
+            wrappers += [
+                dataclasses.replace(
+                    one,
+                    numbers=dataclasses.replace(
+                        one.numbers, kept_stand_ins=kept
+                    ),
+                )
+            ]
+        return dataclasses.replace(
+            affixed,
+            numbers=dataclasses.replace(affixed.numbers, kept_stand_ins=kept),
+            affix_variants=tuple(wrappers),
+        )
     if role == ROLE_IDENTIFIER:
         return _identifier_facts(
             mapping, where, n_present, n_distinct, frame.floor

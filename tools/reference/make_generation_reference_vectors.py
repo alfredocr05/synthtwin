@@ -1664,9 +1664,34 @@ def step_apart(value, low, figures):
     return moved
 
 
-def is_stand_in(value):
-    """Whether a number is one of the three the profiler reads as absent (exact)."""
-    return math.isfinite(value) and fractions.Fraction(value) in NUMERIC_SENTINELS
+def is_stand_in(value, kept=()):
+    """Whether a number is one of the three the profiler reads as absent (exact),
+    and not one the column keeps (``kept``, plan P4-D357 A)."""
+    return (
+        math.isfinite(value)
+        and fractions.Fraction(value) in NUMERIC_SENTINELS
+        and value not in kept
+    )
+
+
+def kept_stand_ins(column):
+    """The stand-in numbers a column's decisions publish as ``kept_as_a_number``.
+
+    Written from the method's words (G5.3b step 5, plan P4-D357 A): a
+    stand-in the description says the column holds, and in how many rows,
+    is the table's own value, and no value pass refuses it.
+    """
+    kept = []
+    for verdict in column.get("sentinel_verdicts", []):
+        if verdict.get("verdict") != "kept_as_a_number":
+            continue
+        try:
+            number = float(verdict.get("candidate"))
+        except (TypeError, ValueError):
+            continue
+        if math.isfinite(number) and fractions.Fraction(number) in NUMERIC_SENTINELS:
+            kept += [number]
+    return tuple(kept)
 
 
 def derived_end(column, side, boundary, shape, low, published):
@@ -1751,7 +1776,7 @@ def off_the_stand_ins(value, low, boundary, figures):
     return value if (inside > boundary if low else inside < boundary) else inside
 
 
-def drawn_off_the_stand_ins(value, lowest, highest, figures):
+def drawn_off_the_stand_ins(value, lowest, highest, figures, kept=()):
     """G5.4's last rule (plan P4-D353 part 4): no stratum read between the tails is a stand-in.
 
     Written from the method's own words: where the value the convex form
@@ -1764,9 +1789,10 @@ def drawn_off_the_stand_ins(value, lowest, highest, figures):
     grid is one unit on a whole-valued column (``figures`` 0), one step
     of the one width (``figures`` above 0), and the next number binary64
     holds where there is neither. The step is taken on fractions, so the
-    point is the exact one, rounded once to the nearest binary64.
+    point is the exact one, rounded once to the nearest binary64. A
+    stand-in the column keeps (``kept``) is its own value and not moved.
     """
-    if fractions.Fraction(value) not in NUMERIC_SENTINELS:
+    if fractions.Fraction(value) not in NUMERIC_SENTINELS or value in kept:
         return value
     size = abs(fractions.Fraction(value))
     sign = -1 if value < 0 else 1
@@ -3025,7 +3051,7 @@ def class_repair(value, band, low, high):
     return value, False
 
 
-def grid_step_of_sign(band, ladder, figures, held, total):
+def grid_step_of_sign(band, ladder, figures, held, total, kept=()):
     """G5.5's fallback on a column written at one width (landing 2b.1).
 
     The nearest grid point on the band's side of zero that no other
@@ -3043,7 +3069,7 @@ def grid_step_of_sign(band, ladder, figures, held, total):
             break
         if first is None:
             first = candidate
-        if candidate not in held and not is_stand_in(candidate):
+        if candidate not in held and not is_stand_in(candidate, kept):
             return candidate
     if first is not None:
         return first
@@ -3998,7 +4024,7 @@ def _effective_style_map(published):
     return remaining
 
 
-def whole_inside(value, band, share, ends, reach, taken):
+def whole_inside(value, band, share, ends, reach, taken, kept=()):
     """The whole number one stratum may take -- method section G6.4.
 
     The nearest first, which is the half unit G12.2's window already
@@ -4022,7 +4048,7 @@ def whole_inside(value, band, share, ends, reach, taken):
         for candidate in ([want] if step == 0 else [want + step, want - step]):
             if any(candidate == other for other in taken):
                 continue
-            if is_stand_in(candidate):
+            if is_stand_in(candidate, kept):
                 continue
             if point_free_spelling(candidate, False) is None:
                 continue
@@ -4042,7 +4068,7 @@ def whole_inside(value, band, share, ends, reach, taken):
 
 def whole_number_values(
     published, values, sizes, starts, bands, ladder, numeric, integer_valued,
-    signed=0, trailing=0,
+    signed=0, trailing=0, kept=(),
 ):
     """The VALUES step of method section G6.4, taken before the styles.
 
@@ -4143,7 +4169,8 @@ def whole_number_values(
                 )
                 ends = (ladder[0], ladder[-1])
             moved = whole_inside(
-                values[index], bands[index], share, ends, total + 1, taken
+                values[index], bands[index], share, ends, total + 1, taken,
+                kept,
             )
             if moved is None:
                 continue
@@ -4368,7 +4395,7 @@ def grouped_enough(column, values, sizes, bands, integer_valued, numeric, floor)
             point += stride
             if spelt in held or grid_text(float(spelt), figures) != spelt:
                 continue
-            if is_stand_in(float(spelt)):
+            if is_stand_in(float(spelt), kept_stand_ins(column)):
                 continue
             found.append(float(spelt))
         return found if len(found) == count else None
@@ -4618,7 +4645,9 @@ def _fraction_text(point, figures):
     return "%s%s.%s" % (sign, body[:cut], body[cut:])
 
 
-def apart_inside(value, figures, band, share, ends, written, reach=64, whole=None):
+def apart_inside(
+    value, figures, band, share, ends, written, reach=64, whole=None, kept=(),
+):
     """The nearest free point of the grid inside this share -- G6.5a.
 
     Outward one grid step at a time from the value's own grid TEXT read
@@ -4673,8 +4702,9 @@ def apart_inside(value, figures, band, share, ends, written, reach=64, whole=Non
                 continue
             if spelt in written:
                 continue
-            # Never a stand-in number (plan P4-D357 A).
-            if is_stand_in(candidate):
+            # Never a stand-in number the column does not keep (plan
+            # P4-D357 A).
+            if is_stand_in(candidate, kept):
                 continue
             # THE STRATUM'S OWN KIND, where the column writes some cells
             # with no point (amendment A-P4-55): a whole value moves only
@@ -4749,7 +4779,7 @@ def next_representable(value, downward=False):
     return found
 
 
-def representable_grid(total, bands, values):
+def representable_grid(total, bands, values, kept=()):
     """The binary64 numbers themselves, between the two ends -- G6.5a.
 
     Plan P4-D269, the last resort of the separation pass and the only one
@@ -4801,7 +4831,7 @@ def representable_grid(total, bands, values):
         taken = min(taken, ceilings[place])
         # NOR A STAND-IN NUMBER (plan P4-D357 A): between the two ends, the
         # number above it where the order allows, else the one below it.
-        if is_stand_in(taken) and 0 < place < total - 1:
+        if is_stand_in(taken, kept) and 0 < place < total - 1:
             up = next_representable(taken)
             down = next_representable(taken, True)
             if up is not None and up <= ceilings[place]:
@@ -4814,7 +4844,7 @@ def representable_grid(total, bands, values):
     return grid
 
 
-def saturated_grid(wanted, figures, total, bands, ladder):
+def saturated_grid(wanted, figures, total, bands, ladder, kept=()):
     """The points of a grid with no spare one, in order, or None -- G6.5a.
 
     Plan P4-D147 on the integers, and plan P4-D176 on every written grid:
@@ -4845,7 +4875,7 @@ def saturated_grid(wanted, figures, total, bands, ladder):
     while point <= high and len(filled) <= wanted:
         number = float(point) if figures == 0 else float(_fraction_text(point, figures))
         point = point + unit
-        if is_stand_in(number):
+        if is_stand_in(number, kept):
             continue
         filled.append(number)
     if len(filled) != wanted:
@@ -4973,7 +5003,7 @@ def twice_written(column, values, sizes, bands, ladder, integer_valued, numeric,
             number = float(_fraction_text(point, figures))
             if not any(
                 pair[0] < number < pair[1] for pair in column.get("empty_edges", [])
-            ) and not is_stand_in(number):
+            ) and not is_stand_in(number, kept_stand_ins(column)):
                 exact_points.append(point)
             point = point + unit
         if len(exact_points) == wanted:
@@ -5072,7 +5102,7 @@ def twice_written(column, values, sizes, bands, ladder, integer_valued, numeric,
 
 def saturated_bands(
     wanted, figures, values, bands, ladder, gaps, pinned, point_free,
-    integer_valued,
+    integer_valued, kept=(),
 ):
     """Each sign band whose own grid has no spare point, filled -- G6.5a.
 
@@ -5118,7 +5148,7 @@ def saturated_bands(
             if not _on_grid(number, figures):
                 whole = False
                 break
-            if is_stand_in(number):
+            if is_stand_in(number, kept):
                 continue
             points.append(number)
         if not whole or len(points) != len(places):
@@ -5136,7 +5166,7 @@ def saturated_bands(
 def apart_values(
     wanted, figures, values, sizes, starts, bands, ladder, numeric,
     mode=None, point_free=False, integer_valued=False, keep_whole=False,
-    gaps=(), pinned=False,
+    gaps=(), pinned=False, kept=(),
 ):
     """Two strata are two cells, so they are written two ways -- G6.5a.
 
@@ -5156,13 +5186,13 @@ def apart_values(
     if figures < 0:
         # AND WHERE NO DECIMAL GRID EXISTS AT ALL, THE GRID IS THE
         # REPRESENTABLE NUMBERS (plan P4-D269).
-        filled = representable_grid(total, bands, values)
+        filled = representable_grid(total, bands, values, kept)
         if filled is not None:
             return filled
         return values
     if total < 2:
         return values
-    filled = saturated_grid(wanted, figures, total, bands, ladder)
+    filled = saturated_grid(wanted, figures, total, bands, ladder, kept)
     if filled is not None:
         return filled
     filled = saturated_levels(
@@ -5176,7 +5206,7 @@ def apart_values(
     # 2026-09-18), and the walk runs over what it gives.
     moved = saturated_bands(
         wanted, figures, values, bands, ladder, gaps, pinned, point_free,
-        integer_valued,
+        integer_valued, kept,
     )
     texts = [grid_text(value, figures) for value in moved]
     held = {}
@@ -5208,7 +5238,7 @@ def apart_values(
             kind = float(moved[place]).is_integer() if keep_whole else None
             want = apart_inside(
                 moved[place], figures, bands[place], share, ends, held,
-                64, kind,
+                64, kind, kept,
             )
             if want is None and share is not None and reach >= 1:
                 # The neighbours' ground: the share widened by its own
@@ -5217,6 +5247,7 @@ def apart_values(
                 want = apart_inside(
                     moved[place], figures, bands[place],
                     (share[0] - width, share[1] + width), ends, held, 64, kind,
+                    kept,
                 )
             if want is None and share is not None and reach >= 2:
                 # And by distance: as many grid steps as the share is wide,
@@ -5228,7 +5259,7 @@ def apart_values(
                 steps = int(width / unit) + 1 if unit > 0.0 else 1
                 want = apart_inside(
                     moved[place], figures, bands[place], None, ends, held,
-                    min(steps, 64), kind,
+                    min(steps, 64), kind, kept,
                 )
             if want is None:
                 continue
@@ -5256,7 +5287,7 @@ def apart_values(
     # NEAREST FREE POINT (the carried numbers repair pass of 2026-09-19).
     return pushed_apart(
         wanted, figures, moved, texts, held, bands, ladder, gaps,
-        point_free, integer_valued, keep_whole,
+        point_free, integer_valued, keep_whole, kept,
     )
 
 
@@ -5269,7 +5300,7 @@ def pushing_on(figures):
 
 def pushed_apart(
     wanted, figures, moved, texts, held, bands, ladder, gaps, point_free,
-    integer_valued, keep_whole,
+    integer_valued, keep_whole, kept=(),
 ):
     """A collision the walks leave, pushed along its band -- G6.5a.
 
@@ -5334,7 +5365,7 @@ def pushed_apart(
                 else:
                     point = max(c for c in candidates if reads(c) <= far)
                 continue
-            if is_stand_in(number):
+            if is_stand_in(number, kept):
                 point = point + step * unit
                 continue
             if whole is None or (point.denominator == 1) == whole:
@@ -15867,6 +15898,7 @@ def _numeric_content(column):
             ladder[0],
             ladder[-1],
             0 if integer_valued else (fractional if fractional > 0 else -1),
+            kept_stand_ins(column),
         )
         repaired = False
         if fractional <= 0:
@@ -15895,6 +15927,7 @@ def _numeric_content(column):
                     bands[index], ladder, fractional,
                     {values[other] for other in range(total) if other != index},
                     total,
+                    kept_stand_ins(column),
                 )
                 for record in chain:
                     if record["stratum"] == index:
@@ -15916,6 +15949,7 @@ def _numeric_content(column):
         integer_valued,
         signed,
         trailing,
+        kept_stand_ins(column),
     )
     # AND TWO STRATA ARE NOT WRITTEN AS ONE CELL (G6.5a), after the
     # carrier walk because that walk moves values onto whole numbers
@@ -15953,6 +15987,7 @@ def _numeric_content(column):
             for pair in column.get("empty_edges", [])
         ),
         pinned,
+        kept_stand_ins(column),
     )
     # AND A WHOLE NUMBER WRITTEN TWO WAYS IS HELD BY TWO STRATA (plan
     # P4-D193), straight after the walk.

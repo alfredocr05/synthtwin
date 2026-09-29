@@ -247,6 +247,7 @@ def _generator_push(values, figures, ladder, point_free, keep_whole, integer_val
         empty_edges=(),
         integer_valued=integer_valued,
         numeric_styles=styles,
+        kept_stand_ins=(),
     )
     layout = types.SimpleNamespace(bands=[generation._BAND_POSITIVE] * len(values))
     return tuple(generation._pushed_apart(
@@ -796,6 +797,7 @@ def _shipped_trailing_values(styles, values, count, signed):
         numeric_styles=styles,
         decimal_plus={"+": signed} if signed else {},
         negative_notations={"trailing_minus": count} if count else {},
+        kept_stand_ins=(),
     )
     layout = types.SimpleNamespace(
         sizes=(1,) * len(values),
