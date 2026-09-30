@@ -9,13 +9,19 @@ after it became one, and then one after stage 3 made it eleven again --
 found only when stage 3 first reached CI (run 36121790821, 2026-09-25),
 with the whole matrix skipped behind it. This reads the same blocks out
 of the workflow and runs them against this tree, so the next change to
-what they assert is red here before it is red there.
+what they assert is red here before it is red there. The decontam job's
+MESSAGES block, which scans commit messages (plan P4-D362), is run the
+same way, on this checkout's history and on histories built here.
 """
 
 import contextlib
+import hashlib
+import importlib.util
 import io
+import os
 import pathlib
 import re
+import subprocess
 import sys
 
 import pytest
@@ -80,3 +86,159 @@ def test_the_build_jobs_demonstration_steps_pass_on_this_tree(
     assert _command(["generate", f"{demo / 'table-profile.json'}", "--seed", "7"]) == 0
     status, printed = _python("TWIN")
     assert status == 0, printed
+
+
+# -- the decontam job's MESSAGES block -------------------------------------
+
+CANARY = "zqvortex"  # the invented token of tests/test_decontamination.py
+
+
+def _message_scanner() -> "object":
+    """tools/hooks/check_messages.py, loaded fresh under the name MESSAGES imports."""
+    spec = importlib.util.spec_from_file_location(
+        "check_messages", REPO / "tools" / "hooks" / "check_messages.py"
+    )
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def _git_env() -> "dict[str, str]":
+    env = dict(os.environ)
+    env["GIT_CONFIG_GLOBAL"] = os.devnull
+    env["GIT_CONFIG_SYSTEM"] = os.devnull
+    for role in ("AUTHOR", "COMMITTER"):
+        env[f"GIT_{role}_NAME"] = "synthtwin-test"
+        env[f"GIT_{role}_EMAIL"] = "synthtwin-test@example.invalid"
+    return env
+
+
+def _git(where: pathlib.Path, *arguments: str) -> str:
+    done = subprocess.run(
+        ["git", "-C", f"{where}", *arguments], capture_output=True, text=True,
+        encoding="utf-8", errors="replace", check=False, timeout=120, env=_git_env(),
+    )
+    assert done.returncode == 0, done.stdout + done.stderr
+    return done.stdout.strip()
+
+
+def _commit(repo: pathlib.Path, message: str) -> str:
+    _git(repo, "commit", "-q", "--allow-empty", "--no-verify", "-m", message)
+    return _git(repo, "rev-parse", "HEAD")
+
+
+def _canary_manifest(folder: pathlib.Path) -> pathlib.Path:
+    """A manifest denying the canary alone, in the committed one's shape."""
+    lines = ["# test manifest", "# entry_count: 1", "# n_max: 1"]
+    for name in (
+        "snapshot_tree_sha256", "wordlist_sha256", "seed_sha256",
+        "grammar_sha256", "magic_sha256", "tokenizer_sha256",
+    ):
+        lines += [f"# {name}: {hashlib.sha256(name.encode()).hexdigest()}"]
+    lines += ["#", hashlib.sha256(CANARY.encode()).hexdigest()]
+    path = folder / "manifest.txt"
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8", newline="\n")
+    return path
+
+
+def _messages(monkeypatch: pytest.MonkeyPatch, **event: str) -> "tuple[int, str]":
+    """The MESSAGES block once, under the event the job would see."""
+    for name in ("EVENT_NAME", "HEAD_SHA", "BASE_SHA"):
+        monkeypatch.delenv(name, raising=False)
+    for name, value in event.items():
+        monkeypatch.setenv(name, value)
+    return _python("MESSAGES")
+
+
+def test_the_decontam_jobs_message_scan_passes_on_this_history(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """MESSAGES on this checkout, on a push and on a pull request.
+
+    It needs the history the job fetches with fetch-depth: 0. A checkout
+    without it -- the tests job's own is shallow -- is left to the job,
+    where the scan refuses it aloud; the next case holds that refusal.
+    """
+    scanner = _message_scanner()
+    for name, value in _git_env().items():
+        monkeypatch.setenv(name, value)
+    shallow = _git(REPO, "rev-parse", "--is-shallow-repository")
+    if shallow != "false" or not scanner.holds_commit(REPO, scanner.GRANDFATHER):  # type: ignore[attr-defined]
+        pytest.skip("this checkout does not hold the history past the grandfather")
+    head = _git(REPO, "rev-parse", "HEAD")
+    monkeypatch.chdir(REPO)
+    monkeypatch.setattr(sys, "path", list(sys.path))
+    saved = sys.modules.pop("check_messages", None)
+    try:
+        for event in ("push", "pull_request"):
+            status, printed = _messages(
+                monkeypatch, EVENT_NAME=event, HEAD_SHA=head,
+                BASE_SHA=scanner.GRANDFATHER,  # type: ignore[attr-defined]
+            )
+            assert status == 0, printed
+            assert "past the grandfather line" in printed and ": clean," in printed
+    finally:
+        sys.modules.pop("check_messages", None)
+        if saved is not None:
+            sys.modules["check_messages"] = saved
+
+
+def test_the_decontam_jobs_message_scan_reads_the_pull_request_and_refuses_a_cut_history(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """MESSAGES on a history built here, its scanner pointed at that history.
+
+    A canary before the grandfather and one on the base branch are not the
+    pull request's; its own is reported and never printed; a push reads
+    the whole branch; a history without the grandfather and a shallow
+    clone both fail instead of passing.
+    """
+    repo = tmp_path / "history"
+    repo.mkdir()
+    _git(repo, "init", "-q")
+    _commit(repo, "the first commit")
+    _commit(repo, f"published before the guard {CANARY}")
+    grandfather = _commit(repo, "the grandfather")
+    base = _commit(repo, f"on the base branch {CANARY}")
+    _git(repo, "checkout", "-q", "-b", "feature", grandfather)
+    clean = _commit(repo, "a clean feature commit")
+    dirty = _commit(repo, f"a feature commit {CANARY}")
+
+    scanner = _message_scanner()
+    monkeypatch.setattr(scanner, "GRANDFATHER", grandfather)
+    monkeypatch.setattr(scanner, "MANIFEST", _canary_manifest(tmp_path))
+    monkeypatch.setitem(sys.modules, "check_messages", scanner)
+    monkeypatch.setattr(sys, "path", list(sys.path))
+    for name, value in _git_env().items():
+        monkeypatch.setenv(name, value)
+    monkeypatch.chdir(repo)
+
+    status, printed = _messages(
+        monkeypatch, EVENT_NAME="pull_request", HEAD_SHA=clean, BASE_SHA=base
+    )
+    assert status == 0 and "clean, 1 commit scanned" in printed, printed
+    status, printed = _messages(
+        monkeypatch, EVENT_NAME="pull_request", HEAD_SHA=dirty, BASE_SHA=base
+    )
+    assert status == 1, printed
+    assert re.findall(r"^MATCH commit ([0-9a-f]{40}) ", printed, re.M) == [dirty]
+    assert CANARY not in printed
+    status, printed = _messages(monkeypatch, EVENT_NAME="push")
+    assert status == 1, printed
+    assert re.findall(r"^MATCH commit ([0-9a-f]{40}) ", printed, re.M) == [dirty]
+    _git(repo, "checkout", "-q", base)
+    status, printed = _messages(monkeypatch, EVENT_NAME="push")
+    assert re.findall(r"^MATCH commit ([0-9a-f]{40}) ", printed, re.M) == [base]
+
+    monkeypatch.setattr(scanner, "GRANDFATHER", "0" * 40)
+    status, printed = _messages(monkeypatch, EVENT_NAME="push")
+    assert status == 2 and "NOT SCANNED" in printed, printed
+    monkeypatch.setattr(scanner, "GRANDFATHER", grandfather)
+    shallow = tmp_path / "shallow"
+    _git(tmp_path, "clone", "-q", "--depth", "1", repo.as_uri(), f"{shallow}")
+    monkeypatch.chdir(shallow)
+    status, printed = _messages(
+        monkeypatch, EVENT_NAME="pull_request", HEAD_SHA=dirty, BASE_SHA=base
+    )
+    assert status == 2 and "SHALLOW" in printed, printed
