@@ -6,6 +6,25 @@ exists).
 
 ## [Unreleased]
 
+### Each half of the week's band on its own (2026-09-30)
+
+**The weekday census's band is searched a half at a time** (plan
+P4-D359, the skeptic of its second round). One width for both halves
+past the capped stretches kept real censuses back: a weekend market
+beside thirty Wednesday rows held 28 Monday-to-Friday rows inside a band
+of 18 to 35. Each half's width is its own now, from its least, and the
+pair taken is the certified one of least summed width, fewer
+Monday-to-Friday rows first on a tie. Over the skeptic's 80 markets,
+logs and clinics and 120 markets, 2af1f03 publishes 51 and 69, one width
+47 and 65, the halves 50 and 69. The loader refuses a half at its least
+alone, which every band holds, so it never refuses the producer's own
+census. The brute force finds no unsound outcome over 459 tiny fact
+sets, and bands taken at the least uncertified give 4. Describing a
+residue column costs about twice the networks. The owner's rulings are
+recorded: the certificate keeps its 20,000-arrangement cap, and a
+withheld census may say a half of the week holds 1 to 10 rows
+(`K-S3-34`).
+
 ### A band of marks over every present cell says "some" (2026-09-29)
 
 **Decision (i) applied where every cell is grouped** (plan P4-D356, the
@@ -85,8 +104,9 @@ where 2af1f03 published 79.
 different days back across groups (G7.3f step 8.3): of the review's 505
 heaped twins, ten had lost a day to the census, none now, and a count
 that gives way to the census says so. The quality report's hole note
-says what it counts. The band is the narrowest whose withheld tables
-certify, where it always reached the census line: over 269 schedules,
+says what it counts. The band is the narrowest one width past the capped
+stretches whose withheld tables certify, where it always reached the
+census line: over 269 schedules,
 clinics, weekend markets and business logs 165 censuses publish where
 2af1f03 published 166 and the widest band 162. The loader's band
 refusal states the capped stretches it counts, and its certificate

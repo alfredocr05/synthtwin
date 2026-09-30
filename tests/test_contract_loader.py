@@ -1514,19 +1514,18 @@ def battery() -> list[Mutation]:
         # WC9 (plan P4-D359): published with 150 different values,
         # `recorded_on`'s body holds more different days than its weekends
         # can, so Monday to Friday holds at least 34 rows in every table of
-        # its facts, and its capped stretches can take ten more: its
-        # narrowest certified band runs from 34 to 44. Forty rows lie in
-        # it, which the producer always withholds. (Its own census, where
-        # every band stands inside what WC5 refuses, cannot reach WC9.)
+        # its facts, and every band the producer's search can take holds
+        # 34, which it always withholds. (Its own census, where every band
+        # stands inside what WC5 refuses, cannot reach WC9.)
         Mutation(
-            "WC9", "a Monday to Friday inside the band a withholding always keeps",
+            "WC9", "a Monday to Friday at the least every band a withholding keeps holds",
             edit(
                 "recorded_on",
                 n_distinct=150,
                 n_distinct_folded=150,
                 weekday_census=[
-                    {"first": 0, "last": 4, "count": 40},
-                    {"first": 5, "last": 6, "count": 177},
+                    {"first": 0, "last": 4, "count": 34},
+                    {"first": 5, "last": 6, "count": 183},
                 ],
             ),
         ),
@@ -2623,34 +2622,42 @@ def _form_workbook_format_code_carrying_a_word(document: Document) -> None:
 BATTERY = battery()
 
 
-def test_the_band_refusal_states_the_capped_stretches(tmp_path: pathlib.Path, base: Document) -> None:
-    """WC9's refusal says what its band holds: the least, through what the capped stretches take.
+def test_the_band_refusal_refuses_only_each_halfs_least(tmp_path: pathlib.Path, base: Document) -> None:
+    """WC9 refuses a half at its least alone, which every band the producer can take holds.
 
-    Its sentence said a half must hold none or more than the census line
-    beyond its least, while the band it printed reached past that by what
-    the stretches the rank facts keep below the line can take -- ten rows
-    here -- so it refused totals its own words allowed (the review's
-    second round). `recorded_on` at 150 different values: Monday to
-    Friday holds at least 34 rows in every table of its facts and its
-    capped stretches ten more, and forty rows lie inside. The term is
-    ADDED to the least, which "and" left to be read as a second bound
-    (the skeptic's second round: read so, 35 to 44 would pass). Red when
-    the capped term leaves the sentence, or is joined by "and" again in
-    the sentence or the invariant.
+    `recorded_on` at 150 different values: Monday to Friday holds at least
+    34 rows in every table of its facts, and its capped stretches can take
+    ten more. The band stood at width nought past those stretches, 34 to
+    44, when the search took one width for both halves; searched a half
+    at a time, the producer can take Monday to Friday at 34 alone and
+    publish forty, so a loader refusing 34 to 44 refused the producer's
+    own census (the skeptic of the review's second round: a market's
+    Monday to Friday of 28 stood inside the 18 to 35 the loader asked).
+    Thirty-four is refused, and its sentence says why; forty passes WC9
+    and meets WC8, which this hand-made census fails. Red when WC9 asks
+    the capped stretches again (forty refused by WC9), and when it asks
+    nothing (thirty-four meets WC8 first).
     """
-    document = copy.deepcopy(base)
-    edit(
-        "recorded_on",
-        n_distinct=150,
-        n_distinct_folded=150,
-        weekday_census=[{"first": 0, "last": 4, "count": 40}, {"first": 5, "last": 6, "count": 177}],
-    )(document)
-    message = refusal(tmp_path, document)
-    assert contract.INVARIANTS["WC9"] in message, message
-    said = message.split(contract.INVARIANTS["WC9"], 1)[1]
-    assert "plus the most it can hold in the stretches the rank facts keep below the line" in said, said
-    assert "through that least plus the most it can hold" in contract.INVARIANTS["WC9"]
-    assert "Monday to Friday of 34 to 44" in said, said
+    for count, refused in ((34, True), (40, False)):
+        document = copy.deepcopy(base)
+        edit(
+            "recorded_on",
+            n_distinct=150,
+            n_distinct_folded=150,
+            weekday_census=[{"first": 0, "last": 4, "count": count}, {"first": 5, "last": 6, "count": 217 - count}],
+        )(document)
+        if not refused:
+            # Past WC9, the next rule asks the hand-made census (WC8).
+            with pytest.raises(errors.ProfileError) as later:
+                contract.load_profile(str(fixtures.write_profile(tmp_path, f"wc9-{count}-profile.json", document)))
+            assert contract.INVARIANTS["WC8"] in str(later.value), str(later.value)
+            continue
+        message = refusal(tmp_path, document)
+        assert contract.INVARIANTS["WC9"] in message, message
+        said = message.split(contract.INVARIANTS["WC9"], 1)[1]
+        assert "more than the larger of one and the least" in said, said
+        assert "Monday to Friday of 34, are always withheld" in said, said
+        assert "which every band holds" in contract.INVARIANTS["WC9"]
 
 
 def test_the_certificate_refusal_states_its_residue_clause(tmp_path: pathlib.Path, base: Document) -> None:

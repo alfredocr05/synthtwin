@@ -960,6 +960,7 @@ def _residue_equivalent(
     residue: "list[tuple[int, int]]",
     tally: "list[int]",
     alternatives: "list[tuple[dict[int, tuple[int, int]], tuple[tuple[int, int], ...] | None]] | None" = None,
+    known: "_Known | None" = None,
 ) -> "tuple[bool, str, str]":
     """Every residue configuration stage 3 allows, the census allows too.
 
@@ -980,8 +981,9 @@ def _residue_equivalent(
 
     `alternatives` are what the side asked tells a reader, each weekday
     bounds and group-total bounds (`_census_table`); by default the
-    census's own, one per `calendar_rules.branches_of`. Returns whether
-    it holds, the mode (`vertices` or `full`) and what decided it.
+    census's own, one per `calendar_rules.branches_of`; `known` what a
+    withholding's band search has learnt (`_Known`). Returns whether it
+    holds, the mode (`vertices` or `full`) and what decided it.
     """
     by_stretch: "dict[int, list[tuple[int, int]]]" = {}
     for key in residue:
@@ -1014,7 +1016,7 @@ def _residue_equivalent(
         branches = alternatives
     zeros = {key: 0 for key in residue}
     if rest_parts + occupied_most > facts.most_days:
-        return _residue_full(facts, by_stretch, stretches, branches, zeros, tally)
+        return _residue_full(facts, by_stretch, stretches, branches, zeros, tally, known)
     slices = 1
     for place in stretches:
         least = 1 if facts.stretches[place][0] else 0
@@ -1045,25 +1047,27 @@ def _residue_equivalent(
         first, beyond = least_days, most_days + 1
         while first < beyond:
             middle = (first + beyond) // 2
-            if (
-                _stage3_table(facts, {}, 0, 0, vertices[0], cells - middle, middle, tally)
-                is not None
-            ):
+            if _stage3_found(facts, {}, 0, 0, vertices[0], cells - middle, middle, tally, known):
                 beyond = middle
             else:
                 first = middle + 1
         if first <= most_days:
             spent = cells - first
-            realised = False
+            realised = any(
+                all(
+                    _census_known(facts, {}, {}, bounds, config, spent, first, top_bounds, known)
+                    for config in vertices
+                )
+                for bounds, top_bounds in branches
+            )
             for bounds, top_bounds in branches:
+                if realised:
+                    break
                 every = True
                 for config in vertices:
-                    if (
-                        _census_table(
-                            facts, {}, {}, bounds, config, spent, first, tally,
-                            top_bounds,
-                        )
-                        is None
+                    if not _census_found(
+                        facts, {}, {}, bounds, config, spent, first, tally,
+                        top_bounds, known,
                     ):
                         every = False
                         break
@@ -1095,6 +1099,7 @@ def _residue_full(
     branches: "list[tuple[dict[int, tuple[int, int]], tuple[tuple[int, int], ...] | None]]",
     zeros: "dict[tuple[int, int], int]",
     tally: "list[int]",
+    known: "_Known | None" = None,
 ) -> "tuple[bool, str, str]":
     """Every residue configuration, enumerated (`_residue_equivalent`)."""
     total = 1
@@ -1128,19 +1133,19 @@ def _residue_full(
         most_days = sum(min(config[key], len(facts.classes[key])) for key in config)
         for occupied in range(least_days, most_days + 1):
             spent = cells - occupied
-            if _stage3_table(facts, {}, 0, 0, config, spent, occupied, tally) is None:
+            if not _stage3_found(facts, {}, 0, 0, config, spent, occupied, tally, known):
                 continue
-            realised = False
+            realised = any(
+                _census_known(facts, {}, {}, bounds, config, spent, occupied, top_bounds, known)
+                for bounds, top_bounds in branches
+            )
             for bounds, top_bounds in branches:
-                if (
-                    _census_table(
-                        facts, {}, {}, bounds, config, spent, occupied, tally,
-                        top_bounds,
-                    )
-                    is not None
-                ):
-                    realised = True
+                if realised:
                     break
+                realised = _census_found(
+                    facts, {}, {}, bounds, config, spent, occupied, tally,
+                    top_bounds, known,
+                )
             if not realised:
                 return (
                     False,
@@ -1233,16 +1238,24 @@ def certify(facts: Facts) -> Verdict:
 # line on a day of every class, or the class is residue whose every
 # stage-3 configuration W0 allows. Every table withheld is then in a set
 # holding W0, and a set holding a certified set confines nothing either.
-# ANY CERTIFIED W0 WILL DO, so the band is the NARROWEST that certifies
-# (the review's second round): from the larger of one and the least any
-# table of stage 3's facts puts in that half, through what the capped
-# stretches can take there and `width` rows more, the least `width` whose
-# W0 is certified -- at most the census line past the least, as the band
-# always reached, whose cost was real censuses kept back: a weekend market
-# with thirty to forty Wednesday rows stood inside the band that line
-# spanned, and publishes now. Where no width certifies, the census is
-# withheld whatever the table, which the published numbers alone decide
-# and so says nothing. W0's CLASSES ARE COARSER than a
+# ANY CERTIFIED W0 WILL DO, so EACH HALF'S BAND IS SEARCHED ON ITS OWN
+# (the review's second round and its skeptic's): the weekend band runs
+# from the larger of one and the least any table of stage 3's facts puts
+# there through that and `a` rows more, Monday to Friday's likewise with
+# `b`, and the pair taken is the certified one of least `a + b`, the one
+# with fewer Monday-to-Friday rows where two tie. Each width stops at the
+# census line and what the capped stretches can take past the least, where
+# the band always reached. One width for both halves past the capped
+# stretches cost real censuses: a weekend market beside thirty Wednesday
+# rows stood inside a Monday-to-Friday band the capped stretches alone
+# stretched seventeen rows past its least, and publishes now. The search
+# walks the pairs as though a wider band never certified less, a reading
+# that saves networks and can at worst miss a narrower pair, never take an
+# uncertified one: every pair it takes is asked in full. Where
+# the widest pair does not certify, the one width is asked as before
+# (`_narrowed`), and where that does not either, the census is withheld
+# whatever the table, which the published numbers alone decide and so
+# says nothing. W0's CLASSES ARE COARSER than a
 # census's: what W0 asks of a table is its rank facts, its count of
 # different days and its two half totals, so exchanging two days of one
 # stretch between two knots and one half of the week changes nothing W0
@@ -1356,8 +1369,10 @@ def _band(least: int, line: int, capped: int) -> "tuple[int, int]":
 
 
 def _narrowed(banded: "Bands", width: int, solves: int) -> "Bands":
-    """The bands `width` rows past the larger of one and each half's least
-    and what its capped stretches can take, never past the widest band."""
+    """The bands of ONE width for both halves: `width` rows past the larger
+    of one and each half's least and what its capped stretches can take,
+    never past the widest band. Asked only where no pair of `_at_widths`
+    certifies (`withholding`)."""
     halves: "list[tuple[int, int]]" = []
     for band, capped in ((banded.weekend, banded.capped[0]), (banded.weekdays, banded.capped[1])):
         if band[0] > band[1]:
@@ -1367,13 +1382,159 @@ def _narrowed(banded: "Bands", width: int, solves: int) -> "Bands":
     return dataclasses.replace(banded, weekend=halves[0], weekdays=halves[1], solves=solves)
 
 
-def _widest_width(banded: "Bands") -> int:
-    """The width at which `_narrowed` gives the widest bands back."""
-    width = 0
-    for band, capped in ((banded.weekend, banded.capped[0]), (banded.weekdays, banded.capped[1])):
-        if band[0] <= band[1]:
-            width = max(width, band[1] - band[0] - capped)
-    return width
+def _at_widths(banded: "Bands", weekend: int, weekdays: int, solves: int) -> "Bands":
+    """The weekend band `weekend` rows past the larger of one and its least,
+    and Monday to Friday's `weekdays` rows past theirs, never past the
+    widest band; a band no table reaches stays empty."""
+    halves: "list[tuple[int, int]]" = []
+    for band, width in ((banded.weekend, weekend), (banded.weekdays, weekdays)):
+        if band[0] > band[1]:
+            halves += [band]
+        else:
+            halves += [(band[0], min(band[0] + width, band[1]))]
+    return dataclasses.replace(banded, weekend=halves[0], weekdays=halves[1], solves=solves)
+
+
+def _reach(banded: "Bands") -> "tuple[int, int]":
+    """How many rows past its least each half's widest band reaches."""
+    return (
+        max(0, banded.weekend[1] - banded.weekend[0]),
+        max(0, banded.weekdays[1] - banded.weekdays[0]),
+    )
+
+
+@dataclasses.dataclass(frozen=True)
+class _Known:
+    """What one withholding's band search has learnt, asked again at every
+    pair of widths it tries (`withholding`).
+
+    `stage3` holds whether each stage-3 network asked found a table: its
+    question holds no band, so its answer is the same at every pair.
+    `weekends` holds, per question the census side asked less its two half
+    totals, the weekend total of every table it found: a table found under
+    one band IS a table under any band holding its totals, so it is taken
+    again there without a network, and nothing stands for a table no
+    network found. `refused` holds each census-side question, its two half
+    totals included, whose network found none: asked again whole, it
+    would find none again. All three grow as the search asks.
+    """
+
+    stage3: "dict[tuple[object, ...], bool]"
+    weekends: "dict[tuple[object, ...], list[int]]"
+    refused: "dict[tuple[object, ...], bool]"
+
+
+def _stage3_found(
+    facts: Facts,
+    take: "dict[tuple[int, int], int]",
+    least: int,
+    greatest: int,
+    fixed: "dict[tuple[int, int], int]",
+    spent: int,
+    occupied: int,
+    tally: "list[int]",
+    known: "_Known | None",
+) -> bool:
+    """Whether `_stage3_table` finds a table, each question asked once
+    where the band search keeps what it learnt."""
+    if known is None:
+        return _stage3_table(facts, take, least, greatest, fixed, spent, occupied, tally) is not None
+    question: "tuple[object, ...]" = (
+        tuple(sorted((key, take[key]) for key in take)),
+        least,
+        greatest,
+        tuple(sorted((key, fixed[key]) for key in fixed)),
+        spent,
+        occupied,
+    )
+    if question not in known.stage3:
+        known.stage3[question] = (
+            _stage3_table(facts, take, least, greatest, fixed, spent, occupied, tally) is not None
+        )
+    return known.stage3[question]
+
+
+def _question(
+    take: "dict[tuple[int, int], int]",
+    need: "dict[int, tuple[int, int]]",
+    bounds: "dict[int, tuple[int, int]]",
+    fixed: "dict[tuple[int, int], int]",
+    spent: int,
+    occupied: int,
+) -> "tuple[object, ...]":
+    """A census-side question less its two half totals, as `_Known` keeps it."""
+    return (
+        tuple(sorted((key, take[key]) for key in take)),
+        tuple(sorted((key, need[key]) for key in need)),
+        tuple(sorted((key, bounds[key]) for key in bounds)),
+        tuple(sorted((key, fixed[key]) for key in fixed)),
+        spent,
+        occupied,
+    )
+
+
+def _census_known(
+    facts: Facts,
+    take: "dict[tuple[int, int], int]",
+    need: "dict[int, tuple[int, int]]",
+    bounds: "dict[int, tuple[int, int]]",
+    fixed: "dict[tuple[int, int], int]",
+    spent: int,
+    occupied: int,
+    top_bounds: "tuple[tuple[int, int], ...] | None",
+    known: "_Known | None",
+) -> bool:
+    """Whether a table the band search already found answers this question
+    with these two half totals (`_Known`); asks no network."""
+    if known is None or top_bounds is None:
+        return False
+    question = _question(take, need, bounds, fixed, spent, occupied)
+    if question not in known.weekends:
+        return False
+    weekdays, weekend = top_bounds[0], top_bounds[1]
+    for total in known.weekends[question]:
+        if weekend[0] <= total <= weekend[1] and weekdays[0] <= facts.body - total <= weekdays[1]:
+            return True
+    return False
+
+
+def _census_found(
+    facts: Facts,
+    take: "dict[tuple[int, int], int]",
+    need: "dict[int, tuple[int, int]]",
+    bounds: "dict[int, tuple[int, int]]",
+    fixed: "dict[tuple[int, int], int]",
+    spent: int,
+    occupied: int,
+    tally: "list[int]",
+    top_bounds: "tuple[tuple[int, int], ...] | None",
+    known: "_Known | None",
+) -> bool:
+    """Whether `_census_table` finds a table; asked with the two half totals
+    of the withholding's alternatives where the band search keeps what it
+    learnt, a table found before whose totals lie inside these is taken
+    again without a network."""
+    if known is None or top_bounds is None:
+        return (
+            _census_table(facts, take, need, bounds, fixed, spent, occupied, tally, top_bounds)
+            is not None
+        )
+    if _census_known(facts, take, need, bounds, fixed, spent, occupied, top_bounds, known):
+        return True
+    question = _question(take, need, bounds, fixed, spent, occupied)
+    earlier = known.weekends[question] if question in known.weekends else []
+    whole = (question, tuple(top_bounds))
+    if whole in known.refused:
+        return False
+    table = _census_table(facts, take, need, bounds, fixed, spent, occupied, tally, top_bounds)
+    if table is None:
+        known.refused[whole] = True
+        return False
+    total = sum(part[2] for part in table.parts if part[0][1] >= calendar_rules.SATURDAY)
+    total = total + sum(fixed[key] for key in fixed if key[1] >= calendar_rules.SATURDAY)
+    earlier += [total]
+    known.weekends[question] = earlier
+    return True
 
 
 def _capped_cells(facts: Facts, weekend: bool) -> int:
@@ -1413,13 +1574,16 @@ def withholding(
 
     The BANDS: the least cells the weekend, and the least Monday to
     Friday together, hold over the tables meeting stage 3's facts on the
-    reader's bounds and the holes (`bands`); each band runs from the
-    larger of one and that least through what the capped stretches can
-    take in that half and `width` rows more (`_narrowed`), and the width
-    is the least whose W0 is certified: nought first, then the widest --
-    the least plus the line plus the capped stretches, the band as it
-    stood before -- then halving between them. Where the widest is not
-    certified either, its answer stands. W0 is the tables whose
+    reader's bounds and the holes (`bands`); the weekend band runs from
+    the larger of one and its least through that and `a` rows more,
+    Monday to Friday's with `b` rows more (`_at_widths`), each at most
+    the line plus what the capped stretches can take in that half, the
+    widest. The pair taken is the certified one of least `a + b` that a
+    walk reading a wider band as never certifying less finds, the smaller
+    `b` where two tie (`_least_pair`). Where the widest pair is
+    not certified, one width for both halves past the capped stretches
+    (`_narrowed`, nought) is asked, and where that is not either, the
+    widest's answer stands. W0 is the tables whose
     weekend lies in its band or whose weekdays lie in theirs: every class
     -- a knot day, or the days of one stretch between two knots in one
     half of the week (`_pooled`) -- needs a witness in W0 putting the
@@ -1447,28 +1611,71 @@ def withholding(
         parsed, rows_low, rows_high, low, high, rungs, reader_fewest,
         reader_most, line, _HALVES, -1, holes,
     )
-    answer = _withheld_certified(given, _narrowed(banded, 0, banded.solves))
-    widest = _widest_width(banded)
-    if not answer.holds and widest > 0:
-        answer = _withheld_certified(given, _narrowed(banded, widest, answer.solves))
-        found = answer
-        first, last = 1, widest
-        while answer.holds and first < last:
-            middle = (first + last) // 2
-            tried = _withheld_certified(given, _narrowed(banded, middle, found.solves))
-            if tried.holds:
-                last = middle
-                found = tried
-            else:
-                first = middle + 1
-                found = dataclasses.replace(found, solves=tried.solves)
+    known = _Known({}, {}, {})
+    reach = _reach(banded)
+    answer = _withheld_certified(given, _at_widths(banded, 0, 0, banded.solves), known)
+    if not answer.holds and reach != (0, 0):
+        if reach[1] > 0:
+            answer = _withheld_certified(given, _at_widths(banded, 0, reach[1], answer.solves), known)
         if answer.holds:
-            answer = found
+            answer = _least_pair(given, banded, known, answer, (0, reach[1]))
+        elif reach[0] > 0:
+            answer = _withheld_certified(given, _at_widths(banded, reach[0], reach[1], answer.solves), known)
+            if answer.holds:
+                answer = _least_pair(given, banded, known, answer, reach)
+        if not answer.holds:
+            common = _withheld_certified(given, _narrowed(banded, 0, answer.solves), known)
+            answer = common if common.holds else dataclasses.replace(answer, solves=common.solves)
     if len(_WITHHOLDINGS) >= _ANSWERS_KEPT:
-        for known in list(_WITHHOLDINGS):
-            del _WITHHOLDINGS[known]
+        for earlier in list(_WITHHOLDINGS):
+            del _WITHHOLDINGS[earlier]
     _WITHHOLDINGS[key] = answer
     return answer
+
+
+def _least_pair(
+    given: Facts, banded: "Bands", known: _Known, held: Withholding, best: "tuple[int, int]"
+) -> Withholding:
+    """The certified pair of widths of least sum, the fewer Monday-to-Friday
+    rows first where two tie (`withholding`). `held` is the answer at the
+    pair `best`, which holds: the widest Monday-to-Friday width beside a
+    weekend width of nought, or the widest pair where that one does not
+    hold; the pair of noughts was asked and does not hold.
+
+    Weekend widths are walked up from nought, each asked at the most
+    Monday-to-Friday width that could still match the best sum, and where
+    that holds, the least such width is found by asking a quarter of the
+    way up what is left -- a refused pair costs a few networks, a held one
+    every question again -- a walk that reads a wider band as never
+    certifying less. Every pair it keeps held when asked. `solves` counts
+    every network the search spent.
+    """
+    reach = _reach(banded)
+    chosen = held
+    spent = held.solves
+    for weekend in range(reach[0] + 1):
+        top = min(reach[1], best[0] + best[1] - weekend)
+        if top < 0:
+            break
+        if (weekend, top) == (0, 0) or (weekend == 0 and best[0] > 0):
+            continue
+        tried = held
+        if (weekend, top) != best:
+            tried = _withheld_certified(given, _at_widths(banded, weekend, top, spent), known)
+            spent = tried.solves
+        if not tried.holds:
+            continue
+        first, last, found = (1 if weekend == 0 else 0), top, tried
+        while first < last:
+            middle = first + (last - first) // 4
+            tried = _withheld_certified(given, _at_widths(banded, weekend, middle, spent), known)
+            spent = tried.solves
+            if tried.holds:
+                last, found = middle, tried
+            else:
+                first = middle + 1
+        best, chosen = (weekend, last), found
+    return dataclasses.replace(chosen, solves=spent)
 
 
 _WITHHOLDINGS: "dict[tuple[object, ...], Withholding]" = {}
@@ -1510,8 +1717,9 @@ def bands(
     is a table; each band runs from the larger of one and that least to
     the least plus the line plus the most that half can take in the
     stretches the rank facts cap below the line (`_capped_cells`), which
-    it carries. `withholding` narrows them to the least width certified,
-    and the loader (WC9) to width nought. CACHED ON THE WHOLE QUESTION.
+    it carries. `withholding` narrows each to the widths of the certified
+    pair it takes, and the loader (WC9) each to its least alone. CACHED ON
+    THE WHOLE QUESTION.
 
     Guarantees: accepts the description's numbers; returns the bands.
     Determinism: a function of the arguments. Raises nothing. No I/O.
@@ -1544,7 +1752,10 @@ def bands(
     return answer
 
 
-def _withheld_certified(given: Facts, banded: Bands) -> Withholding:
+def _withheld_certified(given: Facts, banded: Bands, known: "_Known | None" = None) -> Withholding:
+    """W0 of these bands certified (`withholding`), what the band search
+    learnt kept in `known` where it is given; `solves` counts on from
+    `banded.solves`."""
     tally = [banded.solves]
     facts = _pooled(_halves_facts(given))
     line = facts.line
@@ -1561,21 +1772,24 @@ def _withheld_certified(given: Facts, banded: Bands) -> Withholding:
         weekday = klass[1]
         take = {klass: 1}
         need = {weekday: (line, body)}
-        found = False
-        for _bounds, top_bounds in alternatives:
-            if _census_table(facts, take, need, {}, {}, 0, 0, tally, top_bounds) is not None:
-                found = True
+        found = any(
+            _census_known(facts, take, need, bounds, {}, 0, 0, top_bounds, known)
+            for bounds, top_bounds in alternatives
+        )
+        for bounds, top_bounds in alternatives:
+            if found:
                 break
+            found = _census_found(facts, take, need, bounds, {}, 0, 0, tally, top_bounds, known)
         if found:
             continue
-        if _stage3_table(facts, take, line, body, {}, 0, 0, tally) is not None:
+        if _stage3_found(facts, take, line, body, {}, 0, 0, tally, known):
             return Withholding(
                 False, "the withheld tables keep a day below the line where stage 3 does not",
                 weekend, weekdays, tally[0],
             )
         residue += [klass]
     if residue:
-        held, _mode, detail = _residue_equivalent(facts, residue, tally, alternatives)
+        held, _mode, detail = _residue_equivalent(facts, residue, tally, alternatives, known)
         if not held:
             return Withholding(False, detail, weekend, weekdays, tally[0])
     return Withholding(True, "", weekend, weekdays, tally[0])
@@ -1779,12 +1993,14 @@ def breach(
     to the body; WC4 the grouping is an entry of the menu; WC6 the
     published forms give every date one text; WC5 no group is left one
     to the line less one once the knot days' sure cells are taken out;
-    then WC9, no weekend and no Monday to Friday inside its NARROWEST
-    band, the band at width nought (`_narrowed`), which every band the
-    producer withholds holds -- asked without the withholding's own
-    certificate, which the producer asks and the loader need not repeat
-    to refuse what the producer never writes (`bands`, `in_band`) -- asked
-    where any day can hold the line at all; then WC7 and WC8 (`check`, on
+    then WC9, no weekend and no Monday to Friday at its least alone --
+    the larger of one and the least the rest of the description allows
+    that half (`_at_widths` at nought), which every band the producer
+    withholds holds, whatever pair of widths its search takes -- asked
+    without the withholding's own certificate, which the producer asks
+    and the loader need not repeat to refuse what the producer never
+    writes (`bands`, `in_band`), and asked where any day can hold the
+    line at all; then WC7 and WC8 (`check`, on
     the reader's bounds, with `holes` -- every hole the description
     publishes, `calendar_rules.public_holes`). The
     first broken rule is returned as (rule, what the census says, what
@@ -1859,19 +2075,17 @@ def breach(
             parsed, rows_low, rows_high, low, high, rungs, fewest, most,
             line, holes,
         )
-        banded = _narrowed(widest, 0, widest.solves)
+        banded = _at_widths(widest, 0, 0, widest.solves)
         if in_band(groups, banded):
             return (
                 "WC9",
                 "the weekday census",
                 "the weekend, and Monday to Friday together, must each hold "
                 "none, or more than the larger of one and the least the rest "
-                "of this description allows that half, plus the most it can "
-                "hold in the stretches the rank facts keep below the line: a "
-                "weekend of "
-                f"{banded.weekend[0]} to {banded.weekend[1]} rows, and Monday "
-                f"to Friday of {banded.weekdays[0]} to {banded.weekdays[1]}, "
-                "are always withheld",
+                "of this description allows that half: a weekend of "
+                f"{banded.weekend[0]} row{'' if banded.weekend[0] == 1 else 's'}, "
+                f"and Monday to Friday of {banded.weekdays[0]}, are always "
+                "withheld",
             )
     verdict = check(
         parsed, rows_low, rows_high, low, high, rungs, fewest, most, line,

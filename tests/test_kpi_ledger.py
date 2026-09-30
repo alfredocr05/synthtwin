@@ -1633,6 +1633,46 @@ def test_k_s3_25(record_property, tmp_path: pathlib.Path) -> None:
     )
 
 
+def test_k_s3_34(record_property) -> None:
+    """P4-D359, the owner's accepted limit of 2026-09-30: a withheld census may say a half holds 1 to 10 rows.
+
+    The critic's eight tables (`test_stage3b_weekday_review.weekend_moved`):
+    weekends of 1, 5, 9, 10, 11, 12, 13 and 14 rows beside the same
+    stage-3 facts. No menu grouping publishes a weekend of one to ten, so
+    those four are withheld whatever the band, and a reader told
+    "withheld" reads that the weekend holds 1 to 10 -- a range. Four numbers:
+    the tables asked, how many differ in any fact but the census, how
+    many are withheld, and how many descriptions the withheld ones get
+    less one. Held as a ceiling: more withheld, or two told apart, is the
+    limit widened.
+    """
+    import test_stage3b_weekday_review as review
+
+    first = ""
+    differing = withheld = 0
+    told: "set[str]" = set()
+    for whole, single in review.WEEKEND_MOVES:
+        cells = review.weekend_moved(whole, single)
+        facts = taxonomy.profile_column("visit", 1, cells, len(cells), taxonomy.Settings(), calendar_census=False)
+        stage3 = repr(dataclasses.asdict(facts))
+        first = first or stage3
+        differing += stage3 != first
+        described = taxonomy.profile_column("visit", 1, cells, len(cells), taxonomy.Settings())
+        if not described.details["weekday_census"]:
+            withheld += 1
+            told |= {repr(dataclasses.asdict(described))}
+    _kpi(
+        record_property,
+        "K-S3-34",
+        {
+            "tables": len(review.WEEKEND_MOVES),
+            "stage3_differing": differing,
+            "withheld": withheld,
+            "told_apart": max(0, len(told) - 1),
+        },
+    )
+
+
 def test_k_s3_33(record_property, tmp_path: pathlib.Path) -> None:
     """P4-D355: what the weekday census's certificate costs, in network solves.
 
