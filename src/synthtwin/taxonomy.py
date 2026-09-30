@@ -5264,8 +5264,9 @@ def _tail_side_and_verdict(
     # withholds the column's own end -- which the owner's bounded-scale
     # premise does not cover. And its premise is gone: a pinned tail no
     # longer publishes the pair at all, so the alternative to listing is
-    # not a pair that gives the values back, it is SILENCE, and silence
-    # says less than a list every time.
+    # not a pair that gives back an outer cell or how many outer cells
+    # hold one value, it is SILENCE, and silence says less than a list
+    # every time.
     #
     # What is left is the ruling's own road, asked twice: a tail the
     # ruling reaches and holding few values lists them, and a tail the
@@ -5277,9 +5278,10 @@ def _tail_side_and_verdict(
     #
     # THE BACK-SOLVE IS ASKED WHATEVER `single` SAYS. A distance carrying
     # two texts has no one value to LIST, but its pair is read back the
-    # same way and gives the reader the day each outer cell stands on;
-    # the answer that publishes less does not depend on how many
-    # spellings that day wore.
+    # same way, and where it pins the tail it gives back the day an outer
+    # cell stands on or how many outer cells stand on one day; the answer
+    # that publishes less does not depend on the number of spellings a
+    # day wore.
     verdict = TAIL_OPEN if few else _tail_verdict(distances, floor, edge, distinct)
     pinned = verdict != TAIL_OPEN
     if not few and not (single and may_list and pinned):

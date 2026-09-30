@@ -10486,11 +10486,13 @@ def _drawn_off_the_stand_ins(
     listed value and the zero band never reach this function.
 
     A STAND-IN THE COLUMN KEEPS IS NOT MOVED (plan P4-D357 A, the second
-    review of follow-up A): ``kept`` holds the ones its
-    `sentinel_verdicts` publish as `kept_as_a_number`, and a stratum the
-    ladder reads there holds the table's own value. Moving it took the
-    heap away -- `9999` held by 59 of 1,000 whole numbers around it,
-    published kept, came back in no cell at seeds 0, 4 and 9.
+    review of follow-up A): ``kept`` holds the ones the block publishes
+    as held -- by a `kept_as_a_number` decision, its mode, a tail block's
+    end or two adjacent equal rungs (`NumericFacts.kept_stand_ins`) --
+    and a stratum the ladder reads there holds the table's own value.
+    Moving it took the heap away -- `9999` held by 59 of 1,000 whole
+    numbers around it, published kept, came back in no cell at seeds 0,
+    4 and 9.
 
     Guarantees: accepts the value G5.3 and G5.4 gave, the ladder, the
     share it was read at, the grid in figures (0 for whole numbers,
@@ -11273,7 +11275,10 @@ def _apart_inside(
             # A, review item 2): the walk is a construction like the draw,
             # and a point it takes is a cell the twin writes -- `9999`
             # between the column's own 9998 and 10000 was one the column
-            # never held. One its decisions publish as kept is its own.
+            # never held. One the block publishes as held -- by a
+            # `kept_as_a_number` decision, its mode, a tail block's end or
+            # two adjacent equal rungs (`NumericFacts.kept_stand_ins`) --
+            # is its own.
             if _is_a_stand_in(candidate, kept):
                 continue
             # THE CANDIDATE KEEPS THE STRATUM'S OWN KIND where the

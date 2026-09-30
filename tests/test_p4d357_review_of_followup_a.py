@@ -1723,6 +1723,20 @@ def _passage(path: str, heading: str, level: str) -> str:
     return " ".join(text.split(f"\n{heading}\n", 1)[1].split(f"\n{level} ", 1)[0].split())
 
 
+_PLAN_P4_D357_A = ("docs/plans/phase-4-columns.md", "## Decision P4-D357 A — the review of follow-up A (2026-09-28)", "##")
+
+
+def _facts_the_plan_keeps_a_stand_in_by() -> "list[str]":
+    """The four facts P4-D357 A says a block publishes a stand-in as held by, in the plan's own words."""
+    import re
+
+    listed = re.search(r"publishes it as held -- by (.+?) \(`NumericFacts\.kept_stand_ins`", _passage(*_PLAN_P4_D357_A))
+    assert listed is not None, "premise: the plan lists the facts a block publishes a stand-in as held by"
+    facts = [one for part in listed.group(1).split(", ") for one in part.split(" or ")]
+    assert len(facts) == 4, f"premise: a decision, the mode, a tail block's end and equal rungs ({facts})"
+    return facts
+
+
 def test_the_changelog_names_every_fact_its_plan_decision_keeps_a_stand_in_by() -> None:
     """The entry closing this review names each fact P4-D357 A keeps a stand-in by, and the reader's narrower set.
 
@@ -1734,16 +1748,36 @@ def test_the_changelog_names_every_fact_its_plan_decision_keeps_a_stand_in_by() 
     """
     import re
 
-    plan = _passage("docs/plans/phase-4-columns.md", "## Decision P4-D357 A — the review of follow-up A (2026-09-28)", "##")
+    plan = _passage(*_PLAN_P4_D357_A)
     entry = _passage("CHANGELOG.md", "### The review of follow-up A, finished (2026-09-29)", "###")
-    listed = re.search(r"publishes it as held -- by (.+?) \(`NumericFacts\.kept_stand_ins`", plan)
-    assert listed is not None, "premise: the plan lists the facts a block publishes a stand-in as held by"
-    facts = [one for part in listed.group(1).split(", ") for one in part.split(" or ")]
-    assert len(facts) == 4, f"premise: a decision, the mode, a tail block's end and equal rungs ({facts})"
+    facts = _facts_the_plan_keeps_a_stand_in_by()
     assert [one for one in facts if one not in entry] == [], "the entry leaves out facts the plan keeps a stand-in by"
     reader = re.compile(r"reader's [^.;]*\bend\b[^.;]*\bstaircase rows\b[^.;]*\bnever\b[^.;]*\bdecision\b")
     assert reader.search(plan), "premise: the plan keeps the reader's end and rows to the block's own"
     assert reader.search(entry), "the entry does not say the reader's end and staircase rows keep no stand-in a decision alone names"
+
+
+def test_the_draw_and_the_grid_walk_say_their_kept_stand_ins_are_every_one_the_block_publishes_as_held() -> None:
+    """What `_drawn_off_the_stand_ins` and `_apart_inside` say ``kept`` holds names each fact P4-D357 A keeps one by.
+
+    The skeptic of the second fix: both still said the kept ones were those
+    the column's decisions publish, where each is handed
+    `NumericFacts.kept_stand_ins`, which the mode, a tail block's end and two
+    adjacent equal rungs publish too. A compound column's numeric half
+    heaping `-999` in 51 cells, no decision among its facts, is handed
+    `(-999.0,)`, and its twin writes `-999` in 50 of them at seeds 0, 4 and 9.
+    """
+    from synthtwin import generation
+
+    drawn = " ".join((generation._drawn_off_the_stand_ins.__doc__ or "").split())
+    assert drawn.count("``kept`` holds ") == 1, "premise: the draw's docstring says once what ``kept`` holds"
+    said = [("_drawn_off_the_stand_ins", drawn[drawn.index("``kept`` holds ") :].split(". ")[0])]
+    walk = ("if _is_a_stand_in(candidate, kept):", "continue", "# THE CANDIDATE KEEPS THE STRATUM'S OWN KIND")
+    said += [("_apart_inside", _comment_above("generation.py", walk))]
+    facts = _facts_the_plan_keeps_a_stand_in_by() + ["`NumericFacts.kept_stand_ins`"]
+    left = [(where, [one for one in facts if one not in text], text) for where, text in said]
+    wrong = [f"{where} leaves out {out}: {text!r}" for where, out, text in left if out]
+    assert wrong == [], "\n".join(wrong)
 
 
 # The comments saying why a side its own pair pinned publishes neither
@@ -1754,6 +1788,7 @@ _PINNED_PAIR_COMMENTS = (
     ("taxonomy.py", ("TAIL_WITHHELD_FOR_THE_OTHER = ",)),
     ("taxonomy.py", ("if (", "mean is not None", "and root is not None", "and not listed")),
     ("taxonomy.py", ('for side in ("low", "high"):', "if side in causes and (side, causes[side]) in TAIL_WITHHELD_REMARKS")),
+    ("taxonomy.py", ("verdict = TAIL_OPEN if few else _tail_verdict(",)),
 )
 # ...and the sentences of the pages that say it, each found by its opening words.
 _PINNED_PAIR_SENTENCES = (
@@ -1765,7 +1800,7 @@ _PINNED_PAIR_SENTENCES = (
 )
 # ...and the words the stale ones used for every value, which `_CLAIMS`
 # never meets on a page.
-_STALE_CLAIMS = (("values back", "every"), ("tail back", "every"), ("it back", "every"))
+_STALE_CLAIMS = (("values back", "every"), ("tail back", "every"), ("it back", "every"), ("each outer cell", "every"))
 
 
 def _comment_above(name: str, signature: "tuple[str, ...]") -> str:
@@ -1803,16 +1838,32 @@ def test_every_comment_and_page_on_a_pinned_pair_claims_what_its_printed_sentenc
     contract, the README and SECURITY said the same, or stated the rule by
     its every-value case alone; each now says what TL5, the summary and the
     report say.
+
+    And the skeptic of that fix: the date and clock role's comment on its
+    back-solve still said a pinned pair gives "the values" back and "the day
+    each outer cell stands on", and dropping the README's count clause left
+    this green, because the same sentence later says how many rows lie beyond
+    the boundary. So a page is read to its first dash, where its claim ends,
+    and a comment sentence by sentence: each sentence naming what the pair
+    gives back names both, and each place names it.
     """
+    import re
+
     wanted = _claimed(summary._WITHHELD_BECAUSE[taxonomy.TAIL_PINNED])
     assert wanted == {"end", "count"} == _claimed(validation._GATE_TAIL_WITHHELD), (
         "premise: the pinned side's printed sentences claim the outermost value or a count"
     )
     said = [(f"{name} above {signature[0]!r}", _comment_above(name, signature)) for name, signature in _PINNED_PAIR_COMMENTS]
-    said += [(f"{path} at {opening!r}", _sentence(path, opening)) for path, opening in _PINNED_PAIR_SENTENCES]
+    said += [
+        (f"{path} at {opening!r}", _sentence(path, opening).split(" -- ")[0]) for path, opening in _PINNED_PAIR_SENTENCES
+    ]
     wrong: "list[str]" = []
     for where, text in said:
-        claimed = {claim for words, claim in _CLAIMS + _STALE_CLAIMS if words in text.lower()}
-        if claimed != wanted:
-            wrong += [f"{where} claims {sorted(claimed)}: {text[:160]!r}"]
+        claims = [
+            {claim for words, claim in _CLAIMS + _STALE_CLAIMS if words in sentence.lower()}
+            for sentence in re.split(r"(?<=\.)\s", text)
+        ]
+        claims = [claimed for claimed in claims if claimed]
+        if claims == [] or [claimed for claimed in claims if claimed != wanted]:
+            wrong += [f"{where} claims {[sorted(claimed) for claimed in claims]}: {text[:160]!r}"]
     assert wrong == [], "\n".join(wrong)
