@@ -454,6 +454,19 @@ def test_the_installer_puts_both_hooks_in_place_and_a_rerun_stays_quiet(
     assert {name: (hooks / name).read_bytes() for name in installed} == installed
 
 
+def test_a_checkout_older_than_the_scanner_is_told_and_not_stopped(tmp_path: Path) -> None:
+    """Hooks are shared by every worktree, and a branch cut earlier has no scanner.
+
+    Stopping every commit there would stop work on every older branch;
+    the hook says aloud that it read nothing, and CI reads the message.
+    """
+    _git(tmp_path, "init", "-q")
+    assert _install(tmp_path).returncode == 0
+    made = _run(tmp_path, "commit", "--allow-empty", "-m", "a commit on an older branch")
+    assert made.returncode == 0, made.stdout + made.stderr
+    assert "so the message was not scanned" in made.stdout + made.stderr
+
+
 def test_a_different_hook_is_never_overwritten_and_the_other_still_goes_in(
     tmp_path: Path,
 ) -> None:
@@ -603,3 +616,10 @@ def test_the_installed_hooks_stop_a_canary_at_the_commit_and_at_the_push(
     pushed = _run(work, "push", "origin", "HEAD:refs/heads/main")
     assert pushed.returncode == 0, pushed.stdout + pushed.stderr
     assert _git(remote, "rev-parse", "main") == _git(work, "rev-parse", "HEAD")
+
+    # A checkout older than the scanner: the push says it read no message.
+    _git(work, "rm", "-q", "tools/hooks/check_messages.py")
+    _commit(work, "a tree without the message scanner")
+    older = _run(work, "push", "origin", "HEAD:refs/heads/main")
+    assert older.returncode == 0, older.stdout + older.stderr
+    assert "so no message was scanned" in older.stdout + older.stderr
