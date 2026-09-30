@@ -80,6 +80,7 @@ Usage:  python3 make_generation_reference_vectors.py --seed 0 --out <path>
 import argparse
 import datetime
 import fractions
+import itertools
 import json
 import math
 import struct
@@ -11200,9 +11201,125 @@ def weekday_standing_day(walk, rank, group, kind, want_held, most):
 
 
 def weekday_repair(walk, movable, wanted):
-    """G7.3f step 8: the count of different days put back, in two moves."""
+    """G7.3f step 8: the count of different days put back, in three moves."""
     weekday_repair_singles(walk, movable, wanted)
     weekday_merged_runs(walk, movable, wanted)
+    weekday_exchanged(walk, movable, wanted)
+
+
+WEEKDAY_EXCHANGES = 64
+
+
+def weekday_exchanged(walk, movable, wanted):
+    """G7.3f step 8.3: while the count is short, cycles of moves across groups."""
+    for _ in range(WEEKDAY_EXCHANGES):
+        before = walk.different()
+        if before >= wanted:
+            break
+        cycle = weekday_best_cycle(walk, movable, wanted - before)
+        if cycle is None:
+            break
+        for cell, giving, taking in cycle:
+            weekday_exchange_move(walk, movable, cell, giving, taking)
+        if walk.different() <= before:
+            break
+    if walk.different() > wanted:
+        weekday_repair_singles(walk, movable, wanted)
+        weekday_merged_runs(walk, movable, wanted)
+
+
+def weekday_cell_of(walk, rank):
+    """A CELL: the rank's gap and the width kind of its day."""
+    return (walk.lows[rank], walk.highs[rank], walk.kind(walk.days[rank]))
+
+
+def weekday_give(walk, movable, cell, group):
+    """Nought where a rank of the group in the cell shares its day, minus one
+    where each is alone, None where the cell holds none of the group."""
+    holdings = [
+        walk.holding(walk.days[rank]) for rank in movable
+        if weekday_cell_of(walk, rank) == cell and walk.group(walk.days[rank]) == group
+    ]
+    if not holdings:
+        return None
+    return 0 if max(holdings) >= 2 else -1
+
+
+def weekday_take(walk, cell, group):
+    """One where a day of the group in the cell, of its kind and no hole, is
+    free, nought where only held ones stand, None where there is none."""
+    low, high, kind = cell
+    days = [
+        day for day in range(low, high + 1)
+        if walk.group(day) == group and walk.kind(day) == kind and day not in walk.holes
+    ]
+    if not days:
+        return None
+    return 1 if any(walk.holding(day) == 0 for day in days) else 0
+
+
+def weekday_best_cycle(walk, movable, short):
+    """The cycle of step 8.3, as (cell, from group, to group) moves, or None."""
+    groups = len(walk.counts)
+    cells = sorted({weekday_cell_of(walk, rank) for rank in movable})
+    pairs = {}
+    for giving in range(groups):
+        for taking in range(groups):
+            for cell in cells:
+                give = weekday_give(walk, movable, cell, giving)
+                take = weekday_take(walk, cell, taking)
+                if give is None or take is None:
+                    continue
+                if (giving, taking) not in pairs or give + take > pairs[(giving, taking)][0]:
+                    pairs[(giving, taking)] = (give + take, cell)
+    chosen = None
+    for size in range(1, groups + 1):
+        for members in itertools.combinations(range(groups), size):
+            for rest in itertools.permutations(members[1:]):
+                order = (members[0],) + rest
+                steps = [(order[k], order[(k + 1) % size]) for k in range(size)]
+                if any(step not in pairs for step in steps):
+                    continue
+                gain = sum(pairs[step][0] for step in steps)
+                if gain <= 0:
+                    continue
+                key = ((0, -gain) if gain <= short else (1, gain), size, order)
+                if chosen is None or key < chosen[0]:
+                    chosen = (key, [(pairs[step][1], step[0], step[1]) for step in steps])
+    return None if chosen is None else chosen[1]
+
+
+def weekday_exchange_move(walk, movable, cell, giving, taking):
+    """One move of a cycle: the giving group's rank on the day holding the
+    most ranks (the lower rank on a tie) onto the taking group's nearest free
+    day of the cell's kind and no hole, else its nearest held one."""
+    ranks = [
+        rank for rank in movable
+        if weekday_cell_of(walk, rank) == cell and walk.group(walk.days[rank]) == giving
+    ]
+    if not ranks:
+        return
+    rank = min(ranks, key=lambda each: (-walk.holding(walk.days[each]), each))
+    low, high, kind = cell
+    fitting = [
+        other for other in weekday_candidates_whole(walk.days[rank], low, high)
+        if walk.group(other) == taking and walk.kind(other) == kind and other not in walk.holes
+    ]
+    free = [other for other in fitting if walk.holding(other) == 0]
+    if free:
+        walk.move(rank, free[0])
+    elif fitting:
+        walk.move(rank, fitting[0])
+
+
+def weekday_candidates_whole(day, low, high):
+    """d - 1, d + 1, d - 2, ... over the whole of [low, high], not step 4's reach."""
+    away = 1
+    while day - away >= low or day + away <= high:
+        for other in (day - away, day + away):
+            if low <= other <= high:
+                yield other
+        away += 1
 
 
 def weekday_repair_singles(walk, movable, wanted):

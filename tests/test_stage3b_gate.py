@@ -164,8 +164,7 @@ withdrawn and nothing else changed:
 * WC7 withdrawn, the five-week column around the placeholder day
   (`test_a_placeholder_day_between_the_boundaries_is_a_hole_the_loader_holds`)
   and `k7_sessions_s0`, whose withholding the band search certifies since
-  its parts move across stretches; `B2_oneweek_1201_s0` witnessed it
-  until the third review, whose band now withholds it first;
+  its parts move across stretches, and `B2_oneweek_1201_s0`;
 * one spelling per day withdrawn, the column written two widths; the
   holes withdrawn, the declared missing day; the one-storage rule
   withdrawn, the workbook stored two ways; the validator's
@@ -2485,7 +2484,7 @@ _EXPECTED = {
         [(0, 0, 352), (1, 1, 201), (2, 2, 261), (3, 3, 114), (4, 4, 143), (5, 6, 16)], "",
     ),
     "k7_sessions_s0": ("session_date", lambda: _seven_sessions(0), [], calendar_rules.REASON_FEW_DATES),
-    "B2_oneweek_1201_s0": ("visit_date", lambda: _one_week(1201, 0), [], calendar_rules.REASON_BAND),
+    "B2_oneweek_1201_s0": ("visit_date", lambda: _one_week(1201, 0), [], calendar_rules.REASON_FEW_DATES),
     "bizlog_x1_s1": ("log_date", lambda: _business_days(1, 1), [], calendar_rules.REASON_TIES),
     "w_month_wide_1000_s0": ("visit_date", lambda: _one_month_wide(1000, 0), [], calendar_rules.REASON_NARROWED),
 }
@@ -2508,12 +2507,11 @@ def test_each_rule_publishes_what_it_derives(tmp_path: pathlib.Path, name: str) 
       it, `few_dates`, their withholding certified: the band search finds
       tables of the reader's few days once a part's cells may move into
       another stretch (plan P4-D359; before, no band was reached and the
-      withholding was `uncertified`). One week of 1,201 visits puts its
-      weekend inside its band -- at least three rows and at most the line
-      more than the least any table of its facts holds there -- `band`,
-      the rule asked first since the third review of the landing. Both
-      are said in the one sentence every rule the table's own numbers
-      decide shares.
+      withholding was `uncertified`). One week of 1,201 visits is
+      withheld for it too: its Monday to Friday stood inside the widest
+      band, and lies past the narrowest certified one (plan P4-D359).
+      Both are said in the one sentence every rule the table's own
+      numbers decide shares.
     * `bizlog_x1_s1`: one row a business day and one more, so no day can
       hold eleven: withheld, `ties`.
     * `w_month_wide_1000_s0`: certified only on a count of different

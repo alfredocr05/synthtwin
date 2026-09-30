@@ -1511,17 +1511,22 @@ def battery() -> list[Mutation]:
             "WC8", "a weekday census beside dates that never repeat",
             edit("recorded_on", n_distinct=240, n_distinct_folded=240),
         ),
-        # WC9 (plan P4-D359): `recorded_on`'s weekend holds at least one
-        # row in every table of its facts -- a Saturday is a knot day --
-        # so its band runs from one to one more than the line; twelve
-        # weekend rows lie in it, which the producer always withholds.
+        # WC9 (plan P4-D359): published with 150 different values,
+        # `recorded_on`'s body holds more different days than its weekends
+        # can, so Monday to Friday holds at least 34 rows in every table of
+        # its facts, and its capped stretches can take ten more: its
+        # narrowest certified band runs from 34 to 44. Forty rows lie in
+        # it, which the producer always withholds. (Its own census, where
+        # every band stands inside what WC5 refuses, cannot reach WC9.)
         Mutation(
-            "WC9", "a weekend inside the band a withholding always keeps",
+            "WC9", "a Monday to Friday inside the band a withholding always keeps",
             edit(
                 "recorded_on",
+                n_distinct=150,
+                n_distinct_folded=150,
                 weekday_census=[
-                    {"first": 0, "last": 4, "count": 205},
-                    {"first": 5, "last": 6, "count": 12},
+                    {"first": 0, "last": 4, "count": 40},
+                    {"first": 5, "last": 6, "count": 177},
                 ],
             ),
         ),
@@ -2616,6 +2621,54 @@ def _form_workbook_format_code_carrying_a_word(document: Document) -> None:
 
 
 BATTERY = battery()
+
+
+def test_the_band_refusal_states_the_capped_stretches(tmp_path: pathlib.Path, base: Document) -> None:
+    """WC9's refusal says what its band holds: the least, through what the capped stretches take.
+
+    Its sentence said a half must hold none or more than the census line
+    beyond its least, while the band it printed reached past that by what
+    the stretches the rank facts keep below the line can take -- ten rows
+    here -- so it refused totals its own words allowed (the review's
+    second round). `recorded_on` at 150 different values: Monday to
+    Friday holds at least 34 rows in every table of its facts and its
+    capped stretches ten more, and forty rows lie inside. The term is
+    ADDED to the least, which "and" left to be read as a second bound
+    (the skeptic's second round: read so, 35 to 44 would pass). Red when
+    the capped term leaves the sentence, or is joined by "and" again in
+    the sentence or the invariant.
+    """
+    document = copy.deepcopy(base)
+    edit(
+        "recorded_on",
+        n_distinct=150,
+        n_distinct_folded=150,
+        weekday_census=[{"first": 0, "last": 4, "count": 40}, {"first": 5, "last": 6, "count": 177}],
+    )(document)
+    message = refusal(tmp_path, document)
+    assert contract.INVARIANTS["WC9"] in message, message
+    said = message.split(contract.INVARIANTS["WC9"], 1)[1]
+    assert "plus the most it can hold in the stretches the rank facts keep below the line" in said, said
+    assert "through that least plus the most it can hold" in contract.INVARIANTS["WC9"]
+    assert "Monday to Friday of 34 to 44" in said, said
+
+
+def test_the_certificate_refusal_states_its_residue_clause(tmp_path: pathlib.Path, base: Document) -> None:
+    """WC8's refusal says what the rule allows: a day the rank facts already hold below the line.
+
+    A sibling of the band refusal's missing term (the review's second
+    round): the sentence asked every day of a counted weekday to hold the
+    line in some table, while the rule -- and the certificate -- accept a
+    day the rank facts already cap below it where the census allows every
+    arrangement the rest of the description does. Red when the clause
+    leaves the sentence.
+    """
+    document = copy.deepcopy(base)
+    edit("recorded_on", n_distinct=240, n_distinct_folded=240)(document)
+    message = refusal(tmp_path, document)
+    assert contract.INVARIANTS["WC8"] in message, message
+    said = message.split(contract.INVARIANTS["WC8"], 1)[1]
+    assert "or lie where the rank facts already hold it below the line" in said, said
 
 
 @pytest.mark.parametrize(

@@ -16868,7 +16868,8 @@ def _weekday_checks(
     (`calendar_rules.public_holes`, `declared_days` the placeholder days
     the settings' declaration named) -- so a file with a body cell on one
     misses the census whatever its counts; the line says so without a
-    number.
+    number. Such a cell is still counted on the weekday it falls on: the
+    counts are the file's, and the verdict is what the hole decides.
 
     Guarantees: accepts the column, its facts, the file's own block, the
     floor and the file's cells; returns one check where a census is
@@ -16945,7 +16946,9 @@ def _weekday_checks(
             "Some of this file's dates between the two boundaries stand on "
             "days its description holds no value on -- days its written "
             "forms, its placeholder decisions or its absent spellings "
-            "leave empty -- and the census was counted without them."
+            "leave empty. They are counted on the weekdays they fall on, "
+            "and the census is missed whatever its counts, because the "
+            "description's census holds none of them."
         ]
     note: "tuple[str, ...]" = tuple(lines)
     return [

@@ -6360,8 +6360,36 @@ ending once both sides lie outside it.
       of the column on it -- the smallest first and then the earlier
       day, moves whole onto the first candidate of its own group and
       kind that a rank holds and that is no hole, until the count is
-      back. What the two leave off is reported as the column's count of
-      different values.
+      back;
+   3. where the count is still SHORT, up to 64 EXCHANGES across groups
+      (review of landing 3b.1, item 5, plan P4-D359). A CELL is a gap
+      and a width kind. In a cell, `give(g)` is nought where a rank of
+      group `g` shares its day and minus one where each is alone, and
+      `take(h)` one where a day of group `h` of the cell's kind that is
+      no hole is free and nought where only held ones stand; neither is
+      asked where the cell has no such rank or day. Each ordered pair
+      of groups `(g, h)`, one group twice included, takes the largest
+      `give(g) + take(h)` over the cells, the first cell on a tie, cells
+      in order of their gap's first day, last day and kind, the kind a
+      day outside the width word first. A CYCLE `g1, ..., gk`, each
+      group once and `g1` the lowest, gains the sum over `(g1, g2)` to
+      `(gk, g1)`; of the cycles gaining more than nought, the one whose
+      gain is the largest not past what is short, else the smallest,
+      then the fewest groups, then the earliest. Each pair in turn
+      moves, in its cell, the rank of `g` on the day holding the most
+      ranks, the lower rank on a tie, onto the day of `h` of the cell's
+      kind nearest it inside its gap, the whole gap asked and the
+      earlier on a tie, that no rank holds and is no hole, else the
+      nearest one a rank holds. The count, as a function of how many
+      ranks each cell puts on each group, is a sum of `min(ranks, free
+      days)` -- concave -- so where no cycle gains it is the most the
+      census allows the body around the tail dates the twin wrote, which
+      may hold fewer different days than the real tails. A count left
+      long is steps 1 and 2's again. What the three leave off is
+      reported as the column's count of different values, and where the
+      census holds, as the count that gave way to it -- in the twin's
+      own tails where every day the census allows between the
+      boundaries, no hole, holds a date.
 9. Each run of ranks the layout does not pin is sorted.
 
 Where the census still does not hold, the report names `weekday_census`

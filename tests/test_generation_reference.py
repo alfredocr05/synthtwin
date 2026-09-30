@@ -2259,7 +2259,10 @@ class Mutant(typing.NamedTuple):
 
     ``also`` names further attributes the SAME rule is stated in, each
     with its replacement, withdrawn together with ``attribute``. It is
-    empty for every case but two: G6.5a's fill of a grid with no spare
+    empty but where one rule stands in two statements -- G7.3f's step 8.1,
+    whose moves step 8.3's one-group exchanges make themselves where it is
+    withdrawn (plan P4-D359), held up alone by
+    tests/test_oracle_rule_witnesses.py; and G6.5a's fill of a grid with no spare
     point is stated column-wide (plans P4-D147 and P4-D176) and, since the
     carried numbers pass of 2026-09-18, band by band as well -- on a
     column of one sign the band fill IS the column fill, so withdrawing
@@ -3855,12 +3858,17 @@ CASE_MUTANTS = {
         replacement=lambda walk, rank, have, want: _nearest_destination(walk, rank, have, want),
         outcome=CHANGES_THE_CELLS,
     ),
+    # ...and with it step 8.3's exchanges (plan P4-D359), whose cycle of one
+    # group makes step 8.1's move here itself; step 8.1 is held up alone by
+    # tests/test_oracle_rule_witnesses.py (`STEP_EIGHT_ROWS`).
     "weekday_count_put_back": Mutant(
-        branch="G7.3f step 8.1 (plan P4-D355); the mutant withdraws the single "
-        "moves that put the count of different days back",
+        branch="G7.3f steps 8.1 and 8.3 (plans P4-D355 and P4-D359); the "
+        "mutant withdraws the single moves and the exchanges that put the "
+        "count of different days back",
         attribute="weekday_repair_singles",
         replacement=lambda walk, movable, wanted: None,
         outcome=CHANGES_THE_CELLS,
+        also=(("weekday_exchanged", lambda walk, movable, wanted: None),),
     ),
     "weekday_hole_left": Mutant(
         branch="G7.3f step 2 (plan P4-D355); the mutant leaves a rank on the "

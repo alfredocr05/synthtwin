@@ -1383,7 +1383,10 @@ rather than in ISO:
   PUBLISHED tail boundaries, both included, less the days its own
   description reads as holes, are counted per weekday and summed per
   published group, and the obligation is HELD where every group holds
-  its published count and MISSED otherwise. A group the file holds one
+  its published count and MISSED otherwise. A date on a day the
+  description publishes as holding no body cell (`calendar_rules.public_holes`)
+  is counted on its weekday like any other, and the obligation is
+  MISSED whatever the counts (plan P4-D359). A group the file holds one
   to the line less one of is printed as fewer than the line, never as
   the number, and the verdict stands (plan P4-D347). The file's census
   is counted here, never PRODUCED: both re-descriptions of the file

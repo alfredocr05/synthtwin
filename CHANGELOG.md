@@ -81,6 +81,17 @@ class a stretch's half of the week, the classes it can tell apart: 80
 sparse schedules publish 45 as 2af1f03 did, and 120 seeded schedules 78
 where 2af1f03 published 79.
 
+**Its second round (2026-09-29).** The day pass puts the count of
+different days back across groups (G7.3f step 8.3): of the review's 505
+heaped twins, ten had lost a day to the census, none now, and a count
+that gives way to the census says so. The quality report's hole note
+says what it counts. The band is the narrowest whose withheld tables
+certify, where it always reached the census line: over 269 schedules,
+clinics, weekend markets and business logs 165 censuses publish where
+2af1f03 published 166 and the widest band 162. The loader's band
+refusal states the capped stretches it counts, and its certificate
+refusal the days the rank facts already hold below the line.
+
 ### The review of follow-up A: the cost rule, stand-ins and the withheld-tail sentences (2026-09-28)
 
 Plan P4-D357 A, six items of the one review round. **The cost rule asks
