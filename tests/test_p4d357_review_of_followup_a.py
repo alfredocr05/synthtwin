@@ -1845,7 +1845,9 @@ def test_every_comment_and_page_on_a_pinned_pair_claims_what_its_printed_sentenc
     this green, because the same sentence later says how many rows lie beyond
     the boundary. So a page is read to its first dash, where its claim ends,
     and a comment sentence by sentence: each sentence naming what the pair
-    gives back names both, and each place names it.
+    gives back names both, and each place names it. The words claiming
+    every value are still looked for in a page's whole sentence: read to
+    the dash alone, "the pair gives the values back" after it stayed green.
     """
     import re
 
@@ -1853,17 +1855,18 @@ def test_every_comment_and_page_on_a_pinned_pair_claims_what_its_printed_sentenc
     assert wanted == {"end", "count"} == _claimed(validation._GATE_TAIL_WITHHELD), (
         "premise: the pinned side's printed sentences claim the outermost value or a count"
     )
-    said = [(f"{name} above {signature[0]!r}", _comment_above(name, signature)) for name, signature in _PINNED_PAIR_COMMENTS]
-    said += [
-        (f"{path} at {opening!r}", _sentence(path, opening).split(" -- ")[0]) for path, opening in _PINNED_PAIR_SENTENCES
-    ]
+    comments = [(f"{name} above {signature[0]!r}", _comment_above(name, signature)) for name, signature in _PINNED_PAIR_COMMENTS]
+    pages = [(f"{path} at {opening!r}", _sentence(path, opening)) for path, opening in _PINNED_PAIR_SENTENCES]
+    said = [(where, text, text) for where, text in comments]
+    said += [(where, whole.split(" -- ")[0], whole) for where, whole in pages]
     wrong: "list[str]" = []
-    for where, text in said:
+    for where, text, whole in said:
         claims = [
             {claim for words, claim in _CLAIMS + _STALE_CLAIMS if words in sentence.lower()}
             for sentence in re.split(r"(?<=\.)\s", text)
         ]
         claims = [claimed for claimed in claims if claimed]
-        if claims == [] or [claimed for claimed in claims if claimed != wanted]:
-            wrong += [f"{where} claims {[sorted(claimed) for claimed in claims]}: {text[:160]!r}"]
+        beyond = {claim for words, claim in _CLAIMS + _STALE_CLAIMS if words in whole.lower()} - wanted
+        if claims == [] or [claimed for claimed in claims if claimed != wanted] or beyond:
+            wrong += [f"{where} claims {[sorted(claimed) for claimed in claims]}, and {sorted(beyond)}: {whole[:160]!r}"]
     assert wrong == [], "\n".join(wrong)
