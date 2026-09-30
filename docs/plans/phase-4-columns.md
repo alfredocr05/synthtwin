@@ -21046,3 +21046,11 @@ and P4-D332 extends it as that.
 **Measured.** Over 56 date columns 43 censuses publish where 2af1f03 published 44, the one lost being the review's attack. Over 269 schedules, clinics, weekend markets and business logs, 165 publish where 2af1f03 published 166; the band at its widest, the line past the least, published 162, losing markets with 30 to 40 Wednesday rows. All 5,621 W0 tables its certificates lay out pass the verifier, and the brute force finds no withheld set confining a day; describing costs 6 per cent more solves, loading nothing. Of the review's 505 heaped twins, ten lost a day to the census; none does now.
 
 **Calls and costs.** The narrowest band is the orchestrator's engineering under the floor rule, reversible, not an owner ruling. For the owner: weekly Wednesday sessions whose residue passes `CONFIGURATION_CAP` are withheld whatever they hold (a cap of 40,000 publishes them, at 66 s to describe); and no band at all publishes all 166 but lets "withheld" say a half of the week holds one to ten rows.
+
+## Decision P4-D361 — a reach NF36 compares is never a fragment (2026-09-30)
+
+**The rule.** Where NF36's day-first or month-first reach may not be printed -- one to the census line less one, at every line -- the remark is withdrawn, as contract NF36 states. Since P4-D347 a fragment stood there, `rendered` compares the two as whole numbers, and it raised: 144 day-first dates beside one to ten cells a month-first reading also parses stopped `profile` at every floor, and `validate` on a twin whose description reached that shape.
+
+**Measured**, seeded. On 82b1f1a 3 of 60 padded dd/mm/yyyy tables over 2024 raised describing and 3 of their 120 twins validating; 8 of 300 day-first columns with a declared-missing day raised describing and 2 of their 600 twins validating; every ambiguous family, declared or not, raised at floors 1, 11 and 30. Now none does, and that column's three commands exit 0 at floors 11 and 30.
+
+**Cost, and the call.** The remark goes on exactly the columns that raised, and none of them had a contradiction to report; the evidence sentence still names the reading. Declared day first, a month-first win whose day-first reach is under the line loses "though you asked for day first". The orchestrator's call, on the contract's own text; reversible.

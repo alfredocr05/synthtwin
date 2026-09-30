@@ -21932,11 +21932,12 @@ def _floored_stands(
       keys withhold.
 
     What "no sentence" means next is `_arguments_at_the_line`'s to
-    decide, and it is not the same in the two cases: a remark is
-    withdrawn, and the one sentence a block may not lose is written
-    with `said_fewer_than_the_line` where the count is below the line
-    and `said_some_but_not_all` where it reaches it. The second is
-    there because the first would be FALSE of a count of 1,199.
+    decide. At a compared position the sentence is withdrawn (plan
+    P4-D361). Everywhere else it keeps its warning (P4-D347):
+    `said_some_but_not_all` where the count reaches the line or the
+    line is two, `said_fewer_than_the_line` below any other line. The
+    first is there because the second would be FALSE of a count of
+    1,199.
 
     Guarantees: accepts a form, a zero-based position, the count, the
     census line and the block's present cells; returns one of the
@@ -21974,8 +21975,11 @@ def _sentence_at_the_line(
     sentence: `said_fewer_than_the_line` where the count is below the
     line, and `said_some_but_not_all` where it reaches the line but
     leaves a group below it against the population its binding names.
-    NO SENTENCE IS WITHDRAWN (owner, 2026-09-23; plan P4-D347) -- the
-    warning keeps its place and loses its number. THE SECOND FRAGMENT
+    A warning keeps its place and loses its number (owner, 2026-09-23;
+    plan P4-D347). THE ONE WITHDRAWAL is a count the rendering COMPARES
+    (plan P4-D361): there a fragment would choose the sentence by the
+    number it withholds, and `rendered` reads it as a whole number, so
+    the sentence is withdrawn and None comes back. THE SECOND FRAGMENT
     IS NOT A REWORDING OF THE FIRST. "fewer than 11" is false of 1,199, and writing the digits
     instead is what `profile._floored_argument_is_bound` refuses -- so
     before the repair pass an ordinary table with 390 dates beside ten
@@ -21991,8 +21995,9 @@ def _sentence_at_the_line(
     which is what the digit said and never more.
 
     Guarantees: accepts a sentence, the census line and the block's
-    present cells; returns the sentence or a rebuilt one. Determinism:
-    a fixed function of the three. No I/O of any kind.
+    present cells; returns the sentence, a rebuilt one, or None where a
+    compared count may not be printed. Determinism: a fixed function of
+    the three. No I/O of any kind.
     """
     rebuilt = _arguments_at_the_line(
         sentence.form, sentence.arguments, line, n_present
@@ -22034,6 +22039,15 @@ def _arguments_at_the_line(
         if stands == _STANDS_AS_WRITTEN:
             written += [argument]
             continue
+        if (form, place) in _COMPARED_FLOORED_POSITIONS:
+            # NEVER A FRAGMENT WHERE THE RENDERING COMPARES (plan
+            # P4-D361). NF36 reads both reaches as whole numbers to
+            # choose its sentence, so either fragment raised there: 144
+            # day-first dates beside one to ten that a month-first
+            # reading also parses stopped `synthtwin profile` at every
+            # floor, and `synthtwin validate` on such a twin. The remark
+            # is withdrawn, as contract NF36 states.
+            return None
         if stands == _STANDS_NOWHERE and argument >= line:
             # A SENTENCE WHOSE COUNT WOULD HAND BACK A WITHHELD CELL
             # KEEPS ITS WARNING AND DROPS THE NUMBER (owner, 2026-09-23;
@@ -22081,9 +22095,11 @@ def sentences_at_the_line(
     own documents clear of one, in the single place every column's
     sentences are finished, so no call site can forget it.
 
-    NO SENTENCE IS WITHDRAWN HERE ANY MORE, AND THE OWNER SETTLED IT
+    A WARNING IS NOT WITHDRAWN HERE, AND THE OWNER SETTLED IT
     (2026-09-23; plan P4-D347): a remark whose count would hand back a
-    withheld cell KEEPS ITS WARNING AND DROPS THE NUMBER. A remark used
+    withheld cell KEEPS ITS WARNING AND DROPS THE NUMBER. The one remark
+    that goes is NF36 where a reach it compares may not be printed
+    (plan P4-D361), which contract NF36 has always said. A remark used
     to be withdrawn whole on the argument that its subject WAS the
     count -- and the shape that argument was written against shows what
     it cost: 1,199 comma-grouped prices beside one bare cell lost their

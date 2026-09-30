@@ -6,6 +6,16 @@ exists).
 
 ## [Unreleased]
 
+### A day-first column a month-first reading barely reaches is described (2026-09-30)
+
+**`synthtwin profile` no longer stops on it** (plan P4-D361). 144
+day-first dates beside one to ten cells a month-first reading also
+parses raised an internal fault at every floor, and so did `validate`
+on a twin whose description reached that shape: the remark comparing
+the two readings' reaches was handed "fewer than 11" where it compares
+them. Where either reach may not be printed the remark is withdrawn,
+as contract NF36 says; the evidence sentence still names the reading.
+
 ### A band of marks over every present cell says "some" (2026-09-29)
 
 **Decision (i) applied where every cell is grouped** (plan P4-D356, the
