@@ -2888,7 +2888,7 @@ def _is_the_fragment(argument: object, line: int) -> bool:
 
 
 def _says_no_count(argument: object) -> bool:
-    """Whether this argument is `said_some_but_not_all`, which names none.
+    """Whether this argument is `said_some_but_not_all` or `said_some`, which name none.
 
     THE SECOND THING A FLOORED POSITION MAY CARRY INSTEAD OF DIGITS
     (contract NF61). `_is_the_fragment` above answers the small case:
@@ -2902,11 +2902,12 @@ def _says_no_count(argument: object) -> bool:
     It is accepted AT ANY FLOORED POSITION AND AT ANY LINE, and there
     is nothing to check about it: a form with no argument carries no
     number, so there is no line it could contradict and no key it
-    could disagree with. That is the whole reason it exists.
+    could disagree with. That is the whole reason it exists. NF87,
+    `said_some`, is accepted on the same terms.
     """
     if not isinstance(argument, tuple) or len(argument) != 2:
         return False
-    if argument[0] != taxonomy.SAID_SOME_BUT_NOT_ALL:
+    if argument[0] not in (taxonomy.SAID_SOME_BUT_NOT_ALL, taxonomy.SAID_SOME):
         return False
     return isinstance(argument[1], tuple) and argument[1] == ()
 
@@ -3140,6 +3141,7 @@ def _arguments_of_one_form_are_bound(
             if argument[0] in (
                 taxonomy.SAID_FEWER_THAN_THE_LINE,
                 taxonomy.SAID_SOME_BUT_NOT_ALL,
+                taxonomy.SAID_SOME,
             ):
                 # AND NEITHER FRAGMENT STANDS ANYWHERE ELSE. Each is
                 # the answer to one question -- what a sentence says in

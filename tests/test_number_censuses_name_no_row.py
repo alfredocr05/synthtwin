@@ -521,27 +521,36 @@ def test_unpadded_widths_too_thin_to_name_pool_the_whole_number_census(
 ) -> None:
     """No unpadded width at the line beside unpadded cells: `field_widths` is one pool.
 
-    Three padded codes and three plus-signed numbers at a floor of three,
+    Three padded codes and four plus-signed numbers at a floor of three,
     with two decimals counted into the plus-signed form: the plus-signed
-    cells are written two at three figures and one at one, neither at the
-    line, so a width named for them would be a count of fewer than three
-    beside the padded census.
+    cells are written two at three figures, one at two and one at one,
+    none at the line, so a width named for them would be a count of fewer
+    than three beside the padded census. SINCE PLAN P4-D356 THE POOL IS
+    ASKED of what it leaves a reader: with `+89` gone, three or five
+    unpadded cells under widths of at most two hold a width of exactly
+    one in every reading, so they are counted at their commonest width,
+    three, and the census names it -- never the padded width, where the
+    plus-signed cells would be said to be four figures wide.
     """
-    cells = ["0001", "0002", "0003", "+123", "+456", "+7", "1.5", "2.5"]
+    cells = ["0001", "0002", "0003", "+123", "+456", "+7", "+89", "1.5", "2.5"]
     document = _document(tmp_path, 3, cells)
     columns = document["columns"]
     assert isinstance(columns, list)
-    assert columns[0]["numeric_styles"] == {"leading_plus": 5, "leading_zero": 3}
+    assert columns[0]["numeric_styles"] == {"leading_plus": 6, "leading_zero": 3}
     assert columns[0]["pad_widths"] == {"4": 3}
-    assert columns[0]["field_widths"] == {"(withheld)": 8}
+    assert columns[0]["field_widths"] == {"(withheld)": 9}
     _loads(tmp_path, document)
-    # ...and with nothing counted in: named at the padded width, the three
-    # plus-signed cells would be said to be four figures wide.
+    odd = _document(tmp_path / "odd", 3, cells[:6] + cells[7:])
+    columns = odd["columns"]
+    assert isinstance(columns, list)
+    assert columns[0]["numeric_styles"] == {"leading_plus": 5, "leading_zero": 3}
+    assert columns[0]["field_widths"] == {"3": 5, "4": 3}
+    _loads(tmp_path / "odd", odd)
     plain = _document(tmp_path / "none-taken", 3, cells[:6])
     columns = plain["columns"]
     assert isinstance(columns, list)
     assert columns[0]["numeric_styles"] == {"leading_plus": 3, "leading_zero": 3}
-    assert columns[0]["field_widths"] == {"(withheld)": 6}
+    assert columns[0]["field_widths"] == {"3": 3, "4": 3}
     _loads(tmp_path / "none-taken", plain)
 
 

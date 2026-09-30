@@ -968,6 +968,10 @@ LEADING_ZERO_STYLE = "leading_zero"
 # which are exactly the cells the FIELD-width census counts (P4-D30).
 PLAIN_STYLE = "plain"
 LEADING_PLUS_STYLE = "leading_plus"
+# ...and the two that write an exponent, which a value that is not whole
+# may wear in place of a point.
+EXPONENT_LOWER_STYLE = "exponent_lower"
+EXPONENT_UPPER_STYLE = "exponent_upper"
 
 DECLARATION_MATCHING = "exact_number_when_it_reads_as_one_else_spelling"
 
@@ -16227,7 +16231,7 @@ def _mixture_pools_bounded(
                     NOTATIONS_GROUPS if notations else MARKS_GROUPS,
                 )
                 if not parsing.mixture_pool_holds(
-                    pool, floor, [pool] * names, room, groups
+                    pool, floor, [pool] * names, room, groups, True
                 ):
                     raise _broken(
                         rule,
@@ -16244,28 +16248,34 @@ def _mixture_pools_bounded(
 def _closed_pools_bounded(
     columns: "tuple[ColumnBlock, ...]", settings: SettingsBlock
 ) -> None:
-    """P6 and D12: a lone pool of forms or of day-clock marks stands only where the block pins none of it.
+    """P6, P6b, P6c, D3 and D12: a lone pool of forms, widths, offsets or day-clock marks stands only where the block pins none of it.
 
     `parsing.census_pools` asked of what a published block admits (the
-    second review of follow-up B, finding 2), as `_mixture_pools_bounded`
-    asks it of the two mixture censuses: no more forms or marks than the column's
-    different spellings -- not folded, since `7e0` and `7E0` are two forms
-    and `T` and `t` two marks -- one fewer where a present cell stands
-    outside the pool, and on the forms each value the block counts on no
-    more forms than its spellings. The producer asks it of the pooled
+    second review and the final fix of follow-up B), as
+    `_mixture_pools_bounded` asks it of the two mixture censuses: no more
+    names than the column's different spellings -- not folded, since
+    `7e0` and `7E0` are two forms and `T` and `t` two marks -- less those
+    the cells outside the pool certainly hold (`_spellings_outside`), and
+    on the forms each value the block counts on no more forms than its
+    spellings. The widths and the offsets are open, so the pool is asked
+    of one name more than the room. The producer asks it of the pooled
     cells' own spellings and rows. Ten `007`, ten `+7` and ten `7e0` at a
-    floor of eleven pooled 30 beside three spellings, which fixes three
-    forms at ten each, and is refused.
+    floor of eleven pooled 30 beside three spellings, three forms at ten
+    each; ten `1.5` and ten `2.25` pooled 20 widths beside four spellings
+    and a mode of 40, two widths of ten. Both are refused.
+
+    The field widths are asked of their unpadded part: the pool less the
+    cells a named padded census counts, over the spellings those leave.
 
     Guarantees: accepts every column and the settings; returns nothing.
-    Raises ProfileError for P6 and D12. No I/O of any kind.
+    Raises ProfileError for P6, P6b, P6c, D3 and D12. No I/O of any kind.
     """
     floor = settings.small_cell_floor
     line = _census_floor(floor)
     for column in columns:
         facts = column.facts
         where = f"in the block for the column named '{column.name}'"
-        asked: "list[tuple[dict[str, int], str, int, str, tuple[tuple[int, int, tuple[int, ...]], ...], NumericFacts | None]]" = []
+        asked: "list[tuple[dict[str, int], str, int, str, NumericFacts | None, str]]" = []
         blocks: "list[NumericFacts]" = []
         if isinstance(facts, (NumericFacts,)):
             blocks += [facts]
@@ -16282,22 +16292,46 @@ def _closed_pools_bounded(
                     "D12",
                     parsing.separator_names(facts.parser_family),
                     "values' marks",
-                    (),
                     None,
-                )
+                    "",
+                ),
+                (facts.utc_offsets, "D3", 0, "values' offsets", None, ""),
             ]
         for block in blocks:
-            asked += [(block.numeric_styles, "P6", len(NUMERIC_STYLES), "numbers' forms", (), block)]
-        for census, rule, names, thing, groups, numbers in asked:
+            asked += [
+                (block.numeric_styles, "P6", len(NUMERIC_STYLES), "numbers' forms", block, FORMS_GROUPS),
+                (block.fraction_widths, "P6", 0, "decimals' widths", block, DECIMAL_STYLE),
+                (block.pad_widths, "P6b", 0, "padded numbers' widths", block, LEADING_ZERO_STYLE),
+                (block.field_widths, "P6c", 0, "unpadded whole numbers' widths", block, UNPADDED_WIDTHS),
+            ]
+        for census, rule, names, thing, numbers, kind in asked:
             if WITHHELD not in census or len(census) != 1:
                 continue
             pool = census[WITHHELD]
-            room = column.n_distinct
-            if column.n_present > pool:
-                room = room - 1
-            if numbers is not None:
+            room = column.n_distinct - _spellings_outside(column, numbers, pool, kind)
+            if kind == UNPADDED_WIDTHS and numbers is not None:
+                # THE UNPADDED PART IS ASKED, off the padded census where it
+                # names its widths (the final fix of follow-up B, its
+                # skeptic's field widths): a pool of field widths says no
+                # unpadded width reached the line, and the cells it leaves
+                # beside the padded ones, with their spellings, are what a
+                # reader bounds. Beside a pooled padded census the pool may
+                # be one the padded cells made, and nothing is asked.
+                if WITHHELD in numbers.pad_widths:
+                    continue
+                padded = _added(numbers.pad_widths)
+                pool = pool - padded
+                room = room - _padded_spellings(numbers, padded)
+            if kind in (DECIMAL_STYLE, UNPADDED_WIDTHS) and pool > room * (line - 1):
+                # A POOL OF WIDTHS NO WIDTHS UNDER THE LINE COULD HOLD is
+                # the one a named census gives where its widths cannot
+                # write a published end (P6, plan P4-D222), not one of
+                # widths each too few to name: nothing is asked of it.
+                continue
+            groups: "tuple[tuple[int, int, tuple[int, ...]], ...]" = ()
+            if numbers is not None and kind == FORMS_GROUPS:
                 groups = _published_groups(column, numbers, pool, names, FORMS_GROUPS)
-            if not parsing.census_pools(pool, floor, names, room, None, groups):
+            if not parsing.census_pools(pool, floor, names, room, None, groups, True):
                 raise _broken(
                     rule,
                     where,
@@ -16308,6 +16342,70 @@ def _closed_pools_bounded(
                     "block counts on no more names than its spellings "
                     f"(the line is {line})",
                 )
+
+
+def _spellings_outside(
+    column: "ColumnBlock", block: "NumericFacts | None", pool: int, kind: str
+) -> int:
+    """How many different spellings the cells outside a pool certainly hold (P6, P6b, D3, D12).
+
+    One wherever a present cell stands outside it. On a numeric block, at
+    least the used numbers outside it shared out no more than
+    `mode_count` to a value. And on a pool of decimals beside a forms map
+    naming no exponent form, every value the block places that is not
+    whole holds its rows inside the pool (`_located_runs`), so a placed
+    whole value with more rows than the pool has left holds one outside,
+    and where those values fill the pool every other value is outside --
+    unless another named form may have taken in an exponent-written
+    value with a point (`parsing.absorbed_room`).
+    """
+    outside = 1 if column.n_present > pool else 0
+    if block is None or kind == FORMS_GROUPS:
+        return outside
+    used = block.n_used_in_statistics - pool
+    if block.mode_count > 0 and used > 0:
+        outside = max(outside, (used + block.mode_count - 1) // block.mode_count)
+    if kind != DECIMAL_STYLE:
+        return outside
+    for style in block.numeric_styles:
+        if style in (EXPONENT_LOWER_STYLE, EXPONENT_UPPER_STYLE, WITHHELD):
+            return outside
+    absorbing, most = parsing.absorbed_room(block.numeric_styles, 2)
+    if absorbing != DECIMAL_STYLE and most > 0:
+        return outside
+    located = _located_runs(block)
+    inside = 0
+    fractional = 0
+    for value in located:
+        if value != int(value):
+            first, last = located[value]
+            inside = inside + last - first + 1
+            fractional = fractional + 1
+    whole = 0
+    for value in located:
+        first, last = located[value]
+        if value == int(value) and last - first + 1 > pool - inside:
+            whole = whole + 1
+    outside = max(outside, whole)
+    if inside >= pool:
+        outside = max(outside, block.n_distinct_values - fractional)
+    return outside
+
+
+# THE FIELD WIDTHS' KIND in `_closed_pools_bounded`: their unpadded part.
+UNPADDED_WIDTHS = "unpadded"
+
+
+def _padded_spellings(block: "NumericFacts", padded: int) -> int:
+    """How many different spellings the padded cells a named padded census counts certainly hold (P6c).
+
+    One per width it names, and at least its cells shared out no more than
+    `mode_count` to a value.
+    """
+    spellings = len(block.pad_widths)
+    if block.mode_count > 0 and padded > 0:
+        spellings = max(spellings, (padded + block.mode_count - 1) // block.mode_count)
+    return spellings
 
 
 # WHICH CENSUS `_published_groups` READS ITS GROUPS FOR, as the producer's
@@ -16326,30 +16424,50 @@ def _published_groups(
 ) -> "tuple[tuple[int, int, tuple[int, ...]], ...]":
     """The values a published block counts, as `parsing.mixture_pool_holds` reads them (TM1, NS2, P6).
 
-    The loader's side of `taxonomy._published_groups` (the second review
-    of follow-up B, finding 1): the mode, and each tail that lists its
-    values and does not hold the mode. Each value's spellings are at most
-    the column's less one for every other value -- folded on the two
-    mixture censuses, not folded on the forms -- and its rows inside the pool at
-    least its published rows less the cells that could hold it outside the
-    pool: none on the forms, whose pool is every number; on the notations
-    the negatives the pool leaves; and on the marks every number the
-    statistics used that the pool does not hold, less the whole-written
-    ones whose field is too narrow to write it (`_too_narrow`). Every
-    bound is one the producer's true counts meet, so no group here is
-    stricter than its.
+    The loader's side of `taxonomy._value_groups` (the second review and
+    the final fix of follow-up B): the mode, each value the rungs and a
+    listed tail place on rows of their own (`_located_runs`), and a
+    listed tail taken whole where none of its values is placed on two
+    rows or more. Each value's spellings are at most the column's less
+    one for every other value -- folded on the two mixture censuses, not
+    folded on the forms -- and its rows inside the pool at least its
+    published or placed rows less the cells that could hold it outside
+    the pool: none on the forms, whose pool is every number; on the
+    notations the negatives the pool leaves; and on the marks every
+    number the statistics used that the pool does not hold, less the
+    whole-written ones whose field is too narrow to write it
+    (`_too_narrow`). Every bound is one the producer's true counts meet,
+    so no group here is stricter than its.
     """
     others = block.n_distinct_values
-    named: "list[tuple[int, tuple[float, ...]]]" = []
+    # THE FORMS ASK THE MODE AND A LISTED TAIL ALONE, as they did: a forms
+    # map is the whole column's, and the frozen reference cases of the
+    # generator hold hand-written rungs no table has, which would read as
+    # values no forms map can pool. The producer asks every value it
+    # places there as everywhere.
+    located = {} if kind == FORMS_GROUPS else _located_runs(block)
+    rows_of: "dict[float, int]" = {}
+    for value in located:
+        first, last = located[value]
+        rows_of[value] = last - first + 1
     if block.mode is not None and block.mode_count > 1:
-        named += [(block.mode_count, (block.mode,))]
+        rows_of[block.mode] = max(
+            block.mode_count, rows_of[block.mode] if block.mode in rows_of else 0
+        )
+    named: "list[tuple[int, tuple[float, ...]]]" = []
+    for value in sorted(rows_of):
+        if rows_of[value] > 1:
+            named += [(rows_of[value], (value,))]
     if block.tails is not None:
         for side in (block.tails.low, block.tails.high):
             if side is None or not side.values:
                 continue
-            if block.mode is not None and block.mode in side.values:
-                continue
-            named += [(side.rows, side.values)]
+            placed = False
+            for value in side.values:
+                if value in rows_of and rows_of[value] > 1:
+                    placed = True
+            if not placed:
+                named += [(side.rows, side.values)]
     groups: "list[tuple[int, int, tuple[int, ...]]]" = []
     spelled = column.n_distinct if kind == FORMS_GROUPS else column.n_distinct_folded
     for rows, values in named:
@@ -16371,22 +16489,263 @@ def _published_groups(
     return tuple(groups)
 
 
+def _located_runs(block: "NumericFacts") -> "dict[float, tuple[int, int]]":
+    """Each value the published rungs and listed tails place, with the sorted rows it certainly holds.
+
+    WHAT A READER OF THE LADDER KNOWS OF ONE VALUE'S ROWS (the final fix
+    of follow-up B). The rows the statistics used, in order, are ``s0``
+    to ``s(n-1)``, and rung ``k`` stands at ``(n-1)k/100``
+    (`taxonomy._quantile`): on a whole position it IS that row; between
+    ``si`` and ``s(i+1)`` it lies between them, so a rung reading ``v``
+    says ``si <= v <= s(i+1)``. A listed low tail of ``r`` rows opens on
+    its first value and holds its last on row ``r - 1``; a high tail
+    mirrors it. So every row between one that is at least ``v`` and a
+    later one that is at most ``v`` holds ``v``: p69 to p87 at 1234 place
+    it on rows 69 to 86 of a hundred. And a rung between a row known to
+    hold ``v`` and its neighbour, reading ``v`` itself, puts ``v`` on the
+    neighbour too wherever the neighbour could not differ by less than
+    the rung's rounding: on whole numbers under two to the fortieth
+    always, and otherwise where the rung stands nearer the known row --
+    so p69 and p88 add rows 68 and 87, and 1234 holds twenty rows.
+
+    Guarantees: accepts one numeric block; returns, for each value it
+    places, the first and last of the rows it certainly holds, which
+    the value holds all of. Determinism: a function of the block.
+    Raises nothing. No I/O of any kind.
+    """
+    count = block.n_used_in_statistics
+    if count < 1:
+        return {}
+    rungs: "list[float | None]" = []
+    named: "dict[int, float | None]" = {}
+    for index in range(len(LADDER_PERCENTS)):
+        named[LADDER_PERCENTS[index]] = block.percentiles.rungs[index]
+    finer: "dict[int, float | None]" = {}
+    for index in range(len(FINER_LADDER_KEYS)):
+        finer[int(FINER_LADDER_KEYS[index][1:])] = block.percentiles_between[index]
+    for percent in range(101):
+        rungs += [named[percent] if percent in named else finer[percent]]
+    at_least: "dict[float, list[int]]" = {}
+    at_most: "dict[float, list[int]]" = {}
+    between: "list[tuple[int, int, float]]" = []
+    for percent in range(101):
+        value = rungs[percent]
+        if value is None:
+            continue
+        steps = (count - 1) * percent
+        lower = steps // 100
+        rest = steps - lower * 100
+        if lower >= count - 1:
+            lower = count - 1
+            rest = 0
+        if rest == 0:
+            _placed(at_least, value, lower)
+            _placed(at_most, value, lower)
+            continue
+        _placed(at_most, value, lower)
+        _placed(at_least, value, lower + 1)
+        between += [(lower, rest, value)]
+    if block.tails is not None:
+        for side, first, low in (
+            (block.tails.low, 0, True),
+            (block.tails.high, count - (block.tails.high.rows if block.tails.high else 0), False),
+        ):
+            if side is None or not side.values or side.rows < 1 or first < 0:
+                continue
+            last = first + side.rows - 1
+            for value, row in ((side.values[0], first), (side.values[len(side.values) - 1], last)):
+                _placed(at_least, value, row)
+                _placed(at_most, value, row)
+            if side.percent < 0 or side.percent > 100:
+                continue
+            boundary = rungs[side.percent]
+            counted = None if boundary is None else _tail_rows(side, boundary, low)
+            if counted is None:
+                continue
+            row = first
+            for index in range(len(side.values)):
+                _placed(at_least, side.values[index], row)
+                row = row + counted[index]
+                _placed(at_most, side.values[index], row - 1)
+    whole = block.integer_valued
+    runs: "dict[float, tuple[int, int]]" = {}
+    for value in sorted(at_least):
+        if value not in at_most:
+            continue
+        first = min(at_least[value])
+        last = max(at_most[value])
+        if first > last:
+            continue
+        close = whole and abs(value) < 2.0 ** 40
+        moved = True
+        while moved:
+            moved = False
+            for lower, rest, read in between:
+                if read != value:
+                    continue
+                if lower == last and (close or rest > 50):
+                    last = last + 1
+                    moved = True
+                if lower + 1 == first and (close or rest < 50):
+                    first = first - 1
+                    moved = True
+        runs[value] = (first, last)
+    return runs
+
+
+def _tail_rows(side: "TailSide", boundary: float, low: bool) -> "list[int] | None":
+    """How many rows each value of a listed tail holds, where its rows and distances settle it.
+
+    A tail listing its values beside its rows, their mean distance from
+    the boundary rung and the root-mean-square of it gives three sums --
+    of the counts, of count times distance, of count times its square --
+    so up to three values have one count each, a whole number of one or
+    more. Solved in binary64 and taken only where the whole numbers it
+    rounds to meet all three sums to within far less than one row's
+    difference would move them; None otherwise.
+    """
+    values = side.values
+    rows = side.rows
+    mean = side.mean_distance
+    root = side.rms_distance
+    if mean is None or root is None or not values or len(values) > 3:
+        return None
+    if len(values) == 1:
+        return [rows]
+    far: "list[float]" = []
+    for value in values:
+        far += [boundary - value if low else value - boundary]
+    scale = max(1.0, max(abs(distance) for distance in far))
+    if rows > 100000:
+        return None
+    for one in range(len(far)):
+        for two in range(one + 1, len(far)):
+            if abs(far[one] - far[two]) < 1e-3 * scale:
+                return None
+    first = float(rows)
+    second = rows * mean
+    third = rows * root * root
+    guess: "list[float] | None" = None
+    if len(values) == 2:
+        share = first * (mean - far[1]) / (far[0] - far[1])
+        guess = [share, first - share]
+    else:
+        guess = _three_counts(far, first, second, third)
+    if guess is None:
+        return None
+    counts: "list[int]" = []
+    for amount in guess:
+        if not math.isfinite(amount) or amount < 0.5 or amount > rows + 0.5:
+            return None
+        counts += [int(amount + 0.5)]
+    total = 0
+    moment = 0.0
+    square = 0.0
+    for index in range(len(counts)):
+        if counts[index] < 1:
+            return None
+        total = total + counts[index]
+        moment = moment + counts[index] * far[index]
+        square = square + counts[index] * far[index] * far[index]
+    if total != rows:
+        return None
+    if abs(moment - second) > 1e-9 * rows * scale:
+        return None
+    if abs(square - third) > 1e-9 * rows * scale * scale:
+        return None
+    return counts
+
+
+def _three_counts(
+    far: "list[float]", first: float, second: float, third: float
+) -> "list[float] | None":
+    """The three counts of `_tail_rows` by Cramer's rule, or None where the three distances do not settle them."""
+    rows_of = [[1.0, 1.0, 1.0], far, [far[0] * far[0], far[1] * far[1], far[2] * far[2]]]
+    sums = [first, second, third]
+    whole = _determinant(rows_of)
+    if whole == 0.0:
+        return None
+    out: "list[float]" = []
+    for column in range(3):
+        swapped: "list[list[float]]" = []
+        for line in range(3):
+            entries: "list[float]" = []
+            for place in range(3):
+                entries += [sums[line] if place == column else rows_of[line][place]]
+            swapped += [entries]
+        out += [_determinant(swapped) / whole]
+    return out
+
+
+def _determinant(grid: "list[list[float]]") -> float:
+    """The determinant of a three-by-three grid."""
+    return (
+        grid[0][0] * (grid[1][1] * grid[2][2] - grid[1][2] * grid[2][1])
+        - grid[0][1] * (grid[1][0] * grid[2][2] - grid[1][2] * grid[2][0])
+        + grid[0][2] * (grid[1][0] * grid[2][1] - grid[1][1] * grid[2][0])
+    )
+
+
+def _placed(rows: "dict[float, list[int]]", value: float, row: int) -> None:
+    """Record one row against one value, in place."""
+    if value in rows:
+        rows[value] += [row]
+    else:
+        rows[value] = [row]
+
+
 def _outside_the_marks(
     block: "NumericFacts", pool: int, values: "tuple[float, ...]"
 ) -> int:
     """How many cells the statistics used could hold one of ``values`` outside a pool of marks.
 
     Every number used less the pooled cells it certainly used (the pool
-    less every cell it left out), less the whole-written cells whose
-    field is narrower than the least of ``values`` needs: a field under
-    four figures is never grouped, and one of four figures or more may
-    be, so only what the pool cannot hold of those counts.
+    less every cell it left out), less the cells no mark can stand in --
+    the whole-written ones whose field is under four figures, or the rows
+    the rungs place under a thousand either way (`_rows_under_a_thousand`),
+    whichever is more -- and less what the pool cannot hold of the fields
+    of four figures or more still narrower than the least of ``values``.
     """
     figures = len(str(int(min(abs(value) for value in values))))
     narrow, groupable = _too_narrow(block.field_widths, figures)
     certain = max(0, pool - block.n_left_out_of_statistics)
-    outside = block.n_used_in_statistics - certain - narrow
+    under = max(narrow, _rows_under_a_thousand(block))
+    outside = block.n_used_in_statistics - certain - under
     return outside - max(0, groupable - pool)
+
+
+def _rows_under_a_thousand(block: "NumericFacts") -> int:
+    """How many of the rows the statistics used the rungs place strictly between -1000 and 1000.
+
+    A rung reading under a thousand holds every row up to its lower
+    neighbour under it, and one reading above minus a thousand every row
+    from its upper neighbour on (`_located_runs`); a column with no
+    negative number starts at nought. None of those rows can carry a mark
+    between thousands (the final fix of follow-up B): 68 rows of 5, 7 and
+    9 under p68 at 401 leave a pool of 32 marks every four-figure cell.
+    """
+    count = block.n_used_in_statistics
+    if count < 1:
+        return 0
+    top = -1
+    bottom = 0 if block.n_negative == 0 else count
+    named: "dict[int, float | None]" = {}
+    for index in range(len(LADDER_PERCENTS)):
+        named[LADDER_PERCENTS[index]] = block.percentiles.rungs[index]
+    for index in range(len(FINER_LADDER_KEYS)):
+        named[int(FINER_LADDER_KEYS[index][1:])] = block.percentiles_between[index]
+    for percent in range(101):
+        value = named[percent]
+        if value is None:
+            continue
+        steps = (count - 1) * percent
+        lower = min(steps // 100, count - 1)
+        rest = 0 if lower == count - 1 else steps - lower * 100
+        if value < 1000:
+            top = max(top, lower)
+        if value > -1000:
+            bottom = min(bottom, lower if rest == 0 else lower + 1)
+    return max(0, top - bottom + 1)
 
 
 def _too_narrow(widths: "dict[str, int]", figures: int) -> "tuple[int, int]":

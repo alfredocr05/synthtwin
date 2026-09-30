@@ -773,6 +773,12 @@ SAID_FEWER_THAN_THE_LINE = "said_fewer_than_the_line"
 # is nought for that reason: an argument here would be a count, and a
 # count is what it exists not to say.
 SAID_SOME_BUT_NOT_ALL = "said_some_but_not_all"
+# THE FIFTH, NF87 (the final fix of follow-up B, its skeptic's second
+# finding). NF61 says the group is not the whole column, and a census of
+# marks counted under the comma over EVERY present cell stands beside the
+# table writing each of them with a comma, where "not all" is false. This
+# says only that the group is not empty, which both tables make true.
+SAID_SOME = "said_some"
 
 # The remarks: what the person running the tool is told about a column.
 REMARK_OUT_OF_RANGE = "remark_values_out_of_range"
@@ -1024,6 +1030,8 @@ NOTE_ARITY: "dict[str, int]" = {
     # population beside it. Nought arguments is the whole of the
     # control: a form with no argument can carry no count.
     SAID_SOME_BUT_NOT_ALL: 0,
+    # NO ARGUMENT EITHER (contract NF87), for NF61's reason.
+    SAID_SOME: 0,
     REMARK_OUT_OF_RANGE: 1,
     # How many cells wore the pair, and the pair itself.
     EVIDENCE_CLOCK: 3,
@@ -1829,6 +1837,8 @@ def _count_said_opening(arguments: "tuple[object, ...]", place: int) -> str:
         raise TypeError(UNAUTHORIZED_NOTE_ARGUMENT)
     if argument[0] == SAID_SOME_BUT_NOT_ALL:
         return _some_but_not_all(True)
+    if argument[0] == SAID_SOME:
+        return "Some"
     return _fewer_than_the_line(_whole(parts, 0), True)
 
 
@@ -2118,6 +2128,10 @@ def rendered(form: str, arguments: "tuple[object, ...]") -> str:
         # the document at all, which is why it may stand where even
         # NF60 may not.
         return _some_but_not_all(False)
+    if form == SAID_SOME:
+        # THE WHOLE OF THIS FRAGMENT'S WORDS (contract NF87): the group
+        # is not empty, and nothing more.
+        return "some"
     if form == SAID_READ_AS_DATES:
         if not _count_is_named(arguments, 0):
             return "none of them reads as a date in any form synthtwin knows"
@@ -9936,16 +9950,13 @@ def _numeric_styles(cells: _Cells) -> dict[str, int]:
     # published `{"(withheld)": 30}` beside three spellings: three forms
     # at most, under eleven each, so ten each.
     room, capacities, groups = _forms_bounds(cells)
+    floor = cells.settings.small_cell_floor
     census = parsing.absorbed_census(
-        counts,
-        total,
-        cells.settings.small_cell_floor,
-        len(NUMERIC_STYLES),
-        default,
-        room,
-        capacities,
-        groups,
+        counts, total, floor, len(NUMERIC_STYLES), default, room, capacities, groups
     )
+    band = _wearable_band(census, counts, total, floor, capacities)
+    if band:
+        census = {band: total}
     published_counts: dict[str, int] = {}
     for style in NUMERIC_STYLES:
         if style in census:
@@ -9953,6 +9964,50 @@ def _numeric_styles(cells: _Cells) -> dict[str, int]:
     if SUPPRESSED_LABEL in census:
         published_counts[SUPPRESSED_LABEL] = census[SUPPRESSED_LABEL]
     return published_counts
+
+
+def _wearable_band(
+    census: "dict[str, int]",
+    counts: "dict[str, int]",
+    total: int,
+    floor: int,
+    capacities: "list[int]",
+) -> str:
+    """The form a band of forms takes where the one the cells wrote most cannot hold them all, or "".
+
+    A BAND IS THE TABLE WITH EVERY COUNTED CELL WRITTEN IN ONE FORM (the
+    final fix of follow-up B), and a whole-number form cannot write a
+    value with a point: `7` ten times, `+9` six times and `0.25` twice
+    were counted `{"plain": 18}` -- a table no reader of the value `0.25`
+    can believe, so the band told it had spoken. Where the census is one
+    form over every cell and no form the cells wrote reached the line, the
+    commonest form they wrote whose capacity holds them all is taken, the
+    first in sorted order on a tie; a value with a point always wrote one.
+
+    Guarantees: accepts the census as `parsing.absorbed_census` built it,
+    the tally, the population, the settings floor and each form's
+    capacity in `NUMERIC_STYLES` order; returns a form name or "".
+    Determinism: a fixed function of the five. Raises nothing. No I/O.
+    """
+    line = parsing.census_floor(floor)
+    if len(census) != 1 or SUPPRESSED_LABEL in census or total < line:
+        return ""
+    for style in counts:
+        if counts[style] >= line:
+            return ""
+    holds: "dict[str, int]" = {}
+    for place in range(len(NUMERIC_STYLES)):
+        holds[NUMERIC_STYLES[place]] = capacities[place]
+    for name in census:
+        if name in holds and holds[name] >= total:
+            return ""
+    best = ""
+    for name in sorted(counts):
+        if name not in holds or counts[name] < 1 or holds[name] < total:
+            continue
+        if not best or counts[name] > counts[best]:
+            best = name
+    return best
 
 
 def _forms_bounds(
@@ -9964,7 +10019,7 @@ def _forms_bounds(
     and not case-folded, because `7e0` and `7E0` are two forms; each form's
     capacity in `NUMERIC_STYLES` order, a form written only on a whole
     number (`plain`, `leading_zero`, `leading_plus`) holding no more than
-    the whole values; and `_published_groups` over the same cells.
+    the whole values; and `_value_groups` over the same cells.
 
     Guarantees: accepts the column's tally; returns (room, capacities,
     groups). Determinism: a fixed function of the tally. Raises nothing.
@@ -9983,7 +10038,7 @@ def _forms_bounds(
     capacities: "list[int]" = []
     for style in NUMERIC_STYLES:
         capacities += [whole if style in POINT_FREE_STYLES else len(counted)]
-    return (len(spellings), capacities, _published_groups(cells, counted, FORMS_KIND))
+    return (len(spellings), capacities, _value_groups(cells, counted, FORMS_KIND))
 
 
 def _is_whole(cell: _Cell) -> bool:
@@ -10042,18 +10097,45 @@ def _fraction_widths(cells: _Cells, styles: "dict[str, int]") -> dict[str, int]:
     if parsing.STYLE_DECIMAL not in styles:
         return {}
     counts: dict[int, int] = {}
+    counted: "list[tuple[_Cell, int, int]]" = []
+    tally = _form_tally(cells)
+    absorbing, _taken = _counted_into(styles, tally)
+    floor = cells.settings.small_cell_floor
+    # A BAND OF DECIMALS (the final fix of follow-up B): where the decimals
+    # themselves are fewer than the line, the census names `decimal` for a
+    # band, and the cells it took in are counted as the table writing them
+    # all with a point writes them -- at the commonest width the decimals
+    # wrote that holds each value, or the narrowest that does.
+    banded = absorbing == parsing.STYLE_DECIMAL and (
+        tally[absorbing] if absorbing in tally else 0
+    ) < parsing.census_floor(floor)
+    taken_in: "list[_Cell]" = []
     for cell in cells.classified:
         if cell.kind != parsing.NUMBER:
             continue
-        if numeric_style(cell.numeric_text) != parsing.STYLE_DECIMAL:
-            continue
-        _added_to(counts, fraction_width(cell.numeric_text), 1)
-    census = parsing.absorbed_census(
-        _width_keys(counts),
-        styles[parsing.STYLE_DECIMAL],
-        cells.settings.small_cell_floor,
-        0,
-    )
+        style = numeric_style(cell.numeric_text)
+        if style == parsing.STYLE_DECIMAL:
+            width = fraction_width(cell.numeric_text)
+            _added_to(counts, width, 1)
+            counted += [(cell, width, _least_fraction(cell, width))]
+        elif absorbing == parsing.STYLE_DECIMAL and style not in styles:
+            if banded:
+                taken_in += [cell]
+            else:
+                counted += [(cell, -1, _least_fraction(cell, 0))]
+    commonest = -1
+    for width in sorted(counts):
+        if commonest < 0 or counts[width] > counts[commonest]:
+            commonest = width
+    for cell in taken_in:
+        width = max(commonest, _least_fraction(cell, 0))
+        _added_to(counts, width, 1)
+        counted += [(cell, width, _least_fraction(cell, width))]
+    total = styles[parsing.STYLE_DECIMAL]
+    band = _width_band(_width_keys(counts), total, floor, counted, cells)
+    if band:
+        return band
+    census = parsing.absorbed_census(_width_keys(counts), total, floor, 0)
     # AN END THE WIDTHS CANNOT WRITE MAKES THE CENSUS ONE POOL (plan
     # P4-D222). The published minimum and maximum are exact, so their own
     # figures after the point are published already; where a rarer width
@@ -10069,8 +10151,170 @@ def _fraction_widths(cells: _Cells, styles: "dict[str, int]") -> dict[str, int]:
     if widest >= 0 and cells.numbers:
         for end in (min(cells.numbers), max(cells.numbers)):
             if _end_figures(end) > widest:
-                return {SUPPRESSED_LABEL: styles[parsing.STYLE_DECIMAL]}
+                band = _end_pool_band(total, floor, counted, cells)
+                if band:
+                    return band
+                return {SUPPRESSED_LABEL: total}
     return _in_width_order(census)
+
+
+def _least_pad(cell: _Cell, width: int) -> int:
+    """The narrowest field one counted cell's value can be padded to: one figure past its own."""
+    value = cell.value
+    if value is None or not math.isfinite(value) or abs(value) >= 2.0 ** 53:
+        return width
+    return len(str(int(abs(value)))) + 1
+
+
+def _least_fraction(cell: _Cell, width: int) -> int:
+    """The fewest figures after a point one counted cell's value can be written with."""
+    value = cell.value
+    if value is None or not math.isfinite(value):
+        return width
+    return _end_figures(value)
+
+
+def _width_band(
+    tally: "dict[str, int]",
+    total: int,
+    floor: int,
+    counted: "list[tuple[_Cell, int, int]]",
+    cells: _Cells,
+) -> "dict[str, int]":
+    """One width every counted cell can be written at, where a pool of widths may not stand; `{}` otherwise.
+
+    AN OPEN CENSUS IS BOUNDED BY ITS OWN SPELLINGS TOO (the final fix of
+    follow-up B, the second skeptic's second finding). Ten `1.5`, ten
+    `2.25` and eighty whole numbers of two spellings at a floor of eleven
+    published `fraction_widths {"(withheld)": 20}` beside `n_distinct` 4
+    and `mode_count` 40, so the whole numbers held two spellings, the
+    decimals two at most, and two widths of ten. So where no width
+    reaches the line the pool is asked of `parsing.census_pools` as a
+    closed census of the widths from the narrowest a cell's value allows
+    up past the widest by the room (`_width_bounds`): the cells' own
+    spellings, and each value on no more widths than its spellings and
+    none narrower than it needs. Where it may not stand, every cell is
+    counted at the commonest width the cells wrote that can write every
+    one of them, the narrowest on a tie -- ruling 6's commonest,
+    wherever the commonest does not cut a figure off a value.
+
+    Guarantees: accepts the tally of written widths, the population, the
+    settings floor, the counted cells with their own and least widths and
+    the column's tally; returns `{}` or one width holding the population.
+    Determinism: a fixed function of the five. Raises nothing. No I/O of
+    any kind.
+    """
+    line = parsing.census_floor(floor)
+    if total < line or not counted:
+        return {}
+    for key in tally:
+        if tally[key] >= line:
+            return {}
+    room, capacities, groups = _width_bounds(counted, _placed_values(cells))
+    if parsing.census_pools(total, floor, len(capacities), room, capacities, groups):
+        return {}
+    return {f"{_band_width(counted)}": total}
+
+
+def _end_pool_band(
+    total: int, floor: int, counted: "list[tuple[_Cell, int, int]]", cells: _Cells
+) -> "dict[str, int]":
+    """One width every counted cell can be written at, where the pool an unwritable end makes could be read as pinned; `{}` otherwise.
+
+    A POOL OF WIDTHS MADE BY AN END (plan P4-D222) looks, to a reader, like
+    one of widths each under the line, and the loader asks it as one
+    wherever as many widths as the column's spellings could hold it under
+    the line (P6). So it is asked here with the fewest widths that could:
+    the cells' own spellings, or the population over one less than the
+    line if that is more. A reading pinned there is pinned for every room
+    a loader could read, and the widths are counted at one every cell can
+    be written at; a pool no widths under the line could hold is left.
+
+    Guarantees: accepts the population, the settings floor, the counted
+    cells with their own and least widths and the column's tally; returns
+    `{}` or one width holding the population. Determinism: a fixed
+    function of the four. Raises nothing. No I/O of any kind.
+    """
+    line = parsing.census_floor(floor)
+    if total < line or not counted:
+        return {}
+    spelled: "dict[str, int]" = {}
+    for text in cells.present:
+        spelled[text] = 1
+    least_room = -(-total // (line - 1))
+    if least_room > len(spelled):
+        return {}
+    room, capacities, groups = _width_bounds(counted, _placed_values(cells), least_room)
+    if parsing.census_pools(total, floor, len(capacities), room, capacities, groups):
+        return {}
+    return {f"{_band_width(counted)}": total}
+
+
+def _band_width(counted: "list[tuple[_Cell, int, int]]") -> int:
+    """The commonest width the cells wrote that can write every one of them, the narrowest on a tie."""
+    need = 0
+    for _cell, _own, least in counted:
+        need = max(need, least)
+    written: "dict[int, int]" = {}
+    for _cell, own, _least in counted:
+        if own >= need:
+            _added_to(written, own, 1)
+    best = need
+    for width in sorted(written):
+        if best not in written or written[width] > written[best]:
+            best = width
+    return best
+
+
+def _width_bounds(
+    counted: "list[tuple[_Cell, int, int]]",
+    placed: "dict[float, bool]",
+    least_room: int = 0,
+) -> "tuple[int, list[int], tuple[tuple[int, int, tuple[int, ...]], ...]]":
+    """What a pool of widths lets a reader bound: room, one capacity per width, groups.
+
+    The widths run from the narrowest any counted cell can take to the
+    widest written or needed, and on by the room, so the widths every
+    value can take are more than a reading can write. The room is the
+    cells' different spellings; each value of two rows or more a reader
+    can place (`_placed_values`) is a group of its rows and spellings
+    holding nothing below its least width. Every other cell is free: over
+    as many widths as a column of single values spells, a group per least
+    width made the walk run for hours on 110 decimals of eleven widths.
+    """
+    spellings: "dict[str, int]" = {}
+    lowest = -1
+    highest = 0
+    for cell, own, least in counted:
+        spellings[parsing.trimmed(cell.numeric_text)] = 1
+        if lowest < 0 or least < lowest:
+            lowest = least
+        highest = max(highest, own, least)
+    room = max(len(spellings), least_room)
+    widths = list(range(max(0, lowest), highest + room + 1))
+    rows: "dict[float, int]" = {}
+    least_of: "dict[float, int]" = {}
+    worn: "dict[float, dict[str, int]]" = {}
+    for cell, _own, least in counted:
+        value = cell.value
+        if value is None:
+            continue
+        if value not in rows:
+            rows[value] = 0
+            least_of[value] = least
+            worn[value] = {}
+        rows[value] += 1
+        least_of[value] = max(least_of[value], least)
+        worn[value][parsing.trimmed(cell.numeric_text)] = 1
+    groups: "list[tuple[int, int, tuple[int, ...]]]" = []
+    for value in sorted(rows):
+        if rows[value] < 2 or value not in placed:
+            continue
+        reach: "list[int]" = []
+        for width in widths:
+            reach += [rows[value] if width >= least_of[value] else 0]
+        groups += [(rows[value], len(worn[value]), tuple(reach))]
+    return (room, [len(counted)] * len(widths), tuple(groups))
 
 
 def _end_figures(value: float) -> int:
@@ -10986,7 +11230,74 @@ def _comma_remarks(cells: _Cells) -> "list[Note]":
     unsettled, settled = _group_comma_cells(cells)
     if not unsettled and not settled:
         return []
-    return [note(REMARK_GROUP_COMMAS, (unsettled, settled))]
+    said: object = unsettled
+    fragment = _comma_count_unsaid(
+        unsettled,
+        _thousands_marks(cells),
+        _census_floor(cells.settings),
+        len(cells.present),
+    )
+    if fragment:
+        said = (fragment, ())
+    return [note(REMARK_GROUP_COMMAS, (said, settled))]
+
+
+def _comma_count_unsaid(
+    unsettled: int, marks: "dict[str, int]", line: int, present: int
+) -> str:
+    """The fragment the comma warning says for its either-way count, or "" for the number (plan P4-D347 applied).
+
+    A BAND OF MARKS THE WARNING'S NUMBER WOULD CONTRADICT (the final fix
+    of follow-up B, the orchestrator's decision (i)). Ten `1,234` and ten
+    `1 234` hold every mark under eleven and pin the pool, so the census
+    is counted under the comma, `{",": 20}` -- and a warning saying fewer
+    than eleven cells wrote a comma that reads either way told a reader
+    the band had spoken, which gives the ten back. So wherever the census
+    of marks is the comma alone over no more cells than seven marks hold
+    under the line -- a band's reach, and the same published state the
+    table writing every one of them with a comma reaches -- the warning
+    keeps its sentence and says `said_some_but_not_all` in place of the
+    count: the owner's ruling of 2026-09-23 (P4-D347), a warning whose
+    count would hand back a withheld cell keeps the warning and drops the
+    number. WHERE THE CENSUS COUNTS EVERY PRESENT CELL it says
+    `said_some` (NF87) instead: 210 cells grouped thirty to each of seven
+    marks at a floor of 31 pinned their pool, and the table writing all
+    210 with a comma reads every present cell either way, where "not all"
+    is false -- so NF61 could not be said of both and the census went
+    silent. Which fragment is keyed on the published census and the
+    present cells alone, so the two tables print the same one.
+
+    Guarantees: accepts the either-way count, the published census of
+    marks, the census line and the present cells; returns
+    `said_some_but_not_all`, `said_some` or "". Determinism: a fixed
+    function of the four. Raises nothing. No I/O.
+    """
+    if unsettled < 1:
+        return ""
+    if len(marks) != 1 or "," not in marks:
+        return ""
+    if marks[","] > len(parsing.GROUP_MARKS) * (line - 1):
+        return ""
+    if marks[","] < present:
+        return SAID_SOME_BUT_NOT_ALL
+    return SAID_SOME
+
+
+def _comma_said(
+    unsettled: int,
+    settled: int,
+    marks: "dict[str, int]",
+    line: int,
+    present: int,
+) -> "tuple[object, ...] | None":
+    """What the comma warning prints of these two counts beside this census of marks, or None for no warning."""
+    if not unsettled and not settled:
+        return None
+    said: object = unsettled
+    fragment = _comma_count_unsaid(unsettled, marks, line, present)
+    if fragment:
+        said = (fragment, ())
+    return _arguments_at_the_line(REMARK_GROUP_COMMAS, (said, settled), line, present)
 
 
 def _group_comma_cells(cells: _Cells) -> "tuple[int, int]":
@@ -11250,23 +11561,52 @@ def _width_censuses(
     line = parsing.census_floor(floor)
     if SUPPRESSED_LABEL in styles:
         return {}, {}
-    form, taken = _counted_into(styles, _form_tally(cells))
+    tally = _form_tally(cells)
+    form, taken = _counted_into(styles, tally)
+    # A BAND OF FORMS IS THE TABLE WITH EVERY CELL WRITTEN IN ITS ONE FORM
+    # (the final fix of follow-up B): where the form the census names wrote
+    # fewer cells than the line itself, the cells it took in are counted
+    # unpadded at their own figures, as that table writes them -- counted
+    # at a width the form never named, `7` ten times, `+9` six and `9e0`
+    # twice pooled their fields beside `{"plain": 18}`, where every one of
+    # them is a figure wide.
+    banded = form in POINT_FREE_STYLES and (tally[form] if form in tally else 0) < line
     pads: dict[int, int] = {}
     plus_pads: dict[int, int] = {}
     unpadded: dict[int, int] = {}
+    padded_cells: "list[tuple[_Cell, int, int]]" = []
+    plus_cells_padded: "list[tuple[_Cell, int, int]]" = []
+    band_pads: "list[_Cell]" = []
+    # The cells the unpadded part counts, each at its own width, and those
+    # a whole-number form took in, at none (`_unpadded_band`).
+    whole_cells: "list[tuple[_Cell, int]]" = []
     for cell in cells.classified:
         if cell.kind != parsing.NUMBER:
             continue
         style = numeric_style(cell.numeric_text)
         if style not in POINT_FREE_STYLES or style not in styles:
+            if form == parsing.STYLE_LEADING_ZERO and style not in styles:
+                if banded and _is_whole(cell):
+                    band_pads += [cell]
+                else:
+                    padded_cells += [(cell, -1, _least_pad(cell, 0))]
+            elif banded and style not in styles and _is_whole(cell):
+                _added_to(unpadded, _least_pad(cell, 1) - 1, 1)
+                whole_cells += [(cell, _least_pad(cell, 1) - 1)]
+                taken = taken - 1
+            elif style not in styles and form in POINT_FREE_STYLES:
+                whole_cells += [(cell, -1)]
             continue
         width = pad_width(cell.numeric_text)
         if style == parsing.STYLE_LEADING_ZERO:
             _added_to(pads, width, 1)
+            padded_cells += [(cell, width, _least_pad(cell, width))]
         elif parsing.is_padded(cell.numeric_text):
             _added_to(plus_pads, width, 1)
+            plus_cells_padded += [(cell, width, _least_pad(cell, width))]
         else:
             _added_to(unpadded, width, 1)
+            whole_cells += [(cell, width)]
     # 1. THE PLUS ROUTE.
     plus_cells = 0
     for width in plus_pads:
@@ -11283,13 +11623,58 @@ def _width_censuses(
             _added_to(pads, width, plus_pads[width])
         else:
             _added_to(unpadded, width, plus_pads[width])
-    # 2 AND 3. EACH PART COUNTED INTO ITS COMMONEST WIDTH AT THE LINE.
+    if counted_plus:
+        padded_cells = padded_cells + plus_cells_padded
+    else:
+        for cell, width, _least in plus_cells_padded:
+            whole_cells += [(cell, width)]
+    # ...and padded, under a band of the padded form, at the commonest
+    # width the padded cells wrote that holds the value, or the narrowest
+    # that does.
+    written_width = -1
+    for width in sorted(pads):
+        if written_width < 0 or pads[width] > pads[written_width]:
+            written_width = width
+    for cell in band_pads:
+        width = max(written_width, _least_pad(cell, 1))
+        _added_to(pads, width, 1)
+        padded_cells += [(cell, width, _least_pad(cell, width))]
+        taken = taken - 1
+    # 2 AND 3. EACH PART COUNTED INTO ITS COMMONEST WIDTH AT THE LINE --
+    # and a pool of padded widths its own spellings would pin is counted
+    # at one width every padded cell can be written at (`_width_band`,
+    # the final fix of follow-up B), in both censuses alike.
+    written_pads = 0
+    for width in pads:
+        written_pads = written_pads + pads[width]
+    absorbed_pads = taken if form == parsing.STYLE_LEADING_ZERO else 0
+    band = _width_band(
+        _width_keys(pads), written_pads + absorbed_pads, floor, padded_cells, cells
+    )
+    pad_band = -1
+    for key in sorted(band):
+        pad_band = int(key)
+        pads = {pad_band: written_pads}
     pooled_fields = False
-    padded_named = _into_commonest_named(pads, line)
+    padded_named = pad_band if pad_band >= 0 else _into_commonest_named(pads, line)
     if padded_named >= 0 and form == parsing.STYLE_LEADING_ZERO:
         _added_to(pads, padded_named, taken)
     elif taken > 0 and form == parsing.STYLE_LEADING_ZERO:
         pooled_fields = True
+    # ...and a pool of the unpadded part its own spellings or placed values
+    # would pin is counted at one width (`_unpadded_band`, the final fix
+    # of follow-up B, its skeptic's field widths).
+    unpadded_band = _unpadded_band(whole_cells, unpadded, floor, cells)
+    if unpadded_band >= 0:
+        absorbed_whole = 0
+        for _cell, width in whole_cells:
+            if width < 0:
+                absorbed_whole += 1
+        total_unpadded = 0
+        for width in unpadded:
+            total_unpadded = total_unpadded + unpadded[width]
+        unpadded = {unpadded_band: total_unpadded + absorbed_whole}
+        taken = taken - absorbed_whole
     unpadded_named = _into_commonest_named(unpadded, line)
     if unpadded_named >= 0 and form in POINT_FREE_STYLES and (
         form != parsing.STYLE_LEADING_ZERO
@@ -11346,6 +11731,106 @@ def _width_censuses(
             return padded_census, {}
         return padded_census, {SUPPRESSED_LABEL: total}
     return padded_census, _absorbed_widths(fields, floor)
+
+
+def _unpadded_band(
+    counted: "list[tuple[_Cell, int]]",
+    unpadded: "dict[int, int]",
+    floor: int,
+    cells: _Cells,
+) -> int:
+    """The width a pool of unpadded whole numbers is counted at, or -1 where it may stand.
+
+    AN UNPADDED WIDTH IS ITS VALUE'S OWN FIGURES, AND ITS POOL WAS ASKED
+    OF NOTHING (the final fix of follow-up B, its skeptic's field widths).
+    `5.5` on 5,880 rows, `123` and `4567` on ten each and `9999.5` on a
+    hundred published `field_widths {"(withheld)": 20}` beside four
+    spellings, a mode of `5.5` and both tails decimal: the twenty plain
+    cells held two spellings, one width would have been named, so two
+    widths of ten. Where no unpadded width reaches the line, the cells
+    the unpadded part counts -- a reader takes them off the forms map and
+    the padded census -- are asked of `parsing.census_pools` as a closed
+    census of the widths up past the widest by the room: their own
+    spellings, each value a reader places (`_placed_values`) on the
+    widths its cells stand at, a cell a whole-number form took in free,
+    and a width a placed value stands on alone shown by the block. Where
+    the pool may not stand, every such cell is counted at the commonest
+    width they wrote at which every placed value stands, the narrowest on
+    a tie -- ruling 6's commonest, which the unpadded cells under the
+    line are already counted into (rule 3 of `_width_censuses`), at a
+    width the table writing every one of them there could hold.
+    WHERE NO SUCH WIDTH EXISTS a band is told apart from a named census
+    by the placed values themselves, so it says what the pool says, and
+    costs the twin the values it cannot write there (28 whole numbers
+    whose listed tails hold `1`, `73` and `938054`, counted at `4`,
+    missed their tails at every seed). The pool stands there unless the
+    room alone pins it, which the loader refuses (P6c); then the
+    commonest width is taken.
+
+    Guarantees: accepts the counted cells with their own widths (-1 for
+    one taken in), the unpadded tally, the settings floor and the
+    column's tally; returns -1 or a width. Determinism: a fixed function
+    of the four. Raises nothing. No I/O of any kind.
+    """
+    line = parsing.census_floor(floor)
+    if len(counted) < line:
+        return -1
+    for width in unpadded:
+        if unpadded[width] >= line:
+            return -1
+    spellings: "dict[str, int]" = {}
+    highest = 1
+    for cell, width in counted:
+        spellings[parsing.trimmed(cell.numeric_text)] = 1
+        highest = max(highest, width, _least_pad(cell, 1) - 1)
+    room = len(spellings)
+    widths = list(range(1, highest + room + 1))
+    placed = _placed_values(cells)
+    rows: "dict[float, int]" = {}
+    worn: "dict[float, dict[str, int]]" = {}
+    stands: "dict[float, dict[int, int]]" = {}
+    for cell, width in counted:
+        value = cell.value
+        if value is None or value not in placed or not math.isfinite(value):
+            continue
+        if value not in rows:
+            rows[value] = 0
+            worn[value] = {}
+            stands[value] = {}
+        rows[value] += 1
+        worn[value][parsing.trimmed(cell.numeric_text)] = 1
+        stands[value][width if width >= 0 else _least_pad(cell, 1) - 1] = 1
+    groups: "list[tuple[int, int, tuple[int, ...]]]" = []
+    for value in sorted(rows):
+        if rows[value] < 2:
+            continue
+        reach: "list[int]" = []
+        for width in widths:
+            reach += [rows[value] if width in stands[value] else 0]
+        groups += [(rows[value], len(worn[value]), tuple(reach))]
+    if parsing.census_pools(
+        len(counted), floor, len(widths), room, [len(counted)] * len(widths),
+        tuple(groups), False, True,
+    ):
+        return -1
+    best = -1
+    anywhere = -1
+    for width in sorted(unpadded):
+        if unpadded[width] < 1:
+            continue
+        if anywhere < 0 or unpadded[width] > unpadded[anywhere]:
+            anywhere = width
+        everyone = True
+        for value in rows:
+            if rows[value] > 1 and width not in stands[value]:
+                everyone = False
+        if everyone and (best < 0 or unpadded[width] > unpadded[best]):
+            best = width
+    if best >= 0:
+        return best
+    if parsing.census_pools(len(counted), floor, 0, room):
+        return -1
+    return anywhere
 
 
 def _into_commonest_named(counts: "dict[int, int]", line: int) -> int:
@@ -12191,9 +12676,10 @@ def _reader_bounds(
        the notations, not the trailing minus unless every negative carries
        a point; on the marks of a column not declared to write a decimal
        comma, not a mark whose writing on every one of these cells would
-       change how many of them `parsing.comma_reading` reads either way,
-       or as a decimal comma -- the two counts the comma warning publishes.
-    4. THE GROUPS (`_published_groups`): the values whose rows the block
+       change what the comma warning SAYS (`_comma_said`) -- its number
+       drops where the census is the comma alone within a band's reach,
+       so a band under the comma changes only a number no longer said.
+    4. THE GROUPS (`_value_groups`): the values whose rows the block
        publishes or bounds, each with its counted rows, its spellings and
        what each convention can hold of it.
 
@@ -12218,9 +12704,7 @@ def _reader_bounds(
         spellings[cell.folded] = 1
     room = len(spellings)
     everyone = len(counted)
-    groups = _published_groups(
-        cells, counted, NOTATIONS_KIND if notations else MARKS_KIND
-    )
+    groups = _value_groups(cells, counted, NOTATIONS_KIND if notations else MARKS_KIND)
     if notations:
         pointed = 0
         for cell in counted:
@@ -12237,116 +12721,175 @@ def _reader_bounds(
     capacities = [everyone] * len(parsing.GROUP_MARKS)
     if cells.decimal_comma:
         return (capacities, room, None, groups)
-    before = _comma_readings([cell.numeric_text for cell in counted])
+    line = _census_floor(cells.settings)
+    present = len(cells.present)
+    unsettled, settled = _group_comma_cells(cells)
+    either, decimal = _comma_readings([cell.numeric_text for cell in counted])
     marks: "dict[str, int]" = {}
     for mark in parsing.GROUP_MARKS:
-        after = _comma_readings(
+        after_either, after_decimal = _comma_readings(
             [parsing.with_thousands_mark(cell.numeric_text, mark) for cell in counted]
         )
-        if after == before:
+        banded = {mark: everyone}
+        told = _comma_said(unsettled, settled, banded, line, present)
+        literal = _comma_said(
+            unsettled - either + after_either,
+            settled - decimal + after_decimal,
+            banded,
+            line,
+            present,
+        )
+        if told == literal:
             marks[mark] = 1
     return (capacities, room, marks, groups)
 
 
-# WHICH CENSUS `_published_groups` READS ITS GROUPS FOR: the notations,
+# WHICH CENSUS `_value_groups` READS ITS GROUPS FOR: the notations,
 # the marks, or the six forms.
 NOTATIONS_KIND = "notations"
 MARKS_KIND = "marks"
 FORMS_KIND = "forms"
 
 
-def _published_groups(
+def _value_groups(
     cells: _Cells, counted: "list[_Cell]", kind: str
 ) -> "tuple[tuple[int, int, tuple[int, ...]], ...]":
-    """The values whose rows the block publishes or bounds, as `parsing.mixture_pool_holds` reads them.
+    """Every value of the counted cells a reader can place, as `parsing.mixture_pool_holds` reads a group.
 
-    THE SECOND REVIEW OF FOLLOW-UP B, FINDING 1. A reader of the whole
-    block bounds one value's spellings as well as the pool's: every other
-    value takes a spelling, so the mode's are at most
-    `n_distinct_folded - (n_distinct_values - 1)`, and its rows are
-    `mode_count`. Measured at a floor of eleven: ten `-12.00` and ten
-    `(12.00)` beside 55 cells of one spelling each published a pool of 30
-    beside `mode -12`, `mode_count 20`, 57 spellings and 56 values, so
-    -12's twenty rows sat on two notations under eleven -- ten each.
+    A READER OF THE WHOLE BLOCK BOUNDS ONE VALUE'S SPELLINGS AS WELL AS THE
+    POOL'S (the second review of follow-up B, finding 1): every other
+    value takes a spelling, so the mode's are at most `n_distinct_folded
+    - (n_distinct_values - 1)`, and its rows are `mode_count`. Measured at
+    a floor of eleven: ten `-12.00` and ten `(12.00)` beside 55 cells of
+    one spelling each published a pool of 30 beside `mode -12`,
+    `mode_count 20`, 57 spellings and 56 values, so -12's twenty rows sat
+    on two notations under eleven -- ten each.
 
-    So each group is a set of values a reader can name with a count or a
-    floor under it, taken apart in this order, a value in no two: the
-    published mode (`_mode_published`); then each side's tail
-    (`_tail_positions`) -- every value it holds, whether or not the side
-    lists them, because its rows are published and its distances can
-    name its one value (a mean distance equal to the root-mean-square
-    one), and the heaped end a ladder publishes is its outermost value.
-    For each: the counted cells holding one of its values (at least the
-    rows a reader is told, which is only ever stricter), their different
-    spellings -- folded on the two mixture censuses, trimmed on the forms, where
-    `e` and `E` are two -- and what each convention can hold of them: a
-    trailing minus only its cells with a point, a whole-number form only
-    its whole values. The true spellings are never more than a reader's
-    bound, so the readings asked of are never more than a reader's.
+    AND IT PLACES MORE VALUES THAN THE MODE (the final fix of follow-up
+    B). The finer rungs count a body value's rows -- p68 479.88, p69 to
+    p87 1234 and p88 1277.92 put 1234 on exactly twenty of a hundred rows
+    -- and a listed tail's distances count each of its values, so a pool
+    of 32 marks beside 1234 on two spellings, and one of 30 notations
+    beside -50 on nineteen rows and two spellings, each fixed two counts
+    of ten while only the mode and each tail taken whole were asked. So
+    every value a reader can place (`_placed_values`) is asked with its
+    own true rows and spellings, which no reader bounds more tightly; the
+    rest of the counted cells are free.
+
+    For each such value: how many counted cells hold it, their different
+    spellings -- folded on the two mixture censuses, trimmed on the
+    forms, where `e` and `E` are two -- and what each convention can hold
+    of it: a trailing minus only its cells with a point, a whole-number
+    form only a whole value. The free cells are one group per such share,
+    each cell its own spelling: a negative with no point cannot wear a
+    trailing minus, so a trailing minus is not free to take it where the
+    cells with a point are all placed.
 
     Guarantees: accepts the column's tally, the counted cells and which
-    census this is (`NOTATIONS_KIND`, `MARKS_KIND`, `FORMS_KIND`);
-    returns one (rows, spellings, capacity per convention) per group
-    holding a counted cell. Determinism: a fixed function of the three.
-    Raises nothing. No I/O of any kind.
+    census this is (`NOTATIONS_KIND`, `MARKS_KIND`, `FORMS_KIND`); returns
+    one (rows, spellings, capacity per convention) per placed value of two
+    rows or more, in ascending order of value, then one per share the free
+    cells have. Determinism: a fixed function of the three. Raises
+    nothing. No I/O of any kind.
+    """
+    placed = _placed_values(cells)
+    rows: "dict[float, int]" = {}
+    written: "dict[float, dict[str, int]]" = {}
+    open_to: "dict[float, list[int]]" = {}
+    lone: "dict[tuple[int, ...], list[int]]" = {}
+    for cell in counted:
+        share = _one_cell_reach(cell, kind)
+        value = cell.value
+        if value is None or value not in placed:
+            _shared_into(lone, share, share)
+            continue
+        if value not in rows:
+            rows[value] = 0
+            written[value] = {}
+            open_to[value] = [0] * len(share)
+        rows[value] += 1
+        if kind == FORMS_KIND:
+            written[value][parsing.trimmed(cell.numeric_text)] = 1
+        else:
+            written[value][cell.folded] = 1
+        for place in range(len(share)):
+            open_to[value][place] += share[place]
+    groups: "list[tuple[int, int, tuple[int, ...]]]" = []
+    for value in sorted(rows):
+        if rows[value] < 2:
+            _shared_into(lone, tuple(open_to[value]), tuple(open_to[value]))
+            continue
+        groups += [(rows[value], len(written[value]), tuple(open_to[value]))]
+    for share in sorted(lone):
+        reach = lone[share]
+        groups += [(reach[len(reach) - 1], reach[len(reach) - 1], tuple(reach[: len(reach) - 1]))]
+    return tuple(groups)
+
+
+def _shared_into(
+    lone: "dict[tuple[int, ...], list[int]]",
+    share: "tuple[int, ...]",
+    reach: "tuple[int, ...]",
+) -> None:
+    """Add one free cell of this share to its group: what each convention holds of it, then how many cells."""
+    if share not in lone:
+        lone[share] = [0] * (len(share) + 1)
+    kept = lone[share]
+    for place in range(len(reach)):
+        kept[place] += reach[place]
+    kept[len(share)] += 1
+
+
+def _placed_values(cells: _Cells) -> "dict[float, bool]":
+    """The values a reader of the block can place: the mode, every value of a tail, every value a body rung reads.
+
+    Over-counted on purpose, so the producer asks at least of what the
+    loader's `_located_runs` places: the published mode, every value on a
+    tail's rows (`_tail_positions`), listed or not, and both rows each rung
+    between the two boundaries interpolates -- the rungs the block would
+    publish were none of them withheld. A block of fewer values than two
+    tails and a rung publishes no tail and no rung, and a reader places
+    only its mode there.
+
+    Guarantees: accepts the column's tally; returns the values as keys.
+    Determinism: a fixed function of the tally. Raises nothing. No I/O.
     """
     floor = cells.settings.small_cell_floor
-    named: "list[list[float]]" = []
-    taken: "dict[float, int]" = {}
+    placed: "dict[float, bool]" = {}
     mode = _mode_published(cells, floor)["mode"]
     if isinstance(mode, float):
-        named += [[mode]]
-        taken[mode] = 1
+        placed[mode] = True
     ordered = sorted(cells.numbers)
     count = len(ordered)
     units = parsing.tail_units(floor)
     percent = parsing.tail_percent(count, units) if count >= units else None
-    if percent is not None:
-        for side_percent, side in ((percent, "low"), (100 - percent, "high")):
-            first, last = _tail_positions(count, side_percent, side)
-            values: "list[float]" = []
-            for place in range(first, last + 1):
-                value = ordered[place]
-                if value not in taken:
-                    values += [value]
-                    taken[value] = 1
-            if values:
-                named += [values]
-    groups: "list[tuple[int, int, tuple[int, ...]]]" = []
-    for values in named:
-        members: "dict[float, int]" = {}
-        for value in values:
-            members[value] = 1
-        rows = 0
-        pointed = 0
-        whole = 0
-        written: "dict[str, int]" = {}
-        for cell in counted:
-            if cell.value is None or cell.value not in members:
-                continue
-            rows += 1
-            if kind == FORMS_KIND:
-                written[parsing.trimmed(cell.numeric_text)] = 1
-            else:
-                written[cell.folded] = 1
-            if "." in parsing.number_core(cell.numeric_text):
-                pointed += 1
-            if _is_whole(cell):
-                whole += 1
-        if rows < 1:
-            continue
-        reach: "tuple[int, ...]" = ()
-        if kind == NOTATIONS_KIND:
-            reach = (rows, rows, rows, pointed)
-        elif kind == MARKS_KIND:
-            reach = (rows,) * len(parsing.GROUP_MARKS)
-        else:
-            parts: "list[int]" = []
-            for style in NUMERIC_STYLES:
-                parts += [whole if style in POINT_FREE_STYLES else rows]
-            reach = tuple(parts)
-        groups += [(rows, len(written), reach)]
-    return tuple(groups)
+    if percent is None:
+        return placed
+    for side_percent, side in ((percent, "low"), (100 - percent, "high")):
+        first, last = _tail_positions(count, side_percent, side)
+        for place in range(first, last + 1):
+            placed[ordered[place]] = True
+    for rung in range(percent, 101 - percent):
+        steps = (count - 1) * rung
+        lower = min(steps // 100, count - 1)
+        placed[ordered[lower]] = True
+        if steps - lower * 100 > 0 and lower + 1 < count:
+            placed[ordered[lower + 1]] = True
+    return placed
+
+
+def _one_cell_reach(cell: _Cell, kind: str) -> "tuple[int, ...]":
+    """Which conventions of a census one counted cell can wear: one where it can, nought where it cannot."""
+    if kind == NOTATIONS_KIND:
+        pointed = 1 if "." in parsing.number_core(cell.numeric_text) else 0
+        return (1, 1, 1, pointed)
+    if kind == MARKS_KIND:
+        return (1,) * len(parsing.GROUP_MARKS)
+    whole = 1 if _is_whole(cell) else 0
+    parts: "list[int]" = []
+    for style in NUMERIC_STYLES:
+        parts += [whole if style in POINT_FREE_STYLES else 1]
+    return tuple(parts)
 
 
 def _comma_readings(texts: "list[str]") -> "tuple[int, int]":
@@ -14385,14 +14928,19 @@ def _offset_counts(
     reads those rows as written at that offset.
     """
     counts: dict[str, int] = {}
-    for _canonical, offset in pairs:
+    written: "dict[tuple[str, str], int]" = {}
+    for canonical, offset in pairs:
         key = offset if offset else "(none)"
+        written[(canonical, offset)] = 1
         if key in counts:
             counts[key] = counts[key] + 1
         else:
             counts[key] = 1
+    # NO MORE OFFSETS THAN THE CELLS' OWN DIFFERENT READINGS (the final fix
+    # of follow-up B): eleven offsets of ten rows, each one moment written
+    # alike, pool 110 beside eleven spellings -- eleven offsets of ten.
     return parsing.absorbed_census(
-        counts, len(pairs), settings.small_cell_floor, 0
+        counts, len(pairs), settings.small_cell_floor, 0, "", len(written)
     )
 
 

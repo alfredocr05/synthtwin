@@ -52,6 +52,45 @@ vanished from every twin and are written again. A sign band whose grid
 holds a refused stand-in is left to the walk instead of filled without
 it, which had moved a heap several units and missed two rungs.
 
+### A band of marks over every present cell says "some" (2026-09-29)
+
+**Decision (i) applied where every cell is grouped** (plan P4-D356, the
+owner's ruling P4-D347). 210 cells grouped thirty to each of seven marks
+at a floor of 31 pinned their pool, and the table writing all 210 with a
+comma reads every one either way, where "some but not all" is false, so
+the census stayed silent beside "fewer than 31". Where the census of
+marks is the comma alone within a band's reach and counts every present
+cell, the comma warning now says NF87, "some", and the census names the
+comma.
+
+### The unpadded field widths are asked too (2026-09-29)
+
+**The skeptic of follow-up B's final fix** (plan P4-D356). `123` and
+`4567` on ten rows each beside 5,880 `5.5` and a hundred `9999.5`
+published `field_widths {"(withheld)": 20}`: two plain spellings on two
+widths under eleven, ten each. A field-width pool's unpadded part is now
+asked of its own spellings and placed values, and counted at the
+commonest unpadded width every placed value stands at where it may not
+stand; the loader asks it (P6c). Tests now hold the room clause alone on
+a census of marks, and the loader's answer where a walk stops short.
+
+### A lone pool is asked of every value a reader can count (2026-09-29)
+
+**The final fix of follow-up B** (plan P4-D356). The producer asks a pool
+of marks, notations or forms of the own rows and spellings of every value
+a reader can place -- the mode, each value of a tail, each value a body
+rung reads: the finer rungs count 1234 on twenty rows and a listed tail
+with the rungs -50 on nineteen, and each had pinned a pool while only the
+mode and each tail taken whole were asked. Two values may share a convention in a
+reading, so a pool of repeated values no reader pins stands. The loader
+places the values the rungs, a listed tail and the mode count. The
+decimals' widths, the padded widths and the offsets are asked of their
+own spellings too, and a pool they pin is counted at one width every
+cell can be written at, or under the commonest offset. A band of forms
+is a form every value can wear, and its widths are those of the table
+writing every cell in it. A band under the comma keeps the comma warning
+and drops its number (P4-D347 applied).
+
 ### A lone pool stands only where no reader of the whole block pins it (2026-09-28)
 
 **The two reviews of follow-up B** (plan P4-D356). A census that pools
@@ -66,7 +105,8 @@ refuses a pool beside a named convention. G6.1 spends a lone pool of
 marks over as few marks as let it stand and no more than the spelling
 count allows, no value filling a mark alone. Held by
 `tests/test_mixture_reader_bounds.py`, whose reader over 300 seeded
-columns finds 25 pinned pools at 2af1f03, 8 at 178bde2 and none now.
+columns, counting the mode's rows, finds 25 pinned pools at 2af1f03, 8
+at 178bde2 and none now.
 
 ### The review of landing 3b.0: no count offers a missing day (2026-09-28)
 

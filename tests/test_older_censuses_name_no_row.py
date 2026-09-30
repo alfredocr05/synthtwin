@@ -342,14 +342,16 @@ def test_a_pool_stands_only_alone_and_only_where_it_names_no_one(
         tmp_path / "every-mark", 1, "D12",
         datetime_separators={"(withheld)": ROWS},
     )
-    # ...and a pool of offsets standing alone loads (S13 as amended).
-    loaded = _loaded_with(
-        tmp_path / "alone", 1,
+    # ...and a pool of offsets standing alone passes S13 as amended, but
+    # not D3: 400 values over 400 different spellings at a line of two is
+    # every offset held by one row in every reading (plan P4-D356, the
+    # final fix of follow-up B), where the producer names the commonest.
+    _refused_by(
+        tmp_path / "alone", 1, "D3",
         utc_offsets={"(withheld)": ROWS},
         datetimes_read_at="utc",
         zulu_case={},
     )
-    assert loaded.columns[0].name == "value"
 
 
 def _built_at(tmp_path: pathlib.Path, floor: int) -> "dict[str, object]":
