@@ -10647,9 +10647,10 @@ def _grid_step_of_sign(
     """The sign fallback of G5.5 on a column written at one width (landing 2b.1).
 
     The nearest point of the grid on the band's own side of zero that no
-    other stratum holds: `-0.01`, then `-0.02`, and so on, at two places,
-    never past the published end on that side; the first step where every
-    one within reach is held.
+    other stratum holds and that is no stand-in number the column does
+    not keep (``kept``, plan P4-D357 A): `-0.01`, then `-0.02`, and so
+    on, at two places, never past the published end on that side; the
+    first step where every one within reach is held or such a stand-in.
 
     WHY NOT `-1.0` HERE (integration repair). On a grid the rank a
     stratum draws is written as its grid value, and a negative stratum
@@ -10697,9 +10698,10 @@ def _whole_inside(
     window of G12.2 already owes. Where that one is another stratum's
     already -- which happens exactly where the ladder is FLAT, so the
     commonest value of a column and its published `min` are the same
-    number -- the walk steps one unit at a time inside the stratum's own
-    share of the ladder, and takes the first whole number no other
-    stratum holds (review item P2-C4-F3). A value inside the stratum's
+    number -- or a stand-in number the column does not keep (``kept``,
+    plan P4-D357 A), the walk steps one unit at a time inside the
+    stratum's own share of the ladder, and takes the first whole number
+    that is neither (review item P2-C4-F3). A value inside the stratum's
     own share costs the rung window nothing at all: G5.6 already bounds
     a rank by the width of the stratum covering it.
 
@@ -11204,10 +11206,13 @@ def _apart_inside(
     figure is written `1.2`, so its candidates are `1.1` and `1.3`.
     This docstring said "from the value" until review round 2 of the
     integer-grid landing, which is the wrong anchor. A candidate is refused where its
-    text is already written, where it leaves the stratum's own share of
-    the ladder, where it leaves the published ends, or where it would
-    cross into another sign band -- the counts of negative, zero and
-    positive cells are published facts and no repair may move one.
+    text is already written or does not read back as itself, where it is
+    a stand-in number the column does not keep (``kept``, plan P4-D357
+    A), where its kind, whole or not, is not the one ``whole`` names,
+    where it leaves the stratum's own share of the ladder, where it
+    leaves the published ends, or where it would cross into another sign
+    band -- the counts of negative, zero and positive cells are published
+    facts and no repair may move one.
 
     None where no candidate inside `_GRID_REACH` steps survives the
     refusals, which leaves the twin exactly as it was. That is NOT the
@@ -11423,9 +11428,11 @@ def _twice_written(
     1. THE FILL, WHERE THE GRID HAS NO SPARE POINT. Let `P` be the points
        of the grid from the published `min` to the published `max`, both
        ends on the grid, less every point strictly inside a published
-       `empty_edges` pair. Where `P` holds exactly the published count of
-       numbers, the strata take `P` in ascending order, `S` whole points
-       of it each taken by two neighbouring strata. Of every such
+       `empty_edges` pair and every stand-in number the column does not
+       keep (`NumericFacts.kept_stand_ins`, plan P4-D357 A). Where `P`
+       holds exactly the published count of numbers, the strata take `P`
+       in ascending order, `S` whole points of it each taken by two
+       neighbouring strata. Of every such
        assignment keeping each stratum inside its sign band, the one taken
        moves the strata the fewest grid units in all, each stratum
        counted from its own grid text, and of those the one taking the
@@ -11470,6 +11477,9 @@ def _twice_filled(
     figures: int,
 ) -> "list[float] | None":
     """Step 1 of `_twice_written`: the grid with no spare point, filled.
+
+    Its points are that rule's `P`, which holds no stand-in number the
+    column does not keep (`NumericFacts.kept_stand_ins`, plan P4-D357 A).
 
     Guarantees: returns the filled values in stratum order, or None where
     the step does not apply. Determinism: a fixed function. Raises
@@ -11837,9 +11847,10 @@ def _band_step(
 
     ``step`` is +1 upward or -1 downward. The points are the grid points
     from ``lowest`` to ``highest`` grid units that lie strictly inside no
-    published `empty_edges` pair; a pair is stepped over in one move, to
-    the first unit past its far edge, so the walk is bounded by the
-    points and not by the width of the pair. Where ``whole`` is True only
+    published `empty_edges` pair and are no stand-in number the column
+    does not keep (``kept``, plan P4-D357 A); a pair is stepped over in
+    one move, to the first unit past its far edge, so the walk is bounded
+    by the points and not by the width of the pair. Where ``whole`` is True only
     whole points count, and where it is False only points that are not
     whole; None counts both. None past the band's end, or at a point no
     double holds (its grid text does not read back as itself), where the
@@ -12171,9 +12182,11 @@ def _saturated_integers(
 
     So where the column is on a written grid, it has exactly as many
     strata as the different values it publishes, both published ends are
-    points of that grid and the points from one to the other number
-    exactly that count, the strata are given those points in their own
-    ascending order, each once. That is the only assignment meeting both
+    points of that grid and the points from one to the other, less every
+    stand-in number the column does not keep
+    (`NumericFacts.kept_stand_ins`, plan P4-D357 A), number exactly that
+    count, the strata are given those points in their own ascending
+    order, each once. That is the only assignment meeting both
     obligations, and it keeps both ends, every sign band and the order
     the ladder put the strata in; where any stratum's band would not hold
     its point the rule stands aside and the walk runs as before.
@@ -12579,6 +12592,12 @@ def _apart_on_the_representable_grid(
                   below the upper end
         out[i]  = values[i] raised to the number above out[i - 1] and
                   then held at high[i]
+
+    A stratum between the two ends whose `out[i]` is a stand-in number
+    the column does not keep (``kept``) takes the next representable
+    number above it where that is no more than `high[i]`, and otherwise
+    the one below it where that is above `out[i - 1]` and no less than
+    `low[i]` (plan P4-D357 A).
 
     `out` is strictly ascending and lies inside the two ends, and where
     the interval is saturated `low[i]` and `high[i]` are one number and
@@ -14804,10 +14823,11 @@ def _cleared_value(
 
     Guarantees: accepts the two ends, the bins barred as empty, the run
     the value is in, the value, its sign band, the spellings and values
-    already spoken for, whether the column is whole and the widths its
-    cells may be written at; returns a value inside the occupied bin
-    nearer to it, written in the same form and reading as nothing
-    already there -- or None where there is no such value.
+    already spoken for, whether the column is whole, the widths its
+    cells may be written at and the stand-ins it keeps (``kept``);
+    returns a value inside the occupied bin nearer to it, written in the
+    same form, reading as nothing already there and no stand-in number
+    the column does not keep -- or None where there is no such value.
     Determinism: the answer depends only on those inputs. Raises
     nothing. No I/O of any kind.
     """

@@ -1780,6 +1780,64 @@ def test_the_draw_and_the_grid_walk_say_their_kept_stand_ins_are_every_one_the_b
     assert wrong == [], "\n".join(wrong)
 
 
+# Every function asking `_is_a_stand_in`, by the words opening the docstring
+# sentence that defines its answer, its points or its refusals -- and the
+# rule whose points `_twice_filled` fills.
+_STAND_IN_REFUSALS = (
+    ("_free_grid_points", "A unit whose text does not survive"),
+    ("_drawn_off_the_stand_ins", "Guarantees:"),
+    ("_grid_step_of_sign", "The nearest point of the grid"),
+    ("_whole_inside", "Where that one is another stratum's already"),
+    ("_apart_inside", "A candidate is refused where"),
+    ("_twice_written", "Let `P` be the points of the grid"),
+    ("_twice_filled", "Its points are that rule's `P`"),
+    ("_band_step", "The points are the grid points"),
+    ("_saturated_integers", "So where the column is on a written grid"),
+    ("_band_points", "Returns the points in ascending order"),
+    ("_apart_on_the_representable_grid", "A stratum between the two ends whose"),
+    ("_figured_inside", "Guarantees:"),
+    ("_cleared_value", "Guarantees:"),
+)
+
+
+def test_every_value_pass_asking_for_a_stand_in_says_it_refuses_one_the_column_does_not_keep() -> None:
+    """The docstring sentence defining each such pass's answer, points or refusals names that refusal.
+
+    The skeptic of 34353bd: `_apart_inside` listed four refusals without
+    it -- from 9998, with 9997 and 9998 written, it answers 9996 where
+    those four leave 9999 -- and `_whole_inside`, `_grid_step_of_sign` and
+    `_band_step` defined their answers without it, as four more passes
+    did, so a reader concluded the walks write 9999 or -999, which they
+    have not done since plan P4-D357 A. Every function asking
+    `_is_a_stand_in` is listed.
+    """
+    import ast
+
+    from synthtwin import generation
+
+    tree = ast.parse(pathlib.Path(generation.__file__).read_text(encoding="utf-8"))
+    asking = [
+        node.name
+        for node in ast.walk(tree)
+        if isinstance(node, ast.FunctionDef)
+        and any(
+            isinstance(call, ast.Call) and isinstance(call.func, ast.Name) and call.func.id == "_is_a_stand_in"
+            for call in ast.walk(node)
+        )
+    ]
+    assert {"_apart_inside", "_whole_inside", "_grid_step_of_sign", "_band_step"} <= set(asking), (
+        f"premise: the four the skeptic named ask for a stand-in ({sorted(asking)})"
+    )
+    listed = [name for name, _opening in _STAND_IN_REFUSALS]
+    assert [name for name in asking if name not in listed] == [], "a pass asking for a stand-in is not listed here"
+    wrong: "list[str]" = []
+    for name, opening in _STAND_IN_REFUSALS:
+        sentence = _docstring_sentence(getattr(generation, name), opening)
+        if "stand-in" not in sentence or "does not keep" not in sentence:
+            wrong += [f"{name}: {sentence!r}"]
+    assert wrong == [], "\n".join(wrong)
+
+
 # The comments saying why a side its own pair pinned publishes neither
 # distance, each found by the lines of code it sits on...
 _PINNED_PAIR_COMMENTS = (
