@@ -454,21 +454,27 @@ def test_the_installer_puts_both_hooks_in_place_and_a_rerun_stays_quiet(
     assert {name: (hooks / name).read_bytes() for name in installed} == installed
 
 
-def test_a_different_commit_msg_hook_is_never_overwritten(tmp_path: Path) -> None:
-    _git(tmp_path, "init", "-q")
-    hooks = tmp_path / ".git" / "hooks"
-    hooks.mkdir(parents=True, exist_ok=True)
-    foreign = "#!/bin/sh\necho organizational message policy\n"
-    (hooks / "commit-msg").write_text(foreign, encoding="utf-8", newline="\n")
-    result = _install(tmp_path)
-    assert result.returncode == 1, result.stdout + result.stderr
-    assert (hooks / "commit-msg").read_text(encoding="utf-8") == foreign
-    assert "a different commit-msg hook already exists" in result.stderr
-    assert "Refusing to overwrite" in result.stderr
-    assert not (hooks / "commit-msg.synthtwin.tmp").exists()
-    # The refusal is of that one hook: the other is installed all the same.
-    assert "Installed the advisory pre-push hook" in result.stdout
-    assert b"check_messages.py --pre-push" in (hooks / "pre-push").read_bytes()
+def test_a_different_hook_is_never_overwritten_and_the_other_still_goes_in(
+    tmp_path: Path,
+) -> None:
+    runs = {"pre-push": b"--pre-push", "commit-msg": b"--message-file"}
+    for foreign_name, other in (("commit-msg", "pre-push"), ("pre-push", "commit-msg")):
+        repo = tmp_path / foreign_name
+        repo.mkdir()
+        _git(repo, "init", "-q")
+        hooks = repo / ".git" / "hooks"
+        hooks.mkdir(parents=True, exist_ok=True)
+        foreign = "#!/bin/sh\necho an organizational policy\n"
+        (hooks / foreign_name).write_text(foreign, encoding="utf-8", newline="\n")
+        result = _install(repo)
+        assert result.returncode == 1, result.stdout + result.stderr
+        assert (hooks / foreign_name).read_text(encoding="utf-8") == foreign
+        assert f"a different {foreign_name} hook already exists" in result.stderr
+        assert "Refusing to overwrite" in result.stderr
+        assert not (hooks / f"{foreign_name}.synthtwin.tmp").exists()
+        # The refusal is of that one hook: the other goes in all the same.
+        assert f"Installed the advisory {other} hook" in result.stdout
+        assert runs[other] in (hooks / other).read_bytes()
 
 
 # The pre-push hook this installer wrote from 2bf3907 to 82b1f1a, byte for

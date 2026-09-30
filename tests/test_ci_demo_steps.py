@@ -189,10 +189,12 @@ def test_the_decontam_jobs_message_scan_reads_the_pull_request_and_refuses_a_cut
 ) -> None:
     """MESSAGES on a history built here, its scanner pointed at that history.
 
-    A canary before the grandfather and one on the base branch are not the
-    pull request's; its own is reported and never printed; a push reads
-    the whole branch; a history without the grandfather and a shallow
-    clone both fail instead of passing.
+    The feature branch starts from the base branch's tip, as a branch
+    usually does, so the base's own canary is in the feature's history:
+    it and one before the grandfather are not the pull request's, and
+    are not reported on it; the pull request's own is reported and never
+    printed; a push reads the whole branch; a history without the
+    grandfather and a shallow clone both fail instead of passing.
     """
     repo = tmp_path / "history"
     repo.mkdir()
@@ -201,7 +203,7 @@ def test_the_decontam_jobs_message_scan_reads_the_pull_request_and_refuses_a_cut
     _commit(repo, f"published before the guard {CANARY}")
     grandfather = _commit(repo, "the grandfather")
     base = _commit(repo, f"on the base branch {CANARY}")
-    _git(repo, "checkout", "-q", "-b", "feature", grandfather)
+    _git(repo, "checkout", "-q", "-b", "feature", base)
     clean = _commit(repo, "a clean feature commit")
     dirty = _commit(repo, f"a feature commit {CANARY}")
 
@@ -226,7 +228,7 @@ def test_the_decontam_jobs_message_scan_reads_the_pull_request_and_refuses_a_cut
     assert CANARY not in printed
     status, printed = _messages(monkeypatch, EVENT_NAME="push")
     assert status == 1, printed
-    assert re.findall(r"^MATCH commit ([0-9a-f]{40}) ", printed, re.M) == [dirty]
+    assert re.findall(r"^MATCH commit ([0-9a-f]{40}) ", printed, re.M) == [dirty, base]
     _git(repo, "checkout", "-q", base)
     status, printed = _messages(monkeypatch, EVENT_NAME="push")
     assert re.findall(r"^MATCH commit ([0-9a-f]{40}) ", printed, re.M) == [base]
@@ -242,3 +244,18 @@ def test_the_decontam_jobs_message_scan_reads_the_pull_request_and_refuses_a_cut
         monkeypatch, EVENT_NAME="pull_request", HEAD_SHA=dirty, BASE_SHA=base
     )
     assert status == 2 and "SHALLOW" in printed, printed
+
+
+def test_the_decontam_job_fetches_the_history_its_message_scan_reads() -> None:
+    """MESSAGES reads every commit past the grandfather, so its checkout takes them all.
+
+    Without `fetch-depth: 0` the job would still go red -- the scan
+    refuses a shallow clone aloud -- and this names the cause first.
+    """
+    workflow = WORKFLOW.read_text(encoding="utf-8")
+    job = workflow[workflow.index("\n  decontam:\n") : workflow.index("\n  offline-static:\n")]
+    assert "<<'MESSAGES'" in job, "the MESSAGES block has left the decontam job"
+    steps = re.split(r"\n      - ", job)
+    checkouts = [step for step in steps if step.startswith("uses: actions/checkout@")]
+    assert len(checkouts) == 1, checkouts
+    assert re.search(r"^ +fetch-depth: 0$", checkouts[0], re.M), checkouts[0]
