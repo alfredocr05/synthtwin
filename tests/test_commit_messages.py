@@ -567,14 +567,14 @@ def test_the_installed_hooks_stop_a_canary_at_the_commit_and_at_the_push(
         "offline_scan/scan_imports.py",
         "provenance/check_provenance.py",
     ):
-        (tools / stand_in).write_text("raise SystemExit(0)\n", encoding="utf-8")
+        (tools / stand_in).write_text("raise SystemExit(0)\n", encoding="utf-8", newline="\n")
     copy = tools / "hooks" / "check_messages.py"
     shutil.copyfile(HOOKS / "check_messages.py", copy)
     python = work / ".venv" / "bin" / "python"
     python.parent.mkdir(parents=True)
-    python.write_text(f'#!/bin/sh\nexec {shlex.quote(sys.executable)} "$@"\n', encoding="utf-8")
+    python.write_text(f'#!/bin/sh\nexec {shlex.quote(sys.executable)} "$@"\n', encoding="utf-8", newline="\n")
     python.chmod(0o755)
-    (work / ".gitignore").write_text(".venv/\n", encoding="utf-8")
+    (work / ".gitignore").write_text(".venv/\n", encoding="utf-8", newline="\n")
     _git(work, "add", "-A")
     _commit(work, "the tools the hooks run")
     _commit(work, f"published before the guard {CANARY}")
@@ -582,7 +582,7 @@ def test_the_installed_hooks_stop_a_canary_at_the_commit_and_at_the_push(
     stated = f'GRANDFATHER = "{scanner.GRANDFATHER}"'
     text = copy.read_text(encoding="utf-8")
     assert text.count(stated) == 1
-    copy.write_text(text.replace(stated, f'GRANDFATHER = "{grandfather}"'), encoding="utf-8")
+    copy.write_text(text.replace(stated, f'GRANDFATHER = "{grandfather}"'), encoding="utf-8", newline="\n")
     _git(work, "add", "-A")
     _commit(work, "the scanner names this history's grandfather")
     remote = tmp_path / "remote.git"
