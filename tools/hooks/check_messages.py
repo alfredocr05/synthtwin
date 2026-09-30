@@ -6,7 +6,7 @@ places no denied vocabulary may appear, and nothing scanned one:
 `tools/decontamination/check.py` reads the tracked tree, and a message
 is not in the tree. The public history of `phase-5-relationships` held
 104 matches in 87 of its 646 messages at d93fd43, and the 134 commits
-pushed at 82b1f1a on 2026-09-29 brought 14 more in 13. By the owner's
+pushed at 82b1f1a on 2026-09-30 brought 14 more in 13. By the owner's
 decision of 2026-09-30 those stay as published and no NEW message may
 carry one (plan P4-D362).
 
@@ -65,7 +65,7 @@ MANIFEST = DECONTAMINATION / "manifest.txt"
 MAGIC = DECONTAMINATION / "magic.txt"
 
 # THE GRANDFATHER LINE. The tip of `phase-5-relationships` as pushed on
-# 2026-09-29, before any commit message was scanned. The 118 matches in
+# 2026-09-30 (committed 2026-09-29), before any commit message was scanned. The 118 matches in
 # 100 of the 780 messages it reaches were published before this guard
 # existed, and by the owner's decision of 2026-09-30 they are not
 # rewritten; mode (c) reads every commit this one does not reach, and

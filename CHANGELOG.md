@@ -6,6 +6,14 @@ exists).
 
 ## [Unreleased]
 
+### Every new commit message is scanned (2026-09-30)
+
+**The owner's "Push now, add a guard"** (plan P4-D362). `tools/hooks/check_messages.py`
+reads commit messages with the attested scanner's own functions: a commit-msg hook, a
+pre-push hook, and CI's decontam job over every commit past the grandfather `82b1f1a`.
+The 134 commits pushed there carry 14 matches in 13 messages; they, and the 104 before
+them, stay as published.
+
 ### A band of marks over every present cell says "some" (2026-09-29)
 
 **Decision (i) applied where every cell is grouped** (plan P4-D356, the

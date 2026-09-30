@@ -21046,3 +21046,11 @@ and P4-D332 extends it as that.
 **Measured.** Over 56 date columns 43 censuses publish where 2af1f03 published 44, the one lost being the review's attack. Over 269 schedules, clinics, weekend markets and business logs, 165 publish where 2af1f03 published 166; the band at its widest, the line past the least, published 162, losing markets with 30 to 40 Wednesday rows. All 5,621 W0 tables its certificates lay out pass the verifier, and the brute force finds no withheld set confining a day; describing costs 6 per cent more solves, loading nothing. Of the review's 505 heaped twins, ten lost a day to the census; none does now.
 
 **Calls and costs.** The narrowest band is the orchestrator's engineering under the floor rule, reversible, not an owner ruling. For the owner: weekly Wednesday sessions whose residue passes `CONFIGURATION_CAP` are withheld whatever they hold (a cap of 40,000 publishes them, at 66 s to describe); and no band at all publishes all 166 but lets "withheld" say a half of the week holds one to ten rows.
+
+## Decision P4-D362 — every NEW commit message is scanned (2026-09-30)
+
+**The owner's answer, verbatim.** Asked first "What is the risk of this?", then told that the words were already public many times over and that rewriting would change about 100 commit ids the ledger cites: "Push now, add a guard" (2026-09-30). The question the owner answered said three matches; the guard's own count of the 134 commits pushed at `82b1f1a` is 14 matches in 13 of them, the same three words, each already public before them (104 matches in 87 of the 646 messages up to `d93fd43`).
+
+**The rule.** `tools/hooks/check_messages.py` applies the attested scanner's own manifest, decoder, tokenizer and n-gram match to commit messages, line by line and value-silent: a message file (the commit-msg hook), a revision range, or every commit the grandfather commit `82b1f1a` does not reach (CI's decontam job and the pre-push hook). A shallow clone, or a history without the grandfather, is refused, never passed. `tools/decontamination/` is not touched: the attestation still verifies.
+
+**The orchestrator's calls, reversible.** The file sits outside the attested tree; the grandfather is the tip as pushed; the messages it reaches are not rewritten; a checkout older than the scanner is told, not stopped.
