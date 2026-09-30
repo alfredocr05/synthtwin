@@ -585,7 +585,8 @@ def _publishes_under(answer: str, role: str, floor: int) -> str:
             f"neither end: each end is published only where at least "
             f"{floor} rows share the value, and otherwise the "
             f"description carries a boundary, how many rows lie beyond "
-            f"it and how far beyond they lie"
+            f"it and, where its tail rule lets it, how far beyond they "
+            f"lie"
         )
     if answer == ANSWER_JOINED or (
         answer == ANSWER_KEEP and role == taxonomy.ROLE_JOINED

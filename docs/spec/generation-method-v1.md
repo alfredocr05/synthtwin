@@ -2183,24 +2183,31 @@ boundary rung itself where that percent falls between the two tails.
    clearing walk, the grouping run of plan P4-D185 and G5.5's grid step
    of sign each pass a stand-in over as a point another stratum holds,
    the column-wide fill counts the points of its grid less the three,
-   and a sign band whose grid holds one is left to the walk (G6.5a). Only a value
-   the description publishes -- an end, a rung, a listed value, the mode,
-   or a stand-in its `sentinel_verdicts` publish as `kept_as_a_number`
-   -- is written on one. On 9000 to 9998 beside 10000 and 10001 G6.5a's
-   walk took `9999`, a gap between two values the column holds, in one
-   cell at seeds 0, 4 and 9. **A STAND-IN THE COLUMN KEEPS IS ITS OWN
-   VALUE** (the second review of plan P4-D357 A): G5.4's draw, G6.6's
-   width walk and every pass above refuse only a stand-in no published
-   decision names kept (`NumericFacts.kept_stand_ins`), so one held
-   below the floor is still refused. Refusing a kept one took the heap
-   away: 1,200 whole numbers around `-1000` and `10000` holding `-999`
-   44 times and `9999` 47 times, both published kept, came back holding
-   neither at seeds 0, 4 and 9, and nothing was missed. The derived end
-   and the staircase rows are the reader's ladder (G5.1a), which the
-   checker's windows and the producer's cost rule read from the numeric
-   block alone, so they refuse the three whatever the decisions say;
-   each moves at most one row a side, and over ten heap shapes at floors
-   11 and 36 neither met a kept stand-in. **A STEP THAT BINARY64 CANNOT TELL FROM THE
+   and a sign band whose grid holds one is left to the walk (G6.5a). On
+   9000 to 9998 beside 10000 and 10001 G6.5a's walk took `9999`, a gap
+   between two values the column holds, in one cell at seeds 0, 4 and
+   9. **A STAND-IN THE COLUMN HOLDS IS ITS OWN VALUE** (plan P4-D357
+   A): G5.4's draw, G6.6's width walk and every value pass above refuse
+   only a stand-in the block does not publish as held -- by a
+   `kept_as_a_number` decision, as its mode, as a tail block's end, or
+   as two adjacent rungs of its value, which type-7 reads only off rows
+   holding it (`NumericFacts.kept_stand_ins`, on every numeric block of
+   every role) -- so one no published fact shows held is refused, and
+   the reader's own end and rows keep the narrower set below. Refusing a held one took the heap away with nothing
+   missed: `-999` 44 times beside `9999` 47 times, both published kept,
+   came back in no cell; so did a compound column's numeric half
+   holding `-999` in 49 rows and a joined position holding `9999` in
+   41, each published only as the block's mode, and a half holding
+   `-999` in 46 and a position holding `9999` in 46, published only as
+   p41 to p43 and p86 to p88. The derived end and the staircase rows are the
+   reader's ladder (G5.1a), which the checker's windows and the
+   producer's cost rule read from the numeric block alone, so they keep
+   only a stand-in the block itself publishes as held -- its mode, a
+   tail block's end, two adjacent equal rungs, never a decision -- and
+   step off the rest: a count column holding `9999` in 12 rows, its
+   mode, beside `9000` to `9990` and `10000` six times, ended its high
+   tail at `9998` and the twin held the heap there at seeds 0, 4 and 9
+   until they kept it. **A STEP THAT BINARY64 CANNOT TELL FROM THE
    STAND-IN IS NO STEP**: on a grid finer than the format near it -- 14
    figures after the point beside `-999` -- one grid step reads back as
    the stand-in, so the end, the row and G5.4's stratum each take the

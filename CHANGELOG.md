@@ -6,6 +6,61 @@ exists).
 
 ## [Unreleased]
 
+### A band of marks over every present cell says "some" (2026-09-29)
+
+**Decision (i) applied where every cell is grouped** (plan P4-D356, the
+owner's ruling P4-D347). 210 cells grouped thirty to each of seven marks
+at a floor of 31 pinned their pool, and the table writing all 210 with a
+comma reads every one either way, where "some but not all" is false, so
+the census stayed silent beside "fewer than 31". Where the census of
+marks is the comma alone within a band's reach and counts every present
+cell, the comma warning now says NF87, "some", and the census names the
+comma.
+
+### The unpadded field widths are asked too (2026-09-29)
+
+**The skeptic of follow-up B's final fix** (plan P4-D356). `123` and
+`4567` on ten rows each beside 5,880 `5.5` and a hundred `9999.5`
+published `field_widths {"(withheld)": 20}`: two plain spellings on two
+widths under eleven, ten each. A field-width pool's unpadded part is now
+asked of its own spellings and placed values, and counted at the
+commonest unpadded width every placed value stands at where it may not
+stand; the loader asks it (P6c). Tests now hold the room clause alone on
+a census of marks, and the loader's answer where a walk stops short.
+
+### A lone pool is asked of every value a reader can count (2026-09-29)
+
+**The final fix of follow-up B** (plan P4-D356). The producer asks a pool
+of marks, notations or forms of the own rows and spellings of every value
+a reader can place -- the mode, each value of a tail, each value a body
+rung reads: the finer rungs count 1234 on twenty rows and a listed tail
+with the rungs -50 on nineteen, and each had pinned a pool while only the
+mode and each tail taken whole were asked. Two values may share a convention in a
+reading, so a pool of repeated values no reader pins stands. The loader
+places the values the rungs, a listed tail and the mode count. The
+decimals' widths, the padded widths and the offsets are asked of their
+own spellings too, and a pool they pin is counted at one width every
+cell can be written at, or under the commonest offset. A band of forms
+is a form every value can wear, and its widths are those of the table
+writing every cell in it. A band under the comma keeps the comma warning
+and drops its number (P4-D347 applied).
+
+### The review of follow-up A, finished (2026-09-29)
+
+**A stand-in a block publishes as held is written, in every role** (plan
+P4-D357 A). A compound column's numeric half and a joined column's
+positions publish no decision about `-999` or `9999`, so a heap of 49
+rows published only as the half's mode came back in no cell. Every
+numeric block now keeps the stand-ins its decisions, its mode or a tail
+block's end publish, in the oracle too, and one no block names is still
+refused. **No sentence on a withheld pair says more than the pair
+fixes**: the report's line on every withheld distance said the pair
+would give "the tail's own cells back" where it fixes only the
+outermost value or a count; and the report's line on a withheld rung,
+its account of what it checks, the twin's report, the summary page and
+the measurement answer's promise named a tail's distances as published
+beside a tail publishing neither.
+
 ### The weekday census's third review, repaired (2026-09-28)
 
 **Being told a census is withheld says nothing a count may not** (plan
@@ -51,45 +106,6 @@ column's decisions publish as kept: those heaps (44 to 196 rows) had
 vanished from every twin and are written again. A sign band whose grid
 holds a refused stand-in is left to the walk instead of filled without
 it, which had moved a heap several units and missed two rungs.
-
-### A band of marks over every present cell says "some" (2026-09-29)
-
-**Decision (i) applied where every cell is grouped** (plan P4-D356, the
-owner's ruling P4-D347). 210 cells grouped thirty to each of seven marks
-at a floor of 31 pinned their pool, and the table writing all 210 with a
-comma reads every one either way, where "some but not all" is false, so
-the census stayed silent beside "fewer than 31". Where the census of
-marks is the comma alone within a band's reach and counts every present
-cell, the comma warning now says NF87, "some", and the census names the
-comma.
-
-### The unpadded field widths are asked too (2026-09-29)
-
-**The skeptic of follow-up B's final fix** (plan P4-D356). `123` and
-`4567` on ten rows each beside 5,880 `5.5` and a hundred `9999.5`
-published `field_widths {"(withheld)": 20}`: two plain spellings on two
-widths under eleven, ten each. A field-width pool's unpadded part is now
-asked of its own spellings and placed values, and counted at the
-commonest unpadded width every placed value stands at where it may not
-stand; the loader asks it (P6c). Tests now hold the room clause alone on
-a census of marks, and the loader's answer where a walk stops short.
-
-### A lone pool is asked of every value a reader can count (2026-09-29)
-
-**The final fix of follow-up B** (plan P4-D356). The producer asks a pool
-of marks, notations or forms of the own rows and spellings of every value
-a reader can place -- the mode, each value of a tail, each value a body
-rung reads: the finer rungs count 1234 on twenty rows and a listed tail
-with the rungs -50 on nineteen, and each had pinned a pool while only the
-mode and each tail taken whole were asked. Two values may share a convention in a
-reading, so a pool of repeated values no reader pins stands. The loader
-places the values the rungs, a listed tail and the mode count. The
-decimals' widths, the padded widths and the offsets are asked of their
-own spellings too, and a pool they pin is counted at one width every
-cell can be written at, or under the commonest offset. A band of forms
-is a form every value can wear, and its widths are those of the table
-writing every cell in it. A band under the comma keeps the comma warning
-and drops its number (P4-D347 applied).
 
 ### A lone pool stands only where no reader of the whole block pins it (2026-09-28)
 

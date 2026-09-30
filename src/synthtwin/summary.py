@@ -167,8 +167,9 @@ def _numeric_lines(column: "dict[str, object]", floor: int) -> "list[str]":
     tail that NAMES its values, one that publishes its shape, and one
     that publishes neither distance -- and says why, in the words of
     the block's own remark (`_withheld_because`, plan P4-D353): its own
-    pair would give its cells back, or the other tail's is withheld, or
-    the check did not finish, or this format cannot hold the pair. One
+    pair would give back an outer cell or how many hold one value, or the
+    other tail's is withheld, or the check did not finish, or this format
+    cannot hold the pair. One
     sentence for all three said "not published" over a
     block that printed two of the values below. A published END counts
     as naming one too: at least a tail's own number of rows hold it, and
@@ -1994,10 +1995,10 @@ def _disclosure_lines(document: dict[str, object]) -> list[str]:
             "  Real values from inside each column's range, and the shape",
             "  of its two ends. An end is published as itself only where",
             f"  at least {floor} rows share it; otherwise what stands there",
-            "  is a boundary, how many rows lie beyond it and how far",
-            "  beyond they lie. Where a bounded scale's tail holds few",
-            "  shared values, the description names which values those",
-            "  are:",
+            "  is a boundary, how many rows lie beyond it and, where its",
+            "  tail rule lets it, how far beyond they lie. Where a bounded",
+            "  scale's tail holds few shared values, the description names",
+            "  which values those are:",
             f"    {_listed(with_ranges)}",
             "",
         ]

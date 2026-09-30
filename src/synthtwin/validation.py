@@ -668,10 +668,11 @@ _NOT_CHECKABLE_MODE = (
 # vacuity V3.4 refuses by name.
 _WITHHELD_BY_THE_TAIL_RULE = (
     "the description withholds this rung by its tail rule: the rung "
-    "would read one of the rows beyond the tail's boundary, and those "
-    "rows are described by the tail's shape -- how many there are and "
-    "how far they lie from the boundary -- and never one by one "
-    "(contract TL1, generation method G5.3b)"
+    "would read one of the rows beyond the tail's boundary, and the "
+    "description says of those rows how many there are and, where its "
+    "tail rule lets it, how far they lie from the boundary or which "
+    "values they hold -- never one by one (contract TL1, TL5 and TL6, "
+    "generation method G5.3b)"
 )
 _NOT_CHECKABLE_BIN_GROUPS = (
     "the description records how many of the real column's numbers fall "
@@ -853,8 +854,9 @@ _NOT_CHECKABLE_TAIL_KEY_WITHHELD = (
     "the description's tail publishes nothing under this key: the values "
     "a tail holds are published only where it holds few of them or where "
     "its distances would settle a count below the floor, and the two "
-    "distances are withheld where they would give the tail's own cells "
-    "back, where the check of that could not finish, where beside the "
+    "distances are withheld where they would give back an outer cell or "
+    "how many outer cells hold one value, where the check of that could "
+    "not finish, where beside the "
     "column's exact mean and spread they could give the other tail's "
     "withheld distances back by subtraction, or where this file format "
     "cannot hold them -- unless withholding them would cost the column its "
@@ -1280,24 +1282,15 @@ _NOT_SHOWN_IT_IS_A_SUBFLOOR_GROUP_OF_THE_FILE = (
     "      what this file holds here is NOT SHOWN, and this is why: the",
     "      cells counted are the file's own cells beyond the boundary",
     "      this description publishes, and there are fewer of them than",
-    "      the smallest group size -- so their count, and how far they",
-    "      lie from that boundary, would between them give back the",
-    "      values of a group smaller than any description publishes a",
-    "      number for. The comparison above was made in full and the",
+    "      the smallest group size -- so their count would be a number",
+    "      for a group smaller than any description publishes one for,",
+    "      and how far they lie from that boundary a measurement of that",
+    "      same group. The comparison above was made in full and the",
     "      verdict is its outcome; only the measured side is kept back.",
     "      To read what stands there, describe the file itself with",
     "      `synthtwin profile` and read the tail that description",
     "      publishes -- which draws its own boundary and holds its own",
     "      floor.",
-)
-
-# The gate's own sentence for that group, for the verdict that goes quiet
-# rather than the one that keeps a number back.
-_GATE_SUBFLOOR_TAIL = (
-    "the file holds fewer cells beyond this description's boundary than "
-    "the smallest group size, so a count of them and their distances "
-    "would give those cells back, and neither the measurement nor its "
-    "outcome is shown with a number"
 )
 
 _NOT_SHOWN_IT_IS_A_COUNT_OF_THE_FILE = (
@@ -16048,7 +16041,6 @@ def _tail_side_checks(
                 _shown_count(tail.rows),
                 len(beyond) == tail.rows,
                 _NOT_SHOWN_IT_IS_A_SUBFLOOR_GROUP_OF_THE_FILE,
-                _GATE_SUBFLOOR_TAIL,
             )
             if held_back
             else _exact(
@@ -16095,7 +16087,6 @@ def _tail_side_checks(
                             total, len(beyond), tail.mean_distance, False
                         ),
                         _NOT_SHOWN_IT_IS_A_SUBFLOOR_GROUP_OF_THE_FILE,
-                        _GATE_SUBFLOOR_TAIL,
                     )
                     if held_back
                     else _exact(

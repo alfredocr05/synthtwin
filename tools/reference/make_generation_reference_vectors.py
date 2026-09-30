@@ -1585,7 +1585,7 @@ def withheld_steps(column, side, boundary, end, low):
             if crowded:
                 at = withheld_step(last, 1, low, figures)
         past = (at < end) if low else (at > end)
-        placed += [row_off_the_stand_ins(end if past else at, end, low, figures)]
+        placed += [row_off_the_stand_ins(end if past else at, end, low, figures, held_by_the_block(column))]
     return placed
 
 
@@ -1630,20 +1630,21 @@ def tail_steps(column, side, boundary, shape, end, low):
             if crowded:
                 value = withheld_step(last, 1, low, figures)
         past = (value < end) if low else (value > end)
-        placed += [row_off_the_stand_ins(end if past else value, end, low, figures)]
+        placed += [row_off_the_stand_ins(end if past else value, end, low, figures, held_by_the_block(column))]
     return placed
 
 
-def row_off_the_stand_ins(value, end, low, figures):
+def row_off_the_stand_ins(value, end, low, figures, kept=()):
     """G5.3b step 5's rows (plan P4-D353): no staircase row is a stand-in number.
 
     Written from the method's own words: a row the staircase puts on one
     of the three numbers the profiler reads as a stand-in for "no value"
     takes the next grid point OUTWARD, the step a row landing on the row
     before it takes, and never past the tail's end; a row on the end is
-    the end's and is left. The comparison is exact.
+    the end's and is left, and so is one on a stand-in the block
+    publishes as held (``kept``). The comparison is exact.
     """
-    if value == end or fractions.Fraction(value) not in NUMERIC_SENTINELS:
+    if value == end or value in kept or fractions.Fraction(value) not in NUMERIC_SENTINELS:
         return value
     moved = step_apart(value, low, figures)
     past = (moved < end) if low else (moved > end)
@@ -1675,23 +1676,61 @@ def is_stand_in(value, kept=()):
 
 
 def kept_stand_ins(column):
-    """The stand-in numbers a column's decisions publish as ``kept_as_a_number``.
+    """The stand-in numbers a numeric block publishes as held.
 
     Written from the method's words (G5.3b step 5, plan P4-D357 A): a
-    stand-in the description says the column holds, and in how many rows,
-    is the table's own value, and no value pass refuses it.
+    stand-in its decisions publish as ``kept_as_a_number``, its mode, a
+    tail block's published end, or two adjacent published rungs of its
+    value is the table's own value, and no value pass refuses it.
+    ``column`` is the block as the numeric rules see it -- a joined
+    position's or an affixed core's view included.
     """
-    kept = []
+    named = []
     for verdict in column.get("sentinel_verdicts", []):
         if verdict.get("verdict") != "kept_as_a_number":
             continue
         try:
-            number = float(verdict.get("candidate"))
+            named += [float(verdict.get("candidate"))]
         except (TypeError, ValueError):
             continue
-        if math.isfinite(number) and fractions.Fraction(number) in NUMERIC_SENTINELS:
-            kept += [number]
+    named += [column.get("mode")]
+    if "tails" in column:
+        named += [column["percentiles"]["min"], column["percentiles"]["max"]]
+    rungs = []
+    for percent in range(101):
+        name = _NAME_AT_PERCENT.get(percent)
+        if name is not None:
+            rung = column.get("percentiles", {}).get(name)
+        else:
+            rung = column.get("percentiles_between", {}).get(f"p{percent:02d}")
+        rungs += [rung[FLOAT64] if isinstance(rung, dict) else rung]
+    for percent in range(100):
+        if rungs[percent] is not None and rungs[percent] == rungs[percent + 1]:
+            named += [rungs[percent]]
+    kept = []
+    for number in named:
+        if isinstance(number, dict):
+            number = number[FLOAT64]
+        if (
+            isinstance(number, (int, float))
+            and not isinstance(number, bool)
+            and math.isfinite(number)
+            and fractions.Fraction(number) in NUMERIC_SENTINELS
+            and float(number) not in kept
+        ):
+            kept += [float(number)]
     return tuple(kept)
+
+
+def held_by_the_block(column):
+    """The stand-ins a numeric block itself publishes as held (G5.3b step 5).
+
+    `kept_stand_ins` without the column's decisions: the reader's ladder
+    -- its derived ends and staircase rows -- is read off the numeric
+    block alone, so its mode, a tail block's end and two adjacent equal
+    rungs, and never a decision.
+    """
+    return kept_stand_ins(dict(column, sentinel_verdicts=[]))
 
 
 def derived_end(column, side, boundary, shape, low, published):
@@ -1744,7 +1783,7 @@ def fitted_end(column, side, boundary, shape, low):
         step = tail_unit(figures)
         placed = tail_grid(placed + step if low else placed - step, figures)
     held = held_end(placed, low, boundary, column, figures, mean)
-    return off_the_stand_ins(held, low, boundary, figures)
+    return off_the_stand_ins(held, low, boundary, figures, held_by_the_block(column))
 
 
 def withheld_end(column, side, boundary, _shape, low):
@@ -1756,21 +1795,22 @@ def withheld_end(column, side, boundary, _shape, low):
     narrow = tail_figures(column)
     stepped = withheld_step(boundary, side["rows"], low, narrow)
     held = end_sign_held(stepped, low, boundary, column, narrow)
-    return off_the_stand_ins(held, low, boundary, narrow)
+    return off_the_stand_ins(held, low, boundary, narrow, held_by_the_block(column))
 
 
-def off_the_stand_ins(value, low, boundary, figures):
-    """G5.3b step 5 (plan P4-D353): a derived end is never a stand-in number.
+def off_the_stand_ins(value, low, boundary, figures, kept=()):
+    """G5.3b step 5 (plan P4-D353): a derived end is never a stand-in number the block does not hold.
 
     Written from the method's own words: whichever of step 2a or step 4
     gave the end, where it equals one of the three numbers the profiler
-    reads as a stand-in for "no value" it moves ONE step of step 4's grid
-    toward the boundary -- the next number this format holds where no
-    width is named, which is `withheld_step` taken the other way -- and
-    never past the boundary. The comparison is exact
-    (`NUMERIC_SENTINELS` are fractions).
+    reads as a stand-in for "no value", and not one the block publishes
+    as held (``kept``), it moves ONE step of step 4's grid toward the
+    boundary -- the next number this format holds where no width is
+    named, which is `withheld_step` taken the other way -- and never past
+    the boundary. The comparison is exact (`NUMERIC_SENTINELS` are
+    fractions).
     """
-    if value == boundary or fractions.Fraction(value) not in NUMERIC_SENTINELS:
+    if value == boundary or value in kept or fractions.Fraction(value) not in NUMERIC_SENTINELS:
         return value
     inside = step_apart(value, not low, figures)
     return value if (inside > boundary if low else inside < boundary) else inside

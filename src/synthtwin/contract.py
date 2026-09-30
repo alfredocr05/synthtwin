@@ -2604,9 +2604,10 @@ class TailSide:
     ascending order and no count.
 
     BOTH DISTANCES ARE NULL ON A TAIL THAT MAY PUBLISH NEITHER (plan
-    P4-D349, contract TL5): the pair would give the tail's own cells back
-    exactly and the listing rule does not let it name its values, so it
-    publishes its boundary percent and its rows and stops. Either both
+    P4-D349, contract TL5): the pair would give back an outer cell or how
+    many outer cells hold one value, and the listing rule does not let it
+    name its values, so it publishes its boundary percent and its rows
+    and stops. Either both
     are numbers or neither is -- a mean alone is still half the
     back-solve -- which is the shape the date and clock role has carried
     since stage 3.
@@ -2744,42 +2745,76 @@ class NumericFacts:
     tail_rule: bool = False
     tails: "NumericTailFacts | None" = None
     bin_groups: "tuple[tuple[int, int, int], ...]" = ()
-    # THE STAND-IN NUMBERS THE COLUMN HOLDS AS NUMBERS (plan P4-D357 A,
-    # the second review of follow-up A). Not a key: read off the
-    # column's own `sentinel_verdicts` -- a `kept_as_a_number` decision
-    # names its candidate and its rows -- by `_kept_stand_ins`, and
-    # empty on every block no such decision reaches. The construction
-    # refuses `-9999`, `-999` and `9999` as points no row of the table
-    # holds; one the table holds, and says so, is a value like any
-    # other.
+    # THE STAND-IN NUMBERS THIS BLOCK HOLDS AS NUMBERS (plan P4-D357 A).
+    # Not a key: read by `_kept_stand_ins` off what is published -- a
+    # `kept_as_a_number` decision, the mode, a tail block's end, two
+    # adjacent rungs of one value -- on every numeric block of every
+    # role. The construction refuses `-9999`, `-999` and `9999` as
+    # points no row of the table holds; one the description says the
+    # table holds is a value like any other.
     kept_stand_ins: "tuple[float, ...]" = ()
 
 
 def _kept_stand_ins(
     verdicts: "tuple[SentinelVerdict, ...]",
+    block: "NumericFacts",
 ) -> "tuple[float, ...]":
-    """The stand-in numbers a column's decisions publish as kept numbers.
+    """The stand-in numbers a numeric block publishes as held.
 
-    A decision is published only where at least the floor of rows held
-    its candidate, so a stand-in held by fewer is not here and the
-    construction goes on refusing it. A placeholder day is no number and
-    names nothing here.
+    Four published facts say a column holds one: a `kept_as_a_number`
+    decision; the block's `mode` (Q18); on a tail block, a published end
+    (TL1); and two adjacent published rungs of its value, which type-7
+    reads only off rows holding it (to within binary64's rounding). A
+    compound column's numeric half and a joined column's positions
+    publish no decision, so on 410841a a half heaping `-999` in 49 rows,
+    published as its mode, came back in no cell, and on db49437 one
+    heaping it in 46, published as p41 to p43, came back in none. A
+    stand-in no published fact shows held is refused. A placeholder day
+    is no number and names nothing here.
 
-    Guarantees: accepts a block's checked decisions; returns the
-    candidates published `kept_as_a_number` that are one of
-    `parsing.NUMERIC_SENTINELS`, in that tuple's order. Determinism: a
-    function of the decisions. Raises nothing. No I/O of any kind.
+    Guarantees: accepts the column's checked decisions and one of its
+    numeric blocks; returns those of `parsing.NUMERIC_SENTINELS` the
+    four name, in that tuple's order. Determinism: a function of the
+    two. Raises nothing. No I/O of any kind.
     """
-    kept: "list[float]" = []
-    for sentinel in parsing.NUMERIC_SENTINELS:
-        for verdict in verdicts:
-            if verdict.verdict == VERDICT_MISSING:
-                continue
+    named: "list[float]" = []
+    for verdict in verdicts:
+        if verdict.verdict != VERDICT_MISSING:
             number = parsing.parse_number(verdict.candidate)
-            if number is not None and number == sentinel:
-                kept += [sentinel]
-                break
-    return tuple(kept)
+            if number is not None:
+                named += [number]
+    if block.mode is not None:
+        named += [block.mode]
+    if block.tail_rule:
+        for end in (block.percentiles.minimum, block.percentiles.maximum):
+            if end is not None:
+                named += [end]
+    rungs: "dict[int, float | None]" = {}
+    for index in range(len(LADDER_PERCENTS)):
+        rungs[LADDER_PERCENTS[index]] = block.percentiles.rungs[index]
+    for index in range(len(FINER_LADDER_KEYS)):
+        rungs[int(FINER_LADDER_KEYS[index][1:])] = block.percentiles_between[index]
+    for percent in range(100):
+        one = rungs[percent]
+        if one is not None and one == rungs[percent + 1]:
+            named += [one]
+    return tuple(one for one in parsing.NUMERIC_SENTINELS if one in named)
+
+
+def _holding_stand_ins(
+    block: "NumericFacts", verdicts: "tuple[SentinelVerdict, ...]"
+) -> "NumericFacts":
+    """One numeric block, holding the stand-ins it keeps (`_kept_stand_ins`).
+
+    Every role carrying a numeric block reads each of them so: the
+    column's decisions are about its cells -- an affixed column's cores,
+    which every wrapper's block reads -- and each block adds its own mode,
+    ends and equal rungs (plan P4-D357 A). Determinism: a function of the two. Raises
+    nothing. No I/O of any kind.
+    """
+    return dataclasses.replace(
+        block, kept_stand_ins=_kept_stand_ins(verdicts, block)
+    )
 
 
 @dataclasses.dataclass(frozen=True)
@@ -7204,11 +7239,9 @@ def _facts(
             n_out_of_range,
             n_contradictory,
         )
-        # ...HOLDING EVERY STAND-IN ITS DECISIONS PUBLISH AS KEPT (plan
-        # P4-D357 A): the construction may write those.
-        numeric = dataclasses.replace(
-            numeric, kept_stand_ins=_kept_stand_ins(verdicts)
-        )
+        # EVERY NUMERIC BLOCK OF EVERY ROLE HOLDS THE STAND-INS IT KEEPS
+        # (plan P4-D357 A): the construction may write those.
+        numeric = _holding_stand_ins(numeric, verdicts)
         if role == ROLE_CONTINUOUS:
             return numeric
         return dataclasses.replace(
@@ -7220,10 +7253,14 @@ def _facts(
     if role == ROLE_CLOCK:
         return _clock_facts(mapping, where, frame, n_present)
     if role == ROLE_JOINED:
-        return _joined_facts(mapping, where, frame, n_present)
+        joined = _joined_facts(mapping, where, frame, n_present)
+        parts: "list[NumericFacts]" = []
+        for part in joined.parts:
+            parts += [_holding_stand_ins(part, verdicts)]
+        return dataclasses.replace(joined, parts=tuple(parts))
     if role == ROLE_COMPOUND:
         named = mapping["name"] if "name" in mapping else None
-        return _compound_facts(
+        compound = _compound_facts(
             mapping,
             where,
             frame,
@@ -7232,26 +7269,21 @@ def _facts(
             n_folded,
             isinstance(named, str) and named in frame.declared_commas,
         )
+        return dataclasses.replace(
+            compound, numbers=_holding_stand_ins(compound.numbers, verdicts)
+        )
     if role == ROLE_AFFIXED:
         affixed = _affixed_facts(mapping, where, frame, n_present, remarks)
-        # The decisions of an affixed column are about its CORES, which
-        # every wrapper's block reads (plan P4-D357 A).
-        kept = _kept_stand_ins(verdicts)
-        if not kept:
-            return affixed
         wrappers: "list[AffixWrapper]" = []
         for one in affixed.affix_variants:
             wrappers += [
                 dataclasses.replace(
-                    one,
-                    numbers=dataclasses.replace(
-                        one.numbers, kept_stand_ins=kept
-                    ),
+                    one, numbers=_holding_stand_ins(one.numbers, verdicts)
                 )
             ]
         return dataclasses.replace(
             affixed,
-            numbers=dataclasses.replace(affixed.numbers, kept_stand_ins=kept),
+            numbers=_holding_stand_ins(affixed.numbers, verdicts),
             affix_variants=tuple(wrappers),
         )
     if role == ROLE_IDENTIFIER:
@@ -9816,8 +9848,9 @@ def _tail_object(
     distance or not at all; beside its values the mean distance may be
     null. WITHOUT them it publishes both distances or NEITHER (plan
     P4-D349): a mean alone would still be half the back-solve, so the
-    tail that may not hand its cells back says how many rows lie beyond
-    its boundary and stops there. Every distance is
+    tail whose pair would give back an outer cell or how many outer
+    cells hold one value says how many rows lie beyond its boundary and
+    stops there. Every distance is
     at least one unit, because each outer cell lies at least one unit
     beyond the boundary, and the root-mean-square distance is never below
     the mean (with a relative allowance of one part in 2**50, for the two
@@ -11421,6 +11454,11 @@ class TailReader:
     and not a reach of nought, because a FITTED tail whose reach rounds
     to nought is a real answer -- every row at the boundary -- and this
     is the absence of an answer.
+
+    ``kept`` are the stand-ins the numeric block itself publishes as
+    held (`_kept_stand_ins` without the column's decisions, so the
+    checker's windows and the producer's cost rule read this ladder off
+    the block alone); no row steps off one (G5.3b step 5).
     """
 
     low: bool
@@ -11437,6 +11475,7 @@ class TailReader:
     counts: "tuple[int, ...]"
     steps: "tuple[float, ...]" = ()
     withheld: bool = False
+    kept: "tuple[float, ...]" = ()
 
 
 class ShapedLadder(tuple[float, ...]):
@@ -11957,8 +11996,9 @@ def _tail_steps(side: TailReader, figures: int) -> "tuple[float, ...]":
 
     AND NO ROW STANDS ON A STAND-IN NUMBER (method G5.3b step 5, plan
     P4-D353 part 4): a row the staircase puts on one of
-    `parsing.NUMERIC_SENTINELS` takes the next grid point outward, as a
-    row landing on the row before it does (`_row_off_the_stand_ins`).
+    `parsing.NUMERIC_SENTINELS` the block does not publish as held takes
+    the next grid point outward, as a row landing on the row before it
+    does (`_row_off_the_stand_ins`).
     """
     if side.listed or side.rows <= 0:
         return ()
@@ -12026,14 +12066,16 @@ def _row_off_the_stand_ins(value: float, side: TailReader, figures: int) -> floa
     a stand-in for "no value". So a row landing on one takes the next
     grid point OUTWARD -- the step a row landing on the row before it
     takes -- and never past the tail's own end, which step 5 has already
-    held off them. A row ON the end is the end's business and is left.
+    held off them. A row ON the end is the end's business and is left,
+    and so is one on a stand-in the block publishes as held
+    (`TailReader.kept`).
 
     Guarantees: accepts a row as the staircase placed it, its tail and
     the tail grid; returns the row, or the next grid point outward held
     at the end where the row is a stand-in number. Determinism: a
     function of the three. Raises nothing. No I/O of any kind.
     """
-    if value == side.end:
+    if value == side.end or value in side.kept:
         return value
     for sentinel in parsing.NUMERIC_SENTINELS:
         if value == sentinel:
@@ -12356,9 +12398,10 @@ def _derived_end(
     that passed the bound, then held to the sign counts
     (`_signed_end`). A flat tail's end is its boundary. A derived end --
     the withheld one or the fitted one -- that lands on a number the
-    profiler reads as a stand-in for "no value" moves one grid step
-    toward its boundary (`_off_the_stand_ins`, G5.3b step 5); a
-    published end and a listed value are never moved.
+    profiler reads as a stand-in for "no value", and one the block does
+    not publish as held, moves one grid step toward its boundary
+    (`_off_the_stand_ins`, G5.3b step 5); a published end and a listed
+    value are never moved.
 
     THE BOUND IS TAKEN AS `rms` TIMES A FRACTION, which is the same
     number and is the only form this format can hold at both ends of
@@ -12373,6 +12416,7 @@ def _derived_end(
     if side.values:
         return side.values[0] if low else side.values[len(side.values) - 1]
     figures = _tail_figures(facts)
+    kept = _kept_stand_ins((), facts)
     mean = side.mean_distance
     root = side.rms_distance
     if mean is None or root is None:
@@ -12387,6 +12431,7 @@ def _derived_end(
             low,
             boundary,
             figures,
+            kept,
         )
     if shape[0]:
         return boundary
@@ -12491,12 +12536,16 @@ def _derived_end(
     # published 15.5 and `validate` MISSED `ladder.p50` and
     # `moments.mean`.
     if abs(spelled - boundary) < mean:
-        return _off_the_stand_ins(held, low, boundary, figures)
-    return _off_the_stand_ins(spelled, low, boundary, figures)
+        return _off_the_stand_ins(held, low, boundary, figures, kept)
+    return _off_the_stand_ins(spelled, low, boundary, figures, kept)
 
 
 def _off_the_stand_ins(
-    value: float, low: bool, boundary: float, figures: int
+    value: float,
+    low: bool,
+    boundary: float,
+    figures: int,
+    kept: "tuple[float, ...]" = (),
 ) -> float:
     """A derived end moved off the numbers the profiler reads as absent.
 
@@ -12515,15 +12564,20 @@ def _off_the_stand_ins(
     for a made-up spelling (`generation._reads_as_its_class`); a derived
     end is refused them the same way, and moved ONE grid step toward its
     boundary, never past it. A published end and a listed value are the
-    table's own and never reach this function.
+    table's own and never reach this function, and neither is moved off a
+    stand-in the block publishes as held (``kept``, `TailReader.kept`): a
+    count column holding `9999` in 12 rows, its mode, beside `9000` to
+    `9990` and `10000` six times, ended its high tail at `9998` and the
+    twin held the heap there at seeds 0, 4 and 9 (d93fd43 held it at
+    `9999`).
 
-    Guarantees: accepts a derived end, which side it is, its boundary and
-    the tail grid; returns the end, or the end one step inside -- one
-    binary64 can tell from it (`_step_apart`) -- where it is a stand-in
-    number. Determinism: a function of the four. Raises nothing. No I/O
-    of any kind.
+    Guarantees: accepts a derived end, which side it is, its boundary,
+    the tail grid and the block's held stand-ins; returns the end, or the
+    end one step inside -- one binary64 can tell from it (`_step_apart`)
+    -- where it is a stand-in number not held. Determinism: a function
+    of the five. Raises nothing. No I/O of any kind.
     """
-    if value == boundary:
+    if value == boundary or value in kept:
         return value
     for sentinel in parsing.NUMERIC_SENTINELS:
         if value == sentinel:
@@ -13019,6 +13073,7 @@ def tail_ladder(facts: NumericFacts) -> "ShapedLadder | None":
             listed=listed,
             counts=counts,
             withheld=withheld,
+            kept=_kept_stand_ins((), facts),
         )
         # ...and each row of an unlisted tail on its own grid point
         # (G5.3b's grid staircase), which needs the end this reader
