@@ -1902,14 +1902,15 @@ contract:
    widening it to arbitrary strings would be exactly the hole that lets
    a source-derived value into a sentence and be rebuilt successfully.
 
-**The census.** The table holds 83 forms and 105 argument positions.
+**The census.** The table holds 84 forms and 105 argument positions.
 Of those, 78 are whole numbers, 5 are package words, 17 are nested
 forms, and 5 are bound affix strings. No position is a string of any
 other kind. The weekday census (landing 3b.1, plan P4-D355) added the
 eleven forms NF68 to NF78 and seven whole-number positions, each the
 census line, and its review retired three of the forms with one of
 those positions (plan P4-D359); plan P4-D357 A added the
-eight forms NF79 to NF86 and no position.
+eight forms NF79 to NF86 and no position, and plan P4-D356 the form NF87
+and no position.
 
 **Thirteen of the seventeen nested positions carry a whole number
 instead, and which of the two they carry is decided by the floor.**
@@ -1919,7 +1920,8 @@ block beside it carries that count. Each of them holds the count's own
 digits where the count is nought or reaches the smallest group size,
 `said_fewer_than_the_line` (NF60) where it is below it, and
 `said_some_but_not_all` (NF61) where it reaches the line but leaves a
-group below it against the population C6-143 names beside it. A
+group below it against the population C6-143 names beside it -- or, at
+NF44 argument 1, NF61 or `said_some` (NF87) as NF44 states. A
 consumer reading these positions therefore accepts either class there,
 which is why the census counts them as nested: a reader who admitted
 only whole numbers would refuse a document this producer writes at any
@@ -1949,7 +1951,7 @@ class over a committed battery, so it is a number a reader can run.
 
 So every argument position of every form is bound to WHAT IT IS, and
 the table below is closed over all 105 of them exactly as the form table
-is closed over the 83 forms. A position nobody bound is a number a
+is closed over the 84 forms. A position nobody bound is a number a
 sentence may print that no rule governs, and a producer that adds one
 is a producer this contract does not describe. The bindings are these:
 
@@ -3109,10 +3111,12 @@ number this format reads. Carried on `count`, `continuous`,
 `affixed_number` (over the cores) and `free_text`, wherever either
 count is not zero. **Where `thousands_marks` is the comma alone over no
 more cells than seven marks hold under the census line, argument 1 is
-NF61 wherever it is one or more and less than the present cells** (plan
-P4-D356, the owner's ruling P4-D347 applied): a census of marks counted
-under the comma because its pool would be pinned, and the table writing
-every counted cell with a comma, then say the same.
+NF61 wherever it is one or more and that count is less than the present
+cells, and NF87 wherever it is one or more and that count is every
+present cell** (plan P4-D356, the owner's ruling P4-D347 applied): a
+census of marks counted under the comma because its pool would be
+pinned, and the table writing every counted cell with a comma, then say
+the same.
 
 **It renders two sentences, one per situation.** Where argument 2 is
 zero:
@@ -3508,7 +3512,7 @@ names:
 
 | id | statement |
 |---|---|
-| NG14 | the form is one of the 83 in section 4.5.1 |
+| NG14 | the form is one of the 84 in section 4.5.1 |
 | NG15 | the argument count equals that form's arity |
 | NG16 | every argument is of one of C6-119's four classes |
 | NG17 | re-rendering the form with those arguments writes the leaf's text character for character |
@@ -3820,6 +3824,16 @@ squares, and both pages said the pair gave its values back one by one.
 **NF86. `remark_nearly_every_value_is_different` — the code-shaped text remark where some values repeat** — arity 0.
 
 > nearly every value in this column is different, some are shared with another row, and none of the forms synthtwin can read fits them. synthtwin did NOT assume they are record numbers: it cannot tell from the values alone whether these are record numbers or measurements written in a form it does not read yet, and a wrong guess would throw away the whole distribution. Nothing from this column is published either way -- no value of it, and no distribution. If these ARE record numbers, run the command again with --identifier NAME, where NAME is this column's name, and the profile will say so. If they are measurements written with a currency sign, a per-cent sign, a unit such as mg, or a clock time, write them as plain numbers -- one column for the number, and the unit in the column name -- and their distribution will be described. Do not use --identifier on a measurement: it withholds the column entirely
+
+**NF87. `said_some` — the fragment that says only that a count is not nought** — arity 0 (plan P4-D356).
+
+> some
+
+It stands where NF61 stands, at NF44 argument 1, where NF44 says: its
+census of marks counts every present cell, so the table writing each of
+them with a comma reads every present cell either way and NF61's "not
+all" is false there. It is accepted at any floored position, on NF61's
+terms, and capitalised where it starts a sentence.
 
 **"EVERY VALUE IS DIFFERENT" ONLY WHERE IT IS** (plan P4-D357 A, review
 item 6 of follow-up A). The producer writes NF32 or NF34 -- in its first
@@ -12087,7 +12101,7 @@ month-first parsed.
 | NG11 | on `remark_affixed_numbers_may_be_codes`: argument 3 equals the named block's `n_affixed` |
 | NG12 | argument 1 is character-for-character that block's `affix_prefix` and argument 2 its `affix_suffix`, AT THOSE POSITIONS, not merely as members of the pair |
 | NG13 | on `remark_a_label_is_a_built_in_stand_in`: argument 1 is 1, 2 or 3 |
-| NG14 | for every form: one of the 83 the note grammar enumerates |
+| NG14 | for every form: one of the 84 the note grammar enumerates |
 | NG15 | the argument count equals that form's arity |
 | NG16 | every argument is of one of the four argument classes |
 | NG17 | re-rendering the form with those arguments writes the leaf's text character for character |
@@ -13276,7 +13290,7 @@ this document, and the battery the plan requires turns red on it.
 | nothing-class blocks (`numeric_unrepresentable`, `identifier`, `free_text`) | lengths, word statistics, digit and code-alphabet counts, the whole-number test, the repetition multiset, on `numeric_unrepresentable` the whole-number and sign counts, on `free_text` the census of WRITTEN FORMS its cells wore (`shape_forms`), and on `identifier` the census of LAYOUTS (`layout_forms`, 7.12) and, by the owner's ruling of 2026-09-17, the literal PREFIX every cell of the column or of one named layout opens with (`layout_prefixes`, 7.12a, row 22) | no value, no spelling, no fragment of one but the prefix of row 22 — the form census included, whose every key is built from `%`, `@` and thirteen named marks -- characters no cell that has a form may contain, so a key can carry no letter and no figure of any cell; the multiplicity map publishes SIZES of unnamed groups under no floor, the form census under the floor with a `(withheld)` pool |
 | `empty` columns nobody declared | the absent SPELLINGS their cells wore and the two absence counts, exactly as any column that is not nothing-publishing | floor-governed |
 | `settings` | the rules the run applied, the floor's own value, how many values each declaration named, and which of THIS package's published words were among them | carries no cell, no column and no count of the table; a person's own spelling never enters |
-| `source.header_evidence`, `publication_notes[].note`, `detection_evidence`, `remarks` | sentences of the 83 closed forms: 105 argument positions, of which 78 are whole numbers, 5 package words, 17 nested forms and 5 bound affix strings | the whole numbers are counts the block beside them already publishes, EXCEPT the positions priced at rows 16 and 18 |
+| `source.header_evidence`, `publication_notes[].note`, `detection_evidence`, `remarks` | sentences of the 84 closed forms: 105 argument positions, of which 78 are whole numbers, 5 package words, 17 nested forms and 5 bound affix strings | the whole numbers are counts the block beside them already publishes, EXCEPT the positions priced at rows 16 and 18 |
 | `relationships` | nothing: eight nulls | — |
 
 ### 12.3 The rows, each priced
@@ -14330,7 +14344,7 @@ width at least ONE (`1`, `2`, `10`), a cell written as a whole number
 writing at least one figure (C6-29c). `(withheld)` is again the only
 non-numeric key permitted.
 
-### 14.8 The note grammar — 83 forms
+### 14.8 The note grammar — 84 forms
 
 Defined in 4.5.1, which is the authority on every rendering and every
 argument. 105 argument positions: 78 whole numbers, 5 package words, 17
@@ -14434,6 +14448,7 @@ nested forms, 5 bound affix strings.
 | NG84 | `remark_high_tail_withheld_a_count` | 0 |
 | NG85 | `remark_nearly_every_number_is_different` | 0 |
 | NG86 | `remark_nearly_every_value_is_different` | 0 |
+| NG87 | `said_some` | 0 |
 
 **The package-word vocabulary — 26**, the whole of the second argument
 class (4.5.1): the twenty `format` members of 14.6, plus `day-first`

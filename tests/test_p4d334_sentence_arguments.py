@@ -128,6 +128,7 @@ def _positions(
         if nested and argument[0] not in (
             taxonomy.SAID_FEWER_THAN_THE_LINE,
             taxonomy.SAID_SOME_BUT_NOT_ALL,
+            taxonomy.SAID_SOME,
         ):
             found += _positions(argument[0], argument[1], line)
             continue
@@ -162,7 +163,7 @@ def _unaccounted(
             kind = binding[0]
             if kind == taxonomy.BIND_FLOORED:
                 if isinstance(argument, tuple):
-                    if argument == (taxonomy.SAID_SOME_BUT_NOT_ALL, ()):
+                    if argument in ((taxonomy.SAID_SOME_BUT_NOT_ALL, ()), (taxonomy.SAID_SOME, ())):
                         # NOTHING TO CHECK, and that is the point of
                         # it: a form with no argument carries no count,
                         # so there is no line it could contradict and

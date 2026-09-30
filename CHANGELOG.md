@@ -52,6 +52,17 @@ vanished from every twin and are written again. A sign band whose grid
 holds a refused stand-in is left to the walk instead of filled without
 it, which had moved a heap several units and missed two rungs.
 
+### A band of marks over every present cell says "some" (2026-09-29)
+
+**Decision (i) applied where every cell is grouped** (plan P4-D356, the
+owner's ruling P4-D347). 210 cells grouped thirty to each of seven marks
+at a floor of 31 pinned their pool, and the table writing all 210 with a
+comma reads every one either way, where "some but not all" is false, so
+the census stayed silent beside "fewer than 31". Where the census of
+marks is the comma alone within a band's reach and counts every present
+cell, the comma warning now says NF87, "some", and the census names the
+comma.
+
 ### The unpadded field widths are asked too (2026-09-29)
 
 **The skeptic of follow-up B's final fix** (plan P4-D356). `123` and

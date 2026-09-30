@@ -773,6 +773,12 @@ SAID_FEWER_THAN_THE_LINE = "said_fewer_than_the_line"
 # is nought for that reason: an argument here would be a count, and a
 # count is what it exists not to say.
 SAID_SOME_BUT_NOT_ALL = "said_some_but_not_all"
+# THE FIFTH, NF87 (the final fix of follow-up B, its skeptic's second
+# finding). NF61 says the group is not the whole column, and a census of
+# marks counted under the comma over EVERY present cell stands beside the
+# table writing each of them with a comma, where "not all" is false. This
+# says only that the group is not empty, which both tables make true.
+SAID_SOME = "said_some"
 
 # The remarks: what the person running the tool is told about a column.
 REMARK_OUT_OF_RANGE = "remark_values_out_of_range"
@@ -1024,6 +1030,8 @@ NOTE_ARITY: "dict[str, int]" = {
     # population beside it. Nought arguments is the whole of the
     # control: a form with no argument can carry no count.
     SAID_SOME_BUT_NOT_ALL: 0,
+    # NO ARGUMENT EITHER (contract NF87), for NF61's reason.
+    SAID_SOME: 0,
     REMARK_OUT_OF_RANGE: 1,
     # How many cells wore the pair, and the pair itself.
     EVIDENCE_CLOCK: 3,
@@ -1829,6 +1837,8 @@ def _count_said_opening(arguments: "tuple[object, ...]", place: int) -> str:
         raise TypeError(UNAUTHORIZED_NOTE_ARGUMENT)
     if argument[0] == SAID_SOME_BUT_NOT_ALL:
         return _some_but_not_all(True)
+    if argument[0] == SAID_SOME:
+        return "Some"
     return _fewer_than_the_line(_whole(parts, 0), True)
 
 
@@ -2118,6 +2128,10 @@ def rendered(form: str, arguments: "tuple[object, ...]") -> str:
         # the document at all, which is why it may stand where even
         # NF60 may not.
         return _some_but_not_all(False)
+    if form == SAID_SOME:
+        # THE WHOLE OF THIS FRAGMENT'S WORDS (contract NF87): the group
+        # is not empty, and nothing more.
+        return "some"
     if form == SAID_READ_AS_DATES:
         if not _count_is_named(arguments, 0):
             return "none of them reads as a date in any form synthtwin knows"
@@ -11217,20 +11231,21 @@ def _comma_remarks(cells: _Cells) -> "list[Note]":
     if not unsettled and not settled:
         return []
     said: object = unsettled
-    if _comma_count_unsaid(
+    fragment = _comma_count_unsaid(
         unsettled,
         _thousands_marks(cells),
         _census_floor(cells.settings),
         len(cells.present),
-    ):
-        said = (SAID_SOME_BUT_NOT_ALL, ())
+    )
+    if fragment:
+        said = (fragment, ())
     return [note(REMARK_GROUP_COMMAS, (said, settled))]
 
 
 def _comma_count_unsaid(
     unsettled: int, marks: "dict[str, int]", line: int, present: int
-) -> bool:
-    """Whether the comma warning says its either-way count without the number (plan P4-D347 applied).
+) -> str:
+    """The fragment the comma warning says for its either-way count, or "" for the number (plan P4-D347 applied).
 
     A BAND OF MARKS THE WARNING'S NUMBER WOULD CONTRADICT (the final fix
     of follow-up B, the orchestrator's decision (i)). Ten `1,234` and ten
@@ -11244,18 +11259,28 @@ def _comma_count_unsaid(
     keeps its sentence and says `said_some_but_not_all` in place of the
     count: the owner's ruling of 2026-09-23 (P4-D347), a warning whose
     count would hand back a withheld cell keeps the warning and drops the
-    number. Not where every present cell is one, which "not all" would
-    misstate.
+    number. WHERE THE CENSUS COUNTS EVERY PRESENT CELL it says
+    `said_some` (NF87) instead: 210 cells grouped thirty to each of seven
+    marks at a floor of 31 pinned their pool, and the table writing all
+    210 with a comma reads every present cell either way, where "not all"
+    is false -- so NF61 could not be said of both and the census went
+    silent. Which fragment is keyed on the published census and the
+    present cells alone, so the two tables print the same one.
 
     Guarantees: accepts the either-way count, the published census of
-    marks, the census line and the present cells; returns a bool.
-    Determinism: a fixed function of the four. Raises nothing. No I/O.
+    marks, the census line and the present cells; returns
+    `said_some_but_not_all`, `said_some` or "". Determinism: a fixed
+    function of the four. Raises nothing. No I/O.
     """
-    if unsettled < 1 or unsettled >= present:
-        return False
+    if unsettled < 1:
+        return ""
     if len(marks) != 1 or "," not in marks:
-        return False
-    return marks[","] <= len(parsing.GROUP_MARKS) * (line - 1)
+        return ""
+    if marks[","] > len(parsing.GROUP_MARKS) * (line - 1):
+        return ""
+    if marks[","] < present:
+        return SAID_SOME_BUT_NOT_ALL
+    return SAID_SOME
 
 
 def _comma_said(
@@ -11269,8 +11294,9 @@ def _comma_said(
     if not unsettled and not settled:
         return None
     said: object = unsettled
-    if _comma_count_unsaid(unsettled, marks, line, present):
-        said = (SAID_SOME_BUT_NOT_ALL, ())
+    fragment = _comma_count_unsaid(unsettled, marks, line, present)
+    if fragment:
+        said = (fragment, ())
     return _arguments_at_the_line(REMARK_GROUP_COMMAS, (said, settled), line, present)
 
 

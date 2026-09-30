@@ -25,7 +25,7 @@ import random
 
 import pytest
 
-from synthtwin import contract, parsing
+from synthtwin import contract, parsing, taxonomy
 from tests.test_mixture_reader_bounds import (
     ITEM_TWO,
     LINE,
@@ -558,6 +558,40 @@ def test_a_band_under_the_comma_keeps_the_warning_and_drops_its_number() -> None
     said = [remark for remark in band["remarks"] if "written with a comma" in remark]
     assert said and said == [remark for remark in literal["remarks"] if "written with a comma" in remark]
     assert said[0].startswith("some but not all of this column's values")
+
+
+def _every_cell_grouped() -> "list[str]":
+    """Thirty values on each of the seven marks, every cell of 210 grouped, drawn with `Random(87)`."""
+    draw = random.Random(87)
+    values = draw.sample(range(1000, 60000), 210)
+    cells: "list[str]" = []
+    for place in range(210):
+        mark = parsing.GROUP_MARKS[place % len(parsing.GROUP_MARKS)]
+        cells += ["%d%s%03d" % (values[place] // 1000, mark, values[place] % 1000)]
+    return cells
+
+
+def test_a_band_under_the_comma_over_every_present_cell_says_some() -> None:
+    """210 cells, thirty to each mark, at a floor of 31: counted under the comma, the warning says "some".
+
+    Seven marks under 31 holding 210 are thirty each, so the pool is
+    pinned. The table writing all 210 with a comma reads every present
+    cell either way, where NF61's "not all" is false, so no mark could
+    be worn and the census was silent beside "fewer than 31" at 35898ee,
+    design B's shapes K1 and S1. Where the census counts every present
+    cell the warning says `said_some` (NF87), and both tables print it.
+    Mutation: `taxonomy._comma_count_unsaid` answering "" where the
+    census counts every present cell turns it red.
+    """
+    cells = _every_cell_grouped()
+    band = _block(cells, 31)
+    literal = _block([cell.replace(parsing.thousands_mark(cell), ",") for cell in cells], 31)
+    assert band["thousands_marks"] == literal["thousands_marks"] == {",": 210}
+    said = [remark for remark in band["remarks"] if "written with a comma" in remark]
+    assert said and said == [remark for remark in literal["remarks"] if "written with a comma" in remark]
+    assert said[0].startswith("some of this column's values")
+    assert taxonomy.NOTE_ARITY[taxonomy.SAID_SOME] == 0
+    assert taxonomy.rendered(taxonomy.SAID_SOME, ()) == "some"
 
 
 def test_a_band_that_would_write_the_warning_takes_another_mark() -> None:

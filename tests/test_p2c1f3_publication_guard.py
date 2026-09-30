@@ -608,6 +608,8 @@ def test_every_enumerated_form_writes_and_rewrites_the_same_words() -> None:
             least = len(f"fewer than {parsing.census_floor(1)}")
         if form == taxonomy.SAID_SOME_BUT_NOT_ALL:
             least = len("some but not all")
+        if form == taxonomy.SAID_SOME:
+            least = len("some")
         assert len(f"{written}") >= least, f"{form} writes nothing readable"
 
 
