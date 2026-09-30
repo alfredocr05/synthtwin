@@ -1789,6 +1789,8 @@ _PINNED_PAIR_COMMENTS = (
     ("taxonomy.py", ("if (", "mean is not None", "and root is not None", "and not listed")),
     ("taxonomy.py", ('for side in ("low", "high"):', "if side in causes and (side, causes[side]) in TAIL_WITHHELD_REMARKS")),
     ("taxonomy.py", ("verdict = TAIL_OPEN if few else _tail_verdict(",)),
+    ("profile.py", ('("columns", _EACH, "parts", _EACH, "tails"): _MAYBE_OBJECT,',)),
+    ("profile.py", ('("columns", _EACH, "tails"): _MAYBE_OBJECT,',)),
 )
 # ...and the sentences of the pages that say it, each found by its opening words.
 _PINNED_PAIR_SENTENCES = (
@@ -1797,6 +1799,14 @@ _PINNED_PAIR_SENTENCES = (
     ("docs/spec/profile-contract-v6.md", "A side withheld this way says so in a remark"),
     ("README.md", "**And where even those two numbers"),
     ("SECURITY.md", "**A tail whose two distances would give"),
+)
+# ...and the docstring sentences that say which tail publishes neither, each
+# found by its opening words, with every other reason its role has for it.
+_PINNED_PAIR_DOCSTRINGS = (
+    (contract.TailFacts, "That is the tail whose pair", ("did not finish",)),
+    (contract.TailSide, "BOTH DISTANCES ARE NULL ON A TAIL", ("did not finish", "other tail's pair", "binary64")),
+    (contract._tail_object, "WITHOUT them it publishes both distances or NEITHER", ()),
+    (taxonomy._numeric_answer, "Whether a numeric tail's published pair", ()),
 )
 # ...and the words the stale ones used for every value, which `_CLAIMS`
 # never meets on a page.
@@ -1821,8 +1831,18 @@ def _comment_above(name: str, signature: "tuple[str, ...]") -> str:
 
 def _sentence(path: str, opening: str) -> str:
     """The one sentence of a repository document that opens with ``opening``, its words on one line."""
-    flat = " ".join((pathlib.Path(__file__).resolve().parents[1] / path).read_text(encoding="utf-8").split())
-    assert flat.count(opening) == 1, f"premise: one sentence of {path} opens {opening!r} ({flat.count(opening)})"
+    return _sentence_in((pathlib.Path(__file__).resolve().parents[1] / path).read_text(encoding="utf-8"), opening, path)
+
+
+def _docstring_sentence(owner: object, opening: str) -> str:
+    """The one sentence of a class's or function's docstring that opens with ``opening``, its words on one line."""
+    return _sentence_in(getattr(owner, "__doc__", None) or "", opening, getattr(owner, "__qualname__", str(owner)))
+
+
+def _sentence_in(text: str, opening: str, where: str) -> str:
+    """The one sentence of ``text`` that opens with ``opening``, its words on one line."""
+    flat = " ".join(text.split())
+    assert flat.count(opening) == 1, f"premise: one sentence of {where} opens {opening!r} ({flat.count(opening)})"
     start = flat.index(opening)
     end = flat.find(". ", start)
     return flat[start : len(flat) if end < 0 else end + 1]
@@ -1848,6 +1868,13 @@ def test_every_comment_and_page_on_a_pinned_pair_claims_what_its_printed_sentenc
     gives back names both, and each place names it. The words claiming
     every value are still looked for in a page's whole sentence: read to
     the dash alone, "the pair gives the values back" after it stayed green.
+
+    And the skeptic of that repair: no test read a docstring, and
+    `contract.TailFacts` still said such a date or clock tail gives "its own
+    cells back exactly", where two sets of distances fit its pair on a
+    113-row date column at a smallest group of 30 (`pins_its_end`,
+    `pins_a_count`). A docstring saying which tail publishes neither is read
+    like a comment, and names every other reason its role has.
     """
     import re
 
@@ -1857,9 +1884,19 @@ def test_every_comment_and_page_on_a_pinned_pair_claims_what_its_printed_sentenc
     )
     comments = [(f"{name} above {signature[0]!r}", _comment_above(name, signature)) for name, signature in _PINNED_PAIR_COMMENTS]
     pages = [(f"{path} at {opening!r}", _sentence(path, opening)) for path, opening in _PINNED_PAIR_SENTENCES]
+    docstrings = [
+        (f"{getattr(owner, '__qualname__', owner)} at {opening!r}", _docstring_sentence(owner, opening), reasons)
+        for owner, opening, reasons in _PINNED_PAIR_DOCSTRINGS
+    ]
     said = [(where, text, text) for where, text in comments]
+    said += [(where, text, text) for where, text, _reasons in docstrings]
     said += [(where, whole.split(" -- ")[0], whole) for where, whole in pages]
-    wrong: "list[str]" = []
+    wrong: "list[str]" = [
+        f"{where} leaves out {reason!r}: {text[:160]!r}"
+        for where, text, reasons in docstrings
+        for reason in reasons
+        if reason not in text
+    ]
     for where, text, whole in said:
         claims = [
             {claim for words, claim in _CLAIMS + _STALE_CLAIMS if words in sentence.lower()}
