@@ -1971,6 +1971,53 @@ def test_a_tail_rank_stuck_on_a_missing_quarter_costs_rungs_and_a_boundary(
         } <= missed, f"seed {seed}: {sorted(missed)}"
 
 
+# 115 unpadded day-first dates over 58 days from 22/9/1959 and 65 cells of
+# 8/11/1959 declared missing, at a floor of 36 (column 800101 of the
+# day-first hole battery in `tests/test_p4d361_compared_reaches.py`).
+_WIDER_HOLE_COUNTS = (
+    2, 0, 1, 5, 2, 1, 4, 1, 2, 2, 0, 0, 0, 0, 6, 2, 3, 6, 1, 2, 0, 0, 1, 3,
+    3, 0, 0, 0, 0, 0, 3, 0, 3, 2, 0, 4, 1, 0, 2, 0, 4, 4, 3, 4, 7, 7, 4, 0,
+    7, 4, 0, 1, 2, 4, 1, 0, 0, 1,
+)
+
+
+def test_a_stuck_rank_written_in_another_width_holds_one_day_more(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A recorded limit (plan P4-D358): the stuck rank's cell is a present day.
+
+    A high-tail rank whose stratum is 8/11/1959 alone stands there at
+    seeds 7 and 13. The column publishes no width census, so the twin
+    writes the day padded, `08/11/1959`, which is not the absent spelling:
+    the passes counted that day as absent, the twin holds one day more
+    than published, and exactly the two distinct counts are MISSED. A
+    repair that counts it as present turns this red.
+    """
+    cells: "list[str]" = []
+    for step, count in enumerate(_WIDER_HOLE_COUNTS):
+        day = datetime.date(1959, 9, 22) + datetime.timedelta(days=step)
+        cells += [f"{day.day}/{day.month}/{day.year}"] * count
+    cells += ["8/11/1959"] * 65
+    random.Random(800101).shuffle(cells)
+    described = _described_with_a_missing_day(tmp_path, "wider_hole", cells, 36, "8/11/1959")
+    block = described.document["columns"][0]
+    assert (block["format"], block["n_distinct"], block["date_field_widths"]) == ("day-first-date", 38, {})
+    hole = _day_number("1959-11-08")
+    for seed, (moved, lows, highs, layout, _facts, text) in zip(
+        (7, 13), _settled(described, (7, 13), monkeypatch)
+    ):
+        assert layout.high is not None
+        assert any(
+            moved[rank] == lows[rank] == highs[rank] == hole
+            for rank in range(len(moved) - layout.high.rows, len(moved))
+        ), f"seed {seed}: no high-tail rank's stratum is the missing day"
+        written = [line for line in text.split("\n")[1:] if line]
+        assert "08/11/1959" in written, f"seed {seed}"
+        assert len(set(written) - {"8/11/1959"}) == block["n_distinct"] + 1, f"seed {seed}"
+        missed = set(kpi_shapes.missed(kpi_shapes.measure(described, text, f"wider-{seed}.csv")))
+        assert missed == {"c:distinct.n_distinct", "c:distinct.n_distinct_folded"}, f"seed {seed}: {sorted(missed)}"
+
+
 def test_a_minute_on_a_missing_moment_is_written_absent_and_named(tmp_path: pathlib.Path) -> None:
     """A recorded limit (plan P4-D358): a column counted in minutes names no hole.
 

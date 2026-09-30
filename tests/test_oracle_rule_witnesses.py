@@ -1664,6 +1664,22 @@ ABSENT_ROWS = (
     # A day, days from 1970-01-01: 2019-03-11 is 17897 + 31 + 28 + 10.
     ("iso-date", "date", False, ("2019-03-11",), {17966}),
     ("month-first-date", "date", False, ("3/11/2019",), {17966}),
+    # Every other day member, in its own order and widths (the contract's
+    # format table): a two-figure year at the pivot, a month NAME folded,
+    # and a slashed stamp of a column wholly at midnight.
+    ("day-first-date", "date", False, ("11/3/2019",), {17966}),
+    ("slashed-iso-date", "date", False, ("2019/03/11",), {17966}),
+    ("compact-date", "date", False, ("20190311",), {17966}),
+    ("dotted-day-first-date", "date", False, ("11.03.2019",), {17966}),
+    ("dotted-month-first-date", "date", False, ("03.11.2019",), {17966}),
+    ("two-digit-day-first-date", "date", False, ("11/3/19",), {17966}),
+    ("two-digit-month-first-date", "date", False, ("3/11/19",), {17966}),
+    ("dotted-two-digit-day-first-date", "date", False, ("11.03.19",), {17966}),
+    ("textual-day-first-date", "date", False, ("11 Mar 2019",), {17966}),
+    ("textual-day-first-date", "date", False, ("11-MARCH-2019",), {17966}),
+    ("textual-month-first-date", "date", False, ("March 11, 2019",), {17966}),
+    ("day-first-datetime", "datetime", True, ("11/3/2019 00:00",), {17966}),
+    ("slashed-iso-datetime", "datetime", True, ("2019/03/11 00:00:00",), {17966}),
     # A month, twelve to the year from 1970: 2015-02 is 12 * 45 + 1, and
     # 2016-11 is 12 * 46 + 10.
     ("iso-month", "month", False, ("2015-02", "2016-11"), {541, 562}),
@@ -1680,6 +1696,25 @@ ABSENT_ROWS = (
     ("iso-month", "month", False, ("2015-13", "2015-00", "0000-05", "2015-02-03", "1998-Q1"), set()),
     ("year-quarter", "quarter", False, ("1998-01", "1998-Q5", "1998-Q0"), set()),
     ("month-first-date", "date", False, ("2019-03-11",), set()),
+    # Nor a day the calendar lacks, a year nought, a field at the wrong
+    # width or in figures that are not ASCII, a clock the member does
+    # not write, or another member's spelling.
+    (
+        "iso-date", "date", False,
+        (
+            "2019-02-29", "2019-13-01", "2019-00-10", "0000-00-00", "0000-01-01",
+            "2019-03-11T00:00:00", "2019-3-11", "\uff12\uff10\uff11\uff19-03-11",
+        ),
+        set(),
+    ),
+    ("month-first-date", "date", False, ("2/30/2019", "13/1/2019", "3/11/19"), set()),
+    ("day-first-date", "date", False, ("3/13/2019", "11.03.2019"), set()),
+    ("dotted-day-first-date", "date", False, ("1.3.2019",), set()),
+    ("compact-date", "date", False, ("2019031", "20190230"), set()),
+    ("slashed-iso-date", "date", False, ("2019/3/11",), set()),
+    ("textual-day-first-date", "date", False, ("11 Mar, 2019", "11 Sept 2019", "11 Mar-2019"), set()),
+    ("day-first-datetime", "datetime", True, ("11/3/2019 25:00", "11/3/2019 23:59:60", "11/3/2019"), set()),
+    ("iso-month", "month", False, ("\uff12\uff10\uff11\uff15-02",), set()),
     # One the member does not read is passed over and the next still read:
     # a declared `-` or `#N/A` sorts before every date the run publishes.
     ("iso-date", "date", False, ("-", "2019-03-11"), {17966}),
@@ -1737,6 +1772,25 @@ TAIL_HOLE_ROWS = (
     ("iso-date", "date", "day", ("2019-03-11",), {17966}),
     ("iso-datetime", "datetime", "day", ("2019-03-11T00:00:00",), {17966}),
     ("month-first-date", "date", "day", ("1/18/1992",), {8052}),
+    # The day of any moment the member reads, whatever its clock, a
+    # fraction, a leap second, or an offset it writes; a bare date only
+    # where the member reads one.
+    ("iso-datetime", "datetime", "day", ("2019-03-11T10:30:00",), {17966}),
+    ("iso-datetime", "datetime", "day", ("2019-03-11T23:59:60", "2019-03-12T01:00:00.250z"), {17966, 17967}),
+    ("iso-datetime", "datetime", "day", ("2019-03-11 23:30-05:00", "2019-03-12t08:00+14:00"), {17966, 17967}),
+    (
+        "iso-datetime", "datetime", "day",
+        (
+            "2019-03-11", "2019-03-11T10:30:00+15:00", "2019-03-11T10:30:00+14:30",
+            "2019-03-11T24:00:00", "2019-03-11T10:30:00.",
+        ),
+        set(),
+    ),
+    ("iso-mixed", "datetime", "day", ("2019-03-11", "2019-03-12 08:00"), {17966, 17967}),
+    ("day-first-date", "date", "day", ("18/1/1992",), {8052}),
+    ("slashed-iso-date", "date", "day", ("1992/01/18",), {8052}),
+    ("compact-date", "date", "day", ("19920118",), {8052}),
+    ("day-first-datetime", "datetime", "day", ("18/1/1992 10:30",), {8052}),
     # A month or a quarter from 1970: 1993-06 is 12 * 23 + 5, 1998-Q1 is
     # 4 * 28 and 1998-q3 is 4 * 28 + 2.
     ("iso-month", "month", "month", ("1993-06",), {281}),
@@ -2605,7 +2659,7 @@ WITNESS_MUTANTS.update({
         '    if space != "date":\n',
     ),
     "absent_no_month": (
-        "absent", "found.add(12 * (year - 1970) + int(text[5:]) - 1)", "pass",
+        "absent", "found.add(12 * (year - 1970) + month - 1)", "pass",
     ),
     "absent_no_quarter": (
         "absent", "found.add(4 * (year - 1970) + int(text[6]) - 1)", "pass",
@@ -2614,19 +2668,21 @@ WITNESS_MUTANTS.update({
         "absent", 'text[5] in "Qq"', 'text[5] == "Q"',
     ),
     "absent_thirteenth_month_read": (
-        "absent", "text[5:].isdigit() and 1 <= int(text[5:]) <= 12", "text[5:].isdigit()",
+        "absent", "month is not None and 1 <= month <= 12", "month is not None",
     ),
     "absent_year_zero_read": (
-        "absent", " or int(text[:4]) < 1:", ":",
+        "absent", " or year is None or year < 1:", " or year is None:",
     ),
     "absent_month_nought_read": (
-        "absent", "and 1 <= int(text[5:])", "and 0 <= int(text[5:])",
+        "absent", "and 1 <= month <= 12", "and 0 <= month <= 12",
     ),
     "absent_quarter_nought_read": (
         "absent", 'text[6] in "1234"', 'text[6] in "01234"',
     ),
     "absent_span_spaces_kept": (
-        "absent", "        text = text.strip()\n        if len(text) != 7", "        if len(text) != 7",
+        "absent",
+        "        text = text.strip()\n        year = figures_of(text[:4], 4, 4)\n",
+        "        year = figures_of(text[:4], 4, 4)\n",
     ),
     "absent_marked_moments_asked": (
         "absent",
@@ -2634,13 +2690,75 @@ WITNESS_MUTANTS.update({
         "    if False:\n",
     ),
     "absent_span_read_stops_at_an_unread_spelling": (
-        "absent", "            continue\n        year = int(text[:4])", "            break\n        year = int(text[:4])",
+        "absent",
+        "            continue\n        month = figures_of(text[5:], 2, 2)",
+        "            break\n        month = figures_of(text[5:], 2, 2)",
     ),
     "absent_day_read_stops_at_an_unread_spelling": (
         "absent",
-        "            found.add(days_from_civil(int(parts[2]), int(parts[0]), int(parts[1])))\n    return found\n",
-        "            found.add(days_from_civil(int(parts[2]), int(parts[0]), int(parts[1])))\n"
-        "        else:\n            break\n    return found\n",
+        "        if day is not None:\n            found.add(day)\n    return found\n",
+        "        if day is not None:\n            found.add(day)\n        else:\n            break\n    return found\n",
+    ),
+    # The day reading of `day_read`, clause by clause (the review of
+    # 82b1f1a): each edit alone names a day a row says the member does
+    # not read, or misses one it does.
+    "absent_day_past_the_month_read": (
+        "absent", "    if not 1 <= day <= last:\n        return None\n", "",
+    ),
+    "absent_day_month_nought_read": (
+        "absent", "or not 1 <= month <= 12:\n        return None\n    leap", "or not 0 <= month <= 12:\n        return None\n    leap",
+    ),
+    "absent_day_year_nought_read": (
+        "absent", "or day is None or year < 1 or not", "or day is None or not",
+    ),
+    "absent_day_first_read_month_first": (
+        "absent", "    if member in DAY_FIRST_MEMBERS:\n        return calendar_day(year, second, first)\n", "",
+    ),
+    "absent_slashed_iso_unread": (
+        "absent", 'mark = "-" if member == "iso-date" else "/"', 'mark = "-"',
+    ),
+    "absent_compact_unread": (
+        "absent",
+        '    if member == "compact-date":\n        if len(text) != 8:',
+        '    if member == "compact":\n        if len(text) != 8:',
+    ),
+    "absent_dotted_unpadded_read": (
+        "absent", "least = 2 if member in DOTTED_MEMBERS else 1", "least = 1",
+    ),
+    "absent_two_figure_year_as_written": (
+        "absent", "year = two_figure_year(figures_of(fields[2], 2, 2))", "year = figures_of(fields[2], 2, 2)",
+    ),
+    "absent_short_year_read": (
+        "absent", "        year = figures_of(fields[2], 4, 4)\n", "        year = figures_of(fields[2], 2, 4)\n",
+    ),
+    "absent_figures_not_ascii_read": (
+        "absent", "or any(each not in ASCII_FIGURES for each in text):", "or not text.isdigit():",
+    ),
+    "absent_textual_unread": (
+        "absent", "    if member in TEXTUAL_MEMBERS:\n        for mark in", "    if member in ():\n        for mark in",
+    ),
+    "absent_textual_comma_refused": (
+        "absent", 'middle = fields[1][:-1] if fields[1].endswith(",") else fields[1]', "middle = fields[1]",
+    ),
+    "absent_month_name_case_kept": (
+        "absent", "if text.casefold() in names:", "if text in names:",
+    ),
+    "absent_textual_mark_mixed": (
+        "absent", "            fields = text.split(mark)\n", '            fields = text.replace("-", " ").split(" ")\n',
+    ),
+    "absent_stamp_unread": (
+        "absent",
+        '    if member in ("month-first-datetime", "day-first-datetime", "slashed-iso-datetime"):\n',
+        "    if member in ():\n",
+    ),
+    "absent_stamp_clock_any": (
+        "absent", "if not date or not clock_reads(clock, False):", "if not date:",
+    ),
+    "absent_stamp_leap_second_read": (
+        "absent", "numbers[2] <= (60 if iso else 59)", "numbers[2] <= 60",
+    ),
+    "absent_iso_date_reads_a_clock": (
+        "absent", '    if member == "iso-mixed":\n', '    if member == "iso-mixed" or member == "iso-date" and len(text) > 10:\n',
     ),
     "tail_hole_days_only": (
         "tail_hole",
@@ -2654,6 +2772,38 @@ WITNESS_MUTANTS.update({
         "tail_hole",
         "    return (at, low_side, days_named(member, spellings))\n",
         '    return (at, low_side, days_named("iso-date", spellings))\n',
+    ),
+    "tail_hole_midnight_moments_only": (
+        "tail_hole", 'or not clock_reads(text[11:], True):', 'or text[11:] not in ("00:00:00", "00:00"):',
+    ),
+    "tail_hole_a_bare_date_read_as_a_moment": (
+        "tail_hole",
+        '    if member == "iso-datetime":\n        if len(text) < 16',
+        '    if member == "iso-datetime" and len(text) == 10:\n        return day_of("iso-date", text)\n'
+        '    if member == "iso-datetime":\n        if len(text) < 16',
+    ),
+    "tail_hole_offset_unread": (
+        "tail_hole", 'elif len(text) >= 6 and text[-6] in "+-":', "elif False:",
+    ),
+    "tail_hole_offset_past_fourteen_read": (
+        "tail_hole", "if hours > 14 or minutes > 59 or (hours == 14 and minutes != 0):", "if minutes > 59:",
+    ),
+    "tail_hole_fraction_unread": (
+        "tail_hole", 'if len(text) > 8 and text[8] == ".":', "if False:",
+    ),
+    "tail_hole_lower_zulu_unread": (
+        "tail_hole", 'if text[-1:] in ("Z", "z"):', 'if text[-1:] == "Z":',
+    ),
+    "tail_hole_leap_second_unread": (
+        "tail_hole", "numbers[2] <= (60 if iso else 59)", "numbers[2] <= 59",
+    ),
+    "tail_hole_hour_twenty_four_read": (
+        "tail_hole", "numbers[0] > 23 or numbers[1] > 59", "numbers[1] > 59",
+    ),
+    "tail_hole_mixed_bare_date_unread": (
+        "tail_hole",
+        'return day_of("iso-date", text) if len(text) == 10 else day_of("iso-datetime", text)',
+        'return day_of("iso-datetime", text)',
     ),
 })
 

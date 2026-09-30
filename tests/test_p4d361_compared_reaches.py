@@ -117,7 +117,8 @@ def test_every_ambiguous_family_withdraws_the_remark(
 
     Undeclared, the day-first reading wins and the month-first reach
     loses; declared day first, a column the month-first reading wins
-    loses the day-first reach, the first argument.
+    loses the day-first reach, the first argument. Each description is
+    loaded, and its twin at seed 7 misses nothing.
     """
     spelled = _FAMILIES[family]
     line = max(floor, 2)
@@ -138,6 +139,10 @@ def test_every_ambiguous_family_withdraws_the_remark(
         assert block["role"] == taxonomy.ROLE_DATETIME, f"low {low}"
         assert _slashed_remarks(document) == [], f"low {low}"
         profile.check_publication(document)
+        written = fixtures.write_profile(tmp_path, f"{family}-{low}-profile.json", document)
+        described = kpi_shapes.Described(tmp_path, table, document, contract.load_profile(str(written)))
+        twin = kpi_shapes.twin_text(described, 7)
+        assert kpi_shapes.missed(kpi_shapes.measure(described, twin, f"{family}-{low}-twin.csv")) == []
 
 
 # -- the grammar: which positions the rendering reads as whole numbers ----
