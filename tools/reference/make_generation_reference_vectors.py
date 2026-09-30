@@ -9751,24 +9751,17 @@ def tail_holes_named(column, at, low_side):
     """What G7.3b step 7's step off a hole asks of one tail (plan P4-D358).
 
     The boundary's tail unit, the side, and the tail units the column's
-    own absent spellings name -- read here as ISO dates, bare or with a
-    midnight clock, on a column whose tail unit is a day of its own
-    clock; None elsewhere, where no case of this oracle's puts an absent
-    spelling.
+    own absent spellings name, read under its own member: a month or a
+    quarter as `spans_named` reads one, and a day of a column whose tail
+    unit is a day of its own clock as `days_named` does; None elsewhere,
+    where no case of this oracle's puts an absent spelling.
     """
+    member, spellings = column.get("format", ""), column.get("missing_by_source", {})
+    if column["tail_unit"] in ("month", "quarter"):
+        return (at, low_side, spans_named(member, spellings))
     if column["tail_unit"] != "day" or column["datetimes_read_at"] != "local":
         return None
-    named = set()
-    for text in column.get("missing_by_source", {}):
-        text = text.strip()
-        day, clock = text[:10], text[10:]
-        if (
-            len(day) == 10 and day[4] == "-" and day[7] == "-"
-            and (day[:4] + day[5:7] + day[8:]).isdigit()
-            and clock in ("", "T00:00:00", " 00:00:00")
-        ):
-            named.add(days_from_civil(int(day[:4]), int(day[5:7]), int(day[8:])))
-    return (at, low_side, named)
+    return (at, low_side, days_named(member, spellings))
 
 
 def tail_side_plan(column, side, low_side, parsed, words):
@@ -10498,34 +10491,47 @@ def counts_into_width(column, day_number, word):
 
 
 def absent_units(column):
-    """The days no count pass offers a rank (method G7.3, plan P4-D358).
+    """The units no count pass offers a rank (method G7.3, plan P4-D358).
 
     Read from the method's sentence: each spelling the column publishes
     among its absent cells, read under the column's own member, names a
-    unit of the count pass's own space, and no pass of G7.3 -- a merge, a
-    trade or its payment, a split, the stack or its raise, a free unit, a
-    width move -- nor G7.3b step 9 offers a rank that unit, since its cell
-    would read back as absent -- where the spelling step would move the
-    rank, not where a moment at midnight keeps its day by taking another
-    mark (G7.5).  This oracle reads an ISO date on an ISO member and a
-    month-first date on a month-first member, on a column counted in
-    days, and names nothing else -- no case of its puts an absent spelling
-    beside a column counted in seconds, months or quarters -- and says so
-    here.
+    unit of the count pass's own space -- a day, a month or a quarter --
+    and no pass of G7.3 -- a merge, a trade or its payment, a split, the
+    stack or its raise, a free unit, a width move -- nor G7.3b step 9
+    offers a rank that unit, since its cell would read back as absent --
+    where the spelling step would move the rank: not where a moment at
+    midnight keeps its day by taking another mark (G7.5), nor on a column
+    counted in seconds or minutes.  This oracle reads a day as
+    `days_named` does and a month or a quarter as `spans_named` does, and
+    names nothing else.
     """
     spellings = column.get("missing_by_source", {})
-    if not spellings or ordinal_space(column) != "date":
+    if not spellings:
         return set()
+    space = ordinal_space(column)
+    if space not in ("date", "month", "quarter"):
+        return set()
+    if space != "date":
+        return spans_named(column.get("format", ""), spellings)
     if column.get("resolution") == "datetime" and column.get("format") in ("iso-datetime", "iso-mixed"):
         # A moment at midnight on a member with another mark to give keeps
         # its day and takes that mark (G7.5), so the pass is not asked.
         return set()
-    member = column.get("format", "")
+    return days_named(column.get("format", ""), spellings)
+
+
+def days_named(member, spellings):
+    """The days absent spellings name on a day member (G7.3, G7.3b step 7).
+
+    An ISO member reads `yyyy-mm-dd`, bare or with a midnight clock, and
+    `month-first-date` reads `m/d/yyyy`; the day is counted from
+    1970-01-01, as G7.1 counts the column's values. A spelling the member
+    does not read names nothing, and every spelling after it is still read.
+    """
     found = set()
     for text in spellings:
         text = text.strip()
-        day = text[:10]
-        clock = text[10:]
+        day, clock, parts = text[:10], text[10:], text.split("/")
         if (
             member.startswith("iso-")
             and len(day) == 10 and day[4] == "-" and day[7] == "-"
@@ -10533,13 +10539,33 @@ def absent_units(column):
             and clock in ("", "T00:00:00", " 00:00:00")
         ):
             found.add(days_from_civil(int(day[:4]), int(day[5:7]), int(day[8:])))
-            continue
-        parts = text.split("/")
-        if (
+        elif (
             member == "month-first-date" and len(parts) == 3
             and all(part.isdigit() for part in parts) and len(parts[2]) == 4
         ):
             found.add(days_from_civil(int(parts[2]), int(parts[0]), int(parts[1])))
+    return found
+
+
+def spans_named(member, spellings):
+    """The months or quarters absent spellings name on a span member (G7.3).
+
+    `iso-month` reads `yyyy-mm`, a month 01 to 12, and `year-quarter`
+    reads `yyyy-Qn` or `yyyy-qn`, a quarter 1 to 4, each of a year from 1
+    on; the unit is counted from 1970, as G7.1 counts the column's values.
+    A spelling the member does not read names nothing, and every spelling
+    after it is still read.
+    """
+    found = set()
+    for text in spellings:
+        text = text.strip()
+        if len(text) != 7 or text[4] != "-" or not text[:4].isdigit() or int(text[:4]) < 1:
+            continue
+        year = int(text[:4])
+        if member == "iso-month" and text[5:].isdigit() and 1 <= int(text[5:]) <= 12:
+            found.add(12 * (year - 1970) + int(text[5:]) - 1)
+        if member == "year-quarter" and text[5] in "Qq" and text[6] in "1234":
+            found.add(4 * (year - 1970) + int(text[6]) - 1)
     return found
 
 

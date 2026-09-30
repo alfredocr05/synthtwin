@@ -48,7 +48,7 @@ stays in scope.
 | branch | `phase-5-relationships`, cut from `main`. `main` is pull-request only. Stage 2b was built on `carried-2b-integration`, cut from it at `53bb012`, and lands on it whole |
 | phase | **Phase 4 REOPENED 2026-09-12** — it closed on 2026-09-11 with silent within-column defects live inside its own charter. Phase 5 does not start until the ordered list below reaches it |
 | plan | This page is the plan of record. `docs/plans/phase-5-relationships.md` is a DRAFT whose scope is superseded: it deferred correlation, and correlation is now mandatory |
-| suite | 8,483 collected, and about 66 minutes in one process on the quiet machine (ledger `K-P0-10` carries the seconds). In CI it runs as **five shards**, the heaviest about 20 minutes. Re-measure here whenever the count moves |
+| suite | 8,509 collected, and about 66 minutes in one process on the quiet machine (ledger `K-P0-10` carries the seconds). In CI it runs as **five shards**, the heaviest about 20 minutes. Re-measure here whenever the count moves |
 | KPIs | `tests/kpi/ledger.json`: 181 KPIs over phases 0-4 and stages 1, 2, 2b, 3 and 3b, 30 of them headlines — which is the cap, so the next landing demotes one or raises it deliberately; 160 green, 10 open (6 with the stage that owns each, 4 with none set), 11 limits the owner accepted. Stage 3's are `K-S3-01` to `K-S3-25`, one of them a headline (`K-S3-11`, the tail leak), and stage 3b's `K-S3-30` to `K-S3-33` and `K-S3-39`, `K-S3-31` (the weekday) a headline in `K-2B-22b`'s place. **One command re-measures them all:** `.venv/bin/python tools/measurements/kpi_run.py` (add `--slow` for timings and scale). Run it at every stage close: **a KPI that drops is a regression even when every test is green** |
 | checks | `ruff check .`, `mypy --strict src/`, the offline import scan, the provenance check, the decontamination scan, the signed attestation and the disposition seal — all clean |
 | CI | runs on every pull request, five Pythons across Ubuntu, Windows and macOS. **It saw stages 1, 2 and 2b for the first time on 2026-09-20 (PR #6, run 35508922164): every static check green, every test cell red on three defects, all three repaired.** Its **second** run (35541541720) was red again on a deeper layer, all of it in the tests: two that asserted the answer for the machine they ran on, a `Path.read_text(newline=)` that exists only on 3.13 while the floor is 3.10, seventeen Windows failures caused by a temporary path containing `AppData` (which contains a sheet name the test forbade), and about 25 workbook cases that failed instead of skipping where openpyxl is absent. All repaired, each with a guard that now fails HERE rather than in CI. The suite is sharded five ways since, so a cell should cost about 13 minutes rather than up to three hours. **Its third run (35670708722, on `eaff15f`, 2026-09-22) passed 69 of 69 jobs**; it has not seen stage 3. A green local suite is not a green CI. Check `gh pr checks` before believing a branch is done |
@@ -205,9 +205,13 @@ cannot get worse unseen.
   cases of twelve filled-range shapes at every seed, one unit out there,
   one or more elsewhere (P4-D354); of 316 twins of 158 small filled ISO
   columns, 224 hold as many days as the real column, 61 the same days,
-  and 90 fewer, both distinct counts MISSED (P4-D358). And a tail rank
-  whose stratum is one declared-missing day writes an absent cell, six
-  checks missed on 3 of 1,600 twins at a floor of eleven; a moment
+  and 90 fewer, both distinct counts MISSED (P4-D358); a range filled
+  in every day or month but a declared-missing one comes back a unit
+  short the same way, 6 of 600 twins of a seeded battery. And a tail rank
+  whose stratum is one declared-missing day, month or quarter writes an
+  absent cell, 5 to 13 checks missed, at a rate that rises with the
+  floor: about 1 twin in 40 whose missing unit is published at a floor
+  of 11, 1 in 5 at 36, and 1 in 3 at 36 on another seeded battery; a moment
   counted in minutes on a member with one mark is written with an absent
   spelling it lands on, 8 to 11 checks missed on 9 of 25 twins; and
   where the count pass's splits break a tail's summed window it moves

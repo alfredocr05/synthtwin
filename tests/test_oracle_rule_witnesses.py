@@ -1647,6 +1647,143 @@ def _generator_stuck(ordinals, pinned, low_rows, high_rows, holes):
     )
 
 
+# ------------------------------------------ G7.3's holes, read off the spellings
+#
+# WHICH UNIT AN ABSENT SPELLING NAMES (plan P4-D358). Each absent spelling,
+# read under the column's own member, names a unit of the count pass's own
+# space -- a day, a month or a quarter -- and no other column names one:
+# not moments at midnight whose member has another mark to give (G7.5),
+# not a column counted in minutes. The rows above are handed their holes;
+# these ask the reading itself, which the month and quarter columns of
+# `tests/test_stage3b_gate.py` show carries weight (the review's month and
+# quarter entries withdrawn, 88 and 121 of 400 twins missed both distinct
+# counts, and no test turned red).
+ABSENT_ROWS = (
+    # (member, resolution, all at midnight, absent spellings, units named)
+    #
+    # A day, days from 1970-01-01: 2019-03-11 is 17897 + 31 + 28 + 10.
+    ("iso-date", "date", False, ("2019-03-11",), {17966}),
+    ("month-first-date", "date", False, ("3/11/2019",), {17966}),
+    # A month, twelve to the year from 1970: 2015-02 is 12 * 45 + 1, and
+    # 2016-11 is 12 * 46 + 10.
+    ("iso-month", "month", False, ("2015-02", "2016-11"), {541, 562}),
+    # A quarter, four to the year from 1970: 1998-Q1 is 4 * 28, and the
+    # member reads a lower-case q as well, 1998-q3 being 4 * 28 + 2.
+    ("year-quarter", "quarter", False, ("1998-Q1",), {112}),
+    ("year-quarter", "quarter", False, ("1998-q3",), {114}),
+    # The member reads a spelling past the spaces around it.
+    ("iso-month", "month", False, (" 2015-02 ",), {541}),
+    # Spellings the member does not read name nothing: a thirteenth month,
+    # a month nought, year 0, a day beside months, a quarter beside months,
+    # a month beside quarters, a fifth quarter and a quarter nought, an ISO
+    # day beside month-first dates.
+    ("iso-month", "month", False, ("2015-13", "2015-00", "0000-05", "2015-02-03", "1998-Q1"), set()),
+    ("year-quarter", "quarter", False, ("1998-01", "1998-Q5", "1998-Q0"), set()),
+    ("month-first-date", "date", False, ("2019-03-11",), set()),
+    # One the member does not read is passed over and the next still read:
+    # a declared `-` or `#N/A` sorts before every date the run publishes.
+    ("iso-date", "date", False, ("-", "2019-03-11"), {17966}),
+    ("month-first-date", "date", False, ("#N/A", "3/11/2019"), {17966}),
+    ("iso-month", "month", False, ("-", "2015-02"), {541}),
+    ("year-quarter", "quarter", False, ("#N/A", "1998-Q1"), {112}),
+    # Moments at midnight on a member with another mark keep their day by
+    # that mark; a column counted in minutes is not asked.
+    ("iso-datetime", "datetime", True, ("2019-03-11T00:00:00",), set()),
+    ("slashed-iso-datetime", "datetime", False, ("2021/05/03 10:24",), set()),
+)
+
+
+def _absent_missed(named: typing.Callable[..., object]) -> "list[str]":
+    missed = []
+    for member, resolution, midnight, spellings, want in ABSENT_ROWS:
+        got = _asked(named, member, resolution, midnight, spellings)
+        if got != want:
+            missed += [f"{spellings!r} under {member}: {got!r}, the statement gives {want!r}"]
+    return missed
+
+
+def _oracle_absent(module: types.ModuleType) -> typing.Callable[..., object]:
+    def named(member, resolution, midnight, spellings):
+        return set(module.absent_units({
+            "format": member, "resolution": resolution, "all_at_midnight": midnight,
+            "datetimes_read_at": "local", "missing_by_source": {spelling: 1 for spelling in spellings},
+        }))
+
+    return named
+
+
+def _generator_absent(member, resolution, midnight, spellings):
+    facts = types.SimpleNamespace(
+        parser_family=member, resolution=resolution, all_at_midnight=midnight,
+        datetimes_read_at="local",
+    )
+    return set(generation._count_holes(typing.cast(contract.DatetimeFacts, facts), spellings))
+
+
+# --------------------------------- G7.3b step 7's holes, read off the spellings
+#
+# WHICH TAIL UNIT A COLUMN'S OWN ABSENT SPELLING NAMES (plan P4-D358). A
+# tail's end and tie group step inward off a unit one of the column's own
+# absent spellings names, read under the column's own member: a day, a
+# month or a quarter. The frozen cases hold the step on ISO days; these
+# rows ask the reading on every member the oracle reads, which the gate
+# columns of `tests/test_stage3b_gate.py` stepping off a missing month and
+# a missing month-first day show carries weight.
+TAIL_HOLE_ROWS = (
+    # (member, resolution, tail unit, the column's absent spellings, units named)
+    #
+    # A day, days from 1970-01-01: 2019-03-11 is 17966 and 1992-01-18 is
+    # 8035 + 17, 8035 being 1992-01-01.
+    ("iso-date", "date", "day", ("2019-03-11",), {17966}),
+    ("iso-datetime", "datetime", "day", ("2019-03-11T00:00:00",), {17966}),
+    ("month-first-date", "date", "day", ("1/18/1992",), {8052}),
+    # A month or a quarter from 1970: 1993-06 is 12 * 23 + 5, 1998-Q1 is
+    # 4 * 28 and 1998-q3 is 4 * 28 + 2.
+    ("iso-month", "month", "month", ("1993-06",), {281}),
+    ("year-quarter", "quarter", "quarter", ("1998-Q1", "1998-q3"), {112, 114}),
+    # One the member does not read is passed over and the next still read.
+    ("iso-date", "date", "day", ("-", "2019-03-11"), {17966}),
+    ("month-first-date", "date", "day", ("#N/A", "1/18/1992"), {8052}),
+    ("iso-month", "month", "month", ("-", "1993-06"), {281}),
+    ("year-quarter", "quarter", "quarter", ("-", "1998-Q1"), {112}),
+    # An ISO day beside month-first dates, a quarter or a thirteenth month
+    # beside months, a month beside quarters: none names a unit.
+    ("month-first-date", "date", "day", ("2019-03-11",), set()),
+    ("iso-month", "month", "month", ("1998-Q1", "2015-13"), set()),
+    ("year-quarter", "quarter", "quarter", ("1998-01",), set()),
+)
+
+
+def _tail_holes_missed(named: typing.Callable[..., object]) -> "list[str]":
+    missed = []
+    for member, resolution, unit, spellings, want in TAIL_HOLE_ROWS:
+        got = _asked(named, member, resolution, unit, spellings)
+        if got != want:
+            missed += [f"{spellings!r} under {member} in {unit}s: {got!r}, the statement gives {want!r}"]
+    return missed
+
+
+def _oracle_tail_holes(module: types.ModuleType) -> typing.Callable[..., object]:
+    def named(member, resolution, unit, spellings):
+        off = module.tail_holes_named({
+            "format": member, "resolution": resolution, "tail_unit": unit,
+            "datetimes_read_at": "local", "missing_by_source": {spelling: 1 for spelling in spellings},
+        }, 0, True)
+        return set() if off is None else set(off[2])
+
+    return named
+
+
+def _generator_tail_holes(member, resolution, unit, spellings):
+    column = types.SimpleNamespace(missing_by_source={spelling: 1 for spelling in spellings})
+    facts = types.SimpleNamespace(
+        parser_family=member, resolution=resolution, tail_unit=unit, datetimes_read_at="local",
+    )
+    return set(generation._hole_units(
+        typing.cast(contract.ColumnBlock, column), typing.cast(contract.DatetimeFacts, facts)
+    ))
+
+
 # ------------------------------------------------------------ the two readers
 
 WITNESSES = {
@@ -1705,6 +1842,14 @@ WITNESSES = {
     "hole": (
         lambda module: _hole_missed(*_oracle_hole(module)),
         lambda: _hole_missed(_generator_hole, _generator_stuck),
+    ),
+    "absent": (
+        lambda module: _absent_missed(_oracle_absent(module)),
+        lambda: _absent_missed(_generator_absent),
+    ),
+    "tail_hole": (
+        lambda module: _tail_holes_missed(_oracle_tail_holes(module)),
+        lambda: _tail_holes_missed(_generator_tail_holes),
     ),
 }
 
@@ -2347,6 +2492,62 @@ WITNESS_MUTANTS.update({
         "hole",
         "if pinned[rank] and ordinals[rank] // unit in absent and not first <= rank <= last",
         "if pinned[rank] and ordinals[rank] // unit in absent",
+    ),
+    "absent_days_only": (
+        "absent",
+        '    if space not in ("date", "month", "quarter"):\n',
+        '    if space != "date":\n',
+    ),
+    "absent_no_month": (
+        "absent", "found.add(12 * (year - 1970) + int(text[5:]) - 1)", "pass",
+    ),
+    "absent_no_quarter": (
+        "absent", "found.add(4 * (year - 1970) + int(text[6]) - 1)", "pass",
+    ),
+    "absent_quarter_upper_case_only": (
+        "absent", 'text[5] in "Qq"', 'text[5] == "Q"',
+    ),
+    "absent_thirteenth_month_read": (
+        "absent", "text[5:].isdigit() and 1 <= int(text[5:]) <= 12", "text[5:].isdigit()",
+    ),
+    "absent_year_zero_read": (
+        "absent", " or int(text[:4]) < 1:", ":",
+    ),
+    "absent_month_nought_read": (
+        "absent", "and 1 <= int(text[5:])", "and 0 <= int(text[5:])",
+    ),
+    "absent_quarter_nought_read": (
+        "absent", 'text[6] in "1234"', 'text[6] in "01234"',
+    ),
+    "absent_span_spaces_kept": (
+        "absent", "        text = text.strip()\n        if len(text) != 7", "        if len(text) != 7",
+    ),
+    "absent_marked_moments_asked": (
+        "absent",
+        '    if column.get("resolution") == "datetime" and column.get("format") in ("iso-datetime", "iso-mixed"):\n',
+        "    if False:\n",
+    ),
+    "absent_span_read_stops_at_an_unread_spelling": (
+        "absent", "            continue\n        year = int(text[:4])", "            break\n        year = int(text[:4])",
+    ),
+    "absent_day_read_stops_at_an_unread_spelling": (
+        "absent",
+        "            found.add(days_from_civil(int(parts[2]), int(parts[0]), int(parts[1])))\n    return found\n",
+        "            found.add(days_from_civil(int(parts[2]), int(parts[0]), int(parts[1])))\n"
+        "        else:\n            break\n    return found\n",
+    ),
+    "tail_hole_days_only": (
+        "tail_hole",
+        '    if column["tail_unit"] in ("month", "quarter"):\n        return (at, low_side, spans_named(member, spellings))\n',
+        "",
+    ),
+    "tail_hole_months_only": (
+        "tail_hole", 'if column["tail_unit"] in ("month", "quarter"):', 'if column["tail_unit"] == "month":',
+    ),
+    "tail_hole_every_member_read_as_iso": (
+        "tail_hole",
+        "    return (at, low_side, days_named(member, spellings))\n",
+        '    return (at, low_side, days_named("iso-date", spellings))\n',
     ),
 })
 

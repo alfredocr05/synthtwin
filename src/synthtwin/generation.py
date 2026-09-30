@@ -18112,9 +18112,11 @@ def _hole_units(
     """Every tail unit one of this column's own absent spellings names.
 
     A spelling the column publishes among its absent cells that its own
-    member reads as a date names one unit; a derived end or group standing
-    on that unit would be written as a cell the twin's description reads
-    as absent, so it steps inward off it (G7.3b).
+    member reads as a date names one unit -- a day, a month, a quarter or
+    a moment's own tail unit -- and one it cannot read names none and
+    hides none after it; a derived end or group standing on that unit
+    would be written as a cell the twin's description reads as absent, so
+    it steps inward off it (G7.3b step 7).
     """
     found: "dict[int, bool]" = {}
     for spelling in _hole_spellings(column):
@@ -18170,8 +18172,9 @@ def _count_holes(
     stamps whose missing moment is published, 8 to 11 checks missed).
 
     Guarantees: accepts the facts and every absent spelling of the run;
-    returns the units named, as `value // unit` keys of the pass. A
-    function of the two; draws no word. Raises nothing. No I/O.
+    returns the units named, as `value // unit` keys of the pass, a
+    spelling the member cannot read naming none and hiding none after it.
+    A function of the two; draws no word. Raises nothing. No I/O.
     """
     space = _ordinal_space(facts)
     if (
@@ -22205,8 +22208,8 @@ def _held_by_stuck_tail_ranks(
     such unit is counted by the passes and is none of the column's
     present values, and they reach the published count with those units
     added. Measured on 1,600 twins of 400 seeded columns at a floor of
-    eleven: three twins, each already missing six checks where such a
-    rank wrote an absent cell, kept both distinct counts that way.
+    eleven: three twins kept both distinct counts that way. The absent
+    cell such a rank writes is a recorded limit (plan P4-D358).
     """
     if layout is None or layout.low is None or layout.high is None:
         return 0

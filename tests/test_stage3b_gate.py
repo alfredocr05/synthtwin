@@ -125,7 +125,23 @@ rows of tests/test_oracle_rule_witnesses.py, where each of twelve
 generator mutants turns the shipped rows red. The step off withdrawn
 turns the second red, the group step's own holes alone the third, and
 the stuck count withdrawn
-`test_a_tail_rank_stuck_on_a_missing_day_is_counted_as_absent`.
+`test_a_tail_rank_stuck_on_a_missing_day_is_counted_as_absent`. The
+unit an absent spelling names is read a day, a month or a quarter by
+the `absent` rows there; the month or the quarter withdrawn from
+`generation._COUNT_HOLE_UNITS` turns its own `absent` row red and
+`test_no_rank_is_offered_a_month_the_table_declares_missing` or
+`test_no_rank_is_offered_a_quarter_the_table_declares_missing` (the
+final review of 3b.0, where it turned no test red). The reading stopped
+at the first spelling the member cannot read turns the `absent` rows
+opening on `-` or `#N/A` red and
+`test_a_missing_month_is_read_past_a_spelling_the_member_cannot_read`
+(its second skeptic, where it turned no test red). G7.3b step 7 reads
+the column's own hole under its member by the `tail_hole` rows there;
+its reading withdrawn on months and quarters, on every member but an
+ISO one, or stopped at the first spelling it cannot read turns those
+rows red and a column of
+`test_a_tail_group_steps_off_a_missing_month_or_month_first_day`
+(that skeptic again).
 
 LANDING 3b.1 (plan P4-D355) makes the second clause true on DATE
 columns: the weekday census, published only where the full-fill
@@ -1571,11 +1587,11 @@ def test_a_count_the_summed_window_keeps_out_of_reach_is_missed(
 
 
 def _described_with_a_missing_day(
-    tmp_path: pathlib.Path, stem: str, cells: "list[str]", floor: int, day: str
+    tmp_path: pathlib.Path, stem: str, cells: "list[str]", floor: int, day: str, *others: str
 ) -> kpi_shapes.Described:
-    """The table of ``cells`` described at ``floor`` with ``day`` declared missing."""
+    """The table of ``cells`` described at ``floor`` with ``day`` and ``others`` declared missing."""
     table = fixtures.write(tmp_path, f"{stem}.csv", "c\n" + "".join(f"{cell}\n" for cell in cells))
-    settings = taxonomy.Settings(small_cell_floor=floor, declared_missing_values=(day,))
+    settings = taxonomy.Settings(small_cell_floor=floor, declared_missing_values=(day, *others))
     document = profile.build_document(
         reading.read_table(str(table), small_cell_floor=floor), settings, [], [], []
     )
@@ -1703,6 +1719,158 @@ def test_a_rank_drawn_onto_a_missing_day_leaves_it_before_the_count(
         assert missed == [], f"seed {seed}: {missed}"
 
 
+# 336 months over the 54 from 2012-01, 13 of them 2015-02, declared
+# missing; and 171 quarters over the 30 from 1992-Q1, 30 of them 1998-Q1,
+# declared missing (the final review's month and quarter batteries,
+# `random.Random(996000)` and `random.Random(997002)`, at a floor of 11).
+_MONTH_HOLE_COUNTS = (
+    13, 1, 24, 6, 0, 2, 7, 2, 11, 3, 0, 0, 19, 0, 1, 5, 5, 8, 77, 0, 3, 0,
+    4, 0, 3, 7, 6, 4, 7, 2, 4, 0, 0, 5, 1, 9, 1, 13, 15, 1, 1, 1, 3, 2, 2,
+    3, 4, 26, 0, 5, 0, 0, 1, 19,
+)
+_QUARTER_HOLE_COUNTS = (
+    4, 8, 2, 0, 3, 0, 0, 2, 10, 0, 0, 2, 0, 1, 2, 3, 2, 14, 5, 6, 0, 2, 3,
+    57, 30, 3, 4, 0, 0, 8,
+)
+
+
+def _span_hole_held(
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+    cells: "list[str]",
+    hole: str,
+    unit: int,
+    floor: int = 11,
+    others: "tuple[str, ...]" = (),
+) -> dict:
+    """At seeds 3 and 8 no rank stands on ``unit``, the cells hold the published count, nothing missed."""
+    described = _described_with_a_missing_day(tmp_path, "span_hole", cells, floor, hole, *others)
+    block = described.document["columns"][0]
+    for seed, (moved, _lows, _highs, _layout, _facts, text) in zip(
+        (3, 8), _settled(described, (3, 8), monkeypatch)
+    ):
+        assert unit not in moved, f"seed {seed}: a rank stands on the missing {hole}"
+        written = {line for line in text.split("\n")[1:] if line} - {hole, *others}
+        assert len(written) == block["n_distinct"], f"seed {seed}: {len(written)} different values"
+        missed = kpi_shapes.missed(kpi_shapes.measure(described, text, f"span-{seed}.csv"))
+        assert missed == [], f"seed {seed}: {missed}"
+    return block
+
+
+def test_no_rank_is_offered_a_month_the_table_declares_missing(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A month an absent spelling names is a hole of the count pass (P4-D358).
+
+    `2015-02` read under `iso-month` names month 12 * 45 + 1 from 1970.
+    With the month withdrawn from the pass's holes a rank was offered it,
+    the spelling step moved that rank onto a month ranks held, and the
+    twin held 40 months against the published 41, both distinct counts
+    MISSED at seeds 3 and 8 -- 88 of 400 twins of the battery.
+    """
+    cells: "list[str]" = []
+    for step, count in enumerate(_MONTH_HOLE_COUNTS):
+        cells += [f"{2012 + step // 12}-{step % 12 + 1:02d}"] * count
+    random.Random(996000).shuffle(cells)
+    block = _span_hole_held(tmp_path, monkeypatch, cells, "2015-02", 12 * 45 + 1)
+    assert (block["format"], block["n_present"], block["n_distinct"], block["missing_by_source"]) == (
+        "iso-month", 323, 41, {"2015-02": 13}
+    )
+
+
+def test_no_rank_is_offered_a_quarter_the_table_declares_missing(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A quarter an absent spelling names is a hole of the count pass (P4-D358).
+
+    `1998-Q1` read under `year-quarter` names quarter 4 * 28 from 1970.
+    With the quarter withdrawn from the pass's holes the twin held 19
+    quarters against the published 20, both distinct counts MISSED at
+    seeds 3 and 8 -- 121 of 400 twins of the battery.
+    """
+    cells: "list[str]" = []
+    for step, count in enumerate(_QUARTER_HOLE_COUNTS):
+        cells += [f"{1992 + step // 4}-Q{step % 4 + 1}"] * count
+    random.Random(997002).shuffle(cells)
+    block = _span_hole_held(tmp_path, monkeypatch, cells, "1998-Q1", 4 * 28)
+    assert (block["format"], block["n_present"], block["n_distinct"], block["missing_by_source"]) == (
+        "year-quarter", 141, 20, {"1998-Q1": 30}
+    )
+
+
+# 494 months over the 72 from 2012-03, beside 27 cells of 2013-06 and 13
+# of `-`, both declared missing (the final review's second skeptic,
+# `random.Random(460004)`, at a floor of 11).
+_DASHED_MONTH_COUNTS = (
+    10, 1, 0, 0, 21, 0, 0, 6, 6, 20, 0, 7, 0, 12, 0, 27, 1, 3, 18, 1, 12, 0,
+    61, 0, 81, 0, 28, 7, 8, 7, 69, 0, 4, 12, 11, 2, 1, 0, 0, 1, 0, 1, 22, 0,
+    0, 4, 0, 1, 1, 3, 2, 5, 0, 0, 0, 1, 8, 0, 1, 0, 0, 2, 1, 0, 0, 1, 2, 0,
+    21, 0, 0, 8,
+)
+
+
+def test_a_missing_month_is_read_past_a_spelling_the_member_cannot_read(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """An absent spelling the member cannot read hides no hole after it (P4-D358).
+
+    `-` sorts before `2013-06`, and `iso-month` reads no month in it. With
+    the reading stopped at the first spelling it cannot read, a rank was
+    offered 2013-06, the spelling step moved it onto a month ranks held,
+    and the twin held 42 months against the published 43, both distinct
+    counts MISSED at seeds 3 and 8 -- 167 of 400 twins of the battery.
+    """
+    cells: "list[str]" = ["-"] * 13
+    for step, count in enumerate(_DASHED_MONTH_COUNTS):
+        cells += [f"{2012 + (step + 2) // 12}-{(step + 2) % 12 + 1:02d}"] * count
+    random.Random(460004).shuffle(cells)
+    block = _span_hole_held(tmp_path, monkeypatch, cells, "2013-06", 12 * 43 + 5, 11, ("-",))
+    assert (block["format"], block["n_present"], block["n_distinct"], block["missing_by_source"]) == (
+        "iso-month", 494, 43, {"-": 13, "2013-06": 27}
+    )
+
+
+# 124 values over the 110 units from the first, beside 56 cells of the
+# seventeenth and 40 of `-`, both declared missing, at a floor of 36:
+# months from 1992-02, the seventeenth 1993-06, or month-first days from
+# 1992-01-02, the seventeenth 1992-01-18 (the final review's second
+# skeptic, `random.Random(450226)`).
+_STEP_OFF_COUNTS = (
+    2, 0, 0, 5, 0, 0, 0, 14, 0, 5, 0, 0, 2, 0, 0, 16, 56, 0, 6, 0, 1, 0, 1,
+    2, 0, 0, 2, 0, 0, 0, 1, 3, 0, 0, 3, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0,
+    0, 0, 0, 1, 0, 1, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 3, 0, 0,
+    0, 0, 0, 0, 0, 2, 3, 1, 1, 5, 0, 0, 1, 0, 1, 0, 1, 5, 0, 8, 0, 6, 0, 0,
+    0, 4, 0, 1, 4, 0, 0, 0, 2, 1, 0, 1, 0, 0, 1,
+)
+
+
+@pytest.mark.parametrize("member", ("iso-month", "month-first-date"))
+def test_a_tail_group_steps_off_a_missing_month_or_month_first_day(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, member: str
+) -> None:
+    """G7.3b step 7 reads the column's own hole under its own member (P4-D358).
+
+    The low tail's tie group of nine ranks falls on the missing unit and
+    steps one unit inward off it. With step 7's reading withdrawn on
+    months and quarters, or on every member but an ISO one, or stopped at
+    the `-` that sorts before the unit, the group stood there: 65 cells
+    read back absent where the column holds 56, and ten checks MISSED at
+    seeds 3 and 8, the median and the low tail's boundary, mean, spread
+    and rows among them.
+    """
+    cells: "list[str]" = ["-"] * 40
+    for step, count in enumerate(_STEP_OFF_COUNTS):
+        day = datetime.date(1992, 1, 2) + datetime.timedelta(days=step)
+        month = f"{1992 + (step + 1) // 12}-{(step + 1) % 12 + 1:02d}"
+        cells += [month if member == "iso-month" else f"{day.month}/{day.day}/{day.year}"] * count
+    random.Random(450226).shuffle(cells)
+    hole, unit = ("1993-06", 12 * 23 + 5) if member == "iso-month" else ("1/18/1992", 8052)
+    block = _span_hole_held(tmp_path, monkeypatch, cells, hole, unit, 36, ("-",))
+    assert (block["format"], block["n_present"], block["n_distinct"], block["missing_by_source"]) == (
+        member, 124, 43, {"-": 40, hole: 56}
+    )
+
+
 # 116 ISO dates over the 41 days from 2019-11-08, eleven of them on
 # 2019-11-11, which is declared missing (a seeded column of the review's
 # search at a floor of eleven). A low-tail rank's stratum is that one day.
@@ -1756,6 +1924,52 @@ def test_a_tail_rank_stuck_on_a_missing_day_is_counted_as_absent(
         assert len(written) == block["n_distinct"], f"{len(written)} different days"
         missed = set(kpi_shapes.missed(kpi_shapes.measure(described, text, "stuck.csv")))
         assert missed == _STUCK_HOLE_MISSES, sorted(missed ^ _STUCK_HOLE_MISSES)
+
+
+# 259 quarters over the 47 from 1986-Q2, 31 of them 1986-Q4, declared
+# missing (the final review's quarter battery, `random.Random(997059)`).
+_STUCK_QUARTER_COUNTS = (
+    2, 1, 31, 40, 1, 0, 1, 3, 1, 1, 0, 0, 2, 0, 4, 1, 4, 0, 7, 1, 3, 0, 2,
+    2, 9, 0, 5, 0, 7, 1, 5, 42, 0, 1, 0, 4, 3, 27, 1, 8, 11, 0, 4, 3, 9, 0, 12,
+)
+
+
+def test_a_tail_rank_stuck_on_a_missing_quarter_costs_rungs_and_a_boundary(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A recorded limit (plan P4-D358): the stuck rank's absent cell costs more than its counts.
+
+    A low-tail rank whose stratum is 1986-Q4 alone stands there at seeds 3
+    and 8 and is written absent. The count of different quarters is held,
+    and beside the absent cells' own checks the twin misses a ladder rung,
+    the low tail's boundary and its `Q` marks. A repair that moves such a
+    rank turns this red and restates the record, which gave this limit as
+    six checks on days alone.
+    """
+    cells: "list[str]" = []
+    for step, count in enumerate(_STUCK_QUARTER_COUNTS):
+        cells += [f"{1986 + (step + 1) // 4}-Q{(step + 1) % 4 + 1}"] * count
+    random.Random(997059).shuffle(cells)
+    described = _described_with_a_missing_day(tmp_path, "stuck_quarter", cells, 11, "1986-Q4")
+    block = described.document["columns"][0]
+    assert (block["format"], block["n_distinct"], block["missing_by_source"]) == (
+        "year-quarter", 34, {"1986-Q4": 31}
+    )
+    hole = 4 * 16 + 3
+    for seed, (moved, lows, highs, layout, _facts, text) in zip(
+        (3, 8), _settled(described, (3, 8), monkeypatch)
+    ):
+        assert layout.low is not None
+        assert any(
+            moved[rank] == lows[rank] == highs[rank] == hole for rank in range(layout.low.rows)
+        ), f"seed {seed}: no low-tail rank's stratum is the missing quarter"
+        written = {line for line in text.split("\n")[1:] if line} - {"1986-Q4"}
+        assert len(written) == block["n_distinct"], f"seed {seed}: {len(written)} different quarters"
+        missed = set(kpi_shapes.missed(kpi_shapes.measure(described, text, f"stuckq-{seed}.csv")))
+        assert {
+            "c:holes.by_source.1986-Q4", "c:presence.n_present", "c:date-ladder.p25",
+            "c:tails.low.boundary", "c:markers.upper",
+        } <= missed, f"seed {seed}: {sorted(missed)}"
 
 
 def test_a_minute_on_a_missing_moment_is_written_absent_and_named(tmp_path: pathlib.Path) -> None:
