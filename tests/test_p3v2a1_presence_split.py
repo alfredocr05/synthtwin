@@ -365,7 +365,8 @@ _TAIL_COUNT = "counts.n_used_in_statistics"
 # and nowhere else.
 #
 # * A file whose own tail publishes NEITHER distance -- because its rows
-#   and those two numbers would give its own outer cells back -- carries
+#   and those two numbers would give back an outer cell or how many outer
+#   cells hold one value, or for another reason its remarks give -- carries
 #   no number for the description's two distances to be compared with, and
 #   no published obligation of that column decides it: what decides it is
 #   the file's own values, which nothing counts.
