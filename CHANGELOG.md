@@ -6,6 +6,20 @@ exists).
 
 ## [Unreleased]
 
+### Excel's hour and the 12-hour clock, read and written back (2026-10-01)
+
+**The reader** (plan P4-D370, landing T1). `3/17/2024 6:42`, `6:42 PM`,
+`6:42pm`, `6:42 p.m.` and `12:00:00 AM` were free text; they read now, on
+the slashed stamps and as clock times, and the twin writes each column's
+own clock back -- the hour's width and the marker -- published as a value
+of `clock_form` and of the stamp's one `datetime_separators` word.
+Validation holds it by fit. An unmarked clock whose hours all lie in 1 to
+12 is asked 24- or 12-hour (`--twelve-hour`, the settings list
+`forced_twelve_hour_clocks`), a one-figure clock keeps its colon question,
+and slashed dates no value can settle ask which comes first. G7.5 step 5
+writes a width census's unnamed remainder on whole days. `K-S3-52`;
+vectors file 22.
+
 ### The weekday certificate's cap, measured (2026-09-30)
 
 **The cap stays at 20,000 arrangements** (plan P4-D359, the owner's

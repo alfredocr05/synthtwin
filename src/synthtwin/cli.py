@@ -1687,6 +1687,23 @@ def _read_one_answer(standing: str = asking.ANSWER_MEASUREMENT) -> "str | None":
         )
 
 
+def _read_on_twelve_hours(column: "dict[str, object]") -> bool:
+    """Whether a described column was read on the declared 12-hour face."""
+    style = ""
+    if column["role"] == "time_of_day":
+        form = f"{column['clock_form']}"
+        if form in parsing.CLOCK_FORMS:
+            style = parsing.clock_style_of(form)
+    elif "datetime_separators" in column:
+        census = column["datetime_separators"]
+        if isinstance(census, dict):
+            for word in census:
+                found = parsing.stamp_style(f"{word}")
+                if found is not None:
+                    style = found
+    return bool(style) and parsing.clock_face(style) == parsing.CLOCK_TWELVE_HOUR
+
+
 def _put_the_questions(
     questions: "list[asking.Question]",
 ) -> "tuple[list[str], list[str], list[str], list[str], list[str]] | None":
@@ -2574,6 +2591,19 @@ def _run_profile(
                 continue
             _warn(
                 errors.the_comma_declaration_did_not_reach(
+                    name, f"{described_column['role']}"
+                )
+            )
+    # ...AND THE 12-HOUR DECLARATION, WHICH REACHES ONLY AN UNMARKED CLOCK
+    # (landing T1, plan P4-D370), said where it reached nothing.
+    for name in twelve_hours:
+        for described_column in _described_columns(document):
+            if described_column["name"] != name:
+                continue
+            if _read_on_twelve_hours(described_column):
+                continue
+            _warn(
+                errors.the_twelve_hour_declaration_did_not_reach(
                     name, f"{described_column['role']}"
                 )
             )

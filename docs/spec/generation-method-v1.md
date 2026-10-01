@@ -6527,6 +6527,30 @@ rotation the marks use, which draws no word:
 | the case of a quarter's marker | `quarter_marker_case` | `upper`, `lower` |
 | the case of a zulu offset marker | `zulu_case` | `upper`, `lower` |
 
+**A SLASHED STAMP'S CLOCK HALF IS WRITTEN IN ITS STYLE** (landing T1, plan
+P4-D370). Its one `datetime_separators` word names it (contract C6-10a,
+D12a): `space` is the two-figure 24-hour clock every stamp wrote before,
+and `space h AM-PM` and the rest a width and a face. Every rank writes
+it, the hour at its width, on its face -- midnight `12:00 AM`, noon
+`12:00 PM`, on the declared 12-hour face `12:00` and the hour past noon
+less twelve -- at the precision the profile records. A pooled word names
+none, and the 24-hour clock is written. The end of such a column is its
+own instant written whole: a stamp holds no sixtieth second.
+
+**STEP 5: THE WIDTH CENSUS'S UNNAMED REMAINDER** (landing T1; carried at
+plan l.17955 as case (a)). Where the named counts of `date_field_widths`
+come to less than the parsed cells -- a width each below the line was
+left out -- the named words keep exactly their published counts and the
+other `parsed - named` ranks wear joint words the census does not name,
+in the order `padded`, `unpadded`, `first-padded`, `second-padded`:
+WHOLE DAYS AT A TIME, from the ranks that show both fields, the days
+holding the fewest of them first, each day taken while it still fits
+the remainder; each word on at most the line less one ranks and on fewer
+than the largest named count, a day going to the first word it fits.
+Where no such set of days holds the remainder exactly, no rank moves and
+the report says so (`date_field_widths`): case (b), a remainder
+outnumbering the named word's visible cells, stays carried.
+
 **The joint words are joint on purpose, and that is a rule and not a
 convenience.** On a column half written `%m/%d/%Y` and half `m/d/yyyy`
 not one real cell mixes the two, so two independent censuses would have
@@ -7181,6 +7205,20 @@ anywhere in G7A.
 |---|---|---|---|
 | `hh-mm` | minutes of day | 1,440 | `HH:MM` |
 | `hh-mm-ss` | seconds of day | 86,400 | `HH:MM:SS` |
+
+**SINCE LANDING T1 THOSE ARE TWO OF FORTY** (plan P4-D370, contract
+C6-10a): a width `hh` or `h` (one figure below ten), `-mm` or `-mm-ss`,
+and a face -- the 24-hour clock, the declared 12-hour face (` twelve-hour`,
+whose `12` is the first hour and whose capacity is half a day), or a
+marker pair after one space or none. The ordinal is the minute or second
+of the day on that face; the spelling writes the hour at the form's
+width, `hours % 12` with 12 in place of 0 on a 12-hour face, the marker's
+morning word below noon and its evening word from noon on. Every ordinal
+in `[0, capacity)` still has exactly one spelling, and ranks are ordered
+by ordinal, never by text. The reader below admits these forms; what it
+refuses beyond the five shapes is `24:00`, a marked hour of 0 or past 12,
+`Am`, a one-letter marker, and a marker after two spaces or a no-break
+space.
 
 The ordinal of a cell is `hours * 60 + minutes` for `hh-mm` and
 `hours * 3600 + minutes * 60 + seconds` for `hh-mm-ss`. The spelling of

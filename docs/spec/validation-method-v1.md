@@ -1272,6 +1272,12 @@ floor, so the real table meets its description by construction:
 - the values wearing a mark the census does NOT name, the file's own
   pool included, are at most that same width (`marks.unnamed`), which is
   the only check that sees a mark nobody published;
+- a slashed stamp's word, and a clock column's `clock_form`, are HELD BY
+  FIT (landing T1, plan P4-D370): the file's own word or form counts as
+  the published one where it is the same face and precision and no cell
+  the file reads on that face shows an hour width other than the
+  published one -- a faithful twin that drew no hour below ten shows no
+  width and is not accused -- and is MISSED otherwise;
 - `all_at_midnight` is compared where it is published `true`
   (`midnight.all`), and `n_at_midnight` where it is published at all,
   which is where it is above nought (`midnight.count`). The nought that

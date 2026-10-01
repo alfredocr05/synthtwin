@@ -15841,6 +15841,17 @@ def _placeholder_days_judged(block: "dict[str, object]") -> "dict[str, int]":
     return found
 
 
+def _stamp_style_of(facts: contract.DatetimeFacts) -> str:
+    """The written clock a slashed stamp's one census word names (landing T1)."""
+    if facts.parser_family not in contract.CLOCK_FORM_MEMBERS:
+        return parsing.DEFAULT_CLOCK_STYLE
+    for word in sorted(facts.datetime_separators):
+        style = parsing.stamp_style(word) if word != contract.WITHHELD else None
+        if style is not None:
+            return style
+    return parsing.DEFAULT_CLOCK_STYLE
+
+
 def _tail_units_of(
     facts: contract.DatetimeFacts, cells: "list[str]"
 ) -> "list[int | None]":
@@ -15860,6 +15871,9 @@ def _tail_units_of(
     question.
     """
     joint = facts.parser_family == contract.FORMAT_ISO_MIXED
+    # A slashed stamp declared a 12-hour clock reads its top of the dial
+    # as the first hour, as its description did (landing T1).
+    style = _stamp_style_of(facts)
     read_cells: "list[tuple[str, str, bool] | None]" = []
     dates = 0
     for cell in cells:
@@ -15870,7 +15884,7 @@ def _tail_units_of(
         dated = joint and parsing.parse_datetime(cell, taxonomy.ISO_FORMS[1]) is None
         if dated:
             dates = dates + 1
-        read_cells += [(read[0], read[1], dated)]
+        read_cells += [(parsing.stamp_canonical(read[0], style), read[1], dated)]
     commonest, named = _offset_absorbed_into(facts, dates)
     found: "list[int | None]" = []
     for entry in read_cells:

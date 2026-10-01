@@ -1392,6 +1392,24 @@ def the_comma_declaration_was_answered_away(name: str) -> str:
     )
 
 
+def the_twelve_hour_declaration_did_not_reach(name: str, role: str) -> str:
+    """Message when `--twelve-hour` names a column it cannot change (landing T1).
+
+    NOT A REFUSAL, for the comma declaration's reason: the declaration
+    reaches a column read as clock times, or as dates with a clock, whose
+    clock writes no AM or PM, and which columns those are is known only
+    once the table is read.
+    """
+    return (
+        f"The column '{_shown(name)}' was named with --twelve-hour, but "
+        f"synthtwin read it as {role}, and that declaration only changes "
+        f"a column of times of day -- alone, or after a date -- written "
+        f"without AM or PM. Nothing about this column was read on a "
+        f"12-hour clock. The description that was written is correct "
+        f"about everything else, and says which columns were declared."
+    )
+
+
 def the_comma_declaration_did_not_reach(name: str, role: str) -> str:
     """Message when `--decimal-comma` lands on a role it cannot help.
 

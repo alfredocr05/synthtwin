@@ -6576,6 +6576,65 @@
    }
   },
   {
+   "id": "K-S3-52",
+   "phase_stage": "Stage 3b landing T1 (plan P4-D370)",
+   "category": "CODE",
+   "headline": false,
+   "name": "Excel's hour and the 12-hour clock come back as written",
+   "status": "GREEN",
+   "rule": "the twenty written clocks of tests/clock_spellings.py -- eleven slashed stamps, seven clocks alone and two all-midnight exports -- at 1,000 rows and seeds 0 to 2 and at 10,000 rows and seed 0, floor 11: every one read with no cell left over; no twin cell refused by the source's own strptime format (a dotted marker: no cell off the published style); no twin MISSED; no twin rewritten on the two-figure 24-hour clock HELD; and the gate's pinned nodes pass",
+   "rule_kind": "at_most",
+   "expected": {
+    "spellings": 20,
+    "read": 20,
+    "twin_cells_unread": 0,
+    "missed": 0,
+    "rewrites_held": 0,
+    "pinned_nodes_failing": 0
+   },
+   "key_kinds": {
+    "spellings": "at_least",
+    "read": "at_least",
+    "pinned_nodes_failing": "exact"
+   },
+   "tier": "SLOW",
+   "source": "driver",
+   "nodes": [
+    "tests/test_stage3b_reader.py::test_r1_every_spelling_is_read",
+    "tests/test_stage3b_reader.py::test_r1_red_on_its_mutant",
+    "tests/test_stage3b_reader.py::test_r2_the_twin_writes_each_spelling_back",
+    "tests/test_stage3b_reader.py::test_r2_red_when_the_writer_ignores_the_style",
+    "tests/test_stage3b_reader.py::test_r2_red_when_the_writer_pads_every_hour",
+    "tests/test_stage3b_reader.py::test_r3_a_twin_rewritten_on_the_24_hour_clock_is_missed",
+    "tests/test_stage3b_reader.py::test_r3_the_written_clock_is_held_by_fit",
+    "tests/test_stage3b_reader.py::test_r3_red_on_an_exact_compare",
+    "tests/test_stage3b_reader.py::test_r3_red_on_a_check_that_cannot_fail",
+    "tests/test_stage3b_reader.py::test_r4_the_twelve_hour_pitfalls",
+    "tests/test_stage3b_reader.py::test_r4_red_without_the_top_of_the_dial",
+    "tests/test_stage3b_reader.py::test_r5_one_written_clock_per_column",
+    "tests/test_stage3b_reader.py::test_r5_a_census_too_small_to_name_writes_the_24_hour_clock",
+    "tests/test_stage3b_reader.py::test_r6_the_unnamed_width_remainder_is_written",
+    "tests/test_stage3b_reader.py::test_r6_red_without_step_five",
+    "tests/test_stage3b_reader.py::test_r7_no_byte_moves",
+    "tests/test_stage3b_reader.py::test_the_twelve_hour_question_is_asked_and_its_answer_honoured",
+    "tests/test_stage3b_reader.py::test_a_one_figure_clock_keeps_its_colon_question",
+    "tests/test_stage3b_reader.py::test_day_and_month_no_value_can_settle_are_asked",
+    "tests/test_stage3b_reader.py::test_a_minute_clock_is_said_in_minutes"
+   ],
+   "test": null,
+   "driver": "tools/measurements/kpi_reader.py --kpi",
+   "pin_strength": "WEAKER",
+   "measured_on": "tests/clock_spellings.py's twenty spellings, one calendar year of moments with an emergency-department hour profile, through the real producer, generator and checker",
+   "evidence": "Before T1 (668f276, the design's baseline and its skeptic's): none of the twenty read. One-figure hours read 758 of 1,000 (hours 10 to 23), every AM/PM spelling 0; the clock-alone h:mm and h:mm:ss twins parsed 255 and 165 of 1,000 by accident, every other twin 0; validate exited 0 on all of them, free text publishing nothing to miss.",
+   "nodes_min_collected": 80,
+   "value_at": {
+    "commit": "PENDING",
+    "date": "2026-10-01",
+    "measured_by": "tools/measurements/kpi_run.py --slow --only K-S3-52 --print-values",
+    "value": {}
+   }
+  },
+  {
    "id": "K-S3-17",
    "phase_stage": "Stage 3's follow-up A, the owner's accepted limit of 2026-09-25 (plan P4-D353, answer 1)",
    "category": "PRIVACY",

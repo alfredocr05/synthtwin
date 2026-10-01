@@ -1224,6 +1224,7 @@ claim.
 | `declared_missing_values` | object | exactly the five keys below | the declaration record for `--missing-value` |
 | `forced_codes` | array of strings | — | the names the person passed to `--code`, sorted ascending, pairwise distinct. A column named here is read as LABELS: the rules that read a cell as a number, a date, a clock time or a number wearing an affix are silenced for it, so the roles left are the five that publish spellings. Unlike `forced_identifiers` this does NOT suppress the column — its distribution is why it was declared. A name may not appear in both arrays |
 | `forced_decimal_commas` | array of strings | — | the names the person passed to `--decimal-comma`, sorted ascending, pairwise distinct. A column named here, AND READ AS PLAIN NUMBERS, has its numbers READ with the comma as the decimal point and the point dropped, so `1,5` is one and a half and `1.234,56` is one thousand two hundred and thirty-four and fifty-six hundredths; and the twin WRITES that column's numbers the same way, because a column declared this way and reproduced with points hands a person cells their own tools read as thousands separators. TWO QUESTIONS LIVE HERE AND THEY HAVE DIFFERENT ANSWERS, which an earlier revision of this row ran together. **Where the declaration is HONOURED** — where the published description differs because it was made — is `affixed_number`, `binary`, `constant`, `continuous`, `count` and `numeric_unrepresentable`. The profiler swaps a declared column's cells BEFORE it chooses a role, so `constant` and `binary`, which are chosen ahead of the numeric roles, read with the comma exactly as the numeric ones do; an earlier revision named only the last three and the tool told those columns' owners their numbers were "NOT read" that way about a description whose profiler had read exactly that way. **Where the GENERATOR must spell the numbers itself** is narrower: the numeric and unrepresentable roles, whose cells it writes as numbers. A `constant` column's twin writes the published spelling straight out, so there is nothing to swap and swapping would corrupt it. **THE AFFIXED ROLE IS HONOURED OVER ITS CORE** (landing 2b.16, plan P4-D106, closing the affixed half of residual R-P4-52). Such a cell is a number wearing one shared piece of text, and the two halves are read differently on purpose: the CORE is read, and written back, in the column's declared grammar, while the WRAPPER is published character for character and is never translated — a wrapper carrying either mark, `U.S.$ ` or a unit written `kg.`, is the file's own text and not a number this tool spelled. Before it, the commonest European export there is — `795,64 EUR`, `37,5 %` — had no substring the splitter's reader could hold, so every cell proposed a wrapper of its own, none reached the parse line, and the column was described as free text and rebuilt as punctuation stand-ins, with `synthtwin validate` reporting exit 0 on both files. Every OTHER role is unhonoured, because its cells carry the number inside a larger spelling — a separator between several numbers, or a label published character for character — and which mark of that spelling is the decimal point is a question this declaration does not answer; on `joined_numbers` the same mark may be the separator itself, and that half of residual R-P4-52 is open. A declaration that lands on such a column is honoured for nothing, and `synthtwin profile` SAYS SO on the screen, naming the column and the role it took; the array still records what was declared, because what a person asked for is part of how the description was made. THIS IS NOT ONE OF THE THREE ROLE DECLARATIONS and does not share their exclusion rule: they are three answers to the question *what does this column hold* and no column may carry two of them, while this answers *how are its numbers spelled*. A column may therefore be named here AND in `forced_measurements` — that pairing is the commonest true thing a person has to say about a European file. It may NOT be named here and in `forced_identifiers` or `forced_codes`: both of those silence the numeric reading, so the declaration would be accepted and then ignored, and a declaration a tool quietly ignores is worse than one it refuses. No heuristic ever adds a name to this array (P4-D26) |
+| `forced_twelve_hour_clocks` | array of strings | — | the names the person passed to `--twelve-hour`, or answered `twelve-hour` for in the questions file (landing T1, plan P4-D370), sorted ascending, pairwise distinct: columns of times of day written on a 12-hour clock WITHOUT a marker. Nothing in `8:34` or `12:15` says which clock wrote it, so the run asks where every hour of an unmarked clock lies in 1 to 12. A column named here reads its unmarked hours on that face -- 12 is the first hour of the day, as Python's `%I` with no `%p` reads it, and an hour of 0 or past 12 is not read -- publishes the ` twelve-hour` style (C6-10a), and its twin writes hours 1 to 12 only |
 | `forced_delimiter` | string | empty, or one of `,` `;` tab `\|` | THE SIXTH DECLARATION (plan P4-D110, review item CODEX-4): the character the person said separates the columns of their file, with `--delimiter` or by answering `about_your_file` in the questions file, or empty where they said nothing. A declared delimiter is READ and never guessed: the survey takes it in place of the reading the cells favour. It exists because some files read equally well under two delimiters -- `id,pair|code` over rows such as `1,2|3` is two columns under the comma and two different columns under the vertical bar -- and nothing in the cells can say which the person's file is. **The competing readings need not give the table the same NUMBER of columns** (plan P4-D282): a header `id,measure|low|high` over rows such as `1,101|90|110` reads as two whole columns under the comma and three whole columns under the bar, both at a share of 1.0, and while a competitor had to tie on the width as well, the wider reading took such a file silently -- the first field became a QUANTITY, and code using the source's own comma delimiter read a measurement of `029` off a twin row of `3,029|90|110`. The share is what says a candidate reads the whole file; the width may break a tie but may not hide one. Such a file is still READ the way the cells favour where nobody declares, because a file an earlier version twinned may not become refused; the tie is said on the screen and put as a question in the questions file, and the validator reads a checked file with the declaration so that a twin and its source are split the same way. A declaration that contradicts a separator line the file itself carries is refused, and so is one given on a workbook, which has no delimiter. FD13 holds it to `source.dialect.delimiter` |
 | `forced_identifiers` | array of strings | — | the names the person passed to `--identifier`, sorted ascending, pairwise distinct |
 | `forced_measurements` | array of strings | — | the names the person passed to `--measurement`, sorted ascending, pairwise distinct. A column named here whose cells hold two or more numbers joined by one repeated separator takes the `joined_numbers` role of section 6.15; a column named here whose cells do not are read by the ordinary rules, so the declaration decides nothing on its own. A name may not appear in more than one of the three declaration arrays |
@@ -1457,9 +1458,10 @@ description was written from.
 
 #### The remaining settings invariants
 
-**Invariant S8.** Every name in EACH of the four declaration arrays —
-`forced_identifiers`, `forced_codes`, `forced_measurements` and
-`forced_decimal_commas` — is the `name` of some column block. A name
+**Invariant S8.** Every name in EACH of the five declaration arrays —
+`forced_identifiers`, `forced_codes`, `forced_measurements`,
+`forced_decimal_commas` and `forced_twelve_hour_clocks` (landing T1) —
+is the `name` of some column block. A name
 that matches no column is a refusal: it means the profile and the
 schema disagree about which columns were declared. The arrays are
 checked separately and by the same rule, so a misspelt `--code` name
@@ -1902,7 +1904,7 @@ contract:
    widening it to arbitrary strings would be exactly the hole that lets
    a source-derived value into a sentence and be rebuilt successfully.
 
-**The census.** The table holds 84 forms and 105 argument positions.
+**The census.** The table holds 86 forms and 105 argument positions.
 Of those, 78 are whole numbers, 5 are package words, 17 are nested
 forms, and 5 are bound affix strings. No position is a string of any
 other kind. The weekday census (landing 3b.1, plan P4-D355) added the
@@ -1951,7 +1953,7 @@ class over a committed battery, so it is a number a reader can run.
 
 So every argument position of every form is bound to WHAT IT IS, and
 the table below is closed over all 105 of them exactly as the form table
-is closed over the 84 forms. A position nobody bound is a number a
+is closed over the 86 forms. A position nobody bound is a number a
 sentence may print that no rule governs, and a producer that adds one
 is a producer this contract does not describe. The bindings are these:
 
@@ -3513,7 +3515,7 @@ names:
 
 | id | statement |
 |---|---|
-| NG14 | the form is one of the 84 in section 4.5.1 |
+| NG14 | the form is one of the 86 in section 4.5.1 |
 | NG15 | the argument count equals that form's arity |
 | NG16 | every argument is of one of C6-119's four classes |
 | NG17 | re-rendering the form with those arguments writes the leaf's text character for character |
@@ -3836,6 +3838,14 @@ census of marks counts every present cell, so the table writing each of
 them with a comma reads every present cell either way and NF61's "not
 all" is false there. It is accepted at any floored position, on NF61's
 terms, and capitalised where it starts a sentence.
+
+**NF108. `remark_some_clocks_written_another_way` — cells on another clock face, counted unread** — arity 0 (landing T1, plan P4-D370). A remark, carried by a column of clock times or of slashed stamps some of whose cells write their clock on another face than the column's (C6-10a); `n_unparsed` already says how many.
+
+> some values write their time of day another way -- with AM or PM where most write none, or the other way round, or with another mark -- and are counted as values this column does not read
+
+**NF109. `remark_some_hours_written_another_width` — cells of the other hour width, counted in** — arity 0 (landing T1). A remark, carried where some read cells show the hour width the column does not write; they are read, and published and written back in the column's width. No count (plan P4-D347).
+
+> some values write the hour with a different number of figures than most do, and are read and written the way most of them are
 
 **"EVERY VALUE IS DIFFERENT" ONLY WHERE IT IS** (plan P4-D357 A, review
 item 6 of follow-up A). The producer writes NF32 or NF34 -- in its first
@@ -6134,6 +6144,17 @@ resolutions; `day` for `date`, and for a column of moments whose
 `minute`; and `second` otherwise. On the shared clock a day is the
 nearest midnight OF THAT CLOCK, which is the cell's own local day for
 any offset within twelve hours.
+
+**Invariant D12a (a slashed stamp's written clock, landing T1, plan
+P4-D370).** A word naming a written clock -- `space ` and a style other
+than `hh`, `space h`, `space hh AM-PM`, `space hAM-PM`, `space h
+twelve-hour` and the rest (C6-10a) -- is a key of the census of a
+`month-first-datetime`, `day-first-datetime` or `slashed-iso-datetime`
+column alone, and such a census names ONE key: the column keeps one way
+of writing its clock, and every cell it read wears it. Such a word counts
+as `space` wherever D12 and D13 speak of the permitted marks. A census
+too small to name its word is `(withheld)`, and that column's twin writes
+the two-figure 24-hour clock -- a stated limit.
 
 **Invariant D12 (the separator names and the floor).** Every key of
 `datetime_separators` is `upper_t`, `space`, `lower_t` or
@@ -8519,6 +8540,26 @@ tie-break is fixed here so that two producers reading one table under
 one setting cannot disagree about the column's form, its endpoints,
 its ladder or its unparsed count. Under it the `HH:MM` cells are the
 ones counted in `n_unparsed`.
+
+**C6-10a. THE WRITTEN CLOCK (landing T1, plan P4-D370).** The two forms
+above are two of FORTY. A form is a STYLE at the minute (`-mm`) or the
+second (`-mm-ss`): the hour's width -- `hh`, two figures, or `h`, one
+below ten -- and the FACE: none for the 24-hour clock; ` twelve-hour`
+for a column `settings.forced_twelve_hour_clocks` names; or a marker
+pair `AM-PM`, `am-pm`, `A.M.-P.M.` or `a.m.-p.m.` after one space or
+none (`h-mm AM-PM`, `hh-mm-ssa.m.-p.m.`). Unmarked, an hour is 0 to 23;
+marked, 1 to 12, `12 AM` the first hour and `12 PM` noon; minutes and
+seconds are two figures to 59; nothing is trimmed. The column keeps the
+style most of its cells wrote, ties to the 24-hour clock and then in
+the order above: a cell on another face is counted in `n_unparsed`
+(NF108), and a cell whose hour shows the other width -- only an hour
+below ten shows one -- is read and published in the column's width
+(NF109). Every published value is written exactly in the form; values
+are ORDERED by their place in the form's unit, which on the two forms
+above is text order and on the other thirty-eight is not (`9:30` after
+`10:00`). On the declared face the unit's space is half a day. A slashed
+stamp's clock half is read by the same reader, split at the first space,
+and its style is its one `datetime_separators` word (D12a).
 
 #### Four readings this role refuses, each a rule and not an omission
 
@@ -11930,7 +11971,8 @@ it answers to.
 | D10 | where `resolution` is `datetime`, the seconds field of every moment a tail publishes — its `boundary` and each entry of its `values` — is `00` when `time_precision` is `minute`, and is not `60` when `datetimes_read_at` is `utc`. The calendar's edge is method G7.3e's obligation on the generator since stage 3, no end being published | yes — the loader holds the moments and the clock |
 | D11 | the ladder around its tails: `min` and `max` are `null`; an interior rung at percent `c` is `null` exactly where its rank `floor((P - 1) * c / 100)` lies below `low_tail.rows` or above `P - 1 - high_tail.rows`, and exactly where there are no tails; a published rung read off a boundary's own rank IS that boundary; every published rung lies between the two boundaries | yes — the loader holds `P`, the two `rows` and the floor |
 | D12 | every key of `datetime_separators` is `upper_t`, `space`, `lower_t` or `(withheld)`; every key other than `(withheld)` maps to a count at least the floor and never below two, and `(withheld)` appears only when the pooled remainder is non-zero; a `(withheld)` count stands alone, with no mark named beside it (plan P4-D220), and only over a population `parsing.census_pools` lets a pool stand on -- fewer values than the line, or any permitted mark absent in one reading and no count in every reading (plan P4-D222; stage 2 closed by the owner rulings of 2026-09-17), with the room `n_distinct` less one where the column has a present cell outside the pool (plan P4-D356) | yes |
-| D13 | `datetime_separators` is `{}` where `resolution` is not `datetime`; on a datetime column whose `format` is not `iso-mixed` its values sum to `n_present - n_unparsed`, and on `iso-mixed` to `resolution_mix["iso-datetime"]`; a `month-first-datetime`, `day-first-datetime` or `slashed-iso-datetime` column carries only `space` or `(withheld)` | yes |
+| D13 | `datetime_separators` is `{}` where `resolution` is not `datetime`; on a datetime column whose `format` is not `iso-mixed` its values sum to `n_present - n_unparsed`, and on `iso-mixed` to `resolution_mix["iso-datetime"]`; a `month-first-datetime`, `day-first-datetime` or `slashed-iso-datetime` column carries only `space`, a stamp word of D12a, or `(withheld)` | yes |
+| D12a | a word naming a written clock (`space ` and a style, landing T1) is a key of a slashed stamp's census alone, and such a census names ONE key: the column keeps one way of writing its clock. A census too small to name its word is `(withheld)`, and that column's twin writes the two-figure 24-hour clock (plan P4-D370's stated limit) | yes |
 | D14 | `all_at_midnight` is `true` only where `resolution` is `datetime`, `n_present - n_unparsed` is at least the floor, every moment the block publishes — both boundaries, every value a tail lists and every published rung — stands at midnight under some offset `utc_offsets` names, and on the `utc` clock no offset is pooled; a `false` is never refused, because the canonical form drops the fraction (MN-P) | yes |
 | DT1 | a tail is `null` or a block of exactly `boundary`, `rows`, `mean_distance`, `rms_distance` and `values`, publishing either both distances and no values, or NEITHER distance and no values (plan P4-D349), or its values with at most its mean beside them | yes |
 | DT2 | both tails are `null` or neither; each `rows` is at least the floor; the two added leave at least one cell between them; the low boundary is not after the high one, and where they leave exactly one cell they share it; where they are `null` every rung is `null` | yes |
@@ -12025,9 +12067,9 @@ part one's (8.3, 8.4).
 
 | id | statement |
 |---|---|
-| T1 | every published clock value — each tail's `boundary`, each entry of its `values`, every published rung — is written in the form `clock_form` names, two digits a field, in its ranges |
+| T1 | every published clock value — each tail's `boundary`, each entry of its `values`, every published rung — is written exactly in the form `clock_form` names: the form's own writer gives it back character for character (C6-10a) |
 | T2 | the ladder around its tails, exactly as D11 states it for a column of dates: the two ends `null`, an interior rung `null` exactly inside a tail, a rung read off a boundary's rank that boundary, and every published rung between the two |
-| T3 | read in ladder order the rungs never decrease in seconds of day, which for these fixed-width forms agrees with text comparison |
+| T3 | read in ladder order the rungs never decrease in the form's unit; on `hh-mm` and `hh-mm-ss` that agrees with text comparison, and on the other forms it does not (landing T1); a tail's `values` ascend, and lie beyond its boundary, in the same order |
 | T4 | `n_unparsed < n_present`. NOT implied by T5: at `minimum_parse_rate` `0.0` the parse line is zero and T5 vacuous, T4 alone keeping a cell for the endpoints |
 | T5 | `n_present - n_unparsed` is at least the parse-line count of `n_present`, applied as a count |
 
@@ -12110,7 +12152,7 @@ month-first parsed.
 | NG11 | on `remark_affixed_numbers_may_be_codes`: argument 3 equals the named block's `n_affixed` |
 | NG12 | argument 1 is character-for-character that block's `affix_prefix` and argument 2 its `affix_suffix`, AT THOSE POSITIONS, not merely as members of the pair |
 | NG13 | on `remark_a_label_is_a_built_in_stand_in`: argument 1 is 1, 2 or 3 |
-| NG14 | for every form: one of the 84 the note grammar enumerates |
+| NG14 | for every form: one of the 86 the note grammar enumerates |
 | NG15 | the argument count equals that form's arity |
 | NG16 | every argument is of one of the four argument classes |
 | NG17 | re-rendering the form with those arguments writes the leaf's text character for character |
@@ -13299,7 +13341,7 @@ this document, and the battery the plan requires turns red on it.
 | nothing-class blocks (`numeric_unrepresentable`, `identifier`, `free_text`) | lengths, word statistics, digit and code-alphabet counts, the whole-number test, the repetition multiset, on `numeric_unrepresentable` the whole-number and sign counts, on `free_text` the census of WRITTEN FORMS its cells wore (`shape_forms`), and on `identifier` the census of LAYOUTS (`layout_forms`, 7.12) and, by the owner's ruling of 2026-09-17, the literal PREFIX every cell of the column or of one named layout opens with (`layout_prefixes`, 7.12a, row 22) | no value, no spelling, no fragment of one but the prefix of row 22 — the form census included, whose every key is built from `%`, `@` and thirteen named marks -- characters no cell that has a form may contain, so a key can carry no letter and no figure of any cell; the multiplicity map publishes SIZES of unnamed groups under no floor, the form census under the floor with a `(withheld)` pool |
 | `empty` columns nobody declared | the absent SPELLINGS their cells wore and the two absence counts, exactly as any column that is not nothing-publishing | floor-governed |
 | `settings` | the rules the run applied, the floor's own value, how many values each declaration named, and which of THIS package's published words were among them | carries no cell, no column and no count of the table; a person's own spelling never enters |
-| `source.header_evidence`, `publication_notes[].note`, `detection_evidence`, `remarks` | sentences of the 84 closed forms: 105 argument positions, of which 78 are whole numbers, 5 package words, 17 nested forms and 5 bound affix strings | the whole numbers are counts the block beside them already publishes, EXCEPT the positions priced at rows 16 and 18 |
+| `source.header_evidence`, `publication_notes[].note`, `detection_evidence`, `remarks` | sentences of the 86 closed forms: 105 argument positions, of which 78 are whole numbers, 5 package words, 17 nested forms and 5 bound affix strings | the whole numbers are counts the block beside them already publishes, EXCEPT the positions priced at rows 16 and 18 |
 | `relationships` | nothing: eight nulls | — |
 
 ### 12.3 The rows, each priced
@@ -14306,12 +14348,16 @@ count and the blank count live in `n_missing_withheld` and
 **`time_precision` — 6:** `subsecond`, `second`, `minute`, `date`,
 `quarter`, `month`.
 **`datetimes_read_at` — 2:** `local`, `utc`.
-**`clock_form` — 2:** `hh-mm`, `hh-mm-ss`.
+**`clock_form` — 40** (C6-10a): `hh-mm`, `hh-mm-ss`, and the thirty-eight
+landing T1 adds, a width `hh` or `h`, `-mm` or `-mm-ss`, and a face.
 **`resolution_mix` keys** are `format` members: on a single-format
 column exactly the column's own member; on an `iso-mixed` column
 exactly `iso-date` and `iso-datetime`. No other key set conforms.
 **`datetime_separators` keys — 3**, plus the pooled key (6.6.2, D12):
-`lower_t`, `space`, `upper_t`; and `(withheld)`.
+`lower_t`, `space`, `upper_t`; and `(withheld)`; and on a slashed stamp
+the nineteen words naming its written clock after its one space (D12a):
+`space ` and a style other than `hh` -- `space h`, `space hh AM-PM`,
+`space hAM-PM`, `space h twelve-hour` and the rest.
 **`all_at_midnight`** is a boolean, and **`n_at_midnight`** a count of
 two or more or else `null` (landing 2b.3; the absent state and the floor
 of two, landing 2b.6), on the `datetime` block alone.
@@ -14353,7 +14399,7 @@ width at least ONE (`1`, `2`, `10`), a cell written as a whole number
 writing at least one figure (C6-29c). `(withheld)` is again the only
 non-numeric key permitted.
 
-### 14.8 The note grammar — 84 forms
+### 14.8 The note grammar — 86 forms
 
 Defined in 4.5.1, which is the authority on every rendering and every
 argument. 105 argument positions: 78 whole numbers, 5 package words, 17
@@ -14458,6 +14504,8 @@ nested forms, 5 bound affix strings.
 | NG85 | `remark_nearly_every_number_is_different` | 0 |
 | NG86 | `remark_nearly_every_value_is_different` | 0 |
 | NG87 | `said_some` | 0 |
+| NG108 | `remark_some_clocks_written_another_way` | 0 |
+| NG109 | `remark_some_hours_written_another_width` | 0 |
 
 **The package-word vocabulary — 26**, the whole of the second argument
 class (4.5.1): the twenty `format` members of 14.6, plus `day-first`

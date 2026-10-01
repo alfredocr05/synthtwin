@@ -38,7 +38,6 @@ And the T1 design skeptic's items: the 12-hour question and its answer
 """
 
 import csv
-import datetime
 import hashlib
 import io
 import json
