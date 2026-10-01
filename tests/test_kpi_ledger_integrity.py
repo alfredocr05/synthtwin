@@ -810,6 +810,16 @@ def test_the_ledger_file_is_canonical_json() -> None:
     text = kpi_rules.LEDGER_PATH.read_text(encoding="utf-8")
     assert text.endswith("\n")
     assert json.loads(text) == LEDGER
+    # 362,000 from 360,000 (2026-09-30) FOR THE OWNER'S ACCEPTED LIMIT
+    # `K-S3-34` (plan P4-D359, "Accept as a limit"), an entry of 1,736
+    # bytes the ruling asks for. The ledger stood 395 bytes under the cap;
+    # the prose this landing touched -- the measurement note's driver
+    # paths and three of its clauses, `K-S3-33`'s evidence -- was trimmed
+    # first, never a figure (587 bytes went), and the ledger still stood
+    # at 360,754 before `K-S3-33` and `K-S3-34` are stamped. A MEASUREMENT
+    # IS NEVER TRIMMED TO FIT: the cap moves, and the prose is trimmed
+    # before it moves again.
+    #
     # 360,000 from 350,000, AUTHORIZED BY THE ORCHESTRATOR (2026-09-28)
     # FOR THE FOUR LANDINGS OF ONE INTEGRATION: follow-up B, follow-up A,
     # landing 3b.0 and landing 3b.1. 3b.1's entries -- `K-S3-31` to
@@ -855,7 +865,7 @@ def test_the_ledger_file_is_canonical_json() -> None:
     # its bytes are K-P4-20's new value and the notes of the ceilings and
     # re-measurements its repair pass recorded. The cap is still a cap; the
     # prose is trimmed before it is raised again.
-    assert pathlib.Path(kpi_rules.LEDGER_PATH).stat().st_size < 360_000
+    assert pathlib.Path(kpi_rules.LEDGER_PATH).stat().st_size < 362_000
 
 
 def test_a_fast_pinned_entry_with_no_collection_floor_is_named() -> None:

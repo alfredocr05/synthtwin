@@ -6316,16 +6316,19 @@ a census is withheld tells a reader the table is one the rules
 withhold, so every withholding the table's own numbers decide is said in
 one sentence, and it is published only where the tables it always
 withholds -- those whose weekend, or whose Monday to Friday together,
-lies from the larger of one and the least any table of the rest of the
-description holds there, through that least plus the most that half of
-the week can hold in the stretches the rank facts keep below the line
-and the fewest rows more, at most the census line, that certify, the
-BAND -- have a table
+lies in its BAND, from the larger of one and the least any table of the
+rest of the description holds there through that and some rows more,
+each half's rows more at most the census line plus the most that half
+of the week can hold in the stretches the rank facts keep below the
+line, the pair fewest in sum that certifies, searched as though a wider
+band never certified less, the fewer Monday to Friday rows first where
+two tie -- have a table
 putting the line on a day of every class, or leave the class residue
-whose every arrangement the rest of the description allows; where they
-do not, the census is withheld whatever the table holds. A census whose
-weekend or Monday to Friday lies in its band with no rows more is
-refused (WC9). A
+whose every arrangement the rest of the description allows; where the
+widest pair does not, and neither does each half's least plus what its
+capped stretches hold, the census is withheld whatever the table holds.
+A census whose weekend or Monday to Friday holds that least exactly,
+which every band holds, is refused (WC9). A
 published census carries two remarks: how its days are grouped, and
 that it shows no count below the line of any set of dates the rest of
 the description does not already show.
@@ -11945,7 +11948,7 @@ it answers to.
 | WC6 | the five censuses of written forms give every date one text: each names at most one form holding every parsed cell, and a member that can show a width or a month name names its one form; and a workbook's published cell classes show at most one value class holding cells | yes |
 | WC7 | every non-zero group can hold at least four dates besides its knot days: the least of its calendar days between the boundaries that are not holes (form, placeholder or declared), its count and the reader's most different days less the other knot-free non-zero groups, each less its knot days | yes |
 | WC8 | the full-fill certificate holds on the reader's bounds and the holes: every class of a counted weekday is certified by a witness table, or is residue whose every stage-3 configuration the census allows, the stage-3 side asked with no census information at all, its empty weekdays included (method of plan P4-D355, P4-D359) | yes |
-| WC9 | neither the weekend nor Monday to Friday together lies in its BAND: from the larger of one and the least that total holds over the tables of the rest of the description, through that least plus the most that half of the week can hold in the stretches the rank facts keep below the line and the fewest rows more, at most the census line, whose always-withheld tables are certified; the loader refuses a total inside the band with no rows more, which every such band holds (plan P4-D359) | yes |
+| WC9 | neither the weekend nor Monday to Friday together lies in its BAND: from the larger of one and the least that total holds over the tables of the rest of the description, through that and some rows more, each half's at most the census line plus the most that half of the week can hold in the stretches the rank facts keep below the line, the pair fewest in sum whose always-withheld tables are certified, searched as though a wider band never certified less, fewer Monday to Friday rows first on a tie; the loader refuses a total at that least, which every such band holds (plan P4-D359) | yes |
 
 A date or clock block publishes no mean and no spread, so the cost rule
 of plan P4-D353 does not reach it: a date or clock tail that would be

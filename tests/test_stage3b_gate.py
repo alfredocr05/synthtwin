@@ -2556,7 +2556,7 @@ def test_each_rule_publishes_what_it_derives(tmp_path: pathlib.Path, name: str) 
       another stretch (plan P4-D359; before, no band was reached and the
       withholding was `uncertified`). One week of 1,201 visits is
       withheld for it too: its Monday to Friday stood inside the widest
-      band, and lies past the narrowest certified one (plan P4-D359).
+      band, and lies past the one its band search takes (plan P4-D359).
       Both are said in the one sentence every rule the table's own
       numbers decide shares.
     * `bizlog_x1_s1`: one row a business day and one more, so no day can

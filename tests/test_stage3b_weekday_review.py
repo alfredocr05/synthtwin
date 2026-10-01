@@ -1085,7 +1085,7 @@ def test_no_twin_of_the_reviews_draws_loses_a_day_to_the_census(tmp_path: pathli
     assert lost == [], lost
 
 
-# -- the review's second round: the band is the narrowest that certifies -----------
+# -- the review's second round and its skeptic: each half's band on its own ------------
 
 
 def _weekend_market(seed: int, midweek: int) -> "list[str]":
@@ -1116,30 +1116,210 @@ def _business_log(seed: int, weekend: int) -> "list[str]":
     return cells
 
 
-def test_the_band_is_the_narrowest_whose_withheld_tables_certify(tmp_path: pathlib.Path) -> None:
-    """A weekend market beside 40 Wednesday rows publishes; a business log's band widens only as far as it must.
+def _withholding_question(cells: "list[str]") -> "tuple[object, ...]":
+    """The numbers the producer asks the withholding's certificate with, for `cells`."""
+    asked: "list[tuple[object, ...]]" = []
+    shipped = calendar_certificate.withholding
 
-    The band always reached the census line past its least: the market's
-    count of different days forces some 29 Wednesdays, so its Monday to
-    Friday band ran to 40 and the forty real rows were withheld whatever
-    they held (the second skeptic's measurement). Any certified W0 will
-    do, so the band is the narrowest whose tables certify, and the census
-    publishes, and loads. A business log beside 40 weekend rows certifies
-    at no width of nought or one: its band widens as far as it must, and
-    stays narrower than the line past its least. Red when the band is the
-    widest (the market is withheld), when the width of nought is taken
-    uncertified (the log is withheld), and when the loader asks the widest
-    band (the market's census is refused).
+    def spied(*arguments: object) -> calendar_certificate.Withholding:
+        asked.append(arguments)
+        return shipped(*arguments)
+
+    calendar_certificate.withholding = spied
+    try:
+        taxonomy.profile_column("visit", 1, cells, len(cells), taxonomy.Settings())
+    finally:
+        calendar_certificate.withholding = shipped
+    return asked[0]
+
+
+def _certified_at(question: "tuple[object, ...]", weekend: int, weekdays: int) -> bool:
+    """Whether W0 is certified with each half `weekend` and `weekdays` rows past its least, asked afresh."""
+    widest = calendar_certificate.bands(*question)
+    given = calendar_certificate.facts_of(*question[:9], calendar_certificate._HALVES, -1, question[9])
+    banded = calendar_certificate._at_widths(widest, weekend, weekdays, 0)
+    return calendar_certificate._withheld_certified(given, banded).holds
+
+
+# The weekend markets the band of one width lost (the skeptic's second
+# battery, `Random(6100 + s)`), each beside thirty or thirty-five
+# Wednesday rows, and the two columns the review's second round measured.
+_HALF_BY_HALF = (
+    ("market 18 beside 30", lambda: _weekend_market(2118, 30)),
+    ("market 5 beside 35", lambda: _weekend_market(2105, 35)),
+    ("market 2 beside 40", lambda: _weekend_market(2, 40)),
+    ("log 0 beside 40", lambda: _business_log(0, 40)),
+)
+
+
+@pytest.mark.parametrize("name", [name for name, _build in _HALF_BY_HALF])
+def test_each_half_takes_the_fewest_rows_its_certificate_needs(name: str) -> None:
+    """The band pair taken certifies, one row fewer in either half does not, and no pair of its sum with fewer Monday-to-Friday rows does.
+
+    Searched as one width for both halves past the capped stretches, the
+    band was the narrowest of that family and no narrower (the skeptic
+    of the review's second round): its halving stopped where nothing
+    checked, and a market's Monday to Friday stood seventeen rows wide
+    at width nought. Each half's width is its own now, from its least:
+    the pair taken is certified, each half one row narrower is asked
+    afresh and is not, and neither is any pair of the same sum with
+    fewer Monday-to-Friday rows. Red when the band is widened by a row
+    (a narrower one certifies), and when the halving stops at the first
+    certified width.
     """
-    for name, cells in (("market", _weekend_market(2, 40)), ("log", _business_log(0, 40))):
+    cells = dict(_HALF_BY_HALF)[name]()
+    described, _decision = _decided(cells)
+    assert described.details["weekday_census"], described.publication_notes
+    question = _withholding_question(cells)
+    answer = calendar_certificate.withholding(*question)
+    assert answer.holds, answer.detail
+    widest = calendar_certificate.bands(*question)
+    weekend = answer.weekend[1] - answer.weekend[0]
+    weekdays = answer.weekdays[1] - answer.weekdays[0]
+    assert (answer.weekend[0], answer.weekdays[0]) == (widest.weekend[0], widest.weekdays[0])
+    assert _certified_at(question, weekend, weekdays), (weekend, weekdays)
+    if weekend > 0:
+        assert not _certified_at(question, weekend - 1, weekdays), (weekend, weekdays)
+    if weekdays > 0:
+        assert not _certified_at(question, weekend, weekdays - 1), (weekend, weekdays)
+    reach = widest.weekend[1] - widest.weekend[0]
+    for shift in range(1, weekdays + 1):
+        if weekend + shift <= reach:
+            assert not _certified_at(question, weekend + shift, weekdays - shift), (weekend, weekdays, shift)
+
+
+def _halves(cells: "list[str]", described: taxonomy.ColumnProfile) -> "tuple[tuple[int, int, int], ...]":
+    """The real body's Monday to Friday and weekend totals, as the two groups `in_band` reads."""
+    days = sorted(verifier.day_number(cell) for cell in cells)
+    body = days[described.details["low_tail"]["rows"]: len(days) - described.details["high_tail"]["rows"]]
+    weekend = len([day for day in body if verifier.weekday(day) >= 5])
+    return ((0, 4, len(body) - weekend), (5, 6, weekend))
+
+
+def test_the_markets_one_width_withheld_publish_and_load(tmp_path: pathlib.Path) -> None:
+    """Two weekend markets the band of one width kept back publish now, and the loader takes their censuses.
+
+    Each market's count of different days forces Wednesday rows, so its
+    Monday to Friday stood inside the band of one width past the capped
+    stretches -- 28 inside 18 to 35 for the first -- and 2af1f03
+    published both where the one width withheld them (the skeptic of the
+    review's second round: seven of 200 seeded columns lost so). The
+    halves searched apart certify with Monday to Friday at its least
+    alone and a weekend band past the least weekend these markets hold
+    nowhere near, so both publish; and the loader, which asked the band
+    of width nought, refused them. Red when the one width is taken again
+    (withheld), and when the loader asks it (refused).
+    """
+    for seed, midweek in ((2118, 30), (2105, 35)):
+        cells = _weekend_market(seed, midweek)
+        described, decided = _decided(cells)
+        halves = _halves(cells, described)
+        question = _withholding_question(cells)
+        widest = calendar_certificate.bands(*question)
+        assert calendar_certificate.in_band(halves, calendar_certificate._narrowed(widest, 0, 0)), halves
+        assert decided.withheld is not None and decided.withheld.holds
+        assert not calendar_certificate.in_band(halves, decided.withheld), (halves, decided.withheld)
+        assert described.details["weekday_census"], (seed, decided.reason)
         text = "visit\n" + "".join(f"{cell}\n" for cell in cells)
-        described = kpi_shapes.describe(tmp_path / name, name, text, 11)
-        assert described.block("visit")["weekday_census"], (name, described.document["publication_notes"])
-        _profile, decided = _decided(cells)
-        assert decided.withheld is not None and decided.withheld.holds, name
-        if name == "market":
-            least, most = decided.withheld.weekdays
-            assert least <= 29 and most < 40, decided.withheld.weekdays
-        else:
-            first, last = decided.withheld.weekend
-            assert 0 < last - first < 11, decided.withheld.weekend
+        loaded = kpi_shapes.describe(tmp_path / f"market-{seed}", "market", text, 11)
+        assert loaded.block("visit")["weekday_census"] == described.details["weekday_census"]
+
+
+def test_every_table_the_half_bands_lay_out_meets_what_a_reader_holds() -> None:
+    """Each class of the markets and the log gets a table inside its band that the verifier passes, or is residue the rank facts cap.
+
+    The verifier shares no code with the network. For each class the
+    withholding asks -- a knot day, or one stretch's half of the week --
+    a table is laid out from the band pair taken, weekend band first, and
+    checked day by day against what a reader holds: its rank facts, its
+    count of different days, the line on the class's day, and its two
+    half totals inside the band that laid it out. A class no table of
+    either band reaches must lie in a stretch the rank facts keep below
+    the line. Red when a pooled class's halves are swapped (a table
+    outside its band).
+    """
+    laid = residue = 0
+    for name, build in _HALF_BY_HALF:
+        cells = build()
+        described, decided = _decided(cells)
+        answer = decided.withheld
+        assert answer is not None and answer.holds, name
+        block = dict(described.details, n_present=described.n_present, n_distinct=described.n_distinct, weekday_census=[])
+        question = _withholding_question(cells)
+        facts = calendar_certificate._pooled(calendar_certificate._halves_facts(calendar_certificate.facts_of(
+            *question[:9], calendar_certificate._HALVES, -1, question[9],
+        )))
+        size = facts.body
+        sides = [
+            ((size - answer.weekend[1], size - answer.weekend[0]), answer.weekend),
+            (answer.weekdays, (size - answer.weekdays[1], size - answer.weekdays[0])),
+        ]
+        reader = verifier.reader_facts(dict(block, weekday_census=[{"first": 0, "last": 6, "count": size}]), 11)
+        for klass in facts.keys:
+            take = {klass: 1}
+            found = False
+            for top in sides:
+                table = calendar_certificate._census_table(facts, take, {klass[1]: (11, size)}, {}, {}, 0, 0, [0], tuple(top))
+                if table is None:
+                    continue
+                held = dict(calendar_certificate._laid_out(facts, table, take))
+                weekdays = sum(cells for day, cells in held.items() if verifier.weekday(day) < 5)
+                groups = [{"first": 0, "last": 4, "count": weekdays}, {"first": 5, "last": 6, "count": size - weekdays}]
+                checked = verifier.reader_facts(dict(block, weekday_census=groups), 11)
+                checked["entry"] = 0
+                assert verifier.table_problems(checked, held, facts.classes[klass][0]) == [], (name, klass)
+                assert top[0][0] <= weekdays <= top[0][1] and top[1][0] <= size - weekdays <= top[1][1], (name, klass)
+                found = True
+                laid += 1
+                break
+            if not found:
+                assert reader["stretch_most"][klass[0]] < 11, (name, klass)
+                residue += 1
+    assert laid > 0 and residue > 0, (laid, residue)
+
+
+def test_bands_taken_at_the_least_uncertified_fail_the_brute_force(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The power control: every withholding taken as certified at each half's least, and the brute force finds withheld sets confining days.
+
+    The brute force judged every band search green; a checker that
+    cannot fail proves nothing. Take each half's band at its least alone
+    and call it certified whatever its certificate says, and a tiny
+    body's withheld tables confine a set of days the facts alone do not:
+    the 46th draw of the battery's first seed, the first of its 600 so
+    read (four of 459 over seeds 4 and 5, measured). Red when `pins_of`
+    stops reading a withheld set, or the battery stops asking the
+    producer's answer.
+    """
+    shipped = calendar_certificate.withholding
+
+    def at_least(*question: object) -> calendar_certificate.Withholding:
+        least = calendar_certificate._at_widths(calendar_certificate.bands(*question), 0, 0, 0)
+        return calendar_certificate.Withholding(True, "", least.weekend, least.weekdays, 0)
+
+    monkeypatch.setattr(calendar_certificate, "withholding", at_least)
+    totals = withholding_battery(50, 0)
+    monkeypatch.setattr(calendar_certificate, "withholding", shipped)
+    assert totals["withheld_unsound"] > 0, totals
+
+
+# -- the owner's accepted limit of 2026-09-30: a withheld census may say a half holds 1 to 10 --
+
+
+# The critic's moves: whole Mondays of May to the Saturday after, then
+# single rows of 27 May to 11 May. Each pair (whole Mondays, single rows)
+# gives a weekend of `1 + 4 * whole + single` rows.
+WEEKEND_MOVES = ((0, 0), (1, 0), (2, 0), (2, 1), (2, 2), (2, 3), (3, 0), (3, 1))
+
+
+def weekend_moved(whole: int, single: int) -> "list[str]":
+    """Four rows on every business date of the 364 days from 2024-01-01 and one
+    Saturday row, `whole` Mondays of May moved to their Saturdays and `single`
+    rows of 27 May to 11 May, shuffled with `Random(9)` (the critic's construction)."""
+    start = datetime.date(2024, 1, 1)
+    days = [start + datetime.timedelta(days=step) for step in range(364)]
+    cells = [day.isoformat() for day in days if day.weekday() < 5 for _ in range(4)] + ["2024-06-15"]
+    for monday, saturday in (("2024-05-06", "2024-05-11"), ("2024-05-13", "2024-05-18"), ("2024-05-20", "2024-05-25"))[:whole]:
+        cells = [saturday if cell == monday else cell for cell in cells]
+    cells = _moved(cells, "2024-05-27", "2024-05-11", single)
+    random.Random(9).shuffle(cells)
+    return cells

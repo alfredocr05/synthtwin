@@ -6,6 +6,42 @@ exists).
 
 ## [Unreleased]
 
+### The weekday certificate's cap, measured (2026-09-30)
+
+**The cap stays at 20,000 arrangements and the owner is asked again**
+(plan P4-D359, the owner's "Measure, then raise"). It holds 13 of 369
+Tuesday clinics of 212 rows, 12 of which 2af1f03 published, and 24 of
+489 with the skeptic's 120. Caps of 40,000, 80,000 and 160,000 free 3, 5
+and 12 of them, at up to 220,246, 620,136 and 1,369,300 network solves a
+column, and publish the weekly Wednesday sessions at 1,393,635, about
+5.5 to 6 minutes: 3.75 times their cost before the band was searched a
+half at a time. No cap frees them all at about a minute a column: 40,000
+frees three so, but spends about 5.5 minutes on the sessions and 3.3 on
+a clinic it still withholds. **`K-S3-33`'s ladder empties all three of
+the certificate's caches before each size**: emptying the census's
+verdicts alone left the withholding the battery had asked at 10,000
+rows, and the ladder read a describe growth of 1.521 where each size
+counted afresh reads 1.085.
+
+### Each half of the week's band on its own (2026-09-30)
+
+**The weekday census's band is searched a half at a time** (plan
+P4-D359, the skeptic of its second round). One width for both halves
+past the capped stretches kept real censuses back: a weekend market
+beside thirty Wednesday rows held 28 Monday-to-Friday rows inside a band
+of 18 to 35. Each half's width is its own now, from its least, and the
+pair taken is the certified one of least summed width, fewer
+Monday-to-Friday rows first on a tie. Over the skeptic's 80 markets,
+logs and clinics and 120 markets, 2af1f03 publishes 51 and 69, one width
+47 and 65, the halves 50 and 69. The loader refuses a half at its least
+alone, which every band holds, so it never refuses the producer's own
+census. The brute force finds no unsound outcome over 459 tiny fact
+sets, and bands taken at the least uncertified give 4. Describing a
+residue column costs about twice the networks. The owner's rulings are
+recorded: the certificate keeps its 20,000-arrangement cap, and a
+withheld census may say a half of the week holds 1 to 10 rows
+(`K-S3-34`).
+
 ### The oracle reads a missing day under every member (2026-09-30)
 
 **A missing spelling names the day its column's own member reads, and
@@ -107,8 +143,9 @@ where 2af1f03 published 79.
 different days back across groups (G7.3f step 8.3): of the review's 505
 heaped twins, ten had lost a day to the census, none now, and a count
 that gives way to the census says so. The quality report's hole note
-says what it counts. The band is the narrowest whose withheld tables
-certify, where it always reached the census line: over 269 schedules,
+says what it counts. The band is the narrowest one width past the capped
+stretches whose withheld tables certify, where it always reached the
+census line: over 269 schedules,
 clinics, weekend markets and business logs 165 censuses publish where
 2af1f03 published 166 and the widest band 162. The loader's band
 refusal states the capped stretches it counts, and its certificate
