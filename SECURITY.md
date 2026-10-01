@@ -242,9 +242,11 @@ Stated here so that no reader has to discover them independently:
   1,100 written once comes back. Nothing about another column, and never
   which row holds one except on a table sorted by that column, whose
   description publishes the order (`row_order`), so row k holds the k-th
-  value; the owner accepted each such case on 2026-09-25
-  and 26, and the KPI ledger holds them at a ceiling (`K-S3-17`,
-  `K-S3-21`, `K-S3-23`, `K-S3-24`).
+  value; the owner accepted each such case on 2026-09-25 and 2026-09-26,
+  `K-S3-23` and `K-S3-24` on a question that said "never which row holds
+  them", and, told of the sorted table on 2026-09-30, answered "Yes, it
+  stands". The KPI ledger holds them at a ceiling (`K-S3-17`, `K-S3-21`,
+  `K-S3-23`, `K-S3-24`).
 
   **AND `empty_edges` PUTS MORE THERE, which is stated with its real
   ceiling rather than by comparison** (owner ruling 2026-09-04, plan

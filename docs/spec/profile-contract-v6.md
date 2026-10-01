@@ -3848,21 +3848,21 @@ Until then the line alone decided, and 1,101 counts holding `1089` eight
 times and `1093` twice were told every value differs, while the tail
 back-solve beside the sentence correctly assumed they did not.
 
-<!-- anchor 3b.D1 (P4-D365) -->
-<!-- anchor 3b.D0 (P4-D366) -->
-<!-- anchor 3b.D2 (P4-D367) -->
-<!-- anchor 3b.D3 (P4-D368) -->
-<!-- anchor 3b.D4 (P4-D369) -->
-<!-- anchor 3b.T1 (P4-D370) -->
-<!-- anchor 3b.T2 (P4-D371) -->
-<!-- anchor 3b.T3 (P4-D372) -->
-<!-- anchor 3b.C1 (P4-D373) -->
-<!-- anchor 3b.C2 (P4-D374) -->
-<!-- anchor 3b.G1 (P4-D375) -->
-<!-- anchor 3b.G3 (P4-D376) -->
-<!-- anchor 3b.G2 (P4-D377) -->
-<!-- anchor 3b.7 (P4-D378) -->
-<!-- anchor 3b.J (P4-D379) -->
+<!-- anchor 3b-D1 (P4-D365) -->
+<!-- anchor 3b-D0 (P4-D366) -->
+<!-- anchor 3b-D2 (P4-D367) -->
+<!-- anchor 3b-D3 (P4-D368) -->
+<!-- anchor 3b-D4 (P4-D369) -->
+<!-- anchor 3b-T1 (P4-D370) -->
+<!-- anchor 3b-T2 (P4-D371) -->
+<!-- anchor 3b-T3 (P4-D372) -->
+<!-- anchor 3b-C1 (P4-D373) -->
+<!-- anchor 3b-C2 (P4-D374) -->
+<!-- anchor 3b-G1 (P4-D375) -->
+<!-- anchor 3b-G3 (P4-D376) -->
+<!-- anchor 3b-G2 (P4-D377) -->
+<!-- anchor 3b-7 (P4-D378) -->
+<!-- anchor 3b-J (P4-D379) -->
 
 ## 5. The column block
 
@@ -5400,29 +5400,29 @@ refuses anything else, so a description carrying one was written by a
 newer synthtwin. Each landing restates its own rows below its own
 line.
 
-<!-- anchor 3b.D1 (P4-D365) -->
-<!-- anchor 3b.D0 (P4-D366) -->
-<!-- anchor 3b.D2 (P4-D367) -->
-<!-- anchor 3b.D3 (P4-D368) -->
+<!-- anchor 3b-D1 (P4-D365) -->
+<!-- anchor 3b-D0 (P4-D366) -->
+<!-- anchor 3b-D2 (P4-D367) -->
+<!-- anchor 3b-D3 (P4-D368) -->
 
 | key | JSON type | permitted values | meaning |
 |---|---|---|---|
 | `day_of_month_census` | array | `[]` | reserved for how many cells between the two tail boundaries fall on each group of days of the month; landing 3b.3 fills it |
 
-<!-- anchor 3b.D4 (P4-D369) -->
+<!-- anchor 3b-D4 (P4-D369) -->
 
 | key | JSON type | permitted values | meaning |
 |---|---|---|---|
 | `heavy_dates` | array | `[]` | reserved for the dates between the two tail boundaries that stand out from their neighbours, each with its count; landing 3b.6 fills it |
 
-<!-- anchor 3b.T1 (P4-D370) -->
-<!-- anchor 3b.T2 (P4-D371) -->
+<!-- anchor 3b-T1 (P4-D370) -->
+<!-- anchor 3b-T2 (P4-D371) -->
 
 | key | JSON type | permitted values | meaning |
 |---|---|---|---|
 | `hour_census` | array | `[]` | reserved for how many cells between the two tail boundaries fall on each group of hours of the written clock; landing 3b.2-H fills it |
 
-<!-- anchor 3b.T3 (P4-D372) -->
+<!-- anchor 3b-T3 (P4-D372) -->
 
 | key | JSON type | permitted values | meaning |
 |---|---|---|---|
@@ -5431,13 +5431,13 @@ line.
 | `minute_heaps` | array | `[]` | reserved for the minutes that stand out from their neighbours, each with its count; landing 3b.4 fills it |
 | `second_heaps` | array | `[]` | reserved for the seconds that stand out from their neighbours, each with its count; landing 3b.4 fills it |
 
-<!-- anchor 3b.C1 (P4-D373) -->
-<!-- anchor 3b.C2 (P4-D374) -->
-<!-- anchor 3b.G1 (P4-D375) -->
-<!-- anchor 3b.G3 (P4-D376) -->
-<!-- anchor 3b.G2 (P4-D377) -->
-<!-- anchor 3b.7 (P4-D378) -->
-<!-- anchor 3b.J (P4-D379) -->
+<!-- anchor 3b-C1 (P4-D373) -->
+<!-- anchor 3b-C2 (P4-D374) -->
+<!-- anchor 3b-G1 (P4-D375) -->
+<!-- anchor 3b-G3 (P4-D376) -->
+<!-- anchor 3b-G2 (P4-D377) -->
+<!-- anchor 3b-7 (P4-D378) -->
+<!-- anchor 3b-J (P4-D379) -->
 
 ##### The format vocabulary, its readings and its resolutions
 
@@ -8652,15 +8652,15 @@ All four are named residual R-P4-5.
 rows name fills them, and the loader refuses anything else. Each
 landing restates its own rows below its own line.
 
-<!-- anchor 3b.D1 (P4-D365) -->
-<!-- anchor 3b.D0 (P4-D366) -->
-<!-- anchor 3b.D2 (P4-D367) -->
-<!-- anchor 3b.D3 (P4-D368) -->
-<!-- anchor 3b.D4 (P4-D369) -->
-<!-- anchor 3b.T1 (P4-D370) -->
-<!-- anchor 3b.T2 (P4-D371) -->
-<!-- anchor 3b.T3 (P4-D372) -->
-<!-- anchor 3b.C1 (P4-D373) -->
+<!-- anchor 3b-D1 (P4-D365) -->
+<!-- anchor 3b-D0 (P4-D366) -->
+<!-- anchor 3b-D2 (P4-D367) -->
+<!-- anchor 3b-D3 (P4-D368) -->
+<!-- anchor 3b-D4 (P4-D369) -->
+<!-- anchor 3b-T1 (P4-D370) -->
+<!-- anchor 3b-T2 (P4-D371) -->
+<!-- anchor 3b-T3 (P4-D372) -->
+<!-- anchor 3b-C1 (P4-D373) -->
 
 | key | JSON type | permitted values | meaning | disposition |
 |---|---|---|---|---|
@@ -8669,12 +8669,12 @@ landing restates its own rows below its own line.
 | `clock_step` | `null` | `null` | reserved for the step every value was written on | LOADER-ONLY until landing 3b.5 fills it |
 | `clock_codes` | array | `[]` | reserved for the codes the column writes among its clock values, each with its count | LOADER-ONLY until landing 3b.5 fills it |
 
-<!-- anchor 3b.C2 (P4-D374) -->
-<!-- anchor 3b.G1 (P4-D375) -->
-<!-- anchor 3b.G3 (P4-D376) -->
-<!-- anchor 3b.G2 (P4-D377) -->
-<!-- anchor 3b.7 (P4-D378) -->
-<!-- anchor 3b.J (P4-D379) -->
+<!-- anchor 3b-C2 (P4-D374) -->
+<!-- anchor 3b-G1 (P4-D375) -->
+<!-- anchor 3b-G3 (P4-D376) -->
+<!-- anchor 3b-G2 (P4-D377) -->
+<!-- anchor 3b-7 (P4-D378) -->
+<!-- anchor 3b-J (P4-D379) -->
 
 **C6-11.** Those nine -- the five above and the four stage 3b
 reserves -- are the whole of what this role adds to the
@@ -12072,21 +12072,21 @@ it answers to.
 | WC8 | the full-fill certificate holds on the reader's bounds and the holes: every class of a counted weekday is certified by a witness table, or is residue whose every stage-3 configuration the census allows, the stage-3 side asked with no census information at all, its empty weekdays included (method of plan P4-D355, P4-D359) | yes |
 | WC9 | neither the weekend nor Monday to Friday together lies in its BAND: from the larger of one and the least that total holds over the tables of the rest of the description, through that and some rows more, each half's at most the census line plus the most that half of the week can hold in the stretches the rank facts keep below the line, the pair fewest in sum whose always-withheld tables are certified, searched as though a wider band never certified less, fewer Monday to Friday rows first on a tie; the loader refuses a total at that least, which every such band holds (plan P4-D359) | yes |
 
-<!-- anchor 3b.D1 (P4-D365) -->
-<!-- anchor 3b.D0 (P4-D366) -->
-<!-- anchor 3b.D2 (P4-D367) -->
-<!-- anchor 3b.D3 (P4-D368) -->
-<!-- anchor 3b.D4 (P4-D369) -->
-<!-- anchor 3b.T1 (P4-D370) -->
-<!-- anchor 3b.T2 (P4-D371) -->
-<!-- anchor 3b.T3 (P4-D372) -->
-<!-- anchor 3b.C1 (P4-D373) -->
-<!-- anchor 3b.C2 (P4-D374) -->
-<!-- anchor 3b.G1 (P4-D375) -->
-<!-- anchor 3b.G3 (P4-D376) -->
-<!-- anchor 3b.G2 (P4-D377) -->
-<!-- anchor 3b.7 (P4-D378) -->
-<!-- anchor 3b.J (P4-D379) -->
+<!-- anchor 3b-D1 (P4-D365) -->
+<!-- anchor 3b-D0 (P4-D366) -->
+<!-- anchor 3b-D2 (P4-D367) -->
+<!-- anchor 3b-D3 (P4-D368) -->
+<!-- anchor 3b-D4 (P4-D369) -->
+<!-- anchor 3b-T1 (P4-D370) -->
+<!-- anchor 3b-T2 (P4-D371) -->
+<!-- anchor 3b-T3 (P4-D372) -->
+<!-- anchor 3b-C1 (P4-D373) -->
+<!-- anchor 3b-C2 (P4-D374) -->
+<!-- anchor 3b-G1 (P4-D375) -->
+<!-- anchor 3b-G3 (P4-D376) -->
+<!-- anchor 3b-G2 (P4-D377) -->
+<!-- anchor 3b-7 (P4-D378) -->
+<!-- anchor 3b-J (P4-D379) -->
 
 A date or clock block publishes no mean and no spread, so the cost rule
 of plan P4-D353 does not reach it: a date or clock tail that would be
@@ -12636,36 +12636,36 @@ form, the stand-in is written in it (7.9.1).
 
 | `weekday_census` | EXACT-OBSERVABLE (landing 3b.1, plan P4-D355): the file's own cells between the two PUBLISHED boundaries, both included, hold every group's published count exactly. A MISSED line keeps its verdict and prints a group the file holds one to the line less one of as fewer than the line (plan P4-D347). The validator counts the file's body against the published groups and never produces a census of its own |
 
-<!-- anchor 3b.D1 (P4-D365) -->
-<!-- anchor 3b.D0 (P4-D366) -->
-<!-- anchor 3b.D2 (P4-D367) -->
-<!-- anchor 3b.D3 (P4-D368) -->
+<!-- anchor 3b-D1 (P4-D365) -->
+<!-- anchor 3b-D0 (P4-D366) -->
+<!-- anchor 3b-D2 (P4-D367) -->
+<!-- anchor 3b-D3 (P4-D368) -->
 
 | `day_of_month_census` | LOADER-ONLY (plan P4-D364): `[]` on every block, refused as anything else, and no output obligation until landing 3b.3 fills it |
 
-<!-- anchor 3b.D4 (P4-D369) -->
+<!-- anchor 3b-D4 (P4-D369) -->
 
 | `heavy_dates` | LOADER-ONLY (plan P4-D364): `[]` on every block, refused as anything else, and no output obligation until landing 3b.6 fills it |
 
-<!-- anchor 3b.T1 (P4-D370) -->
-<!-- anchor 3b.T2 (P4-D371) -->
+<!-- anchor 3b-T1 (P4-D370) -->
+<!-- anchor 3b-T2 (P4-D371) -->
 
 | `hour_census` | LOADER-ONLY (plan P4-D364): `[]` on every block, refused as anything else, and no output obligation until landing 3b.2-H fills it |
 
-<!-- anchor 3b.T3 (P4-D372) -->
+<!-- anchor 3b-T3 (P4-D372) -->
 
 | `minute_census` | LOADER-ONLY (plan P4-D364): `[]` on every block, refused as anything else, and no output obligation until landing 3b.4 fills it |
 | `second_census` | LOADER-ONLY (plan P4-D364): `[]` on every block, refused as anything else, and no output obligation until landing 3b.4 fills it |
 | `minute_heaps` | LOADER-ONLY (plan P4-D364): `[]` on every block, refused as anything else, and no output obligation until landing 3b.4 fills it |
 | `second_heaps` | LOADER-ONLY (plan P4-D364): `[]` on every block, refused as anything else, and no output obligation until landing 3b.4 fills it |
 
-<!-- anchor 3b.C1 (P4-D373) -->
-<!-- anchor 3b.C2 (P4-D374) -->
-<!-- anchor 3b.G1 (P4-D375) -->
-<!-- anchor 3b.G3 (P4-D376) -->
-<!-- anchor 3b.G2 (P4-D377) -->
-<!-- anchor 3b.7 (P4-D378) -->
-<!-- anchor 3b.J (P4-D379) -->
+<!-- anchor 3b-C1 (P4-D373) -->
+<!-- anchor 3b-C2 (P4-D374) -->
+<!-- anchor 3b-G1 (P4-D375) -->
+<!-- anchor 3b-G3 (P4-D376) -->
+<!-- anchor 3b-G2 (P4-D377) -->
+<!-- anchor 3b-7 (P4-D378) -->
+<!-- anchor 3b-J (P4-D379) -->
 
 `datetime_separators`, `all_at_midnight` and `n_at_midnight` have no
 row here: all three were added after the freeze and are EXACT-OBSERVABLE
@@ -12773,27 +12773,27 @@ table means exactly what its disposition says.
 | `n_unparsed` | EXACT-OBSERVABLE as counted neutral stand-ins, explicitly OUTSIDE the clock-value representation obligation |
 | `n_distinct`, `n_distinct_folded` | APPROXIMATED — the twin writes a value per rank between pinned ends, exactly as the calendar ladder does, so how many different values it holds is a consequence of the construction rather than a target, and the two-sided envelope that bounds both counts is fixed in the same time-of-day clause and cited there, never restated here. The ALL-DIFFERENT obligation of 9.8 is the one case the construction meets outright: it binds through the ordinal mechanism, whose capacity is stated — the space holds 1,440 or 86,400 distinct spellings by form, and the unparsed cells are stand-ins from an unbounded text family that supply distinctness of their own. A description whose distinct demand NET of its unparsed cells — `n_distinct` less `n_unparsed` — exceeds the form's capacity is the one infeasible shape, and it is REFUSED at the feasibility stage under the head of this section, never approximated. A description whose own source met every count, unparsed cells included, is never refused by this rule |
 
-<!-- anchor 3b.D1 (P4-D365) -->
-<!-- anchor 3b.D0 (P4-D366) -->
-<!-- anchor 3b.D2 (P4-D367) -->
-<!-- anchor 3b.D3 (P4-D368) -->
-<!-- anchor 3b.D4 (P4-D369) -->
-<!-- anchor 3b.T1 (P4-D370) -->
-<!-- anchor 3b.T2 (P4-D371) -->
-<!-- anchor 3b.T3 (P4-D372) -->
-<!-- anchor 3b.C1 (P4-D373) -->
+<!-- anchor 3b-D1 (P4-D365) -->
+<!-- anchor 3b-D0 (P4-D366) -->
+<!-- anchor 3b-D2 (P4-D367) -->
+<!-- anchor 3b-D3 (P4-D368) -->
+<!-- anchor 3b-D4 (P4-D369) -->
+<!-- anchor 3b-T1 (P4-D370) -->
+<!-- anchor 3b-T2 (P4-D371) -->
+<!-- anchor 3b-T3 (P4-D372) -->
+<!-- anchor 3b-C1 (P4-D373) -->
 
 | `clock_census` | LOADER-ONLY (plan P4-D364): `[]` on every block, refused as anything else, and no output obligation until landing 3b.5 fills it |
 | `clock_heaps` | LOADER-ONLY (plan P4-D364): `[]` on every block, refused as anything else, and no output obligation until landing 3b.5 fills it |
 | `clock_step` | LOADER-ONLY (plan P4-D364): `null` on every block, refused as anything else, and no output obligation until landing 3b.5 fills it |
 | `clock_codes` | LOADER-ONLY (plan P4-D364): `[]` on every block, refused as anything else, and no output obligation until landing 3b.5 fills it |
 
-<!-- anchor 3b.C2 (P4-D374) -->
-<!-- anchor 3b.G1 (P4-D375) -->
-<!-- anchor 3b.G3 (P4-D376) -->
-<!-- anchor 3b.G2 (P4-D377) -->
-<!-- anchor 3b.7 (P4-D378) -->
-<!-- anchor 3b.J (P4-D379) -->
+<!-- anchor 3b-C2 (P4-D374) -->
+<!-- anchor 3b-G1 (P4-D375) -->
+<!-- anchor 3b-G3 (P4-D376) -->
+<!-- anchor 3b-G2 (P4-D377) -->
+<!-- anchor 3b-7 (P4-D378) -->
+<!-- anchor 3b-J (P4-D379) -->
 
 The ladder reads the day as a LINE from `00:00` to `23:59:59`, as
 every ladder reads its axis, so a column whose values cluster across
@@ -14651,21 +14651,21 @@ nested forms, 5 bound affix strings.
 | NG86 | `remark_nearly_every_value_is_different` | 0 |
 | NG87 | `said_some` | 0 |
 
-<!-- anchor 3b.D1 (P4-D365) -->
-<!-- anchor 3b.D0 (P4-D366) -->
-<!-- anchor 3b.D2 (P4-D367) -->
-<!-- anchor 3b.D3 (P4-D368) -->
-<!-- anchor 3b.D4 (P4-D369) -->
-<!-- anchor 3b.T1 (P4-D370) -->
-<!-- anchor 3b.T2 (P4-D371) -->
-<!-- anchor 3b.T3 (P4-D372) -->
-<!-- anchor 3b.C1 (P4-D373) -->
-<!-- anchor 3b.C2 (P4-D374) -->
-<!-- anchor 3b.G1 (P4-D375) -->
-<!-- anchor 3b.G3 (P4-D376) -->
-<!-- anchor 3b.G2 (P4-D377) -->
-<!-- anchor 3b.7 (P4-D378) -->
-<!-- anchor 3b.J (P4-D379) -->
+<!-- anchor 3b-D1 (P4-D365) -->
+<!-- anchor 3b-D0 (P4-D366) -->
+<!-- anchor 3b-D2 (P4-D367) -->
+<!-- anchor 3b-D3 (P4-D368) -->
+<!-- anchor 3b-D4 (P4-D369) -->
+<!-- anchor 3b-T1 (P4-D370) -->
+<!-- anchor 3b-T2 (P4-D371) -->
+<!-- anchor 3b-T3 (P4-D372) -->
+<!-- anchor 3b-C1 (P4-D373) -->
+<!-- anchor 3b-C2 (P4-D374) -->
+<!-- anchor 3b-G1 (P4-D375) -->
+<!-- anchor 3b-G3 (P4-D376) -->
+<!-- anchor 3b-G2 (P4-D377) -->
+<!-- anchor 3b-7 (P4-D378) -->
+<!-- anchor 3b-J (P4-D379) -->
 
 **The package-word vocabulary — 26**, the whole of the second argument
 class (4.5.1): the twenty `format` members of 14.6, plus `day-first`

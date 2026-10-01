@@ -1663,21 +1663,21 @@ INVARIANTS = {
     # its rules below its own line, so two landings built side by side
     # never touch the same lines; one with no rule to add leaves its line
     # alone.
-    # anchor 3b.D1 (P4-D365)
-    # anchor 3b.D0 (P4-D366)
-    # anchor 3b.D2 (P4-D367)
-    # anchor 3b.D3 (P4-D368)
-    # anchor 3b.D4 (P4-D369)
-    # anchor 3b.T1 (P4-D370)
-    # anchor 3b.T2 (P4-D371)
-    # anchor 3b.T3 (P4-D372)
-    # anchor 3b.C1 (P4-D373)
-    # anchor 3b.C2 (P4-D374)
-    # anchor 3b.G1 (P4-D375)
-    # anchor 3b.G3 (P4-D376)
-    # anchor 3b.G2 (P4-D377)
-    # anchor 3b.7 (P4-D378)
-    # anchor 3b.J (P4-D379)
+    # anchor 3b-D1 (P4-D365)
+    # anchor 3b-D0 (P4-D366)
+    # anchor 3b-D2 (P4-D367)
+    # anchor 3b-D3 (P4-D368)
+    # anchor 3b-D4 (P4-D369)
+    # anchor 3b-T1 (P4-D370)
+    # anchor 3b-T2 (P4-D371)
+    # anchor 3b-T3 (P4-D372)
+    # anchor 3b-C1 (P4-D373)
+    # anchor 3b-C2 (P4-D374)
+    # anchor 3b-G1 (P4-D375)
+    # anchor 3b-G3 (P4-D376)
+    # anchor 3b-G2 (P4-D377)
+    # anchor 3b-7 (P4-D378)
+    # anchor 3b-J (P4-D379)
     "Q1": (
         "the row count a column of numbers repeats is the row count of "
         "the table"

@@ -1686,7 +1686,16 @@ GOLDEN_DESCRIPTION_SHA256 = (
     # hold 238 different values and were told "every value in this column
     # is different"; they are told "nearly every value" now. The twin's
     # digest below did not move.
-    "f2cad811ba6b715522c8fc2eedd1b2c325f09fc31a48e47b8388e0b777cecb31"
+    # RE-RECORDED AT THE BASE OF STAGE 3B (2026-10-01, plan P4-D364):
+    # eleven keys arrive, each empty -- the seven stage 3b reserves on
+    # `recorded_on` and the four on `seen_at`, `clock_step` null. CHECKED
+    # by the profile golden's procedure: these bytes with the eleven keys
+    # deleted hash to the digest this one replaces,
+    # f2cad811ba6b715522c8fc2eedd1b2c325f09fc31a48e47b8388e0b777cecb31.
+    # The twin, the report and the quality report digests below did not
+    # move: the generator is handed eleven more keys and writes what it
+    # wrote before.
+    "430487fc0d2ab19f97dc10136b8089b9d96853d290d69eb2d761e5947e7fcd10"
 )
 
 

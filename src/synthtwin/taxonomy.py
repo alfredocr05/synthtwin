@@ -997,21 +997,21 @@ NOTE_WEEKDAY_WITHHELD_NO_TAILS = "weekday_census_withheld_no_tails"
 # THE LANDINGS' ANCHORS (plan P4-D364): each landing of stage 3b names its
 # sentences below its own line, so two landings built side by side never
 # touch the same lines.
-# anchor 3b.D1 (P4-D365)
-# anchor 3b.D0 (P4-D366)
-# anchor 3b.D2 (P4-D367)
-# anchor 3b.D3 (P4-D368)
-# anchor 3b.D4 (P4-D369)
-# anchor 3b.T1 (P4-D370)
-# anchor 3b.T2 (P4-D371)
-# anchor 3b.T3 (P4-D372)
-# anchor 3b.C1 (P4-D373)
-# anchor 3b.C2 (P4-D374)
-# anchor 3b.G1 (P4-D375)
-# anchor 3b.G3 (P4-D376)
-# anchor 3b.G2 (P4-D377)
-# anchor 3b.7 (P4-D378)
-# anchor 3b.J (P4-D379)
+# anchor 3b-D1 (P4-D365)
+# anchor 3b-D0 (P4-D366)
+# anchor 3b-D2 (P4-D367)
+# anchor 3b-D3 (P4-D368)
+# anchor 3b-D4 (P4-D369)
+# anchor 3b-T1 (P4-D370)
+# anchor 3b-T2 (P4-D371)
+# anchor 3b-T3 (P4-D372)
+# anchor 3b-C1 (P4-D373)
+# anchor 3b-C2 (P4-D374)
+# anchor 3b-G1 (P4-D375)
+# anchor 3b-G3 (P4-D376)
+# anchor 3b-G2 (P4-D377)
+# anchor 3b-7 (P4-D378)
+# anchor 3b-J (P4-D379)
 
 # EVERY form, with how many arguments it takes. This mapping is the
 # enumeration: a name that is not a key here is not a form, and `note`
@@ -1161,21 +1161,21 @@ NOTE_ARITY: "dict[str, int]" = {
     NOTE_WEEKDAY_WITHHELD_NO_TAILS: 0,
     # THE LANDINGS' ANCHORS (plan P4-D364): each landing of stage 3b adds
     # its forms' arities below its own line.
-    # anchor 3b.D1 (P4-D365)
-    # anchor 3b.D0 (P4-D366)
-    # anchor 3b.D2 (P4-D367)
-    # anchor 3b.D3 (P4-D368)
-    # anchor 3b.D4 (P4-D369)
-    # anchor 3b.T1 (P4-D370)
-    # anchor 3b.T2 (P4-D371)
-    # anchor 3b.T3 (P4-D372)
-    # anchor 3b.C1 (P4-D373)
-    # anchor 3b.C2 (P4-D374)
-    # anchor 3b.G1 (P4-D375)
-    # anchor 3b.G3 (P4-D376)
-    # anchor 3b.G2 (P4-D377)
-    # anchor 3b.7 (P4-D378)
-    # anchor 3b.J (P4-D379)
+    # anchor 3b-D1 (P4-D365)
+    # anchor 3b-D0 (P4-D366)
+    # anchor 3b-D2 (P4-D367)
+    # anchor 3b-D3 (P4-D368)
+    # anchor 3b-D4 (P4-D369)
+    # anchor 3b-T1 (P4-D370)
+    # anchor 3b-T2 (P4-D371)
+    # anchor 3b-T3 (P4-D372)
+    # anchor 3b-C1 (P4-D373)
+    # anchor 3b-C2 (P4-D374)
+    # anchor 3b-G1 (P4-D375)
+    # anchor 3b-G3 (P4-D376)
+    # anchor 3b-G2 (P4-D377)
+    # anchor 3b-7 (P4-D378)
+    # anchor 3b-J (P4-D379)
 }
 
 # The same names as a sorted tuple, for a reader and for the tests that
@@ -1381,21 +1381,21 @@ ARGUMENT_BINDINGS: "dict[tuple[str, int], tuple[object, ...]]" = {
     (NOTE_WEEKDAY_WITHHELD_NARROWED, 0): (BIND_SETTING, "census line"),
     # THE LANDINGS' ANCHORS (plan P4-D364): each landing of stage 3b binds
     # its forms' arguments below its own line.
-    # anchor 3b.D1 (P4-D365)
-    # anchor 3b.D0 (P4-D366)
-    # anchor 3b.D2 (P4-D367)
-    # anchor 3b.D3 (P4-D368)
-    # anchor 3b.D4 (P4-D369)
-    # anchor 3b.T1 (P4-D370)
-    # anchor 3b.T2 (P4-D371)
-    # anchor 3b.T3 (P4-D372)
-    # anchor 3b.C1 (P4-D373)
-    # anchor 3b.C2 (P4-D374)
-    # anchor 3b.G1 (P4-D375)
-    # anchor 3b.G3 (P4-D376)
-    # anchor 3b.G2 (P4-D377)
-    # anchor 3b.7 (P4-D378)
-    # anchor 3b.J (P4-D379)
+    # anchor 3b-D1 (P4-D365)
+    # anchor 3b-D0 (P4-D366)
+    # anchor 3b-D2 (P4-D367)
+    # anchor 3b-D3 (P4-D368)
+    # anchor 3b-D4 (P4-D369)
+    # anchor 3b-T1 (P4-D370)
+    # anchor 3b-T2 (P4-D371)
+    # anchor 3b-T3 (P4-D372)
+    # anchor 3b-C1 (P4-D373)
+    # anchor 3b-C2 (P4-D374)
+    # anchor 3b-G1 (P4-D375)
+    # anchor 3b-G3 (P4-D376)
+    # anchor 3b-G2 (P4-D377)
+    # anchor 3b-7 (P4-D378)
+    # anchor 3b-J (P4-D379)
     (REMARK_OUT_OF_RANGE, 0): (BIND_KEY, "n_out_of_range"),
     (EVIDENCE_CLOCK, 0): (BIND_DIFFERENCE, "n_present", "n_unparsed"),
     (EVIDENCE_CLOCK, 1): (BIND_WORD,),
@@ -2047,21 +2047,21 @@ def rendered(form: str, arguments: "tuple[object, ...]") -> str:
         )
     # THE LANDINGS' ANCHORS (plan P4-D364): each landing of stage 3b writes
     # its forms' texts below its own line.
-    # anchor 3b.D1 (P4-D365)
-    # anchor 3b.D0 (P4-D366)
-    # anchor 3b.D2 (P4-D367)
-    # anchor 3b.D3 (P4-D368)
-    # anchor 3b.D4 (P4-D369)
-    # anchor 3b.T1 (P4-D370)
-    # anchor 3b.T2 (P4-D371)
-    # anchor 3b.T3 (P4-D372)
-    # anchor 3b.C1 (P4-D373)
-    # anchor 3b.C2 (P4-D374)
-    # anchor 3b.G1 (P4-D375)
-    # anchor 3b.G3 (P4-D376)
-    # anchor 3b.G2 (P4-D377)
-    # anchor 3b.7 (P4-D378)
-    # anchor 3b.J (P4-D379)
+    # anchor 3b-D1 (P4-D365)
+    # anchor 3b-D0 (P4-D366)
+    # anchor 3b-D2 (P4-D367)
+    # anchor 3b-D3 (P4-D368)
+    # anchor 3b-D4 (P4-D369)
+    # anchor 3b-T1 (P4-D370)
+    # anchor 3b-T2 (P4-D371)
+    # anchor 3b-T3 (P4-D372)
+    # anchor 3b-C1 (P4-D373)
+    # anchor 3b-C2 (P4-D374)
+    # anchor 3b-G1 (P4-D375)
+    # anchor 3b-G3 (P4-D376)
+    # anchor 3b-G2 (P4-D377)
+    # anchor 3b-7 (P4-D378)
+    # anchor 3b-J (P4-D379)
     if form == NOTE_SMALL_POPULATION:
         # THE TWO FLOORS ARE COUNTED IN DIFFERENT UNITS, AND THIS NOTICE
         # SAYS SO (review of 2026-09-23, finding 6). The size above is
@@ -22307,10 +22307,11 @@ def _arguments_at_the_line(
             # NEVER A FRAGMENT WHERE THE RENDERING COMPARES (plan
             # P4-D361). NF36 reads both reaches as whole numbers to
             # choose its sentence, so either fragment raised there: 144
-            # day-first dates beside one to ten that a month-first
-            # reading also parses stopped `synthtwin profile` at every
-            # floor, and `synthtwin validate` on such a twin. The remark
-            # is withdrawn, as contract NF36 states.
+            # day-first dates beside one to the census line less one (one
+            # to ten at the default floor) that a month-first reading
+            # also parses stopped `synthtwin profile`, and `synthtwin
+            # validate` on such a twin. The remark is withdrawn, as
+            # contract NF36 states.
             return None
         if stands == _STANDS_NOWHERE and argument >= line:
             # A SENTENCE WHOSE COUNT WOULD HAND BACK A WITHHELD CELL

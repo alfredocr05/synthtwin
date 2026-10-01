@@ -21029,17 +21029,19 @@ def _weekday_spread(facts: contract.DatetimeFacts, spread: _Spread) -> _Spread:
     entry = calendar_rules.entry_of(facts.weekday_census)
     if entry == calendar_rules.ENTRY_NONE:
         return spread
-    beside = spread.beside
+    held = list(spread.held)
+    held += [_SPREAD_WEEKDAY_MET]
+    beside = list(spread.beside)
     if entry == calendar_rules.ENTRY_WEEKEND:
-        beside = beside + (_SPREAD_WEEKEND_TOGETHER,)
+        beside += [_SPREAD_WEEKEND_TOGETHER]
     if entry == calendar_rules.ENTRY_WEEKDAYS:
-        beside = beside + (_SPREAD_WEEKDAYS_TOGETHER,)
+        beside += [_SPREAD_WEEKDAYS_TOGETHER]
     return _Spread(
-        held=spread.held + (_SPREAD_WEEKDAY_MET,),
+        held=tuple(held),
         missing=tuple(
             thing for thing in spread.missing if thing != _SPREAD_WEEKDAY_THING
         ),
-        beside=beside,
+        beside=tuple(beside),
     )
 
 

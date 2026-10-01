@@ -155,9 +155,11 @@ outermost among them: every value of the whole numbers 0 to 1,100
 written once comes back that way. It says nothing about any other
 column, and never which row holds a value except on a table sorted by
 that column, whose description publishes the order (`row_order`), so row
-k holds the k-th value; the owner accepted this on 2026-09-25 and 26, and the
-KPI ledger holds each case at a ceiling (`K-S3-17`, `K-S3-21`,
-`K-S3-23`, `K-S3-24`). A column of dates or clock
+k holds the k-th value; the owner accepted each of these limits on 2026-09-25
+and 2026-09-26, `K-S3-23` and `K-S3-24` on a question that said "never which
+row holds them", and, told of the sorted table on 2026-09-30, answered "Yes,
+it stands". The KPI ledger holds each case at a ceiling (`K-S3-17`,
+`K-S3-21`, `K-S3-23`, `K-S3-24`). A column of dates or clock
 times is described the same way, from a BOUNDARY -- the earliest date
 with at least a smallest group's worth of cells before it, and its
 mirror at the other end -- so the rarest dates in the column, a date of
