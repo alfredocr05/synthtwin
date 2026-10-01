@@ -105,6 +105,38 @@ def describe(
     return Described(folder, table, document, contract.load_profile(str(written)))
 
 
+def written_before_p4d375(
+    described: Described, sides: "tuple[str, ...]", cause: "str | None" = None
+) -> Described:
+    """The one-column description as plan P4-D349 wrote it: each named side's pair null.
+
+    Plan P4-D375 withholds only a pair binary64 cannot hold, and a
+    description written before it may carry a tail publishing NEITHER
+    distance; its readers are held on one built this way. The tail keys
+    of the role (`tails.low`, or `low_tail` on dates and clock times) lose
+    both distances, and where ``cause`` is given the column's remarks gain
+    the one its producer wrote for that reason on each side. The document
+    is written and loaded back, so the strict loader is asked whether it
+    still reads it.
+    """
+    import copy
+
+    document = copy.deepcopy(described.document)
+    block = document["columns"][0]
+    remarks = list(block["remarks"])
+    for side in sides:
+        if isinstance(block.get("tails"), dict):
+            block["tails"][side] = dict(block["tails"][side], mean_distance=None, rms_distance=None)
+        else:
+            key = f"{side}_tail"
+            block[key] = dict(block[key], mean_distance=None, rms_distance=None)
+        if cause is not None:
+            remarks += [taxonomy.rendered(taxonomy.TAIL_WITHHELD_REMARKS[(side, cause)], ())]
+    block["remarks"] = remarks
+    written = fixtures.write_profile(described.folder, "before-p4d375-profile.json", document)
+    return Described(described.folder, described.table, document, contract.load_profile(str(written)))
+
+
 def twin_text(described: Described, seed: int) -> str:
     """The twin's exact bytes, as `synthtwin generate` writes them."""
     return rendering.twin_csv(generation.generate(described.loaded, seed))

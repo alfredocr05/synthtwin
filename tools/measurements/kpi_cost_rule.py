@@ -1,28 +1,28 @@
-"""K-S3-17, K-S3-18, K-S3-20, K-S3-21 and K-S3-22: what the cost rule does, measured.
+"""K-S3-17, K-S3-18, K-S3-20, K-S3-21 and K-S3-22: what publishing every tail pair does, measured.
 
-Plan P4-D353 publishes a withheld numeric tail pair where withholding it
-would leave the description's own G12.3 window of the column's mean or
-spread short of the published value. Five numbers say what that buys and
-what it gives back, each over its own seeded battery and each through
-the real producer, and -- where a twin is asked -- the real generator and
-checker:
+Plan P4-D375 publishes every numeric tail pair binary64 can hold; the
+cost rule of P4-D353, which published a withheld pair only where
+withholding it cost the twin its mean or spread, went with the
+withholding. Five numbers say what the pairs buy and what they give
+back, each over its own seeded battery and each through the real
+producer, and -- where a twin is asked -- the real generator and checker:
 
 * `K-S3-17` (the owner's accepted limit, answer 1): on five columns whose
-  two tails are dense and whose interior the rungs chain, how many
-  withheld tail values the exact skew and kurtosis rebuild beside both
-  published pairs (`complement_reader.union`);
-* `K-S3-18` (answers 3 and 4): the tail sides the cost rule publishes that
-  the back-solve PINNED or left UNSETTLED -- read from the rule's own call
-  -- and how many cells a reader names DIRECTLY from those pairs with the
-  producer's own lattice (`complement_reader.named_directly`);
+  two tails are dense and whose interior the rungs chain, how many outer
+  tail values the exact skew and kurtosis rebuild beside both published
+  pairs (`complement_reader.union`);
+* `K-S3-18` (answers 3 and 4): the published sides from whose pair a
+  reader names at least one cell DIRECTLY with the producer's own lattice,
+  and how many cells (`complement_reader.named_directly`);
 * `K-S3-20`: at a floor of 36, every obligation the twins at seeds 0, 4 and
   9 MISS and leave WITHHELD, the blocks whose own window misses, the pairs
-  the moments need, and the rule's pairs the checker cannot check;
-* `K-S3-21` (answer 5): the withheld values a reader names BY SUBTRACTION
+  the moments need, and the published pairs the checker cannot check;
+* `K-S3-21` (answer 5): the outer values a reader names BY SUBTRACTION
   from the column's exact mean and spread beside a published pair
   (`complement_reader.by_subtraction`), and the columns it gives up on;
 * `K-S3-22`: where no published pair keeps a moment, the moments the twins
-  still miss, and how many blocks the rule could keep neither or one of.
+  still miss, and how many blocks keep neither or one of them in their
+  own windows.
 
 Every column is built from a fixed seed string at run time; nothing is
 read from disk but the tree's own code.
@@ -43,7 +43,7 @@ import cost_rule_window as window  # noqa: E402
 import kpi_rules  # noqa: E402
 import kpi_shapes  # noqa: E402
 import test_stage3_gate as gate  # noqa: E402
-from synthtwin import parsing, taxonomy, validation  # noqa: E402
+from synthtwin import parsing, validation  # noqa: E402
 
 kpi_rules.guard_this_tree()
 
@@ -55,34 +55,22 @@ def _text(cells):
 
 
 def _described(home, name, cells, floor):
-    """One column described, with the cost rule's own choices recorded."""
-    real = taxonomy._pairs_that_cost
-    calls = []
-
-    def recording(cells_of, shaped, held, *present):
-        nonlocal calls
-        chosen = real(cells_of, shaped, held, *present)
-        calls += [(cells_of, dict(held), chosen, present)]
-        return chosen
-
-    taxonomy._pairs_that_cost = recording
-    try:
-        described = kpi_shapes.describe(home / f"{name}-f{floor}", name, _text(cells), floor)
-    finally:
-        taxonomy._pairs_that_cost = real
-    return described, calls
+    """One column described at ``floor``."""
+    return kpi_shapes.describe(home / f"{name}-f{floor}", name, _text(cells), floor)
 
 
-def _ruled(calls):
-    """The sides the RULE published, each with the back-solve's verdict, from its last call."""
-    if not calls:
-        return {}
-    _cells, held, chosen, _present = calls[-1]
-    return {
-        side: held[side][2]
-        for side in held
-        if chosen["tails"][side]["mean_distance"] is not None
-    }
+def _paired(block):
+    """The sides of a numeric block publishing their pair and listing no value."""
+    tails = block.get("tails")
+    if not isinstance(tails, dict):
+        return []
+    return [
+        side
+        for side in ("low", "high")
+        if isinstance(tails.get(side), dict)
+        and tails[side]["mean_distance"] is not None
+        and not tails[side]["values"]
+    ]
 
 
 def _twins(described):
@@ -100,7 +88,7 @@ def skew_and_kurtosis(home):
     value = {"values_rebuilt": 0, "minimum_named": 0, "maximum_named": 0, "withheld_values_asked": 0, "shapes": 0}
     for seed in range(1, 6):
         values, cells = reader.both_dense(40, 11, seed)
-        described, _calls = _described(home / "k317", f"both_W40_s{seed}", cells, 11)
+        described = _described(home / "k317", f"both_W40_s{seed}", cells, 11)
         block = described.document["columns"][0]
         read = reader.union(block, values)
         n = block["n_used_in_statistics"]
@@ -128,28 +116,24 @@ def _k318_battery():
 
 
 def published_pairs(home):
-    """K-S3-18: the rule's published sides by verdict, and what a reader names from them."""
-    value = {"pinned_sides_published": 0, "unsettled_sides_published": 0, "values_named_directly": 0, "shapes": 0}
+    """K-S3-18: the published sides a reader names a cell from, and how many cells."""
+    value = {"sides_naming_a_value": 0, "values_named_directly": 0, "shapes": 0}
     for name, cells, floor in _k318_battery():
-        described, calls = _described(home / "k318", name, cells, floor)
+        described = _described(home / "k318", name, cells, floor)
         value["shapes"] += 1
-        ruled = _ruled(calls)
         block = described.document["columns"][0]
         try:
             values = sorted(float(cell) for cell in cells)
         except ValueError:
             values = None
         named = {}
-        for side, verdict in sorted(ruled.items()):
-            if verdict == taxonomy.TAIL_PINNED:
-                value["pinned_sides_published"] += 1
-            else:
-                value["unsettled_sides_published"] += 1
-            if values is not None:
+        if values is not None:
+            for side in _paired(block):
                 read = reader.named_directly(block, side, values)
                 named[side] = read
                 value["values_named_directly"] += read["values"]
-        print(f"K-S3-18 {name} at {floor}: {ruled} {named}", flush=True)
+                value["sides_naming_a_value"] += int(read["values"] > 0)
+        print(f"K-S3-18 {name} at {floor}: {named}", flush=True)
     return value
 
 
@@ -177,14 +161,14 @@ def floor_36(home):
         "twin_withheld": 0,
         "blocks_missing_own_window": 0,
         "pairs_the_moments_need": 0,
-        "rule_pairs_the_checker_cannot_check": 0,
+        "pairs_the_checker_cannot_check": 0,
         "shapes": 0,
     }
     for name, cells in _k320_battery():
-        described, calls = _described(home / "k320", name, cells, floor)
+        described = _described(home / "k320", name, cells, floor)
         value["shapes"] += 1
-        ruled = _ruled(calls)
         block = described.document["columns"][0]
+        ruled = _paired(block)
         tails = block.get("tails")
         need = []
         short = False
@@ -209,9 +193,9 @@ def floor_36(home):
         value["blocks_missing_own_window"] += int(short)
         value["twin_misses"] += misses
         value["twin_withheld"] += held_back
-        value["rule_pairs_the_checker_cannot_check"] += len(unchecked)
+        value["pairs_the_checker_cannot_check"] += len(unchecked)
         print(
-            f"K-S3-20 {name}: need {need} ruled {sorted(ruled)} short {short} "
+            f"K-S3-20 {name}: need {need} paired {sorted(ruled)} short {short} "
             f"misses {misses} withheld {held_back} unchecked {sorted(unchecked)}",
             flush=True,
         )
@@ -234,7 +218,7 @@ def by_subtraction(home):
     """K-S3-21: what the exact mean and spread give back of the other tail beside a published pair."""
     value = {"values_by_subtraction": 0, "columns_the_reader_gives_up_on": 0, "shapes": 0}
     for name, values, cells, floor in _k321_battery():
-        described, _calls = _described(home / "k321", name, cells, floor)
+        described = _described(home / "k321", name, cells, floor)
         value["shapes"] += 1
         read = reader.by_subtraction(described.document["columns"][0], values)
         value["values_by_subtraction"] += read["values_rebuilt"]
@@ -262,7 +246,7 @@ def _k322_battery():
 
 
 def residual(home):
-    """K-S3-22: the moments no published pair keeps, and what the rule could keep."""
+    """K-S3-22: the moments no published pair keeps, and how many each block's own windows keep."""
     value = {
         "moment_misses": 0,
         "blocks_no_candidate_keeps_either": 0,
@@ -271,17 +255,19 @@ def residual(home):
         "shapes": 0,
     }
     for name, cells, floor in _k322_battery():
-        described, calls = _described(home / "k322", name, cells, floor)
+        described = _described(home / "k322", name, cells, floor)
         value["shapes"] += 1
+        block = described.document["columns"][0]
         kept = None
-        if calls:
-            cells_of, _held, chosen, present = calls[-1]
-            kept = 2 - taxonomy._moments_missed(cells_of, chosen, *present[:1])
+        tails = block.get("tails")
+        if isinstance(tails, dict) and isinstance(tails.get("low"), dict):
+            # THE BLOCK'S OWN G12.3 WINDOWS, as the cost rule asked them of
+            # the block it published (`cost_rule_window`).
+            kept = 2 - len(window.missed(block, floor))
             if kept == 0:
                 value["blocks_no_candidate_keeps_either"] += 1
             elif kept == 1:
                 value["blocks_one_moment_kept"] += 1
-        tails = described.document["columns"][0].get("tails")
         if isinstance(tails, dict) and not isinstance(tails.get("low"), dict):
             value["blocks_with_no_pair_to_publish"] += 1
         misses = len([

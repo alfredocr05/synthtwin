@@ -31,13 +31,18 @@ block of every role keeps what it publishes as held -- a compound half's or
 a joined position's mode among them -- and every sentence on a withheld pair
 says no more than the multisets fix.
 
+PLAN P4-D375 WITHDREW ITEMS 1, 4 AND 5's producers with the withholding
+they served: no cost rule decides a block, a side binary64 cannot hold
+closes nothing else, and no producer pins a side. Item 4 is held here in
+that form, and item 5's sentences on a description written before that
+plan (`kpi_shapes.written_before_p4d375`), which still loads.
+
 Every table is built at test time from a fixed seed string or a closed
 formula; no data-format file enters the repository (plan D13).
 """
 
 from __future__ import annotations
 
-import copy
 import dataclasses
 import datetime
 import math
@@ -47,62 +52,12 @@ import random
 import pytest
 
 import complement_reader as columns
-import cost_rule_window as window
 import kpi_shapes
 from synthtwin import contract, parsing, summary, taxonomy, validation
 
 
 def _one_column(cells: "list[str]") -> str:
     return "value\n" + "\n".join(cells) + "\n"
-
-
-# -- 1. the cost rule decides on the final block ------------------------------
-
-# The review's shape: ninety-nine consecutive amounts and one far one, each
-# wearing ` mg`, beside one cell of ordinary text.
-_REVIEW_AFFIXED = [f"{value} mg" for value in range(1, 100)] + ["210 mg", "review_marker"]
-
-
-def _loader_windows(described: kpi_shapes.Described, block: "dict") -> "dict[str, bool]":
-    """Per moment, does the window the LOADER's reading of this column draws miss its value?"""
-    facts = described.loaded.columns[0].facts
-    assert isinstance(facts, contract.AffixedFacts)
-    drawn = validation._windows_of(None, facts.numbers, described.loaded.settings.small_cell_floor)
-    return {
-        name: name in drawn and not drawn[name][0] <= block[name] <= drawn[name][1]
-        for name in ("mean", "std")
-    }
-
-
-def test_an_affixed_pair_is_published_only_where_the_published_block_would_miss(
-    tmp_path: pathlib.Path,
-) -> None:
-    """The review's affixed column withholds both pairs: its final block keeps both moments without them.
-
-    PREMISE, from the checker's own windows over the loaded block: with
-    neither pair the mean and the spread both lie inside their windows. So
-    the owner's "only where it costs" publishes neither, and the twin still
-    meets both moments at seeds 0, 4 and 9. On the base 2af1f03 the high
-    pair was published, decided on a block whose `n_left_out_of_statistics`
-    still read 0 and whose spread window ended at 32.734867, short of the
-    published 32.751590.
-    """
-    described = kpi_shapes.describe(tmp_path, "affixed", _one_column(_REVIEW_AFFIXED), 11)
-    block = described.document["columns"][0]
-    assert block["role"] == "affixed_number" and block["n_left_out_of_statistics"] == 1, (
-        "premise: one straggler beside a hundred cores"
-    )
-    assert _loader_windows(described, window.withheld(block, ("low", "high"))) == {
-        "mean": False,
-        "std": False,
-    }, "premise: the final block with both pairs withheld keeps both moments"
-    published = [side for side in ("low", "high") if block["tails"][side]["mean_distance"] is not None]
-    assert published == [], f"the rule published {published} where withholding costs nothing"
-    for seed in (0, 4, 9):
-        text = kpi_shapes.twin_text(described, seed)
-        outcome = kpi_shapes.measure(described, text, f"twin-{seed}.csv")
-        moments = [one for one in kpi_shapes.missed(outcome) if "moments." in one]
-        assert moments == [], f"seed {seed}: {moments}"
 
 
 def _nested_blocks(block: "dict") -> "list[tuple[str, dict]]":
@@ -135,11 +90,6 @@ def _nested_facts(facts: object) -> "list[contract.NumericFacts]":
     return []
 
 
-def _spelling_free(facts: contract.NumericFacts) -> contract.NumericFacts:
-    """The facts without a count column's spelling census, which the role adds after the block."""
-    return dataclasses.replace(facts, number_spellings={})
-
-
 _CORES = [str(value) for value in range(1, 100)] + ["210"]
 
 
@@ -148,80 +98,7 @@ def _pairs() -> "list[str]":
     return [f"{core}/{draw.randint(40, 90)}" for core in _CORES]
 
 
-# (name, cells, the role): every role whose block holds a numeric block with
-# tails, each beside cells its population keys count and its cores do not.
-_NESTED_SHAPES = (
-    ("count_beside_text", _CORES + ["review_marker"], taxonomy.ROLE_COUNT),
-    ("continuous_beside_text", [f"-{core}" for core in _CORES] + ["review_marker"], taxonomy.ROLE_CONTINUOUS),
-    ("affixed_beside_text", _REVIEW_AFFIXED, taxonomy.ROLE_AFFIXED),
-    ("affixed_beside_a_bare_number", [f"{core} mg" for core in _CORES] + ["300"], taxonomy.ROLE_AFFIXED),
-    ("affixed_two_wrappers", [f"{core} mg" for core in _CORES] + [f"{core} kg" for core in _CORES] + ["review_marker"], taxonomy.ROLE_AFFIXED),
-    ("joined_beside_text", _pairs() + ["review_marker"], taxonomy.ROLE_JOINED),
-    ("joined_far_in_both", [f"{core}/{core}" for core in _CORES] + ["review_marker"], taxonomy.ROLE_JOINED),
-    ("numbers_beside_labels", _CORES + ["absent"] * 12, taxonomy.ROLE_COMPOUND),
-)
-
-
-@pytest.mark.parametrize("name,cells,role", _NESTED_SHAPES, ids=[case[0] for case in _NESTED_SHAPES])
-def test_every_nested_block_the_cost_rule_decides_is_the_block_the_loader_reads(
-    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, name: str, cells: "list[str]", role: str
-) -> None:
-    """Each block a cost-rule call returns IS the nested block published, and the call asked its loaded reading.
-
-    Two halves, and each is a way the producer's question can part from the
-    checker's: a key set on the block after the rule ran (review item 1:
-    the affixed column's two cell-population keys), and a count handed to
-    the loader's reading that is not the one the loader uses for that
-    block (`taxonomy._Population`). The memo is emptied before every call,
-    so every candidate is asked afresh.
-    """
-    asked: "list[contract.NumericFacts]" = []
-    returned: "list[tuple[dict, list[contract.NumericFacts]]]" = []
-    reading = contract.numeric_block_facts
-    deciding = taxonomy._pairs_that_cost
-
-    def spy_reading(*arguments: object, **named: object) -> contract.NumericFacts:
-        found = reading(*arguments, **named)  # type: ignore[arg-type]
-        asked.extend([found])
-        return found
-
-    def spy_deciding(*arguments: object, **named: object) -> "dict":
-        taxonomy._MOMENTS_MISSED.clear()
-        start = len(asked)
-        found = deciding(*arguments, **named)  # type: ignore[arg-type]
-        returned.extend([(copy.deepcopy(found), list(asked[start:]))])
-        return found
-
-    monkeypatch.setattr(contract, "numeric_block_facts", spy_reading)
-    monkeypatch.setattr(taxonomy, "_pairs_that_cost", spy_deciding)
-    described = kpi_shapes.describe(tmp_path, name, _one_column(cells), 11)
-    block = described.document["columns"][0]
-    assert block["role"] == role, f"premise: read as {role}, not {block['role']}"
-    blocks = _nested_blocks(block)
-    loaded = _nested_facts(described.loaded.columns[0].facts)
-    assert len(blocks) == len(loaded)
-    decided = 0
-    for (label, published), facts in zip(blocks, loaded):
-        mine = [
-            (answer, readings)
-            for answer, readings in returned
-            if answer["tails"] == published["tails"]
-            and answer["percentiles"] == published["percentiles"]
-            and answer["mean"] == published["mean"]
-        ]
-        if not mine:
-            continue
-        decided = decided + 1
-        for answer, readings in mine:
-            moved = [key for key in answer if key not in published or published[key] != answer[key]]
-            assert moved == [], f"{label}: set after the cost rule decided: {moved}"
-            assert _spelling_free(facts) in [_spelling_free(one) for one in readings], (
-                f"{label}: the cost rule asked a reading the loader does not make of the published block"
-            )
-    assert decided > 0, "premise: the cost rule decided at least one published block"
-
-
-# -- 4. the cross-side closure, whatever withheld the first side ---------------
+# -- 4. a side binary64 cannot hold closes nothing else (plan P4-D375) --------
 
 
 def _far_apart(low_first: bool) -> "list[str]":
@@ -234,36 +111,38 @@ def _far_apart(low_first: bool) -> "list[str]":
 
 
 @pytest.mark.parametrize("unheld", ("low", "high"))
-def test_a_side_binary64_cannot_hold_closes_the_other_side_s_pair(
-    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, unheld: str
-) -> None:
-    """The other side's pair is withheld, and says why, where it keeps no moment.
+def test_a_side_binary64_cannot_hold_closes_nothing_else(tmp_path: pathlib.Path, unheld: str) -> None:
+    """The far side publishes no pair and says why; the other side publishes its own.
 
     PREMISE: the far side's own pair is too large for binary64 (its remark
-    says so) and the other side's back-solve leaves it open. The cross-side
-    rule (plan P4-D353 part 2) withholds that open pair wherever the rule
-    publishes nothing, and it asks nothing about why the first side has no
-    pair: on 2af1f03 the pair was published, about `6.38e304` and
-    `7.254e304`, and the checker's windows missed both moments with it and
-    without it.
+    says so). P4-D357 A's item 4 withheld the other side's pair beside it,
+    about `6.38e304` and `7.254e304` on 2af1f03; plan P4-D375 withdrew that
+    with the cross-side rule, so the other side publishes its pair and
+    carries no remark. At the edge of binary64 the twin misses its moments
+    and its count of numbers with the pair and without it alike (as on
+    668f276), so the pair costs it nothing: at seeds 0, 4 and 9 it misses
+    no check the description with that pair withheld does not.
     """
     other = "high" if unheld == "low" else "low"
     cells = _one_column(_far_apart(unheld == "low"))
-    with monkeypatch.context() as patched:
-        patched.setattr(taxonomy, "_pairs_that_cost", lambda _cells, shaped, *_rest: shaped)
-        opened = kpi_shapes.describe(tmp_path / "open", "far", cells, 11).document["columns"][0]
     described = kpi_shapes.describe(tmp_path, f"far-{unheld}", cells, 11)
     block = described.document["columns"][0]
     remarks = block["remarks"]
     assert taxonomy.tail_withheld_because(remarks, unheld) == taxonomy.TAIL_WITHHELD_UNHOLDABLE, (
         "premise: binary64 cannot hold the far side's pair"
     )
-    assert opened["tails"][other]["mean_distance"] is not None, "premise: the other side's own walk leaves it open"
-    assert window.missed(opened, 11) == window.missed(block, 11), "premise: the pair keeps no moment the closure loses"
-    assert block["tails"][other]["mean_distance"] is None, (
-        f"the {other} side published its pair beside a side binary64 cannot hold"
+    assert block["tails"][other]["mean_distance"] is not None, (
+        f"the {other} side withheld its pair beside a side binary64 cannot hold"
     )
-    assert taxonomy.tail_withheld_because(remarks, other) == taxonomy.TAIL_WITHHELD_FOR_THE_OTHER
+    this = "upper" if other == "high" else "lower"
+    assert [one for one in remarks if f"beyond this column's {this} tail boundary" in one] == []
+    closed = kpi_shapes.written_before_p4d375(described, (other,), taxonomy.TAIL_WITHHELD_FOR_THE_OTHER)
+    for seed in (0, 4, 9):
+        published = kpi_shapes.missed(
+            kpi_shapes.measure(described, kpi_shapes.twin_text(described, seed), f"twin-{seed}.csv")
+        )
+        withheld = kpi_shapes.missed(kpi_shapes.measure(closed, kpi_shapes.twin_text(closed, seed), f"closed-{seed}.csv"))
+        assert set(published) <= set(withheld), f"seed {seed}: {sorted(set(published) - set(withheld))}"
 
 
 # -- 2 and 3. no twin cell on a stand-in number the column does not hold -------
@@ -544,7 +423,11 @@ def test_a_pinned_tail_two_multisets_fit_says_only_its_outermost_value(tmp_path:
     other = [0] * 7 + [2, 2, 5, 100]
     assert sorted(real) != sorted(other)
     assert (len(real), sum(real), sum(one * one for one in real)) == (len(other), sum(other), sum(one * one for one in other))
-    described = kpi_shapes.describe(tmp_path, "review5", _one_column(_review_item_5()), 11)
+    # SINCE PLAN P4-D375 THE PAIR IS PUBLISHED, so the pages are asked of
+    # the description P4-D357 A wrote of this column, which still loads.
+    fresh = kpi_shapes.describe(tmp_path, "review5", _one_column(_review_item_5()), 11)
+    assert fresh.document["columns"][0]["tails"]["high"]["mean_distance"] is not None
+    described = kpi_shapes.written_before_p4d375(fresh, ("high",), taxonomy.TAIL_PINS_END)
     block = described.document["columns"][0]
     tail = block["tails"]["high"]
     assert tail["rows"] == 11 and tail["mean_distance"] is None and not tail["values"], "premise: eleven rows, withheld"
@@ -558,64 +441,6 @@ def test_a_pinned_tail_two_multisets_fit_says_only_its_outermost_value(tmp_path:
     assert "one by one" not in line[0]
     report = validation._tail_withheld_reason(block, "high")
     assert "would give back at least the file's own outermost cell" in report and "one by one" not in report
-
-
-def _reading_by_enumeration(distances: "list[int]", floor: int, edge: int, distinct: bool, least: int) -> "str | None":
-    """What the facts of a tail fix, by listing every multiset they admit (tests/complement_reader.py's walk)."""
-    total = sum(distances)
-    squares = sum(one * one for one in distances)
-    found, finished = columns._tail_multisets(
-        len(distances), total, squares, least, edge, 1 if distinct else 0, cap=100_000, budget=5_000_000
-    )
-    if not finished:
-        return None
-    assert sorted(distances) in found, "the enumeration misses the real multiset"
-    if len(found) == 1:
-        return taxonomy.TAIL_PINS_EVERY
-    top = max(distances)
-    if {max(one) for one in found} == {top} and distances.count(top) < floor:
-        return taxonomy.TAIL_PINS_END
-    return taxonomy.TAIL_PINS_A_COUNT
-
-
-def test_every_pinned_reading_is_the_one_the_multisets_give() -> None:
-    """Over 3,000 seeded small tails the back-solve PINS, the reading equals a brute-force enumeration's.
-
-    Parts from nought (a numeric tail) or one (a date or clock tail), all
-    different or not, capped by an edge: where `_tail_verdict` answers
-    PINNED, `_pinned_reach` says every value exactly where one multiset
-    fits, the outermost exactly where every fitting multiset shares the
-    largest part and fewer rows than the floor hold it, and a count
-    otherwise -- each of the three reached (premise), and a count among them
-    on tails whose largest part the floor does not protect.
-    """
-    draw = random.Random("p4d357/reach")
-    seen: "dict[str, int]" = {}
-    for _case in range(3000):
-        least = draw.choice((0, 1))
-        distinct = draw.random() < 0.3
-        size = draw.randint(3, 9)
-        edge = draw.randint(least + size + 1, 30)
-        if distinct:
-            distances = draw.sample(range(least, edge + 1), size)
-        else:
-            reach = draw.choice((2, 5, edge - least))
-            distances = [draw.randint(least, least + reach) for _row in range(size)]
-        floor = draw.randint(2, 11)
-        if not distinct and draw.random() < 0.3:
-            # A LARGEST PART THE FLOOR DOES NOT PROTECT: held `floor` times.
-            distances = distances + [max(distances)] * (floor - distances.count(max(distances)))
-        if taxonomy._tail_verdict(distances, floor, edge, distinct, least) != taxonomy.TAIL_PINNED:
-            continue
-        expected = _reading_by_enumeration(distances, floor, edge, distinct, least)
-        if expected is None:
-            continue
-        found = taxonomy._pinned_reach(distances, floor, edge, distinct, least)
-        assert found == expected, (distances, floor, edge, distinct, least, found, expected)
-        seen[found] = seen.get(found, 0) + 1
-    assert sorted(seen) == sorted(
-        (taxonomy.TAIL_PINS_EVERY, taxonomy.TAIL_PINS_END, taxonomy.TAIL_PINS_A_COUNT)
-    ), f"premise: every reading reached, {seen}"
 
 
 # -- 6. "every value in this column is different" only where every one is -----
@@ -1617,7 +1442,9 @@ def test_every_sentence_on_a_withheld_pair_claims_what_the_multisets_fix(
     fixes only the outermost value or a count.
     """
     cells = [str(value) for value in list(range(1089)) + [1089] + [1089 + one for one in distances]]
-    described = kpi_shapes.describe(tmp_path, "reading", _one_column(cells), 11)
+    described = kpi_shapes.written_before_p4d375(
+        kpi_shapes.describe(tmp_path, "reading", _one_column(cells), 11), ("high",), reading
+    )
     block = described.document["columns"][0]
     tail = block["tails"]["high"]
     assert tail["rows"] == 11 and tail["mean_distance"] is None, "premise: eleven rows, the pair withheld"
@@ -1687,7 +1514,15 @@ def test_no_page_says_the_distances_of_a_tail_withholding_them_are_published(tmp
     from synthtwin import asking, generation, quality, rendering
 
     cells = [str(value) for value in list(range(1089)) + [1089] + [1089 + one for one in _READINGS[1][1]]]
-    described = kpi_shapes.describe(tmp_path, "pages", _one_column(cells), 11)
+    # AS P4-D357 A WROTE IT: the high side pinned to its outermost value,
+    # the low one withheld for its sake (plan P4-D375 publishes both).
+    described = kpi_shapes.written_before_p4d375(
+        kpi_shapes.written_before_p4d375(
+            kpi_shapes.describe(tmp_path, "pages", _one_column(cells), 11), ("high",), taxonomy.TAIL_PINS_END
+        ),
+        ("low",),
+        taxonomy.TAIL_WITHHELD_FOR_THE_OTHER,
+    )
     block = described.document["columns"][0]
     assert [block["tails"][side]["mean_distance"] for side in ("low", "high")] == [None, None], (
         "premise: both pairs withheld"
@@ -1844,9 +1679,6 @@ _PINNED_PAIR_COMMENTS = (
     ("validation.py", ("_GATE_TAIL_WITHHELD = (",)),
     ("taxonomy.py", ("REMARK_LOW_TAIL_FOR_THE_HIGH = ",)),
     ("taxonomy.py", ("TAIL_WITHHELD_FOR_THE_OTHER = ",)),
-    ("taxonomy.py", ("if (", "mean is not None", "and root is not None", "and not listed")),
-    ("taxonomy.py", ('for side in ("low", "high"):', "if side in causes and (side, causes[side]) in TAIL_WITHHELD_REMARKS")),
-    ("taxonomy.py", ("verdict = TAIL_OPEN if few else _tail_verdict(",)),
     ("profile.py", ('("columns", _EACH, "parts", _EACH, "tails"): _MAYBE_OBJECT,',)),
     ("profile.py", ('("columns", _EACH, "tails"): _MAYBE_OBJECT,',)),
 )
@@ -1864,7 +1696,6 @@ _PINNED_PAIR_DOCSTRINGS = (
     (contract.TailFacts, "That is the tail whose pair", ("did not finish",)),
     (contract.TailSide, "BOTH DISTANCES ARE NULL ON A TAIL", ("did not finish", "other tail's pair", "binary64")),
     (contract._tail_object, "WITHOUT them it publishes both distances or NEITHER", ()),
-    (taxonomy._numeric_answer, "Whether a numeric tail's published pair", ()),
 )
 # ...and the words the stale ones used for every value, which `_CLAIMS`
 # never meets on a page.
