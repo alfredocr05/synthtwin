@@ -182,13 +182,7 @@ modules. Nothing in this module reads a file.
 import dataclasses
 import math
 
-from synthtwin import (
-    calendar_certificate,
-    calendar_clock,
-    calendar_rules,
-    contract,
-    parsing,
-)
+from synthtwin import calendar_certificate, calendar_clock, calendar_rules, contract, parsing
 
 # The eleven points of the percentile ladder: the shape-carrying
 # summary of a numeric column (plan P1-D4).
