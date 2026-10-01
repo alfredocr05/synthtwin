@@ -10400,14 +10400,15 @@ def numeric_block_facts(
     n_out_of_range: int,
     n_contradictory: int,
 ) -> NumericFacts:
-    """One would-be numeric block read as the loader reads it (P4-D353).
+    """One numeric block read as the loader reads it (P4-D353).
 
-    The producer asks the G12.3 windows of a description before it
-    publishes a tail pair, and those windows are drawn from the facts
-    this loader reads, so it asks them of this reading and not of one
-    of its own. The block is read under the five settings a profile
-    records and the cells' own four counts, as a column of its own,
-    echoing its own `n_rows`.
+    The G12.3 windows of a block's mean and spread are drawn from the
+    facts this loader reads, so a reader asking whether a description's
+    own windows hold their values asks them of this reading and not of
+    one of its own (the cost rule of P4-D353 did; since P4-D375 the
+    suite's window checks do). The block is read under the five settings
+    a profile records and the cells' own four counts, as a column of its
+    own, echoing its own `n_rows`.
 
     Guarantees: accepts one numeric block, the five settings and the
     four counts; returns its `NumericFacts`. Determinism: a function of

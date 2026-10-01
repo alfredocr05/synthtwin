@@ -1,4 +1,4 @@
-"""K-S3-17, K-S3-18, K-S3-20, K-S3-21 and K-S3-22: what publishing every tail pair does, measured.
+"""K-S3-17, K-S3-18, K-S3-20, K-S3-21, K-S3-22 and K-S3-50: what publishing every tail pair does, measured.
 
 Plan P4-D375 publishes every numeric tail pair binary64 can hold; the
 cost rule of P4-D353, which published a withheld pair only where
@@ -22,7 +22,13 @@ producer, and -- where a twin is asked -- the real generator and checker:
   (`complement_reader.by_subtraction`), and the columns it gives up on;
 * `K-S3-22`: where no published pair keeps a moment, the moments the twins
   still miss, and how many blocks keep neither or one of them in their
-  own windows.
+  own windows;
+* `K-S3-50`: how far twins write past the real column's own range, which
+  no check sees because no end is published -- over `K-S3-20`'s 37 shapes
+  at floors 11, 20, 36 and 50, the numeric twins holding a cell outside
+  the real minimum and maximum and how far, as thousandths of the real
+  span; and over the two date columns of landing 3b.0's tie-group
+  witnesses, the twins writing a day outside the real first and last.
 
 Every column is built from a fixed seed string at run time; nothing is
 read from disk but the tree's own code.
@@ -279,12 +285,100 @@ def residual(home):
     return value
 
 
+def _range_overshoot(real, twin):
+    """Thousandths of the real span the twin's furthest cell stands past the real range, or None."""
+    low, high = min(real), max(real)
+    span = high - low
+    beyond = max([low - one for one in twin if one < low] + [one - high for one in twin if one > high] + [0.0])
+    if beyond <= 0.0 or span <= 0.0:
+        return None
+    return int(round(1000.0 * beyond / span))
+
+
+def _numbers_of(text):
+    found = []
+    for line in text.split("\n")[1:]:
+        number = parsing.parse_number(line) if line else None
+        if number is not None:
+            found += [number]
+    return found
+
+
+# THE TWO DATE COLUMNS (tests/test_stage3b_gate.py): every_day_group's 105
+# dates over 22 days from 2024-05-06, and the same with 2024-05-12 declared
+# missing and twelve more cells written that way.
+_TIE_COUNTS = (5, 4, 1, 6, 9, 2, 4, 7, 6, 2, 7, 7, 5, 5, 3, 2, 9, 7, 1, 1, 11, 1)
+
+
+def out_of_range(home):
+    """K-S3-50: twins past the real range, numeric over K-S3-20's battery, and the two date columns."""
+    import datetime
+
+    import fixtures
+    from synthtwin import contract, profile, reading, taxonomy
+
+    value = {
+        "numeric_twins": 0,
+        "numeric_twins_out_of_range": 0,
+        "median_overshoot_permille": 0,
+        "worst_overshoot_permille": 0,
+        "date_twins": 0,
+        "date_twins_out_of_range": 0,
+        "date_days_out_most": 0,
+    }
+    found = []
+    for floor in (11, 20, 36, 50):
+        for name, cells in _k320_battery():
+            real = _numbers_of(_text(cells))
+            described = _described(home / "k350", name, cells, floor)
+            if described.document["columns"][0]["role"] not in ("count", "continuous"):
+                continue
+            for seed in SEEDS:
+                value["numeric_twins"] += 1
+                past = _range_overshoot(real, _numbers_of(kpi_shapes.twin_text(described, seed)))
+                if past is not None:
+                    value["numeric_twins_out_of_range"] += 1
+                    found += [past]
+    found.sort()
+    if found:
+        value["median_overshoot_permille"] = found[len(found) // 2]
+        value["worst_overshoot_permille"] = found[len(found) - 1]
+    first = datetime.date(2024, 5, 6)
+    days = []
+    for step in range(len(_TIE_COUNTS)):
+        days += [(first + datetime.timedelta(days=step)).isoformat()] * _TIE_COUNTS[step]
+    for absent in (False, True):
+        cells = days + (["2024-05-12"] * 12 if absent else [])
+        folder = home / f"k350-dates-{absent}"
+        folder.mkdir(parents=True, exist_ok=True)
+        table = fixtures.write(folder, "dates.csv", "seen_on\n" + "".join(f"{cell}\n" for cell in cells))
+        settings = taxonomy.Settings(small_cell_floor=11, declared_missing_values=("2024-05-12",) if absent else ())
+        document = profile.build_document(reading.read_table(str(table), small_cell_floor=11), settings, [], [], [])
+        written = fixtures.write_profile(folder, "dates-profile.json", document)
+        described = kpi_shapes.Described(folder, table, document, contract.load_profile(str(written)))
+        real = sorted(set(days) - ({"2024-05-12"} if absent else set()))
+        for seed in (0, 1, 2, 3, 4):
+            value["date_twins"] += 1
+            held = [line for line in kpi_shapes.twin_text(described, seed).split("\n")[1:] if line and line != "2024-05-12"]
+            out = [one for one in held if one < real[0] or one > real[len(real) - 1]]
+            if out:
+                value["date_twins_out_of_range"] += 1
+                worst = max(
+                    max((datetime.date.fromisoformat(real[0]) - datetime.date.fromisoformat(one)).days for one in out),
+                    max((datetime.date.fromisoformat(one) - datetime.date.fromisoformat(real[len(real) - 1])).days for one in out),
+                )
+                value["date_days_out_most"] = max(value["date_days_out_most"], worst)
+    print(f"K-S3-50 overshoots (thousandths of the span): {found}", flush=True)
+    return value
+
+
 MEASUREMENTS = (
     ("K-S3-17", skew_and_kurtosis),
     ("K-S3-18", published_pairs),
     ("K-S3-20", floor_36),
     ("K-S3-21", by_subtraction),
     ("K-S3-22", residual),
+    ("K-S3-50", out_of_range),
 )
 
 

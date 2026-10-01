@@ -6141,13 +6141,11 @@
     "tests/test_stage3_gate.py::test_a_population_at_the_line_carries_no_notice",
     "tests/test_stage3_gate.py::test_a_population_in_the_notice_band_carries_the_notice_on_every_page",
     "tests/test_stage3_gate.py::test_a_population_under_the_floor_is_refused_and_nothing_is_written",
-    "tests/test_stage3_gate.py::test_a_settled_pair_is_published_only_where_withholding_it_costs",
+    "tests/test_stage3_gate.py::test_every_pair_is_published_and_keeps_the_column_s_windows",
     "tests/test_stage3_gate.py::test_every_published_number_of_the_rules_table_has_exactly_one_class",
     "tests/test_stage3_gate.py::test_no_published_number_of_the_battery_is_held_by_fewer_than_the_floor",
     "tests/test_stage3_gate.py::test_no_published_value_of_the_battery_names_a_lone_outer_cell",
-    "tests/test_stage3_gate.py::test_no_tail_of_the_battery_back_solves_to_the_value_it_withheld",
     "tests/test_stage3_gate.py::test_the_battery_reaches_every_class_the_gate_asks_about",
-    "tests/test_stage3_gate.py::test_the_cost_rule_is_not_vacuous_on_its_own_cost_shape",
     "tests/test_stage3_gate.py::test_the_gate_turns_red_on_a_group_count_republished_below_the_line",
     "tests/test_stage3_gate.py::test_the_gate_turns_red_on_a_population_floor_lowered_below_a_hundred",
     "tests/test_stage3_gate.py::test_the_gate_turns_red_on_a_sentence_argument_that_differs_from_its_key",
@@ -6159,7 +6157,7 @@
    "pin_strength": "EXACT",
    "measured_on": "the gate battery of tests/test_stage3_gate.py: 60 tables at each of floors 1, 5 and 11, all seeded and neutral, each through the real reader and the real producer; 12,724 published numbers walked at a floor of eleven",
    "evidence": "0 gate breaches over the battery at the three floors. The classification is CLOSED over profile.PUBLICATION_RULES: 323 of its 669 stated paths can carry a number and every one of them has a class, resolved through the three mirrors the rules table is built with (numbers, labels, affix_variants[].numbers) so one decision is written once. At a floor of eleven the walk puts 12,724 published numbers into VALUE 4,817, INDEX 1,997, SETTLED 1,895, GROUP 1,706, STRUCTURAL 1,616, POOLED 310, DISTINCT 294 and WRITTEN_FORM 89, beside the sentence arguments and the two words a count moves. 38 date and clock tails are put to the back-solve across the three floors and NONE is settled to one arithmetic. FIVE MUTATIONS prove the gate can fail, each a test of its own and each PINNED here so it cannot be deleted with this entry still green: a level count re-published at 1, a sentence argument one greater than its key, the column's exact minimum put back into percentiles.min, a tail listing three values one row holds apiece, and parsing.POPULATION_FLOOR halved. THE GROUP CLAUSE IS VACUOUS AT A FLOOR OF ONE and that is contract C5-S13 rather than an oversight: a floor lowered to one names every level of one row on purpose. The VALUE, SENTENCE and refusal halves bite at every floor.",
-   "nodes_min_collected": 39,
+   "nodes_min_collected": 40,
    "value_at": {
     "commit": "21f7b8b",
     "date": "2026-09-26",
@@ -6293,7 +6291,7 @@
    "headline": false,
    "name": "On the gate's eleven filled ranges the twin holds as many units, and the same ones where the published facts settle them",
    "status": "GREEN",
-   "rule": "the nine pinned nodes of tests/test_stage3b_gate.py pass: seven seeded shapes filling every unit of their range -- two years of admission and of billing dates at 10,000 rows, 300 days at 10,000 rows, the admission days as midnight moments, every second of ten minutes, a 105-row column, the review's 32 days at 100 rows -- at the floor each fell short at, the two-year shapes also at floors 1 and 36; at seeds 0 to 4 every twin validates, nothing missed, as many units as the real column and none past the tails' derived ends, its own units where both derived ends are its ends and, where one stands a unit past (four cases, P4-D358), that unit in place of one real unit inside, every approximation inside its window, the two summed tail windows agreeing rank for rank, and each clause of G7.3b step 9 on its own witness (low tail first on a tie, offers nearest the group's distance then the smaller distance, no unit an absent spelling names, ranks in order, one rank kept, none onto a midnight); the summed window widens only where the distinct count is reachable, a file past the strata MISSING its mean there",
+   "rule": "the eleven pinned nodes of tests/test_stage3b_gate.py pass: seven seeded shapes filling every unit of their range -- two years of admission and of billing dates at 10,000 rows, 300 days at 10,000 rows, the admission days as midnight moments, every second of ten minutes, a 105-row column, the review's 32 days at 100 rows -- at the floor each fell short at, the two-year shapes also at floors 1 and 36; at seeds 0 to 4 every twin validates, nothing missed, as many units as the real column and none past the tails' derived ends, its own units where both derived ends are its ends and, where one stands a unit past (four cases, P4-D358), that unit in place of one real unit inside, every approximation inside its window, the two summed tail windows agreeing rank for rank, and each clause of G7.3b step 9 on its own witness (low tail first on a tie, offers nearest the group's distance then the smaller distance, no unit an absent spelling names, ranks in order, one rank kept, none onto a midnight); the summed window widens only where the distinct count is reachable, a file past the strata MISSING its mean there; the 105-row mirrored column holds all 21 days (G7.3b step 5's end floor, plan P4-D375); and the two columns the step-9 witnesses were built on -- every_day_group and the same with an absent day, as the shipped producer describes them -- write one day before the real first, 2024-05-06, in place of a real day inside, at every seed, nothing missed (a range limit, K-S3-50)",
    "rule_kind": "exact",
    "expected": {
     "pinned_nodes_failing": 0
@@ -6309,14 +6307,16 @@
     "tests/test_stage3b_gate.py::test_the_ranks_stay_in_order",
     "tests/test_stage3b_gate.py::test_a_group_keeps_one_rank",
     "tests/test_stage3b_gate.py::test_no_rank_is_moved_onto_a_midnight",
-    "tests/test_stage3b_gate.py::test_the_window_is_summed_wider_only_where_the_count_is_reachable"
+    "tests/test_stage3b_gate.py::test_the_window_is_summed_wider_only_where_the_count_is_reachable",
+    "tests/test_stage3b_gate.py::test_the_mirrored_column_holds_every_day",
+    "tests/test_stage3b_gate.py::test_the_shipped_tails_of_the_tie_group_columns_write_a_day_past_the_first"
    ],
    "test": null,
    "driver": null,
    "pin_strength": "EXACT",
    "measured_on": "tests/test_stage3b_gate.py EVERY_DAY_CASES: eleven shape-and-floor cases, seeds 0 to 4",
    "evidence": "e294a82 failed 6 of the 10 cases: admissions and billing at floor 11 held 730 and 729 of 731 days and 300 days at floor 36 held 299, both counts MISSED at every seed; the midnight moments and the seconds held 730 and 599 units and VALIDATED, the lost value bought back as a spelling the real column never wrote; the 105-row column held 22 of 23 days. After, 10 of 10. Each step-9 witness turns red on its own mutant (outer unit before inner, smallest distance first, inner unit first, an absent unit offered, outer units smallest outermost, a group's last rank given, a midnight offered); the window widened where the count is unreachable turns the ninth red, in validator and report. Left (P4-D354): real outermost units past a tail's derived end, several a side, both sides at once -- a year whose first and last weeks hold a cell a day holds 363 and 359 of 365 days at floors 11 and 36, both counts MISSED at every seed, and 38 of 300 small filled twins miss -- hidden on moments by a bought spelling, 898 or 899 of 900 seconds at floor 36; and two drawn ranks whose strata overlap leaving a unit empty. At the review (P4-D358) the gate held the count and not the days: the review's 32 days came back with 2023-12-31 and 2024-02-02 for two real days at every seed, all validating; it now asserts the days where the derived ends settle them.",
-   "nodes_min_collected": 27,
+   "nodes_min_collected": 31,
    "value_at": {
     "commit": "6f1acd9",
     "date": "2026-09-28",
@@ -6681,15 +6681,14 @@
    "tier": "FAST",
    "source": "pytest",
    "nodes": [
-    "tests/test_p4d349_tail_reconstruction.py::test_a_file_whose_other_tail_is_withheld_is_not_convicted",
-    "tests/test_p4d353_cost_rule.py::test_the_complement_stays_closed_where_closing_it_is_free"
+    "tests/test_p4d349_tail_reconstruction.py::test_a_file_whose_other_tail_is_a_run_is_convicted"
    ],
    "test": "tests/test_kpi_ledger.py::test_k_s3_19",
    "driver": null,
    "pin_strength": "EXACT",
    "measured_on": "tests/complement_reader.py's rung-chained column at seed 4, tests/test_stage3_gate.py's heap_then_one_far and the whole-uniform all-different 1,500-row column, each described once; the four checker files, each checked once against its heaped-end description",
    "evidence": "3 closures stand against the subtraction; with no pair at all the whole-description reader of K-S3-24 still rebuilds heap_then_one_far at eleven, its one-row maximum 1100 among the values. e294a82 published the open low pair beside the withheld high run on the rung-chained column, and complement_reader.by_subtraction named its 12 high values. On each, withholding both pairs keeps the windows of the mean and spread, so the cost rule offers nothing back. WHAT IT COSTS THE CHECKER (plan P4-D353): a checked file whose other tail is a run has its near pair withheld too, so the heaped end's bound has nothing to be drawn from -- WITHHELD on 2 of the 4 files, where e294a82 said MISSED on all 4; uneven steps stay MISSED.",
-   "nodes_min_collected": 2,
+   "nodes_min_collected": 1,
    "value_at": {
     "commit": "e760d27",
     "date": "2026-09-26",
@@ -6813,14 +6812,14 @@
    "tier": "SLOW",
    "source": "driver",
    "nodes": [
-    "tests/test_p4d353_cost_rule.py::test_where_no_pair_keeps_a_moment_none_is_published"
+    "tests/test_p4d353_cost_rule.py::test_no_twin_misses_a_moment_a_published_pair_would_keep"
    ],
    "test": null,
    "driver": "tools/measurements/kpi_cost_rule.py --kpi",
    "pin_strength": "NONE",
    "measured_on": "tests/complement_reader.py's seeded far-value, Pareto and moments-only columns, each described, generated at seeds 0, 4 and 9 and checked in full",
    "evidence": "111 moments.mean and moments.std obligations are missed over the three seeds: 48 on the far value beyond the width (both moments on 8 column-floors at every seed: the pair the width lets the twin write cannot reach 99999), 18 on Pareto(2) seed 2, 24 on Pareto(2.5) (seed 6 at 36; seeds 1, 4 and 6 at 50), 12 on the two moments-only blocks, 6 on the far negative value at 36 and 3 on 00001 to 00149 beside 50000 at 36, where a pair keeps the mean and nothing the spread. e294a82 missed 216.",
-   "nodes_min_collected": 1,
+   "nodes_min_collected": 6,
    "value_at": {
     "commit": "21f7b8b",
     "date": "2026-09-26",

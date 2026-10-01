@@ -2,12 +2,13 @@
 
 A withheld tail is read as its narrowest reading (method G5.3b), and the
 windows of `moments.mean` and `moments.std` are drawn from that reading
-(G12.3). The rule publishes a withheld pair only where the description
-with it withheld would leave one of those windows short of its value.
-This module asks that question the way the CHECKER asks it -- the
-loader's own reading of the block (`contract.numeric_block_facts`), then
-the name the checker draws its windows by (`validation._windows_of`) --
-so a producer that asked anything else disagrees with it.
+(G12.3). The rule published a withheld pair only where the description
+with it withheld would leave one of those windows short of its value;
+since plan P4-D375 every pair is published, and the suite asks the same
+question of a description to say what a pair keeps. This module asks it
+the way the CHECKER asks it -- the loader's own reading of the block
+(`contract.numeric_block_facts`), then the name the checker draws its
+windows by (`validation._windows_of`).
 
 Every table is built at test time by the callers' seeded builders; no
 data-format file enters the repository (plan D13).
@@ -62,40 +63,3 @@ def withheld(block: "dict", sides: "tuple[str, ...]") -> "dict":
             edited["tails"][side], mean_distance=None, rms_distance=None
         )
     return edited
-
-
-def with_pairs(block: "dict", opened: "dict", sides: "tuple[str, ...]") -> "dict":
-    """``block`` with the real pairs of ``sides`` put back from ``opened``, every other withheld.
-
-    ``opened`` is the same column described with the back-solve answering
-    OPEN, so its pairs are the ones the producer held before withholding.
-    """
-    edited = copy.deepcopy(block)
-    for side in ("low", "high"):
-        tail = dict(edited["tails"][side])
-        if side in sides:
-            tail["mean_distance"] = opened["tails"][side]["mean_distance"]
-            tail["rms_distance"] = opened["tails"][side]["rms_distance"]
-        else:
-            tail["mean_distance"] = None
-            tail["rms_distance"] = None
-        edited["tails"][side] = tail
-    return edited
-
-
-def published_where_it_costs_nothing(block: "dict", floor: int) -> "list[str]":
-    """The published pairs whose withholding would cost the twin nothing.
-
-    Asked only of a block BOTH of whose pairs the back-solve withholds
-    (each caller states why its shape is one), where every pair published
-    is the cost rule's: the owner's ruling 4 publishes such a pair only
-    where withholding it again leaves a window short of its value.
-    """
-    found: "list[str]" = []
-    for side in ("low", "high"):
-        one = block["tails"][side]
-        if one["mean_distance"] is None or one["values"]:
-            continue
-        if not costs(withheld(block, (side,)), floor):
-            found += [side]
-    return found
