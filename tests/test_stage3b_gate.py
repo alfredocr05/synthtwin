@@ -34,8 +34,9 @@ reaches it, most of them on a description rewritten to ask for fewer
 or more different values than the real column held -- one the loader
 accepts and no producer writes:
 
-* `test_the_low_tail_gives_way_first_on_a_tie` -- a mirrored column one
-  value short, so the step takes one of two tied offers: the low tail's;
+* `test_the_low_tail_gives_way_first_on_a_tie` -- a mirrored column
+  whose tails stand apart from its body, three values long, so the step
+  takes one of two tied offers: the low tail's;
 * `test_the_offers_are_taken_nearest_the_group_first` -- the frozen
   case's column one to four values short, so the step takes the first
   offers in the method's order, which this test derives: nearest the
@@ -44,6 +45,10 @@ accepts and no producer writes:
   names as holding no value, two days inside a tail's reach;
 * `test_the_ranks_stay_in_order` -- the same column, whose low tail
   gives two ranks outside its group, the larger distance to the outer;
+
+  the last three on the tails plan P4-D346 wrote of those columns
+  (`_as_p4d346_wrote`): plan P4-D375's narrower tails put their groups
+  one day out, where they give nothing;
 * `test_a_group_keeps_one_rank` -- a tail of twelve cells, so a group
   of two ranks, asked for more values than it can give;
 * `test_no_rank_is_moved_onto_a_midnight` -- seconds whose high tail's
@@ -598,19 +603,31 @@ _MIRRORED_COUNTS = (
 
 
 def test_the_mirrored_column_holds_every_day(tmp_path: pathlib.Path) -> None:
-    """The twin holds all 21 days at seeds 0 to 4 and misses nothing (G7.3b step 5's end floor)."""
+    """The twin holds all 21 days at seeds 0 to 4 and misses nothing (G7.3b step 5's end floor).
+
+    And the validator writes the same floor: its windows of the two tails
+    are the generator's rank for rank, where the shape alone would end
+    each tail two days out.
+    """
     cells = _cells_of(_MIRRORED_COUNTS, datetime.date(2024, 5, 6))
     described = kpi_shapes.describe(
         tmp_path, "mirrored", "seen_on\n" + "".join(f"{cell}\n" for cell in cells), 11
     )
     block = described.document["columns"][0]
+    column = described.loaded.columns[0]
+    facts = column.facts
+    assert isinstance(facts, contract.DatetimeFacts)
     layout = _layout(described.loaded, 11)
-    for plan, key in ((layout.low, "low_tail"), (layout.high, "high_tail")):
+    mine = validation._date_tail_windows(column, facts, 11, "", True)
+    counted = contract.datetime_counts_reachable(column)
+    for plan, key, side in ((layout.low, "low_tail", "low"), (layout.high, "high_tail", "high")):
         assert plan is not None and plan.shape is not None, key
         tail = block[key]
         assert (tail["rows"], plan.shape.end) == (19, 3), (key, tail["rows"], plan.shape.end)
         reach = generation._least_end(tail["mean_distance"], tail["rms_distance"], plan.shape.edge)
         assert reach == 3, f"{key}: the end floor is {reach}"
+        assert mine[side] == generation._tail_sum_bounds(plan, counted), f"{side}: the two writings part"
+        assert mine[side][1][0] == 3, f"{side}: the validator's end is {mine[side][1][0]}"
     for seed in SEEDS:
         text = kpi_shapes.twin_text(described, seed)
         assert set(text.splitlines()[1:]) == set(cells), seed
