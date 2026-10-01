@@ -6,6 +6,8 @@ other test still green. Each rule therefore has a case that must take
 it AND a neighbouring case that must not.
 """
 
+import math
+
 import pytest
 
 import fixtures
@@ -190,17 +192,12 @@ def test_the_tail_boundaries_are_canonical_and_ordered() -> None:
     empty, because the ranks they would be read from are inside the two
     tails.
 
-    AND NEITHER SIDE PUBLISHES A DISTANCE (plan P4-D349). These thirty
+    AND BOTH SIDES PUBLISH THEIR DISTANCES (plan P4-D375). These thirty
     days are CONSECUTIVE, so each tail's eleven cells stand one day apart
-    and their distances from the boundary are 1 to 11: eleven DIFFERENT
-    whole numbers summing to 66, which is the least eleven different whole
-    numbers can sum to, so no other multiset fits and a published mean of
-    6 would give all twenty-two outer days back one by one. The boundary
-    and the row count stand -- they are what this test is about -- and
-    both distances are null. A column of thirty days that did NOT run
-    consecutively would publish them; the widening walk cannot buy this
-    one a width that does, because its two tails already hold twenty-two
-    of its thirty rows.
+    and their distances from the boundary are 1 to 11: a mean of 6 and a
+    root-mean-square of root-46, which give all twenty-two outer days back
+    to a reader -- a column's own values, never a row or another column,
+    and the owner's principle of 2026-10-01 publishes them for the twin.
     """
     days = [f"2024-01-{index + 1:02d}" for index in range(30)]
     described = describe(days)
@@ -212,8 +209,8 @@ def test_the_tail_boundaries_are_canonical_and_ordered() -> None:
     assert low["rows"] == 11 and high["rows"] == 11
     assert low["boundary"] < high["boundary"]
     assert sum(range(1, 12)) == 66, "the least eleven different distances sum"
-    assert low["mean_distance"] is None and high["mean_distance"] is None
-    assert low["rms_distance"] is None and high["rms_distance"] is None
+    assert low["mean_distance"] == 6.0 and high["mean_distance"] == 6.0
+    assert low["rms_distance"] == math.sqrt(46.0) == high["rms_distance"]
     ladder = described.details["date_percentiles"]
     assert isinstance(ladder, dict)
     assert ladder["min"] is None and ladder["max"] is None
@@ -317,14 +314,12 @@ def test_a_tail_lists_no_value_that_one_row_holds() -> None:
     lists eleven values per side, every one of them held by one cell,
     and this test goes red on the first assertion.
 
-    AND THIS COLUMN NOW PUBLISHES NO DISTANCE EITHER (plan P4-D349). Its
-    minutes are every minute of the day but one in eight, so each tail's
-    eleven cells are nearly consecutive and their published pair, read
-    with the column's own "every value different" remark and the day's
-    own edges, leaves one multiset. The rule this test is about is
-    unchanged and is still what is asserted: NO VALUE IS LISTED. What the
-    tail publishes instead is its boundary and its row count, which says
-    strictly less than the shape it used to publish.
+    AND THIS COLUMN PUBLISHES ITS PAIR (plan P4-D375). Its minutes are
+    every minute of the day but one in eight, so each tail's eleven cells
+    are nearly consecutive and their pair, read with the column's own
+    "every value different" remark and the day's own edges, leaves one
+    multiset. The rule this test is about is unchanged and is still what
+    is asserted: NO VALUE IS LISTED, and no published value is an end.
     """
     clock = _all_different_clock()
     described = describe(clock)
@@ -333,8 +328,8 @@ def test_a_tail_lists_no_value_that_one_row_holds() -> None:
         tail = described.details[side]
         assert isinstance(tail, dict)
         assert tail["values"] is None, side
-        assert tail["mean_distance"] is None, side
-        assert tail["rms_distance"] is None, side
+        assert isinstance(tail["mean_distance"], float), side
+        assert isinstance(tail["rms_distance"], float), side
     published = {
         value
         for value in described.details.values()

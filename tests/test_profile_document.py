@@ -538,8 +538,12 @@ def test_nothing_that_varies_between_runs_is_written(
 # the remark on `amount`, whose 240 cells hold 238 different values and
 # were told "every value in this column is different"; it now says nearly
 # every value is. No key arrives or leaves and no number moves.
+# AND RE-RECORDED BY PLAN P4-D375 (the tail-withholding drop), read line by
+# line against a git archive of 668f276: FOUR LINES move, the four tail
+# distances of `record_code`, null since P4-D349 and published again. No
+# key arrives or leaves and nothing else differs.
 GOLDEN_SHA256 = (
-    "83e1fc4fbb48903866f9290a9e5a93675772b121d602c09ac0e58c753da93400"
+    "7a979e5930f720048c15156c6c436b703c2c33e7908a1207d147ac44f0714002"
 )
 
 

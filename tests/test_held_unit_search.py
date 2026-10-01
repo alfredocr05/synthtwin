@@ -772,7 +772,14 @@ def test_a_full_gap_of_a_width_census_is_searched_once_a_pass(
 # prior); the column still holds 797 different dates, and the search is
 # asked exactly what it was asked before, 2,195 calls and 299,291
 # questions.
-_MONTH_FIRST_TWIN = "acb7f278f8d2195b601c723725b15e24151ffa52160b378b946efdf51897760e"
+#
+# AND AGAIN FOR PLAN P4-D375, read against a git archive of 668f276 before
+# it was written: with no pair withheld nothing moves a boundary, so the
+# two tails stand where P4-D346 found them -- low `2020-01-03` and 13
+# rows, high `2022-03-07` and 13 rows, each publishing its pair -- and the
+# weekday census counts the ten rows they give back to the body (Monday
+# 573 to 580, Friday 527 to 532). Every assertion above still holds.
+_MONTH_FIRST_TWIN = "32a1ac85fe9d758ae90482bc58b711df13878339a106404554b28ddd824fb7bd"
 
 
 def test_the_figures_the_searches_cite_are_the_ones_counted_here() -> None:
