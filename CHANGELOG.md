@@ -23,6 +23,14 @@ verdicts alone left the withholding the battery had asked at 10,000
 rows, and the ladder read a describe growth of 1.521 where each size
 counted afresh reads 1.085.
 
+### Every new commit message is scanned (2026-09-30)
+
+**The owner's "Push now, add a guard"** (plan P4-D362). `tools/hooks/check_messages.py`
+reads commit messages with the attested scanner's own functions: a commit-msg hook, a
+pre-push hook, and CI's decontam job over every commit past the grandfather `82b1f1a`.
+The 134 commits pushed there carry 14 matches in 13 messages; they, and the 104 before
+them, stay as published.
+
 ### Each half of the week's band on its own (2026-09-30)
 
 **The weekday census's band is searched a half at a time** (plan

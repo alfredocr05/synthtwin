@@ -21069,3 +21069,11 @@ From 40,000 three of the 24 stay withheld past the cap, by a certificate that do
 **The oracle's holes** (the review's leftovers of P4-D358). A missing spelling names the day `day_read` reads it as under the column's own member, by the contract's format table and the calendar's ranges, as the product reads it through `parse_datetime`; G7.3b step 7 names the day of any moment the member reads. The oracle had read only ISO and month-first days, named days no member reads (`2019-02-29`, `0000-00-00`, a clock on an ISO date), and a product that read only those members stayed green. No committed vector moves.
 
 **Recorded, not repaired.** Where the twin writes a stuck tail rank's missing day in another width than the absent spelling -- a column publishing no width census, written padded -- the cell is a present day the passes counted as absent: one day more than published, both distinct counts MISSED, 4 of 596 day-first twins of a seeded battery, all at floor 36. Counting it present needs the width the spelling step gives that rank before the passes run; reversible.
+
+## Decision P4-D362 — every NEW commit message is scanned (2026-09-30)
+
+**The owner's answer, verbatim.** Asked first "What is the risk of this?", then told that the words were already public many times over and that rewriting would change about 100 commit ids the ledger cites: "Push now, add a guard" (2026-09-30). The question the owner answered said three matches; the guard's own count of the 134 commits pushed at `82b1f1a` is 14 matches in 13 of them, the same three words, each already public before them (104 matches in 87 of the 646 messages up to `d93fd43`).
+
+**The rule.** `tools/hooks/check_messages.py` applies the attested scanner's own manifest, decoder, tokenizer and n-gram match to commit messages, line by line and value-silent: a message file (the commit-msg hook), a revision range, or every commit the grandfather commit `82b1f1a` does not reach (CI's decontam job and the pre-push hook). A shallow clone, or a history without the grandfather, is refused, never passed. `tools/decontamination/` is not touched: the attestation still verifies.
+
+**The orchestrator's calls, reversible.** The file sits outside the attested tree; the grandfather is the tip as pushed; the messages it reaches are not rewritten; a checkout older than the scanner is told, not stopped.

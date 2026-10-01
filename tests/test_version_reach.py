@@ -96,7 +96,10 @@ they run:
   in every cell of the matrix, the 3.10 cell among them, so a
   post-floor spelling added to a block fails there. On 2026-09-25 the
   three blocks used `csv`, `json`, `os`, `pathlib`, `sys` and the
-  package, and nothing newer than the floor.
+  package, and nothing newer than the floor. Since 2026-09-30 it runs
+  the decontam job's MESSAGES block the same way, in every cell, on a
+  history built by the test; that block uses `os` and `sys` and
+  imports `tools/hooks/check_messages.py`, a file this guard reads.
 - `runpy.run_path` runs the same kind of committed file: twice in
   `tests/`, in the two stage-2 oracle tests, and eleven times in
   `tools/` -- one for the provenance guard's own runner and one for
@@ -265,6 +268,14 @@ RUNNING_NAMES = ("exec", "eval", "compile", "runpy.run_path", "runpy.run_module"
 # once: if what it loads is a committed file of the folders, move this
 # number and say so.
 #
+# 31 AT THE COMMIT-MESSAGE GUARD (2026-09-30, plan P4-D362), not 29:
+# `tests/test_commit_messages.py` loads `tools/hooks/check_messages.py`
+# and `tools/decontamination/check.py` through its `_load`, and
+# `tests/test_ci_demo_steps.py` loads `tools/hooks/check_messages.py`
+# under the name the MESSAGES block imports. Both load committed files
+# under tools/, which this guard reads directly, so the floor holds for
+# them as it does for the other twenty-nine.
+#
 # 29 AT STAGE 3'S FIX PASS (2026-09-23), not 28:
 # `tests/test_p4d349_tail_reconstruction.py` loads the same
 # `tools/measurements/kpi_stage3_tail_leak.py` through its own `_driver`,
@@ -288,7 +299,7 @@ RUNNING_NAMES = ("exec", "eval", "compile", "runpy.run_path", "runpy.run_module"
 # putting tools/ on the path. What it loads is a committed file under
 # tools/, which this guard reads directly -- `_files()` walks it -- so
 # the floor holds for it the way it holds for the other twenty-six.
-FILES_LOADED_AS_MODULES = 29
+FILES_LOADED_AS_MODULES = 31
 
 
 def _files() -> "list[pathlib.Path]":

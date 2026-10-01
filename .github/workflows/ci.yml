@@ -1209,6 +1209,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The whole history: the commit-message step below reads every
+          # commit past the grandfather line, and refuses a shallow clone.
+          fetch-depth: 0
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.14"
@@ -1232,6 +1236,31 @@ jobs:
         # attestation chain and run the full self-test battery, not just
         # the tree scan.
         run: python tools/decontamination/verify_attestation.py
+      - name: Scan the commit messages past the grandfather line
+        # Principle 4 names commit messages (plan P4-D362). A pull
+        # request's own commits are read -- what its head reaches and its
+        # base does not -- and on a push every commit of the branch; the
+        # scanner leaves out what the grandfather commit reaches, whose
+        # messages were published before this guard, and FAILS on a
+        # shallow clone or a history without the grandfather instead of
+        # passing either. tests/test_ci_demo_steps.py runs this block.
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          python - <<'MESSAGES'
+          import os
+          import sys
+
+          sys.path.insert(0, "tools/hooks")
+          import check_messages
+
+          revisions = []
+          if os.environ.get("EVENT_NAME") == "pull_request":
+              revisions = [os.environ["HEAD_SHA"], "^" + os.environ["BASE_SHA"]]
+          sys.exit(check_messages.main(revisions))
+          MESSAGES
       - name: Validate the requirement files before pip runs (text only)
         # Review R2-B3: a non-executing structural check of
         # requirements-dev.in and requirements-dev.lock, run before any
