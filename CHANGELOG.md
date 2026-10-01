@@ -6,6 +6,28 @@ exists).
 
 ## [Unreleased]
 
+### The oracle reads a missing day under every member (2026-09-30)
+
+**A missing spelling names the day its column's own member reads, and
+nothing else** (plan P4-D361). The oracle read a missing day only on ISO
+and month-first columns, and named days no member reads -- a 29th of
+February 2019, a thirteenth month, year nought, a clock on an ISO date;
+it now reads every member by the contract's format table, and G7.3b
+step 7 names the day of any moment the member reads. No twin moves.
+**Recorded**: where the twin writes a stuck tail rank's missing day in
+another width than the absent spelling, that day is a present one, one
+more than published, both distinct counts MISSED.
+
+### A day-first column a month-first reading barely reaches is described (2026-09-30)
+
+**`synthtwin profile` no longer stops on it** (plan P4-D361). 144
+day-first dates beside one to ten cells a month-first reading also
+parses raised an internal fault at every floor, and so did `validate`
+on a twin whose description reached that shape: the remark comparing
+the two readings' reaches was handed "fewer than 11" where it compares
+them. Where either reach may not be printed the remark is withdrawn,
+as contract NF36 says; the evidence sentence still names the reading.
+
 ### A band of marks over every present cell says "some" (2026-09-29)
 
 **Decision (i) applied where every cell is grouped** (plan P4-D356, the
@@ -143,20 +165,10 @@ a declared-missing day to reach 24 days, the spelling step moved them
 apart, and the twin held 25: every pass of method G7.3 and G7.3b step 9
 now skips such a day, whichever column's absent spelling names it; a
 rank drawn onto one leaves it before the passes count; and a tail rank
-stuck on one is counted as the absent cell it is. The oracle holds the
-rule from the method's text, and G7.3b step 7's step off a hole, which
-it held nowhere -- on ISO days, and since the final review's second
-skeptic on months, quarters and month-first days, where twelve
-`tail_hole` rows, three oracle mutants and a month and a month-first
-gate column hold the reading no test held. Six frozen cases -- three at the second round, for a
-tie group's step off a hole and a stuck rank's absent day in the count
-G7.3 reaches and in the one step 9 owes -- eighteen witness rows and ten
-oracle mutants hold it for days; fifteen rows reading a day, a month or
-a quarter, twelve oracle mutants and a month and a quarter gate column hold
-the month and the quarter, which no test held (the final review), and a
-month column beside a `-` the reading past a spelling the member cannot
-read, which none held either (its second skeptic). One
-frozen case moves a cell. **The envelope of
+stuck on one is counted as the absent cell it is. A month or a quarter
+a missing spelling names is offered no rank either, and a tail steps off
+a missing day, month or quarter (G7.3b step 7). One frozen case moves a
+cell. **The envelope of
 a date column's distinct count follows the pass** (item 1): counted in
 the strata alone its lower end stood at 39 above a published 35 the pass
 meets past them, and a file of 60 was WITHIN-BOUND; the validator and the

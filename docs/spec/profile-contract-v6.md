@@ -2903,9 +2903,10 @@ hundredth.
 | 4 | whole number | *Y*, cells only the month-first reading parsed |
 | 5 | package word | the reading USED: `day-first` or `month-first` |
 
-Carried whenever `day_first` was given and an ambiguous numeric
-reading — slashed, slashed stamp, dotted or two-figure-year — was in
-play, exactly once per such column.
+Carried where an ambiguous numeric reading — slashed, slashed stamp,
+dotted or two-figure-year — was in play and `day_first` was given or
+the day-first reading parsed strictly more cells, once per such column,
+and never where either reach is below the census line (below).
 
 The rendering is TWO clauses, the first always and the second on its own
 trigger. The first clause has three renderings and exactly one applies,

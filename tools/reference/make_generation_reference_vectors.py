@@ -10524,28 +10524,151 @@ def absent_units(column):
 def days_named(member, spellings):
     """The days absent spellings name on a day member (G7.3, G7.3b step 7).
 
-    An ISO member reads `yyyy-mm-dd`, bare or with a midnight clock, and
-    `month-first-date` reads `m/d/yyyy`; the day is counted from
-    1970-01-01, as G7.1 counts the column's values. A spelling the member
-    does not read names nothing, and every spelling after it is still read.
+    Each spelling names the day `day_read` reads it as under the member;
+    a spelling the member does not read names nothing, and every
+    spelling after it is still read.
     """
     found = set()
     for text in spellings:
-        text = text.strip()
-        day, clock, parts = text[:10], text[10:], text.split("/")
-        if (
-            member.startswith("iso-")
-            and len(day) == 10 and day[4] == "-" and day[7] == "-"
-            and (day[:4] + day[5:7] + day[8:]).isdigit()
-            and clock in ("", "T00:00:00", " 00:00:00")
-        ):
-            found.add(days_from_civil(int(day[:4]), int(day[5:7]), int(day[8:])))
-        elif (
-            member == "month-first-date" and len(parts) == 3
-            and all(part.isdigit() for part in parts) and len(parts[2]) == 4
-        ):
-            found.add(days_from_civil(int(parts[2]), int(parts[0]), int(parts[1])))
+        day = day_read(member, text)
+        if day is not None:
+            found.add(day)
     return found
+
+
+ASCII_FIGURES = "0123456789"
+
+
+def figures_of(text, least, most):
+    """A field of ``least`` to ``most`` ASCII figures as its number, or None."""
+    if not least <= len(text) <= most or any(each not in ASCII_FIGURES for each in text):
+        return None
+    return int(text)
+
+
+def calendar_day(year, month, day):
+    """Days from 1970-01-01 for a day the calendar has, or None.
+
+    The contract's canonical ranges: a year from 0001, a month 01 to 12,
+    a day up to the month's last, leap years by the Gregorian rule.
+    """
+    if year is None or month is None or day is None or year < 1 or not 1 <= month <= 12:
+        return None
+    leap = year % 4 == 0 and (year % 100 != 0 or year % 400 == 0)
+    last = (31, 29 if leap else 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31)[month - 1]
+    if not 1 <= day <= last:
+        return None
+    return days_from_civil(year, month, day)
+
+
+def clock_reads(text, iso):
+    """Whether ``text`` is a clock its member reads.
+
+    A stamp's clock is one of the time-of-day role's two forms, `HH:MM`
+    or `HH:MM:SS`, hours to 23 and minutes and seconds to 59. An ISO
+    moment's is `HH:MM` or `HH:MM:SS`, seconds to 60, a fraction after
+    the seconds, then `Z` in either case or a signed `HH:MM` offset of at
+    most 14 hours (the contract's offset forms).
+    """
+    if iso:
+        if text[-1:] in ("Z", "z"):
+            text = text[:-1]
+        elif len(text) >= 6 and text[-6] in "+-":
+            hours, minutes = figures_of(text[-5:-3], 2, 2), figures_of(text[-2:], 2, 2)
+            if text[-3] != ":" or hours is None or minutes is None:
+                return False
+            if hours > 14 or minutes > 59 or (hours == 14 and minutes != 0):
+                return False
+            text = text[:-6]
+        if len(text) > 8 and text[8] == ".":
+            if figures_of(text[9:], 1, len(text)) is None:
+                return False
+            text = text[:8]
+    fields = text.split(":")
+    if len(fields) not in (2, 3):
+        return False
+    numbers = [figures_of(field, 2, 2) for field in fields]
+    if None in numbers or numbers[0] > 23 or numbers[1] > 59:
+        return False
+    return len(numbers) == 2 or numbers[2] <= (60 if iso else 59)
+
+
+def two_figure_year(year):
+    """C6-D8P's pivot: 00 to 68 are 2000 to 2068, 69 to 99 are 1969 to 1999."""
+    if year is None:
+        return None
+    return year + (2000 if year <= 68 else 1900)
+
+
+def month_named(text):
+    """C6-D8N's closed list, after case folding: the month's number, or None."""
+    for place, names in enumerate(MONTH_NAMES):
+        if text.casefold() in names:
+            return place + 1
+    return None
+
+
+def day_read(member, text):
+    """The day one spelling reads as under one member, or None.
+
+    Written from the contract's format table: the fields the member
+    names, in its order and at its widths -- one or two figures where
+    C6-22 widens it, two on the dotted and year-first families, a
+    two-figure year at the C6-D8P pivot, a month NAME from C6-D8N -- past
+    the spaces around the spelling, a stamp's clock in its member's own
+    forms, and a day the calendar has (``calendar_day``).
+    """
+    return day_of(member, text.strip())
+
+
+def day_of(member, text):
+    """``day_read`` of a spelling with nothing around it."""
+    if member == "iso-mixed":
+        return day_of("iso-date", text) if len(text) == 10 else day_of("iso-datetime", text)
+    if member == "iso-datetime":
+        if len(text) < 16 or text[10] not in "Tt " or not clock_reads(text[11:], True):
+            return None
+        return day_of("iso-date", text[:10])
+    if member in ("month-first-datetime", "day-first-datetime", "slashed-iso-datetime"):
+        date, _mark, clock = text.rpartition(" ")
+        if not date or not clock_reads(clock, False):
+            return None
+        return day_of(member.replace("datetime", "date"), date)
+    if member in ("iso-date", "slashed-iso-date"):
+        mark = "-" if member == "iso-date" else "/"
+        if len(text) != 10 or text[4] != mark or text[7] != mark:
+            return None
+        return calendar_day(figures_of(text[:4], 4, 4), figures_of(text[5:7], 2, 2), figures_of(text[8:], 2, 2))
+    if member == "compact-date":
+        if len(text) != 8:
+            return None
+        return calendar_day(figures_of(text[:4], 4, 4), figures_of(text[4:6], 2, 2), figures_of(text[6:], 2, 2))
+    if member in TEXTUAL_MEMBERS:
+        for mark in (" ", "-"):
+            fields = text.split(mark)
+            if len(fields) != 3 or any(not field or field != field.strip() for field in fields):
+                continue
+            if member == "textual-day-first-date":
+                day, month = figures_of(fields[0], 1, 2), month_named(fields[1])
+            else:
+                middle = fields[1][:-1] if fields[1].endswith(",") else fields[1]
+                day, month = figures_of(middle, 1, 2), month_named(fields[0])
+            return calendar_day(figures_of(fields[2], 4, 4), month, day)
+        return None
+    if member not in MONTH_FIRST_MEMBERS and member not in DAY_FIRST_MEMBERS:
+        return None
+    fields = text.split("." if member in DOTTED_MEMBERS else "/")
+    if len(fields) != 3:
+        return None
+    least = 2 if member in DOTTED_MEMBERS else 1
+    first, second = figures_of(fields[0], least, 2), figures_of(fields[1], least, 2)
+    if member in TWO_FIGURE_MEMBERS:
+        year = two_figure_year(figures_of(fields[2], 2, 2))
+    else:
+        year = figures_of(fields[2], 4, 4)
+    if member in DAY_FIRST_MEMBERS:
+        return calendar_day(year, second, first)
+    return calendar_day(year, first, second)
 
 
 def spans_named(member, spellings):
@@ -10560,11 +10683,12 @@ def spans_named(member, spellings):
     found = set()
     for text in spellings:
         text = text.strip()
-        if len(text) != 7 or text[4] != "-" or not text[:4].isdigit() or int(text[:4]) < 1:
+        year = figures_of(text[:4], 4, 4)
+        if len(text) != 7 or text[4] != "-" or year is None or year < 1:
             continue
-        year = int(text[:4])
-        if member == "iso-month" and text[5:].isdigit() and 1 <= int(text[5:]) <= 12:
-            found.add(12 * (year - 1970) + int(text[5:]) - 1)
+        month = figures_of(text[5:], 2, 2)
+        if member == "iso-month" and month is not None and 1 <= month <= 12:
+            found.add(12 * (year - 1970) + month - 1)
         if member == "year-quarter" and text[5] in "Qq" and text[6] in "1234":
             found.add(4 * (year - 1970) + int(text[6]) - 1)
     return found

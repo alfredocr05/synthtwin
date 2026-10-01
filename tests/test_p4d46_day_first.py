@@ -14,8 +14,10 @@ WHAT IS PINNED HERE, and each of it is a rule the decision states:
   the month-first reading can parse is read month first and counts
   nothing as unparsed;
 - the declaration decides a count TIE and nothing else;
-- every column read under the option carries EXACTLY ONE remark, and it
-  is the evidence remark rather than the standing month-first warning,
+- every column read under the option carries EXACTLY ONE remark where
+  both reaches reach the census line, and none where either is below
+  it (plan P4-D361); it is the evidence remark rather than the standing
+  month-first warning,
   because the standing one warns about a guess and nothing here was
   guessed;
 - that remark has TWO INDEPENDENT clauses: which reading was used and
