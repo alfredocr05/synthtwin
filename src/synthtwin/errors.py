@@ -1406,7 +1406,9 @@ def the_twelve_hour_declaration_did_not_reach(name: str, role: str) -> str:
         f"a column of times of day -- alone, or after a date -- written "
         f"without AM or PM. Nothing about this column was read on a "
         f"12-hour clock. The description that was written is correct "
-        f"about everything else, and says which columns were declared."
+        f"about everything else, and says which columns were declared. "
+        f"Check that the name is the column you meant, and run the "
+        f"command again without --twelve-hour for this one."
     )
 
 

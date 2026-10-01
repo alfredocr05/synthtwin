@@ -2660,10 +2660,11 @@ def rendered(form: str, arguments: "tuple[object, ...]") -> str:
         )
     if form == REMARK_CLOCK_OTHER_FACE:
         return (
-            "some values write their time of day another way -- with AM "
-            "or PM where most write none, or the other way round, or with "
-            "another mark -- and are counted as values this column does "
-            "not read"
+            "some values write their time of day another way than most -- "
+            "with AM or PM where most write none or the other way round, "
+            "with another mark, or with an hour the column's clock does "
+            "not show -- and are counted as values this column does not "
+            "read"
         )
     if form == REMARK_CLOCK_OTHER_WIDTH:
         return (

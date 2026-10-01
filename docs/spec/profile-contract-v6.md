@@ -3839,9 +3839,9 @@ them with a comma reads every present cell either way and NF61's "not
 all" is false there. It is accepted at any floored position, on NF61's
 terms, and capitalised where it starts a sentence.
 
-**NF108. `remark_some_clocks_written_another_way` — cells on another clock face, counted unread** — arity 0 (landing T1, plan P4-D370). A remark, carried by a column of clock times or of slashed stamps some of whose cells write their clock on another face than the column's (C6-10a); `n_unparsed` already says how many.
+**NF108. `remark_some_clocks_written_another_way` — cells on another clock face, counted unread** — arity 0 (landing T1, plan P4-D370). A remark, carried by a column of clock times or of slashed stamps some of whose cells write their clock on another face than the column's, or, on the declared 12-hour face, an hour of 0 or past 12 (C6-10a); `n_unparsed` already says how many.
 
-> some values write their time of day another way -- with AM or PM where most write none, or the other way round, or with another mark -- and are counted as values this column does not read
+> some values write their time of day another way than most -- with AM or PM where most write none or the other way round, with another mark, or with an hour the column's clock does not show -- and are counted as values this column does not read
 
 **NF109. `remark_some_hours_written_another_width` — cells of the other hour width, counted in** — arity 0 (landing T1). A remark, carried where some read cells show the hour width the column does not write; they are read, and published and written back in the column's width. No count (plan P4-D347).
 

@@ -309,6 +309,9 @@ CASES: "dict[str, tuple[object, ...]]" = {
     # read it as -- the second is synthtwin's own word and is the
     # whole reason the sentence is worth printing.
     "the_comma_declaration_did_not_reach": ("price", "free_text"),
+    # ...and `--twelve-hour` on a column that is no unmarked clock
+    # (landing T1, plan P4-D370): the same notice, for the same reason.
+    "the_twelve_hour_declaration_did_not_reach": ("seen_at", "count"),
     # Also not a refusal: an ANSWER to a question can create the pair
     # the flags refuse, and the answer is the newer statement, so the
     # comma declaration is dropped rather than the run stopped. It
