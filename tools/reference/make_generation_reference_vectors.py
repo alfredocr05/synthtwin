@@ -10180,7 +10180,7 @@ def spread_ordinals(column, parsed, words):
         drawn = []
         for _rank in range(below + 1, above):
             word = next(words)
-            drawn.append(body_draw(column, start, stop, low, high, word))
+            drawn += [body_draw(column, start, stop, low, high, word)]
         drawn.sort()
         for place, value in enumerate(drawn):
             body_draws[below + 1 + place] = value
