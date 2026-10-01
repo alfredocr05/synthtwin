@@ -104,40 +104,52 @@ class _Counted:
         setattr(self.module, self.name, self.shipped)
 
 
+# THE CERTIFICATE CACHES EACH ANSWER ON ITS QUESTION, in three caches:
+# the census's verdicts, the withholding's answers and its bands. The
+# battery above asked this column's questions at two of the ladder's
+# sizes, so all three are emptied before every size, which then counts
+# its own solves.
+CACHES = ("_ANSWERS", "_WITHHOLDINGS", "_BANDS")
+
+
+def step(home: pathlib.Path, rows: int) -> "tuple[int, int, int, float, float]":
+    """One size of the ladder: rows, solves in describe, moves and searches in generate, and the seconds of each."""
+    text = gate._table_text(gate._battery_admissions(rows))
+    for name in CACHES:
+        getattr(calendar_certificate, name).clear()
+    started = time.perf_counter()
+    with _Counted(calendar_certificate, "_solve") as solves:
+        described = kpi_shapes.describe(home / f"ladder-{rows}", "ladder", text, 11)
+    middle = time.perf_counter()
+    searches = [
+        _Counted(generation, name)
+        for name in (
+            "_weekday_step",
+            "_weekday_single_target",
+            "_weekday_run_target",
+            "_weekday_nearest",
+        )
+    ]
+    for each in searches:
+        each.__enter__()
+    try:
+        kpi_shapes.twin_text(described, 0)
+    finally:
+        for each in reversed(searches):
+            each.__exit__()
+    ended = time.perf_counter()
+    moves = sum(each.calls for each in searches)
+    return rows, solves.calls, moves, middle - started, ended - middle
+
+
 def ladder(home: pathlib.Path) -> "tuple[dict[str, float], list[str]]":
     counted: "list[tuple[int, int, int, float, float]]" = []
     for rows in LADDER:
-        text = gate._table_text(gate._battery_admissions(rows))
-        # THE CERTIFICATE IS CACHED ON ITS QUESTION, and the battery above
-        # asked this column's question at two of the ladder's sizes: the
-        # cache is emptied so every size counts its own solves.
-        calendar_certificate._ANSWERS.clear()
-        started = time.perf_counter()
-        with _Counted(calendar_certificate, "_solve") as solves:
-            described = kpi_shapes.describe(home / f"ladder-{rows}", "ladder", text, 11)
-        middle = time.perf_counter()
-        searches = [
-            _Counted(generation, name)
-            for name in (
-                "_weekday_step",
-                "_weekday_single_target",
-                "_weekday_run_target",
-                "_weekday_nearest",
-            )
-        ]
-        for each in searches:
-            each.__enter__()
-        try:
-            kpi_shapes.twin_text(described, 0)
-        finally:
-            for each in reversed(searches):
-                each.__exit__()
-        ended = time.perf_counter()
-        moves = sum(each.calls for each in searches)
-        counted += [(rows, solves.calls, moves, middle - started, ended - middle)]
+        counted += [step(home, rows)]
+        _rows, solved, moves, first, second = counted[-1]
         print(
-            f"  ladder {rows}: describe {solves.calls} solves in {middle - started:.2f} s, "
-            f"generate {moves} moves and searches in {ended - middle:.2f} s",
+            f"  ladder {rows}: describe {solved} solves in {first:.2f} s, "
+            f"generate {moves} moves and searches in {second:.2f} s",
             flush=True,
         )
     describe = max(counted[k + 1][1] / counted[k][1] for k in range(len(counted) - 1))

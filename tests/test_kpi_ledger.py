@@ -1709,3 +1709,18 @@ def test_k_s3_33(record_property, tmp_path: pathlib.Path) -> None:
         "K-S3-33",
         {"solves_plain": plain, "solves_residue": residue, "censuses": censuses},
     )
+
+
+def test_the_weekday_ladder_counts_each_size_afresh(tmp_path: pathlib.Path) -> None:
+    """K-S3-33's ladder counts a size's solves whatever was asked before it.
+
+    The driver's battery describes the ladder's admissions column at
+    10,000 rows first. Emptying the census's verdicts alone left the
+    withholding's answer and bands it had asked, and the ladder counted
+    142 solves at 10,000 rows for 212: a describe growth of 1.521 for
+    1.085. A size asked twice counts the same solves and moves.
+    """
+    driver = _load_tool("tools/measurements/kpi_weekday_census.py", "kpi_weekday_census_here")
+    first = driver.step(tmp_path / "first", 2500)  # type: ignore[attr-defined]
+    again = driver.step(tmp_path / "again", 2500)  # type: ignore[attr-defined]
+    assert again[:3] == first[:3]
