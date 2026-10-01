@@ -6,6 +6,23 @@ exists).
 
 ## [Unreleased]
 
+### The weekday certificate's cap, measured (2026-09-30)
+
+**The cap stays at 20,000 arrangements and the owner is asked again**
+(plan P4-D359, the owner's "Measure, then raise"). It holds 13 of 369
+Tuesday clinics of 212 rows, 12 of which 2af1f03 published, and 24 of
+489 with the skeptic's 120. Caps of 40,000, 80,000 and 160,000 free 3, 5
+and 12 of them, at up to 220,246, 620,136 and 1,369,300 network solves a
+column, and publish the weekly Wednesday sessions at 1,393,635, about
+5.5 to 6 minutes: 3.75 times their cost before the band was searched a
+half at a time. No cap frees them all at about a minute a column: 40,000
+frees three so, but spends about 5.5 minutes on the sessions and 3.3 on
+a clinic it still withholds. **`K-S3-33`'s ladder empties all three of
+the certificate's caches before each size**: emptying the census's
+verdicts alone left the withholding the battery had asked at 10,000
+rows, and the ladder read a describe growth of 1.521 where each size
+counted afresh reads 1.085.
+
 ### Each half of the week's band on its own (2026-09-30)
 
 **The weekday census's band is searched a half at a time** (plan

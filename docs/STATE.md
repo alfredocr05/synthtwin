@@ -148,7 +148,7 @@ ones.
   beside a published pair ("Allow it", `K-S3-21`: 701), beside a listed
   tail and from the whole description ("Accept both", `K-S3-23`: 24;
   `K-S3-24`: 14,115, 0 to 1,100 whole).
-- **The weekday census's withholding, 2026-09-29 and 30:** its certificate keeps the 20,000-arrangement cap ("Keep as built"), and a withheld census may tell a reader a half of the week holds 1 to 10 rows -- a range, never a value, a date or a row ("Accept as a limit", `K-S3-34`).
+- **The weekday census's withholding, 2026-09-29 and 30:** its certificate keeps the 20,000-arrangement cap ("Keep as built"; measured under "Measure, then raise", no cap up to 160,000 frees the 24 clinics it holds at about a minute each, so it is asked again, plan P4-D359), and a withheld census may tell a reader a half of the week holds 1 to 10 rows -- a range, never a value, a date or a row ("Accept as a limit", `K-S3-34`).
 - **Asking the person is part of the product** (A-P4-56, A-P4-58).
 - **Being synthetic is not an answer to an obligation.** The screen may
   not present the twin as settling a privacy rule. What it MAY say: your rows never leave this
