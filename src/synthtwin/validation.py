@@ -15387,9 +15387,16 @@ def _tail_construction(
             end_whole = group
     # G7.3b STEP 5's END FLOOR (plan P4-D375): the end is at least the
     # Bhatia-Davis reach of the pair, before step 7 steps it off a hole.
+    # Rounded up by truncation and one comparison, as the offline policy
+    # enumerates no `math.ceil` (plan P2-D13).
     if mean > 1.0:
         reach_of_pair = ((root * root) - mean) / (mean - 1.0)
-        least = math.ceil(reach_of_pair - ((1.0 + reach_of_pair) * _TAIL_END_SLACK))
+        lowered = reach_of_pair - ((1.0 + reach_of_pair) * _TAIL_END_SLACK)
+        least = edge
+        if lowered < edge:
+            least = int(lowered)
+            if float(least) < lowered:
+                least = least + 1
         end_whole = max(end_whole, min(max(least, 0), edge))
     end_whole = _stepped_off(end_whole, boundary, low_side, end_step)
     if grouped < rows:

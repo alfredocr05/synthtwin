@@ -6,6 +6,22 @@ exists).
 
 ## [Unreleased]
 
+### Every tail publishes its pair (2026-10-01)
+
+**No tail pair is withheld but one binary64 cannot hold** (plan P4-D375,
+under the owner's principle of P4-D363): the back-solve withholding, the
+cost rule and the other-side closure, and the widening walk are gone. A
+pair can give back a tail's own outer values, never a row or another
+column. A description written before still loads and says why a side is
+silent. **A date or clock tail's end stands at least at the Bhatia-Davis
+reach of its pair** (method G7.3b step 5), which keeps the two end days
+that 105 dates over 21 days lost without it; two frozen cases hold it.
+Validating the twins of follow-up A's 37 shapes takes 143 s where it took
+549, and of 19 date and clock shapes 102 s where it took 2,104. No twin
+misses a check it met before but one joined pair's agreement
+(`K-P4-06`), and twins write past the real range where a pair's shape
+puts the end (`K-S3-50`).
+
 ### The weekday certificate's cap, measured (2026-09-30)
 
 **The cap stays at 20,000 arrangements** (plan P4-D359, the owner's

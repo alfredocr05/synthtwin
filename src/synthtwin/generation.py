@@ -17904,7 +17904,7 @@ def _least_end(mean: float, root: float, edge: int) -> int:
     `(root**2 - mean) / (mean - 1)` (Bhatia and Davis's bound on a
     variance, at a least distance of one). Taken in binary64 in that
     order, lowered by `_LEAST_END_SLACK` of itself plus one, and rounded
-    up. Plan P4-D375: without it a 105-row column of 21 days whose end
+    up by `_ceiling_of`, as the offline policy enumerates no `math.ceil`. Plan P4-D375: without it a 105-row column of 21 days whose end
     days hold one cell each lost both of them at 20 of 20 seeds.
 
     Guarantees: accepts the two published distances and the furthest the
@@ -17915,8 +17915,10 @@ def _least_end(mean: float, root: float, edge: int) -> int:
     if not mean > 1.0:
         return 0
     reach = ((root * root) - mean) / (mean - 1.0)
-    least = math.ceil(reach - ((1.0 + reach) * _LEAST_END_SLACK))
-    return min(max(least, 0), edge)
+    lowered = reach - ((1.0 + reach) * _LEAST_END_SLACK)
+    if not lowered < edge:
+        return edge
+    return min(max(_ceiling_of(lowered), 0), edge)
 
 
 def _tail_distances(shape: "_TailShape", words: "dict[int, int]") -> "list[int]":

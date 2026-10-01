@@ -796,8 +796,9 @@ def test_a_stand_in_number_reaches_its_share_as_a_count() -> None:
         block, numbers, 11, True
     )
     # BOTH COLUMNS PUBLISH THEIR LOW PAIRS (plan P4-D375), although each
-    # gives its low tail back -- the comparison column's eleven distances
-    # are 1 to 11, this column's 1010 and then 1 to 10. This column's
+    # gives its low tail back -- twelve rows below the sixth percentile,
+    # the comparison column's 0.94 to 11.94 from its boundary of 12.94,
+    # this column's 1010.94 and then 0.94 to 10.94. This column's
     # narrowest reading cannot carry the `-999`, so with its low pair
     # withheld the window of its mean would fall short of the published
     # mean; published, it holds. The `-999` shows in the pair as well as
@@ -812,7 +813,9 @@ def test_a_stand_in_number_reaches_its_share_as_a_count() -> None:
         taxonomy.Settings(small_cell_floor=11),
         [],
     )["columns"][0]
-    assert without["tails"]["low"]["mean_distance"] == 6.0
+    assert without["tails"]["low"]["rows"] == 12
+    assert abs(without["tails"]["low"]["mean_distance"] - 6.44) < 1e-9
+    assert abs(block["tails"]["low"]["mean_distance"] - 89.69) < 1e-9
     assert not cost_rule_window.costs(without, 11)
     assert cost_rule_window.costs(cost_rule_window.withheld(block, ("low",)), 11)
     assert block["tails"]["low"]["mean_distance"] is not None
