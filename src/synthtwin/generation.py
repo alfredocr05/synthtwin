@@ -17873,6 +17873,7 @@ def _tail_shape(
         group = min(max(1, _half_up(stretch * mean_of_group)), edge)
         if grouped_from == 0:
             end_units = group
+    end_units = max(end_units, _least_end(mean, root, edge))
     return _TailShape(
         rows,
         power,
@@ -17885,6 +17886,37 @@ def _tail_shape(
         edge,
         apart,
     )
+
+
+# The share of the reach `_least_end` gives up to the rounding of the two
+# published distances (method G7.3b step 5): far above what binary64
+# loses on any tail under a hundred million rows, and a unit or less on
+# any end under sixteen million units.
+_LEAST_END_SLACK = 1.0 / 16777216.0
+
+
+def _least_end(mean: float, root: float, edge: int) -> int:
+    """The nearest the outermost rank may stand: the Bhatia-Davis reach (G7.3b step 5).
+
+    Every distance of a date or clock tail is a whole unit of at least
+    one, so `(d - 1) * (D - d) >= 0` for each one `d` and the furthest
+    `D`; summed over the tail it says `D >= (S - T) / (T - m)`, which is
+    `(root**2 - mean) / (mean - 1)` (Bhatia and Davis's bound on a
+    variance, at a least distance of one). Taken in binary64 in that
+    order, lowered by `_LEAST_END_SLACK` of itself plus one, and rounded
+    up. Plan P4-D375: without it a 104-row column of 21 days whose end
+    days hold one cell each lost both of them at 20 of 20 seeds.
+
+    Guarantees: accepts the two published distances and the furthest the
+    member can write; returns a whole number at most `edge`, nought
+    where the mean is not above one. Determinism: a function of the
+    three. Raises nothing. No I/O.
+    """
+    if not mean > 1.0:
+        return 0
+    reach = ((root * root) - mean) / (mean - 1.0)
+    least = math.ceil(reach - ((1.0 + reach) * _LEAST_END_SLACK))
+    return min(max(least, 0), edge)
 
 
 def _tail_distances(shape: "_TailShape", words: "dict[int, int]") -> "list[int]":

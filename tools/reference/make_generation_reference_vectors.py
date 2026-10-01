@@ -9578,6 +9578,23 @@ def stretched_end(shape, rows, mean, root, edge):
     return stretch, end
 
 
+def least_end(mean, root, edge):
+    """G7.3b step 5's last clause: the nearest the outermost rank may stand.
+
+    Every distance of the real tail is a whole unit of at least one, so
+    ``(d - 1) * (D - d) >= 0`` for each and the furthest ``D``; summed,
+    ``D >= (S - T) / (T - m)``, which is ``(rho**2 - d1) / (d1 - 1)``
+    over the two published distances (plan P4-D375).  Taken in binary64
+    in that order, lowered by ``2**-24`` of itself plus one for the
+    rounding of the two published numbers, rounded up, never past
+    ``edge``; nought where ``d1`` is not above one.
+    """
+    if not mean > 1.0:
+        return 0
+    reach = ((root * root) - mean) / (mean - 1.0)
+    return min(max(math.ceil(reach - ((1.0 + reach) * (1.0 / 16777216.0))), 0), edge)
+
+
 def tail_distances(rows, mean, root, floor, edge, apart, words, off=None):
     """Every rank's whole distance beyond the boundary, outermost first (G7.3b).
 
@@ -9592,7 +9609,9 @@ def tail_distances(rows, mean, root, floor, edge, apart, words, off=None):
     one unit inward while an absent spelling names its unit, never below
     one, and the end is then raised to the group's distance (plan
     P4-D358, where the oracle came to hold this step); the distances are
-    then made at least the one inside, as step 5 makes them.
+    then made at least the one inside, as step 5 makes them.  Before step
+    7 the end is at least ``least_end`` (step 5, plan P4-D375), and where
+    every rank is in the group the end is the group's distance first.
     """
     shape = mixture_of(rows, mean, root)
     stretch, end = stretched_end(shape, rows, mean, root, edge)
@@ -9604,7 +9623,10 @@ def tail_distances(rows, mean, root, floor, edge, apart, words, off=None):
         group = min(max(1, whole_unit(
             stretch * ((rows * mixture_upto(shape, share)) / (rows - grouped))
         )), edge)
-    found = [min(max(1, whole_unit(end)), edge)] + [0] * (rows - 1)
+    outermost = min(max(1, whole_unit(end)), edge)
+    if grouped == 0:
+        outermost = group
+    found = [max(outermost, least_end(mean, root, edge))] + [0] * (rows - 1)
     if off is not None:
         at, low_side, holes = off
 
@@ -9617,8 +9639,6 @@ def tail_distances(rows, mean, root, floor, edge, apart, words, off=None):
         if grouped < rows:
             group = stepped(group)
         found[0] = max(found[0], group)
-    if grouped == 0:
-        found[0] = group
     for index in range(1, rows):
         if index >= grouped:
             found[index] = group
@@ -9838,6 +9858,7 @@ def tail_side_plan(column, side, low_side, parsed, words):
         stretch, end = stretched_end(shape, rows, mean, root, edge)
         group = stood[grouped]
         outermost = group if grouped == 0 else max(min(max(1, whole_unit(end)), edge), group)
+        outermost = max(outermost, least_end(mean, root, edge))
         reach = min(max(group, whole_unit(stretch * mixture_at(shape, (rows - grouped) / rows))), outermost)
     return {
         "spots": places, "distances": stood, "texts": [None] * rows,

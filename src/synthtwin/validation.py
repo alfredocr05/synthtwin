@@ -15169,6 +15169,10 @@ def _variant_map(
 
 _TAIL_WORD = 18446744073709551616
 
+# G7.3b step 5: the share of the Bhatia-Davis reach, plus one, that the
+# end gives up to the rounding of the two published distances.
+_TAIL_END_SLACK = 1.0 / 16777216.0
+
 
 def _tail_round(value: float) -> int:
     """G7.3b's rounding: the nearest whole number, halves up, on the value itself."""
@@ -15381,6 +15385,12 @@ def _tail_construction(
         group = min(max(1, _tail_round(stretch * mean_of_group)), edge)
         if grouped == 0:
             end_whole = group
+    # G7.3b STEP 5's LAST CLAUSE (plan P4-D375): the end is at least the
+    # Bhatia-Davis reach of the pair, before step 7 steps it off a hole.
+    if mean > 1.0:
+        reach_of_pair = ((root * root) - mean) / (mean - 1.0)
+        least = math.ceil(reach_of_pair - ((1.0 + reach_of_pair) * _TAIL_END_SLACK))
+        end_whole = max(end_whole, min(max(least, 0), edge))
     end_whole = _stepped_off(end_whole, boundary, low_side, end_step)
     if grouped < rows:
         if group_midnight is not None:
