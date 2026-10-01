@@ -74,7 +74,7 @@ SEALED: "dict[str, tuple[str, ...]]" = {
         "9ac9c3f2fec19dec",
         "9c3856aaf04d1246",
         "a85e0a97aeeccc20",
-        "a8c8c296eff91c1d",
+        "a8b5c41df9e20d15",
         "aaa8572a536af635",
         "bee208098a99c68b",
         "ca19853410f924ef",
