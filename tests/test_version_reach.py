@@ -258,6 +258,7 @@ ROUTES_THAT_RUN_SOURCE = {
     ("tools/reference/make_generation_branch_vectors_11.py", "runpy.run_path"): 1,
     ("tools/reference/make_generation_branch_vectors_12.py", "runpy.run_path"): 1,
     ("tools/reference/make_generation_branch_vectors_13.py", "runpy.run_path"): 1,
+    ("tools/reference/make_generation_branch_vectors_14.py", "runpy.run_path"): 1,
     ("tools/reference/make_generation_document_vectors.py", "runpy.run_path"): 1,
 }
 RUNNING_NAMES = ("exec", "eval", "compile", "runpy.run_path", "runpy.run_module")
@@ -299,7 +300,11 @@ RUNNING_NAMES = ("exec", "eval", "compile", "runpy.run_path", "runpy.run_module"
 # putting tools/ on the path. What it loads is a committed file under
 # tools/, which this guard reads directly -- `_files()` walks it -- so
 # the floor holds for it the way it holds for the other twenty-six.
-FILES_LOADED_AS_MODULES = 31
+#
+# 30 AT PLAN P4-D375, not 31: `tests/test_p4d349_tail_reconstruction.py`
+# loaded the tail-leak driver to ask its back-solve of the tails P4-D349
+# withheld, and its two tests went with the withholding.
+FILES_LOADED_AS_MODULES = 30
 
 
 def _files() -> "list[pathlib.Path]":

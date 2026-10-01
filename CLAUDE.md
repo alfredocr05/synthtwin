@@ -205,7 +205,10 @@ though it existed:
   the claim inventory in `tests/test_claim_inventory.py` turns the
   suite red on it.
 - A reader can rebuild some or all of a column's OWN values from its
-  description on the shapes the KPI ledger names - through the exact
+  description on the shapes the KPI ledger names - from a tail's own
+  published pair, which can give back that tail's outer values
+  (`K-S3-18`; every pair binary64 holds is published since plan
+  P4-D375), through the exact
   skew and kurtosis beside a published tail pair (`K-S3-17`), by
   subtraction from the exact mean and spread beside a published pair
   or a tail that lists its values (`K-S3-21`, `K-S3-23`), and from the

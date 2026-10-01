@@ -15385,7 +15385,7 @@ def _tail_construction(
         group = min(max(1, _tail_round(stretch * mean_of_group)), edge)
         if grouped == 0:
             end_whole = group
-    # G7.3b STEP 5's LAST CLAUSE (plan P4-D375): the end is at least the
+    # G7.3b STEP 5's END FLOOR (plan P4-D375): the end is at least the
     # Bhatia-Davis reach of the pair, before step 7 steps it off a hole.
     if mean > 1.0:
         reach_of_pair = ((root * root) - mean) / (mean - 1.0)

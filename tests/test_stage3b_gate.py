@@ -402,14 +402,12 @@ EVERY_DAY_CASES = (
 # THE CASES WHOSE PUBLISHED FACTS DO NOT SETTLE WHICH UNITS THE TWIN HOLDS
 # (plan P4-D354's recorded limit, P4-D358): a tail's derived end stands one
 # unit past the real column's first or last, so the twin writes that unit
-# and holds one real unit fewer inside the range -- billing's day before
-# 2023, the 300 days' day before 2024, the second after the ten minutes,
-# and both of the 32 days' neighbours. Every other case's two derived ends
-# are the real ends, and there the twin holds the real column's units.
+# and holds one real unit fewer inside the range -- both of the 32 days'
+# neighbours. Every other case's two derived ends are the real ends, and
+# there the twin holds the real column's units: billing's day before 2023,
+# the 300 days' day before 2024 and the second after the ten minutes were
+# three more until plan P4-D375, whose narrower tails derive their ends.
 _UNSETTLED = {
-    ("billing", 11),
-    ("short_range", 36),
-    ("every_second", 11),
     ("thirty_two_days", 11),
 }
 
@@ -539,16 +537,17 @@ def test_the_window_is_summed_wider_only_where_the_count_is_reachable(
 ) -> None:
     """G12.14 sums a group wider only where the distinct count is reachable.
 
-    The frozen case's column written as midnight moments, every other cell
-    marked with `T` and the rest with a space: the census publishes both
-    marks, so one instant has two spellings, the count of different values
-    is not reachable (contract `datetime_counts_reachable`) and step 9
-    never runs. Its groups could give way were it reachable, so the summed
-    window would move -- and must not: the validator's and the report's
-    windows are the strata. A file whose low tail stands two units past
-    the strata's furthest sum, inside the widened one, MISSES its mean.
+    The tied column (`_TIED_COUNTS`) written as midnight moments, every
+    other cell marked with `T` and the rest with a space: the census
+    publishes both marks, so one instant has two spellings, the count of
+    different values is not reachable (contract `datetime_counts_reachable`)
+    and step 9 never runs. Its groups could give way were it reachable, so
+    the summed window would move -- and must not: the validator's and the
+    report's windows are the strata. A file whose low tail's innermost rank
+    stands one unit nearer than the strata's nearest sum, inside the widened
+    one, MISSES its mean.
     """
-    cells = _cells_of(_EVERY_DAY_GROUP_COUNTS, _EVERY_DAY_GROUP_START)
+    cells = _cells_of(_TIED_COUNTS, datetime.date(2024, 5, 6))
     marked = [f"{cell}{'T' if place % 2 else ' '}00:00:00" for place, cell in enumerate(cells)]
     described = kpi_shapes.describe(
         tmp_path, "two_marks", "seen_at\n" + "".join(f"{cell}\n" for cell in marked), 11
@@ -574,10 +573,9 @@ def test_the_window_is_summed_wider_only_where_the_count_is_reachable(
         ), f"{side}: the report widened an unreachable count"
     plan = layout.low
     assert plan is not None and plan.shape is not None
-    distances = list(plan.far)
-    distances[plan.shape.grouped] += 1
-    distances[plan.shape.grouped + 1] += 1
-    assert sum(plan.far) < sum(distances) <= sum(generation._tail_sum_bounds(plan, True)[1])
+    distances = list(plan.near)
+    distances[len(distances) - 1] -= 1
+    assert sum(generation._tail_sum_bounds(plan, True)[0]) <= sum(distances) < sum(plan.near)
     boundary = datetime.date.fromisoformat(block["low_tail"]["boundary"][:10])
     lines = kpi_shapes.twin_text(described, 0).splitlines()
     beyond = [place for place in range(1, len(lines)) if lines[place] and lines[place][:10] < boundary.isoformat()]
@@ -589,45 +587,71 @@ def test_the_window_is_summed_wider_only_where_the_count_is_reachable(
     assert verdicts["tails.low.mean_distance"] == validation.MISSED
 
 
-# A column mirrored about its middle day: its two tails publish one pair,
-# and each loses the day one unit beyond its boundary, so their offers tie.
+# THE 105-ROW COLUMN THE TAILS MEASUREMENT FOUND (plan P4-D375): 21 days, one
+# cell on each end day. Its narrower tails hold 19 rows a side at distances
+# 1, 2 and 3; the derived end stood at 2 and the twin held 19 of the 21 days,
+# both counts MISSED at 20 of 20 seeds, until G7.3b step 5 put the end at
+# least at the Bhatia-Davis reach of the pair, 3.
 _MIRRORED_COUNTS = (
     1, 7, 11, 4, 6, 4, 2, 7, 6, 3, 3, 3, 6, 7, 2, 4, 6, 4, 11, 7, 1,
+)
+
+
+def test_the_mirrored_column_holds_every_day(tmp_path: pathlib.Path) -> None:
+    """The twin holds all 21 days at seeds 0 to 4 and misses nothing (G7.3b step 5's end floor)."""
+    cells = _cells_of(_MIRRORED_COUNTS, datetime.date(2024, 5, 6))
+    described = kpi_shapes.describe(
+        tmp_path, "mirrored", "seen_on\n" + "".join(f"{cell}\n" for cell in cells), 11
+    )
+    block = described.document["columns"][0]
+    layout = _layout(described.loaded, 11)
+    for plan, key in ((layout.low, "low_tail"), (layout.high, "high_tail")):
+        assert plan is not None and plan.shape is not None, key
+        tail = block[key]
+        assert (tail["rows"], plan.shape.end) == (19, 3), (key, tail["rows"], plan.shape.end)
+        reach = generation._least_end(tail["mean_distance"], tail["rms_distance"], plan.shape.edge)
+        assert reach == 3, f"{key}: the end floor is {reach}"
+    for seed in SEEDS:
+        text = kpi_shapes.twin_text(described, seed)
+        assert set(text.splitlines()[1:]) == set(cells), seed
+        assert kpi_shapes.missed(kpi_shapes.measure(described, text, f"twin-{seed}.csv")) == [], seed
+
+
+# A column mirrored about its middle day whose tails stand apart from its
+# body: one cell seven days out, three on each of the next three days, two
+# empty days and two cells on the day below the boundary. Each tail's group
+# of two ranks stands two days out, so the day one out holds no rank once
+# the count pass is done, and the two tails' offers tie.
+_TIED_COUNTS = (
+    (1, 3, 3, 3, 0, 0, 2) + (6,) * 11 + (7,) + (6,) * 11 + (2, 0, 0, 3, 3, 3, 1)
 )
 
 
 def test_the_low_tail_gives_way_first_on_a_tie(tmp_path: pathlib.Path) -> None:
     """G7.3b step 9's order: at one distance from both groups, the low tail's unit first.
 
-    The mirrored column's description is rewritten one different value
-    short, so the step takes one of the two tied offers, and it is the low
-    tail's: the day one unit below the low boundary is written and the day
-    one unit above the high boundary is not.
+    The tied column's description is rewritten three different values
+    long: the count pass reaches all but one of them on the gap days the
+    drawn ranks stand on, so the step takes one of the two tied offers,
+    and it is the low tail's -- the day one unit below the low boundary is
+    written and the day one unit above the high boundary is not. Turned
+    the other way at a tie, the step writes the high one.
     """
-    cells: "list[str]" = []
-    for step in range(len(_MIRRORED_COUNTS)):
-        day = datetime.date(2024, 5, 6) + datetime.timedelta(days=step)
-        cells += [day.isoformat()] * _MIRRORED_COUNTS[step]
+    cells = _cells_of(_TIED_COUNTS, datetime.date(2024, 5, 6))
     text = "seen_on\n" + "".join(f"{cell}\n" for cell in cells)
-    described = kpi_shapes.describe(tmp_path, "mirrored", text, 11)
+    described = kpi_shapes.describe(tmp_path, "tied", text, 11)
     block = described.document["columns"][0]
     assert block["low_tail"]["values"] is None and block["high_tail"]["values"] is None
-    shorter = dict(described.document)
-    shorter["columns"] = [
-        dict(
-            block,
-            n_distinct=block["n_distinct"] - 1,
-            n_distinct_folded=block["n_distinct_folded"] - 1,
-        )
-    ]
-    loaded = contract.load_profile(
-        str(fixtures.write_profile(tmp_path, "shorter-profile.json", shorter))
-    )
+    layout = _layout(described.loaded, 11)
+    for plan in (layout.low, layout.high):
+        assert plan is not None and plan.shape is not None
+        assert plan.shape.group == 2 and plan.shape.grouped < plan.rows - 1
+    longer = _recounted(tmp_path, described.document, "longer", 3)
     below = datetime.date.fromisoformat(block["low_tail"]["boundary"]) - datetime.timedelta(days=1)
     above = datetime.date.fromisoformat(block["high_tail"]["boundary"]) + datetime.timedelta(days=1)
     for seed in SEEDS:
-        written = set(rendering.twin_csv(generation.generate(loaded, seed)).splitlines()[1:])
-        assert len(written) == block["n_distinct"] - 1, seed
+        written = _written(longer, seed)
+        assert len(written) == block["n_distinct"] + 3, seed
         assert below.isoformat() in written and above.isoformat() not in written, seed
 
 
@@ -663,6 +687,36 @@ def _written(loaded: contract.Profile, seed: int) -> "set[str]":
     return set(rendering.twin_csv(generation.generate(loaded, seed)).splitlines()[1:])
 
 
+# THE TAILS PLAN P4-D346 WROTE OF THE TIE-GROUP COLUMNS, as its walk widened
+# them (the frozen cases `every_day_group` and `every_day_absent` carry the
+# same): the low tail of the 105 dates and of the column with the absent
+# day, and the high tail both share.
+_WIDENED_HIGH = {"boundary": "2024-05-22", "rows": 21, "mean_distance": 2.9047619047619047, "rms_distance": 3.2440421581430665}
+_WIDENED_LOW = {"boundary": "2024-05-13", "rows": 31, "mean_distance": 3.967741935483871, "rms_distance": 4.410398270363552}
+_WIDENED_LOW_ABSENT = {"boundary": "2024-05-14", "rows": 34, "mean_distance": 4.5, "rms_distance": 5.061387858959589}
+
+
+def _as_p4d346_wrote(described: kpi_shapes.Described, low: "dict", high: "dict") -> kpi_shapes.Described:
+    """The one-column description with its two tails as plan P4-D346's walk widened them, loaded.
+
+    The tie-group tests of landing 3b.0 stood on these widened tails, whose
+    groups stand days out and give way. Since plan P4-D375 the producer
+    writes the narrower tails, whose groups stand one day out and give
+    nothing on these columns, so the generator's step 9 is asked of the
+    description the widened producer wrote: the same block with those two
+    tails and the rung the wider low tail held null (`p25`), which is what
+    668f276 published, and which the strict loader still reads.
+    """
+    document = dict(described.document)
+    block = dict(document["columns"][0])
+    block["low_tail"] = dict(low, values=None)
+    block["high_tail"] = dict(high, values=None)
+    block["date_percentiles"] = dict(block["date_percentiles"], p25=None)
+    document["columns"] = [block]
+    written = fixtures.write_profile(described.folder, "widened-profile.json", document)
+    return kpi_shapes.Described(described.folder, described.table, document, contract.load_profile(str(written)))
+
+
 def _layout(loaded: contract.Profile, floor: int) -> "generation._DateLayout":
     column = loaded.columns[0]
     assert isinstance(column.facts, contract.DatetimeFacts)
@@ -684,8 +738,9 @@ _EVERY_DAY_GROUP_START = datetime.date(2024, 5, 6)
 def test_the_offers_are_taken_nearest_the_group_first(tmp_path: pathlib.Path) -> None:
     """G7.3b step 9's order: by remove from `g`, then the smaller distance, then the low tail.
 
-    The frozen case's column with its counts of different values lowered
-    by four: the count pass leaves its twin 18 of the 22 days, so the
+    The frozen case's column as plan P4-D346 described it (`_as_p4d346_wrote`),
+    its counts of different values lowered by four: the count pass leaves
+    its twin 18 of the 22 days, so the
     step has nothing to give, and the four days that twin lacks are the
     units the step offers. Lowered by three, two and one, the step gives
     one, two and three of them, so the twin lacks the rest -- which the
@@ -697,8 +752,11 @@ def test_the_offers_are_taken_nearest_the_group_first(tmp_path: pathlib.Path) ->
     """
     cells = _cells_of(_EVERY_DAY_GROUP_COUNTS, _EVERY_DAY_GROUP_START)
     text = "seen_on\n" + "".join(f"{cell}\n" for cell in cells)
-    described = kpi_shapes.describe(tmp_path, "every_day_group", text, 11)
-    block = described.document["columns"][0]
+    described = _as_p4d346_wrote(
+        kpi_shapes.describe(tmp_path, "every_day_group", text, 11), _WIDENED_LOW, _WIDENED_HIGH
+    )
+    document = described.document
+    block = document["columns"][0]
     layout = _layout(described.loaded, 11)
     assert layout.low is not None and layout.low.shape is not None
     assert layout.high is not None and layout.high.shape is not None
@@ -731,7 +789,7 @@ def test_the_offers_are_taken_nearest_the_group_first(tmp_path: pathlib.Path) ->
         return (distance, side)
 
     real = set(cells)
-    lowered = [_recounted(tmp_path, described.document, f"lowered-{by}", -by) for by in (0, 1, 2, 3, 4)]
+    lowered = [_recounted(tmp_path, document, f"lowered-{by}", -by) for by in (0, 1, 2, 3, 4)]
     for seed in SEEDS:
         free = real - _written(lowered[4], seed)
         assert len(free) == 4, (seed, sorted(free))
@@ -757,15 +815,49 @@ def test_the_offers_are_taken_nearest_the_group_first(tmp_path: pathlib.Path) ->
 _ABSENT_DAY = "2024-05-12"
 
 
-def _with_an_absent_day(tmp_path: pathlib.Path) -> kpi_shapes.Described:
-    cells = _cells_of(_EVERY_DAY_GROUP_COUNTS, _EVERY_DAY_GROUP_START) + [_ABSENT_DAY] * 12
-    table = fixtures.write(tmp_path, "absent_day.csv", "seen_on\n" + "".join(f"{cell}\n" for cell in cells))
-    settings = taxonomy.Settings(small_cell_floor=11, declared_missing_values=(_ABSENT_DAY,))
+def _the_producer_s_own(tmp_path: pathlib.Path, absent: bool) -> kpi_shapes.Described:
+    """The frozen case's column -- with the absent day where ``absent`` -- as the shipped producer describes it."""
+    cells = _cells_of(_EVERY_DAY_GROUP_COUNTS, _EVERY_DAY_GROUP_START) + ([_ABSENT_DAY] * 12 if absent else [])
+    tmp_path.mkdir(parents=True, exist_ok=True)
+    table = fixtures.write(tmp_path, "own.csv", "seen_on\n" + "".join(f"{cell}\n" for cell in cells))
+    settings = taxonomy.Settings(
+        small_cell_floor=11, declared_missing_values=(_ABSENT_DAY,) if absent else ()
+    )
     document = profile.build_document(
         reading.read_table(str(table), small_cell_floor=11), settings, [], [], []
     )
-    written = fixtures.write_profile(tmp_path, "absent_day-profile.json", document)
+    written = fixtures.write_profile(tmp_path, "own-profile.json", document)
     return kpi_shapes.Described(tmp_path, table, document, contract.load_profile(str(written)))
+
+
+def _with_an_absent_day(tmp_path: pathlib.Path) -> kpi_shapes.Described:
+    """The column with the absent day, as plan P4-D346 described it (`_as_p4d346_wrote`)."""
+    return _as_p4d346_wrote(_the_producer_s_own(tmp_path, True), _WIDENED_LOW_ABSENT, _WIDENED_HIGH)
+
+
+def test_the_shipped_tails_of_the_tie_group_columns_write_a_day_past_the_first(
+    tmp_path: pathlib.Path,
+) -> None:
+    """THE RANGE LIMIT NAMED BY `K-S3-30` (plan P4-D375): one day before the real first, in place of one inside.
+
+    The frozen case's column and the same column with the absent day, as
+    the shipped producer describes them: their narrower low tails derive an
+    end one day past the real first day, 2024-05-06, so every twin writes
+    2024-05-05 in place of a real day inside, at seeds 0 to 4. No check
+    misses -- no end is published -- which is P4-D354's recorded limit on
+    two more columns. As P4-D346 wrote them, neither did.
+    """
+    for absent in (False, True):
+        described = _the_producer_s_own(tmp_path / f"own-{absent}", absent)
+        block = described.document["columns"][0]
+        assert block["low_tail"]["boundary"] == "2024-05-10", block["low_tail"]
+        real = set(_cells_of(_EVERY_DAY_GROUP_COUNTS, _EVERY_DAY_GROUP_START)) - {_ABSENT_DAY if absent else ""}
+        for seed in SEEDS:
+            text = kpi_shapes.twin_text(described, seed)
+            held = set(text.splitlines()[1:]) - {"", _ABSENT_DAY}
+            assert sorted(held - real) == ["2024-05-05"], (absent, seed, sorted(held - real))
+            assert real - held, (absent, seed)
+            assert kpi_shapes.missed(kpi_shapes.measure(described, text, f"own-{absent}-{seed}.csv")) == [], seed
 
 
 def test_no_unit_an_absent_spelling_names_is_offered(tmp_path: pathlib.Path) -> None:

@@ -5190,10 +5190,10 @@ def ordered_tails(
     pair would settle it, and kept the move only where the wider tail
     could publish its pair; with no pair withheld there is nothing left to
     move one for, and the narrower tail is the one the twin is drawn
-    through. Measured: a 104-row column of 21 days with one cell on each
+    through. Measured: a 105-row column of 21 days with one cell on each
     end day lost its two end days at 20 of 20 seeds under the narrower
     tail until the derived end stood at least at the Bhatia-Davis reach of
-    its pair (method G7.3b step 4), and holds all 21 with it.
+    its pair (method G7.3b step 5), and holds all 21 with it.
 
     IS THIS A SMALL FIXED SET OR A FINE GRID? Counted here, once, for
     both tails, because it is a fact about the COLUMN and not about

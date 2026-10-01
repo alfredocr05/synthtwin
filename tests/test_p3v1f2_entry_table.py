@@ -5451,14 +5451,16 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("marked-code", "type.std_unrepresentable"),
             ('quoted-code', 'bytes.quoting'),
             ('reversed-code', 'rows.order'),
-            # THE FOUR TAIL SITES LANDING 3.3 REGISTERED HERE ARE GONE
-            # WITH THE SITES THEMSELVES (plan P4-D349). This fixture's
-            # forty codes run consecutively, so each of its tails would
-            # give its own cells back and the description publishes
-            # neither distance: there is no site here to aim a red case
-            # at. The four facts are registered on `visits`, whose own
-            # tails publish their pair -- `floor-grouped-visits` for the
-            # high side and `pushed-visits` for the low.
+            # THE FOUR TAIL SITES LANDING 3.3 REGISTERED HERE ARE BACK
+            # (plan P4-D375). This fixture's forty codes run consecutively,
+            # so each of its tails gives its own cells back, and P4-D349
+            # published neither distance; every pair is published again,
+            # the high side's sites are missed by the outer cells pushed
+            # out and the low side's by a floor's worth bracketed.
+            ("pushed-code", "tails.high.mean_distance"),
+            ("pushed-code", "tails.high.rms_distance"),
+            ("floor-bracketed-code", "tails.low.mean_distance"),
+            ("floor-bracketed-code", "tails.low.rms_distance"),
         ),
     },
     # THE SATURATED COLUMN, whose grid holds exactly as many points as
@@ -5975,18 +5977,16 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             # the edit MEASURED to make it miss (landing 3.3).
             ("crowded-reading", "number 1 ladder.p10"),
             ("crowded-reading", "number 1 ladder.p90"),
-            # POSITION 1 SHIPS NO TAIL DISTANCE ANY MORE, and it is this
-            # fixture's own shape that decides it (plan P4-D349). Its
+            # POSITION 1 SHIPS ITS TAIL DISTANCES AGAIN (plan P4-D375). Its
             # first number runs 100 to 219, one whole unit at a time, so
-            # each tail's twelve DIFFERENT whole distances sum to the
-            # least twelve different whole numbers can sum to and have
-            # one possible answer -- the description publishes neither
-            # distance there, so there is no site to register a red case
-            # against. The four facts are exercised on this fixture's
-            # SECOND position, whose numbers step 13 apart and repeat
-            # their band, and on `visits` and `amount`. The fixture's own
-            # values are not changed for this: its docstring records that
-            # every golden in the suite is built on them.
+            # each tail's pair gives its twelve cells back to a reader,
+            # and P4-D349 published neither distance there; since P4-D375
+            # every pair is published, and these four sites are the
+            # edit's that pushes the position's outer cells out.
+            ("pushed-reading", "number 1 tails.high.mean_distance"),
+            ("pushed-reading", "number 1 tails.high.rms_distance"),
+            ("pushed-reading", "number 1 tails.low.mean_distance"),
+            ("pushed-reading", "number 1 tails.low.rms_distance"),
             ("crowded-reading", "number 2 ladder.p10"),
             ("crowded-reading", "number 2 ladder.p90"),
             ("pushed-reading", "number 2 tails.high.mean_distance"),

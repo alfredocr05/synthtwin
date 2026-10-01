@@ -17904,7 +17904,7 @@ def _least_end(mean: float, root: float, edge: int) -> int:
     `(root**2 - mean) / (mean - 1)` (Bhatia and Davis's bound on a
     variance, at a least distance of one). Taken in binary64 in that
     order, lowered by `_LEAST_END_SLACK` of itself plus one, and rounded
-    up. Plan P4-D375: without it a 104-row column of 21 days whose end
+    up. Plan P4-D375: without it a 105-row column of 21 days whose end
     days hold one cell each lost both of them at 20 of 20 seeds.
 
     Guarantees: accepts the two published distances and the furthest the

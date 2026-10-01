@@ -379,14 +379,14 @@ Stated here so that no reader has to discover them independently:
   those are, and how far they lie -- so no date in the file is the
   rarest one the column held. **A tail whose two distances would give
   back an outer cell or how many outer cells hold one value publishes
-  NEITHER of them** (2026-09-23): where the rows, the two distances, the
-  grid, the space's edges and the column's own remark that every value
-  in it is different fix either -- one possible set of distances fixes
-  every outer cell -- the tail publishes its boundary and its row count
-  and stops -- unless
-  withholding them would cost the twin the column's mean or spread,
-  where they are published anyway (owner, 2026-09-25). What that costs
-  the twin is measured and recorded rather than claimed away. An end at
+  them all the same** (plan P4-D375, the owner's principle of
+  2026-10-01): where the rows, the two distances, the grid, the space's
+  edges and the column's own remark that every value in it is different
+  fix either, a reader can work out that tail's own outer values --
+  never a row, never another column. Only a pair this file format cannot
+  hold is withheld. What a published pair lets a reader work out is
+  measured and recorded rather than claimed away (`K-S3-11`,
+  `K-S3-18`). An end at
   least that many rows share is published as itself, because it is a
   value of a group. A tail may
   LIST the values it holds instead of publishing its shape, and ONE
