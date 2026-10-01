@@ -109,9 +109,12 @@ and drops its number (P4-D347 applied).
 P4-D357 A). A compound column's numeric half and a joined column's
 positions publish no decision about `-999` or `9999`, so a heap of 49
 rows published only as the half's mode came back in no cell. Every
-numeric block now keeps the stand-ins its decisions, its mode or a tail
-block's end publish, in the oracle too, and one no block names is still
-refused. **No sentence on a withheld pair says more than the pair
+numeric block now keeps a stand-in it publishes as held -- by a
+`kept_as_a_number` decision, its mode, a tail block's end or two
+adjacent equal rungs -- in the oracle too, and one no block names is
+still refused; the reader's derived tail end and its staircase rows keep
+a stand-in the block itself publishes as held, never one only a decision
+names. **No sentence on a withheld pair says more than the pair
 fixes**: the report's line on every withheld distance said the pair
 would give "the tail's own cells back" where it fixes only the
 outermost value or a count; and the report's line on a withheld rung,

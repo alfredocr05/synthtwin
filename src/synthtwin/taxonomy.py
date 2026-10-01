@@ -856,12 +856,13 @@ REMARK_PADDED_NUMBERS = "remark_padded_numbers_may_be_codes"
 REMARK_GROUP_COMMAS = "remark_commas_read_as_thousands"
 REMARK_SPREAD_OUT_OF_RANGE = "remark_spread_out_of_range"
 # WHY A TAIL PUBLISHES NEITHER DISTANCE, WHERE THE REASON IS NOT THAT ITS
-# OWN PAIR WOULD GIVE ITS VALUES BACK (plan P4-D353, contract 6.7a). A
-# withheld side carries none of these where its own back-solve PINNED it,
-# and one of them otherwise, so the summary and the quality report say the
-# reason that is true of it: the other tail's values would come back by
-# subtraction beside it, the back-solve could not finish, or binary64 cannot
-# hold the two numbers. One form per side, and none takes an argument.
+# OWN PAIR WOULD GIVE BACK AN OUTER CELL OR HOW MANY OUTER CELLS HOLD ONE
+# VALUE (plan P4-D353, contract 6.7a). A withheld side carries none of
+# these where its own back-solve PINNED it, and one of them otherwise, so
+# the summary and the quality report say the reason that is true of it:
+# the other tail's pair could come back by subtraction beside it, the
+# back-solve could not finish, or binary64 cannot hold the two numbers.
+# One form per side, and none takes an argument.
 REMARK_LOW_TAIL_FOR_THE_HIGH = "remark_low_tail_withheld_for_the_high_tail"
 REMARK_HIGH_TAIL_FOR_THE_LOW = "remark_high_tail_withheld_for_the_low_tail"
 REMARK_LOW_TAIL_UNSETTLED = "remark_low_tail_withheld_unsettled"
@@ -4784,9 +4785,10 @@ TAIL_PINNED = "pinned"
 TAIL_UNSETTLED = "unsettled"
 
 # WHY A WITHHELD SIDE IS WITHHELD, as the description says it (plan
-# P4-D353). `TAIL_PINNED` is said by no remark: a side carrying none of
-# the forms below publishes neither distance because its own pair would
-# give its values back. Each other reason is a remark per side.
+# P4-D353), in a remark per side: the other tail's withheld pair, a walk
+# that could not finish, a pair binary64 cannot hold, and -- where its own
+# pair would give back an outer cell or how many outer cells hold one
+# value -- what that pair gives back (below).
 TAIL_WITHHELD_FOR_THE_OTHER = "for_the_other"
 TAIL_WITHHELD_UNSETTLED = TAIL_UNSETTLED
 TAIL_WITHHELD_UNHOLDABLE = "unholdable"
@@ -5262,8 +5264,9 @@ def _tail_side_and_verdict(
     # withholds the column's own end -- which the owner's bounded-scale
     # premise does not cover. And its premise is gone: a pinned tail no
     # longer publishes the pair at all, so the alternative to listing is
-    # not a pair that gives the values back, it is SILENCE, and silence
-    # says less than a list every time.
+    # not a pair that gives back an outer cell or how many outer cells
+    # hold one value, it is SILENCE, and silence says less than a list
+    # every time.
     #
     # What is left is the ruling's own road, asked twice: a tail the
     # ruling reaches and holding few values lists them, and a tail the
@@ -5275,9 +5278,10 @@ def _tail_side_and_verdict(
     #
     # THE BACK-SOLVE IS ASKED WHATEVER `single` SAYS. A distance carrying
     # two texts has no one value to LIST, but its pair is read back the
-    # same way and gives the reader the day each outer cell stands on;
-    # the answer that publishes less does not depend on how many
-    # spellings that day wore.
+    # same way, and where it pins the tail it gives back the day an outer
+    # cell stands on or how many outer cells stand on one day; the answer
+    # that publishes less does not depend on the number of spellings a
+    # day wore.
     verdict = TAIL_OPEN if few else _tail_verdict(distances, floor, edge, distinct)
     pinned = verdict != TAIL_OPEN
     if not few and not (single and may_list and pinned):
@@ -14386,10 +14390,11 @@ def _numeric_tails_and_causes(
         else:
             mean = distances[0]
             root = distances[1]
-        # FAIL CLOSED WHERE THE PAIR WOULD HAND THE TAIL BACK (P4-D349).
-        # A LISTED tail is not asked: it has already said which values it
-        # holds, under a rule that says nobody's own value is among them,
-        # and its pair adds nothing about them. Anything else that the
+        # FAIL CLOSED WHERE THE PAIR WOULD GIVE BACK AN OUTER CELL OR HOW
+        # MANY OUTER CELLS HOLD ONE VALUE (P4-D349). A LISTED tail is not
+        # asked: it has already said which values it holds, under a rule
+        # that says nobody's own value is among them, and its pair adds
+        # nothing about them. Anything else that the
         # back-solve settles publishes its boundary and its rows alone.
         # A TAIL WITH NO PAIR IS NOT ASKED EITHER: there is nothing left
         # to withhold, and the back-solve is the most expensive question
@@ -20735,10 +20740,11 @@ def _numeric_verdict(
     # (review item P1-R6-F3).
     if details["std_unrepresentable"]:
         remarks += [note(REMARK_SPREAD_OUT_OF_RANGE)]
-    # ...AND A TAIL WITHHELD FOR ANY REASON BUT ITS OWN PAIR SAYS WHICH
-    # (plan P4-D353): the summary and the quality report read it, and a
-    # page must not say of such a side that its two distances would give
-    # it back.
+    # ...AND EVERY WITHHELD SIDE SAYS WHY (plan P4-D353, P4-D357 A): the
+    # summary and the quality report read it, so a page says what a side's
+    # own pair gives back only where that pair pinned it, and never says of
+    # another that its two distances would give back an outer cell or how
+    # many outer cells hold one value.
     for side in ("low", "high"):
         if side in causes and (side, causes[side]) in TAIL_WITHHELD_REMARKS:
             remarks += [note(TAIL_WITHHELD_REMARKS[(side, causes[side])])]

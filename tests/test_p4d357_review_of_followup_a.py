@@ -801,7 +801,7 @@ def test_a_stand_in_held_below_the_floor_is_still_refused(tmp_path: pathlib.Path
 
 
 def test_the_loader_reads_the_kept_stand_ins_off_the_published_decisions() -> None:
-    """A `kept_as_a_number` decision, the mode or a tail block's end names a kept stand-in; nothing else does."""
+    """A `kept_as_a_number` decision, the mode, a tail block's end or two adjacent equal rungs name a kept stand-in; nothing else does."""
 
     def decision(candidate: str, verdict: str) -> contract.SentinelVerdict:
         return contract.SentinelVerdict(
@@ -1711,3 +1711,257 @@ def test_no_page_says_the_distances_of_a_tail_withholding_them_are_published(tmp
     governed = re.compile(r"where [^,.;]*,\s*how far|how far[^.;]*\bwhere\b|neither is how far")
     for sentence in said:
         assert governed.search(sentence), sentence
+
+
+# -- the second skeptic of the final fix: the record and the comments say what the code does -
+
+
+def _passage(path: str, heading: str, level: str) -> str:
+    """The words under one heading of a repository document, on one line, up to its next heading of that level."""
+    text = (pathlib.Path(__file__).resolve().parents[1] / path).read_text(encoding="utf-8")
+    assert f"\n{heading}\n" in text, f"premise: {path} holds {heading!r}"
+    return " ".join(text.split(f"\n{heading}\n", 1)[1].split(f"\n{level} ", 1)[0].split())
+
+
+_PLAN_P4_D357_A = ("docs/plans/phase-4-columns.md", "## Decision P4-D357 A — the review of follow-up A (2026-09-28)", "##")
+
+
+def _facts_the_plan_keeps_a_stand_in_by() -> "list[str]":
+    """The four facts P4-D357 A says a block publishes a stand-in as held by, in the plan's own words."""
+    import re
+
+    listed = re.search(r"publishes it as held -- by (.+?) \(`NumericFacts\.kept_stand_ins`", _passage(*_PLAN_P4_D357_A))
+    assert listed is not None, "premise: the plan lists the facts a block publishes a stand-in as held by"
+    facts = [one for part in listed.group(1).split(", ") for one in part.split(" or ")]
+    assert len(facts) == 4, f"premise: a decision, the mode, a tail block's end and equal rungs ({facts})"
+    return facts
+
+
+def test_the_changelog_names_every_fact_its_plan_decision_keeps_a_stand_in_by() -> None:
+    """The entry closing this review names each fact P4-D357 A keeps a stand-in by, and the reader's narrower set.
+
+    The second skeptic of follow-up A: e82d14d added two adjacent equal
+    rungs and ce452d9 the reader's clause to the plan and the method, and
+    the entry still listed a decision, the mode and a tail block's end alone,
+    so a reader concluded a compound half heaping `-999`, published only as
+    p41 to p43, was still moved off, which the twin no longer does.
+    """
+    import re
+
+    plan = _passage(*_PLAN_P4_D357_A)
+    entry = _passage("CHANGELOG.md", "### The review of follow-up A, finished (2026-09-29)", "###")
+    facts = _facts_the_plan_keeps_a_stand_in_by()
+    assert [one for one in facts if one not in entry] == [], "the entry leaves out facts the plan keeps a stand-in by"
+    reader = re.compile(r"reader's [^.;]*\bend\b[^.;]*\bstaircase rows\b[^.;]*\bnever\b[^.;]*\bdecision\b")
+    assert reader.search(plan), "premise: the plan keeps the reader's end and rows to the block's own"
+    assert reader.search(entry), "the entry does not say the reader's end and staircase rows keep no stand-in a decision alone names"
+
+
+def test_the_draw_and_the_grid_walk_say_their_kept_stand_ins_are_every_one_the_block_publishes_as_held() -> None:
+    """What `_drawn_off_the_stand_ins` and `_apart_inside` say ``kept`` holds names each fact P4-D357 A keeps one by.
+
+    The skeptic of the second fix: both still said the kept ones were those
+    the column's decisions publish, where each is handed
+    `NumericFacts.kept_stand_ins`, which the mode, a tail block's end and two
+    adjacent equal rungs publish too. A compound column's numeric half
+    heaping `-999` in 51 cells, no decision among its facts, is handed
+    `(-999.0,)`, and its twin writes `-999` in 50 of them at seeds 0, 4 and 9.
+    """
+    from synthtwin import generation
+
+    drawn = " ".join((generation._drawn_off_the_stand_ins.__doc__ or "").split())
+    assert drawn.count("``kept`` holds ") == 1, "premise: the draw's docstring says once what ``kept`` holds"
+    said = [("_drawn_off_the_stand_ins", drawn[drawn.index("``kept`` holds ") :].split(". ")[0])]
+    walk = ("if _is_a_stand_in(candidate, kept):", "continue", "# THE CANDIDATE KEEPS THE STRATUM'S OWN KIND")
+    said += [("_apart_inside", _comment_above("generation.py", walk))]
+    facts = _facts_the_plan_keeps_a_stand_in_by() + ["`NumericFacts.kept_stand_ins`"]
+    left = [(where, [one for one in facts if one not in text], text) for where, text in said]
+    wrong = [f"{where} leaves out {out}: {text!r}" for where, out, text in left if out]
+    assert wrong == [], "\n".join(wrong)
+
+
+# Every function asking `_is_a_stand_in`, by the words opening the docstring
+# sentence that defines its answer, its points or its refusals -- and the
+# rule whose points `_twice_filled` fills.
+_STAND_IN_REFUSALS = (
+    ("_free_grid_points", "A unit whose text does not survive"),
+    ("_drawn_off_the_stand_ins", "Guarantees:"),
+    ("_grid_step_of_sign", "The nearest point of the grid"),
+    ("_whole_inside", "Where that one is another stratum's already"),
+    ("_apart_inside", "A candidate is refused where"),
+    ("_twice_written", "Let `P` be the points of the grid"),
+    ("_twice_filled", "Its points are that rule's `P`"),
+    ("_band_step", "The points are the grid points"),
+    ("_saturated_integers", "So where the column is on a written grid"),
+    ("_band_points", "Returns the points in ascending order"),
+    ("_apart_on_the_representable_grid", "A stratum between the two ends whose"),
+    ("_figured_inside", "Guarantees:"),
+    ("_cleared_value", "Guarantees:"),
+)
+
+
+def test_every_value_pass_asking_for_a_stand_in_says_it_refuses_one_the_column_does_not_keep() -> None:
+    """The docstring sentence defining each such pass's answer, points or refusals names that refusal.
+
+    The skeptic of 34353bd: `_apart_inside` listed four refusals without
+    it -- from 9998, with 9997 and 9998 written, it answers 9996 where
+    those four leave 9999 -- and `_whole_inside`, `_grid_step_of_sign` and
+    `_band_step` defined their answers without it, as four more passes
+    did, so a reader concluded the walks write 9999 or -999, which they
+    have not done since plan P4-D357 A. Every function asking
+    `_is_a_stand_in` is listed.
+    """
+    import ast
+
+    from synthtwin import generation
+
+    tree = ast.parse(pathlib.Path(generation.__file__).read_text(encoding="utf-8"))
+    asking = [
+        node.name
+        for node in ast.walk(tree)
+        if isinstance(node, ast.FunctionDef)
+        and any(
+            isinstance(call, ast.Call) and isinstance(call.func, ast.Name) and call.func.id == "_is_a_stand_in"
+            for call in ast.walk(node)
+        )
+    ]
+    assert {"_apart_inside", "_whole_inside", "_grid_step_of_sign", "_band_step"} <= set(asking), (
+        f"premise: the four the skeptic named ask for a stand-in ({sorted(asking)})"
+    )
+    listed = [name for name, _opening in _STAND_IN_REFUSALS]
+    assert [name for name in asking if name not in listed] == [], "a pass asking for a stand-in is not listed here"
+    wrong: "list[str]" = []
+    for name, opening in _STAND_IN_REFUSALS:
+        sentence = _docstring_sentence(getattr(generation, name), opening)
+        if "stand-in" not in sentence or "does not keep" not in sentence:
+            wrong += [f"{name}: {sentence!r}"]
+    assert wrong == [], "\n".join(wrong)
+
+
+# The comments saying why a side its own pair pinned publishes neither
+# distance, each found by the lines of code it sits on...
+_PINNED_PAIR_COMMENTS = (
+    ("validation.py", ("_GATE_TAIL_WITHHELD = (",)),
+    ("taxonomy.py", ("REMARK_LOW_TAIL_FOR_THE_HIGH = ",)),
+    ("taxonomy.py", ("TAIL_WITHHELD_FOR_THE_OTHER = ",)),
+    ("taxonomy.py", ("if (", "mean is not None", "and root is not None", "and not listed")),
+    ("taxonomy.py", ('for side in ("low", "high"):', "if side in causes and (side, causes[side]) in TAIL_WITHHELD_REMARKS")),
+    ("taxonomy.py", ("verdict = TAIL_OPEN if few else _tail_verdict(",)),
+    ("profile.py", ('("columns", _EACH, "parts", _EACH, "tails"): _MAYBE_OBJECT,',)),
+    ("profile.py", ('("columns", _EACH, "tails"): _MAYBE_OBJECT,',)),
+)
+# ...and the sentences of the pages that say it, each found by its opening words.
+_PINNED_PAIR_SENTENCES = (
+    ("docs/spec/profile-contract-v6.md", "Where the published pair, together with the column's own"),
+    ("docs/spec/profile-contract-v6.md", "The summary's line for each tail and the quality report's reason"),
+    ("docs/spec/profile-contract-v6.md", "A side withheld this way says so in a remark"),
+    ("README.md", "**And where even those two numbers"),
+    ("SECURITY.md", "**A tail whose two distances would give"),
+)
+# ...and the docstring sentences that say which tail publishes neither, each
+# found by its opening words, with every other reason its role has for it.
+_PINNED_PAIR_DOCSTRINGS = (
+    (contract.TailFacts, "That is the tail whose pair", ("did not finish",)),
+    (contract.TailSide, "BOTH DISTANCES ARE NULL ON A TAIL", ("did not finish", "other tail's pair", "binary64")),
+    (contract._tail_object, "WITHOUT them it publishes both distances or NEITHER", ()),
+    (taxonomy._numeric_answer, "Whether a numeric tail's published pair", ()),
+)
+# ...and the words the stale ones used for every value, which `_CLAIMS`
+# never meets on a page.
+_STALE_CLAIMS = (("values back", "every"), ("tail back", "every"), ("it back", "every"), ("each outer cell", "every"))
+
+
+def _comment_above(name: str, signature: "tuple[str, ...]") -> str:
+    """The comment lines right above the one place in a module whose lines start with ``signature``, on one line."""
+    lines = (pathlib.Path(validation.__file__).resolve().parent / name).read_text(encoding="utf-8").split("\n")
+    at = [
+        index
+        for index in range(len(lines) - len(signature) + 1)
+        if all(lines[index + step].strip().startswith(signature[step]) for step in range(len(signature)))
+    ]
+    assert len(at) == 1, f"premise: one place in {name} starts {signature} ({len(at)})"
+    first = at[0]
+    while first > 0 and lines[first - 1].strip().startswith("#"):
+        first = first - 1
+    assert first < at[0], f"premise: a comment sits on {signature} in {name}"
+    return " ".join(" ".join(line.strip().lstrip("#") for line in lines[first : at[0]]).split())
+
+
+def _sentence(path: str, opening: str) -> str:
+    """The one sentence of a repository document that opens with ``opening``, its words on one line."""
+    return _sentence_in((pathlib.Path(__file__).resolve().parents[1] / path).read_text(encoding="utf-8"), opening, path)
+
+
+def _docstring_sentence(owner: object, opening: str) -> str:
+    """The one sentence of a class's or function's docstring that opens with ``opening``, its words on one line."""
+    return _sentence_in(getattr(owner, "__doc__", None) or "", opening, getattr(owner, "__qualname__", str(owner)))
+
+
+def _sentence_in(text: str, opening: str, where: str) -> str:
+    """The one sentence of ``text`` that opens with ``opening``, its words on one line."""
+    flat = " ".join(text.split())
+    assert flat.count(opening) == 1, f"premise: one sentence of {where} opens {opening!r} ({flat.count(opening)})"
+    start = flat.index(opening)
+    end = flat.find(". ", start)
+    return flat[start : len(flat) if end < 0 else end + 1]
+
+
+def test_every_comment_and_page_on_a_pinned_pair_claims_what_its_printed_sentence_does() -> None:
+    """A comment or page saying why a pinned side publishes neither distance claims what the report says: an outer cell or a count.
+
+    The second skeptic of follow-up A: four comments still said such a pair
+    would give "its own cells", "its values" or "the tail" back, where since
+    P4-D357 A a pinned pair may fix only the outermost value or how many
+    rows hold one. Beside them a fifth comment, three sentences of the
+    contract, the README and SECURITY said the same, or stated the rule by
+    its every-value case alone; each now says what TL5, the summary and the
+    report say.
+
+    And the skeptic of that fix: the date and clock role's comment on its
+    back-solve still said a pinned pair gives "the values" back and "the day
+    each outer cell stands on", and dropping the README's count clause left
+    this green, because the same sentence later says how many rows lie beyond
+    the boundary. So a page is read to its first dash, where its claim ends,
+    and a comment sentence by sentence: each sentence naming what the pair
+    gives back names both, and each place names it. The words claiming
+    every value are still looked for in a page's whole sentence: read to
+    the dash alone, "the pair gives the values back" after it stayed green.
+
+    And the skeptic of that repair: no test read a docstring, and
+    `contract.TailFacts` still said such a date or clock tail gives "its own
+    cells back exactly", where two sets of distances fit its pair on a
+    113-row date column at a smallest group of 30 (`pins_its_end`,
+    `pins_a_count`). A docstring saying which tail publishes neither is read
+    like a comment, and names every other reason its role has.
+    """
+    import re
+
+    wanted = _claimed(summary._WITHHELD_BECAUSE[taxonomy.TAIL_PINNED])
+    assert wanted == {"end", "count"} == _claimed(validation._GATE_TAIL_WITHHELD), (
+        "premise: the pinned side's printed sentences claim the outermost value or a count"
+    )
+    comments = [(f"{name} above {signature[0]!r}", _comment_above(name, signature)) for name, signature in _PINNED_PAIR_COMMENTS]
+    pages = [(f"{path} at {opening!r}", _sentence(path, opening)) for path, opening in _PINNED_PAIR_SENTENCES]
+    docstrings = [
+        (f"{getattr(owner, '__qualname__', owner)} at {opening!r}", _docstring_sentence(owner, opening), reasons)
+        for owner, opening, reasons in _PINNED_PAIR_DOCSTRINGS
+    ]
+    said = [(where, text, text) for where, text in comments]
+    said += [(where, text, text) for where, text, _reasons in docstrings]
+    said += [(where, whole.split(" -- ")[0], whole) for where, whole in pages]
+    wrong: "list[str]" = [
+        f"{where} leaves out {reason!r}: {text[:160]!r}"
+        for where, text, reasons in docstrings
+        for reason in reasons
+        if reason not in text
+    ]
+    for where, text, whole in said:
+        claims = [
+            {claim for words, claim in _CLAIMS + _STALE_CLAIMS if words in sentence.lower()}
+            for sentence in re.split(r"(?<=\.)\s", text)
+        ]
+        claims = [claimed for claimed in claims if claimed]
+        beyond = {claim for words, claim in _CLAIMS + _STALE_CLAIMS if words in whole.lower()} - wanted
+        if claims == [] or [claimed for claimed in claims if claimed != wanted] or beyond:
+            wrong += [f"{where} claims {[sorted(claimed) for claimed in claims]}, and {sorted(beyond)}: {whole[:160]!r}"]
+    assert wrong == [], "\n".join(wrong)

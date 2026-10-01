@@ -3710,8 +3710,9 @@ what the floor protects says what (NF79 to NF84), and no side carries
 two. The summary's line
 for each tail and the quality report's reason for a file's own silent
 tail read these remarks (`taxonomy.tail_withheld_because`), so neither
-says of a side that its own two distances would give its values back
-where that is not why they are withheld. They route nothing.
+says of a side that its own two distances would give back an outer cell
+or how many outer cells hold one value where that is not why they are
+withheld. They route nothing.
 
 ---
 
@@ -6658,15 +6659,16 @@ withdrawn.
 **AND A TAIL THAT WOULD BE READ BACK PUBLISHES NEITHER DISTANCE** (plan
 P4-D349, invariants DT1 and TL5). Where the published pair, together
 with the column's own "every value different" remark, the grid and the
-space's edges, leaves ONE multiset of distances, that pair names every
-outer cell exactly -- the integers 0 to 1100 once each publish eleven
-rows, a mean of 6 and a root-mean-square of root-46 a side, and eleven
-DIFFERENT whole distances summing to 66 can only be 1 to 11. Where the
-listing rule does not let such a tail name its values, it publishes its
-boundary and its rows and NEITHER distance -- unless withholding them
-costs the twin the column's mean or spread (plan P4-D353, the owner's
-rulings of 2026-09-25). A tail publishing neither distance is read as
-`rows` grid steps past its boundary, and the windows of `moments.mean`
+space's edges, would give back an outer cell or how many outer cells
+hold one value, and the listing rule does not let the tail name its
+values, it publishes its boundary and its rows and NEITHER distance --
+unless withholding them costs the twin the column's mean or spread
+(plan P4-D353, the owner's rulings of 2026-09-25). Where it leaves ONE
+multiset of distances it names every outer cell exactly: the integers 0
+to 1100 once each publish eleven rows, a mean of 6 and a
+root-mean-square of root-46 a side, and eleven DIFFERENT whole distances
+summing to 66 can only be 1 to 11. A tail publishing neither distance
+is read as `rows` grid steps past its boundary, and the windows of `moments.mean`
 and `moments.std` are drawn from that reading (method G12.3); where
 either window would then not contain the published value and
 publishing the pair brings more of the two inside, the pair is
@@ -6690,8 +6692,8 @@ other's goes with it. What the subtraction then gives back the owner
 allowed on 2026-09-26 ("Allow it"; ledger entry `K-S3-21`). A side
 withheld this way says so in a remark (NF62, NF63), as a side whose
 back-solve did not finish (NF64, NF65) and one binary64 cannot hold
-(NF66, NF67) do, so no page says of it that its own pair would give it
-back. **A TAIL
+(NF66, NF67) do, so no page says of it that its own pair would give
+back an outer cell or how many outer cells hold one value. **A TAIL
 THAT LISTS ITS VALUES KEEPS ITS PAIR**: TL5 requires both distances of
 a list, and a list of one value pins its tail by itself, so withholding
 them would close nothing. Beside such a list the subtraction still gives

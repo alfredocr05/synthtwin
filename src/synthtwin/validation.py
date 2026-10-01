@@ -1044,7 +1044,8 @@ _GATE_WORKBOOK = (
 # reading a lower bound as an upper one.
 # THE SILENCE A FILE'S OWN TAIL RULE BUYS, and it is its own sentence
 # (plan P4-D349). A tail whose published rows and two distances would give
-# its own cells back publishes NEITHER distance, so a file whose own tail
+# back an outer cell or how many outer cells hold one value publishes
+# NEITHER distance, so a file whose own tail
 # is settled that way carries no number here for the description's to be
 # compared with -- and no MISSED check of that column decides it, because
 # what decides it is the file's own values and no published obligation

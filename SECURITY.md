@@ -378,11 +378,12 @@ Stated here so that no reader has to discover them independently:
   a boundary with at least `small_cell_floor` cells beyond it, how many
   those are, and how far they lie -- so no date in the file is the
   rarest one the column held. **A tail whose two distances would give
-  its own cells back publishes NEITHER of them** (2026-09-23): where the
-  rows, the two distances, the grid, the space's edges and the column's
-  own remark that every value in it is different leave one possible set
-  of distances, that set names every outer cell exactly, so the tail
-  publishes its boundary and its row count and stops -- unless
+  back an outer cell or how many outer cells hold one value publishes
+  NEITHER of them** (2026-09-23): where the rows, the two distances, the
+  grid, the space's edges and the column's own remark that every value
+  in it is different fix either -- one possible set of distances fixes
+  every outer cell -- the tail publishes its boundary and its row count
+  and stops -- unless
   withholding them would cost the twin the column's mean or spread,
   where they are published anyway (owner, 2026-09-25). What that costs
   the twin is measured and recorded rather than claimed away. An end at

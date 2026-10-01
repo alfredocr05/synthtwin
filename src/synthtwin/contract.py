@@ -2380,10 +2380,14 @@ class TailFacts:
 
     AND A TAIL MAY PUBLISH NEITHER (stage 3's fix pass, plan P4-D349):
     its boundary and its rows, with `values`, `mean_distance` and
-    `rms_distance` all None. That is the tail whose pair would give its
-    own cells back exactly -- eleven all-different distances summing to
-    the least eleven different whole numbers can sum to -- on a column
-    the listing rule does not let name its values.
+    `rms_distance` all None. That is the tail whose pair would give back
+    an outer cell or how many outer cells hold one value, or whose
+    back-solve did not finish, on a column the listing rule does not let
+    name its values. Its every-value case is eleven all-different
+    distances summing to the least eleven different whole numbers can
+    sum to; where more than one set of distances fits, the pair gives
+    back the outermost value or a count, not every value (plan P4-D357
+    A).
     """
 
     boundary: str
@@ -2609,13 +2613,14 @@ class TailSide:
     ascending order and no count.
 
     BOTH DISTANCES ARE NULL ON A TAIL THAT MAY PUBLISH NEITHER (plan
-    P4-D349, contract TL5): the pair would give back an outer cell or how
-    many outer cells hold one value, and the listing rule does not let it
-    name its values, so it publishes its boundary percent and its rows
-    and stops. Either both
-    are numbers or neither is -- a mean alone is still half the
-    back-solve -- which is the shape the date and clock role has carried
-    since stage 3.
+    P4-D349, contract TL5): one whose pair would give back an outer cell
+    or how many outer cells hold one value, or whose back-solve did not
+    finish, where the listing rule does not let it name its values; one
+    whose other tail's pair is withheld (plan P4-D353); and one whose
+    distances binary64 cannot hold. It publishes its boundary percent and
+    its rows and stops. Either both are numbers or neither is -- a mean
+    alone is still half the back-solve -- which is the shape the date and
+    clock role has carried since stage 3.
     """
 
     percent: int

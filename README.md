@@ -138,11 +138,12 @@ column's ladder stops short of both: every step that would read one of
 the outermost eleven values is withheld, and what stands there instead
 is how many rows lie beyond the last published step and how far from it
 they lie, on average and root-mean-square. **And where even those two
-numbers would give the withheld values back, neither of them is
-published either** -- a column of consecutive whole numbers has eleven
-rows a side at eleven different whole distances summing to the least
-eleven different whole numbers can sum to, and that arithmetic has one
-answer -- so such a tail says how many rows lie beyond its boundary and
+numbers would give back the outermost of the withheld values, or how
+many rows hold one of them, neither of them is published either** -- a
+column of consecutive whole numbers has eleven rows a side at eleven
+different whole distances summing to the least eleven different whole
+numbers can sum to, and that arithmetic has one answer, every value --
+so such a tail says how many rows lie beyond its boundary and
 nothing more, unless withholding the two would cost your twin the
 column's own mean or spread, where they are published anyway (the
 owner's ruling of 2026-09-25). **What a description names is not all a
