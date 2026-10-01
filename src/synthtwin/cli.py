@@ -51,12 +51,13 @@ would cross both of those lines at once.
 
 One consequence of that rule looks like an oversight and is not. The
 parser's own vocabulary -- the three choices for `--first-row`, the
-default smallest group -- is written out below as constants instead of
-being read off `reading` and `taxonomy`, because the parser is built
-BEFORE any command word has been read: it may not start the reader, and
-`taxonomy` belongs to the `profile` branch. The suite checks each
-constant against the module that owns the value, so the two cannot
-drift apart in silence.
+default smallest group -- is held below as constants instead of being
+read off `reading` and `taxonomy`, because the parser is built BEFORE
+any command word has been read: it may not start the reader, and
+`taxonomy` belongs to the `profile` branch. The default smallest group
+is read from `parsing`, where it is written once for every module; the
+suite checks each constant against the module that owns the value, so
+the two cannot drift apart in silence.
 
 THE DISPLAY BOUNDARY. A path or a value can carry an escape sequence,
 and a terminal obeys one instead of printing it: a path containing the
@@ -94,7 +95,7 @@ import os
 import pathlib
 import sys
 
-from synthtwin import asking, errors, parsing
+from synthtwin import asking, dialect, errors, parsing
 from synthtwin.paths import PathValidationError, validate_local_path
 
 _REPO_URL = "https://github.com/alfredocr05/synthtwin"
@@ -104,20 +105,23 @@ _REPO_URL = "https://github.com/alfredocr05/synthtwin"
 # been read, so it may not start the table reader (plan P2-D1) and may
 # not reach into the `profile` branch's taxonomy. Each of these is the
 # same value the module that owns it holds, and the suite compares them
-# so a change in one place cannot pass unnoticed in the other.
+# so a change in one place cannot pass unnoticed in the other. The
+# smallest group is not written out: it is read from
+# `parsing.DEFAULT_SMALL_CELL_FLOOR`, the one place its default is
+# written (plan P4-D316), which this module imports already.
 _FIRST_ROW_AUTOMATIC = "auto"
 _FIRST_ROW_NAMES = "names"
 _FIRST_ROW_DATA = "data"
-_SMALLEST_GROUP = 1
+_SMALLEST_GROUP = parsing.DEFAULT_SMALL_CELL_FLOOR
 
 # THE LINE UNDER WHICH A NAMED GROUP CAN POINT AT ONE PERSON, mirrored
 # here from `_NOTICE_LINE` for the reason
 # `_SMALLEST_GROUP` is mirrored: the command line is built before any
 # command word is read (plan P2-D1), and the suite compares the two so
-# they cannot drift. It is NOT the default and stopped being it on
-# 2026-08-25 (plan A-P4-37): the default is what a run writes when
-# nobody asks, and this is a fact about people that did not move when
-# the default did.
+# they cannot drift. It is the same number as the default again since
+# 2026-09-22 (plan P4-D316), but it is a different fact: the default is
+# what a run writes when nobody asks, and this is a fact about people
+# that does not move when the default does.
 _NOTICE_LINE = 11
 
 # THE HELP FOR `--missing-value`, HELD AS A CONSTANT BECAUSE IT IS A
@@ -139,8 +143,8 @@ _MISSING_VALUE_HELP = (
     "described. READ THIS BEFORE YOU TYPE A WORD HERE: the word "
     "itself is written into the description, spelled exactly as "
     "your table spells it, in the block describing each column "
-    "where enough rows hold it -- and by default one row is "
-    "enough -- and that "
+    "where enough rows hold it -- by default at least "
+    f"{_SMALLEST_GROUP} -- and that "
     "column publishes any values at all -- so a diagnosis, a "
     "code or an identifier named here travels in the description "
     "and in the summary beside it. Below that many rows the "
@@ -177,6 +181,10 @@ _SEED_CEILING = "18446744073709551615"
 # '-profile.json' and '-profile.txt'.
 _PROFILE_MARK = "-profile"
 _TWIN_SUFFIX = "-twin.csv"
+# THE TWIN OF A WORKBOOK IS A WORKBOOK (plan P4-D79), so it is named
+# like one. A person whose table arrived as `clinic.xlsx` gets
+# `clinic-twin.xlsx`, which opens in the program their table came from.
+_WORKBOOK_TWIN_SUFFIX = "-twin.xlsx"
 _REPORT_SUFFIX = "-twin-report.txt"
 
 # And the one file `validate` writes -- added to the name of the file it
@@ -223,9 +231,12 @@ more, not a code that only ever appears beside one region, not two
 columns left empty in the same rows. Every row is built on its own too,
 and the description never says what one row of your table is, so a table
 holding several rows per person yields a twin that behaves differently
-from your table under anything that groups rows. Your analysis code
-RUNS on the twin, which is what the twin is for; a number it computes
-from two columns of the twin means nothing about your table.
+from your table under anything that groups rows. Analysis code you
+develop on the twin is meant to run unchanged on your table, and nothing
+here guarantees that it will: a step that depends on more than the
+description publishes, such as a cut into quartiles, can succeed on the
+twin and fail on your table. A number it computes from two columns of
+the twin means nothing about your table.
 Cross-column structure arrives in a later version of synthtwin.
 
 What that does and does not promise about your rows. The generator is
@@ -233,10 +244,11 @@ never handed your table, does not open one, and samples or copies no row
 of it. That says where the twin's values come from. It does not say that
 no row of the twin can equal a row of yours: the description publishes
 exact counts, and meeting them exactly can force a twin row to match a
-real one. A table of eleven rows with one column, whose single label all
-eleven rows share, publishes that label with the count eleven -- so the
-twin writes it in all eleven of its rows. synthtwin offers no formal
-privacy guarantee.
+real one. A table of 100 rows with one column, whose single label all
+100 rows share, publishes that label with the count 100 -- so the twin
+writes it in all 100 of its rows. 100 rows is the smallest table
+synthtwin describes: under that, `synthtwin profile` refuses and writes
+nothing. synthtwin offers no formal privacy guarantee.
 
 All six files -- the profile, the plain-language summary beside it, the
 questions file, the twin, the twin's report and the quality report --
@@ -334,7 +346,7 @@ def _described_columns(
     found: "list[dict[str, object]]" = []
     for entry in given:
         if isinstance(entry, dict):
-            found = found + [entry]
+            found += [entry]
     return found
 
 
@@ -373,10 +385,15 @@ def _encoding_note(encoding: str, used_fallback: bool) -> str:
     """One sentence about how the file was read."""
     if used_fallback:
         return (
-            "It was not readable as UTF-8, so it was read as Western "
-            "European text (Latin-1); if any accented letter looks wrong "
-            "in this summary, save the file as 'CSV UTF-8' and run the "
-            "command again."
+            f"It was not readable as UTF-8, so it was read as "
+            f"{dialect.ENCODING_WORDS[encoding]}; if any accented letter "
+            f"looks wrong in this summary, save the file as 'CSV UTF-8' "
+            f"and run the command again."
+        )
+    if encoding in (dialect.ENCODING_UTF16_LE, dialect.ENCODING_UTF16_BE):
+        return (
+            f"It was read as {dialect.ENCODING_WORDS[encoding]} text "
+            f"(encoding: {encoding})."
         )
     return f"It was read as UTF-8 text (encoding: {encoding})."
 
@@ -475,6 +492,17 @@ class _Options:
     missing_values: list[str]
     first_row: str
     day_first: bool
+    # How many rows under the column names describe those columns, as
+    # the person typed it, or empty (plan P4-D81). Text rather than a
+    # number for the reason `seed` is text: whether it is a number this
+    # tool can use is decided in words a person can act on.
+    metadata_rows: str
+    # Which character separates the columns, as the person typed it, or
+    # empty (plan P4-D110). Text for the reason `metadata_rows` is.
+    delimiter: str
+    # Which sheet of a workbook holds the table, or empty to settle it
+    # by the first visible one (plan P4-D77).
+    sheet: str
     seed: str
     replace: bool
 
@@ -596,15 +624,17 @@ def _parse_arguments(argv: "list[str] | None") -> _Options:
         metavar="ROWS",
         help=(
             "advanced: a value shared by fewer rows than this is left out "
-            "of the profile. THE DEFAULT IS 1, WHICH LEAVES NOTHING OUT: "
-            "every value your table holds is named, together with how many "
-            "rows shared it, so a rare value reaches the twin. Raise it -- "
-            "for instance --smallest-group 11 -- where a review board or a "
-            "data-use agreement requires that no group named anywhere in "
-            "the profile can point at one person; the profile then pools "
-            "everything below that number and every file the run makes says "
-            "on its face that it was built that way "
-            "(default: 1)"
+            "of the profile and counted into a pooled remainder instead of "
+            f"being named. THE DEFAULT IS {_SMALLEST_GROUP}: no group named "
+            "anywhere in the profile covers fewer than "
+            f"{_SMALLEST_GROUP} rows, so a value that fewer rows share is "
+            "not named and does not reach the twin by name. A smaller "
+            "number is let through -- --smallest-group 1 names every value "
+            "your table holds, together with how many rows shared it -- "
+            "and then the screen and every file the run makes say on their "
+            "face that the profile names groups small enough to point at "
+            "one person "
+            f"(default: {_SMALLEST_GROUP})"
         ),
     )
     parser.add_argument(
@@ -637,8 +667,11 @@ def _parse_arguments(argv: "list[str] | None") -> _Options:
             "of the column; what changes is that synthtwin stops reading "
             "them as numbers. It keeps each code exactly as written, "
             "leading zeros and all, and publishes how many rows carried "
-            "each one -- instead of an average, a smallest and a largest, "
-            "which for a code are meaningless and are real codes besides. "
+            "each code that at least the smallest group of rows share "
+            "(11 by default; rarer codes are counted together and not "
+            "named) -- instead of an average, a spread and points along "
+            "a range, which for a code are meaningless, and whose "
+            "published boundaries are real codes besides. "
             "Use this for a column written in digits. A column whose "
             "every value carries a letter or a dash usually reads as "
             "codes already, but one whose values are mostly bare "
@@ -667,12 +700,15 @@ def _parse_arguments(argv: "list[str] | None") -> _Options:
             "synthtwin never guesses this: a comma inside an address or "
             "a note is not a decimal point, so it changes the reading "
             "only for the columns you name. It reaches a column read as "
-            "PLAIN NUMBERS, and not one whose cells hold a number "
-            "inside a larger spelling -- a unit or a currency mark "
-            "around it, or a separator between two numbers -- because "
-            "then synthtwin cannot tell which mark is the decimal "
-            "point; where that happens it says so and reads the column "
-            "as it otherwise would. May be given more than once"
+            "PLAIN NUMBERS, and a column whose numbers each wear one "
+            "shared unit or currency mark, such as '795,64 EUR' or "
+            "'37,5 %%': there the number inside the mark is read and "
+            "written your way and the mark itself is copied exactly. "
+            "It does NOT reach a cell holding two numbers with a "
+            "separator between them, because there synthtwin cannot "
+            "tell which mark is the decimal point; where that happens "
+            "it says so and reads the column as it otherwise would. "
+            "May be given more than once"
         ),
     )
     parser.add_argument(
@@ -699,6 +735,40 @@ def _parse_arguments(argv: "list[str] | None") -> _Options:
             "column here says the number inside is a quantity after "
             "all, and it is described as one. May be given more than "
             "once"
+        ),
+    )
+    parser.add_argument(
+        "--metadata-rows",
+        default=None,
+        metavar="N",
+        help=(
+            "say that the first N rows UNDER your column names describe "
+            "those columns rather than holding a record. Some survey "
+            "tools write two such rows -- the question wording, then a "
+            "row of ImportId markers -- and a reader that takes them "
+            "for data gets two rows of machine text mixed in with "
+            "people's answers. Takes 0 or 2. Without it, every row "
+            "under your column names is read as a record of your "
+            "table: synthtwin recognises that shape and will SAY so, "
+            "in the questions file and on the screen, but it never "
+            "acts on it by itself, because a file it recognised "
+            "wrongly would have two real records removed from every "
+            "count and their values published as column descriptions"
+        ),
+    )
+    parser.add_argument(
+        "--delimiter",
+        default=None,
+        metavar="CHARACTER",
+        help=(
+            "say which character separates the columns of your file: "
+            "',' ';' '|' or the word tab. synthtwin works this out by "
+            "itself, and it asks rather than guesses where a file reads "
+            "equally well two ways -- 'id,pair|code' over rows such as "
+            "'1,2|3' is two columns under the comma and two different "
+            "columns under the vertical bar, and nothing in the cells "
+            "can say which is yours. Only for delimited text; a "
+            "workbook has no such character"
         ),
     )
     parser.add_argument(
@@ -776,6 +846,24 @@ def _parse_arguments(argv: "list[str] | None") -> _Options:
             "many. Every column it touches says in its remarks which "
             "reading was used and why, and says so again where the "
             "column's own values point both ways at once"
+        ),
+    )
+    parser.add_argument(
+        "--sheet",
+        default="",
+        metavar="NAME",
+        help=(
+            "which sheet of a spreadsheet workbook holds your table, by "
+            "its name. Without this, synthtwin reads the first sheet "
+            "that is not hidden and says on screen which one it chose. "
+            "That is not what a spreadsheet's own readers do -- they "
+            "take the first sheet whatever its state, which on a "
+            "workbook whose first sheet is a hidden notes page means "
+            "they read the notes -- so if your table is on a different "
+            "sheet, name it here. The name has to match the tab exactly, "
+            "and if it has a space in it put quotation marks around it. "
+            "This option does nothing for a delimited text file, which "
+            "has only one table in it"
         ),
     )
     parser.add_argument(
@@ -870,6 +958,11 @@ def _parse_arguments(argv: "list[str] | None") -> _Options:
         missing_values=list(declared_missing),
         first_row=f"{args.first_row}",
         day_first=bool(args.day_first),
+        metadata_rows=(
+            "" if args.metadata_rows is None else f"{args.metadata_rows}"
+        ),
+        delimiter=("" if args.delimiter is None else f"{args.delimiter}"),
+        sheet=f"{args.sheet}",
         seed=f"{args.seed}",
         replace=bool(args.replace),
     )
@@ -1003,10 +1096,12 @@ _ANSWER_KEYS = {
     "2": asking.ANSWER_CODE,
     "3": asking.ANSWER_IDENTIFIER,
     "4": asking.ANSWER_JOINED,
+    "5": asking.ANSWER_DECIMAL_COMMA,
     "m": asking.ANSWER_MEASUREMENT,
     "c": asking.ANSWER_CODE,
     "i": asking.ANSWER_IDENTIFIER,
     "j": asking.ANSWER_JOINED,
+    "d": asking.ANSWER_DECIMAL_COMMA,
 }
 
 _WHY_SHOWN = {
@@ -1022,6 +1117,27 @@ _WHY_SHOWN = {
         "every value is two or more numbers joined by one mark, "
         "which is how a blood pressure is written and also how a "
         "laboratory code is"
+    ),
+    asking.BECAUSE_GROUPED_FIXED_WIDTH: (
+        "every value is the same number of figures, grouped in threes, "
+        "which is how an identifier is written for reading"
+    ),
+    asking.BECAUSE_POINT_THOUSANDS: (
+        "every value with a point has three figures after it, and every "
+        "other value is below a thousand, which is also how a point "
+        "between thousands is written"
+    ),
+    # WHY THE PERSON QUESTION IS BEING PUT (plan P4-D340). Its reason is
+    # not that the column might be a code: it is that the column might
+    # name the people the rows are about, which is a different question
+    # with a different consequence, so it says so in its own words.
+    asking.BECAUSE_REPEATS_AND_MANY: (
+        "its values repeat, and there are either more of them than a "
+        "set of categories could hold or every one of them is written "
+        "as a code of letters and figures standing on two rows or "
+        "more, which is how a column naming the people the rows are "
+        "about is written, and no column at all was named with "
+        "--identifier"
     ),
 }
 
@@ -1070,6 +1186,7 @@ _KEY_OF = {
     asking.ANSWER_CODE: "2",
     asking.ANSWER_IDENTIFIER: "3",
     asking.ANSWER_JOINED: "4",
+    asking.ANSWER_DECIMAL_COMMA: "5",
     # THE STANDING READING SHARES KEY 1 WITH `measurement`, and the two
     # never appear on one question: a column of figures offers
     # `measurement` as the reading it already has, and a joined-looking
@@ -1111,6 +1228,191 @@ def _the_question(question: asking.Question, place: int, total: int) -> str:
         f"    What does this column hold?{lines}\n"
         f"    Press Enter to keep the reading synthtwin made, "
         f"which is the first one above."
+    )
+
+
+def _metadata_rows_unseen_notice(rows: int) -> str:
+    """What is said when such rows are declared on a file not wearing the shape.
+
+    The declaration exists for a survey export whose rows under the
+    column names describe those columns. Given on any other file it
+    USED to take those rows out of the table and publish them as
+    schema -- text held to no smallest group, written into the twin as
+    it stands. Measured on an ordinary table of 120 records:
+    `--metadata-rows 2` published two people's records verbatim at a
+    floor of eleven, dropped them from every count, and nothing but
+    this notice questioned it.
+
+    THAT IS NO LONGER WHAT HAPPENS (review of landing 2b.17, MAJOR).
+    A notice is not a safeguard: it is read after the description has
+    been written, by a person who has already made the mistake, and
+    the disclosure it describes has happened by the time they read it.
+    So the rows now STAY in the table -- the safe reading the contract
+    already names for a declaration that found nothing -- and this
+    notice says so and says how to confirm the declaration in the
+    questions file if the person means it. The reading still obeys the
+    person; what it no longer does is obey a declaration the file
+    contradicts without asking them first.
+    """
+    return (
+        f"{'=' * 66}\n"
+        f"YOUR FILE DOES NOT WEAR THE SHAPE --metadata-rows IS FOR\n"
+        f"{'=' * 66}\n"
+        f"You said the {rows} row(s) under your column names describe "
+        f"those columns. What synthtwin looked for and did not see is "
+        f"the shape such a file usually has: rows as wide as your "
+        f"table whose second holds a marker in every cell. So those "
+        f"{rows} rows have STAYED in your table: they are counted "
+        f"among your rows, described as data like every other record, "
+        f"and nothing they hold is published anywhere in your "
+        f"description. If they really do describe your columns, say so "
+        f"in the questions file this run writes -- answer "
+        f"'metadata-rows' under 'about_your_file', then describe the "
+        f"table again with --answers -- and they will be taken out of "
+        f"the table and published as written. You are asked rather "
+        f"than taken at your word here because on a file this "
+        f"declaration is wrong about, those rows are somebody's "
+        f"records, and publishing one of those cannot be undone."
+    )
+
+
+# How `--delimiter` may be typed (plan P4-D110). A tab is hard to type
+# on most command lines, so the word stands for it beside the character.
+_DELIMITER_SPELLINGS = {
+    ",": ",",
+    ";": ";",
+    "|": "|",
+    "\t": "\t",
+    "tab": "\t",
+}
+
+
+def _answers_that_change_the_reading(
+    written: asking.Answers, first_row: str, declared_delimiter: str
+) -> "list[str]":
+    """Which answers of a questions file change HOW THE FILE IS READ.
+
+    The subjects, in the questions file's own words, of the answers that
+    give the same column name to a different column (review of stage 3,
+    floor item 1). Two of the three file questions do that:
+
+    * WHICH ROW HOLDS THE COLUMN NAMES. Under one reading the names come
+      out of the file's first row; under the other they are generated,
+      `column_1`, `column_2` and so on. Every name moves, and `column_1`
+      exists under both readings.
+    * WHICH CHARACTER SEPARATES THE COLUMNS. It decides how many columns
+      there are and where each one begins, so a name may move, may be
+      the name of a wider column, or may not be a name at all.
+
+    The third, how many rows under the names describe the columns, takes
+    ROWS out of the table and leaves every column where it was, so it is
+    not here.
+
+    AN ANSWER THAT AGREES WITH WHAT WAS TYPED CHANGES NOTHING and is not
+    reported: `--first-row names` answered `names`, or `--delimiter ';'`
+    answered `semicolon`, is the reading already in force. A delimiter
+    answered where none was typed IS a change, because the reading in
+    force was the one the cells favoured and nothing here can know which
+    that was -- the answers are read before the table is opened, which
+    is what makes them usable at all.
+
+    Guarantees: accepts the answers read back from the file, the
+    `--first-row` option as typed and the delimiter as typed (empty
+    where none was); returns the subjects in the order the questions
+    file writes them. A fixed function of the three. Raises nothing,
+    opens no file, and carries no value of the table -- the subjects are
+    this module's own question headings.
+    """
+    changed: "list[str]" = []
+    if written.first_row == asking.ANSWER_FIRST_ROW_NAMES:
+        if first_row != _FIRST_ROW_NAMES:
+            changed += [asking.FIRST_ROW_SUBJECT]
+    elif written.first_row == asking.ANSWER_FIRST_ROW_DATA:
+        if first_row == _FIRST_ROW_NAMES:
+            changed += [asking.FIRST_ROW_SUBJECT]
+    if written.delimiter and written.delimiter != declared_delimiter:
+        changed += [asking.DELIMITER_SUBJECT]
+    return changed
+
+
+def _delimiter_tie_notice(tied: "tuple[str, ...]") -> str:
+    """What is said about a file that reads equally well two ways.
+
+    It names the delimiters, never a cell: which character separates the
+    columns is a fact about the file, and the reading taken is the one
+    the file would have had anyway (review item CODEX-4).
+
+    AND THE REASON IT GIVES IS THE REASON THE WALK USED (the repair of
+    the skeptic's finding 2 on P4-D282). This sentence said synthtwin
+    had taken "the reading under which more of the values read as
+    numbers", and that was true while a competitor had to agree about
+    the WIDTH to be reported at all -- `dialect.delimiter_reading` asks
+    the count of numbers only where the share AND the width tie. P4-D282
+    widened the competitor to any reading of the winner's own share, so
+    the sentence began to be printed about files the width alone
+    settled. MEASURED on the tree carrying P4-D282: a header
+    `id,note|tagA|tagB` over 120 rows `{i},alpha{i}|x{i}|y{i}` reads at
+    a share of 1.0 under both, two columns and 120 values read as
+    numbers under the comma, three columns and NOUGHT under the vertical
+    bar; the bar wins on the width, and the person was told it won
+    because more of the values read as numbers -- false by 120 to 0, in
+    the one sentence that tells them whether to override the reading.
+    The order is now stated as the walk has it: the wider reading, and
+    the count of numbers only between readings of one width.
+    """
+    others = ""
+    for one in tied[1:]:
+        others = (
+            dialect.DELIMITER_WORDS[one]
+            if not others
+            else f"{others} or with {dialect.DELIMITER_WORDS[one]}"
+        )
+    return (
+        f"{'=' * 66}\n"
+        f"YOUR FILE READS EQUALLY WELL WITH MORE THAN ONE DELIMITER\n"
+        f"{'=' * 66}\n"
+        f"Every record of your file splits cleanly, into one steady "
+        f"number of columns, whether it is read with "
+        f"{dialect.DELIMITER_WORDS[tied[0]]} or with "
+        f"{others} -- and the two readings need not give your table the "
+        f"same number of columns at all. Nothing in the values can say "
+        f"which your file uses. synthtwin has read it with "
+        f"{dialect.DELIMITER_WORDS[tied[0]]}, which is the reading that "
+        f"gives your table the most columns; where two readings give it "
+        f"the same number of columns, the one under which more of the "
+        f"values read as numbers is taken. If that is not how your "
+        f"file is written, describe the table again with --delimiter, "
+        f"or answer the question under 'about_your_file' in the "
+        f"questions file this run writes: your column names, and every "
+        f"column's values, depend on it."
+    )
+
+
+def _metadata_rows_notice() -> str:
+    """What is said about a file wearing a survey export's shape.
+
+    It names what was SEEN, what was done about it (nothing), and the
+    one option that changes it. The shape is not evidence: a table
+    whose first record happens to be as wide as its header with a row
+    of markers under it wears it too, and acting on the resemblance is
+    how a person's own record became schema text (review item
+    CODEX-2).
+    """
+    return (
+        f"{'=' * 66}\n"
+        f"THE TWO ROWS UNDER YOUR COLUMN NAMES MAY DESCRIBE THE COLUMNS\n"
+        f"{'=' * 66}\n"
+        f"They are each as wide as your table and every cell of the "
+        f"second is an ImportId marker, which is the shape some survey "
+        f"tools write to describe their columns. synthtwin has read "
+        f"them as RECORDS of your table, because that is what a row "
+        f"under the column names is unless you say otherwise, and "
+        f"because a file this shape was recognised wrongly in would "
+        f"have two real records taken out of every count and their "
+        f"values published as column descriptions. If those two rows "
+        f"do describe your columns, describe the table again with "
+        f"--metadata-rows 2, or answer the question under "
+        f"'about_your_file' in the questions file this run writes."
     )
 
 
@@ -1171,11 +1473,29 @@ def _assumptions_notice(questions: "list[asking.Question]") -> str:
     # and it reached the screen because nothing tests this text.
     numeric: list[asking.Question] = []
     joined: list[asking.Question] = []
+    # A JOINED-LOOKING COLUMN ALREADY READ AS JOINED NUMBERS (plan
+    # P4-D40) is not being described as text, and telling it so would
+    # be the false sentence the comment above records once already.
+    paired: list[asking.Question] = []
+    pointed: list[asking.Question] = []
+    # ...AND THE ONE QUESTION THAT IS NOT ABOUT A READING AT ALL (plan
+    # P4-D340). It asks who the rows are about, and falling through to
+    # the numeric block told a person their subject number was being
+    # averaged and offered them `--code`, which is the wrong answer to
+    # a question nobody had asked them.
+    people: list[asking.Question] = []
     for question in questions:
         if question.reason == asking.BECAUSE_JOINED:
-            joined = joined + [question]
+            if asking.reads_each_number(question.role):
+                paired += [question]
+            else:
+                joined += [question]
+        elif question.reason == asking.BECAUSE_POINT_THOUSANDS:
+            pointed += [question]
+        elif question.reason == asking.BECAUSE_REPEATS_AND_MANY:
+            people += [question]
         else:
-            numeric = numeric + [question]
+            numeric += [question]
 
     def _listing(group: "list[asking.Question]", say_what: bool) -> str:
         shown = ""
@@ -1196,7 +1516,12 @@ def _assumptions_notice(questions: "list[asking.Question]") -> str:
                 # different readings reaches free text, which publishes
                 # no value of it at all, and the notice said the
                 # opposite of the profile sitting beside it.
-                if not asking.publishes_its_values(question.role):
+                if asking.reads_each_number(question.role):
+                    line = line + (
+                        "\n      (each number in its cells is described "
+                        "on its own, and no whole cell is published)"
+                    )
+                elif not asking.publishes_its_values(question.role):
                     line = line + (
                         "\n      (no value of this column is published)"
                     )
@@ -1213,14 +1538,15 @@ def _assumptions_notice(questions: "list[asking.Question]") -> str:
         flags = _joined(
             [f"--code {_shown(one.name)}" for one in numeric], " "
         )
-        blocks = blocks + [
+        blocks += [
             f"THESE COLUMNS WERE READ AS MEASUREMENTS, AND MIGHT BE CODES."
             f"{_listing(numeric, False)}\n\n"
             f"synthtwin cannot tell a coding system from a measurement: "
             f"they are written identically, and only you know which this "
             f"is. Each column above is being described with an average, a "
-            f"smallest and a largest -- which for a code are meaningless, "
-            f"and are real codes besides -- and its twin will lose any "
+            f"spread and points along its range -- which for a code are "
+            f"meaningless, and whose published boundaries are real codes "
+            f"besides -- and its twin will lose any "
             f"leading zeros.\n\n"
             f"If any of them holds codes, run the command again naming "
             f"them:\n  {flags}"
@@ -1229,7 +1555,7 @@ def _assumptions_notice(questions: "list[asking.Question]") -> str:
         flags = _joined(
             [f"--measurement {_shown(one.name)}" for one in joined], " "
         )
-        blocks = blocks + [
+        blocks += [
             f"THESE COLUMNS HOLD TWO NUMBERS IN ONE CELL, AND MIGHT BE "
             f"READINGS.{_listing(joined, True)}\n\n"
             f"Each column above is being described as text rather than as "
@@ -1239,6 +1565,54 @@ def _assumptions_notice(questions: "list[asking.Question]") -> str:
             f"blood pressure of `120/80` is two readings and a laboratory "
             f"code is not, and only you know which this is.\n\n"
             f"If any of them holds readings, run the command again naming "
+            f"them:\n  {flags}"
+        ]
+    if paired:
+        flags = _joined(
+            [f"--code {_shown(one.name)}" for one in paired], " "
+        )
+        blocks += [
+            f"THESE COLUMNS HOLD TWO NUMBERS IN ONE CELL, AND WERE READ AS "
+            f"READINGS.{_listing(paired, True)}\n\n"
+            f"Each number inside those cells is described on its own, with "
+            f"its own average, spread and points along its range -- and "
+            f"its own two ends only where a group of rows shares them -- "
+            f"and the twin's cells "
+            f"are built from those. A blood pressure of `120/80` is two "
+            f"readings and a register written as two numbers is not, and "
+            f"only you know which this is.\n\n"
+            f"If any of them holds codes, run the command again naming "
+            f"them:\n  {flags}"
+        ]
+    if pointed:
+        flags = _joined(
+            [f"--decimal-comma {_shown(one.name)}" for one in pointed], " "
+        )
+        blocks += [
+            f"THESE COLUMNS WERE READ WITH A DECIMAL POINT, AND MIGHT BE "
+            f"WRITTEN WITH A POINT BETWEEN THOUSANDS.{_listing(pointed, False)}"
+            f"\n\n"
+            f"Each column above is being described with its point as a "
+            f"decimal point. If the point is a mark between thousands, "
+            f"every average, spread and published point of it is a "
+            f"thousand times too small, and only you know which it is.\n\n"
+            f"If any of them writes a point between thousands, run the "
+            f"command again naming them:\n  {flags}"
+        ]
+    if people:
+        flags = _joined(
+            [f"--identifier {_shown(one.name)}" for one in people], " "
+        )
+        blocks += [
+            f"THESE COLUMNS MIGHT NAME THE PEOPLE YOUR ROWS ARE ABOUT."
+            f"{_listing(people, False)}\n\n"
+            f"No column that names PEOPLE has been declared, so this "
+            f"table's population was counted in ROWS. If one row is one "
+            f"visit rather than one person, that count is larger than "
+            f"the number of people in the table, and synthtwin cannot "
+            f"tell which it is: a column whose values repeat can be a "
+            f"subject number or a ward.\n\n"
+            f"If any of them names people, run the command again naming "
             f"them:\n  {flags}"
         ]
     # `_joined` rather than `str.join`, for the offline audit's reason:
@@ -1295,7 +1669,7 @@ def _read_one_answer(standing: str = asking.ANSWER_MEASUREMENT) -> "str | None":
 
 def _put_the_questions(
     questions: "list[asking.Question]",
-) -> "tuple[list[str], list[str], list[str]] | None":
+) -> "tuple[list[str], list[str], list[str], list[str]] | None":
     """Put every question; return the columns named as codes and as IDs.
 
     None where the person ended the run at a prompt: Ctrl-C and Ctrl-D
@@ -1317,6 +1691,7 @@ def _put_the_questions(
     codes: list[str] = []
     identifiers: list[str] = []
     measurements: list[str] = []
+    commas: list[str] = []
     place = 0
     for question in questions:
         place = place + 1
@@ -1325,27 +1700,32 @@ def _put_the_questions(
         if answer is None:
             return None
         if answer == asking.ANSWER_CODE:
-            codes = codes + [question.name]
+            codes += [question.name]
         elif answer == asking.ANSWER_IDENTIFIER:
-            identifiers = identifiers + [question.name]
+            identifiers += [question.name]
         elif answer == asking.ANSWER_JOINED:
-            measurements = measurements + [question.name]
-    return codes, identifiers, measurements
+            measurements += [question.name]
+        elif answer == asking.ANSWER_DECIMAL_COMMA:
+            commas += [question.name]
+    return codes, identifiers, measurements, commas
 
 
 def _how_to_repeat(
     forced_codes: "list[str]",
     forced_identifiers: "list[str]",
     forced_measurements: "list[str]",
+    forced_decimal_commas: "tuple[str, ...]" = (),
 ) -> str:
     """The options that repeat this run without asking anything."""
     parts: list[str] = []
+    for name in sorted(forced_decimal_commas):
+        parts += [f"--decimal-comma {_shown(name)}"]
     for name in sorted(forced_codes):
-        parts = parts + [f"--code {_shown(name)}"]
+        parts += [f"--code {_shown(name)}"]
     for name in sorted(forced_identifiers):
-        parts = parts + [f"--identifier {_shown(name)}"]
+        parts += [f"--identifier {_shown(name)}"]
     for name in sorted(forced_measurements):
-        parts = parts + [f"--measurement {_shown(name)}"]
+        parts += [f"--measurement {_shown(name)}"]
     flags = _joined(parts, " ")
     return (
         f"\nTO REPEAT THIS RUN WITHOUT THE QUESTIONS, add:\n  "
@@ -1355,12 +1735,12 @@ def _how_to_repeat(
 
 
 def _lowered_floor_warning(given: int) -> str:
-    """The warning shown when `--smallest-group` is under the default.
+    """The warning shown when `--smallest-group` is under the notice line.
 
     Guarantees:
 
     - Inputs: the number the person typed, already known to be below
-      `taxonomy.Settings().small_cell_floor` and at least 1.
+      `_NOTICE_LINE` (the default, 11) and at least 1.
     - Determinism: a fixed function of that number.
     - Errors raised: none.
     - Boundary: no value of the table reaches it. It names a count and
@@ -1383,14 +1763,26 @@ def _lowered_floor_warning(given: int) -> str:
     suite compares the two so they cannot drift. `_NOTICE_LINE` mirrors
     `contract.SMALL_GROUP_NOTICE_LINE` the same way.
 
+    IT NAMES THE UNIT OF EACH FLOOR, AND IT COUNTS SIX FILES (review of
+    2026-09-23, items 6 and 10). Two sentences were false. It said the
+    notice line keeps a published group too big to point at one
+    person, and the disclosure floor counts ROWS (plan P4-D348):
+    measured on 100 declared people of twelve visits each, a value one
+    person holds publishes the count 12 at the default floor. And it
+    counted the files a full run leaves one short, and it counted the
+    pages that stamp themselves one too many: the pages that say it in
+    words are the summary, the twin's report and the quality report,
+    beside the description, which records the floor as a setting.
+
     WHEN THIS IS SHOWN CHANGED ON 2026-08-25 (plan A-P4-37). It used to
     be shown whenever the floor was under the default, which was the
     same thing as somebody having typed `--smallest-group`. The default
-    is 1 now, so that test would never fire again. It is shown when the
-    person TYPED a floor under `_NOTICE_LINE` -- a choice they made and
-    should see priced. A default run says the same facts on the written
-    pages, which are the files that travel, and does not alarm the
-    screen about a setting nobody chose.
+    was 1 from then until 2026-09-22, so that test would never have
+    fired. It is shown when the person TYPED a floor under
+    `_NOTICE_LINE` -- a choice they made and should see priced. The
+    default is 11 again since 2026-09-22 (plan P4-D316), the same number
+    as `_NOTICE_LINE`, so a run that names no floor is never alarmed,
+    and a run that types one below it always is.
     """
     # At a floor of one a published group can be a single row, which is
     # the whole of the disclosure said in one sentence -- so it is said,
@@ -1426,18 +1818,202 @@ def _lowered_floor_warning(given: int) -> str:
         f"else the description says about that group. Nothing has to be "
         f"broken into or decoded for that to happen: the count is the "
         f"disclosure, and {_NOTICE_LINE} is the number "
-        f"that keeps a published group too big to point at one person.\n"
+        f"that keeps a published group bigger than that.\n"
+        f"\n"
+        f"AND THE NUMBER COUNTS ROWS, NOT PEOPLE. Whatever you set it "
+        f"to, a group has to cover that many ROWS. Where your table "
+        f"holds several rows per person, twelve visits of one patient "
+        f"are twelve rows, so a value only that patient has is "
+        f"published with the count twelve even at the usual "
+        f"{_NOTICE_LINE}. The one number counted in people is the SIZE "
+        f"of the table, which is what decides whether synthtwin will "
+        f"describe it at all.\n"
         f"\n"
         f"WHERE THOSE COUNTS GO NEXT. Not into the description alone. "
         f"The twin is built to hold the published counts exactly, and "
         f"the plain-language summary beside the description, the twin's "
-        f"report and the quality report all quote them back. All five "
-        f"files of a full run carry them, and each of the four written "
-        f"pages says on its own face that it was made this way.\n"
+        f"report and the quality report all quote them back. All six "
+        f"files of a full run carry them, and the summary, the twin's "
+        f"report and the quality report each say on their own face that "
+        f"this description names groups this small, while the "
+        f"description itself records the floor it was made at.\n"
         f"\n"
         f"IF YOU DID NOT MEAN THIS, run the command again without "
         f"--smallest-group, or with a larger number, and delete what "
         f"this run writes."
+    )
+
+
+# -- the population floor (plan P4-D341) ------------------------------
+#
+# IT LIVES IN THIS COMMAND AND NOWHERE ELSE. `profile.build_document`
+# describes a table of any size, the loader reads a description of one,
+# and `synthtwin validate` checks a file of one -- so a library caller
+# keeps describing five rows, the validator keeps re-describing whatever
+# it was pointed at, and a description written before this landing still
+# loads. What the floor governs is the one act this command performs:
+# turning somebody's real table into files that leave the machine.
+
+
+def _population_of(
+    column_names: "list[str]",
+    columns: "list[list[str]]",
+    settings: object,
+    declared: "list[str]",
+    codes: "list[str] | None" = None,
+    measurements: "list[str] | None" = None,
+    decimal_commas: "list[str] | None" = None,
+) -> "tuple[tuple[str, ...], int, str, tuple[object, ...]]":
+    """The person columns, the population and the word it is counted in.
+
+    Returns (person columns, how many, the unit word, the readings the
+    census took). The readings are handed to `profile.build_document`
+    right after, so a column the census read under the finished reading
+    is not read again there (`taxonomy.population_census`). The unit is
+    `people` where some declared identifier REPEATS and `rows` where
+    none does, which is what `taxonomy.repeating_identifiers` decides
+    and says why at length.
+
+    THE ROWS COUNTED ARE THE ROWS THAT HOLD A VALUE (repair of landing
+    3.2), which is `taxonomy.people_in`'s rule and not this function's:
+    a row every cell of which the run reads as "no value" is counted
+    nowhere, so twenty records padded to a hundred lines are a
+    population of twenty and are refused -- whether the padding is
+    blank, a listed spelling, a declared number or a stand-in this run
+    judged for itself.
+
+    AND WHAT A CELL HOLDS IS THE FINISHED READING'S ANSWER (review of
+    stage 3, floor item 3). All four declarations are carried down,
+    not the identifiers alone: each of them changes which cells of a
+    column survive the passes that judge "no value", and the census has
+    to read each column the way the run reads it. Measured before this:
+    a column of twenty numbers followed by eighty `-999` cells passed
+    the hundred-row floor as a hundred rows, under
+    `--missing-value=-999`, under `-999.0`, and under the stand-in rule
+    with nothing declared at all -- and the description that came out of
+    the same run recorded twenty present cells.
+
+    Guarantees: accepts the table's column names, its columns as text
+    in the same order, the settings in force and the columns declared
+    with `--identifier`, `--code`, `--measurement` and
+    `--decimal-comma`; returns the four. A fixed function of them.
+    Raises TypeError where the settings are not settings, which is an
+    internal invariant. Opens no file and prints nothing.
+    """
+    from synthtwin import taxonomy
+
+    if not isinstance(settings, taxonomy.Settings):
+        raise TypeError("internal check: the settings are not settings")
+    declarations = taxonomy.Declarations(
+        identifiers=tuple(declared),
+        codes=tuple(codes if codes is not None else []),
+        measurements=tuple(
+            measurements if measurements is not None else []
+        ),
+        decimal_commas=tuple(
+            decimal_commas if decimal_commas is not None else []
+        ),
+    )
+    people, counted, readings = taxonomy.population_census(
+        column_names, columns, declared, settings, declarations
+    )
+    unit = taxonomy.NOTE_UNIT_ROWS
+    if people:
+        unit = taxonomy.NOTE_UNIT_PEOPLE
+    return people, counted, unit, readings
+
+
+def _table_sentences(document: "dict[str, object]") -> "list[str]":
+    """The description's notes about the WHOLE TABLE, in its own order.
+
+    Read back out of the document rather than kept in a variable beside
+    it (plan P4-D341): the questions file then carries exactly what the
+    description carries, and a rebuild that changed the note cannot
+    leave the two disagreeing.
+    """
+    notes = document["publication_notes"]
+    said: "list[str]" = []
+    if not isinstance(notes, list):
+        return said
+    for entry in notes:
+        if not isinstance(entry, dict):
+            continue
+        if entry["column"] != "":
+            continue
+        said += [f"{entry['note']}"]
+    return said
+
+
+def _counted_in_rows_notice(names: "list[str]") -> str:
+    """What the screen says when nobody has said who the rows are about.
+
+    Printed beside the person question (plan P4-D340), and only where
+    the population is still counted in ROWS. The question asks whether
+    a column names people; this says what the run did in the meantime,
+    which is the half a person cannot see: the population was counted
+    in ROWS, and a table of several rows per subject therefore passed a
+    floor its subjects might not have.
+
+    AND IT SAYS "NO COLUMN THAT NAMES PEOPLE", not "nothing was named
+    with --identifier" (review of stage 3, floor item 4). The question
+    is now put wherever the count is still in rows, and a unique-per-row
+    `visit_id` declared is a column named with `--identifier` that
+    leaves the count exactly there -- so the older sentence would have
+    told a person who had just typed the option that they had not.
+
+    Guarantees: accepts the columns asked about; returns one paragraph.
+    A fixed function of the names, which are the table's own column
+    names and are published in the description like every other.
+    Raises nothing, opens no file.
+    """
+    return (
+        f"\nHOW THIS RUN COUNTED YOUR TABLE\n"
+        f"No column that names PEOPLE has been declared, so this "
+        f"table's population was counted in ROWS. If one row of your "
+        f"table is one visit rather than one person, that count is "
+        f"larger than the number of people in it.\n"
+        f"\nThe questions file asks about "
+        f"{_joined(names, ' and ')}, whose values repeat and are "
+        f"either many or written as codes -- the shape a column that "
+        f"names people wears. Answer it there, or run the command "
+        f"again with --identifier and the column's name, and the "
+        f"population will be counted in people."
+    )
+
+
+def _small_population_notice(spoken: str, person_columns: str) -> str:
+    """The notice a table between the floor and the line gets, on the screen.
+
+    ONE NOTICE, AND IT CANNOT BE SILENCED (plan P4-D341). There is no
+    option that turns it off, it is not conditional on anybody being at
+    the keyboard, and the sentence in it is the same sentence the
+    description carries: the screen and the five pages a full run
+    leaves cannot say two different things about how large the table
+    was, because all of them render the one note.
+
+    Guarantees: accepts the note's rendered sentence and the person
+    columns named, if any; returns one paragraph. A fixed function of
+    the two. Raises nothing, opens no file, and carries no value of the
+    table -- the names in it are ones the person typed after
+    `--identifier`.
+    """
+    by = ""
+    if person_columns:
+        by = (
+            f" The people were counted by {person_columns}: rows "
+            f"sharing a value there are one person, and rows holding no "
+            f"value there count as one person between them."
+        )
+    return (
+        f"\nABOUT THE SIZE OF THIS TABLE\n"
+        f"{spoken}.{by}\n"
+        f"\nThis notice is on the screen and on every page this run "
+        f"writes. The description carries it as a note of its own, and "
+        f"the plain-language summary, the questions file, the twin's "
+        f"report and the quality report all read it back from there. "
+        f"Nothing turns it off. The twin's own table carries no trace "
+        f"of it, so code you write against the twin runs exactly as it "
+        f"ran before."
     )
 
 
@@ -1455,6 +2031,9 @@ def _run_profile(
     missing_values: list[str],
     first_row: str,
     day_first: bool,
+    sheet: str = "",
+    metadata_rows_given: str = "",
+    delimiter_given: str = "",
 ) -> int:
     """Do the work of `synthtwin profile`; return the exit code.
 
@@ -1492,6 +2071,35 @@ def _run_profile(
         _warn(errors.floor_not_positive(f"{smallest_group}"))
         return 2
 
+    # HOW MANY ROWS UNDER THE NAMES DESCRIBE THE COLUMNS (plan P4-D81).
+    # Refused here, before the table is opened, like every other
+    # declaration that cannot be acted on.
+    metadata_rows = 0
+    # WHETHER THE PERSON CONFIRMED IT AFTER BEING TOLD WHAT IT COSTS
+    # (review of landing 2b.17, MAJOR). A declaration typed on the
+    # command line is read, and where the file does not bear it out the
+    # rows STAY in the table and the question is put in the questions
+    # file. An answer in that file is the confirmation: it is given
+    # after reading what each answer publishes, so it cannot be a
+    # typing slip, and it is the one route by which such rows leave the
+    # table on a file wearing none of the shape.
+    metadata_rows_confirmed = False
+    if metadata_rows_given:
+        if metadata_rows_given not in ("0", "2"):
+            _warn(errors.metadata_rows_not_supported(_shown(metadata_rows_given)))
+            return 2
+        metadata_rows = int(metadata_rows_given)
+
+    # WHICH CHARACTER SEPARATES THE COLUMNS, WHERE THE PERSON SAID (plan
+    # P4-D110, review item CODEX-4). Refused before the table is opened
+    # where it is not one of the four this format reads.
+    declared_delimiter = ""
+    if delimiter_given:
+        if delimiter_given not in _DELIMITER_SPELLINGS:
+            _warn(errors.delimiter_not_supported(_shown(delimiter_given)))
+            return 2
+        declared_delimiter = _DELIMITER_SPELLINGS[delimiter_given]
+
     # THE ANSWERS ARE READ BEFORE THE TABLE IS OPENED (amendment
     # A-P4-58). A file that is not a questions file, or that answers a
     # column with a word no question offered, is the person's mistake
@@ -1515,10 +2123,98 @@ def _run_profile(
         except ValueError as error:
             _warn(_shown(f"{error}"))
             return 2
+        # THE FIFTH ANSWER IS READ BEFORE THE TABLE IS OPENED, which is
+        # what makes it usable at all (plan P4-D81): it changes the
+        # READING of the file, so an answer arriving after the read
+        # would mean reading the table twice. A person answers the
+        # question in the file their last run wrote, and their next run
+        # reads their table the way they said.
+        # AN ANSWER OF `data` IS AN ANSWER (plan P4-D172). It is nought
+        # rows, and a truthiness test here read nought as "not answered"
+        # and kept a typed `--metadata-rows 2`: measured, a file whose
+        # two rows under the names were a person's record and a marker
+        # row lost both to `header_rows` after the person had answered
+        # that they were records.
+        if written.metadata_rows_answered:
+            metadata_rows = written.metadata_rows
+            metadata_rows_confirmed = written.metadata_rows > 0
+        # AN ANSWER THAT CHANGES THE READING MAY NOT STAND BESIDE ONE
+        # THAT NAMES A COLUMN (review of stage 3, floor item 1). The
+        # names in a questions file are the names of the reading that
+        # WROTE it; an answer that changes the reading gives the same
+        # names to different columns, and a declaration applied by name
+        # afterwards lands on the wrong one. Measured on the tree before
+        # this refusal: a header of `column_2,column_1` over 360 records
+        # whose first field held twelve repeating subject codes, with
+        # `names` answered for the first row and `identifier` answered
+        # for `column_1` -- the FIRST field under the reading in force
+        # -- reached all three writers with the declaration on the
+        # SECOND field, counted 350 people and published the twelve real
+        # subject codes with their visit counts. Declaring the first
+        # field refuses the same table as twelve people.
+        #
+        # THE ANSWERS ARE NOT RANKED AND NOTHING IS GUESSED. Whether
+        # `column_1` means the first field or a column the corrected
+        # reading names `column_1` is exactly what cannot be told apart
+        # -- the reproduction above is a file where both readings hold
+        # -- so the pair is refused and the person is told to answer the
+        # file's own question first. Two runs, each with one reading in
+        # it, and no name means two columns.
+        reading_changed = _answers_that_change_the_reading(
+            written, first_row, declared_delimiter
+        )
+        named_columns: "list[str]" = []
+        for one in (
+            list(written.codes)
+            + list(written.identifiers)
+            + list(written.measurements)
+            + list(written.decimal_commas)
+        ):
+            # Each name once: a column answered in both sections of the
+            # file would otherwise stand twice in one sentence.
+            if one not in named_columns:
+                named_columns += [one]
+        if reading_changed and named_columns:
+            _warn(
+                errors.answers_change_the_reading_and_name_columns(
+                    _shown(answers_path), reading_changed,
+                    sorted(named_columns),
+                )
+            )
+            return 2
+        # ...AND THE SIXTH, FOR THE SAME REASON (plan P4-D110): which
+        # delimiter the file is written with decides how it is read, so
+        # the answer has to arrive before the read. It is the newer
+        # statement and replaces a typed one.
+        if written.delimiter:
+            declared_delimiter = written.delimiter
+        # ...AND THE SEVENTH, FOR THE SAME REASON (the owner's ruling of
+        # 2026-09-17, item 8; plan P4-D232): which row holds the column
+        # names decides how the file is read, so the answer has to
+        # arrive before the read.
+        #
+        # BOTH ANSWERS ARE APPLIED, and only one of them was until the
+        # review of stage 3 (floor item 2). `first-record` was called
+        # "the reading that already stands", which it is only while
+        # nothing else moves: answered BESIDE a delimiter correction it
+        # is the one answer holding the first row in the table, and
+        # dropping it let the corrected reading take that row as the
+        # column names. Measured: a first record of `12,HEADER|LABEL`
+        # over 360 records of `i,code{i}|other{i}`, answered
+        # `first-record` and `vertical-bar`, described 360 records and
+        # published `12,HEADER` and `LABEL` as two column names, where
+        # `--first-row data --delimiter '|'` keeps all 361 records and
+        # names the columns `column_1` and `column_2`. An answer that is
+        # dropped is an answer a person was told had been heard.
+        if written.first_row == asking.ANSWER_FIRST_ROW_NAMES:
+            first_row = _FIRST_ROW_NAMES
+        elif written.first_row == asking.ANSWER_FIRST_ROW_DATA:
+            first_row = _FIRST_ROW_DATA
         spoken_for = (
             list(written.codes)
             + list(written.identifiers)
             + list(written.measurements)
+            + list(written.decimal_commas)
         )
         forced_codes = sorted(
             [one for one in forced_codes if one not in spoken_for]
@@ -1531,6 +2227,14 @@ def _run_profile(
         forced_measurements = sorted(
             [one for one in forced_measurements if one not in spoken_for]
             + list(written.measurements)
+        )
+        # AN ANSWER THAT THE POINT GROUPS THOUSANDS IS `--decimal-comma`
+        # (landing 2b.2), added to the typed ones rather than replacing
+        # them: the declaration names a column, and naming it twice is
+        # naming it once.
+        forced_decimal_commas = sorted(
+            [one for one in forced_decimal_commas if one not in written.decimal_commas]
+            + list(written.decimal_commas)
         )
         answers_were_handed_back = bool(spoken_for)
     # UNDER BOTH READINGS WHERE EITHER IS IN PLAY (review item
@@ -1578,7 +2282,70 @@ def _run_profile(
         declared_missing_values=tuple(missing_values),
         day_first=day_first,
     )
-    read = reading.read_table(table, first_row)
+    read = reading.read_table(
+        table, first_row, sheet=sheet, metadata_rows=metadata_rows,
+        # ...and whether the person confirmed a declaration the file
+        # does not bear out, which is what decides whether those rows
+        # leave the table at all (review of landing 2b.17, MAJOR).
+        metadata_rows_confirmed=metadata_rows_confirmed,
+        # AND UNDER THE DECLARED GRAMMAR (review item CODEX-9). The
+        # survey reads the row order off the cells as written, and a
+        # column declared to write `0,5` and `10,0` reads as no number
+        # at all under the ordinary grammar -- so it fell to the text
+        # collation, where `10,0` sorts before `9,9`, and a table
+        # genuinely sorted by it published no order. The declaration
+        # has to reach the survey for the order to be read correctly.
+        decimal_comma_columns=tuple(forced_decimal_commas),
+        # AND WITH THE DELIMITER THE PERSON DECLARED, where they did
+        # (plan P4-D110). Nothing is guessed about a declared one.
+        declared_delimiter=declared_delimiter,
+        # AND WITH THE SMALLEST GROUP, which both readers want. On a
+        # workbook it decides whether a column's second number format is
+        # a population of it or the one cell somebody reformatted (plan
+        # P4-D283); on a delimited file the written form carries counts
+        # and positions of its own lines, and those are held to the one
+        # disclosure rule like every other count synthtwin publishes
+        # (plan P4-D290). One number, so it is passed once.
+        small_cell_floor=settings.small_cell_floor,
+    )
+
+    # A FILE THAT READS EQUALLY WELL UNDER TWO DELIMITERS IS SAID OUT
+    # LOUD (review item CODEX-4, plan P4-D110). It is read the way the
+    # cells favour, which is how every file this tool twinned before is
+    # still read, and the person is told the other reading exists and
+    # how to choose it: a silent misreading of their columns is the one
+    # outcome this may not leave them with.
+    delimiter_tie: "tuple[str, ...]" = ()
+    if read.survey is not None and not declared_delimiter:
+        delimiter_tie = read.survey.delimiter_tie
+    if delimiter_tie:
+        _say(f"\n{_delimiter_tie_notice(delimiter_tie)}\n")
+
+    # AND THE PERSON IS TOLD WHAT WAS SEEN AND NOT ACTED ON (plan
+    # P4-D81). The shape some survey exports wear is recognised and
+    # deliberately left alone: saying nothing would leave a person
+    # whose file really is such an export with two rows of machine
+    # text among their records and no idea why.
+    surveyed = read.survey
+    if surveyed is not None and surveyed.metadata_shape and not metadata_rows:
+        _say(f"\n{_metadata_rows_notice()}\n")
+
+    # ...AND A DECLARATION THE FILE DOES NOT BEAR OUT IS QUESTIONED THE
+    # OTHER WAY ROUND. The notice above exists because acting on a
+    # resemblance published a person's record as schema; the
+    # declaration itself is checked against nothing at all, so
+    # `--metadata-rows 2` on an ordinary table takes two records out of
+    # it and publishes them verbatim, exempt from the smallest group,
+    # with nothing said. The reading still obeys the person -- it is
+    # their file and their declaration -- and they are told what was
+    # seen.
+    metadata_declaration_unseen = (
+        bool(metadata_rows)
+        and (surveyed is None or not surveyed.metadata_shape)
+        and not metadata_rows_confirmed
+    )
+    if metadata_declaration_unseen:
+        _say(f"\n{_metadata_rows_unseen_notice(metadata_rows)}\n")
 
     # An option naming a column that is not there is refused here, with
     # nothing built and nothing written. Warning about it afterwards --
@@ -1679,6 +2446,39 @@ def _run_profile(
         _warn(errors.column_declared_twice(both[0]))
         return 2
 
+    # THE POPULATION FLOOR, ASKED FIRST WITH WHAT IS DECLARED SO FAR
+    # (plan P4-D341): the columns typed after `--identifier` and the
+    # ones answered in the questions file, both of which were settled
+    # before the table was opened. A declaration that arrives later --
+    # on the screen, at the interview below -- can only LOWER the count
+    # of people, because a repeating identifier splits the rows into
+    # more groups than one, so this check is a necessary condition and
+    # the one after the rebuild is the final one.
+    #
+    # NOTHING HAS BEEN WRITTEN AT THIS POINT and nothing has been
+    # described. A table under the floor therefore costs the person one
+    # message and no files at all.
+    person_columns, population, unit, census_readings = _population_of(
+        read.column_names,
+        read.columns,
+        settings,
+        forced_identifiers,
+        forced_codes,
+        forced_measurements,
+        forced_decimal_commas,
+    )
+    if population < parsing.POPULATION_FLOOR:
+        _warn(
+            errors.the_population_is_too_small(
+                population, unit, _joined(list(person_columns), " and ")
+            )
+        )
+        return 1
+    settings = dataclasses.replace(settings, person_columns=person_columns)
+    population_notes = profile.notes_for_a_small_population(
+        population, unit, parsing.POPULATION_NOTICE_LINE
+    )
+
     document = profile.build_document(
         read,
         settings,
@@ -1686,7 +2486,13 @@ def _run_profile(
         forced_codes,
         forced_measurements,
         forced_decimal_commas,
+        forced_metadata_rows=metadata_rows,
+        forced_delimiter=declared_delimiter,
+        table_notes=population_notes,
+        readings=census_readings,
     )
+    # Handed over once: the description has taken the reading as its own.
+    census_readings = ()
 
     # THE ONE QUESTION THE VALUES CANNOT SETTLE (plan P4-D19). Asked
     # after the description is built, because what a column was READ AS
@@ -1730,8 +2536,31 @@ def _run_profile(
     already_answered = (
         forced_identifiers + forced_codes + forced_measurements
     )
-    asked_about = asking.questions_for(
-        document, read.columns, settings, already_answered
+    asked_about, split_columns = asking.questions_and_splits_for(
+        document,
+        read.columns,
+        settings,
+        already_answered,
+        tuple(forced_decimal_commas),
+    )
+    # ...AND THE ONE QUESTION ABOUT WHO THE ROWS ARE (plan P4-D340).
+    # Asked only where the population is STILL COUNTED IN ROWS -- where
+    # `settings.person_columns` is empty, which is exactly where nobody
+    # has settled who the rows are about -- of a column whose values
+    # repeat and are many or are written as codes: the shape a table
+    # with several rows per subject wears. Until it existed, such a
+    # table was counted in rows with nothing said and every subject's
+    # identifier published beside its visit count; and until the review
+    # of stage 3 (floor item 4) a declared identifier DIFFERENT ON
+    # EVERY ROW silenced it while leaving the count in rows, which is
+    # the same silence by a shorter route.
+    asked_about = asked_about + asking.person_questions(
+        document,
+        read.columns,
+        settings,
+        already_answered,
+        asked_about,
+        split_columns,
     )
     # EVERY COLUMN READ AS A NUMBER, LISTED UNDER ONE QUESTION
     # (owner ruling 2026-09-10, amendment A-P4-58). The questions
@@ -1747,14 +2576,23 @@ def _run_profile(
         asked_about,
     )
     answered = False
+    assumptions_said = False
     if asked_about:
         if _there_is_somebody_to_ask():
             given = _put_the_questions(asked_about)
             if given is None:
                 _warn(errors.the_questions_were_not_finished())
                 return 1
-            new_codes, new_identifiers, new_measured = given
-            if new_codes or new_identifiers or new_measured:
+            new_codes, new_identifiers, new_measured, new_commas = given
+            if new_codes or new_identifiers or new_measured or new_commas:
+                forced_decimal_commas = sorted(
+                    [
+                        named
+                        for named in forced_decimal_commas
+                        if named not in new_commas
+                    ]
+                    + new_commas
+                )
                 forced_codes = sorted(forced_codes + new_codes)
                 forced_identifiers = sorted(
                     forced_identifiers + new_identifiers
@@ -1800,14 +2638,51 @@ def _run_profile(
                 kept_commas: "list[str]" = []
                 for named in forced_decimal_commas:
                     if named in forced_codes or named in forced_identifiers:
-                        dropped = dropped + [named]
+                        dropped += [named]
                         continue
-                    kept_commas = kept_commas + [named]
+                    kept_commas += [named]
                 forced_decimal_commas = kept_commas
                 for named in dropped:
                     _warn(
                         errors.the_comma_declaration_was_answered_away(named)
                     )
+                # THE POPULATION FLOOR AGAIN, WITH THE FINAL SET (plan
+                # P4-D341), and this time it is final: the person has
+                # just said on the screen which columns hold record
+                # numbers, so a table counted in rows a moment ago may
+                # be counted in people now and may be too small. It is
+                # asked HERE, before anything is announced and before
+                # anything is written, so a refusal still costs one
+                # message and no files.
+                # READ AFRESH under the final declarations, and handed
+                # over again: the first census's readings were the
+                # first description's.
+                person_columns, population, unit, census_readings = (
+                    _population_of(
+                        read.column_names,
+                        read.columns,
+                        settings,
+                        forced_identifiers,
+                        forced_codes,
+                        forced_measurements,
+                        forced_decimal_commas,
+                    )
+                )
+                if population < parsing.POPULATION_FLOOR:
+                    _warn(
+                        errors.the_population_is_too_small(
+                            population,
+                            unit,
+                            _joined(list(person_columns), " and "),
+                        )
+                    )
+                    return 1
+                settings = dataclasses.replace(
+                    settings, person_columns=person_columns
+                )
+                population_notes = profile.notes_for_a_small_population(
+                    population, unit, parsing.POPULATION_NOTICE_LINE
+                )
                 document = profile.build_document(
                     read,
                     settings,
@@ -1815,7 +2690,12 @@ def _run_profile(
                     forced_codes,
                     forced_measurements,
                     forced_decimal_commas,
+                    forced_metadata_rows=metadata_rows,
+                    forced_delimiter=declared_delimiter,
+                    table_notes=population_notes,
+                    readings=census_readings,
                 )
+                census_readings = ()
                 # And the role check is asked again of the rebuilt
                 # description, for the same reason.
                 for name in sorted(forced_decimal_commas):
@@ -1832,6 +2712,11 @@ def _run_profile(
             answered = True
         else:
             _say(f"\n{_assumptions_notice(asked_about)}\n")
+            # THAT NOTICE ALREADY SAYS THE POPULATION WAS COUNTED IN
+            # ROWS, in its own block, so the sentence below is not said
+            # a second time (plan P4-D340). One fact, one place, on the
+            # screen as well as on a page.
+            assumptions_said = True
     # THE CHECKLIST IS SHOWN ONCE PER RUN, WHOEVER IS THERE (review
     # round 1 of landing L17a, item 1). It hung off the scripted notice
     # above, which fires only where a column's VALUES raised a question
@@ -1842,6 +2727,30 @@ def _run_profile(
     # that should depend on another column raising a question.
     if listed_about:
         _say(f"\n{_checklist_notice(listed_about)}\n")
+    # HOW LARGE THE TABLE IS, SAID ONCE, WHOEVER IS THERE (plan
+    # P4-D341). It is printed here because here the count is final:
+    # the interview above is the last thing that can change which
+    # columns name people, and nothing has been announced or written
+    # yet. The sentence is the one the description carries, rendered
+    # from the note itself rather than written again at this call site,
+    # so the screen cannot drift from the five pages.
+    for spoken in population_notes:
+        _warn(
+            _small_population_notice(
+                f"{spoken}", _joined(list(person_columns), " and ")
+            )
+        )
+    # AND WHERE NOBODY HAS SAID WHO THE ROWS ARE, THE SCREEN SAYS SO
+    # (plan P4-D340). A person asked about a column that might name
+    # people has to be told what this run did in the meantime, or the
+    # question reads as a request for information rather than a
+    # decision with a standing answer.
+    person_asked: "list[str]" = []
+    for question in asked_about:
+        if question.reason == asking.BECAUSE_REPEATS_AND_MANY:
+            person_asked += [question.name]
+    if person_asked and not person_columns and not assumptions_said:
+        _warn(_counted_in_rows_notice(person_asked))
 
     # The summary crosses the boundary ONCE, here, and the same text is
     # what reaches the screen and what is written to disk. The two
@@ -1961,11 +2870,17 @@ def _run_profile(
     # and reading the two in that order leaves the pointer beside the
     # block it points at.
     if (answered or answers_were_handed_back) and (
-        forced_codes or forced_identifiers or forced_measurements
+        forced_codes
+        or forced_identifiers
+        or forced_measurements
+        or forced_decimal_commas
     ):
         _say(
             _how_to_repeat(
-                forced_codes, forced_identifiers, forced_measurements
+                forced_codes,
+                forced_identifiers,
+                forced_measurements,
+                tuple(forced_decimal_commas),
             )
         )
     kept_of_yours = summary.words_of_your_own(document)
@@ -2047,8 +2962,22 @@ def _run_profile(
     # an answered column is gone and every reading left is the one in
     # force.
     settled = forced_identifiers + forced_codes + forced_measurements
-    asked_about = asking.questions_for(
-        document, read.columns, settings, settled
+    asked_about, split_columns = asking.questions_and_splits_for(
+        document, read.columns, settings, settled, tuple(forced_decimal_commas)
+    )
+    # ...AND THE PERSON QUESTION, recomputed from the FINAL
+    # declarations like every other (plan P4-D340). A column answered
+    # `identifier` at the terminal is declared now, so the file that
+    # replaces this one no longer asks about it -- and the settings
+    # carried here are the rebuilt ones, whose `person_columns` says
+    # whether that answer settled who the rows are about.
+    asked_about = asked_about + asking.person_questions(
+        document,
+        read.columns,
+        settings,
+        settled,
+        asked_about,
+        split_columns,
     )
     listed_about = asking.checklist_for(
         document, read.columns, settings, settled, asked_about
@@ -2087,6 +3016,32 @@ def _run_profile(
                     _shown(pathlib.Path(table).name),
                     asked_about,
                     listed_about,
+                    asking.file_questions(
+                        surveyed is not None
+                        and surveyed.metadata_shape
+                        and not metadata_rows,
+                        # ...and the same subject from the other side:
+                        # a declaration the file does not bear out was
+                        # not acted on, so the person is asked here
+                        # rather than having it done to their table.
+                        metadata_rows if metadata_declaration_unseen else 0,
+                        # ...and the delimiter, where the file reads
+                        # equally well under more than one (P4-D110).
+                        delimiter_tie,
+                        # ...and which row the column names are in,
+                        # where the first row could not be told from a
+                        # record of the table (the owner's ruling of
+                        # 2026-09-17, item 8; plan P4-D232). The words
+                        # are what the FILE showed, and no cell of it.
+                        read.first_row_seen,
+                    ),
+                    # ...AND WHAT THIS RUN SAID ABOUT THE TABLE AS A
+                    # WHOLE (plan P4-D341). The population notice, in
+                    # the description's own words, because this file
+                    # travels on its own and a page naming the columns
+                    # of a small table without saying it is a small
+                    # table says less than the other four do.
+                    _table_sentences(document),
                 )
             ),
             sources=guarded_questions,
@@ -2208,7 +3163,9 @@ def _twin_stem(name: str) -> str:
 
 
 def _twin_paths(
-    description: pathlib.Path, out_dir: "str | None"
+    description: pathlib.Path,
+    out_dir: "str | None",
+    packaged: bool = False,
 ) -> "tuple[pathlib.Path, pathlib.Path]":
     """Where the twin and its report go (plan P2-D10).
 
@@ -2240,8 +3197,9 @@ def _twin_paths(
             raise errors.ProfileError(
                 errors.output_folder_missing(f"{folder}", errors.TWIN_WORDS)
             )
+    ending = _WORKBOOK_TWIN_SUFFIX if packaged else _TWIN_SUFFIX
     twin_target = validate_local_path(
-        f"{folder / (stem + _TWIN_SUFFIX)}", purpose="output file"
+        f"{folder / (stem + ending)}", purpose="output file"
     )
     report_target = validate_local_path(
         f"{folder / (stem + _REPORT_SUFFIX)}", purpose="output file"
@@ -2299,14 +3257,28 @@ def _run_generate(
     rule that this command opens the description and nothing else -- so
     it refuses, names both files, and teaches `--replace`.
     """
-    from synthtwin import contract, generation, rendering, writing
+    from synthtwin import (
+        contract,
+        generation,
+        rendering,
+        sheetwriting,
+        writing,
+    )
 
     seed, refusal = _seed_or_refusal(seed_given)
     if seed is None:
         _warn(refusal)
         return 2
     loaded = contract.load_profile(description)
-    twin_path, report_path = _twin_paths(pathlib.Path(description), out_dir)
+    # A WORKBOOK'S TWIN IS A WORKBOOK, AND IT IS WRITTEN AS ONE (plan
+    # P4-D79, which supersedes P4-D78's refusal). The description says
+    # which the table was, so the twin's name, its bytes and the rules
+    # it is written by all follow from `source.workbook` rather than
+    # from anything this run reads.
+    packaged = loaded.source.workbook is not None
+    twin_path, report_path = _twin_paths(
+        pathlib.Path(description), out_dir, packaged
+    )
     writing.refuse_if_folder(twin_path, errors.TWIN_WORDS)
     writing.refuse_if_folder(report_path, errors.TWIN_WORDS)
 
@@ -2334,7 +3306,7 @@ def _run_generate(
         taken: list[str] = []
         for target in (twin_path, report_path):
             if _already_there(target):
-                taken = taken + [_shown(target)]
+                taken += [_shown(target)]
         if taken:
             _warn(
                 errors.outputs_already_there(
@@ -2353,7 +3325,36 @@ def _run_generate(
     # human-facing sink like the profiler's summary and crosses the
     # boundary once, here, so the file on disk and the screen carry the
     # same text and cannot differ.
-    twin_text = rendering.twin_csv(twin)
+    # A WORKBOOK TWIN IS BYTES AND A DELIMITED ONE IS TEXT, and the two
+    # are kept apart from here to the write: a zip package put through
+    # an encoding and a line-ending rule would be corrupted by both.
+    # THE TWIN IS WRITTEN IN ITS TABLE'S OWN ENCODING (plan P4-D86), and
+    # that is checked before anything is shown or written: a cell holding
+    # a character the encoding has no byte for would otherwise stop the
+    # write half way. Every published label was read in that encoding and
+    # every made-up value is ASCII, so reaching this is a defect.
+    #
+    # A WORKBOOK ANSWERS NONE OF IT (plan P4-D79). Its parts are written
+    # as UTF-8 inside a zip package whatever the source's encoding was,
+    # because that is what a spreadsheet file IS; the source encoding
+    # describes a delimited file's bytes and there are none here.
+    twin_codec = dialect.WRITING_CODECS[loaded.source.encoding]
+    twin_members: "list[tuple[str, str]] | None" = None
+    twin_text = ""
+    if packaged:
+        twin_members = sheetwriting.workbook_members(loaded, twin)
+    else:
+        written = rendering.twin_csv(twin)
+        try:
+            written.encode(twin_codec)
+        except UnicodeEncodeError:
+            _warn(
+                errors.twin_not_writable_in_encoding(
+                    dialect.ENCODING_WORDS[loaded.source.encoding]
+                )
+            )
+            return 1
+        twin_text = written
     report_text = parsing.visible_lines(rendering.report(loaded, twin))
 
     _say(report_text)
@@ -2392,6 +3393,9 @@ def _run_generate(
             table_path=pathlib.Path(source),
             state=state,
             words=errors.TWIN_WORDS,
+            first_encoding=twin_codec,
+            first_newline="",
+            first_members=twin_members,
         )
     except BaseException:
         if state.sentence:
@@ -2477,8 +3481,11 @@ def _quality_path(
     The exact target goes through the locality gate, not only the folder,
     for the reason `_twin_paths` gives: a link left at the report's name
     would otherwise send the file wherever it points. The name cannot
-    collide with any of the four artifacts that already exist, which end
-    '-profile.json', '-profile.txt', '-twin.csv' and '-twin-report.txt'.
+    collide with any of the five artifacts that already exist by the time
+    this command runs, which end '-profile.json', '-profile.txt',
+    '-questions.json', '-twin.csv' and '-twin-report.txt'. The questions
+    file joined that list when it shipped (amendment A-P4-58) and this
+    sentence counted four until the review of 2026-09-23.
     """
     source = pathlib.Path(description)
     stem = f"{pathlib.Path(measured).stem}"
@@ -2499,7 +3506,9 @@ def _quality_path(
     return pathlib.Path(target)
 
 
-def _measured_path(description: str, twin_given: "str | None") -> str:
+def _measured_path(
+    description: str, twin_given: "str | None", packaged: bool = False
+) -> str:
     """Which file this run measures: the one named, or the twin beside it.
 
     The default is derived from the DESCRIPTION's own folder rather than
@@ -2510,7 +3519,9 @@ def _measured_path(description: str, twin_given: "str | None") -> str:
     """
     if twin_given is not None:
         return twin_given
-    twin_path, _report_path = _twin_paths(pathlib.Path(description), None)
+    twin_path, _report_path = _twin_paths(
+        pathlib.Path(description), None, packaged
+    )
     return f"{twin_path}"
 
 
@@ -2550,6 +3561,7 @@ def _run_validate(
     twin_given: "str | None",
     out_dir: "str | None",
     replace: bool,
+    sheet: str = "",
 ) -> int:
     """Do the work of `synthtwin validate`; return the exit code.
 
@@ -2587,7 +3599,9 @@ def _run_validate(
     from synthtwin import contract, quality, validation, writing
 
     loaded = contract.load_profile(description)
-    measured = _measured_path(description, twin_given)
+    measured = _measured_path(
+        description, twin_given, loaded.source.workbook is not None
+    )
     quality_path = _quality_path(pathlib.Path(description), measured, out_dir)
     writing.refuse_if_folder(quality_path, errors.QUALITY_WORDS)
 
@@ -2618,7 +3632,12 @@ def _run_validate(
         _warn(errors.quality_target_already_there(shown_quality_path))
         return 1
 
-    outcome = validation.measure(loaded, measured)
+    # `--sheet` REACHES THIS COMMAND TOO (repair of landing 2b.10). The
+    # option was accepted here and then dropped on the floor: a person
+    # checking a real workbook whose table is not on the first visible
+    # sheet named the sheet, was given no error, and had a different
+    # sheet measured against their description.
+    outcome = validation.measure(loaded, measured, sheet)
     # The report is a human-facing sink like the profiler's summary and
     # the twin's report, so it crosses the display boundary once, here,
     # and the same text is what reaches the screen and what is written to
@@ -2794,7 +3813,11 @@ def main(argv: "list[str] | None" = None) -> int:
             )
         if validating:
             return _run_validate(
-                named, options.twin, options.out_dir, options.replace
+                named,
+                options.twin,
+                options.out_dir,
+                options.replace,
+                options.sheet,
             )
         return _run_profile(
             named,
@@ -2810,6 +3833,9 @@ def main(argv: "list[str] | None" = None) -> int:
             options.missing_values,
             options.first_row,
             options.day_first,
+            options.sheet,
+            options.metadata_rows,
+            options.delimiter,
         )
     except PathValidationError as error:
         # The message is treated as a VALUE, not as something synthtwin

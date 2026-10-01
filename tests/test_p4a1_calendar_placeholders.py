@@ -30,6 +30,7 @@ WHAT IS PINNED HERE, and each of it is a rule the amendment states:
 - and `--keep-value` wins exactly as it does for a number.
 """
 
+import datetime
 import pathlib
 import tempfile
 
@@ -99,7 +100,11 @@ def test_a_placeholder_stops_being_the_column_s_last_value() -> None:
     assert block["role"] == "datetime"
     assert block["n_present"] == 228
     assert block["n_missing"] == 12
-    assert block["latest"] == "2024-12-28"
+    # STAGE 3: no end is published, so what says the placeholder is out
+    # of the column's own values is that no tail and no rung mentions
+    # it, and the high tail stands inside 2024.
+    assert block["high_tail"]["boundary"].startswith("2024-")
+    assert FAR not in f"{block['high_tail']}"
     assert FAR not in f"{block['date_percentiles']}"
     assert block["missing_by_class"]["(date-sentinel)"] == 12
     assert described.columns[0].missing_by_class.date_sentinel == 12
@@ -117,12 +122,20 @@ def test_the_verdict_says_what_was_decided_and_why() -> None:
 
 
 def test_a_twin_of_such_a_column_holds_no_placeholder() -> None:
-    """The whole way through."""
+    """The whole way through: no VALUE of the twin is a placeholder day.
+
+    The twelve absent cells are written as the table wrote them since
+    plan P4-D6.4 (the owner's ruling of 2026-09-15), so the twin holds
+    `9999-12-31` in exactly those twelve and in no cell it worked out:
+    the published dates the values are drawn from never reach the
+    placeholder, which is what this test has always pinned.
+    """
     _document, described, folder = _described(_dates(228) + [FAR] * 12)
     twin = generation.generate(described, 5)
     cells = [cell for cell in twin.columns[0] if cell]
-    for cell in cells:
-        assert not cell.startswith("9999"), cell
+    far = [cell for cell in cells if cell.startswith("9999")]
+    assert far == [FAR] * 12, far
+    assert described.columns[0].missing_by_source == {FAR: 12}
     written = fixtures.write(folder, "twin.csv", rendering.twin_csv(twin))
     outcome = validation.measure(described, f"{written}")
     missed = [
@@ -223,7 +236,9 @@ def test_a_declared_placeholder_is_data_and_says_so() -> None:
     )
     block = document["columns"][0]
     assert block["n_missing"] == 0
-    assert block["latest"] == FAR
+    # Kept as data, so the twelve rows on that day are a group of the
+    # column's own values: the high tail holds them and says so.
+    assert FAR in f"{block['high_tail']}"
     verdicts = block["sentinel_verdicts"]
     assert len(verdicts) == 1
     assert verdicts[0]["reason"] == "kept_by_you"
@@ -260,8 +275,10 @@ def test_both_placeholders_are_judged_against_the_same_others() -> None:
     assert block["n_missing"] == 24
     named = [entry["candidate"] for entry in block["sentinel_verdicts"]]
     assert named == [NEAR, FAR]
-    assert block["earliest"] == "2024-01-01"
-    assert block["latest"] == "2024-12-28"
+    assert block["low_tail"]["boundary"].startswith("2024-")
+    assert block["high_tail"]["boundary"].startswith("2024-")
+    assert NEAR not in f"{block['low_tail']}"
+    assert FAR not in f"{block['high_tail']}"
 
 
 # -- the sixth class, on every block ----------------------------------
@@ -329,8 +346,130 @@ def test_the_declaration_names_a_spelling_of_your_table() -> None:
     )
     block = document["columns"][0]
     assert block["n_missing"] == 0
-    assert block["latest"] == FAR
+    assert FAR in f"{block['high_tail']}"
     assert block["sentinel_verdicts"][0]["reason"] == "kept_by_you"
+
+
+def _checked_round_trip(
+    folder: pathlib.Path, header: "list[str]", rows: "list[list[str]]", flags: "list[str]"
+) -> "tuple[dict, int, int, str]":
+    """Describe, build and validate BOTH the table and its twin (plan D13)."""
+    from tests.test_stage2_round_trip import _exit_of
+
+    folder.mkdir(parents=True, exist_ok=True)
+    table = fixtures.write(folder, "real.csv", fixtures.rows_to_csv(header, rows))
+    assert _exit_of(["profile", str(table), "--out-dir", str(folder), "--replace"] + flags) == 0
+    described = folder / "real-profile.json"
+    assert _exit_of(
+        ["generate", str(described), "--out-dir", str(folder), "--seed", "4", "--replace"]
+    ) == 0
+    exits = []
+    for name, checked in (("real", table), ("twin", folder / "real-twin.csv")):
+        out = folder / f"check-{name}"
+        out.mkdir()
+        exits += [
+            _exit_of(["validate", str(described), "--twin", str(checked), "--out-dir", str(out), "--replace"])
+        ]
+    document = __import__("json").loads(described.read_text(encoding="utf-8"))
+    report = "".join(path.read_text(encoding="utf-8") for path in sorted((folder / "check-real").glob("*quality.txt")))
+    return document, exits[0], exits[1], report
+
+
+def test_a_kept_placeholder_in_the_table_s_own_spelling_reaches_both_consumers(
+    tmp_path: pathlib.Path,
+) -> None:
+    """The producer-only test above, carried through the validator and the twin.
+
+    REVIEW OF 158c811, ITEM 5 (plan P4-D136). Thirty `01/01/1900` beside
+    470 consecutive dates written `%m/%d/%Y`, profiled with
+    `--keep-value 01/01/1900`: the description records 500 values and the
+    verdict `kept_by_you`. The validator rebuilt the reading rule from the
+    settings block alone, so the unchanged table read 470 values and 30
+    holes and missed 14 obligations, and its twin missed 14 too.
+
+    THE SETTINGS RECORD THE MEMBER THE TYPED SPELLING DENOTES (plan
+    P4-D252, the extra review of c5d09d5 item 5), which they did not
+    while the comparison was of TEXT -- `01/01/1900` is not
+    `1900-01-01` as text -- and that is what lets a column whose own
+    verdict the publication floor withholds rebuild the instruction at
+    all. Nothing a person typed travels through that list: the member is
+    this package's own word.
+
+    AND THE DECISION IS STILL REPLAYED IN ITS OWN COLUMN ONLY. A second
+    column holds the same day written `1900-01-01`, outlying and
+    frequent, which the person's `01/01/1900` never named: it is judged
+    a hole there, in the description and when both files are checked,
+    because a column whose own description judged the day is one the
+    settings' member is not carried to.
+    """
+    start = datetime.date(2020, 1, 1)
+    first = ["01/01/1900"] * 30 + [
+        (start + datetime.timedelta(days=place)).strftime("%m/%d/%Y")
+        for place in range(470)
+    ]
+    second = [NEAR] * 30 + [
+        (start + datetime.timedelta(days=place)).isoformat() for place in range(470)
+    ]
+    document, real_exit, twin_exit, report = _checked_round_trip(
+        tmp_path / "kept",
+        ["kept_on", "judged_on"],
+        [[one, two] for one, two in zip(first, second)],
+        ["--keep-value", "01/01/1900"],
+    )
+    kept, judged = document["columns"]
+    assert kept["n_present"] == 500
+    assert kept["sentinel_verdicts"][0]["reason"] == "kept_by_you"
+    assert document["settings"]["kept_values"]["built_in_dates"] == [
+        "1900-01-01"
+    ]
+    assert judged["n_present"] == 470
+    assert judged["sentinel_verdicts"][0]["verdict"] == "read_as_missing"
+    assert (real_exit, twin_exit) == (0, 0), report[:2000]
+
+
+def test_a_judged_decision_edited_to_name_no_spelling_is_refused(
+    tmp_path: pathlib.Path,
+) -> None:
+    """REVIEW OF 158c811, ITEM 6 (plan P4-D135): the omission, on the review's table.
+
+    `end` holds twenty `1900-01-01 00:00:00`, thirty T-separated
+    equivalents declared missing and 450 midnight dates; `start` holds
+    eighty of the spaced spelling beside 420 dates a hundred days apart.
+    The producer's own description checks the table and its twin with
+    nothing missed. Edited so the judged decision names no spelling, it
+    used to load -- and the validator then read the spaced spelling as a
+    declaration reaching `start`, whose 500 unchanged values fell to 420
+    with 13 obligations missed. It is refused now.
+    """
+    start = datetime.date(2020, 1, 1)
+    end = ["1900-01-01 00:00:00"] * 20 + ["1900-01-01T00:00:00"] * 30 + [
+        (start + datetime.timedelta(days=place)).isoformat() + " 00:00:00"
+        for place in range(450)
+    ]
+    early = datetime.date(1890, 1, 1)
+    begun = ["1900-01-01 00:00:00"] * 80 + [
+        (early + datetime.timedelta(days=100 * place)).isoformat() + " 00:00:00"
+        for place in range(420)
+    ]
+    document, real_exit, twin_exit, report = _checked_round_trip(
+        tmp_path / "judged",
+        ["end", "start"],
+        [[one, two] for one, two in zip(end, begun)],
+        ["--missing-value", "1900-01-01T00:00:00"],
+    )
+    assert (real_exit, twin_exit) == (0, 0), report[:2000]
+    verdict = document["columns"][0]["sentinel_verdicts"][0]
+    assert verdict["verdict"] == "read_as_missing"
+    assert verdict["spellings"] == ["1900-01-01 00:00:00"]
+    assert document["columns"][0]["n_missing_withheld"] == 0
+    verdict["spellings"] = []
+    edited = fixtures.write_profile(tmp_path, "edited.json", document)
+    try:
+        contract.load_profile(f"{edited}")
+    except contract.errors.ProfileError as refusal:
+        assert contract.INVARIANTS["V5"] in str(refusal), str(refusal)[:400]
+    else:
+        raise AssertionError("a judged decision naming no spelling loaded")
 
 
 def test_a_declared_placeholder_is_recorded_in_its_own_list() -> None:
@@ -340,15 +479,24 @@ def test_a_declared_placeholder_is_recorded_in_its_own_list() -> None:
     this package's own words, so a validator cannot rebuild the reading
     rule the description was written under -- and the summary tells a
     person they named none of synthtwin's own words when they named one.
+
+    THE LIST IS SPENT COLUMN BY COLUMN and not among the spellings every
+    column is read under (plan P4-D252): a day the settings record
+    reaches each column of the checked file whose own description did
+    not judge it, which is how far the person's own spelling reached.
     """
-    document, described, _folder = _described(
+    document, described, folder = _described(
         _dates(228) + [FAR] * 12, taxonomy.Settings(kept_values=(FAR,))
     )
     record = document["settings"]["kept_values"]
     assert record["built_in_dates"] == [FAR]
     assert record["n_declared"] == 1
     assert described.settings.kept_values.built_in_dates == (FAR,)
-    assert FAR in validation.kept_spellings(described)
+    assert FAR not in validation.kept_spellings(described)
+    table = reading.read_table(f"{folder / 'when.csv'}")
+    assert validation._kept_placeholders_here(described, table) == {
+        "when": (FAR,)
+    }
 
 
 def test_the_twin_report_counts_the_sixth_reason() -> None:

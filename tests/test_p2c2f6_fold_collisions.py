@@ -33,6 +33,7 @@ What this file holds to:
   different, and the length window is never left.
 """
 
+import dataclasses
 import pathlib
 
 import pytest
@@ -46,6 +47,7 @@ from synthtwin import (
     reading,
     rendering,
     taxonomy,
+    validation,
 )
 
 SEEDS = (0, 1, 3, 17)
@@ -224,7 +226,29 @@ def test_the_written_twin_describes_again_to_the_published_facts(
     assert rebuilt.n_present == published.n_present
     assert rebuilt.n_distinct == published.n_distinct
     assert rebuilt.n_distinct_folded == published.n_distinct_folded
-    assert rebuilt.facts == published.facts
+    # THE LAYOUT CENSUS IS COMPARED AS AN OBLIGATION, NOT AS A DICTIONARY
+    # (landing 2b.18, measured at the stage-2b integration). The source's
+    # three spaced spellings carry no layout, so its census counts ONE
+    # cell and names nothing; the twin's first partner is a case flip
+    # (G9.3 offers those first), which carries one, and describing the
+    # twin again counts two cells and names `{'~': 2}`. An empty census
+    # sets no obligation -- the quality report files no layout check on
+    # this twin and misses nothing -- so the facts are compared with the
+    # census the description published, and the file is held to it by
+    # the validator below.
+    facts = rebuilt.facts
+    if isinstance(facts, contract.IdentifierFacts) and isinstance(
+        published.facts, contract.IdentifierFacts
+    ) and not published.facts.layout_forms:
+        facts = dataclasses.replace(
+            facts, layout_forms=published.facts.layout_forms
+        )
+    assert facts == published.facts
+    written = fixtures.write(tmp_path, "checked.csv", rendering.twin_csv(twin))
+    outcome = validation.measure(described, str(written))
+    assert not [
+        check for check in outcome.checks if check.verdict == "MISSED"
+    ], seed
 
 
 @pytest.mark.parametrize("seed", SEEDS)

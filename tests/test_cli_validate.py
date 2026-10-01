@@ -62,7 +62,7 @@ import typing
 import pytest
 
 import fixtures
-from synthtwin import errors, profile, reading, taxonomy, writing
+from synthtwin import errors, parsing, profile, reading, taxonomy, writing
 from synthtwin.cli import _QUALITY_SUFFIX, main
 
 # ---------------------------------------------------------------------
@@ -70,8 +70,16 @@ from synthtwin.cli import _QUALITY_SUFFIX, main
 # ---------------------------------------------------------------------
 
 
-def _plain_table(rows: int = 48) -> str:
-    """A neutral two-column table: labels beside whole numbers."""
+def _plain_table(rows: int = parsing.POPULATION_FLOOR) -> str:
+    """A neutral two-column table: labels beside whole numbers.
+
+    A HUNDRED ROWS AND NOT FORTY-EIGHT (plan P4-D341): `synthtwin
+    profile` refuses a table under the population floor and writes
+    nothing, so a helper that describes one through the command
+    describes no table at all. The number is read from the rule, so a
+    floor that moves moves this table with it, and nothing this file
+    checks depends on how many rows the table has.
+    """
     made = [
         [fixtures.REGIONS[index % 4], f"{index % 7}"] for index in range(rows)
     ]
@@ -406,7 +414,10 @@ def test_a_repeated_header_name_writes_a_report_and_quotes_nothing(
     description = _built(tmp_path, capsys)
     twin = _twin_of(description)
     marker = "zzmarkerzz"
-    rows = [f"{index % 4},{index % 7}" for index in range(48)]
+    rows = [
+        f"{index % 4},{index % 7}"
+        for index in range(parsing.POPULATION_FLOOR)
+    ]
     twin.write_text(
         f"{marker},{marker}\n" + "\n".join(rows) + "\n",
         encoding="utf-8",

@@ -523,10 +523,23 @@ def test_the_source_accounting_closes_on_every_column(
             column.role, column.structural_role == "identifier"
         )
         if publishes_nothing:
+            # SINCE PLAN P4-D85 SUCH A COLUMN ACCOUNTS FOR ITS ABSENT
+            # CELLS LIKE ANY OTHER, with one narrowing a loader can
+            # check: every key it names is a member of synthtwin's own
+            # published vocabulary, never a spelling of the table. The
+            # three numbers are then an UPPER BOUND rather than a total,
+            # because the cells whose spelling is none of those words
+            # are withheld by the class and counted by nothing.
             seen_silent = seen_silent + 1
-            assert column.missing_by_source == {}, column.name
-            assert column.n_missing_blank == 0, column.name
-            assert column.n_missing_withheld == 0, column.name
+            for spelling in sorted(column.missing_by_source):
+                assert parsing.names_a_published_word(spelling), (
+                    column.name,
+                    spelling,
+                )
+            assert (
+                named + column.n_missing_blank + column.n_missing_withheld
+                <= column.n_missing
+            ), column.name
             continue
         seen_publishing = seen_publishing + 1
         total = named + column.n_missing_blank + column.n_missing_withheld
@@ -713,60 +726,71 @@ def test_a_version_four_description_is_refused_in_the_contract_s_words(
         contract.load_profile(f"{written}")
     said = f"{refused.value}"
     assert said == (
-        "This description was written by an older version of synthtwin: "
-        "it says it is version 4, and this synthtwin reads version 6. A "
-        "version 6 description records things an older description does "
-        'not \u2014 which of synthtwin\'s own words for "no value" you '
-        "named on the command line, and how dates whose day and month "
-        "are both numbers were read "
-        "\u2014 so this file cannot be read back "
-        "exactly. Please make the description again by running "
-        "'synthtwin profile' on your table, giving it every option you "
-        "gave the first time: --keep-value, --missing-value, "
-        "--identifier, --code, --measurement, --decimal-comma, "
-        "--smallest-group, "
-        "--first-row, --day-first and --answers. Every one of "
-        "them changes what the description PUBLISHES about your table, "
-        "so any option you leave out can put something into the new "
-        "description that the old one held back: without the "
-        "--smallest-group you gave, a value that fewer rows share can "
-        "be named; without the --identifier you gave, a column of "
-        "record numbers is described like any other column; without "
-        "the --code you gave, a column of codes is described as "
-        "measurements, so its smallest and largest values \u2014 which "
-        "are real codes \u2014 are published and its twin loses any "
-        "leading zeros; without the --measurement you gave, a column "
-        "of readings written as two numbers in one cell, such as a "
-        "blood pressure, is described as text and its twin holds no "
-        "readings at all; without the --decimal-comma you gave, a "
-        "column whose numbers are written with a comma where the "
-        "decimal point goes is read by the ordinary rules, so a column "
-        "of quantities is described as text and every number in it is "
-        "lost, or a value such as 1,234 is published as one thousand "
-        "two hundred and thirty-four; without "
-        "the --missing-value you gave, a stand-in is read as a real "
-        "reading, and the stand-in itself can be published as the "
-        "column's smallest value; without the --keep-value you gave, a "
-        "word you had counted as an ordinary value becomes a gap, "
-        "which can change what kind of column synthtwin sees and "
-        "publish both that word and the column's own numbers; "
-        "without the --first-row you gave, the first line of your file "
-        "is read as the column names and published as them; and "
-        "without the --day-first you gave, a date whose day and month "
-        "are both written as numbers \u2014 with slashes, with dots, or "
-        "with a two-figure year \u2014 can be read "
-        "the other way round, which changes the dates the description "
-        "publishes and can leave the column described as text instead; "
-        "and without the --answers you gave, every answer you wrote in "
+        "This description was written by an older version of "
+        "synthtwin: it says it is version 4, and this synthtwin reads"
+        " version 6. A version 6 description records things an older "
+        "description does not \u2014 which of synthtwin's own words for "
+        "\"no value\" you named on the command line, and how dates "
+        "whose day and month are both numbers were read \u2014 so this "
+        "file cannot be read back exactly. Please make the "
+        "description again by running 'synthtwin profile' on your "
+        "table, giving it every option you gave the first time: "
+        "--keep-value, --missing-value, --identifier, --code, "
+        "--measurement, --decimal-comma, --smallest-group, "
+        "--first-row, --day-first, --metadata-rows, --sheet, "
+        "--delimiter and --answers. Every one of them changes what "
+        "the description PUBLISHES about your table, so any option "
+        "you leave out can put something into the new description "
+        "that the old one held back: without the --smallest-group you"
+        " gave, a value that fewer rows share can be named; without "
+        "the --identifier you gave, a column of record numbers is "
+        "described like any other column; without the --code you "
+        "gave, a column of codes is described as measurements, so its"
+        " values are described by a ladder and by the two groups "
+        "beyond it, and an end a group of rows shares \u2014 which is a "
+        "real code \u2014 is published; its twin loses any leading zeros; "
+        "without the "
+        "--measurement you gave, a column of readings written as two "
+        "numbers in one cell, such as a blood pressure, is described "
+        "as text and its twin holds no readings at all; without the "
+        "--decimal-comma you gave, a column whose numbers are written"
+        " with a comma where the decimal point goes is read by the "
+        "ordinary rules, so a column of quantities is described as "
+        "text and every number in it is lost, or a value such as "
+        "1,234 is published as one thousand two hundred and "
+        "thirty-four; without the --missing-value you gave, a "
+        "stand-in is read as a real reading, and the stand-in itself "
+        "can be published as the column's smallest value; without the"
+        " --keep-value you gave, a word you had counted as an "
+        "ordinary value becomes a gap, which can change what kind of "
+        "column synthtwin sees and publish both that word and the "
+        "column's own numbers; without the --first-row you gave, the "
+        "first line of your file is read as the column names and "
+        "published as them; and without the --day-first you gave, a "
+        "date whose day and month are both written as numbers \u2014 with "
+        "slashes, with dots, or with a two-figure year \u2014 can be read "
+        "the other way round, which changes the dates the description"
+        " publishes and can leave the column described as text "
+        "instead; without the --metadata-rows you gave, the rows "
+        "under your column names that describe your columns are read "
+        "as records of your table, so their text is counted and "
+        "described as data and every count is two rows out; without "
+        "the --sheet you gave, another sheet of your workbook can be "
+        "described, and everything the new description publishes is "
+        "then about that sheet's table; without the --delimiter you "
+        "gave, a file that reads equally well with two delimiters can"
+        " be split the other way, which changes every column name the"
+        " description publishes and every value it describes; and "
+        "without the --answers you gave, every answer you wrote in "
         "the questions file is gone \u2014 each of them was a --code, an "
-        "--identifier or a --measurement, so leaving the file out costs "
-        "whichever of those you had given, and this same sentence says "
-        "what each one costs. "
-        "If you do not hold the table yourself, ask whoever made this "
-        "description to run it again for you. Read the "
-        "summary page synthtwin writes beside the new description "
-        "before either file goes anywhere, and use the description "
-        "exactly as synthtwin writes it."
+        "--identifier, a --measurement, a --decimal-comma, a "
+        "--metadata-rows or a --delimiter, so leaving the file out "
+        "costs whichever of those you had given, and this same "
+        "sentence says what each one costs. If you do not hold the "
+        "table yourself, ask whoever made this description to run it "
+        "again for you. Read the summary page synthtwin writes beside"
+        " the new description before either file goes anywhere, and "
+        "use the description exactly as synthtwin writes it."
     )
 
 

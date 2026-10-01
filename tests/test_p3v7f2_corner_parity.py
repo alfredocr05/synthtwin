@@ -92,8 +92,10 @@ behaviour back, so every guarantee here has a demonstrated red:
   corner asked in the short direction only;
 * `P3-V7-F4-vacuity` -- the spelling envelope kept as a check where it
   licenses every count a file of that length can hold;
-* `P3-V7-styles` -- a named style count compared exactly against a
-  description whose style map the floor has pooled;
+* `P3-V7-styles` -- a named count compared exactly against a census
+  the floor has partly pooled. Since plan P4-D222 no style map pools
+  beside a named form, so it bites on the layout census, which still
+  may (re-armed by the repair pass of 2026-09-19);
 * `P3-V8-F3` -- the corner asked without the field, so G12.7's raw-only
   authorization lands on a folded count as well;
 * `P3-V8-F4` -- G12.8's supply written with its first summand alone, and
@@ -428,6 +430,11 @@ class Entry(typing.NamedTuple):
     are NOT numbers standing beside its numbers before G12.8's second
     summand has anything to add, and the default line puts such a column
     in the free-text role instead (review item P3-V8-F4).
+
+    ``spellings_by_hand`` marks a label column whose description is
+    rewritten, before the loader reads it, to hold its rare spellings
+    back the way the producer did before plan P4-D275
+    (`_spellings_held_back_as_before` says why and how).
     """
 
     stem: str
@@ -435,6 +442,7 @@ class Entry(typing.NamedTuple):
     declared: bool
     floor: int
     parse_rate: float = taxonomy.Settings().minimum_parse_rate
+    spellings_by_hand: bool = False
 
 
 def _identifier_entries(rng: random.Random, how_many: int) -> "list[Entry]":
@@ -615,8 +623,26 @@ def _named_entries() -> "list[Entry]":
         + ["0"] * 13
     )
     wide = _wide_singles(26)
+    # AN ENDPOINT AT A RARE OFFSET BESIDE A NAMED ONE. Written at plan
+    # P4-D220 (stage 2 closed by the owner rulings of 2026-09-17) to reach
+    # an endpoint held back beside a named map: twenty-four values at
+    # `+01:00`, then six at `+02:00` and six at `+03:00`, pooled twelve at
+    # a floor of eleven. Since plan P4-D222 the twelve are read at
+    # `+01:00`, both ends are named, and the offset corner test pins that
+    # no endpoint is held back beside a named map any more.
+    zoned = [
+        f"2024-01-{1 + step:02d}T09:00:00+01:00" for step in range(24)
+    ] + [
+        f"2024-02-{1 + step:02d}T09:00:00+0{2 + step % 2}:00" for step in range(12)
+    ]
     return [
-        # P3-V7-F3: two withheld variants covering six rows each.
+        Entry("witness-offset-endpoint-pooled", tuple(zoned), False, 11),
+        # P3-V7-F3: two variants of six rows each beside a level of ten
+        # held back whole. Since P4-D275 the producer counts the two
+        # into the level's commonest spelling, so this is the column as
+        # the producer describes it now; the description the review
+        # measured, with both spellings held back, is rewritten by hand
+        # in `_by_hand_entries` and compared without a twin.
         Entry("witness-label-withheld", tuple(withheld), False, 11),
         # P3-V7-F4, the first half: a floored style map whose own
         # leading-zero cells force more identities than are published.
@@ -637,8 +663,23 @@ def _named_entries() -> "list[Entry]":
         # P3-V7-F2, the second half: fifty-one cells outside the code
         # alphabet in groups of two rows, short by exactly one spelling
         # while the summed reach reads twenty-eight against twenty-eight.
+        # AT A FLOOR OF ONE since plan P4-D277: the band split rests on
+        # two figures and one code value, and at a raised floor the
+        # disclosure rule counts both alphabet counts into the larger
+        # side, which puts every cell in the widest band -- where the
+        # summed reach is short as well and the witness stops telling the
+        # two apart. The same column at eleven is beside it.
         Entry(
             "witness-identifier-bands",
+            tuple(
+                ["7", "7", "a", wide[0]]
+                + _repeated(wide[1:], 2)
+            ),
+            True,
+            1,
+        ),
+        Entry(
+            "witness-identifier-bands-floored",
             tuple(
                 ["7", "7", "a", wide[0]]
                 + _repeated(wide[1:], 2)
@@ -654,10 +695,32 @@ def _named_entries() -> "list[Entry]":
             "boundary-wide-26", tuple(_wide_singles(26)), True, 11
         ),
         Entry(
-            "boundary-figures-9", tuple(_figures(1, 9)), True, 11
+            "boundary-figures-9", tuple(_figures(1, 9)[0::2] + _figures(1, 9)[1::2]), True, 11
         ),
         Entry(
-            "boundary-figures-10", tuple(_figures(0, 9)), True, 11
+            "boundary-figures-10", tuple(_figures(0, 9)[0::2] + _figures(0, 9)[1::2]), True, 11
+        ),
+        # THE LONE NOUGHT MOVED THIS BOUNDARY (stage-2b integration): one
+        # character holds all ten figures now, so the corner is a hundred
+        # and one values of one or two characters, and a hundred of two.
+        Entry(
+            "boundary-figures-101",
+            tuple((_figures(0, 99) + ["00"])[0::2] + (_figures(0, 99) + ["00"])[1::2]),
+            True,
+            11,
+        ),
+        Entry(
+            "boundary-padded-100",
+            tuple([f"{number:02d}" for number in range(0, 100, 2)]
+                  + [f"{number:02d}" for number in range(1, 100, 2)]),
+            True,
+            11,
+        ),
+        Entry(
+            "boundary-figures-1001",
+            tuple((_figures(0, 999) + ["00"])[0::2] + (_figures(0, 999) + ["00"])[1::2]),
+            True,
+            11,
         ),
         Entry(
             "boundary-code-53", tuple(_letters() + ["_"]), True, 11
@@ -691,6 +754,53 @@ def _space() -> "list[Entry]":
     return built + _named_entries()
 
 
+def _by_hand_entries() -> "list[Entry]":
+    """The label columns whose rare spellings are held back by hand.
+
+    P3-V7-F3's own witness, and every label column of the space drawn at
+    a raised floor, each marked for `_spellings_held_back_as_before`.
+    They are NOT in the space the round trip walks: the validator
+    measures a twin by describing it again with today's producer, which
+    counts the twin's stand-in spellings into the commonest (P4-D275),
+    so no file can show it a withheld spelling to compare. What they are
+    for needs no twin -- G12.7's supply and the corner it decides, which
+    both sides compute from the description alone.
+
+    MEASURED, AND AN OPEN OWNER QUESTION (plan P4-D275's amendment of
+    2026-09-19). Of these descriptions, every one whose map is not
+    empty -- seventeen of them -- is reported MISSED on `variants` and
+    `variants_withheld` of each level holding a spelling back, against
+    the generator's own twin AND against the source table it was written
+    from, and on `n_distinct` against every such twin. The format admits
+    a description no file meets; whether W5 should refuse it is the
+    owner's to decide, and these guards stand on the route only until
+    then.
+    """
+    built: list[Entry] = []
+    for entry in _space():
+        if entry.stem == "witness-label-withheld" or (
+            entry.stem.startswith("label-") and entry.floor > 1
+        ):
+            built = built + [
+                entry._replace(
+                    stem=f"{entry.stem}-by-hand", spellings_by_hand=True
+                )
+            ]
+    return built
+
+
+@pytest.fixture(scope="module")
+def by_hand(
+    tmp_path_factory: pytest.TempPathFactory,
+) -> "dict[str, contract.Profile]":
+    """Every by-hand entry, rewritten and read back by the strict loader."""
+    folder = tmp_path_factory.mktemp("corner-parity-by-hand")
+    built: dict[str, contract.Profile] = {}
+    for entry in _by_hand_entries():
+        built[entry.stem] = _describe(folder, entry)
+    return built
+
+
 # -- one whole run, as the three commands build one --------------------
 
 
@@ -706,16 +816,120 @@ class Probe(typing.NamedTuple):
     told: "dict[str, str]"
 
 
+def _spellings_held_back_as_before(
+    document: "dict[str, object]", values: "tuple[str, ...]", floor: int
+) -> "dict[str, object]":
+    """The producer's document with each published level's spellings held
+    back as the producer held them before plan P4-D275.
+
+    WHY THIS EXISTS. G12.7's supply counts WITHHELD variants with their
+    multiplicity, and review item P3-V7-F3 was a validator that read a
+    withheld count as row coverage instead. Since P4-D275 (ruling 6 of
+    2026-09-17, asked of a label's spellings) the producer counts every
+    spelling below the floor into the level's commonest one, so no
+    description it writes at a raised floor carries a withheld spelling
+    at all -- and every comparison in this file over withheld variants
+    went vacuous: the `P3-V7-F3` reinstatement's label half changed no
+    number any label comparison here made. The contract
+    still ACCEPTS such a map (invariant W5 bounds a key to
+    `1 .. floor - 1`, W5b refuses only `1`), so the generator and the
+    validator still have to agree on it, and the strict loader that
+    reads the rewritten document is what keeps it a description the
+    format admits.
+
+    THE RULE, as the pre-P4-D275 producer applied it and as the
+    contract's W section states it: within each published level a
+    spelling at least `floor` rows wrote is named with its count, every
+    other spelling is counted into the multiplicity map
+    (`taxonomy._multiplicity_map`, the format's one writer of that key
+    form), `shape_form_cells` is taken over the raw spellings, and the
+    column's `n_distinct` counts the raw spellings -- the count P4-D276
+    replaced -- because that is the count such a description published.
+    A spelling one row wrote is a count of one W5b refuses, so a column
+    whose rewrite would need that key is left as the producer wrote it
+    and the caller's coverage assertions say how many were rewritten.
+
+    THE COUNT OF DIFFERENT SPELLINGS IS THE ONE P4-D276 STATES, not the raw
+    count (the integration of the carried passes, 2026-09-19). The loader
+    now asks invariant W9 -- `n_distinct` is the spellings the block speaks
+    of: every spelling a published level names, in `variants` or counted in
+    `variants_withheld`, and the own spellings of each level held back --
+    and a raw count also counted a spelling ruling 5 (P4-D271) turned into a
+    missing cell, which no level speaks of: `label-0` (eleven `Beta`, ten
+    `beta`, eight `BETA` and one `alpha` at a floor of eleven, the lone
+    `alpha` counted missing) read `n_distinct 4` beside the three spellings
+    its one level names, and W9 refused it; `label-36` the same. On every
+    other rewritten entry the two counts agree. So the rewrite changes the count by exactly what it changes
+    in the published levels: the producer's count, less the spellings those
+    levels named after absorption, plus the spellings they name here. The
+    held-back levels' part is the producer's and is left as it stands.
+    """
+    def spoken(levels: "list[dict[str, object]]") -> int:
+        named = 0
+        for level in levels:
+            variants = level["variants"]
+            withheld = level["variants_withheld"]
+            assert isinstance(variants, dict) and isinstance(withheld, dict)
+            named = named + len(variants) + sum(withheld.values())
+        return named
+
+    columns = document["columns"]
+    assert isinstance(columns, list) and len(columns) == 1
+    column = columns[0]
+    assert isinstance(column, dict)
+    written: "dict[str, int]" = {}
+    for value in values:
+        written[value] = (written[value] if value in written else 0) + 1
+    rewritten: "list[dict[str, object]]" = []
+    for level in column["levels"]:
+        assert isinstance(level, dict)
+        spellings = {
+            value: written[value]
+            for value in sorted(written)
+            if parsing.folded(value) == level["label"]
+        }
+        if any(spellings[value] == 1 for value in spellings):
+            return document
+        named = {
+            value: spellings[value]
+            for value in sorted(spellings)
+            if spellings[value] >= floor
+        }
+        sizes = [
+            spellings[value]
+            for value in sorted(spellings)
+            if spellings[value] < floor
+        ]
+        assert sum(spellings.values()) == level["count"], level
+        entry = dict(level)
+        entry["variants"] = named
+        entry["variants_withheld"] = taxonomy._multiplicity_map(sizes)
+        entry["shape_form_cells"] = taxonomy.shape_form_cells(spellings)
+        rewritten = rewritten + [entry]
+    produced = column["levels"]
+    assert isinstance(produced, list)
+    n_distinct = column["n_distinct"]
+    assert isinstance(n_distinct, int)
+    column["levels"] = rewritten
+    column["n_distinct"] = n_distinct - spoken(produced) + spoken(rewritten)
+    return document
+
+
 def _describe(
     folder: pathlib.Path, entry: Entry
 ) -> contract.Profile:
-    """One column, through the real producer and the strict loader."""
+    """One column, through the real producer and the strict loader.
+
+    An entry marked ``spellings_by_hand`` has its producer's document
+    rewritten by `_spellings_held_back_as_before` before it is written
+    and loaded.
+    """
     table = fixtures.write(
         folder,
         f"{entry.stem}.csv",
         fixtures.single_column_table(NAME, list(entry.values)),
     )
-    read = reading.read_table(str(table))
+    read = reading.read_table(str(table), small_cell_floor=entry.floor)
     document = profile.build_document(
         read,
         taxonomy.Settings(
@@ -724,6 +938,10 @@ def _describe(
         ),
         [NAME] if entry.declared else [],
     )
+    if entry.spellings_by_hand:
+        document = _spellings_held_back_as_before(
+            document, entry.values, entry.floor
+        )
     written = fixtures.write_profile(
         folder, f"{entry.stem}-profile.json", document
     )
@@ -1063,40 +1281,37 @@ def test_the_withheld_offset_corner_is_exactly_the_published_map(
             if check.subcheck.startswith("offsets.")
         )
         if withheld:
-            # The whole map is the withheld key: all four obligations
-            # are listings and not one of them is checked.
-            assert listed == [
-                "offsets.earliest",
-                "offsets.latest",
-                "offsets.map",
-                "offsets.read-at",
-            ], (probe.stem, listed)
+            # The whole map is the withheld key: BOTH obligations the
+            # fact still carries are listings and neither is checked.
+            # There were four until stage 3, when the two endpoint
+            # offsets left the role with the two ends (plan P4-D328).
+            assert listed == ["offsets.map", "offsets.read-at"], (
+                probe.stem,
+                listed,
+            )
             assert not checked, (probe.stem, checked)
             continue
-        # Otherwise the map is checked key by key, and the only listing
-        # this fact can carry is an ENDPOINT the floor held back on its
-        # own, which is a different shape from the corner and is
-        # asserted against the published field rather than assumed.
-        ends = {
-            "offsets.earliest": facts.earliest_utc_offset,
-            "offsets.latest": facts.latest_utc_offset,
-        }
-        assert listed == sorted(
-            subcheck
-            for subcheck in ends
-            if ends[subcheck] == taxonomy.SUPPRESSED_LABEL
-        ), (probe.stem, listed, ends)
+        # Otherwise the map is checked key by key and this fact lists
+        # nothing at all. The only listing it could carry outside the
+        # corner was an ENDPOINT offset the floor held back on its own,
+        # and a column publishes no endpoint offset any more, so the
+        # corner is the whole of what makes the map a listing.
+        assert listed == [], (probe.stem, listed)
         assert "offsets.read-at" in checked, (probe.stem, checked)
         for subcheck in listed:
             assert subcheck not in checked, (probe.stem, subcheck)
     assert len(shapes) >= 3, shapes
-    # NOT VACUOUS: the withheld endpoint has to occur, or the branch
-    # above is never taken.
-    assert any(
-        listing.subcheck in ("offsets.earliest", "offsets.latest")
+    # AND THE TWO ENDPOINT OFFSETS ARE GONE FROM THE REPORT, which is
+    # pinned rather than left to look covered. The branch that listed one
+    # stopped being taken at plan P4-D222 -- a value at an offset too rare
+    # to name is read at the commonest offset since then, so an endpoint
+    # was held back only where the whole map was -- and stage 3 took the
+    # two fields themselves out of the role. Neither name may come back
+    # in either half of a report, on any shape this walk carries.
+    assert not any(
+        named.subcheck in ("offsets.earliest", "offsets.latest")
         for probe in parity
-        for listing in probe.outcome.listings
-        if validation.CORNER_DATETIME_OFFSETS_WITHHELD not in probe.corners
+        for named in list(probe.outcome.listings) + list(probe.outcome.checks)
     )
 
 
@@ -1122,6 +1337,14 @@ def _families_of(band: str, length: int, whole: bool) -> "dict[str, int]":
         n_all_digits=0,
         n_code_alphabet=0,
         n_distinct_by_occurrences={"1": 1},
+        # This walk asks the family map how many spellings each band
+        # writes at one length, which is a question about the ALPHABET
+        # and not about any published layout, so the census is empty
+        # here and the walk is unchanged by landing 2b.18.
+        layout_forms={},
+        # ...and no literal prefix either (owner ruling of 2026-09-17,
+        # item 1): the walk is about the alphabet, not a published opening.
+        layout_prefixes={},
     )
     found: dict[str, int] = {}
     for kind in generation._CLASSES:
@@ -1262,6 +1485,28 @@ def test_the_wide_band_boundary_stands_where_the_family_ends(
 # -- 4. no distinctness bar admits every count -------------------------
 
 
+def _one_column_text(values: "list[str]") -> str:
+    """A one-column table whose EMPTY cells are written as `""`.
+
+    `fixtures.single_column_table` writes an empty cell as an empty
+    line, and a blank line in a one-column table is refused: synthtwin
+    cannot tell it from a record whose one value is missing (plan
+    P4-D74). A probe's twin holds such a cell whenever the level pass
+    counted one out (the owner's ruling of 2026-09-17, item 5; plan
+    P4-D231), so the file this test builds from that twin writes the
+    two quotation marks the refusal itself asks for -- which is what
+    the product's own writer puts there.
+    """
+    lines = [NAME]
+    for cell in values:
+        if cell == "" or "," in cell or '"' in cell or "\n" in cell:
+            escaped = cell.replace('"', '""')
+            lines += [f'"{escaped}"']
+        else:
+            lines += [cell]
+    return "\n".join(lines) + "\n"
+
+
 def test_every_distinctness_bar_this_space_prints_can_be_missed(
     parity: "tuple[Probe, ...]",
     tmp_path: pathlib.Path,
@@ -1306,7 +1551,7 @@ def test_every_distinctness_bar_this_space_prints_can_be_missed(
                 path = fixtures.write(
                     folder,
                     f"{probe.stem}-{field}-{tag}.csv",
-                    fixtures.single_column_table(NAME, made),
+                    _one_column_text(made),
                 )
                 outcome = validation.measure(probe.described, str(path))
                 if validation.MISSED in _verdicts(outcome, subcheck):
@@ -1375,6 +1620,7 @@ def test_a_bar_that_admits_every_count_is_a_listing_and_not_a_check(
 
 def test_the_label_supply_is_the_generators_own_arithmetic(
     parity: "tuple[Probe, ...]",
+    by_hand: "dict[str, contract.Profile]",
 ) -> None:
     """G12.7's `S`, written twice and compared where both may be imported.
 
@@ -1383,36 +1629,87 @@ def test_the_label_supply_is_the_generators_own_arithmetic(
     validator's number must be the generator's, level by level, over
     published variants, withheld variants with multiplicity, levels the
     variants do not cover and levels the floor held back whole.
+
+    RE-ARMED FOR PLAN P4-D275. The withheld variants this comparison
+    exists for came from the producer until ruling 6 counted every
+    spelling below the floor into the level's commonest; after that the
+    space carried none, `withheld` counted nought, and the `P3-V7-F3`
+    reinstatement -- a withheld count read as row coverage -- changed no
+    number this test compares. They now come from `by_hand`, the same
+    label columns with their rare spellings held back as the contract
+    still accepts, and the bar on how many is the one this test always
+    held.
     """
     compared = 0
     withheld = 0
-    for probe in parity:
-        facts = probe.column.facts
+    described = [
+        (probe.stem, probe.column) for probe in parity
+    ] + [
+        (stem, by_hand[stem].columns[0]) for stem in sorted(by_hand)
+    ]
+    for stem, column in described:
+        facts = column.facts
         if not isinstance(facts, contract.LabelFacts):
             continue
         compared = compared + 1
         if any(level.variants_withheld for level in facts.levels):
             withheld = withheld + 1
         assert validation._spelling_supply(
-            probe.column, facts, probe.column.n_distinct
-        ) == generation._label_supply(facts), probe.stem
+            column, facts, column.n_distinct
+        ) == generation._label_supply(facts), stem
     assert compared >= 30, compared
     assert withheld >= 5, withheld
 
 
 def test_the_withheld_variant_witness_reaches_the_generators_own_twin(
     parity: "tuple[Probe, ...]",
+    by_hand: "dict[str, contract.Profile]",
 ) -> None:
-    """P3-V7-F3's own column, from the producer to the report.
+    """P3-V7-F3's own column, from the description to the report.
 
     Four spellings over two levels, six and five rows each, under the
-    floor of eleven: the description publishes raw distinctness four,
-    one level whose two withheld variants cover it exactly, and one
-    level held back whole. G12.7 supplies three spellings, the shipped
-    generator writes three, and the arithmetic that counted the withheld
-    COUNT as row coverage read four, invented a spelling, claimed no
-    corner and reported the product's own twin MISSED.
+    floor of eleven. THE DESCRIPTION THE REVIEW MEASURED publishes raw
+    distinctness four, one level whose two withheld variants cover it
+    exactly, and one level held back whole. G12.7 supplies three
+    spellings, and the arithmetic that counted the withheld COUNT as row
+    coverage read four, claimed no corner and reported the product's own
+    twin MISSED.
+
+    SPLIT IN TWO BY PLAN P4-D275. The producer no longer writes that
+    description: ruling 6 counts the two six-row spellings into the
+    level's commonest, `Alpha` (the tie goes to the first in sorted
+    order), so the level names one spelling of twelve rows. The
+    description the review measured is therefore rewritten by hand
+    (`by_hand`), and every number of P3-V7-F3's arithmetic is asserted
+    on it exactly as before -- that needs no twin. The chain from the
+    producer to the report is asserted on the column as the producer
+    describes it now, with its numbers derived from the rules:
+
+    - `n_distinct` (P4-D276) counts the spellings that survive the
+      absorption in a published level, one, and the raw spellings of the
+      level held back, two: 1 + 2 = 3;
+    - G12.7's supply is one named spelling plus one neutral label for the
+      held-back level: 1 + 1 = 2, below 3, so the corner is claimed and
+      the twin's shortfall is an AUTHORIZED DEVIATION.
     """
+    written = by_hand["witness-label-withheld-by-hand"]
+    column = written.columns[0]
+    facts = column.facts
+    assert isinstance(facts, contract.LabelFacts)
+    assert column.n_distinct == 4
+    assert facts.suppressed_levels == 1
+    assert [dict(level.variants_withheld) for level in facts.levels] == [
+        {"6": 2}
+    ]
+    assert validation._spelling_supply(column, facts, column.n_distinct) == 3
+    assert generation._label_supply(facts) == 3
+    corners = validation.corners_of(written).get(column.name, ())
+    assert corners == (validation.CORNER_LABEL_VARIANTS_SHORT,)
+    # AND THE FOLDED COUNT KEEPS THE EXACT BAR (review item P3-V8-F3).
+    assert not validation._distinct_corner(
+        facts, corners, validation._FOLDED_DISTINCT
+    )
+
     found = [
         probe for probe in parity
         if probe.stem == "witness-label-withheld"
@@ -1421,21 +1718,21 @@ def test_the_withheld_variant_witness_reaches_the_generators_own_twin(
     probe = found[0]
     facts = probe.column.facts
     assert isinstance(facts, contract.LabelFacts)
-    assert probe.column.n_distinct == 4
+    assert probe.column.n_distinct == 1 + 2
     assert facts.suppressed_levels == 1
-    assert [dict(level.variants_withheld) for level in facts.levels] == [
-        {"6": 2}
+    assert [dict(level.variants) for level in facts.levels] == [
+        {"Alpha": 6 + 6}
     ]
+    assert [dict(level.variants_withheld) for level in facts.levels] == [{}]
     assert validation._spelling_supply(
         probe.column, facts, probe.column.n_distinct
-    ) == 3
-    assert generation._label_supply(facts) == 3
+    ) == 1 + 1
+    assert generation._label_supply(facts) == 1 + 1
     assert probe.corners == (validation.CORNER_LABEL_VARIANTS_SHORT,)
     assert _verdicts(probe.outcome, "distinct.n_distinct") == [
         validation.AUTHORIZED_DEVIATION
     ]
     assert probe.outcome.census.missed == 0
-    # AND THE FOLDED COUNT KEEPS THE EXACT BAR (review item P3-V8-F3).
     # G12.7's envelope is raw `n_distinct` and nothing else, in V4.1's
     # words and the registry's; the generator meets the folded count
     # exactly on this very description and files no bound for it.
@@ -1494,7 +1791,9 @@ def test_the_floored_style_witness_reaches_the_generators_own_twin(
     assert isinstance(facts, contract.NumericFacts)
     assert probe.column.n_distinct == 9
     assert facts.numeric_styles[parsing.STYLE_LEADING_ZERO] == 15
-    assert taxonomy.SUPPRESSED_LABEL in facts.numeric_styles
+    # THE RARER FORMS ARE COUNTED INTO `plain` SINCE PLAN P4-D222 (stage 2
+    # closed by the owner rulings of 2026-09-17), where they were pooled.
+    assert facts.numeric_styles == {"leading_zero": 15, "plain": 53}
     assert facts.pad_widths == {"2": 15}
     # AND THE TWIN WRITES THE CENSUS IT WAS GIVEN: fifteen padded cells,
     # every one of them two figures wide (P4-D14).
@@ -1510,15 +1809,16 @@ def test_the_floored_style_witness_reaches_the_generators_own_twin(
         probe.column, facts, probe.column.n_distinct
     ) == 2
     assert probe.corners == (validation.CORNER_NUMERIC_SPELLINGS_SHORT,)
-    # HELD, EXACTLY, because that is what this witness now does and a
-    # test that accepts either verdict would pass on a regression that
-    # reported an approximation it did not need. The named-width case
-    # meets its count outright; the open-family case below is the one
-    # whose verdict may legitimately be either.
-    for field in ("n_distinct", "n_distinct_folded"):
-        assert _verdicts(probe.outcome, f"distinct.{field}") == [
-            validation.HELD
-        ], field
+    # EXACTLY THE VERDICT THIS WITNESS NOW REACHES, because a test that
+    # accepts either verdict would pass on a regression that reported an
+    # approximation it did not need. It was HELD until plan P4-D222 (stage
+    # 2 closed by the owner rulings of 2026-09-17) counted the twenty-four
+    # exponent and decimal cells into `plain`: the twin writes them plain,
+    # a spelling of each value fewer, and the count of different spellings
+    # lands inside the envelope rather than on the published number.
+    assert _verdicts(probe.outcome, "distinct.n_distinct") == [
+        validation.AUTHORIZED_DEVIATION
+    ]
     # AND THE BRACKET STILL HOLDS WHAT THE GENERATOR WROTE, which is
     # the whole subject of this file. A floor that moved without the
     # twin moving with it would be a bound drawn against the shipped
@@ -1556,8 +1856,7 @@ def test_the_open_padding_witness_still_opens_the_envelope_upward(
     probe = found[0]
     facts = probe.column.facts
     assert isinstance(facts, contract.NumericFacts)
-    assert facts.numeric_styles[parsing.STYLE_LEADING_ZERO] == 15
-    assert taxonomy.SUPPRESSED_LABEL in facts.numeric_styles
+    assert facts.numeric_styles == {"leading_zero": 15, "plain": 53}
     # NOT ONE WIDTH IS NAMED, which is what leaves the family open.
     assert list(facts.pad_widths) == [taxonomy.SUPPRESSED_LABEL]
     supply = validation._spelling_supply(
@@ -1697,6 +1996,20 @@ def test_the_band_witness_is_short_where_the_summed_reach_is_not(
     holds twenty-five -- while the summed reach reads twenty-eight
     against twenty-eight, because it lets the two one-row groups answer
     for every band at once.
+
+    RE-ARMED FOR PLAN P4-D277 (the extra review round of 2026-09-18).
+    The band split rests on `n_all_digits` two and `n_code_alphabet`
+    three, and P4-D277 asks the disclosure rule of both: at a floor of
+    eleven a count of two or three names a group below the line, and
+    neither is half of fifty-four, so each is counted into the larger
+    side and published as nought -- every cell then stands in the widest
+    band, twenty-seven spellings are needed against its twenty-five, the
+    summed reach (twenty-five against twenty-eight) is short too, and
+    the `P3-V7-F2-bands` reinstatement changed no answer here. The
+    witness is therefore read at a floor of one, where nothing is held
+    back and every number below is the one the review measured; the
+    same column at eleven is asserted beside it, with its two counts
+    derived from P4-D277's rule.
     """
     found = [
         probe for probe in parity
@@ -1722,6 +2035,23 @@ def test_the_band_witness_is_short_where_the_summed_reach_is_not(
                   "n_distinct_by_occurrences"):
         assert not _files(probe.outcome, f"distinct.{field}"), field
 
+    # The same column at a floor of eleven (P4-D277, `absorbed_total`):
+    # two figures of fifty-four cells is below the line and 2 x 2 < 54,
+    # so the count is nought; three code-alphabet cells likewise,
+    # 3 x 2 < 54, nought.
+    floored = [
+        probe for probe in parity
+        if probe.stem == "witness-identifier-bands-floored"
+    ]
+    assert len(floored) == 1
+    facts = floored[0].column.facts
+    assert isinstance(facts, contract.IdentifierFacts)
+    assert floored[0].column.n_present == 54
+    assert facts.n_all_digits == 0
+    assert facts.n_code_alphabet == 0
+    assert floored[0].corners == (validation.CORNER_IDENTIFIER_INFEASIBLE,)
+    assert floored[0].outcome.census.missed == 0
+
 
 # -- what the battery found that the review did not name ---------------
 
@@ -1745,6 +2075,16 @@ def test_a_pooled_style_map_does_not_refuse_the_generators_own_twin(
     The bar is a window now, and it still has teeth in the direction
     that matters: the published cells are owed, so a file writing fewer
     of them than the description names still misses.
+
+    WHERE THE WINDOW STANDS NOW (the repair pass of 2026-09-19). Since
+    plan P4-D222 a forms map pools only where it names nothing (the
+    loader's P6 refuses a pool beside a named form), so every pooled
+    style map below is the pool alone -- asserted -- and no named style
+    of this space is compared under the window at all. The window is
+    still the rule wherever a census may keep a pool beside a named
+    count, and the one this space reaches is the identifier's layout
+    census: `test_a_pooled_layout_census_holds_a_file_inside_its_window`
+    carries the `P3-V7-styles` red check there.
     """
     pooled = 0
     for probe in parity:
@@ -1754,6 +2094,10 @@ def test_a_pooled_style_map_does_not_refuse_the_generators_own_twin(
         if taxonomy.SUPPRESSED_LABEL not in facts.numeric_styles:
             continue
         pooled = pooled + 1
+        assert list(facts.numeric_styles) == [taxonomy.SUPPRESSED_LABEL], (
+            probe.stem,
+            dict(facts.numeric_styles),
+        )
         for check in probe.outcome.checks:
             if not check.subcheck.startswith("styles.published."):
                 continue
@@ -1765,7 +2109,10 @@ def test_a_pooled_style_map_does_not_refuse_the_generators_own_twin(
                 f"{facts.numeric_styles[taxonomy.SUPPRESSED_LABEL]} of "
                 f"its cells"
             )
-    assert pooled >= 5, pooled
+    # FOUR SINCE PLAN P4-D222 (stage 2 closed by the owner rulings of
+    # 2026-09-17), where it was five: a forms map pools only where no form
+    # reaches the line, and the floored witness names its forms now.
+    assert pooled >= 4, pooled
     # ...and the window still refuses a file that writes fewer of the
     # named form than the description publishes.
     folder = tmp_path / "pooled"
@@ -1791,6 +2138,95 @@ def test_a_pooled_style_map_does_not_refuse_the_generators_own_twin(
     assert validation.MISSED in _verdicts(
         outcome, f"styles.published.{parsing.STYLE_LEADING_ZERO}"
     )
+
+
+def test_a_pooled_layout_census_holds_a_file_inside_its_window(
+    parity: "tuple[Probe, ...]",
+    tmp_path: pathlib.Path,
+) -> None:
+    """The fifth divergence's window, where a census still pools beside a name.
+
+    RE-ARMED BY THE REPAIR PASS OF 2026-09-19. The `P3-V7-styles`
+    reinstatement puts the exact bar back on a named count beside a
+    pool, and it had turned nothing red since plan P4-D222 left no style
+    map of this space with a pool beside a named form. The identifier's
+    layout census still keeps one (`{"&": 11, "(withheld)": 7}` at a
+    floor of eleven), and `validation._form_checks` states the rule for
+    it: a recounted form numbers AT LEAST its published count and AT
+    MOST that count plus the pool, because a pooled cell has no
+    published layout and a file may give it this one.
+
+    So for every probe whose layout census names a layout beside a
+    pool, a file is built from the twin's own cells with ``k`` of them
+    wearing the named layout, and the verdict is asserted at the four
+    edges the rule fixes: ``published - 1`` MISSED, ``published`` HELD,
+    ``published + pool`` HELD, and ``published + pool + 1`` MISSED where
+    the column is long enough to hold it. The exact bar misses the
+    third, and the product's own twin, which writes the published count,
+    is asserted HELD beside it. Both layouts this space reaches publish
+    exactly the floor, so the first edge is decided by the floor (a
+    recount below it is not printed) rather than by the window's low
+    end; red checks run: the high end widened by one turns this red,
+    the low end lowered by one does not.
+    """
+    folder = tmp_path / "layout-window"
+    folder.mkdir()
+    reached = 0
+    for probe in parity:
+        facts = probe.column.facts
+        if not isinstance(facts, contract.IdentifierFacts):
+            continue
+        census = facts.layout_forms
+        if taxonomy.SUPPRESSED_LABEL not in census or len(census) < 2:
+            continue
+        pool = census[taxonomy.SUPPRESSED_LABEL]
+        present = [cell for cell in probe.twin.columns[0] if cell]
+        convention = parsing.layout_convention(present)
+        for layout in sorted(census):
+            if layout == taxonomy.SUPPRESSED_LABEL:
+                continue
+            reached = reached + 1
+            published = census[layout]
+            subcheck = f"forms.published.{layout}"
+            assert _verdicts(probe.outcome, subcheck) == [validation.HELD]
+            wearing = [
+                cell for cell in present
+                if parsing.layout_form(cell, convention) == layout
+            ]
+            other = [
+                cell for cell in present
+                if parsing.layout_form(cell, convention) != layout
+            ]
+            assert wearing and other, (probe.stem, layout)
+            edges = {
+                published - 1: validation.MISSED,
+                published: validation.HELD,
+                published + pool: validation.HELD,
+            }
+            if published + pool + 1 <= len(present):
+                edges[published + pool + 1] = validation.MISSED
+            for count in sorted(edges):
+                made = [
+                    wearing[place % len(wearing)]
+                    if place < count
+                    else other[place % len(other)]
+                    for place in range(len(present))
+                ]
+                path = fixtures.write(
+                    folder,
+                    f"{probe.stem}-{count}.csv",
+                    _one_column_text(made),
+                )
+                outcome = validation.measure(probe.described, str(path))
+                assert _verdicts(outcome, subcheck) == [edges[count]], (
+                    probe.stem,
+                    layout,
+                    f"{count} cells wearing it against {published} "
+                    f"published beside a pool of {pool}",
+                )
+    # TWO IN THIS SPACE, measured on 2026-09-19: `id-5` publishes
+    # `{"&": 11, "(withheld)": 7}` and `id-28` `{"&": 11, "(withheld)": 2}`.
+    assert reached >= 2, reached
 
 
 # -- the space itself, so neither walk above can narrow ----------------

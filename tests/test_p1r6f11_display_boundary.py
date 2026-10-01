@@ -286,7 +286,11 @@ def test_p1r6f11_a_column_name_with_an_escape_sequence_reaches_no_sink(
 ) -> None:
     """The screen and the summary file are both human-facing sinks."""
     header = "reading" + _CLEAR_THE_SCREEN
-    rows = [[f"{n}", "north"] for n in range(12)]
+    # AT THE POPULATION FLOOR (plan P4-D341): the command refuses a
+    # smaller table and writes nothing, and what this asserts is about
+    # the COLUMN NAME reaching a sink, not about how many rows are
+    # under it.
+    rows = [[f"{n}", "north"] for n in range(parsing.POPULATION_FLOOR)]
     text = fixtures.rows_to_csv([header, "region"], rows)
     table = fixtures.write(tmp_path, "clinic.csv", text)
     assert cli.main(["profile", f"{table}"]) == 0

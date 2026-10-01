@@ -99,6 +99,16 @@ These bind every phase that touches randomness or writes output files:
   activation record). Run `ruff check .`, `mypy`, and
   `pytest` locally before pushing; the guard scanners in `tools/` can be
   run locally too.
+- **The suite is split across CI jobs.** It is one hour of serial CPU in
+  one process, so each matrix cell and the floors job run it in five
+  jobs over disjoint lists of test FILES
+  (`python tools/ci/shards.py --of 5 --shard N`), and a
+  `shard-coverage` job proves those lists are exactly the set pytest
+  collects before the gate can go green. LOCALLY, run the whole suite:
+  `pytest` with no arguments is still the plain single-process run, and
+  it is the run `K-P0-10` holds to its wall clock and its collected
+  count. `tools/ci/shard_weights.py` only decides which shard a file
+  lands in and may be re-measured whenever the shards come out uneven.
 - **Error messages.** Every error message must be actionable by a
   non-programmer: say what happened, in plain words, and what to do
   next.

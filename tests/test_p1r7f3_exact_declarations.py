@@ -64,6 +64,23 @@ ONE_NUMBER_MANY_SPELLINGS = [
 
 READINGS = [f"{index}" for index in range(1, 200)]
 
+# HOW MANY ROWS EACH OF TWO NEIGHBOURING NUMBERS TAKES (plan P4-D341).
+# The reviewer's shape is twenty of each; the command refuses a table
+# under the population floor and writes nothing, so each number takes a
+# WHOLE floor of rows and every count below is derived from that one
+# number.
+#
+# A WHOLE FLOOR AND NOT HALF OF ONE (review of stage 3, floor item 3).
+# It was half the floor each, so the file held a floor of lines -- and
+# the census counted them all, because it asked only the pass that reads
+# SPELLINGS and a number declared with `--missing-value` is removed by
+# the pass after it. The census reads the finished column now, so the
+# rows that survive the declaration are the population: half a floor of
+# them is under the floor, and the shape this file is about would be
+# refused before it was described. The number DECLARED may be any count
+# at all; it is the other one that has to clear the floor.
+EACH = parsing.POPULATION_FLOOR
+
 
 def _written(tmp_path: pathlib.Path, name: str, values: list[str]) -> str:
     """One column on disk, and its path as a person would type it."""
@@ -133,14 +150,14 @@ def test_the_neighbour_of_a_declared_number_is_not_removed_with_it(
     # twenty of each of two whole numbers one apart, and only one of the
     # two named. Before the repair the column came back with n_present
     # zero and forty rows counted as declared missing.
-    values = [LOWER] * 20 + [UPPER] * 20
+    values = [LOWER] * EACH + [UPPER] * EACH
     document = _run(tmp_path, "reading", values, [_missing(LOWER)], capsys)
     column = document["columns"][0]
-    assert column["n_missing"] == 20, (
-        "only the twenty rows holding the number that was named may go"
+    assert column["n_missing"] == EACH, (
+        "only the rows holding the number that was named may go"
     )
-    assert column["n_present"] == 20
-    assert column["missing_by_class"]["(declared-missing)"] == 20
+    assert column["n_present"] == EACH
+    assert column["missing_by_class"]["(declared-missing)"] == EACH
     assert column["role"] != taxonomy.ROLE_EMPTY
 
 
@@ -149,11 +166,11 @@ def test_the_other_neighbour_is_the_one_that_goes(
 ) -> None:
     # The mirror image, so that the check above cannot pass by removing
     # the wrong twenty rows.
-    values = [LOWER] * 20 + [UPPER] * 20
+    values = [LOWER] * EACH + [UPPER] * EACH
     document = _run(tmp_path, "reading", values, [_missing(UPPER)], capsys)
     column = document["columns"][0]
-    assert column["n_missing"] == 20
-    assert column["n_present"] == 20
+    assert column["n_missing"] == EACH
+    assert column["n_present"] == EACH
 
 
 @pytest.mark.parametrize(("lower", "upper"), COLLAPSING_PAIRS)
@@ -169,11 +186,11 @@ def test_two_numbers_that_round_alike_are_still_two_numbers(
     assert parsing.parse_number(lower) == parsing.parse_number(upper), (
         "this pair is only interesting while both spellings round alike"
     )
-    values = [lower] * 20 + [upper] * 20
+    values = [lower] * EACH + [upper] * EACH
     document = _run(tmp_path, "reading", values, [_missing(lower)], capsys)
     column = document["columns"][0]
-    assert column["n_missing"] == 20
-    assert column["n_present"] == 20
+    assert column["n_missing"] == EACH
+    assert column["n_present"] == EACH
 
 
 @pytest.mark.parametrize(("lower", "upper"), COLLAPSING_PAIRS)

@@ -46,6 +46,7 @@ import pytest
 import fixtures
 from synthtwin import (
     cli,
+    parsing,
     profile,
     reading,
     rendering,
@@ -705,8 +706,8 @@ def test_the_reports_column_counts_are_counted_from_the_written_twin(
         present = len([cell for cell in cells if cell != ""])
         empty = len(cells) - present
         assert (
-            f"The twin holds {present} value(s) and leaves {empty} cell(s) "
-            f"empty" in told
+            f"The twin holds {present} value(s) and {empty} cell(s) "
+            f"with no value" in told
         ), read.column_names[place]
 
 
@@ -877,6 +878,7 @@ def test_the_parsers_own_words_match_the_modules_that_own_them() -> None:
     assert cli._FIRST_ROW_NAMES == reading.FIRST_ROW_NAMES
     assert cli._FIRST_ROW_DATA == reading.FIRST_ROW_DATA
     assert cli._SMALLEST_GROUP == taxonomy.Settings().small_cell_floor
+    assert cli._SMALLEST_GROUP == parsing.DEFAULT_SMALL_CELL_FLOOR
 
 
 # ---------------------------------------------------------------------
@@ -962,3 +964,90 @@ def test_the_renderer_quotes_only_what_the_format_requires() -> None:
     assert rendering._field("two\nlines", False) == '"two\nlines"'
     assert rendering._field("carriage\rreturn", False) == '"carriage\rreturn"'
     assert rendering._field("plain", True) == '"plain"'
+
+
+# -- the boundary the workbook reader put under strain (plan P4-D77) --
+
+_GENERATE_CLOSURE_PROBE = """
+import json
+import sys
+
+sys.path.insert(0, sys.argv[1])
+before = set(sys.modules)
+from synthtwin.cli import main
+
+code = main(["generate", sys.argv[2], "--seed", "0", "--out-dir", sys.argv[3]])
+gained = sorted(set(sys.modules) - before)
+with open(sys.argv[4], "w", encoding="utf-8", newline="") as answer:
+    json.dump({"code": code, "gained": gained}, answer)
+"""
+
+
+def test_a_generate_run_loads_no_module_that_opens_a_table(
+    tmp_path: pathlib.Path,
+) -> None:
+    """The generator's import graph holds nothing that opens a file.
+
+    WHY THIS TEST EXISTS, WRITTEN DOWN BECAUSE IT WAS LEARNED THE HARD
+    WAY. The rule is stated absolutely in `CLAUDE.md` and in the Phase 1
+    plan -- the module that opens the user's table is not in the
+    generator's import graph AT ANY INSTANT -- and until this landing
+    nothing asserted it. Landing 2b.10 broke it: the workbook reader
+    began by holding both the vocabulary a DESCRIPTION is checked
+    against and the code that opens a zip package; the loader reads that
+    vocabulary and the generator reads the loader, so `generate` pulled
+    in a module that opens files. It was caught by hand, which is not a
+    control. This is.
+
+    The check runs in a FRESH interpreter for the reason the validate
+    closure does: inside pytest the package is already in `sys.modules`,
+    so no module body re-executes and the question would be answered by
+    whatever an earlier test imported.
+    """
+    import subprocess
+
+    description = _described(tmp_path, _plain_table())
+    answer = tmp_path / "gained.json"
+    probe = tmp_path / "probe.py"
+    probe.write_text(_GENERATE_CLOSURE_PROBE, encoding="utf-8", newline="\n")
+    out = tmp_path / "out"
+    out.mkdir()
+    done = subprocess.run(
+        [
+            sys.executable,
+            str(probe),
+            str(fixtures.REPO_ROOT / "src"),
+            str(description),
+            str(out),
+            str(answer),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert done.returncode == 0, done.stdout + done.stderr
+    found = json.loads(answer.read_text(encoding="utf-8"))
+    assert found["code"] == 0, found
+
+    # WHAT IS FORBIDDEN, AND WHY `zipfile` IS NOT, MEASURED RATHER THAN
+    # ASSUMED. The first writing of this test forbade `zipfile` too and
+    # failed on it -- and the cause was not synthtwin: `zipfile` is
+    # absent from a bare interpreter and present after `import
+    # importlib.metadata` alone, which this package uses for the version
+    # string it stamps on a description. Forbidding it would have made
+    # this guard a report about the standard library. What IS forbidden
+    # is every module of this package that opens or parses the user's
+    # table, and the parser itself, none of which the standard library
+    # brings in on its own.
+    #
+    # `synthtwin.workbook` is named even though it opens nothing: it
+    # carries the parser's vocabulary, it USED to carry the parser, and
+    # the whole reason the vocabulary now lives in `dialect` is to keep
+    # this module out of this graph.
+    forbidden = ("synthtwin.reading", "synthtwin.workbook", "xml.parsers.expat")
+    arrived = [name for name in found["gained"] if name in forbidden]
+    assert not arrived, (
+        f"a generate run loaded {arrived}, which opens the user's table "
+        f"or parses one. The generator reads the description and nothing "
+        f"else; move whatever reached it out of the loader's import graph."
+    )

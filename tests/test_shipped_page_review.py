@@ -103,6 +103,7 @@ behaviour back, so no test here has an assumed red:
 """
 
 import dataclasses
+import datetime
 import os
 import pathlib
 import typing
@@ -206,7 +207,7 @@ def _run(folder: pathlib.Path, floor: int) -> Run:
     folder.mkdir(parents=True, exist_ok=True)
     table = fixtures.write(folder, "table.csv", _table_text())
     document = profile.build_document(
-        reading.read_table(f"{table}"),
+        reading.read_table(f"{table}", small_cell_floor=floor),
         taxonomy.Settings(small_cell_floor=floor),
         [],
     )
@@ -236,6 +237,79 @@ def runs(tmp_path_factory: pytest.TempPathFactory) -> "dict[int, Run]":
         floor: _run(folder / f"floor-{floor}", floor)
         for floor in (DEFAULT_FLOOR, NAMING_FLOOR)
     }
+
+
+class Witness(typing.NamedTuple):
+    """One window that misses its published value, built on purpose."""
+
+    described: contract.Profile
+    built: generation.Twin
+    outcome: validation.Outcome
+    report: str
+    quality_text: str
+
+
+@pytest.fixture(scope="module")
+def witness(tmp_path_factory: pytest.TempPathFactory) -> Witness:
+    """A description whose published count the construction cannot reach.
+
+    WHY THE TABLE ABOVE STOPPED CARRYING ONE (repair pass of landing
+    2b.6). Two tests here need a range that does NOT cover the
+    description's own value: one checks that the twin's report says so
+    exactly where it happens, the other that the quality report agrees
+    with it. Both used to find their case among the DATE RUNGS, whose
+    window sat wholly below the published value at the top of an
+    ordinary ladder -- and landing 2b.6 part 2 removed that class
+    outright: a rung's rank is pinned to its published value, so its
+    window is that value and covers it by construction. Measured after
+    the repair, over twenty-one shapes -- dates on twelve days, on five
+    days, scheduled dates, heaped dates, a burst, months, quarters,
+    3,000 rows over forty days, joined numbers, labels, affixed
+    numbers, numbers beside labels, free text, identifiers, numbers past
+    the reach of a fraction, bimodal numbers, wide integers -- NOT ONE
+    approximated range of any of them misses its published value. So the
+    case is built here on purpose instead of being hoped for, and both
+    tests say what they are asserting rather than passing empty.
+
+    The edit is the smallest one that reaches the class: a column of 240
+    dates whose block is made to publish THREE different days, where the
+    construction forces at least eleven -- the two ends and the nine
+    rungs are already that many different instants. Nothing else about
+    the document is touched, the strict loader takes it, and the twin's
+    report files `n_distinct` and `n_distinct_folded` as approximations
+    whose envelope does not reach the published count.
+    """
+    folder = tmp_path_factory.mktemp("shipped-page-witness")
+    first = datetime.date(2023, 1, 1)
+    days = sorted(
+        (first + datetime.timedelta(days=(index * 37) % 700)).isoformat()
+        for index in range(240)
+    )
+    table = fixtures.write(
+        folder, "witness.csv", fixtures.single_column_table("when", days)
+    )
+    document = profile.build_document(
+        reading.read_table(f"{table}", small_cell_floor=DEFAULT_FLOOR),
+        taxonomy.Settings(small_cell_floor=DEFAULT_FLOOR),
+        [],
+    )
+    block = document["columns"][0]
+    block["n_distinct"] = 3
+    block["n_distinct_folded"] = 3
+    written = fixtures.write_profile(folder, "witness-profile.json", document)
+    described = contract.load_profile(f"{written}")
+    built = generation.generate(described, 0)
+    twin = fixtures.write(
+        folder, "witness-twin.csv", rendering.twin_csv(built)
+    )
+    outcome = validation.measure(described, f"{twin}")
+    return Witness(
+        described=described,
+        built=built,
+        outcome=outcome,
+        report=rendering.report(described, built),
+        quality_text=quality.quality_report(described, outcome),
+    )
 
 
 # -- the pre-repair behaviour, for the red check ----------------------
@@ -758,14 +832,23 @@ def test_every_range_agrees_with_the_two_values_printed_beside_it(
 
 
 def test_a_range_that_misses_the_published_value_says_so_where_it_happens(
-    runs: "dict[int, Run]",
+    runs: "dict[int, Run]", witness: Witness
 ) -> None:
     """And a range that covers it says nothing, so the line means something.
 
-    Non-vacuity is asserted first: this table has date rungs whose
-    window sits wholly below the description's own value, which is what
-    G12.4 does at the top of an ordinary ladder, and if it ever stops
-    having them this test says so instead of passing empty.
+    NON-VACUITY MOVED TO A BUILT WITNESS (repair pass of landing 2b.6).
+    It used to be asserted of this table's own date rungs, whose window
+    sat wholly below the description's value at the top of an ordinary
+    ladder -- "and if it ever stops having them this test says so
+    instead of passing empty". It did stop, and it did say so: landing
+    2b.6 part 2 pins each rung's rank to its published value, so a
+    rung's window IS that value and covers it by construction, and this
+    test went red on the commit that made the rungs exact. The class is
+    built on purpose in `witness` above, which records what was measured
+    before choosing to build one. What stays asserted of the shipped
+    table is the part that was always the point: the report prints the
+    sentence exactly as many times as there are ranges that miss --
+    which is now zero times, and zero is a number this test checks.
     """
     for floor in (DEFAULT_FLOOR, NAMING_FLOOR):
         run = runs[floor]
@@ -774,11 +857,6 @@ def test_a_range_that_misses_the_published_value_says_so_where_it_happens(
             for found in run.built.approximations
             if not found.covers_published
         ]
-        assert missing, (
-            f"floor {floor}: no approximated fact of this table has a "
-            f"range that misses the published value, so this test can "
-            f"no longer see the defect it exists for"
-        )
         sentence = "this range does not cover the description's own value"
         assert run.report.count(sentence) == len(missing), (
             f"floor {floor}: {len(missing)} range(s) miss the published "
@@ -797,6 +875,23 @@ def test_a_range_that_misses_the_published_value_says_so_where_it_happens(
         assert (
             "it does not mean the two values are" in run.report
         ), "the warning the paragraph exists for has gone"
+    # ...AND THE SENTENCE REALLY APPEARS WHERE A RANGE REALLY MISSES.
+    sentence = "this range does not cover the description's own value"
+    missed_windows = [
+        found
+        for found in witness.built.approximations
+        if not found.covers_published
+    ]
+    assert missed_windows, (
+        "the built witness no longer has a range that misses its "
+        "published value, so this test can no longer see the defect it "
+        "exists for"
+    )
+    assert witness.report.count(sentence) == len(missed_windows), (
+        f"{len(missed_windows)} range(s) of the witness miss the "
+        f"published value and its report says so "
+        f"{witness.report.count(sentence)} time(s)"
+    )
 
 
 def _subcheck_of(fact: str) -> str:
@@ -822,7 +917,7 @@ def _subcheck_of(fact: str) -> str:
 
 
 def test_the_quality_report_says_the_same_thing_about_the_same_windows(
-    runs: "dict[int, Run]",
+    runs: "dict[int, Run]", witness: Witness
 ) -> None:
     """The second opinion may not be silent where the first one speaks.
 
@@ -891,10 +986,51 @@ def test_the_quality_report_says_the_same_thing_about_the_same_windows(
                         f"sentence and the page does not print it"
                     )
         assert seen, f"floor {floor}: the two pages share no window at all"
-        assert spoken, (
-            f"floor {floor}: no shared window misses the description's "
-            f"value, so the agreement this test exists for is untested"
+    # THE OTHER HALF, ON THE BUILT WITNESS (repair pass of landing
+    # 2b.6). The agreement this test exists for is only exercised where
+    # a shared window MISSES the published value, and this table stopped
+    # having one when landing 2b.6 part 2 made every rung's window its
+    # published value -- the reason is in `witness` above, with what was
+    # measured before one was built. The same comparison is made there,
+    # and the page must carry the sentence the check carries.
+    wanted_of_the_witness: dict[tuple[str, str], bool] = {}
+    for found in witness.built.approximations:
+        subcheck = _subcheck_of(found.fact)
+        if subcheck:
+            wanted_of_the_witness[(found.column, subcheck)] = (
+                found.covers_published
+            )
+    spoken = 0
+    for check in witness.outcome.checks:
+        if check.verdict not in (
+            validation.WITHIN_BOUND,
+            validation.HELD,
+            validation.MISSED,
+        ):
+            continue
+        key = (check.column, check.subcheck)
+        if key not in wanted_of_the_witness:
+            continue
+        said = "\n".join(check.note)
+        covers = "does NOT reach the" not in said
+        assert covers == wanted_of_the_witness[key], (
+            f"the witness's '{check.column}' {check.subcheck} "
+            f"({check.verdict}): the twin's report and the quality report "
+            f"disagree about whether this window reaches the "
+            f"description's value"
         )
+        if not covers:
+            spoken = spoken + 1
+            for line in check.note:
+                assert line in witness.quality_text, (
+                    f"the witness's '{check.column}' {check.subcheck}: the "
+                    f"check carries this sentence and the page does not "
+                    f"print it"
+                )
+    assert spoken, (
+        "no shared window of the witness misses the description's value, "
+        "so the agreement this test exists for is untested"
+    )
 
 
 def test_a_file_holding_the_published_value_is_never_reported_missing(
@@ -1235,7 +1371,7 @@ def test_the_withheld_paragraph_counts_the_lines_it_talks_about(
     ]
     table = fixtures.write(tmp_path, "t.csv", fixtures.rows_to_csv(header, rows))
     document = profile.build_document(
-        reading.read_table(f"{table}"),
+        reading.read_table(f"{table}", small_cell_floor=DEFAULT_FLOOR),
         taxonomy.Settings(small_cell_floor=DEFAULT_FLOOR),
         [],
     )

@@ -28,6 +28,7 @@ import pathlib
 import pytest
 
 import fixtures
+import tail_rule
 from synthtwin import profile, reading, taxonomy
 
 SETTINGS = taxonomy.Settings()
@@ -107,11 +108,25 @@ def test_a_column_below_the_numeric_line_publishes_no_statistic(
 
 
 def test_the_column_at_the_line_is_described_as_numbers() -> None:
-    described = describe(numeric_column(99))
+    """The line itself: 99 numbers of 100 cells read as a count column.
+
+    The largest rung said it until landing 3.3 -- 98 is the largest of
+    `0` to `98` and a column read as TEXT publishes no such number at
+    all. The tail rule withholds that rung (contract 6.7a), so what
+    says the same thing now is the middle rung, which no tail
+    withholds and which only a column read as numbers has: the median
+    of the 99 readings, worked out here from the readings themselves.
+    """
+    values = numeric_column(99)
+    described = describe(values)
     assert described.role == taxonomy.ROLE_COUNT
     assert described.details["n_used_in_statistics"] == 99
     assert described.details["n_left_out_of_statistics"] == 1
-    assert described.details["percentiles"]["max"] == 98.0
+    assert described.details["percentiles"]["max"] is None
+    numbers = [float(value) for value in values[:99]]
+    assert described.details["percentiles"]["p50"] == float(
+        tail_rule.rung_at(numbers, 50)
+    )
 
 
 def test_the_deleted_majority_rule_leaves_no_trace_in_the_settings() -> None:

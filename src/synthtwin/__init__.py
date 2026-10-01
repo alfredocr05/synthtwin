@@ -17,9 +17,11 @@ columns. Rows are treated as independent and the grain is undescribed —
 the description never says what one row of the real table is — so the
 twin of a repeated-measures table misdescribes the subject-level truth
 even where every column of it is right on its own. Analysis code
-developed on the twin RUNS, which is what the twin is for; a number
-that code computes from two columns of the twin says nothing about the
-real table. Cross-column structure arrives in a later phase (Phase 5),
+developed on the twin is meant to run unchanged on the real table, and
+nothing here guarantees that it will: a step that depends on more than
+the description publishes, such as a cut into quartiles, can succeed on
+the twin and fail on the real table. A number that code computes from
+two columns of the twin says nothing about the real table. Cross-column structure arrives in a later phase (Phase 5),
 and the report written beside every twin states both limits on every
 run.
 
@@ -30,10 +32,12 @@ twin's values come from. It does NOT state that a twin row can never
 equal a real row, and the categorical wording this package used to
 carry — a flat assertion that a twin holds nothing of the user's —
 said exactly that and was wrong. Allocating
-published counts exactly can force a twin row to match a real one: an
-11-row single-column table whose one label clears the disclosure floor
-publishes that label with the count 11, so the twin holds it in all 11
-rows. Nothing was copied; the arithmetic left no other answer. synthtwin
+published counts exactly can force a twin row to match a real one: a
+single-column table of 100 rows whose one label is shared by all 100
+publishes that label with the count 100, so the twin holds it in all
+100 rows. Nothing was copied; the arithmetic left no other answer. The
+example is stated at 100 rows because that is the smallest table
+`synthtwin profile` will describe. synthtwin
 offers no formal privacy guarantee, and all six files a full run
 produces — the profile, the plain-language summary beside it, the
 questions file, the twin, the twin's report and the quality report —

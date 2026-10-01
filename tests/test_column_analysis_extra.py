@@ -10,7 +10,7 @@ import json
 import pytest
 
 import fixtures
-from synthtwin import parsing, profile, taxonomy
+from synthtwin import profile, taxonomy
 
 # THE FLOOR THIS FILE IS WRITTEN AGAINST, NAMED RATHER THAN INHERITED.
 # Plan amendment A-P4-37 lowered the default `small_cell_floor` from
@@ -73,8 +73,19 @@ def test_a_repeating_numeric_column_keeps_its_distribution(
     ages = [str(20 + (index % 21)) for index in range(100)]
     described = describe(ages + [f"refused{n}" for n in range(stragglers)])
     assert described.role == taxonomy.ROLE_COUNT
-    assert described.details["percentiles"]["min"] == 20.0
-    assert described.details["percentiles"]["max"] == 40.0
+    # THE TWO ENDS ARE WITHHELD AND THE VALUES ARE NOT (stage 3,
+    # contract 6.7a). Five rows hold the 20 and five the 40, fewer than
+    # the floor of eleven, so neither end is published as a number of
+    # its own; the column stands on a grid and each tail holds three
+    # different values, so the description LISTS them -- which says the
+    # column runs from 20 to 40 as plainly as the ends did, and says it
+    # of a group rather than of a row.
+    assert described.details["percentiles"]["min"] is None
+    assert described.details["percentiles"]["max"] is None
+    assert described.details["tails"]["low"]["values"] == [20.0, 21.0, 22.0]
+    assert described.details["tails"]["high"]["values"] == [38.0, 39.0, 40.0]
+    assert described.details["percentiles"]["p50"] is not None
+    assert described.details["mean"] is not None
     assert described.details["n_used_in_statistics"] == 100
     assert described.details["n_left_out_of_statistics"] == stragglers
 
@@ -221,23 +232,48 @@ def test_a_majority_numeric_column_publishes_nothing_and_says_why() -> None:
 
 
 def test_a_below_floor_utc_offset_is_named_nowhere() -> None:
-    """`utc_offsets` pooled the lone zone away; the endpoint published it."""
+    """`utc_offsets` pooled the rare zones away; the endpoint published one.
+
+    ONE ROW AT `+05:45` UNTIL PLAN P4-D220 (stage 2 closed by the owner
+    rulings of 2026-09-17): a pool of one beside `+00:00` was that row's
+    count. Since plan P4-D222 an offset fewer rows than the line carried is
+    counted into the commonest, and its rows are read at that offset, the
+    last end among them: no rare zone is named anywhere.
+    """
     values = [f"2024-03-{day:02d}T09:00:00+00:00" for day in range(1, 29)]
-    values = values + ["2024-04-01T09:00:00+05:45"]
+    values = values + [f"2024-04-{day:02d}T09:00:00+09:00" for day in range(1, 6)]
+    values = values + [f"2024-04-{day:02d}T09:00:00+05:45" for day in range(10, 16)]
     described = describe(values)
     assert described.role == taxonomy.ROLE_DATETIME
-    assert described.details["utc_offsets"] == {
-        "+00:00": 28, parsing.MISSING_WITHHELD: 1,
-    }
-    assert described.details["latest_utc_offset"] == parsing.MISSING_WITHHELD
+    assert described.details["utc_offsets"] == {"+00:00": 39}
+    # AND THE COLUMN IS READ ON THE LOCAL CLOCK, which is the published
+    # consequence of the absorption: a column whose census named two
+    # offsets would be read on the shared one. The two rare zones were
+    # counted into `+00:00` and their rows are read there, so one
+    # offset is named and nothing distinguishes those rows. (This stood
+    # on `latest_utc_offset` until stage 3 removed the two end offsets
+    # from the role, plan P4-D328; the reading is the same fact said
+    # about the whole column instead of about one row.)
+    assert described.details["datetimes_read_at"] == "local"
     assert "+05:45" not in whole_block(described)
+    assert "+09:00" not in whole_block(described)
+    # ...and the lone zone of the old witness is counted in the same way.
+    lone = [f"2024-03-{day:02d}T09:00:00+00:00" for day in range(1, 29)]
+    lone = lone + ["2024-04-01T09:00:00+05:45"]
+    assert describe(lone).details["utc_offsets"] == {"+00:00": 29}
 
 
 def test_an_offset_above_the_floor_is_still_named() -> None:
     values = [f"2024-03-{day:02d}T09:00:00+05:45" for day in range(1, 29)]
     described = describe(values)
-    assert described.details["earliest_utc_offset"] == "+05:45"
-    assert described.details["latest_utc_offset"] == "+05:45"
+    # NAMED, in the census and in the block: twenty-eight rows carry it,
+    # which is above the line, so the census names it and the column is
+    # read on it. The two end offsets that used to carry this are
+    # removed from the role (stage 3, plan P4-D328), and the census is
+    # where an offset a column really wore is named now.
+    assert described.details["utc_offsets"] == {"+05:45": 28}
+    assert described.details["datetimes_read_at"] == "local"
+    assert "+05:45" in whole_block(described)
 
 
 # -- F4: nothing is routed by the width of its text -------------------

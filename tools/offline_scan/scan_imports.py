@@ -80,6 +80,62 @@ additions E7-E9 in plan phase-2-generator.md, P2-D13):
   is reachable, by import or by attribute step. Imports of the
   synthtwin package's own modules are allowed because those files are
   scanned too. Every other import is a violation.
+* THE TWO WORKBOOK MODULES (plan P4-D77). Reading a spreadsheet
+  workbook needs a zip reader and an XML parser, and admitting a
+  workbook LIBRARY would put a third runtime dependency inside the
+  offline guarantee. So `zipfile` and `xml.parsers.expat` are admitted
+  for the standard library's own, reduced to the names the workbook
+  reader needs and no others:
+
+    zipfile.ZipFile      opens a package for READING and hands back
+                         members as bytes, and -- since plan P4-D79 --
+                         builds the twin's own package IN MEMORY. It
+                         reaches no path either way: the reader never
+                         extracts to one, so a member named `..`
+                         reaches no filesystem, and the writer is
+                         handed a bytes buffer and hands bytes back,
+                         leaving the one write in `writing`. The
+                         `extract`/`extractall` names -- the ones that
+                         would reach a path -- are NOT admitted and
+                         stay violations.
+    zipfile.ZipInfo      one member's name and its fixed moment, which
+                         is what makes the twin's package
+                         deterministic: written without it, every
+                         member would carry the clock and the same
+                         description and seed would give different
+                         bytes on every run. It names a member and
+                         opens nothing.
+    zipfile.ZIP_DEFLATED the compression constant, a plain integer.
+    zipfile.BadZipFile   the two exceptions a damaged or oversized
+    zipfile.LargeZipFile package raises, caught so the person gets a
+                         sentence rather than a traceback.
+    expat.ParserCreate   builds a parser. Its handler slots are the
+                         whole reason an XML module is needed, and the
+                         reader refuses a DOCTYPE in one of them, which
+                         is what closes the entity-expansion and
+                         external-entity families: no entity is ever
+                         defined, so none can be external. expat
+                         resolves no namespace and fetches nothing of
+                         its own accord.
+    expat.ExpatError     the exception malformed markup raises.
+
+  Nothing else of either module is reachable. In particular
+  `zipfile.Path` and `expat.ErrorString` are NOT admitted, and the
+  mutation tests in `tests/test_offline_scan.py` prove that a
+  neighbouring attribute of each module is still refused -- the check
+  that keeps this admission an enumeration rather than a doorway.
+
+  AND THE ADMISSION IS SCOPED TO THE MODULES IT WAS ARGUED FROM
+  (_MODULE_SCOPED_ADMISSIONS). Both were admitted for one job each:
+  zipfile so that `synthtwin.reading` can open the person's package
+  and `synthtwin.writing` can put the twin's on disk, expat so that
+  `synthtwin.workbook` can parse the markup those members hold. This
+  table is package-wide, so admitting a name here admitted it for
+  every module in src -- the GENERATOR could have named the zip API
+  and scanned clean, which is exactly the surface the plan's own
+  boundary rule exists to deny. Outside those modules each name is a
+  violation with a message of its own, and a mutation test moves the
+  use into another module to prove it.
 * NO MODULE-LEVEL TRUST. Membership in an allowed module proves
   nothing about what an attribute can do, so every allowed module's
   usable attribute names are enumerated one by one in
@@ -565,8 +621,47 @@ _FIRST_PARTY_ROOT = "synthtwin"
 # decision reviewed against the threat model, not a routine code
 # change. (os and importlib.metadata are enumerated separately in
 # _policy_for because their messages are more specific.)
+# ADMISSIONS THAT ARE SCOPED TO THE MODULES THAT NEEDED THEM (repair of
+# landing 2b.10). Two entries of the table below were admitted for one
+# job each: reading a spreadsheet package and writing one. The table
+# itself is package-wide, so admitting them for that job admitted them
+# for every module in src -- the generator could have named the zip API
+# and scanned clean. An admission argued from one module's need is
+# enforced for that module: elsewhere the name is a violation, exactly
+# as it was before the admission.
+#
+# `zipfile` belongs to the two modules that touch a file: `reading`
+# opens the person's package, `writing` puts the twin's on disk.
+# `xml.parsers.expat` belongs to `workbook`, which parses the markup
+# those members hold and opens nothing.
+_MODULE_SCOPED_ADMISSIONS: "dict[str, frozenset[str]]" = {
+    "zipfile": frozenset({"synthtwin.reading", "synthtwin.writing"}),
+    "xml.parsers.expat": frozenset({"synthtwin.workbook"}),
+}
+
+
+def _out_of_scope_message(
+    dotted: str, prefix: str, allowed_in: "frozenset[str]"
+) -> str:
+    return (
+        "uses '" + dotted + "', which is admitted for "
+        + ", ".join(sorted(allowed_in))
+        + " only. That admission was argued from those modules' own "
+        "need -- reading a spreadsheet package and writing one -- and "
+        "is enforced there rather than package-wide, so every other "
+        "module names this API exactly as it did before the admission: "
+        "as a violation. Moving the work to the module that holds the "
+        "admission is the fix; widening the scope is a policy decision "
+        "reviewed against the threat model."
+    )
+
+
 _ALLOWED_MODULE_ATTRS: "dict[str, frozenset[str]]" = {
     "argparse": frozenset({"ArgumentParser", "RawDescriptionHelpFormatter"}),
+    "zipfile": frozenset(
+        {"BadZipFile", "LargeZipFile", "ZipFile", "ZipInfo", "ZIP_DEFLATED"}
+    ),
+    "xml.parsers.expat": frozenset({"ExpatError", "ParserCreate"}),
     "csv": frozenset({"Error", "field_size_limit", "reader", "writer"}),
     "dataclasses": frozenset(
         {
@@ -2096,8 +2191,15 @@ class _Checker(ast.NodeVisitor):
         self,
         module_exports: "dict[str, tuple[set[str], set[str], set[str]]] | None" = None,
         first_party_modules: "set[str] | None" = None,
+        module_name: str = "",
     ) -> None:
         self.violations: list[tuple[int, str]] = []
+        # Which module is being scanned, for the admissions that are
+        # scoped to one (see _MODULE_SCOPED_ADMISSIONS). Empty where the
+        # caller did not say, and an empty name holds no scoped
+        # admission at all -- an unnamed module is not one of the two
+        # that may name the zip API.
+        self.module_name = module_name
         # A stack of scopes. Each scope maps a local name to the SET of
         # possible origins it may hold: ("module", dotted),
         # ("api", dotted), ("def", name) for functions and classes
@@ -3348,6 +3450,10 @@ class _Checker(ast.NodeVisitor):
         if prefix in _ALLOWED_MODULE_ATTRS:
             if prefix == "typing" and rest[0] in _TYPING_EVALUATORS:
                 return _typing_evaluator_message(dotted)
+            if prefix in _MODULE_SCOPED_ADMISSIONS:
+                allowed_in = _MODULE_SCOPED_ADMISSIONS[prefix]
+                if self.module_name not in allowed_in:
+                    return _out_of_scope_message(dotted, prefix, allowed_in)
             if rest[0] in _ALLOWED_MODULE_ATTRS[prefix]:
                 return None
             return _module_surface_message(dotted, prefix)
@@ -3416,10 +3522,12 @@ class _Checker(ast.NodeVisitor):
                 self._bind(bound_name, ("module", origin))
                 continue
             if name in {"argparse", "csv", "dataclasses", "json", "math",
-                        "pandas", "pathlib", "typing", "sys", "os"}:
+                        "pandas", "pathlib", "typing", "sys", "os",
+                        "zipfile"}:
                 self._bind(bound_name, ("module", name))
                 continue
-            if name in {"os.path", "importlib.metadata", "numpy.random"}:
+            if name in {"os.path", "importlib.metadata", "numpy.random",
+                        "xml.parsers.expat"}:
                 # The same two-component shape os.path has: the import
                 # statement names the submodule, and the one-step rule
                 # then counts from it. `import numpy` on its own is NOT
@@ -4719,6 +4827,7 @@ def scan_source(
     source_text: str,
     module_exports: "dict[str, tuple[set[str], set[str], set[str]]] | None" = None,
     first_party_modules: "set[str] | None" = None,
+    module_name: str = "",
 ) -> "list[tuple[int, str]]":
     """Scan one module's source text. Returns (line, message) pairs.
 
@@ -4726,6 +4835,12 @@ def scan_source(
     export records for the surrounding scanned tree (see scan_files);
     without them, first-party `from` imports fall back to rejecting
     known module names only.
+
+    ``module_name`` is the dotted name of the module this text is, where
+    the caller knows it. It decides only the admissions that are scoped
+    to one module (_MODULE_SCOPED_ADMISSIONS); left out, no scoped
+    admission applies and those names are violations wherever they
+    appear.
     """
     try:
         tree = ast.parse(source_text)
@@ -4739,7 +4854,7 @@ def scan_source(
                 "the syntax so the file can be audited.",
             )
         ]
-    checker = _Checker(module_exports, first_party_modules)
+    checker = _Checker(module_exports, first_party_modules, module_name)
     for node in ast.walk(tree):
         if isinstance(node, ast.Call):
             checker.call_targets.add(id(node.func))
@@ -4791,8 +4906,12 @@ def scan_files(files: "list[pathlib.Path]") -> "list[str]":
     for path in files:
         if path not in texts:
             continue
+        scanned_name = _first_party_module_name(path)
         for lineno, message in scan_source(
-            texts[path], module_exports, first_party_modules
+            texts[path],
+            module_exports,
+            first_party_modules,
+            scanned_name if scanned_name is not None else "",
         ):
             lines.append(str(path) + ":" + str(lineno) + ": " + message)
     return lines

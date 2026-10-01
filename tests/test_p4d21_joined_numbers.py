@@ -7,12 +7,19 @@ because the cell was written from the free-text alphabet and its digits
 carried no distribution at all. This role reads each number in the cell
 separately and publishes a range and an average for each.
 
-THE ROLE IS REACHED ONLY BY DECLARATION, and the reason is measured
-rather than cautious. `test_no_column_of_the_other_roles_is_claimed`
-below is the whole argument: a rule that read the VALUES would claim
-this project's own date column, its clock column, and -- past any rule
-order that could save those two -- its laboratory-code and drug-code
-columns, publishing fragments of real codes as numeric ranges.
+THE FULL READING IS REACHED ONLY BY DECLARATION, and the reason is
+measured rather than cautious. `test_no_column_of_the_other_roles_is_claimed`
+below is the whole argument: a rule that read every joined shape from
+the VALUES would claim this project's own date column, its clock column,
+and -- past any rule order that could save those two -- its
+laboratory-code and drug-code columns, publishing fragments of real
+codes as numeric ranges.
+
+ONE SHAPE IS READ FROM THE VALUES (plan P4-D40, 2026-09-15). A column
+that would otherwise be free text, whose cells are two plain whole
+numbers joined by a slash, takes the role undeclared: a blood pressure
+written that way was free text at 300 rows and at 2,000 and its twin
+held stand-in text. The tests below pin where that shape ends.
 """
 
 import pathlib
@@ -22,6 +29,7 @@ import tempfile
 
 import fixtures
 import pytest
+import tail_rule
 
 from synthtwin import (
     contract,
@@ -72,10 +80,89 @@ def _part(cell: str, place: int) -> int:
 # -- what the declaration does -----------------------------------------
 
 
-def test_undeclared_it_is_not_this_role() -> None:
-    """The values decide nothing, so an undeclared column is untouched."""
+def test_undeclared_a_slashed_pair_of_whole_numbers_is_this_role() -> None:
+    """A blood pressure is read from its values (plan P4-D40)."""
     document, _folder = _described(_readings(), declared=False)
+    block = document["columns"][0]
+    assert block["role"] == taxonomy.ROLE_JOINED
+    assert (block["separator"], block["n_parts"]) == ("/", 2)
+    assert block["n_joined"] == 400 and block["n_unparsed"] == 0
+
+
+def _other_joined_shapes() -> "list[tuple[str, list[str]]]":
+    rng = random.Random(21)
+    pairs = [(rng.randrange(95, 176), rng.randrange(55, 106)) for _ in range(300)]
+    return [
+        ("a pipe", [f"{top}|{bottom}" for top, bottom in pairs]),
+        ("a padded part", [f"{top:04d}/{bottom:03d}" for top, bottom in pairs]),
+        ("three parts", [f"{top}/{bottom}/{bottom % 7}" for top, bottom in pairs]),
+        ("a part with a point", [f"{top}.5/{bottom}" for top, bottom in pairs]),
+        ("a colon ratio", [f"{top}:{bottom}.5" for top, bottom in pairs]),
+    ]
+
+
+@pytest.mark.parametrize(
+    "values", [values for _name, values in _other_joined_shapes()],
+    ids=[name for name, _values in _other_joined_shapes()],
+)
+def test_undeclared_every_other_joined_shape_is_not_this_role(
+    values: "list[str]",
+) -> None:
+    """Only the slashed pair of plain whole numbers is read undeclared."""
+    document, _folder = _described(values, declared=False)
     assert document["columns"][0]["role"] != taxonomy.ROLE_JOINED
+    declared, _folder = _described(values)
+    assert declared["columns"][0]["role"] == taxonomy.ROLE_JOINED
+
+
+def test_a_slashed_code_is_read_and_the_question_is_still_put() -> None:
+    """The cost P4-D40 accepts, stated as a test rather than found later.
+
+    Two slashed figures with no padding are what a blood pressure looks
+    like and what some registers look like, and nothing in the values
+    says which. The column is read as joined numbers, and the questions
+    file asks about it with `code` and `identifier` offered beside the
+    reading Enter keeps.
+    """
+    from synthtwin import asking
+
+    rng = random.Random(9)
+    values = [
+        f"{rng.randrange(1000, 9999)}/{rng.randrange(1, 9)}"
+        for _each in range(240)
+    ]
+    document, folder = _described(values, name="register", declared=False)
+    assert document["columns"][0]["role"] == taxonomy.ROLE_JOINED
+    read = reading.read_table(f"{folder / 't.csv'}")
+    asked = asking.questions_for(document, read.columns, taxonomy.Settings(), [])
+    assert [question.name for question in asked] == ["register"]
+    assert asked[0].taken == asking.ANSWER_KEEP
+    answers = [choice.answer for choice in asked[0].choices]
+    assert answers == [
+        asking.ANSWER_KEEP,
+        asking.ANSWER_CODE,
+        asking.ANSWER_IDENTIFIER,
+    ]
+    # THE CLAUSE IS DERIVED FROM WHAT THE ROLE PUBLISHES, not quoted
+    # (the review of 2026-09-23, item 7). This read `"own average and
+    # ends" in ...publishes`, and since stage 3 a position of this role
+    # publishes NEITHER end unless a group of at least the floor's rows
+    # holds it -- which `test_every_fact_this_role_publishes_is_checked`
+    # below says in as many words. So the choice was offering the person
+    # two values their answer cannot deliver, and what is asked here is
+    # the property instead: each number described on its own, and no end
+    # named without the floor it has to clear.
+    offered = asked[0].choices[0].publishes
+    floor = taxonomy.Settings().small_cell_floor
+    assert "each number inside the cell described on its own" in offered
+    assert "a smallest and a largest" not in offered, (
+        "the choice promises two values a description written after "
+        f"stage 3 does not publish: {offered!r}"
+    )
+    assert "end" in offered and f"{floor} rows" in offered, (
+        "the choice says nothing about this role's two ends, or names "
+        f"them without the floor an end has to clear: {offered!r}"
+    )
 
 
 def test_declared_it_reads_each_number_separately() -> None:
@@ -89,16 +176,34 @@ def test_declared_it_reads_each_number_separately() -> None:
 
 
 def test_each_position_publishes_its_own_range() -> None:
-    """The first number's ladder is a ladder of first numbers."""
+    """The first number's ladder is a ladder of first numbers.
+
+    A POSITION IS DESCRIBED UNDER THE TAIL RULE LIKE ANY OTHER COLUMN
+    OF NUMBERS (contract 6.7a, landing 3.3): the two end rungs used to
+    carry that position's smallest and largest reading and now carry
+    nothing, because too few rows hold either of them. What the
+    description states about those rows instead is the GROUP beyond
+    each boundary, and that group is worked out here from the
+    position's own numbers by `tests/tail_rule.py` -- which is the same
+    claim said of more rows: a ladder of first numbers, not of second
+    ones, and not of whole cells.
+    """
     values = _readings()
     document, _folder = _described(values)
     block = document["columns"][0]
     for place in range(2):
-        real = [_part(cell, place) for cell in values]
-        rungs = block["parts"][place]["percentiles"]
-        assert rungs["min"] == min(real)
-        assert rungs["max"] == max(real)
-        assert abs(block["parts"][place]["mean"] - statistics.fmean(real)) < 0.5
+        real = [float(_part(cell, place)) for cell in values]
+        part = block["parts"][place]
+        assert part["percentiles"]["min"] is None
+        assert part["percentiles"]["max"] is None
+        assert part["percentiles"]["p50"] == float(tail_rule.rung_at(real, 50))
+        for low in (True, False):
+            side = part["tails"]["low" if low else "high"]
+            assert tail_rule.holds(
+        side,
+                part, real, low=low
+            ), (place, low)
+        assert abs(part["mean"] - statistics.fmean(real)) < 0.5
 
 
 def test_no_whole_cell_of_the_table_is_published() -> None:
@@ -269,9 +374,10 @@ def test_no_column_of_the_other_roles_is_claimed(
     """A date and a clock split into whole numbers and are NOT this role.
 
     `2023-02-12` is three whole numbers joined by `-` and `09:30` is two
-    joined by `:`. Both would be claimed by any rule that read the
-    values, and both keep the role they had -- because no rule reads the
-    values, and the declaration was not given.
+    joined by `:`. Both would be claimed by a rule that read every
+    joined shape from the values, and both keep the role they had --
+    because the one shape read undeclared is a slashed pair tested after
+    the dates and the clocks, and the declaration was not given.
     """
     document, _folder = _described(values, name=name, declared=False)
     assert document["columns"][0]["role"] == role
@@ -282,9 +388,10 @@ def test_a_code_column_is_not_claimed_either() -> None:
 
     A laboratory code `1923-1` is two whole numbers joined by `-`, and
     it is free text today -- the last rule of all. A value-based
-    joined-number rule would have to be tested before free text, so it
-    WOULD claim this column and publish the smallest and largest of its
-    parts, which are fragments of real codes.
+    joined-number rule would have to be tested before free text, so one
+    reading every joined shape WOULD claim this column and publish the
+    smallest and largest of its parts, which are fragments of real
+    codes. Rule 9c reads a slash only (plan P4-D40).
     """
     rng = random.Random(9)
     values = [
@@ -491,6 +598,16 @@ def test_every_fact_this_role_publishes_is_checked() -> None:
 
     Every key the role adds is named here, so a key added later without
     a check turns this red.
+
+    WHAT A POSITION PUBLISHES ABOUT ITS ENDS CHANGED IN LANDING 3.3 and
+    the owed list moves with it. Under the tail rule (contract 6.7a) a
+    position of different readings publishes neither `min` nor `max` --
+    both rungs read the outermost values -- so there is no end left to
+    check and naming one here would ask for a check on nothing. What it
+    publishes instead is a GROUP beyond each boundary, three facts a
+    side, and all six are owed a check at each position. An end a
+    position does HEAP is published and checked one-sidedly, which
+    these readings do not have.
     """
     outcome = _measured(_readings())
     checked = {check.fact for check in outcome.checks}
@@ -503,13 +620,13 @@ def test_every_fact_this_role_publishes_is_checked() -> None:
         "joined.part_min_widths[1]",
         "joined.part_above[0]",
         "joined.part_agreements[0]",
-        "joined.parts[0].min",
-        "joined.parts[0].max",
         "joined.parts[0].integer_valued",
-        "joined.parts[1].min",
-        "joined.parts[1].max",
         "joined.parts[1].integer_valued",
     }
+    for place in (0, 1):
+        for side in ("low", "high"):
+            for key in ("mean_distance", "rms_distance", "values"):
+                owed = owed | {f"joined.parts[{place}].tails.{side}.{key}"}
     missing = sorted(owed - checked)
     assert missing == [], f"these facts are published and unchecked: {missing}"
 
@@ -827,3 +944,38 @@ def test_a_stand_in_is_not_measured_into_a_position() -> None:
         assert len(gathered) == column["n_joined"], (place, len(gathered))
         for piece in gathered:
             assert parsing.classify_number(piece) == parsing.NUMBER, piece
+
+
+def test_the_unasked_notice_tells_a_column_read_as_pairs_the_truth() -> None:
+    """The notice printed where nobody is asked (plan P4-D40).
+
+    It said every joined-looking column "is being described as text
+    rather than as numbers". A slashed pair read from its values is not,
+    so that column gets the sentence that is true of it, and the flag it
+    would use to correct a wrong reading is `--code`.
+    """
+    from synthtwin import asking, cli
+
+    rng = random.Random(9)
+    values = [
+        f"{rng.randrange(1000, 9999)}/{rng.randrange(1, 9)}"
+        for _each in range(240)
+    ]
+    document, folder = _described(values, name="register", declared=False)
+    read = reading.read_table(f"{folder / 't.csv'}")
+    asked = asking.questions_for(document, read.columns, taxonomy.Settings(), [])
+    notice = cli._assumptions_notice(asked)
+    assert "AND WERE READ AS READINGS" in notice
+    assert "described as text" not in notice
+    assert "no whole cell is published" in notice
+    assert "--code register" in notice
+    assert "--measurement" not in notice
+    # ...and a pipe-joined column, still text, keeps the sentence that is
+    # true of it.
+    piped = [f"{100 + index}|{30 + index}" for index in range(300)]
+    document, folder = _described(piped, name="piped", declared=False)
+    read = reading.read_table(f"{folder / 't.csv'}")
+    asked = asking.questions_for(document, read.columns, taxonomy.Settings(), [])
+    notice = cli._assumptions_notice(asked)
+    assert "described as text rather than as numbers" in notice
+    assert "--measurement piped" in notice

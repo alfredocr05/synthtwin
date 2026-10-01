@@ -50,7 +50,7 @@ import types
 import pytest
 
 import fixtures
-from synthtwin import errors, profile, writing
+from synthtwin import errors, parsing, profile, writing
 from synthtwin.cli import main
 
 PROFILE_TEXT = '{\n  "profile_version": 2,\n  "note": "PROFILE-DERIVED"\n}\n'
@@ -653,7 +653,12 @@ def test_the_command_says_both_files_were_written_and_names_the_leftover(
     table = fixtures.write(
         tmp_path,
         "clinic.csv",
-        fixtures.single_column_table("age", ["41"] * 30),
+        # AT THE POPULATION FLOOR (plan P4-D341): the command describes
+        # no smaller table, and what this pins is what the command SAYS
+        # when the working file cannot be removed.
+        fixtures.single_column_table(
+            "age", ["41"] * parsing.POPULATION_FLOOR
+        ),
     )
     first, _second = _outputs(tmp_path)
     first.write_text(OLD_PROFILE, encoding="utf-8", newline="")
@@ -686,14 +691,27 @@ def test_a_plain_table_still_profiles_cleanly_through_the_command(
     table = fixtures.write(
         tmp_path,
         "clinic.csv",
-        fixtures.single_column_table("age", [f"{40 + n % 20}" for n in range(60)]),
+        # AT THE POPULATION FLOOR (plan P4-D341): the command refuses a
+        # smaller table and writes nothing, and what this pins is what
+        # the run SAYS about the two files it wrote.
+        fixtures.single_column_table(
+            "age",
+            [f"{40 + n % 20}" for n in range(parsing.POPULATION_FLOOR)],
+        ),
     )
     assert main(["profile", f"{table}"]) == 0
     told = capsys.readouterr()
     first, second = _outputs(tmp_path)
 
     assert "Written:" in told.out
-    assert told.err == ""
+    # WHAT AN ORDINARY RUN HAS NOTHING TO SAY ABOUT IS ITS WORKING FILES
+    # (plan P4-D341). It read `err == ""`, which is a claim about every
+    # notice the command has: the table is in the population band, so
+    # the run says how large it is -- on purpose, and on every page it
+    # writes. The seam this file is about is named instead.
+    assert "could not be removed" not in told.err, told.err
+    assert "working file" not in told.err, told.err
+    assert "could not put things back" not in told.err, told.err
     assert first.exists() and second.exists()
     assert _working_files(tmp_path) == []
     assert sorted(entry.name for entry in tmp_path.iterdir()) == [

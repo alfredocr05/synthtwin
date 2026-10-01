@@ -32,7 +32,9 @@ import typing
 
 import pytest
 
+import cost_rule_window
 import fixtures
+import tail_rule
 from synthtwin import cli, parsing, profile, reading, taxonomy
 
 # THE SMALLEST GROUP EVERY CASE HERE IS DESCRIBED AT, DECLARED BECAUSE
@@ -48,6 +50,16 @@ from synthtwin import cli, parsing, profile, reading, taxonomy
 # left to a default that has moved beneath them. The floor of one is
 # the subject of `tests/test_p3v5f1_floor_one.py`.
 SETTINGS = taxonomy.Settings(small_cell_floor=11)
+# THE SATURATING COLUMN IS DESCRIBED UNDER A FLOOR OF THREE (stage 3,
+# landing 3.3). It holds three rows, and at a floor of eleven a block of
+# fewer rows than one tail's own publishes no rung and no moment at all
+# -- contract 6.7a, invariant TL2 -- so the spread it is about would be
+# null for a reason that has nothing to do with the spread. Under a
+# floor of three the same three rows publish their moments (TL3: no
+# percent clears two tails at once, so the moments stand alone), which
+# is the state this rule was written for and the one where `std: null`
+# beside `std_unrepresentable: true` means what it says.
+SATURATING_SETTINGS = taxonomy.Settings(small_cell_floor=3)
 
 # The reviewer's column: three distinct values whose exact sample
 # standard deviation is larger than the largest finite binary64 number
@@ -141,7 +153,7 @@ def test_the_reviewers_spread_really_is_out_of_range_and_rounds_down() -> None:
 
 
 def test_an_exact_out_of_range_spread_is_null_and_flagged() -> None:
-    described = describe(SATURATING_SPREAD)
+    described = describe(SATURATING_SPREAD, SATURATING_SETTINGS)
     assert described.role == taxonomy.ROLE_CONTINUOUS
     assert described.details["std"] is None, (
         "a spread this format cannot hold must not be published as a "
@@ -151,10 +163,13 @@ def test_an_exact_out_of_range_spread_is_null_and_flagged() -> None:
         "null on its own means 'undefined', which is a different fact"
     )
     # The rest of the description is unaffected: only the spread was out
-    # of range.
+    # of range. The LADDER is another matter and not this rule's: three
+    # rows publish no rung under any floor (TL3), and the tail facts say
+    # which state that is.
     assert described.details["mean"] is not None
     assert described.details["skew"] is not None
-    assert described.details["percentiles"]["max"] is not None
+    assert described.details["percentiles"]["max"] is None
+    assert described.details["tails"] == {"low": None, "high": None}
 
 
 def test_the_out_of_range_spread_is_not_published_as_a_finite_maximum() -> None:
@@ -217,7 +232,7 @@ def test_a_spread_that_is_undefined_is_not_an_out_of_range_spread() -> None:
 
 
 def test_the_out_of_range_spread_is_said_in_words() -> None:
-    described = describe(SATURATING_SPREAD)
+    described = describe(SATURATING_SPREAD, SATURATING_SETTINGS)
     spoken = [
         remark for remark in described.remarks if "spread" in remark
     ]
@@ -239,7 +254,7 @@ def test_the_out_of_range_spread_reaches_the_profile_file(
             )
         )
     )
-    document = profile.build_document(table, SETTINGS, [])
+    document = profile.build_document(table, SATURATING_SETTINGS, [])
     text = profile.serialize(document)
     column = document["columns"][0]
     assert column["std"] is None
@@ -251,12 +266,29 @@ def test_the_out_of_range_spread_reaches_the_profile_file(
 def test_the_out_of_range_spread_survives_the_command_line(
     tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
+    # THE THREE NUMBERS, AND A TABLE THE COMMAND WILL DESCRIBE (plan
+    # P4-D341): it refuses one under the population floor and writes
+    # nothing. The rest of `reading` is `NA`, one of this format's own
+    # spellings for "no value", so the numeric population is exactly
+    # the three values whose variance saturates and every number below
+    # is the number this shape produced before.
+    #
+    # AND THE TABLE REACHES THE FLOOR ON A KEEPER COLUMN (repair of
+    # landing 3.2), not on the `NA` rows: the population is the rows
+    # that HOLD A VALUE, so padding one column with absent cells is a
+    # population of three and the command refuses it -- which is
+    # exactly the case this file was cited for. `reading` is still the
+    # first column and still holds nothing but its three numbers.
+    padded = list(SATURATING_SPREAD)
+    padded += ["NA"] * (parsing.POPULATION_FLOOR - len(padded))
     table = fixtures.write(
         tmp_path,
         "spread.csv",
-        fixtures.single_column_table("reading", SATURATING_SPREAD),
+        fixtures.kept_column_table("reading", padded),
     )
-    assert cli.main(["profile", str(table)]) == 0
+    assert cli.main(
+        ["profile", str(table), "--smallest-group", "3"]
+    ) == 0
     printed = capsys.readouterr().out
     document = json.loads(
         (tmp_path / "spread-profile.json").read_text(encoding="utf-8")
@@ -775,7 +807,42 @@ def test_a_column_of_twenty_thousand_values_completes() -> None:
     described = describe(values)
     assert described.role == taxonomy.ROLE_CONTINUOUS
     assert described.n_present == 20000
-    assert described.details["percentiles"]["max"] == 19999.5
+    # The largest value is held by one row, so the tail rule withholds
+    # it (contract 6.7a) and the group beyond the high boundary is what
+    # the description states about those rows. `tail_rule.holds` asks the
+    # percent and the rows against the rule.
+    assert described.details["percentiles"]["max"] is None
+    assert tail_rule.holds(
+        described.details["tails"]["high"],
+        described.details,
+        [float(value) for value in values],
+        low=False,
+    )
+    # THE PAIRS, DERIVED FROM THE COST RULE (plan P4-D353), NOT COPIED
+    # FROM AN OUTPUT. The back-solve asks each tail's pair and spends its
+    # budget on both before it shows a second answer, so P4-D349 withholds
+    # both pairs (the two hundred distances step ten grid points apart on
+    # this column's grid of a tenth, which is not the least sum two
+    # hundred different distances can have, so no arithmetic settles
+    # them: they are UNSETTLED, not pinned). With both withheld, each
+    # tail is read one grid point apart -- a tenth where the column steps
+    # a whole unit -- and the window of the column's spread falls short
+    # of the published spread. So the rule publishes a pair, and only
+    # where withholding it costs.
+    block = profile._column_block(described)
+    both = cost_rule_window.withheld(block, ("low", "high"))
+    assert cost_rule_window.costs(both, 11), (
+        "with both pairs withheld this column's own window still reaches "
+        "its mean and spread: the case no longer asks the cost rule anything"
+    )
+    tails = block["tails"]
+    assert any(tails[side]["mean_distance"] is not None for side in ("low", "high")), (
+        "withholding both pairs costs the twin its spread and neither is published"
+    )
+    assert not cost_rule_window.costs(block, 11), (
+        "the published description leaves its own mean or spread window short"
+    )
+    assert cost_rule_window.published_where_it_costs_nothing(block, 11) == []
 
 
 def test_a_large_date_column_is_not_built_quadratically() -> None:

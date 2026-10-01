@@ -86,6 +86,7 @@ written; (3) still have a lowering to excuse; and (4) be gone by the
 time a review stops rejecting the phase.
 """
 
+import datetime
 import functools
 import hashlib
 import pathlib
@@ -119,7 +120,6 @@ DOCUMENTS = (("contract", CONTRACT), ("method", METHOD), ("plan", PLAN))
 # above, and the seal covers all four.
 PLAN3 = REPO_ROOT / "docs" / "plans" / "phase-3-product.md"
 PLAN4 = REPO_ROOT / "docs" / "plans" / "phase-4-columns.md"
-PLAN4 = REPO_ROOT / "docs" / "plans" / "phase-4-columns.md"
 VALIDATION = REPO_ROOT / "docs" / "spec" / "validation-method-v1.md"
 CONTRACT5 = REPO_ROOT / "docs" / "spec" / "profile-contract-v5.md"
 CONTRACT6 = REPO_ROOT / "docs" / "spec" / "profile-contract-v6.md"
@@ -138,7 +138,12 @@ CONTRACT6 = REPO_ROOT / "docs" / "spec" / "profile-contract-v6.md"
 # still a sealed governing document, so attacking it exercises exactly
 # what those tests exist to exercise.
 MATRIX_CONTRACT = fixtures.GOVERNING_CONTRACT
+# The plan of record, sealed since the governance pass of stage 3's
+# review: it fixes each landing's scope and its gate, and `CLAUDE.md`'s
+# first instruction is to read it.
+STATE = REPO_ROOT / "docs" / "STATE.md"
 RELATIVE = {
+    "docs/STATE.md": STATE,
     "docs/spec/profile-contract-v4.md": CONTRACT,
     "docs/spec/profile-contract-v5.md": CONTRACT5,
     "docs/spec/profile-contract-v6.md": CONTRACT6,
@@ -444,6 +449,14 @@ def test_no_fourth_governing_document_can_appear_unsealed() -> None:
     what happened when `profile-contract-v5.md` landed under plan
     amendment A-P3-27: the list below grew by one line, in the same
     commit as the document and its seal entry.
+
+    AND `docs/` ITSELF IS WALKED, which it was not (the governance pass
+    of stage 3's review, item 8). `docs/STATE.md` -- the plan of record,
+    and the one page every session is instructed to read first -- sat
+    directly in `docs/`, which neither glob reached, so the document
+    that fixes each landing's scope and gate was outside the seal and
+    outside this guard at once. It is sealed now, and a second page put
+    beside it turns this red the day it lands.
     """
     specifications = sorted(
         path.name for path in (REPO_ROOT / "docs" / "spec").glob("*.md")
@@ -475,7 +488,22 @@ def test_no_fourth_governing_document_can_appear_unsealed() -> None:
         # inventory's surfaces) at its ratification, per its own
         # sequencing item 1.
         "phase-4-columns.md",
+        # The Phase 5 plan, on the same precedent and for the same
+        # reason: DRAFT, unreviewed, written the day Phase 4 closed. It
+        # states in its own status line that nothing may be built from
+        # it until adversarial review and the P5-D0 decisions, and it
+        # joins dispositions.GOVERNING at its ratification. Listed here
+        # in the commit that adds it, which is what this guard exists
+        # to force -- a normative document beside the sealed ones is
+        # the obvious place to state a lesser outcome nobody sealed.
+        "phase-5-relationships.md",
     ], plans
+    pages = sorted(path.name for path in (REPO_ROOT / "docs").glob("*.md"))
+    assert pages == [
+        # The plan of record, sealed since the governance pass of stage
+        # 3's review. Nothing else may stand beside it unsealed.
+        "STATE.md",
+    ], pages
     for relative in dispositions.GOVERNING:
         assert (REPO_ROOT / relative).exists(), relative
 
@@ -503,6 +531,50 @@ def test_the_seal_reddens_on_any_new_or_reworded_passage(
         substituted = dict(RELATIVE)
         substituted[name] = copy
         assert _unsealed(substituted), name
+
+
+# THE REVIEW'S OWN EDIT TO THE PLAN OF RECORD (the governance pass of
+# stage 3's review, item 8). It lowers stage 3's guarantee about what a
+# published sentence may carry, in the one document every session is
+# told to read first, and it passed all four seal and coverage checks
+# because none of them opened that document.
+STATE_LOWERING = (
+    "| 3 | **DONE 2026-09-23. The extremes, and the population floor.**",
+    "no sentence carries a count a key withholds",
+    "a sentence may carry a count a key withholds",
+)
+
+
+def test_the_seal_reddens_on_a_stage_guarantee_rewritten(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Item 8, watched failing: the plan of record's own stage row.
+
+    The edit changes stage 3's GATE -- what a published sentence may
+    carry -- and nothing else. It states no disposition and names no
+    published fact, so neither the phrase scan nor the matrix checks can
+    see it; the seal sees it because the row is a passage of a governing
+    document and its digest moves.
+    """
+    row, before, after = STATE_LOWERING
+    text = STATE.read_text(encoding="utf-8")
+    line = [one for one in text.splitlines() if one.startswith(row)]
+    assert len(line) == 1, (
+        "the plan of record no longer carries stage 3's own row, so this "
+        "mutation has nothing to lower"
+    )
+    assert before in line[0]
+    copy = tmp_path / "STATE-lowered.md"
+    copy.write_text(
+        text.replace(line[0], line[0].replace(before, after), 1),
+        encoding="utf-8", newline="\n",
+    )
+    substituted = dict(RELATIVE)
+    substituted["docs/STATE.md"] = copy
+    assert _unsealed(substituted), (
+        "a stage guarantee was rewritten in the plan of record and the "
+        "seal did not move"
+    )
 
 
 # -- the second lock: the registry's own judgment is sealed ------------
@@ -767,23 +839,38 @@ def test_an_authorization_the_plan_does_not_carry_is_refused() -> None:
     assert _authorization_violations(borrowed, regions) != []
 
 
-def test_the_registry_authorizes_nothing_for_the_two_ends() -> None:
+def test_the_registry_authorizes_nothing_for_the_two_tails() -> None:
     """The vacuity floor for the check above, on the disputed fact.
 
     An authorization list that was empty for every fact would make the
     scan below trivially strict and would pass whatever the plan said.
-    These four are the ones the plan authorizes nothing for, and they
-    are the four this item is about.
+    THE DISPUTED FACT IS THE OUTERMOST PUBLISHED VALUE OF A COLUMN OF
+    DATES, and stage 3 moved it: `earliest` and `latest` are published
+    nowhere, and what stands at the outside of the column now is each
+    tail's BOUNDARY, with the count of rows beyond it and -- where the
+    tail publishes them -- the values it holds. Those are the entries
+    the plan authorizes nothing for, on both roles that carry a tail,
+    and lowering one of them would be this item's lowering written
+    against the field that inherited it.
     """
-    for field in (
-        "earliest",
-        "latest",
-        "date_percentiles.min",
-        "date_percentiles.max",
-    ):
-        fact = dispositions.BY_KEY[("datetime", field)]
-        assert fact.authorized == (), field
-        assert fact.disposition == dispositions.EXACT_OBSERVABLE, field
+    for group in ("datetime", "clock"):
+        for field in (
+            "low_tail.boundary",
+            "high_tail.boundary",
+            "low_tail.rows",
+            "high_tail.rows",
+            "low_tail.values",
+            "high_tail.values",
+        ):
+            fact = dispositions.BY_KEY[(group, field)]
+            assert fact.authorized == (), f"{group}/{field}"
+            assert fact.disposition == dispositions.EXACT_OBSERVABLE, (
+                f"{group}/{field}"
+            )
+    # ...and the two ladder ends this item was also about are published
+    # nowhere now, so no entry disposes them at all.
+    for field in ("date_percentiles.min", "date_percentiles.max"):
+        assert ("datetime", field) not in dispositions.BY_KEY, field
     assert dispositions.BY_KEY[("numeric", "n_distinct")].authorized != ()
 
 
@@ -1088,8 +1175,24 @@ def _numeric_classes(
 # deviation on the cells and a MISS on the cores. The row now says
 # which terms those are, in the words the registry's authorization
 # rests on. No other row is touched and the head prose is untouched.
+#
+# MOVED 2026-09-16 AT THE INTEGRATION OF LANDINGS 2b.6 TO 2b.10, and it
+# LOWERS nothing: ONE ROW added, `| `wide_runs` | as on `count` and
+# `continuous` above |`, carrying the delegation phrase character for
+# character. Landing 2b.7 disposed `wide_runs` in the numeric table and
+# left the affixed cores without the delegation, so the fact reached the
+# cores nowhere. No other row is touched and the head prose is untouched.
+# MOVED 2026-09-22 AT LANDING 3.3, THE NUMERIC TAIL, and it LOWERS
+# nothing: FIVE ROWS added, each carrying the delegation phrase `as on
+# `count` and `continuous` above` character for character -- `tails`,
+# the four tail distances, the two lists of a tail's own values, the
+# two percents beside the two row counts, and `bin_groups`. The landing
+# disposed all of them in the numeric table this sub-table delegates
+# to, and without these rows not one of them would have reached an
+# affixed column's cores. No other row is touched and the head prose is
+# untouched.
 AFFIXED_REGION_DIGEST = (
-    "cfd7462595d96e5b9d112a896288e017ece0805999dfd8f922524cf20398c5de"
+    "aa11a6dd51a8dc35d9a538acd223c36b3f41bd076ab37f3d11dfde394b289f0e"
 )
 
 
@@ -1174,7 +1277,12 @@ def _restatement_violations(
                 f"is a second statement about a class written in one "
                 f"place, and it can qualify or contradict it"
             )
-    absent = sorted(numeric - seen)
+    # A KEY OF THE `count` BLOCK ALONE is not one the affixed cores carry
+    # -- `number_spellings` (contract 7.13, landing 2b.18 part 2) stands
+    # in the numeric table and on no affixed block -- so the delegation
+    # owed is total over the keys the two roles SHARE, read off the loader.
+    count_only = set(contract.COUNT_KEYS) - set(contract.NUMERIC_KEYS)
+    absent = sorted(numeric - seen - count_only)
     if absent:
         broken.append(
             f"affixed: the sub-table no longer delegates {absent}, so those "
@@ -1601,25 +1709,58 @@ def _described(
     text: str,
     declared: "list[str] | None" = None,
     measured: "list[str] | None" = None,
+    floor: "int | None" = None,
 ) -> contract.Profile:
     """Write a table, describe it with the REAL producer, load it back.
 
     `measured` carries `--measurement`, which the JOINED role requires:
     an undeclared column of two numbers in one cell is not that role,
     by design (plan P4-D23), so it cannot reach this battery without
-    one (review item P4-A2-R2-F1).
+    one (review item P4-A2-R2-F1). `floor` None is the shipped default.
     """
     path = fixtures.write(folder, "table.csv", text)
-    table = reading.read_table(str(path))
+    settings = (
+        taxonomy.Settings()
+        if floor is None
+        else taxonomy.Settings(small_cell_floor=floor)
+    )
+    table = reading.read_table(str(path), small_cell_floor=settings.small_cell_floor)
     document = profile.build_document(
         table,
-        taxonomy.Settings(),
+        settings,
         declared if declared else [],
         [],
         measured if measured else [],
     )
     target = fixtures.write_profile(folder, "table-profile.json", document)
     return contract.load_profile(str(target))
+
+
+def _dates_and_moments() -> "list[str]":
+    """Whole dates and real clock times in one column (residual R-P4-12).
+
+    THE DATE ROLE'S OWN REPORT LINE, brought here by the repair pass of
+    landing 2b.6 (skeptic finding 4). This battery's vacuity floor was
+    LOWERED when landing 2b.6 part 2 made the nine interior rungs exact:
+    the lines that disappeared were the date role's, and what was left
+    was one continuous column's two facts repeated over three seeds, so
+    the role this repository had just changed most contributed nothing
+    to the guard. A column read JOINTLY is the shape whose report line
+    survives the repair, because the twin writes every rank with a time
+    of day and the published `resolution_mix` cannot come back -- which
+    is the residual itself, named in the plan and carried openly.
+    """
+    first = datetime.date(2024, 1, 1)
+    cells: "list[str]" = []
+    for step in range(300):
+        day = first + datetime.timedelta(days=step)
+        if step % 2:
+            cells += [day.isoformat()]
+        else:
+            cells += [
+                f"{day.isoformat()} {step % 24:02d}:{step % 60:02d}:00"
+            ]
+    return cells
 
 
 @pytest.fixture(scope="module")
@@ -1644,6 +1785,8 @@ def battery(
     vast.mkdir()
     both = folder / "both"
     both.mkdir()
+    mixed = folder / "mixed"
+    mixed.mkdir()
     return [
         (
             "every role",
@@ -1722,6 +1865,21 @@ def battery(
                     + ["-3"] * 11,
                 ),
                 ["code"],
+                # AT THE DEFAULT, as a person's run meets it (the repair
+                # pass of landing 3.1 put it back from a floor of one).
+                # Its twin misses `layout_forms.%%%` there, which is held
+                # by name below (`_HELD_AT_THE_DEFAULT`, plan P4-D320).
+            ),
+        ),
+        (
+            # THE DATE ROLE, which stopped reporting anything at all
+            # when landing 2b.6 part 2 made its rungs exact (repair
+            # pass of that landing, skeptic finding 4). `_dates_and_moments`
+            # says why this is the shape that still reports.
+            "whole dates mixed with times of day",
+            _described(
+                mixed,
+                fixtures.single_column_table("when", _dates_and_moments()),
             ),
         ),
     ]
@@ -1753,6 +1911,22 @@ def _permitted(role: str, fact: str) -> "str | None":
     """
     if fact in dispositions.UNPUBLISHED_NOTES:
         return "the profile publishes no such fact"
+    # A JOINED COLUMN'S PART IS A NUMERIC READING, AND ITS FACTS ARE THE
+    # NUMERIC GROUP'S (contract 9.4a's array notation, `parts[]`). The
+    # generator writes `parts[N].<fact>` for a note about one position of
+    # a joined cell, and the plan disposes those facts once, under
+    # `numeric`, rather than once per position -- a registry keyed by
+    # position would go stale the first time a column carried three.
+    # Nothing here had reported such a note until item 1 of the numbers
+    # pass of the second Codex round (2026-09-19) gave the mode's COUNT a
+    # sentence, and the joined column of the producer battery carries the
+    # pair on its second position: `parts[1].mode_count`, 3 published
+    # against 2 held, which is REPORT-ONLY under `numeric/mode_count`.
+    if fact.startswith("parts[") and "]." in fact:
+        inner = fact.split("].", 1)[1]
+        entry = dispositions.BY_KEY.get(("numeric", inner))
+        if entry is not None and entry.disposition not in dispositions.EXACT:
+            return f"numeric/{inner} is {entry.disposition}"
     group = dispositions.ROLE_GROUPS.get(role, "")
     for owner in (group, "universal", "document"):
         entry = dispositions.BY_KEY.get((owner, fact))
@@ -1768,6 +1942,22 @@ def _permitted(role: str, fact: str) -> "str | None":
             return f"{owner}/{fact}: {dispositions.REPORTED_NOTES[(owner, fact)]}"
         return None
     return None
+
+
+# ONE MISS HELD BY NAME, AND ONLY WHILE IT HAPPENS (plan P4-D320). At the
+# default floor of 11 the declared identifier above publishes
+# `{"%%%": 12, "(withheld)": 21}`; the generator writes its pooled groups
+# as `A0`, `A1` and `0e0`, which read as hexadecimal and rename every
+# layout, and its own report names `layout_forms.%%%` at every seed. The
+# registry holds that fact exactly, so the line is refused -- and it is
+# the ONLY refused line, compared by EQUALITY: a repair turns the check
+# below red until this set is emptied, and any other miss turns it red
+# as it always did. The same miss is counted by ledger K-2B-47
+# (`declared_layout_default_missed_checks`) and pinned as a strict xfail
+# in `tests/test_p4d182_layout_packing.py`.
+_HELD_AT_THE_DEFAULT = {
+    ("declared identifier", "identifier", "layout_forms.%%%", "code"),
+}
 
 
 def test_the_shipped_generator_misses_no_exact_fact_the_plan_holds_it_to(
@@ -1790,11 +1980,12 @@ def test_the_shipped_generator_misses_no_exact_fact_the_plan_holds_it_to(
             if _permitted(role, fact) is None
         }
     )
-    assert not refused, (
+    assert set(refused) == _HELD_AT_THE_DEFAULT, (
         "the twin did not meet a published fact the ratified plan holds "
         "it to exactly, and the plan authorizes no lesser outcome for it. "
         "Naming the miss in the report is honest; it is not the "
-        f"obligation: {refused}"
+        f"obligation: {refused} (the one held by name, plan P4-D320: "
+        f"{sorted(_HELD_AT_THE_DEFAULT)}; if it is gone, empty that set)"
     )
 
 
@@ -1844,11 +2035,44 @@ def test_the_producer_battery_really_exercises_the_report(
         f"{sorted(owed - set(dispositions.ROLE_GROUPS))}, unexpected "
         f"{sorted(set(dispositions.ROLE_GROUPS) - owed)}"
     )
-    lines = _reported(battery)
-    assert len(lines) >= 8, lines
+    # The one miss held by name above is not a line the registry clears,
+    # and is left out of the accounting below, which is of lines it does.
+    lines = [line for line in _reported(battery) if line not in _HELD_AT_THE_DEFAULT]
+    # RE-AIMED BY THE REPAIR PASS OF LANDING 2b.6, after that landing
+    # LOWERED it -- and a floor that goes down carries its reason, so
+    # both moves are written here rather than one of them.
+    #
+    # These two numbers are a vacuity floor: a battery whose twins met
+    # every fact would pass the check above while proving nothing. They
+    # were eight lines over four distinct reasons, and the extra lines
+    # were the DATE role's -- interior rungs landing outside their
+    # bounds, and the two distinctness counts outside their envelope.
+    # Landing 2b.6 part 2 repaired exactly that: the nine interior rungs
+    # are pinned to their published values, measured exact in 54 of 54
+    # runs where they had been missed in 54 of 54, so those lines no
+    # longer exist to be counted, and the floor was dropped to six lines
+    # over two reasons -- both of them one continuous column's, which
+    # left the role this repository had just changed most contributing
+    # nothing to the guard at all.
+    #
+    # So the battery gained a shape whose date-role line SURVIVES the
+    # repair rather than the floor being left where the loss put it: a
+    # column read jointly, whole dates beside real clock times, whose
+    # `resolution_mix` the twin cannot bring back because every rank is
+    # written with a time of day (residual R-P4-12). Measured on the
+    # shipped battery: NINE lines over THREE reasons, the third being
+    # that column's, at every one of the three seeds.
+    #
+    # The teeth of this check are NOT the two counts. They are the two
+    # assertions below them: every line the battery produces must be one
+    # the registry accounts for (`None not in reasons`), and the check
+    # above holds the battery to reaching every role in the taxonomy. A
+    # floor calibrated against a defect measures the defect, so it moves
+    # when the defect is repaired; the accounting does not move.
+    assert len(lines) >= 9, lines
     reasons = {_permitted(role, fact) for _case, role, fact, _name in lines}
     assert None not in reasons
-    assert len(reasons) >= 4, reasons
+    assert len(reasons) >= 3, reasons
 
 
 def test_an_invented_miss_of_an_exact_fact_is_refused() -> None:
@@ -1879,24 +2103,24 @@ def test_an_invented_miss_of_an_exact_fact_is_refused() -> None:
 # collection of special cases about one field.
 LOWERINGS = (
     (
-        "round 1, the endpoint made REPORT-ONLY",
+        "round 1, the outermost published value made REPORT-ONLY",
         CONTRACT,
         (
-            "| `earliest`, `latest` | REPORT-ONLY where the ordinal space has "
-            "no room for the value |"
+            "| `low_tail.boundary`, `high_tail.boundary` | REPORT-ONLY where "
+            "the ordinal space has no room for the value |"
         ),
-        ("datetime", "earliest"),
+        ("datetime", "low_tail.boundary"),
     ),
     (
-        "round 2, the endpoint met as far as it could be",
+        "round 2, the outermost published value met as far as it could be",
         METHOD,
         (
-            "**What remains.** A hand-made description can still publish an "
-            "endpoint no cell of its own recorded shape can show, and there "
-            "the generator meets what it can, recounts the endpoint from the "
-            "written cell, and names it in the report."
+            "**What remains.** A hand-made description can still publish a "
+            "tail boundary no cell of its own recorded shape can show, and "
+            "there the generator meets what it can, recounts the boundary "
+            "from the written cell, and names it in the report."
         ),
-        ("datetime", "latest"),
+        ("datetime", "high_tail.boundary"),
     ),
     (
         "round 3, the packing fallback, aimed at a fact it never reached",
@@ -1913,11 +2137,11 @@ LOWERINGS = (
         METHOD,
         (
             "It still has one description the loader accepts and no cell can "
-            "show: an endpoint within one offset's distance of either year "
-            "the canonical form runs between. That one is recounted from the "
-            "written cell and named in the report."
+            "show: a tail boundary within one offset's distance of either "
+            "year the canonical form runs between. That one is recounted "
+            "from the written cell and named in the report."
         ),
-        ("datetime", "earliest"),
+        ("datetime", "low_tail.boundary"),
     ),
     (
         "a different obligation: the label levels",
@@ -2028,12 +2252,16 @@ def test_the_guard_reddens_when_the_plan_itself_is_softened(
             "`n_zero`, `n_negative`, `std_unrepresentable`",
             "`n_zero` APPROXIMATED, `n_negative`, `std_unrepresentable`",
         ),
-        # The sentence the registry quotes.
+        # The sentence the registry quotes. The two ends it used to be
+        # written against are published nowhere since stage 3, so the
+        # softening is put to the ladder sentence the registry still
+        # quotes on the same role -- a class weakened where the plan
+        # states the bar in words rather than beside a name.
         (
-            "`earliest`, `latest` EXACT-OBSERVABLE in the",
+            "`date_percentiles` interior rungs APPROXIMATED",
             (
-                "`earliest`, `latest` REPORT-ONLY at the calendar's ends "
-                "and EXACT-OBSERVABLE otherwise in the"
+                "`date_percentiles` interior rungs REPORT-ONLY on a column "
+                "the construction cannot fill"
             ),
         ),
     ]:

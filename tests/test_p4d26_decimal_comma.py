@@ -33,6 +33,7 @@ import tempfile
 
 import fixtures
 import pytest
+import tail_rule
 from synthtwin import (
     contract,
     errors,
@@ -118,14 +119,45 @@ def test_an_undeclared_column_of_commas_is_read_as_it_always_was() -> None:
     )
 
 
+def _as_quantities(values: "list[str]") -> "list[float]":
+    """The cells of `_quantities`, read the declared way."""
+    return [
+        parsing.parse_number(parsing.written_with_a_decimal_comma(cell))
+        for cell in values
+    ]
+
+
 def test_a_declared_column_is_read_as_quantities() -> None:
-    document, _loaded, _folder, _table = _described(
-        _quantities(), ["weight"]
-    )
+    """The numbers are hundredths of a unit, not hundreds of them.
+
+    THE TWO ENDS USED TO SAY THIS BY THEMSELVES: `percentiles.min` and
+    `percentiles.max` read 2.89 and 300.23, and a column read with the
+    comma as a thousands separator has no cell under a hundred. The
+    tail rule of contract 6.7a withholds both of those rungs on a
+    column of two hundred different numbers (landing 3.3), so the same
+    claim is made through the facts that replaced them: the middle
+    rung, which no tail withholds, and the two tail groups -- each one
+    worked out from the column's own numbers by `tests/tail_rule.py`,
+    which states the rule for itself rather than reading it back out of
+    the description.
+    """
+    values = _quantities()
+    document, _loaded, _folder, _table = _described(values, ["weight"])
     column = document["columns"][0]
     assert column["role"] == "continuous"
-    assert column["percentiles"]["min"] == 2.89
-    assert column["percentiles"]["max"] == 300.23
+    numbers = _as_quantities(values)
+    assert column["percentiles"]["min"] is None
+    assert column["percentiles"]["max"] is None
+    assert column["percentiles"]["p50"] == float(
+        tail_rule.rung_at(numbers, 50)
+    )
+    floor = taxonomy.Settings().small_cell_floor
+    for low in (True, False):
+        side = column["tails"]["low" if low else "high"]
+        assert tail_rule.holds(
+        side,
+            column, numbers, floor, low
+        )
 
 
 def test_the_declaration_reaches_only_the_columns_it_names() -> None:
@@ -235,13 +267,21 @@ def test_the_twin_writes_the_column_back_with_commas() -> None:
         "a twin cell carries both marks, so a reader cannot tell which "
         "is the decimal point"
     )
-    # And the VALUES are the published ones, read back the same way.
+    # And the VALUES are the described ones, read back the same way.
+    # The two ends are DERIVED on a tail block (method G5.3b), because
+    # the rungs that used to carry them are withheld, and the generator
+    # pins the derived pair exactly: read back with the comma as a
+    # thousands separator instead, the same cells are a hundred times
+    # larger and neither end lands.
     numbers = [
         parsing.parse_number(parsing.written_with_a_decimal_comma(cell))
         for cell in cells
     ]
-    assert min(numbers) == 2.89
-    assert max(numbers) == 300.23
+    facts = loaded.columns[0].facts
+    assert isinstance(facts, contract.NumericFacts)
+    ladder = contract.tail_ladder(facts)
+    assert ladder is not None
+    assert (min(numbers), max(numbers)) == (ladder[0], ladder[len(ladder) - 1])
 
 
 def test_an_undeclared_twin_is_not_touched() -> None:
@@ -349,14 +389,27 @@ def test_the_twin_is_measured_in_the_spelling_it_was_described_in(
         _quantities(), ["weight"]
     )
     twin = generation.generate(loaded, 5)
-    assert not twin.deviations, (
-        "the twin's own report says it gave something up, and it gave "
-        f"up nothing: {[(d.fact, d.achieved) for d in twin.deviations]}"
+    # NO DEVIATION AT THE DEFAULT FLOOR. Plan P4-D267 made the report
+    # name the published mode where no stratum of the twin holds it, and
+    # at a floor of one this column's mode was published and named; at
+    # the default of 11 (plan P4-D316) the commonest number is held by
+    # fewer than eleven cells, so no mode is published and there is
+    # nothing to give up.
+    assert [deviation.fact for deviation in twin.deviations] == [], (
+        "the twin's own report says it gave something up that this "
+        f"column does not: {[(d.fact, d.achieved) for d in twin.deviations]}"
     )
-    assert len(twin.approximations) == 15, (
+    assert _document["columns"][0]["mode"] is None
+    # AS MANY APPROXIMATED FACTS AS THE SAME NUMBERS WRITTEN WITH POINTS
+    # NAME, and more than the two the blind report named.
+    _two, plain, _f2, _t2 = _described(
+        [cell.replace(",", ".") for cell in _quantities()]
+    )
+    named = len(generation.generate(plain, 5).approximations)
+    assert len(twin.approximations) == named > 2, (
         f"{len(twin.approximations)} approximated facts were named; a "
-        "column of the same numbers written with points names 15, and "
-        "the declaration must not change what the report can see"
+        f"column of the same numbers written with points names {named}, "
+        "and the declaration must not change what the report can see"
     )
     cells = [cell for cell in twin.columns[0] if cell]
     assert all("," in cell for cell in cells), (
@@ -515,7 +568,7 @@ def test_the_role_names_and_the_type_test_agree_column_by_column() -> None:
         folder, "every.csv", fixtures.every_role_table()
     )
     document = profile.build_document(
-        reading.read_table(f"{table}"),
+        reading.read_table(f"{table}", small_cell_floor=11),
         taxonomy.Settings(small_cell_floor=11),
         ["record_code"],
     )
@@ -1128,18 +1181,19 @@ def test_which_declared_values_the_refusal_reaches() -> None:
         assert parsing.reads_as_two_numbers(ambiguous), ambiguous
 
 
-def test_a_judged_hole_of_a_declared_column_is_written_blank() -> None:
+def test_a_judged_hole_of_a_declared_column_is_written_and_read_back() -> None:
     """THE CONTRACT'S WRITE RULE, under the column's own grammar (F3).
 
     Forty outlier cells spelled `-999,0` on a declared column are read
     as minus nine hundred and ninety-nine and publish a verdict naming
-    that number. Asked with the ORDINARY parser, `-999,0` is no number
-    at all, so the spelling matched no candidate and `_absent_cells`
-    reproduced `-999,0` where the rule asks for empty cells -- which
-    makes a later stand-in judgement contingent on the twin's own
-    distribution, the very thing the rule exists to prevent.
-
-    Goes red if `_is_the_same_candidate` stops taking the reading.
+    that number. Until plan P4-D6.4 the rule wrote such a judged key
+    EMPTY, and this test pinned that the comma spelling was matched to
+    the candidate so that it was. The owner's ruling of 2026-09-15 has
+    the twin write it as the table wrote it, so all forty come back as
+    `-999,0` -- and the validator, handed the description's own verdict,
+    reads them as absent under the column's grammar, so the twin misses
+    nothing. Goes red if the twin drops the spelling, or if the
+    validator reads `-999,0` as a value on this column.
     """
     generator = random.Random(3)
     values = [
@@ -1147,7 +1201,7 @@ def test_a_judged_hole_of_a_declared_column_is_written_blank() -> None:
         for _each in range(160)
     ] + ["-999,0"] * 40
     generator.shuffle(values)
-    document, loaded, _folder, _table = _described(
+    document, loaded, folder, _table = _described(
         values, ["amount"], "amount"
     )
     column = document["columns"][0]
@@ -1156,11 +1210,15 @@ def test_a_judged_hole_of_a_declared_column_is_written_blank() -> None:
     )
     twin = generation.generate(loaded, 3)
     cells = list(twin.columns[0])
-    assert not [cell for cell in cells if cell == "-999,0"], (
-        "a judged hole was reproduced by its spelling; the rule is that "
-        "it is written empty, because the judgement may not re-fire"
-    )
-    assert len([cell for cell in cells if not cell]) == 40
+    assert len([cell for cell in cells if cell == "-999,0"]) == 40
+    assert not [cell for cell in cells if not cell]
+    written = fixtures.write(folder, "twin.csv", rendering.twin_csv(twin))
+    outcome = validation.measure(loaded, f"{written}")
+    assert not [
+        check.subcheck
+        for check in outcome.checks
+        if check.verdict == validation.MISSED
+    ]
 
 
 def test_one_identity_decides_whether_a_cell_wears_a_hole() -> None:
@@ -1200,26 +1258,41 @@ def test_the_recount_uses_the_same_hole_identity_as_everything_else(
     which need BOTH -- stayed silent while the quality report named the
     loss.
 
-    `--missing-value -999` is a SAFE declaration: its number does not
+    `--missing-value -998` is a SAFE declaration: its number does not
     depend on the grammar, so R-P4-54's refusal leaves it available,
     and this is the shape that remains.
+
+    THE HOLE IS `-998` AND NO LONGER `-999` (plan P4-D357 A). `-999` is
+    one of the three stand-in numbers, and since that plan no value pass
+    writes one the column does not hold as a value, so a twin can no
+    longer write a present `-999,0` at all -- the collision this fixture
+    was built for is gone for `-999` (asserted at the end), and it stands
+    for every other declared hole, which the recount must still count.
 
     Goes red if `_recounted` stops taking the column's reading.
     """
     # THE TWO SPELLINGS MUST DIFFER while the numbers agree, or the
     # test cannot tell the two identities apart: a cell whose TEXT
     # equals the published hole is matched by either rule. So the
-    # column publishes the hole `-999` and the twin writes `-999,0`,
+    # column publishes the hole `-998` and the twin writes `-998,0`,
     # and the source is kept clear of that spelling.
     generator = random.Random(2)
     values: "list[str]" = []
     while len(values) < 180:
         whole = generator.randint(0, 9)
         part = generator.randint(0, 9)
-        if (whole, part) == (9, 0):
+        if (whole, part) == (8, 0):
             continue
         values = values + [f"-99{whole},{part}"]
-    values = values + ["-999"] * 20
+    # AND SIXTY CELLS BELOW A THOUSAND, so the hole stands INSIDE the
+    # ladder and not only in a tail.
+    values = values + [
+        f"-100{generator.randint(0, 9)},{generator.randint(0, 9)}" for _ in range(60)
+    ]
+    # THE SAME COLUMN WITH THE STAND-IN `-999` AS ITS HOLE, for the last
+    # assertion: its values, less the one spelling `-999,0` would collide.
+    stand_in_values = [value for value in values if value != "-999,0"] + ["-999"] * 20
+    values = values + ["-998"] * 20
     generator.shuffle(values)
     folder = pathlib.Path(tempfile.mkdtemp())
     table = fixtures.write(
@@ -1227,16 +1300,16 @@ def test_the_recount_uses_the_same_hole_identity_as_everything_else(
     )
     document = profile.build_document(
         reading.read_table(f"{table}"),
-        taxonomy.Settings(declared_missing_values=("-999",)),
+        taxonomy.Settings(declared_missing_values=("-998",)),
         [],
         [],
         [],
         ["amount"],
     )
     holes = document["columns"][0]["missing_by_source"]
-    assert holes == {"-999": 20}, (
-        "the column must publish the hole as `-999`, so that the "
-        f"twin's `-999,0` differs from it in TEXT: {holes}"
+    assert holes == {"-998": 20}, (
+        "the column must publish the hole as `-998`, so that the "
+        f"twin's `-998,0` differs from it in TEXT: {holes}"
     )
     loaded = contract.load_profile(
         f"{fixtures.write_profile(folder, 't.json', document)}"
@@ -1244,7 +1317,7 @@ def test_the_recount_uses_the_same_hole_identity_as_everything_else(
     # The seed is chosen so the twin actually writes the colliding
     # spelling; the assertion below refuses the fixture if it stops.
     twin = generation.generate(loaded, 5)
-    assert [cell for cell in twin.columns[0] if cell == "-999,0"], (
+    assert [cell for cell in twin.columns[0] if cell == "-998,0"], (
         "this fixture no longer produces the collision it was built "
         "for, so any agreement below is between two silences"
     )
@@ -1264,3 +1337,24 @@ def test_the_recount_uses_the_same_hole_identity_as_everything_else(
         "report does not, which is the two pages of one run "
         "disagreeing about what happened"
     )
+    # AND WHERE THE HOLE IS A STAND-IN NUMBER NO VALUE COLLIDES WITH IT
+    # (plan P4-D357 A): no value pass writes `-999` for a column that does
+    # not hold it as a value, at this seed or any of the four beside it.
+    stand_in_table = fixtures.write(
+        folder, "s.csv", fixtures.single_column_table("amount", stand_in_values)
+    )
+    stand_in_document = profile.build_document(
+        reading.read_table(f"{stand_in_table}"),
+        taxonomy.Settings(declared_missing_values=("-999",)),
+        [],
+        [],
+        [],
+        ["amount"],
+    )
+    assert stand_in_document["columns"][0]["missing_by_source"] == {"-999": 20}
+    stand_in_loaded = contract.load_profile(
+        f"{fixtures.write_profile(folder, 's.json', stand_in_document)}"
+    )
+    for seed in range(3, 8):
+        cells = generation.generate(stand_in_loaded, seed).columns[0]
+        assert [cell for cell in cells if cell == "-999,0"] == [], f"seed {seed}"

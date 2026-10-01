@@ -45,6 +45,31 @@ THE FLOOR IS DECLARED, and it has to be. At the shipped default of one
 held-back spelling to stand in for and this defect could not occur.
 Eleven is the floor these columns are described at, exactly as
 `tests/test_p3v1f2_entry_table.py` declares its own and says why.
+
+AND SINCE RULING 6 REACHED A LABEL'S SPELLINGS, NO PRODUCER WRITES THE
+SHAPE THIS FILE WAS BUILT ON (plan P4-D275). Every spelling below the
+floor is counted into its level's commonest, so both source columns
+below now publish `variants {"e11.9": 28}`, no held-back spelling and
+`shape_form_cells 28` -- the fact that told them apart was a fact about
+two groups below the line, and the ruling withholds it. The first test
+is therefore a witness of the ruling, and the column census beside the
+level counts the same respelled cells (plan P4-D275.1, the defect the
+merge of the extra round's fixes exposed: the census went on counting
+the raw cells, 206, beside a level saying 28, and the twin missed it).
+
+THE GENERATOR'S WALK IS STILL REACHABLE, and the tests that guard it are
+re-armed rather than dropped. Invariant W5 refuses a held-back key of 1
+and nothing else, so a description carrying groups of three and five
+below a floor of eleven still loads, and G8.1a and G8.2a still decide
+what its twin writes. `_as_the_residual_measured` builds exactly the
+description the residual measured -- the source's own document, with the
+one level entry, `n_distinct` and the census restored by hand from the
+rule statement -- and those tests run the walk on it. Their census is
+counted off the twin's own cells: `synthtwin validate` describes the
+file it checks under ruling 6 too, so it counts a twin's held-back
+stand-ins into the level's commonest spelling and cannot see which group
+wore the form (measured: MISSED 206 -> 209 on that twin, from the
+ruling and not from the walk).
 """
 
 import copy
@@ -82,6 +107,11 @@ UPPER = "E11.9"
 # it (contract 7.9, C6-31a).
 SPACED = "E11.9  "
 FORM = "@%%.%"
+# The same form with every letter lower case (contract C6-31d).
+LOWER_FORM = "&%%.%"
+# The cells of the four ordinary levels, every one in FORM: 40 + 40 + 40
+# + 61.
+ORDINARY_CELLS = 181
 
 
 def _column(
@@ -110,12 +140,60 @@ def _column(
         folder, "codes.csv", fixtures.rows_to_csv(["code", "other"], rows_out)
     )
     document = profile.build_document(
-        reading.read_table(f"{table}"),
+        reading.read_table(f"{table}", small_cell_floor=SMALL_CELL_FLOOR),
         taxonomy.Settings(small_cell_floor=SMALL_CELL_FLOOR),
         [],
     )
     written = fixtures.write_profile(folder, "codes.json", document)
     return document, contract.load_profile(f"{written}"), folder
+
+
+def _as_the_residual_measured(
+    named_spelling: str, form_rows: int, plain_rows: int
+) -> "tuple[dict, contract.Profile, pathlib.Path]":
+    """The description the residual measured, which no producer writes now.
+
+    The source column's own document with the three keys ruling 6 moved
+    put back by hand, each from the rule statement and not from any
+    earlier output: the level names its twenty-row spelling and holds
+    back two spellings of ``form_rows`` and ``plain_rows`` rows; its
+    form count is the named twenty plus the held-back rows that wore the
+    form; the column holds the five named spellings and the two held
+    back; and the census counts the ordinary cells, the named twenty and
+    the held-back rows in the form. The two held-back spellings with a
+    trailing space wear no form and are counted nowhere.
+    """
+    document, _described, folder = _column(named_spelling, form_rows, plain_rows)
+    edited = copy.deepcopy(document)
+    column = edited["columns"][0]
+    for level in column["levels"]:
+        if level["label"] == LOWER:
+            level["variants"] = {named_spelling: 20}
+            level["variants_withheld"] = {f"{form_rows}": 1, f"{plain_rows}": 1}
+            level["shape_form_cells"] = 20 + form_rows
+    column["n_distinct"] = 5 + 2
+    column["shape_forms"] = {FORM: ORDINARY_CELLS + 20 + form_rows}
+    return edited, _reloaded(edited, folder, "measured.json"), folder
+
+
+def _twin_census(twin: generation.Twin) -> "dict[str, int]":
+    """The twin's own form census, counted off its cells with the reader
+    the fact is measured with. Cells with no form are counted nowhere."""
+    counted: "dict[str, int]" = {}
+    for cell in twin.columns[0]:
+        form = parsing.shape_form(cell)
+        if form:
+            counted[form] = (counted[form] if form in counted else 0) + 1
+    return counted
+
+
+def _form_deviations(twin: generation.Twin) -> "list[generation.Deviation]":
+    """What the twin's own report says about this column's forms."""
+    return [
+        one for one in twin.deviations
+        if one.column == "code"
+        and one.fact in ("shape_forms", "levels -> shape_form_cells")
+    ]
 
 
 def _entry(document: dict) -> "dict[str, object]":
@@ -158,44 +236,156 @@ def _census_verdicts(
 
 def test_the_two_columns_are_told_apart_and_each_twin_meets_its_census(
 ) -> None:
-    """THE MEASUREMENT THE RESIDUAL RESTS ON, NOW THE OTHER WAY UP.
+    """THE MEASUREMENT THE RESIDUAL RESTS ON, AND WHAT RULING 6 MADE OF IT.
 
     Two source columns differing only in WHICH held-back spelling of one
-    level wore the form. Every other key of their published level
-    entries is identical, their column censuses are 206 and 204 -- the
-    residual's own numbers -- and before amendment A-P4-47 the entries
-    were identical too, so one of the two verdicts was wrong whatever
-    rule the generator used.
+    level wore the form. Before amendment A-P4-47 their level entries
+    were identical and one of the two verdicts was wrong whatever rule
+    the generator used; A-P4-47 told them apart by `shape_form_cells`,
+    25 and 23.
 
-    `shape_form_cells` is the key that tells them apart: 25 and 23. The
-    twins are now DIFFERENT cell for cell, which is what a description
-    carrying a fact its twin must meet should produce, and BOTH meet
-    their own census.
+    THE OWNER'S RULING 6 OF 2026-09-17, AS P4-D275 ASKS IT OF A LABEL'S
+    SPELLINGS, TAKES THAT DIFFERENCE AWAY, AND THIS IS NOW ITS WITNESS.
+    The fact that told the columns apart was which of two groups BELOW
+    THE FLOOR -- five rows and three -- wore the form, and the ruling
+    counts every spelling below the floor into the level's commonest.
+    Both levels are written `e11.9` in all 20 + 5 + 3 = 28 rows, which
+    wears the form, so both publish `variants {"e11.9": 28}`, nothing held
+    back and 28 rows in the form. The census counts those same cells
+    (P4-D275.1): 28 lower-case cells clear the line of eleven, the 181
+    ordinary cells clear it too, the lower-case key's room of 26,000
+    clears `n_distinct` 5 plus the floor, and `n_distinct` 5 equals
+    `n_distinct_folded` 5, so C6-31d names both keys. The two documents
+    are the same document, so the twins are the same twin, and each
+    meets its census.
     """
     large, large_described, large_folder = _column(LOWER, 5, 3)
     small, small_described, small_folder = _column(LOWER, 3, 5)
 
-    shared = ("label", "count", "variants", "variants_withheld")
-    for key in shared:
-        assert _entry(large)[key] == _entry(small)[key], key
-    assert _entry(large)["variants_withheld"] == {"3": 1, "5": 1}
-
-    # ...and the one key that is not shared is the fact the closure
-    # rests on, at the two values the two sources actually wore.
-    assert _entry(large)["shape_form_cells"] == 25
-    assert _entry(small)["shape_form_cells"] == 23
+    assert large == small
+    assert _entry(large)["variants"] == {LOWER: 20 + 5 + 3}
+    assert _entry(large)["variants_withheld"] == {}
+    assert _entry(large)["shape_form_cells"] == 20 + 5 + 3
+    assert large["columns"][0]["n_distinct"] == 5
+    assert large["columns"][0]["shape_forms"] == {
+        LOWER_FORM: 28, FORM: ORDINARY_CELLS
+    }
 
     large_twin = generation.generate(large_described, SEED)
     small_twin = generation.generate(small_described, SEED)
-    assert list(large_twin.columns[0]) != list(small_twin.columns[0])
-
-    assert large["columns"][0]["shape_forms"] == {FORM: 206}
-    assert small["columns"][0]["shape_forms"] == {FORM: 204}
+    assert list(large_twin.columns[0]) == list(small_twin.columns[0])
 
     held = _census_verdicts(small_described, small_twin, small_folder)
     also = _census_verdicts(large_described, large_twin, large_folder)
-    assert [check.verdict for check in held] == ["HELD"]
-    assert [check.verdict for check in also] == ["HELD"]
+    wanted = [
+        (f"forms.published.{LOWER_FORM}", "HELD", "28", "28"),
+        (f"forms.published.{FORM}", "HELD", "181", "181"),
+    ]
+    for checks in (held, also):
+        assert [
+            (check.subcheck, check.verdict, check.published, check.achieved)
+            for check in checks
+        ] == wanted
+
+
+def test_the_table_and_its_twin_both_meet_the_census_the_levels_speak_of(
+) -> None:
+    """THE DEFECT THE MERGE EXPOSED (plan P4-D275.1), from its reproduction.
+
+    P4-D275 respelled the level entry and left the column census counting
+    the raw cells: at the residual's own counts the level said 28 rows of
+    `E11.9` in the form and the census said 204, the twin wrote the 28
+    and held 209, and `synthtwin validate` MISSED the twin while the
+    table passed. Repairing the producer alone turns it the other way --
+    the table's own raw recount then finds 204 against a published 209 --
+    so the checker's recount respells the file's cells by the same rule.
+
+    Both halves are pinned: the census is 181 ordinary cells plus the 28
+    of the level, all capitals, so one key of 209; the twin's own report
+    names nothing; and the table and the twin both meet it.
+    """
+    document, described, folder = _column(UPPER, 3, 5)
+    assert document["columns"][0]["shape_forms"] == {FORM: ORDINARY_CELLS + 28}
+    assert _entry(document)["shape_form_cells"] == 28
+    twin = generation.generate(described, SEED)
+    assert _form_deviations(twin) == []
+    assert _twin_census(twin) == {FORM: ORDINARY_CELLS + 28}
+    on_twin = _census_verdicts(described, twin, folder)
+    table = validation.measure(described, f"{folder / 'codes.csv'}")
+    on_table = [
+        check for check in table.checks
+        if check.fact == "label.shape_forms" and check.column == "code"
+    ]
+    for checks in (on_twin, on_table):
+        assert [
+            (check.subcheck, check.verdict, check.published, check.achieved)
+            for check in checks
+        ] == [(f"forms.published.{FORM}", "HELD", "209", "209")]
+
+
+
+def test_the_room_rule_reads_the_distinct_count_the_column_publishes(
+) -> None:
+    """THE OTHER HALF OF P4-D275.1: a form's room is asked of the page.
+
+    The small-supply rule names a form only where `form_room` reaches
+    `n_distinct` plus the floor (contract C6-31c), and it is safe because
+    both are PUBLISHED, so a reader predicts every refusal. Under ruling 6
+    the published `n_distinct` counts the respelled column, and the raw
+    count of different spellings is a fact the page no longer carries.
+
+    Five labels of forty rows written `A-` to `E-`, and forty more rows
+    of `A-` with one to six spaces at either edge, each spelling ONE row.
+    Every spaced spelling is below the floor of eleven, so all forty are
+    counted into `A-` and the column publishes five different values.
+    `@-` has room 52: at least 5 + 11 = 16, the line the page states, and
+    short of 45 + 11 = 56, the line the raw spellings would draw. Read off
+    the raw count the form was refused and the column published no
+    census at all; read off the page it is named, 5 x 40 + 40 = 240 cells
+    all in capitals, and the table and its twin both meet it.
+    """
+    values: "list[str]" = []
+    for label in ("A-", "B-", "C-", "D-", "E-"):
+        values = values + [label for _row in range(40)]
+    spaced = [
+        " " * before + "A-" + " " * after
+        for before in range(7)
+        for after in range(7)
+        if before or after
+    ]
+    values = values + spaced[:40]
+    random.Random(SEED).shuffle(values)
+    assert len(set(values)) == 5 + 40
+    assert 5 + SMALL_CELL_FLOOR <= parsing.form_room("@-")
+    assert parsing.form_room("@-") < 5 + 40 + SMALL_CELL_FLOOR
+    folder = pathlib.Path(tempfile.mkdtemp())
+    table = fixtures.write(
+        folder,
+        "codes.csv",
+        fixtures.rows_to_csv(["code", "other"], [[v, "x"] for v in values]),
+    )
+    document = profile.build_document(
+        reading.read_table(f"{table}", small_cell_floor=SMALL_CELL_FLOOR),
+        taxonomy.Settings(small_cell_floor=SMALL_CELL_FLOOR),
+        [],
+    )
+    block = document["columns"][0]
+    assert block["n_distinct"] == 5
+    assert block["shape_forms"] == {"@-": 5 * 40 + 40}
+    described = _reloaded(document, folder, "codes.json")
+    twin = generation.generate(described, SEED)
+    assert _form_deviations(twin) == []
+    on_twin = _census_verdicts(described, twin, folder)
+    on_table = [
+        check
+        for check in validation.measure(described, f"{table}").checks
+        if check.fact == "label.shape_forms" and check.column == "code"
+    ]
+    for checks in (on_twin, on_table):
+        assert [
+            (check.subcheck, check.verdict, check.published, check.achieved)
+            for check in checks
+        ] == [("forms.published.@-", "HELD", "240", "240")]
 
 
 def test_the_census_is_met_where_the_larger_group_wore_the_form() -> None:
@@ -204,20 +394,25 @@ def test_the_census_is_met_where_the_larger_group_wore_the_form() -> None:
     It read `MISSED 206 -> 204`: the label's own spelling went to the
     largest held-back group and was already published, so that group
     fell through to a trailing space and lost the form, while the
-    smaller group took the one case flip. The level now publishes 25 of
+    smaller group took the one case flip. The level publishes 25 of
     its 28 rows in the form, the walk gives the five-row group the
     form-keeping spelling because five is the debt, and the census is
     met exactly.
+
+    RE-ARMED ON THE DESCRIPTION THE RESIDUAL MEASURED (see the module
+    docstring): the source itself now publishes 28 under ruling 6, so
+    the walk is reached through `_as_the_residual_measured`, and the
+    census is counted off the twin's cells.
     """
-    document, described, folder = _column(LOWER, 5, 3)
-    assert _entry(document)["shape_form_cells"] == 25
+    document, _described, _folder = _column(LOWER, 5, 3)
+    assert _entry(document)["shape_form_cells"] == 20 + 5 + 3
+    measured, described, _folder = _as_the_residual_measured(LOWER, 5, 3)
+    assert _entry(measured)["shape_form_cells"] == 25
     twin = generation.generate(described, SEED)
-    checks = _census_verdicts(described, twin, folder)
-    assert len(checks) == 1
-    assert checks[0].subcheck == f"forms.published.{FORM}"
-    assert checks[0].verdict == "HELD"
-    assert checks[0].published == "206"
-    assert checks[0].achieved == "206"
+    cells = list(twin.columns[0])
+    assert _twin_census(twin) == {FORM: 206}
+    assert cells.count(UPPER) == 5
+    assert _form_deviations(twin) == []
 
 
 def test_the_census_is_met_where_the_smaller_group_wore_the_form() -> None:
@@ -230,16 +425,19 @@ def test_the_census_is_met_where_the_smaller_group_wore_the_form() -> None:
     is three, and the spelling goes to the three-row group instead --
     which is the half of the repair a rule reading only group sizes
     cannot reach.
+
+    RE-ARMED ON THE DESCRIPTION THE RESIDUAL MEASURED, for the reason
+    the larger group's test gives.
     """
-    document, described, folder = _column(UPPER, 3, 5)
-    assert _entry(document)["shape_form_cells"] == 23
+    document, _described, _folder = _column(UPPER, 3, 5)
+    assert _entry(document)["shape_form_cells"] == 20 + 3 + 5
+    measured, described, _folder = _as_the_residual_measured(UPPER, 3, 5)
+    assert _entry(measured)["shape_form_cells"] == 23
     twin = generation.generate(described, SEED)
-    checks = _census_verdicts(described, twin, folder)
-    assert len(checks) == 1
-    assert checks[0].subcheck == f"forms.published.{FORM}"
-    assert checks[0].verdict == "HELD"
-    assert checks[0].published == "204"
-    assert checks[0].achieved == "204"
+    cells = list(twin.columns[0])
+    assert _twin_census(twin) == {FORM: 204}
+    assert cells.count(LOWER) == 3
+    assert _form_deviations(twin) == []
 
 
 def test_the_twins_own_report_names_neither_direction_any_more() -> None:
@@ -274,6 +472,12 @@ def test_every_level_of_the_column_meets_its_own_form_count() -> None:
     directions is exactly the failure the column-wide number could not
     see, so the verdict is asked level by level and every one of the
     five is named.
+
+    `e11.9` counts 28 and not 25 since ruling 6 reached a label's
+    spellings (plan P4-D275): its five `E11.9` rows and three rows with
+    trailing spaces are below the floor of eleven, so they are counted
+    into its commonest spelling, `e11.9` -- 20 + 5 + 3 rows, every one
+    wearing the form.
     """
     document, described, folder = _column(LOWER, 5, 3)
     twin = generation.generate(described, SEED)
@@ -285,7 +489,7 @@ def test_every_level_of_the_column_meets_its_own_form_count() -> None:
         "levels.a10.1.shape_form_cells": ("HELD", "40", "40"),
         "levels.b20.2.shape_form_cells": ("HELD", "40", "40"),
         "levels.c30.3.shape_form_cells": ("HELD", "40", "40"),
-        "levels.e11.9.shape_form_cells": ("HELD", "25", "25"),
+        "levels.e11.9.shape_form_cells": ("HELD", "28", "28"),
     }
     for level in document["columns"][0]["levels"]:
         assert "shape_form_cells" in level, level["label"]
@@ -301,8 +505,12 @@ def test_the_labels_own_spelling_is_not_spent_where_no_group_keeps_the_form(
     it there writes one more cell in the form than any source cell
     wore, which is the overshoot half of R-P4-34. The spelling is not
     spent at all now, so the label's own text appears in no twin cell.
+
+    RE-ARMED ON THE DESCRIPTION THE RESIDUAL MEASURED: the source now
+    publishes no held-back spelling at all (ruling 6, plan P4-D275), so
+    there would be no group to overshoot on.
     """
-    document, described, folder = _column(UPPER, 3, 5)
+    document, _described, folder = _as_the_residual_measured(UPPER, 3, 5)
     edited = copy.deepcopy(document)
     for level in edited["columns"][0]["levels"]:
         if level["label"] == LOWER:
@@ -368,8 +576,12 @@ def test_a_debt_the_spelling_supply_cannot_reach_is_named() -> None:
     shortfall cannot WORSEN behind a passing test. The one flip goes to
     the group the walk reaches first -- ascending key order, so the
     three-row one -- and the twin holds 23 of the 28 asked for.
+
+    RE-ARMED ON THE DESCRIPTION THE RESIDUAL MEASURED: the source now
+    publishes all 28 rows under its one named spelling (ruling 6, plan
+    P4-D275), which owes the walk nothing.
     """
-    document, _described, folder = _column(LOWER, 5, 3)
+    document, _described, folder = _as_the_residual_measured(LOWER, 5, 3)
     edited = copy.deepcopy(document)
     for level in edited["columns"][0]["levels"]:
         if level["label"] == LOWER:
@@ -453,7 +665,7 @@ def test_the_loader_refuses_a_form_count_on_a_label_with_no_form() -> None:
         ),
     )
     document = profile.build_document(
-        reading.read_table(f"{table}"),
+        reading.read_table(f"{table}", small_cell_floor=SMALL_CELL_FLOOR),
         taxonomy.Settings(small_cell_floor=SMALL_CELL_FLOOR),
         [],
     )
@@ -481,7 +693,7 @@ def test_the_key_is_written_by_every_label_role() -> None:
         folder, "roles.csv", fixtures.every_role_table()
     )
     document = profile.build_document(
-        reading.read_table(f"{table}"),
+        reading.read_table(f"{table}", small_cell_floor=SMALL_CELL_FLOOR),
         taxonomy.Settings(small_cell_floor=SMALL_CELL_FLOOR),
         [],
     )
@@ -577,20 +789,26 @@ def test_the_producer_counts_the_same_cells_the_level_holds() -> None:
     known shape and checks the published number against a count taken
     the other way -- off the source rows themselves -- so the key is
     pinned to the cells and not to the function that writes it.
+
+    The rows are counted as the description speaks of them, which since
+    ruling 6 reached a label's spellings (plan P4-D275) is with every
+    spelling below the floor counted into the level's commonest.
     """
     document, _described, _folder = _column(LOWER, 5, 3)
     wrote = {
         "a10.1": 40, "b20.2": 40, "c30.3": 40, "d40.4": 61,
-        # 20 rows of `e11.9` and 5 of `E11.9` wear the form; the three
-        # rows spelled with trailing spaces wear none.
-        "e11.9": 25,
+        # 20 rows of `e11.9` wear the form; the 5 of `E11.9` and the 3
+        # spelled with trailing spaces are below the floor of eleven, so
+        # they are counted into `e11.9` and wear it too.
+        "e11.9": 20 + 5 + 3,
     }
     published = {
         level["label"]: level["shape_form_cells"]
         for level in document["columns"][0]["levels"]
     }
     assert published == wrote
-    # ...and the function answers the same over the spellings alone.
+    # ...and the function itself still counts whatever spellings it is
+    # handed: over the raw ones, the three spaced rows wear no form.
     assert taxonomy.shape_form_cells(
         {LOWER: 20, UPPER: 5, SPACED: 3}
     ) == 25

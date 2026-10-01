@@ -69,7 +69,8 @@ SHAPES = (
 def describe(home, stem, rows, floor=1, header="amount"):
     fixtures.write(home, f"{stem}.csv", header + "\n" + "\n".join(rows) + "\n")
     table = reading.read_table(
-        str(home / f"{stem}.csv"), first_row=reading.FIRST_ROW_AUTOMATIC
+        str(home / f"{stem}.csv"), first_row=reading.FIRST_ROW_AUTOMATIC,
+        small_cell_floor=floor,
     )
     document = profile.build_document(
         table, taxonomy.Settings(small_cell_floor=floor), [], None, [header]

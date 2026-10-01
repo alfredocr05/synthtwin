@@ -249,8 +249,16 @@ def test_both_families_become_date_columns() -> None:
         block = document["columns"][0]
         assert block["role"] == "datetime", pattern
         assert block["format"] == member, pattern
-        assert block["earliest"] == "2024-01-01", pattern
-        assert block["latest"] == "2024-08-27", pattern
+        # THE COLUMN'S OWN DATES, READ BACK. The two instants this used
+        # to name -- `earliest` and `latest` -- are published nowhere
+        # since stage 3 (plan P4-D328); what stands at the outside of a
+        # column of dates is a tail a side, and its boundary is the
+        # smallest value with the publication floor's worth of cells
+        # below it. These days are one apart and all different, so that
+        # is the twelfth day and the twelfth from the end, and a family
+        # read wrongly puts neither of them on a date of 2024.
+        assert block["low_tail"]["boundary"] == f"{DAYS[11]}", pattern
+        assert block["high_tail"]["boundary"] == f"{DAYS[-12]}", pattern
         assert block["n_unparsed"] == 0, pattern
 
         twin = generation.generate(described, 3)
@@ -345,9 +353,15 @@ def test_a_dotted_two_figure_year_is_a_date_and_not_a_quantity() -> None:
     block = document["columns"][0]
     assert block["role"] == "datetime", block["role"]
     assert block["format"] == "dotted-two-digit-day-first-date", block
-    # ...and the ends are real dates rather than day-and-month numbers.
-    assert block["earliest"].startswith("2024-"), block["earliest"]
-    assert block["latest"].startswith("2024-"), block["latest"]
+    # ...and the moments it publishes are real dates rather than
+    # day-and-month numbers. Since stage 3 those are the two tail
+    # boundaries (plan P4-D328), which is where the wrong reading showed
+    # itself: a column read as `19.08` wearing `.24` published no date
+    # anywhere.
+    low = block["low_tail"]["boundary"]
+    high = block["high_tail"]["boundary"]
+    assert low.startswith("2024-"), low
+    assert high.startswith("2024-"), high
 
 
 def test_the_dotted_two_figure_family_reads_only_its_own_spelling() -> None:

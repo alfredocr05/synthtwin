@@ -12,12 +12,21 @@ not a window, not a sort, not a resample. The column was neither
 handled by an appropriate type path nor declined with an explanation,
 which is the whole of what principle 5 asks.
 
-WHAT THIS DOES NOT DO, and the tests say so as plainly as the ones that
-do. The twin still writes ISO. That is owner decision 5 of the Phase 2
-plan, `format` is REPORT-ONLY because of it, and residual R-P2-7
-records the loss: a person parsing with an explicit format argument
-still has to change that argument. What they gain here is the column's
-whole behaviour AS A DATE, which they had none of before.
+WHAT THIS DID NOT DO UNTIL LANDING 2b.6, and the tests said so as
+plainly as the ones that did. The twin wrote ISO: owner decision 5 of
+the Phase 2 plan, with `format` REPORT-ONLY because of it and residual
+R-P2-7 recording the loss -- a person parsing with an explicit format
+argument had to change that argument between the twin and their table.
+What this landing gave them was the column's whole behaviour AS A DATE,
+which they had none of before.
+
+**The owner reversed decision 5 on 2026-09-15.** The twin is written in
+the member that read the real column, so `17-MAR-2024` comes back as
+`18-APR-2024` and not as `2024-04-18`, `format` is EXACT-OBSERVABLE, and
+R-P2-7 is retired. The test below that pinned the ISO syntax is now the
+test that pins the source's own syntax, and it is still here rather than
+deleted, because a spelling this repository once chose deliberately is
+one a later landing could drift back into by accident.
 """
 
 import datetime
@@ -171,8 +180,15 @@ def test_a_textual_column_is_a_date_column_now() -> None:
         assert block["role"] == "datetime", pattern
         assert block["format"] == member, pattern
         assert block["resolution"] == "date", pattern
-        assert block["earliest"] == "2024-01-01", pattern
-        assert block["latest"] == "2024-08-27", pattern
+        # THE DATES THEMSELVES, READ BACK OUT OF THE WORDS. The two
+        # instants this used to name are published nowhere since stage 3
+        # (plan P4-D328): what stands at the outside of a column of
+        # dates is a tail a side, whose boundary is the smallest value
+        # with the publication floor's worth of cells below it. These
+        # days are one apart and all different, so the two boundaries
+        # are the twelfth day and the twelfth day from the end.
+        assert block["low_tail"]["boundary"] == f"{DAYS[11]}", pattern
+        assert block["high_tail"]["boundary"] == f"{DAYS[-12]}", pattern
         assert block["n_unparsed"] == 0, pattern
         assert block["resolution_mix"] == {member: 240}, pattern
 
@@ -197,30 +213,41 @@ def test_the_twin_of_a_textual_column_carries_the_dates() -> None:
     cells = [cell for cell in twin.columns[0] if cell]
     assert cells, "a twin of this column must hold cells"
     for cell in cells:
-        assert parsing.parse_datetime(cell, "iso-date") is not None, cell
+        assert parsing.parse_datetime(
+            cell, "textual-day-first-date"
+        ) is not None, cell
     written = fixtures.write(folder, "twin.csv", rendering.twin_csv(twin))
     outcome = validation.measure(described, f"{written}")
     assert outcome.census.missed == 0
 
 
-def test_the_twin_writes_iso_and_that_is_the_ratified_choice() -> None:
-    """OWNER DECISION 5, ASSERTED RATHER THAN ASSUMED.
+def test_the_twin_writes_the_source_s_own_spelling_and_not_iso() -> None:
+    """THE REVERSAL OF OWNER DECISION 5, ASSERTED RATHER THAN ASSUMED.
 
-    This landing adds READING. The twin's date syntax is ISO at the
-    recorded precision, `format` is REPORT-ONLY because of it, and
-    residual R-P2-7 records what a person still owes: the format
-    argument in their own parsing call. A test that let the twin
-    quietly start writing the source's spelling would be a test that
-    let this repository start claiming something it has not built.
+    Until 2026-09-15 this test asserted the opposite, and said why: the
+    twin's date syntax was ISO at the recorded precision, `format` was
+    REPORT-ONLY because of it, and residual R-P2-7 recorded what a
+    person still owed -- the format argument in their own parsing call.
+    The owner reversed that decision, so the assertion is reversed with
+    it and both halves are asserted here: every twin cell reads under
+    the member that read the REAL column, and none of them reads as an
+    ISO date. A test that let the twin quietly go back to ISO would let
+    this repository quietly stop doing what the owner asked for.
     """
     _document, described, _folder = _described(
         [day.strftime("%d %b %Y") for day in DAYS]
     )
     twin = generation.generate(described, 3)
+    seen = 0
     for cell in twin.columns[0]:
         if not cell:
             continue
-        assert parsing.parse_datetime(cell, "iso-date") is not None, cell
+        seen = seen + 1
+        assert parsing.parse_datetime(
+            cell, "textual-day-first-date"
+        ) is not None, cell
+        assert parsing.parse_datetime(cell, "iso-date") is None, cell
+    assert seen >= len(DAYS) - 1
 
 
 def test_a_column_of_month_names_alone_is_not_a_date_column() -> None:

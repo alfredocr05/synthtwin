@@ -58,7 +58,7 @@ import pathlib
 import pytest
 
 import fixtures
-from synthtwin import contract, taxonomy, validation
+from synthtwin import contract, parsing, taxonomy, validation
 from synthtwin.cli import main
 
 FLOOR = taxonomy.Settings().small_cell_floor
@@ -97,11 +97,28 @@ def _sentences(count: int, start: int = 0) -> "list[str]":
 _PROSE = fixtures.prose(200)
 
 
+# THE ROWS THAT ARE NOT THE SHAPE, counted from the rule (plan
+# P4-D341, and the repair of landing 3.2). `synthtwin profile`
+# describes no table whose POPULATION is under the floor, and that
+# population is the rows that HOLD A VALUE -- so the declared cells,
+# which this file's runs turn into holes, reach it for nothing. What
+# every witness here is about is the TWELVE cells of each declared
+# spelling, each a group at the default floor of eleven; so the twelves
+# stay twelve, and the ORDINARY READINGS are counted to the floor on
+# their own with the twelves standing on top of them.
+_DECLARED = 12
+_READINGS = parsing.POPULATION_FLOOR
+
+
 def _two_columns(folder: pathlib.Path, name: str) -> pathlib.Path:
     """The witness: two keys of one word beside a word no column names."""
-    numbers = [f"{row + 1}" for row in range(60)]
-    column = numbers + [OURS] * 12 + [f" {OURS} "] * 12
-    words = _sentences(60) + [THEIRS] * 12 + _sentences(12, start=60)
+    numbers = [f"{row + 1}" for row in range(_READINGS)]
+    column = numbers + [OURS] * _DECLARED + [f" {OURS} "] * _DECLARED
+    words = (
+        _sentences(_READINGS)
+        + [THEIRS] * _DECLARED
+        + _sentences(_DECLARED, start=_READINGS)
+    )
     rows = [[column[row], words[row]] for row in range(len(column))]
     return fixtures.write(
         folder, name, fixtures.rows_to_csv(["reading", "note"], rows)
@@ -179,8 +196,8 @@ def test_a_description_that_lost_nothing_is_still_checked_in_full(
     two keys are two spellings of the one word that was named, so what
     came back equals what was named and the column keeps every check.
     """
-    numbers = [f"{row + 1}" for row in range(60)]
-    values = numbers + [OURS] * 12 + [f" {OURS} "] * 12
+    numbers = [f"{row + 1}" for row in range(_READINGS)]
+    values = numbers + [OURS] * _DECLARED + [f" {OURS} "] * _DECLARED
     table = fixtures.write(
         tmp_path,
         "reading.csv",
@@ -217,8 +234,8 @@ def test_the_over_fire_this_cost_is_paid_off(tmp_path: pathlib.Path) -> None:
     two spellings, the same run -- and only the expected answer moved,
     so a regression on either side reds this.
     """
-    numbers = [f"{row + 1}" for row in range(60)]
-    values = numbers + [OURS] * 12 + [OURS.lower()] * 12
+    numbers = [f"{row + 1}" for row in range(_READINGS)]
+    values = numbers + [OURS] * _DECLARED + [OURS.lower()] * _DECLARED
     table = fixtures.write(
         tmp_path,
         "reading.csv",

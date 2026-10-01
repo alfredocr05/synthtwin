@@ -27,7 +27,6 @@ WHAT THIS FILE HOLDS THE REPAIR TO:
 """
 
 import pathlib
-import random
 
 import fixtures
 from synthtwin import (
@@ -61,7 +60,7 @@ def _described(
     path = fixtures.write(
         folder, "table.csv", fixtures.single_column_table("amount", values)
     )
-    table = reading.read_table(str(path))
+    table = reading.read_table(str(path), small_cell_floor=SMALL_CELL_FLOOR)
     document = profile.build_document(
         table, taxonomy.Settings(small_cell_floor=SMALL_CELL_FLOOR), []
     )
@@ -203,9 +202,31 @@ def test_a_plain_column_that_cannot_reach_its_count_says_so(
     publish 74 different numbers and the twin holds 70 -- so the
     reporting path is pinned on a column that still cannot reach,
     rather than on one the tool has since learnt to satisfy.
+
+    AND THE WITNESS MOVED AGAIN (the carried numbers repair pass of
+    2026-09-19). G6.5a's push walks a collision the walks leave along its
+    band to a free point, and the 200 crowded values now hold all 74. A
+    shortfall no repair of G6.5a can mend is the witness: twelve
+    negatives written once, a zero, and whole numbers repeated many
+    times each. G5.2 divides the strata between the bands by their
+    CELLS, so a band of few integers is given more strata than it has
+    numbers, and no walk can find a free whole number for the rest.
+
+    AND IT MOVED ONCE MORE AT STAGE 3 (landing 3.3). With ten integers
+    at forty cells each the positive band was given eleven strata for
+    ten numbers and the twin held 22 of 23; the tail rule describes the
+    rows beyond each boundary rung as a group, the band's strata fall
+    where those facts put them, and that column now reaches all 23.
+    The same shape one turn tighter still cannot: FIVE integers at
+    eighty cells each carry the same 400 positive cells, the band is
+    given eight strata for five numbers, and the twin holds 15 of the
+    18 the description publishes -- at seed 0 and at seed 4 alike.
     """
-    generator = random.Random(31337)
-    values = [str(generator.randint(40, 120)) for _each in range(200)]
+    values = (
+        [str(-number) for number in range(1, 13)]
+        + ["0"]
+        + [str(number) for number in range(1, 6) for _copy in range(80)]
+    )
     document, loaded = _described(tmp_path, values)
 
     twin = generation.generate(loaded, 0)

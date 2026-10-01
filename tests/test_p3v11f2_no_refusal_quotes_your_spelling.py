@@ -87,7 +87,8 @@ def _numbers_and_a_marker(folder: pathlib.Path) -> dict:
         folder, "reading.csv", fixtures.single_column_table("reading", values)
     )
     read = reading.read_table(
-        str(path), first_row=reading.FIRST_ROW_AUTOMATIC
+        str(path), first_row=reading.FIRST_ROW_AUTOMATIC,
+        small_cell_floor=1,
     )
     return profile.build_document(
         read,

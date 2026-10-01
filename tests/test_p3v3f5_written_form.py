@@ -42,7 +42,6 @@ Every table is built at test time by the seeded neutral builders in
 `fixtures.py`; no data-format file enters the repository (plan D13).
 """
 
-import dataclasses
 import pathlib
 
 import pytest
@@ -172,7 +171,7 @@ def test_a_zero_row_twin_of_every_name_class_misses_nothing(
     by three more.
     """
     for label in sorted(described_classes):
-        zero = dataclasses.replace(described_classes[label], n_rows=0)
+        zero = fixtures.zero_rows(described_classes[label])
         twin = rendering.twin_csv(generation.generate(zero, SEED))
         outcome = _measure(tmp_path, zero, twin, f"{label}-zero.csv")
         missed = [
@@ -226,7 +225,7 @@ def test_another_spelling_of_the_same_names_misses_the_written_form(
     case and wrong on the exception.
     """
     for label in sorted(described_classes):
-        zero = dataclasses.replace(described_classes[label], n_rows=0)
+        zero = fixtures.zero_rows(described_classes[label])
         names = [column.name for column in zero.columns]
         quoted = ""
         for place in range(len(names)):
@@ -266,7 +265,7 @@ def test_the_written_form_answers_for_the_writing_and_for_the_stop(
     accuse one file twice for one fault, which is what round 2 took the
     names and the order out of this conjunction for.
     """
-    zero = dataclasses.replace(described_classes["plain"], n_rows=0)
+    zero = fixtures.zero_rows(described_classes["plain"])
     written = validation._canonical_record(
         [column.name for column in zero.columns]
     )
