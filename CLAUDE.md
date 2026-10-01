@@ -214,7 +214,10 @@ though it existed:
   but never anything about another column, and never which row holds
   one except on a table sorted by that column, whose description
   publishes the order (`row_order`), so row k holds the k-th value; the
-  owner accepted each of these limits on 2026-09-25 and 2026-09-26.
+  owner accepted each of these limits on 2026-09-25 and 2026-09-26,
+  `K-S3-23` and `K-S3-24` on a question that said "never which row
+  holds them", and, told of the sorted table on 2026-09-30, answered
+  "Yes, it stands".
 - The offline guarantee is a property of the code, verified by source
   audit and scans - it is not an OS-level sandbox. Institutions that
   require enforcement run the tool inside their own network-isolated

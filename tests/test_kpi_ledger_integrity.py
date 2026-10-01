@@ -810,9 +810,10 @@ def test_the_ledger_file_is_canonical_json() -> None:
     text = kpi_rules.LEDGER_PATH.read_text(encoding="utf-8")
     assert text.endswith("\n")
     assert json.loads(text) == LEDGER
-    # 362,000 from 360,000 (2026-09-30) FOR THE OWNER'S ACCEPTED LIMIT
-    # `K-S3-34` (plan P4-D359, "Accept as a limit"), an entry of 1,736
-    # bytes the ruling asks for. The ledger stood 395 bytes under the cap;
+    # 362,000 from 360,000, AUTHORIZED BY THE ORCHESTRATOR (2026-09-30)
+    # FOR THE ENTRIES THE MERGED LANDINGS ADDED: `K-S3-34`, the owner's
+    # accepted limit (plan P4-D359, "Accept as a limit"), an entry of
+    # 1,736 bytes the ruling asks for. The ledger stood 395 bytes under the cap;
     # the prose this landing touched -- the measurement note's driver
     # paths and three of its clauses, `K-S3-33`'s evidence -- was trimmed
     # first, never a figure (587 bytes went), and the ledger still stood

@@ -2198,12 +2198,12 @@ def test_the_whole_description_rebuild_which_the_owner_accepted(
     """THE LIMIT, MEASURED HERE AND HELD AT A CEILING BY `K-S3-24`.
 
     The owner's answer 8 of 2026-09-26, "Accept both", given after asking
-    how much it shows about the RELATION of the data and being told, in
-    the orchestrator's record of the question: a column's own values and
-    their row counts, never which row (except a table SORTED by that
-    column, which publishes its row order), never another column; on such
-    a table the published `row_order` puts the k-th value in row k
-    (`test_a_sorted_table_places_every_rebuilt_value_in_its_row`). Where
+    how much it shows about the RELATION of the data and being told: a
+    column's own values and their row counts, "never which row holds
+    them", never another column. On a table SORTED by that column the
+    published `row_order` puts the k-th value in row k
+    (`test_a_sorted_table_places_every_rebuilt_value_in_its_row`); told
+    of that on 2026-09-30, the owner answered "Yes, it stands". Where
     the count of different values, the mode's
     count, the sign counts and the rungs pin a column, its exact mean and
     spread give every value back although both tails withhold their
@@ -2272,7 +2272,8 @@ def test_a_sorted_table_places_every_rebuilt_value_in_its_row(
     every value back (`K-S3-24`), so row k holds the k-th value and a reader
     knows every row, row 1,101's one-row maximum among them. Every public
     surface that says the description names no row must say so beside
-    `row_order`, as the premise the owner answered 8 on did.
+    `row_order`. The question the owner answered 8 on (2026-09-26) did
+    not; told on 2026-09-30, the owner answered "Yes, it stands".
     """
     import complement_reader as columns
 

@@ -6,9 +6,10 @@ places no denied vocabulary may appear, and nothing scanned one:
 `tools/decontamination/check.py` reads the tracked tree, and a message
 is not in the tree. The public history of `phase-5-relationships` held
 104 matches in 87 of its 646 messages at d93fd43, and the 134 commits
-pushed at 82b1f1a on 2026-09-30 brought 14 more in 13. By the owner's
-decision of 2026-09-30 those stay as published and no NEW message may
-carry one (plan P4-D362).
+pushed at 82b1f1a on 2026-09-30 brought 14 more in 13. Keeping those
+134 unrewritten is the owner's "Push now, add a guard" (2026-09-30),
+and no NEW message may carry one; not rewriting the 646 older public
+messages is the orchestrator's call (plan P4-D362).
 
 WHY HERE AND NOT BESIDE check.py. `tools/decontamination/` is the
 attested tree: the signed attestation binds it, only the owner can
@@ -67,9 +68,10 @@ MAGIC = DECONTAMINATION / "magic.txt"
 # THE GRANDFATHER LINE. The tip of `phase-5-relationships` as pushed on
 # 2026-09-30 (committed 2026-09-29), before any commit message was scanned. The 118 matches in
 # 100 of the 780 messages it reaches were published before this guard
-# existed, and by the owner's decision of 2026-09-30 they are not
-# rewritten; mode (c) reads every commit this one does not reach, and
-# only those (plan P4-D362).
+# existed and are not rewritten: the 134 pushed on 2026-09-30 by the
+# owner's "Push now, add a guard", the 646 before them by the
+# orchestrator's call. Mode (c) reads every commit this one does not
+# reach, and only those (plan P4-D362).
 GRANDFATHER = "82b1f1a458ee694f9676dbfb370919a77fe977b3"
 
 # git's scissors line, under any comment prefix. git drops it and every

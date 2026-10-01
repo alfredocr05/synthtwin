@@ -51,7 +51,7 @@ stays in scope.
 | suite | 8,660 collected, and about 66 minutes in one process on the quiet machine (ledger `K-P0-10` carries the seconds). In CI it runs as **five shards**, the heaviest about 20 minutes. Re-measure here whenever the count moves |
 | KPIs | `tests/kpi/ledger.json`: 182 KPIs over phases 0-4 and stages 1, 2, 2b, 3 and 3b, 30 of them headlines — which is the cap, so the next landing demotes one or raises it deliberately; 160 green, 10 open (6 with the stage that owns each, 4 with none set), 12 limits the owner accepted. Stage 3's are `K-S3-01` to `K-S3-25`, one of them a headline (`K-S3-11`, the tail leak), and stage 3b's `K-S3-30` to `K-S3-34` and `K-S3-39`, `K-S3-31` (the weekday) a headline in `K-2B-22b`'s place. **One command re-measures them all:** `.venv/bin/python tools/measurements/kpi_run.py` (add `--slow` for timings and scale). Run it at every stage close: **a KPI that drops is a regression even when every test is green** |
 | checks | `ruff check .`, `mypy --strict src/`, the offline import scan, the provenance check, the decontamination scan, the signed attestation and the disposition seal — all clean |
-| CI | runs on every pull request, five Pythons across Ubuntu, Windows and macOS. **It saw stages 1, 2 and 2b for the first time on 2026-09-20 (PR #6, run 35508922164): every static check green, every test cell red on three defects, all three repaired.** Its **second** run (35541541720) was red again on a deeper layer, all of it in the tests: two that asserted the answer for the machine they ran on, a `Path.read_text(newline=)` that exists only on 3.13 while the floor is 3.10, seventeen Windows failures caused by a temporary path containing `AppData` (which contains a sheet name the test forbade), and about 25 workbook cases that failed instead of skipping where openpyxl is absent. All repaired, each with a guard that now fails HERE rather than in CI. The suite is sharded five ways since, so a cell should cost about 13 minutes rather than up to three hours. **Its third run (35670708722, on `eaff15f`, 2026-09-22) passed 69 of 69 jobs**; it has not seen stage 3. A green local suite is not a green CI. Check `gh pr checks` before believing a branch is done |
+| CI | runs on every pull request, five Pythons across Ubuntu, Windows and macOS. **It saw stages 1, 2 and 2b for the first time on 2026-09-20 (PR #6, run 35508922164): every static check green, every test cell red on three defects, all three repaired.** Its **second** run (35541541720) was red again on a deeper layer, all of it in the tests: two that asserted the answer for the machine they ran on, a `Path.read_text(newline=)` that exists only on 3.13 while the floor is 3.10, seventeen Windows failures caused by a temporary path containing `AppData` (which contains a sheet name the test forbade), and about 25 workbook cases that failed instead of skipping where openpyxl is absent. All repaired, each with a guard that now fails HERE rather than in CI. The suite is sharded five ways since, so a cell should cost about 13 minutes rather than up to three hours. **Its third run (35670708722, on `eaff15f`, 2026-09-22) passed 69 of 69 jobs, and run 36743015674 on `82b1f1a`, stages 3 and 3b, passed 69 of 69 on 2026-09-30.** A green local suite is not a green CI. Check `gh pr checks` before believing a branch is done |
 | review | **ONE round per landing** (owner, 2026-09-12), `codex exec -m gpt-6-astra -c model_reasoning_effort="ultra" -s read-only`. Fix what it raises; never send the fixes back |
 
 ## What is being built, in order
@@ -143,12 +143,35 @@ ones.
   candidates). A column's own values rebuilt from its description are
   accepted -- never another column, and never which row except on a
   table sorted by that column, whose `row_order` puts the k-th value in
-  row k: by the exact skew
+  row k (told 2026-09-30: "Yes, it stands"): by the exact skew
   and kurtosis ("Accept it", `K-S3-17`: 65 of 110), by subtraction
   beside a published pair ("Allow it", `K-S3-21`: 701), beside a listed
   tail and from the whole description ("Accept both", `K-S3-23`: 24;
   `K-S3-24`: 14,115, 0 to 1,100 whole).
-- **The weekday census's withholding, 2026-09-29 and 30:** its certificate keeps the 20,000-arrangement cap ("Keep as built"; measured under "Measure, then raise", no cap up to 160,000 frees the 24 clinics it holds at about a minute each, so it is asked again, plan P4-D359), and a withheld census may tell a reader a half of the week holds 1 to 10 rows -- a range, never a value, a date or a row ("Accept as a limit", `K-S3-34`).
+- **The principle, 2026-10-01** (plan P4-D363), in the owner's words:
+  "This code should be reliable, with good statistical results for as
+  many as possible statistical tests and this twin needs to be built in
+  an accptable time. The only privacy concern is to not have a hippaa
+  violation. ... We don't need to think that someone will try to
+  discovery the data with the twin". Every guard that exists only
+  against a reader reconstructing the data is re-weighed for statistics
+  and build time, landing by landing (the orchestrator's reading).
+- **"Keep as built"** (2026-09-29): the weekday certificate keeps its
+  band and its 20,000-arrangement cap (plan P4-D359).
+- **"Measure, then raise"** (2026-09-30): no cap up to 160,000 frees
+  the 24 clinics it holds at about a minute each; under the principle
+  the cap stays 20,000 in this push, the orchestrator's call (P4-D359).
+- **"Accept as a limit"** (2026-09-30): a withheld weekday census may
+  say a half of the week holds 1 to 10 rows -- a range, never a value,
+  a date or a row (`K-S3-34`).
+- **"Push now, add a guard"** (2026-09-30): the 134 commits pushed at
+  `82b1f1a` stay as published; every new message is scanned (P4-D362).
+- **"Yes, it stands"** (2026-09-30): "Accept both" answered a question
+  that said "never which row holds them"; on a table sorted by the
+  column, `row_order` places each rebuilt value in its row (P4-D353).
+- **"Accept the class"** (2026-09-30): within one column, a count below
+  11 worked out from several published facts is accepted; across
+  columns, nothing is (P4-D363).
 - **Asking the person is part of the product** (A-P4-56, A-P4-58).
 - **Being synthetic is not an answer to an obligation.** The screen may
   not present the twin as settling a privacy rule. What it MAY say: your rows never leave this
