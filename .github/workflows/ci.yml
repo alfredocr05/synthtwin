@@ -730,6 +730,7 @@ jobs:
           #   formats are never allowed anywhere, plan D13)
           wheel required synthtwin/__init__.py
           wheel required synthtwin/calendar_certificate.py
+          wheel required synthtwin/calendar_clock.py
           wheel required synthtwin/calendar_rules.py
           wheel required synthtwin/canonical.py
           wheel required synthtwin/cli.py
@@ -764,6 +765,7 @@ jobs:
           sdist required ROOT/SECURITY.md
           sdist required ROOT/src/synthtwin/__init__.py
           sdist required ROOT/src/synthtwin/calendar_certificate.py
+          sdist required ROOT/src/synthtwin/calendar_clock.py
           sdist required ROOT/src/synthtwin/calendar_rules.py
           sdist required ROOT/src/synthtwin/canonical.py
           sdist required ROOT/src/synthtwin/cli.py

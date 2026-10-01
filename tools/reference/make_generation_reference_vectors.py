@@ -9018,6 +9018,28 @@ def _label_content(column):
     return content
 
 
+def hour_settled(column, ordinals, parsed, whole, lows, highs, holes):
+    """The hour census met -- landing 3b.2-H's pass (lane T2, plan P4-D371).
+
+    A STUB (plan P4-D364): no case publishes an hour census until that
+    landing writes this pass from the method's text, so every rank stays.
+    """
+    return ordinals
+
+
+def clock_fields_settled(column, ordinals, parsed, whole, lows, highs, holes):
+    """The minute and second censuses met -- landing 3b.4's pass (lane T3,
+    plan P4-D372). A STUB (plan P4-D364): every rank stays until then."""
+    return ordinals
+
+
+def heavy_sorted(column, ordinals, parsed, whole, lows, highs, holes):
+    """The dates that stand out, after every other pass -- landing 3b.6's
+    post-pass (lane D4, plan P4-D369). A STUB (plan P4-D364): every rank
+    stays until then."""
+    return ordinals
+
+
 def _datetime_content(column):
     """The content list of a datetime column -- method sections G7.2 to G7.5.
 
@@ -9080,6 +9102,16 @@ def _datetime_content(column):
     # ...and the weekday census met, before any cell is spelled (G7.3f,
     # plan P4-D355).
     ordinals = weekday_settled(column, ordinals, parsed, whole, gap_lows, gap_highs, holes)
+    # ...and the passes stage 3b reserves (plan P4-D364), in their order,
+    # each moving no rank until its landing writes it here from the
+    # method's text. The day of the month is met in the weekday pass's
+    # own slot above.
+    # -- the hour of the written clock (3b.T2, P4-D371)
+    ordinals = hour_settled(column, ordinals, parsed, whole, gap_lows, gap_highs, holes)
+    # -- the minute and the second (3b.T3, P4-D372)
+    ordinals = clock_fields_settled(column, ordinals, parsed, whole, gap_lows, gap_highs, holes)
+    # -- the dates that stand out, after every other pass (3b.D4, P4-D369)
+    ordinals = heavy_sorted(column, ordinals, parsed, whole, gap_lows, gap_highs, holes)
     # HOW EVERY RANK IS SPELLED (method G7.5, landing 2b.6). Allocated
     # after the instants and the offsets, because which conventions a
     # cell can show depends on the day it writes and the clock it writes
@@ -10090,6 +10122,29 @@ def bend_of_places(pins, at):
     return bend
 
 
+def body_draw(column, start, stop, low, high, word):
+    """One body rank's draw inside its gap (G7.3), through stage 3b's seams.
+
+    Uniform on the stretch from ``start`` up to ``stop``, the unit that
+    place lies in, kept between the two pins' values -- and then laid on
+    the drawing unit (``on_draw_unit``). Plan P4-D364 opens both seams:
+    landing 3b.6 (lane D4, plan P4-D369) draws past the dates that stand
+    out in the first two statements, and landing 3b.4 (lane T3, plan
+    P4-D372) writes ``on_draw_unit``.
+    """
+    place = start + (word * (stop - start)) // TWO64 if stop > start else start
+    drawn = min(max(place // PIN_STEPS, low), high)
+    # ...laid on the drawing unit.
+    return on_draw_unit(column, drawn, low, high)
+
+
+def on_draw_unit(column, value, low, high):
+    """A body draw laid on the drawing unit (plan P4-D364's seam, landing
+    3b.4's to write). Every case draws in the space's own unit until
+    then, so the value stands."""
+    return value
+
+
 def spread_ordinals(column, parsed, words):
     """Every rank's instant -- method G7.3 as stage 3 rewrites it.
 
@@ -10125,8 +10180,7 @@ def spread_ordinals(column, parsed, words):
         drawn = []
         for _rank in range(below + 1, above):
             word = next(words)
-            place = start + (word * (stop - start)) // TWO64 if stop > start else start
-            drawn.append(min(max(place // PIN_STEPS, low), high))
+            drawn.append(body_draw(column, start, stop, low, high, word))
         drawn.sort()
         for place, value in enumerate(drawn):
             body_draws[below + 1 + place] = value
@@ -17446,6 +17500,30 @@ def _universal(name, role, statistical_type, structural_role, quality_state, **f
     # stands.
     if role == "datetime" and "weekday_census" not in block:
         block["weekday_census"] = []
+    # ...and the seven censuses stage 3b reserves on the datetime block and
+    # the four on the clock block (plan P4-D364), EMPTY for every case --
+    # `clock_step` null -- until the landing that fills each: a census
+    # nobody publishes asks nothing of any pass, so every cell frozen
+    # before the keys existed stands. A landing's own cases state their
+    # own.
+    if role == "datetime":
+        for census in (
+            "hour_census",
+            "minute_census",
+            "second_census",
+            "minute_heaps",
+            "second_heaps",
+            "day_of_month_census",
+            "heavy_dates",
+        ):
+            if census not in block:
+                block[census] = []
+    if role == "time_of_day":
+        for census in ("clock_census", "clock_heaps", "clock_codes"):
+            if census not in block:
+                block[census] = []
+        if "clock_step" not in block:
+            block["clock_step"] = None
     # ...and the census of WHOLE-NUMBER field widths (P4-D30) is NOT
     # defaulted, which is deliberate.  The two above are empty for
     # almost every case here because almost no case has a decimal or a
@@ -18199,6 +18277,19 @@ def clock_knots(column, parsed):
     return knots
 
 
+def clock_census_laid(column, parsed, knots):
+    """The knots laid on a clock column's census and heaps -- landing
+    3b.5's rank rule (lane C1, plan P4-D373). A STUB (plan P4-D364): no
+    case publishes either until then, so the knots stand."""
+    return knots
+
+
+def clock_minutes_laid(column, parsed, knots):
+    """The knots laid on a clock column's minute census -- landing 3b.5's
+    second step (lane C2, plan P4-D374). A STUB (plan P4-D364)."""
+    return knots
+
+
 def clock_body_at(knots, position):
     """One body rank's ordinal, read off the knots by floor division (G7A.4)."""
     below, above = knots[0], knots[len(knots) - 1]
@@ -18253,6 +18344,10 @@ def _clock_content(column):
     else:
         low_rank, high_rank = low["rows"], parsed - 1 - high["rows"]
         knots = clock_knots(column, parsed)
+        # ...laid on the census and heaps stage 3b reserves (3b.C1, P4-D373)
+        knots = clock_census_laid(column, parsed, knots)
+        # ...and on the minute census of clock times (3b.C2, P4-D374)
+        knots = clock_minutes_laid(column, parsed, knots)
         edge = clock_capacity(form) - 1
         sides = {}
         for name, side, is_low in (("low", low, True), ("high", high, False)):

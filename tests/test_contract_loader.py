@@ -1529,6 +1529,81 @@ def battery() -> list[Mutation]:
                 ],
             ),
         ),
+        # THE CENSUSES STAGE 3B RESERVES (plan P4-D364): each `[]`, and
+        # `clock_step` null, until the landing that fills it; the reader
+        # of that landing's stub refuses anything else, by the key's name.
+        Mutation(
+            "R16", "a hour_census this version of synthtwin publishes none of",
+            edit("logged_at", hour_census=[{"first": 0, "last": 23, "count": 218}]),
+            names="hour_census",
+        ),
+        Mutation(
+            "R16", "a minute_census this version of synthtwin publishes none of",
+            edit("logged_at", minute_census=[{"first": 0, "last": 59, "count": 218}]),
+            names="minute_census",
+        ),
+        Mutation(
+            "R16", "a second_census this version of synthtwin publishes none of",
+            edit("logged_at", second_census=[{"first": 0, "last": 59, "count": 218}]),
+            names="second_census",
+        ),
+        Mutation(
+            "R16", "a minute_heaps this version of synthtwin publishes none of",
+            edit("logged_at", minute_heaps=[{"value": 0, "count": 30}]),
+            names="minute_heaps",
+        ),
+        Mutation(
+            "R16", "a second_heaps this version of synthtwin publishes none of",
+            edit("logged_at", second_heaps=[{"value": 0, "count": 30}]),
+            names="second_heaps",
+        ),
+        Mutation(
+            "R16", "a day_of_month_census this version of synthtwin publishes none of",
+            edit("recorded_on", day_of_month_census=[{"first": 1, "last": 31, "count": 217}]),
+            names="day_of_month_census",
+        ),
+        Mutation(
+            "R16", "a heavy_dates this version of synthtwin publishes none of",
+            edit("recorded_on", heavy_dates=[{"date": "2024-01-01", "count": 30}]),
+            names="heavy_dates",
+        ),
+        Mutation(
+            "R16", "a clock_census this version of synthtwin publishes none of",
+            edit("seen_at", clock_census=[{"first": 0, "last": 143, "count": 200}]),
+            names="clock_census",
+        ),
+        Mutation(
+            "R16", "a clock_heaps this version of synthtwin publishes none of",
+            edit("seen_at", clock_heaps=[{"value": "07:00", "count": 30}]),
+            names="clock_heaps",
+        ),
+        Mutation(
+            "R16", "a clock_codes this version of synthtwin publishes none of",
+            edit("seen_at", clock_codes=[{"spelling": "not recorded", "count": 20}]),
+            names="clock_codes",
+        ),
+        Mutation(
+            "R16", "a clock_step this version of synthtwin publishes none of",
+            edit("seen_at", clock_step=60),
+            names="clock_step",
+        ),
+        # THE LANDINGS' ANCHORS (plan P4-D364): each landing of stage 3b adds
+        # its mutations below its own line.
+        # anchor 3b.D1 (P4-D365)
+        # anchor 3b.D0 (P4-D366)
+        # anchor 3b.D2 (P4-D367)
+        # anchor 3b.D3 (P4-D368)
+        # anchor 3b.D4 (P4-D369)
+        # anchor 3b.T1 (P4-D370)
+        # anchor 3b.T2 (P4-D371)
+        # anchor 3b.T3 (P4-D372)
+        # anchor 3b.C1 (P4-D373)
+        # anchor 3b.C2 (P4-D374)
+        # anchor 3b.G1 (P4-D375)
+        # anchor 3b.G3 (P4-D376)
+        # anchor 3b.G2 (P4-D377)
+        # anchor 3b.7 (P4-D378)
+        # anchor 3b.J (P4-D379)
         # -- the numeric roles ----------------------------------------
         Mutation("Q1", "a row count of its own", edit("visits", n_rows=5)),
         Mutation(

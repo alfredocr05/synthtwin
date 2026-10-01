@@ -45,6 +45,16 @@ menu and the cheap rules the producer and the loader both ask:
   different values a reader holds is a count of different days;
 * one storage class per workbook column (`stored_one_way`).
 
+AND THE RULES EVERY CENSUS OF STAGE 3B SHARES (plan P4-D364, the base
+the rest of stage 3b builds on), each stated once so that no census
+writes its own: a count is nought or at least the line
+(`calendar_floor_ok`); a census's groups are merged from its bins by
+one rule (`merged_groups`); a value stands out from its neighbours by
+one rule (`standing_out`); and a published census is held to its
+groups' cover, floor, total and sure cells by one checker
+(`census_breach`), whose weekday form stays here as
+`sure_cells_breach`.
+
 Nothing here reads a table: every function is a function of the
 numbers handed to it. No I/O of any kind.
 """
@@ -53,6 +63,11 @@ from synthtwin import parsing
 
 # The key of the census in a column block of dates (contract 6.6.2).
 WEEKDAY_CENSUS = "weekday_census"
+# ...and the two more stage 3b's day track publishes there (plan
+# P4-D364): the census of the days of the month and the dates that stand
+# out, each `[]` on every block until its landing fills it.
+DAY_OF_MONTH_CENSUS = "day_of_month_census"
+HEAVY_DATES = "heavy_dates"
 
 # Monday is weekday 0 and Sunday weekday 6: seven bins, the last two
 # the weekend.
@@ -133,6 +148,23 @@ FORM_CENSUSES = (
 # and is no class of the rule.
 _VALUE_CLASSES = ("date", "number", "text", "boolean", "error")
 
+def calendar_floor_ok(count: int, line: int) -> bool:
+    """Whether one census count may be published: nought, or at least the line.
+
+    THE ONE STATEMENT OF CA2 (plan P4-D364). Every census of stage 3b --
+    the weekday's WC2 and each census after it -- asks this, so the rule
+    cannot drift between two of them. A group holding one to `line - 1`
+    cells would name that many rows; nought names none, and a count at
+    the line names a group the floor allows.
+
+    Guarantees: accepts a count and the census line
+    (`parsing.census_floor`); returns the answer, false for a negative
+    count. Determinism: a fixed function of the two. Raises nothing. No
+    I/O of any kind.
+    """
+    return count == 0 or count >= line
+
+
 def weekday_of(day: int) -> int:
     """The weekday of a day number counted from 1970-01-01: Monday 0.
 
@@ -177,16 +209,16 @@ def menu_groups(
     """
     seven = True
     for count in bins:
-        if 0 < count < line:
+        if not calendar_floor_ok(count, line):
             seven = False
     if seven:
         return tuple(_single_runs(bins, 0, SUNDAY)), ENTRY_SEVEN
     weekend = bins[SATURDAY] + bins[SUNDAY]
     weekdays = sum(bins[0:SATURDAY])
-    weekend_ok = weekend == 0 or weekend >= line
+    weekend_ok = calendar_floor_ok(weekend, line)
     single = True
     for weekday in range(SATURDAY):
-        if 0 < bins[weekday] < line:
+        if not calendar_floor_ok(bins[weekday], line):
             single = False
     if single and weekend_ok and weekend > 0:
         groups = _single_runs(bins, 0, FRIDAY) + [(SATURDAY, SUNDAY, weekend)]
@@ -705,3 +737,322 @@ def census_line(floor: int) -> int:
     Determinism: a fixed function. Raises nothing. No I/O of any kind.
     """
     return parsing.census_floor(floor)
+
+
+# HOW A CENSUS'S NEIGHBOURS ARE CENTRED, for `standing_out`: the MEAN of
+# the units either side, which the heavy dates read (owner ruling of
+# 2026-09-26: "Only dates that stand out"), or their MEDIAN, which a
+# grid of clock values reads, because a mean beside a neighbouring heap
+# is that heap's.
+CENTRE_MEAN = "mean"
+CENTRE_MEDIAN = "median"
+
+# The names `census_breach` reports its four rules under unless a census
+# passes its own: CA1 the cover, CA2 the floor, CA3 the total and CA5
+# the sure cells.
+CENSUS_RULES = ("CA1", "CA2", "CA3", "CA5")
+
+
+def _group_short(count: int, placed: int, line: int) -> bool:
+    """Whether a group of `merged_groups` must merge: its count, or its
+    count less the cells a reader places in it for certain, is one to
+    `line - 1`, or it holds fewer cells than those."""
+    left = count - placed
+    return (
+        not calendar_floor_ok(count, line)
+        or left < 0
+        or not calendar_floor_ok(left, line)
+    )
+
+
+def _cycle_ordered(groups: "list[list[int]]") -> "list[list[int]]":
+    """Groups of a partition of the bins, in bin order: every group that
+    runs forward by its first bin, then the one group that runs past the
+    last bin, which a census on a cycle lists last."""
+    # The groups partition the bins, so no two share a first bin, and a
+    # list of whole numbers sorts by its first.
+    forward = sorted([group for group in groups if group[0] <= group[1]])
+    wrapped = [group for group in groups if group[0] > group[1]]
+    return forward + wrapped
+
+
+def merged_groups(
+    counts: "list[int]",
+    sure: "list[int]",
+    line: int,
+    cyclic: bool = False,
+) -> "tuple[tuple[int, int, int], ...]":
+    """The groups a census of these bins publishes, or none (plan P4-D364).
+
+    ONE MERGE RULE FOR EVERY CENSUS OF BINS. Every bin starts alone, and
+    each run of empty bins is one group of nought. A group is SHORT where
+    its count is one to `line - 1`, or where its count less its SURE
+    cells -- `sure[i]` per bin, the cells a reader places there for
+    certain from the rest of the description -- is below nought or one
+    to `line - 1`. While a group is short, the short group of least
+    count (the earlier on a tie) joins its smaller non-zero neighbour
+    (the earlier on a tie), taking in the groups of nought between them.
+    On a CYCLE (`cyclic`) the last bin neighbours the first, so one group
+    may run past the last bin; it is listed last. Where a short group
+    has no non-zero neighbour left, or the merging ends in one group
+    covering every bin, no census is published: one group over every
+    bin says nothing a reader does not already hold.
+
+    Guarantees: accepts one count per bin, the sure cells per bin
+    (shorter lists read as nought) and the census line; returns
+    `(first, last, count)` per group, bin indices from nought, `first`
+    after `last` only for the one group of a cycle that runs past the
+    last bin; or `()`. Determinism: a function of the four. Raises
+    nothing. No I/O of any kind.
+    """
+    size = len(counts)
+    if size == 0:
+        return ()
+    held = [0 for _bin in range(size)]
+    for index in range(min(size, len(sure))):
+        held[index] = sure[index]
+    groups: "list[list[int]]" = []
+    index = 0
+    while index < size:
+        if counts[index] != 0:
+            groups += [[index, index, counts[index], held[index]]]
+            index = index + 1
+            continue
+        end = index
+        placed = held[index]
+        while end + 1 < size and counts[end + 1] == 0:
+            end = end + 1
+            placed = placed + held[end]
+        groups += [[index, end, 0, placed]]
+        index = end + 1
+    if cyclic and len(groups) > 1 and groups[0][2] == 0 and groups[-1][2] == 0:
+        first = groups[0]
+        last = groups[len(groups) - 1]
+        groups = groups[1 : len(groups) - 1] + [
+            [last[0], first[1], 0, first[3] + last[3]]
+        ]
+    while True:
+        pick = -1
+        for place in range(len(groups)):
+            count, placed = groups[place][2], groups[place][3]
+            if not _group_short(count, placed, line):
+                continue
+            if pick < 0 or count < groups[pick][2]:
+                pick = place
+        if pick < 0:
+            break
+        total = len(groups)
+        before = -1
+        after = -1
+        for step in range(1, total):
+            place = pick - step
+            if place < 0:
+                if not cyclic:
+                    break
+                place = place + total
+            if groups[place][2] != 0:
+                before = place
+                break
+        for step in range(1, total):
+            place = pick + step
+            if place >= total:
+                if not cyclic:
+                    break
+                place = place - total
+            if groups[place][2] != 0:
+                after = place
+                break
+        if before < 0 and after < 0:
+            return ()
+        start, stop = pick, pick
+        if after < 0 or (
+            before >= 0 and groups[before][2] <= groups[after][2]
+        ):
+            start = before
+        else:
+            stop = after
+        span = [start]
+        while span[len(span) - 1] != stop:
+            span += [(span[len(span) - 1] + 1) % total]
+        merged = [
+            groups[start][0],
+            groups[stop][1],
+            sum(groups[place][2] for place in span),
+            sum(groups[place][3] for place in span),
+        ]
+        kept = [groups[place] for place in range(total) if place not in span]
+        groups = _cycle_ordered(kept + [merged])
+    if len(groups) == 1:
+        return ()
+    return tuple((group[0], group[1], group[2]) for group in groups)
+
+
+def standing_out(
+    counts: "list[int]", line: int, reach: int, centre: str
+) -> "tuple[tuple[int, int], ...]":
+    """The units whose count stands out from their neighbours (plan P4-D364).
+
+    THE ONE RULE OF A HEAP. A unit stands out where its count is at least
+    the census line AND at least three times the CENTRE of the `reach`
+    units on each side of it: their mean (`CENTRE_MEAN`, the heavy
+    dates: "at least 11 rows and at least three times the neighbouring
+    dates", the owner's ruling of 2026-09-26) or their median
+    (`CENTRE_MEDIAN`, a grid of clock values), compared in whole
+    numbers. A neighbour past either end of `counts` holds nought.
+
+    Guarantees: accepts one count per consecutive unit, the census line,
+    the reach and the centre word; returns `(index, count)` per unit
+    that stands out, ascending. Determinism: a function of the four.
+    Raises nothing. No I/O of any kind.
+    """
+    size = len(counts)
+    found: "list[tuple[int, int]]" = []
+    for index in range(size):
+        count = counts[index]
+        if count < line or count <= 0:
+            continue
+        around: "list[int]" = []
+        for step in range(1, reach + 1):
+            for other in (index - step, index + step):
+                around += [counts[other] if 0 <= other < size else 0]
+        stands = True
+        if around and centre == CENTRE_MEDIAN:
+            ordered = sorted(around)
+            middle = len(ordered) // 2
+            twice = 2 * ordered[middle]
+            if len(ordered) % 2 == 0:
+                twice = ordered[middle - 1] + ordered[middle]
+            stands = 2 * count >= 3 * twice
+        elif around:
+            stands = len(around) * count >= 3 * sum(around)
+        if stands:
+            found += [(index, count)]
+    return tuple(found)
+
+
+def census_breach(
+    groups: "tuple[tuple[int, int, int], ...]",
+    bins: int,
+    line: int,
+    body: int,
+    sure: "tuple[int, ...]" = (),
+    cyclic: bool = False,
+    low: int = 0,
+    unit: str = "bin",
+    rules: "tuple[str, str, str, str]" = CENSUS_RULES,
+) -> "tuple[str, str, str] | None":
+    """A published census of bins held to CA1, CA2, CA3 and its sure cells.
+
+    THE ONE CHECKER EVERY CENSUS'S LOADER AND PRODUCER ASK (plan
+    P4-D364), in order: the groups cover the bins `low` to
+    `low + bins - 1` in order, each once (CA1) -- on a cycle the last
+    group alone may run past the last bin; every count is nought or at
+    least the line (CA2, `calendar_floor_ok`); the counts add to the
+    body (CA3); and every group holds at least its SURE cells, `sure`
+    per bin from the first, with what is left of it nought or at least
+    the line (the closed form of CA5, WC5's rule for every census). The
+    first rule broken is returned under its name in `rules`, as (rule,
+    what the census says, what the rule asks), with the bins named by
+    `unit`. An empty census is legal and breaks nothing.
+
+    Guarantees: accepts the groups, the bin count, the line, the body,
+    the sure cells, whether the bins are a cycle, the first bin's
+    number, the bins' word and the four rule names; returns None or the
+    broken rule. Determinism: a function of the arguments. Raises
+    nothing. No I/O of any kind.
+    """
+    cover, floor_rule, total_rule, sure_rule = rules
+    if not groups:
+        return None
+    top = low + bins - 1
+    # ONE ORDER PER GROUPING: from the first bin, or -- on a cycle whose
+    # last group runs past the last bin -- from the bin after that group.
+    closing = groups[len(groups) - 1]
+    expect = low
+    if cyclic and closing[1] < closing[0]:
+        expect = closing[1] + 1
+    covered = 0
+    for place in range(len(groups)):
+        first, last, _count = groups[place]
+        if first != expect or not low <= first <= top or not low <= last <= top:
+            return (
+                cover,
+                f"a group runs from {unit} {first} to {unit} {last}",
+                f"the next group must start at {unit} {expect}, and every "
+                f"{unit} lies from {low} to {top}",
+            )
+        if last < first:
+            if not cyclic or place != len(groups) - 1:
+                return (
+                    cover,
+                    f"a group runs from {unit} {first} back to {unit} {last}",
+                    f"only the last group of a census on a cycle may run "
+                    f"past {unit} {top}",
+                )
+            covered = covered + (top - first + 1) + (last - low + 1)
+        else:
+            covered = covered + (last - first + 1)
+        expect = last + 1
+    if covered != bins:
+        return (
+            cover,
+            f"the groups cover {covered} of the {bins} {unit}s",
+            f"they must cover every {unit} from {low} to {top}, each once",
+        )
+    for first, last, count in groups:
+        if not calendar_floor_ok(count, line):
+            return (
+                floor_rule,
+                f"the group from {unit} {first} to {unit} {last} counts {count}",
+                f"a count is nought or at least {line}",
+            )
+    total = sum(count for _first, _last, count in groups)
+    if total != body:
+        return (
+            total_rule,
+            f"the groups add to {total}",
+            f"the values between the two tail boundaries number {body}",
+        )
+    for first, last, count in groups:
+        placed = 0
+        position = first
+        while True:
+            index = position - low
+            if 0 <= index < len(sure):
+                placed = placed + sure[index]
+            if position == last:
+                break
+            position = position + 1
+            if position > top:
+                position = low
+        left = count - placed
+        if left < 0 or not calendar_floor_ok(left, line):
+            return (
+                sure_rule,
+                f"the group from {unit} {first} to {unit} {last} counts {count}",
+                f"it holds at least the {placed} cells the rest of this "
+                f"description places in it, and what is left of it is "
+                f"nought or at least {line}",
+            )
+    return None
+
+
+# THE LANDINGS' ANCHORS (plan P4-D364). Each landing of stage 3b that
+# adds to this module adds below its own line, so two landings built
+# side by side never touch the same lines; a landing with nothing to add
+# leaves its line alone. In the order of the plan's numbering table.
+# anchor 3b.D1 (P4-D365)
+# anchor 3b.D0 (P4-D366)
+# anchor 3b.D2 (P4-D367)
+# anchor 3b.D3 (P4-D368)
+# anchor 3b.D4 (P4-D369)
+# anchor 3b.T1 (P4-D370)
+# anchor 3b.T2 (P4-D371)
+# anchor 3b.T3 (P4-D372)
+# anchor 3b.C1 (P4-D373)
+# anchor 3b.C2 (P4-D374)
+# anchor 3b.G1 (P4-D375)
+# anchor 3b.G3 (P4-D376)
+# anchor 3b.G2 (P4-D377)
+# anchor 3b.7 (P4-D378)
+# anchor 3b.J (P4-D379)

@@ -438,6 +438,30 @@ PLAN4_REGIONS = {
         "## Decision P4-D355 — the weekday census of a column of dates "
         "(stage 3b landing 3b.1, 2026-09-26)"
     ),
+    # The keys stage 3b reserves (plan P4-D364), disposed in the decision
+    # that reserved them until the landing that fills each disposes it in
+    # its own.
+    "stage-3b-reserves": (
+        "## Decision P4-D364 — the base every stage 3b landing builds on "
+        "(2026-10-01)"
+    ),
+    # THE LANDINGS' ANCHORS (plan P4-D364): each landing of stage 3b names
+    # its own plan region below its own line.
+    # anchor 3b.D1 (P4-D365)
+    # anchor 3b.D0 (P4-D366)
+    # anchor 3b.D2 (P4-D367)
+    # anchor 3b.D3 (P4-D368)
+    # anchor 3b.D4 (P4-D369)
+    # anchor 3b.T1 (P4-D370)
+    # anchor 3b.T2 (P4-D371)
+    # anchor 3b.T3 (P4-D372)
+    # anchor 3b.C1 (P4-D373)
+    # anchor 3b.C2 (P4-D374)
+    # anchor 3b.G1 (P4-D375)
+    # anchor 3b.G3 (P4-D376)
+    # anchor 3b.G2 (P4-D377)
+    # anchor 3b.7 (P4-D378)
+    # anchor 3b.J (P4-D379)
     "group-separator": (
         "### P4-D38 The mark between thousands (stage 2, 2026-09-14)"
     ),
@@ -1082,6 +1106,82 @@ REGISTRY += (
         plan_region="weekday-census",
         aliases=(),
     ),
+    # ...and the seven keys stage 3b reserves there (plan P4-D364): `[]` on
+    # every block and refused as anything else, so the whole of what each
+    # owes is on the profile until the landing that fills it.
+    Fact(
+        "datetime",
+        "hour_census",
+        LOADER_ONLY,
+        plan_words="LOADER-ONLY until the landing that fills each",
+        plan_region="stage-3b-reserves",
+        aliases=(),
+    ),
+    Fact(
+        "datetime",
+        "minute_census",
+        LOADER_ONLY,
+        plan_words="LOADER-ONLY until the landing that fills each",
+        plan_region="stage-3b-reserves",
+        aliases=(),
+    ),
+    Fact(
+        "datetime",
+        "second_census",
+        LOADER_ONLY,
+        plan_words="LOADER-ONLY until the landing that fills each",
+        plan_region="stage-3b-reserves",
+        aliases=(),
+    ),
+    Fact(
+        "datetime",
+        "minute_heaps",
+        LOADER_ONLY,
+        plan_words="LOADER-ONLY until the landing that fills each",
+        plan_region="stage-3b-reserves",
+        aliases=(),
+    ),
+    Fact(
+        "datetime",
+        "second_heaps",
+        LOADER_ONLY,
+        plan_words="LOADER-ONLY until the landing that fills each",
+        plan_region="stage-3b-reserves",
+        aliases=(),
+    ),
+    Fact(
+        "datetime",
+        "day_of_month_census",
+        LOADER_ONLY,
+        plan_words="LOADER-ONLY until the landing that fills each",
+        plan_region="stage-3b-reserves",
+        aliases=(),
+    ),
+    Fact(
+        "datetime",
+        "heavy_dates",
+        LOADER_ONLY,
+        plan_words="LOADER-ONLY until the landing that fills each",
+        plan_region="stage-3b-reserves",
+        aliases=(),
+    ),
+    # THE LANDINGS' ANCHORS (plan P4-D364): each landing of stage 3b
+    # disposes its own facts below its own line.
+    # anchor 3b.D1 (P4-D365)
+    # anchor 3b.D0 (P4-D366)
+    # anchor 3b.D2 (P4-D367)
+    # anchor 3b.D3 (P4-D368)
+    # anchor 3b.D4 (P4-D369)
+    # anchor 3b.T1 (P4-D370)
+    # anchor 3b.T2 (P4-D371)
+    # anchor 3b.T3 (P4-D372)
+    # anchor 3b.C1 (P4-D373)
+    # anchor 3b.C2 (P4-D374)
+    # anchor 3b.G1 (P4-D375)
+    # anchor 3b.G3 (P4-D376)
+    # anchor 3b.G2 (P4-D377)
+    # anchor 3b.7 (P4-D378)
+    # anchor 3b.J (P4-D379)
 )
 # THE AFFIXED ROLE'S OWN FACTS. Its quantitative block is the numeric
 # block read over the cores and is registered above under `numeric`;
@@ -1135,6 +1235,35 @@ REGISTRY += [
     )
     for field in ("n_distinct", "n_distinct_folded")
 ]
+# ...AND THE FOUR KEYS STAGE 3B RESERVES ON THE CLOCK ROLE (plan
+# P4-D364), on the terms of the seven on `datetime`.
+REGISTRY += [
+    Fact(
+        "clock",
+        field,
+        LOADER_ONLY,
+        plan_words="LOADER-ONLY until the landing that fills each",
+        plan_region="stage-3b-reserves",
+    )
+    for field in ("clock_census", "clock_heaps", "clock_step", "clock_codes")
+]
+# THE LANDINGS' ANCHORS (plan P4-D364): each landing of stage 3b disposes
+# its own clock facts below its own line.
+# anchor 3b.D1 (P4-D365)
+# anchor 3b.D0 (P4-D366)
+# anchor 3b.D2 (P4-D367)
+# anchor 3b.D3 (P4-D368)
+# anchor 3b.D4 (P4-D369)
+# anchor 3b.T1 (P4-D370)
+# anchor 3b.T2 (P4-D371)
+# anchor 3b.T3 (P4-D372)
+# anchor 3b.C1 (P4-D373)
+# anchor 3b.C2 (P4-D374)
+# anchor 3b.G1 (P4-D375)
+# anchor 3b.G3 (P4-D376)
+# anchor 3b.G2 (P4-D377)
+# anchor 3b.7 (P4-D378)
+# anchor 3b.J (P4-D379)
 # THE JOINED ROLE (plan P4-D25, contract 9.4a). It had no group here at
 # all until residual R-P4-62's landing: `part_agreements`, `part_above`
 # and `part_min_widths` occurred zero times in this file, so the eight

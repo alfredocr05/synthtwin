@@ -5028,6 +5028,23 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             # body's cells onto other days moves them onto other
             # weekdays too, and no tail edit is needed to reach it.
             ("crushed-recorded_on", "weekday_census.groups"),
+            # THE LANDINGS' ANCHORS (plan P4-D364): each landing of stage 3b adds
+            # its edits below its own line.
+            # anchor 3b.D1 (P4-D365)
+            # anchor 3b.D0 (P4-D366)
+            # anchor 3b.D2 (P4-D367)
+            # anchor 3b.D3 (P4-D368)
+            # anchor 3b.D4 (P4-D369)
+            # anchor 3b.T1 (P4-D370)
+            # anchor 3b.T2 (P4-D371)
+            # anchor 3b.T3 (P4-D372)
+            # anchor 3b.C1 (P4-D373)
+            # anchor 3b.C2 (P4-D374)
+            # anchor 3b.G1 (P4-D375)
+            # anchor 3b.G3 (P4-D376)
+            # anchor 3b.G2 (P4-D377)
+            # anchor 3b.7 (P4-D378)
+            # anchor 3b.J (P4-D379)
             ("one-worded-recorded_on", "offsets.(none)"),
             ("mixed-recorded_on", "offsets.read-at"),
             ("renamed-recorded_on", "position.at"),
@@ -6527,6 +6544,23 @@ SUBCHECK_FACTS: "dict[tuple[str, str], str]" = {
     # THE WEEKDAY CENSUS (landing 3b.1, plan P4-D355): the body's
     # cells counted against every published group at once.
     ("datetime", "weekday_census.groups"): "datetime.weekday_census",
+    # THE LANDINGS' ANCHORS (plan P4-D364): each landing of stage 3b adds
+    # its subchecks below its own line.
+    # anchor 3b.D1 (P4-D365)
+    # anchor 3b.D0 (P4-D366)
+    # anchor 3b.D2 (P4-D367)
+    # anchor 3b.D3 (P4-D368)
+    # anchor 3b.D4 (P4-D369)
+    # anchor 3b.T1 (P4-D370)
+    # anchor 3b.T2 (P4-D371)
+    # anchor 3b.T3 (P4-D372)
+    # anchor 3b.C1 (P4-D373)
+    # anchor 3b.C2 (P4-D374)
+    # anchor 3b.G1 (P4-D375)
+    # anchor 3b.G3 (P4-D376)
+    # anchor 3b.G2 (P4-D377)
+    # anchor 3b.7 (P4-D378)
+    # anchor 3b.J (P4-D379)
     ("datetime", "position.at"): "universal.position",
     ("datetime", "precision.resolution"): "datetime.resolution",
     ("datetime", "precision.time_precision"): "datetime.time_precision",

@@ -466,6 +466,27 @@ INPUT_SIDE_ENTRIES = (
     # for once -- which is what makes the whole of its obligation the
     # profile's.
     ("datetime", "tail_unit"),
+    # THE KEYS STAGE 3B RESERVES (plan P4-D364), LOADER-ONLY on the same
+    # terms: each is `[]` -- `clock_step` null -- on every block and the
+    # loader refuses anything else, so none of them puts anything on the
+    # written file until the landing that fills it takes its own entry
+    # out, below its own line.
+    # -- 3b.T2 (P4-D371)
+    ("datetime", "hour_census"),
+    # -- 3b.T3 (P4-D372)
+    ("datetime", "minute_census"),
+    ("datetime", "second_census"),
+    ("datetime", "minute_heaps"),
+    ("datetime", "second_heaps"),
+    # -- 3b.D3 (P4-D368)
+    ("datetime", "day_of_month_census"),
+    # -- 3b.D4 (P4-D369)
+    ("datetime", "heavy_dates"),
+    # -- 3b.C1 (P4-D373)
+    ("clock", "clock_census"),
+    ("clock", "clock_heaps"),
+    ("clock", "clock_step"),
+    ("clock", "clock_codes"),
 )
 
 # -- what a listing entry says, in one fixed sentence each ------------
@@ -16308,7 +16329,29 @@ def _clock_checks(
             floor,
         )
     checks = checks + _clock_ladder_checks(column, facts, block, floor)
+    # -- the census, heaps, step and codes stage 3b reserves (3b.C1,
+    # P4-D373; plan P4-D364): no check until that landing fills it.
+    checks = checks + _clock_census_checks(column, facts, block, cells, floor)
     return checks
+
+
+def _clock_census_checks(
+    column: contract.ColumnBlock,
+    facts: contract.ClockFacts,
+    block: "dict[str, object]",
+    cells: "list[str] | None",
+    floor: int,
+) -> "list[Check]":
+    """A clock column's census, heaps, step and codes, held exactly.
+
+    THE STUB OF LANDING 3b.5 (lane C1, plan P4-D373), which fills this
+    check and nothing beside it (plan P4-D364). No column publishes any
+    of the four until then, so there is nothing to check.
+
+    Guarantees: accepts the column, its facts, the file's own block, its
+    cells and the floor; returns no check. Raises nothing. No I/O.
+    """
+    return []
 
 
 def _clock_ladder_checks(
@@ -16816,7 +16859,105 @@ def _datetime_checks(
     checks = checks + _weekday_checks(
         column, facts, block, floor, cells, declared_days
     )
+    # THE CENSUSES STAGE 3B RESERVES (plan P4-D364), one check per
+    # landing, each handed what the weekday check is handed and each
+    # checking nothing until its landing fills it. A landing edits its
+    # own check, not these calls.
+    # -- the hour of the written clock (3b.T2, P4-D371)
+    checks = checks + _hour_checks(
+        column, facts, block, floor, cells, declared_days
+    )
+    # -- the minute and the second, and their heaps (3b.T3, P4-D372)
+    checks = checks + _clock_field_checks(
+        column, facts, block, floor, cells, declared_days
+    )
+    # -- the days of the month (3b.D3, P4-D368)
+    checks = checks + _day_of_month_checks(
+        column, facts, block, floor, cells, declared_days
+    )
+    # -- the dates that stand out (3b.D4, P4-D369)
+    checks = checks + _heavy_checks(
+        column, facts, block, floor, cells, declared_days
+    )
     return checks
+
+
+def _hour_checks(
+    column: contract.ColumnBlock,
+    facts: contract.DatetimeFacts,
+    block: "dict[str, object]",
+    floor: int,
+    cells: "list[str]",
+    declared_days: "tuple[str, ...]" = (),
+) -> "list[Check]":
+    """The hour census, held exactly.
+
+    THE STUB OF LANDING 3b.2-H (lane T2, plan P4-D371), which fills this
+    check and nothing beside it (plan P4-D364); it prints through
+    `_census_lines`, as the weekday check does. No column publishes an
+    hour census until then, so there is nothing to check.
+
+    Guarantees: accepts what `_weekday_checks` accepts; returns no
+    check. Raises nothing. No I/O of any kind.
+    """
+    return []
+
+
+def _clock_field_checks(
+    column: contract.ColumnBlock,
+    facts: contract.DatetimeFacts,
+    block: "dict[str, object]",
+    floor: int,
+    cells: "list[str]",
+    declared_days: "tuple[str, ...]" = (),
+) -> "list[Check]":
+    """The minute and second censuses and heaps, held exactly.
+
+    THE STUB OF LANDING 3b.4 (lane T3, plan P4-D372), which fills this
+    check and nothing beside it (plan P4-D364); nothing to check until
+    then.
+
+    Guarantees: as `_hour_checks`. No I/O of any kind.
+    """
+    return []
+
+
+def _day_of_month_checks(
+    column: contract.ColumnBlock,
+    facts: contract.DatetimeFacts,
+    block: "dict[str, object]",
+    floor: int,
+    cells: "list[str]",
+    declared_days: "tuple[str, ...]" = (),
+) -> "list[Check]":
+    """The day-of-month census, held exactly.
+
+    THE STUB OF LANDING 3b.3 (lane D3, plan P4-D368), which fills this
+    check and nothing beside it (plan P4-D364); nothing to check until
+    then.
+
+    Guarantees: as `_hour_checks`. No I/O of any kind.
+    """
+    return []
+
+
+def _heavy_checks(
+    column: contract.ColumnBlock,
+    facts: contract.DatetimeFacts,
+    block: "dict[str, object]",
+    floor: int,
+    cells: "list[str]",
+    declared_days: "tuple[str, ...]" = (),
+) -> "list[Check]":
+    """Every date that stands out, holding its count exactly.
+
+    THE STUB OF LANDING 3b.6 (lane D4, plan P4-D369), which fills this
+    check and nothing beside it (plan P4-D364); nothing to check until
+    then.
+
+    Guarantees: as `_hour_checks`. No I/O of any kind.
+    """
+    return []
 
 
 # The names a weekday census's groups are printed with, Monday first.
@@ -16897,51 +17038,15 @@ def _weekday_checks(
                 on_holes = on_holes + 1
     found = calendar_rules.group_counts(census, bins)
     line = parsing.census_floor(floor)
-    # COMPLEMENTARY, OR NOT AT ALL (review of landing 3b.1, item 3). A
-    # count below the line printed as "fewer than" the line beside every
-    # other group's count gave itself back: the report prints the file's
-    # present cells, its unparsed cells and both tails' rows, and so its
-    # body, and 1,000 less 14 less 12 less the six counts printed was the
-    # Sunday count of 3. So where any group holds one to the line less
-    # one, NO group's count is printed: the short groups say they are
-    # short, and every other group is kept back. And where even which
-    # groups are short would give a count back beside the body -- a body
-    # of twelve with one short group holds one there, the other eleven
-    # on one weekday -- no group is named at all.
-    short = [index for index in range(len(found)) if 0 < found[index] < line]
-    named_short = bool(short) and not _short_counts_pinned(found, short, line)
-    asked = ""
-    shown = ""
-    for index in range(len(census)):
-        first, last, count = census[index]
-        named = _weekday_group_named(first, last)
-        between = ", " if index else ""
-        asked = f"{asked}{between}{named} {_shown_count(count)}"
-        held = found[index]
-        if not short:
-            shown = f"{shown}{between}{named} {_shown_count(held)}"
-        elif index in short and named_short:
-            shown = f"{shown}{between}{named} {_below_the_floor(line)}"
-        else:
-            shown = f"{shown}{between}{named} {_KEPT_BACK}"
+    asked, shown, lines = _census_lines(
+        [
+            (_weekday_group_named(first, last), count)
+            for first, last, count in census
+        ],
+        found,
+        line,
+    )
     wanted = [count for _first, _last, count in census]
-    lines: "list[str]" = []
-    if short and named_short:
-        lines += [
-            f"A group this file holds fewer than {line} of is not "
-            "counted out, and neither is any other group: beside the "
-            "file's own total, the other groups' counts would give that "
-            "number back. The description's own floor keeps it back, and "
-            "the verdict stands without it."
-        ]
-    elif short:
-        lines += [
-            f"Some group this file holds fewer than {line} of, and no "
-            "group is counted out or named: beside the file's own total, "
-            "even which groups are short would give such a number back. "
-            "The description's own floor keeps it back, and the verdict "
-            "stands without it."
-        ]
     if on_holes:
         lines += [
             "Some of this file's dates between the two boundaries stand on "
@@ -16964,6 +17069,70 @@ def _weekday_checks(
             note,
         )
     ]
+
+
+def _census_lines(
+    groups: "list[tuple[str, int]]",
+    found: "list[int]",
+    line: int,
+) -> "tuple[str, str, list[str]]":
+    """What a census check prints: the groups asked, the file's, and why (P4-D347).
+
+    THE ONE PRINTING RULE OF EVERY CENSUS CHECK (plan P4-D364), taken out
+    of the weekday check so that each census of stage 3b prints the same
+    way. `groups` are each published group's name as the report gives it
+    and its published count, and `found` the file's own count per group.
+
+    COMPLEMENTARY, OR NOT AT ALL (review of landing 3b.1, item 3). A
+    count below the line printed as "fewer than" the line beside every
+    other group's count gave itself back: the report prints the file's
+    present cells, its unparsed cells and both tails' rows, and so its
+    body, and 1,000 less 14 less 12 less the six counts printed was the
+    Sunday count of 3. So where any group holds one to the line less
+    one, NO group's count is printed: the short groups say they are
+    short, and every other group is kept back. And where even which
+    groups are short would give a count back beside the body -- a body
+    of twelve with one short group holds one there, the other eleven
+    on one weekday -- no group is named at all.
+
+    Guarantees: accepts the groups, the file's counts and the census
+    line; returns what the description asks, what the file shows and
+    the sentences beside them. Determinism: a function of the three.
+    Raises nothing. No I/O of any kind.
+    """
+    short = [index for index in range(len(found)) if 0 < found[index] < line]
+    named_short = bool(short) and not _short_counts_pinned(found, short, line)
+    asked = ""
+    shown = ""
+    for index in range(len(groups)):
+        named, count = groups[index]
+        between = ", " if index else ""
+        asked = f"{asked}{between}{named} {_shown_count(count)}"
+        held = found[index]
+        if not short:
+            shown = f"{shown}{between}{named} {_shown_count(held)}"
+        elif index in short and named_short:
+            shown = f"{shown}{between}{named} {_below_the_floor(line)}"
+        else:
+            shown = f"{shown}{between}{named} {_KEPT_BACK}"
+    lines: "list[str]" = []
+    if short and named_short:
+        lines += [
+            f"A group this file holds fewer than {line} of is not "
+            "counted out, and neither is any other group: beside the "
+            "file's own total, the other groups' counts would give that "
+            "number back. The description's own floor keeps it back, and "
+            "the verdict stands without it."
+        ]
+    elif short:
+        lines += [
+            f"Some group this file holds fewer than {line} of, and no "
+            "group is counted out or named: beside the file's own total, "
+            "even which groups are short would give such a number back. "
+            "The description's own floor keeps it back, and the verdict "
+            "stands without it."
+        ]
+    return asked, shown, lines
 
 
 def _published_holes(

@@ -3848,6 +3848,22 @@ Until then the line alone decided, and 1,101 counts holding `1089` eight
 times and `1093` twice were told every value differs, while the tail
 back-solve beside the sentence correctly assumed they did not.
 
+<!-- anchor 3b.D1 (P4-D365) -->
+<!-- anchor 3b.D0 (P4-D366) -->
+<!-- anchor 3b.D2 (P4-D367) -->
+<!-- anchor 3b.D3 (P4-D368) -->
+<!-- anchor 3b.D4 (P4-D369) -->
+<!-- anchor 3b.T1 (P4-D370) -->
+<!-- anchor 3b.T2 (P4-D371) -->
+<!-- anchor 3b.T3 (P4-D372) -->
+<!-- anchor 3b.C1 (P4-D373) -->
+<!-- anchor 3b.C2 (P4-D374) -->
+<!-- anchor 3b.G1 (P4-D375) -->
+<!-- anchor 3b.G3 (P4-D376) -->
+<!-- anchor 3b.G2 (P4-D377) -->
+<!-- anchor 3b.7 (P4-D378) -->
+<!-- anchor 3b.J (P4-D379) -->
+
 ## 5. The column block
 
 A column block is an object. Its key set is the union of the universal
@@ -5332,10 +5348,11 @@ claimed it — rule 6 of the order in section 5.2, with the line
 as a compared share. Where no single member clears the line, the joint
 ISO reading below may still claim the column.
 
-**Added keys: twenty** (stage 3: `earliest`, `latest`,
+**Added keys: twenty-seven** (stage 3: `earliest`, `latest`,
 `earliest_utc_offset` and `latest_utc_offset` are gone, and `tail_unit`,
 `low_tail` and `high_tail` stand in their place; landing 3b.1 adds
-`weekday_census`).
+`weekday_census`; plan P4-D364 reserves seven more, stated after the
+closed vocabularies below).
 
 | key | JSON type | permitted values | meaning |
 |---|---|---|---|
@@ -5376,6 +5393,51 @@ refuses any other key. A closed list copied with nothing binding the copies
 is a list two implementations can read differently; each copy here is
 the subject of a rule, so a member missing from one of them is a defect
 that rule catches. Section 14 indexes all four.
+
+**The seven keys stage 3b reserves** (plan P4-D364). Each is `[]` on
+every block until the landing its row names fills it, and the loader
+refuses anything else, so a description carrying one was written by a
+newer synthtwin. Each landing restates its own rows below its own
+line.
+
+<!-- anchor 3b.D1 (P4-D365) -->
+<!-- anchor 3b.D0 (P4-D366) -->
+<!-- anchor 3b.D2 (P4-D367) -->
+<!-- anchor 3b.D3 (P4-D368) -->
+
+| key | JSON type | permitted values | meaning |
+|---|---|---|---|
+| `day_of_month_census` | array | `[]` | reserved for how many cells between the two tail boundaries fall on each group of days of the month; landing 3b.3 fills it |
+
+<!-- anchor 3b.D4 (P4-D369) -->
+
+| key | JSON type | permitted values | meaning |
+|---|---|---|---|
+| `heavy_dates` | array | `[]` | reserved for the dates between the two tail boundaries that stand out from their neighbours, each with its count; landing 3b.6 fills it |
+
+<!-- anchor 3b.T1 (P4-D370) -->
+<!-- anchor 3b.T2 (P4-D371) -->
+
+| key | JSON type | permitted values | meaning |
+|---|---|---|---|
+| `hour_census` | array | `[]` | reserved for how many cells between the two tail boundaries fall on each group of hours of the written clock; landing 3b.2-H fills it |
+
+<!-- anchor 3b.T3 (P4-D372) -->
+
+| key | JSON type | permitted values | meaning |
+|---|---|---|---|
+| `minute_census` | array | `[]` | reserved for the same count over the minutes of the written clock; landing 3b.4 fills it |
+| `second_census` | array | `[]` | reserved for the same count over its seconds; landing 3b.4 fills it |
+| `minute_heaps` | array | `[]` | reserved for the minutes that stand out from their neighbours, each with its count; landing 3b.4 fills it |
+| `second_heaps` | array | `[]` | reserved for the seconds that stand out from their neighbours, each with its count; landing 3b.4 fills it |
+
+<!-- anchor 3b.C1 (P4-D373) -->
+<!-- anchor 3b.C2 (P4-D374) -->
+<!-- anchor 3b.G1 (P4-D375) -->
+<!-- anchor 3b.G3 (P4-D376) -->
+<!-- anchor 3b.G2 (P4-D377) -->
+<!-- anchor 3b.7 (P4-D378) -->
+<!-- anchor 3b.J (P4-D379) -->
 
 ##### The format vocabulary, its readings and its resolutions
 
@@ -5503,10 +5565,14 @@ that clears the line wins.
 counted, the reading used is the one that parsed strictly more cells,
 and the declaration decided only a count tie.
 
-**DF-R (producer).** Where the option was given and a column's slashed
-reading was in play, that column carries the slashed-date remark form
-of section 4.5 — exactly once — built from the four counts that pass
-yields and the reading used. The remark is written over the EVIDENCE
+**DF-R (producer).** Where an ambiguous numeric reading was in play and
+either the option was given or the day-first reading parsed strictly
+more cells, that column carries the slashed-date remark form of section
+4.5 (NF36) — exactly once, and never where either reach is one to the
+census line less one (plan P4-D361) — built from the four counts that
+pass yields and the reading used. Such a column loses what the remark
+would have said with it: "though you asked for day first", and the
+clause saying the column contradicts itself. The remark is written over the EVIDENCE
 and not over the winner, because a count tie is not always full
 ambiguity: a column can hold one cell only the day-first reading parses
 AND one cell only the month-first reading parses, evidence in both
@@ -6711,11 +6777,13 @@ spread give every value back with no pair published at all: the
 integers 0 to 1,100 once each at every floor from 11 to 50, and a heap
 of eleven beside one far value at 11, whose one-row maximum comes back
 with the rest. The owner accepted it on 2026-09-26 with the channel
-above ("Accept both"; ledger entry `K-S3-24`): what comes back is a
-column's own values and how many rows hold each, never anything about
-another column, and never which row holds one except on a table sorted
-by that column, whose description publishes the order (`row_order`), so
-row k holds the k-th value.
+above ("Accept both"; ledger entry `K-S3-24`), on a question that said
+"never which row holds them": what comes back is a column's own values
+and how many rows hold each, never anything about another column, and
+never which row holds one except on a table sorted by that column,
+whose description publishes the order (`row_order`), so row k holds the
+k-th value -- which the owner was told on 2026-09-30, and answered
+"Yes, it stands".
 
 **AND SO DOES A TAIL WHOSE DISTANCES BINARY64 CANNOT HOLD** (stage 3's
 review, verdict item 2). Every distance is computed exactly and rounded
@@ -7636,6 +7704,13 @@ rather than a list of its own, so the two cannot part again.
 | `quarter_marker_case` | | | | | | | ● | | | | | | | | |
 | `zulu_case` | | | | | | | ● | | | | | | | | |
 | `weekday_census` | | | | | | | ● | | | | | | | | |
+| `hour_census` | | | | | | | ● | | | | | | | | |
+| `minute_census` | | | | | | | ● | | | | | | | | |
+| `second_census` | | | | | | | ● | | | | | | | | |
+| `minute_heaps` | | | | | | | ● | | | | | | | | |
+| `second_heaps` | | | | | | | ● | | | | | | | | |
+| `day_of_month_census` | | | | | | | ● | | | | | | | | |
+| `heavy_dates` | | | | | | | ● | | | | | | | | |
 | `time_precision` | | | | | | | ● | | | | | | | | |
 | `subsecond_digits` | | | | | | | ● | | | | | | | | |
 | `datetimes_read_at` | | | | | | | ● | | | | | | | | |
@@ -7647,6 +7722,10 @@ rather than a list of its own, so the two cannot part again.
 | `n_unparsed` | | | | | | | ● | ● | | | | | | ● | |
 | `clock_form` | | | | | | | | ● | | | | | | | |
 | `clock_percentiles` | | | | | | | | ● | | | | | | | |
+| `clock_census` | | | | | | | | ● | | | | | | | |
+| `clock_heaps` | | | | | | | | ● | | | | | | | |
+| `clock_step` | | | | | | | | ● | | | | | | | |
+| `clock_codes` | | | | | | | | ● | | | | | | | |
 | `percentiles` | | | | | | | | | ● | ● | ● | | | | |
 | `percentiles_between` | | | | | | | | | ● | ● | ● | | | | |
 | `mean` | | | | | | | | | ● | ● | ● | | | | |
@@ -7721,14 +7800,20 @@ rather than a list of its own, so the two cannot part again.
 | `numbers` | | | | | | | | | | | | | | | ● |
 | `labels` | | | | | | | | | | | | | | | ● |
 
-**One hundred rows, one hundred and eighty-nine marked cells**,
+**One hundred and eleven rows, two hundred marked cells**,
 distributed `empty` 0, `numeric_unrepresentable` 9, `constant` 5,
-`binary` 5, `categorical` 6, `long_tail_labels` 5, `datetime` 20,
-`time_of_day` 5, `count` 32, `continuous` 31, `affixed_number` 41,
+`binary` 5, `categorical` 6, `long_tail_labels` 5, `datetime` 27,
+`time_of_day` 9, `count` 32, `continuous` 31, `affixed_number` 41,
 `identifier` 8, `free_text` 6, `joined_numbers` 8,
 `numbers_with_labels` 8. The counts are stated so that a reader can
 check a column of the matrix against the role's own section without
 counting twice.
+
+**RESTATED AT THE KEYS STAGE 3B RESERVES** (plan P4-D364): seven rows
+and seven marks on `datetime` and four of each on `time_of_day`, so
+the rows go from a hundred to a hundred and eleven, the marked cells
+from a hundred and eighty-nine to two hundred, `datetime` from 20 to
+27 and `time_of_day` from 5 to 9.
 
 **RESTATED AT THE WEEKDAY CENSUS** (stage 3b landing 3b.1, plan
 P4-D355): `weekday_census` is one row and one mark on `datetime`, so
@@ -8552,7 +8637,7 @@ whose clock argument names how many cells a clock reading accepted
 under the form that came closest (section 4.5, `remark_no_reading_fits`).
 All four are named residual R-P4-5.
 
-#### Added keys: five
+#### Added keys: nine
 
 | key | JSON type | permitted values | meaning | disposition |
 |---|---|---|---|---|
@@ -8562,7 +8647,37 @@ All four are named residual R-P4-5.
 | `clock_percentiles` | ladder of strings or `null` | section 5.6, rungs in `clock_form` | the eleven-rung ladder over the ordered clock values of the cells that parsed, published between the two tail boundaries and empty everywhere else (T2) | the two ends always `null`; each published interior rung APPROXIMATED, inside the window the generation method's approximated-fields table fixes for this role |
 | `n_unparsed` | integer ≥ 0 | — | present cells no clock reading of C6-10 accepted, the other form's cells among them | EXACT-OBSERVABLE as counted neutral stand-ins, explicitly OUTSIDE the clock representation obligation |
 
-**C6-11.** Those five are the whole of what this role adds to the
+**The four keys stage 3b reserves on this role** (plan P4-D364):
+`[]`, `[]`, `null` and `[]` on every block until the landing their
+rows name fills them, and the loader refuses anything else. Each
+landing restates its own rows below its own line.
+
+<!-- anchor 3b.D1 (P4-D365) -->
+<!-- anchor 3b.D0 (P4-D366) -->
+<!-- anchor 3b.D2 (P4-D367) -->
+<!-- anchor 3b.D3 (P4-D368) -->
+<!-- anchor 3b.D4 (P4-D369) -->
+<!-- anchor 3b.T1 (P4-D370) -->
+<!-- anchor 3b.T2 (P4-D371) -->
+<!-- anchor 3b.T3 (P4-D372) -->
+<!-- anchor 3b.C1 (P4-D373) -->
+
+| key | JSON type | permitted values | meaning | disposition |
+|---|---|---|---|---|
+| `clock_census` | array | `[]` | reserved for how many cells between the two tail boundaries fall on each group of ten-minute bins | LOADER-ONLY until landing 3b.5 fills it |
+| `clock_heaps` | array | `[]` | reserved for the clock values that stand out from their neighbours, each with its count | LOADER-ONLY until landing 3b.5 fills it |
+| `clock_step` | `null` | `null` | reserved for the step every value was written on | LOADER-ONLY until landing 3b.5 fills it |
+| `clock_codes` | array | `[]` | reserved for the codes the column writes among its clock values, each with its count | LOADER-ONLY until landing 3b.5 fills it |
+
+<!-- anchor 3b.C2 (P4-D374) -->
+<!-- anchor 3b.G1 (P4-D375) -->
+<!-- anchor 3b.G3 (P4-D376) -->
+<!-- anchor 3b.G2 (P4-D377) -->
+<!-- anchor 3b.7 (P4-D378) -->
+<!-- anchor 3b.J (P4-D379) -->
+
+**C6-11.** Those nine -- the five above and the four stage 3b
+reserves -- are the whole of what this role adds to the
 twenty-two universal keys of section 5.1. A container's disposition
 does not cover its leaves (section 2.2), which is why the ladder's
 ends and its interior are disposed separately.
@@ -8706,6 +8821,11 @@ reader will expect them and their absence is a decision.
   `all_at_midnight` and `n_at_midnight` are `datetime`'s. `clock_form`
   answers the form question here, and a clock with no date carries no
   zone: an offset moves an instant, and this role publishes none.
+- **The datetime role's written forms and calendar censuses.**
+  `date_field_widths`, `month_name_styles`, `quarter_marker_case`,
+  `zulu_case`, `weekday_census` and the seven keys stage 3b reserves
+  there (plan P4-D364) are `datetime`'s too: a clock time has no date
+  to write or to count.
 - **Every quantitative key.** `percentiles`, `mean`, `std`, `skew`,
   `numeric_styles`, `fraction_widths`, `integer_valued` and the rest
   belong to `count`, `continuous` and `affixed_number`, as does the
@@ -11952,6 +12072,22 @@ it answers to.
 | WC8 | the full-fill certificate holds on the reader's bounds and the holes: every class of a counted weekday is certified by a witness table, or is residue whose every stage-3 configuration the census allows, the stage-3 side asked with no census information at all, its empty weekdays included (method of plan P4-D355, P4-D359) | yes |
 | WC9 | neither the weekend nor Monday to Friday together lies in its BAND: from the larger of one and the least that total holds over the tables of the rest of the description, through that and some rows more, each half's at most the census line plus the most that half of the week can hold in the stretches the rank facts keep below the line, the pair fewest in sum whose always-withheld tables are certified, searched as though a wider band never certified less, fewer Monday to Friday rows first on a tie; the loader refuses a total at that least, which every such band holds (plan P4-D359) | yes |
 
+<!-- anchor 3b.D1 (P4-D365) -->
+<!-- anchor 3b.D0 (P4-D366) -->
+<!-- anchor 3b.D2 (P4-D367) -->
+<!-- anchor 3b.D3 (P4-D368) -->
+<!-- anchor 3b.D4 (P4-D369) -->
+<!-- anchor 3b.T1 (P4-D370) -->
+<!-- anchor 3b.T2 (P4-D371) -->
+<!-- anchor 3b.T3 (P4-D372) -->
+<!-- anchor 3b.C1 (P4-D373) -->
+<!-- anchor 3b.C2 (P4-D374) -->
+<!-- anchor 3b.G1 (P4-D375) -->
+<!-- anchor 3b.G3 (P4-D376) -->
+<!-- anchor 3b.G2 (P4-D377) -->
+<!-- anchor 3b.7 (P4-D378) -->
+<!-- anchor 3b.J (P4-D379) -->
+
 A date or clock block publishes no mean and no spread, so the cost rule
 of plan P4-D353 does not reach it: a date or clock tail that would be
 read back publishes neither distance whatever its twin's own spread
@@ -12128,7 +12264,7 @@ document, never the table it describes.
 | TU-P | `n_unparsed` on `time_of_day` is the count of present cells no clock reading accepted | its type bounds it below and T4 and T5 above; neither reaches the measurement |
 | U-P | `min_length` and `max_length` on `numeric_unrepresentable` are measured over the NUMERIC-LOOKING cells only, each a character count of the cell's text | a straggler's length is a fact about text and as a bound would read as magnitude; U5 reaches no further |
 | DF-P | both readings of the column's own ambiguous pair were counted, the reading used parsed strictly more cells, and the declaration decided only a tie | the winning `format` is recorded, the losing count is not |
-| DF-R | where the option was given and a slashed reading was in play, the column bears that remark exactly once, over the EVIDENCE, not the winner | whether a reading was in play is a fact about the table |
+| DF-R | where an ambiguous reading was in play and the option was given or the day-first reading parsed strictly more cells, the column bears that remark exactly once, over the EVIDENCE, not the winner, and never where either reach is one to the census line less one (plan P4-D361) | whether a reading was in play is a fact about the table |
 | CP-P | a published calendar-placeholder verdict is the one the outlier-and-share rule reached over the source's written days | the rule ran over a table a loader never holds |
 | RM-P | the `resolution_mix` counts are the counts the source's own cells wore | a 40/60 and a 50/50 split of a hundred cells both satisfy RM1 and RM2 |
 | DS-P | every `datetime_separators` count is the count of parsed source cells written with that mark, the commonest named mark's count with every cell whose mark was written by fewer rows than `parsing.census_floor` added (plan P4-D222), and the pooled value the count of every cell that writes a clock where no mark reaches that line | D12 bounds the entries and D13 the total; a 40/60 and a 50/50 split of a hundred cells both satisfy them |
@@ -12500,6 +12636,37 @@ form, the stand-in is written in it (7.9.1).
 
 | `weekday_census` | EXACT-OBSERVABLE (landing 3b.1, plan P4-D355): the file's own cells between the two PUBLISHED boundaries, both included, hold every group's published count exactly. A MISSED line keeps its verdict and prints a group the file holds one to the line less one of as fewer than the line (plan P4-D347). The validator counts the file's body against the published groups and never produces a census of its own |
 
+<!-- anchor 3b.D1 (P4-D365) -->
+<!-- anchor 3b.D0 (P4-D366) -->
+<!-- anchor 3b.D2 (P4-D367) -->
+<!-- anchor 3b.D3 (P4-D368) -->
+
+| `day_of_month_census` | LOADER-ONLY (plan P4-D364): `[]` on every block, refused as anything else, and no output obligation until landing 3b.3 fills it |
+
+<!-- anchor 3b.D4 (P4-D369) -->
+
+| `heavy_dates` | LOADER-ONLY (plan P4-D364): `[]` on every block, refused as anything else, and no output obligation until landing 3b.6 fills it |
+
+<!-- anchor 3b.T1 (P4-D370) -->
+<!-- anchor 3b.T2 (P4-D371) -->
+
+| `hour_census` | LOADER-ONLY (plan P4-D364): `[]` on every block, refused as anything else, and no output obligation until landing 3b.2-H fills it |
+
+<!-- anchor 3b.T3 (P4-D372) -->
+
+| `minute_census` | LOADER-ONLY (plan P4-D364): `[]` on every block, refused as anything else, and no output obligation until landing 3b.4 fills it |
+| `second_census` | LOADER-ONLY (plan P4-D364): `[]` on every block, refused as anything else, and no output obligation until landing 3b.4 fills it |
+| `minute_heaps` | LOADER-ONLY (plan P4-D364): `[]` on every block, refused as anything else, and no output obligation until landing 3b.4 fills it |
+| `second_heaps` | LOADER-ONLY (plan P4-D364): `[]` on every block, refused as anything else, and no output obligation until landing 3b.4 fills it |
+
+<!-- anchor 3b.C1 (P4-D373) -->
+<!-- anchor 3b.C2 (P4-D374) -->
+<!-- anchor 3b.G1 (P4-D375) -->
+<!-- anchor 3b.G3 (P4-D376) -->
+<!-- anchor 3b.G2 (P4-D377) -->
+<!-- anchor 3b.7 (P4-D378) -->
+<!-- anchor 3b.J (P4-D379) -->
+
 `datetime_separators`, `all_at_midnight` and `n_at_midnight` have no
 row here: all three were added after the freeze and are EXACT-OBSERVABLE
 under plan P4-D39 since landing 2b.3, as `group_separator` is disposed
@@ -12605,6 +12772,28 @@ table means exactly what its disposition says.
 | `clock_percentiles` interior rungs | APPROXIMATED, for each rung the tail rule publishes; a rung it withholds is `null` and is listed, never checked. THE LADDER'S TWO ENDS ARE NOT IN THIS TABLE since stage 3, for the reason the calendar ladder's are not: T2 makes both of them `null` in every description, they oblige no cell of any file, and they are listed as withheld rather than compared. The two tail boundaries are pinned and the interior ranks are floor-division interpolations between them, in the ordinal unit the published form itself sets: minutes of day for `hh-mm`, seconds of day for `hh-mm-ss`. The two-sided window is fixed in the generation method's time-of-day clause and cited there, never restated here |
 | `n_unparsed` | EXACT-OBSERVABLE as counted neutral stand-ins, explicitly OUTSIDE the clock-value representation obligation |
 | `n_distinct`, `n_distinct_folded` | APPROXIMATED — the twin writes a value per rank between pinned ends, exactly as the calendar ladder does, so how many different values it holds is a consequence of the construction rather than a target, and the two-sided envelope that bounds both counts is fixed in the same time-of-day clause and cited there, never restated here. The ALL-DIFFERENT obligation of 9.8 is the one case the construction meets outright: it binds through the ordinal mechanism, whose capacity is stated — the space holds 1,440 or 86,400 distinct spellings by form, and the unparsed cells are stand-ins from an unbounded text family that supply distinctness of their own. A description whose distinct demand NET of its unparsed cells — `n_distinct` less `n_unparsed` — exceeds the form's capacity is the one infeasible shape, and it is REFUSED at the feasibility stage under the head of this section, never approximated. A description whose own source met every count, unparsed cells included, is never refused by this rule |
+
+<!-- anchor 3b.D1 (P4-D365) -->
+<!-- anchor 3b.D0 (P4-D366) -->
+<!-- anchor 3b.D2 (P4-D367) -->
+<!-- anchor 3b.D3 (P4-D368) -->
+<!-- anchor 3b.D4 (P4-D369) -->
+<!-- anchor 3b.T1 (P4-D370) -->
+<!-- anchor 3b.T2 (P4-D371) -->
+<!-- anchor 3b.T3 (P4-D372) -->
+<!-- anchor 3b.C1 (P4-D373) -->
+
+| `clock_census` | LOADER-ONLY (plan P4-D364): `[]` on every block, refused as anything else, and no output obligation until landing 3b.5 fills it |
+| `clock_heaps` | LOADER-ONLY (plan P4-D364): `[]` on every block, refused as anything else, and no output obligation until landing 3b.5 fills it |
+| `clock_step` | LOADER-ONLY (plan P4-D364): `null` on every block, refused as anything else, and no output obligation until landing 3b.5 fills it |
+| `clock_codes` | LOADER-ONLY (plan P4-D364): `[]` on every block, refused as anything else, and no output obligation until landing 3b.5 fills it |
+
+<!-- anchor 3b.C2 (P4-D374) -->
+<!-- anchor 3b.G1 (P4-D375) -->
+<!-- anchor 3b.G3 (P4-D376) -->
+<!-- anchor 3b.G2 (P4-D377) -->
+<!-- anchor 3b.7 (P4-D378) -->
+<!-- anchor 3b.J (P4-D379) -->
 
 The ladder reads the day as a LINE from `00:00` to `23:59:59`, as
 every ladder reads its axis, so a column whose values cluster across
@@ -13514,9 +13703,12 @@ a marked row.
     long-tail column's floor-cleared LEVEL spellings and not this,
     which is why `long_tail_labels` is named here as well.
 16. **The slashed-reading parse counts, carried in a sentence. NEW.**
-    Where the `day_first` option was given and a slashed reading was in
-    play, the column carries the
-    `remark_slashed_dates_read_against_your_declaration` form, whose
+    Where an ambiguous reading was in play and the `day_first` option
+    was given or the day-first reading parsed strictly more cells, the
+    column carries the
+    `remark_slashed_dates_read_against_your_declaration` form -- once,
+    and never where either reach is one to the census line less one
+    (plan P4-D361) -- whose
     arity is five: cells the day-first reading parsed (*D*), cells the
     month-first reading parsed (*M*), cells only day-first parsed
     (*X*), cells only month-first parsed (*Y*), and the reading used.
@@ -14458,6 +14650,22 @@ nested forms, 5 bound affix strings.
 | NG85 | `remark_nearly_every_number_is_different` | 0 |
 | NG86 | `remark_nearly_every_value_is_different` | 0 |
 | NG87 | `said_some` | 0 |
+
+<!-- anchor 3b.D1 (P4-D365) -->
+<!-- anchor 3b.D0 (P4-D366) -->
+<!-- anchor 3b.D2 (P4-D367) -->
+<!-- anchor 3b.D3 (P4-D368) -->
+<!-- anchor 3b.D4 (P4-D369) -->
+<!-- anchor 3b.T1 (P4-D370) -->
+<!-- anchor 3b.T2 (P4-D371) -->
+<!-- anchor 3b.T3 (P4-D372) -->
+<!-- anchor 3b.C1 (P4-D373) -->
+<!-- anchor 3b.C2 (P4-D374) -->
+<!-- anchor 3b.G1 (P4-D375) -->
+<!-- anchor 3b.G3 (P4-D376) -->
+<!-- anchor 3b.G2 (P4-D377) -->
+<!-- anchor 3b.7 (P4-D378) -->
+<!-- anchor 3b.J (P4-D379) -->
 
 **The package-word vocabulary — 26**, the whole of the second argument
 class (4.5.1): the twenty `format` members of 14.6, plus `day-first`

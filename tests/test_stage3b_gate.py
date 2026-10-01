@@ -247,6 +247,24 @@ column "falls to" another reason, the sentence it names is now the
 shared one; and a placeholder day read as missing is also a published
 absent spelling where `missing_by_source` names it, so a mutation blind
 to the day must be blind to both (`calendar_rules.public_holes`).
+
+EVERY LANDING AFTER 3b.1 (plan P4-D364) names its own gate file here,
+on a line of its own below its own anchor:
+anchor 3b.D1 (P4-D365)
+anchor 3b.D0 (P4-D366)
+anchor 3b.D2 (P4-D367)
+anchor 3b.D3 (P4-D368)
+anchor 3b.D4 (P4-D369)
+anchor 3b.T1 (P4-D370)
+anchor 3b.T2 (P4-D371)
+anchor 3b.T3 (P4-D372)
+anchor 3b.C1 (P4-D373)
+anchor 3b.C2 (P4-D374)
+anchor 3b.G1 (P4-D375)
+anchor 3b.G3 (P4-D376)
+anchor 3b.G2 (P4-D377)
+anchor 3b.7 (P4-D378)
+anchor 3b.J (P4-D379)
 """
 
 from __future__ import annotations
