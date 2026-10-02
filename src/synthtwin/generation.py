@@ -24979,8 +24979,8 @@ def _label_content(
     kept = 0
     # THE COLUMN GROWS IN PLACE (stage 4, plan P4-D385). It was copied
     # whole once per level and once per stand-in, so a long tail of
-    # 16,152 held-back levels over 200,000 rows copied a list as long as
-    # the column sixteen thousand times. The list the helpers above were
+    # 16,152 held-back levels over 200,000 rows copied the column written
+    # so far sixteen thousand times. The list the helpers above were
     # handed is copied once here, so nothing they were given changes
     # after they read it.
     cells = list(cells)

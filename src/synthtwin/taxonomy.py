@@ -19059,9 +19059,9 @@ def _decision(
     by `dataclasses.replace` under other settings -- is a new tally and
     remembers nothing.
 
-    THE VERDICT IS HANDED OVER, NOT COPIED, so no caller may change it:
-    the passes read its role, and the description builds its block from
-    copies of what it holds.
+    THE VERDICT IS HANDED OVER, NOT COPIED, so nobody may change it while
+    its tally can still be asked: the passes read its role alone, and
+    describing the column is the last question its tally is asked.
 
     Guarantees: returns what `_decide` returns for the same arguments and
     raises what it raises; a fixed function of its arguments. No I/O.

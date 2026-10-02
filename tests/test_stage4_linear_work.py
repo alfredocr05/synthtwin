@@ -1,7 +1,7 @@
 """Stage 4, tier 1: four paths whose work grew faster than the table (plan P4-D385).
 
-Each was measured on a made-up health table of 50 columns before it was
-changed, and each changes no byte of any output -- so each change keeps
+Each was measured on made-up tables before it was changed, and each
+changes no byte of any output -- so each change keeps
 the function it replaced as this file's ORACLE, asks both the same
 questions over seeded tables, and requires the same answers. Each also
 has a growth measure that needs no clock: a count of the work the path
