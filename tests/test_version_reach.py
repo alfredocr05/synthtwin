@@ -65,13 +65,13 @@ with no newline in it, which is most of this file's samples.)
 THE LIMIT THAT WOULD MATTER is a string of source that IS RUN --
 handed to `exec`, `eval` or `compile`, or to `runpy` -- because that
 spelling reaches the 3.10 cells while this file says nothing about it.
-The tree holds TWENTY-ONE such calls. They are listed in
+The tree holds TWENTY-FIVE such calls. They are listed in
 `ROUTES_THAT_RUN_SOURCE` below and
 `test_the_routes_that_run_a_string_of_source_are_the_ones_named_here`
-holds the tree to that list, so a twenty-second cannot arrive unread.
-All but two run a COMMITTED FILE of `tools/` or of `tests/`, which the
-folders below already read, and the two that do not are held by where
-they run:
+holds the tree to that list, so a twenty-sixth cannot arrive unread.
+The `runpy` calls run a COMMITTED FILE of `tools/` or of `tests/`,
+which the folders below already read, and the `exec` and `compile`
+calls are held by what they are handed or by where they run:
 
 - `tests/test_oracle_rule_witnesses.py` builds a module with
   `exec(compile(source, ...))`, where `source` is
@@ -100,6 +100,16 @@ they run:
   the decontam job's MESSAGES block the same way, in every cell, on a
   history built by the test; that block uses `os` and `sys` and
   imports `tools/hooks/check_messages.py`, a file this guard reads.
+- `tests/test_stage4_linear_work.py` builds two functions with
+  `exec(compile(tree, ...))` (plan P4-D385), where `tree` is the syntax
+  tree of a shipped function -- `taxonomy._read_the_column` and
+  `generation._label_content`, read by `inspect.getsource` from files
+  this guard reads -- rewritten back to the form 668f276 shipped, to
+  serve as the oracle of stage 4's first tier. The rewrite renames one
+  operand of one `in` comparison, turns each `cells += [...]` into
+  `cells = cells + [...]` and drops one `cells = list(...)`: a name, an
+  assignment and an addition, which every Python spells alike, so it
+  adds no spelling the floor could miss.
 - `runpy.run_path` runs the same kind of committed file: twice in
   `tests/`, in the two stage-2 oracle tests, and eleven times in
   `tools/` -- one for the provenance guard's own runner and one for
@@ -242,6 +252,8 @@ ROUTES_THAT_RUN_SOURCE = {
     ("tests/test_stage3_tail_rule.py", "exec"): 1,
     ("tests/test_ci_demo_steps.py", "compile"): 1,
     ("tests/test_ci_demo_steps.py", "exec"): 1,
+    ("tests/test_stage4_linear_work.py", "compile"): 2,
+    ("tests/test_stage4_linear_work.py", "exec"): 2,
     ("tests/test_stage2_datetime_oracle.py", "runpy.run_path"): 1,
     ("tests/test_stage2_grouping_oracle.py", "runpy.run_path"): 1,
     ("tools/provenance/guard_runner.py", "runpy.run_path"): 1,
