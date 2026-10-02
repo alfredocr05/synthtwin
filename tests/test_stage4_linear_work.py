@@ -25,10 +25,12 @@ the defect it guards against rather than assumed to.
    `taxonomy._levels_read_by_class` beside them). Every cell asked a
    LIST of the levels the floor holds back whether its own level was one
    of them, so describing a code register cost its cells times its rare
-   codes: 36.2 s at 200,000 rows and 126.6 s at 400,000.
+   codes: 36.2 s at 200,000 rows and 126.6 s at 400,000, measured with
+   the rest of the first tier's sketch in place.
 3. **The label column** (`generation._label_content`), which was grown
-   by copying the whole column once per level: 16.7 s for the twin of
-   the same register at 200,000 rows and 44.0 s at 400,000.
+   by copying the column written so far once per level: 16.7 s for the
+   twin of the same register at 200,000 rows and 44.0 s at 400,000,
+   measured the same way.
 4. **The role decision** (`taxonomy._decision`). A column is asked its
    role up to four times over the same tally, and every question walked
    the whole ladder of rules again. The tally now keeps each answer
@@ -47,6 +49,7 @@ import json
 import pathlib
 import random
 import sys
+import tempfile
 import textwrap
 import tracemalloc
 import weakref
@@ -248,8 +251,6 @@ def shape_pairs_handed(rows: int, as_built: bool = False) -> int:
     built; every pair `generation._shape_choices` hands a search is
     counted. With ``as_built`` the searches are handed the old list.
     """
-    import tempfile
-
     handed = [0]
     shipped = generation._shape_choices
 
@@ -730,8 +731,6 @@ def label_bytes(rows: int, as_built: bool = False) -> int:
 
     With ``as_built`` the column is grown by copying, as 668f276 grew it.
     """
-    import tempfile
-
     function = _label_content_as_built() if as_built else generation._label_content
     with tempfile.TemporaryDirectory() as home:
         loaded = _described(pathlib.Path(home), _label_register(rows))
@@ -883,8 +882,6 @@ def role_walks(rows: int, as_built: bool = False) -> "tuple[int, int, int]":
     tally asked under one set of arguments -- and the columns. With
     ``as_built`` every caller walks the ladder itself, as 668f276's did.
     """
-    import tempfile
-
     walks = [0]
     questions: "dict[tuple[int, tuple[object, ...]], int]" = {}
     held: "list[object]" = []
