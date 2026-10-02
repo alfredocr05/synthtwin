@@ -1029,18 +1029,24 @@ def room_short(
     """Whether the published holes leave a group too little room (plan P4-D365).
 
     THE PRODUCER'S ROOM RULE, asked only where the description publishes
-    a hole between the two boundaries (`public_holes`): a non-empty group
-    whose OPEN days -- its weekdays' days from the body's first day to its
-    last that are no hole -- number fewer than twice the different days
-    the body holds there leaves the day pass no free day to put a date
-    it moves on, and the twin then holds fewer different values than the
-    column (every day of May filled, written `17 May 2023`: 83 for 93).
-    Counted, not walked: each weekday's days by arithmetic, then the
-    holes one by one.
+    a hole between the body's first and last day (`public_holes`). A
+    group's FREE days are its weekdays' days from the first to the last
+    that are no hole and hold no date of the body. True where a non-empty
+    group has NO free day and holds a date of ONE row: the day pass meets
+    the census by moving single rows, a one-row date it moves is left
+    empty, and with no free day to stand a date on, the twin holds fewer
+    different values than the column. Measured on the guard drop's
+    batteries (plan P4-D365): every column of one month written
+    `17 May 2023` or of days past the ninth written `m/d/yyyy` whose twin
+    missed its count of different values filled every open day and held
+    one-row dates (every day of three Mays: 83 for 93); the ones holding
+    two rows or more on every date met it, and so did every column with a
+    free day left. Counted, not walked: each weekday's days by
+    arithmetic, then the holes and the dates one by one.
 
-    Guarantees: accepts the census, the body's days and the holes;
-    returns the answer. Determinism: a function of the three. Raises
-    nothing. No I/O of any kind.
+    Guarantees: accepts the census, the body's days (one per cell) and
+    the holes; returns the answer. Determinism: a function of the three.
+    Raises nothing. No I/O of any kind.
     """
     if not body:
         return False
@@ -1049,20 +1055,30 @@ def room_short(
     if not inside:
         return False
     where = where_of(groups)
-    opened = [0 for _group in groups]
+    free = [0 for _group in groups]
     for weekday in range(WEEKDAYS):
         first = low + (weekday - weekday_of(low)) % WEEKDAYS
         if first <= high:
             index = where[weekday]
-            opened[index] = opened[index] + (high - first) // WEEKDAYS + 1
+            free[index] = free[index] + (high - first) // WEEKDAYS + 1
     for day in inside:
         index = where[weekday_of(day)]
-        opened[index] = opened[index] - 1
-    held = _dates_by_group(groups, body)
+        free[index] = free[index] - 1
+    rows: "dict[int, int]" = {}
+    for day in body:
+        rows[day] = rows.get(day, 0) + 1
+    single = [0 for _group in groups]
+    for day in sorted(rows):
+        index = where[weekday_of(day)]
+        free[index] = free[index] - 1
+        if rows[day] == 1:
+            single[index] = single[index] + 1
     for index in range(len(groups)):
-        if groups[index][2] > 0 and opened[index] < 2 * held[index]:
+        if groups[index][2] > 0 and free[index] <= 0 < single[index]:
             return True
     return False
+
+
 # anchor 3b-D0 (P4-D366)
 # anchor 3b-D2 (P4-D367)
 # anchor 3b-D3 (P4-D368)
