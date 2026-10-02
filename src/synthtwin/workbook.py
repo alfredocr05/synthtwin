@@ -1831,6 +1831,113 @@ def _settled_header_row(
     return header_row
 
 
+def _read_as_one_column(
+    column: "list[str]",
+    held: "dict[int, dict[int, Cell]]",
+    place: int,
+    rows: "tuple[int, int]",
+    kinds_of: "dict[str, str]",
+    epoch_1904: bool,
+    timed: bool,
+    clocks: int,
+    days: bool = False,
+) -> None:
+    """Spell a column's date and time cells one way for the whole column.
+
+    THE DAY A DATE FORMAT HIDES A TIME IN (plan P4-D382). A date format
+    shows a cell's day and hides its time, and every reader hands the
+    time back all the same: pandas and openpyxl return a date-time.
+    `dialect.sheet_serial_moment` spells each cell alone, a whole day as
+    `YYYY-MM-DD` and anything else as a moment, so a column of moments
+    with a few cells at midnight read as a few bare dates among moments.
+    Measured on 1,000 moments wearing `m/d/yyyy`, six of them at
+    midnight: the column was read as moments with those six counted
+    unparsed, the twin wrote them as text, and `validate` exited 3 on
+    the twin of the person's own table -- the commonest shape there is,
+    since a column of moments holds well under one in a hundred at
+    midnight. Where ``timed`` -- MORE than one in a hundred of the
+    column's dated date-format cells hold a time (`DAYS_PER_TIMED_CELL`)
+    -- each date-format cell read as a whole day is spelled as the
+    moment at midnight it is.
+
+    THE FEW TIMED CELLS AMONG DAYS. Where ``days`` -- some date-format
+    cells hold a time, but one in a hundred or fewer -- each of those
+    cells is spelled as the day its format shows, `YYYY-MM-DD`, so the
+    column reads as days with every cell parsed. Measured on 995
+    weekday dates beside 5 timed cells under `m/d/yyyy`: spelled as
+    moments, the twin lost the weekday census and fell on a weekend
+    0.282 of the time against the source's 0.0; left unparsed, the
+    twin wrote 5 text cells, `validate` exited 3 and pandas read the
+    twin's column as text (and so at 1, 10, 40 and 50 timed cells). A
+    column of whole days alone is neither, and reads as dates as it
+    always did.
+
+    THE CLOCKS (see `dialect.sheet_serial_second`). ``clocks`` is
+    `CLOCKS_NONE` where the column's time-format numbers are not every
+    cell of it holding a value, or not every one a whole second of the
+    day; otherwise each is spelled as its clock, `HH:MM` where it is
+    `CLOCKS_MINUTES` -- every one at second nought -- and `HH:MM:SS`
+    where it is `CLOCKS_SECONDS`. ``rows`` is the table's first and
+    last sheet row, so a cell at sheet row `n` stands at `n - rows[0]`.
+
+    WHY A SECOND PASS AND NOT A LIST. The walk keeps three facts per
+    column and no record per cell: a column of a million dates that
+    needs no respelling costs nothing here, and one that does is walked
+    once more over the cells already held.
+
+    Guarantees: changes ``column`` in place at date-format and time-format
+    number cells and nowhere else. Determinism: a fixed function of the
+    arguments. Raises nothing. No I/O of any kind.
+    """
+    if not timed and not days and clocks == CLOCKS_NONE:
+        return
+    first, last = rows
+    for number in range(first, last + 1):
+        if number not in held or place not in held[number]:
+            continue
+        standing = held[number][place]
+        if standing.kind != CELL_NUMBER:
+            continue
+        kind = kinds_of[standing.number_format]
+        at = number - first
+        if kind == FORMAT_DATE and days:
+            if dialect.sheet_moment_kind(column[at]) == FORMAT_DATETIME:
+                column[at] = column[at][0:10]
+            continue
+        if kind == FORMAT_DATE and timed:
+            if dialect.sheet_moment_kind(column[at]) == FORMAT_DATE:
+                column[at] = dialect.sheet_serial_moment(
+                    spelled(standing.kind, standing.text),
+                    FORMAT_DATETIME,
+                    epoch_1904,
+                    0,
+                )
+            continue
+        if kind == FORMAT_TIME and clocks != CLOCKS_NONE:
+            second = dialect.sheet_serial_second(
+                spelled(standing.kind, standing.text)
+            )
+            column[at] = dialect.sheet_clock_text(
+                second, clocks == CLOCKS_SECONDS
+            )
+
+
+# A COLUMN OF MOMENTS OR A COLUMN OF DAYS (`_read_as_one_column`): a
+# column whose date-format cells hold a time in more than one cell of
+# every DAYS_PER_TIMED_CELL + 1 is read as moments; one with fewer timed
+# cells is read as days, each timed cell as the day its format shows.
+# The line is the default parse line, `taxonomy.Settings`'s
+# `minimum_parse_rate` of 0.99, read as cells: one cell in a hundred is
+# the share a column may hold of another kind and still read as one.
+DAYS_PER_TIMED_CELL = 99
+
+# How a column's time-format numbers are spelled (`_read_as_one_column`):
+# left as numbers, read as `HH:MM`, or read as `HH:MM:SS`.
+CLOCKS_NONE = 0
+CLOCKS_MINUTES = 1
+CLOCKS_SECONDS = 2
+
+
 def table_of(
     reading: Reading,
     shown: str = "",
@@ -1982,6 +2089,25 @@ def table_of(
     # so are the figures it shows after the second (plan P4-D259).
     kinds_of: "dict[str, str]" = {}
     figures_of: "dict[str, int]" = {}
+    # FACTS ABOUT A COLUMN AND NOT ABOUT A CELL (plan P4-D382), gathered
+    # in this one walk and settled after it by `_read_as_one_column`:
+    # how many date-format cells held a time and how many were read as
+    # whole days; how many cells hold a value and how many are
+    # time-format numbers; whether every one of those is a whole second
+    # of the day, and whether any is off the minute.
+    timed: "list[int]" = []
+    whole: "list[int]" = []
+    valued: "list[int]" = []
+    clocked: "list[int]" = []
+    clockable: "list[bool]" = []
+    off_minute: "list[bool]" = []
+    for _place in range(first_column, last_column + 1):
+        timed += [0]
+        whole += [0]
+        valued += [0]
+        clocked += [0]
+        clockable += [True]
+        off_minute += [False]
     for number in range(top, last_row + 1):
         n_rows = n_rows + 1
         holding = False
@@ -2002,20 +2128,65 @@ def table_of(
                 if code not in kinds_of:
                     kinds_of[code] = format_kind(code)
                     figures_of[code] = dialect.sheet_format_figures(code)
+                stored = shown_text
                 shown_text = dialect.sheet_serial_moment(
                     shown_text,
                     kinds_of[code],
                     reading.epoch_1904,
                     figures_of[code],
                 )
+                if kinds_of[code] == FORMAT_DATE:
+                    read_as = dialect.sheet_moment_kind(shown_text)
+                    if read_as == FORMAT_DATETIME:
+                        timed[index] = timed[index] + 1
+                    elif read_as == FORMAT_DATE:
+                        whole[index] = whole[index] + 1
+                elif kinds_of[code] == FORMAT_TIME:
+                    clocked[index] = clocked[index] + 1
+                    second = dialect.sheet_serial_second(stored)
+                    if second < 0:
+                        clockable[index] = False
+                    elif second % 60:
+                        off_minute[index] = True
             columns[index] += [shown_text]
             classes[index] += [standing.kind]
             formats[index] += [standing.number_format]
             formulas[index] += [standing.formula]
+            if standing.kind in dialect.SHEET_VALUE_CLASSES:
+                valued[index] = valued[index] + 1
             if standing.kind not in (CELL_ABSENT, CELL_BLANK):
                 holding = True
         if not holding:
             empty_inside = empty_inside + 1
+    for index in range(len(columns)):
+        # A COLUMN IS READ AS CLOCKS ONLY WHERE EVERY CELL HOLDING A VALUE
+        # IS A TIME-FORMAT NUMBER: one text cell beside them -- a word
+        # such as `UNK` -- leaves the column the numbers it read as before.
+        clocks = CLOCKS_NONE
+        if clocked[index] and clocked[index] == valued[index]:
+            if clockable[index]:
+                clocks = CLOCKS_SECONDS if off_minute[index] else CLOCKS_MINUTES
+        _read_as_one_column(
+            columns[index],
+            held,
+            first_column + index,
+            (top, last_row),
+            kinds_of,
+            reading.epoch_1904,
+            # A COLUMN OF MOMENTS AND NOT A COLUMN OF DAYS: more than
+            # one dated cell in a hundred holds a time. A column of days
+            # with fewer timed cells stays a column of days and reads each
+            # timed cell as the day it shows -- spelling every day as a
+            # midnight moment there cost the column its weekday census
+            # (measured: 995 weekday dates beside 5 timed cells, twin
+            # weekend share 0.003 -> 0.282), and leaving the timed cells
+            # unparsed wrote them as text and failed the twin's own
+            # validation (measured at 1, 5, 10, 40 and 50 in 1,000).
+            timed[index] * DAYS_PER_TIMED_CELL > whole[index],
+            clocks,
+            0 < timed[index]
+            and timed[index] * DAYS_PER_TIMED_CELL <= whole[index],
+        )
     trailing_rows = 0
     for number in sorted(held):
         if number > last_row:
@@ -2300,7 +2471,102 @@ def _value_class(classes: "list[str]", floor: int) -> "str | None":
     return None
 
 
-def mixed_storage(sheet: Sheet) -> "tuple[int, str] | None":
+def stored_as_dates(
+    texts: "list[str]", classes: "list[str]", codes: "list[str]"
+) -> bool:
+    """Whether a workbook stores most of a column's value cells as dates.
+
+    A cell is STORED AS A DATE where it is a number wearing a date or a
+    date-and-time format that the reader read as its date
+    (`dialect.sheet_moment_kind` of its text), or a date cell holding
+    ISO text (`t="d"`, `dialect.sheet_iso_date`). The answer is true
+    where those are more than half the cells holding a value
+    (`dialect.SHEET_VALUE_CLASSES`), and it is what lets a column of
+    stored dates be read as dates beside a few text cells no date format
+    reads (`taxonomy._stored_date_format`, plan P4-D382).
+
+    Guarantees: accepts one column's texts, cell classes and format
+    codes, the same length; returns a bool. Determinism: a fixed
+    function of the three. Raises nothing. No I/O of any kind.
+    """
+    held = 0
+    dated = 0
+    kinds_of: "dict[str, str]" = {}
+    for index in range(len(classes)):
+        kind = classes[index]
+        if kind not in dialect.SHEET_VALUE_CLASSES or index >= len(texts):
+            continue
+        held = held + 1
+        text = texts[index]
+        if kind == CELL_DATE:
+            if dialect.sheet_iso_date(text):
+                dated = dated + 1
+            continue
+        if kind != CELL_NUMBER or index >= len(codes):
+            continue
+        code = codes[index]
+        if code not in kinds_of:
+            kinds_of[code] = format_kind(code)
+        if kinds_of[code] in _KINDS_READ_TOGETHER and (
+            dialect.sheet_moment_kind(text)
+        ):
+            dated = dated + 1
+    return held > 0 and dated * 2 > held
+
+
+def stored_as_clocks(
+    texts: "list[str]", classes: "list[str]", codes: "list[str]"
+) -> bool:
+    """Whether a workbook stores every value cell of a column as a clock.
+
+    True where at least one cell holds a value and every cell that does
+    is a number wearing a time format that the reader read as its clock
+    (`_read_as_one_column`, `dialect.sheet_clock_serial` of its text).
+    It is what keeps such a column from a list of labels whose held-back
+    levels its twin could not write as clocks (`taxonomy._decide`, plan
+    P4-D382).
+
+    Guarantees: accepts one column's texts, cell classes and format
+    codes, the same length; returns a bool. Determinism: a fixed
+    function of the three. Raises nothing. No I/O of any kind.
+    """
+    held = 0
+    kinds_of: "dict[str, str]" = {}
+    for index in range(len(classes)):
+        kind = classes[index]
+        if kind not in dialect.SHEET_VALUE_CLASSES:
+            continue
+        if kind != CELL_NUMBER or index >= len(texts) or index >= len(codes):
+            return False
+        code = codes[index]
+        if code not in kinds_of:
+            kinds_of[code] = format_kind(code)
+        if kinds_of[code] != FORMAT_TIME:
+            return False
+        if not dialect.sheet_clock_serial(texts[index]):
+            return False
+        held = held + 1
+    return held > 0
+
+
+# THE TWO KINDS A COLUMN'S NUMBERS MAY WEAR TOGETHER (plan P4-D382): a
+# date and a date with a time. Both are read as the instant they name,
+# so a column wearing both is one column of dates and moments -- read
+# jointly, as `iso-mixed`, where its whole days stay days -- and the
+# twin writes each cell back wearing its own kind (`format_kinds`).
+_KINDS_READ_TOGETHER = (FORMAT_DATE, FORMAT_DATETIME)
+
+# ...and the kinds whose codes name the same instant whatever the code:
+# a twin wearing one of two such codes on every cell shows each cell's
+# own day and time, spelled one way, and every reader returns the same
+# value from it. Two codes of any OTHER kind are still refused
+# (`mixed_number_formats`).
+_KINDS_OF_ONE_INSTANT = (FORMAT_DATE, FORMAT_DATETIME, FORMAT_TIME)
+
+
+def mixed_storage(
+    sheet: Sheet,
+) -> "tuple[int, str, tuple[str, ...]] | None":
     """The first column whose numbers wear two kinds of format, or nothing.
 
     THE ONE MIX A TWIN CANNOT CARRY (review item 6 of the files review,
@@ -2309,6 +2575,13 @@ def mixed_storage(sheet: Sheet) -> "tuple[int, str] | None":
     and the plain numbers are one distribution in the description and a
     date written as a plain number, or the other way, is a different
     value to every reader.
+
+    A DATE BESIDE A DATE WITH A TIME IS NOT THAT MIX (plan P4-D382). Both
+    are read as the instant they name, so the column is one column of
+    dates and moments, read jointly; it was refused here, with a message
+    saying some cells were "shown as dates or times and others not",
+    which was false of it. Measured on 1,000 cells, half `m/d/yyyy` whole
+    days and half `m/d/yyyy h:mm` moments: the whole table was refused.
 
     NUMBERS STORED AS TEXT ARE READ, AND NOT REFUSED (plan P4-D187). The
     rule this replaced refused a column where a cell of one value class
@@ -2323,8 +2596,9 @@ def mixed_storage(sheet: Sheet) -> "tuple[int, str] | None":
     text ones is not published, so is not kept, and the twin's report
     says so for the column.
 
-    Returns the column's index and `errors.MIXED_FORMATS`. Guarantees: a
-    fixed function of the sheet; raises nothing.
+    Returns the column's index, `errors.MIXED_FORMATS` and the kinds its
+    numbers wear, in `FORMAT_KINDS` order, so the refusal can say which
+    they are. Guarantees: a fixed function of the sheet; raises nothing.
     """
     for index in range(len(sheet.classes)):
         classes = sheet.classes[index]
@@ -2333,8 +2607,19 @@ def mixed_storage(sheet: Sheet) -> "tuple[int, str] | None":
         for row in range(len(classes)):
             if classes[row] == dialect.SHEET_CELL_NUMBER and row < len(codes):
                 worn[format_kind(codes[row])] = True
-        if len(worn) >= 2:
-            return (index, errors.MIXED_FORMATS)
+        if len(worn) < 2:
+            continue
+        together = True
+        for kind in worn:
+            if kind not in _KINDS_READ_TOGETHER:
+                together = False
+        if together:
+            continue
+        found: "list[str]" = []
+        for kind in FORMAT_KINDS:
+            if kind in worn:
+                found += [kind]
+        return (index, errors.MIXED_FORMATS, tuple(found))
     return None
 
 
@@ -2390,6 +2675,17 @@ def mixed_number_formats(sheet: Sheet, floor: int) -> "tuple[int, str] | None":
     contract: sixty cells wearing no format are written wearing the
     column's chosen one.
 
+    TWO CODES OF A DATE, A DATE WITH A TIME OR A CLOCK ARE READ, AND NOT
+    REFUSED (plan P4-D382). Such a code changes how an instant is
+    SPELLED and never which instant a person reads -- `m/d/yyyy` and
+    `d-mmm-yy` show the same day -- and every reader returns the same
+    value from either, where `0%` beside `0.0` shows one number as two.
+    Measured on 1,000 whole days, half `m/d/yyyy` and half `d-mmm-yy`:
+    the whole table was refused, with a message speaking of decimal
+    places and percentages. Such a column now publishes its commonest
+    code, and its twin wears it on every cell of the kind: the stated
+    cost is that one spelling.
+
     Returns the column's index and `errors.MIXED_CODES`. Guarantees: a
     fixed function of the sheet and the floor; raises nothing. No I/O.
     """
@@ -2405,6 +2701,8 @@ def mixed_number_formats(sheet: Sheet, floor: int) -> "tuple[int, str] | None":
             if worn[code] < line or code == GENERAL_FORMAT:
                 continue
             kind = format_kind(code)
+            if kind in _KINDS_OF_ONE_INSTANT:
+                continue
             standing[kind] = (standing[kind] if kind in standing else 0) + 1
         for kind in sorted(standing):
             if standing[kind] >= 2:

@@ -26119,6 +26119,10 @@ def sheet_dates_as_day_counts(column, own, epoch_1904, stored=()):
     allocated the `date` class keeps the ISO text a workbook stores such
     a cell as (`t="d"`, plan P4-D168). The caller passes the allocation
     only where `sheet_stores_dates` holds of the column.
+
+    G2.2 step 0 (plan P4-D382): where no allocation is passed, the
+    census is allocated over the converted cells (step 1), and a cell
+    it does not store as a number keeps the date it came with.
     """
     wants = any(
         sheet_wanted(column["format_kinds"], kind) > 0
@@ -26136,7 +26140,65 @@ def sheet_dates_as_day_counts(column, own, epoch_1904, stored=()):
         )
         out += [serial or text]
         dated += [sheet_date_kind(text) if serial else ""]
+    if wants and not stored:
+        classes = sheet_cell_classes(
+            column["cell_classes"], out, column["value_class"]
+        )
+        for index in range(len(out)):
+            if dated[index] and classes[index] != "number":
+                out[index] = own[index]
+                dated[index] = ""
     return out, dated
+
+
+def sheet_clock_fraction(text):
+    """The fraction of a day a workbook stores for one clock, or ``""``.
+
+    G2.2 step 0b (plan P4-D382), written from the rule: a clock the
+    reader spells `HH:MM` or `HH:MM:SS` -- 24-hour, every field two
+    figures -- is stored as its seconds over the 86,400 of a day,
+    midnight as ``0`` and any other clock as the shortest spelling of
+    its double.
+    """
+    for pattern in ("%H:%M", "%H:%M:%S"):
+        try:
+            moment = datetime.datetime.strptime(text, pattern)
+        except ValueError:
+            continue
+        if moment.strftime(pattern) != text:
+            continue
+        seconds = moment.hour * 3600 + moment.minute * 60 + moment.second
+        if seconds == 0:
+            return "0"
+        return repr(seconds / 86400)
+    return ""
+
+
+def sheet_clocks_as_day_fractions(column, own):
+    """A column's clocks as fractions of a day, on the cells stored as numbers.
+
+    G2.2 step 0b (plan P4-D382): only where the column publishes a time
+    format -- a count of time-format cells above nought, or a time code
+    -- and does not store its dates as ISO text (`sheet_stores_dates`).
+    Every clock is turned into its fraction, the census is allocated
+    over those cells (step 1), and a cell the census does not store as a
+    number keeps the clock it came with.
+    """
+    wants = sheet_wanted(column["format_kinds"], "time") > 0 or (
+        sheet_code_kind(column["format_code"]) == "time"
+    )
+    if not wants or sheet_stores_dates(column):
+        return list(own)
+    converted = [
+        (sheet_clock_fraction(text) if text else "") or text for text in own
+    ]
+    stored = sheet_cell_classes(
+        column["cell_classes"], converted, column["value_class"]
+    )
+    return [
+        converted[index] if stored[index] == "number" else own[index]
+        for index in range(len(own))
+    ]
 
 
 def sheet_code_kind(code):
@@ -26815,6 +26877,7 @@ def workbook_parts(block, names, cells, n_rows, write_header):
             block["date_system"] == "1904",
             held if sheet_stores_dates(block["columns"][index]) else (),
         )
+        own = sheet_clocks_as_day_fractions(block["columns"][index], own)
         columns += [own]
         dates += [dated]
         classes += [
@@ -27754,6 +27817,99 @@ def _workbook_made_up_dates():
     }
 
 
+def _workbook_typed_clocks():
+    """G2.2 steps 0 and 0b, added by plan P4-D382."""
+    def census(number, text):
+        return {
+            "absent": 0, "blank": 0, "empty": 0, "text": text,
+            "number": number, "boolean": 0, "error": 0, "date": 0,
+        }
+
+    def kinds(**counts):
+        out = {
+            "plain": 0, "date": 0, "datetime": 0, "time": 0, "elapsed": 0,
+            "text": 0,
+        }
+        out.update(counts)
+        return out
+
+    # Twenty-two clocks the reader spelled `HH:MM`, eleven of them stored
+    # as TEXT; twenty-two at the second, every one stored as a number;
+    # and twenty-two dates the reader spelled `YYYY-MM-DD`, eleven of
+    # them stored as TEXT.
+    taken = [f"{(7 * row) % 24:02d}:{(13 * row) % 60:02d}" for row in range(22)]
+    timed = [
+        f"{(5 * row) % 24:02d}:{(11 * row) % 60:02d}:{(29 * row) % 60:02d}"
+        for row in range(22)
+    ]
+    seen = [f"2026-05-{1 + row:02d}" for row in range(22)]
+    return {
+        "why": "method section G2.2 steps 0 and 0b as plan P4-D382 left "
+        "them, in one table of three columns and twenty-two rows. A "
+        "workbook stores a clock as the fraction of a day it stands at, "
+        "and the reader spells a column of them `HH:MM` or `HH:MM:SS`; "
+        "step 0b writes each clock back as that fraction, the shortest "
+        "spelling of its double and midnight as `0`, ON THE CELLS THE "
+        "CENSUS STORES AS NUMBERS: the first column's census stores "
+        "eleven of its twenty-two clocks as text, and those keep the "
+        "clock they came with. The first column also wears a locale-"
+        "tagged time code, which the description publishes as the source "
+        "wrote it, so the styles part carries it as a custom format. The "
+        "second column's clocks stand at the second, the first at "
+        "midnight, and its census stores every one as a number. The third "
+        "column's dates are the "
+        "same rule for step 0: eleven of its twenty-two are stored as "
+        "text, and where every date was converted those eleven text cells "
+        "held day counts; they keep the date they came with. It carries "
+        "THREE mutants, one for each rule.",
+        "kind": "workbook",
+        "names": ["taken_at", "timed_at", "seen_on"],
+        "n_rows": 22,
+        "write_header": True,
+        "cells": [taken, timed, seen],
+        "workbook": {
+            "autofilter": False,
+            "columns": [
+                {
+                    "cell_classes": census(11, 11),
+                    "format_code": "[$-409]h:mm AM/PM;@",
+                    "format_kinds": kinds(time=11, text=11),
+                    "formulas": None,
+                    "value_class": "number",
+                },
+                {
+                    "cell_classes": census(22, 0),
+                    "format_code": "h:mm:ss",
+                    "format_kinds": kinds(time=22),
+                    "formulas": None,
+                    "value_class": "number",
+                },
+                {
+                    "cell_classes": census(11, 11),
+                    "format_code": "m/d/yyyy",
+                    "format_kinds": kinds(date=11, text=11),
+                    "formulas": None,
+                    "value_class": "number",
+                },
+            ],
+            "date_system": "1900",
+            "defined_names": 0,
+            "defined_table": False,
+            "empty_rows_inside": None,
+            "frozen_rows": 1,
+            "macro_project": False,
+            "rows_above_header": 0,
+            "sheet_count": 1,
+            "sheet_extents": [None],
+            "sheet_hidden": False,
+            "sheet_names": ["Data"],
+            "sheet_position": 1,
+            "trailing_blank_columns": 0,
+            "trailing_blank_rows": 0,
+        },
+    }
+
+
 DOCUMENT_PART = "documents"
 
 # The cases landing 2b.17 added for the transforms that produce a WHOLE
@@ -27766,6 +27922,9 @@ DOCUMENT_CASE_BUILDERS = {
     "workbook_as_written": _workbook_as_written,
     "workbook_made_up_dates": _workbook_made_up_dates,
     "workbook_classes_by_spelling": _workbook_classes_by_spelling,
+    # THE CLOCKS A WORKBOOK STORES, AND THE DATES IT STORES AS TEXT (plan
+    # P4-D382), in this file, which has the room.
+    "workbook_typed_clocks": _workbook_typed_clocks,
     "written_form_classes": _written_form_classes,
     "written_form_lines": _written_form_lines,
 }

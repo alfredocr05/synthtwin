@@ -2061,6 +2061,7 @@ def _population_of(
     codes: "list[str] | None" = None,
     measurements: "list[str] | None" = None,
     decimal_commas: "list[str] | None" = None,
+    stored_as: "tuple[str, ...]" = (),
 ) -> "tuple[tuple[str, ...], int, str, tuple[object, ...]]":
     """The person columns, the population and the word it is counted in.
 
@@ -2094,7 +2095,9 @@ def _population_of(
     Guarantees: accepts the table's column names, its columns as text
     in the same order, the settings in force and the columns declared
     with `--identifier`, `--code`, `--measurement` and
-    `--decimal-comma`; returns the four. A fixed function of them.
+    `--decimal-comma`, and how a workbook stores each column
+    (`profile.stored_as_of`, plan P4-D382), which the description is
+    handed too; returns the four. A fixed function of them.
     Raises TypeError where the settings are not settings, which is an
     internal invariant. Opens no file and prints nothing.
     """
@@ -2113,7 +2116,7 @@ def _population_of(
         ),
     )
     people, counted, readings = taxonomy.population_census(
-        column_names, columns, declared, settings, declarations
+        column_names, columns, declared, settings, declarations, stored_as
     )
     unit = taxonomy.NOTE_UNIT_ROWS
     if people:
@@ -2817,6 +2820,10 @@ def _run_profile(
     # NOTHING HAS BEEN WRITTEN AT THIS POINT and nothing has been
     # described. A table under the floor therefore costs the person one
     # message and no files at all.
+    # HOW A WORKBOOK STORES EACH COLUMN, taken once and handed to the
+    # census and the description alike (plan P4-D382), so the column
+    # the census reads is read once.
+    storage = profile.stored_as_of(read)
     person_columns, population, unit, census_readings = _population_of(
         read.column_names,
         read.columns,
@@ -2825,6 +2832,7 @@ def _run_profile(
         forced_codes,
         forced_measurements,
         forced_decimal_commas,
+        storage,
     )
     if population < parsing.POPULATION_FLOOR:
         _warn(
@@ -2849,6 +2857,7 @@ def _run_profile(
         forced_delimiter=declared_delimiter,
         table_notes=population_notes,
         readings=census_readings,
+        stored_as=storage,
     )
     # Handed over once: the description has taken the reading as its own.
     census_readings = ()
@@ -3088,6 +3097,7 @@ def _run_profile(
                         forced_codes,
                         forced_measurements,
                         forced_decimal_commas,
+                        storage,
                     )
                 )
                 if population < parsing.POPULATION_FLOOR:
@@ -3116,6 +3126,7 @@ def _run_profile(
                     forced_delimiter=declared_delimiter,
                     table_notes=population_notes,
                     readings=census_readings,
+                    stored_as=storage,
                 )
                 census_readings = ()
                 # And the role check is asked again of the rebuilt

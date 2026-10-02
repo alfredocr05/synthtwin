@@ -990,16 +990,50 @@ _CODE_COLOURS_FOLDED = (
 )
 
 
+_CODE_LOCALE_WORDS = ("x-sysdate", "x-systime")
+
+_CODE_HEX_FIGURES = "0123456789abcdefABCDEF"
+
+
+def _code_locale_tag(inside: str) -> bool:
+    """Whether a bracket names a locale alone: `$-409`, `$-F800`, `$-x-sysdate`.
+
+    A LOCALE TAG IS THE FORMAT LANGUAGE'S OWN (plan P4-D382). A
+    spreadsheet writes `[$-409]` before a date code it localized and
+    `[$-F800]` or `[$-x-sysdate]` before the long date it offers, and the
+    tag says how the code is read -- a Windows locale number, one to
+    eight hexadecimal figures, or one of two system words -- never a
+    word anybody typed. Refused as a currency until this decision, so
+    `[$-409]m/d/yyyy h:mm AM/PM;@` was published as the canonical date
+    and time and the twin dressed every cell differently from its
+    source. A bracket carrying text before the dash -- `$USD-409`, `$€-407`
+    -- carries a currency somebody chose and is still refused.
+    """
+    if inside[0:2] != "$-":
+        return False
+    tag = inside[2:]
+    if tag in _CODE_LOCALE_WORDS:
+        return True
+    if not 1 <= len(tag) <= 8:
+        return False
+    for character in tag:
+        if character not in _CODE_HEX_FIGURES:
+            return False
+    return True
+
+
 def _code_bracket_speaks(inside: str) -> bool:
     """Whether a bracket of a code holds a token of the language alone.
 
     An elapsed count (`h`, `mm`, `ss` repeated), a colour by name or
-    `Color` and a number from one to fifty-six. A condition (`>=100`), a
-    currency or a locale (`$USD-409`) is not: they hold figures and words
-    a person chose.
+    `Color` and a number from one to fifty-six, and a locale tag alone
+    (`_code_locale_tag`: `$-409`). A condition (`>=100`) or a currency
+    (`$USD-409`) is not: they hold figures and words a person chose.
     """
     if not inside:
         return False
+    if _code_locale_tag(inside):
+        return True
     first = inside[0]
     if first in ("h", "H", "m", "M", "s", "S"):
         for character in inside:
@@ -1287,8 +1321,10 @@ def sheet_format_kind(code: str) -> str:
 # stays at midnight. So a number cell whose format kind is `date` or
 # `datetime` is read as the date it stands for, in one ISO spelling,
 # and the twin writes that date back as the day count it came from,
-# wearing a date format. A `time` or `elapsed` cell is a length of time
-# and not a day, and stays a number.
+# wearing a date format. An `elapsed` cell is a length of time and not a
+# day, and stays a number; a `time` cell is not a day either, and is
+# read as its clock only where its whole column is clocks (plan P4-D382,
+# `sheet_serial_second` below), staying a number otherwise.
 
 SHEET_DAY_MILLISECONDS = 86_400_000
 # The last day a workbook can show, 9999-12-31, as a 1900-system count.
@@ -1494,6 +1530,105 @@ def sheet_moment_serial(text: str, epoch_1904: bool) -> str:
     if part == 0:
         return f"{days}"
     return repr(days + part / SHEET_DAY_MILLISECONDS)
+
+
+# -- a time of day IN a workbook: a fraction of a day wearing a time ---
+#
+# WHY A TIME CELL IS READ AS A CLOCK, AND ONLY WHERE EVERY ONE IS A
+# CLOCK (plan P4-D382). A workbook stores a time of day as the fraction
+# of a day it stands at, and a time format on the cell is what makes
+# every reader hand it back as a time: openpyxl and pandas return
+# `datetime.time` for a value under one. The reader passed the fraction
+# on as a number, so a column of clock times was described as
+# `continuous` and its twin was drawn as continuous numbers -- measured
+# on 1,000 whole minutes wearing `h:mm`, every twin cell carried seconds
+# and microseconds the source never held, and 10 of them reached one
+# day or more and read back as date-times, not times. A column whose
+# every time-format number is a whole second under one day is therefore
+# read as clock times, `HH:MM` where every one of them stands at
+# second nought and `HH:MM:SS` otherwise, so the stored seconds are kept
+# whatever the format shows; the twin writes each clock back as the
+# fraction it was read from (`sheet_clock_serial`). A column where ANY
+# such number is a day or more stays a column of numbers, as it read
+# before: `h:mm` worn by full date-times is a display choice over
+# moments, and reading it as clocks would drop their dates. A fraction
+# of a second keeps the column a column of numbers too, because the
+# clock role reads no fraction of a second (contract C6-10, reading 1).
+
+SHEET_DAY_SECONDS = 86_400
+
+
+def sheet_serial_second(text: str) -> int:
+    """The second of the day a stored time of day stands at, or -1.
+
+    Guarantees: a fixed function of the text; raises TypeError on a
+    value that is not text. The text is a stored number's spelling
+    (`sheet_number_spelling`) naming a fraction of a day from nought up
+    to, and not including, one. It is rounded to the millisecond, as
+    `sheet_serial_moment` rounds a moment, and the answer is that
+    millisecond's second where it is a whole second; -1 for anything
+    else -- no number, a negative, a day or more, or a fraction of a
+    second. No I/O of any kind.
+    """
+    if not isinstance(text, str):
+        raise TypeError("internal check: a cell's text was not text")
+    if not sheet_number_spelling(text):
+        return -1
+    value = float(text)
+    if value < 0.0 or value >= 1.0:
+        return -1
+    moment = round(value * SHEET_DAY_MILLISECONDS)
+    if moment % 1000 or moment >= SHEET_DAY_MILLISECONDS:
+        return -1
+    return moment // 1000
+
+
+def sheet_clock_text(second: int, with_seconds: bool) -> str:
+    """One second of the day as the clock role reads it (plan P4-D382).
+
+    Guarantees: `HH:MM`, or `HH:MM:SS` where ``with_seconds``, for a
+    second from 0 to 86,399 -- the two forms of contract C6-10, every
+    field two figures. Raises ValueError for a second outside the day.
+    No I/O of any kind.
+    """
+    if second < 0 or second >= SHEET_DAY_SECONDS:
+        raise ValueError("internal check: a clock outside the day")
+    written = f"{second // 3600:02d}:{(second // 60) % 60:02d}"
+    if with_seconds:
+        written = f"{written}:{second % 60:02d}"
+    return written
+
+
+def sheet_clock_serial(text: str) -> str:
+    """The fraction of a day a workbook stores for one clock, or "".
+
+    Guarantees: the inverse of the reader's spelling on every text
+    `sheet_clock_text` writes -- `HH:MM` or `HH:MM:SS`, hours `00` to
+    `23`, minutes and seconds `00` to `59` -- so a twin cell written from
+    it is read back as the same text (`sheet_serial_second`). Midnight
+    is `0`; any other clock is the shortest spelling of its double. ""
+    for any other text. Raises TypeError on a value that is not text.
+    No I/O of any kind.
+    """
+    if not isinstance(text, str):
+        raise TypeError("internal check: a cell's text was not text")
+    if len(text) not in (5, 8) or text[2:3] != ":":
+        return ""
+    if not (_figures_at(text, 0, 2) and _figures_at(text, 3, 2)):
+        return ""
+    seconds = 0
+    if len(text) == 8:
+        if text[5:6] != ":" or not _figures_at(text, 6, 2):
+            return ""
+        seconds = int(text[6:8])
+    hours = int(text[0:2])
+    minutes = int(text[3:5])
+    if hours > 23 or minutes > 59 or seconds > 59:
+        return ""
+    second = hours * 3600 + minutes * 60 + seconds
+    if second == 0:
+        return "0"
+    return repr(second / SHEET_DAY_SECONDS)
 
 
 # -- a sheet's NAME, and when it may be published ----------------------

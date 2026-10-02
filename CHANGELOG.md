@@ -26,6 +26,32 @@ and one left unparsed is not, so the source meets its own census.
 `K-S3-32` is floor-only, `K-S3-33` retired, `K-S3-35` new, and
 `K-S3-39`, `K-2B-13` and `K-2B-48` hold.
 
+### Workbook cells read as what they store (2026-10-01)
+
+**Dates, moments and clocks a workbook stores come back as themselves**
+(plan P4-D382, `K-S3-57`). A column stored mostly as dates is read as
+dates beside its few text cells, which are counted unparsed (5 % of text
+dates, or 3 % of `UNK`, made the column free text or labels and its twin
+failed its own description); a date format hiding a time reads every
+cell of its column as a moment, so its cells at midnight are no longer
+bare dates written as text, where more than one dated cell in a hundred
+holds a time (a column of days beside one timed cell in a hundred or
+fewer stays days, with its weekday census, each timed cell read as the
+day it shows, so its twin passes its own validation); a date beside a date with a time, or two date,
+date-and-time or clock codes, is read rather than refusing the table; a
+column whose every value cell is a time-format number at a whole second
+under one day is read as clock times, its stored seconds kept, and
+written back as day fractions (method G2.2 step 0b), where it was
+continuous numbers and, with seconds, a crash; a locale tag such as
+`[$-409]` is published and worn; a date or clock the census stores as
+text keeps its text in the twin. The mixes still refused name their
+kinds, and the cell cap names a .csv file as the route past a million
+cells. Columns read beside text cells publish no weekday census (WC6). The
+census hands its reading of a stored-date column to the description, so
+`synthtwin profile` CPU on typed dates stays within 2 % of before. On the
+reach skeptic's cases every twin now passes its own validation, and every
+case the lane does not reach is byte-identical.
+
 ### Two date questions, asked and answered in the questions file (2026-10-01)
 
 **Which comes first, the day or the month, and what a column's few codes

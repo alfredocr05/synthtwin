@@ -3227,6 +3227,23 @@ def _column_named(
     return None
 
 
+def _stored_as_named(
+    name: str, column_names: "list[str]", stored_as: "tuple[str, ...]"
+) -> str:
+    """How a workbook stores the column called ``name`` (plan P4-D382).
+
+    The word `profile.stored_as_of` gives the column at the same place,
+    or the empty word where there is none -- a delimited file, or no
+    word handed over. A walk, for `_column_named`'s reason.
+    """
+    place = 0
+    for held in column_names:
+        if held == name and place < len(stored_as):
+            return stored_as[place]
+        place = place + 1
+    return ""
+
+
 @dataclasses.dataclass(frozen=True)
 class Declarations:
     """The declarations that change WHICH CELLS OF A COLUMN ARE THERE.
@@ -3261,6 +3278,7 @@ def _present_spellings(
     name: str = "",
     declared: "Declarations | None" = None,
     held: "tuple[HeldReading, ...]" = (),
+    stored_as: str = "",
 ) -> "tuple[dict[str, int], tuple[HeldReading, ...]]":
     """Which of a column's SPELLINGS are present under the FINISHED reading.
 
@@ -3284,8 +3302,9 @@ def _present_spellings(
     column and the route `present_spellings_after_the_rules` answers from.
 
     Guarantees: accepts a column's cells, the settings, the column's
-    name, the declarations in force and the reading this census keeps
-    (`HeldReading`); returns a mapping whose keys are exactly the
+    name, the declarations in force, the reading this census keeps
+    (`HeldReading`) and how a workbook stores the column (`_decide`'s
+    ``stored_as``, plan P4-D382); returns a mapping whose keys are exactly the
     spellings that are PRESENT, each mapped to 1, and what the census
     keeps after this column (`_census_reading` says which) -- the reading
     `_census_reading` took, kept so the description
@@ -3304,6 +3323,7 @@ def _present_spellings(
         name in stated.measurements,
         name in stated.decimal_commas,
         held,
+        stored_as,
     )
     return _standing_of(kept), held
 
@@ -3375,12 +3395,14 @@ def _repeating_identifiers_held(
     settings: Settings,
     declarations: "Declarations | None",
     held: "tuple[HeldReading, ...]",
+    stored_as: "tuple[str, ...]" = (),
 ) -> "tuple[tuple[str, ...], tuple[HeldReading, ...]]":
     """`repeating_identifiers`, and the readings the census holds after it.
 
     Guarantees: `repeating_identifiers`'s own, over the same arguments,
     plus ``held``: what this census keeps, returned as it stands after
-    the columns read here (`_census_reading`).
+    the columns read here (`_census_reading`). ``stored_as`` is
+    `population_census`'s.
     """
     found: "list[str]" = []
     for name in sorted(declared):
@@ -3390,7 +3412,12 @@ def _repeating_identifiers_held(
         if cells is None:
             continue
         standing, held = _present_spellings(
-            cells, settings, name, declarations, held
+            cells,
+            settings,
+            name,
+            declarations,
+            held,
+            _stored_as_named(name, column_names, stored_as),
         )
         seen: "dict[str, int]" = {}
         repeats = False
@@ -3480,6 +3507,7 @@ def population_census(
     declared: "list[str]",
     settings: Settings,
     declarations: "Declarations | None" = None,
+    stored_as: "tuple[str, ...]" = (),
 ) -> "tuple[tuple[str, ...], int, tuple[HeldReading, ...]]":
     """The person columns, how many people, and the reading the census kept.
 
@@ -3492,17 +3520,21 @@ def population_census(
     description then read every census column again).
 
     Guarantees: accepts the column names, the columns as text in the
-    same order, the names declared with `--identifier`, the settings and
-    the declarations in force; returns the repeating identifiers, the
+    same order, the names declared with `--identifier`, the settings,
+    the declarations in force and how a workbook stores each column, in
+    the same order (`profile.stored_as_of`; empty for a delimited file):
+    each column is read the way the description reads it, so the
+    reading the census keeps is one the description can take over (plan
+    P4-D382). Returns the repeating identifiers, the
     population `people_in` counts over them, and what the census kept --
     at most one reading (`_census_reading` says why one). A fixed function of the arguments. Raises
     what `_read_the_column` raises. No I/O of any kind.
     """
     people, held = _repeating_identifiers_held(
-        column_names, columns, declared, settings, declarations, ()
+        column_names, columns, declared, settings, declarations, (), stored_as
     )
     counted, held = _people_held(
-        column_names, columns, people, settings, declarations, held
+        column_names, columns, people, settings, declarations, held, stored_as
     )
     return people, counted, held
 
@@ -3514,19 +3546,21 @@ def _people_held(
     settings: Settings,
     declarations: "Declarations | None",
     held: "tuple[HeldReading, ...]",
+    stored_as: "tuple[str, ...]" = (),
 ) -> "tuple[int, tuple[HeldReading, ...]]":
     """`people_in`, and the readings the census holds after it.
 
     Guarantees: `people_in`'s own, over the same arguments, plus
     ``held``: what this census keeps, returned as it stands after the
-    columns read here (`_census_reading`).
+    columns read here (`_census_reading`). ``stored_as`` is
+    `population_census`'s.
     """
     rows = 0
     for column in columns:
         if len(column) > rows:
             rows = len(column)
     holding, held = _rows_holding_a_value(
-        columns, rows, settings, column_names, declarations, held
+        columns, rows, settings, column_names, declarations, held, stored_as
     )
     if not person_columns:
         count = 0
@@ -3555,7 +3589,12 @@ def _people_held(
         if cells is None:
             continue
         standing, held = _present_spellings(
-            cells, settings, name, declarations, held
+            cells,
+            settings,
+            name,
+            declarations,
+            held,
+            _stored_as_named(name, column_names, stored_as),
         )
         earliest: "dict[str, int]" = {}
         place = 0
@@ -3599,6 +3638,7 @@ def _rows_holding_a_value(
     column_names: "list[str] | None" = None,
     declarations: "Declarations | None" = None,
     held: "tuple[HeldReading, ...]" = (),
+    stored_as: "tuple[str, ...]" = (),
 ) -> "tuple[list[bool], tuple[HeldReading, ...]]":
     """Which rows hold a PRESENT value in some column (landing 3.2 repair).
 
@@ -3618,7 +3658,8 @@ def _rows_holding_a_value(
     Guarantees: accepts the columns as text, how many rows the longest
     of them has, the settings that say which spellings mean "no value",
     the column names in the same order as the columns, the
-    declarations in force and what the census keeps; returns one truth
+    declarations in force, what the census keeps and how a workbook
+    stores each column, in the same order; returns one truth
     value per row, in row order, and what the census keeps after the
     columns read here (`_census_reading`). A fixed function of the arguments. Raises nothing.
     No I/O of any kind.
@@ -3633,11 +3674,14 @@ def _rows_holding_a_value(
         name = ""
         if place_of_column < len(named):
             name = named[place_of_column]
+        word = ""
+        if place_of_column < len(stored_as):
+            word = stored_as[place_of_column]
         place_of_column = place_of_column + 1
         if not outstanding:
             break
         standing, held = _present_spellings(
-            column, settings, name, declarations, held
+            column, settings, name, declarations, held, word
         )
         if not standing:
             continue
@@ -15044,6 +15088,81 @@ def _stamp_clocks(
     return kept, written, _StampClock(style, other_faces, widths_in)
 
 
+# HOW A WORKBOOK STORES A COLUMN, where it matters to the reading (plan
+# P4-D382; `_decide`'s ``stored_as``): most of its cells as dates, or
+# every one as a clock time. Anything else -- a delimited file, or a
+# workbook column stored otherwise -- is the empty word.
+STORED_AS_DATES = "dates"
+STORED_AS_CLOCKS = "clocks"
+
+# THE READINGS A WORKBOOK'S STORED DATES ARE SPELLED IN, in the format
+# table's own order: the reader spells a stored date `YYYY-MM-DD`, a
+# stored moment `YYYY-MM-DD HH:MM:SS` (`dialect.sheet_serial_moment`)
+# and a date stored as ISO text as the file wrote it, and a column of
+# both forms is the joint reading's.
+_STORED_DATE_READINGS = ("iso-date", "iso-datetime", "iso-mixed")
+
+
+def _stored_date_format(
+    present: "list[str]", settings: Settings
+) -> (
+    "tuple[str, list[tuple[str, str]], list[str], int, "
+    "_SlashedEvidence | None, _StampClock] | None"
+):
+    """The reading of a column a workbook stores as dates, beside text cells.
+
+    A STORED DATE IS A DATE, WHATEVER STANDS BESIDE IT (plan P4-D382).
+    The parse line asks ninety-nine cells in a hundred to read under one
+    format because a column of TEXT has to prove it holds dates. A
+    workbook settles that for the cells it stores as dates: their type
+    says so, and the reader spells each one in ISO. So where a workbook
+    stores most of a column's cells as dates (`workbook.stored_as_dates`)
+    and no format clears the line, the column is read under the ISO
+    reading that reads the most of its present cells -- the first in
+    `_STORED_DATE_READINGS` on a tie -- provided it reads more than half
+    of them, and every cell it does not read is counted in `n_unparsed`
+    exactly as a straggler under the line is. MEASURED on 1,000 cells of
+    `mm-dd-yy` dates beside 5 % of the same dates typed in as text: the
+    column fell to free text, its twin was 1,000 strings such as
+    `9147-54-59`, and `validate` exited 3 on the twin of the person's
+    own table; 3 % of the word `UNK` beside the dates made it a long
+    tail of labels, with the same twin and the same exit.
+
+    What the text cells are is not guessed. A word the package's own
+    vocabulary reads as no value, or one the person declared with
+    `--missing-value`, has left the present cells already and is counted
+    missing; every other text cell is unparsed, and the twin writes a
+    neutral stand-in for it, stored as text as the source stored it.
+
+    Guarantees: accepts the present cells and the settings; returns
+    `_matching_date_format`'s tuple, its clock the default one (an ISO
+    reading is no slashed stamp), or None. Determinism: a function of
+    the two, in the order above. Raises nothing. No I/O of any kind.
+    """
+    best: "tuple[str, list[tuple[str, str]], list[str]] | None" = None
+    for format_name in _STORED_DATE_READINGS:
+        good: "list[tuple[str, str]]" = []
+        sources: "list[str]" = []
+        for value in present:
+            pair_read = parsing.parse_datetime(value, format_name)
+            if pair_read is not None:
+                good += [pair_read]
+                sources += [value]
+        if len(good) * 2 <= len(present):
+            continue
+        if best is None or len(good) > len(best[1]):
+            best = (format_name, good, sources)
+    if best is None:
+        return None
+    reading, pairs, written = _forms_as_published(
+        best[0], best[1], best[2], settings
+    )
+    return (
+        reading, pairs, written, len(present) - len(pairs), None,
+        _StampClock(),
+    )
+
+
 def _forms_as_published(
     format_name: str,
     pairs: "list[tuple[str, str]]",
@@ -18849,6 +18968,7 @@ def _decide(
     forced_measurement: bool = False,
     probing: bool = False,
     described_as_pair: bool = False,
+    stored_as: str = "",
 ) -> _Verdict:
     """Pick the one role, testing the rules in the documented order.
 
@@ -18881,6 +19001,16 @@ def _decide(
     and it moves rule 9c's reading to just before rule 9b and changes
     nothing else; see the comment at that point for why. Every other
     caller leaves it false.
+
+    ``stored_as`` says how a workbook stores this column's cells, and
+    moves two things only (plan P4-D382). `STORED_AS_DATES`, most of
+    them as dates: where no date format clears the parse line, rule 5
+    reads the column under the ISO reading of those stored dates, the
+    cells it does not read counted unparsed (`_stored_date_format`).
+    `STORED_AS_CLOCKS`, every one as a clock time: rule 7 stands aside
+    where a level would fall below the floor, so the column reaches the
+    clock rule rather than a list of labels whose held-back levels the
+    twin would have to write as made-up text no clock can be.
 
     Every rule here routes a column to a role decided by its VALUES.
     Exactly one role is not on that list: `identifier` comes from
@@ -19158,6 +19288,14 @@ def _decide(
         matched = (
             None if labels_only else _matching_date_format(present, settings)
         )
+        # A COLUMN THE WORKBOOK STORES AS DATES IS READ AS DATES BESIDE A
+        # FEW TEXT CELLS (plan P4-D382, `_stored_date_format`).
+        if (
+            matched is None
+            and stored_as == STORED_AS_DATES
+            and not labels_only
+        ):
+            matched = _stored_date_format(present, settings)
         if matched is not None:
             format_name, pairs, sources, unparsed, evidence, written = matched
             details = _datetime_details(
@@ -19271,8 +19409,26 @@ def _decide(
         # column is. Where it answers, this rule declines and the column
         # falls to 7b below; a column with no numeric half, or whose text
         # half is prose, is untouched and lands here exactly as it did.
-        if folded_distinct <= ceiling and (
-            forced_code or _compound_reading(cells) is None
+        #
+        # AND IT STANDS ASIDE FOR CLOCKS A WORKBOOK STORES, WHERE A LEVEL
+        # WOULD BE HELD BACK (plan P4-D382). A held-back level is written
+        # in the twin as made-up text of the column's shape, and a clock
+        # stored as a number has no text to be: measured on 1,000 clock
+        # cells on a quarter-hour grid at the floor of eleven, 362 twin
+        # cells were written as text such as `94:29`, and `validate`
+        # exited 3 on the twin of the person's own table. Such a column
+        # goes on to the clock rule, whose twin draws real clocks. A
+        # column whose every level clears the floor keeps its exact
+        # list, and `--code` keeps the list whatever it holds.
+        held_back_clocks = (
+            stored_as == STORED_AS_CLOCKS
+            and not labels_only
+            and _a_level_is_below_the_floor(cells)
+        )
+        if (
+            folded_distinct <= ceiling
+            and not held_back_clocks
+            and (forced_code or _compound_reading(cells) is None)
         ):
             levels = _levels(
                 cells.folded_counts, cells.spellings_by_folded, settings
@@ -20873,6 +21029,7 @@ def _read_the_column(
     described_as_pair: bool = False,
     kept_placeholder_days: "tuple[str, ...]" = (),
     judged_candidates: "tuple[str, ...]" = (),
+    stored_as: str = "",
 ) -> _ColumnReading:
     """Apply every declaration and every judgement, and stop there.
 
@@ -21019,6 +21176,7 @@ def _read_the_column(
             forced_code=forced_code,
             forced_measurement=forced_measurement,
             described_as_pair=described_as_pair,
+            stored_as=stored_as,
         )
         if trial.role == ROLE_TEXT or trial.role == ROLE_DATETIME:
             reading = _remainder_reading(present, settings)
@@ -21083,6 +21241,7 @@ def _read_the_column(
             forced_code=forced_code,
             forced_measurement=forced_measurement,
             described_as_pair=described_as_pair,
+            stored_as=stored_as,
         )
         if trial.role == ROLE_AFFIXED:
             before = len(present)
@@ -21147,6 +21306,7 @@ def _read_the_column(
             forced_code=forced_code,
             forced_measurement=forced_measurement,
             described_as_pair=described_as_pair,
+            stored_as=stored_as,
         )
         counted_out = _levels_read_by_subtraction(cells, trial.role)
         if counted_out:
@@ -21232,6 +21392,12 @@ class HeldReading:
     kept_placeholder_days: "tuple[str, ...]"
     judged_candidates: "tuple[str, ...]"
     reading: _ColumnReading
+    # How a workbook stores this column's cells (`_decide`'s
+    # ``stored_as``, plan P4-D382). The census reads each column under
+    # the word `profile.stored_as_of` gives it, the word the description
+    # reads it under, so the reading is handed over as any other is; a
+    # reading taken under another word is read again.
+    stored_as: str = ""
 
 
 def _same_reading(
@@ -21246,6 +21412,7 @@ def _same_reading(
     described_as_pair: bool,
     kept_placeholder_days: "tuple[str, ...]",
     judged_candidates: "tuple[str, ...]",
+    stored_as: str = "",
 ) -> bool:
     """Whether ``held`` is the reading `_read_the_column` would return here.
 
@@ -21278,6 +21445,7 @@ def _same_reading(
         or held.forced_measurement != forced_measurement
         or held.forced_decimal_comma != forced_decimal_comma
         or held.described_as_pair != described_as_pair
+        or held.stored_as != stored_as
     ):
         return False
     if tuple(held.kept_placeholder_days) != tuple(kept_placeholder_days):
@@ -21297,6 +21465,7 @@ def _census_reading(
     forced_measurement: bool,
     forced_decimal_comma: bool,
     held: "tuple[HeldReading, ...]",
+    stored_as: str = "",
 ) -> "tuple[HeldReading, tuple[HeldReading, ...]]":
     """The census's reading of one column, and the one reading it keeps.
 
@@ -21332,6 +21501,7 @@ def _census_reading(
             False,
             (),
             (),
+            stored_as,
         ):
             return kept, held
     fresh = HeldReading(
@@ -21353,7 +21523,9 @@ def _census_reading(
             forced_code=forced_code,
             forced_measurement=forced_measurement,
             forced_decimal_comma=forced_decimal_comma,
+            stored_as=stored_as,
         ),
+        stored_as=stored_as,
     )
     if held:
         return fresh, held
@@ -21434,6 +21606,7 @@ def profile_column(
     handed_over: "HeldReading | None" = None,
     calendar_census: bool = True,
     stored_one_way: bool = True,
+    stored_as: str = "",
 ) -> ColumnProfile:
     """Describe one column: its role, its statistics, what was withheld.
 
@@ -21481,7 +21654,12 @@ def profile_column(
       reads the census -- it counts the file's body against the PUBLISHED
       groups instead -- so the producer's rules are never asked there. And
       ``stored_one_way`` false says a workbook stores this column's cells
-      in more than one way, which withholds the census.
+      in more than one way, which withholds the census. And
+      ``stored_as`` says a workbook stores most of this column's cells
+      as dates (`STORED_AS_DATES`), which lets the dates be read beside
+      text cells no date format reads, or every one as a clock time
+      (`STORED_AS_CLOCKS`), which keeps the column from a list of labels
+      it could not write back (`_decide`, plan P4-D382).
     - ``handed_over`` is the population census's reading of this column
       (`HeldReading`), passed on so the column is not read a second
       time. It is taken only where `_same_reading` finds every argument
@@ -21525,6 +21703,7 @@ def profile_column(
         described_as_pair,
         kept_placeholder_days,
         judged_candidates,
+        stored_as,
     ):
         # The kept reading's tally carries the settings it was read
         # under, which differ from these in `person_columns` alone; the
@@ -21549,6 +21728,7 @@ def profile_column(
             described_as_pair=described_as_pair,
             kept_placeholder_days=kept_placeholder_days,
             judged_candidates=judged_candidates,
+            stored_as=stored_as,
         )
     cells = read.cells
     present = read.present
@@ -21604,6 +21784,7 @@ def profile_column(
             forced_code=forced_code,
             forced_measurement=forced_measurement,
             described_as_pair=described_as_pair,
+            stored_as=stored_as,
         )
 
     by_source, by_class, n_blank, n_withheld = _missing_maps(
