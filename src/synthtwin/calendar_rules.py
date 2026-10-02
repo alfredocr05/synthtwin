@@ -1066,7 +1066,10 @@ def room_short(
         free[index] = free[index] - 1
     rows: "dict[int, int]" = {}
     for day in body:
-        rows[day] = rows.get(day, 0) + 1
+        if day in rows:
+            rows[day] = rows[day] + 1
+        else:
+            rows[day] = 1
     single = [0 for _group in groups]
     for day in sorted(rows):
         index = where[weekday_of(day)]

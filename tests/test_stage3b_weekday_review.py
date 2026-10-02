@@ -807,8 +807,10 @@ def test_no_twin_of_the_reviews_draws_loses_a_day_to_the_census(tmp_path: pathli
 
     101 of the 200 draws publish a census; of their 505 twins at seeds 0
     to 4, ten lost a day to the census moves (four columns), and every one
-    held it with the day pass bypassed. None does now. Pinned in the
-    ledger's slow nodes. Red when step 8.3 is withdrawn.
+    held it with the day pass bypassed. None does now. Since the weekday
+    guards were dropped (plan P4-D365) 153 of the 200 publish, and none of
+    their twins loses a day either. Pinned in the ledger's slow nodes. Red
+    when step 8.3 is withdrawn.
     """
     columns = 0
     lost: "list[tuple[int, int]]" = []
