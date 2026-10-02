@@ -48,6 +48,15 @@ red on its own mutant (named beside it):
 And the T1 design skeptic's items: the 12-hour question and its answer
 (item 1), the colon question kept (item 3), the day-first question
 (item 4), and an `h-mm` column said in minutes (item 8).
+
+And skeptic 1's repair round: the 12-hour question typed at in a
+terminal, Enter and `6`, on the three shapes it is offered on (item 1:
+it stopped with a KeyError), with a guard that every answer a column's
+question offers has a key; one clause for each guard no test turned red
+(item 3: the loader's T1 spelling, DT3's order by instant, the warning
+where `--twelve-hour` reaches nothing, the style words of the summary and
+the twin report, and the width tie); and an answer of `day-first` on the
+repeat line (item 4).
 """
 
 import copy
@@ -60,7 +69,7 @@ import sys
 
 import pytest
 
-from synthtwin import contract, errors, generation, parsing, taxonomy, validation
+from synthtwin import asking, contract, errors, generation, parsing, taxonomy, validation
 from tests import clock_spellings as spellings
 from tests import fixtures
 
@@ -647,3 +656,325 @@ def test_r9_a_declared_twelve_hour_stamp_validates_clean(tmp_path: pathlib.Path)
     twin, _written = _twin(profile, 0)
     code, _report = _validated(profile, twin)
     assert code == 0
+
+
+# -- the repair round of skeptic 1 ---------------------------------------
+#
+# Item 1: the terminal question path, typed at, on every shape the
+# 12-hour answer is offered on, with a guard that no answer a column's
+# question can offer lacks a key. Item 3: one clause for each guard no
+# test turned red (the loader's T1 spelling, DT3's order by instant, the
+# warning where `--twelve-hour` reaches nothing, the style words of the
+# summary and of the twin report, and the width tie). Item 4: an answer
+# of `day-first` on the repeat line.
+
+
+def _morning_clinic_stamps(rows: int) -> "list[str]":
+    """`MM/dd/yyyy HH:mm` whose hours all lie 08 to 12: read before T1, asked since."""
+    import random
+
+    draw = random.Random(5)
+    return [
+        f"{draw.randrange(1, 13):02d}/{draw.randrange(1, 29):02d}/2024 "
+        f"{draw.randrange(8, 13):02d}:{draw.choice([0, 15, 30, 45]):02d}"
+        for _row in range(rows)
+    ]
+
+
+_TYPED_SHAPES = {
+    "unmarked_twelve_hour_clock": lambda: spellings.cells("unmarked_twelve_hour_clock", ROWS),
+    "unmarked_twelve_hour_stamp": lambda: spellings.cells("unmarked_twelve_hour_stamp", ROWS),
+    "morning_clinic_stamp": lambda: _morning_clinic_stamps(ROWS),
+}
+
+
+def _typed_at_the_terminal(
+    folder: pathlib.Path,
+    cells: "list[str]",
+    typed: str,
+    monkeypatch: pytest.MonkeyPatch,
+) -> "tuple[int, str, dict[str, object]]":
+    """`synthtwin profile` with a person at the keyboard typing one line at every prompt.
+
+    The question is drawn by `cli._the_question` and the line read by
+    `cli._read_one_answer`, both as shipped: only who answers is changed.
+    Returns the exit code, everything printed, and the description.
+    """
+    from synthtwin import cli
+
+    folder.mkdir(parents=True, exist_ok=True)
+    table = folder / "real.csv"
+    names, rows = fixtures.rows_at_the_floor("seen_at", cells)
+    table.write_text(fixtures.rows_to_csv(names, rows), encoding="utf-8", newline="")
+    monkeypatch.setattr(cli, "_there_is_somebody_to_ask", lambda: True)
+    # A FEW LINES AND THEN THE END OF INPUT, so a key the run does not
+    # know -- asked again and again -- ends the run instead of the test.
+    lines = iter([typed] * 4)
+
+    def typing(prompt: str = "") -> str:
+        for line in lines:
+            return line
+        raise EOFError
+
+    monkeypatch.setattr("builtins.input", typing)
+    said = io.StringIO()
+    before = sys.stdout, sys.stderr
+    sys.stdout = sys.stderr = said
+    try:
+        code = _exit_of(
+            ["profile", str(table), "--out-dir", str(folder), "--replace", "--smallest-group", "11"]
+        )
+    finally:
+        sys.stdout, sys.stderr = before
+    document = json.loads((folder / "real-profile.json").read_text(encoding="utf-8"))
+    return code, said.getvalue(), document
+
+
+@pytest.mark.parametrize("shape", sorted(_TYPED_SHAPES))
+def test_the_twelve_hour_question_at_the_terminal(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, shape: str
+) -> None:
+    """Item 1: Enter keeps the 24-hour reading; 6 declares the 12-hour clock.
+
+    Before the repair the first of these stopped with `KeyError:
+    'twelve-hour'` in `_the_question`, on columns the base read and asked
+    nothing about.
+    """
+    cells = _TYPED_SHAPES[shape]()
+    code, said, document = _typed_at_the_terminal(tmp_path / "enter", cells, "", monkeypatch)
+    assert code == 0, said[-2000:]
+    assert "[6] a 12-hour clock written without AM or PM" in said
+    assert document["settings"]["forced_twelve_hour_clocks"] == []
+    assert parsing.clock_face(_style_of(document["columns"][0])) != parsing.CLOCK_TWELVE_HOUR
+    assert "--twelve-hour" not in said
+    code, said, document = _typed_at_the_terminal(tmp_path / "six", cells, "6", monkeypatch)
+    assert code == 0, said[-2000:]
+    assert document["settings"]["forced_twelve_hour_clocks"] == ["seen_at"]
+    assert parsing.clock_face(_style_of(document["columns"][0])) == parsing.CLOCK_TWELVE_HOUR
+    assert "TO REPEAT THIS RUN WITHOUT THE QUESTIONS" in said
+    assert "--twelve-hour seen_at" in said
+
+
+def _offered_by_each_builder(skipped: "set[str]") -> "dict[str, set[str]]":
+    """Every answer each function of `asking` but the skipped offers through a `Choice`, read from its source."""
+    import ast
+
+    tree = ast.parse(pathlib.Path(asking.__file__).read_text(encoding="utf-8"))
+    found: "dict[str, set[str]]" = {}
+    for node in tree.body:
+        if not isinstance(node, ast.FunctionDef) or node.name in skipped:
+            continue
+        for inner in ast.walk(node):
+            if not (
+                isinstance(inner, ast.Call)
+                and isinstance(inner.func, ast.Name)
+                and inner.func.id == "Choice"
+            ):
+                continue
+            assert inner.args and isinstance(inner.args[0], ast.Name), (
+                f"a Choice in {node.name} names its answer by a constant of asking"
+            )
+            found.setdefault(node.name, set()).add(getattr(asking, inner.args[0].id))
+    return found
+
+
+def _file_question_builders() -> "set[str]":
+    """The functions `asking.file_questions` calls: their questions go to the file, never the terminal."""
+    import ast
+
+    tree = ast.parse(pathlib.Path(asking.__file__).read_text(encoding="utf-8"))
+    for node in tree.body:
+        if isinstance(node, ast.FunctionDef) and node.name == "file_questions":
+            return {
+                inner.func.id
+                for inner in ast.walk(node)
+                if isinstance(inner, ast.Call) and isinstance(inner.func, ast.Name)
+            }
+    raise AssertionError("asking.file_questions is gone")
+
+
+def test_every_answer_a_column_question_offers_has_a_key() -> None:
+    """Item 1's guard: an answer with no key stops the terminal run, so none may lack one."""
+    from synthtwin import cli
+
+    to_the_file = _file_question_builders()
+    assert {"_day_first_questions", "_first_row_questions", "_delimiter_questions"} <= to_the_file
+    offered = _offered_by_each_builder(to_the_file)
+    assert "_clock_question" in offered and "_person_choices" in offered
+    column_answers: "set[str]" = set()
+    for builder in offered:
+        column_answers |= offered[builder]
+    assert asking.ANSWER_TWELVE_HOUR in column_answers
+    for answer in sorted(column_answers):
+        assert answer in cli._KEY_OF, answer
+        key = cli._KEY_OF[answer]
+        assert key in cli._ANSWER_KEYS, (answer, key)
+        reached = cli._ANSWER_KEYS[key]
+        # `keep` shares key 1 with `measurement`: both declare nothing.
+        assert reached == answer or (
+            answer == asking.ANSWER_KEEP and reached == asking.ANSWER_MEASUREMENT
+        ), (answer, key, reached)
+
+
+def test_the_twelve_hour_question_shows_each_key_once(tmp_path: pathlib.Path) -> None:
+    """Item 1: the keys one question shows are different, so each typed key is one answer."""
+    from synthtwin import cli
+
+    for name in sorted(spellings.UNMARKED):
+        _block, _profile, questions = _described(tmp_path / name, spellings.cells(name, ROWS))
+        asked = [entry for entry in questions["asked"] if entry["column"] == "seen_at"]
+        offered = [choice["answer"] for choice in asked[0]["answers_you_can_give"]]
+        keys = [cli._KEY_OF[answer] for answer in offered]
+        assert len(keys) == len(set(keys)), (name, offered, keys)
+
+
+def _first_rung_before_ten(block: "dict[str, object]") -> str:
+    ladder = block["clock_percentiles"]
+    assert isinstance(ladder, dict)
+    for key in ("p05", "p10", "p25", "p50"):
+        text = ladder[key]
+        if isinstance(text, str) and parsing.clock_ordinal(text, f"{block['clock_form']}") is not None:
+            parts = parsing.clock_parts(text)
+            if parts is not None and parts[0] < 10:
+                return key
+    raise AssertionError(ladder)
+
+
+@pytest.mark.parametrize(
+    ("name", "form", "respelled"),
+    [
+        ("control_clock", "hh-mm", lambda text: text[1:] if text[0] == "0" else text),
+        ("clock_one_figure_hour", "h-mm", lambda text: f"0{text}"),
+    ],
+)
+def test_r8_a_rung_of_the_other_hour_width_is_refused(
+    tmp_path: pathlib.Path, name: str, form: str, respelled: "object"
+) -> None:
+    """Item 3 (M04): the loader's T1 holds a clock value to its form's exact spelling.
+
+    `9:30` is the right instant on `hh-mm` and the wrong spelling, and so is
+    `08:34` on `h-mm`.
+    """
+    block, profile, _questions = _described(tmp_path, spellings.cells(name, ROWS))
+    assert block["clock_form"] == form
+    contract.load_profile(str(profile))
+    key = _first_rung_before_ten(block)
+    document = json.loads(profile.read_text(encoding="utf-8"))
+    changed = copy.deepcopy(document)
+    text = changed["columns"][0]["clock_percentiles"][key]
+    assert callable(respelled)
+    other = respelled(text)
+    assert other != text
+    assert parsing.clock_ordinal(other, form) == parsing.clock_ordinal(text, form)
+    changed["columns"][0]["clock_percentiles"][key] = other
+    assert contract.INVARIANTS["T1"] in _refusal(tmp_path, changed)
+
+
+def test_r8_listed_clock_tail_values_are_ordered_by_the_instant(tmp_path: pathlib.Path) -> None:
+    """Item 3 (M05): DT3 orders a listed tail's values by instant, so `9:59 AM`
+    then `10:00 AM` -- falling as text -- loads clean."""
+    import random
+
+    draw = random.Random(3)
+    later: "list[str]" = []
+    for _row in range(300):
+        second = draw.randrange(36060, 86400)
+        hour = second // 3600
+        later += [f"{hour % 12 or 12}:{(second % 3600) // 60:02d} {'AM' if hour < 12 else 'PM'}"]
+    block, profile, _questions = _described(tmp_path, ["9:58 AM"] * 12 + ["10:00 AM"] * 12 + later)
+    assert block["clock_form"] == "h-mm AM-PM"
+    assert block["low_tail"]["values"] == ["9:58 AM"]
+    document = json.loads(profile.read_text(encoding="utf-8"))
+    changed = copy.deepcopy(document)
+    changed["columns"][0]["low_tail"] = {
+        "boundary": "10:01 AM",
+        "mean_distance": 1.5,
+        "rms_distance": None,
+        "rows": 24,
+        "values": ["9:59 AM", "10:00 AM"],
+    }
+    changed["columns"][0]["clock_percentiles"]["p05"] = None
+    written = fixtures.write_profile(tmp_path, "crossing-profile.json", changed)
+    contract.load_profile(str(written))
+    # ...and the same two values the other way round are refused.
+    changed["columns"][0]["low_tail"]["values"] = ["10:00 AM", "9:59 AM"]
+    assert contract.INVARIANTS["DT3"] in _refusal(tmp_path, changed)
+
+
+def test_twelve_hour_naming_a_column_it_cannot_reach_is_said(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Item 3 (M22): `--twelve-hour` on a column of numbers warns; on an unmarked clock it does not."""
+    folder = tmp_path / "numbers"
+    folder.mkdir()
+    table = folder / "real.csv"
+    rows = [[f"{place % 37}.{place % 10}", spellings.cells("unmarked_twelve_hour_clock", ROWS)[place]] for place in range(ROWS)]
+    table.write_text(fixtures.rows_to_csv(["dose", "seen_at"], rows), encoding="utf-8", newline="")
+    capsys.readouterr()
+    assert _exit_of(
+        ["profile", str(table), "--out-dir", str(folder), "--replace",
+         "--twelve-hour", "dose", "--twelve-hour", "seen_at"]
+    ) == 0
+    said = capsys.readouterr()
+    text = said.out + said.err
+    assert "The column 'dose' was named with --twelve-hour" in text
+    assert "Nothing about this column was read on a 12-hour clock" in text
+    assert "'seen_at' was named with --twelve-hour" not in text
+
+
+def test_the_written_clock_is_said_in_the_summary_and_the_twin_report(tmp_path: pathlib.Path) -> None:
+    """Item 3 (M23, M24): NF109's words, on the summary of a clock column and
+    on the twin report of a stamp column, each naming the column's own style."""
+    block, _profile, _questions = _described(tmp_path / "clock", spellings.cells("clock_twelve_hour", ROWS))
+    summary = (tmp_path / "clock" / "real-profile.txt").read_text(encoding="utf-8")
+    said = parsing.clock_style_said(_style_of(block))
+    assert f"written with {said}" in summary
+    block, profile, _questions = _described(tmp_path / "stamp", spellings.cells("excel_twelve_hour", ROWS))
+    twin, _written = _twin(profile, 0)
+    report = (twin.parent / "real-twin-report.txt").read_text(encoding="utf-8")
+    said = parsing.clock_style_said(_style_of(block))
+    assert f"Its time of day is written as your table wrote it: {said}." in report
+    summary = (tmp_path / "stamp" / "real-profile.txt").read_text(encoding="utf-8")
+    assert f"and then {said}" in summary
+    # ...and the two-figure 24-hour clock every earlier page wrote adds no line.
+    _block, profile, _questions = _described(tmp_path / "control", spellings.cells("control_stamp", ROWS))
+    twin, _written = _twin(profile, 0)
+    report = (twin.parent / "real-twin-report.txt").read_text(encoding="utf-8")
+    assert "Its time of day is written as your table wrote it" not in report
+
+
+def test_a_clock_whose_hours_show_no_width_publishes_two_figures(tmp_path: pathlib.Path) -> None:
+    """Item 3 (M26): every hour 10 or more shows no width, and the tie goes to `hh`."""
+    import random
+
+    draw = random.Random(11)
+    cells = [f"{draw.randrange(10, 24)}:{draw.randrange(60):02d}" for _row in range(ROWS)]
+    block, _profile, _questions = _described(tmp_path, cells)
+    assert block["role"] == taxonomy.ROLE_CLOCK
+    assert block["clock_form"] == "hh-mm"
+
+
+def test_a_day_first_answer_is_on_the_repeat_line(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Item 4: a column read day first because of an answer prints `--day-first` to repeat it."""
+    cells = [
+        f"{moment.month}/{moment.month % 12 + 1}/{moment.year} {moment.hour}:{moment.minute:02d}"
+        for moment in spellings.moments(ROWS, 9)
+    ]
+    _block, _profile, questions = _described(tmp_path / "asked", cells)
+    about = [entry for entry in questions["about_your_file"] if "seen_at" in entry["what_synthtwin_saw"]]
+    about[0]["your_answer"] = "day-first"
+    answers = tmp_path / "answers.json"
+    answers.write_text(json.dumps(questions), encoding="utf-8", newline="\n")
+    capsys.readouterr()
+    block, _profile, _questions = _described(tmp_path / "answered", cells, "--answers", str(answers))
+    said = capsys.readouterr()
+    assert block["format"] == "day-first-datetime"
+    assert "TO REPEAT THIS RUN WITHOUT THE QUESTIONS" in said.out + said.err
+    assert "--day-first" in said.out + said.err
+    # ...and a typed `--day-first` is on the line the person typed already.
+    capsys.readouterr()
+    _described(tmp_path / "typed", cells, "--day-first")
+    said = capsys.readouterr()
+    assert "TO REPEAT THIS RUN WITHOUT THE QUESTIONS" not in said.out + said.err

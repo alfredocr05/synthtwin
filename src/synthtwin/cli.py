@@ -1117,11 +1117,17 @@ _ANSWER_KEYS = {
     "3": asking.ANSWER_IDENTIFIER,
     "4": asking.ANSWER_JOINED,
     "5": asking.ANSWER_DECIMAL_COMMA,
+    # THE 12-HOUR ANSWER HAS ITS OWN KEY (landing T1, repair item 1).
+    # Without one, the first column `asking._clock_question` offered it
+    # on stopped an interactive run with a KeyError where the base read
+    # the same column and asked nothing.
+    "6": asking.ANSWER_TWELVE_HOUR,
     "m": asking.ANSWER_MEASUREMENT,
     "c": asking.ANSWER_CODE,
     "i": asking.ANSWER_IDENTIFIER,
     "j": asking.ANSWER_JOINED,
     "d": asking.ANSWER_DECIMAL_COMMA,
+    "t": asking.ANSWER_TWELVE_HOUR,
 }
 
 _WHY_SHOWN = {
@@ -1207,6 +1213,7 @@ _KEY_OF = {
     asking.ANSWER_IDENTIFIER: "3",
     asking.ANSWER_JOINED: "4",
     asking.ANSWER_DECIMAL_COMMA: "5",
+    asking.ANSWER_TWELVE_HOUR: "6",
     # THE STANDING READING SHARES KEY 1 WITH `measurement`, and the two
     # never appear on one question: a column of figures offers
     # `measurement` as the reading it already has, and a joined-looking
@@ -1756,9 +1763,17 @@ def _how_to_repeat(
     forced_measurements: "list[str]",
     forced_decimal_commas: "tuple[str, ...]" = (),
     twelve_hours: "tuple[str, ...]" = (),
+    day_first: bool = False,
 ) -> str:
-    """The options that repeat this run without asking anything."""
+    """The options that repeat this run without asking anything.
+
+    `day_first` is True only where the run reads day first BECAUSE of an
+    answer (landing T1): a typed `--day-first` is already on the line
+    the person typed.
+    """
     parts: list[str] = []
+    if day_first:
+        parts += ["--day-first"]
     for name in sorted(twelve_hours):
         parts += [f"--twelve-hour {_shown(name)}"]
     for name in sorted(forced_decimal_commas):
@@ -2164,6 +2179,7 @@ def _run_profile(
     # that pair by a route that never re-checked is exactly the defect
     # review item P4-G3-R4-F3 found on the interview path.
     answers_were_handed_back = False
+    day_first_answered = False
     if answers_path is not None:
         try:
             written = asking.answers_in(
@@ -2292,10 +2308,17 @@ def _run_profile(
         twelve_hours = sorted(
             {one: 1 for one in twelve_hours + list(written.twelve_hours)}
         )
-        if written.day_first:
+        # A `day-first` ANSWER IS ON THE REPEAT LINE TOO (landing T1,
+        # repair item 4): measured before this, a column read day first
+        # on the strength of the answer printed no line to repeat it, so
+        # the next run without the file read it month first again.
+        if written.day_first and not day_first:
             day_first = True
-        answers_were_handed_back = bool(spoken_for) or bool(
-            written.twelve_hours
+            day_first_answered = True
+        answers_were_handed_back = (
+            bool(spoken_for)
+            or bool(written.twelve_hours)
+            or day_first_answered
         )
     # UNDER BOTH READINGS WHERE EITHER IS IN PLAY (review item
     # P4-G3-R6-F2). `--decimal-comma` names columns and these two name
@@ -2975,6 +2998,7 @@ def _run_profile(
         or forced_measurements
         or forced_decimal_commas
         or twelve_hours
+        or day_first_answered
     ):
         _say(
             _how_to_repeat(
@@ -2983,6 +3007,7 @@ def _run_profile(
                 forced_measurements,
                 tuple(forced_decimal_commas),
                 tuple(twelve_hours),
+                day_first_answered,
             )
         )
     kept_of_yours = summary.words_of_your_own(document)
