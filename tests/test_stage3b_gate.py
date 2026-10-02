@@ -175,13 +175,19 @@ mutation that turns each witness red:
   values, one week its census), forty ties at one seed of three, and
   one March's meet it, the rule's cost; and red on the hand-made bodies
   of `test_the_few_dates_rule_counts_the_real_dates_of_each_group`;
-* the room rule (`calendar_rules.room_short`), asked only beside the
-  holes of a month-name census that holds every cell to May: a group
-  with no free day holding a one-row date -- red on `mays_only`, whose
-  twin then holds 83 different values for 93, and on the bodies of
+* the room rule (`calendar_rules.room_short`), asked beside every
+  published hole but width holes -- the holes of a month-name census
+  that holds every cell to May, placeholder days and declared days: a
+  group with no free day holding a one-row date -- red on `mays_only`,
+  whose twin then holds 83 different values for 93, on
+  `decl4_240_5_2_r1`, whose twins then hold 234 different days for 235,
+  and on the bodies of
   `test_the_room_rule_asks_only_where_holes_leave_no_free_day_for_a_one_row_date`;
   red too when it is asked beside width holes, which withholds
-  `_straddling_february`, whose twins meet its census;
+  `_straddling_february`, whose twins meet its census, and when a
+  month-name word other than May's is read as May's
+  (`calendar_rules.may_only_published`), which withholds every column
+  written with month names;
 * every hole -- form, placeholder, declared -- read by the producer, the
   generator and the validator alike (`calendar_rules.public_holes`):
   red when the twins of the form-hole, placeholder and declared columns
@@ -2056,8 +2062,8 @@ def test_a_minute_on_a_missing_moment_is_written_absent_and_named(tmp_path: path
 # menu offers is published wherever its twin can meet it: the full-fill
 # certificate, its bands, its cap, its ties refusal and WC5, WC7, WC8 and
 # WC9 are gone. The producer withholds where a group holds too few
-# different dates (`calendar_rules.few_dates`) or the holes of a column
-# its month-name census holds to May leave a group too little room
+# different dates (`calendar_rules.few_dates`) or the published holes
+# other than width holes leave a group too little room
 # (`calendar_rules.room_short`), and the loader holds a census to its shape (`calendar_rules.shape_breach`).
 # The clauses below are the landing's: the battery keeps every census
 # and its twins meet them with nothing missed and the weekday statistics
@@ -2652,7 +2658,8 @@ def test_the_room_rule_asks_only_where_holes_leave_no_free_day_for_a_one_row_dat
 # THE FORM HOLES (review of landing 3b.1, finding 1): days the censuses of
 # written forms tell a reader no cell holds. Since plan P4-D365 they are
 # what the twin may not stand a date on, and where May's leave a group no
-# free day for a one-row date the room rule withholds.
+# free day for a one-row date the room rule withholds; width holes alone
+# never ask it.
 
 
 def _past_the_ninth() -> "list[datetime.date]":
@@ -2855,11 +2862,13 @@ def test_a_full_column_between_width_holes_publishes_and_its_twins_meet_it(tmp_p
     withheld it while it was asked beside every hole; the review of the
     guard drop measured 40 columns past the ninth that it withheld and
     none whose twins missed the census without it, and 668f276 published
-    this one with its twins meeting it. The rule is now asked only beside
-    a month-name census holding every cell to May
-    (`calendar_rules.may_only_published`): this column publishes the
-    seven counts, and its twins meet them at seeds 0 to 4 with nothing
-    missed. Red when the room rule is asked beside width holes again.
+    this one with its twins meeting it. The rule is now asked beside a
+    month-name census holding every cell to May
+    (`calendar_rules.may_only_published`) and, since its second review
+    (item 1), beside placeholder and declared holes, never beside width
+    holes alone: this column publishes the seven counts, and its twins
+    meet them at seeds 0 to 4 with nothing missed. Red when the
+    room rule is asked beside width holes again.
     """
     dates = _straddling_february()
     text = "seen_on\n" + "".join(f"{day.month}/{day.day}/{day.year}\n" for day in dates)
@@ -2878,6 +2887,52 @@ def test_a_full_column_between_width_holes_publishes_and_its_twins_meet_it(tmp_p
     )
     assert decided.reason == "", decided.reason
     assert _twins_meet(described, (0, 1, 2, 3, 4)) == []
+
+
+_MONTH_NAMES = (
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December",
+)
+
+# name -> how each date is written, and the one month-name word its census names.
+_MONTH_NAME_COLUMNS = {
+    "full_names": (lambda day: f"{day.day} {_MONTH_NAMES[day.month - 1]} {day.year}", "title-full-space-no-comma"),
+    "short_names": (lambda day: f"{day.day} {_MONTH_NAMES[day.month - 1][:3]} {day.year}", "title-abbreviated-space-no-comma"),
+}
+
+
+@pytest.mark.parametrize("name", sorted(_MONTH_NAME_COLUMNS))
+def test_a_column_of_month_names_over_a_year_is_not_held_to_may_and_publishes(
+    tmp_path: pathlib.Path, name: str
+) -> None:
+    """A month-name census of one word that is not `either` holds no cell to May (second review of 3b.G, item 2).
+
+    1,500 visits drawn over 2023, written `17 March 2023` or
+    `17 Mar 2023`: the month-name census names one word, of length
+    `full` or `abbreviated`, so no day is a hole, `may_only_published`
+    is False, the seven counts publish and the twins of seeds 0 to 2
+    meet them with nothing missed. Asked of hand-made censuses, one word
+    of length `either` is the Mays (`mays_only` is the column), and two
+    words -- the `either` one first -- are not. Red when any one
+    month-name word is read as May's (every month-name column then loses
+    its census) and when two words are read as one.
+    """
+    written, word = _MONTH_NAME_COLUMNS[name]
+    draw = random.Random(17)
+    dates = [datetime.date(2023, 1, 1) + datetime.timedelta(days=draw.randrange(365)) for _row in range(1500)]
+    described = kpi_shapes.describe(tmp_path, name, "visit\n" + "".join(f"{written(day)}\n" for day in dates), 11)
+    block = described.block("visit")
+    assert block["format"] == "textual-day-first-date" and dict(block["month_name_styles"]) == {word: 1500}
+    forms = {census: dict(block[census] or {}) for census in calendar_rules.FORM_CENSUSES}
+    assert not calendar_rules.may_only_published(forms, block["format"])
+    days = sorted((day - datetime.date(1970, 1, 1)).days for day in dates)
+    assert calendar_rules.form_holes(forms, block["format"], days[0], days[-1]) == ()
+    assert calendar_rules.entry_of(_groups(block)) == calendar_rules.ENTRY_SEVEN, _groups(block)
+    assert _twins_meet(described) == []
+    either = "title-either-space-no-comma"
+    assert calendar_rules.may_only_published({"month_name_styles": {either: 40}}, block["format"])
+    assert not calendar_rules.may_only_published({"month_name_styles": {either: 40, word: 900}}, block["format"])
+    assert not calendar_rules.may_only_published({"month_name_styles": {either: 40}}, "iso-date")
 
 
 def _one_autumn() -> "list[datetime.date]":
@@ -2940,6 +2995,85 @@ def test_a_declared_missing_day_holds_no_twin_date(tmp_path: pathlib.Path) -> No
     holes = calendar_rules.public_holes({}, block["format"], body[0], body[-1], (), taxonomy.published_absent(block, settings))
     assert holes == (_day_number(_HOLE_DAY),)
     assert _twins_meet(described) == []
+
+
+def _declared_days_beside_every_other() -> "tuple[list[str], tuple[str, ...]]":
+    """`decl4_240_5_2_r1`: 240 days from 2023-03-06, one or two cells on each but five declared missing, fifteen on each.
+
+    The five days are drawn from the inner span (2023-04-09, 05-22,
+    06-29, 08-02 and 08-22), written fifteen times each and declared
+    missing; every other day holds one or two cells: 433 rows, 235
+    different present days, 112 of them holding one row.
+    """
+    draw = random.Random(6446)
+    span = [datetime.date(2023, 3, 6) + datetime.timedelta(days=step) for step in range(240)]
+    declared = sorted(draw.sample(span[20:-20], 5))
+    cells: "list[str]" = []
+    for day in span:
+        cells += [day.isoformat()] * (15 if day in declared else draw.randint(1, 2))
+    draw.shuffle(cells)
+    return cells, tuple(day.isoformat() for day in declared)
+
+
+def _described_with_declared(folder: pathlib.Path, stem: str, text: str, declared: "tuple[str, ...]") -> kpi_shapes.Described:
+    """``text`` described at floor 11 with ``declared`` as the declared missing values."""
+    folder.mkdir(parents=True, exist_ok=True)
+    table = fixtures.write(folder, f"{stem}.csv", text)
+    settings = taxonomy.Settings(small_cell_floor=11, declared_missing_values=declared)
+    document = profile.build_document(reading.read_table(str(table), small_cell_floor=11), settings, [], [], [])
+    written = fixtures.write_profile(folder, f"{stem}-profile.json", document)
+    return kpi_shapes.Described(folder, table, document, contract.load_profile(str(written)))
+
+
+def test_declared_days_beside_a_date_on_every_other_day_withhold_by_the_room_rule(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The room rule is asked beside declared holes: `decl4_240_5_2_r1` is withheld, `room` (second review of 3b.G, item 1).
+
+    Every day of the span but the five declared missing holds a date,
+    112 of them one row, so no group has a free day for a one-row date.
+    The block publishes the five days as absent spellings, and they are
+    the column's holes (`calendar_rules.public_holes`); none is a form
+    hole, so the room rule is asked and withholds the census in the one
+    shared sentence, and the real table validates with nothing missed.
+    With the room rule withdrawn the seven counts publish and the twins
+    of seeds 0, 1 and 4 hold 234 different days for 235, both distinct
+    counts MISSED: 668f276 withheld this census and its twins met every
+    check. A twin must pass its own checks, so the census stays withheld
+    until the shared count steps can keep both it and the count of
+    different days. Red when the room rule is asked beside May's holes
+    alone again, as it was at ba37935.
+    """
+    cells, declared = _declared_days_beside_every_other()
+    assert declared == ("2023-04-09", "2023-05-22", "2023-06-29", "2023-08-02", "2023-08-22")
+    text = "seen_on\n" + "".join(f"{cell}\n" for cell in cells)
+    described = _described_with_declared(tmp_path, "declared_room", text, declared)
+    block = described.block("seen_on")
+    assert sorted(block["missing_by_source"]) == list(declared)
+    present = [cell for cell in cells if cell not in declared]
+    assert len(present) == 433 - 75 and len(set(present)) == 235 == block["n_distinct"]
+    days = _days_of(present)
+    body = days[block["low_tail"]["rows"]: len(days) - block["high_tail"]["rows"]]
+    forms = {census: dict(block[census] or {}) for census in calendar_rules.FORM_CENSUSES}
+    settings = taxonomy.Settings(small_cell_floor=11, declared_missing_values=declared)
+    holes = calendar_rules.public_holes(
+        forms, block["format"], body[0], body[-1], (), taxonomy.published_absent(block, settings)
+    )
+    assert holes == tuple(sorted(_day_number(day) for day in declared))
+    assert calendar_rules.form_holes(forms, block["format"], body[0], body[-1]) == ()
+    assert not calendar_rules.may_only_published(forms, block["format"])
+    assert block["weekday_census"] == []
+    decided = _decided(block, present, holes=declared)
+    assert decided.reason == calendar_rules.REASON_ROOM, decided.reason
+    said = [entry["note"] for entry in described.document["publication_notes"] if entry["column"] == "seen_on"]
+    assert any("and why is not said" in sentence for sentence in said), said
+    assert kpi_shapes.missed(kpi_shapes.measure(described, text, "real.csv")) == []
+    with monkeypatch.context() as roomy:
+        roomy.setattr(calendar_rules, "room_short", lambda *_arguments: False)
+        unruled = _described_with_declared(tmp_path / "unruled", "declared_room", text, declared)
+        assert calendar_rules.entry_of(_groups(unruled.block("seen_on"))) == calendar_rules.ENTRY_SEVEN
+        missed = kpi_shapes.missed(kpi_shapes.measure(unruled, kpi_shapes.twin_text(unruled, 0), "unruled-0.csv"))
+    assert "seen_on:distinct.n_distinct" in missed, missed
 
 
 # THE PLACEHOLDER HOLES (second review of landing 3b.1, finding 2): a

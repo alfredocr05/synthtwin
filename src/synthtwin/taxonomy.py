@@ -15843,8 +15843,9 @@ def weekday_decision(
     a published absent spelling names, `published_absent`), no menu
     entry, too few different dates for the twin to keep the count of
     different values (`calendar_rules.few_dates`), too little room
-    between the holes of a column the month-name census holds to May
-    (`calendar_rules.room_short`), and last the
+    between the published holes other than width holes -- May's holes,
+    placeholder days and declared days (`calendar_rules.room_short`) --
+    and last the
     loader's own check (`calendar_rules.shape_breach`), so the producer
     never writes what the loader refuses. Since plan P4-D365 no rule
     here asks what a reader could work out from the census: the
@@ -15925,12 +15926,18 @@ def weekday_decision(
         return withheld(calendar_rules.REASON_MENU)
     if calendar_rules.few_dates(groups, list(body)):
         return withheld(calendar_rules.REASON_FEW_DATES, entry)
-    # THE ROOM RULE ONLY BESIDE MONTH-NAME HOLES (review of landing 3b.G,
-    # item 3): the measured misses were all columns of May dates; width
-    # holes, placeholder days and declared days never needed it.
-    if calendar_rules.may_only_published(forms, format_name) and calendar_rules.room_short(
-        groups, list(body), holes
-    ):
+    # THE ROOM RULE BESIDE EVERY PUBLISHED HOLE BUT A WIDTH HOLE (second
+    # review of landing 3b.G, item 1): May's holes, placeholder days and
+    # declared days. No column between width holes was measured to miss
+    # with the rule off (the first review, item 3); a column with a date
+    # on every day but its declared missing days was, its twin holding
+    # 234 different days for 235. A twin must pass its own checks, so
+    # its census stays withheld, as at 668f276, until the shared count
+    # steps can keep both the census and the count of different days.
+    beside = calendar_rules.may_only_published(forms, format_name) or bool(
+        set(holes) - set(calendar_rules.form_holes(forms, format_name, low, high))
+    )
+    if beside and calendar_rules.room_short(groups, list(body), holes):
         return withheld(calendar_rules.REASON_ROOM, entry)
     if calendar_rules.shape_breach(groups, len(body), line, one_spelling):
         return withheld(calendar_rules.REASON_NARROWED, entry)

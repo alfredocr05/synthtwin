@@ -428,8 +428,9 @@ def may_only_published(forms: "dict[str, dict[str, int]]", format_name: str) -> 
     published month-name word has the length `either`
     (`parsing.name_is_value_bound`) is written by names of May alone, so
     every day outside May is a hole. The producer asks it alone too:
-    the room rule (`room_short`) is asked only where these holes stand
-    (review of landing 3b.G, item 3).
+    the room rule (`room_short`) is asked beside these holes, and beside
+    placeholder and declared holes, but never beside width holes alone
+    (reviews of landing 3b.G).
 
     Guarantees: accepts the five censuses by name and the parser family;
     returns the answer. Determinism: a function of the two. Raises
@@ -1049,9 +1050,10 @@ def room_short(
 ) -> bool:
     """Whether the published holes leave a group too little room (plan P4-D365).
 
-    THE PRODUCER'S ROOM RULE, asked only where the month-name census
-    holds every cell to May (`may_only_published`), with every hole the
-    description publishes between the body's first and last day
+    THE PRODUCER'S ROOM RULE, asked where the month-name census holds
+    every cell to May (`may_only_published`) or a placeholder or declared
+    day is a hole, and never beside width holes alone, with every hole
+    the description publishes between the body's first and last day
     (`public_holes`). A group's FREE days are its weekdays' days from the
     first to the last that are no hole and hold no date of the body. True
     where a non-empty group has NO free day and holds a date of ONE row:
@@ -1063,8 +1065,12 @@ def room_short(
     one of May dates written `17 May 2023` that filled every open day and
     held one-row dates (every day of three Mays: 83 for 93). Columns of
     days past the ninth written `m/d/yyyy` met it in every run, so the
-    rule is not asked of width holes, placeholder days or declared days,
-    and their censuses keep their weekday statistics. Counted, not
+    rule is not asked of width holes alone, and their censuses keep
+    their weekday statistics. Its second review measured the declared
+    days: a column with a date on every day of 240 but five declared
+    missing came back 234 different days for 235 with the rule off, so
+    it is asked beside placeholder and declared days, and a twin passes
+    its own checks there. Counted, not
     walked: each weekday's days by arithmetic, then the holes and the
     dates one by one.
 
