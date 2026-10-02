@@ -2433,12 +2433,22 @@ def workbook_holds_too_many_cells(path: str, limit: int) -> str:
     rows. Capping the cells read is what bounds the work whatever the
     ratio, so this refusal exists beside the size ones rather than
     instead of them.
+
+    SAVING AS DELIMITED TEXT IS THE ROUTE PAST IT, and the message said
+    to delete rows (plan P4-D382). A table of more than a million cells
+    is an ordinary table -- the owner's run past a million rows -- and
+    deleting rows hands synthtwin a different table. A delimited file
+    has no cell cap, so the message names that route first, and the
+    trimming only for a sheet whose stray cells are not the table's.
     """
     return (
         f"The sheet in {path} holds more than {limit} cells, which is "
-        f"more than synthtwin will read at once. Please open the "
-        f"workbook, keep the rows and columns your table needs, save it "
-        f"again, and run the command again."
+        f"more than synthtwin will read from a workbook. If your table "
+        f"really is that large, save the sheet holding it as a .csv file "
+        f"(comma-separated text) and describe that file instead: "
+        f"synthtwin reads a .csv file of any size. If the sheet holds "
+        f"cells that are not part of your table, open the workbook, "
+        f"delete them, save it again, and run the command again."
     )
 
 
@@ -2572,15 +2582,23 @@ def workbook_table_spans_too_many_cells(path: str, limit: int) -> str:
     the last cell of a table is a cell of it whether the sheet stores it
     or not. So the rectangle is measured before a single column is
     built.
+
+    AND A TABLE THAT REALLY IS THAT LARGE IS TOLD ITS ROUTE (plan
+    P4-D382): the message spoke only of a stray value, and a table of a
+    million rows holds none -- saving it as delimited text, which has no
+    cell cap, is what lets it be described.
     """
     return (
         f"The table on a sheet of {path} stretches across more than "
         f"{limit} cells from its first row and column to its last, and "
         f"every place in between becomes a cell of the table even where "
         f"the sheet leaves it empty. That is more than synthtwin will "
-        f"read at once. Please open the workbook, delete any stray value "
-        f"far below or to the right of your table, save it again, and "
-        f"run the command again."
+        f"read from a workbook. If a stray value stands far below or to "
+        f"the right of your table, open the workbook, delete it, save it "
+        f"again, and run the command again. If your table really is that "
+        f"large, save the sheet holding it as a .csv file "
+        f"(comma-separated text) and describe that file instead: "
+        f"synthtwin reads a .csv file of any size."
     )
 
 
@@ -2657,20 +2675,42 @@ def workbook_column_mixes_number_formats(path: str, column: str) -> str:
     somebody typed -- a unit, a label, a department's name -- so the
     refusal names the column and says what to do, and never what the
     column's cells are dressed in.
+
+    TWO DATE, DATE-AND-TIME OR CLOCK CODES NO LONGER REACH IT (plan
+    P4-D382), and the sentence gives its two shapes as examples rather
+    than as the whole list: two codes of plain numbers or of lengths of
+    time can differ in other ways -- leading zeros, grouping -- and a
+    date column refused here was told it differed in decimal places.
     """
     return (
         f"The column '{_shown(column)}' of {path} holds cells wearing "
-        f"more than one number format of the same kind -- some shown "
-        f"with a different number of decimal places, or as percentages "
-        f"beside plain numbers. A description carries one number format "
-        f"for a column, so a twin would put one of them on every cell, "
-        f"and the values you read off the two files would not match. "
-        f"Please open the workbook, give every cell of that column one "
-        f"number format, save it again, and run the command again."
+        f"more than one number format of the same kind -- for example "
+        f"some shown with a different number of decimal places, or as "
+        f"percentages beside plain numbers. A description carries one "
+        f"number format for a column, so a twin would put one of them on "
+        f"every cell, and the values you read off the two files would not "
+        f"match. Please open the workbook, give every cell of that column "
+        f"one number format, save it again, and run the command again."
     )
 
 
-def workbook_column_mixes_storage(path: str, column: str, mixed: str) -> str:
+# WHAT EACH KIND OF NUMBER FORMAT SHOWS A NUMBER AS, in the words the
+# storage refusal names a column's mix with (plan P4-D382). The kinds
+# are synthtwin's own six words (`dialect.SHEET_FORMAT_KINDS`), so no
+# code a person wrote reaches the message.
+_SHOWN_AS = {
+    "plain": "plain numbers",
+    "date": "dates",
+    "datetime": "dates with a time of day",
+    "time": "times of day",
+    "elapsed": "lengths of time",
+    "text": "text",
+}
+
+
+def workbook_column_mixes_storage(
+    path: str, column: str, mixed: str, kinds: "tuple[str, ...]" = ()
+) -> str:
     """Message for a column whose numbers wear two kinds of number format.
 
     WHY THIS IS A REFUSAL (review item 6 of the files review, plan
@@ -2681,15 +2721,31 @@ def workbook_column_mixes_storage(path: str, column: str, mixed: str) -> str:
     name, rather than twinned wrong. ``mixed`` names the mix, and
     `MIXED_FORMATS` is the one left: numbers stored as text are read since
     plan P4-D187.
+
+    ``kinds`` are the kinds the column's numbers wear, and the message
+    names them (plan P4-D382): it said "some shown as dates or times and
+    others not" of every mix, which was false of a column of dates beside
+    dates with a time -- a mix that is now read, not refused -- and is
+    false of dates beside times of day, which still is. Left empty, the
+    message speaks of the mix it names most often.
     """
     if mixed != MIXED_FORMATS:
         raise ValueError("internal check: an unknown kind of mixed column")
+    words: "list[str]" = []
+    for kind in kinds:
+        if kind in _SHOWN_AS:
+            words += [_SHOWN_AS[kind]]
+    if len(words) < 2:
+        words = [_SHOWN_AS["date"], _SHOWN_AS["plain"]]
+    shown = f"some shown as {words[0]}"
+    for word in words[1 : len(words) - 1]:
+        shown = f"{shown}, some as {word}"
+    shown = f"{shown} and others as {words[len(words) - 1]}"
     return (
         f"The column '{_shown(column)}' of {path} holds numbers wearing more "
-        f"than one kind of number format -- some shown as dates or times and "
-        f"others not. A twin cannot keep which values were stored which way, "
-        f"so code that picks out one kind would get different answers on the "
-        f"twin and on your table. Please open the workbook, give every cell "
-        f"of that column one number format, save it again, and run the "
-        f"command again."
+        f"than one kind of number format -- {shown}. A twin cannot keep "
+        f"which values were stored which way, so code that picks out one "
+        f"kind would get different answers on the twin and on your table. "
+        f"Please open the workbook, give every cell of that column one "
+        f"number format, save it again, and run the command again."
     )

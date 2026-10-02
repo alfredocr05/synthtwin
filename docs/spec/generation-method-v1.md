@@ -391,6 +391,29 @@ census guard, 59 day counts of the study's titled book at a floor of
 eleven turned into `t="d"` cells and the twin missed
 `workbook.value-class`.
 
+**AND A DATE THE CENSUS STORES AS TEXT KEEPS ITS DATE** (plan P4-D382).
+Where that first allocation is not trusted, step 1 is run over the
+cells as converted, and a cell this step converted that step 1 does not
+make a `number` gets back the date it came with, so a date the source
+stored as text is written as text in its own spelling. Measured before:
+950 dates stored as day counts beside 50 the source stored as ISO text
+came back with 50 text cells holding day counts such as `45369`, and
+the twin missed its numeric counts at exit 3.
+
+**Step 0b — a clock is written back as the fraction of a day it was read
+as** (plan P4-D382). The reader hands the column machinery a column
+whose every value cell is a number wearing a time format, each at a
+whole second under one day, as its clocks, `HH:MM` where every one
+stands at second nought and `HH:MM:SS` otherwise (contract 4.3b). Where
+a column publishes a positive `time` FORMAT-KIND count, or a
+`format_code` of that kind, and does not store its dates as ISO text
+(step 0's question), each cell holding a clock of either spelling —
+24-hour, every field two figures — is replaced by its seconds over the
+86,400 of a day, midnight as `0` and any other clock as the shortest
+spelling of its double; step 1 is then run over the cells as converted,
+and a converted cell step 1 does not make a `number` gets back the clock
+it came with. A cell holding anything else is left as it came.
+
 **Step 0a — a column stored as dates is written as dates** (plan
 P4-D291). Step 1 hands the `date` class only to a cell that names a day
 of the calendar, and that narrowing on its own would write a column the
@@ -13068,7 +13091,7 @@ that happens -- and the clause beside it, `--missing-value`'s "CAN be
 published as the column's smallest value", is exactly right under the
 new rule.
 
-**All one hundred and forty-five are required.** The count is taken off the committed
+**All one hundred and forty-six are required.** The count is taken off the committed
 case sets and not carried forward: this sentence said fifty-two and a
 split of nine, twenty, sixteen and seven while the six files held
 seventy-three, because each repair that added a case added a clause to
@@ -13081,7 +13104,7 @@ named mark it wrote (TM1). The first file,
 second, `tests/reference/generation-branch-vectors.json`, holds
 nineteen; the third, `tests/reference/generation-branch-vectors-2.json`,
 holds sixteen; the fourth,
-`tests/reference/generation-document-vectors.json`, holds nine; the
+`tests/reference/generation-document-vectors.json`, holds ten; the
 fifth, `tests/reference/generation-branch-vectors-3.json`, holds seven;
 the sixth, `tests/reference/generation-branch-vectors-4.json`, holds
 eleven; the seventh, `tests/reference/generation-branch-vectors-5.json`,
@@ -13301,6 +13324,7 @@ case passed, which is the failure the count exists to prevent:
 | `workbook_as_written` | G2.2 steps 1 and 3 as part 2 of the carried items left them (plans P4-D187 and P4-D189): twenty-two figures of which eleven are stored as text, the count of numbers spread over the cells it fits so the text cells do not stand in the last rows; numbers wearing `00000` and moments wearing `yyyy-mm-dd hh:mm`, codes of the format language's own tokens written as the source wrote them, the moments' kind read off the code. It carries TWO mutants, one for each rule |
 | `workbook_classes_by_spelling` | G2.2 as the files review left it (plan P4-D164 to P4-D171), at a floor of eleven: eleven `#N/A` errors between eleven labels, one of them `TRUE`, handed only to the cells they fit; a column of digit strings with one empty cell whose whole census is withheld, kept TEXT by its published commonest class; ISO dates written back as date cells and wearing the date kind of their published code where the format census is withheld; a column named `Unnamed: 3` given no header cell; a column name holding a carriage return written `&#13;`; and sheets published `Data`, withheld and `sheet2`, so the withheld one's placeholder walks past `Sheet2`. It carries FIVE mutants, one for each rule |
 | `workbook_made_up_dates` | G2.2 step 0a and the calendar step 1 asks of the `date` class (plan P4-D291), at a floor of eleven: a column whose census is withheld whole and whose commonest class is `date`, sixteen of whose twenty-two cells wear the ISO shape and name no day, each field brought to the nearest value the calendar allows and the six that DO name a day unmoved; the same asked of a clock, and of a day that moves under one; and a column the description does not store as dates, whose made-up cells the calendar keeps off the `date` class and which are written as shared text. It carries TWO mutants, one for each half of the rule |
+| `workbook_typed_clocks` | G2.2 steps 0 and 0b as plan P4-D382 left them: twenty-two clocks the reader spelled `HH:MM`, eleven of them stored as text, written back as fractions of a day on the eleven cells the census stores as numbers and as their clocks on the other eleven, under a locale-tagged time code written as published; twenty-two clocks at the second, the first at midnight and written `0`, every one stored as a number; and twenty-two dates, eleven of them stored as text, which keep their dates where every date was once a day count. It carries THREE mutants, one for each rule, and `workbook_as_written`'s third mutant now withdraws both rules that keep a date's storage, because withdrawing either alone moves no byte of that case |
 | `workbook_sheet` | G2.2 end to end, every part of the package as TEXT: the class of each cell taken from the census and never from the twin's characters, a column of digit strings published as TEXT staying text, the alignment that makes records holding nothing exist at all, a built-in format code beside a canonical one written as a custom format, the table's sheet second of three so the first is hidden, a withheld sheet name written neutrally, and a shared-string table filled in the order the sheets are written |
 
 Each case is small enough to read by hand — at most a few dozen cells —

@@ -4827,8 +4827,39 @@ def _carriage_return_written_raw(text):
     return out
 
 
+def _every_date_converted(column, own, epoch_1904, stored=()):
+    """G2.2 step 0 as it stood before plan P4-D284: every date converted.
+
+    The rule both plans P4-D284 and P4-D382 replaced, in one: no cell
+    the census stores as a date keeps its ISO text, and no cell the
+    census stores as text keeps the date it came with -- each becomes a
+    day count, whatever class the census then hands it.
+    """
+    wants = any(
+        gen.sheet_wanted(column["format_kinds"], kind) > 0
+        for kind in ("date", "datetime")
+    ) or gen.sheet_code_kind(column["format_code"]) in ("date", "datetime")
+    out = []
+    dated = []
+    for text in own:
+        serial = gen.sheet_day_count(text, epoch_1904) if wants and text else ""
+        out += [serial or text]
+        dated += [gen.sheet_date_kind(text) if serial else ""]
+    return out, dated
+
+
+def _clock_fraction_by_the_minute(text):
+    """G2.2 step 0b withdrawn in part: a clock stored to its minute."""
+    found = _SHIPPED_CLOCK_FRACTION(text)
+    if not found or found == "0":
+        return found
+    seconds = round(float(found) * 86400)
+    return "0" if seconds < 60 else repr((seconds // 60) * 60 / 86400)
+
+
 _SHIPPED_CELL_CLASSES = gen.sheet_cell_classes
 _SHIPPED_FORMAT_KINDS = gen.sheet_format_kinds
+_SHIPPED_CLOCK_FRACTION = gen.sheet_clock_fraction
 # The reading of G9.2 this file held until plan P4-D234: the whole word
 # counted over the alphabet, with the band's leading rule applied by
 # substitution afterwards. It is the registered mutant of
@@ -4861,6 +4892,7 @@ DOCUMENT_CASES = (
     "workbook_classes_by_spelling",
     "workbook_made_up_dates",
     "workbook_sheet",
+    "workbook_typed_clocks",
     "written_form_classes",
     "written_form_lines",
 )
@@ -4899,6 +4931,9 @@ DOCUMENT_BINDINGS = {
         "tests/test_generation_reference.py::"
         "test_the_workbook_twin_is_the_package_the_method_requires",
     "workbook_sheet":
+        "tests/test_generation_reference.py::"
+        "test_the_workbook_twin_is_the_package_the_method_requires",
+    "workbook_typed_clocks":
         "tests/test_generation_reference.py::"
         "test_the_workbook_twin_is_the_package_the_method_requires",
     "written_form_classes":
@@ -5137,6 +5172,7 @@ def test_the_workbook_twin_is_the_package_the_method_requires(
         "workbook_classes_by_spelling",
         "workbook_as_written",
         "workbook_made_up_dates",
+        "workbook_typed_clocks",
     ):
         _package_matches(_document_case(name), tmp_path / name)
 
@@ -5284,9 +5320,44 @@ DOCUMENT_MUTANTS = {
             "number becomes a day count (plan P4-D284); the mutant "
             "converts every date, as the rule it replaced did, and the "
             "fourth column's twenty-two `t=\"d\"` cells are written as "
-            "text holding day counts instead",
-            attribute="sheet_stores_dates",
-            replacement=lambda column: False,
+            "text holding day counts instead. Since plan P4-D382 the "
+            "step-0 rule that a date the census does not store as a "
+            "number keeps its date holds the same cells up on its own, so "
+            "withdrawing one of the two moved no byte: the mutant "
+            "withdraws both, which is the rule they replaced",
+            attribute="sheet_dates_as_day_counts",
+            replacement=_every_date_converted,
+            outcome=CHANGES_THE_CELLS,
+        ),
+    ),
+    "workbook_typed_clocks": (
+        Mutant(
+            branch="G2.2 step 0b's rule that a clock the reader took out "
+            "of a time cell is written back as the fraction of a day it "
+            "was read as (plan P4-D382); the mutant writes every clock as "
+            "text, which every reader then hands back as text, and the "
+            "first two columns' thirty-three number cells are written as "
+            "shared strings instead",
+            attribute="sheet_clocks_as_day_fractions",
+            replacement=lambda column, own: list(own),
+            outcome=CHANGES_THE_CELLS,
+        ),
+        Mutant(
+            branch="G2.2 step 0b's rule that a clock keeps its stored "
+            "seconds (plan P4-D382); the mutant stores each clock to its "
+            "minute, and the second column's clocks lose the seconds "
+            "they stood at",
+            attribute="sheet_clock_fraction",
+            replacement=_clock_fraction_by_the_minute,
+            outcome=CHANGES_THE_CELLS,
+        ),
+        Mutant(
+            branch="G2.2 step 0's rule that a date the census stores as "
+            "TEXT keeps the date it came with (plan P4-D382); the mutant "
+            "converts every date, and the third column's eleven text "
+            "cells are written holding day counts",
+            attribute="sheet_dates_as_day_counts",
+            replacement=_every_date_converted,
             outcome=CHANGES_THE_CELLS,
         ),
     ),

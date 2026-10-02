@@ -29,6 +29,15 @@ Three things the measurement of this landing settled, each pinned below:
   before the classes are allocated keeps both: the twin opens and it
   meets its own description at exit 0.
 
+SINCE PLAN P4-D382 THIS BOOK'S COLUMN READS AS DATES. A column a
+workbook stores mostly as dates is now read as dates beside its few
+text cells, so the 118 dates and two texts here come back as real dates
+and never reach the made-up cells this file is about. Every run below
+therefore withdraws that one reading (`_without_the_stored_reading`),
+which keeps the book on the path P4-D291 measured: a column of dates
+stored as dates whose role publishes none of them. The new reading of
+this same shape is held by `tests/test_p4d382_typed_workbook_cells.py`.
+
 Every workbook here is built by neutral code at runtime (plan D13).
 """
 
@@ -42,7 +51,7 @@ import zipfile
 
 import pytest
 
-from synthtwin import dialect, sheetwriting
+from synthtwin import dialect, sheetwriting, workbook
 from tests import crosscheck, workbooks
 
 # The shipped rule, held before any test puts a withdrawn one in its
@@ -185,8 +194,18 @@ def _values_a_reader_sees(twin: pathlib.Path) -> "list[object]":
     ]
 
 
-def _run(folder: pathlib.Path, floor: str) -> "tuple[list[str], pathlib.Path]":
+def _without_the_stored_reading(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Withdraw plan P4-D382's reading of a column stored mostly as dates."""
+    monkeypatch.setattr(
+        workbook, "stored_as_dates", lambda texts, classes, codes: False
+    )
+
+
+def _run(
+    folder: pathlib.Path, floor: str, monkeypatch: pytest.MonkeyPatch
+) -> "tuple[list[str], pathlib.Path]":
     """Describe, generate and validate; hand back the date cells written and the twin."""
+    _without_the_stored_reading(monkeypatch)
     table = folder / "table.xlsx"
     table.write_bytes(_dated_book())
     assert _quiet(
@@ -211,7 +230,7 @@ def _run(folder: pathlib.Path, floor: str) -> "tuple[list[str], pathlib.Path]":
 
 @pytest.mark.parametrize("floor", (_FLOOR_ELEVEN, _FLOOR_TWO))
 def test_a_date_column_gives_a_twin_a_reader_opens(
-    floor: str, tmp_path: pathlib.Path
+    floor: str, tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """The defect, at the floor that withholds the census and at one that does not.
 
@@ -223,7 +242,7 @@ def test_a_date_column_gives_a_twin_a_reader_opens(
     withholding -- so publishing the census would have bought nothing
     and cost the disclosure rule.
     """
-    written, twin = _run(tmp_path, floor)
+    written, twin = _run(tmp_path, floor, monkeypatch)
     assert len(written) == 118, len(written)
     assert [one for one in written if not dialect.sheet_date_is_real(one)] == []
     # LAST: the independent reader, which is what the defect was about.
@@ -234,7 +253,7 @@ def test_a_date_column_gives_a_twin_a_reader_opens(
 
 
 def test_the_shape_the_description_publishes_does_not_move(
-    tmp_path: pathlib.Path,
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """What the repair may change, and what it may not.
 
@@ -244,7 +263,7 @@ def test_the_shape_the_description_publishes_does_not_move(
     ten characters long, four figures, a hyphen, two figures, a hyphen
     and two figures. That is why the twin still meets its description.
     """
-    written, _twin = _run(tmp_path, _FLOOR_ELEVEN)
+    written, _twin = _run(tmp_path, _FLOOR_ELEVEN, monkeypatch)
     for one in written:
         assert len(one) == 10, one
         assert one[4] == "-" and one[7] == "-", one
@@ -374,6 +393,7 @@ def test_the_writer_never_marks_a_cell_a_date_it_cannot_carry(
     reader can open is never acceptable, so this rule is stated in two
     places on purpose.
     """
+    _without_the_stored_reading(monkeypatch)
     monkeypatch.setattr(dialect, "sheet_date_on_the_calendar", lambda text: text)
     monkeypatch.setattr(
         dialect,

@@ -3749,10 +3749,30 @@ def build_document(
         # (landing 3b.1): a column whose dates are stored partly as dates
         # and partly as text is read back differently cell by cell.
         stored_one_way = True
+        # ...AND WHETHER IT STORES MOST OF THEM AS DATES, OR EVERY ONE AS
+        # A CLOCK (plan P4-D382): the first lets the dates be read beside
+        # a few text cells, the second keeps the clocks from a list of
+        # labels the twin could not write back. The validator describes
+        # a checked workbook through this same line, so a twin is read
+        # the way its source was.
+        stored_as = ""
         if table.sheet is not None and position - 1 < len(table.sheet.classes):
             stored_one_way = calendar_rules.stored_one_way(
                 table.sheet.classes[position - 1]
             )
+            if position - 1 < len(table.sheet.formats):
+                if workbook.stored_as_dates(
+                    cells,
+                    table.sheet.classes[position - 1],
+                    table.sheet.formats[position - 1],
+                ):
+                    stored_as = taxonomy.STORED_AS_DATES
+                elif workbook.stored_as_clocks(
+                    cells,
+                    table.sheet.classes[position - 1],
+                    table.sheet.formats[position - 1],
+                ):
+                    stored_as = taxonomy.STORED_AS_CLOCKS
         described = taxonomy.profile_column(
             name,
             position,
@@ -3769,6 +3789,7 @@ def build_document(
             handed_over,
             calendar_censuses,
             stored_one_way,
+            stored_as,
         )
         columns += [_column_block(described)]
         absent_spellings += [described.absent_spellings]

@@ -2035,7 +2035,8 @@ def _read_workbook_table(
             if mixed is not None:
                 raise errors.ProfileError(
                     errors.workbook_column_mixes_storage(
-                        shown, found.column_names[mixed[0]], mixed[1]
+                        shown, found.column_names[mixed[0]], mixed[1],
+                        mixed[2],
                     )
                 )
             # ...AND THE MIX ONE LEVEL DOWN (plan P4-D283): two number

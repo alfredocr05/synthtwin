@@ -1,5 +1,5 @@
 {
-  "case_set": "The 9 cases method section G14.3 adds for the transforms that produce a WHOLE DOCUMENT rather than one column's cells (landing 2b.17): the written form of a delimited file (G2), the arrangement of its rows (G2.1), the twin of a workbook (G2.2, written at that landing because the method had stated none of the writer's rules), the shape a line before the table is published as together with the mark a twin may write for it (contract FD11, plan P4-D83), and the reading that settles which delimiter a file is written with (review item CODEX-5). Every one of those rules reached the twin's bytes with NO second implementation at all, which landings 2b.9, 2b.10 and 2b.11 each recorded and none could close. These cases carry no words and no word budget, because none of these transforms draws a word; what they carry is the description's own dialect or workbook block, which is the input each of them really takes. They are computed by the same oracle and the same proof layer as the three files beside them -- tests/reference/generation-reference-vectors.json, tests/reference/generation-branch-vectors.json and tests/reference/generation-branch-vectors-2.json -- and live in a fourth file because the third holds 245567 bytes against the provenance manifest's byte cap, which leaves room for no case of any size. The cases the repair of the final Codex review of the number censuses added are a fifth file, tests/reference/generation-branch-vectors-3.json, for the same reason. The cases the reconciliation of the separation walk, the fills of a saturated grid and a column's published levels, and the census of marks at a thousand added are a sixth file, tests/reference/generation-branch-vectors-4.json, for the same reason. The cases the final pass over the close of stage 2 added are a seventh file, tests/reference/generation-branch-vectors-5.json, for the same reason. The seven cases the extra review round of 2026-09-18 added are an eighth file, tests/reference/generation-branch-vectors-6.json, for the same reason. The six cases of the carried numbers pass of 2026-09-18 and its repair pass are a ninth file, tests/reference/generation-branch-vectors-7.json, for the same reason. Stage 3's two tail landings are two more files, for the same reason again: a tenth, tests/reference/generation-branch-vectors-8.json, holding the four cases the date and clock tails grew past the room their own files had and two of the numeric rule's five, and an eleventh, tests/reference/generation-branch-vectors-9.json, holding the numeric rule's other three. The repair of the oracle's derived end in stage 3's review opened a twelfth, tests/reference/generation-branch-vectors-10.json, and a thirteenth, tests/reference/generation-branch-vectors-11.json, for the same reason. A census of marks that is only a pool (plan P4-D352) opened a fourteenth, tests/reference/generation-branch-vectors-12.json, for the same reason. The weekday census of a column of dates (plan P4-D355) opened a fifteenth, tests/reference/generation-branch-vectors-13.json, for the same reason.",
+  "case_set": "The 10 cases method section G14.3 adds for the transforms that produce a WHOLE DOCUMENT rather than one column's cells (landing 2b.17): the written form of a delimited file (G2), the arrangement of its rows (G2.1), the twin of a workbook (G2.2, written at that landing because the method had stated none of the writer's rules), the shape a line before the table is published as together with the mark a twin may write for it (contract FD11, plan P4-D83), and the reading that settles which delimiter a file is written with (review item CODEX-5). Every one of those rules reached the twin's bytes with NO second implementation at all, which landings 2b.9, 2b.10 and 2b.11 each recorded and none could close. These cases carry no words and no word budget, because none of these transforms draws a word; what they carry is the description's own dialect or workbook block, which is the input each of them really takes. They are computed by the same oracle and the same proof layer as the three files beside them -- tests/reference/generation-reference-vectors.json, tests/reference/generation-branch-vectors.json and tests/reference/generation-branch-vectors-2.json -- and live in a fourth file because the third holds 245567 bytes against the provenance manifest's byte cap, which leaves room for no case of any size. The cases the repair of the final Codex review of the number censuses added are a fifth file, tests/reference/generation-branch-vectors-3.json, for the same reason. The cases the reconciliation of the separation walk, the fills of a saturated grid and a column's published levels, and the census of marks at a thousand added are a sixth file, tests/reference/generation-branch-vectors-4.json, for the same reason. The cases the final pass over the close of stage 2 added are a seventh file, tests/reference/generation-branch-vectors-5.json, for the same reason. The seven cases the extra review round of 2026-09-18 added are an eighth file, tests/reference/generation-branch-vectors-6.json, for the same reason. The six cases of the carried numbers pass of 2026-09-18 and its repair pass are a ninth file, tests/reference/generation-branch-vectors-7.json, for the same reason. Stage 3's two tail landings are two more files, for the same reason again: a tenth, tests/reference/generation-branch-vectors-8.json, holding the four cases the date and clock tails grew past the room their own files had and two of the numeric rule's five, and an eleventh, tests/reference/generation-branch-vectors-9.json, holding the numeric rule's other three. The repair of the oracle's derived end in stage 3's review opened a twelfth, tests/reference/generation-branch-vectors-10.json, and a thirteenth, tests/reference/generation-branch-vectors-11.json, for the same reason. A census of marks that is only a pool (plan P4-D352) opened a fourteenth, tests/reference/generation-branch-vectors-12.json, for the same reason. The weekday census of a column of dates (plan P4-D355) opened a fifteenth, tests/reference/generation-branch-vectors-13.json, for the same reason.",
   "cases": {
     "delimiter_reading": {
       "delimiter": ";",
@@ -1275,6 +1275,205 @@
         "sheet_position": 2,
         "trailing_blank_columns": 1,
         "trailing_blank_rows": 1
+      },
+      "write_header": true
+    },
+    "workbook_typed_clocks": {
+      "cells": [
+        [
+          "00:00",
+          "07:13",
+          "14:26",
+          "21:39",
+          "04:52",
+          "11:05",
+          "18:18",
+          "01:31",
+          "08:44",
+          "15:57",
+          "22:10",
+          "05:23",
+          "12:36",
+          "19:49",
+          "02:02",
+          "09:15",
+          "16:28",
+          "23:41",
+          "06:54",
+          "13:07",
+          "20:20",
+          "03:33"
+        ],
+        [
+          "00:00:00",
+          "05:11:29",
+          "10:22:58",
+          "15:33:27",
+          "20:44:56",
+          "01:55:25",
+          "06:06:54",
+          "11:17:23",
+          "16:28:52",
+          "21:39:21",
+          "02:50:50",
+          "07:01:19",
+          "12:12:48",
+          "17:23:17",
+          "22:34:46",
+          "03:45:15",
+          "08:56:44",
+          "13:07:13",
+          "18:18:42",
+          "23:29:11",
+          "04:40:40",
+          "09:51:09"
+        ],
+        [
+          "2026-05-01",
+          "2026-05-02",
+          "2026-05-03",
+          "2026-05-04",
+          "2026-05-05",
+          "2026-05-06",
+          "2026-05-07",
+          "2026-05-08",
+          "2026-05-09",
+          "2026-05-10",
+          "2026-05-11",
+          "2026-05-12",
+          "2026-05-13",
+          "2026-05-14",
+          "2026-05-15",
+          "2026-05-16",
+          "2026-05-17",
+          "2026-05-18",
+          "2026-05-19",
+          "2026-05-20",
+          "2026-05-21",
+          "2026-05-22"
+        ]
+      ],
+      "kind": "workbook",
+      "members": [
+        "[Content_Types].xml",
+        "_rels/.rels",
+        "docProps/app.xml",
+        "docProps/core.xml",
+        "xl/workbook.xml",
+        "xl/_rels/workbook.xml.rels",
+        "xl/styles.xml",
+        "xl/sharedStrings.xml",
+        "xl/worksheets/sheet1.xml"
+      ],
+      "n_rows": 22,
+      "names": [
+        "taken_at",
+        "timed_at",
+        "seen_on"
+      ],
+      "parts": {
+        "[Content_Types].xml": "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><Types xmlns=\"http://schemas.openxmlformats.org/package/2006/content-types\"><Default Extension=\"rels\" ContentType=\"application/vnd.openxmlformats-package.relationships+xml\"/><Default Extension=\"xml\" ContentType=\"application/xml\"/><Override PartName=\"/xl/workbook.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml\"/><Override PartName=\"/xl/worksheets/sheet1.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml\"/><Override PartName=\"/xl/styles.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml\"/><Override PartName=\"/xl/sharedStrings.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.sharedStrings+xml\"/><Override PartName=\"/docProps/core.xml\" ContentType=\"application/vnd.openxmlformats-package.core-properties+xml\"/><Override PartName=\"/docProps/app.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.extended-properties+xml\"/></Types>",
+        "_rels/.rels": "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\"><Relationship Id=\"rId1\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument\" Target=\"xl/workbook.xml\"/><Relationship Id=\"rId2\" Type=\"http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties\" Target=\"docProps/core.xml\"/><Relationship Id=\"rId3\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties\" Target=\"docProps/app.xml\"/></Relationships>",
+        "docProps/app.xml": "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><Properties xmlns=\"http://schemas.openxmlformats.org/officeDocument/2006/extended-properties\"><Application>synthtwin</Application><Company></Company></Properties>",
+        "docProps/core.xml": "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><cp:coreProperties xmlns:cp=\"http://schemas.openxmlformats.org/package/2006/metadata/core-properties\" xmlns:dc=\"http://purl.org/dc/elements/1.1/\" xmlns:dcterms=\"http://purl.org/dc/terms/\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"><dc:title></dc:title><dc:subject></dc:subject><dc:creator></dc:creator><cp:lastModifiedBy></cp:lastModifiedBy></cp:coreProperties>",
+        "xl/_rels/workbook.xml.rels": "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\"><Relationship Id=\"rId1\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet\" Target=\"worksheets/sheet1.xml\"/><Relationship Id=\"rId2\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles\" Target=\"styles.xml\"/><Relationship Id=\"rId3\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/sharedStrings\" Target=\"sharedStrings.xml\"/></Relationships>",
+        "xl/sharedStrings.xml": "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><sst xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\" count=\"26\" uniqueCount=\"26\"><si><t></t></si><si><t>taken_at</t></si><si><t>timed_at</t></si><si><t>seen_on</t></si><si><t>00:00</t></si><si><t>2026-05-01</t></si><si><t>14:26</t></si><si><t>2026-05-03</t></si><si><t>04:52</t></si><si><t>2026-05-05</t></si><si><t>18:18</t></si><si><t>2026-05-07</t></si><si><t>08:44</t></si><si><t>2026-05-09</t></si><si><t>22:10</t></si><si><t>2026-05-11</t></si><si><t>12:36</t></si><si><t>2026-05-13</t></si><si><t>02:02</t></si><si><t>2026-05-15</t></si><si><t>16:28</t></si><si><t>2026-05-17</t></si><si><t>06:54</t></si><si><t>2026-05-19</t></si><si><t>20:20</t></si><si><t>2026-05-21</t></si></sst>",
+        "xl/styles.xml": "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><styleSheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\"><numFmts count=\"2\"><numFmt numFmtId=\"164\" formatCode=\"[$-409]h:mm AM/PM;@\"/><numFmt numFmtId=\"165\" formatCode=\"m/d/yyyy\"/></numFmts><fonts count=\"2\"><font><sz val=\"11\"/><name val=\"Calibri\"/></font><font><b/><sz val=\"11\"/><name val=\"Calibri\"/></font></fonts><fills count=\"2\"><fill><patternFill patternType=\"none\"/></fill><fill><patternFill patternType=\"gray125\"/></fill></fills><borders count=\"1\"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count=\"1\"><xf numFmtId=\"0\" fontId=\"0\" fillId=\"0\" borderId=\"0\"/></cellStyleXfs><cellXfs count=\"6\"><xf numFmtId=\"0\" fontId=\"0\" fillId=\"0\" borderId=\"0\" xfId=\"0\" applyNumberFormat=\"1\"/><xf numFmtId=\"49\" fontId=\"0\" fillId=\"0\" borderId=\"0\" xfId=\"0\" applyNumberFormat=\"1\"/><xf numFmtId=\"164\" fontId=\"0\" fillId=\"0\" borderId=\"0\" xfId=\"0\" applyNumberFormat=\"1\"/><xf numFmtId=\"21\" fontId=\"0\" fillId=\"0\" borderId=\"0\" xfId=\"0\" applyNumberFormat=\"1\"/><xf numFmtId=\"165\" fontId=\"0\" fillId=\"0\" borderId=\"0\" xfId=\"0\" applyNumberFormat=\"1\"/><xf numFmtId=\"0\" fontId=\"1\" fillId=\"0\" borderId=\"0\" xfId=\"0\" applyFont=\"1\"/></cellXfs><cellStyles count=\"1\"><cellStyle name=\"Normal\" xfId=\"0\" builtinId=\"0\"/></cellStyles></styleSheet>",
+        "xl/workbook.xml": "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><workbook xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\"><sheets><sheet name=\"Data\" sheetId=\"1\" r:id=\"rId1\"/></sheets></workbook>",
+        "xl/worksheets/sheet1.xml": "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><worksheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\"><dimension ref=\"A1:C23\"/><sheetViews><sheetView workbookViewId=\"0\"><pane ySplit=\"1\" topLeftCell=\"A2\" activePane=\"bottomLeft\" state=\"frozen\"/></sheetView></sheetViews><sheetFormatPr/><sheetData><row r=\"1\"><c r=\"A1\" t=\"s\" s=\"5\"><v>1</v></c><c r=\"B1\" t=\"s\" s=\"5\"><v>2</v></c><c r=\"C1\" t=\"s\" s=\"5\"><v>3</v></c></row><row r=\"2\"><c r=\"A2\" t=\"s\" s=\"1\"><v>4</v></c><c r=\"B2\" s=\"3\"><v>0</v></c><c r=\"C2\" t=\"s\" s=\"1\"><v>5</v></c></row><row r=\"3\"><c r=\"A3\" s=\"2\"><v>0.30069444444444443</v></c><c r=\"B3\" s=\"3\"><v>0.21630787037037036</v></c><c r=\"C3\" s=\"4\"><v>46144</v></c></row><row r=\"4\"><c r=\"A4\" t=\"s\" s=\"1\"><v>6</v></c><c r=\"B4\" s=\"3\"><v>0.4326157407407407</v></c><c r=\"C4\" t=\"s\" s=\"1\"><v>7</v></c></row><row r=\"5\"><c r=\"A5\" s=\"2\"><v>0.9020833333333333</v></c><c r=\"B5\" s=\"3\"><v>0.6482291666666666</v></c><c r=\"C5\" s=\"4\"><v>46146</v></c></row><row r=\"6\"><c r=\"A6\" t=\"s\" s=\"1\"><v>8</v></c><c r=\"B6\" s=\"3\"><v>0.864537037037037</v></c><c r=\"C6\" t=\"s\" s=\"1\"><v>9</v></c></row><row r=\"7\"><c r=\"A7\" s=\"2\"><v>0.4618055555555556</v></c><c r=\"B7\" s=\"3\"><v>0.08015046296296297</v></c><c r=\"C7\" s=\"4\"><v>46148</v></c></row><row r=\"8\"><c r=\"A8\" t=\"s\" s=\"1\"><v>10</v></c><c r=\"B8\" s=\"3\"><v>0.2547916666666667</v></c><c r=\"C8\" t=\"s\" s=\"1\"><v>11</v></c></row><row r=\"9\"><c r=\"A9\" s=\"2\"><v>0.06319444444444444</v></c><c r=\"B9\" s=\"3\"><v>0.4704050925925926</v></c><c r=\"C9\" s=\"4\"><v>46150</v></c></row><row r=\"10\"><c r=\"A10\" t=\"s\" s=\"1\"><v>12</v></c><c r=\"B10\" s=\"3\"><v>0.6867129629629629</v></c><c r=\"C10\" t=\"s\" s=\"1\"><v>13</v></c></row><row r=\"11\"><c r=\"A11\" s=\"2\"><v>0.6645833333333333</v></c><c r=\"B11\" s=\"3\"><v>0.9023263888888889</v></c><c r=\"C11\" s=\"4\"><v>46152</v></c></row><row r=\"12\"><c r=\"A12\" t=\"s\" s=\"1\"><v>14</v></c><c r=\"B12\" s=\"3\"><v>0.11863425925925926</v></c><c r=\"C12\" t=\"s\" s=\"1\"><v>15</v></c></row><row r=\"13\"><c r=\"A13\" s=\"2\"><v>0.22430555555555556</v></c><c r=\"B13\" s=\"3\"><v>0.29258101851851853</v></c><c r=\"C13\" s=\"4\"><v>46154</v></c></row><row r=\"14\"><c r=\"A14\" t=\"s\" s=\"1\"><v>16</v></c><c r=\"B14\" s=\"3\"><v>0.5088888888888888</v></c><c r=\"C14\" t=\"s\" s=\"1\"><v>17</v></c></row><row r=\"15\"><c r=\"A15\" s=\"2\"><v>0.8256944444444444</v></c><c r=\"B15\" s=\"3\"><v>0.7245023148148149</v></c><c r=\"C15\" s=\"4\"><v>46156</v></c></row><row r=\"16\"><c r=\"A16\" t=\"s\" s=\"1\"><v>18</v></c><c r=\"B16\" s=\"3\"><v>0.9408101851851852</v></c><c r=\"C16\" t=\"s\" s=\"1\"><v>19</v></c></row><row r=\"17\"><c r=\"A17\" s=\"2\"><v>0.3854166666666667</v></c><c r=\"B17\" s=\"3\"><v>0.1564236111111111</v></c><c r=\"C17\" s=\"4\"><v>46158</v></c></row><row r=\"18\"><c r=\"A18\" t=\"s\" s=\"1\"><v>20</v></c><c r=\"B18\" s=\"3\"><v>0.3727314814814815</v></c><c r=\"C18\" t=\"s\" s=\"1\"><v>21</v></c></row><row r=\"19\"><c r=\"A19\" s=\"2\"><v>0.9868055555555556</v></c><c r=\"B19\" s=\"3\"><v>0.5466782407407408</v></c><c r=\"C19\" s=\"4\"><v>46160</v></c></row><row r=\"20\"><c r=\"A20\" t=\"s\" s=\"1\"><v>22</v></c><c r=\"B20\" s=\"3\"><v>0.7629861111111111</v></c><c r=\"C20\" t=\"s\" s=\"1\"><v>23</v></c></row><row r=\"21\"><c r=\"A21\" s=\"2\"><v>0.5465277777777777</v></c><c r=\"B21\" s=\"3\"><v>0.9785995370370371</v></c><c r=\"C21\" s=\"4\"><v>46162</v></c></row><row r=\"22\"><c r=\"A22\" t=\"s\" s=\"1\"><v>24</v></c><c r=\"B22\" s=\"3\"><v>0.19490740740740742</v></c><c r=\"C22\" t=\"s\" s=\"1\"><v>25</v></c></row><row r=\"23\"><c r=\"A23\" s=\"2\"><v>0.14791666666666667</v></c><c r=\"B23\" s=\"3\"><v>0.41052083333333333</v></c><c r=\"C23\" s=\"4\"><v>46164</v></c></row></sheetData></worksheet>"
+      },
+      "why": "method section G2.2 steps 0 and 0b as plan P4-D382 left them, in one table of three columns and twenty-two rows. A workbook stores a clock as the fraction of a day it stands at, and the reader spells a column of them `HH:MM` or `HH:MM:SS`; step 0b writes each clock back as that fraction, the shortest spelling of its double and midnight as `0`, ON THE CELLS THE CENSUS STORES AS NUMBERS: the first column's census stores eleven of its twenty-two clocks as text, and those keep the clock they came with. The first column also wears a locale-tagged time code, which the description publishes as the source wrote it, so the styles part carries it as a custom format. The second column's clocks stand at the second, the first at midnight, and its census stores every one as a number. The third column's dates are the same rule for step 0: eleven of its twenty-two are stored as text, and where every date was converted those eleven text cells held day counts; they keep the date they came with. It carries THREE mutants, one for each rule.",
+      "workbook": {
+        "autofilter": false,
+        "columns": [
+          {
+            "cell_classes": {
+              "absent": 0,
+              "blank": 0,
+              "boolean": 0,
+              "date": 0,
+              "empty": 0,
+              "error": 0,
+              "number": 11,
+              "text": 11
+            },
+            "format_code": "[$-409]h:mm AM/PM;@",
+            "format_kinds": {
+              "date": 0,
+              "datetime": 0,
+              "elapsed": 0,
+              "plain": 0,
+              "text": 11,
+              "time": 11
+            },
+            "formulas": null,
+            "value_class": "number"
+          },
+          {
+            "cell_classes": {
+              "absent": 0,
+              "blank": 0,
+              "boolean": 0,
+              "date": 0,
+              "empty": 0,
+              "error": 0,
+              "number": 22,
+              "text": 0
+            },
+            "format_code": "h:mm:ss",
+            "format_kinds": {
+              "date": 0,
+              "datetime": 0,
+              "elapsed": 0,
+              "plain": 0,
+              "text": 0,
+              "time": 22
+            },
+            "formulas": null,
+            "value_class": "number"
+          },
+          {
+            "cell_classes": {
+              "absent": 0,
+              "blank": 0,
+              "boolean": 0,
+              "date": 0,
+              "empty": 0,
+              "error": 0,
+              "number": 11,
+              "text": 11
+            },
+            "format_code": "m/d/yyyy",
+            "format_kinds": {
+              "date": 11,
+              "datetime": 0,
+              "elapsed": 0,
+              "plain": 0,
+              "text": 11,
+              "time": 0
+            },
+            "formulas": null,
+            "value_class": "number"
+          }
+        ],
+        "date_system": "1900",
+        "defined_names": 0,
+        "defined_table": false,
+        "empty_rows_inside": null,
+        "frozen_rows": 1,
+        "macro_project": false,
+        "rows_above_header": 0,
+        "sheet_count": 1,
+        "sheet_extents": [
+          null
+        ],
+        "sheet_hidden": false,
+        "sheet_names": [
+          "Data"
+        ],
+        "sheet_position": 1,
+        "trailing_blank_columns": 0,
+        "trailing_blank_rows": 0
       },
       "write_header": true
     },

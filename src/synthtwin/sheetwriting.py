@@ -1455,6 +1455,17 @@ def _dates_as_day_counts(
     eleven: 59 of the twin's date cells changed from `<v>45343</v>` to
     `t="d"` holding `2024-02-21`, and the twin missed
     `workbook.value-class`.
+
+    A DATE THE CENSUS STORES AS TEXT KEEPS ITS TEXT (plan P4-D382). On a
+    column stored as day counts -- ``stored`` empty -- every date was
+    converted, and the census then handed its TEXT count to cells that
+    already held a day count, so a column of stored dates beside dates
+    typed in as ISO text came back with text cells holding `45369`:
+    measured on 950 stored dates and 50 such text cells, the twin missed
+    its numeric counts and `validate` exited 3. The census is now
+    allocated over the converted cells (`cell_classes`), and a cell it
+    does not store as a number gets its date back, in the spelling the
+    twin wrote it -- the rule the clocks follow (`_clocks_as_day_fractions`).
     """
     wants_dates = False
     for kind in (dialect.SHEET_FORMAT_DATE, dialect.SHEET_FORMAT_DATETIME):
@@ -1483,7 +1494,63 @@ def _dates_as_day_counts(
             continue
         out += [serial]
         dated += [dialect.sheet_moment_kind(text)]
+    if wants_dates and not stored:
+        classes = cell_classes(
+            column.cell_classes, tuple(out), column.value_class
+        )
+        for index in range(len(out)):
+            if dated[index] and classes[index] != dialect.SHEET_CELL_NUMBER:
+                out[index] = own[index]
+                dated[index] = ""
     return tuple(out), tuple(dated)
+
+
+def _clocks_as_day_fractions(
+    column: "contract.WorkbookColumn", own: "tuple[str, ...]"
+) -> "tuple[str, ...]":
+    """A column's clocks written back as the fractions of a day a workbook stores.
+
+    THE OTHER HALF OF READING A TIME CELL AS ITS CLOCK (plan P4-D382;
+    `dialect.sheet_serial_second`). The reader hands the column
+    machinery `14:05` for a time-format number at that clock, so the
+    generator writes clocks; a workbook stores the fraction of a day,
+    and a clock written as TEXT reads back as text in every reader.
+    Where the description publishes a time format for this column --
+    a count of time-format cells above nought, or a time code -- each
+    cell holding the reader's own spelling of a clock is written as its
+    fraction (`dialect.sheet_clock_serial`) ON THE CELLS THE CENSUS
+    STORES AS NUMBERS, and every other cell keeps the text it came
+    with: the census is allocated over the fractions (`cell_classes`)
+    and a cell it does not make a number gets its clock back, so a
+    clock the source stored as text is still text. A column storing
+    dates as ISO text (`_stores_dates`) is returned exactly as it came,
+    because a clock stored that way is ISO text too (plan P4-D168).
+
+    Guarantees: accepts one column's published workbook block and its
+    cells; returns as many cells. Determinism: a fixed function of the
+    two. Raises nothing. No I/O of any kind.
+    """
+    wants = _wanted(column.format_kinds, dialect.SHEET_FORMAT_TIME) > 0
+    if dialect.sheet_format_kind(column.format_code) == (
+        dialect.SHEET_FORMAT_TIME
+    ):
+        wants = True
+    if not wants or _stores_dates(column):
+        return own
+    converted: "list[str]" = []
+    for text in own:
+        serial = dialect.sheet_clock_serial(text) if text else ""
+        converted += [serial if serial else text]
+    stored = cell_classes(
+        column.cell_classes, tuple(converted), column.value_class
+    )
+    out: "list[str]" = []
+    for index in range(len(own)):
+        if stored[index] == dialect.SHEET_CELL_NUMBER:
+            out += [converted[index]]
+            continue
+        out += [own[index]]
+    return tuple(out)
 
 
 def _members(
@@ -1535,6 +1602,7 @@ def _members(
         own, dated = _dates_as_day_counts(
             column, written, epoch_1904, held if stores_dates else (),
         )
+        own = _clocks_as_day_fractions(column, own)
         cells += [own]
         dates += [dated]
         classes += [
