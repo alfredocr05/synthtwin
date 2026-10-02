@@ -21617,6 +21617,13 @@ def _census_reading(
             forced_decimal_comma=forced_decimal_comma,
         ),
     )
+    # THE CENSUS KEEPS NO REMEMBERED ROLE (plan P4-D385): its reading is
+    # handed over as a new tally (`profile_column`), so what this one was
+    # decided as is never asked again. Measured on a table whose first
+    # column is 2,871 dates: 215,709 bytes held after every column.
+    remembered = fresh.reading.cells.decided
+    for question in list(remembered):
+        del remembered[question]
     if held:
         return fresh, held
     return fresh, (fresh,)

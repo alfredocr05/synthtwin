@@ -218,8 +218,10 @@ def test_the_searches_give_what_the_whole_order_gave(
     Each search steps over a pair whose shape was offered, so handing it
     the old list IS the old search. The twin's bytes and its report are
     required equal, over free-text columns and declared record numbers
-    -- the fold repair's own battery among them, whose second tier walks
-    every pair. The search draws nothing, so one seed asks it all.
+    -- the fold repair's own battery among them. That repair's second
+    tier works each pair out from its step and is not handed this list,
+    so the patch does not reach it: the order test above holds that tier
+    to the old order. The search draws nothing, so one seed asks it all.
     """
     reached = {"text": 0, "identifier": 0}
     for step, (values, floor, declared) in enumerate(_shape_battery()):
@@ -946,3 +948,50 @@ def test_the_memory_goes_with_its_column(monkeypatch: pytest.MonkeyPatch) -> Non
     gc.collect()
     assert tallies, "no role was decided"
     assert all(ref() is None for ref in tallies), "a tally outlived its column"
+
+
+def test_the_census_keeps_no_remembered_role() -> None:
+    """The reading the census keeps holds no verdict until the description ends.
+
+    `profile_column` is handed that reading as a new tally, which starts
+    with nothing remembered, so what the census's own tally was decided
+    as is never read again. Kept, it was measured at about 75 bytes a
+    row of a date column, held after every column.
+    """
+    values = [f"2023-{1 + i % 12:02d}-{1 + i % 28:02d}" for i in range(400)] + ["9999-12-31"] * 5
+    kept, _held = taxonomy._census_reading(
+        values, taxonomy.Settings(), False, False, False, False, ()
+    )
+    assert kept.reading.cells.decided == {}
+
+
+def test_every_argument_of_the_ladder_is_part_of_the_question() -> None:
+    """Each argument `_decide` takes keys the memory, so no stale role is handed back.
+
+    One tally is asked the plain question and then each argument
+    changed alone, with the identifier declared and not: every answer
+    is the ladder's own, and every question is remembered apart.
+    """
+    ladder = list(inspect.signature(taxonomy._decide).parameters)
+    assert ladder == list(inspect.signature(taxonomy._decision).parameters)
+    values = ["ward 1"] * 40 + ["ward 2"] * 35 + ["14"] * 30 + ["9"] * 25
+    tally = taxonomy._tally(taxonomy._classify_all(values), len(values), taxonomy.Settings())
+    flips: "dict[str, object]" = {
+        "removed": 1,
+        "after_removal": True,
+        "after_days": True,
+        "after_levels": True,
+        "forced_code": True,
+        "forced_measurement": True,
+        "probing": True,
+        "described_as_pair": True,
+    }
+    assert sorted(flips) == sorted(ladder[2:])
+    asked = 0
+    for forced in (False, True):
+        for name in [""] + sorted(flips):
+            named = {name: flips[name]} if name else {}
+            verdict = taxonomy._decision(tally, forced, **named)  # type: ignore[arg-type]
+            asked += 1
+            assert verdict == taxonomy._decide(tally, forced, **named)  # type: ignore[arg-type]
+            assert len(tally.decided) == asked, (forced, name)
