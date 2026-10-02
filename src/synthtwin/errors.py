@@ -1626,7 +1626,10 @@ def profile_version_is_older(found: int, reads: int) -> str:
     value" the person named -- and what to do, which is to describe the
     table again UNDER THE SAME OPTIONS.
 
-    IT NAMES THIRTEEN OPTIONS. `--metadata-rows` (plan P4-D81) and
+    IT NAMES FOURTEEN OPTIONS. `--twelve-hour` joined with landing T1
+    (plan P4-D370): left out, the hour from twelve o'clock is read as
+    noon, and the published times move. Before it named thirteen.
+    `--metadata-rows` (plan P4-D81) and
     `--sheet` (plan P4-D77) reached the command line without reaching
     this sentence, and the test that derives the owed set from the
     shipped parser was red for both; landing 2b.17's repair pass added
@@ -1728,7 +1731,8 @@ def profile_version_is_older(found: int, reads: int) -> str:
         f"table, giving it every option you gave the first time: "
         f"--keep-value, --missing-value, --identifier, --code, "
         f"--measurement, --decimal-comma, --smallest-group, --first-row, "
-        f"--day-first, --metadata-rows, --sheet, --delimiter and "
+        f"--day-first, --twelve-hour, --metadata-rows, --sheet, "
+        f"--delimiter and "
         f"--answers. "
         f"Every one of them changes what the "
         f"description PUBLISHES about your table, so any option you "
@@ -1749,7 +1753,12 @@ def profile_version_is_older(found: int, reads: int) -> str:
         f"with slashes, with dots, or with a two-figure year \u2014 can "
         f"be read the other way round, which changes "
         f"the dates the description publishes and can leave the column "
-        f"described as text instead; without the --metadata-rows you "
+        f"described as text instead; without the --twelve-hour you "
+        f"gave, a column of times written on a 12-hour clock with no "
+        f"AM or PM is read as a 24-hour clock, so the hour from twelve "
+        f"o'clock is read as noon instead of the hour after midnight, "
+        f"which changes the times the description publishes; without "
+        f"the --metadata-rows you "
         f"gave, the rows under your column names that describe your "
         f"columns are read as records of your table, so their text is "
         f"counted and described as data and every count is two rows "
@@ -1762,7 +1771,8 @@ def profile_version_is_older(found: int, reads: int) -> str:
         f"describes; and without the --answers you "
         f"gave, every answer you wrote in the questions file is gone \u2014 "
         f"each of them was a --code, an --identifier, a --measurement, "
-        f"a --decimal-comma, a --metadata-rows or a --delimiter, "
+        f"a --decimal-comma, a --metadata-rows, a --delimiter, a "
+        f"--twelve-hour or a --day-first, "
         f"so leaving the file out costs whichever of those you had "
         f"given, and this same sentence says what each one costs. If "
         f"you do not hold the table "

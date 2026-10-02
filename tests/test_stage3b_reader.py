@@ -439,7 +439,7 @@ def test_the_twelve_hour_question_is_asked_and_its_answer_honoured(
     assert asked[0]["read_as_now"] == "keep"
     asked[0]["your_answer"] = "twelve-hour"
     answers = tmp_path / "answers.json"
-    answers.write_text(json.dumps(questions), encoding="utf-8")
+    answers.write_text(json.dumps(questions), encoding="utf-8", newline="\n")
     block, profile, _questions = _described(tmp_path / "answered", cells, "--answers", str(answers))
     described = json.loads(profile.read_text(encoding="utf-8"))
     assert described["settings"]["forced_twelve_hour_clocks"] == ["seen_at"]
@@ -475,7 +475,7 @@ def test_day_and_month_no_value_can_settle_are_asked(tmp_path: pathlib.Path) -> 
     assert len(about) == 1
     about[0]["your_answer"] = "day-first"
     answers = tmp_path / "answers.json"
-    answers.write_text(json.dumps(questions), encoding="utf-8")
+    answers.write_text(json.dumps(questions), encoding="utf-8", newline="\n")
     block, profile, _questions = _described(tmp_path / "answered", cells, "--answers", str(answers))
     assert block["format"] == "day-first-datetime"
     assert json.loads(profile.read_text(encoding="utf-8"))["settings"]["day_first"] is True

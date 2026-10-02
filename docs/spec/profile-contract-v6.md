@@ -1203,7 +1203,7 @@ there.
 
 ### 4.4 `settings`
 
-An object with exactly these twenty-three keys. Its whole subtree is
+An object with exactly these twenty-four keys. Its whole subtree is
 LOADER-ONLY: nothing in it is an output obligation, and the generator
 reads it only to interpret floor-governed facts elsewhere in the
 document.
@@ -1240,11 +1240,12 @@ claim.
 | `sentinel_outlier_iqr_multiple` | number | ≥ 0.0 | how many interquartile ranges beyond the quartiles of the column's other numbers a stand-in candidate must lie to count as an outlier |
 | `small_cell_floor` | integer | ≥ 1 | the disclosure floor: the smallest number of rows a group may cover and still be NAMED anywhere in this description |
 
-**C6-20 (membership).** All TWENTY-THREE keys are REQUIRED. No other key
-may appear under `settings`; a loader refuses one that does, naming
-it. A block of twenty-two keys or of twenty-four — one of the
-twenty-three skipped, or a key of somebody's own added — is a document
-this contract does not describe. (It said TWENTY while section 4.4
+**C6-20 (membership).** All TWENTY-FOUR keys are REQUIRED (landing T1
+added `forced_twelve_hour_clocks`). No other key may appear under
+`settings`; a loader refuses one that does, naming it. A block of
+twenty-three keys or of twenty-five — one of the twenty-four skipped, or
+a key of somebody's own added — is a document this contract does not
+describe. (It said TWENTY while section 4.4
 said twenty-one and the producer wrote twenty-one, from the landing
 that added `forced_metadata_rows` until landing 2b.17's repair pass
 added `forced_delimiter` and corrected all three counts together; the
@@ -11732,7 +11733,7 @@ a document, so no document can violate it.
 | S12 | `relationships` has exactly the eight reserved keys, no ninth, every value exactly `null` | yes |
 | S13 | at `small_cell_floor` 1 every field carrying what the floor held back is empty or zero, over 4.4's closed list; on each of the eight maps that list names the `(withheld)` ENTRY goes, never the map -- save the six censuses plans P4-D220 and P4-D221 took off it (owner rulings of 2026-09-17), whose pools stand at any floor and, since plan P4-D222, only alone. Checked before any column block is read | yes |
 | S14 | each declaration record has exactly five keys | yes |
-| C6-20 | `settings` has exactly its twenty-three keys; twenty-two or twenty-four is a document this contract does not describe | yes |
+| C6-20 | `settings` has exactly its twenty-four keys; twenty-three or twenty-five is a document this contract does not describe | yes |
 | S8b | every name under `settings.person_columns` is also under `settings.forced_identifiers` | yes |
 | C6-53 | a column block's key set is exactly the twenty-two universal keys plus the marked cells of its role's column in the forbidden-key matrix; every other key is FORBIDDEN, and refused by name | yes |
 
@@ -12247,7 +12248,7 @@ find one".
 | `n_rows` (document) | EXACT-OBSERVABLE | the twin has this many data rows |
 | `n_columns` | EXACT-OBSERVABLE | the twin has this many columns |
 | `profile_version` | LOADER-ONLY | the integer 6 |
-| `settings` | LOADER-ONLY | whole subtree: all twenty-three keys, `day_first`, `long_tail_minimum_level` and `person_columns` among them, and both declaration records with all five of their keys — `built_in_dates` included. The count said seventeen from the landing that wrote this row until plan P4-D340, while 4.4, C6-20 and 14.3 moved together three times without it |
+| `settings` | LOADER-ONLY | whole subtree: all twenty-four keys, `day_first`, `long_tail_minimum_level` and `person_columns` among them, and both declaration records with all five of their keys — `built_in_dates` included. The count said seventeen from the landing that wrote this row until plan P4-D340, while 4.4, C6-20 and 14.3 moved together three times without it |
 | `created_with` | LOADER-ONLY | |
 | `publication_notes` | LOADER-ONLY | whole subtree |
 | `relationships` | LOADER-ONLY | whole subtree; eight `null` slots |
@@ -13119,35 +13120,39 @@ version 5 document reads "version 5":
 > giving it every option you gave the first time: --keep-value,
 > --missing-value, --identifier, --code, --measurement,
 > --decimal-comma, --smallest-group, --first-row, --day-first,
-> --metadata-rows, --sheet, --delimiter and --answers. Every one of
-> them changes what the description PUBLISHES about your table, so any
-> option you leave out can put something into the new description that
-> the old one held back: without the --smallest-group you gave, a
-> value that fewer rows share can be named; without the --identifier
-> you gave, a column of record numbers is described like any other
-> column; without the --code you gave, a column of codes is described
-> as measurements, so its values are described by a ladder and by the
-> two groups beyond it, and an end a group of rows shares — which is a
-> real code — is published; its twin loses any leading zeros; without
-> the --measurement you gave, a column of readings written as two
-> numbers in one cell, such as a blood pressure, is described as text
-> and its twin holds no readings at all; without the --decimal-comma
-> you gave, a column whose numbers are written with a comma where the
-> decimal point goes is read by the ordinary rules, so a column of
-> quantities is described as text and every number in it is lost, or a
-> value such as 1,234 is published as one thousand two hundred and
-> thirty-four; without the --missing-value you gave, a stand-in is
-> read as a real reading, and the stand-in itself can be published as
-> the column's smallest value; without the --keep-value you gave, a
-> word you had counted as an ordinary value becomes a gap, which can
-> change what kind of column synthtwin sees and publish both that word
-> and the column's own numbers; without the --first-row you gave, the
-> first line of your file is read as the column names and published as
-> them; and without the --day-first you gave, a date whose day and
-> month are both written as numbers — with slashes, with dots, or with
-> a two-figure year — can be read the other way round, which changes
-> the dates the description publishes and can leave the column
-> described as text instead; without the --metadata-rows you gave, the
+> --twelve-hour, --metadata-rows, --sheet, --delimiter and --answers.
+> Every one of them changes what the description PUBLISHES about your
+> table, so any option you leave out can put something into the new
+> description that the old one held back: without the --smallest-group
+> you gave, a value that fewer rows share can be named; without the
+> --identifier you gave, a column of record numbers is described like
+> any other column; without the --code you gave, a column of codes is
+> described as measurements, so its values are described by a ladder
+> and by the two groups beyond it, and an end a group of rows shares —
+> which is a real code — is published; its twin loses any leading
+> zeros; without the --measurement you gave, a column of readings
+> written as two numbers in one cell, such as a blood pressure, is
+> described as text and its twin holds no readings at all; without the
+> --decimal-comma you gave, a column whose numbers are written with a
+> comma where the decimal point goes is read by the ordinary rules, so
+> a column of quantities is described as text and every number in it
+> is lost, or a value such as 1,234 is published as one thousand two
+> hundred and thirty-four; without the --missing-value you gave, a
+> stand-in is read as a real reading, and the stand-in itself can be
+> published as the column's smallest value; without the --keep-value
+> you gave, a word you had counted as an ordinary value becomes a gap,
+> which can change what kind of column synthtwin sees and publish both
+> that word and the column's own numbers; without the --first-row you
+> gave, the first line of your file is read as the column names and
+> published as them; and without the --day-first you gave, a date
+> whose day and month are both written as numbers — with slashes, with
+> dots, or with a two-figure year — can be read the other way round,
+> which changes the dates the description publishes and can leave the
+> column described as text instead; without the --twelve-hour you
+> gave, a column of times written on a 12-hour clock with no AM or PM
+> is read as a 24-hour clock, so the hour from twelve o'clock is read
+> as noon instead of the hour after midnight, which changes the times
+> the description publishes; without the --metadata-rows you gave, the
 > rows under your column names that describe your columns are read as
 > records of your table, so their text is counted and described as
 > data and every count is two rows out; without the --sheet you gave,
@@ -13158,13 +13163,22 @@ version 5 document reads "version 5":
 > name the description publishes and every value it describes; and
 > without the --answers you gave, every answer you wrote in the
 > questions file is gone — each of them was a --code, an --identifier,
-> a --measurement, a --decimal-comma, a --metadata-rows or a
-> --delimiter, so leaving the file out costs whichever of those you
-> had given, and this same sentence says what each one costs. If you
-> do not hold the table yourself, ask whoever made this description to
-> run it again for you. Read the summary page synthtwin writes beside
-> the new description before either file goes anywhere, and use the
-> description exactly as synthtwin writes it.
+> a --measurement, a --decimal-comma, a --metadata-rows, a
+> --delimiter, a --twelve-hour or a --day-first, so leaving the file
+> out costs whichever of those you had given, and this same sentence
+> says what each one costs. If you do not hold the table yourself, ask
+> whoever made this description to run it again for you. Read the
+> summary page synthtwin writes beside the new description before
+> either file goes anywhere, and use the description exactly as
+> synthtwin writes it.
+
+**Why it names fourteen options and prices each.** `--twelve-hour`
+joined them with landing T1 (plan P4-D370): a re-run without it reads
+a 12-hour clock written with no AM or PM as a 24-hour clock, so the
+hour from twelve o'clock moves from the start of the day to its middle
+and the published times move with it. A questions file can now answer
+`--twelve-hour` and `--day-first` too, so the `--answers` clause names
+both.
 
 **Why it names thirteen options and prices each.** `--metadata-rows`
 (plan P4-D81) and `--sheet` (plan P4-D77) each reached the command
@@ -14240,14 +14254,14 @@ cells, defined in 6.11. Not reproduced here; a matrix is not a list.
 
 ### 14.3 Settings and declarations
 
-**`settings` keys — 23** (4.4), in the ascending code-point order every
+**`settings` keys — 24** (4.4), in the ascending code-point order every
 object of a canonical document takes: `categorical_ceiling`,
 `categorical_floor`, `categorical_share`, `day_first`,
 `declaration_matching`, `declaration_publication`,
 `declared_missing_values`, `forced_codes`, `forced_decimal_commas`,
 `forced_delimiter`, `forced_identifiers`,
 `forced_measurements`, `forced_metadata_rows`,
-`identifier_minimum_rows`, `identifier_uniqueness`, `kept_values`,
+`forced_twelve_hour_clocks`, `identifier_minimum_rows`, `identifier_uniqueness`, `kept_values`,
 `long_tail_minimum_level`, `minimum_parse_rate`,
 `near_threshold_slack`, `person_columns`, `sentinel_minimum_share`,
 `sentinel_outlier_iqr_multiple`, `small_cell_floor`.
