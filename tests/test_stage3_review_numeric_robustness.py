@@ -270,6 +270,12 @@ def test_an_overflowing_tail_distance_keeps_the_published_scale(
     tell apart, so the twin held 79 different numbers against a published
     90 and its check exited 3 on that count. With the high pair published
     the twin misses nothing.
+
+    AND THE REPORT GIVES THE RULE THAT STANDS (the repair round of plan
+    P4-D375). The low side's two distances are listed as not checkable,
+    and the reason printed for them says a pair is withheld only where
+    this file format cannot hold it; the rules plan P4-D375 withdrew are
+    named only as what a description written before it did.
     """
     block, written, twin_exit, real_exit = _run(
         tmp_path / "overflow", _huge_column(89)
@@ -300,6 +306,14 @@ def test_an_overflowing_tail_distance_keeps_the_published_scale(
     outcome = validation.measure(loaded, str(tmp_path / "overflow" / "real-twin.csv"))
     missed = sorted(check.subcheck for check in outcome.checks if check.verdict == validation.MISSED)
     assert missed == [] and twin_exit == 0, missed
+    reasons = sorted(
+        {listing.reason for listing in outcome.listings if listing.subcheck.startswith("tails.low.")}
+    )
+    assert len(reasons) == 1, reasons
+    stated, _, before = reasons[0].partition("(a description written before plan P4-D375 also")
+    assert "withheld only where this file format cannot hold them" in stated, reasons
+    for withdrawn in ("give back an outer cell", "by subtraction", "cost the column"):
+        assert withdrawn not in stated and withdrawn in before, (withdrawn, reasons)
 
 
 def test_a_moment_only_block_past_the_range_keeps_its_mean(

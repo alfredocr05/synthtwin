@@ -6669,8 +6669,10 @@ give back an outer cell or how many outer cells hold one value, it is
 published all the same: the integers 0 to 1100 once each publish eleven
 rows, a mean of 6 and a root-mean-square of root-46 a side, and eleven
 DIFFERENT whole distances summing to 66 can only be 1 to 11. What that
-gives back is a tail's own outer values -- never a row, never another
-column -- and ledger entries `K-S3-11` and `K-S3-18` count it. Plan
+gives back is a tail's own outer values -- never another column, and
+never a row except on a table sorted by that column, whose description
+publishes the order (`row_order`) -- and ledger entries `K-S3-11` and
+`K-S3-18` count it. Plan
 P4-D349 withheld such a pair and P4-D353 published it back only where
 withholding it cost the twin the column's mean or spread; withheld, a
 clock or timestamp tail at a raised floor came back at 0 to 0.78 of its

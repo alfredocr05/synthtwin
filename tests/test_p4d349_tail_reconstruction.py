@@ -44,7 +44,9 @@ out from the rule in the assertion that uses it.
 
 PLAN P4-D375 WITHDREW ITEM 1's ANSWER. Under the owner's principle of
 2026-10-01 a tail publishes its pair whatever a reader can work out from
-it -- a column's own values, never a row or another column -- so the four
+it -- a column's own values, never another column, and never a row
+except on a table sorted by that column, whose description publishes the
+order (`row_order`) -- so the four
 columns of item 1 publish both distances again and list nothing. Items 2
 to 4 stand. A description written before that plan still carries a tail
 publishing NEITHER distance, and the readers of one are held below on

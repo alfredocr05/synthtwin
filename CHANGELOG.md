@@ -11,11 +11,13 @@ exists).
 **No tail pair is withheld but one binary64 cannot hold** (plan P4-D375,
 under the owner's principle of P4-D363): the back-solve withholding, the
 cost rule and the other-side closure, and the widening walk are gone. A
-pair can give back a tail's own outer values, never a row or another
-column. A description written before still loads and says why a side is
+pair can give back a tail's own outer values, never another column, and
+never a row except on a table sorted by that column, whose description
+publishes the order (`row_order`). A description written before still loads and says why a side is
 silent. **A date or clock tail's end stands at least at the Bhatia-Davis
 reach of its pair** (method G7.3b step 5), which keeps the two end days
-that 105 dates over 21 days lost without it; two frozen cases hold it.
+that 105 dates over 21 days lost without it; three frozen cases hold it
+and the slack it gives up to binary64's rounding.
 Validating the twins of follow-up A's 37 shapes takes 143 s where it took
 549, and of 19 date and clock shapes 102 s where it took 2,104. No twin
 misses a check it met before but one joined pair's agreement

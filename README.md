@@ -144,8 +144,9 @@ consecutive whole numbers has eleven rows a side at eleven different
 whole distances summing to the least eleven different whole numbers can
 sum to, and that arithmetic has one answer -- because your twin needs
 them for its spread, and what they let a reader work out is a tail's
-own outer values, never a row and never another column (plan P4-D375,
-the owner's principle of 2026-10-01). **What a description names is not all a
+own outer values, never another column, and never a row except on a
+table sorted by that column, whose description publishes the order
+(`row_order`) (plan P4-D375, the owner's principle of 2026-10-01). **What a description names is not all a
 reader can work out from it.** On some shapes the rest of it -- the
 column's exact mean, spread, skew and kurtosis beside its steps, its
 count of different values, how many rows hold its commonest one and its

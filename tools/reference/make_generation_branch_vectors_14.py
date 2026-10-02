@@ -5,7 +5,9 @@ It asks `make_generation_reference_vectors.py` for the cases the end floor
 of a date or clock tail adds to method section G14.3 (plan P4-D375):
 G7.3b step 5's Bhatia-Davis reach, on 105 dates over 21 days
 (`tail_end_least_reach`) and on 105 months over 21 months
-(`tail_end_least_reach_months`).
+(`tail_end_least_reach_months`), and the slack it gives up to the
+rounding of the published pair, on 79 dates whose reach of exactly 4
+binary64 takes as 4.000000000000001 (`tail_end_least_reach_slack`).
 
 **Why it is a sixteenth file.**  Every branch file stands past plan
 P4-D295's 200000-byte line, so the next case opens a file of its own. No

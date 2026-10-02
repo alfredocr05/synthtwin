@@ -196,8 +196,10 @@ def test_the_tail_boundaries_are_canonical_and_ordered() -> None:
     days are CONSECUTIVE, so each tail's eleven cells stand one day apart
     and their distances from the boundary are 1 to 11: a mean of 6 and a
     root-mean-square of root-46, which give all twenty-two outer days back
-    to a reader -- a column's own values, never a row or another column,
-    and the owner's principle of 2026-10-01 publishes them for the twin.
+    to a reader -- a column's own values, never another column, and never
+    a row except on a table sorted by that column, whose description
+    publishes the order (`row_order`) -- and the owner's principle of
+    2026-10-01 publishes them for the twin.
     """
     days = [f"2024-01-{index + 1:02d}" for index in range(30)]
     described = describe(days)

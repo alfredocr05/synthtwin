@@ -383,7 +383,9 @@ Stated here so that no reader has to discover them independently:
   2026-10-01): where the rows, the two distances, the grid, the space's
   edges and the column's own remark that every value in it is different
   fix either, a reader can work out that tail's own outer values --
-  never a row, never another column. Only a pair this file format cannot
+  never another column, and never a row except on a table sorted by
+  that column, whose description publishes the order (`row_order`).
+  Only a pair this file format cannot
   hold is withheld. What a published pair lets a reader work out is
   measured and recorded rather than claimed away (`K-S3-11`,
   `K-S3-18`). An end at
