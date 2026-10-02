@@ -3741,11 +3741,13 @@ carried by a block publishing entry 3.
 census counts** — arity 1. Argument 1: the census line. A remark,
 carried beside NF68, NF69 or NF70 by every block publishing a census:
 the counts are of days of the week and never of one date, each group
-counted holding rows on at least three different dates (the producer's
-few-dates rule) and each count nought or at least the line. Reworded by
-plan P4-D365: it stated the full-fill certificate, retired with WC8.
+that holds rows holding them on at least three different dates (the
+producer's few-dates rule) and each count nought or at least the line.
+Reworded by plan P4-D365: it stated the full-fill certificate, retired
+with WC8; and by its review, item 4, which found it said the same of a
+group of nought.
 
-> these counts are of days of the week and never of one date: every group counted holds rows on at least three different dates, and every count is nought or at least «1» rows
+> these counts are of days of the week and never of one date: every group that holds rows holds them on at least three different dates, and every count is nought or at least «1» rows
 
 **NF74, NF76 and NF78 — why a column of dates publishes no weekday
 census**, one publication note per withholding (landing 3b.1, its review
@@ -6365,15 +6367,18 @@ never a reader rebuilding counts from a description) is what no twin
 can meet, decided on the table's own dates and so not checkable on
 load. A census is withheld where a non-empty group holds fewer than
 three different dates of the body, or where two or more groups are
-non-empty and they hold fewer than seven different dates each on
-average: there the day pass meets the census only by splitting a date's
-rows across dates, and the twin holds more different values than the
-column. And it is withheld where the description publishes a HOLE
-between the body's first and last day and a non-empty group has no free
-day -- every one of its days that is no hole holds a date -- while one
-of its dates holds a single row: a one-row date the day pass moves is
-left empty, and with no free day the twin holds fewer different values
-than the column. A FORM HOLE is a day no cell can be written on under
+non-empty and they hold fewer than seven and a half different dates
+each on average: there the day pass meets the census only by splitting
+a date's rows across dates, and the twin holds more different values
+than the column. And where the month-name census's one word has the
+length `either`, so every day outside May is a HOLE, it is withheld
+where a non-empty group has no free day between the body's first and
+last day -- every one of its days that is no hole holds a date -- while
+one of its dates holds a single row: a one-row date the day pass moves
+is left empty, and with no free day the twin holds fewer different
+values than the column. That rule is not asked beside width,
+placeholder or declared holes, where no twin was measured to miss
+(the review of P4-D365, items 1 and 3). A FORM HOLE is a day no cell can be written on under
 the forms WC6 lets stand: where the width census's one word shows one
 field alone (`first-field-*`, `second-field-*`), every day whose other
 field is below ten, and where the month-name census's one word has the

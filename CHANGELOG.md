@@ -14,15 +14,16 @@ certificate, its bands, its 20,000-arrangement cap, its ties refusal and
 the loader's WC5, WC7, WC8 and WC9 are gone with `calendar_certificate.py`;
 the loader holds a census to its shape alone (WC1 to WC4, WC6). The
 producer withholds a census where a group holds fewer than three
-different dates, or fewer than seven a group on average, and where a
-published hole leaves a group no free day for a one-row date. Over
-fifteen batteries (1,307 date columns, seeds 0 to 2): 813 censuses
-published become 1,124, no twin misses a check that 668f276's did not,
-the weekday-share error falls from 0.117 to 0.046 and describing takes
-105 s instead of 2,251. NF71 is reworded, NF73 retired; a moment the
+different dates, or fewer than seven and a half a group on average, and
+where May's holes leave a group no free day for a one-row date. Over
+nineteen batteries (1,717 date columns, seeds 0 to 4): 951 censuses
+published become 1,356, no twin misses a check that 668f276's did not,
+the weekday-share error falls from 0.103 to 0.046 and describing takes
+124 s instead of 1,365. NF71 is reworded, NF73 retired; a moment the
 date pass folds into the dates is counted where the census counted it,
-so the source meets its own census. `K-S3-32` is floor-only, `K-S3-33`
-retired, `K-S3-35` new, and `K-S3-39`, `K-2B-13` and `K-2B-48` hold.
+and one left unparsed is not, so the source meets its own census.
+`K-S3-32` is floor-only, `K-S3-33` retired, `K-S3-35` new, and
+`K-S3-39`, `K-2B-13` and `K-2B-48` hold.
 
 ### The base the rest of stage 3b builds on (2026-10-01)
 
