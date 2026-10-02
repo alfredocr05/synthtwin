@@ -30,13 +30,27 @@ red on its own mutant (named beside it):
   plan l.17955's carried case (a) validates at seeds 4, 0 and 1 (mutant:
   the step withdrawn);
 * R7 `test_r7_no_byte_moves` -- both golden descriptions, with the one
-  key this landing adds taken out, hash to their digests before it.
+  key this landing adds taken out, hash to their digests before it;
+* R8 the loader's own rules for what this landing publishes, one refused
+  description each: `test_r8_a_stamp_names_one_written_clock` (D12a; its
+  other half, a stamp word on ISO moments, is in the loader's battery),
+  `test_r8_clock_rungs_are_ordered_by_the_instant` (T3 by instant, red
+  when the rungs are compared as text) and
+  `test_r8_a_twelve_hour_declaration_names_columns_of_the_table` (S8, and
+  the list's own order);
+* R9 `test_r9_a_declared_twelve_hour_stamp_says_what_it_cannot_hold` --
+  P4-D370's stated limit, pinned: a stamp declared a 12-hour clock with no
+  AM or PM writes every cell in its table's own format, and its twin
+  report measures what it holds on the column's face and names each fact
+  it missed instead of saying the ladder is met (red when the report
+  reads the twin back on the 24-hour face).
 
 And the T1 design skeptic's items: the 12-hour question and its answer
 (item 1), the colon question kept (item 3), the day-first question
 (item 4), and an `h-mm` column said in minutes (item 8).
 """
 
+import copy
 import csv
 import hashlib
 import io
@@ -46,7 +60,7 @@ import sys
 
 import pytest
 
-from synthtwin import generation, parsing, taxonomy, validation
+from synthtwin import contract, errors, generation, parsing, taxonomy, validation
 from tests import clock_spellings as spellings
 from tests import fixtures
 
@@ -487,3 +501,149 @@ def test_a_minute_clock_is_said_in_minutes() -> None:
         word = "minute" if parsing.clock_step(form) == 60 else "second"
         assert validation._clock_units(form) == word, form
     assert parsing.clock_step("h-mm") == 60 and parsing.clock_step("h-mm-ss AM-PM") == 1
+
+
+# -- R8: the loader's own rules for what this landing publishes ----------
+
+
+def _refusal(folder: pathlib.Path, document: "dict[str, object]") -> str:
+    """The loader's refusal of one changed description, as a person reads it."""
+    written = fixtures.write_profile(folder, "changed-profile.json", document)
+    with pytest.raises(errors.ProfileError) as raised:
+        contract.load_profile(str(written))
+    return f"{raised.value}"
+
+
+def test_r8_a_stamp_names_one_written_clock(tmp_path: pathlib.Path) -> None:
+    """D12a: a slashed stamp writes its clock one way, so its census names one word."""
+    _block, profile, _questions = _described(tmp_path, spellings.cells("excel_us", ROWS))
+    document = json.loads(profile.read_text(encoding="utf-8"))
+    contract.load_profile(str(profile))
+    census = document["columns"][0]["datetime_separators"]
+    assert census == {"space h": ROWS}, census
+    changed = copy.deepcopy(document)
+    changed["columns"][0]["datetime_separators"] = {"space h": ROWS - 20, "space": 20}
+    assert contract.INVARIANTS["D12a"] in _refusal(tmp_path, changed)
+
+
+def _rungs(block: "dict[str, object]") -> "list[str]":
+    ladder = block["clock_percentiles"]
+    assert isinstance(ladder, dict)
+    return [f"{ladder[key]}" for key in sorted(ladder) if ladder[key] is not None]
+
+
+def test_r8_clock_rungs_are_ordered_by_the_instant(tmp_path: pathlib.Path) -> None:
+    """T3 compares instants: `9:45 AM` before `1:51 PM`, whatever the text says."""
+    block, profile, _questions = _described(tmp_path, spellings.cells("clock_twelve_hour", ROWS))
+    assert block["clock_form"] == "h-mm AM-PM"
+    ladder = block["clock_percentiles"]
+    assert isinstance(ladder, dict)
+    named = [key for key in ("p05", "p10", "p25", "p50", "p75", "p90", "p95") if ladder[key] is not None]
+    texts = [f"{ladder[key]}" for key in named]
+    # The producer's own ladder rises by the instant and not by the text...
+    assert texts != sorted(texts), texts
+    contract.load_profile(str(profile))
+    # ...and one rising by the text and falling by the instant is refused.
+    document = json.loads(profile.read_text(encoding="utf-8"))
+    changed = copy.deepcopy(document)
+    for place, key in enumerate(named):
+        changed["columns"][0]["clock_percentiles"][key] = "1:05 PM" if place == 0 else "11:00 AM"
+    assert contract.INVARIANTS["T3"] in _refusal(tmp_path, changed)
+
+
+def test_r8_red_when_rungs_are_compared_as_text(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _block, profile, _questions = _described(tmp_path, spellings.cells("clock_twelve_hour", ROWS))
+    monkeypatch.setattr(contract, "_clock_at", lambda text, form: (0, text))
+    with pytest.raises(errors.ProfileError) as raised:
+        contract.load_profile(str(profile))
+    assert contract.INVARIANTS["T3"] in f"{raised.value}"
+
+
+def test_r8_a_twelve_hour_declaration_names_columns_of_the_table(tmp_path: pathlib.Path) -> None:
+    """S8 holds every declared name to a column; the list is in rising order, each once."""
+    cells = spellings.cells("unmarked_twelve_hour_clock", ROWS)
+    _block, profile, _questions = _described(tmp_path, cells, "--twelve-hour", "seen_at")
+    document = json.loads(profile.read_text(encoding="utf-8"))
+    assert document["settings"]["forced_twelve_hour_clocks"] == ["seen_at"]
+    contract.load_profile(str(profile))
+    changed = copy.deepcopy(document)
+    changed["settings"]["forced_twelve_hour_clocks"] = ["seen_at", "zzz_missing"]
+    assert contract.INVARIANTS["S8"] in _refusal(tmp_path, changed)
+    changed["settings"]["forced_twelve_hour_clocks"] = ["seen_at", "seen_at"]
+    said = _refusal(tmp_path, changed)
+    assert "forced_twelve_hour_clocks" in said and "rising order" in said, said
+
+
+# -- R9: the declared 12-hour stamp's stated limit, pinned -----------------
+
+# At a thousand rows the limit shows at seeds 0 to 2 (P4-D370); at three
+# hundred, seed 0 happens to draw no time after noon that leaves its gap.
+DECLARED_ROWS = 1000
+
+
+def _outside(report: str, prefix: str) -> "set[str]":
+    """The rung keys one report names under a prefix, as `key: MISSED` or OUTSIDE."""
+    found: "set[str]" = set()
+    for line in report.splitlines():
+        text = line.strip()
+        if text.startswith(prefix) and text.endswith(": MISSED"):
+            found.add(text[len(prefix):].split(" ")[0].split(":")[0])
+    return found
+
+
+def _twin_report_outside(report: str) -> "set[str]":
+    """The `date_percentiles` keys the twin report names as not held."""
+    found: "set[str]" = set()
+    for line in report.splitlines():
+        text = line.strip()
+        if text.startswith("'seen_at' -- date_percentiles."):
+            found.add(text.split("date_percentiles.")[1].strip())
+    return found
+
+
+def test_r9_a_declared_twelve_hour_stamp_says_what_it_cannot_hold(tmp_path: pathlib.Path) -> None:
+    """THE STATED LIMIT (P4-D370): every cell in the table's own format, every miss named."""
+    name = "unmarked_twelve_hour_stamp"
+    block, profile, _questions = _described(tmp_path, spellings.cells(name, DECLARED_ROWS), "--twelve-hour", "seen_at")
+    assert parsing.clock_face(_style_of(block)) == parsing.CLOCK_TWELVE_HOUR
+    twin, written = _twin(profile, 0)
+    assert all(spellings.parses(cell, spellings.format_of(name)) for cell in written)
+    report = (twin.parent / "real-twin-report.txt").read_text(encoding="utf-8")
+    assert generation._SPREAD_HELD not in report
+    assert generation._SPREAD_TWELVE_HOUR_HELD in report
+    _code, quality = _validated(profile, twin)
+    # The rungs validation misses are the rungs the twin report names:
+    # both read the twin on the column's own face.
+    assert _outside(quality, "date-ladder.") == _twin_report_outside(report)
+
+
+def test_r9_red_when_the_report_reads_the_24_hour_face(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    name = "unmarked_twelve_hour_stamp"
+    _block, profile, _questions = _described(tmp_path, spellings.cells(name, DECLARED_ROWS), "--twelve-hour", "seen_at")
+    monkeypatch.setattr(parsing, "stamp_canonical", lambda canonical, style: canonical)
+    twin, _written = _twin(profile, 0)
+    monkeypatch.undo()
+    report = (twin.parent / "real-twin-report.txt").read_text(encoding="utf-8")
+    _code, quality = _validated(profile, twin)
+    assert _outside(quality, "date-ladder.") != _twin_report_outside(report)
+
+
+@pytest.mark.xfail(
+    strict=True,
+    reason=(
+        "P4-D370's stated limit: a stamp declared a 12-hour clock draws its "
+        "time of day over the whole day, and a time after noon reads twelve "
+        "hours earlier on the dial"
+    ),
+)
+def test_r9_a_declared_twelve_hour_stamp_validates_clean(tmp_path: pathlib.Path) -> None:
+    """Strict: the day this passes, the stated limit is gone and P4-D370 says so."""
+    name = "unmarked_twelve_hour_stamp"
+    _block, profile, _questions = _described(tmp_path, spellings.cells(name, DECLARED_ROWS), "--twelve-hour", "seen_at")
+    twin, _written = _twin(profile, 0)
+    code, _report = _validated(profile, twin)
+    assert code == 0

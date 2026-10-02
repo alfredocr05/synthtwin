@@ -1301,6 +1301,15 @@ def battery() -> list[Mutation]:
             "D13", "marks counted on a column that writes no clock",
             edit("recorded_on", datetime_separators={"space": 240}),
         ),
+        # A SLASHED STAMP'S WRITTEN CLOCK named on a column of ISO moments
+        # (landing T1, plan P4-D370): the word belongs to a slashed stamp
+        # alone. Its other half, a stamp naming two, is in the reader's
+        # gate, `tests/test_stage3b_reader.py`, whose description holds
+        # such a stamp.
+        Mutation(
+            "D12a", "a slashed stamp's written clock named on a column of ISO moments",
+            edit("logged_at", datetime_separators={"space h": 240}),
+        ),
         Mutation(
             "GS1", "a column not declared to write a decimal comma grouped with a point",
             edit("visits", group_separator="."),

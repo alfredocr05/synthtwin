@@ -1642,6 +1642,12 @@ INVARIANTS = {
         "withheld says nothing about how few rows a set of dates holds, "
         "and the loader refuses one at that least, which every band holds"
     ),
+    # Landing T1 (plan P4-D370); 3b.K's anchor 3b-T1 is its place.
+    "D12a": (
+        "a mark naming how a clock is written is counted only on a column "
+        "of dates and times written with slashes, and such a column names "
+        "one, because it writes every clock one way"
+    ),
     "Q1": (
         "the row count a column of numbers repeats is the row count of "
         "the table"
@@ -9554,14 +9560,14 @@ def _separator_census(
     mix: "dict[str, int]",
     parsed: int,
 ) -> "dict[str, int]":
-    """D12 and D13: the census of marks between a moment's day and clock.
+    """D12, D12a and D13: the census of marks between a moment's day and clock.
 
     Asked after the form census, because the total an `iso-mixed` column
     owes is that census's count of the cells that wrote a clock.
 
     Guarantees: accepts the datetime block and the facts already read
     from it; returns the census. Raises ProfileError for a name outside the
-    vocabulary, for D12 and for D13. No I/O of any kind.
+    vocabulary, for D12, for D12a and for D13. No I/O of any kind.
     """
     census = _counts(
         mapping["datetime_separators"], "datetime_separators", where, 1

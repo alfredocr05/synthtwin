@@ -20096,11 +20096,16 @@ def _instant_written(text: str, facts: contract.DatetimeFacts) -> "str | None":
     as no date at all and every end, every rung and every recount in
     this module would silently go missing. A column read jointly is
     still read back jointly, so a bare date the twin writes reads as
-    midnight of its day (landing 2b.3).
+    midnight of its day (landing 2b.3). And ON THE COLUMN'S OWN FACE
+    (landing T1): a slashed stamp declared a 12-hour clock with no AM or
+    PM reads `12:15` as a quarter past midnight, as its describing step
+    read it, so what this returns is what describing the twin finds.
     """
     found = parsing.parse_datetime(text, facts.parser_family)
     if found is None:
         return None
+    if facts.parser_family in parsing.SLASHED_STAMPS:
+        return parsing.stamp_canonical(found[0], _stamp_clock_style(facts))
     if facts.datetimes_read_at == "utc" and facts.resolution == "datetime":
         # The clock is put back only where it was applied. A whole date
         # and a quarter carry no time of day for an offset to move, so
@@ -20916,6 +20921,27 @@ _SPREAD_WEEKDAYS_TOGETHER = (
     "differ from the real one."
 )
 
+# THE SAME CLAUSE FOR A STAMP DECLARED A 12-HOUR CLOCK WITH NO AM OR PM
+# (landing T1, plan P4-D370's stated limit). Its instants all stand before
+# noon, and this version draws a stamp's time of day over the whole day:
+# a time drawn after noon is written on the dial, which reads it twelve
+# hours earlier, so the ladder is not met rung for rung and saying it is
+# would be false. What the twin then holds is measured from its own cells
+# and named fact by fact above.
+_SPREAD_TWELVE_HOUR_HELD = (
+    "the days are drawn between the published rungs, and between them "
+    "independently; a time drawn after noon is written on the 12-hour "
+    "dial, which reads it twelve hours earlier, so a rung or a tail can "
+    "be missed, and each one missed is named above"
+)
+
+
+def _spread_held(facts: contract.DatetimeFacts, held: str) -> str:
+    """The spread sentence's held clause, or the 12-hour stamp's (T1)."""
+    if parsing.clock_face(_stamp_clock_style(facts)) == parsing.CLOCK_TWELVE_HOUR:
+        return _SPREAD_TWELVE_HOUR_HELD
+    return held
+
 
 def _spread_remarks(
     column: contract.ColumnBlock,
@@ -20960,7 +20986,8 @@ def _spread_remarks(
     that do apply: periods holding far more values than their
     neighbours, and a column of a few scheduled periods. Printing all
     four on such a column would name two things no column of periods
-    can lose.
+    can lose. A stamp declared a 12-hour clock with no AM or PM does not
+    say its ladder is met (`_spread_held`, landing T1).
 
     Guarantees: accepts one column; returns one remark on a column of
     dates and none on any other. Determinism: a function of the column.
@@ -20986,10 +21013,20 @@ def _spread_remarks(
         if entry == calendar_rules.ENTRY_WEEKDAYS:
             said = said + _SPREAD_WEEKDAYS_TOGETHER
         return [
-            _remark(column.name, _SPREAD_SUBJECT, _SPREAD_WEEKDAY_HELD, said)
+            _remark(
+                column.name,
+                _SPREAD_SUBJECT,
+                _spread_held(facts, _SPREAD_WEEKDAY_HELD),
+                said,
+            )
         ]
     return [
-        _remark(column.name, _SPREAD_SUBJECT, _SPREAD_HELD, _SPREAD_NOTE)
+        _remark(
+            column.name,
+            _SPREAD_SUBJECT,
+            _spread_held(facts, _SPREAD_HELD),
+            _SPREAD_NOTE,
+        )
     ]
 
 
