@@ -1108,7 +1108,8 @@ REGISTRY += (
     ),
     # ...and the seven keys stage 3b reserves there (plan P4-D364): `[]` on
     # every block and refused as anything else, so the whole of what each
-    # owes is on the profile until the landing that fills it.
+    # owes is on the profile until the landing that fills it; lane by lane.
+    # -- 3b.T2 (P4-D371)
     Fact(
         "datetime",
         "hour_census",
@@ -1117,6 +1118,7 @@ REGISTRY += (
         plan_region="stage-3b-reserves",
         aliases=(),
     ),
+    # -- 3b.T3 (P4-D372)
     Fact(
         "datetime",
         "minute_census",
@@ -1149,6 +1151,7 @@ REGISTRY += (
         plan_region="stage-3b-reserves",
         aliases=(),
     ),
+    # -- 3b.D3 (P4-D368)
     Fact(
         "datetime",
         "day_of_month_census",
@@ -1157,6 +1160,7 @@ REGISTRY += (
         plan_region="stage-3b-reserves",
         aliases=(),
     ),
+    # -- 3b.D4 (P4-D369)
     Fact(
         "datetime",
         "heavy_dates",
@@ -1235,8 +1239,9 @@ REGISTRY += [
     )
     for field in ("n_distinct", "n_distinct_folded")
 ]
-# ...AND THE FOUR KEYS STAGE 3B RESERVES ON THE CLOCK ROLE (plan
-# P4-D364), on the terms of the seven on `datetime`.
+# ...AND THE FIVE KEYS STAGE 3B RESERVES ON THE CLOCK ROLE (plan
+# P4-D364), on the terms of the seven on `datetime`, lane by lane.
+# -- 3b.C1 (P4-D373)
 REGISTRY += [
     Fact(
         "clock",
@@ -1246,6 +1251,16 @@ REGISTRY += [
         plan_region="stage-3b-reserves",
     )
     for field in ("clock_census", "clock_heaps", "clock_step", "clock_codes")
+]
+# -- 3b.C2 (P4-D374)
+REGISTRY += [
+    Fact(
+        "clock",
+        "minute_census",
+        LOADER_ONLY,
+        plan_words="LOADER-ONLY until the landing that fills each",
+        plan_region="stage-3b-reserves",
+    )
 ]
 # THE LANDINGS' ANCHORS (plan P4-D364): each landing of stage 3b disposes
 # its own clock facts below its own line.

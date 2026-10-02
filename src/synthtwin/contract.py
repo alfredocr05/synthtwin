@@ -512,10 +512,10 @@ COMPOUND_LABEL_KEYS = LABEL_KEYS + (
     "n_present",
 )
 
-# The clock role's own nine, and the two forms its cells can wear.
-# Nothing else joins them: these nine are the whole of what this role
+# The clock role's own ten, and the two forms its cells can wear.
+# Nothing else joins them: these ten are the whole of what this role
 # adds to the universal keys, and the forbidden-key rule is what stops
-# a tenth. STAGE 3 (plan P4-D328): the earliest and latest time went,
+# an eleventh. STAGE 3 (plan P4-D328): the earliest and latest time went,
 # and the two tails took their places.
 CLOCK_KEYS = (
     "clock_form",
@@ -523,15 +523,17 @@ CLOCK_KEYS = (
     "high_tail",
     "low_tail",
     "n_unparsed",
-    # THE FOUR STAGE 3B RESERVES (plan P4-D364): the census of ten-minute
+    # THE FIVE STAGE 3B RESERVES (plan P4-D364): the census of ten-minute
     # bins, the clock values that stand out, the step the values were
-    # written on and the codes written among them. `[]`, `[]`, `null` and
-    # `[]` on every block until the landing that fills them, and the
-    # loader refuses anything else (`_clock_census`).
+    # written on and the codes written among them (`_clock_census`), and
+    # the census of the minutes of the hour (`_clock_minute_census`).
+    # `[]`, `[]`, `null`, `[]` and `[]` on every block until the landing
+    # that fills each, and the loader refuses anything else.
     "clock_census",
     "clock_heaps",
     "clock_step",
     "clock_codes",
+    "minute_census",
 )
 CLOCK_FORMS = ("hh-mm", "hh-mm-ss")
 
@@ -3084,10 +3086,11 @@ class ClockFacts:
     FIVE FACTS AND NO SIXTH: which of the two forms the cells wore, the
     two tails, the eleven-rung ladder over the values that parsed, and
     how many present cells no clock reading accepted. Beside them stand
-    the four stage 3b reserves (plan P4-D364), empty -- `clock_step`
-    `None` -- on every column until the landing that fills them: the
+    the five stage 3b reserves (plan P4-D364), empty -- `clock_step`
+    `None` -- on every column until the landing that fills each: the
     census of ten-minute bins, the values that stand out, the step the
-    values were written on and the codes written among them.
+    values were written on and the codes written among them, and the
+    census of the minutes of the hour, groups `(first, last, count)`.
 
     Every clock value here is written in the form `clock_form` names,
     two digits a field. The ladder is SELECTION -- eleven order
@@ -3106,6 +3109,7 @@ class ClockFacts:
     clock_heaps: "tuple[tuple[str, int], ...]" = ()
     clock_step: "int | None" = None
     clock_codes: "tuple[tuple[str, int], ...]" = ()
+    minute_census: "tuple[tuple[int, int, int], ...]" = ()
 
 
 ColumnFacts = (
@@ -15460,20 +15464,28 @@ def _clock_facts(
         clock_percentiles=ladder,
         n_unparsed=unparsed,
     )
-    # THE FOUR STAGE 3B RESERVES (plan P4-D364), read by the one reader
-    # of the landing that fills them (3b.C1, P4-D373), handed the block
-    # and everything read before it. A landing edits its reader, not this
-    # call.
+    # THE FIVE STAGE 3B RESERVES (plan P4-D364), one reader per landing,
+    # each handed the block and everything read before it. A landing
+    # edits its own reader, not these calls.
+    # -- the census, heaps, step and codes of clock times (3b.C1, P4-D373)
     census, heaps, step, codes = _clock_census(
         mapping, where, frame, n_present, facts
     )
-    return dataclasses.replace(
+    facts = dataclasses.replace(
         facts,
         clock_census=census,
         clock_heaps=heaps,
         clock_step=step,
         clock_codes=codes,
     )
+    # -- the minute census of clock times (3b.C2, P4-D374)
+    facts = dataclasses.replace(
+        facts,
+        minute_census=_clock_minute_census(
+            mapping, where, frame, n_present, facts
+        ),
+    )
+    return facts
 
 
 def _clock_census(
@@ -15507,6 +15519,26 @@ def _clock_census(
             "for a column of clock times",
         )
     return (), (), None, ()
+
+
+def _clock_minute_census(
+    mapping: "dict[str, object]",
+    where: str,
+    frame: _Frame,
+    n_present: int,
+    facts: ClockFacts,
+) -> "tuple[tuple[int, int, int], ...]":
+    """A clock column's `minute_census`, reserved: `[]` and nothing else.
+
+    THE STUB OF LANDING 3b.5's second step (lane C2, plan P4-D374), which
+    fills this reader and nothing beside it (plan P4-D364). Handed what
+    `_clock_census` is handed, and every fact that reader read.
+
+    Guarantees: returns the census, empty. Raises ProfileError for any
+    other value (`_reserved_list`). No I/O of any kind.
+    """
+    _reserved_list(mapping["minute_census"], "minute_census", where)
+    return ()
 
 
 def _identifier_facts(

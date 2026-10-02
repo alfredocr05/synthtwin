@@ -16257,6 +16257,27 @@ def _clock_census_published(
     return block, notes, remarks
 
 
+def _clock_minutes_published(
+    details: "dict[str, object]",
+    verdict: "_Verdict",
+    cells: "_Cells",
+    settings: Settings,
+    produced: bool,
+    stored_one_way: bool,
+    verdicts: "list[dict[str, object]]",
+    absent: "dict[str, int]",
+) -> "tuple[dict[str, object], list[Note], list[Note]]":
+    """A column block of clock times with its `minute_census`, and its sentences.
+
+    THE STUB OF LANDING 3b.5's second step (lane C2, plan P4-D374), which
+    fills this producer and nothing beside it; until then the census is
+    `[]` on every block and no sentence is said.
+
+    Guarantees: as `_hour_published`. No I/O of any kind.
+    """
+    return _reserved_lists(details, (calendar_clock.MINUTE_CENSUS,))
+
+
 def _floored_census(
     counts: "dict[str, int]", population: int, settings: Settings
 ) -> "dict[str, int]":
@@ -22063,6 +22084,13 @@ def profile_column(
     if verdict.role == ROLE_CLOCK:
         # -- the census, heaps, step and codes of clock times (3b.C1, P4-D373)
         details, census_notes, census_remarks = _clock_census_published(
+            details, verdict, cells, settings, calendar_census,
+            stored_one_way, entries, by_source,
+        )
+        publication_notes = publication_notes + census_notes
+        weekday_remarks = weekday_remarks + census_remarks
+        # -- the minute census of clock times (3b.C2, P4-D374)
+        details, census_notes, census_remarks = _clock_minutes_published(
             details, verdict, cells, settings, calendar_census,
             stored_one_way, entries, by_source,
         )

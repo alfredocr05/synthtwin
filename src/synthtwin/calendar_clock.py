@@ -7,11 +7,12 @@ written wall clock (`minute_census`, `second_census`), beside the
 minutes and seconds that stand out from their neighbours
 (`minute_heaps`, `second_heaps`); and a column of clock times its own
 census of ten-minute bins (`clock_census`), its heaps (`clock_heaps`),
-the step its values were written on (`clock_step`) and the codes it
-writes among them (`clock_codes`). Each landing of stage 3b's time-of-day
-track fills its own keys and its own block below; until it does, every
-one of these keys is empty on every block -- `clock_step` is `null` --
-and the loader refuses anything else.
+the step its values were written on (`clock_step`), the codes it
+writes among them (`clock_codes`) and, under the moments' own key, its
+census of the minutes of the hour (`minute_census`). Each landing of
+stage 3b's time-of-day track fills its own keys and its own block below;
+until it does, every one of these keys is empty on every block --
+`clock_step` is `null` -- and the loader refuses anything else.
 
 The bin rules every census shares -- the floor, the merge, the
 stand-out rule and the checker of a published census -- are
@@ -31,7 +32,7 @@ SECOND_HEAPS = "second_heaps"
 
 # The keys of a column block of clock times (contract 6.13): the three
 # lists `[]` and the step `null` on every block until their landing fills
-# them.
+# them -- and `MINUTE_CENSUS`, `[]` there until its own landing (3b.C2).
 CLOCK_CENSUS = "clock_census"
 CLOCK_HEAPS = "clock_heaps"
 CLOCK_STEP = "clock_step"

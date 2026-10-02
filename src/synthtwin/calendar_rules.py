@@ -888,7 +888,11 @@ def merged_groups(
 
 
 def standing_out(
-    counts: "list[int]", line: int, reach: int, centre: str
+    counts: "list[int]",
+    line: int,
+    reach: int,
+    centre: str,
+    cyclic: bool = False,
 ) -> "tuple[tuple[int, int], ...]":
     """The units whose count stands out from their neighbours (plan P4-D364).
 
@@ -898,12 +902,17 @@ def standing_out(
     dates: "at least 11 rows and at least three times the neighbouring
     dates", the owner's ruling of 2026-09-26) or their median
     (`CENTRE_MEDIAN`, a grid of clock values), compared in whole
-    numbers. A neighbour past either end of `counts` holds nought.
+    numbers. A neighbour past either end of `counts` holds nought --
+    except on a CYCLE (`cyclic`: the minutes of an hour, the seconds of a
+    minute), where the unit after the last is the first and every
+    neighbour is taken modulo the number of units, as `merged_groups`
+    reads a cycle and as the minute heaps were measured.
 
     Guarantees: accepts one count per consecutive unit, the census line,
-    the reach and the centre word; returns `(index, count)` per unit
-    that stands out, ascending. Determinism: a function of the four.
-    Raises nothing. No I/O of any kind.
+    the reach, the centre word and whether the units are a cycle;
+    returns `(index, count)` per unit that stands out, ascending.
+    Determinism: a function of the five. Raises nothing. No I/O of any
+    kind.
     """
     size = len(counts)
     found: "list[tuple[int, int]]" = []
@@ -914,7 +923,10 @@ def standing_out(
         around: "list[int]" = []
         for step in range(1, reach + 1):
             for other in (index - step, index + step):
-                around += [counts[other] if 0 <= other < size else 0]
+                if cyclic:
+                    around += [counts[other % size]]
+                else:
+                    around += [counts[other] if 0 <= other < size else 0]
         stands = True
         if around and centre == CENTRE_MEDIAN:
             ordered = sorted(around)

@@ -17501,7 +17501,7 @@ def _universal(name, role, statistical_type, structural_role, quality_state, **f
     if role == "datetime" and "weekday_census" not in block:
         block["weekday_census"] = []
     # ...and the seven censuses stage 3b reserves on the datetime block and
-    # the four on the clock block (plan P4-D364), EMPTY for every case --
+    # the five on the clock block (plan P4-D364), EMPTY for every case --
     # `clock_step` null -- until the landing that fills each: a census
     # nobody publishes asks nothing of any pass, so every cell frozen
     # before the keys existed stands. A landing's own cases state their
@@ -17524,6 +17524,9 @@ def _universal(name, role, statistical_type, structural_role, quality_state, **f
                 block[census] = []
         if "clock_step" not in block:
             block["clock_step"] = None
+        # -- the minute census of clock times (3b.C2, P4-D374)
+        if "minute_census" not in block:
+            block["minute_census"] = []
     # ...and the census of WHOLE-NUMBER field widths (P4-D30) is NOT
     # defaulted, which is deliberate.  The two above are empty for
     # almost every case here because almost no case has a decimal or a

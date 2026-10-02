@@ -8,17 +8,17 @@ exists).
 
 ### The base the rest of stage 3b builds on (2026-10-01)
 
-**Eleven calendar keys reserved, empty** (plan P4-D364): `hour_census`,
+**Twelve calendar keys reserved, empty** (plan P4-D364): `hour_census`,
 `minute_census`, `second_census`, `minute_heaps`, `second_heaps`,
 `day_of_month_census` and `heavy_dates` on every date block, and
-`clock_census`, `clock_heaps`, `clock_step` and `clock_codes` on every
-clock block, `[]` (the step `null`) until the landing that fills each;
-the loader refuses anything else. One inert stub per landing at every
-call site, the drawing-unit and listed-date seams, one anchor per
-landing in every shared block, and the census rules every landing
-shares (`calendar_floor_ok`, `merged_groups`, `standing_out`,
-`census_breach`, `_census_lines`). No twin moves; the frozen vectors
-and goldens differ only by the new keys.
+`clock_census`, `clock_heaps`, `clock_step`, `clock_codes` and
+`minute_census` on every clock block, `[]` (the step `null`) until the
+landing that fills each; the loader refuses anything else. One inert
+stub per landing at every call site, the drawing-unit and listed-date
+seams, one anchor per landing in every shared block, and the census
+rules every landing shares (`calendar_floor_ok`, `merged_groups`,
+`standing_out`, `census_breach`, `_census_lines`). No twin moves; the
+frozen vectors and goldens differ only by the new keys.
 
 ### The weekday certificate's cap, measured (2026-09-30)
 

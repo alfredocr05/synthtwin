@@ -113,6 +113,7 @@
           "rows": 11,
           "values": null
         },
+        "minute_census": [],
         "missing_by_class": {
           "(blank)": 0,
           "(date-sentinel)": 0,

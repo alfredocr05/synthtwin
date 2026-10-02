@@ -487,6 +487,8 @@ INPUT_SIDE_ENTRIES = (
     ("clock", "clock_heaps"),
     ("clock", "clock_step"),
     ("clock", "clock_codes"),
+    # -- 3b.C2 (P4-D374)
+    ("clock", "minute_census"),
 )
 
 # -- what a listing entry says, in one fixed sentence each ------------
@@ -16332,6 +16334,9 @@ def _clock_checks(
     # -- the census, heaps, step and codes stage 3b reserves (3b.C1,
     # P4-D373; plan P4-D364): no check until that landing fills it.
     checks = checks + _clock_census_checks(column, facts, block, cells, floor)
+    # -- the minute census of clock times (3b.C2, P4-D374; plan P4-D364):
+    # no check until that landing fills it.
+    checks = checks + _clock_minute_checks(column, facts, block, cells, floor)
     return checks
 
 
@@ -16350,6 +16355,24 @@ def _clock_census_checks(
 
     Guarantees: accepts the column, its facts, the file's own block, its
     cells and the floor; returns no check. Raises nothing. No I/O.
+    """
+    return []
+
+
+def _clock_minute_checks(
+    column: contract.ColumnBlock,
+    facts: contract.ClockFacts,
+    block: "dict[str, object]",
+    cells: "list[str] | None",
+    floor: int,
+) -> "list[Check]":
+    """A clock column's minute census, held exactly.
+
+    THE STUB OF LANDING 3b.5's second step (lane C2, plan P4-D374), which
+    fills this check and nothing beside it (plan P4-D364). No column
+    publishes one until then, so there is nothing to check.
+
+    Guarantees: as `_clock_census_checks`. No I/O.
     """
     return []
 

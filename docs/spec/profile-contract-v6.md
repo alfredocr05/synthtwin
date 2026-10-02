@@ -7705,7 +7705,7 @@ rather than a list of its own, so the two cannot part again.
 | `zulu_case` | | | | | | | ● | | | | | | | | |
 | `weekday_census` | | | | | | | ● | | | | | | | | |
 | `hour_census` | | | | | | | ● | | | | | | | | |
-| `minute_census` | | | | | | | ● | | | | | | | | |
+| `minute_census` | | | | | | | ● | ● | | | | | | | |
 | `second_census` | | | | | | | ● | | | | | | | | |
 | `minute_heaps` | | | | | | | ● | | | | | | | | |
 | `second_heaps` | | | | | | | ● | | | | | | | | |
@@ -7800,20 +7800,21 @@ rather than a list of its own, so the two cannot part again.
 | `numbers` | | | | | | | | | | | | | | | ● |
 | `labels` | | | | | | | | | | | | | | | ● |
 
-**One hundred and eleven rows, two hundred marked cells**,
+**One hundred and eleven rows, two hundred and one marked cells**,
 distributed `empty` 0, `numeric_unrepresentable` 9, `constant` 5,
 `binary` 5, `categorical` 6, `long_tail_labels` 5, `datetime` 27,
-`time_of_day` 9, `count` 32, `continuous` 31, `affixed_number` 41,
+`time_of_day` 10, `count` 32, `continuous` 31, `affixed_number` 41,
 `identifier` 8, `free_text` 6, `joined_numbers` 8,
 `numbers_with_labels` 8. The counts are stated so that a reader can
 check a column of the matrix against the role's own section without
 counting twice.
 
 **RESTATED AT THE KEYS STAGE 3B RESERVES** (plan P4-D364): seven rows
-and seven marks on `datetime` and four of each on `time_of_day`, so
-the rows go from a hundred to a hundred and eleven, the marked cells
-from a hundred and eighty-nine to two hundred, `datetime` from 20 to
-27 and `time_of_day` from 5 to 9.
+and seven marks on `datetime`, and four rows and five marks on
+`time_of_day`, whose fifth is on the row of `minute_census`, so the
+rows go from a hundred to a hundred and eleven, the marked cells from
+a hundred and eighty-nine to two hundred and one, `datetime` from 20
+to 27 and `time_of_day` from 5 to 10.
 
 **RESTATED AT THE WEEKDAY CENSUS** (stage 3b landing 3b.1, plan
 P4-D355): `weekday_census` is one row and one mark on `datetime`, so
@@ -8637,7 +8638,7 @@ whose clock argument names how many cells a clock reading accepted
 under the form that came closest (section 4.5, `remark_no_reading_fits`).
 All four are named residual R-P4-5.
 
-#### Added keys: nine
+#### Added keys: ten
 
 | key | JSON type | permitted values | meaning | disposition |
 |---|---|---|---|---|
@@ -8647,8 +8648,8 @@ All four are named residual R-P4-5.
 | `clock_percentiles` | ladder of strings or `null` | section 5.6, rungs in `clock_form` | the eleven-rung ladder over the ordered clock values of the cells that parsed, published between the two tail boundaries and empty everywhere else (T2) | the two ends always `null`; each published interior rung APPROXIMATED, inside the window the generation method's approximated-fields table fixes for this role |
 | `n_unparsed` | integer ≥ 0 | — | present cells no clock reading of C6-10 accepted, the other form's cells among them | EXACT-OBSERVABLE as counted neutral stand-ins, explicitly OUTSIDE the clock representation obligation |
 
-**The four keys stage 3b reserves on this role** (plan P4-D364):
-`[]`, `[]`, `null` and `[]` on every block until the landing their
+**The five keys stage 3b reserves on this role** (plan P4-D364):
+`[]` -- `clock_step` `null` -- on every block until the landing their
 rows name fills them, and the loader refuses anything else. Each
 landing restates its own rows below its own line.
 
@@ -8670,13 +8671,18 @@ landing restates its own rows below its own line.
 | `clock_codes` | array | `[]` | reserved for the codes the column writes among its clock values, each with its count | LOADER-ONLY until landing 3b.5 fills it |
 
 <!-- anchor 3b-C2 (P4-D374) -->
+
+| key | JSON type | permitted values | meaning | disposition |
+|---|---|---|---|---|
+| `minute_census` | array | `[]` | reserved for how many cells between the two tail boundaries fall on each group of minutes of the hour | LOADER-ONLY until landing 3b.5's second step fills it |
+
 <!-- anchor 3b-G1 (P4-D375) -->
 <!-- anchor 3b-G3 (P4-D376) -->
 <!-- anchor 3b-G2 (P4-D377) -->
 <!-- anchor 3b-7 (P4-D378) -->
 <!-- anchor 3b-J (P4-D379) -->
 
-**C6-11.** Those nine -- the five above and the four stage 3b
+**C6-11.** Those ten -- the five above and the five stage 3b
 reserves -- are the whole of what this role adds to the
 twenty-two universal keys of section 5.1. A container's disposition
 does not cover its leaves (section 2.2), which is why the ladder's
@@ -8824,8 +8830,9 @@ reader will expect them and their absence is a decision.
 - **The datetime role's written forms and calendar censuses.**
   `date_field_widths`, `month_name_styles`, `quarter_marker_case`,
   `zulu_case`, `weekday_census` and the seven keys stage 3b reserves
-  there (plan P4-D364) are `datetime`'s too: a clock time has no date
-  to write or to count.
+  there (plan P4-D364) are `datetime`'s too -- all but `minute_census`,
+  which this role reserves under the same name: a clock time has no
+  date to write or to count.
 - **Every quantitative key.** `percentiles`, `mean`, `std`, `skew`,
   `numeric_styles`, `fraction_widths`, `integer_valued` and the rest
   belong to `count`, `continuous` and `affixed_number`, as does the
@@ -12789,6 +12796,9 @@ table means exactly what its disposition says.
 | `clock_codes` | LOADER-ONLY (plan P4-D364): `[]` on every block, refused as anything else, and no output obligation until landing 3b.5 fills it |
 
 <!-- anchor 3b-C2 (P4-D374) -->
+
+| `minute_census` | LOADER-ONLY (plan P4-D364): `[]` on every block, refused as anything else, and no output obligation until landing 3b.5's second step fills it |
+
 <!-- anchor 3b-G1 (P4-D375) -->
 <!-- anchor 3b-G3 (P4-D376) -->
 <!-- anchor 3b-G2 (P4-D377) -->
