@@ -1711,6 +1711,29 @@ def _read_on_twelve_hours(column: "dict[str, object]") -> bool:
     return bool(style) and parsing.clock_face(style) == parsing.CLOCK_TWELVE_HOUR
 
 
+def _offered_here(answer: str, question: asking.Question) -> bool:
+    """Whether one typed answer is one this question offers.
+
+    Guarantees: a fixed function of the two; raises nothing; opens
+    nothing. The reading Enter keeps (`question.taken`) is always taken,
+    and so is anything that is no column answer at all, which no key
+    reaches. `measurement` stands for `keep` where the question offers
+    `keep`, because the two share key 1 (see `_KEY_OF`).
+    """
+    if answer == question.taken:
+        return True
+    reached = False
+    for key in _ANSWER_KEYS:
+        if _ANSWER_KEYS[key] == answer:
+            reached = True
+    if not reached:
+        return True
+    offered = [choice.answer for choice in question.choices]
+    if answer in offered:
+        return True
+    return answer == asking.ANSWER_MEASUREMENT and asking.ANSWER_KEEP in offered
+
+
 def _put_the_questions(
     questions: "list[asking.Question]",
 ) -> "tuple[list[str], list[str], list[str], list[str], list[str]] | None":
@@ -1742,6 +1765,20 @@ def _put_the_questions(
         place = place + 1
         _say(_the_question(question, place, total))
         answer = _read_one_answer(question.taken)
+        # ONLY AN ANSWER THIS QUESTION OFFERS IS TAKEN (landing T1, its
+        # second skeptic's item 2). `_read_one_answer` knows every key,
+        # so `6` typed at a column of codes recorded a 12-hour clock on
+        # it, and `5` a decimal comma, with no warning: the check that
+        # warns on an unreached declaration runs before the questions.
+        # A key of an answer the question did not offer is asked again,
+        # as the questions file refuses an answer its entry did not
+        # offer (`answers_answer_is_not_offered`).
+        while answer is not None and not _offered_here(answer, question):
+            _say(
+                "    Please type one of the numbers offered, or press Enter "
+                "to keep the reading synthtwin made."
+            )
+            answer = _read_one_answer(question.taken)
         if answer is None:
             return None
         if answer == asking.ANSWER_CODE:

@@ -6634,14 +6634,16 @@
     "tests/test_stage3b_reader.py::test_twelve_hour_naming_a_column_it_cannot_reach_is_said",
     "tests/test_stage3b_reader.py::test_the_written_clock_is_said_in_the_summary_and_the_twin_report",
     "tests/test_stage3b_reader.py::test_a_clock_whose_hours_show_no_width_publishes_two_figures",
-    "tests/test_stage3b_reader.py::test_a_day_first_answer_is_on_the_repeat_line"
+    "tests/test_stage3b_reader.py::test_a_day_first_answer_is_on_the_repeat_line",
+    "tests/test_stage3b_reader.py::test_a_key_the_question_did_not_offer_is_asked_again",
+    "tests/test_stage3b_reader.py::test_the_reading_enter_keeps_is_always_taken"
    ],
    "test": null,
    "driver": "tools/measurements/kpi_reader.py --kpi",
    "pin_strength": "WEAKER",
    "measured_on": "tests/clock_spellings.py's twenty spellings, one calendar year of moments with an emergency-department hour profile, through the real producer, generator and checker",
    "evidence": "Before T1 (668f276, the design's baseline and its skeptic's): none of the twenty read. One-figure hours read 758 of 1,000 (hours 10 to 23), every AM/PM spelling 0; the clock-alone h:mm and h:mm:ss twins parsed 255 and 165 of 1,000 by accident, every other twin 0; validate exited 0 on all of them, free text publishing nothing to miss.",
-   "nodes_min_collected": 98,
+   "nodes_min_collected": 100,
    "value_at": {
     "commit": "767113c",
     "date": "2026-10-02",

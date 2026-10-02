@@ -43,7 +43,11 @@ red on its own mutant (named beside it):
   AM or PM writes every cell in its table's own format, and its twin
   report measures what it holds on the column's face and names each fact
   it missed instead of saying the ladder is met (red when the report
-  reads the twin back on the 24-hour face).
+  reads the twin back on the 24-hour face). Its other half,
+  `test_r9_a_declared_twelve_hour_stamp_validates_clean`, is a strict
+  xfail EXCEPTED from this gate and owned by landing T2 (P4-D370): the half-day
+  draw belongs to T2's hour census, whose gate turns it into a passing
+  test.
 
 And the T1 design skeptic's items: the 12-hour question and its answer
 (item 1), the colon question kept (item 3), the day-first question
@@ -57,6 +61,12 @@ question offers has a key; one clause for each guard no test turned red
 where `--twelve-hour` reaches nothing, the style words of the summary and
 the twin report, and the width tie); and an answer of `day-first` on the
 repeat line (item 4).
+
+And skeptic 2's: a key the question did not offer is asked again rather
+than recorded (item 2: `6` on a column of codes recorded a 12-hour clock),
+and the two guards near item 3 no test turned red -- the style words of
+an `h-mm` and an `h-mm-ss` clock on the summary, and a width tie that
+writes one figure on as many hours as two (item 3).
 """
 
 import copy
@@ -644,13 +654,20 @@ def test_r9_red_when_the_report_reads_the_24_hour_face(
 @pytest.mark.xfail(
     strict=True,
     reason=(
-        "P4-D370's stated limit: a stamp declared a 12-hour clock draws its "
-        "time of day over the whole day, and a time after noon reads twelve "
-        "hours earlier on the dial"
+        "P4-D370's stated limit, excepted from T1's gate and owned by landing T2: a "
+        "stamp declared a 12-hour clock draws its time of day over the whole "
+        "day, and a time after noon reads twelve hours earlier on the dial; "
+        "the half-day draw belongs to T2's hour census, which must close it"
     ),
 )
 def test_r9_a_declared_twelve_hour_stamp_validates_clean(tmp_path: pathlib.Path) -> None:
-    """Strict: the day this passes, the stated limit is gone and P4-D370 says so."""
+    """Strict, and owned by landing T2 (P4-D370's carve-out).
+
+    T1's gate holds every other clause; this one is excepted and owned by T2,
+    whose hour census confines a declared 12-hour stamp's draws to the
+    half day. T2's gate turns this into a passing test, and the day it
+    passes the stated limit is gone and P4-D370 says so.
+    """
     name = "unmarked_twelve_hour_stamp"
     _block, profile, _questions = _described(tmp_path, spellings.cells(name, DECLARED_ROWS), "--twelve-hour", "seen_at")
     twin, _written = _twin(profile, 0)
@@ -691,12 +708,13 @@ _TYPED_SHAPES = {
 def _typed_at_the_terminal(
     folder: pathlib.Path,
     cells: "list[str]",
-    typed: str,
+    typed: "str | list[str]",
     monkeypatch: pytest.MonkeyPatch,
 ) -> "tuple[int, str, dict[str, object]]":
-    """`synthtwin profile` with a person at the keyboard typing one line at every prompt.
+    """`synthtwin profile` with a person at the keyboard typing at every prompt.
 
-    The question is drawn by `cli._the_question` and the line read by
+    One line typed four times, or the lines given, in order. The question
+    is drawn by `cli._the_question` and the line read by
     `cli._read_one_answer`, both as shipped: only who answers is changed.
     Returns the exit code, everything printed, and the description.
     """
@@ -709,7 +727,7 @@ def _typed_at_the_terminal(
     monkeypatch.setattr(cli, "_there_is_somebody_to_ask", lambda: True)
     # A FEW LINES AND THEN THE END OF INPUT, so a key the run does not
     # know -- asked again and again -- ends the run instead of the test.
-    lines = iter([typed] * 4)
+    lines = iter([typed] * 4 if isinstance(typed, str) else typed)
 
     def typing(prompt: str = "") -> str:
         for line in lines:
@@ -929,6 +947,16 @@ def test_the_written_clock_is_said_in_the_summary_and_the_twin_report(tmp_path: 
     summary = (tmp_path / "clock" / "real-profile.txt").read_text(encoding="utf-8")
     said = parsing.clock_style_said(_style_of(block))
     assert f"written with {said}" in summary
+    # ...and the 24-hour clock written with one figure below ten, at the
+    # minute and at the second (skeptic 2, item 3: M23b, the summary's
+    # line held for the 12-hour forms alone).
+    for name, form in (("clock_one_figure_hour", "h-mm"), ("clock_one_figure_hour_seconds", "h-mm-ss")):
+        block, _profile, _questions = _described(tmp_path / name, spellings.cells(name, ROWS))
+        assert block["clock_form"] == form
+        summary = (tmp_path / name / "real-profile.txt").read_text(encoding="utf-8")
+        said = parsing.clock_style_said(_style_of(block))
+        assert said == "the hour in one figure below ten, on a 24-hour clock"
+        assert f"written with {said}" in summary
     block, profile, _questions = _described(tmp_path / "stamp", spellings.cells("excel_twelve_hour", ROWS))
     twin, _written = _twin(profile, 0)
     report = (twin.parent / "real-twin-report.txt").read_text(encoding="utf-8")
@@ -949,7 +977,20 @@ def test_a_clock_whose_hours_show_no_width_publishes_two_figures(tmp_path: pathl
 
     draw = random.Random(11)
     cells = [f"{draw.randrange(10, 24)}:{draw.randrange(60):02d}" for _row in range(ROWS)]
-    block, _profile, _questions = _described(tmp_path, cells)
+    block, _profile, _questions = _described(tmp_path / "wide", cells)
+    assert block["role"] == taxonomy.ROLE_CLOCK
+    assert block["clock_form"] == "hh-mm"
+    # ...and an exact tie between the widths goes to `hh` too (skeptic 2,
+    # item 3: M26c, one figure taken on a tie wherever any hour shows it):
+    # 200 hours written in one figure, 200 in two below ten, 600 from 10.
+    draw = random.Random(7)
+    cells = (
+        [f"{draw.randrange(1, 10)}:{draw.randrange(60):02d}" for _row in range(200)]
+        + [f"{draw.randrange(0, 10):02d}:{draw.randrange(60):02d}" for _row in range(200)]
+        + [f"{draw.randrange(10, 24)}:{draw.randrange(60):02d}" for _row in range(600)]
+    )
+    draw.shuffle(cells)
+    block, _profile, _questions = _described(tmp_path / "tie", cells)
     assert block["role"] == taxonomy.ROLE_CLOCK
     assert block["clock_form"] == "hh-mm"
 
@@ -978,3 +1019,79 @@ def test_a_day_first_answer_is_on_the_repeat_line(
     _described(tmp_path / "typed", cells, "--day-first")
     said = capsys.readouterr()
     assert "TO REPEAT THIS RUN WITHOUT THE QUESTIONS" not in said.out + said.err
+
+
+# -- skeptic 2 of the repair round ---------------------------------------
+#
+# Item 2: a key of an answer the question did not offer is asked again.
+
+
+def _padded_codes(rows: int) -> "list[str]":
+    """Five-figure padded codes: the question offers measurement, code and record number."""
+    import random
+
+    draw = random.Random(5)
+    return [f"{draw.randrange(1, 17) * 37:05d}" for _row in range(rows)]
+
+
+def test_a_key_the_question_did_not_offer_is_asked_again(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Item 2: `6` on a column of codes is asked again, and Enter then keeps the reading.
+
+    Before the fix `6` was taken on a question offering only `[1] [2]
+    [3]`: the run recorded `forced_twelve_hour_clocks: ["seen_at"]` on a
+    column of codes, warned of nothing and printed `--twelve-hour
+    seen_at` to repeat it.
+    """
+    cells = _padded_codes(ROWS)
+    code, said, document = _typed_at_the_terminal(tmp_path / "six", cells, ["6", ""], monkeypatch)
+    assert code == 0, said[-2000:]
+    assert "[2] codes" in said and "[6]" not in said
+    assert said.count("Please type one of the numbers offered") == 1
+    assert document["settings"]["forced_twelve_hour_clocks"] == []
+    assert document["settings"]["forced_decimal_commas"] == []
+    assert "--twelve-hour" not in said
+    # ...`5`, a decimal comma, is asked again the same way, and a key the
+    # question offers is taken at once.
+    code, said, document = _typed_at_the_terminal(tmp_path / "five", cells, ["5", "2"], monkeypatch)
+    assert code == 0, said[-2000:]
+    assert said.count("Please type one of the numbers offered") == 1
+    assert document["settings"]["forced_decimal_commas"] == []
+    assert document["settings"]["forced_codes"] == ["seen_at"]
+    assert "--code seen_at" in said
+    # ...and `1` on the 12-hour question, whose first answer is `keep`
+    # under the key it shares with `measurement`, is taken at once.
+    cells = spellings.cells("unmarked_twelve_hour_clock", ROWS)
+    code, said, document = _typed_at_the_terminal(tmp_path / "one", cells, ["1"], monkeypatch)
+    assert code == 0, said[-2000:]
+    assert "[1] leave it as it is" in said
+    assert "Please type one of the numbers offered" not in said
+    assert document["settings"]["forced_twelve_hour_clocks"] == []
+
+
+
+def test_the_reading_enter_keeps_is_always_taken() -> None:
+    """Item 2's rule, each clause on its own: Enter's reading, a non-answer,
+    an offered answer and `measurement` for `keep` are taken; another
+    question's answer is not."""
+    from synthtwin import cli
+
+    def question(taken: str, *offered: str) -> asking.Question:
+        return asking.Question(
+            "seen_at", taxonomy.ROLE_CLOCK, "", "",
+            [asking.Choice(answer, "", "") for answer in offered], taken,
+        )
+
+    assert cli._offered_here(asking.ANSWER_MEASUREMENT, question(asking.ANSWER_MEASUREMENT, asking.ANSWER_CODE))
+    assert cli._offered_here("", question(asking.ANSWER_KEEP, asking.ANSWER_KEEP))
+    assert cli._offered_here(asking.ANSWER_CODE, question(asking.ANSWER_MEASUREMENT, asking.ANSWER_MEASUREMENT, asking.ANSWER_CODE))
+    keep = question(asking.ANSWER_KEEP, asking.ANSWER_KEEP, asking.ANSWER_TWELVE_HOUR)
+    assert cli._offered_here(asking.ANSWER_MEASUREMENT, keep)
+    assert cli._offered_here(asking.ANSWER_TWELVE_HOUR, keep)
+    assert not cli._offered_here(asking.ANSWER_CODE, keep)
+    numbers = question(asking.ANSWER_MEASUREMENT, asking.ANSWER_MEASUREMENT, asking.ANSWER_CODE, asking.ANSWER_IDENTIFIER)
+    assert not cli._offered_here(asking.ANSWER_TWELVE_HOUR, numbers)
+    assert not cli._offered_here(asking.ANSWER_DECIMAL_COMMA, numbers)
+    # `measurement` stands for `keep` only where `keep` is offered.
+    assert not cli._offered_here(asking.ANSWER_MEASUREMENT, question(asking.ANSWER_CODE, asking.ANSWER_CODE, asking.ANSWER_IDENTIFIER))
