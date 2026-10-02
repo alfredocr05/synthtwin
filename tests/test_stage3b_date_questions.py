@@ -667,12 +667,12 @@ def test_an_answered_code_that_reads_as_two_numbers_is_refused_beside_a_comma(
     """`-1,0` is -1 under a decimal comma and another number elsewhere: refused, as when typed."""
     dates = shapes.cells(shapes.by_name("mdy_unk"))
     coded = ["-1,0" if cell == "UNK" else cell for cell in dates]
-    doses = [f"{place % 9 + 1},5" for place in range(len(coded))]
-    table = _two_columns(tmp_path, {"seen_at": coded, "dose": doses})
-    assert _quiet(["profile", str(table), "--out-dir", str(tmp_path), "--replace", "--decimal-comma", "dose"])[0] == 0
+    volumes = [f"{place % 9 + 1},5" for place in range(len(coded))]
+    table = _two_columns(tmp_path, {"seen_at": coded, "volume": volumes})
+    assert _quiet(["profile", str(table), "--out-dir", str(tmp_path), "--replace", "--decimal-comma", "volume"])[0] == 0
     answers = _answer(tmp_path, "seen_at", asking.ANSWER_NO_DATE)
     code, said = _quiet(
-        ["profile", str(table), "--out-dir", str(tmp_path), "--replace", "--decimal-comma", "dose", "--answers", str(answers)]
+        ["profile", str(table), "--out-dir", str(tmp_path), "--replace", "--decimal-comma", "volume", "--answers", str(answers)]
     )
     assert code == 2
     assert "You named the value '-1,0' with --missing-value, and you also used --decimal-comma" in said

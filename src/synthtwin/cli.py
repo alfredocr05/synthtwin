@@ -2795,15 +2795,15 @@ def _run_profile(
     # lane R1, item 7): the screen and the questions file below reuse
     # this pass unless the interview rebuilt the description or moved
     # the settings or the declarations.
-    findings = asking.date_code_findings(
+    codes_seen = asking.date_codes_seen(
         document, read.columns, settings, already_answered, split_columns
     )
-    findings_of = (document, settings, list(already_answered))
-    coded_about = list(findings.questions)
+    seen_of = (document, settings, list(already_answered))
+    coded_about = list(codes_seen.questions)
     # A column whose codes were answered `real-value` is asked nothing
     # else either: the answer kept its codes, and the joined question
     # is no more the column's for that.
-    coded_or_answered = coded_about + list(findings.answered)
+    coded_or_answered = coded_about + list(codes_seen.answered)
     asked_about = asking.without_columns_of(asked_about, coded_or_answered)
     # ...AND THE ONE QUESTION ABOUT WHO THE ROWS ARE (plan P4-D340).
     # Asked only where the population is STILL COUNTED IN ROWS -- where
@@ -2995,16 +2995,16 @@ def _run_profile(
     # would otherwise show nothing.
     settled = forced_identifiers + forced_codes + forced_measurements
     if not (
-        document is findings_of[0]
-        and settings == findings_of[1]
-        and settled == findings_of[2]
+        document is seen_of[0]
+        and settings == seen_of[1]
+        and settled == seen_of[2]
     ):
-        findings = asking.date_code_findings(
+        codes_seen = asking.date_codes_seen(
             document, read.columns, settings, settled, split_columns
         )
-        findings_of = (document, settings, list(settled))
-    if findings.questions:
-        _say(f"\n{_date_codes_notice(list(findings.questions))}\n")
+        seen_of = (document, settings, list(settled))
+    if codes_seen.questions:
+        _say(f"\n{_date_codes_notice(list(codes_seen.questions))}\n")
     # A column of dates beside codes whose other cells read either way
     # is asked the order too, in the same file (review of lane R1, item
     # 4): answered `missing` alone, it would be read month first and
@@ -3013,7 +3013,7 @@ def _run_profile(
     if not answered_month_first:
         day_or_month = asking.day_or_month_columns(
             document, read.columns, settings, split_columns,
-            also=findings.day_or_month,
+            also=codes_seen.day_or_month,
         )
     day_or_month_of = (document, settings)
     if day_or_month:
@@ -3267,15 +3267,15 @@ def _run_profile(
     # answered `missing` reads as dates now and is asked nothing, and one
     # answered `real-value` has its codes declared kept.
     if not (
-        document is findings_of[0]
-        and settings == findings_of[1]
-        and settled == findings_of[2]
+        document is seen_of[0]
+        and settings == seen_of[1]
+        and settled == seen_of[2]
     ):
-        findings = asking.date_code_findings(
+        codes_seen = asking.date_codes_seen(
             document, read.columns, settings, settled, split_columns
         )
-    coded_about = list(findings.questions)
-    coded_or_answered = coded_about + list(findings.answered)
+    coded_about = list(codes_seen.questions)
+    coded_or_answered = coded_about + list(codes_seen.answered)
     asked_about = asking.without_columns_of(asked_about, coded_or_answered)
     if not (document is day_or_month_of[0] and settings == day_or_month_of[1]):
         day_or_month = (
@@ -3283,7 +3283,7 @@ def _run_profile(
             if answered_month_first
             else asking.day_or_month_columns(
                 document, read.columns, settings, split_columns,
-                also=findings.day_or_month,
+                also=codes_seen.day_or_month,
             )
         )
     # ...AND THE PERSON QUESTION, recomputed from the FINAL

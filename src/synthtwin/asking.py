@@ -1075,7 +1075,7 @@ def day_or_month_columns(
     split here otherwise.
 
     ``also`` holds the columns of dates beside a few codes whose other
-    cells read both ways (`date_code_findings`): such a column is read
+    cells read both ways (`date_codes_seen`): such a column is read
     as labels until the codes are answered, so its block names no
     format, and it is put in the same question rather than in the file
     the answering run writes. Each stands in the table's own place.
@@ -2236,7 +2236,7 @@ def _codes_and_rest(
 
     The second half is each different spelling of what is left with
     the rows that wore it, which is what the day-or-month question asks
-    of the same column (`date_code_findings`) without counting it again;
+    of the same column (`date_codes_seen`) without counting it again;
     and the count is taken once by the caller, so asking a column twice
     -- once as it stands and once whatever was kept -- counts it once.
     """
@@ -2622,7 +2622,7 @@ def _a_spelling_can_reach_the_line(
 
 
 @dataclasses.dataclass(frozen=True)
-class DateCodeFindings:
+class DateCodesSeen:
     """What one pass over a table's columns found about dates beside codes.
 
     `questions` are the codes questions to put. `answered` are the
@@ -2647,21 +2647,21 @@ def date_code_questions(
     already: "list[str]",
     split: "SplitColumns | None" = None,
 ) -> "list[Question]":
-    """The codes questions `date_code_findings` finds, as a list."""
+    """The codes questions `date_codes_seen` finds, as a list."""
     return list(
-        date_code_findings(
+        date_codes_seen(
             document, table_columns, settings, already, split
         ).questions
     )
 
 
-def date_code_findings(
+def date_codes_seen(
     document: "dict[str, object]",
     table_columns: "list[list[str]]",
     settings: taxonomy.Settings,
     already: "list[str]",
     split: "SplitColumns | None" = None,
-) -> DateCodeFindings:
+) -> DateCodesSeen:
     """Every column of dates or times that writes a few repeated codes.
 
     Asked of every column nobody declared, whatever it was read as --
@@ -2692,7 +2692,7 @@ def date_code_findings(
     """
     blocks = document["columns"]
     if not isinstance(blocks, list):
-        return DateCodeFindings()
+        return DateCodesSeen()
     found: "list[Question]" = []
     answered: "list[Question]" = []
     order: "list[DayOrMonth]" = []
@@ -2759,7 +2759,7 @@ def date_code_findings(
             either = day_or_month_seen(list(rest), codes.reading)
             if either is not None:
                 order += [DayOrMonth(name, either.months, either.days)]
-    return DateCodeFindings(tuple(found), tuple(answered), tuple(order))
+    return DateCodesSeen(tuple(found), tuple(answered), tuple(order))
 
 
 # THE QUESTIONS A COLUMN OF DATES BESIDE CODES IS NOT ASKED (plan
