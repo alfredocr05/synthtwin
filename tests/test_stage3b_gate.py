@@ -144,114 +144,55 @@ rows red and a column of
 (that skeptic again).
 
 LANDING 3b.1 (plan P4-D355) makes the second clause true on DATE
-columns: the weekday census, published only where the full-fill
-certificate holds (`calendar_certificate`). Its clauses are the second
-half of this file, and each of its rules has the mutation record
-below, every mutation run on a copy of this tree with the rule
-withdrawn and nothing else changed:
+columns: the weekday census. Its clauses are the second half of this
+file. Landing 3b.1 published a census only where a full-fill
+certificate held; its three reviews (plans P4-D355 and P4-D359) added
+the form, placeholder and declared holes, one spelling per day, one
+storage, a withholding's own certificate and its bands, each with a
+witness and a mutation record kept in the history of this file.
 
-* the certificate withdrawn (every census the menu offers published)
-  turns red the verifier on all three battery shapes, the brute force,
-  five of the seven seeded witnesses and the declared missing day;
-* compaction withdrawn, the brute force and `w_month_wide_1000_s0`;
-* the real count of different days withdrawn (the reader's bounds on
-  both sides), the verifier on the three shapes, `sessions20_s0`,
-  `w_month_wide_1000_s0` and the declared missing day;
-* the residue check withdrawn, the brute force (unsound censuses);
-* the entry's inference withdrawn from the witness (no short weekday
-  kept), the brute force and `gr_wedthu_6_8_s1`;
-* menu entry 2 withdrawn, `sessions20_s0`; entry 3, `gr_wedthu_6_8_s1`;
-* WC7 withdrawn, the five-week column around the placeholder day
-  (`test_a_placeholder_day_between_the_boundaries_is_a_hole_the_loader_holds`)
-  and `k7_sessions_s0`, whose withholding the band search certifies since
-  its parts move across stretches, and `B2_oneweek_1201_s0`;
-* one spelling per day withdrawn, the column written two widths; the
-  holes withdrawn, the declared missing day; the one-storage rule
-  withdrawn, the workbook stored two ways; the validator's
-  re-descriptions producing the census, the validate run;
-* the day pass withdrawn, the battery's twins and the seven frozen
-  `weekday_*` cases of tests/test_generation_reference.py;
-* the loader's check withdrawn, the eight WC mutations of
-  tests/test_contract_loader.py and the copied census the loader
-  refuses;
-* the ties fast path withdrawn changes what two withheld censuses SAY
-  (`walkcase4_s0` and `bizlog_x1_s1` fall to the residue's sentence
-  rather than the repeats', still withheld), and the residue's rank cap
-  withdrawn changes nothing here, as the design measured.
+LANDING 3b.G (plan P4-D365) RETIRED THE CERTIFICATE under the owner's
+principle of 2026-10-01 -- the threat is a HIPAA exposure, never a
+reader rebuilding counts from a description -- because its price was
+high: 366 of 1,147 measured censuses withheld, the twins' weekday
+share .123 from the real one against .036 without it, and 1,159 s of
+describe against 67 s. Withdrawn with it: its bands, its 20,000 cap, its
+ties refusal, and the loader's WC5, WC7, WC8 and WC9; the verifier and
+the brute force that checked them are deleted. What stands, and the
+mutation that turns each witness red:
 
-THE REVIEW OF LANDING 3b.1 found the certificate's premise -- every
-published fact unchanged by exchanging two days of one class -- false
-where a census of written forms names a form only some days are written
-in, and three rules with no witness. Its witnesses, each with the
-mutation that turns it red:
-
-* the FORM HOLES (`calendar_rules.form_holes`): 104 visits past the ninth
-  written `m/d/yyyy` and 149 dates of three Mays, whose census a reader
-  holding the holes pins on every open day, are withheld -- red when the
-  holes are withdrawn from the producer (the census publishes), from its
-  certificate alone (its self-check still withholds, but the verdict
-  holds), from the loader or from `breach` (the copied census loads),
-  and from the verifier (it finds no witness on a hole); and each half
-  of the rule -- the OTHER field of a one-field width word, the month of
-  May -- turns its own column red when it is read wrong;
-* a heavy column past the ninth PUBLISHES, a stretch of holes between
-  two of its knot days: red when the verifier keeps holes in its
-  classes, and when the producer's certificate is asked blind to them
-  (its witnesses stand on holes);
-* WC7 counts no hole: red when `few_dates_group`, its caller or `breach`
-  counts them;
-* a MISSED weekday line prints no count below the line: red when the
-  line prints the group's count (plan P4-D347);
-* the reader's fewest days take every unparsed cell away: red when they
-  take one text (the census then falls to `ties` from `narrowed`);
-* a day written with a trailing blank no census shows is two spellings:
-  red when WC6 (b) is withdrawn (the census then PUBLISHES, its count of
-  different values a count of texts and not of days).
-
-THE SECOND REVIEW found half of the form holes unwitnessed and a hole
-the design names that the code did not hold. Its witnesses:
-
-* the SECOND-FIELD and DAY-FIRST halves: the same visits past the ninth
-  written `d/m/yyyy` (`{second-field-unpadded}`, the day the other
-  field) and two years of October to December written `m/d/yyyy`
-  (`{second-field-unpadded}`) and `d/m/yyyy` (`{first-field-unpadded}`),
-  the month the other field, are withheld as the first two are; one
-  autumn written `d/m/yyyy` has no hole and PUBLISHES. Red: a
-  second-field word read as leaving no hole, in the producer (both
-  second-field columns publish) or the verifier; a day-first member read
-  as month-first, in the producer (the day-first column past the ninth
-  falls to `few_dates`, and the autumn is withheld) or the verifier (the
-  three day-first columns);
-* the PLACEHOLDER HOLES (`calendar_rules.placeholder_holes`): a column
-  whose body runs from December 1899 holds 1900-01-01, read as missing,
-  and publishes with no witness on it; the same day kept as a value is
-  no hole; and a five-week column around it, the day read as missing,
-  is withheld `few_dates` and its copied census refused on load (WC7).
-  Red when the rule is withdrawn; when the producer is blind to it (its
-  witnesses stand on the day) or its caller drops the decisions (the
-  five-week column's sentence becomes `narrowed`); when the loader is
-  blind to it or drops the decisions (the copied census loads); when the
-  verifier is (it finds no witness on the day); and when the producer,
-  the loader or the verifier takes a kept day as a hole. The day
-  withdrawn from the producer's self-check alone changes nothing here:
-  the certificate it runs first already asks with it.
-
-THE THIRD REVIEW (plan P4-D359) is witnessed in
-tests/test_stage3b_weekday_review.py. Two of its rules move what the
-lines above say, and the lines are left as each round measured them:
-a withholding the table's own numbers decide -- no grouping, few dates,
-narrowed, two texts, two storages, the band -- is said in ONE shared
-sentence and asked only after the rules the published numbers decide
-and the withholding's own certificate, so where a line above says a
-column "falls to" another reason, the sentence it names is now the
-shared one; and a placeholder day read as missing is also a published
-absent spelling where `missing_by_source` names it, so a mutation blind
-to the day must be blind to both (`calendar_rules.public_holes`).
+* the floor and the shape (WC1 to WC4, WC6): the battery's censuses,
+  `calendar_rules.shape_breach` and the loader's mutations in
+  tests/test_contract_loader.py -- red when a count of one to ten
+  publishes or the loader asks a retired rule again;
+* the few-dates rule (`calendar_rules.few_dates`): fewer than three
+  different real dates in a non-empty group, or fewer than seven a
+  group on average over two or more -- red on `k7_sessions_s0`,
+  `B2_oneweek_1201_s0`, `payroll_1000`, `ties40_1000` and
+  `w_month_wide_1000_s0`, which then publish and whose twins miss their
+  count of different values, and on the hand-made bodies of
+  `test_the_few_dates_rule_counts_the_real_dates_of_each_group`;
+* the room rule (`calendar_rules.room_short`): a published hole and a
+  group with no free day holding a one-row date -- red on `mays_only`,
+  whose twin then holds 83 different values for 93, and on the bodies
+  of `test_the_room_rule_asks_only_where_holes_leave_no_free_day_for_a_one_row_date`;
+  its stated cost is `_straddling_february`;
+* every hole -- form, placeholder, declared -- read by the producer, the
+  generator and the validator alike (`calendar_rules.public_holes`):
+  red when the twins of the form-hole, placeholder and declared columns
+  stand a date on one;
+* the fold read on both sides (plan P4-D250, `validation._day_as_counted`):
+  red when the source of `_FOLDED` misses its own census;
+* every REAL twin clause of the deleted tests is kept: the battery's
+  twins and statistics, the declared missing day, the placeholder days,
+  the form holes, and the drawn-hole node of the review of 3b.0, whose
+  count pass is now asked on its census emptied.
 
 EVERY LANDING AFTER 3b.1 (plan P4-D364) names its own gate file here,
 on a line of its own below its own anchor. The base they build on is
 held by tests/test_stage3b_base.py.
 anchor 3b-D1 (P4-D365)
+3b.G: this file's weekday half and tests/test_stage3b_weekday_review.py.
 anchor 3b-D0 (P4-D366)
 anchor 3b-D2 (P4-D367)
 anchor 3b-D3 (P4-D368)

@@ -33857,7 +33857,7 @@ def whole_number_fields(document):
                 allowed.add(path)
                 continue
             # ...and the three numbers of every group of a WEEKDAY census
-            # (landing 3b.1, contract WC1 to WC8): a first weekday, a last
+            # (landing 3b.1, contract WC1 to WC4 and WC6): a first weekday, a last
             # weekday and a count of rows.
             if (
                 len(inside) == 3
