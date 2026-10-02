@@ -26,11 +26,13 @@ of eleven and seed 0, through the real producer, generator and checker:
   leave alone -- a code on five rows, a third of the column, six codes,
   two dates, no dates -- and how many are asked.
 
-Before lane R1 (668f276): neither question existed. The fourteen columns
-were read and twinned as follows -- the eight with codes as labels or
-numbers, their twins parsing 0 to 59 in 100 under the person's format,
-and the six of the day-or-month kind month first, the five written day
-first parsing 42 to 62 in 100 -- and nothing was asked about any of them.
+Before lane R1 (668f276): neither question existed. Seven of the eight
+columns with codes were read as labels or numbers, their twins parsing 0
+to 59 in 100 cells under the person's format, and the eighth as dates,
+its twenty codes written as made-up text (99.5 in 100); the six of the
+day-or-month kind were read month first, the five written day first
+parsing 41 to 74 in 100. Nothing was asked about dates, and three of the
+eight were asked whether they were blood pressures.
 
     .venv/bin/python tools/measurements/kpi_date_questions.py --kpi
 """

@@ -1408,8 +1408,8 @@ def the_date_codes_answer_reached_nothing(name: str) -> str:
         f"column as dates or times beside a few repeated spellings, so "
         f"that answer declared nothing and the column is described the "
         f"way it reads. If your table or your options changed since the "
-        f"questions file was written, describe the table again without "
-        f"--answers and read the new questions file this run writes."
+        f"questions file was written, run the command again without "
+        f"--answers and read the questions file it writes."
     )
 
 
@@ -1781,7 +1781,8 @@ def profile_version_is_older(found: int, reads: int) -> str:
         f"describes; and without the --answers you "
         f"gave, every answer you wrote in the questions file is gone \u2014 "
         f"each of them was a --code, an --identifier, a --measurement, "
-        f"a --decimal-comma, a --metadata-rows or a --delimiter, "
+        f"a --decimal-comma, a --metadata-rows, a --delimiter, a "
+        f"--day-first, a --missing-value or a --keep-value, "
         f"so leaving the file out costs whichever of those you had "
         f"given, and this same sentence says what each one costs. If "
         f"you do not hold the table "

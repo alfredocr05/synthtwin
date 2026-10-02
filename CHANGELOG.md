@@ -6,6 +6,26 @@ exists).
 
 ## [Unreleased]
 
+### Two date questions, asked and answered in the questions file (2026-10-01)
+
+**Which comes first, the day or the month, and what a column's few codes
+mean** (plan P4-D381, lane R1). A column of dates whose every cell reads
+both ways is asked, in the file and on the screen, with what each
+reading makes of it -- month starts `01/03/2023` read month first put
+every date in one month of the year -- and `day-first` is `--day-first`.
+A column of dates or times beside one to five codes, each on at least
+eleven rows and together at most a tenth of it (`UNK`, `00/00/0000`,
+`0000-00-00`, Caboodle's `-1` and `-2`, `99:99`), is asked that and
+nothing else: `missing` is `--missing-value` naming each code,
+`real-value` is `--keep-value`, the codes found again in the table by the
+run that reads the answer, so the file names none. Before, the five
+day-first columns' twins parsed 41 to 74 in 100 under the person's own
+format, seven of the eight with codes 0 to 59, and the eighth, which the
+date rule read, 99.5, its codes written as made-up text; answered, all
+fourteen parse whole, their codes come back as often, and nothing is
+missed.
+`K-S3-56`; no new profile key.
+
 ### The weekday certificate's cap, measured (2026-09-30)
 
 **The cap stays at 20,000 arrangements** (plan P4-D359, the owner's

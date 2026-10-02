@@ -324,6 +324,17 @@ CASES: "dict[str, tuple[object, ...]]" = {
     # things and the advice differs by neither.
     "a_declared_value_reads_two_ways": ("1,234", "--missing-value"),
     "the_questions_were_not_finished": (),
+    # Not a refusal: an answer about a column's codes (plan P4-D381)
+    # found none in the table the run opened. It takes the column name
+    # the questions file gave, which is the person's own.
+    "the_date_codes_answer_reached_nothing": ("seen_at",),
+    # ...and the refusal of two such answers that make one spelling a
+    # value and "no value" at once. It takes the file's path and the
+    # clashing pair as `taxonomy.contradictory_declarations` words it.
+    "answered_codes_contradict_each_other": (
+        "clinic-questions.json",
+        "--keep-value UNK and --missing-value UNK",
+    ),
 }
 
 

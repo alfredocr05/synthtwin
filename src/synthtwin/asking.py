@@ -2263,7 +2263,13 @@ _CLOCK_EXAMPLES = {
 
 
 def date_codes_reading(found: DateCodes) -> str:
-    """What the rest of a column reads as, in the words a person meets."""
+    """What the rest of a column reads as, in the words a person meets.
+
+    Guarantees: accepts what `date_codes_of` saw; returns a phrase that
+    names the reading by a made-up example of its own (`03/17/2024`,
+    `14:05`) and no cell of the column. Determinism: a function of the
+    reading. Raises nothing. No I/O.
+    """
     if found.reading in _CLOCK_EXAMPLES:
         return f"times of day written as {_CLOCK_EXAMPLES[found.reading]}"
     return f"dates written as {parsing.format_example(found.reading)}"
@@ -2455,7 +2461,12 @@ def date_code_questions(
 def without_columns_of(
     questions: "list[Question]", asked: "list[Question]"
 ) -> "list[Question]":
-    """``questions`` less any about a column ``asked`` already puts a question to."""
+    """``questions`` less any about a column ``asked`` already puts a question to.
+
+    Guarantees: accepts two lists of questions; returns the first's in
+    its own order, less those naming a column the second names.
+    Determinism: a function of the two. Raises nothing. No I/O.
+    """
     named: "list[str]" = []
     for question in asked:
         named += [question.name]

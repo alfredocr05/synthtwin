@@ -6949,6 +6949,71 @@
      "shapes": 48
     }
    }
+  },
+  {
+   "id": "K-S3-56",
+   "phase_stage": "Stage 3b lane R1 (plan P4-D381)",
+   "category": "CODE",
+   "headline": false,
+   "name": "A column of dates that cannot settle its own reading is asked, and the answer repairs it",
+   "status": "GREEN",
+   "rule": "the fourteen question columns of tests/date_question_shapes.py -- six whose every date reads day or month first, eight of dates or times beside one to five repeated codes -- at their own sizes, floor 11, seed 0: each asked in the questions file with the answer that repairs it offered, and answered there, read as dates or times, every twin cell outside its codes parsed by the person's own strptime format, the codes written back as often as the table wrote them, nothing MISSED and nothing asked again; of the thirty-seven spellings the reach audit read with no gap, none raises either question but mdy_ambiguous, every day of which is 12 or less, which is asked which comes first; the five shapes left alone raise neither; and the gate's pinned nodes pass",
+   "rule_kind": "at_most",
+   "expected": {
+    "day_or_month_shapes": 6,
+    "codes_shapes": 8,
+    "asked": 14,
+    "repaired": 14,
+    "twin_cells_unread": 0,
+    "missed": 0,
+    "clean_shapes": 37,
+    "clean_asked": 0,
+    "control_asked": 1,
+    "left_alone": 5,
+    "left_alone_asked": 0,
+    "pinned_nodes_failing": 0
+   },
+   "key_kinds": {
+    "day_or_month_shapes": "at_least",
+    "codes_shapes": "at_least",
+    "asked": "at_least",
+    "repaired": "at_least",
+    "clean_shapes": "at_least",
+    "control_asked": "exact",
+    "left_alone": "at_least",
+    "pinned_nodes_failing": "exact"
+   },
+   "tier": "SLOW",
+   "source": "driver",
+   "nodes": [
+    "tests/test_stage3b_date_questions.py::test_every_day_or_month_column_is_asked_and_answering_repairs_it",
+    "tests/test_stage3b_date_questions.py::test_month_starts_say_what_each_reading_makes_of_them",
+    "tests/test_stage3b_date_questions.py::test_one_cell_only_one_reading_parses_settles_the_order",
+    "tests/test_stage3b_date_questions.py::test_a_declared_day_first_is_an_answer",
+    "tests/test_stage3b_date_questions.py::test_every_column_with_codes_is_asked_and_answering_repairs_it",
+    "tests/test_stage3b_date_questions.py::test_real_value_keeps_the_reading_and_stops_the_question",
+    "tests/test_stage3b_date_questions.py::test_an_answer_that_finds_no_codes_says_so",
+    "tests/test_stage3b_date_questions.py::test_two_answers_making_one_spelling_both_are_refused",
+    "tests/test_stage3b_date_questions.py::test_the_clean_spellings_raise_neither_question",
+    "tests/test_stage3b_date_questions.py::test_the_shapes_left_alone_raise_neither_question",
+    "tests/test_stage3b_date_questions.py::test_the_line_holds_at_a_lowered_floor_and_rises_with_a_raised_one",
+    "tests/test_stage3b_date_questions.py::test_red_on_each_rule_of_the_codes_question",
+    "tests/test_stage3b_date_questions.py::test_red_without_the_date_rule",
+    "tests/test_stage3b_date_questions.py::test_a_fully_read_column_of_dates_is_not_read_again",
+    "tests/test_stage3b_date_questions.py::test_the_weighed_date_rule_reads_each_column_as_the_classifier_does"
+   ],
+   "test": null,
+   "driver": "tools/measurements/kpi_date_questions.py --kpi",
+   "pin_strength": "WEAKER",
+   "measured_on": "tests/date_question_shapes.py: fourteen question columns, the thirty-seven clean spellings of the reach audit of 2026-10-01 at its own seeds and five shapes left alone, through the real producer, generator and checker",
+   "evidence": "Before (668f276): nothing about dates was asked. The five day-first columns were read month first and their twins parsed 41 to 74 in 100 cells under the person's own format; seven of the eight columns with codes were read as labels or numbers, their twins parsing 0 to 59, and the eighth as dates with its twenty codes written as made-up text, 99.5; three of the eight were asked whether they were blood pressures, and the Caboodle key column was listed as a measurement.",
+   "nodes_min_collected": 34,
+   "value_at": {
+    "commit": "PENDING",
+    "date": "2026-10-01",
+    "measured_by": "tools/measurements/kpi_run.py --slow --only K-S3-56 --print-values",
+    "value": {}
+   }
   }
  ]
 }
