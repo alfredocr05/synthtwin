@@ -169,8 +169,11 @@ mutation that turns each witness red:
   different real dates in a non-empty group, or fewer than seven a
   group on average over two or more -- red on `k7_sessions_s0`,
   `B2_oneweek_1201_s0`, `payroll_1000`, `ties40_1000` and
-  `w_month_wide_1000_s0`, which then publish and whose twins miss their
-  count of different values, and on the hand-made bodies of
+  `w_month_wide_1000_s0`, which then publish: the twins of the first
+  three miss at seeds 0 to 2 (seven sessions and payroll their count of
+  different values, one week its census), forty ties at one seed of
+  three, and one March's meet it, the rule's cost; and red on the
+  hand-made bodies of
   `test_the_few_dates_rule_counts_the_real_dates_of_each_group`;
 * the room rule (`calendar_rules.room_short`): a published hole and a
   group with no free day holding a one-row date -- red on `mays_only`,
@@ -2523,8 +2526,11 @@ def test_each_rule_publishes_what_it_derives(tmp_path: pathlib.Path, name: str) 
       hold a group of fewer than three different dates, or fewer than
       seven a group on average: withheld, `few_dates`. So does
       `payroll_1000`, 48 dates on the 15th and the last day of 24 months,
-      6.9 a weekday on average: published, its twins held 53 different
-      days for 48 (plan P4-D365's B1).
+      6.9 a weekday on average. Published without the rule, the twins of
+      seven sessions and of payroll miss their count of different
+      values at seeds 0 to 2 and one week's its census; forty ties' miss
+      at one seed of three, and one March's meet it -- the rule's
+      measured cost (plan P4-D365's B1).
     * `ties60_1000`: sixty days, at least six on each weekday and more
       than seven on average: published.
 
