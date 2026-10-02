@@ -18,7 +18,13 @@ Validation holds it by fit. An unmarked clock whose hours all lie in 1 to
 `forced_twelve_hour_clocks`), a one-figure clock keeps its colon question,
 and slashed dates no value can settle ask which comes first. G7.5 step 5
 writes a width census's unnamed remainder on whole days. `K-S3-52`;
-vectors file 22.
+vectors file 22. **One new settings key**, `forced_twelve_hour_clocks`:
+the settings block is twenty-four keys, and the refusal of an older
+description names `--twelve-hour` among the options to give again. The
+loader words its new rule D12a (a description breaking it stopped the
+loader with an error of its own), and the twin report of a stamp declared
+a 12-hour clock reads its cells on that face and names what it misses --
+the stated limit: after noon the dial reads twelve hours early.
 
 ### The weekday certificate's cap, measured (2026-09-30)
 
