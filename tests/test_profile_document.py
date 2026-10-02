@@ -547,8 +547,16 @@ def test_nothing_that_varies_between_runs_is_written(
 # with those twelve keys deleted hashes to the digest stage 3b began
 # from, 83e1fc4fbb48903866f9290a9e5a93675772b121d602c09ac0e58c753da93400,
 # so they are the whole of the difference.
+# AND RE-RECORDED FOR THE WEEKDAY GUARD DROP (2026-10-02, plan P4-D365):
+# ONE LINE MOVES, the remark NF71 on `recorded_on`, which said what the
+# retired full-fill certificate held and now says the counts are of days
+# of the week and never of one date. Diffed against 659a1e2: that line
+# alone; no key arrives or leaves and no number moves.
+# AND AGAIN AT ITS REVIEW (item 4): the same line says "every group that
+# holds rows", not "every group counted"; diffed against fb257b0, that
+# line alone.
 GOLDEN_SHA256 = (
-    "eedbcd2394755d772aeb9285a468874b7809f89d2af2d742352aa015da24981d"
+    "1ce69835d6e68df14774f60f7be5169d2bd4aa4e09ccfa674e104af8edf69100"
 )
 
 

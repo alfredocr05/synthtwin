@@ -6250,7 +6250,7 @@ inset).
 #### G7.3f The weekday census: the day pass
 
 *Stage 3b, landing 3b.1, plans P4-D355 and P4-D359.* Where a column of whole dates
-publishes a non-empty `weekday_census` (contract WC1 to WC9), with both
+publishes a non-empty `weekday_census` (contract WC1 to WC4 and WC6), with both
 tails, at least three parsed cells and no bare date, its ranks are moved
 once G7.3's count passes and G7.3b step 9 are done and before any cell
 is spelled, until the cells between the two boundary ranks fall on the
@@ -6270,8 +6270,8 @@ one its `sentinel_verdicts` read as no value; and one its censuses of
 written forms leave empty -- a width word naming the first field alone
 leaves every day whose second field is below ten, one naming the second
 field alone every day whose first is, and a month name of the length
-`either` every day outside May (contract WC6 to WC8, the holes the
-certificate was asked with). `held(d)` is how
+`either` every day outside May (contract WC6, the holes the producer
+asks with, plan P4-D365). `held(d)` is how
 many ranks of the column stand on `d`. A rank is MOVABLE where it lies
 between the two boundary ranks, both included, the layout does not pin
 it and its gap (G7.3) is more than one day; the movable ranks form GAPS,

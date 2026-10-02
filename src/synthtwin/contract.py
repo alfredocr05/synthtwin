@@ -27,8 +27,8 @@ profile document and nothing else. It never constructs a table path, a
 table handle, a table object or a collection of raw cells, and it
 imports neither the reader nor pandas, directly or through anything it
 does import: `canonical` imports json alone, `errors` and `parsing`
-import nothing outside this package -- nor do `calendar_rules` and
-`calendar_certificate`, which import `parsing` alone -- and `paths`
+import nothing outside this package -- nor does `calendar_rules`,
+which imports `parsing` alone -- and `paths`
 imports os, pathlib, sys and typing (plan P2-D1).
 
 THE ORDER OF THE CHECKS IS NORMATIVE (contract section 10.1), because it
@@ -91,7 +91,7 @@ import json
 import math
 import pathlib
 
-from synthtwin import calendar_certificate, calendar_rules, canonical, dialect, errors, parsing
+from synthtwin import calendar_rules, canonical, dialect, errors, parsing
 from synthtwin.paths import validate_local_path
 
 # The one version this loader reads. `profile_version` must be exactly
@@ -571,8 +571,9 @@ DATETIME_KEYS = (
     "month_name_styles",
     "quarter_marker_case",
     "zulu_case",
-    # WHICH DAYS OF THE WEEK THE BODY FALLS ON (landing 3b.1, plan
-    # P4-D355, invariants WC1 to WC9): groups of weekdays, empty on every
+    # WHICH DAYS OF THE WEEK THE BODY FALLS ON (landing 3b.1, plans
+    # P4-D355 and P4-D365, invariants WC1 to WC4 and WC6): groups of
+    # weekdays, empty on every
     # column that publishes none.
     "weekday_census",
     # THE SEVEN STAGE 3B RESERVES (plan P4-D364): the censuses of the
@@ -1625,41 +1626,11 @@ INVARIANTS = {
         "together; or Monday to Friday together and Saturday and Sunday "
         "together -- chosen by the census line alone"
     ),
-    "WC5": (
-        "no group of a weekday census is left holding one to the census "
-        "line less one once the rows its boundary and rung days hold for "
-        "certain are taken out"
-    ),
     "WC6": (
         "a weekday census stands only where the censuses of written forms "
         "give every date one text, so that different values count "
         "different days, and where a workbook's published cell classes "
         "do not show the column's values stored in two ways"
-    ),
-    "WC7": (
-        "every non-zero group of a weekday census can hold at least four "
-        "dates besides its boundary and rung days, so no group is the "
-        "count of a few single dates"
-    ),
-    "WC8": (
-        "every day of a weekday the census counts can hold at least the "
-        "census line in some table meeting the whole description, or lies "
-        "where the rank facts already hold it below the line and the "
-        "census allows everything stage 3's facts allow there"
-    ),
-    "WC9": (
-        "a weekday census is published only where neither its weekend "
-        "nor its Monday to Friday together lies in its band: from the "
-        "larger of one and the least the rest of the description allows "
-        "that half, through that and some rows more, each half's rows "
-        "more at most the census line plus the most it can hold in the "
-        "stretches the rank facts keep below the line, and the two "
-        "together the fewest its search finds that leave the tables "
-        "always withheld certified, the fewer Monday to Friday rows first "
-        "where two pairs tie; a "
-        "census so near that least is always withheld, so that being "
-        "withheld says nothing about how few rows a set of dates holds, "
-        "and the loader refuses one at that least, which every band holds"
     ),
     # THE LANDINGS' ANCHORS (plan P4-D364). Each landing of stage 3b adds
     # its rules below its own line, so two landings built side by side
@@ -8438,10 +8409,10 @@ def _datetime_facts(
     """A column of dates and times (contract 6.6.2).
 
     `judged` are the candidates the block's `sentinel_verdicts` publish
-    as `read_as_missing`, whose placeholder days the weekday census holds
-    as holes (`calendar_rules.placeholder_holes`), and `absent` the
-    absent spellings the description publishes for the column, whose
-    days it holds as holes too (`calendar_rules.declared_holes`).
+    as `read_as_missing`, whose placeholder days the censuses of stage
+    3b hold as holes (`calendar_rules.placeholder_holes`), and `absent`
+    the absent spellings the description publishes for the column, whose
+    days they hold as holes too (`calendar_rules.declared_holes`).
 
     Raises ProfileError for a wrong type or a value outside its list,
     and for D1 to D11. D5 is checked in the one direction the document
@@ -8782,12 +8753,9 @@ def _datetime_facts(
         where,
         floor,
         n_present - unparsed,
-        n_distinct,
-        unparsed,
         (parser_family, resolution, clock),
         low,
         high,
-        ladder,
         {
             "datetime_separators": separators,
             "date_field_widths": widths,
@@ -8795,8 +8763,6 @@ def _datetime_facts(
             "quarter_marker_case": markers,
             "zulu_case": zulu,
         },
-        judged,
-        absent,
     )
     facts = DatetimeFacts(
         parser_family=parser_family,
@@ -8982,31 +8948,23 @@ def _weekday_census(
     where: str,
     floor: int,
     parsed: int,
-    n_distinct: int,
-    unparsed: int,
     reading: "tuple[str, str, str]",
     low: "TailFacts | None",
     high: "TailFacts | None",
-    ladder: DateLadder,
     forms: "dict[str, dict[str, int]]",
-    judged: "tuple[str, ...]",
-    absent: "tuple[str, ...]" = (),
 ) -> "tuple[tuple[int, int, int], ...]":
-    """A column's `weekday_census`, read and held to WC1 to WC9 (landing 3b.1).
+    """A column's `weekday_census`, read and held to WC1 to WC4 and WC6.
 
-    `reading` is the column's parser family, resolution and clock. An
-    empty census is always legal. A published one must stand on a column
-    of whole dates read on the local clock, not in the joint member,
-    with both tails (WC3); then `calendar_certificate.breach` asks every
-    other rule on the reader's own numbers -- the groups' shape, the
-    floor, the body, the menu, one spelling per day, the knot days' sure
-    cells, no few-date group and the full-fill certificate, both with
-    the days the published form censuses leave empty
-    (`calendar_rules.form_holes`), the placeholder days `judged` names
-    (`calendar_rules.placeholder_holes`) and the days a published absent
-    spelling names (`absent`, `calendar_rules.declared_holes`) as holes,
-    through the producer's own `calendar_rules.public_holes` -- and the
-    first broken one is refused by name.
+    Landing 3b.1, as plan P4-D365 left it. `reading` is the column's
+    parser family, resolution and clock. An empty census is always legal.
+    A published one must stand on a column of whole dates read on the
+    local clock, not in the joint member, with both tails (WC3); then
+    `calendar_rules.shape_breach` asks the groups' cover (WC1), the floor
+    (WC2), their total against the body (WC3), the menu (WC4) and one
+    spelling per day (WC6), and the first broken rule is refused by
+    name. Nothing here walks a day: since plan P4-D365 the loader asks no
+    rule of what a reader could work out from the census (WC5, WC7, WC8
+    and WC9 are retired).
 
     Guarantees: accepts the value and the facts beside it; returns the
     groups as `(first, last, count)`. Raises ProfileError for a wrong
@@ -9041,37 +8999,11 @@ def _weekday_census(
             "only a column of whole dates read on the local clock, not in "
             "the joint member, and with both tails publishes one",
         )
-    rungs: "list[tuple[int, int]]" = []
-    for index in range(len(LADDER_KEYS)):
-        rung = ladder.rungs[index]
-        if rung is None:
-            continue
-        percent = LADDER_PERCENTS[index]
-        rank = min(parsed - 1, ((parsed - 1) * percent) // 100)
-        rungs += [(rank, _day_number(rung))]
-    listed_low = len(low.values) if low.values is not None else -1
-    listed_high = len(high.values) if high.values is not None else -1
-    fewest, most = calendar_certificate.reader_days(
-        n_distinct, unparsed, low.rows, listed_low, high.rows, listed_high
-    )
-    first_day = _day_number(low.boundary)
-    last_day = _day_number(high.boundary)
-    holes = calendar_rules.public_holes(
-        forms, parser_family, first_day, last_day, judged, absent
-    )
-    broken = calendar_certificate.breach(
+    broken = calendar_rules.shape_breach(
         tuple(found),
-        parsed,
-        low.rows,
-        high.rows,
-        first_day,
-        last_day,
-        tuple(rungs),
-        fewest,
-        most,
+        parsed - low.rows - high.rows,
         parsing.census_floor(floor),
         calendar_rules.one_spelling_published(forms, parser_family, parsed),
-        tuple(sorted(holes)),
     )
     if broken is not None:
         raise _broken(broken[0], where, broken[1], broken[2])

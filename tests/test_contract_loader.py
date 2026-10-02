@@ -1433,10 +1433,9 @@ def battery() -> list[Mutation]:
         ),
         # THE WEEKDAY CENSUS, landing 3b.1 (plan P4-D355). `recorded_on`
         # publishes the seven weekday counts of its 217 body values,
-        # Monday first: 30, 27, 33, 36, 30, 26 and 35. Its knot days --
-        # the two boundaries and five rungs -- fall four on a Wednesday,
-        # two rows for certain on the Thursday the high boundary and the
-        # 95th rung share, and one each on a Tuesday and a Saturday.
+        # Monday first: 30, 27, 33, 36, 30, 26 and 35. Since plan P4-D365
+        # the loader holds a census to its shape alone (WC1 to WC4 and
+        # WC6); WC5, WC7, WC8 and WC9 are retired.
         Mutation(
             "WC1", "a weekday census whose groups run out of order",
             edit(
@@ -1480,53 +1479,12 @@ def battery() -> list[Mutation]:
             ),
         ),
         Mutation(
-            "WC5", "a Wednesday count its four knot days leave short",
-            edit(
-                "recorded_on",
-                weekday_census=[
-                    {"first": 0, "last": 0, "count": 51},
-                    {"first": 1, "last": 1, "count": 27},
-                    {"first": 2, "last": 2, "count": 12},
-                    {"first": 3, "last": 3, "count": 36},
-                    {"first": 4, "last": 4, "count": 30},
-                    {"first": 5, "last": 5, "count": 26},
-                    {"first": 6, "last": 6, "count": 35},
-                ],
-            ),
-        ),
-        Mutation(
             "WC6", "a weekday census beside dates written two widths",
             edit(
                 "recorded_on",
                 format="month-first-date",
                 resolution_mix={"month-first-date": 240},
                 date_field_widths={"padded": 117, "unpadded": 123},
-            ),
-        ),
-        Mutation(
-            "WC7", "a weekday group a reader holds to a few dates",
-            edit("recorded_on", n_distinct=13, n_distinct_folded=13),
-        ),
-        Mutation(
-            "WC8", "a weekday census beside dates that never repeat",
-            edit("recorded_on", n_distinct=240, n_distinct_folded=240),
-        ),
-        # WC9 (plan P4-D359): published with 150 different values,
-        # `recorded_on`'s body holds more different days than its weekends
-        # can, so Monday to Friday holds at least 34 rows in every table of
-        # its facts, and every band the producer's search can take holds
-        # 34, which it always withholds. (Its own census, where every band
-        # stands inside what WC5 refuses, cannot reach WC9.)
-        Mutation(
-            "WC9", "a Monday to Friday at the least every band a withholding keeps holds",
-            edit(
-                "recorded_on",
-                n_distinct=150,
-                n_distinct_folded=150,
-                weekday_census=[
-                    {"first": 0, "last": 4, "count": 34},
-                    {"first": 5, "last": 6, "count": 183},
-                ],
             ),
         ),
         # THE CENSUSES STAGE 3B RESERVES (plan P4-D364): each `[]`, and
@@ -2711,60 +2669,45 @@ def _form_workbook_format_code_carrying_a_word(document: Document) -> None:
 BATTERY = battery()
 
 
-def test_the_band_refusal_refuses_only_each_halfs_least(tmp_path: pathlib.Path, base: Document) -> None:
-    """WC9 refuses a half at its least alone, which every band the producer can take holds.
+def test_the_weekday_census_is_held_to_its_shape_alone(tmp_path: pathlib.Path, base: Document) -> None:
+    """The loader asks a weekday census its shape, and nothing a reader could work out (plan P4-D365).
 
-    `recorded_on` at 150 different values: Monday to Friday holds at least
-    34 rows in every table of its facts, and its capped stretches can take
-    ten more. The band stood at width nought past those stretches, 34 to
-    44, when the search took one width for both halves; searched a half
-    at a time, the producer can take Monday to Friday at 34 alone and
-    publish forty, so a loader refusing 34 to 44 refused the producer's
-    own census (the skeptic of the review's second round: a market's
-    Monday to Friday of 28 stood inside the 18 to 35 the loader asked).
-    Thirty-four is refused, and its sentence says why; forty passes WC9
-    and meets WC8, which this hand-made census fails. Red when WC9 asks
-    the capped stretches again (forty refused by WC9), and when it asks
-    nothing (thirty-four meets WC8 first).
+    The four descriptions the retired rules refused -- a Wednesday its
+    knot days left one to ten rows (WC5), a count of different values
+    holding a group to a few dates (WC7), dates that never repeat (WC8)
+    and a Monday to Friday at its least (WC9) -- each keep a census of
+    the right cover, floor, total and menu, so each loads. Red when the
+    loader asks any of those rules again.
     """
-    for count, refused in ((34, True), (40, False)):
-        document = copy.deepcopy(base)
+    edits = (
+        edit(
+            "recorded_on",
+            weekday_census=[
+                {"first": 0, "last": 0, "count": 51},
+                {"first": 1, "last": 1, "count": 27},
+                {"first": 2, "last": 2, "count": 12},
+                {"first": 3, "last": 3, "count": 36},
+                {"first": 4, "last": 4, "count": 30},
+                {"first": 5, "last": 5, "count": 26},
+                {"first": 6, "last": 6, "count": 35},
+            ],
+        ),
+        edit("recorded_on", n_distinct=13, n_distinct_folded=13),
+        edit("recorded_on", n_distinct=240, n_distinct_folded=240),
         edit(
             "recorded_on",
             n_distinct=150,
             n_distinct_folded=150,
-            weekday_census=[{"first": 0, "last": 4, "count": count}, {"first": 5, "last": 6, "count": 217 - count}],
-        )(document)
-        if not refused:
-            # Past WC9, the next rule asks the hand-made census (WC8).
-            with pytest.raises(errors.ProfileError) as later:
-                contract.load_profile(str(fixtures.write_profile(tmp_path, f"wc9-{count}-profile.json", document)))
-            assert contract.INVARIANTS["WC8"] in str(later.value), str(later.value)
-            continue
-        message = refusal(tmp_path, document)
-        assert contract.INVARIANTS["WC9"] in message, message
-        said = message.split(contract.INVARIANTS["WC9"], 1)[1]
-        assert "more than the larger of one and the least" in said, said
-        assert "Monday to Friday of 34, are always withheld" in said, said
-        assert "which every band holds" in contract.INVARIANTS["WC9"]
-
-
-def test_the_certificate_refusal_states_its_residue_clause(tmp_path: pathlib.Path, base: Document) -> None:
-    """WC8's refusal says what the rule allows: a day the rank facts already hold below the line.
-
-    A sibling of the band refusal's missing term (the review's second
-    round): the sentence asked every day of a counted weekday to hold the
-    line in some table, while the rule -- and the certificate -- accept a
-    day the rank facts already cap below it where the census allows every
-    arrangement the rest of the description does. Red when the clause
-    leaves the sentence.
-    """
-    document = copy.deepcopy(base)
-    edit("recorded_on", n_distinct=240, n_distinct_folded=240)(document)
-    message = refusal(tmp_path, document)
-    assert contract.INVARIANTS["WC8"] in message, message
-    said = message.split(contract.INVARIANTS["WC8"], 1)[1]
-    assert "or lie where the rank facts already hold it below the line" in said, said
+            weekday_census=[{"first": 0, "last": 4, "count": 34}, {"first": 5, "last": 6, "count": 183}],
+        ),
+    )
+    for place, change in enumerate(edits):
+        document = copy.deepcopy(base)
+        change(document)
+        loaded = contract.load_profile(str(fixtures.write_profile(tmp_path, f"shape-{place}-profile.json", document)))
+        assert loaded.columns, place
+    for retired in ("WC5", "WC7", "WC8", "WC9"):
+        assert retired not in contract.INVARIANTS, retired
 
 
 @pytest.mark.parametrize(

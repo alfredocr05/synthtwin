@@ -1,12 +1,12 @@
 """The weekday census of a column of dates: its menu and its rules.
 
-Stage 3b, landing 3b.1 (plan P4-D355, contract WC1 to WC9). A column
-of whole dates read on the local clock publishes `weekday_census`: how
-many cells of its BODY -- the cells between the two tail boundaries,
-both included -- fall on each day of the week, in GROUPS whose count is
-nought or at least the census line (`parsing.census_floor`). Monday is
-weekday 0 and Sunday 6; a group is `(first, last, count)` over a run of
-weekdays.
+Stage 3b, landing 3b.1 (plan P4-D355, contract WC1 to WC4 and WC6),
+as landing 3b.G left it (plan P4-D365). A column of whole dates read on
+the local clock publishes `weekday_census`: how many cells of its BODY
+-- the cells between the two tail boundaries, both included -- fall on
+each day of the week, in GROUPS whose count is nought or at least the
+census line (`parsing.census_floor`). Monday is weekday 0 and Sunday 6;
+a group is `(first, last, count)` over a run of weekdays.
 
 THE GROUPING IS CHOSEN BY THE FLOOR ALONE, from a fixed MENU, and
 nothing else ever chooses one:
@@ -22,36 +22,29 @@ nothing else ever chooses one:
            line less one;
   else     no census.
 
-A merged group of the menu says only that SOME member is short, and a
-reader reads exactly that and nothing more (`branches_of`): the entry
-is read back from the shape of the groups alone (`entry_of`). A rule
-that merged a SPECIFIC short weekday into its neighbour would tell a
-reader that weekday held fewer than the line together with the
-neighbour, and no day of it could then hold the line in any table
-consistent with the rule -- which is why no such rule exists here
-(plan P4-D355).
+A merged group of the menu says only that SOME member is short: the
+entry is read back from the shape of the groups alone (`entry_of`).
 
-Whether a census the menu offers is PUBLISHED is the full-fill
-certificate's question (`calendar_certificate`). This module holds the
-menu and the cheap rules the producer and the loader both ask:
+WHETHER THE CENSUS THE MENU OFFERS IS PUBLISHED is decided by what the
+twin can meet, not by what a reader could work out from it (the
+owner's principle of 2026-10-01: the threat is a HIPAA exposure, never a
+reader rebuilding counts; plan P4-D365 dropped the full-fill
+certificate, its bands, its cap, its ties refusal and WC5, WC7, WC8 and
+WC9). The producer withholds a census whose twin cannot keep the
+column's count of different values (`few_dates`, `room_short`), and
+both the producer and the loader hold a published census to its shape
+(`shape_breach`): WC1 the cover, WC2 the floor, WC3 the total, WC4 the
+menu and WC6 one spelling per day (`one_spelling_published`) -- the
+published censuses of written forms give every date one text, so the
+count of different values is a count of different days. One storage
+class per workbook column (`stored_one_way`) is the producer's too.
 
-* WC5, the knot days' sure cells: a group less the cells a reader
-  places in it for certain -- one for each boundary and rung day, more
-  where several rungs share a day -- is nought or at least the line;
-* WC7, no group the count of a few single dates (`few_dates_group`,
-  owner ruling 7 of 2026-09-26 leaves single dates to landing 3b.6);
-* WC6, one spelling per day (`one_spelling_published`): the published
-  censuses of written forms give every date one text, so the count of
-  different values a reader holds is a count of different days;
-* one storage class per workbook column (`stored_one_way`).
-
-AND THE RULES EVERY CENSUS OF STAGE 3B SHARES (plan P4-D364, the base
-the rest of stage 3b builds on), each stated once so that no census
-writes its own: a count is nought or at least the line
-(`calendar_floor_ok`); a census's groups are merged from its bins by
-one rule (`merged_groups`); a value stands out from its neighbours by
-one rule (`standing_out`); and a published census is held to its
-groups' cover, floor, total and sure cells by one checker
+AND THE RULES EVERY CENSUS OF STAGE 3B SHARES (plan P4-D364), each
+stated once so that no census writes its own: a count is nought or at
+least the line (`calendar_floor_ok`); a census's groups are merged from
+its bins by one rule (`merged_groups`); a value stands out from its
+neighbours by one rule (`standing_out`); and a published census is held
+to its groups' cover, floor, total and sure cells by one checker
 (`census_breach`), whose weekday form stays here as
 `sure_cells_breach`.
 
@@ -92,46 +85,51 @@ REASON_NO_TAILS = "no_tails"
 REASON_SPELLINGS = "spellings"
 REASON_WORKBOOK = "workbook"
 REASON_MENU = "menu"
-REASON_TIES = "ties"
+# Too few different dates in a group for the twin to keep the count of
+# different values while it meets the census (`few_dates`).
 REASON_FEW_DATES = "few_dates"
+# Too little room between the published holes for the twin to lay the
+# body's different dates on (`room_short`).
+REASON_ROOM = "room"
+# The producer's own census broke a rule the loader asks (`shape_breach`).
 REASON_NARROWED = "narrowed"
 # A day written in two texts by the table's own cells, or standing on a
 # day the published forms or absent spellings hold empty: what the forms
 # publish does not account for how the column was written.
 REASON_TEXTS = "texts"
-# The weekend, or Monday to Friday, inside its band
-# (`calendar_certificate.withholding`).
-REASON_BAND = "band"
-# The withholding itself is not certified, so the census is withheld
-# whatever the table holds.
-REASON_UNCERTIFIED = "uncertified"
 REASONS = (
     REASON_NO_TAILS,
     REASON_SPELLINGS,
     REASON_WORKBOOK,
     REASON_MENU,
-    REASON_TIES,
     REASON_FEW_DATES,
+    REASON_ROOM,
     REASON_NARROWED,
     REASON_TEXTS,
-    REASON_BAND,
-    REASON_UNCERTIFIED,
 )
 # WHICH REASONS A SENTENCE MAY NAME (review of landing 3b.1, item 2).
 # A withholding says what decided it only where the published numbers
-# alone decide it -- no tails, forms that may write a date two ways, too
-# few repeated cells for any day to hold the line -- because a reader
-# already holds those. Every other rule reads the table's own numbers,
-# and naming which one fired would tell a reader what it saw: "no
-# grouping holds the line" beside a count of different days that forces
-# 135 weekday rows says the weekend holds one to ten. Those are all said
-# in ONE sentence, `REASON_UNSAID`'s (`taxonomy.NOTE_WEEKDAY_WITHHELD_NARROWED`).
-SAID_REASONS = (REASON_NO_TAILS, REASON_SPELLINGS, REASON_TIES)
+# alone decide it -- no tails, forms that may write a date two ways.
+# Every other rule reads the table's own numbers and is said in ONE
+# sentence, `REASON_UNSAID`'s (`taxonomy.NOTE_WEEKDAY_WITHHELD_NARROWED`,
+# kept by plan P4-D365 under the owner's rule that a guard goes only at a
+# high price).
+SAID_REASONS = (REASON_NO_TAILS, REASON_SPELLINGS)
 REASON_UNSAID = "unsaid"
 
-# WC7: a non-zero group must be able to hold at least this many
-# different dates besides the knot days a reader already holds.
-FEWEST_DATES = 4
+# THE FEW-DATES RULE (plan P4-D365, measured on the guard drop's
+# batteries and its review's): a census is withheld where a non-empty
+# group holds fewer than `FEWEST_REAL_DATES` different real dates of the
+# body, or where at least two groups are non-empty and they hold fewer
+# than seven and a half different real dates each on average -- fewer
+# than `MEAN_REAL_HALF_DATES` halves, so the rule stays in whole
+# numbers. Below either, the day pass splits a date's rows across two
+# dates to meet the census and the twin holds more different values
+# than the column (k7 sessions 17 for 9; payroll on the 15th and the
+# last day 53 for 48; one date a month over 51 to 54 months, 7.00 to
+# 7.43 dates a group, 53 to 54 for 52).
+FEWEST_REAL_DATES = 3
+MEAN_REAL_HALF_DATES = 15
 
 # The censuses of written forms whose one form per cell makes one text
 # per date (WC6), in the order the description publishes them.
@@ -286,69 +284,21 @@ def where_of(groups: "tuple[tuple[int, int, int], ...]") -> "tuple[int, ...]":
     return tuple(found)
 
 
-def branches_of(
-    groups: "tuple[tuple[int, int, int], ...]",
-    line: int,
-    shortable: "tuple[int, ...]",
-    exclude: int,
-) -> "list[dict[int, tuple[int, int]]]":
-    """What the census tells a reader about the seven weekday totals.
-
-    A list of ALTERNATIVES, each a bound `(least, most)` per weekday it
-    bounds: entry 1 fixes all seven totals; entry 2 fixes Monday to
-    Friday and holds Saturday, or else Sunday, at one to `line - 1`;
-    entry 3 holds one of Monday to Friday at one to `line - 1`. A
-    weekday in an empty group is fixed at nought and one alone in a
-    group at its count, in every entry. `shortable` names the weekdays
-    that can hold a cell at all -- a weekday no day of the body falls
-    on cannot be the short one -- and `exclude` a weekday that may not
-    be the short one (the weekday a witness fills to the line; -1 for
-    none). The alternatives are exactly what a reader can conclude
-    from the grouping and the floor, and every table consistent with
-    the census meets at least one of them.
-
-    Guarantees: accepts a menu grouping, the line, the weekdays that
-    can be short and the one excluded; returns the alternatives in
-    weekday order of the short one. Determinism: a function of the
-    four. Raises nothing. No I/O of any kind.
-    """
-    exact: "dict[int, tuple[int, int]]" = {}
-    for first, last, count in groups:
-        if count == 0:
-            for weekday in range(first, last + 1):
-                exact[weekday] = (0, 0)
-        elif first == last:
-            exact[first] = (count, count)
-    entry = entry_of(groups)
-    if entry == ENTRY_SEVEN:
-        return [exact]
-    candidates: "tuple[int, ...]" = (SATURDAY, SUNDAY)
-    if entry == ENTRY_WEEKDAYS:
-        candidates = (0, 1, 2, 3, FRIDAY)
-    found: "list[dict[int, tuple[int, int]]]" = []
-    for short in candidates:
-        if short == exclude or short not in shortable:
-            continue
-        if short in exact and exact[short] == (0, 0):
-            continue
-        alternative = dict(exact)
-        alternative[short] = (1, line - 1)
-        found += [alternative]
-    return found
-
-
 def sure_cells_breach(
     groups: "tuple[tuple[int, int, int], ...]",
     sure: "list[int]",
     line: int,
 ) -> int:
-    """WC5: the first group a reader's sure cells leave short, or -1.
+    """The closed form of the sure-cells rule on weekday groups: the first
+    group the sure cells leave short, or -1.
 
     `sure` is, per weekday, the cells a reader places there for
     certain: each knot day -- a tail boundary or a published rung --
     holds at least one body cell, and more where rungs at several ranks
     share its day. A non-zero group whose count less those cells is one
-    to `line - 1` would hand that remainder back by subtraction.
+    to `line - 1` would hand that remainder back by subtraction. The
+    weekday census no longer asks it (WC5 retired, plan P4-D365); it
+    stays for the censuses of the clock that reuse it (plan P4-D364).
 
     Guarantees: accepts the groups, seven sure counts and the line;
     returns a group index or -1. Determinism: a function of the three.
@@ -367,78 +317,12 @@ def sure_cells_breach(
     return -1
 
 
-def few_dates_group(
-    groups: "tuple[tuple[int, int, int], ...]",
-    low: int,
-    high: int,
-    knot_days: "tuple[int, ...]",
-    most_days: int,
-    holes: "frozenset[int]" = frozenset(),
-) -> int:
-    """WC7: the first non-zero group a reader can hold to few dates, or -1.
-
-    For a non-zero group, the most different dates it can hold besides
-    the knot days a reader already holds is the least of three: its
-    calendar days between the boundaries that are not knot days, less
-    its HOLES (days no body cell can hold: `form_holes`,
-    `placeholder_holes` and the days a declared missing value names);
-    its count less one per knot day in it; and the body's most
-    different days (`most_days`, the reader's `D_max`) less every knot
-    day and one date for each other non-zero group holding no knot day. Fewer than `FEWEST_DATES` makes the
-    group the count of a few single dates, which is the heavy-date
-    landing's business (owner ruling 7 of 2026-09-26), not this
-    census's.
-
-    Guarantees: accepts the groups, the two boundary days, the knot
-    days, the reader's most different days and the holes; returns a
-    group index or -1. Determinism: a function of the six. Raises
-    nothing. No I/O of any kind.
-    """
-    where = where_of(groups)
-    calendar = [0 for _ in groups]
-    knotted = [0 for _ in groups]
-    knots = set(knot_days)
-    # COUNTED, NOT WALKED (review of landing 3b.1, finding 10): each
-    # weekday's days between the boundaries by arithmetic, then the knot
-    # days and the holes one by one, so the cost is theirs and not the
-    # span's.
-    for weekday in range(WEEKDAYS):
-        if high < low:
-            break
-        first = low + (weekday - weekday_of(low)) % WEEKDAYS
-        if first <= high:
-            index = where[weekday]
-            calendar[index] = calendar[index] + (high - first) // WEEKDAYS + 1
-    for day in knots:
-        if low <= day <= high:
-            index = where[weekday_of(day)]
-            knotted[index] = knotted[index] + 1
-    for day in holes:
-        if low <= day <= high and day not in knots:
-            index = where[weekday_of(day)]
-            calendar[index] = calendar[index] - 1
-    nonzero = [index for index in range(len(groups)) if groups[index][2] > 0]
-    for index in nonzero:
-        others = 0
-        for other in nonzero:
-            if other != index and knotted[other] == 0:
-                others = others + 1
-        most = min(
-            calendar[index] - knotted[index],
-            groups[index][2] - knotted[index],
-            most_days - len(knot_days) - others,
-        )
-        if most < FEWEST_DATES:
-            return index
-    return -1
-
-
 def one_spelling_published(
     forms: "dict[str, dict[str, int]]", format_name: str, parsed: int
 ) -> bool:
     """WC6 (a): whether the published form censuses give a date one text.
 
-    `n_distinct` counts TEXTS, and the certificate counts DAYS; the two
+    `n_distinct` counts TEXTS, and the census rules count DAYS; the two
     agree only where every published census of written forms names at
     most one form and that form holds every parsed cell, and where the
     member can show a width (`parsing.VARIABLE_WIDTH_MEMBERS`,
@@ -504,9 +388,9 @@ def form_holes(
 
     Every other word -- a joint width, the one-field width of a textual
     member, a name of a length -- can be written on any day. The ONE
-    statement of the rule, asked by the producer and the loader, so
-    that both sides of the certificate (`calendar_certificate.facts_of`)
-    and WC7 leave the holes out.
+    statement of the rule, asked by the producer, the loader, the
+    generator and the validator (`public_holes`), so that no twin date
+    stands on a hole and the room rule (`room_short`) counts none.
 
     Guarantees: accepts the five censuses by name, the parser family and
     the two boundary days; returns the holes between them ascending.
@@ -521,14 +405,7 @@ def form_holes(
     if format_name in parsing.VARIABLE_WIDTH_MEMBERS and parsing.width_is_value_bound(width):
         first_field = "month" if format_name in parsing.MONTH_FIRST_MEMBERS else "day"
     shows_first = width in parsing.FIELD_WIDTH_STYLES_FIRST
-    may_only = False
-    if (
-        format_name in parsing.TEXTUAL_MEMBERS
-        and "month_name_styles" in forms
-        and len(forms["month_name_styles"]) == 1
-    ):
-        for word in forms["month_name_styles"]:
-            may_only = parsing.name_is_value_bound(word)
+    may_only = may_only_published(forms, format_name)
     if not first_field and not may_only:
         return ()
     found: "list[int]" = []
@@ -542,6 +419,32 @@ def form_holes(
         if hole:
             found += [day]
     return tuple(found)
+
+
+def may_only_published(forms: "dict[str, dict[str, int]]", format_name: str) -> bool:
+    """Whether the month-name census holds every cell of a column to May.
+
+    The month-name half of `form_holes`: a textual member whose one
+    published month-name word has the length `either`
+    (`parsing.name_is_value_bound`) is written by names of May alone, so
+    every day outside May is a hole. The producer asks it alone too:
+    the room rule (`room_short`) is asked beside these holes, and beside
+    placeholder and declared holes, but never beside width holes alone
+    (reviews of landing 3b.G).
+
+    Guarantees: accepts the five censuses by name and the parser family;
+    returns the answer. Determinism: a function of the two. Raises
+    nothing. No I/O of any kind.
+    """
+    if (
+        format_name not in parsing.TEXTUAL_MEMBERS
+        or "month_name_styles" not in forms
+        or len(forms["month_name_styles"]) != 1
+    ):
+        return False
+    for word in forms["month_name_styles"]:
+        return parsing.name_is_value_bound(word)
+    return False
 
 
 def placeholder_holes(
@@ -594,7 +497,7 @@ def declared_holes(
     by the exact number where the spelling reads as one and by the
     folded spelling otherwise. Only what is published counts: a day the
     person declared that no key names is a day like any other to a
-    reader, and so to the certificate on both sides.
+    reader, and so to the generator and the validator.
 
     Guarantees: accepts the published spellings, the five censuses of
     written forms, the parser family and the two boundary days; returns
@@ -1054,6 +957,161 @@ def census_breach(
 # side by side never touch the same lines; a landing with nothing to add
 # leaves its line alone. In the order of the plan's numbering table.
 # anchor 3b-D1 (P4-D365)
+
+
+def shape_breach(
+    groups: "tuple[tuple[int, int, int], ...]",
+    body: int,
+    line: int,
+    one_spelling: bool,
+) -> "tuple[str, str, str] | None":
+    """The loader's check of one published weekday census, or None (P4-D365).
+
+    WC1 the groups cover Monday to Sunday in order, each weekday once;
+    WC2 every count is nought or at least the line (`calendar_floor_ok`);
+    WC3 the counts add to the body -- the three asked through the one
+    checker of every census of stage 3b (`census_breach`); then WC4 the
+    grouping is an entry of the menu; and WC6 the published forms give
+    every date one text. The first broken rule is returned as (rule, what
+    the census says, what the rule asks), the two phrases a person reads
+    beside the rule's own words. Nothing here walks a day: the check is a
+    function of the census and three published numbers.
+
+    Guarantees: accepts the census, the body (the parsed cells less both
+    tails' rows), the census line and WC6 (a)'s answer; returns None or
+    the broken rule. Determinism: a function of the four. Raises
+    nothing. No I/O of any kind.
+    """
+    broken = census_breach(
+        groups, WEEKDAYS, line, body, unit="weekday",
+        rules=("WC1", "WC2", "WC3", "WC2"),
+    )
+    if broken is not None:
+        return broken
+    if entry_of(groups) == ENTRY_NONE:
+        return (
+            "WC4",
+            "the groups are not one of the three groupings the census uses",
+            "each weekday alone, Monday to Friday alone with the weekend "
+            "together, or the weekdays together and the weekend together",
+        )
+    if not one_spelling:
+        return (
+            "WC6",
+            "a weekday census is published",
+            "the censuses of written forms must give every date one text",
+        )
+    return None
+
+
+def _dates_by_group(
+    groups: "tuple[tuple[int, int, int], ...]", body: "list[int]"
+) -> "list[int]":
+    """How many different days of `body` each group's weekdays hold."""
+    where = where_of(groups)
+    held = [0 for _group in groups]
+    for day in sorted(set(body)):
+        index = where[weekday_of(day)]
+        held[index] = held[index] + 1
+    return held
+
+
+def few_dates(
+    groups: "tuple[tuple[int, int, int], ...]", body: "list[int]"
+) -> bool:
+    """Whether the census's groups hold too few different dates (plan P4-D365).
+
+    THE PRODUCER'S FEW-DATES RULE, on the REAL body (its days, one per
+    cell): true where a non-empty group holds fewer than
+    `FEWEST_REAL_DATES` different days, or where at least two groups are
+    non-empty and they hold fewer than seven and a half different days
+    each on average (`MEAN_REAL_HALF_DATES` halves). There the day pass
+    meets the census only by splitting a date's rows across dates, and
+    the twin holds more different values than the column. A rule of what the twin can meet,
+    never of what a reader could work out: the loader cannot ask it, and
+    need not.
+
+    Guarantees: accepts the census and the body's days; returns the
+    answer. Determinism: a function of the two. Raises nothing. No I/O.
+    """
+    held = _dates_by_group(groups, body)
+    filled = [held[index] for index in range(len(groups)) if groups[index][2] > 0]
+    if not filled:
+        return False
+    if min(filled) < FEWEST_REAL_DATES:
+        return True
+    return len(filled) >= 2 and 2 * sum(filled) < MEAN_REAL_HALF_DATES * len(filled)
+
+
+def room_short(
+    groups: "tuple[tuple[int, int, int], ...]",
+    body: "list[int]",
+    holes: "tuple[int, ...]",
+) -> bool:
+    """Whether the published holes leave a group too little room (plan P4-D365).
+
+    THE PRODUCER'S ROOM RULE, asked where the month-name census holds
+    every cell to May (`may_only_published`) or a placeholder or declared
+    day is a hole, and never beside width holes alone, with every hole
+    the description publishes between the body's first and last day
+    (`public_holes`). A group's FREE days are its weekdays' days from the
+    first to the last that are no hole and hold no date of the body. True
+    where a non-empty group has NO free day and holds a date of ONE row:
+    the day pass meets the census by moving single rows, a one-row date
+    it moves is left empty, and with no free day to stand a date on, the
+    twin holds fewer different values than the column. Measured on the
+    guard drop's batteries and its review's (plan P4-D365): every column
+    whose twin missed its count of different values with the rule off was
+    one of May dates written `17 May 2023` that filled every open day and
+    held one-row dates (every day of three Mays: 83 for 93). Columns of
+    days past the ninth written `m/d/yyyy` met it in every run, so the
+    rule is not asked of width holes alone, and their censuses keep
+    their weekday statistics. Its second review measured the declared
+    days: a column with a date on every day of 240 but five declared
+    missing came back 234 different days for 235 with the rule off, so
+    it is asked beside placeholder and declared days, and a twin passes
+    its own checks there. Counted, not
+    walked: each weekday's days by arithmetic, then the holes and the
+    dates one by one.
+
+    Guarantees: accepts the census, the body's days (one per cell) and
+    the holes; returns the answer. Determinism: a function of the three.
+    Raises nothing. No I/O of any kind.
+    """
+    if not body:
+        return False
+    low, high = min(body), max(body)
+    inside = sorted({day for day in holes if low <= day <= high})
+    if not inside:
+        return False
+    where = where_of(groups)
+    free = [0 for _group in groups]
+    for weekday in range(WEEKDAYS):
+        first = low + (weekday - weekday_of(low)) % WEEKDAYS
+        if first <= high:
+            index = where[weekday]
+            free[index] = free[index] + (high - first) // WEEKDAYS + 1
+    for day in inside:
+        index = where[weekday_of(day)]
+        free[index] = free[index] - 1
+    rows: "dict[int, int]" = {}
+    for day in body:
+        if day in rows:
+            rows[day] = rows[day] + 1
+        else:
+            rows[day] = 1
+    single = [0 for _group in groups]
+    for day in sorted(rows):
+        index = where[weekday_of(day)]
+        free[index] = free[index] - 1
+        if rows[day] == 1:
+            single[index] = single[index] + 1
+    for index in range(len(groups)):
+        if groups[index][2] > 0 and free[index] <= 0 < single[index]:
+            return True
+    return False
+
+
 # anchor 3b-D0 (P4-D366)
 # anchor 3b-D2 (P4-D367)
 # anchor 3b-D3 (P4-D368)

@@ -17493,9 +17493,9 @@ def _universal(name, role, statistical_type, structural_role, quality_state, **f
         ):
             if census not in block:
                 block[census] = {}
-    # ...and the weekday census (landing 3b.1, contract WC1 to WC8), EMPTY
-    # for every case that does not state its own: a census is published
-    # only where its certificate holds, and an empty one asks nothing of
+    # ...and the weekday census (landing 3b.1, contract WC1 to WC4 and
+    # WC6), EMPTY for every case that does not state its own: an empty
+    # census asks nothing of
     # the day pass of G7.3f, so every cell frozen before the key existed
     # stands.
     if role == "datetime" and "weekday_census" not in block:
@@ -22510,8 +22510,9 @@ def _weekday_runs_merged():
     landing 3b.1 (plan P4-D359): fifteen weekday rows stand inside the
     band a withholding always keeps -- one row to the census line more
     than the four any table of the column's facts holds there -- so one
-    row moved to Monday to Friday, where the certificate finds tables
-    meeting every fact of it and step 8.2 still moves runs.
+    row moved to Monday to Friday, where the certificate of that landing
+    (retired by plan P4-D365) found tables meeting every fact of it and
+    step 8.2 still moves runs.
     """
     tails, tail_claims = _tail_fields(
         {"boundary": "2024-05-09", "rows": 11, "mean_distance": "24.818181818181817", "rms_distance": "24.83582456489379", "values": None},
@@ -33856,7 +33857,7 @@ def whole_number_fields(document):
                 allowed.add(path)
                 continue
             # ...and the three numbers of every group of a WEEKDAY census
-            # (landing 3b.1, contract WC1 to WC8): a first weekday, a last
+            # (landing 3b.1, contract WC1 to WC4 and WC6): a first weekday, a last
             # weekday and a count of rows.
             if (
                 len(inside) == 3

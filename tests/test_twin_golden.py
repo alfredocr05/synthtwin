@@ -1695,7 +1695,13 @@ GOLDEN_DESCRIPTION_SHA256 = (
     # The twin, the report and the quality report digests below did not
     # move: the generator is handed twelve more keys and writes what it
     # wrote before.
-    "951e70a0b1ee0d90c0f0890897483f5cba51dd97bd124627094ff62a8f5148e9"
+    # RE-RECORDED FOR THE WEEKDAY GUARD DROP (2026-10-02, plan P4-D365),
+    # and GOLDEN_TWIN_SHA256 DID NOT MOVE: the remark NF71 on `recorded_on`
+    # was reworded, and the report quotes it back. Diffed against 659a1e2:
+    # that one line in each, nothing else. AND AGAIN AT ITS REVIEW (item
+    # 4): NF71 says "every group that holds rows", not "every group
+    # counted"; diffed against fb257b0, that one line in each again.
+    "c126adc7722a717079b62801c73d02de97e2f65de624b0be82faffeb022f0eda"
 )
 
 
@@ -2573,7 +2579,13 @@ GOLDEN_REPORT_SHA256 = (
     # ...AND AT ITS FINAL FIX, read against 54d2ebb: THREE LINES of the
     # closing paragraph say a tail's distances are approximated where
     # they are published. No other line moved.
-    "5d2fd3ab63cde50456db57497917d0a9a9493a9a36cea080ecbc9e523982e6bf"
+    # RE-RECORDED FOR THE WEEKDAY GUARD DROP (2026-10-02, plan P4-D365),
+    # and GOLDEN_TWIN_SHA256 DID NOT MOVE: the remark NF71 on `recorded_on`
+    # was reworded, and the report quotes it back. Diffed against 659a1e2:
+    # that one line in each, nothing else. AND AGAIN AT ITS REVIEW (item
+    # 4): NF71 says "every group that holds rows", not "every group
+    # counted"; diffed against fb257b0, that one line in each again.
+    "436f93d57e750976cee0f17c5ce246f1898fcd6fa19fbf704f65ef9968094a8c"
 )
 
 
