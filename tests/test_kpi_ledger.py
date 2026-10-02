@@ -1673,3 +1673,31 @@ def test_k_s3_34(record_property) -> None:
     )
 
 
+def test_k_s3_55(record_property, tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """P4-D380: a column nothing reads is split once per different text.
+
+    1,000 Oracle-style timestamps, every one different, through
+    `synthtwin profile`, where the census reads the column and the
+    description takes its kept reading over. Before the landing four
+    readings asked `taxonomy.affixed_split` of every present cell in each
+    of the four passes: sixteen splits a cell, 16,000 here. The seconds
+    of an unread 10,000-row column are the driver's.
+    """
+    import test_stage3b_full_precision as gate
+
+    cells = gate.oracle_timestamps(1000, 7)
+    calls = {"split": 0}
+    split = taxonomy.affixed_split
+
+    def counted(text: str, decimal_comma: bool = False) -> "tuple[str, str, str] | None":
+        calls["split"] += 1
+        return split(text, decimal_comma)
+
+    monkeypatch.setattr(taxonomy, "affixed_split", counted)
+    code, said = gate._profile(gate._table(tmp_path / "in", "stamps", cells), tmp_path / "out")
+    assert code == 0, said
+    _kpi(
+        record_property,
+        "K-S3-55",
+        {"different_texts": len(set(cells)), "split_calls": calls["split"]},
+    )

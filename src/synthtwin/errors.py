@@ -526,6 +526,31 @@ def out_of_memory_while_describing(path: str) -> str:
     )
 
 
+def stopped_nested_too_deep(path: str) -> str:
+    """Message for a run that one of synthtwin's own steps stopped from too deep inside.
+
+    Python stops a program whose work is nested deeper than a fixed
+    limit, and until plan P4-D380 a column of numbers written to full
+    precision -- the hours between two times as seconds over 3,600 --
+    reached that limit inside the description, and the person got a
+    stack trace and no files. That step no longer nests, but a stack
+    trace is never the way a run ends, so any step that still reaches
+    the limit ends here: on the file the person typed, saying the fault
+    is synthtwin's, because it is, and what to do next.
+    """
+    return (
+        f"synthtwin stopped before it finished with {path}: one of its own "
+        f"steps went deeper than the Python it runs on allows, and Python "
+        f"stopped it. This is a fault in synthtwin itself, not in your "
+        f"file, and running the same command again will stop the same "
+        f"way. Please report it to the synthtwin maintainers with the "
+        f"command you ran and how many rows the table has -- and please do "
+        f"not include your data. Until it is repaired, describing a "
+        f"smaller extract of the table, with rows spread through the whole "
+        f"file rather than the first rows, may get past it."
+    )
+
+
 def publication_guard_stopped(where: str) -> str:
     """Message for a description carrying something it may not publish.
 

@@ -26,6 +26,35 @@ and one left unparsed is not, so the source meets its own census.
 `K-S3-32` is floor-only, `K-S3-33` retired, `K-S3-35` new, and
 `K-S3-39`, `K-2B-13` and `K-2B-48` hold.
 
+### Numbers written in full describe, and an unread column is split once (2026-10-01)
+
+**No more stack trace on computed numbers** (plan P4-D380, landing R0).
+A column a program computed and wrote in full -- hours between two times
+as seconds over 3,600, a ratio, a time as a fraction of a day, as Python
+and pandas write a float -- stopped `synthtwin profile` with a
+`RecursionError` and no file, as did workbook times holding seconds:
+the walk asking whether its fraction widths may pool nested once per
+width. It carries its own stack now, a reading of the free cells is
+worked out as the sum it is, and the walk still answers by its steps
+counted one each while the work each step does is counted against a
+second ceiling, four times the budget, so the answer it gives on
+stopping short takes over where the work is too large. A table of
+widths by values already past the budget is not built. Any step that
+still nests too deep ends in a sentence and exit 1. **A column nothing
+reads is split once per different text**, not sixteen times a cell,
+about 236 bytes kept per different text. On every column measured
+where the old code finished, profiles and twins are byte-identical to
+its own. Two drafts changed a column, and each is pinned now: the first
+charged the work against the steps and changed one column's fraction
+widths in 668; the second charged the table for values the walk drops
+unread, and a column of values each written two ways (`7.5` and `7.50`)
+was counted at one width from 25,001 rows, where the walk shows its
+pool standing. The table is still charged before a step for every value
+handed to the walk, so a caller handing in thousands of values that
+bound nothing over thousands of widths is answered as stopped short
+where the old walk finished; the census of widths hands in none of
+them. `K-S3-54`, `K-S3-55`.
+
 ### Excel's hour and the 12-hour clock, read and written back (2026-10-01)
 
 **The reader** (plan P4-D370, landing T1). `3/17/2024 6:42`, `6:42 PM`,

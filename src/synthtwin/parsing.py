@@ -6080,14 +6080,68 @@ def census_pools(
 
 # HOW FAR `mixture_pool_holds` WALKS before it answers without finishing
 # (the final fix of follow-up B): every step placing a value's rows and
-# every reading of the free cells it asks counts one, about half a second
-# for the million. Where the walk stops short the producer counts the
-# census under one convention -- a band holds no count back -- and the
-# loader refuses only what it has shown, so no description the producer
-# writes is refused. Measured: fifteen values of four rows on two
-# spellings over seven marks settle in 153,000 steps; twenty of ten rows
-# at a floor of 31 did not in fifty million.
+# every reading of the free cells it asks counts one, about a second for
+# the million; the work each step does is counted besides, against
+# `POOL_WORK_STEPS` (plan P4-D380). Where the walk stops short on either
+# the producer counts the census under one convention -- a band holds no
+# count back -- and the loader refuses only what it has shown, so no
+# description the producer writes is refused. Measured: fifteen values of
+# four rows on two spellings over seven marks settle in 153,000 steps;
+# twenty of ten rows at a floor of 31 did not in fifty million.
 POOL_SEARCH_STEPS = 1000000
+
+# WHAT A STEP'S WORK IS WORTH (plan P4-D380), counted against
+# `POOL_WORK_STEPS`, so the walk's time is bounded and not only its steps:
+# a reading of the free cells one, and one more for every
+# `POOL_WORDS_A_STEP` 64-bit words its big-number steps may move -- each
+# step charged the population's width, the most a set of totals spans --
+# and a table the walk builds over the conventions one for every
+# `POOL_CELLS_A_STEP` cells it holds: the conventions by the values before
+# the walk starts, a value's placements, each state written out. Each
+# step was counted one and nothing more before, and on a census of about
+# ten thousand widths -- a column of computed numbers written to full
+# precision -- one reading cost five to twelve seconds. Measured after: a
+# million steps in about 0.7 s on such a census at 10,000 rows, at a load
+# average of 35.
+POOL_WORDS_A_STEP = 256
+POOL_CELLS_A_STEP = 8
+
+# THE WORK CHARGES ARE A SECOND CEILING, NOT THE ANSWER'S BUDGET (plan
+# P4-D380, its review's first item). The walk answers by
+# `POOL_SEARCH_STEPS` counted one a step, as it always did, and the charges
+# above are spent against this ceiling only, so a walk that took its
+# steps before takes the same steps now and answers as it did, unless its
+# work passes four times the budget. Charging them against the answer's
+# own budget changed one description 668f276 gave without crashing: a
+# column of 1,000 whole numbers and quotients written in full (`mixed`,
+# seed 8101) finished in 849,564 steps and published its widths as one
+# pool, and charged it reached 1,525,694 and was counted at one width.
+# Measured: among 623 walks that finished, the most work against plain
+# steps was 1.84 times, so four times the budget stops none of them early
+# and still bounds the time a walk can take. ONE CHARGE IS TAKEN BEFORE
+# A STEP (`pool_table_too_large`), and it counts every group handed in,
+# the ones the walk would then drop as bounding nothing among them --
+# dropping them costs a look per convention each, the table's own size.
+# So a caller handing in thousands of such groups over thousands of
+# conventions is answered as stopped short where 668f276 walked on and
+# finished (3,000 values of two rows over 3,000 widths: True there in 8.6
+# CPU s, ``unfinished`` here at once). The producer's census of widths
+# hands in only the values that bound something (`taxonomy._width_bounds`,
+# the review's second round, item 1).
+POOL_WORK_STEPS = 4 * POOL_SEARCH_STEPS
+
+
+def pool_table_too_large(conventions: int, groups: int) -> bool:
+    """Whether a table of ``conventions`` by ``groups`` values and one more is past the walk's budget before a step.
+
+    The charge `mixture_pool_holds` takes for the table it builds over the
+    conventions (plan P4-D380), asked by itself, so a caller that would
+    build that table only to be told the walk stops short can ask first
+    (`taxonomy._width_band`, `taxonomy._end_pool_band`): one cell per
+    convention for each value and one more, `POOL_CELLS_A_STEP` cells to
+    a step, against `POOL_SEARCH_STEPS`. Raises nothing. No I/O.
+    """
+    return conventions * (groups + 1) // POOL_CELLS_A_STEP >= POOL_SEARCH_STEPS
 
 
 def mixture_pool_holds(
@@ -6146,7 +6200,8 @@ def mixture_pool_holds(
     of eleven for every closed census; under it the second clause
     refuses more.
 
-    THE WALK IS BOUNDED (`POOL_SEARCH_STEPS`), and where it stops short
+    THE WALK IS BOUNDED (`POOL_SEARCH_STEPS`, and its work by
+    `POOL_WORK_STEPS`), and where it stops short
     the answer is ``unfinished``: False for the producer, which then
     counts the census under one convention, True for the loader, which
     refuses only a pool it has shown pinned. The producer's readings are
@@ -6175,6 +6230,14 @@ def mixture_pool_holds(
     seen = min(room, len(held))
     if seen < 1:
         return False
+    # THE TABLE OF CONVENTIONS AND VALUES IS CHARGED BEFORE IT IS BUILT
+    # (plan P4-D380): one cell per convention for each value and one more,
+    # `POOL_CELLS_A_STEP` cells to a step. A column of computed numbers at
+    # 100,000 rows asked about 83,000 widths beside 364 values, thirty
+    # million cells before the first step was taken.
+    spent = len(held) * (len(groups) + 1) // POOL_CELLS_A_STEP
+    if pool_table_too_large(len(held), len(groups)):
+        return unfinished
     kept: "list[tuple[int, int, tuple[int, ...]]]" = []
     for rows, spellings, reach in groups:
         worn = min(spellings, seen)
@@ -6186,7 +6249,7 @@ def mixture_pool_holds(
     heaviest: "list[tuple[int, int, tuple[int, ...]]]" = []
     for _rows, _worn, index in sorted(ordered):
         heaviest += [kept[index]]
-    answer = _pool_readings(population, held, seen, heaviest, line, shown)
+    answer = _pool_readings(population, held, seen, heaviest, line, shown, spent)
     if answer is None:
         return unfinished
     return answer
@@ -6211,6 +6274,7 @@ def _pool_readings(
     groups: "list[tuple[int, int, tuple[int, ...]]]",
     line: int,
     shown: bool = False,
+    spent: int = 0,
 ) -> "bool | None":
     """Whether readings meet both clauses of `mixture_pool_holds`; None where the walk stops short.
 
@@ -6223,9 +6287,22 @@ def _pool_readings(
     open: a reading holding no count ``k`` for each ``k`` under the line,
     and one leaving a convention of each kind empty -- where ``shown``,
     not of a kind of one convention some value can stand on alone.
+
+    The walk keeps two counts and stops short where either runs out
+    (plan P4-D380). `POOL_SEARCH_STEPS` is spent one a step -- a reading
+    of the free cells one, a call of `_placements`' walk one -- as the
+    walk always spent it, so within the work's ceiling it finishes, and
+    answers, wherever it did.
+    `POOL_WORK_STEPS`, less the ``spent`` its caller already charged, is
+    spent one a step and the work each step does besides: one more for
+    every `POOL_WORDS_A_STEP` words a reading's big-number steps may move
+    (the population's width each, `_topped_up`), and one for every
+    `POOL_CELLS_A_STEP` cells of a table of the conventions -- each
+    value's placements, each state it reaches (`_placements`).
     """
     kinds: "list[tuple[int, ...]]" = []
     sizes: "list[int]" = []
+    index_of: "dict[tuple[int, ...], int]" = {}
     for place in range(len(held)):
         if held[place] < 1:
             continue
@@ -6233,13 +6310,10 @@ def _pool_readings(
         for group in groups:
             shares += [min(held[place], group[2][place])]
         kind = tuple(shares)
-        known = -1
-        for other in range(len(kinds)):
-            if kinds[other] == kind:
-                known = other
-        if known >= 0:
-            sizes[known] += 1
+        if kind in index_of:
+            sizes[index_of[kind]] += 1
         else:
+            index_of[kind] = len(kinds)
             kinds += [kind]
             sizes += [1]
     if not kinds:
@@ -6253,7 +6327,7 @@ def _pool_readings(
     for size in sizes:
         empty += [(0,) * size]
     start = tuple(empty)
-    budget = [POOL_SEARCH_STEPS]
+    budget = [POOL_SEARCH_STEPS, POOL_WORK_STEPS - spent]
     visited: "dict[tuple[int, tuple[tuple[int, ...], ...]], bool]" = {(0, start): True}
     stack: "list[tuple[int, tuple[tuple[int, ...], ...]]]" = [(0, start)]
     depth = 1
@@ -6263,17 +6337,21 @@ def _pool_readings(
         if level == len(groups):
             still: "list[int]" = []
             for barred in avoided:
-                budget[0] = budget[0] - 1
-                if not _topped_up(population, kinds, state, seen, barred, -1):
+                work = [0]
+                if not _topped_up(population, kinds, state, seen, barred, -1, work):
                     still += [barred]
+                budget[0] = budget[0] - 1
+                budget[1] = budget[1] - 1 - work[0] // POOL_WORDS_A_STEP
             avoided = still
             still = []
             for index in emptied:
-                budget[0] = budget[0] - 1
+                work = [0]
                 if state[index][len(state[index]) - 1] != 0 or not _topped_up(
-                    population, kinds, state, seen, -1, index
+                    population, kinds, state, seen, -1, index, work
                 ):
                     still += [index]
+                budget[0] = budget[0] - 1
+                budget[1] = budget[1] - 1 - work[0] // POOL_WORDS_A_STEP
             emptied = still
             if not avoided and not emptied:
                 return True
@@ -6288,7 +6366,7 @@ def _pool_readings(
                 else:
                     stack += [(level + 1, grown)]
                 depth = depth + 1
-        if budget[0] < 1:
+        if budget[0] < 1 or budget[1] < 1:
             return None
     return False
 
@@ -6319,8 +6397,12 @@ def _placements(
 
     Two conventions of one kind under one load are one convention to a
     reading, so the amounts given them are taken in falling order and each
-    resulting state is met once. Every step of the walk spends one of
-    ``budget``, and at nought it stops.
+    resulting state is met once. ``budget`` is the walk's steps and, where
+    it holds two counts, its work after them (plan P4-D380): every step
+    spends one of each, and at nought on either it stops; the table of
+    the conventions this builds, and every state the walk writes out,
+    spend one of the last count besides for every `POOL_CELLS_A_STEP`
+    conventions they hold, never of the steps.
     """
     slots: "list[tuple[int, int, int]]" = []
     for kind in range(len(kinds)):
@@ -6331,6 +6413,8 @@ def _placements(
     after = [0] * (len(slots) + 1)
     for slot in range(len(slots) - 1, -1, -1):
         after[slot] = after[slot + 1] + slots[slot][2]
+    last = len(budget) - 1
+    budget[last] = budget[last] - len(slots) // POOL_CELLS_A_STEP
     found: "dict[tuple[tuple[int, ...], ...], bool]" = {}
     _fill(state, slots, after, [0] * len(slots), 0, rows, spellings, found, budget)
     return sorted(found)
@@ -6347,34 +6431,68 @@ def _fill(
     found: "dict[tuple[tuple[int, ...], ...], bool]",
     budget: "list[int]",
 ) -> None:
-    """`_placements`' walk from ``slot`` on, ``left`` rows still to place over at most ``parts`` conventions."""
-    budget[0] = budget[0] - 1
-    if budget[0] < 1:
-        return
-    if left == 0:
-        grown: "list[tuple[int, ...]]" = []
-        start = 0
-        for kind in range(len(state)):
-            loads: "list[int]" = []
-            for position in range(len(state[kind])):
-                loads += [state[kind][position] + amounts[start + position]]
-            start = start + len(state[kind])
-            grown += [tuple(sorted(loads, reverse=True))]
-        found[tuple(grown)] = True
-        return
-    if slot >= len(slots) or parts < 1 or after[slot] < left:
-        return
-    kind, position, share = slots[slot]
-    top = min(share, left)
-    if position > 0 and state[kind][position - 1] == state[kind][position]:
-        top = min(top, amounts[slot - 1])
-    for amount in range(top, -1, -1):
-        amounts[slot] = amount
-        _fill(
-            state, slots, after, amounts, slot + 1, left - amount,
-            parts - (1 if amount > 0 else 0), found, budget,
-        )
-    amounts[slot] = 0
+    """`_placements`' walk from ``slot`` on, ``left`` rows still to place over at most ``parts`` conventions.
+
+    IT CARRIES ITS OWN STACK (plan P4-D380). It called itself once per
+    slot, so a census of about a thousand conventions -- the widths of a
+    column of computed numbers written to full precision, the hours
+    between two times as seconds over 3,600 -- nested past the
+    interpreter's limit and `synthtwin profile` stopped on a bare
+    `RecursionError`, writing nothing. A frame here is a slot whose
+    amounts are being tried, and the slots on the path are consecutive,
+    so a frame is kept at its own slot's place: entering is a call,
+    leaving a frame is a return. The order of the amounts and the states
+    found are the recursion's own, and so is the budget's accounting --
+    one step per call, so a walk spends its steps where it spent them
+    before -- but for the one charge the same landing added, on the
+    budget's last count only (the work, where it holds two): a state
+    written out spends one more for every `POOL_CELLS_A_STEP`
+    conventions it holds.
+    """
+    last = len(budget) - 1
+    rows_at = [0] * (len(slots) + 1)
+    room_at = [0] * (len(slots) + 1)
+    next_at = [0] * (len(slots) + 1)
+    deepest = slot - 1
+    here = slot
+    rows = left
+    room = parts
+    while True:
+        budget[0] = budget[0] - 1
+        if last > 0:
+            budget[last] = budget[last] - 1
+        if budget[0] >= 1 and budget[last] >= 1:
+            if rows == 0:
+                grown: "list[tuple[int, ...]]" = []
+                start = 0
+                for kind in range(len(state)):
+                    loads: "list[int]" = []
+                    for position in range(len(state[kind])):
+                        loads += [state[kind][position] + amounts[start + position]]
+                    start = start + len(state[kind])
+                    grown += [tuple(sorted(loads, reverse=True))]
+                found[tuple(grown)] = True
+                budget[last] = budget[last] - len(amounts) // POOL_CELLS_A_STEP
+            elif here < len(slots) and room >= 1 and after[here] >= rows:
+                kind, position, share = slots[here]
+                top = min(share, rows)
+                if position > 0 and state[kind][position - 1] == state[kind][position]:
+                    top = min(top, amounts[here - 1])
+                rows_at[here] = rows
+                room_at[here] = room
+                next_at[here] = top
+                deepest = here
+        while deepest >= slot and next_at[deepest] < 0:
+            amounts[deepest] = 0
+            deepest = deepest - 1
+        if deepest < slot:
+            return
+        amount = next_at[deepest]
+        amounts[deepest] = amount
+        next_at[deepest] = amount - 1
+        here = deepest + 1
+        rows = rows_at[deepest] - amount
+        room = room_at[deepest] - (1 if amount > 0 else 0)
 
 
 def _topped_up(
@@ -6384,52 +6502,216 @@ def _topped_up(
     seen: int,
     barred: int,
     empty: int,
+    work: "list[int] | None" = None,
 ) -> bool:
     """Whether the free cells can fill ``state`` to ``population``: no count ``barred``, one convention of kind ``empty`` left empty.
 
     Every convention holds its load or more, up to its capacity; at most
-    ``seen`` are written. The conventions of one kind the values left
-    empty are one batch: ``t`` of them written reach the sums one more
-    spread reaches from ``t - 1``.
+    ``seen`` are written. A convention the values left empty is free:
+    written or not, and written it holds from one up to its capacity.
+
+    IT IS A SUM, AND IT IS WORKED OUT AS ONE (plan P4-D380). It used to
+    write the free conventions of each kind one at a time, over every
+    count of written conventions up to ``seen``, so a census of about
+    ten thousand widths -- a column of computed numbers written to full
+    precision, the hours between two times as seconds over 3,600 --
+    spent five to twelve seconds on ONE reading, about ``seen`` times
+    the free conventions in big-number steps, while the walk charged it
+    one step of its budget. The answer is the same question asked in an
+    order that costs nothing:
+
+    - the order the conventions are taken in changes no total, and a
+      total and a count of written conventions only grow, so the loaded
+      conventions are summed first, into one set of totals, and every
+      one of them is written;
+    - free conventions of one capacity cannot be told apart, so they
+      are one pool, and the totals ``t`` or fewer of them hold are a few
+      runs worked out from the capacity, the barred count and ``t``
+      (`_free_totals`), never a walk over them;
+    - where the room left after the loaded conventions holds every free
+      one, or every free convention has one capacity, each pool is read
+      from its runs; where pools of two capacities share a room too
+      small for both, the smaller pools are written one convention at a
+      time, as before, and the largest is read from its runs.
+
+    ``work``, where given, gains for every big-number step the call takes
+    the 64-bit words its population spans -- the most a set of totals can
+    -- so its caller can charge the budget for the work done
+    (`_pool_readings`). Checked against the walk it replaced on seeded
+    readings of every road, and on every walk of the reach audit's
+    batteries (`tests/test_stage3b_full_precision.py`).
     """
     within = (1 << (population + 1)) - 1
-    layers: "list[int]" = [1] + [0] * seen
+    words = population // 64 + 1
+    sums = 1
+    written = 0
+    pools: "dict[int, int]" = {}
     for kind in range(len(kinds)):
         most = kinds[kind][0]
         loads = state[kind]
-        idle = 0
-        for load in loads:
-            if load == 0:
-                idle += 1
+        loaded = 0
+        while loaded < len(loads) and loads[loaded] > 0:
+            loaded += 1
+        idle = len(loads) - loaded
         if kind == empty:
             idle = idle - 1
-        for load in loads:
-            if load < 1:
+        for position in range(loaded):
+            written += 1
+            if written > seen:
+                return False
+            sums = _spread(sums, loads[position], most, barred) & within
+            _charged(work, words)
+            if not sums:
+                return False
+        if idle > 0:
+            pools[most] = (pools[most] if most in pools else 0) + idle
+    room = seen - written
+    if not pools or room < 1:
+        return (sums >> population) & 1 == 1
+    capacities = sorted(pools)
+    free = 0
+    largest = capacities[0]
+    for most in capacities:
+        free = free + pools[most]
+        if pools[most] > pools[largest]:
+            largest = most
+    layers: "dict[int, int]" = {0: sums}
+    if free <= room:
+        for most in capacities:
+            if most == largest:
                 continue
-            grown = [0] * (seen + 1)
-            for written in range(seen):
-                if layers[written]:
-                    grown[written + 1] = _spread(layers[written], load, most, barred) & within
-            layers = grown
-        if idle < 1:
-            continue
-        batch = [0] * (seen + 1)
-        for written in range(seen + 1):
-            batch[written] = layers[written]
-        reach = layers
-        for _ in range(min(idle, seen)):
-            step = [0] * (seen + 1)
-            for written in range(seen):
-                if reach[written]:
-                    step[written + 1] = _spread(reach[written], 1, most, barred) & within
-            for written in range(seen + 1):
-                batch[written] = batch[written] | step[written]
-            reach = step
-        layers = batch
-    for written in range(seen + 1):
-        if (layers[written] >> population) & 1:
+            runs, stride = _free_totals(most, barred, pools[most])
+            sums = _spread_over(sums, runs, stride, within)
+            _charged(work, words * len(runs))
+            if not sums:
+                return False
+        layers = {0: sums}
+    else:
+        for most in capacities:
+            if most == largest:
+                continue
+            reach = layers
+            batch: "dict[int, int]" = {}
+            for count in layers:
+                batch[count] = layers[count]
+            for _ in range(min(pools[most], room)):
+                step: "dict[int, int]" = {}
+                for count in sorted(reach):
+                    if count + 1 > room:
+                        continue
+                    moved = _spread(reach[count], 1, most, barred) & within
+                    _charged(work, words)
+                    if moved:
+                        step[count + 1] = moved
+                if not step:
+                    break
+                for count in step:
+                    batch[count] = batch[count] | step[count] if count in batch else step[count]
+                reach = step
+            layers = batch
+    for count in sorted(layers):
+        runs, stride = _free_totals(largest, barred, min(pools[largest], room - count))
+        _charged(work, words * len(runs))
+        if _total_among(layers[count], population, runs, stride):
             return True
     return False
+
+
+def _charged(work: "list[int] | None", words: int) -> None:
+    """Add ``words`` to the work tally where one is kept."""
+    if work is not None:
+        work[0] = work[0] + words
+
+
+def _free_totals(most: int, barred: int, count: int) -> "tuple[list[tuple[int, int]], int]":
+    """Every total ``count`` or fewer free conventions of capacity ``most`` hold between them, as runs.
+
+    Each holds nothing, or one to ``most`` but ``barred``. Returns runs
+    of totals, lowest first, and a stride: one where every total in
+    each run is held; more than one where the counts open are that one
+    number, and the totals are every multiple of it up to the single
+    run's end. The counts open run from ``low`` to ``high`` (the barred
+    count taken off an end), so ``t`` conventions hold every total from
+    ``t * low`` to ``t * high``, and consecutive ``t`` meet:
+
+    - nothing open (a capacity of one, barred): nought alone;
+    - one count open: its multiples;
+    - an unbroken run from one: every total up to ``count * high``;
+    - from two (one barred): nought, then every total from two;
+    - one barred inside the run: one convention holds the run without
+      it; two or more hold every total two others can make up, so all
+      but one -- and that one only where the barred count is
+      ``most - 1``: ``count * most - 1`` needs every convention at the
+      top but one, a step below it, which is the barred count.
+
+    Checked against every set of totals the conventions can hold, for
+    every capacity to fifteen, every barred count and every ``count``
+    to thirty-nine (tests/test_stage3b_full_precision.py).
+    """
+    if count < 1:
+        return ([(0, 0)], 1)
+    low = 2 if barred == 1 else 1
+    high = most - 1 if barred == most else most
+    if high < low:
+        return ([(0, 0)], 1)
+    if high == low:
+        if low == 1:
+            return ([(0, count)], 1)
+        return ([(0, count * low)], low)
+    if not low < barred < high:
+        if low == 1:
+            return ([(0, count * high)], 1)
+        return ([(0, 0), (2, count * high)], 1)
+    if count == 1:
+        return ([(0, barred - 1), (barred + 1, most)], 1)
+    if barred == most - 1:
+        return ([(0, count * most - 2), (count * most, count * most)], 1)
+    return ([(0, count * most)], 1)
+
+
+def _spread_over(sums: int, runs: "list[tuple[int, int]]", stride: int, within: int) -> int:
+    """The totals ``sums`` reaches, each moved up by every total of the runs."""
+    if stride == 1:
+        out = 0
+        for low, high in runs:
+            out = out | _spread(sums, low, high, -1)
+        return out & within
+    return _strided(sums, runs[0][1] // stride + 1, stride) & within
+
+
+def _strided(sums: int, copies: int, stride: int) -> int:
+    """The totals ``sums`` reaches, each moved up by nought, ``stride``, and so on, ``copies`` of them."""
+    out = 0
+    step = sums
+    span = 1
+    offset = 0
+    while copies:
+        if copies & 1:
+            out = out | (step << (offset * stride))
+            offset = offset + span
+        step = step | (step << (span * stride))
+        span = span * 2
+        copies = copies >> 1
+    return out
+
+
+def _total_among(sums: int, population: int, runs: "list[tuple[int, int]]", stride: int) -> bool:
+    """Whether a total of ``sums`` and a total of the runs make ``population`` exactly."""
+    if stride == 1:
+        for low, high in runs:
+            top = population - low
+            if top < 0:
+                continue
+            bottom = population - high
+            if bottom < 0:
+                bottom = 0
+            if (sums >> bottom) & ((1 << (top - bottom + 1)) - 1):
+                return True
+        return False
+    copies = runs[0][1] // stride
+    if copies > population // stride:
+        copies = population // stride
+    return (sums & (_strided(1, copies + 1, stride) << (population - copies * stride))) != 0
 
 
 def _spread(sums: int, low: int, high: int, barred: int) -> int:

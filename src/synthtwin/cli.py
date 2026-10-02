@@ -4039,6 +4039,14 @@ def main(argv: "list[str] | None" = None) -> int:
         else:
             _warn(errors.out_of_memory_while_describing(_shown(named)))
         return 1
+    except RecursionError:
+        # A STEP NESTED PAST PYTHON'S OWN LIMIT ends here and never as a
+        # stack trace (plan P4-D380). The pool walk that did it on columns
+        # of numbers written to full precision carries its own stack now;
+        # this is what any step that still reaches the limit says, on the
+        # file the person typed, whichever of the three commands it was.
+        _warn(errors.stopped_nested_too_deep(_shown(named)))
+        return 1
 
 
 if __name__ == "__main__":
