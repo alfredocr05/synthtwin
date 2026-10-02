@@ -505,6 +505,8 @@ class _Options:
     sheet: str
     seed: str
     replace: bool
+    # The columns named with `--twelve-hour` (landing T1, plan P4-D370).
+    twelve_hours: "list[str]" = dataclasses.field(default_factory=list)
 
 
 def _parse_arguments(argv: "list[str] | None") -> _Options:
@@ -738,6 +740,22 @@ def _parse_arguments(argv: "list[str] | None") -> _Options:
         ),
     )
     parser.add_argument(
+        "--twelve-hour",
+        action="append",
+        default=None,
+        metavar="COLUMN",
+        help=(
+            "name a column of times of day written on a 12-HOUR CLOCK "
+            "WITHOUT AM OR PM, such as 8:34 and 12:15. A 24-hour clock "
+            "whose hours all lie between 1 and 12 is written the same "
+            "way, so synthtwin cannot tell the two apart and asks; "
+            "without this it reads such a column as a 24-hour clock. "
+            "Named here, 12 is read as the hour after midnight and the "
+            "twin writes hours 1 to 12 only, as your table does. May be "
+            "given more than once"
+        ),
+    )
+    parser.add_argument(
         "--metadata-rows",
         default=None,
         metavar="N",
@@ -933,6 +951,7 @@ def _parse_arguments(argv: "list[str] | None") -> _Options:
     comma_named = (
         args.decimal_comma if args.decimal_comma is not None else []
     )
+    twelve_named = args.twelve_hour if args.twelve_hour is not None else []
     kept = args.keep_value if args.keep_value is not None else []
     declared_missing = (
         args.missing_value if args.missing_value is not None else []
@@ -965,6 +984,7 @@ def _parse_arguments(argv: "list[str] | None") -> _Options:
         sheet=f"{args.sheet}",
         seed=f"{args.seed}",
         replace=bool(args.replace),
+        twelve_hours=list(twelve_named),
     )
 
 
@@ -1097,11 +1117,17 @@ _ANSWER_KEYS = {
     "3": asking.ANSWER_IDENTIFIER,
     "4": asking.ANSWER_JOINED,
     "5": asking.ANSWER_DECIMAL_COMMA,
+    # THE 12-HOUR ANSWER HAS ITS OWN KEY (landing T1, repair item 1).
+    # Without one, the first column `asking._clock_question` offered it
+    # on stopped an interactive run with a KeyError where the base read
+    # the same column and asked nothing.
+    "6": asking.ANSWER_TWELVE_HOUR,
     "m": asking.ANSWER_MEASUREMENT,
     "c": asking.ANSWER_CODE,
     "i": asking.ANSWER_IDENTIFIER,
     "j": asking.ANSWER_JOINED,
     "d": asking.ANSWER_DECIMAL_COMMA,
+    "t": asking.ANSWER_TWELVE_HOUR,
 }
 
 _WHY_SHOWN = {
@@ -1187,6 +1213,7 @@ _KEY_OF = {
     asking.ANSWER_IDENTIFIER: "3",
     asking.ANSWER_JOINED: "4",
     asking.ANSWER_DECIMAL_COMMA: "5",
+    asking.ANSWER_TWELVE_HOUR: "6",
     # THE STANDING READING SHARES KEY 1 WITH `measurement`, and the two
     # never appear on one question: a column of figures offers
     # `measurement` as the reading it already has, and a joined-looking
@@ -1667,9 +1694,49 @@ def _read_one_answer(standing: str = asking.ANSWER_MEASUREMENT) -> "str | None":
         )
 
 
+def _read_on_twelve_hours(column: "dict[str, object]") -> bool:
+    """Whether a described column was read on the declared 12-hour face."""
+    style = ""
+    if column["role"] == "time_of_day":
+        form = f"{column['clock_form']}"
+        if form in parsing.CLOCK_FORMS:
+            style = parsing.clock_style_of(form)
+    elif "datetime_separators" in column:
+        census = column["datetime_separators"]
+        if isinstance(census, dict):
+            for word in census:
+                found = parsing.stamp_style(f"{word}")
+                if found is not None:
+                    style = found
+    return bool(style) and parsing.clock_face(style) == parsing.CLOCK_TWELVE_HOUR
+
+
+def _offered_here(answer: str, question: asking.Question) -> bool:
+    """Whether one typed answer is one this question offers.
+
+    Guarantees: a fixed function of the two; raises nothing; opens
+    nothing. The reading Enter keeps (`question.taken`) is always taken,
+    and so is anything that is no column answer at all, which no key
+    reaches. `measurement` stands for `keep` where the question offers
+    `keep`, because the two share key 1 (see `_KEY_OF`).
+    """
+    if answer == question.taken:
+        return True
+    reached = False
+    for key in _ANSWER_KEYS:
+        if _ANSWER_KEYS[key] == answer:
+            reached = True
+    if not reached:
+        return True
+    offered = [choice.answer for choice in question.choices]
+    if answer in offered:
+        return True
+    return answer == asking.ANSWER_MEASUREMENT and asking.ANSWER_KEEP in offered
+
+
 def _put_the_questions(
     questions: "list[asking.Question]",
-) -> "tuple[list[str], list[str], list[str], list[str]] | None":
+) -> "tuple[list[str], list[str], list[str], list[str], list[str]] | None":
     """Put every question; return the columns named as codes and as IDs.
 
     None where the person ended the run at a prompt: Ctrl-C and Ctrl-D
@@ -1692,11 +1759,26 @@ def _put_the_questions(
     identifiers: list[str] = []
     measurements: list[str] = []
     commas: list[str] = []
+    twelve: list[str] = []
     place = 0
     for question in questions:
         place = place + 1
         _say(_the_question(question, place, total))
         answer = _read_one_answer(question.taken)
+        # ONLY AN ANSWER THIS QUESTION OFFERS IS TAKEN (landing T1, its
+        # second skeptic's item 2). `_read_one_answer` knows every key,
+        # so `6` typed at a column of codes recorded a 12-hour clock on
+        # it, and `5` a decimal comma, with no warning: the check that
+        # warns on an unreached declaration runs before the questions.
+        # A key of an answer the question did not offer is asked again,
+        # as the questions file refuses an answer its entry did not
+        # offer (`answers_answer_is_not_offered`).
+        while answer is not None and not _offered_here(answer, question):
+            _say(
+                "    Please type one of the numbers offered, or press Enter "
+                "to keep the reading synthtwin made."
+            )
+            answer = _read_one_answer(question.taken)
         if answer is None:
             return None
         if answer == asking.ANSWER_CODE:
@@ -1707,7 +1789,9 @@ def _put_the_questions(
             measurements += [question.name]
         elif answer == asking.ANSWER_DECIMAL_COMMA:
             commas += [question.name]
-    return codes, identifiers, measurements, commas
+        elif answer == asking.ANSWER_TWELVE_HOUR:
+            twelve += [question.name]
+    return codes, identifiers, measurements, commas, twelve
 
 
 def _how_to_repeat(
@@ -1715,9 +1799,20 @@ def _how_to_repeat(
     forced_identifiers: "list[str]",
     forced_measurements: "list[str]",
     forced_decimal_commas: "tuple[str, ...]" = (),
+    twelve_hours: "tuple[str, ...]" = (),
+    day_first: bool = False,
 ) -> str:
-    """The options that repeat this run without asking anything."""
+    """The options that repeat this run without asking anything.
+
+    `day_first` is True only where the run reads day first BECAUSE of an
+    answer (landing T1): a typed `--day-first` is already on the line
+    the person typed.
+    """
     parts: list[str] = []
+    if day_first:
+        parts += ["--day-first"]
+    for name in sorted(twelve_hours):
+        parts += [f"--twelve-hour {_shown(name)}"]
     for name in sorted(forced_decimal_commas):
         parts += [f"--decimal-comma {_shown(name)}"]
     for name in sorted(forced_codes):
@@ -2034,6 +2129,7 @@ def _run_profile(
     sheet: str = "",
     metadata_rows_given: str = "",
     delimiter_given: str = "",
+    forced_twelve_hours: "list[str] | None" = None,
 ) -> int:
     """Do the work of `synthtwin profile`; return the exit code.
 
@@ -2070,6 +2166,11 @@ def _run_profile(
     if smallest_group < 1:
         _warn(errors.floor_not_positive(f"{smallest_group}"))
         return 2
+    # THE SEVENTH DECLARATION (landing T1, plan P4-D370): the columns
+    # named 12-hour clocks written without AM or PM.
+    twelve_hours = sorted(
+        {one: 1 for one in (forced_twelve_hours or [])}
+    )
 
     # HOW MANY ROWS UNDER THE NAMES DESCRIBE THE COLUMNS (plan P4-D81).
     # Refused here, before the table is opened, like every other
@@ -2115,6 +2216,7 @@ def _run_profile(
     # that pair by a route that never re-checked is exactly the defect
     # review item P4-G3-R4-F3 found on the interview path.
     answers_were_handed_back = False
+    day_first_answered = False
     if answers_path is not None:
         try:
             written = asking.answers_in(
@@ -2169,6 +2271,7 @@ def _run_profile(
             + list(written.identifiers)
             + list(written.measurements)
             + list(written.decimal_commas)
+            + list(written.twelve_hours)
         ):
             # Each name once: a column answered in both sections of the
             # file would otherwise stand twice in one sentence.
@@ -2236,7 +2339,24 @@ def _run_profile(
             [one for one in forced_decimal_commas if one not in written.decimal_commas]
             + list(written.decimal_commas)
         )
-        answers_were_handed_back = bool(spoken_for)
+        # ...AND THE 12-HOUR CLOCKS AND THE ORDER OF DAY AND MONTH
+        # (landing T1): a column answered `twelve-hour` joins the typed
+        # ones, and an answer of `day-first` is `--day-first`.
+        twelve_hours = sorted(
+            {one: 1 for one in twelve_hours + list(written.twelve_hours)}
+        )
+        # A `day-first` ANSWER IS ON THE REPEAT LINE TOO (landing T1,
+        # repair item 4): measured before this, a column read day first
+        # on the strength of the answer printed no line to repeat it, so
+        # the next run without the file read it month first again.
+        if written.day_first and not day_first:
+            day_first = True
+            day_first_answered = True
+        answers_were_handed_back = (
+            bool(spoken_for)
+            or bool(written.twelve_hours)
+            or day_first_answered
+        )
     # UNDER BOTH READINGS WHERE EITHER IS IN PLAY (review item
     # P4-G3-R6-F2). `--decimal-comma` names columns and these two name
     # values that reach the whole table, so a pair that is one number
@@ -2281,6 +2401,7 @@ def _run_profile(
         kept_values=tuple(kept_values),
         declared_missing_values=tuple(missing_values),
         day_first=day_first,
+        forced_twelve_hour_clocks=tuple(twelve_hours),
     )
     read = reading.read_table(
         table, first_row, sheet=sheet, metadata_rows=metadata_rows,
@@ -2390,6 +2511,17 @@ def _run_profile(
                 "holding measurements",
                 unknown_measured[0],
                 read.column_names,
+            )
+        )
+        return 2
+
+    unknown_twelve = [
+        name for name in twelve_hours if name not in read.column_names
+    ]
+    if unknown_twelve:
+        _warn(
+            errors.unknown_column_named(
+                "as a 12-hour clock", unknown_twelve[0], read.column_names
             )
         )
         return 2
@@ -2522,6 +2654,19 @@ def _run_profile(
                     name, f"{described_column['role']}"
                 )
             )
+    # ...AND THE 12-HOUR DECLARATION, WHICH REACHES ONLY AN UNMARKED CLOCK
+    # (landing T1, plan P4-D370), said where it reached nothing.
+    for name in twelve_hours:
+        for described_column in _described_columns(document):
+            if described_column["name"] != name:
+                continue
+            if _read_on_twelve_hours(described_column):
+                continue
+            _warn(
+                errors.the_twelve_hour_declaration_did_not_reach(
+                    name, f"{described_column['role']}"
+                )
+            )
 
     # A COLUMN DECLARED A MEASUREMENT HAS BEEN ANSWERED TOO, and this
     # list left it out until amendment A-P4-60. It cost nothing while
@@ -2583,8 +2728,23 @@ def _run_profile(
             if given is None:
                 _warn(errors.the_questions_were_not_finished())
                 return 1
-            new_codes, new_identifiers, new_measured, new_commas = given
-            if new_codes or new_identifiers or new_measured or new_commas:
+            new_codes, new_identifiers, new_measured, new_commas, new_twelve = (
+                given
+            )
+            if new_twelve:
+                twelve_hours = sorted(
+                    {one: 1 for one in twelve_hours + new_twelve}
+                )
+                settings = dataclasses.replace(
+                    settings, forced_twelve_hour_clocks=tuple(twelve_hours)
+                )
+            if (
+                new_codes
+                or new_identifiers
+                or new_measured
+                or new_commas
+                or new_twelve
+            ):
                 forced_decimal_commas = sorted(
                     [
                         named
@@ -2874,6 +3034,8 @@ def _run_profile(
         or forced_identifiers
         or forced_measurements
         or forced_decimal_commas
+        or twelve_hours
+        or day_first_answered
     ):
         _say(
             _how_to_repeat(
@@ -2881,6 +3043,8 @@ def _run_profile(
                 forced_identifiers,
                 forced_measurements,
                 tuple(forced_decimal_commas),
+                tuple(twelve_hours),
+                day_first_answered,
             )
         )
     kept_of_yours = summary.words_of_your_own(document)
@@ -3034,6 +3198,11 @@ def _run_profile(
                         # 2026-09-17, item 8; plan P4-D232). The words
                         # are what the FILE showed, and no cell of it.
                         read.first_row_seen,
+                        # ...and the order of day and month, where no
+                        # value of a slashed column can say (landing T1).
+                        asking.day_first_columns(
+                            document, read.columns, settings
+                        ),
                     ),
                     # ...AND WHAT THIS RUN SAID ABOUT THE TABLE AS A
                     # WHOLE (plan P4-D341). The population notice, in
@@ -3836,6 +4005,7 @@ def main(argv: "list[str] | None" = None) -> int:
             options.sheet,
             options.metadata_rows,
             options.delimiter,
+            options.twelve_hours,
         )
     except PathValidationError as error:
         # The message is treated as a VALUE, not as something synthtwin

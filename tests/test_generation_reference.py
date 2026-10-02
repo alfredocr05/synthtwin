@@ -250,6 +250,16 @@ THIRTEENTH_BRANCH_VECTORS = (
 # anchor 3b-D3 (P4-D368)
 # anchor 3b-D4 (P4-D369)
 # anchor 3b-T1 (P4-D370)
+# THE TWENTY-SECOND FILE (landing T1's written clocks, plan P4-D370):
+# plan P4-D364's numbering table gives each landing of stage 3b its own.
+TWENTY_SECOND_BRANCH_GENERATOR = (
+    REPOSITORY / "tools" / "reference" / "make_generation_branch_vectors_22.py"
+)
+TWENTY_SECOND_BRANCH_VECTORS = (
+    pathlib.Path(__file__).resolve().parent
+    / "reference"
+    / "generation-branch-vectors-22.json"
+)
 # anchor 3b-T2 (P4-D371)
 # anchor 3b-T3 (P4-D372)
 # anchor 3b-C1 (P4-D373)
@@ -368,6 +378,10 @@ def _thirteenth_branch_document() -> dict:
 
 def _fourteenth_branch_document() -> dict:
     return json.loads(FOURTEENTH_BRANCH_VECTORS.read_text(encoding="utf-8"))
+
+
+def _twenty_second_branch_document() -> dict:
+    return json.loads(TWENTY_SECOND_BRANCH_VECTORS.read_text(encoding="utf-8"))
 
 
 # The nine cases method section G14.3 names, and the four the review of
@@ -773,6 +787,16 @@ FOURTEENTH_BRANCH_CASES = (
     "tail_end_least_reach_slack",
 )
 
+# THE TWENTY-SECOND FILE: landing T1's written clocks and G7.5 step 5
+# (plan P4-D370).
+TWENTY_SECOND_BRANCH_CASES = (
+    "clock_unpadded_twelve_hour",
+    "date_remainder_one_joint",
+    "stamp_dotted_seconds",
+    "stamp_twelve_hour_top",
+    "stamp_unpadded_hour",
+)
+
 ALL_CASES = tuple(
     sorted(
         REQUIRED_CASES
@@ -790,6 +814,7 @@ ALL_CASES = tuple(
         + TWELFTH_BRANCH_CASES
         + THIRTEENTH_BRANCH_CASES
         + FOURTEENTH_BRANCH_CASES
+        + TWENTY_SECOND_BRANCH_CASES
     )
 )
 
@@ -797,6 +822,13 @@ ALL_CASES = tuple(
 # and not in the oracle: the oracle is a pure function of the words, and
 # a seed inside it would be a random operation it is not allowed to hold.
 SEEDS = {
+    # Landing T1's written clocks take the next seeds after the highest in
+    # use below 34041 (plan P4-D370).
+    "stamp_unpadded_hour": 416,
+    "stamp_twelve_hour_top": 417,
+    "stamp_dotted_seconds": 418,
+    "clock_unpadded_twelve_hour": 419,
+    "date_remainder_one_joint": 420,
     # The dates pass of the stage-3 review takes the next seed after the
     # highest in use.
     "clock_declared_hole": 306,
@@ -1037,6 +1069,8 @@ def _case(name: str) -> dict:
         document = _twelfth_branch_document()
     elif name in THIRTEENTH_BRANCH_CASES:
         document = _thirteenth_branch_document()
+    elif name in TWENTY_SECOND_BRANCH_CASES:
+        document = _twenty_second_branch_document()
     elif name in SEVENTH_BRANCH_CASES:
         document = _seventh_branch_document()
     elif name in SIXTH_BRANCH_CASES:
@@ -1128,6 +1162,9 @@ def _settings(declared: list, commas: "list | None" = None) -> dict:
         # The sixth (plan P4-D110). The oracle declares no delimiter: the
         # delimited cases read their own published one.
         "forced_delimiter": "",
+        # The seventh (landing T1, plan P4-D370). The oracle declares no
+        # 12-hour clock: a column on that face states it in its own form.
+        "forced_twelve_hour_clocks": [],
     }
 
 
@@ -1287,6 +1324,7 @@ def test_the_branch_file_is_the_same_oracle_and_says_which_half_it_is() -> None:
     twelfth = _twelfth_branch_document()
     thirteenth = _thirteenth_branch_document()
     fourteenth = _fourteenth_branch_document()
+    twenty_second = _twenty_second_branch_document()
     papers = _document_document()
     assert tuple(sorted(branch["cases"])) == BRANCH_CASES
     assert tuple(sorted(second["cases"])) == SECOND_BRANCH_CASES
@@ -1302,11 +1340,12 @@ def test_the_branch_file_is_the_same_oracle_and_says_which_half_it_is() -> None:
     assert tuple(sorted(twelfth["cases"])) == TWELFTH_BRANCH_CASES
     assert tuple(sorted(thirteenth["cases"])) == THIRTEENTH_BRANCH_CASES
     assert tuple(sorted(fourteenth["cases"])) == FOURTEENTH_BRANCH_CASES
+    assert tuple(sorted(twenty_second["cases"])) == TWENTY_SECOND_BRANCH_CASES
     assert tuple(sorted(papers["cases"])) == DOCUMENT_CASES
     every = (
         named, branch, second, third, fourth, fifth, sixth, seventh,
         eighth, ninth, tenth, eleventh, twelfth, thirteenth, fourteenth,
-        papers,
+        twenty_second, papers,
     )
     for index in range(len(every)):
         for other in range(index + 1, len(every)):
@@ -1331,6 +1370,7 @@ def test_the_branch_file_is_the_same_oracle_and_says_which_half_it_is() -> None:
         (twelfth, TWELFTH_BRANCH_VECTORS),
         (thirteenth, THIRTEENTH_BRANCH_VECTORS),
         (fourteenth, FOURTEENTH_BRANCH_VECTORS),
+        (twenty_second, TWENTY_SECOND_BRANCH_VECTORS),
         (papers, DOCUMENT_VECTORS),
     )
     for document, own in files:
@@ -1362,6 +1402,7 @@ def test_the_branch_file_is_the_same_oracle_and_says_which_half_it_is() -> None:
         TWELFTH_BRANCH_GENERATOR,
         THIRTEENTH_BRANCH_GENERATOR,
         FOURTEENTH_BRANCH_GENERATOR,
+        TWENTY_SECOND_BRANCH_GENERATOR,
         DOCUMENT_GENERATOR,
     ],
 )
@@ -1652,6 +1693,10 @@ THIRTEENTH_BRANCH_NAMED_COUNTS = 388
 # The sixteenth, at its own generator's line ("proved 8 ... beside 53").
 FOURTEENTH_BRANCH_PUBLISHED_NUMBERS = 8
 FOURTEENTH_BRANCH_NAMED_COUNTS = 53
+# The twenty-second, at its own generator's line ("proved 0 ... beside 122"):
+# its five cases publish no binary64 at all.
+TWENTY_SECOND_BRANCH_PUBLISHED_NUMBERS = 0
+TWENTY_SECOND_BRANCH_NAMED_COUNTS = 122
 # The document file publishes NO binary64 at all, and that is a fact
 # about its transforms rather than a gap in its proof: the written form,
 # the arrangement, the workbook writer, the shape of a line before a
@@ -1746,6 +1791,12 @@ COMMITTED_FILES = (
         FOURTEENTH_BRANCH_NAMED_COUNTS,
     ),
     (
+        TWENTY_SECOND_BRANCH_VECTORS,
+        gen.TWENTY_SECOND_BRANCH_PART,
+        TWENTY_SECOND_BRANCH_PUBLISHED_NUMBERS,
+        TWENTY_SECOND_BRANCH_NAMED_COUNTS,
+    ),
+    (
         DOCUMENT_VECTORS,
         gen.DOCUMENT_PART,
         DOCUMENT_PUBLISHED_NUMBERS,
@@ -1759,7 +1810,7 @@ def _fields(document: dict) -> frozenset:
 
 
 @pytest.mark.parametrize(
-    "committed,part,published,named", COMMITTED_FILES, ids=["named", "branches", "branches-2", "branches-3", "branches-4", "branches-5", "branches-6", "branches-8", "branches-7", "branches-9", "branches-10", "branches-11", "branches-12", "branches-13", "branches-14", "documents"]
+    "committed,part,published,named", COMMITTED_FILES, ids=["named", "branches", "branches-2", "branches-3", "branches-4", "branches-5", "branches-6", "branches-8", "branches-7", "branches-9", "branches-10", "branches-11", "branches-12", "branches-13", "branches-14", "branches-22", "documents"]
 )
 def test_the_committed_file_publishes_no_number_that_escapes_the_proof(
     committed, part, published, named
@@ -1801,7 +1852,7 @@ def test_the_committed_file_publishes_no_number_that_escapes_the_proof(
 
 
 @pytest.mark.parametrize(
-    "committed,part,published,named", COMMITTED_FILES, ids=["named", "branches", "branches-2", "branches-3", "branches-4", "branches-5", "branches-6", "branches-8", "branches-7", "branches-9", "branches-10", "branches-11", "branches-12", "branches-13", "branches-14", "documents"]
+    "committed,part,published,named", COMMITTED_FILES, ids=["named", "branches", "branches-2", "branches-3", "branches-4", "branches-5", "branches-6", "branches-8", "branches-7", "branches-9", "branches-10", "branches-11", "branches-12", "branches-13", "branches-14", "branches-22", "documents"]
 )
 def test_the_committed_bytes_are_proved_against_the_recorded_exact_values(
     committed, part, published, named
@@ -1820,7 +1871,7 @@ def test_the_committed_bytes_are_proved_against_the_recorded_exact_values(
 
 
 @pytest.mark.parametrize(
-    "committed,part,published,named", COMMITTED_FILES, ids=["named", "branches", "branches-2", "branches-3", "branches-4", "branches-5", "branches-6", "branches-8", "branches-7", "branches-9", "branches-10", "branches-11", "branches-12", "branches-13", "branches-14", "documents"]
+    "committed,part,published,named", COMMITTED_FILES, ids=["named", "branches", "branches-2", "branches-3", "branches-4", "branches-5", "branches-6", "branches-8", "branches-7", "branches-9", "branches-10", "branches-11", "branches-12", "branches-13", "branches-14", "branches-22", "documents"]
 )
 def test_the_generator_says_how_many_numbers_it_proved(
     tmp_path, capsys, committed, part, published, named
@@ -2312,6 +2363,41 @@ def _named_marks_only(value, low, boundary, column):
     if "(withheld)" in (column.get("thousands_marks") or {}):
         return value
     return _real_mark_held(value, low, boundary, column)
+
+
+# The oracle's own clock writer, held before any mutant replaces it.
+_WRITTEN_CLOCK_OF = gen.written_clock_of
+
+
+def _every_hour_padded(second, seconds, width, face):
+    """G7.5's hour width withdrawn: every hour written in two figures."""
+    return _WRITTEN_CLOCK_OF(second, seconds, "hh", face)
+
+
+def _no_top_of_the_dial(second, seconds, width, face):
+    """G7.5's top of the dial withdrawn: the hour less twelve, never 12."""
+    text = _WRITTEN_CLOCK_OF(second, seconds, width, face)
+    hours = second // 3600
+    if face and hours % 12 == 0:
+        head, _colon, rest = text.partition(":")
+        return ("00" if width == "hh" else "0") + ":" + rest
+    return text
+
+
+def _no_space_before_the_marker(second, seconds, width, face):
+    """G7.5's join withdrawn: the marker written straight after the time."""
+    return _WRITTEN_CLOCK_OF(second, seconds, width, face.lstrip(" "))
+
+
+def _spelled_on_the_24_hour_clock(ordinal, form):
+    """G7A.1's form withdrawn: every value in the two-figure 24-hour clock."""
+    seconds = gen.clock_form_fields(form)[1]
+    return _WRITTEN_CLOCK_OF(ordinal * (1 if seconds else 60), seconds, "hh", "")
+
+
+def _no_unnamed_remainder(*_arguments):
+    """G7.5 step 5 withdrawn: no rank wears a width the census does not name."""
+    return {}
 
 
 class Mutant(typing.NamedTuple):
@@ -3291,6 +3377,49 @@ def _least_end_without_slack(mean: float, root: float, edge: int) -> int:
 
 
 CASE_MUTANTS = {
+    # LANDING T1'S WRITTEN CLOCKS (plan P4-D370), each case's own rule.
+    "stamp_unpadded_hour": Mutant(
+        branch="G7.5's hour width of a slashed stamp's clock, which writes "
+        "an hour below ten in one figure where the column's word says "
+        "`h`; the mutant pads every hour, which `%H:%M` still reads and "
+        "the column's own style does not",
+        attribute="written_clock_of",
+        replacement=_every_hour_padded,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "stamp_twelve_hour_top": Mutant(
+        branch="G7.5's top of the 12-hour dial, which writes the first "
+        "hour of the day and the hour of noon as 12; the mutant writes the "
+        "hour less twelve with no top, so midnight comes out `0:00 AM`, "
+        "which `%I` refuses",
+        attribute="written_clock_of",
+        replacement=_no_top_of_the_dial,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "stamp_dotted_seconds": Mutant(
+        branch="G7.5's join before a marker, one space where the column's "
+        "word writes one; the mutant writes the marker straight after the "
+        "time",
+        attribute="written_clock_of",
+        replacement=_no_space_before_the_marker,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "clock_unpadded_twelve_hour": Mutant(
+        branch="G7A.1's forms since landing T1, every value spelled in its "
+        "column's own form; the mutant spells it in the two-figure 24-hour "
+        "clock whatever the form says",
+        attribute="clock_spelling_of",
+        replacement=_spelled_on_the_24_hour_clock,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "date_remainder_one_joint": Mutant(
+        branch="G7.5 step 5, the width census's unnamed remainder written "
+        "on whole days in widths the census does not name; the mutant "
+        "withdraws the step and writes every rank in the named width",
+        attribute="width_remainder",
+        replacement=_no_unnamed_remainder,
+        outcome=CHANGES_THE_CELLS,
+    ),
     # THE SIX CASES OF STAGE 3'S TAIL RULE (landing 3.3). Each mutant
     # withdraws one statement of the rule and nothing else, and the
     # oracle then writes different cells for that case.
@@ -5603,6 +5732,7 @@ def test_the_method_states_the_count_the_committed_files_hold() -> None:
         (TWELFTH_BRANCH_VECTORS, _twelfth_branch_document()),
         (THIRTEENTH_BRANCH_VECTORS, _thirteenth_branch_document()),
         (FOURTEENTH_BRANCH_VECTORS, _fourteenth_branch_document()),
+        (TWENTY_SECOND_BRANCH_VECTORS, _twenty_second_branch_document()),
     )
     flat = " ".join(section.split())
     for path, document in held:

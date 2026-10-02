@@ -112,6 +112,21 @@ ANSWER_JOINED = "joined"
 # the column writes a point between its thousands and a comma for its
 # decimals, which is `--decimal-comma`.
 ANSWER_DECIMAL_COMMA = "decimal_comma"
+# ...and the seventh (landing T1, plan P4-D370): the column is a 12-hour
+# clock written without AM or PM, which is `--twelve-hour`. Nothing in
+# `8:34` or `12:15` says which clock wrote it, so where every hour of a
+# column lies in 1 to 12 the run asks (the owner's ruling of 2026-10-01:
+# "If we can't guess and we need more informations, there is no big deal
+# to ask for what we need").
+ANSWER_TWELVE_HOUR = "twelve-hour"
+BECAUSE_TWELVE_HOUR = "hours-from-one-to-twelve-and-no-am-or-pm"
+# ...and the order of day and month, where both readings of a slashed
+# date read every cell (landing T1, the same ruling). A question about the
+# FILE: the answer is `--day-first`, which reaches every such column.
+DAY_FIRST_SUBJECT = "the order of the day and the month in your dates"
+BECAUSE_DAY_AND_MONTH = "day-and-month-read-either-way"
+ANSWER_MONTH_FIRST = "month-first"
+ANSWER_DAY_FIRST = "day-first"
 
 # THE FIFTH DECLARATION, AND THE FIRST THAT IS NOT ABOUT A COLUMN (plan
 # P4-D81). Some survey exports write two rows UNDER the column names
@@ -531,6 +546,18 @@ class Question:
 ANSWER_KEEP = "keep"
 
 
+def _clock_publishes(floor: int, role: str = taxonomy.ROLE_CLOCK) -> str:
+    """What a column of clock times or of moments publishes, as a choice says it."""
+    along = "along the day"
+    if role == taxonomy.ROLE_DATETIME:
+        along = "along its range of dates and times"
+    return (
+        f"points {along} and the two tails beyond them, but neither end: "
+        f"each end is published only where at least {floor} rows share "
+        f"the value"
+    )
+
+
 def _publishes_under(answer: str, role: str, floor: int) -> str:
     """What the description carries if this answer is taken.
 
@@ -616,7 +643,15 @@ def _publishes_under(answer: str, role: str, floor: int) -> str:
             "every value exactly as written, with the number of rows "
             "that carried it, and no average at all"
         )
+    if answer == ANSWER_TWELVE_HOUR:
+        return (
+            f"{_clock_publishes(floor, role)}, read on a 12-hour clock: 12 "
+            f"is the hour after midnight, and the twin writes hours 1 to 12 "
+            f"only, as your table does"
+        )
     # ANSWER_KEEP: whatever the column already is.
+    if role == taxonomy.ROLE_CLOCK or role == taxonomy.ROLE_DATETIME:
+        return f"what it publishes now: {_clock_publishes(floor, role)}"
     if not publishes_its_values(role):
         return "no value of the column at all, which is what it does now"
     if floor > 1:
@@ -719,6 +754,35 @@ def _joined_choices(role: str, floor: int) -> "list[Choice]":
     P4-D40) keeps that reading on Enter, and is not offered `joined`
     again: the answer would change nothing.
     """
+    if role == taxonomy.ROLE_CLOCK:
+        # A CLOCK READ FROM ITS VALUES (landing T1). `8:34` is a time of
+        # day and also two numbers joined by a colon -- a duration in
+        # minutes and seconds is written so -- and the reader takes the
+        # clock, so Enter keeps it and the other readings are offered.
+        return [
+            Choice(
+                ANSWER_KEEP,
+                "leave it as it is -- synthtwin reads these cells as times "
+                "of day",
+                _publishes_under(ANSWER_KEEP, role, floor),
+            ),
+            Choice(
+                ANSWER_JOINED,
+                "measurements written as two numbers in one cell, such as "
+                "a duration in minutes and seconds",
+                _publishes_under(ANSWER_JOINED, role, floor),
+            ),
+            Choice(
+                ANSWER_CODE,
+                "codes -- a coding system that writes its codes in parts",
+                _publishes_under(ANSWER_CODE, role, floor),
+            ),
+            Choice(
+                ANSWER_IDENTIFIER,
+                "record numbers -- a key nothing should publish",
+                _publishes_under(ANSWER_IDENTIFIER, role, floor),
+            ),
+        ]
     if role == taxonomy.ROLE_JOINED:
         return [
             Choice(
@@ -798,6 +862,181 @@ def questions_for(
     )[0]
 
 
+def _clock_hours(
+    present: "list[str]", stamps: bool
+) -> "tuple[bool, bool, bool]":
+    """What the clocks of a column show about their face (landing T1).
+
+    Whether every clock it reads writes no marker, whether every such
+    hour lies in 1 to 12 -- which a 24-hour clock and a 12-hour clock
+    written without AM or PM both write -- and whether some hour is
+    written in one figure. Counts nothing that is published.
+    """
+    seen = False
+    unmarked = True
+    within = True
+    one_figure = False
+    for value in present:
+        parts = parsing.clock_parts(
+            parsing.stamp_halves(value)[1] if stamps else value
+        )
+        if parts is None:
+            continue
+        seen = True
+        if parts[5]:
+            unmarked = False
+            continue
+        if parts[0] < 1 or parts[0] > 12:
+            within = False
+        if parts[4] == 1:
+            one_figure = True
+    return seen and unmarked, seen and unmarked and within, one_figure
+
+
+def _clock_question(
+    block: "dict[str, object]",
+    present: "list[str]",
+    floor: int,
+    twelve_hours: "tuple[str, ...]",
+) -> "Question | None":
+    """The question a column of unmarked clocks may raise (landing T1).
+
+    TWO THINGS ITS VALUES CANNOT SETTLE. A column of clock times whose
+    hours are written in one figure is also two numbers joined by a
+    colon, which is how a duration in minutes and seconds is written --
+    the question it was asked as free text before it was read, kept (the
+    T1 design skeptic, item 3). And where every hour lies in 1 to 12 and
+    no cell writes AM or PM, a 24-hour clock and a 12-hour clock are
+    written alike (item 1); the answer `twelve-hour` is `--twelve-hour`,
+    and Enter keeps the 24-hour reading. A column declared a 12-hour
+    clock, a column writing a marker, and a column of two-figure hours
+    some of which pass twelve raise nothing.
+    """
+    name = f"{block['name']}"
+    role = f"{block['role']}"
+    stamps = (
+        role == taxonomy.ROLE_DATETIME
+        and "format" in block
+        and f"{block['format']}" in parsing.SLASHED_STAMPS
+    )
+    if role != taxonomy.ROLE_CLOCK and not stamps:
+        return None
+    if name in twelve_hours:
+        return None
+    unmarked, within, one_figure = _clock_hours(present, stamps)
+    if not unmarked:
+        return None
+    choices: "list[Choice]" = []
+    if role == taxonomy.ROLE_CLOCK and one_figure:
+        choices = _joined_choices(role, floor)
+    if within:
+        twelve = Choice(
+            ANSWER_TWELVE_HOUR,
+            "a 12-hour clock written without AM or PM -- 12:15 is a "
+            "quarter past midnight",
+            _publishes_under(ANSWER_TWELVE_HOUR, role, floor),
+        )
+        if not choices:
+            choices = [
+                Choice(
+                    ANSWER_KEEP,
+                    "leave it as it is -- a 24-hour clock, 12:15 is a "
+                    "quarter past noon",
+                    _publishes_under(ANSWER_KEEP, role, floor),
+                )
+            ]
+        choices = [choices[0], twelve] + choices[1:]
+        return Question(
+            name, role, BECAUSE_TWELVE_HOUR,
+            _shape_of(BECAUSE_TWELVE_HOUR, present, floor),
+            choices, ANSWER_KEEP,
+        )
+    if choices:
+        return Question(
+            name, role, BECAUSE_JOINED,
+            _shape_of(BECAUSE_JOINED, present, floor, ":"),
+            choices, ANSWER_KEEP,
+        )
+    return None
+
+
+def day_first_columns(
+    document: "dict[str, object]",
+    table_columns: "list[list[str]]",
+    settings: taxonomy.Settings,
+) -> "tuple[str, ...]":
+    """The columns whose values cannot say whether the day or the month is first.
+
+    Read month first by the ratified default, and asked about in the
+    questions file (landing T1, the owner's ruling of 2026-10-01): a
+    slashed column every cell of which both readings parse. Nothing is
+    asked where `--day-first` was given -- the person has answered.
+
+    Guarantees: a fixed function of the arguments; opens nothing.
+    """
+    if settings.day_first:
+        return ()
+    blocks = document["columns"]
+    if not isinstance(blocks, list):
+        return ()
+    found: "list[str]" = []
+    position = 0
+    for block in blocks:
+        position = position + 1
+        if not isinstance(block, dict) or position > len(table_columns):
+            continue
+        if f"{block['role']}" != taxonomy.ROLE_DATETIME:
+            continue
+        if "format" not in block:
+            continue
+        format_name = f"{block['format']}"
+        present, _absent = taxonomy.split_missing(
+            table_columns[position - 1], settings
+        )
+        if taxonomy.day_and_month_read_either_way(present, format_name):
+            found += [f"{block['name']}"]
+    return tuple(found)
+
+
+def _day_first_questions(columns: "tuple[str, ...]") -> "list[Question]":
+    """Which comes first, the day or the month, where no value can say."""
+    if not columns:
+        return []
+    named = ""
+    for one in columns:
+        named = one if not named else f"{named}, {one}"
+    return [
+        Question(
+            DAY_FIRST_SUBJECT,
+            "",
+            BECAUSE_DAY_AND_MONTH,
+            (
+                f"in {named}, every date's day and month are both 12 or "
+                f"less, so each date reads as a real day with either one "
+                f"first, and nothing in the values can say which your "
+                f"file writes first"
+            ),
+            [
+                Choice(
+                    ANSWER_MONTH_FIRST,
+                    "the month comes first -- 03/04/2024 is the 4th of March",
+                    "these columns read as they are read now",
+                ),
+                Choice(
+                    ANSWER_DAY_FIRST,
+                    "the day comes first -- 03/04/2024 is the 3rd of April",
+                    (
+                        "every such column of your file is read day first, "
+                        "which is --day-first, and the twin writes its "
+                        "dates the same way"
+                    ),
+                ),
+            ],
+            ANSWER_MONTH_FIRST,
+        )
+    ]
+
+
 def questions_and_splits_for(
     document: "dict[str, object]",
     table_columns: "list[list[str]]",
@@ -853,6 +1092,14 @@ def questions_and_splits_for(
         )
         split_cells[position] = table_columns[position]
         split_present[position] = present
+        clock = _clock_question(
+            block, present, settings.small_cell_floor,
+            settings.forced_twelve_hour_clocks,
+        )
+        if clock is not None:
+            asked += [clock]
+            position = position + 1
+            continue
         if role not in NUMERIC_ROLES and role not in JOINED_ROLES:
             position = position + 1
             continue
@@ -923,6 +1170,7 @@ def file_questions(
     declared_unseen: int = 0,
     tied_delimiters: "tuple[str, ...]" = (),
     first_row_seen: str = "",
+    day_or_month: "tuple[str, ...]" = (),
 ) -> "list[Question]":
     """The questions about the FILE rather than about a column.
 
@@ -942,6 +1190,7 @@ def file_questions(
         _first_row_questions(first_row_seen)
         + _metadata_questions(metadata_shape, declared_unseen)
         + _delimiter_questions(tied_delimiters)
+        + _day_first_questions(day_or_month)
     )
 
 
@@ -1315,6 +1564,13 @@ def _shape_of(
         return (
             f"every value is written in figures, grouped in threes, all "
             f"{only} figures long"
+        )
+    if reason == BECAUSE_TWELVE_HOUR:
+        # WHAT BOTH CLOCKS WRITE, and no count: the shape alone is why.
+        return (
+            "every value writes a time of day whose hour is from 1 to 12, "
+            "with no AM or PM, which a 24-hour clock and a 12-hour clock "
+            "both write"
         )
     if reason == BECAUSE_POINT_THOUSANDS:
         return (
@@ -1988,6 +2244,12 @@ class Answers:
     # carried all the same, because an answer that is dropped is an
     # answer a person was told had been heard.
     first_row: str = ""
+    # ...and the columns answered `twelve-hour` (landing T1), which is
+    # `--twelve-hour`.
+    twelve_hours: "tuple[str, ...]" = ()
+    # ...and whether the day comes first in the file's dates, as
+    # answered (landing T1), which is `--day-first`.
+    day_first: bool = False
 
 
 def _entry_answer(
@@ -2135,6 +2397,8 @@ def answers_in(document: object, shown: str) -> Answers:
     metadata_rows_answered = False
     delimiter = ""
     first_row = ""
+    twelve_hours: list[str] = []
+    day_first = False
     for entry, place in _entries_of(document, shown):
         read = _entry_answer(entry, place)
         if read is None:
@@ -2168,6 +2432,15 @@ def answers_in(document: object, shown: str) -> Answers:
             # declaration (plan P4-D172).
             metadata_rows = 0
             metadata_rows_answered = True
+        elif written == ANSWER_TWELVE_HOUR:
+            twelve_hours += [name]
+        elif written == ANSWER_DAY_FIRST:
+            # The one answer about the dates of the whole file (landing
+            # T1), which is `--day-first`.
+            day_first = True
+        elif written == ANSWER_MONTH_FIRST:
+            # The reading that already stands.
+            pass
         elif written == ANSWER_FIRST_ROW_NAMES:
             first_row = ANSWER_FIRST_ROW_NAMES
         elif written == ANSWER_FIRST_ROW_DATA:
@@ -2194,4 +2467,6 @@ def answers_in(document: object, shown: str) -> Answers:
         delimiter,
         metadata_rows_answered,
         first_row,
+        tuple(twelve_hours),
+        day_first,
     )

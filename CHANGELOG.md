@@ -26,6 +26,32 @@ and one left unparsed is not, so the source meets its own census.
 `K-S3-32` is floor-only, `K-S3-33` retired, `K-S3-35` new, and
 `K-S3-39`, `K-2B-13` and `K-2B-48` hold.
 
+### Excel's hour and the 12-hour clock, read and written back (2026-10-01)
+
+**The reader** (plan P4-D370, landing T1). `3/17/2024 6:42`, `6:42 PM`,
+`6:42pm`, `6:42 p.m.` and `12:00:00 AM` were free text; they read now, on
+the slashed stamps and as clock times, and the twin writes each column's
+own clock back -- the hour's width and the marker -- published as a value
+of `clock_form` and of the stamp's one `datetime_separators` word.
+Validation holds it by fit. An unmarked clock whose hours all lie in 1 to
+12 is asked 24- or 12-hour (`--twelve-hour`, the settings list
+`forced_twelve_hour_clocks`), a one-figure clock keeps its colon question,
+and slashed dates no value can settle ask which comes first. G7.5 step 5
+writes a width census's unnamed remainder on whole days. `K-S3-52`;
+vectors file 22. **One new settings key**, `forced_twelve_hour_clocks`:
+the settings block is twenty-four keys, and the refusal of an older
+description names `--twelve-hour` among the options to give again. The
+loader words its new rule D12a (a description breaking it stopped the
+loader with an error of its own), and the twin report of a stamp declared
+a 12-hour clock reads its cells on that face and names what it misses --
+the stated limit: after noon the dial reads twelve hours early. The
+12-hour answer is typed as `6` at the terminal (before, the question
+stopped the run with an error), and an answered `day-first` is printed on
+the line that repeats the run. A key of an answer the question did not
+offer is asked again: `6` typed at a column of codes had recorded a
+12-hour clock on it. That stated limit is landing T2's to close: its hour
+census confines a declared 12-hour stamp's draws to the half day.
+
 ### Every tail publishes its pair (2026-10-01)
 
 **No tail pair is withheld but one binary64 cannot hold** (plan P4-D375,

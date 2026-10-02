@@ -5885,7 +5885,8 @@ def written_date(year, month, day, member, width=DEFAULT_WIDTH,
 
 def precision_form(ordinal, resolution, time_precision, subsecond_digits,
                    mark="T", member="iso-datetime", width=DEFAULT_WIDTH,
-                   name_style=DEFAULT_NAME_STYLE, marker="upper"):
+                   name_style=DEFAULT_NAME_STYLE, marker="upper",
+                   clock=("hh", "")):
     """The cell text of method section G7.5, before the offset suffix.
 
     ``mark`` is the character between the day and the clock that the
@@ -5910,9 +5911,16 @@ def precision_form(ordinal, resolution, time_precision, subsecond_digits,
         return written_date(year, month, day, member, width, name_style)
     days, rest = divmod(ordinal, 86400)
     year, month, day = civil_from_days(days)
+    half = written_date(year, month, day, member, width, name_style)
+    if clock != ("hh", ""):
+        # A stamp writing its own clock (landing T1): its width and its
+        # face, at the minute or at the second -- a stamp writes no
+        # fraction.
+        return half + mark + written_clock_of(
+            rest, time_precision != "minute", clock[0], clock[1]
+        )
     hours, rest = divmod(rest, 3600)
     minutes, seconds = divmod(rest, 60)
-    half = written_date(year, month, day, member, width, name_style)
     stem = f"{half}{mark}{hours:02d}:{minutes:02d}"
     if time_precision == "minute":
         return stem
@@ -5925,54 +5933,130 @@ def precision_form(ordinal, resolution, time_precision, subsecond_digits,
     return stem + "." + "0" * subsecond_digits
 
 
-CLOCK_STEP = {"hh-mm": 60, "hh-mm-ss": 1}
-CLOCK_CAPACITY = {"hh-mm": 24 * 60, "hh-mm-ss": 24 * 60 * 60}
+# THE WRITTEN CLOCK, written from method G7A.1 as landing T1 restates it
+# (plan P4-D370): a form is the hour's width -- `hh`, two figures, or
+# `h`, one below ten -- then `-mm` or `-mm-ss`, then the FACE: nothing
+# for the 24-hour clock; ` twelve-hour` for a column declared a 12-hour
+# clock written without a marker, whose top of the dial `12` is the
+# first hour of the day and whose space is half a day; or a marker pair,
+# after one space or after nothing, whose morning word is written below
+# noon and whose evening word from noon on.
+CLOCK_PAIRS = {
+    "AM-PM": ("AM", "PM"),
+    "am-pm": ("am", "pm"),
+    "A.M.-P.M.": ("A.M.", "P.M."),
+    "a.m.-p.m.": ("a.m.", "p.m."),
+}
+
+
+def clock_form_fields(form):
+    """A form's width, whether it writes seconds, and its face (G7A.1)."""
+    width, mark, rest = form.partition("-mm")
+    if mark != "-mm" or width not in ("hh", "h"):
+        raise AssertionError(f"{form!r} is not a clock form")
+    seconds = rest.startswith("-ss")
+    face = rest[3:] if seconds else rest
+    if face not in ("", " twelve-hour") and face.lstrip(" ") not in CLOCK_PAIRS:
+        raise AssertionError(f"{form!r} is not a clock form")
+    if face.startswith("  "):
+        raise AssertionError(f"{form!r} is not a clock form")
+    return width, seconds, face
+
+
+def clock_step_of(form):
+    """Seconds per unit of the form: a minute, or a second."""
+    return 1 if clock_form_fields(form)[1] else 60
+
+
+def clock_capacity(form):
+    """How many different times this form can write: a day's own count,
+    and half of it on the declared 12-hour face."""
+    _width, seconds, face = clock_form_fields(form)
+    day = 86400 if seconds else 1440
+    return day // 2 if face == " twelve-hour" else day
+
+
+def written_clock_of(second, seconds, width, face):
+    """One second of the day written on a face at a width (G7A.1, G7.5)."""
+    hours, rest = divmod(second, 3600)
+    minutes, secs = divmod(rest, 60)
+    marker = ""
+    shown = hours
+    if face:
+        shown = hours % 12 or 12
+    pair = face.lstrip(" ")
+    if pair in CLOCK_PAIRS:
+        marker = (face[: len(face) - len(pair)]) + CLOCK_PAIRS[pair][hours >= 12]
+    text = ("%02d" % shown if width == "hh" else str(shown)) + ":%02d" % minutes
+    if seconds:
+        text += ":%02d" % secs
+    return text + marker
 
 
 def clock_ordinal_of(text, form):
     """One clock cell as its place in its form's own unit (G7A.1).
 
-    Minutes of day for `hh-mm`, seconds of day for `hh-mm-ss`.  The
-    reader is deliberately exact and NOTHING is trimmed first: what this
-    role publishes are the cells themselves, character for character.
+    Minutes or seconds of the day on the form's face. The reader is
+    deliberately exact and NOTHING is trimmed first: what this role
+    publishes are the cells themselves, character for character, so a
+    published value is read only where the form's own writer gives it
+    back.
     """
-    if form not in CLOCK_STEP:
-        raise AssertionError(f"{form!r} is not one of the two clock forms")
-    wanted = 8 if form == "hh-mm-ss" else 5
-    if len(text) != wanted:
-        raise AssertionError(f"{text!r} is not a cell of form {form}")
-    fields = text.split(":")
-    if len(fields) != (3 if form == "hh-mm-ss" else 2):
-        raise AssertionError(f"{text!r} is not a cell of form {form}")
-    numbers = []
-    for field in fields:
-        if len(field) != 2 or not field.isdigit():
+    _width, seconds, face = clock_form_fields(form)
+    body, late = text, False
+    pair = face.lstrip(" ")
+    if pair in CLOCK_PAIRS:
+        join = face[: len(face) - len(pair)]
+        for place, word in enumerate(CLOCK_PAIRS[pair]):
+            if body.endswith(join + word):
+                body, late = body[: len(body) - len(join + word)], place == 1
+                break
+        else:
             raise AssertionError(f"{text!r} is not a cell of form {form}")
-        numbers.append(int(field))
-    if numbers[0] > 23:
-        raise AssertionError(f"{text!r} has an hour above 23")
-    for rest in numbers[1:]:
-        if rest > 59:
-            raise AssertionError(f"{text!r} has a field above 59")
-    if form == "hh-mm":
-        return numbers[0] * 60 + numbers[1]
-    return numbers[0] * 3600 + numbers[1] * 60 + numbers[2]
+    fields = body.split(":")
+    if len(fields) != (3 if seconds else 2) or not all(
+        field.isdigit() for field in fields
+    ):
+        raise AssertionError(f"{text!r} is not a cell of form {form}")
+    hour, minute = int(fields[0]), int(fields[1])
+    second = int(fields[2]) if seconds else 0
+    if pair in CLOCK_PAIRS:
+        hour = hour % 12 + (12 if late else 0)
+    elif face == " twelve-hour":
+        hour = hour % 12
+    unit = (hour * 3600 + minute * 60 + second) // (1 if seconds else 60)
+    # EXACT: the form's own writer must give the cell back.
+    if not 0 <= unit < clock_capacity(form) or clock_spelling_of(unit, form) != text:
+        raise AssertionError(f"{text!r} is not a cell of form {form}")
+    return unit
 
 
 def clock_spelling_of(ordinal, form):
     """The one spelling of one ordinal in one form (G7A.1).
 
-    The inverse of `clock_ordinal_of`, zero-padded to two digits a
-    field, so a producer and a generator cannot spell one time two ways.
+    The inverse of `clock_ordinal_of`, so a producer and a generator
+    cannot spell one time two ways.
     """
-    if form not in CLOCK_STEP:
-        raise AssertionError(f"{form!r} is not one of the two clock forms")
-    if ordinal < 0 or ordinal >= CLOCK_CAPACITY[form]:
+    width, seconds, face = clock_form_fields(form)
+    if ordinal < 0 or ordinal >= clock_capacity(form):
         raise AssertionError(f"{ordinal} is outside the space of {form}")
-    if form == "hh-mm":
-        return "%02d:%02d" % (ordinal // 60, ordinal % 60)
-    rest = ordinal % 3600
-    return "%02d:%02d:%02d" % (ordinal // 3600, rest // 60, rest % 60)
+    return written_clock_of(ordinal * (1 if seconds else 60), seconds, width, face)
+
+
+def stamp_clock_style(column):
+    """A slashed stamp's written clock, from its one mark word (G7.5).
+
+    The census word `space` is the two-figure 24-hour clock; `space`
+    and a style name the style; a pool names none, and the 24-hour clock
+    is written (plan P4-D370's stated limit).
+    """
+    for word in sorted(column.get("datetime_separators", {})):
+        if word.startswith("space "):
+            style = word[6:]
+            width = "h" if style.startswith("h") and not style.startswith("hh") else "hh"
+            face = style[len(width):]
+            return width, face
+    return "hh", ""
 
 
 def interpolated_ordinal(position, denominator, rungs):
@@ -6129,6 +6213,24 @@ def field_weights(census, which):
     return owed
 
 
+def written_days(column, ordinals, offsets, parsed, space, resolution):
+    """The day every rank will write, as ``written_fields`` reads it (T1)."""
+    days = []
+    for rank in range(parsed):
+        if resolution in ("quarter", "month"):
+            days += [0]
+            continue
+        local = ordinals[rank]
+        if (
+            column["datetimes_read_at"] == "utc"
+            and resolution == "datetime"
+            and space != "date"
+        ):
+            local = local + offset_form(offsets[rank])[1]
+        days += [local if space == "date" or resolution != "datetime" else local // 86400]
+    return days
+
+
 def written_fields(column, ordinals, offsets, parsed, space, resolution):
     """The month and day every rank will WRITE (method G7.5, 2b.6).
 
@@ -6157,7 +6259,56 @@ def written_fields(column, ordinals, offsets, parsed, space, resolution):
     return fields
 
 
-def written_styles(column, fields, parsed, resolution, offsets, floor=CASE_SMALL_CELL_FLOOR):
+def width_remainder(census, weights, both, days, parsed, floor):
+    """G7.5 step 5, written from its statement (landing T1, plan P4-D370).
+
+    Where the census's named counts come to less than the parsed cells,
+    the ``parsed - named`` ranks left over wear joint words the census
+    does not name, in the order padded, unpadded, first-padded,
+    second-padded: WHOLE DAYS AT A TIME, the days holding the fewest of
+    the class's ranks first, each day taken while it still fits the
+    remainder; each word on at most the line less one ranks and on fewer
+    than the largest named count, a day going to the first word it still
+    fits. The named words then keep exactly their published counts.
+    Returns the ranks' words, nothing for no remainder, and None where
+    the days cannot hold the remainder exactly -- the step then writes
+    nothing and the twin is written as before.
+    """
+    left = parsed - sum(count for name, count in census.items() if name != "(withheld)")
+    if left < 1:
+        return {}
+    words = [word for word in FIELD_WIDTH_BOTH if word not in census]
+    room = min(census_line(floor) - 1, max(weights.values()) - 1)
+    if not words or room < 1:
+        return None
+    by_day = {}
+    for rank in both:
+        by_day.setdefault(days[rank], [])
+        by_day[days[rank]] += [rank]
+    taken, total = [], 0
+    for size, day in sorted((len(ranks), day) for day, ranks in by_day.items()):
+        if total == left:
+            break
+        if size <= room and total + size <= left:
+            taken += [day]
+            total += size
+    if total != left:
+        return None
+    filled = dict.fromkeys(words, 0)
+    worn = {}
+    for day in taken:
+        size = len(by_day[day])
+        word = next((word for word in words if filled[word] + size <= room), None)
+        if word is None:
+            return None
+        filled[word] += size
+        for rank in by_day[day]:
+            worn[rank] = word
+    return worn
+
+
+def written_styles(column, fields, parsed, resolution, offsets, floor=CASE_SMALL_CELL_FLOOR,
+                   days=None):
     """The four written forms every rank takes (method G7.5, 2b.6).
 
     WIDTHS (P4-D132): a rank whose two numeric fields are both below ten
@@ -6203,7 +6354,15 @@ def written_styles(column, fields, parsed, resolution, offsets, floor=CASE_SMALL
             for rank, form in zip(first, reserved(weights, len(first), floor)):
                 widths[rank] = form
         else:
-            weights = census_weights(widths_census, FIELD_WIDTH_BOTH) or {both_fields_width_of(widths_census): 1}
+            weights = census_weights(widths_census, FIELD_WIDTH_BOTH)
+            if weights and days is not None:
+                # G7.5 step 5 (landing T1): the census's unnamed remainder.
+                worn = width_remainder(widths_census, weights, both, days, parsed, floor)
+                if worn:
+                    for rank, form in worn.items():
+                        widths[rank] = form
+                    both = [rank for rank in both if rank not in worn]
+            weights = weights or {both_fields_width_of(widths_census): 1}
             for rank, form in zip(both, reserved(weights, len(both), floor)):
                 widths[rank] = form
             for which, ranks in ((1, first), (2, second)):
@@ -6248,7 +6407,7 @@ def written_styles(column, fields, parsed, resolution, offsets, floor=CASE_SMALL
 
 def endpoint_cell(text, resolution, time_precision, subsecond_digits, shift, mark="T",
                   member="iso-datetime", width=DEFAULT_WIDTH,
-                  name_style=DEFAULT_NAME_STYLE, marker="upper"):
+                  name_style=DEFAULT_NAME_STYLE, marker="upper", clock=("hh", "")):
     """An endpoint cell, from the endpoint's OWN fields -- method section G7.5.
 
     The two endpoint cells do not travel through the ordinal space of
@@ -6288,6 +6447,14 @@ def endpoint_cell(text, resolution, time_precision, subsecond_digits, shift, mar
     minute = (
         86400 * days_from_civil(year, month, day) + 3600 * hours + 60 * minutes
     )
+    if clock != ("hh", ""):
+        # A stamp holds no sixtieth second, so its end is its own instant
+        # written whole (landing T1).
+        return precision_form(
+            minute + seconds + shift, resolution, time_precision,
+            subsecond_digits, mark, member=member, width=width,
+            name_style=name_style, marker=marker, clock=clock,
+        )
     written = precision_form(
         minute + shift, resolution, time_precision, subsecond_digits, mark,
         member=member, width=width, name_style=name_style, marker=marker,
@@ -9122,6 +9289,7 @@ def _datetime_content(column):
         parsed,
         resolution,
         offsets,
+        days=written_days(column, ordinals, offsets, parsed, space, resolution),
     )
     content = []
     for rank in range(parsed):
@@ -9149,6 +9317,8 @@ def _datetime_content(column):
         named = sorted(mark_weights(column))
         width, name_style, marker, zulu = spellings[rank]
         member = column["format"]
+        # A slashed stamp's one written clock (landing T1, G7.5).
+        clock = stamp_clock_style(column) if member in SLASHED_STAMPS else ("hh", "")
         if suffix == "Z" and zulu == "lower":
             # The offset spelled as the source spelled it (landing 2b.6):
             # the reading folds `z` onto `Z`, and the census says which.
@@ -9168,12 +9338,14 @@ def _datetime_content(column):
                     width=width,
                     name_style=name_style,
                     marker=marker,
+                    clock=clock,
                 )
             content.append(kept_cell(text + suffix, holes, named, member))
             continue
 
         def spell(unit, mark=marks[rank], suffix=suffix, moved=moved, bare=whole[rank],
-                  member=member, width=width, name_style=name_style, marker=marker):
+                  member=member, width=width, name_style=name_style, marker=marker,
+                  clock=clock):
             if bare:
                 # A bare date: the day alone, with no mark, clock or offset.
                 # Counted in seconds, the rank already stands at a midnight
@@ -9197,6 +9369,7 @@ def _datetime_content(column):
                     width=width,
                     name_style=name_style,
                     marker=marker,
+                    clock=clock,
                 )
             else:
                 body = precision_form(
@@ -9209,6 +9382,7 @@ def _datetime_content(column):
                     width=width,
                     name_style=name_style,
                     marker=marker,
+                    clock=clock,
                 )
             return kept_cell(body + suffix, holes, named, member)
 
@@ -9248,6 +9422,14 @@ def _datetime_content(column):
 
 
 MARK_OF = {"lower_t": "t", "space": " ", "upper_t": "T"}
+# ...and every word of a slashed stamp, which names its written clock
+# after the same one space (landing T1, contract D12a).
+for _width in ("hh", "h"):
+    for _face in ("", " twelve-hour") + tuple(
+        join + pair for pair in CLOCK_PAIRS for join in (" ", "")
+    ):
+        if _width + _face != "hh":
+            MARK_OF["space " + _width + _face] = " "
 def mark_spend_leaves_a_named_count(wearing, floor):
     """G7.9 item 2's last clause: the mark spent FROM stays a named count."""
     return wearing - 1 >= census_line(floor)
@@ -10639,12 +10821,34 @@ def calendar_day(year, month, day):
 def clock_reads(text, iso):
     """Whether ``text`` is a clock its member reads.
 
-    A stamp's clock is one of the time-of-day role's two forms, `HH:MM`
-    or `HH:MM:SS`, hours to 23 and minutes and seconds to 59. An ISO
+    A stamp's clock is the time-of-day role's own (landing T1): the hour
+    in one figure or two, minutes and an optional seconds field of two
+    figures each, to 59, and an optional marker pair's word after one
+    space or none -- unmarked, an hour to 23; marked, 1 to 12. An ISO
     moment's is `HH:MM` or `HH:MM:SS`, seconds to 60, a fraction after
     the seconds, then `Z` in either case or a signed `HH:MM` offset of at
     most 14 hours (the contract's offset forms).
     """
+    if not iso:
+        marked = False
+        for morning, evening in CLOCK_PAIRS.values():
+            for word in (morning, evening):
+                if len(text) > len(word) and text.endswith(word):
+                    text = text[: -len(word)]
+                    if text.endswith(" "):
+                        text = text[:-1]
+                    marked = True
+                    break
+            if marked:
+                break
+        fields = text.split(":")
+        if len(fields) not in (2, 3):
+            return False
+        hour = figures_of(fields[0], 1, 2)
+        rest = [figures_of(field, 2, 2) for field in fields[1:]]
+        if hour is None or None in rest or max(rest) > 59:
+            return False
+        return 1 <= hour <= 12 if marked else hour <= 23
     if iso:
         if text[-1:] in ("Z", "z"):
             text = text[:-1]
@@ -10705,7 +10909,9 @@ def day_of(member, text):
             return None
         return day_of("iso-date", text[:10])
     if member in ("month-first-datetime", "day-first-datetime", "slashed-iso-datetime"):
-        date, _mark, clock = text.rpartition(" ")
+        # The date half holds no space, so the clock is what stands after
+        # the FIRST one (landing T1) and may carry its marker after another.
+        date, _mark, clock = text.partition(" ")
         if not date or not clock_reads(clock, False):
             return None
         return day_of(member.replace("datetime", "date"), date)
@@ -18268,11 +18474,6 @@ def _affixed_content(column):
     return [prefix + core_text + suffix for core_text in cores]
 
 
-def clock_capacity(form):
-    """How many different times this form can write: a day's own count."""
-    return 1440 if form == "hh-mm" else 86400
-
-
 def clock_knots(column, parsed):
     """The knots a clock column's body is interpolated between (G7A.4).
 
@@ -20766,6 +20967,122 @@ THIRTEENTH_BRANCH_PART = "branches-13"
 # The sixteenth, opened by the end floor of a date or clock tail (plan
 # P4-D375): every branch file stands past plan P4-D295's 200000-byte line.
 FOURTEENTH_BRANCH_PART = "branches-14"
+# The written clocks of landing T1 (plan P4-D370), the twenty-second file.
+TWENTY_SECOND_BRANCH_PART = "branches-22"
+
+
+# -- landing T1's written clocks and G7.5 step 5 (plan P4-D370) ---------
+
+
+def _t1_stamp(member, word, precision, rows, why):
+    """A column of slashed stamps writing its clock in one style (G7.5)."""
+    column = _universal(
+        "column_1", "datetime", "datetime", "data", "ok",
+        n_present=rows, n_missing=0, n_distinct=rows, n_distinct_folded=rows,
+        n_numeric=0, n_not_numeric=rows, n_out_of_range=0, n_contradictory=0,
+        format=member, resolution="datetime", time_precision=precision,
+        subsecond_digits=0, datetimes_read_at="local",
+        earliest="1970-01-01 00:00:00", latest="1970-01-12 21:45:00",
+        earliest_utc_offset="(none)", latest_utc_offset="(none)",
+        date_percentiles={key: None for key in LADDER_KEYS},
+        n_unparsed=0, utc_offsets={"(none)": rows},
+        resolution_mix={member: rows},
+        datetime_separators={word: rows},
+        all_at_midnight=False, n_at_midnight=None,
+    )
+    return {"why": why, "column": column, "rows": rows, "identifier_declared": False}
+
+
+def _stamp_unpadded_hour():
+    return _t1_stamp(
+        "month-first-datetime", "space h", "minute", 12,
+        "G7.5's written clock of a slashed stamp (landing T1, plan P4-D370): "
+        "Excel's `m/d/yyyy h:mm`, the hour in one figure below ten, published "
+        "as the stamp's one mark word `space h`. Twelve moments of the ramp "
+        "from 1970-01-01, the first at `0:00`. The mutant pads every hour, "
+        "which `%H:%M` still reads and the column's own style does not.",
+    )
+
+
+def _stamp_twelve_hour_top():
+    return _t1_stamp(
+        "month-first-datetime", "space h AM-PM", "minute", 12,
+        "G7.5's 12-hour clock with its marker after a space (landing T1): "
+        "midnight is `12:00 AM`, the hour after noon `1:..` PM, noon `12:..` "
+        "PM -- the top of the dial is 12, never 0. Twelve moments of the "
+        "ramp, the first at midnight. The mutant writes the hour past "
+        "twelve less twelve with no top of the dial, so midnight comes out "
+        "`0:00 AM`, which `%I` refuses.",
+    )
+
+
+def _stamp_dotted_seconds():
+    return _t1_stamp(
+        "day-first-datetime", "space h a.m.-p.m.", "second", 12,
+        "G7.5's dotted marker after one space, at the second, on a day-first "
+        "stamp (landing T1): `a.m.` below noon and `p.m.` from noon on, the "
+        "seconds before the marker. The mutant writes the marker straight "
+        "after the time, a style this column does not write.",
+    )
+
+
+def _clock_unpadded_twelve_hour():
+    column = _universal(
+        "column_1", "time_of_day", "time_of_day", "data", "ok",
+        n_present=12, n_missing=0, n_distinct=12, n_distinct_folded=12,
+        n_numeric=0, n_not_numeric=12, n_out_of_range=0, n_contradictory=0,
+        clock_form="h-mm AM-PM",
+        clock_percentiles={key: None for key in LADDER_KEYS},
+        earliest="12:00 AM", latest="11:00 AM", n_unparsed=0,
+        detection_evidence=(
+            "12 value(s) are clock times written as hours and minutes, "
+            "`09:30`, and 0 value(s) are not"
+        ),
+    )
+    return {
+        "why": "G7A.1's forms since landing T1 (plan P4-D370): a column of "
+        "clock times writing `h:mm AM` keeps that form, every value spelled "
+        "by the one clock writer from its minute of the day. Twelve values "
+        "of the ramp from midnight, the first `12:00 AM`. The mutant spells "
+        "every value in the two-figure 24-hour clock.",
+        "column": column,
+        "rows": 12,
+        "identifier_declared": False,
+    }
+
+
+def _date_remainder_one_joint():
+    column = _universal(
+        "column_1", "datetime", "datetime", "data", "ok",
+        n_present=22, n_missing=0, n_distinct=12, n_distinct_folded=12,
+        n_numeric=0, n_not_numeric=22, n_out_of_range=0, n_contradictory=0,
+        format="month-first-date", resolution="date", time_precision="date",
+        subsecond_digits=0, datetimes_read_at="local",
+        earliest="1970-01-01", latest="1970-01-12",
+        earliest_utc_offset="(none)", latest_utc_offset="(none)",
+        date_percentiles={key: None for key in LADDER_KEYS},
+        n_unparsed=0, utc_offsets={"(none)": 22},
+        resolution_mix={"month-first-date": 22},
+        datetime_separators={},
+        all_at_midnight=False, n_at_midnight=None,
+        date_field_widths={"padded": 11},
+    )
+    return {
+        "why": "G7.5 STEP 5, the width census's unnamed remainder (landing T1, "
+        "plan P4-D370; plan l.17955's carried case (a)). Twenty-two dates "
+        "publish `{\"padded\": 11}`: eleven values' widths are named and "
+        "eleven left out, each width below the line. The step writes the "
+        "eleven on whole days, the days holding the fewest of the class's "
+        "ranks first -- one day of one rank and five of two -- in words the "
+        "census does not name, nine `unpadded` and two `first-padded`, each "
+        "fewer than the line and than the named word; the named word keeps "
+        "exactly its eleven. The mutant withdraws the step, and the twin "
+        "writes every such rank padded, which its own description then "
+        "names past the published count.",
+        "column": column,
+        "rows": 22,
+        "identifier_declared": False,
+    }
 
 
 NAMED_CASE_BUILDERS = {
@@ -27486,6 +27803,8 @@ _DOCUMENT_ACCOUNT = (
     " The end floor of a date or clock tail (plan P4-D375) opened a"
     " sixteenth, tests/reference/generation-branch-vectors-14.json,"
     " because every branch file then stood past that line."
+    " Landing T1's written clocks (plan P4-D370) opened the twenty-second,"
+    " tests/reference/generation-branch-vectors-22.json."
 )
 
 # The transforms this file's own cases name, stated the way every other
@@ -29304,8 +29623,17 @@ FOURTEENTH_BRANCH_CASE_BUILDERS = {
     "tail_end_least_reach_slack": _tail_end_least_reach_slack,
 }
 
+TWENTY_SECOND_BRANCH_CASE_BUILDERS = {
+    "stamp_unpadded_hour": _stamp_unpadded_hour,
+    "stamp_twelve_hour_top": _stamp_twelve_hour_top,
+    "stamp_dotted_seconds": _stamp_dotted_seconds,
+    "clock_unpadded_twelve_hour": _clock_unpadded_twelve_hour,
+    "date_remainder_one_joint": _date_remainder_one_joint,
+}
+
 CASE_SETS = {
     FOURTEENTH_BRANCH_PART: FOURTEENTH_BRANCH_CASE_BUILDERS,
+    TWENTY_SECOND_BRANCH_PART: TWENTY_SECOND_BRANCH_CASE_BUILDERS,
     EIGHTH_BRANCH_PART: EIGHTH_BRANCH_CASE_BUILDERS,
     NINTH_BRANCH_PART: NINTH_BRANCH_CASE_BUILDERS,
     TENTH_BRANCH_PART: TENTH_BRANCH_CASE_BUILDERS,
@@ -29340,6 +29668,7 @@ CASE_BUILDERS = {
     **TWELFTH_BRANCH_CASE_BUILDERS,
     **THIRTEENTH_BRANCH_CASE_BUILDERS,
     **FOURTEENTH_BRANCH_CASE_BUILDERS,
+    **TWENTY_SECOND_BRANCH_CASE_BUILDERS,
 }
 
 # What each file says about itself, so that neither can be read as the
@@ -29378,6 +29707,8 @@ _NAMED_ACCOUNT = (
     " The end floor of a date or clock tail (plan P4-D375) opened a"
     " sixteenth, tests/reference/generation-branch-vectors-14.json,"
     " because every branch file then stood past that line."
+    " Landing T1's written clocks (plan P4-D370) opened the twenty-second,"
+    " tests/reference/generation-branch-vectors-22.json."
 )
 _BRANCH_ACCOUNT = (
     "cases method section G14.3 adds for the branches its first nine "
@@ -29419,6 +29750,8 @@ _BRANCH_ACCOUNT = (
     " The end floor of a date or clock tail (plan P4-D375) opened a"
     " sixteenth, tests/reference/generation-branch-vectors-14.json,"
     " because every branch file then stood past that line."
+    " Landing T1's written clocks (plan P4-D370) opened the twenty-second,"
+    " tests/reference/generation-branch-vectors-22.json."
 )
 _SECOND_BRANCH_ACCOUNT = (
     "cases method section G14.3 adds with the carried landings 2b.2, 2b.3 "
@@ -29451,6 +29784,8 @@ _SECOND_BRANCH_ACCOUNT = (
     " The end floor of a date or clock tail (plan P4-D375) opened a"
     " sixteenth, tests/reference/generation-branch-vectors-14.json,"
     " because every branch file then stood past that line."
+    " Landing T1's written clocks (plan P4-D370) opened the twenty-second,"
+    " tests/reference/generation-branch-vectors-22.json."
 )
 
 _THIRD_BRANCH_ACCOUNT = (
@@ -29483,6 +29818,8 @@ _THIRD_BRANCH_ACCOUNT = (
     " The end floor of a date or clock tail (plan P4-D375) opened a"
     " sixteenth, tests/reference/generation-branch-vectors-14.json,"
     " because every branch file then stood past that line."
+    " Landing T1's written clocks (plan P4-D370) opened the twenty-second,"
+    " tests/reference/generation-branch-vectors-22.json."
 )
 
 _FOURTH_BRANCH_ACCOUNT = (
@@ -29516,6 +29853,8 @@ _FOURTH_BRANCH_ACCOUNT = (
     " The end floor of a date or clock tail (plan P4-D375) opened a"
     " sixteenth, tests/reference/generation-branch-vectors-14.json,"
     " because every branch file then stood past that line."
+    " Landing T1's written clocks (plan P4-D370) opened the twenty-second,"
+    " tests/reference/generation-branch-vectors-22.json."
 )
 
 _FIFTH_BRANCH_ACCOUNT = (
@@ -29547,6 +29886,8 @@ _FIFTH_BRANCH_ACCOUNT = (
     " The end floor of a date or clock tail (plan P4-D375) opened a"
     " sixteenth, tests/reference/generation-branch-vectors-14.json,"
     " because every branch file then stood past that line."
+    " Landing T1's written clocks (plan P4-D370) opened the twenty-second,"
+    " tests/reference/generation-branch-vectors-22.json."
 )
 
 _SIXTH_BRANCH_ACCOUNT = (
@@ -29595,6 +29936,8 @@ _SIXTH_BRANCH_ACCOUNT = (
     " The end floor of a date or clock tail (plan P4-D375) opened a"
     " sixteenth, tests/reference/generation-branch-vectors-14.json,"
     " because every branch file then stood past that line."
+    " Landing T1's written clocks (plan P4-D370) opened the twenty-second,"
+    " tests/reference/generation-branch-vectors-22.json."
 )
 
 
@@ -29631,6 +29974,8 @@ _SEVENTH_BRANCH_ACCOUNT = (
     " The end floor of a date or clock tail (plan P4-D375) opened a"
     " sixteenth, tests/reference/generation-branch-vectors-14.json,"
     " because every branch file then stood past that line."
+    " Landing T1's written clocks (plan P4-D370) opened the twenty-second,"
+    " tests/reference/generation-branch-vectors-22.json."
 )
 
 _EIGHTH_BRANCH_ACCOUNT = (
@@ -29677,6 +30022,8 @@ _EIGHTH_BRANCH_ACCOUNT = (
     " The end floor of a date or clock tail (plan P4-D375) opened a"
     " sixteenth, tests/reference/generation-branch-vectors-14.json,"
     " because every branch file then stood past that line."
+    " Landing T1's written clocks (plan P4-D370) opened the twenty-second,"
+    " tests/reference/generation-branch-vectors-22.json."
 )
 _NINTH_BRANCH_ACCOUNT = (
     "cases method section G14.3 adds for the TAIL RULE of stage 3 "
@@ -29727,6 +30074,8 @@ _NINTH_BRANCH_ACCOUNT = (
     " The end floor of a date or clock tail (plan P4-D375) opened a"
     " sixteenth, tests/reference/generation-branch-vectors-14.json,"
     " because every branch file then stood past that line."
+    " Landing T1's written clocks (plan P4-D370) opened the twenty-second,"
+    " tests/reference/generation-branch-vectors-22.json."
 )
 
 _TENTH_BRANCH_ACCOUNT = (
@@ -29769,6 +30118,8 @@ _TENTH_BRANCH_ACCOUNT = (
     " The end floor of a date or clock tail (plan P4-D375) opened a"
     " sixteenth, tests/reference/generation-branch-vectors-14.json,"
     " because every branch file then stood past that line."
+    " Landing T1's written clocks (plan P4-D370) opened the twenty-second,"
+    " tests/reference/generation-branch-vectors-22.json."
 )
 
 _ELEVENTH_BRANCH_ACCOUNT = (
@@ -29807,6 +30158,8 @@ _ELEVENTH_BRANCH_ACCOUNT = (
     " The end floor of a date or clock tail (plan P4-D375) opened a"
     " sixteenth, tests/reference/generation-branch-vectors-14.json,"
     " because every branch file then stood past that line."
+    " Landing T1's written clocks (plan P4-D370) opened the twenty-second,"
+    " tests/reference/generation-branch-vectors-22.json."
 )
 
 _TWELFTH_BRANCH_ACCOUNT = (
@@ -29842,6 +30195,8 @@ _TWELFTH_BRANCH_ACCOUNT = (
     " The end floor of a date or clock tail (plan P4-D375) opened a"
     " sixteenth, tests/reference/generation-branch-vectors-14.json,"
     " because every branch file then stood past that line."
+    " Landing T1's written clocks (plan P4-D370) opened the twenty-second,"
+    " tests/reference/generation-branch-vectors-22.json."
 )
 
 _THIRTEENTH_BRANCH_ACCOUNT = (
@@ -29874,6 +30229,8 @@ _THIRTEENTH_BRANCH_ACCOUNT = (
     " The end floor of a date or clock tail (plan P4-D375) opened a"
     " sixteenth, tests/reference/generation-branch-vectors-14.json,"
     " because every branch file then stood past that line."
+    " Landing T1's written clocks (plan P4-D370) opened the twenty-second,"
+    " tests/reference/generation-branch-vectors-22.json."
 )
 
 
@@ -29904,12 +30261,48 @@ _FOURTEENTH_BRANCH_ACCOUNT = (
     "tests/reference/generation-document-vectors.json, and live in a "
     "sixteenth file because every branch file stands past plan P4-D295's "
     "200000-byte line: no cap is raised and no case is dropped."
+    " Landing T1's written clocks (plan P4-D370) opened the twenty-second,"
+    " tests/reference/generation-branch-vectors-22.json."
+)
+
+
+_TWENTY_SECOND_BRANCH_ACCOUNT = (
+    "cases method section G14.3 adds with landing T1's written clocks "
+    "(plan P4-D370): G7.5's clock of a slashed stamp in one style -- the "
+    "hour in one figure, the 12-hour face with its marker after a space "
+    "and its top of the dial, and a dotted marker at the second -- G7A.1's "
+    "12-hour form of a column of clock times, and G7.5 step 5, the width "
+    "census's unnamed remainder written on whole days. They are computed "
+    "by the same oracle and the same proof layer "
+    "as tests/reference/generation-reference-vectors.json, "
+    "tests/reference/generation-branch-vectors.json, "
+    "tests/reference/generation-branch-vectors-2.json, "
+    "tests/reference/generation-branch-vectors-3.json, "
+    "tests/reference/generation-branch-vectors-4.json, "
+    "tests/reference/generation-branch-vectors-5.json, "
+    "tests/reference/generation-branch-vectors-6.json, "
+    "tests/reference/generation-branch-vectors-7.json, "
+    "tests/reference/generation-branch-vectors-8.json, "
+    "tests/reference/generation-branch-vectors-9.json, "
+    "tests/reference/generation-branch-vectors-10.json, "
+    "tests/reference/generation-branch-vectors-11.json, "
+    "tests/reference/generation-branch-vectors-12.json, "
+    "tests/reference/generation-branch-vectors-13.json and "
+    "tests/reference/generation-document-vectors.json, and live in a "
+    "file of their own, the number plan P4-D364's table gives this "
+    "landing: no cap is raised and no case is dropped."
+    " The end floor of a date or clock tail (plan P4-D375) opened the"
+    " sixteenth beside it, tests/reference/generation-branch-vectors-14.json."
 )
 
 
 CASE_SET_ACCOUNTS = {
     FOURTEENTH_BRANCH_PART: (
         f"The {len(FOURTEENTH_BRANCH_CASE_BUILDERS)} {_FOURTEENTH_BRANCH_ACCOUNT}"
+    ),
+    TWENTY_SECOND_BRANCH_PART: (
+        f"The {len(TWENTY_SECOND_BRANCH_CASE_BUILDERS)} "
+        f"{_TWENTY_SECOND_BRANCH_ACCOUNT}"
     ),
     EIGHTH_BRANCH_PART: (
         f"The {len(EIGHTH_BRANCH_CASE_BUILDERS)} {_EIGHTH_BRANCH_ACCOUNT}"
@@ -30160,6 +30553,59 @@ GIVEN_WORDS = {
         7316934629970693498, 10815272845975857735, 11724442494808074560,
         732964018571111932, 3069408795062890501, 7526098571977256581,
         3854671723266432770, 11205342780862372950,
+    ),
+    # LANDING T1'S WRITTEN CLOCKS (plan P4-D370), at seeds 416 to 420.
+    "stamp_unpadded_hour": (
+        41291929973276416, 9010369888609378619, 4636344874514562225,
+        10934901692527481616, 2328690168410772273, 14223205527923516464,
+        8392341286939522349, 14374568652214447943, 4855479403476289681,
+        6498958768785898316, 9882993238350025163, 9338354552435769869,
+        1449189690754781861, 10047499698351321380, 5053161236188554908,
+        12239799414806070331, 4523416936480218148, 11629876962566957807,
+        10080964095505185863, 16896117178086562178, 7398738895037846482,
+    ),
+    "stamp_twelve_hour_top": (
+        17576223713293911608, 7944620605498306541, 14939723198883734248,
+        7302029009926771893, 11395184420520386868, 1675665849020584686,
+        18120376214229175285, 14631714629391461126, 3048141176147172607,
+        8031869293214690372, 7745995610863158579, 12792594376585695559,
+        18320708315690607598, 17846586632996551801, 6132409305953466654,
+        5277351082061749228, 13251409491218416028, 16388980469080912829,
+        5364317996512549097, 12417082094113211769, 12818117590308372050,
+    ),
+    "stamp_dotted_seconds": (
+        5888701306726884741, 18255826774487294815, 4133703822340738394,
+        5464904954454179485, 16839714052214075707, 16530291631128262980,
+        13308418482770922137, 17341904510457243503, 1062592483322047482,
+        2707255825001044280, 15197290422771526765, 13947631223241016082,
+        7198699265686833100, 13235394256579249438, 17868455118959618282,
+        13083326968822464199, 7030009877416603369, 12403307412020624704,
+        16961839469683476655, 14431498331423049274, 18286900834764265947,
+    ),
+    "clock_unpadded_twelve_hour": (
+        17990915465584590145, 14411690004203380538, 8611856319254241948,
+        2902378263735754905, 9222389514867099316, 7147899875859142091,
+        14306118475004173393, 6417781143648018563, 4559165188484707232,
+        11210695232611540577, 13611126279206348595, 3219142651765951844,
+        8283831380583716124, 6393807486805267599, 8767715041169021323,
+        722083882321252696, 14666985628432018611, 6909694803667782279,
+        14863244822311776773, 11873720451527676392, 7365376711582056685,
+    ),
+    "date_remainder_one_joint": (
+        14340992449356392384, 17427256251343189454, 18249209769805824417,
+        7579504807954528104, 11890713228028656852, 13877965120618973838,
+        354038683790044858, 9179111976317138819, 11359772269095589993,
+        1678551010683914002, 6548975463856269400, 16565811339785357697,
+        4255019534959146756, 13155841491264222005, 3663962004364621312,
+        8115575454103642807, 17503702767760637659, 10836285845446004657,
+        1855913970688970243, 14284076982034921767, 18237364408591459392,
+        7677868858090487047, 10473576091866385186, 905234595100985413,
+        16202242781354894590, 1210320695338166416, 4386767100080918792,
+        5977135816216102448, 14133118734948057462, 5668447791766077453,
+        688469854047101241, 433316578767624336, 12333215070643400258,
+        7059997364264566537, 11423635216216095897, 17627991355045685582,
+        7746789290484700459, 17112310903496582986, 6885377760616273496,
+        4215516068429645388, 159537866294917370,
     ),
     # THE THREE THE REPAIR OF THE ORACLE'S DERIVED END ADDS (stage 3's
     # review, verdict item 10), at seeds 401 to 403.

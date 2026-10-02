@@ -492,18 +492,31 @@ def test_the_slashed_stamp_carries_the_ambiguity_remark() -> None:
     assert document["columns"][0]["remarks"] != []
 
 
-def test_the_stamp_clock_is_the_role_s_two_forms_and_no_wider() -> None:
-    """No fractional second, no offset, no unpadded hour."""
-    for value in ("3/17/2024 14:05", "3/17/2024 14:05:09", "03/17/2024 14:05"):
+def test_the_stamp_clock_is_the_role_s_own_reader_and_no_wider() -> None:
+    """No fractional second, no offset, no second space before the clock.
+
+    LANDING T1 (plan P4-D370) moved one cell from the refused list to the
+    read one: Excel's unpadded hour, `3/17/2024 4:05`, and the 12-hour
+    clock with its marker, read by the clock role's own reader.
+    """
+    for value in (
+        "3/17/2024 14:05",
+        "3/17/2024 14:05:09",
+        "03/17/2024 14:05",
+        "3/17/2024 4:05",
+        "3/17/2024 4:05 PM",
+        "3/17/2024 4:05:09pm",
+    ):
         assert parsing.parse_datetime(value, "month-first-datetime") is not None
     for value in (
         "3/17/2024 14:05:09.5",
         "3/17/2024 14:05+02:00",
-        "3/17/2024 4:05",
         "3/17/2024  14:05",
         "3/17/2024T14:05",
         "2024/03/17 14:05",
         "3/17/2024",
+        "3/17/2024 14:05 PM",
+        "3/17/2024 0:05 AM",
     ):
         assert parsing.parse_datetime(value, "month-first-datetime") is None
 

@@ -6541,6 +6541,30 @@ rotation the marks use, which draws no word:
 | the case of a quarter's marker | `quarter_marker_case` | `upper`, `lower` |
 | the case of a zulu offset marker | `zulu_case` | `upper`, `lower` |
 
+**A SLASHED STAMP'S CLOCK HALF IS WRITTEN IN ITS STYLE** (landing T1, plan
+P4-D370). Its one `datetime_separators` word names it (contract C6-10a,
+D12a): `space` is the two-figure 24-hour clock every stamp wrote before,
+and `space h AM-PM` and the rest a width and a face. Every rank writes
+it, the hour at its width, on its face -- midnight `12:00 AM`, noon
+`12:00 PM`, on the declared 12-hour face `12:00` and the hour past noon
+less twelve -- at the precision the profile records. A pooled word names
+none, and the 24-hour clock is written. The end of such a column is its
+own instant written whole: a stamp holds no sixtieth second.
+
+**STEP 5: THE WIDTH CENSUS'S UNNAMED REMAINDER** (landing T1; carried at
+plan l.17955 as case (a)). Where the named counts of `date_field_widths`
+come to less than the parsed cells -- a width each below the line was
+left out -- the named words keep exactly their published counts and the
+other `parsed - named` ranks wear joint words the census does not name,
+in the order `padded`, `unpadded`, `first-padded`, `second-padded`:
+WHOLE DAYS AT A TIME, from the ranks that show both fields, the days
+holding the fewest of them first, each day taken while it still fits
+the remainder; each word on at most the line less one ranks and on fewer
+than the largest named count, a day going to the first word it fits.
+Where no such set of days holds the remainder exactly, no rank moves and
+the report says so (`date_field_widths`): case (b), a remainder
+outnumbering the named word's visible cells, stays carried.
+
 **The joint words are joint on purpose, and that is a rule and not a
 convenience.** On a column half written `%m/%d/%Y` and half `m/d/yyyy`
 not one real cell mixes the two, so two independent censuses would have
@@ -7195,6 +7219,20 @@ anywhere in G7A.
 |---|---|---|---|
 | `hh-mm` | minutes of day | 1,440 | `HH:MM` |
 | `hh-mm-ss` | seconds of day | 86,400 | `HH:MM:SS` |
+
+**SINCE LANDING T1 THOSE ARE TWO OF FORTY** (plan P4-D370, contract
+C6-10a): a width `hh` or `h` (one figure below ten), `-mm` or `-mm-ss`,
+and a face -- the 24-hour clock, the declared 12-hour face (` twelve-hour`,
+whose `12` is the first hour and whose capacity is half a day), or a
+marker pair after one space or none. The ordinal is the minute or second
+of the day on that face; the spelling writes the hour at the form's
+width, `hours % 12` with 12 in place of 0 on a 12-hour face, the marker's
+morning word below noon and its evening word from noon on. Every ordinal
+in `[0, capacity)` still has exactly one spelling, and ranks are ordered
+by ordinal, never by text. The reader below admits these forms; what it
+refuses beyond the five shapes is `24:00`, a marked hour of 0 or past 12,
+`Am`, a one-letter marker, and a marker after two spaces or a no-break
+space.
 
 The ordinal of a cell is `hours * 60 + minutes` for `hh-mm` and
 `hours * 3600 + minutes * 60 + seconds` for `hh-mm-ss`. The spelling of
@@ -13086,7 +13124,7 @@ that happens -- and the clause beside it, `--missing-value`'s "CAN be
 published as the column's smallest value", is exactly right under the
 new rule.
 
-**All one hundred and forty-eight are required.** The count is taken off the committed
+**All one hundred and fifty-three are required.** The count is taken off the committed
 case sets and not carried forward: this sentence said fifty-two and a
 split of nine, twenty, sixteen and seven while the six files held
 seventy-three, because each repair that added a case added a clause to
@@ -13114,8 +13152,11 @@ the THIRTEENTH, `tests/reference/generation-branch-vectors-11.json`,
 holds three; the FOURTEENTH,
 `tests/reference/generation-branch-vectors-12.json`, holds four; and the
 FIFTEENTH, `tests/reference/generation-branch-vectors-13.json`, holds
-thirteen; and the SIXTEENTH,
-`tests/reference/generation-branch-vectors-14.json`, holds three (G14.2),
+thirteen; the SIXTEENTH,
+`tests/reference/generation-branch-vectors-14.json`, holds three; and the
+TWENTY-SECOND, `tests/reference/generation-branch-vectors-22.json`,
+holds five -- landing T1's written clocks and G7.5 step 5, in the file
+plan P4-D364's table gives that landing (G14.2),
 and a test holds this sentence to those files. The tenth grew by the
 two cases the GOVERNANCE PASS of stage 3's review added and the
 eleventh by the two the dates pass added; each number here is read off
@@ -13265,6 +13306,11 @@ case passed, which is the failure the count exists to prevent:
 | `weekday_hole_left` | G7.3f step 2 (plan P4-D355): 152 cells, twenty of them written 2024-02-23 and declared absent, the census `[Mon-Fri] 81, [Sat-Sun] 23`. A rank drawn onto the absent day moves off it before the census moves anything. Its mutant withdraws the step, and the spelling pass's own step off the hole moves the rank without asking its weekday |
 | `weekday_keeping_first` | G7.3f step 6 (plan P4-D355): 100 whole dates published `[Mon-Fri] 44, [Sat-Sun] 32`, whose single ranks take, of the days that keep the count of different days, the one holding the fewest ranks, before any day that changes it. Its mutant offers the nearest destination whatever it does to the count |
 | `weekday_runs_merged` | G7.3f step 8.2 (plan P4-D355): 110 dates of a four-weekly cycle of Sundays, some moved a few days, published `[Mon-Fri] 16, [Sat-Sun] 72` (one row moved from the weekend at the review of landing 3b.1, plan P4-D359, where fifteen weekday rows stood inside the band a withholding always keeps), whose count of different days is still long once single ranks have moved; the ranks of one day, alone on it, move whole onto a held day of their own group. Its mutant withdraws the step. Picked again once step 3's prior weighed the calendar as the drawn ranks: the fortnightly Saturdays it was first frozen on no longer reach step 8.2 |
+| `stamp_unpadded_hour` | G7.5's written clock of a slashed stamp (landing T1, plan P4-D370): twelve month-first stamps of the ramp from 1970-01-01 whose one mark word is `space h`, so every hour below ten is written in one figure, `0:00` among them. Its mutant pads every hour, which `%H:%M` still reads and the column's own style does not |
+| `stamp_twelve_hour_top` | G7.5's 12-hour face with its marker after a space (landing T1): `space h AM-PM`, the first hour of the day and the hour of noon written 12, midnight `12:00 AM`. Its mutant writes the hour less twelve with no top of the dial, so midnight comes out `0:00 AM` |
+| `stamp_dotted_seconds` | G7.5's dotted marker after one space at the second, on a day-first stamp (landing T1): `space h a.m.-p.m.`, `a.m.` below noon and `p.m.` from noon on. Its mutant writes the marker straight after the time |
+| `clock_unpadded_twelve_hour` | G7A.1's forms since landing T1: a column of clock times in `h-mm AM-PM`, every value spelled from its minute of the day by the one clock writer, twelve values of the ramp from midnight written `12:00 AM` to `12:11 AM`. Its mutant spells every value in the two-figure 24-hour clock |
+| `date_remainder_one_joint` | G7.5 step 5 (landing T1; plan l.17955's carried case (a)): twenty-two month-first dates over twelve days publishing `{"padded": 11}`, eleven values' widths left out. The step writes those eleven ranks on whole days, the days holding the fewest of the class's ranks first, in widths the census does not name -- nine `unpadded` and two `first-padded`, each fewer than the line and than the named word -- and the named word keeps its eleven. Its mutant withdraws the step |
 | `weekday_whole_runs` | G7.3f step 5 (plan P4-D355): 100 whole dates over three weeks with no weekend, published `[Mon-Fri] 77, [Sat-Sun] 0`, whose ranks of one day move whole onto a free day of a group with room for all of them before any single rank moves. Its mutant withdraws the step |
 | `plus_padded_field` | G6.3's second tier of named field widths (plan P4-D145): twenty-two cells of twelve thousand three hundred and forty-five published `leading_plus` with `pad_widths: {"7": 22}`, every one written `+0012345` |
 | `saturated_integers` | G6.5a's fill of a saturated integer grid (plan P4-D147): thirty-three whole numbers publishing twenty-two different values between the ends one and twenty-two, so the strata take those integers in order, each once, and all twenty-two are written |

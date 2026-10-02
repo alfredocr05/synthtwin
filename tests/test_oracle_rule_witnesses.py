@@ -2754,8 +2754,10 @@ WITNESS_MUTANTS.update({
     "absent_stamp_clock_any": (
         "absent", "if not date or not clock_reads(clock, False):", "if not date:",
     ),
+    # A stamp's clock is read by its own branch since landing T1 (plan
+    # P4-D370), so its leap-second refusal is that branch's field bound.
     "absent_stamp_leap_second_read": (
-        "absent", "numbers[2] <= (60 if iso else 59)", "numbers[2] <= 60",
+        "absent", "or max(rest) > 59:", "or max(rest) > 60:",
     ),
     "absent_iso_date_reads_a_clock": (
         "absent", '    if member == "iso-mixed":\n', '    if member == "iso-mixed" or member == "iso-date" and len(text) > 10:\n',

@@ -1701,7 +1701,15 @@ GOLDEN_DESCRIPTION_SHA256 = (
     # that one line in each, nothing else. AND AGAIN AT ITS REVIEW (item
     # 4): NF71 says "every group that holds rows", not "every group
     # counted"; diffed against fb257b0, that one line in each again.
-    "c126adc7722a717079b62801c73d02de97e2f65de624b0be82faffeb022f0eda"
+    # RE-RECORDED BY PLAN P4-D370 (landing T1): the settings block gains
+    # `forced_twelve_hour_clocks`, empty, and the same document with that
+    # key taken out hashes to f2cad811...cecb31. The twin's digest below
+    # did not move.
+    # RE-RECORDED AT THE MERGE OF 3b.T1 (2026-10-02): against the bytes on
+    # the tree before the merge, the one settings key alone; against
+    # 3b.T1's own, the base's twelve empty keys and the NF71 line. The
+    # twin, the report and the quality report digests below did not move.
+    "7f896e4c7be36c0dea01c72a3f5d4451f82a63b52b6fc0a982f668a32246bbe1"
 )
 
 

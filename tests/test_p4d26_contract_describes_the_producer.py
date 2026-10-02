@@ -44,6 +44,7 @@ _WORDS = {
     21: "twenty-one",
     22: "twenty-two",
     23: "twenty-three",
+    24: "twenty-four",
 }
 
 

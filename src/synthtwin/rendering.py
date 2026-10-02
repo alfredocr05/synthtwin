@@ -1562,6 +1562,15 @@ def _mark_lines(facts: contract.DatetimeFacts) -> "list[str]":
             "  Between the day and the time of day it writes the marks your",
             "  table wrote, each as often as the description records it.",
         ]
+        # ...AND A SLASHED STAMP'S OWN WRITTEN CLOCK (landing T1), which
+        # its one word names.
+        for name in sorted(facts.datetime_separators):
+            style = parsing.stamp_style(name)
+            if style is not None and style != parsing.DEFAULT_CLOCK_STYLE:
+                lines += [
+                    "  Its time of day is written as your table wrote it: "
+                    f"{parsing.clock_style_said(style)}.",
+                ]
     if facts.parser_family == "iso-mixed" and not facts.all_at_midnight:
         lines += [
             "  A value your table wrote as a bare date is written with a time",

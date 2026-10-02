@@ -564,8 +564,15 @@ def test_nothing_that_varies_between_runs_is_written(
 # own half. Diffed against the document on the tree before the merge: the
 # four tail distances of `record_code` alone; against 3b.G1's own: the
 # twelve empty keys of the base and the one NF71 line, nothing else.
+# AND RE-RECORDED BY PLAN P4-D370 (landing T1): ONE KEY ARRIVES, the
+# settings block's `forced_twelve_hour_clocks`, empty; the same document
+# with that key taken out hashes to the digest above. No other byte moves.
+# AND RE-RECORDED AT THE MERGE OF 3b.T1 (2026-10-02): diffed against the
+# document on the tree before the merge, that one settings key alone;
+# against 3b.T1's own, the base's twelve empty keys, the NF71 line and the
+# four tail distances of `record_code`, nothing else.
 GOLDEN_SHA256 = (
-    "17f1d514335b2eb06005f32357cd42c96c7b42036d5d1f71e23aee62ce08912f"
+    "3d2f5a319fa2063abe4c576f0d5f3f8bbf2d22d22e977b8670d5e970067bad62"
 )
 
 

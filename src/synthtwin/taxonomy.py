@@ -788,6 +788,14 @@ REMARK_OUT_OF_RANGE = "remark_values_out_of_range"
 # token family from a measurement -- so the choice is between telling
 # every such column's owner and telling none.
 EVIDENCE_CLOCK = "evidence_clock_times"
+# WHAT A COLUMN'S ONE WRITTEN CLOCK LEFT OUT OR TOOK IN (landing T1,
+# contract NF108 and NF109). A column keeps one way of writing its clock
+# (`parsing.clock_style_of_cells`): cells on another face -- with AM or PM
+# where the column writes none, or the other way round -- are counted
+# unread, and cells whose hour shows the other width are counted in and
+# written the column's way. Neither sentence carries a count.
+REMARK_CLOCK_OTHER_FACE = "remark_some_clocks_written_another_way"
+REMARK_CLOCK_OTHER_WIDTH = "remark_some_hours_written_another_width"
 EVIDENCE_AFFIXED = "evidence_numbers_wearing_one_affix"
 EVIDENCE_JOINED = "evidence_numbers_joined_in_one_cell"
 REMARK_AFFIXED = "remark_affixed_numbers_may_be_codes"
@@ -1057,6 +1065,9 @@ NOTE_ARITY: "dict[str, int]" = {
     REMARK_OUT_OF_RANGE: 1,
     # How many cells wore the pair, and the pair itself.
     EVIDENCE_CLOCK: 3,
+    # NO ARGUMENT (plan P4-D347): `n_unparsed` already says how many.
+    REMARK_CLOCK_OTHER_FACE: 0,
+    REMARK_CLOCK_OTHER_WIDTH: 0,
     EVIDENCE_AFFIXED: 3,
     EVIDENCE_JOINED: 3,
     REMARK_AFFIXED: 3,
@@ -2712,6 +2723,20 @@ def rendered(form: str, arguments: "tuple[object, ...]") -> str:
             "will be described. Do not use --identifier on a measurement: "
             "it withholds the column entirely"
         )
+    if form == REMARK_CLOCK_OTHER_FACE:
+        return (
+            "some values write their time of day another way than most -- "
+            "with AM or PM where most write none or the other way round, "
+            "with another mark, or with an hour the column's clock does "
+            "not show -- and are counted as values this column does not "
+            "read"
+        )
+    if form == REMARK_CLOCK_OTHER_WIDTH:
+        return (
+            "some values write the hour with a different number of "
+            "figures than most do, and are read and written the way most "
+            "of them are"
+        )
     if form == REMARK_ALL_DIFFERENT_TEXT:
         return (
             "every value in this column is different, and none of the "
@@ -3135,6 +3160,43 @@ class Settings:
     # in people is a later landing, and this key is what that landing
     # reads.
     person_columns: "tuple[str, ...]" = ()
+    # THE COLUMNS THE PERSON DECLARED 12-HOUR CLOCKS WRITTEN WITHOUT AM OR
+    # PM (`--twelve-hour`, landing T1, plan P4-D370). Nothing in `8:34` or
+    # `12:15` says which clock wrote it, so where every hour lies in 1 to
+    # 12 the run asks, and an answer lands here. A column is READ under
+    # `for_the_column`'s view of these settings, which narrows this to
+    # `TWELVE_HOUR_HERE` or to nothing.
+    forced_twelve_hour_clocks: "tuple[str, ...]" = ()
+
+
+# What `for_the_column` leaves in `forced_twelve_hour_clocks` for a column
+# declared a 12-hour clock: a word of this package's own, not a name, so
+# no column's name can be mistaken for it.
+TWELVE_HOUR_HERE = "(this column is a 12-hour clock)"
+
+
+def for_the_column(settings: Settings, name: str) -> Settings:
+    """The settings one column is read under (landing T1).
+
+    The table's settings with `forced_twelve_hour_clocks` narrowed to
+    `TWELVE_HOUR_HERE` where the column is declared and to nothing
+    otherwise, so a rule reading one column asks `reads_twelve_hours`
+    and never needs the column's name. Every column of a table that
+    declares none is read under the table's own settings object.
+
+    Guarantees: a function of the two. Raises nothing. No I/O.
+    """
+    if not settings.forced_twelve_hour_clocks:
+        return settings
+    narrowed: "tuple[str, ...]" = ()
+    if name in settings.forced_twelve_hour_clocks:
+        narrowed = (TWELVE_HOUR_HERE,)
+    return dataclasses.replace(settings, forced_twelve_hour_clocks=narrowed)
+
+
+def reads_twelve_hours(settings: Settings) -> bool:
+    """Whether the column these settings were narrowed for is declared."""
+    return TWELVE_HOUR_HERE in settings.forced_twelve_hour_clocks
 
 
 # -- who the rows are about (plan P4-D340) ----------------------------
@@ -3236,7 +3298,7 @@ def _present_spellings(
     stated = declared if declared is not None else Declarations()
     kept, held = _census_reading(
         cells,
-        settings,
+        for_the_column(settings, name),
         name in stated.identifiers,
         name in stated.codes,
         name in stated.measurements,
@@ -14543,6 +14605,28 @@ def _slashed_evidence(
     )
 
 
+def day_and_month_read_either_way(present: "list[str]", format_name: str) -> bool:
+    """Whether a slashed column's own values cannot settle day and month.
+
+    Every cell one reading parses the other parses too, so the column is
+    read month first by the ratified default -- and that is a guess the
+    run ASKS about (landing T1, the owner's ruling of 2026-10-01). Asked
+    of the reading the column took; False for every other member.
+
+    Guarantees: a function of the two. Raises nothing. No I/O.
+    """
+    for pair in SLASHED_PAIRS:
+        if format_name != pair[0]:
+            continue
+        weighed = _slashed_evidence(present, pair, False)
+        return (
+            weighed.month_parsed > 0
+            and weighed.month_only == 0
+            and weighed.day_only == 0
+        )
+    return False
+
+
 def _remainder_reading(
     present: "list[str]", settings: Settings
 ) -> "str | None":
@@ -14598,10 +14682,19 @@ def _remainder_reading(
         if placeholders < 1:
             continue
         needed = _needed(settings.minimum_parse_rate, len(remainder))
-        parsed = 0
+        pairs: "list[tuple[str, str]]" = []
+        sources: "list[str]" = []
         for value in remainder:
-            if parsing.parse_datetime(value, reading) is not None:
-                parsed = parsed + 1
+            found = parsing.parse_datetime(value, reading)
+            if found is not None:
+                pairs += [found]
+                sources += [value]
+        if reading in parsing.SLASHED_STAMPS and sources:
+            # HELD TO ITS ONE WRITTEN CLOCK as the classifier holds it
+            # (landing T1), so this pass never takes cells out of a
+            # column the classifier will not read as dates.
+            pairs, sources, _clock = _stamp_clocks(pairs, sources, settings)
+        parsed = len(sources)
         if parsed >= needed and parsed:
             return reading
     return None
@@ -14611,13 +14704,14 @@ def _matching_date_format(
     present: list[str], settings: Settings
 ) -> (
     "tuple[str, list[tuple[str, str]], list[str], int, "
-    "_SlashedEvidence | None] | None"
+    "_SlashedEvidence | None, _StampClock] | None"
 ):
     """The first date format that parses enough of the values.
 
     Returns (format name, parsed (canonical, offset) pairs, the source
-    cells that parsed, count of cells that did not, and the slashed
-    evidence where a declaration put a pair in play), or None.
+    cells that parsed, count of cells that did not, the slashed evidence
+    where a declaration put a pair in play, and a slashed stamp's one
+    written clock), or None.
     """
     needed = _needed(settings.minimum_parse_rate, len(present))
     # A DOTTED TRIPLE NAMING A ZERO FIELD IS A VERSION SAYING SO
@@ -14691,6 +14785,11 @@ def _matching_date_format(
             if pair_read is not None:
                 good += [pair_read]
                 sources += [value]
+        clock = _StampClock()
+        if len(good) >= needed and good and reading in parsing.SLASHED_STAMPS:
+            # ONE WRITTEN CLOCK PER COLUMN (landing T1): the cells of
+            # another face are unread, so the line is asked again.
+            good, sources, clock = _stamp_clocks(good, sources, settings)
         if len(good) >= needed and good:
             # THE FORMS AS PUBLISHED, BEFORE ANY FACT IS TAKEN FROM
             # THEM (plan P4-D250): a cell whose FORM the census counts
@@ -14701,8 +14800,86 @@ def _matching_date_format(
             reading, good, sources = _forms_as_published(
                 reading, good, sources, settings
             )
-            return reading, good, sources, len(present) - len(good), evidence
+            return (
+                reading,
+                good,
+                sources,
+                len(present) - len(good),
+                evidence,
+                clock,
+            )
     return None
+
+
+@dataclasses.dataclass(frozen=True)
+class _StampClock:
+    """The one written clock of a column of slashed stamps (landing T1).
+
+    Its style, and whether some cells were counted unread for another
+    face (contract NF108) or counted in from another hour width (NF109).
+    """
+
+    style: str = parsing.DEFAULT_CLOCK_STYLE
+    other_faces: bool = False
+    widths_in: bool = False
+
+
+def _stamp_clocks(
+    good: "list[tuple[str, str]]", sources: "list[str]", settings: Settings
+) -> "tuple[list[tuple[str, str]], list[str], _StampClock]":
+    """A column of stamps held to its one written clock (landing T1).
+
+    THE STYLE MOST CELLS WROTE (`parsing.clock_style_of_cells`), on the
+    12-hour face where the column is declared one. A cell on another face
+    is dropped -- counted unread by the caller, as the clock role counts
+    it -- and a cell whose hour shows the other width is kept and
+    REWRITTEN in the column's, its date half untouched, so no published
+    fact tells it apart (plan P4-D250's rule, owner ruling 6 of
+    2026-09-17). A column every cell of which writes today's two-figure
+    24-hour clock comes back exactly as it went in.
+
+    Guarantees: accepts the parsed pairs, their cells and the settings;
+    returns the pairs and cells kept, in order, and the clock.
+    Determinism: a function of the three. Raises nothing. No I/O.
+    """
+    halves: "list[tuple[str, str]]" = []
+    read: "list[tuple[int, int, int, bool, int, str, bool]]" = []
+    plain = True
+    for value in sources:
+        day, clock = parsing.stamp_halves(value)
+        parts = parsing.clock_parts(clock)
+        # Every cell here parsed under a stamp member, whose clock half
+        # this reader read; a face no style has keeps the types honest.
+        if parts is None:
+            parts = (0, 0, 0, False, 2, "?", False)
+        if parts[5] or (parts[4] != 2 and parts[0] < 10):
+            plain = False
+        halves += [(day, clock)]
+        read += [parts]
+    if plain and not reads_twelve_hours(settings):
+        return good, sources, _StampClock()
+    style = parsing.clock_style_of_cells(read, reads_twelve_hours(settings))
+    face = parsing.clock_face(style)
+    kept: "list[tuple[str, str]]" = []
+    written: "list[str]" = []
+    other_faces = False
+    widths_in = False
+    for place in range(len(sources)):
+        parts = read[place]
+        second = parsing.clock_second(parts, face)
+        if second is None:
+            other_faces = True
+            continue
+        canonical, offset = good[place]
+        day, clock = halves[place]
+        spelled = parsing.written_clock(second, parts[3], style)
+        cell = sources[place]
+        if spelled != clock:
+            widths_in = True
+            cell = f"{day}{spelled}"
+        kept += [(parsing.stamp_canonical(canonical, style), offset)]
+        written += [cell]
+    return kept, written, _StampClock(style, other_faces, widths_in)
 
 
 def _forms_as_published(
@@ -14875,12 +15052,15 @@ def _datetime_details(
     unparsed: int,
     settings: Settings,
     distinct: bool = False,
+    clock_style: str = parsing.DEFAULT_CLOCK_STYLE,
 ) -> dict[str, object]:
     """The published description of a datetime column.
 
     `distinct` says whether every present cell of the column differs
     from every other, which the universal counts publish, so the tail's
-    back-solve can hold a reader to it (`_tail_pinned`).
+    back-solve can hold a reader to it (`_tail_pinned`). `clock_style`
+    is a slashed stamp's one written clock (landing T1), published as its
+    mark census's word.
     """
     # Order by the INSTANT each value names, not by its local text. Two
     # values written in different offsets sorted the wrong way round
@@ -14932,7 +15112,8 @@ def _datetime_details(
         resolution = RESOLUTION_MONTH
     precision = _finest_precision(sources, format_name)
     midnight = _all_at_midnight(
-        format_name, resolution, reading, sources, offsets, settings
+        format_name, resolution, reading, sources, offsets, settings,
+        clock_style,
     )
     # THE TAILS, IN PLACE OF THE FIRST AND LAST VALUE (stage 3, plan
     # P4-D328). The end offsets went with the ends: they described the
@@ -14968,7 +15149,9 @@ def _datetime_details(
         "date_percentiles": _date_ladder(canonical_order, ranks),
         "n_unparsed": unparsed,
         "utc_offsets": offsets,
-        "datetime_separators": _separator_counts(sources, format_name, settings),
+        "datetime_separators": _separator_counts(
+            sources, format_name, settings, clock_style
+        ),
         # HOW THE CELLS WERE WRITTEN, beside what they were read as
         # (landing 2b.6). Four censuses of FORMS, each floored exactly as
         # the marks beside them are, so that the twin can be written in
@@ -14979,7 +15162,8 @@ def _datetime_details(
         "zulu_case": _zulu_counts(sources, format_name, offsets, settings),
         "all_at_midnight": midnight,
         "n_at_midnight": _midnight_count(
-            format_name, resolution, reading, sources, offsets, settings
+            format_name, resolution, reading, sources, offsets, settings,
+            clock_style,
         ),
     }
 
@@ -15674,7 +15858,10 @@ def _zulu_counts(
 
 
 def _separator_counts(
-    sources: "list[str]", format_name: str, settings: Settings
+    sources: "list[str]",
+    format_name: str,
+    settings: Settings,
+    clock_style: str = parsing.DEFAULT_CLOCK_STYLE,
 ) -> "dict[str, int]":
     """How many parsed cells wore each mark between day and clock (P4-D39).
 
@@ -15711,10 +15898,17 @@ def _separator_counts(
     counts: dict[str, int] = {}
     clocks = 0
     spellings: "dict[str, int]" = {}
+    # A SLASHED STAMP'S ONE WORD names its written clock as well as its
+    # space (landing T1, contract D12a): every cell it read wears it.
+    stamp = ""
+    if format_name in parsing.SLASHED_STAMPS:
+        stamp = parsing.stamp_word(clock_style)
     for value in sources:
         name = parsing.datetime_separator(value, format_name)
         if name is None:
             continue
+        if stamp:
+            name = stamp
         clocks = clocks + 1
         spellings[value] = 1
         if name in counts:
@@ -15741,6 +15935,7 @@ def _all_at_midnight(
     sources: "list[str]",
     offsets: "dict[str, int]",
     settings: Settings,
+    clock_style: str = parsing.DEFAULT_CLOCK_STYLE,
 ) -> bool:
     """Whether every parsed cell of a column of moments stands at midnight.
 
@@ -15756,7 +15951,8 @@ def _all_at_midnight(
     Determinism: a function of the six. Raises nothing. No I/O of any kind.
     """
     counted = _midnight_count(
-        format_name, resolution, reading, sources, offsets, settings
+        format_name, resolution, reading, sources, offsets, settings,
+        clock_style,
     )
     return counted is not None and counted == len(sources)
 
@@ -15768,6 +15964,7 @@ def _midnight_count(
     sources: "list[str]",
     offsets: "dict[str, int]",
     settings: Settings,
+    clock_style: str = parsing.DEFAULT_CLOCK_STYLE,
 ) -> "int | None":
     """How many parsed cells of a column of moments stand at midnight.
 
@@ -15823,7 +16020,7 @@ def _midnight_count(
         return None
     counted = 0
     for value in sources:
-        if parsing.clock_at_midnight(value, format_name):
+        if parsing.clock_at_midnight(value, format_name, clock_style):
             counted = counted + 1
     floor = parsing.census_floor(settings.small_cell_floor)
     if not _joint_midnight_nameable(format_name, sources, floor):
@@ -16182,18 +16379,75 @@ class _Clock:
 
     form: str
     # The text of every present cell the winning form accepted, in row
-    # order. The cells it did not accept -- the other form's among them
-    # -- are COUNTED and not listed: nothing of an unreadable cell is
-    # published, and `n_unparsed` is the whole of what is said about
+    # order, WRITTEN IN THE FORM (landing T1): a cell whose hour shows
+    # the other width is counted into the column's, as a spelling below
+    # the floor is counted into the commonest (owner ruling 6 of
+    # 2026-09-17), and is published and written back the column's way.
+    # The cells it did not accept -- the other precision's, and another
+    # face's -- are COUNTED and not listed: nothing of an unreadable cell
+    # is published, and `n_unparsed` is the whole of what is said about
     # them.
     values: "list[str]"
     n_unparsed: int
+    # WHETHER SOME CELLS WROTE THEIR CLOCK ON ANOTHER FACE -- with a
+    # marker where the column writes none, or the other way round -- and
+    # were counted unread (contract NF108), and whether some showed the
+    # other hour width and were counted in (NF109). Neither says how
+    # many (plan P4-D347).
+    other_faces: bool = False
+    widths_in: bool = False
+
+
+def _clock_candidates(cells: _Cells) -> "list[_Clock]":
+    """The clock reading at the second, then at the minute (landing T1).
+
+    Each is the style most of that precision's cells wrote
+    (`parsing.clock_style_of_cells`), on the 12-hour face where the
+    column is declared one, and the cells it reads, written in it.
+    Determinism: a function of the cells. Raises nothing. No I/O.
+    """
+    read: "list[tuple[str, tuple[int, int, int, bool, int, str, bool]]]" = []
+    for text in cells.present:
+        parts = parsing.clock_parts(text)
+        if parts is not None:
+            read += [(text, parts)]
+    found: "list[_Clock]" = []
+    for with_seconds in (True, False):
+        group = [parts for _text, parts in read if parts[3] == with_seconds]
+        style = parsing.clock_style_of_cells(
+            group, reads_twelve_hours(cells.settings)
+        )
+        face = parsing.clock_face(style)
+        values: "list[str]" = []
+        other_faces = False
+        widths_in = False
+        for text, parts in read:
+            if parts[3] != with_seconds:
+                continue
+            second = parsing.clock_second(parts, face)
+            if second is None:
+                other_faces = True
+                continue
+            written = parsing.written_clock(second, with_seconds, style)
+            if written != text:
+                widths_in = True
+            values += [written]
+        found += [
+            _Clock(
+                form=parsing.clock_form_of(style, with_seconds),
+                values=values,
+                n_unparsed=len(cells.present) - len(values),
+                other_faces=other_faces,
+                widths_in=widths_in,
+            )
+        ]
+    return found
 
 
 def clock_reach(cells: _Cells) -> int:
     """How many present cells the BEST clock reading accepted.
 
-    The count the closer of the two forms reached, whether or not it
+    The count the closer of the two precisions reached, whether or not it
     cleared the detection line -- so a column that declined can still
     say how far this reading got. Zero where no cell wore either form.
 
@@ -16210,13 +16464,8 @@ def clock_reach(cells: _Cells) -> int:
     of any kind.
     """
     best = 0
-    for form in parsing.CLOCK_FORMS:
-        found = 0
-        for text in cells.present:
-            if parsing.clock_form(text) == form:
-                found = found + 1
-        if found > best:
-            best = found
+    for clock in _clock_candidates(cells):
+        best = max(best, len(clock.values))
     return best
 
 
@@ -16611,20 +16860,13 @@ def _clock_reading(cells: _Cells) -> "_Clock | None":
     if not present:
         return None
     needed = _needed(cells.settings.minimum_parse_rate, len(present))
-    for form in (parsing.CLOCK_HH_MM_SS, parsing.CLOCK_HH_MM):
-        good: "list[str]" = []
-        for text in present:
-            if parsing.clock_form(text) == form:
-                # The CELL, not a tidied copy of it: what this role
-                # publishes are values some row wore, and the reader
-                # accepts nothing that needed tidying.
-                good += [text]
-        if len(good) >= needed and good:
-            return _Clock(
-                form=form,
-                values=good,
-                n_unparsed=len(present) - len(good),
-            )
+    for clock in _clock_candidates(cells):
+        # The CELL, not a tidied copy of it: what this role publishes
+        # are values some row wore, and the reader accepts nothing that
+        # needed tidying -- a cell of the other hour width is the one it
+        # writes the column's way (`_Clock.values`).
+        if len(clock.values) >= needed and clock.values:
+            return clock
     return None
 
 
@@ -16858,14 +17100,20 @@ def _clock_verdict(
     the same way a two-humped numeric column's valley is filled by the
     same ladder model today. The rungs stay exact cells either way.
     """
-    ordered = sorted(clock.values)
-    # THE TAILS, IN PLACE OF THE EARLIEST AND LATEST TIME (stage 3, plan
-    # P4-D328), measured in the form's own unit: minutes of the day for
-    # `hh-mm`, seconds for `hh-mm-ss`.
-    ordinals: "list[int]" = []
-    for value in ordered:
+    # BY THE INSTANT AND NOT THE TEXT (landing T1): `9:30` sorts after
+    # `10:00` as text and `1:05 PM` before `11:00 AM`. On the two-figure
+    # 24-hour forms the two orders are one, so those columns keep every
+    # byte.
+    keyed: "list[tuple[int, str]]" = []
+    for value in clock.values:
         found = parsing.clock_ordinal(value, clock.form)
-        ordinals += [0 if found is None else found]
+        keyed += [(0 if found is None else found, value)]
+    keyed = sorted(keyed)
+    ordered = [value for _at, value in keyed]
+    # THE TAILS, IN PLACE OF THE EARLIEST AND LATEST TIME (stage 3, plan
+    # P4-D328), measured in the form's own unit: minutes of the day at the
+    # minute, seconds at the second.
+    ordinals = [at for at, _value in keyed]
     low_tail, high_tail, ranks = ordered_tails(
         ordered,
         ordinals,
@@ -16873,6 +17121,7 @@ def _clock_verdict(
         (0, parsing.CLOCK_CAPACITY[clock.form] - 1),
         cells.raw_distinct == len(cells.present),
     )
+    remarks += _clock_style_remarks(clock.other_faces, clock.widths_in)
     details: "dict[str, object]" = {
         "clock_form": clock.form,
         "low_tail": low_tail,
@@ -16905,11 +17154,27 @@ def _clock_form_said(form: str) -> str:
     """One clock form as the word a sentence names it by.
 
     A word of this package's own, chosen from a closed pair, so a
-    sentence carrying it carries nothing of anybody's table.
+    sentence carrying it carries nothing of anybody's table. The style
+    is the form's own word in `clock_form`; this says the precision.
     """
-    if form == parsing.CLOCK_HH_MM:
+    if parsing.clock_step(form) == 60:
         return NOTE_CLOCK_HOURS_MINUTES
     return NOTE_CLOCK_HOURS_MINUTES_SECONDS
+
+
+def _clock_style_remarks(other_faces: bool, widths_in: bool) -> "list[Note]":
+    """NF108 and NF109: what the column's one written clock left out or took in.
+
+    Neither carries a count (plan P4-D347): `n_unparsed` already says how
+    many cells were not read, and how many showed the other width is a
+    count below the line on the columns that matter.
+    """
+    said: "list[Note]" = []
+    if other_faces:
+        said += [note(REMARK_CLOCK_OTHER_FACE)]
+    if widths_in:
+        said += [note(REMARK_CLOCK_OTHER_WIDTH)]
+    return said
 
 
 @dataclasses.dataclass(frozen=True)
@@ -18732,7 +18997,7 @@ def _decide(
             None if labels_only else _matching_date_format(present, settings)
         )
         if matched is not None:
-            format_name, pairs, sources, unparsed, evidence = matched
+            format_name, pairs, sources, unparsed, evidence, written = matched
             details = _datetime_details(
                 format_name,
                 pairs,
@@ -18740,6 +19005,10 @@ def _decide(
                 unparsed,
                 settings,
                 cells.raw_distinct == len(cells.present),
+                written.style,
+            )
+            remarks += _clock_style_remarks(
+                written.other_faces, written.widths_in
             )
             if numeric_looking >= strict_needed:
                 # BOTH COUNTS, AND THEY ARE ALREADY COMPUTED HERE
@@ -21081,6 +21350,7 @@ def profile_column(
       on a declared identifier, how many different values cover one row,
       two rows and so on -- and keeps not one spelling of a value.
     """
+    settings = for_the_column(settings, name)
     if handed_over is not None and _same_reading(
         handed_over,
         values,

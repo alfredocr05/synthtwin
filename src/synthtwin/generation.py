@@ -3987,6 +3987,28 @@ class _DateStyle:
     name_style: str = parsing.DEFAULT_NAME_STYLE
     marker: str = "upper"
     zulu: str = "upper"
+    # A SLASHED STAMP'S ONE WRITTEN CLOCK (landing T1, method G7.5): the
+    # style its census word names, which every rank of the column wears.
+    clock: str = parsing.DEFAULT_CLOCK_STYLE
+
+
+def _stamp_clock_style(facts: contract.DatetimeFacts) -> str:
+    """The written clock a column of slashed stamps keeps (landing T1).
+
+    The style its one `datetime_separators` word names; today's
+    two-figure 24-hour clock where the word is `space`, where the census
+    is a pool -- a column of fewer read stamps than the line, a stated
+    limit -- and on every other member.
+    """
+    if facts.parser_family not in contract.CLOCK_FORM_MEMBERS:
+        return parsing.DEFAULT_CLOCK_STYLE
+    for word in sorted(facts.datetime_separators):
+        if word == contract.WITHHELD:
+            continue
+        style = parsing.stamp_style(word)
+        if style is not None:
+            return style
+    return parsing.DEFAULT_CLOCK_STYLE
 
 
 def _commonest_of(census: "dict[str, int]", default: str) -> str:
@@ -4017,6 +4039,7 @@ def _commonest_style(facts: contract.DatetimeFacts) -> "_DateStyle":
         ),
         marker=_commonest_of(facts.quarter_marker_case, "upper"),
         zulu=_commonest_of(facts.zulu_case, "upper"),
+        clock=_stamp_clock_style(facts),
     )
 
 
@@ -4303,7 +4326,8 @@ def _width_allocation(
     fields: "list[tuple[int, int]]",
     parsed: int,
     floor: int,
-) -> "list[str]":
+    days: "list[int] | None" = None,
+) -> "tuple[list[str], bool]":
     """Which joint width convention every rank writes (2b.6, P4-D132).
 
     Each class of rank is written from its own words (`_date_width_places`),
@@ -4311,21 +4335,32 @@ def _width_allocation(
     census has no count for is written as the census's other classes pad
     that field, a rank showing both fields where the census names no joint
     word takes `_both_fields_width_of`, and a rank that shows no width
-    takes `_joint_width_of`.
+    takes `_joint_width_of`. And the census's UNNAMED REMAINDER is written
+    over words it does not name (`_unnamed_remainder`, G7.5 step 5); the
+    bool says it could not be, which the report names.
     """
     census = facts.date_field_widths
     fallback = _joint_width_of(census)
     styles = [fallback for _rank in range(parsed)]
     if not census:
-        return styles
+        return styles, True
     both, first, second = _date_width_places(facts, fields)
     if facts.parser_family in parsing.TEXTUAL_MEMBERS:
         weights = _census_weights(census, parsing.FIELD_WIDTH_STYLES_ONE_FIELD)
         spread = _reserved(weights if weights else {fallback: 1}, len(first), floor)
         for index in range(len(first)):
             styles[first[index]] = spread[index]
-        return styles
+        return styles, True
     weights = _census_weights(census, parsing.FIELD_WIDTH_STYLES_BOTH)
+    placed = True
+    if weights and days is not None:
+        remainder = _unnamed_remainder(census, weights, both, days, parsed, floor)
+        if remainder is None:
+            placed = False
+        elif remainder:
+            for rank in remainder:
+                styles[rank] = remainder[rank]
+            both = [rank for rank in both if rank not in remainder]
     if not weights:
         weights = {_both_fields_width_of(census): 1}
     spread = _reserved(weights, len(both), floor)
@@ -4338,7 +4373,82 @@ def _width_allocation(
         spread = _reserved(owed, len(ranks), floor)
         for index in range(len(ranks)):
             styles[ranks[index]] = parsing.width_of_field_word(spread[index])
-    return styles
+    return styles, placed
+
+
+def _unnamed_remainder(
+    census: "dict[str, int]",
+    weights: "dict[str, int]",
+    both: "list[int]",
+    days: "list[int]",
+    parsed: int,
+    floor: int,
+) -> "dict[int, str] | None":
+    """G7.5 STEP 5: the width census's unnamed remainder, written (landing T1).
+
+    WHERE THE NAMED COUNTS COME TO LESS THAN THE PARSED CELLS -- a word
+    each below the line was left out (`parsing.disclosed_census`) -- the
+    named words keep exactly their published counts and the other
+    ``parsed - named`` ranks wear joint words the census does not name.
+    WHOLE DATES AT A TIME, fewest ranks first, so every rank of a day
+    wears one word and the count of different values holds; each unnamed
+    word on at most the line less one ranks and on fewer than the named
+    word's own, so the twin described again counts them in as the source
+    was counted. Carried at plan l.17955 as case (a): fifteen `03/05/2020`,
+    fifteen `04/06/2020`, seven `3/7/2020` and seven `03/8/2020` publish
+    `{"padded": 30}`, and the twin wrote all forty-four padded.
+
+    Guarantees: returns the remainder's ranks and words, `{}` where the
+    census leaves no remainder, and None where whole dates cannot place
+    it -- the census's case (b) of the same record, which the report names
+    and no word is invented for. Determinism: a function of the six;
+    draws no word. Raises nothing. No I/O of any kind.
+    """
+    named = 0
+    for name in census:
+        if name != contract.WITHHELD:
+            named = named + census[name]
+    remainder = parsed - named
+    if remainder < 1:
+        return {}
+    unnamed = [
+        word for word in parsing.FIELD_WIDTH_STYLES_BOTH if word not in census
+    ]
+    largest = 0
+    for name in weights:
+        largest = max(largest, weights[name])
+    cap = min(parsing.census_floor(floor) - 1, largest - 1)
+    if not unnamed or cap < 1:
+        return None
+    ranks_of: "dict[int, list[int]]" = {}
+    for rank in both:
+        if days[rank] not in ranks_of:
+            ranks_of[days[rank]] = []
+        ranks_of[days[rank]] += [rank]
+    order = sorted((len(ranks_of[day]), day) for day in ranks_of)
+    chosen: "list[int]" = []
+    total = 0
+    for size, day in order:
+        if total + size <= remainder and size <= cap:
+            chosen += [day]
+            total = total + size
+        if total == remainder:
+            break
+    if total != remainder:
+        return None
+    worn: "dict[int, str]" = {}
+    held = [0 for _word in unnamed]
+    for day in chosen:
+        size = len(ranks_of[day])
+        place = 0
+        while place < len(unnamed) and held[place] + size > cap:
+            place = place + 1
+        if place == len(unnamed):
+            return None
+        held[place] = held[place] + size
+        for rank in ranks_of[day]:
+            worn[rank] = unnamed[place]
+    return worn
 
 
 def _name_allocation(
@@ -4427,13 +4537,39 @@ def _written_fields(
     return fields
 
 
+def _written_days(
+    facts: contract.DatetimeFacts,
+    ordinals: "list[int]",
+    offsets: "list[str]",
+    parsed: int,
+) -> "list[int]":
+    """The day every rank will write, as `_written_fields` reads it (T1)."""
+    days: "list[int]" = []
+    span = _ordinal_space(facts)
+    for rank in range(parsed):
+        if facts.resolution == "quarter" or facts.resolution == "month":
+            days += [0]
+            continue
+        local = ordinals[rank]
+        if (
+            facts.datetimes_read_at == "utc"
+            and facts.resolution == "datetime"
+            and span != "date"
+        ):
+            local = local + _offset_seconds(offsets[rank])
+        if facts.resolution == "datetime" and span != "date":
+            local = local // 86400
+        days += [local]
+    return days
+
+
 def _cell_spellings(
     facts: contract.DatetimeFacts,
     ordinals: "list[int]",
     offsets: "list[str]",
     parsed: int,
     floor: int,
-) -> "list[_DateStyle]":
+) -> "tuple[list[_DateStyle], bool]":
     """How every rank of a column of dates is spelled (landing 2b.6).
 
     The four censuses are allocated over the ranks that can show each,
@@ -4448,7 +4584,10 @@ def _cell_spellings(
     nothing. No I/O of any kind.
     """
     fields = _written_fields(facts, ordinals, offsets, parsed)
-    widths = _width_allocation(facts, fields, parsed, floor)
+    widths, placed = _width_allocation(
+        facts, fields, parsed, floor,
+        _written_days(facts, ordinals, offsets, parsed),
+    )
     names = _name_allocation(facts, fields, parsed, floor)
     every = [rank for rank in range(parsed)]
     markers = _spelling_allocation(
@@ -4466,6 +4605,7 @@ def _cell_spellings(
     zulus = _spelling_allocation(
         facts.zulu_case, parsing.ZULU_CASES, zulu_places, parsed, "upper", floor
     )
+    clock = _stamp_clock_style(facts)
     spellings: "list[_DateStyle]" = []
     for rank in range(parsed):
         spellings += [
@@ -4475,9 +4615,10 @@ def _cell_spellings(
                 names[rank],
                 markers[rank],
                 zulus[rank],
+                clock,
             )
         ]
-    return spellings
+    return spellings, placed
 
 
 def _cell_of_ordinal(
@@ -4537,6 +4678,14 @@ def _cell_of_ordinal(
     written = parsing.written_date(
         year, month, day, style.family, style.width, style.name_style
     )
+    if style.clock != parsing.DEFAULT_CLOCK_STYLE:
+        # THE STAMP'S OWN WRITTEN CLOCK (landing T1): its hour's width and
+        # its face, written by the one clock writer. A stamp writes no
+        # fraction, so the precision is the minute or the second.
+        return (
+            f"{written}{mark}"
+            f"{parsing.written_clock(rest, precision != 'minute', style.clock)}"
+        )
     stamp = f"{written}{mark}{hours:02d}:{minutes:02d}"
     if precision == "minute":
         return stamp
@@ -4697,6 +4846,18 @@ def _endpoint_cell(
             spelling.family,
             spelling.width,
             spelling.name_style,
+        )
+    if spelling.clock != parsing.DEFAULT_CLOCK_STYLE:
+        # A STAMP WRITING ITS OWN CLOCK (landing T1) holds no sixtieth
+        # second -- its reader refuses one -- so its end goes through the
+        # ordinal route whole, which returns its own fields exactly.
+        return _cell_of_ordinal(
+            _ordinal_of(published, "datetime"),
+            "datetime",
+            facts.time_precision,
+            facts.subsecond_digits,
+            mark,
+            spelling,
         )
     seconds = published[17:19]
     minute = _ordinal_of(f"{published[0:17]}00", "datetime")
@@ -19963,9 +20124,23 @@ def _datetime_content(
     # decision 5). Allocated after the instants and the offsets, because
     # which conventions a cell can show depends on the day it writes and
     # on the clock it writes it on.
-    spellings = _cell_spellings(
+    spellings, remainder_placed = _cell_spellings(
         facts, ordinals, offsets, parsed, plan.small_cell_floor
     )
+    if not remainder_placed:
+        # G7.5 STEP 5 COULD NOT PLACE THE WIDTH CENSUS'S UNNAMED REMAINDER
+        # on whole dates (landing T1): said, and no word invented for it.
+        weekday_notes += [
+            _deviation(
+                column.name,
+                "date_field_widths",
+                "a remainder written in widths the census does not name",
+                "every cell written in the widths the census names",
+                "The description leaves some values' widths unnamed, and "
+                "no set of whole dates of the twin holds exactly that many "
+                "values, so they are written in the widths it names.",
+            )
+        ]
     body_low = 0
     body_high = max(parsed - 1, 0)
     if layout.low is not None and layout.high is not None:
@@ -20167,11 +20342,16 @@ def _instant_written(text: str, facts: contract.DatetimeFacts) -> "str | None":
     as no date at all and every end, every rung and every recount in
     this module would silently go missing. A column read jointly is
     still read back jointly, so a bare date the twin writes reads as
-    midnight of its day (landing 2b.3).
+    midnight of its day (landing 2b.3). And ON THE COLUMN'S OWN FACE
+    (landing T1): a slashed stamp declared a 12-hour clock with no AM or
+    PM reads `12:15` as a quarter past midnight, as its describing step
+    read it, so what this returns is what describing the twin finds.
     """
     found = parsing.parse_datetime(text, facts.parser_family)
     if found is None:
         return None
+    if facts.parser_family in parsing.SLASHED_STAMPS:
+        return parsing.stamp_canonical(found[0], _stamp_clock_style(facts))
     if facts.datetimes_read_at == "utc" and facts.resolution == "datetime":
         # The clock is put back only where it was applied. A whole date
         # and a quarter carry no time of day for an offset to move, so
@@ -21119,6 +21299,28 @@ def _heavy_spread(facts: contract.DatetimeFacts, spread: _Spread) -> _Spread:
     return spread
 
 
+# THE SAME CLAUSE FOR A STAMP DECLARED A 12-HOUR CLOCK WITH NO AM OR PM
+# (landing T1, plan P4-D370's stated limit). Its instants all stand before
+# noon, and this version draws a stamp's time of day over the whole day:
+# a time drawn after noon is written on the dial, which reads it twelve
+# hours earlier, so the ladder is not met rung for rung and saying it is
+# would be false. What the twin then holds is measured from its own cells
+# and named fact by fact above.
+_SPREAD_TWELVE_HOUR_HELD = (
+    "the days are drawn between the published rungs, and between them "
+    "independently; a time drawn after noon is written on the 12-hour "
+    "dial, which reads it twelve hours earlier, so a rung or a tail can "
+    "be missed, and each one missed is named above"
+)
+
+
+def _spread_held(facts: contract.DatetimeFacts, held: str) -> str:
+    """The spread sentence's held clause, or the 12-hour stamp's (T1)."""
+    if parsing.clock_face(_stamp_clock_style(facts)) == parsing.CLOCK_TWELVE_HOUR:
+        return _SPREAD_TWELVE_HOUR_HELD
+    return held
+
+
 def _spread_remarks(
     column: contract.ColumnBlock,
 ) -> "list[Remark]":
@@ -21162,7 +21364,8 @@ def _spread_remarks(
     that do apply: periods holding far more values than their
     neighbours, and a column of a few scheduled periods. Printing all
     four on such a column would name two things no column of periods
-    can lose.
+    can lose. A stamp declared a 12-hour clock with no AM or PM does not
+    say its ladder is met (`_spread_held`, landing T1).
 
     ONE CLAUSE PER CENSUS (plan P4-D364). The sentence is built from
     what nothing publishes (`_SPREAD_NOTHING_MET`), and each census the
@@ -21196,7 +21399,11 @@ def _spread_remarks(
     # -- the dates that stand out (3b.D4, P4-D369)
     spread = _heavy_spread(facts, spread)
     held, said = _spread_written(spread)
-    return [_remark(column.name, _SPREAD_SUBJECT, held, said)]
+    return [
+        _remark(
+            column.name, _SPREAD_SUBJECT, _spread_held(facts, held), said
+        )
+    ]
 
 
 def _held_back_absence_remarks(
@@ -21421,7 +21628,9 @@ def _midnight_notes(
         # Read jointly, so a bare date counts as midnight of its day, as
         # the describing step counts it (landing 2b.3); a cell with a clock
         # answers exactly as it does under `iso-datetime`.
-        if not parsing.clock_at_midnight(cell, _midnight_reading(facts)):
+        if not parsing.clock_at_midnight(
+            cell, _midnight_reading(facts), _stamp_clock_style(facts)
+        ):
             off = off + 1
     if off == 0:
         return []
@@ -21462,7 +21671,9 @@ def _midnight_count_notes(
         line = parsing.census_floor(floor)
         found = 0
         for cell in cells:
-            if parsing.clock_at_midnight(cell, _midnight_reading(facts)):
+            if parsing.clock_at_midnight(
+                cell, _midnight_reading(facts), _stamp_clock_style(facts)
+            ):
                 found = found + 1
         if found < line or len(cells) - found < line:
             return []
@@ -21481,7 +21692,9 @@ def _midnight_count_notes(
         return []
     found = 0
     for cell in cells:
-        if parsing.clock_at_midnight(cell, _midnight_reading(facts)):
+        if parsing.clock_at_midnight(
+            cell, _midnight_reading(facts), _stamp_clock_style(facts)
+        ):
             found = found + 1
     if found == counted:
         return []
@@ -42645,7 +42858,7 @@ def _clock_approximations(
             continue
         found_facts += _tail_side_approximations(
             column.name, side, tail, ordinals, side.boundary,
-            "minute" if form == contract.CLOCK_FORMS[0] else "second",
+            "minute" if parsing.clock_step(form) == 60 else "second",
         )
     stand_ins = len(present) - held
     lowest_count = _forced_apart(lows, highs) + stand_ins
