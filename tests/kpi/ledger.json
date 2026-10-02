@@ -6999,7 +6999,7 @@
     "tests/test_stage3b_date_questions.py::test_the_line_holds_at_a_lowered_floor_and_rises_with_a_raised_one",
     "tests/test_stage3b_date_questions.py::test_red_on_each_rule_of_the_codes_question",
     "tests/test_stage3b_date_questions.py::test_red_without_the_date_rule",
-    "tests/test_stage3b_date_questions.py::test_a_fully_read_column_of_dates_is_not_read_again",
+    "tests/test_stage3b_date_questions.py::test_a_column_no_code_can_stand_in_is_not_counted",
     "tests/test_stage3b_date_questions.py::test_the_weighed_date_rule_reads_each_column_as_the_classifier_does"
    ],
    "test": null,
