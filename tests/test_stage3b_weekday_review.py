@@ -1,13 +1,17 @@
-"""The third review of landing 3b.1 (plan P4-D355), one witness per finding.
+"""The third review of landing 3b.1 (plan P4-D355), one witness per finding, as plan P4-D365 left it.
 
 Each test reproduces the review's own failure scenario, seeded, and
 holds the repair. The mutation that turns each red is named in its own
 docstring; the gate's standing record is `tests/test_stage3b_gate.py`.
+Landing 3b.G (plan P4-D365, the owner's principle of 2026-10-01) retired
+the full-fill certificate, the withholding's certificate, its bands, its
+cap and its ties refusal: the witnesses that held only those are gone,
+and each one that held a twin, a hole, a spelling, a storage or a report
+is kept, its expectation moved to what the census now publishes.
 """
 
 from __future__ import annotations
 
-import dataclasses
 import datetime
 import pathlib
 import random
@@ -15,14 +19,17 @@ import re
 
 import pytest
 
-import calendar_certificate_brute as brute_force
-import calendar_certificate_verify as verifier
 import fixtures
 import kpi_shapes
-from synthtwin import calendar_certificate, calendar_rules, contract, errors, parsing, profile, reading, taxonomy
+from synthtwin import calendar_rules, contract, errors, parsing, profile, reading, taxonomy
 
 
-# -- finding 10: a refusal the published numbers decide walks no day ---------
+def _day(cell: str) -> int:
+    """An ISO date as a day number counted from 1970-01-01."""
+    return parsing.days_from_civil(int(cell[0:4]), int(cell[5:7]), int(cell[8:10]))
+
+
+# -- finding 10: a census over thousands of years walks no day of its span ---------
 
 
 def _spread_over(years: int) -> "list[str]":
@@ -30,8 +37,8 @@ def _spread_over(years: int) -> "list[str]":
     return [f"{(step * years // 100) + 1:04d}-06-15" for step in range(100)]
 
 
-def _days_walked(monkeypatch: pytest.MonkeyPatch, cells: "list[str]") -> "tuple[int, list[str]]":
-    """How many days the weekday rules looked at while describing `cells`."""
+def _days_walked(monkeypatch: pytest.MonkeyPatch, cells: "list[str]") -> "tuple[int, list[object]]":
+    """How many days the weekday rules looked at while describing `cells`, and the census."""
     walked = [0]
     weekday_of = calendar_rules.weekday_of
 
@@ -39,73 +46,60 @@ def _days_walked(monkeypatch: pytest.MonkeyPatch, cells: "list[str]") -> "tuple[
         walked[0] += 1
         return weekday_of(day)
 
-    calendar_certificate._ANSWERS.clear()
     with monkeypatch.context() as patched:
         patched.setattr(calendar_rules, "weekday_of", counted)
         described = taxonomy.profile_column("event_day", 1, cells, len(cells), taxonomy.Settings())
-    calendar_certificate._ANSWERS.clear()
-    return walked[0], described.publication_notes
+    return walked[0], described.details["weekday_census"]
 
 
-def test_a_census_refused_on_its_repeats_walks_no_day_of_its_span(monkeypatch: pytest.MonkeyPatch) -> None:
-    """100 dates over 400, 2,000 and 6,000 years cost the same, and are refused the same way.
+def test_a_census_over_thousands_of_years_walks_no_day_of_its_span(monkeypatch: pytest.MonkeyPatch) -> None:
+    """100 dates over 400, 2,000 and 6,000 years cost the same, and publish the same census.
 
-    Every date is different, so no day can hold eleven rows in any table
-    a reader allows -- a refusal three published numbers decide. On the
-    reviewed tree the certificate enumerated every day of the span first,
-    each class of days grown by copying (quadratic: 0.63 s at 400 years,
-    19.3 s at 2,000 and 316 s at 6,000). Counted machine-free here: the
-    days the weekday rules look at are the body's own cells at every
-    span. Red when the refusal is asked after the walk (the producer's
-    and `check`'s, together); the copying itself is held by
+    Every date is different. On the reviewed tree the certificate
+    enumerated every day of the span first (quadratic: 0.63 s at 400
+    years, 19.3 s at 2,000 and 316 s at 6,000), and the ties refusal
+    then withheld it. Since plan P4-D365 the census the menu offers is
+    published, and the days the weekday rules look at are the body's own,
+    a few times over, at every span: no rule walks the days between the
+    boundaries of an ISO column. Red when a rule walks the span (the
+    room rule asked without a hole, say); the copying itself is held by
     `tests/test_no_quadratic_list_growth.py`.
     """
     found = {years: _days_walked(monkeypatch, _spread_over(years)) for years in (400, 2000, 6000)}
     counts = {years: found[years][0] for years in found}
     assert counts[400] == counts[2000] == counts[6000], counts
-    assert counts[400] <= 100, counts
+    assert counts[400] <= 300, counts
     for years in found:
-        assert any("repeat too little" in sentence for sentence in found[years][1]), found[years][1]
+        assert found[years][1], years
 
 
-def test_the_loaders_refusal_walks_no_day_of_its_span(monkeypatch: pytest.MonkeyPatch) -> None:
-    """The loader's check of a census on the same numbers costs the same at every span.
+def test_the_loaders_check_walks_no_day_of_its_span(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The loader holds a census of 100 dates over 400 or 6,000 years to its shape without looking at a day.
 
-    `calendar_certificate.check`, asked as the loader asks it -- the
-    reader's bounds on both sides -- with the seven counts of 100
-    all-different dates: its answer is `ties` at 400 and at 6,000 years,
-    and the days it looks at do not grow with the span. Red when `check`
-    builds the facts of the span before its refusals.
+    `calendar_rules.shape_breach` is a function of the census, the body
+    and the line (plan P4-D365): loading either description asks
+    `calendar_rules.weekday_of` of no day at all. Red when the loader asks
+    a rule of the span again.
     """
-    walked = [0]
-    weekday_of = calendar_rules.weekday_of
-
-    def counted(day: int) -> int:
-        walked[0] += 1
-        return weekday_of(day)
-
-    answers: "dict[int, tuple[str, int]]" = {}
     for years in (400, 6000):
         cells = _spread_over(years)
-        days = sorted(
-            parsing.days_from_civil(int(cell[0:4]), 6, 15) for cell in cells
-        )
-        body = days[5:95]
-        groups, _entry = calendar_rules.menu_groups(calendar_rules.body_bins(body), 3)
-        calendar_certificate._ANSWERS.clear()
-        walked[0] = 0
+        described = kpi_shapes.describe(tmp_path / str(years), "event", "event_day\n" + "".join(f"{cell}\n" for cell in cells), 11)
+        assert described.block("event_day")["weekday_census"], years
+        written = fixtures.write_profile(tmp_path / str(years), "again-profile.json", described.document)
+        walked = [0]
+        weekday_of = calendar_rules.weekday_of
+
+        def counted(day: int) -> int:
+            walked[0] += 1
+            return weekday_of(day)
+
         with monkeypatch.context() as patched:
             patched.setattr(calendar_rules, "weekday_of", counted)
-            verdict = calendar_certificate.check(
-                100, 5, 5, body[0], body[-1], (), 90, 90, 3, groups
-            )
-        answers[years] = (verdict.reason, walked[0])
-    calendar_certificate._ANSWERS.clear()
-    assert answers[400] == answers[6000], answers
-    assert answers[400][0] == calendar_rules.REASON_TIES, answers
+            contract.load_profile(str(written))
+        assert walked[0] == 0, (years, walked[0])
 
 
-# -- finding 1: the baseline holds no census information, its noughts included --
+# -- finding 1: an empty weekend is published, and its twins meet it --------
 
 
 def _business_year() -> "list[str]":
@@ -124,47 +118,25 @@ def _business_year() -> "list[str]":
     return cells
 
 
-def test_a_weekday_counted_empty_is_no_part_of_the_baseline(tmp_path: pathlib.Path) -> None:
-    """Business dates whose empty weekend pins every business day before the p05 rung are withheld.
+def test_a_business_year_publishes_its_empty_weekend_and_its_twins_meet_it(tmp_path: pathlib.Path) -> None:
+    """The review's 1,035 business-day rows publish Monday to Friday and an empty weekend, met by every twin.
 
-    The body's 258 different dates must stand on every business date
-    between its boundaries once the weekend is known empty, and the p05
-    rung leaves ten body rows before January 16: under the census every
-    business day of January 2 to 15 holds exactly one row, where stage 3
-    alone lets a Saturday take any of them (moving January 3 to January 6
-    changes no stage-3 fact). The reviewed tree published the seven
-    counts with `[Sat-Sun] 0`, its certificate and its brute force both
-    holding the weekend empty on the side meant to know nothing of the
-    census. Now the census is withheld and the menu's census copied onto
-    the description is refused on load (WC8). Red when `_stage3_table`
-    holds the census's empty weekdays empty again.
+    The reviewed tree published the seven counts with `[Sat-Sun] 0`, and
+    the review withheld them because the empty weekend, beside the p05
+    rung, pinned every business day of January 2 to 15 to one row -- a
+    reader's reconstruction, which the owner's principle of 2026-10-01
+    takes off the table. Since plan P4-D365 the census publishes, held
+    to its shape on load, and the twins of seeds 0 to 2 meet it with
+    nothing missed. Red when the certificate's baseline rule comes back.
     """
     cells = _business_year()
-    moved = ["2024-01-06" if cell == "2024-01-03" else cell for cell in cells]
-    plain = taxonomy.profile_column("event_day", 1, cells, len(cells), taxonomy.Settings(), calendar_census=False)
-    other = taxonomy.profile_column("event_day", 1, moved, len(moved), taxonomy.Settings(), calendar_census=False)
-    assert dataclasses.asdict(plain) == dataclasses.asdict(other), "the move changes a stage-3 fact"
-
     described = kpi_shapes.describe(tmp_path, "business", "event_day\n" + "".join(f"{cell}\n" for cell in cells), 11)
     block = described.block("event_day")
-    assert block["date_percentiles"]["p05"] == "2024-01-16"
-    assert block["weekday_census"] == []
-    days = sorted(verifier.day_number(cell) for cell in cells)
-    body = days[block["low_tail"]["rows"]: len(days) - block["high_tail"]["rows"]]
-    offered, _entry = calendar_rules.menu_groups(calendar_rules.body_bins(body), 11)
-    assert offered[-1] == (5, 6, 0), offered
-    doctored = dict(described.document)
-    doctored["columns"] = [
-        dict(block, weekday_census=[{"first": first, "last": last, "count": count} for first, last, count in offered])
-    ]
-    calendar_certificate._ANSWERS.clear()
-    with pytest.raises(errors.ProfileError) as refusal:
-        contract.load_profile(str(fixtures.write_profile(tmp_path, "doctored-profile.json", doctored)))
-    calendar_certificate._ANSWERS.clear()
-    assert contract.INVARIANTS["WC8"] in str(refusal.value)
-
-
-# -- finding 7: repeated unparsed cells do not hide a second spelling ----------
+    groups = tuple((group["first"], group["last"], group["count"]) for group in block["weekday_census"])
+    assert groups and groups[-1] == (5, 6, 0), groups
+    for seed in (0, 1, 2):
+        twin = kpi_shapes.twin_text(described, seed)
+        assert kpi_shapes.missed(kpi_shapes.measure(described, twin, f"twin-{seed}.csv")) == [], seed
 
 
 def test_ten_copies_of_one_impossible_date_hide_no_second_spelling(tmp_path: pathlib.Path) -> None:
@@ -189,28 +161,28 @@ def test_ten_copies_of_one_impossible_date_hide_no_second_spelling(tmp_path: pat
     block = described.block("admission_date")
     assert (block["n_distinct"], block["n_unparsed"]) == (len(set(cells)) + 2, 10), block["n_distinct"]
     assert block["weekday_census"] == []
-    days = tuple(sorted(verifier.day_number(cell) for cell in cells))
+    days = tuple(sorted(_day(cell) for cell in cells))
     decided = taxonomy.weekday_decision(
         block, days, block["n_distinct"], taxonomy.Settings(small_cell_floor=11), texts=len(set(cells)) + 1
     )
     assert decided.reason == calendar_rules.REASON_TEXTS, decided.reason
 
 
-# -- finding 6: the loader holds the holes a published absent spelling names ----
+# -- finding 6: a published absent day is a hole ---------------------------------
 
 
-def test_a_published_absent_day_is_a_hole_the_loader_holds(tmp_path: pathlib.Path) -> None:
-    """A declared missing day the description publishes leaves a group few dates, on load as at the producer.
+def test_a_published_absent_day_is_a_hole_the_producer_reads(tmp_path: pathlib.Path) -> None:
+    """A declared missing day the description publishes is a hole, and the census beside it is decided on its dates.
 
     The gate's five weeks around 1900-01-01, described with that day
     DECLARED missing rather than judged: `sentinel_verdicts` is empty,
     and `missing_by_source` and the settings' `built_in_dates` publish
-    the day. Its Mondays leave three dates besides the knot days once the
-    day is a hole, so the producer withholds; the seven counts the menu
-    offers, copied onto the description, loaded on the reviewed tree,
-    whose loader read holes off the forms and the decisions alone. Now
-    they are refused (WC7). Red when the loader leaves the published
-    absent spellings out of its holes.
+    the day, which `calendar_rules.public_holes` reads as a hole between
+    the boundaries. Five weeks of about five dates a weekday are withheld,
+    `few_dates`; the seven counts the menu offers, copied onto the
+    description, load, the loader holding a census to its shape alone
+    (WC7, which refused them, is retired). Red when the published absent
+    spellings leave the holes.
     """
     import test_stage3b_gate as gate
 
@@ -223,21 +195,18 @@ def test_a_published_absent_day_is_a_hole_the_loader_holds(tmp_path: pathlib.Pat
     assert document["settings"]["declared_missing_values"]["built_in_dates"] == ["1900-01-01"]
     assert block["weekday_census"] == []
     present = [cell for cell in cells if cell != "1900-01-01"]
-    days = sorted(verifier.day_number(cell) for cell in present)
+    days = sorted(_day(cell) for cell in present)
     body = days[block["low_tail"]["rows"]: len(days) - block["high_tail"]["rows"]]
+    absent = taxonomy.published_absent(block, settings)
+    assert calendar_rules.public_holes({}, block["format"], body[0], body[-1], (), absent) == (_day("1900-01-01"),)
+    decided = taxonomy.weekday_decision(block, tuple(days), block["n_distinct"], settings, texts=len(set(present)))
+    assert decided.reason == calendar_rules.REASON_FEW_DATES, decided.reason
     offered, _entry = calendar_rules.menu_groups(calendar_rules.body_bins(body), 11)
     doctored = dict(document)
     doctored["columns"] = [
         dict(block, weekday_census=[{"first": first, "last": last, "count": count} for first, last, count in offered])
     ]
-    calendar_certificate._ANSWERS.clear()
-    with pytest.raises(errors.ProfileError) as refusal:
-        contract.load_profile(str(fixtures.write_profile(tmp_path, "doctored-profile.json", doctored)))
-    calendar_certificate._ANSWERS.clear()
-    assert contract.INVARIANTS["WC7"] in str(refusal.value)
-
-
-# -- finding 8: the loader holds the storage a workbook publishes ------------------
+    contract.load_profile(str(fixtures.write_profile(tmp_path, "doctored-profile.json", doctored)))
 
 
 def test_a_census_beside_values_a_workbook_publishes_stored_two_ways_is_refused(tmp_path: pathlib.Path) -> None:
@@ -273,14 +242,12 @@ def test_a_census_beside_values_a_workbook_publishes_stored_two_ways_is_refused(
     assert mixed["columns"][0]["weekday_census"] == []
     doctored = dict(mixed)
     doctored["columns"] = [dict(mixed["columns"][0], weekday_census=census)]
-    calendar_certificate._ANSWERS.clear()
     with pytest.raises(errors.ProfileError) as refusal:
         contract.load_profile(str(fixtures.write_profile(tmp_path, "doctored-profile.json", doctored)))
-    calendar_certificate._ANSWERS.clear()
     assert contract.INVARIANTS["WC6"] in str(refusal.value)
 
 
-# -- item 2: a withholding is certified the way a publication is ---------------
+# -- item 2: a withholding names no rule the table decides ---------------------
 
 
 def _business_weeks(weekend: "list[str]") -> "list[str]":
@@ -293,21 +260,18 @@ def _business_weeks(weekend: "list[str]") -> "list[str]":
 
 
 def test_a_withheld_census_names_no_rule_the_table_decides() -> None:
-    """1,040 business-day rows beside ONE Saturday row are withheld in the shared sentence, inside a certified band.
+    """1,040 business-day rows beside ONE Saturday row are withheld in the shared sentence; thirteen publish.
 
-    The review's shape: the published count of different days forces at
-    least 135 weekday rows, so on the reviewed tree the sentence "no
-    grouping holds the line in every group" told a reader the weekend
-    held one to ten rows, while the same facts with thirteen weekend rows
-    published the seven counts. Now the census is withheld because its
-    weekend lies in its BAND -- from the least any table of its facts
-    holds there, through the fewest rows more whose tables certify, at
-    most the line -- which the producer ALWAYS
-    withholds, and the withholding is certified: the tables it keeps back
-    include one putting the line on a day of every class, so being told
-    "withheld" confines no set of days. The sentence names no rule. The
-    thirteen-row table still publishes. Red when the no-grouping sentence
-    comes back, or the band is withdrawn (the reason falls to `menu`).
+    The review's shape: the weekend holds one row, so no grouping of the
+    menu holds the line in every group (`menu`), and on the reviewed tree
+    the sentence "no grouping holds the line in every group" told a
+    reader the weekend held one to ten rows. The sentence names no rule:
+    the one every rule the table's own numbers decide shares, kept by
+    plan P4-D365 under the owner's rule that a guard goes only at a high
+    price. With thirteen weekend rows the census publishes. The owner
+    accepted on 2026-09-30 that a withheld census may still tell a reader
+    a half of the week holds 1 to 10 rows (K-S3-34). Red when the
+    no-grouping sentence comes back.
     """
     cells = _business_weeks(["2024-06-15"])
     change = dict(zip(["2024-05-06", "2024-05-13", "2024-05-20"], ["2024-05-11", "2024-05-18", "2024-05-25"]))
@@ -319,97 +283,11 @@ def test_a_withheld_census_names_no_rule_the_table_decides() -> None:
         taxonomy.rendered(taxonomy.NOTE_WEEKDAY_WITHHELD_NARROWED, (11,))
     ]
     assert not any("neither each day alone" in sentence for sentence in one.publication_notes)
-    assert thirteen.details["weekday_census"], "thirteen weekend rows lie outside the band and publish"
+    assert thirteen.details["weekday_census"], "thirteen weekend rows publish"
     block = dict(one.details, n_present=one.n_present, n_distinct=one.n_distinct, sentinel_verdicts=[])
-    days = tuple(sorted(verifier.day_number(cell) for cell in cells))
+    days = tuple(sorted(_day(cell) for cell in cells))
     decided = taxonomy.weekday_decision(block, days, one.n_distinct, taxonomy.Settings(), texts=len(set(cells)))
-    assert decided.reason == calendar_rules.REASON_BAND and decided.said == calendar_rules.REASON_UNSAID
-    assert decided.withheld is not None and decided.withheld.holds
-    least, most = decided.withheld.weekend
-    assert least <= 1 <= most, decided.withheld.weekend
-
-
-def _outcome(instance: dict, table: "tuple[int, ...]", answer: calendar_certificate.Withholding) -> object:
-    """What the producer publishes for one table of a tiny body: `withheld`, or its census.
-
-    The producer's order, written from `taxonomy.weekday_decision`, on
-    the brute force's line of three with the count of different days
-    exact; WC7 is not asked, as in the gate's brute force (a body of
-    seven days is all few dates), and leaving it out withholds less.
-    """
-    different = instance["different"]
-    if not answer.holds:
-        return "withheld"
-    groups, _entry = calendar_rules.menu_groups(brute_force.census_of(table), brute_force.LINE)
-    if not groups or calendar_certificate.in_band(tuple(groups), answer):
-        return "withheld"
-    facts = calendar_certificate.facts_of(
-        instance["body"], 0, 0, instance["low"], instance["high"], tuple(instance["rungs"]),
-        different, different, brute_force.LINE, tuple(groups), -1, (),
-    )
-    if not calendar_certificate.certify(facts).holds:
-        return "withheld"
-    return tuple(groups)
-
-
-def withholding_battery(trials: int = 400, larger: int = 200) -> "dict[str, int]":
-    """Every table of every tiny body, grouped by what the producer says of it, judged.
-
-    For each set of stage-3 facts the brute force draws, EVERY table
-    meeting them alone is enumerated and given its outcome
-    (`_outcome`); the tables withheld together, and the tables of each
-    published census, are asked whether they confine a set of days the
-    facts alone do not (`brute_force.pins_of`) -- what a reader told
-    only that outcome can conclude.
-    """
-    totals = {"facts": 0, "withheld_unsound": 0, "published_unsound": 0, "published": 0}
-    for seed, count, larger_bodies in ((0, trials, False), (1, larger, True)):
-        draw = random.Random(seed)
-        for _trial in range(count):
-            instance = brute_force.instance(draw, larger_bodies)
-            if instance is None:
-                continue
-            totals["facts"] += 1
-            different = instance["different"]
-            everything = brute_force.tables(instance, False)
-            answer = calendar_certificate.withholding(
-                instance["body"], 0, 0, instance["low"], instance["high"], tuple(instance["rungs"]),
-                different, different, brute_force.LINE,
-            )
-            outcomes: "dict[object, list[tuple[int, ...]]]" = {}
-            for table in everything:
-                bucket = outcomes.setdefault(_outcome(instance, table, answer), [])
-                bucket += [table]
-            for outcome, chosen in outcomes.items():
-                if outcome == "withheld":
-                    totals["withheld_unsound"] += bool(brute_force.pins_of(instance, chosen, everything))
-                    continue
-                totals["published"] += 1
-                empty = {day for first, last, count in outcome for day in range(first, last + 1) if count == 0}
-                zero = 0
-                for place in range(instance["span"]):
-                    if brute_force.weekday(instance["low"] + place) in empty:
-                        zero |= 1 << place
-                totals["published_unsound"] += bool(brute_force.pins_of(instance, chosen, everything, zero))
-    return totals
-
-
-def test_no_withholding_confines_a_set_of_days() -> None:
-    """Over 400 tiny bodies and 200 larger ones, no outcome confines a set of days the facts alone do not.
-
-    The reviewed tree's rule -- withhold wherever no grouping met the
-    line, and say so -- left a withheld set confining a set of days on
-    one of the 400 tiny bodies. Now no withheld set and no published
-    census's own tables confine any, and some censuses still publish.
-    Red when the withholding's certificate is withdrawn (every
-    withholding taken as certified, no band).
-    """
-    totals = withholding_battery()
-    assert totals["withheld_unsound"] == 0 and totals["published_unsound"] == 0, totals
-    assert totals["published"] > 0, totals
-
-
-# -- item 3: a report keeps a short count back from its complements too -----------
+    assert decided.reason == calendar_rules.REASON_MENU and decided.said == calendar_rules.REASON_UNSAID
 
 
 def test_a_missed_weekday_line_gives_no_count_back_by_subtraction(tmp_path: pathlib.Path) -> None:
@@ -547,10 +425,6 @@ def test_no_verdict_beside_a_short_written_form_gives_its_count_back(tmp_path: p
         assert all(not any(ch.isdigit() for ch in text.replace("11", "")) for text in shown), shown
 
 
-# -- items 4 and 5: the twin meets the census on the holes it was certified with,
-# -- and keeps its count of different days --------------------------------------
-
-
 def _mays_five_times() -> "list[str]":
     """The gate's three Mays five times over, written `17 May 2023`, shuffled with `Random(3)`."""
     import test_stage3b_gate as gate
@@ -625,43 +499,42 @@ def test_a_file_with_a_date_on_a_form_hole_misses_the_census(tmp_path: pathlib.P
     assert not any("without them" in line for line in check.note), check.note
 
 
-def _certified_fixtures() -> "dict[str, tuple[str, list[str]]]":
-    """Every fixture the gate certifies a census on, and the review's May column."""
+def _published_fixtures() -> "dict[str, tuple[str, list[str]]]":
+    """Every fixture the gate publishes a census on, the review's May column, and three it now publishes."""
     import test_stage3b_gate as gate
 
     return {
-        "straddling_february": ("seen_on", [f"{day.month}/{day.day}/{day.year}" for day in gate._straddling_february()]),
         "one_autumn": ("visit", [gate._day_first(day) for day in gate._one_autumn()]),
         "placeholder_read_as_missing": ("born", gate._with_a_placeholder_day()),
-        "placeholder_kept": ("seen_on", gate._around_a_placeholder_day()),
         "thin_midweek": ("visit_date", gate._thin_midweek(1)),
         "twenty_sessions": ("session_date", gate._twenty_sessions(0)),
         "mays_five_times": ("visit", _mays_five_times()),
+        "october_to_december": ("visit", [gate._month_first(day) for day in gate._october_to_december()]),
+        "walk_case": ("seen_on", gate._walk_case(0)),
+        "business_days": ("log_date", gate._business_days(1, 1)),
     }
 
 
-@pytest.mark.parametrize("name", sorted(_certified_fixtures()))
-def test_every_certified_fixture_generates_twins_that_meet_it(tmp_path: pathlib.Path, name: str) -> None:
-    """Every column the gate certifies generates twins meeting everything, the count of different days included.
+@pytest.mark.parametrize("name", sorted(_published_fixtures()))
+def test_every_published_fixture_generates_twins_that_meet_it(tmp_path: pathlib.Path, name: str) -> None:
+    """Every column the gate publishes a census on generates twins meeting everything, the count of different days included.
 
     The gate certified `_straddling_february` and never generated it; on
     the reviewed tree its twins at seeds 0 to 4 held 84 different days
     against 85 published, both distinct counts MISSED while the census
-    was HELD -- the census moves stranded a day the count repair could
-    not put back. Every fixture the gate publishes a census on is
-    generated here at five seeds and validated: nothing is missed. Red
-    when the day pass reads its holes off the absent spellings alone (the
-    straddling column's twins lose a day again).
+    was HELD. Every fixture the gate publishes a census on -- since plan
+    P4-D365 also October to December, the 1,001 different dates and the
+    business days the ties refusal withheld -- is generated here at five
+    seeds and validated: nothing is missed. (`_straddling_february` is now
+    withheld by the room rule: tests/test_stage3b_gate.py.) Red when the
+    day pass reads its holes off the absent spellings alone.
     """
-    column, cells = _certified_fixtures()[name]
+    column, cells = _published_fixtures()[name]
     described = kpi_shapes.describe(tmp_path, name, f"{column}\n" + "".join(f"{cell}\n" for cell in cells), 11)
     assert described.block(column)["weekday_census"], name
     for seed in range(5):
         twin = kpi_shapes.twin_text(described, seed)
         assert kpi_shapes.missed(kpi_shapes.measure(described, twin, f"twin-{seed}.csv")) == [], (name, seed)
-
-
-# -- item 9: the oracle reads the holes under the column's own member ------------
 
 
 def test_the_oracle_reads_an_absent_day_under_the_columns_own_member(tmp_path: pathlib.Path) -> None:
@@ -701,6 +574,9 @@ def test_the_oracle_reads_an_absent_day_under_the_columns_own_member(tmp_path: p
     assert apart == [], apart[:8]
 
 
+# -- the schedules the certificate withheld, published now (plan P4-D365) -----------
+
+
 def _weekly_clinic(shape: int) -> "list[str]":
     """500 visits over 39 weekly clinic days, some moved a day either way (the sparse schedules measured)."""
     draw = random.Random(1000 + shape)
@@ -710,116 +586,12 @@ def _weekly_clinic(shape: int) -> "list[str]":
     return [draw.choices(days, weights)[0].isoformat() for _ in range(500)]
 
 
-def test_a_column_of_few_dates_certifies_its_withholding(tmp_path: pathlib.Path) -> None:
-    """500 visits over 39 weekly clinic days still publish their census beside a certified withholding.
-
-    The withholding's certificate asks its network for tables of the
-    column's own few different days, and the cheapest table spreads its
-    cells over every class: 471 rows on 26 to 36 days over 57 classes
-    found none, so the withholding of 39 of 80 sparse schedules could not
-    be certified and their censuses were withheld whatever they held.
-    Moving a part's cells into another part wherever every bound still
-    holds finds the tables. Red when the merge is withdrawn (the census
-    is withheld, `uncertified`).
-    """
-    cells = _weekly_clinic(6)
-    described = kpi_shapes.describe(tmp_path, "clinic", "visit\n" + "".join(f"{cell}\n" for cell in cells), 11)
-    block = described.block("visit")
-    assert block["weekday_census"], [entry["note"] for entry in described.document["publication_notes"]]
-    days = tuple(sorted(verifier.day_number(cell) for cell in cells))
-    decided = taxonomy.weekday_decision(block, days, block["n_distinct"], taxonomy.Settings(small_cell_floor=11), texts=len(set(cells)))
-    assert decided.withheld is not None and decided.withheld.holds
-
-
-# -- the review of the third review's repair: the band search, and the
-# -- withholding's certificate alone ---------------------------------------------
-
-
 def _one_weekday_clinic(seed: int, weeks: int, weekday: int, rows: int) -> "list[str]":
     """`rows` visits drawn with `Random(seed)` over `weeks` weekly clinic days on one weekday of 2024."""
     draw = random.Random(seed)
     days = [datetime.date(2024, 1, 1) + datetime.timedelta(days=7 * week + weekday) for week in range(weeks)]
     weights = [draw.uniform(0.5, 1.5) for _ in days]
     return [draw.choices(days, weights)[0].isoformat() for _ in range(rows)]
-
-
-def _decided(cells: "list[str]") -> "tuple[taxonomy.ColumnProfile, taxonomy.WeekdayDecision]":
-    described = taxonomy.profile_column("visit", 1, cells, len(cells), taxonomy.Settings())
-    block = dict(described.details, n_present=described.n_present, n_distinct=described.n_distinct, sentinel_verdicts=[])
-    days = tuple(sorted(verifier.day_number(cell) for cell in cells))
-    return described, taxonomy.weekday_decision(block, days, described.n_distinct, taxonomy.Settings(), texts=len(set(cells)))
-
-
-def test_a_one_weekday_clinic_certifies_its_withholding_with_tables_that_meet_its_facts() -> None:
-    """800 visits over 20 Fridays: the band search finds tables of 18 days, each one a table, and the census publishes.
-
-    Seven knot days and six stretches between them, each with a part in
-    both halves of the week once merged inside one stretch and one half:
-    nineteen parts for 18 different days, so neither band found a table
-    and the census was withheld whatever it held (review of the third
-    review's repair). A part's cells now move into any stretch and either
-    half where every bound holds. Every table the withholding's
-    certificate lays out -- on the classes it asks, one a stretch's half
-    of the week (`_pooled`), which this test laid out per weekday until
-    the review's second round, so a certificate pooling the halves wrongly
-    stayed green -- is checked here against the facts a reader holds, by
-    the verifier, which shares no code with the network: its rank facts,
-    its count of different days, the line on its day, and its weekend or
-    Monday to Friday inside the band; W0 is told the two half totals and
-    no entry of the menu, so the verifier asks none. Red when a part may
-    merge only inside its own stretch and half (`uncertified`), and when
-    the pooled classes swap the halves (a witness outside its band).
-    """
-    cells = _one_weekday_clinic(1, 20, 4, 800)
-    described, decided = _decided(cells)
-    assert described.details["weekday_census"], described.publication_notes
-    answer = decided.withheld
-    assert answer is not None and answer.holds, answer
-    block = dict(described.details, n_present=described.n_present, n_distinct=described.n_distinct, weekday_census=[])
-    parsed = len(cells)
-    rows_low, rows_high = block["low_tail"]["rows"], block["high_tail"]["rows"]
-    days = sorted(verifier.day_number(cell) for cell in cells)
-    body = days[rows_low: parsed - rows_high]
-    rungs = taxonomy._census_rungs(block["date_percentiles"], parsed)
-    fewest, most = calendar_certificate.reader_days(
-        block["n_distinct"], 0, rows_low, taxonomy._tail_listed(block["low_tail"]),
-        rows_high, taxonomy._tail_listed(block["high_tail"]),
-    )
-    facts = calendar_certificate._pooled(calendar_certificate._halves_facts(calendar_certificate.facts_of(
-        parsed, rows_low, rows_high, body[0], body[-1], rungs, fewest, most, 11,
-        calendar_certificate._HALVES, -1, (),
-    )))
-    size = facts.body
-    sides = [
-        ((size - answer.weekend[1], size - answer.weekend[0]), answer.weekend),
-        (answer.weekdays, (size - answer.weekdays[1], size - answer.weekdays[0])),
-    ]
-    laid = 0
-    for klass in facts.keys:
-        take = {klass: 1}
-        for top in sides:
-            table = calendar_certificate._census_table(facts, take, {klass[1]: (11, size)}, {}, {}, 0, 0, [0], tuple(top))
-            if table is None:
-                continue
-            held = dict(calendar_certificate._laid_out(facts, table, take))
-            halves = [sum(cells for day, cells in held.items() if verifier.weekday(day) < 5)]
-            halves += [size - halves[0]]
-            groups = [{"first": 0, "last": 4, "count": halves[0]}, {"first": 5, "last": 6, "count": halves[1]}]
-            reader = verifier.reader_facts(dict(block, weekday_census=groups), 11)
-            reader["entry"] = 0
-            assert verifier.table_problems(reader, held, facts.classes[klass][0]) == [], klass
-            assert top[0][0] <= halves[0] <= top[0][1] and top[1][0] <= halves[1] <= top[1][1], (klass, halves)
-            laid += 1
-            break
-    assert laid == len(facts.keys), (laid, len(facts.keys))
-    # One weekend row asked, and the merges pour no Monday-to-Friday cell into it.
-    table = calendar_certificate._census_table(facts, {}, {}, {}, {}, 0, 0, [0], ((size - 1, size - 1), (1, 1)))
-    assert table is not None
-    held = dict(calendar_certificate._laid_out(facts, table, {}))
-    groups = [{"first": 0, "last": 4, "count": size - 1}, {"first": 5, "last": 6, "count": 1}]
-    reader = verifier.reader_facts(dict(block, weekday_census=groups), 11)
-    reader["entry"] = 0
-    assert verifier.table_problems(reader, held, max(held, key=lambda day: held[day])) == []
 
 
 def _weekly_schedule(shape: int) -> "list[str]":
@@ -838,25 +610,6 @@ def _weekly_schedule(shape: int) -> "list[str]":
     return [draw.choices(days, weights)[0].isoformat() for _ in range(rows)]
 
 
-def test_a_withholding_is_certified_on_classes_of_one_stretchs_half_of_the_week() -> None:
-    """Weekly sessions on Tuesdays and Saturdays publish their census, the withholding's residue asked a class a half.
-
-    What the withholding always keeps back, W0, tells two days apart only
-    by the rank facts, the count of different days and the two half
-    totals, so the days of one stretch between two knots in one half of
-    the week are one class. Asked a class per weekday, the stretch
-    before the first rung held seven residue classes whose arrangements
-    passed the certificate's cap, and these sessions were withheld
-    whatever they held (review of the third review's repair). Red when
-    the withholding asks a class per weekday (`uncertified`).
-    """
-    cells = _weekly_schedule(42)
-    assert sorted({datetime.date.fromisoformat(cell).weekday() for cell in cells}) == [1, 5]
-    described, decided = _decided(cells)
-    assert described.details["weekday_census"], described.publication_notes
-    assert decided.withheld is not None and decided.withheld.holds
-
-
 def _moved(cells: "list[str]", source: str, target: str, rows: int) -> "list[str]":
     """`cells` with the first `rows` cells written `source` written `target` instead."""
     left = rows
@@ -868,58 +621,50 @@ def _moved(cells: "list[str]", source: str, target: str, rows: int) -> "list[str
     return moved
 
 
-def _stage3_facts(described: taxonomy.ColumnProfile) -> str:
-    """Everything a column's description publishes but its weekday census and its sentences."""
-    kept = {key: value for key, value in described.details.items() if key != "weekday_census"}
-    return repr((sorted(kept.items()), described.n_distinct, described.n_present))
+def _published_and_met(tmp_path: pathlib.Path, name: str, cells: "list[str]", seeds: "tuple[int, ...]" = (0, 1, 2)) -> "list[tuple[int, int, int]]":
+    """The census a column publishes, every twin of `seeds` asserted to miss nothing."""
+    described = kpi_shapes.describe(tmp_path / name, name, "visit\n" + "".join(f"{cell}\n" for cell in cells), 11)
+    groups = [(group["first"], group["last"], group["count"]) for group in described.block("visit")["weekday_census"]]
+    for seed in seeds:
+        twin = kpi_shapes.twin_text(described, seed)
+        assert kpi_shapes.missed(kpi_shapes.measure(described, twin, f"twin-{seed}.csv")) == [], (name, seed)
+    return groups
 
 
-def test_a_withholding_that_cannot_be_certified_withholds_whatever_the_table_holds() -> None:
-    """Two tables of the same facts, one and thirty rows moved across the week: both withheld; and a certified pair decided by its band.
+def test_the_schedules_the_certificate_withheld_publish_and_their_twins_meet_them(tmp_path: pathlib.Path) -> None:
+    """Weekly clinics and sessions the certificate withheld publish their census, met by their twins (plan P4-D365).
 
-    Weekly Wednesday sessions, with one row, or thirty, of the Wednesday
-    of 26 July 2023 written on the Sunday before: every fact stage 3
-    publishes is the same, and the withholding's residue has more
-    arrangements a half than its certificate enumerates, so it is not
-    certified and both tables are withheld in the shared sentence
-    (`uncertified`). Taken as certified, the one-row table is withheld
-    inside its band while the thirty-row table, past it, publishes its
-    census. Red when the withholding's certificate alone is withdrawn,
-    its bands kept (the thirty-row table publishes).
+    * 500 visits over 39 weekly clinic days, some moved a day either way
+      (`_weekly_clinic(6)`), whose withholding the certificate could not
+      certify until the third review's repair;
+    * 800 visits over 20 Fridays (`_one_weekday_clinic(4, 20, 4, 800)`)
+      and 212 over 26 Tuesdays, the clinics the 20,000-arrangement cap
+      withheld;
+    * the weekly Wednesday sessions of the owner's "Keep as built" of
+      2026-09-29 (`_weekly_schedule(60)`), withheld whatever they held.
 
-    Beside it, the third review's own pair: a weekly Tuesday clinic with
-    one row, or thirteen, of 23 January 2024 moved to the Saturday after.
-    On the repair under review both were withheld, uncertified, for want
-    of a band -- and taken as certified, the one-row table was withheld
-    for want of a grouping, telling a reader the weekend held one to ten
-    rows, while the thirteen-row table published Saturday 13. The band is
-    found and certified now: the one-row table is withheld inside it and
-    the thirteen-row table publishes.
+    Each publishes, and its twins at seeds 0 to 2 miss nothing. With
+    thirty Wednesday rows moved to the Sunday before, that Sunday is the
+    one date of its group: withheld, `few_dates`, which the twin could
+    not meet keeping the count of different values. With one row moved,
+    the weekend holds one row and no grouping of the menu holds the line:
+    withheld, `menu`. Red when any of the retired guards comes back, or
+    the few-dates rule goes.
     """
+    assert _published_and_met(tmp_path, "clinic", _weekly_clinic(6))
+    assert _published_and_met(tmp_path, "fridays", _one_weekday_clinic(4, 20, 4, 800))
+    assert _published_and_met(tmp_path, "tuesdays", _one_weekday_clinic(0, 26, 1, 212))
     sessions = _weekly_schedule(60)
     assert {datetime.date.fromisoformat(cell).weekday() for cell in sessions} == {2}
-    assert "2023-07-23" not in sessions and sessions.count("2023-07-26") > 30
-    one, one_said = _decided(_moved(sessions, "2023-07-26", "2023-07-23", 1))
-    thirty, thirty_said = _decided(_moved(sessions, "2023-07-26", "2023-07-23", 30))
-    assert _stage3_facts(one) == _stage3_facts(thirty)
-    for described, decided in ((one, one_said), (thirty, thirty_said)):
-        assert described.details["weekday_census"] == [], decided.reason
-        assert decided.reason == calendar_rules.REASON_UNCERTIFIED and decided.said == calendar_rules.REASON_UNSAID
-    assert [note for note in one.publication_notes if "not counted" in note] == [
-        note for note in thirty.publication_notes if "not counted" in note
-    ]
-
-    clinic = _one_weekday_clinic(3, 16, 1, 600)
-    one, one_said = _decided(_moved(clinic, "2024-01-23", "2024-01-27", 1))
-    thirteen, _thirteen_said = _decided(_moved(clinic, "2024-01-23", "2024-01-27", 13))
-    assert _stage3_facts(one) == _stage3_facts(thirteen)
-    assert one.details["weekday_census"] == [] and one_said.reason == calendar_rules.REASON_BAND
-    assert one_said.withheld is not None and one_said.withheld.holds
-    saturday = [group["count"] for group in thirteen.details["weekday_census"] if group["first"] == 5]
-    assert saturday == [13], thirteen.details["weekday_census"]
-
-
-# -- the review's second round: the day pass keeps the days it found -------------
+    assert _published_and_met(tmp_path, "sessions", sessions)
+    for rows, reason in ((30, calendar_rules.REASON_FEW_DATES), (1, calendar_rules.REASON_MENU)):
+        cells = _moved(sessions, "2023-07-26", "2023-07-23", rows)
+        moved = taxonomy.profile_column("visit", 1, cells, len(cells), taxonomy.Settings())
+        assert moved.details["weekday_census"] == [], rows
+        block = dict(moved.details, n_present=moved.n_present, n_distinct=moved.n_distinct, sentinel_verdicts=[])
+        days = tuple(sorted(_day(cell) for cell in cells))
+        decided = taxonomy.weekday_decision(block, days, moved.n_distinct, taxonomy.Settings(), texts=len(set(cells)))
+        assert decided.reason == reason, (rows, decided.reason)
 
 
 def _heaped_visits(seed: int) -> "list[str]":
@@ -1085,7 +830,7 @@ def test_no_twin_of_the_reviews_draws_loses_a_day_to_the_census(tmp_path: pathli
     assert lost == [], lost
 
 
-# -- the review's second round and its skeptic: each half's band on its own ------------
+# -- the markets and logs the band search was built for, published now ------------
 
 
 def _weekend_market(seed: int, midweek: int) -> "list[str]":
@@ -1116,34 +861,8 @@ def _business_log(seed: int, weekend: int) -> "list[str]":
     return cells
 
 
-def _withholding_question(cells: "list[str]") -> "tuple[object, ...]":
-    """The numbers the producer asks the withholding's certificate with, for `cells`."""
-    asked: "list[tuple[object, ...]]" = []
-    shipped = calendar_certificate.withholding
-
-    def spied(*arguments: object) -> calendar_certificate.Withholding:
-        asked.append(arguments)
-        return shipped(*arguments)
-
-    calendar_certificate.withholding = spied
-    try:
-        taxonomy.profile_column("visit", 1, cells, len(cells), taxonomy.Settings())
-    finally:
-        calendar_certificate.withholding = shipped
-    return asked[0]
-
-
-def _certified_at(question: "tuple[object, ...]", weekend: int, weekdays: int) -> bool:
-    """Whether W0 is certified with each half `weekend` and `weekdays` rows past its least, asked afresh."""
-    widest = calendar_certificate.bands(*question)
-    given = calendar_certificate.facts_of(*question[:9], calendar_certificate._HALVES, -1, question[9])
-    banded = calendar_certificate._at_widths(widest, weekend, weekdays, 0)
-    return calendar_certificate._withheld_certified(given, banded).holds
-
-
-# The weekend markets the band of one width lost (the skeptic's second
-# battery, `Random(6100 + s)`), each beside thirty or thirty-five
-# Wednesday rows, and the two columns the review's second round measured.
+# The weekend markets and the business log the band searches were built
+# for, each beside thirty to forty rows of the other half of the week.
 _HALF_BY_HALF = (
     ("market 18 beside 30", lambda: _weekend_market(2118, 30)),
     ("market 5 beside 35", lambda: _weekend_market(2105, 35)),
@@ -1153,156 +872,18 @@ _HALF_BY_HALF = (
 
 
 @pytest.mark.parametrize("name", [name for name, _build in _HALF_BY_HALF])
-def test_each_half_takes_the_fewest_rows_its_certificate_needs(name: str) -> None:
-    """The band pair taken certifies, one row fewer in either half does not, and no pair of its sum with fewer Monday-to-Friday rows does.
+def test_the_markets_publish_and_their_twins_meet_them(tmp_path: pathlib.Path, name: str) -> None:
+    """Every market and log the band search held back publishes its census, met by its twins (plan P4-D365).
 
-    Searched as one width for both halves past the capped stretches, the
-    band was the narrowest of that family and no narrower (the skeptic
-    of the review's second round): its halving stopped where nothing
-    checked, and a market's Monday to Friday stood seventeen rows wide
-    at width nought. Each half's width is its own now, from its least:
-    the pair taken is certified, each half one row narrower is asked
-    afresh and is not, and neither is any pair of the same sum with
-    fewer Monday-to-Friday rows. Red when the band is widened by a row
-    (a narrower one certifies), and when the halving stops at the first
-    certified width.
+    The weekend markets beside thirty to forty Wednesday rows, and the
+    business log beside forty weekend rows: the bands withheld some of
+    them and searched the rest for minutes. Each publishes now, every
+    group nought or at least the line, and its twins at seeds 0 to 2 miss
+    nothing. Red when the band comes back.
     """
-    cells = dict(_HALF_BY_HALF)[name]()
-    described, _decision = _decided(cells)
-    assert described.details["weekday_census"], described.publication_notes
-    question = _withholding_question(cells)
-    answer = calendar_certificate.withholding(*question)
-    assert answer.holds, answer.detail
-    widest = calendar_certificate.bands(*question)
-    weekend = answer.weekend[1] - answer.weekend[0]
-    weekdays = answer.weekdays[1] - answer.weekdays[0]
-    assert (answer.weekend[0], answer.weekdays[0]) == (widest.weekend[0], widest.weekdays[0])
-    assert _certified_at(question, weekend, weekdays), (weekend, weekdays)
-    if weekend > 0:
-        assert not _certified_at(question, weekend - 1, weekdays), (weekend, weekdays)
-    if weekdays > 0:
-        assert not _certified_at(question, weekend, weekdays - 1), (weekend, weekdays)
-    reach = widest.weekend[1] - widest.weekend[0]
-    for shift in range(1, weekdays + 1):
-        if weekend + shift <= reach:
-            assert not _certified_at(question, weekend + shift, weekdays - shift), (weekend, weekdays, shift)
-
-
-def _halves(cells: "list[str]", described: taxonomy.ColumnProfile) -> "tuple[tuple[int, int, int], ...]":
-    """The real body's Monday to Friday and weekend totals, as the two groups `in_band` reads."""
-    days = sorted(verifier.day_number(cell) for cell in cells)
-    body = days[described.details["low_tail"]["rows"]: len(days) - described.details["high_tail"]["rows"]]
-    weekend = len([day for day in body if verifier.weekday(day) >= 5])
-    return ((0, 4, len(body) - weekend), (5, 6, weekend))
-
-
-def test_the_markets_one_width_withheld_publish_and_load(tmp_path: pathlib.Path) -> None:
-    """Two weekend markets the band of one width kept back publish now, and the loader takes their censuses.
-
-    Each market's count of different days forces Wednesday rows, so its
-    Monday to Friday stood inside the band of one width past the capped
-    stretches -- 28 inside 18 to 35 for the first -- and 2af1f03
-    published both where the one width withheld them (the skeptic of the
-    review's second round: seven of 200 seeded columns lost so). The
-    halves searched apart certify with Monday to Friday at its least
-    alone and a weekend band past the least weekend these markets hold
-    nowhere near, so both publish; and the loader, which asked the band
-    of width nought, refused them. Red when the one width is taken again
-    (withheld), and when the loader asks it (refused).
-    """
-    for seed, midweek in ((2118, 30), (2105, 35)):
-        cells = _weekend_market(seed, midweek)
-        described, decided = _decided(cells)
-        halves = _halves(cells, described)
-        question = _withholding_question(cells)
-        widest = calendar_certificate.bands(*question)
-        assert calendar_certificate.in_band(halves, calendar_certificate._narrowed(widest, 0, 0)), halves
-        assert decided.withheld is not None and decided.withheld.holds
-        assert not calendar_certificate.in_band(halves, decided.withheld), (halves, decided.withheld)
-        assert described.details["weekday_census"], (seed, decided.reason)
-        text = "visit\n" + "".join(f"{cell}\n" for cell in cells)
-        loaded = kpi_shapes.describe(tmp_path / f"market-{seed}", "market", text, 11)
-        assert loaded.block("visit")["weekday_census"] == described.details["weekday_census"]
-
-
-def test_every_table_the_half_bands_lay_out_meets_what_a_reader_holds() -> None:
-    """Each class of the markets and the log gets a table inside its band that the verifier passes, or is residue the rank facts cap.
-
-    The verifier shares no code with the network. For each class the
-    withholding asks -- a knot day, or one stretch's half of the week --
-    a table is laid out from the band pair taken, weekend band first, and
-    checked day by day against what a reader holds: its rank facts, its
-    count of different days, the line on the class's day, and its two
-    half totals inside the band that laid it out. A class no table of
-    either band reaches must lie in a stretch the rank facts keep below
-    the line. Red when a pooled class's halves are swapped (a table
-    outside its band).
-    """
-    laid = residue = 0
-    for name, build in _HALF_BY_HALF:
-        cells = build()
-        described, decided = _decided(cells)
-        answer = decided.withheld
-        assert answer is not None and answer.holds, name
-        block = dict(described.details, n_present=described.n_present, n_distinct=described.n_distinct, weekday_census=[])
-        question = _withholding_question(cells)
-        facts = calendar_certificate._pooled(calendar_certificate._halves_facts(calendar_certificate.facts_of(
-            *question[:9], calendar_certificate._HALVES, -1, question[9],
-        )))
-        size = facts.body
-        sides = [
-            ((size - answer.weekend[1], size - answer.weekend[0]), answer.weekend),
-            (answer.weekdays, (size - answer.weekdays[1], size - answer.weekdays[0])),
-        ]
-        reader = verifier.reader_facts(dict(block, weekday_census=[{"first": 0, "last": 6, "count": size}]), 11)
-        for klass in facts.keys:
-            take = {klass: 1}
-            found = False
-            for top in sides:
-                table = calendar_certificate._census_table(facts, take, {klass[1]: (11, size)}, {}, {}, 0, 0, [0], tuple(top))
-                if table is None:
-                    continue
-                held = dict(calendar_certificate._laid_out(facts, table, take))
-                weekdays = sum(cells for day, cells in held.items() if verifier.weekday(day) < 5)
-                groups = [{"first": 0, "last": 4, "count": weekdays}, {"first": 5, "last": 6, "count": size - weekdays}]
-                checked = verifier.reader_facts(dict(block, weekday_census=groups), 11)
-                checked["entry"] = 0
-                assert verifier.table_problems(checked, held, facts.classes[klass][0]) == [], (name, klass)
-                assert top[0][0] <= weekdays <= top[0][1] and top[1][0] <= size - weekdays <= top[1][1], (name, klass)
-                found = True
-                laid += 1
-                break
-            if not found:
-                assert reader["stretch_most"][klass[0]] < 11, (name, klass)
-                residue += 1
-    assert laid > 0 and residue > 0, (laid, residue)
-
-
-def test_bands_taken_at_the_least_uncertified_fail_the_brute_force(monkeypatch: pytest.MonkeyPatch) -> None:
-    """The power control: every withholding taken as certified at each half's least, and the brute force finds withheld sets confining days.
-
-    The brute force judged every band search green; a checker that
-    cannot fail proves nothing. Take each half's band at its least alone
-    and call it certified whatever its certificate says, and a tiny
-    body's withheld tables confine a set of days the facts alone do not:
-    the 46th draw of the battery's first seed, the first of its 600 so
-    read (four of 459 over seeds 4 and 5, measured). Red when `pins_of`
-    stops reading a withheld set, or the battery stops asking the
-    producer's answer.
-    """
-    shipped = calendar_certificate.withholding
-
-    def at_least(*question: object) -> calendar_certificate.Withholding:
-        least = calendar_certificate._at_widths(calendar_certificate.bands(*question), 0, 0, 0)
-        return calendar_certificate.Withholding(True, "", least.weekend, least.weekdays, 0)
-
-    monkeypatch.setattr(calendar_certificate, "withholding", at_least)
-    totals = withholding_battery(50, 0)
-    monkeypatch.setattr(calendar_certificate, "withholding", shipped)
-    assert totals["withheld_unsound"] > 0, totals
-
-
-# -- the owner's accepted limit of 2026-09-30: a withheld census may say a half holds 1 to 10 --
+    build = dict(_HALF_BY_HALF)[name]
+    groups = _published_and_met(tmp_path, name.replace(" ", "_"), build())
+    assert groups and all(calendar_rules.calendar_floor_ok(count, 11) for _first, _last, count in groups), groups
 
 
 # The critic's moves: whole Mondays of May to the Saturday after, then

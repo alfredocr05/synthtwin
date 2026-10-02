@@ -1390,8 +1390,14 @@ rather than in ISO:
   to the line less one of is printed as fewer than the line, never as
   the number, and the verdict stands (plan P4-D347). The file's census
   is counted here, never PRODUCED: both re-descriptions of the file
-  skip the census producer, so no validate run asks the certificate of
-  WC8. A description publishing `[]` obliges nothing and lists nothing.
+  skip the census producer, so no validate run asks the producer's
+  rules. THE CELLS THE CENSUS COUNTED (plan P4-D365): a cell that does
+  not read under the published member but reads under the joint ISO
+  reading, in a column whose member is one of its two forms, is counted
+  on its day, because the producer folded it into that member (plan
+  P4-D250) and its census counted it there; before, the source missed
+  its own census by such a cell. A description publishing `[]` obliges
+  nothing and lists nothing.
 - each of the four is LISTED where the column's member cannot show that
   convention at all: the widths on a member of fixed field width, the
   name styles outside the two textual members, the marker outside

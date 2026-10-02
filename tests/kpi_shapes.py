@@ -579,11 +579,25 @@ def lone_count_shapes() -> "dict[str, tuple[list[str], list[list[str]], list[str
     }
 
 
+# The leaves of a census group that name a BIN, never a count of rows: a
+# group `{"first": 1, "last": 1, "count": 30}` of the weekday census is
+# Tuesday, and its 1 is Tuesday's index (plan P4-D365; the K-2B-48
+# counter read it as a count of one once the census published more).
+CENSUS_INDEX_KEYS = ("first", "last")
+
+
 def ones_in(block: object, path: str = "") -> "list[str]":
-    """Every numeric leaf equal to 1 inside a description block, by path."""
+    """Every numeric leaf equal to 1 inside a description block, by path.
+
+    A census group's bin indices (`CENSUS_INDEX_KEYS`, in a mapping that
+    also holds a `count`) are not counts and are skipped.
+    """
     out: "list[str]" = []
     if isinstance(block, dict):
+        grouped = "count" in block and all(key in block for key in CENSUS_INDEX_KEYS)
         for key in sorted(block):
+            if grouped and key in CENSUS_INDEX_KEYS:
+                continue
             out += ones_in(block[key], f"{path}/{key}")
     elif isinstance(block, list):
         for place, item in enumerate(block):

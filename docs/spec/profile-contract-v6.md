@@ -1902,13 +1902,14 @@ contract:
    widening it to arbitrary strings would be exactly the hole that lets
    a source-derived value into a sentence and be rebuilt successfully.
 
-**The census.** The table holds 84 forms and 105 argument positions.
-Of those, 78 are whole numbers, 5 are package words, 17 are nested
+**The census.** The table holds 83 forms and 104 argument positions.
+Of those, 77 are whole numbers, 5 are package words, 17 are nested
 forms, and 5 are bound affix strings. No position is a string of any
 other kind. The weekday census (landing 3b.1, plan P4-D355) added the
 eleven forms NF68 to NF78 and seven whole-number positions, each the
 census line, and its review retired three of the forms with one of
-those positions (plan P4-D359); plan P4-D357 A added the
+those positions (plan P4-D359), and the weekday guard drop a fourth,
+NF73, with another (plan P4-D365); plan P4-D357 A added the
 eight forms NF79 to NF86 and no position, and plan P4-D356 the form NF87
 and no position.
 
@@ -2126,13 +2127,12 @@ and why the sentence that cannot be withdrawn now has NF61 to say.
 | `weekday_census_counts_the_weekend_together` | 1 | setting (census line) |
 | `weekday_census_shows_no_count_below_the_line` | 1 | setting (census line) |
 | `weekday_census_withheld_could_be_narrowed` | 1 | setting (census line) |
-| `weekday_census_withheld_too_few_repeats` | 1 | setting (census line) |
 | `said_read_as_dates` | 1 | floored against `n_present` |
 | `said_read_as_dates` | 2 | package word |
 | `said_written_as_numbers` | 1 | sum `n_numeric` + `n_out_of_range` + `n_contradictory` |
 | `said_written_as_numbers` | 2 | key `n_present` |
 
-**Two of those 96 positions are stated here and emitted by no producer
+**Two of those 95 positions are stated here and emitted by no producer
 this version ships**: argument 1 of `remark_every_number_is_different`
 and of `remark_every_value_is_different`, which
 `tests/test_p4d27_note_grammar_matches_the_code.py` carries as named
@@ -3737,32 +3737,33 @@ carried by a block publishing entry 3.
 > which days of the week this column's values fall on is counted over the values between its two tail boundaries: Monday to Friday together, because one of them holds fewer than «1» rows, and Saturday and Sunday together
 
 **NF71. `weekday_census_shows_no_count_below_the_line` — what a weekday
-census does not show** — arity 1. Argument 1: the census line. A remark,
+census counts** — arity 1. Argument 1: the census line. A remark,
 carried beside NF68, NF69 or NF70 by every block publishing a census:
-it states the full-fill certificate (WC8) in the words a reader acts on.
+the counts are of days of the week and never of one date, each group
+counted holding rows on at least three different dates (the producer's
+few-dates rule) and each count nought or at least the line. Reworded by
+plan P4-D365: it stated the full-fill certificate, retired with WC8.
 
-> these counts show no count below «1» rows of any set of dates that the rest of this description does not already show
+> these counts are of days of the week and never of one date: every group counted holds rows on at least three different dates, and every count is nought or at least «1» rows
 
-**NF73, NF74, NF76 and NF78 — why a column of dates publishes no weekday
+**NF74, NF76 and NF78 — why a column of dates publishes no weekday
 census**, one publication note per withholding (landing 3b.1, its review
 of 2026-09-28, plan P4-D359). A withholding the published numbers alone
-decide says why in its own sentence: NF73
-`weekday_census_withheld_too_few_repeats`, NF76
+decide says why in its own sentence: NF76
 `weekday_census_withheld_two_spellings` (the published forms may write a
 date two ways) and NF78 `weekday_census_withheld_no_tails`. Every
-withholding the table's own numbers decide is said in ONE sentence,
-NF74 `weekday_census_withheld_could_be_narrowed`, because naming the
-rule that fired would tell a reader what it saw. NF73 and NF74 take one
-argument, the census line; NF76 and NF78 take none. The forms
+withholding the table's own numbers decide -- among them the producer's
+few-dates and room rules (plan P4-D365) -- is said in ONE sentence,
+NF74 `weekday_census_withheld_could_be_narrowed`, kept by plan P4-D365
+under the owner's rule that a guard goes only at a high price. NF74
+takes one argument, the census line; NF76 and NF78 take none. The forms
 `weekday_census_withheld_no_grouping`,
 `weekday_census_withheld_a_few_dates` and
 `weekday_census_withheld_two_storages` are RETIRED: each named a rule
 the table's own numbers decide, and the first told a reader holding the
-count of different days that a weekend held one to ten rows.
-
-**NF73. `weekday_census_withheld_too_few_repeats`** — arity 1.
-
-> the days of the week this column's values fall on are not counted: its dates repeat too little for any date to hold «1» rows
+count of different days that a weekend held one to ten rows. NF73
+`weekday_census_withheld_too_few_repeats` is RETIRED with the ties
+refusal it said (plan P4-D365).
 
 **NF74. `weekday_census_withheld_could_be_narrowed`** — arity 1.
 
@@ -5375,7 +5376,7 @@ closed vocabularies below).
 | `month_name_styles` | object | one of the THIRTY-SIX joint style words → count | how many parsed cells wrote a month NAME in each joint style — case, length, field mark, and whether a comma followed the day — a name of May counted under the length its column's other cells of that case, mark and comma wrote, or as `either` where none did (P4-D133, P4-D139), under the disclosure rule of P4-D131; `{}` outside the two textual members, and where the census is withheld whole (landing 2b.6) |
 | `quarter_marker_case` | object | `upper` or `lower` → count | how many parsed cells wrote a quarter's marker as `Q` and how many as `q`, under the disclosure rule of P4-D131; `{}` outside `year-quarter`, and where the census is withheld whole (landing 2b.6) |
 | `zulu_case` | object | `upper` or `lower` → count | how many parsed cells wrote a zulu offset marker as `Z` and how many as `z`, under the disclosure rule of P4-D131; `{}` unless `utc_offsets` NAMES `Z`, and where the census is withheld whole (landing 2b.6) |
-| `weekday_census` | array | groups `{first, last, count}`, weekdays 0 (Monday) to 6 (Sunday) | how many cells between the two tail boundaries, both included, fall on each group of weekdays -- one of the three groupings WC4 names, each count nought or at least the census line; `[]` where no census is published, and always on a column that is not whole dates read on the local clock (landing 3b.1, WC1 to WC9) |
+| `weekday_census` | array | groups `{first, last, count}`, weekdays 0 (Monday) to 6 (Sunday) | how many cells between the two tail boundaries, both included, fall on each group of weekdays -- one of the three groupings WC4 names, each count nought or at least the census line; `[]` where no census is published, and always on a column that is not whole dates read on the local clock (landing 3b.1, WC1 to WC4 and WC6, plan P4-D365) |
 
 **Eight closed vocabularies stand in that table** — `format` with
 TWENTY members, `resolution` with FOUR, `time_precision` with SIX,
@@ -6336,7 +6337,7 @@ subset of the cells carrying ONE offset, so publishing it beside a
 POOLED `Z` would hand back in one field the count another field of the
 same block promises to withhold.
 
-**The weekday census, WC1 to WC9 (landing 3b.1, plans P4-D355 and P4-D359).** A
+**The weekday census, WC1 to WC4 and WC6 (landing 3b.1, plans P4-D355, P4-D359 and P4-D365).** A
 column of whole dates read on the local clock, not in the joint member,
 with both tails, may publish `weekday_census`: groups of weekdays
 covering Monday (0) to Sunday (6) in order, each once (WC1), each
@@ -6349,56 +6350,51 @@ empty weekdays one group of nought, where every weekday counts nought
 or at least the line; else Monday to Friday on their own and Saturday
 with Sunday, where those pass -- so Saturday or Sunday holds one to the
 line less one; else Monday to Friday together and Saturday with Sunday
--- so one of Monday to Friday does. A reader reads exactly that and
-nothing more from the grouping. No group is left one to the line less
-one once the cells its boundary and rung days hold for certain are
-taken out (WC5). The census stands only where the censuses of written
-forms give every date one text, so `n_distinct` counts days, and where a
-workbook's published cell classes do not show the column's values
-stored in two ways (WC6); where
-no non-zero group can be the count of a few single dates -- the least
-of its calendar days, its count and the reader's most different days,
-each less its knot days, below four (WC7); and where the FULL-FILL
-CERTIFICATE holds (WC8): every day of a counted weekday can hold the
-line in some table meeting the whole description and what the grouping
-tells, or lies in a stretch the rank facts already hold below the line,
-where the census allows every arrangement stage 3's facts allow. A
-FORM HOLE is a day no cell can be written on under the forms WC6 lets
-stand: where the width census's one word shows one field alone
-(`first-field-*`, `second-field-*`), every day whose other field is
-below ten, and where the month-name census's one word has the length
-`either`, every day outside May. A PLACEHOLDER HOLE is a placeholder
-day `sentinel_verdicts` publishes as `read_as_missing` between the two
-boundaries: every cell written on it is counted absent. A DECLARED
-HOLE is a day between the two boundaries whose one written form is a
-published absent spelling -- a `missing_by_source` key, or a day
-`settings.declared_missing_values.built_in_dates` names -- matched as
-the declaration rule matches. WC7 counts no hole among a group's
-calendar days and WC8 puts no cell on one; the producer and the loader
-ask both with exactly these holes. The producer asks WC8 on the body's
-real count of different days; the loader asks it on the reader's bounds
-read from `n_distinct` and the tails, a relaxation, and refuses a census
-that fails it. A WITHHOLDING IS HELD TO THE SAME RULE (WC9): being told
-a census is withheld tells a reader the table is one the rules
-withhold, so every withholding the table's own numbers decide is said in
-one sentence, and it is published only where the tables it always
-withholds -- those whose weekend, or whose Monday to Friday together,
-lies in its BAND, from the larger of one and the least any table of the
-rest of the description holds there through that and some rows more,
-each half's rows more at most the census line plus the most that half
-of the week can hold in the stretches the rank facts keep below the
-line, the pair fewest in sum that certifies, searched as though a wider
-band never certified less, the fewer Monday to Friday rows first where
-two tie -- have a table
-putting the line on a day of every class, or leave the class residue
-whose every arrangement the rest of the description allows; where the
-widest pair does not, and neither does each half's least plus what its
-capped stretches hold, the census is withheld whatever the table holds.
-A census whose weekend or Monday to Friday holds that least exactly,
-which every band holds, is refused (WC9). A
-published census carries two remarks: how its days are grouped, and
-that it shows no count below the line of any set of dates the rest of
-the description does not already show.
+-- so one of Monday to Friday does. The census stands only where the
+censuses of written forms give every date one text, so `n_distinct`
+counts days, and where a workbook's published cell classes do not show
+the column's values stored in two ways (WC6). The loader holds a
+published census to these rules and to no other: it is a function of
+the census, the body, the line and the published forms, and walks no
+day.
+
+WHAT THE PRODUCER WITHHOLDS BESIDE THEM (plan P4-D365, under the
+owner's principle of 2026-10-01 that the threat is a HIPAA exposure and
+never a reader rebuilding counts from a description) is what no twin
+can meet, decided on the table's own dates and so not checkable on
+load. A census is withheld where a non-empty group holds fewer than
+three different dates of the body, or where two or more groups are
+non-empty and they hold fewer than seven different dates each on
+average: there the day pass meets the census only by splitting a date's
+rows across dates, and the twin holds more different values than the
+column. And it is withheld where the description publishes a HOLE
+between the body's first and last day and a non-empty group has no free
+day -- every one of its days that is no hole holds a date -- while one
+of its dates holds a single row: a one-row date the day pass moves is
+left empty, and with no free day the twin holds fewer different values
+than the column. A FORM HOLE is a day no cell can be written on under
+the forms WC6 lets stand: where the width census's one word shows one
+field alone (`first-field-*`, `second-field-*`), every day whose other
+field is below ten, and where the month-name census's one word has the
+length `either`, every day outside May. A PLACEHOLDER HOLE is a
+placeholder day `sentinel_verdicts` publishes as `read_as_missing`
+between the two boundaries: every cell written on it is counted absent.
+A DECLARED HOLE is a day between the two boundaries whose one written
+form is a published absent spelling -- a `missing_by_source` key, or a
+day `settings.declared_missing_values.built_in_dates` names -- matched
+as the declaration rule matches. A body date on a hole withholds the
+census, and no twin date stands on one. Every withholding the table's
+own numbers decide is said in one sentence (NF74). The full-fill
+certificate (WC8), its withholding's certificate and bands (WC9), its
+20,000-arrangement cap, the knot days' sure cells (WC5), the few-dates
+rule on a reader's bounds (WC7) and the refusal of a body too seldom
+repeated for any date to hold the line are RETIRED by plan P4-D365:
+each guarded against a reader combining published facts, and together
+they withheld 366 of 1,147 measured censuses, left the twins' weekday
+share .123 from the real one where .036 is reached without them, and
+spent 1,159 s describing what takes 67 s. A published census carries two
+remarks: how its days are grouped, and that its counts are of days of
+the week and never of one date (NF71).
 
 **A consequence, stated rather than left to be discovered.** The
 canonical `datetime` form carries seconds and no fractional part, so
@@ -12073,11 +12069,7 @@ it answers to.
 | WC2 | every group counts nought or at least `max(2, small_cell_floor)` | yes |
 | WC3 | a non-empty census stands only on a column of whole dates read on the local clock, not in the joint member, with both tails, and adds up to `P - low_tail.rows - high_tail.rows` | yes |
 | WC4 | the grouping is one of the menu's three: each weekday alone; Monday to Friday alone with `[Sat-Sun]` non-zero; `[Mon-Fri]` non-zero with `[Sat-Sun]` | yes |
-| WC5 | no non-zero group less the cells its knot days hold for certain -- `le - lt` of each boundary and rung day in it, at least one -- counts one to the line less one | yes |
 | WC6 | the five censuses of written forms give every date one text: each names at most one form holding every parsed cell, and a member that can show a width or a month name names its one form; and a workbook's published cell classes show at most one value class holding cells | yes |
-| WC7 | every non-zero group can hold at least four dates besides its knot days: the least of its calendar days between the boundaries that are not holes (form, placeholder or declared), its count and the reader's most different days less the other knot-free non-zero groups, each less its knot days | yes |
-| WC8 | the full-fill certificate holds on the reader's bounds and the holes: every class of a counted weekday is certified by a witness table, or is residue whose every stage-3 configuration the census allows, the stage-3 side asked with no census information at all, its empty weekdays included (method of plan P4-D355, P4-D359) | yes |
-| WC9 | neither the weekend nor Monday to Friday together lies in its BAND: from the larger of one and the least that total holds over the tables of the rest of the description, through that and some rows more, each half's at most the census line plus the most that half of the week can hold in the stretches the rank facts keep below the line, the pair fewest in sum whose always-withheld tables are certified, searched as though a wider band never certified less, fewer Monday to Friday rows first on a tie; the loader refuses a total at that least, which every such band holds (plan P4-D359) | yes |
 
 <!-- anchor 3b-D1 (P4-D365) -->
 <!-- anchor 3b-D0 (P4-D366) -->
@@ -14647,7 +14639,6 @@ nested forms, 5 bound affix strings.
 | NG69 | `weekday_census_counts_the_weekend_together` | 1 |
 | NG70 | `weekday_census_counts_the_weekdays_together` | 1 |
 | NG71 | `weekday_census_shows_no_count_below_the_line` | 1 |
-| NG73 | `weekday_census_withheld_too_few_repeats` | 1 |
 | NG74 | `weekday_census_withheld_could_be_narrowed` | 1 |
 | NG76 | `weekday_census_withheld_two_spellings` | 0 |
 | NG78 | `weekday_census_withheld_no_tails` | 0 |

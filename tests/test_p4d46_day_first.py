@@ -62,6 +62,16 @@ def _described(
     return document, contract.load_profile(f"{written}")
 
 
+def _own(remarks: "list[object]") -> "list[object]":
+    """A block's remarks less the two its weekday census carries (NF68 to NF71).
+
+    Since plan P4-D365 these columns publish their weekday census, whose
+    remarks stand beside the reading's; the pins below are the reading's.
+    """
+    census = ("which days of the week this column's values fall on", "these counts are of days of the week")
+    return [remark for remark in remarks if not f"{remark}".startswith(census)]
+
+
 def _ambiguous(count: int) -> "list[str]":
     """Slashed cells both readings parse: the day is never above nine."""
     return [
@@ -78,7 +88,7 @@ def test_without_the_option_nothing_moves() -> None:
     block = document["columns"][0]
     assert block["format"] == "month-first-date"
     assert block["n_unparsed"] == 0
-    assert block["remarks"] == [
+    assert _own(block["remarks"]) == [
         taxonomy.note(taxonomy.REMARK_MONTH_FIRST)
     ]
     assert document["settings"]["day_first"] is False
@@ -203,7 +213,7 @@ def test_exactly_one_remark_and_it_is_the_evidence_one() -> None:
         _ambiguous(99) + ["25/12/2024"],
     ):
         document, _loaded = _described(values, True)
-        remarks = document["columns"][0]["remarks"]
+        remarks = _own(document["columns"][0]["remarks"])
         assert len(remarks) == 1
         assert f"{remarks[0]}".startswith("read ")
         assert "the profile has the month and day the wrong way round" not in (
@@ -233,7 +243,7 @@ def test_a_column_with_no_slashes_is_untouched_by_the_option() -> None:
     document, _loaded = _described(values, True)
     block = document["columns"][0]
     assert block["format"] == "iso-date"
-    assert block["remarks"] == []
+    assert _own(block["remarks"]) == []
 
 
 # -- what the file says it was written under --------------------------

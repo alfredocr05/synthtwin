@@ -6378,12 +6378,12 @@
   },
   {
    "id": "K-S3-32",
-   "phase_stage": "Stage 3b landing 3b.1 (plan P4-D355)",
+   "phase_stage": "Stage 3b landing 3b.1 (plan P4-D355), floor-only since landing 3b.G (plan P4-D365)",
    "category": "PRIVACY",
    "headline": false,
-   "name": "No calendar count below the floor: every census certified",
+   "name": "No calendar count below the floor",
    "status": "GREEN",
-   "rule": "the pinned nodes of tests/test_stage3b_gate.py pass: every census of the 1,000-row battery passes the independent verifier witness by witness and day by day; over 400 tiny bodies and 200 larger ones the brute force finds no published census confining a set of days below the line, no witness that is not a table of the facts and no certified class no table fills; each rule's seeded witness publishes what the rule derives (seven, among them `[]` for ties, few dates and a count of different days that is not the real one); a declared missing day is a hole no witness stands on, and so is a day the censuses of written forms leave empty -- dates all past the ninth written `m/d/yyyy` and `d/m/yyyy`, two years of October to December written either way, and dates all in May are withheld, their census asked blind to the holes has witnesses on them the verifier finds and the loader refuses, while a heavy column past the ninth publishes its seven counts and passes the verifier with a stretch of holes between two knot days, and one autumn written `d/m/yyyy` has no hole and publishes -- and WC7 counts no hole among a group's dates; a placeholder day the block reads as missing is a hole too -- no witness stands on it, the verifier finds the witnesses asked blind to it, and a census it leaves few dates is withheld and refused on load -- while a placeholder day kept as a value is none; a date written two ways publishes no census and its loader refuses one, and one written with a trailing blank that no census of written forms shows publishes none; the reader's fewest days take every unparsed cell away; a workbook storing dates two ways publishes none; a validate run never enters the certificate; and a MISSED census line prints no group count below the line; and the third review's (plan P4-D359): the baseline holds no census information, a withholding is certified and names no rule the table decides, no report gives a kept-back count back by subtraction, the producer, loader, generator, validator and oracle hold one set of holes and one storage rule, and a refusal walks no day",
+   "rule": "the sixteen pinned nodes pass: every census of the 1,000-row battery publishes counts each nought or at least the line, adding up to the body, and the loader holds a census to that shape alone (WC1 to WC4 and WC6), the four descriptions the retired WC5, WC7, WC8 and WC9 refused now loading; a MISSED census line prints no group count below the line, gives none back by subtraction and names no short group where that would give one back, nor does a short written form or the verdict beside it; a withholding the table decides is said in one shared sentence naming no rule; a date written two ways, with a trailing blank, or behind ten copies of one impossible date publishes no census, and a census copied onto such a description is refused; a workbook storing a column two ways publishes none and its copied census is refused; a validate run never produces a census; and neither the producer nor the loader walks a day of a span of thousands of years",
    "rule_kind": "exact",
    "expected": {
     "pinned_nodes_failing": 0
@@ -6392,93 +6392,34 @@
    "source": "pytest",
    "nodes": [
     "tests/test_stage3b_gate.py::test_the_battery_keeps_its_weekday_census",
-    "tests/test_stage3b_gate.py::test_the_certificate_survives_the_brute_force",
-    "tests/test_stage3b_gate.py::test_each_rule_publishes_what_it_derives",
-    "tests/test_stage3b_gate.py::test_a_declared_missing_day_is_a_hole_no_witness_stands_on",
-    "tests/test_stage3b_gate.py::test_a_date_written_two_ways_publishes_no_census_and_its_loader_refuses_one",
-    "tests/test_stage3b_gate.py::test_a_workbook_storing_dates_two_ways_publishes_no_census",
-    "tests/test_stage3b_gate.py::test_validating_a_file_never_enters_the_certificate",
-    "tests/test_stage3b_gate.py::test_a_day_the_form_censuses_leave_empty_is_a_hole",
-    "tests/test_stage3b_gate.py::test_a_column_with_form_holes_publishes_where_every_open_day_can_hold_the_line",
-    "tests/test_stage3b_gate.py::test_a_day_first_column_with_no_hole_between_its_boundaries_publishes",
-    "tests/test_stage3b_gate.py::test_a_group_left_few_dates_by_its_holes_is_withheld",
-    "tests/test_stage3b_gate.py::test_a_placeholder_day_read_as_missing_is_a_hole_no_witness_stands_on",
-    "tests/test_stage3b_gate.py::test_a_placeholder_day_the_block_keeps_is_no_hole",
-    "tests/test_stage3b_gate.py::test_a_placeholder_day_between_the_boundaries_is_a_hole_the_loader_holds",
-    "tests/test_stage3b_gate.py::test_the_reader_leaves_every_unparsed_cell_out_of_its_fewest_days",
-    "tests/test_stage3b_gate.py::test_a_day_written_with_a_trailing_blank_is_two_spellings",
+    "tests/test_contract_loader.py::test_the_weekday_census_is_held_to_its_shape_alone",
     "tests/test_stage3b_gate.py::test_a_missed_weekday_group_below_the_line_prints_no_count",
-    "tests/test_stage3b_weekday_review.py::test_a_census_refused_on_its_repeats_walks_no_day_of_its_span",
-    "tests/test_stage3b_weekday_review.py::test_the_loaders_refusal_walks_no_day_of_its_span",
-    "tests/test_stage3b_weekday_review.py::test_a_weekday_counted_empty_is_no_part_of_the_baseline",
-    "tests/test_stage3b_weekday_review.py::test_ten_copies_of_one_impossible_date_hide_no_second_spelling",
-    "tests/test_stage3b_weekday_review.py::test_a_published_absent_day_is_a_hole_the_loader_holds",
-    "tests/test_stage3b_weekday_review.py::test_a_census_beside_values_a_workbook_publishes_stored_two_ways_is_refused",
-    "tests/test_stage3b_weekday_review.py::test_a_withheld_census_names_no_rule_the_table_decides",
-    "tests/test_stage3b_weekday_review.py::test_no_withholding_confines_a_set_of_days",
     "tests/test_stage3b_weekday_review.py::test_a_missed_weekday_line_gives_no_count_back_by_subtraction",
     "tests/test_stage3b_weekday_review.py::test_naming_the_short_groups_is_withheld_where_it_would_give_a_count_back",
     "tests/test_stage3b_weekday_review.py::test_a_written_form_below_the_line_gives_no_count_back_by_subtraction",
-    "tests/test_stage3b_weekday_review.py::test_a_column_of_few_dates_certifies_its_withholding",
-    "tests/test_stage3b_weekday_review.py::test_the_day_pass_keeps_every_date_off_the_form_holes",
-    "tests/test_stage3b_weekday_review.py::test_a_file_with_a_date_on_a_form_hole_misses_the_census",
-    "tests/test_stage3b_weekday_review.py::test_every_certified_fixture_generates_twins_that_meet_it",
-    "tests/test_stage3b_weekday_review.py::test_the_oracle_reads_an_absent_day_under_the_columns_own_member"
+    "tests/test_stage3b_weekday_review.py::test_no_verdict_beside_a_short_written_form_gives_its_count_back",
+    "tests/test_stage3b_weekday_review.py::test_a_withheld_census_names_no_rule_the_table_decides",
+    "tests/test_stage3b_gate.py::test_a_date_written_two_ways_publishes_no_census_and_its_loader_refuses_one",
+    "tests/test_stage3b_gate.py::test_a_day_written_with_a_trailing_blank_is_two_spellings",
+    "tests/test_stage3b_weekday_review.py::test_ten_copies_of_one_impossible_date_hide_no_second_spelling",
+    "tests/test_stage3b_gate.py::test_a_workbook_storing_dates_two_ways_publishes_no_census",
+    "tests/test_stage3b_weekday_review.py::test_a_census_beside_values_a_workbook_publishes_stored_two_ways_is_refused",
+    "tests/test_stage3b_gate.py::test_validating_a_file_never_produces_a_census",
+    "tests/test_stage3b_weekday_review.py::test_a_census_over_thousands_of_years_walks_no_day_of_its_span",
+    "tests/test_stage3b_weekday_review.py::test_the_loaders_check_walks_no_day_of_its_span"
    ],
    "test": null,
    "driver": null,
    "pin_strength": "EXACT",
-   "measured_on": "tests/test_stage3b_gate.py: the 1,000-row battery, 600 brute-force bodies, seven seeded witnesses, the review's seven and the second review's seven",
-   "evidence": "Each checker imports nothing of the calendar code (tests/calendar_certificate_verify.py, tests/calendar_certificate_brute.py). b994990 treated only declared missing days as holes, so it published 104 visits past the ninth (`{first-field-unpadded}`) and 149 dates of three Mays (`either`) with every open day pinned between 1 and the line less one for a reader holding the form censuses -- 41 of 41 and 71 of 71 -- while the verifier passed every witness. Withdrawing any rule the gate's mutation record lists turns a pinned node red. 128a30b left the second-field half and the day-first reading unwitnessed: withdrawing the second-field half published 104 visits past the ninth written `d/m/yyyy` and two years of October to December written `m/d/yyyy` with every open day pinned, 41 of 41 and 51 of 51, and every witness on a column whose body ran from December 1899 stood on its placeholder day. 2af1f03 published 1,035 business dates with every business day of January 2 to 15 pinned at one row by the census's empty weekend, withheld one Saturday row in a sentence telling a reader the weekend held one to ten, and printed a Sunday count of 3 by subtraction (plan P4-D359).",
-   "nodes_min_collected": 51,
+   "measured_on": "tests/test_stage3b_gate.py's 1,000-row battery and the weekday witnesses of the gate, the review and the loader",
+   "evidence": "Floor-only since plan P4-D365: the full-fill certificate, its bands, cap and ties refusal and WC5, WC7, WC8 and WC9 guarded against a reader rebuilding counts, which the owner's principle of 2026-10-01 takes off the table; their price was 366 of 1,147 test censuses withheld, a weekday-share error of .123 against .036 and a describe of 1,159 s against 67 s. What stays is the floor on every printed count, what a report prints, one spelling per day and one storage. Before, the entry pinned the certificate's verifier and brute force (tests/calendar_certificate_verify.py and tests/calendar_certificate_brute.py, deleted with it).",
+   "nodes_min_collected": 20,
    "value_at": {
     "commit": "e689072",
     "date": "2026-09-28",
     "measured_by": "tools/measurements/kpi_run.py --slow --only K-S3-32 --print-values",
     "value": {
      "pinned_nodes_failing": 0
-    }
-   }
-  },
-  {
-   "id": "K-S3-33",
-   "phase_stage": "Stage 3b landing 3b.1 (plan P4-D355)",
-   "category": "SPEED",
-   "headline": false,
-   "name": "The weekday certificate's cost stays bounded",
-   "status": "GREEN",
-   "rule": "over the 1,000-row battery's six date columns at a floor of eleven, the network solves the full-fill certificate and its withholding's certificate and bands spend on one census: at most 1,000 where no residue is checked and at most 20,000 where it is, over at least six censuses; and on one admissions column at 2,500 to 40,000 rows (its driver), counted machine-free, the certificate's network solves in describe and the day pass's rank moves and day searches in generate each grow less than 2.5 times over every doubling",
-   "rule_kind": "at_most",
-   "expected": {
-    "solves_plain": 1000,
-    "solves_residue": 20000,
-    "censuses": 6,
-    "describe_growth": 2.5,
-    "generate_growth": 2.5
-   },
-   "key_kinds": {
-    "censuses": "at_least",
-    "describe_growth": "ratio_below",
-    "generate_growth": "ratio_below"
-   },
-   "tier": "FAST",
-   "source": "pytest",
-   "nodes": [],
-   "test": "tests/test_kpi_ledger.py::test_k_s3_33",
-   "driver": "tools/measurements/kpi_weekday_census.py --kpi",
-   "pin_strength": "NONE",
-   "measured_on": "calendar_certificate.Verdict.solves on the gate's battery; calls of calendar_certificate._solve in describe and of the day pass's move and search functions in generate on tests/test_stage3b_gate.py's admissions column, seconds printed beside them and never judged",
-   "evidence": "The design's prototype certified the monthly visit in 7,814 solves and 42 s; the product's primal-dual solver with bucketed distances takes 3,907, and a census without residue at most 65 (one solve a class). First written in seconds, the ladder read 2.52 on generate under load at the 5,000-to-10,000 step where the counts read 1.77; describe's solves stay near 130 to 148 (two certificates a description) at every size. From e689072 (plan P4-D359) the withholding's certificate and its two bands are counted beside the census's, about doubling each; from 7d7ff45 it asks a class a stretch's half of the week and solves fewer; from 35ab8f5 it asks one width past the capped stretches first and solves a few more; from 67ba1de it searches each half's width on its own and solves more where residue is checked. From fecf1f5 the ladder empties the withholding's two caches too, so each size counts its own solves: 1.521 had read the battery's withholding at 10,000 rows as asked.",
-   "value_at": {
-    "commit": "fb2f67b",
-    "date": "2026-09-30",
-    "measured_by": "tools/measurements/kpi_run.py --slow --only K-S3-33 --print-values",
-    "value": {
-     "solves_plain": 126,
-     "solves_residue": 8713,
-     "censuses": 6,
-     "describe_growth": 1.085,
-     "generate_growth": 1.994
     }
    }
   },
@@ -6520,6 +6461,60 @@
      "stage3_differing": 0,
      "withheld": 4,
      "told_apart": 0
+    }
+   }
+  },
+  {
+   "id": "K-S3-35",
+   "phase_stage": "Stage 3b landing 3b.G, the weekday guard drop (plan P4-D365)",
+   "category": "STATS",
+   "headline": false,
+   "name": "A weekday census is published wherever its twin can meet it, and withheld where a group holds few dates",
+   "status": "GREEN",
+   "rule": "the twenty-three pinned nodes pass: a census is withheld where a non-empty group holds fewer than three different real dates or, over two or more non-empty groups, fewer than seven a group on average (seven sessions, one week, forty ties, one March and payroll on the 15th and the last day of 24 months), and where the published holes leave a group no free day while it holds a one-row date (every day of three Mays), and published otherwise -- the 1,001 different dates and the business days the ties refusal withheld, sixty ties, October to December between their holes, the schedules, clinics and markets the certificate, its cap and its bands withheld -- each published census met by its twins with nothing missed; the few-dates and room rules give their stated answers on hand-made bodies; no twin date stands on a hole a written form, a placeholder or an absent spelling publishes; a moment the date pass folds into the dates is counted by the validator where the census counted it, so the source meets its own census; and the extra review's four ISO dates and named width field come back exactly",
+   "rule_kind": "exact",
+   "expected": {
+    "pinned_nodes_failing": 0
+   },
+   "tier": "FAST",
+   "source": "pytest",
+   "nodes": [
+    "tests/test_stage3b_gate.py::test_each_rule_publishes_what_it_derives",
+    "tests/test_stage3b_gate.py::test_the_few_dates_rule_counts_the_real_dates_of_each_group",
+    "tests/test_stage3b_gate.py::test_the_room_rule_asks_only_where_holes_leave_no_free_day_for_a_one_row_date",
+    "tests/test_stage3b_gate.py::test_a_day_the_form_censuses_leave_empty_is_a_hole",
+    "tests/test_stage3b_gate.py::test_a_full_column_between_holes_with_one_row_dates_is_withheld",
+    "tests/test_stage3b_gate.py::test_a_day_first_column_with_no_hole_between_its_boundaries_publishes",
+    "tests/test_stage3b_gate.py::test_a_declared_missing_day_holds_no_twin_date",
+    "tests/test_stage3b_gate.py::test_a_placeholder_day_read_as_missing_is_a_hole_no_twin_date_stands_on",
+    "tests/test_stage3b_gate.py::test_a_placeholder_day_the_block_keeps_is_no_hole",
+    "tests/test_stage3b_gate.py::test_a_placeholder_day_between_the_boundaries_is_a_hole_the_loader_reads_only_for_its_shape",
+    "tests/test_stage3b_gate.py::test_a_column_with_unparsed_cells_publishes_and_its_twins_meet_it",
+    "tests/test_stage3b_gate.py::test_a_folded_moment_is_counted_where_the_census_counted_it",
+    "tests/test_stage3b_weekday_review.py::test_a_business_year_publishes_its_empty_weekend_and_its_twins_meet_it",
+    "tests/test_stage3b_weekday_review.py::test_a_published_absent_day_is_a_hole_the_producer_reads",
+    "tests/test_stage3b_weekday_review.py::test_the_day_pass_keeps_every_date_off_the_form_holes",
+    "tests/test_stage3b_weekday_review.py::test_a_file_with_a_date_on_a_form_hole_misses_the_census",
+    "tests/test_stage3b_weekday_review.py::test_every_published_fixture_generates_twins_that_meet_it",
+    "tests/test_stage3b_weekday_review.py::test_the_oracle_reads_an_absent_day_under_the_columns_own_member",
+    "tests/test_stage3b_weekday_review.py::test_the_schedules_the_certificate_withheld_publish_and_their_twins_meet_them",
+    "tests/test_stage3b_weekday_review.py::test_the_markets_publish_and_their_twins_meet_them",
+    "tests/test_extra_review_dates.py::test_four_iso_dates_come_back_as_four",
+    "tests/test_extra_review_dates.py::test_the_twin_keeps_the_named_width_field",
+    "tests/test_extra_round_disclosure.py::test_a_joint_reading_claimed_by_one_record_names_nobody"
+   ],
+   "test": null,
+   "driver": null,
+   "pin_strength": "EXACT",
+   "measured_on": "tests/test_stage3b_gate.py, tests/test_stage3b_weekday_review.py and the two extra-review files: the seeded witnesses, the form and placeholder holes, the folded moment and the published fixtures",
+   "evidence": "Measured on the guard drop with no rule (skep-weekday's 14 batteries, 1,255 censuses, 37 with a missed twin): fewer than three dates a group blocks 28 and withholds 55 good; with the mean of seven it blocks payroll too (6.9 a group, its twins 53 different days for 48) for 35 more. The May-only and past-the-ninth columns that missed filled every open day and held one-row dates; the room rule blocks those and withholds the full ones that met it, among them a heavy column past the ninth (its stated cost). Without the rules: k7 sessions 17 days for 9, one week a census missed by a row, three Mays 83 for 93, and the extra review's four dates 5 for 4.",
+   "nodes_min_collected": 48,
+   "value_at": {
+    "commit": "e689072",
+    "date": "2026-09-28",
+    "measured_by": "tools/measurements/kpi_run.py --slow --only K-S3-32 --print-values",
+    "value": {
+     "pinned_nodes_failing": 0
     }
    }
   },
