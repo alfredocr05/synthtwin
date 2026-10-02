@@ -66,9 +66,6 @@ import pytest
 import kpi_rules
 from synthtwin import cli, errors, generation, parsing, taxonomy, validation
 
-# The shipped default smallest group.
-FLOOR = 11
-
 
 # -- the pre-repair walk, carried whole -----------------------------------
 #

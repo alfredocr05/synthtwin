@@ -5849,7 +5849,8 @@ def _pool_readings(
     The walk spends `POOL_SEARCH_STEPS` less the ``spent`` its caller
     already charged, and every step is charged for the work it does
     (plan P4-D380): a reading one step and one more for every
-    `POOL_WORDS_A_STEP` words of totals it moves, and a table of the
+    `POOL_WORDS_A_STEP` words its big-number steps may move (the
+    population's width each, `_topped_up`), and a table of the
     conventions -- each value's placements, each state it reaches -- one
     step for every `POOL_CELLS_A_STEP` of them (`_placements`).
     """
@@ -5950,8 +5951,8 @@ def _placements(
     reading, so the amounts given them are taken in falling order and each
     resulting state is met once. Every step of the walk spends one of
     ``budget``, and at nought it stops; the table of the conventions this
-    builds, and every state the walk writes out, spend one more for every
-    `POOL_CELLS_A_STEP` conventions they hold (plan P4-D380).
+    builds, and every state the walk writes out, spend a step besides for
+    every `POOL_CELLS_A_STEP` conventions they hold (plan P4-D380).
     """
     slots: "list[tuple[int, int, int]]" = []
     for kind in range(len(kinds)):
