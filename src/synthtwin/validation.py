@@ -863,6 +863,19 @@ _NOT_CHECKABLE_TAIL_KEY_WITHHELD = (
     "cost the column its mean or spread; such a description says which on "
     "the side itself) (docs/spec/profile-contract-v6.md TL1, TL5 and 6.7a)"
 )
+# A LISTED DATE OR CLOCK TAIL is the one shape the sentence above does
+# not describe: it publishes the values it holds in place of its pair,
+# never its root-mean-square distance, and its mean only where that mean
+# would not settle a count below the floor (contract DT1; the taxonomy's
+# `_values_mean_pins`). Its two absent distances are listed with this
+# reason, and every other absent tail key keeps the one above.
+_NOT_CHECKABLE_LISTED_TAIL_DISTANCE = (
+    "the description's tail lists the values it holds in place of its "
+    "shape: a listed date or clock tail publishes no root-mean-square "
+    "distance, and no mean where the mean beside the listed values would "
+    "settle a count below the floor of the rows holding one of them "
+    "(docs/spec/profile-contract-v6.md DT1 and 6.7a)"
+)
 _NOT_CHECKABLE_SPELLING_ENVELOPE = (
     "the description's own permitted spellings settle nothing about how "
     "many different values a twin of it carries: the envelope the "
@@ -19887,12 +19900,15 @@ def _tail_listings(
         ):
             if published is not None:
                 continue
+            why = _NOT_CHECKABLE_TAIL_KEY_WITHHELD
+            if tail.values is not None and key != "values":
+                why = _NOT_CHECKABLE_LISTED_TAIL_DISTANCE
             listings += [
                 Listing(
                     column.name,
                     f"{group}.{side}_tail.{key}",
                     f"tails.{side}.{key}",
-                    _NOT_CHECKABLE_TAIL_KEY_WITHHELD,
+                    why,
                 )
             ]
     return listings

@@ -648,6 +648,92 @@ def test_the_summary_says_a_withheld_pair_is_withheld(
     assert "None" not in page, page
 
 
+def _thirty_by_six(texts: "list[str]") -> "list[str]":
+    """Thirty values, six cells each, in an order no column sorts.
+
+    Stepping by seven through the 180 places visits each once (seven and
+    180 share no factor), so the table carries no `row_order`.
+    """
+    flat = [texts[place // 6] for place in range(180)]
+    return [flat[(place * 7) % 180] for place in range(180)]
+
+
+@pytest.mark.parametrize("role", ["dates", "clock"])
+def test_a_listed_date_or_clock_tail_says_why_it_has_no_pair(
+    tmp_path: pathlib.Path, role: str
+) -> None:
+    """The quality report names the listing rule, not the format's limit.
+
+    THE SECOND SKEPTIC OF LANE G1 measured it: thirty days, six cells
+    each, at a floor of eleven. Each tail holds two values with twelve
+    rows, so it lists them (contract DT1), its root-mean-square distance
+    is never published beside a list, and its mean would settle six rows
+    on each value -- below the floor -- so it is withheld too
+    (`taxonomy._values_mean_pins`). The report printed for those four
+    absent distances the numeric sentence, "the two distances are
+    withheld only where this file format cannot hold them", which is
+    false of a list of dates. A listed date or clock tail now gets its
+    own reason, and a tail published by its pair, or by neither on a
+    description written before plan P4-D375, keeps the shared one.
+
+    MUTATION (run): listing the date and clock site's absent distances
+    with `_NOT_CHECKABLE_TAIL_KEY_WITHHELD` again, as at 50bc21e, turns
+    both cases red on the first reason asked; giving every absent date or
+    clock distance the new reason, listed or not, turns both red on the
+    older description's shared sentence.
+    """
+    if role == "dates":
+        first = datetime.date(2024, 1, 1)
+        texts = [(first + datetime.timedelta(days=step)).isoformat() for step in range(30)]
+    else:
+        texts = ["%02d:%02d" % divmod(8 * 60 + step, 60) for step in range(30)]
+    cells = _thirty_by_six(texts)
+    described = _described(tmp_path, role, cells)
+    block = described.document["columns"][0]
+    for side, held in (("low", texts[:2]), ("high", texts[-2:])):
+        tail = block[f"{side}_tail"]
+        assert tail["rows"] == 12 and tail["values"] == held, tail
+        assert tail["mean_distance"] is None and tail["rms_distance"] is None, tail
+    outcome = kpi_shapes.measure(described, _one_column("value", cells), "same.csv")
+    reasons = {
+        listing.subcheck: listing.reason
+        for listing in outcome.listings
+        if listing.subcheck.startswith("tails.")
+    }
+    expected = [
+        f"tails.{side}.{key}"
+        for side in ("low", "high")
+        for key in ("mean_distance", "rms_distance")
+    ]
+    assert sorted(reasons) == sorted(expected), reasons
+    for subcheck in expected:
+        reason = reasons[subcheck]
+        assert "withheld only where this file format cannot hold them" not in reason, reason
+        assert reason.startswith("the description's tail lists the values it holds"), reason
+        assert "DT1" in reason and "TL1" not in reason and "TL5" not in reason, reason
+    # A tail publishing NEITHER distance, as plan P4-D349 wrote one, lists
+    # its values key too, and all three keep the shared sentence.
+    before = kpi_shapes.written_before_p4d375(
+        _described(tmp_path, f"{role}-pair", _consecutive_dates(240)), ("low",)
+    )
+    assert before.document["columns"][0]["low_tail"]["values"] is None
+    older = kpi_shapes.measure(
+        before, _one_column("value", _consecutive_dates(240)), "older.csv"
+    )
+    shared = {
+        listing.subcheck: listing.reason
+        for listing in older.listings
+        if listing.subcheck.startswith("tails.low.")
+    }
+    assert sorted(shared) == [
+        "tails.low.mean_distance",
+        "tails.low.rms_distance",
+        "tails.low.values",
+    ], shared
+    for reason in shared.values():
+        assert "withheld only where this file format cannot hold them" in reason, reason
+
+
 # -- the contract shapes the two roles now admit ------------------------
 
 
