@@ -552,8 +552,11 @@ def test_nothing_that_varies_between_runs_is_written(
 # retired full-fill certificate held and now says the counts are of days
 # of the week and never of one date. Diffed against 659a1e2: that line
 # alone; no key arrives or leaves and no number moves.
+# AND AGAIN AT ITS REVIEW (item 4): the same line says "every group that
+# holds rows", not "every group counted"; diffed against fb257b0, that
+# line alone.
 GOLDEN_SHA256 = (
-    "aa07800e00ab17039c90cd1852610c61b82b204eea6938d58a5ba2dff3ed2365"
+    "1ce69835d6e68df14774f60f7be5169d2bd4aa4e09ccfa674e104af8edf69100"
 )
 
 

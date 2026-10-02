@@ -17023,13 +17023,19 @@ def _weekday_checks(
 
     THE CELLS THE CENSUS COUNTED, AND NO OTHER (plan P4-D365). A column
     read jointly whose rare ISO form the producer counted into the
-    commonest (plan P4-D250: one `2020-05-03T00:00:00` among 395 ISO
-    dates) is published WHOLLY in that form, and the census counted that
-    cell on its day. So a cell that does not read under the published
-    member but reads under the joint ISO reading, in a column whose
-    member is one of its two forms, is read here as the producer read
-    it: on its day (`_day_as_counted`). Before, the source itself missed
-    its own census by that one cell.
+    commonest (plan P4-D250: ten `2024-03-05T14:30:00` among 590 ISO
+    dates) is published WHOLLY in that form, and the census counted
+    those cells on their days. A column read under one ISO form from the
+    start leaves its few cells of the other form UNPARSED (one
+    `2024-03-05T14:30:00` among 599 ISO dates: `n_unparsed` 1), and its
+    census never counted them. Which of the two happened is the file's
+    own description's to say (`_folded_by_the_file`): only where it
+    parsed cells the member does not read -- its `n_unparsed` below the
+    present cells that fail the member -- is a cell that fails the
+    member read under the joint ISO reading, on its day
+    (`_day_as_counted`). Before the fold was read, the source missed its
+    own census by the folded cells; read for every column, by the
+    unparsed ones (review of landing 3b.G, item 2).
 
     A MISSED LINE KEEPS ITS VERDICT AND DROPS ANY NUMBER BELOW THE LINE
     (plan P4-D347): a group the file holds one to the line less one of
@@ -17059,15 +17065,22 @@ def _weekday_checks(
     holes = set(_published_holes(column, facts, low, high, declared_days))
     on_holes = 0
     bins = [0 for _ in range(calendar_rules.WEEKDAYS)]
+    failing: "list[str]" = []
+    days: "list[int]" = []
     for cell in _dates_the_file_reads(block, facts, cells):
-        day = _day_as_counted(cell, facts.parser_family)
-        if day is None:
+        read = parsing.parse_datetime(cell, facts.parser_family)
+        if read is None:
+            failing += [cell]
             continue
-        if low <= day <= high:
-            weekday = calendar_rules.weekday_of(day)
-            bins[weekday] = bins[weekday] + 1
-            if day in holes:
-                on_holes = on_holes + 1
+        days = [_weekday_day(read[0])]
+        on_holes = on_holes + _tallied(days, low, high, holes, bins)
+    if _folded_by_the_file(block, facts.parser_family, failing):
+        days = []
+        for cell in failing:
+            folded_day = _day_as_counted(cell)
+            if folded_day is not None:
+                days += [folded_day]
+        on_holes = on_holes + _tallied(days, low, high, holes, bins)
     found = calendar_rules.group_counts(census, bins)
     line = parsing.census_floor(floor)
     asked, shown, lines = _census_lines(
@@ -17239,22 +17252,72 @@ def _weekday_day(text: str) -> int:
     return parsing.days_from_civil(int(text[0:4]), int(text[5:7]), int(text[8:10]))
 
 
-def _day_as_counted(cell: str, member: str) -> "int | None":
-    """The day a census counted this cell on, or None (plan P4-D365).
+def _tallied(
+    days: "list[int]", low: int, high: int, holes: "set[int]", bins: "list[int]"
+) -> int:
+    """Count each day from `low` to `high` into its weekday's bin.
 
-    Read under the column's published member; where that fails and the
-    member is one of the joint ISO reading's two forms, under the joint
-    reading, which is the producer's fold of a rare form into the
-    commonest (plan P4-D250, `taxonomy._forms_as_published`): the cell
-    stands on the day it names either way.
-
-    Guarantees: accepts one cell and the published member; returns a day
-    number or None. Determinism: a function of the two. Raises nothing.
-    No I/O of any kind.
+    Returns how many of those days are holes. `bins` is grown in place.
     """
-    read = parsing.parse_datetime(cell, member)
-    if read is None and member in taxonomy.ISO_FORMS:
-        read = parsing.parse_datetime(cell, taxonomy.FORMAT_ISO_MIXED)
+    on_holes = 0
+    for day in days:
+        if low <= day <= high:
+            weekday = calendar_rules.weekday_of(day)
+            bins[weekday] = bins[weekday] + 1
+            if day in holes:
+                on_holes = on_holes + 1
+    return on_holes
+
+
+def _folded_by_the_file(
+    block: "dict[str, object]", member: str, failing: "list[str]"
+) -> bool:
+    """Whether the file's own description folded cells the member fails into it.
+
+    `failing` are the column's cells the published member does not read.
+    The producer folds a rare ISO form into the commonest only where it
+    read the column jointly (plan P4-D250, `taxonomy._forms_as_published`),
+    and then it counts those cells parsed; where it read the column
+    under one ISO form from the start, they are unparsed. So the fold
+    happened exactly where the description's `n_unparsed` is below the
+    failing cells that are not blank (review of landing 3b.G, item 2: a
+    lone `2024-03-05T14:30:00` among 599 ISO dates, `n_unparsed` 1, is
+    no folded cell, and counting it made the source miss its own census).
+    A blank cell fails every member and is no unparsed cell; a published
+    absent spelling never reaches this check, the cells it is handed
+    being the ones its description counts present, and blanks.
+
+    Guarantees: accepts the file's own block, the published member and
+    the failing cells; returns the answer, false for every member
+    outside the two ISO forms. Determinism: a function of the three.
+    Raises nothing. No I/O of any kind.
+    """
+    if member not in taxonomy.ISO_FORMS or not failing:
+        return False
+    unparsed = _count_at(block, "n_unparsed")
+    if unparsed is None:
+        return False
+    written = 0
+    for cell in failing:
+        if parsing.trimmed(cell):
+            written = written + 1
+    return unparsed < written
+
+
+def _day_as_counted(cell: str) -> "int | None":
+    """The day a folded cell was counted on, or None (plan P4-D365).
+
+    Read under the joint ISO reading, which is how the producer read a
+    column whose rare form it folded into the commonest (plan P4-D250):
+    the cell stands on the day it names either way. Asked only of the
+    cells the published member fails, and only where the file's own
+    description folded them (`_folded_by_the_file`).
+
+    Guarantees: accepts one cell; returns a day number or None.
+    Determinism: a function of the cell. Raises nothing. No I/O of any
+    kind.
+    """
+    read = parsing.parse_datetime(cell, taxonomy.FORMAT_ISO_MIXED)
     if read is None:
         return None
     return _weekday_day(read[0])

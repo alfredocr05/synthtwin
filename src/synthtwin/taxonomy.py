@@ -2010,8 +2010,8 @@ def rendered(form: str, arguments: "tuple[object, ...]") -> str:
     if form == REMARK_WEEKDAY_FLOOR:
         return (
             f"these counts are of days of the week and never of one date: "
-            f"every group counted holds rows on at least three different "
-            f"dates, and every count is nought or at least "
+            f"every group that holds rows holds them on at least three "
+            f"different dates, and every count is nought or at least "
             f"{_whole(arguments, 0)} rows"
         )
     if form == NOTE_WEEKDAY_WITHHELD_NARROWED:
@@ -15843,7 +15843,8 @@ def weekday_decision(
     a published absent spelling names, `published_absent`), no menu
     entry, too few different dates for the twin to keep the count of
     different values (`calendar_rules.few_dates`), too little room
-    between the holes (`calendar_rules.room_short`), and last the
+    between the holes of a column the month-name census holds to May
+    (`calendar_rules.room_short`), and last the
     loader's own check (`calendar_rules.shape_breach`), so the producer
     never writes what the loader refuses. Since plan P4-D365 no rule
     here asks what a reader could work out from the census: the
@@ -15924,7 +15925,12 @@ def weekday_decision(
         return withheld(calendar_rules.REASON_MENU)
     if calendar_rules.few_dates(groups, list(body)):
         return withheld(calendar_rules.REASON_FEW_DATES, entry)
-    if calendar_rules.room_short(groups, list(body), holes):
+    # THE ROOM RULE ONLY BESIDE MONTH-NAME HOLES (review of landing 3b.G,
+    # item 3): the measured misses were all columns of May dates; width
+    # holes, placeholder days and declared days never needed it.
+    if calendar_rules.may_only_published(forms, format_name) and calendar_rules.room_short(
+        groups, list(body), holes
+    ):
         return withheld(calendar_rules.REASON_ROOM, entry)
     if calendar_rules.shape_breach(groups, len(body), line, one_spelling):
         return withheld(calendar_rules.REASON_NARROWED, entry)

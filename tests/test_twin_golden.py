@@ -1698,8 +1698,10 @@ GOLDEN_DESCRIPTION_SHA256 = (
     # RE-RECORDED FOR THE WEEKDAY GUARD DROP (2026-10-02, plan P4-D365),
     # and GOLDEN_TWIN_SHA256 DID NOT MOVE: the remark NF71 on `recorded_on`
     # was reworded, and the report quotes it back. Diffed against 659a1e2:
-    # that one line in each, nothing else.
-    "b8e06002122aa03a1ab33f050d9ec4c479481e3129433cbfce281de01d3c36e1"
+    # that one line in each, nothing else. AND AGAIN AT ITS REVIEW (item
+    # 4): NF71 says "every group that holds rows", not "every group
+    # counted"; diffed against fb257b0, that one line in each again.
+    "c126adc7722a717079b62801c73d02de97e2f65de624b0be82faffeb022f0eda"
 )
 
 
@@ -2580,8 +2582,10 @@ GOLDEN_REPORT_SHA256 = (
     # RE-RECORDED FOR THE WEEKDAY GUARD DROP (2026-10-02, plan P4-D365),
     # and GOLDEN_TWIN_SHA256 DID NOT MOVE: the remark NF71 on `recorded_on`
     # was reworded, and the report quotes it back. Diffed against 659a1e2:
-    # that one line in each, nothing else.
-    "1347119b8f5325c15ce060574415cf1873a5240a148355fc68c8d7cd45f6f295"
+    # that one line in each, nothing else. AND AGAIN AT ITS REVIEW (item
+    # 4): NF71 says "every group that holds rows", not "every group
+    # counted"; diffed against fb257b0, that one line in each again.
+    "436f93d57e750976cee0f17c5ce246f1898fcd6fa19fbf704f65ef9968094a8c"
 )
 
 

@@ -118,15 +118,18 @@ SAID_REASONS = (REASON_NO_TAILS, REASON_SPELLINGS)
 REASON_UNSAID = "unsaid"
 
 # THE FEW-DATES RULE (plan P4-D365, measured on the guard drop's
-# batteries): a census is withheld where a non-empty group holds fewer
-# than `FEWEST_REAL_DATES` different real dates of the body, or where at
-# least two groups are non-empty and they hold fewer than
-# `MEAN_REAL_DATES` different real dates each on average. Below either,
-# the day pass splits a date's rows across two dates to meet the census
-# and the twin holds more different values than the column (k7 sessions
-# 17 for 9; payroll on the 15th and the last day 53 for 48).
+# batteries and its review's): a census is withheld where a non-empty
+# group holds fewer than `FEWEST_REAL_DATES` different real dates of the
+# body, or where at least two groups are non-empty and they hold fewer
+# than seven and a half different real dates each on average -- fewer
+# than `MEAN_REAL_HALF_DATES` halves, so the rule stays in whole
+# numbers. Below either, the day pass splits a date's rows across two
+# dates to meet the census and the twin holds more different values
+# than the column (k7 sessions 17 for 9; payroll on the 15th and the
+# last day 53 for 48; one date a month over 51 to 54 months, 7.00 to
+# 7.43 dates a group, 53 to 54 for 52).
 FEWEST_REAL_DATES = 3
-MEAN_REAL_DATES = 7
+MEAN_REAL_HALF_DATES = 15
 
 # The censuses of written forms whose one form per cell makes one text
 # per date (WC6), in the order the description publishes them.
@@ -402,14 +405,7 @@ def form_holes(
     if format_name in parsing.VARIABLE_WIDTH_MEMBERS and parsing.width_is_value_bound(width):
         first_field = "month" if format_name in parsing.MONTH_FIRST_MEMBERS else "day"
     shows_first = width in parsing.FIELD_WIDTH_STYLES_FIRST
-    may_only = False
-    if (
-        format_name in parsing.TEXTUAL_MEMBERS
-        and "month_name_styles" in forms
-        and len(forms["month_name_styles"]) == 1
-    ):
-        for word in forms["month_name_styles"]:
-            may_only = parsing.name_is_value_bound(word)
+    may_only = may_only_published(forms, format_name)
     if not first_field and not may_only:
         return ()
     found: "list[int]" = []
@@ -423,6 +419,31 @@ def form_holes(
         if hole:
             found += [day]
     return tuple(found)
+
+
+def may_only_published(forms: "dict[str, dict[str, int]]", format_name: str) -> bool:
+    """Whether the month-name census holds every cell of a column to May.
+
+    The month-name half of `form_holes`: a textual member whose one
+    published month-name word has the length `either`
+    (`parsing.name_is_value_bound`) is written by names of May alone, so
+    every day outside May is a hole. The producer asks it alone too:
+    the room rule (`room_short`) is asked only where these holes stand
+    (review of landing 3b.G, item 3).
+
+    Guarantees: accepts the five censuses by name and the parser family;
+    returns the answer. Determinism: a function of the two. Raises
+    nothing. No I/O of any kind.
+    """
+    if (
+        format_name not in parsing.TEXTUAL_MEMBERS
+        or "month_name_styles" not in forms
+        or len(forms["month_name_styles"]) != 1
+    ):
+        return False
+    for word in forms["month_name_styles"]:
+        return parsing.name_is_value_bound(word)
+    return False
 
 
 def placeholder_holes(
@@ -1002,10 +1023,10 @@ def few_dates(
     THE PRODUCER'S FEW-DATES RULE, on the REAL body (its days, one per
     cell): true where a non-empty group holds fewer than
     `FEWEST_REAL_DATES` different days, or where at least two groups are
-    non-empty and they hold fewer than `MEAN_REAL_DATES` different days
-    each on average. There the day pass meets the census only by
-    splitting a date's rows across dates, and the twin holds more
-    different values than the column. A rule of what the twin can meet,
+    non-empty and they hold fewer than seven and a half different days
+    each on average (`MEAN_REAL_HALF_DATES` halves). There the day pass
+    meets the census only by splitting a date's rows across dates, and
+    the twin holds more different values than the column. A rule of what the twin can meet,
     never of what a reader could work out: the loader cannot ask it, and
     need not.
 
@@ -1018,7 +1039,7 @@ def few_dates(
         return False
     if min(filled) < FEWEST_REAL_DATES:
         return True
-    return len(filled) >= 2 and sum(filled) < MEAN_REAL_DATES * len(filled)
+    return len(filled) >= 2 and 2 * sum(filled) < MEAN_REAL_HALF_DATES * len(filled)
 
 
 def room_short(
@@ -1028,21 +1049,24 @@ def room_short(
 ) -> bool:
     """Whether the published holes leave a group too little room (plan P4-D365).
 
-    THE PRODUCER'S ROOM RULE, asked only where the description publishes
-    a hole between the body's first and last day (`public_holes`). A
-    group's FREE days are its weekdays' days from the first to the last
-    that are no hole and hold no date of the body. True where a non-empty
-    group has NO free day and holds a date of ONE row: the day pass meets
-    the census by moving single rows, a one-row date it moves is left
-    empty, and with no free day to stand a date on, the twin holds fewer
-    different values than the column. Measured on the guard drop's
-    batteries (plan P4-D365): every column of one month written
-    `17 May 2023` or of days past the ninth written `m/d/yyyy` whose twin
-    missed its count of different values filled every open day and held
-    one-row dates (every day of three Mays: 83 for 93); the ones holding
-    two rows or more on every date met it, and so did every column with a
-    free day left. Counted, not walked: each weekday's days by
-    arithmetic, then the holes and the dates one by one.
+    THE PRODUCER'S ROOM RULE, asked only where the month-name census
+    holds every cell to May (`may_only_published`), with every hole the
+    description publishes between the body's first and last day
+    (`public_holes`). A group's FREE days are its weekdays' days from the
+    first to the last that are no hole and hold no date of the body. True
+    where a non-empty group has NO free day and holds a date of ONE row:
+    the day pass meets the census by moving single rows, a one-row date
+    it moves is left empty, and with no free day to stand a date on, the
+    twin holds fewer different values than the column. Measured on the
+    guard drop's batteries and its review's (plan P4-D365): every column
+    whose twin missed its count of different values with the rule off was
+    one of May dates written `17 May 2023` that filled every open day and
+    held one-row dates (every day of three Mays: 83 for 93). Columns of
+    days past the ninth written `m/d/yyyy` met it in every run, so the
+    rule is not asked of width holes, placeholder days or declared days,
+    and their censuses keep their weekday statistics. Counted, not
+    walked: each weekday's days by arithmetic, then the holes and the
+    dates one by one.
 
     Guarantees: accepts the census, the body's days (one per cell) and
     the holes; returns the answer. Determinism: a function of the three.

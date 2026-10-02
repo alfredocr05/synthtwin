@@ -509,7 +509,7 @@ def _published_fixtures() -> "dict[str, tuple[str, list[str]]]":
         "thin_midweek": ("visit_date", gate._thin_midweek(1)),
         "twenty_sessions": ("session_date", gate._twenty_sessions(0)),
         "mays_five_times": ("visit", _mays_five_times()),
-        "october_to_december": ("visit", [gate._month_first(day) for day in gate._october_to_december()]),
+        "straddling_february": ("seen_on", [gate._month_first(day) for day in gate._straddling_february()]),
         "walk_case": ("seen_on", gate._walk_case(0)),
         "business_days": ("log_date", gate._business_days(1, 1)),
     }
@@ -523,11 +523,13 @@ def test_every_published_fixture_generates_twins_that_meet_it(tmp_path: pathlib.
     the reviewed tree its twins at seeds 0 to 4 held 84 different days
     against 85 published, both distinct counts MISSED while the census
     was HELD. Every fixture the gate publishes a census on -- since plan
-    P4-D365 also October to December, the 1,001 different dates and the
-    business days the ties refusal withheld -- is generated here at five
-    seeds and validated: nothing is missed. (`_straddling_february` is now
-    withheld by the room rule: tests/test_stage3b_gate.py.) Red when the
-    day pass reads its holes off the absent spellings alone.
+    P4-D365 also the 1,001 different dates and the business days the ties
+    refusal withheld, and since its review (item 3) `_straddling_february`
+    again, the room rule no longer asked beside width holes -- is
+    generated here at five seeds and validated: nothing is missed.
+    (October to December, 7.3 dates a weekday, is withheld by the mean
+    of seven and a half since the same review, item 1.) Red when the day
+    pass reads its holes off the absent spellings alone.
     """
     column, cells = _published_fixtures()[name]
     described = kpi_shapes.describe(tmp_path, name, f"{column}\n" + "".join(f"{cell}\n" for cell in cells), 11)

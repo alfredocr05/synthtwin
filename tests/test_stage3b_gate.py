@@ -166,26 +166,31 @@ mutation that turns each witness red:
   tests/test_contract_loader.py -- red when a count of one to ten
   publishes or the loader asks a retired rule again;
 * the few-dates rule (`calendar_rules.few_dates`): fewer than three
-  different real dates in a non-empty group, or fewer than seven a
-  group on average over two or more -- red on `k7_sessions_s0`,
-  `B2_oneweek_1201_s0`, `payroll_1000`, `ties40_1000` and
-  `w_month_wide_1000_s0`, which then publish: the twins of the first
-  three miss at seeds 0 to 2 (seven sessions and payroll their count of
-  different values, one week its census), forty ties at one seed of
-  three, and one March's meet it, the rule's cost; and red on the
-  hand-made bodies of
-  `test_the_few_dates_rule_counts_the_real_dates_of_each_group`;
-* the room rule (`calendar_rules.room_short`): a published hole and a
-  group with no free day holding a one-row date -- red on `mays_only`,
-  whose twin then holds 83 different values for 93, and on the bodies
-  of `test_the_room_rule_asks_only_where_holes_leave_no_free_day_for_a_one_row_date`;
-  its stated cost is `_straddling_february`;
+  different real dates in a non-empty group, or fewer than seven and a
+  half a group on average over two or more -- red on `k7_sessions_s0`,
+  `B2_oneweek_1201_s0`, `payroll_1000`, `first_2021_52m`,
+  `tenth_2021_54m`, `ties40_1000` and `w_month_wide_1000_s0`, which then
+  publish: the twins of the first five miss at seeds 0 to 2 (seven
+  sessions, payroll and one date a month their count of different
+  values, one week its census), forty ties at one seed of three, and
+  one March's meet it, the rule's cost; and red on the hand-made bodies
+  of `test_the_few_dates_rule_counts_the_real_dates_of_each_group`;
+* the room rule (`calendar_rules.room_short`), asked only beside the
+  holes of a month-name census that holds every cell to May: a group
+  with no free day holding a one-row date -- red on `mays_only`, whose
+  twin then holds 83 different values for 93, and on the bodies of
+  `test_the_room_rule_asks_only_where_holes_leave_no_free_day_for_a_one_row_date`;
+  red too when it is asked beside width holes, which withholds
+  `_straddling_february`, whose twins meet its census;
 * every hole -- form, placeholder, declared -- read by the producer, the
   generator and the validator alike (`calendar_rules.public_holes`):
   red when the twins of the form-hole, placeholder and declared columns
   stand a date on one;
-* the fold read on both sides (plan P4-D250, `validation._day_as_counted`):
-  red when the source of `_FOLDED` misses its own census;
+* the fold read on both sides (plan P4-D250, `validation._day_as_counted`),
+  asked only where the file's own description folded the moments
+  (`validation._folded_by_the_file`): red when the source of `_FOLDED`
+  misses its own census, and when the source of `_UNPARSED` -- moments
+  the description left unparsed -- does;
 * every REAL twin clause of the deleted tests is kept: the battery's
   twins and statistics, the declared missing day, the placeholder days,
   the form holes, and the drawn-hole node of the review of 3b.0, whose
@@ -2051,9 +2056,9 @@ def test_a_minute_on_a_missing_moment_is_written_absent_and_named(tmp_path: path
 # menu offers is published wherever its twin can meet it: the full-fill
 # certificate, its bands, its cap, its ties refusal and WC5, WC7, WC8 and
 # WC9 are gone. The producer withholds where a group holds too few
-# different dates (`calendar_rules.few_dates`) or the published holes
-# leave a group too little room (`calendar_rules.room_short`), and the
-# loader holds a census to its shape (`calendar_rules.shape_breach`).
+# different dates (`calendar_rules.few_dates`) or the holes of a column
+# its month-name census holds to May leave a group too little room
+# (`calendar_rules.room_short`), and the loader holds a census to its shape (`calendar_rules.shape_breach`).
 # The clauses below are the landing's: the battery keeps every census
 # and its twins meet them with nothing missed and the weekday statistics
 # inside their scoped bounds; each rule has a seeded witness publishing
@@ -2448,6 +2453,19 @@ def _payroll(rows: int, seed: int) -> "list[str]":
     return [draw.choice(days).isoformat() for _row in range(rows)]
 
 
+def _monthly(day: int, start: int, months: int, seed: int) -> "list[str]":
+    """One date a month, the `day`th, over `months` months from January of `start`; 1,000 rows.
+
+    The shape of the guard drop's review (its `monthly3` battery): over
+    51 to 54 months the body holds 7.00 to 7.43 dates a weekday group,
+    which the mean of seven published and whose twins held 53 or 54
+    different days for 52.
+    """
+    draw = random.Random(seed)
+    days = [datetime.date(start + step // 12, 1 + step % 12, day) for step in range(months)]
+    return [draw.choice(days).isoformat() for _row in range(1000)]
+
+
 def _tie_days(rows: int, count: int, seed: int) -> "list[str]":
     """`count` days drawn from two years, every row on one of them (the 3b.2-W skeptic's ties)."""
     plan = random.Random(seed)
@@ -2499,6 +2517,8 @@ _EXPECTED = {
     ),
     "w_month_wide_1000_s0": ("visit_date", lambda: _one_month_wide(1000, 0), [], calendar_rules.REASON_FEW_DATES),
     "payroll_1000": ("paid_on", lambda: _payroll(1000, 86004), [], calendar_rules.REASON_FEW_DATES),
+    "first_2021_52m": ("report_on", lambda: _monthly(1, 2021, 52, 9740), [], calendar_rules.REASON_FEW_DATES),
+    "tenth_2021_54m": ("report_on", lambda: _monthly(10, 2021, 54, 9802), [], calendar_rules.REASON_FEW_DATES),
     "ties40_1000": ("seen_on", lambda: _tie_days(1000, 40, 83040), [], calendar_rules.REASON_FEW_DATES),
     "ties60_1000": (
         "seen_on", lambda: _tie_days(1000, 60, 83060),
@@ -2524,13 +2544,16 @@ def test_each_rule_publishes_what_it_derives(tmp_path: pathlib.Path, name: str) 
       (one week), `ties40_1000` (forty days, one weekday holding one) and
       `w_month_wide_1000_s0` (one March, four or five dates a weekday)
       hold a group of fewer than three different dates, or fewer than
-      seven a group on average: withheld, `few_dates`. So does
-      `payroll_1000`, 48 dates on the 15th and the last day of 24 months,
-      6.9 a weekday on average. Published without the rule, the twins of
-      seven sessions and of payroll miss their count of different
-      values at seeds 0 to 2 and one week's its census; forty ties' miss
-      at one seed of three, and one March's meet it -- the rule's
-      measured cost (plan P4-D365's B1).
+      seven and a half a group on average: withheld, `few_dates`. So
+      does `payroll_1000`, 48 dates on the 15th and the last day of 24
+      months, 6.9 a weekday on average, and so do `first_2021_52m` and
+      `tenth_2021_54m`, one date a month over 52 and 54 months: 50 and
+      52 body dates, 7.14 and 7.43 a weekday on average, which the mean
+      of seven published (the review of the guard drop, item 1). Published
+      without the rule, the twins of seven sessions, of payroll and of
+      one date a month miss their count of different values at seeds 0
+      to 2 and one week's its census; forty ties' miss at one seed of three, and one
+      March's meet it -- the rule's measured cost (plan P4-D365's B1).
     * `ties60_1000`: sixty days, at least six on each weekday and more
       than seven on average: published.
 
@@ -2556,17 +2579,19 @@ def test_each_rule_publishes_what_it_derives(tmp_path: pathlib.Path, name: str) 
 
 
 def test_the_few_dates_rule_counts_the_real_dates_of_each_group() -> None:
-    """`calendar_rules.few_dates` withholds below three dates a group, or seven a group on average (plan P4-D365).
+    """`calendar_rules.few_dates` withholds below three dates a group, or seven and a half a group on average (plan P4-D365).
 
     Asked of hand-made bodies, Monday 2024-01-01 first: a group of two
     dates is few however many rows they hold; three dates in each of
-    seven groups average fewer than seven; one group alone is never
-    averaged; seven dates in each of two groups are enough and six and
-    seven are not; and the same body counted as Monday to Friday and the
-    weekend holds enough where its seven groups do not. Red when the
-    floor of three, the mean of seven, the two-group condition, the
-    counting of DATES rather than rows or of groups rather than weekdays
-    moves.
+    seven groups average fewer than seven and a half; one group alone is
+    never averaged; seven and eight dates in two groups are enough, and
+    seven and seven, or seven and six, are not (the review of the guard
+    drop, item 1: one date a month over 52 months, 7.14 a group, came
+    back 53 days for 52); and the same body counted as Monday to Friday
+    and the weekend holds enough where its seven groups do not. Red when
+    the floor of three, the mean of seven and a half, the two-group
+    condition, the counting of DATES rather than rows or of groups rather
+    than weekdays moves.
     """
     monday = _day_number("2024-01-01")
 
@@ -2583,8 +2608,10 @@ def test_the_few_dates_rule_counts_the_real_dates_of_each_group() -> None:
     assert calendar_rules.few_dates(seven(three), three)
     lone = weeks((2,), 3, 40)
     assert not calendar_rules.few_dates(seven(lone), lone)
-    both = weeks((0, 1), 7, 2)
+    both = weeks((0,), 7, 2) + weeks((1,), 8, 2)
     assert not calendar_rules.few_dates(seven(both), both)
+    sevens = weeks((0, 1), 7, 2)
+    assert calendar_rules.few_dates(seven(sevens), sevens)
     short = weeks((0,), 7, 2) + weeks((1,), 6, 2)
     assert calendar_rules.few_dates(seven(short), short)
     split = weeks((0, 1, 2, 3, 4), 7, 1) + weeks((5, 6), 6, 1)
@@ -2624,7 +2651,7 @@ def test_the_room_rule_asks_only_where_holes_leave_no_free_day_for_a_one_row_dat
 
 # THE FORM HOLES (review of landing 3b.1, finding 1): days the censuses of
 # written forms tell a reader no cell holds. Since plan P4-D365 they are
-# what the twin may not stand a date on, and where they leave a group no
+# what the twin may not stand a date on, and where May's leave a group no
 # free day for a one-row date the room rule withholds.
 
 
@@ -2724,8 +2751,8 @@ _FORM_HOLES = {
 _FORM_HOLE_REASONS = {
     "past_the_ninth": calendar_rules.REASON_FEW_DATES,
     "past_the_ninth_day_first": calendar_rules.REASON_FEW_DATES,
-    "october_to_december_month_first": "",
-    "october_to_december_day_first": "",
+    "october_to_december_month_first": calendar_rules.REASON_FEW_DATES,
+    "october_to_december_day_first": calendar_rules.REASON_FEW_DATES,
     "mays_only": calendar_rules.REASON_ROOM,
 }
 
@@ -2734,7 +2761,7 @@ _FORM_HOLE_REASONS = {
 def test_a_day_the_form_censuses_leave_empty_is_a_hole(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, name: str
 ) -> None:
-    """A day the form censuses leave empty is a hole no twin date stands on, and the room rule reads it.
+    """A day the form censuses leave empty is a hole, and the room rule reads May's alone.
 
     `past_the_ninth` publishes `date_field_widths {first-field-unpadded}`
     and `mays_only` `month_name_styles {title-either-space-no-comma}`, so
@@ -2746,15 +2773,19 @@ def test_a_day_the_form_censuses_leave_empty_is_a_hole(
     other field is the month either way. The holes are exactly those
     days, and no body date stands on one. Then:
 
-    * the days past the ninth hold 6.8 dates a weekday on average:
-      withheld, `few_dates`;
-    * October to December, two rows on every date, publish the seven
-      counts, and their twins meet them at seeds 0 to 2 with nothing
-      missed -- no twin date on a hole;
+    * the days past the ninth hold 6.8 dates a weekday on average, and
+      October to December 7.3: withheld, `few_dates`. Under the mean of
+      seven October to December published and its twins met it; the
+      mean of seven and a half withholds it, the cost the review of the
+      guard drop (item 1) priced. A column past the ninth that publishes
+      and is met is `_straddling_february`;
     * every day of three Mays holds a date, some of them one row, so no
       group has a free day: withheld, `room`. With the room rule
       withdrawn the census publishes and its twin holds 83 different
       values for 93, both distinct counts MISSED (plan P4-D365).
+
+    The month-name census is what asks the room rule
+    (`calendar_rules.may_only_published`): true of the Mays alone.
     """
     build, written, form, empty = _FORM_HOLES[name]
     dates = build()
@@ -2771,15 +2802,12 @@ def test_a_day_the_form_censuses_leave_empty_is_a_hole(
     holes = set(calendar_rules.form_holes(forms, block["format"], low, high))
     assert holes == {day for day in range(low, high + 1) if empty(epoch + datetime.timedelta(days=day))}
     assert holes and not holes & set(body)
+    assert calendar_rules.may_only_published(forms, block["format"]) == (name == "mays_only")
     decided = taxonomy.weekday_decision(
         block, tuple(days), block["n_distinct"], taxonomy.Settings(small_cell_floor=11),
         texts=len(set(days)),
     )
     assert decided.reason == _FORM_HOLE_REASONS[name], decided.reason
-    if not decided.reason:
-        assert calendar_rules.entry_of(_groups(block)) == calendar_rules.ENTRY_SEVEN
-        assert _twins_meet(described) == [], name
-        return
     assert block["weekday_census"] == [] and decided.said == calendar_rules.REASON_UNSAID
     said = [entry["note"] for entry in described.document["publication_notes"]]
     assert any("and why is not said" in sentence for sentence in said), said
@@ -2817,36 +2845,39 @@ def _straddling_february() -> "list[datetime.date]":
     return days
 
 
-def test_a_full_column_between_holes_with_one_row_dates_is_withheld(tmp_path: pathlib.Path) -> None:
-    """The room rule's stated cost: a heavy column past the ninth, every open day taken, is withheld (plan P4-D365).
+def test_a_full_column_between_width_holes_publishes_and_its_twins_meet_it(tmp_path: pathlib.Path) -> None:
+    """The room rule is not asked beside width holes: a heavy column past the ninth publishes (review of 3b.G, item 3).
 
     `_straddling_february`'s width census leaves the first to the ninth
     of every month empty, and every other day from January 21 to April 30
     holds a date: 981 visits, two of them alone on a Saturday and a
-    Sunday. Its twins met the seven counts while the certificate stood,
-    but the rule cannot tell it from the Mays whose twins do not: it is
-    withheld, `room`, the price the plan records. The same column with
-    those two dates given a second row publishes the seven counts again,
-    and its twins meet them at seeds 0 to 2.
+    Sunday, so no group has a free day for a one-row date. The room rule
+    withheld it while it was asked beside every hole; the review of the
+    guard drop measured 40 columns past the ninth that it withheld and
+    none whose twins missed the census without it, and 668f276 published
+    this one with its twins meeting it. The rule is now asked only beside
+    a month-name census holding every cell to May
+    (`calendar_rules.may_only_published`): this column publishes the
+    seven counts, and its twins meet them at seeds 0 to 4 with nothing
+    missed. Red when the room rule is asked beside width holes again.
     """
     dates = _straddling_february()
     text = "seen_on\n" + "".join(f"{day.month}/{day.day}/{day.year}\n" for day in dates)
-    described = kpi_shapes.describe(tmp_path / "once", "straddle", text, 11)
+    described = kpi_shapes.describe(tmp_path, "straddle", text, 11)
     block = described.block("seen_on")
-    assert block["weekday_census"] == []
     days = sorted((day - datetime.date(1970, 1, 1)).days for day in dates)
+    body = days[block["low_tail"]["rows"]: len(days) - block["high_tail"]["rows"]]
+    forms = {census: dict(block[census] or {}) for census in calendar_rules.FORM_CENSUSES}
+    holes = calendar_rules.form_holes(forms, block["format"], body[0], body[-1])
+    groups = _groups(block)
+    assert calendar_rules.entry_of(groups) == calendar_rules.ENTRY_SEVEN, groups
+    assert holes and calendar_rules.room_short(groups, body, holes)
+    assert not calendar_rules.may_only_published(forms, block["format"])
     decided = taxonomy.weekday_decision(
         block, tuple(days), block["n_distinct"], taxonomy.Settings(small_cell_floor=11), texts=len(set(days)),
     )
-    assert decided.reason == calendar_rules.REASON_ROOM, decided.reason
-    held: "dict[datetime.date, int]" = {}
-    for day in dates:
-        held[day] = held.get(day, 0) + 1
-    doubled = dates + [day for day in held if held[day] == 1]
-    text = "seen_on\n" + "".join(f"{day.month}/{day.day}/{day.year}\n" for day in doubled)
-    again = kpi_shapes.describe(tmp_path / "twice", "straddle", text, 11)
-    assert calendar_rules.entry_of(_groups(again.block("seen_on"))) == calendar_rules.ENTRY_SEVEN
-    assert _twins_meet(again) == []
+    assert decided.reason == "", decided.reason
+    assert _twins_meet(described, (0, 1, 2, 3, 4)) == []
 
 
 def _one_autumn() -> "list[datetime.date]":
@@ -3300,8 +3331,10 @@ def test_a_folded_moment_is_counted_where_the_census_counted_it(tmp_path: pathli
     day. The validator read the file's cells under `iso-date` alone and
     left the moment out, so the source itself missed its own census by
     one row; it now reads such a cell under the joint reading
-    (`validation._day_as_counted`). The real file validates with nothing
-    missed, and the twins of seeds 0 and 1 too.
+    (`validation._day_as_counted`) wherever the file's own description
+    folded it -- here `n_unparsed` 4 for five present cells the member
+    fails (`validation._folded_by_the_file`). The real file validates
+    with nothing missed, and the twins of seeds 0 and 1 too.
     """
     cells = _FOLDED[name](random.Random(5))
     moment = "2020-05-03T00:00:00" if name == "every_day_395" else sorted(cells)[len(cells) // 2] + "T00:00:00"
@@ -3313,3 +3346,85 @@ def test_a_folded_moment_is_counted_where_the_census_counted_it(tmp_path: pathli
     assert block["weekday_census"], name
     assert kpi_shapes.missed(kpi_shapes.measure(described, text, "real.csv")) == [], name
     assert _twins_meet(described, (0, 1)) == []
+
+
+# THE FOLD READ ONLY WHERE THE FILE'S OWN DESCRIPTION FOLDED (review of
+# landing 3b.G, item 2): 600 ISO dates with a few moments mixed in, the
+# review's probe shapes. Read under one ISO form from the start, the
+# column leaves the moments UNPARSED (`n_unparsed` counts them) and its
+# census never counted them; ten moments are read jointly and folded.
+
+_UNPARSED = {
+    "T_midnight_1": (["2024-03-05T00:00:00"], 1),
+    "T_clock_1": (["2024-03-05T14:30:00"], 1),
+    "space_clock_1": (["2024-03-05 14:30:00"], 1),
+    "T_clock_5": (["2024-03-%02dT14:30:00" % date for date in (5, 6, 7, 8, 9)], 5),
+    "T_clock_10": (["2024-03-%02dT14:30:00" % date for date in range(5, 15)], 0),
+    "Z_1": (["2024-03-05T14:30:00Z"], 1),
+    "offset_1": (["2024-03-05T14:30:00+02:00"], 1),
+    "offset_late_1": (["2024-03-05T23:30:00-05:00"], 1),
+    "minutes_1": (["2024-03-05T14:30"], 1),
+    "T_clock_1_NA3": (["2024-03-05T14:30:00", "NA", "NA", "NA"], 1),
+    "T_midnight_1_words4": (["2024-03-05T00:00:00"] + ["unparsed"] * 4, 5),
+    "T_clock_1_blank30": (["2024-03-05T14:30:00"] + ['""'] * 30, 1),
+}
+
+
+def _probe_dates() -> "list[str]":
+    """600 ISO dates drawn from 200 days from 2024-01-01 (the review's probe base)."""
+    draw = random.Random(5)
+    span = [datetime.date(2024, 1, 1) + datetime.timedelta(days=step) for step in range(200)]
+    return [draw.choice(span).isoformat() for _row in range(600)]
+
+
+@pytest.mark.parametrize("name", sorted(_UNPARSED))
+def test_a_moment_the_description_left_unparsed_is_not_counted(tmp_path: pathlib.Path, name: str) -> None:
+    """The source validates clean whether its moments were folded or left unparsed (review of 3b.G, item 2).
+
+    Each shape places its cells over the probe's 600 ISO dates, 17 rows
+    apart from row 37. One to five moments, written with a `T`, a space,
+    minutes alone, a `Z` or an offset, beside `NA` cells, unreadable
+    words or thirty blank cells, are left unparsed: the column is published as `iso-date`, its
+    `n_unparsed` counts them, and its census never counted them. Ten
+    moments are read jointly and folded: `n_unparsed` 0. On fb257b0 the
+    validator read every cell the member fails under the joint reading,
+    so the source missed its own census on ten of these shapes; it now
+    does so only where the file's own description folded them
+    (`validation._folded_by_the_file`). The source validates with nothing
+    missed, and the twin of seed 0 too. Red when the fold read is asked
+    of every column of an ISO member, or counts a blank cell as one the
+    description may have parsed.
+    """
+    extra, unparsed = _UNPARSED[name]
+    cells = _probe_dates()
+    for place, cell in enumerate(extra):
+        cells[37 + 17 * place] = cell
+    text = "seen\n" + "".join(f"{cell}\n" for cell in cells)
+    described = kpi_shapes.describe(tmp_path, name, text, 11)
+    block = described.block("seen")
+    assert (block["format"], block["n_unparsed"]) == ("iso-date", unparsed), (block["format"], block["n_unparsed"])
+    assert block["weekday_census"], name
+    assert kpi_shapes.missed(kpi_shapes.measure(described, text, "real.csv")) == [], name
+    assert _twins_meet(described, (0,)) == []
+
+
+def test_a_month_first_column_with_an_unparsed_iso_date_validates_clean(tmp_path: pathlib.Path) -> None:
+    """A month-first column's one ISO date is unparsed, and no fold read counts it (review of 3b.G, item 2).
+
+    The probe's 600 dates written `m/d/yyyy`, one of them left in ISO:
+    the member is `month-first-date`, `n_unparsed` 1, and the census
+    published over the rest. The fold read belongs to the two ISO forms
+    alone, so the ISO cell is counted nowhere and the source validates
+    with nothing missed.
+    """
+    cells = []
+    for cell in _probe_dates():
+        day = datetime.date.fromisoformat(cell)
+        cells += [f"{day.month}/{day.day}/{day.year}"]
+    cells[37] = "2024-03-05"
+    text = "seen\n" + "".join(f"{cell}\n" for cell in cells)
+    described = kpi_shapes.describe(tmp_path, "month_first", text, 11)
+    block = described.block("seen")
+    assert (block["format"], block["n_unparsed"]) == ("month-first-date", 1), (block["format"], block["n_unparsed"])
+    assert block["weekday_census"]
+    assert kpi_shapes.missed(kpi_shapes.measure(described, text, "real.csv")) == []
