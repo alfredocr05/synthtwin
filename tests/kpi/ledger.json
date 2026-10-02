@@ -6619,14 +6619,20 @@
     "tests/test_stage3b_reader.py::test_the_twelve_hour_question_is_asked_and_its_answer_honoured",
     "tests/test_stage3b_reader.py::test_a_one_figure_clock_keeps_its_colon_question",
     "tests/test_stage3b_reader.py::test_day_and_month_no_value_can_settle_are_asked",
-    "tests/test_stage3b_reader.py::test_a_minute_clock_is_said_in_minutes"
+    "tests/test_stage3b_reader.py::test_a_minute_clock_is_said_in_minutes",
+    "tests/test_stage3b_reader.py::test_r8_a_stamp_names_one_written_clock",
+    "tests/test_stage3b_reader.py::test_r8_clock_rungs_are_ordered_by_the_instant",
+    "tests/test_stage3b_reader.py::test_r8_red_when_rungs_are_compared_as_text",
+    "tests/test_stage3b_reader.py::test_r8_a_twelve_hour_declaration_names_columns_of_the_table",
+    "tests/test_stage3b_reader.py::test_r9_a_declared_twelve_hour_stamp_says_what_it_cannot_hold",
+    "tests/test_stage3b_reader.py::test_r9_red_when_the_report_reads_the_24_hour_face"
    ],
    "test": null,
    "driver": "tools/measurements/kpi_reader.py --kpi",
    "pin_strength": "WEAKER",
    "measured_on": "tests/clock_spellings.py's twenty spellings, one calendar year of moments with an emergency-department hour profile, through the real producer, generator and checker",
    "evidence": "Before T1 (668f276, the design's baseline and its skeptic's): none of the twenty read. One-figure hours read 758 of 1,000 (hours 10 to 23), every AM/PM spelling 0; the clock-alone h:mm and h:mm:ss twins parsed 255 and 165 of 1,000 by accident, every other twin 0; validate exited 0 on all of them, free text publishing nothing to miss.",
-   "nodes_min_collected": 80,
+   "nodes_min_collected": 86,
    "value_at": {
     "commit": "180ca2e",
     "date": "2026-10-01",
