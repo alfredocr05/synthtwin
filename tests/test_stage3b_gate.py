@@ -2591,7 +2591,8 @@ def test_the_room_rule_asks_only_where_holes_leave_no_free_day_for_a_one_row_dat
 
     Two weeks from Monday 2024-01-01, every day holding two rows but
     Tuesday January 2, which holds one, and Tuesday January 9, which holds
-    none. With no hole the rule asks nothing. With January 9 a hole the
+    none. With no hole the rule asks nothing -- not even where every day
+    holds a date, as a business-day log's weekdays do. With January 9 a hole the
     Tuesday group has no free day for its one-row date: withheld. With
     January 2 given its second row, no date holds one row: published. And
     with the body running on to Sunday January 21, the Tuesday group gains
@@ -2607,6 +2608,9 @@ def test_the_room_rule_asks_only_where_holes_leave_no_free_day_for_a_one_row_dat
     base.remove(monday + 1)
     hole = (monday + 8,)
     assert not calendar_rules.room_short(groups, base, ())
+    full = [monday + step for step in range(14) for _row in range(2)]
+    full.remove(monday + 1)
+    assert not calendar_rules.room_short(groups, full, ())
     assert calendar_rules.room_short(groups, base, hole)
     assert not calendar_rules.room_short(groups, base + [monday + 1], hole)
     assert not calendar_rules.room_short(groups, base + [monday + 20] * 2, hole)
