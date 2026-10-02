@@ -35,7 +35,6 @@ Every workbook is built by neutral code at runtime from made-up values
 import collections
 import contextlib
 import datetime
-import importlib.util
 import io
 import json
 import pathlib
@@ -46,17 +45,10 @@ import pytest
 
 from synthtwin import dialect, errors, sheetwriting, workbook
 from tests import crosscheck
+from tests.test_workbook_dates import _oracle
 
 REPOSITORY = pathlib.Path(__file__).resolve().parent.parent
-ORACLE = REPOSITORY / "tools" / "reference" / "make_generation_reference_vectors.py"
 ROWS = 1000
-
-
-def _oracle():
-    spec = importlib.util.spec_from_file_location("oracle_p4d382", ORACLE)
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
 
 
 def _exit_of(argv: "list[str]") -> "tuple[int, str]":
