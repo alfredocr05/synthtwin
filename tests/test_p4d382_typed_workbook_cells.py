@@ -43,7 +43,7 @@ import sys
 
 import pytest
 
-from synthtwin import dialect, errors, sheetwriting, workbook
+from synthtwin import dialect, errors, sheetwriting, taxonomy, workbook
 from tests import crosscheck
 from tests.test_workbook_dates import _oracle
 
@@ -213,6 +213,15 @@ def test_only_a_column_stored_mostly_as_dates_is_read_this_way() -> None:
     assert not workbook.stored_as_dates(
         ["-5", "-6", "2024-03-17"], ["number"] * 3, ["mm-dd-yy"] * 3
     )
+    # AND THE READING ITSELF asks more than half the PRESENT cells to
+    # read under one ISO reading, whatever the storage said: two dates
+    # among three notes are no reading.
+    assert taxonomy._stored_date_format(
+        ["note"] * 3 + ["2024-03-17"] * 2, taxonomy.Settings()
+    ) is None
+    assert taxonomy._stored_date_format(
+        ["note"] * 2 + ["2024-03-17"] * 3, taxonomy.Settings()
+    ) is not None
 
 
 def test_a_column_mostly_text_keeps_the_reading_it_had(
@@ -271,6 +280,36 @@ def test_whole_days_under_a_date_format_stay_dates(tmp_path: pathlib.Path) -> No
     trip = _trip(tmp_path, [(_day(draw), "m/d/yyyy") for _row in range(ROWS)])
     assert trip["column"]["format"] == "iso-date"
     assert trip["twin_exit"] == 0
+
+
+def test_days_beside_a_few_timed_cells_stay_days(tmp_path: pathlib.Path) -> None:
+    """995 weekday dates and 5 timed cells under `m/d/yyyy`: still dates.
+
+    Measured with the column respelled as moments wherever one cell held
+    a time: no weekday census, and a twin at midnight 0.009 of the time
+    and on a weekend 0.282 of it, against the source's 0.995 and 0.0.
+    """
+    draw = random.Random(11)
+    cells: "list[tuple[object, str]]" = []
+    for index in range(ROWS):
+        day = _day(draw)
+        while day.weekday() >= 5:
+            day = _day(draw)
+        if index % 200 == 0:
+            day = day.replace(hour=9, minute=30)
+        cells += [(day, "m/d/yyyy")]
+    table = tmp_path / "table.xlsx"
+    table.write_bytes(_book(cells))
+    code, said = _exit_of(
+        ["profile", f"{table}", "--out-dir", f"{tmp_path}", "--replace"]
+    )
+    assert code == 0, said[-400:]
+    column = json.loads(
+        (tmp_path / "table-profile.json").read_text(encoding="utf-8")
+    )["columns"][0]
+    assert column["format"] == "iso-date"
+    assert column["n_unparsed"] == 5
+    assert column["weekday_census"]
 
 
 # -- 3. two date formats in one column ----------------------------------

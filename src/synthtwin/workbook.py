@@ -1854,10 +1854,12 @@ def _read_as_one_column(
     unparsed, the twin wrote them as text, and `validate` exited 3 on
     the twin of the person's own table -- the commonest shape there is,
     since a column of moments holds well under one in a hundred at
-    midnight. Where ``timed`` -- another date-format cell of the column
-    held a time -- each date-format cell read as a whole day is spelled
-    as the moment at midnight it is. A column of whole days is not
-    timed, and reads as dates as it always did.
+    midnight. Where ``timed`` -- the column's date-format cells holding
+    a time are AT LEAST AS MANY as those read as whole days -- each
+    date-format cell read as a whole day is spelled as the moment at
+    midnight it is. A column of whole days, or of whole days beside
+    fewer timed cells, is not timed, and reads as dates as it always
+    did.
 
     THE CLOCKS (see `dialect.sheet_serial_second`). ``clocks`` is
     `CLOCKS_NONE` where the column's time-format numbers are not every
@@ -2065,17 +2067,19 @@ def table_of(
     figures_of: "dict[str, int]" = {}
     # FACTS ABOUT A COLUMN AND NOT ABOUT A CELL (plan P4-D382), gathered
     # in this one walk and settled after it by `_read_as_one_column`:
-    # whether any date-format cell held a time; how many cells hold a
-    # value and how many are time-format numbers; whether every one of
-    # those is a whole second of the day, and whether any is off the
-    # minute.
-    timed: "list[bool]" = []
+    # how many date-format cells held a time and how many were read as
+    # whole days; how many cells hold a value and how many are
+    # time-format numbers; whether every one of those is a whole second
+    # of the day, and whether any is off the minute.
+    timed: "list[int]" = []
+    whole: "list[int]" = []
     valued: "list[int]" = []
     clocked: "list[int]" = []
     clockable: "list[bool]" = []
     off_minute: "list[bool]" = []
     for _place in range(first_column, last_column + 1):
-        timed += [False]
+        timed += [0]
+        whole += [0]
         valued += [0]
         clocked += [0]
         clockable += [True]
@@ -2108,8 +2112,11 @@ def table_of(
                     figures_of[code],
                 )
                 if kinds_of[code] == FORMAT_DATE:
-                    if dialect.sheet_moment_kind(shown_text) == FORMAT_DATETIME:
-                        timed[index] = True
+                    read_as = dialect.sheet_moment_kind(shown_text)
+                    if read_as == FORMAT_DATETIME:
+                        timed[index] = timed[index] + 1
+                    elif read_as == FORMAT_DATE:
+                        whole[index] = whole[index] + 1
                 elif kinds_of[code] == FORMAT_TIME:
                     clocked[index] = clocked[index] + 1
                     second = dialect.sheet_serial_second(stored)
@@ -2142,7 +2149,15 @@ def table_of(
             (top, last_row),
             kinds_of,
             reading.epoch_1904,
-            timed[index],
+            # A COLUMN OF MOMENTS AND NOT A COLUMN OF DAYS: the cells
+            # holding a time are at least as many as the whole days. A
+            # column of days with a few timed cells stays a column of
+            # days, its timed cells unparsed as before -- spelling every
+            # day as a midnight moment there cost the column its weekday
+            # census and gave its twin times and weekends the days never
+            # held (measured: 995 weekday dates beside 5 timed cells,
+            # twin weekend share 0.003 -> 0.282, at midnight 1.0 -> 0.009).
+            timed[index] > 0 and timed[index] >= whole[index],
             clocks,
         )
     trailing_rows = 0
