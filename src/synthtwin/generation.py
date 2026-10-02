@@ -24364,52 +24364,15 @@ def _traded_merges(
         return 0
     parsed = len(moved)
     made = 0
+    # THE BOOK IS KEPT BETWEEN ATTEMPTS (plan P4-D376): built once here,
+    # then brought up to date by what each paid merge moved, where every
+    # attempt used to rebuild it from all the ranks.
+    book = _trade_book(
+        facts, moved, pinned, lows, highs, day, step, unit, held, widths,
+        word, clock, gone,
+    )
     for _attempt in range(owed):
-        spot: "dict[int, int]" = {}
-        for rank in range(parsed):
-            spot[moved[rank] // unit] = moved[rank]
-        order = _held_order(facts, spot, day, step, widths or not clock, word)
-        offers: "list[tuple[int, int, int, int]]" = []
-        first = 0
-        while first < parsed:
-            last = first
-            while (
-                last + 1 < parsed
-                and moved[last + 1] // unit == moved[first] // unit
-            ):
-                last = last + 1
-            loose = True
-            for rank in range(first, last + 1):
-                if pinned[rank]:
-                    loose = False
-            if loose and held[moved[first] // unit] == last - first + 1:
-                tried: "list[int]" = []
-                # ONE TARGET FOR A WIDTH TRADE, WHICH IS P4-D258 EXACTLY
-                # AS IT WAS, and the nearest few for a midnight trade,
-                # which is new (item 2 of the dates pass of the second
-                # Codex round, 2026-09-19). Offering a width trade more
-                # targets moved `date_two_kinds_traded`, a frozen case no
-                # item of this round names, so the older trade keeps its
-                # one offer and its one attempt.
-                room = _TRADE_TARGETS if clock else 1
-                lowest, highest = _run_room(lows, highs, first, last)
-                while len(tried) < room:
-                    target = _nearest_held_unit(
-                        facts, moved[first], lowest, highest, day,
-                        step, unit, held, spot, order, widths, word,
-                        not clock, -1, clock, tried, gone,
-                    )
-                    if target is None:
-                        break
-                    offers += [(
-                        abs(target - moved[first]),
-                        last - first + 1,
-                        first,
-                        target,
-                    )]
-                    tried += [target // unit]
-            first = last + 1
-        if not offers:
+        if not book.pool:
             return made
         # EVERY OFFER OF A MIDNIGHT TRADE IS TRIED, NEAREST FIRST, AND
         # NOT THE NEAREST ALONE (item 2 of the dates pass of the second
@@ -24422,22 +24385,20 @@ def _traded_merges(
         # come from the very block that neighbour is. A WIDTH trade keeps
         # P4-D258's single attempt at the single nearest offer, so no
         # column it already settled moves.
-        asked = sorted(offers)
+        asked = book.pool
         if not clock:
-            asked = [asked[0]]
-        settled = False
+            asked = book.pool[:1]
+        settled: "tuple[int, int, int, int, dict[int, int]] | None" = None
         for offer in asked:
             size = offer[1]
             start = offer[2]
             target = offer[3]
             own = moved[start] // unit
-            gaining = _counts_into_width(facts, target // day, word)
-            if clock:
-                gaining = _written_at_midnight(target, 0, step)
+            gaining = _trade_standing(facts, target, day, step, word, clock)
             paid = _repaid_standings(
-                facts, moved, pinned, lows, highs, day, step, unit, held, spot,
-                order, word, size, not gaining, own, target // unit, clock,
-                widths, gone,
+                facts, moved, pinned, lows, highs, day, step, unit, held,
+                book.spot, book.order, word, size, not gaining, own,
+                target // unit, clock, widths, gone, book.payers[gaining],
             )
             if len(paid) < size:
                 for rank in sorted(paid):
@@ -24448,11 +24409,350 @@ def _traded_merges(
             held[own] = 0
             held[target // unit] = held[target // unit] + size
             made = made + 1
-            settled = True
+            settled = (start, size, own, target // unit, paid)
             break
-        if not settled:
+        if settled is None:
             return made
+        _book_settled(book, settled)
     return made
+
+
+@dataclasses.dataclass
+class _TradeBook:
+    """What `_traded_merges` keeps between its attempts (plan P4-D376).
+
+    EVERY ATTEMPT REBUILT IT FROM ALL THE RANKS, AND EVERY OFFER WALKED
+    THEM ALL AGAIN TO FIND ITS PAYMENT (plan P4-D376, ledger K-S3-51).
+    A column of 40,000 clinic slots took 188 s to generate, a 40,000-row
+    lab panel 84 s and a quarter-hour grid 124 s, 94 % of it here: 3,196
+    offers each asked every one of the 40,000 ranks its standing, and at
+    20,000 rows, where no trade was needed, the same column took 2.3 s.
+    The book holds what an attempt reads -- the instant each held unit
+    stands on (`spot`, the last rank's in rank order, as the rebuild
+    read it), the held units filed by standing (`order`), the runs of
+    ranks on one unit and the offers each makes, sorted (`pool`) -- and
+    the ranks the tail does not pin filed by their standing in this
+    trade (`payers`), so a payment is sought among the ranks that can
+    give it and no other. A paid merge moves the run and its payers
+    alone, so only the runs those moves touch are read again: the runs
+    beside a moved rank, the runs on a unit whose count of ranks
+    changed, and the runs that were offered the unit the run left
+    (`_book_settled`). Every answer is the rebuild's answer.
+
+    Guarantees: a record of the trade's state; the functions that build
+    and update it are fixed functions of their arguments. No I/O.
+    """
+
+    facts: contract.DatetimeFacts
+    moved: "list[int]"
+    pinned: "list[bool]"
+    lows: "list[int]"
+    highs: "list[int]"
+    day: int
+    step: int
+    unit: int
+    held: "dict[int, int]"
+    widths: bool
+    word: str
+    clock: bool
+    gone: "frozenset[int]"
+    stands: "list[bool]"
+    payers: "dict[bool, list[int]]"
+    on_unit: "dict[int, list[int]]"
+    spot: "dict[int, int]"
+    order: "dict[tuple[int, int], list[int]]"
+    last_of: "dict[int, int]"
+    run_of: "list[int]"
+    unit_of_run: "dict[int, int]"
+    runs_on: "dict[int, dict[int, bool]]"
+    offers_of: "dict[int, list[tuple[int, int, int, int]]]"
+    aimed: "dict[int, dict[int, bool]]"
+    pool: "list[tuple[int, int, int, int]]"
+
+
+def _trade_standing(
+    facts: contract.DatetimeFacts,
+    value: int,
+    day: int,
+    step: int,
+    word: str,
+    clock: bool,
+) -> bool:
+    """The standing a trade pays in: midnight for a midnight trade, else the width kind."""
+    if clock:
+        return _written_at_midnight(value, 0, step)
+    return _counts_into_width(facts, value // day, word)
+
+
+def _rank_slot(ranks: "list[int]", rank: int) -> int:
+    """Where ``rank`` stands or would stand in a sorted list, by halving."""
+    low = 0
+    high = len(ranks)
+    while low < high:
+        middle = (low + high) // 2
+        if ranks[middle] < rank:
+            low = middle + 1
+        else:
+            high = middle
+    return low
+
+
+def _offer_slot(
+    pool: "list[tuple[int, int, int, int]]", offer: "tuple[int, int, int, int]"
+) -> int:
+    """Where ``offer`` stands or would stand in the sorted pool, by halving."""
+    low = 0
+    high = len(pool)
+    while low < high:
+        middle = (low + high) // 2
+        if pool[middle] < offer:
+            low = middle + 1
+        else:
+            high = middle
+    return low
+
+
+def _unit_runs(
+    moved: "list[int]", unit: int, start: int, end: int
+) -> "list[tuple[int, int]]":
+    """The runs of consecutive ranks on one unit, from ``start`` up to ``end``."""
+    runs: "list[tuple[int, int]]" = []
+    first = start
+    while first < end:
+        last = first
+        while last + 1 < end and moved[last + 1] // unit == moved[first] // unit:
+            last = last + 1
+        runs += [(first, last)]
+        first = last + 1
+    return runs
+
+
+def _trade_book(
+    facts: contract.DatetimeFacts,
+    moved: "list[int]",
+    pinned: "list[bool]",
+    lows: "list[int]",
+    highs: "list[int]",
+    day: int,
+    step: int,
+    unit: int,
+    held: "dict[int, int]",
+    widths: bool,
+    word: str,
+    clock: bool,
+    gone: "frozenset[int]",
+) -> _TradeBook:
+    """The book of one trade, its payers filed once and the rest built (P4-D376)."""
+    parsed = len(moved)
+    stands = [False for _rank in range(parsed)]
+    payers: "dict[bool, list[int]]" = {False: [], True: []}
+    for rank in range(parsed):
+        if pinned[rank]:
+            continue
+        stands[rank] = _trade_standing(facts, moved[rank], day, step, word, clock)
+        payers[stands[rank]] += [rank]
+    book = _TradeBook(
+        facts, moved, pinned, lows, highs, day, step, unit, held, widths, word,
+        clock, gone, stands, payers, {}, {}, {}, {}, [0 for _rank in range(parsed)],
+        {}, {}, {}, {}, [],
+    )
+    _book_filled(book)
+    return book
+
+
+def _book_filled(book: _TradeBook) -> None:
+    """Build the held units, the runs and every offer from all the ranks.
+
+    What each attempt of `_traded_merges` built before plan P4-D376,
+    statement for statement; the payers are filed apart and kept.
+    """
+    moved = book.moved
+    unit = book.unit
+    book.on_unit = {}
+    book.spot = {}
+    for rank in range(len(moved)):
+        key = moved[rank] // unit
+        if key in book.on_unit:
+            book.on_unit[key] += [rank]
+        else:
+            book.on_unit[key] = [rank]
+        book.spot[key] = moved[rank]
+    book.order = _held_order(
+        book.facts, book.spot, book.day, book.step,
+        book.widths or not book.clock, book.word,
+    )
+    book.last_of = {}
+    book.unit_of_run = {}
+    book.runs_on = {}
+    book.offers_of = {}
+    book.aimed = {}
+    every: "list[tuple[int, int, int, int]]" = []
+    for first, last in _unit_runs(moved, unit, 0, len(moved)):
+        _book_run_added(book, first, last)
+        every += _book_offers_kept(book, first)
+    book.pool = sorted(every)
+
+
+def _book_run_added(book: _TradeBook, first: int, last: int) -> None:
+    """File the run of ranks ``first`` to ``last``, with no offer yet."""
+    key = book.moved[first] // book.unit
+    book.last_of[first] = last
+    book.unit_of_run[first] = key
+    if key not in book.runs_on:
+        book.runs_on[key] = {}
+    book.runs_on[key][first] = True
+    for rank in range(first, last + 1):
+        book.run_of[rank] = first
+
+
+def _book_offers_kept(
+    book: _TradeBook, first: int
+) -> "list[tuple[int, int, int, int]]":
+    """Work out and file the offers of the run starting at ``first``.
+
+    The run is offered the nearest held units of the other standing
+    inside the gap of every rank of it -- one for a width trade, the
+    nearest few for a midnight one -- where it holds no pinned rank and
+    is every rank on its unit, exactly as each attempt offered it before
+    plan P4-D376. Returns the offers, which the caller puts in the pool.
+    """
+    moved = book.moved
+    unit = book.unit
+    last = book.last_of[first]
+    offers: "list[tuple[int, int, int, int]]" = []
+    loose = True
+    for rank in range(first, last + 1):
+        if book.pinned[rank]:
+            loose = False
+    if loose and book.held[moved[first] // unit] == last - first + 1:
+        tried: "list[int]" = []
+        # ONE TARGET FOR A WIDTH TRADE, WHICH IS P4-D258 EXACTLY AS IT
+        # WAS, and the nearest few for a midnight trade, which is new
+        # (item 2 of the dates pass of the second Codex round,
+        # 2026-09-19). Offering a width trade more targets moved
+        # `date_two_kinds_traded`, a frozen case no item of this round
+        # names, so the older trade keeps its one offer and its one
+        # attempt.
+        room = _TRADE_TARGETS if book.clock else 1
+        lowest, highest = _run_room(book.lows, book.highs, first, last)
+        while len(tried) < room:
+            target = _nearest_held_unit(
+                book.facts, moved[first], lowest, highest, book.day,
+                book.step, unit, book.held, book.spot, book.order,
+                book.widths, book.word, not book.clock, -1, book.clock,
+                tried, book.gone,
+            )
+            if target is None:
+                break
+            offers += [(abs(target - moved[first]), last - first + 1, first, target)]
+            tried += [target // unit]
+    book.offers_of[first] = offers
+    for offer in offers:
+        key = offer[3] // unit
+        if key not in book.aimed:
+            book.aimed[key] = {}
+        book.aimed[key][first] = True
+    return offers
+
+
+def _book_offers_dropped(book: _TradeBook, first: int) -> None:
+    """Take the offers of the run starting at ``first`` out of the book."""
+    if first not in book.offers_of:
+        return
+    for offer in book.offers_of[first]:
+        del book.aimed[offer[3] // book.unit][first]
+        del book.pool[_offer_slot(book.pool, offer)]
+    del book.offers_of[first]
+
+
+def _book_settled(
+    book: _TradeBook, settled: "tuple[int, int, int, int, dict[int, int]]"
+) -> None:
+    """Bring the book up to date after one paid merge (plan P4-D376).
+
+    ``settled`` is the merged run's first rank, its size, the unit it
+    left, the unit it joined, and the instant each payer came from. Only
+    these ranks moved, so the runs read again are the runs beside a
+    moved rank (split afresh across their span, whose two ends are
+    ranks that did not move), the runs on a unit whose count of ranks
+    changed (whether a run is every rank on its unit), and the runs that
+    were offered the unit the merge left, which no rank holds now. A
+    search reads the held units' instants as well, and a unit whose
+    last rank left for a payment stands on another instant where its
+    ranks are not all on one: that rebuilds the whole book, as before.
+    """
+    start, size, own, onto, paid = settled
+    moved = book.moved
+    unit = book.unit
+    touched: "dict[int, bool]" = {own: True, onto: True}
+    shifted: "list[int]" = []
+    for rank in range(start, start + size):
+        shifted += [rank]
+        ranks = book.on_unit[own]
+        del ranks[_rank_slot(ranks, rank)]
+        ranks = book.on_unit[onto]
+        ranks.insert(_rank_slot(ranks, rank), rank)
+    for rank in sorted(paid):
+        shifted += [rank]
+        source = paid[rank] // unit
+        joined = moved[rank] // unit
+        touched[source] = True
+        touched[joined] = True
+        ranks = book.on_unit[source]
+        del ranks[_rank_slot(ranks, rank)]
+        ranks = book.on_unit[joined]
+        ranks.insert(_rank_slot(ranks, rank), rank)
+    for rank in shifted:
+        now = _trade_standing(
+            book.facts, moved[rank], book.day, book.step, book.word, book.clock
+        )
+        if book.pinned[rank] or now == book.stands[rank]:
+            continue
+        ranks = book.payers[book.stands[rank]]
+        del ranks[_rank_slot(ranks, rank)]
+        ranks = book.payers[now]
+        ranks.insert(_rank_slot(ranks, rank), rank)
+        book.stands[rank] = now
+    for key in touched:
+        ranks = book.on_unit[key]
+        if ranks and moved[ranks[len(ranks) - 1]] != book.spot[key]:
+            _book_filled(book)
+            return
+    # THE RUNS BESIDE A MOVED RANK are split afresh over the span they
+    # cover together; at each end of a span stand two ranks that did not
+    # move and were on two units, so no run crosses it.
+    marked: "dict[int, bool]" = {}
+    for rank in shifted:
+        for near in (rank - 1, rank, rank + 1):
+            if 0 <= near < len(moved):
+                marked[book.run_of[near]] = True
+    spans: "list[list[int]]" = []
+    for first in sorted(marked):
+        last = book.last_of[first]
+        if spans and spans[len(spans) - 1][1] + 1 == first:
+            spans[len(spans) - 1][1] = last
+        else:
+            spans += [[first, last]]
+        _book_offers_dropped(book, first)
+        del book.runs_on[book.unit_of_run[first]][first]
+        del book.unit_of_run[first]
+        del book.last_of[first]
+    again: "dict[int, bool]" = {}
+    for span in spans:
+        for first, last in _unit_runs(moved, unit, span[0], span[1] + 1):
+            _book_run_added(book, first, last)
+            again[first] = True
+    for key in touched:
+        if key in book.runs_on:
+            for first in book.runs_on[key]:
+                again[first] = True
+    if own in book.aimed:
+        for first in book.aimed[own]:
+            again[first] = True
+    for first in sorted(again):
+        _book_offers_dropped(book, first)
+        for offer in _book_offers_kept(book, first):
+            book.pool.insert(_offer_slot(book.pool, offer), offer)
 
 
 def _moved_between(
@@ -24491,6 +24791,7 @@ def _repaid_standings(
     clock: bool = False,
     widths: bool = True,
     gone: "frozenset[int]" = frozenset(),
+    ranks: "list[int] | None" = None,
 ) -> "dict[int, int]":
     """Move ranks between held units to pay a trade's count back (P4-D258).
 
@@ -24499,13 +24800,22 @@ def _repaid_standings(
     already hold -- and flips its width kind, which is the payment. The
     two units of the trade itself are left alone.
 
+    ONLY A RANK OF THE OTHER STANDING CAN PAY (plan P4-D376): ``ranks``,
+    where given, is every rank the tail does not pin whose standing is
+    not ``gaining``, in rank order (`_TradeBook`'s payers), and the walk
+    visits those alone, where it visited every rank and asked each its
+    standing; a rank it skips is one the full walk turned away.
+
     Guarantees: returns the instant each moved rank CAME FROM, so the
     caller can put back a payment it could not complete; at most
     ``wanted`` entries. Determinism: a fixed function of its arguments.
     Raises nothing. No I/O of any kind.
     """
     paid: "dict[int, int]" = {}
-    for rank in range(len(moved)):
+    walked: "list[int] | range" = range(len(moved))
+    if ranks is not None:
+        walked = ranks
+    for rank in walked:
         if len(paid) >= wanted:
             break
         if pinned[rank]:
@@ -24515,9 +24825,7 @@ def _repaid_standings(
             continue
         if held[own] <= 1:
             continue
-        standing = _counts_into_width(facts, moved[rank] // day, word)
-        if clock:
-            standing = _written_at_midnight(moved[rank], 0, step)
+        standing = _trade_standing(facts, moved[rank], day, step, word, clock)
         if standing == gaining:
             continue
         target = _nearest_held_unit(
