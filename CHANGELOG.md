@@ -22,11 +22,18 @@ stopping short takes over where the work is too large. A table of
 widths by values already past the budget is not built. Any step that
 still nests too deep ends in a sentence and exit 1. **A column nothing
 reads is split once per different text**, not sixteen times a cell,
-about 236 bytes kept per different text. Profiles and twins are
-byte-identical wherever the old code finished, on every column measured:
-the first draft charged the work against the steps and changed one
-column's fraction widths in 668, which is pinned now. `K-S3-54`,
-`K-S3-55`.
+about 236 bytes kept per different text. On every column measured
+where the old code finished, profiles and twins are byte-identical to
+its own. Two drafts changed a column, and each is pinned now: the first
+charged the work against the steps and changed one column's fraction
+widths in 668; the second charged the table for values the walk drops
+unread, and a column of values each written two ways (`7.5` and `7.50`)
+was counted at one width from 25,001 rows, where the walk shows its
+pool standing. The table is still charged before a step for every value
+handed to the walk, so a caller handing in thousands of values that
+bound nothing over thousands of widths is answered as stopped short
+where the old walk finished; the census of widths hands in none of
+them. `K-S3-54`, `K-S3-55`.
 
 ### The weekday certificate's cap, measured (2026-09-30)
 
