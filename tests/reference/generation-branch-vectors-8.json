@@ -46,7 +46,10 @@
         "08:00:20"
       ],
       "column": {
+        "clock_census": [],
+        "clock_codes": [],
         "clock_form": "hh-mm-ss",
+        "clock_heaps": [],
         "clock_percentiles": {
           "max": null,
           "min": null,
@@ -60,6 +63,7 @@
           "p95": null,
           "p99": null
         },
+        "clock_step": null,
         "detection_evidence": "40 value(s) are clock times written as hours, minutes and seconds, `09:30:00`, and 1 value(s) are not",
         "high_tail": {
           "boundary": "08:00:17",
@@ -95,6 +99,7 @@
           "rows": 11,
           "values": null
         },
+        "minute_census": [],
         "missing_by_class": {
           "(blank)": 0,
           "(date-sentinel)": 0,
@@ -339,8 +344,10 @@
           "upper_t": 27
         },
         "datetimes_read_at": "utc",
+        "day_of_month_census": [],
         "detection_evidence": "written by hand in this method specification's own neutral vocabulary; no value here comes from any table.",
         "format": "iso-mixed",
+        "heavy_dates": [],
         "high_tail": {
           "boundary": "2024-05-07 00:00:00",
           "mean_distance": {
@@ -358,6 +365,7 @@
           "rows": 11,
           "values": null
         },
+        "hour_census": [],
         "low_tail": {
           "boundary": "2024-04-30 22:00:00",
           "mean_distance": {
@@ -375,6 +383,8 @@
           "rows": 11,
           "values": null
         },
+        "minute_census": [],
+        "minute_heaps": [],
         "missing_by_class": {
           "(blank)": 0,
           "(date-sentinel)": 0,
@@ -409,6 +419,8 @@
           "iso-datetime": 27
         },
         "role": "datetime",
+        "second_census": [],
+        "second_heaps": [],
         "sentinel_verdicts": [],
         "statistical_type": "datetime",
         "structural_role": "data",
@@ -660,8 +672,10 @@
           "space": 26
         },
         "datetimes_read_at": "local",
+        "day_of_month_census": [],
         "detection_evidence": "written by hand in this method specification's own neutral vocabulary; no value here comes from any table.",
         "format": "iso-datetime",
+        "heavy_dates": [],
         "high_tail": {
           "boundary": "2024-12-16 00:00:00",
           "mean_distance": {
@@ -679,6 +693,7 @@
           "rows": 11,
           "values": null
         },
+        "hour_census": [],
         "low_tail": {
           "boundary": "2024-01-08 00:00:00",
           "mean_distance": {
@@ -696,6 +711,8 @@
           "rows": 11,
           "values": null
         },
+        "minute_census": [],
+        "minute_heaps": [],
         "missing_by_class": {
           "(blank)": 0,
           "(date-sentinel)": 0,
@@ -729,6 +746,8 @@
           "iso-datetime": 26
         },
         "role": "datetime",
+        "second_census": [],
+        "second_heaps": [],
         "sentinel_verdicts": [],
         "statistical_type": "datetime",
         "structural_role": "data",
@@ -911,8 +930,10 @@
           "space": 60
         },
         "datetimes_read_at": "local",
+        "day_of_month_census": [],
         "detection_evidence": "written by hand in this method specification's own neutral vocabulary; no value here comes from any table.",
         "format": "iso-datetime",
+        "heavy_dates": [],
         "high_tail": {
           "boundary": "2024-03-30 15:31:16",
           "mean_distance": {
@@ -930,6 +951,7 @@
           "rows": 11,
           "values": null
         },
+        "hour_census": [],
         "low_tail": {
           "boundary": "2024-03-01 00:00:00",
           "mean_distance": {
@@ -947,6 +969,8 @@
           "rows": 11,
           "values": null
         },
+        "minute_census": [],
+        "minute_heaps": [],
         "missing_by_class": {
           "(blank)": 0,
           "(date-sentinel)": 0,
@@ -980,6 +1004,8 @@
           "iso-datetime": 60
         },
         "role": "datetime",
+        "second_census": [],
+        "second_heaps": [],
         "sentinel_verdicts": [],
         "statistical_type": "datetime",
         "structural_role": "data",

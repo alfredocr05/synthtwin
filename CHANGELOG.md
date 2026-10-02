@@ -6,6 +6,20 @@ exists).
 
 ## [Unreleased]
 
+### The base the rest of stage 3b builds on (2026-10-01)
+
+**Twelve calendar keys reserved, empty** (plan P4-D364): `hour_census`,
+`minute_census`, `second_census`, `minute_heaps`, `second_heaps`,
+`day_of_month_census` and `heavy_dates` on every date block, and
+`clock_census`, `clock_heaps`, `clock_step`, `clock_codes` and
+`minute_census` on every clock block, `[]` (the step `null`) until the
+landing that fills each; the loader refuses anything else. One inert
+stub per landing at every call site, the drawing-unit and listed-date
+seams, one anchor per landing in every shared block, and the census
+rules every landing shares (`calendar_floor_ok`, `merged_groups`,
+`standing_out`, `census_breach`, `_census_lines`). No twin moves; the
+frozen vectors and goldens differ only by the new keys.
+
 ### The weekday certificate's cap, measured (2026-09-30)
 
 **The cap stays at 20,000 arrangements** (plan P4-D359, the owner's
@@ -30,8 +44,8 @@ counted afresh reads 1.085.
 **The owner's "Push now, add a guard"** (plan P4-D362). `tools/hooks/check_messages.py`
 reads commit messages with the attested scanner's own functions: a commit-msg hook, a
 pre-push hook, and CI's decontam job over every commit past the grandfather `82b1f1a`.
-The 134 commits pushed there carry 14 matches in 13 messages; they, and the 104 before
-them, stay as published.
+The 134 commits pushed there carry 14 matches in 13 messages; they stay as published by
+that answer, and the 104 before them by the orchestrator's call (P4-D362).
 
 ### Each half of the week's band on its own (2026-09-30)
 
@@ -67,9 +81,10 @@ more than published, both distinct counts MISSED.
 ### A day-first column a month-first reading barely reaches is described (2026-09-30)
 
 **`synthtwin profile` no longer stops on it** (plan P4-D361). 144
-day-first dates beside one to ten cells a month-first reading also
-parses raised an internal fault at every floor, and so did `validate`
-on a twin whose description reached that shape: the remark comparing
+day-first dates beside one to the census line less one (one to ten at
+the default floor) cells a month-first reading also parses raised an
+internal fault, and so did `validate` on a twin whose description
+reached that shape: the remark comparing
 the two readings' reaches was handed "fewer than 11" where it compares
 them. Where either reach may not be printed the remark is withdrawn,
 as contract NF36 says; the evidence sentence still names the reading.
@@ -225,12 +240,11 @@ meets past them, and a file of 60 was WITHIN-BOUND; the validator and the
 twin's report now draw it over the windows the pass may use and hold the
 count exactly -- MISSED where the pass's splits break a tail's summed
 window and it moves nothing, 6 of 1,200 twins of a floor-50 family, a
-limit recorded. **The filled-range gate asserts the days, not their
-count** (item 3): on its 11 cases, where each tail's derived end is the
-real end the twin holds the real days, and where one stands a unit past
-it (4 cases, among them the review's 32 days) that unit in place of a
-real one inside; over small filled columns about three in ten still come
-back with fewer days.
+limit recorded. **A filled range comes back day for day** (item 3):
+where each tail's derived end is the real end the twin holds the real
+days, and where one stands a unit past it, that unit in place of a real
+one inside; about three in ten small filled columns still come back
+with fewer days.
 
 ### A count no placement inside the gaps reaches is met past the strata (2026-09-28)
 

@@ -138,8 +138,10 @@
         },
         "datetime_separators": {},
         "datetimes_read_at": "local",
+        "day_of_month_census": [],
         "detection_evidence": "written by hand in this method specification's own neutral vocabulary; no value here comes from any table.",
         "format": "iso-date",
+        "heavy_dates": [],
         "high_tail": {
           "boundary": "2020-11-03",
           "mean_distance": {
@@ -157,6 +159,7 @@
           "rows": 11,
           "values": null
         },
+        "hour_census": [],
         "low_tail": {
           "boundary": "2020-10-07",
           "mean_distance": {
@@ -174,6 +177,8 @@
           "rows": 11,
           "values": null
         },
+        "minute_census": [],
+        "minute_heaps": [],
         "missing_by_class": {
           "(blank)": 0,
           "(date-sentinel)": 0,
@@ -209,6 +214,8 @@
           "iso-date": 79
         },
         "role": "datetime",
+        "second_census": [],
+        "second_heaps": [],
         "sentinel_verdicts": [],
         "statistical_type": "datetime",
         "structural_role": "data",
@@ -642,8 +649,10 @@
         },
         "datetime_separators": {},
         "datetimes_read_at": "local",
+        "day_of_month_census": [],
         "detection_evidence": "written by hand in this method specification's own neutral vocabulary; no value here comes from any table.",
         "format": "iso-date",
+        "heavy_dates": [],
         "high_tail": {
           "boundary": "2024-05-22",
           "mean_distance": {
@@ -661,6 +670,7 @@
           "rows": 21,
           "values": null
         },
+        "hour_census": [],
         "low_tail": {
           "boundary": "2024-05-14",
           "mean_distance": {
@@ -678,6 +688,8 @@
           "rows": 34,
           "values": null
         },
+        "minute_census": [],
+        "minute_heaps": [],
         "missing_by_class": {
           "(blank)": 0,
           "(date-sentinel)": 0,
@@ -713,6 +725,8 @@
           "iso-date": 101
         },
         "role": "datetime",
+        "second_census": [],
+        "second_heaps": [],
         "sentinel_verdicts": [],
         "statistical_type": "datetime",
         "structural_role": "data",
@@ -1190,8 +1204,10 @@
         },
         "datetime_separators": {},
         "datetimes_read_at": "local",
+        "day_of_month_census": [],
         "detection_evidence": "written by hand in this method specification's own neutral vocabulary; no value here comes from any table.",
         "format": "iso-date",
+        "heavy_dates": [],
         "high_tail": {
           "boundary": "2019-12-09",
           "mean_distance": {
@@ -1209,6 +1225,7 @@
           "rows": 19,
           "values": null
         },
+        "hour_census": [],
         "low_tail": {
           "boundary": "2019-11-23",
           "mean_distance": {
@@ -1226,6 +1243,8 @@
           "rows": 13,
           "values": null
         },
+        "minute_census": [],
+        "minute_heaps": [],
         "missing_by_class": {
           "(blank)": 0,
           "(date-sentinel)": 0,
@@ -1261,6 +1280,8 @@
           "iso-date": 105
         },
         "role": "datetime",
+        "second_census": [],
+        "second_heaps": [],
         "sentinel_verdicts": [],
         "statistical_type": "datetime",
         "structural_role": "data",
@@ -1742,8 +1763,10 @@
         },
         "datetime_separators": {},
         "datetimes_read_at": "local",
+        "day_of_month_census": [],
         "detection_evidence": "written by hand in this method specification's own neutral vocabulary; no value here comes from any table.",
         "format": "iso-date",
+        "heavy_dates": [],
         "high_tail": {
           "boundary": "2019-02-17",
           "mean_distance": {
@@ -1761,6 +1784,7 @@
           "rows": 23,
           "values": null
         },
+        "hour_census": [],
         "low_tail": {
           "boundary": "2019-01-27",
           "mean_distance": {
@@ -1778,6 +1802,8 @@
           "rows": 15,
           "values": null
         },
+        "minute_census": [],
+        "minute_heaps": [],
         "missing_by_class": {
           "(blank)": 0,
           "(date-sentinel)": 0,
@@ -1813,6 +1839,8 @@
           "iso-date": 102
         },
         "role": "datetime",
+        "second_census": [],
+        "second_heaps": [],
         "sentinel_verdicts": [],
         "statistical_type": "datetime",
         "structural_role": "data",
@@ -2293,8 +2321,10 @@
         },
         "datetime_separators": {},
         "datetimes_read_at": "local",
+        "day_of_month_census": [],
         "detection_evidence": "written by hand in this method specification's own neutral vocabulary; no value here comes from any table.",
         "format": "iso-date",
+        "heavy_dates": [],
         "high_tail": {
           "boundary": "2017-11-24",
           "mean_distance": {
@@ -2312,6 +2342,7 @@
           "rows": 14,
           "values": null
         },
+        "hour_census": [],
         "low_tail": {
           "boundary": "2017-11-03",
           "mean_distance": {
@@ -2329,6 +2360,8 @@
           "rows": 11,
           "values": null
         },
+        "minute_census": [],
+        "minute_heaps": [],
         "missing_by_class": {
           "(blank)": 0,
           "(date-sentinel)": 0,
@@ -2364,6 +2397,8 @@
           "iso-date": 101
         },
         "role": "datetime",
+        "second_census": [],
+        "second_heaps": [],
         "sentinel_verdicts": [],
         "statistical_type": "datetime",
         "structural_role": "data",
@@ -2840,8 +2875,10 @@
         },
         "datetime_separators": {},
         "datetimes_read_at": "local",
+        "day_of_month_census": [],
         "detection_evidence": "written by hand in this method specification's own neutral vocabulary; no value here comes from any table.",
         "format": "iso-date",
+        "heavy_dates": [],
         "high_tail": {
           "boundary": "2020-03-05",
           "mean_distance": {
@@ -2859,6 +2896,7 @@
           "rows": 15,
           "values": null
         },
+        "hour_census": [],
         "low_tail": {
           "boundary": "2020-02-17",
           "mean_distance": {
@@ -2876,6 +2914,8 @@
           "rows": 21,
           "values": null
         },
+        "minute_census": [],
+        "minute_heaps": [],
         "missing_by_class": {
           "(blank)": 0,
           "(date-sentinel)": 0,
@@ -2911,6 +2951,8 @@
           "iso-date": 100
         },
         "role": "datetime",
+        "second_census": [],
+        "second_heaps": [],
         "sentinel_verdicts": [],
         "statistical_type": "datetime",
         "structural_role": "data",
@@ -3384,8 +3426,10 @@
         },
         "datetime_separators": {},
         "datetimes_read_at": "local",
+        "day_of_month_census": [],
         "detection_evidence": "written by hand in this method specification's own neutral vocabulary; no value here comes from any table.",
         "format": "iso-date",
+        "heavy_dates": [],
         "high_tail": {
           "boundary": "2024-09-19",
           "mean_distance": null,
@@ -3396,6 +3440,7 @@
             "2024-09-23"
           ]
         },
+        "hour_census": [],
         "low_tail": {
           "boundary": "2024-08-23",
           "mean_distance": {
@@ -3412,6 +3457,8 @@
             "2024-08-22"
           ]
         },
+        "minute_census": [],
+        "minute_heaps": [],
         "missing_by_class": {
           "(blank)": 0,
           "(date-sentinel)": 0,
@@ -3445,6 +3492,8 @@
           "iso-date": 120
         },
         "role": "datetime",
+        "second_census": [],
+        "second_heaps": [],
         "sentinel_verdicts": [],
         "statistical_type": "datetime",
         "structural_role": "data",
@@ -3958,8 +4007,10 @@
         },
         "datetime_separators": {},
         "datetimes_read_at": "local",
+        "day_of_month_census": [],
         "detection_evidence": "written by hand in this method specification's own neutral vocabulary; no value here comes from any table.",
         "format": "iso-date",
+        "heavy_dates": [],
         "high_tail": {
           "boundary": "2024-11-28",
           "mean_distance": {
@@ -3977,6 +4028,7 @@
           "rows": 11,
           "values": null
         },
+        "hour_census": [],
         "low_tail": {
           "boundary": "2024-10-09",
           "mean_distance": {
@@ -3994,6 +4046,8 @@
           "rows": 11,
           "values": null
         },
+        "minute_census": [],
+        "minute_heaps": [],
         "missing_by_class": {
           "(blank)": 0,
           "(date-sentinel)": 0,
@@ -4027,6 +4081,8 @@
           "iso-date": 100
         },
         "role": "datetime",
+        "second_census": [],
+        "second_heaps": [],
         "sentinel_verdicts": [],
         "statistical_type": "datetime",
         "structural_role": "data",
@@ -4480,8 +4536,10 @@
         },
         "datetime_separators": {},
         "datetimes_read_at": "local",
+        "day_of_month_census": [],
         "detection_evidence": "written by hand in this method specification's own neutral vocabulary; no value here comes from any table.",
         "format": "iso-date",
+        "heavy_dates": [],
         "high_tail": {
           "boundary": "2024-08-15",
           "mean_distance": {
@@ -4499,6 +4557,7 @@
           "rows": 12,
           "values": null
         },
+        "hour_census": [],
         "low_tail": {
           "boundary": "2024-06-22",
           "mean_distance": {
@@ -4516,6 +4575,8 @@
           "rows": 11,
           "values": null
         },
+        "minute_census": [],
+        "minute_heaps": [],
         "missing_by_class": {
           "(blank)": 0,
           "(date-sentinel)": 0,
@@ -4549,6 +4610,8 @@
           "iso-date": 100
         },
         "role": "datetime",
+        "second_census": [],
+        "second_heaps": [],
         "sentinel_verdicts": [],
         "statistical_type": "datetime",
         "structural_role": "data",
@@ -5054,8 +5117,10 @@
         },
         "datetime_separators": {},
         "datetimes_read_at": "local",
+        "day_of_month_census": [],
         "detection_evidence": "written by hand in this method specification's own neutral vocabulary; no value here comes from any table.",
         "format": "iso-date",
+        "heavy_dates": [],
         "high_tail": {
           "boundary": "2024-03-08",
           "mean_distance": {
@@ -5073,6 +5138,7 @@
           "rows": 12,
           "values": null
         },
+        "hour_census": [],
         "low_tail": {
           "boundary": "2024-02-18",
           "mean_distance": {
@@ -5090,6 +5156,8 @@
           "rows": 16,
           "values": null
         },
+        "minute_census": [],
+        "minute_heaps": [],
         "missing_by_class": {
           "(blank)": 0,
           "(date-sentinel)": 0,
@@ -5125,6 +5193,8 @@
           "iso-date": 132
         },
         "role": "datetime",
+        "second_census": [],
+        "second_heaps": [],
         "sentinel_verdicts": [],
         "statistical_type": "datetime",
         "structural_role": "data",
@@ -5694,8 +5764,10 @@
         },
         "datetime_separators": {},
         "datetimes_read_at": "local",
+        "day_of_month_census": [],
         "detection_evidence": "written by hand in this method specification's own neutral vocabulary; no value here comes from any table.",
         "format": "iso-date",
+        "heavy_dates": [],
         "high_tail": {
           "boundary": "2024-10-18",
           "mean_distance": {
@@ -5713,6 +5785,7 @@
           "rows": 12,
           "values": null
         },
+        "hour_census": [],
         "low_tail": {
           "boundary": "2024-09-10",
           "mean_distance": {
@@ -5729,6 +5802,8 @@
             "2024-09-08"
           ]
         },
+        "minute_census": [],
+        "minute_heaps": [],
         "missing_by_class": {
           "(blank)": 0,
           "(date-sentinel)": 0,
@@ -5762,6 +5837,8 @@
           "iso-date": 100
         },
         "role": "datetime",
+        "second_census": [],
+        "second_heaps": [],
         "sentinel_verdicts": [],
         "statistical_type": "datetime",
         "structural_role": "data",
@@ -6225,8 +6302,10 @@
         },
         "datetime_separators": {},
         "datetimes_read_at": "local",
+        "day_of_month_census": [],
         "detection_evidence": "written by hand in this method specification's own neutral vocabulary; no value here comes from any table.",
         "format": "iso-date",
+        "heavy_dates": [],
         "high_tail": {
           "boundary": "2024-10-24",
           "mean_distance": {
@@ -6244,6 +6323,7 @@
           "rows": 11,
           "values": null
         },
+        "hour_census": [],
         "low_tail": {
           "boundary": "2024-05-09",
           "mean_distance": {
@@ -6261,6 +6341,8 @@
           "rows": 11,
           "values": null
         },
+        "minute_census": [],
+        "minute_heaps": [],
         "missing_by_class": {
           "(blank)": 0,
           "(date-sentinel)": 0,
@@ -6294,6 +6376,8 @@
           "iso-date": 110
         },
         "role": "datetime",
+        "second_census": [],
+        "second_heaps": [],
         "sentinel_verdicts": [],
         "statistical_type": "datetime",
         "structural_role": "data",
@@ -6777,8 +6861,10 @@
         },
         "datetime_separators": {},
         "datetimes_read_at": "local",
+        "day_of_month_census": [],
         "detection_evidence": "written by hand in this method specification's own neutral vocabulary; no value here comes from any table.",
         "format": "iso-date",
+        "heavy_dates": [],
         "high_tail": {
           "boundary": "2024-01-23",
           "mean_distance": {
@@ -6795,6 +6881,7 @@
             "2024-01-26"
           ]
         },
+        "hour_census": [],
         "low_tail": {
           "boundary": "2024-01-02",
           "mean_distance": {
@@ -6809,6 +6896,8 @@
             "2024-01-01"
           ]
         },
+        "minute_census": [],
+        "minute_heaps": [],
         "missing_by_class": {
           "(blank)": 0,
           "(date-sentinel)": 0,
@@ -6842,6 +6931,8 @@
           "iso-date": 100
         },
         "role": "datetime",
+        "second_census": [],
+        "second_heaps": [],
         "sentinel_verdicts": [],
         "statistical_type": "datetime",
         "structural_role": "data",

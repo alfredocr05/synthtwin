@@ -182,7 +182,7 @@ modules. Nothing in this module reads a file.
 import dataclasses
 import math
 
-from synthtwin import calendar_certificate, calendar_rules, contract, parsing
+from synthtwin import calendar_certificate, calendar_clock, calendar_rules, contract, parsing
 
 # The eleven points of the percentile ladder: the shape-carrying
 # summary of a numeric column (plan P1-D4).
@@ -988,6 +988,24 @@ NOTE_WEEKDAY_WITHHELD_TIES = "weekday_census_withheld_too_few_repeats"
 NOTE_WEEKDAY_WITHHELD_NARROWED = "weekday_census_withheld_could_be_narrowed"
 NOTE_WEEKDAY_WITHHELD_SPELLINGS = "weekday_census_withheld_two_spellings"
 NOTE_WEEKDAY_WITHHELD_NO_TAILS = "weekday_census_withheld_no_tails"
+# THE LANDINGS' ANCHORS (plan P4-D364): each landing of stage 3b names its
+# sentences below its own line, so two landings built side by side never
+# touch the same lines.
+# anchor 3b-D1 (P4-D365)
+# anchor 3b-D0 (P4-D366)
+# anchor 3b-D2 (P4-D367)
+# anchor 3b-D3 (P4-D368)
+# anchor 3b-D4 (P4-D369)
+# anchor 3b-T1 (P4-D370)
+# anchor 3b-T2 (P4-D371)
+# anchor 3b-T3 (P4-D372)
+# anchor 3b-C1 (P4-D373)
+# anchor 3b-C2 (P4-D374)
+# anchor 3b-G1 (P4-D375)
+# anchor 3b-G3 (P4-D376)
+# anchor 3b-G2 (P4-D377)
+# anchor 3b-7 (P4-D378)
+# anchor 3b-J (P4-D379)
 
 # EVERY form, with how many arguments it takes. This mapping is the
 # enumeration: a name that is not a key here is not a form, and `note`
@@ -1135,6 +1153,23 @@ NOTE_ARITY: "dict[str, int]" = {
     NOTE_WEEKDAY_WITHHELD_NARROWED: 1,
     NOTE_WEEKDAY_WITHHELD_SPELLINGS: 0,
     NOTE_WEEKDAY_WITHHELD_NO_TAILS: 0,
+    # THE LANDINGS' ANCHORS (plan P4-D364): each landing of stage 3b adds
+    # its forms' arities below its own line.
+    # anchor 3b-D1 (P4-D365)
+    # anchor 3b-D0 (P4-D366)
+    # anchor 3b-D2 (P4-D367)
+    # anchor 3b-D3 (P4-D368)
+    # anchor 3b-D4 (P4-D369)
+    # anchor 3b-T1 (P4-D370)
+    # anchor 3b-T2 (P4-D371)
+    # anchor 3b-T3 (P4-D372)
+    # anchor 3b-C1 (P4-D373)
+    # anchor 3b-C2 (P4-D374)
+    # anchor 3b-G1 (P4-D375)
+    # anchor 3b-G3 (P4-D376)
+    # anchor 3b-G2 (P4-D377)
+    # anchor 3b-7 (P4-D378)
+    # anchor 3b-J (P4-D379)
 }
 
 # The same names as a sorted tuple, for a reader and for the tests that
@@ -1338,6 +1373,23 @@ ARGUMENT_BINDINGS: "dict[tuple[str, int], tuple[object, ...]]" = {
     (REMARK_WEEKDAY_FLOOR, 0): (BIND_SETTING, "census line"),
     (NOTE_WEEKDAY_WITHHELD_TIES, 0): (BIND_SETTING, "census line"),
     (NOTE_WEEKDAY_WITHHELD_NARROWED, 0): (BIND_SETTING, "census line"),
+    # THE LANDINGS' ANCHORS (plan P4-D364): each landing of stage 3b binds
+    # its forms' arguments below its own line.
+    # anchor 3b-D1 (P4-D365)
+    # anchor 3b-D0 (P4-D366)
+    # anchor 3b-D2 (P4-D367)
+    # anchor 3b-D3 (P4-D368)
+    # anchor 3b-D4 (P4-D369)
+    # anchor 3b-T1 (P4-D370)
+    # anchor 3b-T2 (P4-D371)
+    # anchor 3b-T3 (P4-D372)
+    # anchor 3b-C1 (P4-D373)
+    # anchor 3b-C2 (P4-D374)
+    # anchor 3b-G1 (P4-D375)
+    # anchor 3b-G3 (P4-D376)
+    # anchor 3b-G2 (P4-D377)
+    # anchor 3b-7 (P4-D378)
+    # anchor 3b-J (P4-D379)
     (REMARK_OUT_OF_RANGE, 0): (BIND_KEY, "n_out_of_range"),
     (EVIDENCE_CLOCK, 0): (BIND_DIFFERENCE, "n_present", "n_unparsed"),
     (EVIDENCE_CLOCK, 1): (BIND_WORD,),
@@ -1987,6 +2039,23 @@ def rendered(form: str, arguments: "tuple[object, ...]") -> str:
             "counted: the column has no tails, so it has no values "
             "between them to count"
         )
+    # THE LANDINGS' ANCHORS (plan P4-D364): each landing of stage 3b writes
+    # its forms' texts below its own line.
+    # anchor 3b-D1 (P4-D365)
+    # anchor 3b-D0 (P4-D366)
+    # anchor 3b-D2 (P4-D367)
+    # anchor 3b-D3 (P4-D368)
+    # anchor 3b-D4 (P4-D369)
+    # anchor 3b-T1 (P4-D370)
+    # anchor 3b-T2 (P4-D371)
+    # anchor 3b-T3 (P4-D372)
+    # anchor 3b-C1 (P4-D373)
+    # anchor 3b-C2 (P4-D374)
+    # anchor 3b-G1 (P4-D375)
+    # anchor 3b-G3 (P4-D376)
+    # anchor 3b-G2 (P4-D377)
+    # anchor 3b-7 (P4-D378)
+    # anchor 3b-J (P4-D379)
     if form == NOTE_SMALL_POPULATION:
         # THE TWO FLOORS ARE COUNTED IN DIFFERENT UNITS, AND THIS NOTICE
         # SAYS SO (review of 2026-09-23, finding 6). The size above is
@@ -16048,6 +16117,167 @@ def _weekday_published(
     ]
 
 
+# THE CENSUSES STAGE 3B RESERVES, PUBLISHED (plan P4-D364): one producer
+# per landing, each handed the block, the role's verdict, the cells, the
+# settings, whether the block is produced (`False` on the validator's own
+# re-description, which publishes every census empty), how the workbook
+# stores the column, the block's published decisions and its published
+# absent spellings. Each returns the block with its keys added, and the
+# notes and remarks to add -- every key empty and no sentence, until the
+# landing named in its docstring fills it.
+
+
+def _reserved_lists(
+    details: "dict[str, object]", keys: "tuple[str, ...]"
+) -> "tuple[dict[str, object], list[Note], list[Note]]":
+    """A block with each of these keys `[]`, and no sentence (plan P4-D364)."""
+    block = dict(details)
+    for key in keys:
+        block[key] = []
+    return block, [], []
+
+
+def _hour_published(
+    details: "dict[str, object]",
+    verdict: "_Verdict",
+    cells: "_Cells",
+    settings: Settings,
+    produced: bool,
+    stored_one_way: bool,
+    verdicts: "list[dict[str, object]]",
+    absent: "dict[str, int]",
+) -> "tuple[dict[str, object], list[Note], list[Note]]":
+    """A column block of moments with its `hour_census`, and its sentences.
+
+    THE STUB OF LANDING 3b.2-H (lane T2, plan P4-D371), which fills this
+    producer and nothing beside it; until then the census is `[]` on
+    every block and no sentence is said.
+
+    Guarantees: accepts the block and what `profile_column` hands every
+    census; returns a new block, the notes and the remarks to add.
+    Determinism: a function of the arguments. Raises nothing. No I/O of
+    any kind.
+    """
+    return _reserved_lists(details, (calendar_clock.HOUR_CENSUS,))
+
+
+def _clock_fields_published(
+    details: "dict[str, object]",
+    verdict: "_Verdict",
+    cells: "_Cells",
+    settings: Settings,
+    produced: bool,
+    stored_one_way: bool,
+    verdicts: "list[dict[str, object]]",
+    absent: "dict[str, int]",
+) -> "tuple[dict[str, object], list[Note], list[Note]]":
+    """A column block of moments with its minute and second censuses and heaps.
+
+    THE STUB OF LANDING 3b.4 (lane T3, plan P4-D372), which fills this
+    producer and nothing beside it; until then `minute_census`,
+    `second_census`, `minute_heaps` and `second_heaps` are `[]` on every
+    block and no sentence is said.
+
+    Guarantees: as `_hour_published`. No I/O of any kind.
+    """
+    return _reserved_lists(
+        details,
+        (
+            calendar_clock.MINUTE_CENSUS,
+            calendar_clock.SECOND_CENSUS,
+            calendar_clock.MINUTE_HEAPS,
+            calendar_clock.SECOND_HEAPS,
+        ),
+    )
+
+
+def _day_of_month_published(
+    details: "dict[str, object]",
+    verdict: "_Verdict",
+    cells: "_Cells",
+    settings: Settings,
+    produced: bool,
+    stored_one_way: bool,
+    verdicts: "list[dict[str, object]]",
+    absent: "dict[str, int]",
+) -> "tuple[dict[str, object], list[Note], list[Note]]":
+    """A column block of dates with its `day_of_month_census`, and its sentences.
+
+    THE STUB OF LANDING 3b.3 (lane D3, plan P4-D368), which fills this
+    producer and nothing beside it; until then the census is `[]` on
+    every block and no sentence is said.
+
+    Guarantees: as `_hour_published`. No I/O of any kind.
+    """
+    return _reserved_lists(details, (calendar_rules.DAY_OF_MONTH_CENSUS,))
+
+
+def _heavy_published(
+    details: "dict[str, object]",
+    verdict: "_Verdict",
+    cells: "_Cells",
+    settings: Settings,
+    produced: bool,
+    stored_one_way: bool,
+    verdicts: "list[dict[str, object]]",
+    absent: "dict[str, int]",
+) -> "tuple[dict[str, object], list[Note], list[Note]]":
+    """A column block of dates with its `heavy_dates`, and its sentences.
+
+    THE STUB OF LANDING 3b.6 (lane D4, plan P4-D369), which fills this
+    producer and nothing beside it; until then the list is `[]` on every
+    block and no sentence is said.
+
+    Guarantees: as `_hour_published`. No I/O of any kind.
+    """
+    return _reserved_lists(details, (calendar_rules.HEAVY_DATES,))
+
+
+def _clock_census_published(
+    details: "dict[str, object]",
+    verdict: "_Verdict",
+    cells: "_Cells",
+    settings: Settings,
+    produced: bool,
+    stored_one_way: bool,
+    verdicts: "list[dict[str, object]]",
+    absent: "dict[str, int]",
+) -> "tuple[dict[str, object], list[Note], list[Note]]":
+    """A column block of clock times with its census, heaps, step and codes.
+
+    THE STUB OF LANDING 3b.5 (lane C1, plan P4-D373), which fills this
+    producer and nothing beside it; until then `clock_census`,
+    `clock_heaps` and `clock_codes` are `[]` and `clock_step` is `null`
+    on every block, and no sentence is said.
+
+    Guarantees: as `_hour_published`. No I/O of any kind.
+    """
+    block, notes, remarks = _reserved_lists(details, calendar_clock.CLOCK_LISTS)
+    block[calendar_clock.CLOCK_STEP] = None
+    return block, notes, remarks
+
+
+def _clock_minutes_published(
+    details: "dict[str, object]",
+    verdict: "_Verdict",
+    cells: "_Cells",
+    settings: Settings,
+    produced: bool,
+    stored_one_way: bool,
+    verdicts: "list[dict[str, object]]",
+    absent: "dict[str, int]",
+) -> "tuple[dict[str, object], list[Note], list[Note]]":
+    """A column block of clock times with its `minute_census`, and its sentences.
+
+    THE STUB OF LANDING 3b.5's second step (lane C2, plan P4-D374), which
+    fills this producer and nothing beside it; until then the census is
+    `[]` on every block and no sentence is said.
+
+    Guarantees: as `_hour_published`. No I/O of any kind.
+    """
+    return _reserved_lists(details, (calendar_clock.MINUTE_CENSUS,))
+
+
 def _floored_census(
     counts: "dict[str, int]", population: int, settings: Settings
 ) -> "dict[str, int]":
@@ -21816,6 +22046,56 @@ def profile_column(
             by_source,
         )
         publication_notes = verdict.notes + weekday_notes
+    # THE CENSUSES STAGE 3B RESERVES (plan P4-D364), one producer per
+    # landing, each handed the same eight things and each adding its own
+    # keys, notes and remarks after the weekday census's. A landing edits
+    # its own producer, not these calls.
+    census_notes: "list[Note]" = []
+    census_remarks: "list[Note]" = []
+    if verdict.role == ROLE_DATETIME:
+        # -- the hour of the written clock (3b.T2, P4-D371)
+        details, census_notes, census_remarks = _hour_published(
+            details, verdict, cells, settings, calendar_census,
+            stored_one_way, entries, by_source,
+        )
+        publication_notes = publication_notes + census_notes
+        weekday_remarks = weekday_remarks + census_remarks
+        # -- the minute and the second, and their heaps (3b.T3, P4-D372)
+        details, census_notes, census_remarks = _clock_fields_published(
+            details, verdict, cells, settings, calendar_census,
+            stored_one_way, entries, by_source,
+        )
+        publication_notes = publication_notes + census_notes
+        weekday_remarks = weekday_remarks + census_remarks
+        # -- the days of the month (3b.D3, P4-D368)
+        details, census_notes, census_remarks = _day_of_month_published(
+            details, verdict, cells, settings, calendar_census,
+            stored_one_way, entries, by_source,
+        )
+        publication_notes = publication_notes + census_notes
+        weekday_remarks = weekday_remarks + census_remarks
+        # -- the dates that stand out (3b.D4, P4-D369)
+        details, census_notes, census_remarks = _heavy_published(
+            details, verdict, cells, settings, calendar_census,
+            stored_one_way, entries, by_source,
+        )
+        publication_notes = publication_notes + census_notes
+        weekday_remarks = weekday_remarks + census_remarks
+    if verdict.role == ROLE_CLOCK:
+        # -- the census, heaps, step and codes of clock times (3b.C1, P4-D373)
+        details, census_notes, census_remarks = _clock_census_published(
+            details, verdict, cells, settings, calendar_census,
+            stored_one_way, entries, by_source,
+        )
+        publication_notes = publication_notes + census_notes
+        weekday_remarks = weekday_remarks + census_remarks
+        # -- the minute census of clock times (3b.C2, P4-D374)
+        details, census_notes, census_remarks = _clock_minutes_published(
+            details, verdict, cells, settings, calendar_census,
+            stored_one_way, entries, by_source,
+        )
+        publication_notes = publication_notes + census_notes
+        weekday_remarks = weekday_remarks + census_remarks
     statistical_type, quality_state, structural_role = axes_of(
         verdict.role, forced_identifier
     )
@@ -22049,10 +22329,11 @@ def _arguments_at_the_line(
             # NEVER A FRAGMENT WHERE THE RENDERING COMPARES (plan
             # P4-D361). NF36 reads both reaches as whole numbers to
             # choose its sentence, so either fragment raised there: 144
-            # day-first dates beside one to ten that a month-first
-            # reading also parses stopped `synthtwin profile` at every
-            # floor, and `synthtwin validate` on such a twin. The remark
-            # is withdrawn, as contract NF36 states.
+            # day-first dates beside one to the census line less one (one
+            # to ten at the default floor) that a month-first reading
+            # also parses stopped `synthtwin profile`, and `synthtwin
+            # validate` on such a twin. The remark is withdrawn, as
+            # contract NF36 states.
             return None
         if stands == _STANDS_NOWHERE and argument >= line:
             # A SENTENCE WHOSE COUNT WOULD HAND BACK A WITHHELD CELL

@@ -512,10 +512,10 @@ COMPOUND_LABEL_KEYS = LABEL_KEYS + (
     "n_present",
 )
 
-# The clock role's own five, and the two forms its cells can wear.
-# Nothing else joins them: these five are the whole of what this role
+# The clock role's own ten, and the two forms its cells can wear.
+# Nothing else joins them: these ten are the whole of what this role
 # adds to the universal keys, and the forbidden-key rule is what stops
-# a sixth. STAGE 3 (plan P4-D328): the earliest and latest time went,
+# an eleventh. STAGE 3 (plan P4-D328): the earliest and latest time went,
 # and the two tails took their places.
 CLOCK_KEYS = (
     "clock_form",
@@ -523,6 +523,17 @@ CLOCK_KEYS = (
     "high_tail",
     "low_tail",
     "n_unparsed",
+    # THE FIVE STAGE 3B RESERVES (plan P4-D364): the census of ten-minute
+    # bins, the clock values that stand out, the step the values were
+    # written on and the codes written among them (`_clock_census`), and
+    # the census of the minutes of the hour (`_clock_minute_census`).
+    # `[]`, `[]`, `null`, `[]` and `[]` on every block until the landing
+    # that fills each, and the loader refuses anything else.
+    "clock_census",
+    "clock_heaps",
+    "clock_step",
+    "clock_codes",
+    "minute_census",
 )
 CLOCK_FORMS = ("hh-mm", "hh-mm-ss")
 
@@ -564,6 +575,18 @@ DATETIME_KEYS = (
     # P4-D355, invariants WC1 to WC9): groups of weekdays, empty on every
     # column that publishes none.
     "weekday_census",
+    # THE SEVEN STAGE 3B RESERVES (plan P4-D364): the censuses of the
+    # hour, the minute and the second of the written clock, the minutes
+    # and seconds that stand out, the census of the days of the month and
+    # the dates that stand out. `[]` on every block until the landing
+    # that fills each, and the loader refuses anything else.
+    "hour_census",
+    "minute_census",
+    "second_census",
+    "minute_heaps",
+    "second_heaps",
+    "day_of_month_census",
+    "heavy_dates",
 )
 
 NUMERIC_KEYS = (
@@ -1638,6 +1661,25 @@ INVARIANTS = {
         "withheld says nothing about how few rows a set of dates holds, "
         "and the loader refuses one at that least, which every band holds"
     ),
+    # THE LANDINGS' ANCHORS (plan P4-D364). Each landing of stage 3b adds
+    # its rules below its own line, so two landings built side by side
+    # never touch the same lines; one with no rule to add leaves its line
+    # alone.
+    # anchor 3b-D1 (P4-D365)
+    # anchor 3b-D0 (P4-D366)
+    # anchor 3b-D2 (P4-D367)
+    # anchor 3b-D3 (P4-D368)
+    # anchor 3b-D4 (P4-D369)
+    # anchor 3b-T1 (P4-D370)
+    # anchor 3b-T2 (P4-D371)
+    # anchor 3b-T3 (P4-D372)
+    # anchor 3b-C1 (P4-D373)
+    # anchor 3b-C2 (P4-D374)
+    # anchor 3b-G1 (P4-D375)
+    # anchor 3b-G3 (P4-D376)
+    # anchor 3b-G2 (P4-D377)
+    # anchor 3b-7 (P4-D378)
+    # anchor 3b-J (P4-D379)
     "Q1": (
         "the row count a column of numbers repeats is the row count of "
         "the table"
@@ -2599,6 +2641,18 @@ class DatetimeFacts:
     # counting the cells between the two tail boundaries, both included.
     # Empty where the column publishes no census.
     weekday_census: "tuple[tuple[int, int, int], ...]" = ()
+    # THE SEVEN STAGE 3B RESERVES (plan P4-D364), empty on every column
+    # until the landing that fills each: groups `(first, last, count)` of
+    # the hours, minutes and seconds of the written clock and of the days
+    # of the month, `(value, count)` per minute or second that stands out,
+    # and `(day, count)` per date that stands out.
+    hour_census: "tuple[tuple[int, int, int], ...]" = ()
+    minute_census: "tuple[tuple[int, int, int], ...]" = ()
+    second_census: "tuple[tuple[int, int, int], ...]" = ()
+    minute_heaps: "tuple[tuple[int, int], ...]" = ()
+    second_heaps: "tuple[tuple[int, int], ...]" = ()
+    day_of_month_census: "tuple[tuple[int, int, int], ...]" = ()
+    heavy_dates: "tuple[tuple[int, int], ...]" = ()
 
 
 @dataclasses.dataclass(frozen=True)
@@ -3031,7 +3085,12 @@ class ClockFacts:
 
     FIVE FACTS AND NO SIXTH: which of the two forms the cells wore, the
     two tails, the eleven-rung ladder over the values that parsed, and
-    how many present cells no clock reading accepted.
+    how many present cells no clock reading accepted. Beside them stand
+    the five stage 3b reserves (plan P4-D364), empty -- `clock_step`
+    `None` -- on every column until the landing that fills each: the
+    census of ten-minute bins, the values that stand out, the step the
+    values were written on and the codes written among them, and the
+    census of the minutes of the hour, groups `(first, last, count)`.
 
     Every clock value here is written in the form `clock_form` names,
     two digits a field. The ladder is SELECTION -- eleven order
@@ -3046,6 +3105,11 @@ class ClockFacts:
     high_tail: "TailFacts | None"
     clock_percentiles: "dict[str, str | None]"
     n_unparsed: int
+    clock_census: "tuple[tuple[int, int, int], ...]" = ()
+    clock_heaps: "tuple[tuple[str, int], ...]" = ()
+    clock_step: "int | None" = None
+    clock_codes: "tuple[tuple[str, int], ...]" = ()
+    minute_census: "tuple[tuple[int, int, int], ...]" = ()
 
 
 ColumnFacts = (
@@ -8734,7 +8798,7 @@ def _datetime_facts(
         judged,
         absent,
     )
-    return DatetimeFacts(
+    facts = DatetimeFacts(
         parser_family=parser_family,
         resolution=resolution,
         time_precision=precision,
@@ -8756,6 +8820,161 @@ def _datetime_facts(
         zulu_case=zulu,
         weekday_census=weekdays,
     )
+    # THE CENSUSES STAGE 3B RESERVES (plan P4-D364), one reader per
+    # landing, each handed the block and everything read before it, and
+    # each refusing anything but an empty census until its landing fills
+    # it. A landing edits its own reader, not these calls.
+    # -- the hour of the written clock (3b.T2, P4-D371)
+    facts = dataclasses.replace(
+        facts,
+        hour_census=_hour_census(
+            mapping, where, floor, n_present, n_distinct, judged, absent, facts
+        ),
+    )
+    # -- the minute and the second, and their heaps (3b.T3, P4-D372)
+    minutes, seconds, minute_heaps, second_heaps = _clock_field_censuses(
+        mapping, where, floor, n_present, n_distinct, judged, absent, facts
+    )
+    facts = dataclasses.replace(
+        facts,
+        minute_census=minutes,
+        second_census=seconds,
+        minute_heaps=minute_heaps,
+        second_heaps=second_heaps,
+    )
+    # -- the days of the month (3b.D3, P4-D368)
+    facts = dataclasses.replace(
+        facts,
+        day_of_month_census=_day_of_month_census(
+            mapping, where, floor, n_present, n_distinct, judged, absent, facts
+        ),
+    )
+    # -- the dates that stand out (3b.D4, P4-D369)
+    facts = dataclasses.replace(
+        facts,
+        heavy_dates=_heavy_dates(
+            mapping, where, floor, n_present, n_distinct, judged, absent, facts
+        ),
+    )
+    return facts
+
+
+def _reserved_list(value: object, key: str, where: str) -> None:
+    """A key stage 3b reserves, read: an empty list and nothing else.
+
+    Each census of plan P4-D364 is `[]` on every block until the landing
+    that fills it, so a description carrying one was written by a newer
+    synthtwin, or by hand, and is refused by name rather than read as
+    though its census were not there.
+
+    Guarantees: accepts the value, its key and where it stands; returns
+    nothing. Raises ProfileError for a value that is not a list (R15)
+    and for a list holding anything (R16). No I/O of any kind.
+    """
+    found = _listing(value, key, where)
+    if found:
+        raise _out_of_range(
+            key,
+            where,
+            "a list that is not empty",
+            "an empty list: this version of synthtwin publishes no such "
+            "census",
+        )
+
+
+def _hour_census(
+    mapping: "dict[str, object]",
+    where: str,
+    floor: int,
+    n_present: int,
+    n_distinct: int,
+    judged: "tuple[str, ...]",
+    absent: "tuple[str, ...]",
+    facts: DatetimeFacts,
+) -> "tuple[tuple[int, int, int], ...]":
+    """A column's `hour_census`, reserved: `[]` and nothing else (plan P4-D364).
+
+    THE STUB OF LANDING 3b.2-H (lane T2, plan P4-D371), which fills this
+    reader and nothing beside it. It is handed the block, where it
+    stands, the floor, the column's present and different values, the
+    block's judged candidates and absent spellings, and every fact read
+    before it.
+
+    Guarantees: returns the census, empty. Raises ProfileError for any
+    other value (`_reserved_list`). No I/O of any kind.
+    """
+    _reserved_list(mapping["hour_census"], "hour_census", where)
+    return ()
+
+
+def _clock_field_censuses(
+    mapping: "dict[str, object]",
+    where: str,
+    floor: int,
+    n_present: int,
+    n_distinct: int,
+    judged: "tuple[str, ...]",
+    absent: "tuple[str, ...]",
+    facts: DatetimeFacts,
+) -> "tuple[tuple[tuple[int, int, int], ...], tuple[tuple[int, int, int], ...], tuple[tuple[int, int], ...], tuple[tuple[int, int], ...]]":
+    """A column's minute and second censuses and heaps, reserved (plan P4-D364).
+
+    THE STUB OF LANDING 3b.4 (lane T3, plan P4-D372), which fills this
+    reader and nothing beside it: `minute_census`, `second_census`,
+    `minute_heaps` and `second_heaps`, each `[]` and nothing else until
+    then. Handed what `_hour_census` is handed.
+
+    Guarantees: returns the four, empty. Raises ProfileError for any
+    other value (`_reserved_list`). No I/O of any kind.
+    """
+    for key in ("minute_census", "second_census", "minute_heaps", "second_heaps"):
+        _reserved_list(mapping[key], key, where)
+    return (), (), (), ()
+
+
+def _day_of_month_census(
+    mapping: "dict[str, object]",
+    where: str,
+    floor: int,
+    n_present: int,
+    n_distinct: int,
+    judged: "tuple[str, ...]",
+    absent: "tuple[str, ...]",
+    facts: DatetimeFacts,
+) -> "tuple[tuple[int, int, int], ...]":
+    """A column's `day_of_month_census`, reserved: `[]` and nothing else.
+
+    THE STUB OF LANDING 3b.3 (lane D3, plan P4-D368), which fills this
+    reader and nothing beside it (plan P4-D364). Handed what
+    `_hour_census` is handed.
+
+    Guarantees: returns the census, empty. Raises ProfileError for any
+    other value (`_reserved_list`). No I/O of any kind.
+    """
+    _reserved_list(mapping["day_of_month_census"], "day_of_month_census", where)
+    return ()
+
+
+def _heavy_dates(
+    mapping: "dict[str, object]",
+    where: str,
+    floor: int,
+    n_present: int,
+    n_distinct: int,
+    judged: "tuple[str, ...]",
+    absent: "tuple[str, ...]",
+    facts: DatetimeFacts,
+) -> "tuple[tuple[int, int], ...]":
+    """A column's `heavy_dates`, reserved: `[]` and nothing else (plan P4-D364).
+
+    THE STUB OF LANDING 3b.6 (lane D4, plan P4-D369), which fills this
+    reader and nothing beside it. Handed what `_hour_census` is handed.
+
+    Guarantees: returns the list, empty. Raises ProfileError for any
+    other value (`_reserved_list`). No I/O of any kind.
+    """
+    _reserved_list(mapping["heavy_dates"], "heavy_dates", where)
+    return ()
 
 
 def _weekday_census(
@@ -15238,13 +15457,88 @@ def _clock_facts(
         where, frame.floor, n_present - unparsed, low, high, tuple(rungs),
         "clock_percentiles", "T2",
     )
-    return ClockFacts(
+    facts = ClockFacts(
         clock_form=form,
         low_tail=low,
         high_tail=high,
         clock_percentiles=ladder,
         n_unparsed=unparsed,
     )
+    # THE FIVE STAGE 3B RESERVES (plan P4-D364), one reader per landing,
+    # each handed the block and everything read before it. A landing
+    # edits its own reader, not these calls.
+    # -- the census, heaps, step and codes of clock times (3b.C1, P4-D373)
+    census, heaps, step, codes = _clock_census(
+        mapping, where, frame, n_present, facts
+    )
+    facts = dataclasses.replace(
+        facts,
+        clock_census=census,
+        clock_heaps=heaps,
+        clock_step=step,
+        clock_codes=codes,
+    )
+    # -- the minute census of clock times (3b.C2, P4-D374)
+    facts = dataclasses.replace(
+        facts,
+        minute_census=_clock_minute_census(
+            mapping, where, frame, n_present, facts
+        ),
+    )
+    return facts
+
+
+def _clock_census(
+    mapping: "dict[str, object]",
+    where: str,
+    frame: _Frame,
+    n_present: int,
+    facts: ClockFacts,
+) -> "tuple[tuple[tuple[int, int, int], ...], tuple[tuple[str, int], ...], int | None, tuple[tuple[str, int], ...]]":
+    """A clock column's census, heaps, step and codes, reserved (plan P4-D364).
+
+    THE STUB OF LANDING 3b.5 (lane C1, plan P4-D373), which fills this
+    reader and nothing beside it: `clock_census`, `clock_heaps` and
+    `clock_codes` are `[]` and `clock_step` is `null` until then, and
+    nothing else is read. It is handed the block, where it stands, the
+    document's frame, the column's present values and every fact read
+    before it.
+
+    Guarantees: returns the four, empty and `None`. Raises ProfileError
+    for any other value: a list holding anything (`_reserved_list`), or
+    a step that is not `null` (R16). No I/O of any kind.
+    """
+    for key in ("clock_census", "clock_heaps", "clock_codes"):
+        _reserved_list(mapping[key], key, where)
+    if mapping["clock_step"] is not None:
+        raise _out_of_range(
+            "clock_step",
+            where,
+            "a step",
+            "nothing (null): this version of synthtwin publishes no step "
+            "for a column of clock times",
+        )
+    return (), (), None, ()
+
+
+def _clock_minute_census(
+    mapping: "dict[str, object]",
+    where: str,
+    frame: _Frame,
+    n_present: int,
+    facts: ClockFacts,
+) -> "tuple[tuple[int, int, int], ...]":
+    """A clock column's `minute_census`, reserved: `[]` and nothing else.
+
+    THE STUB OF LANDING 3b.5's second step (lane C2, plan P4-D374), which
+    fills this reader and nothing beside it (plan P4-D364). Handed what
+    `_clock_census` is handed, and every fact that reader read.
+
+    Guarantees: returns the census, empty. Raises ProfileError for any
+    other value (`_reserved_list`). No I/O of any kind.
+    """
+    _reserved_list(mapping["minute_census"], "minute_census", where)
+    return ()
 
 
 def _identifier_facts(

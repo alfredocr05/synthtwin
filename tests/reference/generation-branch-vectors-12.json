@@ -127,8 +127,10 @@
         },
         "datetime_separators": {},
         "datetimes_read_at": "local",
+        "day_of_month_census": [],
         "detection_evidence": "written by hand in this method specification's own neutral vocabulary; no value here comes from any table.",
         "format": "iso-date",
+        "heavy_dates": [],
         "high_tail": {
           "boundary": "2024-05-22",
           "mean_distance": {
@@ -146,6 +148,7 @@
           "rows": 21,
           "values": null
         },
+        "hour_census": [],
         "low_tail": {
           "boundary": "2024-05-13",
           "mean_distance": {
@@ -163,6 +166,8 @@
           "rows": 31,
           "values": null
         },
+        "minute_census": [],
+        "minute_heaps": [],
         "missing_by_class": {
           "(blank)": 0,
           "(date-sentinel)": 0,
@@ -196,6 +201,8 @@
           "iso-date": 105
         },
         "role": "datetime",
+        "second_census": [],
+        "second_heaps": [],
         "sentinel_verdicts": [],
         "statistical_type": "datetime",
         "structural_role": "data",

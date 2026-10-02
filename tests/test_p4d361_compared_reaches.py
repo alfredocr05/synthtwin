@@ -4,9 +4,10 @@ NF36 chooses its first clause by comparing the day-first reach with the
 month-first one, reading both as whole numbers. Since P4-D347 a floored
 count below the census line became a fragment everywhere, and at those
 two positions `rendered` raised TypeError: 144 day-first dates beside
-one to ten that a month-first reading also parses stopped `synthtwin
-profile` at every floor, and `synthtwin validate` on a twin whose own
-description reached the same shape (82b1f1a, d93fd43). Contract NF36
+one to the census line less one (one to ten at the default floor) that
+a month-first reading also parses stopped `synthtwin profile`, and
+`synthtwin validate` on a twin whose own description reached the same
+shape (82b1f1a, d93fd43). Contract NF36
 withdraws the remark there, and the producer now does.
 
 MUTATION: delete the `_COMPARED_FLOORED_POSITIONS` branch of

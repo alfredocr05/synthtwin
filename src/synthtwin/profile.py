@@ -856,6 +856,24 @@ _BIN_INDEX = "histogram-bin-number-of-a-group"
 # block's other facts beside them.
 _WEEKDAY = "a-weekday-number"
 _WEEKDAY_COUNT = "a-weekday-group-count-zero-or-at-the-census-line"
+# THE LANDINGS' ANCHORS (plan P4-D364): each landing of stage 3b adds its
+# kinds below its own line, so two landings built side by side never
+# touch the same lines.
+# anchor 3b-D1 (P4-D365)
+# anchor 3b-D0 (P4-D366)
+# anchor 3b-D2 (P4-D367)
+# anchor 3b-D3 (P4-D368)
+# anchor 3b-D4 (P4-D369)
+# anchor 3b-T1 (P4-D370)
+# anchor 3b-T2 (P4-D371)
+# anchor 3b-T3 (P4-D372)
+# anchor 3b-C1 (P4-D373)
+# anchor 3b-C2 (P4-D374)
+# anchor 3b-G1 (P4-D375)
+# anchor 3b-G3 (P4-D376)
+# anchor 3b-G2 (P4-D377)
+# anchor 3b-7 (P4-D378)
+# anchor 3b-J (P4-D379)
 _SHAPE_FORM = "a-written-form-a-cell-could-not-be-spelled-with"
 _LAYOUT_FORM = "a-layout-a-record-number-could-not-be-spelled-with"
 # The two kinds `layout_prefixes` carries (owner ruling 2026-09-17,
@@ -1652,6 +1670,38 @@ _STATED_RULES: "dict[tuple[str, ...], str]" = {
     ("columns", _EACH, "weekday_census", _EACH, "first"): _WEEKDAY,
     ("columns", _EACH, "weekday_census", _EACH, "last"): _WEEKDAY,
     ("columns", _EACH, "weekday_census", _EACH, "count"): _WEEKDAY_COUNT,
+    # THE CENSUSES STAGE 3B RESERVES (plan P4-D364): each an EMPTY list,
+    # and `clock_step` nothing at all, until the landing that fills it
+    # adds the rows of what it holds -- so a list holding anything is a
+    # path no rule names, and is refused here before the loader sees it.
+    ("columns", _EACH, "hour_census"): _ARRAY,
+    ("columns", _EACH, "minute_census"): _ARRAY,
+    ("columns", _EACH, "second_census"): _ARRAY,
+    ("columns", _EACH, "minute_heaps"): _ARRAY,
+    ("columns", _EACH, "second_heaps"): _ARRAY,
+    ("columns", _EACH, "day_of_month_census"): _ARRAY,
+    ("columns", _EACH, "heavy_dates"): _ARRAY,
+    ("columns", _EACH, "clock_census"): _ARRAY,
+    ("columns", _EACH, "clock_heaps"): _ARRAY,
+    ("columns", _EACH, "clock_step"): _NOTHING,
+    ("columns", _EACH, "clock_codes"): _ARRAY,
+    # THE LANDINGS' ANCHORS (plan P4-D364): each landing of stage 3b adds
+    # its rows below its own line.
+    # anchor 3b-D1 (P4-D365)
+    # anchor 3b-D0 (P4-D366)
+    # anchor 3b-D2 (P4-D367)
+    # anchor 3b-D3 (P4-D368)
+    # anchor 3b-D4 (P4-D369)
+    # anchor 3b-T1 (P4-D370)
+    # anchor 3b-T2 (P4-D371)
+    # anchor 3b-T3 (P4-D372)
+    # anchor 3b-C1 (P4-D373)
+    # anchor 3b-C2 (P4-D374)
+    # anchor 3b-G1 (P4-D375)
+    # anchor 3b-G3 (P4-D376)
+    # anchor 3b-G2 (P4-D377)
+    # anchor 3b-7 (P4-D378)
+    # anchor 3b-J (P4-D379)
     # The roles that publish no value at all.
     ("columns", _EACH, "min_length"): _COUNT,
     ("columns", _EACH, "max_length"): _COUNT,
@@ -2510,7 +2560,27 @@ def _leaf_is_published(
     if kind == _WEEKDAY_COUNT:
         if isinstance(value, bool) or not isinstance(value, int):
             return False
-        return value == 0 or value >= parsing.census_floor(context.floor)
+        # WC2, ASKED OF THE ONE STATEMENT every census shares (plan P4-D364).
+        return calendar_rules.calendar_floor_ok(
+            value, parsing.census_floor(context.floor)
+        )
+    # THE LANDINGS' ANCHORS (plan P4-D364): each landing of stage 3b adds
+    # the checks of its kinds below its own line.
+    # anchor 3b-D1 (P4-D365)
+    # anchor 3b-D0 (P4-D366)
+    # anchor 3b-D2 (P4-D367)
+    # anchor 3b-D3 (P4-D368)
+    # anchor 3b-D4 (P4-D369)
+    # anchor 3b-T1 (P4-D370)
+    # anchor 3b-T2 (P4-D371)
+    # anchor 3b-T3 (P4-D372)
+    # anchor 3b-C1 (P4-D373)
+    # anchor 3b-C2 (P4-D374)
+    # anchor 3b-G1 (P4-D375)
+    # anchor 3b-G3 (P4-D376)
+    # anchor 3b-G2 (P4-D377)
+    # anchor 3b-7 (P4-D378)
+    # anchor 3b-J (P4-D379)
     if kind == _TAIL_PERCENT:
         if isinstance(value, bool) or not isinstance(value, int):
             return False

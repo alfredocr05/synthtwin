@@ -17359,6 +17359,59 @@ def _clock_tail_plan(
 def _clock_layout(
     column: contract.ColumnBlock, facts: contract.ClockFacts, floor: int
 ) -> "_ClockLayout":
+    """The two tails and the body's knots of a column of clock times.
+
+    And then the clock censuses stage 3b reserves (plan P4-D364), one
+    step per landing, each handed the layout and returning it -- unchanged
+    until its landing fills it.
+    """
+    layout = _clock_knots_laid(column, facts, floor)
+    # -- the census of ten-minute bins and the heaps (3b.C1, P4-D373)
+    layout = _clock_census_laid(column, facts, floor, layout)
+    # -- the minute census of a column of clock times (3b.C2, P4-D374)
+    layout = _clock_minutes_laid(column, facts, floor, layout)
+    return layout
+
+
+def _clock_census_laid(
+    column: contract.ColumnBlock,
+    facts: contract.ClockFacts,
+    floor: int,
+    layout: "_ClockLayout",
+) -> "_ClockLayout":
+    """The layout of a column of clock times, laid on its census and heaps.
+
+    THE STUB OF LANDING 3b.5 (lane C1, plan P4-D373), which fills this
+    step and nothing beside it (plan P4-D364): until then no column
+    publishes `clock_census` or `clock_heaps`, and the layout is handed
+    back unchanged.
+
+    Guarantees: accepts the column, its facts, the floor and the layout;
+    returns the layout. Draws no word. Raises nothing. No I/O.
+    """
+    return layout
+
+
+def _clock_minutes_laid(
+    column: contract.ColumnBlock,
+    facts: contract.ClockFacts,
+    floor: int,
+    layout: "_ClockLayout",
+) -> "_ClockLayout":
+    """The layout of a column of clock times, laid on its minute census.
+
+    THE STUB OF LANDING 3b.5's second step (lane C2, plan P4-D374), which
+    fills this step and nothing beside it (plan P4-D364): the layout is
+    handed back unchanged until then.
+
+    Guarantees: as `_clock_census_laid`. No I/O.
+    """
+    return layout
+
+
+def _clock_knots_laid(
+    column: contract.ColumnBlock, facts: contract.ClockFacts, floor: int
+) -> "_ClockLayout":
     """The two tails and the body's knots of a column of clock times."""
     form = facts.clock_form
     parsed = column.n_present - facts.n_unparsed
@@ -18102,6 +18155,10 @@ class _DateLayout:
     stratum, and a pin's is its own place -- except a tail rank counted
     in days of the shared clock, whose gap is its whole day. `texts` is
     the published text a pin stands for, where it stands for one.
+    `draw_unit` is how many ordinals of the column's space one body draw
+    steps in (`_draw_unit`): one, the space's own unit, until stage 3b's
+    drawing unit fills it (plan P4-D364), and every pass that steps a
+    body rank reads it here.
     """
 
     parsed: int
@@ -18112,6 +18169,7 @@ class _DateLayout:
     low: "_TailPlan | None"
     high: "_TailPlan | None"
     texts: "dict[int, str]"
+    draw_unit: int = 1
 
 
 def _tail_step(facts: contract.DatetimeFacts) -> "tuple[int, int]":
@@ -18221,7 +18279,8 @@ def _count_holes(
                 read[0], _COUNT_HOLE_UNITS[space], taxonomy.READ_AT_LOCAL
             )
         ] = True
-    return frozenset(found)
+    # ...and every date that stands out (plan P4-D364's holes seam).
+    return frozenset(found) | _heavy_holes(facts)
 
 
 def _off_the_holes(
@@ -18518,9 +18577,64 @@ def _date_layout(
                 highest = highest + plan.half - 1
             lows[rank] = lowest
             highs[rank] = highest
-    return _DateLayout(
-        parsed, pins, body, tuple(lows), tuple(highs), low, high, texts
+    layout = _DateLayout(
+        parsed, pins, body, tuple(lows), tuple(highs), low, high, texts,
+        _draw_unit(facts),
     )
+    # THE DATES THAT STAND OUT, PINNED (3b.D4, P4-D369; plan P4-D364's
+    # seam): unchanged until that landing fills `_heavy_layout`.
+    return _heavy_layout(column, facts, layout)
+
+
+def _draw_unit(facts: contract.DatetimeFacts) -> int:
+    """How many ordinals of the column's own space one body draw steps in.
+
+    THE DRAWING-UNIT SEAM OF STAGE 3B (plan P4-D364), which landing 3b.4
+    (lane T3, plan P4-D372) fills: where the published clock censuses pin
+    every body cell to one minute or one second, the body is drawn in
+    that unit. Until then it is one -- the space's own unit -- and every
+    draw and step is the one the column took before stage 3b. The layout
+    carries it (`_DateLayout.draw_unit`), so a pass that steps a body
+    rank -- the count pass, the two steps at midnight, the body and tail
+    draws -- reads it there and needs no argument of its own.
+
+    Guarantees: accepts the loaded facts; returns a whole number of one
+    or more. Determinism: a function of the facts. Raises nothing. No
+    I/O of any kind.
+    """
+    return 1
+
+
+def _heavy_layout(
+    column: contract.ColumnBlock,
+    facts: contract.DatetimeFacts,
+    layout: "_DateLayout",
+) -> "_DateLayout":
+    """The layout with every date that stands out pinned at its count.
+
+    THE PINS SEAM OF STAGE 3B (plan P4-D364), which landing 3b.6 (lane D4,
+    plan P4-D369) fills: each listed date's rows become pinned ranks, and
+    every other rank's gap leaves the listed dates out. Until then no
+    column lists a date, and the layout is handed back unchanged.
+
+    Guarantees: accepts the column, its facts and the layout; returns
+    the layout. Draws no word. Raises nothing. No I/O of any kind.
+    """
+    return layout
+
+
+def _heavy_holes(facts: contract.DatetimeFacts) -> "frozenset[int]":
+    """The day of every date that stands out, which no other rank may take.
+
+    THE HOLES SEAM OF STAGE 3B (plan P4-D364), which landing 3b.6 (lane
+    D4, plan P4-D369) fills: a listed date holds exactly its published
+    rows, so the count pass (`_count_holes`) and the day pass offer it to
+    no other rank. Empty until then.
+
+    Guarantees: accepts the loaded facts; returns day numbers. Raises
+    nothing. No I/O of any kind.
+    """
+    return frozenset()
 
 
 # THE WEEKDAY PASS (landing 3b.1, plan P4-D355, method G7.3f). Its fixed
@@ -19428,6 +19542,8 @@ def _weekday_settled(
             )
         }
     hole_days = hole_days | set(_published_holes(column, facts, declared_days))
+    # ...and every date that stands out (plan P4-D364's holes seam).
+    hole_days = hole_days | set(_heavy_holes(facts))
     state = _WeekdayPass(
         moved=moved,
         held=held,
@@ -19636,6 +19752,79 @@ def _tail_rank_of(plan: "_TailPlan", parsed: int, index: int) -> int:
     return parsed - 1 - index
 
 
+def _hour_settled(
+    column: contract.ColumnBlock,
+    facts: contract.DatetimeFacts,
+    ordinals: "list[int]",
+    parsed: int,
+    whole: "list[bool]",
+    gap_lows: "list[int]",
+    gap_highs: "list[int]",
+    layout: "_DateLayout",
+    holes: "tuple[str, ...]",
+    declared_days: "tuple[str, ...]" = (),
+) -> "tuple[list[int], list[Deviation]]":
+    """Meet the published hour census of a column of moments.
+
+    THE STUB OF LANDING 3b.2-H (lane T2, plan P4-D371), which fills this
+    pass and nothing beside it (plan P4-D364). It runs after the day pass
+    and is handed what that pass is handed. No column publishes an hour
+    census until then, so no rank moves.
+
+    Guarantees: returns the ranks' instants and no deviation. Draws no
+    word. Raises nothing. No I/O of any kind.
+    """
+    return ordinals, []
+
+
+def _clock_fields_settled(
+    column: contract.ColumnBlock,
+    facts: contract.DatetimeFacts,
+    ordinals: "list[int]",
+    parsed: int,
+    whole: "list[bool]",
+    gap_lows: "list[int]",
+    gap_highs: "list[int]",
+    layout: "_DateLayout",
+    holes: "tuple[str, ...]",
+    declared_days: "tuple[str, ...]" = (),
+) -> "tuple[list[int], list[Deviation]]":
+    """Meet the published minute and second censuses and heaps.
+
+    THE STUB OF LANDING 3b.4 (lane T3, plan P4-D372), which fills this
+    pass and nothing beside it (plan P4-D364), after the hour pass. No
+    rank moves until then.
+
+    Guarantees: as `_hour_settled`. No I/O of any kind.
+    """
+    return ordinals, []
+
+
+def _heavy_sorted(
+    column: contract.ColumnBlock,
+    facts: contract.DatetimeFacts,
+    ordinals: "list[int]",
+    parsed: int,
+    whole: "list[bool]",
+    gap_lows: "list[int]",
+    gap_highs: "list[int]",
+    layout: "_DateLayout",
+    holes: "tuple[str, ...]",
+    declared_days: "tuple[str, ...]" = (),
+) -> "tuple[list[int], list[Deviation]]":
+    """The dates that stand out, after every other pass: the body re-sorted.
+
+    THE STUB OF LANDING 3b.6 (lane D4, plan P4-D369), which fills this
+    post-pass and nothing beside it (plan P4-D364): its listed dates are
+    pinned by `_heavy_layout` and kept off by `_heavy_holes`, and this
+    pass sorts the body and names a count it could not meet. No column
+    lists a date until then, so no rank moves.
+
+    Guarantees: as `_hour_settled`. No I/O of any kind.
+    """
+    return ordinals, []
+
+
 def _datetime_content(
     plan: "_ColumnPlan", words: "list[int]"
 ) -> "tuple[list[str], list[Deviation]]":
@@ -19713,6 +19902,26 @@ def _datetime_content(
     # inside their own gaps until every published group holds its count,
     # before any cell is spelled. It draws no word.
     ordinals, weekday_notes = _weekday_settled(
+        column, facts, ordinals, parsed, whole, gap_lows, gap_highs, layout,
+        holes, plan.declared_days,
+    )
+    # THE PASSES STAGE 3B RESERVES (plan P4-D364), in their order, each
+    # handed what the day pass is handed and each moving no rank until its
+    # landing fills it. The day of the month is met in the day pass's own
+    # slot above (3b.D3, P4-D368). A landing edits its own pass, not
+    # these calls.
+    # -- the hour of the written clock (3b.T2, P4-D371)
+    ordinals, hour_notes = _hour_settled(
+        column, facts, ordinals, parsed, whole, gap_lows, gap_highs, layout,
+        holes, plan.declared_days,
+    )
+    # -- the minute and the second (3b.T3, P4-D372)
+    ordinals, clock_field_notes = _clock_fields_settled(
+        column, facts, ordinals, parsed, whole, gap_lows, gap_highs, layout,
+        holes, plan.declared_days,
+    )
+    # -- the dates that stand out, after every other pass (3b.D4, P4-D369)
+    ordinals, heavy_notes = _heavy_sorted(
         column, facts, ordinals, parsed, whole, gap_lows, gap_highs, layout,
         holes, plan.declared_days,
     )
@@ -19818,6 +20027,9 @@ def _datetime_content(
     notes = notes + _midnight_count_notes(column, facts, cells, plan.small_cell_floor)
     notes = notes + _date_count_notes(column, facts, cells)
     notes = notes + weekday_notes
+    notes = notes + hour_notes
+    notes = notes + clock_field_notes
+    notes = notes + heavy_notes
     used: dict[str, int] = {cell: 1 for cell in cells}
     for step in range(facts.n_unparsed):
         cells += [_take(_text_spelling(step + 1, used, holes), used)]
@@ -20670,20 +20882,6 @@ def _worn_hole_notes(
 
 _SPREAD_SUBJECT = "how these dates are spread across the calendar"
 
-_SPREAD_HELD = (
-    "the published ladder is met rung for rung, and between the rungs "
-    "the days are drawn independently"
-)
-
-_SPREAD_NOTE = (
-    "Four things a real column of dates often has are not reproduced, "
-    "because the description publishes nothing that carries them: which "
-    "days of the week the values fall on, the time of day, days that "
-    "hold far more values than their neighbours, and a column whose "
-    "values sit on a few scheduled dates. Counts per weekday, per hour "
-    "or per single day computed on this twin are not the real column's."
-)
-
 # THE SAME SENTENCE FOR A COLUMN OF PERIODS, with the two clauses such a
 # column cannot have taken out (repair pass of landing 2b.6). A column
 # of months or quarters has no weekday and no time of day: its cells
@@ -20708,38 +20906,183 @@ _SPREAD_PERIOD_NOTE = (
 )
 
 
-# THE SAME SENTENCE FOR A COLUMN PUBLISHING ITS WEEKDAY CENSUS (landing
-# 3b.1, plan P4-D355): the census is met between the two tail
-# boundaries, so the first of the four clauses is no longer true of it.
-# Where the census counts some days together (entries 2 and 3 of the
-# menu), the twin's split among them is its own, and the sentence says
-# so.
-_SPREAD_WEEKDAY_HELD = (
-    "the published ladder is met rung for rung, the published counts per "
-    "day of the week are met over the values between the two tail "
-    "boundaries, and between the rungs the days are otherwise drawn "
-    "independently"
+
+@dataclasses.dataclass(frozen=True)
+class _Spread:
+    """The sentence of `_spread_remarks`, before it is written out.
+
+    `held` is every published census the twin meets, each a clause of
+    what it meets; `missing` is every thing a real column of dates often
+    has that the twin does not reproduce, each with the count a reader
+    should not compute on the twin ("" where none is named); `beside` is
+    every sentence said after them. Each census rewrites it through its
+    own clause, so the sentence names exactly what the column publishes.
+    """
+
+    held: "tuple[str, ...]"
+    missing: "tuple[tuple[str, str], ...]"
+    beside: "tuple[str, ...]"
+
+
+# WHAT A COLUMN OF DATES SAYS WITH NO CENSUS, thing by thing: what is not
+# reproduced, and the count a reader should not take from the twin.
+_SPREAD_WEEKDAY_THING = ("which days of the week the values fall on", "per weekday")
+_SPREAD_HOUR_THING = ("the time of day", "per hour")
+_SPREAD_HEAVY_THING = (
+    "days that hold far more values than their neighbours",
+    "per single day",
+)
+_SPREAD_SCHEDULE_THING = ("a column whose values sit on a few scheduled dates", "")
+_SPREAD_NOTHING_MET = _Spread(
+    held=(),
+    missing=(
+        _SPREAD_WEEKDAY_THING,
+        _SPREAD_HOUR_THING,
+        _SPREAD_HEAVY_THING,
+        _SPREAD_SCHEDULE_THING,
+    ),
+    beside=(),
 )
 
-_SPREAD_WEEKDAY_NOTE = (
-    "Three things a real column of dates often has are not reproduced, "
-    "because the description publishes nothing that carries them: the "
-    "time of day, days that hold far more values than their neighbours, "
-    "and a column whose values sit on a few scheduled dates. Counts per "
-    "hour or per single day computed on this twin are not the real "
-    "column's."
+# THE CLAUSE OF A COLUMN PUBLISHING ITS WEEKDAY CENSUS (landing 3b.1, plan
+# P4-D355): the census is met between the two tail boundaries, so the
+# weekday is no longer among the things not reproduced. Where the census
+# counts some days together (entries 2 and 3 of the menu), the twin's
+# split among them is its own, and the sentence says so.
+_SPREAD_WEEKDAY_MET = (
+    "the published counts per day of the week are met over the values "
+    "between the two tail boundaries"
 )
 
 _SPREAD_WEEKEND_TOGETHER = (
-    " Saturday and Sunday are counted together here, so the twin's split "
+    "Saturday and Sunday are counted together here, so the twin's split "
     "between them can differ from the real one."
 )
 
 _SPREAD_WEEKDAYS_TOGETHER = (
-    " Monday to Friday are counted together here, and Saturday and "
+    "Monday to Friday are counted together here, and Saturday and "
     "Sunday together, so the twin's split among the days of each can "
     "differ from the real one."
 )
+
+# How many things the sentence names, as it names them.
+_SPREAD_HOW_MANY = {1: "One", 2: "Two", 3: "Three", 4: "Four"}
+
+
+def _spread_listed(words: "list[str]", last: str, oxford: bool) -> str:
+    """Words in a list: `a`, `a and b`, `a, b, and c` (or `a, b and c`)."""
+    said = ""
+    for index in range(len(words)):
+        if index == 0:
+            said = words[0]
+        elif index < len(words) - 1:
+            said = f"{said}, {words[index]}"
+        elif len(words) == 2 or not oxford:
+            said = f"{said} {last} {words[index]}"
+        else:
+            said = f"{said}, {last} {words[index]}"
+    return said
+
+
+def _spread_written(spread: _Spread) -> "tuple[str, str]":
+    """The sentence of `_spread_remarks`: what the twin holds, and the note.
+
+    Guarantees: accepts the sentence's parts; returns its two texts.
+    Determinism: a function of the parts. Raises nothing. No I/O.
+    """
+    drawn = "between the rungs the days are drawn independently"
+    if spread.held:
+        drawn = "between the rungs the days are otherwise drawn independently"
+    held = "the published ladder is met rung for rung"
+    for clause in spread.held:
+        held = f"{held}, {clause}"
+    held = f"{held}, and {drawn}"
+    things = [thing for thing, _count in spread.missing]
+    counts = [count for _thing, count in spread.missing if count]
+    said: "list[str]" = []
+    if len(things) == 1:
+        said += [
+            "One thing a real column of dates often has is not reproduced, "
+            "because the description publishes nothing that carries it: "
+            f"{things[0]}."
+        ]
+    elif things:
+        said += [
+            f"{_SPREAD_HOW_MANY[len(things)]} things a real column of dates "
+            "often has are not reproduced, because the description "
+            "publishes nothing that carries them: "
+            f"{_spread_listed(things, 'and', True)}."
+        ]
+    if counts:
+        said += [
+            f"Counts {_spread_listed(counts, 'or', False)} computed on this "
+            "twin are not the real column's."
+        ]
+    note = ""
+    for sentence in said + list(spread.beside):
+        note = f"{note} {sentence}" if note else sentence
+    return held, note
+
+
+def _weekday_spread(facts: contract.DatetimeFacts, spread: _Spread) -> _Spread:
+    """The sentence with the weekday census's clause (landing 3b.1)."""
+    entry = calendar_rules.entry_of(facts.weekday_census)
+    if entry == calendar_rules.ENTRY_NONE:
+        return spread
+    held = list(spread.held)
+    held += [_SPREAD_WEEKDAY_MET]
+    beside = list(spread.beside)
+    if entry == calendar_rules.ENTRY_WEEKEND:
+        beside += [_SPREAD_WEEKEND_TOGETHER]
+    if entry == calendar_rules.ENTRY_WEEKDAYS:
+        beside += [_SPREAD_WEEKDAYS_TOGETHER]
+    return _Spread(
+        held=tuple(held),
+        missing=tuple(
+            thing for thing in spread.missing if thing != _SPREAD_WEEKDAY_THING
+        ),
+        beside=tuple(beside),
+    )
+
+
+def _hour_spread(facts: contract.DatetimeFacts, spread: _Spread) -> _Spread:
+    """The sentence with the hour census's clause.
+
+    THE STUB OF LANDING 3b.2-H (lane T2, plan P4-D371), which fills this
+    clause (plan P4-D364); unchanged until then.
+    """
+    return spread
+
+
+def _clock_fields_spread(
+    facts: contract.DatetimeFacts, spread: _Spread
+) -> _Spread:
+    """The sentence with the minute and second censuses' clause.
+
+    THE STUB OF LANDING 3b.4 (lane T3, plan P4-D372), which fills this
+    clause (plan P4-D364); unchanged until then.
+    """
+    return spread
+
+
+def _day_of_month_spread(
+    facts: contract.DatetimeFacts, spread: _Spread
+) -> _Spread:
+    """The sentence with the day-of-month census's clause.
+
+    THE STUB OF LANDING 3b.3 (lane D3, plan P4-D368), which fills this
+    clause (plan P4-D364); unchanged until then.
+    """
+    return spread
+
+
+def _heavy_spread(facts: contract.DatetimeFacts, spread: _Spread) -> _Spread:
+    """The sentence with the clause of the dates that stand out.
+
+    THE STUB OF LANDING 3b.6 (lane D4, plan P4-D369), which fills this
+    clause (plan P4-D364); unchanged until then.
+    """
+    return spread
 
 
 def _spread_remarks(
@@ -20787,6 +21130,12 @@ def _spread_remarks(
     four on such a column would name two things no column of periods
     can lose.
 
+    ONE CLAUSE PER CENSUS (plan P4-D364). The sentence is built from
+    what nothing publishes (`_SPREAD_NOTHING_MET`), and each census the
+    column publishes rewrites it through its own clause: the weekday's,
+    then those stage 3b reserves, each unchanged until its landing fills
+    it.
+
     Guarantees: accepts one column; returns one remark on a column of
     dates and none on any other. Determinism: a function of the column.
     Raises nothing. No I/O of any kind.
@@ -20803,19 +21152,17 @@ def _spread_remarks(
                 _SPREAD_PERIOD_NOTE,
             )
         ]
-    entry = calendar_rules.entry_of(facts.weekday_census)
-    if entry != calendar_rules.ENTRY_NONE:
-        said = _SPREAD_WEEKDAY_NOTE
-        if entry == calendar_rules.ENTRY_WEEKEND:
-            said = said + _SPREAD_WEEKEND_TOGETHER
-        if entry == calendar_rules.ENTRY_WEEKDAYS:
-            said = said + _SPREAD_WEEKDAYS_TOGETHER
-        return [
-            _remark(column.name, _SPREAD_SUBJECT, _SPREAD_WEEKDAY_HELD, said)
-        ]
-    return [
-        _remark(column.name, _SPREAD_SUBJECT, _SPREAD_HELD, _SPREAD_NOTE)
-    ]
+    spread = _weekday_spread(facts, _SPREAD_NOTHING_MET)
+    # -- the hour of the written clock (3b.T2, P4-D371)
+    spread = _hour_spread(facts, spread)
+    # -- the minute and the second (3b.T3, P4-D372)
+    spread = _clock_fields_spread(facts, spread)
+    # -- the days of the month (3b.D3, P4-D368)
+    spread = _day_of_month_spread(facts, spread)
+    # -- the dates that stand out (3b.D4, P4-D369)
+    spread = _heavy_spread(facts, spread)
+    held, said = _spread_written(spread)
+    return [_remark(column.name, _SPREAD_SUBJECT, held, said)]
 
 
 def _held_back_absence_remarks(
@@ -21770,6 +22117,40 @@ def _gap_draw(
     return min(max(step // _PIN_STEPS, low), high)
 
 
+def _body_draw(
+    layout: "_DateLayout", start: int, stop: int, low: int, high: int, word: int
+) -> int:
+    """One body rank's ordinal inside its gap, through stage 3b's two seams.
+
+    `_gap_draw` exactly, until one of two landings fills its seam (plan
+    P4-D364): landing 3b.6 (lane D4, plan P4-D369) draws past the dates
+    that stand out, in the first statement below, and landing 3b.4 (lane
+    T3, plan P4-D372) lays the draw on the drawing unit, in
+    `_on_draw_unit`.
+
+    Guarantees: accepts the layout, the two places, the two pinned
+    ordinals and one 64-bit word; returns a whole ordinal inside
+    `[low, high]`. Determinism: a function of the six. Raises nothing.
+    No I/O.
+    """
+    drawn = _gap_draw(start, stop, low, high, word)
+    # ...laid on the drawing unit.
+    return _on_draw_unit(drawn, layout.draw_unit, low, high)
+
+
+def _on_draw_unit(value: int, unit: int, low: int, high: int) -> int:
+    """A drawn ordinal laid on the drawing unit, inside `[low, high]`.
+
+    THE SEAM landing 3b.4 (lane T3, plan P4-D372) fills (plan P4-D364).
+    At a unit of one, which every column draws in until then, the value
+    is handed back unchanged.
+
+    Guarantees: accepts the value, the unit and the two bounds; returns
+    a whole ordinal. Raises nothing. No I/O.
+    """
+    return value
+
+
 def _spread_ordinals(layout: "_DateLayout", words: "list[int]") -> "list[int]":
     """Every rank's instant, spread across the column as a real one is.
 
@@ -21825,7 +22206,8 @@ def _spread_ordinals(layout: "_DateLayout", words: "list[int]") -> "list[int]":
             word = words[taken]
             taken = taken + 1
             drawn += [
-                _gap_draw(
+                _body_draw(
+                    layout,
                     steps[step],
                     steps[step + 1],
                     ordinals[below],

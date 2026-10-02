@@ -81,7 +81,12 @@ MACHINE_KINDS = ("seconds_below", "peak_memory_below")
 # stages still to come, whose stage checks may be measured early as baselines.
 ID_PATTERN = re.compile(r"^K-(P[0-4]|S[1-8]|2B)-(\d\d)([a-z])?$")
 HEADLINES_AT_LEAST = 20
-HEADLINES_AT_MOST = 30
+# 31 from 30, AUTHORIZED BY THE ORCHESTRATOR (2026-10-01, plan P4-D364)
+# FOR THE REST OF STAGE 3B: the board stood at its cap of 30, and the
+# stage adds one headline of its own -- `K-S3-38`, time of day comes
+# back -- while `K-S3-31` widens in place to "the calendar comes back".
+# A deliberate raise, never a demotion made to fit.
+HEADLINES_AT_MOST = 31
 
 # Verdict words, printed by the runner and stored in its report.
 PASS = "PASS"

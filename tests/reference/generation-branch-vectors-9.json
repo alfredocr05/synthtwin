@@ -60,7 +60,10 @@
         "07:57"
       ],
       "column": {
+        "clock_census": [],
+        "clock_codes": [],
         "clock_form": "hh-mm",
+        "clock_heaps": [],
         "clock_percentiles": {
           "max": null,
           "min": null,
@@ -74,6 +77,7 @@
           "p95": null,
           "p99": null
         },
+        "clock_step": null,
         "detection_evidence": "44 value(s) are clock times written as hours and minutes, `09:30`, and 0 value(s) are not",
         "high_tail": {
           "boundary": "08:05",
@@ -109,6 +113,7 @@
           "rows": 11,
           "values": null
         },
+        "minute_census": [],
         "missing_by_class": {
           "(blank)": 0,
           "(date-sentinel)": 0,
@@ -360,10 +365,15 @@
           "upper_t": 11
         },
         "datetimes_read_at": "local",
+        "day_of_month_census": [],
         "detection_evidence": "written by hand in this method specification's own neutral vocabulary; no value here comes from any table.",
         "format": "iso-mixed",
+        "heavy_dates": [],
         "high_tail": null,
+        "hour_census": [],
         "low_tail": null,
+        "minute_census": [],
+        "minute_heaps": [],
         "missing_by_class": {
           "(blank)": 0,
           "(date-sentinel)": 0,
@@ -398,6 +408,8 @@
           "iso-datetime": 11
         },
         "role": "datetime",
+        "second_census": [],
+        "second_heaps": [],
         "sentinel_verdicts": [],
         "statistical_type": "datetime",
         "structural_role": "data",

@@ -538,8 +538,17 @@ def test_nothing_that_varies_between_runs_is_written(
 # the remark on `amount`, whose 240 cells hold 238 different values and
 # were told "every value in this column is different"; it now says nearly
 # every value is. No key arrives or leaves and no number moves.
+# AND RE-RECORDED AT THE BASE OF STAGE 3B (2026-10-01, plan P4-D364):
+# TWELVE KEYS ARRIVE, each empty -- `hour_census`, `minute_census`,
+# `second_census`, `minute_heaps`, `second_heaps`, `day_of_month_census`
+# and `heavy_dates` on `recorded_on`, and `clock_census`, `clock_heaps`,
+# `clock_codes`, `minute_census` and a null `clock_step` on `seen_at`.
+# CHECKED by this file's own procedure: this document written out again
+# with those twelve keys deleted hashes to the digest stage 3b began
+# from, 83e1fc4fbb48903866f9290a9e5a93675772b121d602c09ac0e58c753da93400,
+# so they are the whole of the difference.
 GOLDEN_SHA256 = (
-    "83e1fc4fbb48903866f9290a9e5a93675772b121d602c09ac0e58c753da93400"
+    "eedbcd2394755d772aeb9285a468874b7809f89d2af2d742352aa015da24981d"
 )
 
 
