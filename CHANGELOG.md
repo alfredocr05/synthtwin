@@ -27,7 +27,10 @@ a 12-hour clock reads its cells on that face and names what it misses --
 the stated limit: after noon the dial reads twelve hours early. The
 12-hour answer is typed as `6` at the terminal (before, the question
 stopped the run with an error), and an answered `day-first` is printed on
-the line that repeats the run.
+the line that repeats the run. A key of an answer the question did not
+offer is asked again: `6` typed at a column of codes had recorded a
+12-hour clock on it. That stated limit is landing T2's to close: its hour
+census confines a declared 12-hour stamp's draws to the half day.
 
 ### The weekday certificate's cap, measured (2026-09-30)
 
