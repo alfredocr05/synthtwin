@@ -279,7 +279,8 @@ def _the_budget_counted_in_positions(
     kept = list(first)
     spent = 0
     for signing in (False, True):
-        for carriers in generation._shape_choices(total):
+        for step in range(generation._shape_choice_count(total)):
+            carriers = generation._shape_choice_at(total, step)
             permits = generation._identifier_windows(
                 facts, total, carriers, signing
             )
@@ -907,7 +908,8 @@ def _positions_and_questions(
     positions = 0
     asked: dict[tuple[int, ...], int] = {}
     for signing in (False, True):
-        for carriers in generation._shape_choices(total):
+        for step in range(generation._shape_choice_count(total)):
+            carriers = generation._shape_choice_at(total, step)
             permits = generation._identifier_windows(
                 facts, total, carriers, signing
             )

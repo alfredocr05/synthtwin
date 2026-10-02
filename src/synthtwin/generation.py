@@ -24819,7 +24819,7 @@ def _label_content(
         # the same rule `_forms_owed` follows for the column census.
         covered_in_form = 0
         for spelling in sorted(entry.variants):
-            cells = cells + [spelling for _each in range(entry.variants[spelling])]
+            cells += [spelling for _each in range(entry.variants[spelling])]
             covered = covered + entry.variants[spelling]
             if parsing.shape_form(spelling):
                 covered_in_form = covered_in_form + entry.variants[spelling]
@@ -24869,12 +24869,10 @@ def _label_content(
                 if take:
                     spare = ""
                 made_up = made_up + 1
-                cells = cells + [variant for _row in range(rows)]
+                cells += [variant for _row in range(rows)]
                 covered = covered + rows
         if covered < entry.count:
-            cells = cells + [
-                entry.label for _row in range(entry.count - covered)
-            ]
+            cells += [entry.label for _row in range(entry.count - covered)]
             used[entry.label] = 1
             owners[parsing.folded(entry.label)] = entry.label
     if made_up:
@@ -24979,6 +24977,13 @@ def _label_content(
     walked: "dict[str, int]" = {}
     shaped = 0
     kept = 0
+    # THE COLUMN GROWS IN PLACE (stage 4, plan P4-D385). It was copied
+    # whole once per level and once per stand-in, so a long tail of
+    # 16,152 held-back levels over 200,000 rows copied a list as long as
+    # the column sixteen thousand times. The list the helpers above were
+    # handed is copied once here, so nothing they were given changes
+    # after they read it.
+    cells = list(cells)
     for place in range(len(sizes)):
         size = sizes[place]
         form = shared[place]
@@ -25000,7 +25005,7 @@ def _label_content(
         # were `group-N`.
         if form and parsing.census_form(label, facts.shape_forms) == form:
             shaped = shaped + 1
-        cells = cells + [label for _row in range(size)]
+        cells += [label for _row in range(size)]
     if facts.suppressed_levels:
         # WHAT THE STAND-INS WERE WRITTEN IN IS PART OF THE NOTE (plan
         # P4-D18). A column publishing a census of written forms has
@@ -32441,7 +32446,7 @@ def _identifier_packings(
     for signing in (False, True):
         sized: dict[tuple[int, int], int] = {}
         seen_permits: dict[tuple[tuple[int, int], ...], int] = {}
-        for carriers in _shape_choices(total):
+        for carriers in _shape_choices(groups):
             if len(found) >= budget:
                 return found
             shape = (groups[carriers[0]], groups[carriers[1]])
@@ -32487,7 +32492,8 @@ def _identifier_packings(
         return found
     looked = 0
     for signing in (False, True):
-        for carriers in _shape_choices(total):
+        for step in range(_shape_choice_count(total)):
+            carriers = _shape_choice_at(total, step)
             permits = _identifier_windows(facts, total, carriers, signing)
             for place in range(total):
                 for cell in range(len(_CLASSES) * width):
@@ -32661,7 +32667,7 @@ def _layout_packings(
         return found
     for signing in (False, True):
         sized: dict[tuple[int, int], int] = {}
-        for carriers in _shape_choices(total):
+        for carriers in _shape_choices(groups):
             if len(answers) >= budget:
                 return found
             shape = (groups[carriers[0]], groups[carriers[1]])
@@ -32885,7 +32891,7 @@ def _identifier_families(
     # where no arrangement meets them, taking the hazard buys the person
     # nothing and the miss is named either way. So the fallback is
     # walked with the family closed.
-    carriers = _shape_choices(total)[0]
+    carriers = _shape_choice_at(total, 0)
     permits = _identifier_windows(facts, total, carriers, False)
     kinds = _allocation(
         groups,
@@ -34137,25 +34143,99 @@ _TEXT_EXPONENT_NOTE = (
 )
 
 
-def _shape_choices(total: int) -> "list[tuple[int, int]]":
-    """Every pair of groups that could carry the two published ends.
+def _shape_choice_count(total: int) -> int:
+    """How many pairs of groups the fixed order of `_shape_choice_at` offers.
 
-    THE ORDER IS PART OF THE RULE, so two implementations settle on the
-    same shape. The pairs are offered in ascending order of the pair
-    itself -- the group taking the shortest length first, then the group
-    taking the longest -- so the first pair offered is the description's
-    own first two groups, which is the shape every earlier revision took
-    without asking. A column with one group has nothing to pair and its
-    one group carries the shortest length.
+    Every ordered pair of two different groups, or the one group alone.
     """
     if total < 2:
+        return 1
+    return total * (total - 1)
+
+
+def _shape_choice_at(total: int, step: int) -> "tuple[int, int]":
+    """The pair of groups at ``step`` of the fixed order, worked out.
+
+    Every pair of groups could carry the two published ends, and THE
+    ORDER IS PART OF THE RULE, so two implementations settle on the same
+    shape. The pairs are offered in ascending order of the pair itself
+    -- the group taking the shortest length first, then the group taking
+    the longest -- so the first pair offered is the description's own
+    first two groups, which is the shape every earlier revision took
+    without asking. A column with one group has nothing to pair and its
+    one group carries the shortest length.
+
+    WORKED OUT, NOT LISTED (stage 4, plan P4-D385). The order was built
+    as a list of every pair, which is the square of the number of
+    groups: an all-different column of 10,000 rows has 10,000 groups,
+    and the list held 99,990,000 pairs and several gigabytes, so the
+    twin of such a column of 100,000 rows could not be built at all.
+    Step ``step`` is the pair whose first group is ``step`` divided by
+    one less than the groups and whose second is the remainder, stepped
+    over the first; the walk that needs every pair -- the second tier of
+    `_identifier_packings` -- asks for each in constant time and memory,
+    in the order the list held them.
+
+    Guarantees: a fixed function of its arguments, for ``step`` from
+    nought to `_shape_choice_count` less one; no randomness and no I/O.
+    """
+    if total < 2:
+        return (0, 0)
+    low = step // (total - 1)
+    high = step - low * (total - 1)
+    if high >= low:
+        high = high + 1
+    return (low, high)
+
+
+def _shape_choices(groups: "tuple[int, ...]") -> "list[tuple[int, int]]":
+    """The pairs of groups that could carry the two published ends, one per shape.
+
+    The fixed order of `_shape_choice_at`, keeping the FIRST pair of each
+    shape -- each pair of group sizes `(groups[low], groups[high])` -- and
+    no other. Every search over the end carriers steps over a pair whose
+    shape an earlier pair already offered: no published count tells two
+    groups of the same size apart (`_text_packed` says why), so such a
+    pair can only fail the same way. The searches are handed exactly the
+    pairs they would ask, in the order they would ask them, and each
+    still steps over a repeat, so handing one the whole order instead
+    gives the same answer.
+
+    In that order the first pair of the sizes `(a, b)` with `a` and `b`
+    different is the first group of size `a` beside the first of size
+    `b`, and the first pair of `(a, a)` is the first group of size `a`
+    beside the second, where there is a second. Sorted, these are the
+    order's own pairs with every repeat left out.
+
+    LINEAR WHERE THE WHOLE ORDER IS QUADRATIC (stage 4, plan P4-D385).
+    `k` different sizes cover at least `1 + 2 + ... + k` rows, so `k` is
+    under the square root of twice the rows and this holds fewer pairs
+    than twice the rows -- where the order holds the square of the
+    groups. An all-different column of 10,000 rows is asked one pair
+    here, where it was handed 99,990,000 to step over.
+
+    Guarantees: a fixed function of ``groups``; at least one pair, the
+    order's first; no randomness and no I/O.
+    """
+    total = len(groups)
+    if total < 2:
         return [(0, 0)]
-    return [
-        (low, high)
-        for low in range(total)
-        for high in range(total)
-        if high != low
-    ]
+    first: "dict[int, int]" = {}
+    second: "dict[int, int]" = {}
+    for place in range(total):
+        size = groups[place]
+        if size not in first:
+            first[size] = place
+        elif size not in second:
+            second[size] = place
+    pairs: "list[tuple[int, int]]" = []
+    for low_size in first:
+        for high_size in first:
+            if low_size != high_size:
+                pairs += [(first[low_size], first[high_size])]
+            elif low_size in second:
+                pairs += [(first[low_size], second[low_size])]
+    return sorted(pairs)
 
 
 def _pair_reach(
@@ -34333,7 +34413,7 @@ def _text_plan(
             return answer
         if kept is not None:
             return kept
-    carriers = _shape_choices(total)[0]
+    carriers = _shape_choice_at(total, 0)
     lengths, counts, notes = _text_shape(column, facts, groups, carriers)
     kinds, bands = _text_families(
         column, facts, groups, lengths, counts, carriers
@@ -34479,7 +34559,7 @@ def _text_packed(
     spent: dict[tuple[tuple[int, int], ...], int] = {}
     for reach in (False, True):
         sized: dict[tuple[int, int], int] = {}
-        for carriers in _shape_choices(total):
+        for carriers in _shape_choices(groups):
             # TWO GROUPS OF THE SAME SIZE ARE THE SAME QUESTION. No
             # published count tells two groups covering the same number
             # of cells apart: the grid collapses them, and the walk of

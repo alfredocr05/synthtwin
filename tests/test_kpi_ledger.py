@@ -1724,3 +1724,33 @@ def test_the_weekday_ladder_counts_each_size_afresh(tmp_path: pathlib.Path) -> N
     first = driver.step(tmp_path / "first", 2500)  # type: ignore[attr-defined]
     again = driver.step(tmp_path / "again", 2500)  # type: ignore[attr-defined]
     assert again[:3] == first[:3]
+
+
+# -- Stage 4 (tier 1, plan P4-D385) -------------------------------------------
+
+
+def test_k_s4_03(record_property) -> None:
+    """Four paths of describing and generating grow with the rows and not their square.
+
+    Each measure is a count of work, never a time: the end-carrier pairs
+    the shape searches are handed, the comparisons made with held-back
+    levels, the bytes a label column is built with, and the walks of the
+    role ladder per question. `tests/test_stage4_linear_work.py` owns the
+    measures, and its growth tests require each replaced function to grow
+    as the square on the same shapes, so these ratios can fail.
+    """
+    import test_stage4_linear_work as linear
+
+    pairs = (linear.shape_pairs_handed(250), linear.shape_pairs_handed(500))
+    lookups = (linear.held_back_lookups(1000), linear.held_back_lookups(2000))
+    built = (linear.label_bytes(3000), linear.label_bytes(6000))
+    walks, questions, _columns = linear.role_walks(500)
+    _kpi(record_property, "K-S4-03", {
+        "shape_pairs_growth_2x_rows": round(pairs[1] / pairs[0], 2),
+        "held_back_lookups_growth_2x_rows": round(lookups[1] / lookups[0], 2),
+        "label_bytes_growth_2x_rows": round(built[1] / built[0], 2),
+        "role_walks_per_question": round(walks / questions, 2),
+        "shape_pairs_500": pairs[1],
+        "held_back_lookups_2000": lookups[1],
+        "role_walks_500": walks,
+    })

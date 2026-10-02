@@ -6283,6 +6283,15 @@ class _Cells:
     spellings_by_folded: dict[str, dict[str, int]]
     all_digits: int
     code_alphabet: int
+    # WHAT THIS TALLY WAS DECIDED AS, under each question it was asked
+    # (stage 4, plan P4-D385). `_decision` alone reads and fills it, and
+    # no rule consults it. It is no argument, compared by nothing and
+    # printed nowhere, so two tallies of the same cells are equal whatever
+    # each was asked, and a tally made by `dataclasses.replace` -- under
+    # other settings -- starts with nothing remembered.
+    decided: "dict[tuple[object, ...], _Verdict]" = dataclasses.field(
+        default_factory=dict, init=False, repr=False, compare=False
+    )
 
 
 def _classify_all(
@@ -9198,7 +9207,11 @@ def _levels_read_by_class(
         if label not in by_class:
             continue
         reading = by_class[label]
-        held[reading] = (held[reading] if reading in held else []) + [label]
+        # GROWN IN PLACE (stage 4, plan P4-D385): copied whole for every
+        # held-back level, the class's list cost the square of them.
+        if reading not in held:
+            held[reading] = []
+        held[reading] += [label]
     counted_out: "list[str]" = []
     for reading in _READING_CLASSES:
         if reading not in held:
@@ -9333,7 +9346,17 @@ def _levels_read_by_form(
         return ()
     spelled = described_spellings(population.present, population.settings)
     census = _shape_forms(population, False, with_text_total, spelled)
+    # THE HELD-BACK LEVELS ARE LOOKED UP, NOT WALKED (stage 4, plan
+    # P4-D385). Every cell asks whether its level is one of them, and a
+    # list of them was walked to its end for every cell that is not: a
+    # code register of 200,000 rows holds back 16,152 levels, and each
+    # of its other cells walked all of them. Each form's own named
+    # levels are looked up the same way and grow in place.
+    held_back: "dict[str, bool]" = {}
+    for label in rare:
+        held_back[label] = True
     held: "dict[str, list[str]]" = {}
+    named: "dict[str, dict[str, bool]]" = {}
     rows: "dict[str, int]" = {}
     covered: "dict[str, int]" = {}
     for value in spelled:
@@ -9341,12 +9364,16 @@ def _levels_read_by_form(
         if not form:
             continue
         key = parsing.folded(value)
-        if key not in rare:
+        if key not in held_back:
             covered[form] = (covered[form] if form in covered else 0) + 1
             continue
         rows[form] = (rows[form] if form in rows else 0) + 1
-        named = held[form] if form in held else []
-        held[form] = named if key in named else named + [key]
+        if form not in held:
+            held[form] = []
+            named[form] = {}
+        if key not in named[form]:
+            named[form][key] = True
+            held[form] += [key]
     counted_out: "list[str]" = []
     for form in sorted(census):
         if form not in held:
@@ -19002,6 +19029,72 @@ def _core_of(text: str, prefix: str, suffix: str) -> "str | None":
     return core if core else None
 
 
+def _decision(
+    cells: _Cells,
+    forced_identifier: bool,
+    removed: int = 0,
+    after_removal: bool = False,
+    after_days: bool = False,
+    after_levels: bool = False,
+    forced_code: bool = False,
+    forced_measurement: bool = False,
+    probing: bool = False,
+    described_as_pair: bool = False,
+) -> _Verdict:
+    """The verdict `_decide` gives this tally under these arguments, worked out once.
+
+    A column is asked its role up to four times over the same tally --
+    before the placeholder days are judged, before the cores, before the
+    level pass, and once more to describe it -- and every question walked
+    the whole ladder of rules again (stage 4, plan P4-D385). `_decide` is
+    a fixed function of the tally and its arguments, so the tally keeps
+    each answer under the arguments it was asked with and hands it back
+    when the same question comes again; every caller asks through here.
+
+    THE MEMORY BELONGS TO THE TALLY, so it lasts exactly as long as the
+    column's reading. One kept beside the module instead would hold the
+    tallies it remembered alive after their columns: about 0.7 GB for an
+    all-different column of 2,000,000 rows, carried into the next column
+    and into generation. A tally built again -- once cells leave it, or
+    by `dataclasses.replace` under other settings -- is a new tally and
+    remembers nothing.
+
+    THE VERDICT IS HANDED OVER, NOT COPIED, so no caller may change it:
+    the passes read its role, and the description builds its block from
+    copies of what it holds.
+
+    Guarantees: returns what `_decide` returns for the same arguments and
+    raises what it raises; a fixed function of its arguments. No I/O.
+    """
+    asked: "tuple[object, ...]" = (
+        forced_identifier,
+        removed,
+        after_removal,
+        after_days,
+        after_levels,
+        forced_code,
+        forced_measurement,
+        probing,
+        described_as_pair,
+    )
+    if asked in cells.decided:
+        return cells.decided[asked]
+    verdict = _decide(
+        cells,
+        forced_identifier,
+        removed,
+        after_removal=after_removal,
+        after_days=after_days,
+        after_levels=after_levels,
+        forced_code=forced_code,
+        forced_measurement=forced_measurement,
+        probing=probing,
+        described_as_pair=described_as_pair,
+    )
+    cells.decided[asked] = verdict
+    return verdict
+
+
 def _decide(
     cells: _Cells,
     forced_identifier: bool,
@@ -20096,7 +20189,7 @@ def _recoverable_reach(
     covered = len(cells.classified) - len(survivors)
     if not survivors or covered == 0:
         return 0
-    reading = _decide(
+    reading = _decision(
         _tally(survivors, cells.n_rows, settings, cells.decimal_comma),
         False,
         forced_measurement=forced_measurement,
@@ -21176,7 +21269,7 @@ def _read_the_column(
     removed_by_days = 0
     judged_over_days = False
     if present and not forced_identifier:
-        trial = _decide(
+        trial = _decision(
             cells,
             forced_identifier,
             forced_code=forced_code,
@@ -21240,7 +21333,7 @@ def _read_the_column(
     removed_by_cores = 0
     judged_over_cores = False
     if present and not forced_identifier:
-        trial = _decide(
+        trial = _decision(
             cells,
             forced_identifier,
             forced_code=forced_code,
@@ -21301,7 +21394,7 @@ def _read_the_column(
         and not forced_identifier
         and _a_level_is_below_the_floor(cells)
     ):
-        trial = _decide(
+        trial = _decision(
             cells,
             forced_identifier,
             removed_by_cores,
@@ -21325,9 +21418,15 @@ def _read_the_column(
             # TEXT and published no number at all, where the honest
             # answer is a column of 98 numbers with two holes.
             labels_alone = trial.role in _LEVEL_ROLES
+            # LOOKED UP, NOT WALKED (stage 4, plan P4-D385): every cell
+            # asked the sorted list of the levels counted out, which on
+            # a code register of 100,000 rows is 11,525 long.
+            counted_keys: "dict[str, bool]" = {}
+            for label in counted_out:
+                counted_keys[label] = True
             level_kept: list[_Cell] = []
             for cell in classified:
-                if cell.folded in counted_out:
+                if cell.folded in counted_keys:
                     # THE SPELLING IS NOT CARRIED OVER, and that is the
                     # whole point. A cell counted absent under its own
                     # spelling would put that spelling in
@@ -21756,7 +21855,7 @@ def profile_column(
         # two-valued column of labels once the placeholders were gone.
         # The plan's gate promises no such move, and this is what makes
         # the promise true rather than argued.
-        verdict = _decide(
+        verdict = _decision(
             cells,
             forced_identifier,
             removed_by_cores,

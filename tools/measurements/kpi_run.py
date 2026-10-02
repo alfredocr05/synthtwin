@@ -87,6 +87,7 @@ GROUP_TITLES = {
     "S2": "Stage 2 - spellings",
     "2B": "Stage 2b - the twin writes as the source wrote",
     "S3": "Stage 3 - the extremes, and the population floor",
+    "S4": "Stage 4 - the largest tables, end to end",
     "S6": "Stage 6 - relationships between columns (baseline)",
 }
 

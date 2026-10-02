@@ -273,8 +273,8 @@ def test_restoring_the_pre_assignment_loses_the_count(
     loaded = _described(tmp_path, REVIEW_SOURCE)
     choices = generation._shape_choices
 
-    def only_the_first_pair(total: int) -> "list[tuple[int, int]]":
-        return choices(total)[:1]
+    def only_the_first_pair(groups: "tuple[int, ...]") -> "list[tuple[int, int]]":
+        return choices(groups)[:1]
 
     generation._shape_choices = only_the_first_pair  # type: ignore[assignment]
     try:
@@ -387,9 +387,10 @@ def test_a_first_pair_answer_leaves_the_shape_where_it_was(
     loaded = _described(tmp_path, ["7", "7", "42", "ab", "x!"])
     plan = generation.plan_generation(loaded)
     assert plan.columns[0].carriers == (0, 1)
-    assert generation._shape_choices(4)[0] == (0, 1)
-    assert generation._shape_choices(1) == [(0, 0)]
-    assert len(generation._shape_choices(4)) == 12
+    assert generation._shape_choice_at(4, 0) == (0, 1)
+    assert generation._shape_choices((1, 1, 2, 2))[0] == (0, 1)
+    assert generation._shape_choices((5,)) == [(0, 0)]
+    assert generation._shape_choice_count(4) == 12
 
 
 def test_any_published_length_is_open_to_a_group_carrying_no_end() -> None:
@@ -550,8 +551,8 @@ def test_the_battery_would_have_caught_the_reported_defect(
     """
     choices = generation._shape_choices
 
-    def only_the_first_pair(total: int) -> "list[tuple[int, int]]":
-        return choices(total)[:1]
+    def only_the_first_pair(groups: "tuple[int, ...]") -> "list[tuple[int, int]]":
+        return choices(groups)[:1]
 
     lost = 0
     reached = 0
@@ -636,7 +637,8 @@ def test_two_groups_of_the_same_size_are_the_same_question(
         groups = generation._groups_of(facts.n_distinct_by_occurrences)
         for reach in (False, True):
             posed: dict[tuple[int, int], object] = {}
-            for carriers in generation._shape_choices(len(groups)):
+            for offer in range(generation._shape_choice_count(len(groups))):
+                carriers = generation._shape_choice_at(len(groups), offer)
                 room: dict[tuple[int, int], int] = {}
                 lengths, counts, _notes = generation._text_shape(
                     loaded.columns[0], facts, groups, carriers

@@ -4041,7 +4041,7 @@
    "id": "K-2B-14",
    "phase_stage": "Extra round dates item 4 (P4-D258); repaired by g-speed (K-2B-14), merged 2026-09-19",
    "category": "SPEED",
-   "headline": true,
+   "headline": false,
    "name": "Generating second-precision date-time columns",
    "status": "GREEN",
    "rule": "machine-free: the questions the two date-time searches (_nearest_held_unit, _nearest_free_unit) ask of the held-unit table must not rise past the fixed search's count on _partly(2000, 0.7) seed 4 and on the 2,000-row extract; and _partly(2000, 0.7) generates in under 2 s on the quiet reference machine",
@@ -6948,6 +6948,47 @@
      "withheld_sides": 67,
      "shapes": 48
     }
+   }
+  },
+  {
+   "id": "K-S4-03",
+   "phase_stage": "Stage 4 tier 1 (plan P4-D385)",
+   "category": "SPEED",
+   "headline": true,
+   "name": "Four paths of the largest tables grow with the rows, not their square",
+   "status": "GREEN",
+   "rule": "machine-free, rows doubled: the end-carrier pairs the shape searches are handed (all-different text and record numbers, 250 to 500 rows), comparisons with held-back levels (1,000 to 2,000) and the bytes a label column is built with (3,000 to 6,000) each grow under 2.5 times, and the role ladder is walked once per question",
+   "rule_kind": "ratio_below",
+   "expected": {
+    "held_back_lookups_growth_2x_rows": 2.5,
+    "label_bytes_growth_2x_rows": 2.5,
+    "role_walks_per_question": 1.0,
+    "shape_pairs_growth_2x_rows": 2.5
+   },
+   "tier": "FAST",
+   "source": "pytest",
+   "nodes": [],
+   "test": "tests/test_kpi_ledger.py::test_k_s4_03",
+   "driver": null,
+   "pin_strength": "NONE",
+   "measured_on": "tests/test_stage4_linear_work.py's four measures, whose growth tests require each replaced function to grow at least three times",
+   "evidence": "As built (668f276), same shapes: 4.01, 4.05 and 3.56 times, three walks per question; the twin of a made-up 50-column health table of 10,000 rows reached 5.8 GB before a guard stopped it.",
+   "value_at": {
+    "commit": "caf3079",
+    "date": "2026-10-01",
+    "measured_by": "tests/test_kpi_ledger.py::test_k_s4_03 before its landing's commit",
+    "value": {
+     "held_back_lookups_2000": 1000,
+     "held_back_lookups_growth_2x_rows": 2.0,
+     "label_bytes_growth_2x_rows": 1.97,
+     "role_walks_500": 9,
+     "role_walks_per_question": 1.0,
+     "shape_pairs_500": 3,
+     "shape_pairs_growth_2x_rows": 1.0
+    }
+   },
+   "key_kinds": {
+    "role_walks_per_question": "at_most"
    }
   }
  ]
