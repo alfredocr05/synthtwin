@@ -324,7 +324,7 @@ def _asked_here(
 ) -> "tuple[bool, bool]":
     """Whether the codes question and the day-or-month question reach one column."""
     table = _table(folder, values)
-    read = reading.read_table(str(table))
+    read = reading.read_table(str(table), small_cell_floor=floor)
     settings = taxonomy.Settings(small_cell_floor=floor)
     document = profile.build_document(read, settings, [], [])
     codes = asking.date_code_questions(document, read.columns, settings, [])
