@@ -7181,6 +7181,106 @@ def _declared_numbers_removed(
     return kept, missing
 
 
+def _weighed_reading(
+    counted: "dict[str, int]", reading: str, room: int
+) -> int:
+    """How many cells one reading parses, stopping where it cannot reach the line.
+
+    ``counted`` holds each different spelling once with the rows that
+    wore it, so a spelling is parsed once however many rows hold it.
+    ``room`` is how many cells may fail before the reading has missed
+    the line; past it the count so far is returned, which is below the
+    line by construction.
+    """
+    parsed = 0
+    failed = 0
+    for spelling in counted:
+        if parsing.parse_datetime(spelling, reading) is not None:
+            parsed = parsed + counted[spelling]
+            continue
+        failed = failed + counted[spelling]
+        if failed > room:
+            return parsed
+    return parsed
+
+
+def reading_of_the_rest(
+    counted: "dict[str, int]", settings: Settings
+) -> "tuple[str, int] | None":
+    """The date member or clock form these cells clear the date rule's line under.
+
+    THE DATE RULE, ASKED OF THE CELLS A FEW REPEATED CODES LEAVE (lane
+    R1 of stage 3b, plan P4-D381). A column of dates that writes `UNK`,
+    `00/00/0000` or `-1` on a few hundred rows misses the date rule's
+    line and is read as labels or numbers, and its twin then holds
+    strings no date reader accepts. `asking.date_codes_of` takes the
+    codes out and asks THIS function whether what is left reads as dates
+    or times -- the reading the column would take if the person said the
+    codes mean "no value", which is the question the questions file
+    then puts.
+
+    THE SAME DECISION `_matching_date_format` AND `_clock_reading` MAKE,
+    over different spellings weighed by their rows, so a column of a
+    million cells over a few thousand dates is parsed a few thousand
+    times. The members are walked in `parsing.DATE_FORMATS`'s own order
+    and the first to reach the line wins; a slashed pair is read the way
+    the classifier reads it, the column's own evidence first and
+    `settings.day_first` only on a tie; the dotted two-figure pair is
+    skipped where a cell names a zero field; and the two clock forms
+    follow, the finer first. Each member stops as soon as more cells
+    fail than the line leaves room for, which is what keeps a column
+    that is not dates cheap to refuse.
+
+    Guarantees: accepts each different spelling with the rows that wore
+    it, in the column's own order, and the settings; returns the member
+    or form and how many cells it parses, or None where none reaches
+    the line. Determinism: a function of the two. Raises nothing for
+    text. No I/O of any kind.
+    """
+    total = 0
+    for spelling in counted:
+        total = total + counted[spelling]
+    if total < 1:
+        return None
+    needed = _needed(settings.minimum_parse_rate, total)
+    room = total - needed
+    contradicted = False
+    for spelling in counted:
+        if parsing.names_a_zero_field(spelling):
+            contradicted = True
+            break
+    for format_name in parsing.DATE_FORMATS:
+        if contradicted and format_name in (
+            "dotted-two-digit-month-first-date",
+            "dotted-two-digit-day-first-date",
+        ):
+            continue
+        reading = format_name
+        parsed = -1
+        for pair in SLASHED_PAIRS:
+            if format_name != pair[0]:
+                continue
+            month = _weighed_reading(counted, pair[0], room)
+            day = _weighed_reading(counted, pair[1], room)
+            if day > month or (day == month and settings.day_first):
+                reading = pair[1]
+                parsed = day
+            else:
+                parsed = month
+        if parsed < 0:
+            parsed = _weighed_reading(counted, reading, room)
+        if parsed >= needed and parsed:
+            return reading, parsed
+    for form in (parsing.CLOCK_HH_MM_SS, parsing.CLOCK_HH_MM):
+        good = 0
+        for spelling in counted:
+            if parsing.clock_form(spelling) == form:
+                good = good + counted[spelling]
+        if good >= needed and good:
+            return form, good
+    return None
+
+
 def _judged_totals(
     entries: "list[dict[str, object]]",
     judged: "dict[str, dict[str, int]]",

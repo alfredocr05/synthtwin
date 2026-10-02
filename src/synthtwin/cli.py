@@ -1455,6 +1455,63 @@ def _checklist_notice(listed: "list[asking.Question]") -> str:
     )
 
 
+def _date_codes_notice(questions: "list[asking.Question]") -> str:
+    """What is said about columns of dates or times beside a few codes (plan P4-D381).
+
+    THE SHAPE, NOT THE VALUES, for the reason every question here gives
+    (owner ruling 2026-09-10): the questions file may not name a code,
+    so neither may the screen, or one question would be asked two ways.
+    What it names is the column, what synthtwin saw in it, and the two
+    ways to say the codes stand for a missing date or time -- the answer
+    in the file, which finds them again, or `--missing-value` naming
+    each, for a person who knows them.
+    """
+    rows = ""
+    for question in questions:
+        rows = rows + f"\n  '{_shown(question.name)}' -- {question.shape}"
+    return (
+        f"{'=' * 66}\n"
+        f"THESE COLUMNS READ AS DATES OR TIMES BUT FOR A FEW REPEATED "
+        f"SPELLINGS\n"
+        f"{'=' * 66}{rows}\n\n"
+        f"Those spellings keep each column above from being read as dates "
+        f"or times, so it is described the way it reads with them in it, "
+        f"and many of its twin's cells will not read as dates or times. If "
+        f"they stand for a date or time nobody wrote down -- unknown, not "
+        f"recorded or not applicable -- answer 'missing' for the column "
+        f"under 'asked' in the questions file this run writes, and "
+        f"describe the table again with --answers: the column is then "
+        f"read as dates or times, and the spellings are counted as "
+        f"missing and written back in the twin as your table writes them. "
+        f"Naming each spelling with --missing-value does the same, in "
+        f"every column of your table. Nothing is wrong with this profile "
+        f"if they really are values of their own."
+    )
+
+
+def _day_or_month_notice(found: "tuple[asking.DayOrMonth, ...]") -> str:
+    """What is said where no value of a column of dates says which comes first (plan P4-D381).
+
+    It is the questions file's own sentence, rendered from the question
+    `asking.file_questions` puts, so the screen and the file ask one
+    question in one set of words.
+    """
+    asked = asking.file_questions(False, day_or_month=found)
+    seen = asked[0].shape if asked else ""
+    return (
+        f"{'=' * 66}\n"
+        f"THE ORDER OF THE DAY AND THE MONTH CANNOT BE TOLD FROM SOME DATES\n"
+        f"{'=' * 66}\n"
+        f"What synthtwin saw: {_shown(seen)}.\n\n"
+        f"synthtwin has read them month first, so 03/04/2024 is the 4th "
+        f"of March. If your file writes the day first, describe the table "
+        f"again with --day-first, or answer 'day-first' under "
+        f"'about_your_file' in the questions file this run writes: every "
+        f"such column is then read day first, and its twin writes its "
+        f"dates the same way."
+    )
+
+
 def _assumptions_notice(questions: "list[asking.Question]") -> str:
     """What is printed where there is nobody to ask.
 
@@ -1715,9 +1772,26 @@ def _how_to_repeat(
     forced_identifiers: "list[str]",
     forced_measurements: "list[str]",
     forced_decimal_commas: "tuple[str, ...]" = (),
+    answered_missing: "tuple[str, ...]" = (),
+    answered_kept: "tuple[str, ...]" = (),
+    answered_day_first: bool = False,
 ) -> str:
-    """The options that repeat this run without asking anything."""
+    """The options that repeat this run without asking anything.
+
+    The answers about dates (plan P4-D381) are repeated as the options
+    they stood for: `--day-first`, and `--missing-value` or
+    `--keep-value` naming each code the run found in the answered
+    columns. The codes are the person's declarations now, published
+    where the description publishes any declared word, so naming them
+    here says nothing the summary above did not.
+    """
     parts: list[str] = []
+    if answered_day_first:
+        parts += ["--day-first"]
+    for spelling in answered_missing:
+        parts += [f"--missing-value {_shown(spelling)}"]
+    for spelling in answered_kept:
+        parts += [f"--keep-value {_shown(spelling)}"]
     for name in sorted(forced_decimal_commas):
         parts += [f"--decimal-comma {_shown(name)}"]
     for name in sorted(forced_codes):
@@ -2115,6 +2189,13 @@ def _run_profile(
     # that pair by a route that never re-checked is exactly the defect
     # review item P4-G3-R4-F3 found on the interview path.
     answers_were_handed_back = False
+    # What the questions file answered about dates (plan P4-D381): the
+    # order of day and month, and the columns whose few repeated codes
+    # were answered `missing` or `real-value`.
+    answered_day_first = False
+    answered_month_first = False
+    answered_missing_dates: "list[str]" = []
+    answered_real_values: "list[str]" = []
     if answers_path is not None:
         try:
             written = asking.answers_in(
@@ -2169,6 +2250,11 @@ def _run_profile(
             + list(written.identifiers)
             + list(written.measurements)
             + list(written.decimal_commas)
+            # ...and the columns whose codes were answered (plan P4-D381):
+            # each is found again by its name in the table, so a changed
+            # reading would find them in a different column.
+            + list(written.missing_date_columns)
+            + list(written.real_value_columns)
         ):
             # Each name once: a column answered in both sections of the
             # file would otherwise stand twice in one sentence.
@@ -2236,7 +2322,27 @@ def _run_profile(
             [one for one in forced_decimal_commas if one not in written.decimal_commas]
             + list(written.decimal_commas)
         )
-        answers_were_handed_back = bool(spoken_for)
+        # ...AND THE ORDER OF DAY AND MONTH (plan P4-D381): an answer of
+        # `day-first` is `--day-first`, and it is applied before the read
+        # because it decides how the columns of dates are read.
+        if written.day_first:
+            day_first = True
+            answered_day_first = True
+        # An answer of `month-first` declares nothing -- it is the
+        # reading that stands -- and is carried so the question is not
+        # put back to the person in the file this run writes again.
+        answered_month_first = written.month_first
+        # ...AND THE CODES OF A COLUMN OF DATES OR TIMES (plan P4-D381).
+        # These name columns, and what each answer declares is found in
+        # the table once it is open, below.
+        answered_missing_dates = list(written.missing_date_columns)
+        answered_real_values = list(written.real_value_columns)
+        answers_were_handed_back = (
+            bool(spoken_for)
+            or answered_day_first
+            or bool(answered_missing_dates)
+            or bool(answered_real_values)
+        )
     # UNDER BOTH READINGS WHERE EITHER IS IN PLAY (review item
     # P4-G3-R6-F2). `--decimal-comma` names columns and these two name
     # values that reach the whole table, so a pair that is one number
@@ -2446,6 +2552,89 @@ def _run_profile(
         _warn(errors.column_declared_twice(both[0]))
         return 2
 
+    # THE CODES THE QUESTIONS FILE ANSWERED, FOUND AGAIN IN THE TABLE
+    # (plan P4-D381). The file names the column and never its codes --
+    # it carries no value of the table -- so the codes are read here,
+    # from the cells just opened, by the rule that asked about them, and
+    # become the declarations the answers stand for: `missing` is
+    # `--missing-value` naming each code, `real-value` is `--keep-value`
+    # naming each. Both reach every column, which is what those options
+    # do and what the answers said.
+    unknown_dates = [
+        name
+        for name in answered_missing_dates + answered_real_values
+        if name not in read.column_names
+    ]
+    if unknown_dates:
+        _warn(
+            errors.unknown_column_named(
+                "a column of dates or times beside a few repeated codes",
+                unknown_dates[0],
+                read.column_names,
+            )
+        )
+        return 2
+    added_missing: "list[str]" = []
+    added_kept: "list[str]" = []
+    for name in answered_missing_dates + answered_real_values:
+        column_at = 0
+        for held in read.column_names:
+            if held == name:
+                break
+            column_at = column_at + 1
+        present, _absent = taxonomy.split_missing(
+            read.columns[column_at], settings
+        )
+        seen = asking.date_codes_of(present, settings)
+        if seen is None:
+            _warn(errors.the_date_codes_answer_reached_nothing(name))
+            continue
+        for spelling, _rows in seen.codes:
+            if name in answered_missing_dates:
+                added_missing += [spelling]
+            else:
+                added_kept += [spelling]
+    if added_missing or added_kept:
+        commas = bool(forced_decimal_commas)
+        for spelling, option in (
+            [(one, "--keep-value") for one in added_kept]
+            + [(one, "--missing-value") for one in added_missing]
+        ):
+            if commas and parsing.reads_as_two_numbers(spelling):
+                _warn(errors.a_declared_value_reads_two_ways(spelling, option))
+                return 2
+        # THE ANSWER IS THE NEWER STATEMENT, as it is for a column's
+        # role above: a typed value it contradicts gives way to it.
+        kept_values = [
+            one
+            for one in kept_values
+            if not taxonomy.contradictory_declarations(
+                (one,), tuple(added_missing), commas
+            )
+        ] + added_kept
+        missing_values = [
+            one
+            for one in missing_values
+            if not taxonomy.contradictory_declarations(
+                tuple(added_kept), (one,), commas
+            )
+        ] + added_missing
+        clashes = taxonomy.contradictory_declarations(
+            tuple(kept_values), tuple(missing_values), commas
+        )
+        if clashes:
+            _warn(
+                errors.answered_codes_contradict_each_other(
+                    _shown(answers_path or ""), _shown(clashes[0])
+                )
+            )
+            return 2
+        settings = dataclasses.replace(
+            settings,
+            kept_values=tuple(kept_values),
+            declared_missing_values=tuple(missing_values),
+        )
+
     # THE POPULATION FLOOR, ASKED FIRST WITH WHAT IS DECLARED SO FAR
     # (plan P4-D341): the columns typed after `--identifier` and the
     # ones answered in the questions file, both of which were settled
@@ -2543,6 +2732,18 @@ def _run_profile(
         already_answered,
         tuple(forced_decimal_commas),
     )
+    # ...AND THE COLUMNS OF DATES OR TIMES THAT WRITE A FEW REPEATED
+    # CODES (plan P4-D381), which are asked that and nothing else: the
+    # joined question `00/00/0000` raises would offer a blood pressure
+    # reading of a column of dates. They are put in the questions file
+    # and said on the screen below rather than at the keyboard, where
+    # each answer changes one column's reading: these declare spellings
+    # every column reads, which the file's answers apply before the
+    # table is described.
+    coded_about = asking.date_code_questions(
+        document, read.columns, settings, already_answered, split_columns
+    )
+    asked_about = asking.without_columns_of(asked_about, coded_about)
     # ...AND THE ONE QUESTION ABOUT WHO THE ROWS ARE (plan P4-D340).
     # Asked only where the population is STILL COUNTED IN ROWS -- where
     # `settings.person_columns` is empty, which is exactly where nobody
@@ -2559,7 +2760,7 @@ def _run_profile(
         read.columns,
         settings,
         already_answered,
-        asked_about,
+        asked_about + coded_about,
         split_columns,
     )
     # EVERY COLUMN READ AS A NUMBER, LISTED UNDER ONE QUESTION
@@ -2573,7 +2774,7 @@ def _run_profile(
         read.columns,
         settings,
         already_answered,
-        asked_about,
+        asked_about + coded_about,
     )
     answered = False
     assumptions_said = False
@@ -2727,6 +2928,19 @@ def _run_profile(
     # that should depend on another column raising a question.
     if listed_about:
         _say(f"\n{_checklist_notice(listed_about)}\n")
+    # ...AND THE TWO QUESTIONS ABOUT DATES, ONCE PER RUN AND WHOEVER IS
+    # THERE (plan P4-D381), for the checklist's reason: each is put in
+    # the questions file, and a run whose only finding is one of them
+    # would otherwise show nothing.
+    if coded_about:
+        _say(f"\n{_date_codes_notice(coded_about)}\n")
+    day_or_month: "tuple[asking.DayOrMonth, ...]" = ()
+    if not answered_month_first:
+        day_or_month = asking.day_or_month_columns(
+            document, read.columns, settings, split_columns
+        )
+    if day_or_month:
+        _say(f"\n{_day_or_month_notice(day_or_month)}\n")
     # HOW LARGE THE TABLE IS, SAID ONCE, WHOEVER IS THERE (plan
     # P4-D341). It is printed here because here the count is final:
     # the interview above is the last thing that can change which
@@ -2874,6 +3088,9 @@ def _run_profile(
         or forced_identifiers
         or forced_measurements
         or forced_decimal_commas
+        or added_missing
+        or added_kept
+        or answered_day_first
     ):
         _say(
             _how_to_repeat(
@@ -2881,6 +3098,9 @@ def _run_profile(
                 forced_identifiers,
                 forced_measurements,
                 tuple(forced_decimal_commas),
+                answered_missing=tuple(added_missing),
+                answered_kept=tuple(added_kept),
+                answered_day_first=answered_day_first,
             )
         )
     kept_of_yours = summary.words_of_your_own(document)
@@ -2965,6 +3185,14 @@ def _run_profile(
     asked_about, split_columns = asking.questions_and_splits_for(
         document, read.columns, settings, settled, tuple(forced_decimal_commas)
     )
+    # ...AND THE COLUMNS OF DATES OR TIMES BESIDE A FEW CODES, recomputed
+    # from the FINAL settings (plan P4-D381): a column whose codes were
+    # answered `missing` reads as dates now and is asked nothing, and one
+    # answered `real-value` has its codes declared kept.
+    coded_about = asking.date_code_questions(
+        document, read.columns, settings, settled, split_columns
+    )
+    asked_about = asking.without_columns_of(asked_about, coded_about)
     # ...AND THE PERSON QUESTION, recomputed from the FINAL
     # declarations like every other (plan P4-D340). A column answered
     # `identifier` at the terminal is declared now, so the file that
@@ -2976,12 +3204,13 @@ def _run_profile(
         read.columns,
         settings,
         settled,
-        asked_about,
+        asked_about + coded_about,
         split_columns,
     )
     listed_about = asking.checklist_for(
-        document, read.columns, settings, settled, asked_about
+        document, read.columns, settings, settled, asked_about + coded_about
     )
+    asked_about = asked_about + coded_about
     # AND ITS DESTINATION IS GUARDED LIKE ANY OTHER (review item
     # L17b-R1-1). On POSIX a link left at this name resolves to a
     # permitted local path, so the locality gate cannot catch it: what
@@ -3034,6 +3263,18 @@ def _run_profile(
                         # 2026-09-17, item 8; plan P4-D232). The words
                         # are what the FILE showed, and no cell of it.
                         read.first_row_seen,
+                        # ...and which comes first, the day or the month,
+                        # where no value of a column of dates can say
+                        # (plan P4-D381), from the FINAL settings -- and
+                        # not to a person whose file answered it.
+                        day_or_month=(
+                            ()
+                            if answered_month_first
+                            else asking.day_or_month_columns(
+                                document, read.columns, settings,
+                                split_columns,
+                            )
+                        ),
                     ),
                     # ...AND WHAT THIS RUN SAID ABOUT THE TABLE AS A
                     # WHOLE (plan P4-D341). The population notice, in
