@@ -1017,6 +1017,10 @@ NOTE_WEEKDAY_WITHHELD_NO_TAILS = "weekday_census_withheld_no_tails"
 # anchor 3b-G2 (P4-D377)
 # anchor 3b-7 (P4-D378)
 # anchor 3b-J (P4-D379)
+# anchor 3b-R2a (P4-D383)
+# anchor 3b-R2b (P4-D383)
+# anchor 3b-R2c (P4-D383)
+# anchor 3b-R4 (P4-D384)
 
 # EVERY form, with how many arguments it takes. This mapping is the
 # enumeration: a name that is not a key here is not a form, and `note`
@@ -1183,6 +1187,10 @@ NOTE_ARITY: "dict[str, int]" = {
     # anchor 3b-G2 (P4-D377)
     # anchor 3b-7 (P4-D378)
     # anchor 3b-J (P4-D379)
+    # anchor 3b-R2a (P4-D383)
+    # anchor 3b-R2b (P4-D383)
+    # anchor 3b-R2c (P4-D383)
+    # anchor 3b-R4 (P4-D384)
 }
 
 # The same names as a sorted tuple, for a reader and for the tests that
@@ -1402,6 +1410,10 @@ ARGUMENT_BINDINGS: "dict[tuple[str, int], tuple[object, ...]]" = {
     # anchor 3b-G2 (P4-D377)
     # anchor 3b-7 (P4-D378)
     # anchor 3b-J (P4-D379)
+    # anchor 3b-R2a (P4-D383)
+    # anchor 3b-R2b (P4-D383)
+    # anchor 3b-R2c (P4-D383)
+    # anchor 3b-R4 (P4-D384)
     (REMARK_OUT_OF_RANGE, 0): (BIND_KEY, "n_out_of_range"),
     (EVIDENCE_CLOCK, 0): (BIND_DIFFERENCE, "n_present", "n_unparsed"),
     (EVIDENCE_CLOCK, 1): (BIND_WORD,),
@@ -2063,6 +2075,10 @@ def rendered(form: str, arguments: "tuple[object, ...]") -> str:
     # anchor 3b-G2 (P4-D377)
     # anchor 3b-7 (P4-D378)
     # anchor 3b-J (P4-D379)
+    # anchor 3b-R2a (P4-D383)
+    # anchor 3b-R2b (P4-D383)
+    # anchor 3b-R2c (P4-D383)
+    # anchor 3b-R4 (P4-D384)
     if form == NOTE_SMALL_POPULATION:
         # THE TWO FLOORS ARE COUNTED IN DIFFERENT UNITS, AND THIS NOTICE
         # SAYS SO (review of 2026-09-23, finding 6). The size above is
@@ -15906,6 +15922,30 @@ def _heavy_published(
     return _reserved_lists(details, (calendar_rules.HEAVY_DATES,))
 
 
+def _count_form_published(
+    details: "dict[str, object]",
+    verdict: "_Verdict",
+    cells: "_Cells",
+    settings: Settings,
+    produced: bool,
+    stored_one_way: bool,
+    verdicts: "list[dict[str, object]]",
+    absent: "dict[str, int]",
+) -> "tuple[dict[str, object], list[Note], list[Note]]":
+    """A column block of dates with its `count_form`, and its sentences.
+
+    THE STUB OF LANDING R4 (plan P4-D384, numbers that are dates), which
+    fills this producer and nothing beside it; the key is reserved by the
+    second cut (plan P4-D386), and until R4 lands it is `null` on every
+    block and no sentence is said.
+
+    Guarantees: as `_hour_published`. No I/O of any kind.
+    """
+    block = dict(details)
+    block["count_form"] = None
+    return block, [], []
+
+
 def _clock_census_published(
     details: "dict[str, object]",
     verdict: "_Verdict",
@@ -21979,6 +22019,13 @@ def profile_column(
         weekday_remarks = weekday_remarks + census_remarks
         # -- the dates that stand out (3b.D4, P4-D369)
         details, census_notes, census_remarks = _heavy_published(
+            details, verdict, cells, settings, calendar_census,
+            stored_one_way, entries, by_source,
+        )
+        publication_notes = publication_notes + census_notes
+        weekday_remarks = weekday_remarks + census_remarks
+        # -- how dates written as counts spell them (3b.R4, P4-D384)
+        details, census_notes, census_remarks = _count_form_published(
             details, verdict, cells, settings, calendar_census,
             stored_one_way, entries, by_source,
         )

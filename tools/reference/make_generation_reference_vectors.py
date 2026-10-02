@@ -17745,6 +17745,11 @@ def _universal(name, role, statistical_type, structural_role, quality_state, **f
         ):
             if census not in block:
                 block[census] = []
+        # ...and the key the second cut reserves (plan P4-D386), NULL for
+        # every case until landing R4 (plan P4-D384) fills it: a column
+        # whose dates are not written as counts asks nothing of any pass.
+        if "count_form" not in block:
+            block["count_form"] = None
     if role == "time_of_day":
         for census in ("clock_census", "clock_heaps", "clock_codes"):
             if census not in block:

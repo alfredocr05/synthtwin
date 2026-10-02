@@ -122,6 +122,7 @@
       ],
       "column": {
         "all_at_midnight": false,
+        "count_form": null,
         "date_field_widths": {},
         "date_percentiles": {
           "max": null,
@@ -633,6 +634,7 @@
       ],
       "column": {
         "all_at_midnight": false,
+        "count_form": null,
         "date_field_widths": {},
         "date_percentiles": {
           "max": null,
@@ -1188,6 +1190,7 @@
       ],
       "column": {
         "all_at_midnight": false,
+        "count_form": null,
         "date_field_widths": {},
         "date_percentiles": {
           "max": null,
@@ -1747,6 +1750,7 @@
       ],
       "column": {
         "all_at_midnight": false,
+        "count_form": null,
         "date_field_widths": {},
         "date_percentiles": {
           "max": null,
@@ -2305,6 +2309,7 @@
       ],
       "column": {
         "all_at_midnight": false,
+        "count_form": null,
         "date_field_widths": {},
         "date_percentiles": {
           "max": null,
@@ -2859,6 +2864,7 @@
       ],
       "column": {
         "all_at_midnight": false,
+        "count_form": null,
         "date_field_widths": {},
         "date_percentiles": {
           "max": null,
@@ -3410,6 +3416,7 @@
       ],
       "column": {
         "all_at_midnight": false,
+        "count_form": null,
         "date_field_widths": {},
         "date_percentiles": {
           "max": null,
@@ -3991,6 +3998,7 @@
       ],
       "column": {
         "all_at_midnight": false,
+        "count_form": null,
         "date_field_widths": {},
         "date_percentiles": {
           "max": null,
@@ -4520,6 +4528,7 @@
       ],
       "column": {
         "all_at_midnight": false,
+        "count_form": null,
         "date_field_widths": {},
         "date_percentiles": {
           "max": null,
@@ -5101,6 +5110,7 @@
       ],
       "column": {
         "all_at_midnight": false,
+        "count_form": null,
         "date_field_widths": {},
         "date_percentiles": {
           "max": null,
@@ -5748,6 +5758,7 @@
       ],
       "column": {
         "all_at_midnight": false,
+        "count_form": null,
         "date_field_widths": {},
         "date_percentiles": {
           "max": null,
@@ -6286,6 +6297,7 @@
       ],
       "column": {
         "all_at_midnight": false,
+        "count_form": null,
         "date_field_widths": {},
         "date_percentiles": {
           "max": null,
@@ -6845,6 +6857,7 @@
       ],
       "column": {
         "all_at_midnight": false,
+        "count_form": null,
         "date_field_widths": {},
         "date_percentiles": {
           "max": null,

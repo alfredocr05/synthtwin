@@ -74,6 +74,22 @@ _RESERVED: "dict[tuple[str, str], object]" = {
     ("time_of_day", "clock_codes"): [],
     # -- 3b.C2 (P4-D374)
     ("time_of_day", "minute_census"): [],
+    # -- 3b.R4 (P4-D384), reserved by the second cut (P4-D386)
+    ("datetime", "count_form"): None,
+}
+
+# THE DECLARATIONS THE SECOND CUT RESERVES (plan P4-D386), lane by lane:
+# each a key of the settings block, and the one value it holds until its
+# landing fills it.
+_RESERVED_SETTINGS: "dict[str, object]" = {
+    # -- 3b.R2a (P4-D383)
+    "century_windows": [],
+    # -- 3b.R2b (P4-D383)
+    # No key of its own: the clock half reads layouts under 3b.T1's key.
+    # -- 3b.R2c (P4-D383)
+    "forced_date_columns": [],
+    # -- 3b.R4 (P4-D384)
+    "forced_date_counts": [],
 }
 
 # THE GUARD'S CASES, lane by lane: a column of `_three_kinds`, one of its
@@ -99,6 +115,19 @@ _GUARDED = (
     # No case of its own: a clock block's `minute_census` is published
     # under the path of 3b.T3's key, so the rows 3b.T3 adds admit it here
     # too, and until 3b.C2 fills it the loader's R16 case refuses it.
+    # -- 3b.R4 (P4-D384), reserved by the second cut (P4-D386)
+    ("seen_on", "count_form", {"places": 0, "trimmed": False, "contacts": None}),
+)
+
+# ...AND THE SETTINGS BLOCK'S, lane by lane: a reserved declaration and a
+# value it may not hold until its landing.
+_GUARDED_SETTINGS = (
+    # -- 3b.R2a (P4-D383)
+    ("century_windows", [["seen_on", 1930]]),
+    # -- 3b.R2c (P4-D383)
+    ("forced_date_columns", ["seen_on"]),
+    # -- 3b.R4 (P4-D384)
+    ("forced_date_counts", [["seen_on", "excel-1900"]]),
 )
 
 # THE STUBS AND SEAMS, lane by lane: how each is called (its kind, read by
@@ -170,6 +199,12 @@ def test_every_date_and_clock_block_carries_the_reserved_keys_empty(
                 assert getattr(column.facts, key) == (None if empty is None else ()), (column.name, key)
     for role, key in _RESERVED:
         assert key in _KEYS[role], (role, key)
+    # ...and the settings block carries the second cut's three, empty, and
+    # reads them back empty.
+    for key, empty in _RESERVED_SETTINGS.items():
+        assert described.document["settings"][key] == empty, key
+        assert getattr(described.loaded.settings, key) == (), key
+        assert key in contract.SETTINGS_KEYS, key
 
 
 @pytest.mark.parametrize(
@@ -187,6 +222,19 @@ def test_the_producer_guard_refuses_a_reserved_key_holding_anything(
     # and refuses only one field of this value.
     place = f"'columns[].{key}[]'" if isinstance(value, list) else f"'columns[].{key}'"
     with pytest.raises(errors.ProfileError, match=re.escape(place)):
+        profile.check_publication(document)
+
+
+@pytest.mark.parametrize(
+    "key,value", _GUARDED_SETTINGS, ids=[key for key, _value in _GUARDED_SETTINGS]
+)
+def test_the_producer_guard_refuses_a_reserved_declaration_holding_anything(
+    three_kinds: kpi_shapes.Described, key: str, value: object
+) -> None:
+    """Plan P4-D386: the settings block's reserved keys, refused by their place."""
+    document = copy.deepcopy(three_kinds.document)
+    document["settings"][key] = value
+    with pytest.raises(errors.ProfileError, match=re.escape(f"'settings.{key}[]'")):
         profile.check_publication(document)
 
 
@@ -407,12 +455,17 @@ def test_the_census_lines_print_as_the_weekday_check_did() -> None:
     assert lines[0].startswith("Some group this file holds fewer than 11")
 
 
-# THE APPEND BLOCKS, each with its fifteen anchors in the plan's order
-# (plan P4-D364): the file, and the text the block's anchors follow.
+# THE APPEND BLOCKS, each with its nineteen anchors in the plan's order
+# (plan P4-D364): the file, and the text the block's anchors follow. The
+# first fifteen are numbered P4-D365 on; the second cut (plan P4-D386)
+# adds the three halves of the layout reader, P4-D383, and the numbers
+# that are dates, P4-D384, after them.
 _LANES = (
     "3b-D1", "3b-D0", "3b-D2", "3b-D3", "3b-D4", "3b-T1", "3b-T2", "3b-T3",
     "3b-C1", "3b-C2", "3b-G1", "3b-G3", "3b-G2", "3b-7", "3b-J",
+    "3b-R2a", "3b-R2b", "3b-R2c", "3b-R4",
 )
+_NUMBERS = tuple(365 + place for place in range(15)) + (383, 383, 383, 384)
 _BLOCKS = (
     ("src/synthtwin/calendar_rules.py", 1),
     ("src/synthtwin/calendar_clock.py", 1),
@@ -432,7 +485,8 @@ _BLOCKS = (
 @pytest.mark.parametrize("path,blocks", _BLOCKS, ids=[path for path, _blocks in _BLOCKS])
 def test_every_append_block_carries_one_anchor_per_landing(path: str, blocks: int) -> None:
     text = (REPO / path).read_text(encoding="utf-8")
-    numbers = [365 + place for place in range(len(_LANES))]
+    numbers = _NUMBERS
+    assert len(numbers) == len(_LANES)
     for lane, number in zip(_LANES, numbers):
         assert text.count(f"anchor {lane} (P4-D{number})") == blocks, (path, lane)
     # ...and in order, block by block.

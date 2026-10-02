@@ -489,6 +489,8 @@ INPUT_SIDE_ENTRIES = (
     ("clock", "clock_codes"),
     # -- 3b.C2 (P4-D374)
     ("clock", "minute_census"),
+    # -- 3b.R4 (P4-D384), reserved by the second cut (P4-D386)
+    ("datetime", "count_form"),
 )
 
 # -- what a listing entry says, in one fixed sentence each ------------

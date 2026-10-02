@@ -445,6 +445,12 @@ PLAN4_REGIONS = {
         "## Decision P4-D364 — the base every stage 3b landing builds on "
         "(2026-10-01)"
     ),
+    # ...and the key the second cut reserves (plan P4-D386), disposed in
+    # the decision that reserved it until landing R4 disposes it in its own.
+    "stage-3b-second-cut": (
+        "## Decision P4-D386 — the second key cut: three declarations and "
+        "the form of counted dates, reserved (2026-10-02)"
+    ),
     # THE LANDINGS' ANCHORS (plan P4-D364): each landing of stage 3b names
     # its own plan region below its own line.
     # anchor 3b-D1 (P4-D365)
@@ -462,6 +468,10 @@ PLAN4_REGIONS = {
     # anchor 3b-G2 (P4-D377)
     # anchor 3b-7 (P4-D378)
     # anchor 3b-J (P4-D379)
+    # anchor 3b-R2a (P4-D383)
+    # anchor 3b-R2b (P4-D383)
+    # anchor 3b-R2c (P4-D383)
+    # anchor 3b-R4 (P4-D384)
     "group-separator": (
         "### P4-D38 The mark between thousands (stage 2, 2026-09-14)"
     ),
@@ -1169,6 +1179,15 @@ REGISTRY += (
         plan_region="stage-3b-reserves",
         aliases=(),
     ),
+    # -- 3b.R4 (P4-D384), reserved by the second cut (P4-D386)
+    Fact(
+        "datetime",
+        "count_form",
+        LOADER_ONLY,
+        plan_words="LOADER-ONLY until the landing that fills it",
+        plan_region="stage-3b-second-cut",
+        aliases=(),
+    ),
     # THE LANDINGS' ANCHORS (plan P4-D364): each landing of stage 3b
     # disposes its own facts below its own line.
     # anchor 3b-D1 (P4-D365)
@@ -1186,6 +1205,10 @@ REGISTRY += (
     # anchor 3b-G2 (P4-D377)
     # anchor 3b-7 (P4-D378)
     # anchor 3b-J (P4-D379)
+    # anchor 3b-R2a (P4-D383)
+    # anchor 3b-R2b (P4-D383)
+    # anchor 3b-R2c (P4-D383)
+    # anchor 3b-R4 (P4-D384)
 )
 # THE AFFIXED ROLE'S OWN FACTS. Its quantitative block is the numeric
 # block read over the cores and is registered above under `numeric`;
@@ -1279,6 +1302,10 @@ REGISTRY += [
 # anchor 3b-G2 (P4-D377)
 # anchor 3b-7 (P4-D378)
 # anchor 3b-J (P4-D379)
+# anchor 3b-R2a (P4-D383)
+# anchor 3b-R2b (P4-D383)
+# anchor 3b-R2c (P4-D383)
+# anchor 3b-R4 (P4-D384)
 # THE JOINED ROLE (plan P4-D25, contract 9.4a). It had no group here at
 # all until residual R-P4-62's landing: `part_agreements`, `part_above`
 # and `part_min_widths` occurred zero times in this file, so the eight

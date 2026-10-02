@@ -3932,6 +3932,10 @@ back-solve beside the sentence correctly assumed they did not.
 <!-- anchor 3b-G2 (P4-D377) -->
 <!-- anchor 3b-7 (P4-D378) -->
 <!-- anchor 3b-J (P4-D379) -->
+<!-- anchor 3b-R2a (P4-D383) -->
+<!-- anchor 3b-R2b (P4-D383) -->
+<!-- anchor 3b-R2c (P4-D383) -->
+<!-- anchor 3b-R4 (P4-D384) -->
 
 ## 5. The column block
 
@@ -5529,6 +5533,10 @@ line.
 <!-- anchor 3b-G2 (P4-D377) -->
 <!-- anchor 3b-7 (P4-D378) -->
 <!-- anchor 3b-J (P4-D379) -->
+<!-- anchor 3b-R2a (P4-D383) -->
+<!-- anchor 3b-R2b (P4-D383) -->
+<!-- anchor 3b-R2c (P4-D383) -->
+<!-- anchor 3b-R4 (P4-D384) -->
 
 ##### The format vocabulary, its readings and its resolutions
 
@@ -8795,6 +8803,10 @@ landing restates its own rows below its own line.
 <!-- anchor 3b-G2 (P4-D377) -->
 <!-- anchor 3b-7 (P4-D378) -->
 <!-- anchor 3b-J (P4-D379) -->
+<!-- anchor 3b-R2a (P4-D383) -->
+<!-- anchor 3b-R2b (P4-D383) -->
+<!-- anchor 3b-R2c (P4-D383) -->
+<!-- anchor 3b-R4 (P4-D384) -->
 
 **C6-11.** Those ten -- the five above and the five stage 3b
 reserves -- are the whole of what this role adds to the
@@ -12205,6 +12217,10 @@ it answers to.
 <!-- anchor 3b-G2 (P4-D377) -->
 <!-- anchor 3b-7 (P4-D378) -->
 <!-- anchor 3b-J (P4-D379) -->
+<!-- anchor 3b-R2a (P4-D383) -->
+<!-- anchor 3b-R2b (P4-D383) -->
+<!-- anchor 3b-R2c (P4-D383) -->
+<!-- anchor 3b-R4 (P4-D384) -->
 
 Since plan P4-D375 a date or clock tail that lists no values publishes
 its pair whatever a reader can work out from it; P4-D349 withheld it
@@ -12783,6 +12799,10 @@ form, the stand-in is written in it (7.9.1).
 <!-- anchor 3b-G2 (P4-D377) -->
 <!-- anchor 3b-7 (P4-D378) -->
 <!-- anchor 3b-J (P4-D379) -->
+<!-- anchor 3b-R2a (P4-D383) -->
+<!-- anchor 3b-R2b (P4-D383) -->
+<!-- anchor 3b-R2c (P4-D383) -->
+<!-- anchor 3b-R4 (P4-D384) -->
 
 `datetime_separators`, `all_at_midnight` and `n_at_midnight` have no
 row here: all three were added after the freeze and are EXACT-OBSERVABLE
@@ -12914,6 +12934,10 @@ table means exactly what its disposition says.
 <!-- anchor 3b-G2 (P4-D377) -->
 <!-- anchor 3b-7 (P4-D378) -->
 <!-- anchor 3b-J (P4-D379) -->
+<!-- anchor 3b-R2a (P4-D383) -->
+<!-- anchor 3b-R2b (P4-D383) -->
+<!-- anchor 3b-R2c (P4-D383) -->
+<!-- anchor 3b-R4 (P4-D384) -->
 
 The ladder reads the day as a LINE from `00:00` to `23:59:59`, as
 every ladder reads its axis, so a column whose values cluster across
@@ -14805,6 +14829,10 @@ nested forms, 5 bound affix strings.
 <!-- anchor 3b-G2 (P4-D377) -->
 <!-- anchor 3b-7 (P4-D378) -->
 <!-- anchor 3b-J (P4-D379) -->
+<!-- anchor 3b-R2a (P4-D383) -->
+<!-- anchor 3b-R2b (P4-D383) -->
+<!-- anchor 3b-R2c (P4-D383) -->
+<!-- anchor 3b-R4 (P4-D384) -->
 
 **The package-word vocabulary — 26**, the whole of the second argument
 class (4.5.1): the twenty `format` members of 14.6, plus `day-first`
