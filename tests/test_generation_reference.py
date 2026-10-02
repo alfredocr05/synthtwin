@@ -748,11 +748,12 @@ THIRTEENTH_BRANCH_CASES = (
     "weekday_whole_runs",
 )
 
-# THE SIXTEENTH FILE: G7.3b step 5's end floor, in days and in months
-# (plan P4-D375).
+# THE SIXTEENTH FILE: G7.3b step 5's end floor, in days and in months,
+# and the slack it gives up to the rounding of the pair (plan P4-D375).
 FOURTEENTH_BRANCH_CASES = (
     "tail_end_least_reach",
     "tail_end_least_reach_months",
+    "tail_end_least_reach_slack",
 )
 
 ALL_CASES = tuple(
@@ -910,6 +911,7 @@ SEEDS = {
     # ...and the end floor of plan P4-D375, at the next two seeds clear.
     "tail_end_least_reach": 416,
     "tail_end_least_reach_months": 417,
+    "tail_end_least_reach_slack": 418,
     "identifier_unnamed_partners": 184,
     "truth_values_written": 189,
     "twice_written_filled": 190,
@@ -3264,6 +3266,13 @@ def _judged_keys_written_blank(column: dict) -> list:
     return written[: column["n_missing"]]
 
 
+def _least_end_without_slack(mean: float, root: float, edge: int) -> int:
+    """The end floor's mutant: the binary64 reach rounded up with no slack (G7.3b step 5)."""
+    if not mean > 1.0:
+        return 0
+    return min(max(math.ceil(((root * root) - mean) / (mean - 1.0)), 0), edge)
+
+
 CASE_MUTANTS = {
     # THE SIX CASES OF STAGE 3'S TAIL RULE (landing 3.3). Each mutant
     # withdraws one statement of the rule and nothing else, and the
@@ -3952,6 +3961,14 @@ CASE_MUTANTS = {
         "mutant leaves a tail's end two months out",
         attribute="least_end",
         replacement=lambda mean, root, edge: 0,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "tail_end_least_reach_slack": Mutant(
+        branch="G7.3b step 5's slack (plan P4-D375); the mutant rounds the "
+        "binary64 reach up as it comes, 4.000000000000001 to 5, and a tail's "
+        "end stands a day past the column's real range",
+        attribute="least_end",
+        replacement=_least_end_without_slack,
         outcome=CHANGES_THE_CELLS,
     ),
     "tie_group_off_the_hole": Mutant(

@@ -22025,24 +22025,27 @@ def _tail_end_off_the_hole():
     }
 
 
-def _least_reach_column(name, cells, low, high, ladder, resolution):
+def _least_reach_column(name, cells, low, high, ladder, resolution, distinct=21, tail=None):
     """The description the producer writes of a mirrored column of 105 cells over 21 units.
 
     One cell on each end unit, so each tail holds nineteen rows at one, two
     and three units out -- 11, 7 and 1 -- a mean of 28/19 and a
     root-mean-square of the square root of 48/19; ``resolution`` is
-    `date` or `month`.
+    `date` or `month`. ``distinct`` and ``tail`` -- the rows, the mean and
+    the root-mean-square both tails publish -- describe another mirrored
+    column of ``cells`` cells.
     """
+    rows, mean, rms = tail or (19, "1.4736842105263157", "1.5894388284780525")
     tails, tail_claims = _tail_fields(
-        {"boundary": low, "rows": 19, "mean_distance": "1.4736842105263157", "rms_distance": "1.5894388284780525", "values": None},
-        {"boundary": high, "rows": 19, "mean_distance": "1.4736842105263157", "rms_distance": "1.5894388284780525", "values": None},
+        {"boundary": low, "rows": rows, "mean_distance": mean, "rms_distance": rms, "values": None},
+        {"boundary": high, "rows": rows, "mean_distance": mean, "rms_distance": rms, "values": None},
     )
     rungs = {key: None for key in LADDER_KEYS}
     rungs.update(ladder)
     member = "iso-date" if resolution == "date" else "iso-month"
     column = _universal(
         name, "datetime", "datetime", "data", "ok",
-        n_present=cells, n_missing=0, n_distinct=21, n_distinct_folded=21,
+        n_present=cells, n_missing=0, n_distinct=distinct, n_distinct_folded=distinct,
         n_numeric=0, n_not_numeric=cells, n_out_of_range=0, n_contradictory=0,
         format=member, resolution=resolution, time_precision=resolution,
         subsecond_digits=0, datetimes_read_at="local",
@@ -22102,6 +22105,41 @@ def _tail_end_least_reach_months():
         "the floor, and the twin holds 19 of the 21 months.",
         "column": column,
         "rows": 105,
+        "identifier_declared": False,
+        "claims": tail_claims,
+    }
+
+
+def _tail_end_least_reach_slack():
+    """G7.3b step 5's end floor at a reach binary64 puts past a whole unit (plan P4-D375).
+
+    The description the producer writes, at a floor of eleven, of 79 ISO
+    dates over the 21 days from 2024-05-06 -- 1, 0, 0, 10, 4, 6, 4, 2, 7,
+    6, 3, 3, 3, 6, 7, 2, 4, 10, 0, 0 and 1 cells -- its weekday census not
+    stated. Each tail holds ten rows one day out and one four days out: a
+    mean of 14/11 and a root-mean-square of the square root of 26/11,
+    whose reach is exactly 4 and comes out of binary64 as
+    4.000000000000001. The slack the floor gives up to that rounding keeps
+    the end on the real end day, four out; the shape alone puts it three
+    out.
+    """
+    column, tail_claims = _least_reach_column(
+        "column_1", 79, "2024-05-10", "2024-05-22",
+        {"p25": "2024-05-11", "p50": "2024-05-15", "p75": "2024-05-20"}, "date",
+        distinct=17, tail=(11, "1.2727272727272727", "1.5374122295716148"),
+    )
+    return {
+        "why": "G7.3b step 5's end floor (plan P4-D375) at a reach binary64 "
+        "rounds past a whole unit: both tails of 79 dates over 21 days hold "
+        "ten rows one day out and one four days out, so the reach of their "
+        "pair, (26/11 - 14/11) / (14/11 - 1), is exactly 4, and taken in "
+        "binary64 in the method's order it is 4.000000000000001. The floor "
+        "is lowered by 2**-24 of itself plus one before it is rounded up, "
+        "so the end stands four days out, on the column's own first and "
+        "last days. The mutant drops that slack: the reach rounds up to 5 "
+        "and both ends stand a day past the column's real range.",
+        "column": column,
+        "rows": 79,
         "identifier_declared": False,
         "claims": tail_claims,
     }
@@ -29159,10 +29197,12 @@ THIRTEENTH_BRANCH_CASE_BUILDERS = {
 
 # THE SIXTEENTH FILE: G7.3b step 5's end floor (plan P4-D375), in days
 # and in months, because every branch file stands past plan P4-D295's
-# 200000-byte line.
+# 200000-byte line; and the slack it gives up to the rounding of the
+# published pair, on a reach binary64 puts past a whole unit.
 FOURTEENTH_BRANCH_CASE_BUILDERS = {
     "tail_end_least_reach": _tail_end_least_reach,
     "tail_end_least_reach_months": _tail_end_least_reach_months,
+    "tail_end_least_reach_slack": _tail_end_least_reach_slack,
 }
 
 CASE_SETS = {
@@ -29743,7 +29783,10 @@ _FOURTEENTH_BRANCH_ACCOUNT = (
     "tail (plan P4-D375): G7.3b step 5's Bhatia-Davis reach, which puts "
     "the outermost rank of a tail at least at (rho**2 - d1) / (d1 - 1) "
     "rounded up, on 105 dates over 21 days and on 105 months over 21 "
-    "months, each with one cell on its end units. They are computed by the "
+    "months, each with one cell on its end units, and the slack that floor "
+    "gives up to the rounding of the published pair, on 79 dates whose "
+    "reach of exactly 4 binary64 puts at 4.000000000000001. They are "
+    "computed by the "
     "same oracle and the same proof layer "
     "as tests/reference/generation-reference-vectors.json, "
     "tests/reference/generation-branch-vectors.json, "
@@ -29963,6 +30006,61 @@ GIVEN_WORDS = {
         7383809494701524389, 4777030195916695217, 15082516556412423663,
         5104811175000113444, 3677658501130332168, 3484002668950497551,
         17619016101792018207, 10475529771267264781, 15206646035628026456,
+    ),
+    # ...and the slack of that floor, at seed 418.
+    "tail_end_least_reach_slack": (
+        5888701306726884741, 18255826774487294815, 4133703822340738394,
+        5464904954454179485, 16839714052214075707, 16530291631128262980,
+        13308418482770922137, 17341904510457243503, 1062592483322047482,
+        2707255825001044280, 15197290422771526765, 13947631223241016082,
+        7198699265686833100, 13235394256579249438, 17868455118959618282,
+        13083326968822464199, 7030009877416603369, 12403307412020624704,
+        16961839469683476655, 14431498331423049274, 18286900834764265947,
+        10143712307213495106, 1627397429096620537, 9773426862721161938,
+        918756504878196153, 12850237985216777263, 14913229688062145807,
+        14095679810321585747, 7528895931501397697, 6567514385676592547,
+        76959227136100480, 4274039927041820693, 16069804542013945350,
+        7618087402317102848, 12618955288792674516, 8492231755982184868,
+        171063502834010893, 4797704082138595159, 6474769752067108562,
+        9521119783967683456, 8667203210968691125, 12753918743792651018,
+        5265063666394235698, 13882608337531272026, 11616722605472935083,
+        9073670546247467105, 16489034407791009967, 11792409877624650797,
+        4994476321998315734, 2492676337425895515, 8385299228706350949,
+        15598810231474295071, 16984812012430820728, 4262021811803634409,
+        1178966651077467867, 8608820274223833966, 1044078394245719276,
+        6642805347319757926, 5353959733207837580, 8194912466781401756,
+        8852823423835847811, 16991477948605775574, 14662659287642097825,
+        8808569136203126766, 10833292994560725515, 7726550614180475980,
+        9828371957705464661, 11479689921454469439, 6128334330234556974,
+        13610147040700948671, 11735494880317416103, 5372243518618653734,
+        11948067104422914225, 8629732555933144717, 8353144655113286268,
+        17474634169382976573, 5487053285371477497, 16322355566800725401,
+        14424416191106009914, 350713073388479215, 9452409493529935314,
+        4800117897399883142, 1485129971133737768, 8149720868474014064,
+        11955313618978082296, 9883039071856124126, 5734811156706608826,
+        3920349775419433779, 8898729121085966872, 366516842714381329,
+        17424309335596976350, 7355562604479103386, 12720898828312945781,
+        9404015435365695285, 15821393037775860109, 4198581768281109794,
+        14636360541407999316, 6868977446656520552, 12423490600300252583,
+        184437850430607395, 8236196027719699, 16474005008947588685,
+        5443183181903764097, 15658579186546783489, 17346320623896580778,
+        15572418827254994491, 11402596671479070845, 3369953670301274989,
+        8716447181184713722, 7898636209850484234, 87408190321561999,
+        12601020329656099559, 15040907053023304424, 16461506147571151877,
+        18339143561962467071, 16571116923010775056, 6247900273642428692,
+        8173160084052466660, 3019175481530040950, 2241487182118566621,
+        9057989889984122760, 6235490916497784537, 14152721398195845081,
+        8387508643761488956, 8636338435044388967, 2993746434071678359,
+        15289035294214967357, 18395579962021180936, 17642551323882905525,
+        18273484979370840775, 3026659583770015798, 4655390189659509743,
+        7276986363958149802, 5438896334702198523, 10178858522351649498,
+        4486391727483835290, 9407572649044369173, 7920972410131077236,
+        5366350648721156716, 5765000716341952633, 477987613873342409,
+        9418949814119954286, 6876359695558594273, 11926873235745783241,
+        4971164978085525164, 6792540940015894437, 1058174910408403024,
+        7316934629970693498, 10815272845975857735, 11724442494808074560,
+        732964018571111932, 3069408795062890501, 7526098571977256581,
+        3854671723266432770, 11205342780862372950,
     ),
     # THE THREE THE REPAIR OF THE ORACLE'S DERIVED END ADDS (stage 3's
     # review, verdict item 10), at seeds 401 to 403.

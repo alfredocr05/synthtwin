@@ -13086,7 +13086,7 @@ that happens -- and the clause beside it, `--missing-value`'s "CAN be
 published as the column's smallest value", is exactly right under the
 new rule.
 
-**All one hundred and forty-seven are required.** The count is taken off the committed
+**All one hundred and forty-eight are required.** The count is taken off the committed
 case sets and not carried forward: this sentence said fifty-two and a
 split of nine, twenty, sixteen and seven while the six files held
 seventy-three, because each repair that added a case added a clause to
@@ -13115,7 +13115,7 @@ holds three; the FOURTEENTH,
 `tests/reference/generation-branch-vectors-12.json`, holds four; and the
 FIFTEENTH, `tests/reference/generation-branch-vectors-13.json`, holds
 thirteen; and the SIXTEENTH,
-`tests/reference/generation-branch-vectors-14.json`, holds two (G14.2),
+`tests/reference/generation-branch-vectors-14.json`, holds three (G14.2),
 and a test holds this sentence to those files. The tenth grew by the
 two cases the GOVERNANCE PASS of stage 3's review added and the
 eleventh by the two the dates pass added; each number here is read off
@@ -13257,6 +13257,7 @@ case passed, which is the failure the count exists to prevent:
 | `tail_end_off_the_hole` | G7.3b step 7 (plan P4-D358): 121 ISO dates over 35 days from 2017-10-28, 20 of them written 2017-11-30 and declared absent, at seed 0. The high tail's end, its outermost rank, falls on 2017-11-30 and steps one day inward off it; its tie group stands a day past the boundary and never on the hole. Its mutant withdraws step 7, and the end's cell is written with the absent spelling: 21 cells read back absent where the column holds 20. Before this case the oracle held no part of step 7 |
 | `tail_end_least_reach` | G7.3b step 5's end floor (plan P4-D375): 105 ISO dates over the 21 days from 2024-05-06, one cell on each end day, at seed 416. Each tail holds nineteen rows at one, two and three days out, a mean of 28/19 and a root-mean-square of the square root of 48/19; the shape puts each end two days out, and the Bhatia-Davis reach of the pair, 20/9 rounded up, puts it three out, on the column's own first and last days. Its mutant withdraws the floor: both ends stand two days out and the twin writes neither end day |
 | `tail_end_least_reach_months` | G7.3b step 5's end floor counted in months (plan P4-D375): the same counts over the 21 months from 2019-03, written `yyyy-mm`, at seed 417, the tail unit a month. Its mutant withdraws the floor and both ends stand two months out |
+| `tail_end_least_reach_slack` | G7.3b step 5's slack (plan P4-D375; the repair round of its landing): 79 ISO dates over the 21 days from 2024-05-06, one cell on each end day and none on the two days inside it, at seed 418. Each tail holds ten rows one day out and one four days out, a mean of 14/11 and a root-mean-square of the square root of 26/11, so the reach of the pair is exactly 4 and binary64 takes it, in the step's order, as 4.000000000000001; lowered by `2**-24` of itself plus one before it is rounded up, it puts each end four days out, on the column's own first and last days, where the shape alone puts it three out. Its mutant rounds the reach up with no slack: both ends stand five days out, a day past the column's real range. Before this case no frozen case held the slack up: the two above have a reach of 20/9, which rounds up to three with or without it |
 | `tie_group_off_the_hole` | G7.3b step 7 for a tie group (plan P4-D358; the second review of landing 3b.0): 111 ISO dates over 40 days from 2020-02-09, 11 of them written 2020-03-10 and declared absent, at seed 0. The high tail's tie group of five ranks stands five days past its boundary, on 2020-03-10, and steps one day inward off it. Its mutant steps the tail's end and leaves the group there: its five cells are written with the absent spelling, 16 read back absent where the column holds 11 |
 | `weekday_count_put_back` | G7.3f step 8.1 (plan P4-D355): 120 whole dates over four weeks with no weekend, published `[Mon-Fri] 92, [Sat-Sun] 0`, whose day pass leaves the count of different days off what it was before the pass. Single ranks, in rank order and inside their own group, put it back. Its mutant withdraws those moves |
 | `weekday_days_moved` | G7.3f (plan P4-D355): 100 whole dates over seven weeks published `[Mon-Fri] 66, [Sat-Sun] 12`, so body ranks move inside their own gaps until the cells between the two boundaries fall on those groups. Its mutant withdraws the pass, as the twin was written before this decision |
