@@ -769,33 +769,43 @@ def _heaped_year(seed: int) -> "list[str]":
 def test_a_day_the_twins_own_tails_cost_is_not_called_unplaceable(tmp_path: pathlib.Path) -> None:
     """SLOW. A count short in the twin's own tails says so, and never that no placement of the dates exists.
 
-    A business-day log whose last rows spill over a weekend: its Monday's
-    one row keeps the high tail's values back, so the twin rebuilds that
-    tail from its boundary, rows and distances with fewer different days
-    than the real one, and its body already holds every weekday between
-    the boundaries, so no move can put the day back. The report said no
-    placement of the column's dates between the rungs met both counts --
-    which the real table refutes, being one. Beside it the second
-    skeptic's column (`Random(9320)`, 20,000 visits over 2023 on five
-    weekdays). Red when the note is the old one, and when it does not
+    A business-day log whose last rows spill over a weekend, and the
+    second skeptic's column (`Random(9320)`, 20,000 visits over 2023 on
+    five weekdays). Since plan P4-D375 each publishes both tail pairs and
+    the high tail's end stands at least at its pair's reach, so the log's
+    twin writes the lone Monday after the weekend and each twin holds as
+    many different days as its column: no count is short. The note is asked of the descriptions
+    written before that plan, a pair withheld -- the log's high one, both
+    of the year's: the twin rebuilds such a tail from its boundary and
+    rows with fewer different days than the real one, and its body
+    already holds every weekday between the boundaries, so no move can
+    put the days back. The report said no placement of the column's dates
+    between the rungs met both counts -- which the real table refutes,
+    being one. Red when the note is the old one, and when it does not
     name the tails.
     """
     from synthtwin import generation
 
-    for name, cells, seeds in (
-        ("log", _business_days_spilling_over_a_weekend(1), (0, 1, 2)),
-        ("year", _heaped_year(9320), (0,)),
+    for name, cells, seeds, sides in (
+        ("log", _business_days_spilling_over_a_weekend(1), (0, 1, 2), ("high",)),
+        ("year", _heaped_year(9320), (0,), ("low", "high")),
     ):
-        described = kpi_shapes.describe(tmp_path / name, name, "visit\n" + "".join(f"{cell}\n" for cell in cells), 11)
-        block = described.block("visit")
+        fresh = kpi_shapes.describe(tmp_path / name, name, "visit\n" + "".join(f"{cell}\n" for cell in cells), 11)
+        block = fresh.block("visit")
         assert block["weekday_census"] and block["n_distinct"] == len(set(cells)), name
         assert block["high_tail"]["values"] is None, name
+        assert block["high_tail"]["mean_distance"] is not None, name
+        for seed in seeds:
+            written = set(kpi_shapes.twin_text(fresh, seed).splitlines()[1:])
+            assert len(written) == len(set(cells)), (name, seed)
+            named = [note for note in generation.generate(fresh.loaded, seed).deviations if note.fact == "n_distinct"]
+            assert named == [], (name, seed, named)
+        described = kpi_shapes.written_before_p4d375(fresh, sides, taxonomy.TAIL_PINS_END)
         low, high = block["low_tail"]["boundary"], block["high_tail"]["boundary"]
         for seed in seeds:
             written = set(kpi_shapes.twin_text(described, seed).splitlines()[1:])
-            if name == "log":
-                weekdays = {cell for cell in cells if low <= cell <= high}
-                assert {cell for cell in written if low <= cell <= high} == weekdays, seed
+            weekdays = {cell for cell in cells if low <= cell <= high}
+            assert {cell for cell in written if low <= cell <= high} == weekdays, (name, seed)
             named = [note for note in generation.generate(described.loaded, seed).deviations if note.fact == "n_distinct"]
             caused = [note for note in named if "kept the counts per day of the week" in note.note]
             assert [note.published for note in caused] == [str(len(set(cells)))], (name, seed, named)

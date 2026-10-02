@@ -50,9 +50,12 @@ THE CLASSES, AND WHAT EACH IS ASKED (design section 2, read off
 
 WHAT THE GATE IS NOT. It is not a second copy of the rules it checks:
 where a rule is already written once -- `parsing.census_nameable`,
-`parsing.tail_may_list`, `taxonomy.ARGUMENT_BINDINGS`, the tail-leak
-driver's back-solve -- the gate ASKS it rather than restating it, so a
-rule that drifts drifts in one place and this file sees it.
+`parsing.tail_may_list`, `taxonomy.ARGUMENT_BINDINGS` -- the gate ASKS
+it rather than restating it, so a rule that drifts drifts in one place
+and this file sees it. What a published tail pair lets a reader work
+out is no longer asked here: plan P4-D375 publishes every pair binary64
+holds, and ledger entries `K-S3-11` and `K-S3-18` measure what they give
+back.
 
 AND THE LINE IS THE LINE THE PATH'S OWN RULE NAMES. At a settings floor
 of one the census line is two, and the description still names every
@@ -96,9 +99,8 @@ edges nobody states reads as a gate with none:
 * **A joined column's halves and a date column's own values.** The
   VALUE clause reads a column's cells with `parsing.parse_number`, so a
   cell of two numbers and a cell holding a date give it nothing. The
-  date and clock side is asked by the back-solve and by
-  `tests/test_stage3_tail_rule.py`; a `parts[]` half is asked by
-  neither.
+  date and clock side is asked by `tests/test_stage3_tail_rule.py`; a
+  `parts[]` half is not asked.
 * **The census populations the battery never reaches.**
   `pad_widths`, `decimal_plus`, `number_spellings`,
   `quarter_marker_case` and `value_histogram` carry a population in
@@ -109,10 +111,8 @@ edges nobody states reads as a gate with none:
 from __future__ import annotations
 
 import collections
-import copy
 import datetime
 import importlib.util
-import math
 import json
 import pathlib
 import random
@@ -1594,32 +1594,6 @@ def _tail_leak_driver() -> object:
     return module
 
 
-@pytest.mark.parametrize("floor", FLOORS)
-def test_no_tail_of_the_battery_back_solves_to_the_value_it_withheld(
-    described: "dict[int, list[Case]]", floor: int
-) -> None:
-    """THE OTHER WAY A VALUE REACHES A READER: arithmetic, not equality.
-
-    A date or clock tail publishes how many rows lie beyond its
-    boundary and two distances. Where those three leave exactly ONE
-    multiset of whole distances, the outermost value follows from them,
-    and a gate that only compared numbers would not see it. The walk is
-    the tail-leak driver's own (`_pinned_and_room`), asked here of every
-    block of the battery that carries a tail.
-    """
-    driver = _tail_leak_driver()
-    found: "list[str]" = []
-    for case in described[floor]:
-        for block in case.document["columns"]:
-            pinned, _room, _unsearched = driver._pinned_and_room(block, floor)
-            if pinned:
-                found += [
-                    f"{case.name}/{block['name']}: {pinned} tail(s) settled to one "
-                    f"arithmetic by their own published facts"
-                ]
-    assert found == [], "\n".join(found)
-
-
 # -- 3a. what the two measurements miss, and the mutants that say so ---
 #
 # THE GOVERNANCE PASS OF STAGE 3'S REVIEW (items 3 and 4). Both numbers
@@ -1809,13 +1783,13 @@ KEPT_SCALES = (
 )
 
 
-# THE SHAPES THE WITHHELD PAIR COSTS SOMETHING, beside the attacks. The
+# THE SHAPES THE WITHHELD PAIR COST SOMETHING, beside the attacks. The
 # first is the review's own padded column: 399 consecutive record numbers
-# beside one far value, where the withheld tail carries the whole of the
+# beside one far value, where the far tail carries the whole of the
 # column's spread. The second is that column without the far value, so
-# the measurement says which half the cost belongs to. Since plan P4-D353
-# the cost rule publishes the far side's pair on the first, third and
-# fourth, and the twin keeps every obligation.
+# the measurement says which half the cost belonged to. Since plan
+# P4-D375 every side publishes its pair, and the twin keeps every
+# obligation.
 COST_SHAPES = (
     (
         "padded_399_beside_one_far",
@@ -1826,8 +1800,8 @@ COST_SHAPES = (
     # skeptic A3's blocker). At 150 rows the far cell's own width is pooled
     # at the floor, so its tail is held to four characters, whose ceiling --
     # `9999`, `-999` -- is a number the profiler reads as "no value". The
-    # rule publishes the far side's pair on both, and the twin must keep
-    # every obligation with it (`contract._off_the_stand_ins`).
+    # far side publishes its pair on both, and the twin must keep every
+    # obligation with it (`contract._off_the_stand_ins`).
     ("padded_149_beside_one_far", [f"{value:05}" for value in range(1, 150)] + ["12345"]),
     ("far_negative_beside_a_run", ["-4000"] + [str(500 + index) for index in range(149)]),
 )
@@ -1839,12 +1813,10 @@ def withheld_cost(folder: pathlib.Path) -> "tuple[int, int, int]":
     Three numbers over the fix pass's own shapes -- every reconstruction
     attack and the four `COST_SHAPES`: how many tail SIDES publish neither
     distance, how many checkable obligations their twins MISS at seeds 0
-    and 4 together, and how many shapes were measured. The second number
-    was the cost, and plan P4-D353 holds it at nought: a pair whose
-    withholding would leave the column's own G12.3 window of its mean or
-    spread short of the published value is published. The first may not
-    fall, so nought cannot be bought by publishing pairs the rule does
-    not need.
+    and 4 together, and how many shapes were measured. Since plan P4-D375
+    every pair binary64 holds is published, so the first is nought on
+    these shapes, and the second, the cost the withholding had, stays
+    nought with it.
     """
     sides = 0
     missing = 0
@@ -1890,27 +1862,6 @@ def attacked(tmp_path_factory: pytest.TempPathFactory) -> "dict[str, Case]":
     for name, cells in RECONSTRUCTIONS + KEPT_SCALES:
         built[name] = _attack(home, name, cells)
     return built
-
-
-def _reader_settles(block: "dict", driver: object) -> int:
-    """How many of one block's published tails the driver's walk settles.
-
-    The driver's own walk, asked with the facts a reader of that
-    description holds beside a tail's three numbers: for a numeric block
-    the published grid, the sign counts and the column's own "every value
-    different" remark; for a date or clock block the space's own edges
-    and the same remark. Nothing here restates the walk.
-    """
-    settled = 0
-    if isinstance(block.get("tails"), dict):
-        pinned, _room, _unsearched = driver._numeric_pinned(
-            block, 11, driver._numeric_all_different(block)
-        )
-        settled += pinned
-    if block.get("low_tail") is not None or block.get("high_tail") is not None:
-        pinned, _room, _unsearched = driver._pinned_and_room(block, 11)
-        settled += pinned
-    return settled
 
 
 # THE FOUR MOMENTS, WHICH A SYMMETRIC COLUMN MAKES COINCIDE WITH A CELL.
@@ -1993,41 +1944,6 @@ def test_no_reconstruction_attack_names_a_value_one_row_holds(
                 )
 
 
-@pytest.mark.parametrize("name", [one for one, _cells in RECONSTRUCTIONS])
-def test_no_reconstruction_attack_has_a_tail_the_description_settles(
-    attacked: "dict[str, Case]", name: str
-) -> None:
-    """THE ARITHMETIC HALF: the tail walk, with the facts beside each pair in the reader's hands.
-
-    The integers 0 to 1100 once each published eleven rows, a mean
-    distance of 6 and a root-mean-square of root-46 on each side, and the
-    same description says every value is different: eleven DIFFERENT whole
-    distances summing to 66 are 1 to 11 and nothing else, so both ends
-    came back exactly. Measured with the driver's own walk before the fix:
-    each side admitted ONE multiset with the remark and 64 without it.
-
-    NO TAIL OF THE EIGHT IS SETTLED BY THIS WALK, and since plan P4-D353
-    the reason is `test_a_settled_pair_is_published_only_where_withholding_it_costs`:
-    a pair the walk settles is published only where withholding it would
-    leave the column's mean or spread window short, and on none of these
-    eight does it. THAT IS A CLAIM ABOUT THE PAIR AND NOT ABOUT THE
-    COLUMN: with no pair at all, the whole description -- the exact mean
-    and spread, the rungs, the count of different values, the mode's
-    count and the sign counts -- gives back every value of two of them,
-    `integers_0_to_1100` and `heap_then_one_far`, 1100 among them. The
-    owner accepted that on 2026-09-26 (answer 8, "Accept both"):
-    `test_the_whole_description_rebuild_which_the_owner_accepted`,
-    ledger entry `K-S3-24`.
-    """
-    driver = _tail_leak_driver()
-    case = attacked[name]
-    for block in case.document["columns"]:
-        assert _reader_settles(block, driver) == 0, (
-            f"{name}/{block['name']}: a published tail is settled to one "
-            f"multiset by the description's own facts"
-        )
-
-
 @pytest.mark.parametrize("name", [one for one, _cells in KEPT_SCALES])
 def test_the_scales_the_owner_keeps_still_name_their_values(
     attacked: "dict[str, Case]", name: str
@@ -2056,102 +1972,53 @@ def test_the_scales_the_owner_keeps_still_name_their_values(
         )
 
 
-# -- P4-D353: A SETTLED PAIR IS PUBLISHED ONLY WHERE WITHHOLDING IT COSTS --
+# -- P4-D375: EVERY PAIR BINARY64 HOLDS IS PUBLISHED --------------------
 #
-# The owner's rulings 3 and 4 of 2026-09-25: a tail whose two published
-# distances would give its outer values back publishes them ANYWAY where
-# withholding them would make the twin miss its column's mean or spread,
-# and nowhere else. Each case below is asked that question from the rule
-# itself -- the same block with the settled side's pair withheld, its
-# G12.3 windows drawn by the checker's own writing -- and never from a
-# list of which cases happen to publish.
-
-
-def _settled_published_sides(block: "dict", driver: object) -> "list[str]":
-    """The published numeric sides the reader's own walk settles, one at a time.
-
-    The driver's walk and nothing of this file's: `_numeric_walk_parts`
-    reads a tail whose boundary rung falls between two grid points from
-    its grid home, so every published pair of a gridded block is asked.
-    """
-    found: "list[str]" = []
-    tails = block.get("tails")
-    if not isinstance(tails, dict):
-        return found
-    apart = driver._numeric_all_different(block)
-    figures = driver._numeric_grid(block)
-    for side in ("low", "high"):
-        one = tails[side]
-        if not isinstance(one, dict) or one["mean_distance"] is None or one["values"]:
-            continue
-        read = driver._numeric_walk_parts(block, side, figures)
-        if read is None:
-            continue
-        rows, total, squares, cap = read
-        settled, _spent = driver._settled(rows, total, squares, cap, apart)
-        if settled:
-            found += [side]
-    return found
+# The cost rule of plan P4-D353 published a pair the back-solve withheld
+# only where withholding it cost the twin its mean or spread. With the
+# withholding gone (the owner's principle of 2026-10-01) every pair is
+# published; what the windows of the column's own mean and spread then
+# hold is asked below, of the shapes the rule was built on.
 
 
 @pytest.mark.parametrize("name", [one for one, _cells in RECONSTRUCTIONS + COST_SHAPES])
-def test_a_settled_pair_is_published_only_where_withholding_it_costs(
+def test_every_pair_is_published_and_keeps_the_column_s_windows(
     tmp_path: pathlib.Path, name: str
 ) -> None:
-    """P4-D353, asked of every attack and cost shape at the default floor.
+    """Every numeric side of every attack and cost shape publishes its pair.
 
-    DERIVED FROM THE RULE, NOT COPIED FROM AN OUTPUT: each pair the
-    reader's own walk settles is taken back out of the published block,
-    and the checker's own G12.3 windows must then miss the column's mean
-    or spread. A pair published where withholding it costs nothing would
-    give its tail back for nothing, which the owner's ruling 4 refuses.
+    And the description's own G12.3 windows of the column's mean and
+    spread contain their published values, asked by the checker's own
+    writing (`cost_rule_window`). On 399 consecutive record numbers
+    beside one far `12345`, the far cell IS the mean: with both pairs
+    withheld, as P4-D349 withheld them, the window of the mean does not
+    reach it, which says the pair is what keeps it.
     """
-    driver = _tail_leak_driver()
     cells = dict(RECONSTRUCTIONS + COST_SHAPES)[name]
     case = _attack(tmp_path, name, cells)
-    for block in case.document["columns"]:
-        for side in _settled_published_sides(block, driver):
-            withheld = cost_rule_window.withheld(block, (side,))
-            assert cost_rule_window.costs(withheld, 11), (
-                f"{name} {side}: a pair the reader settles is published although "
-                f"withholding it leaves the column's own mean and spread windows "
-                f"on their published values"
-            )
-
-
-def test_the_cost_rule_is_not_vacuous_on_its_own_cost_shape(
-    tmp_path: pathlib.Path,
-) -> None:
-    """THE POSITIVE CASE, derived from the rule and not copied from an output.
-
-    399 consecutive record numbers beside one far `12345`: with both pairs
-    withheld, the G12.3 window of the column's mean does not reach the
-    published mean (the far cell IS the mean), so the rule must publish a
-    pair -- and the pair it publishes is the one the reader settles.
-    """
-    driver = _tail_leak_driver()
-    name, cells = COST_SHAPES[0]
-    case = _attack(tmp_path, name, cells)
     block = case.document["columns"][0]
-    both = cost_rule_window.withheld(block, ("low", "high"))
-    assert cost_rule_window.costs(both, 11), (
-        "the cost shape stopped costing; the case proves nothing"
-    )
-    assert _settled_published_sides(block, driver), (
-        "withholding costs this column its mean, and no settled pair was published"
-    )
+    tails = block.get("tails")
+    if not isinstance(tails, dict):
+        return
+    for side in ("low", "high"):
+        one = tails[side]
+        assert isinstance(one, dict), (name, side)
+        assert one["mean_distance"] is not None and one["rms_distance"] is not None, (name, side)
     assert not cost_rule_window.costs(block, 11), (
-        "the published description still misses its own window"
+        f"{name}: the published description misses its own window"
     )
+    if name == COST_SHAPES[0][0]:
+        both = cost_rule_window.withheld(block, ("low", "high"))
+        assert cost_rule_window.costs(both, 11), "the far value stopped carrying the mean"
 
 
 @pytest.mark.parametrize("name", [one for one, _cells in COST_SHAPES])
 def test_a_cost_shape_round_trips_at_exit_nought(tmp_path: pathlib.Path, name: str) -> None:
-    """Every cost shape, through the command line: the twin AND the real table pass (P4-D353).
+    """Every cost shape, through the command line: the twin AND the real table pass (P4-D375).
 
-    The rule publishes a pair wherever withholding it costs the twin its
-    mean or spread; a published pair must then cost the twin nothing else.
-    Measured before the width-ceiling repair: `padded_149_beside_one_far`
+    Every pair is published, and a published pair must cost the twin
+    nothing. Measured before the width-ceiling repair of plan P4-D353:
+    `padded_149_beside_one_far`
     exited 3 on seven obligations (its twin wrote `09999`) and
     `far_negative_beside_a_run` on ten (`-999`, and the role flipped).
     """
@@ -2173,10 +2040,8 @@ def test_the_skew_and_kurtosis_rebuild_which_the_owner_accepted(
     tails' third and fourth power sums too, and beside both published
     pairs they give withheld tail values back. One of the entry's five
     columns (both tails dense, 102 rows, seed 3) is read by the union
-    reader here. Withholding costs it nothing, so the cost rule publishes
-    no pair on it: both pairs are the back-solve's own. A landing that
-    closed the limit would make the first assertion fail, which is the
-    right way for it to be noticed.
+    reader here. A landing that closed the limit would make the first
+    assertion fail, which is the right way for it to be noticed.
     """
     import complement_reader as columns
 
@@ -2184,9 +2049,9 @@ def test_the_skew_and_kurtosis_rebuild_which_the_owner_accepted(
     case = _attack(tmp_path, "both_dense_s3", cells)
     read = columns.union(case.document["columns"][0], values)
     assert read["values_rebuilt"] > 0, (
-        "the exact skew and kurtosis rebuild no withheld tail value of this column: "
+        "the exact skew and kurtosis rebuild no outer tail value of this column: "
         "the limit `K-S3-17` records has closed, so that entry and plan decision "
-        "P4-D353 are out of date"
+        "P4-D375 are out of date"
     )
     entry = kpi_rules.entries_by_id(kpi_rules.load_ledger())["K-S3-17"]
     assert read["values_rebuilt"] <= entry["expected"]["values_rebuilt"]
@@ -2206,11 +2071,11 @@ def test_the_whole_description_rebuild_which_the_owner_accepted(
     of that on 2026-09-30, the owner answered "Yes, it stands". Where
     the count of different values, the mode's
     count, the sign counts and the rungs pin a column, its exact mean and
-    spread give every value back although both tails withhold their
-    pairs. `complement_reader.whole_description` reads two of the eight
-    attacks whole at this floor, each one-row maximum among the values.
-    A landing that closed the limit would make the first assertion fail,
-    which is the right way for it to be noticed.
+    spread give every value back whatever its tails publish.
+    `complement_reader.whole_description` reads two of the eight attacks
+    whole at this floor, each one-row maximum among the values. A landing
+    that closed the limit would make the first assertion fail, which is
+    the right way for it to be noticed.
     """
     import complement_reader as columns
 
@@ -2218,14 +2083,10 @@ def test_the_whole_description_rebuild_which_the_owner_accepted(
     for name in ("integers_0_to_1100", "heap_then_one_far"):
         case = attacked[name]
         block = case.document["columns"][0]
-        tails = block["tails"]
-        assert [side for side in ("low", "high") if tails[side]["mean_distance"] is not None] == [], (
-            f"premise: {name} publishes no tail pair at this floor"
-        )
         read = columns.whole_description(block, sorted(int(cell) for cell in case.cells["value"]))
         assert read["read"] == "whole" and read["maximum_named"], (
             f"{name}: the whole description no longer gives the column back ({read['read']}): "
-            "the limit `K-S3-24` records has closed, so that entry and plan decision P4-D353 "
+            "the limit `K-S3-24` records has closed, so that entry and plan decision P4-D375 "
             "are out of date"
         )
         assert read["values_rebuilt"] <= entry["expected"]["values_rebuilt"]
@@ -2331,36 +2192,6 @@ def test_the_row_claim_guard_would_notice_an_unqualified_denial() -> None:
     assert _unqualified_row_denials(qualifier + near + bare) == [], "a qualifier in the paragraph"
     assert _unqualified_row_denials(bare + far + qualifier) != [], "a qualifier a thousand characters on"
     assert _unqualified_row_denials(qualifier + far + bare) != [], "a qualifier a thousand characters back"
-
-
-def test_the_reconstruction_gate_turns_red_when_the_pair_goes_back(
-    attacked: "dict[str, Case]",
-) -> None:
-    """MUTATION 6: the withheld pair put back, and the gate must see it.
-
-    A guard that passes is not a guard. The two distances of the integer
-    column's low tail are the ones the producer withheld -- eleven
-    distances 1 to 11, so a whole sum of 66 and a whole sum of squares of
-    506 over eleven rows -- and with them back the walk above must find
-    the tail settled. The numbers are derived from the rule and not
-    copied from any output: the tail rule puts the low boundary at the
-    eleventh order statistic, which on the integers 0 to 1100 is 11, and
-    the eleven rows below it are 0 to 10.
-    """
-    driver = _tail_leak_driver()
-    case = attacked["integers_0_to_1100"]
-    block = copy.deepcopy(case.document["columns"][0])
-    tails = block["tails"]
-    assert isinstance(tails, dict) and isinstance(tails["low"], dict)
-    rows = 11
-    tails["low"] = dict(tails["low"])
-    tails["low"]["mean_distance"] = 66.0 / rows
-    tails["low"]["rms_distance"] = math.sqrt(506.0 / rows)
-    assert _reader_settles(block, driver) > 0, (
-        "the published pair of the low tail was put back and the "
-        "back-solve did not settle it: the walk does not see what the "
-        "review reconstructed by hand"
-    )
 
 
 # -- 4. the refusal half -----------------------------------------------

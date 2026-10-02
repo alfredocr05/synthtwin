@@ -555,8 +555,17 @@ def test_nothing_that_varies_between_runs_is_written(
 # AND AGAIN AT ITS REVIEW (item 4): the same line says "every group that
 # holds rows", not "every group counted"; diffed against fb257b0, that
 # line alone.
+# AND RE-RECORDED BY PLAN P4-D375 (the tail-withholding drop), read line by
+# line against a git archive of 668f276: FOUR LINES move, the four tail
+# distances of `record_code`, null since P4-D349 and published again. No
+# key arrives or leaves and nothing else differs.
+# AND RE-RECORDED AT THE MERGE OF 3b.G1 OVER 3b.K AND 3b.D1 (2026-10-02):
+# neither side's digest is the merged document's, as each carried only its
+# own half. Diffed against the document on the tree before the merge: the
+# four tail distances of `record_code` alone; against 3b.G1's own: the
+# twelve empty keys of the base and the one NF71 line, nothing else.
 GOLDEN_SHA256 = (
-    "1ce69835d6e68df14774f60f7be5169d2bd4aa4e09ccfa674e104af8edf69100"
+    "17f1d514335b2eb06005f32357cd42c96c7b42036d5d1f71e23aee62ce08912f"
 )
 
 

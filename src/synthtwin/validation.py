@@ -877,13 +877,27 @@ _NOT_CHECKABLE_TAIL_KEY_WITHHELD = (
     "the description's tail publishes nothing under this key: the values "
     "a tail holds are published only where it holds few of them or where "
     "its distances would settle a count below the floor, and the two "
-    "distances are withheld where they would give back an outer cell or "
-    "how many outer cells hold one value, where the check of that could "
-    "not finish, where beside the "
+    "distances are withheld only where this file format cannot hold them "
+    "(a description written before plan P4-D375 also withheld them where "
+    "they would give back an outer cell or how many outer cells hold one "
+    "value, where the check of that could not finish, or where beside the "
     "column's exact mean and spread they could give the other tail's "
-    "withheld distances back by subtraction, or where this file format "
-    "cannot hold them -- unless withholding them would cost the column its "
-    "mean or spread (docs/spec/profile-contract-v6.md TL1, TL5 and 6.7a)"
+    "withheld distances back by subtraction, unless withholding them would "
+    "cost the column its mean or spread; such a description says which on "
+    "the side itself) (docs/spec/profile-contract-v6.md TL1, TL5 and 6.7a)"
+)
+# A LISTED DATE OR CLOCK TAIL is the one shape the sentence above does
+# not describe: it publishes the values it holds in place of its pair,
+# never its root-mean-square distance, and its mean only where that mean
+# would not settle a count below the floor (contract DT1; the taxonomy's
+# `_values_mean_pins`). Its two absent distances are listed with this
+# reason, and every other absent tail key keeps the one above.
+_NOT_CHECKABLE_LISTED_TAIL_DISTANCE = (
+    "the description's tail lists the values it holds in place of its "
+    "shape: a listed date or clock tail publishes no root-mean-square "
+    "distance, and no mean where the mean beside the listed values would "
+    "settle a count below the floor of the rows holding one of them "
+    "(docs/spec/profile-contract-v6.md DT1 and 6.7a)"
 )
 _NOT_CHECKABLE_SPELLING_ENVELOPE = (
     "the description's own permitted spellings settle nothing about how "
@@ -15192,6 +15206,10 @@ def _variant_map(
 
 _TAIL_WORD = 18446744073709551616
 
+# G7.3b step 5: the share of the Bhatia-Davis reach, plus one, that the
+# end gives up to the rounding of the two published distances.
+_TAIL_END_SLACK = 1.0 / 16777216.0
+
 
 def _tail_round(value: float) -> int:
     """G7.3b's rounding: the nearest whole number, halves up, on the value itself."""
@@ -15404,6 +15422,19 @@ def _tail_construction(
         group = min(max(1, _tail_round(stretch * mean_of_group)), edge)
         if grouped == 0:
             end_whole = group
+    # G7.3b STEP 5's END FLOOR (plan P4-D375): the end is at least the
+    # Bhatia-Davis reach of the pair, before step 7 steps it off a hole.
+    # Rounded up by truncation and one comparison, as the offline policy
+    # enumerates no `math.ceil` (plan P2-D13).
+    if mean > 1.0:
+        reach_of_pair = ((root * root) - mean) / (mean - 1.0)
+        lowered = reach_of_pair - ((1.0 + reach_of_pair) * _TAIL_END_SLACK)
+        least = edge
+        if lowered < edge:
+            least = int(lowered)
+            if float(least) < lowered:
+                least = least + 1
+        end_whole = max(end_whole, min(max(least, 0), edge))
     end_whole = _stepped_off(end_whole, boundary, low_side, end_step)
     if grouped < rows:
         if group_midnight is not None:
@@ -20154,12 +20185,15 @@ def _tail_listings(
         ):
             if published is not None:
                 continue
+            why = _NOT_CHECKABLE_TAIL_KEY_WITHHELD
+            if tail.values is not None and key != "values":
+                why = _NOT_CHECKABLE_LISTED_TAIL_DISTANCE
             listings += [
                 Listing(
                     column.name,
                     f"{group}.{side}_tail.{key}",
                     f"tails.{side}.{key}",
-                    _NOT_CHECKABLE_TAIL_KEY_WITHHELD,
+                    why,
                 )
             ]
     return listings

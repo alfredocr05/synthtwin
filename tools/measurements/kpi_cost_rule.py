@@ -1,28 +1,37 @@
-"""K-S3-17, K-S3-18, K-S3-20, K-S3-21 and K-S3-22: what the cost rule does, measured.
+"""K-S3-17, K-S3-18, K-S3-20, K-S3-21, K-S3-22 and K-S3-50: what publishing every tail pair does, measured.
 
-Plan P4-D353 publishes a withheld numeric tail pair where withholding it
-would leave the description's own G12.3 window of the column's mean or
-spread short of the published value. Five numbers say what that buys and
-what it gives back, each over its own seeded battery and each through
-the real producer, and -- where a twin is asked -- the real generator and
-checker:
+Plan P4-D375 publishes every numeric tail pair binary64 can hold; the
+cost rule of P4-D353, which published a withheld pair only where
+withholding it cost the twin its mean or spread, went with the
+withholding. Five numbers say what the pairs buy and what they give
+back, each over its own seeded battery and each through the real
+producer, and -- where a twin is asked -- the real generator and checker:
 
 * `K-S3-17` (the owner's accepted limit, answer 1): on five columns whose
-  two tails are dense and whose interior the rungs chain, how many
-  withheld tail values the exact skew and kurtosis rebuild beside both
-  published pairs (`complement_reader.union`);
-* `K-S3-18` (answers 3 and 4): the tail sides the cost rule publishes that
-  the back-solve PINNED or left UNSETTLED -- read from the rule's own call
-  -- and how many cells a reader names DIRECTLY from those pairs with the
-  producer's own lattice (`complement_reader.named_directly`);
+  two tails are dense and whose interior the rungs chain, how many outer
+  tail values the exact skew and kurtosis rebuild beside both published
+  pairs (`complement_reader.union`);
+* `K-S3-18` (answers 3 and 4): the published sides from whose pair a
+  reader names at least one cell DIRECTLY with the producer's own lattice,
+  and how many cells (`complement_reader.named_directly`);
 * `K-S3-20`: at a floor of 36, every obligation the twins at seeds 0, 4 and
   9 MISS and leave WITHHELD, the blocks whose own window misses, the pairs
-  the moments need, and the rule's pairs the checker cannot check;
-* `K-S3-21` (answer 5): the withheld values a reader names BY SUBTRACTION
+  the moments need, and the published pairs the checker cannot check;
+* `K-S3-21` (answer 5): the outer values a reader names BY SUBTRACTION
   from the column's exact mean and spread beside a published pair
   (`complement_reader.by_subtraction`), and the columns it gives up on;
 * `K-S3-22`: where no published pair keeps a moment, the moments the twins
-  still miss, and how many blocks the rule could keep neither or one of.
+  still miss, and how many blocks keep neither or one of them in their
+  own windows;
+* `K-S3-50`: how far twins write past the real column's own range, which
+  no check sees because no end is published -- over `K-S3-20`'s 37 shapes
+  at floors 11, 20, 36 and 50, the numeric twins holding a cell outside
+  the real minimum and maximum and how far, as thousandths of the real
+  span; over the two date columns of landing 3b.0's tie-group
+  witnesses, the twins writing a day outside the real first and last;
+  and over `K-S3-11`'s date and clock shapes at the same four floors, the
+  tail sides whose twin reaches further beyond the boundary than the
+  real column's furthest cell, and by how much.
 
 Every column is built from a fixed seed string at run time; nothing is
 read from disk but the tree's own code.
@@ -55,34 +64,22 @@ def _text(cells):
 
 
 def _described(home, name, cells, floor):
-    """One column described, with the cost rule's own choices recorded."""
-    real = taxonomy._pairs_that_cost
-    calls = []
-
-    def recording(cells_of, shaped, held, *present):
-        nonlocal calls
-        chosen = real(cells_of, shaped, held, *present)
-        calls += [(cells_of, dict(held), chosen, present)]
-        return chosen
-
-    taxonomy._pairs_that_cost = recording
-    try:
-        described = kpi_shapes.describe(home / f"{name}-f{floor}", name, _text(cells), floor)
-    finally:
-        taxonomy._pairs_that_cost = real
-    return described, calls
+    """One column described at ``floor``."""
+    return kpi_shapes.describe(home / f"{name}-f{floor}", name, _text(cells), floor)
 
 
-def _ruled(calls):
-    """The sides the RULE published, each with the back-solve's verdict, from its last call."""
-    if not calls:
-        return {}
-    _cells, held, chosen, _present = calls[-1]
-    return {
-        side: held[side][2]
-        for side in held
-        if chosen["tails"][side]["mean_distance"] is not None
-    }
+def _paired(block):
+    """The sides of a numeric block publishing their pair and listing no value."""
+    tails = block.get("tails")
+    if not isinstance(tails, dict):
+        return []
+    return [
+        side
+        for side in ("low", "high")
+        if isinstance(tails.get(side), dict)
+        and tails[side]["mean_distance"] is not None
+        and not tails[side]["values"]
+    ]
 
 
 def _twins(described):
@@ -100,7 +97,7 @@ def skew_and_kurtosis(home):
     value = {"values_rebuilt": 0, "minimum_named": 0, "maximum_named": 0, "withheld_values_asked": 0, "shapes": 0}
     for seed in range(1, 6):
         values, cells = reader.both_dense(40, 11, seed)
-        described, _calls = _described(home / "k317", f"both_W40_s{seed}", cells, 11)
+        described = _described(home / "k317", f"both_W40_s{seed}", cells, 11)
         block = described.document["columns"][0]
         read = reader.union(block, values)
         n = block["n_used_in_statistics"]
@@ -128,28 +125,24 @@ def _k318_battery():
 
 
 def published_pairs(home):
-    """K-S3-18: the rule's published sides by verdict, and what a reader names from them."""
-    value = {"pinned_sides_published": 0, "unsettled_sides_published": 0, "values_named_directly": 0, "shapes": 0}
+    """K-S3-18: the published sides a reader names a cell from, and how many cells."""
+    value = {"sides_naming_a_value": 0, "values_named_directly": 0, "shapes": 0}
     for name, cells, floor in _k318_battery():
-        described, calls = _described(home / "k318", name, cells, floor)
+        described = _described(home / "k318", name, cells, floor)
         value["shapes"] += 1
-        ruled = _ruled(calls)
         block = described.document["columns"][0]
         try:
             values = sorted(float(cell) for cell in cells)
         except ValueError:
             values = None
         named = {}
-        for side, verdict in sorted(ruled.items()):
-            if verdict == taxonomy.TAIL_PINNED:
-                value["pinned_sides_published"] += 1
-            else:
-                value["unsettled_sides_published"] += 1
-            if values is not None:
+        if values is not None:
+            for side in _paired(block):
                 read = reader.named_directly(block, side, values)
                 named[side] = read
                 value["values_named_directly"] += read["values"]
-        print(f"K-S3-18 {name} at {floor}: {ruled} {named}", flush=True)
+                value["sides_naming_a_value"] += int(read["values"] > 0)
+        print(f"K-S3-18 {name} at {floor}: {named}", flush=True)
     return value
 
 
@@ -177,14 +170,14 @@ def floor_36(home):
         "twin_withheld": 0,
         "blocks_missing_own_window": 0,
         "pairs_the_moments_need": 0,
-        "rule_pairs_the_checker_cannot_check": 0,
+        "pairs_the_checker_cannot_check": 0,
         "shapes": 0,
     }
     for name, cells in _k320_battery():
-        described, calls = _described(home / "k320", name, cells, floor)
+        described = _described(home / "k320", name, cells, floor)
         value["shapes"] += 1
-        ruled = _ruled(calls)
         block = described.document["columns"][0]
+        ruled = _paired(block)
         tails = block.get("tails")
         need = []
         short = False
@@ -209,9 +202,9 @@ def floor_36(home):
         value["blocks_missing_own_window"] += int(short)
         value["twin_misses"] += misses
         value["twin_withheld"] += held_back
-        value["rule_pairs_the_checker_cannot_check"] += len(unchecked)
+        value["pairs_the_checker_cannot_check"] += len(unchecked)
         print(
-            f"K-S3-20 {name}: need {need} ruled {sorted(ruled)} short {short} "
+            f"K-S3-20 {name}: need {need} paired {sorted(ruled)} short {short} "
             f"misses {misses} withheld {held_back} unchecked {sorted(unchecked)}",
             flush=True,
         )
@@ -234,7 +227,7 @@ def by_subtraction(home):
     """K-S3-21: what the exact mean and spread give back of the other tail beside a published pair."""
     value = {"values_by_subtraction": 0, "columns_the_reader_gives_up_on": 0, "shapes": 0}
     for name, values, cells, floor in _k321_battery():
-        described, _calls = _described(home / "k321", name, cells, floor)
+        described = _described(home / "k321", name, cells, floor)
         value["shapes"] += 1
         read = reader.by_subtraction(described.document["columns"][0], values)
         value["values_by_subtraction"] += read["values_rebuilt"]
@@ -262,7 +255,7 @@ def _k322_battery():
 
 
 def residual(home):
-    """K-S3-22: the moments no published pair keeps, and what the rule could keep."""
+    """K-S3-22: the moments no published pair keeps, and how many each block's own windows keep."""
     value = {
         "moment_misses": 0,
         "blocks_no_candidate_keeps_either": 0,
@@ -271,17 +264,19 @@ def residual(home):
         "shapes": 0,
     }
     for name, cells, floor in _k322_battery():
-        described, calls = _described(home / "k322", name, cells, floor)
+        described = _described(home / "k322", name, cells, floor)
         value["shapes"] += 1
+        block = described.document["columns"][0]
         kept = None
-        if calls:
-            cells_of, _held, chosen, present = calls[-1]
-            kept = 2 - taxonomy._moments_missed(cells_of, chosen, *present[:1])
+        tails = block.get("tails")
+        if isinstance(tails, dict) and isinstance(tails.get("low"), dict):
+            # THE BLOCK'S OWN G12.3 WINDOWS, as the cost rule asked them of
+            # the block it published (`cost_rule_window`).
+            kept = 2 - len(window.missed(block, floor))
             if kept == 0:
                 value["blocks_no_candidate_keeps_either"] += 1
             elif kept == 1:
                 value["blocks_one_moment_kept"] += 1
-        tails = described.document["columns"][0].get("tails")
         if isinstance(tails, dict) and not isinstance(tails.get("low"), dict):
             value["blocks_with_no_pair_to_publish"] += 1
         misses = len([
@@ -293,12 +288,201 @@ def residual(home):
     return value
 
 
+def _range_overshoot(real, twin):
+    """Thousandths of the real span the twin's furthest cell stands past the real range, or None."""
+    low, high = min(real), max(real)
+    span = high - low
+    beyond = max([low - one for one in twin if one < low] + [one - high for one in twin if one > high] + [0.0])
+    if beyond <= 0.0 or span <= 0.0:
+        return None
+    return int(round(1000.0 * beyond / span))
+
+
+def _numbers_of(text):
+    found = []
+    for line in text.split("\n")[1:]:
+        number = parsing.parse_number(line) if line else None
+        if number is not None:
+            found += [number]
+    return found
+
+
+# THE TWO DATE COLUMNS (tests/test_stage3b_gate.py): every_day_group's 105
+# dates over 22 days from 2024-05-06, and the same with 2024-05-12 declared
+# missing and twelve more cells written that way.
+_TIE_COUNTS = (5, 4, 1, 6, 9, 2, 4, 7, 6, 2, 7, 7, 5, 5, 3, 2, 9, 7, 1, 1, 11, 1)
+
+
+def _clock_ordinals(block, cells):
+    """Each parsed cell of a date or clock block as a whole number of its tail unit."""
+    found = []
+    for cell in cells:
+        if not cell:
+            continue
+        if block.get("clock_form"):
+            one = parsing.clock_ordinal(cell, block["clock_form"])
+            if one is not None:
+                found += [one]
+            continue
+        parsed = parsing.parse_datetime(cell, block["format"])
+        if parsed is None:
+            continue
+        instant = parsed[0]
+        if block.get("datetimes_read_at", "local") == "utc":
+            instant = parsing.utc_canonical(parsed[0], parsed[1])
+            if instant is None:
+                continue
+        found += [taxonomy.tail_ordinal(instant, block["tail_unit"], block.get("datetimes_read_at", "local"))]
+    return found
+
+
+def _furthest(ordinals, boundary, low):
+    """The furthest whole distance beyond ``boundary`` on one side, or 0."""
+    beyond = [boundary - one for one in ordinals if one < boundary] if low else [one - boundary for one in ordinals if one > boundary]
+    return max(beyond) if beyond else 0
+
+
+def _csv_cells(text):
+    """The cells of a one-column CSV, a quoted cell unquoted."""
+    found = []
+    for line in text.splitlines()[1:]:
+        found += [line[1:-1] if len(line) > 1 and line.startswith('"') and line.endswith('"') else line]
+    return found
+
+
+def _clock_sides_past(home, value):
+    """K-S3-50's date and clock count: tail sides whose twin reaches past the real furthest.
+
+    `K-S3-11`'s shapes at their sizes but the two written day first,
+    which `kpi_shapes.describe` takes no flag for; each table drawn at
+    seeds 0, 4 and 9 as the tails measurement drew it and its twin at the
+    same seed, at floors 11, 20, 36 and 50. THE WEEKDAY CENSUS IS NOT
+    ASKED, as in that measurement: its certificate costs up to a minute
+    a describe and decides no tail; the producer is handed the
+    re-description's own `produced=False`, and the real function is put
+    back whatever happens.
+    """
+    import random
+
+    import kpi_stage3_tail_leak as leak
+
+    real_census = taxonomy._weekday_published
+
+    def unasked(details, days, n_distinct, settings, produced, *rest):
+        return real_census(details, days, n_distinct, settings, False, *rest)
+
+    taxonomy._weekday_published = unasked
+    try:
+        for floor in (11, 20, 36, 50):
+            for shape in leak.SHAPES:
+                for rows in leak.SIZES.get(shape, leak.DEFAULT_SIZES):
+                    for seed in SEEDS:
+                        name, cells, flags = leak.SHAPES[shape](random.Random(seed * 7919 + rows), rows)
+                        if "--day-first" in flags:
+                            continue
+                        text = leak._table(name, cells)
+                        stem = f"k350-{shape}-{rows}-{seed}-f{floor}"
+                        described = kpi_shapes.describe(home / stem, stem, text, floor)
+                        block = described.document["columns"][0]
+                        if block.get("role") not in ("datetime", "time_of_day"):
+                            continue
+                        real = _clock_ordinals(block, _csv_cells(text))
+                        twin = _clock_ordinals(block, _csv_cells(kpi_shapes.twin_text(described, seed)))
+                        for key, low in (("low_tail", True), ("high_tail", False)):
+                            tail = block.get(key)
+                            if not isinstance(tail, dict):
+                                continue
+                            value["date_clock_sides"] += 1
+                            if block.get("clock_form"):
+                                boundary = parsing.clock_ordinal(tail["boundary"], block["clock_form"])
+                            else:
+                                boundary = taxonomy.tail_ordinal(
+                                    tail["boundary"], block["tail_unit"], block.get("datetimes_read_at", "local")
+                                )
+                            furthest = _furthest(real, boundary, low)
+                            reached = _furthest(twin, boundary, low)
+                            if furthest and reached > furthest:
+                                value["date_clock_sides_past"] += 1
+                                value["date_clock_reach_most_permille"] = max(
+                                    value["date_clock_reach_most_permille"], (1000 * reached) // furthest
+                                )
+    finally:
+        taxonomy._weekday_published = real_census
+
+
+def out_of_range(home):
+    """K-S3-50: twins past the real range, numeric over K-S3-20's battery, and the two date columns."""
+    import datetime
+
+    import fixtures
+    from synthtwin import contract, profile, reading, taxonomy
+
+    value = {
+        "numeric_twins": 0,
+        "numeric_twins_out_of_range": 0,
+        "median_overshoot_permille": 0,
+        "worst_overshoot_permille": 0,
+        "date_twins": 0,
+        "date_twins_out_of_range": 0,
+        "date_days_out_most": 0,
+        "date_clock_sides": 0,
+        "date_clock_sides_past": 0,
+        "date_clock_reach_most_permille": 0,
+    }
+    found = []
+    for floor in (11, 20, 36, 50):
+        for name, cells in _k320_battery():
+            real = _numbers_of(_text(cells))
+            described = _described(home / "k350", name, cells, floor)
+            if described.document["columns"][0]["role"] not in ("count", "continuous"):
+                continue
+            for seed in SEEDS:
+                value["numeric_twins"] += 1
+                past = _range_overshoot(real, _numbers_of(kpi_shapes.twin_text(described, seed)))
+                if past is not None:
+                    value["numeric_twins_out_of_range"] += 1
+                    found += [past]
+    found.sort()
+    if found:
+        value["median_overshoot_permille"] = found[len(found) // 2]
+        value["worst_overshoot_permille"] = found[len(found) - 1]
+    first = datetime.date(2024, 5, 6)
+    days = []
+    for step in range(len(_TIE_COUNTS)):
+        days += [(first + datetime.timedelta(days=step)).isoformat()] * _TIE_COUNTS[step]
+    for absent in (False, True):
+        cells = days + (["2024-05-12"] * 12 if absent else [])
+        folder = home / f"k350-dates-{absent}"
+        folder.mkdir(parents=True, exist_ok=True)
+        table = fixtures.write(folder, "dates.csv", "seen_on\n" + "".join(f"{cell}\n" for cell in cells))
+        settings = taxonomy.Settings(small_cell_floor=11, declared_missing_values=("2024-05-12",) if absent else ())
+        document = profile.build_document(reading.read_table(str(table), small_cell_floor=11), settings, [], [], [])
+        written = fixtures.write_profile(folder, "dates-profile.json", document)
+        described = kpi_shapes.Described(folder, table, document, contract.load_profile(str(written)))
+        real = sorted(set(days) - ({"2024-05-12"} if absent else set()))
+        for seed in (0, 1, 2, 3, 4):
+            value["date_twins"] += 1
+            held = [line for line in kpi_shapes.twin_text(described, seed).split("\n")[1:] if line and line != "2024-05-12"]
+            out = [one for one in held if one < real[0] or one > real[len(real) - 1]]
+            if out:
+                value["date_twins_out_of_range"] += 1
+                worst = max(
+                    max((datetime.date.fromisoformat(real[0]) - datetime.date.fromisoformat(one)).days for one in out),
+                    max((datetime.date.fromisoformat(one) - datetime.date.fromisoformat(real[len(real) - 1])).days for one in out),
+                )
+                value["date_days_out_most"] = max(value["date_days_out_most"], worst)
+    _clock_sides_past(home, value)
+    print(f"K-S3-50 overshoots (thousandths of the span): {found}", flush=True)
+    return value
+
+
 MEASUREMENTS = (
     ("K-S3-17", skew_and_kurtosis),
     ("K-S3-18", published_pairs),
     ("K-S3-20", floor_36),
     ("K-S3-21", by_subtraction),
     ("K-S3-22", residual),
+    ("K-S3-50", out_of_range),
 )
 
 

@@ -511,18 +511,12 @@ def test_the_questions_file_cannot_restore_an_absorbed_count(
     `n_present 400` is the one unpadded record.
 
     AND THE TWIN OF THIS SHAPE KEEPS ITS COLUMN'S MEAN AND SPREAD (plan
-    P4-D353), derived here from the cost rule and not copied from an
-    output. The 399 codes run consecutively, so each of the column's
-    tails would hand its own cells back -- twelve DIFFERENT whole
-    distances summing to the least twelve different whole numbers can sum
-    to -- and P4-D349 withholds both pairs. The HIGH tail is where the
-    single `12345` lives, and the column's mean is what that one cell puts
-    in it: with both pairs withheld the window of the column's mean does
-    not reach 230.3625. The owner ruled on 2026-09-25 that a pair is then
-    published although it gives its tail back, and only where withholding
-    it costs, so the twin meets its mean and spread and the real table
-    still passes at exit 0. Ledger entry `K-S3-15` holds the number and
-    `K-S3-18` what the published pair gives back.
+    P4-D375). The 399 codes run consecutively, so each tail's pair hands
+    its own cells back, and both are published: with both withheld, as
+    P4-D349 withheld them, the window of the column's mean would not
+    reach 230.3625, because the HIGH tail is where the single `12345`
+    lives. The twin meets its mean and spread and the real table still
+    passes at exit 0.
     """
     cells = [f"{index:05}" for index in range(1, 400)] + ["12345"]
     result = _round_trip(tmp_path, {"value": cells}, FLOOR)
@@ -539,18 +533,12 @@ def test_the_questions_file_cannot_restore_an_absorbed_count(
         "be a defect of this pass and not the cost rule"
     )
     floor = int(FLOOR[1])
-    both = cost_rule_window.withheld(block, ("low", "high"))
-    assert cost_rule_window.costs(both, floor), (
-        "with both pairs withheld this column's window still reaches its "
-        "mean and spread: the case no longer asks the cost rule anything"
-    )
+    assert cost_rule_window.costs(cost_rule_window.withheld(block, ("low", "high")), floor)
     tails = block["tails"]
     assert isinstance(tails, dict)
-    assert any(tails[side]["mean_distance"] is not None for side in ("low", "high")), (
-        "withholding both pairs costs the twin its mean and neither is published"
-    )
+    for side in ("low", "high"):
+        assert tails[side]["mean_distance"] is not None, side
     assert not cost_rule_window.costs(block, floor)
-    assert cost_rule_window.published_where_it_costs_nothing(block, floor) == []
     assert result["twin_exit"] == 0, (
         "the twin misses an obligation although the published pair keeps "
         "its column's mean and spread windows on their values"

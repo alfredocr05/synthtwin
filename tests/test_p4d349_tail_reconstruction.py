@@ -30,8 +30,6 @@ it names, at the floor it names, described, generated and checked.
 THE RED CHECKS, each measured by withdrawing the rule in place rather
 than by asserting that a guard exists:
 
-* `taxonomy._tail_pinned` forced False -- the whole fail-closed half,
-  asked through the tail-leak driver's own back-solve;
 * the tie the back-solve used to assume, asked directly of the eighteen
   consecutive distances it could not reach;
 * `parsing.tail_may_list` forced open -- the listing rule, which is the
@@ -43,12 +41,21 @@ than by asserting that a guard exists:
 
 Nothing here is copied from any output: every expected number is worked
 out from the rule in the assertion that uses it.
+
+PLAN P4-D375 WITHDREW ITEM 1's ANSWER. Under the owner's principle of
+2026-10-01 a tail publishes its pair whatever a reader can work out from
+it -- a column's own values, never another column, and never a row
+except on a table sorted by that column, whose description publishes the
+order (`row_order`) -- so the four
+columns of item 1 publish both distances again and list nothing. Items 2
+to 4 stand. A description written before that plan still carries a tail
+publishing NEITHER distance, and the readers of one are held below on
+such a description (`kpi_shapes.written_before_p4d375`).
 """
 
 from __future__ import annotations
 
 import datetime
-import importlib.util
 import json
 import math
 import pathlib
@@ -56,7 +63,6 @@ import pathlib
 import pytest
 
 import fixtures
-import kpi_rules
 import kpi_shapes
 from synthtwin import (
     contract,
@@ -86,25 +92,6 @@ def _described(folder: pathlib.Path, name: str, cells: "list[str]", floor: int =
     return kpi_shapes.describe(folder / name, name, _one_column("value", cells), floor)
 
 
-def _driver() -> object:
-    """The tail-leak driver, loaded as a module.
-
-    THE BACK-SOLVE IS NOT WRITTEN TWICE. `tools/measurements/kpi_stage3_tail_leak.py`
-    already holds the walk a reader would make with a tail's published
-    rows and two distances, with its own budget and its own permissive
-    default; this file asks that walk rather than growing a second one
-    that could disagree with it.
-    """
-    spec = importlib.util.spec_from_file_location(
-        "kpi_stage3_tail_leak_for_p4d349",
-        kpi_rules.MEASUREMENTS / "kpi_stage3_tail_leak.py",
-    )
-    assert spec is not None and spec.loader is not None
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
-
-
 def _consecutive_dates(count: int) -> "list[str]":
     first = datetime.date(2020, 1, 1)
     return [
@@ -115,18 +102,6 @@ def _consecutive_dates(count: int) -> "list[str]":
 
 def _consecutive_minutes(count: int) -> "list[str]":
     return ["%02d:%02d" % divmod(7 * 60 + step, 60) for step in range(count)]
-
-
-def _settles(block: "dict", driver: object, apart: bool) -> int:
-    """How many of one block's tails the published facts settle to ONE answer."""
-    settled = 0
-    if isinstance(block.get("tails"), dict):
-        pinned, _room, _unsearched = driver._numeric_pinned(block, FLOOR, apart)
-        settled += pinned
-    if block.get("low_tail") is not None:
-        pinned, _room, _unsearched = driver._pinned_and_room(block, FLOOR)
-        settled += pinned
-    return settled
 
 
 # -- 1. the exact reconstruction -----------------------------------------
@@ -156,16 +131,16 @@ def test_the_least_sum_of_eleven_different_whole_numbers_is_the_whole_attack() -
         ("minutes", _consecutive_minutes(240)),
     ],
 )
-def test_a_column_whose_pair_would_be_read_back_publishes_neither_distance(
+def test_a_column_whose_pair_gives_its_tail_back_publishes_it_and_lists_nothing(
     tmp_path: pathlib.Path, name: str, cells: "list[str]"
 ) -> None:
-    """Every tail of the round's own four columns publishes neither distance.
+    """Every tail of the round's own four columns publishes both distances (plan P4-D375).
 
     Each of these columns steps one grid unit at a time and publishes that
     every value in it is different, so each tail's distances are the least
     multiset of different whole numbers its row count allows -- one answer
-    and no other. The tail's boundary and its row count stand; both
-    distances and any list of values are null.
+    and no other. The pair is published all the same, and no value is
+    listed: the listing rule does not reach these columns.
     """
     described = _described(tmp_path, name, cells)
     block = described.document["columns"][0]
@@ -175,82 +150,20 @@ def test_a_column_whose_pair_would_be_read_back_publishes_neither_distance(
             for side in ("low", "high"):
                 one = tails[side]
                 assert isinstance(one, dict)
-                assert one["mean_distance"] is None, f"{name} {side}"
-                assert one["rms_distance"] is None, f"{name} {side}"
+                assert one["mean_distance"] is not None, f"{name} {side}"
+                assert one["rms_distance"] is not None, f"{name} {side}"
                 assert not one["values"], f"{name} {side}"
                 assert one["rows"] >= parsing.tail_units(FLOOR)
                 sides += 1
     for key in ("low_tail", "high_tail"):
         one = block[key] if key in block else None
         if isinstance(one, dict):
-            assert one["mean_distance"] is None, f"{name} {key}"
-            assert one["rms_distance"] is None, f"{name} {key}"
+            assert one["mean_distance"] is not None, f"{name} {key}"
+            assert one["rms_distance"] is not None, f"{name} {key}"
             assert one["values"] is None, f"{name} {key}"
             assert one["rows"] >= FLOOR
             sides += 1
     assert sides == 2, f"{name}: both sides of the column must be asked"
-
-
-@pytest.mark.parametrize(
-    "name,cells",
-    [
-        ("integers", [str(value) for value in range(CONSECUTIVE)]),
-        ("dates", _consecutive_dates(240)),
-        ("minutes", _consecutive_minutes(240)),
-    ],
-)
-def test_no_tail_of_those_columns_is_settled_by_the_tail_walk(
-    tmp_path: pathlib.Path, name: str, cells: "list[str]"
-) -> None:
-    """The reader's own tail walk, with every fact the description publishes beside a pair.
-
-    A claim about the PAIR: the whole description, with no pair at all,
-    still gives every value of the integer column back (ledger entry
-    `K-S3-24`, the owner's answer 8 of 2026-09-26, "Accept both").
-    """
-    driver = _driver()
-    described = _described(tmp_path, name, cells)
-    block = described.document["columns"][0]
-    assert _settles(block, driver, True) == 0
-
-
-def test_the_pair_put_back_is_settled_and_the_walk_says_so(
-    tmp_path: pathlib.Path,
-) -> None:
-    """RED CHECK: `_tail_pinned` forced False, and the leak comes back.
-
-    With the producer's own back-solve withdrawn, the integer column
-    publishes its two distances again -- and the driver's walk, holding
-    the column's own "every value different" remark, settles BOTH sides
-    to exactly one multiset. Without the remark it settles neither, which
-    is the measurement that says the remark is what does it.
-    """
-    driver = _driver()
-    cells = [str(value) for value in range(CONSECUTIVE)]
-    with pytest.MonkeyPatch.context() as patch:
-        patch.setattr(
-            taxonomy,
-            "_tail_pinned",
-            lambda distances, floor, edge, distinct, least=1: False,
-        )
-        # P4-D353: the numeric role asks the three-word verdict, so the
-        # guard is withdrawn where that role reads it too.
-        patch.setattr(
-            taxonomy,
-            "_tail_verdict",
-            lambda distances, floor, edge, distinct, least=1: taxonomy.TAIL_OPEN,
-        )
-        described = _described(tmp_path, "unguarded", cells)
-    block = described.document["columns"][0]
-    tails = block["tails"]
-    assert isinstance(tails, dict)
-    for side in ("low", "high"):
-        assert tails[side]["mean_distance"] == 6.0, (
-            "the guard was withdrawn and the pair did not come back, so "
-            "this red check proves nothing"
-        )
-    assert _settles(block, driver, True) == 2
-    assert _settles(block, driver, False) == 0
 
 
 def test_the_back_solve_reaches_a_widened_tail_of_different_distances() -> None:
@@ -470,19 +383,13 @@ def test_a_file_the_bounds_convict_still_misses(tmp_path: pathlib.Path) -> None:
 
     ITS LOW CELLS ARE SPREAD AND NOT PILED ON ONE, because a file with a
     single far cell has a tail whose sum of squares is the square of its
-    sum, which one part alone can make: that tail is settled by its own
-    pair and so publishes neither distance, and then there is nothing for
-    a bound to be drawn from. Eleven cells stepping ten apart publish
-    theirs.
+    sum, which one part alone can make, and the bound is drawn from the
+    pair's spread. Eleven cells stepping ten apart have one to draw from.
     """
     cells = ["10"] * 11 + [str(value) for value in range(20, 1509)]
     described = _described(tmp_path, "heapedmin2", cells)
     bad = [str(-100 + 10 * step) for step in range(11)]
-    # THE FILE'S OWN HIGH TAIL MAY NOT BE A RUN (plan P4-D353). The checker
-    # describes the file with the producer, and where one of the file's
-    # tails is withheld the other's pair is withheld beside it, so a bound
-    # drawn from that pair has nothing to stand on. Its top eleven cells
-    # step unevenly, which the back-solve leaves open.
+    # THE FILE'S OWN HIGH TAIL STEPS UNEVENLY; a run is asked below.
     top = [1498, 1500, 1503, 1504, 1509, 1511, 1512, 1518, 1520, 1527, 1531]
     bad = bad + [str(value) for value in range(20, 1498)] + [str(value) for value in top]
     own = kpi_shapes.describe(
@@ -501,16 +408,15 @@ def test_a_file_the_bounds_convict_still_misses(tmp_path: pathlib.Path) -> None:
     assert found[0].achieved == "", "the file's own extreme was printed"
 
 
-def test_a_file_whose_other_tail_is_withheld_is_not_convicted(tmp_path: pathlib.Path) -> None:
-    """P4-D353's cost to the checker, stated: the bound goes quiet, it does not pass.
+def test_a_file_whose_other_tail_is_a_run_is_convicted(tmp_path: pathlib.Path) -> None:
+    """P4-D353's cost to the checker, gone with it (plan P4-D375).
 
     The same far low cells beside a high tail that IS a run of consecutive
-    whole numbers: the file's own description withholds that run's pair,
-    withholds the low pair beside it (one tail withheld withholds the
-    other, where that costs the file nothing), and the bound of P4-D349
-    has no pair to be drawn from. The verdict is WITHHELD -- never HELD.
-    Counted, beside its mirror at a heaped maximum, by ledger entry
-    `K-S3-19` over `CHECKER_BOUND_FILES`.
+    whole numbers. The file's own description withheld that run's pair and
+    the low pair beside it, so the bound of P4-D349 had no pair to be
+    drawn from and the verdict was WITHHELD. Both pairs are published now,
+    and the file is MISSED. Counted, beside its mirror at a heaped maximum,
+    by ledger entry `K-S3-19` over `CHECKER_BOUND_FILES`.
     """
     cells = ["10"] * 11 + [str(value) for value in range(20, 1509)]
     described = _described(tmp_path, "heapedmin3", cells)
@@ -519,14 +425,15 @@ def test_a_file_whose_other_tail_is_withheld_is_not_convicted(tmp_path: pathlib.
     own = kpi_shapes.describe(
         tmp_path / "own", "own", _one_column("value", bad), FLOOR
     ).document["columns"][0]["tails"]
-    assert own["high"]["mean_distance"] is None and own["low"]["mean_distance"] is None
+    assert own["high"]["mean_distance"] is not None and own["low"]["mean_distance"] is not None
     outcome = kpi_shapes.measure(described, _one_column("value", bad), "far.csv")
     found = [
         check for check in outcome.checks
         if check.subcheck.startswith("ladder.min")
     ]
     assert len(found) == 1
-    assert found[0].verdict == validation.WITHHELD, found[0]
+    assert found[0].verdict == validation.MISSED, found[0]
+    assert found[0].achieved == "", "the file's own extreme was printed"
 
 
 # THE FOUR FILES LEDGER ENTRY `K-S3-19` COUNTS THAT COST OVER (plan
@@ -534,8 +441,7 @@ def test_a_file_whose_other_tail_is_withheld_is_not_convicted(tmp_path: pathlib.
 # heaped end -- the minimum ten, held by eleven rows below 20 to 1508, and
 # the maximum 1500, held by eleven above 1 to 1489 -- beside the file's own
 # other tail as a run of consecutive whole numbers, whose pair the file's
-# own description withholds and the near pair with it, and as uneven
-# steps, which it publishes.
+# own description withheld until plan P4-D375, and as uneven steps.
 _HEAPED_MIN = ["10"] * 11 + [str(value) for value in range(20, 1509)]
 _HEAPED_MAX = [str(value) for value in range(1, 1490)] + ["1500"] * 11
 _FAR_BELOW = [str(-100 + 10 * step) for step in range(11)]
@@ -728,14 +634,104 @@ def test_the_summary_says_a_withheld_pair_is_withheld(
     A tail that publishes neither distance is neither "not published,
     they lie on average N below" nor "the values named below". The page
     has to say what is true of it, and printing `None` as an average
-    would not be a sentence at all.
+    would not be a sentence at all. Asked of the description P4-D349
+    wrote of this column -- both pairs null, each side's remark saying
+    they would give every value back -- which still loads (P4-D375).
     """
-    described = _described(
-        tmp_path, "consec", [str(value) for value in range(CONSECUTIVE)]
+    described = kpi_shapes.written_before_p4d375(
+        _described(tmp_path, "consec", [str(value) for value in range(CONSECUTIVE)]),
+        ("low", "high"),
+        taxonomy.TAIL_PINS_EVERY,
     )
     page = _summary_of(described)
     assert "give those values back one by one" in page
     assert "None" not in page, page
+
+
+def _thirty_by_six(texts: "list[str]") -> "list[str]":
+    """Thirty values, six cells each, in an order no column sorts.
+
+    Stepping by seven through the 180 places visits each once (seven and
+    180 share no factor), so the table carries no `row_order`.
+    """
+    flat = [texts[place // 6] for place in range(180)]
+    return [flat[(place * 7) % 180] for place in range(180)]
+
+
+@pytest.mark.parametrize("role", ["dates", "clock"])
+def test_a_listed_date_or_clock_tail_says_why_it_has_no_pair(
+    tmp_path: pathlib.Path, role: str
+) -> None:
+    """The quality report names the listing rule, not the format's limit.
+
+    THE SECOND SKEPTIC OF LANE G1 measured it: thirty days, six cells
+    each, at a floor of eleven. Each tail holds two values with twelve
+    rows, so it lists them (contract DT1), its root-mean-square distance
+    is never published beside a list, and its mean would settle six rows
+    on each value -- below the floor -- so it is withheld too
+    (`taxonomy._values_mean_pins`). The report printed for those four
+    absent distances the numeric sentence, "the two distances are
+    withheld only where this file format cannot hold them", which is
+    false of a list of dates. A listed date or clock tail now gets its
+    own reason, and a tail published by its pair, or by neither on a
+    description written before plan P4-D375, keeps the shared one.
+
+    MUTATION (run): listing the date and clock site's absent distances
+    with `_NOT_CHECKABLE_TAIL_KEY_WITHHELD` again, as at 50bc21e, turns
+    both cases red on the first reason asked; giving every absent date or
+    clock distance the new reason, listed or not, turns both red on the
+    older description's shared sentence.
+    """
+    if role == "dates":
+        first = datetime.date(2024, 1, 1)
+        texts = [(first + datetime.timedelta(days=step)).isoformat() for step in range(30)]
+    else:
+        texts = ["%02d:%02d" % divmod(8 * 60 + step, 60) for step in range(30)]
+    cells = _thirty_by_six(texts)
+    described = _described(tmp_path, role, cells)
+    block = described.document["columns"][0]
+    for side, held in (("low", texts[:2]), ("high", texts[-2:])):
+        tail = block[f"{side}_tail"]
+        assert tail["rows"] == 12 and tail["values"] == held, tail
+        assert tail["mean_distance"] is None and tail["rms_distance"] is None, tail
+    outcome = kpi_shapes.measure(described, _one_column("value", cells), "same.csv")
+    reasons = {
+        listing.subcheck: listing.reason
+        for listing in outcome.listings
+        if listing.subcheck.startswith("tails.")
+    }
+    expected = [
+        f"tails.{side}.{key}"
+        for side in ("low", "high")
+        for key in ("mean_distance", "rms_distance")
+    ]
+    assert sorted(reasons) == sorted(expected), reasons
+    for subcheck in expected:
+        reason = reasons[subcheck]
+        assert "withheld only where this file format cannot hold them" not in reason, reason
+        assert reason.startswith("the description's tail lists the values it holds"), reason
+        assert "DT1" in reason and "TL1" not in reason and "TL5" not in reason, reason
+    # A tail publishing NEITHER distance, as plan P4-D349 wrote one, lists
+    # its values key too, and all three keep the shared sentence.
+    before = kpi_shapes.written_before_p4d375(
+        _described(tmp_path, f"{role}-pair", _consecutive_dates(240)), ("low",)
+    )
+    assert before.document["columns"][0]["low_tail"]["values"] is None
+    older = kpi_shapes.measure(
+        before, _one_column("value", _consecutive_dates(240)), "older.csv"
+    )
+    shared = {
+        listing.subcheck: listing.reason
+        for listing in older.listings
+        if listing.subcheck.startswith("tails.low.")
+    }
+    assert sorted(shared) == [
+        "tails.low.mean_distance",
+        "tails.low.rms_distance",
+        "tails.low.values",
+    ], shared
+    for reason in shared.values():
+        assert "withheld only where this file format cannot hold them" in reason, reason
 
 
 # -- the contract shapes the two roles now admit ------------------------
@@ -786,10 +782,14 @@ def test_the_withheld_tail_is_read_as_the_narrowest_it_can_be(
     different values and every published rung.
 
     Two wider readings were measured and rejected; plan P4-D349 carries
-    what each costs and on which shape.
+    what each costs and on which shape. Since plan P4-D375 only a pair
+    binary64 cannot hold is withheld, so the reading is asked of the
+    description P4-D349 wrote of this column, which still loads.
     """
     cells = [str(value) for value in range(CONSECUTIVE)]
-    described = _described(tmp_path, "read", cells)
+    described = kpi_shapes.written_before_p4d375(
+        _described(tmp_path, "read", cells), ("low", "high"), taxonomy.TAIL_PINS_EVERY
+    )
     facts = described.loaded.columns[0].facts
     ladder = contract.tail_ladder(facts)
     assert ladder is not None

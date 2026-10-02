@@ -239,8 +239,8 @@ def _reconstructable_columns() -> "list[tuple[str, list[str]]]":
     description says every value of the column is different. Eleven
     DIFFERENT whole distances summing to 66 can only be 1 to 11, because
     66 is the least eleven different whole numbers can sum to, so all
-    twenty-two withheld values come back exactly. Such a tail publishes
-    neither distance.
+    twenty-two outer values come back exactly. Such a tail publishes its
+    pair all the same (plan P4-D375, withdrawing P4-D349's withholding).
 
     The second shape is the same column on a tenth-unit grid, so the
     withholding is not a property of whole numbers; the third is 1,200
@@ -642,10 +642,12 @@ def test_every_listed_tail_is_one_the_rule_admits(
     road published `[1089, 1100]` on a column one row of which holds
     1100.
 
-    THE THREE ROADS A TAIL CAN NOW TAKE, and every one of them is
-    exercised here: it NAMES its values under the rule, it publishes its
-    SHAPE, or it publishes NEITHER DISTANCE because the pair would give
-    its own cells back (`_reconstructable_columns`).
+    THE TWO ROADS A TAIL CAN NOW TAKE, and both are exercised here: it
+    NAMES its values under the rule, or it publishes its SHAPE -- the
+    columns whose pair gives their own cells back too
+    (`_reconstructable_columns`), since plan P4-D375. None of these
+    shapes publishes NEITHER distance, which only a pair binary64 cannot
+    hold does now.
     """
     admitted = 0
     withheld = 0
@@ -699,10 +701,10 @@ def test_every_listed_tail_is_one_the_rule_admits(
                     f"road may name a value (plan P4-D349)"
                 )
                 admitted = admitted + 1
-    assert admitted and withheld and shaped, (
-        f"all three roads must be exercised: {admitted} admitted by the "
-        f"rule, {withheld} publishing neither distance, {shaped} published "
-        f"by shape"
+    assert admitted and shaped and not withheld, (
+        f"both roads must be exercised and no third taken: {admitted} "
+        f"admitted by the rule, {shaped} published by shape, {withheld} "
+        f"publishing neither distance"
     )
 
 

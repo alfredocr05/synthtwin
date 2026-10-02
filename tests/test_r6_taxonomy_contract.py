@@ -818,31 +818,21 @@ def test_a_column_of_twenty_thousand_values_completes() -> None:
         [float(value) for value in values],
         low=False,
     )
-    # THE PAIRS, DERIVED FROM THE COST RULE (plan P4-D353), NOT COPIED
-    # FROM AN OUTPUT. The back-solve asks each tail's pair and spends its
-    # budget on both before it shows a second answer, so P4-D349 withholds
-    # both pairs (the two hundred distances step ten grid points apart on
-    # this column's grid of a tenth, which is not the least sum two
-    # hundred different distances can have, so no arithmetic settles
-    # them: they are UNSETTLED, not pinned). With both withheld, each
-    # tail is read one grid point apart -- a tenth where the column steps
-    # a whole unit -- and the window of the column's spread falls short
-    # of the published spread. So the rule publishes a pair, and only
-    # where withholding it costs.
+    # BOTH PAIRS ARE PUBLISHED (plan P4-D375), and no back-solve runs on
+    # them: the 20,000 values complete in the time a describe of their
+    # size takes. With both withheld -- as P4-D349 withheld them -- each
+    # tail would be read one grid point apart, a tenth where the column
+    # steps a whole unit, and the window of the column's spread would fall
+    # short of the published spread; published, it does not.
     block = profile._column_block(described)
-    both = cost_rule_window.withheld(block, ("low", "high"))
-    assert cost_rule_window.costs(both, 11), (
-        "with both pairs withheld this column's own window still reaches "
-        "its mean and spread: the case no longer asks the cost rule anything"
-    )
     tails = block["tails"]
-    assert any(tails[side]["mean_distance"] is not None for side in ("low", "high")), (
-        "withholding both pairs costs the twin its spread and neither is published"
-    )
+    for side in ("low", "high"):
+        assert tails[side]["mean_distance"] is not None, side
+        assert tails[side]["rms_distance"] is not None, side
+    assert cost_rule_window.costs(cost_rule_window.withheld(block, ("low", "high")), 11)
     assert not cost_rule_window.costs(block, 11), (
         "the published description leaves its own mean or spread window short"
     )
-    assert cost_rule_window.published_where_it_costs_nothing(block, 11) == []
 
 
 def test_a_large_date_column_is_not_built_quadratically() -> None:

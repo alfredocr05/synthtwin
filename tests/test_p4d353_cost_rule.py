@@ -1,25 +1,16 @@
-"""Plan P4-D353: a withheld tail pair that costs the twin its mean or spread is published.
+"""Plan P4-D353's readers and stand-in rules, which outlive its cost rule (plan P4-D375).
 
-The owner's rulings of 2026-09-25: a tail whose pair would give its own
-cells back publishes it ANYWAY where withholding it would make the twin
-miss its column's mean or spread, and ONLY there. The producer asks the
-description it is about to publish, moment by moment, whether the G12.3
-window drawn from it contains the published value; candidates are
-offered in the order of what they disclose, and the first that keeps
-both moments is published, else the first that keeps the most, else
-nothing more.
+P4-D353 published a withheld tail pair only where withholding it cost the
+twin its mean or spread; plan P4-D375 withdrew the withholding with it,
+under the owner's principle of 2026-10-01, and every pair binary64 holds
+is published. What stands, and is held here:
 
-What is held here, each case asserting its premise from the checker's
-own windows before it asserts what the rule did:
-
-* the producer's question IS the checker's window, moment by moment;
-* no twin of the battery misses a moment a published pair would keep;
-* the candidates come in their order: the other side's own pair first,
-  an unsettled side before a pinned one, the low side before the high
-  where both say the same, and ONE withheld side with the other's pair;
-* where no pair keeps either moment none is published, and where one
-  keeps a single moment it is;
-* where closing the complement costs nothing it stays closed;
+* no twin of the battery misses a moment;
+* a side binary64 cannot hold says so, in its remark and on both pages;
+* a description written BEFORE P4-D375 still carries a side publishing
+  neither distance for one of six reasons, and its remark, its summary
+  line and its report sentence each say that reason
+  (`kpi_shapes.written_before_p4d375`);
 * no derived end is a stand-in number (method G5.3b step 5, on both of
   its paths), no row of the staircase on either path, no value G6.6's
   width walk moves, `-9999` among them, and no stratum the convex form
@@ -33,15 +24,12 @@ data-format file enters the repository (plan D13).
 
 from __future__ import annotations
 
-import fractions
-import math
 import pathlib
 import random
 
 import pytest
 
 import complement_reader as columns
-import cost_rule_window as window
 import kpi_shapes
 from synthtwin import contract, parsing, summary, taxonomy, validation
 
@@ -52,55 +40,6 @@ def _one_column(cells: "list[str]") -> str:
 
 def _block(folder: pathlib.Path, name: str, cells: "list[str]", floor: int) -> "dict":
     return kpi_shapes.describe(folder, name, _one_column(cells), floor).document["columns"][0]
-
-
-class _CountsOf:
-    """The four counts and the settings the producer's question reads, from a published block."""
-
-    def __init__(self, block: "dict", floor: int) -> None:
-        self.settings = taxonomy.Settings(small_cell_floor=floor)
-        self.present = [None] * block["n_present"]
-        self.numbers = [None] * block["n_numeric"]
-        self.n_out_of_range = block["n_out_of_range"]
-        self.n_contradictory = block["n_contradictory"]
-
-
-def _opened(folder: pathlib.Path, name: str, cells: "list[str]", floor: int, monkeypatch) -> "dict":
-    """The column described with the back-solve answering OPEN: every real pair, published."""
-    with monkeypatch.context() as patched:
-        patched.setattr(
-            taxonomy, "_numeric_answer", lambda *_arguments, **_named: taxonomy.TAIL_OPEN
-        )
-        return _block(folder, name, cells, floor)
-
-
-# -- 1. the producer's question is the checker's window ----------------------
-
-# (name, cells, floor, sides withheld from the published description): one
-# moment each way. 150 whole numbers at a floor of 36 publish both pairs, and
-# with the low one taken back the MEAN window misses while the spread's still
-# reaches; the rung-chained attack column at seed 2 publishes its low pair
-# beside a withheld high one, and with the low one taken back too only the
-# SPREAD window misses. That is what makes a producer blind to either moment
-# visible.
-_ONE_MOMENT = (
-    ("whole_uniform_150_low_withheld", columns.ordinary("whole_uniform", 150), 36, ("low",)),
-    ("rung_chained_s2_both_withheld", columns.rung_chained(102, 11, 2)[1], 11, ("low",)),
-)
-
-
-@pytest.mark.parametrize("name,cells,floor,sides", _ONE_MOMENT)
-def test_the_producer_asks_the_checkers_window(
-    tmp_path: pathlib.Path, name: str, cells: "list[str]", floor: int, sides: "tuple[str, ...]"
-) -> None:
-    block = _block(tmp_path, name, cells, floor)
-    edited = window.withheld(block, sides)
-    checker = window.window_misses(edited, floor)
-    assert checker["mean"] != checker["std"], (
-        f"{name}: this case must cost ONE moment, or it cannot see a producer blind to one"
-    )
-    producer = taxonomy._moments_missed(_CountsOf(block, floor), edited)
-    assert producer == len(window.missed(edited, floor)), (name, producer, checker)
 
 
 # -- 2. no twin misses a moment a published pair would keep ------------------
@@ -130,214 +69,6 @@ def test_no_twin_misses_a_moment_a_published_pair_would_keep(
         ]
         assert moments == [], f"{name} seed {seed}: {moments}"
 
-
-# -- 3. the candidates, in the order of what they disclose -------------------
-
-
-def test_an_unsettled_side_is_offered_before_a_pinned_one(tmp_path: pathlib.Path) -> None:
-    """Either side alone keeps this column's moments (both are unsettled at 36).
-
-    Relabel the LOW side pinned: the rule must publish the HIGH side, the
-    one whose pair has not been shown to give its cells back.
-    """
-    cells = columns.engineering_distinct("whole_uniform", 400, "skA")
-    block = _block(tmp_path, "order", cells, 36)
-    tails = block["tails"]
-    values = sorted(float(one) for one in cells)
-    held: "dict[str, tuple[float, float, str]]" = {}
-    for side in ("low", "high"):
-        percent = tails[side]["percent"]
-        where, rung = taxonomy._rung_name(percent)
-        first, last = taxonomy._tail_positions(len(values), percent, side)
-        pair = taxonomy._tail_distances(values, first, last, block[where][rung], side)
-        assert pair is not None
-        verdict = taxonomy.TAIL_PINNED if side == "low" else taxonomy.TAIL_UNSETTLED
-        held[side] = (pair[0], pair[1], verdict)
-    both = window.withheld(block, ("low", "high"))
-    counts = _CountsOf(block, 36)
-    assert taxonomy._moments_missed(counts, both), "premise: withholding both must cost"
-    chosen = taxonomy._pairs_that_cost(counts, both, held)  # type: ignore[arg-type]
-    assert chosen["tails"]["high"]["mean_distance"] is not None
-    assert chosen["tails"]["low"]["mean_distance"] is None, (
-        "the pinned side was published although the unsettled side alone keeps the moments"
-    )
-
-
-def test_the_other_sides_pair_is_offered_before_the_withheld_side(
-    tmp_path: pathlib.Path, monkeypatch
-) -> None:
-    """The rung-chained attack column at seed 2, floor 11: the high run is withheld, the low side open.
-
-    Premise, from the checker's windows: with both pairs withheld the
-    spread misses; with the LOW pair alone back, both windows reach. So the
-    rule stops there and the high side the back-solve withheld stays
-    withheld. A rule that skipped the other side's own pair would publish
-    both.
-    """
-    cells = columns.rung_chained(102, 11, 2)[1]
-    opened = _opened(tmp_path / "open", "chained", cells, 11, monkeypatch)
-    block = _block(tmp_path / "shipped", "chained", cells, 11)
-    assert window.missed(window.with_pairs(block, opened, ()), 11), "premise: closing both must cost"
-    assert window.missed(window.with_pairs(block, opened, ("low",)), 11) == [], (
-        "premise: the low pair alone keeps both moments"
-    )
-    assert block["tails"]["low"]["mean_distance"] is not None
-    assert block["tails"]["high"]["mean_distance"] is None, (
-        "the withheld side was published although the other side's own pair keeps both moments"
-    )
-
-
-def test_one_withheld_side_is_published_with_the_other_sides_pair(
-    tmp_path: pathlib.Path, monkeypatch
-) -> None:
-    """150 all-different whole numbers drawn uniformly, floor 36: ONE side withheld by the back-solve.
-
-    The back-solve withholds the high side alone, and the cross-side rule
-    withholds the low pair beside it. Premise, from the checker's windows:
-    closing both costs a moment, the low pair alone costs both, and the
-    two pairs together keep both. So the candidate published is the
-    withheld side WITH the other's pair. A rule that offered the withheld
-    side alone would find it costs too, publish nothing, and its twin
-    would miss its spread.
-    """
-    draw = random.Random("skeptic-A1/uniform_distinct_150")
-    cells = columns._distinct_draw(draw, 150, lambda one: str(one.randint(0, 99999)))
-    seen: "dict[str, tuple[float, float, str]]" = {}
-    real = taxonomy._pairs_that_cost
-
-    def recording(counts, shaped, held, *present):  # type: ignore[no-untyped-def]
-        seen.update(held)
-        return real(counts, shaped, held, *present)
-
-    opened = _opened(tmp_path / "open", "one", cells, 36, monkeypatch)
-    monkeypatch.setattr(taxonomy, "_pairs_that_cost", recording)
-    block = _block(tmp_path / "shipped", "one", cells, 36)
-    assert sorted(seen) == ["high"], f"premise: the back-solve withholds the high side alone, not {seen}"
-    assert window.missed(window.with_pairs(block, opened, ()), 36), "premise: closing both must cost"
-    assert window.missed(window.with_pairs(block, opened, ("low",)), 36), (
-        "premise: the other side's pair alone must cost"
-    )
-    assert window.missed(window.with_pairs(block, opened, ("low", "high")), 36) == [], (
-        "premise: the two pairs together keep both moments"
-    )
-    published = [side for side in ("low", "high") if block["tails"][side]["mean_distance"] is not None]
-    assert published == ["low", "high"], (
-        f"the withheld side was not published with the other side's pair: {published}"
-    )
-
-
-def test_the_low_side_is_offered_first_where_both_say_the_same(
-    tmp_path: pathlib.Path, monkeypatch
-) -> None:
-    """400 all-different whole numbers at floor 36 (the engineering review's `skA` draw).
-
-    Both sides are withheld by the back-solve with the same verdict, and
-    each ALONE keeps both moments (premise, from the windows), so the
-    order decides, and it is written: the low side first.
-    """
-    cells = columns.engineering_distinct("whole_uniform", 400, "skA")
-    seen: "dict[str, tuple[float, float, str]]" = {}
-    real = taxonomy._pairs_that_cost
-
-    def recording(counts, shaped, held, *present):  # type: ignore[no-untyped-def]
-        seen.update(held)
-        return real(counts, shaped, held, *present)
-
-    opened = _opened(tmp_path / "open", "tie", cells, 36, monkeypatch)
-    monkeypatch.setattr(taxonomy, "_pairs_that_cost", recording)
-    block = _block(tmp_path / "shipped", "tie", cells, 36)
-    assert sorted(seen) == ["high", "low"] and seen["low"][2] == seen["high"][2], seen
-    assert window.missed(window.with_pairs(block, opened, ()), 36), "premise: withholding both must cost"
-    assert window.missed(window.with_pairs(block, opened, ("low",)), 36) == []
-    assert window.missed(window.with_pairs(block, opened, ("high",)), 36) == []
-    assert block["tails"]["low"]["mean_distance"] is not None
-    assert block["tails"]["high"]["mean_distance"] is None
-
-
-# -- 4. what is published where no candidate keeps both ----------------------
-
-
-def test_where_no_pair_keeps_a_moment_none_is_published(
-    tmp_path: pathlib.Path, monkeypatch
-) -> None:
-    """149 padded record numbers beside one far `99999`, floor 11: beyond every pair's reach.
-
-    Premise: every candidate -- nothing, the low pair, the high pair, both
-    -- leaves BOTH windows short of their values, so no pair keeps either
-    moment and the rule publishes none (the owner's ruling 4: only where
-    it costs). The twin still misses its mean and spread: ledger entry
-    `K-S3-22`.
-    """
-    cells = columns.shape("pad99999", 150, 1)
-    opened = _opened(tmp_path / "open", "far", cells, 11, monkeypatch)
-    block = _block(tmp_path / "shipped", "far", cells, 11)
-    for sides in ((), ("low",), ("high",), ("low", "high")):
-        assert window.missed(window.with_pairs(block, opened, sides), 11) == ["mean", "std"], (
-            f"premise: {sides} must miss both windows"
-        )
-    assert block["tails"]["low"]["mean_distance"] is None
-    assert block["tails"]["high"]["mean_distance"] is None, (
-        "a pair was published although no pair keeps either moment"
-    )
-
-
-def test_a_pair_that_keeps_one_moment_is_published_where_none_keeps_both(
-    tmp_path: pathlib.Path, monkeypatch
-) -> None:
-    """One far `-4000` beside 500 to 648, floor 36: both sides withheld by the back-solve.
-
-    Premise: withholding both leaves both windows short; the LOW pair back
-    brings the mean's window onto its value and leaves the spread's short;
-    no candidate keeps both. The owner's ruling 4 publishes where
-    withholding makes the twin miss its mean OR its spread, so the low
-    pair is published.
-    """
-    cells = columns.far_low(4000, 150)
-    opened = _opened(tmp_path / "open", "farlow", cells, 36, monkeypatch)
-    block = _block(tmp_path / "shipped", "farlow", cells, 36)
-    assert window.missed(window.with_pairs(block, opened, ()), 36) == ["mean", "std"]
-    assert window.missed(window.with_pairs(block, opened, ("low",)), 36) == ["std"]
-    for sides in (("high",), ("low", "high")):
-        assert window.missed(window.with_pairs(block, opened, sides), 36), (
-            f"premise: {sides} keeps both moments"
-        )
-    assert block["tails"]["low"]["mean_distance"] is not None, (
-        "a pair that keeps the mean was withheld because it does not also keep the spread"
-    )
-    assert block["tails"]["high"]["mean_distance"] is None
-
-
-# -- 5. where closing the complement costs nothing it stays closed ------------
-
-
-def test_the_complement_stays_closed_where_closing_it_is_free(tmp_path: pathlib.Path) -> None:
-    """The rung-chained attack column at seed 4, floor 11.
-
-    `d93fd43` published the low pair beside the withheld high run and a
-    reader took the twelve high values back by subtraction from the
-    column's exact mean and spread. With both pairs withheld the column's
-    windows still reach its mean and spread, so the cross-side rule
-    stands and the cost rule offers nothing back: no tail's sums are
-    published for a subtraction to start from.
-    """
-    cells = columns.rung_chained(102, 11, 4)[1]
-    block = _block(tmp_path, "chained_s4", cells, 11)
-    assert block["tails"]["high"]["mean_distance"] is None
-    assert block["tails"]["low"]["mean_distance"] is None, (
-        "one pair is published beside a withheld one where withholding both costs nothing"
-    )
-    assert window.missed(block, 11) == []
-
-
-# -- 6. no derived end, staircase row or width-walk value is a stand-in ------
-#
-# Plan P4-D353 part 4. `9999`, `-999` and `-9999` are the numbers the
-# profiler reads as "no value" where they stand out from a column, and a
-# tail's cells are the ones that stand out: a twin cell on one is read back
-# by the twin's own description as absent. The derived end moves one grid
-# step inside (method G5.3b step 5), a staircase row one grid point outward,
-# and G6.6's width walk, whose nearest candidate from beyond a width's
-# ceiling is the ceiling itself, refuses them for every value it moves.
 
 _STAND_INS = tuple(parsing.NUMERIC_SENTINELS)
 
@@ -502,8 +233,12 @@ def test_no_staircase_row_stands_on_a_stand_in(
     which holds no `-9999`, the twin wrote one through G6.5a's separation
     walk on 2af1f03, whose exemption plan P4-D357 A withdrew: no twin of the
     three writes a stand-in its column does not hold at seeds 0, 4 and 9.
+    Since plan P4-D375 both pairs are published, so the withheld path is
+    asked of the description P4-D349 wrote of each column.
     """
-    described = kpi_shapes.describe(tmp_path / name, name, _one_column(cells), 11)
+    described = kpi_shapes.written_before_p4d375(
+        kpi_shapes.describe(tmp_path / name, name, _one_column(cells), 11), ("low", "high")
+    )
     tail = described.document["columns"][0]["tails"][side]
     ours, theirs = _generator_and_oracle(described)
     reader = ours.high if side == "high" else ours.low
@@ -602,9 +337,12 @@ def test_a_withheld_end_on_a_stand_in_moves_one_step_inside(
     its boundary; here that is `9999` (`-9999`), and the column holds no
     stand-in number. The generator's end and the oracle's must both stand
     one step inside, and no twin cell may be a stand-in at seeds 0, 4, 9.
-    Withdrawn, the twin writes `9999` (`-9999`) at every seed.
+    Withdrawn, the twin writes `9999` (`-9999`) at every seed. Asked of the
+    description P4-D349 wrote, as plan P4-D375 publishes the far pair.
     """
-    described = kpi_shapes.describe(tmp_path / name, name, _one_column(cells), 11)
+    described = kpi_shapes.written_before_p4d375(
+        kpi_shapes.describe(tmp_path / name, name, _one_column(cells), 11), ("low", "high")
+    )
     tail = described.document["columns"][0]["tails"][side]
     ours, theirs = _generator_and_oracle(described)
     reader = ours.high if side == "high" else ours.low
@@ -837,19 +575,18 @@ def test_no_stratum_read_between_the_tails_is_a_stand_in(
         assert kpi_shapes.missed(outcome) == [], f"seed {seed}: {kpi_shapes.missed(outcome)}"
 
 
-# -- 7. a side withheld for any other reason than its own pair says which ----
+# -- 7. a side withheld for a reason says which ------------------------------
 #
-# Plan P4-D353 part 2 withholds a side whose own back-solve found it OPEN,
-# because beside the column's exact mean and spread its pair would give the
-# other, withheld side's back by subtraction. The summary and the quality
-# report said of EVERY side without a pair that its own two distances would
-# give its values back one by one: false there, unproven on a side whose
-# walk did not finish, and false on one binary64 cannot hold (skeptic A1,
-# item 2). The producer says each such reason in a remark per side
-# (contract NF62 to NF67); both pages read it, and the premise of every
-# case here is the back-solve's OWN verdict, recorded where the cost rule
-# is handed it. The sentences are asserted by their WORDS, not through the
-# tables the pages read, so a table with two causes swapped is red here.
+# The summary and the quality report once said of EVERY side without a pair
+# that its own two distances would give its values back one by one: false
+# of a side withheld for the other's sake, unproven on a side whose walk
+# did not finish, and false on one binary64 cannot hold (skeptic A1, item
+# 2). The producer says each reason in a remark per side (contract NF62 to
+# NF67, NF79 to NF84); both pages read it. Since plan P4-D375 the producer
+# writes only the binary64 reason, and a description written before it
+# carries the other five, so each is asked of such a description here. The
+# sentences are asserted by their WORDS, not through the tables the pages
+# read, so a table with two causes swapped is red here.
 
 
 def heap_then_one_far() -> "list[str]":
@@ -914,31 +651,36 @@ def _which_page_words(said: str, words: "dict[str, str]") -> str:
     return found[0] if len(found) == 1 else f"none of the four: {said.strip()!r}"
 
 
+def _pages_of(block: "dict", document: "dict", name: str, floor: int, side: str) -> "tuple[str, str, str]":
+    """What the remark, the summary's line and the report's sentence each say of one silent side."""
+    page = summary.render(document, "")
+    tail = block["tails"][side]
+    which = "smallest" if side == "low" else "largest"
+    lines = [
+        line for line in page.split("\n")
+        if f"the {tail['rows']} {which} values are not published, and neither is how far" in line
+    ]
+    assert len(lines) == 1, (name, floor, side, lines)
+    return (
+        taxonomy.tail_withheld_because(block["remarks"], side),
+        _which_page_words(lines[0], SUMMARY_WORDS),
+        _which_page_words(validation._tail_withheld_reason(block, side), REPORT_WORDS),
+    )
+
+
 def withheld_sides(
     folder: pathlib.Path, name: str, cells: "list[str]", floor: int
 ) -> "tuple[dict, list[tuple[str, str, str, str, str]]]":
     """The column described, and for each numeric side withheld without a pair and without values:
-    (side, the back-solve's OWN verdict, the cause its remarks say, the cause
+    (side, why the producer withheld it, the cause its remarks say, the cause
     the summary's words say, the cause the quality report's words say).
 
-    The own verdict is `TAIL_PINNED` or `TAIL_UNSETTLED` where the walk
-    withheld it, `TAIL_OPEN` where the walk did not (the cross-side rule
-    withheld it), `NOT_ASKED` where binary64 cannot hold its pair, each
-    recorded off the real producer's own calls -- and a PINNED side is
-    read again by `pinned_reading`, which enumerates the multisets its
-    facts admit without the producer's lattice (plan P4-D357 A): every
-    value, the outermost, a count, or `TAIL_PINNED` where the enumeration
-    could not decide.
+    Since plan P4-D375 the one reason the producer has is a pair binary64
+    cannot hold, recorded off the real producer's own call (`NOT_ASKED`);
+    a side withheld for any other reason would be `TAIL_OPEN`, a defect.
     """
-    verdicts: "dict[str, str]" = {}
     unholdable: "list[str]" = []
-    real_cost = taxonomy._pairs_that_cost
     real_distances = taxonomy._tail_distances
-
-    def recording(counts, shaped, held, *present):  # type: ignore[no-untyped-def]
-        for side in held:
-            verdicts[side] = held[side][2]
-        return real_cost(counts, shaped, held, *present)
 
     def distances(ordered, first, last, boundary, side):  # type: ignore[no-untyped-def]
         nonlocal unholdable
@@ -948,11 +690,9 @@ def withheld_sides(
         return found
 
     with pytest.MonkeyPatch.context() as patched:
-        patched.setattr(taxonomy, "_pairs_that_cost", recording)
         patched.setattr(taxonomy, "_tail_distances", distances)
         described = kpi_shapes.describe(folder, name, _one_column(cells), floor)
     block = described.document["columns"][0]
-    page = summary.render(described.document, "")
     found: "list[tuple[str, str, str, str, str]]" = []
     tails = block["tails"] if "tails" in block else None
     if not isinstance(tails, dict):
@@ -961,236 +701,95 @@ def withheld_sides(
         tail = tails[side]
         if not isinstance(tail, dict) or tail["mean_distance"] is not None or tail["values"]:
             continue
-        which = "smallest" if side == "low" else "largest"
-        lines = [
-            line for line in page.split("\n")
-            if f"the {tail['rows']} {which} values are not published, and neither is how far" in line
-        ]
-        assert len(lines) == 1, (name, floor, side, lines)
-        own = NOT_ASKED if side in unholdable else verdicts.get(side, taxonomy.TAIL_OPEN)
-        if own == taxonomy.TAIL_PINNED:
-            own = pinned_reading(block, side, cells, floor)
-        found += [(
-            side,
-            own,
-            taxonomy.tail_withheld_because(block["remarks"], side),
-            _which_page_words(lines[0], SUMMARY_WORDS),
-            _which_page_words(validation._tail_withheld_reason(block, side), REPORT_WORDS),
-        )]
+        own = NOT_ASKED if side in unholdable else taxonomy.TAIL_OPEN
+        found += [(side, own) + _pages_of(block, described.document, name, floor, side)]
     return block, found
 
 
-def pinned_reading(block: "dict", side: str, cells: "list[str]", floor: int) -> str:
-    """What a PINNED numeric side's pair gives back, by enumerating the multisets its facts admit.
-
-    Independent of the producer's lattice: the tail's own whole parts are
-    read off the column's cells and its published boundary on the block's
-    grid, and `complement_reader._tail_multisets` lists the multisets of
-    that many parts, nought or more and no larger than the sign cap, with
-    their sum and sum of squares -- different from one another where the
-    column's numbers all are. One multiset: every value. Several, every one
-    with the same largest part, held by fewer rows than the floor: the
-    outermost. Several with different largest parts: a count. Anything the
-    enumeration cannot finish, or a column off a grid: `TAIL_PINNED`,
-    which `misstated` reads as undecided.
-    """
-    figures = columns._grid(block)
-    tail = block["tails"][side]
-    if figures is None or not isinstance(tail, dict):
-        return taxonomy.TAIL_PINNED
-    scale = 10**figures
-    numbers = sorted(float(cell) for cell in cells if _is_number(cell))
-    boundary = fractions.Fraction(columns.rung_of(block, tail["percent"])) * scale
-    home = math.floor(boundary) if side == "low" else math.ceil(boundary)
-    rows = tail["rows"]
-    outer = numbers[:rows] if side == "low" else numbers[len(numbers) - rows:]
-    parts = [home - round(value * scale) if side == "low" else round(value * scale) - home for value in outer]
-    total = sum(parts)
-    squares = sum(part * part for part in parts)
-    edge = max(1, columns._cap(block, side, home, squares))
-    apart = block["n_distinct_values"] == block["n_used_in_statistics"]
-    found, finished = columns._tail_multisets(rows, total, squares, 0, edge, 1 if apart else 0, cap=64)
-    if not finished or len(found) >= 64 or sorted(parts) not in found:
-        return taxonomy.TAIL_PINNED
-    if len(found) == 1:
-        return taxonomy.TAIL_PINS_EVERY
-    top = max(parts)
-    if {max(one) for one in found} == {top} and parts.count(top) < floor:
-        return taxonomy.TAIL_PINS_END
-    return taxonomy.TAIL_PINS_A_COUNT
-
-
-def _is_number(cell: str) -> bool:
-    try:
-        float(cell)
-    except ValueError:
-        return False
-    return True
-
-
-# The reason true of a withheld side, from the back-solve's own verdict on it
+# The reason true of a withheld side, from why the producer withheld it.
 # and, for a PINNED side, from `pinned_reading`.
 TRUE_CAUSE = {
-    taxonomy.TAIL_PINS_EVERY: taxonomy.TAIL_PINS_EVERY,
-    taxonomy.TAIL_PINS_END: taxonomy.TAIL_PINS_END,
-    taxonomy.TAIL_PINS_A_COUNT: taxonomy.TAIL_PINS_A_COUNT,
-    taxonomy.TAIL_UNSETTLED: taxonomy.TAIL_WITHHELD_UNSETTLED,
     taxonomy.TAIL_OPEN: taxonomy.TAIL_WITHHELD_FOR_THE_OTHER,
     NOT_ASKED: taxonomy.TAIL_WITHHELD_UNHOLDABLE,
 }
-_PINNED_READINGS = (taxonomy.TAIL_PINS_EVERY, taxonomy.TAIL_PINS_END, taxonomy.TAIL_PINS_A_COUNT)
 
 
 def misstated(sides: "list[tuple[str, str, str, str, str]]") -> "list[tuple[str, str, str, str, str]]":
-    """The sides whose pages say a reason that is not the one true of them.
+    """The sides whose pages say a reason that is not the one true of them, or disagree.
 
-    True of a side: its own verdict where the walk left it unsettled, the
-    cross-side rule where the walk left it open, binary64 where the pair
-    was never asked -- and, where the walk PINNED it, what the enumeration
-    of `pinned_reading` finds its pair gives back: every value, the
-    outermost, or a count (plan P4-D357 A; the pages said "one by one" of
-    every pinned side until then). Where that enumeration cannot decide,
-    any of the three readings is taken as said, and no other.
+    True of a side the producer withholds: binary64, where its pair was
+    never asked; a side withheld for any other reason has none true of it
+    since plan P4-D375, and its pages saying the cross-side rule is the
+    defect this names.
     """
     wrong: "list[tuple[str, str, str, str, str]]" = []
     for one in sides:
-        if not one[2] == one[3] == one[4]:
-            wrong += [one]
-        elif one[1] == taxonomy.TAIL_PINNED:
-            if one[2] not in _PINNED_READINGS:
-                wrong += [one]
-        elif one[2] != TRUE_CAUSE[one[1]]:
+        if not one[2] == one[3] == one[4] or one[2] != TRUE_CAUSE[one[1]] or one[1] != NOT_ASKED:
             wrong += [one]
     return wrong
 
 
-# (name, cells, floor, side, the reason, the other side's own verdict or ""):
-# the three columns the review found, and the two other reasons.
-_WITHHELD_REASONS = (
-    ("heap_then_one_far", heap_then_one_far(), 11, "low", taxonomy.TAIL_WITHHELD_FOR_THE_OTHER, taxonomy.TAIL_PINS_EVERY),
-    ("run_then_scatter", run_then_scatter(), 11, "high", taxonomy.TAIL_WITHHELD_FOR_THE_OTHER, taxonomy.TAIL_PINS_EVERY),
-    ("uniform_distinct_1500", uniform_distinct_1500(), 20, "high", taxonomy.TAIL_WITHHELD_FOR_THE_OTHER, taxonomy.TAIL_UNSETTLED),
-    ("uniform_distinct_1500", uniform_distinct_1500(), 20, "low", taxonomy.TAIL_WITHHELD_UNSETTLED, ""),
-    ("far_apart_100", far_apart_100(), 11, "low", taxonomy.TAIL_WITHHELD_UNHOLDABLE, ""),
+def test_a_side_binary64_cannot_hold_says_so(tmp_path: pathlib.Path) -> None:
+    """The one side the producer still withholds: its remark and both pages say binary64.
+
+    Eleven cells near `-1.7e308` beside 89 near `1.68e308`: the low tail's
+    distances pass the largest finite binary64, so it publishes neither
+    distance and says why, and the high tail publishes its pair (plan
+    P4-D375, withdrawing P4-D357 A's item 4).
+    """
+    block, sides = withheld_sides(tmp_path / "far", "far_apart_100", far_apart_100(), 11)
+    assert [one[0] for one in sides] == ["low"], sides
+    _side, own, cause, said, cited = sides[0]
+    assert own == NOT_ASKED
+    reason = taxonomy.TAIL_WITHHELD_UNHOLDABLE
+    assert (cause, said, cited) == (reason, reason, reason), sides
+    remark = [line for line in block["remarks"] if "beyond this column's lower tail boundary" in line]
+    assert len(remark) == 1 and REMARK_WORDS[reason] in remark[0], block["remarks"]
+    assert block["tails"]["high"]["mean_distance"] is not None
+    assert misstated(sides) == []
+
+
+# (cause, side): each reason a description written before plan P4-D375 may
+# carry, on the side it was written of.
+_BEFORE_REASONS = (
+    (taxonomy.TAIL_WITHHELD_FOR_THE_OTHER, "low"),
+    (taxonomy.TAIL_WITHHELD_UNSETTLED, "high"),
+    (taxonomy.TAIL_WITHHELD_UNHOLDABLE, "low"),
+    (taxonomy.TAIL_PINS_EVERY, "high"),
+    (taxonomy.TAIL_PINS_END, "low"),
+    (taxonomy.TAIL_PINS_A_COUNT, "high"),
 )
 
 
-@pytest.mark.parametrize("name,cells,floor,side,reason,other", _WITHHELD_REASONS)
-def test_a_side_withheld_for_another_reason_says_which(
-    tmp_path: pathlib.Path,
-    name: str,
-    cells: "list[str]",
-    floor: int,
-    side: str,
-    reason: str,
-    other: str,
+@pytest.mark.parametrize("cause,side", _BEFORE_REASONS, ids=[one[0] for one in _BEFORE_REASONS])
+def test_a_side_withheld_before_p4d375_says_its_reason(
+    tmp_path: pathlib.Path, cause: str, side: str
 ) -> None:
-    """The remark, the summary's line and the report's sentence each say the reason true of the side.
+    """A description written before plan P4-D375: the remark and both pages say the reason it carries.
 
-    PREMISE, the back-solve's own: a side withheld FOR THE OTHER was left
-    open by its own walk and the other side was withheld by its own; an
-    UNSETTLED side's walk did not finish; an UNHOLDABLE side was never
-    asked. Then the remark names THIS side and this reason in its words,
-    and neither page says the pair would give the values back.
+    `heap_then_one_far` described at a floor of eleven, then the named
+    side's pair withheld with the remark its producer wrote for ``cause``
+    -- as P4-D349 and P4-D353 wrote such sides. The strict loader still
+    reads it, the remark names this side in that reason's words, and the
+    summary's line and the report's sentence say the same reason.
     """
-    block, sides = withheld_sides(tmp_path / name, name, cells, floor)
-    found = {one[0]: one for one in sides}
-    assert side in found, f"premise: {side} publishes no pair ({sides})"
-    _side, own, cause, said, cited = found[side]
-    if reason == taxonomy.TAIL_WITHHELD_FOR_THE_OTHER:
-        twin = "high" if side == "low" else "low"
-        assert own == taxonomy.TAIL_OPEN and found[twin][1] == other, (
-            f"premise: {side}'s own walk left it open and {twin}'s withheld it ({sides})"
-        )
-    elif reason == taxonomy.TAIL_WITHHELD_UNSETTLED:
-        assert own == taxonomy.TAIL_UNSETTLED, f"premise: {sides}"
-    else:
-        assert own == NOT_ASKED, f"premise: {sides}"
-    assert cause == reason
+    described = kpi_shapes.written_before_p4d375(
+        kpi_shapes.describe(tmp_path, "heap", _one_column(heap_then_one_far()), 11), (side,), cause
+    )
+    block = described.document["columns"][0]
+    remark, said, cited = _pages_of(block, described.document, "heap", 11, side)
+    assert (remark, said, cited) == (cause, cause, cause), (remark, said, cited)
     this, that = SIDE_WORDS[side]
-    remark = [line for line in block["remarks"] if f"beyond this column's {this} tail boundary" in line]
-    assert len(remark) == 1 and REMARK_WORDS[reason] in remark[0], (name, side, block["remarks"])
-    if reason == taxonomy.TAIL_WITHHELD_FOR_THE_OTHER:
-        assert remark[0].endswith(f"withheld from its {that} tail"), remark[0]
-    assert said == reason, f"{name} {side}: the summary says {said}"
-    assert cited == reason, f"{name} {side}: the report says {cited}"
-
-
-def test_a_pinned_side_says_what_its_own_pair_would_give_back(tmp_path: pathlib.Path) -> None:
-    """The other side of `heap_then_one_far`, whose own walk PINNED it: one multiset fits, so every value.
-
-    Its eleven rows are ten at the boundary and `1100`, distances
-    `[0]*10 + [11]`: sum 11 and squares 121 admit no other multiset, which
-    `pinned_reading` finds by enumeration, and the remark and both pages say
-    the pair gives every value back (plan P4-D357 A).
-    """
-    block, sides = withheld_sides(tmp_path / "heap", "heap", heap_then_one_far(), 11)
-    found = {one[0]: one for one in sides}
-    assert found["high"][1] == taxonomy.TAIL_PINS_EVERY, sides
-    assert found["high"][2:] == (taxonomy.TAIL_PINS_EVERY,) * 3, sides
-    assert [line for line in block["remarks"] if "upper tail boundary" in line] == [
-        taxonomy.rendered(taxonomy.REMARK_HIGH_TAIL_EVERY_VALUE, ())
-    ]
-    assert misstated(sides) == []
+    lines = [line for line in block["remarks"] if f"beyond this column's {this} tail boundary" in line]
+    assert len(lines) == 1 and REMARK_WORDS[cause] in lines[0], block["remarks"]
+    if cause == taxonomy.TAIL_WITHHELD_FOR_THE_OTHER:
+        assert lines[0].endswith(f"withheld from its {that} tail"), lines[0]
 
 
 def _repeating_draw(size: int) -> "list[str]":
     """`size` whole numbers drawn from 1 to 30,000, repeats allowed: both pairs publish at 11 and at 20."""
     draw = random.Random(f"fA3/pairs_{size}_0")
     return [str(draw.randint(1, 30000)) for _ in range(size)]
-
-
-# (name, the description's column, its floor, the checked file's column,
-# side -> the reason the file's own description gives): the description
-# publishes both pairs at the checked file's own percent, so each tail
-# distance is compared and the file's own silence is what the report says.
-_CHECKED_REASONS = (
-    (
-        "heap_then_one_far",
-        _repeating_draw(1101),
-        11,
-        heap_then_one_far(),
-        {"low": taxonomy.TAIL_WITHHELD_FOR_THE_OTHER, "high": taxonomy.TAIL_PINS_EVERY},
-    ),
-    (
-        "uniform_distinct_1500",
-        _repeating_draw(1500),
-        20,
-        uniform_distinct_1500(),
-        {"low": taxonomy.TAIL_WITHHELD_UNSETTLED, "high": taxonomy.TAIL_WITHHELD_FOR_THE_OTHER},
-    ),
-)
-
-
-@pytest.mark.parametrize("name,described_cells,floor,checked_cells,reasons", _CHECKED_REASONS)
-def test_the_report_says_why_the_file_s_own_tail_is_silent(
-    tmp_path: pathlib.Path,
-    name: str,
-    described_cells: "list[str]",
-    floor: int,
-    checked_cells: "list[str]",
-    reasons: "dict[str, str]",
-) -> None:
-    """The quality report's reason for a WITHHELD tail distance is the reason the file's own description gives.
-
-    The description publishes both pairs (premise); the checked file's own
-    description publishes neither, and each distance check cites, in the
-    words of that side's reason, why -- never the sentence saying its own
-    two numbers give the outer cells back where they do not.
-    """
-    described = kpi_shapes.describe(tmp_path / "described", "described", _one_column(described_cells), floor)
-    tails = described.document["columns"][0]["tails"]
-    assert [side for side in ("low", "high") if tails[side]["mean_distance"] is not None] == ["low", "high"], (
-        "premise: the description publishes both pairs"
-    )
-    outcome = kpi_shapes.measure(described, _one_column(checked_cells), f"{name}.csv")
-    for side, reason in sorted(reasons.items()):
-        cited = [
-            check.citation for check in outcome.checks
-            if check.subcheck in (f"tails.{side}.mean_distance", f"tails.{side}.rms_distance")
-        ]
-        assert len(cited) == 2, (name, side, cited)
-        assert [_which_page_words(one, REPORT_WORDS) for one in cited] == [reason, reason], (name, side, cited)
 
 
 def _heaped_draw(size: int, heap: int) -> "list[str]":
@@ -1205,21 +804,9 @@ def _heaped_draw(size: int, heap: int) -> "list[str]":
 # against the file's own tail -- and that tail publishes neither distance,
 # so the check says why in the words of the file's own reason (skeptic Ac,
 # item 1: a report saying the pinned sentence at both ends stayed green).
+# Since plan P4-D375 a checked file's own tail is silent only where binary64
+# cannot hold its pair.
 _HEAPED_REASONS = (
-    (
-        "heap_then_one_far",
-        _heaped_draw(1101, 60),
-        11,
-        heap_then_one_far(),
-        {"low": taxonomy.TAIL_WITHHELD_FOR_THE_OTHER, "high": taxonomy.TAIL_PINS_EVERY},
-    ),
-    (
-        "uniform_distinct_1500",
-        _heaped_draw(1500, 60),
-        20,
-        uniform_distinct_1500(),
-        {"low": taxonomy.TAIL_WITHHELD_UNSETTLED, "high": taxonomy.TAIL_WITHHELD_FOR_THE_OTHER},
-    ),
     (
         "far_apart_100",
         _heaped_draw(100, 25),
@@ -1309,48 +896,45 @@ def _minutes_900() -> "list[str]":
     return ["%02d:%02d" % divmod(minute, 60) for minute in minutes]
 
 
-@pytest.mark.parametrize(
-    "name,cells",
-    (("clock", _minutes_900()), ("dates", columns.consecutive_dates(240))),
-    ids=("clock", "dates"),
+# (role, cause): the date and clock reasons a description written before
+# plan P4-D375 may carry on both of its sides.
+_DATE_REASONS = tuple(
+    (name, cause)
+    for name in ("clock", "dates")
+    for cause in (
+        taxonomy.TAIL_WITHHELD_UNSETTLED,
+        taxonomy.TAIL_PINS_EVERY,
+        taxonomy.TAIL_PINS_END,
+        taxonomy.TAIL_PINS_A_COUNT,
+    )
 )
-def test_a_date_or_clock_side_whose_walk_did_not_finish_says_so(
-    tmp_path: pathlib.Path, monkeypatch, name: str, cells: "list[str]"
+
+
+@pytest.mark.parametrize("name,cause", _DATE_REASONS, ids=[f"{one[0]}-{one[1]}" for one in _DATE_REASONS])
+def test_a_date_or_clock_side_withheld_before_p4d375_says_its_reason(
+    tmp_path: pathlib.Path, name: str, cause: str
 ) -> None:
-    """The date and clock roles say an UNSETTLED side too, and its summary line is not the pinned one.
+    """The date and clock roles read each reason a description written before plan P4-D375 carries.
 
     900 all-different minutes of the day (seed `fA3/clock_3`) and 240
-    consecutive days withhold both pairs, each PINNED by its own walk
-    (premise: each side's remark says what the pair gives back, plan
-    P4-D357 A, and the page says the same). A walk that spends its budget
-    answers UNSETTLED instead, which no seeded column here reaches, so the
-    verdict is turned: each side must then carry its remark, and the page
-    must say the question could not be settled.
+    consecutive days publish both pairs since that plan; written as P4-D349
+    wrote them -- both pairs withheld, each side's remark the reason named
+    -- each side's remark reads back as that reason and the summary says
+    it of the earliest and the latest alike, and an UNSETTLED side is never
+    said to give its values back one by one.
     """
-    pinned = kpi_shapes.describe(tmp_path / "pinned", name, _one_column(cells), 11).document
-    block = pinned["columns"][0]
+    cells = _minutes_900() if name == "clock" else columns.consecutive_dates(240)
+    fresh = kpi_shapes.describe(tmp_path, name, _one_column(cells), 11)
     for key in ("low_tail", "high_tail"):
-        assert block[key]["mean_distance"] is None and block[key]["values"] is None, "premise: both pairs withheld"
-    readings = [taxonomy.tail_withheld_because(block["remarks"], side) for side in ("low", "high")]
-    assert [one for one in readings if one not in _PINNED_READINGS] == [], block["remarks"]
-    assert _date_lines_say(summary.render(pinned, "")) == readings
-    real = taxonomy._tail_verdict
-
-    def spent(*arguments, **named):  # type: ignore[no-untyped-def]
-        verdict = real(*arguments, **named)
-        return taxonomy.TAIL_UNSETTLED if verdict == taxonomy.TAIL_PINNED else verdict
-
-    with monkeypatch.context() as patched:
-        patched.setattr(taxonomy, "_tail_verdict", spent)
-        unsettled = kpi_shapes.describe(tmp_path / "unsettled", name, _one_column(cells), 11).document
-    block = unsettled["columns"][0]
-    for side, this in (("low", "lower"), ("high", "upper")):
-        remark = [line for line in block["remarks"] if f"beyond this column's {this} tail boundary" in line]
-        assert len(remark) == 1 and REMARK_WORDS[taxonomy.TAIL_WITHHELD_UNSETTLED] in remark[0], block["remarks"]
-        assert taxonomy.tail_withheld_because(block["remarks"], side) == taxonomy.TAIL_WITHHELD_UNSETTLED
-    page = summary.render(unsettled, "")
-    assert "one by one" not in page
-    assert _date_lines_say(page) == [taxonomy.TAIL_WITHHELD_UNSETTLED] * 2
+        assert fresh.document["columns"][0][key]["mean_distance"] is not None, "premise: the pair is published"
+    described = kpi_shapes.written_before_p4d375(fresh, ("low", "high"), cause)
+    block = described.document["columns"][0]
+    for side in ("low", "high"):
+        assert taxonomy.tail_withheld_because(block["remarks"], side) == cause, block["remarks"]
+    page = summary.render(described.document, "")
+    assert _date_lines_say(page) == [cause, cause]
+    if cause == taxonomy.TAIL_WITHHELD_UNSETTLED:
+        assert "one by one" not in page
 
 
 def test_a_block_that_says_no_reason_gets_the_whole_rule_and_no_cause() -> None:

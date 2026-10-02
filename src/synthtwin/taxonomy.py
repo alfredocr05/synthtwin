@@ -857,7 +857,9 @@ REMARK_GROUP_COMMAS = "remark_commas_read_as_thousands"
 REMARK_SPREAD_OUT_OF_RANGE = "remark_spread_out_of_range"
 # WHY A TAIL PUBLISHES NEITHER DISTANCE, WHERE THE REASON IS NOT THAT ITS
 # OWN PAIR WOULD GIVE BACK AN OUTER CELL OR HOW MANY OUTER CELLS HOLD ONE
-# VALUE (plan P4-D353, contract 6.7a). A withheld side carries none of
+# VALUE (plan P4-D353, contract 6.7a). Since plan P4-D375 only the
+# UNHOLDABLE pair is written; every form here is still read, so a
+# description written before it still says its reason. A withheld side carries none of
 # these where its own back-solve PINNED it, and one of them otherwise, so
 # the summary and the quality report say the reason that is true of it:
 # the other tail's pair could come back by subtraction beside it, the
@@ -4346,33 +4348,14 @@ TAIL_SETTLED_VALUES = parsing.TAIL_SETTLED_VALUES
 tail_may_list = parsing.tail_may_list
 
 # How many steps the search of `_tail_pinned` may take on one side before
-# it gives up and answers "pinned", which is the answer that publishes
-# less. Measured on the design's shapes, no side needs more than a few
-# hundred.
+# it gives up and answers "pinned", which lists the values of a tail the
+# listing rule admits (plan P4-D375). Measured on the design's shapes, no
+# side needs more than a few hundred.
 TAIL_LATTICE_STEPS = 131072
-
-# ...AND HOW MANY THE QUESTION OF WHAT A PINNED SIDE GIVES BACK MAY TAKE
-# (`_pinned_reach`, plan P4-D357 A). Proving that one multiset fits asks
-# every distance the tail holds, and a tail of the integers 1 to 22 among
-# distances up to 61 needs 183,969 steps to be shown unique and 44 of 45
-# needs 135,537: at the verdict's own budget both read as "the outermost"
-# where every value comes back, which is the direction a page must not
-# err in. Asked only of a side left withheld, once.
-TAIL_REACH_STEPS = 1 << 20
 
 # The largest whole sum `_values_mean_pins` tabulates. Beyond it the mean
 # beside a tail's values is withheld, the answer that publishes less.
 TAIL_MEAN_TABLE_LIMIT = 16777216
-
-# HOW FAR A BOUNDARY MAY MOVE BECAUSE ITS TAIL WITHHOLDS (plan P4-D346,
-# amended by P4-D349). The walk that asked "does one multiset fit the
-# pair?" with a budget of its own is GONE: the question is now asked once,
-# by the producer, in `_tail_pinned`, and `_side_settles` reads the
-# answer off the side it builds. So there is one budget on this road
-# rather than two that could disagree, and a boundary moves only toward
-# a tail that can publish its shape.
-TAIL_WIDEN_MOST = 12
-
 
 def tail_unit(resolution: str, precision: str, all_at_midnight: bool) -> str:
     """The unit a column of dates measures its tails in (contract DT4).
@@ -4511,7 +4494,7 @@ class _Lattice:
     steps: int = 0
     spent: bool = False
     # The budget this search may spend, where it is not the verdict's own
-    # `TAIL_LATTICE_STEPS` (nought): `_pinned_reach` gives its own.
+    # `TAIL_LATTICE_STEPS` (nought).
     budget: int = 0
     dead: "dict[tuple[int, int, int, int, int, int], bool]" = dataclasses.field(
         default_factory=dict
@@ -4839,16 +4822,20 @@ def _held_in(values: "list[int]", wanted: int) -> int:
     return held
 
 
-# THE BACK-SOLVE'S THREE VERDICTS (plan P4-D353). The cost rule offers a
-# withheld pair back in the order of what it discloses, and an unsettled
-# side -- one the walk could not show open inside its budget -- discloses
-# less than one the walk finished and pinned.
+# THE BACK-SOLVE'S THREE VERDICTS. Since plan P4-D375 they decide one
+# thing: whether a tail the listing rule admits lists its values in place
+# of its root-mean-square distance (`_tail_side`). No verdict withholds a
+# pair any more.
 TAIL_OPEN = "open"
 TAIL_PINNED = "pinned"
 TAIL_UNSETTLED = "unsettled"
 
 # WHY A WITHHELD SIDE IS WITHHELD, as the description says it (plan
-# P4-D353), in a remark per side: the other tail's withheld pair, a walk
+# P4-D353). READ, AND ONE OF THEM STILL WRITTEN (plan P4-D375): only a
+# pair binary64 cannot hold is withheld now, and the other five reasons
+# stand so that a description written before that plan still loads and
+# its summary and quality report still say why its side is silent. In a
+# remark per side: the other tail's withheld pair, a walk
 # that could not finish, a pair binary64 cannot hold, and -- where its own
 # pair would give back an outer cell or how many outer cells hold one
 # value -- what that pair gives back (below).
@@ -4936,11 +4923,11 @@ def _tail_pinned(
     distinct: bool,
     least: int = 1,
 ) -> bool:
-    """Whether the published tail would pin what the floor protects (P4-D329).
+    """Whether the published pair would pin what the floor protects (P4-D329).
 
     `_tail_verdict` asked and read as a yes or no: a pinned tail and an
-    unsettled one both answer True, the answer that publishes less. The
-    cost rule of P4-D353 is the one caller that needs the difference.
+    unsettled one both answer True. Asked only of a tail the listing rule
+    admits, where True lists its values (`_tail_side`, plan P4-D375).
 
     Guarantees: as `_tail_verdict`. Determinism: a function of the five.
     Raises nothing. No I/O.
@@ -4955,12 +4942,11 @@ def _tail_verdict(
     distinct: bool,
     least: int = 1,
 ) -> str:
-    """What the back-solve says of a published tail (P4-D329, P4-D353).
+    """What the back-solve says of a published tail (P4-D329, P4-D375).
 
     `TAIL_OPEN` where a witness was found for the top and for every count
     the floor protects; `TAIL_PINNED` where the walk FINISHED without one;
-    `TAIL_UNSETTLED` where it spent `TAIL_LATTICE_STEPS` first. P4-D353's
-    cost rule offers an unsettled side before a pinned one.
+    `TAIL_UNSETTLED` where it spent `TAIL_LATTICE_STEPS` first.
 
     THE BACK-SOLVE A READER CAN RUN, run here first (the skeptic of the
     tail design, blocker B1). A reader gives back the whole sum of the
@@ -4971,9 +4957,9 @@ def _tail_verdict(
     multiset those facts allow gives the outermost distance, held by
     fewer than the floor, the same value -- or gives some distance the
     same count between one and the floor less one. Such a tail publishes
-    which values it holds where the listing rule admits it, and
-    WITHHOLDS BOTH DISTANCES where it does not (`_tail_side`,
-    `_numeric_tails`).
+    which values it holds where the listing rule admits it, and its two
+    distances where it does not (`_tail_side`; plan P4-D375 withdrew
+    P4-D349's withholding of both).
 
     WHAT A READER IS NOT GIVEN is listed at `_Lattice`: the tie this
     search once assumed is gone, because a boundary that may move inward
@@ -4982,8 +4968,8 @@ def _tail_verdict(
     The search looks for WITNESSES: another allowed multiset whose
     largest distance differs, and for each count the floor protects,
     another whose count there differs. Where it cannot find one within
-    `TAIL_LATTICE_STEPS` it answers `TAIL_UNSETTLED`, which publishes as
-    little as `TAIL_PINNED` -- and the listing rule decides what may be
+    `TAIL_LATTICE_STEPS` it answers `TAIL_UNSETTLED`, which `_tail_pinned`
+    reads as `TAIL_PINNED` -- and the listing rule decides what may be
     done with that answer, which is why a spent walk cannot open the
     values road on a column the ruling does not reach (plan P4-D346).
 
@@ -5063,90 +5049,6 @@ def _tail_verdict(
     return TAIL_OPEN
 
 
-def _pinned_reach(
-    distances: "list[int]",
-    floor: int,
-    edge: int,
-    distinct: bool,
-    least: int = 1,
-) -> str:
-    """What a PINNED tail's pair would give back (plan P4-D357 A, review item 5).
-
-    `_tail_verdict` answers PINNED where the facts a reader holds -- the
-    rows, the whole sum of the distances and of their squares, the edge,
-    the least part and whether they are all different -- fix the largest
-    distance while fewer than the floor hold it, OR fix how many rows
-    stand at some distance held by fewer than the floor. That is not
-    always every value, and the page said it was. So, asked again:
-
-    - `TAIL_PINS_EVERY` where no other multiset fits: for each distance
-      the real one holds, no multiset holding it a different number of
-      times exists (a multiset matching every one of those counts is the
-      real one, the sizes being equal);
-    - `TAIL_PINS_END` where that is not shown -- a second multiset found,
-      or the walk spent -- and the largest distance is fixed;
-    - `TAIL_PINS_A_COUNT` otherwise: the largest distance can differ, so
-      what PINNED fixed is a count.
-
-    The search for another multiset has its own budget of
-    `TAIL_REACH_STEPS`, and a spent one claims the less -- "at least the
-    outermost", "at least a count" -- so a sentence never says more than
-    was shown, and never says less than is true either.
-
-    Guarantees: accepts what `_tail_verdict` accepts, for a tail it
-    answered PINNED; returns one of the three. Determinism: a function of
-    the five. Raises nothing. No I/O.
-    """
-    size = len(distances)
-    counts = _tally_of(distances)
-    top = max(distances)
-    total = 0
-    squares = 0
-    for distance in distances:
-        total = total + distance
-        squares = squares + distance * distance
-    lattice = _Lattice(
-        size, total, squares, edge, distinct, least=least, budget=TAIL_REACH_STEPS
-    )
-    every = True
-    for distance in sorted(counts):
-        held = counts[distance]
-        fewer = held - 1
-        more = held + 1
-        while every and (fewer >= 0 or more <= size):
-            other = fewer if fewer >= 0 else more
-            if fewer >= 0:
-                fewer = fewer - 1
-            else:
-                more = more + 1
-            if _lattice_with_count(lattice, distance, other) is not None:
-                every = False
-            elif lattice.spent:
-                every = False
-        if not every:
-            break
-    if every:
-        return TAIL_PINS_EVERY
-    if counts[top] >= floor:
-        return TAIL_PINS_A_COUNT
-    reader = _Lattice(size, total, squares, edge, distinct, least=least)
-    below = top - 1
-    above = top + 1
-    lowest = max(least, -(-total // size))
-    highest = min(edge, _root_of(max(0, squares - (size - 1) * least * least)))
-    while below >= lowest or above <= highest:
-        candidate = below if below >= lowest else above
-        if below >= lowest:
-            below = below - 1
-        else:
-            above = above + 1
-        if _lattice_with_top(reader, candidate) is not None:
-            return TAIL_PINS_A_COUNT
-        if reader.spent:
-            return TAIL_PINS_END
-    return TAIL_PINS_END
-
-
 def _values_mean_pins(
     counts: "dict[int, int]", size: int, total: int, floor: int
 ) -> bool:
@@ -5213,40 +5115,17 @@ def _tail_side(
     grid: int,
     cells: int,
 ) -> "dict[str, object]":
-    """The published object of one tail (contract DT1): `_tail_side_and_verdict`'s side."""
-    return _tail_side_and_verdict(
-        distances, texts, boundary, floor, edge, distinct, grid, cells
-    )[0]
-
-
-def _tail_side_and_verdict(
-    distances: "list[int]",
-    texts: "list[str]",
-    boundary: str,
-    floor: int,
-    edge: int,
-    distinct: bool,
-    grid: int,
-    cells: int,
-) -> "tuple[dict[str, object], str]":
-    """The published object of one tail (contract DT1), and the back-solve's verdict.
-
-    THE VERDICT IS RETURNED BESIDE THE SIDE (plan P4-D353), so a side that
-    publishes neither distance can say whether its own pair PINNED it or
-    the walk spent its budget first (`TAIL_UNSETTLED`); it is `TAIL_OPEN`
-    wherever the side was not asked.
+    """The published object of one tail (contract DT1).
 
     `distances` are the outer cells' whole distances beyond the boundary
     and `texts` the canonical text of each of those cells, in the same
     order, and `grid` and `cells` are the COLUMN's own different
     ordinals and cell count, which `tail_may_list` reads. The mean
-    distance is the whole sum over
-    the cell count and the root-mean-square distance the square root of
-    the whole sum of squares over it, each rounded once to the nearest
-    binary64.
+    distance is the whole sum over the cell count and the root-mean-square
+    distance the square root of the whole sum of squares over it, each
+    rounded once to the nearest binary64.
 
-    THREE ROADS, in order of what each says (plan P4-D342, amended by
-    P4-D349).
+    TWO ROADS (plan P4-D342, amended by P4-D349 and P4-D375).
 
     * A tail may LIST ITS VALUES only where the owner's ruling of
       2026-09-22 reaches it, which is what `tail_may_list` answers for
@@ -5257,27 +5136,19 @@ def _tail_side_and_verdict(
       would pin what the floor protects (`_tail_pinned`) -- with its
       mean beside them unless that would pin a count below the floor
       (`_values_mean_pins`). The ruling is asked FIRST and there is no
-      road around it: P4-D346's second road, which let any tail of two
-      distances name them where the pair settled them, is withdrawn.
-    * Where the pair would pin what the floor protects and the values
-      road is CLOSED, the tail publishes neither: its boundary and its
-      rows, both distances null. That is P4-D349, and it replaces the
-      residual P4-D346 left standing. The pair was published there on
-      the reading that it says less than the list it replaces, and it
-      does -- but on a column whose values are all different and whose
-      outermost cells stand on consecutive grid points it says exactly
-      as much: 240 consecutive days publish eleven rows, a mean of six
-      and a root-mean-square of root-46, eleven DIFFERENT whole
-      distances summing to 66, and 66 is the least eleven different
-      whole distances can sum to, so they are 1 to 11 and every one of
-      the twenty-two outer cells comes back. Where safety cannot be
-      shown the tail says less, never the original pair.
+      road around it.
     * Otherwise it publishes ITS TWO DISTANCES, the shape rather than
-      the values.
+      the values, WHATEVER A READER CAN WORK OUT FROM THEM (plan
+      P4-D375, the owner's principle of 2026-10-01). P4-D349 withheld
+      both where they would pin an outer value or a count below the
+      floor, and the twin paid: at a raised floor a withheld clock or
+      timestamp tail came back at 0 to 0.78 of its real spread beyond
+      the boundary, and validating its twin took about eight times as
+      long. A pair can give back a tail's own outer values; it never
+      names a row or another column.
 
-    Guarantees: returns the five keys of `TAIL_KEYS` and one of the three
-    verdicts. Determinism: a function of the arguments. Raises nothing. No
-    I/O of any kind.
+    Guarantees: returns the five keys of `TAIL_KEYS`. Determinism: a
+    function of the arguments. Raises nothing. No I/O of any kind.
     """
     size = len(distances)
     total = 0
@@ -5317,65 +5188,33 @@ def _tail_side_and_verdict(
         [counts[distance] for distance in sorted(counts)], floor, grid, cells
     )
     few = may_list and len(counts) <= TAIL_FEW_VALUES
-    # THE SECOND ROAD IS WITHDRAWN ON A COLUMN THE RULING DOES NOT REACH
-    # (plan P4-D349, withdrawing that half of P4-D346). It let a tail of
-    # at most `TAIL_SETTLED_VALUES` distances name its values wherever
-    # the pair would settle them, on the reading that the pair names them
-    # anyway so the list says nothing more. TWO THINGS KILLED THAT
-    # READING. It named values ONE CELL HOLDS -- ten cells at `06:58`
-    # beside one at `06:59` published `06:59`, in a description that
-    # withholds the column's own end -- which the owner's bounded-scale
-    # premise does not cover. And its premise is gone: a pinned tail no
-    # longer publishes the pair at all, so the alternative to listing is
-    # not a pair that gives back an outer cell or how many outer cells
-    # hold one value, it is SILENCE, and silence says less than a list
-    # every time.
+    # THE SECOND ROAD STAYS WITHDRAWN ON A COLUMN THE RULING DOES NOT
+    # REACH (plan P4-D349, withdrawing that half of P4-D346). It let a
+    # tail of at most `TAIL_SETTLED_VALUES` distances name its values
+    # wherever the pair would settle them, and it named values ONE CELL
+    # HOLDS -- ten cells at `06:58` beside one at `06:59` published
+    # `06:59`, in a description that publishes neither of the column's
+    # own ends -- which the owner's bounded-scale premise does not cover.
+    # Such a tail publishes its pair (plan P4-D375).
     #
     # What is left is the ruling's own road, asked twice: a tail the
     # ruling reaches and holding few values lists them, and a tail the
     # ruling reaches whose pair would pin what the floor protects lists
     # them too, because there the list is what the ruling already allows
-    # and the pair would otherwise be withheld from a twin that needs it.
-    # It needs `single`: a distance carrying two texts has no one value
-    # to list.
-    #
-    # THE BACK-SOLVE IS ASKED WHATEVER `single` SAYS. A distance carrying
-    # two texts has no one value to LIST, but its pair is read back the
-    # same way, and where it pins the tail it gives back the day an outer
-    # cell stands on or how many outer cells stand on one day; the answer
-    # that publishes less does not depend on the number of spellings a
-    # day wore.
-    verdict = TAIL_OPEN if few else _tail_verdict(distances, floor, edge, distinct)
-    pinned = verdict != TAIL_OPEN
-    if not few and not (single and may_list and pinned):
-        if pinned:
-            # FAIL CLOSED (P4-D349). The values road is shut and the pair
-            # would give back what the floor protects; the tail says how
-            # many rows lie beyond its boundary and nothing else -- and,
-            # where its own walk PINNED it, what the pair would give back
-            # (plan P4-D357 A), which the remark says.
-            if verdict == TAIL_PINNED:
-                verdict = _pinned_reach(distances, floor, edge, distinct)
-            return (
-                {
-                    "boundary": boundary,
-                    "rows": size,
-                    "mean_distance": None,
-                    "rms_distance": None,
-                    "values": None,
-                },
-                verdict,
-            )
-        return (
-            {
-                "boundary": boundary,
-                "rows": size,
-                "mean_distance": _rounded_ratio(total, size),
-                "rms_distance": _rounded_root(squares, size),
-                "values": None,
-            },
-            verdict,
-        )
+    # and says no more than the pair would. It needs `single`: a distance
+    # carrying two texts has no one value to list. The back-solve is
+    # asked only there.
+    listed = few or (
+        may_list and _tail_pinned(distances, floor, edge, distinct)
+    )
+    if not listed:
+        return {
+            "boundary": boundary,
+            "rows": size,
+            "mean_distance": _rounded_ratio(total, size),
+            "rms_distance": _rounded_root(squares, size),
+            "values": None,
+        }
     first: "dict[int, str]" = {}
     for place in range(size):
         distance = distances[place]
@@ -5385,165 +5224,13 @@ def _tail_side_and_verdict(
     mean: "float | None" = _rounded_ratio(total, size)
     if _values_mean_pins(counts, size, total, floor):
         mean = None
-    return (
-        {
-            "boundary": boundary,
-            "rows": size,
-            "mean_distance": mean,
-            "rms_distance": None,
-            "values": values,
-        },
-        verdict,
-    )
-
-
-def _side_settles(
-    ordered: "list[str]",
-    ordinals: "list[int]",
-    rank: int,
-    low_side: bool,
-    floor: int,
-    edges: "tuple[int, int]",
-    distinct: bool,
-    grid: int,
-    count: int,
-) -> int:
-    """Whether this side would WITHHOLD its pair at this rank (P4-D349).
-
-    ONE QUESTION, ASKED OF THE PRODUCER'S OWN ANSWER, and that is the
-    repair. The walk used to ask a question of its own -- "does exactly
-    one multiset fit the pair?" -- with a third answer for a budget it
-    spent, and the caller put the original boundary back on that third
-    answer and on its own widening cap alike. So a column the walk could
-    not finish, and a column settled at every width, published the pair
-    it had just been shown to be settled by: it failed OPEN, which is
-    the defect the review found on 240 consecutive days and 240 unique
-    minutes.
-
-    Now the side is BUILT (`_tail_side`) and the answer read off it: 1
-    where that side publishes neither distance, 0 where it publishes
-    them. `_tail_side` is itself fail-closed -- a spent lattice walk
-    answers "pinned" and withholds -- so widening moves a boundary only
-    toward a tail that can publish its shape, and stopping anywhere at
-    all leaves a tail that publishes less rather than one that publishes
-    its ends.
-
-    0 too wherever the side would LIST its values instead: it has
-    already said which values it holds, and no width changes that.
-    """
-    if low_side:
-        distances = [ordinals[rank] - ordinals[place] for place in range(rank)]
-        texts = [ordered[place] for place in range(rank)]
-        edge = max(1, ordinals[rank] - edges[0])
-    else:
-        distances = [
-            ordinals[place] - ordinals[rank]
-            for place in range(rank + 1, count)
-        ]
-        texts = [ordered[place] for place in range(rank + 1, count)]
-        edge = max(1, edges[1] - ordinals[rank])
-    if not distances:
-        return 0
-    # THE FLOOR HAS TO BE PROTECTING SOMETHING (plan P4-D346). What a
-    # settled tail discloses is a value the floor holds back, so where
-    # every distance already stands under the floor's own number of
-    # cells there is nothing to move a boundary for. At a floor of ONE
-    # that is every tail -- one cell's distance is settled by its own
-    # sums, and the floor holds nothing back at all (contract C5-S13) --
-    # and widening there moved twelve ranks on every column of dates for
-    # no gain: measured, two of the eight realistic shapes' twins then
-    # missed an obligation at a floor of one (`K-2B-40`).
-    held = _tally_of(distances)
-    if all(held[distance] >= floor for distance in held):
-        return 0
-    apart = distinct and len(set(distances)) == len(distances)
-    side = _tail_side(
-        distances,
-        texts,
-        ordered[rank],
-        floor,
-        edge,
-        apart,
-        grid,
-        count,
-    )
-    if side["values"] is not None:
-        return 0
-    return 1 if side["mean_distance"] is None else 0
-
-
-def _unsettled_ranks(
-    ordered: "list[str]",
-    ordinals: "list[int]",
-    floor: int,
-    edges: "tuple[int, int]",
-    distinct: bool,
-    ranks: "tuple[int, int]",
-) -> "tuple[int, int]":
-    """The two boundary ranks, moved in while either side withholds.
-
-    At most `TAIL_WIDEN_MOST` steps, and never past the point where the
-    two boundaries would leave no cell between them (contract DT2). Ties
-    are skipped exactly as `tail_ranks` skips them, so a boundary is
-    always read at the first rank holding its value.
-
-    WHAT STOPPING COSTS, AND WHY IT IS NOW SAFE (P4-D349). This walk is
-    an OPTIMISATION and no longer a guard: it looks for a width whose
-    tail can publish its shape, and every place it can stop -- both
-    sides publishing, the cap reached, no room left between the two
-    boundaries -- leaves a tail that `_tail_side` withholds the pair of
-    where it is still pinned. So the widest boundary it reached is kept
-    only where that bought something, and the original boundary is put
-    back where it did not, which is the cheaper of two safe answers
-    rather than the only unsafe one.
-    """
-    count = len(ordinals)
-    grid = len(set(ordinals))
-    low, high = ranks
-    # AND IT MAY NOT EAT THE COLUMN. Moving a boundary inward withholds
-    # another row from the published ladder, and on a column whose two
-    # tails ALREADY hold as much as the stretch between them there is
-    # nothing left to pay with: a thirty-row column at a floor of eleven
-    # gives twenty-two of its rows to its tails before this is asked.
-    # So a tail widens only while the two of them together stay no
-    # larger than the interior they leave. Measured: every side of the
-    # tail battery that carries the residual is a column of 900 rows,
-    # where eleven rows a side is under two per cent and the room is
-    # there; the small fixtures of the suite are outside it and keep the
-    # boundaries they had.
-    if low + (count - 1 - high) > count - low - (count - 1 - high):
-        return (low, high)
-    for _step in range(TAIL_WIDEN_MOST):
-        answers = (
-            _side_settles(
-                ordered, ordinals, low, True, floor, edges, distinct, grid, count
-            ),
-            _side_settles(
-                ordered, ordinals, high, False, floor, edges, distinct, grid, count
-            ),
-        )
-        if 1 not in answers:
-            return (low, high)
-        next_low = low + 1
-        while next_low < count and ordinals[next_low] == ordinals[next_low - 1]:
-            next_low = next_low + 1
-        next_high = high - 1
-        while next_high >= 0 and ordinals[next_high] == ordinals[next_high + 1]:
-            next_high = next_high - 1
-        if next_low >= count or next_high < 0 or next_low > next_high:
-            break
-        low, high = next_low, next_high
-    # AND A COST THAT BUYS NOTHING IS NOT PAID. On a column whose values
-    # step one unit apart the widest tail is settled too -- any run of
-    # `k` consecutive days is the one multiset `1..k`, whatever `k` is --
-    # so the walk reaches its cap with the tail still settled and the
-    # rows it withheld bought no room at all. The boundaries go back
-    # where the tail rule put them and the tail publishes NEITHER
-    # distance (P4-D349), which is where the old reading published the
-    # pair and handed the column's two ends back. Measured: 240
-    # consecutive days at a floor of eleven widened twelve ranks and was
-    # settled at every one of them.
-    return ranks
+    return {
+        "boundary": boundary,
+        "rows": size,
+        "mean_distance": mean,
+        "rms_distance": None,
+        "values": values,
+    }
 
 
 def ordered_tails(
@@ -5553,28 +5240,23 @@ def ordered_tails(
     edges: "tuple[int, int]",
     distinct: bool,
 ) -> "tuple[dict[str, object] | None, dict[str, object] | None, tuple[int, int] | None]":
-    """Both tails of an ordered column and the two boundary ranks (`ordered_tails_and_verdicts`)."""
-    found = ordered_tails_and_verdicts(ordered, ordinals, floor, edges, distinct)
-    return (found[0], found[1], found[2])
-
-
-def ordered_tails_and_verdicts(
-    ordered: "list[str]",
-    ordinals: "list[int]",
-    floor: int,
-    edges: "tuple[int, int]",
-    distinct: bool,
-) -> "tuple[dict[str, object] | None, dict[str, object] | None, tuple[int, int] | None, dict[str, str]]":
-    """Both tails of an ordered column, the two boundary ranks, and each side's verdict.
-
-    THE VERDICTS (plan P4-D353) are the back-solve's answer for each side
-    as `_tail_side_and_verdict` gives it, `{}` where there are no tails.
+    """Both tails of an ordered column and the two boundary ranks.
 
     `ordered` is the canonical text of every parsed cell in the order the
     column is published in, `ordinals` the same cells in tail units, and
     `edges` the first and last unit the column's own member can write.
     Returns (None, None, None) where the column has no tails
     (`tail_ranks`).
+
+    THE BOUNDARIES STAND WHERE `tail_ranks` PUTS THEM (plan P4-D375). Plan
+    P4-D346 moved a boundary inward, up to `12` ranks, while the tail's
+    pair would settle it, and kept the move only where the wider tail
+    could publish its pair; with no pair withheld there is nothing left to
+    move one for, and the narrower tail is the one the twin is drawn
+    through. Measured: a 105-row column of 21 days with one cell on each
+    end day lost its two end days at 20 of 20 seeds under the narrower
+    tail until the derived end stood at least at the Bhatia-Davis reach of
+    its pair (method G7.3b step 5), and holds all 21 with it.
 
     IS THIS A SMALL FIXED SET OR A FINE GRID? Counted here, once, for
     both tails, because it is a fact about the COLUMN and not about
@@ -5591,25 +5273,9 @@ def ordered_tails_and_verdicts(
     """
     ranks = tail_ranks(ordinals, floor)
     if ranks is None:
-        return (None, None, None, {})
+        return (None, None, None)
     count = len(ordinals)
     grid = len(set(ordinals))
-    # THE BOUNDARY MOVES IN WHILE THE PAIR STILL SETTLES THE TAIL (plan
-    # P4-D346, closing the residual P4-D343 stated). A tail that
-    # publishes its two distances hands a reader the whole sum and the
-    # whole sum of squares, and on an all-different column pressed
-    # against the day's edge those, the edge and the column's own
-    # "every value different" remark leave ONE multiset -- which names
-    # every outermost cell including the column's own end. DT2 asks only
-    # that each `rows` be at least the floor, so a WIDER tail is a legal
-    # tail, and a wider one is not settled: measured on
-    # `clock_all_different` at 900 rows, the low side takes four more
-    # ranks at seed 0 and seven at seed 4 before a second multiset fits.
-    # The cost is the boundary standing further in -- eleven rows
-    # withheld per side become up to eighteen on those columns -- and it
-    # is paid only where the walk PROVES the tail settled inside its
-    # budget; a spent walk moves nothing.
-    ranks = _unsettled_ranks(ordered, ordinals, floor, edges, distinct, ranks)
     low_rank, high_rank = ranks
     low_distances = [
         ordinals[low_rank] - ordinals[rank] for rank in range(low_rank)
@@ -5624,7 +5290,7 @@ def ordered_tails_and_verdicts(
     # spellings of one day, or one day under two offsets, are two values
     # of the column and one distance. The reader's constraint applies only
     # where it is true of the tail itself.
-    low, low_verdict = _tail_side_and_verdict(
+    low = _tail_side(
         low_distances,
         low_texts,
         ordered[low_rank],
@@ -5634,7 +5300,7 @@ def ordered_tails_and_verdicts(
         grid,
         count,
     )
-    high, high_verdict = _tail_side_and_verdict(
+    high = _tail_side(
         high_distances,
         high_texts,
         ordered[high_rank],
@@ -5644,29 +5310,7 @@ def ordered_tails_and_verdicts(
         grid,
         count,
     )
-    return (low, high, ranks, {"low": low_verdict, "high": high_verdict})
-
-
-def _unsettled_tail_remarks(
-    low: object, high: object, verdicts: "dict[str, str]"
-) -> "list[Note]":
-    """The remark of each date or clock side that publishes neither distance, saying why.
-
-    A side publishing neither distance and no values was left UNSETTLED
-    by the back-solve, or PINNED -- and then `_tail_side_and_verdict`
-    says what its pair would give back (plan P4-D357 A): every value, the
-    outermost, or a count. Each is said, so a page says of it only what
-    is true (plan P4-D353). Determinism: a function of the three. No I/O.
-    """
-    said: "list[Note]" = []
-    for side, tail in (("low", low), ("high", high)):
-        if not isinstance(tail, dict) or tail["values"] is not None:
-            continue
-        if tail["mean_distance"] is not None:
-            continue
-        if side in verdicts and (side, verdicts[side]) in TAIL_WITHHELD_REMARKS:
-            said += [note(TAIL_WITHHELD_REMARKS[(side, verdicts[side])])]
-    return said
+    return (low, high, ranks)
 
 
 def tail_edges(
@@ -14038,69 +13682,6 @@ def _tail_parts(
     return (parts, cap, 0)
 
 
-def _numeric_answer(
-    parts: "list[int]",
-    cap: int,
-    least: int,
-    floor: int,
-    distinct: bool,
-) -> str:
-    """Whether a numeric tail's published pair would give back an outer
-    cell or how many outer cells hold one value, in three words:
-    `TAIL_OPEN`, `TAIL_PINNED` or `TAIL_UNSETTLED`.
-
-    THE SAME BACK-SOLVE THE DATE AND CLOCK ROLE RUNS, asked here for the
-    first time (plan P4-D349). Before this pass the numeric role had no
-    pin check on the road it actually takes: `_lattice_pins` asked a
-    narrower question -- is the largest part the only one that fits? --
-    and asked it only to decide whether a tail might LIST its values, so
-    a tail that could not list published its pair whatever the pair gave
-    away. The integers `0..1100` once each publish a high boundary of
-    1089, eleven rows, a mean distance of six and a root-mean-square of
-    root-46, and the same description says every value is different: the
-    eleven distances are then DIFFERENT whole numbers summing to 66, and
-    66 is the least eleven different whole numbers can sum to, so they
-    are 1 to 11 and all eleven withheld values come back exactly. Both
-    ends of that column had the defect.
-
-    `cap` is the largest part the sign counts allow and is turned into
-    the lattice's own edge here: where the counts allow none, the reader
-    still holds one -- no part's square can exceed the whole sum of
-    squares.
-
-    AN UNSETTLED SIDE IS TOLD FROM A PINNED ONE (plan P4-D353): both are
-    withheld, and the cost rule offers an unsettled side back first.
-
-    Guarantees: accepts the whole parts, the sign cap, the smallest part,
-    the floor and whether the column publishes that its values are all
-    different; returns one of the three verdicts. Determinism: a function
-    of the five. Raises nothing. No I/O of any kind.
-    """
-    if not parts:
-        return TAIL_OPEN
-    squares = 0
-    for part in parts:
-        squares = squares + part * part
-    edge = cap if cap >= 0 else _root_of(squares)
-    return _tail_verdict(parts, floor, max(edge, 1), distinct, least=least)
-
-
-def _numeric_reach(
-    parts: "list[int]", cap: int, least: int, floor: int, distinct: bool
-) -> str:
-    """`_pinned_reach` of a numeric tail `_numeric_answer` answered PINNED.
-
-    The same five facts, the sign cap turned into the lattice's edge the
-    way `_numeric_answer` turns it (plan P4-D357 A). Determinism: a
-    function of the five. Raises nothing. No I/O.
-    """
-    squares = 0
-    for part in parts:
-        squares = squares + part * part
-    edge = cap if cap >= 0 else _root_of(squares)
-    return _pinned_reach(parts, floor, max(edge, 1), distinct, least=least)
-
-
 def _listed_tail(
     ordered: "list[float]",
     first: int,
@@ -14135,17 +13716,16 @@ def _listed_tail(
     lists them, which is the owner's ruling being applied. A tail the
     rule admits whose rows, two distances, boundary, grid and sign counts
     solve for its end (`_lattice_pins`) lists them too, because the
-    ruling already allows the list there and the pair it would replace is
-    now withheld from the twin instead (`_numeric_tails`).
+    ruling already allows the list there and it says no more than the
+    pair it replaces.
 
     AND THE SECOND ROAD IS WITHDRAWN ON A COLUMN THE RULE DOES NOT ADMIT
     (P4-D349, withdrawing that half of P4-D346). It was open to any tail
     of at most `TAIL_SETTLED_VALUES` values, and
     `list(range(1089)) + [1089] * 11 + [1100]` took it to publish
     `[1089, 1100]` -- 1100 is the column's own maximum and ONE row holds
-    it -- in a block whose `percentiles.max` is null. Its premise is gone
-    as well: a tail whose pair settles it no longer publishes that pair,
-    so the alternative to listing is silence, and silence says less.
+    it -- in a block whose `percentiles.max` is null. Such a tail
+    publishes its pair instead (plan P4-D375).
 
     The list is the tail's different values in ascending order and
     carries no count; the empty list says the tail is described by its
@@ -14279,19 +13859,16 @@ def _numeric_tails(
 
 
 def _numeric_tails_and_causes(
-    cells: _Cells, details: "dict[str, object]", n_present: "int | None" = None
+    cells: _Cells, details: "dict[str, object]"
 ) -> "tuple[dict[str, object], dict[str, str]]":
     """A numeric block under the tail rule (contract L4, method G5.3b), and why each withheld side is.
 
-    ``n_present`` is the count of present cells the loader reads the
-    block's population keys over, where that is not ``cells``' own
-    (`_Population`); the cost rule hands it to the loader's reading.
-
-    THE REASONS (plan P4-D353), one per side that publishes neither
-    distance and no values: `TAIL_PINNED` or `TAIL_UNSETTLED` where its own
-    back-solve withheld it, `TAIL_WITHHELD_FOR_THE_OTHER` where only the
-    cross-side rule did, `TAIL_WITHHELD_UNHOLDABLE` where binary64 cannot
-    hold the pair. `{}` where no side is withheld.
+    THE ONE REASON LEFT (plan P4-D375): `TAIL_WITHHELD_UNHOLDABLE`, for a
+    side whose pair binary64 cannot hold, which publishes neither distance
+    and closes nothing on the other side. `{}` where no side is withheld.
+    P4-D349's back-solve, P4-D353's cross-side rule and cost rule withheld
+    pairs too; they are gone, and every other side publishes its pair or
+    lists its values.
 
     THE BLOCK POPULATION FLOOR FIRST. With `units = tail_units(floor)`
     and `n` the values the statistics used:
@@ -14393,29 +13970,8 @@ def _numeric_tails_and_causes(
     distinct_numbers = len(set(ordered))
     no_negative = cells.n_negative == 0
     no_positive = len([v for v in ordered if v > 0.0]) == 0
-    # EVERY VALUE DIFFERENT IS A SENTENCE OF THE DESCRIPTION, so it is a
-    # fact the back-solve may use: where the column publishes it, the
-    # distances of each tail are different too (plan P4-D349).
-    #
-    # READ STRICTLY, AND THE RESIDUAL IS STATED. The question asked here
-    # is whether EVERY value differs, which is what makes each distance
-    # differ. A reader also holds `n_distinct_values` exactly, so on a
-    # column of 1,101 rows and 1,100 different values they know at most
-    # one row repeats -- a constraint weaker than distinctness and
-    # stronger than none, and this search models it as none. Closing that
-    # means a lattice that counts repeats rather than forbidding them,
-    # which is a landing and not a clause; it is written down in plan
-    # P4-D349 rather than left to be found. The date and clock role reads
-    # the same strict question through its own `distinct` argument.
-    all_apart = distinct_numbers == count
     floor = cells.settings.small_cell_floor
     sides: "dict[str, object]" = {}
-    # THE PAIRS THE BACK-SOLVE WITHHOLDS, kept for the cost rule of plan
-    # P4-D353 and never published unless that rule publishes them.
-    withheld_pairs: "dict[str, tuple[float, float, str]]" = {}
-    # ...and the parts of each side it PINNED, so the reason said of a side
-    # that stays withheld is what its pair would give back (P4-D357 A).
-    pinned_parts: "dict[str, tuple[list[int], int, int]]" = {}
     unholdable: "list[str]" = []
     for side, first, last, side_percent, distances in (
         ("low", low_first, low_last, percent, low),
@@ -14451,35 +14007,13 @@ def _numeric_tails_and_causes(
             listed = []
             unholdable += [side]
         else:
+            # EVERY OTHER SIDE PUBLISHES ITS PAIR (plan P4-D375), whatever
+            # a reader can work out from it: P4-D349 withheld it where the
+            # back-solve settled an outer value or a count below the floor,
+            # and P4-D353 offered it back only where withholding cost the
+            # twin its mean or spread.
             mean = distances[0]
             root = distances[1]
-        # FAIL CLOSED WHERE THE PAIR WOULD GIVE BACK AN OUTER CELL OR HOW
-        # MANY OUTER CELLS HOLD ONE VALUE (P4-D349). A LISTED tail is not
-        # asked: it has already said which values it holds, under a rule
-        # that says nobody's own value is among them, and its pair adds
-        # nothing about them. Anything else that the
-        # back-solve settles publishes its boundary and its rows alone.
-        # A TAIL WITH NO PAIR IS NOT ASKED EITHER: there is nothing left
-        # to withhold, and the back-solve is the most expensive question
-        # this block asks.
-        # THE BACK-SOLVE'S VERDICT IS KEPT (plan P4-D353): a side it
-        # withholds is offered back by the cost rule where withholding it
-        # costs the twin its mean or spread, an unsettled side first.
-        if (
-            mean is not None
-            and root is not None
-            and not listed
-            and parts is not None
-        ):
-            answer = _numeric_answer(
-                parts[0], parts[1], parts[2], floor, all_apart
-            )
-            if answer != TAIL_OPEN:
-                withheld_pairs[side] = (mean, root, answer)
-                if answer == TAIL_PINNED:
-                    pinned_parts[side] = parts
-                mean = None
-                root = None
         sides[side] = {
             "percent": side_percent,
             "rows": last - first + 1,
@@ -14500,286 +14034,15 @@ def _numeric_tails_and_causes(
     shaped["empty_edges"] = edges
     shaped["bin_groups"] = groups
     shaped["tails"] = sides
-    # ...AND A SIDE BINARY64 CANNOT HOLD CLOSES THE OTHER'S PAIR TOO
-    # (plan P4-D357 A, review item 4). The cross-side rule is about what
-    # the other side's pair gives back beside the exact mean and spread,
-    # and that does not depend on why this side publishes none: 11 cells
-    # near `-1.7e304` beside 89 near `1.68e308` published the high pair
-    # although it kept neither moment.
-    if withheld_pairs or unholdable:
-        shaped = _pairs_that_cost(
-            cells, shaped, withheld_pairs, n_present, tuple(unholdable)
-        )
-    # WHY EACH SIDE LEFT WITHOUT A PAIR IS WITHOUT ONE, read off the block
-    # that is published: a side the cost rule gave its pair back has none.
+    # ...AND A SIDE BINARY64 CANNOT HOLD CLOSES NOTHING ELSE (plan P4-D375,
+    # withdrawing P4-D357 A's item 4): 11 cells near `-1.7e308` beside 89
+    # near `1.68e308` publish the high pair, and their twin misses nothing
+    # where withholding it cost the count of different values at every
+    # seed.
     causes: "dict[str, str]" = {}
-    published = shaped["tails"]
-    for side in ("low", "high"):
-        one = published[side] if isinstance(published, dict) else None
-        if not isinstance(one, dict) or one["values"] or one["mean_distance"] is not None:
-            continue
-        if side in unholdable:
-            causes[side] = TAIL_WITHHELD_UNHOLDABLE
-        elif side in pinned_parts:
-            held = pinned_parts[side]
-            causes[side] = _numeric_reach(
-                held[0], held[1], held[2], floor, all_apart
-            )
-        elif side in withheld_pairs:
-            causes[side] = withheld_pairs[side][2]
-        else:
-            causes[side] = TAIL_WITHHELD_FOR_THE_OTHER
+    for side in unholdable:
+        causes[side] = TAIL_WITHHELD_UNHOLDABLE
     return (shaped, causes)
-
-
-# P4-D353: the disclosure order in which the cost rule offers withheld
-# pairs back. An UNSETTLED side (the walk spent its budget) is offered
-# before a PINNED one (the walk finished and settled what the floor
-# protects), and the low side before the high where both say the same.
-_OFFER_RANK = {TAIL_UNSETTLED: 0, TAIL_PINNED: 1}
-
-
-def _tails_with(
-    shaped: "dict[str, object]",
-    offers: "dict[str, tuple[float, float]]",
-    publish: "tuple[str, ...]",
-) -> "dict[str, object]":
-    """The block with each offered side's pair published or withheld.
-
-    Guarantees: accepts a shaped numeric block, the pairs on offer and the
-    sides to publish; returns a new block -- the given one untouched -- in
-    which each offered side named in `publish` carries its pair and every
-    other offered side neither distance. Determinism: a function of the
-    three. Raises nothing. No I/O of any kind.
-    """
-    tails: "dict[str, object]" = {}
-    given = shaped["tails"]
-    if isinstance(given, dict):
-        tails = dict(given)
-    for side in sorted(offers):
-        one: "dict[str, object]" = {}
-        was = tails[side]
-        if isinstance(was, dict):
-            one = dict(was)
-        if side in publish:
-            one["mean_distance"] = offers[side][0]
-            one["rms_distance"] = offers[side][1]
-        else:
-            one["mean_distance"] = None
-            one["rms_distance"] = None
-        tails[side] = one
-    trial = dict(shaped)
-    trial["tails"] = tails
-    return trial
-
-
-# THE COST RULE'S ANSWERS, REMEMBERED BY EVERYTHING THEY READ (plan
-# P4-D353). `_read_the_column` describes a column up to four times under
-# different readings, and each asks the same windows of the same would-be
-# blocks: on 20,000 all-different readings with both tails withheld that
-# was sixteen window evaluations where four answer. The key is the WHOLE
-# would-be block, the cells' four counts and the five settings the loader
-# reads it under, so a remembered answer is the answer the question would
-# give; the store is emptied whenever it holds `_MISSED_HELD` answers.
-_MOMENTS_MISSED: "dict[tuple[object, ...], int]" = {}
-_MISSED_HELD = 64
-
-
-def _frozen(value: object) -> object:
-    """A published value as a key that tells apart what JSON tells apart.
-
-    A mapping becomes its sorted `(key, value)` pairs and a list its
-    items, each frozen the same way; every other value becomes its own
-    `repr`, which tells `True` from `1`, `1` from `1.0` and `'1'`, and
-    `0.0` from `-0.0`, and names exactly one binary64 for a number with
-    a point -- the shortest round-trip text. No reader of numbers is
-    named here: the keys of a published mapping are read as the text
-    they are (review item P3-V8-F5).
-    """
-    if isinstance(value, dict):
-        pairs: "list[tuple[object, object]]" = []
-        for key in sorted(value):
-            pairs += [(key, _frozen(value[key]))]
-        return ("d", tuple(pairs))
-    if isinstance(value, (list, tuple)):
-        items: "list[object]" = []
-        for one in value:
-            items += [_frozen(one)]
-        return ("l", tuple(items))
-    return repr(value)
-
-
-def _moments_missed(
-    cells: _Cells, block: "dict[str, object]", n_present: "int | None" = None
-) -> int:
-    """How many of the mean and the spread this description's own G12.3
-    windows miss: 0, 1 or 2.
-
-    THE PREDICATE OF PLAN P4-D353, asked per moment. A withheld side is
-    read as `rows` consecutive grid steps beyond its boundary
-    (`contract._withheld_end`, method G5.3b), and the validator draws the
-    windows of `moments.mean` and `moments.std` from that same reading
-    (method G12.3), so they are centred on what the construction can
-    reach and not on the published value. Where a window REACHES its
-    published value no twin the construction can build misses that
-    moment; where it does not, a twin must stand within half the window's
-    width of the value (validation V6.1-A2), and a twin near the middle
-    of its window never does. So the question is asked of the
-    description, never of a draw.
-
-    The window is the checker's own writing (`moment_windows`, which
-    `validation` reads) over the loader's own reading of the block
-    (`contract.numeric_block_facts`) under the cells' four counts and the
-    five settings, so the producer and the checker cannot disagree.
-    ``n_present`` is the loader's count of present cells where a nested
-    block's population keys are read over more than ``cells`` hold
-    (`_Population`, plan P4-D357 A).
-
-    Guarantees: accepts the column's cells, one would-be numeric block
-    and optionally the present count; returns 0, 1 or 2. Determinism: a function of the block, the
-    four counts and the five settings, remembered by all of them. Raises
-    ProfileError where the loader would refuse the block. No I/O.
-    """
-    settings = cells.settings
-    present = len(cells.present) if n_present is None else n_present
-    key = (
-        _frozen(block),
-        present,
-        len(cells.numbers),
-        cells.n_out_of_range,
-        cells.n_contradictory,
-        settings.small_cell_floor,
-        settings.minimum_parse_rate,
-        settings.categorical_share,
-        settings.categorical_ceiling,
-        settings.categorical_floor,
-    )
-    if key in _MOMENTS_MISSED:
-        return _MOMENTS_MISSED[key]
-    # THE COUNTS THE LOADER HOLDS THE BLOCK TO ARE THE CELLS' OWN.
-    facts = contract.numeric_block_facts(
-        block,
-        settings.small_cell_floor,
-        settings.minimum_parse_rate,
-        settings.categorical_share,
-        settings.categorical_ceiling,
-        settings.categorical_floor,
-        present,
-        len(cells.numbers),
-        cells.n_out_of_range,
-        cells.n_contradictory,
-    )
-    drawn = moment_windows(facts, settings.small_cell_floor)
-    missed = 0
-    for name in ("mean", "std"):
-        if name not in drawn:
-            continue
-        window = drawn[name]
-        value = block[name]
-        if not isinstance(value, float):
-            continue
-        if not window[0] <= value <= window[1]:
-            missed = missed + 1
-    if len(_MOMENTS_MISSED) >= _MISSED_HELD:
-        for old in list(_MOMENTS_MISSED):
-            del _MOMENTS_MISSED[old]
-    _MOMENTS_MISSED[key] = missed
-    return missed
-
-
-def _pairs_that_cost(
-    cells: _Cells,
-    shaped: "dict[str, object]",
-    held: "dict[str, tuple[float, float, str]]",
-    n_present: "int | None" = None,
-    unholdable: "tuple[str, ...]" = (),
-) -> "dict[str, object]":
-    """THE CROSS-SIDE RULE AND THE COST RULE (plan P4-D353).
-
-    ``held`` names each side the back-solve withheld, with its real pair
-    and whether the walk PINNED it or left it UNSETTLED; ``unholdable``
-    names each side whose pair binary64 cannot hold, which publishes none
-    and is never offered. In order:
-
-    1. where ONE side is withheld -- by its back-solve or because its pair
-       cannot be held, whichever (plan P4-D357 A) -- and the other
-       publishes a pair (not a list), the other's pair is withheld too -- the column's exact mean
-       and spread would give the withheld side back by subtraction from
-       it wherever the rungs pin the rows between the two boundaries. A
-       side that LISTS its values keeps its pair: TL5 requires a list to
-       publish both distances, and a one-value list pins its tail by
-       itself, so withholding them would close nothing. Beside such a
-       list the subtraction still gives the withheld side back (ledger
-       entry `K-S3-23`);
-    2. the description that leaves is published where its windows
-       contain both moments. Where they do not, candidates are offered in
-       the order of what they disclose: the other side's own pair; then,
-       where the back-solve withheld two sides, each alone -- an
-       unsettled side before a pinned one, the low before the high where
-       both say the same -- then both; where it withheld one, that side
-       WITH the other's pair, because part 1 withholds that pair for
-       no reason but to protect it. The first candidate whose windows
-       contain both moments is published; where none does, the first
-       that keeps the MOST of them, and where none keeps either,
-       nothing more.
-
-    Every candidate is asked of the block AS PUBLISHED: ``shaped``
-    already carries its final population keys and ``n_present`` is the
-    loader's count where it is not the cells' own (plan P4-D357 A).
-
-    Guarantees: accepts the block's cells, the shaped block, the held
-    pairs and the loader's present count; returns the block to publish.
-    Determinism: a function of the four. Raises nothing the loader would
-    not raise on the same block.
-    """
-    withheld = [side for side in ("low", "high") if side in held]
-    closed = [
-        side for side in ("low", "high") if side in held or side in unholdable
-    ]
-    offers: "dict[str, tuple[float, float]]" = {}
-    for side in withheld:
-        offers[side] = (held[side][0], held[side][1])
-    other: "list[str]" = []
-    given = shaped["tails"]
-    if len(closed) == 1 and isinstance(given, dict):
-        name = "high" if closed[0] == "low" else "low"
-        one = given[name]
-        if isinstance(one, dict) and not one["values"]:
-            mean = one["mean_distance"]
-            root = one["rms_distance"]
-            if isinstance(mean, float) and isinstance(root, float):
-                other = [name]
-                offers[name] = (mean, root)
-    # An unsettled side before a pinned one, the low before the high where
-    # both say the same. No sort key: the offline audit admits no function
-    # handed to a callee outside the scanned tree.
-    ordered = list(withheld)
-    if len(ordered) == 2 and (
-        _OFFER_RANK[held["high"][2]] < _OFFER_RANK[held["low"][2]]
-    ):
-        ordered = ["high", "low"]
-    candidates: "list[tuple[str, ...]]" = [()]
-    if other:
-        candidates += [tuple(other)]
-    if len(ordered) == 2:
-        candidates += [(ordered[0],), (ordered[1],), (ordered[0], ordered[1])]
-    elif ordered:
-        candidates += [tuple(ordered + other)]
-    best = _tails_with(shaped, offers, ())
-    fewest = 3
-    for publish in candidates:
-        trial = _tails_with(shaped, offers, publish)
-        missed = _moments_missed(cells, trial, n_present)
-        if missed == 0:
-            return trial
-        # A LATER CANDIDATE IS TAKEN ONLY WHERE IT KEEPS MORE: the owner's
-        # ruling 4 publishes where withholding would make the twin miss
-        # its mean OR its spread, so a pair that keeps one of the two is
-        # published although no pair keeps both.
-        if missed < fewest:
-            best = trial
-            fewest = missed
-    return best
 
 
 @dataclasses.dataclass(frozen=True)
@@ -14790,14 +14053,9 @@ class _Population:
     tally of CORES -- an affixed column wearing one wrapper -- publishes
     `n_left_out_of_statistics` and `numeric_share` over the column's
     present CELLS, stragglers of ordinary text included, because that
-    is what the two keys mean. Those keys were set after the tail rule
-    had run, so the cost rule of P4-D353 asked the windows of a block
-    the loader never reads: on `1 mg` to `99 mg`, `210 mg` and one text
-    cell at a floor of eleven it published the high tail's pair where
-    the final block, both pairs withheld, keeps both moments. Handed to
-    `_numeric_details_and_causes`, this sets the two keys BEFORE the
-    tail rule, and the cost rule asks the loader's reading of exactly
-    the block that is published.
+    is what the two keys mean. Handed to `_numeric_details_and_causes`,
+    this sets the two keys over those cells, so the block published is
+    the block the loader reads.
 
     `n_present` is how many present cells the keys are read over and
     `n_looking` how many of them were written as a number.
@@ -14820,9 +14078,7 @@ def _numeric_details_and_causes(
     """The published description of a numeric column, and why each withheld tail side is (`_numeric_tails_and_causes`).
 
     Where ``population`` is given, the block's two cell-population keys
-    are read over it rather than over ``cells`` (`_Population`), before
-    the tail rule runs, so the block the cost rule asks is the block
-    published.
+    are read over it rather than over ``cells`` (`_Population`).
     """
     numbers = cells.numbers
     n_present = len(cells.present)
@@ -14974,7 +14230,7 @@ def _numeric_details_and_causes(
     # AND UNDER THE TAIL RULE (stage 3, plan P4-D344): the outer rows on
     # each side are described by their shape, and the rungs that would
     # read them are withheld.
-    return _numeric_tails_and_causes(cells, details, n_present)
+    return _numeric_tails_and_causes(cells, details)
 
 
 def _offset_counts(
@@ -15619,15 +14875,12 @@ def _datetime_details(
     unparsed: int,
     settings: Settings,
     distinct: bool = False,
-    remarks: "list[Note] | None" = None,
 ) -> dict[str, object]:
     """The published description of a datetime column.
 
     `distinct` says whether every present cell of the column differs
     from every other, which the universal counts publish, so the tail's
-    back-solve can hold a reader to it (`_tail_pinned`). Where `remarks`
-    is given, the remark of each side withheld UNSETTLED is added to it
-    (`_unsettled_tail_remarks`).
+    back-solve can hold a reader to it (`_tail_pinned`).
     """
     # Order by the INSTANT each value names, not by its local text. Two
     # values written in different offsets sorted the wrong way round
@@ -15688,15 +14941,13 @@ def _datetime_details(
     ordinals = [
         tail_ordinal(moment, unit, reading) for moment in canonical_order
     ]
-    low_tail, high_tail, ranks, verdicts = ordered_tails_and_verdicts(
+    low_tail, high_tail, ranks = ordered_tails(
         canonical_order,
         ordinals,
         settings.small_cell_floor,
         tail_edges(format_name, unit, reading, offsets),
         distinct,
     )
-    if remarks is not None:
-        remarks += _unsettled_tail_remarks(low_tail, high_tail, verdicts)
     return {
         "format": format_name,
         "resolution_mix": _resolution_mix(format_name, sources),
@@ -17615,14 +16866,13 @@ def _clock_verdict(
     for value in ordered:
         found = parsing.clock_ordinal(value, clock.form)
         ordinals += [0 if found is None else found]
-    low_tail, high_tail, ranks, verdicts = ordered_tails_and_verdicts(
+    low_tail, high_tail, ranks = ordered_tails(
         ordered,
         ordinals,
         cells.settings.small_cell_floor,
         (0, parsing.CLOCK_CAPACITY[clock.form] - 1),
         cells.raw_distinct == len(cells.present),
     )
-    remarks += _unsettled_tail_remarks(low_tail, high_tail, verdicts)
     details: "dict[str, object]" = {
         "clock_form": clock.form,
         "low_tail": low_tail,
@@ -18851,9 +18101,8 @@ def _affixed_verdict(
         # them over the cores would leave a straggler in NEITHER count
         # and make both answer for a narrower population than their own
         # published meaning.
-        # ...AND THEY ARE SET BEFORE THE TAIL RULE, NOT AFTER IT (plan
-        # P4-D357 A): the cost rule asks the windows of the block the
-        # loader reads, and those are drawn over these two keys.
+        # ...AND THEY ARE SET WITH THE BLOCK (plan P4-D357 A), so the
+        # block published is the block the loader reads.
         details = _numeric_details(
             core_cells, whole_everywhere, _Population(n_present, core_looking)
         )
@@ -19491,7 +18740,6 @@ def _decide(
                 unparsed,
                 settings,
                 cells.raw_distinct == len(cells.present),
-                remarks,
             )
             if numeric_looking >= strict_needed:
                 # BOTH COUNTS, AND THEY ARE ALREADY COMPUTED HERE
@@ -20900,11 +20148,9 @@ def _numeric_verdict(
     # (review item P1-R6-F3).
     if details["std_unrepresentable"]:
         remarks += [note(REMARK_SPREAD_OUT_OF_RANGE)]
-    # ...AND EVERY WITHHELD SIDE SAYS WHY (plan P4-D353, P4-D357 A): the
-    # summary and the quality report read it, so a page says what a side's
-    # own pair gives back only where that pair pinned it, and never says of
-    # another that its two distances would give back an outer cell or how
-    # many outer cells hold one value.
+    # ...AND A WITHHELD SIDE SAYS WHY (plan P4-D353): the summary and the
+    # quality report read it. Since plan P4-D375 the one side withheld is
+    # one whose pair binary64 cannot hold.
     for side in ("low", "high"):
         if side in causes and (side, causes[side]) in TAIL_WITHHELD_REMARKS:
             remarks += [note(TAIL_WITHHELD_REMARKS[(side, causes[side])])]
@@ -22354,11 +21600,9 @@ def _spellings_of(missing: "list[tuple[str, str]]") -> "tuple[str, ...]":
 # -- the G12.3 windows, written once (plan P4-D353) ---------------------
 #
 # The windows method G12.3 draws around a description's mean, spread and
-# skew. `validation` checks a file against them and the cost rule of plan
-# P4-D353 asks them of a description before it is published, so they are
-# written here, where `average_of` and `spread_of` already are, and
-# `validation` reads these names. Moved from `validation` with their
-# bodies unchanged.
+# skew. `validation` checks a file against them; they are written here,
+# where `average_of` and `spread_of` already are, and `validation` reads
+# these names. Moved from `validation` with their bodies unchanged.
 
 
 # ONE UNIT IN THE LAST PLACE, AWAY FROM ZERO (review item P4-G6-R6-F1).
@@ -23019,24 +22263,3 @@ def window_population_deviation(values: "list[float]", count: int) -> float:
         return float("inf")
     return spread * math.sqrt((count - 1) / count)
 
-
-def moment_windows(
-    facts: contract.NumericFacts, floor: int
-) -> "dict[str, tuple[float, float]]":
-    """The G12.3 windows of a description's mean and spread (P4-D353).
-
-    The two of `windows_of`'s three the cost rule asks, drawn by the one
-    writing `validation` checks a file against, so a pair is published
-    exactly where the checker's own window would otherwise miss.
-
-    Guarantees: accepts one block's numeric facts and the floor; returns
-    `mean` and `std` where the ladder draws them, and nothing where it
-    is null at every rung. Determinism: a function of the two. Raises
-    nothing. No I/O of any kind.
-    """
-    drawn = windows_of(None, facts, floor)
-    found: "dict[str, tuple[float, float]]" = {}
-    for name in ("mean", "std"):
-        if name in drawn:
-            found[name] = drawn[name]
-    return found

@@ -1870,7 +1870,10 @@ by the `max` pin.
 ### G5.3b The tail reading (stage 3, plans P4-D344, P4-D322)
 
 **A TAIL THAT PUBLISHES NEITHER DISTANCE IS READ FIRST, AND IT IS NOT
-READ THROUGH A SHAPE** (plan P4-D349, contract TL5 and DT1). There is no
+READ THROUGH A SHAPE** (plan P4-D349, contract TL5 and DT1). Since plan
+P4-D375 a producer writes such a tail only where binary64 cannot hold
+its pair; a description written before that plan carries more of them,
+and every one is read this way. There is no
 `d1` and no `rms` to fit `a(s)` to, so the side's rows stand on even
 shares of the room between its boundary rung and its end, snapped to the
 grid of step 4, one grid point apart at the least, and a row landing
@@ -1883,14 +1886,11 @@ against it and neither ships: the ends of the uniform stretch with the
 column's own two published moments, and Cauchy-Schwarz's bound on the
 mean of `m` of `K` cells. Plan P4-D349 records what each does, on which
 shape, and what none of the three can do -- average to a mean a single
-withheld cell carries. SINCE PLAN P4-D353 NO DESCRIPTION WITHHOLDS A PAIR
-WHOSE PUBLICATION WOULD KEEP MORE OF THE COLUMN'S MEAN AND SPREAD: the
-producer draws this reading's G12.3 windows before it withholds a pair,
-and publishes the pair wherever the window of the column's mean or
-spread would otherwise not contain the published value and the pair
-brings more of them inside (`K-S3-15`). Where no pair would keep
-either, nothing more is published, and the twin's miss is held at
-`K-S3-22`.
+withheld cell carries. Plan P4-D353 published a withheld pair wherever
+this reading's G12.3 windows would otherwise leave the column's mean or
+spread short, and plan P4-D375 publishes every pair binary64 holds
+(`K-S3-15`). Where no published pair keeps a moment, the twin's miss is
+held at `K-S3-22`.
 
 For one side that publishes its pair -- boundary percent `P`, boundary
 rung `b` (the published rung at `P`), rows `m`, mean distance `d1` and
@@ -2200,8 +2200,8 @@ boundary rung itself where that percent falls between the two tails.
    41, each published only as the block's mode, and a half holding
    `-999` in 46 and a position holding `9999` in 46, published only as
    p41 to p43 and p86 to p88. The derived end and the staircase rows are the
-   reader's ladder (G5.1a), which the checker's windows and the
-   producer's cost rule read from the numeric block alone, so they keep
+   reader's ladder (G5.1a), which the checker's windows read from the
+   numeric block alone, so they keep
    only a stand-in the block itself publishes as held -- its mode, a
    tail block's end, two adjacent equal rungs, never a decision -- and
    step off the rest: a count column holding `9999` in 12 rows, its
@@ -6069,6 +6069,20 @@ unit by DT3.
      (measured: `heap` seed 7, boundary 2022-03-17 against 2022-03-15
      and `rows` 40 against 39);
    - every other rank `i` takes `k * a(s)` at its own `s`.
+
+   **Rank `0` is then at least the BHATIA-DAVIS REACH of the pair**
+   (plan P4-D375). Where `d1 > 1`, with `b = ((rho * rho) - d1) /
+   (d1 - 1.0)` in that order, rank 0's distance is raised to
+   `ceil(b - ((1.0 + b) * 2**-24))` where that is larger, never past
+   `edge`. Every distance of a real tail is a whole unit of at least one,
+   so `(d - 1) * (D - d) >= 0` for each one `d` and the furthest `D`;
+   summed over the tail that says `D >= (S - T) / (T - m)`, which is `b`,
+   and the margin covers the rounding of the two published numbers on
+   any tail under a hundred million rows. Measured: a 105-row column of
+   21 days with one cell on each end day has tails of `{1 x 11, 2 x 7,
+   3 x 1}`, whose shape put the end at 2, so the end days were never
+   written and both distinct counts were MISSED at 20 of 20 seeds; at
+   the reach the end is 3 and the twin holds all 21.
 
    Then each distance is raised to at least the distance of the rank
    inside it, from the innermost outward, so the tail never folds; a
@@ -12343,7 +12357,11 @@ rms_distance'  in [ sqrt((1/m) sum near_i**2) , sqrt((1/m) sum far_i**2) ]
 
 summed with `fsum`. It is a statement about the construction, never a
 tolerance; HELD where the file's number equals the published one
-(V6.1-A1). The file's tail is read AT THE PUBLISHED PERCENT: a file of the
+(V6.1-A1). Since plan P4-D375 every side of a description publishes its
+pair but one binary64 cannot hold, so every such side is compared; a
+side publishing neither distance -- binary64's, or one a description
+written before that plan withheld -- is LISTED, with the reason its
+remark gives. The file's tail is read AT THE PUBLISHED PERCENT: a file of the
 published count has its tail there, and one whose own tail stands
 elsewhere has its distances withheld rather than compared at another
 percent. Its power is limited exactly as G12.2's and G12.3's are at a
@@ -13068,7 +13086,7 @@ that happens -- and the clause beside it, `--missing-value`'s "CAN be
 published as the column's smallest value", is exactly right under the
 new rule.
 
-**All one hundred and forty-five are required.** The count is taken off the committed
+**All one hundred and forty-eight are required.** The count is taken off the committed
 case sets and not carried forward: this sentence said fifty-two and a
 split of nine, twenty, sixteen and seven while the six files held
 seventy-three, because each repair that added a case added a clause to
@@ -13096,7 +13114,8 @@ the THIRTEENTH, `tests/reference/generation-branch-vectors-11.json`,
 holds three; the FOURTEENTH,
 `tests/reference/generation-branch-vectors-12.json`, holds four; and the
 FIFTEENTH, `tests/reference/generation-branch-vectors-13.json`, holds
-thirteen (G14.2),
+thirteen; and the SIXTEENTH,
+`tests/reference/generation-branch-vectors-14.json`, holds three (G14.2),
 and a test holds this sentence to those files. The tenth grew by the
 two cases the GOVERNANCE PASS of stage 3's review added and the
 eleventh by the two the dates pass added; each number here is read off
@@ -13236,6 +13255,9 @@ case passed, which is the failure the count exists to prevent:
 | `stuck_day_counted` | G7.3 (plan P4-D358; the second review of landing 3b.0): 116 ISO dates over 41 days from 2019-11-08, 11 of them written 2019-11-11 and declared absent, at seed 0. A low-tail rank whose stratum is 2019-11-11 alone stands there and is written absent, so the count passes reach the published 22 days with that day added. Its mutant counts the day among the 22: the passes leave the cells a day short, G7.3b step 9 gives one back, and seven cells move |
 | `stuck_day_owed` | G7.3b step 9 (plan P4-D358; the second review of landing 3b.0): 113 ISO dates over 32 days from 2019-01-23, 11 of them written 2019-02-21 and declared absent, at seed 0. High-tail ranks whose stratum is 2019-02-21 alone stand there and are written absent; the count pass leaves the column short, and the tie group gives way for the shortfall with that day added, so the twin holds the published 31 present days. Its mutant owes the count without the day, and the twin holds 30 |
 | `tail_end_off_the_hole` | G7.3b step 7 (plan P4-D358): 121 ISO dates over 35 days from 2017-10-28, 20 of them written 2017-11-30 and declared absent, at seed 0. The high tail's end, its outermost rank, falls on 2017-11-30 and steps one day inward off it; its tie group stands a day past the boundary and never on the hole. Its mutant withdraws step 7, and the end's cell is written with the absent spelling: 21 cells read back absent where the column holds 20. Before this case the oracle held no part of step 7 |
+| `tail_end_least_reach` | G7.3b step 5's end floor (plan P4-D375): 105 ISO dates over the 21 days from 2024-05-06, one cell on each end day, at seed 416. Each tail holds nineteen rows at one, two and three days out, a mean of 28/19 and a root-mean-square of the square root of 48/19; the shape puts each end two days out, and the Bhatia-Davis reach of the pair, 20/9 rounded up, puts it three out, on the column's own first and last days. Its mutant withdraws the floor: both ends stand two days out and the twin writes neither end day |
+| `tail_end_least_reach_months` | G7.3b step 5's end floor counted in months (plan P4-D375): the same counts over the 21 months from 2019-03, written `yyyy-mm`, at seed 417, the tail unit a month. Its mutant withdraws the floor and both ends stand two months out |
+| `tail_end_least_reach_slack` | G7.3b step 5's slack (plan P4-D375; the repair round of its landing): 79 ISO dates over the 21 days from 2024-05-06, one cell on each end day and none on the two days inside it, at seed 418. Each tail holds ten rows one day out and one four days out, a mean of 14/11 and a root-mean-square of the square root of 26/11, so the reach of the pair is exactly 4 and binary64 takes it, in the step's order, as 4.000000000000001; lowered by `2**-24` of itself plus one before it is rounded up, it puts each end four days out, on the column's own first and last days, where the shape alone puts it three out. Its mutant rounds the reach up with no slack: both ends stand five days out, a day past the column's real range. Before this case no frozen case held the slack up: the two above have a reach of 20/9, which rounds up to three with or without it |
 | `tie_group_off_the_hole` | G7.3b step 7 for a tie group (plan P4-D358; the second review of landing 3b.0): 111 ISO dates over 40 days from 2020-02-09, 11 of them written 2020-03-10 and declared absent, at seed 0. The high tail's tie group of five ranks stands five days past its boundary, on 2020-03-10, and steps one day inward off it. Its mutant steps the tail's end and leaves the group there: its five cells are written with the absent spelling, 16 read back absent where the column holds 11 |
 | `weekday_count_put_back` | G7.3f step 8.1 (plan P4-D355): 120 whole dates over four weeks with no weekend, published `[Mon-Fri] 92, [Sat-Sun] 0`, whose day pass leaves the count of different days off what it was before the pass. Single ranks, in rank order and inside their own group, put it back. Its mutant withdraws those moves |
 | `weekday_days_moved` | G7.3f (plan P4-D355): 100 whole dates over seven weeks published `[Mon-Fri] 66, [Sat-Sun] 12`, so body ranks move inside their own gaps until the cells between the two boundaries fall on those groups. Its mutant withdraws the pass, as the twin was written before this decision |

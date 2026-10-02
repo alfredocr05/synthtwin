@@ -561,10 +561,12 @@ def test_a_tail_deeper_than_the_walk_could_nest_describes(tmp_path) -> None:
     """The regression: the whole product path, on a tail past the limit.
 
     The column is described through the reader, the producer and the
-    strict loader, and its tails are asked the back-solve like any
-    other. The size is the tail rule's own arithmetic over
-    `sys.getrecursionlimit()`, so it tracks the interpreter this suite
-    is running on rather than a number that was true once.
+    strict loader. Since plan P4-D375 a numeric tail asks the back-solve
+    only where the listing rule admits it, so the walk itself is asked
+    of this tail's own distances below, where the old walk crashes. The
+    size is the tail rule's own arithmetic over `sys.getrecursionlimit()`,
+    so it tracks the interpreter this suite is running on rather than a
+    number that was true once.
     """
     floor, rows, beyond = _deep_tail_column()
     assert beyond > sys.getrecursionlimit(), (beyond, sys.getrecursionlimit())
@@ -584,19 +586,26 @@ def test_a_tail_deeper_than_the_walk_could_nest_describes(tmp_path) -> None:
 
 
 def test_the_same_column_raises_under_the_recursive_walk(tmp_path) -> None:
-    """RED CHECK: put the old walk back and the description crashes.
+    """RED CHECK: put the old walk back and the back-solve of that tail crashes.
 
-    This is the mutation the test above is verified against. Without it
-    the test says only that a small table describes, which it did before
-    the repair as well.
+    The deep column's low tail, in whole hundredths beyond its boundary,
+    asked `_tail_pinned` exactly as a tail the listing rule admits is
+    asked: the shipped walk answers, and the old one raises. Without the
+    mutation the test above says only that a small table describes.
     """
-    floor, rows, _beyond = _deep_tail_column()
-    text = "value\n" + "\n".join(_gaussian_column(rows)) + "\n"
+    floor, rows, beyond = _deep_tail_column()
+    ordered = sorted(round(float(cell) * 100) for cell in _gaussian_column(rows))
+    boundary = ordered[beyond]
+    distances = [boundary - value for value in ordered[:beyond]]
+    assert len(distances) > sys.getrecursionlimit()
+    edge = max(distances)
+    answered = taxonomy._tail_pinned(distances, floor, edge, False, least=0)
+    assert answered in (True, False)
     standing = taxonomy._lattice_fill
     taxonomy._lattice_fill = recursive_fill
     try:
         with pytest.raises(RecursionError):
-            kpi_shapes.describe(tmp_path, "deep-recursive", text, floor)
+            taxonomy._tail_pinned(distances, floor, edge, False, least=0)
     finally:
         taxonomy._lattice_fill = standing
 

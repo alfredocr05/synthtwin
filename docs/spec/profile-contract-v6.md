@@ -3701,7 +3701,9 @@ now write and accept NF61 there.
 > the two distances of the values beyond this column's upper tail boundary are not published because they are too large for this file format to hold
 
 **WHY A TAIL PUBLISHES NEITHER DISTANCE, SAID WHERE ITS OWN PAIR IS NOT
-THE REASON** (plan P4-D353). A column of counts or continuous values
+THE REASON** (plan P4-D353). Since plan P4-D375 a producer writes only
+NF66 or NF67; the other forms are read on a description written before
+it. A column of counts or continuous values
 carries NF62 or NF63 on a side whose own back-solve left it open and
 that TL5 withholds only because the other side's pair is withheld, NF64
 or NF65 on a side whose back-solve did not finish, and NF66 or NF67 on a
@@ -6157,7 +6159,9 @@ leave exactly one cell between them the two boundaries are that cell,
 so they are the same text. Where they are `null`, every rung of
 `date_percentiles` is `null` too: the column is too small, or too tied
 at an end, for a boundary to exist on each side, and it publishes no
-value of the table at all.
+value of the table at all. Each boundary stands where the tail rule
+puts it: plan P4-D346 moved one inward while its pair would settle the
+tail, and plan P4-D375 withdrew the move with the withholding it served.
 
 **Invariant DT3 (the distances and the values).** Every published
 `mean_distance` is at least one unit, because every cell of a tail lies
@@ -6674,7 +6678,7 @@ changes.
 | `tails` | object or `null` | TL1 to TL6 | `null` on a block of fewer values than a tail's own rows; otherwise `low` and `high`, each `null` where only the moments are published, and otherwise an object naming the boundary percent, the rows beyond it, and how far from it they lie | the leaves below carry the classes |
 | `tails.low.percent`, `tails.high.percent` | whole number | 1 to 99 | the percent the published ladder stops at on that side | LOADER-ONLY: it follows from the count of values and the smallest group size, and the loader holds the description to it |
 | `tails.low.rows`, `tails.high.rows` | whole number | TL4 | how many rows lie beyond that percent | LOADER-ONLY: it follows from the percent and the count of values, and the loader holds the description to it |
-| `tails.low.mean_distance`, `tails.high.mean_distance` | number ≥ 0, or `null` | TL5 | the mean distance of those rows from the boundary rung, in the column's own unit; `null` on a tail that publishes neither distance because the pair would give back an outer cell or how many outer cells hold one value, or the back-solve could not show otherwise inside its budget (plan P4-D349), or because the other tail's pair is withheld (plan P4-D353) -- never where the description's own G12.3 window of `mean` or `std` would then miss its published value and publishing the pair would bring more of the two inside | APPROXIMATED, inside the window of `docs/spec/generation-method-v1.md` G12.13; a `null` is a LISTING and not a check |
+| `tails.low.mean_distance`, `tails.high.mean_distance` | number ≥ 0, or `null` | TL5 | the mean distance of those rows from the boundary rung, in the column's own unit; `null` on a tail whose pair binary64 cannot hold (plan P4-D375), and on a description written before that plan where P4-D349 and P4-D353 withheld it | APPROXIMATED, inside the window of `docs/spec/generation-method-v1.md` G12.13; a `null` is a LISTING and not a check |
 | `tails.low.rms_distance`, `tails.high.rms_distance` | number ≥ 0, or `null` | TL5 | the root-mean-square of the same distances, computed exactly and rounded once; `null` with its mean beside it and never alone (plan P4-D349) | APPROXIMATED, inside the window of `docs/spec/generation-method-v1.md` G12.13; a `null` is a LISTING and not a check |
 | `tails.low.values`, `tails.high.values` | array of numbers | TL6 | on a block the listing rule admits whose values stand on a grid, the tail's own different values, ascending, and no count beside them; `[]` elsewhere | EXACT-OBSERVABLE and SILENT: the file's own tail at that percent lists the same values, and the file's values are never printed |
 | `bin_groups` | array of objects | BG1 | the histogram of the rows between the two tails, in groups of bins: `{"first": bin, "last": bin, "count": rows}` | REPORT-ONLY, for the reason `value_histogram` is |
@@ -6696,7 +6700,7 @@ published that equalled a value fewer than eleven rows held went from
 | TL2 | `tails` is `null` exactly where `n_used_in_statistics` is below max(`small_cell_floor`, 3), and such a block publishes no rung and no moment at all | yes |
 | TL3 | `low` and `high` are both `null` or both objects; both `null` exactly where no percent clears two tails at once, and then every rung is `null` | yes |
 | TL4 | `rows` is `ceil((n - 1) * low.percent / 100)` on the low side and `n - 1 - floor((n - 1) * high.percent / 100)` on the high, `n` being `n_used_in_statistics`, and never below max(`small_cell_floor`, 3) | yes |
-| TL5 | `mean_distance` and `rms_distance` are either both numbers of nought or more, the mean no larger than the root-mean-square, or both `null` -- never one of each, because a mean standing alone is still half the back-solve the pair is withheld to close (plan P4-D349). A tail that LISTS its values publishes both. A producer writes `null` only where the pair would give back an outer cell or how many outer cells hold one value, or its back-solve could not show otherwise inside its budget, or the other tail's pair is withheld (plan P4-D353) -- and only where the description's own G12.3 windows of `mean` and `std` still contain their published values, or where no pair would bring more of them inside; the loader checks the shape and not the reason, and a side withheld for any reason but its own pair says which in a remark (NF62 to NF67), and one withheld for its own pair what that pair would give back (NF79 to NF84) | yes |
+| TL5 | `mean_distance` and `rms_distance` are either both numbers of nought or more, the mean no larger than the root-mean-square, or both `null` -- never one of each (plan P4-D349). A tail that LISTS its values publishes both. A producer writes `null` only where binary64 cannot hold the pair (plan P4-D375, NF66, NF67); a description written before that plan may carry `null` where the pair would give back an outer cell or how many outer cells hold one value, or the back-solve could not show otherwise, or the other tail's pair was withheld (plans P4-D349, P4-D353). The loader checks the shape and not the reason, and a side withheld for any reason but its own pair says which in a remark (NF62 to NF67), and one withheld for its own pair what that pair would give back (NF79 to NF84) | yes |
 | TL6 | `values` is ascending and different, no longer than `rows`, whole on a block publishing `integer_valued: true`, at or beyond the side's boundary rung, and led by the published end where there is one | yes |
 | BG1 | `bin_groups` is empty, or groups that follow one another from bin 0 to the last bin of C6-31f's division, each counting at least max(`small_cell_floor`, 3) and together counting `n_used_in_statistics` less the two tails' rows | yes |
 
@@ -6726,56 +6730,46 @@ wherever the pair settled them, whatever the rule said, and that road
 published `[1089, 1100]` on a column one row of which holds 1100. It is
 withdrawn.
 
-**AND A TAIL THAT WOULD BE READ BACK PUBLISHES NEITHER DISTANCE** (plan
-P4-D349, invariants DT1 and TL5). Where the published pair, together
-with the column's own "every value different" remark, the grid and the
-space's edges, would give back an outer cell or how many outer cells
-hold one value, and the listing rule does not let the tail name its
-values, it publishes its boundary and its rows and NEITHER distance --
-unless withholding them costs the twin the column's mean or spread
-(plan P4-D353, the owner's rulings of 2026-09-25). Where it leaves ONE
-multiset of distances it names every outer cell exactly: the integers 0
-to 1100 once each publish eleven rows, a mean of 6 and a
-root-mean-square of root-46 a side, and eleven DIFFERENT whole distances
-summing to 66 can only be 1 to 11. A tail publishing neither distance
-is read as `rows` grid steps past its boundary, and the windows of `moments.mean`
-and `moments.std` are drawn from that reading (method G12.3); where
-either window would then not contain the published value and
-publishing the pair brings more of the two inside, the pair is
-published although it gives back an outer cell or how many hold one
-value: the owner ruled
-"Publish anyway", "Only where it costs". A tail the back-solve could
-not settle inside its budget is asked the same question. What that
-gives back is held at ledger entry `K-S3-18`.
+**A TAIL PUBLISHES ITS PAIR WHATEVER A READER CAN WORK OUT FROM IT**
+(plan P4-D375, the owner's principle of 2026-10-01: the one privacy
+concern is a HIPAA exposure, not a reader rebuilding a column's own
+values). Where the published pair, together with the column's own
+"every value different" remark, the grid and the space's edges, would
+give back an outer cell or how many outer cells hold one value, it is
+published all the same: the integers 0 to 1100 once each publish eleven
+rows, a mean of 6 and a root-mean-square of root-46 a side, and eleven
+DIFFERENT whole distances summing to 66 can only be 1 to 11. What that
+gives back is a tail's own outer values -- never another column, and
+never a row except on a table sorted by that column, whose description
+publishes the order (`row_order`) -- and ledger entries `K-S3-11` and
+`K-S3-18` count it. Plan
+P4-D349 withheld such a pair and P4-D353 published it back only where
+withholding it cost the twin the column's mean or spread; withheld, a
+clock or timestamp tail at a raised floor came back at 0 to 0.78 of its
+real spread beyond the boundary, and validating a twin of such a column
+took about eight times as long.
 
-**AND ONE TAIL WITHHELD WITHHOLDS THE OTHER'S PAIR, WHERE THAT COSTS
-NOTHING AND THE OTHER LISTS NO VALUES** (plan P4-D353). A numeric
-block publishes the column's exact mean and spread, so where one
-tail's pair and the rows between the two boundaries are known, the
-other tail's sums follow by subtraction.
-Where one tail publishes neither distance -- for whatever reason, a pair
-binary64 cannot hold among them (plan P4-D357 A) -- and the other a pair
-and lists no values, the other publishes neither distance either -- unless
-that costs the twin its mean or spread, where its pair is the first one
-published, or the withheld tail's own pair is published, where the
-other's goes with it. What the subtraction then gives back the owner
-allowed on 2026-09-26 ("Allow it"; ledger entry `K-S3-21`). A side
-withheld this way says so in a remark (NF62, NF63), as a side whose
-back-solve did not finish (NF64, NF65) and one binary64 cannot hold
-(NF66, NF67) do, so no page says of it that its own pair would give
-back an outer cell or how many outer cells hold one value. **A TAIL
-THAT LISTS ITS VALUES KEEPS ITS PAIR**: TL5 requires both distances of
-a list, and a list of one value pins its tail by itself, so withholding
-them would close nothing. Beside such a list the subtraction still gives
-the withheld tail back where the rungs pin the interior, although the
-cost rule publishes nothing there: twelve values on each of two seeded
-150-row scales at a floor of eleven, the one-row extreme among them.
-The owner accepted it on 2026-09-26 ("Accept both"; ledger entry
+**A DESCRIPTION WRITTEN BEFORE PLAN P4-D375 STILL LOADS.** It may carry a
+tail publishing neither distance for any of those reasons, read as
+`rows` grid steps past its boundary (method G5.3b), and one tail
+withheld beside the other's pair, where P4-D353's cross-side rule
+withheld it: one tail's pair and the column's exact mean and spread give
+the other's sums by subtraction. A side withheld this way says so in a
+remark (NF62, NF63), as a side whose back-solve did not finish (NF64,
+NF65) and one binary64 cannot hold (NF66, NF67) do, so no page says of
+it that its own pair would give back an outer cell or how many outer
+cells hold one value; one withheld for its own pair says which of the
+two that pair would give back (NF79 to NF84). **A TAIL
+THAT LISTS ITS VALUES PUBLISHES ITS PAIR**: TL5 requires both distances
+of a list. Beside such a list the subtraction gives the other tail back
+where the rungs pin the interior: twelve values on each of two seeded
+150-row scales at a floor of eleven, the one-row extreme among them. The
+owner accepted it on 2026-09-26 ("Accept both"; ledger entry
 `K-S3-23`).
 
-**AND WITHHOLDING EVERY PAIR DOES NOT WITHHOLD EVERY VALUE.** What this
-section withholds closes the readings through a pair; it does not close
-the rest of the block. Where `n_distinct_values`, the mode and its
+**AND NO PAIR AT ALL WOULD NOT WITHHOLD EVERY VALUE.** Withholding the
+pairs closed the readings through a pair; it did not close the rest of
+the block. Where `n_distinct_values`, the mode and its
 count, the sign counts and the rungs pin a column, its exact mean and
 spread give every value back with no pair published at all: the
 integers 0 to 1,100 once each at every floor from 11 to 50, and a heap
@@ -12063,7 +12057,7 @@ it answers to.
 | D12 | every key of `datetime_separators` is `upper_t`, `space`, `lower_t` or `(withheld)`; every key other than `(withheld)` maps to a count at least the floor and never below two, and `(withheld)` appears only when the pooled remainder is non-zero; a `(withheld)` count stands alone, with no mark named beside it (plan P4-D220), and only over a population `parsing.census_pools` lets a pool stand on -- fewer values than the line, or any permitted mark absent in one reading and no count in every reading (plan P4-D222; stage 2 closed by the owner rulings of 2026-09-17), with the room `n_distinct` less one where the column has a present cell outside the pool (plan P4-D356) | yes |
 | D13 | `datetime_separators` is `{}` where `resolution` is not `datetime`; on a datetime column whose `format` is not `iso-mixed` its values sum to `n_present - n_unparsed`, and on `iso-mixed` to `resolution_mix["iso-datetime"]`; a `month-first-datetime`, `day-first-datetime` or `slashed-iso-datetime` column carries only `space` or `(withheld)` | yes |
 | D14 | `all_at_midnight` is `true` only where `resolution` is `datetime`, `n_present - n_unparsed` is at least the floor, every moment the block publishes — both boundaries, every value a tail lists and every published rung — stands at midnight under some offset `utc_offsets` names, and on the `utc` clock no offset is pooled; a `false` is never refused, because the canonical form drops the fraction (MN-P) | yes |
-| DT1 | a tail is `null` or a block of exactly `boundary`, `rows`, `mean_distance`, `rms_distance` and `values`, publishing either both distances and no values, or NEITHER distance and no values (plan P4-D349), or its values with at most its mean beside them | yes |
+| DT1 | a tail is `null` or a block of exactly `boundary`, `rows`, `mean_distance`, `rms_distance` and `values`, publishing either both distances and no values, or NEITHER distance and no values (a description written before plan P4-D375; plan P4-D349), or its values with at most its mean beside them | yes |
 | DT2 | both tails are `null` or neither; each `rows` is at least the floor; the two added leave at least one cell between them; the low boundary is not after the high one, and where they leave exactly one cell they share it; where they are `null` every rung is `null` | yes |
 | DT3 | every published `mean_distance` is at least one unit and no more than the units between its boundary and the edge of the column's own space, every published `rms_distance` at least the mean and no more than that same span, with `rms * rms` at most the span times the mean (one part in `2**50` for the roundings), and a `values` list holds one to `rows` entries, strictly ascending, every one beyond its own boundary | yes |
 | DT4 | `tail_unit` follows from `resolution`, `time_precision` and `all_at_midnight`: `quarter`, `month`, `day` for a date or a column at midnight, `minute` for a column written to the minute, `second` otherwise | yes |
@@ -12095,11 +12089,10 @@ it answers to.
 <!-- anchor 3b-7 (P4-D378) -->
 <!-- anchor 3b-J (P4-D379) -->
 
-A date or clock block publishes no mean and no spread, so the cost rule
-of plan P4-D353 does not reach it: a date or clock tail that would be
-read back publishes neither distance whatever its twin's own spread
-does. A cost rule of its own is a later landing the owner asked for on
-2026-09-26 (plan P4-D353).
+Since plan P4-D375 a date or clock tail that lists no values publishes
+its pair whatever a reader can work out from it; P4-D349 withheld it
+where it would be read back, and its twin's spread beyond the boundary
+came back at 0 to 0.78 of the real one at a raised floor.
 
 #### The V family — `sentinel_verdicts`, wherever a block carries one
 

@@ -138,15 +138,15 @@ column's ladder stops short of both: every step that would read one of
 the outermost eleven values is withheld, and what stands there instead
 is how many rows lie beyond the last published step and how far from it
 they lie, on average and root-mean-square. **And where even those two
-numbers would give back the outermost of the withheld values, or how
-many rows hold one of them, neither of them is published either** -- a
-column of consecutive whole numbers has eleven rows a side at eleven
-different whole distances summing to the least eleven different whole
-numbers can sum to, and that arithmetic has one answer, every value --
-so such a tail says how many rows lie beyond its boundary and
-nothing more, unless withholding the two would cost your twin the
-column's own mean or spread, where they are published anyway (the
-owner's ruling of 2026-09-25). **What a description names is not all a
+numbers would give back the outermost of the outer values, or how many
+rows hold one of them, they are published all the same** -- a column of
+consecutive whole numbers has eleven rows a side at eleven different
+whole distances summing to the least eleven different whole numbers can
+sum to, and that arithmetic has one answer -- because your twin needs
+them for its spread, and what they let a reader work out is a tail's
+own outer values, never another column, and never a row except on a
+table sorted by that column, whose description publishes the order
+(`row_order`) (plan P4-D375, the owner's principle of 2026-10-01). **What a description names is not all a
 reader can work out from it.** On some shapes the rest of it -- the
 column's exact mean, spread, skew and kurtosis beside its steps, its
 count of different values, how many rows hold its commonest one and its

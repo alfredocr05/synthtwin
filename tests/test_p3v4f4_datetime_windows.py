@@ -548,6 +548,47 @@ def test_a_twin_of_its_own_description_misses_nothing(
     assert not wrong, f"{precision}: {wrong}"
 
 
+def _forty_quarters() -> "list[str]":
+    """Forty one-row quarters from 1990-Q1."""
+    return [f"{1990 + index // 4:04d}-Q{1 + index % 4}" for index in range(40)]
+
+
+@pytest.mark.xfail(
+    strict=True,
+    raises=AssertionError,
+    reason=(
+        "plan P4-D375: on forty one-row quarters whose tails publish their "
+        "pairs the checker's distinct-count floor reads 5 where G12.5's "
+        "construction forces 11 -- a looser check, never a false MISSED"
+    ),
+)
+def test_the_checker_s_distinct_floor_is_the_construction_s_own(
+    tmp_path: pathlib.Path,
+) -> None:
+    """THE PARITY GAP, stated as what should hold (the tails skeptic of plan P4-D375).
+
+    The checker's lower bound on the count of different quarters and the
+    count the generator's own walk forces are one number where the tails
+    list their values; where they publish a pair the checker's is lower.
+    7b5f698 already parted them wherever a pair was published on such a
+    column (80 quarters, 40 of them held: 5 against 14). Strict, so a
+    repair turns it red; a shape that moves fails outright.
+    """
+    folder = tmp_path / "quarters"
+    folder.mkdir()
+    described = _described(folder, _forty_quarters(), "parity")
+    column = described.columns[0]
+    facts = _facts_of(described)
+    floor = _floor_of(described)
+    low, _high = validation._datetime_distinct_window(column, facts, floor)
+    layout = generation._date_layout(column, facts, 40, floor)
+    lows, highs = generation._datetime_window(layout, facts, 40)
+    forced = generation._forced_apart(lows, highs)
+    if (low, forced) != (5.0, 11):
+        pytest.fail(f"the shape the gap was measured on moved: {low} against {forced}")
+    assert low == float(forced)
+
+
 def test_the_pinned_ranks_force_more_different_values(
     tmp_path: pathlib.Path,
 ) -> None:
@@ -569,24 +610,20 @@ def test_the_pinned_ranks_force_more_different_values(
     It moved once: every quarter of this column is one row's own, so
     plan P4-D342 stopped its tails listing their values and they publish
     their shape instead, which is fewer pinned ranks and a smaller
-    forced count.
+    forced count. AND THE BOUND IS THE CHECKER'S OWN since plan P4-D375:
+    with both tails publishing their pairs the checker's floor stands
+    below the count the construction forces, which the strict expected
+    failure below holds.
     """
     folder = tmp_path / "quarters"
     folder.mkdir()
-    published = [
-        f"{1990 + index // 4:04d}-Q{1 + index % 4}" for index in range(40)
-    ]
+    published = _forty_quarters()
     described = _described(folder, published, "witness")
     column = described.columns[0]
     facts = _facts_of(described)
     floor = _floor_of(described)
     assert column.n_present == 40 and column.n_distinct == 40
     low, _high = validation._datetime_distinct_window(column, facts, floor)
-    # The bound is the CONSTRUCTION's own, taken from the generator's
-    # writing of the same walk rather than written out here.
-    layout = generation._date_layout(column, facts, 40, floor)
-    lows, highs = generation._datetime_window(layout, facts, 40)
-    assert low == float(generation._forced_apart(lows, highs))
     wanted = int(low) - 1
     assert wanted >= 1, low
     step = -(-len(published) // wanted)

@@ -666,28 +666,20 @@ def test_the_width_censuses_leave_no_one_to_subtract(
         # they lie -- instead of being handed a straight run up to a
         # value it then spread cells along.
         #
-        # AND IT MEETS THEM AGAIN SINCE PLAN P4-D353, derived here from
-        # the cost rule and not copied from an output. The 800 codes run
-        # CONSECUTIVELY and so do the fifty short ones, so each tail's
-        # rows stand at different whole distances summing to the least
-        # that many different whole numbers can sum to, and P4-D349
-        # withholds both pairs. Where the withheld high tail holds the
-        # single far `12345`, the window of the column's mean drawn from
-        # the narrowest reading does not reach the published mean, and the
-        # owner ruled on 2026-09-25 that a pair is then published although
-        # it gives its tail back -- only where withholding it costs. The
-        # `+00123` case has no far value, costs nothing withheld and
-        # publishes nothing. The REAL table meets everything in every
-        # case, which is what says the description is still true of it.
-        far = label == "with" and not plus
-        if far:
+        # AND IT MEETS THEM WITH BOTH PAIRS PUBLISHED (plan P4-D375). The
+        # 800 codes run CONSECUTIVELY and so do the fifty short ones, so
+        # each tail's pair gives its rows back to a reader; P4-D349
+        # withheld both, and with them withheld the window of the far-value
+        # column's mean, drawn from the narrowest reading, does not reach
+        # the published mean. Published, every window holds. The REAL
+        # table meets everything in every case, which is what says the
+        # description is still true of it.
+        for side in ("low", "high"):
+            assert block["tails"][side]["mean_distance"] is not None, side
+        if label == "with" and not plus:
             both = cost_rule_window.withheld(block, ("low", "high"))
-            assert cost_rule_window.costs(both, floor), (
-                "with both pairs withheld the far-value column's window "
-                "still reaches its mean: the case asks the rule nothing"
-            )
-            assert not cost_rule_window.costs(block, floor), block["tails"]
-            assert cost_rule_window.published_where_it_costs_nothing(block, floor) == []
+            assert cost_rule_window.costs(both, floor), block["tails"]
+        assert not cost_rule_window.costs(block, floor), block["tails"]
         assert run["twin_exit"] == 0, run["twin_missed"]
         assert run["real_exit"] == 0, run["real_missed"]
         if label == "with":

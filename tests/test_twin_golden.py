@@ -3391,7 +3391,15 @@ GOLDEN_QUALITY_SHA256 = (
     # of a withheld rung's listing and the account of what is checked say
     # the tail's distances only where they are published (the account
     # gains one line), and no other line moved.
-    "f1d615dfd42b422914d4850441e25e112d6bcf462eac508df80ab64751f1bb77"
+    # ...AND AT THE REPAIR ROUND OF PLAN P4-D375 (lane G1): the same
+    # sentence, the reason a tail key with no distance is not checkable,
+    # says a pair is withheld only where this file format cannot hold it
+    # and names the withdrawn rules as what a description written before
+    # that plan did. The description and twin digests above held, and
+    # that sentence is the only source text moved since 949cf04, so it
+    # is the only one that can have moved here; the new digest is the
+    # one the whole suite printed on c22d7d5.
+    "483f2efd15975a9177d60dfa03a94c506b0e0c4e954b204721da50e92550f059"
 )
 
 

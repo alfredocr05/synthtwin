@@ -2,7 +2,7 @@
  "what": "The KPI ledger: one entry per thing a phase or stage delivered, stated as a value and a rule. Single record; the owner's board and tools/measurements/kpi_run.py read it; tests/kpi_rules.py judges every value; tests/test_kpi_ledger_integrity.py keeps it honest.",
  "schema": 1,
  "base_commit": "caf3079",
- "measurement_note": "Every value_at was measured on the product of caf3079 (the integrated tree of 2026-09-19) by one run of tools/measurements/kpi_run.py --slow --print-values on the QUIET reference machine -- load average 1.54 to 1.91, so seconds were judged -- and written in unchanged, except where this note names another tree below. Seconds and peak memory are judged only where kpi_rules.seconds_judged_here says so; elsewhere they are RECORDED, and one that breaks its rule under load is marked RED in its evidence. 55 ENTRIES STAND OFF THE BASE COMMIT in all, each carrying its tree, and test_kpi_ledger_integrity.py holds this note's names to that set; TWENTY-THREE OF THEM ARE THESE, and the later trees are named after them: K-P0-05 on 05e7d89, the round-2 ledger pass of 2026-09-19; K-2B-19 on 230fc89, 2026-09-21, the repair pass of the mean-only landing; K-2B-38 on 335fec3, 2026-09-20, the hostile workbook, whose peak memory is recorded everywhere and judged only here; K-S3-12 on 3587709, 2026-09-23, the repair pass of stage 3 landing 3.5, whose own seeded battery the entry counts; K-P4-20 on 3f6cd9f, 2026-09-22, stage 3 landing 3.1's own commit, where the default smallest group was raised (plan P4-D316); K-S3-03, K-S3-04, K-S3-06, K-S3-07, K-S3-08, K-S3-09, K-S3-10 on 0317f5d, 2026-09-23, stage 3 landing 3.3's own commit; K-2B-03, K-2B-05, K-2B-16, K-2B-49, K-2B-50, K-2B-51, K-P2-08, K-P2-09, K-P3-03, K-P4-07, K-P4-22 on 1fc2ec1, THE INTEGRATION OF STAGE 3'S FIVE LANDINGS, its own tree, where the numeric tail rule moved what the other four had measured and every one of these was re-measured. Every other value_at is caf3079's. AND ONE MORE STANDS OFF 27eecbe, stage 3's GATE and its own commit: K-S3-14, the owner's accepted limit of 2026-09-23 that the disclosure floor counts rows and not people (plan P4-D348). AND ONE STANDS OFF a3c0cd1, the close of stage 3 (plans P4-D346 and P4-D347): K-2B-47, which gains `read_floor_refused`. AND SIX STAND OFF a7bbc21, THE CLOSE OF STAGE 3'S REVIEW (2026-09-24) and its own commit, all six taken by one kpi_run.py --slow --print-values on the quiet machine -- one-minute load average 1.7 to 2.7 against a bound of 3.0, so seconds were judged. Three moved with their MEASUREMENT: K-S3-01 and K-S3-02 record pinned_nodes_failing, which their rule bounds (governance item 9), and K-S3-05 is measured over the 1,800-row population it tests and a second node bounding the 900-row refusal (item 6). One moved with its DRIVER, not its numbers: K-S3-11 gives back all nine it gave at a3c0cd1 -- literal, pinned and edge_pinned still nought -- under a back-solve asking whether the tail's outermost value and its count vary across the solutions, and a literal sweep reading a value inside a sentence (items 3 and 4). And two are RE-STAMPED SECONDS, taken quiet where the recorded ones were taken under load, each entry naming the seconds it recorded before: K-S1-01, to profile and to generate 20,000 rows by 20, and K-P3-12, to validate the same. AND ONE STANDS OFF 5cd28db, the repair that made the tail's back-solve walk its own stack (2026-09-24) and its own commit: K-S1-06, whose driver crashed with RecursionError on every tree from ee56999 to a7bbc21 and runs again here, taken by one kpi_run.py --slow --print-values on the quiet reference machine -- one-minute load average 1.8 to 2.7 against a bound of 3.0, machine_kinds_judged in its report, so seconds were judged. AND TWO STAND OFF 1578bee, the tree that closed stage 3 (2026-09-24) and its own commit, each taken by its own driver after the whole suite passed there in five shards: K-P0-10, the whole suite in one process, at a one-minute load average of 2.5 falling to 1.9 against the bound of 3.0, so seconds were judged; and K-P4-06 with both its pinned nodes passing, at the ceiling its own entry already stated where its record still carried the merged tree's lower counts. AND ONE STANDS OFF 1c9e767, stage 3's last merge (2026-09-25) and its own commit: K-S1-05, faster than 5cd28db read it, taken by kpi_run.py --slow --only K-S1-05 on the quiet machine, load 1.6 to 1.9, so seconds were judged. AND ONE STANDS OFF f934876, a census of marks that is only a pool (plan P4-D352) and its own commit: K-S3-16 by kpi_run.py --only K-S3-16 --print-values, a value no earlier tree gives (its evidence names 6a7a7d7's), and 2bc1418 and 47f20ef read the same. AND SEVEN STAND OFF 21f7b8b, stage 3's follow-up A (plan P4-D353) and its own commit, all taken by one kpi_run.py --slow --print-values after the whole suite passed there in five shards (one-minute load average 13.5 to 9.1 against a bound of 3.0, so no seconds were judged, and none of the seven carries a seconds rule): K-S3-13, the gate, three of its pinned nodes new there; K-S3-15, over the ten shapes ee56999 read and two more; and K-S3-17, K-S3-18, K-S3-20, K-S3-21 and K-S3-22 by kpi_cost_rule.py --kpi, K-S3-17 at the base's own value and the other four at values the base does not give. AND TWO STAND OFF e760d27, the repair of follow-up A's review and its own commit, both taken by one kpi_run.py --only K-S3-19 --only K-S3-23 --print-values (one-minute load average 8.7 to 10.3, so no seconds were judged, and neither carries a seconds rule): K-S3-19, counting the checker's bounds WITHHELD and MISSED where it had counted values its reader could not raise; and K-S3-23, new, which e294a82 gives back too. AND ONE STANDS OFF 54d22f3, follow-up A's second repair and the owner's answer 8 (2026-09-26), its own commit, taken by one kpi_run.py --slow --print-values over four entries, this one among them, after the whole suite passed there (one-minute load average above fifteen, so no seconds were judged, and it carries no seconds rule): K-S3-24, new, which e294a82 gives back too. AND ONE STANDS OFF 2599fe0, the review of follow-up A (plan P4-D357 A) and its own commit, by kpi_run.py --only K-S3-25 --print-values: K-S3-25, which reads a pinned side against an enumeration of its multisets and counts three sides 455076c did not withhold. AND ONE STANDS OFF 2f03adc, a count no placement inside the gaps reaches met past the strata (plan P4-D354) and its own commit, taken after the whole suite passed there in five shards: K-2B-42 by kpi_oracle_similarity.py --kpi, where 84f09b9 read the same share of two fewer scored functions. AND TWO STAND OFF 6b167c4, the weekday census of a column of dates (plan P4-D355) with its own driver repaired and its merges case picked again, and its own commit, each by kpi_run.py --slow --only <id> --print-values after the whole suite passed there in five shards: K-S3-31, a value no earlier tree gives, which e689072 gives back; and K-P2-01, where d2dcf40 and 3f51316 read seven cases fewer and 47f20ef six. AND ONE STANDS OFF 67ba1de, the band searched a half at a time (plan P4-D359) and its own commit, by kpi_run.py --slow --only 'K-S3-3*' --print-values after the whole suite passed there in five shards: K-S3-34, the owner's accepted limit of 2026-09-30, new, which 82b1f1a gives back too. AND ONE STANDS OFF 6f1acd9, the review of landing 3b.0 (plan P4-D358) and its own commit, taken after the whole suite passed there in five shards by kpi_run.py --only K-S3-30 --print-values: K-S3-30, whose gate now asserts the days a filled range comes back with, where 2af1f03 read the same: the review found its gate short, not the twin. AND TWO STAND OFF a47108a, the weekday guards dropped (plan P4-D365) and repaired at its review, by kpi_run.py --only for each id --print-values, the whole suite then run in five shards on the landing's sealed head: K-S3-32, floor-only now, its certificate's verifier and brute force deleted (it had stood off e689072); and K-S3-39, its drawn-hole node asking the count pass on its census emptied (it had stood off 3168f65). AND ONE STANDS OFF de0acce, the second repair of the weekday guard drop and its own commit, by kpi_run.py --only K-S3-35 --print-values: K-S3-35, new at a47108a, the few-dates and room rules and the twins the dropped guards withheld, at the second review the room rule asked again beside placeholder and declared days and May's one month-name word pinned (it had stood off a47108a). The entry that counted the certificate's cost is retired with it. EACH VALUE IS READ FROM ITS ENTRY'S value_at AND NEVER RESTATED HERE.",
+ "measurement_note": "Every value_at was measured on the product of caf3079 (the integrated tree of 2026-09-19) by one run of tools/measurements/kpi_run.py --slow --print-values on the QUIET reference machine -- load average 1.54 to 1.91, so seconds were judged -- and written in unchanged, except where this note names another tree below. Seconds and peak memory are judged only where kpi_rules.seconds_judged_here says so; elsewhere they are RECORDED, and one that breaks its rule under load is marked RED in its evidence. 56 ENTRIES STAND OFF THE BASE COMMIT in all, each carrying its tree, and test_kpi_ledger_integrity.py holds this note's names to that set; TWENTY-THREE OF THEM ARE THESE, and the later trees are named after them: K-P0-05 on 05e7d89, the round-2 ledger pass of 2026-09-19; K-2B-19 on 230fc89, 2026-09-21, the repair pass of the mean-only landing; K-2B-38 on 335fec3, 2026-09-20, the hostile workbook, whose peak memory is recorded everywhere and judged only here; K-S3-12 on 3587709, 2026-09-23, the repair pass of stage 3 landing 3.5, whose own seeded battery the entry counts; K-P4-20 on 3f6cd9f, 2026-09-22, stage 3 landing 3.1's own commit, where the default smallest group was raised (plan P4-D316); K-S3-03, K-S3-04, K-S3-06, K-S3-07, K-S3-08, K-S3-09, K-S3-10 on 0317f5d, 2026-09-23, stage 3 landing 3.3's own commit; K-2B-03, K-2B-05, K-2B-16, K-2B-49, K-2B-50, K-2B-51, K-P2-08, K-P2-09, K-P3-03, K-P4-07, K-P4-22 on 1fc2ec1, THE INTEGRATION OF STAGE 3'S FIVE LANDINGS, its own tree, where the numeric tail rule moved what the other four had measured and every one of these was re-measured. Every other value_at is caf3079's. AND ONE MORE STANDS OFF 27eecbe, stage 3's GATE and its own commit: K-S3-14, the owner's accepted limit of 2026-09-23 that the disclosure floor counts rows and not people (plan P4-D348). AND ONE STANDS OFF a3c0cd1, the close of stage 3 (plans P4-D346 and P4-D347): K-2B-47, which gains `read_floor_refused`. AND FIVE STAND OFF a7bbc21, THE CLOSE OF STAGE 3'S REVIEW (2026-09-24) and its own commit, all five taken by one kpi_run.py --slow --print-values on the quiet machine -- one-minute load average 1.7 to 2.7 against a bound of 3.0, so seconds were judged. Three moved with their MEASUREMENT: K-S3-01 and K-S3-02 record pinned_nodes_failing, which their rule bounds (governance item 9), and K-S3-05 is measured over the 1,800-row population it tests and a second node bounding the 900-row refusal (item 6). And two are RE-STAMPED SECONDS, taken quiet where the recorded ones were taken under load, each entry naming the seconds it recorded before: K-S1-01, to profile and to generate 20,000 rows by 20, and K-P3-12, to validate the same. AND ONE STANDS OFF 5cd28db, the repair that made the tail's back-solve walk its own stack (2026-09-24) and its own commit: K-S1-06, whose driver crashed with RecursionError on every tree from ee56999 to a7bbc21 and runs again here, taken by one kpi_run.py --slow --print-values on the quiet reference machine -- one-minute load average 1.8 to 2.7 against a bound of 3.0, machine_kinds_judged in its report, so seconds were judged. AND TWO STAND OFF 1578bee, the tree that closed stage 3 (2026-09-24) and its own commit, each taken by its own driver after the whole suite passed there in five shards: K-P0-10, the whole suite in one process, at a one-minute load average of 2.5 falling to 1.9 against the bound of 3.0, so seconds were judged; and K-P4-06 with both its pinned nodes passing, at the ceiling its own entry already stated where its record still carried the merged tree's lower counts. AND ONE STANDS OFF 1c9e767, stage 3's last merge (2026-09-25) and its own commit: K-S1-05, faster than 5cd28db read it, taken by kpi_run.py --slow --only K-S1-05 on the quiet machine, load 1.6 to 1.9, so seconds were judged. AND ONE STANDS OFF f934876, a census of marks that is only a pool (plan P4-D352) and its own commit: K-S3-16 by kpi_run.py --only K-S3-16 --print-values, a value no earlier tree gives (its evidence names 6a7a7d7's), and 2bc1418 and 47f20ef read the same. AND ONE STANDS OFF 2f03adc, a count no placement inside the gaps reaches met past the strata (plan P4-D354) and its own commit, taken after the whole suite passed there in five shards: K-2B-42 by kpi_oracle_similarity.py --kpi, where 84f09b9 read the same share of two fewer scored functions. AND TWO STAND OFF 6b167c4, the weekday census of a column of dates (plan P4-D355) with its own driver repaired and its merges case picked again, and its own commit, each by kpi_run.py --slow --only <id> --print-values after the whole suite passed there in five shards: K-S3-31, a value no earlier tree gives, which e689072 gives back; and K-P2-01, where d2dcf40 and 3f51316 read seven cases fewer and 47f20ef six. AND ONE STANDS OFF 67ba1de, the band searched a half at a time (plan P4-D359) and its own commit, by kpi_run.py --slow --only 'K-S3-3*' --print-values after the whole suite passed there in five shards: K-S3-34, the owner's accepted limit of 2026-09-30, new, which 82b1f1a gives back too. AND TWO STAND OFF a47108a, the weekday guards dropped (plan P4-D365) and repaired at its review, by kpi_run.py --only for each id --print-values, the whole suite then run in five shards on the landing's sealed head: K-S3-32, floor-only now, its certificate's verifier and brute force deleted (it had stood off e689072); and K-S3-39, its drawn-hole node asking the count pass on its census emptied (it had stood off 3168f65). AND ONE STANDS OFF de0acce, the second repair of the weekday guard drop and its own commit, by kpi_run.py --only K-S3-35 --print-values: K-S3-35, new at a47108a, the few-dates and room rules and the twins the dropped guards withheld, at the second review the room rule asked again beside placeholder and declared days and May's one month-name word pinned (it had stood off a47108a). The entry that counted the certificate's cost is retired with it. AND SEVEN STAND OFF e43a540, the tail-withholding drop and the end floor (plan P4-D375) and its own commit, re-based by kpi_run.py --only 'K-S3-*' --print-values: K-S3-13, K-S3-15, K-S3-19, K-S3-23, K-S3-24, K-S3-25 and K-S3-30. AND SIX STAND OFF 0abbd35, the same product and its own commit, re-based by one kpi_run.py --slow over each driver: K-S3-11, K-S3-17, K-S3-18, K-S3-20, K-S3-21 and K-S3-22. AND ONE STANDS OFF 74cb50e, the same product with the date and clock count its driver gained at the lane's repair round, by kpi_run.py --slow --only K-S3-50 --print-values: K-S3-50, new. EACH VALUE IS READ FROM ITS ENTRY'S value_at AND NEVER RESTATED HERE.",
  "reference_machine": {
   "name": "Apple M4, 10 cores",
   "platform_machine": "arm64",
@@ -2356,7 +2356,7 @@
    "driver": "tools/measurements/kpi_joined_battery.py --kpi",
    "pin_strength": "WEAKER",
    "measured_on": "twelve 3- and 4-position columns x 40 seeds",
-   "evidence": "579 of 2,160 agreements outside the 0.02 window (stated 550) and 3 of 2,160 rows-above counts missed (stated 0), on 1578bee, the tree that closed stage 3: the ceiling P4-D346's listing rule set, which the record had kept at the 556 and 1 of the five landings' merged tree. That tree read them down from 609 and 4, because the numeric tail rule measures a pair's agreement against a ladder that no longer runs to the published extremes. HOW IT MOVED is the CHANGELOG's; what stands here is what the number is and what it does not cover. The whole battery -- twelve columns, forty seeds, 2,160 pairs -- is the SLOW driver alone. The second pinned node ran all twelve over a process pool, which the suite's network guard refuses; it pins FIVE columns serially now, re-chosen at that merge because the misses moved, and tests/test_joined_battery_readings.py carries their per-column figures at both floors, the mutation that turns them red, and the derivation that re-reads them from this entry. WHAT THE PINNED NODE DOES NOT SEE (finding 2 of the 2026-09-20 review): either number in any of the other seven columns. Every missed above-count sits in a pinned column today, but that is a property of today's measurement and not of the pin.",
+   "evidence": "579 of 2,160 agreements outside the 0.02 window (stated 550) and 3 of 2,160 rows-above counts missed (stated 0), on 1578bee, the tree that closed stage 3: the ceiling P4-D346's listing rule set, which the record had kept at the 556 and 1 of the five landings' merged tree. That tree read them down from 609 and 4, because the numeric tail rule measures a pair's agreement against a ladder that no longer runs to the published extremes. HOW IT MOVED is the CHANGELOG's; what stands here is what the number is and what it does not cover. The whole battery -- twelve columns, forty seeds, 2,160 pairs -- is the SLOW driver alone. The second pinned node ran all twelve over a process pool, which the suite's network guard refuses; it pins FIVE columns serially now, re-chosen at that merge because the misses moved, and tests/test_joined_battery_readings.py carries their per-column figures at both floors, the mutation that turns them red, and the derivation that re-reads them from this entry. WHAT THE PINNED NODE DOES NOT SEE (finding 2 of the 2026-09-20 review): either number in any of the other seven columns. Every missed above-count sits in a pinned column today, but that is a property of today's measurement and not of the pin. AND ONE TWIN BESIDE THE BATTERY (plan P4-D375): the stage-3 battery's joined_one_reversed at floor 11 misses its first pair's agreement on 2 of 20 seeds (seeds 4 and 15), where 668f276 missed it on 0: its parts publish their tail pairs now. The battery itself reads the same.",
    "value_at": {
     "commit": "1578bee",
     "date": "2026-09-24",
@@ -6077,20 +6077,20 @@
    "phase_stage": "Stage 3 (plans P4-D328 to P4-D331, P4-D342, P4-D343 and P4-D345), the date and clock tails",
    "category": "PRIVACY",
    "headline": true,
-   "name": "Nothing a date or clock column publishes names one of its outer cells",
+   "name": "No date or clock column prints an outer cell its listing rule does not list",
    "status": "GREEN",
-   "rule": "over the tail design's own battery -- twenty-one shapes at two sizes and up to three seeds, 105 cases, each through the real producer, generator and checker at a floor of eleven -- `literal` is 0: no published value, summary line or report line is equal, token for token, to one of the eleven outermost values of the real column, the column ordered by its OWN role (a clock column by `parsing.clock_ordinal` against its published `clock_form`, because reading it with the ISO-date parser gave an EMPTY set of outermost values and this number could then not fail on any clock shape). `pinned` is 0: no tail's published rows, mean and root-mean-square distance name its OUTERMOST VALUE and how many rows hold it -- which is the question since the governance pass of stage 3's review (item 3), where asking for ONE multiset instead scored nought on eleven distances summing to 24 with squares 104, two multisets that BOTH put the largest at 8 with one row on it. `missed` is 0 -- no checkable obligation is missed on any twin or any real table of the battery -- so a zero here cannot be bought by a description that says nothing. A tail's own `values` are not counted against `literal` where the LISTING RULE admits them -- `taxonomy.tail_may_list` asked of the column's own cells beyond that boundary -- and that is the WHOLE exemption since plan P4-D349 withdrew the second road, which had exempted a tail of at most `TAIL_SETTLED_VALUES` values whatever the rule said. THE EXEMPTION WAS MEMBERSHIP UNTIL P4-D346, so this could not go non-zero on a drifted listing rule. A member's fixed example is not counted either. `cases`, `listed` and `window` are at_least, so the battery may not shrink, the values-publishing tail may not stop being exercised, and the distance between the tightest tail and a leak may not close. THREE CEILINGS STATE WHAT IS NOT CLAIMED AWAY, each defined in plan P4-D343 and measured by the driver: `equality_only`, the real table's own distances that meet G12.14 only by exact equality; `edge_pinned`, the shape-drawn tails a reader settles to ONE arithmetic by also using the column's `every value different` remark and the tail's own edge -- a ceiling at NOUGHT since P4-D346, which moves such a boundary inward until a second multiset fits; and `unsearched`, the tails whose walk could not finish and which are therefore counted as UNMEASURED rather than roomy. The producer's guard `taxonomy._tail_pinned` takes the opposite default (budget spent means pinned, P4-D329): each defaults to the answer that cannot flatter the landing.",
+   "rule": "over the tail design's own battery -- twenty-one shapes at two sizes and up to three seeds, 105 cases, each through the real producer, generator and checker at a floor of eleven -- `literal` is 0: no published value, summary line or report line is equal, token for token, to one of the eleven outermost values of the real column, the column ordered by its OWN role (a clock column by `parsing.clock_ordinal` against its published `clock_form`, because reading it with the ISO-date parser gave an EMPTY set of outermost values and this number could then not fail on any clock shape). `missed` is 0 -- no checkable obligation is missed on any twin or any real table of the battery -- so a zero here cannot be bought by a description that says nothing. A tail's own `values` are not counted against `literal` where the LISTING RULE admits them -- `taxonomy.tail_may_list` asked of the column's own cells beyond that boundary -- and a member's fixed example is not counted either. `cases`, `listed` and `window` are at_least, so the battery may not shrink, the values-publishing tail may not stop being exercised, and the distance between the tightest tail and a leak may not close. FOUR CEILINGS STATE WHAT IS NOT CLAIMED AWAY, measured by the driver: `pinned`, the tails whose published rows, mean and root-mean-square distance name their OUTERMOST VALUE and how many rows hold it (the question since the governance pass of stage 3's review, item 3); `edge_pinned`, the shape-drawn tails a reader settles to ONE arithmetic by also using the column's `every value different` remark and the tail's own edge (plan P4-D343) -- both nought while plans P4-D349 and P4-D346 withheld such a pair or moved its boundary, and what a published pair gives back since plan P4-D375: a tail's own outer values, never another column, and never a row except on a table sorted by that column, whose description publishes the order (`row_order`) (the owner's principle of 2026-10-01); `equality_only`, the real table's own distances that meet G12.14 only by exact equality; and `unsearched`, the tails whose walk could not finish, counted UNMEASURED rather than roomy",
    "rule_kind": "at_most",
    "expected": {
-    "literal": 0,
-    "pinned": 0,
-    "missed": 0,
     "cases": 105,
-    "listed": 12,
-    "window": 2,
+    "edge_pinned": 14,
     "equality_only": 2,
-    "edge_pinned": 0,
-    "unsearched": 35
+    "listed": 12,
+    "literal": 0,
+    "missed": 0,
+    "pinned": 8,
+    "unsearched": 35,
+    "window": 2
    },
    "key_kinds": {
     "cases": "at_least",
@@ -6104,19 +6104,19 @@
    "driver": "tools/measurements/kpi_stage3_tail_leak.py --kpi",
    "pin_strength": "NONE",
    "measured_on": "the tail design's battery and the shapes its skeptic added: twenty-one shapes at 400 and 1,500 rows (900 where a clock's own day has no room for more), seeds 0, 4 and 11, floor 11",
-   "evidence": "RE-MEASURED AT THE CLOSE OF STAGE 3'S REVIEW under a SHARPER measurement and every one of the nine numbers came back: 105 cases, literal 0, pinned 0, missed 0, edge_pinned 0, equality_only 2, listed 12, window 2, unsearched 35. The back-solve now asks whether the tail's outermost value and its count vary across the multisets its facts admit, and the literal sweep joins adjacent tokens and strips a trailing point, so a moment printed after a label and a clock value at the end of a sentence are compared whole (items 3 and 4). ON THE TREE THAT CLOSED STAGE 3 (P4-D346). 105 cases: 0 published values, summary lines or report lines equal to one of the eleven outermost values of the real column, 0 tails settled by the plain back-solve, 0 checkable obligations missed -- and the exemption that lets `literal` read 0 is the listing rule's own conditions now, not membership, so the number can fail on a rule that moves. MUTATION: with `tail_may_list` forced open the driver reads 22, 11, 22 and 11 leaked values on the four clock cases of 900 rows, against 0 as this tree ships it. 12 tails over 8 cases list their values: seven of quarters and months, each held by 3 to 14 cells, and five of the `0001-01-01` heap. `edge_pinned` IS 0 against 4 on the merged tree: the four sides that carried it -- one each of `clock_all_different` and `clock_edges` at 900 rows, seeds 0 and 4 -- move their boundary inward until a second multiset fits, 11 rows a side becoming 15 or 17 of 900, and the walk must PROVE the tail settled inside its budget or nothing moves. `window` is still 2, `unsearched` 35 and `equality_only` 2.",
+   "evidence": "RE-BASED AT PLAN P4-D375 over the same 105 cases: literal and missed still nought; pinned and edge_pinned rose from nought with the pairs P4-D349 withheld and the widening P4-D346 ran, which the tails measurement read at 8 and 14 on 7b5f698 beside the drop. On the tree that closed stage 3, `tail_may_list` forced open read 22, 11, 22 and 11 leaked values on the four clock cases of 900 rows, so `literal` can fail.",
    "value_at": {
-    "commit": "a7bbc21",
-    "date": "2026-09-24",
-    "measured_by": "tools/measurements/kpi_run.py --slow --print-values on the quiet reference machine",
+    "commit": "0abbd35",
+    "date": "2026-10-01",
+    "measured_by": "tools/measurements/kpi_run.py --slow --only K-S3-11 --only K-S3-17 --only K-S3-18 --only K-S3-20 --only K-S3-21 --only K-S3-22 --only K-S3-50 --print-values",
     "value": {
      "cases": 105,
-     "edge_pinned": 0,
+     "edge_pinned": 14,
      "equality_only": 2,
      "listed": 12,
      "literal": 0,
      "missed": 0,
-     "pinned": 0,
+     "pinned": 8,
      "unsearched": 35,
      "window": 2
     }
@@ -6129,7 +6129,7 @@
    "headline": false,
    "name": "The stage-3 gate, asked of a whole description in its own words",
    "status": "GREEN",
-   "rule": "over the gate battery at floors 1, 5 and 11 -- the 46 seeded shapes of tests/stage3_battery.py, every role with its joined column, the four realistic families as delimited text AND as workbooks, three bounded clinical scales, two heavy tails, a sparse block, a repeated-measures table with a declared identifier, a blank-line-heavy file and tables at 99, 100, 999 and 1,000 rows -- every published number of every description is in exactly one class of tests/test_stage3_gate.py's GATE_CLASS table, and no breach of that class's own question is found: GROUP counts are nought or at the line and so is every complement a reader can take against a population GATE_POPULATIONS names (censuses asked whole, through parsing.census_nameable); VALUES name no outer cell the tail rule withholds unless parsing.tail_may_list admits them; no date or clock tail back-solves to the value it withheld (the tail-leak driver's own _pinned_and_room); SENTENCE arguments obey taxonomy.ARGUMENT_BINDINGS; a non-default WORD_BY_COUNT word stands only where the census line of the column's own cells wear it; and SETTLED and WRITTEN_FORM are exempt by name with the entry that settled each. Beside them the refusal half, through cli.main: a one-row table, a 99-row table and 500 rows of 99 people are refused with nothing written, 100 and 999 rows carry the notice on every written page, 1,000 carries none",
+   "rule": "over the gate battery at floors 1, 5 and 11 -- the 46 seeded shapes of tests/stage3_battery.py, every role with its joined column, the four realistic families as delimited text AND as workbooks, three bounded clinical scales, two heavy tails, a sparse block, a repeated-measures table with a declared identifier, a blank-line-heavy file and tables at 99, 100, 999 and 1,000 rows -- every published number of every description is in exactly one class of tests/test_stage3_gate.py's GATE_CLASS table, and no breach of that class's own question is found: GROUP counts are nought or at the line and so is every complement a reader can take against a population GATE_POPULATIONS names (censuses asked whole, through parsing.census_nameable); VALUES name no outer cell the tail rule withholds unless parsing.tail_may_list admits them, and every attack and cost shape publishes its pairs inside its own windows (plan P4-D375, which withdrew the back-solve clause); SENTENCE arguments obey taxonomy.ARGUMENT_BINDINGS; a non-default WORD_BY_COUNT word stands only where the census line of the column's own cells wear it; and SETTLED and WRITTEN_FORM are exempt by name with the entry that settled each. Beside them the refusal half, through cli.main: a one-row table, a 99-row table and 500 rows of 99 people are refused with nothing written, 100 and 999 rows carry the notice on every written page, 1,000 carries none",
    "rule_kind": "exact",
    "expected": {
     "pinned_nodes_failing": 0
@@ -6141,13 +6141,11 @@
     "tests/test_stage3_gate.py::test_a_population_at_the_line_carries_no_notice",
     "tests/test_stage3_gate.py::test_a_population_in_the_notice_band_carries_the_notice_on_every_page",
     "tests/test_stage3_gate.py::test_a_population_under_the_floor_is_refused_and_nothing_is_written",
-    "tests/test_stage3_gate.py::test_a_settled_pair_is_published_only_where_withholding_it_costs",
+    "tests/test_stage3_gate.py::test_every_pair_is_published_and_keeps_the_column_s_windows",
     "tests/test_stage3_gate.py::test_every_published_number_of_the_rules_table_has_exactly_one_class",
     "tests/test_stage3_gate.py::test_no_published_number_of_the_battery_is_held_by_fewer_than_the_floor",
     "tests/test_stage3_gate.py::test_no_published_value_of_the_battery_names_a_lone_outer_cell",
-    "tests/test_stage3_gate.py::test_no_tail_of_the_battery_back_solves_to_the_value_it_withheld",
     "tests/test_stage3_gate.py::test_the_battery_reaches_every_class_the_gate_asks_about",
-    "tests/test_stage3_gate.py::test_the_cost_rule_is_not_vacuous_on_its_own_cost_shape",
     "tests/test_stage3_gate.py::test_the_gate_turns_red_on_a_group_count_republished_below_the_line",
     "tests/test_stage3_gate.py::test_the_gate_turns_red_on_a_population_floor_lowered_below_a_hundred",
     "tests/test_stage3_gate.py::test_the_gate_turns_red_on_a_sentence_argument_that_differs_from_its_key",
@@ -6159,11 +6157,11 @@
    "pin_strength": "EXACT",
    "measured_on": "the gate battery of tests/test_stage3_gate.py: 60 tables at each of floors 1, 5 and 11, all seeded and neutral, each through the real reader and the real producer; 12,724 published numbers walked at a floor of eleven",
    "evidence": "0 gate breaches over the battery at the three floors. The classification is CLOSED over profile.PUBLICATION_RULES: 323 of its 669 stated paths can carry a number and every one of them has a class, resolved through the three mirrors the rules table is built with (numbers, labels, affix_variants[].numbers) so one decision is written once. At a floor of eleven the walk puts 12,724 published numbers into VALUE 4,817, INDEX 1,997, SETTLED 1,895, GROUP 1,706, STRUCTURAL 1,616, POOLED 310, DISTINCT 294 and WRITTEN_FORM 89, beside the sentence arguments and the two words a count moves. 38 date and clock tails are put to the back-solve across the three floors and NONE is settled to one arithmetic. FIVE MUTATIONS prove the gate can fail, each a test of its own and each PINNED here so it cannot be deleted with this entry still green: a level count re-published at 1, a sentence argument one greater than its key, the column's exact minimum put back into percentiles.min, a tail listing three values one row holds apiece, and parsing.POPULATION_FLOOR halved. THE GROUP CLAUSE IS VACUOUS AT A FLOOR OF ONE and that is contract C5-S13 rather than an oversight: a floor lowered to one names every level of one row on purpose. The VALUE, SENTENCE and refusal halves bite at every floor.",
-   "nodes_min_collected": 39,
+   "nodes_min_collected": 40,
    "value_at": {
-    "commit": "21f7b8b",
-    "date": "2026-09-26",
-    "measured_by": "tools/measurements/kpi_run.py --slow --only K-S3-15 --only K-S3-17 --only K-S3-18 --only K-S3-19 --only K-S3-20 --only K-S3-21 --only K-S3-22 --only K-S3-13 --print-values",
+    "commit": "e43a540",
+    "date": "2026-10-01",
+    "measured_by": "tools/measurements/kpi_run.py --only 'K-S3-*' --print-values",
     "value": {
      "pinned_nodes_failing": 0
     }
@@ -6212,17 +6210,16 @@
    "phase_stage": "Stage 3, the fix pass of 2026-09-23 (plan P4-D349); met by stage 3's follow-up A (plan P4-D353)",
    "category": "STATS",
    "headline": false,
-   "name": "What the withheld tail pair costs the twin",
+   "name": "Tail sides publishing neither distance, and what that costs the twin",
    "status": "GREEN",
-   "rule": "over the eight reconstruction attacks of tests/test_stage3_gate.py and the four cost shapes beside them -- 399 consecutive record numbers with one far value, the same column without it, 149 of them with one far value, and one far negative value beside a run of 149 -- at a floor of eleven, count the tail SIDES that publish neither distance, and count every checkable obligation their twins MISS at seeds 0 and 4 together. The second stays at nought: since plan P4-D353 a pair whose withholding would leave the column's own G12.3 window of its mean or spread short of the published value is published, and a published pair costs the twin no other obligation. The first may not fall, so the entry cannot be met by publishing pairs the rule does not need",
+   "rule": "over the eight reconstruction attacks of tests/test_stage3_gate.py and the four cost shapes beside them -- 399 consecutive record numbers with one far value, the same column without it, 149 of them with one far value, and one far negative value beside a run of 149 -- at a floor of eleven, count the tail SIDES that publish neither distance, and every checkable obligation their twins MISS at seeds 0 and 4 together. Since plan P4-D375 only a pair binary64 cannot hold is withheld, so both stay nought",
    "rule_kind": "at_most",
    "expected": {
-    "sides_publishing_neither_distance": 19,
     "obligations_their_twins_miss": 0,
-    "shapes": 12
+    "shapes": 12,
+    "sides_publishing_neither_distance": 0
    },
    "key_kinds": {
-    "sides_publishing_neither_distance": "at_least",
     "shapes": "at_least"
    },
    "tier": "FAST",
@@ -6232,18 +6229,18 @@
    "driver": null,
    "pin_strength": "NONE",
    "measured_on": "tests/test_stage3_gate.py::withheld_cost, twelve single-column shapes at a floor of eleven, each described, generated at seeds 0 and 4 and checked",
-   "evidence": "19 tail sides over 12 shapes publish neither distance and their twins miss NOTHING at seeds 0 and 4; e294a82, this landing's base, read 21 and 16 on the same twelve (17 and 4 on the first ten at ee56999). The four were moments.mean and moments.std at both seeds on 00001 to 00399 beside a single 12345, whose withheld high tail carried the column's mean: withholding it leaves the windows of the mean and the spread short of their values, so plan P4-D353 publishes it. The two 150-row shapes are where a published pair first met the width the column publishes: the derived end stood on 9999 and on -999, which the profiler reads as a stand-in for no value, and the twin missed 7 and 10 obligations a seed; contract._off_the_stand_ins moves such an end one step inside. GREEN does not mean every far value is kept: beyond the width the column publishes no pair reaches the mean (00001 to 00149 beside 99999), and that is K-S3-22's.",
+   "evidence": "RE-BASED AT PLAN P4-D375: no side of the twelve shapes withholds its pair and no twin misses an obligation, where 21f7b8b withheld nineteen sides and their twins missed nothing.",
    "target_stage": "met by stage 3's follow-up A (plan P4-D353)",
-   "status_note": "GREEN since plan P4-D353, built on the owner's answers of 2026-09-25: 'Publish anyway' and 'Only where it costs'. The fix pass had filed it ACCEPTED_LIMIT and P4-D351 re-opened it as never put to the owner. What the published pairs give back directly is K-S3-18's; what the column's exact moments then give back of the other tail is K-S3-21's.",
+   "status_note": "GREEN since plan P4-D353 published the pairs whose withholding cost; plan P4-D375 publishes them all.",
    "nodes_min_collected": 0,
    "value_at": {
-    "commit": "21f7b8b",
-    "date": "2026-09-26",
-    "measured_by": "tools/measurements/kpi_run.py --slow --only K-S3-15 --only K-S3-17 --only K-S3-18 --only K-S3-19 --only K-S3-20 --only K-S3-21 --only K-S3-22 --only K-S3-13 --print-values",
+    "commit": "e43a540",
+    "date": "2026-10-01",
+    "measured_by": "tools/measurements/kpi_run.py --only 'K-S3-*' --print-values",
     "value": {
-     "sides_publishing_neither_distance": 19,
      "obligations_their_twins_miss": 0,
-     "shapes": 12
+     "shapes": 12,
+     "sides_publishing_neither_distance": 0
     }
    }
   },
@@ -6293,7 +6290,7 @@
    "headline": false,
    "name": "On the gate's eleven filled ranges the twin holds as many units, and the same ones where the published facts settle them",
    "status": "GREEN",
-   "rule": "the nine pinned nodes of tests/test_stage3b_gate.py pass: seven seeded shapes filling every unit of their range -- two years of admission and of billing dates at 10,000 rows, 300 days at 10,000 rows, the admission days as midnight moments, every second of ten minutes, a 105-row column, the review's 32 days at 100 rows -- at the floor each fell short at, the two-year shapes also at floors 1 and 36; at seeds 0 to 4 every twin validates, nothing missed, as many units as the real column and none past the tails' derived ends, its own units where both derived ends are its ends and, where one stands a unit past (four cases, P4-D358), that unit in place of one real unit inside, every approximation inside its window, the two summed tail windows agreeing rank for rank, and each clause of G7.3b step 9 on its own witness (low tail first on a tie, offers nearest the group's distance then the smaller distance, no unit an absent spelling names, ranks in order, one rank kept, none onto a midnight); the summed window widens only where the distinct count is reachable, a file past the strata MISSING its mean there",
+   "rule": "the eleven pinned nodes of tests/test_stage3b_gate.py pass: seven seeded shapes filling every unit of their range -- two years of admission and of billing dates at 10,000 rows, 300 days at 10,000 rows, the admission days as midnight moments, every second of ten minutes, a 105-row column, the review's 32 days at 100 rows -- at the floor each fell short at, the two-year shapes also at floors 1 and 36; at seeds 0 to 4 every twin validates, nothing missed, as many units as the real column and none past the tails' derived ends, its own units where both derived ends are its ends and, where one stands a unit past (four cases, P4-D358), that unit in place of one real unit inside, every approximation inside its window, the two summed tail windows agreeing rank for rank, and each clause of G7.3b step 9 on its own witness (low tail first on a tie, offers nearest the group's distance then the smaller distance, no unit an absent spelling names, ranks in order, one rank kept, none onto a midnight); the summed window widens only where the distinct count is reachable, a file past the strata MISSING its mean there; the 105-row mirrored column holds all 21 days (G7.3b step 5's end floor, plan P4-D375); and the two columns the step-9 witnesses were built on -- every_day_group and the same with an absent day, as the shipped producer describes them -- write one day before the real first, 2024-05-06, in place of a real day inside, at every seed, nothing missed (a range limit, K-S3-50)",
    "rule_kind": "exact",
    "expected": {
     "pinned_nodes_failing": 0
@@ -6309,18 +6306,20 @@
     "tests/test_stage3b_gate.py::test_the_ranks_stay_in_order",
     "tests/test_stage3b_gate.py::test_a_group_keeps_one_rank",
     "tests/test_stage3b_gate.py::test_no_rank_is_moved_onto_a_midnight",
-    "tests/test_stage3b_gate.py::test_the_window_is_summed_wider_only_where_the_count_is_reachable"
+    "tests/test_stage3b_gate.py::test_the_window_is_summed_wider_only_where_the_count_is_reachable",
+    "tests/test_stage3b_gate.py::test_the_mirrored_column_holds_every_day",
+    "tests/test_stage3b_gate.py::test_the_shipped_tails_of_the_tie_group_columns_write_a_day_past_the_first"
    ],
    "test": null,
    "driver": null,
    "pin_strength": "EXACT",
    "measured_on": "tests/test_stage3b_gate.py EVERY_DAY_CASES: eleven shape-and-floor cases, seeds 0 to 4",
-   "evidence": "e294a82 failed 6 of the 10 cases: admissions and billing at floor 11 held 730 and 729 of 731 days and 300 days at floor 36 held 299, both counts MISSED at every seed; the midnight moments and the seconds held 730 and 599 units and VALIDATED, the lost value bought back as a spelling the real column never wrote; the 105-row column held 22 of 23 days. After, 10 of 10. Each step-9 witness turns red on its own mutant (outer unit before inner, smallest distance first, inner unit first, an absent unit offered, outer units smallest outermost, a group's last rank given, a midnight offered); the window widened where the count is unreachable turns the ninth red, in validator and report. Left (P4-D354): real outermost units past a tail's derived end, several a side, both sides at once -- a year whose first and last weeks hold a cell a day holds 363 and 359 of 365 days at floors 11 and 36, both counts MISSED at every seed, and 38 of 300 small filled twins miss -- hidden on moments by a bought spelling, 898 or 899 of 900 seconds at floor 36; and two drawn ranks whose strata overlap leaving a unit empty. At the review (P4-D358) the gate held the count and not the days: the review's 32 days came back with 2023-12-31 and 2024-02-02 for two real days at every seed, all validating; it now asserts the days where the derived ends settle them.",
-   "nodes_min_collected": 27,
+   "evidence": "e294a82 failed 6 of the 10 cases: admissions and billing at floor 11 held 730 and 729 of 731 days and 300 days at floor 36 held 299, both counts MISSED at every seed; the midnight moments and the seconds held 730 and 599 units and VALIDATED, the lost value bought back as a spelling the real column never wrote; the 105-row column held 22 of 23 days. After, 10 of 10. Each step-9 witness turns red on its own mutant (outer unit before inner, smallest distance first, inner unit first, an absent unit offered, outer units smallest outermost, a group's last rank given, a midnight offered); the window widened where the count is unreachable turns the ninth red, in validator and report. Left (P4-D354): real outermost units past a tail's derived end, several a side, both sides at once -- a year whose first and last weeks hold a cell a day holds 363 and 359 of 365 days at floors 11 and 36, both counts MISSED at every seed, and 38 of 300 small filled twins miss -- hidden on moments by a bought spelling, 898 or 899 of 900 seconds at floor 36; and two drawn ranks whose strata overlap leaving a unit empty. At the review (P4-D358) the gate held the count and not the days: the review's 32 days came back with 2023-12-31 and 2024-02-02 for two real days at every seed, all validating; it now asserts the days where the derived ends settle them. AT PLAN P4-D375 three of the four unsettled cases derive the real ends (billing, the 300 days, every second), the 105-row mirrored column holds 21 of 21 days, and the columns of the frozen cases every_day_group and every_day_absent write 2024-05-05, a day before their first, in place of a real day inside at every seed, nothing missed (K-S3-50); their tie-group tests stand on the tails P4-D346 wrote and on a new tied column.",
+   "nodes_min_collected": 31,
    "value_at": {
-    "commit": "6f1acd9",
-    "date": "2026-09-28",
-    "measured_by": "tools/measurements/kpi_run.py --only K-S3-30 --print-values",
+    "commit": "e43a540",
+    "date": "2026-10-01",
+    "measured_by": "tools/measurements/kpi_run.py --only 'K-S3-*' --print-values",
     "value": {
      "pinned_nodes_failing": 0
     }
@@ -6575,20 +6574,78 @@
    }
   },
   {
+   "id": "K-S3-50",
+   "phase_stage": "Stage 3b lane G1, the tail-withholding drop (plan P4-D375)",
+   "category": "STATS",
+   "headline": false,
+   "name": "How far a twin writes past the real column's own range",
+   "status": "OPEN",
+   "rule": "over K-S3-20's 37 shapes at floors 11, 20, 36 and 50, seeds 0, 4 and 9, count the numeric twins holding a cell outside the real column's minimum and maximum, and the median and the worst distance past it in thousandths of the real span; and over the columns of the frozen cases every_day_group and every_day_absent (tests/test_stage3b_gate.py) at a floor of eleven, seeds 0 to 4, the twins writing a day outside the real first and last, and the most days out; and over K-S3-11's date and clock shapes but the two written day first, at floors 11, 20, 36 and 50, each table drawn at seeds 0, 4 and 9 as the tails measurement drew it, its twin at the same seed and the weekday census not asked, the tail sides, those whose twin reaches further beyond the boundary than the real column's furthest cell, and the most a twin reaches, in thousandths of that furthest distance. None may rise; the twin and side counts may not fall. No check sees them, as no end is published",
+   "rule_kind": "at_most",
+   "expected": {
+    "date_clock_reach_most_permille": 1502,
+    "date_clock_sides": 864,
+    "date_clock_sides_past": 395,
+    "date_days_out_most": 1,
+    "date_twins": 10,
+    "date_twins_out_of_range": 10,
+    "median_overshoot_permille": 38,
+    "numeric_twins": 396,
+    "numeric_twins_out_of_range": 363,
+    "worst_overshoot_permille": 357
+   },
+   "key_kinds": {
+    "numeric_twins": "at_least",
+    "date_twins": "at_least",
+    "date_clock_sides": "at_least"
+   },
+   "target": {
+    "numeric_twins_out_of_range": 0,
+    "date_twins_out_of_range": 0
+   },
+   "target_stage": "none set: no end is published, so no check sees a twin past the real one; the end a pair's shape derives stands past it where the shape puts it (plan P4-D354's limit), and plan lane G2's width rule stops at the same reach",
+   "tier": "SLOW",
+   "source": "driver",
+   "nodes": [],
+   "test": null,
+   "driver": "tools/measurements/kpi_cost_rule.py --kpi",
+   "pin_strength": "NONE",
+   "measured_on": "tools/measurements/kpi_cost_rule.py's K-S3-20 battery at four floors and the two tie-group columns, each described, generated and compared with its own cells, and K-S3-11's 19 date and clock shapes at four floors",
+   "evidence": "668f276, which withheld the pairs, reads 282 of 396 numeric twins out of range at a median of 45 and at most 357 thousandths of the span, and 0 of the 10 date twins out. Publishing every pair moves the derived ends onto the pairs' shapes. No check is missed on any of them. THE DATE AND CLOCK SIDES, counted since the lane's repair round: 395 of 864 reach past the real furthest cell, 94, 108, 96 and 97 of 216 at floors 11, 20, 36 and 50, where the tails measurement's harness read 94, 108, 87 and 78 on 668f276; the new ones are on clock_all_different at 400 and 900 rows, minutes at 400 and offsets at 400 and 1,500, and the furthest reach did not move, 1.50 times the real furthest distance at floors 11 and 20, 1.43 at 36 and 1.27 at 50 on both trees.",
+   "nodes_min_collected": 0,
+   "value_at": {
+    "commit": "74cb50e",
+    "date": "2026-10-02",
+    "measured_by": "tools/measurements/kpi_run.py --slow --only K-S3-50 --print-values",
+    "value": {
+     "date_clock_reach_most_permille": 1502,
+     "date_clock_sides": 864,
+     "date_clock_sides_past": 395,
+     "date_days_out_most": 1,
+     "date_twins": 10,
+     "date_twins_out_of_range": 10,
+     "median_overshoot_permille": 38,
+     "numeric_twins": 396,
+     "numeric_twins_out_of_range": 363,
+     "worst_overshoot_permille": 357
+    }
+   }
+  },
+  {
    "id": "K-S3-17",
    "phase_stage": "Stage 3's follow-up A, the owner's accepted limit of 2026-09-25 (plan P4-D353, answer 1)",
    "category": "PRIVACY",
    "headline": false,
-   "name": "The column's exact skew and kurtosis rebuild withheld tail values where the rungs pin its middle",
+   "name": "The column's exact skew and kurtosis rebuild outer tail values where the rungs pin its middle",
    "status": "ACCEPTED_LIMIT",
-   "rule": "over five seeded columns of 102 rows at a floor of eleven whose two tails are dense (eleven different whole numbers in a span of 39) and whose interior the published rungs chain, run the union reader: the rung chain, both published pairs and the column's exact mean, spread, skew and kurtosis, every pair of tails that fits them enumerated. Count the withheld tail values it rebuilds exactly and the columns whose withheld minimum and maximum it names. None may rise",
+   "rule": "over five seeded columns of 102 rows at a floor of eleven whose two tails are dense (eleven different whole numbers in a span of 39) and whose interior the published rungs chain, run the union reader: the rung chain, both published pairs and the column's exact mean, spread, skew and kurtosis, every pair of tails that fits them enumerated. Count the outer tail values it rebuilds exactly and the columns whose minimum and maximum it names. None may rise",
    "rule_kind": "at_most",
    "expected": {
-    "values_rebuilt": 65,
-    "minimum_named": 3,
     "maximum_named": 2,
-    "withheld_values_asked": 110,
-    "shapes": 5
+    "minimum_named": 3,
+    "shapes": 5,
+    "values_rebuilt": 65,
+    "withheld_values_asked": 110
    },
    "key_kinds": {
     "withheld_values_asked": "at_least",
@@ -6601,19 +6658,19 @@
    "driver": "tools/measurements/kpi_cost_rule.py --kpi",
    "pin_strength": "NONE",
    "measured_on": "tests/complement_reader.py::both_dense, seeds 1 to 5, 102 rows at a floor of eleven, every enumeration exhaustive",
-   "evidence": "65 of the 110 withheld tail values come back exactly (22, 22, 17, 4 and 0 by seed); the withheld minimum is named on 3 of 5 columns and the maximum on 2. Unchanged by plan P4-D353 (e294a82 rebuilds the same 65): withholding costs none of the five its mean or spread, so the rule publishes nothing there. The exact third and fourth moments leave one pair of tails on seeds 1 and 2.",
+   "evidence": "RE-BASED AT PLAN P4-D375, every pair published and no boundary widened: the same 65 of the 110 outer tail values come back exactly, the minimum named on 3 of 5 columns and the maximum on 2, as on 21f7b8b.",
    "status_note": "ACCEPTED BY THE OWNER ON 2026-09-25 (plan P4-D353, answer 1: 'Accept it') and NOT to be re-asked; tests/test_stage3_gate.py::test_the_skew_and_kurtosis_rebuild_which_the_owner_accepted fails if the limit CLOSES.",
    "nodes_min_collected": 0,
    "value_at": {
-    "commit": "21f7b8b",
-    "date": "2026-09-26",
-    "measured_by": "tools/measurements/kpi_run.py --slow --only K-S3-15 --only K-S3-17 --only K-S3-18 --only K-S3-19 --only K-S3-20 --only K-S3-21 --only K-S3-22 --only K-S3-13 --print-values",
+    "commit": "0abbd35",
+    "date": "2026-10-01",
+    "measured_by": "tools/measurements/kpi_run.py --slow --only K-S3-11 --only K-S3-17 --only K-S3-18 --only K-S3-20 --only K-S3-21 --only K-S3-22 --only K-S3-50 --print-values",
     "value": {
-     "values_rebuilt": 65,
-     "minimum_named": 3,
      "maximum_named": 2,
-     "withheld_values_asked": 110,
-     "shapes": 5
+     "minimum_named": 3,
+     "shapes": 5,
+     "values_rebuilt": 65,
+     "withheld_values_asked": 110
     }
    }
   },
@@ -6622,15 +6679,14 @@
    "phase_stage": "Stage 3's follow-up A, the owner's rulings 3 and 4 of 2026-09-25 (plan P4-D353)",
    "category": "PRIVACY",
    "headline": false,
-   "name": "Pairs published because withholding them costs the twin its mean or spread, and what a reader names from them",
+   "name": "What a reader names directly from a published tail pair",
    "status": "ACCEPTED_LIMIT",
-   "rule": "over K-S3-15's twelve shapes, the review's attack columns (eleven at a floor of eleven, thirteen at thirty-six, seeded), ten whole-number Pareto(2.5) columns of 400 rows (seeds 0 to 9) and three far-low columns (-4000 beside a run of 399, -2000 beside runs of 149 and 399), each at floors eleven and thirty-six, count the tail sides the cost rule publishes that the back-solve PINNED and left UNSETTLED, from the rule's own call, and the withheld values a reader names DIRECTLY from a published pair (the producer's lattice at 32 times its budget). None may rise; the other tail by the exact moments is K-S3-21's",
+   "rule": "over K-S3-15's twelve shapes, the review's attack columns (eleven at a floor of eleven, thirteen at thirty-six, seeded), ten whole-number Pareto(2.5) columns of 400 rows (seeds 0 to 9) and three far-low columns (-4000 beside a run of 399, -2000 beside runs of 149 and 399), each at floors eleven and thirty-six, count the published sides from whose pair a reader names at least one cell DIRECTLY (the producer's lattice at 32 times its budget, tests/complement_reader.py::named_directly) and the cells it names. None may rise; the other tail by the exact moments is K-S3-21's",
    "rule_kind": "at_most",
    "expected": {
-    "pinned_sides_published": 12,
-    "unsettled_sides_published": 20,
-    "values_named_directly": 306,
-    "shapes": 74
+    "shapes": 74,
+    "sides_naming_a_value": 70,
+    "values_named_directly": 1774
    },
    "key_kinds": {
     "shapes": "at_least"
@@ -6641,19 +6697,18 @@
    "test": null,
    "driver": "tools/measurements/kpi_cost_rule.py --kpi",
    "pin_strength": "NONE",
-   "measured_on": "tests/test_stage3_gate.py::RECONSTRUCTIONS + COST_SHAPES and tests/complement_reader.py's attack, Pareto and far-low columns, floors 11 and 36; the rule's choices recorded by wrapping taxonomy._pairs_that_cost",
-   "evidence": "Twelve PINNED sides are published, each beside one far value that carries the column's mean: 00001 to 00399 and 00001 to 00149 beside 12345 (the high side) and -4000 or -2000 beside a run (the low side), at floors 11 and 36. The reader names every cell of each, the far value among them: 12 a side at 11, 38 or 40 at 36, 306 in all. Twenty UNSETTLED sides are published (the attack columns at 36: 11; Pareto at 36: 9) and the reader names none of their cells at 2^22 steps.",
-   "status_note": "ACCEPTED BY THE OWNER ON 2026-09-25 (plan P4-D353, answers 3 'Publish anyway' and 4 'Only where it costs') and NOT to be re-asked: a PINNED tail's pair is published only where withholding it leaves the column's G12.3 window of its mean or spread short, and these keys count the cells a reader names from it. unsettled_sides_published is the plan's a-fortiori reading for a side the walk could not settle, not the owner's words.",
+   "measured_on": "tests/test_stage3_gate.py::RECONSTRUCTIONS + COST_SHAPES and tests/complement_reader.py's attack, Pareto and far-low columns, floors 11 and 36; every published side read by complement_reader.named_directly",
+   "evidence": "RE-BASED AT PLAN P4-D375, where every pair binary64 holds is published: 70 published sides over the 74 shapes name at least one cell, 1,774 cells in all, where 21f7b8b published twelve pinned sides, each beside one far value, and the reader named 306 cells of them.",
+   "status_note": "ACCEPTED BY THE OWNER ON 2026-09-25 (plan P4-D353, answers 3 'Publish anyway' and 4 'Only where it costs') for a PINNED tail's pair where withholding it cost the twin; plan P4-D375 publishes every pair binary64 holds, the orchestrator's call under the owner's principle of 2026-10-01 (the one privacy concern a HIPAA exposure, not a reader rebuilding a column's own values), reversible. These keys count the cells a reader names from them.",
    "nodes_min_collected": 0,
    "value_at": {
-    "commit": "21f7b8b",
-    "date": "2026-09-26",
-    "measured_by": "tools/measurements/kpi_run.py --slow --only K-S3-15 --only K-S3-17 --only K-S3-18 --only K-S3-19 --only K-S3-20 --only K-S3-21 --only K-S3-22 --only K-S3-13 --print-values",
+    "commit": "0abbd35",
+    "date": "2026-10-01",
+    "measured_by": "tools/measurements/kpi_run.py --slow --only K-S3-11 --only K-S3-17 --only K-S3-18 --only K-S3-20 --only K-S3-21 --only K-S3-22 --only K-S3-50 --print-values",
     "value": {
-     "pinned_sides_published": 12,
-     "unsettled_sides_published": 20,
-     "values_named_directly": 306,
-     "shapes": 74
+     "shapes": 74,
+     "sides_naming_a_value": 70,
+     "values_named_directly": 1774
     }
    }
   },
@@ -6662,41 +6717,39 @@
    "phase_stage": "Stage 3's follow-up A (plan P4-D353, part 2)",
    "category": "PRIVACY",
    "headline": false,
-   "name": "Where withholding both pairs costs the twin nothing, one withheld tail withholds the other's pair, and what that costs the checker",
+   "name": "No closure stands, and the checker convicts a heaped end beside a run",
    "status": "GREEN",
-   "rule": "over the three columns on which the cross-side rule stands -- the review's rung-chained column at seed 4 (102 rows) at a floor of eleven, heap_then_one_far at eleven, and 1,500 all-different whole numbers drawn uniformly at twenty -- count the published descriptions that withhold both pairs, which may not fall. And over the four files of tests/test_p4d349_tail_reconstruction.py::CHECKER_BOUND_FILES, checked at eleven against a description publishing a heaped end -- eleven cells stepping ten apart beyond it, beside the file's own other tail as a run of consecutive whole numbers and as uneven steps, at the minimum and at the maximum -- count the P4-D349 bounds on that end left WITHHELD, which may not rise, and MISSED, which may not fall. No count of values is kept: a closure closes the subtraction beside a pair, not every reading (K-S3-24)",
+   "rule": "over the three columns the cross-side rule of plan P4-D353 stood on -- the review's rung-chained column at seed 4 (102 rows) at a floor of eleven, heap_then_one_far at eleven, and 1,500 all-different whole numbers at twenty -- count the descriptions that withhold both pairs, nought since plan P4-D375 withdrew the closure. And over the four files of tests/test_p4d349_tail_reconstruction.py::CHECKER_BOUND_FILES, checked at eleven against a description publishing a heaped end, count the P4-D349 bounds on that end left WITHHELD, which may not rise, and MISSED, which may not fall",
    "rule_kind": "exact",
    "expected": {
-    "closures_standing": 3,
-    "checker_bounds_withheld": 2,
-    "checker_bounds_missed": 2,
+    "checker_bounds_missed": 4,
+    "checker_bounds_withheld": 0,
+    "closures_standing": 0,
     "pinned_nodes_failing": 0
    },
    "key_kinds": {
-    "closures_standing": "at_least",
     "checker_bounds_withheld": "at_most",
     "checker_bounds_missed": "at_least"
    },
    "tier": "FAST",
    "source": "pytest",
    "nodes": [
-    "tests/test_p4d349_tail_reconstruction.py::test_a_file_whose_other_tail_is_withheld_is_not_convicted",
-    "tests/test_p4d353_cost_rule.py::test_the_complement_stays_closed_where_closing_it_is_free"
+    "tests/test_p4d349_tail_reconstruction.py::test_a_file_whose_other_tail_is_a_run_is_convicted"
    ],
    "test": "tests/test_kpi_ledger.py::test_k_s3_19",
    "driver": null,
    "pin_strength": "EXACT",
    "measured_on": "tests/complement_reader.py's rung-chained column at seed 4, tests/test_stage3_gate.py's heap_then_one_far and the whole-uniform all-different 1,500-row column, each described once; the four checker files, each checked once against its heaped-end description",
-   "evidence": "3 closures stand against the subtraction; with no pair at all the whole-description reader of K-S3-24 still rebuilds heap_then_one_far at eleven, its one-row maximum 1100 among the values. e294a82 published the open low pair beside the withheld high run on the rung-chained column, and complement_reader.by_subtraction named its 12 high values. On each, withholding both pairs keeps the windows of the mean and spread, so the cost rule offers nothing back. WHAT IT COSTS THE CHECKER (plan P4-D353): a checked file whose other tail is a run has its near pair withheld too, so the heaped end's bound has nothing to be drawn from -- WITHHELD on 2 of the 4 files, where e294a82 said MISSED on all 4; uneven steps stay MISSED.",
-   "nodes_min_collected": 2,
+   "evidence": "RE-BASED AT PLAN P4-D375: no closure stands, and each checked file's own description publishes both pairs, so the heaped end's bound is drawn and every file is MISSED, where e760d27 left two WITHHELD.",
+   "nodes_min_collected": 1,
    "value_at": {
-    "commit": "e760d27",
-    "date": "2026-09-26",
-    "measured_by": "tools/measurements/kpi_run.py --only K-S3-19 --only K-S3-23 --print-values",
+    "commit": "e43a540",
+    "date": "2026-10-01",
+    "measured_by": "tools/measurements/kpi_run.py --only 'K-S3-*' --print-values",
     "value": {
-     "closures_standing": 3,
-     "checker_bounds_withheld": 2,
-     "checker_bounds_missed": 2,
+     "checker_bounds_missed": 4,
+     "checker_bounds_withheld": 0,
+     "closures_standing": 0,
      "pinned_nodes_failing": 0
     }
    }
@@ -6708,19 +6761,19 @@
    "headline": false,
    "name": "At a raised floor no twin misses a moment a published pair would keep",
    "status": "GREEN",
-   "rule": "over fifteen ordinary shapes (whole numbers drawn uniformly and normally, two-place normal and lognormal readings, ages; 150, 400 and 1,500 rows), nine all-different ones, K-S3-15's shapes but the far negative value beside a run (at this floor K-S3-22's), and two all-different columns whose published low pair the checker cannot check on a twin (150 three-place exponential readings and 400 six-digit whole numbers), at a floor of thirty-six, count the obligations the twins at seeds 0, 4 and 9 MISS and leave WITHHELD, the blocks whose description leaves its own G12.3 window of the mean or spread short, the published pairs whose withholding alone would, and the rule's pairs the checker cannot check on a twin. Misses and short blocks stay nought; WITHHELD and unchecked may not rise; needed pairs may not fall, so publishing nothing cannot pass",
+   "rule": "over fifteen ordinary shapes (whole numbers drawn uniformly and normally, two-place normal and lognormal readings, ages; 150, 400 and 1,500 rows), nine all-different ones, K-S3-15's shapes but the far negative value beside a run (at this floor K-S3-22's), and two all-different columns whose published low pair the checker cannot check on a twin (150 three-place exponential readings and 400 six-digit whole numbers), at a floor of thirty-six, count the obligations the twins at seeds 0, 4 and 9 MISS and leave WITHHELD, the blocks whose description leaves its own G12.3 window of the mean or spread short, the published pairs whose withholding alone would, and the published pairs the checker cannot check on a twin. Misses and short blocks stay nought; WITHHELD and unchecked may not rise; needed pairs may not fall, so publishing nothing cannot pass",
    "rule_kind": "exact",
    "expected": {
-    "twin_misses": 0,
-    "twin_withheld": 12,
     "blocks_missing_own_window": 0,
-    "pairs_the_moments_need": 22,
-    "rule_pairs_the_checker_cannot_check": 2,
-    "shapes": 37
+    "pairs_the_checker_cannot_check": 0,
+    "pairs_the_moments_need": 21,
+    "shapes": 37,
+    "twin_misses": 0,
+    "twin_withheld": 0
    },
    "key_kinds": {
     "twin_withheld": "at_most",
-    "rule_pairs_the_checker_cannot_check": "at_most",
+    "pairs_the_checker_cannot_check": "at_most",
     "pairs_the_moments_need": "at_least",
     "shapes": "at_least"
    },
@@ -6731,19 +6784,19 @@
    "driver": "tools/measurements/kpi_cost_rule.py --kpi",
    "pin_strength": "NONE",
    "measured_on": "tests/complement_reader.py's seeded ordinary and all-different columns and tests/test_stage3_gate.py's RECONSTRUCTIONS + COST_SHAPES at a floor of 36, each described, generated at seeds 0, 4 and 9 and checked in full",
-   "evidence": "0 obligations missed at every seed where e294a82 missed 66 over the three; 0 blocks miss their own window; 22 published pairs keep a window their withholding would miss. The twins leave 12 obligations WITHHELD, tails.low.mean_distance and rms_distance on the two added columns, whose own descriptions withhold the low pair published on the real table. The real tables meet every obligation.",
+   "evidence": "RE-BASED AT PLAN P4-D375: no obligation is missed or left WITHHELD at any seed, where 21f7b8b's twins left 12 WITHHELD on the two added columns whose own descriptions withheld the low pair; no block misses its own window; 21 published pairs keep a window their withholding alone would miss (22 on 21f7b8b), and none is a pair the checker cannot check on a twin.",
    "nodes_min_collected": 0,
    "value_at": {
-    "commit": "21f7b8b",
-    "date": "2026-09-26",
-    "measured_by": "tools/measurements/kpi_run.py --slow --only K-S3-15 --only K-S3-17 --only K-S3-18 --only K-S3-19 --only K-S3-20 --only K-S3-21 --only K-S3-22 --only K-S3-13 --print-values",
+    "commit": "0abbd35",
+    "date": "2026-10-01",
+    "measured_by": "tools/measurements/kpi_run.py --slow --only K-S3-11 --only K-S3-17 --only K-S3-18 --only K-S3-20 --only K-S3-21 --only K-S3-22 --only K-S3-50 --print-values",
     "value": {
-     "twin_misses": 0,
-     "twin_withheld": 12,
      "blocks_missing_own_window": 0,
-     "pairs_the_moments_need": 22,
-     "rule_pairs_the_checker_cannot_check": 2,
-     "shapes": 37
+     "pairs_the_checker_cannot_check": 0,
+     "pairs_the_moments_need": 21,
+     "shapes": 37,
+     "twin_misses": 0,
+     "twin_withheld": 0
     }
    }
   },
@@ -6752,14 +6805,14 @@
    "phase_stage": "Stage 3's follow-up A, the owner's accepted limit of 2026-09-26 (plan P4-D353, answer 5)",
    "category": "PRIVACY",
    "headline": false,
-   "name": "Withheld tail values the column's exact mean and spread give back beside a published pair",
+   "name": "Outer tail values the column's exact mean and spread give back beside a published pair",
    "status": "ACCEPTED_LIMIT",
-   "rule": "over the review's attack columns (six at a floor of eleven, eleven at thirty-six, seeded), 399 consecutive record numbers beside one far value, and four far-low columns (one -4000 or -2000 beside a run, 150 and 400 rows), each at floors eleven and thirty-six, count the withheld tail values a reader names by SUBTRACTION from the column's exact mean and spread beside a published pair (the general rung-chain reader), and the columns on which that reader gives up. Neither may rise",
+   "rule": "over the review's attack columns (six at a floor of eleven, eleven at thirty-six, seeded), 399 consecutive record numbers beside one far value, and four far-low columns (one -4000 or -2000 beside a run, 150 and 400 rows), each at floors eleven and thirty-six, count the outer tail values a reader names by SUBTRACTION from the column's exact mean and spread beside a published pair (the general rung-chain reader), and the columns on which that reader gives up. Neither may rise",
    "rule_kind": "at_most",
    "expected": {
-    "values_by_subtraction": 701,
-    "columns_the_reader_gives_up_on": 1,
-    "shapes": 27
+    "columns_the_reader_gives_up_on": 0,
+    "shapes": 27,
+    "values_by_subtraction": 0
    },
    "key_kinds": {
     "shapes": "at_least"
@@ -6771,17 +6824,17 @@
    "driver": "tools/measurements/kpi_cost_rule.py --kpi",
    "pin_strength": "NONE",
    "measured_on": "tests/complement_reader.py's attack and far-low columns and tests/test_stage3_gate.py's padded_399_beside_one_far, floors 11 and 36",
-   "evidence": "701 withheld values come back by subtraction: at floor eleven 60 on the attack columns (closing the complement costs five twins of six their spread; the sixth's closure is free and stands, K-S3-19), 12 on the padded column and 48 on the far-low columns; at thirty-six 385, 40 and 156. The reader gives up on one attack column (a2_n400_s3_J300), so 701 is a floor. e294a82 gave back 72 at floor eleven and none at thirty-six.",
+   "evidence": "RE-BASED AT PLAN P4-D375: every side beside a published pair publishes its own, so the reader has nothing to subtract for and names no value, and it gives up on no column; 21f7b8b gave back 701 and gave up on one.",
    "status_note": "ACCEPTED BY THE OWNER ON 2026-09-26 (plan P4-D353, answer 5: 'Allow it') and NOT to be re-asked: where the rule publishes one tail's pair and the exact mean and spread give the other tail back, the pair stays -- 120 values at floor eleven against 72 shipped, 581 at thirty-six, as the question put them.",
    "nodes_min_collected": 0,
    "value_at": {
-    "commit": "21f7b8b",
-    "date": "2026-09-26",
-    "measured_by": "tools/measurements/kpi_run.py --slow --only K-S3-15 --only K-S3-17 --only K-S3-18 --only K-S3-19 --only K-S3-20 --only K-S3-21 --only K-S3-22 --only K-S3-13 --print-values",
+    "commit": "0abbd35",
+    "date": "2026-10-01",
+    "measured_by": "tools/measurements/kpi_run.py --slow --only K-S3-11 --only K-S3-17 --only K-S3-18 --only K-S3-20 --only K-S3-21 --only K-S3-22 --only K-S3-50 --print-values",
     "value": {
-     "values_by_subtraction": 701,
-     "columns_the_reader_gives_up_on": 1,
-     "shapes": 27
+     "columns_the_reader_gives_up_on": 0,
+     "shapes": 27,
+     "values_by_subtraction": 0
     }
    }
   },
@@ -6795,12 +6848,12 @@
    "rule": "over the far value beyond the width a column publishes (00001 to 00149 and 00001 to 00399 beside 99999; 1000 to 1148 and 1000 to 1398 beside 99999; floors eleven and thirty-six), whole-number all-different Pareto(2) at 150 rows (seed 2, floors twenty, thirty-six and fifty), whole-number Pareto(2.5) at 400 rows (seeds 0 to 9, floors thirty-six and fifty), all-different two-place lognormal columns of 40 and 60 values at thirty-six (moments only), one far negative value beside a run of 99 and of 149 at thirty-six, and 00001 to 00149 beside 50000 at thirty-six, count the moments.mean and moments.std obligations the twins at seeds 0, 4 and 9 MISS, the blocks on which no candidate of plan P4-D353 keeps either moment, the blocks on which one keeps a single moment, and the blocks with no pair to publish. None may rise",
    "rule_kind": "at_most",
    "expected": {
-    "moment_misses": 111,
+    "pinned_nodes_failing": 0,
     "blocks_no_candidate_keeps_either": 15,
     "blocks_one_moment_kept": 3,
     "blocks_with_no_pair_to_publish": 2,
-    "shapes": 36,
-    "pinned_nodes_failing": 0
+    "moment_misses": 111,
+    "shapes": 36
    },
    "key_kinds": {
     "shapes": "at_least"
@@ -6812,25 +6865,25 @@
    "tier": "SLOW",
    "source": "driver",
    "nodes": [
-    "tests/test_p4d353_cost_rule.py::test_where_no_pair_keeps_a_moment_none_is_published"
+    "tests/test_p4d353_cost_rule.py::test_no_twin_misses_a_moment_a_published_pair_would_keep"
    ],
    "test": null,
    "driver": "tools/measurements/kpi_cost_rule.py --kpi",
    "pin_strength": "NONE",
    "measured_on": "tests/complement_reader.py's seeded far-value, Pareto and moments-only columns, each described, generated at seeds 0, 4 and 9 and checked in full",
-   "evidence": "111 moments.mean and moments.std obligations are missed over the three seeds: 48 on the far value beyond the width (both moments on 8 column-floors at every seed: the pair the width lets the twin write cannot reach 99999), 18 on Pareto(2) seed 2, 24 on Pareto(2.5) (seed 6 at 36; seeds 1, 4 and 6 at 50), 12 on the two moments-only blocks, 6 on the far negative value at 36 and 3 on 00001 to 00149 beside 50000 at 36, where a pair keeps the mean and nothing the spread. e294a82 missed 216.",
-   "nodes_min_collected": 1,
+   "evidence": "RE-BASED AT PLAN P4-D375: the moments' misses are the same 111 the plan's measurement read on 7b5f698 beside the drop -- 99 a far value beyond the width or pad the column publishes, which plan lane G2's width rule takes on. The block counts are now read off every block's own windows, the cost rule that chose them being gone.",
+   "nodes_min_collected": 6,
    "value_at": {
-    "commit": "21f7b8b",
-    "date": "2026-09-26",
-    "measured_by": "tools/measurements/kpi_run.py --slow --only K-S3-15 --only K-S3-17 --only K-S3-18 --only K-S3-19 --only K-S3-20 --only K-S3-21 --only K-S3-22 --only K-S3-13 --print-values",
+    "commit": "0abbd35",
+    "date": "2026-10-01",
+    "measured_by": "tools/measurements/kpi_run.py --slow --only K-S3-11 --only K-S3-17 --only K-S3-18 --only K-S3-20 --only K-S3-21 --only K-S3-22 --only K-S3-50 --print-values",
     "value": {
-     "moment_misses": 111,
+     "pinned_nodes_failing": 0,
      "blocks_no_candidate_keeps_either": 15,
      "blocks_one_moment_kept": 3,
      "blocks_with_no_pair_to_publish": 2,
-     "shapes": 36,
-     "pinned_nodes_failing": 0
+     "moment_misses": 111,
+     "shapes": 36
     }
    }
   },
@@ -6839,14 +6892,14 @@
    "phase_stage": "Stage 3's follow-up A, the owner's accepted limit of 2026-09-26 (plan P4-D353, answer 8)",
    "category": "PRIVACY",
    "headline": false,
-   "name": "Withheld tail values the column's exact mean and spread give back beside a LISTED tail",
+   "name": "Outer tail values the column's exact mean and spread give back beside a LISTED tail",
    "status": "ACCEPTED_LIMIT",
-   "rule": "over six seeded scales of few values beside ONE far cell -- Likert 1 to 5 at 150 rows beside 19 and beside -9 and at 400 rows beside 23, ages 18 to 29 at 400 rows beside 97, a pain score of 0 to 10 beside 37 and a scale of 0 to 10 beside -25 at 400 rows -- each at floors eleven, twenty and thirty-six, count the withheld tail values a reader names by SUBTRACTION from the exact mean and spread beside a tail that LISTS its values (tests/complement_reader.py::beside_a_list), and the column-floors it gives up on. Neither may rise",
+   "rule": "over six seeded scales of few values beside ONE far cell -- Likert 1 to 5 at 150 rows beside 19 and beside -9 and at 400 rows beside 23, ages 18 to 29 at 400 rows beside 97, a pain score of 0 to 10 beside 37 and a scale of 0 to 10 beside -25 at 400 rows -- each at floors eleven, twenty and thirty-six, count the outer tail values a reader names by SUBTRACTION from the exact mean and spread beside a tail that LISTS its values (tests/complement_reader.py::beside_a_list), and the column-floors it gives up on. Neither may rise",
    "rule_kind": "at_most",
    "expected": {
-    "values_beside_a_list": 24,
     "columns_the_reader_gives_up_on": 0,
-    "shapes": 18
+    "shapes": 18,
+    "values_beside_a_list": 0
    },
    "key_kinds": {
     "shapes": "at_least"
@@ -6858,17 +6911,17 @@
    "driver": null,
    "pin_strength": "NONE",
    "measured_on": "tests/complement_reader.py::listed_scale, six columns at floors 11, 20 and 36, each described once",
-   "evidence": "24 withheld values come back, each column's one-row extreme among them: at floor eleven the high tail of Likert 1 to 5 beside 19 (150 rows) as eleven 5s and the 19, and the low tail beside -9 as the -9 and eleven 1s. On both the far side is pinned and the near side lists one value with the pair (0, 0); withholding costs no moment, so the rule publishes nothing, and a listed side keeps its pair, which TL5 requires and a one-value list makes redundant. The reader finds two tails on the 400-row Likert column at every floor and three on the ages column at 11 and 20; the other eleven column-floors publish the far side's pair. e294a82 publishes the same 18 blocks and gives back the same 24.",
+   "evidence": "RE-BASED AT PLAN P4-D375: with the far side's pair published beside the list there is nothing withheld to subtract for; e760d27 gave back 24, each column's one-row extreme among them.",
    "status_note": "ACCEPTED BY THE OWNER ON 2026-09-26 (plan P4-D353, answer 8: 'Accept both') and NOT to be re-asked, on a question that said it shows a column's own values and row counts, 'never which row holds them', never another column. On a table sorted by that column, row_order places them (tests/test_stage3_gate.py::test_a_sorted_table_places_every_rebuilt_value_in_its_row): told of that on 2026-09-30, the owner answered 'Yes, it stands'.",
    "nodes_min_collected": 0,
    "value_at": {
-    "commit": "e760d27",
-    "date": "2026-09-26",
-    "measured_by": "tools/measurements/kpi_run.py --only K-S3-19 --only K-S3-23 --print-values",
+    "commit": "e43a540",
+    "date": "2026-10-01",
+    "measured_by": "tools/measurements/kpi_run.py --only 'K-S3-*' --print-values",
     "value": {
-     "values_beside_a_list": 24,
      "columns_the_reader_gives_up_on": 0,
-     "shapes": 18
+     "shapes": 18,
+     "values_beside_a_list": 0
     }
    }
   },
@@ -6882,10 +6935,10 @@
    "rule": "over tests/test_stage3_gate.py's eight reconstruction attacks and skeptic A2's five columns (tests/complement_reader.py::WHOLE_DESCRIPTION_FAMILY), each at floors 11, 20, 36 and 50, run complement_reader.whole_description -- the rungs, n_distinct_values, the mode and its count, the sign counts, a listed low tail's values and the column's exact mean and spread, never a tail pair, skew or kurtosis -- and count the values it gives back exactly, the column-floors it rebuilds whole and those whose maximum it names. None may rise",
    "rule_kind": "at_most",
    "expected": {
-    "values_rebuilt": 14115,
     "columns_rebuilt_whole": 15,
     "maxima_named": 15,
-    "shapes": 52
+    "shapes": 52,
+    "values_rebuilt": 14115
    },
    "key_kinds": {
     "shapes": "at_least"
@@ -6897,18 +6950,18 @@
    "driver": null,
    "pin_strength": "NONE",
    "measured_on": "tests/test_stage3_gate.py::RECONSTRUCTIONS and tests/complement_reader.py::WHOLE_DESCRIPTION_FAMILY, thirteen columns at floors 11, 20, 36 and 50, each described once",
-   "evidence": "14,115 values come back over 15 of 52 column-floors, each whole with its one-row maximum: the integers 0 to 1,100 at all four floors and run_far_401 and run_far_near_1101 at all four, both pairs withheld; heap_then_one_far (one of K-S3-19's closures) and heap12_far_1101 at eleven, both withheld; heap_low_far_1501 at eleven beside a list it reads and a pair it does not. It gives up on the other 37 -- 16 date and clock blocks, 8 off a whole grid or whole ranks, 9 where the floor withholds the mode and its count (a heap smaller than the floor, the three heap columns at 20, 36 and 50), 4 on gappy_far_1501's free runs -- so 14,115 is a floor. e294a82 gives back the same.",
+   "evidence": "RE-BASED AT PLAN P4-D375, which moves no number here: the reader reads no pair, skew or kurtosis. 14,115 values come back over 15 of 52 column-floors, each whole with its one-row maximum: the integers 0 to 1,100, run_far_401 and run_far_near_1101 at all four floors; heap_then_one_far and heap12_far_1101 at eleven; heap_low_far_1501 at eleven beside a list it reads. It gives up on the other 37, so 14,115 is a floor.",
    "status_note": "ACCEPTED BY THE OWNER ON 2026-09-26 (plan P4-D353, answer 8: 'Accept both') and NOT to be re-asked; what the owner was told it shows is K-S3-23's, the sorted table told on 2026-09-30 and answered 'Yes, it stands' (tests/test_stage3_gate.py::test_a_sorted_table_places_every_rebuilt_value_in_its_row), and tests/test_stage3_gate.py::test_the_whole_description_rebuild_which_the_owner_accepted fails if the limit CLOSES.",
    "nodes_min_collected": 0,
    "value_at": {
-    "commit": "54d22f3",
-    "date": "2026-09-26",
-    "measured_by": "tools/measurements/kpi_run.py --slow --only K-S3-24 --only K-S3-23 --only K-S3-19 --only K-2B-42 --print-values",
+    "commit": "e43a540",
+    "date": "2026-10-01",
+    "measured_by": "tools/measurements/kpi_run.py --only 'K-S3-*' --print-values",
     "value": {
-     "values_rebuilt": 14115,
      "columns_rebuilt_whole": 15,
      "maxima_named": 15,
-     "shapes": 52
+     "shapes": 52,
+     "values_rebuilt": 14115
     }
    }
   },
@@ -6919,12 +6972,12 @@
    "headline": false,
    "name": "Withheld tail sides whose summary line or quality-report sentence misstates why they are withheld",
    "status": "GREEN",
-   "rule": "over sixteen single-column shapes -- the stage-3 gate's four numeric reconstruction attacks and four cost shapes, skeptic A2's five columns (tests/complement_reader.py::WHOLE_DESCRIPTION_FAMILY), and the review's 0 to 299 beside 101 scattered values, 1,500 all-different whole numbers and eleven cells near -1.7e308 beside 89 near 1.68e308 -- at floors 11, 20 and 36, count the tail sides publishing neither distance nor values, and those whose remark, summary line or report sentence names a reason other than the true one -- the back-solve's verdict (for a pinned side, what an enumeration of the multisets its facts admit finds its pair gives back, plan P4-D357 A), the cross-side rule, or binary64 (tests/test_p4d353_cost_rule.py::misstated). The second stays nought; the others may not fall",
+   "rule": "over sixteen single-column shapes -- the stage-3 gate's four numeric reconstruction attacks and four cost shapes, skeptic A2's five columns (tests/complement_reader.py::WHOLE_DESCRIPTION_FAMILY), and the review's 0 to 299 beside 101 scattered values, 1,500 all-different whole numbers and eleven cells near -1.7e308 beside 89 near 1.68e308 -- at floors 11, 20 and 36, count the tail sides publishing neither distance nor values -- since plan P4-D375 only those binary64 cannot hold -- and those whose remark, summary line or report sentence names a reason other than binary64 (tests/test_p4d353_cost_rule.py::misstated). The second stays nought; the others may not fall",
    "rule_kind": "exact",
    "expected": {
     "misstated_sides": 0,
-    "withheld_sides": 67,
-    "shapes": 48
+    "shapes": 48,
+    "withheld_sides": 3
    },
    "key_kinds": {
     "withheld_sides": "at_least",
@@ -6937,15 +6990,15 @@
    "driver": null,
    "pin_strength": "NONE",
    "measured_on": "sixteen single-column shapes at floors 11, 20 and 36, each described once",
-   "evidence": "0 of 67 sides over 48 column-floors: 42 pinned sides say every value and 2 at least a count, each as the enumeration finds; 12 unsettled, 8 withheld for the other tail and 3 binary64 cannot hold carry their remark on both pages. 455076c read 64 sides (the cross-side rule did not reach a side binary64 cannot hold) and said every pinned side gave its values back one by one.",
+   "evidence": "RE-BASED AT PLAN P4-D375: the sides left are the far column's, binary64's at each floor, each saying so on both pages; 2599fe0 read 67 withheld for six reasons.",
    "value_at": {
-    "commit": "2599fe0",
-    "date": "2026-09-28",
-    "measured_by": "tools/measurements/kpi_run.py --only K-S3-25 --print-values",
+    "commit": "e43a540",
+    "date": "2026-10-01",
+    "measured_by": "tools/measurements/kpi_run.py --only 'K-S3-*' --print-values",
     "value": {
      "misstated_sides": 0,
-     "withheld_sides": 67,
-     "shapes": 48
+     "shapes": 48,
+     "withheld_sides": 3
     }
    }
   }

@@ -795,20 +795,16 @@ def test_a_stand_in_number_reaches_its_share_as_a_count() -> None:
         block["tails"]["low"],
         block, numbers, 11, True
     )
-    # THE TWO COLUMNS' LOW PAIRS ARE ASKED THE COST RULE (plan P4-D353).
-    # Both low tails would be read back -- the comparison column's eleven
-    # distances are 1 to 11, this column's 1010 and then 1 to 10, which
-    # one arithmetic also settles because the squares leave the largest
-    # nowhere else to be -- so P4-D349 withholds both. The comparison
-    # column's run IS its narrowest reading, so its windows keep its mean
-    # and spread withheld and the pair stays withheld. This column's
+    # BOTH COLUMNS PUBLISH THEIR LOW PAIRS (plan P4-D375), although each
+    # gives its low tail back -- twelve rows below the sixth percentile,
+    # the comparison column's 0.94 to 11.94 from its boundary of 12.94,
+    # this column's 1010.94 and then 0.94 to 10.94. This column's
     # narrowest reading cannot carry the `-999`, so with its low pair
-    # withheld the window of its mean falls short of the published mean,
-    # and the owner ruled that such a pair is published: the `-999` shows
-    # in the pair as well as in the column's own MEAN, which the owner's
-    # ruling keeps EXACT. The mean is the arithmetic below, and it is the
-    # whole claim -- the `-999` reached the statistics as a count of its
-    # own.
+    # withheld the window of its mean would fall short of the published
+    # mean; published, it holds. The `-999` shows in the pair as well as
+    # in the column's own MEAN, which the owner's ruling keeps EXACT. The
+    # mean is the arithmetic below, and it is the whole claim -- the
+    # `-999` reached the statistics as a count of its own.
     without = profile.build_document(
         reading.read_table(
             f"{fixtures.write(folder, 'without.csv', fixtures.single_column_table('score', values[1:] + ['200']))}",
@@ -817,16 +813,12 @@ def test_a_stand_in_number_reaches_its_share_as_a_count() -> None:
         taxonomy.Settings(small_cell_floor=11),
         [],
     )["columns"][0]
-    assert without["tails"]["low"]["mean_distance"] is None
-    assert without["tails"]["low"]["rms_distance"] is None
+    assert without["tails"]["low"]["rows"] == 12
+    assert abs(without["tails"]["low"]["mean_distance"] - 6.44) < 1e-9
+    assert abs(block["tails"]["low"]["mean_distance"] - 89.69) < 1e-9
     assert not cost_rule_window.costs(without, 11)
-    assert cost_rule_window.costs(cost_rule_window.withheld(block, ("low",)), 11), (
-        "with its low pair withheld this column's windows still reach its "
-        "mean and spread: the case no longer asks the cost rule anything"
-    )
-    assert block["tails"]["low"]["mean_distance"] is not None, (
-        "withholding the low pair costs the twin its mean and it is not published"
-    )
+    assert cost_rule_window.costs(cost_rule_window.withheld(block, ("low",)), 11)
+    assert block["tails"]["low"]["mean_distance"] is not None
     assert not cost_rule_window.costs(block, 11)
     assert block["mean"] == (-999 + sum(range(1, 200))) / 200
     assert without["mean"] == (sum(range(1, 200)) + 200) / 200
