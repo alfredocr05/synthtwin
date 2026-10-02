@@ -820,12 +820,20 @@ def _file_question_builders() -> "set[str]":
 
 
 def test_every_answer_a_column_question_offers_has_a_key() -> None:
-    """Item 1's guard: an answer with no key stops the terminal run, so none may lack one."""
+    """Item 1's guard: an answer with no key stops the terminal run, so none may lack one.
+
+    AND THE CODES QUESTION OF LANE R1 IS THE FILE'S ONLY (merge of 3b.R1,
+    plan P4-D381): `_date_code_choices` builds a column question, but
+    `synthtwin profile` takes every such column out of what the terminal
+    asks (`asking.without_columns_of`) and puts it in the questions file
+    alone, so its answers `missing` and `real-value` need no key.
+    """
     from synthtwin import cli
 
     to_the_file = _file_question_builders()
     assert {"_day_first_questions", "_first_row_questions", "_delimiter_questions"} <= to_the_file
-    offered = _offered_by_each_builder(to_the_file)
+    assert callable(asking._date_code_choices)
+    offered = _offered_by_each_builder(to_the_file | {"_date_code_choices"})
     assert "_clock_question" in offered and "_person_choices" in offered
     column_answers: "set[str]" = set()
     for builder in offered:

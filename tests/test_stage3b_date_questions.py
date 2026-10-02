@@ -1,0 +1,918 @@
+"""THE DATE QUESTIONS' GATE (stage 3b lane R1, plan P4-D381).
+
+Two things the values of a column of dates cannot settle, put to the
+person through the questions file and the screen, and answered there
+(the owner's ruling of 2026-10-01: "we try to replicate the database
+without the imput of the user, but this does not mean that the user
+shouldn't be asked!"):
+
+* DAY OR MONTH FIRST, where every cell of a column of dates reads both
+  ways. Before, such a column was read month first and nothing was said:
+  written day first, its twin parsed 41 to 74 in 100 cells under the
+  person's own `%d/%m/%Y` (month starts `01/03/2023` put every date in
+  January). The answer `day-first` is `--day-first`.
+* A FEW REPEATED CODES IN A COLUMN OF DATES OR TIMES -- `UNK`,
+  `00/00/0000`, `0000-00-00`, Caboodle's `-1` and `-2`, `99:99`. Before,
+  they kept the column off the date rule's line, it was read as labels or
+  numbers, and its twin parsed 0 to 59 in 100; three of them were asked
+  whether they were blood pressures. The answer `missing` is
+  `--missing-value` naming each code, found again in the table by the run
+  that reads the answer, so the questions file names none.
+
+One clause per rule, each beside the mutant it is red on:
+
+* `test_every_day_or_month_column_is_asked_and_answering_repairs_it` and
+  `test_every_column_with_codes_is_asked_and_answering_repairs_it` -- each
+  battery column is asked, and answered its twin parses whole under the
+  person's own format, the codes come back as often as the table wrote
+  them, validation misses nothing and nothing is asked again;
+* `test_the_clean_spellings_raise_neither_question` -- the thirty-seven
+  spellings the reach audit read with no gap raise nothing, but the one
+  whose cells read both ways, which raises the day-or-month question and
+  stays right on its standing answer;
+* `test_the_shapes_left_alone_raise_neither_question` and its five
+  mutants, one per rule: a code on fewer than eleven rows (`_DATE_CODES_LINE`),
+  codes over a tenth of the column (`_DATE_CODES_SHARE`), more than five
+  codes (`_DATE_CODES_MOST`), fewer than three dates left
+  (`_DATE_CODES_VARIETY`), and no dates at all
+  (`taxonomy.reading_of_the_rest`);
+* `test_one_cell_only_one_reading_parses_settles_the_order` -- the
+  day-or-month question's own rule, red when that cell is taken out;
+* `test_an_answer_names_every_other_column_it_reaches` -- `--missing-value`
+  reaches every column, so the question counts the same spellings in the
+  others and names each, red when that count is taken out; and the run
+  that applies the answer says the words were answered, not typed;
+* `test_the_count_elsewhere_is_what_the_declaration_takes_there` -- each
+  count is the rise in that column's missing rows once answered, under
+  that column's own rule (`-1,0` beside `--decimal-comma`, `-1.0`,
+  ` unk `), red on a count by spelling or one blind to the comma; and
+  `test_every_question_is_counted_elsewhere_in_one_pass` -- one judgement
+  per different spelling of the table, however many columns are asked;
+* `test_a_column_with_codes_and_dates_read_either_way_is_asked_both_at_once`
+  -- one file, one answering run, the twin read whole, and the line that
+  repeats the run names `--day-first` and each code once;
+* and the rest: a declaration answers the question, `real-value` keeps
+  the reading and stops the question, neither the file nor the screen
+  names a code, an answer that finds no codes says so, two answers that
+  make one spelling both a value and none are refused, a column asked
+  about its codes loses only the questions they answer, a column no code
+  can stand in -- every cell read, or every value different -- is not
+  counted, and the weighed date rule reads every battery column as the
+  classifier does.
+"""
+
+import contextlib
+import csv
+import io
+import json
+import pathlib
+
+import pytest
+
+import date_question_shapes as shapes
+import fixtures
+import workbooks
+from synthtwin import asking, cli, profile, reading, taxonomy
+
+
+def _quiet(argv: "list[str]") -> "tuple[int, str]":
+    held = io.StringIO()
+    with contextlib.redirect_stdout(held), contextlib.redirect_stderr(held):
+        code = cli.main(argv)
+    return code, held.getvalue()
+
+
+def _table(folder: pathlib.Path, values: "list[str]", name: str = "seen_at") -> pathlib.Path:
+    folder.mkdir(parents=True, exist_ok=True)
+    names, built = fixtures.rows_at_the_floor(name, values)
+    table = folder / "real.csv"
+    table.write_text(fixtures.rows_to_csv(names, built), encoding="utf-8", newline="")
+    return table
+
+
+def _profiled(folder: pathlib.Path, values: "list[str]", *options: str) -> "tuple[int, str]":
+    table = _table(folder, values)
+    return _quiet(["profile", str(table), "--out-dir", str(folder), "--replace", *options])
+
+
+def _questions(folder: pathlib.Path) -> "dict":
+    found = json.loads((folder / "real-questions.json").read_text(encoding="utf-8"))
+    assert isinstance(found, dict)
+    return found
+
+
+def _block(folder: pathlib.Path) -> "dict":
+    document = json.loads((folder / "real-profile.json").read_text(encoding="utf-8"))
+    return document["columns"][0]
+
+
+def _day_or_month_entry(questions: "dict") -> "dict | None":
+    for entry in questions["about_your_file"]:
+        if entry["column"] == asking.DAY_FIRST_SUBJECT:
+            return entry
+    return None
+
+
+def _code_entries(questions: "dict") -> "list[dict]":
+    return [
+        entry
+        for entry in questions["asked"]
+        if asking.ANSWER_NO_DATE in [choice["answer"] for choice in entry["answers_you_can_give"]]
+    ]
+
+
+def _answer(folder: pathlib.Path, entry_column: str, answer: str) -> pathlib.Path:
+    questions = _questions(folder)
+    for section in ("asked", "about_your_file"):
+        for entry in questions[section]:
+            if entry["column"] == entry_column:
+                entry["your_answer"] = answer
+    written = folder / "answers.json"
+    written.write_text(json.dumps(questions, indent=2), encoding="utf-8", newline="\n")
+    return written
+
+
+def _twin(folder: pathlib.Path) -> "list[str]":
+    assert _quiet(["generate", str(folder / "real-profile.json"), "--seed", "0", "--out-dir", str(folder), "--replace"])[0] == 0
+    rows = list(csv.reader(io.StringIO((folder / "real-twin.csv").read_text(encoding="utf-8"))))[1:]
+    return [row[0] for row in rows if row]
+
+
+def _validates(folder: pathlib.Path) -> bool:
+    return _quiet(["validate", str(folder / "real-profile.json"), "--out-dir", str(folder), "--replace"])[0] == 0
+
+
+# -- the day-or-month question --------------------------------------------
+
+
+@pytest.mark.parametrize("name", [shape.name for shape in shapes.DAY_OR_MONTH])
+def test_every_day_or_month_column_is_asked_and_answering_repairs_it(
+    tmp_path: pathlib.Path, name: str
+) -> None:
+    """Asked about, month first standing; answered, read the way it is written."""
+    shape = shapes.by_name(name)
+    values = shapes.cells(shape)
+    code, said = _profiled(tmp_path, values)
+    assert code == 0
+    entry = _day_or_month_entry(_questions(tmp_path))
+    assert entry is not None, f"{name} is not asked which comes first"
+    assert entry["read_as_now"] == asking.ANSWER_MONTH_FIRST
+    assert "'seen_at'" in entry["what_synthtwin_saw"]
+    assert "THE ORDER OF THE DAY AND THE MONTH CANNOT BE TOLD" in said
+    answers = _answer(tmp_path, asking.DAY_FIRST_SUBJECT, shape.answer)
+    code, said = _profiled(tmp_path, values, "--answers", str(answers))
+    assert code == 0, said
+    block = _block(tmp_path)
+    assert block["role"] == "datetime"
+    wanted_day_first = shape.answer == asking.ANSWER_DAY_FIRST
+    assert ("day-first" in block["format"]) == wanted_day_first, block["format"]
+    settings = json.loads((tmp_path / "real-profile.json").read_text(encoding="utf-8"))["settings"]
+    assert settings["day_first"] is wanted_day_first
+    twin = _twin(tmp_path)
+    assert all(shapes.parses(cell, shape.fmt) for cell in twin), name
+    assert _validates(tmp_path)
+    assert _day_or_month_entry(_questions(tmp_path)) is None, "answered, it is not asked again"
+    assert "THE ORDER OF THE DAY AND THE MONTH" not in said, "nor said again on the screen"
+
+
+def test_month_starts_say_what_each_reading_makes_of_them(tmp_path: pathlib.Path) -> None:
+    """`01/03/2023` read month first is every date in one month of the year."""
+    _profiled(tmp_path, shapes.cells(shapes.by_name("month_start_dmy")))
+    entry = _day_or_month_entry(_questions(tmp_path))
+    assert entry is not None
+    assert (
+        "read month first, every date in 'seen_at' falls in one month of the year, "
+        "and read day first, every one falls on one day of a month"
+    ) in entry["what_synthtwin_saw"]
+
+
+def test_one_cell_only_one_reading_parses_settles_the_order(tmp_path: pathlib.Path) -> None:
+    """A 25th settles day first, and nothing is asked; without it, the question stands."""
+    values = shapes.cells(shapes.by_name("dmy_ambiguous"))
+    settled = values[:-1] + ["25/03/2023"]
+    _profiled(tmp_path / "settled", settled)
+    assert _block(tmp_path / "settled")["format"] == "day-first-date"
+    assert _day_or_month_entry(_questions(tmp_path / "settled")) is None
+    _profiled(tmp_path / "open", values[:-1] + ["03/03/2023"])
+    assert _day_or_month_entry(_questions(tmp_path / "open")) is not None
+
+
+def test_a_declared_day_first_is_an_answer(tmp_path: pathlib.Path) -> None:
+    """`--day-first` typed is the question answered, so it is not put."""
+    code, said = _profiled(tmp_path, shapes.cells(shapes.by_name("dmy_ambiguous")), "--day-first")
+    assert code == 0
+    assert _day_or_month_entry(_questions(tmp_path)) is None
+    assert "THE ORDER OF THE DAY AND THE MONTH" not in said
+
+
+# -- the codes question ------------------------------------------------------
+
+
+@pytest.mark.parametrize("name", [shape.name for shape in shapes.CODES])
+def test_every_column_with_codes_is_asked_and_answering_repairs_it(
+    tmp_path: pathlib.Path, name: str
+) -> None:
+    """Asked, and nothing else about it; answered `missing`, read whole."""
+    shape = shapes.by_name(name)
+    values = shapes.cells(shape)
+    code, said = _profiled(tmp_path, values)
+    assert code == 0
+    questions = _questions(tmp_path)
+    entries = _code_entries(questions)
+    assert [entry["column"] for entry in entries] == ["seen_at"], f"{name} is not asked about its codes"
+    assert entries[0]["read_as_now"] == asking.ANSWER_KEEP
+    assert [entry["column"] for entry in questions["asked"]] == ["seen_at"], (
+        "a column asked about its codes is asked nothing else"
+    )
+    assert "seen_at" not in [entry["column"] for entry in questions["checklist"]["columns"]]
+    assert "THESE COLUMNS READ AS DATES OR TIMES BUT FOR A FEW REPEATED SPELLINGS" in said
+    # NEITHER THE FILE NOR THE SCREEN NAMES A CODE: the questions file
+    # carries no value of the table (A-P4-58), and the screen asks the
+    # same question in the same words.
+    written = (tmp_path / "real-questions.json").read_text(encoding="utf-8")
+    notice = said[said.index("THESE COLUMNS READ AS DATES"):]
+    notice = notice[: notice.index("Nothing is wrong with this profile")]
+    for one in set(shape.codes):
+        assert json.dumps(one) not in written, f"{one} is in the questions file"
+        assert one not in notice, f"{one} is on the screen"
+    answers = _answer(tmp_path, "seen_at", asking.ANSWER_NO_DATE)
+    code, said = _profiled(tmp_path, values, "--answers", str(answers))
+    assert code == 0, said
+    block = _block(tmp_path)
+    assert block["role"] in ("datetime", "time_of_day"), block["role"]
+    twin = _twin(tmp_path)
+    outside = [cell for cell in twin if cell not in shape.codes]
+    assert outside and all(shapes.parses(cell, shape.fmt) for cell in outside), name
+    for one in set(shape.codes):
+        assert twin.count(one) == values.count(one), f"{one} comes back as often"
+    assert _validates(tmp_path)
+    assert not _code_entries(_questions(tmp_path)), "answered, it is not asked again"
+    assert "--missing-value" in said
+
+
+def test_a_column_asked_about_its_codes_loses_only_the_questions_they_answer() -> None:
+    """The joined and the figures questions give way; a question of another kind stands.
+
+    `00/00/0000` beside dates raises the joined question, which the codes
+    question answers in its place. A question about the same column that
+    is not about what kind of value it holds -- landing T1 asks which
+    clock a column's hours are written on -- is not the codes question's
+    to take away, and neither is any question about another column.
+    """
+    codes = asking.Question("seen_at", "long_tail_labels", asking.BECAUSE_DATE_CODES, "", [], asking.ANSWER_KEEP)
+    joined = asking.Question("seen_at", "long_tail_labels", asking.BECAUSE_JOINED, "", [], asking.ANSWER_KEEP)
+    padded = asking.Question("seen_at", "count", asking.BECAUSE_PADDED, "", [], asking.ANSWER_MEASUREMENT)
+    clock = asking.Question("seen_at", "time_of_day", "another-kind-of-question", "", [], asking.ANSWER_KEEP)
+    other = asking.Question("ward", "long_tail_labels", asking.BECAUSE_JOINED, "", [], asking.ANSWER_KEEP)
+    kept = asking.without_columns_of([joined, padded, clock, other], [codes])
+    assert kept == [clock, other]
+
+
+def test_one_code_spelled_several_ways_is_one_declaration() -> None:
+    """`UNK`, `unk` and `Unk` are one `--missing-value`: their rows add up, under the commonest spelling.
+
+    Red when the commonest is judged against the rows added up so far:
+    `Unk` on 14 rows would then lose to the 23 already counted.
+    """
+    values = [cell for cell in shapes.cells(shapes.by_name("iso_unk")) if cell != "UNK"]
+    values = values[:900] + ["UNK"] * 11 + ["unk"] * 12 + ["Unk"] * 14
+    seen = asking.date_codes_of(values, taxonomy.Settings())
+    assert seen is not None
+    assert seen.codes == (("Unk", 37),)
+    assert seen.reading == "iso-date" and seen.n_read == 900
+
+
+def test_real_value_keeps_the_reading_and_stops_the_question(tmp_path: pathlib.Path) -> None:
+    """`real-value` is `--keep-value`: the column reads as it did, and is not asked again."""
+    values = shapes.cells(shapes.by_name("mdy_unk"))
+    _profiled(tmp_path, values)
+    before = _block(tmp_path)["role"]
+    answers = _answer(tmp_path, "seen_at", asking.ANSWER_REAL_VALUE)
+    code, said = _profiled(tmp_path, values, "--answers", str(answers))
+    assert code == 0, said
+    assert _block(tmp_path)["role"] == before
+    settings = json.loads((tmp_path / "real-profile.json").read_text(encoding="utf-8"))["settings"]
+    assert settings["kept_values"]["n_declared"] == 1
+    assert not _code_entries(_questions(tmp_path))
+    assert "--keep-value" in said
+
+
+def test_an_answer_that_finds_no_codes_says_so(tmp_path: pathlib.Path) -> None:
+    """The table changed since the file was written: nothing declared, and said."""
+    shape = shapes.by_name("mdy_unk")
+    _profiled(tmp_path, shapes.cells(shape))
+    answers = _answer(tmp_path, "seen_at", asking.ANSWER_NO_DATE)
+    clean = [cell if cell not in shape.codes else "03/17/2023" for cell in shapes.cells(shape)]
+    code, said = _profiled(tmp_path, clean, "--answers", str(answers))
+    assert code == 0
+    assert "no longer sees that column as dates or times beside a few repeated spellings" in said
+    assert "TO REPEAT THIS RUN" not in said, "nothing was declared, so nothing is to repeat"
+
+
+def test_two_answers_making_one_spelling_both_are_refused(tmp_path: pathlib.Path) -> None:
+    """`UNK` answered missing in one column and a value in another is one contradiction."""
+    first = shapes.cells(shapes.by_name("mdy_unk"))
+    second = shapes.cells(shapes.by_name("iso_unk"))
+    tmp_path.mkdir(parents=True, exist_ok=True)
+    table = tmp_path / "real.csv"
+    rows = [[first[place], second[place]] for place in range(len(first))]
+    table.write_text(fixtures.rows_to_csv(["first", "second"], rows), encoding="utf-8", newline="")
+    assert _quiet(["profile", str(table), "--out-dir", str(tmp_path), "--replace"])[0] == 0
+    questions = _questions(tmp_path)
+    assert sorted(entry["column"] for entry in _code_entries(questions)) == ["first", "second"]
+    for entry in questions["asked"]:
+        entry["your_answer"] = (
+            asking.ANSWER_NO_DATE if entry["column"] == "first" else asking.ANSWER_REAL_VALUE
+        )
+    answers = tmp_path / "answers.json"
+    answers.write_text(json.dumps(questions), encoding="utf-8", newline="\n")
+    code, said = _quiet(["profile", str(table), "--out-dir", str(tmp_path), "--replace", "--answers", str(answers)])
+    assert code == 2
+    assert "one spelling is both a value and 'no value'" in said
+
+
+# -- what neither question may reach -------------------------------------------
+
+
+def _asked_here(
+    folder: pathlib.Path, values: "list[str]", floor: int = 11
+) -> "tuple[bool, bool]":
+    """Whether the codes question and the day-or-month question reach one column."""
+    table = _table(folder, values)
+    read = reading.read_table(str(table), small_cell_floor=floor)
+    settings = taxonomy.Settings(small_cell_floor=floor)
+    document = profile.build_document(read, settings, [], [])
+    codes = asking.date_code_questions(document, read.columns, settings, [])
+    order = asking.day_or_month_columns(document, read.columns, settings)
+    return bool(codes), bool(order)
+
+
+def test_the_clean_spellings_raise_neither_question(tmp_path: pathlib.Path) -> None:
+    """Thirty-six raise nothing; the one whose every cell reads both ways is asked which comes first."""
+    asked: "list[str]" = []
+    for shape in shapes.CLEAN:
+        codes, order = _asked_here(tmp_path / shape.name, shapes.cells(shape))
+        if codes or (order and shape.name not in shapes.CLEAN_AMBIGUOUS):
+            asked += [shape.name]
+        if shape.name in shapes.CLEAN_AMBIGUOUS:
+            assert order and not codes, shape.name
+    assert len(shapes.CLEAN) == 37
+    assert not asked, asked
+
+
+@pytest.mark.parametrize("name", [shape.name for shape in shapes.NOT_ASKED])
+def test_the_shapes_left_alone_raise_neither_question(tmp_path: pathlib.Path, name: str) -> None:
+    """A code on five rows, a third of the column, six codes, two dates, no dates."""
+    assert _asked_here(tmp_path, shapes.cells(shapes.by_name(name))) == (False, False)
+
+
+def test_the_line_holds_at_a_lowered_floor_and_rises_with_a_raised_one(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Eleven rows a code at a floor of 2, and the floor's own rows at 36."""
+    few = shapes.cells(shapes.by_name("iso_unk_few"))
+    assert _asked_here(tmp_path / "two", few, floor=2) == (False, False)
+    twenty = shapes.cells(shapes.by_name("iso_unk"))
+    assert _asked_here(tmp_path / "eleven", twenty)[0]
+    assert _asked_here(tmp_path / "thirty-six", twenty, floor=36) == (False, False)
+
+
+@pytest.mark.parametrize(
+    "name, rule, value, floor",
+    [
+        ("iso_unk_few", "_DATE_CODES_LINE", 2, 2),
+        ("iso_unk_third", "_DATE_CODES_SHARE", 1, 11),
+        ("iso_six_codes", "_DATE_CODES_MOST", 6, 11),
+        ("two_dates_and_unk", "_DATE_CODES_VARIETY", 1, 11),
+    ],
+)
+def test_red_on_each_rule_of_the_codes_question(
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+    name: str,
+    rule: str,
+    value: int,
+    floor: int,
+) -> None:
+    """Each shape left alone is asked once its own rule is moved: the rule is what keeps it out."""
+    values = shapes.cells(shapes.by_name(name))
+    assert not _asked_here(tmp_path / "shipped", values, floor)[0], (name, rule)
+    monkeypatch.setattr(asking, rule, value)
+    assert _asked_here(tmp_path / "moved", values, floor)[0], (name, rule)
+
+
+def test_red_without_the_date_rule(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A column of notes beside a code is asked once the rest need not read as dates."""
+
+    def anything(counted: "dict[str, int]", settings: taxonomy.Settings, n_rows: int) -> "tuple[str, int]":
+        return "iso-date", sum(counted[spelling] for spelling in counted)
+
+    values = shapes.cells(shapes.by_name("notes_with_codes"))
+    assert not _asked_here(tmp_path / "shipped", values)[0]
+    monkeypatch.setattr(taxonomy, "reading_of_the_rest", anything)
+    assert _asked_here(tmp_path / "moved", values)[0]
+
+
+def test_a_column_no_code_can_stand_in_is_not_counted(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Every cell parsed, or every value different: no code can be there, so no cell is counted.
+
+    A column of dates its reading parsed whole has no cell to be a code,
+    and a column whose block publishes as many different values as
+    cells has no spelling on two rows, let alone eleven -- so neither is
+    walked, which is what keeps a table of a million rows and fifty
+    columns from paying a dictionary per column for nothing.
+    """
+    called = {"columns": 0}
+    shipped = asking._spellings_counted
+
+    def counting(present: "list[str]") -> "dict[str, int]":
+        called["columns"] = called["columns"] + 1
+        return shipped(present)
+
+    monkeypatch.setattr(asking, "_spellings_counted", counting)
+    _asked_here(tmp_path / "read", shapes.cells(shapes.by_name("ss_date")))
+    _asked_here(tmp_path / "different", [f"note number {index}" for index in range(1000)])
+    assert called["columns"] == 0
+    # ...and the mutant's witness: a column of dates with cells left
+    # unread is walked, so the count above is not a counter that never
+    # moves.
+    _asked_here(tmp_path / "unread", shapes.cells(shapes.by_name("iso_unk_sparse")))
+    assert called["columns"] == 1
+
+
+def test_the_weighed_date_rule_reads_each_column_as_the_classifier_does() -> None:
+    """`reading_of_the_rest` over different spellings is `_matching_date_format` over cells."""
+    settings = taxonomy.Settings()
+    for shape in shapes.CLEAN + shapes.DAY_OR_MONTH:
+        values = shapes.cells(shape)
+        counted: "dict[str, int]" = {}
+        for value in values:
+            counted[value] = counted[value] + 1 if value in counted else 1
+        weighed = taxonomy.reading_of_the_rest(counted, settings, len(values))
+        assert weighed is not None, shape.name
+        matched = taxonomy._matching_date_format(values, settings)
+        if matched is None:
+            assert weighed[0] in ("hh-mm", "hh-mm-ss"), shape.name
+            continue
+        assert weighed[0] == matched[0], shape.name
+        assert weighed[1] == len(matched[1]), shape.name
+
+
+# -- the review of lane R1 --------------------------------------------------
+
+
+def _two_columns(folder: pathlib.Path, columns: "dict[str, list[str]]") -> pathlib.Path:
+    folder.mkdir(parents=True, exist_ok=True)
+    names = list(columns)
+    rows = [[columns[name][place] for name in names] for place in range(len(columns[names[0]]))]
+    table = folder / "real.csv"
+    table.write_text(fixtures.rows_to_csv(names, rows), encoding="utf-8", newline="")
+    return table
+
+
+def _answered_all(folder: pathlib.Path, answers: "dict[str, str]") -> pathlib.Path:
+    questions = _questions(folder)
+    for section in ("asked", "about_your_file"):
+        for entry in questions[section]:
+            if entry["column"] in answers:
+                entry["your_answer"] = answers[entry["column"]]
+    written = folder / "answers.json"
+    written.write_text(json.dumps(questions, indent=2), encoding="utf-8", newline="\n")
+    return written
+
+
+def _repeat_line(said: str) -> str:
+    """The options under TO REPEAT THIS RUN, as one line."""
+    tail = said[said.index("TO REPEAT THIS RUN"):]
+    return tail.splitlines()[1].strip()
+
+
+def _scores(count: int) -> "list[str]":
+    """A column of scores of change that holds -1 and -2 legitimately."""
+    steps = ["-3", "-2", "-1", "-1", "0", "0", "0", "1", "1", "2", "3"]
+    return [steps[(place * 7) % len(steps)] for place in range(count)]
+
+
+def test_an_answer_names_every_other_column_it_reaches(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`-1` in a DateKey column is a real score elsewhere: the question says where, and how many.
+
+    The review of lane R1, item 1: answered `missing`, a column of scores
+    holding -1 and -2 lost 27.6 in 100 of its rows to "missing" and its
+    mean moved from -0.032 to +0.477, while the question named neither
+    spelling nor column. A third column holding `-1` on three rows is
+    named with "some rows", which is the disclosure rule's (a count of
+    three is not printed). Red when the count is taken out.
+    """
+    keys = shapes.cells(shapes.by_name("cab_datekey_sentinels"))
+    scores = _scores(len(keys))
+    few = ["-1" if place in (5, 50, 500) else f"{place % 40}" for place in range(len(keys))]
+    table = _two_columns(tmp_path, {"visit_key": keys, "score_change": scores, "ward": few})
+    assert _quiet(["profile", str(table), "--out-dir", str(tmp_path), "--replace"])[0] == 0
+    entries = _code_entries(_questions(tmp_path))
+    assert [entry["column"] for entry in entries] == ["visit_key"]
+    held = scores.count("-1") + scores.count("-2")
+    where = f"on {held} rows of 'score_change', on some rows of 'ward'"
+    assert where in entries[0]["what_synthtwin_saw"]
+    means = {choice["answer"]: choice["then_the_description_publishes"] for choice in entries[0]["answers_you_can_give"]}
+    assert f"{where}, which this answer reads as missing there too" in means[asking.ANSWER_NO_DATE]
+    assert f"{where}, which this answer keeps as values there too" in means[asking.ANSWER_REAL_VALUE]
+    answers = _answer(tmp_path, "visit_key", asking.ANSWER_NO_DATE)
+    code, said = _quiet(["profile", str(table), "--out-dir", str(tmp_path), "--replace", "--answers", str(answers)])
+    assert code == 0, said
+    assert "your answers in the questions file declared missing are written into the description" in said
+    assert "you typed after --missing-value" not in said
+    # The way back names the answer, not only an option nobody typed.
+    assert "or with your answer about the column they were found in changed back to 'keep'" in said
+    # ...and the mutant's witness: without the count, nothing names them.
+    monkeypatch.setattr(asking, "codes_elsewhere", lambda *arguments: {})
+    alone = tmp_path / "uncounted"
+    table = _two_columns(alone, {"visit_key": keys, "score_change": scores, "ward": few})
+    assert _quiet(["profile", str(table), "--out-dir", str(alone), "--replace"])[0] == 0
+    assert "'score_change'" not in json.dumps(_code_entries(_questions(alone)))
+
+
+def test_a_column_alone_with_its_codes_says_no_other_column_holds_them(tmp_path: pathlib.Path) -> None:
+    """Where the answer reaches nothing else, the choice says that instead."""
+    _profiled(tmp_path, shapes.cells(shapes.by_name("mdy_unk")))
+    entry = _code_entries(_questions(tmp_path))[0]
+    for choice in entry["answers_you_can_give"]:
+        if choice["answer"] in (asking.ANSWER_NO_DATE, asking.ANSWER_REAL_VALUE):
+            assert "no other column of your table holds them" in choice["then_the_description_publishes"]
+
+
+def _missing_in(folder: pathlib.Path) -> "dict[str, int]":
+    document = json.loads((folder / "real-profile.json").read_text(encoding="utf-8"))
+    return {block["name"]: block["n_missing"] for block in document["columns"]}
+
+
+def test_the_count_elsewhere_is_what_the_declaration_takes_there(tmp_path: pathlib.Path) -> None:
+    """Each other column's count is the rows the answer then reads as missing, under that column's own rule.
+
+    The second review of lane R1, item 1: a column declared
+    `--decimal-comma` writing `-1,0` was said to hold none of a DateKey
+    column's codes, and the answer took 112 of its rows. Here that column
+    sits beside `-1.0` and `-2.00` in an ordinary column and ` unk `,
+    `Unk` and `UNK` beside a column of dates written `UNK`: every count
+    the questions file says is the rise in that column's missing rows
+    once both columns are answered `missing`. Red when the count asks the
+    spelling rather than the declaration, or reads the comma column as an
+    ordinary one.
+    """
+    keys = shapes.cells(shapes.by_name("cab_datekey_sentinels"))
+    count = len(keys)
+    dated = (shapes.cells(shapes.by_name("iso_unk")) * 2)[:count]
+    columns = {
+        "visit_key": keys,
+        "seen_at": dated,
+        "volume": ["-1,0" if place % 9 == 0 else f"{place % 7 + 1},5" for place in range(count)],
+        "flt": ["-1.0" if place % 9 == 0 else ("-2.00" if place % 13 == 0 else f"{place % 7}.5") for place in range(count)],
+        "colour": [
+            [" unk ", "Unk", "UNK"][place % 3] if place % 10 == 0 else ["red", "green", "blue", "grey"][place % 4]
+            for place in range(count)
+        ],
+    }
+    expected = {
+        "volume": columns["volume"].count("-1,0"),
+        "flt": columns["flt"].count("-1.0") + columns["flt"].count("-2.00"),
+        "colour": count // 10,
+    }
+    table = _two_columns(tmp_path, columns)
+    comma = ("--decimal-comma", "volume")
+    assert _quiet(["profile", str(table), "--out-dir", str(tmp_path), "--replace", *comma])[0] == 0
+    before = _missing_in(tmp_path)
+    saw = {entry["column"]: entry["what_synthtwin_saw"] for entry in _code_entries(_questions(tmp_path))}
+    assert sorted(saw) == ["seen_at", "visit_key"]
+    assert f"on {expected['volume']} rows of 'volume', on {expected['flt']} rows of 'flt'" in saw["visit_key"]
+    assert "'colour'" not in saw["visit_key"]
+    assert f"on {expected['colour']} rows of 'colour'" in saw["seen_at"]
+    assert "'volume'" not in saw["seen_at"] and "'flt'" not in saw["seen_at"]
+    answers = _answered_all(tmp_path, {"visit_key": asking.ANSWER_NO_DATE, "seen_at": asking.ANSWER_NO_DATE})
+    code, said = _quiet(["profile", str(table), "--out-dir", str(tmp_path), "--replace", *comma, "--answers", str(answers)])
+    assert code == 0, said
+    after = _missing_in(tmp_path)
+    for name in expected:
+        assert after[name] - before[name] == expected[name], name
+
+
+def test_a_count_elsewhere_is_said_over_that_column_s_present_cells(tmp_path: pathlib.Path) -> None:
+    """Fifteen `unk` among twenty present cells of a sparse column: the count is withheld, as the rule says.
+
+    The second review of lane R1, item 4: the disclosure rule weighs a
+    count against the cells that are not missing, and fifteen of twenty
+    leaves five, under the line; weighed against the column's thousand
+    rows it would have been printed. Red when the count is weighed
+    against every row.
+    """
+    dated = shapes.cells(shapes.by_name("mdy_unk"))
+    sparse = [""] * len(dated)
+    for place in range(15):
+        sparse[place * 50] = "unk"
+    for place in range(5):
+        sparse[place * 50 + 25] = "red"
+    table = _two_columns(tmp_path, {"seen_at": dated, "sparse": sparse})
+    assert _quiet(["profile", str(table), "--out-dir", str(tmp_path), "--replace"])[0] == 0
+    entry = _code_entries(_questions(tmp_path))[0]
+    assert "on some rows of 'sparse'" in entry["what_synthtwin_saw"]
+    assert "15 rows" not in entry["what_synthtwin_saw"]
+
+
+def test_every_question_is_counted_elsewhere_in_one_pass(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Six DateKey columns cost one judgement per different spelling of the table, not six.
+
+    The second review of lane R1, item 2: each column asked re-read
+    every other one, so thirty DateKey columns at 20,000 rows spent
+    16.2 s of a 154 s describe there. Counted here as the judgements of
+    what a declaration would match: one pass judges each different
+    spelling of each column once (twice for the codes themselves), where
+    a pass per question judges each about six times.
+    """
+    keys = shapes.cells(shapes.by_name("cab_datekey_sentinels"))
+    columns = [list(reversed(keys)) if place % 2 else keys[place:] + keys[:place] for place in range(6)]
+    different = sum(len(set(column)) for column in columns)
+    blocks = [
+        {"name": f"key_{place}", "role": taxonomy.ROLE_CONTINUOUS, "n_present": len(keys)}
+        for place in range(6)
+    ]
+    settings = taxonomy.Settings()
+    found = asking.date_codes_of(keys, settings)
+    assert found is not None
+    judged = [0]
+    shipped = asking._declared_identity
+
+    def counted(*arguments: object) -> "tuple[str, object]":
+        judged[0] = judged[0] + 1
+        return shipped(*arguments)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(asking, "_declared_identity", counted)
+    reached = asking.codes_elsewhere(
+        {"columns": blocks}, columns, [(place, found) for place in range(6)], settings
+    )
+    assert sorted(reached) == list(range(6))
+    for place in range(6):
+        assert len(reached[place]) == 5
+    assert judged[0] <= different + 4 * len(found.codes) * 6
+
+
+def _ambiguous_with_codes() -> "list[str]":
+    values = shapes.cells(shapes.by_name("dmy_ambiguous"))
+    return ["UNK" if place % 33 == 0 else values[place] for place in range(len(values))]
+
+
+def test_a_column_with_codes_and_dates_read_either_way_is_asked_both_at_once(
+    tmp_path: pathlib.Path,
+) -> None:
+    """One file asks the codes and the order, and one answering run reads the column whole.
+
+    The review of lane R1, items 3x, 3y and 4: before, the questions file
+    asked the codes alone, `missing` read the column month first (405 of
+    1,000 twin cells under `%d/%m/%Y`), and only the next file asked the
+    order. A second column with the same code, answered too, is named
+    once on the line that repeats the run.
+    """
+    first = _ambiguous_with_codes()
+    second = shapes.cells(shapes.by_name("iso_unk"))
+    table = _two_columns(tmp_path, {"seen_at": first, "other": second})
+    assert _quiet(["profile", str(table), "--out-dir", str(tmp_path), "--replace"])[0] == 0
+    questions = _questions(tmp_path)
+    assert sorted(entry["column"] for entry in _code_entries(questions)) == ["other", "seen_at"]
+    order = _day_or_month_entry(questions)
+    assert order is not None and "'seen_at'" in order["what_synthtwin_saw"]
+    answers = _answered_all(
+        tmp_path,
+        {
+            "seen_at": asking.ANSWER_NO_DATE,
+            "other": asking.ANSWER_NO_DATE,
+            asking.DAY_FIRST_SUBJECT: asking.ANSWER_DAY_FIRST,
+        },
+    )
+    code, said = _quiet(["profile", str(table), "--out-dir", str(tmp_path), "--replace", "--answers", str(answers)])
+    assert code == 0, said
+    assert _block(tmp_path)["format"] == "day-first-date"
+    assert _repeat_line(said) == "--day-first --missing-value UNK"
+    assert _quiet(["generate", str(tmp_path / "real-profile.json"), "--seed", "0", "--out-dir", str(tmp_path), "--replace"])[0] == 0
+    rows = list(csv.reader(io.StringIO((tmp_path / "real-twin.csv").read_text(encoding="utf-8"))))[1:]
+    twin = [row[0] for row in rows if row and row[0] != "UNK"]
+    assert twin and all(shapes.parses(cell, "%d/%m/%Y") for cell in twin)
+
+
+def test_a_tie_beside_codes_under_day_first_is_read_day_first(tmp_path: pathlib.Path) -> None:
+    """`--day-first` decides the tie in the rest of a column with codes, as it does in the classifier."""
+    code, _said = _profiled(tmp_path, _ambiguous_with_codes(), "--day-first")
+    assert code == 0
+    entry = _code_entries(_questions(tmp_path))[0]
+    assert "dates written as 17/03/2024 (day first)" in entry["what_synthtwin_saw"]
+    assert _day_or_month_entry(_questions(tmp_path)) is None
+
+
+def test_a_cell_naming_a_zero_field_keeps_the_dotted_pair_out(tmp_path: pathlib.Path) -> None:
+    """`01.00.24` is a version number, so dotted two-figure cells beside a code are not dates."""
+    values: "list[str]" = []
+    for place in range(1000):
+        if place % 40 == 0:
+            values += ["NA_VER"]
+        elif place == 7:
+            values += ["01.00.24"]
+        else:
+            values += [f"{place % 12 + 1:02d}.{place % 11 + 1:02d}.{10 + place % 15}"]
+    assert _asked_here(tmp_path, values) == (False, False)
+
+
+def test_a_clock_of_few_values_is_not_promised_a_reading_of_times(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Four times beside `99:99` are four categories once the code is out, so nothing is asked.
+
+    The review of lane R1, item 5: the `missing` choice promised "the
+    column read as times of day" and the answer left it categorical.
+    Red when the categories line is moved out of the way.
+    """
+    values = [["08:00", "12:00", "16:00", "20:00"][place % 4] if place % 33 else "99:99" for place in range(1000)]
+    assert not _asked_here(tmp_path / "shipped", values)[0]
+    monkeypatch.setattr(taxonomy, "categories_ceiling", lambda n_rows, settings: 0)
+    assert _asked_here(tmp_path / "moved", values)[0]
+
+
+@pytest.mark.parametrize("different, asked", [(100, False), (101, True)])
+def test_a_clock_is_asked_only_past_the_categories_line(
+    tmp_path: pathlib.Path, different: int, asked: bool
+) -> None:
+    """At a thousand rows the categories line is a hundred values: a hundred times are not asked, 101 are.
+
+    The second review of lane R1, item 4: measured at the boundary, a
+    hundred different times beside `99:99` stay categories once the code
+    is declared missing and 101 are read as times of day, so the question
+    is put exactly where the answer delivers what it promises. Red when
+    the line is moved by one.
+    """
+    assert taxonomy.categories_ceiling(1000, taxonomy.Settings()) == 100
+    times = [f"{6 + place // 60:02d}:{place % 60:02d}" for place in range(different)]
+    values = ["99:99" if place % 33 == 0 else times[place % different] for place in range(1000)]
+    assert _asked_here(tmp_path, values)[0] is asked
+
+
+@pytest.mark.parametrize("name", ["mdy_zero", "iso_zero_date", "clock_9999"])
+def test_real_value_brings_no_other_question_back(tmp_path: pathlib.Path, name: str) -> None:
+    """Answered `real-value`, the column is asked nothing: not the joined question either.
+
+    The review of lane R1, item 2: the codes kept, the codes question
+    was gone, and the blood-pressure question it had stood in front of
+    came back.
+    """
+    values = shapes.cells(shapes.by_name(name))
+    _profiled(tmp_path, values)
+    answers = _answer(tmp_path, "seen_at", asking.ANSWER_REAL_VALUE)
+    code, said = _profiled(tmp_path, values, "--answers", str(answers))
+    assert code == 0, said
+    questions = _questions(tmp_path)
+    for entry in questions["asked"]:
+        assert asking.ANSWER_JOINED not in [choice["answer"] for choice in entry["answers_you_can_give"]], name
+    assert "seen_at" not in [entry["column"] for entry in questions["checklist"]["columns"]]
+
+
+def test_a_measurement_answered_real_value_keeps_its_checklist_line(tmp_path: pathlib.Path) -> None:
+    """A DateKey column answered `real-value` is read as a number, and owner decision D14 lists it.
+
+    The second review of lane R1, item 3: the column's codes kept, it is
+    read as a measurement and its twin parses 569 of 1,000 cells as
+    dates, yet the repair had taken it off the one list that reaches a
+    column of figures no rule can tell from a quantity.
+    """
+    values = shapes.cells(shapes.by_name("cab_datekey_sentinels"))
+    _profiled(tmp_path, values)
+    answers = _answer(tmp_path, "seen_at", asking.ANSWER_REAL_VALUE)
+    code, said = _profiled(tmp_path, values, "--answers", str(answers))
+    assert code == 0, said
+    questions = _questions(tmp_path)
+    assert "seen_at" not in [entry["column"] for entry in questions["asked"]]
+    listed = {entry["column"]: entry["what_synthtwin_saw"] for entry in questions["checklist"]["columns"]}
+    assert "seen_at" in listed
+    assert listed["seen_at"].startswith("read as a measurement")
+    # ...and the screen's list says it too, worked out before the file's.
+    assert "\n  'seen_at' -- read as a measurement" in said
+
+
+def test_a_word_typed_beside_an_answered_code_says_both_ways(tmp_path: pathlib.Path) -> None:
+    """`--missing-value ZZZ` typed and a DateKey column answered `missing`: the notice names both doors.
+
+    The second review of lane R1, item 4: the notice's opening line says
+    which way each word arrived, and a run with one of each was never
+    checked.
+    """
+    keys = shapes.cells(shapes.by_name("cab_datekey_sentinels"))
+    ward = ["ZZZ" if place % 20 == 0 else ["north", "south", "east"][place % 3] for place in range(len(keys))]
+    table = _two_columns(tmp_path, {"visit_key": keys, "ward": ward})
+    typed = ("--missing-value", "ZZZ")
+    assert _quiet(["profile", str(table), "--out-dir", str(tmp_path), "--replace", *typed])[0] == 0
+    answers = _answer(tmp_path, "visit_key", asking.ANSWER_NO_DATE)
+    code, said = _quiet(["profile", str(table), "--out-dir", str(tmp_path), "--replace", *typed, "--answers", str(answers)])
+    assert code == 0, said
+    assert (
+        "3 words you typed after --missing-value or your answers in the questions file declared missing "
+        "are written into the description"
+    ) in said
+
+
+def test_an_answer_is_the_newer_statement_than_a_typed_keep(tmp_path: pathlib.Path) -> None:
+    """`--keep-value UNK` typed, `missing` answered: UNK is declared missing, and nothing is refused."""
+    values = shapes.cells(shapes.by_name("mdy_unk"))
+    _profiled(tmp_path, values)
+    answers = _answer(tmp_path, "seen_at", asking.ANSWER_NO_DATE)
+    code, said = _profiled(tmp_path, values, "--keep-value", "UNK", "--answers", str(answers))
+    assert code == 0, said
+    settings = json.loads((tmp_path / "real-profile.json").read_text(encoding="utf-8"))["settings"]
+    assert settings["declared_missing_values"]["n_declared"] == 1
+    assert settings["kept_values"]["n_declared"] == 0
+    assert _block(tmp_path)["role"] == "datetime"
+
+
+def test_an_answered_column_the_table_lacks_is_refused(tmp_path: pathlib.Path) -> None:
+    """The file names a column this table does not hold: exit 2, and the column named."""
+    values = shapes.cells(shapes.by_name("mdy_unk"))
+    _profiled(tmp_path, values)
+    questions = _questions(tmp_path)
+    questions["asked"][0]["column"] = "nowhere"
+    questions["asked"][0]["your_answer"] = asking.ANSWER_NO_DATE
+    answers = tmp_path / "answers.json"
+    answers.write_text(json.dumps(questions), encoding="utf-8", newline="\n")
+    code, said = _profiled(tmp_path, values, "--answers", str(answers))
+    assert code == 2
+    assert "a column called 'nowhere' as a column of dates or times beside a few repeated codes" in said
+
+
+def test_an_answered_code_that_reads_as_two_numbers_is_refused_beside_a_comma(
+    tmp_path: pathlib.Path,
+) -> None:
+    """`-1,0` is -1 under a decimal comma and another number elsewhere: refused, as when typed."""
+    dates = shapes.cells(shapes.by_name("mdy_unk"))
+    coded = ["-1,0" if cell == "UNK" else cell for cell in dates]
+    volumes = [f"{place % 9 + 1},5" for place in range(len(coded))]
+    table = _two_columns(tmp_path, {"seen_at": coded, "volume": volumes})
+    assert _quiet(["profile", str(table), "--out-dir", str(tmp_path), "--replace", "--decimal-comma", "volume"])[0] == 0
+    answers = _answer(tmp_path, "seen_at", asking.ANSWER_NO_DATE)
+    code, said = _quiet(
+        ["profile", str(table), "--out-dir", str(tmp_path), "--replace", "--decimal-comma", "volume", "--answers", str(answers)]
+    )
+    assert code == 2
+    assert "You named the value '-1,0' with --missing-value, and you also used --decimal-comma" in said
+
+
+def _typed_dates_beside(code: str) -> bytes:
+    """A workbook column of typed dates beside a code stored as text on every 33rd row."""
+    import datetime
+
+    body = [(1, [workbooks.cell("A1", "seen_at", "inlineStr")])]
+    for place in range(1000):
+        number = 2 + place
+        if place % 33 == 0:
+            one = workbooks.cell(f"A{number}", code, "inlineStr")
+        else:
+            day = datetime.date(2021, 1, 1) + datetime.timedelta(days=(place * 37) % 1461)
+            one = workbooks.cell(f"A{number}", f"{(day - datetime.date(1899, 12, 30)).days}", "", 1)
+        body += [(number, [one])]
+    return workbooks.package(
+        [
+            ("[Content_Types].xml", workbooks._content_types(1, False, False, False)),
+            ("_rels/.rels", workbooks._root_rels()),
+            ("xl/workbook.xml", workbooks._workbook([("Data", "")])),
+            ("xl/_rels/workbook.xml.rels", workbooks._workbook_rels(1, False)),
+            ("xl/styles.xml", workbooks._styles()),
+            ("xl/worksheets/sheet1.xml", workbooks.sheet(body, dimension="A1:A1001")),
+        ]
+    )
+
+
+@pytest.mark.parametrize(
+    "code",
+    [
+        pytest.param(
+            "-1",
+            marks=pytest.mark.xfail(
+                strict=True,
+                reason=(
+                    "a declared number against a text cell of a typed workbook date column: "
+                    "the twin fails its own validation (exit 3), as `--missing-value -1` "
+                    "does on 668f276 -- a limit P4-D381 states"
+                ),
+            ),
+        ),
+        "UNK",
+    ],
+)
+def test_typed_workbook_dates_beside_a_text_code_answered_missing_validate(
+    tmp_path: pathlib.Path, code: str
+) -> None:
+    """Typed dates beside a text code, answered `missing`: the twin passes its own validation."""
+    table = tmp_path / "real.xlsx"
+    table.write_bytes(_typed_dates_beside(code))
+    assert _quiet(["profile", str(table), "--out-dir", str(tmp_path), "--replace"])[0] == 0
+    answers = _answer(tmp_path, "seen_at", asking.ANSWER_NO_DATE)
+    code_of, said = _quiet(["profile", str(table), "--out-dir", str(tmp_path), "--replace", "--answers", str(answers)])
+    assert code_of == 0, said
+    assert _block(tmp_path)["role"] == "datetime"
+    generated = ["generate", str(tmp_path / "real-profile.json"), "--seed", "0", "--out-dir", str(tmp_path), "--replace"]
+    assert _quiet(generated)[0] == 0
+    assert _validates(tmp_path)

@@ -120,13 +120,6 @@ ANSWER_DECIMAL_COMMA = "decimal_comma"
 # to ask for what we need").
 ANSWER_TWELVE_HOUR = "twelve-hour"
 BECAUSE_TWELVE_HOUR = "hours-from-one-to-twelve-and-no-am-or-pm"
-# ...and the order of day and month, where both readings of a slashed
-# date read every cell (landing T1, the same ruling). A question about the
-# FILE: the answer is `--day-first`, which reaches every such column.
-DAY_FIRST_SUBJECT = "the order of the day and the month in your dates"
-BECAUSE_DAY_AND_MONTH = "day-and-month-read-either-way"
-ANSWER_MONTH_FIRST = "month-first"
-ANSWER_DAY_FIRST = "day-first"
 
 # THE FIFTH DECLARATION, AND THE FIRST THAT IS NOT ABOUT A COLUMN (plan
 # P4-D81). Some survey exports write two rows UNDER the column names
@@ -181,6 +174,31 @@ FIRST_ROW_SUBJECT = "which row your column names are in"
 BECAUSE_FIRST_ROW_UNTOLD = "first-row-not-told-from-a-record"
 ANSWER_FIRST_ROW_NAMES = "names"
 ANSWER_FIRST_ROW_DATA = "first-record"
+
+# THE EIGHTH DECLARATION, AND THE FOURTH ABOUT THE FILE (lane R1 of
+# stage 3b, plan P4-D381; the owner's ruling of 2026-10-01: "If we can't
+# guess and we need more informations, there is no big deal to ask"):
+# whether the day or the month comes first, asked where a column of
+# dates reads every cell both ways, so nothing in its values can say.
+# The answer `day-first` is `--day-first`, which reaches every such
+# column of the file. Landing T1 asked the same question in the same
+# words; merged, the two are this one question.
+DAY_FIRST_SUBJECT = "the order of the day and the month in your dates"
+BECAUSE_DAY_AND_MONTH = "day-and-month-read-either-way"
+ANSWER_MONTH_FIRST = "month-first"
+ANSWER_DAY_FIRST = "day-first"
+
+# THE NINTH, AND IT IS ABOUT A COLUMN AGAIN (lane R1, plan P4-D381): a
+# column of dates or times that writes a few repeated codes where it has
+# none -- `UNK`, `00/00/0000`, `0000-00-00`, a Caboodle `-1`, `99:99` --
+# misses the date rule's line by them and is read as labels or numbers,
+# and its twin then holds strings no date reader takes. The answer
+# `missing` is `--missing-value` naming each code; `real-value` is
+# `--keep-value` naming each, which keeps the reading and stops the
+# question; Enter keeps the reading the column has.
+BECAUSE_DATE_CODES = "dates-or-times-beside-a-few-repeated-codes"
+ANSWER_NO_DATE = "missing"
+ANSWER_REAL_VALUE = "real-value"
 
 # Why a column was worth asking about. Each is shown to the person, so
 # each says what was SEEN and not what it was taken to mean.
@@ -960,83 +978,6 @@ def _clock_question(
     return None
 
 
-def day_first_columns(
-    document: "dict[str, object]",
-    table_columns: "list[list[str]]",
-    settings: taxonomy.Settings,
-) -> "tuple[str, ...]":
-    """The columns whose values cannot say whether the day or the month is first.
-
-    Read month first by the ratified default, and asked about in the
-    questions file (landing T1, the owner's ruling of 2026-10-01): a
-    slashed column every cell of which both readings parse. Nothing is
-    asked where `--day-first` was given -- the person has answered.
-
-    Guarantees: a fixed function of the arguments; opens nothing.
-    """
-    if settings.day_first:
-        return ()
-    blocks = document["columns"]
-    if not isinstance(blocks, list):
-        return ()
-    found: "list[str]" = []
-    position = 0
-    for block in blocks:
-        position = position + 1
-        if not isinstance(block, dict) or position > len(table_columns):
-            continue
-        if f"{block['role']}" != taxonomy.ROLE_DATETIME:
-            continue
-        if "format" not in block:
-            continue
-        format_name = f"{block['format']}"
-        present, _absent = taxonomy.split_missing(
-            table_columns[position - 1], settings
-        )
-        if taxonomy.day_and_month_read_either_way(present, format_name):
-            found += [f"{block['name']}"]
-    return tuple(found)
-
-
-def _day_first_questions(columns: "tuple[str, ...]") -> "list[Question]":
-    """Which comes first, the day or the month, where no value can say."""
-    if not columns:
-        return []
-    named = ""
-    for one in columns:
-        named = one if not named else f"{named}, {one}"
-    return [
-        Question(
-            DAY_FIRST_SUBJECT,
-            "",
-            BECAUSE_DAY_AND_MONTH,
-            (
-                f"in {named}, every date's day and month are both 12 or "
-                f"less, so each date reads as a real day with either one "
-                f"first, and nothing in the values can say which your "
-                f"file writes first"
-            ),
-            [
-                Choice(
-                    ANSWER_MONTH_FIRST,
-                    "the month comes first -- 03/04/2024 is the 4th of March",
-                    "these columns read as they are read now",
-                ),
-                Choice(
-                    ANSWER_DAY_FIRST,
-                    "the day comes first -- 03/04/2024 is the 3rd of April",
-                    (
-                        "every such column of your file is read day first, "
-                        "which is --day-first, and the twin writes its "
-                        "dates the same way"
-                    ),
-                ),
-            ],
-            ANSWER_MONTH_FIRST,
-        )
-    ]
-
-
 def questions_and_splits_for(
     document: "dict[str, object]",
     table_columns: "list[list[str]]",
@@ -1170,18 +1111,21 @@ def file_questions(
     declared_unseen: int = 0,
     tied_delimiters: "tuple[str, ...]" = (),
     first_row_seen: str = "",
-    day_or_month: "tuple[str, ...]" = (),
+    day_or_month: "tuple[DayOrMonth, ...]" = (),
 ) -> "list[Question]":
     """The questions about the FILE rather than about a column.
 
-    Three subjects: which row the column names are in
+    Four subjects: which row the column names are in
     (`_first_row_questions`, the owner's ruling of 2026-09-17 item 8,
     plan P4-D232), the rows under the column names
-    (`_metadata_questions`) and, where the file reads equally well under
+    (`_metadata_questions`), where the file reads equally well under
     more than one delimiter, which one it is written with
-    (`_delimiter_questions`, plan P4-D110). In that order, which is the
+    (`_delimiter_questions`, plan P4-D110), and where no value of a
+    column of dates can say, whether the day or the month comes first
+    (`_day_first_questions`, plan P4-D381). In that order, which is the
     order a file is read in: which row the names are in is settled
-    before anything under it can be described.
+    before anything under it can be described, and the cells are split
+    before any of them is read as a date.
 
     Guarantees: a fixed function of the arguments; opens nothing; and
     carries no value of the table.
@@ -1192,6 +1136,232 @@ def file_questions(
         + _delimiter_questions(tied_delimiters)
         + _day_first_questions(day_or_month)
     )
+
+
+@dataclasses.dataclass(frozen=True)
+class DayOrMonth:
+    """One column of dates no value of which can say which comes first.
+
+    `months` is how many different months of the year its dates fall in
+    when read month first, and `days` how many different days of a
+    month; read day first the two change places. Both are counts of
+    calendar positions -- at most twelve each, since every day and
+    month here is twelve or less -- and never of rows.
+    """
+
+    name: str
+    months: int
+    days: int
+
+
+def day_or_month_seen(
+    present: "list[str]", format_name: str
+) -> "DayOrMonth | None":
+    """Whether a column's dates read every cell both ways, and what each way gives.
+
+    THE QUESTION A COLUMN OF DATES CANNOT ANSWER (lane R1 of stage 3b,
+    plan P4-D381). `03/04/2024` is the 4th of March or the 3rd of April,
+    and where every cell of a column has its day and its month both
+    twelve or less, both readings parse every cell: the column is read
+    month first by the ratified default, and nothing in it can say
+    whether that is right. Measured on 668f276 over the columns of
+    `tests/date_question_shapes.py`: a day-first column whose days all
+    lie in 1 to 12 is read month first and its twin parses 453 of 1,000
+    cells under the person's own `%d/%m/%Y`, and month starts written
+    `01/03/2023`, every date of which that reading puts in January, 741.
+    `--day-first` repairs both to 1,000.
+
+    Asked only of the reading a column TOOK, and only where that is the
+    month-first member of one of the classifier's slashed pairs
+    (`taxonomy.SLASHED_PAIRS`: slashed, dotted and two-figure-year
+    dates, and slashed dates with a clock). A column whose own values
+    settle the order -- one cell only one reading parses -- reads the
+    way they say and is not asked about, and neither is a column read
+    day first, which a declaration or its own evidence chose.
+
+    Each DIFFERENT spelling is parsed once, under both readings, so a
+    column of a million cells over a few thousand dates costs a few
+    thousand parses; the walk stops at the first cell one reading alone
+    parses.
+
+    Guarantees: accepts the present cells and the format member the
+    column took; returns the column's two calendar counts, under the
+    name the caller gives it, or None. Determinism: a function of the
+    two. Raises TypeError if a cell is not text. No I/O, and no cell
+    reaches what it returns.
+    """
+    pair: "tuple[str, str] | None" = None
+    for candidate in taxonomy.SLASHED_PAIRS:
+        if candidate[0] == format_name:
+            pair = candidate
+    if pair is None or not present:
+        return None
+    seen: "dict[str, int]" = {}
+    months: "dict[str, int]" = {}
+    days: "dict[str, int]" = {}
+    for value in present:
+        if value in seen:
+            continue
+        seen[value] = 1
+        month_first = parsing.parse_datetime(value, pair[0])
+        day_first = parsing.parse_datetime(value, pair[1])
+        if (month_first is None) != (day_first is None):
+            return None
+        if month_first is None:
+            continue
+        canonical = month_first[0]
+        months[canonical[5:7]] = 1
+        days[canonical[8:10]] = 1
+    if not months:
+        return None
+    return DayOrMonth("", len(months), len(days))
+
+
+def day_or_month_columns(
+    document: "dict[str, object]",
+    table_columns: "list[list[str]]",
+    settings: taxonomy.Settings,
+    split: "SplitColumns | None" = None,
+    also: "tuple[DayOrMonth, ...]" = (),
+) -> "tuple[DayOrMonth, ...]":
+    """Every column of dates no value of which can say which comes first.
+
+    Asked only of a column read under the month-first member of a
+    slashed pair, so nothing is asked where `--day-first` was given, in
+    either way it can be given: under it a column whose cells read both
+    ways is read day first, which is the reading the person asked for,
+    and a column still read month first is one whose own cells said so.
+    That test is the block's format, made before any cell is split, so
+    a column of dates read any other way costs nothing here. Each
+    column's present cells are taken from ``split`` where `questions_
+    and_splits_for` split that very column under these settings, and
+    split here otherwise.
+
+    ``also`` holds the columns of dates beside a few codes whose other
+    cells read both ways (`date_codes_seen`): such a column is read
+    as labels until the codes are answered, so its block names no
+    format, and it is put in the same question rather than in the file
+    the answering run writes. Each stands in the table's own place.
+
+    Guarantees: a fixed function of the arguments, in the table's own
+    column order; opens nothing; and no cell of any column appears in
+    what it returns.
+    """
+    blocks = document["columns"]
+    if not isinstance(blocks, list):
+        return also
+    found: "list[DayOrMonth]" = []
+    position = 0
+    for block in blocks:
+        position = position + 1
+        if not isinstance(block, dict) or position > len(table_columns):
+            continue
+        coded_here = [one for one in also if one.name == f"{block['name']}"]
+        if coded_here:
+            # Once: a column of dates read whole but for its codes is
+            # also a block with a format, and it is asked once.
+            found += coded_here[:1]
+            continue
+        if f"{block['role']}" != taxonomy.ROLE_DATETIME:
+            continue
+        if "format" not in block:
+            continue
+        if f"{block['format']}" not in _MONTH_FIRST_MEMBERS:
+            continue
+        if (
+            split is not None
+            and position - 1 in split.present
+            and split.cells[position - 1] is table_columns[position - 1]
+            and split.settings == settings
+        ):
+            present = split.present[position - 1]
+        else:
+            present, _absent = taxonomy.split_missing(
+                table_columns[position - 1], settings
+            )
+        seen = day_or_month_seen(present, f"{block['format']}")
+        if seen is not None:
+            found += [DayOrMonth(f"{block['name']}", seen.months, seen.days)]
+    return tuple(found)
+
+
+# The month-first member of each of the classifier's slashed pairs: the
+# only readings the day-or-month question is asked of.
+_MONTH_FIRST_MEMBERS = tuple(pair[0] for pair in taxonomy.SLASHED_PAIRS)
+
+
+def _day_first_questions(
+    found: "tuple[DayOrMonth, ...]",
+) -> "list[Question]":
+    """Which comes first, the day or the month, where no value can say.
+
+    ONE QUESTION FOR THE FILE, because the answer is `--day-first` and
+    that reaches every such column at once: a file written by one tool
+    writes its dates one way. What it says was SEEN is the shape the
+    columns share and, where one reading puts every date of a column on
+    one calendar position and the other does not, that too -- read
+    month first, month starts written `01/03/2023` all fall in January,
+    which is the evidence a person needs to answer, and counts of
+    calendar positions rather than of rows or cells.
+
+    The reading that stands where nobody answers is month first, the
+    ratified default, and it is the first choice because it is what
+    Enter gives.
+    """
+    if not found:
+        return []
+    named = ""
+    for one in found:
+        quoted = f"'{one.name}'"
+        named = quoted if not named else f"{named}, {quoted}"
+    seen = (
+        f"in {named}, every date's day and month are both 12 or less, so "
+        f"each date reads as a real day with either one first, and nothing "
+        f"in the values can say which your file writes first"
+    )
+    for one in found:
+        if one.months == 1 and one.days > 1:
+            seen = (
+                f"{seen}; read month first, every date in '{one.name}' falls "
+                f"in one month of the year, and read day first, every one "
+                f"falls on one day of a month"
+            )
+        elif one.days == 1 and one.months > 1:
+            seen = (
+                f"{seen}; read month first, every date in '{one.name}' falls "
+                f"on one day of a month, and read day first, every one falls "
+                f"in one month of the year"
+            )
+    return [
+        Question(
+            DAY_FIRST_SUBJECT,
+            "",
+            BECAUSE_DAY_AND_MONTH,
+            seen,
+            [
+                Choice(
+                    ANSWER_MONTH_FIRST,
+                    "the month comes first -- 03/04/2024 is the 4th of March",
+                    (
+                        "these columns as they are read now, month first, "
+                        "and the twin writes their dates the same way"
+                    ),
+                ),
+                Choice(
+                    ANSWER_DAY_FIRST,
+                    "the day comes first -- 03/04/2024 is the 3rd of April",
+                    (
+                        "every column of your file whose dates read either "
+                        "way, read day first -- which is --day-first -- and "
+                        "the twin writes their dates the same way; a column "
+                        "whose own values say which comes first keeps that "
+                        "order"
+                    ),
+                ),
+            ],
+            ANSWER_MONTH_FIRST,
+        )
+    ]
 
 
 def _first_row_questions(seen: str) -> "list[Question]":
@@ -1661,6 +1831,7 @@ def checklist_for(
     settings: taxonomy.Settings,
     already: "list[str]",
     asked: "list[Question]",
+    answered: "tuple[Question, ...]" = (),
 ) -> "list[Question]":
     """Every column read as a number, listed once for one question.
 
@@ -1689,8 +1860,14 @@ def checklist_for(
 
     - Inputs: the profile document, the table's columns as text in the
       same order, the settings that produced it, the names already
-      declared, and the questions already asked so no column appears
-      twice.
+      declared, the questions already asked so no column appears
+      twice, and the columns whose date codes were answered kept
+      (`DateCodesSeen.answered`). Those are not listed as already read
+      as codes -- the answer settled what their values are -- but one
+      the answer leaves read as a measurement IS listed, because its
+      description still carries statistics over its values (second
+      review of lane R1, item 3: a DateKey column answered
+      `real-value` had lost its line).
     - Determinism: a fixed function of the arguments.
     - Errors raised: none.
     - Boundary: opens no file, prints nothing, and no cell of any
@@ -1702,6 +1879,9 @@ def checklist_for(
     spoken: list[str] = []
     for question in asked:
         spoken += [question.name]
+    settled: list[str] = []
+    for question in answered:
+        settled += [question.name]
     listed: list[Question] = []
     position = 0
     for block in blocks:
@@ -1735,7 +1915,11 @@ def checklist_for(
                     ANSWER_MEASUREMENT,
                 )
             ]
-        elif role in _LABELLED_ROLES and _looks_like_a_code(present):
+        elif (
+            role in _LABELLED_ROLES
+            and name not in settled
+            and _looks_like_a_code(present)
+        ):
             listed += [
                 Question(
                     name,
@@ -2070,6 +2254,812 @@ def _person_choices(role: str, floor: int) -> "list[Choice]":
     ]
 
 
+# HOW FEW, HOW OFTEN AND HOW MUCH (lane R1, plan P4-D381). A column is
+# asked about where at most five different spellings read as no date or
+# time, each on at least eleven rows -- the default smallest group, and
+# never fewer than the run's own -- which together hold at most a tenth
+# of its present cells, beside at least three different dates or times.
+# Fewer rows is a slip of a keyboard as often as a code, and a spelling
+# on fewer rows than the floor is one the description would not name;
+# more spellings, or more of the column, is a column of something else
+# with some dates in it, which is a different question (the reach
+# audit's Q6, not asked here).
+_DATE_CODES_MOST = 5
+_DATE_CODES_LINE = 11
+_DATE_CODES_SHARE = 10
+_DATE_CODES_VARIETY = 3
+
+
+@dataclasses.dataclass(frozen=True)
+class DateCodes:
+    """A column of dates or times beside a few repeated codes, as seen.
+
+    `reading` is the date member or clock form the rest of the column
+    reads under at the date rule's own line, and `n_read` how many of
+    its `n_present` cells that reading parses. `codes` holds each code
+    once -- one spelling for each declaration a person could type, the
+    one most of its cells wore -- with the rows that wore it.
+
+    The spellings are kept HERE, inside one run, and go no further than
+    the declaration they become: the question that is put names how many
+    codes there are, how each is written and how many rows hold it, and
+    no code itself (amendment A-P4-58: the questions file carries no
+    value of the table).
+    """
+
+    reading: str
+    codes: "tuple[tuple[str, int], ...]"
+    n_read: int
+    n_present: int
+
+
+def _declared_identity(
+    spelling: str, decimal_comma: bool = False
+) -> "tuple[str, object]":
+    """What a declaration naming this spelling would match, as a key.
+
+    The rule `taxonomy.Settings.declaration_matching` records, asked
+    here of a code rather than of a declaration: a spelling that reads
+    as a number this format can hold is that EXACT number, and any other
+    is its trimmed, case-folded text. Two spellings with one key are one
+    `--missing-value` -- `UNK` and `unk`, `-1` and `-1.0`.
+
+    ``decimal_comma`` asks it of a column declared `--decimal-comma`,
+    whose number is read from the swapped spelling, as
+    `taxonomy._declarations` reads a declaration and `taxonomy._classify`
+    a cell there: in such a column `-1,0` is the number -1, which a
+    declaration naming `-1` takes.
+    """
+    read = spelling
+    if decimal_comma:
+        read = parsing.written_with_a_decimal_comma(spelling)
+    exact = parsing.exact_of_spelling(read)
+    if exact is not None:
+        return ("number", exact)
+    return ("text", parsing.folded(spelling))
+
+
+def declared_identity(spelling: str) -> "tuple[str, object]":
+    """What a declaration naming this spelling would match, as a key.
+
+    `_declared_identity`, for the run that turns answers into
+    declarations: two spellings with one key are one declaration, and
+    are named once.
+
+    Guarantees: accepts one spelling; returns its key. Determinism: a
+    function of the text. Raises TypeError if it is not text. No I/O.
+    """
+    return _declared_identity(spelling)
+
+
+def _a_date_or_a_time(spelling: str, last: str) -> str:
+    """The member or clock form one spelling reads under, or nothing.
+
+    ``last`` is the member the previous date of the column read under,
+    tried first, so a column of dates costs about one parse a spelling.
+    """
+    if last and last in parsing.DATE_FORMATS:
+        if parsing.parse_datetime(spelling, last) is not None:
+            return last
+    for format_name in parsing.DATE_FORMATS:
+        if parsing.parse_datetime(spelling, format_name) is not None:
+            return format_name
+    form = parsing.clock_form(spelling)
+    if form is not None:
+        return form
+    return ""
+
+
+def date_codes_of(
+    present: "list[str]",
+    settings: taxonomy.Settings,
+    n_rows: "int | None" = None,
+    counting_kept: bool = False,
+) -> "DateCodes | None":
+    """The few repeated codes a column of dates or times writes, or None.
+
+    THE COLUMN THE DATE RULE MISSES BY A FEW SPELLINGS (lane R1 of stage
+    3b, plan P4-D381; the reach audit's Q2). The date rule reads a
+    column whose cells parse at its line, 99 in 100, and a column of
+    dates that writes `UNK` on 3 in 100 does not: it is read as labels,
+    and its twin holds strings no date reader takes. Measured on
+    668f276, a thousand cells each: `00/00/0000`, `UNK` beside
+    `03/17/2023`, `0000-00-00`, `UNK` beside ISO dates, Caboodle's `-1`
+    and `-2` beside `20221206`, and `99:99` and `UNK` beside `14:05` --
+    the twins parse 0 to 59 in 100 under the person's own format, and
+    every one parses all of them once the codes are named with
+    `--missing-value`, which also writes them back where they were
+    counted.
+
+    What is asked of the column, in order, each step cheaper than the
+    next:
+
+    1. the spellings standing on at least the line's rows (eleven, or
+       the run's floor where that is higher) that read as no date member
+       and no clock form are its CODES, grouped as one declaration would
+       match them; a spelling the person declared kept with
+       `--keep-value` is no code, because that is their answer --
+       unless ``counting_kept`` asks for the codes as they stand
+       whatever was kept, which is how a column whose codes were
+       answered `real-value` is still known for one asked about them,
+       and how an answer of `missing` reaches a code typed kept;
+    2. there are one to five of them;
+    3. together they hold at most a tenth of the present cells;
+    4. at least three different spellings are left; and
+    5. what is left clears the date rule's own line
+       (`taxonomy.reading_of_the_rest`, over the table's ``n_rows``,
+       which the clock half's categories line is a share of).
+
+    A spelling on fewer rows stays among what is left and counts against
+    the line there, as it does in the column itself.
+
+    Guarantees: accepts the present cells, in row order, the settings
+    they were split under and the table's rows (the present cells'
+    count where none is given); returns what was seen or None.
+    Determinism: a function of the arguments. Raises TypeError if a cell is
+    not text. No I/O of any kind.
+    """
+    found = _codes_and_rest(
+        _spellings_counted(present),
+        len(present),
+        settings,
+        len(present) if n_rows is None else n_rows,
+        counting_kept,
+    )
+    return None if found is None else found[0]
+
+
+def _spellings_counted(present: "list[str]") -> "dict[str, int]":
+    """Each different spelling of a column once, with the rows that wore it."""
+    counted: "dict[str, int]" = {}
+    for value in present:
+        if value in counted:
+            counted[value] = counted[value] + 1
+        else:
+            counted[value] = 1
+    return counted
+
+
+def _codes_and_rest(
+    counted: "dict[str, int]",
+    n_present: int,
+    settings: taxonomy.Settings,
+    n_rows: int,
+    counting_kept: bool,
+) -> "tuple[DateCodes, dict[str, int]] | None":
+    """`date_codes_of` over a column's counted spellings, with what is left.
+
+    The second half is each different spelling of what is left with
+    the rows that wore it, which is what the day-or-month question asks
+    of the same column (`date_codes_seen`) without counting it again;
+    and the count is taken once by the caller, so asking a column twice
+    -- once as it stands and once whatever was kept -- counts it once.
+    """
+    if not counted:
+        return None
+    line = max(_DATE_CODES_LINE, parsing.census_floor(settings.small_cell_floor))
+    kept: "list[tuple[str, object]]" = []
+    if not counting_kept:
+        for spelling in settings.kept_values:
+            kept += [_declared_identity(spelling)]
+    keys: "list[tuple[str, object]]" = []
+    spelled: "list[str]" = []
+    rows: "list[int]" = []
+    taken: "dict[str, int]" = {}
+    last = ""
+    for spelling in counted:
+        if counted[spelling] < line:
+            continue
+        reading = _a_date_or_a_time(spelling, last)
+        if reading:
+            last = reading
+            continue
+        key = _declared_identity(spelling)
+        if key in kept:
+            continue
+        taken[spelling] = 1
+        place = -1
+        for index in range(len(keys)):
+            if keys[index] == key:
+                place = index
+        if place < 0:
+            keys += [key]
+            spelled += [spelling]
+            rows += [counted[spelling]]
+            if len(keys) > _DATE_CODES_MOST:
+                return None
+            continue
+        # One declaration, several spellings: the rows add up, and the
+        # spelling named is the one most of them wore, the first on a tie.
+        if counted[spelling] > counted[spelled[place]]:
+            spelled[place] = spelling
+        rows[place] = rows[place] + counted[spelling]
+    if not keys:
+        return None
+    coded = 0
+    for held in rows:
+        coded = coded + held
+    if coded * _DATE_CODES_SHARE > n_present:
+        return None
+    rest: "dict[str, int]" = {}
+    for spelling in counted:
+        if spelling not in taken:
+            rest[spelling] = counted[spelling]
+    if len(rest) < _DATE_CODES_VARIETY:
+        return None
+    reading_of = taxonomy.reading_of_the_rest(rest, settings, n_rows)
+    if reading_of is None:
+        return None
+    codes: "list[tuple[str, int]]" = []
+    for index in range(len(keys)):
+        codes += [(spelled[index], rows[index])]
+    return (
+        DateCodes(reading_of[0], tuple(codes), reading_of[1], n_present),
+        rest,
+    )
+
+
+def _code_written(spelling: str) -> str:
+    """How one code is written, in words that name no character of it.
+
+    Its length and the kinds of character it holds -- letters, figures,
+    a leading minus sign, other marks -- and nothing else, which is what
+    the questions file may say of a cell (amendment A-P4-58).
+    """
+    body = parsing.trimmed(spelling)
+    letters = 0
+    figures = 0
+    marks = 0
+    for character in body:
+        if "0" <= character <= "9":
+            figures = figures + 1
+        elif ("a" <= character <= "z") or ("A" <= character <= "Z"):
+            letters = letters + 1
+        else:
+            marks = marks + 1
+    if letters and not figures and not marks:
+        return f"{letters} letter(s)"
+    if figures and not letters and not marks:
+        return f"{figures} figure(s)"
+    if figures and not letters and marks == 1 and body[:1] == "-":
+        return f"a minus sign and {figures} figure(s)"
+    if figures and not letters:
+        return f"{figures} figure(s) with {marks} mark(s) among them"
+    if letters and figures:
+        return f"{len(body)} characters, letters and figures among them"
+    return f"{len(body)} character(s)"
+
+
+# How a clock form is shown in a sentence, beside `parsing.format_example`
+# for the date members.
+_CLOCK_EXAMPLES = {
+    parsing.CLOCK_HH_MM: "14:05",
+    parsing.CLOCK_HH_MM_SS: "14:05:30",
+}
+
+
+def date_codes_reading(found: DateCodes) -> str:
+    """What the rest of a column reads as, in the words a person meets.
+
+    Guarantees: accepts what `date_codes_of` saw; returns a phrase that
+    names the reading by a made-up example of its own (`03/17/2024`,
+    `14:05`) and no cell of the column. Determinism: a function of the
+    reading. Raises nothing. No I/O.
+    """
+    if found.reading in _CLOCK_EXAMPLES:
+        return f"times of day written as {_CLOCK_EXAMPLES[found.reading]}"
+    return f"dates written as {parsing.format_example(found.reading)}"
+
+
+def _date_codes_shape(
+    found: DateCodes, floor: int, elsewhere: "tuple[Elsewhere, ...]" = ()
+) -> str:
+    """What synthtwin saw in a column of dates beside a few codes.
+
+    EVERY COUNT HERE IS ONE THE DISCLOSURE RULE LETS THROUGH, and by
+    construction rather than by a test made here: each code stands on at
+    least the line's rows, which is never under `parsing.census_floor`,
+    and together they hold at most a tenth of the column, so what each
+    leaves over -- and what the date reading leaves over, which holds
+    every code -- reaches the line too. A branch that printed words in
+    place of these numbers could never be taken, and is not written.
+    The counts of OTHER columns are not held to that construction, and
+    `_elsewhere_words` asks the rule of each.
+    """
+    read = f"{found.n_read} of the {found.n_present} values"
+    which = date_codes_reading(found)
+    named = ""
+    for spelling, held in found.codes:
+        one = f"written in {_code_written(spelling)}, on {held} rows"
+        if len(found.codes) > 1:
+            one = f"one {one}"
+        named = one if not named else f"{named}; {one}"
+    also = ""
+    if elsewhere:
+        also = (
+            f". The same spellings stand in other columns of your table: "
+            f"{_elsewhere_words(elsewhere, floor)}"
+        )
+    if len(found.codes) == 1:
+        return (
+            f"{read} read as {which}, and every other value is one "
+            f"spelling, repeated on many rows, that reads as no date or "
+            f"time: {named}{also}"
+        )
+    return (
+        f"{read} read as {which}, and every other value is one of "
+        f"{len(found.codes)} spellings, each repeated on many rows, that "
+        f"read as no date or time: {named}{also}"
+    )
+
+
+@dataclasses.dataclass(frozen=True)
+class Elsewhere:
+    """Another column holding a code of a column asked about, as counted.
+
+    `rows` is how many of its cells a declaration naming the codes would
+    take, and `n_present` how many cells it holds that are not missing:
+    the two the disclosure rule asks before the count is said.
+    """
+
+    name: str
+    rows: int
+    n_present: int
+
+
+def _elsewhere_words(elsewhere: "tuple[Elsewhere, ...]", floor: int) -> str:
+    """Where else a column's codes stand, in words the disclosure rule allows.
+
+    A count is said only where it AND what it leaves over reach the line
+    (`parsing.census_nameable`); otherwise the column is named with
+    "some rows", which says the answer reaches it without saying how
+    few of its rows that is.
+    """
+    words = ""
+    for other in elsewhere:
+        rows = (
+            f"{other.rows} rows"
+            if parsing.census_nameable([other.rows], [other.n_present], floor)
+            else "some rows"
+        )
+        one = f"on {rows} of '{other.name}'"
+        words = one if not words else f"{words}, {one}"
+    return words
+
+
+def codes_elsewhere(
+    document: "dict[str, object]",
+    table_columns: "list[list[str]]",
+    asked: "list[tuple[int, DateCodes]]",
+    settings: taxonomy.Settings,
+    decimal_commas: "tuple[str, ...]" = (),
+) -> "dict[int, tuple[Elsewhere, ...]]":
+    """Every other column a declaration naming each asked column's codes would reach.
+
+    WHAT AN ANSWER OF `missing` DOES TO THE REST OF THE TABLE (review of
+    lane R1, item 1). `--missing-value` reaches every column, and the
+    file names no code, so a person answering about a column of dates
+    cannot see that `-1` is also a real score of change in another one.
+    Measured before this count: a table of 2,000 rows whose DateKey
+    column wrote `-1` and `-2` on 4.5 in 100 rows, beside a column of
+    scores holding -1 and -2 legitimately, was asked with neither named;
+    answered `missing`, the scores lost 552 rows (27.6 in 100) to
+    "missing" and their published mean moved from -0.032 to +0.477.
+
+    A PRESENT cell is counted where the declaration would take it, under
+    the rule that declaration applies to ITS column
+    (`_declared_identity`, the rule `--missing-value` matches by): `-1.0`
+    beside a code `-1`, `unk` beside `UNK`, and -- in a column declared
+    `--decimal-comma` -- `-1,0`, which that column reads as -1 (second
+    review of lane R1, item 1: a column of volumes lost 112 rows to an
+    answer whose question said no other column held its codes).
+
+    ONE PASS OVER THE TABLE FOR EVERY QUESTION (second review, item 2):
+    each column's spellings are counted once and each different one
+    judged once, and every question's count is summed from that, so
+    thirty DateKey columns cost one pass and not thirty. Columns
+    described as empty are passed over.
+
+    Guarantees: accepts the description, the table's columns, each
+    asked column's 0-based place with what was seen in it, the settings
+    and the columns declared `--decimal-comma`; returns, for each asked
+    place, each other column holding at least one such cell, in the
+    table's own column order, with how many and how many cells it holds
+    that are not missing. Determinism: a function of the arguments.
+    Raises nothing for text. No I/O.
+    """
+    blocks = document["columns"]
+    found: "dict[int, list[Elsewhere]]" = {}
+    if not asked or not isinstance(blocks, list):
+        return {}
+    # Each question's codes as the identities a declaration would match,
+    # once as an ordinary column reads them and once as a column
+    # declared `--decimal-comma` does, each identity once.
+    wanted_of: "dict[bool, list[list[tuple[str, object]]]]" = {}
+    union_of: "dict[bool, dict[tuple[str, object], int]]" = {}
+    for comma in (False, True):
+        each: "list[list[tuple[str, object]]]" = []
+        union: "dict[tuple[str, object], int]" = {}
+        for _position, codes in asked:
+            identities: "list[tuple[str, object]]" = []
+            for spelling, _rows in codes.codes:
+                identity = _declared_identity(spelling, comma)
+                if identity not in identities:
+                    identities += [identity]
+                union[identity] = 1
+            each += [identities]
+        wanted_of[comma] = each
+        union_of[comma] = union
+    place = -1
+    for block in blocks:
+        place = place + 1
+        if place >= len(table_columns) or not isinstance(block, dict):
+            continue
+        if f"{block['role']}" == taxonomy.ROLE_EMPTY:
+            continue
+        # The questions this column is "elsewhere" for: every one but
+        # its own, and a column asked alone is not counted at all.
+        others = [index for index in range(len(asked)) if asked[index][0] != place]
+        if not others:
+            continue
+        name = f"{block['name']}"
+        comma = name in decimal_commas
+        counted = _spellings_counted(table_columns[place])
+        # Each different spelling judged once; only those a declaration
+        # would match are then asked whether they are present at all.
+        matched: "list[str]" = []
+        identity_of: "dict[str, tuple[str, object]]" = {}
+        for spelling in counted:
+            identity = _declared_identity(spelling, comma)
+            if identity in union_of[comma]:
+                matched += [spelling]
+                identity_of[spelling] = identity
+        if not matched:
+            continue
+        present, _absent = taxonomy.split_missing(matched, settings, comma)
+        rows_of: "dict[tuple[str, object], int]" = {}
+        for spelling in present:
+            identity = identity_of[spelling]
+            held = rows_of[identity] if identity in rows_of else 0
+            rows_of[identity] = held + counted[spelling]
+        if not rows_of:
+            continue
+        n_present = block["n_present"] if "n_present" in block else None
+        if not isinstance(n_present, int):
+            every, _gone = taxonomy.split_missing(list(counted), settings, comma)
+            n_present = 0
+            for spelling in every:
+                n_present = n_present + counted[spelling]
+        for index in others:
+            position = asked[index][0]
+            rows = 0
+            for identity in wanted_of[comma][index]:
+                if identity in rows_of:
+                    rows = rows + rows_of[identity]
+            if not rows:
+                continue
+            one = Elsewhere(name, rows, n_present)
+            if position in found:
+                found[position] += [one]
+            else:
+                found[position] = [one]
+    return {position: tuple(found[position]) for position in found}
+
+
+def _now_publishes(role: str, floor: int, found: DateCodes) -> str:
+    """What a column of dates beside codes publishes while nobody answers."""
+    dates = "times of day" if found.reading in _CLOCK_EXAMPLES else "dates"
+    if role == taxonomy.ROLE_DATETIME or role == taxonomy.ROLE_CLOCK:
+        return (
+            f"what it publishes now: points along its range and the tails "
+            f"beyond them, with the rows holding those spellings counted as "
+            f"values that are not {dates}, which the twin writes as made-up "
+            f"text"
+        )
+    if role in _MEASURED_ROLES:
+        return (
+            f"what it publishes now: an average, a spread and points along "
+            f"its range, worked out over these values as plain numbers with "
+            f"those spellings among them, so many of the twin's cells will "
+            f"not read as {dates}"
+        )
+    return (
+        f"{_publishes_under(ANSWER_KEEP, role, floor)}, so many of the "
+        f"twin's cells will not read as {dates}"
+    )
+
+
+def _date_code_choices(
+    role: str,
+    floor: int,
+    found: DateCodes,
+    elsewhere: "tuple[Elsewhere, ...]" = (),
+) -> "list[Choice]":
+    """The three answers a column of dates beside a few codes may take.
+
+    `keep` first, because Enter gives it: nobody said what the codes
+    mean, so the column keeps the reading it has. `missing` is the one
+    that repairs it, and says that `--missing-value` reaches every
+    column of the table, which is how that option works -- naming each
+    other column that holds the same spellings, and how many of its
+    rows, or that none does (`codes_elsewhere`); `real-value` keeps the
+    reading and records the answer, so the question is not put again,
+    and says the same of the other columns.
+    """
+    reading = date_codes_reading(found)
+    now = _now_publishes(role, floor, found)
+    if elsewhere:
+        where = _elsewhere_words(elsewhere, floor)
+        missing_too = (
+            f": the same spellings stand {where}, which this answer reads "
+            f"as missing there too"
+        )
+        kept_too = (
+            f": the same spellings stand {where}, which this answer keeps "
+            f"as values there too"
+        )
+    else:
+        missing_too = ", and no other column of your table holds them"
+        kept_too = missing_too
+    return [
+        Choice(
+            ANSWER_KEEP,
+            "leave it as it is -- synthtwin reads this column the way it "
+            "does now",
+            now,
+        ),
+        Choice(
+            ANSWER_NO_DATE,
+            "those spellings stand for a date or time nobody wrote down -- "
+            "unknown, not recorded or not applicable",
+            (
+                f"the column read as {reading}: points along its range and "
+                f"the tails beyond them, but neither end unless at least "
+                f"{floor} rows share it, with the rows holding those "
+                f"spellings counted as missing and each spelling at least "
+                f"{floor} rows share written back in the twin as your table "
+                f"writes it. This is --missing-value naming each of those "
+                f"spellings, and it reaches every column of your "
+                f"table{missing_too}"
+            ),
+        ),
+        Choice(
+            ANSWER_REAL_VALUE,
+            "those spellings are values of their own, not a missing date "
+            "or time",
+            (
+                f"{now}; and this question is not asked again. This is "
+                f"--keep-value naming each of those spellings, which "
+                f"reaches every column of your table{kept_too}"
+            ),
+        ),
+    ]
+
+
+def _a_spelling_can_reach_the_line(
+    block: "dict[str, object]",
+    present: "list[str]",
+    settings: taxonomy.Settings,
+) -> bool:
+    """Whether some spelling of a column could stand on the codes' line of rows.
+
+    A COLUMN OF A MILLION DIFFERENT VALUES IS NOT COUNTED TO LEARN THAT
+    NONE OF THEM REPEATS. The commonest spelling of `n` present cells
+    over `d` different ones stands on at most `n - d + 1` rows, and the
+    column's block publishes both -- so where that is under the line no
+    code can be there, and the column of free text, record numbers or
+    all-different moments is passed over without a dictionary of its
+    cells. The bound is used only where the block counted the same cells
+    this run split, and the column is counted otherwise.
+
+    Guarantees: accepts the column's block, its present cells and the
+    settings; returns False only where no spelling can reach the line.
+    Determinism: a function of the three. Raises nothing. No I/O.
+    """
+    held = block["n_present"] if "n_present" in block else None
+    different = block["n_distinct"] if "n_distinct" in block else None
+    if not isinstance(held, int) or not isinstance(different, int):
+        return True
+    if held != len(present) or different < 1:
+        return True
+    line = max(_DATE_CODES_LINE, parsing.census_floor(settings.small_cell_floor))
+    return held - different + 1 >= line
+
+
+@dataclasses.dataclass(frozen=True)
+class DateCodesSeen:
+    """What one pass over a table's columns found about dates beside codes.
+
+    `questions` are the codes questions to put. `answered` are the
+    columns whose codes stand only because the person declared them
+    kept -- an answer of `real-value`, or `--keep-value` typed -- each
+    as the question it would have been: such a column is asked no
+    question of what kind its values are, and gets no checklist line
+    calling it codes, as while the question stood (review of lane R1,
+    item 2) -- but a column the answer leaves read as a measurement keeps
+    its checklist line, owner decision D14's (second review, item 3).
+    `day_or_month` are the columns asked about whose other
+    cells read both ways under a slashed pair (item 4), for the file's
+    day-or-month question.
+    """
+
+    questions: "tuple[Question, ...]" = ()
+    answered: "tuple[Question, ...]" = ()
+    day_or_month: "tuple[DayOrMonth, ...]" = ()
+
+
+def date_code_questions(
+    document: "dict[str, object]",
+    table_columns: "list[list[str]]",
+    settings: taxonomy.Settings,
+    already: "list[str]",
+    split: "SplitColumns | None" = None,
+    decimal_commas: "tuple[str, ...]" = (),
+) -> "list[Question]":
+    """The codes questions `date_codes_seen` finds, as a list."""
+    return list(
+        date_codes_seen(
+            document, table_columns, settings, already, split, decimal_commas
+        ).questions
+    )
+
+
+def date_codes_seen(
+    document: "dict[str, object]",
+    table_columns: "list[list[str]]",
+    settings: taxonomy.Settings,
+    already: "list[str]",
+    split: "SplitColumns | None" = None,
+    decimal_commas: "tuple[str, ...]" = (),
+) -> DateCodesSeen:
+    """Every column of dates or times that writes a few repeated codes.
+
+    Asked of every column nobody declared, whatever it was read as --
+    labels, free text, numbers, or dates and times with cells left
+    unread -- because the codes are what moved it there; a column of
+    dates or times every cell of which its reading parses has no code to
+    ask about and is passed over without its cells being read. Each
+    column's present cells are taken from ``split`` where
+    `questions_and_splits_for` split that very column under these
+    settings, and each is counted once.
+
+    A COLUMN ASKED ABOUT HERE IS ASKED NOTHING ELSE: `00/00/0000` beside
+    `03/17/2023` is two numbers joined by a mark on every row, and the
+    joined question that shape raises would offer a blood pressure
+    reading of a column of dates. The caller takes these columns out of
+    the others (`without_columns_of`) -- and the `answered` ones too,
+    whose codes the person declared kept: the joined question is no
+    more the column's after that answer than before it.
+
+    Each question names the other columns its answer would reach
+    (`codes_elsewhere`, one pass over the table for every question,
+    reading each column declared in ``decimal_commas`` as the
+    declaration does), and a column whose dates read either way once
+    its codes are out is put in the day-or-month question as well, so
+    one file asks both and one answering run reads the column right.
+
+    Guarantees: a fixed function of the arguments, in the table's own
+    column order; opens nothing; prints nothing; and no cell of any
+    column appears in what it returns.
+    """
+    blocks = document["columns"]
+    if not isinstance(blocks, list):
+        return DateCodesSeen()
+    found: "list[Question]" = []
+    answered: "list[Question]" = []
+    order: "list[DayOrMonth]" = []
+    pending: "list[tuple[str, str, int, DateCodes]]" = []
+    position = 0
+    for block in blocks:
+        position = position + 1
+        if not isinstance(block, dict) or position > len(table_columns):
+            continue
+        name = f"{block['name']}"
+        role = f"{block['role']}"
+        if name in already or role == taxonomy.ROLE_EMPTY:
+            continue
+        if role == taxonomy.ROLE_DATETIME or role == taxonomy.ROLE_CLOCK:
+            unread = block["n_unparsed"] if "n_unparsed" in block else 0
+            if not isinstance(unread, int) or unread < 1:
+                continue
+        if (
+            split is not None
+            and position - 1 in split.present
+            and split.cells[position - 1] is table_columns[position - 1]
+            and split.settings == settings
+        ):
+            present = split.present[position - 1]
+        else:
+            present, _absent = taxonomy.split_missing(
+                table_columns[position - 1], settings
+            )
+        if not _a_spelling_can_reach_the_line(block, present, settings):
+            continue
+        counted = _spellings_counted(present)
+        n_rows = len(table_columns[position - 1])
+        seen = _codes_and_rest(counted, len(present), settings, n_rows, False)
+        if seen is None:
+            if not settings.kept_values:
+                continue
+            # WHAT WAS DECLARED KEPT, COUNTED AS IT STANDS: where the
+            # codes are back once nothing is kept, the person kept them,
+            # and the column is one asked about and answered.
+            stood = _codes_and_rest(counted, len(present), settings, n_rows, True)
+            if stood is not None:
+                answered += [
+                    Question(
+                        name, role, BECAUSE_DATE_CODES, "", [], ANSWER_REAL_VALUE
+                    )
+                ]
+            continue
+        codes, rest = seen
+        pending += [(name, role, position - 1, codes)]
+        if codes.reading in _MONTH_FIRST_MEMBERS:
+            either = day_or_month_seen(list(rest), codes.reading)
+            if either is not None:
+                order += [DayOrMonth(name, either.months, either.days)]
+    # Where else each column's codes stand, for every question at once.
+    elsewhere_of = codes_elsewhere(
+        document,
+        table_columns,
+        [(place, codes) for _name, _role, place, codes in pending],
+        settings,
+        decimal_commas,
+    )
+    for name, role, place, codes in pending:
+        elsewhere = elsewhere_of[place] if place in elsewhere_of else ()
+        found += [
+            Question(
+                name,
+                role,
+                BECAUSE_DATE_CODES,
+                _date_codes_shape(codes, settings.small_cell_floor, elsewhere),
+                _date_code_choices(
+                    role, settings.small_cell_floor, codes, elsewhere
+                ),
+                ANSWER_KEEP,
+            )
+        ]
+    return DateCodesSeen(tuple(found), tuple(answered), tuple(order))
+
+
+# THE QUESTIONS A COLUMN OF DATES BESIDE CODES IS NOT ASKED (plan
+# P4-D381): the ones about what KIND of value its cells hold -- numbers
+# joined by a mark, a code register written in figures, a point between
+# thousands -- which the codes question answers in their place. A
+# question of another kind about the same column, such as which clock
+# its hours are written on, still stands beside it.
+_ANSWERED_BY_THE_CODES_QUESTION = (
+    BECAUSE_JOINED,
+    BECAUSE_PADDED,
+    BECAUSE_FIXED_WIDTH,
+    BECAUSE_GROUPED_FIXED_WIDTH,
+    BECAUSE_POINT_THOUSANDS,
+)
+
+
+def without_columns_of(
+    questions: "list[Question]", asked: "list[Question]"
+) -> "list[Question]":
+    """``questions`` less those about what kind of values a column ``asked`` names holds.
+
+    Guarantees: accepts two lists of questions; returns the first's in
+    its own order, less each one whose column the second names and
+    whose reason is one the codes question answers in its place
+    (`_ANSWERED_BY_THE_CODES_QUESTION`). Determinism: a function of the
+    two. Raises nothing. No I/O.
+    """
+    named: "list[str]" = []
+    for question in asked:
+        named += [question.name]
+    return [
+        question
+        for question in questions
+        if question.name not in named
+        or question.reason not in _ANSWERED_BY_THE_CODES_QUESTION
+    ]
+
+
 # The one question the checklist puts, in the words every surface uses.
 CHECKLIST_QUESTION = (
     "Which of these columns hold codes or record numbers rather than "
@@ -2247,9 +3237,25 @@ class Answers:
     # ...and the columns answered `twelve-hour` (landing T1), which is
     # `--twelve-hour`.
     twelve_hours: "tuple[str, ...]" = ()
-    # ...and whether the day comes first in the file's dates, as
-    # answered (landing T1), which is `--day-first`.
+    # ...and the eighth (plan P4-D381): whether the person said the day
+    # comes first in their file's dates, which is `--day-first`. False
+    # where they said the month does, which is the reading that stands,
+    # and where they said nothing.
     day_first: bool = False
+    # WHETHER THEY SAID THE MONTH DOES. It declares nothing -- month
+    # first is the reading that stands, and no option records it -- but
+    # it is an answer, and the questions file the same run writes again
+    # may not put the question back to a person who has just answered
+    # it.
+    month_first: bool = False
+    # ...and the ninth (plan P4-D381): the columns whose few repeated
+    # codes the person said stand for a missing date or time, and those
+    # whose codes they said are values of their own. NAMES, not codes:
+    # the questions file carries no value of the table, so the run that
+    # reads the answer finds each column's codes again in the table it
+    # opens and declares those (`date_codes_of`).
+    missing_date_columns: "tuple[str, ...]" = ()
+    real_value_columns: "tuple[str, ...]" = ()
 
 
 def _entry_answer(
@@ -2399,6 +3405,9 @@ def answers_in(document: object, shown: str) -> Answers:
     first_row = ""
     twelve_hours: list[str] = []
     day_first = False
+    month_first = False
+    missing_dates: "list[str]" = []
+    real_values: "list[str]" = []
     for entry, place in _entries_of(document, shown):
         read = _entry_answer(entry, place)
         if read is None:
@@ -2434,17 +3443,22 @@ def answers_in(document: object, shown: str) -> Answers:
             metadata_rows_answered = True
         elif written == ANSWER_TWELVE_HOUR:
             twelve_hours += [name]
-        elif written == ANSWER_DAY_FIRST:
-            # The one answer about the dates of the whole file (landing
-            # T1), which is `--day-first`.
-            day_first = True
-        elif written == ANSWER_MONTH_FIRST:
-            # The reading that already stands.
-            pass
         elif written == ANSWER_FIRST_ROW_NAMES:
             first_row = ANSWER_FIRST_ROW_NAMES
         elif written == ANSWER_FIRST_ROW_DATA:
             first_row = ANSWER_FIRST_ROW_DATA
+        elif written == ANSWER_DAY_FIRST:
+            # The one answer about the dates of the whole file (plan
+            # P4-D381), which is `--day-first`.
+            day_first = True
+        elif written == ANSWER_MONTH_FIRST:
+            # The reading that already stands; nothing to declare, and
+            # the answer is carried so that it is not asked again.
+            month_first = True
+        elif written == ANSWER_NO_DATE:
+            missing_dates += [name]
+        elif written == ANSWER_REAL_VALUE:
+            real_values += [name]
         elif written in ANSWER_DELIMITERS:
             # The one answer that decides how the file is SPLIT (plan
             # P4-D110), which is `--delimiter`.
@@ -2468,5 +3482,8 @@ def answers_in(document: object, shown: str) -> Answers:
         metadata_rows_answered,
         first_row,
         tuple(twelve_hours),
-        day_first,
+        day_first=day_first,
+        month_first=month_first,
+        missing_date_columns=tuple(missing_dates),
+        real_value_columns=tuple(real_values),
     )

@@ -1218,7 +1218,7 @@ claim.
 | `categorical_ceiling` | integer | ≥ 1 | the absolute cap on how many different FOLDED values a column may hold and still be described as categories |
 | `categorical_floor` | integer | ≥ 1 | the effective cap is never below this, so that a tiny table still has a categorical path |
 | `categorical_share` | number | 0.0 ≤ x ≤ 1.0 | the share of the table's ROWS that caps it as well: the effective cap is `min(categorical_ceiling, categorical_share of n_rows)`, never below `categorical_floor` |
-| `day_first` | boolean | — | true when the person declared, with `--day-first`, that dates in this table are day-first wherever the day and month are BOTH written as numbers — the slashed pair, the slashed stamp pair, the dotted pair and the two-figure-year pair; false otherwise. Default false. It records that the DECLARATION was made, and not which reading any column took — see below |
+| `day_first` | boolean | — | true when the person declared, with `--day-first` or by answering `day-first` in the questions file (plan P4-D381), that dates in this table are day-first wherever the day and month are BOTH written as numbers — the slashed pair, the slashed stamp pair, the dotted pair and the two-figure-year pair; false otherwise. Default false. It records that the DECLARATION was made, and not which reading any column took — see below |
 | `declaration_matching` | string | exactly `exact_number_when_it_reads_as_one_else_spelling` | the one rule that says which cells a declared value matches: a declared value that reads as a number this format can hold matches every cell holding that EXACT NUMBER, whatever either is spelled like, so `-999` covers a file that writes `-999.00`; any other declared value matches by spelling, after trimming and case folding |
 | `declaration_publication` | string | exactly `settings_counts_only_columns_unchanged` | what this block publishes about a declaration and what it does not: counts and synthtwin's own words here, and the columns unchanged |
 | `declared_missing_values` | object | exactly the five keys below | the declaration record for `--missing-value` |
@@ -13356,21 +13356,22 @@ version 5 document reads "version 5":
 > without the --answers you gave, every answer you wrote in the
 > questions file is gone — each of them was a --code, an --identifier,
 > a --measurement, a --decimal-comma, a --metadata-rows, a
-> --delimiter, a --twelve-hour or a --day-first, so leaving the file
-> out costs whichever of those you had given, and this same sentence
-> says what each one costs. If you do not hold the table yourself, ask
-> whoever made this description to run it again for you. Read the
-> summary page synthtwin writes beside the new description before
-> either file goes anywhere, and use the description exactly as
-> synthtwin writes it.
+> --delimiter, a --twelve-hour, a --day-first, a --missing-value or a
+> --keep-value, so leaving the file out costs whichever of those you
+> had given, and this same sentence says what each one costs. If you
+> do not hold the table yourself, ask whoever made this description to
+> run it again for you. Read the summary page synthtwin writes beside
+> the new description before either file goes anywhere, and use the
+> description exactly as synthtwin writes it.
 
 **Why it names fourteen options and prices each.** `--twelve-hour`
 joined them with landing T1 (plan P4-D370): a re-run without it reads
 a 12-hour clock written with no AM or PM as a 24-hour clock, so the
 hour from twelve o'clock moves from the start of the day to its middle
 and the published times move with it. A questions file can now answer
-`--twelve-hour` and `--day-first` too, so the `--answers` clause names
-both.
+`--twelve-hour` and `--day-first` too, and since lane R1 (plan P4-D381)
+an answer about a column's codes stands for `--missing-value` or
+`--keep-value`, so the `--answers` clause names all four.
 
 **Why it names thirteen options and prices each.** `--metadata-rows`
 (plan P4-D81) and `--sheet` (plan P4-D77) each reached the command

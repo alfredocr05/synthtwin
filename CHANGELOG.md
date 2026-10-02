@@ -26,6 +26,33 @@ and one left unparsed is not, so the source meets its own census.
 `K-S3-32` is floor-only, `K-S3-33` retired, `K-S3-35` new, and
 `K-S3-39`, `K-2B-13` and `K-2B-48` hold.
 
+### Two date questions, asked and answered in the questions file (2026-10-01)
+
+**Which comes first, the day or the month, and what a column's few codes
+mean** (plan P4-D381, lane R1). A column of dates whose every cell reads
+both ways is asked, in the file and on the screen, with what each
+reading makes of it -- month starts `01/03/2023` read month first put
+every date in one month of the year -- and `day-first` is `--day-first`.
+A column of dates or times beside one to five codes, each on at least
+eleven rows and together at most a tenth of it (`UNK`, `00/00/0000`,
+`0000-00-00`, Caboodle's `-1` and `-2`, `99:99`), is asked that and
+nothing else: `missing` is `--missing-value` naming each code,
+`real-value` is `--keep-value`, the codes found again in the table by the
+run that reads the answer, so the file names none. Before, the five
+day-first columns' twins parsed 41 to 74 in 100 under the person's own
+format, seven of the eight with codes 0 to 59, and the eighth, which the
+date rule read, 99.5, its codes written as made-up text; answered, all
+fourteen parse whole, their codes come back as often, and nothing is
+missed. Each code question names the other columns its answer reaches
+and how many of their rows (a column of scores holding -1 lost 552 rows
+to an unnamed `missing`), counted as the declaration takes them there --
+`-1,0` in a column declared `--decimal-comma` among them -- and in one
+pass over the table for every question; a column answered `real-value`
+is asked no question of what kind its values are, but keeps its
+checklist line where it is read as a measurement; and codes beside
+dates read either way are asked the order in the same file.
+`K-S3-56`; no new profile key.
+
 ### Numbers written in full describe, and an unread column is split once (2026-10-01)
 
 **No more stack trace on computed numbers** (plan P4-D380, landing R0).

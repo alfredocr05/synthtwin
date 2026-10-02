@@ -1437,6 +1437,45 @@ def the_twelve_hour_declaration_did_not_reach(name: str, role: str) -> str:
     )
 
 
+def the_date_codes_answer_reached_nothing(name: str) -> str:
+    """Message when an answer about a column's codes finds none (plan P4-D381).
+
+    The questions file names a column and not its codes, so the codes
+    are found again in the table the run opens -- and where the table or
+    the other options changed since the file was written, the column may
+    no longer read as dates or times beside a few repeated codes. NOT A
+    REFUSAL, for the comma declaration's reason: nothing is wrong with
+    the person's file, and the column is described as it reads.
+    """
+    return (
+        f"You answered in the questions file about the codes in the "
+        f"column '{_shown(name)}', but synthtwin no longer sees that "
+        f"column as dates or times beside a few repeated spellings, so "
+        f"that answer declared nothing and the column is described the "
+        f"way it reads. If your table or your options changed since the "
+        f"questions file was written, run the command again without "
+        f"--answers and read the questions file it writes."
+    )
+
+
+def answered_codes_contradict_each_other(path: str, clash: str) -> str:
+    """Message when two answers make one spelling a value and 'no value' (plan P4-D381).
+
+    One column's codes answered `missing` and another's `real-value` can
+    name the same spelling, and `--missing-value` and `--keep-value`
+    both reach every column of the table -- so the pair is the same
+    contradiction the command line refuses, arriving by the questions
+    file, and it is refused the same way rather than ranked.
+    """
+    return (
+        f"Your answers in {path} say one spelling is both a value and "
+        f"'no value': {clash}. One column's codes were answered 'missing' "
+        f"and another's 'real-value', and a spelling is read the same way "
+        f"in every column of your table. Change one of the two answers "
+        f"and run the command again. Nothing was written."
+    )
+
+
 def the_comma_declaration_did_not_reach(name: str, role: str) -> str:
     """Message when `--decimal-comma` lands on a role it cannot help.
 
@@ -1797,7 +1836,8 @@ def profile_version_is_older(found: int, reads: int) -> str:
         f"gave, every answer you wrote in the questions file is gone \u2014 "
         f"each of them was a --code, an --identifier, a --measurement, "
         f"a --decimal-comma, a --metadata-rows, a --delimiter, a "
-        f"--twelve-hour or a --day-first, "
+        f"--twelve-hour, a --day-first, a --missing-value or a "
+        f"--keep-value, "
         f"so leaving the file out costs whichever of those you had "
         f"given, and this same sentence says what each one costs. If "
         f"you do not hold the table "
