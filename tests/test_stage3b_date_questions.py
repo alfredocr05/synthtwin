@@ -42,6 +42,12 @@ One clause per rule, each beside the mutant it is red on:
   reaches every column, so the question counts the same spellings in the
   others and names each, red when that count is taken out; and the run
   that applies the answer says the words were answered, not typed;
+* `test_the_count_elsewhere_is_what_the_declaration_takes_there` -- each
+  count is the rise in that column's missing rows once answered, under
+  that column's own rule (`-1,0` beside `--decimal-comma`, `-1.0`,
+  ` unk `), red on a count by spelling or one blind to the comma; and
+  `test_every_question_is_counted_elsewhere_in_one_pass` -- one judgement
+  per different spelling of the table, however many columns are asked;
 * `test_a_column_with_codes_and_dates_read_either_way_is_asked_both_at_once`
   -- one file, one answering run, the twin read whole, and the line that
   repeats the run names `--day-first` and each code once;
@@ -519,8 +525,10 @@ def test_an_answer_names_every_other_column_it_reaches(
     assert code == 0, said
     assert "your answers in the questions file declared missing are written into the description" in said
     assert "you typed after --missing-value" not in said
+    # The way back names the answer, not only an option nobody typed.
+    assert "or with your answer about the column they were found in changed back to 'keep'" in said
     # ...and the mutant's witness: without the count, nothing names them.
-    monkeypatch.setattr(asking, "codes_elsewhere", lambda *arguments: ())
+    monkeypatch.setattr(asking, "codes_elsewhere", lambda *arguments: {})
     alone = tmp_path / "uncounted"
     table = _two_columns(alone, {"visit_key": keys, "score_change": scores, "ward": few})
     assert _quiet(["profile", str(table), "--out-dir", str(alone), "--replace"])[0] == 0
@@ -534,6 +542,119 @@ def test_a_column_alone_with_its_codes_says_no_other_column_holds_them(tmp_path:
     for choice in entry["answers_you_can_give"]:
         if choice["answer"] in (asking.ANSWER_NO_DATE, asking.ANSWER_REAL_VALUE):
             assert "no other column of your table holds them" in choice["then_the_description_publishes"]
+
+
+def _missing_in(folder: pathlib.Path) -> "dict[str, int]":
+    document = json.loads((folder / "real-profile.json").read_text(encoding="utf-8"))
+    return {block["name"]: block["n_missing"] for block in document["columns"]}
+
+
+def test_the_count_elsewhere_is_what_the_declaration_takes_there(tmp_path: pathlib.Path) -> None:
+    """Each other column's count is the rows the answer then reads as missing, under that column's own rule.
+
+    The second review of lane R1, item 1: a column declared
+    `--decimal-comma` writing `-1,0` was said to hold none of a DateKey
+    column's codes, and the answer took 112 of its rows. Here that column
+    sits beside `-1.0` and `-2.00` in an ordinary column and ` unk `,
+    `Unk` and `UNK` beside a column of dates written `UNK`: every count
+    the questions file says is the rise in that column's missing rows
+    once both columns are answered `missing`. Red when the count asks the
+    spelling rather than the declaration, or reads the comma column as an
+    ordinary one.
+    """
+    keys = shapes.cells(shapes.by_name("cab_datekey_sentinels"))
+    count = len(keys)
+    dated = (shapes.cells(shapes.by_name("iso_unk")) * 2)[:count]
+    columns = {
+        "visit_key": keys,
+        "seen_at": dated,
+        "volume": ["-1,0" if place % 9 == 0 else f"{place % 7 + 1},5" for place in range(count)],
+        "flt": ["-1.0" if place % 9 == 0 else ("-2.00" if place % 13 == 0 else f"{place % 7}.5") for place in range(count)],
+        "colour": [
+            [" unk ", "Unk", "UNK"][place % 3] if place % 10 == 0 else ["red", "green", "blue", "grey"][place % 4]
+            for place in range(count)
+        ],
+    }
+    expected = {
+        "volume": columns["volume"].count("-1,0"),
+        "flt": columns["flt"].count("-1.0") + columns["flt"].count("-2.00"),
+        "colour": count // 10,
+    }
+    table = _two_columns(tmp_path, columns)
+    comma = ("--decimal-comma", "volume")
+    assert _quiet(["profile", str(table), "--out-dir", str(tmp_path), "--replace", *comma])[0] == 0
+    before = _missing_in(tmp_path)
+    saw = {entry["column"]: entry["what_synthtwin_saw"] for entry in _code_entries(_questions(tmp_path))}
+    assert sorted(saw) == ["seen_at", "visit_key"]
+    assert f"on {expected['volume']} rows of 'volume', on {expected['flt']} rows of 'flt'" in saw["visit_key"]
+    assert "'colour'" not in saw["visit_key"]
+    assert f"on {expected['colour']} rows of 'colour'" in saw["seen_at"]
+    assert "'volume'" not in saw["seen_at"] and "'flt'" not in saw["seen_at"]
+    answers = _answered_all(tmp_path, {"visit_key": asking.ANSWER_NO_DATE, "seen_at": asking.ANSWER_NO_DATE})
+    code, said = _quiet(["profile", str(table), "--out-dir", str(tmp_path), "--replace", *comma, "--answers", str(answers)])
+    assert code == 0, said
+    after = _missing_in(tmp_path)
+    for name in expected:
+        assert after[name] - before[name] == expected[name], name
+
+
+def test_a_count_elsewhere_is_said_over_that_column_s_present_cells(tmp_path: pathlib.Path) -> None:
+    """Fifteen `unk` among twenty present cells of a sparse column: the count is withheld, as the rule says.
+
+    The second review of lane R1, item 4: the disclosure rule weighs a
+    count against the cells that are not missing, and fifteen of twenty
+    leaves five, under the line; weighed against the column's thousand
+    rows it would have been printed. Red when the count is weighed
+    against every row.
+    """
+    dated = shapes.cells(shapes.by_name("mdy_unk"))
+    sparse = [""] * len(dated)
+    for place in range(15):
+        sparse[place * 50] = "unk"
+    for place in range(5):
+        sparse[place * 50 + 25] = "red"
+    table = _two_columns(tmp_path, {"seen_at": dated, "sparse": sparse})
+    assert _quiet(["profile", str(table), "--out-dir", str(tmp_path), "--replace"])[0] == 0
+    entry = _code_entries(_questions(tmp_path))[0]
+    assert "on some rows of 'sparse'" in entry["what_synthtwin_saw"]
+    assert "15 rows" not in entry["what_synthtwin_saw"]
+
+
+def test_every_question_is_counted_elsewhere_in_one_pass(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Six DateKey columns cost one judgement per different spelling of the table, not six.
+
+    The second review of lane R1, item 2: each column asked re-read
+    every other one, so thirty DateKey columns at 20,000 rows spent
+    16.2 s of a 154 s describe there. Counted here as the judgements of
+    what a declaration would match: one pass judges each different
+    spelling of each column once (twice for the codes themselves), where
+    a pass per question judges each about six times.
+    """
+    keys = shapes.cells(shapes.by_name("cab_datekey_sentinels"))
+    columns = [list(reversed(keys)) if place % 2 else keys[place:] + keys[:place] for place in range(6)]
+    different = sum(len(set(column)) for column in columns)
+    blocks = [
+        {"name": f"key_{place}", "role": taxonomy.ROLE_CONTINUOUS, "n_present": len(keys)}
+        for place in range(6)
+    ]
+    settings = taxonomy.Settings()
+    found = asking.date_codes_of(keys, settings)
+    assert found is not None
+    judged = [0]
+    shipped = asking._declared_identity
+
+    def counted(*arguments: object) -> "tuple[str, object]":
+        judged[0] = judged[0] + 1
+        return shipped(*arguments)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(asking, "_declared_identity", counted)
+    reached = asking.codes_elsewhere(
+        {"columns": blocks}, columns, [(place, found) for place in range(6)], settings
+    )
+    assert sorted(reached) == list(range(6))
+    for place in range(6):
+        assert len(reached[place]) == 5
+    assert judged[0] <= different + 4 * len(found.codes) * 6
 
 
 def _ambiguous_with_codes() -> "list[str]":
@@ -615,6 +736,24 @@ def test_a_clock_of_few_values_is_not_promised_a_reading_of_times(
     assert _asked_here(tmp_path / "moved", values)[0]
 
 
+@pytest.mark.parametrize("different, asked", [(100, False), (101, True)])
+def test_a_clock_is_asked_only_past_the_categories_line(
+    tmp_path: pathlib.Path, different: int, asked: bool
+) -> None:
+    """At a thousand rows the categories line is a hundred values: a hundred times are not asked, 101 are.
+
+    The second review of lane R1, item 4: measured at the boundary, a
+    hundred different times beside `99:99` stay categories once the code
+    is declared missing and 101 are read as times of day, so the question
+    is put exactly where the answer delivers what it promises. Red when
+    the line is moved by one.
+    """
+    assert taxonomy.categories_ceiling(1000, taxonomy.Settings()) == 100
+    times = [f"{6 + place // 60:02d}:{place % 60:02d}" for place in range(different)]
+    values = ["99:99" if place % 33 == 0 else times[place % different] for place in range(1000)]
+    assert _asked_here(tmp_path, values)[0] is asked
+
+
 @pytest.mark.parametrize("name", ["mdy_zero", "iso_zero_date", "clock_9999"])
 def test_real_value_brings_no_other_question_back(tmp_path: pathlib.Path, name: str) -> None:
     """Answered `real-value`, the column is asked nothing: not the joined question either.
@@ -632,6 +771,49 @@ def test_real_value_brings_no_other_question_back(tmp_path: pathlib.Path, name: 
     for entry in questions["asked"]:
         assert asking.ANSWER_JOINED not in [choice["answer"] for choice in entry["answers_you_can_give"]], name
     assert "seen_at" not in [entry["column"] for entry in questions["checklist"]["columns"]]
+
+
+def test_a_measurement_answered_real_value_keeps_its_checklist_line(tmp_path: pathlib.Path) -> None:
+    """A DateKey column answered `real-value` is read as a number, and owner decision D14 lists it.
+
+    The second review of lane R1, item 3: the column's codes kept, it is
+    read as a measurement and its twin parses 569 of 1,000 cells as
+    dates, yet the repair had taken it off the one list that reaches a
+    column of figures no rule can tell from a quantity.
+    """
+    values = shapes.cells(shapes.by_name("cab_datekey_sentinels"))
+    _profiled(tmp_path, values)
+    answers = _answer(tmp_path, "seen_at", asking.ANSWER_REAL_VALUE)
+    code, said = _profiled(tmp_path, values, "--answers", str(answers))
+    assert code == 0, said
+    questions = _questions(tmp_path)
+    assert "seen_at" not in [entry["column"] for entry in questions["asked"]]
+    listed = {entry["column"]: entry["what_synthtwin_saw"] for entry in questions["checklist"]["columns"]}
+    assert "seen_at" in listed
+    assert listed["seen_at"].startswith("read as a measurement")
+    # ...and the screen's list says it too, worked out before the file's.
+    assert "\n  'seen_at' -- read as a measurement" in said
+
+
+def test_a_word_typed_beside_an_answered_code_says_both_ways(tmp_path: pathlib.Path) -> None:
+    """`--missing-value ZZZ` typed and a DateKey column answered `missing`: the notice names both doors.
+
+    The second review of lane R1, item 4: the notice's opening line says
+    which way each word arrived, and a run with one of each was never
+    checked.
+    """
+    keys = shapes.cells(shapes.by_name("cab_datekey_sentinels"))
+    ward = ["ZZZ" if place % 20 == 0 else ["north", "south", "east"][place % 3] for place in range(len(keys))]
+    table = _two_columns(tmp_path, {"visit_key": keys, "ward": ward})
+    typed = ("--missing-value", "ZZZ")
+    assert _quiet(["profile", str(table), "--out-dir", str(tmp_path), "--replace", *typed])[0] == 0
+    answers = _answer(tmp_path, "visit_key", asking.ANSWER_NO_DATE)
+    code, said = _quiet(["profile", str(table), "--out-dir", str(tmp_path), "--replace", *typed, "--answers", str(answers)])
+    assert code == 0, said
+    assert (
+        "3 words you typed after --missing-value or your answers in the questions file declared missing "
+        "are written into the description"
+    ) in said
 
 
 def test_an_answer_is_the_newer_statement_than_a_typed_keep(tmp_path: pathlib.Path) -> None:

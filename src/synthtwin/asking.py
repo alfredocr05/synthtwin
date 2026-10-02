@@ -1661,6 +1661,7 @@ def checklist_for(
     settings: taxonomy.Settings,
     already: "list[str]",
     asked: "list[Question]",
+    answered: "tuple[Question, ...]" = (),
 ) -> "list[Question]":
     """Every column read as a number, listed once for one question.
 
@@ -1689,8 +1690,14 @@ def checklist_for(
 
     - Inputs: the profile document, the table's columns as text in the
       same order, the settings that produced it, the names already
-      declared, and the questions already asked so no column appears
-      twice.
+      declared, the questions already asked so no column appears
+      twice, and the columns whose date codes were answered kept
+      (`DateCodesSeen.answered`). Those are not listed as already read
+      as codes -- the answer settled what their values are -- but one
+      the answer leaves read as a measurement IS listed, because its
+      description still carries statistics over its values (second
+      review of lane R1, item 3: a DateKey column answered
+      `real-value` had lost its line).
     - Determinism: a fixed function of the arguments.
     - Errors raised: none.
     - Boundary: opens no file, prints nothing, and no cell of any
@@ -1702,6 +1709,9 @@ def checklist_for(
     spoken: list[str] = []
     for question in asked:
         spoken += [question.name]
+    settled: list[str] = []
+    for question in answered:
+        settled += [question.name]
     listed: list[Question] = []
     position = 0
     for block in blocks:
@@ -1735,7 +1745,11 @@ def checklist_for(
                     ANSWER_MEASUREMENT,
                 )
             ]
-        elif role in _LABELLED_ROLES and _looks_like_a_code(present):
+        elif (
+            role in _LABELLED_ROLES
+            and name not in settled
+            and _looks_like_a_code(present)
+        ):
             listed += [
                 Question(
                     name,
@@ -2109,7 +2123,9 @@ class DateCodes:
     n_present: int
 
 
-def _declared_identity(spelling: str) -> "tuple[str, object]":
+def _declared_identity(
+    spelling: str, decimal_comma: bool = False
+) -> "tuple[str, object]":
     """What a declaration naming this spelling would match, as a key.
 
     The rule `taxonomy.Settings.declaration_matching` records, asked
@@ -2117,8 +2133,17 @@ def _declared_identity(spelling: str) -> "tuple[str, object]":
     as a number this format can hold is that EXACT number, and any other
     is its trimmed, case-folded text. Two spellings with one key are one
     `--missing-value` -- `UNK` and `unk`, `-1` and `-1.0`.
+
+    ``decimal_comma`` asks it of a column declared `--decimal-comma`,
+    whose number is read from the swapped spelling, as
+    `taxonomy._declarations` reads a declaration and `taxonomy._classify`
+    a cell there: in such a column `-1,0` is the number -1, which a
+    declaration naming `-1` takes.
     """
-    exact = parsing.exact_of_spelling(spelling)
+    read = spelling
+    if decimal_comma:
+        read = parsing.written_with_a_decimal_comma(spelling)
+    exact = parsing.exact_of_spelling(read)
     if exact is not None:
         return ("number", exact)
     return ("text", parsing.folded(spelling))
@@ -2435,10 +2460,11 @@ def _elsewhere_words(elsewhere: "tuple[Elsewhere, ...]", floor: int) -> str:
 def codes_elsewhere(
     document: "dict[str, object]",
     table_columns: "list[list[str]]",
-    position: int,
-    found: DateCodes,
-) -> "tuple[Elsewhere, ...]":
-    """Every other column a declaration naming one column's codes would reach.
+    asked: "list[tuple[int, DateCodes]]",
+    settings: taxonomy.Settings,
+    decimal_commas: "tuple[str, ...]" = (),
+) -> "dict[int, tuple[Elsewhere, ...]]":
+    """Every other column a declaration naming each asked column's codes would reach.
 
     WHAT AN ANSWER OF `missing` DOES TO THE REST OF THE TABLE (review of
     lane R1, item 1). `--missing-value` reaches every column, and the
@@ -2450,55 +2476,104 @@ def codes_elsewhere(
     answered `missing`, the scores lost 552 rows (27.6 in 100) to
     "missing" and their published mean moved from -0.032 to +0.477.
 
-    A cell is counted where it is the same declaration as a code
-    (`_declared_identity`, the rule `--missing-value` matches by), so
-    `-1.0` is counted beside a code `-1` and `unk` beside `UNK`. Each
-    different spelling of a column is judged once, so a column of a
-    million cells over a few hundred spellings costs a few hundred
-    judgements and one pass. Columns described as empty are passed over.
+    A PRESENT cell is counted where the declaration would take it, under
+    the rule that declaration applies to ITS column
+    (`_declared_identity`, the rule `--missing-value` matches by): `-1.0`
+    beside a code `-1`, `unk` beside `UNK`, and -- in a column declared
+    `--decimal-comma` -- `-1,0`, which that column reads as -1 (second
+    review of lane R1, item 1: a column of volumes lost 112 rows to an
+    answer whose question said no other column held its codes).
 
-    Guarantees: accepts the description, the table's columns, the
-    0-based place of the column asked about and what was seen in it;
-    returns, in the table's own column order, each other column holding
-    at least one such cell, with how many. Determinism: a function of
-    the arguments. Raises nothing for text. No I/O.
+    ONE PASS OVER THE TABLE FOR EVERY QUESTION (second review, item 2):
+    each column's spellings are counted once and each different one
+    judged once, and every question's count is summed from that, so
+    thirty DateKey columns cost one pass and not thirty. Columns
+    described as empty are passed over.
+
+    Guarantees: accepts the description, the table's columns, each
+    asked column's 0-based place with what was seen in it, the settings
+    and the columns declared `--decimal-comma`; returns, for each asked
+    place, each other column holding at least one such cell, in the
+    table's own column order, with how many and how many cells it holds
+    that are not missing. Determinism: a function of the arguments.
+    Raises nothing for text. No I/O.
     """
     blocks = document["columns"]
-    if not isinstance(blocks, list):
-        return ()
-    wanted: "dict[tuple[str, object], int]" = {}
-    for spelling, _rows in found.codes:
-        wanted[_declared_identity(spelling)] = 1
-    others: "list[Elsewhere]" = []
+    found: "dict[int, list[Elsewhere]]" = {}
+    if not asked or not isinstance(blocks, list):
+        return {}
+    # Each question's codes as the identities a declaration would match,
+    # once as an ordinary column reads them and once as a column
+    # declared `--decimal-comma` does, each identity once.
+    wanted_of: "dict[bool, list[list[tuple[str, object]]]]" = {}
+    union_of: "dict[bool, dict[tuple[str, object], int]]" = {}
+    for comma in (False, True):
+        each: "list[list[tuple[str, object]]]" = []
+        union: "dict[tuple[str, object], int]" = {}
+        for _position, codes in asked:
+            identities: "list[tuple[str, object]]" = []
+            for spelling, _rows in codes.codes:
+                identity = _declared_identity(spelling, comma)
+                if identity not in identities:
+                    identities += [identity]
+                union[identity] = 1
+            each += [identities]
+        wanted_of[comma] = each
+        union_of[comma] = union
     place = -1
     for block in blocks:
         place = place + 1
-        if place == position or place >= len(table_columns):
-            continue
-        if not isinstance(block, dict):
+        if place >= len(table_columns) or not isinstance(block, dict):
             continue
         if f"{block['role']}" == taxonomy.ROLE_EMPTY:
             continue
-        judged: "dict[str, bool]" = {}
-        rows = 0
-        for cell in table_columns[place]:
-            if cell in judged:
-                hit = judged[cell]
+        # The questions this column is "elsewhere" for: every one but
+        # its own, and a column asked alone is not counted at all.
+        others = [index for index in range(len(asked)) if asked[index][0] != place]
+        if not others:
+            continue
+        name = f"{block['name']}"
+        comma = name in decimal_commas
+        counted = _spellings_counted(table_columns[place])
+        # Each different spelling judged once; only those a declaration
+        # would match are then asked whether they are present at all.
+        matched: "list[str]" = []
+        identity_of: "dict[str, tuple[str, object]]" = {}
+        for spelling in counted:
+            identity = _declared_identity(spelling, comma)
+            if identity in union_of[comma]:
+                matched += [spelling]
+                identity_of[spelling] = identity
+        if not matched:
+            continue
+        present, _absent = taxonomy.split_missing(matched, settings, comma)
+        rows_of: "dict[tuple[str, object], int]" = {}
+        for spelling in present:
+            identity = identity_of[spelling]
+            held = rows_of[identity] if identity in rows_of else 0
+            rows_of[identity] = held + counted[spelling]
+        if not rows_of:
+            continue
+        n_present = block["n_present"] if "n_present" in block else None
+        if not isinstance(n_present, int):
+            every, _gone = taxonomy.split_missing(list(counted), settings, comma)
+            n_present = 0
+            for spelling in every:
+                n_present = n_present + counted[spelling]
+        for index in others:
+            position = asked[index][0]
+            rows = 0
+            for identity in wanted_of[comma][index]:
+                if identity in rows_of:
+                    rows = rows + rows_of[identity]
+            if not rows:
+                continue
+            one = Elsewhere(name, rows, n_present)
+            if position in found:
+                found[position] += [one]
             else:
-                hit = _declared_identity(cell) in wanted
-                judged[cell] = hit
-            if hit:
-                rows = rows + 1
-        if rows:
-            held = block["n_present"] if "n_present" in block else None
-            others += [
-                Elsewhere(
-                    f"{block['name']}",
-                    rows,
-                    held if isinstance(held, int) else len(table_columns[place]),
-                )
-            ]
-    return tuple(others)
+                found[position] = [one]
+    return {position: tuple(found[position]) for position in found}
 
 
 def _now_publishes(role: str, floor: int, found: DateCodes) -> str:
@@ -2628,9 +2703,12 @@ class DateCodesSeen:
     `questions` are the codes questions to put. `answered` are the
     columns whose codes stand only because the person declared them
     kept -- an answer of `real-value`, or `--keep-value` typed -- each
-    as the question it would have been: such a column is asked nothing
-    else, as it was not while the question stood (review of lane R1,
-    item 2). `day_or_month` are the columns asked about whose other
+    as the question it would have been: such a column is asked no
+    question of what kind its values are, and gets no checklist line
+    calling it codes, as while the question stood (review of lane R1,
+    item 2) -- but a column the answer leaves read as a measurement keeps
+    its checklist line, owner decision D14's (second review, item 3).
+    `day_or_month` are the columns asked about whose other
     cells read both ways under a slashed pair (item 4), for the file's
     day-or-month question.
     """
@@ -2646,11 +2724,12 @@ def date_code_questions(
     settings: taxonomy.Settings,
     already: "list[str]",
     split: "SplitColumns | None" = None,
+    decimal_commas: "tuple[str, ...]" = (),
 ) -> "list[Question]":
     """The codes questions `date_codes_seen` finds, as a list."""
     return list(
         date_codes_seen(
-            document, table_columns, settings, already, split
+            document, table_columns, settings, already, split, decimal_commas
         ).questions
     )
 
@@ -2661,6 +2740,7 @@ def date_codes_seen(
     settings: taxonomy.Settings,
     already: "list[str]",
     split: "SplitColumns | None" = None,
+    decimal_commas: "tuple[str, ...]" = (),
 ) -> DateCodesSeen:
     """Every column of dates or times that writes a few repeated codes.
 
@@ -2682,7 +2762,9 @@ def date_codes_seen(
     more the column's after that answer than before it.
 
     Each question names the other columns its answer would reach
-    (`codes_elsewhere`), and a column whose dates read either way once
+    (`codes_elsewhere`, one pass over the table for every question,
+    reading each column declared in ``decimal_commas`` as the
+    declaration does), and a column whose dates read either way once
     its codes are out is put in the day-or-month question as well, so
     one file asks both and one answering run reads the column right.
 
@@ -2696,6 +2778,7 @@ def date_codes_seen(
     found: "list[Question]" = []
     answered: "list[Question]" = []
     order: "list[DayOrMonth]" = []
+    pending: "list[tuple[str, str, int, DateCodes]]" = []
     position = 0
     for block in blocks:
         position = position + 1
@@ -2740,9 +2823,21 @@ def date_codes_seen(
                 ]
             continue
         codes, rest = seen
-        elsewhere = codes_elsewhere(
-            document, table_columns, position - 1, codes
-        )
+        pending += [(name, role, position - 1, codes)]
+        if codes.reading in _MONTH_FIRST_MEMBERS:
+            either = day_or_month_seen(list(rest), codes.reading)
+            if either is not None:
+                order += [DayOrMonth(name, either.months, either.days)]
+    # Where else each column's codes stand, for every question at once.
+    elsewhere_of = codes_elsewhere(
+        document,
+        table_columns,
+        [(place, codes) for _name, _role, place, codes in pending],
+        settings,
+        decimal_commas,
+    )
+    for name, role, place, codes in pending:
+        elsewhere = elsewhere_of[place] if place in elsewhere_of else ()
         found += [
             Question(
                 name,
@@ -2755,10 +2850,6 @@ def date_codes_seen(
                 ANSWER_KEEP,
             )
         ]
-        if codes.reading in _MONTH_FIRST_MEMBERS:
-            either = day_or_month_seen(list(rest), codes.reading)
-            if either is not None:
-                order += [DayOrMonth(name, either.months, either.days)]
     return DateCodesSeen(tuple(found), tuple(answered), tuple(order))
 
 

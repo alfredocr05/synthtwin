@@ -7004,14 +7004,20 @@
     "tests/test_stage3b_date_questions.py::test_an_answer_names_every_other_column_it_reaches",
     "tests/test_stage3b_date_questions.py::test_a_column_with_codes_and_dates_read_either_way_is_asked_both_at_once",
     "tests/test_stage3b_date_questions.py::test_real_value_brings_no_other_question_back",
-    "tests/test_stage3b_date_questions.py::test_a_clock_of_few_values_is_not_promised_a_reading_of_times"
+    "tests/test_stage3b_date_questions.py::test_a_clock_of_few_values_is_not_promised_a_reading_of_times",
+    "tests/test_stage3b_date_questions.py::test_the_count_elsewhere_is_what_the_declaration_takes_there",
+    "tests/test_stage3b_date_questions.py::test_a_count_elsewhere_is_said_over_that_column_s_present_cells",
+    "tests/test_stage3b_date_questions.py::test_every_question_is_counted_elsewhere_in_one_pass",
+    "tests/test_stage3b_date_questions.py::test_a_clock_is_asked_only_past_the_categories_line",
+    "tests/test_stage3b_date_questions.py::test_a_measurement_answered_real_value_keeps_its_checklist_line",
+    "tests/test_stage3b_date_questions.py::test_a_word_typed_beside_an_answered_code_says_both_ways"
    ],
    "test": null,
    "driver": "tools/measurements/kpi_date_questions.py --kpi",
    "pin_strength": "WEAKER",
    "measured_on": "tests/date_question_shapes.py: fourteen question columns, the thirty-seven clean spellings of the reach audit of 2026-10-01 at its own seeds and five shapes left alone, through the real producer, generator and checker",
    "evidence": "Before (668f276): nothing about dates was asked. The five day-first columns were read month first and their twins parsed 41 to 74 in 100 cells under the person's own format; seven of the eight columns with codes were read as labels or numbers, their twins parsing 0 to 59, and the eighth as dates with its twenty codes written as made-up text, 99.5; three of the eight were asked whether they were blood pressures, and the Caboodle key column was listed as a measurement.",
-   "nodes_min_collected": 40,
+   "nodes_min_collected": 47,
    "value_at": {
     "commit": "6488fac",
     "date": "2026-10-02",

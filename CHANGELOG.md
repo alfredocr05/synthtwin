@@ -25,9 +25,12 @@ date rule read, 99.5, its codes written as made-up text; answered, all
 fourteen parse whole, their codes come back as often, and nothing is
 missed. Each code question names the other columns its answer reaches
 and how many of their rows (a column of scores holding -1 lost 552 rows
-to an unnamed `missing`), a column answered `real-value` is asked
-nothing else, and codes beside dates read either way are asked the
-order in the same file.
+to an unnamed `missing`), counted as the declaration takes them there --
+`-1,0` in a column declared `--decimal-comma` among them -- and in one
+pass over the table for every question; a column answered `real-value`
+is asked no question of what kind its values are, but keeps its
+checklist line where it is read as a measurement; and codes beside
+dates read either way are asked the order in the same file.
 `K-S3-56`; no new profile key.
 
 ### The weekday certificate's cap, measured (2026-09-30)

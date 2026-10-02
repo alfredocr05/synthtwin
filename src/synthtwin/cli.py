@@ -2796,13 +2796,24 @@ def _run_profile(
     # this pass unless the interview rebuilt the description or moved
     # the settings or the declarations.
     codes_seen = asking.date_codes_seen(
-        document, read.columns, settings, already_answered, split_columns
+        document,
+        read.columns,
+        settings,
+        already_answered,
+        split_columns,
+        tuple(forced_decimal_commas),
     )
-    seen_of = (document, settings, list(already_answered))
+    seen_of = (
+        document,
+        settings,
+        list(already_answered),
+        list(forced_decimal_commas),
+    )
     coded_about = list(codes_seen.questions)
-    # A column whose codes were answered `real-value` is asked nothing
-    # else either: the answer kept its codes, and the joined question
-    # is no more the column's for that.
+    # A column whose codes were answered `real-value` is asked no
+    # question of what kind its values are either: the answer kept its
+    # codes, and the joined question is no more the column's for that.
+    # Its checklist line as a measurement stands (`checklist_for`).
     coded_or_answered = coded_about + list(codes_seen.answered)
     asked_about = asking.without_columns_of(asked_about, coded_or_answered)
     # ...AND THE ONE QUESTION ABOUT WHO THE ROWS ARE (plan P4-D340).
@@ -2835,7 +2846,8 @@ def _run_profile(
         read.columns,
         settings,
         already_answered,
-        asked_about + coded_or_answered,
+        asked_about + coded_about,
+        codes_seen.answered,
     )
     answered = False
     assumptions_said = False
@@ -2998,11 +3010,22 @@ def _run_profile(
         document is seen_of[0]
         and settings == seen_of[1]
         and settled == seen_of[2]
+        and list(forced_decimal_commas) == seen_of[3]
     ):
         codes_seen = asking.date_codes_seen(
-            document, read.columns, settings, settled, split_columns
+            document,
+            read.columns,
+            settings,
+            settled,
+            split_columns,
+            tuple(forced_decimal_commas),
         )
-        seen_of = (document, settings, list(settled))
+        seen_of = (
+            document,
+            settings,
+            list(settled),
+            list(forced_decimal_commas),
+        )
     if codes_seen.questions:
         _say(f"\n{_date_codes_notice(list(codes_seen.questions))}\n")
     # A column of dates beside codes whose other cells read either way
@@ -3270,9 +3293,15 @@ def _run_profile(
         document is seen_of[0]
         and settings == seen_of[1]
         and settled == seen_of[2]
+        and list(forced_decimal_commas) == seen_of[3]
     ):
         codes_seen = asking.date_codes_seen(
-            document, read.columns, settings, settled, split_columns
+            document,
+            read.columns,
+            settings,
+            settled,
+            split_columns,
+            tuple(forced_decimal_commas),
         )
     coded_about = list(codes_seen.questions)
     coded_or_answered = coded_about + list(codes_seen.answered)
@@ -3302,7 +3331,7 @@ def _run_profile(
     )
     listed_about = asking.checklist_for(
         document, read.columns, settings, settled,
-        asked_about + coded_or_answered,
+        asked_about + coded_about, codes_seen.answered,
     )
     asked_about = asked_about + coded_about
     # AND ITS DESTINATION IS GUARDED LIKE ANY OTHER (review item
