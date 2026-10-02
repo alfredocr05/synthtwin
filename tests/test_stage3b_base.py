@@ -88,9 +88,13 @@ _GUARDED = (
     # -- 3b.T3 (P4-D372)
     ("seen_at", "minute_census", [{"first": 0, "last": 59, "count": 300}]),
     ("seen_at", "minute_heaps", [{"value": 0, "count": 30}]),
+    ("seen_at", "second_census", [{"first": 0, "last": 59, "count": 300}]),
+    ("seen_at", "second_heaps", [{"value": 0, "count": 30}]),
     # -- 3b.C1 (P4-D373)
     ("slot", "clock_step", 60),
     ("slot", "clock_census", [{"first": 0, "last": 143, "count": 300}]),
+    ("slot", "clock_heaps", [{"value": "07:00", "count": 30}]),
+    ("slot", "clock_codes", [{"spelling": "not recorded", "count": 20}]),
     # -- 3b.C2 (P4-D374)
     # No case of its own: a clock block's `minute_census` is published
     # under the path of 3b.T3's key, so the rows 3b.T3 adds admit it here
@@ -178,9 +182,11 @@ def test_the_producer_guard_refuses_a_reserved_key_holding_anything(
     for block in document["columns"]:
         if block["name"] == column:
             block[key] = value
-    # ...refused BY THE KEY'S PLACE, so a refusal for any other reason
-    # leaves this red.
-    with pytest.raises(errors.ProfileError, match=re.escape(f"'columns[].{key}")):
+    # ...refused BY THE KEY'S OWN PLACE, so a refusal for any other reason
+    # leaves this red -- and so does a row that admits the key's entries
+    # and refuses only one field of this value.
+    place = f"'columns[].{key}[]'" if isinstance(value, list) else f"'columns[].{key}'"
+    with pytest.raises(errors.ProfileError, match=re.escape(place)):
         profile.check_publication(document)
 
 
@@ -256,6 +262,11 @@ def test_the_shared_merge_rule() -> None:
     # A short group with no non-zero neighbour leaves no census, never a
     # published group of 5.
     assert merged([5, 0, 0], [], 11) == ()
+    # On a cycle the nought runs at both ends are one group, holding the
+    # sure cells of both: 5 sure on either end bin make it short, so it
+    # joins its neighbour.
+    assert merged([0, 20, 20, 0], [0, 0, 0, 5], 11, True) == ((1, 1, 20), (2, 0, 20))
+    assert merged([0, 20, 20, 0], [5, 0, 0, 0], 11, True) == ((1, 1, 20), (2, 0, 20))
 
 
 def test_the_shared_stand_out_rule() -> None:
@@ -294,6 +305,10 @@ def test_the_shared_stand_out_rule() -> None:
     assert stand([16] + [10] * 59, 11, 5, median, True) == ()
     assert stand([10] * 59 + [16], 11, 5, median) == ((59, 16),)
     assert stand([10] * 59 + [16], 11, 5, median, True) == ()
+    # ...and the units read past either end are the ones round the cycle:
+    # :55 to :59 before :00, never :01 to :05 again nor :00 itself.
+    assert stand([16] + [0] * 54 + [20] * 5, 11, 5, median, True) == ()
+    assert stand([16] + [0] * 59, 11, 5, median, True) == ((0, 16),)
 
 
 def test_the_shared_census_checker() -> None:
