@@ -19489,7 +19489,7 @@ def _weekday_settled(
     the table declares absent, and every day the description publishes as
     holding no body cell -- the days its censuses of written forms leave
     empty, the placeholder days it reads as no value and the days a
-    published absent spelling names, the very holes its certificate held
+    published absent spelling names, the very holes the producer asked
     (`calendar_rules.public_holes`; review of landing 3b.1, item 4: a
     column of May dates had ranks moved to April and June).
 

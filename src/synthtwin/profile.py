@@ -852,8 +852,8 @@ _BIN_INDEX = "histogram-bin-number-of-a-group"
 # THE WEEKDAY CENSUS OF A COLUMN OF DATES (landing 3b.1, plan P4-D355):
 # a group's first and last weekday, Monday 0 to Sunday 6, and its count,
 # nought or at the census line. Which groupings may stand, and whether
-# the census may stand at all, are invariants WC1 to WC9, asked with the
-# block's other facts beside them.
+# the census may stand at all, are invariants WC1 to WC4 and WC6 (plan
+# P4-D365), asked with the block's other facts beside them.
 _WEEKDAY = "a-weekday-number"
 _WEEKDAY_COUNT = "a-weekday-group-count-zero-or-at-the-census-line"
 # THE LANDINGS' ANCHORS (plan P4-D364): each landing of stage 3b adds its

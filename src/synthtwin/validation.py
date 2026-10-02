@@ -4730,7 +4730,7 @@ def measure(
             judged_candidates=judged_here,
             # THE FILE'S WEEKDAY CENSUS IS NEVER PRODUCED HERE (landing
             # 3b.1): `_weekday_checks` counts the file's body against the
-            # PUBLISHED groups, so the certificate would be paid for a
+            # PUBLISHED groups, so producing one would be paid for a
             # census nothing reads.
             calendar_censuses=False,
         )
@@ -4747,7 +4747,7 @@ def measure(
             judged_candidates=judged_here,
             # THE FILE'S WEEKDAY CENSUS IS NEVER PRODUCED HERE (landing
             # 3b.1): `_weekday_checks` counts the file's body against the
-            # PUBLISHED groups, so the certificate would be paid for a
+            # PUBLISHED groups, so producing one would be paid for a
             # census nothing reads.
             calendar_censuses=False,
         )
@@ -17019,14 +17019,24 @@ def _weekday_checks(
     otherwise. The file's census is counted here, from its cells, and
     never produced: the validator's re-description of the file skips the
     census producer (`profile.build_document`'s `calendar_censuses`), so
-    no validate run enters the calendar certificate.
+    no validate run asks the producer's rules.
+
+    THE CELLS THE CENSUS COUNTED, AND NO OTHER (plan P4-D365). A column
+    read jointly whose rare ISO form the producer counted into the
+    commonest (plan P4-D250: one `2020-05-03T00:00:00` among 395 ISO
+    dates) is published WHOLLY in that form, and the census counted that
+    cell on its day. So a cell that does not read under the published
+    member but reads under the joint ISO reading, in a column whose
+    member is one of its two forms, is read here as the producer read
+    it: on its day (`_day_as_counted`). Before, the source itself missed
+    its own census by that one cell.
 
     A MISSED LINE KEEPS ITS VERDICT AND DROPS ANY NUMBER BELOW THE LINE
     (plan P4-D347): a group the file holds one to the line less one of
     is printed "fewer than" the line, and the note says so.
 
     AND NO CELL STANDS ON A DAY THE DESCRIPTION HOLDS EMPTY (review of
-    landing 3b.1, item 4). The census was certified with every day the
+    landing 3b.1, item 4). The census was published with every day the
     description publishes as holding no body cell left out -- the days
     its censuses of written forms leave empty, the placeholder days it
     reads as no value and the days a published absent spelling names
@@ -17050,10 +17060,9 @@ def _weekday_checks(
     on_holes = 0
     bins = [0 for _ in range(calendar_rules.WEEKDAYS)]
     for cell in _dates_the_file_reads(block, facts, cells):
-        read = parsing.parse_datetime(cell, facts.parser_family)
-        if read is None:
+        day = _day_as_counted(cell, facts.parser_family)
+        if day is None:
             continue
-        day = _weekday_day(read[0])
         if low <= day <= high:
             weekday = calendar_rules.weekday_of(day)
             bins[weekday] = bins[weekday] + 1
@@ -17228,6 +17237,27 @@ def _short_counts_pinned(
 def _weekday_day(text: str) -> int:
     """The day number of a canonical date or moment text."""
     return parsing.days_from_civil(int(text[0:4]), int(text[5:7]), int(text[8:10]))
+
+
+def _day_as_counted(cell: str, member: str) -> "int | None":
+    """The day a census counted this cell on, or None (plan P4-D365).
+
+    Read under the column's published member; where that fails and the
+    member is one of the joint ISO reading's two forms, under the joint
+    reading, which is the producer's fold of a rare form into the
+    commonest (plan P4-D250, `taxonomy._forms_as_published`): the cell
+    stands on the day it names either way.
+
+    Guarantees: accepts one cell and the published member; returns a day
+    number or None. Determinism: a function of the two. Raises nothing.
+    No I/O of any kind.
+    """
+    read = parsing.parse_datetime(cell, member)
+    if read is None and member in taxonomy.ISO_FORMS:
+        read = parsing.parse_datetime(cell, taxonomy.FORMAT_ISO_MIXED)
+    if read is None:
+        return None
+    return _weekday_day(read[0])
 
 
 def _mixed_forms_unwritten(facts: contract.DatetimeFacts) -> bool:
