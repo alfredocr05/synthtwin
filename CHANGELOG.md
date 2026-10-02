@@ -24,7 +24,10 @@ description names `--twelve-hour` among the options to give again. The
 loader words its new rule D12a (a description breaking it stopped the
 loader with an error of its own), and the twin report of a stamp declared
 a 12-hour clock reads its cells on that face and names what it misses --
-the stated limit: after noon the dial reads twelve hours early.
+the stated limit: after noon the dial reads twelve hours early. The
+12-hour answer is typed as `6` at the terminal (before, the question
+stopped the run with an error), and an answered `day-first` is printed on
+the line that repeats the run.
 
 ### The weekday certificate's cap, measured (2026-09-30)
 
