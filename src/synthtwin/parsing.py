@@ -5677,30 +5677,58 @@ def census_pools(
 
 # HOW FAR `mixture_pool_holds` WALKS before it answers without finishing
 # (the final fix of follow-up B): every step placing a value's rows and
-# every reading of the free cells it asks counts one, and more where its
-# work is larger (the two rates below, plan P4-D380), about a second for
-# the million. Where the walk stops short the producer counts the
-# census under one convention -- a band holds no count back -- and the
-# loader refuses only what it has shown, so no description the producer
-# writes is refused. Measured: fifteen values of four rows on two
-# spellings over seven marks settle in 153,000 steps; twenty of ten rows
-# at a floor of 31 did not in fifty million.
+# every reading of the free cells it asks counts one, about a second for
+# the million; the work each step does is counted besides, against
+# `POOL_WORK_STEPS` (plan P4-D380). Where the walk stops short on either
+# the producer counts the census under one convention -- a band holds no
+# count back -- and the loader refuses only what it has shown, so no
+# description the producer writes is refused. Measured: fifteen values of
+# four rows on two spellings over seven marks settle in 153,000 steps;
+# twenty of ten rows at a floor of 31 did not in fifty million.
 POOL_SEARCH_STEPS = 1000000
 
-# WHAT A STEP OF THAT BUDGET IS WORTH (plan P4-D380). A step is charged
-# for the work it does, so the budget bounds time and not only steps: a
-# reading of the free cells one step, and one more for every
+# WHAT A STEP'S WORK IS WORTH (plan P4-D380), counted against
+# `POOL_WORK_STEPS`, so the walk's time is bounded and not only its steps:
+# a reading of the free cells one, and one more for every
 # `POOL_WORDS_A_STEP` 64-bit words its big-number steps may move -- each
 # step charged the population's width, the most a set of totals spans --
-# and a table the walk builds over the conventions one step for every
+# and a table the walk builds over the conventions one for every
 # `POOL_CELLS_A_STEP` cells it holds: the conventions by the values before
 # the walk starts, a value's placements, each state written out. Each
-# step was charged one before, and on a census of about ten thousand
-# widths -- a column of computed numbers written to full precision -- one
-# reading cost five to twelve seconds. Measured after: a million steps in
-# about 0.7 s on such a census at 10,000 rows, at a load average of 35.
+# step was counted one and nothing more before, and on a census of about
+# ten thousand widths -- a column of computed numbers written to full
+# precision -- one reading cost five to twelve seconds. Measured after: a
+# million steps in about 0.7 s on such a census at 10,000 rows, at a load
+# average of 35.
 POOL_WORDS_A_STEP = 256
 POOL_CELLS_A_STEP = 8
+
+# THE WORK CHARGES ARE A SECOND CEILING, NOT THE ANSWER'S BUDGET (plan
+# P4-D380, its review's first item). The walk answers by
+# `POOL_SEARCH_STEPS` counted one a step, as it always did, and the charges
+# above are spent against this ceiling only, so a walk that finished
+# before finishes now with the same answer. Charging them against the
+# answer's own budget changed one description 668f276 gave without
+# crashing: a column of 1,000 whole numbers and quotients written in full
+# (`mixed`, seed 8101) finished in 849,564 steps and published its widths
+# as one pool, and charged it reached 1,525,694 and was counted at one
+# width. Measured: among 623 walks that finished, the most work against
+# plain steps was 1.84 times, so four times the budget stops none of them
+# early and still bounds the time a walk can take.
+POOL_WORK_STEPS = 4 * POOL_SEARCH_STEPS
+
+
+def pool_table_too_large(conventions: int, groups: int) -> bool:
+    """Whether a table of ``conventions`` by ``groups`` values and one more is past the walk's budget before a step.
+
+    The charge `mixture_pool_holds` takes for the table it builds over the
+    conventions (plan P4-D380), asked by itself, so a caller that would
+    build that table only to be told the walk stops short can ask first
+    (`taxonomy._width_band`, `taxonomy._end_pool_band`): one cell per
+    convention for each value and one more, `POOL_CELLS_A_STEP` cells to
+    a step, against `POOL_SEARCH_STEPS`. Raises nothing. No I/O.
+    """
+    return conventions * (groups + 1) // POOL_CELLS_A_STEP >= POOL_SEARCH_STEPS
 
 
 def mixture_pool_holds(
@@ -5759,7 +5787,8 @@ def mixture_pool_holds(
     of eleven for every closed census; under it the second clause
     refuses more.
 
-    THE WALK IS BOUNDED (`POOL_SEARCH_STEPS`), and where it stops short
+    THE WALK IS BOUNDED (`POOL_SEARCH_STEPS`, and its work by
+    `POOL_WORK_STEPS`), and where it stops short
     the answer is ``unfinished``: False for the producer, which then
     counts the census under one convention, True for the loader, which
     refuses only a pool it has shown pinned. The producer's readings are
@@ -5794,7 +5823,7 @@ def mixture_pool_holds(
     # 100,000 rows asked about 83,000 widths beside 364 values, thirty
     # million cells before the first step was taken.
     spent = len(held) * (len(groups) + 1) // POOL_CELLS_A_STEP
-    if spent >= POOL_SEARCH_STEPS:
+    if pool_table_too_large(len(held), len(groups)):
         return unfinished
     kept: "list[tuple[int, int, tuple[int, ...]]]" = []
     for rows, spellings, reach in groups:
@@ -5846,13 +5875,16 @@ def _pool_readings(
     and one leaving a convention of each kind empty -- where ``shown``,
     not of a kind of one convention some value can stand on alone.
 
-    The walk spends `POOL_SEARCH_STEPS` less the ``spent`` its caller
-    already charged, and every step is charged for the work it does
-    (plan P4-D380): a reading one step and one more for every
-    `POOL_WORDS_A_STEP` words its big-number steps may move (the
-    population's width each, `_topped_up`), and a table of the
-    conventions -- each value's placements, each state it reaches -- one
-    step for every `POOL_CELLS_A_STEP` of them (`_placements`).
+    The walk keeps two counts and stops short where either runs out
+    (plan P4-D380). `POOL_SEARCH_STEPS` is spent one a step -- a reading
+    of the free cells one, a call of `_placements`' walk one -- as the
+    walk always spent it, so it finishes, and answers, wherever it did.
+    `POOL_WORK_STEPS`, less the ``spent`` its caller already charged, is
+    spent one a step and the work each step does besides: one more for
+    every `POOL_WORDS_A_STEP` words a reading's big-number steps may move
+    (the population's width each, `_topped_up`), and one for every
+    `POOL_CELLS_A_STEP` cells of a table of the conventions -- each
+    value's placements, each state it reaches (`_placements`).
     """
     kinds: "list[tuple[int, ...]]" = []
     sizes: "list[int]" = []
@@ -5881,7 +5913,7 @@ def _pool_readings(
     for size in sizes:
         empty += [(0,) * size]
     start = tuple(empty)
-    budget = [POOL_SEARCH_STEPS - spent]
+    budget = [POOL_SEARCH_STEPS, POOL_WORK_STEPS - spent]
     visited: "dict[tuple[int, tuple[tuple[int, ...], ...]], bool]" = {(0, start): True}
     stack: "list[tuple[int, tuple[tuple[int, ...], ...]]]" = [(0, start)]
     depth = 1
@@ -5894,7 +5926,8 @@ def _pool_readings(
                 work = [0]
                 if not _topped_up(population, kinds, state, seen, barred, -1, work):
                     still += [barred]
-                budget[0] = budget[0] - 1 - work[0] // POOL_WORDS_A_STEP
+                budget[0] = budget[0] - 1
+                budget[1] = budget[1] - 1 - work[0] // POOL_WORDS_A_STEP
             avoided = still
             still = []
             for index in emptied:
@@ -5903,7 +5936,8 @@ def _pool_readings(
                     population, kinds, state, seen, -1, index, work
                 ):
                     still += [index]
-                budget[0] = budget[0] - 1 - work[0] // POOL_WORDS_A_STEP
+                budget[0] = budget[0] - 1
+                budget[1] = budget[1] - 1 - work[0] // POOL_WORDS_A_STEP
             emptied = still
             if not avoided and not emptied:
                 return True
@@ -5918,7 +5952,7 @@ def _pool_readings(
                 else:
                     stack += [(level + 1, grown)]
                 depth = depth + 1
-        if budget[0] < 1:
+        if budget[0] < 1 or budget[1] < 1:
             return None
     return False
 
@@ -5949,10 +5983,12 @@ def _placements(
 
     Two conventions of one kind under one load are one convention to a
     reading, so the amounts given them are taken in falling order and each
-    resulting state is met once. Every step of the walk spends one of
-    ``budget``, and at nought it stops; the table of the conventions this
-    builds, and every state the walk writes out, spend a step besides for
-    every `POOL_CELLS_A_STEP` conventions they hold (plan P4-D380).
+    resulting state is met once. ``budget`` is the walk's steps and, where
+    it holds two counts, its work after them (plan P4-D380): every step
+    spends one of each, and at nought on either it stops; the table of
+    the conventions this builds, and every state the walk writes out,
+    spend one of the last count besides for every `POOL_CELLS_A_STEP`
+    conventions they hold, never of the steps.
     """
     slots: "list[tuple[int, int, int]]" = []
     for kind in range(len(kinds)):
@@ -5963,7 +5999,8 @@ def _placements(
     after = [0] * (len(slots) + 1)
     for slot in range(len(slots) - 1, -1, -1):
         after[slot] = after[slot + 1] + slots[slot][2]
-    budget[0] = budget[0] - len(slots) // POOL_CELLS_A_STEP
+    last = len(budget) - 1
+    budget[last] = budget[last] - len(slots) // POOL_CELLS_A_STEP
     found: "dict[tuple[tuple[int, ...], ...], bool]" = {}
     _fill(state, slots, after, [0] * len(slots), 0, rows, spellings, found, budget)
     return sorted(found)
@@ -5993,10 +6030,12 @@ def _fill(
     leaving a frame is a return. The order of the amounts and the states
     found are the recursion's own, and so is the budget's accounting --
     one step per call, so a walk spends its steps where it spent them
-    before -- but for the one charge the same landing added: a state
-    written out spends one step more for every `POOL_CELLS_A_STEP`
+    before -- but for the one charge the same landing added, on the
+    budget's last count only (the work, where it holds two): a state
+    written out spends one more for every `POOL_CELLS_A_STEP`
     conventions it holds.
     """
+    last = len(budget) - 1
     rows_at = [0] * (len(slots) + 1)
     room_at = [0] * (len(slots) + 1)
     next_at = [0] * (len(slots) + 1)
@@ -6006,7 +6045,9 @@ def _fill(
     room = parts
     while True:
         budget[0] = budget[0] - 1
-        if budget[0] >= 1:
+        if last > 0:
+            budget[last] = budget[last] - 1
+        if budget[0] >= 1 and budget[last] >= 1:
             if rows == 0:
                 grown: "list[tuple[int, ...]]" = []
                 start = 0
@@ -6017,7 +6058,7 @@ def _fill(
                     start = start + len(state[kind])
                     grown += [tuple(sorted(loads, reverse=True))]
                 found[tuple(grown)] = True
-                budget[0] = budget[0] - len(amounts) // POOL_CELLS_A_STEP
+                budget[last] = budget[last] - len(amounts) // POOL_CELLS_A_STEP
             elif here < len(slots) and room >= 1 and after[here] >= rows:
                 kind, position, share = slots[here]
                 top = min(share, rows)

@@ -10246,7 +10246,9 @@ def _width_band(
         if tally[key] >= line:
             return {}
     room, capacities, groups = _width_bounds(counted, _placed_values(cells))
-    if parsing.census_pools(total, floor, len(capacities), room, capacities, groups):
+    if groups is not None and parsing.census_pools(
+        total, floor, len(capacities), room, capacities, groups
+    ):
         return {}
     return {f"{_band_width(counted)}": total}
 
@@ -10280,7 +10282,9 @@ def _end_pool_band(
     if least_room > len(spelled):
         return {}
     room, capacities, groups = _width_bounds(counted, _placed_values(cells), least_room)
-    if parsing.census_pools(total, floor, len(capacities), room, capacities, groups):
+    if groups is not None and parsing.census_pools(
+        total, floor, len(capacities), room, capacities, groups
+    ):
         return {}
     return {f"{_band_width(counted)}": total}
 
@@ -10305,7 +10309,7 @@ def _width_bounds(
     counted: "list[tuple[_Cell, int, int]]",
     placed: "dict[float, bool]",
     least_room: int = 0,
-) -> "tuple[int, list[int], tuple[tuple[int, int, tuple[int, ...]], ...]]":
+) -> "tuple[int, list[int], tuple[tuple[int, int, tuple[int, ...]], ...] | None]":
     """What a pool of widths lets a reader bound: room, one capacity per width, groups.
 
     The widths run from the narrowest any counted cell can take to the
@@ -10316,6 +10320,17 @@ def _width_bounds(
     holding nothing below its least width. Every other cell is free: over
     as many widths as a column of single values spells, a group per least
     width made the walk run for hours on 110 decimals of eleven widths.
+
+    THE GROUPS ARE NONE WHERE THEIR TABLE IS PAST THE WALK'S BUDGET
+    (`parsing.pool_table_too_large`, plan P4-D380, its review's third
+    item). The walk is charged for the widths-by-values table before it
+    takes a step, and where that charge alone is the whole budget it
+    answers that it stopped short, so the groups are counted first and
+    the table is not built: at 100,000 rows of computed numbers it took
+    about 2.8 s each of the four times a column asked, 11.2 s of a 41.5 s
+    description, and every answer was the one given without it. A caller
+    reads None as the walk stopping short, the census counted at one
+    width.
     """
     spellings: "dict[str, int]" = {}
     lowest = -1
@@ -10341,6 +10356,12 @@ def _width_bounds(
         rows[value] += 1
         least_of[value] = max(least_of[value], least)
         worn[value][parsing.trimmed(cell.numeric_text)] = 1
+    grouped = 0
+    for value in rows:
+        if rows[value] >= 2 and value in placed:
+            grouped += 1
+    if parsing.pool_table_too_large(len(widths), grouped):
+        return (room, [len(counted)] * len(widths), None)
     groups: "list[tuple[int, int, tuple[int, ...]]]" = []
     for value in sorted(rows):
         if rows[value] < 2 or value not in placed:

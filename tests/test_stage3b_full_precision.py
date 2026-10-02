@@ -35,9 +35,13 @@ THE REPAIR, AND WHAT THIS FILE PINS:
   walk over every free convention answered, against that text too,
   and `parsing._free_totals` holds exactly the totals free conventions
   can hold;
-- the budget is charged for the work each step does
-  (`POOL_WORDS_A_STEP`, `POOL_CELLS_A_STEP`), so the stop-short answer
-  the walk always had takes over where the work is too large;
+- the walk still answers by its steps counted one each, so it finishes
+  wherever it finished, and the work each step does
+  (`POOL_WORDS_A_STEP`, `POOL_CELLS_A_STEP`) is counted against a second
+  ceiling (`POOL_WORK_STEPS`), so the stop-short answer the walk always
+  had takes over where the work is too large; a column the charges set
+  against the steps themselves once changed is described as 668f276
+  described it, byte for byte;
 - a census wider than the interpreter can nest describes through the
   command, and the same column under the recursive walk ends in a
   sentence, never a stack trace (`errors.stopped_nested_too_deep`);
@@ -316,6 +320,78 @@ def test_a_state_written_out_is_charged_its_size() -> None:
     assert plain[0] - budget[0] == len(found) * (40 // parsing.POOL_CELLS_A_STEP), (plain, budget)
 
 
+FILL_SHAPES_CHARGED = 300
+
+
+def test_the_walk_spends_the_recursion_s_steps_with_the_charges_live() -> None:
+    """With two counts, the steps are the recursion's to the step and the charges fall on the work alone.
+
+    The landing's review measured a column whose walk finished in 849,564
+    steps and, with the charges spent against the same count, stopped
+    short at 1,525,694 and described differently. So the walk's own
+    count is compared with the recursion's at the shipped rates, the
+    work given room enough never to stop it. Mutation: a state's charge
+    spent against the steps turns it red.
+    """
+    draw = random.Random(20261002)
+    differed: "list[str]" = []
+    charged = 0
+    for _shape in range(FILL_SHAPES_CHARGED):
+        state, kinds, rows, spellings = _fill_shape(draw)
+        slots, after = _slots(state, kinds)
+        for budget in FILL_BUDGETS:
+            here: "dict" = {}
+            there: "dict" = {}
+            two, plain = [budget, 10**12], [budget]
+            parsing._fill(state, slots, after, [0] * len(slots), 0, rows, spellings, here, two)
+            recursive_fill(state, slots, after, [0] * len(slots), 0, rows, spellings, there, plain)
+            if list(here) != list(there) or two[0] != plain[0]:
+                differed += [f"{kinds} {state} rows {rows} over {spellings} at {budget}: "
+                             f"{len(here)}/{len(there)} states, steps {two[0]}/{plain[0]}"]
+            charged += (10**12 - two[1]) > (budget - plain[0])
+    assert differed == [], "\n".join(differed[:10])
+    # THE CHARGES WERE TAKEN, or the agreement says nothing of them.
+    assert charged >= FILL_SHAPES_CHARGED // 4, charged
+
+
+def test_a_value_s_table_is_charged_its_slots_against_the_work() -> None:
+    """`_placements` charges its table of slots and each state it writes out, on the work count only.
+
+    Eighty conventions of one kind, none loaded, one value of three rows
+    on one spelling: a table of eighty slots, ten more of the work, and
+    the one state found, ten more again -- twenty past the recursion's
+    own steps, which are the steps' count to the step. Mutation: the
+    slots' charge left out takes ten, not twenty, and no other test turns
+    red without it (the landing's review, item 2).
+    """
+    state = ((0,) * 80,)
+    kinds = [(10, 10)]
+    slots, after = _slots(state, kinds)
+    budget = [10**9, 10**9]
+    grown = parsing._placements(state, kinds, 0, 3, 1, budget)
+    plain = [10**9]
+    recursive_fill(state, slots, after, [0] * len(slots), 0, 3, 1, {}, plain)
+    assert grown == [((3,) + (0,) * 79,)], grown
+    assert budget[0] == plain[0], (budget, plain)
+    assert (10**9 - budget[1]) - (10**9 - plain[0]) == 2 * (80 // parsing.POOL_CELLS_A_STEP), (budget, plain)
+
+
+def test_a_reading_is_charged_its_words_against_the_work_and_never_the_steps(monkeypatch) -> None:
+    """A million rows over forty conventions: each reading moves about sixty words a step and is charged them.
+
+    Fifty steps answer the census (no count is in every reading) and two
+    hundred of work do not, so the walk stops short; given work enough,
+    the same fifty steps answer. Mutations (the landing's review, items
+    1 and 2): the words' charge left out answers False under the small
+    ceiling; spent against the steps, it stops short under the large one.
+    """
+    monkeypatch.setattr(parsing, "POOL_SEARCH_STEPS", 50)
+    monkeypatch.setattr(parsing, "POOL_WORK_STEPS", 200)
+    assert parsing.mixture_pool_holds(1_000_000, 11, [1_000_000] * 40, 40, (), None) is None
+    monkeypatch.setattr(parsing, "POOL_WORK_STEPS", 10**9)
+    assert parsing.mixture_pool_holds(1_000_000, 11, [1_000_000] * 40, 40, (), None) is False
+
+
 def test_the_walk_can_never_reach_itself() -> None:
     """Read off the source: `_fill` names no function that names `_fill`.
 
@@ -542,6 +618,64 @@ def test_the_description_is_the_one_the_walk_over_every_free_convention_gives(tm
         assert shipped == walked, name
 
 
+def whole_numbers_and_quotients(rows: int, seed: int) -> "list[str]":
+    """Whole numbers beside quotients written in full: `str(randrange(1, 300))` two cells in five, else `repr(n / d)`."""
+    draw = random.Random(seed)
+    cells: "list[str]" = []
+    for _cell in range(rows):
+        if draw.random() < 0.4:
+            cells += [str(draw.randrange(1, 300))]
+        else:
+            cells += [repr(draw.randrange(1, 3000) / draw.choice((3, 7, 9, 11)))]
+    return cells
+
+
+# THE FILES 668f276 WROTE for that column at 1,000 rows, seed 8101, with
+# the interpreter's own recursion limit (it finished there): `synthtwin
+# profile`, then `generate --seed 0` on its description. sha256 of each.
+MIXED_SEED = 8101
+MIXED_AT_668F276 = {
+    "mixed-1000-s1-profile.json": "ca9d1321b0b0b332c088b6451021f53ba8231f23c5ea1a9b8c9abac7997d14ae",
+    "mixed-1000-s1-profile.txt": "1a615c0070fd7173faa26a3fa86ad6307232bb9d997c4514bbd2ecfbe2bddeed",
+    "mixed-1000-s1-questions.json": "a2364bd076a58f8eaf80aa5517a7d8b90438652e98022ee7b19523973bc30c47",
+    "mixed-1000-s1-twin.csv": "fcae8034d6551018be81752c89d66faff8d7589e764565b89225cc9bde9d235a",
+    "mixed-1000-s1-twin-report.txt": "03fb04b18cfefb7f15cb60309a209342d9e7a3a7166b923e868b6e05594bd213",
+}
+
+
+def test_a_walk_the_old_code_finished_describes_as_it_did(tmp_path) -> None:
+    """The landing's review, item 1: the five files 668f276 wrote for this column, byte for byte.
+
+    Its fraction widths are one pool of 605. The walk asked from
+    `taxonomy._end_pool_band` finishes in 849,564 steps and shows the
+    pool may stand; with the work charged against those steps it
+    reached 1,525,694, stopped short, and the census was counted at one
+    width of 16 -- a twin of 604 decimals at sixteen figures. Mutation:
+    the charges spent against the steps turn every file red.
+    """
+    import hashlib
+
+    folder = tmp_path / "in"
+    folder.mkdir()
+    path = folder / "mixed-1000-s1.csv"
+    with open(path, "w", encoding="utf-8", newline="\n") as handle:
+        handle.write("x\n" + "".join(cell + "\n" for cell in whole_numbers_and_quotients(1000, MIXED_SEED)))
+    out = tmp_path / "out"
+    code, said = _profile(path, out)
+    assert code == 0, said
+    block = json.loads((out / "mixed-1000-s1-profile.json").read_text(encoding="utf-8"))["columns"][0]
+    assert block["fraction_widths"] == {taxonomy.SUPPRESSED_LABEL: 605}, block["fraction_widths"]
+    heard = io.StringIO()
+    with contextlib.redirect_stdout(heard), contextlib.redirect_stderr(heard):
+        assert cli.main(["generate", str(out / "mixed-1000-s1-profile.json"), "--seed", "0",
+                         "--out-dir", str(out), "--replace"]) == 0, heard.getvalue()
+    differed: "list[str]" = []
+    for name, digest in MIXED_AT_668F276.items():
+        if hashlib.sha256((out / name).read_bytes()).hexdigest() != digest:
+            differed += [name]
+    assert differed == [], differed
+
+
 # -- 5. the gate: 10,000 and 100,000 rows ----------------------------------------
 
 # The most big-number steps the readings of the 10,000-row column may take
@@ -560,14 +694,24 @@ def test_computed_numbers_describe_at_ten_thousand_and_a_hundred_thousand_rows(r
 
     At 10,000 rows the walk is taken and spends its budget, and its
     readings are a few big-number steps each. At 100,000 rows the table
-    of about 83,000 widths beside 364 values is charged before it is
-    built and is more than the whole budget, so no step is taken and the
-    census is counted at one width at once. Mutations: the pre-repair
+    of about 83,000 widths beside 364 values is more than the whole
+    budget before a step, so it is never built (`taxonomy._width_bounds`
+    gives no groups, the landing's review, item 3), no step is taken and
+    the census is counted at one width at once. Mutations: the pre-repair
     reading of the free cells takes the 10,000-row column past the bound
-    on big-number steps; the table charge left out puts the 100,000-row
-    column's widths into the walk.
+    on big-number steps; `parsing.pool_table_too_large` never true puts
+    the 100,000-row column's widths into the walk and builds the table.
     """
     counted = _Widest(monkeypatch)
+    bounds = taxonomy._width_bounds
+    built: "list[bool]" = []
+
+    def counted_bounds(*arguments):
+        answer = bounds(*arguments)
+        built.append(answer[2] is not None)
+        return answer
+
+    monkeypatch.setattr(taxonomy, "_width_bounds", counted_bounds)
     path = _table(tmp_path / "in", "hours", hours_between(rows, GATE_SEED))
     started = time.perf_counter()
     code, said = _profile(path, tmp_path / "out")
@@ -581,8 +725,10 @@ def test_computed_numbers_describe_at_ten_thousand_and_a_hundred_thousand_rows(r
     if rows == 10_000:
         assert counted.widest > rows // 2, counted.widest
         assert counted.spreads <= SPREADS_AT_TEN_THOUSAND, counted.spreads
+        assert built and all(built), built
     else:
         assert counted.widest < rows // 2, counted.widest
+        assert built and not any(built), built
     judged, why = kpi_rules.seconds_judged_here(kpi_rules.load_ledger())
     if judged:
         assert seconds < SECONDS[rows], seconds
