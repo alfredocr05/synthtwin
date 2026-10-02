@@ -1321,8 +1321,10 @@ def sheet_format_kind(code: str) -> str:
 # stays at midnight. So a number cell whose format kind is `date` or
 # `datetime` is read as the date it stands for, in one ISO spelling,
 # and the twin writes that date back as the day count it came from,
-# wearing a date format. A `time` or `elapsed` cell is a length of time
-# and not a day, and stays a number.
+# wearing a date format. An `elapsed` cell is a length of time and not a
+# day, and stays a number; a `time` cell is not a day either, and is
+# read as its clock only where its whole column is clocks (plan P4-D382,
+# `sheet_serial_second` below), staying a number otherwise.
 
 SHEET_DAY_MILLISECONDS = 86_400_000
 # The last day a workbook can show, 9999-12-31, as a 1900-system count.

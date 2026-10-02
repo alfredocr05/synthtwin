@@ -928,11 +928,14 @@ format the column's twin WEARS: one of `dialect.SHEET_FORMAT_CODES`,
 which is Excel's own built-in vocabulary plus one canonical code per
 kind, or a code built of the number format language's own tokens alone
 (`dialect.sheet_format_code_speakable`: figure placeholders, the date
-and clock letters, `AM/PM`, a colour or elapsed bracket, escaped and
+and clock letters, `AM/PM`, a colour or elapsed bracket, a locale tag
+alone -- `[$-409]`, one to eight hexadecimal figures after `$-`, or
+`[$-x-sysdate]` and `[$-x-systime]` (plan P4-D382) -- escaped and
 quoted punctuation, at most four sections and sixty-four characters),
-published as the source wrote it (plan P4-D189, WB6) -- `00000` and
-`yyyy-mm-dd hh:mm` are published as written, `0.0" kg"` and
-`[$USD-409]#,##0.00` as the canonical code of their kind; it is the commonest
+published as the source wrote it (plan P4-D189, WB6) -- `00000`,
+`yyyy-mm-dd hh:mm` and `[$-409]m/d/yyyy h:mm AM/PM;@` are published as
+written, `0.0" kg"` and `[$USD-409]#,##0.00`, whose bracket carries a
+currency somebody chose, as the canonical code of their kind; it is the commonest
 code AMONG THE CELLS HOLDING A VALUE where that code is worn by the line,
 else the canonical code of the commonest kind among them where that kind
 is worn by the line, else the general format (plan P4-D164). **A column
@@ -941,7 +944,14 @@ general format, each worn by the
 line, is REFUSED rather than described** (`workbook.mixed_number_formats`,
 plan P4-D283), for the reason `mixed_storage` refuses a mix of kinds one
 level up: the column carries one code here, so the twin would put the
-commoner of the two on every cell. Measured at a floor of five on 120
+commoner of the two on every cell. **EXCEPT TWO CODES OF A DATE, A DATE
+WITH A TIME OR A CLOCK** (plan P4-D382): such a code changes how an
+instant is spelled and never which instant a person reads, and every
+reader returns the same value from either, so the column is read, its
+commonest code published, and its twin wears that code on every cell of
+the kind -- the one spelling is the stated cost. Measured before: 1,000
+whole days, half `m/d/yyyy` and half `d-mmm-yy`, refused the whole
+table. Measured at a floor of five on 120
 cells, sixty written `0%` and sixty `0.0`: the description published
 `0%`, the twin wore it 120 times, and both files validated with nothing
 missed while sixty values a person reads as `0.5` read as `50%` off the
@@ -1012,8 +1022,15 @@ P4-D166, `errors.workbook_column_mixes_storage`). The description
 publishes how many cells wear each kind, and the column's values as one
 distribution -- nothing that says which values were the dates. Where
 the column's NUMBER cells wear more than one kind of format (dates
-beside plain numbers), the profile is refused and the person told how
-to give the column one format. **Numbers stored as text are read**
+beside plain numbers), the profile is refused, the person is told which
+kinds the column mixes and how to give it one format. **A date beside a
+date with a time is not that mix** (plan P4-D382): both are read as the
+instant they name, the column is read jointly (`iso-mixed` where its
+whole days stay days), and the twin writes each cell wearing its own
+kind -- the published code on the cells of its kind and the canonical
+code of the other kind on the rest, which is the stated cost; it was
+refused, with a message saying some cells were shown as dates or times
+and others not, which was false of it. **Numbers stored as text are read**
 (plan P4-D187, withdrawing that rule's other half): a text cell holding
 figures beside number cells -- thirty numbers of 10 beside thirty texts
 of `1000` -- is read as the text cell it is, both counts are published,
@@ -1188,12 +1205,35 @@ it, and both are the value's and not the writer's:
   (`dialect.sheet_serial_moment`): `YYYY-MM-DD` for a whole day wearing
   a date format, and `YYYY-MM-DD HH:MM:SS` (with `.fff` where the time
   is not a whole second) otherwise, in the workbook's own date system.
-  A time or elapsed format is a length of time and stays a number, and
-  so does a count no date can be shown for. Measured before: a
+  An elapsed format is a length of time and stays a number, and so does
+  a count no date can be shown for. Measured before: a
   `dd.mm.yyyy` column was described as role `count` with percentiles
   44937 to 45579, a column of moments as `continuous`, and the twin lost
   110 of 1394 moments at midnight. The twin writes each such date back as the day
   count it was read as, wearing a date format (method G2.2).
+- *A date format that hides a time reads its whole column as moments*
+  (plan P4-D382, `workbook._read_as_one_column`). Where any number of a
+  column wearing a DATE format holds a time of day, every number of the
+  column wearing one is read as a moment, its whole days as
+  `YYYY-MM-DD 00:00:00`: the format hides the time and every reader
+  hands it back. Measured before: 1,000 moments wearing `m/d/yyyy`, six
+  of them at midnight, had those six read as bare dates, counted
+  unparsed and written as text, and `validate` exited 3 on the twin.
+- *A number wearing a time format is read as its clock where every one
+  is a clock* (plan P4-D382, `dialect.sheet_serial_second`): where
+  every value cell of a column is a number wearing a time format and
+  each stands at a whole second from nought up to, and not including,
+  one day, each is read as `HH:MM` where every one stands at second
+  nought and `HH:MM:SS` otherwise -- the stored seconds kept whatever
+  the format shows -- and the twin writes each clock back as the
+  fraction of a day it was read as (method G2.2 step 0b). Where any is
+  a day or more -- `h:mm` worn by full date-times -- or a fraction of a
+  second, or a value cell of the column is anything else, the column
+  stays a column of numbers, as it read before. Measured before: 1,000
+  whole minutes wearing `h:mm` were described as `continuous`, every
+  twin cell carried seconds and microseconds its source did not, and
+  ten read back as date-times; with seconds stored the description
+  could not be written at all.
 
 **A mixture of kinds is reproduced as its counts, not collapsed to the
 majority.** `format_kinds` publishes a count per kind and the twin
@@ -4073,6 +4113,17 @@ by one rule, which then chooses between the two. `joined_numbers` is
 also reached by the person's declaration ahead of the rules that read
 values, in its full reading, as section 6.15 states.
 
+**`categorical` stands aside for clocks a workbook stores** (plan
+P4-D382). Where every value cell of a column is a number wearing a time
+format read as its clock (`workbook.stored_as_clocks`) and a folded
+level holds fewer rows than the floor, rule 8 declines the column and
+it reaches `time_of_day`: a held-back level is written in a twin as
+made-up text of the column's shape, and a clock stored as a number has
+no text to be. Measured before: 1,000 clocks on a quarter-hour grid at
+a floor of eleven took `categorical`, 362 twin cells were written as
+text such as `94:29`, and `validate` exited 3. A column whose every
+level clears the floor keeps its list, and `--code` keeps it always.
+
 **Why rules 9 through 12 sit after `categorical`.** They are tested
 last before the fallback, so they claim only columns every earlier rule
 declined; no column an earlier rule can claim is diverted into one of
@@ -5330,7 +5381,18 @@ under ONE member of the format vocabulary below, no earlier rule having
 claimed it — rule 6 of the order in section 5.2, with the line
 `minimum_parse_rate` fixes (section 4.4) applied as a COUNT and never
 as a compared share. Where no single member clears the line, the joint
-ISO reading below may still claim the column.
+ISO reading below may still claim the column. **A column a workbook
+STORES mostly as dates** (plan P4-D382) -- more than half its value
+cells numbers wearing a date or date-and-time format and read as their
+dates, or date cells holding ISO text (`workbook.stored_as_dates`) --
+needs no line of its own: the cell type settles that those cells are
+dates. Where no member clears the line, such a column is read under the
+ISO member that reads the most of its present cells, `iso-date`, then
+`iso-datetime`, then the joint reading on a tie, provided it reads more
+than half of them, and every present cell it does not read is counted
+in `n_unparsed` as a straggler under the line is. Measured before: 950
+stored dates beside 50 of the same dates typed in as text fell to free
+text, and the twin of the person's own table missed its own description.
 
 **Added keys: twenty** (stage 3: `earliest`, `latest`,
 `earliest_utc_offset` and `latest_utc_offset` are gone, and `tail_unit`,

@@ -489,8 +489,9 @@ kind takes the canonical code of its own kind. Every code written is
 one the description may publish: Excel's built-in vocabulary, a
 canonical code, or a code built of the number format language's own
 tokens alone, written as the source wrote it (plan P4-D189,
-`dialect.sheet_format_code_publishable`) -- never a code carrying a
-quoted word, a currency or a locale.
+`dialect.sheet_format_code_publishable`) -- a locale tag alone, such as
+`[$-409]`, being one of those tokens (plan P4-D382) -- and never a code
+carrying a quoted word or a currency.
 
 A code's KIND is read off the code (`dialect.sheet_format_kind`), since
 a code written as the source wrote it is in no closed list: `General`

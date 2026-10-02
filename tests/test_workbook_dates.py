@@ -216,7 +216,9 @@ def test_a_day_count_and_its_date_are_one_reading_both_ways(
     assert dialect.sheet_serial_moment("61", "date", False) == "1900-03-01"
     assert dialect.sheet_moment_serial("1900-02-28", False) == "59"
     assert dialect.sheet_moment_serial("1900-03-01", False) == "61"
-    # A time is a length of time and stays a number.
+    # A time is not a day: this reading leaves it a number, and a column
+    # whose every value is a clock is read as clocks by the column's own
+    # reading instead (plan P4-D382, `workbook._read_as_one_column`).
     assert dialect.sheet_serial_moment("0.5", "time", False) == "0.5"
 
 

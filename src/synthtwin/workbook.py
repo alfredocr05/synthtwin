@@ -1833,9 +1833,13 @@ def _settled_header_row(
 
 def _read_as_one_column(
     column: "list[str]",
-    whole_days: "list[tuple[int, str]]",
-    clocks: "list[tuple[int, int]]",
+    held: "dict[int, dict[int, Cell]]",
+    place: int,
+    rows: "tuple[int, int]",
+    kinds_of: "dict[str, str]",
     epoch_1904: bool,
+    timed: bool,
+    clocks: int,
 ) -> None:
     """Spell a column's date and time cells one way for the whole column.
 
@@ -1850,38 +1854,62 @@ def _read_as_one_column(
     unparsed, the twin wrote them as text, and `validate` exited 3 on
     the twin of the person's own table -- the commonest shape there is,
     since a column of moments holds well under one in a hundred at
-    midnight. ``whole_days`` holds where each date-format cell read as a
-    whole day stands, with its stored number, and is handed over only
-    where another date-format cell of the column held a time: each is
-    then spelled as the moment at midnight it is. A column of whole days
-    is handed none, and reads as dates as it always did.
+    midnight. Where ``timed`` -- another date-format cell of the column
+    held a time -- each date-format cell read as a whole day is spelled
+    as the moment at midnight it is. A column of whole days is not
+    timed, and reads as dates as it always did.
 
-    THE CLOCKS (see `dialect.sheet_serial_second`). ``clocks`` holds
-    where each time-format number of the column stands, with the second
-    of the day it holds or -1, and is handed over only where those
-    numbers are every cell of the column holding a value; where every
-    one is a second of the day, each is spelled as its clock -- `HH:MM`
-    where every one stands at second nought, `HH:MM:SS` otherwise -- and
-    where any is not, the column is left exactly as it was read.
+    THE CLOCKS (see `dialect.sheet_serial_second`). ``clocks`` is
+    `CLOCKS_NONE` where the column's time-format numbers are not every
+    cell of it holding a value, or not every one a whole second of the
+    day; otherwise each is spelled as its clock, `HH:MM` where it is
+    `CLOCKS_MINUTES` -- every one at second nought -- and `HH:MM:SS`
+    where it is `CLOCKS_SECONDS`. ``rows`` is the table's first and
+    last sheet row, so a cell at sheet row `n` stands at `n - rows[0]`.
 
-    Guarantees: changes ``column`` in place at the positions named and
-    nowhere else. Determinism: a fixed function of the arguments. Raises
-    nothing. No I/O of any kind.
+    WHY A SECOND PASS AND NOT A LIST. The walk keeps three facts per
+    column and no record per cell: a column of a million dates that
+    needs no respelling costs nothing here, and one that does is walked
+    once more over the cells already held.
+
+    Guarantees: changes ``column`` in place at date-format and time-format
+    number cells and nowhere else. Determinism: a fixed function of the
+    arguments. Raises nothing. No I/O of any kind.
     """
-    for place, stored in whole_days:
-        column[place] = dialect.sheet_serial_moment(
-            stored, FORMAT_DATETIME, epoch_1904, 0
-        )
-    if not clocks:
+    if not timed and clocks == CLOCKS_NONE:
         return
-    with_seconds = False
-    for _place, second in clocks:
-        if second < 0:
-            return
-        if second % 60:
-            with_seconds = True
-    for place, second in clocks:
-        column[place] = dialect.sheet_clock_text(second, with_seconds)
+    first, last = rows
+    for number in range(first, last + 1):
+        if number not in held or place not in held[number]:
+            continue
+        standing = held[number][place]
+        if standing.kind != CELL_NUMBER:
+            continue
+        kind = kinds_of[standing.number_format]
+        at = number - first
+        if kind == FORMAT_DATE and timed:
+            if dialect.sheet_moment_kind(column[at]) == FORMAT_DATE:
+                column[at] = dialect.sheet_serial_moment(
+                    spelled(standing.kind, standing.text),
+                    FORMAT_DATETIME,
+                    epoch_1904,
+                    0,
+                )
+            continue
+        if kind == FORMAT_TIME and clocks != CLOCKS_NONE:
+            second = dialect.sheet_serial_second(
+                spelled(standing.kind, standing.text)
+            )
+            column[at] = dialect.sheet_clock_text(
+                second, clocks == CLOCKS_SECONDS
+            )
+
+
+# How a column's time-format numbers are spelled (`_read_as_one_column`):
+# left as numbers, read as `HH:MM`, or read as `HH:MM:SS`.
+CLOCKS_NONE = 0
+CLOCKS_MINUTES = 1
+CLOCKS_SECONDS = 2
 
 
 def table_of(
@@ -2035,20 +2063,23 @@ def table_of(
     # so are the figures it shows after the second (plan P4-D259).
     kinds_of: "dict[str, str]" = {}
     figures_of: "dict[str, int]" = {}
-    # TWO FACTS ABOUT A COLUMN AND NOT ABOUT A CELL (plan P4-D382),
-    # gathered in this one walk and settled after it by
-    # `_read_as_one_column`: where each date-format cell read as a whole
-    # day stands, and whether any date-format cell held a time; and where
-    # each time-format cell stands, with the second of the day it holds.
-    whole_days: "list[list[tuple[int, str]]]" = []
+    # FACTS ABOUT A COLUMN AND NOT ABOUT A CELL (plan P4-D382), gathered
+    # in this one walk and settled after it by `_read_as_one_column`:
+    # whether any date-format cell held a time; how many cells hold a
+    # value and how many are time-format numbers; whether every one of
+    # those is a whole second of the day, and whether any is off the
+    # minute.
     timed: "list[bool]" = []
-    clocks: "list[list[tuple[int, int]]]" = []
     valued: "list[int]" = []
+    clocked: "list[int]" = []
+    clockable: "list[bool]" = []
+    off_minute: "list[bool]" = []
     for _place in range(first_column, last_column + 1):
-        whole_days += [[]]
         timed += [False]
-        clocks += [[]]
         valued += [0]
+        clocked += [0]
+        clockable += [True]
+        off_minute += [False]
     for number in range(top, last_row + 1):
         n_rows = n_rows + 1
         holding = False
@@ -2076,18 +2107,16 @@ def table_of(
                     reading.epoch_1904,
                     figures_of[code],
                 )
-                if kinds_of[code] == FORMAT_DATE and shown_text != stored:
-                    if len(shown_text) == 10:
-                        whole_days[index] += [(len(columns[index]), stored)]
-                    else:
+                if kinds_of[code] == FORMAT_DATE:
+                    if dialect.sheet_moment_kind(shown_text) == FORMAT_DATETIME:
                         timed[index] = True
                 elif kinds_of[code] == FORMAT_TIME:
-                    clocks[index] += [
-                        (
-                            len(columns[index]),
-                            dialect.sheet_serial_second(stored),
-                        )
-                    ]
+                    clocked[index] = clocked[index] + 1
+                    second = dialect.sheet_serial_second(stored)
+                    if second < 0:
+                        clockable[index] = False
+                    elif second % 60:
+                        off_minute[index] = True
             columns[index] += [shown_text]
             classes[index] += [standing.kind]
             formats[index] += [standing.number_format]
@@ -2102,11 +2131,19 @@ def table_of(
         # A COLUMN IS READ AS CLOCKS ONLY WHERE EVERY CELL HOLDING A VALUE
         # IS A TIME-FORMAT NUMBER: one text cell beside them -- a word
         # such as `UNK` -- leaves the column the numbers it read as before.
+        clocks = CLOCKS_NONE
+        if clocked[index] and clocked[index] == valued[index]:
+            if clockable[index]:
+                clocks = CLOCKS_SECONDS if off_minute[index] else CLOCKS_MINUTES
         _read_as_one_column(
             columns[index],
-            whole_days[index] if timed[index] else [],
-            clocks[index] if len(clocks[index]) == valued[index] else [],
+            held,
+            first_column + index,
+            (top, last_row),
+            kinds_of,
             reading.epoch_1904,
+            timed[index],
+            clocks,
         )
     trailing_rows = 0
     for number in sorted(held):

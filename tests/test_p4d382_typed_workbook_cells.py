@@ -9,7 +9,7 @@ skeptic's W1 and N1, on 1,000 made-up cells at the floor of eleven):
   and `synthtwin validate` exited 3 on the twin of the person's own
   table;
 * moments wearing a date-only format, under 1 % of them at midnight,
-  had those midnights read as bare dates, counted unparsed and written
+  had those cells read as bare dates, counted unparsed and written
   as text: exit 3 again -- and that is the commonest moment column;
 * a date beside a date with a time, or two date codes, in one column
   refused the WHOLE TABLE, with a message about decimal places;
@@ -570,7 +570,7 @@ def test_each_reading_withdrawn_brings_its_defect_back(
         trip = _trip(tmp_path / "dates", _dates_beside(random.Random(20), 20, "dates"))
         assert trip["column"]["role"] != "datetime"
         assert trip["twin_exit"] == 3
-    # The midnights a date format hides read as bare dates again.
+    # The cells at midnight a date format hides read as bare dates again.
     draw = random.Random(6)
     cells: "list[tuple[object, str]]" = []
     for index in range(ROWS):
@@ -580,10 +580,9 @@ def test_each_reading_withdrawn_brings_its_defect_back(
         cells += [(moment, "m/d/yyyy")]
     with monkeypatch.context() as patched:
         patched.setattr(
-            workbook, "_read_as_one_column",
-            lambda column, whole_days, clocks, epoch_1904: None,
+            workbook, "_read_as_one_column", lambda *arguments: None
         )
-        trip = _trip(tmp_path / "midnights", cells)
+        trip = _trip(tmp_path / "at_midnight", cells)
         assert trip["column"]["n_unparsed"] == 6
         assert trip["twin_exit"] == 3
     # The quarter-hour grid held to a list of labels again.
