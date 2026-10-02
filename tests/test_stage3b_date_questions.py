@@ -41,7 +41,8 @@ One clause per rule, each beside the mutant it is red on:
 * and the rest: a declaration answers the question, `real-value` keeps
   the reading and stops the question, neither the file nor the screen
   names a code, an answer that finds no codes says so, two answers that
-  make one spelling both a value and none are refused, a column no code
+  make one spelling both a value and none are refused, a column asked
+  about its codes loses only the questions they answer, a column no code
   can stand in -- every cell read, or every value different -- is not
   counted, and the weighed date rule reads every battery column as the
   classifier does.
@@ -232,6 +233,24 @@ def test_every_column_with_codes_is_asked_and_answering_repairs_it(
     assert _validates(tmp_path)
     assert not _code_entries(_questions(tmp_path)), "answered, it is not asked again"
     assert "--missing-value" in said
+
+
+def test_a_column_asked_about_its_codes_loses_only_the_questions_they_answer() -> None:
+    """The joined and the figures questions give way; a question of another kind stands.
+
+    `00/00/0000` beside dates raises the joined question, which the codes
+    question answers in its place. A question about the same column that
+    is not about what kind of value it holds -- landing T1 asks which
+    clock a column's hours are written on -- is not the codes question's
+    to take away, and neither is any question about another column.
+    """
+    codes = asking.Question("seen_at", "long_tail_labels", asking.BECAUSE_DATE_CODES, "", [], asking.ANSWER_KEEP)
+    joined = asking.Question("seen_at", "long_tail_labels", asking.BECAUSE_JOINED, "", [], asking.ANSWER_KEEP)
+    padded = asking.Question("seen_at", "count", asking.BECAUSE_PADDED, "", [], asking.ANSWER_MEASUREMENT)
+    clock = asking.Question("seen_at", "time_of_day", "another-kind-of-question", "", [], asking.ANSWER_KEEP)
+    other = asking.Question("ward", "long_tail_labels", asking.BECAUSE_JOINED, "", [], asking.ANSWER_KEEP)
+    kept = asking.without_columns_of([joined, padded, clock, other], [codes])
+    assert kept == [clock, other]
 
 
 def test_real_value_keeps_the_reading_and_stops_the_question(tmp_path: pathlib.Path) -> None:

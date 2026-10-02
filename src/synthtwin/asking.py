@@ -2491,19 +2491,41 @@ def date_code_questions(
     return found
 
 
+# THE QUESTIONS A COLUMN OF DATES BESIDE CODES IS NOT ASKED (plan
+# P4-D381): the ones about what KIND of value its cells hold -- numbers
+# joined by a mark, a code register written in figures, a point between
+# thousands -- which the codes question answers in their place. A
+# question of another kind about the same column, such as which clock
+# its hours are written on, still stands beside it.
+_ANSWERED_BY_THE_CODES_QUESTION = (
+    BECAUSE_JOINED,
+    BECAUSE_PADDED,
+    BECAUSE_FIXED_WIDTH,
+    BECAUSE_GROUPED_FIXED_WIDTH,
+    BECAUSE_POINT_THOUSANDS,
+)
+
+
 def without_columns_of(
     questions: "list[Question]", asked: "list[Question]"
 ) -> "list[Question]":
-    """``questions`` less any about a column ``asked`` already puts a question to.
+    """``questions`` less those about what kind of values a column ``asked`` names holds.
 
     Guarantees: accepts two lists of questions; returns the first's in
-    its own order, less those naming a column the second names.
-    Determinism: a function of the two. Raises nothing. No I/O.
+    its own order, less each one whose column the second names and
+    whose reason is one the codes question answers in its place
+    (`_ANSWERED_BY_THE_CODES_QUESTION`). Determinism: a function of the
+    two. Raises nothing. No I/O.
     """
     named: "list[str]" = []
     for question in asked:
         named += [question.name]
-    return [question for question in questions if question.name not in named]
+    return [
+        question
+        for question in questions
+        if question.name not in named
+        or question.reason not in _ANSWERED_BY_THE_CODES_QUESTION
+    ]
 
 
 # The one question the checklist puts, in the words every surface uses.
