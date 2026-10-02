@@ -5706,15 +5706,25 @@ POOL_CELLS_A_STEP = 8
 # THE WORK CHARGES ARE A SECOND CEILING, NOT THE ANSWER'S BUDGET (plan
 # P4-D380, its review's first item). The walk answers by
 # `POOL_SEARCH_STEPS` counted one a step, as it always did, and the charges
-# above are spent against this ceiling only, so a walk that finished
-# before finishes now with the same answer. Charging them against the
-# answer's own budget changed one description 668f276 gave without
-# crashing: a column of 1,000 whole numbers and quotients written in full
-# (`mixed`, seed 8101) finished in 849,564 steps and published its widths
-# as one pool, and charged it reached 1,525,694 and was counted at one
-# width. Measured: among 623 walks that finished, the most work against
-# plain steps was 1.84 times, so four times the budget stops none of them
-# early and still bounds the time a walk can take.
+# above are spent against this ceiling only, so a walk that took its
+# steps before takes the same steps now and answers as it did, unless its
+# work passes four times the budget. Charging them against the answer's
+# own budget changed one description 668f276 gave without crashing: a
+# column of 1,000 whole numbers and quotients written in full (`mixed`,
+# seed 8101) finished in 849,564 steps and published its widths as one
+# pool, and charged it reached 1,525,694 and was counted at one width.
+# Measured: among 623 walks that finished, the most work against plain
+# steps was 1.84 times, so four times the budget stops none of them early
+# and still bounds the time a walk can take. ONE CHARGE IS TAKEN BEFORE
+# A STEP (`pool_table_too_large`), and it counts every group handed in,
+# the ones the walk would then drop as bounding nothing among them --
+# dropping them costs a look per convention each, the table's own size.
+# So a caller handing in thousands of such groups over thousands of
+# conventions is answered as stopped short where 668f276 walked on and
+# finished (3,000 values of two rows over 3,000 widths: True there in 8.6
+# CPU s, ``unfinished`` here at once). The producer's census of widths
+# hands in only the values that bound something (`taxonomy._width_bounds`,
+# the review's second round, item 1).
 POOL_WORK_STEPS = 4 * POOL_SEARCH_STEPS
 
 
@@ -5878,7 +5888,8 @@ def _pool_readings(
     The walk keeps two counts and stops short where either runs out
     (plan P4-D380). `POOL_SEARCH_STEPS` is spent one a step -- a reading
     of the free cells one, a call of `_placements`' walk one -- as the
-    walk always spent it, so it finishes, and answers, wherever it did.
+    walk always spent it, so within the work's ceiling it finishes, and
+    answers, wherever it did.
     `POOL_WORK_STEPS`, less the ``spent`` its caller already charged, is
     spent one a step and the work each step does besides: one more for
     every `POOL_WORDS_A_STEP` words a reading's big-number steps may move

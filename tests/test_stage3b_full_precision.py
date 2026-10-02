@@ -35,13 +35,18 @@ THE REPAIR, AND WHAT THIS FILE PINS:
   walk over every free convention answered, against that text too,
   and `parsing._free_totals` holds exactly the totals free conventions
   can hold;
-- the walk still answers by its steps counted one each, so it finishes
-  wherever it finished, and the work each step does
-  (`POOL_WORDS_A_STEP`, `POOL_CELLS_A_STEP`) is counted against a second
-  ceiling (`POOL_WORK_STEPS`), so the stop-short answer the walk always
-  had takes over where the work is too large; a column the charges set
-  against the steps themselves once changed is described as 668f276
-  described it, byte for byte;
+- the walk still answers by its steps counted one each, so within the
+  work's ceiling it finishes wherever it finished, and the work each
+  step does (`POOL_WORDS_A_STEP`, `POOL_CELLS_A_STEP`) is counted
+  against a second ceiling (`POOL_WORK_STEPS`), so the stop-short
+  answer the walk always had takes over where the work is too large; a
+  column the charges set against the steps themselves once changed is
+  described as 668f276 described it, byte for byte; each guard on the
+  two counts and on the table charged before a step turns a test red
+  when it is changed;
+- a value free on every width is neither charged nor handed to the walk
+  by the census of widths, so a column of values each written two ways
+  is not counted at one width where the walk shows its pool standing;
 - a census wider than the interpreter can nest describes through the
   command, and the same column under the recursive walk ends in a
   sentence, never a stack trace (`errors.stopped_nested_too_deep`);
@@ -392,6 +397,67 @@ def test_a_reading_is_charged_its_words_against_the_work_and_never_the_steps(mon
     assert parsing.mixture_pool_holds(1_000_000, 11, [1_000_000] * 40, 40, (), None) is False
 
 
+# THE SHAPE THE GUARDS BELOW ARE ASKED OF: a million rows over forty
+# conventions of the full room, no value. Its table, forty cells and
+# forty more, is charged five of the work before a step; at the shipped
+# rates it answers False in seventeen steps and 810 of the work.
+MILLION_OVER_FORTY = (1_000_000, 11, [1_000_000] * 40, 40, (), None)
+
+
+def test_the_table_charged_before_a_step_is_never_taken_of_the_steps(monkeypatch) -> None:
+    """Twelve steps answer the million over forty, the table's five charged to the work alone.
+
+    The landing's review, second round, item 2: the table's charge taken
+    of the steps as well (`[POOL_SEARCH_STEPS - spent, ...]`) needs
+    seventeen and stops short, and no other test turned red on it.
+    """
+    monkeypatch.setattr(parsing, "POOL_SEARCH_STEPS", 12)
+    monkeypatch.setattr(parsing, "POOL_WORK_STEPS", 10**9)
+    assert parsing.mixture_pool_holds(*MILLION_OVER_FORTY) is False
+
+
+def test_the_table_charged_before_a_step_is_taken_of_the_work(monkeypatch) -> None:
+    """The million over forty stops short with 809 of the work and answers with 810: 805 the walk's and five the table's.
+
+    The landing's review, second round, item 2: the work's ceiling not
+    lessened by the table's charge answers False at 809 too.
+    """
+    monkeypatch.setattr(parsing, "POOL_SEARCH_STEPS", 10**9)
+    monkeypatch.setattr(parsing, "POOL_WORK_STEPS", 809)
+    assert parsing.mixture_pool_holds(*MILLION_OVER_FORTY) is None
+    monkeypatch.setattr(parsing, "POOL_WORK_STEPS", 810)
+    assert parsing.mixture_pool_holds(*MILLION_OVER_FORTY) is False
+
+
+def test_a_walk_out_of_work_stops_at_its_next_step() -> None:
+    """Steps to spare and three of the work: the table of eighty slots spends ten, and the walk's first step stops it.
+
+    The landing's review, second round, item 2: `_fill` asking only its
+    steps (`if budget[0] >= 1:`) finds the state anyway, in 84 steps.
+    """
+    budget = [10**9, 3]
+    found = parsing._placements(((0,) * 80,), [(10, 10)], 0, 3, 1, budget)
+    assert found == [], found
+    assert 10**9 - budget[0] == 1, budget
+
+
+def test_the_table_is_charged_every_group_handed_in_before_a_step(monkeypatch) -> None:
+    """Forty conventions with nine values of two rows on two spellings stop short at fifty steps; with eight they answer.
+
+    Each value bounds nothing and is dropped before the table is built,
+    but dropping one looks at every convention, so the charge taken
+    before a step counts every group handed in: forty cells by ten is
+    fifty steps, the whole budget. The landing's review, second round,
+    item 2: `mixture_pool_holds` without its own check answers False for
+    both. Producers that hand in only the values that bound something
+    are pinned below (`taxonomy._width_bounds`).
+    """
+    monkeypatch.setattr(parsing, "POOL_SEARCH_STEPS", 50)
+    free = ((2, 2, (2,) * 40),)
+    assert parsing.mixture_pool_holds(1000, 11, [1000] * 40, 40, free * 9, None) is None
+    assert parsing.mixture_pool_holds(1000, 11, [1000] * 40, 40, free * 8, None) is False
+
+
 def test_the_walk_can_never_reach_itself() -> None:
     """Read off the source: `_fill` names no function that names `_fill`.
 
@@ -674,6 +740,62 @@ def test_a_walk_the_old_code_finished_describes_as_it_did(tmp_path) -> None:
         if hashlib.sha256((out / name).read_bytes()).hexdigest() != digest:
             differed += [name]
     assert differed == [], differed
+
+
+
+def values_written_two_ways(values: int) -> "list[str]":
+    """Each of ``values`` values written once as `i.5` and once as `i.50`, beside one `0.125`, shuffled by the count."""
+    cells: "list[str]" = []
+    for value in range(values):
+        cells += [f"{value}.5", f"{value}.50"]
+    cells += ["0.125"]
+    random.Random(values).shuffle(cells)
+    return cells
+
+
+def test_values_free_on_every_width_are_not_charged_for_the_table(tmp_path) -> None:
+    """25,001 rows of values each written two ways keep their fraction widths one pool.
+
+    The landing's review, second round, item 1. Every value of two rows
+    wears both its spellings and is no narrower than the narrowest
+    width, so it bounds nothing and the walk drops it before building
+    its table; charged anyway, 12,500 values over about 25,000 widths
+    were past the whole budget before a step, and the census was counted
+    at one width, `{"3": 25001}`, where the walk with no charge shows the
+    pool standing. Mutation: `taxonomy._width_bounds` counting such a
+    value turns it red.
+    """
+    path = _table(tmp_path / "in", "pairs", values_written_two_ways(12_500))
+    code, said = _profile(path, tmp_path / "out")
+    assert code == 0, said
+    block = json.loads((tmp_path / "out" / "pairs-profile.json").read_text(encoding="utf-8"))["columns"][0]
+    assert block["fraction_widths"] == {taxonomy.SUPPRESSED_LABEL: 25_001}, block["fraction_widths"]
+
+
+def test_the_census_of_widths_hands_on_only_values_a_reader_places() -> None:
+    """6,000 values written once and 3,000 written twice the same way: no group unplaced, a table past the budget placed.
+
+    The 3,000 each wear one spelling of two rows, so each bounds
+    something where a reader places it. None placed, the groups are
+    none of them and the table is small; all placed, 9,002 widths by
+    3,001 is past the budget and the groups are None, never built. The
+    landing's review, second round, item 2. Mutations: counting a value
+    no reader places gives None for the first; building the table
+    whatever its size gives groups for the second.
+    """
+    from types import SimpleNamespace
+
+    counted: "list" = []
+    for value in range(6000):
+        counted += [(SimpleNamespace(numeric_text=f"{value}.123", value=value + 0.123), 3, 3)]
+    for value in range(3000):
+        for _row in range(2):
+            counted += [(SimpleNamespace(numeric_text=f"{value}.25", value=value + 0.25), 2, 2)]
+    room, capacities, groups = taxonomy._width_bounds(counted, {})
+    assert groups == (), groups
+    assert room == 9000 and len(capacities) == 9002, (room, len(capacities))
+    placed = {value + 0.25: True for value in range(3000)}
+    assert taxonomy._width_bounds(counted, placed)[2] is None
 
 
 # -- 5. the gate: 10,000 and 100,000 rows ----------------------------------------

@@ -10330,7 +10330,10 @@ def _width_bounds(
     about 2.8 s each of the four times a column asked, 11.2 s of a 41.5 s
     description, and every answer was the one given without it. A caller
     reads None as the walk stopping short, the census counted at one
-    width.
+    width. Only a value that bounds something is counted or handed on:
+    one free on every width the walk drops before it builds the table,
+    so it is dropped here before the table is charged (the review's
+    second round, item 1).
     """
     spellings: "dict[str, int]" = {}
     lowest = -1
@@ -10356,16 +10359,30 @@ def _width_bounds(
         rows[value] += 1
         least_of[value] = max(least_of[value], least)
         worn[value][parsing.trimmed(cell.numeric_text)] = 1
-    grouped = 0
+    # A VALUE FREE ON EVERY WIDTH BOUNDS NOTHING (`parsing._bounds_nothing`,
+    # plan P4-D380, its second review's first item): none of its rows
+    # narrower than the narrowest width, and as many spellings as rows, or
+    # as the room. Asked of a census of widths that is exactly the walk's
+    # own question -- every capacity is the same and at least one, a value
+    # reaches every width from its least up, and there are always more
+    # widths than the room -- asked here in one look a value, where the
+    # walk looks once a width. The walk drops such a value before it
+    # builds its table, so it is neither charged nor handed on here.
+    # Charged, a column of values each written `i.5` and `i.50` stopped
+    # short from 25,001 rows at the default floor (from 4,401 at a
+    # smallest group of 2,100) where the walk shows its pool standing.
+    bounding: "dict[float, bool]" = {}
     for value in rows:
-        if rows[value] >= 2 and value in placed:
-            grouped += 1
+        if rows[value] < 2 or value not in placed:
+            continue
+        if least_of[value] <= widths[0] and len(worn[value]) >= min(rows[value], room):
+            continue
+        bounding[value] = True
+    grouped = len(bounding)
     if parsing.pool_table_too_large(len(widths), grouped):
         return (room, [len(counted)] * len(widths), None)
     groups: "list[tuple[int, int, tuple[int, ...]]]" = []
-    for value in sorted(rows):
-        if rows[value] < 2 or value not in placed:
-            continue
+    for value in sorted(bounding):
         reach: "list[int]" = []
         for width in widths:
             reach += [rows[value] if width >= least_of[value] else 0]

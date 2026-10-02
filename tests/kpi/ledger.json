@@ -6607,6 +6607,10 @@
     "tests/test_stage3b_full_precision.py::test_the_walk_spends_the_recursion_s_steps_with_the_charges_live",
     "tests/test_stage3b_full_precision.py::test_a_value_s_table_is_charged_its_slots_against_the_work",
     "tests/test_stage3b_full_precision.py::test_a_reading_is_charged_its_words_against_the_work_and_never_the_steps",
+    "tests/test_stage3b_full_precision.py::test_the_table_charged_before_a_step_is_never_taken_of_the_steps",
+    "tests/test_stage3b_full_precision.py::test_the_table_charged_before_a_step_is_taken_of_the_work",
+    "tests/test_stage3b_full_precision.py::test_a_walk_out_of_work_stops_at_its_next_step",
+    "tests/test_stage3b_full_precision.py::test_the_table_is_charged_every_group_handed_in_before_a_step",
     "tests/test_stage3b_full_precision.py::test_the_walk_can_never_reach_itself",
     "tests/test_stage3b_full_precision.py::test_the_sum_answers_what_the_walk_over_every_free_convention_answered",
     "tests/test_stage3b_full_precision.py::test_the_free_totals_are_every_total_the_free_conventions_hold",
@@ -6615,6 +6619,8 @@
     "tests/test_stage3b_full_precision.py::test_a_step_nesting_too_deep_in_the_other_commands_ends_in_a_sentence",
     "tests/test_stage3b_full_precision.py::test_the_description_is_the_one_the_walk_over_every_free_convention_gives",
     "tests/test_stage3b_full_precision.py::test_a_walk_the_old_code_finished_describes_as_it_did",
+    "tests/test_stage3b_full_precision.py::test_values_free_on_every_width_are_not_charged_for_the_table",
+    "tests/test_stage3b_full_precision.py::test_the_census_of_widths_hands_on_only_values_a_reader_places",
     "tests/test_stage3b_full_precision.py::test_computed_numbers_describe_at_ten_thousand_and_a_hundred_thousand_rows"
    ],
    "test": null,
@@ -6622,7 +6628,7 @@
    "pin_strength": "WEAKER",
    "measured_on": "three generators of computed numbers written by repr -- seconds/3600, a/b of whole numbers under 500, seconds/86400 -- at 1,000 rows and seeds 0 to 19 each, and seconds/3600 at 10,000 and 100,000 rows, seed 5000, through `synthtwin profile`",
    "evidence": "Before (668f276, the date-and-time reach audit's skeptic): `synthtwin profile` stopped on a RecursionError with no file in 14, 7 and 15 of 20 seeds of the three shapes at 1,000 rows, and on 3 of 3 workbook time columns holding seconds; the walk made iterative alone took 4.2 s at 1,000 rows, 41 s at 3,000 and more than twelve CPU minutes at 10,000, one reading of the free cells about 1.5 million big-number steps at 3,000 rows. After: the walk carries its own stack, a reading is a sum, and every step is charged its work against a second ceiling of four times the budget while the walk still answers by its steps counted one each: charged against the steps themselves (f31b3c5) the work changed 1 column of 668 measured, 1,000 whole numbers and quotients written in full (seed 8101), whose five files are 668f276's again here.",
-   "nodes_min_collected": 16,
+   "nodes_min_collected": 22,
    "value_at": {
     "commit": "45a7ecf",
     "date": "2026-10-02",
