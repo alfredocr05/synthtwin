@@ -14,7 +14,9 @@ dates beside its few text cells, which are counted unparsed (5 % of text
 dates, or 3 % of `UNK`, made the column free text or labels and its twin
 failed its own description); a date format hiding a time reads every
 cell of its column as a moment, so its cells at midnight are no longer
-bare dates written as text; a date beside a date with a time, or two date,
+bare dates written as text, where its timed cells are at least as many as its
+whole days (a column of days beside a few timed cells stays days, with its
+weekday census); a date beside a date with a time, or two date,
 date-and-time or clock codes, is read rather than refusing the table; a
 column whose every value cell is a time-format number at a whole second
 under one day is read as clock times, its stored seconds kept, and
@@ -23,8 +25,11 @@ continuous numbers and, with seconds, a crash; a locale tag such as
 `[$-409]` is published and worn; a date or clock the census stores as
 text keeps its text in the twin. The mixes still refused name their
 kinds, and the cell cap names a .csv file as the route past a million
-cells. On the reach skeptic's cases every twin now passes its own
-validation, and every case the lane does not reach is byte-identical.
+cells. Columns read beside text cells publish no weekday census (WC6). The
+census hands its reading of a stored-date column to the description, so
+`synthtwin profile` CPU on typed dates stays within 2 % of before. On the
+reach skeptic's cases every twin now passes its own validation, and every
+case the lane does not reach is byte-identical.
 
 ### The weekday certificate's cap, measured (2026-09-30)
 
