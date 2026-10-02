@@ -15,11 +15,12 @@ the loader's WC5, WC7, WC8 and WC9 are gone with `calendar_certificate.py`;
 the loader holds a census to its shape alone (WC1 to WC4, WC6). The
 producer withholds a census where a group holds fewer than three
 different dates, or fewer than seven and a half a group on average, and
-where May's holes leave a group no free day for a one-row date. Over
-nineteen batteries (1,717 date columns, seeds 0 to 4): 951 censuses
-published become 1,356, no twin misses a check that 668f276's did not,
-the weekday-share error falls from 0.103 to 0.046 and describing takes
-124 s instead of 1,365. NF71 is reworded, NF73 retired; a moment the
+where a published hole other than a width hole (May's, a placeholder
+day or a declared day) leaves a group no free day for a one-row date. Over
+twenty-one batteries (1,867 date columns, seeds 0 to 4): 983 censuses
+published become 1,390, no twin misses a check that 668f276's did not,
+the weekday-share error falls from 0.096 to 0.044 and describing takes
+200 s instead of 1,505. NF71 is reworded, NF73 retired; a moment the
 date pass folds into the dates is counted where the census counted it,
 and one left unparsed is not, so the source meets its own census.
 `K-S3-32` is floor-only, `K-S3-33` retired, `K-S3-35` new, and

@@ -6370,15 +6370,17 @@ three different dates of the body, or where two or more groups are
 non-empty and they hold fewer than seven and a half different dates
 each on average: there the day pass meets the census only by splitting
 a date's rows across dates, and the twin holds more different values
-than the column. And where the month-name census's one word has the
-length `either`, so every day outside May is a HOLE, it is withheld
-where a non-empty group has no free day between the body's first and
-last day -- every one of its days that is no hole holds a date -- while
-one of its dates holds a single row: a one-row date the day pass moves
-is left empty, and with no free day the twin holds fewer different
-values than the column. That rule is not asked beside width,
-placeholder or declared holes, where no twin was measured to miss
-(the review of P4-D365, items 1 and 3). A FORM HOLE is a day no cell can be written on under
+than the column. And beside every published hole other than a width
+hole -- where the month-name census's one word has the length
+`either`, so every day outside May is a HOLE, and beside a placeholder
+or declared hole -- it is withheld where a non-empty group has no free
+day between the body's first and last day -- every one of its days
+that is no hole holds a date -- while one of its dates holds a single
+row: a one-row date the day pass moves is left empty, and with no free
+day the twin holds fewer different values than the column. That rule
+is not asked beside width holes alone, where no twin was measured to
+miss (the review of P4-D365, item 3); beside declared days a twin was
+(its second review, item 1), and a twin must pass its own checks. A FORM HOLE is a day no cell can be written on under
 the forms WC6 lets stand: where the width census's one word shows one
 field alone (`first-field-*`, `second-field-*`), every day whose other
 field is below ten, and where the month-name census's one word has the
