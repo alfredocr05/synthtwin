@@ -1001,10 +1001,11 @@ def day_or_month_seen(
     and where every cell of a column has its day and its month both
     twelve or less, both readings parse every cell: the column is read
     month first by the ratified default, and nothing in it can say
-    whether that is right. Measured on 668f276: a day-first column whose
-    days all lie in 1 to 12 is read month first and its twin parses 453
-    of 1,000 cells under the person's own `%d/%m/%Y`; month starts
-    written `01/03/2023` put every date in January, 617 of 1,000.
+    whether that is right. Measured on 668f276 over the columns of
+    `tests/date_question_shapes.py`: a day-first column whose days all
+    lie in 1 to 12 is read month first and its twin parses 453 of 1,000
+    cells under the person's own `%d/%m/%Y`, and month starts written
+    `01/03/2023`, every date of which that reading puts in January, 741.
     `--day-first` repairs both to 1,000.
 
     Asked only of the reading a column TOOK, and only where that is the
