@@ -65,13 +65,15 @@ with no newline in it, which is most of this file's samples.)
 THE LIMIT THAT WOULD MATTER is a string of source that IS RUN --
 handed to `exec`, `eval` or `compile`, or to `runpy` -- because that
 spelling reaches the 3.10 cells while this file says nothing about it.
-The tree holds TWENTY-ONE such calls. They are listed in
+The tree holds TWENTY-NINE such calls (counted again at the merge of
+stage 4's first tier into stage 3b's landings, 2026-10-02: the figure
+here had stood two short since before them). They are listed in
 `ROUTES_THAT_RUN_SOURCE` below and
 `test_the_routes_that_run_a_string_of_source_are_the_ones_named_here`
-holds the tree to that list, so a twenty-second cannot arrive unread.
-All but two run a COMMITTED FILE of `tools/` or of `tests/`, which the
-folders below already read, and the two that do not are held by where
-they run:
+holds the tree to that list, so a thirtieth cannot arrive unread.
+The `runpy` calls run a COMMITTED FILE of `tools/` or of `tests/`,
+which the folders below already read, and the `exec` and `compile`
+calls are held by what they are handed or by where they run:
 
 - `tests/test_oracle_rule_witnesses.py` builds a module with
   `exec(compile(source, ...))`, where `source` is
@@ -100,16 +102,28 @@ they run:
   the decontam job's MESSAGES block the same way, in every cell, on a
   history built by the test; that block uses `os` and `sys` and
   imports `tools/hooks/check_messages.py`, a file this guard reads.
+- `tests/test_stage4_linear_work.py` builds two functions with
+  `exec(compile(tree, ...))` (plan P4-D385), where `tree` is the syntax
+  tree of a shipped function -- `taxonomy._read_the_column` and
+  `generation._label_content`, read by `inspect.getsource` from files
+  this guard reads -- rewritten back to the form 668f276 shipped, to
+  serve as the oracle of stage 4's first tier. The rewrite renames one
+  operand of one `in` comparison, turns each `cells += [...]` into
+  `cells = cells + [...]` and drops one `cells = list(...)`: a name, an
+  assignment and an addition, which every Python spells alike, so it
+  adds no spelling the floor could miss.
 - `runpy.run_path` runs the same kind of committed file: twice in
-  `tests/`, in the two stage-2 oracle tests, and eleven times in
+  `tests/`, in the two stage-2 oracle tests, and seventeen times in
   `tools/` -- one for the provenance guard's own runner and one for
-  each entry point of the generation vectors, the last two being the
-  tenth and eleventh, which stage 3's two tail landings added: the
-  date and clock tails (landing 3.4) opened the tenth and the numeric
-  tails (landing 3.3) the eleventh. Each runs the committed oracle
+  each of the sixteen entry points of the generation vectors, among
+  them the tenth and eleventh, which stage 3's two tail landings
+  added (the date and clock tails, landing 3.4, opened the tenth and
+  the numeric tails, landing 3.3, the eleventh), and the sixteenth and
+  twenty-second files of stage 3b (plans P4-D375 and P4-D370). Each
+  runs the committed oracle
   `tools/reference/make_generation_reference_vectors.py` exactly as
-  its nine siblings do, and the floor holds for them for the same
-  reason: the file each runs is one of the files this guard reads.
+  its siblings do, and the floor holds for them for the same reason:
+  the file each runs is one of the files this guard reads.
 
 A FILE loaded as a module is NOT this limit. The 26
 `importlib.util.spec_from_file_location` calls in the folders load
@@ -242,6 +256,8 @@ ROUTES_THAT_RUN_SOURCE = {
     ("tests/test_stage3_tail_rule.py", "exec"): 1,
     ("tests/test_ci_demo_steps.py", "compile"): 1,
     ("tests/test_ci_demo_steps.py", "exec"): 1,
+    ("tests/test_stage4_linear_work.py", "compile"): 2,
+    ("tests/test_stage4_linear_work.py", "exec"): 2,
     ("tests/test_stage2_datetime_oracle.py", "runpy.run_path"): 1,
     ("tests/test_stage2_grouping_oracle.py", "runpy.run_path"): 1,
     ("tools/provenance/guard_runner.py", "runpy.run_path"): 1,

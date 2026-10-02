@@ -819,6 +819,17 @@ def test_the_ledger_file_is_canonical_json() -> None:
     # IS NEVER TRIMMED TO FIT: the cap moves, and the prose is trimmed
     # before it moves again.
     #
+    # 364,000 from 362,000, FOR STAGE 4'S FIRST ENTRY (2026-10-01), a raise
+    # made on that landing's branch beside the one above and folded into
+    # it when both were merged (2026-10-02):
+    # `K-S4-03`, the growth ratios of the stage's first tier (plan
+    # P4-D385), the entry the orchestrator assigned that landing. The
+    # ledger stood 615 bytes under the cap and grows 1,796 with the entry,
+    # its prose trimmed first; recording it against the commit that
+    # measures it adds a clause to the measurement note. A MEASUREMENT IS
+    # NEVER TRIMMED TO FIT: the cap moves, and the prose is trimmed before
+    # it moves again.
+    #
     # 362,000 from 360,000, AUTHORIZED BY THE ORCHESTRATOR (2026-09-30)
     # FOR THE ENTRIES THE MERGED LANDINGS ADDED: `K-S3-34`, the owner's
     # accepted limit (plan P4-D359, "Accept as a limit"), an entry of

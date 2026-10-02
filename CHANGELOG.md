@@ -26,6 +26,21 @@ and one left unparsed is not, so the source meets its own census.
 `K-S3-32` is floor-only, `K-S3-33` retired, `K-S3-35` new, and
 `K-S3-39`, `K-2B-13` and `K-2B-48` hold.
 
+### Four paths of the largest tables grow with their rows (2026-10-01)
+
+**No published fact and no twin byte moves** (plan P4-D385, stage 4's
+first tier). The twin of an all-different column of free text or record
+numbers no longer lists every pair of its groups, the square of its
+rows: the twin of a made-up 50-column health table of 10,000 rows
+reached 5.8 GB before a guard stopped it, and is built in 114 MB now.
+The levels the floor holds back are looked up instead of walked, a
+column of labels grows in place instead of being copied once per level,
+and a column's role is worked out once per question and remembered by
+its own tally: describing that table takes 40.2 s of CPU for 96.4, and
+checking its twin 94.0 for 195.0. `K-S4-03` holds the four growth
+ratios, and the tests beside it require each replaced function to grow
+as the square on the same shapes.
+
 ### Workbook cells read as what they store (2026-10-01)
 
 **Dates, moments and clocks a workbook stores come back as themselves**
