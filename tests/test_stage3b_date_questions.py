@@ -41,9 +41,10 @@ One clause per rule, each beside the mutant it is red on:
 * and the rest: a declaration answers the question, `real-value` keeps
   the reading and stops the question, neither the file nor the screen
   names a code, an answer that finds no codes says so, two answers that
-  make one spelling both a value and none are refused, a column of dates
-  every cell of which was read is not walked again, and the weighed date
-  rule reads every battery column as the classifier does.
+  make one spelling both a value and none are refused, a column no code
+  can stand in -- every cell read, or every value different -- is not
+  counted, and the weighed date rule reads every battery column as the
+  classifier does.
 """
 
 import contextlib
@@ -364,10 +365,17 @@ def test_red_without_the_date_rule(tmp_path: pathlib.Path, monkeypatch: pytest.M
     assert _asked_here(tmp_path / "moved", values)[0]
 
 
-def test_a_fully_read_column_of_dates_is_not_read_again(
+def test_a_column_no_code_can_stand_in_is_not_counted(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Every cell parsed: no code can be there, so its cells are not walked."""
+    """Every cell parsed, or every value different: no code can be there, so no cell is counted.
+
+    A column of dates its reading parsed whole has no cell to be a code,
+    and a column whose block publishes as many different values as
+    cells has no spelling on two rows, let alone eleven -- so neither is
+    walked, which is what keeps a table of a million rows and fifty
+    columns from paying a dictionary per column for nothing.
+    """
     called = {"columns": 0}
     shipped = asking.date_codes_of
 
@@ -377,6 +385,7 @@ def test_a_fully_read_column_of_dates_is_not_read_again(
 
     monkeypatch.setattr(asking, "date_codes_of", counting)
     _asked_here(tmp_path / "read", shapes.cells(shapes.by_name("ss_date")))
+    _asked_here(tmp_path / "different", [f"note number {index}" for index in range(1000)])
     assert called["columns"] == 0
     # ...and the mutant's witness: a column of dates with cells left
     # unread is walked, so the count above is not a counter that never

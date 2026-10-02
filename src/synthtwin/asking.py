@@ -2387,6 +2387,36 @@ def _date_code_choices(
     ]
 
 
+def _a_spelling_can_reach_the_line(
+    block: "dict[str, object]",
+    present: "list[str]",
+    settings: taxonomy.Settings,
+) -> bool:
+    """Whether some spelling of a column could stand on the codes' line of rows.
+
+    A COLUMN OF A MILLION DIFFERENT VALUES IS NOT COUNTED TO LEARN THAT
+    NONE OF THEM REPEATS. The commonest spelling of `n` present cells
+    over `d` different ones stands on at most `n - d + 1` rows, and the
+    column's block publishes both -- so where that is under the line no
+    code can be there, and the column of free text, record numbers or
+    all-different moments is passed over without a dictionary of its
+    cells. The bound is used only where the block counted the same cells
+    this run split, and the column is counted otherwise.
+
+    Guarantees: accepts the column's block, its present cells and the
+    settings; returns False only where no spelling can reach the line.
+    Determinism: a function of the three. Raises nothing. No I/O.
+    """
+    held = block["n_present"] if "n_present" in block else None
+    different = block["n_distinct"] if "n_distinct" in block else None
+    if not isinstance(held, int) or not isinstance(different, int):
+        return True
+    if held != len(present) or different < 1:
+        return True
+    line = max(_DATE_CODES_LINE, parsing.census_floor(settings.small_cell_floor))
+    return held - different + 1 >= line
+
+
 def date_code_questions(
     document: "dict[str, object]",
     table_columns: "list[list[str]]",
@@ -2443,6 +2473,8 @@ def date_code_questions(
             present, _absent = taxonomy.split_missing(
                 table_columns[position - 1], settings
             )
+        if not _a_spelling_can_reach_the_line(block, present, settings):
+            continue
         seen = date_codes_of(present, settings)
         if seen is None:
             continue
