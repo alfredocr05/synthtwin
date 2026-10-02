@@ -6581,9 +6581,12 @@
    "headline": false,
    "name": "How far a twin writes past the real column's own range",
    "status": "OPEN",
-   "rule": "over K-S3-20's 37 shapes at floors 11, 20, 36 and 50, seeds 0, 4 and 9, count the numeric twins holding a cell outside the real column's minimum and maximum, and the median and the worst distance past it in thousandths of the real span; and over the columns of the frozen cases every_day_group and every_day_absent (tests/test_stage3b_gate.py) at a floor of eleven, seeds 0 to 4, the twins writing a day outside the real first and last, and the most days out. None may rise; the twin counts may not fall. No check sees them, as no end is published",
+   "rule": "over K-S3-20's 37 shapes at floors 11, 20, 36 and 50, seeds 0, 4 and 9, count the numeric twins holding a cell outside the real column's minimum and maximum, and the median and the worst distance past it in thousandths of the real span; and over the columns of the frozen cases every_day_group and every_day_absent (tests/test_stage3b_gate.py) at a floor of eleven, seeds 0 to 4, the twins writing a day outside the real first and last, and the most days out; and over K-S3-11's date and clock shapes but the two written day first, at floors 11, 20, 36 and 50, each table drawn at seeds 0, 4 and 9 as the tails measurement drew it, its twin at the same seed and the weekday census not asked, the tail sides, those whose twin reaches further beyond the boundary than the real column's furthest cell, and the most a twin reaches, in thousandths of that furthest distance. None may rise; the twin and side counts may not fall. No check sees them, as no end is published",
    "rule_kind": "at_most",
    "expected": {
+    "date_clock_reach_most_permille": 1502,
+    "date_clock_sides": 864,
+    "date_clock_sides_past": 395,
     "date_days_out_most": 1,
     "date_twins": 10,
     "date_twins_out_of_range": 10,
@@ -6594,7 +6597,8 @@
    },
    "key_kinds": {
     "numeric_twins": "at_least",
-    "date_twins": "at_least"
+    "date_twins": "at_least",
+    "date_clock_sides": "at_least"
    },
    "target": {
     "numeric_twins_out_of_range": 0,
@@ -6607,7 +6611,7 @@
    "test": null,
    "driver": "tools/measurements/kpi_cost_rule.py --kpi",
    "pin_strength": "NONE",
-   "measured_on": "tools/measurements/kpi_cost_rule.py's K-S3-20 battery at four floors and the two tie-group columns, each described, generated and compared with its own cells",
+   "measured_on": "tools/measurements/kpi_cost_rule.py's K-S3-20 battery at four floors and the two tie-group columns, each described, generated and compared with its own cells, and K-S3-11's 19 date and clock shapes at four floors",
    "evidence": "668f276, which withheld the pairs, reads 282 of 396 numeric twins out of range at a median of 45 and at most 357 thousandths of the span, and 0 of the 10 date twins out. Publishing every pair moves the derived ends onto the pairs' shapes. No check is missed on any of them.",
    "nodes_min_collected": 0,
    "value_at": {

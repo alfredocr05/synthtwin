@@ -27,8 +27,11 @@ producer, and -- where a twin is asked -- the real generator and checker:
   no check sees because no end is published -- over `K-S3-20`'s 37 shapes
   at floors 11, 20, 36 and 50, the numeric twins holding a cell outside
   the real minimum and maximum and how far, as thousandths of the real
-  span; and over the two date columns of landing 3b.0's tie-group
-  witnesses, the twins writing a day outside the real first and last.
+  span; over the two date columns of landing 3b.0's tie-group
+  witnesses, the twins writing a day outside the real first and last;
+  and over `K-S3-11`'s date and clock shapes at the same four floors, the
+  tail sides whose twin reaches further beyond the boundary than the
+  real column's furthest cell, and by how much.
 
 Every column is built from a fixed seed string at run time; nothing is
 read from disk but the tree's own code.
@@ -49,7 +52,7 @@ import cost_rule_window as window  # noqa: E402
 import kpi_rules  # noqa: E402
 import kpi_shapes  # noqa: E402
 import test_stage3_gate as gate  # noqa: E402
-from synthtwin import parsing, validation  # noqa: E402
+from synthtwin import parsing, taxonomy, validation  # noqa: E402
 
 kpi_rules.guard_this_tree()
 
@@ -310,6 +313,103 @@ def _numbers_of(text):
 _TIE_COUNTS = (5, 4, 1, 6, 9, 2, 4, 7, 6, 2, 7, 7, 5, 5, 3, 2, 9, 7, 1, 1, 11, 1)
 
 
+def _clock_ordinals(block, cells):
+    """Each parsed cell of a date or clock block as a whole number of its tail unit."""
+    found = []
+    for cell in cells:
+        if not cell:
+            continue
+        if block.get("clock_form"):
+            one = parsing.clock_ordinal(cell, block["clock_form"])
+            if one is not None:
+                found += [one]
+            continue
+        parsed = parsing.parse_datetime(cell, block["format"])
+        if parsed is None:
+            continue
+        instant = parsed[0]
+        if block.get("datetimes_read_at", "local") == "utc":
+            instant = parsing.utc_canonical(parsed[0], parsed[1])
+            if instant is None:
+                continue
+        found += [taxonomy.tail_ordinal(instant, block["tail_unit"], block.get("datetimes_read_at", "local"))]
+    return found
+
+
+def _furthest(ordinals, boundary, low):
+    """The furthest whole distance beyond ``boundary`` on one side, or 0."""
+    beyond = [boundary - one for one in ordinals if one < boundary] if low else [one - boundary for one in ordinals if one > boundary]
+    return max(beyond) if beyond else 0
+
+
+def _csv_cells(text):
+    """The cells of a one-column CSV, a quoted cell unquoted."""
+    found = []
+    for line in text.splitlines()[1:]:
+        found += [line[1:-1] if len(line) > 1 and line.startswith('"') and line.endswith('"') else line]
+    return found
+
+
+def _clock_sides_past(home, value):
+    """K-S3-50's date and clock count: tail sides whose twin reaches past the real furthest.
+
+    `K-S3-11`'s shapes at their sizes but the two written day first,
+    which `kpi_shapes.describe` takes no flag for; each table drawn at
+    seeds 0, 4 and 9 as the tails measurement drew it and its twin at the
+    same seed, at floors 11, 20, 36 and 50. THE WEEKDAY CENSUS IS NOT
+    ASKED, as in that measurement: its certificate costs up to a minute
+    a describe and decides no tail; the producer is handed the
+    re-description's own `produced=False`, and the real function is put
+    back whatever happens.
+    """
+    import random
+
+    import kpi_stage3_tail_leak as leak
+
+    real_census = taxonomy._weekday_published
+
+    def unasked(details, days, n_distinct, settings, produced, *rest):
+        return real_census(details, days, n_distinct, settings, False, *rest)
+
+    taxonomy._weekday_published = unasked
+    try:
+        for floor in (11, 20, 36, 50):
+            for shape in leak.SHAPES:
+                for rows in leak.SIZES.get(shape, leak.DEFAULT_SIZES):
+                    for seed in SEEDS:
+                        name, cells, flags = leak.SHAPES[shape](random.Random(seed * 7919 + rows), rows)
+                        if "--day-first" in flags:
+                            continue
+                        text = leak._table(name, cells)
+                        stem = f"k350-{shape}-{rows}-{seed}-f{floor}"
+                        described = kpi_shapes.describe(home / stem, stem, text, floor)
+                        block = described.document["columns"][0]
+                        if block.get("role") not in ("datetime", "time_of_day"):
+                            continue
+                        real = _clock_ordinals(block, _csv_cells(text))
+                        twin = _clock_ordinals(block, _csv_cells(kpi_shapes.twin_text(described, seed)))
+                        for key, low in (("low_tail", True), ("high_tail", False)):
+                            tail = block.get(key)
+                            if not isinstance(tail, dict):
+                                continue
+                            value["date_clock_sides"] += 1
+                            if block.get("clock_form"):
+                                boundary = parsing.clock_ordinal(tail["boundary"], block["clock_form"])
+                            else:
+                                boundary = taxonomy.tail_ordinal(
+                                    tail["boundary"], block["tail_unit"], block.get("datetimes_read_at", "local")
+                                )
+                            furthest = _furthest(real, boundary, low)
+                            reached = _furthest(twin, boundary, low)
+                            if furthest and reached > furthest:
+                                value["date_clock_sides_past"] += 1
+                                value["date_clock_reach_most_permille"] = max(
+                                    value["date_clock_reach_most_permille"], (1000 * reached) // furthest
+                                )
+    finally:
+        taxonomy._weekday_published = real_census
+
+
 def out_of_range(home):
     """K-S3-50: twins past the real range, numeric over K-S3-20's battery, and the two date columns."""
     import datetime
@@ -325,6 +425,9 @@ def out_of_range(home):
         "date_twins": 0,
         "date_twins_out_of_range": 0,
         "date_days_out_most": 0,
+        "date_clock_sides": 0,
+        "date_clock_sides_past": 0,
+        "date_clock_reach_most_permille": 0,
     }
     found = []
     for floor in (11, 20, 36, 50):
@@ -368,6 +471,7 @@ def out_of_range(home):
                     max((datetime.date.fromisoformat(one) - datetime.date.fromisoformat(real[len(real) - 1])).days for one in out),
                 )
                 value["date_days_out_most"] = max(value["date_days_out_most"], worst)
+    _clock_sides_past(home, value)
     print(f"K-S3-50 overshoots (thousandths of the span): {found}", flush=True)
     return value
 
