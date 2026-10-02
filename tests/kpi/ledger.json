@@ -7000,14 +7000,18 @@
     "tests/test_stage3b_date_questions.py::test_red_on_each_rule_of_the_codes_question",
     "tests/test_stage3b_date_questions.py::test_red_without_the_date_rule",
     "tests/test_stage3b_date_questions.py::test_a_column_no_code_can_stand_in_is_not_counted",
-    "tests/test_stage3b_date_questions.py::test_the_weighed_date_rule_reads_each_column_as_the_classifier_does"
+    "tests/test_stage3b_date_questions.py::test_the_weighed_date_rule_reads_each_column_as_the_classifier_does",
+    "tests/test_stage3b_date_questions.py::test_an_answer_names_every_other_column_it_reaches",
+    "tests/test_stage3b_date_questions.py::test_a_column_with_codes_and_dates_read_either_way_is_asked_both_at_once",
+    "tests/test_stage3b_date_questions.py::test_real_value_brings_no_other_question_back",
+    "tests/test_stage3b_date_questions.py::test_a_clock_of_few_values_is_not_promised_a_reading_of_times"
    ],
    "test": null,
    "driver": "tools/measurements/kpi_date_questions.py --kpi",
    "pin_strength": "WEAKER",
    "measured_on": "tests/date_question_shapes.py: fourteen question columns, the thirty-seven clean spellings of the reach audit of 2026-10-01 at its own seeds and five shapes left alone, through the real producer, generator and checker",
    "evidence": "Before (668f276): nothing about dates was asked. The five day-first columns were read month first and their twins parsed 41 to 74 in 100 cells under the person's own format; seven of the eight columns with codes were read as labels or numbers, their twins parsing 0 to 59, and the eighth as dates with its twenty codes written as made-up text, 99.5; three of the eight were asked whether they were blood pressures, and the Caboodle key column was listed as a measurement.",
-   "nodes_min_collected": 34,
+   "nodes_min_collected": 40,
    "value_at": {
     "commit": "54f432a",
     "date": "2026-10-01",

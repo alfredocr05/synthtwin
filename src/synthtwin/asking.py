@@ -1059,34 +1059,51 @@ def day_or_month_columns(
     table_columns: "list[list[str]]",
     settings: taxonomy.Settings,
     split: "SplitColumns | None" = None,
+    also: "tuple[DayOrMonth, ...]" = (),
 ) -> "tuple[DayOrMonth, ...]":
     """Every column of dates no value of which can say which comes first.
 
-    Nothing is asked where `--day-first` was given, in either way it
-    can be given: the person has answered, and a column read day first
-    under the declaration is the reading they asked for. Each column's
-    present cells are taken from ``split`` where `questions_and_splits_
-    for` split that very column under these settings, and split here
-    otherwise.
+    Asked only of a column read under the month-first member of a
+    slashed pair, so nothing is asked where `--day-first` was given, in
+    either way it can be given: under it a column whose cells read both
+    ways is read day first, which is the reading the person asked for,
+    and a column still read month first is one whose own cells said so.
+    That test is the block's format, made before any cell is split, so
+    a column of dates read any other way costs nothing here. Each
+    column's present cells are taken from ``split`` where `questions_
+    and_splits_for` split that very column under these settings, and
+    split here otherwise.
+
+    ``also`` holds the columns of dates beside a few codes whose other
+    cells read both ways (`date_code_findings`): such a column is read
+    as labels until the codes are answered, so its block names no
+    format, and it is put in the same question rather than in the file
+    the answering run writes. Each stands in the table's own place.
 
     Guarantees: a fixed function of the arguments, in the table's own
     column order; opens nothing; and no cell of any column appears in
     what it returns.
     """
-    if settings.day_first:
-        return ()
     blocks = document["columns"]
     if not isinstance(blocks, list):
-        return ()
+        return also
     found: "list[DayOrMonth]" = []
     position = 0
     for block in blocks:
         position = position + 1
         if not isinstance(block, dict) or position > len(table_columns):
             continue
+        coded_here = [one for one in also if one.name == f"{block['name']}"]
+        if coded_here:
+            # Once: a column of dates read whole but for its codes is
+            # also a block with a format, and it is asked once.
+            found += coded_here[:1]
+            continue
         if f"{block['role']}" != taxonomy.ROLE_DATETIME:
             continue
         if "format" not in block:
+            continue
+        if f"{block['format']}" not in _MONTH_FIRST_MEMBERS:
             continue
         if (
             split is not None
@@ -1103,6 +1120,11 @@ def day_or_month_columns(
         if seen is not None:
             found += [DayOrMonth(f"{block['name']}", seen.months, seen.days)]
     return tuple(found)
+
+
+# The month-first member of each of the classifier's slashed pairs: the
+# only readings the day-or-month question is asked of.
+_MONTH_FIRST_MEMBERS = tuple(pair[0] for pair in taxonomy.SLASHED_PAIRS)
 
 
 def _day_first_questions(
@@ -2102,6 +2124,19 @@ def _declared_identity(spelling: str) -> "tuple[str, object]":
     return ("text", parsing.folded(spelling))
 
 
+def declared_identity(spelling: str) -> "tuple[str, object]":
+    """What a declaration naming this spelling would match, as a key.
+
+    `_declared_identity`, for the run that turns answers into
+    declarations: two spellings with one key are one declaration, and
+    are named once.
+
+    Guarantees: accepts one spelling; returns its key. Determinism: a
+    function of the text. Raises TypeError if it is not text. No I/O.
+    """
+    return _declared_identity(spelling)
+
+
 def _a_date_or_a_time(spelling: str, last: str) -> str:
     """The member or clock form one spelling reads under, or nothing.
 
@@ -2121,7 +2156,10 @@ def _a_date_or_a_time(spelling: str, last: str) -> str:
 
 
 def date_codes_of(
-    present: "list[str]", settings: taxonomy.Settings
+    present: "list[str]",
+    settings: taxonomy.Settings,
+    n_rows: "int | None" = None,
+    counting_kept: bool = False,
 ) -> "DateCodes | None":
     """The few repeated codes a column of dates or times writes, or None.
 
@@ -2145,33 +2183,70 @@ def date_codes_of(
        the run's floor where that is higher) that read as no date member
        and no clock form are its CODES, grouped as one declaration would
        match them; a spelling the person declared kept with
-       `--keep-value` is no code, because that is their answer;
+       `--keep-value` is no code, because that is their answer --
+       unless ``counting_kept`` asks for the codes as they stand
+       whatever was kept, which is how a column whose codes were
+       answered `real-value` is still known for one asked about them,
+       and how an answer of `missing` reaches a code typed kept;
     2. there are one to five of them;
     3. together they hold at most a tenth of the present cells;
     4. at least three different spellings are left; and
     5. what is left clears the date rule's own line
-       (`taxonomy.reading_of_the_rest`).
+       (`taxonomy.reading_of_the_rest`, over the table's ``n_rows``,
+       which the clock half's categories line is a share of).
 
     A spelling on fewer rows stays among what is left and counts against
     the line there, as it does in the column itself.
 
-    Guarantees: accepts the present cells, in row order, and the
-    settings they were split under; returns what was seen or None.
-    Determinism: a function of the two. Raises TypeError if a cell is
+    Guarantees: accepts the present cells, in row order, the settings
+    they were split under and the table's rows (the present cells'
+    count where none is given); returns what was seen or None.
+    Determinism: a function of the arguments. Raises TypeError if a cell is
     not text. No I/O of any kind.
     """
-    if not present:
-        return None
+    found = _codes_and_rest(
+        _spellings_counted(present),
+        len(present),
+        settings,
+        len(present) if n_rows is None else n_rows,
+        counting_kept,
+    )
+    return None if found is None else found[0]
+
+
+def _spellings_counted(present: "list[str]") -> "dict[str, int]":
+    """Each different spelling of a column once, with the rows that wore it."""
     counted: "dict[str, int]" = {}
     for value in present:
         if value in counted:
             counted[value] = counted[value] + 1
         else:
             counted[value] = 1
+    return counted
+
+
+def _codes_and_rest(
+    counted: "dict[str, int]",
+    n_present: int,
+    settings: taxonomy.Settings,
+    n_rows: int,
+    counting_kept: bool,
+) -> "tuple[DateCodes, dict[str, int]] | None":
+    """`date_codes_of` over a column's counted spellings, with what is left.
+
+    The second half is each different spelling of what is left with
+    the rows that wore it, which is what the day-or-month question asks
+    of the same column (`date_code_findings`) without counting it again;
+    and the count is taken once by the caller, so asking a column twice
+    -- once as it stands and once whatever was kept -- counts it once.
+    """
+    if not counted:
+        return None
     line = max(_DATE_CODES_LINE, parsing.census_floor(settings.small_cell_floor))
     kept: "list[tuple[str, object]]" = []
-    for spelling in settings.kept_values:
-        kept += [_declared_identity(spelling)]
+    if not counting_kept:
+        for spelling in settings.kept_values:
+            kept += [_declared_identity(spelling)]
     keys: "list[tuple[str, object]]" = []
     spelled: "list[str]" = []
     rows: "list[int]" = []
@@ -2209,7 +2284,7 @@ def date_codes_of(
     coded = 0
     for held in rows:
         coded = coded + held
-    if coded * _DATE_CODES_SHARE > len(present):
+    if coded * _DATE_CODES_SHARE > n_present:
         return None
     rest: "dict[str, int]" = {}
     for spelling in counted:
@@ -2217,13 +2292,16 @@ def date_codes_of(
             rest[spelling] = counted[spelling]
     if len(rest) < _DATE_CODES_VARIETY:
         return None
-    reading_of = taxonomy.reading_of_the_rest(rest, settings)
+    reading_of = taxonomy.reading_of_the_rest(rest, settings, n_rows)
     if reading_of is None:
         return None
     codes: "list[tuple[str, int]]" = []
     for index in range(len(keys)):
         codes += [(spelled[index], rows[index])]
-    return DateCodes(reading_of[0], tuple(codes), reading_of[1], len(present))
+    return (
+        DateCodes(reading_of[0], tuple(codes), reading_of[1], n_present),
+        rest,
+    )
 
 
 def _code_written(spelling: str) -> str:
@@ -2278,42 +2356,149 @@ def date_codes_reading(found: DateCodes) -> str:
     return f"dates written as {parsing.format_example(found.reading)}"
 
 
-def _date_codes_shape(found: DateCodes, floor: int) -> str:
+def _date_codes_shape(
+    found: DateCodes, floor: int, elsewhere: "tuple[Elsewhere, ...]" = ()
+) -> str:
     """What synthtwin saw in a column of dates beside a few codes.
 
-    The counts it names are counts the description beside it is held
-    to: each is said only where it AND what it leaves over reach the
-    line (`parsing.census_nameable`), and otherwise in words that carry
-    no number.
+    EVERY COUNT HERE IS ONE THE DISCLOSURE RULE LETS THROUGH, and by
+    construction rather than by a test made here: each code stands on at
+    least the line's rows, which is never under `parsing.census_floor`,
+    and together they hold at most a tenth of the column, so what each
+    leaves over -- and what the date reading leaves over, which holds
+    every code -- reaches the line too. A branch that printed words in
+    place of these numbers could never be taken, and is not written.
+    The counts of OTHER columns are not held to that construction, and
+    `_elsewhere_words` asks the rule of each.
     """
     read = f"{found.n_read} of the {found.n_present} values"
-    if not parsing.census_nameable(
-        [found.n_read], [found.n_present], floor
-    ):
-        read = "nearly every value"
     which = date_codes_reading(found)
     named = ""
     for spelling, held in found.codes:
-        rows = (
-            f"on {held} rows"
-            if parsing.census_nameable([held], [found.n_present], floor)
-            else f"on at least {_DATE_CODES_LINE} rows"
-        )
-        one = f"written in {_code_written(spelling)}, {rows}"
+        one = f"written in {_code_written(spelling)}, on {held} rows"
         if len(found.codes) > 1:
             one = f"one {one}"
         named = one if not named else f"{named}; {one}"
+    also = ""
+    if elsewhere:
+        also = (
+            f". The same spellings stand in other columns of your table: "
+            f"{_elsewhere_words(elsewhere, floor)}"
+        )
     if len(found.codes) == 1:
         return (
             f"{read} read as {which}, and every other value is one "
             f"spelling, repeated on many rows, that reads as no date or "
-            f"time: {named}"
+            f"time: {named}{also}"
         )
     return (
         f"{read} read as {which}, and every other value is one of "
         f"{len(found.codes)} spellings, each repeated on many rows, that "
-        f"read as no date or time: {named}"
+        f"read as no date or time: {named}{also}"
     )
+
+
+@dataclasses.dataclass(frozen=True)
+class Elsewhere:
+    """Another column holding a code of a column asked about, as counted.
+
+    `rows` is how many of its cells a declaration naming the codes would
+    take, and `n_present` how many cells it holds that are not missing:
+    the two the disclosure rule asks before the count is said.
+    """
+
+    name: str
+    rows: int
+    n_present: int
+
+
+def _elsewhere_words(elsewhere: "tuple[Elsewhere, ...]", floor: int) -> str:
+    """Where else a column's codes stand, in words the disclosure rule allows.
+
+    A count is said only where it AND what it leaves over reach the line
+    (`parsing.census_nameable`); otherwise the column is named with
+    "some rows", which says the answer reaches it without saying how
+    few of its rows that is.
+    """
+    words = ""
+    for other in elsewhere:
+        rows = (
+            f"{other.rows} rows"
+            if parsing.census_nameable([other.rows], [other.n_present], floor)
+            else "some rows"
+        )
+        one = f"on {rows} of '{other.name}'"
+        words = one if not words else f"{words}, {one}"
+    return words
+
+
+def codes_elsewhere(
+    document: "dict[str, object]",
+    table_columns: "list[list[str]]",
+    position: int,
+    found: DateCodes,
+) -> "tuple[Elsewhere, ...]":
+    """Every other column a declaration naming one column's codes would reach.
+
+    WHAT AN ANSWER OF `missing` DOES TO THE REST OF THE TABLE (review of
+    lane R1, item 1). `--missing-value` reaches every column, and the
+    file names no code, so a person answering about a column of dates
+    cannot see that `-1` is also a real score of change in another one.
+    Measured before this count: a table of 2,000 rows whose DateKey
+    column wrote `-1` and `-2` on 4.5 in 100 rows, beside a column of
+    scores holding -1 and -2 legitimately, was asked with neither named;
+    answered `missing`, the scores lost 552 rows (27.6 in 100) to
+    "missing" and their published mean moved from -0.032 to +0.477.
+
+    A cell is counted where it is the same declaration as a code
+    (`_declared_identity`, the rule `--missing-value` matches by), so
+    `-1.0` is counted beside a code `-1` and `unk` beside `UNK`. Each
+    different spelling of a column is judged once, so a column of a
+    million cells over a few hundred spellings costs a few hundred
+    judgements and one pass. Columns described as empty are passed over.
+
+    Guarantees: accepts the description, the table's columns, the
+    0-based place of the column asked about and what was seen in it;
+    returns, in the table's own column order, each other column holding
+    at least one such cell, with how many. Determinism: a function of
+    the arguments. Raises nothing for text. No I/O.
+    """
+    blocks = document["columns"]
+    if not isinstance(blocks, list):
+        return ()
+    wanted: "dict[tuple[str, object], int]" = {}
+    for spelling, _rows in found.codes:
+        wanted[_declared_identity(spelling)] = 1
+    others: "list[Elsewhere]" = []
+    place = -1
+    for block in blocks:
+        place = place + 1
+        if place == position or place >= len(table_columns):
+            continue
+        if not isinstance(block, dict):
+            continue
+        if f"{block['role']}" == taxonomy.ROLE_EMPTY:
+            continue
+        judged: "dict[str, bool]" = {}
+        rows = 0
+        for cell in table_columns[place]:
+            if cell in judged:
+                hit = judged[cell]
+            else:
+                hit = _declared_identity(cell) in wanted
+                judged[cell] = hit
+            if hit:
+                rows = rows + 1
+        if rows:
+            held = block["n_present"] if "n_present" in block else None
+            others += [
+                Elsewhere(
+                    f"{block['name']}",
+                    rows,
+                    held if isinstance(held, int) else len(table_columns[place]),
+                )
+            ]
+    return tuple(others)
 
 
 def _now_publishes(role: str, floor: int, found: DateCodes) -> str:
@@ -2340,19 +2525,37 @@ def _now_publishes(role: str, floor: int, found: DateCodes) -> str:
 
 
 def _date_code_choices(
-    role: str, floor: int, found: DateCodes
+    role: str,
+    floor: int,
+    found: DateCodes,
+    elsewhere: "tuple[Elsewhere, ...]" = (),
 ) -> "list[Choice]":
     """The three answers a column of dates beside a few codes may take.
 
     `keep` first, because Enter gives it: nobody said what the codes
     mean, so the column keeps the reading it has. `missing` is the one
     that repairs it, and says that `--missing-value` reaches every
-    column of the table, which is how that option works; `real-value`
-    keeps the reading and records the answer, so the question is not
-    put again.
+    column of the table, which is how that option works -- naming each
+    other column that holds the same spellings, and how many of its
+    rows, or that none does (`codes_elsewhere`); `real-value` keeps the
+    reading and records the answer, so the question is not put again,
+    and says the same of the other columns.
     """
     reading = date_codes_reading(found)
     now = _now_publishes(role, floor, found)
+    if elsewhere:
+        where = _elsewhere_words(elsewhere, floor)
+        missing_too = (
+            f": the same spellings stand {where}, which this answer reads "
+            f"as missing there too"
+        )
+        kept_too = (
+            f": the same spellings stand {where}, which this answer keeps "
+            f"as values there too"
+        )
+    else:
+        missing_too = ", and no other column of your table holds them"
+        kept_too = missing_too
     return [
         Choice(
             ANSWER_KEEP,
@@ -2371,9 +2574,8 @@ def _date_code_choices(
                 f"spellings counted as missing and each spelling at least "
                 f"{floor} rows share written back in the twin as your table "
                 f"writes it. This is --missing-value naming each of those "
-                f"spellings, and it reaches every column of your table, so "
-                f"the same spellings in any other column are read as "
-                f"missing too"
+                f"spellings, and it reaches every column of your "
+                f"table{missing_too}"
             ),
         ),
         Choice(
@@ -2383,7 +2585,7 @@ def _date_code_choices(
             (
                 f"{now}; and this question is not asked again. This is "
                 f"--keep-value naming each of those spellings, which "
-                f"reaches every column of your table"
+                f"reaches every column of your table{kept_too}"
             ),
         ),
     ]
@@ -2419,6 +2621,25 @@ def _a_spelling_can_reach_the_line(
     return held - different + 1 >= line
 
 
+@dataclasses.dataclass(frozen=True)
+class DateCodeFindings:
+    """What one pass over a table's columns found about dates beside codes.
+
+    `questions` are the codes questions to put. `answered` are the
+    columns whose codes stand only because the person declared them
+    kept -- an answer of `real-value`, or `--keep-value` typed -- each
+    as the question it would have been: such a column is asked nothing
+    else, as it was not while the question stood (review of lane R1,
+    item 2). `day_or_month` are the columns asked about whose other
+    cells read both ways under a slashed pair (item 4), for the file's
+    day-or-month question.
+    """
+
+    questions: "tuple[Question, ...]" = ()
+    answered: "tuple[Question, ...]" = ()
+    day_or_month: "tuple[DayOrMonth, ...]" = ()
+
+
 def date_code_questions(
     document: "dict[str, object]",
     table_columns: "list[list[str]]",
@@ -2426,6 +2647,21 @@ def date_code_questions(
     already: "list[str]",
     split: "SplitColumns | None" = None,
 ) -> "list[Question]":
+    """The codes questions `date_code_findings` finds, as a list."""
+    return list(
+        date_code_findings(
+            document, table_columns, settings, already, split
+        ).questions
+    )
+
+
+def date_code_findings(
+    document: "dict[str, object]",
+    table_columns: "list[list[str]]",
+    settings: taxonomy.Settings,
+    already: "list[str]",
+    split: "SplitColumns | None" = None,
+) -> DateCodeFindings:
     """Every column of dates or times that writes a few repeated codes.
 
     Asked of every column nobody declared, whatever it was read as --
@@ -2435,13 +2671,20 @@ def date_code_questions(
     ask about and is passed over without its cells being read. Each
     column's present cells are taken from ``split`` where
     `questions_and_splits_for` split that very column under these
-    settings.
+    settings, and each is counted once.
 
     A COLUMN ASKED ABOUT HERE IS ASKED NOTHING ELSE: `00/00/0000` beside
     `03/17/2023` is two numbers joined by a mark on every row, and the
     joined question that shape raises would offer a blood pressure
-    reading of a column of dates. The caller takes this list's columns
-    out of the others (`without_columns_of`).
+    reading of a column of dates. The caller takes these columns out of
+    the others (`without_columns_of`) -- and the `answered` ones too,
+    whose codes the person declared kept: the joined question is no
+    more the column's after that answer than before it.
+
+    Each question names the other columns its answer would reach
+    (`codes_elsewhere`), and a column whose dates read either way once
+    its codes are out is put in the day-or-month question as well, so
+    one file asks both and one answering run reads the column right.
 
     Guarantees: a fixed function of the arguments, in the table's own
     column order; opens nothing; prints nothing; and no cell of any
@@ -2449,8 +2692,10 @@ def date_code_questions(
     """
     blocks = document["columns"]
     if not isinstance(blocks, list):
-        return []
+        return DateCodeFindings()
     found: "list[Question]" = []
+    answered: "list[Question]" = []
+    order: "list[DayOrMonth]" = []
     position = 0
     for block in blocks:
         position = position + 1
@@ -2477,20 +2722,44 @@ def date_code_questions(
             )
         if not _a_spelling_can_reach_the_line(block, present, settings):
             continue
-        seen = date_codes_of(present, settings)
+        counted = _spellings_counted(present)
+        n_rows = len(table_columns[position - 1])
+        seen = _codes_and_rest(counted, len(present), settings, n_rows, False)
         if seen is None:
+            if not settings.kept_values:
+                continue
+            # WHAT WAS DECLARED KEPT, COUNTED AS IT STANDS: where the
+            # codes are back once nothing is kept, the person kept them,
+            # and the column is one asked about and answered.
+            stood = _codes_and_rest(counted, len(present), settings, n_rows, True)
+            if stood is not None:
+                answered += [
+                    Question(
+                        name, role, BECAUSE_DATE_CODES, "", [], ANSWER_REAL_VALUE
+                    )
+                ]
             continue
+        codes, rest = seen
+        elsewhere = codes_elsewhere(
+            document, table_columns, position - 1, codes
+        )
         found += [
             Question(
                 name,
                 role,
                 BECAUSE_DATE_CODES,
-                _date_codes_shape(seen, settings.small_cell_floor),
-                _date_code_choices(role, settings.small_cell_floor, seen),
+                _date_codes_shape(codes, settings.small_cell_floor, elsewhere),
+                _date_code_choices(
+                    role, settings.small_cell_floor, codes, elsewhere
+                ),
                 ANSWER_KEEP,
             )
         ]
-    return found
+        if codes.reading in _MONTH_FIRST_MEMBERS:
+            either = day_or_month_seen(list(rest), codes.reading)
+            if either is not None:
+                order += [DayOrMonth(name, either.months, either.days)]
+    return DateCodeFindings(tuple(found), tuple(answered), tuple(order))
 
 
 # THE QUESTIONS A COLUMN OF DATES BESIDE CODES IS NOT ASKED (plan

@@ -7205,7 +7205,7 @@ def _weighed_reading(
 
 
 def reading_of_the_rest(
-    counted: "dict[str, int]", settings: Settings
+    counted: "dict[str, int]", settings: Settings, n_rows: int
 ) -> "tuple[str, int] | None":
     """The date member or clock form these cells clear the date rule's line under.
 
@@ -7231,10 +7231,20 @@ def reading_of_the_rest(
     fail than the line leaves room for, which is what keeps a column
     that is not dates cheap to refuse.
 
+    THE CLOCK RULE STANDS AFTER THE CATEGORIES RULE, and so does this
+    function's clock half: a column of four different times beside
+    `99:99`, its code taken out, is a set of four categories to the
+    classifier (rule 7 claims it before rule 8 is asked), so it is not a
+    column of times here either, and the question that would promise
+    "read as times of day" is not put. The line is the classifier's own
+    (`categories_ceiling` over the table's ``n_rows``), against the
+    different spellings left counted as rule 7 counts them, trimmed and
+    case-folded. Dates need no such test: rule 5 stands ahead of rule 7.
+
     Guarantees: accepts each different spelling with the rows that wore
-    it, in the column's own order, and the settings; returns the member
-    or form and how many cells it parses, or None where none reaches
-    the line. Determinism: a function of the two. Raises nothing for
+    it, in the column's own order, the settings and the table's rows;
+    returns the member or form and how many cells it parses, or None
+    where none reaches the line. Determinism: a function of the two. Raises nothing for
     text. No I/O of any kind.
     """
     total = 0
@@ -7271,6 +7281,11 @@ def reading_of_the_rest(
             parsed = _weighed_reading(counted, reading, room)
         if parsed >= needed and parsed:
             return reading, parsed
+    folded: "dict[str, int]" = {}
+    for spelling in counted:
+        folded[parsing.folded(spelling)] = 1
+    if len(folded) <= categories_ceiling(n_rows, settings):
+        return None
     for form in (parsing.CLOCK_HH_MM_SS, parsing.CLOCK_HH_MM):
         good = 0
         for spelling in counted:

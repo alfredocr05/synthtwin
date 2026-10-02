@@ -987,8 +987,17 @@ _LOWERED_FLOOR_REMINDER = (
 
 def _declared_words_notice(
     named: "list[tuple[str, str, int]]",
+    answered: "tuple[str, ...]" = (),
 ) -> str:
     """What the description kept of the words the person typed.
+
+    OR ANSWERED (review of lane R1, item 1): a code found again from an
+    answer of `missing` in the questions file is a `--missing-value` the
+    person never typed, and a notice calling it "words you typed" sends
+    them looking for an option they did not give. ``answered`` holds
+    those spellings; a word is counted as answered where its
+    declaration identity is one of theirs, and the opening line says
+    which way each word arrived.
 
     Shown when a word of the person's OWN, named with `--missing-value`,
     reached the description -- which contract 5 section 3.2 way 4 makes
@@ -1050,19 +1059,43 @@ def _declared_words_notice(
     one_spelling = len(named) == 1
     words = summary.words_behind(named)
     one_word = words == 1
+    from_answers: "list[tuple[str, object]]" = []
+    answered_as = [asking.declared_identity(one) for one in answered]
+    for spelling, _column, _count in named:
+        identity = asking.declared_identity(spelling)
+        if identity in answered_as and identity not in from_answers:
+            from_answers += [identity]
+    typed_how = "You typed"
+    if not from_answers:
+        arrived = "you typed after --missing-value"
+    elif len(from_answers) >= words:
+        arrived = "your answers in the questions file declared missing"
+        typed_how = "You named"
+    else:
+        arrived = (
+            "you typed after --missing-value or your answers in the "
+            "questions file declared missing"
+        )
+        typed_how = "You named"
     both = "" if len(named) == words else (
         f"\n\nWHY THERE ARE MORE LINES THAN WORDS. Your table wrote "
         f"{'the word you named' if one_word else 'some of the words you named'}"
         f" more than one way, and the description records each way "
         f"separately, because it has to say how each cell was spelled. "
-        f"You typed {'one word' if one_word else f'{words} words'}; the "
+        f"{typed_how} {'one word' if one_word else f'{words} words'}; the "
         f"rest of what you see above is your table's own spelling."
+    )
+    undo = (
+        ""
+        if not from_answers
+        else ", or with your answer about the column they were found in "
+        "changed back to 'keep'"
     )
     return (
         f"\n{_ALARM}\n"
         f"READ THIS BEFORE EITHER OF THESE FILES GOES ANYWHERE.\n"
-        f"{'A word' if one_word else f'{words} words'} you typed after "
-        f"--missing-value {'is' if one_word else 'are'} written into the "
+        f"{'A word' if one_word else f'{words} words'} {arrived} "
+        f"{'is' if one_word else 'are'} written into the "
         f"description.\n"
         f"{_ALARM}\n"
         f"\n"
@@ -1086,8 +1119,8 @@ def _declared_words_notice(
         f"code, anything that names a person -- then neither file may "
         f"leave your machine as it stands. Delete what this run writes "
         f"and describe the table again without naming "
-        f"{'that word' if one_word else 'those words'}, or with the "
-        f"cells already blank."
+        f"{'that word' if one_word else 'those words'}{undo}, or with "
+        f"the cells already blank."
     )
 
 
@@ -2576,6 +2609,13 @@ def _run_profile(
         return 2
     added_missing: "list[str]" = []
     added_kept: "list[str]" = []
+    # Each declaration once, by the identity it matches by: two columns
+    # both answered `missing` about `UNK` declare it once, and the line
+    # that repeats the run names it once. Once for EACH answer: `UNK`
+    # answered `missing` in one column and `real-value` in another is
+    # the contradiction refused below, and is not folded away here.
+    missing_as: "list[tuple[str, object]]" = []
+    kept_as: "list[tuple[str, object]]" = []
     for name in answered_missing_dates + answered_real_values:
         column_at = 0
         for held in read.column_names:
@@ -2585,14 +2625,24 @@ def _run_profile(
         present, _absent = taxonomy.split_missing(
             read.columns[column_at], settings
         )
-        seen = asking.date_codes_of(present, settings)
+        # THE CODES AS THEY STAND, WHATEVER WAS TYPED KEPT: the answer
+        # is the newer statement (below), so a `--keep-value` the
+        # person typed does not hide from their answer the code it
+        # names.
+        seen = asking.date_codes_of(
+            present, settings, len(read.columns[column_at]), True
+        )
         if seen is None:
             _warn(errors.the_date_codes_answer_reached_nothing(name))
             continue
         for spelling, _rows in seen.codes:
+            identity = asking.declared_identity(spelling)
             if name in answered_missing_dates:
-                added_missing += [spelling]
-            else:
+                if identity not in missing_as:
+                    missing_as += [identity]
+                    added_missing += [spelling]
+            elif identity not in kept_as:
+                kept_as += [identity]
                 added_kept += [spelling]
     if added_missing or added_kept:
         commas = bool(forced_decimal_commas)
@@ -2740,10 +2790,21 @@ def _run_profile(
     # each answer changes one column's reading: these declare spellings
     # every column reads, which the file's answers apply before the
     # table is described.
-    coded_about = asking.date_code_questions(
+    #
+    # WORKED OUT ONCE A RUN where nothing it reads changes (review of
+    # lane R1, item 7): the screen and the questions file below reuse
+    # this pass unless the interview rebuilt the description or moved
+    # the settings or the declarations.
+    findings = asking.date_code_findings(
         document, read.columns, settings, already_answered, split_columns
     )
-    asked_about = asking.without_columns_of(asked_about, coded_about)
+    findings_of = (document, settings, list(already_answered))
+    coded_about = list(findings.questions)
+    # A column whose codes were answered `real-value` is asked nothing
+    # else either: the answer kept its codes, and the joined question
+    # is no more the column's for that.
+    coded_or_answered = coded_about + list(findings.answered)
+    asked_about = asking.without_columns_of(asked_about, coded_or_answered)
     # ...AND THE ONE QUESTION ABOUT WHO THE ROWS ARE (plan P4-D340).
     # Asked only where the population is STILL COUNTED IN ROWS -- where
     # `settings.person_columns` is empty, which is exactly where nobody
@@ -2760,7 +2821,7 @@ def _run_profile(
         read.columns,
         settings,
         already_answered,
-        asked_about + coded_about,
+        asked_about + coded_or_answered,
         split_columns,
     )
     # EVERY COLUMN READ AS A NUMBER, LISTED UNDER ONE QUESTION
@@ -2774,7 +2835,7 @@ def _run_profile(
         read.columns,
         settings,
         already_answered,
-        asked_about + coded_about,
+        asked_about + coded_or_answered,
     )
     answered = False
     assumptions_said = False
@@ -2932,13 +2993,29 @@ def _run_profile(
     # THERE (plan P4-D381), for the checklist's reason: each is put in
     # the questions file, and a run whose only finding is one of them
     # would otherwise show nothing.
-    if coded_about:
-        _say(f"\n{_date_codes_notice(coded_about)}\n")
+    settled = forced_identifiers + forced_codes + forced_measurements
+    if not (
+        document is findings_of[0]
+        and settings == findings_of[1]
+        and settled == findings_of[2]
+    ):
+        findings = asking.date_code_findings(
+            document, read.columns, settings, settled, split_columns
+        )
+        findings_of = (document, settings, list(settled))
+    if findings.questions:
+        _say(f"\n{_date_codes_notice(list(findings.questions))}\n")
+    # A column of dates beside codes whose other cells read either way
+    # is asked the order too, in the same file (review of lane R1, item
+    # 4): answered `missing` alone, it would be read month first and
+    # asked the order only by the file the answering run writes.
     day_or_month: "tuple[asking.DayOrMonth, ...]" = ()
     if not answered_month_first:
         day_or_month = asking.day_or_month_columns(
-            document, read.columns, settings, split_columns
+            document, read.columns, settings, split_columns,
+            also=findings.day_or_month,
         )
+    day_or_month_of = (document, settings)
     if day_or_month:
         _say(f"\n{_day_or_month_notice(day_or_month)}\n")
     # HOW LARGE THE TABLE IS, SAID ONCE, WHOEVER IS THERE (plan
@@ -3105,7 +3182,7 @@ def _run_profile(
         )
     kept_of_yours = summary.words_of_your_own(document)
     if kept_of_yours:
-        _warn(_declared_words_notice(kept_of_yours))
+        _warn(_declared_words_notice(kept_of_yours, tuple(added_missing)))
     if floor_chosen and smallest_group < _NOTICE_LINE:
         _warn(_lowered_floor_warning(smallest_group))
 
@@ -3189,10 +3266,26 @@ def _run_profile(
     # from the FINAL settings (plan P4-D381): a column whose codes were
     # answered `missing` reads as dates now and is asked nothing, and one
     # answered `real-value` has its codes declared kept.
-    coded_about = asking.date_code_questions(
-        document, read.columns, settings, settled, split_columns
-    )
-    asked_about = asking.without_columns_of(asked_about, coded_about)
+    if not (
+        document is findings_of[0]
+        and settings == findings_of[1]
+        and settled == findings_of[2]
+    ):
+        findings = asking.date_code_findings(
+            document, read.columns, settings, settled, split_columns
+        )
+    coded_about = list(findings.questions)
+    coded_or_answered = coded_about + list(findings.answered)
+    asked_about = asking.without_columns_of(asked_about, coded_or_answered)
+    if not (document is day_or_month_of[0] and settings == day_or_month_of[1]):
+        day_or_month = (
+            ()
+            if answered_month_first
+            else asking.day_or_month_columns(
+                document, read.columns, settings, split_columns,
+                also=findings.day_or_month,
+            )
+        )
     # ...AND THE PERSON QUESTION, recomputed from the FINAL
     # declarations like every other (plan P4-D340). A column answered
     # `identifier` at the terminal is declared now, so the file that
@@ -3204,11 +3297,12 @@ def _run_profile(
         read.columns,
         settings,
         settled,
-        asked_about + coded_about,
+        asked_about + coded_or_answered,
         split_columns,
     )
     listed_about = asking.checklist_for(
-        document, read.columns, settings, settled, asked_about + coded_about
+        document, read.columns, settings, settled,
+        asked_about + coded_or_answered,
     )
     asked_about = asked_about + coded_about
     # AND ITS DESTINATION IS GUARDED LIKE ANY OTHER (review item
@@ -3266,15 +3360,9 @@ def _run_profile(
                         # ...and which comes first, the day or the month,
                         # where no value of a column of dates can say
                         # (plan P4-D381), from the FINAL settings -- and
-                        # not to a person whose file answered it.
-                        day_or_month=(
-                            ()
-                            if answered_month_first
-                            else asking.day_or_month_columns(
-                                document, read.columns, settings,
-                                split_columns,
-                            )
-                        ),
+                        # not to a person whose file answered it. The
+                        # screen's pass, where nothing has moved since.
+                        day_or_month=day_or_month,
                     ),
                     # ...AND WHAT THIS RUN SAID ABOUT THE TABLE AS A
                     # WHOLE (plan P4-D341). The population notice, in
