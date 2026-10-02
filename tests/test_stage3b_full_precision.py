@@ -170,6 +170,25 @@ NESTED_SEED = 1
 GATE_SEED = 5000
 
 
+# CPython's own recursion limit. Something else in the same process can raise
+# it and leave it raised -- the generation oracle's reference walk sets it to
+# `10 * total + 1000` and keeps it (1,100 in the suite's third shard) -- and a
+# 1,014-wide census then nests under the recursive walk without stopping, so
+# the two tests that need the interpreter's own depth pin it for themselves.
+INTERPRETER_DEFAULT_DEPTH = 1_000
+
+
+@pytest.fixture
+def default_depth():
+    """The interpreter's default recursion limit for one test, and the earlier limit put back after it."""
+    before = sys.getrecursionlimit()
+    sys.setrecursionlimit(INTERPRETER_DEFAULT_DEPTH)
+    try:
+        yield INTERPRETER_DEFAULT_DEPTH
+    finally:
+        sys.setrecursionlimit(before)
+
+
 def _table(folder: pathlib.Path, name: str, cells: "list[str]") -> pathlib.Path:
     folder.mkdir(parents=True, exist_ok=True)
     path = folder / f"{name}.csv"
@@ -436,24 +455,24 @@ def test_the_free_totals_are_every_total_the_free_conventions_hold() -> None:
 # -- 3. a census wider than the interpreter can nest ---------------------------
 
 
-def test_a_census_wider_than_the_interpreter_can_nest_describes(tmp_path, monkeypatch) -> None:
+def test_a_census_wider_than_the_interpreter_can_nest_describes(tmp_path, monkeypatch, default_depth) -> None:
     """The regression: the whole command, on hours between two times written in full.
 
     The column's fraction widths are one pool beside more widths than
-    `sys.getrecursionlimit()`, so the pre-repair walk nested past it on
+    the interpreter's default recursion limit, so the pre-repair walk nested past it on
     every reading; the walk is counted to show it was reached that wide.
     """
     counted = _Widest(monkeypatch)
     path = _table(tmp_path / "in", "hours", hours_between(1000, NESTED_SEED))
     code, said = _profile(path, tmp_path / "out")
     assert code == 0, said
-    assert counted.widest > sys.getrecursionlimit(), (counted.widest, sys.getrecursionlimit())
+    assert counted.widest > default_depth == sys.getrecursionlimit(), (counted.widest, sys.getrecursionlimit())
     block = json.loads((tmp_path / "out" / "hours-profile.json").read_text(encoding="utf-8"))["columns"][0]
     assert block["role"] == taxonomy.ROLE_CONTINUOUS, block["role"]
     assert block["fraction_widths"], block["fraction_widths"]
 
 
-def test_the_same_column_under_the_recursive_walk_ends_in_a_sentence(tmp_path, monkeypatch) -> None:
+def test_the_same_column_under_the_recursive_walk_ends_in_a_sentence(tmp_path, monkeypatch, default_depth) -> None:
     """RED CHECK, and the message: put the old walk back and the command stops, in words.
 
     Without it the test above says only that a table describes. And the
