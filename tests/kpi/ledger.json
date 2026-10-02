@@ -6576,6 +6576,96 @@
    }
   },
   {
+   "id": "K-S3-54",
+   "phase_stage": "Stage 3b landing R0 (plan P4-D380)",
+   "category": "CODE",
+   "headline": false,
+   "name": "Numbers a program computed and wrote in full describe, at 1,000 to 100,000 rows",
+   "status": "GREEN",
+   "rule": "machine-free: of 60 computed-number columns written in full -- hours between two times as seconds over 3,600, ratios of two counts, times as fractions of a day; 1,000 rows, seeds 0 to 19 each -- none ends `synthtwin profile` without both files written; at 10,000 rows the pool walk's readings of the free cells take at most 4,000 big-number steps in all; at 100,000 rows no state of the census's widths is placed, its table charged before it is built; and the gate's pinned nodes pass; and 10,000 and 100,000 rows describe in under 30 and 120 s on the quiet reference machine",
+   "rule_kind": "at_most",
+   "expected": {
+    "columns": 60,
+    "crashed": 0,
+    "spreads_10k": 4000,
+    "wide_placements_100k": 0,
+    "seconds_10k": 30.0,
+    "seconds_100k": 120.0,
+    "pinned_nodes_failing": 0
+   },
+   "key_kinds": {
+    "columns": "at_least",
+    "seconds_10k": "seconds_below",
+    "seconds_100k": "seconds_below",
+    "pinned_nodes_failing": "exact"
+   },
+   "tier": "SLOW",
+   "source": "driver",
+   "nodes": [
+    "tests/test_stage3b_full_precision.py::test_the_walk_finds_what_the_recursion_found_at_the_same_cost",
+    "tests/test_stage3b_full_precision.py::test_a_state_written_out_is_charged_its_size",
+    "tests/test_stage3b_full_precision.py::test_the_walk_can_never_reach_itself",
+    "tests/test_stage3b_full_precision.py::test_the_sum_answers_what_the_walk_over_every_free_convention_answered",
+    "tests/test_stage3b_full_precision.py::test_the_free_totals_are_every_total_the_free_conventions_hold",
+    "tests/test_stage3b_full_precision.py::test_a_census_wider_than_the_interpreter_can_nest_describes",
+    "tests/test_stage3b_full_precision.py::test_the_same_column_under_the_recursive_walk_ends_in_a_sentence",
+    "tests/test_stage3b_full_precision.py::test_a_step_nesting_too_deep_in_the_other_commands_ends_in_a_sentence",
+    "tests/test_stage3b_full_precision.py::test_the_description_is_the_one_the_walk_over_every_free_convention_gives",
+    "tests/test_stage3b_full_precision.py::test_computed_numbers_describe_at_ten_thousand_and_a_hundred_thousand_rows"
+   ],
+   "test": null,
+   "driver": "tools/measurements/kpi_full_precision.py --kpi",
+   "pin_strength": "WEAKER",
+   "measured_on": "three generators of computed numbers written by repr -- seconds/3600, a/b of whole numbers under 500, seconds/86400 -- at 1,000 rows and seeds 0 to 19 each, and seconds/3600 at 10,000 and 100,000 rows, seed 5000, through `synthtwin profile`",
+   "evidence": "Before (668f276, the date-and-time reach audit's skeptic): `synthtwin profile` stopped on a RecursionError with no file in 14, 7 and 15 of 20 seeds of the three shapes at 1,000 rows, and on 3 of 3 workbook time columns holding seconds; the walk made iterative alone took 4.2 s at 1,000 rows, 41 s at 3,000 and more than twelve CPU minutes at 10,000, one reading of the free cells about 1.5 million big-number steps at 3,000 rows. After: the walk carries its own stack, a reading is a sum, and every step is charged its work.",
+   "nodes_min_collected": 12,
+   "value_at": {
+    "commit": "PENDING",
+    "date": "2026-10-01",
+    "measured_by": "tools/measurements/kpi_run.py --slow --only K-S3-54 --only K-S3-55 --print-values",
+    "value": {}
+   }
+  },
+  {
+   "id": "K-S3-55",
+   "phase_stage": "Stage 3b landing R0 (plan P4-D380)",
+   "category": "SPEED",
+   "headline": false,
+   "name": "A column nothing reads is split once per different text",
+   "status": "GREEN",
+   "rule": "machine-free: 1,000 Oracle-style timestamps, every one different, through `synthtwin profile` ask `taxonomy.affixed_split` at most once per different text across the census's reading and the description's, where they asked it sixteen times a cell; and the gate's pinned nodes pass; and an unread 10,000-row column describes in under 30 s on the quiet reference machine",
+   "rule_kind": "at_most",
+   "expected": {
+    "different_texts": 1000,
+    "split_calls": 1000,
+    "seconds_unread_10k": 30.0,
+    "pinned_nodes_failing": 0
+   },
+   "key_kinds": {
+    "different_texts": "at_least",
+    "seconds_unread_10k": "seconds_below",
+    "pinned_nodes_failing": "exact"
+   },
+   "tier": "FAST",
+   "source": "pytest",
+   "nodes": [
+    "tests/test_stage3b_full_precision.py::test_a_column_nothing_reads_is_split_once_per_different_text",
+    "tests/test_stage3b_full_precision.py::test_a_copy_of_a_reading_keeps_its_splits"
+   ],
+   "test": "tests/test_kpi_ledger.py::test_k_s3_55",
+   "driver": "tools/measurements/kpi_full_precision.py --kpi",
+   "pin_strength": "EXACT",
+   "measured_on": "1,000 Oracle TIMESTAMP spellings (`18-SEP-21 09.51.52.229882 PM`), seed 7, through `synthtwin profile`, every split counted; the driver's 10,000 of them timed",
+   "evidence": "Before (668f276, the reach audit's skeptic): `affixed_split` ran 16 times a cell, `_reads_as_a_number` about 1,700 times a cell, 9.4 of the 9.9 s a 1,000-cell unread column took; 16,000 splits on this column. After: one per different text, the census's reading and the description's sharing the answers.",
+   "nodes_min_collected": 2,
+   "value_at": {
+    "commit": "PENDING",
+    "date": "2026-10-01",
+    "measured_by": "tools/measurements/kpi_run.py --slow --only K-S3-54 --only K-S3-55 --print-values",
+    "value": {}
+   }
+  },
+  {
    "id": "K-S3-17",
    "phase_stage": "Stage 3's follow-up A, the owner's accepted limit of 2026-09-25 (plan P4-D353, answer 1)",
    "category": "PRIVACY",

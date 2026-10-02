@@ -6,6 +6,22 @@ exists).
 
 ## [Unreleased]
 
+### Numbers written in full describe, and an unread column is split once (2026-10-01)
+
+**No more stack trace on computed numbers** (plan P4-D380, landing R0).
+A column a program computed and wrote in full -- hours between two times
+as seconds over 3,600, a ratio, a time as a fraction of a day, as Python
+and pandas write a float -- stopped `synthtwin profile` with a
+`RecursionError` and no file, as did workbook times holding seconds:
+the walk asking whether its fraction widths may pool nested once per
+width. It carries its own stack now, a reading of the free cells is
+worked out as the sum it is, and the walk's budget is charged for the
+work each step does, so the answer it gives on stopping short takes over
+where the work is too large. Any step that still nests too deep ends in
+a sentence and exit 1. **A column nothing reads is split once per
+different text**, not sixteen times a cell. Profiles and twins are
+byte-identical wherever the old code finished. `K-S3-54`, `K-S3-55`.
+
 ### The weekday certificate's cap, measured (2026-09-30)
 
 **The cap stays at 20,000 arrangements** (plan P4-D359, the owner's

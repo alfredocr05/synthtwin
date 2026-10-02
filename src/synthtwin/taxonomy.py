@@ -6283,6 +6283,19 @@ class _Cells:
     spellings_by_folded: dict[str, dict[str, int]]
     all_digits: int
     code_alphabet: int
+    # EACH DIFFERENT TEXT IS SPLIT ONCE (plan P4-D380), by the grammar it
+    # was split under. `affixed_split` is a function of the text and the
+    # grammar alone, and a column the earlier rules decline was split four
+    # times over in each of four readings: sixteen splits a cell, about
+    # 1,700 questions to the number reader each, nearly all of the ten
+    # seconds a thousand cells of a column nothing reads took to describe.
+    # A copy of this record made with `dataclasses.replace` -- the kept
+    # reading `profile_column` takes over -- holds the same answers, so
+    # the census's reading and the description's split a text once
+    # between them. It is never compared and never published.
+    affixes: "dict[bool, dict[str, tuple[str, str, str] | None]]" = dataclasses.field(
+        default_factory=dict, compare=False, repr=False
+    )
 
 
 def _classify_all(
@@ -6591,6 +6604,24 @@ def affixed_split(
     if not prefix and not suffix:
         return None
     return prefix, core, suffix
+
+
+def _split_once(cells: _Cells, text: str) -> "tuple[str, str, str] | None":
+    """`affixed_split` of one present cell, under the reading's grammar, worked out once per different text.
+
+    The answer is `affixed_split`'s exactly: it is remembered on the
+    reading (`_Cells.affixes`) by grammar and text, and both are all the
+    split reads. Plan P4-D380.
+    """
+    grammar = cells.decimal_comma
+    if grammar not in cells.affixes:
+        cells.affixes[grammar] = {}
+    known = cells.affixes[grammar]
+    if text in known:
+        return known[text]
+    split = affixed_split(text, grammar)
+    known[text] = split
+    return split
 
 
 def _numeric_looking_widths(cells: _Cells) -> "tuple[int, int]":
@@ -17558,7 +17589,7 @@ def affixed_reach(cells: _Cells) -> int:
     """
     proposing: "dict[tuple[str, str], int]" = {}
     for text in cells.present:
-        split = affixed_split(text, cells.decimal_comma)
+        split = _split_once(cells, text)
         if split is None:
             continue
         prefix, _core, suffix = split
@@ -17837,7 +17868,7 @@ def _affixed_before_the_address_test(
     # number would describe none.
     proposing: "dict[tuple[str, str], int]" = {}
     for text in present:
-        split = affixed_split(text, cells.decimal_comma)
+        split = _split_once(cells, text)
         if split is None:
             # THE BARE PAIR IS A MEMBER OF THE VOCABULARY (plan
             # P4-D36), proposed by a cell that reads as a number

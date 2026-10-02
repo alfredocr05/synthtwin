@@ -149,6 +149,10 @@ CASES: "dict[str, tuple[object, ...]]" = {
     "output_would_replace_the_table": ("/data/table.csv",),
     "unknown_column_named": ("holding record numbers", "agee", ["age", "site"]),
     "out_of_memory_while_describing": ("/data/table.csv",),
+    # Any step nesting past Python's own limit (plan P4-D380), on the
+    # file the person typed; driven through the command in
+    # `tests/test_stage3b_full_precision.py`.
+    "stopped_nested_too_deep": ("/data/table.csv",),
     "output_is_not_a_plain_file": ("/reports/table-profile.json",),
     "outputs_are_the_same_file": ("/r/a-profile.json", "/r/a-profile.txt"),
     # Reading a description back: the strict loader's nineteen refusals,
