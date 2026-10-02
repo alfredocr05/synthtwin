@@ -1212,19 +1212,25 @@ it, and both are the value's and not the writer's:
   110 of 1394 moments at midnight. The twin writes each such date back as the day
   count it was read as, wearing a date format (method G2.2).
 - *A date format that hides a time reads its whole column as moments
-  where most of its cells hold one* (plan P4-D382,
-  `workbook._read_as_one_column`). Where the numbers of a column wearing
-  a DATE format that hold a time of day are at least as many as those
-  read as whole days, every number of the column wearing one is read as
-  a moment, its whole days as `YYYY-MM-DD 00:00:00`: the format hides
-  the time and every reader hands it back. Where fewer hold one, the
-  column stays a column of dates and the timed cells are unparsed, as
-  before. Measured before: 1,000 moments wearing `m/d/yyyy`, six of
-  them at midnight, had those six read as bare dates, counted unparsed
-  and written as text, and `validate` exited 3 on the twin; and with
-  the column read as moments wherever one cell held a time, 995 weekday
-  dates beside 5 timed cells published no weekday census and their twin
-  fell on a weekend 0.282 of the time against the source's 0.0.
+  where more than one cell in a hundred holds one* (plan P4-D382,
+  `workbook._read_as_one_column`, `workbook.DAYS_PER_TIMED_CELL`). Where
+  more than one in a hundred of the numbers of a column wearing a DATE
+  format hold a time of day, every number of the column wearing one is
+  read as a moment, its whole days as `YYYY-MM-DD 00:00:00`: the format
+  hides the time and every reader hands it back. Where some hold one
+  but one in a hundred or fewer, the column stays a column of dates and
+  each timed cell is read as the day its format shows, so no cell is
+  unparsed; the line is the default parse line of 0.99 read as cells.
+  Measured before: 1,000 moments wearing `m/d/yyyy`, six of them at
+  midnight, had those six read as bare dates, counted unparsed and
+  written as text, and `validate` exited 3 on the twin; with the column
+  read as moments wherever one cell held a time, 995 weekday dates
+  beside 5 timed cells published no weekday census and their twin fell
+  on a weekend 0.282 of the time against the source's 0.0; and with the
+  timed cells left unparsed wherever they were fewer than the whole
+  days, the twin wrote them as text and `validate` exited 3 at 1, 5,
+  10, 40 and 50 timed cells in 1,000, while from 11 to 499 the column
+  was read jointly as `iso-mixed`.
 - *A number wearing a time format is read as its clock where every one
   is a clock* (plan P4-D382, `dialect.sheet_serial_second`): where
   every value cell of a column is a number wearing a time format and

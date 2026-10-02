@@ -1840,6 +1840,7 @@ def _read_as_one_column(
     epoch_1904: bool,
     timed: bool,
     clocks: int,
+    days: bool = False,
 ) -> None:
     """Spell a column's date and time cells one way for the whole column.
 
@@ -1854,12 +1855,22 @@ def _read_as_one_column(
     unparsed, the twin wrote them as text, and `validate` exited 3 on
     the twin of the person's own table -- the commonest shape there is,
     since a column of moments holds well under one in a hundred at
-    midnight. Where ``timed`` -- the column's date-format cells holding
-    a time are AT LEAST AS MANY as those read as whole days -- each
-    date-format cell read as a whole day is spelled as the moment at
-    midnight it is. A column of whole days, or of whole days beside
-    fewer timed cells, is not timed, and reads as dates as it always
-    did.
+    midnight. Where ``timed`` -- MORE than one in a hundred of the
+    column's dated date-format cells hold a time (`DAYS_PER_TIMED_CELL`)
+    -- each date-format cell read as a whole day is spelled as the
+    moment at midnight it is.
+
+    THE FEW TIMED CELLS AMONG DAYS. Where ``days`` -- some date-format
+    cells hold a time, but one in a hundred or fewer -- each of those
+    cells is spelled as the day its format shows, `YYYY-MM-DD`, so the
+    column reads as days with every cell parsed. Measured on 995
+    weekday dates beside 5 timed cells under `m/d/yyyy`: spelled as
+    moments, the twin lost the weekday census and fell on a weekend
+    0.282 of the time against the source's 0.0; left unparsed, the
+    twin wrote 5 text cells, `validate` exited 3 and pandas read the
+    twin's column as text (and so at 1, 10, 40 and 50 timed cells). A
+    column of whole days alone is neither, and reads as dates as it
+    always did.
 
     THE CLOCKS (see `dialect.sheet_serial_second`). ``clocks`` is
     `CLOCKS_NONE` where the column's time-format numbers are not every
@@ -1878,7 +1889,7 @@ def _read_as_one_column(
     number cells and nowhere else. Determinism: a fixed function of the
     arguments. Raises nothing. No I/O of any kind.
     """
-    if not timed and clocks == CLOCKS_NONE:
+    if not timed and not days and clocks == CLOCKS_NONE:
         return
     first, last = rows
     for number in range(first, last + 1):
@@ -1889,6 +1900,10 @@ def _read_as_one_column(
             continue
         kind = kinds_of[standing.number_format]
         at = number - first
+        if kind == FORMAT_DATE and days:
+            if dialect.sheet_moment_kind(column[at]) == FORMAT_DATETIME:
+                column[at] = column[at][0:10]
+            continue
         if kind == FORMAT_DATE and timed:
             if dialect.sheet_moment_kind(column[at]) == FORMAT_DATE:
                 column[at] = dialect.sheet_serial_moment(
@@ -1906,6 +1921,15 @@ def _read_as_one_column(
                 second, clocks == CLOCKS_SECONDS
             )
 
+
+# A COLUMN OF MOMENTS OR A COLUMN OF DAYS (`_read_as_one_column`): a
+# column whose date-format cells hold a time in more than one cell of
+# every DAYS_PER_TIMED_CELL + 1 is read as moments; one with fewer timed
+# cells is read as days, each timed cell as the day its format shows.
+# The line is the default parse line, `taxonomy.Settings`'s
+# `minimum_parse_rate` of 0.99, read as cells: one cell in a hundred is
+# the share a column may hold of another kind and still read as one.
+DAYS_PER_TIMED_CELL = 99
 
 # How a column's time-format numbers are spelled (`_read_as_one_column`):
 # left as numbers, read as `HH:MM`, or read as `HH:MM:SS`.
@@ -2149,16 +2173,19 @@ def table_of(
             (top, last_row),
             kinds_of,
             reading.epoch_1904,
-            # A COLUMN OF MOMENTS AND NOT A COLUMN OF DAYS: the cells
-            # holding a time are at least as many as the whole days. A
-            # column of days with a few timed cells stays a column of
-            # days, its timed cells unparsed as before -- spelling every
-            # day as a midnight moment there cost the column its weekday
-            # census and gave its twin times and weekends the days never
-            # held (measured: 995 weekday dates beside 5 timed cells,
-            # twin weekend share 0.003 -> 0.282, at midnight 1.0 -> 0.009).
-            timed[index] > 0 and timed[index] >= whole[index],
+            # A COLUMN OF MOMENTS AND NOT A COLUMN OF DAYS: more than
+            # one dated cell in a hundred holds a time. A column of days
+            # with fewer timed cells stays a column of days and reads each
+            # timed cell as the day it shows -- spelling every day as a
+            # midnight moment there cost the column its weekday census
+            # (measured: 995 weekday dates beside 5 timed cells, twin
+            # weekend share 0.003 -> 0.282), and leaving the timed cells
+            # unparsed wrote them as text and failed the twin's own
+            # validation (measured at 1, 5, 10, 40 and 50 in 1,000).
+            timed[index] * DAYS_PER_TIMED_CELL > whole[index],
             clocks,
+            0 < timed[index]
+            and timed[index] * DAYS_PER_TIMED_CELL <= whole[index],
         )
     trailing_rows = 0
     for number in sorted(held):

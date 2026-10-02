@@ -14,9 +14,10 @@ dates beside its few text cells, which are counted unparsed (5 % of text
 dates, or 3 % of `UNK`, made the column free text or labels and its twin
 failed its own description); a date format hiding a time reads every
 cell of its column as a moment, so its cells at midnight are no longer
-bare dates written as text, where its timed cells are at least as many as its
-whole days (a column of days beside a few timed cells stays days, with its
-weekday census); a date beside a date with a time, or two date,
+bare dates written as text, where more than one dated cell in a hundred
+holds a time (a column of days beside one timed cell in a hundred or
+fewer stays days, with its weekday census, each timed cell read as the
+day it shows, so its twin passes its own validation); a date beside a date with a time, or two date,
 date-and-time or clock codes, is read rather than refusing the table; a
 column whose every value cell is a time-format number at a whole second
 under one day is read as clock times, its stored seconds kept, and

@@ -287,7 +287,9 @@ def test_days_beside_a_few_timed_cells_stay_days(tmp_path: pathlib.Path) -> None
 
     Measured with the column respelled as moments wherever one cell held
     a time: no weekday census, and a twin at midnight 0.009 of the time
-    and on a weekend 0.282 of it, against the source's 0.995 and 0.0.
+    and on a weekend 0.282 of it, against the source's 0.995 and 0.0;
+    and with the 5 left unparsed: a twin of 5 text cells, `validate`
+    exit 3, and pandas reading the twin's column as text.
     """
     draw = random.Random(11)
     cells: "list[tuple[object, str]]" = []
@@ -298,18 +300,52 @@ def test_days_beside_a_few_timed_cells_stay_days(tmp_path: pathlib.Path) -> None
         if index % 200 == 0:
             day = day.replace(hour=9, minute=30)
         cells += [(day, "m/d/yyyy")]
-    table = tmp_path / "table.xlsx"
-    table.write_bytes(_book(cells))
-    code, said = _exit_of(
-        ["profile", f"{table}", "--out-dir", f"{tmp_path}", "--replace"]
-    )
-    assert code == 0, said[-400:]
-    column = json.loads(
-        (tmp_path / "table-profile.json").read_text(encoding="utf-8")
-    )["columns"][0]
+    trip = _trip(tmp_path, cells)
+    column = trip["column"]
     assert column["format"] == "iso-date"
-    assert column["n_unparsed"] == 5
+    assert column["n_unparsed"] == 0
     assert column["weekday_census"]
+    assert trip["twin_exit"] == 0
+    assert trip["real_exit"] == 0
+    assert all(
+        isinstance(value, datetime.datetime)
+        for value, _code in _cells_read(trip["twin"])
+    )
+
+
+@pytest.mark.parametrize(("timed", "form"), ((10, "iso-date"), (11, "iso-datetime")))
+def test_one_timed_cell_in_a_hundred_is_the_line_between_days_and_moments(
+    timed: int, form: str, tmp_path: pathlib.Path
+) -> None:
+    """10 timed cells of 1,000 read as days, 11 as moments; both twins pass.
+
+    Measured with the line at "as many timed cells as whole days": from
+    11 to 499 timed cells the column was read jointly as `iso-mixed`,
+    and at 40 and 50 the twin wrote 10 text cells and `validate` exited
+    3. The line is one dated cell in a hundred, the default parse line
+    of 0.99 read as cells.
+    """
+    assert workbook.DAYS_PER_TIMED_CELL == round(
+        taxonomy.Settings().minimum_parse_rate
+        / (1 - taxonomy.Settings().minimum_parse_rate)
+    )
+    draw = random.Random(timed)
+    cells: "list[tuple[object, str]]" = []
+    for index in range(ROWS):
+        day = _day(draw)
+        if index < timed:
+            day = day.replace(hour=9, minute=30)
+        cells += [(day, "m/d/yyyy")]
+    trip = _trip(tmp_path, cells)
+    column = trip["column"]
+    assert column["format"] == form
+    assert column["n_unparsed"] == 0
+    assert trip["twin_exit"] == 0
+    assert trip["real_exit"] == 0
+    assert all(
+        isinstance(value, datetime.datetime)
+        for value, _code in _cells_read(trip["twin"])
+    )
 
 
 # -- 3. two date formats in one column ----------------------------------

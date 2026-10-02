@@ -6957,7 +6957,7 @@
    "headline": false,
    "name": "Dates, moments and clocks a workbook stores are read as what they store, and each twin passes its own validation",
    "status": "GREEN",
-   "rule": "the twenty-one pinned nodes pass on 1,000 made-up cells a shape at floor 11, seed 0: stored dates beside 5 % text dates or 3 % UNK read as dates, the text unparsed; a date format hiding a time reads every cell as a moment where most cells hold one, and 995 weekday dates beside 5 timed cells stay dates with a weekday census; a date beside a date with a time, and two date codes, are read; a column of time-format numbers under one day reads as clocks, its seconds kept, and a grid holding a level under the floor reaches the clock rule; locale tags are worn; dates stored as text keep their text; every twin and every real workbook validates at exit 0; the refused mixes name their kinds; the writer equals the method's oracle; the census's reading of a typed-date column is handed over, the column read once; and four rules withdrawn bring their defects back",
+   "rule": "the twenty-two pinned nodes pass on 1,000 made-up cells a shape at floor 11, seed 0: stored dates beside 5 % text dates or 3 % UNK read as dates, the text unparsed; a date format hiding a time reads every cell as a moment where more than one dated cell in a hundred holds one, 995 weekday dates beside 5 timed cells stay dates with a weekday census and no cell unparsed, and 10 timed cells of 1,000 read as days and 11 as moments; a date beside a date with a time, and two date codes, are read; a column of time-format numbers under one day reads as clocks, its seconds kept, and a grid holding a level under the floor reaches the clock rule; locale tags are worn; dates stored as text keep their text; every twin and every real workbook validates at exit 0; the refused mixes name their kinds; the writer equals the method's oracle; the census's reading of a typed-date column is handed over, the column read once; and four rules withdrawn bring their defects back",
    "rule_kind": "exact",
    "expected": {
     "pinned_nodes_failing": 0
@@ -6972,6 +6972,7 @@
     "tests/test_p4d382_typed_workbook_cells.py::test_a_date_format_hiding_a_time_reads_every_cell_as_a_moment",
     "tests/test_p4d382_typed_workbook_cells.py::test_whole_days_under_a_date_format_stay_dates",
     "tests/test_p4d382_typed_workbook_cells.py::test_days_beside_a_few_timed_cells_stay_days",
+    "tests/test_p4d382_typed_workbook_cells.py::test_one_timed_cell_in_a_hundred_is_the_line_between_days_and_moments",
     "tests/test_p4d382_typed_workbook_cells.py::test_dates_beside_dates_with_a_time_are_read_jointly",
     "tests/test_p4d382_typed_workbook_cells.py::test_two_date_codes_are_read_and_the_twin_wears_the_commonest",
     "tests/test_p4d382_typed_workbook_cells.py::test_a_mix_still_refused_says_which_kinds_it_holds",
@@ -6991,8 +6992,8 @@
    "driver": null,
    "pin_strength": "EXACT",
    "measured_on": "tests/test_p4d382_typed_workbook_cells.py, the reach skeptic's workbook cases and the lane's risk shapes",
-   "evidence": "668f276 (read share, written-back share, validate exit): 5 % text dates 0, 0.05, 3; 3 % UNK 0, 0.031, 3; six moments at midnight under m/d/yyyy 0.994, 0.994, 3; a date beside a date with a time, and two date codes, refused the table; clocks read 0 (two storing seconds raised RecursionError); locale codes written back 0; clock grids validate 3; dates beside ISO text dates validate 3. After: 0.95, 1.0, 0; 0.969, 1.0, 0; 1.0, 1.0, 0; read at exit 0; clocks 1.0, exit 0; locale 1.0; every grid and the ISO text case exit 0; every other probe twin byte-identical. b5f2d4e, the lane's first tree, read the same. e233f7f read a column of days as moments where one cell held a time (995 weekday dates beside 5 timed: twin weekend share 0.282, at midnight 0.009, against 0.0 and 0.995) and read a typed-date column twice; the repair round reads such a column as days, its twin byte-identical to 668f276's, and once.",
-   "nodes_min_collected": 29,
+   "evidence": "668f276 (read share, written-back share, validate exit): 5 % text dates 0, 0.05, 3; 3 % UNK 0, 0.031, 3; six moments at midnight under m/d/yyyy 0.994, 0.994, 3; a date beside a date with a time, and two date codes, refused the table; clocks read 0 (two storing seconds raised RecursionError); locale codes written back 0; clock grids validate 3; dates beside ISO text dates validate 3. After: 0.95, 1.0, 0; 0.969, 1.0, 0; 1.0, 1.0, 0; read at exit 0; clocks 1.0, exit 0; locale 1.0; every grid and the ISO text case exit 0; every other probe twin byte-identical. b5f2d4e, the lane's first tree, read the same. e233f7f read a column of days as moments where one cell held a time (995 weekday dates beside 5 timed: twin weekend share 0.282, at midnight 0.009, against 0.0 and 0.995) and read a typed-date column twice; the repair round reads such a column as days, its twin byte-identical to 668f276's, and once. 4b46049 left the timed cells of such a column unparsed and wrote them as text: 1,000 m/d/yyyy days beside 1, 5, 10, 40 or 50 timed cells gave a twin at validate exit 3 whose column pandas read as text; the second repair round reads them as the days they show up to one in a hundred, every twin and source at exit 0.",
+   "nodes_min_collected": 31,
    "value_at": {
     "commit": "602df01",
     "date": "2026-10-02",
