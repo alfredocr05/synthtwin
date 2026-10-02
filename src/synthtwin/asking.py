@@ -2199,7 +2199,9 @@ def date_codes_of(
             if len(keys) > _DATE_CODES_MOST:
                 return None
             continue
-        if counted[spelling] > rows[place]:
+        # One declaration, several spellings: the rows add up, and the
+        # spelling named is the one most of them wore, the first on a tie.
+        if counted[spelling] > counted[spelled[place]]:
             spelled[place] = spelling
         rows[place] = rows[place] + counted[spelling]
     if not keys:

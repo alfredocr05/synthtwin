@@ -253,6 +253,20 @@ def test_a_column_asked_about_its_codes_loses_only_the_questions_they_answer() -
     assert kept == [clock, other]
 
 
+def test_one_code_spelled_several_ways_is_one_declaration() -> None:
+    """`UNK`, `unk` and `Unk` are one `--missing-value`: their rows add up, under the commonest spelling.
+
+    Red when the commonest is judged against the rows added up so far:
+    `Unk` on 14 rows would then lose to the 23 already counted.
+    """
+    values = [cell for cell in shapes.cells(shapes.by_name("iso_unk")) if cell != "UNK"]
+    values = values[:900] + ["UNK"] * 11 + ["unk"] * 12 + ["Unk"] * 14
+    seen = asking.date_codes_of(values, taxonomy.Settings())
+    assert seen is not None
+    assert seen.codes == (("Unk", 37),)
+    assert seen.reading == "iso-date" and seen.n_read == 900
+
+
 def test_real_value_keeps_the_reading_and_stops_the_question(tmp_path: pathlib.Path) -> None:
     """`real-value` is `--keep-value`: the column reads as it did, and is not asked again."""
     values = shapes.cells(shapes.by_name("mdy_unk"))
