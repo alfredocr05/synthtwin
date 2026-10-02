@@ -524,6 +524,49 @@ def test_the_cell_cap_names_the_route_past_it() -> None:
         assert "any size" in said
 
 
+def test_the_census_reading_of_stored_dates_is_handed_over(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A one-column workbook of typed dates is read once, not twice.
+
+    Measured with the census reading every column as stored nowhere: its
+    reading was never handed over, and `synthtwin profile` of 100,000
+    typed dates took 12.7 s of CPU against 8.0 s.
+    """
+    draw = random.Random(5)
+    table = tmp_path / "table.xlsx"
+    table.write_bytes(_book([(_day(draw), "m/d/yyyy") for _row in range(ROWS)]))
+    calls = [0]
+    reading_as_shipped = taxonomy._read_the_column
+
+    def counted(*args: object, **named: object) -> object:
+        calls[0] = calls[0] + 1
+        return reading_as_shipped(*args, **named)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(taxonomy, "_read_the_column", counted)
+    code, said = _exit_of(
+        ["profile", f"{table}", "--out-dir", f"{tmp_path}", "--replace"]
+    )
+    assert code == 0, said[-400:]
+    assert calls[0] == 1
+    # ...and a reading kept under another storage word is read again.
+    values = [f"2024-03-{1 + row % 28:02d}" for row in range(ROWS)]
+    held = taxonomy.population_census(
+        ["only"], [values], [], taxonomy.Settings()
+    )[2][0]
+    calls[0] = 0
+    taxonomy.profile_column(
+        "only", 1, values, ROWS, taxonomy.Settings(), handed_over=held,
+        stored_as=taxonomy.STORED_AS_DATES,
+    )
+    assert calls[0] == 1
+    calls[0] = 0
+    taxonomy.profile_column(
+        "only", 1, values, ROWS, taxonomy.Settings(), handed_over=held
+    )
+    assert calls[0] == 0
+
+
 # -- 6. the spellings, and the writer against the method's oracle --------
 
 

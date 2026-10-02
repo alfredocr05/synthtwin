@@ -3100,6 +3100,23 @@ def _column_named(
     return None
 
 
+def _stored_as_named(
+    name: str, column_names: "list[str]", stored_as: "tuple[str, ...]"
+) -> str:
+    """How a workbook stores the column called ``name`` (plan P4-D382).
+
+    The word `profile.stored_as_of` gives the column at the same place,
+    or the empty word where there is none -- a delimited file, or no
+    word handed over. A walk, for `_column_named`'s reason.
+    """
+    place = 0
+    for held in column_names:
+        if held == name and place < len(stored_as):
+            return stored_as[place]
+        place = place + 1
+    return ""
+
+
 @dataclasses.dataclass(frozen=True)
 class Declarations:
     """The declarations that change WHICH CELLS OF A COLUMN ARE THERE.
@@ -3134,6 +3151,7 @@ def _present_spellings(
     name: str = "",
     declared: "Declarations | None" = None,
     held: "tuple[HeldReading, ...]" = (),
+    stored_as: str = "",
 ) -> "tuple[dict[str, int], tuple[HeldReading, ...]]":
     """Which of a column's SPELLINGS are present under the FINISHED reading.
 
@@ -3157,8 +3175,9 @@ def _present_spellings(
     column and the route `present_spellings_after_the_rules` answers from.
 
     Guarantees: accepts a column's cells, the settings, the column's
-    name, the declarations in force and the reading this census keeps
-    (`HeldReading`); returns a mapping whose keys are exactly the
+    name, the declarations in force, the reading this census keeps
+    (`HeldReading`) and how a workbook stores the column (`_decide`'s
+    ``stored_as``, plan P4-D382); returns a mapping whose keys are exactly the
     spellings that are PRESENT, each mapped to 1, and what the census
     keeps after this column (`_census_reading` says which) -- the reading
     `_census_reading` took, kept so the description
@@ -3177,6 +3196,7 @@ def _present_spellings(
         name in stated.measurements,
         name in stated.decimal_commas,
         held,
+        stored_as,
     )
     return _standing_of(kept), held
 
@@ -3248,12 +3268,14 @@ def _repeating_identifiers_held(
     settings: Settings,
     declarations: "Declarations | None",
     held: "tuple[HeldReading, ...]",
+    stored_as: "tuple[str, ...]" = (),
 ) -> "tuple[tuple[str, ...], tuple[HeldReading, ...]]":
     """`repeating_identifiers`, and the readings the census holds after it.
 
     Guarantees: `repeating_identifiers`'s own, over the same arguments,
     plus ``held``: what this census keeps, returned as it stands after
-    the columns read here (`_census_reading`).
+    the columns read here (`_census_reading`). ``stored_as`` is
+    `population_census`'s.
     """
     found: "list[str]" = []
     for name in sorted(declared):
@@ -3263,7 +3285,12 @@ def _repeating_identifiers_held(
         if cells is None:
             continue
         standing, held = _present_spellings(
-            cells, settings, name, declarations, held
+            cells,
+            settings,
+            name,
+            declarations,
+            held,
+            _stored_as_named(name, column_names, stored_as),
         )
         seen: "dict[str, int]" = {}
         repeats = False
@@ -3353,6 +3380,7 @@ def population_census(
     declared: "list[str]",
     settings: Settings,
     declarations: "Declarations | None" = None,
+    stored_as: "tuple[str, ...]" = (),
 ) -> "tuple[tuple[str, ...], int, tuple[HeldReading, ...]]":
     """The person columns, how many people, and the reading the census kept.
 
@@ -3365,17 +3393,21 @@ def population_census(
     description then read every census column again).
 
     Guarantees: accepts the column names, the columns as text in the
-    same order, the names declared with `--identifier`, the settings and
-    the declarations in force; returns the repeating identifiers, the
+    same order, the names declared with `--identifier`, the settings,
+    the declarations in force and how a workbook stores each column, in
+    the same order (`profile.stored_as_of`; empty for a delimited file):
+    each column is read the way the description reads it, so the
+    reading the census keeps is one the description can take over (plan
+    P4-D382). Returns the repeating identifiers, the
     population `people_in` counts over them, and what the census kept --
     at most one reading (`_census_reading` says why one). A fixed function of the arguments. Raises
     what `_read_the_column` raises. No I/O of any kind.
     """
     people, held = _repeating_identifiers_held(
-        column_names, columns, declared, settings, declarations, ()
+        column_names, columns, declared, settings, declarations, (), stored_as
     )
     counted, held = _people_held(
-        column_names, columns, people, settings, declarations, held
+        column_names, columns, people, settings, declarations, held, stored_as
     )
     return people, counted, held
 
@@ -3387,19 +3419,21 @@ def _people_held(
     settings: Settings,
     declarations: "Declarations | None",
     held: "tuple[HeldReading, ...]",
+    stored_as: "tuple[str, ...]" = (),
 ) -> "tuple[int, tuple[HeldReading, ...]]":
     """`people_in`, and the readings the census holds after it.
 
     Guarantees: `people_in`'s own, over the same arguments, plus
     ``held``: what this census keeps, returned as it stands after the
-    columns read here (`_census_reading`).
+    columns read here (`_census_reading`). ``stored_as`` is
+    `population_census`'s.
     """
     rows = 0
     for column in columns:
         if len(column) > rows:
             rows = len(column)
     holding, held = _rows_holding_a_value(
-        columns, rows, settings, column_names, declarations, held
+        columns, rows, settings, column_names, declarations, held, stored_as
     )
     if not person_columns:
         count = 0
@@ -3428,7 +3462,12 @@ def _people_held(
         if cells is None:
             continue
         standing, held = _present_spellings(
-            cells, settings, name, declarations, held
+            cells,
+            settings,
+            name,
+            declarations,
+            held,
+            _stored_as_named(name, column_names, stored_as),
         )
         earliest: "dict[str, int]" = {}
         place = 0
@@ -3472,6 +3511,7 @@ def _rows_holding_a_value(
     column_names: "list[str] | None" = None,
     declarations: "Declarations | None" = None,
     held: "tuple[HeldReading, ...]" = (),
+    stored_as: "tuple[str, ...]" = (),
 ) -> "tuple[list[bool], tuple[HeldReading, ...]]":
     """Which rows hold a PRESENT value in some column (landing 3.2 repair).
 
@@ -3491,7 +3531,8 @@ def _rows_holding_a_value(
     Guarantees: accepts the columns as text, how many rows the longest
     of them has, the settings that say which spellings mean "no value",
     the column names in the same order as the columns, the
-    declarations in force and what the census keeps; returns one truth
+    declarations in force, what the census keeps and how a workbook
+    stores each column, in the same order; returns one truth
     value per row, in row order, and what the census keeps after the
     columns read here (`_census_reading`). A fixed function of the arguments. Raises nothing.
     No I/O of any kind.
@@ -3506,11 +3547,14 @@ def _rows_holding_a_value(
         name = ""
         if place_of_column < len(named):
             name = named[place_of_column]
+        word = ""
+        if place_of_column < len(stored_as):
+            word = stored_as[place_of_column]
         place_of_column = place_of_column + 1
         if not outstanding:
             break
         standing, held = _present_spellings(
-            column, settings, name, declarations, held
+            column, settings, name, declarations, held, word
         )
         if not standing:
             continue
@@ -21508,9 +21552,10 @@ class HeldReading:
     judged_candidates: "tuple[str, ...]"
     reading: _ColumnReading
     # How a workbook stores this column's cells (`_decide`'s
-    # ``stored_as``, plan P4-D382). The census reads every column as
-    # stored nowhere, so a column a workbook stores as dates or clocks is
-    # read again by `profile_column` rather than handed over.
+    # ``stored_as``, plan P4-D382). The census reads each column under
+    # the word `profile.stored_as_of` gives it, the word the description
+    # reads it under, so the reading is handed over as any other is; a
+    # reading taken under another word is read again.
     stored_as: str = ""
 
 
@@ -21579,6 +21624,7 @@ def _census_reading(
     forced_measurement: bool,
     forced_decimal_comma: bool,
     held: "tuple[HeldReading, ...]",
+    stored_as: str = "",
 ) -> "tuple[HeldReading, tuple[HeldReading, ...]]":
     """The census's reading of one column, and the one reading it keeps.
 
@@ -21614,6 +21660,7 @@ def _census_reading(
             False,
             (),
             (),
+            stored_as,
         ):
             return kept, held
     fresh = HeldReading(
@@ -21635,7 +21682,9 @@ def _census_reading(
             forced_code=forced_code,
             forced_measurement=forced_measurement,
             forced_decimal_comma=forced_decimal_comma,
+            stored_as=stored_as,
         ),
+        stored_as=stored_as,
     )
     if held:
         return fresh, held

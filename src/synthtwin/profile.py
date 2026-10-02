@@ -3586,6 +3586,49 @@ def _stored_as_text_withheld(
     return block
 
 
+def stored_as_of(table: Table) -> "tuple[str, ...]":
+    """How a workbook stores each column of a table, one word a column.
+
+    `taxonomy.STORED_AS_DATES` where the workbook stores most of the
+    column's value cells as dates (`workbook.stored_as_dates`),
+    `taxonomy.STORED_AS_CLOCKS` where it stores every one as a clock
+    (`workbook.stored_as_clocks`), and the empty word otherwise and for
+    every column of a delimited file (plan P4-D382).
+
+    ONE ANSWER FOR THE CENSUS AND THE DESCRIPTION. `synthtwin profile`
+    takes it once and hands it to both `taxonomy.population_census` and
+    `build_document`, so the census reads a column under the word the
+    description reads it under and its reading is handed over. Measured
+    with the census reading every column as stored nowhere: the column
+    it read was read twice, and `synthtwin profile` of 100,000 typed
+    dates went from 8.0 s to 12.7 s of CPU.
+
+    Guarantees: accepts a Table as the reader produced it; returns one
+    word per column, in column order. Determinism: a fixed function of
+    the table. Raises nothing. No I/O of any kind.
+    """
+    words: "list[str]" = []
+    sheet = table.sheet
+    for place in range(len(table.columns)):
+        word = ""
+        if (
+            sheet is not None
+            and place < len(sheet.classes)
+            and place < len(sheet.formats)
+        ):
+            cells = table.columns[place]
+            if workbook.stored_as_dates(
+                cells, sheet.classes[place], sheet.formats[place]
+            ):
+                word = taxonomy.STORED_AS_DATES
+            elif workbook.stored_as_clocks(
+                cells, sheet.classes[place], sheet.formats[place]
+            ):
+                word = taxonomy.STORED_AS_CLOCKS
+        words += [word]
+    return tuple(words)
+
+
 def build_document(
     table: Table,
     settings: taxonomy.Settings,
@@ -3602,6 +3645,7 @@ def build_document(
     table_notes: "list[taxonomy.Note] | None" = None,
     readings: "tuple[object, ...]" = (),
     calendar_censuses: bool = True,
+    stored_as: "tuple[str, ...] | None" = None,
 ) -> dict[str, object]:
     """Describe a whole table: the profile document, ready to serialize.
 
@@ -3668,6 +3712,8 @@ def build_document(
       same with or without them, PROVIDED no column list has been
       changed in place since the census read it: a column is matched to
       its reading by the identity of its list, not by its cells.
+    - ``stored_as`` is `stored_as_of` of this table, handed over by the
+      command that already took it for the census; None takes it here.
     """
     declared_codes = [] if forced_codes is None else forced_codes
     declared_measurements = (
@@ -3731,6 +3777,13 @@ def build_document(
     # EACH CENSUS READING IS HANDED OVER ONCE, to the column it was read
     # from: the description takes the reading's lists as its own.
     waiting: "list[object]" = [held for held in readings]
+    # HOW A WORKBOOK STORES EACH COLUMN (plan P4-D382): most of its
+    # cells as dates, which lets the dates be read beside a few text
+    # cells, or every one as a clock, which keeps the clocks from a
+    # list of labels the twin could not write back. The validator
+    # describes a checked workbook through this same line, so a twin is
+    # read the way its source was.
+    storage = stored_as_of(table) if stored_as is None else stored_as
     for position, name in enumerate(table.column_names, start=1):
         cells = table.columns[position - 1]
         handed_over: "taxonomy.HeldReading | None" = None
@@ -3749,30 +3802,10 @@ def build_document(
         # (landing 3b.1): a column whose dates are stored partly as dates
         # and partly as text is read back differently cell by cell.
         stored_one_way = True
-        # ...AND WHETHER IT STORES MOST OF THEM AS DATES, OR EVERY ONE AS
-        # A CLOCK (plan P4-D382): the first lets the dates be read beside
-        # a few text cells, the second keeps the clocks from a list of
-        # labels the twin could not write back. The validator describes
-        # a checked workbook through this same line, so a twin is read
-        # the way its source was.
-        stored_as = ""
         if table.sheet is not None and position - 1 < len(table.sheet.classes):
             stored_one_way = calendar_rules.stored_one_way(
                 table.sheet.classes[position - 1]
             )
-            if position - 1 < len(table.sheet.formats):
-                if workbook.stored_as_dates(
-                    cells,
-                    table.sheet.classes[position - 1],
-                    table.sheet.formats[position - 1],
-                ):
-                    stored_as = taxonomy.STORED_AS_DATES
-                elif workbook.stored_as_clocks(
-                    cells,
-                    table.sheet.classes[position - 1],
-                    table.sheet.formats[position - 1],
-                ):
-                    stored_as = taxonomy.STORED_AS_CLOCKS
         described = taxonomy.profile_column(
             name,
             position,
@@ -3789,7 +3822,7 @@ def build_document(
             handed_over,
             calendar_censuses,
             stored_one_way,
-            stored_as,
+            storage[position - 1] if position - 1 < len(storage) else "",
         )
         columns += [_column_block(described)]
         absent_spellings += [described.absent_spellings]
