@@ -258,6 +258,9 @@ ROUTES_THAT_RUN_SOURCE = {
     ("tools/reference/make_generation_branch_vectors_11.py", "runpy.run_path"): 1,
     ("tools/reference/make_generation_branch_vectors_12.py", "runpy.run_path"): 1,
     ("tools/reference/make_generation_branch_vectors_13.py", "runpy.run_path"): 1,
+    # The twenty-second file, landing T1's written clocks (plan P4-D370): it
+    # runs the same oracle by path, as every file above does.
+    ("tools/reference/make_generation_branch_vectors_22.py", "runpy.run_path"): 1,
     ("tools/reference/make_generation_document_vectors.py", "runpy.run_path"): 1,
 }
 RUNNING_NAMES = ("exec", "eval", "compile", "runpy.run_path", "runpy.run_module")

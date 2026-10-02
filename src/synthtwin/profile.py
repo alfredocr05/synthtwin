@@ -555,6 +555,14 @@ def _settings_block(
         # first two records line up against the wrong rows and every
         # column comes back missed.
         "forced_metadata_rows": forced_metadata_rows,
+        # THE SEVENTH DECLARATION (landing T1, plan P4-D370): the columns
+        # the person said are 12-hour clocks written without AM or PM.
+        # Recorded because the validator must re-read a checked file on
+        # the same face, and the generator writes such a column's hours 1
+        # to 12 only.
+        "forced_twelve_hour_clocks": _named_once(
+            list(settings.forced_twelve_hour_clocks)
+        ),
     }
 
 
@@ -979,6 +987,8 @@ _STATED_RULES: "dict[tuple[str, ...], str]" = {
     ("settings", "forced_delimiter"): _WORD,
     ("settings", "forced_decimal_commas"): _ARRAY,
     ("settings", "forced_decimal_commas", _EACH): _KNOWN_NAME,
+    ("settings", "forced_twelve_hour_clocks"): _ARRAY,
+    ("settings", "forced_twelve_hour_clocks", _EACH): _KNOWN_NAME,
     # How the table was read.
     ("source",): _OBJECT,
     ("source", "encoding"): _WORD,
@@ -1893,8 +1903,12 @@ _STATED_WORDS: "dict[tuple[str, ...], tuple[str, ...]]" = {
     # closed list read from the one place it is written.
     ("columns", _EACH, "tail_unit"): parsing.TAIL_UNITS,
     ("columns", _EACH, "resolution_mix", _KEY_OF): parsing.DATE_FORMATS,
+    # ...and a slashed stamp's words, which name its written clock beside
+    # its one space (landing T1).
     ("columns", _EACH, "datetime_separators", _KEY_OF): (
-        parsing.DATETIME_SEPARATORS + (parsing.MISSING_WITHHELD,)
+        parsing.DATETIME_SEPARATORS
+        + parsing.STAMP_SEPARATORS[1:]
+        + (parsing.MISSING_WITHHELD,)
     ),
     # The four written-form vocabularies, read from the one place each
     # is defined (landing 2b.6), so that a word a producer writes and a
@@ -2074,12 +2088,18 @@ def _is_offset(value: object) -> bool:
 
 
 def _is_moment(value: object) -> bool:
-    """Canonical date, datetime or quarter text, and nothing else."""
+    """Canonical date, datetime or quarter text, or a written clock time.
+
+    A CLOCK TIME IN ANY OF ITS FORMS (landing T1): `2:05 PM` carries
+    letters and a point the canonical alphabet has not, so it is asked of
+    the one clock reader, which accepts figures, colons and the marker
+    words and nothing else.
+    """
     if not isinstance(value, str) or not value:
         return False
     for character in value:
         if character not in _DATETIME_CHARACTERS:
-            return False
+            return parsing.clock_form(value) is not None
     return True
 
 

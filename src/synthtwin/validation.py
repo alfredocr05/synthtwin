@@ -1703,6 +1703,9 @@ def settings_for(description: contract.Profile) -> taxonomy.Settings:
         # it is here so that the landing which counts the floor in
         # people finds it already travelling.
         person_columns=block.person_columns,
+        # THE 12-HOUR DECLARATION (landing T1, plan P4-D370), so a checked
+        # file reads its clocks on the face the description read them on.
+        forced_twelve_hour_clocks=block.forced_twelve_hour_clocks,
     )
 
 
@@ -15929,8 +15932,8 @@ def _file_clock_units(
     meet in seconds of day and are then counted in the published form's
     own unit, a minute of which holds sixty of them.
     """
-    step = 60 if form == contract.CLOCK_FORMS[0] else 1
-    wanted = 60 if (published or form) == contract.CLOCK_FORMS[0] else 1
+    step = parsing.clock_step(form)
+    wanted = parsing.clock_step(published or form)
     found: "list[int]" = []
     for cell in cells:
         read = parsing.clock_ordinal(cell, form)
@@ -16255,15 +16258,7 @@ def _clock_checks(
     name = column.name
     checks: "list[Check]" = []
     found = _text_at(block, "clock_form")
-    checks += [
-        _exact(
-            name,
-            "clock.clock_form",
-            "form.clock_form",
-            facts.clock_form,
-            found,
-        )
-    ]
+    checks += [_clock_form_check(name, facts.clock_form, found, cells)]
     counted = _count_at(block, "n_unparsed")
     checks += [
         _exact(
@@ -16354,6 +16349,42 @@ def _clock_ladder_checks(
     return checks
 
 
+def _clock_form_check(
+    name: str, published: str, found: "str | None", cells: "list[str] | None"
+) -> Check:
+    """The clock form, HELD BY FIT (landing T1, plan P4-D370).
+
+    The same precision and face, and every cell the file reads on that
+    face showing the published hour width or none
+    (`parsing.clock_held_by_fit`): a faithful twin that drew no hour
+    below ten is described again as `hh` and is not accused of missing a
+    published `h`, and a twin written in another width or on another face
+    is MISSED. Both sides are words of this package's own, so both print.
+    """
+    if found is None:
+        return _exact(name, "clock.clock_form", "form.clock_form", published, None)
+    held = found == published
+    if (
+        not held
+        and found in parsing.CLOCK_FORMS
+        and parsing.clock_step(found) == parsing.clock_step(published)
+    ):
+        held = parsing.clock_held_by_fit(
+            parsing.clock_style_of(published),
+            parsing.clock_style_of(found),
+            [] if cells is None else cells,
+            False,
+        )
+    return Check(
+        name,
+        "clock.clock_form",
+        "form.clock_form",
+        HELD if held else MISSED,
+        published,
+        found,
+    )
+
+
 def _clock_seconds(text: str, block: "dict[str, object]") -> "int | None":
     """One measured clock value in SECONDS of day, read in its own form.
 
@@ -16369,14 +16400,12 @@ def _clock_seconds(text: str, block: "dict[str, object]") -> "int | None":
     ordinal = parsing.clock_ordinal(text, found)
     if ordinal is None:
         return None
-    if found == contract.CLOCK_FORMS[0]:
-        return ordinal * 60
-    return ordinal
+    return ordinal * parsing.clock_step(found)
 
 
 def _clock_units(form: str) -> str:
     """The word for one step of this form's own ordinal space."""
-    if form == contract.CLOCK_FORMS[0]:
+    if parsing.clock_step(form) == 60:
         return "minute"
     return "second"
 
@@ -16398,7 +16427,7 @@ def _shown_clock_distance(ordinal: int, rung: int, form: str) -> str:
     # rounded into a lie.
     away = ordinal - rung
     word = _clock_units(form)
-    if form == contract.CLOCK_FORMS[0]:
+    if parsing.clock_step(form) == 60:
         if away % 60 == 0:
             away = away // 60
         else:
@@ -16429,7 +16458,7 @@ def _within_clock(
     # IN SECONDS OF DAY, the one unit the two forms share, because the
     # measured side was read in the FILE's own form and this one is
     # read in the description's.
-    step = 60 if facts.clock_form == contract.CLOCK_FORMS[0] else 1
+    step = parsing.clock_step(facts.clock_form)
     rung = step * _clock_ordinal_or_zero(published, facts.clock_form)
     low, high = window
     form = facts.clock_form
@@ -16531,7 +16560,7 @@ def _clock_rank_windows(
     function of those four. Errors raised: none.
     """
     form = facts.clock_form
-    step = 60 if form == contract.CLOCK_FORMS[0] else 1
+    step = parsing.clock_step(form)
     lows: "list[int]" = []
     highs: "list[int]" = []
     low = facts.low_tail
@@ -16807,7 +16836,7 @@ def _datetime_checks(
     # every value with a time of day (residual R-P4-12). Listed in both
     # cases, never silent.
     checks = checks + _offset_checks(column, facts, block, floor, mine)
-    checks = checks + _mark_checks(column, facts, block, floor)
+    checks = checks + _mark_checks(column, facts, block, floor, cells)
     checks = checks + _written_form_checks(column, facts, block, floor, cells)
     checks = checks + _midnight_checks(column, facts, block)
     checks = checks + _date_ladder_checks(
@@ -17581,11 +17610,44 @@ def _at_least(floor: int) -> str:
     return f"at least {floor}"
 
 
+def _stamp_words_by_fit(
+    census: "dict[str, int]",
+    measured: "dict[str, int]",
+    cells: "list[str] | None",
+) -> "dict[str, int]":
+    """A file's stamp word read as the published one WHERE IT FITS (P4-D370).
+
+    A slashed stamp's one word names its written clock (landing T1). A
+    file whose cells all fit the published style -- the same face, and no
+    hour below ten written in the other width -- holds it, whatever
+    style its own description took from them: a faithful twin that drew
+    no such hour is described again as `space`, and is counted here under
+    the published word, so the checks below compare like with like. A
+    file that does not fit keeps its own word and is MISSED by them.
+    """
+    named = [key for key in sorted(census) if key != contract.WITHHELD]
+    words = [key for key in sorted(measured) if key != contract.WITHHELD]
+    if len(named) != 1 or len(words) != 1 or named[0] == words[0]:
+        return measured
+    published = parsing.stamp_style(named[0])
+    found = parsing.stamp_style(words[0])
+    if published is None or found is None:
+        return measured
+    if not parsing.clock_held_by_fit(
+        published, found, [] if cells is None else cells, True
+    ):
+        return measured
+    moved = {key: measured[key] for key in measured if key != words[0]}
+    moved[named[0]] = measured[words[0]]
+    return moved
+
+
 def _mark_checks(
     column: contract.ColumnBlock,
     facts: contract.DatetimeFacts,
     block: "dict[str, object]",
     floor: int,
+    cells: "list[str] | None" = None,
 ) -> "list[Check]":
     """The census of marks between day and clock, held (landing 2b.3).
 
@@ -17618,6 +17680,8 @@ def _mark_checks(
     name = column.name
     census = facts.datetime_separators
     measured = _map_at(block, "datetime_separators")
+    if facts.parser_family in contract.CLOCK_FORM_MEMBERS and measured is not None:
+        measured = _stamp_words_by_fit(census, measured, cells)
     pool = 0
     published_total = 0
     for key in census:

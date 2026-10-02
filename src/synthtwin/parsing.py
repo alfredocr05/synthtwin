@@ -4023,143 +4023,513 @@ def _parse_clock(text: str) -> "str | None":
     return f"{hours}:{minutes}:{seconds}"
 
 
-# THE TWO FORMS A COLUMN OF CLOCK VALUES CAN WEAR, and the names the
-# profile publishes them under. They are this package's own words, not
-# anybody's text: a document naming one of them says which shape the
-# column's cells had and nothing about what any cell said.
+# THE WRITTEN CLOCK (landing T1, plan P4-D370). A time of day is written
+# with its hour in two figures or, below ten, in one; on the 24-hour
+# face, or on the 12-hour face with a marker after one space or after
+# none -- `14:05`, `2:05`, `2:05 PM`, `2:05pm`, `2:05 p.m.` -- or, where
+# the person DECLARED the column a 12-hour clock written without a marker
+# (`--twelve-hour`), on that face with none. A column keeps ONE way, its
+# STYLE: the hour's width and the face. It is published as a VALUE of
+# `clock_form` on the clock role and of the one `datetime_separators`
+# word of a slashed stamp, so no key is added. These are this package's
+# own words: naming one says how the column's cells were written and
+# nothing about what any cell said. The faces stand in tie-break order,
+# the 24-hour clock first.
+CLOCK_HOUR_WIDTHS = ("hh", "h")
+CLOCK_TWELVE_HOUR = " twelve-hour"
+_MERIDIEM_PAIRS = (
+    ("AM-PM", "AM", "PM"),
+    ("am-pm", "am", "pm"),
+    ("A.M.-P.M.", "A.M.", "P.M."),
+    ("a.m.-p.m.", "a.m.", "p.m."),
+)
+CLOCK_FACES = (
+    "",
+    CLOCK_TWELVE_HOUR,
+    " AM-PM",
+    "AM-PM",
+    " am-pm",
+    "am-pm",
+    " A.M.-P.M.",
+    "A.M.-P.M.",
+    " a.m.-p.m.",
+    "a.m.-p.m.",
+)
+CLOCK_STYLES = tuple(
+    width + face for face in CLOCK_FACES for width in CLOCK_HOUR_WIDTHS
+)
+DEFAULT_CLOCK_STYLE = "hh"
+
+# THE FORMS A COLUMN OF CLOCK VALUES CAN WEAR: a style at the minute or
+# at the second. `hh-mm` and `hh-mm-ss` stand first and are spelled as
+# they always were.
 CLOCK_HH_MM = "hh-mm"
 CLOCK_HH_MM_SS = "hh-mm-ss"
-CLOCK_FORMS = (CLOCK_HH_MM, CLOCK_HH_MM_SS)
+CLOCK_FORMS = tuple(
+    width + fields + face
+    for face in CLOCK_FACES
+    for width in CLOCK_HOUR_WIDTHS
+    for fields in ("-mm", "-mm-ss")
+)
+
+# Each form's style and whether it writes seconds, and each style's two
+# halves, read off the tables above once.
+_FORM_STYLE = {
+    width + fields + face: (width + face, fields == "-mm-ss")
+    for face in CLOCK_FACES
+    for width in CLOCK_HOUR_WIDTHS
+    for fields in ("-mm", "-mm-ss")
+}
+_STYLE_PARTS = {
+    width + face: (width, face)
+    for face in CLOCK_FACES
+    for width in CLOCK_HOUR_WIDTHS
+}
 
 # How many different values each form can spell, which is the whole of
 # what a column of that form can hold: a day has 1,440 minutes and
-# 86,400 seconds. The generator needs it to know whether a published
-# count of different values is reachable at all.
-CLOCK_CAPACITY = {CLOCK_HH_MM: 1440, CLOCK_HH_MM_SS: 86400}
+# 86,400 seconds, and the declared 12-hour face, which shows no marker,
+# half of each. The generator needs it to know whether a published count
+# of different values is reachable at all.
+CLOCK_CAPACITY = {
+    form: (60 if _FORM_STYLE[form][1] else 1)
+    * (720 if CLOCK_TWELVE_HOUR in form else 1440)
+    for form in CLOCK_FORMS
+}
 
-# The unit each form counts in, seconds per step: a minute for `hh-mm`
-# and a second for `hh-mm-ss`.
-_CLOCK_STEP = {CLOCK_HH_MM: 60, CLOCK_HH_MM_SS: 1}
+
+def clock_step(form: str) -> int:
+    """Seconds per step of one form: 60 at the minute, 1 at the second.
+
+    Raises ValueError for a form this module does not know. No I/O.
+    """
+    if form not in _FORM_STYLE:
+        raise ValueError(_NOT_TEXT)
+    return 1 if _FORM_STYLE[form][1] else 60
 
 
-def clock_form(text: str) -> "str | None":
-    """Which of the two clock forms one cell wears, or None.
+def clock_style_of(form: str) -> str:
+    """The style one form writes in. Raises ValueError for an unknown form."""
+    if form not in _FORM_STYLE:
+        raise ValueError(_NOT_TEXT)
+    return _FORM_STYLE[form][0]
 
-    EXACTLY `HH:MM` OR `HH:MM:SS`, and the word exactly is the rule
-    rather than a summary of it. Two ASCII digits in every field, hours
-    at most 23, minutes and seconds at most 59, nothing before and
-    nothing after. Four shapes a reader might expect are refused, and
-    each is refused on purpose:
 
-    - a FRACTIONAL part. A reading that dropped it would describe every
-      such cell approximately while publishing an exact ladder;
-    - a LEAP SECOND, `23:59:60`. The ordinal space this role counts in
-      has no faithful point for it, and making one up would put a value
-      in the twin that no clock shows;
-    - a SINGLE-DIGIT hour, `9:30`. The published spellings are
-      fixed-width, so a column of them could not be written back;
-    - anything else around the digits -- a date, an offset, a name.
+def clock_form_of(style: str, with_seconds: bool) -> str:
+    """The form of one style at the minute or at the second.
 
-    A column of cells this refuses takes a later rule, which is where
-    such a column already goes today.
+    Raises ValueError for an unknown style. No I/O of any kind.
+    """
+    if style not in _STYLE_PARTS:
+        raise ValueError(_NOT_TEXT)
+    width, face = _STYLE_PARTS[style]
+    return width + ("-mm-ss" if with_seconds else "-mm") + face
 
-    NOTHING COMES OFF FIRST, and that is the fifth refusal rather than
-    an oversight. Every other reader in this module trims its cell
-    before looking at it; this one may not, because what it publishes
-    are the CELLS THEMSELVES -- the two endpoints and eleven ladder
-    rungs are values some row of the table wore, character for
-    character. Trimming would let a column of ` 09:30 ` cells publish
-    `09:30`, a string no row of that table holds, and the ladder would
-    stop being a selection of real cells. So a cell with a space, a
-    tab or a no-break space around it is a cell this role does not
-    read, and it is counted with the rest.
 
-    Guarantees:
+def clock_face(style: str) -> str:
+    """The face one style writes on. Raises ValueError for an unknown one."""
+    if style not in _STYLE_PARTS:
+        raise ValueError(_NOT_TEXT)
+    return _STYLE_PARTS[style][1]
 
-    - Inputs: the text of one cell, exactly as the file spells it, and
-      exactly as it is judged.
-    - Determinism: the answer depends only on the text.
-    - Errors raised: TypeError if handed anything that is not a string
-      instance.
-    - Boundary: the answer is one of two words of this module's own
-      vocabulary, or nothing, so no spelling of any cell travels out
-      through it. No I/O of any kind.
+
+def clock_hour_width(style: str) -> str:
+    """`hh` or `h`. Raises ValueError for an unknown style."""
+    if style not in _STYLE_PARTS:
+        raise ValueError(_NOT_TEXT)
+    return _STYLE_PARTS[style][0]
+
+
+def clock_parts(
+    text: str,
+) -> "tuple[int, int, int, bool, int, str, bool] | None":
+    """One written clock read whole, or None: the ONE clock reader.
+
+    THE CLOCK ROLE'S READER AND THE SLASHED STAMPS' CLOCK HALF, kept one
+    reader as plan amendment A-P4-1 item 2 asks. `H:MM` or `HH:MM`, an
+    optional `:SS`, and an optional marker -- `AM PM am pm A.M. P.M. a.m.
+    p.m.` -- after ONE space or none. Unmarked, the hour is 0 to 23; marked,
+    1 to 12. Minutes and seconds are two figures, 00 to 59.
+
+    REFUSED, each on purpose: a fraction or a leap second (no faithful
+    point in the ordinal space), `24:00` (Python's `%H` refuses it), a
+    marked hour of 0 or past 12 (`%I` refuses both), `Am`, a one-letter
+    marker, a marker after two spaces or a no-break space, a one-figure
+    minute and a three-figure hour. NOTHING COMES OFF FIRST: what the
+    clock role publishes are the cells themselves, so ` 09:30 ` is not
+    read (`clock_form` gives the reason).
+
+    Returns `(hour as written, minute, second, seconds written, figures
+    of the hour, face, after noon)`: the face is `""` unmarked, and
+    otherwise the space or nothing before the marker pair's own word.
+    Determinism: a function of the text. Raises TypeError for anything
+    that is not a string instance. No I/O of any kind.
     """
     if not isinstance(text, str):
         raise TypeError(_NOT_TEXT)
     body = text
-    hours = _digits_at(body, 0, 2)
-    if hours is None or len(body) < 5 or body[2] != ":":
+    face = ""
+    afternoon = False
+    size = len(body)
+    # A clock ending in a figure carries no marker, which is most of them.
+    for pair, morning, evening in (
+        () if "0" <= body[size - 1 : size] <= "9" else _MERIDIEM_PAIRS
+    ):
+        for word, late in ((morning, False), (evening, True)):
+            length = len(word)
+            if size > length and body[size - length :] == word:
+                face = pair
+                afternoon = late
+                body = body[: size - length]
+                if body[len(body) - 1 : len(body)] == " ":
+                    face = " " + pair
+                    body = body[: len(body) - 1]
+                break
+        if face:
+            break
+    colon = 1 if body[1:2] == ":" else 2
+    if body[colon : colon + 1] != ":":
         return None
-    minutes = _digits_at(body, 3, 2)
+    hours = body[0:colon]
+    if not _all_ascii_digits(hours):
+        return None
+    rest = body[colon + 1 :]
+    if len(rest) == 2:
+        written = False
+        seconds = 0
+    elif len(rest) == 5 and rest[2] == ":":
+        found = _digits_at(rest, 3, 2)
+        if found is None:
+            return None
+        written = True
+        seconds = int(found)
+    else:
+        return None
+    minutes = _digits_at(rest, 0, 2)
     if minutes is None:
         return None
-    if int(hours) > 23 or int(minutes) > 59:
+    hour = int(hours)
+    minute = int(minutes)
+    if minute > 59 or seconds > 59:
         return None
-    if len(body) == 5:
-        return CLOCK_HH_MM
-    if len(body) != 8 or body[5] != ":":
+    if face:
+        if hour < 1 or hour > 12:
+            return None
+    elif hour > 23:
         return None
-    seconds = _digits_at(body, 6, 2)
-    if seconds is None or int(seconds) > 59:
+    return hour, minute, seconds, written, colon, face, afternoon
+
+
+def clock_second(
+    parts: "tuple[int, int, int, bool, int, str, bool]", face: str
+) -> "int | None":
+    """The second of the day one read clock names on a column's face.
+
+    A marked cell names its own instant: `12:30 AM` is 00:30, `12:00 PM`
+    noon. An unmarked cell is read on the 24-hour face, or -- on a column
+    declared a 12-hour clock -- on that face, where 12 is the top of the
+    dial (`12:15` is 00:15, as Python's `%I` reads it with no `%p`) and an
+    hour of 0 or past 12 names nothing. None where the cell does not read
+    on that face. Determinism: a function of the two. Raises nothing.
+    """
+    hour, minute, second, _written, _figures, written_face, late = parts
+    if written_face:
+        if written_face != face:
+            return None
+        hour = (hour % 12) + (12 if late else 0)
+    elif face == CLOCK_TWELVE_HOUR:
+        if hour < 1 or hour > 12:
+            return None
+        hour = hour % 12
+    elif face:
         return None
-    return CLOCK_HH_MM_SS
+    return hour * 3600 + minute * 60 + second
+
+
+def clock_shown_width(
+    parts: "tuple[int, int, int, bool, int, str, bool]",
+) -> str:
+    """The hour width one read clock SHOWS: `h`, `hh`, or "" for none.
+
+    Only an hour below ten shows a width; `10` to `23` are the same in
+    both. Determinism: a function of the parts. Raises nothing. No I/O.
+    """
+    if parts[0] >= 10:
+        return ""
+    return "h" if parts[4] == 1 else "hh"
+
+
+def clock_fits(
+    parts: "tuple[int, int, int, bool, int, str, bool]", style: str
+) -> bool:
+    """Whether one read clock is written exactly in one style.
+
+    Its face reads on the style's face, and its hour shows the style's
+    width or none (V5 form checks by fit, plan P4-D370). Raises
+    ValueError for an unknown style. No I/O of any kind.
+    """
+    if style not in _STYLE_PARTS:
+        raise ValueError(_NOT_TEXT)
+    width, face = _STYLE_PARTS[style]
+    if clock_second(parts, face) is None:
+        return False
+    shown = clock_shown_width(parts)
+    return shown == "" or shown == width
+
+
+def clock_style_of_cells(
+    read: "list[tuple[int, int, int, bool, int, str, bool]]",
+    twelve_hour: bool,
+) -> str:
+    """The ONE style a column of read clocks keeps (plan P4-D370).
+
+    THE FACE MOST CELLS WROTE, ties to the 24-hour clock and then in
+    `CLOCK_FACES` order; a column DECLARED a 12-hour clock reads its
+    unmarked cells on that face. THE WIDTH MOST OF ITS CELLS SHOWED,
+    ties to two figures, so a column showing no width keeps today's
+    `hh`. The cells of another face are counted unread by the caller;
+    the cells of another WIDTH are read and counted into the column's,
+    as a spelling below the floor is counted into the commonest (owner
+    ruling 6 of 2026-09-17), and their twin writes them the column's way.
+
+    Guarantees: accepts the parts of every read cell and whether the
+    column is declared; returns a member of `CLOCK_STYLES`.
+    Determinism: a function of the two. Raises nothing. No I/O.
+    """
+    tally: "dict[str, int]" = {}
+    for parts in read:
+        face = parts[5]
+        tally[face] = (tally[face] if face in tally else 0) + 1
+    chosen = ""
+    best = -1
+    for face in CLOCK_FACES:
+        if face in tally and tally[face] > best:
+            chosen = face
+            best = tally[face]
+    if twelve_hour and chosen == "":
+        chosen = CLOCK_TWELVE_HOUR
+    ones = 0
+    twos = 0
+    for parts in read:
+        if clock_second(parts, chosen) is None:
+            continue
+        shown = clock_shown_width(parts)
+        if shown == "h":
+            ones = ones + 1
+        elif shown == "hh":
+            twos = twos + 1
+    return ("h" if ones > twos else "hh") + chosen
+
+
+def written_clock(second: int, with_seconds: bool, style: str) -> str:
+    """One second of the day written in one style: the ONE clock writer.
+
+    The inverse of `clock_parts` read by `clock_second` on the style's
+    face, so a producer, a generator and an oracle cannot write one
+    instant two ways. Midnight on a 12-hour face is `12:00 AM`, or `12:00`
+    where no marker is written. On the declared unmarked face an instant
+    after noon is written on the dial it shows, an hour less twelve,
+    which is how such a clock writes it.
+
+    Guarantees: accepts a whole second of the day, whether to write the
+    seconds, and a member of `CLOCK_STYLES`; returns the text. Raises
+    ValueError for a second outside the day or an unknown style. No I/O.
+    """
+    if isinstance(second, bool) or not isinstance(second, int):
+        raise ValueError(_NOT_TEXT)
+    if second < 0 or second >= 86400 or style not in _STYLE_PARTS:
+        raise ValueError(_NOT_TEXT)
+    width, face = _STYLE_PARTS[style]
+    hours = second // 3600
+    minutes = (second % 3600) // 60
+    marker = ""
+    shown = hours
+    if face:
+        shown = (hours % 12) if hours % 12 else 12
+    if face and face != CLOCK_TWELVE_HOUR:
+        join = " " if face[0] == " " else ""
+        for pair, morning, evening in _MERIDIEM_PAIRS:
+            if face == join + pair:
+                marker = join + (morning if hours < 12 else evening)
+    hour_text = f"{shown:02d}" if width == "hh" else f"{shown}"
+    text = f"{hour_text}:{minutes:02d}"
+    if with_seconds:
+        text = f"{text}:{second % 60:02d}"
+    return text + marker
+
+
+def clock_form(text: str) -> "str | None":
+    """Which form one cell SHOWS, or None where it is no clock at all.
+
+    Its precision, its face as written, and its hour's width -- two
+    figures where the hour shows none (`10` to `23`). A cell never shows
+    the declared 12-hour face, which is a column's, not a cell's.
+
+    THE READER IS `clock_parts`, and its refusals are this one's: a
+    fraction, a leap second, `24:00`, a marked hour of 0 or past 12, and
+    ANYTHING AROUND THE CLOCK -- nothing comes off first, because what
+    the clock role publishes are the CELLS THEMSELVES, and trimming would
+    let a column of ` 09:30 ` cells publish `09:30`, a string no row of
+    that table holds.
+
+    Guarantees: the answer is one of `CLOCK_FORMS` or nothing, a word of
+    this module's own vocabulary, so no spelling travels out through it.
+    Determinism: a function of the text. Raises TypeError for anything
+    that is not a string instance. No I/O of any kind.
+    """
+    parts = clock_parts(text)
+    if parts is None:
+        return None
+    width = clock_shown_width(parts) or "hh"
+    return width + ("-mm-ss" if parts[3] else "-mm") + parts[5]
 
 
 def clock_ordinal(text: str, form: str) -> "int | None":
     """Where one cell stands in its own form's unit, or None.
 
-    Minutes of day for `hh-mm`, seconds of day for `hh-mm-ss` -- the
-    unit the form itself sets, so every ordinal has a spelling in that
-    form and no value the generator interpolates is ever truncated or
-    widened to fit a cell.
+    Minutes of day at the minute, seconds of day at the second -- the
+    unit the form itself sets, on the form's face -- so every ordinal has
+    a spelling in that form and no value the generator interpolates is
+    ever truncated or widened to fit a cell.
 
-    None where the cell does not wear the form asked about, which is
-    how a cell of the OTHER form is counted unparsed rather than
-    silently re-read.
+    None where the cell does not read in the form: another precision or
+    another face, which is how such a cell is counted unparsed rather
+    than silently re-read. A cell of the other hour WIDTH reads, because
+    a column counts it into its own (`clock_style_of_cells`).
 
     Guarantees: accepts one cell's text and one of `CLOCK_FORMS`;
     returns a whole number below that form's capacity, or nothing.
-    Determinism: a function of the two. Errors raised: TypeError
-    through `trimmed`; ValueError for a form this module does not know.
+    Determinism: a function of the two. Errors raised: TypeError through
+    `clock_parts`; ValueError for a form this module does not know.
     Boundary: the answer is a COUNT. No I/O of any kind.
     """
-    if form not in _CLOCK_STEP:
+    if form not in _FORM_STYLE:
         raise ValueError(_NOT_TEXT)
-    if clock_form(text) != form:
+    parts = clock_parts(text)
+    if parts is None:
         return None
-    body = text
-    hours = int(body[0:2])
-    minutes = int(body[3:5])
-    if form == CLOCK_HH_MM:
-        return hours * 60 + minutes
-    return (hours * 3600) + (minutes * 60) + int(body[6:8])
+    style, with_seconds = _FORM_STYLE[form]
+    if parts[3] != with_seconds:
+        return None
+    second = clock_second(parts, _STYLE_PARTS[style][1])
+    if second is None:
+        return None
+    return second if with_seconds else second // 60
 
 
 def clock_spelling(ordinal: int, form: str) -> str:
     """The one spelling of one ordinal in one form.
 
-    The inverse of `clock_ordinal` and the only way a clock value is
-    written, so a producer and a generator cannot spell the same moment
-    two ways.
+    The inverse of `clock_ordinal`, written by `written_clock`, so a
+    producer and a generator cannot spell the same moment two ways.
 
     Guarantees: accepts a whole number below the form's capacity and
-    one of `CLOCK_FORMS`; returns fixed-width text. Determinism: a
-    function of the two. Errors raised: ValueError for an unknown form
-    or an ordinal outside the form's space. Boundary: the text is built
-    from the number handed in. No I/O of any kind.
+    one of `CLOCK_FORMS`; returns the text. Determinism: a function of
+    the two. Errors raised: ValueError for an unknown form or an ordinal
+    outside the form's space. No I/O of any kind.
     """
-    if form not in _CLOCK_STEP:
+    if form not in _FORM_STYLE:
         raise ValueError(_NOT_TEXT)
     if isinstance(ordinal, bool) or not isinstance(ordinal, int):
         raise ValueError(_NOT_TEXT)
     if ordinal < 0 or ordinal >= CLOCK_CAPACITY[form]:
         raise ValueError(_NOT_TEXT)
-    if form == CLOCK_HH_MM:
-        return f"{ordinal // 60:02d}:{ordinal % 60:02d}"
-    hours = ordinal // 3600
-    rest = ordinal % 3600
-    return f"{hours:02d}:{rest // 60:02d}:{rest % 60:02d}"
+    style, with_seconds = _FORM_STYLE[form]
+    return written_clock(
+        ordinal if with_seconds else ordinal * 60, with_seconds, style
+    )
+
+
+def clock_held_by_fit(
+    published: str, measured: str, cells: "list[str]", stamps: bool
+) -> bool:
+    """Whether a file's written clock HOLDS a published style (V5, P4-D370).
+
+    THE STYLE IS HELD BY FIT, not by equality. A faithful twin that drew
+    no hour below ten shows no width, and is described again as `hh`; it
+    holds a published `h`, because every one of its cells fits it. So:
+    the same style holds; another FACE never does; and another width
+    holds exactly where no cell that reads on the face shows a width
+    other than the published one. `stamps` says the cells are slashed
+    stamps, whose clock is the half after the first space.
+
+    Guarantees: accepts two members of `CLOCK_STYLES` and the file's
+    cells; returns a bool. Determinism: a function of the four. Raises
+    ValueError for an unknown style. No I/O of any kind.
+    """
+    if published not in _STYLE_PARTS or measured not in _STYLE_PARTS:
+        raise ValueError(_NOT_TEXT)
+    if published == measured:
+        return True
+    width, face = _STYLE_PARTS[published]
+    if _STYLE_PARTS[measured][1] != face:
+        return False
+    for cell in cells:
+        parts = clock_parts(stamp_halves(cell)[1] if stamps else cell)
+        if parts is None or clock_second(parts, face) is None:
+            continue
+        shown = clock_shown_width(parts)
+        if shown and shown != width:
+            return False
+    return True
+
+
+def clock_style_said(style: str) -> str:
+    """One written clock in the words a summary uses (contract NF109).
+
+    Words of this package's own: the hour's width and the face, never a
+    cell. Raises ValueError for an unknown style. No I/O of any kind.
+    """
+    if style not in _STYLE_PARTS:
+        raise ValueError(_NOT_TEXT)
+    width, face = _STYLE_PARTS[style]
+    hour = "the hour in two figures"
+    if width == "h":
+        hour = "the hour in one figure below ten"
+    if not face:
+        return f"{hour}, on a 24-hour clock"
+    if face == CLOCK_TWELVE_HOUR:
+        return f"{hour}, on a 12-hour clock with no AM or PM"
+    join = " " if face[0] == " " else ""
+    for pair, morning, evening in _MERIDIEM_PAIRS:
+        if face == join + pair:
+            where = "after a space" if join else "straight after the time"
+            return f"{hour}, on a 12-hour clock with {morning} or {evening} {where}"
+    return hour
+
+
+def stamp_word(style: str) -> str:
+    """The one `datetime_separators` word of a slashed stamp in one style.
+
+    `space` for today's two-figure 24-hour clock, so a column that reads
+    today keeps every byte, and `space <style>` otherwise. Raises
+    ValueError for an unknown style. No I/O of any kind.
+    """
+    if style not in _STYLE_PARTS:
+        raise ValueError(_NOT_TEXT)
+    if style == DEFAULT_CLOCK_STYLE:
+        return "space"
+    return "space " + style
+
+
+def stamp_style(word: str) -> "str | None":
+    """The style one stamp word names, or None for a word that names none."""
+    if not isinstance(word, str):
+        raise TypeError(_NOT_TEXT)
+    if word == "space":
+        return DEFAULT_CLOCK_STYLE
+    if word[0:6] == "space " and word[6:] in _STYLE_PARTS:
+        if word[6:] != DEFAULT_CLOCK_STYLE:
+            return word[6:]
+    return None
+
+
+# Every word a slashed stamp's one `datetime_separators` key can be
+# (contract D12a), `space` first.
+STAMP_SEPARATORS = tuple(
+    "space" if style == DEFAULT_CLOCK_STYLE else "space " + style
+    for style in CLOCK_STYLES
+)
 
 
 def _split_offset(text: str) -> "tuple[str, str] | None":
@@ -4196,6 +4566,56 @@ def _split_offset(text: str) -> "tuple[str, str] | None":
                 return None
             return text[: len(text) - 6], offset
     return text, ""
+
+
+def _stamp_clock(text: str) -> "str | None":
+    """A slashed stamp's clock half as canonical `HH:MM:SS`, or None.
+
+    Read by `clock_parts`; an unmarked hour on the 24-hour face, which is
+    the reading a column keeps unless it is declared a 12-hour clock
+    (`stamp_canonical` then moves its top of the dial). No I/O.
+    """
+    parts = clock_parts(text)
+    if parts is None:
+        return None
+    second = clock_second(parts, parts[5])
+    if second is None:
+        return None
+    return (
+        f"{second // 3600:02d}:{(second % 3600) // 60:02d}:{second % 60:02d}"
+    )
+
+
+def stamp_halves(text: str) -> "tuple[str, str]":
+    """A slashed stamp's date half with its one space, and its clock half.
+
+    Split at the FIRST space, as the stamp members split it (landing T1).
+    Raises TypeError for anything that is not a string instance. No I/O.
+    """
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT)
+    body = text.strip()
+    mark = body.find(" ")
+    return body[0 : mark + 1], body[mark + 1 :]
+
+
+def stamp_canonical(canonical: str, style: str) -> str:
+    """A slashed stamp's canonical text on its column's face (landing T1).
+
+    The reader gives an unmarked hour on the 24-hour face; on a column
+    declared a 12-hour clock written without a marker, `12` is the top
+    of the dial, so `... 12:15:00` is `... 00:15:00` -- Python's `%I`
+    with no `%p` reads it so. Every other style returns the text as it
+    is. Asked only of cells that read on that face, whose hour is 1 to
+    12. Raises nothing. No I/O of any kind.
+    """
+    if style == DEFAULT_CLOCK_STYLE or style not in _STYLE_PARTS:
+        return canonical
+    if _STYLE_PARTS[style][1] != CLOCK_TWELVE_HOUR:
+        return canonical
+    if canonical[11:13] != "12":
+        return canonical
+    return f"{canonical[0:11]}00{canonical[13:]}"
 
 
 def parse_datetime(text: str, format_name: str) -> "tuple[str, str] | None":
@@ -4399,15 +4819,12 @@ def parse_datetime(text: str, format_name: str) -> "tuple[str, str] | None":
         # A SLASHED DATE, ONE SPACE, THEN A CLOCK (plan amendment
         # A-P4-1 item 2). The date half is the same grammar the two
         # date-only slashed members read, padded or not; the clock half
-        # is the time-of-day role's own two forms and nothing wider, so
-        # a stamp this reads is one whose two halves are each already
-        # read somewhere in this module.
-        mark = 0
-        place = 0
-        for character in body:
-            if character == " ":
-                mark = place
-            place = place + 1
+        # is the time-of-day role's own reader, `clock_parts`, so a stamp
+        # this reads is one whose two halves are each already read
+        # somewhere in this module. SPLIT AT THE FIRST SPACE (landing T1):
+        # the date half holds none, and a clock may carry its marker after
+        # one (`3/17/2024 2:05 PM`).
+        mark = body.find(" ")
         if mark < 1:
             return None
         fields = _slashed_fields(body[0:mark])
@@ -4420,13 +4837,11 @@ def parse_datetime(text: str, format_name: str) -> "tuple[str, str] | None":
             date_part = _canonical_date(year, second, first)
         if date_part is None:
             return None
-        # THE CLOCK HALF IS THE TIME-OF-DAY ROLE'S OWN TWO FORMS AND
+        # THE CLOCK HALF IS THE TIME-OF-DAY ROLE'S OWN READER AND
         # NOTHING WIDER, which is what the amendment fixes and what
         # keeps these two members from quietly accepting a fractional
         # second the contract's row for them does not mention.
-        if clock_form(body[mark + 1 :]) is None:
-            return None
-        clock = _parse_clock(body[mark + 1 :])
+        clock = _stamp_clock(body[mark + 1 :])
         if clock is None:
             return None
         return f"{date_part} {clock}", ""
@@ -4437,20 +4852,13 @@ def parse_datetime(text: str, format_name: str) -> "tuple[str, str] | None":
         # above are built, so a stamp this accepts is one whose date half
         # `slashed-iso-date` accepts and whose clock half `clock_form`
         # does; a fraction, an offset or a second space is refused.
-        mark = 0
-        place = 0
-        for character in body:
-            if character == " ":
-                mark = place
-            place = place + 1
+        mark = body.find(" ")
         if mark != 10:
             return None
         whole = parse_datetime(body[0:mark], "slashed-iso-date")
         if whole is None:
             return None
-        if clock_form(body[mark + 1 :]) is None:
-            return None
-        clock = _parse_clock(body[mark + 1 :])
+        clock = _stamp_clock(body[mark + 1 :])
         if clock is None:
             return None
         return f"{whole[0]} {clock}", ""
@@ -4921,13 +5329,8 @@ def _date_half(body: str, format_name: str) -> str:
         raise TypeError(_NOT_TEXT)
     if format_name not in SLASHED_STAMPS:
         return body
-    mark = 0
-    place = 0
-    for character in body:
-        if character == " ":
-            mark = place
-        place = place + 1
-    return body[0:mark]
+    mark = body.find(" ")
+    return body[0 : max(mark, 0)]
 
 
 def _textual_written(
@@ -6666,7 +7069,9 @@ def instant_key(canonical: str, offset: str) -> "int | None":
     return seconds - shift
 
 
-def _clock_of(text: str, format_name: str) -> "str | None":
+def _clock_of(
+    text: str, format_name: str, style: str = DEFAULT_CLOCK_STYLE
+) -> "str | None":
     """The time-of-day part of an iso-datetime cell, offset removed.
 
     THE JOINT READING IS ANSWERED CELL BY CELL. Under `iso-mixed` some
@@ -6681,22 +7086,20 @@ def _clock_of(text: str, format_name: str) -> "str | None":
         raise TypeError(_NOT_TEXT)
     body = text.strip()
     if format_name in SLASHED_STAMPS:
-        # THE SLASHED STAMPS ANSWER FROM THEIR OWN TEXT. Their date
-        # half is not ten characters wide, so the ISO cut below finds
-        # nothing; the clock is what stands after the one space, and it
-        # is the time-of-day role's own two forms, so the same answer
-        # comes back here as the reader accepted.
-        if parse_datetime(text, format_name) is None:
+        # THE SLASHED STAMPS ANSWER FROM THEIR CANONICAL TEXT (landing
+        # T1). The reader has already read the clock, in any style, so
+        # it is taken from what it returned rather than read again --
+        # this is asked of every cell several times over -- at the
+        # precision the cell wrote: two colons where it wrote seconds,
+        # since the date half holds none. A column declared a 12-hour
+        # clock reads its top of the dial as the first hour of the day.
+        found = parse_datetime(text, format_name)
+        if found is None:
             return None
-        mark = 0
-        place = 0
-        for character in body:
-            if character == " ":
-                mark = place
-            place = place + 1
-        if mark < 1:
-            return None
-        return body[mark + 1 :]
+        clock = stamp_canonical(found[0], style)[11:]
+        if body.count(":") < 2:
+            return clock[0:5]
+        return clock
     if format_name != "iso-datetime" and format_name != "iso-mixed":
         return None
     if len(body) < 16:
@@ -6770,6 +7173,9 @@ SEPARATOR_MARKS = {
     SEPARATOR_LOWER_T: "t",
     SEPARATOR_SPACE: " ",
     SEPARATOR_UPPER_T: "T",
+    # ...and every word of a slashed stamp names its clock's style after
+    # the same one space (landing T1, contract D12a).
+    **{word: " " for word in STAMP_SEPARATORS},
 }
 
 
@@ -6821,7 +7227,9 @@ def datetime_separator(text: str, format_name: str) -> "str | None":
     return None
 
 
-def clock_at_midnight(text: str, format_name: str) -> bool:
+def clock_at_midnight(
+    text: str, format_name: str, style: str = DEFAULT_CLOCK_STYLE
+) -> bool:
     """Whether a parsed cell names exactly the first instant of its day.
 
     A cell that writes no clock names midnight of its day: that is how
@@ -6841,9 +7249,16 @@ def clock_at_midnight(text: str, format_name: str) -> bool:
         raise TypeError(_NOT_TEXT)
     if not isinstance(format_name, str):
         raise TypeError(_NOT_TEXT)
+    if format_name in SLASHED_STAMPS:
+        # ONE READING (landing T1): a stamp writes no fraction, so its
+        # canonical clock is the whole of the question.
+        found = parse_datetime(text, format_name)
+        if found is None:
+            return False
+        return stamp_canonical(found[0], style)[11:19] == "00:00:00"
     if parse_datetime(text, format_name) is None:
         return False
-    clock = _clock_of(text, format_name)
+    clock = _clock_of(text, format_name, style)
     if clock is None:
         return True
     if len(clock) < 5 or clock[0:5] != "00:00":

@@ -538,8 +538,11 @@ def test_nothing_that_varies_between_runs_is_written(
 # the remark on `amount`, whose 240 cells hold 238 different values and
 # were told "every value in this column is different"; it now says nearly
 # every value is. No key arrives or leaves and no number moves.
+# AND RE-RECORDED BY PLAN P4-D370 (landing T1): ONE KEY ARRIVES, the
+# settings block's `forced_twelve_hour_clocks`, empty; the same document
+# with that key taken out hashes to the digest above. No other byte moves.
 GOLDEN_SHA256 = (
-    "83e1fc4fbb48903866f9290a9e5a93675772b121d602c09ac0e58c753da93400"
+    "addeb17bcf1bc4280b311b27382957be517a1f5137ff439a71231044b350e1b8"
 )
 
 

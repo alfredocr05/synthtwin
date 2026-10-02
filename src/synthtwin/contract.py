@@ -194,6 +194,7 @@ SETTINGS_KEYS = (
     "forced_identifiers",
     "forced_measurements",
     "forced_metadata_rows",
+    "forced_twelve_hour_clocks",
     "identifier_minimum_rows",
     "identifier_uniqueness",
     "kept_values",
@@ -524,7 +525,10 @@ CLOCK_KEYS = (
     "low_tail",
     "n_unparsed",
 )
-CLOCK_FORMS = ("hh-mm", "hh-mm-ss")
+# THE FORMS since landing T1: a style -- the hour's width and its face --
+# at the minute or at the second, read from the one place they are named
+# (plan P4-D370). `hh-mm` and `hh-mm-ss` stand first, as they always did.
+CLOCK_FORMS = parsing.CLOCK_FORMS
 
 # THE KEYS OF ONE TAIL OBJECT (stage 3, contract DT1), read from the one
 # place they are written.
@@ -2115,6 +2119,13 @@ class SettingsBlock:
     # so this is the one thing that settles it; FD13 holds it to the
     # delimiter the written form publishes.
     forced_delimiter: str = ""
+    # THE SEVENTH DECLARATION (landing T1, plan P4-D370). Columns the
+    # person said are 12-hour clocks written without AM or PM: nothing in
+    # `8:34` or `12:15` says which clock wrote it, so the run asks where
+    # every hour lies in 1 to 12, and such a column reads on that face --
+    # `12:15` is a quarter past midnight -- and its twin writes hours 1 to
+    # 12 only. S8 holds every name to a column of the table.
+    forced_twelve_hour_clocks: "tuple[str, ...]" = ()
 
 
 # TWO QUESTIONS, TWO NAMES, because a first version asked one and
@@ -5956,6 +5967,22 @@ def _settings(value: object) -> SettingsBlock:
             )
         declared_commas += [found]
         place = place + 1
+    declared_twelve: list[str] = []
+    twelve_names = _listing(
+        mapping["forced_twelve_hour_clocks"], "forced_twelve_hour_clocks", where
+    )
+    place = 0
+    for name in twelve_names:
+        found = _text(name, f"forced_twelve_hour_clocks[{place}]", where)
+        if declared_twelve and found <= declared_twelve[len(declared_twelve) - 1]:
+            raise _out_of_range(
+                "forced_twelve_hour_clocks",
+                where,
+                f"'{found}'",
+                "names in rising order, each of them once",
+            )
+        declared_twelve += [found]
+        place = place + 1
     declared_codes: list[str] = []
     code_names = _listing(mapping["forced_codes"], "forced_codes", where)
     place = 0
@@ -6052,6 +6079,7 @@ def _settings(value: object) -> SettingsBlock:
             where,
             ("",) + dialect.DELIMITERS,
         ),
+        forced_twelve_hour_clocks=tuple(declared_twelve),
     )
     # C5-K4 LAST, because it is the one rule here that needs BOTH
     # records: every other check is about one entry and is raised where
@@ -9541,12 +9569,36 @@ def _separator_census(
     for key in sorted(census):
         if key == WITHHELD:
             continue
-        if key not in parsing.DATETIME_SEPARATORS:
+        if (
+            key not in parsing.DATETIME_SEPARATORS
+            and key not in parsing.STAMP_SEPARATORS
+        ):
             raise _out_of_range(
                 f"datetime_separators -> {key}",
                 where,
                 f"'{key}'",
-                "'upper_t', 'space', 'lower_t', or '(withheld)'",
+                "'upper_t', 'space', 'lower_t', a slashed stamp's 'space' "
+                "naming its clock, or '(withheld)'",
+            )
+        # D12a (landing T1, plan P4-D370): a word naming a written clock
+        # belongs to a slashed stamp alone, and a stamp names ONE -- its
+        # column keeps one way of writing its clock.
+        if key in parsing.STAMP_SEPARATORS and key != parsing.SEPARATOR_SPACE:
+            if parser_family not in CLOCK_FORM_MEMBERS:
+                raise _broken(
+                    "D12a",
+                    where,
+                    f"the mark '{key}' is counted",
+                    f"a column read as '{parser_family}' writes no clock "
+                    "the way a slashed stamp does",
+                )
+        if parser_family in CLOCK_FORM_MEMBERS and len(census) > 1:
+            raise _broken(
+                "D12a",
+                where,
+                f"{len(census)} marks are counted",
+                "a slashed stamp writes its clock one way, so its census "
+                "names one word",
             )
         if census[key] < parsing.census_floor(floor):
             raise _broken(
@@ -9603,7 +9655,7 @@ def _separator_census(
         )
     if parser_family in CLOCK_FORM_MEMBERS:
         for key in sorted(census):
-            if key == WITHHELD or key == parsing.SEPARATOR_SPACE:
+            if key == WITHHELD or key in parsing.STAMP_SEPARATORS:
                 continue
             raise _broken(
                 "D13",
@@ -9912,7 +9964,9 @@ def _tail_object(
                 f"it holds {rows} cells, and at least one value",
             )
         for place in range(1, len(values)):
-            if values[place] <= values[place - 1]:
+            if _clock_at(values[place], form) <= _clock_at(
+                values[place - 1], form
+            ):
                 raise _broken(
                     "DT3",
                     where,
@@ -9921,7 +9975,9 @@ def _tail_object(
                     "its values are different and in ascending order",
                 )
         for item in values:
-            beyond = item < boundary if key == "low_tail" else item > boundary
+            here = _clock_at(item, form)
+            edge = _clock_at(boundary, form)
+            beyond = here < edge if key == "low_tail" else here > edge
             if not beyond:
                 raise _broken(
                     "DT3",
@@ -10098,6 +10154,7 @@ def _tails_hold(
     rungs: "tuple[str | None, ...]",
     ladder_key: str,
     rule: str,
+    form: str = "",
 ) -> None:
     """TL2 and the ladder around the tails (D11 for dates, T2 for clocks).
 
@@ -10139,7 +10196,7 @@ def _tails_hold(
                 f"{parsed} values read, which leaves room for "
                 f"{max(0, parsed - 1)} beyond the boundaries",
             )
-        if low.boundary > high.boundary or (
+        if _clock_at(low.boundary, form) > _clock_at(high.boundary, form) or (
             low.rows + high.rows == parsed - 1
             and low.boundary != high.boundary
         ):
@@ -10188,7 +10245,9 @@ def _tails_hold(
                 f"it is read off the boundary's own rank, which holds "
                 f"{at_boundary}",
             )
-        if rung < low.boundary or rung > high.boundary:
+        if _clock_at(rung, form) < _clock_at(low.boundary, form) or (
+            _clock_at(rung, form) > _clock_at(high.boundary, form)
+        ):
             raise _broken(
                 rule,
                 where,
@@ -15093,20 +15152,14 @@ def _is_a_clock_value(text: object, form: str) -> bool:
     """
     if not isinstance(text, str):
         return False
-    if form == CLOCK_FORMS[0]:
-        if len(text) != 5 or text[2] != ":":
-            return False
-    else:
-        if len(text) != 8 or text[2] != ":" or text[5] != ":":
-            return False
-        seconds = _digits_at(text, 6, 2)
-        if seconds is None or int(seconds) > 59:
-            return False
-    hours = _digits_at(text, 0, 2)
-    minutes = _digits_at(text, 3, 2)
-    if hours is None or minutes is None:
+    # EXACTLY THE FORM'S OWN SPELLING (landing T1): read in the form and
+    # written back by its one writer, character for character, so the
+    # hour's width and the marker are the form's and a cell of the other
+    # width -- which the producer writes the column's way -- is refused.
+    ordinal = parsing.clock_ordinal(text, form)
+    if ordinal is None:
         return False
-    return int(hours) <= 23 and int(minutes) <= 59
+    return parsing.clock_spelling(ordinal, form) == text
 
 
 def _clock_value(
@@ -15128,14 +15181,36 @@ def _clock_value(
     return f"{value}"
 
 
+def _clock_at(text: str, form: str) -> "tuple[int, str]":
+    """What a published value is ORDERED by: its place in a clock form.
+
+    A clock time's ordinal in `form` (landing T1), and the text itself
+    where no form is named -- a date's canonical text sorts as it reads.
+    The text stands second, so two clocks at one place still compare.
+    """
+    if form:
+        found = parsing.clock_ordinal(text, form)
+        return (-1 if found is None else found, text)
+    return (0, text)
+
+
 def _clock_shape_said(form: str) -> str:
-    """The form named in the words a person reads."""
+    """The form named in the words a person reads, with an example.
+
+    The example is the form's own writer's, so it is spelled exactly as
+    the form spells nine thirty in the morning.
+    """
     if form == CLOCK_FORMS[0]:
         return "two digits for the hour and two for the minute, `09:30`"
-    return (
-        "two digits each for the hour, the minute and the second, "
-        "`09:30:00`"
+    if form == CLOCK_FORMS[1]:
+        return (
+            "two digits each for the hour, the minute and the second, "
+            "`09:30:00`"
+        )
+    example = parsing.clock_spelling(
+        34200 // parsing.clock_step(form), form
     )
+    return f"the form called '{form}', `{example}`"
 
 
 def _clock_ladder(
@@ -15151,11 +15226,10 @@ def _clock_ladder(
     published rungs go DOWN (T3). Which rungs are null is T2's question,
     asked beside the tails.
 
-    T3 IS A PLAIN TEXT COMPARISON, and that is sound rather than
-    convenient: both forms are fixed width and zero padded, so
-    comparing the written rungs character by character puts them in the
-    same order their ordinals do. It is checked only after T1 has
-    passed on the rung, because the equivalence rests on the shape.
+    T3 COMPARES INSTANTS (landing T1). It was a plain text comparison
+    while both forms were fixed width and zero padded; `9:30` sorts after
+    `10:00` as text and `1:05 PM` before `11:00 AM`, so the rungs are
+    compared by their ordinals in the form, after T1 has passed on each.
     """
     mapping = _mapping(value, key, where)
     _keys(mapping, where, LADDER_KEYS, "every ladder of clock times")
@@ -15171,7 +15245,7 @@ def _clock_ladder(
             continue
         found = _clock_value(rung, f"{key} -> {name}", where, form)
         ladder[name] = found
-        if previous and found < previous:
+        if previous and _clock_at(found, form) < _clock_at(previous, form):
             raise _broken(
                 "T3",
                 where,
@@ -15236,7 +15310,7 @@ def _clock_facts(
         rungs += [ladder[name]]
     _tails_hold(
         where, frame.floor, n_present - unparsed, low, high, tuple(rungs),
-        "clock_percentiles", "T2",
+        "clock_percentiles", "T2", form,
     )
     return ClockFacts(
         clock_form=form,
@@ -17033,6 +17107,14 @@ def _cross_checks(
                 "S8",
                 "in the block of rules that produced the description",
                 f"'{name}' is named as writing its numbers with a comma",
+                "this table has no column of that name",
+            )
+    for name in settings.forced_twelve_hour_clocks:
+        if name not in places:
+            raise _broken(
+                "S8",
+                "in the block of rules that produced the description",
+                f"'{name}' is named as a 12-hour clock",
                 "this table has no column of that name",
             )
     _group_marks_agree(columns, settings)

@@ -1686,7 +1686,11 @@ GOLDEN_DESCRIPTION_SHA256 = (
     # hold 238 different values and were told "every value in this column
     # is different"; they are told "nearly every value" now. The twin's
     # digest below did not move.
-    "f2cad811ba6b715522c8fc2eedd1b2c325f09fc31a48e47b8388e0b777cecb31"
+    # RE-RECORDED BY PLAN P4-D370 (landing T1): the settings block gains
+    # `forced_twelve_hour_clocks`, empty, and the same document with that
+    # key taken out hashes to f2cad811...cecb31. The twin's digest below
+    # did not move.
+    "486a54c37a785f947b46f4fd1570d0c13071ae6ad38e55ca65244d50c1bec400"
 )
 
 

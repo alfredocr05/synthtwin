@@ -845,6 +845,15 @@ def _datetime_separator_lines(
     for key in sorted(census):
         if key in known or key == parsing.MISSING_WITHHELD:
             continue
+        # A SLASHED STAMP'S WORD NAMES ITS WRITTEN CLOCK (landing T1,
+        # contract NF109), said in words.
+        style = parsing.stamp_style(_text_of(key))
+        if style is not None:
+            parts += [
+                f"a space in {_count_of(census[key])} value(s), and then "
+                f"{parsing.clock_style_said(style)}"
+            ]
+            continue
         parts += [f"'{_text_of(key)}' in {_count_of(census[key])} value(s)"]
     if parsing.MISSING_WITHHELD in census:
         pooled = _count_of(census[parsing.MISSING_WITHHELD])
@@ -1193,8 +1202,16 @@ def _column_lines(column: dict[str, object], floor: int) -> list[str]:
         # THE SAME LINE FOR A COLUMN OF CLOCK TIMES (stage 3), counted in
         # the form's own unit.
         unit = "minute"
-        if _text_of(column["clock_form"]) != parsing.CLOCK_FORMS[0]:
+        form = _text_of(column["clock_form"])
+        if form in parsing.CLOCK_FORMS and parsing.clock_step(form) == 1:
             unit = "second"
+        # THE WRITTEN CLOCK IN WORDS (landing T1, contract NF109), where it
+        # is not the two-figure 24-hour clock every earlier page wrote.
+        if form in parsing.CLOCK_FORMS[2:]:
+            lines += [
+                f"    written with "
+                f"{parsing.clock_style_said(parsing.clock_style_of(form))}"
+            ]
         lines = lines + _tail_lines(column, unit, "")
     if role == taxonomy.ROLE_IDENTIFIER:
         # A column is here because the reader of this summary put it
