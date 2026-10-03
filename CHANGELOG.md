@@ -19,11 +19,15 @@ clock form of landing T1 -- are now asked and answered as times of day.
 A code's rows are every cell its declaration takes in its column (20
 `UNK` beside 5 `unk` are 25 rows), and a declaration that would also
 take a real date (`20,230,101` is the number 20230101) is no code; the
-few cells that read as neither are said rather than called codes. The
+few cells that read as neither are said rather than called codes, and
+they are the cells the answer leaves unread, so a stand-in date such as
+`1900-01-01`, which the classifier sets aside, is counted among the
+dates. The
 line that repeats a run, and every other line a person is told to type,
 quotes every value for the shell and says which shell -- a code written
 `$(...)` is text, `NOT RECORDED` one word, `-UNK` joined with `=`, `a=~`
-no home folder to bash, a `"` handed whole through Windows PowerShell --
+no home folder to bash, a `"` handed whole through Windows PowerShell,
+and the backslashes ending a value beside any white space .NET counts --
 and the repeat line names the typed options an answer replaced. `real-value`
 answered beside a typed `--missing-value` keeps every code the question
 counted, while a word typed on both runs, which it never counted, stays
