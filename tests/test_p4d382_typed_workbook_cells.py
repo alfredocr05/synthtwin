@@ -676,7 +676,7 @@ def test_each_reading_withdrawn_brings_its_defect_back(
     """The witnesses: a rule withdrawn, and the twin of the person's table fails again."""
     # The stored dates beside text cells, read as text again.
     with monkeypatch.context() as patched:
-        patched.setattr(workbook, "stored_as_dates", lambda texts, classes, codes: False)
+        patched.setattr(workbook, "stored_as_dates", lambda *arguments: False)
         trip = _trip(tmp_path / "dates", _dates_beside(random.Random(20), 20, "dates"))
         assert trip["column"]["role"] != "datetime"
         assert trip["twin_exit"] == 3
@@ -847,3 +847,49 @@ def test_a_date_count_goes_first_to_the_t_clocks_and_the_oracle_agrees() -> None
         mine = sheetwriting._dates_as_day_counts(column, cells, True, held)
         theirs = oracle.sheet_dates_as_day_counts(block, list(cells), True, held)
         assert (list(mine[0]), list(mine[1])) == (theirs[0], theirs[1]), (block, cells)
+
+
+@pytest.mark.parametrize(("word", "extra"), (("NA", ()), ("UNK", ("--missing-value", "UNK"))))
+def test_stored_dates_are_counted_among_the_present_cells(
+    word: str, extra: "tuple[str, ...]", tmp_path: pathlib.Path
+) -> None:
+    """950 stored dates, 50 text dates and 1,000 missing words: still dates.
+
+    Review item 2 of landing R3. The storage majority counted the
+    missing words among the value cells, so 95 % of the PRESENT cells
+    stored as dates fell under half of all value cells and the column
+    was read as free text: its twin held 2,000 strings and no date, and
+    `validate` missed `workbook.cell-classes`.
+    """
+    draw = random.Random(22)
+    cells: "list[tuple[object, str]]" = []
+    for index in range(2 * ROWS):
+        if index % 2:
+            cells += [(word, "General")]
+            continue
+        day = _day(draw)
+        if index % 40 == 0:
+            cells += [(day.strftime("%m/%d/%Y"), "General")]
+            continue
+        cells += [(day, "m/d/yy")]
+    texts = ["2024-03-17"] * 95 + ["03/17/2024"] * 5 + [word] * 100
+    classes = ["number"] * 95 + ["text"] * 105
+    codes = ["m/d/yy"] * 95 + ["General"] * 105
+    assert not workbook.stored_as_dates(texts, classes, codes)
+    settings = taxonomy.Settings(
+        declared_missing_values=tuple(extra[1:]),
+    )
+    assert workbook.stored_as_dates(
+        texts, classes, codes, taxonomy.missing_cells(texts, settings)
+    )
+    trip = _trip(tmp_path, cells, ("--smallest-group", "11", *extra))
+    column = trip["column"]
+    assert column["role"] == "datetime"
+    assert column["n_missing"] == ROWS
+    assert column["n_unparsed"] == 50
+    assert trip["twin_exit"] == 0
+    assert trip["real_exit"] == 0
+    read = _cells_read(trip["twin"])
+    dates = [value for value, _code in read if isinstance(value, datetime.datetime)]
+    assert len(dates) == 950
+    assert len([value for value, _code in read if value == word]) == ROWS

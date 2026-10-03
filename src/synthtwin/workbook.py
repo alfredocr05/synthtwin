@@ -2472,22 +2472,54 @@ def _value_class(classes: "list[str]", floor: int) -> "str | None":
 
 
 def stored_as_dates(
-    texts: "list[str]", classes: "list[str]", codes: "list[str]"
+    texts: "list[str]",
+    classes: "list[str]",
+    codes: "list[str]",
+    missing: "tuple[bool, ...]" = (),
 ) -> bool:
-    """Whether a workbook stores most of a column's value cells as dates.
+    """Whether a workbook stores most of a column's present cells as dates.
 
     A cell is STORED AS A DATE where it is a number wearing a date or a
     date-and-time format that the reader read as its date
     (`dialect.sheet_moment_kind` of its text), or a date cell holding
     ISO text (`t="d"`, `dialect.sheet_iso_date`). The answer is true
     where those are more than half the cells holding a value
-    (`dialect.SHEET_VALUE_CLASSES`), and it is what lets a column of
-    stored dates be read as dates beside a few text cells no date format
-    reads (`taxonomy._stored_date_format`, plan P4-D382).
+    (`dialect.SHEET_VALUE_CLASSES`) that are PRESENT, and it is what
+    lets a column of stored dates be read as dates beside a few text
+    cells no date format reads (`taxonomy._stored_date_format`, plan
+    P4-D382).
+
+    A MISSING WORD IS NOT A PRESENT CELL (review item 2 of landing R3).
+    ``missing`` gives, by position, the cells the column's reading takes
+    out as no value (`taxonomy.missing_cells`): a word such as `NA`, or
+    one named with `--missing-value`. Counted among the value cells,
+    1,000 `NA` cells beside 950 stored dates and 50 dates typed in as
+    text put the stored dates under half, and the column was read as
+    free text with a twin holding no date. Empty, no cell is taken out;
+    `profile.stored_as_of` asks for the marks only of a column holding a
+    stored date at all (`stored_date_counts`), because they cost 1.6 to
+    1.8 s of CPU over a million cells.
 
     Guarantees: accepts one column's texts, cell classes and format
-    codes, the same length; returns a bool. Determinism: a fixed
-    function of the three. Raises nothing. No I/O of any kind.
+    codes, the same length, and ``missing`` empty or of that length;
+    returns a bool. Determinism: a fixed function of the four. Raises
+    nothing. No I/O of any kind.
+    """
+    held, dated = stored_date_counts(texts, classes, codes, missing)
+    return held > 0 and dated * 2 > held
+
+
+def stored_date_counts(
+    texts: "list[str]",
+    classes: "list[str]",
+    codes: "list[str]",
+    marks: "tuple[bool, ...]" = (),
+) -> "tuple[int, int]":
+    """How many value cells are present, and how many of them are stored dates.
+
+    `stored_as_dates`'s walk, its rule stated there: a cell marked in
+    ``marks`` is not counted. Guarantees: a fixed function of the four;
+    returns the two counts. Raises nothing. No I/O of any kind.
     """
     held = 0
     dated = 0
@@ -2495,6 +2527,8 @@ def stored_as_dates(
     for index in range(len(classes)):
         kind = classes[index]
         if kind not in dialect.SHEET_VALUE_CLASSES or index >= len(texts):
+            continue
+        if index < len(marks) and marks[index]:
             continue
         held = held + 1
         text = texts[index]
@@ -2511,7 +2545,7 @@ def stored_as_dates(
             dialect.sheet_moment_kind(text)
         ):
             dated = dated + 1
-    return held > 0 and dated * 2 > held
+    return held, dated
 
 
 def stored_as_clocks(

@@ -2823,7 +2823,7 @@ def _run_profile(
     # HOW A WORKBOOK STORES EACH COLUMN, taken once and handed to the
     # census and the description alike (plan P4-D382), so the column
     # the census reads is read once.
-    storage = profile.stored_as_of(read)
+    storage = profile.stored_as_of(read, settings)
     person_columns, population, unit, census_readings = _population_of(
         read.column_names,
         read.columns,

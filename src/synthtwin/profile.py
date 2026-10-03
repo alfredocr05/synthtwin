@@ -3676,11 +3676,16 @@ def _stored_as_text_withheld(
     return block
 
 
-def stored_as_of(table: Table) -> "tuple[str, ...]":
+def stored_as_of(
+    table: Table, settings: "taxonomy.Settings | None" = None
+) -> "tuple[str, ...]":
     """How a workbook stores each column of a table, one word a column.
 
     `taxonomy.STORED_AS_DATES` where the workbook stores most of the
-    column's value cells as dates (`workbook.stored_as_dates`),
+    column's present cells as dates (`workbook.stored_as_dates`; a cell
+    is present where `taxonomy.missing_cells` under ``settings`` -- the
+    defaults where None -- does not take it out, review item 2 of
+    landing R3),
     `taxonomy.STORED_AS_CLOCKS` where it stores every one as a clock
     (`workbook.stored_as_clocks`), and the empty word otherwise and for
     every column of a delimited file (plan P4-D382).
@@ -3693,12 +3698,14 @@ def stored_as_of(table: Table) -> "tuple[str, ...]":
     it read was read twice, and `synthtwin profile` of 100,000 typed
     dates went from 8.0 s to 12.7 s of CPU.
 
-    Guarantees: accepts a Table as the reader produced it; returns one
-    word per column, in column order. Determinism: a fixed function of
-    the table. Raises nothing. No I/O of any kind.
+    Guarantees: accepts a Table as the reader produced it and the
+    settings; returns one word per column, in column order.
+    Determinism: a fixed function of the two. Raises nothing. No I/O of
+    any kind.
     """
     words: "list[str]" = []
     sheet = table.sheet
+    read_under = taxonomy.Settings() if settings is None else settings
     for place in range(len(table.columns)):
         word = ""
         if (
@@ -3707,8 +3714,15 @@ def stored_as_of(table: Table) -> "tuple[str, ...]":
             and place < len(sheet.formats)
         ):
             cells = table.columns[place]
-            if workbook.stored_as_dates(
+            # THE MISSING WORDS ARE ASKED FOR ONLY WHERE A DATE IS STORED
+            # (review item 2 of landing R3): they cost 1.6 to 1.8 s of
+            # CPU over a million cells, and a column storing no date is
+            # not stored as dates whatever they are.
+            if workbook.stored_date_counts(
                 cells, sheet.classes[place], sheet.formats[place]
+            )[1] and workbook.stored_as_dates(
+                cells, sheet.classes[place], sheet.formats[place],
+                taxonomy.missing_cells(cells, read_under),
             ):
                 word = taxonomy.STORED_AS_DATES
             elif workbook.stored_as_clocks(
@@ -3873,7 +3887,9 @@ def build_document(
     # list of labels the twin could not write back. The validator
     # describes a checked workbook through this same line, so a twin is
     # read the way its source was.
-    storage = stored_as_of(table) if stored_as is None else stored_as
+    storage = (
+        stored_as_of(table, settings) if stored_as is None else stored_as
+    )
     for position, name in enumerate(table.column_names, start=1):
         cells = table.columns[position - 1]
         handed_over: "taxonomy.HeldReading | None" = None

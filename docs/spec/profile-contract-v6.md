@@ -5427,10 +5427,13 @@ claimed it — rule 6 of the order in section 5.2, with the line
 `minimum_parse_rate` fixes (section 4.4) applied as a COUNT and never
 as a compared share. Where no single member clears the line, the joint
 ISO reading below may still claim the column. **A column a workbook
-STORES mostly as dates** (plan P4-D382) -- more than half its value
-cells numbers wearing a date or date-and-time format and read as their
-dates, or date cells holding ISO text (`workbook.stored_as_dates`) --
-needs no line of its own: the cell type settles that those cells are
+STORES mostly as dates** (plan P4-D382) -- more than half its PRESENT
+value cells numbers wearing a date or date-and-time format and read as
+their dates, or date cells holding ISO text (`workbook.stored_as_dates`),
+a word the vocabulary reads as no value or one named with
+`--missing-value` being no present cell (review item 2 of landing R3:
+counted, 1,000 `NA` cells put 950 stored dates and 50 text dates under
+half, and the column fell to free text) -- needs no line of its own: the cell type settles that those cells are
 dates. Where no member clears the line, such a column is read under the
 ISO member that reads the most of its present cells, `iso-date`, then
 `iso-datetime`, then the joint reading on a tie, provided it reads more

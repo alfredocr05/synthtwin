@@ -6968,21 +6968,69 @@ def split_missing(
     present: list[str] = []
     missing: list[tuple[str, str]] = []
     for value in values:
-        # THE RESCUE ASKS THE MEMBER'S OWN RULE (contract C6-32). A
-        # cell this package's own list claims is reached only by a
-        # declaration that names the member claiming it, and for the
-        # one exact-spelling member that means byte for byte.
-        if _rescues_a_vocabulary_cell(value, kept):
-            present += [value]
-        elif _rescues_a_vocabulary_cell(value, declared_missing):
-            missing += [(value, parsing.MISSING_DECLARED)]
-        elif not parsing.trimmed(value):
-            missing += [(value, parsing.MISSING_BLANK)]
-        elif parsing.is_missing_text(value):
-            missing += [(value, parsing.MISSING_TEXT_CODE)]
-        else:
-            present += [value]
+        named = _missing_class(value, kept, declared_missing)
+        if named:
+            missing += [(value, named)]
+            continue
+        present += [value]
     return present, missing
+
+
+def _missing_class(
+    value: str,
+    kept: "list[_Declaration]",
+    declared_missing: "list[_Declaration]",
+) -> str:
+    """The named class a cell is missing as, or the empty word where present.
+
+    `split_missing`'s question for one cell, asked again by
+    `missing_cells`. Raises TypeError if the value is not text.
+    """
+    # THE RESCUE ASKS THE MEMBER'S OWN RULE (contract C6-32). A cell
+    # this package's own list claims is reached only by a declaration
+    # that names the member claiming it, and for the one exact-spelling
+    # member that means byte for byte.
+    if _rescues_a_vocabulary_cell(value, kept):
+        return ""
+    if _rescues_a_vocabulary_cell(value, declared_missing):
+        return parsing.MISSING_DECLARED
+    if not parsing.trimmed(value):
+        return parsing.MISSING_BLANK
+    if parsing.is_missing_text(value):
+        return parsing.MISSING_TEXT_CODE
+    return ""
+
+
+def missing_cells(
+    values: "list[str]", settings: Settings
+) -> "tuple[bool, ...]":
+    """Which cells of a column `split_missing` takes out as no value, in row order.
+
+    THE SAME FIRST STEP, ASKED BY POSITION (review item 2 of landing
+    R3). `workbook.stored_as_dates` asks whether most of a column's
+    PRESENT cells are stored as dates, and it has the cells' storage
+    classes by position: a word the package's own vocabulary reads as
+    no value, or one named with `--missing-value`, is not a present
+    cell. Measured with those words counted: 950 stored dates and 50
+    dates typed in as text beside 1,000 `NA` cells were under half of
+    the value cells, the column was read as free text, and its twin
+    held 2,000 strings and no date. A declaration naming a NUMBER is
+    `_declared_numbers_removed`'s business, asked of the classified
+    cells, and is not asked here; declarations are read as a file
+    without a decimal comma reads them, which is how a workbook's cells
+    are spelled.
+
+    Guarantees: accepts the column's cells as text and the settings;
+    returns one bool per cell, true where `split_missing` would take it
+    out. Determinism: a fixed function of the two. Raises TypeError if
+    a value is not text. No I/O of any kind.
+    """
+    kept = _declarations(settings.kept_values, False)
+    declared_missing = _declarations(settings.declared_missing_values, False)
+    out: "list[bool]" = []
+    for value in values:
+        out += [bool(_missing_class(value, kept, declared_missing))]
+    return tuple(out)
 
 
 def _declared_numbers_removed(
