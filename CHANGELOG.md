@@ -16,11 +16,12 @@ twin's column as dates as it reads the source's (method G2.2 steps 0 and
 1 and the oracle; no frozen vector moves). Stored dates are counted
 among the PRESENT cells, so missing words such as `NA` beside them no
 longer turn the column into free text (contract 6.6.2). A time format
-over numbers both under one day and of a day or more is refused, naming
-the column, where its twin changed which cells every reader returns as
-date-times without a miss (`errors.MIXED_DAYS`, contract 4.3b). A
-description made before P4-D382 that read clocks as numbers is asked to
-be made again rather than reported as missing on its own table
+over numbers both inside one day and outside it -- a day or more, or
+below nought -- is refused, naming the column, where its twin changed
+which cells a reader returns as date-times without a miss
+(`errors.MIXED_DAYS`, contract 4.3b). A description made before P4-D382
+that read clocks as numbers is asked to be made again rather than
+reported as missing on its own table
 (`errors.checked_clocks_described_as_numbers`, validation method V9). A
 format writing fewer figures after the second than the description
 records is said to write fewer, not none.
