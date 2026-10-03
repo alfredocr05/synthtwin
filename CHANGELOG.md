@@ -29,6 +29,22 @@ withdrew. STATE, `K-S3-13` and the tail producer's docstring no longer
 describe the withdrawn protection as current, and keep the sorted-table
 exception.
 
+### Stage 4's first tier repaired at its review (2026-10-02)
+
+**A twin of a description the producer writes today moves no byte**
+(plan P4-D385, its review). An identifier search knows a repeated shape
+before it builds that shape's permissions: 441 where it built 8,421 at
+461 rows. The made-up spellings of one label are bounded -- 4,096 case
+flips and 64 trailing spaces -- and their walk resumes where it
+stopped, so a level that holds back a million spellings of one label,
+as the producer wrote one before P4-D275, no longer asks for spellings
+a million spaces long: past the bound a group is written in its level's commonest
+spelling, and the twin's report says how many were. Nine lists that
+copied a comprehension in grow in place, and the guard sees that form.
+`K-S4-03` measures the lines the pair search runs and the bytes the
+class pass allocates, and its tests compare against frozen copies of
+the replaced functions.
+
 ### Codex's review of the typed workbook cells, repaired (2026-10-02)
 
 **Five items of the review of plan P4-D382, each reproduced by a test

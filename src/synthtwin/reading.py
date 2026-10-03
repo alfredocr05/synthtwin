@@ -1268,7 +1268,7 @@ def _agrees_with_the_standard_reader(
         ):
             cells = cells[:width]
         if form.short_rows and len(cells) < width:
-            cells = cells + ["" for _place in range(width - len(cells))]
+            cells += ["" for _place in range(width - len(cells))]
         if len(cells) != width or row >= surveyed.n_rows:
             raise errors.ProfileError(
                 errors.readers_disagree(

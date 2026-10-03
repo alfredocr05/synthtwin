@@ -115,7 +115,8 @@ def test_no_product_source_grows_a_list_by_copying_it() -> None:
     """`x = x + [item]` appears nowhere in the product.
 
     Turns red the moment the idiom comes back, in any module, with a
-    plain name or a container slot as its target.
+    plain name or a container slot as its target, and a list written
+    out or built by a comprehension as what it adds.
     """
     found: "list[str]" = []
     for source in sorted(PRODUCT.glob("*.py")):
@@ -128,7 +129,12 @@ def test_no_product_source_grows_a_list_by_copying_it() -> None:
                 continue
             if not isinstance(value.op, ast.Add):
                 continue
-            if not isinstance(value.right, ast.List):
+            # A LIST WRITTEN OUT OR BUILT BY A COMPREHENSION (review of
+            # landing S1, item 3): `sizes = sizes + [rows for ...]` in
+            # `generation._groups_of` copied every group size once per
+            # key, 1,412,996,166 references for an identifier of
+            # 1,998,990 rows, and this guard read only the first form.
+            if not isinstance(value.right, (ast.List, ast.ListComp)):
                 continue
             if not _same_storage(node.targets[0], value.left):
                 continue

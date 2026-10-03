@@ -13696,11 +13696,11 @@ def _style_subchecks(
             parsing.STYLE_EXPONENT_UPPER,
         )
     ]
-    named = named + [
+    named += [
         f"styles.at-least.{style}" for style in _floor_styles(facts)
     ]
     named += ["styles.spill", "styles.remainder", "styles.spelled"]
-    named = named + [
+    named += [
         f"styles.canonical.{style}"
         for style in _ceilinged_styles(column, facts)
     ]

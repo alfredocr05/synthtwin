@@ -1885,7 +1885,7 @@ def _groups_of(pattern: "dict[str, int]") -> "tuple[int, ...]":
     sizes: list[int] = []
     for key in sorted(pattern):
         rows = int(key)
-        sizes = sizes + [rows for _each in range(pattern[key])]
+        sizes += [rows for _each in range(pattern[key])]
     return tuple(sizes)
 
 
@@ -14006,7 +14006,7 @@ def _style_strata(
     settled: list[str] = []
     for place in range(total):
         name = contract.NUMERIC_STYLES[packed[place]]
-        settled = settled + [name for _step in range(layout.sizes[place])]
+        settled += [name for _step in range(layout.sizes[place])]
     return settled
 
 
@@ -22165,7 +22165,7 @@ def _offset_allocation(
             for key in pins[rank]:
                 _pin_offset(rank, key, given, settled, left)
     keys = [key for key in sorted(left) if _is_real_offset(key)]
-    keys = keys + [key for key in sorted(left) if not _is_real_offset(key)]
+    keys += [key for key in sorted(left) if not _is_real_offset(key)]
     open_ranks = [rank for rank in range(parsed) if not settled[rank]]
     if bounds is not None:
         # THE RANK WITH THE FEWEST FEASIBLE KEYS TAKES ITS OFFSET FIRST
@@ -25684,6 +25684,11 @@ def _label_content(
     cells: list[str] = []
     notes: list[Deviation] = []
     made_up = 0
+    # Groups the bounded supply of G8.2 could not reach, written in their
+    # level's commonest spelling (review of landing S1, item 2), and
+    # where each walk of that supply stopped in this column.
+    absorbed = 0
+    flipped: "dict[tuple[str, str | None], int]" = {}
     for entry in facts.levels:
         covered = 0
         # ...AND HOW MANY OF THOSE CELLS ALREADY WEAR THE LABEL'S OWN
@@ -25737,18 +25742,29 @@ def _label_content(
                     left[key] = left[key] - 1
                 take = key == spare
                 variant = _variant_spelling(
-                    entry.label, used, owners, wanted, take
+                    entry.label, used, owners, wanted, take, flipped
                 )
                 if take:
                     spare = ""
-                made_up = made_up + 1
+                if variant is None:
+                    # THE SUPPLY RAN OUT, which only a level holding
+                    # spellings back, as the producer wrote one before
+                    # plan P4-D275, can ask of it: the group is written
+                    # as today's producer counts a spelling below the
+                    # floor, in its level's commonest one.
+                    variant = _commonest_spelling(entry)
+                    used[variant] = 1
+                    owners[parsing.folded(variant)] = entry.label
+                    absorbed = absorbed + 1
+                else:
+                    made_up = made_up + 1
                 cells += [variant for _row in range(rows)]
                 covered = covered + rows
         if covered < entry.count:
             cells += [entry.label for _row in range(entry.count - covered)]
             used[entry.label] = 1
             owners[parsing.folded(entry.label)] = entry.label
-    if made_up:
+    if made_up and not absorbed:
         notes += [
             _deviation(
                 column.name,
@@ -25759,6 +25775,26 @@ def _label_content(
                 "so the twin keeps the count and the values distinct; "
                 "below the floor the spellings themselves are in no "
                 "file synthtwin writes.",
+            )
+        ]
+    if absorbed:
+        notes += [
+            _deviation(
+                column.name,
+                "levels -> variants_withheld",
+                f"{made_up + absorbed} spellings that were held back",
+                f"{made_up} neutral spellings made up in their place, "
+                f"and {absorbed} written in their label's commonest "
+                "spelling",
+                "This description holds back more spellings of one label "
+                f"than synthtwin makes up: {_VARIANT_FLIPS} changes of "
+                f"case and {_VARIANT_SPACES} trailing spaces at most, so "
+                "no made-up spelling is far longer than its label. "
+                "A description synthtwin writes today holds no spelling "
+                "back, and the rest are written the way it counts them, "
+                "in the label's commonest spelling, so the twin holds "
+                "fewer different values than this description "
+                "publishes.",
             )
         ]
     number = 0
@@ -26617,20 +26653,49 @@ def _spare_variant_group(
     return best
 
 
+# HOW FAR THE SUPPLY OF MADE-UP SPELLINGS OF ONE LABEL REACHES (method
+# G8.2, review of landing S1 item 2). The case flips are walked to the
+# 4,096th step of the binary counter, as they always were, and then at
+# most 64 trailing spaces are added -- so no made-up spelling is more
+# than 64 characters longer than its label, and the walk is linear in
+# the groups it is asked for.
+_VARIANT_FLIPS = 4096
+_VARIANT_SPACES = 64
+
+
 def _variant_spelling(
     parent: str,
     used: "dict[str, int]",
     owners: "dict[str, str]",
     wanted: str,
     spare: bool = False,
-) -> str:
-    """One made-up spelling of a published label (method G8.2).
+    walked: "dict[tuple[str, str | None], int] | None" = None,
+) -> "str | None":
+    """One made-up spelling of a published label (method G8.2), or None.
 
     Case flips first, in the binary-counter order the method fixes, and
-    then trailing spaces, whose supply has no end. A candidate is
+    then trailing spaces. A candidate is
     stepped past when it is already used in this column, or when it
     would fold onto a DIFFERENT label -- so the published counts of
     folded identities stay exactly what the description says.
+
+    THE SUPPLY IS BOUNDED, AND None SAYS IT RAN OUT (review of landing
+    S1, item 2). The trailing spaces once had no end: a level holding
+    back a million spellings of one label, each written twice, as the
+    producer wrote one before plan P4-D275, was answered with spellings
+    of up to a million spaces -- about 496 GB of them, written twice --
+    and each search for the next began again at one space. The flips stop at
+    `_VARIANT_FLIPS` and the spaces at `_VARIANT_SPACES`; the caller
+    writes a group the supply cannot reach in the level's commonest
+    spelling, which is how today's producer describes every spelling
+    below the floor, and names it. No description today's producer
+    writes reaches the bound: it holds no spelling back.
+
+    ``walked``, where given, keeps each walk where it stopped for the
+    column: the flips under each wanted form and the spaces of each
+    label. A candidate stepped past is used, folds elsewhere or wears
+    the other form, and stays so for the rest of the column, so the walk
+    resumes where it stopped and answers as a walk from the start would.
 
     ``wanted`` IS THE WRITTEN FORM THIS SPELLING MUST WEAR, "" for none
     (method G8.2a, plan amendment A-P4-47). A case flip of the label
@@ -26656,11 +26721,17 @@ def _variant_spelling(
         used[parent] = 1
         owners[parsing.folded(parent)] = parent
         return parent
-    order = 0
-    while order < 4096:
+    if walked is None:
+        walked = {}
+    flips: "tuple[str, str | None]" = (parent, wanted)
+    order = walked[flips] if flips in walked else 0
+    while order < _VARIANT_FLIPS:
         order = order + 1
         candidate = _case_variant(parent, order)
         if candidate is None:
+            # Every later step of the counter is past the label's flips
+            # too, so the walk is spent for good.
+            order = _VARIANT_FLIPS
             break
         if candidate in used or parsing.folded(candidate) != parent:
             continue
@@ -26669,18 +26740,41 @@ def _variant_spelling(
         taken = parsing.folded(candidate) in owners
         if taken and owners[parsing.folded(candidate)] != parent:
             continue
+        walked[flips] = order
         used[candidate] = 1
         owners[parsing.folded(candidate)] = parent
         return candidate
-    spaces = 0
-    while True:
+    walked[flips] = order
+    padded: "tuple[str, str | None]" = (parent, None)
+    spaces = walked[padded] if padded in walked else 0
+    while spaces < _VARIANT_SPACES:
         spaces = spaces + 1
         candidate = f"{parent}{_SPACE * spaces}"
         if candidate in used:
             continue
+        walked[padded] = spaces
         used[candidate] = 1
         owners[parsing.folded(candidate)] = parent
         return candidate
+    walked[padded] = spaces
+    return None
+
+
+def _commonest_spelling(entry: "contract.LevelEntry") -> str:
+    """The spelling a level's held-back groups are written in once G8.2 runs out.
+
+    The published spelling covering the most rows, ties to the first in
+    sorted order -- the rule plan P4-D275 counts a spelling below the
+    floor by -- and the label itself where the level publishes none.
+
+    Guarantees: a fixed function of the entry; one of its published
+    spellings or its label. No I/O.
+    """
+    best = ""
+    for spelling in sorted(entry.variants):
+        if not best or entry.variants[spelling] > entry.variants[best]:
+            best = spelling
+    return best if best else entry.label
 
 
 def _forms_owed(
@@ -33318,7 +33412,8 @@ def _identifier_packings(
     # this packer already answers completely.
     for signing in (False, True):
         sized: dict[tuple[int, int], int] = {}
-        seen_permits: dict[tuple[tuple[int, int], ...], int] = {}
+        seen_permits: dict[tuple[tuple[tuple[int, int], int], ...], int] = {}
+        windows = _identifier_window_masks(facts, signing)
         for carriers in _shape_choices(groups):
             if len(found) >= budget:
                 return found
@@ -33326,13 +33421,20 @@ def _identifier_packings(
             if shape in sized:
                 continue
             sized[shape] = 1
-            permits = _identifier_windows(facts, total, carriers, signing)
-            seen = tuple(sorted(
-                [(groups[place], permits[place]) for place in range(total)]
-            ))
+            # A REPEAT IS KNOWN BEFORE ITS VECTOR IS BUILT (review of
+            # landing S1, item 1). The groups beside their permissions
+            # were built and sorted for every shape and only then
+            # compared, so a column of `k` different group sizes built
+            # `k * k` vectors of every group to ask about `k` questions:
+            # an identifier of 1,413 groups, 2,817,161,685 permissions.
+            # `_window_change` is the same comparison taken from the two
+            # carriers alone, so the same shapes are stepped over, in
+            # the same order, and a vector is built only for a new one.
+            seen = _window_change(groups, carriers, windows)
             if seen in seen_permits:
                 continue
             seen_permits[seen] = 1
+            permits = _identifier_windows(facts, total, carriers, signing)
             # THE FIRST TIER IS BOUNDED BY ITS OWN SHAPES, not by the
             # budget, and that is load-bearing: `_identifier_families`
             # asks for ONE candidate and the first shape it tries may
@@ -33802,19 +33904,87 @@ def _identifier_windows(
     carriers: "tuple[int, int]",
     signed: bool = False,
 ) -> "list[int]":
-    """The pairs every group may stand in, under one choice of end carriers."""
+    """The pairs every group may stand in, under one choice of end carriers.
+
+    THREE WINDOWS, WORKED OUT ONCE (stage 4, plan P4-D385, review of
+    landing S1 item 1). A group carrying the shortest length, one
+    carrying the longest, and every other group are the only three
+    questions `_identifier_permits` is asked here, so each is asked once
+    and the vector is filled from the three answers, where every group
+    asked its own: the answer is the same list.
+    """
+    low, high, middle = _identifier_window_masks(facts, signed)
     permits: list[int] = []
     for index in range(total):
-        shortest = facts.min_length
-        highest = facts.max_length
         if index == carriers[0]:
-            highest = facts.min_length
-        elif index == carriers[1] and facts.max_length > facts.min_length:
-            shortest = facts.max_length
-        permits += [
-            _identifier_permits(facts, shortest, highest, signed)
-        ]
+            permits += [low]
+        elif index == carriers[1]:
+            permits += [high]
+        else:
+            permits += [middle]
     return permits
+
+
+def _identifier_window_masks(
+    facts: contract.IdentifierFacts, signed: bool = False
+) -> "tuple[int, int, int]":
+    """The pairs a group may stand in as the shortest, the longest and any other.
+
+    The shortest carrier is held to the shortest published length; the
+    longest carrier to the longest where the two differ, and to the
+    whole range where they do not -- which is the window every other
+    group is given.
+
+    Guarantees: a fixed function of its arguments; no randomness and no
+    I/O.
+    """
+    middle = _identifier_permits(
+        facts, facts.min_length, facts.max_length, signed
+    )
+    low = _identifier_permits(facts, facts.min_length, facts.min_length, signed)
+    high = middle
+    if facts.max_length > facts.min_length:
+        high = _identifier_permits(
+            facts, facts.max_length, facts.max_length, signed
+        )
+    return low, high, middle
+
+
+def _window_change(
+    groups: "tuple[int, ...]",
+    carriers: "tuple[int, int]",
+    windows: "tuple[int, int, int]",
+) -> "tuple[tuple[tuple[int, int], int], ...]":
+    """How one choice of end carriers moves the groups off the middle window.
+
+    `_identifier_packings` steps over a choice whose groups, each beside
+    its permission, are the same as a choice already tried (sorted pairs
+    of size and mask). Every group not carrying an end holds the middle
+    window, so two choices give the same pairs exactly when they move
+    the same sizes to the same windows: this is that move, the pairs the
+    carriers take less the pairs they leave, with whatever cancels left
+    out. It is worked out from the two carriers alone, so a choice that
+    repeats one already tried is known before its vector is built (review
+    of landing S1, item 1: an identifier of 101 groups built 10,001
+    vectors of 101 masks to ask 101 questions).
+
+    Guarantees: equal for two choices exactly when the sorted pairs of
+    `_identifier_windows` are equal; a fixed function of its arguments.
+    """
+    low, high, middle = windows
+    change: "dict[tuple[int, int], int]" = {}
+    taken = [(carriers[0], low)]
+    if carriers[1] != carriers[0]:
+        taken += [(carriers[1], high)]
+    for place, permit in taken:
+        size = groups[place]
+        left = (size, middle)
+        came = (size, permit)
+        change[left] = (change[left] if left in change else 0) - 1
+        change[came] = (change[came] if came in change else 0) + 1
+    return tuple(sorted(
+        (pair, change[pair]) for pair in change if change[pair] != 0
+    ))
 
 
 def _identifier_classes(pairs: int) -> int:
@@ -34617,7 +34787,7 @@ def _collision_slots(
         return cells
     width = len(_BANDS)
     needed = [place for place in range(min(partners, folded))]
-    needed = needed + [place for place in range(folded, total)]
+    needed += [place for place in range(folded, total)]
     barren = caseless if caseless is not None else frozenset()
     moved = [cell for cell in cells]
     for place in needed:
