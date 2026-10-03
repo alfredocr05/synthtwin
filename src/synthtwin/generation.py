@@ -18986,6 +18986,11 @@ class _WeekdayIndex:
 
 
 def _weekday_group(state: _WeekdayPass, ordinal: int) -> int:
+    """An ordinal's census group. The weekday is read here without a call,
+    `calendar_rules.weekday_of`'s own sum, as the pass asks it millions of
+    times on a large column."""
+    if state.bins == "weekday":
+        return state.where[(ordinal // state.day + 3) % calendar_rules.WEEKDAYS]
     return state.where[_weekday_bin(state, state.bins, ordinal)]
 
 
@@ -19494,15 +19499,21 @@ def _weekday_single_indexed(
     want: "list[int]",
     kind: _WeekdayKind,
 ) -> "tuple[int, int] | None":
-    """`_weekday_single_target` through the gap's index: the candidates of
-    the groups with room, taken nearest first and the lower on a tie --
-    the walk's order -- by one pointer each side in each group, stopping
-    once nothing later can be offered in place of what is found."""
+    """`_weekday_single_target` through the gap's index: in each group with
+    room, its units of the rank's kind outward from the rank's own, each
+    side. The walk keeps the first of the fewest ranks in its order --
+    nearest first, the lower side on a tie -- so the offer is the least
+    (ranks there, distance, side) of the count-keeping destinations, else
+    of the others; a side stops once it is past a count-keeping one that
+    nothing can beat, holding the fewest ranks it may."""
     here, place, first, last = _weekday_window(state, rank)
     alone = _weekday_there(state, here * state.unit + place) <= 1
-    lists: "list[list[int]]" = []
-    downs: "list[int]" = []
-    ups: "list[int]" = []
+    # Nothing offered can beat a count-keeping destination holding the
+    # fewest ranks it may: nought where the rank is alone or the count is
+    # not kept, one where it shares its unit.
+    least = 1 if state.keep_units and not alone else 0
+    keeping: "tuple[int, int, int, int] | None" = None
+    changing: "tuple[int, int, int, int] | None" = None
     for group in range(len(want)):
         if have[group] + 1 > want[group]:
             continue
@@ -19511,55 +19522,34 @@ def _weekday_single_indexed(
             continue
         units = index.units[key]
         start = _weekday_first_from(units, here)
-        lists += [units]
-        downs += [start - 1]
-        ups += [start + 1 if start < len(units) and units[start] == here else start]
-    # Nothing offered can beat a count-keeping destination holding the
-    # fewest ranks it may: nought where the rank is alone or the count is
-    # not kept, one where it shares its unit.
-    least = 1 if state.keep_units and not alone else 0
-    keeping: "tuple[int, int] | None" = None
-    changing: "tuple[int, int] | None" = None
-    while True:
-        best: "tuple[int, int, int] | None" = None
-        for place_in in range(len(lists)):
-            units = lists[place_in]
-            down = downs[place_in]
-            if down >= 0 and units[down] >= first:
-                found = (here - units[down], 0, place_in)
-                if best is None or found < best:
-                    best = found
-            up = ups[place_in]
-            if up < len(units) and units[up] <= last:
-                found = (units[up] - here, 1, place_in)
-                if best is None or found < best:
-                    best = found
-        if best is None:
-            break
-        distance, side, place_in = best
-        if side == 0:
-            other = here - distance
-            downs[place_in] = downs[place_in] - 1
-        else:
-            other = here + distance
-            ups[place_in] = ups[place_in] + 1
-        target = other * state.unit + place
-        there = _weekday_there(state, target)
-        if (
-            not state.keep_units
-            or (alone and there == 0)
-            or (not alone and there > 0)
-        ):
-            if keeping is None or there < keeping[0]:
-                keeping = (there, target)
-            if there <= least:
-                break
-        elif changing is None or there < changing[0]:
-            changing = (there, target)
+        for side in (0, 1):
+            spot = start - 1 if side == 0 else start
+            while 0 <= spot < len(units):
+                other = units[spot]
+                spot = spot - 1 if side == 0 else spot + 1
+                if other == here:
+                    continue
+                if other < first or other > last:
+                    break
+                distance = here - other if side == 0 else other - here
+                if keeping is not None and keeping[0] <= least and distance > keeping[1]:
+                    break
+                target = other * state.unit + place
+                there = _weekday_there(state, target)
+                found = (there, distance, side, target)
+                if (
+                    not state.keep_units
+                    or (alone and there == 0)
+                    or (not alone and there > 0)
+                ):
+                    if keeping is None or found < keeping:
+                        keeping = found
+                elif changing is None or found < changing:
+                    changing = found
     if keeping is not None:
-        return (0, keeping[1])
+        return (0, keeping[3])
     if changing is not None:
-        return (1, changing[1])
+        return (1, changing[3])
     return None
 
 
