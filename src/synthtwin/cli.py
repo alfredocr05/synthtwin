@@ -1852,8 +1852,9 @@ def _style_held_back(column: "dict[str, object]") -> bool:
 
     Its census of marks is `(withheld)` alone, so the description names
     no written clock -- which is not the same as a declaration that
-    reached nothing: `--twelve-hour` was honoured in reading the cells,
-    and only the word saying so is too rare to print.
+    reached nothing: where the clocks write no marker
+    (`_clocks_on_the_declared_face`), `--twelve-hour` was honoured in
+    reading them, and only the word saying so is too rare to print.
     """
     if "format" not in column or f"{column['format']}" not in parsing.SLASHED_STAMPS:
         return False
@@ -1864,6 +1865,33 @@ def _style_held_back(column: "dict[str, object]") -> bool:
         if f"{word}" != "(withheld)":
             return False
     return True
+
+
+def _clocks_on_the_declared_face(cells: "list[str]") -> bool:
+    """Whether a declared column's clocks are read on the 12-hour face with no marker.
+
+    THE PRODUCER'S OWN RULE (`parsing.clock_style_of_cells`): the face
+    most of the clocks write, a column declared a 12-hour clock reading
+    its unmarked ones on that face. Asked of a declared slashed stamp
+    whose written-clock word was pooled (`_style_held_back`), whose
+    description cannot say it: ten stamps written `1:00 PM` beside
+    ninety `NA` were told `--twelve-hour` was used and to keep it, where
+    a marked clock is one the declaration does not change -- the other
+    half of the T1 review's item 9.
+
+    Guarantees: accepts the column's cells as written; returns whether
+    some clock half reads and most of them write no marker. Determinism:
+    a function of the cells. Raises nothing. No I/O.
+    """
+    read: "list[tuple[int, int, int, bool, int, str, bool]]" = []
+    for cell in cells:
+        parts = parsing.clock_parts(parsing.stamp_halves(cell)[1])
+        if parts is not None:
+            read += [parts]
+    if not read:
+        return False
+    style = parsing.clock_style_of_cells(read, True)
+    return parsing.clock_face(style) == parsing.CLOCK_TWELVE_HOUR
 
 
 def _read_on_twelve_hours(column: "dict[str, object]") -> bool:
@@ -2980,7 +3008,17 @@ def _run_profile(
                 continue
             if _read_on_twelve_hours(described_column):
                 continue
-            if _style_held_back(described_column):
+            # A WORD TOO RARE TO NAME IS NOT A DECLARATION THAT REACHED
+            # NOTHING (the T1 review's item 9) -- unless the clocks write
+            # AM or PM, which the declaration does not change.
+            column_at = 0
+            for held in read.column_names:
+                if held == name:
+                    break
+                column_at = column_at + 1
+            if _style_held_back(described_column) and _clocks_on_the_declared_face(
+                read.columns[column_at]
+            ):
                 _warn(errors.the_twelve_hour_style_was_held_back(name))
                 continue
             _warn(

@@ -424,6 +424,25 @@ def test_item_9_a_pooled_style_is_not_an_unused_declaration(
     assert errors.the_twelve_hour_style_was_held_back("seen_at") in shown
 
 
+def test_item_9_a_pooled_marked_stamp_is_a_declaration_that_reached_nothing(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Ten declared stamps written `1:00 PM` beside ninety `NA`: told the declaration changed nothing.
+
+    A marked clock is one the declaration does not change, so the run
+    says so, as it does of a marked column whose word is named. At
+    c13edd8 every pooled stamp was told `--twelve-hour` was used and to
+    keep it, these too.
+    """
+    cells = [f"3/{17 + day}/2023 1:{day:02d} PM" for day in range(10)] + ["NA"] * 90
+    block, _profile, _questions = gate._described(tmp_path, cells, "--twelve-hour", "seen_at")
+    assert block["role"] == "datetime" and block["datetime_separators"] == {"(withheld)": 10}
+    said = capsys.readouterr()
+    shown = said.out + said.err
+    assert errors.the_twelve_hour_style_was_held_back("seen_at") not in shown
+    assert errors.the_twelve_hour_declaration_did_not_reach("seen_at", "datetime") in shown
+
+
 # -- item 10: the 12-hour question says what it read ---------------------
 
 
@@ -458,6 +477,14 @@ def test_item_10_the_twelve_hour_question_says_what_it_read(tmp_path: pathlib.Pa
     cells = [f"{1 + minute // 60}:{minute % 60:02d}" for minute in range(300)]
     _block, _profile, questions = gate._described(tmp_path / "whole", cells)
     assert "every value" in _seen(questions)
+    # ...and the colon question counts the cells that are not numbers
+    # joined by a colon, not the cells left unread: `1:00:00` among
+    # minutes is unread and is such numbers all the same (at c13edd8 the
+    # question said some of them were not).
+    cells = [f"{minute // 60}:{minute % 60:02d}" for minute in range(300)] + ["1:00:00"]
+    block, _profile, questions = gate._described(tmp_path / "precision", cells)
+    assert block["role"] == "time_of_day" and block["n_unparsed"] == 1
+    assert "every value is two or more numbers with ':'" in _seen(questions)
 
 
 # -- item 11: no retained clause contradicts the forty forms -------------

@@ -1451,7 +1451,7 @@ def the_twelve_hour_style_was_held_back(name: str) -> str:
         f"times were read that way. Too few of its rows write a time for "
         f"the description to name how they are written, so it does not "
         f"say which clock that is, and the twin writes these times on a "
-        f"24-hour clock. Keep --twelve-hour: it is right. Check that code "
+        f"24-hour clock. Keep --twelve-hour: it was used. Check that code "
         f"reading this column's times on the twin allows for either "
         f"clock."
     )

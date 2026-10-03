@@ -945,8 +945,8 @@ def _clock_question(
     if not unmarked:
         return None
     # THE CELLS THE COLUMN DID NOT READ, as its description counts them,
-    # so neither question says "every value" of a column holding some
-    # that are no clock at all (the T1 review's item 10).
+    # so the 12-hour question does not say "every value" of a column
+    # holding some that are no clock it reads (the T1 review's item 10).
     unread = block["n_unparsed"] if "n_unparsed" in block else 0
     remainder = unread if isinstance(unread, int) else 0
     choices: "list[Choice]" = []
@@ -975,9 +975,18 @@ def _clock_question(
             choices, ANSWER_KEEP,
         )
     if choices:
+        # ...AND THE COLON QUESTION COUNTS THE CELLS ITS SENTENCE SAYS ARE
+        # NOT numbers joined by a colon, which is not the cells the column
+        # left unread: a clock of the other precision, `1:00:00` among
+        # minutes, is unread and is such numbers all the same.
+        apart = 0
+        for value in present:
+            split = taxonomy.splits_into_numbers(value, ":")
+            if split is None or len(split) < 2:
+                apart = apart + 1
         return Question(
             name, role, BECAUSE_JOINED,
-            _shape_of(BECAUSE_JOINED, present, floor, ":", remainder),
+            _shape_of(BECAUSE_JOINED, present, floor, ":", apart),
             choices, ANSWER_KEEP,
         )
     return None
