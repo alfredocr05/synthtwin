@@ -20,13 +20,16 @@ A code's rows are every cell its declaration takes in its column (20
 `UNK` beside 5 `unk` are 25 rows), and a declaration that would also
 take a real date (`20,230,101` is the number 20230101) is no code; the
 few cells that read as neither are said rather than called codes. The
-line that repeats a run quotes every value for the shell -- a code
-written `$(...)` is text, `NOT RECORDED` one word, `-UNK` joined with
-`=` -- and names the typed options an answer replaced. `real-value`
-answered beside a typed `--missing-value` keeps every code, one column
-answered both ways is refused, the question pass grows with the columns
-and not their square, and `K-S3-56`'s driver fails where a case cannot
-be described. The cost: each asked column is read once more by the classifier --
+line that repeats a run, and every other line a person is told to type,
+quotes every value for the shell and says which shell -- a code written
+`$(...)` is text, `NOT RECORDED` one word, `-UNK` joined with `=`, `a=~`
+no home folder to bash, a `"` handed whole through Windows PowerShell --
+and the repeat line names the typed options an answer replaced. `real-value`
+answered beside a typed `--missing-value` keeps every code the question
+counted, while a word typed on both runs, which it never counted, stays
+as typed; one column answered both ways is refused, the question pass
+grows with the columns and not their square, and `K-S3-56`'s driver
+fails where a case cannot be described. The cost: each asked column is read once more by the classifier --
 describing thirty asked columns of 20,000 rows takes 66.2 s of CPU
 where it took 43.2.
 
