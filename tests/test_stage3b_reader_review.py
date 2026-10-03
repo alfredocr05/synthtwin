@@ -329,6 +329,38 @@ def test_item_7_a_twelve_hour_style_needs_its_declaration(
     assert "seen_at" in said
 
 
+@pytest.mark.parametrize("prefix", ["", "3/17/2023 "])
+def test_item_7_a_declaration_needs_its_twelve_hour_face(
+    tmp_path: pathlib.Path, prefix: str
+) -> None:
+    """S8c's other half: a declared column with no AM or PM is published on the 12-hour face.
+
+    A declared column reads its unmarked hours on that face and on no
+    other (C6-10a). At c13edd8, as at 110cb46, such a document loaded:
+    Codex's declared stamp of `12:00` to `4:59`, its word moved to the
+    24-hour face, was read by the validator at the declaration -- `12:xx`
+    the first hour -- against facts taken at noon, and the unchanged
+    source missed 10 checks. Here the dial is `1:00` to `5:59`, which
+    both faces spell alike, so the face is the one thing wrong.
+    """
+    cells = [prefix + f"{hour}:{minute:02d}" for hour in range(1, 6) for minute in range(60)]
+    block, profile, _questions = gate._described(tmp_path, cells, "--twelve-hour", "seen_at")
+    assert gate._style_of(block) == "h twelve-hour"
+    document = json.loads(profile.read_text(encoding="utf-8"))
+    changed = copy.deepcopy(document)
+    column = changed["columns"][0]
+    if prefix:
+        column["datetime_separators"] = {
+            word.replace(" twelve-hour", ""): count
+            for word, count in column["datetime_separators"].items()
+        }
+    else:
+        column["clock_form"] = f"{column['clock_form']}".replace(" twelve-hour", "")
+    said = gate._refusal(tmp_path, changed)
+    assert contract.INVARIANTS["S8c"] in said, said
+    assert "24-hour face" in said
+
+
 # -- item 8: a scripted run names the clock question's own answer --------
 
 

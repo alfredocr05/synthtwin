@@ -652,6 +652,15 @@ def battery() -> list[Mutation]:
             edit("seen_at", clock_form="hh-mm twelve-hour"),
         ),
         Mutation(
+            # ...AND THE DECLARATION WITH NO 12-HOUR FACE BEHIND IT (the
+            # same item's second round): a declared column reads its
+            # unmarked hours on that face and on no other, so `seen_at`
+            # declared and still written on the 24-hour face is a
+            # document no producer writes.
+            "S8c", "a declared clock left on the 24-hour face",
+            edit_in("settings", forced_twelve_hour_clocks=["seen_at"]),
+        ),
+        Mutation(
             "S9", "more categories allowed at the floor than at the ceiling",
             edit_in("settings", categorical_floor=2000),
         ),

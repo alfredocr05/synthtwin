@@ -1258,8 +1258,8 @@ INVARIANTS = {
     ),
     # The T1 review's item 7 (plan P4-D370, contract C6-10a).
     "S8c": (
-        "a column whose clock is written on a 12-hour face with no AM or "
-        "PM is named as a 12-hour clock"
+        "a column whose clock writes no AM or PM is written on the 12-hour "
+        "face exactly where it is named as a 12-hour clock"
     ),
     "S9": (
         "the smallest number of categories allowed is not larger than "
@@ -17332,7 +17332,8 @@ def _cross_checks(
     S8: every name declared as holding record numbers is a column of
     this table -- a name that matches no column means the description
     and the schema disagree about which columns were declared. S8c: a
-    column written on the 12-hour face with no marker is declared one. S10:
+    column written on the 12-hour face with no marker is declared one, and
+    a declared column with no marker is written on that face. S10:
     every note is about a column of this table. S11: the notes are
     grouped by column, in the order the columns come in the table.
     """
@@ -17385,19 +17386,37 @@ def _cross_checks(
     # declaration beside it is read on the 24-hour face by everything
     # that rebuilds the reading from the settings: the validator then read
     # `12:xx` as noon and the unchanged source missed 16 checks.
+    # ...AND THE OTHER WAY ROUND, on a clock that writes no marker (the
+    # second round of the same item): a declared column reads its
+    # unmarked hours on that face and on no other, so a declared column
+    # published on the 24-hour face is read by the validator at the
+    # declaration and measured against facts taken at noon -- a declared
+    # stamp of `12:00` to `4:59` with its word moved to that face loaded,
+    # and the unchanged source missed 10 checks. A declared column whose
+    # clocks write AM or PM keeps their face, and is not reached.
     for column in columns:
         style = _written_clock_style(column)
-        if style is None or parsing.clock_face(style) != parsing.CLOCK_TWELVE_HOUR:
+        if style is None:
             continue
-        if column.name in settings.forced_twelve_hour_clocks:
-            continue
-        raise _broken(
-            "S8c",
-            f"in the block for the column named '{column.name}'",
-            "the column writes its clock on a 12-hour face with no AM or PM",
-            "the block of rules that produced the description does not "
-            "name it as a 12-hour clock",
-        )
+        face = parsing.clock_face(style)
+        declared = column.name in settings.forced_twelve_hour_clocks
+        if face == parsing.CLOCK_TWELVE_HOUR and not declared:
+            raise _broken(
+                "S8c",
+                f"in the block for the column named '{column.name}'",
+                "the column writes its clock on a 12-hour face with no AM or PM",
+                "the block of rules that produced the description does not "
+                "name it as a 12-hour clock",
+            )
+        if face == "" and declared:
+            raise _broken(
+                "S8c",
+                f"in the block for the column named '{column.name}'",
+                "the column writes its clock on the 24-hour face with no AM "
+                "or PM",
+                "the block of rules that produced the description names it "
+                "as a 12-hour clock",
+            )
     _group_marks_agree(columns, settings)
     _mixture_pools_bounded(columns, settings)
     _closed_pools_bounded(columns, settings)
