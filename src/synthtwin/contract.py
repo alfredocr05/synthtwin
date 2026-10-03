@@ -597,11 +597,13 @@ DATETIME_KEYS = (
 # THE KEYS A DESCRIPTION WRITTEN BEFORE THEM DOES NOT CARRY (review of
 # landing 3b.G1, item 1; plan P4-D375). Plan P4-D375 keeps the readers of
 # a withheld tail pair so that a description written before it still
-# loads, and 668f276 -- the last tree to write one -- wrote neither the
-# twelve stage 3b reserves of plan P4-D364 nor the settings key landing
-# T1 added (plan P4-D370), so the strict key rule refused every such
-# description before any reader was reached. Each key below is read as
-# what every producer since writes in it where nothing is published --
+# loads, and 668f276 -- the last pushed tree to write one -- wrote neither
+# the twelve stage 3b reserves of plan P4-D364 nor the settings key
+# landing T1 added (plan P4-D370); the two merges after it that still
+# withheld pairs (fa00321, 9efcba2) wrote the reserves and not that key.
+# The strict key rule refused every such description before any reader
+# was reached. Each key below is read as what every producer since
+# writes in it where nothing is published --
 # `[]`, and `null` for `clock_step` -- WHEN IT IS ABSENT, and only then:
 # present, it is read and checked exactly as before, and every other key
 # stays required (contract 2.1 and C6-45a). Absent means nothing was

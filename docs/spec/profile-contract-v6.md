@@ -1298,8 +1298,9 @@ added `forced_twelve_hour_clocks`). No other key may appear under
 twenty-three keys or of twenty-five — one of the twenty-four skipped, or
 a key of somebody's own added — is a document this contract does not
 describe, except that a description written before landing T1 lacks
-`forced_twelve_hour_clocks` and is read as though it held `[]` (C6-45a). (It said TWENTY while section 4.4
-said twenty-one and the producer wrote twenty-one, from the landing
+`forced_twelve_hour_clocks` and is read as though it held `[]`
+(C6-45a). (It said TWENTY while section 4.4 said twenty-one and the
+producer wrote twenty-one, from the landing
 that added `forced_metadata_rows` until landing 2b.17's repair pass
 added `forced_delimiter` and corrected all three counts together; the
 guard that compares this clause with the producer read only a word
@@ -13315,16 +13316,18 @@ which is the whole reason this version exists.
 **C6-45a (a key added within version 6, absent).** Version 6 is extended
 in place (A-P4-41), and plan P4-D375 keeps the readers of a withheld tail
 pair so that a description written before it still loads. 668f276, the
-last tree to write one, wrote neither the twelve keys stage 3b reserves
-(plan P4-D364: seven on `datetime`, five on `time_of_day`) nor
-`settings.forced_twelve_hour_clocks` (landing T1, plan P4-D370). Each of
-those thirteen keys, where it is ABSENT, is read as the value every
-producer since writes where nothing is published -- `[]`, and `null` for
-`clock_step` -- and only then: present, it is read and checked by its own
-rule, and every other key stays REQUIRED. This is not C6-45's upgrade:
-an absent census and an empty one both say that nothing was published,
-so no fact is made up (review of landing 3b.G1, item 1;
-`tests/test_p4d375_earlier_descriptions.py`, on 668f276's own file).
+last pushed tree to write one, wrote neither the twelve keys stage 3b
+reserves (plan P4-D364: seven on `datetime`, five on `time_of_day`) nor
+`settings.forced_twelve_hour_clocks` (landing T1, plan P4-D370), and the
+two merges after it that still withheld pairs wrote the reserves and not
+that key. Each of those thirteen keys, where it is ABSENT, is read as
+the value every producer since writes where nothing is published --
+`[]`, and `null` for `clock_step` -- and only then: present, it is read
+and checked by its own rule, and every other key stays REQUIRED. This is
+not C6-45's upgrade: an absent census and an empty one both say that
+nothing was published, so no fact is made up (review of landing 3b.G1,
+item 1; `tests/test_p4d375_earlier_descriptions.py`, on 668f276's own
+file).
 
 ### 10.7 The two version rows, and why their advice differs
 

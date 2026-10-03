@@ -2,8 +2,8 @@
 
 THE DEFECT (review of landing 3b.G1, item 1, HIGH). Plan P4-D375 kept the
 readers of a withheld tail pair "so a description written before still
-loads and says why a side is silent". None did. 668f276, the last tree
-whose producer withholds a pair, wrote neither the twelve keys stage 3b
+loads and says why a side is silent". None did. 668f276, the last pushed
+tree whose producer withholds a pair, wrote neither the twelve keys stage 3b
 reserves (plan P4-D364: seven on a `datetime` block, five on a
 `time_of_day` block) nor the settings key landing T1 added
 (`forced_twelve_hour_clocks`, plan P4-D370), and the strict key rule
@@ -32,14 +32,18 @@ document with fields cleared either.
 WHAT IS HELD: each document loads; each absent key reads as the empty
 value every producer since writes where nothing is published; the
 withheld sides stay withheld and their remarks stay; `synthtwin
-generate` writes a twin of it and `synthtwin validate` measures that
-twin, both with exit code 0, and nothing is MISSED; and the relief is
-exactly the keys added since 668f276 -- any other key absent is still
-refused, and a reserve present is still read by its own reader.
+generate` writes a twin of it, whose report says why each withheld side
+is silent in the remark the earlier producer wrote, and `synthtwin
+validate` measures that twin, both with exit code 0, and nothing is
+MISSED; and the relief is exactly the keys added since 668f276 -- any
+other key absent is still refused, and a reserve present is still read
+by its own reader.
 
 Mutation: dropping the `_absent_read_as_empty` call in `_settings`
-turns every loading test here red on `forced_twelve_hour_clocks`; in
-`_column`, red on `hour_census` (the date column is read first).
+turns every loading test here red on `forced_twelve_hour_clocks`;
+dropping it in `_column` turns 668f276's red on `hour_census` (the date
+column is read first), and fa00321's, which carries the reserves, stays
+green.
 """
 
 from __future__ import annotations
@@ -677,6 +681,12 @@ def test_an_earlier_description_generates_and_validates(tmp_path, tree) -> None:
     assert code == 0, said
     twin = tmp_path / "three-twin.csv"
     assert twin.exists()
+    # ...and the twin's report says why each withheld side is silent, in
+    # the remark the earlier producer wrote: the kept reader is reached.
+    report = (tmp_path / "three-twin-report.txt").read_text(encoding="utf-8")
+    for edge in ("lower", "upper"):
+        note = f"the two distances of the values beyond this column's {edge} tail boundary are not published"
+        assert report.count(note) == 2, (edge, report)
     code, said = _run(["validate", str(path), "--twin", str(twin), "--out-dir", str(tmp_path), "--replace"])
     assert code == 0, said
     outcome = validation.measure(contract.load_profile(str(path)), str(twin))
