@@ -7712,6 +7712,32 @@ room is taken round by -- and its other spellings only past it, so a
 held-back level of a clock's shape is written as a time a clock reader
 takes.
 
+*And by its repair round:* **THE CLOCK LINE.** The twin of a column of
+labels is described again by the producer's own rules, and two of them
+read a column as clock times: its cells a clock reader takes reach the
+CLOCK LINE -- the exact product of the recorded parse rate and its
+present cells, its ceiling, and never below one -- or they reach it once
+the RARE WORDS beside them are counted out: the levels below the floor
+no spelling of which a clock reader takes, where those hold at most one
+present cell in fifty. On a column not declared `--code` (whose twin is
+read as labels whatever its cells hold), with `P` its present cells, `C`
+and `W` the cells the published levels wrote that a clock reader does
+and does not take, and `S = P - C - W` the stand-ins' cells, every
+stand-in below the floor, the ROOM is the largest `t` from `0` to `S`
+with `C + t` below the line of `P` and either `50 (S - t) > P` or `C + t`
+below the line of `C + t + W`; where none is, nought. The stand-ins are
+walked in their order. Before one of a clock's form whose size is more
+than the room left, every later one of a clock's form is filled FIGURE
+BY FIGURE -- the form's filling without its clock supply, on a cursor of
+its own for each form, every spelling a clock reader takes stepped past
+-- and each stand-in a clock reader takes spends its size. A free-text
+column (G9.5), whose levels are not known until they are written, keeps
+its forms' clock times below the line of `P - floor(P / 50)`, which
+holds whichever of its other cells are rare. Measured: 250 appointment
+times beside six `99:99`, labels on the table, had a twin read back as
+clock times and its role MISSED, as had 36 of 36 such small tables and
+23 of 80 columns beside clock-shaped codes near the line; after, none.
+
 `suppressed_levels` says how many levels were withheld and
 `suppressed_rows` how many rows they covered together. No size of any
 one of them is published (owner ruling of 2026-09-17, item 2, option A;
@@ -7862,7 +7888,13 @@ both files passing.
    is a shape the census names in either case. The shape covering the
    most rows is taken, ties to its own spelling ascending; none left
    means no shape, and every stand-in owed no form is `group-N` as
-   before.
+   before. A clock time with one space before its marker has no written
+   form, and its shape is the clock's form with the space and the
+   marker's marks kept -- `%:%% @@` for `7:30 AM`, `%%:%%:%% &&` for
+   `07:30:15 pm`, `@.@.` and `&.&.` for the dotted markers -- which no
+   census names, and which G8.3's clock supply fills with times of its
+   face (the repair round of landing 3b.5): a column of `7:30 AM` beside
+   2 % `UNK` wrote 587 of 3,000 twin cells `group-N`, and now none.
 2. **Its supply**, counted as G8.3 counts any form's.
 3. **The places it covers.** The places owed no form are ranked largest
    first and then by place, and the first `supply` of them are covered;
@@ -13234,7 +13266,7 @@ that happens -- and the clause beside it, `--missing-value`'s "CAN be
 published as the column's smallest value", is exactly right under the
 new rule.
 
-**All one hundred and sixty-seven are required.** The count is taken off the committed
+**All one hundred and sixty-eight are required.** The count is taken off the committed
 case sets and not carried forward: this sentence said fifty-two and a
 split of nine, twenty, sixteen and seven while the six files held
 seventy-three, because each repair that added a case added a clause to
@@ -13267,9 +13299,9 @@ thirteen; the SIXTEENTH,
 TWENTY-SECOND, `tests/reference/generation-branch-vectors-22.json`,
 holds five -- landing T1's written clocks and G7.5 step 5, in the file
 plan P4-D364's table gives that landing (G14.2); and the TWENTY-FIRST,
-`tests/reference/generation-branch-vectors-21.json`, holds thirteen --
+`tests/reference/generation-branch-vectors-21.json`, holds fourteen --
 landing 3b.5's census of a column of clock times, G7A.4b and G8.3's
-clock supply, in the file that table gives that landing,
+clock supply and clock line, in the file that table gives that landing,
 and a test holds this sentence to those files. The tenth grew by the
 two cases the GOVERNANCE PASS of stage 3's review added and the
 eleventh by the two the dates pass added; each number here is read off
@@ -13436,7 +13468,8 @@ case passed, which is the failure the count exists to prevent:
 | `clock_census_codes` | G7A.4b's codes: 12 of 120 cells write `UNK`, a spelling no clock reading takes, at the census line, and the column publishes it with its count (`clock_codes`); the twin writes it exactly that many times, and no made-up stand-in. Its mutant withdraws the codes, and the twin writes `text-1` to `text-12` in their place |
 | `clock_census_no_tails` | G7A.4b on a column with no tails: 40 of 60 cells at 08:00, ten below and ten above, so no boundary has the floor's cells beyond it. The heap and the census over every parsed cell lay the column, where G7A.4 spread a ramp from 00:00. Its mutant withdraws the heaps, and the ranks they held stand at 00:00 |
 | `clock_census_listed_tail_heap` | G7A.4b on a quarter-hour grid, a published step of 900 seconds, whose low tail lists its one value: heaps at 06:00, the low tail's value, at 06:30 and 10:00, the two boundaries, and at 10:30 in the high tail, each holding its count exactly. Its mutant lays the body on the form's own minute, and its values leave the grid |
-| `labels_clock_shaped` | G8.3's clock supply (landing 3b.5, plan P4-D373; contract 7.9.1): a column declared labels, `--code`, whose ten held-back levels are written in the form `%%:%%`. A form a clock time can wear is filled with clock times first, so every stand-in is a time a clock reader takes. Its mutant fills the form figure by figure, and the twin writes times no clock can be |
+| `labels_clock_shaped` | G8.3's clock supply (landing 3b.5, plan P4-D373; contract 7.9.1): a column declared labels, `--code`, whose ten held-back levels are written in the form `%%:%%`. A form a clock time can wear is filled with clock times first, and a column declared `--code` has no clock line, so every stand-in is a time a clock reader takes. Its mutant writes every time on the hour, and the walk steps past the ones already written |
+| `labels_clock_line` | G8.3's clock line (the repair round of landing 3b.5): 250 appointment times on a clinic's quarter hours beside six `99:99`, described at a parse rate of 0.99, a set of categories whose 202 held-back rows owe the form `%%:%%`. The clock supply fills them with times only while the twin stays labels -- at most 244 cells read as times -- so the last held-back levels are filled figure by figure. Its mutant withdraws the line, every held-back level is a time, and the twin is read back as clock times |
 | `weekday_whole_runs` | G7.3f step 5 (plan P4-D355): 100 whole dates over three weeks with no weekend, published `[Mon-Fri] 77, [Sat-Sun] 0`, whose ranks of one day move whole onto a free day of a group with room for all of them before any single rank moves. Its mutant withdraws the step |
 | `plus_padded_field` | G6.3's second tier of named field widths (plan P4-D145): twenty-two cells of twelve thousand three hundred and forty-five published `leading_plus` with `pad_widths: {"7": 22}`, every one written `+0012345` |
 | `saturated_integers` | G6.5a's fill of a saturated integer grid (plan P4-D147): thirty-three whole numbers publishing twenty-two different values between the ends one and twenty-two, so the strata take those integers in order, each once, and all twenty-two are written |

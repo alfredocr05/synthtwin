@@ -25,8 +25,15 @@ rows the hour of day came back 0.016 to 0.333 off and now 0.013 at most,
 at 10,000 rows 0.001 at most; every heap is exact; and no twin writes a
 cell a clock reader refuses where its table wrote a time. A label
 column's held-back levels of a clock's shape are written as clock
-times. `K-S3-48` and `K-S3-49` are new; vectors file 21 freezes
-thirteen cases.
+times -- `7:30 AM` among them -- but only while its twin is still read
+back as labels: a column of appointment times beside six `99:99` in 250
+rows used to read back as clock times and fail its own check, and none
+of 36 such small tables or 80 columns beside codes near the line does
+now. A few rare words beside clock times, at most one cell in fifty,
+are counted missing wherever the column would otherwise be labels, and
+the clock-or-labels question is asked only of columns whose shared
+times hold every cell. `K-S3-48` and `K-S3-49` are new; vectors file
+21 freezes fourteen cases.
 
 ### The weekday guards dropped (2026-10-02)
 

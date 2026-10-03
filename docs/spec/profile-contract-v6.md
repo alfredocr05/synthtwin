@@ -4195,13 +4195,22 @@ code reading the times ran on the table and raised on its twin. The
 values many rows share are published as heaps with their counts
 (`clock_heaps`, section 6.13), so the list a categorical reading gave is
 not lost; `--code` still reads the column as labels, and the questions
-file asks where both readings fit (`few-times-of-day-each-shared-by-many-rows`,
-answers `keep` and `code`). AND THE LEVEL PASS KEEPS A CLOCK COLUMN A
-CLOCK COLUMN: where what it would count out holds spellings no clock
-reader takes and the column without exactly those cells reads as clock
-times, only those are counted missing and every rule reads the column
-again -- 296 shift starts beside four `UNK` are clock times with four
-cells absent, not labels whose twin reads back as clock times.
+file asks where both readings fit and the data does not settle which --
+where the times many rows share hold every cell of the column's body, so
+its census is empty and nothing was left out of it
+(`few-times-of-day-each-shared-by-many-rows`, answers `keep` and `code`):
+three shift starts are asked about, walk-ins at 10,000 rows, 700 times
+spread over the day, are not. AND THE LEVEL PASS KEEPS A CLOCK COLUMN A
+CLOCK COLUMN: where the levels below the floor no spelling of which a
+clock reader takes hold at most one present cell in fifty, and the
+column without exactly those cells reads as clock times, only those are
+counted missing and every rule reads the column again -- 296 shift
+starts beside four `UNK` are clock times with four cells absent, not
+labels whose twin reads back as clock times. It is asked of every first
+reading as labels or free text, not only where a level is counted out
+(the repair round of landing 3b.5): a column of `7:30 AM` beside 0.6 %
+`UNK` and 0.3 % `99:99` was free text at 300 and 1,000 rows at a floor
+of 36, and is clock times.
 
 **Why rules 9 through 12 sit after `categorical`.** They are tested
 last before the fallback, so they claim only columns every earlier rule
@@ -11290,8 +11299,29 @@ off the counter, never off a value. Measured before: a column of clock
 times beside 2 % words, read as labels, wrote its held-back times as
 `36:54` and `57:95` -- 241 of 300 twin cells, 547 of 1,000 -- which a
 `strptime` reading the times refuses; after, none. A form never holds a
-space (section 7.9), so a held-back `7:30 PM` has no form and is written
-as the label path writes any such level.
+space (section 7.9), so a held-back `7:30 PM` has no form; since the
+repair round of landing 3b.5 the SHAPE such a level is written in where
+the census owes it none (below) keeps the space and the marker's marks,
+`%:%% @@`, and this supply fills it with times of its face -- measured,
+a column of `7:30 AM` read as labels beside 2 % `UNK` wrote 587 of 3,000
+twin cells `group-N`, and now none.
+
+**AND ONLY BELOW THE CLOCK LINE** (the repair round of landing 3b.5;
+generation method G8.3). The twin of a column of labels is described
+again by the producer's own rules, and filling every held-back level of
+a clock's form with a time could carry it across one of the two that
+read a column as clock times (section 5.2): its cells a clock reader
+takes reaching the clock line, or reaching it once the rare words beside
+them are counted out. A column of appointment times beside six `99:99`
+in 250 rows is labels -- 244 times, under the line of 248 -- and its
+twin, every held-back level a time, read back as clock times, so
+validation MISSED its role: 36 of 36 such small tables, and 23 of 80
+columns of times beside clock-shaped codes near the line. The clock
+supply is therefore spent only while the twin stays labels under both,
+and every later stand-in of a clock's form is filled figure by figure,
+stepping past any spelling a clock reader takes; a column declared
+`--code`, read as labels whatever its cells hold, has no such line.
+After: none of those twins is MISSED.
 
 **A FREE-TEXT GROUP MAY TAKE A FORM OF ANY ADMITTED LENGTH, AND MUST
 BE ABLE TO.** A form fixes a length, so which lengths a group may be
@@ -11339,7 +11369,11 @@ is written in the shape the published labels wear. That shape is a
 published fact already, because the labels are written byte for byte:
 the shape worn by the most published rows, with `&` where every
 spelling wearing it was lower case, provided the census names it in
-neither case and it reads as no number. Its spellings are spent on the
+neither case and it reads as no number. A clock time written with one
+space before its marker has no form, and its shape is the clock's form
+with the space and the marker's marks kept -- `%:%% @@` for `7:30 AM`,
+`%%:%%:%% &&` for `07:30:15 pm` -- which no census can name, since a
+form never holds a space (the repair round of landing 3b.5). Its spellings are spent on the
 LARGEST places the census owes nothing, and a large place paying a
 named form trades with single rows summing to it exactly where that
 lets the shape cover more rows — the named form keeps its count either
