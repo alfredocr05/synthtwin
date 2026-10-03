@@ -24371,7 +24371,7 @@ def _traded_merges(
         word, clock, gone,
     )
     for _attempt in range(owed):
-        if not book.pool:
+        if not book.pool.blocks:
             return made
         # EVERY OFFER OF A MIDNIGHT TRADE IS TRIED, NEAREST FIRST, AND
         # NOT THE NEAREST ALONE (item 2 of the dates pass of the second
@@ -24384,35 +24384,38 @@ def _traded_merges(
         # come from the very block that neighbour is. A WIDTH trade keeps
         # P4-D258's single attempt at the single nearest offer, so no
         # column it already settled moves.
-        asked = book.pool
+        asked = book.pool.blocks
         if not clock:
-            asked = book.pool[:1]
+            asked = [book.pool.blocks[0][:1]]
         settled: "tuple[int, int, int, int, dict[int, int]] | None" = None
-        for offer in asked:
-            size = offer[1]
-            start = offer[2]
-            target = offer[3]
-            own = moved[start] // unit
-            gaining = _trade_standing(facts, target, day, step, word, clock)
-            dead: "list[int]" = []
-            paid = _repaid_standings(
-                facts, moved, pinned, lows, highs, day, step, unit, held,
-                book.spot, book.order, word, size, not gaining, own,
-                target // unit, clock, widths, gone, book.payers[gaining],
-                dead,
-            )
-            _book_payers_dropped(book, gaining, dead)
-            if len(paid) < size:
-                for rank in sorted(paid):
-                    _moved_between(moved, held, unit, rank, paid[rank])
-                continue
-            for rank in range(start, start + size):
-                moved[rank] = target
-            held[own] = 0
-            held[target // unit] = held[target // unit] + size
-            made = made + 1
-            settled = (start, size, own, target // unit, paid)
-            break
+        for block in asked:
+            for offer in block:
+                size = offer[1]
+                start = offer[2]
+                target = offer[3]
+                own = moved[start] // unit
+                gaining = _trade_standing(facts, target, day, step, word, clock)
+                dead: "list[int]" = []
+                paid = _repaid_standings(
+                    facts, moved, pinned, lows, highs, day, step, unit, held,
+                    book.spot, book.order, word, size, not gaining, own,
+                    target // unit, clock, widths, gone, book.payers[gaining],
+                    dead,
+                )
+                _book_payers_dropped(book, gaining, dead)
+                if len(paid) < size:
+                    for rank in sorted(paid):
+                        _moved_between(moved, held, unit, rank, paid[rank])
+                    continue
+                for rank in range(start, start + size):
+                    moved[rank] = target
+                held[own] = 0
+                held[target // unit] = held[target // unit] + size
+                made = made + 1
+                settled = (start, size, own, target // unit, paid)
+                break
+            if settled is not None:
+                break
         if settled is None:
             return made
         _book_settled(book, settled)
@@ -24489,7 +24492,100 @@ class _TradeBook:
     runs_on: "dict[int, dict[int, bool]]"
     offers_of: "dict[int, list[tuple[int, int, int, int]]]"
     aimed: "dict[int, dict[int, bool]]"
-    pool: "list[tuple[int, int, int, int]]"
+    pool: "_OfferPool"
+
+
+# HOW MANY OFFERS ONE BLOCK OF THE POOL HOLDS (plan P4-D376, the lane's
+# repair round). The pool was one sorted list, so every offer put in or
+# taken out moved every offer after it: clinic slots with one cell in
+# fifty written at midnight, at 160,000 rows, put an offer in or took one
+# out of a pool of about 201,000 offers nearly two million times, and
+# those moves were 21 of the pass's 40 s of CPU. Held in blocks of 256 to
+# 512 offers, a put or a take moves at most one block's offers, and a
+# block that grows past twice this is halved.
+_OFFER_BLOCK = 256
+
+
+@dataclasses.dataclass
+class _OfferPool:
+    """The offers of one trade book in sorted order, held in blocks (plan P4-D376).
+
+    ``blocks`` hold the offers, each block sorted and every offer of a
+    block below every offer of the next; none is empty and none holds
+    more than twice `_OFFER_BLOCK` offers. ``lasts`` holds each block's
+    last offer, so halving it finds the block an offer stands in, and
+    reading the blocks in turn reads the offers in their order.
+
+    Guarantees: a record; `_offer_pool`, `_pool_put` and `_pool_take`
+    keep the statements above. No I/O.
+    """
+
+    blocks: "list[list[tuple[int, int, int, int]]]"
+    lasts: "list[tuple[int, int, int, int]]"
+
+
+def _offer_pool(ordered: "list[tuple[int, int, int, int]]") -> _OfferPool:
+    """The pool of ``ordered``, which is sorted, cut into blocks of `_OFFER_BLOCK` offers."""
+    blocks: "list[list[tuple[int, int, int, int]]]" = []
+    for start in range(0, len(ordered), _OFFER_BLOCK):
+        blocks += [ordered[start:start + _OFFER_BLOCK]]
+    return _OfferPool(blocks, [block[len(block) - 1] for block in blocks])
+
+
+def _pool_block(pool: _OfferPool, offer: "tuple[int, int, int, int]") -> int:
+    """The first block whose last offer is not below ``offer``, by halving; past the last where none is."""
+    low = 0
+    high = len(pool.lasts)
+    while low < high:
+        middle = (low + high) // 2
+        if pool.lasts[middle] < offer:
+            low = middle + 1
+        else:
+            high = middle
+    return low
+
+
+def _pool_put(pool: _OfferPool, offer: "tuple[int, int, int, int]") -> None:
+    """Put ``offer``, which the pool does not hold, in its place (plan P4-D376).
+
+    It goes into the first block whose last offer is above it, or into
+    the last block where none is, at its place there; a block that grows
+    past twice `_OFFER_BLOCK` is halved, so a put moves the offers of one
+    block, and once a block's worth of puts the blocks that follow it.
+    """
+    if not pool.blocks:
+        pool.blocks += [[offer]]
+        pool.lasts += [offer]
+        return
+    at = _pool_block(pool, offer)
+    if at == len(pool.blocks):
+        at = at - 1
+    block = pool.blocks[at]
+    slot = _offer_slot(block, offer)
+    block[slot:slot] = [offer]
+    pool.lasts[at] = block[len(block) - 1]
+    if len(block) > 2 * _OFFER_BLOCK:
+        half = len(block) // 2
+        _pool_blocks_replaced(pool, at, [block[:half], block[half:]])
+
+
+def _pool_take(pool: _OfferPool, offer: "tuple[int, int, int, int]") -> None:
+    """Take ``offer``, which the pool holds, out of it; a block left empty goes (plan P4-D376)."""
+    at = _pool_block(pool, offer)
+    block = pool.blocks[at]
+    del block[_offer_slot(block, offer)]
+    if block:
+        pool.lasts[at] = block[len(block) - 1]
+    else:
+        _pool_blocks_replaced(pool, at, [])
+
+
+def _pool_blocks_replaced(
+    pool: _OfferPool, at: int, blocks: "list[list[tuple[int, int, int, int]]]"
+) -> None:
+    """Put ``blocks``, none of them empty, where the pool's block ``at`` stood."""
+    pool.blocks[at:at + 1] = blocks
+    pool.lasts[at:at + 1] = [block[len(block) - 1] for block in blocks]
 
 
 def _trade_standing(
@@ -24520,14 +24616,14 @@ def _rank_slot(ranks: "list[int]", rank: int) -> int:
 
 
 def _offer_slot(
-    pool: "list[tuple[int, int, int, int]]", offer: "tuple[int, int, int, int]"
+    block: "list[tuple[int, int, int, int]]", offer: "tuple[int, int, int, int]"
 ) -> int:
-    """Where ``offer`` stands or would stand in the sorted pool, by halving."""
+    """Where ``offer`` stands or would stand in a sorted block of the pool, by halving."""
     low = 0
-    high = len(pool)
+    high = len(block)
     while low < high:
         middle = (low + high) // 2
-        if pool[middle] < offer:
+        if block[middle] < offer:
             low = middle + 1
         else:
             high = middle
@@ -24576,7 +24672,7 @@ def _trade_book(
     book = _TradeBook(
         facts, moved, pinned, lows, highs, day, step, unit, held, widths, word,
         clock, gone, stands, free, {False: [], True: []}, {}, {}, {}, {},
-        [0 for _rank in range(parsed)], {}, {}, {}, {}, [],
+        [0 for _rank in range(parsed)], {}, {}, {}, {}, _OfferPool([], []),
     )
     _book_filled(book)
     return book
@@ -24617,7 +24713,7 @@ def _book_filled(book: _TradeBook) -> None:
     for first, last in _unit_runs(moved, unit, 0, len(moved)):
         _book_run_added(book, first, last)
         every += _book_offers_kept(book, first)
-    book.pool = sorted(every)
+    book.pool = _offer_pool(sorted(every))
 
 
 def _book_run_added(book: _TradeBook, first: int, last: int) -> None:
@@ -24688,7 +24784,7 @@ def _book_offers_dropped(book: _TradeBook, first: int) -> None:
         return
     for offer in book.offers_of[first]:
         del book.aimed[offer[3] // book.unit][first]
-        del book.pool[_offer_slot(book.pool, offer)]
+        _pool_take(book.pool, offer)
     del book.offers_of[first]
 
 
@@ -24818,8 +24914,7 @@ def _book_settled(
     for first in sorted(again):
         _book_offers_dropped(book, first)
         for offer in _book_offers_kept(book, first):
-            slot = _offer_slot(book.pool, offer)
-            book.pool[slot:slot] = [offer]
+            _pool_put(book.pool, offer)
     # THE RUNS STILL OFFERED THE UNIT THE MERGE LEFT moved no rank and
     # changed no count, so of all their search reads only that unit is
     # gone: each keeps its other offers and gains the next nearest.
@@ -24846,7 +24941,7 @@ def _book_offer_replaced(book: _TradeBook, first: int, left: int) -> None:
     for offer in book.offers_of[first]:
         tried += [offer[3] // unit]
         if offer[3] // unit == left:
-            del book.pool[_offer_slot(book.pool, offer)]
+            _pool_take(book.pool, offer)
         else:
             kept += [offer]
     del book.aimed[left][first]
@@ -24862,8 +24957,7 @@ def _book_offer_replaced(book: _TradeBook, first: int, left: int) -> None:
         if target is not None:
             offer = (abs(target - book.moved[first]), last - first + 1, first, target)
             kept += [offer]
-            slot = _offer_slot(book.pool, offer)
-            book.pool[slot:slot] = [offer]
+            _pool_put(book.pool, offer)
             if target // unit not in book.aimed:
                 book.aimed[target // unit] = {}
             book.aimed[target // unit][first] = True
