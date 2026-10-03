@@ -365,6 +365,7 @@ def test_generator_calls_answer_as_built(
     missed: "list[str]" = []
 
     def both(facts, moved, pinned, lows, highs, day, step, unit, held, widths, word, owed, clock=False, gone=frozenset()):
+        nonlocal asked, missed
         old_moved = list(moved)
         old_held = dict(held)
         want = _traded_merges_as_built(
@@ -375,9 +376,9 @@ def test_generator_calls_answer_as_built(
             facts, moved, pinned, lows, highs, day, step, unit, held, widths,
             word, owed, clock, gone,
         )
-        asked.append(got)
+        asked += [got]
         if (got, moved, held) != (want, old_moved, old_held):
-            missed.append(f"call {len(asked)}: made {got} against {want}")
+            missed += [f"call {len(asked)}: made {got} against {want}"]
         return got
 
     monkeypatch.setattr(generation, "_traded_merges", both)
