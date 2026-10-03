@@ -3183,6 +3183,11 @@ class Settings:
     # `for_the_column`'s view of these settings, which narrows this to
     # `TWELVE_HOUR_HERE` or to nothing.
     forced_twelve_hour_clocks: "tuple[str, ...]" = ()
+    # THE SECOND CUT'S THREE DECLARATIONS (plan P4-D386): the landing that
+    # fills each adds its field below its own line.
+    # -- 3b.R2a (P4-D383)
+    # -- 3b.R2c (P4-D383)
+    # -- 3b.R4 (P4-D384)
 
 
 # What `for_the_column` leaves in `forced_twelve_hour_clocks` for a column
