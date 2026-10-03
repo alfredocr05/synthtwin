@@ -6459,7 +6459,14 @@ written unit's.
       ranks, the lower rank on a tie, onto the day of `h` of the cell's
       kind nearest it inside its gap, the whole gap asked and the
       earlier on a tie, that no rank holds and is no hole, else the
-      nearest one a rank holds. The count, as a function of how many
+      nearest one a rank holds. A CYCLE IS MADE WHOLE OR NOT AT ALL
+      (plan P4-D366, the landing's review): on a unit of more than one
+      ordinal a cell's units run to the units of its gap's first and
+      last ordinals, and a rank whose place inside its unit lies outside
+      the gap on such an end unit cannot stand there, so where a move
+      finds no place the moves of its cycle made before it are undone,
+      last first, and the step ends; on a date's day every move finds
+      its place. The count, as a function of how many
       ranks each cell puts on each group, is a sum of `min(ranks, free
       days)` -- concave -- so where no cycle gains it is the most the
       census allows the body around the tail dates the twin wrote, which
@@ -6528,21 +6535,28 @@ written unit's.
    different values, and where the census holds, as the count that gave
    way to it: SHORT in the twin's own tails where every day the census
    allows between the boundaries, no hole, holds a date, short
-   elsewhere, or LONG.
+   elsewhere, or LONG -- each in the recount's own sentence's place only
+   where the twin's recounted values went the same way, and the long
+   one for the folded count beside it too.
 9. Each run of ranks the layout does not pin is sorted.
 
 Where the census still does not hold, the report names `weekday_census`
 as a published fact the twin missed.
 
 **The shared steps' frozen cases** (plan P4-D366) are states of ranks,
-not columns: on every date battery the pass with steps 7b and 8.4 to 8.6
-writes the twin it wrote before them, so no column of whole dates
-reaches them through the whole generator. The fifteenth vectors file,
-`tests/reference/generation-branch-vectors-15.json`, holds ten such
-states -- an hour inside its day, a day of moments, the index of steps 5
-and 6, a chain, step 8.4 at its own clock and at another, a long pair, a
-two-census trade, and the cycles of seven and of ten groups -- with the
-answer this section gives each, and no G14.3 case.
+not columns: at the default floor of 11 the pass with steps 7b and 8.4
+to 8.6 writes on every date battery the twin it wrote before them, so no
+column of whole dates reaches them there through the whole generator;
+at a floor of 36 eight twins of 15,152 move, steps 8.4 and 8.5 merging a
+count already left long one or two values nearer the published one. The
+fifteenth vectors file, `tests/reference/generation-branch-vectors-15.json`,
+holds thirty-four such states -- the landing's ten (an hour inside its
+day, a day of moments, the index of steps 5 and 6, a chain, step 8.4 at
+its own clock and at another, a long pair, a two-census trade, and the
+cycles of seven and of ten groups) and its review's twenty-four: each
+new step once through the whole pass, and a state for every clause a
+reviewer's mutant changed -- with the answer this section gives each,
+and no G14.3 case.
 
 ### G7.4 Offsets: only where recorded
 

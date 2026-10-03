@@ -6,15 +6,18 @@ landing 3b.D0 (plan P4-D366) freezes method section G7.3f's shared steps
 on: the pass over a unit of an hour with the day kept, over a day of
 moments and through each gap's index, step 7b's chain, step 8.4's two
 places, step 8.5's long pair, step 8.6's two-census trade and step 8.3's
-bounded cycles, each with what the method's text makes of it.
+bounded cycles; and, since the landing's review, each new step once
+through the whole pass and a state for every clause a reviewer's mutant
+changed -- each with what the method's text makes of it.
 
 **Why it is not a file of columns.**  Every other file freezes the cells
-of a column put through the whole generator. On every date battery the
-twins of landing 3b.D0 are the ones before it, so no column of whole
-dates reaches these steps, and each is frozen on a state stated by hand:
-`tests/test_stage3b_shared_steps.py` holds the product to the answers,
-and turns each case red on its mutant. Plan P4-D364's numbering table
-gives landing 3b.D0 this file.
+of a column put through the whole generator. At the default floor of 11
+the twins of every date battery are the ones before landing 3b.D0, so no
+column of whole dates reaches these steps there (at a floor of 36 eight
+twins of 15,152 do, and `tests/test_stage3b_shared_steps.py` holds one of
+them), and each step is frozen on a state stated by hand: that test file
+holds the product to the answers, and turns each case red on its mutant.
+Plan P4-D364's numbering table gives landing 3b.D0 this file.
 
 **Why the oracle is loaded rather than imported by name.**  The
 provenance guard runs a fixture generator as
