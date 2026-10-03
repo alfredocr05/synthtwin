@@ -1006,11 +1006,181 @@ def test_the_line_to_type_is_quoted_for_powershell_on_windows() -> None:
     assert cli._quoted_for_the_shell("it's", windows=True) == "'it''s'"
     assert cli._quoted_for_the_shell("it\u2019s", windows=True) == "'it\u2019\u2019s'"
     assert cli._quoted_for_the_shell("a,b", windows=True) == "'a,b'"
-    assert cli._typed_option("--missing-value", "-UNK", windows=True) == "--missing-value=-UNK"
     assert cli._typed_option("--missing-value", "-NOT KNOWN", windows=True) == "'--missing-value=-NOT KNOWN'"
     assert cli._typed_option("--missing-value", "NOT RECORDED", windows=False) == "--missing-value 'NOT RECORDED'"
     assert cli._typed_option("--code", "dose", windows=False) == "--code dose"
     assert cli._typed_path("-out/real-profile.json", windows=False).startswith("./-out")
+
+
+def test_a_tilde_and_a_leading_minus_are_quoted_where_a_shell_reads_them() -> None:
+    """bash reads `a=~` as a home folder, and Windows PowerShell splits `-a.b` at its point.
+
+    Measured with bash 3.2: `printf '%s' a=~ a=x:~` prints the home folder
+    after the `=` and after the `:`, so a code written `a=~` printed bare
+    was declared as another; zsh leaves both alone. And Windows
+    PowerShell hands a program the bare word `--missing-value=-1.5` as
+    two words, split before the point. So on POSIX a word holding `~`
+    anywhere is quoted, and on PowerShell a word starting with `-` is.
+    Red on the first repair of this review, which printed all of them
+    bare.
+    """
+    for word in ("a=~", "a=x:~", "N=~", "x~y"):
+        assert cli._quoted_for_the_shell(word, windows=False) == f"'{word}'"
+    assert cli._quoted_for_the_shell("RUNNER~1", windows=True) == "RUNNER~1"
+    assert cli._typed_option("--missing-value", "-1.5", windows=False) == "--missing-value=-1.5"
+    assert cli._typed_option("--missing-value", "-1.5", windows=True) == "'--missing-value=-1.5'"
+    assert cli._typed_option("--missing-value", "-UNK", windows=True) == "'--missing-value=-UNK'"
+
+
+def _handed_over_by_windows_powershell(line: str) -> "list[str]":
+    """The words a program receives from a line Windows PowerShell 5.1 runs.
+
+    PowerShell reads each single-quoted word (a quote inside written
+    twice) and each bare one. It builds the program's command line from
+    them, wrapping a word in double quotes only where a space stands
+    outside a run its own `"` open -- a `"` after a backslash opens none
+    -- and leaving every `"` inside as it is (`NeedQuotes` of its native
+    command binder). The program reads that line by the C runtime's
+    rule: backslashes are text unless a `"` follows, where each pair is
+    one backslash and an odd one makes the `"` text; any other `"`
+    opens or closes a quoted run.
+    """
+    words: "list[str]" = []
+    place = 0
+    while place < len(line):
+        if line[place] == " ":
+            place += 1
+            continue
+        word = ""
+        if line[place] == "'":
+            place += 1
+            while place < len(line):
+                if line[place] == "'" and line[place + 1 : place + 2] == "'":
+                    word, place = word + "'", place + 2
+                elif line[place] == "'":
+                    place += 1
+                    break
+                else:
+                    word, place = word + line[place], place + 1
+        else:
+            while place < len(line) and line[place] != " ":
+                word, place = word + line[place], place + 1
+        words += [word]
+
+    def wrapped(word: str) -> str:
+        quotes, after_slash = 0, False
+        for character in word:
+            if character == '"' and not after_slash:
+                quotes += 1
+            elif character == " " and quotes % 2 == 0:
+                return f'"{word}"'
+            after_slash = character == "\\"
+        return word
+
+    built = " ".join(wrapped(word) for word in words)
+    read: "list[str]" = []
+    word, quoted, started, place = "", False, False, 0
+    while place < len(built):
+        slashes = 0
+        while place < len(built) and built[place] == "\\":
+            slashes, place = slashes + 1, place + 1
+        if place < len(built) and built[place] == '"':
+            word += "\\" * (slashes // 2)
+            if slashes % 2:
+                word += '"'
+            else:
+                quoted = not quoted
+            started, place = True, place + 1
+            continue
+        word += "\\" * slashes
+        if slashes:
+            started = True
+        if place >= len(built):
+            break
+        if built[place] == " " and not quoted:
+            if started:
+                read, word, started = read + [word], "", False
+        else:
+            word, started = word + built[place], True
+        place += 1
+    if started:
+        read += [word]
+    return read
+
+
+@pytest.mark.parametrize(
+    "value",
+    ['UNK"', 'a" b', 'say "no" twice', 'x" --code "y', 'a\\"b', "a b\\", "C:\\my data\\real.csv"],
+)
+def test_a_double_quote_reaches_the_program_whole_from_windows_powershell(value: str) -> None:
+    """`UNK"` handed over by Windows PowerShell 5.1 stays `UNK"`, and the option after it stays an option.
+
+    The Codex review of lane R1, item 1, on the shell a Windows terminal
+    opens: PowerShell 5.1 puts a value holding `"` into the program's
+    command line with that quote bare, so the program read it as its
+    own: `say "no" twice` arrived as `say no twice`, and `UNK"` opened a
+    run that took `--code dose`, the option typed after it, into the
+    value. Each `"` is written as the C runtime reads it back, and the
+    backslashes before it or ending a value with a space doubled. Red on
+    the first repair of this review, which wrote the quote bare. On a
+    POSIX shell nothing changes.
+    """
+    import shlex
+
+    line = f"{cli._typed_option('--missing-value', value, windows=True)} --code dose"
+    assert _handed_over_by_windows_powershell(line) == ["--missing-value", value, "--code", "dose"], line
+    posix = f"{cli._typed_option('--missing-value', value, windows=False)} --code dose"
+    assert shlex.split(posix) == ["--missing-value", value, "--code", "dose"], posix
+
+
+def test_every_line_to_type_says_its_shell_where_it_quotes_a_value(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The options a notice offers and the `validate` line are quoted, and then say for which shell.
+
+    The Codex review of lane R1, item 1: the value placed in a line the
+    person is told to type is quoted for the shell -- the column `Visit
+    time` offered after `--identifier` was two words, and a path with a
+    space after `synthtwin validate` the same -- and a line that quotes
+    one says which shell it was written for, since PowerShell's quotes
+    are not the command prompt's. A line of plain words is unchanged.
+    Red on 110cb46, which printed both bare.
+    """
+    import shlex
+
+    monkeypatch.setattr(cli, "_on_windows", lambda: False, raising=False)
+    spaced = asking.Question("Visit time", "long_tail_labels", asking.BECAUSE_REPEATS_AND_MANY, "a shape", [], "")
+    notice = cli._assumptions_notice([spaced])
+    offered = notice.splitlines()[notice.splitlines().index("If any of them names people, run the command again naming them:") + 1]
+    assert shlex.split(offered) == ["--identifier", "Visit time"], offered
+    assert "(each value quoted for a POSIX shell such as bash or zsh)" in notice
+    plain = asking.Question("visit_time", "long_tail_labels", asking.BECAUSE_REPEATS_AND_MANY, "a shape", [], "")
+    assert "each value quoted" not in cli._assumptions_notice([plain])
+    twin = pathlib.Path("my data") / "real-twin.csv"
+    taught = cli._teaching_validate("my data/real-profile.json", twin)
+    line = taught.splitlines()[2]
+    assert shlex.split(line) == ["synthtwin", "validate", "my data/real-profile.json", "--twin", str(twin)], line
+    assert "(each value quoted for a POSIX shell such as bash or zsh)" in taught
+    assert "each value quoted" not in cli._teaching_validate("real-profile.json", pathlib.Path("real-twin.csv"))
+
+
+def test_the_refusal_of_a_column_too_wide_puts_no_name_inside_the_option() -> None:
+    """A column's name stood inside `'--identifier NAME'`, where a quote in it ended the quotes.
+
+    The Codex review of lane R1, item 1, at the one other line that told
+    a person what to type with a value of the table in it: the
+    generator's refusal of a column whose width cannot hold its values.
+    That module cannot know the shell, so the option is named and the
+    column is named in the sentence before it, not inside the option.
+    Red on 110cb46, whose line held `'--identifier x'$(touch y)''`.
+    """
+    from synthtwin import generation
+
+    name = "x'$(touch y)'"
+    said = generation._domain_too_small(name, "one character long", 200, 95)
+    assert f"--identifier {name}" not in said
+    assert "with --identifier followed by this column's name" in said
+    assert f"The description of the column '{name}'" in said
 
 
 def _asked_and_answered(

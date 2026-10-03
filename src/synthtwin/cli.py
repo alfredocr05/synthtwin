@@ -319,10 +319,14 @@ def _shown(value: object) -> str:
 # the repeat exited 2. A value made only of these characters is printed
 # as it is; any other is quoted whole. POSIX shells first; PowerShell,
 # the shell a Windows terminal opens, reads `,` and `@` as its own syntax
-# and `\` and `:` as text, so its set differs by those.
+# and `\` and `:` as text, so its set differs by those. And `~` is no
+# plain character to a POSIX shell anywhere in a word: bash reads a `~`
+# after the `=` of a word shaped like `a=~`, or after a `:` there, as
+# the home folder, and prints `a=/home/...` (measured with bash 3.2;
+# zsh leaves it alone), so such a code would be declared as another.
 _POSIX_PLAIN = frozenset(
     "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-    "_@%+=:,./~-"
+    "_@%+=:,./-"
 )
 _POWERSHELL_PLAIN = frozenset(
     "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
@@ -346,7 +350,8 @@ def _quoted_for_the_shell(value: object, windows: "bool | None" = None) -> str:
     stays `seen_at`. Any other is quoted whole: on POSIX in single quotes,
     a single quote inside written `'"'"'`; on Windows (``windows`` true,
     or the platform where it is None) in PowerShell's single quotes, each
-    quote character inside written twice. Both shells read everything
+    quote character inside written twice and a double quote written as
+    the program reads it back (below). Both shells read everything
     between single quotes as text, so nothing in the value is run.
 
     Guarantees: accepts any value, read as text; returns one word for the
@@ -356,26 +361,59 @@ def _quoted_for_the_shell(value: object, windows: "bool | None" = None) -> str:
     text = f"{value}"
     powershell = windows or (windows is None and _on_windows())
     plain = _POWERSHELL_PLAIN if powershell else _POSIX_PLAIN
-    # ...and two of them not first: zsh reads a word starting with `=`
-    # as the path of a command, and both shells read a leading `~` as a
-    # home folder, so such a word is quoted too. Inside a word `~` is
-    # text, which a Windows short path (`RUNNER~1`) needs.
+    # ...and some of them not first: zsh reads a word starting with `=`
+    # as the path of a command, and PowerShell a leading `~` as a home
+    # folder, so such a word is quoted too. Inside a word `~` is text to
+    # PowerShell, which a Windows short path (`RUNNER~1`) needs. And a
+    # word starting with `-` is quoted for PowerShell: Windows PowerShell
+    # hands a program a bare word such as `--missing-value=-1.5` as two,
+    # split before the point, so `_typed_option`'s joined word is always
+    # quoted there.
+    leading = ("=", "~", "-") if powershell else ("=",)
     if (
         text
-        and text[:1] not in ("=", "~")
+        and text[:1] not in leading
         and all(character in plain for character in text)
     ):
         return text
     # Built a character at a time, for the offline audit's reason
     # (`_joined`): no method of the value is called.
+    #
+    # AND ON POWERSHELL A DOUBLE QUOTE IS WRITTEN AS THE PROGRAM READS IT
+    # BACK. Windows PowerShell 5.1, the one every Windows machine
+    # carries, puts a value holding `"` into the command line it hands a
+    # program with that quote bare, and the program reads it as a quote
+    # of its own: `say "no" twice` arrived as `say no twice`, and `UNK"`
+    # opened a run that took the option typed after it into the value.
+    # So each `"` is written `\"` with the backslashes before it doubled,
+    # and the backslashes ending a value with a space, which that shell
+    # wraps in double quotes, are doubled too -- the C runtime's own rule
+    # for reading a command line. PowerShell 7.3 or later hands such a
+    # value over whole and keeps those backslashes, so there the
+    # declaration misses its value and the question is put again; on
+    # neither is an option taken into a value or anything run.
     inside = ""
+    slashes = ""
+    spaced = False
     for character in text:
+        if character == " " or character == "\t":
+            spaced = True
+        if powershell and character == "\\":
+            slashes = slashes + character
+            continue
+        if powershell and character == '"':
+            inside = inside + slashes + slashes + '\\"'
+            slashes = ""
+            continue
+        inside = inside + slashes
+        slashes = ""
         if powershell and character in _POWERSHELL_QUOTES:
             inside = inside + character + character
         elif not powershell and character == "'":
             inside = inside + "'\"'\"'"
         else:
             inside = inside + character
+    inside = inside + slashes + (slashes if spaced else "")
     return f"'{inside}'"
 
 
@@ -386,10 +424,11 @@ def _typed_option(
 
     The value is quoted for the shell (`_quoted_for_the_shell`), and one
     that starts with a minus sign is joined to its option with `=` and
-    the two quoted as one word: argparse reads a word starting with `-`
-    as an option of its own, so `--missing-value -UNK` is refused where
-    `--missing-value=-UNK` is read. Then the whole is shown through the
-    display boundary, like every value this module prints.
+    the two written as one word, quoted on PowerShell always: argparse
+    reads a word starting with `-` as an option of its own, so
+    `--missing-value -UNK` is refused where `--missing-value=-UNK` is
+    read. Then the whole is shown through the display boundary, like
+    every value this module prints.
 
     Guarantees: accepts an option and a value; returns the text to type.
     Determinism: a function of the two and the platform. Raises nothing.
@@ -418,6 +457,23 @@ def _shell_named(windows: "bool | None" = None) -> str:
     if windows or (windows is None and _on_windows()):
         return "quoted for PowerShell"
     return "quoted for a POSIX shell such as bash or zsh"
+
+
+def _quoting_said(line: str, windows: "bool | None" = None) -> str:
+    """Which shell a line to type is quoted for, said where it quotes a value.
+
+    The line that repeats a run always says it (`_how_to_repeat`). The
+    other lines a person is told to type -- the options a notice offers,
+    the `synthtwin validate` line -- say it once a value on them is
+    quoted, which is when the shell matters: PowerShell's quotes are not
+    the Windows command prompt's, which runs a `&` inside them, so the
+    person is told which shell the line was written for (the Codex
+    review of lane R1, item 1). A quoted value is the only way a `'`
+    reaches such a line, since no plain character is one.
+    """
+    if "'" not in line:
+        return ""
+    return f"\n  (each value {_shell_named(windows)})"
 
 
 def _say(message: str) -> None:
@@ -1776,7 +1832,7 @@ def _assumptions_notice(questions: "list[asking.Question]") -> str:
             f"besides -- and its twin will lose any "
             f"leading zeros.\n\n"
             f"If any of them holds codes, run the command again naming "
-            f"them:\n  {flags}"
+            f"them:\n  {flags}{_quoting_said(flags)}"
         ]
     if joined:
         flags = _joined(
@@ -1792,7 +1848,7 @@ def _assumptions_notice(questions: "list[asking.Question]") -> str:
             f"blood pressure of `120/80` is two readings and a laboratory "
             f"code is not, and only you know which this is.\n\n"
             f"If any of them holds readings, run the command again naming "
-            f"them:\n  {flags}"
+            f"them:\n  {flags}{_quoting_said(flags)}"
         ]
     if paired:
         flags = _joined(
@@ -1809,7 +1865,7 @@ def _assumptions_notice(questions: "list[asking.Question]") -> str:
             f"readings and a register written as two numbers is not, and "
             f"only you know which this is.\n\n"
             f"If any of them holds codes, run the command again naming "
-            f"them:\n  {flags}"
+            f"them:\n  {flags}{_quoting_said(flags)}"
         ]
     if pointed:
         flags = _joined(
@@ -1824,7 +1880,7 @@ def _assumptions_notice(questions: "list[asking.Question]") -> str:
             f"every average, spread and published point of it is a "
             f"thousand times too small, and only you know which it is.\n\n"
             f"If any of them writes a point between thousands, run the "
-            f"command again naming them:\n  {flags}"
+            f"command again naming them:\n  {flags}{_quoting_said(flags)}"
         ]
     if people:
         flags = _joined(
@@ -1840,7 +1896,7 @@ def _assumptions_notice(questions: "list[asking.Question]") -> str:
             f"tell which it is: a column whose values repeat can be a "
             f"subject number or a ward.\n\n"
             f"If any of them names people, run the command again naming "
-            f"them:\n  {flags}"
+            f"them:\n  {flags}{_quoting_said(flags)}"
         ]
     # `_joined` rather than `str.join`, for the offline audit's reason:
     # the formatting protocol of whatever is handed to `join` runs, so
@@ -4119,12 +4175,16 @@ def _teaching_validate(
     right.
 
     Both paths pass through `_shown`, like every other path this module
-    prints.
+    prints, and are quoted for the shell (`_typed_path`, the Codex review
+    of lane R1, item 1), which the line then names where it quotes one.
     """
+    line = (
+        f"synthtwin validate {_typed_path(description)} "
+        f"{_typed_option('--twin', twin_path)}"
+    )
     return (
         f"\nNext, measure the twin against the description:\n"
-        f"  synthtwin validate {_typed_path(description)} "
-        f"{_typed_option('--twin', twin_path)}\n"
+        f"  {line}{_quoting_said(line)}\n"
         f"That writes a quality report saying which of the description's "
         f"obligations the twin holds, which it misses, and which nothing "
         f"written in a CSV can evidence either way."

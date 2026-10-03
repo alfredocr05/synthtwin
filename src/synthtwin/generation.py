@@ -38241,6 +38241,13 @@ def _domain_too_small(
     has to read back as -- and ``held`` is the number synthtwin could
     actually write of that kind, counted by the same walk that would
     have written them.
+
+    THE COLUMN'S NAME IS NOT PUT INSIDE THE OPTION TO TYPE (the Codex
+    review of lane R1, item 1). It stood there in single quotes, so a
+    name holding a quote of its own ended them and the rest of it was
+    read by the shell; this module cannot know which shell the person
+    types into, so it says which option to add and names the column in
+    the first sentence, where it is read and not typed.
     """
     return (
         f"The description of the column '{parsing.visible(name)}' is "
@@ -38250,8 +38257,8 @@ def _domain_too_small(
         f"the two facts cannot both hold in any table. Nothing has been "
         f"written and every file in the folder is as it was. What to do "
         f"next: if this column holds record numbers, describe the table "
-        f"again with '--identifier {parsing.visible(name)}', which keeps "
-        f"the width and lets values repeat. If you no longer have the "
+        f"again with --identifier followed by this column's name, which "
+        f"keeps the width and lets values repeat. If you no longer have the "
         f"table, this column cannot be built from the description on its "
         f"own; please report it, with this message, so the rule can be "
         f"looked at."
