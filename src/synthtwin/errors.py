@@ -2868,9 +2868,9 @@ def workbook_column_mixes_storage(
     if mixed == MIXED_DAYS:
         return (
             f"The column '{_shown(column)}' of {path} holds numbers all "
-            f"shown as times of day, some of them under one day and others "
-            f"a whole day or more -- a date with a time, of which the "
-            f"format shows only the time -- or below nought. A reader such "
+            f"shown as times of day, some of them from nought up to one day "
+            f"and others a whole day or more -- a date with a time, of which "
+            f"the format shows only the time -- or below nought. A reader such "
             f"as pandas hands the first back as a time of day and the others "
             f"as a date with a time, and a twin cannot keep which values "
             f"were which, so code reading that column would get different "
