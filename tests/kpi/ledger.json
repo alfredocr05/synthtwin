@@ -7346,13 +7346,14 @@
    "headline": true,
    "name": "Four paths of the largest tables grow with the rows, not their square",
    "status": "GREEN",
-   "rule": "machine-free, rows doubled: the end-carrier pairs the shape searches are handed (all-different text and record numbers, 250 to 500 rows), comparisons with held-back levels (1,000 to 2,000) and the bytes a label column is built with (3,000 to 6,000) each grow under 2.5 times, and the role ladder is walked once per question",
+   "rule": "machine-free, rows doubled: the lines run choosing end-carrier pairs (all-different text and record numbers, 250 to 500 rows), comparisons with held-back levels (1,000 to 2,000), the class pass's bytes (4,000 to 8,000) and a label column's bytes (3,000 to 6,000) each grow under 2.5 times, and the role ladder is walked once per question",
    "rule_kind": "ratio_below",
    "expected": {
+    "class_pass_bytes_growth_2x_rows": 2.5,
     "held_back_lookups_growth_2x_rows": 2.5,
     "label_bytes_growth_2x_rows": 2.5,
     "role_walks_per_question": 1.0,
-    "shape_pairs_growth_2x_rows": 2.5
+    "shape_search_lines_growth_2x_rows": 2.5
    },
    "tier": "FAST",
    "source": "pytest",
@@ -7360,8 +7361,8 @@
    "test": "tests/test_kpi_ledger.py::test_k_s4_03",
    "driver": null,
    "pin_strength": "NONE",
-   "measured_on": "tests/test_stage4_linear_work.py's four measures, whose growth tests require each replaced function to grow at least three times",
-   "evidence": "As built (668f276), same shapes: 4.01, 4.05 and 3.56 times, three walks per question; the twin of a made-up 50-column health table of 10,000 rows reached 5.8 GB before a guard stopped it.",
+   "measured_on": "tests/test_stage4_linear_work.py's measures, whose growth tests require each replaced function, and the two regressions the review of landing S1 named, to grow at least three times",
+   "evidence": "As built (668f276), same shapes: 4.05 times the comparisons, 3.35 the class pass's bytes and 3.56 a label column's, three walks per question; the pair search listing every pair, 3.99 times, and the review's probe keeping one pair per shape of that list, 4.0 where the pairs it hands grow 1.0; a made-up 50-column health table of 10,000 rows reached 5.8 GB before a guard stopped it.",
    "value_at": {
     "commit": "d943f6f",
     "date": "2026-10-02",
