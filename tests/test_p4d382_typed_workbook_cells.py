@@ -956,3 +956,45 @@ def _cells_read_from_bytes(held: bytes) -> "list[tuple[object, str]]":
         if row[0].value is not None:
             out += [(row[0].value, row[0].number_format)]
     return out
+
+
+def test_a_description_of_clocks_as_numbers_asks_to_be_made_again(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A description made under the reading before P4-D382 is not a file that misses.
+
+    Review item 4 of landing R3. 1,000 `h:mm` cells holding `i/1440`
+    were described as `continuous` before the clocks were read; checked
+    against that unchanged workbook, the description missed `axes.role`,
+    `axes.statistical_type`, `counts.n_numeric` and `counts.n_not_numeric`
+    at exit 3. The check now stops and says to describe the table again.
+    The description is made here with the clock reading withdrawn, which
+    is the reading before (`_read_as_one_column` is where it lives).
+    """
+    table = tmp_path / "table.xlsx"
+    table.write_bytes(_book([(row / 1440, "h:mm") for row in range(ROWS)]))
+    with monkeypatch.context() as patched:
+        patched.setattr(workbook, "_read_as_one_column", lambda *arguments: None)
+        code, said = _exit_of(
+            ["profile", f"{table}", "--out-dir", f"{tmp_path}", "--replace"]
+        )
+    assert code == 0, said[-400:]
+    described = tmp_path / "table-profile.json"
+    document = json.loads(described.read_text(encoding="utf-8"))
+    assert document["columns"][0]["role"] == "continuous"
+    out = tmp_path / "check"
+    out.mkdir()
+    code, said = _exit_of(
+        ["validate", f"{described}", "--twin", f"{table}", "--out-dir",
+         f"{out}", "--replace"]
+    )
+    message = " ".join(said.split())
+    assert code == 1, message[-600:]
+    assert "Column number 1 of" in message
+    assert "made by an earlier version of synthtwin" in message
+    assert "describe the table again" in message
+    assert "event_at" not in message
+    # ...and the description made now checks the same file at exit 0.
+    trip = _trip(tmp_path / "now", [(row / 1440, "h:mm") for row in range(ROWS)])
+    assert trip["column"]["role"] == "time_of_day"
+    assert trip["real_exit"] == 0

@@ -3128,7 +3128,17 @@ follows it rather than restating a count), whose message mirrors the
 generation refusal and adds
 that whatever the file is, it cannot be that profile's twin; the quality
 target already present without `--replace`; the target resolving onto
-either input; and memory exhaustion.
+either input; memory exhaustion; and a checked workbook column the
+reading takes as clock times (plan P4-D382, `workbook.stored_as_clocks`)
+where the description publishes numbers for it
+(`errors.checked_clocks_described_as_numbers`, review item 4 of landing
+R3). That last is a change in the reading and not a fact about the file:
+version 6 is extended in place (amendment A-P4-41), so a description
+written before P4-D382 loads, and checked against its own unchanged
+workbook of 1,000 `h:mm` cells it missed `axes.role`,
+`axes.statistical_type`, `counts.n_numeric` and `counts.n_not_numeric`
+at exit 3. The refusal names the column by position and says to describe
+the table again.
 
 **Every refusal reachable from validation names positions, never
 values** — which column, which row — wherever the profiler's own form

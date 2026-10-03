@@ -80,6 +80,8 @@ CASES: "dict[str, tuple[object, ...]]" = {
     # the profile path's.
     "workbook_table_spans_too_many_cells": ("/data/table.xlsx", 1_000_000),
     "checked_workbook_sheet_not_found": ("/data/checked.xlsx", 3),
+    # Review item 4 of landing R3: a position, never a name (V9).
+    "checked_clocks_described_as_numbers": ("/data/checked.xlsx", 2),
     "checked_workbook_sheet_is_empty": ("/data/checked.xlsx", 2),
     "checked_workbook_other_sheet_holds_a_table": ("/data/checked.xlsx", 2, 1),
     "workbook_column_mixes_storage": ("/data/table.xlsx", "amount", "formats"),

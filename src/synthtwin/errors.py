@@ -2697,6 +2697,33 @@ def workbook_table_spans_too_many_cells(path: str, limit: int) -> str:
     )
 
 
+def checked_clocks_described_as_numbers(path: str, position: int) -> str:
+    """A checked workbook column read as clocks that the description gives numbers.
+
+    REVIEW ITEM 4 OF LANDING R3. Plan P4-D382 reads a column whose every
+    value cell is a time-format number at a whole second under one day
+    as clock times, where the reading before read those cells as
+    numbers, and a description written before still loads. Checked
+    against its own unchanged table, such a description missed its
+    role, its type and its counts: a verdict on the file for a change
+    in the reading. So the check stops and says to describe the table
+    again. The column is named by POSITION, as every refusal on the
+    validate path is (V9): this file may not be the person's own table.
+    """
+    return (
+        f"Column number {position} of {path} holds numbers shown as times "
+        f"of day, which synthtwin reads as clock times, but the description "
+        f"publishes numbers for that column. Either the "
+        f"description was made by an earlier version of synthtwin, which "
+        f"read those cells as plain numbers, or it describes another "
+        f"table. synthtwin did not check the file, because every line "
+        f"about that column would be about the change in reading and not "
+        f"about the file. Please describe the table again with synthtwin "
+        f"profile, make the twin again from the new description, and run "
+        f"the check against the new description."
+    )
+
+
 def checked_workbook_sheet_not_found(path: str, sheets: int) -> str:
     """The same refusal for a workbook `validate` was pointed at (V9).
 

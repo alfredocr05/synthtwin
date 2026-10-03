@@ -161,7 +161,7 @@ import math
 from synthtwin.paths import validate_local_path
 import pathlib
 
-from synthtwin import calendar_rules, contract, dialect, errors, parsing, profile, reading, taxonomy
+from synthtwin import calendar_rules, contract, dialect, errors, parsing, profile, reading, taxonomy, workbook
 
 
 # THE G12.3 WINDOWS ARE WRITTEN ONCE, IN `taxonomy` (plan P4-D353). The
@@ -4707,6 +4707,25 @@ def measure(
         return _degenerate_report(
             description, data, text, headed, as_read, measured_name
         )
+    # A DESCRIPTION OF CLOCKS AS NUMBERS IS ONE TO MAKE AGAIN, NOT A
+    # FILE THAT MISSES (review item 4 of landing R3). Plan P4-D382 reads
+    # a column whose every value cell is a time-format number at a whole
+    # second under one day as its clock times, where the reading before
+    # it read the same cells as numbers -- and version 6 is extended in
+    # place (amendment A-P4-41), so a description written before loads.
+    # Measured: such a description of 1,000 `h:mm` cells holding
+    # `i/1440` checked against its own unchanged workbook missed
+    # `axes.role`, `axes.statistical_type`, `counts.n_numeric` and
+    # `counts.n_not_numeric` at exit 3, a verdict on the file for what is
+    # a change in the reading. Where a column this reading reads as
+    # clocks is one the description says holds numbers -- a reading of
+    # clocks holds none -- the check stops and says to describe the
+    # table again.
+    clocked = _clocks_published_as_numbers(description, table)
+    if clocked:
+        raise errors.ProfileError(
+            errors.checked_clocks_described_as_numbers(shown, clocked)
+        )
     try:
         declared = _declared_here(description, table)
         declared_codes = _declared_codes_here(description, table)
@@ -5005,6 +5024,41 @@ def _why_no_column_is_named(refusal: errors.ShapeRefusal) -> str:
     if refusal.kind == errors.HEADER_NAME_MISSING:
         return f"no name at column number {refusal.position}"
     return "one name used for two of the columns"
+
+
+def _clocks_published_as_numbers(
+    description: "contract.Profile", table: "reading.Table"
+) -> int:
+    """The first column read as clocks that the description publishes numbers for.
+
+    A column of a checked workbook whose every value cell is a
+    time-format number at a whole second under one day is read as its
+    clock times (`workbook.stored_as_clocks`, plan P4-D382), and a
+    reading of clocks holds no number; a description publishing a
+    number for the column at the same place (`n_numeric` above nought)
+    was made under the reading before, or of another file. Returns that
+    column's position, counting from one, or 0 where there is none.
+
+    Guarantees: a fixed function of the two. Raises nothing. No I/O of
+    any kind.
+    """
+    sheet = table.sheet
+    if sheet is None:
+        return 0
+    for place in range(len(description.columns)):
+        if (
+            place >= len(table.columns)
+            or place >= len(sheet.classes)
+            or place >= len(sheet.formats)
+        ):
+            return 0
+        if description.columns[place].n_numeric <= 0:
+            continue
+        if workbook.stored_as_clocks(
+            table.columns[place], sheet.classes[place], sheet.formats[place]
+        ):
+            return place + 1
+    return 0
 
 
 def _declared_here(
