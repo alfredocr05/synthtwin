@@ -11674,8 +11674,8 @@ def weekday_exchanged(walk, movable, wanted):
         cycle = weekday_best_cycle(walk, movable, wanted - before)
         if cycle is None:
             break
-        # The cycle whole or not at all (P4-D366): where a move finds no
-        # place, the moves made before it are undone and the step ends.
+        # The cycle whole or not at all (P4-D366): where any of its moves
+        # finds no place, every one of them is undone and the step ends.
         saved = list(walk.days)
         if not all([weekday_exchange_move(walk, movable, cell, giving, taking) for cell, giving, taking in cycle]):
             walk.days[:] = saved

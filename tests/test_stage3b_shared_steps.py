@@ -56,6 +56,8 @@ The cases and their clauses:
   holds the product to the file and states what the case shows;
   `test_each_clause_is_red_on_its_mutant` turns each red on its own
   source edit of the product (`REVIEW_MUTANTS`, the reviewer's ids);
+* `test_the_body_is_full_only_where_every_unit_the_census_counts_holds_a_rank`
+  -- the test the short cause asks (the review's M65);
 * `test_a_schedule_at_floor_36_reaches_step_8_5`,
   `test_a_count_left_long_is_named_long` and
   `test_a_cause_stands_only_where_the_recount_went_its_way` -- a column
