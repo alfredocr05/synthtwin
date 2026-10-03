@@ -123,6 +123,19 @@ bound nothing over thousands of widths is answered as stopped short
 where the old walk finished; the census of widths hands in none of
 them. `K-S3-54`, `K-S3-55`.
 
+**The Codex review's three items** (on 110cb46). The walk asks its two
+budgets after every reading of a leaf, where it asked them only after
+the leaf: at a smallest group raised with the rows a million rows of
+`7.5` and `7.50` took a reading past the work's ceiling and time growing
+with the square of the rows, and now stop at it. The first split of each
+different text reads its spans once from each start instead of asking
+every substring: `+` written 800 times took about 11 CPU seconds and
+takes a thousandth of one, every split the same as before, and a cell
+whose search would still read more than twenty million characters -- a
+run of figures thousands long -- stops the run with a sentence rather
+than search on. And `K-S3-55` judges whether the unread 10,000-row
+column was described, so a failed run is red.
+
 ### Excel's hour and the 12-hour clock, read and written back (2026-10-01)
 
 **The reader** (plan P4-D370, landing T1). `3/17/2024 6:42`, `6:42 PM`,
