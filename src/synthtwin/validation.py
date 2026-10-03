@@ -1131,8 +1131,12 @@ _GATE_TAIL_WITHHELD_A_COUNT = (
 # (plan P4-D353). The file's description says which, in a remark per side
 # (`taxonomy.tail_withheld_because`), and the report says the reason true
 # of it: a side withheld beside the other tail's, one whose check did not
-# finish, one binary64 cannot hold -- and, on a block that carries no such
-# remarks, the rule without a reason it cannot vouch for.
+# finish, one binary64 cannot hold. SINCE PLAN P4-D375 THE LAST IS THE ONE
+# REASON THE PRODUCER HAS, and the file's own description is always this
+# producer's, so a block whose role carries no such remark is withheld for
+# it alone (review of landing 3b.G1, item 3): the sentence that named the
+# withdrawn rules there -- an outer cell, a count, the other tail by
+# subtraction -- described protection this producer no longer applies.
 _GATE_TAIL_WITHHELD_FOR_THE_OTHER = (
     "the file's own description publishes nothing about this tail beyond "
     "the count of cells past its boundary -- neither distance, and so no "
@@ -1159,17 +1163,6 @@ _GATE_TAIL_WITHHELD_UNHOLDABLE = (
     "file format to hold. There is nothing here for the comparison, and "
     "neither it nor its outcome is shown"
 )
-_GATE_TAIL_WITHHELD_UNSAID = (
-    "the file's own description publishes nothing about this tail beyond "
-    "the count of cells past its boundary -- neither distance, and so no "
-    "list of the values it holds -- under the same tail rule this "
-    "description follows, which withholds them where they would give back "
-    "an outer cell or how many outer cells hold one value, where that could "
-    "not be ruled out, where beside the "
-    "exact mean and spread they could give the other tail's back, or where "
-    "this file format cannot hold them. There is nothing here for the "
-    "comparison, and neither it nor its outcome is shown"
-)
 _GATE_TAIL_WITHHELD_BY_CAUSE = {
     taxonomy.TAIL_PINNED: _GATE_TAIL_WITHHELD,
     taxonomy.TAIL_PINS_EVERY: _GATE_TAIL_WITHHELD_EVERY,
@@ -1190,13 +1183,16 @@ def _tail_withheld_reason(block: "dict[str, object]", side: str) -> str:
 
     Guarantees: accepts the file's own description block and `"low"` or
     `"high"`; returns the `_GATE_TAIL_WITHHELD_*` sentence for the reason
-    that block's remarks give for that side, and `_GATE_TAIL_WITHHELD_UNSAID`
-    where the block is not one whose producer says a reason. Determinism: a
-    function of the two. Raises nothing. No I/O.
+    that block's remarks give for that side, and
+    `_GATE_TAIL_WITHHELD_UNHOLDABLE` where the block is not one whose
+    producer says a reason: the file's own description is this producer's,
+    and since plan P4-D375 a pair binary64 cannot hold is the one side it
+    withholds (review of landing 3b.G1, item 3). Determinism: a function
+    of the two. Raises nothing. No I/O.
     """
     role = block["role"] if "role" in block else None
     if role not in _ROLES_SAYING_TAIL_REASONS:
-        return _GATE_TAIL_WITHHELD_UNSAID
+        return _GATE_TAIL_WITHHELD_UNHOLDABLE
     remarks = block["remarks"] if "remarks" in block else None
     return _GATE_TAIL_WITHHELD_BY_CAUSE[taxonomy.tail_withheld_because(remarks, side)]
 
