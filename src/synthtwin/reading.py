@@ -1870,9 +1870,14 @@ def _read_workbook_table(
     first_row: str = FIRST_ROW_AUTOMATIC,
     refusals: str = REFUSALS_MAY_QUOTE,
     published_header: int = 0,
+    missing_under: "taxonomy.Settings | None" = None,
     floor: int = parsing.DEFAULT_SMALL_CELL_FLOOR,
 ) -> Table:
     """One sheet of a workbook, as a table of text (plan P4-D77).
+
+    ``missing_under`` is `read_table`'s: the settings whose missing
+    words are no present cell where a column's clocks are counted
+    (`no_value_spellings`), the defaults where None.
 
     THE SECOND READER IS NOT RUN HERE, and that is a real difference
     from the delimited path rather than an oversight. A CSV file is read
@@ -1904,6 +1909,13 @@ def _read_workbook_table(
     positions = refusals == REFUSALS_NAME_POSITIONS
     parts = opened_workbook(table_path, shown)
     reading = workbook.read_parts(parts, shown, wanted, positions)
+    # THE WORDS THIS RUN READS AS NO VALUE, asked once of the sheet's own
+    # spellings and handed to every reading of it (the repair of review
+    # item 3 of landing R3): clock times beside `NA` are clock times.
+    no_value = no_value_spellings(
+        reading,
+        taxonomy.Settings() if missing_under is None else missing_under,
+    )
     records = first_row == FIRST_ROW_DATA
     # WHICH ROW HOLDS THE NAMES, WHERE ROWS OF ONE CELL STAND ABOVE THEM
     # (plans P4-D174, P4-D186). A row of one cell above the header rule's
@@ -1925,6 +1937,7 @@ def _read_workbook_table(
         names_on_top=first_row == FIRST_ROW_NAMES and not positions,
         published_header=published_header if positions else 0,
         records_from_the_header=from_header,
+        no_value=no_value,
     )
     if not sheet.columns:
         if positions:
@@ -1995,7 +2008,8 @@ def _read_workbook_table(
             # the table starts at, how many rows stand above it -- are
             # the facts of the reading that stands.
             sheet = workbook.table_of(
-                reading, shown, records_from_the_header=True
+                reading, shown, records_from_the_header=True,
+                no_value=no_value,
             )
             names = _generated_column_names(len(sheet.columns))
             found = dataclasses.replace(
@@ -2066,6 +2080,60 @@ def _read_workbook_table(
     )
 
 
+def no_value_spellings(
+    reading: "workbook.Reading", settings: "taxonomy.Settings"
+) -> "frozenset[str]":
+    """The spellings beside a sheet's stored times that this run reads as no value.
+
+    THE CLOCKS ARE COUNTED OVER THE PRESENT CELLS (the repair of review
+    item 3 of landing R3). A column of clock times stored as numbers is
+    read as clocks where every value cell beside them is one
+    (`workbook.table_of`), and a word such as `NA` is no value to the
+    rest of the reading: counted as a value, 31 `NA` cells beside 969
+    whole-minute clocks left the column numbers, and its twin read back
+    as 968 times and a date-time, 968 of them off the minute, with no
+    miss reported. So the spellings `taxonomy.missing_cells` takes out
+    under ``settings`` -- the vocabulary's words, and those named with
+    `--missing-value` -- are handed to the reader, which asks the rule
+    `split_missing` asks, by spelling, rather than a second one.
+
+    Asked only of the value cells that are not numbers, in a sheet
+    column holding a time-format number, each different spelling once:
+    `taxonomy.missing_cells` costs 1.6 to 1.8 s of CPU over a million
+    cells, and a sheet storing no time needs none of it.
+
+    Guarantees: accepts a workbook reading and the run's settings;
+    returns the spellings taken out. Determinism: a fixed function of the
+    two. Raises nothing. No I/O of any kind.
+    """
+    kinds_of: "dict[str, str]" = {}
+    timed: "dict[int, bool]" = {}
+    for cell in reading.cells:
+        if cell.kind != workbook.CELL_NUMBER:
+            continue
+        code = cell.number_format
+        if code not in kinds_of:
+            kinds_of[code] = workbook.format_kind(code)
+        if kinds_of[code] == workbook.FORMAT_TIME:
+            timed[cell.column] = True
+    if not timed:
+        return frozenset()
+    asked: "dict[str, bool]" = {}
+    for cell in reading.cells:
+        if cell.column not in timed or cell.kind == workbook.CELL_NUMBER:
+            continue
+        if cell.kind not in dialect.SHEET_VALUE_CLASSES:
+            continue
+        asked[workbook.spelled(cell.kind, cell.text)] = True
+    spellings = sorted(asked)
+    marks = taxonomy.missing_cells(spellings, settings)
+    taken: "list[str]" = []
+    for place in range(len(spellings)):
+        if marks[place]:
+            taken += [spellings[place]]
+    return frozenset(taken)
+
+
 def _sheet_position(reading: "workbook.Reading") -> int:
     """Where the chosen sheet stands in workbook order, counting from one."""
     for index in range(len(reading.sheets)):
@@ -2086,8 +2154,20 @@ def read_table(
     declared_delimiter: str = "",
     published_header: int = 0,
     small_cell_floor: int = parsing.DEFAULT_SMALL_CELL_FLOOR,
+    missing_under: "taxonomy.Settings | None" = None,
 ) -> Table:
     """Read a CSV table from a local path; return it as text.
+
+    ``missing_under`` is the settings the run reads missing values under,
+    and a workbook alone wants them (the repair of review item 3 of
+    landing R3): a column of clock times stored as numbers is read as
+    clocks where every PRESENT value cell beside them is one, and a word
+    those settings read as no value -- `NA`, or one named with
+    `--missing-value` -- is not present (`no_value_spellings`). Left
+    out, the defaults are asked (`taxonomy.Settings()`); `synthtwin
+    profile` passes the person's settings and the validator the ones
+    the description records, so a checked twin is read the way its
+    source was.
 
     ``small_cell_floor`` is the person's smallest group, and the reader
     wants it for two questions, one per path it can take. On a workbook
@@ -2267,7 +2347,9 @@ def read_table(
             )
         return _read_workbook_table(
             f"{table_path}", shown, sheet, first_row, refusals,
-            published_header, small_cell_floor,
+            published_header,
+            missing_under=missing_under,
+            floor=small_cell_floor,
         )
     try:
         found = _read_authoritatively(

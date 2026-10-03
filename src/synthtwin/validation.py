@@ -4681,6 +4681,13 @@ def measure(
             # would be measured under a different reading of the same
             # bytes and would miss the form it actually has.
             small_cell_floor=description.settings.small_cell_floor,
+            # ...AND THE WORDS THE DESCRIPTION READ AS NO VALUE (the
+            # repair of review item 3 of landing R3). A column of clock
+            # times beside `NA`, or beside a word named with
+            # `--missing-value`, is read as clocks only where those words
+            # are no present cell, so a checked file read under other
+            # words would read its clocks as numbers.
+            missing_under=settings_for(description),
         )
     except errors.ShapeRefusal as refusal:
         # THE ONE PREDICATE THE DISCLOSURE GATE DOES NOT CLOSE ON A FILE
@@ -5045,7 +5052,7 @@ def _clocks_published_as_numbers(
 ) -> int:
     """The first column read as clocks that the description publishes numbers for.
 
-    A column of a checked workbook whose every value cell is a
+    A column of a checked workbook whose every present value cell is a
     time-format number at a whole second under one day is read as its
     clock times (`workbook.stored_as_clocks`, plan P4-D382), and a
     reading of clocks holds no number; a description publishing a
@@ -5068,8 +5075,15 @@ def _clocks_published_as_numbers(
             return 0
         if description.columns[place].n_numeric <= 0:
             continue
+        # ...OVER THE CELLS THE READING LEFT PRESENT (the repair of review
+        # item 3 of landing R3): it read this file under the words the
+        # description takes as no value, so clocks beside `NA` are clocks
+        # here as they were to the reader that spelled them.
         if workbook.stored_as_clocks(
-            table.columns[place], sheet.classes[place], sheet.formats[place]
+            table.columns[place],
+            sheet.classes[place],
+            sheet.formats[place],
+            sheet.no_value,
         ):
             return place + 1
     return 0

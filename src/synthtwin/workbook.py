@@ -1616,7 +1616,10 @@ class Sheet:
 
     ``columns`` and ``classes`` hold one list per column, column-major
     and the same length, so a column's cells and what each cell WAS are
-    read together.
+    read together. ``no_value`` is the set of spellings the reading took
+    as no value where it counted a column's clocks (`table_of`), kept so
+    every later question about the clocks is the reading's own
+    (`stored_as_clocks`).
     """
 
     names: "tuple[str, ...]"
@@ -1631,6 +1634,7 @@ class Sheet:
     empty_rows_inside: int
     trailing_blank_rows: int
     trailing_blank_columns: int
+    no_value: "frozenset[str]" = frozenset()
 
 
 def _table_width(widths: "list[int]") -> int:
@@ -1874,10 +1878,11 @@ def _read_as_one_column(
 
     THE CLOCKS (see `dialect.sheet_serial_second`). ``clocks`` is
     `CLOCKS_NONE` where the column's time-format numbers are not every
-    cell of it holding a value, or not every one a whole second of the
-    day; otherwise each is spelled as its clock, `HH:MM` where it is
-    `CLOCKS_MINUTES` -- every one at second nought -- and `HH:MM:SS`
-    where it is `CLOCKS_SECONDS`. ``rows`` is the table's first and
+    present cell of it holding a value -- a word the run reads as no
+    value is not present (`table_of`'s ``no_value``) -- or not every one
+    a whole second of the day; otherwise each is spelled as its clock,
+    `HH:MM` where it is `CLOCKS_MINUTES` -- every one at second nought
+    -- and `HH:MM:SS` where it is `CLOCKS_SECONDS`. ``rows`` is the table's first and
     last sheet row, so a cell at sheet row `n` stands at `n - rows[0]`.
 
     WHY A SECOND PASS AND NOT A LIST. The walk keeps three facts per
@@ -1945,8 +1950,16 @@ def table_of(
     names_on_top: bool = False,
     published_header: int = 0,
     records_from_the_header: bool = False,
+    no_value: "frozenset[str]" = frozenset(),
 ) -> Sheet:
     """The table a sheet holds: its names, its cells and where it sits.
+
+    ``no_value`` holds the spellings this run reads as no value -- a
+    word the vocabulary reads so, such as `NA`, or one named with
+    `--missing-value` (`taxonomy.missing_cells`, handed over by the
+    caller, `reading.no_value_spellings`) -- and a cell holding one is
+    not a present cell where the clocks of its column are counted
+    (`_read_as_one_column`). Empty, every value cell is present.
 
     THE HEADER IS FOUND BY WIDTH, and the rule is `_header_row_of`'s:
     rows a person puts above a table -- a title, a merged banner, a note
@@ -2152,16 +2165,25 @@ def table_of(
             classes[index] += [standing.kind]
             formats[index] += [standing.number_format]
             formulas[index] += [standing.formula]
-            if standing.kind in dialect.SHEET_VALUE_CLASSES:
+            if standing.kind in dialect.SHEET_VALUE_CLASSES and (
+                standing.kind == CELL_NUMBER or shown_text not in no_value
+            ):
                 valued[index] = valued[index] + 1
             if standing.kind not in (CELL_ABSENT, CELL_BLANK):
                 holding = True
         if not holding:
             empty_inside = empty_inside + 1
     for index in range(len(columns)):
-        # A COLUMN IS READ AS CLOCKS ONLY WHERE EVERY CELL HOLDING A VALUE
-        # IS A TIME-FORMAT NUMBER: one text cell beside them -- a word
-        # such as `UNK` -- leaves the column the numbers it read as before.
+        # A COLUMN IS READ AS CLOCKS ONLY WHERE EVERY PRESENT CELL HOLDING
+        # A VALUE IS A TIME-FORMAT NUMBER. A word the run reads as no
+        # value -- `NA`, or one named with `--missing-value` -- is not a
+        # present cell (the repair of review item 3 of landing R3):
+        # counted, 31 `NA` cells beside 969 whole-minute clocks left the
+        # column numbers, and its twin, read by openpyxl, held 968 times
+        # and a date-time, 968 of them off the minute, with no miss
+        # reported. Any other value cell beside them leaves the column the
+        # numbers it read as before, and where the clocks are most of its
+        # present cells the profile refuses it (`mixed_storage`).
         clocks = CLOCKS_NONE
         if clocked[index] and clocked[index] == valued[index]:
             if clockable[index]:
@@ -2211,6 +2233,7 @@ def table_of(
         empty_rows_inside=empty_inside,
         trailing_blank_rows=trailing_rows,
         trailing_blank_columns=trailing_columns,
+        no_value=no_value,
     )
 
 
@@ -2549,26 +2572,44 @@ def stored_date_counts(
 
 
 def stored_as_clocks(
-    texts: "list[str]", classes: "list[str]", codes: "list[str]"
+    texts: "list[str]",
+    classes: "list[str]",
+    codes: "list[str]",
+    no_value: "frozenset[str]" = frozenset(),
 ) -> bool:
-    """Whether a workbook stores every value cell of a column as a clock.
+    """Whether a workbook stores every present value cell of a column as a clock.
 
-    True where at least one cell holds a value and every cell that does
-    is a number wearing a time format that the reader read as its clock
-    (`_read_as_one_column`, `dialect.sheet_clock_serial` of its text).
-    It is what keeps such a column from a list of labels whose held-back
-    levels its twin could not write as clocks (`taxonomy._decide`, plan
-    P4-D382).
+    True where at least one cell holds a value and every PRESENT cell
+    that does is a number wearing a time format that the reader read as
+    its clock (`_read_as_one_column`, `dialect.sheet_clock_serial` of
+    its text). It is what keeps such a column from a list of labels
+    whose held-back levels its twin could not write as clocks
+    (`taxonomy._decide`, plan P4-D382).
+
+    ``no_value`` is the reading's own set of spellings it took as no
+    value (`Sheet.no_value`, `table_of`): a value cell other than a
+    number holding one is no present cell (the repair of review item 3
+    of landing R3) -- `NA` beside clocks, or a word named with
+    `--missing-value` -- as it was none to the reader that spelled the
+    clocks. Asked through the reading's set and not its settings, the
+    question stops at the first cell that is neither, as it always did,
+    so a column of text or of plain numbers costs one cell.
 
     Guarantees: accepts one column's texts, cell classes and format
-    codes, the same length; returns a bool. Determinism: a fixed
-    function of the three. Raises nothing. No I/O of any kind.
+    codes, the same length, and the set; returns a bool. Determinism: a
+    fixed function of the four. Raises nothing. No I/O of any kind.
     """
     held = 0
     kinds_of: "dict[str, str]" = {}
     for index in range(len(classes)):
         kind = classes[index]
         if kind not in dialect.SHEET_VALUE_CLASSES:
+            continue
+        if (
+            kind != CELL_NUMBER
+            and index < len(texts)
+            and texts[index] in no_value
+        ):
             continue
         if kind != CELL_NUMBER or index >= len(texts) or index >= len(codes):
             return False
@@ -2646,10 +2687,26 @@ def mixed_storage(
     below nought, which openpyxl hands back as a date with a time too
     (`_clock_and_moment`).
 
-    Returns the column's index, `errors.MIXED_FORMATS` or
-    `errors.MIXED_DAYS`, and the kinds its numbers wear, in
-    `FORMAT_KINDS` order, so the refusal can say which they are.
-    Guarantees: a fixed function of the sheet; raises nothing.
+    CLOCKS BESIDE A VALUE OF ANOTHER KIND ARE THAT MIX TOO (the repair of
+    review item 3 of landing R3). A column whose time-format numbers are
+    clock times at whole seconds is read as clocks only where nothing
+    else stands beside them but a word the run reads as no value
+    (`Sheet.no_value`, the reading's own); anything else -- a word such
+    as `UNK` that the person has not named with `--missing-value` --
+    left the column numbers, and their twin was drawn as a distribution
+    of numbers: measured on 969 whole-minute `h:mm` clocks beside 31
+    `UNK`, openpyxl read the source as 969 times and 31 strings and the
+    twin as 968 times, a date-time and 31 strings, 968 of its times off
+    the minute, and `validate` reported no miss. Where such clocks are
+    most of the column's present value cells it is refused, with
+    `errors.MIXED_CLOCKS`, and the refusal says how to name the word as
+    missing (`_clocks_beside_other_values`). A column of text with a few
+    clocks typed among it is not refused and reads as it did.
+
+    Returns the column's index, `errors.MIXED_FORMATS`,
+    `errors.MIXED_DAYS` or `errors.MIXED_CLOCKS`, and the kinds its
+    numbers wear, in `FORMAT_KINDS` order, so the refusal can say which
+    they are. Guarantees: a fixed function of the sheet; raises nothing.
     """
     for index in range(len(sheet.classes)):
         classes = sheet.classes[index]
@@ -2661,6 +2718,10 @@ def mixed_storage(
         if len(worn) == 1 and FORMAT_TIME in worn:
             if _clock_and_moment(sheet.columns[index], classes, codes):
                 return (index, errors.MIXED_DAYS, (FORMAT_TIME,))
+            if _clocks_beside_other_values(
+                sheet.columns[index], classes, sheet.no_value
+            ):
+                return (index, errors.MIXED_CLOCKS, (FORMAT_TIME,))
             continue
         if len(worn) < 2:
             continue
@@ -2707,15 +2768,50 @@ def _clock_and_moment(
         except ValueError:
             inside = True
             continue
-        if value >= 0 and round(value * dialect.SHEET_DAY_MILLISECONDS) < (
-            dialect.SHEET_DAY_MILLISECONDS
-        ):
+        # Asked through the one statement of the line, which also keeps
+        # a number past the range of a product with the day's
+        # milliseconds -- `9e307` -- from raising OverflowError here.
+        if dialect.sheet_inside_the_day(value):
             inside = True
         else:
             outside = True
         if inside and outside:
             return True
     return False
+
+
+def _clocks_beside_other_values(
+    texts: "list[str]", classes: "list[str]", no_value: "frozenset[str]"
+) -> bool:
+    """Whether a column's clock numbers stand beside present values of another kind.
+
+    `mixed_storage`'s question for a column whose every number wears a
+    time format and none stands both sides of one day: true where every
+    number is a clock at a whole second of the day the reader left
+    unspelled (`dialect.sheet_serial_second` of its stored text), some
+    other value cell is present -- its spelling not in ``no_value`` --
+    and the clocks are more than half of the present value cells, the
+    line `stored_as_dates` draws for stored dates. A column the reader
+    spelled as clocks holds no such cell (`table_of`), and one holding a
+    fraction of a second is read as numbers, which its twin keeps inside
+    the day (`generation`, method G2.2). Guarantees: a fixed function
+    of the three; raises nothing. No I/O of any kind.
+    """
+    clocks = 0
+    others = 0
+    for row in range(min(len(texts), len(classes))):
+        kind = classes[row]
+        if kind not in dialect.SHEET_VALUE_CLASSES:
+            continue
+        if kind == CELL_NUMBER:
+            if dialect.sheet_serial_second(texts[row]) < 0:
+                return False
+            clocks = clocks + 1
+            continue
+        if texts[row] in no_value:
+            continue
+        others = others + 1
+    return others > 0 and clocks > others
 
 
 def mixed_number_formats(sheet: Sheet, floor: int) -> "tuple[int, str] | None":

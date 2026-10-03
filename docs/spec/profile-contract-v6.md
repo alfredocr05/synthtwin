@@ -1233,16 +1233,33 @@ it, and both are the value's and not the writer's:
   was read jointly as `iso-mixed`.
 - *A number wearing a time format is read as its clock where every one
   is a clock* (plan P4-D382, `dialect.sheet_serial_second`): where
-  every value cell of a column is a number wearing a time format and
-  each stands at a whole second from nought up to, and not including,
-  one day, each is read as `HH:MM` where every one stands at second
-  nought and `HH:MM:SS` otherwise -- the stored seconds kept whatever
-  the format shows -- and the twin writes each clock back as the
-  fraction of a day it was read as (method G2.2 step 0b). Where every
-  one is outside the day -- a day or more, `h:mm` worn by full
-  date-times, or below nought -- or any is a fraction of a second, or a
-  value cell of the column is anything else, the column stays a column
-  of numbers, as it read before. **Where its time-format numbers stand
+  every PRESENT value cell of a column is a number wearing a time
+  format -- a word the run reads as no value, such as `NA` or one named
+  with `--missing-value`, being no present cell -- and each stands at a
+  whole second from nought up to, and not including, one day, each is
+  read as `HH:MM` where every one stands at second nought and
+  `HH:MM:SS` otherwise -- the stored seconds kept whatever the format
+  shows -- and the twin writes each clock back as the fraction of a day
+  it was read as (method G2.2 step 0b). The missing words are the third
+  pass over review item 3 of landing R3: counted as values, 31 `NA`
+  cells left 969 whole-minute clocks a column of numbers, whose twin
+  openpyxl read as 968 times and a date-time, 968 of them off the
+  minute, with no miss reported. Where every one is outside the day --
+  a day or more, `h:mm` worn by full date-times, or below nought -- or
+  any is a fraction of a second, the column stays a column of numbers,
+  as it read before, and where its numbers stood inside the day the
+  twin's stay inside it (method G2.2; measured before, 999 whole-minute
+  clocks beside one at 5.25 seconds gave a twin read as 999 times and a
+  date-time).
+  **Where such clocks, at whole seconds inside the day, are most of the
+  column's present value cells and a present cell of another kind
+  stands beside them -- a word the person has not named with
+  `--missing-value` -- the profile is refused** (`errors.MIXED_CLOCKS`),
+  naming the column and saying how to name the word as missing: read as
+  numbers, 969 clocks beside 31 `UNK` gave a twin read as 968 times, a
+  date-time and 31 strings, 968 of its times off the minute, with no
+  miss reported. A column of text with a few clocks typed among it is
+  not refused and reads as it did. **Where its time-format numbers stand
   both inside one day and outside it -- a day or more, or below nought
   -- the profile is refused** (review item 3 of landing R3,
   `errors.MIXED_DAYS`), the line drawn at the millisecond: a reader such
@@ -4169,8 +4186,9 @@ also reached by the person's declaration ahead of the rules that read
 values, in its full reading, as section 6.15 states.
 
 **`categorical` stands aside for clocks a workbook stores** (plan
-P4-D382). Where every value cell of a column is a number wearing a time
-format read as its clock (`workbook.stored_as_clocks`) and a folded
+P4-D382). Where every present value cell of a column -- a word the run
+reads as no value being none -- is a number wearing a time format read
+as its clock (`workbook.stored_as_clocks`) and a folded
 level holds fewer rows than the floor, rule 8 declines the column and
 it reaches `time_of_day`: a held-back level is written in a twin as
 made-up text of the column's shape, and a clock stored as a number has

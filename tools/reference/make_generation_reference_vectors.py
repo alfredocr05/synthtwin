@@ -26213,6 +26213,85 @@ def sheet_clocks_as_day_fractions(column, own):
     ]
 
 
+def sheet_is_a_time_of_day(value):
+    """Whether a stored number reads as a time of day (G2.2).
+
+    From nought up to, and not including, one day, rounded at the
+    millisecond as the readers round it.
+    """
+    return 0 <= value < 1 and round(value * 86400000) < 86400000
+
+
+def sheet_figures_after_the_point(text):
+    """How many figures a number's spelling writes after its point."""
+    mantissa = text.replace("E", "e").split("e")[0]
+    if "." not in mantissa:
+        return 0
+    return len(mantissa.split(".")[1])
+
+
+def sheet_numbers_inside_the_day(column, n_negative, mean, own):
+    """A time format's numbers of a day or more, written inside the day.
+
+    G2.2 (the repair of review item 3 of landing R3), written from the
+    rule: only where the column publishes a time format -- a count of
+    time-format cells above nought, or a time code -- does not store its
+    dates as ISO text (`sheet_stores_dates`), and its numeric block
+    publishes no negative number and a mean that reads as a time of day.
+    Then the different numbers of one day or more, the greatest first,
+    each take the greatest value under one day, and under the value the
+    number before took, written with as many figures after the point as
+    the fewest of their cells write (at least one and at most eight),
+    that no cell holds; each cell is written at its own count of
+    figures, noughts after the value's own. A number below nought, and one finding no free value,
+    stays as it came.
+    """
+    wants = sheet_wanted(column["format_kinds"], "time") > 0 or (
+        sheet_code_kind(column["format_code"]) == "time"
+    )
+    if not wants or sheet_stores_dates(column):
+        return list(own)
+    if n_negative != 0 or mean is None or not sheet_is_a_time_of_day(mean):
+        return list(own)
+    held = set()
+    fewest = {}
+    for text in own:
+        if not sheet_fits("number", text):
+            continue
+        value = float(text)
+        if value < 0 or sheet_is_a_time_of_day(value):
+            held.add(value)
+            continue
+        figures = sheet_figures_after_the_point(text)
+        if value in fewest:
+            figures = min(figures, fewest[value])
+        fewest[value] = figures
+    moved = {}
+    ceiling = None
+    for value in sorted(fewest, reverse=True):
+        places = min(max(fewest[value], 1), 8)
+        scale = 10 ** places
+        start = scale - 1
+        if ceiling is not None:
+            # Under the value the number before took: the greatest whole
+            # `top` with top / scale < ceiling[0] / ceiling[1].
+            start = min(start, (ceiling[0] * scale - 1) // ceiling[1])
+        for top in range(start, 0, -1):
+            if top / scale not in held:
+                held.add(top / scale)
+                moved[value] = (top, places)
+                ceiling = (top, scale)
+                break
+    out = []
+    for text in own:
+        if sheet_fits("number", text) and float(text) in moved:
+            top, places = moved[float(text)]
+            figures = max(sheet_figures_after_the_point(text), places)
+            out += ["0." + str(top).zfill(places) + "0" * (figures - places)]
+            continue
+        out += [text]
+    return out
+
 def sheet_code_kind(code):
     """Which kind a published format code is (G2.2 step 3, plan P4-D189).
 

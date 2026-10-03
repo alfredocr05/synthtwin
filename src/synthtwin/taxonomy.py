@@ -15165,8 +15165,9 @@ def _stamp_clocks(
 
 # HOW A WORKBOOK STORES A COLUMN, where it matters to the reading (plan
 # P4-D382; `_decide`'s ``stored_as``): most of its cells as dates, or
-# every one as a clock time. Anything else -- a delimited file, or a
-# workbook column stored otherwise -- is the empty word.
+# every present one as a clock time, a word the run reads as no value
+# being none (`workbook.stored_as_clocks`). Anything else -- a delimited
+# file, or a workbook column stored otherwise -- is the empty word.
 STORED_AS_DATES = "dates"
 STORED_AS_CLOCKS = "clocks"
 
@@ -19156,10 +19157,10 @@ def _decide(
     them as dates: where no date format clears the parse line, rule 5
     reads the column under the ISO reading of those stored dates, the
     cells it does not read counted unparsed (`_stored_date_format`).
-    `STORED_AS_CLOCKS`, every one as a clock time: rule 7 stands aside
-    where a level would fall below the floor, so the column reaches the
-    clock rule rather than a list of labels whose held-back levels the
-    twin would have to write as made-up text no clock can be.
+    `STORED_AS_CLOCKS`, every present one as a clock time: rule 7 stands
+    aside where a level would fall below the floor, so the column reaches
+    the clock rule rather than a list of labels whose held-back levels
+    the twin would have to write as made-up text no clock can be.
 
     Every rule here routes a column to a role decided by its VALUES.
     Exactly one role is not on that list: `identifier` comes from
@@ -21819,9 +21820,9 @@ def profile_column(
       in more than one way, which withholds the census. And
       ``stored_as`` says a workbook stores most of this column's cells
       as dates (`STORED_AS_DATES`), which lets the dates be read beside
-      text cells no date format reads, or every one as a clock time
-      (`STORED_AS_CLOCKS`), which keeps the column from a list of labels
-      it could not write back (`_decide`, plan P4-D382).
+      text cells no date format reads, or every present one as a clock
+      time (`STORED_AS_CLOCKS`), which keeps the column from a list of
+      labels it could not write back (`_decide`, plan P4-D382).
     - ``handed_over`` is the population census's reading of this column
       (`HeldReading`), passed on so the column is not read a second
       time. It is taken only where `_same_reading` finds every argument

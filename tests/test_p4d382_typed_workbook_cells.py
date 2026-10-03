@@ -469,24 +469,108 @@ def test_moments_wearing_a_clock_format_stay_numbers(tmp_path: pathlib.Path) -> 
     assert trip["twin_exit"] == 0
 
 
-@pytest.mark.parametrize("beside", ("UNK", "fraction"))
-def test_a_clock_column_holding_anything_else_stays_as_it_was(
-    beside: str, tmp_path: pathlib.Path
-) -> None:
-    """A word among the clocks, or a clock at a fraction of a second: numbers, as before."""
+def _clocks_beside(beside: str) -> "list[tuple[object, str]]":
+    """1,000 whole-minute `h:mm` clocks holding something else.
+
+    ``beside`` is `UNK` or `NA` on every thirty-third cell, 31 in all,
+    or `fraction`: one clock at 5.25 seconds.
+    """
     draw = random.Random(13)
     cells: "list[tuple[object, str]]" = []
     for index in range(ROWS):
         clock = datetime.time(draw.randrange(24), draw.randrange(60))
         if index == 7 and beside == "fraction":
             clock = clock.replace(second=5, microsecond=250000)
-        if index % 33 == 0 and beside == "UNK":
-            cells += [("UNK", "General")]
+        if index % 33 == 0 and beside in ("UNK", "NA"):
+            cells += [(beside, "General")]
             continue
         cells += [(clock, "h:mm")]
-    trip = _trip(tmp_path, cells)
-    assert trip["column"]["role"] != "time_of_day"
+    return cells
+
+
+def _kinds_read(cells: "list[tuple[object, str]]") -> "dict[str, int]":
+    """How many cells of each kind of value openpyxl hands back."""
+    return dict(
+        collections.Counter(type(value).__name__ for value, _code in cells)
+    )
+
+
+def _off_the_minute(cells: "list[tuple[object, str]]") -> int:
+    """How many times and date-times stand off the whole minute."""
+    return len([
+        value for value, _code in cells
+        if isinstance(value, (datetime.time, datetime.datetime))
+        and (value.second or value.microsecond)
+    ])
+
+
+@pytest.mark.parametrize(
+    ("beside", "extra"),
+    (
+        ("UNK", ()),
+        ("NA", ()),
+        ("UNK", ("--missing-value", "UNK")),
+        ("fraction", ()),
+    ),
+    ids=("UNK", "NA", "UNK-named-missing", "fraction"),
+)
+def test_a_clock_column_holding_anything_else_reads_back_as_it_was_or_is_refused(
+    beside: str, extra: "tuple[str, ...]", tmp_path: pathlib.Path
+) -> None:
+    """A word among the clocks, or a clock at a fraction of a second.
+
+    The third pass over review item 3 of landing R3. Each of these was
+    read as numbers, and openpyxl read its twin with a date-time where
+    the source held none and -- beside a word -- with 968 times off the
+    minute where the source's were whole minutes, while `validate`
+    reported no miss. Now a word the run reads as no value (`NA`, or
+    `UNK` named with `--missing-value`) is no present cell, so the
+    column is clocks and comes back as whole-minute times and the word;
+    a word it does not is refused, naming the column and the option;
+    and a clock at a fraction of a second keeps the column numbers,
+    whose twin stays inside the day (method G2.2).
+    """
+    cells = _clocks_beside(beside)
+    source = _cells_read_from_bytes(_book(cells))
+    if beside == "UNK" and not extra:
+        table = tmp_path / "table.xlsx"
+        table.write_bytes(_book(cells))
+        code, said = _exit_of(
+            ["profile", f"{table}", "--out-dir", f"{tmp_path}", "--replace",
+             "--smallest-group", "11"]
+        )
+        message = " ".join(said.split())
+        assert code == 1, message[-600:]
+        assert "event_at" in message
+        assert "times of day stored as numbers" in message
+        assert "--missing-value" in message
+        assert "UNK" not in message
+        assert not (tmp_path / "table-profile.json").exists()
+        return
+    trip = _trip(tmp_path, cells, ("--smallest-group", "11", *extra))
     assert trip["twin_exit"] == 0
+    assert trip["real_exit"] == 0
+    read = _cells_read(trip["twin"])
+    # THE SOURCE'S SPLIT OF TIMES AND DATE-TIMES, and no date-time where
+    # the source holds none.
+    held = _kinds_read(source)
+    found = _kinds_read(read)
+    assert "datetime" not in held
+    assert "datetime" not in found
+    assert found["time"] == held["time"]
+    if beside == "fraction":
+        assert trip["column"]["role"] == "continuous"
+        assert _off_the_minute(source) == 1
+        return
+    # WHOLE MINUTES IN, WHOLE MINUTES OUT, and the word where it was
+    # counted missing.
+    column = trip["column"]
+    assert column["role"] == "time_of_day"
+    assert column["n_missing"] == 31
+    assert column["n_unparsed"] == 0
+    assert _off_the_minute(source) == 0
+    assert _off_the_minute(read) == 0
+    assert len([value for value, _code in read if value == beside]) == 31
 
 
 @pytest.mark.parametrize(
@@ -703,7 +787,7 @@ def test_each_reading_withdrawn_brings_its_defect_back(
         grid += [(datetime.time(slot // 60, slot % 60), "h:mm")]
     with monkeypatch.context() as patched:
         patched.setattr(
-            workbook, "stored_as_clocks", lambda texts, classes, codes: False
+            workbook, "stored_as_clocks", lambda *arguments: False
         )
         trip = _trip(tmp_path / "grid", grid)
         assert trip["column"]["role"] == "categorical"
@@ -1054,3 +1138,283 @@ def test_a_format_showing_fewer_figures_is_said_to_show_fewer(
     )
     assert "writes no figures after the second" not in report
     assert "writes fewer figures after the second than" in report
+
+
+# -- 9. the third pass over review item 3 of landing R3 -------------------
+
+
+@pytest.mark.parametrize("shape", ("few-NA", "spread"))
+def test_the_other_clock_shapes_of_item_3_read_back_as_they_were(
+    shape: str, tmp_path: pathlib.Path
+) -> None:
+    """990 whole-minute clocks beside 10 `NA`, and 1,000 clocks 0.3 s past the minute.
+
+    Both were read as numbers and both twins held a date-time the source
+    did not (989 times and one date-time, 988 or 999 cells off the
+    minute), with no miss reported. Ten `NA` cells are under the floor,
+    so the twin writes them as no cell at all; the clocks stay whole
+    minutes. The 0.3 s clocks are numbers, kept inside the day.
+    """
+    cells: "list[tuple[object, str]]" = []
+    for index in range(ROWS):
+        value = ((7 * index) % 1440) / 1440
+        if shape == "spread":
+            cells += [(value + 0.3 / 86400, "h:mm")]
+        elif index % 100 == 50:
+            cells += [("NA", "General")]
+        else:
+            cells += [(value, "h:mm")]
+    source = _cells_read_from_bytes(_book(cells))
+    trip = _trip(tmp_path, cells, ("--smallest-group", "11"))
+    assert trip["twin_exit"] == 0
+    assert trip["real_exit"] == 0
+    read = _cells_read(trip["twin"])
+    assert _kinds_read(source)["time"] == _kinds_read(read)["time"]
+    assert "datetime" not in _kinds_read(read)
+    if shape == "few-NA":
+        assert trip["column"]["role"] == "time_of_day"
+        assert _off_the_minute(read) == 0
+    else:
+        assert trip["column"]["role"] == "continuous"
+
+
+def test_a_number_a_time_format_shows_is_moved_inside_the_day_by_the_rule() -> None:
+    """Method G2.2's rule, on cells written by hand.
+
+    The greatest number past the day takes the greatest free value under
+    it at its own figures, the next the greatest under that; a cell
+    keeps its count of figures; a value a cell holds is stepped past; a
+    column whose mean, or a negative count, says it never stood inside
+    the day is left.
+    """
+    inside = dialect.sheet_numbers_inside_the_day
+    cells = (
+        "0.5", "1.0131980810650874", "1.25", "1.250", "0.999", "1.5",
+        "", "UNK", "-0.25", "14:05",
+    )
+    assert inside(cells, 0, 0.5) == (
+        "0.5", "0.8899999900000000", "0.89", "0.890", "0.999", "0.9",
+        "", "UNK", "-0.25", "14:05",
+    )
+    # One count of figures, the commonest shape: each moved number at the
+    # top of the day, in order, stepped past a value a cell holds.
+    assert inside(
+        ("0.25", "1.0131980810650874", "1.0000000000000002", "0.99999999"),
+        0, 0.5,
+    ) == ("0.25", "0.9999999800000000", "0.9999999700000000", "0.99999999")
+    # Every moved cell reads as a time of day, and none as a date-time.
+    for text in inside(cells, 0, 0.5):
+        if dialect.sheet_number_spelling(text):
+            assert float(text) < 0 or dialect.sheet_inside_the_day(float(text))
+    assert inside(cells, 1, 0.5) == cells
+    assert inside(cells, 0, None) == cells
+    assert inside(cells, 0, 45000.5) == cells
+    # The line is drawn where the readers round, at the millisecond.
+    assert not dialect.sheet_inside_the_day(1 - 1e-9)
+    assert dialect.sheet_inside_the_day(1 - 1e-7)
+    # `0.999999999` writes nine figures: it takes the eight-figure top of
+    # the day and keeps its ninth as a nought.
+    assert inside(("0.5", f"{1 - 1e-9!r}"), 0, 0.5) == ("0.5", "0.999999990")
+    assert inside(("0.5", f"{1 - 1e-9!r}"), 0, 1 - 1e-9) == (
+        "0.5", f"{1 - 1e-9!r}"
+    )
+    # A number past any product with the day's milliseconds is no time
+    # of day, and asking raises nothing.
+    assert not dialect.sheet_inside_the_day(9e307)
+    assert workbook._clock_and_moment(
+        ["9e307", "0.5"], ["number", "number"], ["h:mm", "h:mm"]
+    )
+
+
+def test_the_day_rule_and_the_method_oracle_agree() -> None:
+    """G2.2's rule against the method's oracle, value for value, over seeded random columns."""
+    oracle = _oracle()
+    from synthtwin import contract, generation
+
+    draw = random.Random(31)
+    classes = ("absent", "blank", "empty", "text", "number", "boolean", "error", "date")
+    kinds = ("plain", "date", "datetime", "time", "elapsed", "text")
+    spellings = (
+        "", "UNK", "14:05", "0", "0.5", "0.25", "0.999", "0.99999999",
+        "0.9999999900", "1", "1.5", "1.50", "1.0131980810650874", "2.5E0",
+        "1e0", "45000.25", "-0.5", "9e307", f"{1 - 1e-9!r}", "0.98",
+    )
+    for _step in range(3000):
+        size = draw.randrange(1, 14)
+        census = {
+            name: draw.choice((None, 0, draw.randrange(size + 1))) for name in classes
+        }
+        format_kinds = {
+            name: draw.choice((None, 0, draw.randrange(size + 1))) for name in kinds
+        }
+        code = draw.choice(("General", "h:mm", "h:mm:ss.000", "m/d/yyyy", "[h]:mm"))
+        value_class = draw.choice((None, "number", "text", "date"))
+        cells = [draw.choice(spellings) for _cell in range(size)]
+        n_negative = draw.choice((0, 0, 0, 2))
+        mean = draw.choice((None, 0.5, 0.25, 1 - 1e-9, 1.5, 45000.5))
+        column = contract.WorkbookColumn(
+            cell_classes=census, format_code=code, format_kinds=format_kinds,
+            formulas=None, value_class=value_class,
+        )
+        block = {
+            "cell_classes": census, "format_code": code,
+            "format_kinds": format_kinds, "value_class": value_class,
+        }
+        assert generation.numbers_inside_the_day(
+            column, n_negative, mean, list(cells)
+        ) == oracle.sheet_numbers_inside_the_day(
+            block, n_negative, mean, list(cells)
+        ), (block, n_negative, mean, cells)
+
+
+def test_clocks_beside_another_value_are_refused_only_where_they_are_most_of_it() -> None:
+    """The line `stored_as_dates` draws: MORE than half the present value cells."""
+    def refused(clocks: int, words: int, missing: "frozenset[str]" = frozenset()) -> bool:
+        texts = [repr((60 * row) / 86400) for row in range(clocks)] + ["UNK"] * words
+        kinds = ["number"] * clocks + ["text"] * words
+        return workbook._clocks_beside_other_values(texts, kinds, missing)
+
+    assert refused(51, 49)
+    assert not refused(50, 50)
+    assert not refused(10, 990)
+    assert not refused(51, 0)
+    assert not refused(51, 49, frozenset({"UNK"}))
+    # A fraction of a second keeps the column numbers, which is not this mix.
+    assert not workbook._clocks_beside_other_values(
+        ["0.5", repr(0.5 + 0.3 / 86400), "UNK"], ["number", "number", "text"],
+        frozenset(),
+    )
+    # The words a run reads as no value are the vocabulary's and the
+    # person's, asked by spelling of the cells beside stored times only.
+    settings = taxonomy.Settings(declared_missing_values=("UNK",))
+    marks = taxonomy.missing_cells(["NA", "UNK", "note", "#N/A"], settings)
+    assert marks == (True, True, False, True)
+
+
+def test_a_description_of_clocks_beside_a_missing_word_as_numbers_asks_to_be_made_again(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Item 4's stop reaches the clocks beside `NA` that this pass reads as clocks.
+
+    A description made before this pass read 969 clocks beside 31 `NA`
+    as continuous numbers; checked against its own unchanged workbook it
+    would be a verdict on the file for a change in the reading, so the
+    check stops and says to describe the table again. The description is
+    made here with the missing words withdrawn from the reader, which is
+    the reading before.
+    """
+    table = tmp_path / "table.xlsx"
+    table.write_bytes(_book(_clocks_beside("NA")))
+    from synthtwin import reading
+
+    with monkeypatch.context() as patched:
+        patched.setattr(
+            reading, "no_value_spellings", lambda *arguments: frozenset()
+        )
+        patched.setattr(
+            workbook, "_clocks_beside_other_values", lambda *arguments: False
+        )
+        code, said = _exit_of(
+            ["profile", f"{table}", "--out-dir", f"{tmp_path}", "--replace"]
+        )
+    assert code == 0, said[-400:]
+    described = tmp_path / "table-profile.json"
+    document = json.loads(described.read_text(encoding="utf-8"))
+    assert document["columns"][0]["role"] == "continuous"
+    out = tmp_path / "check"
+    out.mkdir()
+    code, said = _exit_of(
+        ["validate", f"{described}", "--twin", f"{table}", "--out-dir",
+         f"{out}", "--replace"]
+    )
+    message = " ".join(said.split())
+    assert code == 1, message[-600:]
+    assert "describe the table again" in message
+
+
+def test_each_new_rule_for_item_3_withdrawn_brings_its_defect_back(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The witnesses: each rule of this pass withdrawn, and the measured defect is back."""
+    from synthtwin import generation, reading
+
+    # The missing words counted present again: the clocks beside `NA` are
+    # numbers, and their twin holds a date-time and clocks off the minute.
+    # (The refusal of clocks beside a present word is withdrawn with them,
+    # or it would refuse the table the reading before described.)
+    with monkeypatch.context() as patched:
+        patched.setattr(
+            reading, "no_value_spellings", lambda *arguments: frozenset()
+        )
+        patched.setattr(
+            workbook, "_clocks_beside_other_values", lambda *arguments: False
+        )
+        patched.setattr(
+            generation, "_kept_inside_the_day",
+            lambda profile, place, column, written: written,
+        )
+        trip = _trip(tmp_path / "na", _clocks_beside("NA"), ("--smallest-group", "11"))
+        assert trip["column"]["role"] == "continuous"
+        assert trip["twin_exit"] == 0
+        read = _cells_read(trip["twin"])
+        assert _kinds_read(read)["datetime"] == 1
+        assert _off_the_minute(read) == 968
+    # The refusal withdrawn: the clocks beside `UNK` are numbers again.
+    with monkeypatch.context() as patched:
+        patched.setattr(
+            workbook, "_clocks_beside_other_values", lambda *arguments: False
+        )
+        trip = _trip(tmp_path / "unk", _clocks_beside("UNK"), ("--smallest-group", "11"))
+        assert trip["column"]["role"] != "time_of_day"
+        assert trip["twin_exit"] == 0
+        assert _off_the_minute(_cells_read(trip["twin"])) > 900
+    # The day rule withdrawn: the clock at a fraction of a second gives a
+    # twin holding a date-time the source does not.
+    with monkeypatch.context() as patched:
+        patched.setattr(
+            generation, "_kept_inside_the_day",
+            lambda profile, place, column, written: written,
+        )
+        trip = _trip(
+            tmp_path / "fraction", _clocks_beside("fraction"),
+            ("--smallest-group", "11"),
+        )
+        assert trip["twin_exit"] == 0
+        assert _kinds_read(_cells_read(trip["twin"]))["datetime"] == 1
+
+
+def test_a_clock_grid_beside_a_missing_word_still_reaches_the_clock_rule(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A quarter-hour grid beside 31 `NA`: `categorical` stands aside, as without them.
+
+    The storage word asks the reading's own set of no-value spellings
+    (`Sheet.no_value`): asked without it, the `NA` cells were present
+    values, the column took `categorical` with levels held back, and the
+    twin wrote clocks as made-up text, which `validate` missed.
+    """
+    draw = random.Random(14)
+    cells: "list[tuple[object, str]]" = []
+    for index in range(ROWS):
+        if index % 33 == 0:
+            cells += [("NA", "General")]
+            continue
+        slot = draw.randrange(96) * 15
+        cells += [(datetime.time(slot // 60, slot % 60), "h:mm")]
+    trip = _trip(tmp_path / "grid", cells, ("--smallest-group", "11"))
+    assert trip["column"]["role"] == "time_of_day"
+    assert trip["twin_exit"] == 0
+    read = _cells_read(trip["twin"])
+    assert _kinds_read(read) == {"time": ROWS - 31, "str": 31}
+    # ...and with the reading's set left out of the storage word, the
+    # defect is back.
+    shipped = workbook.stored_as_clocks
+    monkeypatch.setattr(
+        workbook, "stored_as_clocks",
+        lambda texts, classes, codes, no_value=frozenset(): shipped(
+            texts, classes, codes
+        ),
+    )
+    trip = _trip(tmp_path / "without", cells, ("--smallest-group", "11"))
+    assert trip["column"]["role"] == "categorical"
+    assert trip["twin_exit"] == 3

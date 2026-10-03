@@ -3686,8 +3686,10 @@ def stored_as_of(
     is present where `taxonomy.missing_cells` under ``settings`` -- the
     defaults where None -- does not take it out, review item 2 of
     landing R3),
-    `taxonomy.STORED_AS_CLOCKS` where it stores every one as a clock
-    (`workbook.stored_as_clocks`), and the empty word otherwise and for
+    `taxonomy.STORED_AS_CLOCKS` where it stores every present one as a
+    clock (`workbook.stored_as_clocks`, asked of the spellings the
+    reading itself took as no value, `Sheet.no_value`: the repair of
+    review item 3 of landing R3), and the empty word otherwise and for
     every column of a delimited file (plan P4-D382).
 
     ONE ANSWER FOR THE CENSUS AND THE DESCRIPTION. `synthtwin profile`
@@ -3726,7 +3728,8 @@ def stored_as_of(
             ):
                 word = taxonomy.STORED_AS_DATES
             elif workbook.stored_as_clocks(
-                cells, sheet.classes[place], sheet.formats[place]
+                cells, sheet.classes[place], sheet.formats[place],
+                sheet.no_value,
             ):
                 word = taxonomy.STORED_AS_CLOCKS
         words += [word]

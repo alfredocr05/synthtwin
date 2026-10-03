@@ -3129,8 +3129,10 @@ generation refusal and adds
 that whatever the file is, it cannot be that profile's twin; the quality
 target already present without `--replace`; the target resolving onto
 either input; memory exhaustion; and a checked workbook column the
-reading takes as clock times (plan P4-D382, `workbook.stored_as_clocks`)
-where the description publishes numbers for it
+reading takes as clock times (plan P4-D382,
+`workbook.stored_as_clocks`, a word the description reads as no
+value being no present cell) where the description publishes numbers
+for it
 (`errors.checked_clocks_described_as_numbers`, review item 4 of landing
 R3). That last is a change in the reading and not a fact about the file:
 version 6 is extended in place (amendment A-P4-41), so a description

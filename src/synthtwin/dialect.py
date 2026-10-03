@@ -1636,6 +1636,143 @@ def sheet_clock_serial(text: str) -> str:
     return repr(second / SHEET_DAY_SECONDS)
 
 
+def sheet_inside_the_day(value: float) -> bool:
+    """Whether a stored number is a time of day to a reader such as openpyxl.
+
+    From nought up to, and not including, one day, the line drawn at
+    the millisecond, where `sheet_serial_second` and openpyxl both round:
+    a number short of one day by less than half of one is a date with a
+    time to them. Guarantees: a fixed function of the value; raises
+    nothing, an infinity included. No I/O of any kind.
+    """
+    return 0.0 <= value < 1.0 and round(value * SHEET_DAY_MILLISECONDS) < (
+        SHEET_DAY_MILLISECONDS
+    )
+
+
+def _figures_after_the_point(text: str) -> int:
+    """How many figures a stored number's spelling writes after its point.
+
+    Raises TypeError on a value that is not text.
+    """
+    if not isinstance(text, str):
+        raise TypeError("internal check: a cell's text was not text")
+    body = text
+    place = body.find("e")
+    if place < 0:
+        place = body.find("E")
+    if place >= 0:
+        body = body[:place]
+    point = body.find(".")
+    if point < 0:
+        return 0
+    return len(body) - point - 1
+
+
+# The most figures after the point a number moved inside the day takes
+# its value from (`sheet_numbers_inside_the_day`): `0.99999999` stands at
+# 23:59:59.999, under the line, and a cell written with more figures
+# carries noughts after them, so it keeps its own count of figures.
+SHEET_INSIDE_THE_DAY_FIGURES = 8
+
+
+def sheet_numbers_inside_the_day(
+    cells: "tuple[str, ...]", n_negative: int, mean: "float | None"
+) -> "tuple[str, ...]":
+    """A column's numbers of a day or more, written inside the day (method G2.2).
+
+    THE TWIN OF NUMBERS A TIME FORMAT SHOWS, WHERE THEIR SOURCE STOOD
+    INSIDE ONE DAY (the repair of review item 3 of landing R3). A column
+    of time-format numbers that are not all clocks at whole seconds -- one
+    holding a fraction of a second -- is read as numbers, and its twin is
+    drawn as a distribution of numbers, whose outer tail can reach past
+    one day: openpyxl reads such a cell as a date with a time where every
+    source cell was a time of day. Measured on 999 whole-minute `h:mm`
+    clocks beside one at 5.25 seconds: the twin read as 999 times and a
+    date-time, and `validate` reported no miss; on 1,000 clocks each 0.3
+    seconds past the minute, the same. A described column cannot hold
+    numbers on both sides of the day (`workbook.mixed_storage` refuses
+    it), so a column publishing no negative number and a mean inside the
+    day (`sheet_inside_the_day`) stood inside it in every cell.
+
+    THE RULE. Where ``n_negative`` is nought and ``mean`` stands inside
+    the day, every cell holding a number (`sheet_number_spelling`) of one
+    day or more is written inside it: the different such numbers, from
+    the greatest down, each take the greatest value under one day -- and
+    under the value the number before it took -- written with as many
+    figures after the point as the fewest any cell holding it writes, at
+    least one and at most `SHEET_INSIDE_THE_DAY_FIGURES`, that no cell of
+    the column holds; each cell is then written at its own count of
+    figures after the point, with noughts after the value's own. So the
+    moved numbers keep their order among themselves, stay as many
+    different numbers as they were, and every cell keeps its count of
+    figures. A number with no free value under the day at its figures
+    is left as it came; a number below nought is too. Anything else, and
+    every cell where the condition does not hold, comes back as it came.
+
+    WHAT IT COSTS. A moved cell stands at the last instants of the day,
+    nearer the column's boundary than the tail drew it, so the twin's
+    outermost tail distances shrink by what the day leaves them; where
+    the column writes few figures after the point, a moved number can
+    stand below some of the column's own; and a cell written with an
+    exponent is written back without one. The twin is measured -- by its
+    own report and by `validate` -- as moved.
+
+    Guarantees: accepts one column's cells, its published count of
+    negative numbers and its published mean (None where it has none);
+    returns as many cells. Determinism: a fixed function of the three.
+    Raises TypeError if a cell is not text, and nothing else. No I/O of
+    any kind.
+    """
+    if n_negative != 0 or mean is None or not sheet_inside_the_day(mean):
+        return cells
+    held: "dict[float, bool]" = {}
+    fewest: "dict[float, int]" = {}
+    for text in cells:
+        if not sheet_number_spelling(text):
+            continue
+        value = float(text)
+        if value < 0.0 or sheet_inside_the_day(value):
+            held[value] = True
+            continue
+        figures = _figures_after_the_point(text)
+        if value not in fewest or figures < fewest[value]:
+            fewest[value] = figures
+    if not fewest:
+        return cells
+    moved: "dict[float, tuple[int, int]]" = {}
+    # The value the number before took, as a whole number over a power of
+    # ten, so the next is put under it by whole-number arithmetic alone.
+    above = 0
+    above_scale = 0
+    for value in sorted(fewest, reverse=True):
+        places = min(max(fewest[value], 1), SHEET_INSIDE_THE_DAY_FIGURES)
+        scale = 10**places
+        top = scale - 1
+        if above_scale:
+            top = min(top, (above * scale - 1) // above_scale)
+        while top > 0 and top / scale in held:
+            top = top - 1
+        if top <= 0:
+            continue
+        held[top / scale] = True
+        moved[value] = (top, places)
+        above = top
+        above_scale = scale
+    out: "list[str]" = []
+    for text in cells:
+        if not sheet_number_spelling(text) or float(text) not in moved:
+            out += [text]
+            continue
+        top, places = moved[float(text)]
+        figures = max(_figures_after_the_point(text), places)
+        written = f"{top}"
+        while len(written) < places:
+            written = "0" + written
+        out += ["0." + written + "0" * (figures - places)]
+    return tuple(out)
+
+
 # -- a sheet's NAME, and when it may be published ----------------------
 #
 # A sheet name is free text somebody typed, and the disclosure rule

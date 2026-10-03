@@ -2783,6 +2783,12 @@ MIXED_CODES = "codes"
 # returns as two kinds of value (review item 3 of landing R3).
 # `workbook.mixed_storage` names it.
 MIXED_DAYS = "days"
+# ...and clock times stored as numbers beside present cells holding
+# another kind of value, such as a word the person has not named with
+# `--missing-value`: the clocks are read as numbers there, and their
+# twin is not clocks (the repair of review item 3 of landing R3).
+# `workbook.mixed_storage` names it.
+MIXED_CLOCKS = "clocks"
 
 
 def workbook_column_mixes_number_formats(path: str, column: str) -> str:
@@ -2864,7 +2870,33 @@ def workbook_column_mixes_storage(
     showing the date on the cells holding one, or a format for a length
     of time on a column of lengths of time. It does not say EVERY
     reader: some hand back a date with a time for each of them.
+
+    ``mixed`` of `MIXED_CLOCKS` is a column of clock times stored as
+    numbers, most of its present cells, beside cells holding something
+    else that the run does not read as no value (the repair of review
+    item 3 of landing R3). The message says that those cells may be
+    named as missing with `--missing-value`, which reads the column as
+    clocks and counts them as missing values, and otherwise how to give
+    the column one kind of value. NO CELL IS QUOTED: the cells
+    beside the clocks are the person's own text, and the refusal names
+    the column and what to do, as every other refusal here does.
     """
+    if mixed == MIXED_CLOCKS:
+        return (
+            f"The column '{_shown(column)}' of {path} holds times of day "
+            f"stored as numbers, and beside them cells holding something "
+            f"else -- text, or another kind of value. A twin of that "
+            f"column cannot keep both: its times would come back as plain "
+            f"numbers, with seconds they never had, so code reading that "
+            f"column would get different values from the twin and from "
+            f"your table. If those other cells mean that no time was "
+            f"recorded, run the command again with --missing-value "
+            f"followed by the word they hold (once for each such word): "
+            f"the column is then read as times of day, with those cells "
+            f"counted as missing values. Otherwise, please open the "
+            f"workbook, give that column one kind of value, save it "
+            f"again, and run the command again."
+        )
     if mixed == MIXED_DAYS:
         return (
             f"The column '{_shown(column)}' of {path} holds numbers all "
