@@ -82,6 +82,25 @@ def test_item_1_a_rewritten_hour_never_spells_a_declared_absence(
             assert gate._wears(cell, kind, "h"), cell
 
 
+# -- item 2: the tail recount reads the column's face alone -------------
+
+
+def test_item_2_the_tail_recount_reads_the_column_s_face_alone(tmp_path: pathlib.Path) -> None:
+    """Three 24-hour stamps beside 300 marked ones: the source validates clean.
+
+    The producer counts the three unread, on another face (NF108). At
+    110cb46 validation's tail recount read all 303, and the unchanged
+    source missed the high tail's boundary, count, mean and RMS distance.
+    """
+    cells = [
+        f"3/17/2023 {1 + minute // 60}:{minute % 60:02d} AM" for minute in range(300)
+    ] + ["12/31/2030 23:59"] * 3
+    block, profile, _questions = gate._described(tmp_path, cells)
+    assert block["role"] == "datetime" and block["n_unparsed"] == 3
+    code, report = gate._validated(profile, tmp_path / "real.csv")
+    assert code == 0, report[-3000:]
+
+
 # -- item 3: the day and month readings are compared on the face --------
 
 

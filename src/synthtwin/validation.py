@@ -15906,6 +15906,19 @@ def _stamp_style_of(facts: contract.DatetimeFacts) -> str:
     return parsing.DEFAULT_CLOCK_STYLE
 
 
+def _stamp_on_its_face(cell: str, face: str) -> bool:
+    """Whether one slashed stamp's clock reads on its column's face (landing T1).
+
+    The producer's own acceptance rule (`taxonomy._stamp_clocks`): the
+    clock half, split at the first space, read by the one clock reader
+    and placed on the face the description publishes. Determinism: a
+    function of the two. Raises TypeError for a cell that is not text.
+    No I/O of any kind.
+    """
+    parts = parsing.clock_parts(parsing.stamp_halves(cell)[1])
+    return parts is not None and parsing.clock_second(parts, face) is not None
+
+
 def _tail_units_of(
     facts: contract.DatetimeFacts, cells: "list[str]"
 ) -> "list[int | None]":
@@ -15928,10 +15941,24 @@ def _tail_units_of(
     # A slashed stamp declared a 12-hour clock reads its top of the dial
     # as the first hour, as its description did (landing T1).
     style = _stamp_style_of(facts)
+    # ...AND A STAMP WHOSE CLOCK IS ON ANOTHER FACE IS NO DATE HERE, as the
+    # producer counts it unread (contract NF108; the T1 review's item 2).
+    # Read here it put three `12/31/2030 23:59` beside 300 stamps written
+    # `3/17/2023 1:00 AM` into the high tail the producer had measured
+    # without them, and the unchanged source missed four checks.
+    face = ""
+    if facts.parser_family in contract.CLOCK_FORM_MEMBERS:
+        face = parsing.clock_face(style)
     read_cells: "list[tuple[str, str, bool] | None]" = []
     dates = 0
     for cell in cells:
         read = parsing.parse_datetime(cell, facts.parser_family)
+        if (
+            read is not None
+            and facts.parser_family in contract.CLOCK_FORM_MEMBERS
+            and not _stamp_on_its_face(cell, face)
+        ):
+            read = None
         if read is None:
             read_cells += [None]
             continue
