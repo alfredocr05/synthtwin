@@ -16,7 +16,9 @@ of any size (a date's day, a moment's day, an hour, a minute), the
 written unit the count of different values is counted in, the bin a
 value falls in and what a move must keep, such as the day an hour stands
 on. Steps 5 and 6 find a rank's destination through an index of its
-gap instead of walking up to 400 days each way, step 8.3's search of
+gap instead of walking up to 400 days each way (at 40,000 rows the pass
+takes 2.4 to 14.1 s on the stage 3b gate battery's three tables, where
+it took 3.8 to 26.6), step 8.3's search of
 cycles is bounded above seven groups, and four steps are added for the
 censuses to come: a chain of moves through a third group (7b), whole
 values merged at their own clock first (8.4), pairs of moves across two

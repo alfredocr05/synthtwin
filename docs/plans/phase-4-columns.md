@@ -21124,7 +21124,7 @@ From 40,000 three of the 24 stay withheld past the cap, by a certificate that do
 
 **The declared days stay withheld** (the note of P4-D365). On holes3 and holes4 rebuilt from D1-skeptic2's recipe (114 columns, the witness `decl4_240_5_2_r1` reproduced at 433 rows and 235 present days), with the room rule not asked, every census publishes and 64 of 570 twins (25 columns) miss the count of different values, the witness 234 for 235 at seeds 0, 1 and 4; this landing's twins give the same verdict as 110cb46's on all 570. Every one of the 64 is SHORT, and steps 8.4 and 8.5 merge only a count that is LONG, so the room rule stays asked beside declared days.
 
-**Measured cost.** 40,000-row tables of the stage 3b gate battery, generation at seed 0, base and this landing alternated twice under the same load: TIMING_PLACEHOLDER
+**Measured cost.** The stage 3b gate battery at 40,000 rows, generation at seed 0, alternated twice with 110cb46 under the same load (about 47): the pass takes 2.4 to 2.8 s for 3.8 to 4.0 on admissions, 3.2 to 3.5 for 13.0 to 14.8 on heaps and 13.4 to 14.1 for 25.6 to 26.6 on schedules, every twin byte-identical. What is left on schedules is mostly step 8.1's own walk of 64 units (`_weekday_nearest`), untouched here.
 
 ## Decision P4-D370 — the reader: Excel's hour and the 12-hour clock, read and written back (landing T1, 2026-10-01)
 
