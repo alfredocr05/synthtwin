@@ -6575,8 +6575,37 @@ def _free_whole(
 
     The walk is bounded and the bound is stated: at most one candidate
     per value already held can be refused, so ``reach`` steps out from
-    the starting point settle the question.
+    the starting point settle the question. It is `_free_whole_at`'s
+    first answer, from the first step.
     """
+    found = _free_whole_at(low, high, band, rungs, held, reach, nearest, 0)
+    return found[0]
+
+
+def _free_whole_at(
+    low: float,
+    high: float,
+    band: str,
+    rungs: "tuple[float, ...]",
+    held: "dict[float, int]",
+    reach: int,
+    nearest: bool,
+    start: int,
+) -> "tuple[float | None, int]":
+    """`_free_whole`'s answer from step ``start`` on, and the step that gave it.
+
+    THE CANDIDATES ARE OFFERED ONE STEP AT A TIME, AND THE WALK STOPS
+    WHERE NO LATER STEP CAN ANSWER (plan P4-D387). They were listed in
+    full first, ``reach`` of them, before the first was asked, so every
+    stratum of a column with a stratum per row cost the column's strata;
+    a step whose candidates all stand outside the share now ends the
+    walk, since every step after it stands further out. ``start`` lets a
+    caller that has taken an answer and asks again for the next ask from
+    the step after it: in the order away from zero a step is one number,
+    so every step before the last answer was refused and still is. The
+    step returned is ``reach + 1`` where nothing answers.
+    """
+    steps = max(reach, 1)
     lowest = max(low, float(rungs[0]))
     highest = min(high, float(rungs[-1]))
     if band == _BAND_POSITIVE:
@@ -6584,37 +6613,38 @@ def _free_whole(
     if band == _BAND_NEGATIVE:
         highest = min(highest, -1.0)
     if not math.isfinite(lowest) or not math.isfinite(highest):
-        return None
+        return None, steps + 1
     lowest = max(lowest, -float(_PLAIN_LIMIT))
     highest = min(highest, float(_PLAIN_LIMIT))
     first = max(_ceiling_of(lowest), -_PLAIN_LIMIT)
     last = min(_floor_of(highest), _PLAIN_LIMIT)
     if first > last:
-        return None
-    steps = max(reach, 1)
-    candidates: list[int] = []
-    if nearest:
-        middle = _ceiling_of(lowest + (highest - lowest) / 2)
-        middle = max(first, min(last, middle))
-        for step in range(steps + 1):
-            if step == 0:
-                candidates += [middle]
+        return None, steps + 1
+    middle = _ceiling_of(lowest + (highest - lowest) / 2)
+    middle = max(first, min(last, middle))
+    for step in range(start, steps + 1):
+        if nearest and step == 0:
+            numbers = [middle]
+        elif nearest:
+            if middle + step > last and middle - step < first:
+                break
+            numbers = [middle + step, middle - step]
+        elif band == _BAND_NEGATIVE:
+            if last - step < first:
+                break
+            numbers = [last - step]
+        else:
+            if first + step > last:
+                break
+            numbers = [first + step]
+        for number in numbers:
+            if number < first or number > last:
                 continue
-            candidates += [middle + step, middle - step]
-    elif band == _BAND_NEGATIVE:
-        for step in range(steps + 1):
-            candidates += [last - step]
-    else:
-        for step in range(steps + 1):
-            candidates += [first + step]
-    for number in candidates:
-        if number < first or number > last:
-            continue
-        value = float(number)
-        if value in held or not _carries_plainly(value, False):
-            continue
-        return value
-    return None
+            value = float(number)
+            if value in held or not _carries_plainly(value, False):
+                continue
+            return value, step
+    return None, steps + 1
 
 
 def _reach_held(
@@ -6655,14 +6685,27 @@ def _reach_held(
     """
     total = len(sizes)
     starts = _starts_of(sizes)
+    # EACH STRATUM'S SHARE WORKED OUT ONCE, for the three walks below that
+    # each read it (plan P4-D387): the reach step asks this once a round,
+    # and a round was six interpolations a stratum where two are needed.
+    lows: "list[float]" = []
+    highs: "list[float]" = []
+    for place in range(total):
+        pinned = place == 0 or (place == total - 1 and total >= 2)
+        if pinned or bands[place] == _BAND_ZERO:
+            lows += [0.0]
+            highs += [0.0]
+            continue
+        lows += [_interpolated(rungs, starts[place], numbers)]
+        highs += [_interpolated(rungs, starts[place] + sizes[place], numbers)]
     held: dict[float, int] = {}
     for place in range(total):
         band = bands[place]
         pinned = place == 0 or (place == total - 1 and total >= 2)
         if pinned or band == _BAND_ZERO:
             continue
-        low = _interpolated(rungs, starts[place], numbers)
-        high = _interpolated(rungs, starts[place] + sizes[place], numbers)
+        low = lows[place]
+        high = highs[place]
         crosses = band == _BAND_POSITIVE and low <= 0.0
         crosses = crosses or (band == _BAND_NEGATIVE and high >= 0.0)
         if not crosses:
@@ -6694,8 +6737,8 @@ def _reach_held(
         pinned = place == 0 or (place == total - 1 and total >= 2)
         if pinned or band == _BAND_ZERO:
             continue
-        low = _interpolated(rungs, starts[place], numbers)
-        high = _interpolated(rungs, starts[place] + sizes[place], numbers)
+        low = lows[place]
+        high = highs[place]
         if low != high or low in held:
             continue
         if band == _BAND_POSITIVE and low <= 0.0:
@@ -6722,9 +6765,9 @@ def _reach_held(
         if place in settled:
             flags += [True]
             continue
-        low = _interpolated(rungs, starts[place], numbers)
-        high = _interpolated(rungs, starts[place] + sizes[place], numbers)
-        want = _free_whole(low, high, band, rungs, held, total + 1, True)
+        want = _free_whole(
+            lows[place], highs[place], band, rungs, held, total + 1, True
+        )
         if want is None:
             flags += [False]
             continue
@@ -6813,10 +6856,21 @@ def _reach_window(
     highest = _interpolated(rungs, ceiling, numbers)
     seen: dict[float, int] = {name: 1 for name in held}
     best: tuple[int, int, int] | None = None
+    # EACH ASKING STARTS PAST THE LAST ANSWER, AND A WINDOW ONE CELL WIDE
+    # ENDS THE SEARCH (plan P4-D387). Away from zero the candidates are
+    # one number a step, so the numbers before the last answer were all
+    # refused and the answer is now taken: asking from the first step
+    # again walked them all once per answer. And no window is narrower
+    # than one cell, so a later candidate can only tie the first that is,
+    # and a tie goes to the earlier one.
+    resume = 0
     for _step in range(max(reach, 1)):
-        found = _free_whole(
-            lowest, highest, band, rungs, seen, reach, False
+        if best is not None and best[0] <= 1:
+            break
+        found, resume = _free_whole_at(
+            lowest, highest, band, rungs, seen, reach, False, resume
         )
+        resume = resume + 1
         if found is None:
             break
         seen[found] = 1
@@ -10850,7 +10904,7 @@ def _whole_inside(
     ends: "tuple[float, float] | None",
     reach: int,
     taken: "dict[float, int]",
-    later: "tuple[tuple[float, float], ...]" = (),
+    later: "tuple[tuple[float, float], ...] | _StrataAhead" = (),
     kept: "tuple[float, ...]" = (),
 ) -> "float | None":
     """A whole number this stratum can take, or None (method G6.4).
@@ -10904,11 +10958,29 @@ def _whole_inside(
     still open to it.
 
     The walk is bounded by `reach`, one more than the number of strata,
-    because at most that many values can be taken.
+    because at most that many values can be taken. AND IT STOPS WHERE NO
+    LATER STEP CAN ANSWER (plan P4-D387): a step whose two candidates both
+    stand more than half a unit outside the share, or any step past the
+    first where there is no share, is refused on the half unit whatever
+    the other rules say, and so is every step after it. Walking on to
+    `reach` regardless made each stratum cost the column's strata, and a
+    column of mostly whole charges the square of its rows.
+
+    ``later`` is the shares of the strata still to be walked, as a tuple,
+    or a `_StrataAhead` asking the walk's own index of them
+    (`_held_after`); the two give one answer.
     """
     want = _whole_valued(value)
     step = 0
     while step <= reach:
+        if step > 0 and (
+            share is None
+            or (
+                want - step < share[0] - _HALF_UNIT
+                and want + step > share[1] + _HALF_UNIT
+            )
+        ):
+            return None
         for candidate in ([want] if step == 0 else [want + step, want - step]):
             if candidate in taken or not _carries_plainly(candidate, False):
                 continue
@@ -10944,7 +11016,8 @@ def _whole_inside(
 
 
 def _held_later(
-    candidate: float, later: "tuple[tuple[float, float], ...]"
+    candidate: float,
+    later: "tuple[tuple[float, float], ...] | _StrataAhead",
 ) -> bool:
     """True when a stratum still to be walked holds this number in its share.
 
@@ -10956,6 +11029,8 @@ def _held_later(
     cells cover, and cost more forms on a producer battery than it
     saved.
     """
+    if not isinstance(later, tuple):
+        return _held_after(later.shares, later.place, candidate)
     for share in later:
         if share[0] <= candidate <= share[1]:
             return True
@@ -13129,28 +13204,245 @@ def _share_of(
     )
 
 
-def _sole_holder(moved: "list[float]", value: float) -> bool:
-    """True where exactly one stratum is holding this value."""
-    seen = 0
-    for place in range(len(moved)):
-        if moved[place] == value:
-            seen = seen + 1
-    return seen == 1
+@dataclasses.dataclass
+class _WalkShares:
+    """Each stratum's own share of the ladder, and those a walk has not reached (G6.4).
+
+    ONE WALK OF G6.4 ASKS THESE OF EVERY STRATUM IT VISITS, and they are
+    fixed by the ladder and the layout, so they are worked out once and
+    not once per question (plan P4-D387). Each stratum's share was
+    interpolated afresh for every stratum after the one asking, and a
+    column of mostly whole charges with a stratum per row paid the square
+    of its rows: 5.6, 23.2 and 89.8 seconds at 1,000, 2,000 and 4,000
+    rows, and never finished at 10,000 on a column of day counts.
+
+    `rank` is each stratum's step along the walk's own order, `known`
+    each share worked out so far (`_own_share`), and `ahead` the index
+    `_held_after` builds the first time it is asked, or nothing yet.
+    `_walk_shares` makes one.
+    """
+
+    layout: "_NumericLayout"
+    rungs: "tuple[float, ...] | None"
+    numbers: int
+    rank: "list[int]"
+    known: "list[tuple[float, float] | None]"
+    ahead: "list[_AheadIndex]"
+
+
+@dataclasses.dataclass(frozen=True)
+class _AheadIndex:
+    """The shares of the strata a walk of G6.4 may still reach, indexed (plan P4-D387).
+
+    `lows`, `highs` and `ranks` are the strata that may claim a number,
+    in stratum order: the two ends of each one's share and its step along
+    the walk. `rising` says both ends rise with the strata, and `tree`
+    then holds, for every run of them a halving can ask about, the
+    furthest step any stratum of the run stands at.
+    """
+
+    lows: "tuple[float, ...]"
+    highs: "tuple[float, ...]"
+    ranks: "tuple[int, ...]"
+    rising: bool
+    tree: "tuple[int, ...]"
+
+
+@dataclasses.dataclass(frozen=True)
+class _StrataAhead:
+    """The strata a walk of G6.4 has not reached past ``place``, asked of its index."""
+
+    shares: _WalkShares
+    place: int
+
+
+def _walk_shares(
+    layout: "_NumericLayout",
+    rungs: "tuple[float, ...] | None",
+    numbers: int,
+    order: "tuple[int, ...] | None",
+) -> _WalkShares:
+    """The shares one walk of G6.4 asks, before any is worked out (plan P4-D387).
+
+    ``order`` is the walk's own order of strata, ascending where it is
+    None; "not reached yet" is later along it, as `_whole_enough` says.
+
+    Guarantees: `_own_share` answers exactly what `_share_of` answers,
+    and `_held_after` exactly whether one of the shares of the strata
+    after a stratum along ``order`` holds a number, both ends included,
+    counting only the strata `_whole_enough` would give a whole number
+    to: not the two pinned ends, and not the zero stratum. Determinism:
+    a fixed function of the arguments. Raises nothing. No I/O.
+    """
+    total = len(layout.sizes)
+    rank = [place for place in range(total)]
+    if order is not None:
+        for step in range(len(order)):
+            rank[order[step]] = step
+    return _WalkShares(
+        layout=layout,
+        rungs=rungs,
+        numbers=numbers,
+        rank=rank,
+        known=[None for _place in range(total)],
+        ahead=[],
+    )
+
+
+def _own_share(
+    shares: _WalkShares, place: int
+) -> "tuple[float, float] | None":
+    """A stratum's own share of the ladder, as `_share_of` gives it, worked out once."""
+    if shares.rungs is None:
+        return None
+    found = shares.known[place]
+    if found is None:
+        found = _share_of(place, shares.layout, shares.rungs, shares.numbers)
+        shares.known[place] = found
+    return found
+
+
+def _held_after(shares: _WalkShares, place: int, candidate: float) -> bool:
+    """True when a stratum after ``place`` along the walk holds ``candidate`` in its share.
+
+    Where the shares of those strata rise with the strata, which a ladder
+    read upward gives, the strata whose share holds the candidate are one
+    run of them, found by halving, and the question is whether any of
+    the run stands further along the walk; otherwise every one of them
+    is asked, as `_held_later` asked them before.
+    """
+    if shares.rungs is None:
+        return False
+    if not shares.ahead:
+        shares.ahead += [_ahead_index(shares)]
+    index = shares.ahead[0]
+    rank = shares.rank[place]
+    count = len(index.ranks)
+    if not index.rising:
+        for step in range(count):
+            if (
+                index.ranks[step] > rank
+                and index.lows[step] <= candidate <= index.highs[step]
+            ):
+                return True
+        return False
+    first = _first_reaching(index.highs, candidate) + count
+    last = _first_past(index.lows, candidate) + count
+    furthest = -1
+    while first < last:
+        if first % 2 == 1:
+            furthest = max(furthest, index.tree[first])
+            first = first + 1
+        if last % 2 == 1:
+            last = last - 1
+            furthest = max(furthest, index.tree[last])
+        first = first // 2
+        last = last // 2
+    return furthest > rank
+
+
+def _ahead_index(shares: _WalkShares) -> _AheadIndex:
+    """Index the shares of every stratum that may claim a number, in stratum order."""
+    layout = shares.layout
+    total = len(layout.sizes)
+    lows: "list[float]" = []
+    highs: "list[float]" = []
+    ranks: "list[int]" = []
+    for place in range(total):
+        if place == 0 or (place == total - 1 and total >= 2):
+            continue
+        if layout.bands[place] == _BAND_ZERO:
+            continue
+        share = _own_share(shares, place)
+        if share is None:
+            continue
+        lows += [share[0]]
+        highs += [share[1]]
+        ranks += [shares.rank[place]]
+    count = len(ranks)
+    rising = True
+    for step in range(count - 1):
+        if not (lows[step] <= lows[step + 1] and highs[step] <= highs[step + 1]):
+            rising = False
+            break
+    tree = [-1 for _slot in range(2 * count)]
+    for step in range(count):
+        tree[count + step] = ranks[step]
+    for slot in range(count - 1, 0, -1):
+        tree[slot] = max(tree[2 * slot], tree[2 * slot + 1])
+    return _AheadIndex(
+        lows=tuple(lows),
+        highs=tuple(highs),
+        ranks=tuple(ranks),
+        rising=rising,
+        tree=tuple(tree),
+    )
+
+
+def _first_reaching(values: "tuple[float, ...]", target: float) -> int:
+    """The first position of an ascending tuple holding ``target`` or more."""
+    low = 0
+    high = len(values)
+    while low < high:
+        middle = (low + high) // 2
+        if values[middle] >= target:
+            high = middle
+        else:
+            low = middle + 1
+    return low
+
+
+def _first_past(values: "tuple[float, ...]", target: float) -> int:
+    """The first position of an ascending tuple holding more than ``target``."""
+    low = 0
+    high = len(values)
+    while low < high:
+        middle = (low + high) // 2
+        if values[middle] > target:
+            high = middle
+        else:
+            low = middle + 1
+    return low
+
+
+def _seat_given(
+    moved: "list[float]",
+    held: "dict[float, int]",
+    left: "list[float]",
+    seat: int,
+    value: float,
+) -> None:
+    """Give stratum ``seat`` the value ``value``, keeping the count of holders.
+
+    ``held`` counts the strata holding each value, so asking whether one
+    stratum alone holds a value costs one look and not a walk of every
+    stratum, and ``left`` keeps each value given up, for the next time
+    the numbers taken are made the numbers held again (plan P4-D387).
+    """
+    before = moved[seat]
+    held[before] = held[before] - 1
+    if held[before] == 0:
+        del held[before]
+    left += [before]
+    moved[seat] = value
+    if value in held:
+        held[value] = held[value] + 1
+    else:
+        held[value] = 1
 
 
 def _rehomed(
     place: int,
     moved: "list[float]",
     layout: "_NumericLayout",
-    rungs: "tuple[float, ...] | None",
-    numbers: int,
+    shares: _WalkShares,
     taken: "dict[float, int]",
+    held: "dict[float, int]",
     ends: "tuple[float, float] | None",
     reach: int,
     locked: "dict[int, int]",
     seen: "dict[int, int]",
     budget: "list[int]",
-    order: "tuple[int, ...] | None" = None,
     kept: "tuple[float, ...]" = (),
 ) -> "list[tuple[int, float]] | None":
     """Whole numbers for `place`, moving whoever is holding one (R-P4-69).
@@ -13186,13 +13478,14 @@ def _rehomed(
     cost stay uncosted.
 
     THE GUARD THE PLAIN WALK CARRIES IS CARRIED HERE TOO. Every
-    `_whole_inside` question this chain asks passes `_shares_after`, so a
-    stratum reaching OUTSIDE its own share still never takes the one
-    number a stratum further on could ever be given -- the seed
-    dependence review item P2-C5-F3 repaired stays repaired. What this
-    chain adds is only the numbers already HELD, which that guard never
-    reserved for anyone. "Further on" is further along ``order``, the
-    walk's own order of strata, which is ascending where it is None.
+    `_whole_inside` question this chain asks passes the shares of the
+    strata still to be walked (``shares``), so a stratum reaching OUTSIDE
+    its own share still never takes the one number a stratum further on
+    could ever be given -- the seed dependence review item P2-C5-F3
+    repaired stays repaired. What this chain adds is only the numbers
+    already HELD, which that guard never reserved for anyone. "Further
+    on" is further along the walk's own order of strata, which
+    ``shares`` carries; ``held`` counts the strata holding each value.
 
     `seen` stops a chain revisiting a stratum, so the search ends;
     `locked` holds the strata that have already given a number up, so a
@@ -13224,8 +13517,8 @@ def _rehomed(
     """
     total = len(layout.sizes)
     band = layout.bands[place]
-    share = _share_of(place, layout, rungs, numbers)
-    later = _shares_after(place, layout, rungs, numbers, order)
+    share = _own_share(shares, place)
+    later = _StrataAhead(shares, place)
     want = _whole_inside(
         moved[place], band, share, ends, reach, taken, later, kept=kept
     )
@@ -13248,24 +13541,26 @@ def _rehomed(
         offered = moved[other]
         if not _carries_plainly(offered, False):
             continue
-        if not _sole_holder(moved, offered):
+        if offered not in held or held[offered] != 1:
             continue
-        probe: dict[float, int] = {}
-        for value in taken:
-            if value != offered:
-                probe[value] = taken[value]
+        # ASKED WITHOUT THE NUMBER BEING ASKED FOR, which is taken out
+        # for the question and put back after it rather than every other
+        # number copied once per holder asked (plan P4-D387). Every
+        # number held is taken, so ``offered`` is there to take out.
+        del taken[offered]
         mine = _whole_inside(
-            moved[place], band, share, ends, reach, probe, later, kept=kept
+            moved[place], band, share, ends, reach, taken, later, kept=kept
         )
+        taken[offered] = 1
         if mine is None or mine != offered:
             continue
         ahead: dict[int, int] = {}
         for step in seen:
             ahead[step] = seen[step]
         ahead[place] = 1
-        # THE HOLDER IS ASKED WITH THE NUMBER STILL HELD, and `probe` is
-        # not what to ask it with. `probe` is `taken` WITHOUT the number
-        # being asked for, so a holder asked with it is free to answer
+        # THE HOLDER IS ASKED WITH THE NUMBER STILL HELD, and not the
+        # way the question above was asked: that was `taken` WITHOUT the
+        # number being asked for, so a holder asked so is free to answer
         # by taking that same number straight back: measured, every one
         # of 246 chains over 200 seeds came back handing one number to
         # BOTH strata, and `_apart_enough` pulled them apart afterwards
@@ -13275,15 +13570,14 @@ def _rehomed(
             other,
             moved,
             layout,
-            rungs,
-            numbers,
+            shares,
             taken,
+            held,
             ends,
             reach,
             locked,
             ahead,
             budget,
-            order,
             kept=kept,
         )
         if onward is not None:
@@ -13293,7 +13587,7 @@ def _rehomed(
             continue
         if layout.sizes[other] < layout.sizes[place]:
             fraction = _fraction_inside(
-                _share_of(other, layout, rungs, numbers),
+                _own_share(shares, other),
                 taken,
                 layout.bands[other],
             )
@@ -13393,6 +13687,16 @@ def _whole_enough(
     quotas = _style_quotas(facts.numeric_styles)
     taken = {value: 1 for value in values}
     moved = [value for value in values]
+    # HOW MANY STRATA HOLD EACH VALUE, AND WHICH VALUES WERE GIVEN UP
+    # (plan P4-D387). The chain asks whether one stratum alone holds a
+    # value, and after each chain the numbers taken are made the numbers
+    # held again; both walked every stratum, once per holder asked and
+    # once per chain, which is the square of the strata on a column whose
+    # every row is a stratum. `_seat_given` keeps the two up to date.
+    held: "dict[float, int]" = {}
+    for value in moved:
+        held[value] = (held[value] if value in held else 0) + 1
+    left: "list[float]" = []
     locked: dict[int, int] = {}
     # ONE BUDGET FOR THE WHOLE COLUMN, not one for each question asked
     # (round 2, item 4). A budget spent per call bounds one search and
@@ -13470,6 +13774,7 @@ def _whole_enough(
         if trailing > 0 and reachable != _REACHABLE[0]:
             order = _negatives_last(layout.bands)
         places = range(total) if order is None else order
+        shares = _walk_shares(layout, rungs, column.n_numeric, order)
         carried = 0
         for place in range(total):
             if layout.bands[place] not in reachable:
@@ -13499,19 +13804,9 @@ def _whole_enough(
                 band = layout.bands[place]
                 if band == _BAND_ZERO:
                     continue
-                share = None
+                share = _own_share(shares, place)
                 ends = None
                 if rungs is not None:
-                    share = (
-                        _interpolated(
-                            rungs, layout.starts[place], column.n_numeric
-                        ),
-                        _interpolated(
-                            rungs,
-                            layout.starts[place] + layout.sizes[place],
-                            column.n_numeric,
-                        ),
-                    )
                     ends = (rungs[0], rungs[-1])
                 want = _whole_inside(
                     moved[place],
@@ -13520,9 +13815,7 @@ def _whole_enough(
                     ends,
                     total + 1,
                     taken,
-                    _shares_after(
-                        place, layout, rungs, column.n_numeric, order
-                    ),
+                    _StrataAhead(shares, place),
                     kept=facts.kept_stand_ins,
                 )
                 if want is None:
@@ -13530,15 +13823,14 @@ def _whole_enough(
                         place,
                         moved,
                         layout,
-                        rungs,
-                        column.n_numeric,
+                        shares,
                         taken,
+                        held,
                         ends,
                         total + 1,
                         locked,
                         {},
                         budget,
-                        order,
                         kept=facts.kept_stand_ins,
                     )
                     if moves is None:
@@ -13546,7 +13838,12 @@ def _whole_enough(
                     for step in range(len(moves)):
                         seat = moves[step][0]
                         value = moves[step][1]
-                        moved[seat] = value
+                        if layout.bands[seat] in reachable:
+                            if _carries_plainly(moved[seat], False):
+                                carried = carried - layout.sizes[seat]
+                            if _carries_plainly(value, False):
+                                carried = carried + layout.sizes[seat]
+                        _seat_given(moved, held, left, seat, value)
                         if not _carries_plainly(value, False):
                             locked[seat] = 1
                     # RECOUNTED OVER THE STRATA THIS WALK REACHES, as it was
@@ -13558,16 +13855,22 @@ def _whole_enough(
                     # short at seed 0, the last walk took that cell from a
                     # value that is not negative, and `decimal_plus` was
                     # missed at five seeds of five.
-                    taken = {value: 1 for value in moved}
-                    carried = 0
-                    for seat in range(total):
-                        if layout.bands[seat] not in reachable:
-                            continue
-                        if _carries_plainly(moved[seat], False):
-                            carried = carried + layout.sizes[seat]
+                    #
+                    # BOTH KEPT AS THE STRATA MOVE, NOT WORKED OUT AGAIN
+                    # (plan P4-D387): the count above changes by each move
+                    # into or out of the point-free forms on a stratum this
+                    # walk reaches, and the numbers taken become exactly
+                    # the numbers held once every value given up that no
+                    # stratum holds any more is let go.
+                    for value in left:
+                        if value not in held and value in taken:
+                            del taken[value]
+                    left = []
+                    for step in range(len(moves)):
+                        taken[moves[step][1]] = 1
                     continue
                 taken[want] = 1
-                moved[place] = want
+                _seat_given(moved, held, left, place, want)
                 carried = carried + layout.sizes[place]
             if carried == settled:
                 break
@@ -13597,51 +13900,6 @@ def _negatives_last(bands: "tuple[str, ...]") -> "tuple[int, ...]":
         if bands[place] == _BAND_NEGATIVE:
             order += [place]
     return tuple(order)
-
-
-def _shares_after(
-    place: int,
-    layout: "_NumericLayout",
-    rungs: "tuple[float, ...] | None",
-    numbers: int,
-    order: "tuple[int, ...] | None" = None,
-) -> "tuple[tuple[float, float], ...]":
-    """The shares of the strata this walk has not reached yet (G6.4).
-
-    Only the strata a whole number could still be given to: the two
-    pinned ends hold the published `min` and `max` and the zero stratum
-    holds `0`, so none of them is waiting for one. "Not reached yet" is
-    after `place` in ``order``, the walk's own order of strata, which is
-    every stratum ascending where it is None and otherwise must hold
-    `place`.
-    """
-    if rungs is None:
-        return ()
-    total = len(layout.sizes)
-    upcoming: "tuple[int, ...] | range" = range(place + 1, total)
-    if order is not None:
-        start = 0
-        for step in range(len(order)):
-            if order[step] == place:
-                start = step + 1
-        upcoming = order[start:]
-    after: list[tuple[float, float]] = []
-    for later in upcoming:
-        if later == 0 or (later == total - 1 and total >= 2):
-            continue
-        if layout.bands[later] == _BAND_ZERO:
-            continue
-        after += [
-            (
-                _interpolated(rungs, layout.starts[later], numbers),
-                _interpolated(
-                    rungs,
-                    layout.starts[later] + layout.sizes[later],
-                    numbers,
-                ),
-            )
-        ]
-    return tuple(after)
 
 
 _POINTED_STYLES = ("decimal", "exponent_lower", "exponent_upper")

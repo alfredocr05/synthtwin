@@ -1151,17 +1151,6 @@ def _as_text(value: object) -> str:
     return value
 
 
-def _physical_lines(text: str) -> "list[str]":
-    """The text's lines as a file opened with ``newline=""`` hands them over.
-
-    Nothing is translated, and the lines are the survey's own
-    (`dialect.physical_lines`), so the standard reader reads exactly the
-    text the survey read -- including a text whose end-of-file mark has
-    been taken off, which a file handle could not give it.
-    """
-    return dialect.physical_lines(text)
-
-
 def _agrees_with_the_standard_reader(
     text: str,
     surveyed: dialect.Survey,
@@ -1187,7 +1176,7 @@ def _agrees_with_the_standard_reader(
         body = body[: len(body) - 1]
     backslash = form.escape == dialect.ESCAPE_BACKSLASH
     rows = csv.reader(
-        _physical_lines(body),
+        dialect.lines_in_turn(body),
         delimiter=form.delimiter,
         doublequote=not backslash,
         escapechar="\\" if backslash else None,
@@ -2400,6 +2389,16 @@ def _check_against_pandas(
     why a path-shaped object is not enough on its own -- the library
     turns it back into text before deciding whether it is a URL, so a
     Path built from "https://host/f.csv" still reaches the network.
+
+    THE SECOND READING IS NEVER HELD WHOLE (plan P4-D387). Pandas hands
+    it over a piece of `_CHECK_CELLS` cells at a time, as whole rows, and
+    each piece is compared and dropped before the next is read, so the
+    check holds one piece beside the survey's reading rather than a second
+    table. Every difference is noted where it stands and the refusals are
+    made after the last piece, in the order the whole frame gave them:
+    the shape, the names, then column by column the rows of descriptions
+    and then the values -- the same refusal, word for word, for the same
+    file.
     """
     validated = validate_local_path(raw_path, purpose="input")
     file_path = pathlib.Path(validated)
@@ -2425,8 +2424,16 @@ def _check_against_pandas(
     if form.end_of_file_mark:
         wanted = found.n_rows + offset - (1 if first_as_names else 0)
     backslash = form.escape == dialect.ESCAPE_BACKSLASH
+    width = len(found.column_names)
+    # A PIECE AT A TIME (plan P4-D387; the docstring says why). Pandas
+    # reads the same file with the same settings either way and only hands
+    # it over in pieces of whole rows -- except where it is asked for no
+    # rows at all: it then hands over no piece, where the whole frame of
+    # no rows still named the columns it read, so that one frame is read.
+    rows_a_piece = max(1, _CHECK_CELLS // max(1, width))
+    piecewise = wanted != 0
     try:
-        frame = pandas.read_csv(
+        pieces = pandas.read_csv(
             file_path,
             encoding=dialect.READING_CODECS[found.encoding],
             encoding_errors="strict",
@@ -2444,6 +2451,7 @@ def _check_against_pandas(
             skipinitialspace=form.initial_space,
             comment=None,
             nrows=wanted,
+            chunksize=rows_a_piece if piecewise else None,
         )
     except MemoryError as error:
         raise errors.ProfileError(
@@ -2451,25 +2459,67 @@ def _check_against_pandas(
         ) from error
     except Exception as error:
         # Every failure of the checking pass becomes one plain-language
-        # refusal. The catch is deliberately broad: the offline import
-        # policy (plan D6.2) permits only pandas.read_csv from pandas,
-        # so the library's own exception classes cannot be named here,
-        # and nothing is swallowed -- the original is chained on.
-        if refusals == REFUSALS_NAME_POSITIONS:
+        # refusal (`_unread_by_pandas` says why the catch is broad).
+        raise _unread_by_pandas(shown, refusals, error) from error
+    if not piecewise:
+        pieces = iter([pieces])
+    shift = 1 if first_as_names else 0
+    # The place of the whole frame's last value, which is where an
+    # end-of-file mark glued to it is taken off. It is that place only
+    # where pandas read the rows the survey did, and any other count is
+    # refused below before a single value is.
+    trimmed = -1
+    if form.end_of_file_mark and not form.final_line_ending:
+        trimmed = found.n_rows + offset - 1
+    above_bad: "list[int]" = [-1 for _index in range(width)]
+    above_text: "list[str]" = ["" for _index in range(width)]
+    value_bad: "list[int]" = [-1 for _index in range(width)]
+    keys: "list[object] | None" = None
+    found_rows = 0
+    while True:
+        # Pandas reads a piece only when it is asked for one, so a file it
+        # cannot read fails here, into the same refusal as above.
+        try:
+            piece = next(pieces, None)
+        except MemoryError as error:
             raise errors.ProfileError(
-                errors.checked_file_unreadable_as_csv(shown)
+                errors.out_of_memory(shown, _file_size(file_path))
             ) from error
-        raise errors.ProfileError(
-            errors.unreadable_as_csv(shown, f"{error}")
-        ) from error
-
-    found_rows = len(frame)
-    keys = list(frame.columns)
-    width = len(found.column_names)
-    if form.header_trailing_delimiter and len(keys) == width + 1:
-        # The delimiter ending the header line, which pandas names as a
-        # column of its own holding nothing.
-        keys = keys[:width]
+        except Exception as error:
+            raise _unread_by_pandas(shown, refusals, error) from error
+        if piece is None:
+            break
+        if keys is None:
+            keys = list(piece.columns)
+            if form.header_trailing_delimiter and len(keys) == width + 1:
+                # The delimiter ending the header line, which pandas names
+                # as a column of its own holding nothing.
+                keys = keys[:width]
+            if first_as_names and len(keys) == width:
+                # The record pandas took as names stands first in the
+                # frame, as the survey read it.
+                for index in range(width):
+                    _note_the_piece(
+                        found, form, index, 0, [found.columns[index][0]],
+                        trimmed, above_bad, above_text, value_bad,
+                    )
+        if len(keys) == width:
+            start = found_rows + shift
+            for index in range(width):
+                if value_bad[index] >= 0 and start >= offset:
+                    # This column's first difference is found, and the
+                    # piece holds nothing but values after it.
+                    continue
+                # One column of this piece is turned into text at a time
+                # and dropped again.
+                theirs = [f"{cell}" for cell in list(piece[keys[index]])]
+                _note_the_piece(
+                    found, form, index, start, theirs,
+                    trimmed, above_bad, above_text, value_bad,
+                )
+        found_rows = found_rows + len(piece)
+    if keys is None:
+        keys = []
     expected_rows = found.n_rows + offset - (1 if first_as_names else 0)
     if found_rows != expected_rows or len(keys) != width:
         raise errors.ProfileError(
@@ -2500,51 +2550,114 @@ def _check_against_pandas(
                 )
             )
     for index in range(len(keys)):
-        mine = found.columns[index]
-        # One column of the second reading is turned into text at a
-        # time and dropped again: the whole second frame is already in
-        # memory, and materializing all of it a second time would add a
-        # third copy of the table for no gain.
-        theirs = [f"{cell}" for cell in list(frame[keys[index]])]
-        if first_as_names:
-            theirs = [mine[0]] + theirs
-        if offset:
-            above = [row[index] for row in form.header_rows]
-            for place in range(offset):
-                if theirs[place] != above[place]:
-                    if refusals == REFUSALS_NAME_POSITIONS:
-                        raise errors.ProfileError(
-                            errors.checked_file_readers_disagree_about_a_name(
-                                shown, index + 1
-                            )
-                        )
-                    raise errors.ProfileError(
-                        errors.readers_disagree_about_a_name(
-                            shown, index + 1, above[place], theirs[place]
-                        )
-                    )
-        last = len(theirs) - 1
-        if (
-            form.end_of_file_mark
-            and not form.final_line_ending
-            and theirs[last][len(theirs[last]) - 1 :] == "\x1a"
-        ):
-            # The end-of-file mark glued to the last value, which pandas
-            # reads as part of it; the survey took it off the text.
-            theirs[last] = theirs[last][: len(theirs[last]) - 1]
-        for position in range(found.n_rows):
-            if theirs[position + offset] != mine[position]:
-                if refusals == REFUSALS_NAME_POSITIONS:
-                    # The column's NAME is a string out of this file,
-                    # and this file may not be the person's own table,
-                    # so the column is named by its position instead.
-                    raise errors.ProfileError(
-                        errors.checked_file_readers_disagree_about_a_value(
-                            shown, position + 1, index + 1
-                        )
-                    )
+        if above_bad[index] >= 0:
+            place = above_bad[index]
+            if refusals == REFUSALS_NAME_POSITIONS:
                 raise errors.ProfileError(
-                    errors.readers_disagree_about_a_value(
-                        shown, position + 1, found.column_names[index]
+                    errors.checked_file_readers_disagree_about_a_name(
+                        shown, index + 1
                     )
                 )
+            raise errors.ProfileError(
+                errors.readers_disagree_about_a_name(
+                    shown, index + 1, form.header_rows[place][index],
+                    above_text[index],
+                )
+            )
+        if value_bad[index] >= 0:
+            position = value_bad[index]
+            if refusals == REFUSALS_NAME_POSITIONS:
+                # The column's NAME is a string out of this file, and
+                # this file may not be the person's own table, so the
+                # column is named by its position instead.
+                raise errors.ProfileError(
+                    errors.checked_file_readers_disagree_about_a_value(
+                        shown, position + 1, index + 1
+                    )
+                )
+            raise errors.ProfileError(
+                errors.readers_disagree_about_a_value(
+                    shown, position + 1, found.column_names[index]
+                )
+            )
+
+
+# HOW MANY CELLS OF THE SECOND READING ARE HELD AT ONCE (plan P4-D387):
+# a piece of the file is this many cells, as whole rows, so the check
+# holds one piece beside the first reading rather than a second table.
+_CHECK_CELLS = 262_144
+
+
+def _unread_by_pandas(
+    shown: str, refusals: str, error: Exception
+) -> errors.ProfileError:
+    """The refusal for a file the checking pass could not read.
+
+    Every failure of the checking pass becomes one plain-language
+    refusal. The catch that calls this is deliberately broad: the offline
+    import policy (plan D6.2) permits only pandas.read_csv from pandas,
+    so the library's own exception classes cannot be named, and nothing
+    is swallowed -- the original is chained on.
+    """
+    if refusals == REFUSALS_NAME_POSITIONS:
+        return errors.ProfileError(errors.checked_file_unreadable_as_csv(shown))
+    return errors.ProfileError(errors.unreadable_as_csv(shown, f"{error}"))
+
+
+def _note_the_piece(
+    found: _Reading,
+    form: dialect.Dialect,
+    index: int,
+    start: int,
+    theirs: "list[str]",
+    trimmed: int,
+    above_bad: "list[int]",
+    above_text: "list[str]",
+    value_bad: "list[int]",
+) -> None:
+    """Hold one column of one piece of the checking pass to the survey's reading.
+
+    ``theirs`` stands at the places from ``start`` on, counted as the
+    whole frame held them: the rows of column descriptions under the names
+    first, then the data. The rows above the data are compared as pandas
+    read them; then the value at ``trimmed``, the frame's last, has an
+    end-of-file mark glued to it taken off, as the survey took it off the
+    text, before the values are compared -- the order the whole frame was
+    checked in; -1 trims nothing. The first difference of each kind in
+    each column is kept, with what pandas read where a row above the data
+    differs, for the refusal. The values are compared a run at a time and
+    walked one by one only where a run differs, so a piece costs one
+    comparison of two lists where nothing differs.
+    """
+    count = len(theirs)
+    offset = len(form.header_rows)
+    step = 0
+    while step < count and start + step < offset:
+        place = start + step
+        if above_bad[index] < 0 and theirs[step] != form.header_rows[place][index]:
+            above_bad[index] = place
+            above_text[index] = theirs[step]
+        step = step + 1
+    if start <= trimmed < start + count:
+        last = theirs[trimmed - start]
+        if last[len(last) - 1 :] == "\x1a":
+            # The end-of-file mark glued to the last value, which pandas
+            # reads as part of it.
+            theirs[trimmed - start] = last[: len(last) - 1]
+    if value_bad[index] >= 0:
+        return
+    # The data position of `theirs[step]`, and the end of the values that
+    # stand at a position the survey read.
+    position = start + step - offset
+    stop = min(count, step + found.n_rows - position)
+    if stop <= step:
+        return
+    mine = found.columns[index]
+    if theirs[step:stop] == mine[position : position + stop - step]:
+        return
+    while step < stop:
+        if theirs[step] != mine[position]:
+            value_bad[index] = position
+            return
+        step = step + 1
+        position = position + 1
