@@ -28,7 +28,8 @@ table handle, a table object or a collection of raw cells, and it
 imports neither the reader nor pandas, directly or through anything it
 does import: `canonical` imports json alone, `errors` and `parsing`
 import nothing outside this package -- nor does `calendar_rules`,
-which imports `parsing` alone -- and `paths`
+which imports `parsing` alone, nor `calendar_clock`, which imports it
+and `calendar_rules` -- and `paths`
 imports os, pathlib, sys and typing (plan P2-D1).
 
 THE ORDER OF THE CHECKS IS NORMATIVE (contract section 10.1), because it
@@ -91,7 +92,7 @@ import json
 import math
 import pathlib
 
-from synthtwin import calendar_rules, canonical, dialect, errors, parsing
+from synthtwin import calendar_clock, calendar_rules, canonical, dialect, errors, parsing
 from synthtwin.paths import validate_local_path
 
 # The one version this loader reads. `profile_version` must be exactly
@@ -1655,6 +1656,47 @@ INVARIANTS = {
     # anchor 3b-T2 (P4-D371)
     # anchor 3b-T3 (P4-D372)
     # anchor 3b-C1 (P4-D373)
+    # THE CENSUS OF A COLUMN OF CLOCK TIMES (landing 3b.5, plan P4-D373).
+    # Its groups count the BODY's cells -- between the two tail
+    # boundaries, both included, or every parsed cell where there are no
+    # tails -- that stand on no heap.
+    "CC1": (
+        "the groups of a clock census cover every ten-minute bin of the "
+        "dial in order, each bin exactly once"
+    ),
+    "CC2": (
+        "every group of a clock census counts nought or at least the census "
+        "line, the smallest group size and never fewer than two"
+    ),
+    "CC3": (
+        "the groups of a clock census add up to the values between the two "
+        "tail boundaries that stand on no heap -- every value that read as a "
+        "time, where the column has no tails"
+    ),
+    "CC4": (
+        "a column of clock times publishes a census, heaps or codes only "
+        "beside the step its values were written on, a whole number of "
+        "seconds dividing the dial and of the form's own unit, and every "
+        "clock value its block publishes stands on that step"
+    ),
+    "CC5": (
+        "every group of a clock census that counts cells holds a step "
+        "between the two boundaries that is no heap -- as many as it counts "
+        "where the column's values are all different -- and every boundary "
+        "and rung stands on a heap or in a group that counts cells"
+    ),
+    "CH1": (
+        "the heaps of a column of clock times are times written in its form, "
+        "in ascending order, each counting at least the census line; those "
+        "beyond a tail boundary fit inside that tail's rows and are among "
+        "its values where it lists them, and those between the boundaries "
+        "are no more than the values there"
+    ),
+    "CH2": (
+        "the codes of a column of clock times are spellings its form does "
+        "not read, in text order, each counting at least the census line, "
+        "and together no more than the values that did not read as times"
+    ),
     # anchor 3b-C2 (P4-D374)
     # anchor 3b-G1 (P4-D375)
     # anchor 3b-G3 (P4-D376)
@@ -15508,30 +15550,240 @@ def _clock_census(
     n_present: int,
     facts: ClockFacts,
 ) -> "tuple[tuple[tuple[int, int, int], ...], tuple[tuple[str, int], ...], int | None, tuple[tuple[str, int], ...]]":
-    """A clock column's census, heaps, step and codes, reserved (plan P4-D364).
+    """A clock column's census, heaps, step and codes (plan P4-D373).
 
-    THE STUB OF LANDING 3b.5 (lane C1, plan P4-D373), which fills this
-    reader and nothing beside it: `clock_census`, `clock_heaps` and
-    `clock_codes` are `[]` and `clock_step` is `null` until then, and
-    nothing else is read. It is handed the block, where it stands, the
-    document's frame, the column's present values and every fact read
-    before it.
+    LANDING 3b.5 (lane C1; contract 6.13). A block publishing no step
+    publishes none of the other three (CC4), which is every block its
+    producer was not asked for and every block written before this
+    landing. A block publishing a step is held to:
 
-    Guarantees: returns the four, empty and `None`. Raises ProfileError
-    for any other value: a list holding anything (`_reserved_list`), or
-    a step that is not `null` (R16). No I/O of any kind.
+    - CC4, the step: a whole number of seconds dividing the dial, on the
+      form's own unit, with every clock value the block publishes -- the
+      boundaries, the rungs, a tail's values and the heaps -- on it;
+    - CH1, the heaps: each a time in the column's form, in ascending
+      order, counting at least the census line; those beyond a boundary
+      fit inside that tail's rows, and where the tail lists its values
+      each is one of them;
+    - CH2, the codes: each a spelling the column's form does not read,
+      in text order, counting at least the census line, together no more
+      than the cells left unread;
+    - CC1 to CC3, the census, through the one checker of every census
+      (`calendar_rules.census_breach`): its groups cover every ten-minute
+      bin of the dial in order, each count is nought or at least the
+      line, and the counts add to the body's cells on no heap -- the
+      body being the cells between the two boundaries, or every parsed
+      cell of a column with no tails;
+    - CC5, reachability: each group that counts cells holds at least one
+      step inside the body that is no heap -- at least as many as it
+      counts on a column whose values are all different -- and each
+      boundary and each published rung stands on a heap or in a group
+      that counts cells.
+
+    Guarantees: returns the census `(first, last, count)`, the heaps
+    `(value, count)`, the step and the codes `(spelling, count)`. Raises
+    ProfileError for a wrong type and for the first rule broken. No I/O.
     """
-    for key in ("clock_census", "clock_heaps", "clock_codes"):
-        _reserved_list(mapping[key], key, where)
-    if mapping["clock_step"] is not None:
-        raise _out_of_range(
-            "clock_step",
+    step_value = mapping["clock_step"]
+    if step_value is None:
+        for key in ("clock_census", "clock_heaps", "clock_codes"):
+            if _listing(mapping[key], key, where):
+                raise _broken(
+                    "CC4",
+                    where,
+                    f"the entry called '{key}' holds something and no step is "
+                    f"published",
+                    "a column of clock times publishes its census, heaps and "
+                    "codes only beside the step its values were written on",
+                )
+        return (), (), None, ()
+    form = facts.clock_form
+    unit = parsing.clock_step(form)
+    day = calendar_clock.clock_day(form)
+    line = parsing.census_floor(frame.floor)
+    step = _whole(step_value, "clock_step", where, 1)
+    if step > day or day % step != 0 or step % unit != 0:
+        raise _broken(
+            "CC4",
             where,
-            "a step",
-            "nothing (null): this version of synthtwin publishes no step "
-            "for a column of clock times",
+            f"the step is {step} seconds",
+            f"a step divides the {day} seconds of this column's dial and is a "
+            f"whole number of its {'minutes' if unit == 60 else 'seconds'}",
         )
-    return (), (), None, ()
+    stride = step // unit
+    low, high = facts.low_tail, facts.high_tail
+    placed: "list[tuple[str, str]]" = []
+    for tail, side in ((low, "low_tail"), (high, "high_tail")):
+        if tail is None:
+            continue
+        placed += [(tail.boundary, f"{side} -> boundary")]
+        for value in tail.values or ():
+            placed += [(value, f"{side} -> values")]
+    for name in LADDER_KEYS:
+        rung = facts.clock_percentiles[name]
+        if rung is not None:
+            placed += [(rung, f"clock_percentiles -> {name}")]
+    heaps: "list[tuple[str, int]]" = []
+    heap_at: "list[int]" = []
+    for entry in _listing(mapping["clock_heaps"], "clock_heaps", where):
+        heap = _mapping(entry, "clock_heaps", where)
+        _keys(heap, where, ("count", "value"), "every clock heap")
+        value = _clock_value(heap["value"], "clock_heaps -> value", where, form)
+        count = _whole(heap["count"], "clock_heaps -> count", where, 0)
+        at = _clock_at(value, form)[0]
+        if heap_at and at <= heap_at[len(heap_at) - 1]:
+            raise _broken(
+                "CH1",
+                where,
+                f"the heap at {value} does not come after the one before it",
+                "the heaps stand in ascending order, each value once",
+            )
+        if count < line:
+            raise _broken(
+                "CH1",
+                where,
+                f"the heap at {value} counts {count}",
+                f"every heap counts at least {line} rows",
+            )
+        heaps += [(value, count)]
+        heap_at += [at]
+        placed += [(value, "clock_heaps -> value")]
+    for value, said in placed:
+        if _clock_at(value, form)[0] % stride != 0:
+            raise _broken(
+                "CC4",
+                where,
+                f"the value at '{said}' is not on the step of {step} seconds",
+                "every clock value the block publishes stands on its step",
+            )
+    parsed = n_present - facts.n_unparsed
+    lowest = 0
+    highest = parsing.CLOCK_CAPACITY[form] - 1
+    body = parsed
+    if low is not None and high is not None:
+        lowest = _clock_at(low.boundary, form)[0]
+        highest = _clock_at(high.boundary, form)[0]
+        body = parsed - low.rows - high.rows
+    inside = 0
+    for tail, beyond, side in (
+        (low, [c for v, c in heaps if _clock_at(v, form)[0] < lowest], "low"),
+        (high, [c for v, c in heaps if _clock_at(v, form)[0] > highest], "high"),
+    ):
+        if not beyond:
+            continue
+        if tail is None or sum(beyond) > tail.rows:
+            raise _broken(
+                "CH1",
+                where,
+                f"heaps beyond the {side} boundary count {sum(beyond)} rows",
+                "a heap beyond a boundary lies inside that tail, with the "
+                "other heaps there no more rows than the tail holds",
+            )
+    for (value, count), at in zip(heaps, heap_at):
+        if lowest <= at <= highest:
+            inside = inside + count
+            continue
+        tail = low if at < lowest else high
+        if tail is not None and tail.values is not None and value not in tail.values:
+            raise _broken(
+                "CH1",
+                where,
+                f"the heap at {value} lies in a tail that does not list it",
+                "a heap in a tail that lists its values is one of them",
+            )
+    if inside > body:
+        raise _broken(
+            "CH1",
+            where,
+            f"the heaps between the two boundaries count {inside} rows",
+            f"the values between them number {body}",
+        )
+    codes: "list[tuple[str, int]]" = []
+    coded = 0
+    for entry in _listing(mapping["clock_codes"], "clock_codes", where):
+        code = _mapping(entry, "clock_codes", where)
+        _keys(code, where, ("count", "spelling"), "every clock code")
+        spelling = code["spelling"]
+        count = _whole(code["count"], "clock_codes -> count", where, 0)
+        if (
+            not isinstance(spelling, str)
+            or not spelling
+            or parsing.clock_ordinal(spelling, form) is not None
+            or (codes and spelling <= codes[len(codes) - 1][0])
+            or count < line
+        ):
+            raise _broken(
+                "CH2",
+                where,
+                "a code is not a spelling this column's form leaves unread, "
+                "in text order, held by at least the census line's rows",
+                f"every code is one, and each counts at least {line} rows",
+            )
+        codes += [(spelling, count)]
+        coded = coded + count
+    if coded > facts.n_unparsed:
+        raise _broken(
+            "CH2",
+            where,
+            f"the codes count {coded} rows",
+            f"the cells no clock reading accepted number {facts.n_unparsed}",
+        )
+    groups: "list[tuple[int, int, int]]" = []
+    for entry in _listing(mapping["clock_census"], "clock_census", where):
+        group = _mapping(entry, "clock_census", where)
+        _keys(group, where, ("count", "first", "last"), "every clock group")
+        groups += [
+            (
+                _whole(group["first"], "clock_census -> first", where, 0),
+                _whole(group["last"], "clock_census -> last", where, 0),
+                _whole(group["count"], "clock_census -> count", where, 0),
+            )
+        ]
+    if not groups:
+        return (), tuple(heaps), step, tuple(codes)
+    broken = calendar_rules.census_breach(
+        tuple(groups),
+        calendar_clock.clock_bin_count(form),
+        line,
+        body - inside,
+        unit="ten-minute bin",
+        rules=("CC1", "CC2", "CC3", "CC2"),
+    )
+    if broken is not None:
+        raise _broken(broken[0], where, broken[1], broken[2])
+    distinct = mapping["n_distinct"] if "n_distinct" in mapping else None
+    apart = isinstance(distinct, int) and distinct - facts.n_unparsed >= parsed
+    reach = calendar_clock.clock_group_reach(
+        groups, form, stride, (lowest, highest), heap_at
+    )
+    for (first, last, count), units in zip(groups, reach):
+        if count > 0 and (units < 1 or (apart and units < count)):
+            raise _broken(
+                "CC5",
+                where,
+                f"the group from ten-minute bin {first} to bin {last} counts "
+                f"{count}",
+                f"it holds {units} steps between the two boundaries that "
+                f"stand on no heap, and must hold "
+                f"{'as many as it counts' if apart else 'at least one'}",
+            )
+    for value, said in placed:
+        at = _clock_at(value, form)[0]
+        if not lowest <= at <= highest or said.endswith("values"):
+            continue
+        if at in heap_at:
+            continue
+        place = calendar_clock.clock_bin_of(at, form)
+        held = [count for first, last, count in groups if first <= place <= last]
+        if not held or held[0] == 0:
+            raise _broken(
+                "CC5",
+                where,
+                f"the value at '{said}' falls in no group that counts cells "
+                f"and on no heap",
+                "every boundary and rung stands on a heap or in a group that "
+                "counts cells",
+            )
+    return tuple(groups), tuple(heaps), step, tuple(codes)
 
 
 def _clock_minute_census(

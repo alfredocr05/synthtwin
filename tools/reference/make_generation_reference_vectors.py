@@ -6823,8 +6823,62 @@ def stepped_around(step, room):
     return (step * stride) % room
 
 
+def clock_filled_form(form, step):
+    """One time of a form a clock time can wear, or None (G10.3b, P4-D373).
+
+    An hour of one or two figures, a colon and two, optionally a colon and
+    two more, optionally a marker -- AM/PM as ``@@``, am/pm as ``&&``,
+    A.M./P.M. as ``@.@.``, a.m./p.m. as ``&.&.`` -- after one space or
+    none.  Its supply is every time it writes: hours 0 to 23 (one figure:
+    0 to 9), or 1 to 12 behind a marker (one figure: 1 to 9), each minute,
+    each second it writes, both halves of a marked day.  The step taken
+    round the form's room lands in the supply or past it; in it, the
+    time it names stepped round the supply, hour first, then the minute,
+    the second and the half of the day.
+    """
+    body, words, space = form, None, ""
+    for mark, pair in (("@@", ("AM", "PM")), ("&&", ("am", "pm")),
+                       ("@.@.", ("A.M.", "P.M.")), ("&.&.", ("a.m.", "p.m."))):
+        if len(body) > len(mark) and body.endswith(mark):
+            body, words = body[: len(body) - len(mark)], pair
+            if body.endswith(" "):
+                body, space = body[:-1], " "
+            break
+    d = SHAPE_DIGIT
+    shapes = {d + d + ":" + d + d: (2, False), d + ":" + d + d: (1, False),
+              d + d + ":" + d + d + ":" + d + d: (2, True),
+              d + ":" + d + d + ":" + d + d: (1, True)}
+    if body not in shapes:
+        return None
+    figures, seconds = shapes[body]
+    first, last = (1, 12) if words else (0, 23)
+    if figures == 1:
+        last = 9
+    hours = last - first + 1
+    supply = hours * 60 * (60 if seconds else 1) * (2 if words else 1)
+    index = step % form_room(form)
+    if index >= supply:
+        return None
+    place = stepped_around(index, supply)
+    hour, place = first + place % hours, place // hours
+    minute, place = place % 60, place // 60
+    text = ("%02d" % hour if figures == 2 else str(hour)) + ":%02d" % minute
+    if seconds:
+        text, place = text + ":%02d" % (place % 60), place // 60
+    if words:
+        text += space + words[place % 2]
+    return text
+
+
 def filled_form(form, step):
-    """One spelling of one form -- contract 7.9.1."""
+    """One spelling of one form -- contract 7.9.1.
+
+    A form a clock time can wear is filled with clock times first
+    (`clock_filled_form`, plan P4-D373).
+    """
+    clock = clock_filled_form(form, step)
+    if clock is not None:
+        return clock
     figures = "0123456789"
     letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
     built = ""
@@ -18503,10 +18557,289 @@ def clock_knots(column, parsed):
 
 
 def clock_census_laid(column, parsed, knots):
-    """The knots laid on a clock column's census and heaps -- landing
-    3b.5's rank rule (lane C1, plan P4-D373). A STUB (plan P4-D364): no
-    case publishes either until then, so the knots stand."""
+    """The knots of G7A.4, which a column publishing a step never reads:
+    landing 3b.5's rank rule (lane C1, plan P4-D373) lays such a column by
+    `clock_census_content` instead, so the knots stand."""
     return knots
+
+
+def clock_bin(ordinal, form):
+    """The ten-minute bin of the dial one ordinal falls in (G7A.4b)."""
+    return ordinal * clock_step_of(form) // 600
+
+
+def clock_skip_heaps(distance, heaps):
+    """The ``distance``-th tail distance that is no heap's (G7A.4b)."""
+    for heap in heaps:
+        if heap <= distance:
+            distance += 1
+    return distance
+
+
+def clock_census_runs(column, parsed, tails, body, heaps, stride):
+    """The body's stretches in rank order, from the method's text (G7A.4b).
+
+    Each heap between the boundaries is a stretch of its count on its
+    value.  Each census group counting cells takes its steps inside the
+    body, on the step and on no heap, cut by the heaps inside it into
+    runs; run j takes floor(n U<=j / U) - floor(n U<j / U) of the group's
+    n, where a boundary standing on no heap gives its run one cell first.
+    A body publishing no census is one group over the dial.  Returned as
+    (first rank, cells, low, high, is a heap, group).
+    """
+    form = column["clock_form"]
+    unit = clock_step_of(form)
+    low_rows, high_rows = tails if tails is not None else (0, 0)
+    inside = [(at, count) for at, count in heaps if body[0] <= at <= body[1]]
+    groups = [
+        (group["first"], group["last"], group["count"])
+        for group in column["clock_census"]
+    ]
+    if not groups:
+        groups = [(0, clock_capacity(form) * unit // 600 - 1,
+                   parsed - low_rows - high_rows - sum(c for _a, c in inside))]
+    ends = []
+    if tails is not None:
+        for end in body:
+            if end not in [at for at, _c in inside] and end not in ends:
+                ends.append(end)
+    stretches, rank = [], low_rows
+    for index, (first, last, count) in enumerate(groups):
+        mine = [(at, c) for at, c in inside if first <= clock_bin(at, form) <= last]
+        events = [(at, at, c, True) for at, c in mine]
+        if count:
+            low = max(-(-first * 600 // unit), body[0])
+            high = min(((last + 1) * 600 - 1) // unit, body[1])
+            low, high = -(-low // stride) * stride, high // stride * stride
+            runs, start = [], low
+            for at, _c in mine:
+                if low <= at <= high:
+                    if at > start:
+                        runs.append((start, at - stride))
+                    start = at + stride
+            if start <= high:
+                runs.append((start, high))
+            units = [(b - a) // stride + 1 for a, b in runs]
+            first_cells = [sum(1 for end in ends if a <= end <= b) for a, b in runs]
+            rest = count - sum(first_cells)
+            if rest < 0:
+                first_cells, rest = [0] * len(runs), count
+            total, before = sum(units), 0
+            for place, (a, b) in enumerate(runs):
+                share = (rest * (before + units[place])) // total - (rest * before) // total
+                before += units[place]
+                events.append((a, b, first_cells[place] + share, False))
+        for low, high, cells, heap in sorted(events):
+            if cells > 0:
+                stretches.append((rank, cells, low, high, heap, index))
+                rank += cells
+    return stretches
+
+
+def clock_census_content(column):
+    """The content list of a clock column publishing a step -- G7A.4b.
+
+    TAILS: a tail holding no heap on a step of one unit is placed as G7A.4
+    places it.  Otherwise a tail listing its values gives each heap's
+    value its count and the rows left to the other values by G7.3c, and a
+    tail drawn through its shape keeps its heaps' cells on their values
+    and draws the rest by G7.3b in steps -- its rows, mean and
+    root-mean-square less the heaps', each distance divided by the step,
+    its edge in steps less the heaps inside it -- each drawn distance
+    read back past the heaps' and times the step.  BODY: each stretch of
+    `clock_census_runs`; a heap's ranks on its value, a run's ranks by
+
+        steps[((r - a) 2**64 + w) |steps| // (n 2**64)]
+
+    between the run's pins (its boundary, and each published rung whose
+    rank and value lie in the run), stepped apart inside the run where
+    the column's values are all different, and off a spelling the column
+    calls absent to the nearest step of its run.  Then every code as many
+    times as it counts, then ``text-N``.  Every rank between the ends
+    reads one word, in rank order.
+    """
+    form = column["clock_form"]
+    unit = clock_step_of(form)
+    stride = max(1, column["clock_step"] // unit)
+    capacity = clock_capacity(form)
+    parsed = column["n_present"] - column["n_unparsed"]
+    apart = column["n_distinct"] - column["n_unparsed"] >= parsed
+    stream = list(column["_content_words"])
+    word_of = {rank: stream[rank - 1] for rank in range(1, parsed - 1)}
+    heaps = [
+        (clock_ordinal_of(heap["value"], form), heap["count"])
+        for heap in column["clock_heaps"]
+    ]
+    low, high = column["low_tail"], column["high_tail"]
+    ordinals = [0] * parsed
+    tails, body = None, (0, (capacity - 1) // stride * stride)
+    if low is not None and high is not None:
+        tails = (low["rows"], high["rows"])
+        body = (clock_ordinal_of(low["boundary"], form),
+                clock_ordinal_of(high["boundary"], form))
+        for side, is_low in ((low, True), (high, False)):
+            at = body[0] if is_low else body[1]
+            room = max(1, at if is_low else capacity - 1 - at)
+            mine = {}
+            for value, count in heaps:
+                if (value < at) if is_low else (value > at):
+                    mine[at - value if is_low else value - at] = count
+            ranks = [
+                index if is_low else parsed - 1 - index
+                for index in range(side["rows"])
+            ]
+            words = {index: word_of[rank] for index, rank in enumerate(ranks)
+                     if rank in word_of}
+            if side["values"] is not None:
+                listed = list(side["values"])
+                if not is_low:
+                    listed.reverse()
+                gaps = [
+                    (at - clock_ordinal_of(text, form)) if is_low
+                    else (clock_ordinal_of(text, form) - at)
+                    for text in listed
+                ]
+                owed = None
+                if side["mean_distance"] is not None:
+                    owed = whole_unit(side["rows"] * float_of(side["mean_distance"]))
+                rows = side["rows"]
+                free = []
+                for gap in gaps:
+                    if gap in mine:
+                        rows -= mine[gap]
+                        if owed is not None:
+                            owed -= mine[gap] * gap
+                    else:
+                        free.append(gap)
+                shares = dict(zip(free, value_shares(free, rows, owed))) if free else {}
+                stood = []
+                for gap in gaps:
+                    stood.extend([gap] * (mine[gap] if gap in mine else shares[gap]))
+            elif not mine and stride == 1:
+                mean = (
+                    float_of(side["mean_distance"])
+                    if side["mean_distance"] is not None else 1.0
+                )
+                root = (
+                    float_of(side["rms_distance"])
+                    if side["rms_distance"] is not None else mean
+                )
+                stood = tail_distances(
+                    side["rows"], mean, root, CASE_SMALL_CELL_FLOOR, room,
+                    apart, words,
+                )
+            else:
+                rows, owed, squares = side["rows"], 0, 0
+                for gap, count in mine.items():
+                    rows, owed, squares = rows - count, owed + count * gap, squares + count * gap * gap
+                stood = []
+                for gap, count in sorted(mine.items()):
+                    stood.extend([gap] * count)
+                if rows > 0:
+                    if side["mean_distance"] is None:
+                        mean = root = 1.0
+                    else:
+                        whole_mean = float_of(side["mean_distance"])
+                        whole_root = (
+                            float_of(side["rms_distance"])
+                            if side["rms_distance"] is not None else whole_mean
+                        )
+                        mean = max((side["rows"] * whole_mean - owed) / rows, 1.0)
+                        square = (side["rows"] * (whole_root * whole_root) - squares) / rows
+                        root = max(math.sqrt(square) if square > 0.0 else mean, mean)
+                    skipped = sorted(gap // stride for gap in mine)
+                    steps = room // stride
+                    drawn = tail_distances(
+                        rows, max(1.0, mean / stride), max(1.0, root / stride),
+                        CASE_SMALL_CELL_FLOOR,
+                        max(1, steps - sum(1 for gap in skipped if gap <= steps)),
+                        apart, words,
+                    )
+                    stood.extend(stride * clock_skip_heaps(d, skipped) for d in drawn)
+                stood.sort(reverse=True)
+            for index in range(side["rows"]):
+                ordinals[ranks[index]] = (
+                    at - stood[index] if is_low else at + stood[index]
+                )
+    pins = {}
+    stretches = clock_census_runs(column, parsed, tails, body, heaps, stride)
+    if tails is not None:
+        pins[tails[0]] = body[0]
+        pins[parsed - 1 - tails[1]] = body[1]
+        for place in range(1, len(PCT) - 1):
+            rung = column["clock_percentiles"][LADDER_KEYS[place]]
+            if rung is None:
+                continue
+            rank, value = rung_rank(PCT[place], parsed), clock_ordinal_of(rung, form)
+            for first, cells, low_at, high_at, heap, _group in stretches:
+                if (not heap and first <= rank < first + cells
+                        and low_at <= value <= high_at
+                        and (value - low_at) % stride == 0):
+                    pins[rank] = value
+    absent = {
+        text.strip().lower() for text in column.get("missing_by_source") or {}
+    }
+    for first, cells, low_at, high_at, heap, _group in stretches:
+        if heap:
+            for rank in range(first, first + cells):
+                ordinals[rank] = low_at
+            continue
+        size = (high_at - low_at) // stride + 1
+        knots = [(first * TWO64, 0)]
+        knots += [((rank * TWO64), (pins[rank] - low_at) // stride)
+                  for rank in range(first, first + cells)
+                  if rank in pins and not apart]
+        knots.append(((first + cells) * TWO64, size))
+        places = []
+        for rank in range(first, first + cells):
+            if rank in pins:
+                places.append((pins[rank] - low_at) // stride)
+                continue
+            position = rank * TWO64 + word_of.get(rank, 0)
+            for place in range(len(knots) - 1):
+                (start, below), (stop, above) = knots[place], knots[place + 1]
+                if position < stop or place == len(knots) - 2:
+                    break
+            share = min(max(position - start, 0), stop - start)
+            index = below if stop <= start else below + (share * (above - below)) // (stop - start)
+            places.append(min(size - 1, index))
+        if apart:
+            for index in range(1, len(places)):
+                places[index] = max(places[index], places[index - 1] + 1)
+            for index in range(len(places) - 1, -1, -1):
+                ceiling = size - (len(places) - index)
+                if index + 1 < len(places):
+                    ceiling = min(ceiling, places[index + 1] - 1)
+                places[index] = max(0, min(places[index], ceiling))
+        taken = {}
+        for place in places:
+            taken[place] = taken.get(place, 0) + 1
+        for index, place in enumerate(places):
+            rank = first + index
+            if (rank not in pins and absent
+                    and _clock_reads_absent(low_at + place * stride, form, absent)):
+                moved = place
+                for away in range(1, size + 1):
+                    found = [
+                        other for other in (place - away, place + away)
+                        if 0 <= other < size
+                        and not (apart and taken.get(other))
+                        and not _clock_reads_absent(low_at + other * stride, form, absent)
+                    ]
+                    if found:
+                        moved = found[0]
+                        break
+                taken[place] -= 1
+                taken[moved] = taken.get(moved, 0) + 1
+                place = moved
+            ordinals[rank] = low_at + place * stride
+    content = [clock_spelling_of(ordinal, form) for ordinal in ordinals]
+    coded = 0
+    for code in column["clock_codes"]:
+        content.extend([code["spelling"]] * code["count"])
+        coded += code["count"]
+    content.extend(text_stand_ins(content, column["n_unparsed"] - coded))
+    return content
 
 
 def clock_minutes_laid(column, parsed, knots):
@@ -18554,6 +18887,9 @@ def _clock_content(column):
     values were all different, so are the twin's, because a closed
     finite space of times has a place for each of them.
     """
+    if column.get("clock_step") is not None:
+        # A STEP IS PUBLISHED: landing 3b.5's rank rule (G7A.4b).
+        return clock_census_content(column)
     form = column["clock_form"]
     parsed = column["n_present"] - column["n_unparsed"]
     apart = column["n_distinct"] - column["n_unparsed"] >= parsed

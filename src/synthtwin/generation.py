@@ -140,7 +140,7 @@ structure arrives in a later phase (Phase 5).
 
 import dataclasses
 import math
-from synthtwin import calendar_rules, contract, dialect, errors, parsing, taxonomy
+from synthtwin import calendar_clock, calendar_rules, contract, dialect, errors, parsing, taxonomy
 
 import numpy.random
 
@@ -17534,6 +17534,34 @@ def _clock_layout(
     return layout
 
 
+@dataclasses.dataclass(frozen=True)
+class _ClockCensusLayout(_ClockLayout):
+    """A clock column laid on its census, heaps and step (method G7A.4b).
+
+    The layout of G7A.4 with what landing 3b.5 adds (plan P4-D373).
+    `stride` is the step in the form's own unit. `blocks` are the body's
+    stretches in rank order (`calendar_clock.clock_body_blocks`) and
+    `pins` the body ranks that stand on a value of their own -- the two
+    boundaries and every published rung its run holds. `low` and `high`
+    are each tail's whole plan, as the report and the windows read it;
+    where a tail holds heaps, `low_drawn` and `high_drawn` are the plans
+    its other cells are drawn through, and `low_heaped` and `high_heaped`
+    the heaps' ordinals, one per cell. `lows` and `highs` are every rank's
+    window (G12.10), and `codes` the codes with their counts.
+    """
+
+    stride: int = 1
+    blocks: "tuple[calendar_clock.ClockBlock, ...]" = ()
+    pins: "tuple[tuple[int, int], ...]" = ()
+    low_drawn: "_TailPlan | None" = None
+    high_drawn: "_TailPlan | None" = None
+    low_heaped: "tuple[int, ...] | None" = None
+    high_heaped: "tuple[int, ...] | None" = None
+    lows: "tuple[int, ...]" = ()
+    highs: "tuple[int, ...]" = ()
+    codes: "tuple[tuple[str, int], ...]" = ()
+
+
 def _clock_census_laid(
     column: contract.ColumnBlock,
     facts: contract.ClockFacts,
@@ -17542,15 +17570,417 @@ def _clock_census_laid(
 ) -> "_ClockLayout":
     """The layout of a column of clock times, laid on its census and heaps.
 
-    THE STUB OF LANDING 3b.5 (lane C1, plan P4-D373), which fills this
-    step and nothing beside it (plan P4-D364): until then no column
-    publishes `clock_census` or `clock_heaps`, and the layout is handed
-    back unchanged.
+    LANDING 3b.5 (lane C1, plan P4-D373; method G7A.4b). A description
+    publishing no step -- every one written before this landing, and every
+    block its producer was not asked for -- is laid exactly as G7A.4 lays
+    it, and the layout is handed back unchanged. Otherwise:
+
+    - each tail holding heaps is drawn as its heaps' cells, on their
+      values, beside its other cells drawn through the tail's shape at
+      the rows and the two distances left once the heaps are out
+      (`calendar_clock.tail_less_heaps`); a tail listing its values keeps
+      each heap's count and shares the rest by G7.3c over the values left;
+    - the body is laid by the rank rule (`calendar_clock.clock_body_blocks`):
+      every heap's ranks on its value, every group's count over its runs
+      by their steps, a run holding a boundary taking one cell first;
+    - the two boundaries and every published rung whose rank and value
+      lie in one run are pinned there.
 
     Guarantees: accepts the column, its facts, the floor and the layout;
-    returns the layout. Draws no word. Raises nothing. No I/O.
+    returns the layout, a `_ClockCensusLayout` where a step is published.
+    Draws no word. Raises ProfileError where the published counts cannot
+    be laid, which a description the loader accepted never is. No I/O.
     """
-    return layout
+    if facts.clock_step is None:
+        return layout
+    form = facts.clock_form
+    unit = parsing.clock_step(form)
+    stride = max(1, facts.clock_step // unit)
+    parsed = layout.parsed
+    capacity = parsing.CLOCK_CAPACITY[form]
+    heaps = tuple(
+        (_clock_ordinal_of(value, form), count) for value, count in facts.clock_heaps
+    )
+    tails: "tuple[int, int] | None" = None
+    body = (0, ((capacity - 1) // stride) * stride)
+    low_plan = layout.low
+    high_plan = layout.high
+    drawn: "list[_TailPlan | None]" = [None, None]
+    heaped: "list[tuple[int, ...] | None]" = [None, None]
+    if (
+        facts.low_tail is not None
+        and facts.high_tail is not None
+        and layout.low is not None
+        and layout.high is not None
+    ):
+        tails = (facts.low_tail.rows, facts.high_tail.rows)
+        body = (layout.low.boundary, layout.high.boundary)
+        plans: "list[_TailPlan]" = []
+        for place, side, tail, low_side in (
+            (0, layout.low, facts.low_tail, True),
+            (1, layout.high, facts.high_tail, False),
+        ):
+            mine = [
+                (at, count)
+                for at, count in heaps
+                if (at < body[0] if low_side else at > body[1])
+            ]
+            if not mine and (stride == 1 or tail.values is not None):
+                plans += [side]
+                continue
+            whole, kept, spots = _clock_tail_with_heaps(
+                side, tail, mine, floor, capacity, form, layout.apart, stride
+            )
+            plans += [whole]
+            drawn[place] = kept
+            heaped[place] = spots
+        low_plan, high_plan = plans[0], plans[1]
+    blocks = calendar_clock.clock_body_blocks(
+        parsed, tails, body, facts.clock_census, heaps, form, stride
+    )
+    windows = calendar_clock.clock_rank_windows(
+        parsed, tails, body, facts.clock_census, heaps, form, stride
+    )
+    if blocks is None or windows is None:
+        raise errors.ProfileError(_INTERNAL_CLOCK)
+    pins: "list[tuple[int, int]]" = []
+    if tails is not None:
+        pins += [(tails[0], body[0]), (parsed - 1 - tails[1], body[1])]
+        for step in range(1, len(_PCT) - 1):
+            rung = facts.clock_percentiles[_LADDER_NAMES[step]]
+            if rung is None:
+                continue
+            rank = _rung_rank(_PCT[step], parsed)
+            value = _clock_ordinal_of(rung, form)
+            for block in blocks:
+                if (
+                    not block.heap
+                    and block.first_rank <= rank < block.first_rank + block.cells
+                    and block.low <= value <= block.high
+                    and (value - block.low) % stride == 0
+                ):
+                    pins += [(rank, value)]
+    return _ClockCensusLayout(
+        parsed=parsed,
+        low=low_plan,
+        high=high_plan,
+        knots=layout.knots,
+        apart=layout.apart,
+        ramp=layout.ramp,
+        stride=stride,
+        blocks=blocks,
+        pins=tuple(sorted(set(pins))),
+        low_drawn=drawn[0],
+        high_drawn=drawn[1],
+        low_heaped=heaped[0],
+        high_heaped=heaped[1],
+        lows=tuple(windows[0]),
+        highs=tuple(windows[1]),
+        codes=facts.clock_codes,
+    )
+
+
+def _clock_tail_with_heaps(
+    side: "_TailPlan",
+    tail: contract.TailFacts,
+    heaps: "list[tuple[int, int]]",
+    floor: int,
+    capacity: int,
+    form: str,
+    apart: bool,
+    stride: int,
+) -> "tuple[_TailPlan, _TailPlan | None, tuple[int, ...] | None]":
+    """One tail holding heaps, or on a step of more than one unit: its whole
+    plan, the plan its other cells are drawn through, and the heaps'
+    ordinals, one per cell (method G7A.4b) -- None where the whole plan is
+    fixed and nothing is drawn.
+
+    A tail LISTING its values gives each heap's value its count and the
+    rows left to the values left by G7.3c, against the sum its mean fixes
+    less the heaps'; its whole plan is then fixed, and nothing is drawn.
+    A tail drawn through its shape keeps the heaps' cells on their values
+    and draws the rest through the shape the rows, mean and root-mean-
+    square left give (`calendar_clock.tail_less_heaps`), IN STEPS: every
+    distance in units of the published step, the heaps' distances taken
+    out (`calendar_clock.off_the_heaps`), so each drawn cell stands on the
+    step and on no heap. Its whole plan's strata, in the form's own unit,
+    are the heaps' distances beside the drawn plan's, which is what the
+    report and the windows sum.
+    """
+    boundary = side.boundary
+    low_side = side.low_side
+    distance_of: "dict[int, int]" = {}
+    for at, count in heaps:
+        distance_of[boundary - at if low_side else at - boundary] = count
+    spots: "list[int]" = []
+    for at, count in heaps:
+        for _copy in range(count):
+            spots += [at]
+    if tail.values is not None:
+        ordered = list(tail.values)
+        if not low_side:
+            ordered = [ordered[place] for place in range(len(ordered) - 1, -1, -1)]
+        distances: "list[int]" = []
+        for value in ordered:
+            here = _clock_ordinal_of(value, form)
+            distances += [boundary - here if low_side else here - boundary]
+        rows_left = side.rows
+        total: "int | None" = None
+        if tail.mean_distance is not None:
+            total = _half_up(side.rows * tail.mean_distance)
+        free: "list[int]" = []
+        for distance in distances:
+            if distance in distance_of:
+                rows_left = rows_left - distance_of[distance]
+                if total is not None:
+                    total = total - distance_of[distance] * distance
+            else:
+                free += [distance]
+        shared = _values_counts(free, rows_left, total) if free else []
+        counts: "dict[int, int]" = {}
+        for place in range(len(free)):
+            counts[free[place]] = shared[place]
+        fixed: "list[int]" = []
+        labels: "list[str]" = []
+        for place in range(len(ordered)):
+            distance = distances[place]
+            many = distance_of[distance] if distance in distance_of else counts[distance]
+            for _copy in range(many):
+                fixed += [distance]
+                labels += [ordered[place]]
+        places = [boundary - d if low_side else boundary + d for d in fixed]
+        whole = _TailPlan(
+            side.rows, low_side, boundary, boundary, 1, 0, None,
+            tuple(fixed), tuple(places), tuple(labels), tuple(fixed),
+            tuple(fixed),
+        )
+        return whole, None, None
+    heaped: "list[tuple[int, int]]" = []
+    for distance in sorted(distance_of):
+        heaped += [(distance, distance_of[distance])]
+    rows_left, mean, root = calendar_clock.tail_less_heaps(
+        side.rows, tail.mean_distance, tail.rms_distance, heaped
+    )
+    kept: "_TailPlan | None" = None
+    near: "list[int]" = []
+    far: "list[int]" = []
+    skipped = [distance // stride for distance, _count in heaped]
+    if rows_left > 0:
+        # DRAWN IN STEPS WITH THE HEAPS' DISTANCES TAKEN OUT, so no drawn
+        # cell lands off the step or on a heap: the shape's two distances
+        # and its edge are counted in steps, the edge less the heaps
+        # inside it, and every distance it draws is read back past them.
+        edge = max(1, boundary if low_side else capacity - 1 - boundary) // stride
+        inside = len([distance for distance in skipped if distance <= edge])
+        shape = _tail_shape(
+            rows_left,
+            max(1.0, mean / stride),
+            max(1.0, root / stride),
+            floor,
+            max(1, edge - inside),
+            apart,
+            True,
+        )
+        closest, furthest = _tail_distance_bounds(shape)
+        kept = _TailPlan(
+            rows_left, low_side, boundary, boundary, stride, 0, shape,
+            (), (), (), tuple(closest), tuple(furthest),
+        )
+        near = [
+            stride * calendar_clock.off_the_heaps(value, skipped)
+            for value in kept.near
+        ]
+        far = [
+            stride * calendar_clock.off_the_heaps(value, skipped)
+            for value in kept.far
+        ]
+    for distance, count in heaped:
+        for _copy in range(count):
+            near += [distance]
+            far += [distance]
+    whole = _TailPlan(
+        side.rows, low_side, boundary, boundary, 1, 0, None,
+        (), (), (), tuple(near), tuple(far),
+    )
+    return whole, kept, tuple(spots)
+
+
+def _clock_census_content(
+    plan: "_ColumnPlan",
+    layout: "_ClockCensusLayout",
+    words: "list[int]",
+) -> "tuple[list[str], list[Deviation]]":
+    """Every present cell of a census-laid column of clock times (G7A.4b).
+
+    EVERY RANK BETWEEN THE ENDS STILL READS ONE WORD, in rank order, as
+    G7A.4 reads them, so the budget planning set (`P - 2`) is spent
+    exactly. A tail without heaps is drawn as G7.3b draws it; a tail with
+    heaps stands its heaps' cells on their values and draws the rest
+    through its kept plan, the words of its ranks read from the outside
+    in. A body rank of a heap stands on it; a pinned rank on its value;
+    any other rank of a run stands at
+
+        steps[((r - a) * 2**64 + w) * |steps| // (n * 2**64)]
+
+    between the run's pins, which never goes down as the rank rises, so
+    every group, heap and boundary is met by construction. On a column
+    whose values were all different a run's ranks are stepped apart inside
+    it. A rank of a run on a spelling the table calls absent moves to the
+    nearest step of its run that is not one. Then the codes, each as many
+    times as it counts, and the other stand-ins of G7A.5.
+    """
+    column = plan.column
+    facts = column.facts
+    if not isinstance(facts, contract.ClockFacts):
+        raise _wrong_facts(column.name)
+    form = facts.clock_form
+    parsed = layout.parsed
+    stride = layout.stride
+    word_of = [0 for _rank in range(parsed)]
+    for rank in range(1, parsed - 1):
+        word_of[rank] = words[rank - 1]
+    ordinals = [0 for _rank in range(parsed)]
+    if layout.low is not None and layout.high is not None:
+        for whole, kept, heaped in (
+            (layout.low, layout.low_drawn, layout.low_heaped),
+            (layout.high, layout.high_drawn, layout.high_heaped),
+        ):
+            mine: "dict[int, int]" = {}
+            if heaped is None:
+                if whole.shape is not None:
+                    for index in range(1, min(whole.shape.grouped, whole.rows)):
+                        mine[index] = word_of[_tail_rank_of(whole, parsed, index)]
+                spots = _tail_spots(whole, mine)
+                for index in range(whole.rows):
+                    ordinals[_tail_rank_of(whole, parsed, index)] = spots[index]
+                continue
+            stood = [at for at in heaped]
+            if kept is not None and kept.shape is not None:
+                for index in range(1, min(kept.shape.grouped, kept.rows)):
+                    mine[index] = word_of[_tail_rank_of(whole, parsed, index)]
+                skipped = sorted(
+                    {
+                        (whole.boundary - at if whole.low_side else at - whole.boundary)
+                        // kept.unit
+                        for at in heaped
+                    }
+                )
+                for distance in _tail_distances(kept.shape, mine):
+                    stood += [
+                        _tail_place(
+                            kept, calendar_clock.off_the_heaps(distance, skipped)
+                        )
+                    ]
+            stood = sorted(stood)
+            first = 0 if whole.low_side else parsed - whole.rows
+            for index in range(whole.rows):
+                ordinals[first + index] = stood[index]
+    pinned: "dict[int, int]" = {}
+    for rank, value in layout.pins:
+        pinned[rank] = value
+    holes = _all_holes_of(plan)
+    for block in layout.blocks:
+        start = block.first_rank
+        if block.heap:
+            for rank in range(start, start + block.cells):
+                ordinals[rank] = block.low
+            continue
+        units = (block.high - block.low) // stride + 1
+        knots: "list[tuple[int, int]]" = [(start * _WORD_SCALE, 0)]
+        for rank in range(start, start + block.cells):
+            if rank in pinned and not layout.apart:
+                knots += [(rank * _WORD_SCALE, (pinned[rank] - block.low) // stride)]
+        knots += [((start + block.cells) * _WORD_SCALE, units)]
+        places: "list[int]" = []
+        for rank in range(start, start + block.cells):
+            if rank in pinned:
+                places += [(pinned[rank] - block.low) // stride]
+                continue
+            position = rank * _WORD_SCALE + word_of[rank]
+            places += [min(units - 1, _clock_run_at(knots, position))]
+        if layout.apart:
+            for index in range(1, len(places)):
+                places[index] = max(places[index], places[index - 1] + 1)
+            for index in range(len(places) - 1, -1, -1):
+                ceiling = units - (len(places) - index)
+                if index + 1 < len(places):
+                    ceiling = min(ceiling, places[index + 1] - 1)
+                places[index] = max(0, min(places[index], ceiling))
+        taken: "dict[int, int]" = {}
+        for place in places:
+            taken[place] = (taken[place] if place in taken else 0) + 1
+        for index in range(len(places)):
+            rank = start + index
+            place = places[index]
+            if rank not in pinned and holes and _is_a_hole_spelling(
+                parsing.clock_spelling(block.low + place * stride, form), holes
+            ):
+                place = _clock_off_a_hole(
+                    place, units, block.low, stride, form, holes,
+                    taken if layout.apart else {},
+                )
+                taken[places[index]] = taken[places[index]] - 1
+                taken[place] = (taken[place] if place in taken else 0) + 1
+            ordinals[rank] = block.low + place * stride
+    cells: "list[str]" = []
+    for rank in range(parsed):
+        cells += [parsing.clock_spelling(ordinals[rank], form)]
+    used: "dict[str, int]" = {cell: 1 for cell in cells}
+    for spelling, count in layout.codes:
+        for _copy in range(count):
+            cells += [spelling]
+        used[spelling] = 1
+    hole_spellings = _hole_spellings(column)
+    step = 1
+    while len(cells) < column.n_present:
+        candidate = _text_spelling(step, used, hole_spellings)
+        step = step + 1
+        if _reads_as_a_clock(candidate):
+            continue
+        if _is_a_hole_spelling(candidate, hole_spellings):
+            continue
+        cells += [_take(candidate, used)]
+    return cells, []
+
+
+def _clock_run_at(knots: "list[tuple[int, int]]", position: int) -> int:
+    """One run's step index read at one position, flooring between knots."""
+    for place in range(len(knots) - 1):
+        start, low = knots[place]
+        stop, high = knots[place + 1]
+        if position < stop or place == len(knots) - 2:
+            if stop <= start:
+                return low
+            share = min(max(position - start, 0), stop - start)
+            return low + (share * (high - low)) // (stop - start)
+    return knots[0][1]
+
+
+def _clock_off_a_hole(
+    place: int,
+    units: int,
+    low: int,
+    stride: int,
+    form: str,
+    holes: "tuple[str, ...]",
+    taken: "dict[int, int]",
+) -> int:
+    """The nearest step of a run whose spelling the table does not call
+    absent -- the earlier first at one distance, and on a column whose
+    values all differ one no other rank stands on -- or the same step
+    where the run holds none (method G7A.4b)."""
+    for away in range(1, units + 1):
+        for other in (place - away, place + away):
+            if other < 0 or other >= units:
+                continue
+            if other in taken and taken[other] > 0:
+                continue
+            if _is_a_hole_spelling(
+                parsing.clock_spelling(low + other * stride, form), holes
+            ):
+                continue
+            return other
+    return place
 
 
 def _clock_minutes_laid(
@@ -17652,6 +18082,9 @@ def _clock_content(
         raise _wrong_facts(column.name)
     form = facts.clock_form
     layout = _clock_layout(column, facts, plan.small_cell_floor)
+    # A column laid on its census, heaps and step (3b.C1, P4-D373).
+    if isinstance(layout, _ClockCensusLayout):
+        return _clock_census_content(plan, layout, words)
     parsed = layout.parsed
     ordinals = [0 for _rank in range(parsed)]
     taken = 0
@@ -26965,6 +27398,14 @@ def _filled_form(form: str, step: int) -> str:
     and the figures and letters put back here come from the step, which
     is a count of made-up values and not a reading of anything.
     """
+    # A FORM OF A CLOCK TIME IS FILLED WITH CLOCK TIMES (landing 3b.5, plan
+    # P4-D373): its first spellings are the times of day that form writes,
+    # each a time a clock reader takes, and only past them its other
+    # spellings. Measured before: 23 to 29 cells in 100 of a clock column
+    # read as labels came back as `36:54` or `57:95`.
+    clock = _clock_filled_form(form, step)
+    if clock is not None:
+        return clock
     figures = "0123456789"
     letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
     # A LOWER-CASE KEY IS FILLED IN LOWER CASE (plan P4-D121, audit
@@ -26990,6 +27431,78 @@ def _filled_form(form: str, step: int) -> str:
             continue
         spelling = spelling + character
     return spelling
+
+
+# THE MARKS A FORM OF A 12-HOUR CLOCK ENDS IN, as `parsing.shape_form`
+# writes them -- or as a census key writes an all-lower-case one -- with
+# the two words each stands for (landing 3b.5, plan P4-D373).
+_CLOCK_FORM_MARKS = (
+    ("@@", "AM", "PM"),
+    ("&&", "am", "pm"),
+    ("@.@.", "A.M.", "P.M."),
+    ("&.&.", "a.m.", "p.m."),
+)
+
+
+def _clock_filled_form(form: str, step: int) -> "str | None":
+    """One clock time of a form a clock time can wear, or None (G10.3b).
+
+    A form is a clock's where it is an hour of one or two figures, a colon
+    and two figures, optionally a colon and two more, and optionally a
+    marker after one space or none (`_CLOCK_FORM_MARKS`). Its CLOCK
+    SUPPLY is every time it writes: hours 0 to 23 (one figure: 0 to 9), or
+    1 to 12 behind a marker (one figure: 1 to 9), each minute, each second
+    where it writes them, and both halves of the day where it is marked.
+    The step is moved around the form's whole room as `_filled_form` moves
+    it, and where it lands inside the supply -- the first steps always do
+    -- the time it names is written, stepped around the supply by the same
+    stride; past it, None, and the form's other spellings follow as before.
+
+    Guarantees: a function of the two; every spelling returned is read by
+    `parsing.clock_parts`. Raises nothing. No I/O of any kind.
+    """
+    body = form
+    marked = ("", "")
+    space = ""
+    for mark, morning, evening in _CLOCK_FORM_MARKS:
+        if len(body) > len(mark) and body[len(body) - len(mark) :] == mark:
+            body = body[: len(body) - len(mark)]
+            marked = (morning, evening)
+            if body[len(body) - 1 :] == " ":
+                body = body[: len(body) - 1]
+                space = " "
+            break
+    digit = parsing.SHAPE_DIGIT
+    shapes = {
+        digit + digit + ":" + digit + digit: (2, False),
+        digit + ":" + digit + digit: (1, False),
+        digit + digit + ":" + digit + digit + ":" + digit + digit: (2, True),
+        digit + ":" + digit + digit + ":" + digit + digit: (1, True),
+    }
+    if body not in shapes:
+        return None
+    figures, seconds = shapes[body]
+    first = 1 if marked[0] else 0
+    last = 12 if marked[0] else 23
+    if figures == 1:
+        last = 9
+    hours = last - first + 1
+    supply = hours * 60 * (60 if seconds else 1) * (2 if marked[0] else 1)
+    index = step % _form_room(form)
+    if index >= supply:
+        return None
+    place = _stepped_around(index, supply)
+    hour = first + place % hours
+    place = place // hours
+    minute = place % 60
+    place = place // 60
+    text = (f"{hour:02d}" if figures == 2 else f"{hour}") + f":{minute:02d}"
+    if seconds:
+        text = text + f":{place % 60:02d}"
+        place = place // 60
+    if marked[0]:
+        text = text + space + marked[place % 2]
+    return text
 
 
 # How many spellings of one form a stand-in walk will try before it
@@ -43089,6 +43602,14 @@ def _clock_windows(
     lows: "list[int]" = []
     highs: "list[int]" = []
     parsed = layout.parsed
+    # A column laid on its census, heaps and step carries its own windows
+    # (3b.C1, P4-D373; `calendar_clock.clock_rank_windows`).
+    if isinstance(layout, _ClockCensusLayout):
+        for rank in range(held):
+            place = min(rank, max(parsed - 1, 0))
+            lows += [layout.lows[place] if layout.lows else 0]
+            highs += [layout.highs[place] if layout.highs else 0]
+        return (lows, highs)
     stepped = _body_bounds(layout)
     for rank in range(held):
         place = min(rank, max(parsed - 1, 0))

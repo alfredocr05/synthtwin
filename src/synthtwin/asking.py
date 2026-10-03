@@ -120,6 +120,12 @@ ANSWER_DECIMAL_COMMA = "decimal_comma"
 # to ask for what we need").
 ANSWER_TWELVE_HOUR = "twelve-hour"
 BECAUSE_TWELVE_HOUR = "hours-from-one-to-twelve-and-no-am-or-pm"
+# ...and the tenth (landing 3b.5, plan P4-D373): a column of clock times
+# holding few enough different values for a set of labels -- the shift
+# starts `07:00`, `15:00` and `23:00` -- is read as clock times since that
+# landing, and a list of labels is written exactly alike, so the run asks.
+# Enter keeps the times; `code` is `--code`, which reads it as labels.
+BECAUSE_FEW_CLOCK_TIMES = "few-times-of-day-each-shared-by-many-rows"
 
 # THE FIFTH DECLARATION, AND THE FIRST THAT IS NOT ABOUT A COLUMN (plan
 # P4-D81). Some survey exports write two rows UNDER the column names
@@ -569,11 +575,20 @@ def _clock_publishes(floor: int, role: str = taxonomy.ROLE_CLOCK) -> str:
     along = "along the day"
     if role == taxonomy.ROLE_DATETIME:
         along = "along its range of dates and times"
-    return (
+    said = (
         f"points {along} and the two tails beyond them, but neither end: "
         f"each end is published only where at least {floor} rows share "
         f"the value"
     )
+    if role == taxonomy.ROLE_CLOCK:
+        # ...AND THE CENSUS OF A CLOCK (landing 3b.5, plan P4-D373).
+        said = (
+            f"{said}; and every time at least {floor} rows share that "
+            f"stands out from the times beside it, with how many rows "
+            f"share it, and how many of the others fall in each stretch "
+            f"of the day, each such count at least {floor}"
+        )
+    return said
 
 
 def _publishes_under(answer: str, role: str, floor: int) -> str:
@@ -978,6 +993,60 @@ def _clock_question(
     return None
 
 
+def _clock_or_labels_question(
+    block: "dict[str, object]",
+    present: "list[str]",
+    settings: taxonomy.Settings,
+    n_rows: int,
+) -> "Question | None":
+    """The question a column of few clock times raises (landing 3b.5).
+
+    WHAT THE VALUES CANNOT SETTLE. Since plan P4-D373 a column of clock
+    times is read as clock times however few different values it holds,
+    where it used to be a set of labels once it held no more than the
+    categories line (`taxonomy.categories_ceiling`). Both readings fit
+    such a column: as times its shared values are published as heaps with
+    their counts and the rest as counts of ten-minute stretches, and the
+    twin writes times of day; as labels every value at least the floor's
+    rows share is published with its count and the rest counted together.
+    Enter keeps the times; `code` is `--code` on this column.
+
+    Guarantees: accepts the column's block, its present cells, the
+    settings and the table's rows; returns the question or None. No cell
+    of the column appears in it. Raises nothing. No I/O.
+    """
+    if f"{block['role']}" != taxonomy.ROLE_CLOCK:
+        return None
+    different = block["n_distinct_folded"] if "n_distinct_folded" in block else None
+    if not isinstance(different, int):
+        return None
+    if different > taxonomy.categories_ceiling(n_rows, settings):
+        return None
+    floor = settings.small_cell_floor
+    role = taxonomy.ROLE_CLOCK
+    return Question(
+        f"{block['name']}",
+        role,
+        BECAUSE_FEW_CLOCK_TIMES,
+        _shape_of(BECAUSE_FEW_CLOCK_TIMES, present, floor),
+        [
+            Choice(
+                ANSWER_KEEP,
+                "leave it as it is -- times of day, such as when a shift "
+                "starts",
+                _publishes_under(ANSWER_KEEP, role, floor),
+            ),
+            Choice(
+                ANSWER_CODE,
+                "labels that happen to be written as times -- each value "
+                "names a group, not a moment",
+                _publishes_under(ANSWER_CODE, role, floor),
+            ),
+        ],
+        ANSWER_KEEP,
+    )
+
+
 def questions_and_splits_for(
     document: "dict[str, object]",
     table_columns: "list[list[str]]",
@@ -1037,6 +1106,12 @@ def questions_and_splits_for(
             block, present, settings.small_cell_floor,
             settings.forced_twelve_hour_clocks,
         )
+        if clock is None:
+            # ...or, where both readings fit, whether the times are labels
+            # (landing 3b.5, plan P4-D373).
+            clock = _clock_or_labels_question(
+                block, present, settings, len(table_columns[position])
+            )
         if clock is not None:
             asked += [clock]
             position = position + 1
@@ -1741,6 +1816,17 @@ def _shape_of(
             "every value writes a time of day whose hour is from 1 to 12, "
             "with no AM or PM, which a 24-hour clock and a 12-hour clock "
             "both write"
+        )
+    if reason == BECAUSE_FEW_CLOCK_TIMES:
+        # HOW MANY DIFFERENT TIMES, which the description publishes as
+        # `n_distinct_folded`, and nothing else.
+        times: "dict[str, int]" = {}
+        for value in present:
+            times[parsing.folded(value)] = 1
+        return (
+            f"its values are times of day, and the column holds only "
+            f"{len(times)} different value(s) over {len(present)} "
+            f"cell(s), which a list of labels written as times also holds"
         )
     if reason == BECAUSE_POINT_THOUSANDS:
         return (
@@ -2749,7 +2835,18 @@ def codes_elsewhere(
 def _now_publishes(role: str, floor: int, found: DateCodes) -> str:
     """What a column of dates beside codes publishes while nobody answers."""
     dates = "times of day" if found.reading in _CLOCK_EXAMPLES else "dates"
-    if role == taxonomy.ROLE_DATETIME or role == taxonomy.ROLE_CLOCK:
+    if role == taxonomy.ROLE_CLOCK:
+        # A CODE IS WRITTEN BACK (landing 3b.5, plan P4-D373): each such
+        # spelling at least the floor's rows wrote is published with its
+        # count, and the twin writes it as the table does.
+        return (
+            f"what it publishes now: points along its range and the tails "
+            f"beyond them, with the rows holding those spellings counted as "
+            f"values that are not {dates}; each spelling at least {floor} "
+            f"rows share is written back in the twin as your table writes "
+            f"it, and the rarer ones as made-up text"
+        )
+    if role == taxonomy.ROLE_DATETIME:
         return (
             f"what it publishes now: points along its range and the tails "
             f"beyond them, with the rows holding those spellings counted as "

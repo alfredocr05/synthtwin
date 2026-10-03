@@ -68,10 +68,6 @@ _RESERVED: "dict[tuple[str, str], object]" = {
     ("datetime", "minute_heaps"): [],
     ("datetime", "second_heaps"): [],
     # -- 3b.C1 (P4-D373)
-    ("time_of_day", "clock_census"): [],
-    ("time_of_day", "clock_heaps"): [],
-    ("time_of_day", "clock_step"): None,
-    ("time_of_day", "clock_codes"): [],
     # -- 3b.C2 (P4-D374)
     ("time_of_day", "minute_census"): [],
 }
@@ -91,10 +87,6 @@ _GUARDED = (
     ("seen_at", "second_census", [{"first": 0, "last": 59, "count": 300}]),
     ("seen_at", "second_heaps", [{"value": 0, "count": 30}]),
     # -- 3b.C1 (P4-D373)
-    ("slot", "clock_step", 60),
-    ("slot", "clock_census", [{"first": 0, "last": 143, "count": 300}]),
-    ("slot", "clock_heaps", [{"value": "07:00", "count": 30}]),
-    ("slot", "clock_codes", [{"spelling": "not recorded", "count": 20}]),
     # -- 3b.C2 (P4-D374)
     # No case of its own: a clock block's `minute_census` is published
     # under the path of 3b.T3's key, so the rows 3b.T3 adds admit it here
@@ -124,8 +116,6 @@ _STUBS = (
     ("spread", generation._clock_fields_spread),
     ("check", validation._clock_field_checks),
     # -- 3b.C1 (P4-D373)
-    ("clock layout", generation._clock_census_laid),
-    ("clock check", validation._clock_census_checks),
     # -- 3b.C2 (P4-D374)
     ("clock layout", generation._clock_minutes_laid),
     ("clock check", validation._clock_minute_checks),

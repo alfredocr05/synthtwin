@@ -161,7 +161,7 @@ import math
 from synthtwin.paths import validate_local_path
 import pathlib
 
-from synthtwin import calendar_rules, contract, dialect, errors, parsing, profile, reading, taxonomy
+from synthtwin import calendar_clock, calendar_rules, contract, dialect, errors, parsing, profile, reading, taxonomy
 
 
 # THE G12.3 WINDOWS ARE WRITTEN ONCE, IN `taxonomy` (plan P4-D353). The
@@ -483,10 +483,6 @@ INPUT_SIDE_ENTRIES = (
     # -- 3b.D4 (P4-D369)
     ("datetime", "heavy_dates"),
     # -- 3b.C1 (P4-D373)
-    ("clock", "clock_census"),
-    ("clock", "clock_heaps"),
-    ("clock", "clock_step"),
-    ("clock", "clock_codes"),
     # -- 3b.C2 (P4-D374)
     ("clock", "minute_census"),
 )
@@ -15754,6 +15750,46 @@ def _clock_tail_windows(
         edge = max(1, at if low_side else capacity - 1 - at)
         mean = 1.0 if tail.mean_distance is None else tail.mean_distance
         root = mean if tail.rms_distance is None else tail.rms_distance
+        # A TAIL HOLDING HEAPS (landing 3b.5, plan P4-D373; method
+        # G7A.4b): its heaps' cells stand on their values and the rest
+        # are drawn through the shape the rows and the two distances left
+        # give, so its window is the heaps' distances beside that shape's.
+        heaped: "list[tuple[int, int]]" = []
+        stride = 1
+        if facts.clock_step is not None:
+            stride = max(1, facts.clock_step // parsing.clock_step(facts.clock_form))
+            for value, count in facts.clock_heaps:
+                here = _clock_ordinal_or_zero(value, facts.clock_form)
+                distance = at - here if low_side else here - at
+                if distance > 0:
+                    heaped += [(distance, count)]
+        if heaped or stride > 1:
+            rows, mean, root = calendar_clock.tail_less_heaps(
+                tail.rows, tail.mean_distance, tail.rms_distance, sorted(heaped)
+            )
+            near: "list[int]" = []
+            far: "list[int]" = []
+            skipped = [distance // stride for distance, _count in sorted(heaped)]
+            if rows > 0:
+                steps = edge // stride
+                inside = len([d for d in skipped if d <= steps])
+                drawn = _tail_construction(
+                    rows, max(1.0, mean / stride), max(1.0, root / stride),
+                    floor, max(1, steps - inside), apart, {}, at, low_side, None,
+                )
+                near = [
+                    stride * calendar_clock.off_the_heaps(d, skipped)
+                    for d in drawn[0]
+                ]
+                far = [
+                    stride * calendar_clock.off_the_heaps(d, skipped)
+                    for d in drawn[1]
+                ]
+            for distance, count in sorted(heaped):
+                near = near + [distance for _copy in range(count)]
+                far = far + [distance for _copy in range(count)]
+            found[key] = (near, far)
+            continue
         found[key] = _tail_construction(
             tail.rows, mean, root, floor, edge, apart, {}, at, low_side, None
         )
@@ -16389,14 +16425,141 @@ def _clock_census_checks(
 ) -> "list[Check]":
     """A clock column's census, heaps, step and codes, held exactly.
 
-    THE STUB OF LANDING 3b.5 (lane C1, plan P4-D373), which fills this
-    check and nothing beside it (plan P4-D364). No column publishes any
-    of the four until then, so there is nothing to check.
+    LANDING 3b.5 (lane C1, plan P4-D373; validation V5-C1 and V5-C2). The
+    file's own cells are counted here, never produced: its re-description
+    publishes none of the four (`produced` false), so no validate run asks
+    the producer's rules. Each cell is read in the PUBLISHED form, as the
+    tails are. Four checks, where the description publishes a step:
+
+    - V5-C1, `clock_step.values`: every value of the file stands on the
+      published step. Silent: it names no count.
+    - V5-C1, `clock_census.groups`: the file's values between the two
+      PUBLISHED boundaries, both included (every value, on a column with
+      no tails), that stand on no published heap, counted per published
+      group, each exactly.
+    - V5-C2, `clock_heaps.counts`: every published heap's count of the
+      file's cells, exactly, over the whole column.
+    - V5-C2, `clock_codes.counts`: every published code's count of the
+      file's cells, exactly.
+
+    A MISSED LINE KEEPS ITS VERDICT AND DROPS ANY NUMBER BELOW THE LINE,
+    by the one printing rule of every census check (`_census_lines`).
 
     Guarantees: accepts the column, its facts, the file's own block, its
-    cells and the floor; returns no check. Raises nothing. No I/O.
+    cells and the floor; returns the checks, none where no step is
+    published. Determinism: a function of the arguments. Raises nothing.
+    No I/O of any kind.
     """
-    return []
+    if facts.clock_step is None:
+        return []
+    name = column.name
+    form = facts.clock_form
+    unit = parsing.clock_step(form)
+    stride = max(1, facts.clock_step // unit)
+    line = parsing.census_floor(floor)
+    # EACH DIFFERENT SPELLING READ ONCE, and counted.
+    spelled: "dict[str, int]" = {}
+    for cell in [] if cells is None else cells:
+        spelled[cell] = (spelled[cell] if cell in spelled else 0) + 1
+    values: "dict[int, int]" = {}
+    for cell in spelled:
+        found = parsing.clock_ordinal(cell, form)
+        if found is not None:
+            values[found] = (values[found] if found in values else 0) + spelled[cell]
+    checks: "list[Check]" = [
+        _silent(
+            name,
+            "clock.clock_step",
+            "clock_step.values",
+            f"every value on a step of {facts.clock_step} seconds",
+            all(at % stride == 0 for at in values),
+            _NOT_SHOWN_IT_IS_TEXT_OF_THE_FILE,
+        )
+    ]
+    heap_at: "dict[int, int]" = {}
+    for heap, _count in facts.clock_heaps:
+        heap_at[_clock_ordinal_or_zero(heap, form)] = 0
+    for at in values:
+        if at in heap_at:
+            heap_at[at] = heap_at[at] + values[at]
+    if facts.clock_census:
+        lowest = 0
+        highest = parsing.CLOCK_CAPACITY[form] - 1
+        if facts.low_tail is not None and facts.high_tail is not None:
+            lowest = _clock_ordinal_or_zero(facts.low_tail.boundary, form)
+            highest = _clock_ordinal_or_zero(facts.high_tail.boundary, form)
+        bins = [0 for _bin in range(calendar_clock.clock_bin_count(form))]
+        for at in values:
+            if at in heap_at or not lowest <= at <= highest:
+                continue
+            place = calendar_clock.clock_bin_of(at, form)
+            bins[place] = bins[place] + values[at]
+        found_counts = calendar_rules.group_counts(facts.clock_census, bins)
+        asked, shown, lines = _census_lines(
+            [
+                (_clock_bins_named(first, last), count)
+                for first, last, count in facts.clock_census
+            ],
+            found_counts,
+            line,
+        )
+        wanted = [count for _first, _last, count in facts.clock_census]
+        checks += [
+            Check(
+                name,
+                "clock.clock_census",
+                "clock_census.groups",
+                HELD if found_counts == wanted else MISSED,
+                asked,
+                shown,
+                "",
+                tuple(lines),
+            )
+        ]
+    for fact, subcheck, listed, counted in (
+        (
+            "clock.clock_heaps",
+            "clock_heaps.counts",
+            facts.clock_heaps,
+            [heap_at[_clock_ordinal_or_zero(value, form)] for value, _c in facts.clock_heaps],
+        ),
+        (
+            "clock.clock_codes",
+            "clock_codes.counts",
+            facts.clock_codes,
+            [spelled[text] if text in spelled else 0 for text, _c in facts.clock_codes],
+        ),
+    ):
+        if not listed:
+            continue
+        asked, shown, lines = _census_lines(
+            [(f"{text}", count) for text, count in listed], counted, line
+        )
+        wanted = [count for _text, count in listed]
+        checks += [
+            Check(
+                name,
+                fact,
+                subcheck,
+                HELD if counted == wanted else MISSED,
+                asked,
+                shown,
+                "",
+                tuple(lines),
+            )
+        ]
+    return checks
+
+
+def _clock_bins_named(first: int, last: int) -> str:
+    """A group of ten-minute bins as the report names it: `07:00 to 07:39`.
+
+    The bins are this package's own grid, so the times are its own and
+    no value of the table.
+    """
+    start = first * 10
+    stop = last * 10 + 9
+    return f"{start // 60:02d}:{start % 60:02d} to {stop // 60:02d}:{stop % 60:02d}"
 
 
 def _clock_minute_checks(
@@ -16676,6 +16839,13 @@ def _clock_rank_windows(
     highs: "list[int]" = []
     low = facts.low_tail
     high = facts.high_tail
+    # A COLUMN LAID ON ITS CENSUS, HEAPS AND STEP (landing 3b.5, plan
+    # P4-D373; method G12.10 as G7A.4b leaves it): every body rank inside
+    # its census group's steps, read by the generator's own rule
+    # (`calendar_clock.clock_rank_windows`), in seconds.
+    census = _clock_census_windows(facts, parsed)
+    if census is not None:
+        return census
     if low is None or high is None:
         spread = max(1, min(parsed, column.n_distinct - facts.n_unparsed))
         for rank in range(parsed):
@@ -16753,6 +16923,44 @@ def _clock_rank_windows(
             step * min(_clock_knot_at(knots, 100 * (rank + 1) * word), high_at)
         ]
     return (lows, highs)
+
+
+def _clock_census_windows(
+    facts: contract.ClockFacts, parsed: int
+) -> "tuple[list[int], list[int]] | None":
+    """Every rank's window on a column publishing a step, in seconds, or None.
+
+    None where no step is published, which is every column laid as G7A.4
+    lays it. Otherwise G7A.4b's windows (`calendar_clock.clock_rank_windows`)
+    over the published tails, census and heaps.
+    """
+    if facts.clock_step is None:
+        return None
+    form = facts.clock_form
+    unit = parsing.clock_step(form)
+    stride = max(1, facts.clock_step // unit)
+    capacity = parsing.CLOCK_CAPACITY[form]
+    tails: "tuple[int, int] | None" = None
+    body = (0, ((capacity - 1) // stride) * stride)
+    if facts.low_tail is not None and facts.high_tail is not None:
+        tails = (facts.low_tail.rows, facts.high_tail.rows)
+        body = (
+            _clock_ordinal_or_zero(facts.low_tail.boundary, form),
+            _clock_ordinal_or_zero(facts.high_tail.boundary, form),
+        )
+    heaps = tuple(
+        (_clock_ordinal_or_zero(value, form), count)
+        for value, count in facts.clock_heaps
+    )
+    windows = calendar_clock.clock_rank_windows(
+        parsed, tails, body, facts.clock_census, heaps, form, stride
+    )
+    if windows is None:
+        return None
+    return (
+        [unit * value for value in windows[0]],
+        [unit * value for value in windows[1]],
+    )
 
 
 def _clock_knot_at(knots: "list[tuple[int, int]]", position: int) -> int:
@@ -18439,6 +18647,12 @@ def _clock_distinct_window(
     parsed = max(1, column.n_present - facts.n_unparsed)
     lows, highs = _clock_rank_windows(column, facts, parsed, floor)
     separate = _ranks_forced_apart(lows, highs)
+    # THE CODES ARE WRITTEN AS THEY COUNT (landing 3b.5, plan P4-D373): a
+    # published code is one spelling however many cells hold it, and every
+    # other stand-in is a spelling of its own.
+    stand_ins = facts.n_unparsed
+    for _spelling, count in facts.clock_codes:
+        stand_ins = stand_ins - count + 1
     upper = column.n_present
     if facts.low_tail is not None and facts.high_tail is not None:
         low_at = _clock_ordinal_or_zero(facts.low_tail.boundary, facts.clock_form)
@@ -18446,8 +18660,8 @@ def _clock_distinct_window(
         room = (
             high_at - low_at + 1 + facts.low_tail.rows + facts.high_tail.rows
         )
-        upper = min(column.n_present, room + facts.n_unparsed)
-    lower = min(separate + facts.n_unparsed, upper)
+        upper = min(column.n_present, room + stand_ins)
+    lower = min(separate + stand_ins, upper)
     return (float(lower), float(upper))
 
 

@@ -1011,6 +1011,10 @@ NOTE_WEEKDAY_WITHHELD_NO_TAILS = "weekday_census_withheld_no_tails"
 # anchor 3b-T2 (P4-D371)
 # anchor 3b-T3 (P4-D372)
 # anchor 3b-C1 (P4-D373)
+# THE CLOCK CENSUS'S TWO SENTENCES (landing 3b.5, plan P4-D373; contract
+# NF106 and NF107), each naming the census line and no count of rows.
+NOTE_CLOCK_CENSUS_LEFT_OUT = "clock_census_left_out_beside_the_heaps"
+REMARK_CLOCK_CODES_WRITTEN = "clock_codes_written_back"
 # anchor 3b-C2 (P4-D374)
 # anchor 3b-G1 (P4-D375)
 # anchor 3b-G3 (P4-D376)
@@ -1177,6 +1181,8 @@ NOTE_ARITY: "dict[str, int]" = {
     # anchor 3b-T2 (P4-D371)
     # anchor 3b-T3 (P4-D372)
     # anchor 3b-C1 (P4-D373)
+    NOTE_CLOCK_CENSUS_LEFT_OUT: 1,
+    REMARK_CLOCK_CODES_WRITTEN: 1,
     # anchor 3b-C2 (P4-D374)
     # anchor 3b-G1 (P4-D375)
     # anchor 3b-G3 (P4-D376)
@@ -1396,6 +1402,8 @@ ARGUMENT_BINDINGS: "dict[tuple[str, int], tuple[object, ...]]" = {
     # anchor 3b-T2 (P4-D371)
     # anchor 3b-T3 (P4-D372)
     # anchor 3b-C1 (P4-D373)
+    (NOTE_CLOCK_CENSUS_LEFT_OUT, 0): (BIND_SETTING, "census line"),
+    (REMARK_CLOCK_CODES_WRITTEN, 0): (BIND_SETTING, "census line"),
     # anchor 3b-C2 (P4-D374)
     # anchor 3b-G1 (P4-D375)
     # anchor 3b-G3 (P4-D376)
@@ -2057,6 +2065,21 @@ def rendered(form: str, arguments: "tuple[object, ...]") -> str:
     # anchor 3b-T2 (P4-D371)
     # anchor 3b-T3 (P4-D372)
     # anchor 3b-C1 (P4-D373)
+    if form == NOTE_CLOCK_CENSUS_LEFT_OUT:
+        return (
+            f"how many of this column's times fall in each ten-minute "
+            f"stretch of the day is not counted: beside the times many rows "
+            f"share, fewer than {_whole(arguments, 0)} of the values it "
+            f"would count are left, and no count below "
+            f"{_whole(arguments, 0)} is printed"
+        )
+    if form == REMARK_CLOCK_CODES_WRITTEN:
+        return (
+            f"some cells of this column hold text that is not a time of day; "
+            f"each such text that at least {_whole(arguments, 0)} rows wrote "
+            f"is published with how many rows wrote it, and the twin writes "
+            f"it exactly that many times, as the table writes it"
+        )
     # anchor 3b-C2 (P4-D374)
     # anchor 3b-G1 (P4-D375)
     # anchor 3b-G3 (P4-D376)
@@ -15918,15 +15941,80 @@ def _clock_census_published(
 ) -> "tuple[dict[str, object], list[Note], list[Note]]":
     """A column block of clock times with its census, heaps, step and codes.
 
-    THE STUB OF LANDING 3b.5 (lane C1, plan P4-D373), which fills this
-    producer and nothing beside it; until then `clock_census`,
-    `clock_heaps` and `clock_codes` are `[]` and `clock_step` is `null`
-    on every block, and no sentence is said.
+    LANDING 3b.5 (lane C1, plan P4-D373; contract 6.13, method G7A.4b),
+    over the cells the block's own clock reading accepted -- every present
+    cell its form reads, in the form's own unit -- and the boundaries the
+    block publishes:
+
+    - `clock_step`, the seconds every parsed value stands on;
+    - `clock_heaps`, every value on that step standing out from the five
+      steps either side by the median rule, over EVERY parsed cell,
+      written in the column's own form, with its count;
+    - `clock_census`, the body's cells on no heap counted in nested
+      groups of ten-minute bins (`calendar_clock.nested_groups`), or `[]`
+      with a note (NF106) where fewer than the census line are left;
+    - `clock_codes`, every spelling the reading did not accept that at
+      least the census line's rows wrote, with its count, in text order,
+      and a remark that the twin writes them back (NF107).
+
+    Each is a count of the column's own cells at or above the census line
+    (`parsing.census_floor`), so none names fewer rows than the floor. On
+    the validator's own re-description (`produced` false) every key is
+    empty and `clock_step` null: the checker counts the file's cells
+    against the published groups instead.
 
     Guarantees: as `_hour_published`. No I/O of any kind.
     """
     block, notes, remarks = _reserved_lists(details, calendar_clock.CLOCK_LISTS)
     block[calendar_clock.CLOCK_STEP] = None
+    form = details["clock_form"] if "clock_form" in details else None
+    if not produced or not isinstance(form, str) or form not in parsing.CLOCK_FORMS:
+        return block, notes, remarks
+    line = parsing.census_floor(settings.small_cell_floor)
+    # EACH DIFFERENT SPELLING READ ONCE: a column of clock times holds at
+    # most one spelling a second of the day, so a million rows are read
+    # in at most 86,400 readings.
+    spelled: "dict[str, int]" = {}
+    for text in cells.present:
+        spelled[text] = (spelled[text] if text in spelled else 0) + 1
+    ordinals: "dict[int, int]" = {}
+    unread: "dict[str, int]" = {}
+    for text in spelled:
+        found = parsing.clock_ordinal(text, form)
+        if found is None:
+            unread[text] = spelled[text]
+            continue
+        ordinals[found] = (ordinals[found] if found in ordinals else 0) + spelled[text]
+    if not ordinals:
+        return block, notes, remarks
+    body: "tuple[int, int] | None" = None
+    low = details["low_tail"] if "low_tail" in details else None
+    high = details["high_tail"] if "high_tail" in details else None
+    if isinstance(low, dict) and isinstance(high, dict):
+        low_at = parsing.clock_ordinal(f"{low['boundary']}", form)
+        high_at = parsing.clock_ordinal(f"{high['boundary']}", form)
+        if low_at is not None and high_at is not None:
+            body = (low_at, high_at)
+    counted = calendar_clock.clock_census_of(ordinals, form, line, body)
+    block[calendar_clock.CLOCK_STEP] = counted.step
+    block[calendar_clock.CLOCK_HEAPS] = [
+        {"value": parsing.clock_spelling(value, form), "count": count}
+        for value, count in counted.heaps
+    ]
+    block[calendar_clock.CLOCK_CENSUS] = [
+        {"first": first, "last": last, "count": count}
+        for first, last, count in counted.groups
+    ]
+    if counted.left_out:
+        notes = notes + [note(NOTE_CLOCK_CENSUS_LEFT_OUT, (line,))]
+    codes = [
+        {"spelling": spelling, "count": unread[spelling]}
+        for spelling in sorted(unread)
+        if unread[spelling] >= line
+    ]
+    block[calendar_clock.CLOCK_CODES] = codes
+    if codes:
+        remarks = remarks + [note(REMARK_CLOCK_CODES_WRITTEN, (line,))]
     return block, notes, remarks
 
 
@@ -17133,6 +17221,66 @@ def _joined_verdict(
         details=_joined_details(joined, cells.settings),
         notes=notes,
         remarks=remarks,
+    )
+
+
+def _rare_beside_clocks(
+    cells: _Cells,
+    classified: "list[_Cell]",
+    n_rows: int,
+    settings: Settings,
+    decimal_comma: bool,
+) -> "tuple[str, ...]":
+    """The rare words a column of clock times holds, or nothing (P4-D373).
+
+    The folded values below the floor no spelling of which a clock reader
+    takes, where the column without exactly their cells has a clock
+    reading (`_clock_reading`); nothing otherwise, and nothing where there
+    are none. The level pass counts these cells missing and lets every
+    rule read the column again (`_read_the_column`).
+
+    Guarantees: a function of the arguments, in sorted order. Raises
+    nothing. No I/O of any kind.
+    """
+    floor = settings.small_cell_floor
+    rare: "dict[str, bool]" = {}
+    for folded in sorted(cells.folded_counts):
+        if cells.folded_counts[folded] >= floor:
+            continue
+        spellings = cells.spellings_by_folded[folded]
+        if any(parsing.clock_parts(spelling) is not None for spelling in spellings):
+            continue
+        rare[folded] = True
+    if not rare:
+        return ()
+    kept = [cell for cell in classified if cell.folded not in rare]
+    if not kept:
+        return ()
+    reduced = _tally(kept, n_rows, settings, decimal_comma)
+    if _clock_reading(reduced) is None:
+        return ()
+    return tuple(sorted(rare))
+
+
+def _clock_spellings_reach(cells: _Cells) -> bool:
+    """Whether enough present cells are written as SOME clock to clear the line.
+
+    Counted over the column's different spellings, each read once, so a
+    column of a few labels is answered in as many reads as it has
+    spellings (landing 3b.5, plan P4-D373). A necessary condition of
+    `_clock_reading`, never a sufficient one: that reading also asks which
+    precision and face the cells keep.
+
+    Guarantees: a function of the tally. Raises nothing. No I/O.
+    """
+    reached = 0
+    for spellings in cells.spellings_by_folded.values():
+        for spelling in spellings:
+            if parsing.clock_parts(spelling) is not None:
+                reached = reached + spellings[spelling]
+    present = len(cells.present)
+    return present > 0 and reached >= max(
+        1, _needed(cells.settings.minimum_parse_rate, present)
     )
 
 
@@ -19484,6 +19632,31 @@ def _decide(
         if numeric_looking >= strict_needed and not labels_only:
             return _numeric_verdict(cells, notes, remarks)
 
+        # RULE 8, ASKED BEFORE RULE 7 WHERE RULE 7 WOULD CLAIM THE COLUMN
+        # (landing 3b.5, plan P4-D373). A column of clock times holding
+        # few enough different values was a set of LABELS: its rare times
+        # were counted missing and written blank by the level pass, or
+        # pooled and written as made-up text of the clock's shape that no
+        # clock reader takes -- measured on 1,000 rows at the floor of
+        # eleven, 64 to 107 blank cells a column, and on 10,000 rows 23 to
+        # 29 cells in 100 written as `36:54` or `57:95`, so code reading
+        # the times ran on the table and raised on its twin. Read as clock
+        # times, the values many rows share are published as HEAPS with
+        # their counts, the rest as a census of ten-minute bins, and every
+        # twin cell is a time. `--code` (and the level pass after it)
+        # still makes the column a set of labels, and the questions file
+        # asks where both readings fit (`asking`). The cells' own
+        # spellings are asked first, so a column of labels is not read
+        # cell by cell to learn that none is a clock time.
+        if (
+            not labels_only
+            and folded_distinct <= ceiling
+            and _clock_spellings_reach(cells)
+        ):
+            early_clock = _clock_reading(cells)
+            if early_clock is not None:
+                return _clock_verdict(cells, early_clock, notes, remarks)
+
         # RULE 7 -- a set of categories: at most the ceiling of different
         # values, counted after trimming and case folding. Tested after the
         # numeric rule, so a column of measurements is described as
@@ -21410,6 +21583,22 @@ def _read_the_column(
             stored_as=stored_as,
         )
         counted_out = _levels_read_by_subtraction(cells, trial.role)
+        # ...AND A COLUMN OF CLOCK TIMES BESIDE A FEW RARE WORDS IS A COLUMN
+        # OF CLOCK TIMES (landing 3b.5, plan P4-D373). Where what the
+        # floor would not name holds spellings no clock reader takes, and
+        # the column without exactly those reads as clock times, only
+        # those are counted out and the column is read again by every
+        # rule: the times left were times all along, as the numbers
+        # beside labels below were numbers. Without it, 296 shift starts
+        # beside four `UNK` at a floor of eleven were labels whose twin --
+        # those four cells blank -- read back as clock times.
+        clocks_left: "tuple[str, ...]" = ()
+        if counted_out and not forced_code and trial.role in _LEVEL_ROLES:
+            clocks_left = _rare_beside_clocks(
+                cells, classified, n_rows, settings, forced_decimal_comma
+            )
+        if clocks_left:
+            counted_out = clocks_left
         if counted_out:
             # AND WHETHER THE LABEL RULES ALONE MAY DECIDE AGAIN. On a
             # column of LABELS they must: the cells this pass removed
@@ -21422,7 +21611,7 @@ def _read_the_column(
             # measured, 98 readings beside two `trace` cells became FREE
             # TEXT and published no number at all, where the honest
             # answer is a column of 98 numbers with two holes.
-            labels_alone = trial.role in _LEVEL_ROLES
+            labels_alone = trial.role in _LEVEL_ROLES and not clocks_left
             # LOOKED UP, NOT WALKED (stage 4, plan P4-D385): every cell
             # asked the sorted list of the levels counted out, which on
             # a code register of 100,000 rows is 11,525 long.

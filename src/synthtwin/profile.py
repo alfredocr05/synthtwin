@@ -45,6 +45,7 @@ import importlib.metadata
 import pathlib
 
 from synthtwin import (
+    calendar_clock,
     calendar_rules,
     canonical,
     dialect,
@@ -876,6 +877,18 @@ _WEEKDAY_COUNT = "a-weekday-group-count-zero-or-at-the-census-line"
 # anchor 3b-T2 (P4-D371)
 # anchor 3b-T3 (P4-D372)
 # anchor 3b-C1 (P4-D373)
+# THE CENSUS OF A COLUMN OF CLOCK TIMES (landing 3b.5, plan P4-D373): a
+# group's first and last ten-minute bin of the dial and its count, nought
+# or at the census line; a heap's clock value and a code's count, each at
+# the census line; and the step the values stand on, in seconds -- or
+# nothing, on a block its producer was not asked for. Which groups, heaps
+# and codes may stand together is invariants CC1 to CC5 and CH1 to CH2,
+# asked with the block's other facts beside them.
+_TEN_MINUTE_BIN = "a-ten-minute-bin-of-the-dial"
+_CLOCK_COUNT = "a-clock-group-count-zero-or-at-the-census-line"
+_CLOCK_LINE_COUNT = "a-clock-count-at-the-census-line"
+_CLOCK_VALUE = "a-clock-time-in-its-columns-form"
+_CLOCK_STEP = "seconds-a-clock-steps-by-or-nothing"
 # anchor 3b-C2 (P4-D374)
 # anchor 3b-G1 (P4-D375)
 # anchor 3b-G3 (P4-D376)
@@ -1693,7 +1706,7 @@ _STATED_RULES: "dict[tuple[str, ...], str]" = {
     ("columns", _EACH, "heavy_dates"): _ARRAY,
     ("columns", _EACH, "clock_census"): _ARRAY,
     ("columns", _EACH, "clock_heaps"): _ARRAY,
-    ("columns", _EACH, "clock_step"): _NOTHING,
+    ("columns", _EACH, "clock_step"): _CLOCK_STEP,
     ("columns", _EACH, "clock_codes"): _ARRAY,
     # THE LANDINGS' ANCHORS (plan P4-D364): each landing of stage 3b adds
     # its rows below its own line.
@@ -1706,6 +1719,16 @@ _STATED_RULES: "dict[tuple[str, ...], str]" = {
     # anchor 3b-T2 (P4-D371)
     # anchor 3b-T3 (P4-D372)
     # anchor 3b-C1 (P4-D373)
+    ("columns", _EACH, "clock_census", _EACH): _OBJECT,
+    ("columns", _EACH, "clock_census", _EACH, "first"): _TEN_MINUTE_BIN,
+    ("columns", _EACH, "clock_census", _EACH, "last"): _TEN_MINUTE_BIN,
+    ("columns", _EACH, "clock_census", _EACH, "count"): _CLOCK_COUNT,
+    ("columns", _EACH, "clock_heaps", _EACH): _OBJECT,
+    ("columns", _EACH, "clock_heaps", _EACH, "value"): _CLOCK_VALUE,
+    ("columns", _EACH, "clock_heaps", _EACH, "count"): _CLOCK_LINE_COUNT,
+    ("columns", _EACH, "clock_codes", _EACH): _OBJECT,
+    ("columns", _EACH, "clock_codes", _EACH, "spelling"): _SPELLING,
+    ("columns", _EACH, "clock_codes", _EACH, "count"): _CLOCK_LINE_COUNT,
     # anchor 3b-C2 (P4-D374)
     # anchor 3b-G1 (P4-D375)
     # anchor 3b-G3 (P4-D376)
@@ -2595,6 +2618,28 @@ def _leaf_is_published(
     # anchor 3b-T2 (P4-D371)
     # anchor 3b-T3 (P4-D372)
     # anchor 3b-C1 (P4-D373)
+    if kind == _TEN_MINUTE_BIN:
+        if isinstance(value, bool) or not isinstance(value, int):
+            return False
+        return 0 <= value < calendar_clock.clock_bin_count(parsing.CLOCK_HH_MM)
+    if kind == _CLOCK_COUNT:
+        if isinstance(value, bool) or not isinstance(value, int):
+            return False
+        return calendar_rules.calendar_floor_ok(
+            value, parsing.census_floor(context.floor)
+        )
+    if kind == _CLOCK_LINE_COUNT:
+        if isinstance(value, bool) or not isinstance(value, int):
+            return False
+        return value >= parsing.census_floor(context.floor)
+    if kind == _CLOCK_VALUE:
+        return isinstance(value, str) and parsing.clock_form(value) is not None
+    if kind == _CLOCK_STEP:
+        if value is None:
+            return True
+        if isinstance(value, bool) or not isinstance(value, int):
+            return False
+        return 1 <= value and calendar_clock.clock_day(parsing.CLOCK_HH_MM) % value == 0
     # anchor 3b-C2 (P4-D374)
     # anchor 3b-G1 (P4-D375)
     # anchor 3b-G3 (P4-D376)
