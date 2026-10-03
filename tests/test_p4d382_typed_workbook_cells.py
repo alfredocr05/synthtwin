@@ -736,12 +736,12 @@ def _three_storages(epoch_1904: bool, code: str) -> bytes:
     workbook's own epoch.
     """
     openpyxl = crosscheck.fixture_writer()
-    from openpyxl.utils import datetime as sheet_dates
-
     book = openpyxl.Workbook()
     book.iso_dates = True
     if epoch_1904:
-        book.epoch = sheet_dates.CALENDAR_MAC_1904
+        # openpyxl's own 1904 epoch, spelled here so that only
+        # tests/crosscheck.py imports the cross-check reader.
+        book.epoch = datetime.datetime(1904, 1, 1)
     sheet = book.active
     sheet.title = "Data"
     sheet.cell(row=1, column=1, value="event_at")
