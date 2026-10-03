@@ -2698,10 +2698,10 @@ def _run_profile(
     # ranked: they ask for different readings and there is no reading of
     # the pair that is not a guess about which the person meant.
     both = [name for name in forced_codes if name in forced_identifiers]
-    both = both + [
+    both += [
         name for name in forced_measurements if name in forced_identifiers
     ]
-    both = both + [
+    both += [
         name for name in forced_measurements if name in forced_codes
     ]
     if both:

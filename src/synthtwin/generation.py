@@ -1885,7 +1885,7 @@ def _groups_of(pattern: "dict[str, int]") -> "tuple[int, ...]":
     sizes: list[int] = []
     for key in sorted(pattern):
         rows = int(key)
-        sizes = sizes + [rows for _each in range(pattern[key])]
+        sizes += [rows for _each in range(pattern[key])]
     return tuple(sizes)
 
 
@@ -13820,7 +13820,7 @@ def _style_strata(
     settled: list[str] = []
     for place in range(total):
         name = contract.NUMERIC_STYLES[packed[place]]
-        settled = settled + [name for _step in range(layout.sizes[place])]
+        settled += [name for _step in range(layout.sizes[place])]
     return settled
 
 
@@ -21921,7 +21921,7 @@ def _offset_allocation(
             for key in pins[rank]:
                 _pin_offset(rank, key, given, settled, left)
     keys = [key for key in sorted(left) if _is_real_offset(key)]
-    keys = keys + [key for key in sorted(left) if not _is_real_offset(key)]
+    keys += [key for key in sorted(left) if not _is_real_offset(key)]
     open_ranks = [rank for rank in range(parsed) if not settled[rank]]
     if bounds is not None:
         # THE RANK WITH THE FEWEST FEASIBLE KEYS TAKES ITS OFFSET FIRST
@@ -34449,7 +34449,7 @@ def _collision_slots(
         return cells
     width = len(_BANDS)
     needed = [place for place in range(min(partners, folded))]
-    needed = needed + [place for place in range(folded, total)]
+    needed += [place for place in range(folded, total)]
     barren = caseless if caseless is not None else frozenset()
     moved = [cell for cell in cells]
     for place in needed:
