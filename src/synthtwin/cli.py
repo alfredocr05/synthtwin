@@ -386,17 +386,38 @@ def _quoted_for_the_shell(value: object, windows: "bool | None" = None) -> str:
     # of its own: `say "no" twice` arrived as `say no twice`, and `UNK"`
     # opened a run that took the option typed after it into the value.
     # So each `"` is written `\"` with the backslashes before it doubled,
-    # and the backslashes ending a value with a space, which that shell
-    # wraps in double quotes, are doubled too -- the C runtime's own rule
-    # for reading a command line. PowerShell 7.3 or later hands such a
-    # value over whole and keeps those backslashes, so there the
-    # declaration misses its value and the question is put again; on
-    # neither is an option taken into a value or anything run.
+    # and the backslashes ending a value that holds white space, which
+    # that shell wraps in double quotes, are doubled too -- the C
+    # runtime's own rule for reading a command line. PowerShell 7.3 or
+    # later hands such a value over whole and keeps those backslashes, so
+    # there the declaration misses its value and the question is put
+    # again; on neither is an option taken into a value or anything run.
+    #
+    # WHITE SPACE IS EVERY CHARACTER .NET COUNTS AS WHITE SPACE, not the
+    # space and the tab alone (the verification of the repairs of the
+    # Codex review of lane R1, its open item 2). 5.1 wraps a value
+    # holding any character `Char.IsWhiteSpace` names -- the no-break
+    # space, the ideographic space and the other space separators, which
+    # the display boundary leaves as they are -- so `a`, a no-break
+    # space, `b` and `\` was printed with its one backslash, and in a
+    # model of 5.1's native command binder (no Windows PowerShell was at
+    # hand to run it) the program was handed one word, `a`, the space,
+    # `b`, a `"` and ` --code dose`: the option typed after the value
+    # was taken into it. `parsing.trimmed`
+    # empties a character exactly where Python reads it as white space,
+    # which takes in every character .NET counts. A character the
+    # display boundary shows escaped -- the tab, the line breaks, and the
+    # four separators below the space that Python counts too -- is no
+    # white space on the printed line, so a value whose only white space
+    # is one of those is not wrapped and its ending backslashes reach the
+    # program doubled: the declaration misses its value, as it already
+    # did for a value holding a character shown escaped, and nothing is
+    # taken into a value.
     inside = ""
     slashes = ""
     spaced = False
     for character in text:
-        if character == " " or character == "\t":
+        if not parsing.trimmed(character):
             spaced = True
         if powershell and character == "\\":
             slashes = slashes + character

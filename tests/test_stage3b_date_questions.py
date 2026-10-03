@@ -1037,9 +1037,11 @@ def _handed_over_by_windows_powershell(line: str) -> "list[str]":
 
     PowerShell reads each single-quoted word (a quote inside written
     twice) and each bare one. It builds the program's command line from
-    them, wrapping a word in double quotes only where a space stands
-    outside a run its own `"` open -- a `"` after a backslash opens none
-    -- and leaving every `"` inside as it is (`NeedQuotes` of its native
+    them, wrapping a word in double quotes only where white space stands
+    outside a run its own `"` open -- any character .NET's
+    `Char.IsWhiteSpace` names, the no-break space among them, which
+    `str.isspace` names too; a `"` after a backslash opens no run -- and
+    leaving every `"` inside as it is (`NeedQuotes` of its native
     command binder). The program reads that line by the C runtime's
     rule: backslashes are text unless a `"` follows, where each pair is
     one backslash and an odd one makes the `"` text; any other `"`
@@ -1072,7 +1074,7 @@ def _handed_over_by_windows_powershell(line: str) -> "list[str]":
         for character in word:
             if character == '"' and not after_slash:
                 quotes += 1
-            elif character == " " and quotes % 2 == 0:
+            elif character.isspace() and quotes % 2 == 0:
                 return f'"{word}"'
             after_slash = character == "\\"
         return word
@@ -1110,7 +1112,18 @@ def _handed_over_by_windows_powershell(line: str) -> "list[str]":
 
 @pytest.mark.parametrize(
     "value",
-    ['UNK"', 'a" b', 'say "no" twice', 'x" --code "y', 'a\\"b', "a b\\", "C:\\my data\\real.csv"],
+    [
+        'UNK"',
+        'a" b',
+        'say "no" twice',
+        'x" --code "y',
+        'a\\"b',
+        "a b\\",
+        "C:\\my data\\real.csv",
+        "a\u00a0b\\",
+        "Visit\u3000time\\",
+        "x\u2003\\\\",
+    ],
 )
 def test_a_double_quote_reaches_the_program_whole_from_windows_powershell(value: str) -> None:
     """`UNK"` handed over by Windows PowerShell 5.1 stays `UNK"`, and the option after it stays an option.
@@ -1121,9 +1134,17 @@ def test_a_double_quote_reaches_the_program_whole_from_windows_powershell(value:
     own: `say "no" twice` arrived as `say no twice`, and `UNK"` opened a
     run that took `--code dose`, the option typed after it, into the
     value. Each `"` is written as the C runtime reads it back, and the
-    backslashes before it or ending a value with a space doubled. Red on
-    the first repair of this review, which wrote the quote bare. On a
-    POSIX shell nothing changes.
+    backslashes before it or ending a value that holds white space
+    doubled. Red on the first repair of this review, which wrote the
+    quote bare. On a POSIX shell nothing changes.
+
+    And white space is every character .NET counts as such (the
+    verification of the repairs of this review, its open item 2): 5.1
+    wraps a value holding a no-break space, an ideographic space or an
+    em space as it wraps one holding a space, so `a`, a no-break space,
+    `b` and `\\` printed with one backslash reached the program as one
+    word holding `" --code dose`. Red on 27c604b, which doubled the
+    ending backslashes only beside a space or a tab.
     """
     import shlex
 
