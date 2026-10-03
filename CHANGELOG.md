@@ -133,7 +133,10 @@ every substring: `+` written 800 times took about 11 CPU seconds and
 takes a thousandth of one, every split the same as before, and a cell
 whose search would still read more than twenty million characters -- a
 run of figures thousands long -- stops the run with a sentence rather
-than search on. And `K-S3-55` judges whether the unread 10,000-row
+than search on. A run of spaces, line feeds or a declared column's
+points is read once from where it starts: read again from every place
+inside it, a note holding 7,000 line feeds and no figure stopped the run
+with that sentence. And `K-S3-55` judges whether the unread 10,000-row
 column was described, so a failed run is red.
 
 ### Excel's hour and the 12-hour clock, read and written back (2026-10-01)
