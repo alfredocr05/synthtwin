@@ -31,6 +31,28 @@ at 110cb46 and passes with its fix:
   -- the 12-hour question said every value wrote a time of day;
 * item 11 `test_item_11_no_retained_clause_contradicts_the_forty_forms`
   -- the contract and the method still refused a one-figure hour.
+
+And the fix stream's second round, each clause red at c13edd8, the head
+of its first round, and each but the bound's red at 110cb46 too:
+
+* items 1 and 2 `test_items_1_and_2_a_cell_counted_unread_is_in_no_recount`
+  -- where both widths spell a declared absence the cells so written
+  are counted unread, and validation's recount read them below a low
+  tail measured without them: the unchanged source missed four checks;
+* item 2 `test_item_2_a_stamp_on_another_face_is_in_no_recount` -- the
+  census of date widths still counted stamps on another face;
+* item 6 `test_item_6_a_census_the_first_walk_cannot_place_is_searched_most_ranks_first`
+  and `test_item_6_the_search_stops_at_its_bound_product_and_oracle_alike`
+  -- the search walked fewest ranks first and unbounded: 99 seconds on
+  a census built so that no assignment exists, and 2.8 million states
+  and 275 MB on one that a search most ranks first places in 99;
+* item 7, the converse clause of its test -- a declared column published
+  on the 24-hour face loaded, and the unchanged source missed 10 checks;
+* item 9 `test_item_9_a_pooled_marked_stamp_is_a_declaration_that_reached_nothing`
+  -- a declared stamp whose clocks write PM was told the declaration was
+  used;
+* item 10, the colon clause of its test -- a clock of the other
+  precision was said not to be numbers joined by a colon.
 """
 
 import copy
@@ -503,11 +525,23 @@ _RETIRED = {
         "the `time_of_day` role's two forms",
         "| `clock_form` | string | `hh-mm`, `hh-mm-ss` |",
         "Two clock forms in one column are not read as one clock",
+        # ...and the fix stream's second round: T3 still said every
+        # ladder agrees with text comparison, the line and its tie-break
+        # still spoke of two forms, and a tail window of `hh-mm` alone.
+        "and both agree with plain text comparison of the written rungs",
+        "Cells of the other clock form, and every other present cell",
+        "the finer wins: the column takes `hh-mm-ss`",
+        "in minutes (`hh-mm`) or seconds (`hh-mm-ss`)",
     ),
     "docs/spec/generation-method-v1.md": (
         "What the reader accepts is EXACTLY these two shapes",
         "zero-padded to two digits per",
         "an hour written with one digit such as `9:30`\n(the published spellings are fixed width)",
+        # ...and the second round: a cell of the other width is read, and
+        # a published value is no longer always the row's own text.
+        "values some row wore, character for character",
+        "A cell wearing the form the column did NOT publish is counted unparsed",
+        "minutes of the day for `hh-mm`, seconds for `hh-mm-ss`",
     ),
     "src/synthtwin/contract.py": ("two digits a field",),
 }

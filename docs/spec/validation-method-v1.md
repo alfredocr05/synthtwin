@@ -1278,13 +1278,23 @@ floor, so the real table meets its description by construction:
   the file reads on that face shows an hour width other than the
   published one -- a faithful twin that drew no hour below ten shows no
   width and is not accused -- and is MISSED otherwise;
-- a slashed stamp's TAILS are recounted over the cells its description
-  reads, and a stamp whose clock reads on another face than the
-  published style's is no date there, as the producer counts it unread
-  (contract NF108; the T1 review's item 2): three `12/31/2030 23:59`
-  beside 300 stamps written `3/17/2023 1:00 AM` stood in the high tail
-  the description measured without them, and the unchanged source
-  missed that tail's four checks;
+- EVERY RECOUNT of a slashed stamp or a clock column -- its tails, its
+  census of date widths, the fit of its written clock -- reads the cells
+  its description reads, and none the producer counted unread (the T1
+  review's items 1 and 2): a stamp whose clock reads on another face
+  than the published style's (contract NF108), and a clock or stamp
+  whose hour, written in the column's one width, would spell a value the
+  person declared missing where the other width would too (C6-10a).
+  Three `12/31/2030 23:59` beside 300 stamps written `3/17/2023 1:00 AM`
+  stood in the high tail the description measured without them, and
+  the unchanged source missed that tail's four checks; three
+  `3/18/2023 23:59` beside 600 such stamps were counted into the census
+  of date widths after the tail recount had stopped reading them, and it
+  missed one; and three `1:00` beside a declared `01:00` and `2:00`
+  stood below a low tail measured without them, four checks on a clock
+  and five on a stamp. Each side reads under its own settings, a clock
+  in the file's own form and a stamp at the published style, as the
+  recounts after it read them (`validation._cells_on_the_written_clock`);
 - `all_at_midnight` is compared where it is published `true`
   (`midnight.all`), and `n_at_midnight` where it is published at all,
   which is where it is above nought (`midnight.count`). The nought that

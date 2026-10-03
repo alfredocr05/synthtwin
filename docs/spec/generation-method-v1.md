@@ -6583,18 +6583,37 @@ other `parsed - named` ranks wear joint words the census does not name,
 in the order `padded`, `unpadded`, `first-padded`, `second-padded`:
 WHOLE DAYS AT A TIME, from the ranks that show both fields; each word
 on at most the line less one ranks and on fewer than the largest named
-count. THE DAYS ARE WALKED DEPTH FIRST (the T1 review's item 6): the
-days holding the fewest of those ranks first and the earlier day first
-among equals, each day put in the first word, then the next, then left
-out, and the first way whose days hold exactly the remainder is taken.
-The walk this replaced took each day that still fitted and never
-stepped back: on days of 4, 6 and 7 ranks under a remainder of 13 it
-took 4 and 6, could not take 7, and gave up, though 6 and 7 hold 13.
-Where the old walk reached the remainder the new one makes the same
-choice, its first path. Where no set of days holds the remainder
-exactly -- which is then true and not a walk's failure -- no rank moves
-and the report says so (`date_field_widths`): case (b), a remainder
-outnumbering the named word's visible cells, stays carried.
+count. The days that can be taken hold no more of those ranks than a
+word may or the remainder does, and of the days holding one number of
+ranks only the first `remainder // size` are walked, fewest ranks first
+and the earlier day first among equals. FIRST THE WALK THAT NEVER STEPS
+BACK, as landing T1 built it: each of those days, in that order, taken
+while the remainder still holds it and put in the first word with room,
+or left out where none has room, until the days taken hold exactly the
+remainder. WHERE IT FALLS SHORT, THE SEARCH (the T1 review's item 6: on
+days of 4, 6 and 7 ranks under a remainder of 13 the walk took 4 and 6,
+could not take 7, and gave up, though 6 and 7 hold 13): the same days
+MOST RANKS FIRST, the earlier day first among equals, depth first, each
+put in the first word, then the next, then left out, and the first way
+whose days hold exactly the remainder is taken. Most ranks first because
+it fills the words with the days that fit them least and leaves the
+small days to make up what is left: walked fewest ranks first, as the
+fix stream's first round walked it, a census of one day each of 1 to 99
+ranks under 297 looked at 2.8 million states, where most ranks first
+takes 99. The search does not walk a remainder past what the words hold
+together, a day from which the days left cannot make up what is left of
+the remainder, their words aside, or a day reached with the loads of
+one that failed before, in some order -- none of those can hold an
+assignment -- and it ENTERS AT MOST 100,000 STATES, a state being a day
+reached that none of those turned back; past that it places nothing.
+Only a census built to defeat it reaches the bound: unbounded, days of
+even sizes under an odd remainder at a floor of 100 walked every state
+there is for 99 seconds, and on 3,000 twin-like censuses at floors 11
+to 200 the search decided every one the first walk left to it within
+1,190 states. Where the search finds no set of days -- none exists, or
+the bound was reached -- no rank moves and the report says synthtwin
+found none (`date_field_widths`): case (b), a remainder outnumbering
+the named word's visible cells, stays carried.
 
 **The joint words are joint on purpose, and that is a rule and not a
 convenience.** On a column half written `%m/%d/%Y` and half `m/d/yyyy`
@@ -7294,10 +7313,12 @@ name.
 **Nothing is trimmed before the reader looks**, and that is a fourth
 refusal rather than an oversight. What this role publishes are the
 CELLS THEMSELVES: the two endpoints and the eleven ladder rungs are
-values some row wore, character for character. A cell wearing the form
-the column did NOT publish is counted unparsed rather than silently
-re-read, so a column of `hh-mm` cells with one `hh-mm-ss` cell among
-them publishes `n_unparsed` of 1.
+values some row held, written in the column's form -- character for
+character as the row wore it, but for a cell whose hour shows the other
+width, which is written in the column's (contract C6-10a, NF109). A
+cell of another precision, or on another face, is counted unparsed
+rather than silently re-read, so a column of `hh-mm` cells with one
+`hh-mm-ss` cell among them publishes `n_unparsed` of 1.
 
 ### G7A.2 What the profile supplies
 
@@ -7392,8 +7413,8 @@ tails and its body runs between the two published boundaries.*
 The cells are ranks `r = 0 .. P - 1`, one cell per rank; clock columns
 are not stratified by value, because no clock multiplicity map is
 published. With `m_lo = low_tail.rows` and `m_hi = P - 1 -
-high_tail.rows`, in the form's own unit -- minutes of the day for
-`hh-mm`, seconds for `hh-mm-ss`:
+high_tail.rows`, in the form's own unit -- minutes of the day for a
+`-mm` form, seconds for a `-mm-ss` form, on the form's face:
 
 - `r < m_lo` or `r > m_hi`: a TAIL rank, placed by G7.3b in this unit
   (or by G7.3c where the tail publishes its values), against the day's

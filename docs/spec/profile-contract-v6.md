@@ -1552,17 +1552,24 @@ reason: S8 says a declared name is not a column of this table, and this
 says the name is not declared at all.
 
 **Invariant S8c (a clock on the 12-hour face with no marker is a
-declared one).** A column whose written clock -- its `clock_form`, or a
-slashed stamp's one `datetime_separators` word -- is on the
-` twelve-hour` face stands under `settings.forced_twelve_hour_clocks`
-(C6-10a; the T1 review's item 7). Nothing in `12:15` says which clock
-wrote it, so that face is the person's answer and nothing else's, and a
-reader rebuilding the reading from the settings reads an undeclared
-column on the 24-hour face: measured, a description with the face and
-the declaration cleared loaded, and the unchanged source missed 16
-checks with `12:xx` read as noon. A stamp whose word was pooled names
-no clock and is not reached. The converse is not a rule: a declared
-column whose cells write AM or PM keeps their face.
+declared one, and a declared one with no marker is on that face).** A
+column whose written clock -- its `clock_form`, or a slashed stamp's one
+`datetime_separators` word -- is on the ` twelve-hour` face stands under
+`settings.forced_twelve_hour_clocks` (C6-10a; the T1 review's item 7).
+Nothing in `12:15` says which clock wrote it, so that face is the
+person's answer and nothing else's, and a reader rebuilding the reading
+from the settings reads an undeclared column on the 24-hour face:
+measured, a description with the face and the declaration cleared
+loaded, and the unchanged source missed 16 checks with `12:xx` read as
+noon. AND THE OTHER WAY ROUND on a clock that writes no marker: a
+column under that declaration whose written clock writes no AM or PM
+is on the ` twelve-hour` face, because a declared column reads its
+unmarked hours there and on no other face -- measured, a declared stamp
+of `12:00` to `4:59` with its word moved to the 24-hour face loaded, and
+the unchanged source missed 10 checks with `12:xx` read at the
+declaration against facts taken at noon. A declared column whose cells
+write AM or PM keeps their face and is not reached, and a stamp whose
+word was pooled names no clock and is not reached either.
 
 **Invariant S9.** `categorical_floor <= categorical_ceiling`.
 
@@ -8701,30 +8708,33 @@ item 11). The `month-first-datetime`, `day-first-datetime` and
 clock half, after the first space, in the same forty forms (C6-10a,
 D12a).
 
-**One form must clear the line; cells of the other are counted, not
-fatal.** This is the datetime rule's arithmetic transposed, where one
-date format must clear the line. Cells of the other clock form, and
-every other present cell no clock reading accepted, are counted in
-`n_unparsed` inside the slack the line leaves. An in-slack minority
-form is the line's ordinary arithmetic and not a decline.
+**One precision must clear the line; cells of the other are counted,
+not fatal.** This is the datetime rule's arithmetic transposed, where
+one date format must clear the line. Cells of the other precision, cells
+written on another face (NF108), and every other present cell no clock
+reading accepted, are counted in `n_unparsed` inside the slack the line
+leaves; a cell whose hour shows the other WIDTH is not among them, and
+is read in the column's (C6-10a, NF109). An in-slack minority is the
+line's ordinary arithmetic and not a decline.
 
-**Where BOTH forms clear the line, the finer wins: the column takes
-`hh-mm-ss`.** A cell matches at most one form, so both clear only
-where twice the parse-line count is at most `n_present`, which a
-lowered `minimum_parse_rate` permits and a high one does not. The
-tie-break is fixed here so that two producers reading one table under
-one setting cannot disagree about the column's form, its endpoints,
-its ladder or its unparsed count. Under it the `HH:MM` cells are the
-ones counted in `n_unparsed`.
+**Where BOTH precisions clear the line, the finer wins: the column
+takes its `-mm-ss` form.** A cell matches at most one precision, so
+both clear only where twice the parse-line count is at most
+`n_present`, which a lowered `minimum_parse_rate` permits and a high one
+does not. The tie-break is fixed here so that two producers reading one
+table under one setting cannot disagree about the column's form, its
+endpoints, its ladder or its unparsed count. Under it the cells written
+to the minute are the ones counted in `n_unparsed`.
 
 **C6-10a. THE WRITTEN CLOCK (landing T1, plan P4-D370).** The two forms
 above are two of FORTY. A form is a STYLE at the minute (`-mm`) or the
 second (`-mm-ss`): the hour's width -- `hh`, two figures, or `h`, one
-below ten -- and the FACE: none for the 24-hour clock; ` twelve-hour`
-for a column `settings.forced_twelve_hour_clocks` names, and for no
-other (S8c); or a marker
-pair `AM-PM`, `am-pm`, `A.M.-P.M.` or `a.m.-p.m.` after one space or
-none (`h-mm AM-PM`, `hh-mm-ssa.m.-p.m.`). Unmarked, an hour is 0 to 23;
+below ten -- and the FACE: none for the 24-hour clock, which a column
+`settings.forced_twelve_hour_clocks` names never writes; ` twelve-hour`
+for the unmarked clock of such a column, and for no other (S8c); or a
+marker pair `AM-PM`, `am-pm`, `A.M.-P.M.` or `a.m.-p.m.` after one space or
+none (`h-mm AM-PM`, `hh-mm-ssa.m.-p.m.`). Unmarked, an hour is 0 to 23,
+and 1 to 12 on the declared face, `12` the first hour;
 marked, 1 to 12, `12 AM` the first hour and `12 PM` noon; minutes and
 seconds are two figures to 59; nothing is trimmed. The column keeps the
 style most of its cells wrote, ties to the 24-hour clock and then in
@@ -8892,11 +8902,15 @@ construction pins elsewhere.
 
 **T3 (non-decreasing).** Read in ladder order — `min`, `p01`, `p05`,
 `p10`, `p25`, `p50`, `p75`, `p90`, `p95`, `p99`, `max` — the values
-never decrease in seconds of day. Minutes of day and seconds of day
-put the same values in the same order, and both agree with plain text
-comparison of the written rungs, so an `hh-mm` ladder is checked by
-this one rule and not by a second. Stated for T2's reason: the
-generation rule rests on it. It is the reading L1 takes on this field.
+never decrease in seconds of day, each rung read back by its form's own
+reader on the form's face (C6-10a). Minutes of day and seconds of day
+put the same values in the same order, so a ladder at the minute is
+checked by this one rule and not by a second. Plain text comparison of
+the written rungs agrees with it on `hh-mm` and `hh-mm-ss` alone and is
+never the rule: on the other thirty-eight forms `9:30` stands after
+`10:00` (landing T1; the T1 review's item 11). Stated for T2's reason:
+the generation rule rests on it. It is the reading L1 takes on this
+field.
 
 **T4 (at least one cell parsed).** `n_unparsed < n_present`. This is
 NOT implied by T5: `minimum_parse_rate` may be `0.0`, at which the
@@ -11972,7 +11986,7 @@ a document, so no document can violate it.
 | S14 | each declaration record has exactly five keys | yes |
 | C6-20 | `settings` has exactly its twenty-four keys; twenty-three or twenty-five is a document this contract does not describe | yes |
 | S8b | every name under `settings.person_columns` is also under `settings.forced_identifiers` | yes |
-| S8c | a column whose written clock is on the ` twelve-hour` face is named under `settings.forced_twelve_hour_clocks` (C6-10a) | yes |
+| S8c | a column whose written clock is on the ` twelve-hour` face is named under `settings.forced_twelve_hour_clocks`, and a column named there whose written clock writes no marker is on that face (C6-10a) | yes |
 | C6-53 | a column block's key set is exactly the twenty-two universal keys plus the marked cells of its role's column in the forbidden-key matrix; every other key is FORBIDDEN, and refused by name | yes |
 
 **Four membership rules of this part carry no identifier**, so no list
@@ -12924,10 +12938,10 @@ table means exactly what its disposition says.
 | `low_tail`, `high_tail` | STRUCTURAL, as on `datetime`: the container carries no value obligation of its own |
 | `low_tail.boundary`, `high_tail.boundary`, `low_tail.rows`, `high_tail.rows` | EXACT-OBSERVABLE — the boundary is an exact value of a real cell, written back character for character in `clock_form`, and the count beyond it is the count a re-description gives back |
 | `low_tail.values`, `high_tail.values` | EXACT-OBSERVABLE as a SET, exactly as on `datetime` |
-| `low_tail.mean_distance`, `high_tail.mean_distance`, `low_tail.rms_distance`, `high_tail.rms_distance` | APPROXIMATED — the window is G12.14, in minutes (`hh-mm`) or seconds (`hh-mm-ss`) |
-| `clock_percentiles` interior rungs | APPROXIMATED, for each rung the tail rule publishes; a rung it withholds is `null` and is listed, never checked. THE LADDER'S TWO ENDS ARE NOT IN THIS TABLE since stage 3, for the reason the calendar ladder's are not: T2 makes both of them `null` in every description, they oblige no cell of any file, and they are listed as withheld rather than compared. The two tail boundaries are pinned and the interior ranks are floor-division interpolations between them, in the ordinal unit the published form itself sets: minutes of day for `hh-mm`, seconds of day for `hh-mm-ss`. The two-sided window is fixed in the generation method's time-of-day clause and cited there, never restated here |
+| `low_tail.mean_distance`, `high_tail.mean_distance`, `low_tail.rms_distance`, `high_tail.rms_distance` | APPROXIMATED — the window is G12.14, in minutes (a `-mm` form) or seconds (a `-mm-ss` form) |
+| `clock_percentiles` interior rungs | APPROXIMATED, for each rung the tail rule publishes; a rung it withholds is `null` and is listed, never checked. THE LADDER'S TWO ENDS ARE NOT IN THIS TABLE since stage 3, for the reason the calendar ladder's are not: T2 makes both of them `null` in every description, they oblige no cell of any file, and they are listed as withheld rather than compared. The two tail boundaries are pinned and the interior ranks are floor-division interpolations between them, in the ordinal unit the published form itself sets: minutes of day for a `-mm` form, seconds of day for a `-mm-ss` form. The two-sided window is fixed in the generation method's time-of-day clause and cited there, never restated here |
 | `n_unparsed` | EXACT-OBSERVABLE as counted neutral stand-ins, explicitly OUTSIDE the clock-value representation obligation |
-| `n_distinct`, `n_distinct_folded` | APPROXIMATED — the twin writes a value per rank between pinned ends, exactly as the calendar ladder does, so how many different values it holds is a consequence of the construction rather than a target, and the two-sided envelope that bounds both counts is fixed in the same time-of-day clause and cited there, never restated here. The ALL-DIFFERENT obligation of 9.8 is the one case the construction meets outright: it binds through the ordinal mechanism, whose capacity is stated — the space holds 1,440 or 86,400 distinct spellings by form, and the unparsed cells are stand-ins from an unbounded text family that supply distinctness of their own. A description whose distinct demand NET of its unparsed cells — `n_distinct` less `n_unparsed` — exceeds the form's capacity is the one infeasible shape, and it is REFUSED at the feasibility stage under the head of this section, never approximated. A description whose own source met every count, unparsed cells included, is never refused by this rule |
+| `n_distinct`, `n_distinct_folded` | APPROXIMATED — the twin writes a value per rank between pinned ends, exactly as the calendar ladder does, so how many different values it holds is a consequence of the construction rather than a target, and the two-sided envelope that bounds both counts is fixed in the same time-of-day clause and cited there, never restated here. The ALL-DIFFERENT obligation of 9.8 is the one case the construction meets outright: it binds through the ordinal mechanism, whose capacity is stated — the space holds 1,440 or 86,400 distinct spellings by precision, half that on the declared 12-hour face (C6-10a), and the unparsed cells are stand-ins from an unbounded text family that supply distinctness of their own. A description whose distinct demand NET of its unparsed cells — `n_distinct` less `n_unparsed` — exceeds the form's capacity is the one infeasible shape, and it is REFUSED at the feasibility stage under the head of this section, never approximated. A description whose own source met every count, unparsed cells included, is never refused by this rule |
 
 <!-- anchor 3b-D1 (P4-D365) -->
 <!-- anchor 3b-D0 (P4-D366) -->
