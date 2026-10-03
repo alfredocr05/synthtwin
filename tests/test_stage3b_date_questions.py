@@ -1606,7 +1606,9 @@ def test_answered_columns_are_found_by_name_once(
             for place in range(answered)
         ]
         answers = tmp_path / f"answers-{answered}.json"
-        answers.write_text(json.dumps({"asked": entries, "checklist": {"columns": []}}), encoding="utf-8")
+        answers.write_text(
+            json.dumps({"asked": entries, "checklist": {"columns": []}}), encoding="utf-8", newline="\n"
+        )
         _CountedList.walks = 0
         code, said = _quiet(["profile", str(table), "--out-dir", str(tmp_path), "--replace", "--answers", str(answers)])
         assert code == 0, said

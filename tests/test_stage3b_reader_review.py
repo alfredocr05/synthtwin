@@ -76,6 +76,7 @@ import pathlib
 import pytest
 
 from synthtwin import contract, errors
+from tests import fixtures
 from tests import test_stage3b_reader as gate
 
 
@@ -343,6 +344,27 @@ def _twelve_hour_dial() -> "list[str]":
     ]
 
 
+def _described_here(
+    folder: pathlib.Path, cells: "list[str]", *flags: str
+) -> "tuple[dict[str, object], pathlib.Path]":
+    """`synthtwin profile` over one column, the command built in this module.
+
+    The description item 7 hands the loader is the product's own file,
+    and `tests/test_description_line_endings.py` asks a module that
+    loads a description to show where its bytes came from: the fixture
+    that decides them, or the product run by the module itself. The
+    table and the options are `gate._described`'s.
+    """
+    folder.mkdir(parents=True, exist_ok=True)
+    names, rows = fixtures.rows_at_the_floor("seen_at", cells)
+    table = folder / "real.csv"
+    table.write_text(fixtures.rows_to_csv(names, rows), encoding="utf-8", newline="")
+    command = ["profile", str(table), "--out-dir", str(folder), "--replace", "--smallest-group", "11"]
+    assert gate._exit_of(command + list(flags)) == 0
+    profile = folder / "real-profile.json"
+    return json.loads(profile.read_text(encoding="utf-8"))["columns"][0], profile
+
+
 @pytest.mark.parametrize("prefix", ["", "3/17/2023 "])
 def test_item_7_a_twelve_hour_style_needs_its_declaration(
     tmp_path: pathlib.Path, prefix: str
@@ -354,7 +376,7 @@ def test_item_7_a_twelve_hour_style_needs_its_declaration(
     unchanged source.
     """
     cells = [prefix + cell for cell in _twelve_hour_dial()]
-    block, profile, _questions = gate._described(tmp_path, cells, "--twelve-hour", "seen_at")
+    block, profile = _described_here(tmp_path, cells, "--twelve-hour", "seen_at")
     assert gate._style_of(block) == "h twelve-hour"
     contract.load_profile(str(profile))
     document = json.loads(profile.read_text(encoding="utf-8"))

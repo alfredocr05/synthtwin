@@ -618,6 +618,21 @@ def _digest(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
+def _written(folder, text: str):
+    """An earlier tree's description, written through `fixtures.write_profile`.
+
+    The one place that decides a description's bytes
+    (`tests/test_description_line_endings.py`) writes
+    `canonical.serialize` of the parsed document, and the earlier
+    producers wrote through that serializer too, so the file on disk is
+    the embedded text byte for byte, which is asserted here: the loader
+    is handed the earlier tree's own file and nothing rewritten.
+    """
+    path = fixtures.write_profile(folder, "three-profile.json", json.loads(text))
+    assert path.read_bytes() == text.encode("utf-8")
+    return path
+
+
 def _run(arguments: "list[str]") -> "tuple[int, str]":
     said = io.StringIO()
     with contextlib.redirect_stdout(said), contextlib.redirect_stderr(said):
@@ -658,7 +673,7 @@ def test_the_relief_is_exactly_the_keys_added_since() -> None:
 @pytest.mark.parametrize("tree", sorted(EARLIER))
 def test_an_earlier_description_loads_with_its_absent_keys_empty(tmp_path, tree) -> None:
     """The document loads; every key it lacks reads empty; its withheld sides stay withheld."""
-    path = fixtures.write(tmp_path, "three-profile.json", EARLIER[tree])
+    path = _written(tmp_path, EARLIER[tree])
     loaded = contract.load_profile(str(path))
     assert loaded.settings.forced_twelve_hour_clocks == ()
     dates, clocks, counts = loaded.columns
@@ -676,7 +691,7 @@ def test_an_earlier_description_loads_with_its_absent_keys_empty(tmp_path, tree)
 @pytest.mark.parametrize("tree", sorted(EARLIER))
 def test_an_earlier_description_generates_and_validates(tmp_path, tree) -> None:
     """`synthtwin generate` and `synthtwin validate` both finish on it, and nothing is MISSED."""
-    path = fixtures.write(tmp_path, "three-profile.json", EARLIER[tree])
+    path = _written(tmp_path, EARLIER[tree])
     code, said = _run(["generate", str(path), "--seed", "0", "--out-dir", str(tmp_path), "--replace"])
     assert code == 0, said
     twin = tmp_path / "three-twin.csv"
@@ -699,7 +714,7 @@ def test_an_earlier_description_generates_and_validates(tmp_path, tree) -> None:
 
 def test_the_table_itself_meets_the_earlier_description(tmp_path) -> None:
     """The validator measures the real table against 668f276's description, and it holds."""
-    path = fixtures.write(tmp_path, "three-profile.json", WRITTEN_BY_668F276)
+    path = _written(tmp_path, WRITTEN_BY_668F276)
     table = fixtures.write(tmp_path, "three.csv", three_columns())
     outcome = validation.measure(contract.load_profile(str(path)), str(table))
     assert [check for check in outcome.checks if check.verdict == validation.MISSED] == []
@@ -714,7 +729,7 @@ def test_any_other_absent_key_is_still_refused(tmp_path, where, key) -> None:
     document = json.loads(WRITTEN_BY_668F276)
     block = document["settings"] if where == "settings" else document["columns"][where]
     del block[key]
-    path = fixtures.write(tmp_path, "three-profile.json", canonical.serialize(document))
+    path = fixtures.write_profile(tmp_path, "three-profile.json", document)
     with pytest.raises(errors.ProfileError, match=f"no entry called '{key}'"):
         contract.load_profile(str(path))
 
@@ -723,6 +738,6 @@ def test_a_reserve_that_is_present_is_still_read_by_its_reader(tmp_path) -> None
     """A reserve present and not empty is refused as before: absent is relieved, present is not."""
     document = json.loads(EARLIER["fa00321"])
     document["columns"][0]["hour_census"] = [{"count": 11, "first": 0, "last": 0}]
-    path = fixtures.write(tmp_path, "three-profile.json", canonical.serialize(document))
+    path = fixtures.write_profile(tmp_path, "three-profile.json", document)
     with pytest.raises(errors.ProfileError, match="hour_census"):
         contract.load_profile(str(path))
