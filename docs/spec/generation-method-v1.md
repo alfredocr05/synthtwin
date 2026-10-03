@@ -6588,13 +6588,39 @@ come to less than the parsed cells -- a width each below the line was
 left out -- the named words keep exactly their published counts and the
 other `parsed - named` ranks wear joint words the census does not name,
 in the order `padded`, `unpadded`, `first-padded`, `second-padded`:
-WHOLE DAYS AT A TIME, from the ranks that show both fields, the days
-holding the fewest of them first, each day taken while it still fits
-the remainder; each word on at most the line less one ranks and on fewer
-than the largest named count, a day going to the first word it fits.
-Where no such set of days holds the remainder exactly, no rank moves and
-the report says so (`date_field_widths`): case (b), a remainder
-outnumbering the named word's visible cells, stays carried.
+WHOLE DAYS AT A TIME, from the ranks that show both fields; each word
+on at most the line less one ranks and on fewer than the largest named
+count. The days that can be taken hold no more of those ranks than a
+word may or the remainder does, and of the days holding one number of
+ranks only the first `remainder // size` are walked, fewest ranks first
+and the earlier day first among equals. FIRST THE WALK THAT NEVER STEPS
+BACK, as landing T1 built it: each of those days, in that order, taken
+while the remainder still holds it and put in the first word with room,
+or left out where none has room, until the days taken hold exactly the
+remainder. WHERE IT FALLS SHORT, THE SEARCH (the T1 review's item 6: on
+days of 4, 6 and 7 ranks under a remainder of 13 the walk took 4 and 6,
+could not take 7, and gave up, though 6 and 7 hold 13): the same days
+MOST RANKS FIRST, the earlier day first among equals, depth first, each
+put in the first word, then the next, then left out, and the first way
+whose days hold exactly the remainder is taken. Most ranks first because
+it fills the words with the days that fit them least and leaves the
+small days to make up what is left: walked fewest ranks first, as the
+fix stream's first round walked it, a census of one day each of 1 to 99
+ranks under 297 looked at 2.8 million states, where most ranks first
+takes 99. The search does not walk a remainder past what the words hold
+together, a day from which the days left cannot make up what is left of
+the remainder, their words aside, or a day reached with the loads of
+one that failed before, in some order -- none of those can hold an
+assignment -- and it ENTERS AT MOST 100,000 STATES, a state being a day
+reached that none of those turned back; past that it places nothing.
+Only a census built to defeat it reaches the bound: unbounded, days of
+even sizes under an odd remainder at a floor of 100 walked every state
+there is for 99 seconds, and on 3,000 twin-like censuses at floors 11
+to 200 the search decided every one the first walk left to it within
+1,190 states. Where the search finds no set of days -- none exists, or
+the bound was reached -- no rank moves and the report says synthtwin
+found none (`date_field_widths`): case (b), a remainder outnumbering
+the named word's visible cells, stays carried.
 
 **The joint words are joint on purpose, and that is a rule and not a
 convenience.** On a column half written `%m/%d/%Y` and half `m/d/yyyy`
@@ -6685,10 +6711,17 @@ generator reaches it through `_cell_of_ordinal` and nowhere else.
 still zeros: the description says how MANY the finest cell carried and
 nothing about their values, so any other figure would be a made-up fact.
 The precision, the mark and the offset state are decision 5's own gains
-and are untouched. And the members the reader does not reach — a
-12-hour clock, `08APR2024`, Excel's unpadded hour — still fall to free
-text; the reversal is about writing what was read, not about reading
-more.
+and are untouched. And the spellings no member reads still fall to free
+text, `08APR2024` among them; the reversal is about writing what was
+read, not about reading more. Two this paragraph once named beside it
+are read since landing T1, on a slashed stamp: a 12-hour clock
+(`3/17/2023 9:30 PM`) and Excel's unpadded hour (`3/17/2023 9:30`),
+whose clock half the stamp members read in the forty forms of the
+`time_of_day` role (contract C6-10a, D12a) and the twin writes in its
+style (the T1 paragraph above). An ISO stamp still reads its clock with
+two figures a field on the 24-hour clock (the contract's `iso-datetime`
+row), so a 12-hour clock or a one-figure hour after an ISO date is not
+read (the T1 review's item 11).
 
 Then the clock half, exactly:
 
@@ -6703,6 +6736,15 @@ Then the clock half, exactly:
 
 then the offset suffix, when one was allocated: `Z`, or `+HH:MM`, or
 `-HH:MM`, exactly as the offset key spells it.
+
+**Read the table through the member.** Its texts are the ISO
+spellings: on every other member `YYYY-MM-DD` stands for the member's
+own date half (the table above), and on a slashed stamp `HH:MM` and
+`HH:MM:SS` stand for the clock its one `datetime_separators` word
+names (the T1 paragraph above): the two-figure 24-hour clock where
+that word is `space` or pooled, and otherwise the hour at its width
+and on its face (landing T1, contract C6-10a, D12a; the T1 review's
+item 11).
 
 **The table is COMPLETE, and that is now true of the contract as well**
 (P2-C1-F6). Revision 1 of the profile contract permitted a sixth pair —
@@ -7261,36 +7303,45 @@ width, `hours % 12` with 12 in place of 0 on a 12-hour face, the marker's
 morning word below noon and its evening word from noon on. Every ordinal
 in `[0, capacity)` still has exactly one spelling, and ranks are ordered
 by ordinal, never by text. The reader below admits these forms; what it
-refuses beyond the five shapes is `24:00`, a marked hour of 0 or past 12,
+refuses beyond the shapes refused below is `24:00`, a marked hour of 0 or past 12,
 `Am`, a one-letter marker, and a marker after two spaces or a no-break
 space.
 
 The ordinal of a cell is `hours * 60 + minutes` for `hh-mm` and
-`hours * 3600 + minutes * 60 + seconds` for `hh-mm-ss`. The spelling of
-an ordinal is that map inverted and zero-padded to two digits per
-field. Because the unit is the form's own, every ordinal in
+`hours * 3600 + minutes * 60 + seconds` for `hh-mm-ss`, the hour read on
+the form's face for the other thirty-eight. The spelling of an ordinal
+is that map inverted, the minutes and seconds in two digits and the
+hour at the form's width as the paragraph above writes it. Because the unit is the form's own, every ordinal in
 `[0, capacity)` has exactly one spelling in that form, and no value the
 generator interpolates is ever truncated or widened to fit a cell.
 
-**What the reader accepts is EXACTLY these two shapes**, and the word
+**What the reader accepts is EXACTLY the forty forms**, and the word
 exactly is the rule rather than a summary of it: two ASCII digits in
-every field, hours at most 23, minutes and seconds at most 59, nothing
-before the digits and nothing after. Four shapes a reader might expect
-are refused on purpose — a fractional part (a reading that dropped it
+the minute and second fields, the hour in two figures or, below ten,
+one, at most 23 unmarked and 1 to 12 marked, minutes and seconds at
+most 59, the marker as the paragraph above admits it, and nothing
+before the digits and nothing after. Before landing T1 it was exactly
+the two shapes of the table, and an hour written with one digit such as
+`9:30` was refused; it is read since, the column keeping one width
+(contract C6-10a), and a consumer that refuses `9:30` or orders
+`9:30 AM` after `1:00 PM` by its text is not following this method
+(the T1 review's item 11). Three shapes a reader might expect are
+refused on purpose — a fractional part (a reading that dropped it
 would describe such a cell approximately while publishing an exact
 ladder), the leap second `23:59:60` (the ordinal space has no faithful
 point for it, and making one up would write into the twin a time that
-no clock face reaches), an hour written with one digit such as `9:30`
-(the published spellings are fixed width), and anything else — a
-date, an offset, a name.
+no clock face reaches), and anything else — a date, an offset, a
+name.
 
-**Nothing is trimmed before the reader looks**, and that is a fifth
+**Nothing is trimmed before the reader looks**, and that is a fourth
 refusal rather than an oversight. What this role publishes are the
 CELLS THEMSELVES: the two endpoints and the eleven ladder rungs are
-values some row wore, character for character. A cell wearing the form
-the column did NOT publish is counted unparsed rather than silently
-re-read, so a column of `hh-mm` cells with one `hh-mm-ss` cell among
-them publishes `n_unparsed` of 1.
+values some row held, written in the column's form -- character for
+character as the row wore it, but for a cell whose hour shows the other
+width, which is written in the column's (contract C6-10a, NF109). A
+cell of another precision, or on another face, is counted unparsed
+rather than silently re-read, so a column of `hh-mm` cells with one
+`hh-mm-ss` cell among them publishes `n_unparsed` of 1.
 
 ### G7A.2 What the profile supplies
 
@@ -7317,8 +7368,9 @@ P = n_present - n_unparsed        cells that parsed as clock times
 
 ### G7A.3 The one refusal this role adds
 
-A day holds 1,440 different minutes and 86,400 different seconds, and
-nothing else can be written in the column's form. So where
+A day holds 1,440 different minutes and 86,400 different seconds -- the
+declared 12-hour face half of each (G7A.1) -- and nothing else can be
+written in the column's form. So where
 
 ```
 n_distinct - n_unparsed  >  capacity(clock_form)
@@ -7385,8 +7437,8 @@ tails and its body runs between the two published boundaries.*
 The cells are ranks `r = 0 .. P - 1`, one cell per rank; clock columns
 are not stratified by value, because no clock multiplicity map is
 published. With `m_lo = low_tail.rows` and `m_hi = P - 1 -
-high_tail.rows`, in the form's own unit -- minutes of the day for
-`hh-mm`, seconds for `hh-mm-ss`:
+high_tail.rows`, in the form's own unit -- minutes of the day for a
+`-mm` form, seconds for a `-mm-ss` form, on the form's face:
 
 - `r < m_lo` or `r > m_hi`: a TAIL rank, placed by G7.3b in this unit
   (or by G7.3c where the tail publishes its values), against the day's
@@ -7479,15 +7531,22 @@ The `n_unparsed` cells are outside the obligation to reproduce a clock
 value: they are COUNTED rather than described, exactly as the datetime
 role's stand-ins are (G10.4). Each is stepped past four things — a
 spelling this column has already written, a word this format reads as
-"no value", a spelling that would read as a clock time in EITHER form,
-and a spelling this column publishes as a hole.
+"no value", a spelling that would read as a clock time in any of the
+forty forms (contract C6-10a, `parsing.clock_form`), and a spelling
+this column publishes as a hole.
 
 The third of those is the one specific to this role. A stand-in that
-reads as a clock time under the form the column did NOT publish is
-still a cell the twin's own description would count differently from
-the description the twin was built from, so it would quietly move
-`n_unparsed` — and a twin that re-describes to a different profile is
-the failure this whole document exists to prevent.
+reads as a clock time in any form, the column's or another, is a cell
+the twin's own description reads as a clock rather than counting it as
+text: in the column's precision and on its face it is read as one of
+the column's values whatever its hour's width (contract C6-10a, NF109),
+which quietly moves `n_unparsed`, and on another face or at the other
+precision it is weighed among the readings C6-10 and C6-10a compare. A
+twin that re-describes to a different profile is the failure this whole
+document exists to prevent.
+
+*Restated by the T1 review's item 11:* this section stepped a stand-in
+past a clock time "in EITHER form" while the reader had two.
 
 ## G8. Label columns (`constant`, `binary`, `categorical`, `long_tail_labels`)
 

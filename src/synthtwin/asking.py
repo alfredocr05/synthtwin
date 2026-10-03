@@ -944,6 +944,11 @@ def _clock_question(
     unmarked, within, one_figure = _clock_hours(present, stamps)
     if not unmarked:
         return None
+    # THE CELLS THE COLUMN DID NOT READ, as its description counts them,
+    # so the 12-hour question does not say "every value" of a column
+    # holding some that are no clock it reads (the T1 review's item 10).
+    unread = block["n_unparsed"] if "n_unparsed" in block else 0
+    remainder = unread if isinstance(unread, int) else 0
     choices: "list[Choice]" = []
     if role == taxonomy.ROLE_CLOCK and one_figure:
         choices = _joined_choices(role, floor)
@@ -966,16 +971,39 @@ def _clock_question(
         choices = [choices[0], twelve] + choices[1:]
         return Question(
             name, role, BECAUSE_TWELVE_HOUR,
-            _shape_of(BECAUSE_TWELVE_HOUR, present, floor),
+            _shape_of(BECAUSE_TWELVE_HOUR, present, floor, "", remainder),
             choices, ANSWER_KEEP,
         )
     if choices:
+        # ...AND THE COLON QUESTION COUNTS THE CELLS ITS SENTENCE SAYS ARE
+        # NOT numbers joined by a colon, which is not the cells the column
+        # left unread: a clock of the other precision, `1:00:00` among
+        # minutes, is unread and is such numbers all the same.
+        apart = 0
+        for value in present:
+            split = taxonomy.splits_into_numbers(value, ":")
+            if split is None or len(split) < 2:
+                apart = apart + 1
         return Question(
             name, role, BECAUSE_JOINED,
-            _shape_of(BECAUSE_JOINED, present, floor, ":"),
+            _shape_of(BECAUSE_JOINED, present, floor, ":", apart),
             choices, ANSWER_KEEP,
         )
     return None
+
+
+def asks_about_a_clock(question: Question) -> bool:
+    """Whether a question is `_clock_question`'s, about a column read as times of day.
+
+    The 12-hour question, on a clock or a slashed stamp, and the colon
+    question a clock whose hours show one figure keeps (landing T1). A
+    caller saying what such a column is read as must not take it for
+    text or for figures (the T1 review's item 8). Guarantees: a function
+    of the question; raises nothing; opens nothing.
+    """
+    if question.reason == BECAUSE_TWELVE_HOUR:
+        return True
+    return question.reason == BECAUSE_JOINED and question.role == taxonomy.ROLE_CLOCK
 
 
 def questions_and_splits_for(
@@ -1737,6 +1765,18 @@ def _shape_of(
         )
     if reason == BECAUSE_TWELVE_HOUR:
         # WHAT BOTH CLOCKS WRITE, and no count: the shape alone is why.
+        # ``remainder`` is the column's count of cells it did not read,
+        # named under the floor as every count here is; where there are
+        # some, the sentence is about the cells it read and not "every
+        # value" (the T1 review's item 10).
+        if remainder > 0:
+            return (
+                f"every time of day it reads has its hour from 1 to 12, "
+                f"with no AM or PM, which a 24-hour clock and a 12-hour "
+                f"clock both write, and "
+                f"{_sayable(remainder, len(present), floor)} write no time "
+                f"of day it reads"
+            )
         return (
             "every value writes a time of day whose hour is from 1 to 12, "
             "with no AM or PM, which a 24-hour clock and a 12-hour clock "

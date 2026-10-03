@@ -191,8 +191,9 @@ DATE_FORMATS = (
     # two slashed stamps above need the year last. A column of them was
     # read as free text and its twin wrote made-up strings. The year
     # leads, so the reading is as unambiguous as `slashed-iso-date`'s,
-    # and its clock is the time-of-day role's two forms, as the two
-    # slashed stamps' is. AFTER every member a column already read under,
+    # and its clock is read as the two slashed stamps' is, by the
+    # time-of-day role's own reader -- in its forty forms since landing
+    # T1 (contract C6-10a). AFTER every member a column already read under,
     # so no spelling that reads today changes its reading.
     "slashed-iso-datetime",
     "year-quarter",
@@ -205,9 +206,10 @@ DATE_FORMATS = (
     "iso-mixed",
 )
 
-# The three readings whose clock stands after ONE space and is the
-# time-of-day role's own two forms, with no fraction and no offset (plan
-# amendment A-P4-1 item 2; the year-first stamp since landing 2b.3).
+# The three readings whose clock stands after ONE space and is read by
+# the time-of-day role's own reader -- its forty forms since landing T1
+# (contract C6-10a) -- with no fraction and no offset (plan amendment
+# A-P4-1 item 2; the year-first stamp since landing 2b.3).
 SLASHED_STAMPS = (
     "month-first-datetime",
     "day-first-datetime",
@@ -4846,8 +4848,9 @@ def parse_datetime(text: str, format_name: str) -> "tuple[str, str] | None":
             return None
         return f"{date_part} {clock}", ""
     if format_name == "slashed-iso-datetime":
-        # A `slashed-iso-date`, ONE space, then a clock in the time-of-day
-        # role's two forms (landing 2b.3). Both halves are read by readers
+        # A `slashed-iso-date`, ONE space, then a clock in one of the
+        # time-of-day role's forms (landing 2b.3; forty of them since
+        # landing T1, contract C6-10a). Both halves are read by readers
         # this module already has, exactly as the two slashed stamps
         # above are built, so a stamp this accepts is one whose date half
         # `slashed-iso-date` accepts and whose clock half `clock_form`

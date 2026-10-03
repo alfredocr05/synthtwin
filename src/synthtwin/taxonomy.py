@@ -14819,8 +14819,30 @@ def _reads(present: "list[str]", format_name: str) -> "list[bool]":
     return answers
 
 
+def _on_the_written_clock(
+    present: "list[str]", parsed: "list[bool]", settings: Settings
+) -> "list[bool]":
+    """Which of the cells one stamp reading parsed its one written clock keeps.
+
+    The cells on another face are dropped, as `_stamp_clocks` drops them
+    once the reading is chosen (`_stamp_clock_places`, one rule).
+    Determinism: a function of the three. Raises nothing. No I/O.
+    """
+    places = [place for place in range(len(present)) if parsed[place]]
+    kept, _clock = _stamp_clock_places(
+        [present[place] for place in places], settings
+    )
+    found = [False for _cell in present]
+    for index, _cell in kept:
+        found[places[index]] = True
+    return found
+
+
 def _slashed_evidence(
-    present: "list[str]", pair: "tuple[str, str]", day_first: bool
+    present: "list[str]",
+    pair: "tuple[str, str]",
+    day_first: bool,
+    settings: "Settings | None" = None,
 ) -> _SlashedEvidence:
     """Which reading of one slashed pair this column's values choose.
 
@@ -14829,9 +14851,22 @@ def _slashed_evidence(
     the person said, because a swap that ignored the count would read a
     column backwards over its own single contrary cell and then count
     that cell -- the column's only evidence -- as unparsed.
+
+    A STAMP IS COUNTED ON ITS WRITTEN CLOCK (Codex's review of landing
+    T1, item 3). Each reading of the stamp pair keeps only the cells its
+    one written clock keeps, so the comparison is between what each
+    reading would publish: 989 marked stamps beside ten `17/4/2023 06:00`
+    parsed 999 day first and 990 month first, day first won, dropped the
+    ten on another face, fell under the line at 989 -- and the month-first
+    reading, which cleared it, was never asked again. ``settings`` says
+    how a column's clock is read; without them the counts are the
+    parser's alone, which is right for every pair that writes no clock.
     """
     month = _reads(present, pair[0])
     day = _reads(present, pair[1])
+    if settings is not None and pair[0] in parsing.SLASHED_STAMPS:
+        month = _on_the_written_clock(present, month, settings)
+        day = _on_the_written_clock(present, day, settings)
     month_parsed = 0
     day_parsed = 0
     month_only = 0
@@ -14905,7 +14940,9 @@ def _remainder_reading(
         for pair in SLASHED_PAIRS:
             if format_name != pair[0]:
                 continue
-            weighed = _slashed_evidence(present, pair, settings.day_first)
+            weighed = _slashed_evidence(
+                present, pair, settings.day_first, settings
+            )
             if settings.day_first or weighed.day_parsed > weighed.month_parsed:
                 reading = weighed.used
         remainder: list[str] = []
@@ -15010,7 +15047,9 @@ def _matching_date_format(
         for pair in SLASHED_PAIRS:
             if format_name != pair[0]:
                 continue
-            weighed = _slashed_evidence(present, pair, settings.day_first)
+            weighed = _slashed_evidence(
+                present, pair, settings.day_first, settings
+            )
             if settings.day_first or weighed.day_parsed > weighed.month_parsed:
                 evidence = weighed
                 reading = weighed.used
@@ -15060,10 +15099,10 @@ class _StampClock:
     widths_in: bool = False
 
 
-def _stamp_clocks(
-    good: "list[tuple[str, str]]", sources: "list[str]", settings: Settings
-) -> "tuple[list[tuple[str, str]], list[str], _StampClock]":
-    """A column of stamps held to its one written clock (landing T1).
+def _stamp_clock_places(
+    sources: "list[str]", settings: Settings
+) -> "tuple[list[tuple[int, str]], _StampClock]":
+    """Which stamps a column's one written clock keeps, and how each is written (landing T1).
 
     THE STYLE MOST CELLS WROTE (`parsing.clock_style_of_cells`), on the
     12-hour face where the column is declared one. A cell on another face
@@ -15072,11 +15111,19 @@ def _stamp_clocks(
     REWRITTEN in the column's, its date half untouched, so no published
     fact tells it apart (plan P4-D250's rule, owner ruling 6 of
     2026-09-17). A column every cell of which writes today's two-figure
-    24-hour clock comes back exactly as it went in.
+    24-hour clock comes back exactly as it went in. The width is the one
+    that rewrites no cell into a value the person declared missing
+    (`_width_clear_of_absences`, the T1 review's item 1).
 
-    Guarantees: accepts the parsed pairs, their cells and the settings;
-    returns the pairs and cells kept, in order, and the clock.
-    Determinism: a function of the three. Raises nothing. No I/O.
+    ONE RULE, TWO CALLERS: `_stamp_clocks` holds a reading's cells to it,
+    and `_slashed_evidence` counts each reading of a slashed pair under
+    it, so the reading that wins the comparison is the one that keeps
+    the most cells on its face (the T1 review's item 3).
+
+    Guarantees: accepts the cells a stamp member parsed and the settings;
+    returns each kept cell's place among them with the cell as written,
+    in order, and the clock. Determinism: a function of the two. Raises
+    nothing. No I/O of any kind.
     """
     halves: "list[tuple[str, str]]" = []
     read: "list[tuple[int, int, int, bool, int, str, bool]]" = []
@@ -15093,11 +15140,19 @@ def _stamp_clocks(
         halves += [(day, clock)]
         read += [parts]
     if plain and not reads_twelve_hours(settings):
-        return good, sources, _StampClock()
+        return (
+            [(place, sources[place]) for place in range(len(sources))],
+            _StampClock(),
+        )
     style = parsing.clock_style_of_cells(read, reads_twelve_hours(settings))
+    style, absent = _width_clear_of_absences(
+        style,
+        [(halves[place][1], read[place]) for place in range(len(sources))],
+        [halves[place][0] for place in range(len(sources))],
+        settings,
+    )
     face = parsing.clock_face(style)
-    kept: "list[tuple[str, str]]" = []
-    written: "list[str]" = []
+    kept: "list[tuple[int, str]]" = []
     other_faces = False
     widths_in = False
     for place in range(len(sources)):
@@ -15106,16 +15161,47 @@ def _stamp_clocks(
         if second is None:
             other_faces = True
             continue
-        canonical, offset = good[place]
         day, clock = halves[place]
         spelled = parsing.written_clock(second, parts[3], style)
         cell = sources[place]
         if spelled != clock:
-            widths_in = True
             cell = f"{day}{spelled}"
-        kept += [(parsing.stamp_canonical(canonical, style), offset)]
+            if cell in absent:
+                # Both widths spell a declared absence: counted unread.
+                continue
+            widths_in = True
+        kept += [(place, cell)]
+    return kept, _StampClock(style, other_faces, widths_in)
+
+
+def _stamp_clocks(
+    good: "list[tuple[str, str]]", sources: "list[str]", settings: Settings
+) -> "tuple[list[tuple[str, str]], list[str], _StampClock]":
+    """A column of stamps held to its one written clock (landing T1).
+
+    `_stamp_clock_places` says which cells stay and how each is written;
+    each kept pair's canonical text is put on the column's face.
+
+    Guarantees: accepts the parsed pairs, their cells and the settings;
+    returns the pairs and cells kept, in order, and the clock.
+    Determinism: a function of the three. Raises nothing. No I/O.
+    """
+    places, clock = _stamp_clock_places(sources, settings)
+    if clock.style == parsing.DEFAULT_CLOCK_STYLE and len(places) == len(sources):
+        unchanged = True
+        for place, cell in places:
+            if cell != sources[place]:
+                unchanged = False
+                break
+        if unchanged:
+            return good, sources, clock
+    kept: "list[tuple[str, str]]" = []
+    written: "list[str]" = []
+    for place, cell in places:
+        canonical, offset = good[place]
+        kept += [(parsing.stamp_canonical(canonical, clock.style), offset)]
         written += [cell]
-    return kept, written, _StampClock(style, other_faces, widths_in)
+    return kept, written, clock
 
 
 # HOW A WORKBOOK STORES A COLUMN, where it matters to the reading (plan
@@ -16712,6 +16798,136 @@ class _Clock:
     widths_in: bool = False
 
 
+def _absences_written(
+    style: str,
+    cells: "list[tuple[str, tuple[int, int, int, bool, int, str, bool]]]",
+    days: "list[str]",
+    settings: Settings,
+) -> "dict[str, bool]":
+    """The cells one style would REWRITE into a declared absence (T1 review item 1).
+
+    A cell of the other hour width is written in the column's width, and
+    that writing is a new spelling: `1:00` beside a declared `01:00`
+    became the very word the person named as no value, so the twin wrote
+    it as a hole and every reading of the twin counted it missing.
+    ``days`` holds each cell's date half with its space, or is empty for
+    a column of clock times alone. The writings are asked the producer's
+    own question, `split_missing`, all at once.
+
+    Guarantees: returns the rewritten cells that read as no value, as
+    keys. Determinism: a function of the four. Raises nothing. No I/O.
+    """
+    if not settings.declared_missing_values:
+        return {}
+    rewritten = [written for _place, written in _clock_rewrites(style, cells, days)]
+    if not rewritten:
+        return {}
+    _present, absent = split_missing(rewritten, settings)
+    return {spelling: True for spelling, _class in absent}
+
+
+def _clock_rewrites(
+    style: str,
+    cells: "list[tuple[str, tuple[int, int, int, bool, int, str, bool]]]",
+    days: "list[str]",
+) -> "list[tuple[int, str]]":
+    """Each cell one style writes otherwise than it is written, by its place, with that writing.
+
+    A cell on another face names no instant there and is not written;
+    ``days`` holds each cell's date half with its space, or is empty for
+    a column of clock times alone. Determinism: a function of the three.
+    Raises nothing. No I/O of any kind.
+    """
+    face = parsing.clock_face(style)
+    found: "list[tuple[int, str]]" = []
+    for place in range(len(cells)):
+        text, parts = cells[place]
+        second = parsing.clock_second(parts, face)
+        if second is None:
+            continue
+        written = parsing.written_clock(second, parts[3], style)
+        if written == text:
+            continue
+        found += [(place, (days[place] if days else "") + written)]
+    return found
+
+
+def clock_cells_written_absent(
+    cells: "list[str]", style: str, stamps: bool, settings: Settings
+) -> "dict[str, bool]":
+    """The cells one written clock would REWRITE into a declared absence, as written.
+
+    THE PRODUCER'S OWN RULE, FOR THE RECOUNTS THAT READ CELLS (the T1
+    review's items 1 and 2). A column keeps the hour width that writes no
+    present cell as a value the person declared missing; where both
+    widths would, it keeps the commonest and counts the cells so written
+    unread (`_width_clear_of_absences`). So under the style a column
+    PUBLISHES, these are exactly the cells its description did not read:
+    none where a width cleared every cell, and the colliding ones where
+    none did. A recount that read them would count cells no published
+    fact counts -- three `1:00` beside a declared `01:00` and `2:00` stood
+    below a low tail measured without them, and the source missed it.
+    ``stamps`` says the cells are slashed stamps, whose clock is the half
+    after the first space; a cell whose clock does not read is not one.
+
+    Guarantees: accepts the cells as written, a member of
+    `parsing.CLOCK_STYLES`, whether they are stamps and the settings;
+    returns those cells, as keys. Determinism: a function of the four.
+    Raises ValueError for an unknown style. No I/O of any kind.
+    """
+    if not settings.declared_missing_values:
+        return {}
+    read: "list[tuple[str, tuple[int, int, int, bool, int, str, bool]]]" = []
+    days: "list[str]" = []
+    originals: "list[str]" = []
+    for cell in cells:
+        day, clock = parsing.stamp_halves(cell) if stamps else ("", cell)
+        parts = parsing.clock_parts(clock)
+        if parts is None:
+            continue
+        read += [(clock, parts)]
+        days += [day]
+        originals += [cell]
+    absent = _absences_written(style, read, days, settings)
+    if not absent:
+        return {}
+    found: "dict[str, bool]" = {}
+    for place, written in _clock_rewrites(style, read, days):
+        if written in absent:
+            found[originals[place]] = True
+    return found
+
+
+def _width_clear_of_absences(
+    style: str,
+    cells: "list[tuple[str, tuple[int, int, int, bool, int, str, bool]]]",
+    days: "list[str]",
+    settings: Settings,
+) -> "tuple[str, dict[str, bool]]":
+    """The column's style, at the width that rewrites no cell into a declared absence.
+
+    THE WIDTH MOST CELLS SHOW, UNLESS WRITING THE OTHERS IN IT SPELLS A
+    VALUE THE PERSON DECLARED MISSING and the other width spells none
+    (Codex's review of landing T1, item 1): 180 `1:00` beside 220 padded
+    minutes and eleven declared `01:00` keep the one-figure hour, so no
+    present cell is written as the declared word. Where both widths
+    spell one, the style most cells show stands and the cells it would
+    rewrite into an absence are counted unread -- `n_unparsed` says how
+    many, as it does for another face.
+
+    Guarantees: returns the style and the cells it still writes as an
+    absence. Determinism: a function of the four. Raises nothing. No I/O.
+    """
+    absent = _absences_written(style, cells, days, settings)
+    if not absent:
+        return style, absent
+    width = "hh" if parsing.clock_hour_width(style) == "h" else "h"
+    other = width + parsing.clock_face(style)
+    if not _absences_written(other, cells, days, settings):
+        return other, {}
+    return style, absent
+
+
 def _clock_candidates(cells: _Cells) -> "list[_Clock]":
     """The clock reading at the second, then at the minute (landing T1).
 
@@ -16731,18 +16947,23 @@ def _clock_candidates(cells: _Cells) -> "list[_Clock]":
         style = parsing.clock_style_of_cells(
             group, reads_twelve_hours(cells.settings)
         )
+        kept = [(text, parts) for text, parts in read if parts[3] == with_seconds]
+        style, absent = _width_clear_of_absences(
+            style, kept, [], cells.settings
+        )
         face = parsing.clock_face(style)
         values: "list[str]" = []
         other_faces = False
         widths_in = False
-        for text, parts in read:
-            if parts[3] != with_seconds:
-                continue
+        for text, parts in kept:
             second = parsing.clock_second(parts, face)
             if second is None:
                 other_faces = True
                 continue
             written = parsing.written_clock(second, with_seconds, style)
+            if written in absent:
+                # Both widths spell a declared absence: counted unread.
+                continue
             if written != text:
                 widths_in = True
             values += [written]
@@ -16763,7 +16984,8 @@ def clock_reach(cells: _Cells) -> int:
 
     The count the closer of the two precisions reached, whether or not it
     cleared the detection line -- so a column that declined can still
-    say how far this reading got. Zero where no cell wore either form.
+    say how far this reading got. Zero where neither precision's reading
+    kept a cell, in any of the forty forms (contract C6-10a).
 
     A column that publishes nothing owes its owner the reason, and the
     reason is a set of counts (contract C6-5): the competing-readings
@@ -17147,17 +17369,19 @@ def _clock_reading(cells: _Cells) -> "_Clock | None":
 
     Guarantees:
 
-    - Determinism: every cell is read by `parsing.clock_form`, which is
-      a function of the cell alone, and the two forms are tried in a
-      fixed order. Nothing here reads a clock or a random source.
+    - Determinism: every cell is read by `parsing.clock_parts`, which is
+      a function of the cell alone, and the two precisions are tried in
+      a fixed order, each in the style contract C6-10a gives it out of
+      the forty forms (`_clock_candidates`). Nothing here reads a clock
+      or a random source.
     - The test is the contract's: at least the parse-line COUNT of
       present cells wear ONE form. It is a count and never a compared
       share, so no rounding of a division decides a role.
     - THE FINER FORM WINS where both clear the line, which can happen
-      only at a lowered parse rate -- no cell wears both, since the two
-      have different lengths, so both clearing needs twice the line to
-      fit inside the column. `hh-mm-ss` is tried first, which is that
-      rule.
+      only at a lowered parse rate -- no cell is at both precisions,
+      since a cell writes a seconds field or does not, so both clearing
+      needs twice the line to fit inside the column. The second is
+      tried first, which is that rule.
     - NO FLOOR IS READ HERE, and that is a decision rather than an
       omission. Two rules of this phase consult `small_cell_floor` at
       detection because publishing a floor-clearing SPELLING is what
@@ -17176,9 +17400,10 @@ def _clock_reading(cells: _Cells) -> "_Clock | None":
     needed = _needed(cells.settings.minimum_parse_rate, len(present))
     for clock in _clock_candidates(cells):
         # The CELL, not a tidied copy of it: what this role publishes
-        # are values some row wore, and the reader accepts nothing that
-        # needed tidying -- a cell of the other hour width is the one it
-        # writes the column's way (`_Clock.values`).
+        # are values some row held, each as the row wrote it but for a
+        # cell of the other hour width, which is written the column's way
+        # (`_Clock.values`), and the reader accepts nothing that needed
+        # tidying.
         if len(clock.values) >= needed and clock.values:
             return clock
     return None
@@ -17391,20 +17616,24 @@ def _clock_verdict(
 ) -> _Verdict:
     """The published block of a column of clock times (contract C6-10).
 
-    FIVE KEYS AND NO SIXTH: which form the cells wore, the earliest and
-    latest clock value, an eleven-rung ladder over the parsed values,
-    and how many present cells no clock reading accepted.
+    FIVE KEYS: which of the forty forms the cells wore (contract
+    C6-10a), the two tails that took the place of the earliest and
+    latest clock value (stage 3, plan P4-D328), an eleven-rung ladder
+    over the parsed values, and how many present cells the reading left
+    unread. The five stage 3b reserves are set beside them by
+    `_clock_census_published`.
 
     THE LADDER IS SELECTION, exactly as the date ladder is: eleven
-    order statistics of cells the column really holds, with no
-    interpolation anywhere in it. So every rung is a clock value some
-    row wore, and `min` and `max` are the endpoints themselves.
+    order statistics of the values the column really holds, with no
+    interpolation anywhere in it. So every published rung is a clock
+    value some row held, written in the column's form, and `min` and
+    `max` are always null (contract T2).
 
-    THE ORDER IS TEXT ORDER, and that is safe here rather than
-    convenient: both forms are fixed-width and zero-padded, so
-    comparing the written cells character by character puts them in
-    the same order their ordinals do. The contract states the same
-    equivalence and its own T3 is a text comparison for this reason.
+    THE ORDER IS THE INSTANT'S AND NEVER THE TEXT'S (landing T1). The
+    two agree on `hh-mm` and `hh-mm-ss`, and on the other thirty-eight
+    forms they do not -- `9:30` sorts after `10:00` as text, `1:05 PM`
+    before `11:00 AM` -- so the values are ordered by their ordinals in
+    the form, which is the order the contract's T3 checks.
 
     ONE LIMIT STATED AT THE FACT THAT CARRIES IT. The ladder reads the
     day as a LINE from `00:00` to the end of the day, as every ladder
@@ -19155,8 +19384,8 @@ def _decide(
        while the rule shipped, so a maintainer reading the one place
        that states the order was told of fourteen rules where there
        are fifteen (review round 8 of landing L8, item 6);
-    8. clock times, in one of two forms, at the parse rate --
-       `time_of_day`;
+    8. clock times, in one of the forty forms of contract C6-10a, at the
+       parse rate -- `time_of_day`;
     9. a number wearing one shared piece of text -- `affixed_number`;
     9b. a long tail of labels -- `long_tail_labels`;
     9c. TWO PLAIN WHOLE NUMBERS JOINED BY A SLASH in every cell but the

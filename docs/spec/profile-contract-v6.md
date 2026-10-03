@@ -1553,6 +1553,26 @@ looked at that way. It carries its own code, and not S8's, for S8a's
 reason: S8 says a declared name is not a column of this table, and this
 says the name is not declared at all.
 
+**Invariant S8c (a clock on the 12-hour face with no marker is a
+declared one, and a declared one with no marker is on that face).** A
+column whose written clock -- its `clock_form`, or a slashed stamp's one
+`datetime_separators` word -- is on the ` twelve-hour` face stands under
+`settings.forced_twelve_hour_clocks` (C6-10a; the T1 review's item 7).
+Nothing in `12:15` says which clock wrote it, so that face is the
+person's answer and nothing else's, and a reader rebuilding the reading
+from the settings reads an undeclared column on the 24-hour face:
+measured, a description with the face and the declaration cleared
+loaded, and the unchanged source missed 16 checks with `12:xx` read as
+noon. AND THE OTHER WAY ROUND on a clock that writes no marker: a
+column under that declaration whose written clock writes no AM or PM
+is on the ` twelve-hour` face, because a declared column reads its
+unmarked hours there and on no other face -- measured, a declared stamp
+of `12:00` to `4:59` with its word moved to the 24-hour face loaded, and
+the unchanged source missed 10 checks with `12:xx` read at the
+declaration against facts taken at noon. A declared column whose cells
+write AM or PM keeps their face and is not reached, and a stamp whose
+word was pooled names no clock and is not reached either.
+
 **Invariant S9.** `categorical_floor <= categorical_ceiling`.
 
 #### The floor, its minimum, and what a floor of one means
@@ -5557,9 +5577,9 @@ requires:
 | `year-quarter` | `YYYY-Qn`: a four-digit year, a hyphen, the letter Q in either case, and a quarter digit `1` to `4` | `quarter` |
 | `iso-datetime` | an `iso-date`, one separator — the letter T in either case, or a space — then a clock `HH:MM` or `HH:MM:SS`, an optional fractional part, and an optional UTC offset | `datetime` |
 | `iso-mixed` | the joint ISO family reading below | `datetime` |
-| `month-first-datetime` | a slashed month-first date, one space, then a clock in one of the two forms the `time_of_day` role fixes | `datetime` |
-| `day-first-datetime` | a slashed day-first date, one space, then a clock in one of the two forms the `time_of_day` role fixes | `datetime` |
-| `slashed-iso-datetime` | a `slashed-iso-date` (`YYYY/MM/DD`, fields padded), one space, then a clock in one of the two forms the `time_of_day` role fixes (landing 2b.3) | `datetime` |
+| `month-first-datetime` | a slashed month-first date, one space, then a clock in one of the forms the `time_of_day` role reads (C6-10a) | `datetime` |
+| `day-first-datetime` | a slashed day-first date, one space, then a clock in one of the forms the `time_of_day` role reads (C6-10a) | `datetime` |
+| `slashed-iso-datetime` | a `slashed-iso-date` (`YYYY/MM/DD`, fields padded), one space, then a clock in one of the forms the `time_of_day` role reads (landing 2b.3; C6-10a) | `datetime` |
 
 **C6-D8P (the century a two-figure year is read into).** A year
 written with two figures does not carry its century. `00` to `68` are
@@ -6081,7 +6101,7 @@ which is why refusing it costs nothing a real table can express.
 `(withheld)` unless `resolution` is `datetime` AND `format` is one of
 the three ISO members. A whole date, a month and a quarter carry no
 clock; `month-first-datetime` and `day-first-datetime` carry a clock
-in the `time_of_day` role's two forms and NO offset, because that is
+in the `time_of_day` role's forms (C6-10a) and NO offset, because that is
 the whole of what their own reader takes; the date reader reads none
 of them with an offset, and a twin cell written `2024-03-15+02:00`
 reads back as no
@@ -8675,8 +8695,8 @@ only as the tail of a date.
 #### When a column takes this role
 
 **C6-10.** At least the parse-line count of the column's present cells
-match ONE of the exactly two clock forms below, and no earlier rule
-claimed the column. The line is the count `minimum_parse_rate` fixes
+match ONE clock form -- one of the two below, or one of the thirty-eight
+more C6-10a adds -- and no earlier rule claimed the column. The line is the count `minimum_parse_rate` fixes
 (section 4.4), applied as a COUNT and never as a compared share, so
 that no rounding of a division decides a role; the arithmetic of the
 count itself is section 4.5.2's.
@@ -8686,53 +8706,72 @@ count itself is section 4.5.2's.
 | `hh-mm` | `HH:MM` | hours `00`–`23`, minutes `00`–`59` | minutes of day, `0` to `1439`: 60 × `HH` + `MM` | 1,440 |
 | `hh-mm-ss` | `HH:MM:SS` | hours `00`–`23`, minutes `00`–`59`, seconds `00`–`59` | seconds of day, `0` to `86399`: 3600 × `HH` + 60 × `MM` + `SS` | 86,400 |
 
-Every field is exactly two digits, and no cell matches both forms. The
-fixed width is what gives each ordinal exactly one spelling, and what
-makes plain text comparison of two cells agree with their clock order.
-Both are load-bearing: the first is why every value an interpolation
-can reach has a canonical spelling in the column's own form and no
-generated cell is ever truncated or widened to fit, the second is why
-the ladder can be checked as written text. These are also the two
-forms the `month-first-datetime`, `day-first-datetime` and
-`slashed-iso-datetime` members of the format vocabulary read as the
-tail of a slashed date; they are
-enumerated here and nowhere else.
+On these two forms every field is exactly two digits, and no cell
+matches both. What is load-bearing is that each ordinal has exactly one
+spelling in the column's own form, so every value an interpolation can
+reach has a canonical spelling and no generated cell is ever truncated
+or widened to fit -- and that holds on all forty forms of C6-10a,
+because a column keeps ONE hour width and writes a cell of the other
+width in its own (NF109). Plain text comparison agrees with clock order
+on these two forms only: on the other thirty-eight it does not (`9:30`
+after `10:00`, `1:00 PM` before `9:30 AM`), so every order this role
+states -- T3's ladder, a tail's values -- is the order of the INSTANT
+the form names, never of the text (landing T1, and the T1 review's
+item 11). The `month-first-datetime`, `day-first-datetime` and
+`slashed-iso-datetime` members of the format vocabulary read their
+clock half, after the first space, in the same forty forms (C6-10a,
+D12a).
 
-**One form must clear the line; cells of the other are counted, not
-fatal.** This is the datetime rule's arithmetic transposed, where one
-date format must clear the line. Cells of the other clock form, and
-every other present cell no clock reading accepted, are counted in
-`n_unparsed` inside the slack the line leaves. An in-slack minority
-form is the line's ordinary arithmetic and not a decline.
+**One precision must clear the line; cells of the other are counted,
+not fatal.** This is the datetime rule's arithmetic transposed, where
+one date format must clear the line. Cells of the other precision, cells
+written on another face (NF108), and every other present cell no clock
+reading accepted, are counted in `n_unparsed` inside the slack the line
+leaves; a cell whose hour shows the other WIDTH is not among them, and
+is read in the column's (C6-10a, NF109), save where both widths would
+spell a value declared missing. An in-slack minority is the line's
+ordinary arithmetic and not a decline.
 
-**Where BOTH forms clear the line, the finer wins: the column takes
-`hh-mm-ss`.** A cell matches at most one form, so both clear only
-where twice the parse-line count is at most `n_present`, which a
-lowered `minimum_parse_rate` permits and a high one does not. The
-tie-break is fixed here so that two producers reading one table under
-one setting cannot disagree about the column's form, its endpoints,
-its ladder or its unparsed count. Under it the `HH:MM` cells are the
-ones counted in `n_unparsed`.
+**Where BOTH precisions clear the line, the finer wins: the column
+takes its `-mm-ss` form.** A cell matches at most one precision, so
+both clear only where twice the parse-line count is at most
+`n_present`, which a lowered `minimum_parse_rate` permits and a high one
+does not. The tie-break is fixed here so that two producers reading one
+table under one setting cannot disagree about the column's form, its
+endpoints, its ladder or its unparsed count. Under it the cells written
+to the minute are the ones counted in `n_unparsed`.
 
 **C6-10a. THE WRITTEN CLOCK (landing T1, plan P4-D370).** The two forms
 above are two of FORTY. A form is a STYLE at the minute (`-mm`) or the
 second (`-mm-ss`): the hour's width -- `hh`, two figures, or `h`, one
-below ten -- and the FACE: none for the 24-hour clock; ` twelve-hour`
-for a column `settings.forced_twelve_hour_clocks` names; or a marker
-pair `AM-PM`, `am-pm`, `A.M.-P.M.` or `a.m.-p.m.` after one space or
-none (`h-mm AM-PM`, `hh-mm-ssa.m.-p.m.`). Unmarked, an hour is 0 to 23;
+below ten -- and the FACE: none for the 24-hour clock, which a column
+`settings.forced_twelve_hour_clocks` names never writes; ` twelve-hour`
+for the unmarked clock of such a column, and for no other (S8c); or a
+marker pair `AM-PM`, `am-pm`, `A.M.-P.M.` or `a.m.-p.m.` after one space or
+none (`h-mm AM-PM`, `hh-mm-ssa.m.-p.m.`). Unmarked, an hour is 0 to 23,
+and 1 to 12 on the declared face, `12` the first hour;
 marked, 1 to 12, `12 AM` the first hour and `12 PM` noon; minutes and
 seconds are two figures to 59; nothing is trimmed. The column keeps the
 style most of its cells wrote, ties to the 24-hour clock and then in
 the order above: a cell on another face is counted in `n_unparsed`
 (NF108), and a cell whose hour shows the other width -- only an hour
 below ten shows one -- is read and published in the column's width
-(NF109). Every published value is written exactly in the form; values
+(NF109). THE WIDTH NEVER WRITES A DECLARED ABSENCE (the T1 review's
+item 1): where writing the cells of the other width in the commonest
+one would spell a value the person declared missing -- `1:00` written
+`01:00` beside a declared `01:00` -- and the other width spells none,
+the column keeps the other width; where both would, the cells that
+would be so written are counted in `n_unparsed`. Every published value
+is written exactly in the form; values
 are ORDERED by their place in the form's unit, which on the two forms
 above is text order and on the other thirty-eight is not (`9:30` after
 `10:00`). On the declared face the unit's space is half a day. A slashed
 stamp's clock half is read by the same reader, split at the first space,
-and its style is its one `datetime_separators` word (D12a).
+and its style is its one `datetime_separators` word (D12a); where a
+slashed pair's two readings are weighed (P4-D4.6), each is counted by
+the cells its one written clock keeps, so a reading winning on cells
+another face then drops does not shut out the reading that keeps more
+(the T1 review's item 3).
 
 #### Four readings this role refuses, each a rule and not an omission
 
@@ -8748,13 +8787,22 @@ and its style is its one `datetime_separators` word (D12a).
    rather than an ordinal; this role publishes ordinals and does not
    import that machinery, so it refuses the reading rather than carry
    a value it would have to move to the following minute.
-3. **A single-digit hour does not parse.** Both forms are fixed-width,
-   which is what merits the two properties above; a variable width
-   would give one ordinal two spellings.
-4. **Two clock forms in one column are not read as one clock.** There
-   is no JOINT reading: one form carries the column and the other
-   form's cells are counted in `n_unparsed`, and where neither carries
-   it the column declines to the later rules. `datetime` has a joint
+3. **A one-figure hour is read only in the column's one width.** It
+   did not parse at all until landing T1, on the ground that a
+   variable width would give one ordinal two spellings. C6-10a reads
+   it since (`9:30`, the `h` forms), and keeps the ground: a column
+   writes ONE width, and a cell of the other width is read and written
+   in the column's (NF109), so each ordinal still has exactly one
+   spelling in the column's form.
+4. **Two clock precisions, or two faces, in one column are not read
+   as one clock.** There is no JOINT reading: one form carries the
+   column and the cells of the other precision, or written on another
+   face (NF108), are counted in `n_unparsed`, and where neither carries
+   it the column declines to the later rules. A cell whose hour shows
+   the other WIDTH is written in another of the forty forms and is read
+   all the same: C6-10a reads it in the column's width (NF109), save
+   where both widths would spell a value declared missing (the T1
+   review's item 11). `datetime` has a joint
    reading across ISO resolutions because that mix is the dominant
    export shape; clock-precision mixes are not, so this version takes
    the narrow reading and names the joint one as the candidate for a
@@ -8770,11 +8818,11 @@ All four are named residual R-P4-5.
 
 | key | JSON type | permitted values | meaning | disposition |
 |---|---|---|---|---|
-| `clock_form` | string | `hh-mm`, `hh-mm-ss` | which form the column's cells wore, and the form every published clock value of the block is written in | EXACT-CONTROL |
-| `low_tail` | object or `null` | the five keys of DT1, values in `clock_form` | the cells below the low boundary: the boundary itself, how many lie strictly below it, how far below on average in minutes (`hh-mm`) or seconds (`hh-mm-ss`), the root-mean-square of those distances, and -- where the tail holds few values -- which values it holds | `boundary` and `rows` EXACT-OBSERVABLE; the two distances APPROXIMATED, inside the window of G12.14 |
+| `clock_form` | string | `hh-mm`, `hh-mm-ss`, and the thirty-eight more of C6-10a (forty in all, the vocabulary's own) | which form the column's cells wore, and the form every published clock value of the block is written in | EXACT-CONTROL |
+| `low_tail` | object or `null` | the five keys of DT1, values in `clock_form` | the cells below the low boundary: the boundary itself, how many lie strictly below it, how far below on average in minutes (a `-mm` form) or seconds (a `-mm-ss` form), the root-mean-square of those distances, and -- where the tail holds few values -- which values it holds | `boundary` and `rows` EXACT-OBSERVABLE; the two distances APPROXIMATED, inside the window of G12.14 |
 | `high_tail` | object or `null` | the same five keys | the cells above the high boundary, mirrored | as `low_tail` |
 | `clock_percentiles` | ladder of strings or `null` | section 5.6, rungs in `clock_form` | the eleven-rung ladder over the ordered clock values of the cells that parsed, published between the two tail boundaries and empty everywhere else (T2) | the two ends always `null`; each published interior rung APPROXIMATED, inside the window the generation method's approximated-fields table fixes for this role |
-| `n_unparsed` | integer ≥ 0 | — | present cells no clock reading of C6-10 accepted, the other form's cells among them | EXACT-OBSERVABLE as counted neutral stand-ins, explicitly OUTSIDE the clock representation obligation |
+| `n_unparsed` | integer ≥ 0 | — | present cells the column's clock reading leaves unread: those no reading of C6-10 accepts, the cells of the other precision and those written on another face (C6-10, NF108), and -- only where both hour widths would spell a value declared missing -- the cells so written (C6-10a); every other cell of the other hour width is read (NF109) | EXACT-OBSERVABLE as counted neutral stand-ins, explicitly OUTSIDE the clock representation obligation |
 
 **The five keys stage 3b reserves on this role** (plan P4-D364):
 `[]` -- `clock_step` `null` -- on every block until the landing their
@@ -8830,13 +8878,15 @@ the column really holds, with no interpolation in it.
 #### The ordinal, the endpoints and the ladder
 
 A clock value's ORDER is its ordinal in the unit its own form sets:
-minutes of day for `hh-mm`, seconds of day for `hh-mm-ss`. That is the
+minutes of day for a `-mm` form, seconds of day for a `-mm-ss` form, on
+the form's face (C6-10a). That is the
 datetime role's resolution-sets-the-unit rule transposed to the clock,
 and it is what keeps every value an interpolation can reach inside the
 column's one published form. Endpoints and rungs are written as TEXT
-in that form, never as ordinals; because both forms are fixed-width
-and zero-padded the two orders agree, so T3 is checkable without
-arithmetic on the fields.
+in that form, never as ordinals. On `hh-mm` and `hh-mm-ss` the text
+order and the clock order agree; on the other thirty-eight forms they
+do not, so T3 is checked on the instant each text names, read back by
+the form's own reader, and never by comparing the text (landing T1).
 
 **A consequence of T2, stated rather than left to be discovered.** The
 ladder's two ends are ALWAYS `null`, and so is every rung read from
@@ -8850,8 +8900,9 @@ in its own form, exactly as on `date_percentiles`.
 **T1 (one form, everywhere in the block).** Every published clock
 value — each tail's `boundary`, each entry of its `values`, and every
 rung that is not null — is written in the
-form `clock_form` names, every field in two digits and in the ranges
-that form's row gives.
+form `clock_form` names: the form's own writer gives it back character
+for character, its hour at the form's width and on its face, its
+minutes and seconds in two digits (C6-10a).
 
 **T2 (the ladder around its tails).** *Stage 3, plan P4-D328; it
 replaces the T2 that tied the ladder's two ends to two published
@@ -8870,11 +8921,15 @@ construction pins elsewhere.
 
 **T3 (non-decreasing).** Read in ladder order — `min`, `p01`, `p05`,
 `p10`, `p25`, `p50`, `p75`, `p90`, `p95`, `p99`, `max` — the values
-never decrease in seconds of day. Minutes of day and seconds of day
-put the same values in the same order, and both agree with plain text
-comparison of the written rungs, so an `hh-mm` ladder is checked by
-this one rule and not by a second. Stated for T2's reason: the
-generation rule rests on it. It is the reading L1 takes on this field.
+never decrease in seconds of day, each rung read back by its form's own
+reader on the form's face (C6-10a). Minutes of day and seconds of day
+put the same values in the same order, so a ladder at the minute is
+checked by this one rule and not by a second. Plain text comparison of
+the written rungs agrees with it on `hh-mm` and `hh-mm-ss` alone and is
+never the rule: on the other thirty-eight forms `9:30` stands after
+`10:00` (landing T1; the T1 review's item 11). Stated for T2's reason:
+the generation rule rests on it. It is the reading L1 takes on this
+field.
 
 **T4 (at least one cell parsed).** `n_unparsed < n_present`. This is
 NOT implied by T5: `minimum_parse_rate` may be `0.0`, at which the
@@ -11951,6 +12006,7 @@ a document, so no document can violate it.
 | S14 | each declaration record has exactly five keys | yes |
 | C6-20 | `settings` has exactly its twenty-four keys; twenty-three or twenty-five is a document this contract does not describe | yes |
 | S8b | every name under `settings.person_columns` is also under `settings.forced_identifiers` | yes |
+| S8c | a column whose written clock is on the ` twelve-hour` face is named under `settings.forced_twelve_hour_clocks`, and a column named there whose written clock writes no marker is on that face (C6-10a) | yes |
 | C6-53 | a column block's key set is exactly the twenty-two universal keys plus the marked cells of its role's column in the forbidden-key matrix; every other key is FORBIDDEN, and refused by name | yes |
 
 **Four membership rules of this part carry no identifier**, so no list
@@ -12181,10 +12237,10 @@ it answers to.
 | D2 | `sum(utc_offsets.values()) == n_present - n_unparsed` — only cells that parsed have an offset | yes |
 | D3 | every key of `utc_offsets` other than `(withheld)` maps to a count at least the floor and never below two, and `(withheld)` appears only when the pooled remainder is non-zero, and only alone (plans P4-D220 and P4-D222, owner rulings of 2026-09-17) | yes |
 | D5 | `datetimes_read_at` is `local` when the whole column shares one UTC offset, `utc` when two or more appear | yes, in the direction a document supports — two or more non-`(withheld)` keys in `utc_offsets` require `utc`; where the map is fully withheld either value is accepted, because it reads the same whether one offset wrote the column or ten — EXCEPT under a format whose reader takes no offset at all (`month-first-datetime`, `day-first-datetime`, `slashed-iso-datetime`), where `local` is the only value any column could have held (review item P4-DATE5-F1) |
-| D6 | the pair (`resolution`, `time_precision`) is one row of this map, TOTAL over the FOUR resolutions and the SIX precisions, so all twenty-four pairs are decided: `date` permits `date`; `datetime` permits `minute`, `second` and `subsecond`; `quarter` permits `quarter`; `month` permits `month` — with ONE format-family narrowing inside the datetime row: `month-first-datetime`, `day-first-datetime` and `slashed-iso-datetime` read a clock in the `time_of_day` role's two forms, which carry no fraction, so those three members permit `minute` and `second` and not `subsecond` | yes |
+| D6 | the pair (`resolution`, `time_precision`) is one row of this map, TOTAL over the FOUR resolutions and the SIX precisions, so all twenty-four pairs are decided: `date` permits `date`; `datetime` permits `minute`, `second` and `subsecond`; `quarter` permits `quarter`; `month` permits `month` — with ONE format-family narrowing inside the datetime row: `month-first-datetime`, `day-first-datetime` and `slashed-iso-datetime` read a clock in the `time_of_day` role's forms (C6-10a), which carry no fraction, so those three members permit `minute` and `second` and not `subsecond` | yes |
 | D7 | `subsecond_digits > 0` implies `time_precision == "subsecond"`, and `time_precision == "subsecond"` implies `subsecond_digits > 0` | yes |
 | D8 | `n_unparsed < n_present` — the checkable form of "the ladder covers the parsed cells", so both endpoints are always real values | yes |
-| D9 | every key of `utc_offsets`, and both endpoint offset fields, are `(none)` or `(withheld)` unless `resolution` is `datetime` AND `format` is an ISO member; under D1 that reaches every format member but TWO — only `iso-datetime` and `iso-mixed` may carry an offset at all, because the three slashed stamp members take a clock in the `time_of_day` role's two forms and no offset (review item P4-DATE5-F4; landing 2b.3) | yes |
+| D9 | every key of `utc_offsets`, and both endpoint offset fields, are `(none)` or `(withheld)` unless `resolution` is `datetime` AND `format` is an ISO member; under D1 that reaches every format member but TWO — only `iso-datetime` and `iso-mixed` may carry an offset at all, because the three slashed stamp members take a clock in the `time_of_day` role's forms (C6-10a) and no offset (review item P4-DATE5-F4; landing 2b.3) | yes |
 | D10 | where `resolution` is `datetime`, the seconds field of every moment a tail publishes — its `boundary` and each entry of its `values` — is `00` when `time_precision` is `minute`, and is not `60` when `datetimes_read_at` is `utc`. The calendar's edge is method G7.3e's obligation on the generator since stage 3, no end being published | yes — the loader holds the moments and the clock |
 | D11 | the ladder around its tails: `min` and `max` are `null`; an interior rung at percent `c` is `null` exactly where its rank `floor((P - 1) * c / 100)` lies below `low_tail.rows` or above `P - 1 - high_tail.rows`, and exactly where there are no tails; a published rung read off a boundary's own rank IS that boundary; every published rung lies between the two boundaries | yes — the loader holds `P`, the two `rows` and the floor |
 | D12 | every key of `datetime_separators` is `upper_t`, `space`, `lower_t` or `(withheld)`; every key other than `(withheld)` maps to a count at least the floor and never below two, and `(withheld)` appears only when the pooled remainder is non-zero; a `(withheld)` count stands alone, with no mark named beside it (plan P4-D220), and only over a population `parsing.census_pools` lets a pool stand on -- fewer values than the line, or any permitted mark absent in one reading and no count in every reading (plan P4-D222; stage 2 closed by the owner rulings of 2026-09-17), with the room `n_distinct` less one where the column has a present cell outside the pool (plan P4-D356) | yes |
@@ -12902,10 +12958,10 @@ table means exactly what its disposition says.
 | `low_tail`, `high_tail` | STRUCTURAL, as on `datetime`: the container carries no value obligation of its own |
 | `low_tail.boundary`, `high_tail.boundary`, `low_tail.rows`, `high_tail.rows` | EXACT-OBSERVABLE — the boundary is an exact value of a real cell, written back character for character in `clock_form`, and the count beyond it is the count a re-description gives back |
 | `low_tail.values`, `high_tail.values` | EXACT-OBSERVABLE as a SET, exactly as on `datetime` |
-| `low_tail.mean_distance`, `high_tail.mean_distance`, `low_tail.rms_distance`, `high_tail.rms_distance` | APPROXIMATED — the window is G12.14, in minutes (`hh-mm`) or seconds (`hh-mm-ss`) |
-| `clock_percentiles` interior rungs | APPROXIMATED, for each rung the tail rule publishes; a rung it withholds is `null` and is listed, never checked. THE LADDER'S TWO ENDS ARE NOT IN THIS TABLE since stage 3, for the reason the calendar ladder's are not: T2 makes both of them `null` in every description, they oblige no cell of any file, and they are listed as withheld rather than compared. The two tail boundaries are pinned and the interior ranks are floor-division interpolations between them, in the ordinal unit the published form itself sets: minutes of day for `hh-mm`, seconds of day for `hh-mm-ss`. The two-sided window is fixed in the generation method's time-of-day clause and cited there, never restated here |
+| `low_tail.mean_distance`, `high_tail.mean_distance`, `low_tail.rms_distance`, `high_tail.rms_distance` | APPROXIMATED — the window is G12.14, in minutes (a `-mm` form) or seconds (a `-mm-ss` form) |
+| `clock_percentiles` interior rungs | APPROXIMATED, for each rung the tail rule publishes; a rung it withholds is `null` and is listed, never checked. THE LADDER'S TWO ENDS ARE NOT IN THIS TABLE since stage 3, for the reason the calendar ladder's are not: T2 makes both of them `null` in every description, they oblige no cell of any file, and they are listed as withheld rather than compared. The two tail boundaries are pinned and the interior ranks are floor-division interpolations between them, in the ordinal unit the published form itself sets: minutes of day for a `-mm` form, seconds of day for a `-mm-ss` form. The two-sided window is fixed in the generation method's time-of-day clause and cited there, never restated here |
 | `n_unparsed` | EXACT-OBSERVABLE as counted neutral stand-ins, explicitly OUTSIDE the clock-value representation obligation |
-| `n_distinct`, `n_distinct_folded` | APPROXIMATED — the twin writes a value per rank between pinned ends, exactly as the calendar ladder does, so how many different values it holds is a consequence of the construction rather than a target, and the two-sided envelope that bounds both counts is fixed in the same time-of-day clause and cited there, never restated here. The ALL-DIFFERENT obligation of 9.8 is the one case the construction meets outright: it binds through the ordinal mechanism, whose capacity is stated — the space holds 1,440 or 86,400 distinct spellings by form, and the unparsed cells are stand-ins from an unbounded text family that supply distinctness of their own. A description whose distinct demand NET of its unparsed cells — `n_distinct` less `n_unparsed` — exceeds the form's capacity is the one infeasible shape, and it is REFUSED at the feasibility stage under the head of this section, never approximated. A description whose own source met every count, unparsed cells included, is never refused by this rule |
+| `n_distinct`, `n_distinct_folded` | APPROXIMATED — the twin writes a value per rank between pinned ends, exactly as the calendar ladder does, so how many different values it holds is a consequence of the construction rather than a target, and the two-sided envelope that bounds both counts is fixed in the same time-of-day clause and cited there, never restated here. The ALL-DIFFERENT obligation of 9.8 is the one case the construction meets outright: it binds through the ordinal mechanism, whose capacity is stated — the space holds 1,440 or 86,400 distinct spellings by precision, half that on the declared 12-hour face (C6-10a), and the unparsed cells are stand-ins from an unbounded text family that supply distinctness of their own. A description whose distinct demand NET of its unparsed cells — `n_distinct` less `n_unparsed` — exceeds the form's capacity is the one infeasible shape, and it is REFUSED at the feasibility stage under the head of this section, never approximated. A description whose own source met every count, unparsed cells included, is never refused by this rule |
 
 <!-- anchor 3b-D1 (P4-D365) -->
 <!-- anchor 3b-D0 (P4-D366) -->
@@ -13828,7 +13884,9 @@ a marked row.
       "one more thing a declaration can record" would be reading the
       smaller half.
 13. **The time-of-day form facts. NEW.** `clock_form` says which of the
-    two written clock forms the column's cells wore, and `n_unparsed`
+    forty written clock forms of C6-10a the column's cells wore -- the
+    precision, the hour's width and the face, where before landing T1
+    it named one of two (the T1 review's item 11) -- and `n_unparsed`
     counts the cells no clock reading accepted. Neither carries a
     value; both carry a shape and a count of the table.
 14. **The calendar-placeholder verdicts and their counts. NEW.** A

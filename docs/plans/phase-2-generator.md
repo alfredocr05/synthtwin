@@ -1146,7 +1146,11 @@ made; P1-R8-**F7** by the contract gate.
   place: the figures after a second are still zeros, and the members
   the reader does not reach at all — a 12-hour clock, `08APR2024`, an
   unpadded Excel hour — still fall to free text, which residual
-  R-P4-12 and the landing's own record carry.
+  R-P4-12 and the landing's own record carry. *Narrowed by landing T1
+  (plan P4-D370; the T1 review's item 11): a slashed stamp reads a
+  12-hour clock and Excel's unpadded hour, and the twin writes each
+  back; `08APR2024` still falls to free text, and so does a 12-hour
+  clock or a one-figure hour after an ISO date.*
 - **R-P2-8. REPLACED by owner decision 6, and larger than revision 3
   said.** Where an identifier's length and distinctness cannot both
   hold, length is kept and values repeat; raw distinctness, folded

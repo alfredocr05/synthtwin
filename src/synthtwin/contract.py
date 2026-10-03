@@ -513,7 +513,7 @@ COMPOUND_LABEL_KEYS = LABEL_KEYS + (
     "n_present",
 )
 
-# The clock role's own ten, and the two forms its cells can wear.
+# The clock role's own ten, and (below) the forty forms its cells can wear.
 # Nothing else joins them: these ten are the whole of what this role
 # adds to the universal keys, and the forbidden-key rule is what stops
 # an eleventh. STAGE 3 (plan P4-D328): the earliest and latest time went,
@@ -936,14 +936,14 @@ DATE_FORMATS = (
 ISO_MEMBERS = ("iso-date", "iso-datetime")
 FORMAT_ISO_MIXED = "iso-mixed"
 
-# The two readings that reach `datetime` resolution through a clock in
-# the time-of-day role's own two forms -- `HH:MM` and `HH:MM:SS`, and
-# nothing else. THEY CARRY NEITHER A FRACTION NOR AN OFFSET, because
-# their own reader takes neither (plan amendment A-P4-1 item 2), so a
-# description claiming one of those for such a column describes a
-# column no table can hold. That is a rule about the FORMAT and not
-# about the resolution, which is why D6 and D9 each need a clause of
-# their own for it (review item P4-DATE4-F1).
+# The readings that reach `datetime` resolution through a clock the
+# time-of-day role's own reader reads -- its forty forms since landing T1
+# (contract C6-10a, D12a) -- and nothing else. THEY CARRY NEITHER A
+# FRACTION NOR AN OFFSET, because their own reader takes neither (plan
+# amendment A-P4-1 item 2), so a description claiming one of those for
+# such a column describes a column no table can hold. That is a rule
+# about the FORMAT and not about the resolution, which is why D6 and D9
+# each need a clause of their own for it (review item P4-DATE4-F1).
 CLOCK_FORM_MEMBERS = (
     "month-first-datetime",
     "day-first-datetime",
@@ -1287,6 +1287,11 @@ INVARIANTS = {
     "S8b": (
         "every column named as holding the people the rows belong to is "
         "also declared as holding record numbers"
+    ),
+    # The T1 review's item 7 (plan P4-D370, contract C6-10a).
+    "S8c": (
+        "a column whose clock writes no AM or PM is written on the 12-hour "
+        "face exactly where it is named as a 12-hour clock"
     ),
     "S9": (
         "the smallest number of categories allowed is not larger than "
@@ -3103,21 +3108,24 @@ class JoinedFacts:
 class ClockFacts:
     """A column of clock times (contract section 6, the clock role).
 
-    FIVE FACTS AND NO SIXTH: which of the two forms the cells wore, the
+    FIVE FACTS AND NO SIXTH: which of the forty forms the cells wore, the
     two tails, the eleven-rung ladder over the values that parsed, and
-    how many present cells no clock reading accepted. Beside them stand
+    how many present cells the clock reading left unread. Beside them stand
     the five stage 3b reserves (plan P4-D364), empty -- `clock_step`
     `None` -- on every column until the landing that fills each: the
     census of ten-minute bins, the values that stand out, the step the
     values were written on and the codes written among them, and the
     census of the minutes of the hour, groups `(first, last, count)`.
 
-    Every clock value here is written in the form `clock_form` names,
-    two digits a field. The ladder is SELECTION -- eleven order
-    statistics of cells the column really holds -- and since stage 3
-    (contract T2) a rung is published only between the two tail
-    boundaries, so its two ends are always null. A tail's distances are
-    in the form's own unit: minutes for `hh-mm`, seconds for `hh-mm-ss`.
+    Every clock value here is written in the form `clock_form` names --
+    one of forty since landing T1 (contract C6-10a), its hour at the
+    form's width and on its face, its minutes and seconds in two digits
+    -- and ordered by the instant it names, never by its text. The
+    ladder is SELECTION -- eleven order statistics of cells the column
+    really holds -- and since stage 3 (contract T2) a rung is published
+    only between the two tail boundaries, so its two ends are always
+    null. A tail's distances are in the form's own unit: minutes for a
+    `-mm` form, seconds for a `-mm-ss` form.
     """
 
     clock_form: str
@@ -15361,14 +15369,18 @@ def _is_canonical_width(name: str) -> bool:
 def _is_a_clock_value(text: object, form: str) -> bool:
     """Whether one published value is a clock time in one form.
 
-    Two digits a field, the separators where the form puts them, hours
-    to 23 and minutes and seconds to 59 -- invariant T1, asked of every
-    one of the thirteen clock values a block publishes.
+    Exactly the form's own spelling, in whichever of the forty forms of
+    contract C6-10a the block names: read in the form and written back
+    by its one writer character for character -- the hour at the form's
+    width and on its face, the minutes and seconds in two figures to 59
+    -- invariant T1, asked of every clock value a block publishes: each
+    tail's boundary and listed values, and every rung that is not null.
 
-    Built out of character comparisons rather than string methods: the
-    offline audit refuses a method call on a value it cannot trace to
-    text, and a value read out of somebody's document is exactly such a
-    value.
+    No string method is called on the value: once it is known to be
+    text it is handed to the reader and the writer in `parsing`, since
+    the offline audit refuses a method call on a value it cannot trace
+    to text, and a value read out of somebody's document is exactly
+    such a value.
     """
     if not isinstance(text, str):
         return False
@@ -17356,6 +17368,26 @@ def _group_marks_agree(
                 )
 
 
+def _written_clock_style(column: ColumnBlock) -> "str | None":
+    """The written clock one column publishes, or None where it names none.
+
+    A column of clock times names it in `clock_form`; a slashed stamp in
+    its one `datetime_separators` word, unless that census was pooled.
+    Determinism: a function of the block. Raises nothing. No I/O.
+    """
+    facts = column.facts
+    if isinstance(facts, (ClockFacts,)):
+        return parsing.clock_style_of(facts.clock_form)
+    if isinstance(facts, (DatetimeFacts,)) and facts.parser_family in CLOCK_FORM_MEMBERS:
+        for word in sorted(facts.datetime_separators):
+            if word == WITHHELD:
+                continue
+            style = parsing.stamp_style(word)
+            if style is not None:
+                return style
+    return None
+
+
 def _cross_checks(
     columns: "tuple[ColumnBlock, ...]",
     settings: SettingsBlock,
@@ -17365,7 +17397,9 @@ def _cross_checks(
 
     S8: every name declared as holding record numbers is a column of
     this table -- a name that matches no column means the description
-    and the schema disagree about which columns were declared. S10:
+    and the schema disagree about which columns were declared. S8c: a
+    column written on the 12-hour face with no marker is declared one, and
+    a declared column with no marker is written on that face. S10:
     every note is about a column of this table. S11: the notes are
     grouped by column, in the order the columns come in the table.
     """
@@ -17411,6 +17445,43 @@ def _cross_checks(
                 "in the block of rules that produced the description",
                 f"'{name}' is named as a 12-hour clock",
                 "this table has no column of that name",
+            )
+    # S8c (the T1 review's item 7): THE 12-HOUR FACE WITH NO MARKER IS A
+    # DECLARATION'S, and nothing else's (C6-10a). No cell says which clock
+    # wrote `12:15`, so a description publishing that face without the
+    # declaration beside it is read on the 24-hour face by everything
+    # that rebuilds the reading from the settings: the validator then read
+    # `12:xx` as noon and the unchanged source missed 16 checks.
+    # ...AND THE OTHER WAY ROUND, on a clock that writes no marker (the
+    # second round of the same item): a declared column reads its
+    # unmarked hours on that face and on no other, so a declared column
+    # published on the 24-hour face is read by the validator at the
+    # declaration and measured against facts taken at noon -- a declared
+    # stamp of `12:00` to `4:59` with its word moved to that face loaded,
+    # and the unchanged source missed 10 checks. A declared column whose
+    # clocks write AM or PM keeps their face, and is not reached.
+    for column in columns:
+        style = _written_clock_style(column)
+        if style is None:
+            continue
+        face = parsing.clock_face(style)
+        declared = column.name in settings.forced_twelve_hour_clocks
+        if face == parsing.CLOCK_TWELVE_HOUR and not declared:
+            raise _broken(
+                "S8c",
+                f"in the block for the column named '{column.name}'",
+                "the column writes its clock on a 12-hour face with no AM or PM",
+                "the block of rules that produced the description does not "
+                "name it as a 12-hour clock",
+            )
+        if face == "" and declared:
+            raise _broken(
+                "S8c",
+                f"in the block for the column named '{column.name}'",
+                "the column writes its clock on the 24-hour face with no AM "
+                "or PM",
+                "the block of rules that produced the description names it "
+                "as a 12-hour clock",
             )
     _group_marks_agree(columns, settings)
     _mixture_pools_bounded(columns, settings)

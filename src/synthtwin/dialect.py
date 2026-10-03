@@ -1587,8 +1587,9 @@ def sheet_clock_text(second: int, with_seconds: bool) -> str:
     """One second of the day as the clock role reads it (plan P4-D382).
 
     Guarantees: `HH:MM`, or `HH:MM:SS` where ``with_seconds``, for a
-    second from 0 to 86,399 -- the two forms of contract C6-10, every
-    field two figures. Raises ValueError for a second outside the day.
+    second from 0 to 86,399 -- `hh-mm` and `hh-mm-ss`, the two of
+    contract C6-10a's forty forms that write every field in two figures
+    on the 24-hour clock. Raises ValueError for a second outside the day.
     No I/O of any kind.
     """
     if second < 0 or second >= SHEET_DAY_SECONDS:

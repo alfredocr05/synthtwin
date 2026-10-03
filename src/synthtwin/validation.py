@@ -7455,6 +7455,10 @@ def _obligations(
         split_settings.declared_missing_values,
         comma,
     ))
+    # ...AND, ON A CLOCK OR A SLASHED STAMP, LESS WHAT ITS CLOCK LEFT UNREAD
+    # (the T1 review's items 1 and 2), each side under its own settings.
+    own_cells = _cells_on_the_written_clock(column, block, own_cells, own_settings)
+    split_cells = _cells_on_the_written_clock(column, split, split_cells, split_settings)
     system = _tail_date_system(description, column)
     gated = _universal_checks(column, block, mine, floor, system)
     # A JOINED COLUMN READ FROM ITS VALUES counts a position's cells by
@@ -15902,6 +15906,84 @@ def _stamp_style_of(facts: contract.DatetimeFacts) -> str:
     return parsing.DEFAULT_CLOCK_STYLE
 
 
+def _stamp_off_its_face(cell: str, face: str) -> bool:
+    """Whether one slashed stamp's clock reads, and on another face than its column's (landing T1).
+
+    The producer's own acceptance rule (`taxonomy._stamp_clocks`): the
+    clock half, split at the first space, read by the one clock reader
+    and placed on the face the description publishes; a stamp it does
+    not place there is counted unread (contract NF108). A cell whose
+    clock does not read at all is not one: no member reads it as a date.
+    Determinism: a function of the two. Raises TypeError for a cell that
+    is not text. No I/O of any kind.
+    """
+    parts = parsing.clock_parts(parsing.stamp_halves(cell)[1])
+    return parts is not None and parsing.clock_second(parts, face) is None
+
+
+def _cells_on_the_written_clock(
+    column: contract.ColumnBlock,
+    block: "dict[str, object]",
+    cells: "list[str]",
+    settings: taxonomy.Settings,
+) -> "list[str]":
+    """A clock or slashed-stamp column's cells, less those its description counts unread on its clock.
+
+    EVERY RECOUNT READS WHAT THE PRODUCER READ (the T1 review's items 1
+    and 2). The producer counts unread -- in `n_unparsed`, and in no
+    tail, ladder or census -- a stamp whose clock is on another face than
+    the column's (contract NF108), and a clock or stamp its one hour
+    width would rewrite into a value the person declared missing where
+    the other width would too (C6-10a). A recount that read either
+    counted cells no published fact counts: three `3/18/2023 23:59`
+    beside 600 stamps written `3/1/2023 1:00 AM` put three unpadded days
+    into the census of widths the description took over 600, and three
+    `1:00` beside a declared `01:00` and `2:00` stood below a low tail
+    measured without them -- and the unchanged source missed both. The
+    tail recount of a stamp asks the face itself (`_tail_units_of`), with
+    this predicate; the census of widths, the written clock's fit and
+    every recount after them are handed these cells.
+
+    THE STYLE IS THE ONE EACH RECOUNT READS IN: a clock's, the file's own
+    form, as `_file_clock_units` reads it; a stamp's, the published one,
+    as `_tail_units_of` reads it. A cell whose clock does not read stays,
+    because no recount reads it as a time either, and what a description
+    counts unread for any other reason is its own count.
+
+    Guarantees: accepts the column, the file's block on one side, the
+    cells that side reads and that side's settings; returns the cells
+    kept, in order. Determinism: a function of the four. Raises nothing.
+    No I/O of any kind.
+    """
+    facts = column.facts
+    stamps = False
+    if isinstance(facts, contract.ClockFacts):
+        form = _text_at(block, "clock_form")
+        if form is None or form not in parsing.CLOCK_FORMS:
+            form = facts.clock_form
+        style = parsing.clock_style_of(form)
+    elif (
+        isinstance(facts, contract.DatetimeFacts)
+        and facts.parser_family in contract.CLOCK_FORM_MEMBERS
+    ):
+        style = _stamp_style_of(facts)
+        stamps = True
+    else:
+        return cells
+    absent = taxonomy.clock_cells_written_absent(cells, style, stamps, settings)
+    if not stamps and not absent:
+        return cells
+    face = parsing.clock_face(style)
+    kept: "list[str]" = []
+    for cell in cells:
+        if cell in absent:
+            continue
+        if stamps and _stamp_off_its_face(cell, face):
+            continue
+        kept += [cell]
+    return kept
+
+
 def _tail_units_of(
     facts: contract.DatetimeFacts, cells: "list[str]"
 ) -> "list[int | None]":
@@ -15924,10 +16006,24 @@ def _tail_units_of(
     # A slashed stamp declared a 12-hour clock reads its top of the dial
     # as the first hour, as its description did (landing T1).
     style = _stamp_style_of(facts)
+    # ...AND A STAMP WHOSE CLOCK IS ON ANOTHER FACE IS NO DATE HERE, as the
+    # producer counts it unread (contract NF108; the T1 review's item 2).
+    # Read here it put three `12/31/2030 23:59` beside 300 stamps written
+    # `3/17/2023 1:00 AM` into the high tail the producer had measured
+    # without them, and the unchanged source missed four checks.
+    face = ""
+    if facts.parser_family in contract.CLOCK_FORM_MEMBERS:
+        face = parsing.clock_face(style)
     read_cells: "list[tuple[str, str, bool] | None]" = []
     dates = 0
     for cell in cells:
         read = parsing.parse_datetime(cell, facts.parser_family)
+        if (
+            read is not None
+            and facts.parser_family in contract.CLOCK_FORM_MEMBERS
+            and _stamp_off_its_face(cell, face)
+        ):
+            read = None
         if read is None:
             read_cells += [None]
             continue
@@ -16530,7 +16626,7 @@ def _shown_clock_distance(ordinal: int, rung: int, form: str) -> str:
     # The two numbers arrive in seconds; a column of minutes says its
     # distance in minutes, which is what its reader has in front of
     # them. An odd number of seconds on such a column is a file that
-    # wore the other form, and it is said in seconds rather than
+    # wrote the other precision, and it is said in seconds rather than
     # rounded into a lie.
     away = ordinal - rung
     word = _clock_units(form)
@@ -16562,9 +16658,9 @@ def _within_clock(
     rung; and a window that does not reach the published value says so
     rather than leaving a reader to think the page is wrong.
     """
-    # IN SECONDS OF DAY, the one unit the two forms share, because the
-    # measured side was read in the FILE's own form and this one is
-    # read in the description's.
+    # IN SECONDS OF DAY, the one unit every one of the forty forms
+    # converts to, because the measured side was read in the FILE's own
+    # form and this one is read in the description's.
     step = parsing.clock_step(facts.clock_form)
     rung = step * _clock_ordinal_or_zero(published, facts.clock_form)
     low, high = window

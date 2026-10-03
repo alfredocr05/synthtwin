@@ -190,6 +190,38 @@ offer is asked again: `6` typed at a column of codes had recorded a
 12-hour clock on it. That stated limit is landing T2's to close: its hour
 census confines a declared 12-hour stamp's draws to the half day.
 
+**Its one review** (Codex at 110cb46; items 4 and 5 are landing R1's).
+A cell of the other hour width is never rewritten into a value declared
+missing: 180 `1:00` beside a declared `01:00` had come back as 191 holes
+where the source has eleven, and the column now keeps the width that
+spells none; where both widths would, those cells are counted unread.
+Every recount validation makes of a clock or a stamp -- its tails, its
+census of date widths, the fit of its clock -- reads only the cells the
+producer read, and the day-or-month comparison weighs each reading on
+its column's face, so a source with three 24-hour stamps among 300
+marked ones no longer misses four checks, and 990 month-first stamps no
+longer lose to 999 day-first ones of which ten are then dropped. G7.5
+step 5 keeps the walk it had and, where that falls short, searches the
+days most ranks first within a bound of 100,000 states, product and
+oracle alike: a remainder of 13 goes on days of 6 and 7 where the walk
+gave up, a census built so that no assignment exists is settled at
+once, or stopped at the bound in about half a second, where the first
+form of the search ran 99 seconds, and the report
+says synthtwin found no set rather than that none exists. The loader
+refuses a 12-hour face no declaration names, and a declared clock with
+no AM or PM left on the 24-hour face (S8c). A scripted run offers
+`--twelve-hour` to the 12-hour question and calls a clock column a
+clock; a declared stamp whose written clock was pooled is told the
+declaration was used where its clocks write no AM or PM, and that it
+changed nothing where they do; the 12-hour and colon questions no
+longer say "every value" of a column holding cells they did not read,
+the colon one counting the cells that are not numbers joined by a
+colon; and the contract, the method and the comments of the code no
+longer refuse `9:30`, order clock text as written or speak of two clock
+forms: G7.5 says a 12-hour clock and Excel's unpadded hour are read on a
+slashed stamp and not after an ISO date, and G7A.5 steps a stand-in past
+a clock time in any of the forty forms.
+
 ### Every tail publishes its pair (2026-10-01)
 
 **No tail pair is withheld but one binary64 cannot hold** (plan P4-D375,

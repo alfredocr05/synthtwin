@@ -6259,20 +6259,39 @@ def written_fields(column, ordinals, offsets, parsed, space, resolution):
     return fields
 
 
+# How many states G7.5 step 5's search enters before it stops and places
+# nothing: the method's own number (the T1 fix stream's second round).
+WIDTH_WALK_STATES = 100000
+
+
 def width_remainder(census, weights, both, days, parsed, floor):
     """G7.5 step 5, written from its statement (landing T1, plan P4-D370).
 
     Where the census's named counts come to less than the parsed cells,
     the ``parsed - named`` ranks left over wear joint words the census
     does not name, in the order padded, unpadded, first-padded,
-    second-padded: WHOLE DAYS AT A TIME, the days holding the fewest of
-    the class's ranks first, each day taken while it still fits the
-    remainder; each word on at most the line less one ranks and on fewer
-    than the largest named count, a day going to the first word it still
-    fits. The named words then keep exactly their published counts.
-    Returns the ranks' words, nothing for no remainder, and None where
-    the days cannot hold the remainder exactly -- the step then writes
-    nothing and the twin is written as before.
+    second-padded: WHOLE DAYS AT A TIME, each word on at most the line
+    less one ranks and on fewer than the largest named count. The days
+    that can be taken are those holding no more of the class's ranks than
+    a word may or the remainder does, and of the days holding one number
+    of ranks only the first ``remainder // size`` (fewest ranks first, the
+    earlier day first among equals). First the walk that never steps
+    back: each of those days, in that order, taken while the remainder
+    still holds it and put in the first word with room, or left out where
+    none has room. Where that falls short, the search (Codex's review of
+    landing T1, item 6: the walk took 4 and 6 of 4, 6 and 7 under 13 and
+    stopped): the same days MOST RANKS FIRST, the earlier day first among
+    equals, depth first, each put in the first word, then the next, then
+    left out, the first way whose days hold exactly the remainder taken.
+    It walks no remainder past what the words hold together, no day from
+    which the days left cannot make up what is left of the remainder,
+    words aside, and no day reached with the loads of a day that failed
+    before, in some order; and it enters at most ``WIDTH_WALK_STATES``
+    states, a state being a day reached that none of those turned back,
+    and past that it places nothing. The named words then keep exactly
+    their published counts. Returns the ranks' words, nothing for no
+    remainder, and None where the search finds no set of days -- the step
+    then writes nothing and the twin is written as before.
     """
     left = parsed - sum(count for name, count in census.items() if name != "(withheld)")
     if left < 1:
@@ -6285,26 +6304,68 @@ def width_remainder(census, weights, both, days, parsed, floor):
     for rank in both:
         by_day.setdefault(days[rank], [])
         by_day[days[rank]] += [rank]
-    taken, total = [], 0
+    walk = []
     for size, day in sorted((len(ranks), day) for day, ranks in by_day.items()):
+        if size <= room and size <= left and sum(1 for held, _ in walk if held == size) < left // size:
+            walk += [(size, day)]
+    # The walk that never steps back.
+    filled = dict.fromkeys(words, 0)
+    placed = {}
+    total = 0
+    for size, day in walk:
         if total == left:
             break
-        if size <= room and total + size <= left:
-            taken += [day]
-            total += size
-    if total != left:
-        return None
-    filled = dict.fromkeys(words, 0)
-    worn = {}
-    for day in taken:
-        size = len(by_day[day])
+        if total + size > left:
+            continue
         word = next((word for word in words if filled[word] + size <= room), None)
-        if word is None:
+        if word is not None:
+            filled[word] += size
+            placed[day] = word
+            total += size
+    if total == left:
+        return {rank: placed[day] for day in placed for rank in by_day[day]}
+    # The search, most ranks first.
+    walk = sorted(walk, key=lambda pair: (-pair[0], pair[1]))
+    if left > len(words) * room:
+        return None
+    makes = [{0}]
+    for size, _day in reversed(walk):
+        makes = [makes[0] | {made + size for made in makes[0] if made + size <= left}] + makes
+    filled = dict.fromkeys(words, 0)
+    placed = {}
+    hopeless = set()
+    entered = [0]
+
+    class Bounded(Exception):
+        """The search entered more states than the method allows."""
+
+    def place(at, total):
+        if total == left:
+            return True
+        state = (at, tuple(sorted(filled.values())))
+        if left - total not in makes[at] or state in hopeless:
+            return False
+        hopeless.add(state)
+        entered[0] += 1
+        if entered[0] > WIDTH_WALK_STATES:
+            raise Bounded
+        size, day = walk[at]
+        for word in words:
+            if filled[word] + size <= room and total + size <= left:
+                filled[word] += size
+                placed[day] = word
+                if place(at + 1, total + size):
+                    return True
+                filled[word] -= size
+                del placed[day]
+        return place(at + 1, total)
+
+    try:
+        if not place(0, 0):
             return None
-        filled[word] += size
-        for rank in by_day[day]:
-            worn[rank] = word
-    return worn
+    except Bounded:
+        return None
+    return {rank: placed[day] for day in placed for rank in by_day[day]}
 
 
 def written_styles(column, fields, parsed, resolution, offsets, floor=CASE_SMALL_CELL_FLOOR,
@@ -18703,8 +18764,9 @@ def _clock_content(column):
             continue
         content.append(clock_spelling_of(ordinals[rank], form))
     # G7A.5.  The stand-ins this file builds are `text-N`, which reads
-    # as a clock time in NEITHER form, so the exclusion that belongs to
-    # this role is met by construction rather than by a search.
+    # as a clock time in none of the forty forms (contract C6-10a), so
+    # the exclusion that belongs to this role is met by construction
+    # rather than by a search.
     content.extend(text_stand_ins(content, column["n_unparsed"]))
     return content
 
