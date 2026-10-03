@@ -705,8 +705,13 @@ MIXED_SEED = 8101
 # that line is the whole of the difference from 668f276's file (diffed on
 # the merged tree), which hashed to ca9d1321...7d14ae. The other four
 # files are 668f276's byte for byte.
+# AND RE-RECORDED BY PLAN P4-D386 (the second key cut): the settings block
+# gains `century_windows`, `forced_date_columns` and `forced_date_counts`,
+# each empty (the column is numbers, so no block gains `count_form`); the
+# same bytes with those three taken out hash to 93996a59...5344cc, the
+# digest on 110cb46. The other four files did not move.
 MIXED_AT_668F276 = {
-    "mixed-1000-s1-profile.json": "93996a59ca4f571c4e3ef14e366fb9d367db434baab855b347e46fe86c5344cc",
+    "mixed-1000-s1-profile.json": "4c31290cc223df3d9b92e42780ddbfe3ab86320bd6a12de702c4b7ca18987408",
     "mixed-1000-s1-profile.txt": "1a615c0070fd7173faa26a3fa86ad6307232bb9d997c4514bbd2ecfbe2bddeed",
     "mixed-1000-s1-questions.json": "a2364bd076a58f8eaf80aa5517a7d8b90438652e98022ee7b19523973bc30c47",
     "mixed-1000-s1-twin.csv": "fcae8034d6551018be81752c89d66faff8d7589e764565b89225cc9bde9d235a",

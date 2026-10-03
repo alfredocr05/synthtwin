@@ -427,6 +427,19 @@ def test_r6_red_without_step_five(tmp_path: pathlib.Path, monkeypatch: pytest.Mo
 # -- R7: no byte moves ---------------------------------------------------
 
 
+def _without_the_second_cut(document: dict) -> None:
+    """The four keys the second cut reserves (plan P4-D386), taken out empty.
+
+    They arrived after T1, so "as before T1" reads the document without
+    them as well as without T1's own key.
+    """
+    for key in ("century_windows", "forced_date_columns", "forced_date_counts"):
+        assert document["settings"].pop(key) == [], key
+    for column in document["columns"]:
+        if "count_form" in column:
+            assert column.pop("count_form") is None, column["name"]
+
+
 def test_r7_no_byte_moves(tmp_path: pathlib.Path) -> None:
     """Both goldens, the new settings key taken out, hash as they did before T1.
 
@@ -442,6 +455,7 @@ def test_r7_no_byte_moves(tmp_path: pathlib.Path) -> None:
     document = demo._demo_document(tmp_path)
     document["created_with"] = "(version normalized for the golden test)"
     del document["settings"]["forced_twelve_hour_clocks"]
+    _without_the_second_cut(document)
     assert hashlib.sha256(producer.serialize(document).encode("utf-8")).hexdigest() == (
         "17f1d514335b2eb06005f32357cd42c96c7b42036d5d1f71e23aee62ce08912f"
     )
@@ -454,6 +468,7 @@ def test_r7_no_byte_moves(tmp_path: pathlib.Path) -> None:
     )
     described["created_with"] = golden.NORMALIZED_VERSION
     del described["settings"]["forced_twelve_hour_clocks"]
+    _without_the_second_cut(described)
     written = fixtures.write_profile(folder, "table-profile.json", described)
     assert hashlib.sha256(written.read_bytes()).hexdigest() == (
         "c126adc7722a717079b62801c73d02de97e2f65de624b0be82faffeb022f0eda"
