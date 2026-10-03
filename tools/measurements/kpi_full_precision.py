@@ -20,7 +20,8 @@ reference machine, `kpi_rules.seconds_judged_here`).
 K-S3-55 (the same plan entry). A column the earlier rules decline was
 split by `taxonomy.affixed_split` sixteen times a cell; it is split once
 per different text now. Its count is the FAST test `test_k_s3_55`; this
-adds the seconds an unread 10,000-row column takes to describe.
+adds whether an unread 10,000-row column is described, both files
+written, and the seconds it takes.
 
     .venv/bin/python tools/measurements/kpi_full_precision.py --kpi
 """
@@ -120,8 +121,11 @@ with tempfile.TemporaryDirectory() as home:
     value.update(columns=columns, crashed=crashed)
     ok, seconds = described(home / "unread", "stamps", gate.oracle_timestamps(10_000, 7))
     print(f"unread 10,000 rows: described {ok}, {seconds:.1f} s", flush=True)
-    unread = {"seconds_unread_10k": round(seconds, 2)}
-    if not ok:
-        unread.update(described_unread_10k=0)
+    # WHETHER IT WAS DESCRIBED IS JUDGED, NOT ONLY ITS SECONDS (the Codex
+    # review of 3b-R0, item 3): a run that failed at once took few seconds
+    # and its flag was written only then, under a key the rule did not
+    # bound, so the entry read PASS. The flag is written on both roads and
+    # the ledger bounds it at exactly 1.
+    unread = {"seconds_unread_10k": round(seconds, 2), "described_unread_10k": 1 if ok else 0}
 kpi_rules.emit("K-S3-54", value)
 kpi_rules.emit("K-S3-55", unread)

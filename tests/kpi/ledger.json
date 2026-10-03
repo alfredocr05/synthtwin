@@ -6790,16 +6790,18 @@
    "headline": false,
    "name": "A column nothing reads is split once per different text",
    "status": "GREEN",
-   "rule": "machine-free: 1,000 Oracle-style timestamps, every one different, through `synthtwin profile` ask `taxonomy.affixed_split` at most once per different text across the census's reading and the description's, where they asked it sixteen times a cell; and the gate's pinned nodes pass; and an unread 10,000-row column describes in under 30 s on the quiet reference machine",
+   "rule": "machine-free: 1,000 Oracle-style timestamps, every one different, through `synthtwin profile` ask `taxonomy.affixed_split` at most once per different text across the census's reading and the description's, where they asked it sixteen times a cell; and the gate's pinned nodes pass; and an unread 10,000-row column is described, both files written (the driver's flag, exactly 1); and it describes in under 30 s on the quiet reference machine",
    "rule_kind": "at_most",
    "expected": {
     "different_texts": 1000,
     "split_calls": 1000,
+    "described_unread_10k": 1,
     "seconds_unread_10k": 30.0,
     "pinned_nodes_failing": 0
    },
    "key_kinds": {
     "different_texts": "at_least",
+    "described_unread_10k": "exact",
     "seconds_unread_10k": "seconds_below",
     "pinned_nodes_failing": "exact"
    },

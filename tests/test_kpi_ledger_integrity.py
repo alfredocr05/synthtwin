@@ -1011,6 +1011,39 @@ def test_a_driver_that_died_after_printing_its_value_is_a_drop() -> None:
     assert row({})["verdict"] == kpi_rules.PASS
 
 
+def test_an_unread_column_that_was_not_described_turns_k_s3_55_red() -> None:
+    """The Codex review of 3b-R0, item 3: a failed 10,000-row run is red with seconds judged or not.
+
+    The driver wrote `described_unread_10k` only where the unread column
+    failed, under a key the rule did not bound, and the judge leaves an
+    unbounded key alone: a run that failed at once, in a fraction of a
+    second, read PASS. The flag is bounded at exactly 1 now and written on
+    both roads, so the failed run FAILS, the finished one PASSES, and a
+    driver that stops writing the flag is red too. Mutation: the bound
+    dropped from the ledger (110cb46) reads the failed run as PASS.
+    """
+    entry = ENTRIES["K-S3-55"]
+    recorded = {"id": entry["id"], "value": {"different_texts": 1000, "split_calls": 1000}, "detail": ""}
+    cases = {node: [{"outcome": "passed", "kpi": None}] for node in entry["nodes"]}
+    cases[entry["test"]] = [{"outcome": "passed", "kpi": recorded}]
+
+    def row(unread: "dict", seconds_count: bool) -> "dict":
+        records = {entry["id"]: [{"id": entry["id"], "value": unread, "detail": ""}]}
+        rows = RUNNER.judge_rows(  # type: ignore[attr-defined]
+            [entry], LEDGER, True, cases, records, seconds_count, {entry["driver"]: 0}
+        )
+        return rows[0]
+
+    for seconds_count in (True, False):
+        failed = row({"seconds_unread_10k": 0.4, "described_unread_10k": 0}, seconds_count)
+        assert failed["verdict"] == kpi_rules.FAIL and not failed["pass"], failed
+        assert "described_unread_10k" in failed["message"], failed
+        finished = row({"seconds_unread_10k": 9.3, "described_unread_10k": 1}, seconds_count)
+        assert finished["verdict"] == kpi_rules.PASS and finished["pass"], finished
+        silent = row({"seconds_unread_10k": 9.3}, seconds_count)
+        assert silent["verdict"] == kpi_rules.FAIL and "not measured" in silent["message"], silent
+
+
 def test_the_runner_carries_every_driver_s_exit_status() -> None:
     """`_run_drivers` returns the status beside the records, for two drivers at once."""
 
