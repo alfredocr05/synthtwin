@@ -206,7 +206,9 @@ def test_item_6_the_unnamed_widths_are_placed_wherever_days_can_hold_them(
     block, profile, _questions = gate._described(tmp_path, _SIX_AND_SEVEN)
     assert block["date_field_widths"] == {"padded": 87}
     twin, written = gate._twin(profile, seed)
-    assert sum(1 for cell in written if cell[0:3] != "03/" or cell[3:5] == "4/") == 13
+    # Thirteen cells in a width the census does not name: a field of one figure.
+    unnamed = [cell for cell in written if min(len(field) for field in cell.split("/")[:2]) == 1]
+    assert len(unnamed) == 13, sorted(set(unnamed))
     report = (twin.parent / "real-twin-report.txt").read_text(encoding="utf-8")
     assert "no set of whole dates" not in report
     code, quality = gate._validated(profile, twin)
@@ -226,6 +228,73 @@ def test_item_6_the_oracle_places_the_same_days() -> None:
     reference = oracle.width_remainder(census, weights, both, days, 100, 11)
     assert product is not None and product == reference
     assert sorted({days[rank] for rank in product}) == [2, 3]
+
+
+def _every_size_up_to(cap: int) -> "tuple[dict[str, int], list[int], int]":
+    """A named day of 5,000 ranks, then one day each of 1 to ``cap`` ranks; three words' worth left over."""
+    days = [0] * 5000
+    for day in range(1, cap + 1):
+        days += [day] * day
+    return {"padded": len(days) - 3 * cap}, days, len(days)
+
+
+def test_item_6_a_census_the_first_walk_cannot_place_is_searched_most_ranks_first() -> None:
+    """Days of every size from 1 to 99 under a remainder of 297: three words of 99, placed in 99 states.
+
+    The walk that never steps back falls short here. At c13edd8 the
+    search walked the days fewest ranks first, with no bound, and looked
+    at 2.8 million states -- 2.3 seconds and 275 MB -- before its answer;
+    most ranks first it fills the words with the days that fit them
+    least, and finds one on its first path, 99 states.
+    """
+    from synthtwin import generation
+    from tools.reference import make_generation_reference_vectors as oracle
+
+    chosen, entered = generation._days_searched(list(range(99, 0, -1)), 297, 3, 99)
+    assert chosen is not None and entered == 99
+    census, days, parsed = _every_size_up_to(99)
+    both = list(range(parsed))
+    product = generation._unnamed_remainder(census, dict(census), both, days, parsed, 100)
+    reference = oracle.width_remainder(census, dict(census), both, days, parsed, 100)
+    assert product is not None and product == reference
+    held: "dict[str, int]" = {}
+    for word in product.values():
+        held[word] = (held[word] if word in held else 0) + 1
+    assert held == {"unpadded": 99, "first-padded": 99, "second-padded": 99}
+    # ...whole days: every rank of a day wears one word.
+    for day in range(1, 100):
+        assert len({product[rank] for rank in both if days[rank] == day and rank in product}) <= 1
+
+
+def test_item_6_the_search_stops_at_its_bound_product_and_oracle_alike(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A census built so that no assignment exists stops at the bound; product and oracle share it.
+
+    At c13edd8 the search had no bound and no reach: days of even sizes
+    under an odd remainder at a floor of 100 walked every state there is,
+    99 seconds. Now no state is entered there at all, a census of twos
+    and one three that no assignment fills is walked to its end inside
+    the bound, and the bound -- 98 states, then 99 -- moves the product
+    and the oracle together.
+    """
+    from synthtwin import generation
+    from tools.reference import make_generation_reference_vectors as oracle
+
+    evens = sorted([2, 4, 6, 8, 10, 12] * 20, reverse=True)
+    assert generation._days_searched(evens, 297, 3, 99) == (None, 0)
+    twos_and_a_three = [3] + [2] * 73
+    assert generation._days_searched(twos_and_a_three, 147, 3, 49) == (None, 15601)
+    assert generation._days_searched(twos_and_a_three, 147, 3, 49, 1000) == (None, 1001)
+    census, days, parsed = _every_size_up_to(99)
+    both = list(range(parsed))
+    for bound, placed in ((98, False), (99, True)):
+        monkeypatch.setattr(generation, "_WIDTH_WALK_STATES", bound)
+        monkeypatch.setattr(oracle, "WIDTH_WALK_STATES", bound)
+        product = generation._unnamed_remainder(census, dict(census), both, days, parsed, 100)
+        reference = oracle.width_remainder(census, dict(census), both, days, parsed, 100)
+        assert product == reference
+        assert (product is not None) == placed
 
 
 # -- item 7: a 12-hour style needs its declaration -----------------------

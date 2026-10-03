@@ -6259,6 +6259,11 @@ def written_fields(column, ordinals, offsets, parsed, space, resolution):
     return fields
 
 
+# How many states G7.5 step 5's search enters before it stops and places
+# nothing: the method's own number (the T1 fix stream's second round).
+WIDTH_WALK_STATES = 100000
+
+
 def width_remainder(census, weights, both, days, parsed, floor):
     """G7.5 step 5, written from its statement (landing T1, plan P4-D370).
 
@@ -6267,15 +6272,26 @@ def width_remainder(census, weights, both, days, parsed, floor):
     does not name, in the order padded, unpadded, first-padded,
     second-padded: WHOLE DAYS AT A TIME, each word on at most the line
     less one ranks and on fewer than the largest named count. The days
-    are walked depth first, the days holding the fewest of the class's
-    ranks first and the earlier day first among equals, each day put in
-    the first word, then the next, then left out; the first way whose
-    days hold exactly the remainder is taken (Codex's review of landing
-    T1, item 6: a walk that never stepped back took 4 and 6 of 4, 6 and
-    7 under 13 and gave up). The named words then keep exactly their
-    published counts. Returns the ranks' words, nothing for no
-    remainder, and None where no set of days holds the remainder exactly
-    -- the step then writes nothing and the twin is written as before.
+    that can be taken are those holding no more of the class's ranks than
+    a word may or the remainder does, and of the days holding one number
+    of ranks only the first ``remainder // size`` (fewest ranks first, the
+    earlier day first among equals). First the walk that never steps
+    back: each of those days, in that order, taken while the remainder
+    still holds it and put in the first word with room, or left out where
+    none has room. Where that falls short, the search (Codex's review of
+    landing T1, item 6: the walk took 4 and 6 of 4, 6 and 7 under 13 and
+    stopped): the same days MOST RANKS FIRST, the earlier day first among
+    equals, depth first, each put in the first word, then the next, then
+    left out, the first way whose days hold exactly the remainder taken.
+    It walks no remainder past what the words hold together, no day from
+    which the days left cannot make up what is left of the remainder,
+    words aside, and no day reached with the loads of a day that failed
+    before, in some order; and it enters at most ``WIDTH_WALK_STATES``
+    states, a state being a day reached that none of those turned back,
+    and past that it places nothing. The named words then keep exactly
+    their published counts. Returns the ranks' words, nothing for no
+    remainder, and None where the search finds no set of days -- the step
+    then writes nothing and the twin is written as before.
     """
     left = parsed - sum(count for name, count in census.items() if name != "(withheld)")
     if left < 1:
@@ -6288,20 +6304,51 @@ def width_remainder(census, weights, both, days, parsed, floor):
     for rank in both:
         by_day.setdefault(days[rank], [])
         by_day[days[rank]] += [rank]
-    walk = sorted((len(ranks), day) for day, ranks in by_day.items() if len(ranks) <= room)
+    walk = []
+    for size, day in sorted((len(ranks), day) for day, ranks in by_day.items()):
+        if size <= room and size <= left and sum(1 for held, _ in walk if held == size) < left // size:
+            walk += [(size, day)]
+    # The walk that never steps back.
+    filled = dict.fromkeys(words, 0)
+    placed = {}
+    total = 0
+    for size, day in walk:
+        if total == left:
+            break
+        if total + size > left:
+            continue
+        word = next((word for word in words if filled[word] + size <= room), None)
+        if word is not None:
+            filled[word] += size
+            placed[day] = word
+            total += size
+    if total == left:
+        return {rank: placed[day] for day in placed for rank in by_day[day]}
+    # The search, most ranks first.
+    walk = sorted(walk, key=lambda pair: (-pair[0], pair[1]))
+    if left > len(words) * room:
+        return None
+    makes = [{0}]
+    for size, _day in reversed(walk):
+        makes = [makes[0] | {made + size for made in makes[0] if made + size <= left}] + makes
     filled = dict.fromkeys(words, 0)
     placed = {}
     hopeless = set()
+    entered = [0]
+
+    class Bounded(Exception):
+        """The search entered more states than the method allows."""
 
     def place(at, total):
         if total == left:
             return True
-        # A walk that cannot reach the remainder, or stands where one
-        # already failed with the same loads in some order, fails again.
         state = (at, tuple(sorted(filled.values())))
-        if at == len(walk) or total + sum(size for size, _day in walk[at:]) < left or state in hopeless:
+        if left - total not in makes[at] or state in hopeless:
             return False
         hopeless.add(state)
+        entered[0] += 1
+        if entered[0] > WIDTH_WALK_STATES:
+            raise Bounded
         size, day = walk[at]
         for word in words:
             if filled[word] + size <= room and total + size <= left:
@@ -6313,7 +6360,10 @@ def width_remainder(census, weights, both, days, parsed, floor):
                 del placed[day]
         return place(at + 1, total)
 
-    if not place(0, 0):
+    try:
+        if not place(0, 0):
+            return None
+    except Bounded:
         return None
     return {rank: placed[day] for day in placed for rank in by_day[day]}
 

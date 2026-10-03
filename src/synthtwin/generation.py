@@ -4396,13 +4396,18 @@ def _unnamed_remainder(
     word's own, so the twin described again counts them in as the source
     was counted. Carried at plan l.17955 as case (a): fifteen `03/05/2020`,
     fifteen `04/06/2020`, seven `3/7/2020` and seven `03/8/2020` publish
-    `{"padded": 30}`, and the twin wrote all forty-four padded.
+    `{"padded": 30}`, and the twin wrote all forty-four padded. The days
+    are placed by the walk that never steps back (`_days_first_fit`) and,
+    where it falls short, by the bounded search (`_days_searched`, the T1
+    review's item 6).
 
     Guarantees: returns the remainder's ranks and words, `{}` where the
-    census leaves no remainder, and None where whole dates cannot place
-    it -- the census's case (b) of the same record, which the report names
-    and no word is invented for. Determinism: a function of the six;
-    draws no word. Raises nothing. No I/O of any kind.
+    census leaves no remainder, and None where the search finds no set of
+    whole dates that places it -- none exists, or a census built to
+    defeat the search reached its bound; the census's case (b) of the
+    same record, which the report names and no word is invented for.
+    Determinism: a function of the six; draws no word. Raises nothing.
+    No I/O of any kind.
     """
     named = 0
     for name in census:
@@ -4425,10 +4430,11 @@ def _unnamed_remainder(
         if days[rank] not in ranks_of:
             ranks_of[days[rank]] = []
         ranks_of[days[rank]] += [rank]
-    # THE DAYS THAT CAN BE TAKEN, fewest ranks first. Of the days holding
-    # one number of ranks only the first `remainder // size` can ever be
-    # taken together, and the search below never takes a later one while
-    # leaving an earlier one out, so the rest are not walked.
+    # THE DAYS THAT CAN BE TAKEN, fewest ranks first and the earlier day
+    # first among equals. Of the days holding one number of ranks only
+    # the first `remainder // size` can ever be taken together -- neither
+    # walk below takes a later one while leaving an earlier one out -- so
+    # the rest are not walked.
     order: "list[tuple[int, int]]" = []
     seen: "dict[int, int]" = {}
     for size, day in sorted((len(ranks_of[day]), day) for day in ranks_of):
@@ -4439,50 +4445,130 @@ def _unnamed_remainder(
             continue
         seen[size] = taken + 1
         order += [(size, day)]
-    chosen = _days_into_words(
-        [size for size, _day in order], remainder, len(unnamed), cap
+    # FIRST THE WALK THAT NEVER STEPS BACK, as T1 built it but for a day
+    # no word has room for, which it leaves out where T1's gave up, so
+    # every twin T1's walk placed is placed the same way; then, only where
+    # it falls short, the search, most ranks first (the T1 review's item 6).
+    walked = order
+    chosen = _days_first_fit(
+        [size for size, _day in walked], remainder, len(unnamed), cap
     )
+    if chosen is None:
+        most_first = sorted((-size, day) for size, day in order)
+        walked = [(-negative, day) for negative, day in most_first]
+        chosen = _days_searched(
+            [size for size, _day in walked], remainder, len(unnamed), cap
+        )[0]
     if chosen is None:
         return None
     worn: "dict[int, str]" = {}
-    for index in range(len(order)):
+    for index in range(len(walked)):
         if chosen[index] < 0:
             continue
-        for rank in ranks_of[order[index][1]]:
+        for rank in ranks_of[walked[index][1]]:
             worn[rank] = unnamed[chosen[index]]
     return worn
 
 
-def _days_into_words(
+def _days_first_fit(
     sizes: "list[int]", remainder: int, words: int, cap: int
 ) -> "list[int] | None":
-    """Which word each day wears, so the chosen days hold exactly the remainder.
+    """G7.5 step 5's first walk: each day that still fits, into the first word it fits.
 
-    THE FIRST WAY, DEPTH FIRST (Codex's review of landing T1, item 6).
-    The days in their order, each tried in the first word, then the
-    next, then left out; a word holds at most ``cap`` ranks. The first
-    assignment whose days hold exactly ``remainder`` ranks is taken. It
-    used to be a greedy walk -- take each day that still fit, never step
-    back -- and on days of 4, 6 and 7 ranks under a remainder of 13 it
-    took 4 and 6, could not take 7, and said no set of days held 13,
-    which 6 and 7 do. Where the greedy walk reaches the remainder this
-    is the same assignment: it is the search's first path.
-
-    A STATE THAT FAILED ONCE FAILS AGAIN: the words hold the same ``cap``
-    each, so what can still be placed from a day onward depends on the
-    loads already in them and not on which word holds which, and the
-    sorted loads are remembered. The walk is a loop and not recursion,
-    so no number of days reaches Python's recursion limit.
+    THE WALK LANDING T1 BUILT, never stepping back: the days in their
+    order (fewest ranks first), each taken while the remainder still
+    holds it and put in the first word with room for it -- a word holds
+    at most ``cap`` ranks -- until the days taken hold exactly
+    ``remainder``. One change: a day no word has room for is left out,
+    where T1's walk gave up. Wherever T1's walk placed a remainder this
+    one places it the same way, so no twin it wrote moves; where it
+    falls short -- days of 4, 6 and 7 ranks under a remainder of 13 take
+    4 and 6 and stop, though 6 and 7 hold 13 -- `_days_searched` is
+    asked (Codex's review of landing T1, item 6).
 
     Guarantees: returns each day's word index, or -1 where the day is
-    left out, or None where no assignment holds the remainder -- which
-    is then true and not a walk's failure. Determinism: a function of the
-    four; draws nothing. Raises nothing. No I/O of any kind.
+    left out, or None where this walk falls short. Determinism: a
+    function of the four; draws nothing. Raises nothing. No I/O.
     """
+    loads = [0 for _word in range(words)]
+    chosen = [-1 for _size in sizes]
+    total = 0
+    for index in range(len(sizes)):
+        if total == remainder:
+            break
+        size = sizes[index]
+        if total + size > remainder:
+            continue
+        for word in range(words):
+            if loads[word] + size <= cap:
+                loads[word] = loads[word] + size
+                total = total + size
+                chosen[index] = word
+                break
+    if total != remainder:
+        return None
+    return chosen
+
+
+# HOW MANY STATES G7.5 STEP 5'S SEARCH MAY ENTER before it stops and
+# places nothing (the T1 fix stream's second round). Searched fewest
+# ranks first and unbounded, a census built so that no assignment exists
+# walked every state there is: 99 seconds at a floor of 100 on days of
+# even sizes under an odd remainder. Searched most ranks first, the
+# search decided all 711 of 3,000 twin-like censuses at floors 11 to 200
+# on which the first walk fell short, never near the bound, each
+# assignment it found within 1,190 states; the bound is reached only by
+# a census built to defeat the search, in about half a second here.
+_WIDTH_WALK_STATES = 100000
+
+
+def _days_searched(
+    sizes: "list[int]",
+    remainder: int,
+    words: int,
+    cap: int,
+    bound: "int | None" = None,
+) -> "tuple[list[int] | None, int]":
+    """Which word each day wears, so the chosen days hold exactly the remainder; and the states entered.
+
+    THE SEARCH OF G7.5 STEP 5 (Codex's review of landing T1, item 6),
+    asked where the walk that never steps back falls short. The days in
+    their order -- the caller hands them MOST RANKS FIRST, which fills
+    the words with the days that fit them least and leaves the small
+    days to make up what is left -- each tried in the first word, then
+    the next, then left out; a word holds at most ``cap`` ranks. The
+    first assignment whose days hold exactly ``remainder`` ranks is
+    taken.
+
+    THREE THINGS IT DOES NOT WALK, none of which can hold an assignment:
+    a remainder past what the words can hold together; a day from which
+    the days left cannot make up what is left of the remainder at all,
+    their words aside (each day's reach is a bit set of the totals the
+    days from it on can make); and a day reached with the loads of a day
+    that failed before, in some order -- the words hold ``cap`` each, so
+    what can still be placed depends on the loads and not on which word
+    holds which. And it ENTERS at most ``bound`` states, a state being a
+    day reached that none of those rules turned back; past that it stops
+    and returns None, which only a census built to defeat it reaches;
+    ``bound`` left out is `_WIDTH_WALK_STATES`, read when the walk starts.
+    The walk is a loop and not recursion, so no number of days reaches
+    Python's recursion limit.
+
+    Guarantees: returns each day's word index, or -1 where the day is
+    left out, or None where no assignment holds the remainder or the
+    bound was reached; and how many states were entered. Determinism: a
+    function of the five; draws nothing. Raises nothing. No I/O.
+    """
+    if bound is None:
+        bound = _WIDTH_WALK_STATES
     count = len(sizes)
-    after = [0 for _index in range(count + 1)]
+    if remainder > words * cap:
+        return None, 0
+    within = (1 << (remainder + 1)) - 1
+    reach = [0 for _index in range(count + 1)]
+    reach[count] = 1
     for index in range(count - 1, -1, -1):
-        after[index] = after[index + 1] + sizes[index]
+        reach[index] = (reach[index + 1] | (reach[index + 1] << sizes[index])) & within
     failed: "dict[tuple[int, tuple[int, ...]], bool]" = {}
     loads = [0 for _word in range(words)]
     chosen = [-1 for _index in range(count)]
@@ -4492,20 +4578,20 @@ def _days_into_words(
     following = [0 for _index in range(count + 1)]
     index = 0
     total = 0
+    entered = 0
     while index >= 0:
         if following[index] == 0:
             if total == remainder:
-                return chosen
+                return chosen, entered
             state = (index, tuple(sorted(loads)))
-            if (
-                index == count
-                or total + after[index] < remainder
-                or state in failed
-            ):
+            if not (reach[index] >> (remainder - total)) & 1 or state in failed:
                 failed[state] = True
                 index = index - 1
                 total = _undo_day(index, following, sizes, loads, chosen, words, total)
                 continue
+            entered = entered + 1
+            if entered > bound:
+                return None, entered
         moved = False
         while following[index] <= words and not moved:
             option = following[index]
@@ -4528,7 +4614,7 @@ def _days_into_words(
         failed[(index, tuple(sorted(loads)))] = True
         index = index - 1
         total = _undo_day(index, following, sizes, loads, chosen, words, total)
-    return None
+    return None, entered
 
 
 def _undo_day(
@@ -20230,8 +20316,9 @@ def _datetime_content(
     if not remainder_placed:
         # G7.5 STEP 5 COULD NOT PLACE THE WIDTH CENSUS'S UNNAMED REMAINDER
         # on whole dates (landing T1): said, and no word invented for it.
-        # The search is exact since the T1 review's item 6, so the
-        # sentence is true: no set of days holds it under the step's rule.
+        # The step searches since the T1 review's item 6, and the sentence
+        # says what the search found and no more: it is bounded, so on a
+        # census built to defeat it "no set holds" would be a guess.
         weekday_notes += [
             _deviation(
                 column.name,
@@ -20239,10 +20326,10 @@ def _datetime_content(
                 "a remainder written in widths the census does not name",
                 "every cell written in the widths the census names",
                 "The description leaves some values' widths unnamed, and "
-                "no set of whole dates of the twin holds exactly that many "
-                "values in widths it does not name, each on too few values "
-                "to be named and on fewer than the width it names, so they "
-                "are written in the widths it names.",
+                "synthtwin found no set of whole dates of the twin holding "
+                "exactly that many values in widths it does not name, each "
+                "on too few values to be named and on fewer than the width "
+                "it names, so they are written in the widths it names.",
             )
         ]
     body_low = 0
