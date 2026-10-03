@@ -551,6 +551,30 @@ def stopped_nested_too_deep(path: str) -> str:
     )
 
 
+def cell_too_long_to_search(limit: int) -> str:
+    """Message for a cell whose search for the number it holds was stopped at its bound.
+
+    A cell reading as a number with text around it -- `14.2 g/dL`,
+    `$1,250` -- is split into the text and the number by a search over
+    its runs of figures, signs and marks (`taxonomy.affixed_split`), and
+    since the Codex review of 3b-R0, item 2, that search reads at most
+    ``limit`` characters of one cell rather than search on for minutes.
+    Only a run of figures many thousands long reaches the bound. No
+    character of the cell is placed here, and neither is its length.
+    """
+    return (
+        f"synthtwin stopped before it finished describing the table: one "
+        f"cell holds a run of figures, signs and spaces so long that "
+        f"searching it for the number it holds would read more than "
+        f"{limit:,} characters, which is the most synthtwin reads of one "
+        f"cell. Nothing was written. Please check the table for a column "
+        f"holding thousands of figures in one cell -- a long series of "
+        f"readings or a code written into a single cell -- and describe "
+        f"the table without that column, or with those cells split or "
+        f"shortened, and run the command again."
+    )
+
+
 def publication_guard_stopped(where: str) -> str:
     """Message for a description carrying something it may not publish.
 

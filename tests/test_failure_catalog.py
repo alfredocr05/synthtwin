@@ -153,6 +153,10 @@ CASES: "dict[str, tuple[object, ...]]" = {
     # file the person typed; driven through the command in
     # `tests/test_stage3b_full_precision.py`.
     "stopped_nested_too_deep": ("/data/table.csv",),
+    # The bound on the search for one cell's number (the Codex review of
+    # 3b-R0, item 2), driven through the command in
+    # `tests/test_stage3b_full_precision.py`.
+    "cell_too_long_to_search": (20_000_000,),
     "output_is_not_a_plain_file": ("/reports/table-profile.json",),
     "outputs_are_the_same_file": ("/r/a-profile.json", "/r/a-profile.txt"),
     # Reading a description back: the strict loader's nineteen refusals,

@@ -182,7 +182,7 @@ modules. Nothing in this module reads a file.
 import dataclasses
 import math
 
-from synthtwin import calendar_clock, calendar_rules, contract, parsing
+from synthtwin import calendar_clock, calendar_rules, contract, errors, parsing
 
 # The eleven points of the percentile ladder: the shape-carrying
 # summary of a numeric column (plan P1-D4).
@@ -6332,6 +6332,258 @@ def _reads_as_a_number(text: str, decimal_comma: bool) -> bool:
     return parsing.classify_number(read) == parsing.NUMBER
 
 
+# THE FIGURES AND MARKS `_core_reach` READS A SPAN BY (the Codex review
+# of 3b-R0, item 2): the marks of `parsing.GROUP_MARKS` that are ink and
+# the ones that are space, apart, because a space at either end of a
+# number is trimmed away and a space between its figures is a mark.
+_FIGURE_CHARACTERS = frozenset("0123456789")
+_SIGN_CHARACTERS = frozenset("+-" + parsing.MINUS_SIGN)
+_RUN_CHARACTERS = frozenset("0123456789.,'\u2019")
+_INK_MARKS = frozenset(mark for mark in parsing.GROUP_MARKS if parsing.trimmed(mark) != "")
+_SPACE_MARKS = frozenset(mark for mark in parsing.GROUP_MARKS if parsing.trimmed(mark) == "")
+
+# THE MAGNITUDES NO BINARY64 HOLDS, as figures (`parsing.parse_number`
+# refuses both ends). A whole part of 310 significant figures is at least
+# ten to the 309th, past the largest finite value; a fraction whose first
+# figure from 1 to 9 stands after 324 zeros is below ten to the -324th,
+# under half the smallest one, so it reads as nought with a figure that
+# is not, and is refused; and an exponent of seven significant figures is
+# a million or more either way, past both ends for any mantissa of fewer
+# than 999,000 figures that is not nought.
+_WHOLE_FIGURES_PAST_RANGE = 310
+_ZEROS_PAST_RANGE = 324
+_EXPONENT_FIGURES_PAST_RANGE = 7
+_MANTISSA_FIGURES_WITHIN_REASON = 999_000
+
+
+# THE MOST CHARACTERS THE SEARCH FOR ONE CELL'S CORE READS (the Codex
+# review of 3b-R0, item 2), about five CPU seconds. Past it the run stops
+# with `errors.cell_too_long_to_search` rather than search on. Measured
+# with `_core_reach`: `+` 800 times and an `x` reads none; a list of
+# 4,000 three-figure readings parted by spaces, 16,004 characters that
+# all read as one grouped number, reads about 6.6 million, at most a
+# hundred cells of such a list per minute; 3,000 nines and `e5x` reads
+# about 12.5 million. What passes it is a run of figures longer than
+# binary64 holds, many thousands long, in one cell.
+SPLIT_SEARCH_CHARACTERS = 20_000_000
+
+
+def _searched(read: int, more: int) -> int:
+    """The characters the search for one core has read, ``more`` added; a refusal past `SPLIT_SEARCH_CHARACTERS`."""
+    read = read + more
+    if read > SPLIT_SEARCH_CHARACTERS:
+        raise errors.ProfileError(errors.cell_too_long_to_search(SPLIT_SEARCH_CHARACTERS))
+    return read
+
+
+def _exponents_ahead(trimmed: str, start: int, stop: int) -> "list[bool]":
+    """For each place of the span from ``start``, whether an exponent's letter could still be read after it.
+
+    True at a place where the first character from it on that is no
+    figure, point, comma, ink mark or space is an `e` or `E`: those are
+    the only characters a number reads between its figures and its
+    exponent, under either grammar. Indexed from ``start``, one more
+    place than the span, the last False.
+    """
+    ahead = [False] * (stop - start + 1)
+    for index in range(stop - 1, start - 1, -1):
+        character = trimmed[index]
+        if character == "e" or character == "E":
+            ahead[index - start] = True
+        elif character in _RUN_CHARACTERS or character not in _CORE_CHARACTERS:
+            ahead[index - start] = ahead[index - start + 1]
+    return ahead
+
+
+def _core_reach(
+    trimmed: str,
+    begin: int,
+    start: int,
+    stop: int,
+    decimal_comma: bool,
+    exponent_ahead: "list[bool]",
+) -> "tuple[int, list[bool]]":
+    """How far a number starting at ``begin`` can reach, and which ends it may stop at.
+
+    THE SEARCH FOR A CELL'S CORE ASKED EVERY SUBSTRING OF A SPAN (the
+    Codex review of 3b-R0, item 2), and each asking reads it whole, so a
+    span no number stands in cost the cube of its length: `+` written
+    800 times and an `x` asked 320,400 substrings in about eleven CPU
+    seconds before it answered that there was none, and a column of
+    distinct annotations asked again for each. This reads the span once
+    from ``begin``, as `_reads_as_a_number` would read the text it asks
+    of -- under the column's grammar, a declared decimal comma's point
+    dropped and its comma read as the point -- and stops at the first
+    character no number can hold where it stands: a second point or
+    exponent, a sign anywhere but first, after the exponent's letter or
+    as the minus after an amount's figures, a bracket anywhere but
+    around the whole, a space or a mark anywhere but between thousands,
+    a group of thousands of other than three figures, a mark of a second
+    kind, a mark after the point or the exponent, or a magnitude past
+    binary64's range where no exponent can be read further on
+    (``exponent_ahead``, `_exponents_ahead`). Each is a
+    condition every text `parsing.classify_number` reads as a number
+    meets, and none can be met again by reading on, so no end past the
+    stop is a number.
+
+    Returns the reach -- no end past it is a number -- and, for each end
+    from ``begin + 1`` up to the reach, whether the text up to it may
+    be one: False where it holds no figure, an open bracket, an
+    exponent's letter with no figure, a group of thousands still short,
+    or a magnitude past the range. A False end is never a number; a True
+    one is asked of `_reads_as_a_number`, which alone says. Determinism:
+    a fixed function of the six. Raises nothing. No I/O of any kind.
+    """
+    open_ends: "list[bool]" = []
+    started = False
+    bracketed = False
+    inside = False
+    closed = False
+    signed = False
+    trailing = False
+    point = False
+    exponent = False
+    figures = 0
+    nonzero = False
+    whole = 0
+    zeros = 0
+    small = False
+    powers = 0
+    power_figures = 0
+    mark = ""
+    grouped = False
+    group = 0
+    previous = ""
+    spaces = 0
+    space = ""
+    may_end = False
+    for index in range(begin, stop):
+        character = trimmed[index]
+        if decimal_comma:
+            if character == ".":
+                open_ends += [may_end]
+                continue
+            if character == ",":
+                character = "."
+        if character not in _CORE_CHARACTERS:
+            # A space of some kind: trimmed away at either end, between
+            # the brackets and the figures, or a mark between thousands,
+            # which the next character settles.
+            if started and (inside or not bracketed):
+                if spaces == 0:
+                    space = character
+                spaces += 1
+            open_ends += [may_end]
+            continue
+        if trailing or closed:
+            return index, open_ends
+        marked = ""
+        if spaces > 0:
+            if character == ")" and bracketed:
+                spaces = 0
+            elif (
+                spaces == 1
+                and space in _SPACE_MARKS
+                and previous in _FIGURE_CHARACTERS
+                and character in _FIGURE_CHARACTERS
+            ):
+                marked = space
+            else:
+                return index, open_ends
+            spaces = 0
+        if character in _INK_MARKS:
+            if previous not in _FIGURE_CHARACTERS:
+                return index, open_ends
+            marked = character
+        if marked:
+            if point or exponent or (mark and mark != marked):
+                return index, open_ends
+            if grouped and group != 3:
+                return index, open_ends
+            if not grouped and (group < 1 or group > 3):
+                return index, open_ends
+            mark = marked
+            grouped = True
+            group = 0
+        if character in _FIGURE_CHARACTERS:
+            if exponent:
+                power_figures += 1
+                if character != "0" or powers > 0:
+                    powers += 1
+            else:
+                figures += 1
+                if character != "0":
+                    nonzero = True
+                if not point:
+                    group += 1
+                    if grouped and group > 3:
+                        return index, open_ends
+                    if character != "0" or whole > 0:
+                        whole += 1
+                elif whole == 0 and not small:
+                    if character == "0":
+                        zeros += 1
+                    else:
+                        small = True
+        elif character not in _INK_MARKS:
+            if grouped and not point and not exponent and group != 3:
+                return index, open_ends
+            if character == "(":
+                if started:
+                    return index, open_ends
+                bracketed = True
+            elif character == ")":
+                if not bracketed or not inside:
+                    return index, open_ends
+                closed = True
+            elif character == ".":
+                if point or exponent:
+                    return index, open_ends
+                point = True
+            elif character == "e" or character == "E":
+                if exponent or figures == 0:
+                    return index, open_ends
+                exponent = True
+            elif character in _SIGN_CHARACTERS:
+                if not started:
+                    signed = True
+                elif bracketed and not inside:
+                    return index, open_ends
+                elif previous in ("e", "E") and character != parsing.MINUS_SIGN:
+                    pass
+                elif character == "-" and not bracketed and not signed and point:
+                    trailing = True
+                else:
+                    return index, open_ends
+        if started and bracketed and character != "(":
+            inside = True
+        started = True
+        previous = character
+        past = False
+        if not exponent:
+            past = whole >= _WHOLE_FIGURES_PAST_RANGE or (
+                whole == 0 and small and zeros >= _ZEROS_PAST_RANGE
+            )
+            if past and not exponent_ahead[index + 1 - start]:
+                # No exponent can be read further on to bring it back.
+                return index, open_ends
+        else:
+            past = (
+                powers >= _EXPONENT_FIGURES_PAST_RANGE
+                and nonzero
+                and figures < _MANTISSA_FIGURES_WITHIN_REASON
+            )
+        may_end = (
+            figures > 0
+            and not past
+            and (closed or not bracketed)
+            and not (exponent and power_figures == 0)
+            and not (grouped and not point and not exponent and group != 3)
+        )
+        open_ends += [may_end]
+    return stop, open_ends
+
+
 def affixed_split(
     text: str, decimal_comma: bool = False
 ) -> "tuple[str, str, str] | None":
@@ -6372,16 +6624,39 @@ def affixed_split(
     - The pair is the EXACT text on either side of the core, with no
       case folding and no inner trimming: `mg` and `MG` are two pairs,
       and so are `$` and `EUR`.
+    - Errors raised: ProfileError (`errors.cell_too_long_to_search`)
+      where the search would read more than `SPLIT_SEARCH_CHARACTERS`
+      characters of the cell, counted as `_core_reach` reads them and
+      as every substring asked of the classifier is read -- a run of
+      thousands of figures with no end a number can stop at short of
+      binary64's range (the Codex review of 3b-R0, item 2). Never a
+      different answer: the search either answers as the search over
+      every substring did or stops the run with a sentence.
     """
     trimmed = parsing.trimmed(text)
     best_start = -1
     best_length = 0
+    read = 0
     for span_start, span_stop in _core_spans(trimmed):
+        exponent_ahead = _exponents_ahead(trimmed, span_start, span_stop)
         for begin in range(span_start, span_stop):
             if span_stop - begin <= best_length:
                 # Nothing from here on can be longer than what is held.
                 break
-            for end in range(span_stop, begin + best_length, -1):
+            # THE ENDS NO NUMBER CAN HAVE ARE NEVER ASKED (the Codex
+            # review of 3b-R0, item 2): `_core_reach` reads the span once
+            # from ``begin`` and says how far a number starting there can
+            # reach and which ends it cannot stop at, so the order the
+            # ends are asked in, and the answer, are the ones the search
+            # over every end gave.
+            reach, open_ends = _core_reach(
+                trimmed, begin, span_start, span_stop, decimal_comma, exponent_ahead
+            )
+            read = _searched(read, 1 + reach - begin)
+            for end in range(reach, begin + best_length, -1):
+                if not open_ends[end - begin - 1]:
+                    continue
+                read = _searched(read, end - begin)
                 if _reads_as_a_number(trimmed[begin:end], decimal_comma):
                     best_start, best_length = begin, end - begin
                     break
