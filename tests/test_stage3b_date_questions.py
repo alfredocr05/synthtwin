@@ -916,3 +916,87 @@ def test_typed_workbook_dates_beside_a_text_code_answered_missing_validate(
     generated = ["generate", str(tmp_path / "real-profile.json"), "--seed", "0", "--out-dir", str(tmp_path), "--replace"]
     assert _quiet(generated)[0] == 0
     assert _validates(tmp_path)
+
+
+# -- the Codex review of lane R1 ----------------------------------------------
+
+
+def _iso_days(count: int) -> "list[str]":
+    """``count`` ISO dates over about two years, every one a real day."""
+    import datetime
+
+    first = datetime.date(2023, 1, 2)
+    return [(first + datetime.timedelta(days=place % 700)).isoformat() for place in range(count)]
+
+
+@pytest.mark.parametrize("code", ["$(printf marker)", "NOT RECORDED", "-UNK", "it's", "=echo"])
+def test_the_repeat_line_quotes_each_value_for_the_shell(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, code: str
+) -> None:
+    """A code the table wrote is quoted on the line to type, and that line repeats the run.
+
+    The Codex review of lane R1, item 1: `--missing-value $(printf
+    marker)` was printed bare, so a POSIX shell would run it, and `NOT
+    RECORDED` became two words and the repeat exited 2. A leading minus
+    is joined with `=`, which argparse reads as the option's value. The
+    line is split here as a POSIX shell splits it, and the run it names
+    declares the same code. Red on the bare line.
+    """
+    import shlex
+
+    monkeypatch.setattr(cli, "_on_windows", lambda: False, raising=False)
+    values = _iso_days(970) + [code] * 30
+    table = _table(tmp_path, values)
+    _profiled(tmp_path, values)
+    answers = _answer(tmp_path, "seen_at", asking.ANSWER_NO_DATE)
+    code_of, said = _profiled(tmp_path, values, "--answers", str(answers))
+    assert code_of == 0, said
+    line = _repeat_line(said)
+    words = shlex.split(line)
+    if code.startswith("-"):
+        assert words == [f"--missing-value={code}"], line
+    else:
+        assert words == ["--missing-value", code], line
+    assert "quoted for a POSIX shell" in said
+    again = tmp_path / "again"
+    again.mkdir()
+    code_of, said = _quiet(["profile", str(table), "--out-dir", str(again), "--replace", *words])
+    assert code_of == 0, said
+    assert _block(again)["role"] == "datetime"
+    assert _block(again)["n_missing"] == 30
+
+
+def test_a_column_name_with_a_space_is_one_word_on_the_repeat_line(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`--twelve-hour Visit time` was two words; quoted, it names the column."""
+    import shlex
+
+    monkeypatch.setattr(cli, "_on_windows", lambda: False, raising=False)
+    dated = _iso_days(970) + ["UNK"] * 30
+    clocks = [f"{1 + place % 12}:{place % 60:02d}" for place in range(1000)]
+    table = _two_columns(tmp_path, {"seen_at": dated, "Visit time": clocks})
+    typed = ("--twelve-hour", "Visit time")
+    assert _quiet(["profile", str(table), "--out-dir", str(tmp_path), "--replace", *typed])[0] == 0
+    answers = _answer(tmp_path, "seen_at", asking.ANSWER_NO_DATE)
+    code, said = _quiet(["profile", str(table), "--out-dir", str(tmp_path), "--replace", *typed, "--answers", str(answers)])
+    assert code == 0, said
+    words = shlex.split(_repeat_line(said))
+    assert words == ["--twelve-hour", "Visit time", "--missing-value", "UNK"], words
+
+
+def test_the_line_to_type_is_quoted_for_powershell_on_windows() -> None:
+    """On Windows each value is in PowerShell's single quotes, a quote inside written twice."""
+    assert cli._quoted_for_the_shell("seen_at", windows=True) == "seen_at"
+    assert cli._quoted_for_the_shell("C:\\data\\real.csv", windows=True) == "C:\\data\\real.csv"
+    assert cli._quoted_for_the_shell("C:\\RUNNER~1\\real.csv", windows=True) == "C:\\RUNNER~1\\real.csv"
+    assert cli._quoted_for_the_shell("~/real.csv", windows=False) == "'~/real.csv'"
+    assert cli._quoted_for_the_shell("$(printf marker)", windows=True) == "'$(printf marker)'"
+    assert cli._quoted_for_the_shell("it's", windows=True) == "'it''s'"
+    assert cli._quoted_for_the_shell("it\u2019s", windows=True) == "'it\u2019\u2019s'"
+    assert cli._quoted_for_the_shell("a,b", windows=True) == "'a,b'"
+    assert cli._typed_option("--missing-value", "-UNK", windows=True) == "--missing-value=-UNK"
+    assert cli._typed_option("--missing-value", "-NOT KNOWN", windows=True) == "'--missing-value=-NOT KNOWN'"
+    assert cli._typed_option("--missing-value", "NOT RECORDED", windows=False) == "--missing-value 'NOT RECORDED'"
+    assert cli._typed_option("--code", "dose", windows=False) == "--code dose"
+    assert cli._typed_path("-out/real-profile.json", windows=False).startswith("./-out")
