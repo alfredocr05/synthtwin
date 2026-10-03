@@ -6905,14 +6905,20 @@
     "tests/test_stage3b_date_questions.py::test_the_day_or_month_question_takes_coded_columns_by_name_once",
     "tests/test_stage3b_date_questions.py::test_answered_columns_are_found_by_name_once",
     "tests/test_stage3b_date_questions.py::test_a_count_elsewhere_leaves_out_cells_already_missing",
-    "tests/test_stage3b_date_questions.py::test_a_refused_control_fails_the_date_questions_measurement"
+    "tests/test_stage3b_date_questions.py::test_a_refused_control_fails_the_date_questions_measurement",
+    "tests/test_stage3b_date_questions.py::test_a_tilde_and_a_leading_minus_are_quoted_where_a_shell_reads_them",
+    "tests/test_stage3b_date_questions.py::test_a_double_quote_reaches_the_program_whole_from_windows_powershell",
+    "tests/test_stage3b_date_questions.py::test_every_line_to_type_says_its_shell_where_it_quotes_a_value",
+    "tests/test_stage3b_date_questions.py::test_the_refusal_of_a_column_too_wide_puts_no_name_inside_the_option",
+    "tests/test_stage3b_date_questions.py::test_a_word_typed_on_both_runs_that_the_question_never_counted_stays_as_typed",
+    "tests/test_stage3b_date_questions.py::test_an_answer_whose_codes_moved_leaves_the_typed_word_and_says_so"
    ],
    "test": null,
    "driver": "tools/measurements/kpi_date_questions.py --kpi",
    "pin_strength": "WEAKER",
    "measured_on": "tests/date_question_shapes.py: fourteen question columns, the thirty-seven clean spellings of the reach audit of 2026-10-01 at its own seeds and five shapes left alone, through the real producer, generator and checker",
    "evidence": "Before (668f276): nothing about dates was asked. The five day-first columns were read month first and their twins parsed 41 to 74 in 100 cells under the person's own format; seven of the eight columns with codes were read as labels or numbers, their twins parsing 0 to 59, and the eighth as dates with its twenty codes written as made-up text, 99.5; three of the eight were asked whether they were blood pressures, and the Caboodle key column was listed as a measurement.",
-   "nodes_min_collected": 71,
+   "nodes_min_collected": 85,
    "value_at": {
     "commit": "4d4a061",
     "date": "2026-10-02",
