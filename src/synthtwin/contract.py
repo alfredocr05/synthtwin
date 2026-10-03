@@ -12747,7 +12747,7 @@ def _derived_end(
             held,
             low,
             boundary,
-            pair_reach(mean, root),
+            (mean, pair_reach(mean, root)),
             kept,
         ),
         low,
@@ -12870,7 +12870,7 @@ def _past_the_width(
     held: float,
     low: bool,
     boundary: float,
-    reach: float,
+    pair: "tuple[float, float]",
     kept: "tuple[float, ...]",
 ) -> float:
     """A width-held derived end let past the width where the pair proves it (method G6.6.8).
@@ -12894,6 +12894,13 @@ def _past_the_width(
     still holds every cell it can, and the generator's width walk lets at
     most the floor less one past it (`generation._wide_enough`).
 
+    AND IT IS THE HOLD THAT STANDS ASIDE, NOT THE GUARD BESIDE IT. Where
+    the hold already lands the end inside the tail's mean distance the
+    guard in `_derived_end` stands the hold aside on its own, and the end
+    is the fitted one; reading the reach there instead crowded the rows
+    of ten wide cells onto the reach (`20000` to `29000` came back as
+    five rows on `25061` to `25065`), so this rule asks nothing of it.
+
     AND A HELD STAND-IN STAYS. Where the hold landed the end on a stand-in
     the block publishes as held (`TailReader.kept`) -- `9999` twelve
     times beside `9000` to `9990` and `10000` six times -- the end is the
@@ -12901,12 +12908,14 @@ def _past_the_width(
     `9999`s out of the twin. So the hold is kept there.
 
     Guarantees: accepts the width-held end, the end before the hold, the
-    side, the boundary rung, the pair's reach and the held stand-ins;
-    returns ``clamped`` unless the hold took the end's size down and
-    left it inside the reach, and then a whole number at least the reach
-    from the boundary and no further out than ``held``. Determinism: a function of the six.
-    Raises nothing. No I/O of any kind.
+    side, the boundary rung, the tail's mean distance with the pair's
+    reach, and the held stand-ins; returns ``clamped`` unless the hold
+    took the end's size down and left it at or past the mean distance
+    and inside the reach, and then a whole number at least the reach
+    from the boundary and no further out than ``held``. Determinism: a
+    function of the six. Raises nothing. No I/O of any kind.
     """
+    mean, reach = pair
     if clamped == held or clamped in kept or not reach > 0.0:
         return clamped
     # A CEILING AND NOT A FLOOR: the hold took the end's size DOWN to the
@@ -12914,7 +12923,7 @@ def _past_the_width(
     # narrowest named width is the mean-distance guard's business below.
     if not abs(clamped) < abs(held):
         return clamped
-    if not abs(clamped - boundary) < reach:
+    if abs(clamped - boundary) < mean or not abs(clamped - boundary) < reach:
         return clamped
     point = boundary - reach if low else boundary + reach
     if not math.isfinite(point):

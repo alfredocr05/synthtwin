@@ -1477,7 +1477,8 @@ def spelled_end(signed, low, boundary, column, mean, root=None, kept=()):
     stands aside and the end is the one the sign rule left.
 
     AND NEITHER WIDTH CLAMP PULLS IT INSIDE THE PAIR'S REACH (G6.6.8, plan
-    P4-D377): each is followed by `past_the_width`, which lets the end
+    P4-D377): each one the mean distance leaves standing is followed by
+    `past_the_width`, which lets the end
     past the width as far as `rms**2 / d1` and no further than the sign
     rule left it, unless the clamp landed it on a stand-in the block
     holds (``kept``).
@@ -1486,10 +1487,10 @@ def spelled_end(signed, low, boundary, column, mean, root=None, kept=()):
     reach = pair_reach(mean, root)
     for clamp in (one_width_held, pad_held, mark_held):
         end = clamp(end, low, boundary, column)
-        if clamp is not mark_held:
-            end = past_the_width(end, signed, low, boundary, reach, kept)
         if abs(end - boundary) < mean:
             return signed
+        if clamp is not mark_held:
+            end = past_the_width(end, signed, low, boundary, reach, kept)
     return end
 
 
