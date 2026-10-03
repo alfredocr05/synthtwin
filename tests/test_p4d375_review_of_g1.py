@@ -27,13 +27,23 @@ file, `tests/test_p4d375_earlier_descriptions.py`, because it holds
   the exact mean and spread they could give the other tail's back".
   The file's own description is the current producer's, whose one reason
   is the pair binary64 cannot hold, and that is what is said now.
+- ITEM 4 (MEDIUM): three surfaces still described the withdrawn
+  protection as current -- STATE said `edge_pinned` is 0 where the
+  ledger records 14, and called the cost rule active and a date one
+  forthcoming; `K-S3-13`'s evidence said 38 tails still go to the
+  back-solve the landing deleted; and `taxonomy._tail_side` said a pair
+  never names a row, which is false on a table sorted by that column.
 """
 
 from __future__ import annotations
 
+import pathlib
+
 import kpi_rules
 import kpi_shapes
 from synthtwin import parsing, taxonomy, validation
+
+ROOT = pathlib.Path(__file__).resolve().parents[1]
 
 
 def _ledger_entry(entry_id: str) -> "dict":
@@ -102,3 +112,34 @@ def test_a_file_tail_binary64_cannot_hold_is_explained_by_that_and_not_by_the_wi
     for check in withheld:
         assert "too large for this file format to hold" in check.citation, check.citation
         assert "outer cell" not in check.citation and "other tail" not in check.citation, check.citation
+
+
+# -- item 4 ---------------------------------------------------------------
+
+
+def test_state_says_what_the_ledger_records_of_the_published_pairs() -> None:
+    """STATE does not say `edge_pinned` is 0 while `K-S3-11` records more, nor call the cost rule live."""
+    state = (ROOT / "docs" / "STATE.md").read_text(encoding="utf-8")
+    flat = " ".join(state.split())
+    edge = _ledger_entry("K-S3-11")["value_at"]["value"]["edge_pinned"]
+    assert edge > 0, "premise: the ledger records edge-pinned tails"
+    assert "`edge_pinned` is 0" not in flat
+    assert f"{edge} edge-pinned" in flat
+    assert "a withheld tail pair is published wherever withholding it would leave" not in flat
+    assert "its own cost rule is a later landing" not in flat
+
+
+def test_k_s3_13_does_not_claim_the_back_solve_the_landing_removed() -> None:
+    """`K-S3-13`'s evidence names no back-solve its nodes run: the test that ran it is gone."""
+    entry = _ledger_entry("K-S3-13")
+    assert "put to the back-solve across" not in entry["evidence"]
+    gate = (ROOT / "tests" / "test_stage3_gate.py").read_text(encoding="utf-8")
+    assert "def test_no_tail_of_the_battery_back_solves_to_the_value_it_withheld" not in gate
+
+
+def test_the_tail_producer_states_the_sorted_table_exception() -> None:
+    """`taxonomy._tail_side` says a pair names no row EXCEPT on a table sorted by that column."""
+    said = " ".join((taxonomy._tail_side.__doc__ or "").split())
+    assert "it never names a row or another column" not in said
+    assert "never a row EXCEPT on a table sorted by that column" in said
+    assert "`row_order`" in said

@@ -142,7 +142,8 @@ ones.
   plan, not the owner, extends it to unsettled sides and orders the
   candidates). That rule is GONE since plan P4-D375 (2026-10-01, under
   the principle below): every pair binary64 holds is published, so
-  nothing is withheld for a cost rule to weigh. A column's own values rebuilt from its description are
+  nothing is withheld for a cost rule to weigh. A column's own values
+  rebuilt from its description are
   accepted -- never another column, and never which row except on a
   table sorted by that column, whose `row_order` puts the k-th value in
   row k (told 2026-09-30: "Yes, it stands"): by the exact skew
@@ -204,9 +205,9 @@ cannot get worse unseen.
   records 14 edge-pinned and 8 pinned tails of its 105 cases, whose
   pairs give a reader back that tail's own outer values -- accepted
   under the owner's principle of 2026-10-01, never another column, and
-  never which row except on a table sorted by that column. A floor
-  lowered to one still names what it always named, which is what
-  lowering it asks for.
+  never which row except on a table sorted by that column, whose
+  description publishes the order (`row_order`). A floor lowered to one
+  still names what it always named, which is what lowering it asks for.
 - ~~**Spread too wide on normal-shaped columns.**~~ **CLOSED by landing
   3, 2026-09-23.** There is no published extreme to draw a straight line
   to: the outer rows are read through the shape fitted to their two
