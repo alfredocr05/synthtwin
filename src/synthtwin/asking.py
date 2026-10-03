@@ -1011,6 +1011,14 @@ def _clock_or_labels_question(
     rows share is published with its count and the rest counted together.
     Enter keeps the times; `code` is `--code` on this column.
 
+    ASKED ONLY WHERE THE DATA DOES NOT SETTLE IT (the repair round of
+    landing 3b.5): where the values many rows share hold every cell of
+    the body -- between the two tail boundaries, or every parsed cell of
+    a column with no tails -- so its census is empty and nothing was left
+    out of it. Three shift starts are such a column; walk-ins at 10,000
+    rows, 713 different times spread over the day, are times, and asking
+    whether they were labels was asking what the data already said.
+
     Guarantees: accepts the column's block, its present cells, the
     settings and the table's rows; returns the question or None. No cell
     of the column appears in it. Raises nothing. No I/O.
@@ -1021,6 +1029,8 @@ def _clock_or_labels_question(
     if not isinstance(different, int):
         return None
     if different > taxonomy.categories_ceiling(n_rows, settings):
+        return None
+    if not _heaps_hold_the_body(block):
         return None
     floor = settings.small_cell_floor
     role = taxonomy.ROLE_CLOCK
@@ -1045,6 +1055,54 @@ def _clock_or_labels_question(
         ],
         ANSWER_KEEP,
     )
+
+
+def _heaps_hold_the_body(block: "dict[str, object]") -> bool:
+    """Whether a clock block's heaps hold every cell of its body (P4-D373).
+
+    The census is empty and nothing was left out of it: the heaps between
+    the two tail boundaries, both included, count exactly the parsed
+    cells the tails leave -- every parsed cell, where there are no tails.
+
+    Guarantees: a function of the block; False for anything it cannot
+    read. Raises nothing. No I/O of any kind.
+    """
+    census = block["clock_census"] if "clock_census" in block else None
+    heaps = block["clock_heaps"] if "clock_heaps" in block else None
+    form = block["clock_form"] if "clock_form" in block else None
+    present = block["n_present"] if "n_present" in block else None
+    unread = block["n_unparsed"] if "n_unparsed" in block else None
+    if (
+        census != []
+        or not isinstance(heaps, list)
+        or not heaps
+        or not isinstance(form, str)
+        or not isinstance(present, int)
+        or not isinstance(unread, int)
+    ):
+        return False
+    body = present - unread
+    lowest: "int | None" = None
+    highest: "int | None" = None
+    low = block["low_tail"] if "low_tail" in block else None
+    high = block["high_tail"] if "high_tail" in block else None
+    if isinstance(low, dict) and isinstance(high, dict):
+        lowest = parsing.clock_ordinal(f"{low['boundary']}", form)
+        highest = parsing.clock_ordinal(f"{high['boundary']}", form)
+        if lowest is None or highest is None:
+            return False
+        body = body - int(f"{low['rows']}") - int(f"{high['rows']}")
+    held = 0
+    for heap in heaps:
+        if not isinstance(heap, dict):
+            return False
+        at = parsing.clock_ordinal(f"{heap['value']}", form)
+        if at is None:
+            return False
+        if lowest is not None and highest is not None and not lowest <= at <= highest:
+            continue
+        held = held + int(f"{heap['count']}")
+    return held == body
 
 
 def questions_and_splits_for(
@@ -1824,9 +1882,10 @@ def _shape_of(
         for value in present:
             times[parsing.folded(value)] = 1
         return (
-            f"its values are times of day, and the column holds only "
-            f"{len(times)} different value(s) over {len(present)} "
-            f"cell(s), which a list of labels written as times also holds"
+            f"its values are times of day, every one inside its range shared "
+            f"by many rows, and the column holds only {len(times)} different "
+            f"value(s) over {len(present)} cell(s), which a list of labels "
+            f"written as times also holds"
         )
     if reason == BECAUSE_POINT_THOUSANDS:
         return (

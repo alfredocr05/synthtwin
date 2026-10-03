@@ -13,7 +13,11 @@ with a marker, a five-minute grid, and the columns single clauses of the
 gate ask for: a code at the census line, two columns 2 % of whose cells
 are a word (beside two-figure and one-figure hours), four `UNK` beside
 shift starts, a lone heap with few times beside it, and a low boundary
-two steps below a heap.
+two steps below a heap. Its repair round (the 3b.5 skeptic's items 1,
+3 and 5) adds appointment times beside clock-shaped codes near the one
+per cent the clock line allows (`CODE_MIXES`), small tables of them
+beside a few such codes past it (`SMALL_TABLES`), Excel's `h:mm AM`
+beside 2 % words, and three shift starts with no jitter.
 """
 
 import random
@@ -139,6 +143,71 @@ def _mixed_hmm(draw: random.Random) -> str:
     return "unknown" if draw.random() < 0.02 else _excel_hmm(draw)
 
 
+def _mixed_ampm(draw: random.Random) -> str:
+    """Excel's `h:mm AM`, one space before the marker, beside 2 % words."""
+    if draw.random() < 0.02:
+        return "unknown"
+    return parsing.written_clock(60 * _walkin_minute(draw), False, "h AM-PM")
+
+
+def _shifts3(draw: random.Random) -> str:
+    """Three shift starts and nothing else: every cell on a heap."""
+    return _hm(draw.choices((7 * 60, 15 * 60, 23 * 60), weights=(4, 3, 3))[0])
+
+
+def _slot_minute(draw: random.Random) -> int:
+    """An outpatient appointment: quarter-hour slots from 07:00 mostly."""
+    pick = draw.random()
+    if pick < 0.80:
+        hour = draw.choices(range(7, 17), weights=(3, 9, 10, 10, 8, 4, 8, 9, 8, 5))[0]
+        return hour * 60 + 15 * draw.randrange(4)
+    if pick < 0.92:
+        return 390 + draw.randrange(750)
+    return 17 * 60 + 30 * draw.randrange(6)
+
+
+# APPOINTMENT TIMES BESIDE CLOCK-SHAPED CODES NEAR THE CLOCK LINE (the 3b.5
+# skeptic's repair round, items 1 and 3): `99:99`, `24:00` and `88:88` are
+# written as a clock and read as none, and with `UNK` they hold 0.9 % to
+# 1.7 % of the cells; the last mix is Excel's `h:mm AM`. Each mix is one
+# column of the same table, written in the style it names.
+CODE_MIXES: "dict[str, tuple[tuple[tuple[str, float], ...], str]]" = {
+    "codes_a": ((("UNK", 0.007), ("99:99", 0.004)), "hh"),
+    "codes_b": ((("UNK", 0.005), ("99:99", 0.006)), "hh"),
+    "codes_c": ((("99:99", 0.012),), "hh"),
+    "codes_d": ((("UNK", 0.006), ("24:00", 0.006)), "hh"),
+    "codes_e": ((("UNK", 0.009), ("99:99", 0.002), ("88:88", 0.002)), "hh"),
+    "codes_ampm": ((("UNK", 0.006), ("99:99", 0.003)), "h AM-PM"),
+}
+
+# SMALL TABLES OF THEM BESIDE A FEW SUCH CODES PAST IT (item 1): each a
+# number of rows and the codes among them, in three variants of the times.
+SMALL_TABLES: "dict[str, tuple[int, tuple[str, ...]]]" = {
+    "small_a": (100, ("99:99",) * 3),
+    "small_b": (150, ("99:99",) * 2 + ("24:00",) * 2),
+    "small_c": (200, ("24:00",) * 5),
+    "small_d": (100, ("99:99", "24:00", "88:88")),
+    "small_e": (60, ("99:99",) * 2),
+    "small_f": (250, ("99:99",) * 6),
+}
+
+
+def _coded_appointments(
+    rows: int, codes: "tuple[tuple[str, float], ...]", style: str, draw: random.Random
+) -> "list[str]":
+    out: "list[str]" = []
+    for _row in range(rows):
+        pick = draw.random()
+        reached = 0.0
+        text = ""
+        for spelling, rate in codes:
+            reached = reached + rate
+            if not text and pick < reached:
+                text = spelling
+        out += [text or parsing.written_clock(60 * _slot_minute(draw), False, style)]
+    return out
+
+
 SHAPES = {
     "clinic": _clinic,
     "walkin": _walkin,
@@ -177,6 +246,17 @@ def cells(name: str, rows: int) -> "list[str]":
         return [_mixed_walkin(draw) for _ in range(rows)]
     if name == "mixed_hmm":
         return [_mixed_hmm(draw) for _ in range(rows)]
+    if name == "mixed_ampm":
+        return [_mixed_ampm(draw) for _ in range(rows)]
+    if name == "shifts3":
+        return [_shifts3(draw) for _ in range(rows)]
+    if name in CODE_MIXES:
+        return _coded_appointments(rows, CODE_MIXES[name][0], CODE_MIXES[name][1], draw)
+    if name[:-1] in SMALL_TABLES:
+        size, codes = SMALL_TABLES[name[:-1]]
+        out = [_hm(_slot_minute(draw)) for _ in range(size - len(codes))] + list(codes)
+        draw.shuffle(out)
+        return out
     if name == "unk4":
         out = ["UNK"] * 4 + [_shift_start(draw) for _ in range(rows - 4)]
         draw.shuffle(out)

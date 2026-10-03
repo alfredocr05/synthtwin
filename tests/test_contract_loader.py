@@ -1595,6 +1595,82 @@ def battery() -> list[Mutation]:
             "CH2", "a clock code that reads as a time",
             edit("seen_at", clock_codes=[{"spelling": "07:30", "count": 11}]),
         ),
+        # ONE PER BRANCH (the 3b.5 skeptic's repair round, item 6): each of
+        # these reaches one raise and no other, so withdrawing that raise
+        # leaves the description loading and the entry red.
+        Mutation(
+            "CC4", "a step of ninety seconds, which no minute of the form is on",
+            edit("seen_at", clock_step=90),
+        ),
+        Mutation(
+            "CH1", "two clock heaps out of order",
+            edit(
+                "seen_at",
+                clock_heaps=[
+                    {"value": "08:00", "count": 11},
+                    {"value": "07:30", "count": 11},
+                ],
+                clock_census=[
+                    {"first": 0, "last": 41, "count": 0},
+                    {"first": 42, "last": 53, "count": 192},
+                    {"first": 54, "last": 143, "count": 0},
+                ],
+            ),
+        ),
+        Mutation(
+            "CH1", "a clock heap outside the boundaries, past its tail's rows",
+            edit("seen_at", clock_heaps=[{"value": "07:00", "count": 13}]),
+        ),
+        Mutation(
+            "CH1", "a clock heap in a tail that lists other values",
+            edit(
+                "seen_at",
+                low_tail={
+                    "boundary": "07:06",
+                    "rows": 12,
+                    "mean_distance": 3.5,
+                    "rms_distance": None,
+                    "values": ["07:00", "07:05"],
+                },
+                clock_heaps=[{"value": "07:02", "count": 11}],
+            ),
+        ),
+        Mutation(
+            "CH1", "clock heaps between the boundaries past the body's cells",
+            edit(
+                "seen_at",
+                clock_heaps=[{"value": "08:00", "count": 215}],
+                clock_census=[],
+            ),
+        ),
+        Mutation(
+            "CH2", "a clock code below the census line",
+            edit("seen_at", clock_codes=[{"spelling": "not recorded", "count": 2}]),
+        ),
+        Mutation(
+            "CH2", "clock codes past the cells no time reading took",
+            edit("seen_at", clock_codes=[{"spelling": "not recorded", "count": 11}]),
+        ),
+        Mutation(
+            "CC5", "a rung outside every group that counts cells",
+            edit(
+                "seen_at",
+                clock_census=[
+                    {"first": 0, "last": 41, "count": 0},
+                    {"first": 42, "last": 43, "count": 28},
+                    {"first": 44, "last": 44, "count": 20},
+                    {"first": 45, "last": 45, "count": 20},
+                    {"first": 46, "last": 46, "count": 40},
+                    {"first": 47, "last": 47, "count": 0},
+                    {"first": 48, "last": 48, "count": 20},
+                    {"first": 49, "last": 49, "count": 20},
+                    {"first": 50, "last": 50, "count": 19},
+                    {"first": 51, "last": 51, "count": 20},
+                    {"first": 52, "last": 53, "count": 27},
+                    {"first": 54, "last": 143, "count": 0},
+                ],
+            ),
+        ),
         # -- 3b.C2 (P4-D374)
         Mutation(
             "R16", "a minute_census of clock times this version of synthtwin publishes none of",

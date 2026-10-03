@@ -16,11 +16,18 @@ battery -- red on its own mutant:
   battery's clock columns are read as clock times at 100, 300 and 1,000
   rows (floors 11 and 36), and no twin holds a cell no clock reader takes
   or a blank the real column does not, beyond the rare words the level
-  pass counts missing (mutant: rule 8 asked after rule 7 again);
+  pass counts missing (mutant: rule 8 asked after rule 7 again); and,
+  since the repair round, appointment times beside clock-shaped codes
+  near the clock line and small tables beside a few past it keep their
+  reading: as clock times, their twins refusing no cell the table does
+  not, or as labels, refusing fewer than a held-back level's more;
 * F `test_f_no_count_below_the_line_and_nothing_missed` -- every printed
   count is nought or at least the census line, the loader accepts every
   description (CC1 to CC5, CH1 and CH2), and every twin and every real
   table validates with nothing missed (V5-C1 and V5-C2 among the checks);
+  so do the repair round's code mixes at 300 to 3,000 rows and its small
+  tables, whose twins read back as labels where the tables are labels
+  (mutant: G8.3's clock line withdrawn, and the role is MISSED);
 * H `test_h_the_hour_comes_back` -- at 1,000 rows every column's hour of
   day is within 0.03 of the real one, and at every size within the bound
   of the cells the census cannot place in their hour: the cells of groups
@@ -33,7 +40,10 @@ battery -- red on its own mutant:
   exactly the steps standing out from the five either side by the median
   rule, on the step (mutant: the mean in place of the median);
 * N `test_n_the_census_nests_in_the_hours` -- the hours merged first
-  coarsen the published groups (mutant: one flat merge of the bins);
+  coarsen the published groups (mutant: one flat merge of the bins); and
+  a column with no tails publishes its census over every parsed cell,
+  its twin's other cells staying in the table's stretch of the day
+  (BLOCKER (a); mutant: the census of such a column withdrawn);
 * B `test_b_a_boundary_below_a_heap_takes_its_cell_first` -- the 3b.5
   skeptic's MAJOR 1: a low boundary two steps below a heap comes back on
   its value at five seeds (mutant: steps alone share a group);
@@ -42,22 +52,33 @@ battery -- red on its own mutant:
   published);
 * T `test_t_the_step_is_kept` -- a five-minute grid publishes a step of
   300 seconds and its twin stays on it (mutant: the step of the form);
+* V `test_v_one_cell_moved_is_missed` -- the checker's own three new
+  checks each MISS a good twin with one cell moved: a heap's cell moved
+  off its value, a code's cell rewritten, a grid's cell moved off its
+  step (mutant, one each: that check always held);
 * L `test_l_each_rung_its_run_holds_is_met` -- the 3b.5 skeptic's
   MINOR 2: every published rung whose rank lies in a run holding its
   value on the step is met exactly at its rank, 108 rungs over the
   battery's twins at 1,000 rows and the floor of eleven (mutant: the
   rungs left unpinned, and 72 of them move);
-* M `test_m_a_clock_shaped_stand_in_is_a_time` -- two clock columns
-  beside 2 % words, two-figure and one-figure hours, read as labels,
-  write their held-back levels as times (mutant: the form filled figure
-  by figure);
+* M `test_m_a_clock_shaped_stand_in_is_a_time` -- three clock columns
+  beside 2 % words, two-figure and one-figure hours and Excel's `h:mm AM`,
+  read as labels, write their held-back levels as times (mutants: the
+  form filled figure by figure; the key of a clock with a space before
+  its marker withdrawn);
 * W `test_w_rare_words_beside_clock_times_keep_the_clock` -- 296 shift
   starts beside four `UNK` are clock times, the words counted missing,
   and the twin reads back the same way (mutant: the level pass keeps the
   labels);
 * Q `test_q_a_few_shared_times_are_asked_about` -- where a set of labels
-  could hold the column too, the questions file asks, and the answer
-  `code` reads it as labels (mutant: no question);
+  could hold the column too and the times many rows share hold every
+  cell of its body, the questions file asks, and the answer `code` reads
+  it as labels; where a census is published, nobody is asked (mutants:
+  no question; the question asked beside a census);
+* G `test_g_the_guard_holds_each_clock_leaf_to_its_kind` -- the
+  publication guard refuses a clock census bin, group count, heap count,
+  heap value and step each of the wrong kind (mutant, one each: that
+  kind always published);
 * and NF106, `test_the_description_says_so_where_the_census_is_left_out`
   -- fewer than the line left beside the heaps leaves the census out
   and the description says so, the fold-back the 3b.5 skeptic dropped.
@@ -66,7 +87,9 @@ battery -- red on its own mutant:
 from __future__ import annotations
 
 import collections
+import copy
 import csv
+import dataclasses
 import functools
 import io
 import pathlib
@@ -83,6 +106,7 @@ from synthtwin import asking
 from synthtwin import calendar_clock
 from synthtwin import calendar_rules
 from synthtwin import contract
+from synthtwin import errors
 from synthtwin import generation
 from synthtwin import parsing
 from synthtwin import profile
@@ -219,6 +243,62 @@ def test_r_red_when_rule_8_is_asked_after_rule_7(monkeypatch: pytest.MonkeyPatch
         _twin.cache_clear()
 
 
+# THE REPAIR ROUND'S SHAPES (the 3b.5 skeptic's item 1): appointment times
+# beside clock-shaped codes near the clock line, five mixes as the columns
+# of one table, and small tables beside a few such codes past it, three
+# variants of each as the columns of one.
+_CODED = tuple(shapes.CODE_MIXES)
+_CODED_SIZES = ((300, 11), (300, 36), (1000, 11), (1000, 36), (3000, 11), (3000, 36))
+_SMALL = tuple(sorted(shapes.SMALL_TABLES))
+
+
+def _small(spec: str) -> "tuple[tuple[str, ...], int]":
+    """A small table's three variants, as one table's columns, and its rows."""
+    return tuple(f"{spec}{variant}" for variant in (1, 2, 3)), shapes.SMALL_TABLES[spec][0]
+
+
+def _refused(cells: "list[str]") -> int:
+    """How many cells hold text no clock reader takes; a blank is no text."""
+    return sum(1 for cell in cells if cell and _second(cell) is None)
+
+
+def _kept_reading(document: "dict[str, object]", columns: "dict[str, list[str]]", twin: "dict[str, list[str]]", floor: int) -> "list[str]":
+    """The columns whose twin does not keep the reading the table has.
+
+    Read as clock times, the twin refuses no cell the table does not,
+    blanks among them. Read as labels, it holds fewer more cells of text
+    no clock reader takes than one held-back level covers -- the slack of
+    G8.3's clock line, whose stand-ins are written figure by figure from
+    the first that would cross it. The blanks of a column of labels are
+    the level pass's (the owner's ruling of 2026-09-17, item 5), which the
+    description publishes, and are not asked about here.
+    """
+    broken: "list[str]" = []
+    for name in columns:
+        if _block(document, name)["role"] == taxonomy.ROLE_CLOCK:
+            if _unreadable(columns[name], twin[name]) != 0:
+                broken += [name]
+        elif _refused(twin[name]) - _refused(columns[name]) >= floor:
+            broken += [name]
+    return broken
+
+
+@pytest.mark.parametrize("rows,floor", _CODED_SIZES)
+def test_r_times_beside_codes_keep_their_reading(rows: int, floor: int) -> None:
+    _folder, columns, document, _loaded, _table = _described(_CODED, rows, floor)
+    cells, _missed_now = _twin(_CODED, rows, floor, 0)
+    assert _kept_reading(document, columns, cells, floor) == [], (rows, floor)
+
+
+@pytest.mark.parametrize("spec", _SMALL)
+@pytest.mark.parametrize("floor", (11, 36))
+def test_r_small_tables_beside_codes_keep_their_reading(spec: str, floor: int) -> None:
+    names, rows = _small(spec)
+    _folder, columns, document, _loaded, _table = _described(names, rows, floor)
+    cells, _missed_now = _twin(names, rows, floor, 0)
+    assert _kept_reading(document, columns, cells, floor) == [], (spec, floor)
+
+
 # -- F: the floor, the loader, and nothing missed ---------------------
 
 
@@ -236,6 +316,39 @@ def test_f_no_count_below_the_line_and_nothing_missed(rows: int, floor: int) -> 
     for seed in _SEEDS:
         _cells_now, missed = _twin(_CLOCKS, rows, floor, seed)
         assert missed == [], (rows, floor, seed, missed)
+
+
+@pytest.mark.parametrize("rows,floor", _CODED_SIZES)
+def test_f_times_beside_codes_validate(rows: int, floor: int) -> None:
+    _folder, _columns, _document, loaded, table = _described(_CODED, rows, floor)
+    assert _missed(loaded, table) == []
+    _cells_now, missed = _twin(_CODED, rows, floor, 0)
+    assert missed == [], (rows, floor, missed)
+
+
+@pytest.mark.parametrize("spec", _SMALL)
+@pytest.mark.parametrize("floor", (11, 36))
+def test_f_small_tables_beside_codes_validate(spec: str, floor: int) -> None:
+    """The 3b.5 skeptic's small tables: labels on the table, labels on the twin."""
+    names, rows = _small(spec)
+    _folder, _columns, document, loaded, table = _described(names, rows, floor)
+    assert all(_block(document, name)["role"] != taxonomy.ROLE_CLOCK for name in names)
+    assert _missed(loaded, table) == []
+    _cells_now, missed = _twin(names, rows, floor, 0)
+    assert missed == [], (spec, floor, missed)
+
+
+def test_f_red_without_the_clock_line(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        generation, "_clock_line_room", lambda present, _rate, _clocks, _others, _settled: present
+    )
+    _twin.cache_clear()
+    try:
+        names, rows = _small("small_f")
+        _cells_now, missed = _twin(names, rows, 11, 0)
+        assert any(entry.endswith(":axes.role") for entry in missed), missed
+    finally:
+        _twin.cache_clear()
 
 
 # -- H: the hour of day -----------------------------------------------
@@ -444,6 +557,51 @@ def test_n_red_on_a_flat_merge(monkeypatch: pytest.MonkeyPatch) -> None:
         _twin.cache_clear()
 
 
+def _no_tails_kept(rows: int) -> bool:
+    """Whether `dominant`, which has no tails, publishes a census and keeps its stretch.
+
+    Its eighteen cells off the heap at 08:00 lie between 06:00 and 17:59;
+    the census over every parsed cell holds the twin's there too.
+    """
+    _folder, _columns, document, _loaded, _table = _described(("dominant",), rows, 11)
+    block = _block(document, "dominant")
+    if block["low_tail"] is not None or not block["clock_census"]:
+        return False
+    heaps = {f"{heap['value']}" for heap in block["clock_heaps"]}  # type: ignore[union-attr]
+    for seed in _SEEDS:
+        cells, missed = _twin(("dominant",), rows, 11, seed)
+        others = [_second(cell) for cell in cells["dominant"] if cell not in heaps]
+        if missed or not others:
+            return False
+        if not all(second is not None and 6 * 3600 <= second < 18 * 3600 for second in others):
+            return False
+    return True
+
+
+@pytest.mark.parametrize("rows", (300, 1000))
+def test_n_a_column_with_no_tails_publishes_its_census(rows: int) -> None:
+    assert _no_tails_kept(rows)
+
+
+def test_n_red_without_the_census_of_a_column_with_no_tails(monkeypatch: pytest.MonkeyPatch) -> None:
+    built = calendar_clock.clock_census_of
+
+    def withdrawn(ordinals, form, line, body):  # type: ignore[no-untyped-def]
+        found = built(ordinals, form, line, body)
+        if body is None:
+            return calendar_clock.ClockCensus(found.step, found.heaps, (), bool(found.groups))
+        return found
+
+    monkeypatch.setattr(calendar_clock, "clock_census_of", withdrawn)
+    _described.cache_clear()
+    _twin.cache_clear()
+    try:
+        assert not _no_tails_kept(300)
+    finally:
+        _described.cache_clear()
+        _twin.cache_clear()
+
+
 # -- B: the boundary's run takes one cell first --------------------------
 
 
@@ -546,6 +704,9 @@ def test_c_codes_are_written_back() -> None:
     real = collections.Counter(columns["coded"])
     assert block["role"] == taxonomy.ROLE_CLOCK
     assert block["clock_codes"] == [{"spelling": "not recorded", "count": real["not recorded"]}]
+    # ...and the block says so (NF107), naming the census line.
+    said = taxonomy.rendered(taxonomy.REMARK_CLOCK_CODES_WRITTEN, (parsing.census_floor(11),))
+    assert said in block["remarks"]  # type: ignore[operator]
     for seed in _SEEDS:
         cells, missed = _twin(("coded",), 2500, 11, seed)
         assert collections.Counter(cells["coded"])["not recorded"] == real["not recorded"]
@@ -592,6 +753,79 @@ def test_t_red_on_the_forms_own_step(monkeypatch: pytest.MonkeyPatch) -> None:
         _twin.cache_clear()
 
 
+# -- V: the checker misses one cell moved ---------------------------------
+
+
+def _tampered(names: "tuple[str, ...]", rows: int, name: str, change: "typing.Callable[[list[str]], int]") -> "list[str]":
+    """What validation MISSES on ``name`` of a good twin with one of its cells changed."""
+    folder, _columns, _document, loaded, _table = _described(names, rows, 11)
+    body = list(csv.reader(io.StringIO(rendering.twin_csv(generation.generate(loaded, 0)))))
+    place = body[0].index(name)
+    column = [row[place] for row in body[1:]]
+    row = change(column)
+    body[row + 1][place] = column[row]
+    out = io.StringIO()
+    csv.writer(out, lineterminator="\n").writerows(body)
+    target = fixtures.write(folder, f"tampered-{name}.csv", out.getvalue())
+    return [entry.split(":", 1)[1] for entry in _missed(loaded, target) if entry.startswith(name + ":")]
+
+
+def _first(cells: "list[str]", wanted: "typing.Callable[[str], bool]") -> int:
+    return next(place for place in range(len(cells)) if wanted(cells[place]))
+
+
+def _heap_moved(cells: "list[str]") -> int:
+    """One cell of the heap at 22:00 moved to 22:01, a step of its own group."""
+    place = _first(cells, lambda cell: cell == "22:00")
+    cells[place] = "22:01"
+    return place
+
+
+def _code_rewritten(cells: "list[str]") -> int:
+    """One cell of the code `not recorded` rewritten as another unread spelling."""
+    place = _first(cells, lambda cell: cell == "not recorded")
+    cells[place] = "not done"
+    return place
+
+
+def _off_the_step(cells: "list[str]") -> int:
+    """One cell of the five-minute grid moved a minute off it."""
+    place = _first(cells, lambda cell: (_second(cell) or 0) % 3600 < 3000)
+    second = _second(cells[place]) or 0
+    cells[place] = parsing.clock_spelling(second // 60 + 1, parsing.CLOCK_HH_MM)
+    return place
+
+
+_TAMPERED = {
+    "clock_heaps.counts": (("night_obs",), 1000, "night_obs", _heap_moved),
+    "clock_codes.counts": (("coded",), 2500, "coded", _code_rewritten),
+    "clock_step.values": (("grid5",), 1000, "grid5", _off_the_step),
+}
+
+
+@pytest.mark.parametrize("subcheck", sorted(_TAMPERED))
+def test_v_one_cell_moved_is_missed(subcheck: str) -> None:
+    names, rows, name, change = _TAMPERED[subcheck]
+    _cells_now, missed = _twin(names, rows, 11, 0)
+    assert missed == []
+    assert subcheck in _tampered(names, rows, name, change)
+
+
+@pytest.mark.parametrize("subcheck", sorted(_TAMPERED))
+def test_v_red_when_the_check_always_holds(subcheck: str, monkeypatch: pytest.MonkeyPatch) -> None:
+    built = validation._clock_census_checks
+
+    def always(*arguments):  # type: ignore[no-untyped-def]
+        return [
+            dataclasses.replace(check, verdict=validation.HELD) if check.subcheck == subcheck else check
+            for check in built(*arguments)
+        ]
+
+    monkeypatch.setattr(validation, "_clock_census_checks", always)
+    names, rows, name, change = _TAMPERED[subcheck]
+    assert subcheck not in _tampered(names, rows, name, change)
+
+
 # -- M: a clock-shaped stand-in is a time ---------------------------------
 
 
@@ -600,7 +834,9 @@ def test_t_red_on_the_forms_own_step(monkeypatch: pytest.MonkeyPatch) -> None:
 # and optionally a marker with no space before it (a cell holding a space
 # has no form, and a held-back level of one is written `group-N`).
 _CLOCK_SHAPE = re.compile(r"^%{1,2}:%%(:%%)?(@@|&&|@\.@\.|&\.&\.)?$")
-_MIXED = ("mixed_walkin", "mixed_hmm")
+# ...and Excel's `h:mm AM`, whose space before the marker leaves it no
+# form: its held-back levels take the key `%:%% @@` (the repair round).
+_MIXED = ("mixed_walkin", "mixed_hmm", "mixed_ampm")
 
 
 def _shaped_but_no_time(cells: "list[str]") -> int:
@@ -608,6 +844,11 @@ def _shaped_but_no_time(cells: "list[str]") -> int:
         1 for cell in cells
         if cell and _CLOCK_SHAPE.match(parsing.shape_form(cell)) and _second(cell) is None
     )
+
+
+def _neither_word_nor_time(cells: "list[str]") -> int:
+    """Cells that are neither the column's published word nor a time."""
+    return sum(1 for cell in cells if cell and cell != "unknown" and _second(cell) is None)
 
 
 def test_m_a_clock_shaped_stand_in_is_a_time() -> None:
@@ -618,6 +859,7 @@ def test_m_a_clock_shaped_stand_in_is_a_time() -> None:
         cells, missed = _twin(_MIXED, 1000, 11, seed)
         for name in _MIXED:
             assert _shaped_but_no_time(cells[name]) == 0, (seed, name)
+        assert _neither_word_nor_time(cells["mixed_ampm"]) == 0, seed
         assert missed == [], (seed, missed)
 
 
@@ -626,8 +868,19 @@ def test_m_red_when_the_form_is_filled_figure_by_figure(monkeypatch: pytest.Monk
     _twin.cache_clear()
     try:
         cells, _missed_now = _twin(_MIXED, 1000, 11, 0)
-        for name in _MIXED:
+        for name in _MIXED[:2]:
             assert _shaped_but_no_time(cells[name]) > 0, name
+        assert _neither_word_nor_time(cells["mixed_ampm"]) > 0
+    finally:
+        _twin.cache_clear()
+
+
+def test_m_red_without_the_key_of_a_spaced_clock(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(generation, "_SPACED_CLOCK_MARKS", {})
+    _twin.cache_clear()
+    try:
+        cells, _missed_now = _twin(_MIXED, 1000, 11, 0)
+        assert _neither_word_nor_time(cells["mixed_ampm"]) > 0
     finally:
         _twin.cache_clear()
 
@@ -644,15 +897,79 @@ def test_w_rare_words_beside_clock_times_keep_the_clock() -> None:
         assert missed == []
 
 
+def _codes_beside(column: "list[str]", floor: int) -> "int | None":
+    """The cells of a few rare codes beside clock times, or None where they are not.
+
+    The times alone miss the clock line, every spelling no clock reader
+    takes is held by fewer rows than the floor, and together they hold at
+    most one present cell in fifty -- the rule stated here, not read off
+    `taxonomy.RARE_WORDS_BESIDE_CLOCKS`, so a mutant of it is seen: the
+    level pass counts exactly these missing and reads the column as clock
+    times.
+    """
+    present = [cell for cell in column if cell]
+    codes = collections.Counter(cell for cell in present if _second(cell) is None)
+    rate = taxonomy.Settings().minimum_parse_rate
+    if not codes or len(present) - sum(codes.values()) >= taxonomy.clock_line(rate, len(present)):
+        return None
+    if max(codes.values()) >= floor:
+        return None
+    held = sum(codes.values())
+    return held if held * 50 <= len(present) else None
+
+
+def _rare_codes_kept(rows: int, floor: int) -> "tuple[int, list[str]]":
+    """How many code-mix columns hold a few rare codes, and which of them are not clock times."""
+    _folder, columns, document, _loaded, _table = _described(_CODED, rows, floor)
+    asked = 0
+    broken: "list[str]" = []
+    for name in _CODED:
+        held = _codes_beside(columns[name], floor)
+        if held is None:
+            continue
+        asked = asked + 1
+        block = _block(document, name)
+        if block["role"] != taxonomy.ROLE_CLOCK or block["n_missing"] != held:
+            broken += [name]
+    return asked, broken
+
+
+@pytest.mark.parametrize("rows,floor", _CODED_SIZES)
+def test_w_a_few_rare_codes_beside_times_keep_the_clock(rows: int, floor: int) -> None:
+    """Asked of every reading as labels or free text (the repair round, item 3).
+
+    Beside a few rare codes no level is forced to a count of one, so the
+    level pass used not to ask, and a column of `7:30 AM` beside 0.6 %
+    `UNK` and 0.3 % `99:99` stayed free text whose twin was `group-N`.
+    """
+    _asked_here, broken = _rare_codes_kept(rows, floor)
+    assert broken == [], (rows, floor, broken)
+
+
+def test_w_rare_codes_are_met_at_every_size() -> None:
+    assert sum(_rare_codes_kept(rows, floor)[0] for rows, floor in _CODED_SIZES) >= 6
+
+
+def test_w_red_when_the_few_words_are_none(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(taxonomy, "RARE_WORDS_BESIDE_CLOCKS", 10**9)
+    _described.cache_clear()
+    _twin.cache_clear()
+    try:
+        assert any(_rare_codes_kept(rows, floor)[1] for rows, floor in _CODED_SIZES)
+    finally:
+        _described.cache_clear()
+        _twin.cache_clear()
+
+
 def test_w_red_when_the_level_pass_keeps_the_labels(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(taxonomy, "_rare_beside_clocks", lambda *_a: ())
     _described.cache_clear()
     _twin.cache_clear()
     try:
         _folder, _columns, document, _loaded, _table = _described(("unk4",), 300, 11)
-        role = _block(document, "unk4")["role"]
-        _cells_now, missed = _twin(("unk4",), 300, 11, 0)
-        assert role != taxonomy.ROLE_CLOCK and missed
+        # Labels, whose twin G8.3's clock line keeps labels too: what is
+        # lost is the column's time of day, which no label publishes.
+        assert _block(document, "unk4")["role"] != taxonomy.ROLE_CLOCK
     finally:
         _described.cache_clear()
         _twin.cache_clear()
@@ -667,24 +984,41 @@ def _asked(document: "dict[str, object]", columns: "dict[str, list[str]]", names
     )
 
 
+_ASKED = ("shifts3", "shift_start", "handover")
+
+
+def _asked_about_times(names: "tuple[str, ...]", rows: int) -> "list[str]":
+    _folder, columns, document, _loaded, _table = _described(names, rows, 11)
+    return [
+        question.name for question in _asked(document, columns, names)
+        if question.reason == asking.BECAUSE_FEW_CLOCK_TIMES
+    ]
+
+
 def test_q_a_few_shared_times_are_asked_about() -> None:
-    names = ("shift_start", "handover")
-    _folder, columns, document, _loaded, _table = _described(names, 1000, 11)
-    asked = {question.name: question for question in _asked(document, columns, names)}
-    assert asked["shift_start"].reason == asking.BECAUSE_FEW_CLOCK_TIMES
-    assert [choice.answer for choice in asked["shift_start"].choices] == [asking.ANSWER_KEEP, asking.ANSWER_CODE]
-    assert "handover" not in asked or asked["handover"].reason != asking.BECAUSE_FEW_CLOCK_TIMES
+    """Asked of three shift starts, whose heaps hold every cell; not of times a census spreads."""
+    _folder, columns, document, _loaded, _table = _described(_ASKED, 1000, 11)
+    asked = {question.name: question for question in _asked(document, columns, _ASKED)}
+    assert asked["shifts3"].reason == asking.BECAUSE_FEW_CLOCK_TIMES
+    assert [choice.answer for choice in asked["shifts3"].choices] == [asking.ANSWER_KEEP, asking.ANSWER_CODE]
+    # Shift starts with 10 % jitter and the handover publish a census: the
+    # data says they are times, and nobody is asked.
+    assert _asked_about_times(_ASKED, 1000) == ["shifts3"]
+    # ...nor of walk-ins at 10,000 rows, 700 times spread over the day.
+    assert _asked_about_times(("walkin",), 10000) == []
     # ...and the answer `code` is `--code`, which reads the column as labels.
-    _folder, _columns, answered, _loaded, _table = _described(names, 1000, 11, ("shift_start",))
-    assert _block(answered, "shift_start")["role"] == taxonomy.ROLE_CATEGORICAL
+    _folder, _columns, answered, _loaded, _table = _described(_ASKED, 1000, 11, ("shifts3",))
+    assert _block(answered, "shifts3")["role"] == taxonomy.ROLE_CATEGORICAL
 
 
 def test_q_red_without_the_question(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(asking, "_clock_or_labels_question", lambda *_a: None)
-    names = ("shift_start", "handover")
-    _folder, columns, document, _loaded, _table = _described(names, 1000, 11)
-    asked = [question.name for question in _asked(document, columns, names)]
-    assert "shift_start" not in asked
+    assert "shifts3" not in _asked_about_times(_ASKED, 1000)
+
+
+def test_q_red_when_asked_beside_a_census(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(asking, "_heaps_hold_the_body", lambda _block: True)
+    assert _asked_about_times(_ASKED, 1000) != ["shifts3"]
 
 
 def test_the_description_says_so_where_the_census_is_left_out() -> None:
@@ -697,3 +1031,51 @@ def test_the_description_says_so_where_the_census_is_left_out() -> None:
     for seed in _SEEDS:
         _cells_now, missed = _twin(("lonely",), 45, 11, seed)
         assert missed == []
+
+
+# -- G: the publication guard holds each clock leaf to its kind ---------------
+
+
+# One leaf of each kind the profile's registry gives a clock block, and a
+# value of the wrong kind for it: a bin past the dial, a group of five, a
+# heap of five, a heap that is no time, and a step that does not divide
+# the dial.
+_LEAVES = {
+    "a-ten-minute-bin-of-the-dial": ("clock_census", "first", 144),
+    "a-clock-group-count-zero-or-at-the-census-line": ("clock_census", "count", 5),
+    "a-clock-count-at-the-census-line": ("clock_heaps", "count", 5),
+    "a-clock-time-in-its-columns-form": ("clock_heaps", "value", "25:00"),
+    "seconds-a-clock-steps-by-or-nothing": ("clock_step", "", 7),
+}
+
+
+def _perturbed(kind: str) -> "dict[str, object]":
+    """The coded column's description with one leaf of ``kind`` of the wrong kind."""
+    _folder, _columns, document, _loaded, _table = _described(("coded",), 2500, 11)
+    changed = copy.deepcopy(document)
+    key, field, value = _LEAVES[kind]
+    block = _block(changed, "coded")
+    if not field:
+        block[key] = value
+    else:
+        block[key][0][field] = value  # type: ignore[index]
+    return changed
+
+
+def test_g_the_guard_holds_each_clock_leaf_to_its_kind() -> None:
+    _folder, _columns, document, _loaded, _table = _described(("coded",), 2500, 11)
+    profile.check_publication(document)
+    for kind in sorted(_LEAVES):
+        with pytest.raises(errors.ProfileError):
+            profile.check_publication(_perturbed(kind))
+
+
+@pytest.mark.parametrize("kind", sorted(_LEAVES))
+def test_g_red_when_the_kind_is_always_published(kind: str, monkeypatch: pytest.MonkeyPatch) -> None:
+    built = profile._leaf_is_published
+
+    def always(rule, value, key, path, context):  # type: ignore[no-untyped-def]
+        return rule == kind or built(rule, value, key, path, context)
+
+    monkeypatch.setattr(profile, "_leaf_is_published", always)
+    profile.check_publication(_perturbed(kind))
