@@ -25503,11 +25503,11 @@ def _label_content(
                 if take:
                     spare = ""
                 if variant is None:
-                    # THE SUPPLY RAN OUT, which only a description
-                    # written before plan P4-D275 can ask of it: the
-                    # group is written as today's producer counts a
-                    # spelling below the floor, in its level's
-                    # commonest one.
+                    # THE SUPPLY RAN OUT, which only a level holding
+                    # spellings back, as the producer wrote one before
+                    # plan P4-D275, can ask of it: the group is written
+                    # as today's producer counts a spelling below the
+                    # floor, in its level's commonest one.
                     variant = _commonest_spelling(entry)
                     used[variant] = 1
                     owners[parsing.folded(variant)] = entry.label
@@ -26436,11 +26436,11 @@ def _variant_spelling(
     folded identities stay exactly what the description says.
 
     THE SUPPLY IS BOUNDED, AND None SAYS IT RAN OUT (review of landing
-    S1, item 2). The trailing spaces once had no end: a description
-    written before plan P4-D275 that holds back a million spellings of
-    one label, each written twice, was answered with spellings of up to
-    a million spaces -- about 496 GB of them, written twice -- and each
-    search for the next began again at one space. The flips stop at
+    S1, item 2). The trailing spaces once had no end: a level holding
+    back a million spellings of one label, each written twice, as the
+    producer wrote one before plan P4-D275, was answered with spellings
+    of up to a million spaces -- about 496 GB of them, written twice --
+    and each search for the next began again at one space. The flips stop at
     `_VARIANT_FLIPS` and the spaces at `_VARIANT_SPACES`; the caller
     writes a group the supply cannot reach in the level's commonest
     spelling, which is how today's producer describes every spelling

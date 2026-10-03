@@ -1280,6 +1280,17 @@ def _described_before_p4d275(
     under `variants_withheld` by the producer's own `_multiplicity_map`,
     and `n_distinct` counting every spelling. The loader is then asked
     to accept it.
+
+    THE DESCRIPTION IS THE EARLIER PRODUCER'S OWN, measured rather than
+    assumed (2026-10-03). For the columns of both tests below, the
+    producer of c5d09d5 -- the last commit before P4-D275 -- writes this
+    description byte for byte, but for three entries the format gained
+    after it and today's loader requires: `suppressed_numbers` in the
+    column, and `person_columns` and `forced_twelve_hour_clocks` among
+    the settings. Without them the loader refuses the earlier
+    description whole, so a level that holds spellings back reaches the
+    generator only in a description written or edited by hand; the
+    loader accepts the level itself, which is why its twin is bounded.
     """
     folder.mkdir(parents=True, exist_ok=True)
     path = fixtures.write(folder, "table.csv", _table(values))
@@ -1325,8 +1336,31 @@ def test_an_earlier_label_profile_is_answered_in_bounded_spellings(tmp_path: pat
                 values += [text, text]
     assert len(values) == 820
     document, loaded = _described_before_p4d275(tmp_path, values)
-    level = document["columns"][0]["levels"][0]
+    column = document["columns"][0]
+    level = column["levels"][0]
+    assert (column["role"], column["n_distinct"], len(column["levels"])) == ("constant", 401, 1)
+    assert (level["count"], level["shape_form_cells"]) == (820, 0)
     assert level["variants"] == {label: 20} and level["variants_withheld"] == {"2": 400}
+    twin, flips = _twin_counting_flips(loaded)
+    cells = twin.columns[0]
+    assert len(cells) == len(values)
+    assert all(parsing.folded(cell) == label for cell in cells)
+    assert max(len(cell) for cell in cells) <= len(label) + 64
+    assert len(set(cells)) == 1 + 63 + 64
+    assert flips <= 64, flips
+    named = [
+        one.achieved for one in twin.deviations
+        if one.fact == "levels -> variants_withheld"
+    ]
+    assert named == [
+        "127 neutral spellings made up in their place, and 273 written "
+        "in their label's commonest spelling"
+    ], named
+    assert any(one.fact == "n_distinct" for one in twin.deviations)
+
+
+def _twin_counting_flips(loaded: contract.Profile) -> "tuple[generation.Twin, int]":
+    """The twin of ``loaded`` at seed 0, and how many case flips its labels asked for."""
     flips = [0]
     shipped = generation._case_variant
 
@@ -1337,21 +1371,53 @@ def test_an_earlier_label_profile_is_answered_in_bounded_spellings(tmp_path: pat
     with pytest.MonkeyPatch.context() as patch:
         patch.setattr(generation, "_case_variant", counted)
         twin = generation.generate(loaded, 0)
+    return twin, flips[0]
+
+
+def test_the_review_s_own_label_stops_at_the_counter_s_4096th_step(tmp_path: pathlib.Path) -> None:
+    """The review's label past both bounds: its flips walked once, to the counter's 4,096th step.
+
+    `abcdefghijklmnopqrstu` written 20 times beside 4,200 of its case
+    flips written twice each: the review's column of a million such
+    spellings at a size a test can hold, which c5d09d5 described as
+    `variants_withheld {"2": 4200}`. Twenty-one letters spell more than
+    two million flips, so here the bound stops the supply and the label
+    does not: 4,096 flips, then 64 trailing spaces, then the 40 groups
+    past both written in the commonest spelling, the published label.
+    On 110cb46 each group began its search again at one -- 8,816,640
+    flips for 4,200 groups -- and the trailing spaces reached 104, a
+    cell of 125 characters.
+    """
+    label = "abcdefghijklmnopqrstu"
+    values = [label] * 20
+    for spelling in _case_spellings(label, 4200):
+        values += [spelling, spelling]
+    document, loaded = _described_before_p4d275(tmp_path, values)
+    column = document["columns"][0]
+    level = column["levels"][0]
+    assert (column["role"], column["n_distinct"], len(column["levels"])) == ("constant", 4201, 1)
+    assert (level["count"], level["shape_form_cells"]) == (8420, 0)
+    assert level["variants"] == {label: 20} and level["variants_withheld"] == {"2": 4200}
+    twin, flips = _twin_counting_flips(loaded)
     cells = twin.columns[0]
     assert len(cells) == len(values)
     assert all(parsing.folded(cell) == label for cell in cells)
-    assert max(len(cell) for cell in cells) <= len(label) + 64
-    assert len(set(cells)) == 1 + 63 + 64
-    assert flips[0] <= 64, flips[0]
+    # The bound of G8.2, and the walk taken once: 4,096 flips, 64 spaces.
+    assert flips == 4096, flips
+    assert max(len(cell) for cell in cells) == len(label) + 64
+    assert len(set(cells)) == 1 + 4096 + 64
+    # The 40 groups past both, two rows each, in the published label.
+    assert cells.count(label) == 20 + 2 * (4200 - 4096 - 64)
     named = [
         one.achieved for one in twin.deviations
         if one.fact == "levels -> variants_withheld"
     ]
     assert named == [
-        "127 neutral spellings made up in their place, and 273 written "
+        "4160 neutral spellings made up in their place, and 40 written "
         "in their label's commonest spelling"
     ], named
-    assert any(one.fact == "n_distinct" for one in twin.deviations)
+    # And the count of different values it falls short of, printed beside the published one (G12.7).
+    assert ("4201", "4161") in {(one.published, one.achieved) for one in twin.deviations if one.fact == "n_distinct"}
 
 
 def test_the_supply_walk_resumes_where_it_stopped() -> None:

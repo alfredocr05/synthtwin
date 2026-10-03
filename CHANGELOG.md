@@ -33,9 +33,9 @@ and one left unparsed is not, so the source meets its own census.
 before it builds that shape's permissions: 441 where it built 8,421 at
 461 rows. The made-up spellings of one label are bounded -- 4,096 case
 flips and 64 trailing spaces -- and their walk resumes where it
-stopped, so a description written before P4-D275 that holds back a
-million spellings of one label no longer asks for spellings a million
-spaces long: past the bound a group is written in its level's commonest
+stopped, so a level that holds back a million spellings of one label,
+as the producer wrote one before P4-D275, no longer asks for spellings
+a million spaces long: past the bound a group is written in its level's commonest
 spelling, and the twin's report says how many were. Nine lists that
 copied a comprehension in grow in place, and the guard sees that form.
 `K-S4-03` measures the lines the pair search runs and the bytes the
