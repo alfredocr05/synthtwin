@@ -24431,7 +24431,8 @@ class _TradeBook:
     40,000 ranks for a payment, and at 20,000 rows, where no trade was
     needed, the same column took 1.6 s. Counted as the ranks the pass
     reads, 1,922 a rank on `tests/test_stage3b_count_pass_speed.py`'s
-    clinic slots at 40,000 rows; the book reads 6.
+    clinic slots at 40,000 rows; the book reads 3.5, and generates the
+    clinic column in 5 s.
     The book holds what an attempt reads -- the instant each held unit
     stands on (`spot`, the last rank's in rank order, as the rebuild
     read it), the held units filed by standing (`order`), the runs of
@@ -24456,7 +24457,8 @@ class _TradeBook:
     when it is filed again, or the book is built again, when every rank
     is. Clinic slots with one cell in fifty written at midnight made 698
     paid merges at 20,000 rows, and their walks asked 555,473 times for a
-    unit none of them could find.
+    unit none of them could find: 8.0 s of CPU to generate, and 3.3 with
+    each such payer asked once and the offers and files kept as above.
 
     Guarantees: a record of the trade's state; the functions that build
     and update it are fixed functions of their arguments. No I/O.
@@ -24778,7 +24780,8 @@ def _book_settled(
     # THE UNIT THE MERGE LEFT LEAVES THE FILES THE SEARCHES WALK: no rank
     # lands on it again while the book stands, and a search only stepped
     # past it. Clinic slots with one cell in fifty at midnight, at 40,000
-    # rows: 5,587,119 of the 6,284,432 keys their searches visited.
+    # rows: such units were 5,587,119 of the 6,284,432 keys their
+    # searches visited while they stayed filed.
     for selector in book.order:
         keys = book.order[selector]
         slot = _rank_slot(keys, own)

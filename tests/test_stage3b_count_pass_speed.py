@@ -719,7 +719,7 @@ def test_the_measure_sees_the_rebuild(tmp_path: pathlib.Path) -> None:
     """5,000 clinic slots: the book reads at most ten ranks a rank, the as-built pass over fifty.
 
     Measured with this measure: the as-built pass reads 90 a rank here,
-    159 at 10,000 rows and 1,600 at 20,000; the book 2.0, 2.1 and 4.0.
+    159 at 10,000 rows and 1,600 at 20,000; the book 2.9, 2.1 and 3.6.
     Ledger entry K-S3-51 holds the book at 10,000 and 40,000 rows.
     """
     reads, made = trade_reads(5000, tmp_path / "new", checked=True)

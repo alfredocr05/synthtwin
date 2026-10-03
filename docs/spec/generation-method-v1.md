@@ -5828,7 +5828,17 @@ that way.
   midnight pins, with no unit of its own standing anywhere in its gap --
   missing both distinct counts, four against three, while the source
   passed and the twin kept all eleven rungs and the 80 cells the census
-  puts at midnight. **AND A RUN NO MERGE CAN TAKE IS SPLIT** (plan
+  puts at midnight. **HOW THE OFFERS AND PAYMENTS ARE FOUND CHANGES
+  NONE OF THEM** (plan P4-D376): the held units, the runs and their
+  offers are kept from one attempt to the next and brought up to date by
+  the ranks a paid merge moved, a payment is sought only among the
+  unpinned ranks of the standing that can give it, and a rank whose
+  search finds no held unit at all is not asked again until it moves,
+  where every attempt rebuilt them from all the ranks and every offer
+  walked all the ranks for its payment. Each offer, payment and merge is
+  the one that rebuild finds; a 40,000-row column of clinic slots took
+  119 s of CPU to generate, nearly all of it here, and takes 5.
+  **AND A RUN NO MERGE CAN TAKE IS SPLIT** (plan
   P4-D354, the third skeptic of landing 3b.0). Where the merges and both
   trades leave the count over, in rank order, a run of two or more ranks
   on one unit, none pinned and none of that unit's ranks elsewhere,
