@@ -9,8 +9,8 @@ between its rungs: the hour of day came back 0.18 to 0.33 off at 1,000
 rows (total variation over the 24 hours), every heap smaller than a rung
 gap was lost -- handover's 07:00 and 19:00 came back halved -- and a
 column with no tails was a ramp from 00:00. One clause per rule, and every
-clause but F -- which holds the floor and the checker over the whole
-battery -- red on its own mutant:
+clause red on its own mutant but the floor and checker half of F, which
+holds the whole battery, and NF106's sentence:
 
 * R `test_r_every_column_is_a_clock_and_every_twin_cell_a_time` -- the
   battery's clock columns are read as clock times at 100, 300 and 1,000
@@ -93,6 +93,7 @@ import dataclasses
 import functools
 import io
 import pathlib
+import random
 import re
 import tempfile
 import typing
@@ -336,6 +337,53 @@ def test_f_small_tables_beside_codes_validate(spec: str, floor: int) -> None:
     assert _missed(loaded, table) == []
     _cells_now, missed = _twin(names, rows, floor, 0)
     assert missed == [], (spec, floor, missed)
+
+
+# THE CLOCK LINE IS THE PRODUCER'S OWN (method G8.3, the repair round): the
+# room is the most cells of a column of labels a clock reader may take
+# before the producer reads it as clock times -- exactly that many beside
+# rare words and one published word are labels, one more is clock times.
+# Each case is a number of present cells and the cells of `UNK`, published
+# where they reach the floor.
+_LINE_CASES = ((250, 0), (1000, 0), (3000, 11), (3000, 30))
+
+
+def _read_with(present: int, words: int, timed: int) -> str:
+    """The role of a column of ``timed`` quarter hours, ``words`` `UNK` and rare words."""
+    draw = random.Random(7 * present + words)
+    column = [
+        parsing.clock_spelling(15 * draw.randrange(32, 72), parsing.CLOCK_HH_MM) for _ in range(timed)
+    ]
+    column += ["UNK"] * words + [f"w{index}" for index in range(present - timed - words)]
+    draw.shuffle(column)
+    folder = pathlib.Path(tempfile.mkdtemp(dir=_HOME[0]))
+    table = fixtures.write(folder, "line.csv", "c\n" + "\n".join(column) + "\n")
+    document = profile.build_document(
+        reading.read_table(str(table), small_cell_floor=11), taxonomy.Settings(small_cell_floor=11), []
+    )
+    return f"{document['columns'][0]['role']}"  # type: ignore[index]
+
+
+def _line_holds(present: int, words: int) -> bool:
+    room = generation._clock_line_room(present, taxonomy.Settings().minimum_parse_rate, 0, words, True)
+    if _read_with(present, words, room) == taxonomy.ROLE_CLOCK:
+        return False
+    return room == present - words or _read_with(present, words, room + 1) == taxonomy.ROLE_CLOCK
+
+
+@pytest.mark.parametrize("present,words", _LINE_CASES)
+def test_f_the_clock_line_is_the_producers_own(present: int, words: int) -> None:
+    assert _line_holds(present, words)
+
+
+def test_f_red_on_the_clock_line_alone(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The skeptic's line alone, without the rare words: a twin the producer reads as clock times."""
+    monkeypatch.setattr(
+        generation,
+        "_clock_cells_stand",
+        lambda present, rate, clocks, _others, _stand_ins, taken: clocks + taken < taxonomy.clock_line(rate, present),
+    )
+    assert not all(_line_holds(present, words) for present, words in _LINE_CASES)
 
 
 def test_f_red_without_the_clock_line(monkeypatch: pytest.MonkeyPatch) -> None:
