@@ -2313,7 +2313,7 @@ _real_spelled_end = gen.spelled_end
 _real_end_figures = gen.end_figures
 
 
-def _width_before_sign(placed, low, boundary, column, figures, mean):
+def _width_before_sign(placed, low, boundary, column, figures, mean, *reach):
     """G5.3b step 4's order withdrawn: the spelling clamps before the sign rule.
 
     The order the oracle carried until this review. The width clamp
@@ -2321,7 +2321,7 @@ def _width_before_sign(placed, low, boundary, column, figures, mean):
     sign rule then puts it at one step -- a width the census does not
     name.
     """
-    spelled = _real_spelled_end(placed, low, boundary, column, mean)
+    spelled = _real_spelled_end(placed, low, boundary, column, mean, *reach)
     return _real_end_sign_held(spelled, low, boundary, column, figures)
 
 
@@ -2338,11 +2338,12 @@ def _places_whatever_the_rung(column, boundary):
     return figures
 
 
-def _clamps_never_stand_aside(signed, low, boundary, column, mean):
+def _clamps_never_stand_aside(signed, low, boundary, column, mean, *_reach):
     """G5.3b step 4's stand-aside withdrawn: every clamp always applies.
 
     The width clamp then holds the end at 10,000 even where that lies
-    nearer the boundary rung than the tail's own mean distance.
+    nearer the boundary rung than the tail's own mean distance -- and
+    G6.6.8's reach, which stands aside with it, is withdrawn too.
     """
     end = signed
     for clamp in (gen.one_width_held, gen.pad_held, gen.mark_held):

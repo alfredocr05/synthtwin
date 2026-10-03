@@ -1465,7 +1465,7 @@ def mark_held(value, low, boundary, column):
     return min(held, boundary) if low else max(held, boundary)
 
 
-def spelled_end(signed, low, boundary, column, mean):
+def spelled_end(signed, low, boundary, column, mean, root=None, kept=()):
     """The two width clamps and then the mark, after the sign rule.
 
     G5.3b step 4's order: the one field width, the padded ceiling, the
@@ -1475,13 +1475,70 @@ def spelled_end(signed, low, boundary, column, mean):
     nearer than that, and the distance is checked where the censuses
     are report-only -- so a clamp that would land inside `b -/+ d1`
     stands aside and the end is the one the sign rule left.
+
+    AND NEITHER WIDTH CLAMP PULLS IT INSIDE THE PAIR'S REACH (G6.6.8, plan
+    P4-D377): each is followed by `past_the_width`, which lets the end
+    past the width as far as `rms**2 / d1` and no further than the sign
+    rule left it, unless the clamp landed it on a stand-in the block
+    holds (``kept``).
     """
     end = signed
+    reach = pair_reach(mean, root)
     for clamp in (one_width_held, pad_held, mark_held):
         end = clamp(end, low, boundary, column)
+        if clamp is not mark_held:
+            end = past_the_width(end, signed, low, boundary, reach, kept)
         if abs(end - boundary) < mean:
             return signed
     return end
+
+
+# The share of the reach `pair_reach` gives up to the rounding of the
+# two published distances (G6.6.8): two to the minus twenty-four.
+REACH_SLACK = 1.0 / 16777216.0
+
+
+def pair_reach(mean, root):
+    """G6.6.8's reach: the nearest a tail's furthest row can stand, `rms**2 / d1`.
+
+    Bhatia and Davis's bound at a least distance of nought: every
+    distance `d` lies in `[0, D]`, so `d * (D - d) >= 0`, and summed over
+    the tail `D * d1 >= rms**2`.  Taken as `rms * (rms / d1)`, the largest
+    finite number where that overflows, and lowered by `REACH_SLACK` of
+    itself; nought where the pair is not published or the mean is not
+    above nought.
+    """
+    if mean is None or root is None or not mean > 0.0 or not root > 0.0:
+        return 0.0
+    reach = root * (root / mean)
+    if not math.isfinite(reach):
+        return TAIL_LARGEST
+    return reach - reach * REACH_SLACK
+
+
+def past_the_width(clamped, signed, low, boundary, reach, kept=()):
+    """G6.6.8 (plan P4-D377): a width clamp standing aside where the pair proves it wrong.
+
+    Where the clamp took the end's size DOWN (a ceiling, never the floor a
+    one-width census also states), did not land it on a stand-in the
+    block holds, and left it nearer the boundary
+    than the pair's reach, the description proves a cell wider than every
+    width it names: the end is the first whole number at or past the
+    reach -- `b + reach` rounded up on the high side, `b - reach` rounded
+    down on the low -- and never further out than ``signed``.
+    """
+    if clamped == signed or clamped in kept or not reach > 0.0:
+        return clamped
+    if not abs(clamped) < abs(signed):
+        return clamped
+    if not abs(clamped - boundary) < reach:
+        return clamped
+    point = boundary - reach if low else boundary + reach
+    if not math.isfinite(point):
+        return signed
+    whole = math.floor(point) if low else math.ceil(point)
+    whole = float(whole)
+    return max(whole, signed) if low else min(whole, signed)
 
 
 def one_width_held(value, low, boundary, column):
@@ -1489,7 +1546,7 @@ def one_width_held(value, low, boundary, column):
     return width_held(value, low, boundary, tail_one_width(column))
 
 
-def held_end(placed, low, boundary, column, figures, mean):
+def held_end(placed, low, boundary, column, figures, mean, root=None, kept=()):
     """THE ORDER OF THE LAST THREE (G5.3b step 4): sign, widths, mark.
 
     The sign rule first, because its own hold can land an end the
@@ -1499,7 +1556,7 @@ def held_end(placed, low, boundary, column, figures, mean):
     move a magnitude and so cannot undo it.
     """
     signed = end_sign_held(placed, low, boundary, column, figures)
-    return spelled_end(signed, low, boundary, column, mean)
+    return spelled_end(signed, low, boundary, column, mean, root, kept)
 
 
 def rung_places(value):
@@ -1783,8 +1840,9 @@ def fitted_end(column, side, boundary, shape, low):
     if figures != -1 and abs(placed - boundary) > bound * (1.0 + 1e-12):
         step = tail_unit(figures)
         placed = tail_grid(placed + step if low else placed - step, figures)
-    held = held_end(placed, low, boundary, column, figures, mean)
-    return off_the_stand_ins(held, low, boundary, figures, held_by_the_block(column))
+    kept = held_by_the_block(column)
+    held = held_end(placed, low, boundary, column, figures, mean, root, kept)
+    return off_the_stand_ins(held, low, boundary, figures, kept)
 
 
 def withheld_end(column, side, boundary, _shape, low):

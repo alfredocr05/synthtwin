@@ -9951,7 +9951,9 @@ def _numeric_content(
     # point-free count, the strata being apart, the held-back pool --
     # comes through it untouched, and none of them has to be re-argued
     # against a value this pass chose.
-    values = _wide_enough(column, facts, layout, rungs, values)
+    values = _wide_enough(
+        column, facts, layout, rungs, values, plan.small_cell_floor
+    )
     # AND NO VALUE STANDS WHERE THE DESCRIPTION SAYS THERE IS NONE
     # (plan P4-D32, residual R-P4-136). LAST, and it takes that place
     # from `_wide_enough` above on purpose: this is the only one of the
@@ -14434,6 +14436,7 @@ def _wide_enough(
     layout: "_NumericLayout",
     rungs: "tuple[float, ...] | None",
     values: "list[float]",
+    floor: int = 0,
 ) -> "list[float]":
     """Draw values the published field widths can be worn by (G6.6).
 
@@ -14483,6 +14486,13 @@ def _wide_enough(
     total = len(values)
     moved = [value for value in values]
     tails = _tail_strata(facts, layout)
+    # A PAIR THAT PROVES A CELL WIDER THAN EVERY NAMED WIDTH FREES THE
+    # FLOOR LESS ONE CELLS PAST THEM (method G6.6.8, plan P4-D377): see
+    # `_past_the_width`. They serve no demand, so the demand the census
+    # counted them into is that much smaller.
+    demands = _demands_less_the_freed(
+        demands, _freed_past_the_width(facts, layout, values, demands, floor)
+    )
     for _round in range(total + 1):
         short, left, figures = _fields_served(
             demands, moved, layout, facts.integer_valued
@@ -14629,6 +14639,135 @@ def _published_rung(
         if int(contract.FINER_LADDER_KEYS[index][1:]) == percent:
             return facts.percentiles_between[index]
     return None
+
+
+def _freed_past_the_width(
+    facts: contract.NumericFacts,
+    layout: "_NumericLayout",
+    values: "list[float]",
+    demands: "list[tuple[int, int, int]]",
+    floor: int,
+) -> int:
+    """How many cells the width walk leaves past every named width (G6.6.8).
+
+    THE CENSUS POOLS A WIDTH FEWER THAN THE SMALLEST GROUP WROTE INTO
+    ITS COMMONEST (plan P4-D222), so it never says that no cell was wider
+    than its widest named width -- it says that FEWER THAN THE LINE were.
+    Where a tail's published pair proves at least one was
+    (`contract.pair_reach` past the widest value any demand lets a cell
+    hold, on that tail's own side of nought), the walk leaves up to the
+    line less one of the tail's own cells past that width, the outermost
+    first and whole strata only, because a stratum holds one value; any
+    further ones it moves as before. The derived end already stands at
+    the pair's reach (`contract._past_the_width`), so a cell left here
+    stands no further out than the pair allows. Measured on `1000` to
+    `1398` beside one `99999` (`K-S3-22`): without it the walk pulled a
+    staircase row from past the width down to `9998`.
+
+    Guarantees: accepts one numeric block's facts, its layout, the values
+    as they stand, its demands and the settings floor; returns a count
+    from nought to the line less one -- nought where no tail publishes a
+    pair whose reach passes the widest demanded width. Determinism: a
+    function of those. Raises nothing. No I/O of any kind.
+    """
+    tails = facts.tails
+    if tails is None or tails.low is None or tails.high is None:
+        return 0
+    widest = 0
+    for wanted, _exact, _cells in demands:
+        if wanted > widest:
+            widest = wanted
+    if widest < 1 or widest > _FIGURE_REACH:
+        return 0
+    ceiling = 1.0
+    for _step in range(widest):
+        ceiling = ceiling * 10.0
+    ceiling = ceiling - 1.0
+    ladder = contract.tail_ladder(facts)
+    if ladder is None or ladder.low is None or ladder.high is None:
+        return 0
+    low_reach = contract.pair_reach(
+        tails.low.mean_distance, tails.low.rms_distance
+    )
+    high_reach = contract.pair_reach(
+        tails.high.mean_distance, tails.high.rms_distance
+    )
+    proven_low = low_reach > 0.0 and ladder.low.boundary - low_reach < -ceiling
+    proven_high = (
+        high_reach > 0.0 and ladder.high.boundary + high_reach > ceiling
+    )
+    if not proven_low and not proven_high:
+        return 0
+    room = parsing.census_floor(floor) - 1
+    freed = 0
+    for side, boundary, proven in (
+        (tails.low, ladder.low.boundary, proven_low),
+        (tails.high, ladder.high.boundary, proven_high),
+    ):
+        if not proven:
+            continue
+        past: "list[tuple[float, int]]" = []
+        for place in sorted(_tail_strata(facts, layout)):
+            value = values[place]
+            if (value > 0.0) != (side is tails.high) or value == 0.0:
+                continue
+            if not _carries_plainly(value, facts.integer_valued):
+                continue
+            if _figure_count(value, facts.integer_valued) <= widest:
+                continue
+            past += [(-abs(value - boundary), place)]
+        # ...STOPPING AT THE PAIR'S REACH: the tail's `m` rows carry `m d1`
+        # of distance and `m rms**2` of squared distance between them,
+        # every row at least nought, so the cells left past the width may
+        # carry no more of either than that.
+        mean = side.mean_distance if side.mean_distance is not None else 0.0
+        root = side.rms_distance if side.rms_distance is not None else 0.0
+        first = side.rows * mean
+        second = side.rows * root * root
+        spent_first = 0.0
+        spent_second = 0.0
+        for distance, place in sorted(past):
+            size = layout.sizes[place]
+            far = -distance
+            spent_first = spent_first + size * far
+            spent_second = spent_second + size * far * far
+            if freed + size > room or spent_first > first or (
+                spent_second > second
+            ):
+                break
+            freed = freed + size
+    return freed
+
+
+def _demands_less_the_freed(
+    demands: "list[tuple[int, int, int]]", freed: int
+) -> "list[tuple[int, int, int]]":
+    """The demands with ``freed`` cells taken off the commonest (G6.6.8).
+
+    The census counted a cell too few to name into the width most cells
+    wrote (plan P4-D222), so that is the demand the freed cells were
+    counted in: the one asking for the most cells, the widest on a tie.
+    Never below nought. Determinism: a function of the two. Raises
+    nothing. No I/O of any kind.
+    """
+    if freed < 1 or not demands:
+        return demands
+    chosen = 0
+    for index in range(1, len(demands)):
+        cells = demands[index][2]
+        if cells > demands[chosen][2] or (
+            cells == demands[chosen][2]
+            and demands[index][0] > demands[chosen][0]
+        ):
+            chosen = index
+    kept: "list[tuple[int, int, int]]" = []
+    for index in range(len(demands)):
+        wanted, exact, cells = demands[index]
+        if index == chosen:
+            cells = max(cells - freed, 0)
+        if cells > 0:
+            kept += [(wanted, exact, cells)]
+    return kept
 
 
 def _tail_room(
