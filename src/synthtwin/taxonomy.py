@@ -16813,8 +16813,27 @@ def _absences_written(
     """
     if not settings.declared_missing_values:
         return {}
+    rewritten = [written for _place, written in _clock_rewrites(style, cells, days)]
+    if not rewritten:
+        return {}
+    _present, absent = split_missing(rewritten, settings)
+    return {spelling: True for spelling, _class in absent}
+
+
+def _clock_rewrites(
+    style: str,
+    cells: "list[tuple[str, tuple[int, int, int, bool, int, str, bool]]]",
+    days: "list[str]",
+) -> "list[tuple[int, str]]":
+    """Each cell one style writes otherwise than it is written, by its place, with that writing.
+
+    A cell on another face names no instant there and is not written;
+    ``days`` holds each cell's date half with its space, or is empty for
+    a column of clock times alone. Determinism: a function of the three.
+    Raises nothing. No I/O of any kind.
+    """
     face = parsing.clock_face(style)
-    rewritten: "list[str]" = []
+    found: "list[tuple[int, str]]" = []
     for place in range(len(cells)):
         text, parts = cells[place]
         second = parsing.clock_second(parts, face)
@@ -16823,11 +16842,54 @@ def _absences_written(
         written = parsing.written_clock(second, parts[3], style)
         if written == text:
             continue
-        rewritten += [(days[place] if days else "") + written]
-    if not rewritten:
+        found += [(place, (days[place] if days else "") + written)]
+    return found
+
+
+def clock_cells_written_absent(
+    cells: "list[str]", style: str, stamps: bool, settings: Settings
+) -> "dict[str, bool]":
+    """The cells one written clock would REWRITE into a declared absence, as written.
+
+    THE PRODUCER'S OWN RULE, FOR THE RECOUNTS THAT READ CELLS (the T1
+    review's items 1 and 2). A column keeps the hour width that writes no
+    present cell as a value the person declared missing; where both
+    widths would, it keeps the commonest and counts the cells so written
+    unread (`_width_clear_of_absences`). So under the style a column
+    PUBLISHES, these are exactly the cells its description did not read:
+    none where a width cleared every cell, and the colliding ones where
+    none did. A recount that read them would count cells no published
+    fact counts -- three `1:00` beside a declared `01:00` and `2:00` stood
+    below a low tail measured without them, and the source missed it.
+    ``stamps`` says the cells are slashed stamps, whose clock is the half
+    after the first space; a cell whose clock does not read is not one.
+
+    Guarantees: accepts the cells as written, a member of
+    `parsing.CLOCK_STYLES`, whether they are stamps and the settings;
+    returns those cells, as keys. Determinism: a function of the four.
+    Raises ValueError for an unknown style. No I/O of any kind.
+    """
+    if not settings.declared_missing_values:
         return {}
-    _present, absent = split_missing(rewritten, settings)
-    return {spelling: True for spelling, _class in absent}
+    read: "list[tuple[str, tuple[int, int, int, bool, int, str, bool]]]" = []
+    days: "list[str]" = []
+    originals: "list[str]" = []
+    for cell in cells:
+        day, clock = parsing.stamp_halves(cell) if stamps else ("", cell)
+        parts = parsing.clock_parts(clock)
+        if parts is None:
+            continue
+        read += [(clock, parts)]
+        days += [day]
+        originals += [cell]
+    absent = _absences_written(style, read, days, settings)
+    if not absent:
+        return {}
+    found: "dict[str, bool]" = {}
+    for place, written in _clock_rewrites(style, read, days):
+        if written in absent:
+            found[originals[place]] = True
+    return found
 
 
 def _width_clear_of_absences(

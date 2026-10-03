@@ -104,6 +104,63 @@ def test_item_2_the_tail_recount_reads_the_column_s_face_alone(tmp_path: pathlib
     assert code == 0, report[-3000:]
 
 
+def _both_widths_spell_an_absence() -> "list[str]":
+    """Padded minutes from `06:40`, three `1:00`, twenty `02:00`, and eleven each of `01:00` and `2:00`."""
+    return (
+        [f"{minute // 60:02d}:{minute % 60:02d}" for minute in range(400, 1400)]
+        + ["1:00"] * 3
+        + ["02:00"] * 20
+        + ["01:00"] * 11
+        + ["2:00"] * 11
+    )
+
+
+@pytest.mark.parametrize("prefix", ["", "3/17/2023 "])
+def test_items_1_and_2_a_cell_counted_unread_is_in_no_recount(
+    tmp_path: pathlib.Path, prefix: str
+) -> None:
+    """`01:00` and `2:00` declared missing: both widths spell one, so the three `1:00` are unread everywhere.
+
+    At 110cb46 the three were written `01:00`, the declared word, and
+    counted present. Since item 1 they are counted unread, as C6-10a
+    says -- and at c13edd8 validation's recount still read them, below
+    the low tail the description measured without them, so the unchanged
+    source missed four checks on clocks and five on stamps, the census of
+    date widths among them. Every recount now reads what the producer read.
+    """
+    cells = [prefix + cell for cell in _both_widths_spell_an_absence()]
+    block, profile, _questions = gate._described(
+        tmp_path, cells,
+        "--missing-value", f"{prefix}01:00", "--missing-value", f"{prefix}2:00",
+    )
+    assert block["n_present"] == 1023 and block["n_missing"] == 22
+    assert block["n_unparsed"] == 3
+    code, report = gate._validated(profile, tmp_path / "real.csv")
+    assert code == 0, report[-3000:]
+    twin, _written = gate._twin(profile, 0)
+    code, report = gate._validated(profile, twin)
+    assert code == 0, report[-3000:]
+
+
+def test_item_2_a_stamp_on_another_face_is_in_no_recount(tmp_path: pathlib.Path) -> None:
+    """Three `3/18/2023 23:59` beside 600 marked stamps: no recount reads the three.
+
+    The producer counts them unread (NF108) and publishes its census of
+    date widths and its tails without them. At 110cb46 every recount
+    read them, and the unchanged source missed five checks; at c13edd8
+    the tail recount read the face and the census of widths did not, and
+    it still missed one.
+    """
+    cells = [
+        f"3/{1 + minute // 60}/2023 {1 + minute % 12}:{minute % 60:02d} AM"
+        for minute in range(600)
+    ] + ["3/18/2023 23:59"] * 3
+    block, profile, _questions = gate._described(tmp_path, cells)
+    assert block["role"] == "datetime" and block["n_unparsed"] == 3
+    code, report = gate._validated(profile, tmp_path / "real.csv")
+    assert code == 0, report[-3000:]
+
+
 # -- item 3: the day and month readings are compared on the face --------
 
 
