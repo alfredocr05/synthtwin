@@ -6299,6 +6299,16 @@ def _pool_readings(
     (the population's width each, `_topped_up`), and one for every
     `POOL_CELLS_A_STEP` cells of a table of the conventions -- each
     value's placements, each state it reaches (`_placements`).
+
+    BOTH COUNTS ARE ASKED AFTER EVERY READING, before the next one and
+    before a True is taken (the Codex review of 3b-R0, item 1). A state
+    that places every value asks one reading for each count under the
+    line, and they were asked only after all of them: at a floor raised
+    with the rows -- 1,000,001 cells of `i.5` and `i.50` at
+    `--smallest-group 500001` -- one leaf took a reading after 4,000,061
+    of the work, and its CPU seconds grew with the square of the rows. A
+    leaf that runs either count out now stops short there, so the most
+    the walk takes past its ceiling is one reading.
     """
     kinds: "list[tuple[int, ...]]" = []
     sizes: "list[int]" = []
@@ -6342,6 +6352,8 @@ def _pool_readings(
                     still += [barred]
                 budget[0] = budget[0] - 1
                 budget[1] = budget[1] - 1 - work[0] // POOL_WORDS_A_STEP
+                if budget[0] < 1 or budget[1] < 1:
+                    return None
             avoided = still
             still = []
             for index in emptied:
@@ -6352,6 +6364,8 @@ def _pool_readings(
                     still += [index]
                 budget[0] = budget[0] - 1
                 budget[1] = budget[1] - 1 - work[0] // POOL_WORDS_A_STEP
+                if budget[0] < 1 or budget[1] < 1:
+                    return None
             emptied = still
             if not avoided and not emptied:
                 return True

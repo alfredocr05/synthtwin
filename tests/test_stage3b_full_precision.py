@@ -458,6 +458,104 @@ def test_the_table_is_charged_every_group_handed_in_before_a_step(monkeypatch) -
     assert parsing.mixture_pool_holds(1000, 11, [1000] * 40, 40, free * 8, None) is False
 
 
+# A LEAF OF THE WALK ASKS ONE READING FOR EVERY COUNT UNDER THE LINE (the
+# Codex review of 3b-R0, item 1). At a floor raised with the rows that is
+# hundreds of thousands of readings in one leaf, and the budgets were asked
+# only after all of them: 1,000,001 cells of `i.5` and `i.50` at
+# `--smallest-group 500001` took a reading after 4,000,061 of the work.
+# Three conventions of 1,999 under a line of 2,000 hold 3,000 rows every
+# way but one, so a leaf of this pool asks about 2,000 readings and answers
+# True after them.
+RAISED_FLOOR = (3000, 2000, [2999] * 3, 3, (), None)
+
+
+def _counting_readings(monkeypatch: pytest.MonkeyPatch) -> "dict[str, int]":
+    """Counts `_topped_up`'s readings, and the most of the work any walk had spent when it started one.
+
+    The work is charged here as `_pool_readings` charges it, one a
+    reading and one more for every `POOL_WORDS_A_STEP` words its
+    big-number steps move, from the table the walk is charged before a
+    step; this shape hands in no value, so no placement is charged.
+    """
+    tally = {"readings": 0, "spent": 0, "most_spent_at_a_reading": 0, "walks": 0}
+    walk = parsing._pool_readings
+    reading = parsing._topped_up
+
+    def counted_walk(population, held, seen, groups, line, shown=False, spent=0):
+        tally["walks"] += 1
+        tally["spent"] = spent
+        return walk(population, held, seen, groups, line, shown, spent)
+
+    def counted_reading(population, kinds, state, seen, barred, empty, work=None):
+        tally["most_spent_at_a_reading"] = max(tally["most_spent_at_a_reading"], tally["spent"])
+        tally["readings"] += 1
+        before = work[0] if work is not None else 0
+        answer = reading(population, kinds, state, seen, barred, empty, work)
+        moved = (work[0] - before) if work is not None else 0
+        tally["spent"] += 1 + moved // parsing.POOL_WORDS_A_STEP
+        return answer
+
+    monkeypatch.setattr(parsing, "_pool_readings", counted_walk)
+    monkeypatch.setattr(parsing, "_topped_up", counted_reading)
+    return tally
+
+
+def test_a_leaf_s_readings_stop_when_the_steps_run_out(monkeypatch) -> None:
+    """A hundred steps and about 2,000 readings in one leaf: the walk stops short after the hundredth, never answering True.
+
+    The Codex review of 3b-R0, item 1. Mutation: the steps asked only
+    after the leaf (110cb46) takes every reading and answers True.
+    """
+    tally = _counting_readings(monkeypatch)
+    monkeypatch.setattr(parsing, "POOL_SEARCH_STEPS", 100)
+    monkeypatch.setattr(parsing, "POOL_WORK_STEPS", 10**9)
+    assert parsing.mixture_pool_holds(*RAISED_FLOOR) is None
+    assert tally["readings"] == 100, tally
+    monkeypatch.setattr(parsing, "POOL_SEARCH_STEPS", 10**6)
+    assert parsing.mixture_pool_holds(*RAISED_FLOOR) is True
+
+
+def test_a_leaf_s_readings_stop_when_the_work_runs_out(monkeypatch) -> None:
+    """Steps to spare and a hundred of the work: no reading is started once the work is spent, and True is never accepted past it.
+
+    The Codex review of 3b-R0, item 1: the work asked between readings
+    and before the answer is taken. Mutation: the work asked only after
+    the leaf (110cb46) takes every reading and answers True.
+    """
+    tally = _counting_readings(monkeypatch)
+    monkeypatch.setattr(parsing, "POOL_SEARCH_STEPS", 10**6)
+    monkeypatch.setattr(parsing, "POOL_WORK_STEPS", 100)
+    assert parsing.mixture_pool_holds(*RAISED_FLOOR) is None
+    assert tally["most_spent_at_a_reading"] < 100, tally
+    assert tally["readings"] <= 100, tally
+
+
+def test_a_raised_floor_over_values_written_two_ways_is_bounded_in_work(tmp_path, monkeypatch) -> None:
+    """10,001 cells of `i.5` and `i.50` at `--smallest-group 5001`: no walk starts a reading past its work.
+
+    The shape the Codex review of 3b-R0, item 1 measured at 1,000,001
+    cells and the shipped ceiling, where a walk took 62,500 readings and
+    then another past 4,000,061 of the work and the CPU seconds grew with
+    the square of the rows; here at a ceiling of 3,000, which its leaf of
+    5,000 readings passes, so the test takes a second. The census is then
+    counted at one width, the stop-short answer. Mutation: the budgets
+    asked only after the leaf (110cb46) starts readings past 3,000.
+    """
+    tally = _counting_readings(monkeypatch)
+    monkeypatch.setattr(parsing, "POOL_WORK_STEPS", 3000)
+    path = _table(tmp_path / "in", "pairs", values_written_two_ways(5000))
+    out = tmp_path / "out"
+    out.mkdir(parents=True)
+    said = io.StringIO()
+    with contextlib.redirect_stdout(said), contextlib.redirect_stderr(said):
+        code = cli.main(["profile", str(path), "--out-dir", str(out), "--replace", "--smallest-group", "5001"])
+    assert code == 0, said.getvalue()
+    assert tally["walks"] > 0 and tally["readings"] > 0, tally
+    assert tally["most_spent_at_a_reading"] < 3000, tally
+    block = json.loads((out / "pairs-profile.json").read_text(encoding="utf-8"))["columns"][0]
+    assert taxonomy.SUPPRESSED_LABEL not in block["fraction_widths"], block["fraction_widths"]
+
+
 def test_the_walk_can_never_reach_itself() -> None:
     """Read off the source: `_fill` names no function that names `_fill`.
 
