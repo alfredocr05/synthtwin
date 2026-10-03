@@ -357,7 +357,7 @@ def cell_classes(
         for index in full_order:
             if index not in taken and dialect.sheet_class_fits(kind, cells[index]):
                 fitting += [index]
-        for index in _spread_over(fitting, wanted):
+        for index in _date_cells_first(kind, fitting, wanted, cells):
             out[index] = kind
             taken[index] = True
         remaining[kind] = wanted - min(wanted, len(fitting))
@@ -385,6 +385,42 @@ def cell_classes(
             remaining, cells[index], value_class, leading_value
         )
     return tuple(out)
+
+
+def _date_cells_first(
+    kind: str, fitting: "list[int]", wanted: int, cells: "tuple[str, ...]"
+) -> "list[int]":
+    """Which fitting cells a class takes, a `T` clock first for `date`.
+
+    THE SPELLING ONLY A DATE CELL HOLDS GOES TO THE DATE CLASS FIRST
+    (review item 1 of landing R3). The reader spells a `t="d"` cell as
+    the ISO text it stores, a clock after a `T`, and a day count wearing
+    a date format as `YYYY-MM-DD` or `YYYY-MM-DD HH:MM:SS`: so in a
+    column holding both, the twin's `T` spellings are its date cells'.
+    Spread over every ISO date alike, the count gave the date class to
+    plain days and left the `T` spellings to the text cells: measured on
+    180 day counts, 20 `t="d"` cells and 20 dates typed in as text, the
+    twin's text cells mixed `2024-05-05T00:00:00` with `2024-04-21`, and
+    pandas could not read the twin's column as dates where it read the
+    source's. The `date` count is spread over the cells holding a `T`
+    clock first and over the other fitting cells after; every other
+    class, and a `date` count no `T` spelling meets, is spread as
+    before (`_spread_over`).
+    """
+    if kind != dialect.SHEET_CELL_DATE:
+        return _spread_over(fitting, wanted)
+    clocked: "list[int]" = []
+    plain: "list[int]" = []
+    for index in fitting:
+        if cells[index][10:11] == "T":
+            clocked += [index]
+            continue
+        plain += [index]
+    if not clocked:
+        return _spread_over(fitting, wanted)
+    return _spread_over(clocked, wanted) + _spread_over(
+        plain, wanted - len(clocked)
+    )
 
 
 def _spread_over(fitting: "list[int]", wanted: int) -> "list[int]":
@@ -1466,6 +1502,15 @@ def _dates_as_day_counts(
     allocated over the converted cells (`cell_classes`), and a cell it
     does not store as a number gets its date back, in the spelling the
     twin wrote it -- the rule the clocks follow (`_clocks_as_day_fractions`).
+
+    AND SO DOES ONE BESIDE DATE CELLS (review item 1 of landing R3). The
+    restoration first ran only where ``stored`` was empty, so a column
+    storing day counts, `t="d"` cells and dates typed in as text all at
+    once gave its text cells day counts again: measured on 180, 20 and
+    20 of them, the twin held `"45404"`, described again it had 20
+    unparsed and `validate` exited 3, and pandas could not read the
+    twin's column as dates. The restoration now runs whether or not the
+    first allocation was trusted.
     """
     wants_dates = False
     for kind in (dialect.SHEET_FORMAT_DATE, dialect.SHEET_FORMAT_DATETIME):
@@ -1494,7 +1539,7 @@ def _dates_as_day_counts(
             continue
         out += [serial]
         dated += [dialect.sheet_moment_kind(text)]
-    if wants_dates and not stored:
+    if wants_dates:
         classes = cell_classes(
             column.cell_classes, tuple(out), column.value_class
         )

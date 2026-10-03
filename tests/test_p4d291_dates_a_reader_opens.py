@@ -197,7 +197,7 @@ def _values_a_reader_sees(twin: pathlib.Path) -> "list[object]":
 def _without_the_stored_reading(monkeypatch: pytest.MonkeyPatch) -> None:
     """Withdraw plan P4-D382's reading of a column stored mostly as dates."""
     monkeypatch.setattr(
-        workbook, "stored_as_dates", lambda texts, classes, codes: False
+        workbook, "stored_as_dates", lambda *arguments: False
     )
 
 

@@ -2884,6 +2884,14 @@ def _run_profile(
         # disclosure rule like every other count synthtwin publishes
         # (plan P4-D290). One number, so it is passed once.
         small_cell_floor=settings.small_cell_floor,
+        # AND THE WORDS THAT MEAN NO VALUE (the repair of review item 3
+        # of landing R3): a workbook's clock times beside `NA`, or beside
+        # a word named with `--missing-value`, are read as clocks. The
+        # codes a questions file answered `missing` are found in the
+        # table this read opens, below, and reach the description but
+        # not this reading: a refusal of clocks beside such a code names
+        # `--missing-value`, which reaches both.
+        missing_under=settings,
     )
 
     # A FILE THAT READS EQUALLY WELL UNDER TWO DELIMITERS IS SAID OUT
@@ -3168,7 +3176,7 @@ def _run_profile(
     # HOW A WORKBOOK STORES EACH COLUMN, taken once and handed to the
     # census and the description alike (plan P4-D382), so the column
     # the census reads is read once.
-    storage = profile.stored_as_of(read)
+    storage = profile.stored_as_of(read, settings)
     person_columns, population, unit, census_readings = _population_of(
         read.column_names,
         read.columns,

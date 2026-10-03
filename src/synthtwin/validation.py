@@ -161,7 +161,7 @@ import math
 from synthtwin.paths import validate_local_path
 import pathlib
 
-from synthtwin import calendar_rules, contract, dialect, errors, parsing, profile, reading, taxonomy
+from synthtwin import calendar_rules, contract, dialect, errors, parsing, profile, reading, taxonomy, workbook
 
 
 # THE G12.3 WINDOWS ARE WRITTEN ONCE, IN `taxonomy` (plan P4-D353). The
@@ -589,6 +589,20 @@ _NOT_CHECKABLE_SUBSECOND_UNWRITABLE = (
     "figures in the format, and a twin writes them as zeros -- which a "
     "day count stores as the whole second it is -- so no workbook "
     "wearing this format can carry them"
+)
+# ...AND WHERE THE CODE DOES WRITE SOME FIGURES, BUT FEWER (review item 5
+# of landing R3). Two codes of a date with a time are read and the twin
+# wears the commonest (plan P4-D382), so a column of 160 moments under
+# `yyyy-mm-dd hh:mm:ss.0` beside 40 under `.000` publishes three figures
+# and wears a code writing one: the sentence above said that code
+# "writes no figures after the second", which was false of it.
+_NOT_CHECKABLE_SUBSECOND_FEWER = (
+    "the description records this column's moments to a fraction of a "
+    "second and records the number format its cells wear, and that "
+    "format writes fewer figures after the second than the description "
+    "records: a workbook shows those figures in the format, and a twin "
+    "writes the ones it cannot show as zeros, so no workbook wearing this "
+    "format can carry as many figures as the description records"
 )
 # WHY THE SCALE OF A COLUMN'S HELD-BACK NUMBERS IS NOT CHECKED, in the
 # two cases there are (contract 6.3.3, method G12.12). The first is the
@@ -4663,6 +4677,13 @@ def measure(
             # would be measured under a different reading of the same
             # bytes and would miss the form it actually has.
             small_cell_floor=description.settings.small_cell_floor,
+            # ...AND THE WORDS THE DESCRIPTION READ AS NO VALUE (the
+            # repair of review item 3 of landing R3). A column of clock
+            # times beside `NA`, or beside a word named with
+            # `--missing-value`, is read as clocks only where those words
+            # are no present cell, so a checked file read under other
+            # words would read its clocks as numbers.
+            missing_under=settings_for(description),
         )
     except errors.ShapeRefusal as refusal:
         # THE ONE PREDICATE THE DISCLOSURE GATE DOES NOT CLOSE ON A FILE
@@ -4702,6 +4723,25 @@ def measure(
         # rather than against a walk nobody read back.
         return _degenerate_report(
             description, data, text, headed, as_read, measured_name
+        )
+    # A DESCRIPTION OF CLOCKS AS NUMBERS IS ONE TO MAKE AGAIN, NOT A
+    # FILE THAT MISSES (review item 4 of landing R3). Plan P4-D382 reads
+    # a column whose every value cell is a time-format number at a whole
+    # second under one day as its clock times, where the reading before
+    # it read the same cells as numbers -- and version 6 is extended in
+    # place (amendment A-P4-41), so a description written before loads.
+    # Measured: such a description of 1,000 `h:mm` cells holding
+    # `i/1440` checked against its own unchanged workbook missed
+    # `axes.role`, `axes.statistical_type`, `counts.n_numeric` and
+    # `counts.n_not_numeric` at exit 3, a verdict on the file for what is
+    # a change in the reading. Where a column this reading reads as
+    # clocks is one the description says holds numbers -- a reading of
+    # clocks holds none -- the check stops and says to describe the
+    # table again.
+    clocked = _clocks_published_as_numbers(description, table)
+    if clocked:
+        raise errors.ProfileError(
+            errors.checked_clocks_described_as_numbers(shown, clocked)
         )
     try:
         declared = _declared_here(description, table)
@@ -5001,6 +5041,48 @@ def _why_no_column_is_named(refusal: errors.ShapeRefusal) -> str:
     if refusal.kind == errors.HEADER_NAME_MISSING:
         return f"no name at column number {refusal.position}"
     return "one name used for two of the columns"
+
+
+def _clocks_published_as_numbers(
+    description: "contract.Profile", table: "reading.Table"
+) -> int:
+    """The first column read as clocks that the description publishes numbers for.
+
+    A column of a checked workbook whose every present value cell is a
+    time-format number at a whole second under one day is read as its
+    clock times (`workbook.stored_as_clocks`, plan P4-D382), and a
+    reading of clocks holds no number; a description publishing a
+    number for the column at the same place (`n_numeric` above nought)
+    was made under the reading before, or of another file. Returns that
+    column's position, counting from one, or 0 where there is none.
+
+    Guarantees: a fixed function of the two. Raises nothing. No I/O of
+    any kind.
+    """
+    sheet = table.sheet
+    if sheet is None:
+        return 0
+    for place in range(len(description.columns)):
+        if (
+            place >= len(table.columns)
+            or place >= len(sheet.classes)
+            or place >= len(sheet.formats)
+        ):
+            return 0
+        if description.columns[place].n_numeric <= 0:
+            continue
+        # ...OVER THE CELLS THE READING LEFT PRESENT (the repair of review
+        # item 3 of landing R3): it read this file under the words the
+        # description takes as no value, so clocks beside `NA` are clocks
+        # here as they were to the reader that spelled them.
+        if workbook.stored_as_clocks(
+            table.columns[place],
+            sheet.classes[place],
+            sheet.formats[place],
+            sheet.no_value,
+        ):
+            return place + 1
+    return 0
 
 
 def _declared_here(
@@ -16916,14 +16998,25 @@ def subsecond_figures_unwritable(
         return False
     if facts.time_precision != parsing.PRECISION_SUBSECOND:
         return False
+    figures = _subsecond_figures_worn(description, column)
+    return 0 <= figures < facts.subsecond_digits
+
+
+def _subsecond_figures_worn(
+    description: contract.Profile, column: contract.ColumnBlock
+) -> int:
+    """How many figures after the second the column's published format code writes.
+
+    -1 where the description records no workbook or no block for the
+    column. Guarantees: a fixed function of the two; raises nothing.
+    """
     form = description.source.workbook
     if form is None:
-        return False
+        return -1
     place = column.position - 1
     if place < 0 or place >= len(form.columns):
-        return False
-    code = form.columns[place].format_code
-    return dialect.sheet_format_figures(code) < facts.subsecond_digits
+        return -1
+    return dialect.sheet_format_figures(form.columns[place].format_code)
 
 
 def _datetime_checks(
@@ -20046,21 +20139,25 @@ def _listings(
             if subsecond_figures_unwritable(description, column):
                 # SAID OUT LOUD (plan P4-D259.1). The two obligations
                 # `_datetime_checks` leaves out for a workbook whose own
-                # format code writes no figures after the second, filed
-                # where a fact no conforming file can evidence belongs
-                # rather than passed over.
+                # format code writes fewer figures after the second than
+                # the description records -- none, or some (review item
+                # 5 of landing R3) -- filed where a fact no conforming
+                # file can evidence belongs rather than passed over.
+                why = _NOT_CHECKABLE_SUBSECOND_UNWRITABLE
+                if _subsecond_figures_worn(description, column) > 0:
+                    why = _NOT_CHECKABLE_SUBSECOND_FEWER
                 listings += [
                     Listing(
                         column.name,
                         "datetime.time_precision",
                         "precision.time_precision",
-                        _NOT_CHECKABLE_SUBSECOND_UNWRITABLE,
+                        why,
                     ),
                     Listing(
                         column.name,
                         "datetime.subsecond_digits",
                         "counts.subsecond_digits",
-                        _NOT_CHECKABLE_SUBSECOND_UNWRITABLE,
+                        why,
                     ),
                 ]
             # CHECKED since landing 2b.3 wherever the description sets an

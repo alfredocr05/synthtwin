@@ -330,7 +330,16 @@ and not the stored value).
   order adding the count to a credit and taken where the credit reaches
   the number of fitting cells, which is then taken back (plan P4-D187:
   thirty text cells of a column of numbers stored partly as text stood
-  in its last thirty rows). Then
+  in its last thirty rows). **A `date` count goes first to the cells
+  holding a `T` clock** (review item 1 of landing R3): a reader spells a
+  `t="d"` cell as the ISO text it stores, its clock after a `T`, and a
+  day count wearing a date format as `YYYY-MM-DD` or `YYYY-MM-DD
+  HH:MM:SS`, so the `T` spellings of a column holding both are its date
+  cells'. The count is spread over the fitting cells holding a `T`
+  clock, and what it has left over the other fitting cells. Spread over
+  every ISO date alike, it left the `T` spellings to the text cells,
+  whose spellings then mixed where the source's did not, and pandas
+  could not read the twin's column as dates. Then
   `text`, by its published count, in row order: first to the cells no
   class still wanting cells fits — a class wants cells where its count
   was withheld or is not yet spent — and then to any cell left.
@@ -392,17 +401,23 @@ eleven turned into `t="d"` cells and the twin missed
 `workbook.value-class`.
 
 **AND A DATE THE CENSUS STORES AS TEXT KEEPS ITS DATE** (plan P4-D382).
-Where that first allocation is not trusted, step 1 is run over the
-cells as converted, and a cell this step converted that step 1 does not
-make a `number` gets back the date it came with, so a date the source
-stored as text is written as text in its own spelling. Measured before:
-950 dates stored as day counts beside 50 the source stored as ISO text
-came back with 50 text cells holding day counts such as `45369`, and
-the twin missed its numeric counts at exit 3.
+Step 1 is then run over the cells as converted, whether or not that
+first allocation was trusted, and a cell this step converted that step
+1 does not make a `number` gets back the date it came with, so a date
+the source stored as text is written as text in its own spelling.
+Measured before: 950 dates stored as day counts beside 50 the source
+stored as ISO text came back with 50 text cells holding day counts such
+as `45369`, and the twin missed its numeric counts at exit 3; and where
+the restoration ran only on a column whose first allocation was not
+trusted (review item 1 of landing R3), 180 day counts beside 20 `t="d"`
+cells and 20 dates typed in as text came back with text cells holding
+`"45404"`, 20 unparsed when described again, exit 3, and a column
+pandas could not read as dates where it read the source's.
 
 **Step 0b — a clock is written back as the fraction of a day it was read
 as** (plan P4-D382). The reader hands the column machinery a column
-whose every value cell is a number wearing a time format, each at a
+whose every PRESENT value cell is a number wearing a time format -- a
+word the run reads as no value, such as `NA`, being none -- each at a
 whole second under one day, as its clocks, `HH:MM` where every one
 stands at second nought and `HH:MM:SS` otherwise (contract 4.3b). Where
 a column publishes a positive `time` FORMAT-KIND count, or a
@@ -413,6 +428,40 @@ a column publishes a positive `time` FORMAT-KIND count, or a
 spelling of its double; step 1 is then run over the cells as converted,
 and a converted cell step 1 does not make a `number` gets back the clock
 it came with. A cell holding anything else is left as it came.
+
+**A number a time format shows stays inside the day its source stood
+in** (the repair of review item 3 of landing R3,
+`dialect.sheet_numbers_inside_the_day`). A column whose time-format
+numbers are not all clocks at whole seconds -- one holding a fraction of
+a second -- is read as numbers (contract 4.3b), and its twin is drawn as
+a distribution of numbers whose outer tail can reach past one day,
+which a reader such as openpyxl returns as a date with a time where
+every source cell was a time of day: measured on 999 whole-minute
+`h:mm` clocks beside one at 5.25 seconds, and on 1,000 clocks each 0.3
+seconds past the minute, each twin read as 999 times and a date-time,
+and `validate` reported no miss. A described column holds no numbers on
+both sides of one day (contract 4.3b refuses it), so where a column
+publishes a time format -- step 0b's question -- does not store its
+dates as ISO text -- step 0's -- and its numeric block (the column's own
+on `count` and `continuous`, the numeric half's on
+`numbers_with_labels`) publishes no negative number and a mean that is
+a time of day, from nought up to one day rounded at the millisecond as
+the readers round it, every number of one day or more is written inside
+the day: the different such numbers, the greatest first, each take the
+greatest value under one day, and under the value the number before it
+took, written with as many figures after the point as the fewest of its
+cells write -- at least one and at most eight -- that no cell of the
+column holds; each cell is then written at its own count of figures,
+with noughts after the value's own. A number below nought, and one that
+finds no free value, is left as it came. THE GENERATOR APPLIES THIS to
+the column's cells as they are written, before anything measures them,
+as it writes a row sequence (G2.1), so the twin's report states what
+the file holds, and the steps of this section then meet cells inside
+the day. What it costs: a moved cell stands at the last instants of the
+day, nearer the boundary than its tail drew it, so the outermost tail
+distances shrink by what the day leaves them; at few figures after the
+point a moved number can stand below some of the column's own; and a
+number written with an exponent is written back without one.
 
 **Step 0a — a column stored as dates is written as dates** (plan
 P4-D291). Step 1 hands the `date` class only to a cell that names a day

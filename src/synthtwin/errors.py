@@ -2790,6 +2790,33 @@ def workbook_table_spans_too_many_cells(path: str, limit: int) -> str:
     )
 
 
+def checked_clocks_described_as_numbers(path: str, position: int) -> str:
+    """A checked workbook column read as clocks that the description gives numbers.
+
+    REVIEW ITEM 4 OF LANDING R3. Plan P4-D382 reads a column whose every
+    value cell is a time-format number at a whole second under one day
+    as clock times, where the reading before read those cells as
+    numbers, and a description written before still loads. Checked
+    against its own unchanged table, such a description missed its
+    role, its type and its counts: a verdict on the file for a change
+    in the reading. So the check stops and says to describe the table
+    again. The column is named by POSITION, as every refusal on the
+    validate path is (V9): this file may not be the person's own table.
+    """
+    return (
+        f"Column number {position} of {path} holds numbers shown as times "
+        f"of day, which synthtwin reads as clock times, but the description "
+        f"publishes numbers for that column. Either the "
+        f"description was made by an earlier version of synthtwin, which "
+        f"read those cells as plain numbers, or it describes another "
+        f"table. synthtwin did not check the file, because every line "
+        f"about that column would be about the change in reading and not "
+        f"about the file. Please describe the table again with synthtwin "
+        f"profile, make the twin again from the new description, and run "
+        f"the check against the new description."
+    )
+
+
 def checked_workbook_sheet_not_found(path: str, sheets: int) -> str:
     """The same refusal for a workbook `validate` was pointed at (V9).
 
@@ -2844,6 +2871,17 @@ MIXED_FORMATS = "formats"
 # either (plan P4-D283): two number format CODES of the same kind, each
 # worn by the line. `workbook.mixed_number_formats` names it.
 MIXED_CODES = "codes"
+# ...and a time format over numbers both inside one day and outside it
+# -- a day or more, or below nought -- which a reader such as openpyxl
+# returns as two kinds of value (review item 3 of landing R3).
+# `workbook.mixed_storage` names it.
+MIXED_DAYS = "days"
+# ...and clock times stored as numbers beside present cells holding
+# another kind of value, such as a word the person has not named with
+# `--missing-value`: the clocks are read as numbers there, and their
+# twin is not clocks (the repair of review item 3 of landing R3).
+# `workbook.mixed_storage` names it.
+MIXED_CLOCKS = "clocks"
 
 
 def workbook_column_mixes_number_formats(path: str, column: str) -> str:
@@ -2916,7 +2954,58 @@ def workbook_column_mixes_storage(
     dates with a time -- a mix that is now read, not refused -- and is
     false of dates beside times of day, which still is. Left empty, the
     message speaks of the mix it names most often.
+
+    ``mixed`` of `MIXED_DAYS` is a column whose numbers all wear a time
+    format, some inside one day and some outside it -- a day or more, or
+    below nought (review item 3 of landing R3): a reader such as
+    openpyxl returns the first as a time of day and the others as a date
+    with a time, so the message says that, and that the cure is a format
+    showing the date on the cells holding one, or a format for a length
+    of time on a column of lengths of time. It does not say EVERY
+    reader: some hand back a date with a time for each of them.
+
+    ``mixed`` of `MIXED_CLOCKS` is a column of clock times stored as
+    numbers, most of its present cells, beside cells holding something
+    else that the run does not read as no value (the repair of review
+    item 3 of landing R3). The message says that those cells may be
+    named as missing with `--missing-value`, which reads the column as
+    clocks and counts them as missing values, and otherwise how to give
+    the column one kind of value. NO CELL IS QUOTED: the cells
+    beside the clocks are the person's own text, and the refusal names
+    the column and what to do, as every other refusal here does.
     """
+    if mixed == MIXED_CLOCKS:
+        return (
+            f"The column '{_shown(column)}' of {path} holds times of day "
+            f"stored as numbers, and beside them cells holding something "
+            f"else -- text, or another kind of value. A twin of that "
+            f"column cannot keep both: its times would come back as plain "
+            f"numbers, with seconds they never had, so code reading that "
+            f"column would get different values from the twin and from "
+            f"your table. If those other cells mean that no time was "
+            f"recorded, run the command again with --missing-value "
+            f"followed by the word they hold (once for each such word): "
+            f"the column is then read as times of day, with those cells "
+            f"counted as missing values. Otherwise, please open the "
+            f"workbook, give that column one kind of value, save it "
+            f"again, and run the command again."
+        )
+    if mixed == MIXED_DAYS:
+        return (
+            f"The column '{_shown(column)}' of {path} holds numbers all "
+            f"shown as times of day, some of them from nought up to one day "
+            f"and others a whole day or more -- a date with a time, of which "
+            f"the format shows only the time -- or below nought. A reader such "
+            f"as pandas hands the first back as a time of day and the others "
+            f"as a date with a time, and a twin cannot keep which values "
+            f"were which, so code reading that column would get different "
+            f"kinds of value from the twin and from your table. Please open "
+            f"the workbook, give the cells of that column that hold a date a "
+            f"format that shows the date as well, or take the date out of "
+            f"them -- or, if the column holds lengths of time, give it a "
+            f"format such as [h]:mm -- save it again, and run the command "
+            f"again."
+        )
     if mixed != MIXED_FORMATS:
         raise ValueError("internal check: an unknown kind of mixed column")
     words: "list[str]" = []

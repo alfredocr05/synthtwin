@@ -29,6 +29,36 @@ withdrew. STATE, `K-S3-13` and the tail producer's docstring no longer
 describe the withdrawn protection as current, and keep the sorted-table
 exception.
 
+### Codex's review of the typed workbook cells, repaired (2026-10-02)
+
+**Five items of the review of plan P4-D382, each reproduced by a test
+before its repair** (`K-S3-57`, now thirty-five pinned nodes). Text
+dates beside day counts and ISO date cells keep their text, the date
+count going first to the cells holding a `T` clock, so pandas reads the
+twin's column as dates as it reads the source's (method G2.2 steps 0 and
+1 and the oracle; no frozen vector moves). Stored dates are counted
+among the PRESENT cells, so missing words such as `NA` beside them no
+longer turn the column into free text (contract 6.6.2). A time format
+over numbers both inside one day and outside it -- a day or more, or
+below nought -- is refused, naming the column, where its twin changed
+which cells a reader returns as date-times without a miss
+(`errors.MIXED_DAYS`, contract 4.3b). A description made before P4-D382
+that read clocks as numbers is asked to be made again rather than
+reported as missing on its own table
+(`errors.checked_clocks_described_as_numbers`, validation method V9). A
+format writing fewer figures after the second than the description
+records is said to write fewer, not none. And the two other ways a
+column of clocks fell back to numbers are closed (the third pass over
+item 3): clocks beside a word the run reads as no value -- `NA`, or one
+named with `--missing-value` -- are read as clocks, the word counted
+missing; clocks beside any other word, where they are most of the
+column, are refused with a message naming `--missing-value`
+(`errors.MIXED_CLOCKS`, contract 4.3b); and a column of time-format
+numbers holding a fraction of a second keeps its twin inside the day it
+stood in, so a reader gets times of day back from the twin where it got
+them from the source (method G2.2 and the oracle; no frozen vector
+moves).
+
 ### The date questions promise what their answers give (2026-10-02)
 
 **A codes question is put only where the answer reads the column as

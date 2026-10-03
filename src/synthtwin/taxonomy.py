@@ -7309,21 +7309,69 @@ def split_missing(
     present: list[str] = []
     missing: list[tuple[str, str]] = []
     for value in values:
-        # THE RESCUE ASKS THE MEMBER'S OWN RULE (contract C6-32). A
-        # cell this package's own list claims is reached only by a
-        # declaration that names the member claiming it, and for the
-        # one exact-spelling member that means byte for byte.
-        if _rescues_a_vocabulary_cell(value, kept):
-            present += [value]
-        elif _rescues_a_vocabulary_cell(value, declared_missing):
-            missing += [(value, parsing.MISSING_DECLARED)]
-        elif not parsing.trimmed(value):
-            missing += [(value, parsing.MISSING_BLANK)]
-        elif parsing.is_missing_text(value):
-            missing += [(value, parsing.MISSING_TEXT_CODE)]
-        else:
-            present += [value]
+        named = _missing_class(value, kept, declared_missing)
+        if named:
+            missing += [(value, named)]
+            continue
+        present += [value]
     return present, missing
+
+
+def _missing_class(
+    value: str,
+    kept: "list[_Declaration]",
+    declared_missing: "list[_Declaration]",
+) -> str:
+    """The named class a cell is missing as, or the empty word where present.
+
+    `split_missing`'s question for one cell, asked again by
+    `missing_cells`. Raises TypeError if the value is not text.
+    """
+    # THE RESCUE ASKS THE MEMBER'S OWN RULE (contract C6-32). A cell
+    # this package's own list claims is reached only by a declaration
+    # that names the member claiming it, and for the one exact-spelling
+    # member that means byte for byte.
+    if _rescues_a_vocabulary_cell(value, kept):
+        return ""
+    if _rescues_a_vocabulary_cell(value, declared_missing):
+        return parsing.MISSING_DECLARED
+    if not parsing.trimmed(value):
+        return parsing.MISSING_BLANK
+    if parsing.is_missing_text(value):
+        return parsing.MISSING_TEXT_CODE
+    return ""
+
+
+def missing_cells(
+    values: "list[str]", settings: Settings
+) -> "tuple[bool, ...]":
+    """Which cells of a column `split_missing` takes out as no value, in row order.
+
+    THE SAME FIRST STEP, ASKED BY POSITION (review item 2 of landing
+    R3). `workbook.stored_as_dates` asks whether most of a column's
+    PRESENT cells are stored as dates, and it has the cells' storage
+    classes by position: a word the package's own vocabulary reads as
+    no value, or one named with `--missing-value`, is not a present
+    cell. Measured with those words counted: 950 stored dates and 50
+    dates typed in as text beside 1,000 `NA` cells were under half of
+    the value cells, the column was read as free text, and its twin
+    held 2,000 strings and no date. A declaration naming a NUMBER is
+    `_declared_numbers_removed`'s business, asked of the classified
+    cells, and is not asked here; declarations are read as a file
+    without a decimal comma reads them, which is how a workbook's cells
+    are spelled.
+
+    Guarantees: accepts the column's cells as text and the settings;
+    returns one bool per cell, true where `split_missing` would take it
+    out. Determinism: a fixed function of the two. Raises TypeError if
+    a value is not text. No I/O of any kind.
+    """
+    kept = _declarations(settings.kept_values, False)
+    declared_missing = _declarations(settings.declared_missing_values, False)
+    out: "list[bool]" = []
+    for value in values:
+        out += [bool(_missing_class(value, kept, declared_missing))]
+    return tuple(out)
 
 
 def _declared_numbers_removed(
@@ -15650,8 +15698,9 @@ def _stamp_clocks(
 
 # HOW A WORKBOOK STORES A COLUMN, where it matters to the reading (plan
 # P4-D382; `_decide`'s ``stored_as``): most of its cells as dates, or
-# every one as a clock time. Anything else -- a delimited file, or a
-# workbook column stored otherwise -- is the empty word.
+# every present one as a clock time, a word the run reads as no value
+# being none (`workbook.stored_as_clocks`). Anything else -- a delimited
+# file, or a workbook column stored otherwise -- is the empty word.
 STORED_AS_DATES = "dates"
 STORED_AS_CLOCKS = "clocks"
 
@@ -19787,10 +19836,10 @@ def _decide(
     them as dates: where no date format clears the parse line, rule 5
     reads the column under the ISO reading of those stored dates, the
     cells it does not read counted unparsed (`_stored_date_format`).
-    `STORED_AS_CLOCKS`, every one as a clock time: rule 7 stands aside
-    where a level would fall below the floor, so the column reaches the
-    clock rule rather than a list of labels whose held-back levels the
-    twin would have to write as made-up text no clock can be.
+    `STORED_AS_CLOCKS`, every present one as a clock time: rule 7 stands
+    aside where a level would fall below the floor, so the column reaches
+    the clock rule rather than a list of labels whose held-back levels
+    the twin would have to write as made-up text no clock can be.
 
     Every rule here routes a column to a role decided by its VALUES.
     Exactly one role is not on that list: `identifier` comes from
@@ -22450,9 +22499,9 @@ def profile_column(
       in more than one way, which withholds the census. And
       ``stored_as`` says a workbook stores most of this column's cells
       as dates (`STORED_AS_DATES`), which lets the dates be read beside
-      text cells no date format reads, or every one as a clock time
-      (`STORED_AS_CLOCKS`), which keeps the column from a list of labels
-      it could not write back (`_decide`, plan P4-D382).
+      text cells no date format reads, or every present one as a clock
+      time (`STORED_AS_CLOCKS`), which keeps the column from a list of
+      labels it could not write back (`_decide`, plan P4-D382).
     - ``handed_over`` is the population census's reading of this column
       (`HeldReading`), passed on so the column is not read a second
       time. It is taken only where `_same_reading` finds every argument

@@ -38693,6 +38693,79 @@ def plan_generation(profile: contract.Profile) -> GenerationPlan:
     return GenerationPlan(columns=tuple(plans), words_planned=words)
 
 
+def _kept_inside_the_day(
+    profile: contract.Profile,
+    place: int,
+    column: contract.ColumnBlock,
+    written: "list[str]",
+) -> "list[str]":
+    """A workbook column's numbers of a day or more, moved inside the day.
+
+    The method's rule (G2.2, the repair of review item 3 of landing R3)
+    for the one place it reaches: a column of a workbook's twin whose
+    numbers a time format shows (`numbers_inside_the_day`), read from
+    its published numeric block -- the column's own on `count` and
+    `continuous`, the numeric half's on `numbers_with_labels`. Every
+    other column, and every column of a delimited table, comes back as
+    it came.
+
+    Guarantees: a fixed function of the four; returns as many cells.
+    Raises TypeError if a cell is not text, and nothing else. No I/O of
+    any kind.
+    """
+    form = profile.source.workbook
+    if form is None or place >= len(form.columns):
+        return written
+    facts = column.facts
+    if isinstance(facts, contract.CompoundFacts):
+        facts = facts.numbers
+    if not isinstance(facts, contract.NumericFacts):
+        return written
+    return numbers_inside_the_day(
+        form.columns[place], facts.n_negative, facts.mean, written
+    )
+
+
+def numbers_inside_the_day(
+    block: contract.WorkbookColumn,
+    n_negative: int,
+    mean: "float | None",
+    written: "list[str]",
+) -> "list[str]":
+    """A time format's numbers kept inside the day (method G2.2).
+
+    Where the column's workbook block publishes a time format -- a count
+    of time-format cells above nought, or a time `format_code`, the
+    question step 0b asks -- and does not store its dates as ISO text (a
+    `date` cell count above nought, or a value class of `date` where the
+    census was withheld), its cells are what
+    `dialect.sheet_numbers_inside_the_day` makes of them under the
+    published count of negative numbers and the mean; that function
+    states the rule. Otherwise they come back as they came.
+
+    Guarantees: a fixed function of the four; returns as many cells.
+    Raises TypeError if a cell is not text, and nothing else. No I/O of
+    any kind.
+    """
+    timed = (
+        dialect.sheet_format_kind(block.format_code) == dialect.SHEET_FORMAT_TIME
+    )
+    if dialect.SHEET_FORMAT_TIME in block.format_kinds:
+        counted = block.format_kinds[dialect.SHEET_FORMAT_TIME]
+        if isinstance(counted, int) and counted > 0:
+            timed = True
+    stores_dates = block.value_class == dialect.SHEET_CELL_DATE
+    if dialect.SHEET_CELL_DATE in block.cell_classes:
+        dated = block.cell_classes[dialect.SHEET_CELL_DATE]
+        if isinstance(dated, int):
+            stores_dates = dated > 0
+    if not timed or stores_dates:
+        return written
+    return list(
+        dialect.sheet_numbers_inside_the_day(tuple(written), n_negative, mean)
+    )
+
+
 def _truth_cells(profile: contract.Profile, place: int) -> int:
     """How many truth values a workbook column's census publishes (P4-D198).
 
@@ -39298,6 +39371,12 @@ def generate(profile: contract.Profile, seed: int) -> Twin:
         start = _sequence_start(profile, column)
         if start >= 0:
             written = dialect.sequence_cells(start, profile.n_rows)
+        # A NUMBER A TIME FORMAT SHOWS STAYS INSIDE THE DAY ITS SOURCE
+        # STOOD IN (method G2.2; the repair of review item 3 of landing
+        # R3), and it is moved HERE, before anything below measures the
+        # column, for the reason the row sequence is written here: the
+        # report then states what the file holds.
+        written = _kept_inside_the_day(profile, step, column, written)
         # THE OTHER HALF OF THE DECLARATION (plan P4-D26), and it is
         # applied to the CELLS HANDED OUT and to nothing this loop then
         # measures. A column read with the comma as its decimal point
