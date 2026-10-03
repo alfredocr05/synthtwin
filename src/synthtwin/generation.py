@@ -4425,30 +4425,130 @@ def _unnamed_remainder(
         if days[rank] not in ranks_of:
             ranks_of[days[rank]] = []
         ranks_of[days[rank]] += [rank]
-    order = sorted((len(ranks_of[day]), day) for day in ranks_of)
-    chosen: "list[int]" = []
-    total = 0
-    for size, day in order:
-        if total + size <= remainder and size <= cap:
-            chosen += [day]
-            total = total + size
-        if total == remainder:
-            break
-    if total != remainder:
+    # THE DAYS THAT CAN BE TAKEN, fewest ranks first. Of the days holding
+    # one number of ranks only the first `remainder // size` can ever be
+    # taken together, and the search below never takes a later one while
+    # leaving an earlier one out, so the rest are not walked.
+    order: "list[tuple[int, int]]" = []
+    seen: "dict[int, int]" = {}
+    for size, day in sorted((len(ranks_of[day]), day) for day in ranks_of):
+        if size > cap or size > remainder:
+            continue
+        taken = seen[size] if size in seen else 0
+        if taken * size + size > remainder:
+            continue
+        seen[size] = taken + 1
+        order += [(size, day)]
+    chosen = _days_into_words(
+        [size for size, _day in order], remainder, len(unnamed), cap
+    )
+    if chosen is None:
         return None
     worn: "dict[int, str]" = {}
-    held = [0 for _word in unnamed]
-    for day in chosen:
-        size = len(ranks_of[day])
-        place = 0
-        while place < len(unnamed) and held[place] + size > cap:
-            place = place + 1
-        if place == len(unnamed):
-            return None
-        held[place] = held[place] + size
-        for rank in ranks_of[day]:
-            worn[rank] = unnamed[place]
+    for index in range(len(order)):
+        if chosen[index] < 0:
+            continue
+        for rank in ranks_of[order[index][1]]:
+            worn[rank] = unnamed[chosen[index]]
     return worn
+
+
+def _days_into_words(
+    sizes: "list[int]", remainder: int, words: int, cap: int
+) -> "list[int] | None":
+    """Which word each day wears, so the chosen days hold exactly the remainder.
+
+    THE FIRST WAY, DEPTH FIRST (Codex's review of landing T1, item 6).
+    The days in their order, each tried in the first word, then the
+    next, then left out; a word holds at most ``cap`` ranks. The first
+    assignment whose days hold exactly ``remainder`` ranks is taken. It
+    used to be a greedy walk -- take each day that still fit, never step
+    back -- and on days of 4, 6 and 7 ranks under a remainder of 13 it
+    took 4 and 6, could not take 7, and said no set of days held 13,
+    which 6 and 7 do. Where the greedy walk reaches the remainder this
+    is the same assignment: it is the search's first path.
+
+    A STATE THAT FAILED ONCE FAILS AGAIN: the words hold the same ``cap``
+    each, so what can still be placed from a day onward depends on the
+    loads already in them and not on which word holds which, and the
+    sorted loads are remembered. The walk is a loop and not recursion,
+    so no number of days reaches Python's recursion limit.
+
+    Guarantees: returns each day's word index, or -1 where the day is
+    left out, or None where no assignment holds the remainder -- which
+    is then true and not a walk's failure. Determinism: a function of the
+    four; draws nothing. Raises nothing. No I/O of any kind.
+    """
+    count = len(sizes)
+    after = [0 for _index in range(count + 1)]
+    for index in range(count - 1, -1, -1):
+        after[index] = after[index + 1] + sizes[index]
+    failed: "dict[tuple[int, tuple[int, ...]], bool]" = {}
+    loads = [0 for _word in range(words)]
+    chosen = [-1 for _index in range(count)]
+    # The day the walk stands at, and for each day on the way to it the
+    # next of its options to try: a word `0 .. words - 1`, then `words`
+    # to leave it out. A day's place on the way IS its index.
+    following = [0 for _index in range(count + 1)]
+    index = 0
+    total = 0
+    while index >= 0:
+        if following[index] == 0:
+            if total == remainder:
+                return chosen
+            state = (index, tuple(sorted(loads)))
+            if (
+                index == count
+                or total + after[index] < remainder
+                or state in failed
+            ):
+                failed[state] = True
+                index = index - 1
+                total = _undo_day(index, following, sizes, loads, chosen, words, total)
+                continue
+        moved = False
+        while following[index] <= words and not moved:
+            option = following[index]
+            following[index] = option + 1
+            if option == words:
+                chosen[index] = -1
+                moved = True
+            elif (
+                loads[option] + sizes[index] <= cap
+                and total + sizes[index] <= remainder
+            ):
+                loads[option] = loads[option] + sizes[index]
+                total = total + sizes[index]
+                chosen[index] = option
+                moved = True
+        if moved:
+            index = index + 1
+            following[index] = 0
+            continue
+        failed[(index, tuple(sorted(loads)))] = True
+        index = index - 1
+        total = _undo_day(index, following, sizes, loads, chosen, words, total)
+    return None
+
+
+def _undo_day(
+    index: int,
+    following: "list[int]",
+    sizes: "list[int]",
+    loads: "list[int]",
+    chosen: "list[int]",
+    words: int,
+    total: int,
+) -> int:
+    """Take back the choice day ``index`` made last; return the new total."""
+    if index < 0:
+        return total
+    tried = following[index] - 1
+    if 0 <= tried < words:
+        loads[tried] = loads[tried] - sizes[index]
+        chosen[index] = -1
+        return total - sizes[index]
+    return total
 
 
 def _name_allocation(
@@ -20130,6 +20230,8 @@ def _datetime_content(
     if not remainder_placed:
         # G7.5 STEP 5 COULD NOT PLACE THE WIDTH CENSUS'S UNNAMED REMAINDER
         # on whole dates (landing T1): said, and no word invented for it.
+        # The search is exact since the T1 review's item 6, so the
+        # sentence is true: no set of days holds it under the step's rule.
         weekday_notes += [
             _deviation(
                 column.name,
@@ -20138,7 +20240,9 @@ def _datetime_content(
                 "every cell written in the widths the census names",
                 "The description leaves some values' widths unnamed, and "
                 "no set of whole dates of the twin holds exactly that many "
-                "values, so they are written in the widths it names.",
+                "values in widths it does not name, each on too few values "
+                "to be named and on fewer than the width it names, so they "
+                "are written in the widths it names.",
             )
         ]
     body_low = 0

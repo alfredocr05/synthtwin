@@ -123,3 +123,46 @@ def test_item_3_the_day_and_month_readings_are_compared_on_the_face(
     assert block["role"] == "datetime", block["role"]
     assert block["format"] == "month-first-datetime"
     assert block["n_unparsed"] == 10
+
+
+# -- item 6: the unnamed widths are placed wherever days can hold them ---
+
+_SIX_AND_SEVEN = (
+    ["03/01/2023"] * 83 + ["03/02/2023"] * 4 + ["3/03/2023"] * 5 + ["03/4/2023"] * 8
+)
+
+
+@pytest.mark.parametrize("seed", (0, 1, 2))
+def test_item_6_the_unnamed_widths_are_placed_wherever_days_can_hold_them(
+    tmp_path: pathlib.Path, seed: int
+) -> None:
+    """`{"padded": 87}` over 100 dates: the remainder of 13 goes on two whole days.
+
+    The twin's days hold 83, 4, 6 and 7 ranks at seeds 0 to 2. At 110cb46
+    step 5 took 4 and 6, could not take 7, stopped short of 13 and said
+    no set of whole dates held that many, though 6 and 7 do; every cell
+    was written padded and the twin's own description named 100.
+    """
+    block, profile, _questions = gate._described(tmp_path, _SIX_AND_SEVEN)
+    assert block["date_field_widths"] == {"padded": 87}
+    twin, written = gate._twin(profile, seed)
+    assert sum(1 for cell in written if cell[0:3] != "03/" or cell[3:5] == "4/") == 13
+    report = (twin.parent / "real-twin-report.txt").read_text(encoding="utf-8")
+    assert "no set of whole dates" not in report
+    code, quality = gate._validated(profile, twin)
+    assert code == 0, quality[-3000:]
+
+
+def test_item_6_the_oracle_places_the_same_days() -> None:
+    """G7.5 step 5's oracle makes the product's choice, on the walk that needed a step back."""
+    from synthtwin import generation
+    from tools.reference import make_generation_reference_vectors as oracle
+
+    census = {"padded": 87}
+    weights = {"padded": 87}
+    days = [0] * 83 + [1] * 4 + [2] * 6 + [3] * 7
+    both = list(range(100))
+    product = generation._unnamed_remainder(census, weights, both, days, 100, 11)
+    reference = oracle.width_remainder(census, weights, both, days, 100, 11)
+    assert product is not None and product == reference
+    assert sorted({days[rank] for rank in product}) == [2, 3]

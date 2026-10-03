@@ -6265,14 +6265,17 @@ def width_remainder(census, weights, both, days, parsed, floor):
     Where the census's named counts come to less than the parsed cells,
     the ``parsed - named`` ranks left over wear joint words the census
     does not name, in the order padded, unpadded, first-padded,
-    second-padded: WHOLE DAYS AT A TIME, the days holding the fewest of
-    the class's ranks first, each day taken while it still fits the
-    remainder; each word on at most the line less one ranks and on fewer
-    than the largest named count, a day going to the first word it still
-    fits. The named words then keep exactly their published counts.
-    Returns the ranks' words, nothing for no remainder, and None where
-    the days cannot hold the remainder exactly -- the step then writes
-    nothing and the twin is written as before.
+    second-padded: WHOLE DAYS AT A TIME, each word on at most the line
+    less one ranks and on fewer than the largest named count. The days
+    are walked depth first, the days holding the fewest of the class's
+    ranks first and the earlier day first among equals, each day put in
+    the first word, then the next, then left out; the first way whose
+    days hold exactly the remainder is taken (Codex's review of landing
+    T1, item 6: a walk that never stepped back took 4 and 6 of 4, 6 and
+    7 under 13 and gave up). The named words then keep exactly their
+    published counts. Returns the ranks' words, nothing for no
+    remainder, and None where no set of days holds the remainder exactly
+    -- the step then writes nothing and the twin is written as before.
     """
     left = parsed - sum(count for name, count in census.items() if name != "(withheld)")
     if left < 1:
@@ -6285,26 +6288,34 @@ def width_remainder(census, weights, both, days, parsed, floor):
     for rank in both:
         by_day.setdefault(days[rank], [])
         by_day[days[rank]] += [rank]
-    taken, total = [], 0
-    for size, day in sorted((len(ranks), day) for day, ranks in by_day.items()):
-        if total == left:
-            break
-        if size <= room and total + size <= left:
-            taken += [day]
-            total += size
-    if total != left:
-        return None
+    walk = sorted((len(ranks), day) for day, ranks in by_day.items() if len(ranks) <= room)
     filled = dict.fromkeys(words, 0)
-    worn = {}
-    for day in taken:
-        size = len(by_day[day])
-        word = next((word for word in words if filled[word] + size <= room), None)
-        if word is None:
-            return None
-        filled[word] += size
-        for rank in by_day[day]:
-            worn[rank] = word
-    return worn
+    placed = {}
+    hopeless = set()
+
+    def place(at, total):
+        if total == left:
+            return True
+        # A walk that cannot reach the remainder, or stands where one
+        # already failed with the same loads in some order, fails again.
+        state = (at, tuple(sorted(filled.values())))
+        if at == len(walk) or total + sum(size for size, _day in walk[at:]) < left or state in hopeless:
+            return False
+        hopeless.add(state)
+        size, day = walk[at]
+        for word in words:
+            if filled[word] + size <= room and total + size <= left:
+                filled[word] += size
+                placed[day] = word
+                if place(at + 1, total + size):
+                    return True
+                filled[word] -= size
+                del placed[day]
+        return place(at + 1, total)
+
+    if not place(0, 0):
+        return None
+    return {rank: placed[day] for day in placed for rank in by_day[day]}
 
 
 def written_styles(column, fields, parsed, resolution, offsets, floor=CASE_SMALL_CELL_FLOOR,
