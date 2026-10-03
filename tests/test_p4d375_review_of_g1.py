@@ -20,13 +20,20 @@ file, `tests/test_p4d375_earlier_descriptions.py`, because it holds
   RECORDED, not repaired: `K-S3-50` counts these twins apart under
   `grid_*` keys, and the test below holds the review's column to the
   ceiling the ledger records, which on 110cb46 was 357 and failed.
+- ITEM 3 (MEDIUM): a checked file whose own tail pair binary64 cannot
+  hold, on a role whose producer writes no reason remark, was explained
+  by the deleted rules -- "withholds them where they would give back an
+  outer cell or how many outer cells hold one value ... or where beside
+  the exact mean and spread they could give the other tail's back".
+  The file's own description is the current producer's, whose one reason
+  is the pair binary64 cannot hold, and that is what is said now.
 """
 
 from __future__ import annotations
 
 import kpi_rules
 import kpi_shapes
-from synthtwin import parsing, validation
+from synthtwin import parsing, taxonomy, validation
 
 
 def _ledger_entry(entry_id: str) -> "dict":
@@ -73,3 +80,25 @@ def test_an_evenly_spaced_column_reaches_past_its_range_within_k_s3_50s_ceiling(
         moments = {check.subcheck: check.verdict for check in outcome.checks if check.subcheck.startswith("moments.")}
         assert moments["moments.mean"] == validation.WITHIN_BOUND, moments
         assert moments["moments.std"] == validation.WITHIN_BOUND, moments
+
+
+# -- item 3 ---------------------------------------------------------------
+
+
+def test_a_file_tail_binary64_cannot_hold_is_explained_by_that_and_not_by_the_withdrawn_rules(tmp_path) -> None:
+    """The review's affixed column: both pair checks WITHHELD, each saying the numbers are too large.
+
+    Described from "100 mg" to "199 mg"; the checked file holds eleven
+    cells near -1.7e308 and eighty-nine near 1.68e308, so its own lower
+    tail's pair overflows binary64 and its own description withholds it.
+    """
+    described = kpi_shapes.describe(tmp_path, "dose", "dose\n" + "".join(f"{100 + step} mg\n" for step in range(100)), None)
+    assert described.document["columns"][0]["role"] == taxonomy.ROLE_AFFIXED, "premise: an affixed column"
+    cells = [repr(-1.7e308 + step * 1e305) + " mg" for step in range(11)]
+    cells += [repr(1.68e308 + step * 1e304) + " mg" for step in range(89)]
+    outcome = kpi_shapes.measure(described, "dose\n" + "".join(cell + "\n" for cell in cells), "checked.csv")
+    withheld = [check for check in outcome.checks if check.verdict == validation.WITHHELD]
+    assert sorted(check.subcheck for check in withheld) == ["tails.low.mean_distance", "tails.low.rms_distance"]
+    for check in withheld:
+        assert "too large for this file format to hold" in check.citation, check.citation
+        assert "outer cell" not in check.citation and "other tail" not in check.citation, check.citation
