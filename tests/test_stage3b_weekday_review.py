@@ -980,9 +980,11 @@ def test_the_few_dates_rule_withholds_a_census_its_twins_meet_and_is_called_cons
     HELD. So the rule is not what no twin can meet: it is a conservative
     rule set on measured cases where twins missed, and its price is a
     census withheld that a twin would have met (plan P4-D365 counts 50
-    such columns). The thresholds stay. Red when the contract, the rule's
-    docstring or its constant's comment calls a withheld census one no
-    twin can meet again, or the rule stops withholding this column.
+    such columns). The thresholds stay. Red when the contract, the
+    module's docstring, either rule's docstring or the comment above
+    either rule's reason or the few-dates thresholds calls a withheld
+    census one no twin can meet again, or the rule stops withholding
+    this column.
     """
     from synthtwin import generation, rendering, validation
 
@@ -1018,3 +1020,13 @@ def test_the_few_dates_rule_withholds_a_census_its_twins_meet_and_is_called_cons
         said = " ".join(said.split())
         assert "only by splitting" not in said and "is left empty, and with no free day" not in said, said
         assert "conservative" in said.lower(), said
+    module = " ".join((calendar_rules.__doc__ or "").split())
+    assert "whose twin cannot keep" not in module and "decided by what the twin can meet" not in module and "conservative" in module.lower(), module
+    source = pathlib.Path(calendar_rules.__file__).read_text(encoding="utf-8").split("\n")
+    for constant in ("REASON_FEW_DATES", "REASON_ROOM", "FEWEST_REAL_DATES"):
+        end = next(index for index, line in enumerate(source) if line.startswith(f"{constant} = "))
+        start = end
+        while start > 0 and source[start - 1].startswith("#"):
+            start = start - 1
+        comment = " ".join(" ".join(source[start:end]).replace("#", " ").split())
+        assert "conservative" in comment.lower() and "the day pass splits a date's rows" not in comment, (constant, comment)

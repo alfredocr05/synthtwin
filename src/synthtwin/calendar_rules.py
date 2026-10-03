@@ -25,19 +25,26 @@ nothing else ever chooses one:
 A merged group of the menu says only that SOME member is short: the
 entry is read back from the shape of the groups alone (`entry_of`).
 
-WHETHER THE CENSUS THE MENU OFFERS IS PUBLISHED is decided by what the
-twin can meet, not by what a reader could work out from it (the
-owner's principle of 2026-10-01: the threat is a HIPAA exposure, never a
-reader rebuilding counts; plan P4-D365 dropped the full-fill
-certificate, its bands, its cap, its ties refusal and WC5, WC7, WC8 and
-WC9). The producer withholds a census whose twin cannot keep the
-column's count of different values (`few_dates`, `room_short`), and
-both the producer and the loader hold a published census to its shape
-(`shape_breach`): WC1 the cover, WC2 the floor, WC3 the total, WC4 the
-menu and WC6 one spelling per day (`one_spelling_published`) -- the
-published censuses of written forms give every date one text, so the
-count of different values is a count of different days. One storage
-class per workbook column (`stored_one_way`) is the producer's too.
+WHETHER THE CENSUS THE MENU OFFERS IS PUBLISHED is decided by rules
+about the twin and the census's own shape, never by what a reader could
+work out from it (the owner's principle of 2026-10-01: the threat is a
+HIPAA exposure, never a reader rebuilding counts; plan P4-D365 dropped
+the full-fill certificate, its bands, its cap, its ties refusal and
+WC5, WC7, WC8 and WC9). The producer withholds a census by two
+CONSERVATIVE rules, set on the cases where a twin was measured to miss
+the column's count of different values: too few different dates in a
+group (`few_dates`); and, beside May's holes, placeholder days or
+declared days (never width holes alone), a group with no free day that
+holds a date of one row (`room_short`). They are rules, not proofs that
+no twin can meet the census: each also withholds some censuses a twin
+meets (1 to 21 January 2024, a hundred rows a date; the 50 columns plan
+P4-D365 counts). Both the producer and the loader hold a published
+census to its shape (`shape_breach`): WC1 the cover, WC2 the floor, WC3
+the total, WC4 the menu and WC6 one spelling per day
+(`one_spelling_published`) -- the published censuses of written forms
+give every date one text, so the count of different values is a count
+of different days. One storage class per workbook column
+(`stored_one_way`) is the producer's too.
 
 AND THE RULES EVERY CENSUS OF STAGE 3B SHARES (plan P4-D364), each
 stated once so that no census writes its own: a count is nought or at
