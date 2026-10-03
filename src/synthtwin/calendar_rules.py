@@ -696,7 +696,11 @@ def merged_groups(
     count (the earlier on a tie) joins its smaller non-zero neighbour
     (the earlier on a tie), taking in the groups of nought between them.
     On a CYCLE (`cyclic`) the last bin neighbours the first, so one group
-    may run past the last bin; it is listed last. Where a short group
+    may run past the last bin; it is listed last. Earlier is always the
+    order the groups are listed in, so of two neighbours of one count a
+    short group joins the one listed first even where that is the one
+    after it, and where both of its neighbours are one group it joins
+    that group through the bins before it. Where a short group
     has no non-zero neighbour left, or the merging ends in one group
     covering every bin, no census is published: one group over every
     bin says nothing a reader does not already hold.
@@ -768,8 +772,16 @@ def merged_groups(
         if before < 0 and after < 0:
             return ()
         start, stop = pick, pick
+        # A tie goes to the neighbour listed earlier in the census, which
+        # on a cycle need not be the one before: the group past the last
+        # bin is listed last. One group on both sides is joined through
+        # the bins before the short group.
         if after < 0 or (
-            before >= 0 and groups[before][2] <= groups[after][2]
+            before >= 0
+            and (
+                groups[before][2] < groups[after][2]
+                or (groups[before][2] == groups[after][2] and before <= after)
+            )
         ):
             start = before
         else:
