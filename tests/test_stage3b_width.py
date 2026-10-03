@@ -10,7 +10,9 @@ lowers the end inside that reach, and at or past the mean distance, the
 hold stands aside and the end goes to the first whole number at or past
 the reach. The width walk then leaves up to the line less one of the
 tail's own cells past every named width, stopping before their
-distances pass the pair's own totals.
+distances pass the pair's own totals; it moves the tail's other cells
+past the width under it before serving any demand, and takes every cell
+still past it off the unpadded demand the census counted it into.
 
 Each clause here is held up by a test and, beside it, the mutant that
 withdraws it and turns the test's own measurement the other way. The
@@ -39,6 +41,7 @@ SEEDS = (0, 4, 9)
 
 _REAL_PAST_THE_WIDTH = contract._past_the_width
 _REAL_FREED = generation._freed_past_the_width
+_REAL_PULLED = generation._pulled_under_the_width
 
 
 def _text(cells: "list[str]") -> str:
@@ -93,6 +96,14 @@ def _held_heap() -> "list[str]":
 def _wide_inside_the_mean() -> "list[str]":
     """110 cells nine apart from 9000 and ten from 20000 to 29000, a thousand apart."""
     return [str(9000 + 9 * step) for step in range(110)] + [str(20000 + 1000 * step) for step in range(10)]
+
+
+def _mixed(padded: int, unpadded: int, far: "list[str]", seed: int) -> "list[str]":
+    """Codes `0001` to `0999` padded to four, plain four-figure numbers beside them, then the far cells."""
+    draw = random.Random(f"g2/mixed/{padded}/{unpadded}/{far[0]}/{seed}")
+    cells = [f"{draw.randint(1, 999):04}" for _row in range(padded)]
+    cells += [str(draw.randint(1000, 9999)) for _row in range(unpadded)]
+    return cells + far
 
 
 def _narrow_beside_five() -> "list[str]":
@@ -170,21 +181,21 @@ def test_the_walk_leaves_the_tail_s_wide_cells_past_the_width(
     for seed in SEEDS:
         assert 1 < freed[seed] <= room, f"seed {seed}: {freed[seed]}"
         assert _missed(described, seed) == [], f"seed {seed}"
-    monkeypatch.setattr(generation, "_freed_past_the_width", lambda *_arguments: 0)
+    monkeypatch.setattr(generation, "_freed_past_the_width", lambda *_arguments: (0, []))
     for seed in SEEDS:
         assert _past(_twin_numbers(described, seed), 9999.0) < freed[seed], f"seed {seed}"
 
 
 def _freed_without_the_pair_s_totals(facts, layout, values, demands, floor):  # type: ignore[no-untyped-def]
     """The walk's freeing with its stop at the pair's own totals withdrawn: every wide tail cell, up to the line less one."""
-    if _REAL_FREED(facts, layout, values, demands, floor) == 0:
-        return 0
+    if _REAL_FREED(facts, layout, values, demands, floor) == (0, []):
+        return 0, []
     widest = max(wanted for wanted, _exact, _cells in demands)
     freed = 0
     for place in sorted(generation._tail_strata(facts, layout)):
         if values[place] > 10.0 ** widest - 1.0:
             freed += layout.sizes[place]
-    return min(freed, parsing.census_floor(floor) - 1)
+    return min(freed, parsing.census_floor(floor) - 1), []
 
 
 def test_the_freed_cells_stop_at_the_pair_s_own_totals(
@@ -203,6 +214,91 @@ def test_the_freed_cells_stop_at_the_pair_s_own_totals(
     monkeypatch.setattr(generation, "_freed_past_the_width", _freed_without_the_pair_s_totals)
     for seed in SEEDS:
         assert _past(_twin_numbers(described, seed), 9999.0) == 2, f"seed {seed}"
+
+
+def _demands_less_the_commonest(demands, freed):  # type: ignore[no-untyped-def]
+    """The demand choice withdrawn: the freed cells come off the demand asking for the most cells, of either kind."""
+    if freed < 1 or not demands:
+        return demands
+    chosen = 0
+    for index in range(1, len(demands)):
+        if demands[index][2] > demands[chosen][2] or (
+            demands[index][2] == demands[chosen][2] and demands[index][0] > demands[chosen][0]
+        ):
+            chosen = index
+    return [
+        (wanted, exact, cells - freed if index == chosen else cells)
+        for index, (wanted, exact, cells) in enumerate(demands)
+        if cells - (freed if index == chosen else 0) > 0
+    ]
+
+
+def test_the_cells_still_past_come_off_the_unpadded_demand(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """200 padded codes beside 100 four-figure numbers, `99999` and `88888`: the unpadded demand gives up the cells.
+
+    The two far cells are plain, so the census counts them into the width
+    most unpadded cells wrote; the twin writes its own cells past the width
+    plainly too, so they come off the exact demand and the padded ceiling
+    still asks for all 200 small values. Its mutant takes them off the
+    demand asking for the most cells, which is the padded one here, and
+    the twin misses the padded census.
+    """
+    described = _described(tmp_path, "mixed_far2", _mixed(200, 100, ["99999", "88888"], 3), 11)
+    block = described.document["columns"][0]
+    assert block["pad_widths"] == {"4": 200} and block["field_widths"] == {"4": 302}, "premise: two far cells pooled"
+    assert generation._field_demands(_facts(described)) == [(3, 0, 200), (4, 1, 102)], "premise: the padded demand is the larger"
+    for seed in SEEDS:
+        assert _missed(described, seed) == [], f"seed {seed}"
+    monkeypatch.setattr(generation, "_demands_less_the_freed", _demands_less_the_commonest)
+    for seed in SEEDS:
+        assert "value:pads.published.4" in _missed(described, seed), f"seed {seed}"
+
+
+def test_the_cells_past_the_pair_s_stop_are_pulled_under_first(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """60 padded codes beside 90 four-figure numbers and one `99999`: the tail cells the pair cannot carry go under the width first.
+
+    The staircase to the pair's end puts more cells past `9999` than the
+    pair's totals leave room for. Before any demand is served the pass
+    moves them under the width where their room lets it, and counts the
+    one the order holds past it with the cells freed; the walk then has
+    the four-figure cell it moves down to the padded ceiling, and the
+    twins miss nothing. Three mutants: withdrawing both halves leaves
+    them to the walk, which stops at the padded ceiling first; counting
+    them without moving them leaves one more cell past the width at
+    every seed; moving them without counting the one left leaves the
+    unpadded demand a cell too many, and the padded census is missed
+    again. The padded misses fall at two of the three seeds each time.
+    """
+    described = _described(tmp_path, "mixed_one_far", _mixed(60, 90, ["99999"], 2), 11)
+    assert described.document["columns"][0]["pad_widths"] == {"4": 60}, "premise: sixty padded cells"
+    past = {seed: _past(_twin_numbers(described, seed), 9999.0) for seed in SEEDS}
+    for seed in SEEDS:
+        assert _missed(described, seed) == [], f"seed {seed}"
+
+    def padded_missed() -> "list[int]":
+        return [seed for seed in SEEDS if "value:pads.published.4" in _missed(described, seed)]
+
+    with monkeypatch.context() as patch:
+        patch.setattr(generation, "_freed_past_the_width", lambda *arguments: (_REAL_FREED(*arguments)[0], []))
+        assert len(padded_missed()) >= 2
+    with monkeypatch.context() as patch:
+        patch.setattr(
+            generation,
+            "_pulled_under_the_width",
+            lambda _column, _facts, layout, _rungs, values, _tails, places, _widest: (
+                list(values),
+                sum(layout.sizes[place] for place in places),
+            ),
+        )
+        for seed in SEEDS:
+            assert _past(_twin_numbers(described, seed), 9999.0) > past[seed], f"seed {seed}"
+    with monkeypatch.context() as patch:
+        patch.setattr(generation, "_pulled_under_the_width", lambda *arguments: (_REAL_PULLED(*arguments)[0], 0))
+        assert len(padded_missed()) >= 2
 
 
 # -- 3. what the rule leaves alone --------------------------------------------

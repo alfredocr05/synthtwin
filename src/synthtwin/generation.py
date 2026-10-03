@@ -14436,7 +14436,7 @@ def _wide_enough(
     layout: "_NumericLayout",
     rungs: "tuple[float, ...] | None",
     values: "list[float]",
-    floor: int = 0,
+    floor: int,
 ) -> "list[float]":
     """Draw values the published field widths can be worn by (G6.6).
 
@@ -14488,11 +14488,24 @@ def _wide_enough(
     tails = _tail_strata(facts, layout)
     # A PAIR THAT PROVES A CELL WIDER THAN EVERY NAMED WIDTH FREES THE
     # FLOOR LESS ONE CELLS PAST THEM (method G6.6.8, plan P4-D377): see
-    # `_past_the_width`. They serve no demand, so the demand the census
-    # counted them into is that much smaller.
-    demands = _demands_less_the_freed(
-        demands, _freed_past_the_width(facts, layout, values, demands, floor)
-    )
+    # `_past_the_width`. The tail's other cells past that width are moved
+    # under it first, where their room lets them, and every cell still
+    # past it serves no demand, so the demand the census counted it into
+    # is that much smaller.
+    freed, beyond = _freed_past_the_width(facts, layout, values, demands, floor)
+    if beyond:
+        moved, still = _pulled_under_the_width(
+            column,
+            facts,
+            layout,
+            rungs,
+            moved,
+            tails,
+            beyond,
+            _widest_demanded(demands),
+        )
+        freed = min(freed + still, parsing.census_floor(floor) - 1)
+    demands = _demands_less_the_freed(demands, freed)
     for _round in range(total + 1):
         short, left, figures = _fields_served(
             demands, moved, layout, facts.integer_valued
@@ -14647,8 +14660,8 @@ def _freed_past_the_width(
     values: "list[float]",
     demands: "list[tuple[int, int, int]]",
     floor: int,
-) -> int:
-    """How many cells the width walk leaves past every named width (G6.6.8).
+) -> "tuple[int, list[int]]":
+    """How many cells the width walk leaves past every named width, and which it pulls under (G6.6.8).
 
     THE CENSUS POOLS A WIDTH FEWER THAN THE SMALLEST GROUP WROTE INTO
     ITS COMMONEST (plan P4-D222), so it never says that no cell was wider
@@ -14657,35 +14670,37 @@ def _freed_past_the_width(
     (`contract.pair_reach` past the widest value any demand lets a cell
     hold, on that tail's own side of nought), the walk leaves up to the
     line less one of the tail's own cells past that width, the outermost
-    first and whole strata only, because a stratum holds one value; any
-    further ones it moves as before. The derived end already stands at
-    the pair's reach (`contract._past_the_width`), so a cell left here
-    stands no further out than the pair allows. Measured on `1000` to
-    `1398` beside one `99999` (`K-S3-22`): without it the walk pulled a
-    staircase row from past the width down to `9998`.
+    first and whole strata only, because a stratum holds one value. The
+    derived end already stands at the pair's reach
+    (`contract._past_the_width`), so a cell left here stands no further
+    out than the pair allows. Measured on `1000` to `1398` beside one
+    `99999` (`K-S3-22`): without it the walk pulled a staircase row from
+    past the width down to `9998`.
+
+    ...AND THE TAIL'S OTHER STRATA PAST THAT WIDTH ARE THE ONES
+    `_pulled_under_the_width` MOVES UNDER IT, nearest the boundary first:
+    the pair's own totals leave them no distance to stand on.
 
     Guarantees: accepts one numeric block's facts, its layout, the values
     as they stand, its demands and the settings floor; returns a count
-    from nought to the line less one -- nought where no tail publishes a
+    from nought to the line less one, and the places of the strata past
+    the width beyond it -- nought and none where no tail publishes a
     pair whose reach passes the widest demanded width. Determinism: a
     function of those. Raises nothing. No I/O of any kind.
     """
     tails = facts.tails
     if tails is None or tails.low is None or tails.high is None:
-        return 0
-    widest = 0
-    for wanted, _exact, _cells in demands:
-        if wanted > widest:
-            widest = wanted
+        return 0, []
+    widest = _widest_demanded(demands)
     if widest < 1 or widest > _FIGURE_REACH:
-        return 0
+        return 0, []
     ceiling = 1.0
     for _step in range(widest):
         ceiling = ceiling * 10.0
     ceiling = ceiling - 1.0
     ladder = contract.tail_ladder(facts)
     if ladder is None or ladder.low is None or ladder.high is None:
-        return 0
+        return 0, []
     low_reach = contract.pair_reach(
         tails.low.mean_distance, tails.low.rms_distance
     )
@@ -14697,19 +14712,20 @@ def _freed_past_the_width(
         high_reach > 0.0 and ladder.high.boundary + high_reach > ceiling
     )
     if not proven_low and not proven_high:
-        return 0
+        return 0, []
     room = parsing.census_floor(floor) - 1
     freed = 0
-    for side, boundary, proven in (
-        (tails.low, ladder.low.boundary, proven_low),
-        (tails.high, ladder.high.boundary, proven_high),
+    beyond: "list[int]" = []
+    for side, boundary, high, proven in (
+        (tails.low, ladder.low.boundary, False, proven_low),
+        (tails.high, ladder.high.boundary, True, proven_high),
     ):
         if not proven:
             continue
         past: "list[tuple[float, int]]" = []
         for place in sorted(_tail_strata(facts, layout)):
             value = values[place]
-            if (value > 0.0) != (side is tails.high) or value == 0.0:
+            if (value > 0.0) != high or value == 0.0:
                 continue
             if not _carries_plainly(value, facts.integer_valued):
                 continue
@@ -14726,40 +14742,147 @@ def _freed_past_the_width(
         second = side.rows * root * root
         spent_first = 0.0
         spent_second = 0.0
+        stopped = False
+        left: "list[int]" = []
         for distance, place in sorted(past):
             size = layout.sizes[place]
             far = -distance
             spent_first = spent_first + size * far
             spent_second = spent_second + size * far * far
-            if freed + size > room or spent_first > first or (
+            if stopped or freed + size > room or spent_first > first or (
                 spent_second > second
             ):
-                break
+                stopped = True
+                left += [place]
+                continue
             freed = freed + size
-    return freed
+        # ...and the rest, which are pulled under, nearest the boundary first.
+        for index in range(len(left) - 1, -1, -1):
+            beyond += [left[index]]
+    return freed, beyond
+
+
+def _widest_demanded(demands: "list[tuple[int, int, int]]") -> int:
+    """The most figures any width demand lets a value hold (G6.6.8); nought where there is none."""
+    widest = 0
+    for wanted, _exact, _cells in demands:
+        if wanted > widest:
+            widest = wanted
+    return widest
+
+
+def _pulled_under_the_width(
+    column: contract.ColumnBlock,
+    facts: contract.NumericFacts,
+    layout: "_NumericLayout",
+    rungs: "tuple[float, ...] | None",
+    values: "list[float]",
+    tails: "dict[int, int]",
+    places: "list[int]",
+    widest: int,
+) -> "tuple[list[float], int]":
+    """A tail's strata past every named width that the pair leaves no room for, moved under it (G6.6.8).
+
+    THE PAIR'S OWN TOTALS SAY HOW MANY OF A TAIL'S CELLS MAY STAND PAST
+    THE WIDTH (`_freed_past_the_width`), and a staircase reaching the
+    pair's end can put more there than that. Those are moved before any
+    demand is served -- each to the nearest value of the widest named
+    width inside its own room (`_tail_room`), nearest the boundary first,
+    a stand-in never -- because a census demand reached first may be one
+    no move serves: 90 codes `0001` to `0999` beside 59 of four figures
+    and one `99999`, at a floor of 36 and seed 4, drew 89 small values
+    and six cells past `9999` where the pair allows four, the padded
+    ceiling found no stratum to take, and the walk stopped there; over
+    seeds 0 to 19 the twin missed the padded census and four counts of
+    its forms at 18, where 110cb46 missed them at one. A stratum the
+    order leaves no such value stays where it is, and the census counts
+    it as it counts the cells freed.
+
+    The rules the walk keeps hold here too: neither pinned stratum moves,
+    nor one in the zero band, and a stratum holding a value alone takes
+    a value no other stratum holds.
+
+    Guarantees: accepts the column, its facts, its layout and ladder, the
+    values as they stand, which strata hold a tail's rows, the places to
+    pull and the widest demanded figure count; returns the values with
+    those strata moved where they can be, and how many cells of them are
+    still past the width. Determinism: a function of those, the places
+    walked in the order given. Raises nothing. No I/O of any kind.
+    """
+    moved = [value for value in values]
+    total = len(moved)
+    # WHO HOLDS EACH VALUE, counted once and kept as the strata move, so
+    # the pass is linear in the strata however many it pulls.
+    holders: "dict[float, int]" = {}
+    for value in moved:
+        holders[value] = (holders[value] if value in holders else 0) + 1
+    shared: "dict[float, int]" = {}
+    still = 0
+    for place in places:
+        if place == 0 or (place == total - 1 and total >= 2) or (
+            layout.bands[place] == _BAND_ZERO
+        ):
+            still = still + layout.sizes[place]
+            continue
+        given = moved[place]
+        found = _figured_inside(
+            _tail_room(place, moved, tails, layout, rungs, column),
+            holders if holders[given] < 2 else shared,
+            layout.bands[place],
+            widest,
+            given,
+            facts.integer_valued,
+            kept=facts.kept_stand_ins,
+        )
+        if found is None:
+            still = still + layout.sizes[place]
+            continue
+        holders[given] = holders[given] - 1
+        if holders[given] < 1:
+            del holders[given]
+        holders[found] = (holders[found] if found in holders else 0) + 1
+        moved[place] = found
+    return moved, still
 
 
 def _demands_less_the_freed(
     demands: "list[tuple[int, int, int]]", freed: int
 ) -> "list[tuple[int, int, int]]":
-    """The demands with ``freed`` cells taken off the commonest (G6.6.8).
+    """The demands with ``freed`` cells taken off the one that counts them (G6.6.8).
 
-    The census counted a cell too few to name into the width most cells
-    wrote (plan P4-D222), so that is the demand the freed cells were
-    counted in: the one asking for the most cells, the widest on a tie.
-    Never below nought. Determinism: a function of the two. Raises
-    nothing. No I/O of any kind.
+    A WIDTH TOO FEW CELLS WROTE IS COUNTED INTO ITS OWN PART'S COMMONEST
+    (plan P4-D222): an unpadded cell into the width most unpadded cells
+    wrote, a padded one into the commonest pad width, the narrowest on a
+    tie. A freed cell is wider than every named width, so no published
+    pad holds it, and the padded exchange (`_padded_style_swaps`) hands
+    the padded form to a value that fits one -- so wherever the census
+    publishes unpadded cells the freed ones are written among them, and
+    come off the EXACT demand asking for the most cells; only where every
+    named cell is padded do they come off the padded ceiling asking for
+    the most. Taking them off the commonest demand of either kind left
+    the padded ceiling short instead: 200 codes `0001` to `0999` beside
+    100 of four figures, `88888` and `99999`, at a floor of eleven,
+    publish `pad_widths {"4": 200}`; the walk asked for 199 small values,
+    moved the two hundredth up to four figures, and the twin missed the
+    padded census and four counts of its forms at seeds 0, 4 and 9.
+
+    Guarantees: accepts the demands, sorted narrowest first, and the
+    count freed; returns them with that count taken off the chosen one,
+    never below nought, and a demand left at nought dropped.
+    Determinism: a function of the two. Raises nothing. No I/O of any
+    kind.
     """
     if freed < 1 or not demands:
         return demands
-    chosen = 0
-    for index in range(1, len(demands)):
-        cells = demands[index][2]
-        if cells > demands[chosen][2] or (
-            cells == demands[chosen][2]
-            and demands[index][0] > demands[chosen][0]
-        ):
-            chosen = index
+    chosen = -1
+    for exact in (1, 0):
+        for index in range(len(demands)):
+            if demands[index][1] != exact:
+                continue
+            if chosen < 0 or demands[index][2] > demands[chosen][2]:
+                chosen = index
+        if chosen >= 0:
+            break
     kept: "list[tuple[int, int, int]]" = []
     for index in range(len(demands)):
         wanted, exact, cells = demands[index]
