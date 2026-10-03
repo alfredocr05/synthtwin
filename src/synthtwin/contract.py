@@ -594,6 +594,36 @@ DATETIME_KEYS = (
     "heavy_dates",
 )
 
+# THE KEYS A DESCRIPTION WRITTEN BEFORE THEM DOES NOT CARRY (review of
+# landing 3b.G1, item 1; plan P4-D375). Plan P4-D375 keeps the readers of
+# a withheld tail pair so that a description written before it still
+# loads, and 668f276 -- the last tree to write one -- wrote neither the
+# twelve stage 3b reserves of plan P4-D364 nor the settings key landing
+# T1 added (plan P4-D370), so the strict key rule refused every such
+# description before any reader was reached. Each key below is read as
+# what every producer since writes in it where nothing is published --
+# `[]`, and `null` for `clock_step` -- WHEN IT IS ABSENT, and only then:
+# present, it is read and checked exactly as before, and every other key
+# stays required (contract 2.1 and C6-45a). Absent means nothing was
+# published, which is what an empty one says, so no fact is made up.
+SETTINGS_READ_AS_EMPTY_WHEN_ABSENT = ("forced_twelve_hour_clocks",)
+DATETIME_READ_AS_EMPTY_WHEN_ABSENT = (
+    "hour_census",
+    "minute_census",
+    "second_census",
+    "minute_heaps",
+    "second_heaps",
+    "day_of_month_census",
+    "heavy_dates",
+)
+CLOCK_READ_AS_EMPTY_WHEN_ABSENT = (
+    "clock_census",
+    "clock_heaps",
+    "clock_step",
+    "clock_codes",
+    "minute_census",
+)
+
 NUMERIC_KEYS = (
     "group_separator",
     # How a negative number and a signed decimal were written (landing
@@ -3966,6 +3996,28 @@ def _exactly(value: object, key: str, where: str, permitted: int) -> int:
     return found
 
 
+def _absent_read_as_empty(
+    mapping: "dict[str, object]", added: "tuple[str, ...]"
+) -> "dict[str, object]":
+    """The block with each of ``added`` it lacks read as empty (P4-D375).
+
+    Guarantees: returns ``mapping`` itself where it carries every key of
+    ``added``, and otherwise a shallow copy in which each absent one
+    stands as `[]` -- `None` for `clock_step` -- which is what every
+    producer since writes where nothing is published. The document is
+    never changed, a key that is present is left to its own reader, and
+    a key not in ``added`` is never supplied, so the key rule beside it
+    still refuses every other absence. No I/O of any kind.
+    """
+    missing = [key for key in added if key not in mapping]
+    if not missing:
+        return mapping
+    filled = dict(mapping)
+    for key in missing:
+        filled[key] = None if key == "clock_step" else []
+    return filled
+
+
 def _keys(
     mapping: "dict[str, object]",
     where: str,
@@ -5907,7 +5959,10 @@ def _settings(value: object) -> SettingsBlock:
     the default, which is the other half of the ruling.
     """
     where = "in the block of rules that produced the description"
-    mapping = _mapping(value, "settings", _AT_THE_TOP)
+    mapping = _absent_read_as_empty(
+        _mapping(value, "settings", _AT_THE_TOP),
+        SETTINGS_READ_AS_EMPTY_WHEN_ABSENT,
+    )
     _keys(mapping, where, SETTINGS_KEYS, "that block")
     floor = _whole(mapping["small_cell_floor"], "small_cell_floor", where, 1)
     ceiling = _whole(
@@ -6883,6 +6938,12 @@ def _column(
     role_keys = _role_keys(role)
     if "percentiles" in role_keys:
         role_keys = _numeric_key_set(mapping, role_keys)
+    if role == ROLE_DATETIME:
+        mapping = _absent_read_as_empty(
+            mapping, DATETIME_READ_AS_EMPTY_WHEN_ABSENT
+        )
+    if role == ROLE_CLOCK:
+        mapping = _absent_read_as_empty(mapping, CLOCK_READ_AS_EMPTY_WHEN_ABSENT)
     _keys(
         mapping,
         where,
