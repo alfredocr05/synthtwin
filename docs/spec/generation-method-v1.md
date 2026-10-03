@@ -7618,12 +7618,15 @@ order:
    the level publishes none, and the twin's report names how many
    groups were. That is how the producer has counted every spelling
    below the floor since plan P4-D275, and why no description it
-   writes reaches this step: it holds no spelling back. Only a
-   description written before that rule can, and there a million
-   spellings held back of one label once asked for trailing spaces up
-   to a million long -- about 496 GB of them. The twin of such a
-   description holds fewer different values than it publishes, and the
-   report prints both numbers (G12.7).
+   writes reaches this step: it holds no spelling back. Only a level
+   written by the earlier rule can, which the loader still accepts --
+   though not the description that rule's producer wrote, which lacks
+   entries the format gained since and is refused whole, so such a
+   level arrives only in a description written or edited by hand. There
+   a million spellings held back of one label once asked for trailing
+   spaces up to a million long -- about 496 GB of them. The twin of
+   such a description holds fewer different values than it publishes,
+   and the report prints both numbers (G12.7).
 
 The walk is resumable: a candidate skipped once (used, folding onto
 another label, or wearing the other form) is skipped for the rest of
@@ -12104,8 +12107,9 @@ envelope is the fallback the same line names. G8.2's supply — case
 flips first, then trailing spaces — reaches every description the
 producer writes today, so a conforming generator that reaches this
 fallback has been handed a description whose own counts disagree, or
-one written before plan P4-D275 that holds back more spellings of one
-label than G8.2 step 3's bound, and the report prints both numbers.
+one holding back, by the rule the producer followed before plan
+P4-D275, more spellings of one label than G8.2 step 3's bound, and the
+report prints both numbers.
 
 ### G12.8 The fallback on numeric `n_distinct` and `n_distinct_folded`
 
