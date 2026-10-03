@@ -1476,6 +1476,25 @@ def answered_codes_contradict_each_other(path: str, clash: str) -> str:
     )
 
 
+def one_column_answered_both_ways(path: str, name: str) -> str:
+    """Message when one column's codes are answered `missing` AND `real-value`.
+
+    An edited questions file can carry two entries for one column (the
+    Codex review of lane R1, item 8): one answered that its codes stand
+    for a missing date, the other that they are values of their own.
+    The run took the first and dropped the second without a word, so
+    the pair is refused as the command line refuses `--missing-value`
+    beside `--keep-value` on one spelling, rather than ranked.
+    """
+    return (
+        f"Your answers in {path} say two things about the codes in the "
+        f"column '{_shown(name)}': one entry answers 'missing' and another "
+        f"answers 'real-value'. synthtwin will not choose between them. "
+        f"Leave one of the two answers blank and run the command again. "
+        f"Nothing was written."
+    )
+
+
 def the_comma_declaration_did_not_reach(name: str, role: str) -> str:
     """Message when `--decimal-comma` lands on a role it cannot help.
 

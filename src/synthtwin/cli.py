@@ -2003,8 +2003,16 @@ def _how_to_repeat(
     answered_missing: "tuple[str, ...]" = (),
     answered_kept: "tuple[str, ...]" = (),
     answered_day_first: bool = False,
+    taken_out: "tuple[str, ...]" = (),
 ) -> str:
     """The options that repeat this run without asking anything.
+
+    ``taken_out`` are options the person typed that an answer replaced,
+    each already written as it is typed (`_typed_option`): they are said
+    as options to take out of the command, since an answer is the newer
+    statement and the typed option left in would contradict it (the Codex
+    review of lane R1, item 7: `--keep-value UNK` typed and `missing`
+    answered were told to add `--missing-value UNK`, and the pair exits 2).
 
     The answers about dates (plan P4-D381) are repeated as the options
     they stood for: `--day-first`, and `--missing-value` or
@@ -2035,9 +2043,16 @@ def _how_to_repeat(
     for name in sorted(forced_measurements):
         parts += [_typed_option("--measurement", name)]
     flags = _joined(parts, " ")
+    out = ""
+    if taken_out:
+        out = (
+            f"and take these out of the command you typed, because your "
+            f"answers replaced them:\n  {_joined(list(taken_out), ' ')}\n"
+        )
     return (
         f"\nTO REPEAT THIS RUN WITHOUT THE QUESTIONS, add:\n  "
         f"{flags}\n"
+        f"{out}"
         f"Those answers are also recorded inside the profile itself. "
         f"Each value is {_shell_named()}."
     )
@@ -2379,6 +2394,14 @@ def _run_profile(
         taxonomy,
         writing,
     )
+    # WHAT THE PERSON TYPED, kept as typed, so the line that repeats the
+    # run can say which of these an answer replaced (`_how_to_repeat`).
+    typed_codes = list(forced_codes)
+    typed_identifiers = list(forced_identifiers)
+    typed_measurements = list(forced_measurements)
+    typed_commas = list(forced_decimal_commas)
+    typed_kept = list(kept_values)
+    typed_missing = list(missing_values)
 
     if smallest_group < 1:
         _warn(errors.floor_not_positive(f"{smallest_group}"))
@@ -2827,10 +2850,11 @@ def _run_profile(
     # `--missing-value` naming each code, `real-value` is `--keep-value`
     # naming each. Both reach every column, which is what those options
     # do and what the answers said.
+    held_names = {one: 1 for one in read.column_names}
     unknown_dates = [
         name
         for name in answered_missing_dates + answered_real_values
-        if name not in read.column_names
+        if name not in held_names
     ]
     if unknown_dates:
         _warn(
@@ -2848,35 +2872,46 @@ def _run_profile(
     # that repeats the run names it once. Once for EACH answer: `UNK`
     # answered `missing` in one column and `real-value` in another is
     # the contradiction refused below, and is not folded away here.
-    missing_as: "list[tuple[str, object]]" = []
-    kept_as: "list[tuple[str, object]]" = []
-    for name in answered_missing_dates + answered_real_values:
-        column_at = 0
-        for held in read.column_names:
-            if held == name:
-                break
-            column_at = column_at + 1
+    missing_as: "dict[tuple[str, object], int]" = {}
+    kept_as: "dict[tuple[str, object], int]" = {}
+    # Each column found by its name once (the Codex review of lane R1,
+    # item 9): a walk of the names per answer grew with their square.
+    column_place: "dict[str, int]" = {}
+    for named_at in range(len(read.column_names)):
+        if read.column_names[named_at] not in column_place:
+            column_place[read.column_names[named_at]] = named_at
+    # THE CODES AS THEY STAND, WHATEVER WAS TYPED (the Codex review of
+    # lane R1, item 5): the answer is the newer statement (below), so
+    # neither a `--keep-value` nor a `--missing-value` the person typed
+    # hides from their answer a code the question counted. Split under
+    # the typed declarations, `--missing-value UNK` beside a column
+    # answered `real-value` about `UNK` and `PENDING` kept `PENDING`
+    # alone and left the thirty `UNK` cells missing, without a word.
+    undeclared = dataclasses.replace(
+        settings, kept_values=(), declared_missing_values=()
+    )
+    for name, missing in (
+        [(one, True) for one in answered_missing_dates]
+        + [(one, False) for one in answered_real_values]
+    ):
+        column_at = column_place[name]
         present, _absent = taxonomy.split_missing(
-            read.columns[column_at], settings
+            read.columns[column_at], undeclared
         )
-        # THE CODES AS THEY STAND, WHATEVER WAS TYPED KEPT: the answer
-        # is the newer statement (below), so a `--keep-value` the
-        # person typed does not hide from their answer the code it
-        # names.
         seen = asking.date_codes_of(
-            present, settings, len(read.columns[column_at]), True
+            present, undeclared, len(read.columns[column_at]), True
         )
         if seen is None:
             _warn(errors.the_date_codes_answer_reached_nothing(name))
             continue
         for spelling, _rows in seen.codes:
             identity = asking.declared_identity(spelling)
-            if name in answered_missing_dates:
+            if missing:
                 if identity not in missing_as:
-                    missing_as += [identity]
+                    missing_as[identity] = 1
                     added_missing += [spelling]
             elif identity not in kept_as:
-                kept_as += [identity]
+                kept_as[identity] = 1
                 added_kept += [spelling]
     if added_missing or added_kept:
         commas = bool(forced_decimal_commas)
@@ -3455,6 +3490,21 @@ def _run_profile(
     # has a reminder line of its own after the "Written:" confirmation
     # and reading the two in that order leaves the pointer beside the
     # block it points at.
+    # WHAT AN ANSWER REPLACED, to be taken out of the typed command (the
+    # Codex review of lane R1, item 7).
+    taken_out: "list[str]" = []
+    for option, typed_list, final in (
+        ("--code", typed_codes, forced_codes),
+        ("--identifier", typed_identifiers, forced_identifiers),
+        ("--measurement", typed_measurements, forced_measurements),
+        ("--decimal-comma", typed_commas, list(forced_decimal_commas)),
+        ("--keep-value", typed_kept, list(kept_values)),
+        ("--missing-value", typed_missing, list(missing_values)),
+    ):
+        final_of = {one: 1 for one in final}
+        for one in typed_list:
+            if one not in final_of:
+                taken_out += [_typed_option(option, one)]
     if (answered or answers_were_handed_back) and (
         forced_codes
         or forced_identifiers
@@ -3464,6 +3514,7 @@ def _run_profile(
         or added_missing
         or added_kept
         or answered_day_first
+        or taken_out
     ):
         _say(
             _how_to_repeat(
@@ -3475,6 +3526,7 @@ def _run_profile(
                 answered_missing=tuple(added_missing),
                 answered_kept=tuple(added_kept),
                 answered_day_first=answered_day_first,
+                taken_out=tuple(taken_out),
             )
         )
     kept_of_yours = summary.words_of_your_own(document)

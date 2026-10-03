@@ -1251,16 +1251,21 @@ def day_or_month_columns(
     if not isinstance(blocks, list):
         return also
     found: "list[DayOrMonth]" = []
+    # Each column of ``also`` by its name, once (the Codex review of lane
+    # R1, item 9): it was walked once per column of the table.
+    also_of: "dict[str, DayOrMonth]" = {}
+    for one in also:
+        if one.name not in also_of:
+            also_of[one.name] = one
     position = 0
     for block in blocks:
         position = position + 1
         if not isinstance(block, dict) or position > len(table_columns):
             continue
-        coded_here = [one for one in also if one.name == f"{block['name']}"]
-        if coded_here:
+        if f"{block['name']}" in also_of:
             # Once: a column of dates read whole but for its codes is
             # also a block with a format, and it is asked once.
-            found += coded_here[:1]
+            found += [also_of[f"{block['name']}"]]
             continue
         if f"{block['role']}" != taxonomy.ROLE_DATETIME:
             continue
@@ -2787,22 +2792,26 @@ def codes_elsewhere(
         return {}
     # Each question's codes as the identities a declaration would match,
     # once as an ordinary column reads them and once as a column
-    # declared `--decimal-comma` does, each identity once.
-    wanted_of: "dict[bool, list[list[tuple[str, object]]]]" = {}
-    union_of: "dict[bool, dict[tuple[str, object], int]]" = {}
+    # declared `--decimal-comma` does -- and each identity with the
+    # questions holding it, so a column is matched against the codes it
+    # holds and never walked against every question (the Codex review of
+    # lane R1, item 9: thirty columns each with a code of its own paid
+    # thirty times thirty comparisons for an empty answer).
+    holders_of: "dict[bool, dict[tuple[str, object], list[int]]]" = {}
     for comma in (False, True):
-        each: "list[list[tuple[str, object]]]" = []
-        union: "dict[tuple[str, object], int]" = {}
-        for _position, codes in asked:
-            identities: "list[tuple[str, object]]" = []
-            for spelling, _rows in codes.codes:
+        holders: "dict[tuple[str, object], list[int]]" = {}
+        for index in range(len(asked)):
+            for spelling, _rows in asked[index][1].codes:
                 identity = _declared_identity(spelling, comma)
-                if identity not in identities:
-                    identities += [identity]
-                union[identity] = 1
-            each += [identities]
-        wanted_of[comma] = each
-        union_of[comma] = union
+                if identity not in holders:
+                    holders[identity] = [index]
+                elif holders[identity][len(holders[identity]) - 1] != index:
+                    holders[identity] += [index]
+        holders_of[comma] = holders
+    place_of: "dict[int, int]" = {}
+    for index in range(len(asked)):
+        place_of[index] = asked[index][0]
+    only = place_of[0] if len(asked) == 1 else -1
     place = -1
     for block in blocks:
         place = place + 1
@@ -2810,13 +2819,13 @@ def codes_elsewhere(
             continue
         if f"{block['role']}" == taxonomy.ROLE_EMPTY:
             continue
-        # The questions this column is "elsewhere" for: every one but
-        # its own, and a column asked alone is not counted at all.
-        others = [index for index in range(len(asked)) if asked[index][0] != place]
-        if not others:
+        # A column asked alone is "elsewhere" for no question, and is
+        # not counted at all.
+        if place == only:
             continue
         name = f"{block['name']}"
         comma = name in decimal_commas
+        holders = holders_of[comma]
         counted = _spellings_counted(table_columns[place])
         # Each different spelling judged once; only those a declaration
         # would match are then asked whether they are present at all.
@@ -2824,7 +2833,7 @@ def codes_elsewhere(
         identity_of: "dict[str, tuple[str, object]]" = {}
         for spelling in counted:
             identity = _declared_identity(spelling, comma)
-            if identity in union_of[comma]:
+            if identity in holders:
                 matched += [spelling]
                 identity_of[spelling] = identity
         if not matched:
@@ -2835,7 +2844,16 @@ def codes_elsewhere(
             identity = identity_of[spelling]
             held = rows_of[identity] if identity in rows_of else 0
             rows_of[identity] = held + counted[spelling]
-        if not rows_of:
+        # The rows each OTHER question's declaration takes here, found
+        # from the identities this column holds.
+        rows_for: "dict[int, int]" = {}
+        for identity in rows_of:
+            for index in holders[identity]:
+                if place_of[index] == place:
+                    continue
+                before = rows_for[index] if index in rows_for else 0
+                rows_for[index] = before + rows_of[identity]
+        if not rows_for:
             continue
         n_present = block["n_present"] if "n_present" in block else None
         if not isinstance(n_present, int):
@@ -2843,15 +2861,9 @@ def codes_elsewhere(
             n_present = 0
             for spelling in every:
                 n_present = n_present + counted[spelling]
-        for index in others:
-            position = asked[index][0]
-            rows = 0
-            for identity in wanted_of[comma][index]:
-                if identity in rows_of:
-                    rows = rows + rows_of[identity]
-            if not rows:
-                continue
-            one = Elsewhere(name, rows, n_present)
+        for index in sorted(rows_for):
+            position = place_of[index]
+            one = Elsewhere(name, rows_for[index], n_present)
             if position in found:
                 found[position] += [one]
             else:
@@ -3664,6 +3676,14 @@ def answers_in(document: object, shown: str) -> Answers:
                     shown, name, written, list(offered)
                 )
             )
+    # ONE COLUMN'S CODES ANSWERED BOTH WAYS IS REFUSED (the Codex review
+    # of lane R1, item 8). An edited file can hold two entries for one
+    # column; both answers were kept, and the run read the column under
+    # `missing` alone without a word about the other.
+    kept_columns = {name: 1 for name in real_values}
+    for name in missing_dates:
+        if name in kept_columns:
+            raise ValueError(errors.one_column_answered_both_ways(shown, name))
     return Answers(
         tuple(codes),
         tuple(identifiers),

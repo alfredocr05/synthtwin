@@ -62,6 +62,7 @@ One clause per rule, each beside the mutant it is red on:
 """
 
 import contextlib
+import dataclasses
 import csv
 import io
 import json
@@ -1133,3 +1134,172 @@ def test_a_few_cells_that_are_neither_are_said(tmp_path: pathlib.Path) -> None:
     assert "the few cells that read as neither counted unread" in means[asking.ANSWER_NO_DATE]
     assert block["n_missing"] == 20
     assert block["n_unparsed"] == 5
+
+
+def test_real_value_answered_beside_a_typed_missing_value_keeps_every_code(tmp_path: pathlib.Path) -> None:
+    """`--missing-value UNK` typed, `real-value` answered about `UNK` and `PENDING`: both are kept.
+
+    The Codex review of lane R1, item 5: the run found the codes again
+    under the typed declaration, so `UNK` was already gone, `PENDING`
+    alone was kept, and the thirty `UNK` cells stayed missing without a
+    word. Red on 110cb46.
+    """
+    values = _iso_days(940) + ["UNK"] * 30 + ["PENDING"] * 30
+    _profiled(tmp_path, values)
+    entry = _code_entries(_questions(tmp_path))[0]
+    assert "2 spellings" in entry["what_synthtwin_saw"]
+    answers = _answer(tmp_path, "seen_at", asking.ANSWER_REAL_VALUE)
+    code, said = _profiled(tmp_path, values, "--missing-value", "UNK", "--answers", str(answers))
+    assert code == 0, said
+    settings = json.loads((tmp_path / "real-profile.json").read_text(encoding="utf-8"))["settings"]
+    assert settings["kept_values"]["n_declared"] == 2
+    assert settings["declared_missing_values"]["n_declared"] == 0
+    assert _block(tmp_path)["n_missing"] == 0
+
+
+def test_the_repeat_line_says_which_typed_option_an_answer_replaced(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`--keep-value UNK` typed and `missing` answered: the line says to take the typed option out.
+
+    The Codex review of lane R1, item 7: the line said only to add
+    `--missing-value UNK`, and the command with both exits 2. Followed as
+    written -- the typed options less those taken out, with those added
+    -- the run declares what the answered one did. Red on 110cb46.
+    """
+    import shlex
+
+    monkeypatch.setattr(cli, "_on_windows", lambda: False, raising=False)
+    values = _iso_days(970) + ["UNK"] * 30
+    table = _table(tmp_path, values)
+    _profiled(tmp_path, values)
+    answers = _answer(tmp_path, "seen_at", asking.ANSWER_NO_DATE)
+    code, said = _profiled(tmp_path, values, "--keep-value", "UNK", "--answers", str(answers))
+    assert code == 0, said
+    lines = said[said.index("TO REPEAT THIS RUN"):].splitlines()
+    assert shlex.split(lines[1]) == ["--missing-value", "UNK"]
+    assert lines[2].startswith("and take these out of the command you typed")
+    assert shlex.split(lines[3]) == ["--keep-value", "UNK"]
+    again = tmp_path / "again"
+    again.mkdir()
+    code, said = _quiet(["profile", str(table), "--out-dir", str(again), "--replace", *shlex.split(lines[1])])
+    assert code == 0, said
+    assert _block(again)["n_missing"] == 30
+
+
+def test_one_column_answered_both_ways_is_refused(tmp_path: pathlib.Path) -> None:
+    """Two entries for one column, `missing` and `real-value`: refused, and nothing written.
+
+    The Codex review of lane R1, item 8: both answers were read, and the
+    column was read under `missing` alone without a word. Red on 110cb46.
+    """
+    values = _iso_days(970) + ["UNK"] * 30
+    _profiled(tmp_path, values)
+    questions = _questions(tmp_path)
+    entry = _code_entries(questions)[0]
+    second = json.loads(json.dumps(entry))
+    entry["your_answer"] = asking.ANSWER_NO_DATE
+    second["your_answer"] = asking.ANSWER_REAL_VALUE
+    questions["asked"] += [second]
+    answers = tmp_path / "answers.json"
+    answers.write_text(json.dumps(questions), encoding="utf-8", newline="\n")
+    (tmp_path / "real-profile.json").unlink()
+    code, said = _profiled(tmp_path, values, "--answers", str(answers))
+    assert code == 2
+    assert "one entry answers 'missing' and another answers 'real-value'" in said
+    assert not (tmp_path / "real-profile.json").exists()
+
+
+class _CountedList(list):  # type: ignore[type-arg]
+    """A list that counts how often it is walked whole, or searched."""
+
+    walks = 0
+
+    def __iter__(self):  # type: ignore[no-untyped-def]
+        _CountedList.walks += 1
+        return super().__iter__()
+
+    def __contains__(self, item: object) -> bool:
+        _CountedList.walks += 1
+        return super().__contains__(item)
+
+    def __getitem__(self, index):  # type: ignore[no-untyped-def]
+        _CountedList.walks += 1
+        return super().__getitem__(index)
+
+
+def test_codes_elsewhere_grows_with_the_columns_not_their_square() -> None:
+    """Forty columns, each with a code of its own that no other holds: about one look per column.
+
+    The Codex review of lane R1, item 9: each column walked every
+    question, so C columns cost C * C comparisons for an empty answer.
+    Counted here as the reads of the list of asked columns. Red on
+    110cb46, where forty columns read it about 1,600 times.
+    """
+    count = 40
+    columns: "list[list[str]]" = []
+    asked: "list[tuple[int, asking.DateCodes]]" = []
+    for place in range(count):
+        code = f"C{place}X"
+        columns += [_iso_days(99)[place:] + _iso_days(place) + [code] * 11]
+        asked += [(place, asking.DateCodes("iso-date", ((code, 11),), 99, 110))]
+    blocks = [{"name": f"c{place}", "role": "long_tail_labels", "n_present": 110} for place in range(count)]
+    counted = _CountedList(asked)
+    _CountedList.walks = 0
+    reached = asking.codes_elsewhere({"columns": blocks}, columns, counted, taxonomy.Settings())
+    assert reached == {}
+    assert _CountedList.walks <= 4 * count, _CountedList.walks
+
+
+def test_the_day_or_month_question_takes_coded_columns_by_name_once() -> None:
+    """The coded columns are looked up by name, not walked once per column of the table."""
+    count = 40
+    blocks = [{"name": f"c{place}", "role": "long_tail_labels"} for place in range(count)]
+    also = _CountedList(
+        [asking.DayOrMonth(f"c{place}", True, False) for place in range(0, count, 2)]
+    )
+    _CountedList.walks = 0
+    found = asking.day_or_month_columns({"columns": blocks}, [[] for _ in range(count)], taxonomy.Settings(), None, tuple(also))
+    assert [one.name for one in found] == [f"c{place}" for place in range(0, count, 2)]
+    _CountedList.walks = 0
+    found = asking.day_or_month_columns({"columns": blocks}, [[] for _ in range(count)], taxonomy.Settings(), None, also)  # type: ignore[arg-type]
+    assert _CountedList.walks <= 2, _CountedList.walks
+
+
+def test_answered_columns_are_found_by_name_once(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Thirty answered columns cost the names list no more walks than five.
+
+    The Codex review of lane R1, item 9: each answered column walked the
+    table's names to find itself, and searched them once more to check
+    it was there. Red on 110cb46, where 25 more answers walk them 50
+    more times.
+    """
+    count = 40
+    columns = {f"c{place}": [f"{(row * (place + 3)) % 97}" for row in range(120)] for place in range(count)}
+    table = _two_columns(tmp_path, columns)
+    shipped = reading.read_table
+
+    def counting(*arguments: object, **options: object) -> object:
+        read = shipped(*arguments, **options)  # type: ignore[arg-type]
+        return dataclasses.replace(read, column_names=_CountedList(read.column_names))
+
+    monkeypatch.setattr(reading, "read_table", counting)
+    walks: "list[int]" = []
+    for answered in (5, 30):
+        entries = [
+            {
+                "column": f"c{place}",
+                "your_answer": asking.ANSWER_NO_DATE,
+                "answers_you_can_give": [{"answer": asking.ANSWER_KEEP}, {"answer": asking.ANSWER_NO_DATE}],
+            }
+            for place in range(answered)
+        ]
+        answers = tmp_path / f"answers-{answered}.json"
+        answers.write_text(json.dumps({"asked": entries, "checklist": {"columns": []}}), encoding="utf-8")
+        _CountedList.walks = 0
+        code, said = _quiet(["profile", str(table), "--out-dir", str(tmp_path), "--replace", "--answers", str(answers)])
+        assert code == 0, said
+        walks += [_CountedList.walks]
+    assert walks[1] - walks[0] < 25, walks
