@@ -1551,9 +1551,14 @@ def sheet_moment_serial(text: str, epoch_1904: bool) -> str:
 # fraction it was read from (`sheet_clock_serial`). A column where ANY
 # such number is a day or more stays a column of numbers, as it read
 # before: `h:mm` worn by full date-times is a display choice over
-# moments, and reading it as clocks would drop their dates. A fraction
-# of a second keeps the column a column of numbers too, because the
-# clock role reads no fraction of a second (contract C6-10, reading 1).
+# moments, and reading it as clocks would drop their dates. Where some
+# stand inside the day beside others outside it, a day or more or below
+# nought, the profile path refuses the table instead (review item 3 of
+# landing R3, `workbook.mixed_storage`), because a reader hands the two
+# back as two kinds of value and a twin cannot keep which was which. A
+# fraction of a second keeps the column a column of numbers too, because
+# the clock role reads no fraction of a second (contract C6-10, reading
+# 1).
 
 SHEET_DAY_SECONDS = 86_400
 

@@ -1239,16 +1239,19 @@ it, and both are the value's and not the writer's:
   nought and `HH:MM:SS` otherwise -- the stored seconds kept whatever
   the format shows -- and the twin writes each clock back as the
   fraction of a day it was read as (method G2.2 step 0b). Where every
-  one is a day or more -- `h:mm` worn by full date-times -- or any is a
-  fraction of a second, or a value cell of the column is anything else,
-  the column stays a column of numbers, as it read before. **Where its
-  time-format numbers stand both under one day and at a day or more,
-  the profile is refused** (review item 3 of landing R3,
-  `errors.MIXED_DAYS`): every reader hands the first back as a time of
-  day and the second as a date with a time, and nothing published says
-  which values were which -- measured on 1,000 `h:mm` cells, 11 of a
-  day or more, the source read as 989 times and 11 date-times and the
-  twin as 980 and 20 with no miss reported. Measured before: 1,000
+  one is outside the day -- a day or more, `h:mm` worn by full
+  date-times, or below nought -- or any is a fraction of a second, or a
+  value cell of the column is anything else, the column stays a column
+  of numbers, as it read before. **Where its time-format numbers stand
+  both inside one day and outside it -- a day or more, or below nought
+  -- the profile is refused** (review item 3 of landing R3,
+  `errors.MIXED_DAYS`), the line drawn at the millisecond: a reader such
+  as openpyxl hands the first back as a time of day and the others as a
+  date with a time, and nothing published says which values were which
+  -- measured on 1,000 `h:mm` cells, 11 of a day or more, the source
+  read as 989 times and 11 date-times and the twin as 980 and 20 with no
+  miss reported, and with the 11 below nought, which the repair first
+  let through, the twin read as 988 and 12. Measured before: 1,000
   whole minutes wearing `h:mm` were described as `continuous`, every
   twin cell carried seconds and microseconds its source did not, and
   ten read back as date-times; with seconds stored the description

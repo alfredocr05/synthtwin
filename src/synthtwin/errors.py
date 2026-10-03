@@ -2778,9 +2778,10 @@ MIXED_FORMATS = "formats"
 # either (plan P4-D283): two number format CODES of the same kind, each
 # worn by the line. `workbook.mixed_number_formats` names it.
 MIXED_CODES = "codes"
-# ...and a time format over numbers both under one day and of a day or
-# more, which every reader returns as two kinds of value (review item 3
-# of landing R3). `workbook.mixed_storage` names it.
+# ...and a time format over numbers both inside one day and outside it
+# -- a day or more, or below nought -- which a reader such as openpyxl
+# returns as two kinds of value (review item 3 of landing R3).
+# `workbook.mixed_storage` names it.
 MIXED_DAYS = "days"
 
 
@@ -2856,24 +2857,29 @@ def workbook_column_mixes_storage(
     message speaks of the mix it names most often.
 
     ``mixed`` of `MIXED_DAYS` is a column whose numbers all wear a time
-    format, some under one day and some of a day or more (review item 3
-    of landing R3): every reader returns the first as a time of day and
-    the second as a date with a time, so the message says that, and that
-    the cure is a format showing the date on the cells holding one.
+    format, some inside one day and some outside it -- a day or more, or
+    below nought (review item 3 of landing R3): a reader such as
+    openpyxl returns the first as a time of day and the others as a date
+    with a time, so the message says that, and that the cure is a format
+    showing the date on the cells holding one, or a format for a length
+    of time on a column of lengths of time. It does not say EVERY
+    reader: some hand back a date with a time for each of them.
     """
     if mixed == MIXED_DAYS:
         return (
             f"The column '{_shown(column)}' of {path} holds numbers all "
             f"shown as times of day, some of them under one day and others "
             f"a whole day or more -- a date with a time, of which the "
-            f"format shows only the time. Every reader hands the first "
-            f"back as a time of day and the second as a date with a time, "
-            f"and a twin cannot keep which values were which, so code "
-            f"reading that column would get different kinds of value from "
-            f"the twin and from your table. Please open the workbook, give "
-            f"the cells of that column that hold a date a format that shows "
-            f"the date as well, or take the date out of them, save it "
-            f"again, and run the command again."
+            f"format shows only the time -- or below nought. A reader such "
+            f"as pandas hands the first back as a time of day and the others "
+            f"as a date with a time, and a twin cannot keep which values "
+            f"were which, so code reading that column would get different "
+            f"kinds of value from the twin and from your table. Please open "
+            f"the workbook, give the cells of that column that hold a date a "
+            f"format that shows the date as well, or take the date out of "
+            f"them -- or, if the column holds lengths of time, give it a "
+            f"format such as [h]:mm -- save it again, and run the command "
+            f"again."
         )
     if mixed != MIXED_FORMATS:
         raise ValueError("internal check: an unknown kind of mixed column")

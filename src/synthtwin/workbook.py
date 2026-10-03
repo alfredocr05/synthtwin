@@ -2641,7 +2641,10 @@ def mixed_storage(
     and 989 under one, all on whole minutes: openpyxl read the source as
     989 times and 11 date-times, the twin as 980 and 20, 999 of them off
     the minute, and `validate` reported no miss. Such a column is
-    refused, with `errors.MIXED_DAYS`, before a description is written.
+    refused, with `errors.MIXED_DAYS`, before a description is written;
+    and so is one whose time-format numbers stand inside one day and
+    below nought, which openpyxl hands back as a date with a time too
+    (`_clock_and_moment`).
 
     Returns the column's index, `errors.MIXED_FORMATS` or
     `errors.MIXED_DAYS`, and the kinds its numbers wear, in
@@ -2678,32 +2681,39 @@ def mixed_storage(
 def _clock_and_moment(
     texts: "list[str]", classes: "list[str]", codes: "list[str]"
 ) -> bool:
-    """Whether a column's time-format numbers stand both under one day and at one or more.
+    """Whether a column's time-format numbers stand both inside one day and outside it.
 
-    `mixed_storage`'s question for a column whose numbers wear only a
-    time format: a number from nought up to one day is a time of day to
-    every reader, and one of a day or more a date with a time. A cell
-    the reader already spelled as its clock holds no number and is a
-    time of day. Guarantees: a fixed function of the three; raises
-    nothing. No I/O of any kind.
+    `mixed_storage`'s question for a column whose every number wears a
+    time format, which is the only column it asks: a number from nought
+    up to one day is a time of day to a reader such as openpyxl, and
+    any other -- a day or more, or below nought -- a date with a time,
+    the line drawn at the millisecond, where `dialect.sheet_serial_second`
+    and openpyxl both round. BELOW NOUGHT IS OUTSIDE TOO (the repair of
+    review item 3 of landing R3): asked only for a day or more, 989
+    clocks beside 11 numbers below nought were read as continuous
+    numbers, openpyxl read the source as 989 times and 11 date-times and
+    the twin as 988 and 12, 996 of them off the minute, and `validate`
+    reported no miss. A cell the reader already spelled as its clock
+    holds no number and is a time of day. Guarantees: a fixed function
+    of the three; raises nothing. No I/O of any kind.
     """
-    under = False
-    over = False
+    inside = False
+    outside = False
     for row in range(min(len(texts), len(classes), len(codes))):
         if classes[row] != dialect.SHEET_CELL_NUMBER:
-            continue
-        if format_kind(codes[row]) != FORMAT_TIME:
             continue
         try:
             value = float(texts[row])
         except ValueError:
-            under = True
+            inside = True
             continue
-        if value >= 1:
-            over = True
-        elif value >= 0:
-            under = True
-        if under and over:
+        if value >= 0 and round(value * dialect.SHEET_DAY_MILLISECONDS) < (
+            dialect.SHEET_DAY_MILLISECONDS
+        ):
+            inside = True
+        else:
+            outside = True
+        if inside and outside:
             return True
     return False
 
