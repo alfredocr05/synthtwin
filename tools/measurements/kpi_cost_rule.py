@@ -34,8 +34,9 @@ producer, and -- where a twin is asked -- the real generator and checker:
   real column's furthest cell, and by how much; and, since the review of
   landing 3b.G1 (item 2), over `_GRIDS`' evenly spaced columns at the
   same four floors and three seeds, the same overshoot counted apart,
-  because there the harmonic end of P4-D322 reaches further than
-  anywhere in `K-S3-20`'s battery.
+  because there the outward move of method G5.3b step 4, made whatever
+  the fitted power, reaches further than anywhere in `K-S3-20`'s
+  battery.
 
 Every column is built from a fixed seed string at run time; nothing is
 read from disk but the tree's own code.
@@ -313,10 +314,12 @@ def _numbers_of(text):
 
 # THE EVENLY SPACED COLUMNS (review of landing 3b.G1, item 2): the
 # review's 101 measurements 0.25 to 25.25 written with two decimals, and
-# 500 of them on the same step. A flat tail is where the harmonic end of
-# P4-D322 -- `d1 * H(rows)`, where the largest of `rows` draws of an
-# exponential tail of that mean is expected -- stands furthest past the
-# real end: at a floor of 50 each tail is half the column.
+# 500 of them on the same step. A flat tail is where the outward move of
+# method G5.3b step 4 -- `d1 * H(rows)`, where the largest of `rows`
+# draws of an exponential tail of that mean is expected, made whatever
+# the fitted power -- stands furthest past the real end: at a floor of
+# 50 each tail is half the column, fits power 0, and its outermost row
+# reads the real maximum before the move.
 _GRIDS = (("grid_101", 101), ("grid_500", 500))
 
 

@@ -11714,16 +11714,6 @@ def _next_representable(value: float, downward: bool) -> float:
     return -stepped if value < 0.0 else stepped
 
 
-# HOW FAR BEYOND THE FITTED END THE PINNED STRATUM STANDS (method G5.3b,
-# plan P4-D326). The two-moment shape ends at a finite `E`, and a tail
-# at least as long as an exponential one has its real extreme further
-# out, so code that learned the twin's range met real rows outside it.
-# From the fitted power named here up, the pinned end stands at the
-# larger of `E` and where the largest of `rows` exponential draws of the
-# tail's mean is expected, held inside the bound no row can pass.
-_TAIL_OUTWARD_POWER = 2
-
-
 @dataclasses.dataclass(frozen=True)
 class TailReader:
     """One side of a tail block's ladder, as the construction reads it.
@@ -12601,13 +12591,22 @@ def _tail_outward(
     column of charges 13 per cent past its own largest value and its
     twin's spread 9.7 per cent high.
 
-    THEN OUTWARD, where the fitted power is `_TAIL_OUTWARD_POWER` or
-    more -- a tail at least as long as an exponential one -- to the
-    larger of that and `d1 H(rows)`, `H` the harmonic sum
-    `1 + 1/2 + ... + 1/rows`, which is where the largest of `rows`
-    draws from an exponential tail of mean `d1` is expected; a shorter
-    tail keeps what it read. A function of published facts alone, held
-    under the tail's own bound by the caller.
+    THEN OUTWARD, WHATEVER THE FITTED POWER (method G5.3b step 4, the
+    oracle's `outward_move`), to the larger of that and `d1 H(rows)`,
+    `H` the harmonic sum `1 + 1/2 + ... + 1/rows`, which is where the
+    largest of `rows` draws from an exponential tail of mean `d1` is
+    expected. ``power`` is carried for the reader, as the oracle carries
+    it: plan P4-D322 made the move only at a fitted power of 2 or more,
+    and it is made on every tail since the light ones were measured, a
+    normal column's fitted end standing inside its real extreme. A FLAT
+    TAIL IS WHERE IT STANDS FURTHEST OUT (review of landing 3b.G1, item
+    2): 101 measurements 0.25 to 25.25 at a floor of 50 have a high tail
+    of power 0 beyond a boundary of 12.75, whose outermost row reads
+    12.5 past it -- the real maximum -- and `d1 H(50)` moves it to 28.68
+    past it, 64.7 per cent of the span beyond that maximum with every
+    moment inside its window (`K-S3-50`, recorded and not repaired). A
+    function of published facts alone, held under the tail's own bound
+    by the caller.
     """
     width = 2 * rows
     share = math.ldexp(((width - 1) << 53) // width, -53)
