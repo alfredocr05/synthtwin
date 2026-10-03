@@ -16880,13 +16880,21 @@ def _pool_mark_count(
     publishes where fewer marks would hold none too many -- and G12.8
     lets a count be passed only where the spellings cannot supply it. So
     the most marks, of seven down to the fewest -- two or more, whose
-    number as the room lets the pool stand (`parsing.mixture_pool_holds`),
+    number as the room lets the pool stand (`parsing.lone_pool_stands`),
     so the twin's own description pools it again -- whose cells hold no
     more different spellings than ``budget``; where none does, the most
     marks among those whose cells hold the fewest, so a mark is given up
     only where giving it up brings the count nearer. Seven `1,234.00` and
     seven `1 234.00` pool fourteen beside three spellings, and two marks
     hold it: the twin writes three (the second review, finding 3).
+
+    THE POOL IS ASKED AS THE LOADER ASKS IT (`parsing.lone_pool_stands`,
+    the Codex review of 3b-R0, its verifier's open item): two sums
+    first, and True where the walk stops short, so the fewest marks are
+    the ones the walk that always finished gave (110cb46) at any floor.
+    Asked with False, a walk stopped short read as a pool that cannot
+    stand, and under a budget of one step forty pooled at a floor of
+    eleven went to seven marks where the statement gives five.
 
     Guarantees: accepts the pool, the settings floor, the folded count
     of different spellings G6.5 aims the numbers at and, for each count
@@ -16897,9 +16905,7 @@ def _pool_mark_count(
     """
     seven = len(parsing.GROUP_MARKS)
     fewest = 2
-    while fewest < seven and not parsing.mixture_pool_holds(
-        pool, floor, [pool] * seven, fewest
-    ):
+    while fewest < seven and not parsing.lone_pool_stands(pool, floor, seven, fewest):
         fewest = fewest + 1
     best = seven
     for most in range(seven, fewest - 1, -1):
@@ -17233,9 +17239,16 @@ def _pool_alone_places(
        cannot be the real column's own bare cells, which the census is
        published beside only at nought or at least the floor -- and the
        pool otherwise; never more than ``most`` marks, read as the room,
-       let stand (`parsing.mixture_pool_holds`), so the twin's own
+       let stand (`parsing.lone_pool_stands`), so the twin's own
        description pools the count again rather than counting it under
-       one mark.
+       one mark. It is asked as the loader asks it -- two sums, then
+       True where the walk stops short (the Codex review of 3b-R0, its
+       verifier's open item) -- so T is the one the walk that always
+       finished gave (110cb46) at any floor. Asked with False, each walk
+       stopped short lowered T by one cell: 350,000 groupable cells and
+       a pool of 200,000 under a line of 300,001 would have asked about
+       50,000 walks of three CPU seconds each and marked 300,000, where
+       110cb46 asked one walk and marked all 350,000, as this does.
     2. WHICH CELLS. The T are taken over the groupable cells by the
        spread `_plus_cells_by_value` states (plan P4-D149), so the cells
        left bare are not the largest ones.
@@ -17288,8 +17301,8 @@ def _pool_alone_places(
     wanted = pool
     if len(cells) < pool + line:
         wanted = len(cells)
-    while wanted >= line and not parsing.mixture_pool_holds(
-        wanted, floor, [wanted] * len(parsing.GROUP_MARKS), len(marks)
+    while wanted >= line and not parsing.lone_pool_stands(
+        wanted, floor, len(parsing.GROUP_MARKS), len(marks)
     ):
         wanted = wanted - 1
     values = holds

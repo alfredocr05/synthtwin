@@ -6078,6 +6078,64 @@ def census_pools(
     return mixture_pool_holds(population, floor, held, seen, groups, unfinished, shown)
 
 
+def lone_pool_stands(population: int, floor: int, conventions: int, room: int) -> bool:
+    """Whether a pool over names of one capacity, with no value placed, may stand: answered at any floor.
+
+    The question the loader asks of a closed census's lone pool
+    (`contract._census_may_speak`: D12, P6, NS2 and TM1) and the twin asks
+    of its own pooled marks (`generation._pool_mark_count`,
+    `generation._pool_alone_places`): `mixture_pool_holds` over
+    ``conventions`` names, each able to hold the whole pool, at most
+    ``room`` of them written, and no value placed.
+
+    TWO SUMS ARE ASKED BEFORE THE WALK (the Codex review of 3b-R0, its
+    verifier's open item), and every reading meets both:
+
+    1. a reading leaving a name absent writes no more of the others than
+       the room, each at most one less than the line, so a pool past
+       that says every name was written (clause 1);
+    2. a reading in which no name stands at one less than the line holds
+       at most two less than the line on each name it writes, so a pool
+       past that many on as many names as the room lets be written has
+       a name at one less than the line in every reading (clause 2).
+
+    Past either the walk answers False, so the sums never refuse a pool
+    a finished walk lets stand. Within both, on a line past three, every
+    count under the line has a reading without it and every name a
+    reading without it, so the walk answers True: the sums are its whole
+    answer there, 240,445 pools at 40 floors from four to 150, every
+    vocabulary of one to seven names and every room to nine, against the
+    walk that always finished (110cb46). Where the walk stops short this
+    answers True, as the loader's other call sites answer, so it refuses
+    only what the sums or a finished walk show pinned.
+
+    Why it is needed: since a leaf of the walk stops at its two ceilings
+    (the review's item 1), a walk over a line of hundreds of thousands
+    stops short at the shipped budget. Asked with False there, the
+    loader refused pools the walk lets stand -- 400,000 under a line of
+    300,001, which six marks hold -- and the twin, asking how many
+    groupable cells its marks may hold, lowered its count one cell a walk
+    stopped short: from 350,000 cells under that line, about three CPU
+    seconds a walk for 50,000 walks, where 110cb46 took one walk of
+    4.8 s. Asked with True and no sums, the loader took a pool past what
+    all but one name can hold below the line: 2,100,000 under that line.
+
+    Guarantees: accepts the population, the settings floor, the number
+    of names (one or more) and the room; returns a bool, True for a
+    population below the line. Determinism: a fixed function of the four.
+    Raises nothing. No I/O of any kind.
+    """
+    line = census_floor(floor)
+    if population < line:
+        return True
+    seen = min(room, conventions)
+    if population > min(seen, conventions - 1) * (line - 1):
+        return False
+    if population > seen * (line - 2):
+        return False
+    return mixture_pool_holds(population, floor, [population] * conventions, room, (), True)
+
+
 # HOW FAR `mixture_pool_holds` WALKS before it answers without finishing
 # (the final fix of follow-up B): every step placing a value's rows and
 # every reading of the free cells it asks counts one, about a second for
@@ -6206,7 +6264,9 @@ def mixture_pool_holds(
     counts the census under one convention, True for the loader, which
     refuses only a pool it has shown pinned. The producer's readings are
     never more than the loader's, so it never pools what the loader
-    refuses.
+    refuses. The loader's closed censuses and the twin's own pooled
+    marks ask one kind with no value through `lone_pool_stands`, True
+    where the walk stops short and two sums asked first.
 
     One statement, read by the producer (`taxonomy._mixture_band` and
     `absorbed_census`, with the pooled cells' true spellings and every
