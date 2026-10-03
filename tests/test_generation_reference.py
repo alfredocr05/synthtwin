@@ -829,6 +829,7 @@ TWENTY_FIRST_BRANCH_CASES = (
     "clock_census_seconds",
     "clock_census_slots",
     "clock_census_tail_heaps",
+    "labels_clock_line",
     "labels_clock_shaped",
 )
 
@@ -873,6 +874,8 @@ SEEDS = {
     "clock_census_no_tails": 431,
     "clock_census_listed_tail_heap": 432,
     "labels_clock_shaped": 433,
+    # ...and its repair round's clock line (plan P4-D373) the next one.
+    "labels_clock_line": 434,
     # Landing T1's written clocks take the next seeds after the highest in
     # use below 34041 (plan P4-D370).
     "stamp_unpadded_hour": 416,
@@ -1084,6 +1087,16 @@ SEEDS = {
 # contract's invariant GS1 binds to settings.forced_decimal_commas.
 DECLARED_DECIMAL_COMMAS = frozenset({"grouped_decimal_comma", "spaced_decimal_comma"})
 
+# The cases whose column was declared with --code (the repair round of
+# landing 3b.5, plan P4-D373): its twin is read as labels whatever its
+# cells read as, so G8.3 holds it below no clock line.
+DECLARED_CODES = frozenset({"labels_clock_shaped"})
+
+# The cases described at a parse rate other than every other case's 0.9:
+# the clock line G8.3 holds a label column's twin below is the rate's
+# (the repair round of landing 3b.5), and this case's is the default.
+PARSE_RATES = {"labels_clock_line": 0.99}
+
 # The cases whose column was declared with --identifier, which the
 # contract's invariant A1 binds to settings.forced_identifiers.
 DECLARED_IDENTIFIERS = frozenset(
@@ -1159,12 +1172,17 @@ def _relationships() -> dict:
     }
 
 
-def _settings(declared: list, commas: "list | None" = None) -> dict:
+def _settings(
+    declared: list,
+    commas: "list | None" = None,
+    codes: "list | None" = None,
+    rate: float = 0.9,
+) -> dict:
     return {
         "small_cell_floor": 11,
         "identifier_uniqueness": 0.95,
         "identifier_minimum_rows": 0,
-        "minimum_parse_rate": 0.9,
+        "minimum_parse_rate": rate,
         "categorical_share": 0.5,
         "categorical_ceiling": 50,
         "categorical_floor": 1,
@@ -1196,11 +1214,11 @@ def _settings(declared: list, commas: "list | None" = None) -> dict:
         # disclosure floor is counted in rows whatever this key says.
         "person_columns": [],
         "forced_identifiers": declared,
-        # The second declaration (plan P4-D19). The oracle declares no
-        # code column: every case here is built from the generation
-        # method's own text, and none of them turns on the reading a
-        # declaration changes.
-        "forced_codes": [],
+        # The second declaration (plan P4-D19). The oracle declares one
+        # code column, G8.3's clock supply (the repair round of landing
+        # 3b.5): a declared column has no clock line, and that case turns
+        # on it.
+        "forced_codes": [] if codes is None else codes,
         # The third declaration (plan P4-D21). The oracle declares no
         # measurement column: every case here is built from the
         # generation method's own text.
@@ -1244,6 +1262,8 @@ def _profile_document(case: dict, name: str) -> dict:
     column = _unwrap(case["column"])
     declared = [column["name"]] if name in DECLARED_IDENTIFIERS else []
     commas = [column["name"]] if name in DECLARED_DECIMAL_COMMAS else []
+    codes = [column["name"]] if name in DECLARED_CODES else []
+    rate = PARSE_RATES[name] if name in PARSE_RATES else 0.9
     return {
         "columns": [column],
         "created_with": "0+unknown",
@@ -1252,7 +1272,7 @@ def _profile_document(case: dict, name: str) -> dict:
         "profile_version": 6,
         "publication_notes": [],
         "relationships": _relationships(),
-        "settings": _settings(declared, commas),
+        "settings": _settings(declared, commas, codes, rate),
         "source": {
             "dialect": dialect.document_of(
                 dialect.ordinary(1, len(case["cells"]), False)
@@ -1756,7 +1776,7 @@ TWENTY_SECOND_BRANCH_PUBLISHED_NUMBERS = 0
 TWENTY_SECOND_BRANCH_NAMED_COUNTS = 122
 # The twenty-first, at its own generator's line ("proved 40 ... beside 536").
 TWENTY_FIRST_BRANCH_PUBLISHED_NUMBERS = 40
-TWENTY_FIRST_BRANCH_NAMED_COUNTS = 536
+TWENTY_FIRST_BRANCH_NAMED_COUNTS = 573
 # The document file publishes NO binary64 at all, and that is a fact
 # about its transforms rather than a gap in its proof: the written form,
 # the arrangement, the workbook writer, the shape of a line before a
@@ -3001,7 +3021,8 @@ def _next_on_the_ladder_without_the_census(
 
 
 def _levels_from_the_second_spelling(
-    used, sizes, census=None, written=(), placed=None, level_shape=""
+    used, sizes, census=None, written=(), placed=None, level_shape="",
+    room=None,
 ):
     """G8.3's stand-in walk, started one spelling along.
 
@@ -3118,9 +3139,9 @@ def _no_layout_preferred(
     return [""] * len(groups)
 
 
-def _lower_filled_in_capitals(form, step):
+def _lower_filled_in_capitals(form, step, clocks=True):
     """C6-31a's lower-case key withdrawn: `&` is filled as `@` is."""
-    return gen_filled_form(form.replace("&", "@"), step)
+    return gen_filled_form(form.replace("&", "@"), step, clocks)
 
 
 def _no_spelling_census(column):
@@ -3501,6 +3522,11 @@ def _codes_withdrawn(_column):
     return []
 
 
+def _no_clock_line(present, clocks, others, rate=0.9):
+    """G8.3's clock line withdrawn: every held-back level a time."""
+    return present - clocks - others
+
+
 def _clock_supply_on_the_hour(form, step):
     """G8.3's clock supply, every time on the hour: its minutes withdrawn."""
     text = gen_clock_filled_form(form, step)
@@ -3589,6 +3615,12 @@ CASE_MUTANTS = {
         branch="G8.3's clock supply, every time of the day a clock's form writes; the mutant writes every time on the hour, and the walk steps past the ones already written",
         attribute="clock_filled_form",
         replacement=_clock_supply_on_the_hour,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "labels_clock_line": Mutant(
+        branch="G8.3's clock line (the repair round of landing 3b.5), which fills a label column's held-back levels with times only while its twin stays labels; the mutant fills every one with a time, and the twin is read back as clock times",
+        attribute="clock_line_room",
+        replacement=_no_clock_line,
         outcome=CHANGES_THE_CELLS,
     ),
     # LANDING T1'S WRITTEN CLOCKS (plan P4-D370), each case's own rule.

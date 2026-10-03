@@ -17223,6 +17223,30 @@ def _joined_verdict(
     )
 
 
+# A FEW WORDS, NOT A SHARE (the repair round of landing 3b.5, plan
+# P4-D373): the rare words the level pass may count missing beside clock
+# times hold at most one present cell in this many. Past it the words are
+# a share of the column rather than a few slips beside its times, and the
+# column stays labels. The generator holds a label column's twin to the
+# same two lines (`clock_line`, method G8.3), so the twin is read back as
+# labels too.
+RARE_WORDS_BESIDE_CLOCKS = 50
+
+
+def clock_line(rate: float, present: int) -> int:
+    """How many of ``present`` cells must read as clock times (plan P4-D373).
+
+    The recorded parse rate's exact count (`_needed`), and never below
+    one, as the clock reading asks it (`_clock_spellings_reach`,
+    `_clock_reading`). Public for the generator, which keeps the
+    clock-shaped stand-ins of a column of labels below it (method G8.3).
+
+    Guarantees: a function of the two; at least one. Raises TypeError
+    where the rate is not a float instance. No I/O of any kind.
+    """
+    return max(1, _needed(rate, present))
+
+
 def _rare_beside_clocks(
     cells: _Cells,
     classified: "list[_Cell]",
@@ -17233,16 +17257,43 @@ def _rare_beside_clocks(
     """The rare words a column of clock times holds, or nothing (P4-D373).
 
     The folded values below the floor no spelling of which a clock reader
-    takes, where the column without exactly their cells has a clock
-    reading (`_clock_reading`); nothing otherwise, and nothing where there
-    are none. The level pass counts these cells missing and lets every
-    rule read the column again (`_read_the_column`).
+    takes, where they hold at most one present cell in
+    `RARE_WORDS_BESIDE_CLOCKS` and the column without exactly their cells
+    has a clock reading (`_clock_reading`); nothing otherwise, and nothing
+    where there are none. The level pass counts these cells missing and
+    lets every rule read the column again (`_read_the_column`). It is
+    asked of every first reading as labels or free text, not only where
+    the level pass counts a level out (the repair round of landing 3b.5):
+    a column of `7:30 AM` beside 0.6 % `UNK` and 0.3 % `99:99` was free
+    text at 300 and 1,000 rows, and its twin wrote every cell `group-N`.
+
+    THE CELLS NO CLOCK READER TAKES ARE COUNTED FIRST, and the count
+    stops as soon as they are more than the column could hold and still
+    clear the clock line once its rare words were counted out -- so a
+    column of words is answered after a few of its spellings, however
+    many it has, and only a column almost all times is read further.
 
     Guarantees: a function of the arguments, in sorted order. Raises
     nothing. No I/O of any kind.
     """
+    present = len(cells.present)
+    if not present:
+        return ()
+    rate = settings.minimum_parse_rate
+    allowed = present - clock_line(
+        rate, present - present // RARE_WORDS_BESIDE_CLOCKS
+    )
+    unread = 0
+    for folded in cells.spellings_by_folded:
+        spellings = cells.spellings_by_folded[folded]
+        for spelling in spellings:
+            if parsing.clock_parts(spelling) is None:
+                unread = unread + spellings[spelling]
+                if unread > allowed:
+                    return ()
     floor = settings.small_cell_floor
     rare: "dict[str, bool]" = {}
+    counted = 0
     for folded in sorted(cells.folded_counts):
         if cells.folded_counts[folded] >= floor:
             continue
@@ -17250,7 +17301,11 @@ def _rare_beside_clocks(
         if any(parsing.clock_parts(spelling) is not None for spelling in spellings):
             continue
         rare[folded] = True
-    if not rare:
+        counted = counted + cells.folded_counts[folded]
+    if not rare or counted * RARE_WORDS_BESIDE_CLOCKS > present:
+        return ()
+    # THE CELLS LEFT MUST CLEAR THE CLOCK LINE before any is tallied again.
+    if present - unread < clock_line(rate, present - counted):
         return ()
     kept = [cell for cell in classified if cell.folded not in rare]
     if not kept:
@@ -21591,9 +21646,13 @@ def _read_the_column(
         # rule: the times left were times all along, as the numbers
         # beside labels below were numbers. Without it, 296 shift starts
         # beside four `UNK` at a floor of eleven were labels whose twin --
-        # those four cells blank -- read back as clock times.
+        # those four cells blank -- read back as clock times. ASKED OF
+        # EVERY READING AS LABELS OR FREE TEXT, and not only where a level
+        # is counted out above (the repair round): beside a few rare
+        # codes no level is forced to a count of one, and a column of
+        # `7:30 AM` stayed free text whose twin was written `group-N`.
         clocks_left: "tuple[str, ...]" = ()
-        if counted_out and not forced_code and trial.role in _LEVEL_ROLES:
+        if not forced_code and trial.role in _LEVEL_ROLES + (ROLE_TEXT,):
             clocks_left = _rare_beside_clocks(
                 cells, classified, n_rows, settings, forced_decimal_comma
             )

@@ -6729,6 +6729,13 @@ def usable_stand_in(candidate):
     # below is answered for it rather than reasoned away.
     if clock_reads(candidate, False):
         return candidate[0] not in "=+-@"
+    # ...AND NEITHER IS A CLOCK'S FORM FILLED FIGURE BY FIGURE (the repair
+    # round of landing 3b.5): an hour field, minutes and seconds of
+    # figures parted by colons, and a marker or not.  No number grammar
+    # reads a colon, and the only reading of figures parted by a colon
+    # alone is a clock's, which `clock_reads` has just refused.
+    if figure_filled_clock(candidate):
+        return candidate[0] not in "=+-@"
     for character in candidate:
         if character == "," or character == '"':
             return False
@@ -6876,15 +6883,18 @@ def clock_filled_form(form, step):
     return text
 
 
-def filled_form(form, step):
+def filled_form(form, step, clocks=True):
     """One spelling of one form -- contract 7.9.1.
 
     A form a clock time can wear is filled with clock times first
-    (`clock_filled_form`, plan P4-D373).
+    (`clock_filled_form`, plan P4-D373), unless ``clocks`` is false: past
+    a label column's clock line it is filled figure by figure, as every
+    form was before that landing (`clock_line_room`).
     """
-    clock = clock_filled_form(form, step)
-    if clock is not None:
-        return clock
+    if clocks:
+        clock = clock_filled_form(form, step)
+        if clock is not None:
+            return clock
     figures = "0123456789"
     letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
     built = ""
@@ -6904,6 +6914,102 @@ def filled_form(form, step):
         else:
             built += character
     return built
+
+
+# THE CLOCK LINE A COLUMN OF LABELS IS HELD BELOW (the repair round of
+# landing 3b.5, plan P4-D373; method G8.3, contract 7.9.1).  The share of
+# present cells that must read as clock times is the settings' own
+# parse rate, which the reference test describes every case at; the rare
+# words the level pass may count missing beside clock times hold at most
+# one present cell in fifty.
+MINIMUM_PARSE_RATE = 0.9
+RARE_WORDS_BESIDE_CLOCKS = 50
+
+
+def clock_line(total, rate=MINIMUM_PARSE_RATE):
+    """How many of ``total`` cells must read as clock times: the exact
+    product of the binary64 parse rate and the count, its ceiling, and
+    never below one (contract 4.5.2)."""
+    return max(1, math.ceil(fractions.Fraction(rate) * total))
+
+
+def clock_line_room(present, clocks, others, rate=MINIMUM_PARSE_RATE):
+    """How many stand-in cells of a column of labels may be clock times.
+
+    Method G8.3's clock supply stops where the twin, described again,
+    would be read as clock times by either of the producer's two rules:
+    its cells a clock reader takes reach the clock line, or they do once
+    the rare words beside them -- the stand-ins written as no time, each
+    below the floor -- are counted out, where those hold at most one
+    present cell in fifty.  ``clocks`` and ``others`` are the cells the
+    published levels wrote that a clock reader does and does not take;
+    the stand-ins hold the rest.  The largest number of stand-in cells
+    under which neither rule fires, counted down from all of them.
+    """
+    stand_ins = present - clocks - others
+    for taken in range(stand_ins, -1, -1):
+        total = clocks + taken
+        if total >= clock_line(present, rate):
+            continue
+        if (stand_ins - taken) * RARE_WORDS_BESIDE_CLOCKS > present:
+            return taken
+        if total < clock_line(total + others, rate):
+            return taken
+    return 0
+
+
+def figure_filled_clock(text):
+    """Whether ``text`` is a clock's form filled figure by figure.
+
+    One or two figures, a colon and two, optionally a colon and two
+    more, and optionally a marker word after one space or none: the
+    spellings `filled_form` gives a clock's form past its clock line.
+    """
+    body = text
+    for morning, evening in CLOCK_PAIRS.values():
+        for word in (morning, evening):
+            if len(body) > len(word) and body.endswith(word):
+                body = body[: -len(word)]
+                if body.endswith(" "):
+                    body = body[:-1]
+                break
+        if body != text:
+            break
+    fields = body.split(":")
+    if len(fields) not in (2, 3) or figures_of(fields[0], 1, 2) is None:
+        return False
+    return all(figures_of(field, 2, 2) is not None for field in fields[1:])
+
+
+# THE MARKS A LEVEL KEY ENDS IN for a clock time written with one space
+# before its marker (the repair round of landing 3b.5; contract 7.9.1).
+SPACED_CLOCK_MARKS = {
+    "AM-PM": " @@",
+    "am-pm": " &&",
+    "A.M.-P.M.": " @.@.",
+    "a.m.-p.m.": " &.&.",
+}
+
+
+def spaced_clock_key(text):
+    """The level key of a clock time with one space before its marker, or "".
+
+    Such a cell has no written form -- a form holds no space -- so the
+    clock's own form is its key with the space and the marker's marks
+    kept: `%:%% @@` for `7:30 AM`, `%%:%%:%% &&` for `07:30:15 pm`.
+    """
+    if not clock_reads(text, False):
+        return ""
+    for pair in CLOCK_PAIRS:
+        for word in CLOCK_PAIRS[pair]:
+            if text.endswith(" " + word):
+                fields = text[: -len(word) - 1].split(":")
+                return (
+                    SHAPE_DIGIT * len(fields[0])
+                    + "".join(":" + SHAPE_DIGIT * 2 for _field in fields[1:])
+                    + SPACED_CLOCK_MARKS[pair]
+                )
+    return ""
 
 
 def forms_owed(census, written):
@@ -7176,7 +7282,8 @@ def shared_out(sizes, owing, seen, folds, supplied=None):
 
 
 def invented_levels(
-    used, sizes, census=None, written=(), placed=None, level_shape=""
+    used, sizes, census=None, written=(), placed=None, level_shape="",
+    room=None,
 ):
     """The stand-in labels of method sections G8.3 and G8.3a.
 
@@ -7192,6 +7299,13 @@ def invented_levels(
     ``placed``, where given, holds the sizes G8.3a already wrote as
     numbers: those keep their spellings, every form a number can wear is
     taken out of the debt, and the words are settled over the rest.
+
+    ``room``, where given, is how many stand-in cells may still be clock
+    times (`clock_line_room`).  Before a stand-in of a clock's form whose
+    size is more than what is left, every later one of a clock's form is
+    filled figure by figure, on a cursor of its own per form, and a
+    spelling a clock reader takes is stepped past; each stand-in a clock
+    reader takes spends its size.
     """
     seen = set(used)
     folds = {folded(text) for text in used}
@@ -7216,6 +7330,7 @@ def invented_levels(
         )
     produced = []
     walked = {}
+    figures = None
     number = 0
     for place, size in enumerate(sizes):
         if placed is not None and place in placed:
@@ -7224,13 +7339,20 @@ def invented_levels(
         form = shared[place]
         if not form and place in covered:
             form = level_shape
+        clock_shaped = bool(form) and clock_filled_form(form, 0) is not None
+        if room is not None and figures is None and clock_shaped and size > room:
+            figures = {}
         candidate = None
         if form:
-            room = min(form_room(form), STAND_IN_STEPS)
-            walked.setdefault(form, 0)
-            while walked[form] < room:
-                trial = filled_form(form, walked[form])
-                walked[form] += 1
+            figured = figures is not None and clock_shaped
+            cursor = figures if figured else walked
+            steps = min(form_room(form), STAND_IN_STEPS)
+            cursor.setdefault(form, 0)
+            while cursor[form] < steps:
+                trial = filled_form(form, cursor[form], not figured)
+                cursor[form] += 1
+                if figured and clock_reads(trial, False):
+                    continue
                 if trial in seen or folded(trial) in folds:
                     continue
                 if not usable_stand_in(trial):
@@ -7247,6 +7369,8 @@ def invented_levels(
                     continue
                 candidate = trial
                 break
+        if room is not None and clock_reads(candidate, False):
+            room -= size
         seen.add(candidate)
         folds.add(folded(candidate))
         produced.append((candidate, size))
@@ -8926,6 +9050,10 @@ def level_key(spelling):
     of the spelling is lower case; "" where it has no form.
     """
     form = written_form(spelling)
+    if not form:
+        # A CLOCK TIME WITH ONE SPACE BEFORE ITS MARKER keeps the space in
+        # its key (the repair round of landing 3b.5; contract 7.9.1).
+        return spaced_clock_key(spelling)
     if form and SHAPE_LETTER in form and all_letters_lower(spelling):
         return form.replace(SHAPE_LETTER, SHAPE_LOWER)
     return form
@@ -9230,14 +9358,25 @@ def _label_content(column):
         placed, _debts = class_stand_ins(column, content, used, sizes, census)
     # THE SHAPE A STAND-IN OWED NO NAMED FORM TAKES (landing 2b.18 part 2).
     level_shape = published_level_shape(column)
+    # THE CLOCK LINE THE TWIN IS HELD BELOW (the repair round of landing
+    # 3b.5), counted over the cells the published levels wrote; a column
+    # declared `--code` is read as labels whatever its cells read as, so
+    # it has none.
+    room = None
+    if not column.get("_code_declared"):
+        timed = sum(1 for cell in content if clock_reads(cell, False))
+        room = clock_line_room(
+            column["n_present"], timed, len(content) - timed,
+            column.get("_parse_rate", MINIMUM_PARSE_RATE),
+        )
     if placed is None:
         stand_ins = invented_levels(
-            used, sizes, census, content, level_shape=level_shape
+            used, sizes, census, content, level_shape=level_shape, room=room
         )
     else:
         stand_ins = invented_levels(
             used, sizes, census, content, placed=placed,
-            level_shape=level_shape,
+            level_shape=level_shape, room=room,
         )
     for spelling, size in stand_ins:
         content.extend([spelling] * size)
@@ -21917,10 +22056,39 @@ def _labels_clock_shaped():
         detection_evidence='there are 13 different values, which is within the 50 a set of categories may have in a table of 105 rows, so this column is a set of categories',
     )
     return {
-        "why": "G8.3's clock supply (landing 3b.5, plan P4-D373; contract 7.9.1): a column declared labels, `--code`, whose ten held-back levels are written in the form `%%:%%`. A form a clock time can wear is filled with clock times first, so every stand-in is a time a clock reader takes. The mutant fills the form figure by figure, and the twin writes times no clock can be.",
+        "why": "G8.3's clock supply (landing 3b.5, plan P4-D373; contract 7.9.1): a column declared labels, `--code`, whose ten held-back levels are written in the form `%%:%%`. A form a clock time can wear is filled with clock times first, and a column declared `--code` is read as labels whatever its cells read as, so it has no clock line and every stand-in is a time a clock reader takes. The mutant writes every time on the hour, and the walk steps past the ones already written.",
         "column": column,
         "rows": 105,
         "identifier_declared": False,
+        "code_declared": True,
+    }
+
+
+def _labels_clock_line():
+    column = _universal(
+        "column_1", 'categorical', 'categorical', "data", "ok",
+        level_ceiling=50,
+        levels=[{'count': 13, 'label': '11:15', 'shape_form_cells': 13, 'variants': {'11:15': 13}, 'variants_withheld': {}}, {'count': 12, 'label': '10:00', 'shape_form_cells': 12, 'variants': {'10:00': 12}, 'variants_withheld': {}}, {'count': 12, 'label': '11:00', 'shape_form_cells': 12, 'variants': {'11:00': 12}, 'variants_withheld': {}}, {'count': 11, 'label': '10:15', 'shape_form_cells': 11, 'variants': {'10:15': 11}, 'variants_withheld': {}}],
+        n_contradictory=0,
+        n_distinct=36,
+        n_distinct_folded=36,
+        n_missing=0,
+        n_not_numeric=250,
+        n_numeric=0,
+        n_out_of_range=0,
+        n_present=250,
+        shape_forms={'%%:%%': 250},
+        suppressed_levels=32,
+        suppressed_numbers={'mean': None, 'n_cells': 0},
+        suppressed_rows=202,
+        detection_evidence='there are 36 different values, which is within the 50 a set of categories may have in a table of 250 rows, so this column is a set of categories',
+    )
+    return {
+        "why": "G8.3's clock line (the repair round of landing 3b.5, plan P4-D373; contract 7.9.1): 250 appointment times on a clinic's quarter hours beside six `99:99`, described at a parse rate of 0.99, is a set of categories -- 244 of 250 cells read as times, under the line of 248, and six rare words are more than one cell in fifty. Its 202 held-back rows owe the form `%%:%%`, and the clock supply fills them with times only while the twin, described again, stays labels: 244 cells read as times at most, so at least six of the held-back rows are filled figure by figure. The mutant fills every one with a time, and the twin is read back as a column of clock times.",
+        "column": column,
+        "rows": 250,
+        "identifier_declared": False,
+        "parse_rate": 0.99,
     }
 
 
@@ -30645,6 +30813,7 @@ TWENTY_FIRST_BRANCH_CASE_BUILDERS = {
     "clock_census_no_tails": _clock_census_no_tails,
     "clock_census_listed_tail_heap": _clock_census_listed_tail_heap,
     "labels_clock_shaped": _labels_clock_shaped,
+    "labels_clock_line": _labels_clock_line,
 }
 
 CASE_SETS = {
@@ -31355,7 +31524,9 @@ _TWENTY_FIRST_BRANCH_ACCOUNT = (
     "steps below a heap, heaps in both tails, a five-minute grid, a code "
     "written back, a column with no tails and a quarter-hour grid whose "
     "tails list their values -- and G8.3's clock supply, the stand-ins of "
-    "a label column written in a clock's form. They are computed by the "
+    "a label column written in a clock's form, and the clock line its "
+    "repair round holds a label column's twin below. They are computed by "
+    "the "
     "same oracle and the same proof layer "
     "as tests/reference/generation-reference-vectors.json, "
     "tests/reference/generation-branch-vectors.json, "
@@ -32363,6 +32534,92 @@ GIVEN_WORDS = {
         10906463936891595067, 8154985366651207979, 4682726153723401484,
         10169924807509217593, 15282562683674018124, 7545758937532805297,
         14640699556114173248, 8838435538918041417,
+    ),
+    # ...and its repair round's clock line, at seed 434.
+    "labels_clock_line": (
+        4289670763313169325, 12356874779951716576, 1933479855417081840,
+        8935669511644676029, 109416783304066156, 3664494435721319602,
+        4185411942976353507, 7853335940905873652, 13424925814375849640,
+        3916804482498233800, 1175984307094247419, 14989710809812599603,
+        7851554599869572628, 13026914244064927727, 122940042975586280,
+        386381920082241447, 14155437167496121472, 5612647205748117595,
+        1088889900427407258, 17403645766080229689, 17534653523505659427,
+        165475203188570195, 1905030913558140063, 14774273155305511955,
+        268726788771336952, 9124516184485718786, 12285037368223244760,
+        15332137379571531418, 4425731161580504249, 5151773582279892131,
+        17322835197299960633, 8697940205790556327, 12662737709663344940,
+        10268986092408198740, 2157605917636304120, 12942377771409367125,
+        13728606771370540676, 4190365582341989284, 18404954591731413270,
+        12063860347230714840, 4221187955481592559, 15816608440950232840,
+        6552373765256371279, 5952224059545701574, 1636966250300065014,
+        4890726702180547704, 12714251064133838877, 17806402860462145229,
+        534435971847013578, 13633828370379995106, 10223576303571122712,
+        5656287490038581753, 11261822342456431939, 8891707518155483123,
+        12280721928949963129, 10549230721120844754, 2891162165296916223,
+        13894214872931389699, 9022114848072021820, 6777286463366702781,
+        9396749372966385326, 1821309104387853958, 1839625278806053625,
+        2286995727121390114, 4436624898755535117, 14187532725723323223,
+        8033240157510540701, 4110203399375177726, 6804648915092405890,
+        519338388686007225, 1338516564207324390, 16106687453113582411,
+        10267537866312812531, 4064898217891442166, 14997648469029848888,
+        13592909436887816839, 8373972891896067982, 17192579130938527218,
+        16002926162730067434, 10422425776814199123, 3420351047445654660,
+        2001965347997190344, 12456563242957110536, 2854508020863723497,
+        3823725711320110645, 634907383713026952, 16468399068730583115,
+        10145453036555685198, 17851559472104155853, 15670293571829721686,
+        15310215684044229709, 15418112838869714336, 3076328138580436470,
+        13101186917430790482, 3991362000871861604, 5860323268410027143,
+        17040658049160789700, 13510741933499095155, 11312486705801252639,
+        15028953948998084533, 5059358738562584609, 11734737077266476893,
+        10024104631570062182, 13802232866446967342, 18307977209076438245,
+        5676667711251597647, 5317418161997458052, 7600751825868009449,
+        2981708682740081537, 17604412523598260517, 17980639822749191927,
+        4501478287024379168, 14998286237028954999, 3350393213510000600,
+        6250847671972661666, 1522137644824261416, 11541075167789896521,
+        1379648852426365598, 9740435379133704320, 11156902763806705760,
+        11359855066017168342, 2640107471099303348, 14606402990003295410,
+        1869473613956968162, 13477808238478763840, 6305150142391806436,
+        12168777199534883019, 16560726458622558951, 10935355647750669041,
+        2165799604735205893, 16026085717040628588, 17464600718351457033,
+        10157906093353407696, 10053393771975515835, 1481482453030279171,
+        13842900178470338858, 15871084559652239723, 13459025702469477318,
+        17716342616589595808, 844858336082920768, 16301345279802347036,
+        2872703500979671720, 18191897947603580902, 4758113131993234929,
+        2976826966016915349, 16037462846334388134, 15474630027658830286,
+        894460447350096325, 15384175551013787473, 6253916183377497913,
+        8083435012151418084, 11999976689046322014, 15885776607231637774,
+        16722389094711801024, 8508610970836459880, 12438538918649330540,
+        14775126127533186670, 15721602170456292832, 17470490993518536891,
+        14081037172767023893, 7943141068036106944, 15280401954447675534,
+        17092846688233918381, 3559887494974982827, 10889709565105813105,
+        7215316091345240302, 17597419389139492110, 11702035884099197167,
+        3710196029703657026, 9754564578629732484, 3309542694061841455,
+        13637542531510491080, 8381704063147104323, 16016168183016206363,
+        11656666468038547209, 14698803835471643570, 15876884675579141107,
+        111185427932329600, 2739744458052578209, 10307277379589932955,
+        7814367589183881877, 12134726268674760673, 13826467143436441122,
+        2812341925259460791, 16387690205814109320, 36521706066452568,
+        11771672058727779657, 12360861299057397599, 16980438866256490810,
+        3838979472107532259, 6164039452127038163, 4884542094610041918,
+        16638992930728754878, 4252333574867193883, 15983942169282358272,
+        13136712878348569852, 9575346269929406254, 7791624471754431237,
+        15838849108291354979, 1156376988737320668, 6998185793030619357,
+        10339927262820435396, 8442470432379788741, 11040446060843618107,
+        8321165120512504101, 18009182191523230737, 17388896893720876546,
+        17442093253901331637, 13463347842980282899, 18427374429537110281,
+        6049723097523187330, 16806808895496286833, 14896058124565429108,
+        10067930527914289438, 7350778235195774225, 2308302045648596472,
+        11453293991550108730, 11524638150154127486, 12931966978430940002,
+        7465598624303334238, 1572010690074479313, 11748041850802750530,
+        16555515323765820827, 17982398755529857914, 15316072775534881922,
+        17462208262203684235, 2871425991977490900, 6398519128487411949,
+        15940629554388478246, 14146091459109494251, 18419842582672913729,
+        9699056503947336994, 10030510549871246071, 9145318641040254929,
+        2078521556370600996, 7448718446443373860, 9155992825711185243,
+        3293667383398227847, 6880509154534848727, 11651211424804152343,
+        9120290185916536888, 6994342431886251008, 16196746810711034644,
+        8509437690836477963, 6804130648959594893, 10549130603238973507,
+        5272371200732293213, 11624598269994319921, 330501688981110632,
     ),
     # LANDING T1'S WRITTEN CLOCKS (plan P4-D370), at seeds 416 to 420.
     "stamp_unpadded_hour": (
@@ -36672,6 +36929,12 @@ def build_case(name):
     # A WORKBOOK COLUMN'S CENSUS OF TRUTH VALUES (plan P4-D198), which a
     # case carries beside its column because it is a workbook fact.
     working["_truths"] = spec.get("workbook_truths", 0)
+    # A COLUMN DECLARED `--code` (the repair round of landing 3b.5), which
+    # its case carries beside the column: its twin has no clock line. And
+    # the parse rate a case is described at, where it is not the one every
+    # other case is.
+    working["_code_declared"] = spec.get("code_declared", False)
+    working["_parse_rate"] = spec.get("parse_rate", MINIMUM_PARSE_RATE)
     chain = []
     if column["role"] == "datetime":
         content = _datetime_content(working)

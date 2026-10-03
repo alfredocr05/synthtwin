@@ -796,6 +796,13 @@ class _ColumnPlan:
     # the day pass keeps every rank off them (review of landing 3b.1,
     # item 4; `calendar_rules.public_holes`).
     declared_days: "tuple[str, ...]" = ()
+    # THE CLOCK LINE A COLUMN OF LABELS IS HELD BELOW (the repair round of
+    # landing 3b.5, plan P4-D373; method G8.3): the parse rate the settings
+    # record, or None where no line is asked, and whether the column was
+    # declared `--code`, whose twin is read as labels whatever its cells
+    # read as.
+    parse_rate: "float | None" = None
+    code_declared: bool = False
 
 
 @dataclasses.dataclass(frozen=True)
@@ -25900,6 +25907,10 @@ def _label_content(
     cells: list[str] = []
     notes: list[Deviation] = []
     made_up = 0
+    # HOW MANY OF THE CELLS WRITTEN BEFORE THE STAND-INS A CLOCK READER
+    # TAKES (the repair round of landing 3b.5, `_clock_line_room`),
+    # counted spelling by spelling as each is written.
+    timed = 0
     for entry in facts.levels:
         covered = 0
         # ...AND HOW MANY OF THOSE CELLS ALREADY WEAR THE LABEL'S OWN
@@ -25912,6 +25923,8 @@ def _label_content(
             covered = covered + entry.variants[spelling]
             if parsing.shape_form(spelling):
                 covered_in_form = covered_in_form + entry.variants[spelling]
+            if parsing.clock_parts(spelling) is not None:
+                timed = timed + entry.variants[spelling]
             used[spelling] = 1
             owners[parsing.folded(spelling)] = entry.label
         # WHICH HELD-BACK GROUPS KEEP THE LABEL'S WRITTEN FORM (method
@@ -25960,10 +25973,14 @@ def _label_content(
                 made_up = made_up + 1
                 cells += [variant for _row in range(rows)]
                 covered = covered + rows
+                if parsing.clock_parts(variant) is not None:
+                    timed = timed + rows
         if covered < entry.count:
             cells += [entry.label for _row in range(entry.count - covered)]
             used[entry.label] = 1
             owners[parsing.folded(entry.label)] = entry.label
+            if parsing.clock_parts(entry.label) is not None:
+                timed = timed + entry.count - covered
     if made_up:
         notes += [
             _deviation(
@@ -26073,6 +26090,19 @@ def _label_content(
     # handed is copied once here, so nothing they were given changes
     # after they read it.
     cells = list(cells)
+    # THE CLOCK LINE THE TWIN IS HELD BELOW (the repair round of landing
+    # 3b.5, plan P4-D373; method G8.3, `_clock_line_room`): how many more
+    # cells may be written as clock times before the column is read back
+    # as clock times. A column declared `--code` is read as labels
+    # whatever its cells read as, so it has no such line.
+    room: "int | None" = None
+    if plan.parse_rate is not None and not plan.code_declared:
+        room = _clock_line_room(
+            column.n_present, plan.parse_rate, timed, len(cells) - timed, True
+        )
+    # ...AND, ONCE THE NEXT TIME WOULD CROSS IT, EVERY LATER STAND-IN OF A
+    # CLOCK'S FORM IS FILLED FIGURE BY FIGURE, on cursors of its own.
+    figures: "dict[str, int] | None" = None
     for place in range(len(sizes)):
         size = sizes[place]
         form = shared[place]
@@ -26080,12 +26110,26 @@ def _label_content(
             label = written_as[place]
             form = asked[place]
         else:
+            shape = form
+            if not shape and place in shaped_places:
+                shape = level_shape
+            if (
+                room is not None
+                and figures is None
+                and size > room
+                and shape
+                and _clock_filled_form(shape, 0) is not None
+            ):
+                figures = {}
             number, label = _made_up_label(
                 number, used, owners, form, plan.all_holes, walked,
                 level_shape if place in shaped_places else "",
+                figures,
             )
             if not form and level_shape and _level_key(label) == level_shape:
                 kept = kept + 1
+        if room is not None and parsing.clock_parts(label) is not None:
+            room = room - size
         # WHAT THE LABEL ACTUALLY WEARS, not what it was asked to wear
         # (review round 2 finding 12). The walk gives a form up when
         # its supply is spent or every spelling of it is refused, and
@@ -27407,8 +27451,12 @@ def _neediest_form(owing: "dict[str, int]") -> str:
     return sorted(ordered)[0][1]
 
 
-def _filled_form(form: str, step: int) -> str:
+def _filled_form(form: str, step: int, clocks: bool = True) -> str:
     """One spelling of one published form, stepped by ``step``.
+
+    ``clocks`` false fills a clock's form figure by figure, as every form
+    was filled before landing 3b.5: the walk past a label column's clock
+    line asks for it (`_clock_line_room`, method G8.3).
 
     THE FORM SAYS THE SHAPE AND THE STEP SAYS WHICH ONE. Every `9` of
     the form takes a figure and every `@` takes a letter; every other
@@ -27430,9 +27478,10 @@ def _filled_form(form: str, step: int) -> str:
     # each a time a clock reader takes, and only past them its other
     # spellings. Measured before: 23 to 29 cells in 100 of a clock column
     # read as labels came back as `36:54` or `57:95`.
-    clock = _clock_filled_form(form, step)
-    if clock is not None:
-        return clock
+    if clocks:
+        clock = _clock_filled_form(form, step)
+        if clock is not None:
+            return clock
     figures = "0123456789"
     letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
     # A LOWER-CASE KEY IS FILLED IN LOWER CASE (plan P4-D121, audit
@@ -27532,6 +27581,78 @@ def _clock_filled_form(form: str, step: int) -> "str | None":
     if marked[0]:
         text = text + space + marked[place % 2]
     return text
+
+
+def _clock_line_room(
+    present: int, rate: float, clocks: int, others: int, settled: bool
+) -> int:
+    """How many more cells a column read as labels may write as clock times (G8.3).
+
+    THE REPAIR ROUND OF LANDING 3b.5 (plan P4-D373; contract 7.9.1). The
+    twin of a column of labels is described again by the producer's own
+    rules, and two of them read a column as clock times: its cells a clock
+    reader takes reach the clock line (`taxonomy.clock_line`), or they do
+    once the rare words beside them -- below the floor, holding at most
+    one present cell in `taxonomy.RARE_WORDS_BESIDE_CLOCKS` -- are counted
+    out. Filling every held-back level of a clock's form with a time
+    crossed one or the other: an appointment column beside six `99:99` in
+    250 rows was labels and its twin read back as clock times, so the role
+    was MISSED (36 of 36 small tables measured). So the clock supply stops
+    where the next clock time would let either rule fire, and every later
+    stand-in of a clock's form is filled figure by figure.
+
+    ``present`` is the column's present cells; ``clocks`` and ``others``
+    the cells written before the stand-ins that a clock reader does and
+    does not take. ``settled`` says those others stand in levels at or
+    above the floor -- a label column's published levels -- and every
+    stand-in below it, so the answer is the largest number of stand-in
+    cells under which neither rule fires. Unsettled, as on free text,
+    where a level's size is not known until it is written, the answer
+    holds under ANY split of the other cells into rare and not: the
+    clock line of the column less the most the rare words may hold.
+
+    Guarantees: a function of the five; nought where no clock time may be
+    written, never negative. Raises TypeError where the rate is not a
+    float instance. No I/O of any kind.
+    """
+    share = taxonomy.RARE_WORDS_BESIDE_CLOCKS
+    if not settled:
+        most = taxonomy.clock_line(rate, present - present // share) - 1
+        return max(0, most - clocks)
+    stand_ins = max(0, present - clocks - others)
+    if not _clock_cells_stand(present, rate, clocks, others, stand_ins, 0):
+        return 0
+    # The rule is monotone in the cells taken -- fewer times is never read
+    # as a clock where more is not -- so the largest is found by halving.
+    low = 0
+    high = stand_ins
+    while low < high:
+        middle = (low + high + 1) // 2
+        if _clock_cells_stand(present, rate, clocks, others, stand_ins, middle):
+            low = middle
+        else:
+            high = middle - 1
+    return low
+
+
+def _clock_cells_stand(
+    present: int, rate: float, clocks: int, others: int, stand_ins: int,
+    taken: int,
+) -> bool:
+    """Whether a twin of labels writing ``taken`` stand-in cells as times stays labels.
+
+    Neither of the producer's two readings as clock times fires: the
+    cells read as times stay below the clock line, and either the rare
+    words left -- the stand-in cells not written as times -- hold more
+    than one present cell in `taxonomy.RARE_WORDS_BESIDE_CLOCKS`, or the
+    cells left once they are counted out stay below the line too.
+    """
+    total = clocks + taken
+    if total >= taxonomy.clock_line(rate, present):
+        return False
+    if (stand_ins - taken) * taxonomy.RARE_WORDS_BESIDE_CLOCKS > present:
+        return True
+    return total < taxonomy.clock_line(rate, total + others)
 
 
 # How many spellings of one form a stand-in walk will try before it
@@ -28090,13 +28211,45 @@ def _level_key(spelling: str) -> str:
     `parsing.shape_form` of the spelling, with `&` in every letter place
     where every letter of it is lower case -- the key the census would
     give it if it named that shape -- and "" for a spelling with no form.
+
+    A CLOCK TIME WITH ONE SPACE BEFORE ITS MARKER KEEPS THE SPACE (the
+    repair round of landing 3b.5, plan P4-D373; contract 7.9.1). Such a
+    spelling has no form (section 7.9), so a column of `7:30 AM` read as
+    labels wrote every held-back time `group-N`: 632 of 3,000 twin cells
+    at a floor of 36. Its key is the clock's form with the space and the
+    marker's own marks -- `%:%% @@`, `%%:%%:%% &&`, `%:%% @.@.` -- which
+    no census names, since a census form never holds a space, and which
+    G8.3's clock supply fills with times of that face.
     """
     form = parsing.shape_form(spelling)
+    if not form:
+        parts = parsing.clock_parts(spelling)
+        if parts is not None and parts[5] in _SPACED_CLOCK_MARKS:
+            return (
+                parsing.SHAPE_DIGIT * parts[4]
+                + ":" + parsing.SHAPE_DIGIT + parsing.SHAPE_DIGIT
+                + (
+                    ":" + parsing.SHAPE_DIGIT + parsing.SHAPE_DIGIT
+                    if parts[3]
+                    else ""
+                )
+                + _SPACED_CLOCK_MARKS[parts[5]]
+            )
     if form and parsing.is_lower_case_text(spelling):
         lower = parsing.lower_case_form(form)
         if lower:
             return lower
     return form
+
+
+# THE FACE OF A CLOCK WRITTEN WITH ONE SPACE BEFORE ITS MARKER, as
+# `parsing.clock_parts` names it, and the marks its level key ends in.
+_SPACED_CLOCK_MARKS = {
+    " AM-PM": " @@",
+    " am-pm": " &&",
+    " A.M.-P.M.": " @.@.",
+    " a.m.-p.m.": " &.&.",
+}
 
 
 def _published_level_shape(
@@ -28325,8 +28478,15 @@ def _made_up_label(
     holes: "tuple[str, ...]",
     walked: "dict[str, int]",
     level_shape: str = "",
+    figures: "dict[str, int] | None" = None,
 ) -> "tuple[int, str]":
     """One label standing in for one that was held back (G8.3, P4-D18).
+
+    ``figures``, where given, is the cursor of each clock's form past the
+    column's clock line (`_clock_line_room`, the repair round of landing
+    3b.5): a form a clock time can wear is then filled figure by figure
+    from that cursor, every spelling a clock reader takes stepped past, so
+    the stand-in is never a time.
 
     WHERE THE COLUMN PUBLISHED THE FORMS ITS VALUES WERE WRITTEN IN,
     the stand-in is written in one of them. `group-14` is not a code:
@@ -28378,11 +28538,20 @@ def _made_up_label(
         # collision and its twin held `group-20101`. A shaped walk now
         # leaves `number` exactly where it found it.
         room = min(_form_room(form), _STAND_IN_STEPS)
-        if form not in walked:
-            walked[form] = 0
-        while walked[form] < room:
-            candidate = _filled_form(form, walked[form])
-            walked[form] = walked[form] + 1
+        # PAST THE CLOCK LINE A CLOCK'S FORM IS FILLED FIGURE BY FIGURE
+        # (the repair round of landing 3b.5), on a cursor of its own, and
+        # a spelling a clock reader takes is stepped past.
+        figured = figures is not None and _clock_filled_form(form, 0) is not None
+        cursor = walked
+        if figured and figures is not None:
+            cursor = figures
+        if form not in cursor:
+            cursor[form] = 0
+        while cursor[form] < room:
+            candidate = _filled_form(form, cursor[form], not figured)
+            cursor[form] = cursor[form] + 1
+            if figured and parsing.clock_parts(candidate) is not None:
+                continue
             if candidate in used or parsing.folded(candidate) in owners:
                 continue
             if not _is_a_usable_stand_in(candidate, holes):
@@ -35004,8 +35173,14 @@ def _text_cells(
     holes: "tuple[str, ...]" = (),
     truths: int = 0,
     floor: int = parsing.DEFAULT_SMALL_CELL_FLOOR,
+    parse_rate: "float | None" = None,
 ) -> "tuple[list[str], list[Deviation], tuple[int, int], list[Remark]]":
     """Every present cell of a column of free text (method G9.5).
+
+    ``parse_rate``, where given, is the clock line the twin is held below
+    (`_clock_line_room`, unsettled: a value's level is not known until it
+    is written), so a census form of a clock is filled with times only
+    while the twin would still be read back as free text.
 
     The text is MADE UP. This module never samples, quotes, templates
     from, or paraphrases source text, and no source text is available to
@@ -35120,6 +35295,13 @@ def _text_cells(
     # How many rows each parent's folded level covers so far, so the
     # preference reads the level rather than the pair.
     carried: "dict[int, int]" = {}
+    # THE CLOCK LINE (the repair round of landing 3b.5, plan P4-D373):
+    # how many more cells may be written as clock times, and whether a
+    # clock's form is now filled figure by figure.
+    room: "int | None" = None
+    if parse_rate is not None:
+        room = _clock_line_room(sum(groups), parse_rate, 0, 0, False)
+    figured = False
     for index in range(total):
         partner = _partner_of(
             index, folded, spellings, families, used, windows,
@@ -35130,6 +35312,8 @@ def _text_cells(
             _settle(owing, taken, groups[index])
             _spend_length(budget, len(taken) - lengths[index], groups[index])
             spellings += [taken]
+            if room is not None and parsing.clock_parts(taken) is not None:
+                room = room - groups[index]
             continue
         kind = _CLASSES[kinds[index]]
         band = _BANDS[bands[index]]
@@ -35139,6 +35323,8 @@ def _text_cells(
             _settle(owing, taken, groups[index])
             _spend_length(budget, len(taken) - lengths[index], groups[index])
             spellings += [taken]
+            if room is not None and parsing.clock_parts(taken) is not None:
+                room = room - groups[index]
             continue
         # THE PRE-DECIDED ASK, RE-ASKED WHERE IT HAS GONE STALE. The
         # order-aware pass above cannot know which groups will take a
@@ -35169,6 +35355,14 @@ def _text_cells(
                 band,
             )
         key = f"{kind}/{band}/{lengths[index]}/{counts[index]}"
+        if (
+            room is not None
+            and not figured
+            and asked_form
+            and groups[index] > room
+            and _clock_filled_form(asked_form, 0) is not None
+        ):
+            figured = True
         # EVERY SPELLING THE TABLE READS AS ABSENT, not this column's
         # alone (plan P4-D158): the caller hands the document's declared
         # hole spellings beside the column's own.
@@ -35177,6 +35371,7 @@ def _text_cells(
             asks[index], states, used,
             asked_form,
             holes if holes else _hole_spellings(column),
+            figured,
         )
         if spelling is None:
             held = 0
@@ -35196,6 +35391,8 @@ def _text_cells(
         _settle(owing, spelling, groups[index])
         _spend_length(budget, len(spelling) - lengths[index], groups[index])
         spellings += [spelling]
+        if room is not None and parsing.clock_parts(spelling) is not None:
+            room = room - groups[index]
     # THE TWIN CAN REPROFILE INTO A DIFFERENT ROLE, AND NOW IT SAYS SO
     # (residual R-P4-36). A fold-collision partner folds onto its
     # parent, so the pair makes a level covering BOTH their rows -- and
@@ -37465,8 +37662,13 @@ def _made_up_cell(
     used: "dict[str, int]",
     form: str = "",
     holes: "tuple[str, ...]" = (),
+    figured: bool = False,
 ) -> "str | None":
     """One made-up cell of one class, one band and one length, or None.
+
+    ``figured`` fills a clock's form figure by figure, on a cursor of its
+    own, past the column's clock line (`_clock_line_room`, the repair
+    round of landing 3b.5): no spelling a clock reader takes is written.
 
     Each construction is class-preserving, and that is CHECKED here
     rather than assumed: what comes out reads back through the shipped
@@ -37505,6 +37707,10 @@ def _made_up_cell(
         # number or admitted form can hold a SPACE, so this one is
         # injective by inspection.
         shaped = f"{key} {form}"
+        figures = figured and _clock_filled_form(form, 0) is not None
+        if figures:
+            # A FORM HOLDS NO SPACE, so this key is no other form's.
+            shaped = f"{shaped} figures"
         if shaped not in states:
             states[shaped] = [0]
         # THE FORM IS AN ASK TOO, AND IT IS ASKED FIRST. Where the
@@ -37536,7 +37742,7 @@ def _made_up_cell(
         marked = shaped_state[0]
         found = _walked_cell(
             kind, band, length, words, letter, shaped_state, used, form,
-            holes,
+            holes, figures,
         )
         if found is not None:
             return found
@@ -37563,8 +37769,12 @@ def _walked_cell(
     used: "dict[str, int]",
     form: str = "",
     holes: "tuple[str, ...]" = (),
+    figures: bool = False,
 ) -> "str | None":
     """One pass of the family's walk, from where the last one stopped.
+
+    ``figures`` fills the form figure by figure and steps past every
+    spelling a clock reader takes (the repair round of landing 3b.5).
 
     The pass visits the family's indices in order and stops at the
     family's own size, which is settled before it begins. What it can
@@ -37595,7 +37805,9 @@ def _walked_cell(
         state[0] = state[0] + 1
         candidate: "str | None" = None
         if form:
-            candidate = _filled_form(form, index)
+            candidate = _filled_form(form, index, not figures)
+            if figures and parsing.clock_parts(candidate) is not None:
+                continue
         else:
             candidate = _family_at(kind, band, length, words, index)
         if candidate is None:
@@ -38978,6 +39190,8 @@ def plan_generation(profile: contract.Profile) -> GenerationPlan:
             _truth_cells(profile, place),
             _date_system_of(profile, place),
             profile.settings.declared_missing_values.built_in_dates,
+            profile.settings.minimum_parse_rate,
+            column.name in profile.settings.forced_codes,
         )
         plans += [plan]
         words = words + plan.content_words + plan.placement_words
@@ -39011,6 +39225,8 @@ def _plan_column(
     truths: int = 0,
     date_system: str = "",
     declared_days: "tuple[str, ...]" = (),
+    parse_rate: "float | None" = None,
+    code_declared: bool = False,
 ) -> "_ColumnPlan":
     """One column's plan: its word budget, its layout, its refusals."""
     facts = column.facts
@@ -39115,7 +39331,7 @@ def _plan_column(
         )
         cells, notes, carriers, remarks = _text_cells(
             column, groups, long_tail_line, _holes_reserved(column, all_holes),
-            truths, floor,
+            truths, floor, parse_rate,
         )
     elif isinstance(facts, contract.UnrepresentableFacts):
         groups = _groups_of(facts.n_distinct_by_occurrences)
@@ -39140,6 +39356,8 @@ def _plan_column(
         carriers=carriers,
         date_system=date_system,
         declared_days=declared_days,
+        parse_rate=parse_rate,
+        code_declared=code_declared,
     )
 
 
