@@ -6,6 +6,28 @@ exists).
 
 ## [Unreleased]
 
+### Clock-only columns keep their time of day (2026-10-03)
+
+**A column of clock times is read as clock times, and its hour, heaps
+and codes come back** (plan P4-D373, stage 3b landing 3b.5). The clock
+reading is asked before the categories rule wherever that rule would
+claim the column, so shift starts, clinic slots and coded shifts are no
+longer labels whose rare times the twin wrote blank or as `57:95`;
+`--code` still reads them as labels, and the questions file asks where
+both readings fit. A clock block publishes the step its values stand on
+(`clock_step`), the values that stand out from their neighbours with
+their counts over every cell (`clock_heaps`), a census of ten-minute
+bins nested in hours over the rest (`clock_census`) and the codes at
+least the line's rows wrote (`clock_codes`); the twin lays its ranks on
+them, every rung its run holds pinned (method G7A.4b), and the checker
+counts them back (V5-C1, V5-C2). On seventeen battery columns at 1,000
+rows the hour of day came back 0.016 to 0.333 off and now 0.013 at most,
+at 10,000 rows 0.001 at most; every heap is exact; and no twin writes a
+cell a clock reader refuses where its table wrote a time. A label
+column's held-back levels of a clock's shape are written as clock
+times. `K-S3-48` and `K-S3-49` are new; vectors file 21 freezes
+thirteen cases.
+
 ### The weekday guards dropped (2026-10-02)
 
 **The weekday census is published wherever its twin can meet it** (plan

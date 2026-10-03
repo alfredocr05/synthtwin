@@ -16407,8 +16407,9 @@ def _clock_checks(
             floor,
         )
     checks = checks + _clock_ladder_checks(column, facts, block, floor)
-    # -- the census, heaps, step and codes stage 3b reserves (3b.C1,
-    # P4-D373; plan P4-D364): no check until that landing fills it.
+    # -- the census, heaps, step and codes stage 3b reserved (3b.C1,
+    # P4-D373; plan P4-D364), checked where a step is published: V5-C1
+    # and V5-C2.
     checks = checks + _clock_census_checks(column, facts, block, cells, floor)
     # -- the minute census of clock times (3b.C2, P4-D374; plan P4-D364):
     # no check until that landing fills it.

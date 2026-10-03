@@ -1384,6 +1384,23 @@ rather than in ISO:
   not named there and never as a count (plan P4-D134): that description
   holds each census to the disclosure rule of plan P4-D131, so an absent
   key can stand for a handful of cells or for a census withheld whole.
+- a column of clock times publishing a step (landing 3b.5, plan
+  P4-D373) is held to it and to its census, heaps and codes, each read
+  in the PUBLISHED form and counted off the file, never produced.
+  **V5-C1:** every parsed cell stands on `clock_step`
+  (`clock_step.values`, silent; filed only where the step is coarser
+  than the form's own unit, which every value of the form stands on),
+  and the cells between the two published boundaries -- every parsed
+  cell with no tails -- that stand on no published heap are counted per
+  ten-minute bin and summed per published group (`clock_census.groups`),
+  HELD where every group holds its count. **V5-C2:** each published
+  heap's count over every parsed cell (`clock_heaps.counts`) and each
+  published code's count (`clock_codes.counts`), exactly. A group is
+  named by its bins' own numbers, never as a time of day a cell of the
+  file could spell alike, and a MISSED line keeps its verdict and prints
+  a count under the line as fewer than it, by the one printing rule of
+  every census check (plan P4-D347). A description publishing no step
+  obliges none of the four.
 - `weekday_census` is compared GROUP FOR GROUP (`weekday_census.groups`,
   landing 3b.1, plan P4-D355): the file's own dates between the two
   PUBLISHED tail boundaries, both included, less the days its own

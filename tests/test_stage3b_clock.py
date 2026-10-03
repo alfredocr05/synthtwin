@@ -8,8 +8,9 @@ on its twin. A column read as clock times spread its body linearly
 between its rungs: the hour of day came back 0.18 to 0.33 off at 1,000
 rows (total variation over the 24 hours), every heap smaller than a rung
 gap was lost -- handover's 07:00 and 19:00 came back halved -- and a
-column with no tails was a ramp from 00:00. One clause per rule, each red
-on its own mutant:
+column with no tails was a ramp from 00:00. One clause per rule, and every
+clause but F -- which holds the floor and the checker over the whole
+battery -- red on its own mutant:
 
 * R `test_r_every_column_is_a_clock_and_every_twin_cell_a_time` -- the
   battery's clock columns are read as clock times at 100, 300 and 1,000
@@ -56,7 +57,10 @@ on its own mutant:
   labels);
 * Q `test_q_a_few_shared_times_are_asked_about` -- where a set of labels
   could hold the column too, the questions file asks, and the answer
-  `code` reads it as labels (mutant: no question).
+  `code` reads it as labels (mutant: no question);
+* and NF106, `test_the_description_says_so_where_the_census_is_left_out`
+  -- fewer than the line left beside the heaps leaves the census out
+  and the description says so, the fold-back the 3b.5 skeptic dropped.
 """
 
 from __future__ import annotations
@@ -65,7 +69,6 @@ import collections
 import csv
 import functools
 import io
-import json
 import pathlib
 import re
 import tempfile
