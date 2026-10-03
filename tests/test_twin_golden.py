@@ -1709,7 +1709,13 @@ GOLDEN_DESCRIPTION_SHA256 = (
     # the tree before the merge, the one settings key alone; against
     # 3b.T1's own, the base's twelve empty keys and the NF71 line. The
     # twin, the report and the quality report digests below did not move.
-    "7f896e4c7be36c0dea01c72a3f5d4451f82a63b52b6fc0a982f668a32246bbe1"
+    # RE-RECORDED BY PLAN P4-D386 (the second key cut): the settings block
+    # gains `century_windows`, `forced_date_columns` and
+    # `forced_date_counts`, each empty, and `recorded_on` gains
+    # `count_form`, null; the same bytes with those four taken out hash
+    # to 7f896e4c...46bbe1, the digest on 110cb46. The twin, the report
+    # and the quality report digests below did not move.
+    "386545f9cb06ec223fe92a8af81b06717a85b3597ea1131b2baf26fabcd057f4"
 )
 
 

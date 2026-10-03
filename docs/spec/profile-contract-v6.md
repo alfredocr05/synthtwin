@@ -1255,7 +1255,7 @@ there.
 
 ### 4.4 `settings`
 
-An object with exactly these twenty-four keys. Its whole subtree is
+An object with exactly these twenty-seven keys. Its whole subtree is
 LOADER-ONLY: nothing in it is an output obligation, and the generator
 reads it only to interpret floor-governed facts elsewhere in the
 document.
@@ -1270,11 +1270,14 @@ claim.
 | `categorical_ceiling` | integer | ≥ 1 | the absolute cap on how many different FOLDED values a column may hold and still be described as categories |
 | `categorical_floor` | integer | ≥ 1 | the effective cap is never below this, so that a tiny table still has a categorical path |
 | `categorical_share` | number | 0.0 ≤ x ≤ 1.0 | the share of the table's ROWS that caps it as well: the effective cap is `min(categorical_ceiling, categorical_share of n_rows)`, never below `categorical_floor` |
+| `century_windows` | array of `[name, year]` pairs | `[]` only, in this version | RESERVED by the second key cut (plan P4-D386) for lane R2a (plan P4-D383, question Q5): the columns whose two-figure years the person said are read in a window other than 1969 to 2068, each as its name and the window's first year. Empty in every description this version writes, and refused as anything else (R16), so a description carrying an entry was written by a newer synthtwin. An entry is read for its shape first -- a column's name and one whole number or word beside it, each column once -- and held to S8c, and only then refused for being there |
 | `day_first` | boolean | — | true when the person declared, with `--day-first` or by answering `day-first` in the questions file (plan P4-D381), that dates in this table are day-first wherever the day and month are BOTH written as numbers — the slashed pair, the slashed stamp pair, the dotted pair and the two-figure-year pair; false otherwise. Default false. It records that the DECLARATION was made, and not which reading any column took — see below |
 | `declaration_matching` | string | exactly `exact_number_when_it_reads_as_one_else_spelling` | the one rule that says which cells a declared value matches: a declared value that reads as a number this format can hold matches every cell holding that EXACT NUMBER, whatever either is spelled like, so `-999` covers a file that writes `-999.00`; any other declared value matches by spelling, after trimming and case folding |
 | `declaration_publication` | string | exactly `settings_counts_only_columns_unchanged` | what this block publishes about a declaration and what it does not: counts and synthtwin's own words here, and the columns unchanged |
 | `declared_missing_values` | object | exactly the five keys below | the declaration record for `--missing-value` |
 | `forced_codes` | array of strings | — | the names the person passed to `--code`, sorted ascending, pairwise distinct. A column named here is read as LABELS: the rules that read a cell as a number, a date, a clock time or a number wearing an affix are silenced for it, so the roles left are the five that publish spellings. Unlike `forced_identifiers` this does NOT suppress the column — its distribution is why it was declared. A name may not appear in both arrays |
+| `forced_date_columns` | array of strings | `[]` only, in this version | RESERVED by the second key cut (plan P4-D386) for lane R2c (plan P4-D383, question Q6): the columns the person said are dates whatever else some of their cells hold, in rising order, each of them once. Empty in every description this version writes, and refused as anything else (R16) after its names are read and held to S8c |
+| `forced_date_counts` | array of `[name, system]` pairs | `[]` only, in this version | RESERVED by the second key cut (plan P4-D386) for lane R4 (plan P4-D384, question Q3): the columns the person said write their dates as numbers counted from a fixed day, each as its name and the counting system it uses, in table order, each column once. Empty in every description this version writes, and refused as anything else (R16) after its entries are read for their shape and held to S8c, which keeps such a column off every other reading before the landing that fills the key |
 | `forced_decimal_commas` | array of strings | — | the names the person passed to `--decimal-comma`, sorted ascending, pairwise distinct. A column named here, AND READ AS PLAIN NUMBERS, has its numbers READ with the comma as the decimal point and the point dropped, so `1,5` is one and a half and `1.234,56` is one thousand two hundred and thirty-four and fifty-six hundredths; and the twin WRITES that column's numbers the same way, because a column declared this way and reproduced with points hands a person cells their own tools read as thousands separators. TWO QUESTIONS LIVE HERE AND THEY HAVE DIFFERENT ANSWERS, which an earlier revision of this row ran together. **Where the declaration is HONOURED** — where the published description differs because it was made — is `affixed_number`, `binary`, `constant`, `continuous`, `count` and `numeric_unrepresentable`. The profiler swaps a declared column's cells BEFORE it chooses a role, so `constant` and `binary`, which are chosen ahead of the numeric roles, read with the comma exactly as the numeric ones do; an earlier revision named only the last three and the tool told those columns' owners their numbers were "NOT read" that way about a description whose profiler had read exactly that way. **Where the GENERATOR must spell the numbers itself** is narrower: the numeric and unrepresentable roles, whose cells it writes as numbers. A `constant` column's twin writes the published spelling straight out, so there is nothing to swap and swapping would corrupt it. **THE AFFIXED ROLE IS HONOURED OVER ITS CORE** (landing 2b.16, plan P4-D106, closing the affixed half of residual R-P4-52). Such a cell is a number wearing one shared piece of text, and the two halves are read differently on purpose: the CORE is read, and written back, in the column's declared grammar, while the WRAPPER is published character for character and is never translated — a wrapper carrying either mark, `U.S.$ ` or a unit written `kg.`, is the file's own text and not a number this tool spelled. Before it, the commonest European export there is — `795,64 EUR`, `37,5 %` — had no substring the splitter's reader could hold, so every cell proposed a wrapper of its own, none reached the parse line, and the column was described as free text and rebuilt as punctuation stand-ins, with `synthtwin validate` reporting exit 0 on both files. Every OTHER role is unhonoured, because its cells carry the number inside a larger spelling — a separator between several numbers, or a label published character for character — and which mark of that spelling is the decimal point is a question this declaration does not answer; on `joined_numbers` the same mark may be the separator itself, and that half of residual R-P4-52 is open. A declaration that lands on such a column is honoured for nothing, and `synthtwin profile` SAYS SO on the screen, naming the column and the role it took; the array still records what was declared, because what a person asked for is part of how the description was made. THIS IS NOT ONE OF THE THREE ROLE DECLARATIONS and does not share their exclusion rule: they are three answers to the question *what does this column hold* and no column may carry two of them, while this answers *how are its numbers spelled*. A column may therefore be named here AND in `forced_measurements` — that pairing is the commonest true thing a person has to say about a European file. It may NOT be named here and in `forced_identifiers` or `forced_codes`: both of those silence the numeric reading, so the declaration would be accepted and then ignored, and a declaration a tool quietly ignores is worse than one it refuses. No heuristic ever adds a name to this array (P4-D26) |
 | `forced_twelve_hour_clocks` | array of strings | — | the names the person passed to `--twelve-hour`, or answered `twelve-hour` for in the questions file (landing T1, plan P4-D370), sorted ascending, pairwise distinct: columns of times of day written on a 12-hour clock WITHOUT a marker. Nothing in `8:34` or `12:15` says which clock wrote it, so the run asks where every hour of an unmarked clock lies in 1 to 12. A column named here reads its unmarked hours on that face -- 12 is the first hour of the day, as Python's `%I` with no `%p` reads it, and an hour of 0 or past 12 is not read -- publishes the ` twelve-hour` style (C6-10a), and its twin writes hours 1 to 12 only |
 | `forced_delimiter` | string | empty, or one of `,` `;` tab `\|` | THE SIXTH DECLARATION (plan P4-D110, review item CODEX-4): the character the person said separates the columns of their file, with `--delimiter` or by answering `about_your_file` in the questions file, or empty where they said nothing. A declared delimiter is READ and never guessed: the survey takes it in place of the reading the cells favour. It exists because some files read equally well under two delimiters -- `id,pair|code` over rows such as `1,2|3` is two columns under the comma and two different columns under the vertical bar -- and nothing in the cells can say which the person's file is. **The competing readings need not give the table the same NUMBER of columns** (plan P4-D282): a header `id,measure|low|high` over rows such as `1,101|90|110` reads as two whole columns under the comma and three whole columns under the bar, both at a share of 1.0, and while a competitor had to tie on the width as well, the wider reading took such a file silently -- the first field became a QUANTITY, and code using the source's own comma delimiter read a measurement of `029` off a twin row of `3,029|90|110`. The share is what says a candidate reads the whole file; the width may break a tie but may not hide one. Such a file is still READ the way the cells favour where nobody declares, because a file an earlier version twinned may not become refused; the tie is said on the screen and put as a question in the questions file, and the validator reads a checked file with the declaration so that a twin and its source are split the same way. A declaration that contradicts a separator line the file itself carries is refused, and so is one given on a workbook, which has no delimiter. FD13 holds it to `source.dialect.delimiter` |
@@ -1292,10 +1295,12 @@ claim.
 | `sentinel_outlier_iqr_multiple` | number | ≥ 0.0 | how many interquartile ranges beyond the quartiles of the column's other numbers a stand-in candidate must lie to count as an outlier |
 | `small_cell_floor` | integer | ≥ 1 | the disclosure floor: the smallest number of rows a group may cover and still be NAMED anywhere in this description |
 
-**C6-20 (membership).** All TWENTY-FOUR keys are REQUIRED (landing T1
-added `forced_twelve_hour_clocks`). No other key may appear under
+**C6-20 (membership).** All TWENTY-SEVEN keys are REQUIRED (landing T1
+added `forced_twelve_hour_clocks`, and the second key cut, plan
+P4-D386, `century_windows`, `forced_date_columns` and
+`forced_date_counts`). No other key may appear under
 `settings`; a loader refuses one that does, naming it. A block of
-twenty-three keys or of twenty-five — one of the twenty-four skipped, or
+twenty-six keys or of twenty-eight — one of the twenty-seven skipped, or
 a key of somebody's own added — is a document this contract does not
 describe. (It said TWENTY while section 4.4
 said twenty-one and the producer wrote twenty-one, from the landing
@@ -1550,6 +1555,20 @@ the rows were counted by a column whose values the description never
 looked at that way. It carries its own code, and not S8's, for S8a's
 reason: S8 says a declared name is not a column of this table, and this
 says the name is not declared at all.
+
+**Invariant S8c (a column whose dates are counts is read one way)**
+(plan P4-D386; the review of lane R4's design, item 10). No name under
+`settings.forced_date_counts` also stands under `forced_date_columns`,
+`century_windows`, `forced_twelve_hour_clocks`, `forced_codes`,
+`forced_identifiers` or `forced_measurements`. Such a column is read as
+the dates its numbers count, so a second reading could never be acted
+on and would be recorded and ignored. `forced_decimal_commas` is not on
+the list: the numbers a count is written in may carry a decimal comma,
+and that declaration says how they are spelled, not what they are. It
+carries its own code for S8a's reason. A loader of this version holds
+it BEFORE it refuses the three reserved declarations as not empty, so
+the rule stands before the landing that fills `forced_date_counts`,
+which removes only that refusal.
 
 **Invariant S9.** `categorical_floor <= categorical_ceiling`.
 
@@ -5538,6 +5557,14 @@ line.
 <!-- anchor 3b-R2c (P4-D383) -->
 <!-- anchor 3b-R4 (P4-D384) -->
 
+**The key the second cut reserves** (plan P4-D386): `null` on every
+block until landing R4 (plan P4-D384) fills it, and the loader refuses
+anything else.
+
+| key | JSON type | permitted values | meaning |
+|---|---|---|---|
+| `count_form` | object or `null` | `null` | reserved for how a column whose dates are written as numbers counted from a fixed day spells those numbers -- the figures after the point, whether trailing zeros are dropped, and a contact number's census; landing R4 fills it |
+
 ##### The format vocabulary, its readings and its resolutions
 
 Twenty members, each with the shape it reads and the `resolution` it
@@ -7813,6 +7840,7 @@ rather than a list of its own, so the two cannot part again.
 | `second_heaps` | | | | | | | ● | | | | | | | | |
 | `day_of_month_census` | | | | | | | ● | | | | | | | | |
 | `heavy_dates` | | | | | | | ● | | | | | | | | |
+| `count_form` | | | | | | | ● | | | | | | | | |
 | `time_precision` | | | | | | | ● | | | | | | | | |
 | `subsecond_digits` | | | | | | | ● | | | | | | | | |
 | `datetimes_read_at` | | | | | | | ● | | | | | | | | |
@@ -7902,14 +7930,19 @@ rather than a list of its own, so the two cannot part again.
 | `numbers` | | | | | | | | | | | | | | | ● |
 | `labels` | | | | | | | | | | | | | | | ● |
 
-**One hundred and eleven rows, two hundred and one marked cells**,
+**One hundred and twelve rows, two hundred and two marked cells**,
 distributed `empty` 0, `numeric_unrepresentable` 9, `constant` 5,
-`binary` 5, `categorical` 6, `long_tail_labels` 5, `datetime` 27,
+`binary` 5, `categorical` 6, `long_tail_labels` 5, `datetime` 28,
 `time_of_day` 10, `count` 32, `continuous` 31, `affixed_number` 41,
 `identifier` 8, `free_text` 6, `joined_numbers` 8,
 `numbers_with_labels` 8. The counts are stated so that a reader can
 check a column of the matrix against the role's own section without
 counting twice.
+
+**RESTATED AT THE SECOND KEY CUT** (plan P4-D386): `count_form` is one
+row and one mark on `datetime`, so the rows go from a hundred and eleven
+to a hundred and twelve, the marked cells from two hundred and one to
+two hundred and two, and `datetime` from 27 to 28.
 
 **RESTATED AT THE KEYS STAGE 3B RESERVES** (plan P4-D364): seven rows
 and seven marks on `datetime`, and four rows and five marks on
@@ -8955,10 +8988,11 @@ reader will expect them and their absence is a decision.
   zone: an offset moves an instant, and this role publishes none.
 - **The datetime role's written forms and calendar censuses.**
   `date_field_widths`, `month_name_styles`, `quarter_marker_case`,
-  `zulu_case`, `weekday_census` and the seven keys stage 3b reserves
-  there (plan P4-D364) are `datetime`'s too -- all but `minute_census`,
-  which this role reserves under the same name: a clock time has no
-  date to write or to count.
+  `zulu_case`, `weekday_census`, the seven keys stage 3b reserves
+  there (plan P4-D364) and `count_form`, which the second key cut
+  reserves (plan P4-D386), are `datetime`'s too -- all but
+  `minute_census`, which this role reserves under the same name: a
+  clock time has no date to write or to count.
 - **Every quantitative key.** `percentiles`, `mean`, `std`, `skew`,
   `numeric_styles`, `fraction_widths`, `integer_valued` and the rest
   belong to `count`, `continuous` and `affixed_number`, as does the
@@ -11944,8 +11978,9 @@ a document, so no document can violate it.
 | S12 | `relationships` has exactly the eight reserved keys, no ninth, every value exactly `null` | yes |
 | S13 | at `small_cell_floor` 1 every field carrying what the floor held back is empty or zero, over 4.4's closed list; on each of the eight maps that list names the `(withheld)` ENTRY goes, never the map -- save the six censuses plans P4-D220 and P4-D221 took off it (owner rulings of 2026-09-17), whose pools stand at any floor and, since plan P4-D222, only alone. Checked before any column block is read | yes |
 | S14 | each declaration record has exactly five keys | yes |
-| C6-20 | `settings` has exactly its twenty-four keys; twenty-three or twenty-five is a document this contract does not describe | yes |
+| C6-20 | `settings` has exactly its twenty-seven keys; twenty-six or twenty-eight is a document this contract does not describe | yes |
 | S8b | every name under `settings.person_columns` is also under `settings.forced_identifiers` | yes |
+| S8c | no name under `settings.forced_date_counts` is also under `forced_date_columns`, `century_windows`, `forced_twelve_hour_clocks`, `forced_codes`, `forced_identifiers` or `forced_measurements` | yes |
 | C6-53 | a column block's key set is exactly the twenty-two universal keys plus the marked cells of its role's column in the forbidden-key matrix; every other key is FORBIDDEN, and refused by name | yes |
 
 **Four membership rules of this part carry no identifier**, so no list
@@ -12474,7 +12509,7 @@ find one".
 | `n_rows` (document) | EXACT-OBSERVABLE | the twin has this many data rows |
 | `n_columns` | EXACT-OBSERVABLE | the twin has this many columns |
 | `profile_version` | LOADER-ONLY | the integer 6 |
-| `settings` | LOADER-ONLY | whole subtree: all twenty-four keys, `day_first`, `long_tail_minimum_level` and `person_columns` among them, and both declaration records with all five of their keys — `built_in_dates` included. The count said seventeen from the landing that wrote this row until plan P4-D340, while 4.4, C6-20 and 14.3 moved together three times without it |
+| `settings` | LOADER-ONLY | whole subtree: all twenty-seven keys, `day_first`, `long_tail_minimum_level` and `person_columns` among them, and both declaration records with all five of their keys — `built_in_dates` included. The count said seventeen from the landing that wrote this row until plan P4-D340, while 4.4, C6-20 and 14.3 moved together three times without it |
 | `created_with` | LOADER-ONLY | |
 | `publication_notes` | LOADER-ONLY | whole subtree |
 | `relationships` | LOADER-ONLY | whole subtree; eight `null` slots |
@@ -12803,6 +12838,8 @@ form, the stand-in is written in it (7.9.1).
 <!-- anchor 3b-R2b (P4-D383) -->
 <!-- anchor 3b-R2c (P4-D383) -->
 <!-- anchor 3b-R4 (P4-D384) -->
+
+| `count_form` | LOADER-ONLY (plan P4-D386): `null` on every block, refused as anything else, and no output obligation until landing R4 (plan P4-D384) fills it |
 
 `datetime_separators`, `all_at_midnight` and `n_at_midnight` have no
 row here: all three were added after the freeze and are EXACT-OBSERVABLE
@@ -14548,11 +14585,12 @@ cells, defined in 6.11. Not reproduced here; a matrix is not a list.
 
 ### 14.3 Settings and declarations
 
-**`settings` keys — 24** (4.4), in the ascending code-point order every
+**`settings` keys — 27** (4.4), in the ascending code-point order every
 object of a canonical document takes: `categorical_ceiling`,
-`categorical_floor`, `categorical_share`, `day_first`,
+`categorical_floor`, `categorical_share`, `century_windows`, `day_first`,
 `declaration_matching`, `declaration_publication`,
-`declared_missing_values`, `forced_codes`, `forced_decimal_commas`,
+`declared_missing_values`, `forced_codes`, `forced_date_columns`,
+`forced_date_counts`, `forced_decimal_commas`,
 `forced_delimiter`, `forced_identifiers`,
 `forced_measurements`, `forced_metadata_rows`,
 `forced_twelve_hour_clocks`, `identifier_minimum_rows`, `identifier_uniqueness`, `kept_values`,

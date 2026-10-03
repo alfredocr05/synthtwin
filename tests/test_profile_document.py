@@ -571,8 +571,13 @@ def test_nothing_that_varies_between_runs_is_written(
 # document on the tree before the merge, that one settings key alone;
 # against 3b.T1's own, the base's twelve empty keys, the NF71 line and the
 # four tail distances of `record_code`, nothing else.
+# AND RE-RECORDED BY PLAN P4-D386 (the second key cut): FOUR KEYS ARRIVE,
+# the settings block's `century_windows`, `forced_date_columns` and
+# `forced_date_counts`, each empty, and `recorded_on`'s `count_form`, null;
+# the same document with those four taken out hashes to 3d2f5a31...bad62,
+# the digest on 110cb46. No other byte moves.
 GOLDEN_SHA256 = (
-    "3d2f5a319fa2063abe4c576f0d5f3f8bbf2d22d22e977b8670d5e970067bad62"
+    "1001bbca5804af08a7a79c9023cb206b3c0af2d1dc0d93ba58d083abdef58d7c"
 )
 
 

@@ -6,6 +6,19 @@ exists).
 
 ## [Unreleased]
 
+### The second key cut (2026-10-02)
+
+**Three declarations and one date key are reserved, empty** (plan
+P4-D386), so the layout reader's and the counted dates' landings fill
+them without recording the frozen files again. Every description's
+settings carry `century_windows`, `forced_date_columns` and
+`forced_date_counts` as empty lists, twenty-seven keys in all, and every
+date column carries `count_form` as `null`; a description holding
+anything else under one of them is refused as written by a newer
+synthtwin. A column named as writing its dates as counts and also under
+another reading is refused first (S8c). No twin, report or description
+changes but for those four keys.
+
 ### The weekday guards dropped (2026-10-02)
 
 **The weekday census is published wherever its twin can meet it** (plan
