@@ -25905,7 +25905,18 @@ def sheet_cell_classes(census, cells, value_class=None):
             index for index in full_order
             if index not in given and sheet_fits(kind, cells[index])
         ]
-        for index in sheet_spread_over(fitting, left[kind]):
+        chosen = sheet_spread_over(fitting, left[kind])
+        # A `date` count goes first to the cells holding a `T` clock,
+        # the spelling a reader gives a `t="d"` cell and never a day
+        # count, and then to the other fitting cells (review item 1 of
+        # landing R3).
+        clocked = [index for index in fitting if cells[index][10:11] == "T"]
+        if kind == "date" and clocked:
+            chosen = sheet_spread_over(clocked, left[kind]) + sheet_spread_over(
+                [index for index in fitting if index not in clocked],
+                left[kind] - len(clocked),
+            )
+        for index in chosen:
             out[index] = kind
             given.add(index)
         left[kind] = left[kind] - min(left[kind], len(fitting))
@@ -26120,9 +26131,10 @@ def sheet_dates_as_day_counts(column, own, epoch_1904, stored=()):
     a cell as (`t="d"`, plan P4-D168). The caller passes the allocation
     only where `sheet_stores_dates` holds of the column.
 
-    G2.2 step 0 (plan P4-D382): where no allocation is passed, the
-    census is allocated over the converted cells (step 1), and a cell
-    it does not store as a number keeps the date it came with.
+    G2.2 step 0 (plan P4-D382): the census is then allocated over the
+    converted cells (step 1), and a converted cell it does not store as
+    a number keeps the date it came with -- whether or not an
+    allocation was passed (review item 1 of landing R3).
     """
     wants = any(
         sheet_wanted(column["format_kinds"], kind) > 0
@@ -26140,7 +26152,7 @@ def sheet_dates_as_day_counts(column, own, epoch_1904, stored=()):
         )
         out += [serial or text]
         dated += [sheet_date_kind(text) if serial else ""]
-    if wants and not stored:
+    if wants:
         classes = sheet_cell_classes(
             column["cell_classes"], out, column["value_class"]
         )

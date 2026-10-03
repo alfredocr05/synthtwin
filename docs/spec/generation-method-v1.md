@@ -330,7 +330,16 @@ and not the stored value).
   order adding the count to a credit and taken where the credit reaches
   the number of fitting cells, which is then taken back (plan P4-D187:
   thirty text cells of a column of numbers stored partly as text stood
-  in its last thirty rows). Then
+  in its last thirty rows). **A `date` count goes first to the cells
+  holding a `T` clock** (review item 1 of landing R3): a reader spells a
+  `t="d"` cell as the ISO text it stores, its clock after a `T`, and a
+  day count wearing a date format as `YYYY-MM-DD` or `YYYY-MM-DD
+  HH:MM:SS`, so the `T` spellings of a column holding both are its date
+  cells'. The count is spread over the fitting cells holding a `T`
+  clock, and what it has left over the other fitting cells. Spread over
+  every ISO date alike, it left the `T` spellings to the text cells,
+  whose spellings then mixed where the source's did not, and pandas
+  could not read the twin's column as dates. Then
   `text`, by its published count, in row order: first to the cells no
   class still wanting cells fits — a class wants cells where its count
   was withheld or is not yet spent — and then to any cell left.
@@ -392,13 +401,18 @@ eleven turned into `t="d"` cells and the twin missed
 `workbook.value-class`.
 
 **AND A DATE THE CENSUS STORES AS TEXT KEEPS ITS DATE** (plan P4-D382).
-Where that first allocation is not trusted, step 1 is run over the
-cells as converted, and a cell this step converted that step 1 does not
-make a `number` gets back the date it came with, so a date the source
-stored as text is written as text in its own spelling. Measured before:
-950 dates stored as day counts beside 50 the source stored as ISO text
-came back with 50 text cells holding day counts such as `45369`, and
-the twin missed its numeric counts at exit 3.
+Step 1 is then run over the cells as converted, whether or not that
+first allocation was trusted, and a cell this step converted that step
+1 does not make a `number` gets back the date it came with, so a date
+the source stored as text is written as text in its own spelling.
+Measured before: 950 dates stored as day counts beside 50 the source
+stored as ISO text came back with 50 text cells holding day counts such
+as `45369`, and the twin missed its numeric counts at exit 3; and where
+the restoration ran only on a column whose first allocation was not
+trusted (review item 1 of landing R3), 180 day counts beside 20 `t="d"`
+cells and 20 dates typed in as text came back with text cells holding
+`"45404"`, 20 unparsed when described again, exit 3, and a column
+pandas could not read as dates where it read the source's.
 
 **Step 0b — a clock is written back as the fraction of a day it was read
 as** (plan P4-D382). The reader hands the column machinery a column

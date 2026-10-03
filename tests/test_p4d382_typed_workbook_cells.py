@@ -724,3 +724,126 @@ def test_each_reading_withdrawn_brings_its_defect_back(
             type(value).__name__ for value, _code in _cells_read(trip["twin"])
         )
         assert kinds == {"str": ROWS}
+
+
+# -- 8. the review of landing R3 ------------------------------------------
+
+
+def _three_storages(epoch_1904: bool, code: str) -> bytes:
+    """220 days: 180 stored as day counts, 20 as `t="d"` cells, 20 as text.
+
+    Every cell wears ``code``; the day counts are counted from the
+    workbook's own epoch.
+    """
+    openpyxl = crosscheck.fixture_writer()
+    from openpyxl.utils import datetime as sheet_dates
+
+    book = openpyxl.Workbook()
+    book.iso_dates = True
+    if epoch_1904:
+        book.epoch = sheet_dates.CALENDAR_MAC_1904
+    sheet = book.active
+    sheet.title = "Data"
+    sheet.cell(row=1, column=1, value="event_at")
+    start = datetime.date(2024, 1, 1)
+    epoch = datetime.date(1904, 1, 1) if epoch_1904 else datetime.date(1899, 12, 30)
+    for index in range(220):
+        day = start + datetime.timedelta(days=index)
+        value: object = (day - epoch).days
+        if index % 11 == 3:
+            value = datetime.datetime.combine(day, datetime.time())
+        elif index % 11 == 7:
+            value = day.isoformat()
+        cell = sheet.cell(row=index + 2, column=1, value=value)
+        cell.number_format = code
+    held = io.BytesIO()
+    book.save(held)
+    return held.getvalue()
+
+
+@pytest.mark.parametrize(
+    ("epoch_1904", "code"),
+    ((False, "yyyy-mm-dd"), (True, "[$-409]yyyy-mm-dd")),
+)
+def test_text_dates_keep_their_text_beside_iso_date_cells(
+    epoch_1904: bool, code: str, tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Day counts, `t="d"` cells and text dates in one column: the text stays dates.
+
+    Review item 1 of landing R3. The text cells' dates were restored
+    only on a column storing no ISO date cells, so here the twin's 20
+    text cells held day counts such as `"45404"`: described again, 20
+    unparsed, `validate` exit 3, and pandas could not read the twin's
+    column as dates where it read the source's.
+    """
+    monkeypatch.setattr(
+        sys.modules[__name__], "_book",
+        lambda cells: _three_storages(epoch_1904, code),
+    )
+    trip = _trip(tmp_path, [])
+    column = trip["column"]
+    assert column["role"] == "datetime"
+    assert column["n_unparsed"] == 0
+    census = trip["workbook"]["cell_classes"]
+    assert (census["number"], census["date"], census["text"]) == (180, 20, 20)
+    assert trip["twin_exit"] == 0
+    assert trip["real_exit"] == 0
+    read = _cells_read(trip["twin"])
+    texts = [value for value, _code in read if isinstance(value, str)]
+    assert len(texts) == 20
+    for text in texts:
+        datetime.datetime.fromisoformat(text)
+    pandas = pytest.importorskip("pandas")
+    for book in (tmp_path / "table.xlsx", trip["twin"]):
+        frame = crosscheck.read_excel(book)
+        assert len(pandas.to_datetime(frame["event_at"])) == 220
+
+
+def test_a_date_count_goes_first_to_the_t_clocks_and_the_oracle_agrees() -> None:
+    """G2.2 step 1's `T` clocks first and step 0's restoration beside date cells.
+
+    Review item 1 of landing R3, value for value against the method's
+    oracle over seeded random columns, with the first allocation passed
+    as `_members` passes it to a column storing dates as ISO text.
+    """
+    census = {
+        "absent": 0, "blank": 0, "boolean": 0, "date": 1, "empty": 0,
+        "error": 0, "number": 0, "text": 2,
+    }
+    cells = ("2024-01-03T00:00:00", "2024-01-02", "2024-01-04")
+    assert sheetwriting.cell_classes(census, cells) == ("date", "text", "text")
+    oracle = _oracle()
+    from synthtwin import contract
+
+    draw = random.Random(21)
+    names = ("absent", "blank", "empty", "text", "number", "boolean", "error", "date")
+    for _step in range(2000):
+        size = draw.randrange(1, 14)
+        census = {
+            name: draw.choice((None, 0, draw.randrange(size + 1))) for name in names
+        }
+        cells = tuple(
+            draw.choice((
+                "", f"2024-{draw.randrange(1, 13):02d}-{draw.randrange(1, 29):02d}",
+                f"2024-02-{draw.randrange(1, 29):02d}T00:00:00",
+                f"2024-03-{draw.randrange(1, 29):02d} 09:30:00", "UNK", "45369",
+            ))
+            for _cell in range(size)
+        )
+        value_class = draw.choice((None, "number", "text", "date"))
+        assert list(sheetwriting.cell_classes(census, cells, value_class)) == (
+            oracle.sheet_cell_classes(census, list(cells), value_class)
+        ), (census, cells)
+        column = contract.WorkbookColumn(
+            cell_classes=census, format_code="yyyy-mm-dd",
+            format_kinds={"date": size}, formulas=None, value_class=value_class,
+        )
+        block = {
+            "cell_classes": census, "format_code": "yyyy-mm-dd",
+            "format_kinds": {"date": size}, "value_class": value_class,
+        }
+        held = sheetwriting.cell_classes(census, cells, value_class)
+        mine = sheetwriting._dates_as_day_counts(column, cells, True, held)
+        theirs = oracle.sheet_dates_as_day_counts(block, list(cells), True, held)
+        assert (list(mine[0]), list(mine[1])) == (theirs[0], theirs[1]), (block, cells)
