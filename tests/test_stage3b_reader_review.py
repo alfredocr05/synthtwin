@@ -39,7 +39,7 @@ import pathlib
 
 import pytest
 
-from synthtwin import contract
+from synthtwin import contract, errors
 from tests import test_stage3b_reader as gate
 
 
@@ -201,3 +201,102 @@ def test_item_7_a_twelve_hour_style_needs_its_declaration(
     said = gate._refusal(tmp_path, changed)
     assert contract.INVARIANTS["S8c"] in said, said
     assert "seen_at" in said
+
+
+# -- item 8: a scripted run names the clock question's own answer --------
+
+
+def _notice(output: str) -> str:
+    """The notice a scripted run prints for the columns it would have asked about."""
+    start = output.find("THESE COLUMNS")
+    assert start >= 0, output[-2000:]
+    return output[start : output.find("Nothing is wrong with this profile", start)]
+
+
+def test_item_8_a_scripted_run_names_the_clock_question_s_own_answer(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The 12-hour question is offered `--twelve-hour`; a clock column is not called text.
+
+    At 110cb46 the minutes `1:00` to `5:59` were put under "read as
+    measurements, and might be codes" with `--code seen_at`, and `0:00`
+    to `4:59` were "described as text rather than as numbers", though
+    both columns are read as times of day.
+    """
+    twelve = [f"{1 + minute // 60}:{minute % 60:02d}" for minute in range(300)]
+    gate._described(tmp_path / "twelve", twelve)
+    said = _notice(capsys.readouterr().out)
+    assert "--twelve-hour seen_at" in said and "--code seen_at" not in said
+    assert "times of day" in said and "as text" not in said
+    # ...and its hours in one figure are two numbers to a colon too.
+    assert "--measurement seen_at" in said
+    joined = [f"{minute // 60}:{minute % 60:02d}" for minute in range(300)]
+    gate._described(tmp_path / "joined", joined)
+    said = _notice(capsys.readouterr().out)
+    assert "--measurement seen_at" in said and "--twelve-hour" not in said
+    assert "times of day" in said and "as text" not in said
+    # ...and a two-figure 12-hour question is offered nothing else.
+    padded = [f"{1 + minute // 60:02d}:{minute % 60:02d}" for minute in range(300)]
+    gate._described(tmp_path / "padded", padded)
+    said = _notice(capsys.readouterr().out)
+    assert "--twelve-hour seen_at" in said and "--measurement" not in said
+
+
+# -- item 9: a pooled style is not an unused declaration -----------------
+
+
+def test_item_9_a_pooled_style_is_not_an_unused_declaration(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Ten declared stamps beside ninety `NA`: read on the face, the word pooled.
+
+    At 110cb46 the run said nothing about the column was read on a
+    12-hour clock and told the person to drop `--twelve-hour`, which had
+    been honoured: only the census naming the written clock was too
+    small to print. The stated limit -- that twin writes the 24-hour clock
+    -- stands, and is what the run now says.
+    """
+    cells = [f"3/{17 + day}/2023 12:{day:02d}" for day in range(10)] + ["NA"] * 90
+    block, _profile, _questions = gate._described(tmp_path, cells, "--twelve-hour", "seen_at")
+    assert block["role"] == "datetime" and block["datetime_separators"] == {"(withheld)": 10}
+    said = capsys.readouterr()
+    shown = said.out + said.err
+    assert "Nothing about this column was read on a 12-hour clock" not in shown
+    assert "without --twelve-hour" not in shown
+    assert errors.the_twelve_hour_style_was_held_back("seen_at") in shown
+
+
+# -- item 10: the 12-hour question says what it read ---------------------
+
+
+def _seen(questions: "dict[str, object]") -> str:
+    """What the questions file says synthtwin saw in `seen_at`."""
+    asked = questions["asked"]
+    assert isinstance(asked, list)
+    found = [entry["what_synthtwin_saw"] for entry in asked if entry["column"] == "seen_at"]
+    assert len(found) == 1, questions
+    return f"{found[0]}"
+
+
+def test_item_10_the_twelve_hour_question_says_what_it_read(tmp_path: pathlib.Path) -> None:
+    """One `not-a-time` beside the minutes `1:00` to `5:59`: not "every value".
+
+    At 110cb46 the profile counted the cell unread and the question said
+    "every value writes a time of day". The colon question a clock in
+    one figure keeps said "every value is two or more numbers" the same
+    way, and is held to the same rule.
+    """
+    cells = [f"{1 + minute // 60}:{minute % 60:02d}" for minute in range(300)] + ["not-a-time"]
+    block, _profile, questions = gate._described(tmp_path / "twelve", cells)
+    assert block["role"] == "time_of_day" and block["n_unparsed"] == 1
+    seen = _seen(questions)
+    assert "every value" not in seen and "1 to 12" in seen, seen
+    cells = [f"{minute // 60}:{minute % 60:02d}" for minute in range(300)] + ["not-a-time"]
+    block, _profile, questions = gate._described(tmp_path / "joined", cells)
+    assert block["role"] == "time_of_day" and block["n_unparsed"] == 1
+    seen = _seen(questions)
+    assert "every value" not in seen and "':'" in seen, seen
+    # ...and a column every cell of which reads still says so.
+    cells = [f"{1 + minute // 60}:{minute % 60:02d}" for minute in range(300)]
+    _block, _profile, questions = gate._described(tmp_path / "whole", cells)
+    assert "every value" in _seen(questions)

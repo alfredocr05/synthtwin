@@ -316,6 +316,9 @@ CASES: "dict[str, tuple[object, ...]]" = {
     # ...and `--twelve-hour` on a column that is no unmarked clock
     # (landing T1, plan P4-D370): the same notice, for the same reason.
     "the_twelve_hour_declaration_did_not_reach": ("seen_at", "count"),
+    # ...and the one it was honoured on, whose written clock was pooled
+    # (the T1 review's item 9): told so, rather than told to drop it.
+    "the_twelve_hour_style_was_held_back": ("seen_at",),
     # Also not a refusal: an ANSWER to a question can create the pair
     # the flags refuse, and the answer is the newer statement, so the
     # comma declaration is dropped rather than the run stopped. It

@@ -1572,6 +1572,58 @@ def _day_or_month_notice(found: "tuple[asking.DayOrMonth, ...]") -> str:
     )
 
 
+def _offers(question: asking.Question, answer: str) -> bool:
+    """Whether one question offers one answer among its choices."""
+    for choice in question.choices:
+        if choice.answer == answer:
+            return True
+    return False
+
+
+def _clock_notice(clocks: "list[asking.Question]", listing: str) -> str:
+    """The scripted run's block for columns read as times of day (the T1 review's item 8).
+
+    Each column is offered what its own question offers: `--twelve-hour`
+    where every hour lies in 1 to 12 with no AM or PM, and `--measurement`
+    where an hour in one figure makes the cell two numbers joined by a
+    colon. Guarantees: a function of the questions and their listing;
+    raises nothing; opens nothing.
+    """
+    twelve = [one for one in clocks if _offers(one, asking.ANSWER_TWELVE_HOUR)]
+    joined = [one for one in clocks if _offers(one, asking.ANSWER_JOINED)]
+    said = (
+        f"THESE COLUMNS WERE READ AS TIMES OF DAY, AND MIGHT BE READ "
+        f"ANOTHER WAY.{listing}\n\n"
+        f"Each column above is described as times of day on a 24-hour "
+        f"clock -- alone, or after a date -- with points along the day and "
+        f"the two tails beyond them, and its twin writes its times the way "
+        f"your table does."
+    )
+    if twelve:
+        flags = _joined(
+            [f"--twelve-hour {_shown(one.name)}" for one in twelve], " "
+        )
+        said = said + (
+            f" Where every hour lies from 1 to 12 and no cell writes AM or "
+            f"PM, a 12-hour clock writes the same cells, and 12:15 is then "
+            f"a quarter past midnight rather than past noon; only you know "
+            f"which clock wrote them.\n\n"
+            f"If any of them is a 12-hour clock, run the command again "
+            f"naming it:\n  {flags}"
+        )
+    if joined:
+        flags = _joined(
+            [f"--measurement {_shown(one.name)}" for one in joined], " "
+        )
+        said = said + (
+            f"\n\nA time whose hour is written in one figure is also two "
+            f"numbers joined by a colon, which is how a duration in minutes "
+            f"and seconds is written. If any of them holds such numbers, "
+            f"run the command again naming it:\n  {flags}"
+        )
+    return said
+
+
 def _assumptions_notice(questions: "list[asking.Question]") -> str:
     """What is printed where there is nobody to ask.
 
@@ -1601,8 +1653,17 @@ def _assumptions_notice(questions: "list[asking.Question]") -> str:
     # averaged and offered them `--code`, which is the wrong answer to
     # a question nobody had asked them.
     people: list[asking.Question] = []
+    # ...AND A COLUMN READ AS TIMES OF DAY (the T1 review's item 8). Its
+    # question is the 12-hour one, or the colon one a clock in one figure
+    # keeps, and falling through put the first under "read as
+    # measurements" with `--code`, and the second under "described as
+    # text", though both are read as times of day. Its block offers what
+    # its own question offers.
+    clocks: list[asking.Question] = []
     for question in questions:
-        if question.reason == asking.BECAUSE_JOINED:
+        if asking.asks_about_a_clock(question):
+            clocks += [question]
+        elif question.reason == asking.BECAUSE_JOINED:
             if asking.reads_each_number(question.role):
                 paired += [question]
             else:
@@ -1651,6 +1712,8 @@ def _assumptions_notice(questions: "list[asking.Question]") -> str:
         return shown
 
     blocks: list[str] = []
+    if clocks:
+        blocks += [_clock_notice(clocks, _listing(clocks, False))]
     if numeric:
         flags = _joined(
             [f"--code {_shown(one.name)}" for one in numeric], " "
@@ -1782,6 +1845,25 @@ def _read_one_answer(standing: str = asking.ANSWER_MEASUREMENT) -> "str | None":
             "    Please type one of the numbers offered, or press Enter "
             "to keep the reading synthtwin made."
         )
+
+
+def _style_held_back(column: "dict[str, object]") -> bool:
+    """Whether a slashed stamp's one written-clock word was pooled (the T1 review's item 9).
+
+    Its census of marks is `(withheld)` alone, so the description names
+    no written clock -- which is not the same as a declaration that
+    reached nothing: `--twelve-hour` was honoured in reading the cells,
+    and only the word saying so is too rare to print.
+    """
+    if "format" not in column or f"{column['format']}" not in parsing.SLASHED_STAMPS:
+        return False
+    census = column["datetime_separators"] if "datetime_separators" in column else None
+    if not isinstance(census, dict) or not census:
+        return False
+    for word in census:
+        if f"{word}" != "(withheld)":
+            return False
+    return True
 
 
 def _read_on_twelve_hours(column: "dict[str, object]") -> bool:
@@ -2897,6 +2979,9 @@ def _run_profile(
             if described_column["name"] != name:
                 continue
             if _read_on_twelve_hours(described_column):
+                continue
+            if _style_held_back(described_column):
+                _warn(errors.the_twelve_hour_style_was_held_back(name))
                 continue
             _warn(
                 errors.the_twelve_hour_declaration_did_not_reach(

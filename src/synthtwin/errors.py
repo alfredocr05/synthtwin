@@ -1437,6 +1437,26 @@ def the_twelve_hour_declaration_did_not_reach(name: str, role: str) -> str:
     )
 
 
+def the_twelve_hour_style_was_held_back(name: str) -> str:
+    """Message when `--twelve-hour` was honoured but its written clock is pooled (the T1 review's item 9).
+
+    NOT A REFUSAL, and not the notice of a declaration that reached
+    nothing: the cells were read as the person declared, and only the
+    word naming how the column writes its clock was held back, because
+    too few rows write it -- the stated limit of plan P4-D370, under
+    which that twin writes the 24-hour clock.
+    """
+    return (
+        f"The column '{_shown(name)}' was named with --twelve-hour, and its "
+        f"times were read that way. Too few of its rows write a time for "
+        f"the description to name how they are written, so it does not "
+        f"say which clock that is, and the twin writes these times on a "
+        f"24-hour clock. Keep --twelve-hour: it is right. Check that code "
+        f"reading this column's times on the twin allows for either "
+        f"clock."
+    )
+
+
 def the_date_codes_answer_reached_nothing(name: str) -> str:
     """Message when an answer about a column's codes finds none (plan P4-D381).
 
