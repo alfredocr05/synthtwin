@@ -1896,6 +1896,16 @@ EXCHANGE_ROWS = (
 STEP_EIGHT_ROWS = (
     ((0, 4, 4, 6, 6, 6, 10), (True, False, False, False, False, False, True),
      (0, 0, 0, 0, 0, 0, 10), (0, 10, 10, 10, 10, 10, 10), 5, (0, 5, 4, 6, 6, 6, 10)),
+    # STEP 8.2, WHOLE RUNS, where the count is LONG. Two Monday ranks share
+    # day 4 and two Wednesday ranks day 6, one day long, and no rank stands
+    # alone for step 8.1 to move. Step 8.2 takes the smallest run, the
+    # earlier day on a tie -- both ranks on Monday 4 -- onto the nearest
+    # day of their own group a rank holds, Wednesday 6. Step 8.4 merges
+    # the same run where step 8.2 is withdrawn (plan P4-D366), and step 8
+    # here is asked without it, so this row holds step 8.2 up alone, where
+    # the frozen case `weekday_runs_merged` withdraws both.
+    ((0, 4, 4, 6, 6, 10), (True, False, False, False, False, True),
+     (0, 0, 0, 0, 0, 10), (0, 10, 10, 10, 10, 10), 3, (0, 6, 6, 6, 6, 10)),
 )
 
 
@@ -1911,12 +1921,12 @@ def _exchange_missed(asked: typing.Callable[..., object]) -> "list[str]":
 
 def _oracle_exchange(module: types.ModuleType) -> typing.Callable[..., object]:
     def asked(kind, days, pinned, lows, highs, wanted):
-        walk = module.WeekdayWalk.__new__(module.WeekdayWalk)
-        walk.counts = [0, 0]
-        walk.group_of_weekday = list(_EXCHANGE_WHERE)
-        walk.days, walk.lows, walk.highs = list(days), list(lows), list(highs)
-        walk.holes, walk.word, walk.column, walk.keeps_always = set(), None, {}, False
-        walk.held = dict(collections.Counter(days))
+        # Every seam at a date's own value (plan P4-D366): a unit, a written
+        # unit and a day of one day each, the weekday of day 0 a Thursday,
+        # one width kind, nothing kept and no second census.
+        walk = module.WeekdayWalk(
+            [0, 0], list(_EXCHANGE_WHERE), list(days), list(lows), list(highs), set(), {}
+        )
         movable = [rank for rank in range(len(days)) if not pinned[rank]]
         if kind == "exchange":
             module.weekday_exchanged(walk, movable, wanted)
@@ -2809,8 +2819,8 @@ WITNESS_MUTANTS.update({
     ),
 })
 
-# G7.3f step 8.3's clauses (plan P4-D359): each withdrawn alone turns
-# `exchange` red.
+# G7.3f step 8.3's clauses (plan P4-D359), and steps 8.1 and 8.2 whole
+# (plan P4-D366): each withdrawn alone turns `exchange` red.
 WITNESS_MUTANTS.update({
     "exchange_withdrawn": (
         "exchange",
@@ -2822,7 +2832,7 @@ WITNESS_MUTANTS.update({
     ),
     "exchange_a_held_day_taken_as_free": (
         "exchange",
-        "    return 1 if any(walk.holding(day) == 0 for day in days) else 0\n",
+        "    return 1 if any(walk.unit_free(unit) for unit in units) else 0\n",
         "    return 1\n",
     ),
     "exchange_the_smallest_gain_first": (
@@ -2844,6 +2854,11 @@ WITNESS_MUTANTS.update({
         "exchange",
         '    """G7.3f step 8.1: single ranks inside their own group and kind."""\n    for _ in range(8):',
         '    """G7.3f step 8.1: single ranks inside their own group and kind."""\n    for _ in range(0):',
+    ),
+    "exchange_step_eight_two_withdrawn": (
+        "exchange",
+        '    """G7.3f step 8.2: whole runs onto a held day of their own standing."""\n    for _ in range(8):',
+        '    """G7.3f step 8.2: whole runs onto a held day of their own standing."""\n    for _ in range(0):',
     ),
 })
 
