@@ -590,6 +590,20 @@ _NOT_CHECKABLE_SUBSECOND_UNWRITABLE = (
     "day count stores as the whole second it is -- so no workbook "
     "wearing this format can carry them"
 )
+# ...AND WHERE THE CODE DOES WRITE SOME FIGURES, BUT FEWER (review item 5
+# of landing R3). Two codes of a date with a time are read and the twin
+# wears the commonest (plan P4-D382), so a column of 160 moments under
+# `yyyy-mm-dd hh:mm:ss.0` beside 40 under `.000` publishes three figures
+# and wears a code writing one: the sentence above said that code
+# "writes no figures after the second", which was false of it.
+_NOT_CHECKABLE_SUBSECOND_FEWER = (
+    "the description records this column's moments to a fraction of a "
+    "second and records the number format its cells wear, and that "
+    "format writes fewer figures after the second than the description "
+    "records: a workbook shows those figures in the format, and a twin "
+    "writes the ones it cannot show as zeros, so no workbook wearing this "
+    "format can carry as many figures as the description records"
+)
 # WHY THE SCALE OF A COLUMN'S HELD-BACK NUMBERS IS NOT CHECKED, in the
 # two cases there are (contract 6.3.3, method G12.12). The first is the
 # state the block reaches where it says nothing at all, which is what a
@@ -16878,14 +16892,25 @@ def subsecond_figures_unwritable(
         return False
     if facts.time_precision != parsing.PRECISION_SUBSECOND:
         return False
+    figures = _subsecond_figures_worn(description, column)
+    return 0 <= figures < facts.subsecond_digits
+
+
+def _subsecond_figures_worn(
+    description: contract.Profile, column: contract.ColumnBlock
+) -> int:
+    """How many figures after the second the column's published format code writes.
+
+    -1 where the description records no workbook or no block for the
+    column. Guarantees: a fixed function of the two; raises nothing.
+    """
     form = description.source.workbook
     if form is None:
-        return False
+        return -1
     place = column.position - 1
     if place < 0 or place >= len(form.columns):
-        return False
-    code = form.columns[place].format_code
-    return dialect.sheet_format_figures(code) < facts.subsecond_digits
+        return -1
+    return dialect.sheet_format_figures(form.columns[place].format_code)
 
 
 def _datetime_checks(
@@ -20008,21 +20033,25 @@ def _listings(
             if subsecond_figures_unwritable(description, column):
                 # SAID OUT LOUD (plan P4-D259.1). The two obligations
                 # `_datetime_checks` leaves out for a workbook whose own
-                # format code writes no figures after the second, filed
-                # where a fact no conforming file can evidence belongs
-                # rather than passed over.
+                # format code writes fewer figures after the second than
+                # the description records -- none, or some (review item
+                # 5 of landing R3) -- filed where a fact no conforming
+                # file can evidence belongs rather than passed over.
+                why = _NOT_CHECKABLE_SUBSECOND_UNWRITABLE
+                if _subsecond_figures_worn(description, column) > 0:
+                    why = _NOT_CHECKABLE_SUBSECOND_FEWER
                 listings += [
                     Listing(
                         column.name,
                         "datetime.time_precision",
                         "precision.time_precision",
-                        _NOT_CHECKABLE_SUBSECOND_UNWRITABLE,
+                        why,
                     ),
                     Listing(
                         column.name,
                         "datetime.subsecond_digits",
                         "counts.subsecond_digits",
-                        _NOT_CHECKABLE_SUBSECOND_UNWRITABLE,
+                        why,
                     ),
                 ]
             # CHECKED since landing 2b.3 wherever the description sets an

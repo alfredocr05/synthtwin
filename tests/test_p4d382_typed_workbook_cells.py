@@ -998,3 +998,33 @@ def test_a_description_of_clocks_as_numbers_asks_to_be_made_again(
     trip = _trip(tmp_path / "now", [(row / 1440, "h:mm") for row in range(ROWS)])
     assert trip["column"]["role"] == "time_of_day"
     assert trip["real_exit"] == 0
+
+
+def test_a_format_showing_fewer_figures_is_said_to_show_fewer(
+    tmp_path: pathlib.Path,
+) -> None:
+    """160 moments under `.0` and 40 under `.000`: the report names the cause truly.
+
+    Review item 5 of landing R3. The column is read, wears its commonest
+    code `yyyy-mm-dd hh:mm:ss.0` and publishes three figures after the
+    second; the twin's report listed the two precision obligations as
+    not checkable because the format "writes no figures after the
+    second" -- it writes one.
+    """
+    draw = random.Random(23)
+    cells: "list[tuple[object, str]]" = []
+    for index in range(200):
+        moment = _moment(draw).replace(microsecond=draw.randrange(1, 1000) * 1000)
+        code = "yyyy-mm-dd hh:mm:ss.0" if index % 5 else "yyyy-mm-dd hh:mm:ss.000"
+        cells += [(moment, code)]
+    trip = _trip(tmp_path, cells)
+    assert trip["workbook"]["format_code"] == "yyyy-mm-dd hh:mm:ss.0"
+    assert trip["column"]["subsecond_digits"] == 3
+    assert trip["twin_exit"] == 0
+    report = " ".join(
+        next((tmp_path / "check-table-twin").glob("*.txt")).read_text(
+            encoding="utf-8"
+        ).split()
+    )
+    assert "writes no figures after the second" not in report
+    assert "writes fewer figures after the second than" in report
