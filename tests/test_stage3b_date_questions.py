@@ -1303,3 +1303,50 @@ def test_answered_columns_are_found_by_name_once(
         assert code == 0, said
         walks += [_CountedList.walks]
     assert walks[1] - walks[0] < 25, walks
+
+
+def test_a_count_elsewhere_leaves_out_cells_already_missing(monkeypatch: pytest.MonkeyPatch) -> None:
+    """`NAT` codes beside a column of 100 `NaT` and 40 `nat`: the answer takes 40 there, and 40 is said.
+
+    The verifier of lane R1's second repair: `NaT` is missing already, by
+    synthtwin's own word, so a declaration naming `NAT` takes only the
+    40 `nat` cells -- and nothing pinned the filter that counts only the
+    cells not already missing. Red on the mutant that counts every
+    matched spelling, which says 140.
+    """
+    dated = _iso_days(970) + ["NAT"] * 30
+    flags = ["NaT"] * 100 + ["nat"] * 40 + [["red", "green", "blue"][place % 3] for place in range(860)]
+    blocks = [{"name": "seen_at", "role": "long_tail_labels"}, {"name": "flag", "role": "categorical"}]
+    asked = [(0, asking.DateCodes("iso-date", (("NAT", 30),), 970, 1000))]
+    reached = asking.codes_elsewhere({"columns": blocks}, [dated, flags], asked, taxonomy.Settings())
+    assert reached == {0: (asking.Elsewhere("flag", 40, 900),)}
+    monkeypatch.setattr(
+        taxonomy, "split_missing", lambda cells, settings, comma=False: (list(cells), [])
+    )
+    mutant = asking.codes_elsewhere({"columns": blocks}, [dated, flags], asked, taxonomy.Settings())
+    assert mutant[0][0].rows == 140
+
+
+def test_a_refused_control_fails_the_date_questions_measurement(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A clean spelling `synthtwin profile` refuses stops K-S3-56's driver with exit 1.
+
+    The Codex review of lane R1, item 10: a control that wrote no
+    questions file was a prose note while its totals counted it clean,
+    so the entry stayed green. Red on 110cb46, whose driver exits 0.
+    """
+    import importlib.util
+
+    path = pathlib.Path(__file__).resolve().parents[1] / "tools" / "measurements" / "kpi_date_questions.py"
+    spec = importlib.util.spec_from_file_location("kpi_date_questions_under_test", path)
+    assert spec is not None and spec.loader is not None
+    driver = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(driver)
+    for name in ("DAY_OR_MONTH", "CODES", "NOT_ASKED"):
+        monkeypatch.setattr(driver.shapes, name, ())
+    monkeypatch.setattr(driver.shapes, "CLEAN", shapes.CLEAN[:1])
+    monkeypatch.setattr(driver, "described", lambda folder, shape, *options: 2)
+    held = io.StringIO()
+    with contextlib.redirect_stdout(held):
+        code = driver.main()
+    assert code == 1, held.getvalue()
+    assert '"not_described": 1' in held.getvalue()
