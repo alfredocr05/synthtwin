@@ -3488,6 +3488,22 @@ def _column_perturbations(
                 _clock_reformed(described, twin, index),
             ),
         ]
+        # -- 3b.C1 (P4-D373), its repair round. A FEW RARE WORDS BESIDE
+        # CLOCK TIMES ARE COUNTED MISSING, so one cell rewritten in a
+        # column of times -- a word, a bracketed or overflowing number --
+        # is counted back as an absent cell and moves neither the role
+        # nor a class count. The floor's worth of cells is the narrowest
+        # own-column edit that does: no longer rare, and more than the
+        # line leaves room for.
+        for tag, value in ONE_CELL_VALUES:
+            if tag in ("worded", "bracketed", "overflowed", "contradicted"):
+                built = built + [
+                    (
+                        f"floor-{tag}-{name}",
+                        CLASS_MANY_CELLS,
+                        _floor_cells(described, twin, index, value),
+                    )
+                ]
     if column.role == "datetime":
         # THE TWO EDITS EVERY RESOLUTION CARRIES, and they are chosen by
         # the resolution the description publishes rather than assumed
@@ -4890,13 +4906,18 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             ("renamed-seen_at", "position.at"),
             ("blanked-seen_at", "presence.n_present"),
             ("blanked-seen_at", "presence.n_missing"),
-            ("one-worded-seen_at", "axes.role"),
-            ("one-worded-seen_at", "axes.statistical_type"),
+            # THE FLOOR'S WORTH WHERE ONE CELL WAS (the repair round of
+            # landing 3b.5, plan P4-D373): a single word or number beside
+            # clock times is a rare word now, counted missing, so the
+            # role and the three class counts are reached by the floor's
+            # worth of cells, which no rare-word reading takes.
+            ("floor-worded-seen_at", "axes.role"),
+            ("floor-worded-seen_at", "axes.statistical_type"),
             ("emptied-seen_at", "axes.quality_state"),
-            ("one-bracketed-seen_at", "counts.n_numeric"),
+            ("floor-bracketed-seen_at", "counts.n_numeric"),
             ("blanked-seen_at", "counts.n_not_numeric"),
-            ("one-overflowed-seen_at", "counts.n_out_of_range"),
-            ("one-contradicted-seen_at", "counts.n_contradictory"),
+            ("floor-overflowed-seen_at", "counts.n_out_of_range"),
+            ("floor-contradicted-seen_at", "counts.n_contradictory"),
             ("rewritten-seen_at", "distinct.n_distinct"),
             ("rewritten-seen_at", "distinct.n_distinct_folded"),
             ("reformed-seen_at", "form.clock_form"),
