@@ -2276,7 +2276,9 @@ class DateCodes:
 
     `reading` is the date member or clock form the rest of the column
     reads under at the date rule's own line, and `n_read` how many of
-    its `n_present` cells that reading parses. `codes` holds each code
+    its `n_present` cells that reading parses -- in a question that is
+    put, both as the classifier reads the column once the codes are
+    declared missing (`_as_the_classifier_reads`). `codes` holds each code
     once -- one spelling for each declaration a person could type, the
     one most of its cells wore -- with the rows that wore it.
 
@@ -2382,7 +2384,11 @@ def date_codes_of(
        unless ``counting_kept`` asks for the codes as they stand
        whatever was kept, which is how a column whose codes were
        answered `real-value` is still known for one asked about them,
-       and how an answer of `missing` reaches a code typed kept;
+       and how an answer of `missing` reaches a code typed kept; and
+       each code's rows are every cell its declaration would take, any
+       spelling under the line it matches counted in, while a
+       declaration that would also take a cell some date member or
+       clock form reads is no code (the Codex review of lane R1, item 2);
     2. there are one to five of them;
     3. together they hold at most a tenth of the present cells;
     4. at least three different spellings are left; and
@@ -2476,6 +2482,57 @@ def _codes_and_rest(
         rows[place] = rows[place] + counted[spelling]
     if not keys:
         return None
+    # THE WHOLE REACH OF EACH DECLARATION IN THIS COLUMN (the Codex review
+    # of lane R1, item 2). `--missing-value` takes every cell it matches,
+    # not only the spellings that stood on the line: measured before
+    # this, 20 `UNK` beside 5 `unk` were said to be a code on 20 rows and
+    # the answer took 25, and 20 cells of `20,230,101` -- the number
+    # 20230101 -- were said to be a code on 20 rows while the answer also
+    # took the 80 cells of `20230101`, every one a real first of January.
+    # So every other spelling a declaration would match is counted in --
+    # and a declaration that would take a cell some date member or clock
+    # form reads is no code at all, since answering it would take real
+    # dates out of the column with it.
+    place_of: "dict[tuple[str, object], int]" = {}
+    for index in range(len(keys)):
+        place_of[keys[index]] = index
+    reach: "dict[str, int]" = {}
+    poisoned: "dict[int, int]" = {}
+    for spelling in counted:
+        if spelling in taken:
+            continue
+        key = _declared_identity(spelling)
+        if key not in place_of:
+            continue
+        if _a_date_or_a_time(spelling, ""):
+            poisoned[place_of[key]] = 1
+            continue
+        reach[spelling] = place_of[key]
+    for spelling in reach:
+        index = reach[spelling]
+        taken[spelling] = 1
+        if counted[spelling] > counted[spelled[index]]:
+            spelled[index] = spelling
+        rows[index] = rows[index] + counted[spelling]
+    if poisoned:
+        kept_keys: "list[tuple[str, object]]" = []
+        kept_spelled: "list[str]" = []
+        kept_rows: "list[int]" = []
+        for index in range(len(keys)):
+            if index not in poisoned:
+                kept_keys += [keys[index]]
+                kept_spelled += [spelled[index]]
+                kept_rows += [rows[index]]
+        still: "dict[str, int]" = {}
+        for spelling in taken:
+            if _declared_identity(spelling) in kept_keys:
+                still[spelling] = 1
+        taken = still
+        keys = kept_keys
+        spelled = kept_spelled
+        rows = kept_rows
+        if not keys:
+            return None
     coded = 0
     for held in rows:
         coded = coded + held
@@ -2530,12 +2587,16 @@ def _code_written(spelling: str) -> str:
     return f"{len(body)} character(s)"
 
 
-# How a clock form is shown in a sentence, beside `parsing.format_example`
-# for the date members.
-_CLOCK_EXAMPLES = {
-    parsing.CLOCK_HH_MM: "14:05",
-    parsing.CLOCK_HH_MM_SS: "14:05:30",
-}
+# The made-up instant every clock form is shown by in a sentence, beside
+# `parsing.format_example` for the date members: 14:05:30, written in the
+# form itself (`14:05`, `2:05 PM`, `02:05:30pm`), so each of T1's forty
+# forms has its example (the Codex review of lane R1, item 4).
+_CLOCK_EXAMPLE_SECOND = 14 * 3600 + 5 * 60 + 30
+
+
+def _reads_as_a_clock(reading: str) -> bool:
+    """Whether a reading is a clock form rather than a date member."""
+    return reading in parsing.CLOCK_FORMS
 
 
 def date_codes_reading(found: DateCodes) -> str:
@@ -2543,11 +2604,16 @@ def date_codes_reading(found: DateCodes) -> str:
 
     Guarantees: accepts what `date_codes_of` saw; returns a phrase that
     names the reading by a made-up example of its own (`03/17/2024`,
-    `14:05`) and no cell of the column. Determinism: a function of the
-    reading. Raises nothing. No I/O.
+    `14:05`, `2:05 PM`) and no cell of the column. Determinism: a
+    function of the reading. Raises nothing. No I/O.
     """
-    if found.reading in _CLOCK_EXAMPLES:
-        return f"times of day written as {_CLOCK_EXAMPLES[found.reading]}"
+    if _reads_as_a_clock(found.reading):
+        example = parsing.written_clock(
+            _CLOCK_EXAMPLE_SECOND,
+            parsing.clock_step(found.reading) == 1,
+            parsing.clock_style_of(found.reading),
+        )
+        return f"times of day written as {example}"
     return f"dates written as {parsing.format_example(found.reading)}"
 
 
@@ -2580,17 +2646,64 @@ def _date_codes_shape(
             f". The same spellings stand in other columns of your table: "
             f"{_elsewhere_words(elsewhere, floor)}"
         )
+    # THE CELLS THAT ARE NEITHER, SAID (the Codex review of lane R1, item
+    # 6). The date rule's line leaves room for one cell in a hundred to
+    # read as nothing, so "every other value is" one of the codes was
+    # false wherever some did: 975 dates, 20 `UNK` and five `ODD` were
+    # said to be dates and one code, and the answer left five cells
+    # unread. Their count is said where the disclosure rule lets it
+    # through, and "a few" where not.
+    others = "every other value"
+    unread = _date_codes_unread(found)
+    if unread:
+        others = f"every other value but {_unread_words(found, floor)}"
     if len(found.codes) == 1:
-        return (
-            f"{read} read as {which}, and every other value is one "
-            f"spelling, repeated on many rows, that reads as no date or "
-            f"time: {named}{also}"
+        lead = (
+            f"{read} read as {which}, and {others} is one spelling, "
+            f"repeated on many rows, that reads as no date or time: {named}"
         )
-    return (
-        f"{read} read as {which}, and every other value is one of "
-        f"{len(found.codes)} spellings, each repeated on many rows, that "
-        f"read as no date or time: {named}{also}"
-    )
+    else:
+        lead = (
+            f"{read} read as {which}, and {others} is one of "
+            f"{len(found.codes)} spellings, each repeated on many rows, "
+            f"that read as no date or time: {named}"
+        )
+    if unread:
+        lead = (
+            f"{lead}; those left read as none of these and as no "
+            f"{_read_kind(found)}, and stay unread whatever the answer"
+        )
+    return f"{lead}{also}"
+
+
+def _date_codes_unread(found: DateCodes) -> int:
+    """The present cells that are neither read nor one of the codes."""
+    coded = 0
+    for _spelling, held in found.codes:
+        coded = coded + held
+    return max(0, found.n_present - found.n_read - coded)
+
+
+def _unread_count(found: DateCodes, floor: int) -> str:
+    """How many cells read as neither, as the disclosure rule lets it be said.
+
+    The count where it and what it leaves over reach the line
+    (`parsing.census_nameable`), and "a few" where not.
+    """
+    unread = _date_codes_unread(found)
+    if parsing.census_nameable([unread], [found.n_present], floor):
+        return f"{unread}"
+    return "a few"
+
+
+def _unread_words(found: DateCodes, floor: int) -> str:
+    """`_unread_count`, as a part of the column's other values."""
+    return f"{_unread_count(found, floor)} of them"
+
+
+def _read_kind(found: DateCodes) -> str:
+    """`date` or `time of day`, as the reading of the column is."""
+    return "time of day" if _reads_as_a_clock(found.reading) else "date"
 
 
 @dataclasses.dataclass(frozen=True)
@@ -2748,7 +2861,7 @@ def codes_elsewhere(
 
 def _now_publishes(role: str, floor: int, found: DateCodes) -> str:
     """What a column of dates beside codes publishes while nobody answers."""
-    dates = "times of day" if found.reading in _CLOCK_EXAMPLES else "dates"
+    dates = "times of day" if _reads_as_a_clock(found.reading) else "dates"
     if role == taxonomy.ROLE_DATETIME or role == taxonomy.ROLE_CLOCK:
         return (
             f"what it publishes now: points along its range and the tails "
@@ -2788,6 +2901,11 @@ def _date_code_choices(
     """
     reading = date_codes_reading(found)
     now = _now_publishes(role, floor, found)
+    unread_too = ""
+    if _date_codes_unread(found):
+        many = _unread_count(found, floor)
+        many = "few" if many == "a few" else many
+        unread_too = f", the {many} cells that read as neither counted unread"
     if elsewhere:
         where = _elsewhere_words(elsewhere, floor)
         missing_too = (
@@ -2816,10 +2934,10 @@ def _date_code_choices(
                 f"the column read as {reading}: points along its range and "
                 f"the tails beyond them, but neither end unless at least "
                 f"{floor} rows share it, with the rows holding those "
-                f"spellings counted as missing and each spelling at least "
-                f"{floor} rows share written back in the twin as your table "
-                f"writes it. This is --missing-value naming each of those "
-                f"spellings, and it reaches every column of your "
+                f"spellings counted as missing{unread_too} and each spelling "
+                f"at least {floor} rows share written back in the twin as "
+                f"your table writes it. This is --missing-value naming each "
+                f"of those spellings, and it reaches every column of your "
                 f"table{missing_too}"
             ),
         ),
@@ -2895,13 +3013,68 @@ def date_code_questions(
     already: "list[str]",
     split: "SplitColumns | None" = None,
     decimal_commas: "tuple[str, ...]" = (),
+    stored_as: "tuple[str, ...]" = (),
 ) -> "list[Question]":
     """The codes questions `date_codes_seen` finds, as a list."""
     return list(
         date_codes_seen(
-            document, table_columns, settings, already, split, decimal_commas
+            document,
+            table_columns,
+            settings,
+            already,
+            split,
+            decimal_commas,
+            stored_as,
         ).questions
     )
+
+
+def _as_the_classifier_reads(
+    name: str,
+    values: "list[str]",
+    settings: taxonomy.Settings,
+    found: DateCodes,
+    decimal_comma: bool,
+    stored_as: str,
+) -> "DateCodes | None":
+    """What was seen, as the classifier reads the column once its codes are missing.
+
+    The question promises a reading -- "read as dates written as ..." --
+    and the classifier is asked for it (`taxonomy.role_read`), with each
+    code declared missing and any word declared kept that one of them
+    would match taken out, which is what the answer `missing` does: the
+    question is put only where that run reads the column as dates or
+    times, and says the member or clock form and the count that run
+    reads (the Codex review of lane R1, item 3, and of landing T1, item
+    5). None where the answer would give any other role.
+    """
+    named: "list[str]" = []
+    identities: "list[tuple[str, object]]" = []
+    for spelling, _rows in found.codes:
+        named += [spelling]
+        identities += [_declared_identity(spelling)]
+    kept = [
+        one
+        for one in settings.kept_values
+        if _declared_identity(one) not in identities
+    ]
+    answered = dataclasses.replace(
+        settings,
+        kept_values=tuple(kept),
+        declared_missing_values=settings.declared_missing_values
+        + tuple(named),
+    )
+    try:
+        role, reading, n_read, _held = taxonomy.role_read(
+            name, values, answered, decimal_comma, stored_as
+        )
+    except ValueError:
+        return None
+    if role != taxonomy.ROLE_DATETIME and role != taxonomy.ROLE_CLOCK:
+        return None
+    if not reading:
+        return None
+    return DateCodes(reading, found.codes, n_read, found.n_present)
 
 
 def date_codes_seen(
@@ -2911,6 +3084,7 @@ def date_codes_seen(
     already: "list[str]",
     split: "SplitColumns | None" = None,
     decimal_commas: "tuple[str, ...]" = (),
+    stored_as: "tuple[str, ...]" = (),
 ) -> DateCodesSeen:
     """Every column of dates or times that writes a few repeated codes.
 
@@ -2977,22 +3151,40 @@ def date_codes_seen(
             continue
         counted = _spellings_counted(present)
         n_rows = len(table_columns[position - 1])
+        comma = name in decimal_commas
+        storage = (
+            stored_as[position - 1] if position - 1 < len(stored_as) else ""
+        )
         seen = _codes_and_rest(counted, len(present), settings, n_rows, False)
         if seen is None:
             if not settings.kept_values:
                 continue
             # WHAT WAS DECLARED KEPT, COUNTED AS IT STANDS: where the
             # codes are back once nothing is kept, the person kept them,
-            # and the column is one asked about and answered.
+            # and the column is one asked about and answered -- where the
+            # question would have been put, which the classifier says.
             stood = _codes_and_rest(counted, len(present), settings, n_rows, True)
-            if stood is not None:
+            if stood is not None and _as_the_classifier_reads(
+                name,
+                table_columns[position - 1],
+                settings,
+                stood[0],
+                comma,
+                storage,
+            ) is not None:
                 answered += [
                     Question(
                         name, role, BECAUSE_DATE_CODES, "", [], ANSWER_REAL_VALUE
                     )
                 ]
             continue
-        codes, rest = seen
+        rest = seen[1]
+        confirmed = _as_the_classifier_reads(
+            name, table_columns[position - 1], settings, seen[0], comma, storage
+        )
+        if confirmed is None:
+            continue
+        codes = confirmed
         pending += [(name, role, position - 1, codes)]
         if codes.reading in _MONTH_FIRST_MEMBERS:
             either = day_or_month_seen(list(rest), codes.reading)

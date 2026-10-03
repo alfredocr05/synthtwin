@@ -394,9 +394,17 @@ def test_red_on_each_rule_of_the_codes_question(
     value: int,
     floor: int,
 ) -> None:
-    """Each shape left alone is asked once its own rule is moved: the rule is what keeps it out."""
+    """Each shape left alone is asked once its own rule is moved: the rule is what keeps it out.
+
+    The classifier's own reading, asked since the Codex review of lane
+    R1 (item 3), would refuse some of them too -- two dates beside a code
+    are two values -- so the witness takes it out of the way as well, and
+    the rule alone is what is moved.
+    """
     values = shapes.cells(shapes.by_name(name))
     assert not _asked_here(tmp_path / "shipped", values, floor)[0], (name, rule)
+    monkeypatch.setattr(asking, "_as_the_classifier_reads", lambda name, values, settings, found, comma, stored: found)
+    assert not _asked_here(tmp_path / "unchecked", values, floor)[0], (name, rule)
     monkeypatch.setattr(asking, rule, value)
     assert _asked_here(tmp_path / "moved", values, floor)[0], (name, rule)
 
@@ -409,6 +417,8 @@ def test_red_without_the_date_rule(tmp_path: pathlib.Path, monkeypatch: pytest.M
 
     values = shapes.cells(shapes.by_name("notes_with_codes"))
     assert not _asked_here(tmp_path / "shipped", values)[0]
+    monkeypatch.setattr(asking, "_as_the_classifier_reads", lambda name, values, settings, found, comma, stored: found)
+    assert not _asked_here(tmp_path / "unchecked", values)[0]
     monkeypatch.setattr(taxonomy, "reading_of_the_rest", anything)
     assert _asked_here(tmp_path / "moved", values)[0]
 
@@ -1000,3 +1010,126 @@ def test_the_line_to_type_is_quoted_for_powershell_on_windows() -> None:
     assert cli._typed_option("--missing-value", "NOT RECORDED", windows=False) == "--missing-value 'NOT RECORDED'"
     assert cli._typed_option("--code", "dose", windows=False) == "--code dose"
     assert cli._typed_path("-out/real-profile.json", windows=False).startswith("./-out")
+
+
+def _asked_and_answered(
+    folder: pathlib.Path, values: "list[str]", *options: str
+) -> "tuple[dict | None, dict]":
+    """The codes entry the file asks of `seen_at`, and its block once answered `missing` (or as it stands)."""
+    _profiled(folder, values, *options)
+    entries = _code_entries(_questions(folder))
+    if not entries:
+        return None, _block(folder)
+    answers = _answer(folder, "seen_at", asking.ANSWER_NO_DATE)
+    code, said = _profiled(folder, values, *options, "--answers", str(answers))
+    assert code == 0, said
+    return entries[0], _block(folder)
+
+
+def test_the_count_a_code_is_said_on_is_every_cell_its_answer_takes(tmp_path: pathlib.Path) -> None:
+    """Twenty `UNK` and five `unk` are one code on 25 rows, which is what `missing` takes.
+
+    The Codex review of lane R1, item 2: the question said 20 rows and the
+    answer took 25, because a spelling under the line that the same
+    declaration matches was left out of the count. Red on 110cb46.
+    """
+    entry, block = _asked_and_answered(tmp_path, _iso_days(975) + ["UNK"] * 20 + ["unk"] * 5)
+    assert entry is not None
+    assert "on 25 rows" in entry["what_synthtwin_saw"], entry["what_synthtwin_saw"]
+    assert block["role"] == "datetime"
+    assert block["n_missing"] == 25
+
+
+def test_a_code_whose_declaration_takes_real_dates_is_not_asked(tmp_path: pathlib.Path) -> None:
+    """`20,230,101` is the number 20230101, which a declaration also takes from `20230101`, a real day.
+
+    The Codex review of lane R1, item 2: 900 compact dates, 80 cells of
+    `20230101` and 20 of `20,230,101` were asked about a code on 20 rows,
+    and the answer `missing` took 100 rows, the 80 real first days of
+    January with them. A declaration that would take a cell some date
+    reading reads is no code, so nothing is asked. Red on 110cb46.
+    """
+    import datetime
+
+    first = datetime.date(2023, 1, 2)
+    compact = [(first + datetime.timedelta(days=place % 300)).strftime("%Y%m%d") for place in range(900)]
+    values = compact + ["20230101"] * 80 + ["20,230,101"] * 20
+    entry, block = _asked_and_answered(tmp_path, values)
+    assert entry is None, entry["what_synthtwin_saw"] if entry else ""
+    assert block["n_missing"] == 0
+
+
+@pytest.mark.parametrize(
+    "case",
+    ["two_clock_faces", "one_date_three_spellings", "stamps_half_marked"],
+)
+def test_a_question_is_put_only_where_the_classifier_gives_the_reading_it_promises(
+    tmp_path: pathlib.Path, case: str
+) -> None:
+    """Where the answer would not give dates or times, the question that promises them is not put.
+
+    The Codex review of lane R1, item 3, and of landing T1, item 5: slashed
+    stamps half on the 24-hour face and half marked AM leave half their
+    cells unread under T1's one face; `17 Mar 2024` in three cases is one
+    value, `constant` by rule 3 before the date rule is asked; and stamps
+    marked on every other row are read on one face. Each was promised
+    dates, and each answered column was labels or text. Red on 110cb46.
+    """
+    if case == "two_clock_faces":
+        plain = [f"3/{1 + place // 20}/2023 {13 + place % 10}:{place % 60:02d}" for place in range(475)]
+        marked = [f"3/{1 + place // 20}/2023 {1 + place % 10}:{place % 60:02d} AM" for place in range(475)]
+        values = plain + marked + ["UNK"] * 50
+    elif case == "one_date_three_spellings":
+        values = ["17 Mar 2024"] * 324 + ["17 MAR 2024"] * 323 + ["17 mar 2024"] * 323 + ["UNK"] * 30
+    else:
+        values = [
+            f"3/{1 + place // 20}/2023 {1 + place % 10}:{place % 60:02d}" + (" AM" if place % 2 else "")
+            for place in range(300)
+        ] + ["UNK"] * 15
+    entry, block = _asked_and_answered(tmp_path, values)
+    assert entry is None, (case, block["role"])
+
+
+@pytest.mark.parametrize("marker, declared", [("", False), (" AM", False), ("", True)])
+def test_t1_clocks_beside_a_code_are_asked_and_read_as_times(
+    tmp_path: pathlib.Path, marker: str, declared: bool
+) -> None:
+    """`9:30`, `9:30 AM` and a declared 12-hour clock beside `UNK`: asked, and answered they are times of day.
+
+    The Codex review of lane R1, item 4, and of landing T1, item 4: the
+    question read only `HH:MM` and `HH:MM:SS`, so 970 clocks spanning
+    `1:00` to `9:59` beside thirty `UNK`, with or without a marker, were
+    never asked, though declaring `UNK` missing reads them as times of
+    day. The example the question gives is written in the column's own
+    form. Red on 110cb46.
+    """
+    clocks = [f"{hour}:{minute:02d}{marker}" for hour in range(1, 10) for minute in range(60)]
+    values = [clocks[place % len(clocks)] for place in range(970)] + ["UNK"] * 30
+    options = ("--twelve-hour", "seen_at") if declared else ()
+    entry, block = _asked_and_answered(tmp_path, values, *options)
+    assert entry is not None
+    assert "970 of the 1000 values read as times of day written as " in entry["what_synthtwin_saw"]
+    if marker:
+        assert "written as 2:05 PM" in entry["what_synthtwin_saw"]
+    assert block["role"] == "time_of_day"
+    assert block["n_missing"] == 30
+
+
+def test_a_few_cells_that_are_neither_are_said(tmp_path: pathlib.Path) -> None:
+    """975 dates, 20 `UNK` and five `ODD`: the five are said, as "a few", and not called codes.
+
+    The Codex review of lane R1, item 6: "every other value is one
+    spelling" was false where the date rule's line left room for cells
+    that read as neither, and the answer left them unread. Their count
+    is under the floor, so it is not printed. Red on 110cb46.
+    """
+    entry, block = _asked_and_answered(tmp_path, _iso_days(975) + ["UNK"] * 20 + ["ODD"] * 5)
+    assert entry is not None
+    saw = entry["what_synthtwin_saw"]
+    assert "every other value but a few of them is one spelling" in saw, saw
+    assert "stay unread whatever the answer" in saw
+    assert " 5 " not in saw
+    means = {choice["answer"]: choice["then_the_description_publishes"] for choice in entry["answers_you_can_give"]}
+    assert "the few cells that read as neither counted unread" in means[asking.ANSWER_NO_DATE]
+    assert block["n_missing"] == 20
+    assert block["n_unparsed"] == 5

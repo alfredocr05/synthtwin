@@ -3055,6 +3055,7 @@ def _run_profile(
         already_answered,
         split_columns,
         tuple(forced_decimal_commas),
+        storage,
     )
     seen_of = (
         document,
@@ -3289,6 +3290,7 @@ def _run_profile(
             settled,
             split_columns,
             tuple(forced_decimal_commas),
+            storage,
         )
         seen_of = (
             document,
@@ -3574,6 +3576,7 @@ def _run_profile(
             settled,
             split_columns,
             tuple(forced_decimal_commas),
+            storage,
         )
     coded_about = list(codes_seen.questions)
     coded_or_answered = coded_about + list(codes_seen.answered)
