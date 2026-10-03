@@ -1703,6 +1703,27 @@ def test_k_s3_55(record_property, tmp_path: pathlib.Path, monkeypatch: pytest.Mo
     )
 
 
+def test_k_s3_51(record_property, tmp_path: pathlib.Path) -> None:
+    """P4-D376: the count pass's paid merge reads a few ranks a rank, not every rank per offer.
+
+    The clinic slots of `tests/test_stage3b_count_pass_speed.py` at
+    10,000 and 40,000 rows, about 154 a weekday, so the trade pass is
+    asked at both sizes. The measure is a count, never a time: the
+    ranks the pass reads (its reads of the tail's pins). Before the
+    landing every attempt rebuilt its offers from every rank and every
+    offer walked every rank for its payment: 159 reads a rank at
+    10,000 rows, 1,600 at 20,000.
+    """
+    import test_stage3b_count_pass_speed as count_pass
+
+    measured: "dict[str, object]" = {}
+    for rows in (10000, 40000):
+        reads, made = count_pass.trade_reads(rows, tmp_path / f"slots{rows}")
+        measured[f"reads_per_rank_{rows}"] = round(reads / rows, 2)
+        measured[f"merges_made_{rows}"] = made
+    _kpi(record_property, "K-S3-51", measured)
+
+
 # -- Stage 4 (tier 1, plan P4-D385) -------------------------------------------
 
 
