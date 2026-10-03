@@ -6724,7 +6724,7 @@ def usable_stand_in(candidate):
     if folded(candidate) in NO_VALUE_SPELLINGS:
         return False
     # A CLOCK TIME IS NEITHER A NUMBER NOR A DATE (plan P4-D373): the
-    # clock supply of G10.3b writes figures, and a clock this file reads
+    # clock supply of G8.3 writes figures, and a clock this file reads
     # (`clock_reads`) reads back as no number and no date, so the bound
     # below is answered for it rather than reasoned away.
     if clock_reads(candidate, False):
@@ -6830,7 +6830,7 @@ def stepped_around(step, room):
 
 
 def clock_filled_form(form, step):
-    """One time of a form a clock time can wear, or None (G10.3b, P4-D373).
+    """One time of a form a clock time can wear, or None (G8.3, P4-D373).
 
     An hour of one or two figures, a colon and two, optionally a colon and
     two more, optionally a marker -- AM/PM as ``@@``, am/pm as ``&&``,
@@ -21917,7 +21917,7 @@ def _labels_clock_shaped():
         detection_evidence='there are 13 different values, which is within the 50 a set of categories may have in a table of 105 rows, so this column is a set of categories',
     )
     return {
-        "why": "G10.3b's clock supply (landing 3b.5, plan P4-D373): a column declared labels, `--code`, whose ten held-back levels are written in the form `%%:%%`. A form a clock time can wear is filled with clock times first, so every stand-in is a time a clock reader takes. The mutant fills the form figure by figure, and the twin writes times no clock can be.",
+        "why": "G8.3's clock supply (landing 3b.5, plan P4-D373; contract 7.9.1): a column declared labels, `--code`, whose ten held-back levels are written in the form `%%:%%`. A form a clock time can wear is filled with clock times first, so every stand-in is a time a clock reader takes. The mutant fills the form figure by figure, and the twin writes times no clock can be.",
         "column": column,
         "rows": 105,
         "identifier_declared": False,
@@ -31354,7 +31354,7 @@ _TWENTY_FIRST_BRANCH_ACCOUNT = (
     "all differ, a spelling declared absent inside a group, a boundary two "
     "steps below a heap, heaps in both tails, a five-minute grid, a code "
     "written back, a column with no tails and a quarter-hour grid whose "
-    "tails list their values -- and G10.3b's clock supply, the stand-ins of "
+    "tails list their values -- and G8.3's clock supply, the stand-ins of "
     "a label column written in a clock's form. They are computed by the "
     "same oracle and the same proof layer "
     "as tests/reference/generation-reference-vectors.json, "

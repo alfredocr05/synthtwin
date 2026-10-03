@@ -132,7 +132,11 @@ def written_step(seconds: "list[int]", day: int) -> int:
     """
     step = day
     for second in seconds:
-        step = math.gcd(step, second)
+        # Euclid's rule, written out: `math` lends this package only the
+        # names its offline audit enumerates.
+        other = second
+        while other:
+            step, other = other, step % other
         if step == 1:
             break
     return step
@@ -349,6 +353,48 @@ class ClockBlock:
     group: int
 
 
+def run_shares(count: int, units: "list[int]", first: "list[int]") -> "list[int]":
+    """A group's count shared over its runs by their steps (method G7A.4b).
+
+    Run `j` takes `first[j]` cells first -- one for each tail boundary
+    standing in it on no heap -- and then `floor(r U<=j / U) -
+    floor(r U<j / U)` of the `r` left, `U` the group's steps and `U<=j`
+    and `U<j` those through and before run `j`. Where the first cells
+    outnumber the count, none is taken first.
+
+    Guarantees: returns one share per run, adding to `count`.
+    Determinism: a function of the three. Raises nothing. No I/O.
+    """
+    taken = [cells for cells in first]
+    rest = count - sum(taken)
+    if rest < 0:
+        taken = [0 for _run in units]
+        rest = count
+    total = sum(units)
+    shares: "list[int]" = []
+    before = 0
+    for place in range(len(units)):
+        share = (rest * (before + units[place])) // total - (rest * before) // total
+        before = before + units[place]
+        shares += [taken[place] + share]
+    return shares
+
+
+def codes_of(unread: "dict[str, int]", line: int) -> "list[tuple[str, int]]":
+    """The codes a column of clock times publishes (contract CH2).
+
+    Every spelling its clock reading did not accept that at least the
+    census line's rows wrote, with its count, in text order.
+
+    Guarantees: a function of the two. Raises nothing. No I/O.
+    """
+    return [
+        (spelling, unread[spelling])
+        for spelling in sorted(unread)
+        if unread[spelling] >= line
+    ]
+
+
 def clock_body_blocks(
     parsed: int,
     tails: "tuple[int, int] | None",
@@ -433,19 +479,9 @@ def clock_body_blocks(
                 for place in range(len(runs)):
                     if runs[place][0] <= end <= runs[place][1]:
                         forced[place] = forced[place] + 1
-            rest = count - sum(forced)
-            if rest < 0:
-                forced = [0 for _run in runs]
-                rest = count
-            before = 0
+            shares = run_shares(count, units, forced)
             for place in range(len(runs)):
-                share = (rest * (before + units[place])) // total - (
-                    rest * before
-                ) // total
-                before = before + units[place]
-                events += [
-                    (runs[place][0], runs[place][1], forced[place] + share, False)
-                ]
+                events += [(runs[place][0], runs[place][1], shares[place], False)]
         events = sorted(events)
         for low, high, cells, heap in events:
             if cells <= 0:

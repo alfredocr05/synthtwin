@@ -3502,7 +3502,7 @@ def _codes_withdrawn(_column):
 
 
 def _clock_supply_on_the_hour(form, step):
-    """G10.3b's clock supply, every time on the hour: its minutes withdrawn."""
+    """G8.3's clock supply, every time on the hour: its minutes withdrawn."""
     text = gen_clock_filled_form(form, step)
     if text is None:
         return None
@@ -3586,7 +3586,7 @@ CASE_MUTANTS = {
         outcome=CHANGES_THE_CELLS,
     ),
     "labels_clock_shaped": Mutant(
-        branch="G10.3b's clock supply, every time of the day a clock's form writes; the mutant writes every time on the hour, and the walk steps past the ones already written",
+        branch="G8.3's clock supply, every time of the day a clock's form writes; the mutant writes every time on the hour, and the walk steps past the ones already written",
         attribute="clock_filled_form",
         replacement=_clock_supply_on_the_hour,
         outcome=CHANGES_THE_CELLS,

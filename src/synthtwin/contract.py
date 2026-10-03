@@ -15611,17 +15611,19 @@ def _clock_census(
         )
     stride = step // unit
     low, high = facts.low_tail, facts.high_tail
-    placed: "list[tuple[str, str]]" = []
+    # Every clock value the block publishes, where it stands, and whether
+    # it is one of a tail's listed values (which CC5 does not ask about).
+    placed: "list[tuple[str, str, bool]]" = []
     for tail, side in ((low, "low_tail"), (high, "high_tail")):
         if tail is None:
             continue
-        placed += [(tail.boundary, f"{side} -> boundary")]
+        placed += [(tail.boundary, f"{side} -> boundary", False)]
         for value in tail.values or ():
-            placed += [(value, f"{side} -> values")]
+            placed += [(value, f"{side} -> values", True)]
     for name in LADDER_KEYS:
         rung = facts.clock_percentiles[name]
         if rung is not None:
-            placed += [(rung, f"clock_percentiles -> {name}")]
+            placed += [(rung, f"clock_percentiles -> {name}", False)]
     heaps: "list[tuple[str, int]]" = []
     heap_at: "list[int]" = []
     for entry in _listing(mapping["clock_heaps"], "clock_heaps", where):
@@ -15646,8 +15648,8 @@ def _clock_census(
             )
         heaps += [(value, count)]
         heap_at += [at]
-        placed += [(value, "clock_heaps -> value")]
-    for value, said in placed:
+        placed += [(value, "clock_heaps -> value", False)]
+    for value, said, _listed in placed:
         if _clock_at(value, form)[0] % stride != 0:
             raise _broken(
                 "CC4",
@@ -15766,9 +15768,9 @@ def _clock_census(
                 f"stand on no heap, and must hold "
                 f"{'as many as it counts' if apart else 'at least one'}",
             )
-    for value, said in placed:
+    for value, said, listed in placed:
         at = _clock_at(value, form)[0]
-        if not lowest <= at <= highest or said.endswith("values"):
+        if not lowest <= at <= highest or listed:
             continue
         if at in heap_at:
             continue

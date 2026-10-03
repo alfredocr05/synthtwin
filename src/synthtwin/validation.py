@@ -15786,8 +15786,8 @@ def _clock_tail_windows(
                     for d in drawn[1]
                 ]
             for distance, count in sorted(heaped):
-                near = near + [distance for _copy in range(count)]
-                far = far + [distance for _copy in range(count)]
+                near += [distance for _copy in range(count)]
+                far += [distance for _copy in range(count)]
             found[key] = (near, far)
             continue
         found[key] = _tail_construction(
@@ -16432,7 +16432,10 @@ def _clock_census_checks(
     tails are. Four checks, where the description publishes a step:
 
     - V5-C1, `clock_step.values`: every value of the file stands on the
-      published step. Silent: it names no count.
+      published step. Silent: it names no count. Asked only where the
+      step is coarser than the form's own unit: on a step of one minute
+      in a form of minutes, every value the form reads stands on it, and
+      a check no file can miss is not filed.
     - V5-C1, `clock_census.groups`: the file's values between the two
       PUBLISHED boundaries, both included (every value, on a column with
       no tails), that stand on no published heap, counted per published
@@ -16466,16 +16469,18 @@ def _clock_census_checks(
         found = parsing.clock_ordinal(cell, form)
         if found is not None:
             values[found] = (values[found] if found in values else 0) + spelled[cell]
-    checks: "list[Check]" = [
-        _silent(
-            name,
-            "clock.clock_step",
-            "clock_step.values",
-            f"every value on a step of {facts.clock_step} seconds",
-            all(at % stride == 0 for at in values),
-            _NOT_SHOWN_IT_IS_TEXT_OF_THE_FILE,
-        )
-    ]
+    checks: "list[Check]" = []
+    if stride > 1:
+        checks += [
+            _silent(
+                name,
+                "clock.clock_step",
+                "clock_step.values",
+                f"every value on a step of {facts.clock_step} seconds",
+                all(at % stride == 0 for at in values),
+                _NOT_SHOWN_IT_IS_TEXT_OF_THE_FILE,
+            )
+        ]
     heap_at: "dict[int, int]" = {}
     for heap, _count in facts.clock_heaps:
         heap_at[_clock_ordinal_or_zero(heap, form)] = 0
@@ -16552,14 +16557,17 @@ def _clock_census_checks(
 
 
 def _clock_bins_named(first: int, last: int) -> str:
-    """A group of ten-minute bins as the report names it: `07:00 to 07:39`.
+    """A group of ten-minute bins as the report names it: `ten-minute bins 42 to 43:`.
 
-    The bins are this package's own grid, so the times are its own and
-    no value of the table.
+    By the bins' own numbers, from nought at midnight, as the description
+    publishes them -- never as a time of day, which a cell of the measured
+    file could spell exactly alike (validation V5.4). The colon parts the
+    name from the count the report writes after it, so `ten-minute bins 42
+    to 43: 28` is not read as bins 42 to 4,328.
     """
-    start = first * 10
-    stop = last * 10 + 9
-    return f"{start // 60:02d}:{start % 60:02d} to {stop // 60:02d}:{stop % 60:02d}"
+    if first == last:
+        return f"ten-minute bin {first}:"
+    return f"ten-minute bins {first} to {last}:"
 
 
 def _clock_minute_checks(

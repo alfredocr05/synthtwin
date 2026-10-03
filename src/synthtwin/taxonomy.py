@@ -16006,15 +16006,14 @@ def _clock_census_published(
         for first, last, count in counted.groups
     ]
     if counted.left_out:
-        notes = notes + [note(NOTE_CLOCK_CENSUS_LEFT_OUT, (line,))]
+        notes += [note(NOTE_CLOCK_CENSUS_LEFT_OUT, (line,))]
     codes = [
-        {"spelling": spelling, "count": unread[spelling]}
-        for spelling in sorted(unread)
-        if unread[spelling] >= line
+        {"spelling": spelling, "count": count}
+        for spelling, count in calendar_clock.codes_of(unread, line)
     ]
     block[calendar_clock.CLOCK_CODES] = codes
     if codes:
-        remarks = remarks + [note(REMARK_CLOCK_CODES_WRITTEN, (line,))]
+        remarks += [note(REMARK_CLOCK_CODES_WRITTEN, (line,))]
     return block, notes, remarks
 
 
@@ -17274,7 +17273,8 @@ def _clock_spellings_reach(cells: _Cells) -> bool:
     Guarantees: a function of the tally. Raises nothing. No I/O.
     """
     reached = 0
-    for spellings in cells.spellings_by_folded.values():
+    for folded in cells.spellings_by_folded:
+        spellings = cells.spellings_by_folded[folded]
         for spelling in spellings:
             if parsing.clock_parts(spelling) is not None:
                 reached = reached + spellings[spelling]

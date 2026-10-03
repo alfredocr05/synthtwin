@@ -117,6 +117,30 @@ def _missed(described, cells: "list[str]", name: str) -> "list[str]":
     )
 
 
+def _before_the_clock_census(described):
+    """The same description as one written before landing 3b.5 (plan P4-D373).
+
+    Its clock blocks publish no step, and so no census, heap or code
+    (CC4): such a description is still laid by G7A.4 and checked on
+    G12.10's windows, the machinery the mutations below withdraw.
+    """
+    document = copy.deepcopy(described.document)
+    for block in document["columns"]:
+        if "clock_step" in block:
+            block["clock_step"] = None
+            for key in ("clock_census", "clock_heaps", "clock_codes"):
+                block[key] = []
+    written = fixtures.write_profile(
+        described.folder, "written-before-3b5-profile.json", document
+    )
+    return kpi_shapes.Described(
+        described.folder,
+        described.table,
+        document,
+        contract.load_profile(str(written)),
+    )
+
+
 def _twin(described, seed: int) -> "list[str]":
     """The twin's own cells for one column, at one seed."""
     return [row[0] for row in generation.generate(described.loaded, seed).rows]
@@ -193,17 +217,28 @@ def test_a_clock_column_of_all_different_times_owes_every_one_of_them(
     different times was met by a file holding 99, with every obligation
     passing and nothing said. The construction is EXACT for this role
     (G7A.4), so the count is exact and a file one short misses it.
+
+    AND THE LOW TAIL'S TWO DISTANCES WITH IT SINCE LANDING 3b.5 (plan
+    P4-D373): the times stand two minutes apart, so the column publishes
+    a step of 120 seconds and its tails are drawn on it, eleven different
+    steps for eleven rows -- the tail's distances exact. The cell this
+    file changes lies in that tail, so they miss too; the count's two
+    lines are what this test is for, and the mutation below leaves the
+    tail's two standing.
     """
     cells = _minutes(100)
     described = _described(tmp_path, "clock", cells)
     block = described.block("value")
     assert block["n_distinct"] == block["n_present"] == 100
+    assert block["clock_step"] == 120
     assert _missed(described, cells, "clock-real.csv") == []
     one_fewer = list(cells)
     one_fewer[5] = one_fewer[6]
     assert _missed(described, one_fewer, "clock-99.csv") == [
         "value:distinct.n_distinct",
         "value:distinct.n_distinct_folded",
+        "value:tails.low.mean_distance",
+        "value:tails.low.rms_distance",
     ]
 
 
@@ -219,7 +254,12 @@ def test_the_clock_count_is_exact_only_because_g11_binds(
     )
     one_fewer = _minutes(100)
     one_fewer[5] = one_fewer[6]
-    assert _missed(described, one_fewer, "clock-99-mutant.csv") == []
+    # ...the low tail's two distances stand: the changed cell lies in it
+    # (landing 3b.5, the test above), and G11 is not what they read.
+    assert _missed(described, one_fewer, "clock-99-mutant.csv") == [
+        "value:tails.low.mean_distance",
+        "value:tails.low.rms_distance",
+    ]
 
 
 def test_a_published_offset_is_one_way_of_writing_an_instant(
@@ -303,14 +343,38 @@ def test_a_clock_twin_invents_no_declared_missing_cell(
 def test_the_hole_step_is_what_keeps_the_two_counts(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """MUTATION: withdraw the step and seed 0 writes a twelfth `08:00`."""
+    """MUTATION: withdraw the step and seed 0 writes a twelfth `08:00`.
+
+    BOTH STEPS SINCE LANDING 3b.5 (plan P4-D373): a description publishing
+    a step is laid by G7A.4b, whose run moves a rank off a declared
+    missing spelling itself (`_clock_off_a_hole`); one written before that
+    landing is laid by G7A.4 and moved by `_clock_off_the_holes`.
+    """
     loaded, _cells = _declared_hole_column(tmp_path / "hole")
+    monkeypatch.setattr(
+        generation,
+        "_clock_off_a_hole",
+        lambda place, units, low, stride, form, holes, taken: place,
+    )
+    made = [row[0] for row in generation.generate(loaded, 0).rows]
+    assert made.count("08:00") > 11
+    # ...and the step G7A.4 takes, on the same column described before.
+    document = json.loads(
+        (tmp_path / "hole" / "hole-profile.json").read_text(encoding="utf-8")
+    )
+    for block in document["columns"]:
+        block["clock_step"] = None
+        for key in ("clock_census", "clock_heaps", "clock_codes"):
+            block[key] = []
+    before = contract.load_profile(
+        str(fixtures.write_profile(tmp_path / "hole", "before-profile.json", document))
+    )
     monkeypatch.setattr(
         generation,
         "_clock_off_the_holes",
         lambda layout, ordinals, form, holes: ordinals,
     )
-    made = [row[0] for row in generation.generate(loaded, 0).rows]
+    made = [row[0] for row in generation.generate(before, 0).rows]
     assert made.count("08:00") > 11
 
 
@@ -526,8 +590,16 @@ def test_the_window_carries_the_all_different_step(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """MUTATION: the interpolation's window alone, and the equality reading
-    withdrawn, and an exactly conforming twin is named for a rung it holds."""
-    described = _described(tmp_path, "day", _every_minute_of_a_day())
+    withdrawn, and an exactly conforming twin is named for a rung it holds.
+
+    On the description as written before landing 3b.5 (plan P4-D373),
+    whose column G7A.4 still lays: one publishing a step is laid by
+    G7A.4b, whose windows are its census groups' and hold every rung of
+    this column without the step this mutation withdraws.
+    """
+    described = _before_the_clock_census(
+        _described(tmp_path, "day", _every_minute_of_a_day())
+    )
     monkeypatch.setattr(generation, "_body_bounds", lambda layout: {})
     monkeypatch.setattr(generation, "_held_exactly", lambda measured: measured)
     twin = generation.generate(described.loaded, 0)

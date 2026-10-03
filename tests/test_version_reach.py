@@ -288,6 +288,10 @@ ROUTES_THAT_RUN_SOURCE = {
     # anchor 3b-T2 (P4-D371)
     # anchor 3b-T3 (P4-D372)
     # anchor 3b-C1 (P4-D373)
+    # The twenty-first file, landing 3b.5's census of a column of clock
+    # times (plan P4-D373): it runs the same oracle by path, as every file
+    # above does.
+    ("tools/reference/make_generation_branch_vectors_21.py", "runpy.run_path"): 1,
     # anchor 3b-C2 (P4-D374)
     # anchor 3b-G1 (P4-D375)
     ("tools/reference/make_generation_branch_vectors_14.py", "runpy.run_path"): 1,

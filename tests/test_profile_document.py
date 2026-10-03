@@ -571,8 +571,15 @@ def test_nothing_that_varies_between_runs_is_written(
 # document on the tree before the merge, that one settings key alone;
 # against 3b.T1's own, the base's twelve empty keys, the NF71 line and the
 # four tail distances of `record_code`, nothing else.
+# AND RE-RECORDED BY PLAN P4-D373 (landing 3b.5), read key by key against
+# a git archive of 110cb46: TWO KEYS MOVE, both on `seen_at`, the one
+# column of clock times -- `clock_step` null becomes 60, and `clock_census`
+# empty becomes twelve groups of ten-minute bins, two of nought around the
+# morning and ten counting the body's cells (28, 20, 20, 20, 20, 20, 20,
+# 19, 20 and 27). Its heaps and codes stay empty. No sentence and no other
+# key moves.
 GOLDEN_SHA256 = (
-    "3d2f5a319fa2063abe4c576f0d5f3f8bbf2d22d22e977b8670d5e970067bad62"
+    "eb810435271e7f9bff6fe814548c0929c51e542b74ad35718d3b199d9dd1c5a6"
 )
 
 

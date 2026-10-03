@@ -456,6 +456,13 @@ PLAN4_REGIONS = {
     # anchor 3b-T2 (P4-D371)
     # anchor 3b-T3 (P4-D372)
     # anchor 3b-C1 (P4-D373)
+    # The census, heaps, step and codes of a column of clock times
+    # (landing 3b.5), disposed in the decision that published them.
+    "clock-census": (
+        "## Decision P4-D373 — clock-only columns keep their time of day: "
+        "a census, heaps, a step and codes (stage 3b landing 3b.5, lane C1, "
+        "2026-10-03)"
+    ),
     # anchor 3b-C2 (P4-D374)
     # anchor 3b-G1 (P4-D375)
     # anchor 3b-G3 (P4-D376)
@@ -1246,9 +1253,9 @@ REGISTRY += [
     Fact(
         "clock",
         field,
-        LOADER_ONLY,
-        plan_words="LOADER-ONLY until the landing that fills each",
-        plan_region="stage-3b-reserves",
+        EXACT_OBSERVABLE,
+        plan_words="The validator counts the file against them, V5-C1 and V5-C2",
+        plan_region="clock-census",
     )
     for field in ("clock_census", "clock_heaps", "clock_step", "clock_codes")
 ]

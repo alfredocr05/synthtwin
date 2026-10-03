@@ -220,6 +220,7 @@ anchor 3b-T1 (P4-D370)
 anchor 3b-T2 (P4-D371)
 anchor 3b-T3 (P4-D372)
 anchor 3b-C1 (P4-D373)
+3b.5: tests/test_stage3b_clock.py.
 anchor 3b-C2 (P4-D374)
 anchor 3b-G1 (P4-D375)
 anchor 3b-G3 (P4-D376)
