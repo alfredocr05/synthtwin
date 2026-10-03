@@ -24,7 +24,9 @@ of eleven and seed 0, through the real producer, generator and checker:
   `control_asked` counts it;
 * `left_alone` / `left_alone_asked`: the shapes either question must
   leave alone -- a code on five rows, a third of the column, six codes,
-  two dates, no dates -- and how many are asked.
+  two dates, no dates -- and how many are asked;
+* `not_described`: shapes `synthtwin profile` refused; any at all and the
+  driver exits 1, so no refused case counts as clean.
 
 Before lane R1 (668f276): neither question existed. Seven of the eight
 columns with codes were read as labels or numbers, their twins parsing 0
@@ -103,15 +105,20 @@ def described(folder: pathlib.Path, shape: "shapes.Shape", *options: str) -> int
     return _quiet(["profile", str(table), "--out-dir", str(folder), "--replace", *options])
 
 
+class NotDescribed(Exception):
+    """A shape `synthtwin profile` refused, which no total may count as clean."""
+
+
 def answered(folder: pathlib.Path, shape: "shapes.Shape") -> "tuple[bool, int, bool, bool]":
     """Ask, answer, describe again, twin and check one shape.
 
     Returns whether it was asked, the twin cells outside the codes the
     person's format refuses, whether validation missed, and whether the
-    answered column came back whole.
+    answered column came back whole. Raises NotDescribed where the shape
+    could not be described at all.
     """
     if described(folder, shape) != 0:
-        return False, 0, False, False
+        raise NotDescribed(shape.name)
     questions = _questions(folder)
     entry = asked_entry(questions, shape.answer)
     if entry is None:
@@ -164,10 +171,16 @@ def measure(home: pathlib.Path) -> "tuple[dict[str, int], list[str]]":
         "control_asked": 0,
         "left_alone": len(shapes.NOT_ASKED),
         "left_alone_asked": 0,
+        "not_described": 0,
     }
     notes: "list[str]" = []
     for shape in shapes.DAY_OR_MONTH + shapes.CODES:
-        was_asked, unread, missed, whole = answered(home / shape.name, shape)
+        try:
+            was_asked, unread, missed, whole = answered(home / shape.name, shape)
+        except NotDescribed:
+            notes += [f"{shape.name}: not described"]
+            totals["not_described"] += 1
+            continue
         totals["asked"] += 1 if was_asked else 0
         totals["repaired"] += 1 if whole else 0
         totals["twin_cells_unread"] += unread
@@ -180,6 +193,7 @@ def measure(home: pathlib.Path) -> "tuple[dict[str, int], list[str]]":
         folder = home / f"plain-{shape.name}"
         if described(folder, shape) != 0:
             notes += [f"{shape.name}: not described"]
+            totals["not_described"] += 1
             continue
         day_or_month, codes = raises_either(_questions(folder))
         if shape in shapes.NOT_ASKED:
@@ -197,13 +211,22 @@ def measure(home: pathlib.Path) -> "tuple[dict[str, int], list[str]]":
 
 
 def main() -> int:
+    """Measure, emit, and exit 1 where any shape could not be described.
+
+    A CASE THAT COULD NOT BE DESCRIBED STOPS THE MEASUREMENT (the Codex
+    review of lane R1, item 10). It left a prose note, while the shape
+    totals still counted it and its question counts stayed nought, so a
+    control that wrote no questions file counted as clean. It is now
+    counted in `not_described`, and the driver exits 1, which fails the
+    entry whatever it printed (`kpi_run.judge_rows`).
+    """
     with tempfile.TemporaryDirectory() as folder:
         totals, notes = measure(pathlib.Path(folder))
     kpi_rules.emit(
         "K-S3-56", totals,
         "; ".join(notes) if notes else "every column asked, every answer repaired, every clean spelling left alone",
     )
-    return 0
+    return 1 if totals["not_described"] else 0
 
 
 if __name__ == "__main__":

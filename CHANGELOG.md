@@ -29,6 +29,37 @@ withdrew. STATE, `K-S3-13` and the tail producer's docstring no longer
 describe the withdrawn protection as current, and keep the sorted-table
 exception.
 
+### The date questions promise what their answers give (2026-10-02)
+
+**A codes question is put only where the answer reads the column as
+dates or times, and says every cell it takes** (plan P4-D381, the Codex
+review of lane R1). The reading a question promises is asked of the
+classifier itself with the codes declared missing, so stamps on two
+clock faces, three spellings of one date and stamps marked on every
+other row are no longer promised dates and answered as labels, while
+`9:30`, `9:30 AM` and a declared 12-hour clock beside `UNK` -- every
+clock form of landing T1 -- are now asked and answered as times of day.
+A code's rows are every cell its declaration takes in its column (20
+`UNK` beside 5 `unk` are 25 rows), and a declaration that would also
+take a real date (`20,230,101` is the number 20230101) is no code; the
+few cells that read as neither are said rather than called codes, and
+they are the cells the answer leaves unread, so a stand-in date such as
+`1900-01-01`, which the classifier sets aside, is counted among the
+dates. The
+line that repeats a run, and every other line a person is told to type,
+quotes every value for the shell and says which shell -- a code written
+`$(...)` is text, `NOT RECORDED` one word, `-UNK` joined with `=`, `a=~`
+no home folder to bash, a `"` handed whole through Windows PowerShell,
+and the backslashes ending a value beside any white space .NET counts --
+and the repeat line names the typed options an answer replaced. `real-value`
+answered beside a typed `--missing-value` keeps every code the question
+counted, while a word typed on both runs, which it never counted, stays
+as typed; one column answered both ways is refused, the question pass
+grows with the columns and not their square, and `K-S3-56`'s driver
+fails where a case cannot be described. The cost: each asked column is read once more by the classifier --
+describing thirty asked columns of 20,000 rows takes 66.2 s of CPU
+where it took 43.2.
+
 ### The weekday guards dropped (2026-10-02)
 
 **The weekday census is published unless a conservative rule withholds

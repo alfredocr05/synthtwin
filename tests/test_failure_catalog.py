@@ -342,6 +342,15 @@ CASES: "dict[str, tuple[object, ...]]" = {
     # found none in the table the run opened. It takes the column name
     # the questions file gave, which is the person's own.
     "the_date_codes_answer_reached_nothing": ("seen_at",),
+    # Not a refusal either: such an answer left words typed the other
+    # way as they were, where the column's codes no longer look as the
+    # question described them (the Codex review of lane R1, item 5). The
+    # column name, the option and how many words, never a word.
+    "the_date_codes_answer_left_typed_words": ("seen_at", "--missing-value", 1),
+    # Two entries of one questions file answering one column's codes
+    # both ways (the Codex review of lane R1, item 8): the path and the
+    # column name, both the person's own.
+    "one_column_answered_both_ways": ("/data/clinic-questions.json", "seen_at"),
     # ...and the refusal of two such answers that make one spelling a
     # value and "no value" at once. It takes the file's path and the
     # clashing pair as `taxonomy.contradictory_declarations` words it.

@@ -7420,10 +7420,16 @@ def reading_of_the_rest(
     and the first to reach the line wins; a slashed pair is read the way
     the classifier reads it, the column's own evidence first and
     `settings.day_first` only on a tie; the dotted two-figure pair is
-    skipped where a cell names a zero field; and the two clock forms
-    follow, the finer first. Each member stops as soon as more cells
-    fail than the line leaves room for, which is what keeps a column
-    that is not dates cheap to refuse.
+    skipped where a cell names a zero field; and the clock reading
+    follows, at the second and then at the minute, on the face most of
+    those cells wrote, as `_clock_candidates` reads it. Each member stops
+    as soon as more cells fail than the line leaves room for, which is
+    what keeps a column that is not dates cheap to refuse.
+
+    A NECESSARY TEST, NOT THE PROMISE. What the question promises is
+    asked of the classifier itself (`role_read`), once this has passed:
+    the rules before and after the date rule -- one value, two values,
+    a list of categories -- decide a column here too.
 
     THE CLOCK RULE STANDS AFTER THE CATEGORIES RULE, and so does this
     function's clock half: a column of four different times beside
@@ -7480,14 +7486,114 @@ def reading_of_the_rest(
         folded[parsing.folded(spelling)] = 1
     if len(folded) <= categories_ceiling(n_rows, settings):
         return None
-    for form in (parsing.CLOCK_HH_MM_SS, parsing.CLOCK_HH_MM):
+    # THE CLOCK RULE AS LANDING T1 READS IT (the Codex review of lane R1,
+    # item 4): `_clock_candidates` over different spellings weighed by
+    # their rows -- at the second, then at the minute, the face most of
+    # that precision's cells wrote (ties in `parsing.CLOCK_FACES` order),
+    # on the 12-hour face where the column is declared one, every hour
+    # width counted in and every other face counted unread. Before, only
+    # two-figure hours on the 24-hour face were read here, so `9:30` and
+    # `1:00 AM` beside `UNK` were never asked about.
+    twelve = reads_twelve_hours(settings)
+    clocks: "list[tuple[tuple[int, int, int, bool, int, str, bool], int]]" = []
+    for spelling in counted:
+        parts = parsing.clock_parts(spelling)
+        if parts is not None:
+            clocks += [(parts, counted[spelling])]
+    for with_seconds in (True, False):
+        faces: "dict[str, int]" = {}
+        for parts, rows in clocks:
+            if parts[3] == with_seconds:
+                held = faces[parts[5]] if parts[5] in faces else 0
+                faces[parts[5]] = held + rows
+        chosen = ""
+        best = -1
+        for face in parsing.CLOCK_FACES:
+            if face in faces and faces[face] > best:
+                chosen = face
+                best = faces[face]
+        if twelve and chosen == "":
+            chosen = parsing.CLOCK_TWELVE_HOUR
         good = 0
-        for spelling in counted:
-            if parsing.clock_form(spelling) == form:
-                good = good + counted[spelling]
+        ones = 0
+        twos = 0
+        for parts, rows in clocks:
+            if parts[3] != with_seconds:
+                continue
+            if parsing.clock_second(parts, chosen) is None:
+                continue
+            good = good + rows
+            shown = parsing.clock_shown_width(parts)
+            if shown == "h":
+                ones = ones + rows
+            elif shown == "hh":
+                twos = twos + rows
         if good >= needed and good:
-            return form, good
+            style = ("h" if ones > twos else "hh") + chosen
+            return parsing.clock_form_of(style, with_seconds), good
     return None
+
+
+def role_read(
+    name: str,
+    values: "list[str]",
+    settings: Settings,
+    forced_decimal_comma: bool = False,
+    stored_as: str = "",
+) -> "tuple[str, str, int, int]":
+    """The role one column is given, read exactly as `profile_column` reads it.
+
+    THE READING A QUESTION PROMISES, ASKED OF THE CLASSIFIER ITSELF (the
+    Codex review of lane R1, item 3). `asking.date_codes_seen` worked out
+    what a column of dates beside a few codes would be read as once the
+    codes were declared missing with a reader of its own, and promised
+    that reading; the reader left out what the classifier does first and
+    after -- a column of three spellings of one date is `constant` by
+    rule 3 before rule 5 is asked, and slashed stamps on two clock faces
+    leave half their cells unread under T1's one-face rule -- so the
+    answer gave labels where dates were promised. This is
+    `_read_the_column` and `_decision` with the arguments `profile_column`
+    gives them, so the promise is the classifier's answer and not a
+    second opinion of it.
+
+    Guarantees: accepts the column's name, every cell of it in row order,
+    the settings to read it under (the table's, before
+    `for_the_column`), whether it is declared `--decimal-comma` and how a
+    workbook stores it; returns the role, the date member or clock form
+    it is read under (empty for any other role), how many present cells
+    that reading reads and how many cells are present once every
+    declaration and judgement is applied. Determinism: a function of the
+    arguments. Errors raised: ValueError where the settings name one value
+    both as data and as "no value", as `profile_column` does. No I/O.
+    """
+    narrowed = for_the_column(settings, name)
+    read = _read_the_column(
+        values,
+        len(values),
+        narrowed,
+        forced_decimal_comma=forced_decimal_comma,
+        stored_as=stored_as,
+    )
+    held = len(read.cells.present)
+    if not held:
+        return ROLE_EMPTY, "", 0, 0
+    verdict = _decision(
+        read.cells,
+        False,
+        read.removed_by_cores,
+        after_removal=read.judged_over_cores,
+        after_days=read.judged_over_days,
+        after_levels=read.judged_over_levels,
+        stored_as=stored_as,
+    )
+    details = verdict.details
+    unread = details["n_unparsed"] if "n_unparsed" in details else 0
+    unread = unread if isinstance(unread, int) else 0
+    if verdict.role == ROLE_DATETIME and "format" in details:
+        return verdict.role, f"{details['format']}", held - unread, held
+    if verdict.role == ROLE_CLOCK and "clock_form" in details:
+        return verdict.role, f"{details['clock_form']}", held - unread, held
+    return verdict.role, "", 0, held
 
 
 def _judged_totals(

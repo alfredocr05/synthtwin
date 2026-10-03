@@ -62,6 +62,7 @@ One clause per rule, each beside the mutant it is red on:
 """
 
 import contextlib
+import dataclasses
 import csv
 import io
 import json
@@ -394,9 +395,17 @@ def test_red_on_each_rule_of_the_codes_question(
     value: int,
     floor: int,
 ) -> None:
-    """Each shape left alone is asked once its own rule is moved: the rule is what keeps it out."""
+    """Each shape left alone is asked once its own rule is moved: the rule is what keeps it out.
+
+    The classifier's own reading, asked since the Codex review of lane
+    R1 (item 3), would refuse some of them too -- two dates beside a code
+    are two values -- so the witness takes it out of the way as well, and
+    the rule alone is what is moved.
+    """
     values = shapes.cells(shapes.by_name(name))
     assert not _asked_here(tmp_path / "shipped", values, floor)[0], (name, rule)
+    monkeypatch.setattr(asking, "_as_the_classifier_reads", lambda name, values, settings, found, comma, stored: found)
+    assert not _asked_here(tmp_path / "unchecked", values, floor)[0], (name, rule)
     monkeypatch.setattr(asking, rule, value)
     assert _asked_here(tmp_path / "moved", values, floor)[0], (name, rule)
 
@@ -409,6 +418,8 @@ def test_red_without_the_date_rule(tmp_path: pathlib.Path, monkeypatch: pytest.M
 
     values = shapes.cells(shapes.by_name("notes_with_codes"))
     assert not _asked_here(tmp_path / "shipped", values)[0]
+    monkeypatch.setattr(asking, "_as_the_classifier_reads", lambda name, values, settings, found, comma, stored: found)
+    assert not _asked_here(tmp_path / "unchecked", values)[0]
     monkeypatch.setattr(taxonomy, "reading_of_the_rest", anything)
     assert _asked_here(tmp_path / "moved", values)[0]
 
@@ -916,3 +927,735 @@ def test_typed_workbook_dates_beside_a_text_code_answered_missing_validate(
     generated = ["generate", str(tmp_path / "real-profile.json"), "--seed", "0", "--out-dir", str(tmp_path), "--replace"]
     assert _quiet(generated)[0] == 0
     assert _validates(tmp_path)
+
+
+# -- the Codex review of lane R1 ----------------------------------------------
+
+
+def _iso_days(count: int) -> "list[str]":
+    """``count`` ISO dates over about two years, every one a real day."""
+    import datetime
+
+    first = datetime.date(2023, 1, 2)
+    return [(first + datetime.timedelta(days=place % 700)).isoformat() for place in range(count)]
+
+
+@pytest.mark.parametrize("code", ["$(printf marker)", "NOT RECORDED", "-UNK", "it's", "=echo"])
+def test_the_repeat_line_quotes_each_value_for_the_shell(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, code: str
+) -> None:
+    """A code the table wrote is quoted on the line to type, and that line repeats the run.
+
+    The Codex review of lane R1, item 1: `--missing-value $(printf
+    marker)` was printed bare, so a POSIX shell would run it, and `NOT
+    RECORDED` became two words and the repeat exited 2. A leading minus
+    is joined with `=`, which argparse reads as the option's value. The
+    line is split here as a POSIX shell splits it, and the run it names
+    declares the same code. Red on the bare line.
+    """
+    import shlex
+
+    monkeypatch.setattr(cli, "_on_windows", lambda: False, raising=False)
+    values = _iso_days(970) + [code] * 30
+    table = _table(tmp_path, values)
+    _profiled(tmp_path, values)
+    answers = _answer(tmp_path, "seen_at", asking.ANSWER_NO_DATE)
+    code_of, said = _profiled(tmp_path, values, "--answers", str(answers))
+    assert code_of == 0, said
+    line = _repeat_line(said)
+    words = shlex.split(line)
+    if code.startswith("-"):
+        assert words == [f"--missing-value={code}"], line
+    else:
+        assert words == ["--missing-value", code], line
+    assert "quoted for a POSIX shell" in said
+    again = tmp_path / "again"
+    again.mkdir()
+    code_of, said = _quiet(["profile", str(table), "--out-dir", str(again), "--replace", *words])
+    assert code_of == 0, said
+    assert _block(again)["role"] == "datetime"
+    assert _block(again)["n_missing"] == 30
+
+
+def test_a_column_name_with_a_space_is_one_word_on_the_repeat_line(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`--twelve-hour Visit time` was two words; quoted, it names the column."""
+    import shlex
+
+    monkeypatch.setattr(cli, "_on_windows", lambda: False, raising=False)
+    dated = _iso_days(970) + ["UNK"] * 30
+    clocks = [f"{1 + place % 12}:{place % 60:02d}" for place in range(1000)]
+    table = _two_columns(tmp_path, {"seen_at": dated, "Visit time": clocks})
+    typed = ("--twelve-hour", "Visit time")
+    assert _quiet(["profile", str(table), "--out-dir", str(tmp_path), "--replace", *typed])[0] == 0
+    answers = _answer(tmp_path, "seen_at", asking.ANSWER_NO_DATE)
+    code, said = _quiet(["profile", str(table), "--out-dir", str(tmp_path), "--replace", *typed, "--answers", str(answers)])
+    assert code == 0, said
+    words = shlex.split(_repeat_line(said))
+    assert words == ["--twelve-hour", "Visit time", "--missing-value", "UNK"], words
+
+
+def test_the_line_to_type_is_quoted_for_powershell_on_windows() -> None:
+    """On Windows each value is in PowerShell's single quotes, a quote inside written twice."""
+    assert cli._quoted_for_the_shell("seen_at", windows=True) == "seen_at"
+    assert cli._quoted_for_the_shell("C:\\data\\real.csv", windows=True) == "C:\\data\\real.csv"
+    assert cli._quoted_for_the_shell("C:\\RUNNER~1\\real.csv", windows=True) == "C:\\RUNNER~1\\real.csv"
+    assert cli._quoted_for_the_shell("~/real.csv", windows=False) == "'~/real.csv'"
+    assert cli._quoted_for_the_shell("$(printf marker)", windows=True) == "'$(printf marker)'"
+    assert cli._quoted_for_the_shell("it's", windows=True) == "'it''s'"
+    assert cli._quoted_for_the_shell("it\u2019s", windows=True) == "'it\u2019\u2019s'"
+    assert cli._quoted_for_the_shell("a,b", windows=True) == "'a,b'"
+    assert cli._typed_option("--missing-value", "-NOT KNOWN", windows=True) == "'--missing-value=-NOT KNOWN'"
+    assert cli._typed_option("--missing-value", "NOT RECORDED", windows=False) == "--missing-value 'NOT RECORDED'"
+    assert cli._typed_option("--code", "dose", windows=False) == "--code dose"
+    assert cli._typed_path("-out/real-profile.json", windows=False).startswith("./-out")
+
+
+def test_a_tilde_and_a_leading_minus_are_quoted_where_a_shell_reads_them() -> None:
+    """bash reads `a=~` as a home folder, and Windows PowerShell splits `-a.b` at its point.
+
+    Measured with bash 3.2: `printf '%s' a=~ a=x:~` prints the home folder
+    after the `=` and after the `:`, so a code written `a=~` printed bare
+    was declared as another; zsh leaves both alone. And Windows
+    PowerShell hands a program the bare word `--missing-value=-1.5` as
+    two words, split before the point. So on POSIX a word holding `~`
+    anywhere is quoted, and on PowerShell a word starting with `-` is.
+    Red on the first repair of this review, which printed all of them
+    bare.
+    """
+    for word in ("a=~", "a=x:~", "N=~", "x~y"):
+        assert cli._quoted_for_the_shell(word, windows=False) == f"'{word}'"
+    assert cli._quoted_for_the_shell("RUNNER~1", windows=True) == "RUNNER~1"
+    assert cli._typed_option("--missing-value", "-1.5", windows=False) == "--missing-value=-1.5"
+    assert cli._typed_option("--missing-value", "-1.5", windows=True) == "'--missing-value=-1.5'"
+    assert cli._typed_option("--missing-value", "-UNK", windows=True) == "'--missing-value=-UNK'"
+
+
+def _handed_over_by_windows_powershell(line: str) -> "list[str]":
+    """The words a program receives from a line Windows PowerShell 5.1 runs.
+
+    PowerShell reads each single-quoted word (a quote inside written
+    twice) and each bare one. It builds the program's command line from
+    them, wrapping a word in double quotes only where white space stands
+    outside a run its own `"` open -- any character .NET's
+    `Char.IsWhiteSpace` names, the no-break space among them, which
+    `str.isspace` names too; a `"` after a backslash opens no run -- and
+    leaving every `"` inside as it is (`NeedQuotes` of its native
+    command binder). The program reads that line by the C runtime's
+    rule: backslashes are text unless a `"` follows, where each pair is
+    one backslash and an odd one makes the `"` text; any other `"`
+    opens or closes a quoted run.
+    """
+    words: "list[str]" = []
+    place = 0
+    while place < len(line):
+        if line[place] == " ":
+            place += 1
+            continue
+        word = ""
+        if line[place] == "'":
+            place += 1
+            while place < len(line):
+                if line[place] == "'" and line[place + 1 : place + 2] == "'":
+                    word, place = word + "'", place + 2
+                elif line[place] == "'":
+                    place += 1
+                    break
+                else:
+                    word, place = word + line[place], place + 1
+        else:
+            while place < len(line) and line[place] != " ":
+                word, place = word + line[place], place + 1
+        words += [word]
+
+    def wrapped(word: str) -> str:
+        quotes, after_slash = 0, False
+        for character in word:
+            if character == '"' and not after_slash:
+                quotes += 1
+            elif character.isspace() and quotes % 2 == 0:
+                return f'"{word}"'
+            after_slash = character == "\\"
+        return word
+
+    built = " ".join(wrapped(word) for word in words)
+    read: "list[str]" = []
+    word, quoted, started, place = "", False, False, 0
+    while place < len(built):
+        slashes = 0
+        while place < len(built) and built[place] == "\\":
+            slashes, place = slashes + 1, place + 1
+        if place < len(built) and built[place] == '"':
+            word += "\\" * (slashes // 2)
+            if slashes % 2:
+                word += '"'
+            else:
+                quoted = not quoted
+            started, place = True, place + 1
+            continue
+        word += "\\" * slashes
+        if slashes:
+            started = True
+        if place >= len(built):
+            break
+        if built[place] == " " and not quoted:
+            if started:
+                read, word, started = read + [word], "", False
+        else:
+            word, started = word + built[place], True
+        place += 1
+    if started:
+        read += [word]
+    return read
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        'UNK"',
+        'a" b',
+        'say "no" twice',
+        'x" --code "y',
+        'a\\"b',
+        "a b\\",
+        "C:\\my data\\real.csv",
+        "a\u00a0b\\",
+        "Visit\u3000time\\",
+        "x\u2003\\\\",
+    ],
+)
+def test_a_double_quote_reaches_the_program_whole_from_windows_powershell(value: str) -> None:
+    """`UNK"` handed over by Windows PowerShell 5.1 stays `UNK"`, and the option after it stays an option.
+
+    The Codex review of lane R1, item 1, on the shell a Windows terminal
+    opens: PowerShell 5.1 puts a value holding `"` into the program's
+    command line with that quote bare, so the program read it as its
+    own: `say "no" twice` arrived as `say no twice`, and `UNK"` opened a
+    run that took `--code dose`, the option typed after it, into the
+    value. Each `"` is written as the C runtime reads it back, and the
+    backslashes before it or ending a value that holds white space
+    doubled. Red on the first repair of this review, which wrote the
+    quote bare. On a POSIX shell nothing changes.
+
+    And white space is every character .NET counts as such (the
+    verification of the repairs of this review, its open item 2): 5.1
+    wraps a value holding a no-break space, an ideographic space or an
+    em space as it wraps one holding a space, so `a`, a no-break space,
+    `b` and `\\` printed with one backslash reached the program as one
+    word holding `" --code dose`. Red on 27c604b, which doubled the
+    ending backslashes only beside a space or a tab.
+    """
+    import shlex
+
+    line = f"{cli._typed_option('--missing-value', value, windows=True)} --code dose"
+    assert _handed_over_by_windows_powershell(line) == ["--missing-value", value, "--code", "dose"], line
+    posix = f"{cli._typed_option('--missing-value', value, windows=False)} --code dose"
+    assert shlex.split(posix) == ["--missing-value", value, "--code", "dose"], posix
+
+
+def test_every_line_to_type_says_its_shell_where_it_quotes_a_value(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The options a notice offers and the `validate` line are quoted, and then say for which shell.
+
+    The Codex review of lane R1, item 1: the value placed in a line the
+    person is told to type is quoted for the shell -- the column `Visit
+    time` offered after `--identifier` was two words, and a path with a
+    space after `synthtwin validate` the same -- and a line that quotes
+    one says which shell it was written for, since PowerShell's quotes
+    are not the command prompt's. A line of plain words is unchanged.
+    Red on 110cb46, which printed both bare.
+    """
+    import shlex
+
+    monkeypatch.setattr(cli, "_on_windows", lambda: False, raising=False)
+    spaced = asking.Question("Visit time", "long_tail_labels", asking.BECAUSE_REPEATS_AND_MANY, "a shape", [], "")
+    notice = cli._assumptions_notice([spaced])
+    offered = notice.splitlines()[notice.splitlines().index("If any of them names people, run the command again naming them:") + 1]
+    assert shlex.split(offered) == ["--identifier", "Visit time"], offered
+    assert "(each value quoted for a POSIX shell such as bash or zsh)" in notice
+    plain = asking.Question("visit_time", "long_tail_labels", asking.BECAUSE_REPEATS_AND_MANY, "a shape", [], "")
+    assert "each value quoted" not in cli._assumptions_notice([plain])
+    twin = pathlib.Path("my data") / "real-twin.csv"
+    taught = cli._teaching_validate("my data/real-profile.json", twin)
+    line = taught.splitlines()[2]
+    assert shlex.split(line) == ["synthtwin", "validate", "my data/real-profile.json", "--twin", str(twin)], line
+    assert "(each value quoted for a POSIX shell such as bash or zsh)" in taught
+    assert "each value quoted" not in cli._teaching_validate("real-profile.json", pathlib.Path("real-twin.csv"))
+
+
+def test_the_refusal_of_a_column_too_wide_puts_no_name_inside_the_option() -> None:
+    """A column's name stood inside `'--identifier NAME'`, where a quote in it ended the quotes.
+
+    The Codex review of lane R1, item 1, at the one other line that told
+    a person what to type with a value of the table in it: the
+    generator's refusal of a column whose width cannot hold its values.
+    That module cannot know the shell, so the option is named and the
+    column is named in the sentence before it, not inside the option.
+    Red on 110cb46, whose line held `'--identifier x'$(touch y)''`.
+    """
+    from synthtwin import generation
+
+    name = "x'$(touch y)'"
+    said = generation._domain_too_small(name, "one character long", 200, 95)
+    assert f"--identifier {name}" not in said
+    assert "with --identifier followed by this column's name" in said
+    assert f"The description of the column '{name}'" in said
+
+
+def _asked_and_answered(
+    folder: pathlib.Path, values: "list[str]", *options: str
+) -> "tuple[dict | None, dict]":
+    """The codes entry the file asks of `seen_at`, and its block once answered `missing` (or as it stands)."""
+    _profiled(folder, values, *options)
+    entries = _code_entries(_questions(folder))
+    if not entries:
+        return None, _block(folder)
+    answers = _answer(folder, "seen_at", asking.ANSWER_NO_DATE)
+    code, said = _profiled(folder, values, *options, "--answers", str(answers))
+    assert code == 0, said
+    return entries[0], _block(folder)
+
+
+def test_the_count_a_code_is_said_on_is_every_cell_its_answer_takes(tmp_path: pathlib.Path) -> None:
+    """Twenty `UNK` and five `unk` are one code on 25 rows, which is what `missing` takes.
+
+    The Codex review of lane R1, item 2: the question said 20 rows and the
+    answer took 25, because a spelling under the line that the same
+    declaration matches was left out of the count. Red on 110cb46.
+    """
+    entry, block = _asked_and_answered(tmp_path, _iso_days(975) + ["UNK"] * 20 + ["unk"] * 5)
+    assert entry is not None
+    assert "on 25 rows" in entry["what_synthtwin_saw"], entry["what_synthtwin_saw"]
+    assert block["role"] == "datetime"
+    assert block["n_missing"] == 25
+
+
+def test_a_code_whose_declaration_takes_real_dates_is_not_asked(tmp_path: pathlib.Path) -> None:
+    """`20,230,101` is the number 20230101, which a declaration also takes from `20230101`, a real day.
+
+    The Codex review of lane R1, item 2: 900 compact dates, 80 cells of
+    `20230101` and 20 of `20,230,101` were asked about a code on 20 rows,
+    and the answer `missing` took 100 rows, the 80 real first days of
+    January with them. A declaration that would take a cell some date
+    reading reads is no code, so nothing is asked. Red on 110cb46.
+    """
+    import datetime
+
+    first = datetime.date(2023, 1, 2)
+    compact = [(first + datetime.timedelta(days=place % 300)).strftime("%Y%m%d") for place in range(900)]
+    values = compact + ["20230101"] * 80 + ["20,230,101"] * 20
+    entry, block = _asked_and_answered(tmp_path, values)
+    assert entry is None, entry["what_synthtwin_saw"] if entry else ""
+    assert block["n_missing"] == 0
+
+
+@pytest.mark.parametrize(
+    "case",
+    ["two_clock_faces", "one_date_three_spellings", "stamps_half_marked"],
+)
+def test_a_question_is_put_only_where_the_classifier_gives_the_reading_it_promises(
+    tmp_path: pathlib.Path, case: str
+) -> None:
+    """Where the answer would not give dates or times, the question that promises them is not put.
+
+    The Codex review of lane R1, item 3, and of landing T1, item 5: slashed
+    stamps half on the 24-hour face and half marked AM leave half their
+    cells unread under T1's one face; `17 Mar 2024` in three cases is one
+    value, `constant` by rule 3 before the date rule is asked; and stamps
+    marked on every other row are read on one face. Each was promised
+    dates, and each answered column was labels or text. Red on 110cb46.
+    """
+    if case == "two_clock_faces":
+        plain = [f"3/{1 + place // 20}/2023 {13 + place % 10}:{place % 60:02d}" for place in range(475)]
+        marked = [f"3/{1 + place // 20}/2023 {1 + place % 10}:{place % 60:02d} AM" for place in range(475)]
+        values = plain + marked + ["UNK"] * 50
+    elif case == "one_date_three_spellings":
+        values = ["17 Mar 2024"] * 324 + ["17 MAR 2024"] * 323 + ["17 mar 2024"] * 323 + ["UNK"] * 30
+    else:
+        values = [
+            f"3/{1 + place // 20}/2023 {1 + place % 10}:{place % 60:02d}" + (" AM" if place % 2 else "")
+            for place in range(300)
+        ] + ["UNK"] * 15
+    entry, block = _asked_and_answered(tmp_path, values)
+    assert entry is None, (case, block["role"])
+
+
+@pytest.mark.parametrize("marker, declared", [("", False), (" AM", False), ("", True)])
+def test_t1_clocks_beside_a_code_are_asked_and_read_as_times(
+    tmp_path: pathlib.Path, marker: str, declared: bool
+) -> None:
+    """`9:30`, `9:30 AM` and a declared 12-hour clock beside `UNK`: asked, and answered they are times of day.
+
+    The Codex review of lane R1, item 4, and of landing T1, item 4: the
+    question read only `HH:MM` and `HH:MM:SS`, so 970 clocks spanning
+    `1:00` to `9:59` beside thirty `UNK`, with or without a marker, were
+    never asked, though declaring `UNK` missing reads them as times of
+    day. The example the question gives is written in the column's own
+    form. Red on 110cb46.
+    """
+    clocks = [f"{hour}:{minute:02d}{marker}" for hour in range(1, 10) for minute in range(60)]
+    values = [clocks[place % len(clocks)] for place in range(970)] + ["UNK"] * 30
+    options = ("--twelve-hour", "seen_at") if declared else ()
+    entry, block = _asked_and_answered(tmp_path, values, *options)
+    assert entry is not None
+    assert "970 of the 1000 values read as times of day written as " in entry["what_synthtwin_saw"]
+    if marker:
+        assert "written as 2:05 PM" in entry["what_synthtwin_saw"]
+    assert block["role"] == "time_of_day"
+    assert block["n_missing"] == 30
+
+
+def test_a_few_cells_that_are_neither_are_said(tmp_path: pathlib.Path) -> None:
+    """975 dates, 20 `UNK` and five `ODD`: the five are said, as "a few", and not called codes.
+
+    The Codex review of lane R1, item 6: "every other value is one
+    spelling" was false where the date rule's line left room for cells
+    that read as neither, and the answer left them unread. Their count
+    is under the floor, so it is not printed. Red on 110cb46.
+    """
+    entry, block = _asked_and_answered(tmp_path, _iso_days(975) + ["UNK"] * 20 + ["ODD"] * 5)
+    assert entry is not None
+    saw = entry["what_synthtwin_saw"]
+    assert "every other value but a few of them is one spelling" in saw, saw
+    assert "stay unread whatever the answer" in saw
+    assert " 5 " not in saw
+    means = {choice["answer"]: choice["then_the_description_publishes"] for choice in entry["answers_you_can_give"]}
+    assert "the few cells that read as neither counted unread" in means[asking.ANSWER_NO_DATE]
+    assert block["n_missing"] == 20
+    assert block["n_unparsed"] == 5
+
+
+@pytest.mark.parametrize(
+    "dates, codes, odd, read, said",
+    [(950, 20, 0, "980 of the 1000 values", ""), (1930, 25, 15, "1960 of the 2000 values", "15")],
+    ids=["stand_ins_alone", "stand_ins_beside_fifteen_unread"],
+)
+def test_stand_in_dates_the_classifier_sets_aside_are_read_and_never_said_unread(
+    tmp_path: pathlib.Path, dates: int, codes: int, odd: int, read: str, said: str
+) -> None:
+    """Thirty `1900-01-01` beside ISO dates and `UNK` read as dates, and the cells said unread are the answer's own.
+
+    The verification of the repairs of the Codex review of lane R1, its
+    open item 1: the classifier sets a stand-in date aside, so it was
+    counted with the cells that read as neither -- 950 dates, thirty
+    `1900-01-01` and twenty `UNK` were said to be "950 of the 1000"
+    dates, with "every other value but 30 of them" the code and those 30
+    left to "stay unread whatever the answer", while `missing` left none
+    unread and counted the thirty missing by their spelling. Beside
+    fifteen cells that read as nothing, 45 were said where the answer
+    leaves 15. The cells said unread are those the answer leaves unread.
+    Red on 27c604b, which says "but 30 of them" and "but 45 of them";
+    110cb46 said 980.
+    """
+    values = _iso_days(dates) + ["1900-01-01"] * 30 + ["UNK"] * codes + [f"junk{place}" for place in range(odd)]
+    entry, block = _asked_and_answered(tmp_path, values)
+    assert entry is not None
+    saw = entry["what_synthtwin_saw"]
+    means = {choice["answer"]: choice["then_the_description_publishes"] for choice in entry["answers_you_can_give"]}
+    assert f"{read} read as dates" in saw, saw
+    if said:
+        assert f"every other value but {said} of them is one spelling" in saw, saw
+        assert f"the {said} cells that read as neither counted unread" in means[asking.ANSWER_NO_DATE]
+    else:
+        assert "every other value is one spelling" in saw, saw
+        assert "stay unread" not in saw and "counted unread" not in means[asking.ANSWER_NO_DATE], saw
+    assert block["role"] == "datetime"
+    assert block["n_unparsed"] == odd
+    assert block["missing_by_source"] == {"1900-01-01": 30, "UNK": codes}
+
+
+def test_real_value_answered_beside_a_typed_missing_value_keeps_every_code(tmp_path: pathlib.Path) -> None:
+    """`--missing-value UNK` typed, `real-value` answered about `UNK` and `PENDING`: both are kept.
+
+    The Codex review of lane R1, item 5: the run found the codes again
+    under the typed declaration, so `UNK` was already gone, `PENDING`
+    alone was kept, and the thirty `UNK` cells stayed missing without a
+    word. Red on 110cb46.
+    """
+    values = _iso_days(940) + ["UNK"] * 30 + ["PENDING"] * 30
+    _profiled(tmp_path, values)
+    entry = _code_entries(_questions(tmp_path))[0]
+    assert "2 spellings" in entry["what_synthtwin_saw"]
+    answers = _answer(tmp_path, "seen_at", asking.ANSWER_REAL_VALUE)
+    code, said = _profiled(tmp_path, values, "--missing-value", "UNK", "--answers", str(answers))
+    assert code == 0, said
+    settings = json.loads((tmp_path / "real-profile.json").read_text(encoding="utf-8"))["settings"]
+    assert settings["kept_values"]["n_declared"] == 2
+    assert settings["declared_missing_values"]["n_declared"] == 0
+    assert _block(tmp_path)["n_missing"] == 0
+
+
+@pytest.mark.parametrize(
+    "answer, typed, values, n_missing, n_kept, n_declared_missing",
+    [
+        # `XX` under the line, typed missing on both runs: the answer
+        # `missing` reads the column as dates.
+        (asking.ANSWER_NO_DATE, ("--missing-value", "XX"), ["UNK"] * 30 + ["XX"] * 10, 40, 0, 2),
+        # `NOTE` on the line, typed missing on both runs: `real-value`
+        # about `UNK` keeps `UNK` and leaves the twenty `NOTE` missing.
+        (asking.ANSWER_REAL_VALUE, ("--missing-value", "NOTE"), ["UNK"] * 30 + ["NOTE"] * 20, 20, 1, 1),
+        # `NOTE` typed kept on both runs: `missing` about `UNK` takes
+        # `UNK` alone and `NOTE` stays a value.
+        (asking.ANSWER_NO_DATE, ("--keep-value", "NOTE"), ["UNK"] * 30 + ["NOTE"] * 12, 30, 1, 1),
+    ],
+)
+def test_a_word_typed_on_both_runs_that_the_question_never_counted_stays_as_typed(
+    tmp_path: pathlib.Path,
+    answer: str,
+    typed: "tuple[str, str]",
+    values: "list[str]",
+    n_missing: int,
+    n_kept: int,
+    n_declared_missing: int,
+) -> None:
+    """A word typed on the run that asked and on the run that answers is not the answer's to take.
+
+    The regression the first repair of the Codex review of lane R1, item
+    5, brought: it found the codes again under NO typed declaration, so
+    a word typed on both runs -- which the question, worked out under it,
+    never counted -- was taken by the answer as well. `XX` typed missing
+    came back among the dates, the column read as labels and the answer
+    declared nothing; `NOTE` typed missing was kept by `real-value`;
+    `NOTE` typed kept was declared missing. The question's own words say
+    which codes it counted, and the codes found under the typed
+    declarations are those. Red on 622e810; the third is red on 110cb46
+    as well, which counted a typed `--keep-value` into the answer.
+    """
+    dates = _iso_days(1200 if typed[0] == "--keep-value" else 1000 - len(values))
+    cells = dates + values
+    _profiled(tmp_path, cells, *typed)
+    entries = _code_entries(_questions(tmp_path))
+    assert entries and "one spelling" in entries[0]["what_synthtwin_saw"], entries
+    answers = _answer(tmp_path, "seen_at", answer)
+    code, said = _profiled(tmp_path, cells, *typed, "--answers", str(answers))
+    assert code == 0, said
+    assert "declared nothing" not in said
+    assert "did not reach" not in said
+    assert "take these out" not in said
+    settings = json.loads((tmp_path / "real-profile.json").read_text(encoding="utf-8"))["settings"]
+    assert settings["kept_values"]["n_declared"] == n_kept
+    assert settings["declared_missing_values"]["n_declared"] == n_declared_missing
+    assert _block(tmp_path)["n_missing"] == n_missing
+    if answer == asking.ANSWER_NO_DATE:
+        assert _block(tmp_path)["role"] == "datetime"
+
+
+def test_an_answer_whose_codes_moved_leaves_the_typed_word_and_says_so(tmp_path: pathlib.Path) -> None:
+    """The table changed since the questions file: the typed `--missing-value UNK` stands, and the run says so.
+
+    The Codex review of lane R1, item 5: an answer that did not reach a
+    typed word stayed silent. Where neither reading of the codes is the
+    one the question described -- here the table gained ten `PENDING`
+    rows -- synthtwin cannot tell whether the answer was about `UNK`, so
+    the typed word stands and the run says the answer did not reach it.
+    Red on 622e810, which kept `UNK` without a word, and on 110cb46.
+    """
+    _profiled(tmp_path, _iso_days(940) + ["UNK"] * 30 + ["PENDING"] * 30)
+    answers = _answer(tmp_path, "seen_at", asking.ANSWER_REAL_VALUE)
+    later = _iso_days(930) + ["UNK"] * 30 + ["PENDING"] * 40
+    code, said = _profiled(tmp_path, later, "--missing-value", "UNK", "--answers", str(answers))
+    assert code == 0, said
+    assert (
+        "about the codes in the column 'seen_at' did not reach a word you typed after --missing-value"
+    ) in said
+    settings = json.loads((tmp_path / "real-profile.json").read_text(encoding="utf-8"))["settings"]
+    assert settings["kept_values"]["n_declared"] == 1
+    assert settings["declared_missing_values"]["n_declared"] == 1
+    assert _block(tmp_path)["n_missing"] == 30
+
+
+def test_the_repeat_line_says_which_typed_option_an_answer_replaced(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`--keep-value UNK` typed and `missing` answered: the line says to take the typed option out.
+
+    The Codex review of lane R1, item 7: the line said only to add
+    `--missing-value UNK`, and the command with both exits 2. Followed as
+    written -- the typed options less those taken out, with those added
+    -- the run declares what the answered one did. Red on 110cb46.
+    """
+    import shlex
+
+    monkeypatch.setattr(cli, "_on_windows", lambda: False, raising=False)
+    values = _iso_days(970) + ["UNK"] * 30
+    table = _table(tmp_path, values)
+    _profiled(tmp_path, values)
+    answers = _answer(tmp_path, "seen_at", asking.ANSWER_NO_DATE)
+    code, said = _profiled(tmp_path, values, "--keep-value", "UNK", "--answers", str(answers))
+    assert code == 0, said
+    lines = said[said.index("TO REPEAT THIS RUN"):].splitlines()
+    assert shlex.split(lines[1]) == ["--missing-value", "UNK"]
+    assert lines[2].startswith("and take these out of the command you typed")
+    assert shlex.split(lines[3]) == ["--keep-value", "UNK"]
+    again = tmp_path / "again"
+    again.mkdir()
+    code, said = _quiet(["profile", str(table), "--out-dir", str(again), "--replace", *shlex.split(lines[1])])
+    assert code == 0, said
+    assert _block(again)["n_missing"] == 30
+
+
+def test_one_column_answered_both_ways_is_refused(tmp_path: pathlib.Path) -> None:
+    """Two entries for one column, `missing` and `real-value`: refused, and nothing written.
+
+    The Codex review of lane R1, item 8: both answers were read, and the
+    column was read under `missing` alone without a word. Red on 110cb46.
+    """
+    values = _iso_days(970) + ["UNK"] * 30
+    _profiled(tmp_path, values)
+    questions = _questions(tmp_path)
+    entry = _code_entries(questions)[0]
+    second = json.loads(json.dumps(entry))
+    entry["your_answer"] = asking.ANSWER_NO_DATE
+    second["your_answer"] = asking.ANSWER_REAL_VALUE
+    questions["asked"] += [second]
+    answers = tmp_path / "answers.json"
+    answers.write_text(json.dumps(questions), encoding="utf-8", newline="\n")
+    (tmp_path / "real-profile.json").unlink()
+    code, said = _profiled(tmp_path, values, "--answers", str(answers))
+    assert code == 2
+    assert "one entry answers 'missing' and another answers 'real-value'" in said
+    assert not (tmp_path / "real-profile.json").exists()
+
+
+class _CountedList(list):  # type: ignore[type-arg]
+    """A list that counts how often it is walked whole, or searched."""
+
+    walks = 0
+
+    def __iter__(self):  # type: ignore[no-untyped-def]
+        _CountedList.walks += 1
+        return super().__iter__()
+
+    def __contains__(self, item: object) -> bool:
+        _CountedList.walks += 1
+        return super().__contains__(item)
+
+    def __getitem__(self, index):  # type: ignore[no-untyped-def]
+        _CountedList.walks += 1
+        return super().__getitem__(index)
+
+
+def test_codes_elsewhere_grows_with_the_columns_not_their_square() -> None:
+    """Forty columns, each with a code of its own that no other holds: about one look per column.
+
+    The Codex review of lane R1, item 9: each column walked every
+    question, so C columns cost C * C comparisons for an empty answer.
+    Counted here as the reads of the list of asked columns. Red on
+    110cb46, where forty columns read it about 1,600 times.
+    """
+    count = 40
+    columns: "list[list[str]]" = []
+    asked: "list[tuple[int, asking.DateCodes]]" = []
+    for place in range(count):
+        code = f"C{place}X"
+        columns += [_iso_days(99)[place:] + _iso_days(place) + [code] * 11]
+        asked += [(place, asking.DateCodes("iso-date", ((code, 11),), 99, 110))]
+    blocks = [{"name": f"c{place}", "role": "long_tail_labels", "n_present": 110} for place in range(count)]
+    counted = _CountedList(asked)
+    _CountedList.walks = 0
+    reached = asking.codes_elsewhere({"columns": blocks}, columns, counted, taxonomy.Settings())
+    assert reached == {}
+    assert _CountedList.walks <= 4 * count, _CountedList.walks
+
+
+def test_the_day_or_month_question_takes_coded_columns_by_name_once() -> None:
+    """The coded columns are looked up by name, not walked once per column of the table."""
+    count = 40
+    blocks = [{"name": f"c{place}", "role": "long_tail_labels"} for place in range(count)]
+    also = _CountedList(
+        [asking.DayOrMonth(f"c{place}", True, False) for place in range(0, count, 2)]
+    )
+    _CountedList.walks = 0
+    found = asking.day_or_month_columns({"columns": blocks}, [[] for _ in range(count)], taxonomy.Settings(), None, tuple(also))
+    assert [one.name for one in found] == [f"c{place}" for place in range(0, count, 2)]
+    _CountedList.walks = 0
+    found = asking.day_or_month_columns({"columns": blocks}, [[] for _ in range(count)], taxonomy.Settings(), None, also)  # type: ignore[arg-type]
+    assert _CountedList.walks <= 2, _CountedList.walks
+
+
+def test_answered_columns_are_found_by_name_once(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Thirty answered columns cost the names list no more walks than five.
+
+    The Codex review of lane R1, item 9: each answered column walked the
+    table's names to find itself, and searched them once more to check
+    it was there. Red on 110cb46, where 25 more answers walk them 50
+    more times.
+    """
+    count = 40
+    columns = {f"c{place}": [f"{(row * (place + 3)) % 97}" for row in range(120)] for place in range(count)}
+    table = _two_columns(tmp_path, columns)
+    shipped = reading.read_table
+
+    def counting(*arguments: object, **options: object) -> object:
+        read = shipped(*arguments, **options)  # type: ignore[arg-type]
+        return dataclasses.replace(read, column_names=_CountedList(read.column_names))
+
+    monkeypatch.setattr(reading, "read_table", counting)
+    walks: "list[int]" = []
+    for answered in (5, 30):
+        entries = [
+            {
+                "column": f"c{place}",
+                "your_answer": asking.ANSWER_NO_DATE,
+                "answers_you_can_give": [{"answer": asking.ANSWER_KEEP}, {"answer": asking.ANSWER_NO_DATE}],
+            }
+            for place in range(answered)
+        ]
+        answers = tmp_path / f"answers-{answered}.json"
+        answers.write_text(json.dumps({"asked": entries, "checklist": {"columns": []}}), encoding="utf-8")
+        _CountedList.walks = 0
+        code, said = _quiet(["profile", str(table), "--out-dir", str(tmp_path), "--replace", "--answers", str(answers)])
+        assert code == 0, said
+        walks += [_CountedList.walks]
+    assert walks[1] - walks[0] < 25, walks
+
+
+def test_a_count_elsewhere_leaves_out_cells_already_missing(monkeypatch: pytest.MonkeyPatch) -> None:
+    """`NAT` codes beside a column of 100 `NaT` and 40 `nat`: the answer takes 40 there, and 40 is said.
+
+    The verifier of lane R1's second repair: `NaT` is missing already, by
+    synthtwin's own word, so a declaration naming `NAT` takes only the
+    40 `nat` cells -- and nothing pinned the filter that counts only the
+    cells not already missing. Red on the mutant that counts every
+    matched spelling, which says 140.
+    """
+    dated = _iso_days(970) + ["NAT"] * 30
+    flags = ["NaT"] * 100 + ["nat"] * 40 + [["red", "green", "blue"][place % 3] for place in range(860)]
+    blocks = [{"name": "seen_at", "role": "long_tail_labels"}, {"name": "flag", "role": "categorical"}]
+    asked = [(0, asking.DateCodes("iso-date", (("NAT", 30),), 970, 1000))]
+    reached = asking.codes_elsewhere({"columns": blocks}, [dated, flags], asked, taxonomy.Settings())
+    assert reached == {0: (asking.Elsewhere("flag", 40, 900),)}
+    monkeypatch.setattr(
+        taxonomy, "split_missing", lambda cells, settings, comma=False: (list(cells), [])
+    )
+    mutant = asking.codes_elsewhere({"columns": blocks}, [dated, flags], asked, taxonomy.Settings())
+    assert mutant[0][0].rows == 140
+
+
+def test_a_refused_control_fails_the_date_questions_measurement(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A clean spelling `synthtwin profile` refuses stops K-S3-56's driver with exit 1.
+
+    The Codex review of lane R1, item 10: a control that wrote no
+    questions file was a prose note while its totals counted it clean,
+    so the entry stayed green. Red on 110cb46, whose driver exits 0.
+    """
+    import importlib.util
+
+    path = pathlib.Path(__file__).resolve().parents[1] / "tools" / "measurements" / "kpi_date_questions.py"
+    spec = importlib.util.spec_from_file_location("kpi_date_questions_under_test", path)
+    assert spec is not None and spec.loader is not None
+    driver = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(driver)
+    for name in ("DAY_OR_MONTH", "CODES", "NOT_ASKED"):
+        monkeypatch.setattr(driver.shapes, name, ())
+    monkeypatch.setattr(driver.shapes, "CLEAN", shapes.CLEAN[:1])
+    monkeypatch.setattr(driver, "described", lambda folder, shape, *options: 2)
+    held = io.StringIO()
+    with contextlib.redirect_stdout(held):
+        code = driver.main()
+    assert code == 1, held.getvalue()
+    assert '"not_described": 1' in held.getvalue()

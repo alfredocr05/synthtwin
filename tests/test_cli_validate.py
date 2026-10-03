@@ -1695,22 +1695,42 @@ def test_the_report_promises_nothing_about_a_later_version(
 
 
 def test_a_finished_generate_run_teaches_the_validate_command(
-    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+    tmp_path: pathlib.Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """The chain's middle link, with this twin's own paths in it.
 
     The line is asserted to be RUNNABLE, not merely present: what it
-    prints is fed back through the command.
+    prints is fed back through the command. Since the Codex review of
+    lane R1 (item 1) a path on it is quoted for the shell wherever it
+    holds a character a shell reads as syntax, a space in a folder's
+    name among them, so the line is split here as a POSIX shell splits
+    it -- the command is asked to quote for one -- and the words it
+    gives are the ones run. Compared as written, the line matched only
+    under a temporary folder whose path needs no quotes, and a checkout
+    under a folder named with a space turned this red.
     """
+    import shlex
+
+    from synthtwin import cli
+
+    monkeypatch.setattr(cli, "_on_windows", lambda: False, raising=False)
     description = _described(tmp_path, _plain_table())
     assert main(["generate", f"{description}"]) == 0
     printed = capsys.readouterr().out
-    expected = (
-        f"  synthtwin validate {description} --twin {_twin_of(description)}"
-    )
-    assert "Next, measure the twin against the description:" in printed
-    assert expected in printed
-    assert main(["validate", f"{description}", "--twin", f"{_twin_of(description)}"]) == 0
+    lead = "Next, measure the twin against the description:\n"
+    assert lead in printed
+    line = printed.split(lead, 1)[1].split("\n", 1)[0]
+    words = shlex.split(line)
+    assert words == [
+        "synthtwin",
+        "validate",
+        f"{description}",
+        "--twin",
+        f"{_twin_of(description)}",
+    ], line
+    assert main(words[1:]) == 0
     capsys.readouterr()
     assert _quality_of(description).is_file()
 

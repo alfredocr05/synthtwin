@@ -310,6 +310,193 @@ def _shown(value: object) -> str:
     return parsing.visible(f"{value}")
 
 
+# THE CHARACTERS A SHELL READS AS THEMSELVES, outside any quotes (the
+# Codex review of lane R1, item 1). A value of the table or a column's
+# name is put into a line the person is told to type again, and a shell
+# reads `$(...)`, a backtick, `;` or a space in it as syntax: measured on
+# the tree before this, a code written `$(printf marker)` was printed
+# bare after `--missing-value`, and `NOT RECORDED` became two words, so
+# the repeat exited 2. A value made only of these characters is printed
+# as it is; any other is quoted whole. POSIX shells first; PowerShell,
+# the shell a Windows terminal opens, reads `,` and `@` as its own syntax
+# and `\` and `:` as text, so its set differs by those. And `~` is no
+# plain character to a POSIX shell anywhere in a word: bash reads a `~`
+# after the `=` of a word shaped like `a=~`, or after a `:` there, as
+# the home folder, and prints `a=/home/...` (measured with bash 3.2;
+# zsh leaves it alone), so such a code would be declared as another.
+_POSIX_PLAIN = frozenset(
+    "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+    "_@%+=:,./-"
+)
+_POWERSHELL_PLAIN = frozenset(
+    "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+    "_%+=:./\\~-"
+)
+# The four characters PowerShell reads as a single quote: the ASCII one
+# and the three typographic ones. Inside single quotes each is written
+# twice, which is how that shell writes one of them.
+_POWERSHELL_QUOTES = "'‘’‚‛"
+
+
+def _on_windows() -> bool:
+    """Whether the lines to type are quoted for PowerShell rather than POSIX."""
+    return sys.platform == "win32"
+
+
+def _quoted_for_the_shell(value: object, windows: "bool | None" = None) -> str:
+    """One word, written so the shell the person types it into reads it back.
+
+    A word of only plain characters is printed as it stands, so `seen_at`
+    stays `seen_at`. Any other is quoted whole: on POSIX in single quotes,
+    a single quote inside written `'"'"'`; on Windows (``windows`` true,
+    or the platform where it is None) in PowerShell's single quotes, each
+    quote character inside written twice and a double quote written as
+    the program reads it back (below). Both shells read everything
+    between single quotes as text, so nothing in the value is run.
+
+    Guarantees: accepts any value, read as text; returns one word for the
+    shell. Determinism: a function of the value and the platform. Raises
+    nothing. No I/O.
+    """
+    text = f"{value}"
+    powershell = windows or (windows is None and _on_windows())
+    plain = _POWERSHELL_PLAIN if powershell else _POSIX_PLAIN
+    # ...and some of them not first: zsh reads a word starting with `=`
+    # as the path of a command, and PowerShell a leading `~` as a home
+    # folder, so such a word is quoted too. Inside a word `~` is text to
+    # PowerShell, which a Windows short path (`RUNNER~1`) needs. And a
+    # word starting with `-` is quoted for PowerShell: Windows PowerShell
+    # hands a program a bare word such as `--missing-value=-1.5` as two,
+    # split before the point, so `_typed_option`'s joined word is always
+    # quoted there.
+    leading = ("=", "~", "-") if powershell else ("=",)
+    if (
+        text
+        and text[:1] not in leading
+        and all(character in plain for character in text)
+    ):
+        return text
+    # Built a character at a time, for the offline audit's reason
+    # (`_joined`): no method of the value is called.
+    #
+    # AND ON POWERSHELL A DOUBLE QUOTE IS WRITTEN AS THE PROGRAM READS IT
+    # BACK. Windows PowerShell 5.1, the one every Windows machine
+    # carries, puts a value holding `"` into the command line it hands a
+    # program with that quote bare, and the program reads it as a quote
+    # of its own: `say "no" twice` arrived as `say no twice`, and `UNK"`
+    # opened a run that took the option typed after it into the value.
+    # So each `"` is written `\"` with the backslashes before it doubled,
+    # and the backslashes ending a value that holds white space, which
+    # that shell wraps in double quotes, are doubled too -- the C
+    # runtime's own rule for reading a command line. PowerShell 7.3 or
+    # later hands such a value over whole and keeps those backslashes, so
+    # there the declaration misses its value and the question is put
+    # again; on neither is an option taken into a value or anything run.
+    #
+    # WHITE SPACE IS EVERY CHARACTER .NET COUNTS AS WHITE SPACE, not the
+    # space and the tab alone (the verification of the repairs of the
+    # Codex review of lane R1, its open item 2). 5.1 wraps a value
+    # holding any character `Char.IsWhiteSpace` names -- the no-break
+    # space, the ideographic space and the other space separators, which
+    # the display boundary leaves as they are -- so `a`, a no-break
+    # space, `b` and `\` was printed with its one backslash, and in a
+    # model of 5.1's native command binder (no Windows PowerShell was at
+    # hand to run it) the program was handed one word, `a`, the space,
+    # `b`, a `"` and ` --code dose`: the option typed after the value
+    # was taken into it. `parsing.trimmed`
+    # empties a character exactly where Python reads it as white space,
+    # which takes in every character .NET counts. A character the
+    # display boundary shows escaped -- the tab, the line breaks, and the
+    # four separators below the space that Python counts too -- is no
+    # white space on the printed line, so a value whose only white space
+    # is one of those is not wrapped and its ending backslashes reach the
+    # program doubled: the declaration misses its value, as it already
+    # did for a value holding a character shown escaped, and nothing is
+    # taken into a value.
+    inside = ""
+    slashes = ""
+    spaced = False
+    for character in text:
+        if not parsing.trimmed(character):
+            spaced = True
+        if powershell and character == "\\":
+            slashes = slashes + character
+            continue
+        if powershell and character == '"':
+            inside = inside + slashes + slashes + '\\"'
+            slashes = ""
+            continue
+        inside = inside + slashes
+        slashes = ""
+        if powershell and character in _POWERSHELL_QUOTES:
+            inside = inside + character + character
+        elif not powershell and character == "'":
+            inside = inside + "'\"'\"'"
+        else:
+            inside = inside + character
+    inside = inside + slashes + (slashes if spaced else "")
+    return f"'{inside}'"
+
+
+def _typed_option(
+    option: str, value: object, windows: "bool | None" = None
+) -> str:
+    """An option and its value, as the person types them again.
+
+    The value is quoted for the shell (`_quoted_for_the_shell`), and one
+    that starts with a minus sign is joined to its option with `=` and
+    the two written as one word, quoted on PowerShell always: argparse
+    reads a word starting with `-` as an option of its own, so
+    `--missing-value -UNK` is refused where `--missing-value=-UNK` is
+    read. Then the whole is shown through the display boundary, like
+    every value this module prints.
+
+    Guarantees: accepts an option and a value; returns the text to type.
+    Determinism: a function of the two and the platform. Raises nothing.
+    """
+    text = f"{value}"
+    if text[:1] == "-":
+        return _shown(_quoted_for_the_shell(f"{option}={text}", windows))
+    return f"{option} {_shown(_quoted_for_the_shell(text, windows))}"
+
+
+def _typed_path(path: object, windows: "bool | None" = None) -> str:
+    """A path the person types as an argument of its own, quoted for the shell.
+
+    A path starting with `-` is read by argparse as an option, so it is
+    written `./-...`, which names the same file. Shown through the
+    display boundary.
+    """
+    text = f"{path}"
+    if text[:1] == "-":
+        text = f"./{text}"
+    return _shown(_quoted_for_the_shell(text, windows))
+
+
+def _shell_named(windows: "bool | None" = None) -> str:
+    """Which shell the lines to type are quoted for, in words."""
+    if windows or (windows is None and _on_windows()):
+        return "quoted for PowerShell"
+    return "quoted for a POSIX shell such as bash or zsh"
+
+
+def _quoting_said(line: str, windows: "bool | None" = None) -> str:
+    """Which shell a line to type is quoted for, said where it quotes a value.
+
+    The line that repeats a run always says it (`_how_to_repeat`). The
+    other lines a person is told to type -- the options a notice offers,
+    the `synthtwin validate` line -- say it once a value on them is
+    quoted, which is when the shell matters: PowerShell's quotes are not
+    the Windows command prompt's, which runs a `&` inside them, so the
+    person is told which shell the line was written for (the Codex
+    review of lane R1, item 1). A quoted value is the only way a `'`
+    reaches such a line, since no plain character is one.
+    """
+    if "'" not in line:
+        return ""
+    return f"\n  (each value {_shell_named(windows)})"
+
+
 def _say(message: str) -> None:
     """Print one message to the screen, through the display boundary.
 
@@ -1716,7 +1903,7 @@ def _assumptions_notice(questions: "list[asking.Question]") -> str:
         blocks += [_clock_notice(clocks, _listing(clocks, False))]
     if numeric:
         flags = _joined(
-            [f"--code {_shown(one.name)}" for one in numeric], " "
+            [_typed_option("--code", one.name) for one in numeric], " "
         )
         blocks += [
             f"THESE COLUMNS WERE READ AS MEASUREMENTS, AND MIGHT BE CODES."
@@ -1729,11 +1916,11 @@ def _assumptions_notice(questions: "list[asking.Question]") -> str:
             f"besides -- and its twin will lose any "
             f"leading zeros.\n\n"
             f"If any of them holds codes, run the command again naming "
-            f"them:\n  {flags}"
+            f"them:\n  {flags}{_quoting_said(flags)}"
         ]
     if joined:
         flags = _joined(
-            [f"--measurement {_shown(one.name)}" for one in joined], " "
+            [_typed_option("--measurement", one.name) for one in joined], " "
         )
         blocks += [
             f"THESE COLUMNS HOLD TWO NUMBERS IN ONE CELL, AND MIGHT BE "
@@ -1745,11 +1932,11 @@ def _assumptions_notice(questions: "list[asking.Question]") -> str:
             f"blood pressure of `120/80` is two readings and a laboratory "
             f"code is not, and only you know which this is.\n\n"
             f"If any of them holds readings, run the command again naming "
-            f"them:\n  {flags}"
+            f"them:\n  {flags}{_quoting_said(flags)}"
         ]
     if paired:
         flags = _joined(
-            [f"--code {_shown(one.name)}" for one in paired], " "
+            [_typed_option("--code", one.name) for one in paired], " "
         )
         blocks += [
             f"THESE COLUMNS HOLD TWO NUMBERS IN ONE CELL, AND WERE READ AS "
@@ -1762,11 +1949,11 @@ def _assumptions_notice(questions: "list[asking.Question]") -> str:
             f"readings and a register written as two numbers is not, and "
             f"only you know which this is.\n\n"
             f"If any of them holds codes, run the command again naming "
-            f"them:\n  {flags}"
+            f"them:\n  {flags}{_quoting_said(flags)}"
         ]
     if pointed:
         flags = _joined(
-            [f"--decimal-comma {_shown(one.name)}" for one in pointed], " "
+            [_typed_option("--decimal-comma", one.name) for one in pointed], " "
         )
         blocks += [
             f"THESE COLUMNS WERE READ WITH A DECIMAL POINT, AND MIGHT BE "
@@ -1777,11 +1964,11 @@ def _assumptions_notice(questions: "list[asking.Question]") -> str:
             f"every average, spread and published point of it is a "
             f"thousand times too small, and only you know which it is.\n\n"
             f"If any of them writes a point between thousands, run the "
-            f"command again naming them:\n  {flags}"
+            f"command again naming them:\n  {flags}{_quoting_said(flags)}"
         ]
     if people:
         flags = _joined(
-            [f"--identifier {_shown(one.name)}" for one in people], " "
+            [_typed_option("--identifier", one.name) for one in people], " "
         )
         blocks += [
             f"THESE COLUMNS MIGHT NAME THE PEOPLE YOUR ROWS ARE ABOUT."
@@ -1793,7 +1980,7 @@ def _assumptions_notice(questions: "list[asking.Question]") -> str:
             f"tell which it is: a column whose values repeat can be a "
             f"subject number or a ward.\n\n"
             f"If any of them names people, run the command again naming "
-            f"them:\n  {flags}"
+            f"them:\n  {flags}{_quoting_said(flags)}"
         ]
     # `_joined` rather than `str.join`, for the offline audit's reason:
     # the formatting protocol of whatever is handed to `join` runs, so
@@ -2003,8 +2190,16 @@ def _how_to_repeat(
     answered_missing: "tuple[str, ...]" = (),
     answered_kept: "tuple[str, ...]" = (),
     answered_day_first: bool = False,
+    taken_out: "tuple[str, ...]" = (),
 ) -> str:
     """The options that repeat this run without asking anything.
+
+    ``taken_out`` are options the person typed that an answer replaced,
+    each already written as it is typed (`_typed_option`): they are said
+    as options to take out of the command, since an answer is the newer
+    statement and the typed option left in would contradict it (the Codex
+    review of lane R1, item 7: `--keep-value UNK` typed and `missing`
+    answered were told to add `--missing-value UNK`, and the pair exits 2).
 
     The answers about dates (plan P4-D381) are repeated as the options
     they stood for: `--day-first`, and `--missing-value` or
@@ -2021,24 +2216,32 @@ def _how_to_repeat(
     if answered_day_first:
         parts += ["--day-first"]
     for name in sorted(twelve_hours):
-        parts += [f"--twelve-hour {_shown(name)}"]
+        parts += [_typed_option("--twelve-hour", name)]
     for spelling in answered_missing:
-        parts += [f"--missing-value {_shown(spelling)}"]
+        parts += [_typed_option("--missing-value", spelling)]
     for spelling in answered_kept:
-        parts += [f"--keep-value {_shown(spelling)}"]
+        parts += [_typed_option("--keep-value", spelling)]
     for name in sorted(forced_decimal_commas):
-        parts += [f"--decimal-comma {_shown(name)}"]
+        parts += [_typed_option("--decimal-comma", name)]
     for name in sorted(forced_codes):
-        parts += [f"--code {_shown(name)}"]
+        parts += [_typed_option("--code", name)]
     for name in sorted(forced_identifiers):
-        parts += [f"--identifier {_shown(name)}"]
+        parts += [_typed_option("--identifier", name)]
     for name in sorted(forced_measurements):
-        parts += [f"--measurement {_shown(name)}"]
+        parts += [_typed_option("--measurement", name)]
     flags = _joined(parts, " ")
+    out = ""
+    if taken_out:
+        out = (
+            f"and take these out of the command you typed, because your "
+            f"answers replaced them:\n  {_joined(list(taken_out), ' ')}\n"
+        )
     return (
         f"\nTO REPEAT THIS RUN WITHOUT THE QUESTIONS, add:\n  "
         f"{flags}\n"
-        f"Those answers are also recorded inside the profile itself."
+        f"{out}"
+        f"Those answers are also recorded inside the profile itself. "
+        f"Each value is {_shell_named()}."
     )
 
 
@@ -2378,6 +2581,14 @@ def _run_profile(
         taxonomy,
         writing,
     )
+    # WHAT THE PERSON TYPED, kept as typed, so the line that repeats the
+    # run can say which of these an answer replaced (`_how_to_repeat`).
+    typed_codes = list(forced_codes)
+    typed_identifiers = list(forced_identifiers)
+    typed_measurements = list(forced_measurements)
+    typed_commas = list(forced_decimal_commas)
+    typed_kept = list(kept_values)
+    typed_missing = list(missing_values)
 
     if smallest_group < 1:
         _warn(errors.floor_not_positive(f"{smallest_group}"))
@@ -2439,6 +2650,9 @@ def _run_profile(
     answered_month_first = False
     answered_missing_dates: "list[str]" = []
     answered_real_values: "list[str]" = []
+    # ...and what each of those questions said it saw, by column, which
+    # tells the run which codes the answer was about.
+    answered_code_shapes: "dict[str, str]" = {}
     if answers_path is not None:
         try:
             written = asking.answers_in(
@@ -2590,6 +2804,8 @@ def _run_profile(
         # the table once it is open, below.
         answered_missing_dates = list(written.missing_date_columns)
         answered_real_values = list(written.real_value_columns)
+        for one, saw in written.date_code_shapes:
+            answered_code_shapes[one] = saw
         answers_were_handed_back = (
             bool(spoken_for)
             or bool(written.twelve_hours)
@@ -2826,10 +3042,11 @@ def _run_profile(
     # `--missing-value` naming each code, `real-value` is `--keep-value`
     # naming each. Both reach every column, which is what those options
     # do and what the answers said.
+    held_names = {one: 1 for one in read.column_names}
     unknown_dates = [
         name
         for name in answered_missing_dates + answered_real_values
-        if name not in read.column_names
+        if name not in held_names
     ]
     if unknown_dates:
         _warn(
@@ -2847,35 +3064,53 @@ def _run_profile(
     # that repeats the run names it once. Once for EACH answer: `UNK`
     # answered `missing` in one column and `real-value` in another is
     # the contradiction refused below, and is not folded away here.
-    missing_as: "list[tuple[str, object]]" = []
-    kept_as: "list[tuple[str, object]]" = []
-    for name in answered_missing_dates + answered_real_values:
-        column_at = 0
-        for held in read.column_names:
-            if held == name:
-                break
-            column_at = column_at + 1
-        present, _absent = taxonomy.split_missing(
-            read.columns[column_at], settings
+    missing_as: "dict[tuple[str, object], int]" = {}
+    kept_as: "dict[tuple[str, object], int]" = {}
+    # Each column found by its name once (the Codex review of lane R1,
+    # item 9): a walk of the names per answer grew with their square.
+    column_place: "dict[str, int]" = {}
+    for named_at in range(len(read.column_names)):
+        if read.column_names[named_at] not in column_place:
+            column_place[read.column_names[named_at]] = named_at
+    # THE CODES THE QUESTION DESCRIBED, AND NO OTHERS (the Codex review
+    # of lane R1, item 5): found under the typed declarations where the
+    # question's own words describe what is found -- the run that wrote
+    # the file was typed the same way -- and otherwise with the typed
+    # words a code of the column would match taken out, so the answer, the
+    # newer statement (below), replaces a typed word it was about and
+    # leaves alone one it never counted (`asking.date_codes_answered`).
+    # Where neither reading is the one described, the typed words stand,
+    # and a typed word the answer contradicts is said to be left as typed.
+    for name, missing in (
+        [(one, True) for one in answered_missing_dates]
+        + [(one, False) for one in answered_real_values]
+    ):
+        column_at = column_place[name]
+        seen, left = asking.date_codes_answered(
+            read.columns[column_at],
+            settings,
+            answered_code_shapes[name] if name in answered_code_shapes else "",
+            missing,
         )
-        # THE CODES AS THEY STAND, WHATEVER WAS TYPED KEPT: the answer
-        # is the newer statement (below), so a `--keep-value` the
-        # person typed does not hide from their answer the code it
-        # names.
-        seen = asking.date_codes_of(
-            present, settings, len(read.columns[column_at]), True
-        )
+        if left:
+            _warn(
+                errors.the_date_codes_answer_left_typed_words(
+                    name,
+                    "--keep-value" if missing else "--missing-value",
+                    len(left),
+                )
+            )
         if seen is None:
             _warn(errors.the_date_codes_answer_reached_nothing(name))
             continue
         for spelling, _rows in seen.codes:
             identity = asking.declared_identity(spelling)
-            if name in answered_missing_dates:
+            if missing:
                 if identity not in missing_as:
-                    missing_as += [identity]
+                    missing_as[identity] = 1
                     added_missing += [spelling]
             elif identity not in kept_as:
-                kept_as += [identity]
+                kept_as[identity] = 1
                 added_kept += [spelling]
     if added_missing or added_kept:
         commas = bool(forced_decimal_commas)
@@ -3067,6 +3302,7 @@ def _run_profile(
         already_answered,
         split_columns,
         tuple(forced_decimal_commas),
+        storage,
     )
     seen_of = (
         document,
@@ -3301,6 +3537,7 @@ def _run_profile(
             settled,
             split_columns,
             tuple(forced_decimal_commas),
+            storage,
         )
         seen_of = (
             document,
@@ -3465,6 +3702,21 @@ def _run_profile(
     # has a reminder line of its own after the "Written:" confirmation
     # and reading the two in that order leaves the pointer beside the
     # block it points at.
+    # WHAT AN ANSWER REPLACED, to be taken out of the typed command (the
+    # Codex review of lane R1, item 7).
+    taken_out: "list[str]" = []
+    for option, typed_list, final in (
+        ("--code", typed_codes, forced_codes),
+        ("--identifier", typed_identifiers, forced_identifiers),
+        ("--measurement", typed_measurements, forced_measurements),
+        ("--decimal-comma", typed_commas, list(forced_decimal_commas)),
+        ("--keep-value", typed_kept, list(kept_values)),
+        ("--missing-value", typed_missing, list(missing_values)),
+    ):
+        final_of = {one: 1 for one in final}
+        for one in typed_list:
+            if one not in final_of:
+                taken_out += [_typed_option(option, one)]
     if (answered or answers_were_handed_back) and (
         forced_codes
         or forced_identifiers
@@ -3474,6 +3726,7 @@ def _run_profile(
         or added_missing
         or added_kept
         or answered_day_first
+        or taken_out
     ):
         _say(
             _how_to_repeat(
@@ -3485,6 +3738,7 @@ def _run_profile(
                 answered_missing=tuple(added_missing),
                 answered_kept=tuple(added_kept),
                 answered_day_first=answered_day_first,
+                taken_out=tuple(taken_out),
             )
         )
     kept_of_yours = summary.words_of_your_own(document)
@@ -3586,6 +3840,7 @@ def _run_profile(
             settled,
             split_columns,
             tuple(forced_decimal_commas),
+            storage,
         )
     coded_about = list(codes_seen.questions)
     coded_or_answered = coded_about + list(codes_seen.answered)
@@ -4076,12 +4331,16 @@ def _teaching_validate(
     right.
 
     Both paths pass through `_shown`, like every other path this module
-    prints.
+    prints, and are quoted for the shell (`_typed_path`, the Codex review
+    of lane R1, item 1), which the line then names where it quotes one.
     """
+    line = (
+        f"synthtwin validate {_typed_path(description)} "
+        f"{_typed_option('--twin', twin_path)}"
+    )
     return (
         f"\nNext, measure the twin against the description:\n"
-        f"  synthtwin validate {_shown(description)} "
-        f"--twin {_shown(twin_path)}\n"
+        f"  {line}{_quoting_said(line)}\n"
         f"That writes a quality report saying which of the description's "
         f"obligations the twin holds, which it misses, and which nothing "
         f"written in a CSV can evidence either way."
