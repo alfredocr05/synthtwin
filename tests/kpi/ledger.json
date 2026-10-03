@@ -6848,6 +6848,7 @@
     "control_asked": 1,
     "left_alone": 5,
     "left_alone_asked": 0,
+    "not_described": 0,
     "pinned_nodes_failing": 0
    },
    "key_kinds": {
@@ -6858,6 +6859,7 @@
     "clean_shapes": "at_least",
     "control_asked": "exact",
     "left_alone": "at_least",
+    "not_described": "exact",
     "pinned_nodes_failing": "exact"
    },
    "tier": "SLOW",
@@ -6887,14 +6889,30 @@
     "tests/test_stage3b_date_questions.py::test_every_question_is_counted_elsewhere_in_one_pass",
     "tests/test_stage3b_date_questions.py::test_a_clock_is_asked_only_past_the_categories_line",
     "tests/test_stage3b_date_questions.py::test_a_measurement_answered_real_value_keeps_its_checklist_line",
-    "tests/test_stage3b_date_questions.py::test_a_word_typed_beside_an_answered_code_says_both_ways"
+    "tests/test_stage3b_date_questions.py::test_a_word_typed_beside_an_answered_code_says_both_ways",
+    "tests/test_stage3b_date_questions.py::test_the_repeat_line_quotes_each_value_for_the_shell",
+    "tests/test_stage3b_date_questions.py::test_a_column_name_with_a_space_is_one_word_on_the_repeat_line",
+    "tests/test_stage3b_date_questions.py::test_the_line_to_type_is_quoted_for_powershell_on_windows",
+    "tests/test_stage3b_date_questions.py::test_the_count_a_code_is_said_on_is_every_cell_its_answer_takes",
+    "tests/test_stage3b_date_questions.py::test_a_code_whose_declaration_takes_real_dates_is_not_asked",
+    "tests/test_stage3b_date_questions.py::test_a_question_is_put_only_where_the_classifier_gives_the_reading_it_promises",
+    "tests/test_stage3b_date_questions.py::test_t1_clocks_beside_a_code_are_asked_and_read_as_times",
+    "tests/test_stage3b_date_questions.py::test_a_few_cells_that_are_neither_are_said",
+    "tests/test_stage3b_date_questions.py::test_real_value_answered_beside_a_typed_missing_value_keeps_every_code",
+    "tests/test_stage3b_date_questions.py::test_the_repeat_line_says_which_typed_option_an_answer_replaced",
+    "tests/test_stage3b_date_questions.py::test_one_column_answered_both_ways_is_refused",
+    "tests/test_stage3b_date_questions.py::test_codes_elsewhere_grows_with_the_columns_not_their_square",
+    "tests/test_stage3b_date_questions.py::test_the_day_or_month_question_takes_coded_columns_by_name_once",
+    "tests/test_stage3b_date_questions.py::test_answered_columns_are_found_by_name_once",
+    "tests/test_stage3b_date_questions.py::test_a_count_elsewhere_leaves_out_cells_already_missing",
+    "tests/test_stage3b_date_questions.py::test_a_refused_control_fails_the_date_questions_measurement"
    ],
    "test": null,
    "driver": "tools/measurements/kpi_date_questions.py --kpi",
    "pin_strength": "WEAKER",
    "measured_on": "tests/date_question_shapes.py: fourteen question columns, the thirty-seven clean spellings of the reach audit of 2026-10-01 at its own seeds and five shapes left alone, through the real producer, generator and checker",
    "evidence": "Before (668f276): nothing about dates was asked. The five day-first columns were read month first and their twins parsed 41 to 74 in 100 cells under the person's own format; seven of the eight columns with codes were read as labels or numbers, their twins parsing 0 to 59, and the eighth as dates with its twenty codes written as made-up text, 99.5; three of the eight were asked whether they were blood pressures, and the Caboodle key column was listed as a measurement.",
-   "nodes_min_collected": 47,
+   "nodes_min_collected": 71,
    "value_at": {
     "commit": "38fb49f",
     "date": "2026-10-02",
