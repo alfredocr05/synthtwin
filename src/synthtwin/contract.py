@@ -2178,8 +2178,11 @@ class SettingsBlock:
     # dates whatever else they hold (landing R2c), and `(column, system)`
     # per column whose dates are written as counts (landing R4). S8c
     # holds the last to no other reading of its column.
+    # -- 3b.R2a (P4-D383)
     century_windows: "tuple[tuple[str, int], ...]" = ()
+    # -- 3b.R2c (P4-D383)
     forced_date_columns: "tuple[str, ...]" = ()
+    # -- 3b.R4 (P4-D384)
     forced_date_counts: "tuple[tuple[str, str], ...]" = ()
 
 
@@ -6082,7 +6085,10 @@ def _settings(value: object) -> SettingsBlock:
     # their shape and their names, held to S8c, and only then refused as
     # anything but empty: so the rule that keeps a column whose dates are
     # counts off every other reading stands before the landing that fills
-    # the key, and that landing deletes only the refusal.
+    # the key, and that landing deletes only the refusal. Each lane's
+    # lines stand under its own `# -- 3b.X (P4-Dnnn)` line, so landings
+    # built side by side edit no line in common.
+    # -- 3b.R2c (P4-D383)
     date_columns: list[str] = []
     place = 0
     for name in _listing(
@@ -6098,10 +6104,13 @@ def _settings(value: object) -> SettingsBlock:
             )
         date_columns += [found]
         place = place + 1
+    # -- 3b.R2a (P4-D383)
     windows = _declared_pairs(mapping["century_windows"], "century_windows", where)
+    # -- 3b.R4 (P4-D384)
     counted = _declared_pairs(
         mapping["forced_date_counts"], "forced_date_counts", where
     )
+    # S8c, which stands whatever each landing fills.
     for name, _system in counted:
         for others, what in (
             (date_columns, "a column of dates read another way"),
@@ -6120,19 +6129,37 @@ def _settings(value: object) -> SettingsBlock:
                     "a column whose dates are written as counts is read "
                     "one way, as those dates",
                 )
-    for key, held in (
-        ("century_windows", windows),
-        ("forced_date_columns", date_columns),
-        ("forced_date_counts", counted),
-    ):
-        if held:
-            raise _out_of_range(
-                key,
-                where,
-                "a list that is not empty",
-                "an empty list: this version of synthtwin takes no such "
-                "declaration",
-            )
+    # The refusals, one to a lane: each landing deletes its own.
+    # -- 3b.R2a (P4-D383)
+    if windows:
+        raise _out_of_range(
+            "century_windows",
+            where,
+            "a list that is not empty",
+            "an empty list: this version of synthtwin takes no such "
+            "declaration, so a description holding one was written by a "
+            "newer synthtwin",
+        )
+    # -- 3b.R2c (P4-D383)
+    if date_columns:
+        raise _out_of_range(
+            "forced_date_columns",
+            where,
+            "a list that is not empty",
+            "an empty list: this version of synthtwin takes no such "
+            "declaration, so a description holding one was written by a "
+            "newer synthtwin",
+        )
+    # -- 3b.R4 (P4-D384)
+    if counted:
+        raise _out_of_range(
+            "forced_date_counts",
+            where,
+            "a list that is not empty",
+            "an empty list: this version of synthtwin takes no such "
+            "declaration, so a description holding one was written by a "
+            "newer synthtwin",
+        )
     block = SettingsBlock(
         small_cell_floor=floor,
         identifier_uniqueness=_share(
@@ -6216,6 +6243,14 @@ def _settings(value: object) -> SettingsBlock:
             ("",) + dialect.DELIMITERS,
         ),
         forced_twelve_hour_clocks=tuple(declared_twelve),
+        # The second cut's three (plan P4-D386): empty here, since each is
+        # refused above unless empty, and each landing fills its own line.
+        # -- 3b.R2a (P4-D383)
+        century_windows=(),
+        # -- 3b.R2c (P4-D383)
+        forced_date_columns=tuple(date_columns),
+        # -- 3b.R4 (P4-D384)
+        forced_date_counts=(),
     )
     # C5-K4 LAST, because it is the one rule here that needs BOTH
     # records: every other check is about one entry and is raised where

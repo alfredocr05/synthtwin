@@ -568,8 +568,11 @@ def _settings_block(
         # column's window for two-figure years (landing R2a), the columns
         # said to be dates (landing R2c), and the columns said to write
         # their dates as counts (landing R4).
+        # -- 3b.R2a (P4-D383)
         "century_windows": [],
+        # -- 3b.R2c (P4-D383)
         "forced_date_columns": [],
+        # -- 3b.R4 (P4-D384)
         "forced_date_counts": [],
     }
 
@@ -1022,8 +1025,11 @@ _STATED_RULES: "dict[tuple[str, ...], str]" = {
     # THE THREE DECLARATIONS STAGE 3B RESERVES (plan P4-D386): each an
     # EMPTY list until the landing that fills it adds the rows of what it
     # holds, so an entry is a path no rule names and is refused here.
+    # -- 3b.R2a (P4-D383)
     ("settings", "century_windows"): _ARRAY,
+    # -- 3b.R2c (P4-D383)
     ("settings", "forced_date_columns"): _ARRAY,
+    # -- 3b.R4 (P4-D384)
     ("settings", "forced_date_counts"): _ARRAY,
     # How the table was read.
     ("source",): _OBJECT,
