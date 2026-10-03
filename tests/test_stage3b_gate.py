@@ -224,6 +224,7 @@ anchor 3b-C2 (P4-D374)
 anchor 3b-G1 (P4-D375)
 anchor 3b-G3 (P4-D376)
 anchor 3b-G2 (P4-D377)
+3b.G2: tests/test_stage3b_width.py (the width rule, method G6.6.8).
 anchor 3b-7 (P4-D378)
 anchor 3b-J (P4-D379)
 """

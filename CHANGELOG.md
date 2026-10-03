@@ -6,6 +6,27 @@ exists).
 
 ## [Unreleased]
 
+### A tail pair that proves a wider cell lets the end past the width (2026-10-02)
+
+**The width census no longer caps a tail its own pair proves wider**
+(plan P4-D377, method G6.6.8, lane G2 of stage 3b). The census counts a
+width fewer than the floor's worth wrote into its commonest, so `1000`
+to `1398` beside one `99999` published one width of four figures and the
+twin's furthest cell stopped at `9998`. A published tail pair puts the
+furthest row at least `rms**2 / d1` from its boundary; where a width
+hold lowers the end inside that reach (and at or past the mean
+distance), the hold stands aside and the end is the first whole number
+at or past the reach, never further than the fitted end and never off a
+stand-in the column holds. The width walk leaves up to the floor less
+one of the tail's own cells past every named width, stopping where
+their distances would pass the pair's own totals. Nothing new is
+published. `K-S3-22`'s 36 column-floors at seeds 0, 4 and 9: 111 missed
+mean and spread checks become 12, the two moments-only columns; no new
+miss there, on follow-up A's 37 shapes or on the stage-3 battery, and no
+twin newly outside its real range. One frozen case opens
+`tests/reference/generation-branch-vectors-23.json`; the walk is pinned
+by `tests/test_stage3b_width.py`.
+
 ### The weekday guards dropped (2026-10-02)
 
 **The weekday census is published wherever its twin can meet it** (plan

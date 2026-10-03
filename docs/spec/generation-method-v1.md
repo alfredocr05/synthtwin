@@ -2180,6 +2180,14 @@ boundary rung itself where that percent falls between the two tails.
    from under 1 up to 10, the twin wrote five cells at 10 and none
    below it, its mean stood 5.3 above the published 15.5, and
    `validate` MISSED `ladder.p50` and `moments.mean`.
+
+   AND NO WIDTH CLAMP HOLDS THE END INSIDE ITS TAIL'S PAIR'S REACH
+   (G6.6.8, plan P4-D377). Where a width clamp lowers the end's
+   magnitude to the widest value the census names and leaves it at or
+   past `d1` but nearer `b` than `rms**2 / d1`, the clamp stands aside
+   and the end is the first whole number at or past that reach, never
+   past the end the sign rule left, unless the clamp put it on a
+   stand-in the block holds. G6.6.8 states the rule and why.
 5. and, whichever of 2a or 4 gave it, a derived end that equals a
    number the profiler reads as a stand-in for "no value" -- `-9999`,
    `-999`, `9999` (`parsing.NUMERIC_SENTINELS`) -- moves ONE step of the
@@ -4228,6 +4236,52 @@ here rather than left as a fourth document saying a fifth thing (the
 sibling search of landing L12). The report reads the census with the
 producer's own reader, so a width the writer intended and a width a
 cell actually wears cannot come apart between them.
+
+**G6.6.8 Where a tail's published pair proves a cell wider than the
+census names** (stage 3b, lane G2, plan P4-D377). The census is pooled
+at the floor: a width fewer than the smallest group wrote is counted
+into the commonest (plan P4-D222), so `1000` to `1398` beside one
+`99999` publishes `field_widths {"4": 400}`, and G5.3b step 4's width
+clamps read that as a ceiling. The derived end stood at `9998`, the
+twin's furthest cell a tenth of the real one's, and the twins missed
+the column's mean and spread at seeds 0, 4 and 9 -- 99 of the 111
+moment misses `K-S3-22` counted on its 36 column-floors.
+
+A tail's published pair says when that reading is wrong. Every one of
+the tail's `m` distances `d` from its boundary lies between nought and
+the furthest, `D`, so `d (D - d) >= 0`; summed over the tail, `D d1 >=
+rms**2`. No tail with the published pair has its furthest row nearer
+than the REACH `rms**2 / d1` (Bhatia and Davis's bound on a variance at
+a least distance of nought), taken as `rms * (rms / d1)` and lowered by
+`2**-24` of itself so the pair's own rounding never claims more than the
+rows hold. Two rules follow, and neither publishes anything new:
+
+1. THE END. Where G5.3b step 4's one-width or padded clamp LOWERS the
+   end's magnitude, the result stands at or past `d1` from `b` (nearer,
+   step 4's mean-distance guard already stands the clamp aside), and it
+   stands nearer than the reach, the clamp stands aside: the end is the
+   first whole number at or past `b -/+ reach`, and never further out
+   than the end the sign rule left. It goes past the width only as far
+   as the pair requires, the narrowest end the published facts allow.
+   A clamp that put the end on a stand-in the block publishes as held
+   (`kept`) stays: that end is the table's own heap.
+2. THE WALK. G6.6.2's demands are served after the census's commonest
+   demand -- the one asking for the most cells, the widest on a tie,
+   which is the one the census counted the wide cells into -- is
+   lowered by the cells this rule frees: on each side whose reach
+   passes the widest value any demand lets a cell hold, the tail's own
+   strata past that width, outermost first and whole strata only, up to
+   the line less one in all, stopping before the cells' distances from
+   their boundary would pass `m d1` in sum or `m rms**2` in squares --
+   the pair's own totals, every other row standing at nought or more.
+
+Measured on `K-S3-22`'s 36 column-floors at seeds 0, 4 and 9: 111
+missed moment checks become 12, the two moments-only columns, with no
+new miss on them, on follow-up A's 37 shapes or on the stage-3 battery.
+The end rule is frozen in `tail_width_past_the_reach` (G14.3). THE WALK
+HAS NO FROZEN CASE, because the oracle does not run G6.6's walk at all
+(criterion 8 of the Phase 4 plan): it is pinned by
+`tests/test_stage3b_width.py`, beside its mutant.
 
 ### G6.7 No value stands where the description says there is none
 
@@ -13148,7 +13202,7 @@ that happens -- and the clause beside it, `--missing-value`'s "CAN be
 published as the column's smallest value", is exactly right under the
 new rule.
 
-**All one hundred and fifty-four are required.** The count is taken off the committed
+**All one hundred and fifty-five are required.** The count is taken off the committed
 case sets and not carried forward: this sentence said fifty-two and a
 split of nine, twenty, sixteen and seven while the six files held
 seventy-three, because each repair that added a case added a clause to
@@ -13180,8 +13234,10 @@ thirteen; the SIXTEENTH,
 `tests/reference/generation-branch-vectors-14.json`, holds three; and the
 TWENTY-SECOND, `tests/reference/generation-branch-vectors-22.json`,
 holds five -- landing T1's written clocks and G7.5 step 5, in the file
-plan P4-D364's table gives that landing (G14.2),
-and a test holds this sentence to those files. The tenth grew by the
+plan P4-D364's table gives that landing (G14.2); and the
+TWENTY-THIRD, `tests/reference/generation-branch-vectors-23.json`,
+holds one -- lane G2's width rule, G6.6.8 -- in the file that table
+gives lane G2, and a test holds this sentence to those files. The tenth grew by the
 two cases the GOVERNANCE PASS of stage 3's review added and the
 eleventh by the two the dates pass added; each number here is read off
 the committed case sets again at every landing that touches them.
@@ -13270,6 +13326,7 @@ case passed, which is the failure the count exists to prevent:
 | `tail_pad_ceiling` | G5.3b step 4's padded ceiling (the skeptic pass of the repair of the oracle's derived end): sixty-eight whole numbers written `0100` to `0999`, padded to four on every cell, whose high tail's reading reaches 1380. The ceiling holds the end at 999. Its mutant withdraws the ceiling and the twin writes four figures with no pad |
 | `tail_marks_pooled` | G5.3b step 4's mark clamp counting a census's `(withheld)` pool (the repair of the product's two divergences from step 4): `tail_mark_held`'s forty-four numbers with the census `{"(withheld)": 44}` and no mark published, every cell wearing one of the seven marks (G6.1). It counted a comma named at thirty-three beside a pool of eleven until the loader refused a pool beside a named mark (TM1, the review of follow-up B). The end is held at 1,000. Its mutant counts the named marks alone, as the product did, and the twin writes 1 |
 | `tail_pad_partial` | G5.3b step 4's ceiling of a PARTLY padded block (the same repair): sixty-eight whole numbers written with a plus, four wide, sixteen of them padded, whose high tail's reading reaches 15536. The one field width holds the end at 9999, a stand-in number, which G5.3b step 5 moves one step to 9998 (plan P4-D353); withdrawing step 5 writes the case's earlier bytes exactly. Its mutant withdraws the ceiling and the twin writes five figures in a field of four |
+| `tail_width_past_the_reach` | G6.6.8's reach (lane G2, plan P4-D377): a hundred whole numbers, 1000 to 1089 and ten of five figures from 10000 to 10009, at seed 431. The census counts the ten into its one width of four; the high tail's pair, a mean distance of 7431.38 and a root-mean-square of 8140.417410739247 from the boundary rung 1087.12, puts its furthest row at least about 8917.0 out, past 9999, which stands 8911.88 out -- at least the mean distance, so step 4's guard leaves the clamp standing. The clamp stands aside and the end is 10005, the first whole number at or past the reach. Its mutant withdraws the rule and the end comes back at 9998 |
 | `tail_width_stands_aside` | G5.3b step 4's stand-aside (the same pass): sixty whole numbers, nine of four figures and eight at 10,000, so the census names the width five and the low boundary rung is 10,000. The sign rule holds the low end at 1 and the width clamp's 10,000 is no distance from that rung, so the clamp stands aside and the end stays at 1. Its mutant applies the clamp regardless and the end moves to 10,000 |
 | `tail_moment_ladder` | G5.3c's moment ladder (stage 3): fifteen two-place readings at a floor of eleven, where no percent leaves eleven rows outside on both sides at once, so the block publishes its moments and not one rung. Its mutant reads the block as the ramp of G5.3d instead |
 | `tail_listed_floor` | G5.3e's FLOOR `q` under each listed value (the governance pass of stage 3's review, item 1; plan P4-D346): sixty whole readings of a scale from 0 to 8, whose low tail lists two values and whose high tail lists four, so the one case parts both roads of the floor -- one row apiece where contract TL6's other road lists, two where the listing rule admitted the tail by finding every value it names on at least two cells of the column. Its mutant counts from one on both, which is the allocation the shipped rule retired: the high tail goes from [2, 2, 2, 6] -- the real column's own counts beyond that boundary -- to [1, 4, 1, 6], and the staircase moves with it |
