@@ -102,16 +102,26 @@ calls are held by what they are handed or by where they run:
   the decontam job's MESSAGES block the same way, in every cell, on a
   history built by the test; that block uses `os` and `sys` and
   imports `tools/hooks/check_messages.py`, a file this guard reads.
-- `tests/test_stage4_linear_work.py` builds two functions with
-  `exec(compile(tree, ...))` (plan P4-D385), where `tree` is the syntax
-  tree of a shipped function -- `taxonomy._read_the_column` and
+- `tests/stage4_as_built.py` runs `exec(compile(source, ...))` on its
+  own two string constants, `LABEL_CONTENT` and `READ_THE_COLUMN`:
+  `generation._label_content` and `taxonomy._read_the_column` as
+  668f276 shipped them, the second with the one argument plan P4-D382
+  added, frozen as text to serve as the oracle of stage 4's first tier
+  (the review of landing S1, item 5, found the earlier oracle rebuilt
+  from the product's own source and so following any change made
+  there). Those strings are not a file this guard reads as code, so
+  both readings below were run over each of them on 2026-10-03 and
+  found no post-floor spelling: they are the product's own functions
+  of 668f276, which this guard read when they were the product.
+- `tests/test_stage4_linear_work.py` runs `exec(compile(tree, ...))`
+  once, in `_mutated` (plan P4-D385), where `tree` is the syntax tree of
+  a shipped function -- `taxonomy._read_the_column` or
   `generation._label_content`, read by `inspect.getsource` from files
-  this guard reads -- rewritten back to the form 668f276 shipped, to
-  serve as the oracle of stage 4's first tier. The rewrite renames one
-  operand of one `in` comparison, turns each `cells += [...]` into
-  `cells = cells + [...]` and drops one `cells = list(...)`: a name, an
-  assignment and an addition, which every Python spells alike, so it
-  adds no spelling the floor could miss.
+  this guard reads -- with one change of meaning made to it, to show
+  that the comparison with the frozen texts breaks: a loop over
+  `counted_out[1:]`, or a size written `sizes[place] + 1`. A slice and
+  an addition, which every Python spells alike, so it adds no spelling
+  the floor could miss.
 - `runpy.run_path` runs the same kind of committed file: twice in
   `tests/`, in the two stage-2 oracle tests, and seventeen times in
   `tools/` -- one for the provenance guard's own runner and one for
@@ -256,8 +266,10 @@ ROUTES_THAT_RUN_SOURCE = {
     ("tests/test_stage3_tail_rule.py", "exec"): 1,
     ("tests/test_ci_demo_steps.py", "compile"): 1,
     ("tests/test_ci_demo_steps.py", "exec"): 1,
-    ("tests/test_stage4_linear_work.py", "compile"): 2,
-    ("tests/test_stage4_linear_work.py", "exec"): 2,
+    ("tests/test_stage4_linear_work.py", "compile"): 1,
+    ("tests/test_stage4_linear_work.py", "exec"): 1,
+    ("tests/stage4_as_built.py", "compile"): 1,
+    ("tests/stage4_as_built.py", "exec"): 1,
     ("tests/test_stage2_datetime_oracle.py", "runpy.run_path"): 1,
     ("tests/test_stage2_grouping_oracle.py", "runpy.run_path"): 1,
     ("tools/provenance/guard_runner.py", "runpy.run_path"): 1,
