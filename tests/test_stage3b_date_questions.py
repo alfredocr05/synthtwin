@@ -1306,6 +1306,45 @@ def test_a_few_cells_that_are_neither_are_said(tmp_path: pathlib.Path) -> None:
     assert block["n_unparsed"] == 5
 
 
+@pytest.mark.parametrize(
+    "dates, codes, odd, read, said",
+    [(950, 20, 0, "980 of the 1000 values", ""), (1930, 25, 15, "1960 of the 2000 values", "15")],
+    ids=["stand_ins_alone", "stand_ins_beside_fifteen_unread"],
+)
+def test_stand_in_dates_the_classifier_sets_aside_are_read_and_never_said_unread(
+    tmp_path: pathlib.Path, dates: int, codes: int, odd: int, read: str, said: str
+) -> None:
+    """Thirty `1900-01-01` beside ISO dates and `UNK` read as dates, and the cells said unread are the answer's own.
+
+    The verification of the repairs of the Codex review of lane R1, its
+    open item 1: the classifier sets a stand-in date aside, so it was
+    counted with the cells that read as neither -- 950 dates, thirty
+    `1900-01-01` and twenty `UNK` were said to be "950 of the 1000"
+    dates, with "every other value but 30 of them" the code and those 30
+    left to "stay unread whatever the answer", while `missing` left none
+    unread and counted the thirty missing by their spelling. Beside
+    fifteen cells that read as nothing, 45 were said where the answer
+    leaves 15. The cells said unread are those the answer leaves unread.
+    Red on 27c604b, which says "but 30 of them" and "but 45 of them";
+    110cb46 said 980.
+    """
+    values = _iso_days(dates) + ["1900-01-01"] * 30 + ["UNK"] * codes + [f"junk{place}" for place in range(odd)]
+    entry, block = _asked_and_answered(tmp_path, values)
+    assert entry is not None
+    saw = entry["what_synthtwin_saw"]
+    means = {choice["answer"]: choice["then_the_description_publishes"] for choice in entry["answers_you_can_give"]}
+    assert f"{read} read as dates" in saw, saw
+    if said:
+        assert f"every other value but {said} of them is one spelling" in saw, saw
+        assert f"the {said} cells that read as neither counted unread" in means[asking.ANSWER_NO_DATE]
+    else:
+        assert "every other value is one spelling" in saw, saw
+        assert "stay unread" not in saw and "counted unread" not in means[asking.ANSWER_NO_DATE], saw
+    assert block["role"] == "datetime"
+    assert block["n_unparsed"] == odd
+    assert block["missing_by_source"] == {"1900-01-01": 30, "UNK": codes}
+
+
 def test_real_value_answered_beside_a_typed_missing_value_keeps_every_code(tmp_path: pathlib.Path) -> None:
     """`--missing-value UNK` typed, `real-value` answered about `UNK` and `PENDING`: both are kept.
 

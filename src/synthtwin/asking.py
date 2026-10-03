@@ -2282,8 +2282,10 @@ class DateCodes:
     `reading` is the date member or clock form the rest of the column
     reads under at the date rule's own line, and `n_read` how many of
     its `n_present` cells that reading parses -- in a question that is
-    put, both as the classifier reads the column once the codes are
-    declared missing (`_as_the_classifier_reads`). `codes` holds each code
+    put, the reading the classifier gives the column once the codes are
+    declared missing, and every present cell that is neither a code nor
+    one that run leaves unread, a stand-in date it sets aside counted
+    read (`_as_the_classifier_reads`). `codes` holds each code
     once -- one spelling for each declaration a person could type, the
     one most of its cells wore -- with the rows that wore it.
 
@@ -3161,9 +3163,25 @@ def _as_the_classifier_reads(
     code declared missing and any word declared kept that one of them
     would match taken out, which is what the answer `missing` does: the
     question is put only where that run reads the column as dates or
-    times, and says the member or clock form and the count that run
-    reads (the Codex review of lane R1, item 3, and of landing T1, item
-    5). None where the answer would give any other role.
+    times, and says the member or clock form that run reads it under
+    and the cells that run leaves unread (the Codex review of lane R1,
+    item 3, and of landing T1, item 5). None where the answer would give
+    any other role.
+
+    THE CELLS LEFT UNREAD ARE THAT RUN'S OWN COUNT OF THEM (the
+    verification of the repairs of the Codex review of lane R1, its
+    open item 1). The cells that run reads are counted among the cells
+    it still holds, and a cell it sets aside as a stand-in date --
+    `1900-01-01` beside real days -- is held no more, though the reading
+    parses it. Taken as the cells read, that count said of 950 ISO
+    dates, thirty `1900-01-01` and twenty `UNK` that 950 of the 1000
+    read as dates and that 30 cells besides the code read as neither
+    and would "stay unread whatever the answer" -- while the answer
+    `missing` left none unread and counted the thirty missing, by their
+    spelling. So the cells left unread are those that run holds and does
+    not read, and every other present cell that is no code is one the
+    reading reads: 980 of the 1000, and every other value is the code,
+    as 110cb46 said.
     """
     named: "list[str]" = []
     identities: "list[tuple[str, object]]" = []
@@ -3182,7 +3200,7 @@ def _as_the_classifier_reads(
         + tuple(named),
     )
     try:
-        role, reading, n_read, _held = taxonomy.role_read(
+        role, reading, n_read, held = taxonomy.role_read(
             name, values, answered, decimal_comma, stored_as
         )
     except ValueError:
@@ -3191,7 +3209,13 @@ def _as_the_classifier_reads(
         return None
     if not reading:
         return None
-    return DateCodes(reading, found.codes, n_read, found.n_present)
+    coded = 0
+    for _spelling, rows in found.codes:
+        coded = coded + rows
+    unread = held - n_read
+    return DateCodes(
+        reading, found.codes, found.n_present - coded - unread, found.n_present
+    )
 
 
 def date_codes_seen(
