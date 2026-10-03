@@ -24435,19 +24435,20 @@ class _TradeBook:
     needed, the same column took 1.6 s. Counted as the ranks the pass
     reads, 1,922 a rank on `tests/test_stage3b_count_pass_speed.py`'s
     clinic slots at 40,000 rows; the book reads 3.5, and generates the
-    clinic column in 5 s.
+    clinic column in 4 s.
     The book holds what an attempt reads -- the instant each held unit
     stands on (`spot`, the last rank's in rank order, as the rebuild
     read it), the held units filed by standing (`order`), the runs of
-    ranks on one unit and the offers each makes, sorted (`pool`) -- and
-    the ranks the tail does not pin (`free`) filed by their standing in
-    this trade (`payers`), so a payment is sought among the ranks that
-    can give it and no other. A paid merge moves the run and its payers
-    alone, so only what those moves touch is read again: the runs beside
-    a moved rank and the runs on a unit whose count of ranks changed are
-    offered afresh, a run that was offered the unit the run left trades
-    that offer for its next nearest, and that unit leaves `order`
-    (`_book_settled`). Every answer is the rebuild's answer.
+    ranks on one unit and the offers each makes, sorted in blocks
+    (`pool`, an `_OfferPool`) -- and the ranks the tail does not pin
+    (`free`) filed by their standing in this trade (`payers`), so a
+    payment is sought among the ranks that can give it and no other.
+    A paid merge moves the run and its payers alone, so only what those
+    moves touch is read again: the runs beside a moved rank and the runs
+    on a unit whose count of ranks changed are offered afresh, a run
+    that was offered the unit the run left trades that offer for its
+    next nearest, and that unit leaves `order` (`_book_settled`). Every
+    answer is the rebuild's answer.
 
     A PAYER THAT CAN PAY NOWHERE IS ASKED ONCE (plan P4-D376): its walk's
     search found no held unit of the other standing in its gap, even
@@ -24497,12 +24498,12 @@ class _TradeBook:
 
 # HOW MANY OFFERS ONE BLOCK OF THE POOL HOLDS (plan P4-D376, the lane's
 # repair round). The pool was one sorted list, so every offer put in or
-# taken out moved every offer after it: clinic slots with one cell in
-# fifty written at midnight, at 160,000 rows, put an offer in or took one
-# out of a pool of about 201,000 offers nearly two million times, and
-# those moves were 21 of the pass's 40 s of CPU. Held in blocks of 256 to
-# 512 offers, a put or a take moves at most one block's offers, and a
-# block that grows past twice this is halved.
+# taken out moved every offer after it: on the lane test's clinic slots
+# with one cell in fifty written at midnight, at 160,000 rows, 1,908,126
+# puts and takes in a pool built at 201,216 offers moved 391,482 offers
+# a rank, and the pass took 29.8 s of CPU. Held in blocks of 256 to 512
+# offers, a put or a take moves at most one block's offers, 1,352 a rank
+# there, in 10.3 s; a block that grows past twice this is halved.
 _OFFER_BLOCK = 256
 
 
