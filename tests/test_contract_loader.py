@@ -1570,9 +1570,9 @@ def battery() -> list[Mutation]:
         ),
         # THE SECOND CUT (plan P4-D386): three declarations of the settings
         # block, each `[]`, and `count_form` null, until the landing that
-        # fills each; and S8c, which holds a column whose dates are counts
+        # fills each; and S8d, which holds a column whose dates are counts
         # to no other reading BEFORE its key is refused as non-empty, so
-        # each S8c case below is refused for the pair and not for the key.
+        # each S8d case below is refused for the pair and not for the key.
         # -- 3b.R2a (P4-D383)
         Mutation(
             "R16", "a window for two-figure years this version of synthtwin takes none of",
@@ -1597,7 +1597,7 @@ def battery() -> list[Mutation]:
             names="count_form",
         ),
         Mutation(
-            "S8c", "a column of counted dates also said to be dates read another way",
+            "S8d", "a column of counted dates also said to be dates read another way",
             edit_in(
                 "settings",
                 forced_date_counts=[["visits", "excel-1900"]],
@@ -1605,7 +1605,7 @@ def battery() -> list[Mutation]:
             ),
         ),
         Mutation(
-            "S8c", "a column of counted dates also given a window for two-figure years",
+            "S8d", "a column of counted dates also given a window for two-figure years",
             edit_in(
                 "settings",
                 forced_date_counts=[["visits", "excel-1900"]],
@@ -1613,7 +1613,7 @@ def battery() -> list[Mutation]:
             ),
         ),
         Mutation(
-            "S8c", "a column of counted dates also said to be a 12-hour clock",
+            "S8d", "a column of counted dates also said to be a 12-hour clock",
             edit_in(
                 "settings",
                 forced_date_counts=[["logged_at", "seconds-since-1970"]],
@@ -1621,7 +1621,7 @@ def battery() -> list[Mutation]:
             ),
         ),
         Mutation(
-            "S8c", "a column of counted dates also said to hold codes",
+            "S8d", "a column of counted dates also said to hold codes",
             edit_in(
                 "settings",
                 forced_date_counts=[["visits", "excel-1900"]],
@@ -1629,14 +1629,14 @@ def battery() -> list[Mutation]:
             ),
         ),
         Mutation(
-            "S8c", "a column of counted dates also said to hold record numbers",
+            "S8d", "a column of counted dates also said to hold record numbers",
             edit_in(
                 "settings",
                 forced_date_counts=[["record_code", "excel-1900"]],
             ),
         ),
         Mutation(
-            "S8c", "a column of counted dates also said to hold measurements",
+            "S8d", "a column of counted dates also said to hold measurements",
             edit_in(
                 "settings",
                 forced_date_counts=[["visits", "excel-1900"]],

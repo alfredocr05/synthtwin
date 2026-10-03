@@ -1301,19 +1301,19 @@ no other.
 
 | key | JSON type | range / permitted values | meaning |
 |---|---|---|---|
-| `century_windows` | array of `[name, year]` pairs | `[]` only, in this version | RESERVED by the second key cut (plan P4-D386) for lane R2a (plan P4-D383, question Q5): the columns whose two-figure years the person said are read in a window other than 1969 to 2068, each as its name and the window's first year. Empty in every description this version writes, and refused as anything else (R16), so a description carrying an entry was written by a newer synthtwin. An entry is read for its shape first -- a column's name and one whole number or word beside it, each column once -- and held to S8c, and only then refused for being there |
+| `century_windows` | array of `[name, year]` pairs | `[]` only, in this version | RESERVED by the second key cut (plan P4-D386) for lane R2a (plan P4-D383, question Q5): the columns whose two-figure years the person said are read in a window other than 1969 to 2068, each as its name and the window's first year. Empty in every description this version writes, and refused as anything else (R16), so a description carrying an entry was written by a newer synthtwin. An entry is read for its shape first -- a column's name and one whole number or word beside it, each column once -- and held to S8d, and only then refused for being there |
 
 <!-- -- 3b.R2c (P4-D383) -->
 
 | key | JSON type | range / permitted values | meaning |
 |---|---|---|---|
-| `forced_date_columns` | array of strings | `[]` only, in this version | RESERVED by the second key cut (plan P4-D386) for lane R2c (plan P4-D383, question Q6): the columns the person said are dates whatever else some of their cells hold, in rising order, each of them once. Empty in every description this version writes, and refused as anything else (R16) after its names are read and held to S8c |
+| `forced_date_columns` | array of strings | `[]` only, in this version | RESERVED by the second key cut (plan P4-D386) for lane R2c (plan P4-D383, question Q6): the columns the person said are dates whatever else some of their cells hold, in rising order, each of them once. Empty in every description this version writes, and refused as anything else (R16) after its names are read and held to S8d |
 
 <!-- -- 3b.R4 (P4-D384) -->
 
 | key | JSON type | range / permitted values | meaning |
 |---|---|---|---|
-| `forced_date_counts` | array of `[name, system]` pairs | `[]` only, in this version | RESERVED by the second key cut (plan P4-D386) for lane R4 (plan P4-D384, question Q3): the columns the person said write their dates as numbers counted from a fixed day, each as its name and the counting system it uses, in table order, each column once. Empty in every description this version writes, and refused as anything else (R16) after its entries are read for their shape and held to S8c, which keeps such a column off every other reading before the landing that fills the key |
+| `forced_date_counts` | array of `[name, system]` pairs | `[]` only, in this version | RESERVED by the second key cut (plan P4-D386) for lane R4 (plan P4-D384, question Q3): the columns the person said write their dates as numbers counted from a fixed day, each as its name and the counting system it uses, in table order, each column once. Empty in every description this version writes, and refused as anything else (R16) after its entries are read for their shape and held to S8d, which keeps such a column off every other reading before the landing that fills the key |
 
 **C6-20 (membership).** All TWENTY-SEVEN keys are REQUIRED (landing T1
 added `forced_twelve_hour_clocks`, and the second key cut, plan
@@ -1576,7 +1576,7 @@ looked at that way. It carries its own code, and not S8's, for S8a's
 reason: S8 says a declared name is not a column of this table, and this
 says the name is not declared at all.
 
-**Invariant S8c (a column whose dates are counts is read one way)**
+**Invariant S8d (a column whose dates are counts is read one way)**
 (plan P4-D386; the review of lane R4's design, item 10). No name under
 `settings.forced_date_counts` also stands under `forced_date_columns`,
 `century_windows`, `forced_twelve_hour_clocks`, `forced_codes`,
@@ -12000,7 +12000,7 @@ a document, so no document can violate it.
 | S14 | each declaration record has exactly five keys | yes |
 | C6-20 | `settings` has exactly its twenty-seven keys; twenty-six or twenty-eight is a document this contract does not describe | yes |
 | S8b | every name under `settings.person_columns` is also under `settings.forced_identifiers` | yes |
-| S8c | no name under `settings.forced_date_counts` is also under `forced_date_columns`, `century_windows`, `forced_twelve_hour_clocks`, `forced_codes`, `forced_identifiers` or `forced_measurements` | yes |
+| S8d | no name under `settings.forced_date_counts` is also under `forced_date_columns`, `century_windows`, `forced_twelve_hour_clocks`, `forced_codes`, `forced_identifiers` or `forced_measurements` | yes |
 | C6-53 | a column block's key set is exactly the twenty-two universal keys plus the marked cells of its role's column in the forbidden-key matrix; every other key is FORBIDDEN, and refused by name | yes |
 
 **Four membership rules of this part carry no identifier**, so no list

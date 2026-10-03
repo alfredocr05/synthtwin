@@ -1272,7 +1272,7 @@ INVARIANTS = {
         "every column named as holding the people the rows belong to is "
         "also declared as holding record numbers"
     ),
-    "S8c": (
+    "S8d": (
         "no column is named as writing its dates as counts and also as "
         "a column of dates read another way, as writing two-figure "
         "years, as a 12-hour clock, or as holding codes, record numbers "
@@ -2176,7 +2176,7 @@ class SettingsBlock:
     # first year)` per column whose two-figure years are read in a window
     # the person chose (landing R2a), the columns the person said are
     # dates whatever else they hold (landing R2c), and `(column, system)`
-    # per column whose dates are written as counts (landing R4). S8c
+    # per column whose dates are written as counts (landing R4). S8d
     # holds the last to no other reading of its column.
     # -- 3b.R2a (P4-D383)
     century_windows: "tuple[tuple[str, int], ...]" = ()
@@ -6082,7 +6082,7 @@ def _settings(value: object) -> SettingsBlock:
         declared_codes += [found]
         place = place + 1
     # THE THREE DECLARATIONS STAGE 3B RESERVES (plan P4-D386), read for
-    # their shape and their names, held to S8c, and only then refused as
+    # their shape and their names, held to S8d, and only then refused as
     # anything but empty: so the rule that keeps a column whose dates are
     # counts off every other reading stands before the landing that fills
     # the key, and that landing deletes only the refusal. Each lane's
@@ -6110,7 +6110,7 @@ def _settings(value: object) -> SettingsBlock:
     counted = _declared_pairs(
         mapping["forced_date_counts"], "forced_date_counts", where
     )
-    # S8c, which stands whatever each landing fills.
+    # S8d, which stands whatever each landing fills.
     for name, _system in counted:
         for others, what in (
             (date_columns, "a column of dates read another way"),
@@ -6122,7 +6122,7 @@ def _settings(value: object) -> SettingsBlock:
         ):
             if name in others:
                 raise _broken(
-                    "S8c",
+                    "S8d",
                     where,
                     f"'{name}' is named as writing its dates as counts "
                     f"and also as {what}",

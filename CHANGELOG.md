@@ -16,7 +16,7 @@ settings carry `century_windows`, `forced_date_columns` and
 date column carries `count_form` as `null`; a description holding
 anything else under one of them is refused as written by a newer
 synthtwin. A column named as writing its dates as counts and also under
-another reading is refused first (S8c). No twin, report or description
+another reading is refused first (S8d). No twin, report or description
 changes but for those four keys.
 
 ### The weekday guards dropped (2026-10-02)
