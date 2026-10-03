@@ -213,6 +213,7 @@ held by tests/test_stage3b_base.py.
 anchor 3b-D1 (P4-D365)
 3b.G: this file's weekday half and tests/test_stage3b_weekday_review.py.
 anchor 3b-D0 (P4-D366)
+3b.D0: tests/test_stage3b_shared_steps.py, G7.3f's shared steps on stated ranks.
 anchor 3b-D2 (P4-D367)
 anchor 3b-D3 (P4-D368)
 anchor 3b-D4 (P4-D369)

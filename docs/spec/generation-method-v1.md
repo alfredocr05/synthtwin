@@ -6318,6 +6318,33 @@ CANDIDATES are the days `d - 1, d + 1, d - 2, d + 2, ...` from its own
 day `d`, up to 400 days away, those inside its gap only, the search
 ending once both sides lie outside it.
 
+**THE SEAMS** (landing 3b.D0, plan P4-D366). The pass is ONE over any
+census of bins, and every landing that publishes one states its seams;
+for the weekday census of a column of whole dates they are the ones the
+text above reads, and for a census of hours they are an hour's. An
+ORDINAL is a rank's value in its column's space -- a day for a date, a
+second for a moment. The UNIT `u` is how many ordinals lie between two
+places a rank may take: 1 for a date's day, 86,400 for a moment's day,
+3,600 for an hour, 60 for a minute. A rank's candidates are then
+`o - u, o + u, o - 2u, ...` from its own ordinal `o`, up to 400 UNITS
+away, so a move keeps the rank's place inside its unit -- its clock, on a
+day of moments. The WRITTEN UNIT `s`, a divisor of `u`, is how many
+ordinals one written value spans: `held` counts the ranks on each
+written unit `o div s`, and the count of different values is the count
+of written units held. The DAY `D` is how many ordinals a day spans; a
+hole is a day, `o div D`, and so is what the width kind reads. An
+ordinal's BIN is the bin the census counts it in -- here its weekday --
+and its GROUP the census group holding that bin; where bins follow one
+another unit by unit they repeat every PERIOD units (seven here). An
+ordinal's KIND is three things: whether its day counts into the width
+word, as above; what every move KEEPS besides -- nothing here, the day
+`o div 86,400` for a census of hours, so an hour moves inside its own
+day; and a second census's group, nought where there is none, which only
+step 8.6 changes. Bin, kind and hole are read alike on every ordinal of
+a unit. A unit is FREE where no rank stands on any ordinal of it. Where
+a step below says a day, it is a unit; where it says a day's ranks, a
+written unit's.
+
 1. **Owed.** Each group owes its published count less the ranks
    between the two boundary ranks, both included, that are not movable
    and whose day falls in it.
@@ -6384,6 +6411,20 @@ ending once both sides lie outside it.
    the owed totals, taken at nought or above, step 6 runs once over all
    of them against those totals, up to sixty-four rounds, a changing
    offer taken from the start.
+
+   **7b. The chain** (plan P4-D366). Where they still do not hold them,
+   up to 256 rounds. A LINK from group `g` to group `h` is the first cell
+   (step 8.3's cells, of the movable ranks, in its order) that holds a
+   movable rank of `g` and a unit of `h` of the cell's kind, no hole,
+   between the units of its gap's first and last ordinals. Breadth
+   first from the groups over their totals, ascending, a group reached
+   once and a group over its total never, each group's links asked in
+   order of `h`, the first group under its total reached ends the search;
+   each link of the path from the group over to the group under then
+   makes, in turn, one move of step 8.3 in its cell, from `g` to `h`, so
+   every group between keeps its holding and one rank goes from the
+   first group to the last. The step ends where no path is found or a
+   move cannot be made.
 8. **The count of different days**, where the column's distinct count
    is reachable, put back to what it was before step 2, by moves that
    keep every group's count:
@@ -6423,11 +6464,71 @@ ending once both sides lie outside it.
       days)` -- concave -- so where no cycle gains it is the most the
       census allows the body around the tail dates the twin wrote, which
       may hold fewer different days than the real tails. A count left
-      long is steps 1 and 2's again. What the three leave off is
-      reported as the column's count of different values, and where the
-      census holds, as the count that gave way to it -- in the twin's
-      own tails where every day the census allows between the
-      boundaries, no hole, holds a date.
+      long is steps 1 and 2's again. THE CYCLES ASKED ARE BOUNDED (plan
+      P4-D366): every cycle where the census has at most seven groups,
+      and only cycles of at most three groups where it has more, as
+      every cycle of thirty-one groups of days of the month is too many
+      to ask.
+   4. **Units merged** (plan P4-D366), where the count is still LONG, up
+      to four rounds, a round that merges nothing ending the step: every
+      written unit whose every rank is movable, the fewest ranks first
+      and then the earlier unit, where it still holds those ranks and no
+      other, moves WHOLE -- every rank on it onto one place -- inside the
+      gap all its ranks share (the latest first day and the earliest last
+      day of their gaps), the whole of it asked. First onto the nearest
+      ordinal a whole number of units away, the earlier on a tie, of its
+      own group and kind, no hole, whose written unit a rank holds: so at
+      its own place inside the unit, its clock on a day of moments (the
+      3b.2-W skeptic, minor 2). Else, where a unit spans more than one
+      written unit, onto the nearest ordinal a rank stands on, the
+      earlier on a tie, of its own group and kind, no hole, on another
+      written unit, that is the start of a day exactly where its own
+      place is. The step stops once the count is back.
+   5. **Long pairs** (plan P4-D366; landing 3b.6's step), where the count
+      is still long, up to 512 PAIRS. A cell's units here are the written
+      units its movable ranks stand on, ascending. In a cell A, the first
+      rank on a unit `x` that no other rank of the column holds, of group
+      `a`, moves onto the ordinal the first rank on `y` stands on, `y`
+      A's first unit of a group `b` other than `a` that is no hole; in
+      another cell B, the first rank on `z` moves onto the ordinal the
+      first rank on `w` stands on, `w` B's first unit of group `a` that is
+      no hole, and `z` B's first unit of `b` that one rank of the column
+      holds alone where the count is long by two or more and one is,
+      else B's first unit of `b` that two ranks or more hold (no pair
+      where neither is). Every group's count and every cell's size are
+      kept, and the count falls by one, or by two where `z` was held
+      alone. Of every pair, the one falling most, then whose two gaps'
+      first days lie nearest, then the first in the order of A, `x`, `b`
+      and B, cells in step 8.3's order.
+   6. **The two-census exchange** (plan P4-D366; the 3b.3 skeptic's
+      blocker 1 (b)), where the pass keeps a second census's group and,
+      once step 7b is done, the movable ranks still do not hold the owed
+      totals: up to 200 TRADES, while the totals do not hold. A rank of a
+      group over its total moves, up to 62 units away inside its gap,
+      onto an ordinal no hole of a group under its total, of its own
+      width kind and keep but of any second group: from second group `a`
+      to `b`. Where `a` and `b` differ, a second rank, of second group
+      `b`, moves up to 31 units away inside its own gap onto an ordinal
+      no hole of its own group, width kind and keep, and of second group
+      `a`, so every second group keeps its count. A move SCORES nought
+      where it keeps the count of different values -- a rank alone on its
+      written unit onto one no rank holds, or one sharing its own onto
+      one a rank holds -- and one where it does not. For each pair of
+      second groups, the second move is, as the ranks stand when the
+      trade's round begins, the one scoring least, then the nearest,
+      then of the lowest rank, then onto the lower ordinal. Ranks are
+      asked in rank order and each one's candidates in their order; of
+      every trade, the one whose summed score and then summed distance in
+      units is least, the first met on a tie, the asking ending with the
+      first rank that offers a trade scoring nought. The step asks
+      whether the count is reachable no more than step 7b does; where a
+      trade was made and it is, steps 8.1 to 8.5 run again.
+
+   What the steps leave off is reported as the column's count of
+   different values, and where the census holds, as the count that gave
+   way to it: SHORT in the twin's own tails where every day the census
+   allows between the boundaries, no hole, holds a date, short
+   elsewhere, or LONG.
 9. Each run of ranks the layout does not pin is sorted.
 
 Where the census still does not hold, the report names `weekday_census`

@@ -246,6 +246,11 @@ THIRTEENTH_BRANCH_VECTORS = (
 # its own vectors file and its maker below its own line.
 # anchor 3b-D1 (P4-D365)
 # anchor 3b-D0 (P4-D366)
+# THE FIFTEENTH FILE (landing 3b.D0's shared steps of G7.3f, plan P4-D366):
+# states of ranks, not columns, held by tests/test_stage3b_shared_steps.py.
+FIFTEENTH_BRANCH_GENERATOR = (
+    REPOSITORY / "tools" / "reference" / "make_generation_branch_vectors_15.py"
+)
 # anchor 3b-D2 (P4-D367)
 # anchor 3b-D3 (P4-D368)
 # anchor 3b-D4 (P4-D369)
@@ -1403,6 +1408,7 @@ def test_the_branch_file_is_the_same_oracle_and_says_which_half_it_is() -> None:
         THIRTEENTH_BRANCH_GENERATOR,
         FOURTEENTH_BRANCH_GENERATOR,
         TWENTY_SECOND_BRANCH_GENERATOR,
+        FIFTEENTH_BRANCH_GENERATOR,
         DOCUMENT_GENERATOR,
     ],
 )
