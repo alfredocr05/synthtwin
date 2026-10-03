@@ -458,6 +458,104 @@ def test_the_table_is_charged_every_group_handed_in_before_a_step(monkeypatch) -
     assert parsing.mixture_pool_holds(1000, 11, [1000] * 40, 40, free * 8, None) is False
 
 
+# A LEAF OF THE WALK ASKS ONE READING FOR EVERY COUNT UNDER THE LINE (the
+# Codex review of 3b-R0, item 1). At a floor raised with the rows that is
+# hundreds of thousands of readings in one leaf, and the budgets were asked
+# only after all of them: 1,000,001 cells of `i.5` and `i.50` at
+# `--smallest-group 500001` took a reading after 4,000,061 of the work.
+# Three conventions of 1,999 under a line of 2,000 hold 3,000 rows every
+# way but one, so a leaf of this pool asks about 2,000 readings and answers
+# True after them.
+RAISED_FLOOR = (3000, 2000, [2999] * 3, 3, (), None)
+
+
+def _counting_readings(monkeypatch: pytest.MonkeyPatch) -> "dict[str, int]":
+    """Counts `_topped_up`'s readings, and the most of the work any walk had spent when it started one.
+
+    The work is charged here as `_pool_readings` charges it, one a
+    reading and one more for every `POOL_WORDS_A_STEP` words its
+    big-number steps move, from the table the walk is charged before a
+    step; this shape hands in no value, so no placement is charged.
+    """
+    tally = {"readings": 0, "spent": 0, "most_spent_at_a_reading": 0, "walks": 0}
+    walk = parsing._pool_readings
+    reading = parsing._topped_up
+
+    def counted_walk(population, held, seen, groups, line, shown=False, spent=0):
+        tally["walks"] += 1
+        tally["spent"] = spent
+        return walk(population, held, seen, groups, line, shown, spent)
+
+    def counted_reading(population, kinds, state, seen, barred, empty, work=None):
+        tally["most_spent_at_a_reading"] = max(tally["most_spent_at_a_reading"], tally["spent"])
+        tally["readings"] += 1
+        before = work[0] if work is not None else 0
+        answer = reading(population, kinds, state, seen, barred, empty, work)
+        moved = (work[0] - before) if work is not None else 0
+        tally["spent"] += 1 + moved // parsing.POOL_WORDS_A_STEP
+        return answer
+
+    monkeypatch.setattr(parsing, "_pool_readings", counted_walk)
+    monkeypatch.setattr(parsing, "_topped_up", counted_reading)
+    return tally
+
+
+def test_a_leaf_s_readings_stop_when_the_steps_run_out(monkeypatch) -> None:
+    """A hundred steps and about 2,000 readings in one leaf: the walk stops short after the hundredth, never answering True.
+
+    The Codex review of 3b-R0, item 1. Mutation: the steps asked only
+    after the leaf (110cb46) takes every reading and answers True.
+    """
+    tally = _counting_readings(monkeypatch)
+    monkeypatch.setattr(parsing, "POOL_SEARCH_STEPS", 100)
+    monkeypatch.setattr(parsing, "POOL_WORK_STEPS", 10**9)
+    assert parsing.mixture_pool_holds(*RAISED_FLOOR) is None
+    assert tally["readings"] == 100, tally
+    monkeypatch.setattr(parsing, "POOL_SEARCH_STEPS", 10**6)
+    assert parsing.mixture_pool_holds(*RAISED_FLOOR) is True
+
+
+def test_a_leaf_s_readings_stop_when_the_work_runs_out(monkeypatch) -> None:
+    """Steps to spare and a hundred of the work: no reading is started once the work is spent, and True is never accepted past it.
+
+    The Codex review of 3b-R0, item 1: the work asked between readings
+    and before the answer is taken. Mutation: the work asked only after
+    the leaf (110cb46) takes every reading and answers True.
+    """
+    tally = _counting_readings(monkeypatch)
+    monkeypatch.setattr(parsing, "POOL_SEARCH_STEPS", 10**6)
+    monkeypatch.setattr(parsing, "POOL_WORK_STEPS", 100)
+    assert parsing.mixture_pool_holds(*RAISED_FLOOR) is None
+    assert tally["most_spent_at_a_reading"] < 100, tally
+    assert tally["readings"] <= 100, tally
+
+
+def test_a_raised_floor_over_values_written_two_ways_is_bounded_in_work(tmp_path, monkeypatch) -> None:
+    """10,001 cells of `i.5` and `i.50` at `--smallest-group 5001`: no walk starts a reading past its work.
+
+    The shape the Codex review of 3b-R0, item 1 measured at 1,000,001
+    cells and the shipped ceiling, where a walk took 62,500 readings and
+    then another past 4,000,061 of the work and the CPU seconds grew with
+    the square of the rows; here at a ceiling of 3,000, which its leaf of
+    5,000 readings passes, so the test takes a second. The census is then
+    counted at one width, the stop-short answer. Mutation: the budgets
+    asked only after the leaf (110cb46) starts readings past 3,000.
+    """
+    tally = _counting_readings(monkeypatch)
+    monkeypatch.setattr(parsing, "POOL_WORK_STEPS", 3000)
+    path = _table(tmp_path / "in", "pairs", values_written_two_ways(5000))
+    out = tmp_path / "out"
+    out.mkdir(parents=True)
+    said = io.StringIO()
+    with contextlib.redirect_stdout(said), contextlib.redirect_stderr(said):
+        code = cli.main(["profile", str(path), "--out-dir", str(out), "--replace", "--smallest-group", "5001"])
+    assert code == 0, said.getvalue()
+    assert tally["walks"] > 0 and tally["readings"] > 0, tally
+    assert tally["most_spent_at_a_reading"] < 3000, tally
+    block = json.loads((out / "pairs-profile.json").read_text(encoding="utf-8"))["columns"][0]
+    assert taxonomy.SUPPRESSED_LABEL not in block["fraction_widths"], block["fraction_widths"]
+
+
 def test_the_walk_can_never_reach_itself() -> None:
     """Read off the source: `_fill` names no function that names `_fill`.
 
@@ -937,3 +1035,235 @@ def test_a_copy_of_a_reading_keeps_its_splits() -> None:
     declared = dataclasses.replace(cells, decimal_comma=True)
     assert taxonomy._split_once(declared, "5,5 mg") == taxonomy.affixed_split("5,5 mg", True)
     assert taxonomy._split_once(cells, "5,5 mg") == taxonomy.affixed_split("5,5 mg", False)
+
+
+# -- 7. the first split of a distinct text is bounded (Codex, 3b-R0, item 2) --
+
+
+def every_substring_split(text: str, decimal_comma: bool = False) -> "tuple[str, str, str] | None":
+    """`taxonomy.affixed_split` as it stood on 110cb46: every substring of every span asked, longest and leftmost kept.
+
+    VERBATIM but for its name and for naming `taxonomy`'s helpers through
+    the module: the reference the single-pass search is proved against.
+    """
+    trimmed = parsing.trimmed(text)
+    best_start = -1
+    best_length = 0
+    for span_start, span_stop in taxonomy._core_spans(trimmed):
+        for begin in range(span_start, span_stop):
+            if span_stop - begin <= best_length:
+                break
+            for end in range(span_stop, begin + best_length, -1):
+                if taxonomy._reads_as_a_number(trimmed[begin:end], decimal_comma):
+                    best_start, best_length = begin, end - begin
+                    break
+    if best_length <= 0:
+        return None
+    prefix = trimmed[:best_start]
+    core = trimmed[best_start : best_start + best_length]
+    suffix = trimmed[best_start + best_length :]
+    while core and parsing.trimmed(core[:1]) == "":
+        prefix = prefix + core[:1]
+        core = core[1:]
+    while core and parsing.trimmed(core[-1:]) == "":
+        suffix = core[-1:] + suffix
+        core = core[:-1]
+    if not core:
+        return None
+    if not prefix and not suffix:
+        return None
+    return prefix, core, suffix
+
+
+class _TooManyAsks(Exception):
+    """Raised by the counted classifier past its cap, so the search over every substring fails in a moment."""
+
+
+def _counting_asks(monkeypatch: pytest.MonkeyPatch, cap: int) -> "dict[str, int]":
+    """Counts `taxonomy._reads_as_a_number`, raising past ``cap`` asks."""
+    asked = {"asks": 0, "characters": 0}
+    reads = taxonomy._reads_as_a_number
+
+    def counted(text, decimal_comma):
+        asked["asks"] += 1
+        asked["characters"] += len(text)
+        if asked["asks"] > cap:
+            raise _TooManyAsks(asked["asks"])
+        return reads(text, decimal_comma)
+
+    monkeypatch.setattr(taxonomy, "_reads_as_a_number", counted)
+    return asked
+
+
+def long_runs(length: int, seed: int) -> "dict[str, str]":
+    """Long runs of the characters a number is written with, none or few of them a long number."""
+    draw = random.Random(seed)
+    readings = " ".join(str(draw.randint(40, 180)) for _ in range(length // 3))
+    return {
+        "signs": "+" * length + "x",
+        "minus signs": "−" * length + " mg",
+        "alternating signs": "+-" * (length // 2) + "x",
+        "brackets": "(" * length + "x",
+        "closing brackets": "x" + ")" * length,
+        "points": "." * length + "x",
+        "commas": "x" + "," * length,
+        "apostrophes": "'" * length + "x",
+        "exponent letters": "e" * length + "x",
+        "spaces": "a" + " " * length + "b",
+        "figures and commas": "1," * (length // 2) + "x",
+        "figures and points": "1." * (length // 2) + "x",
+        "bracketed figures": "(1" * (length // 2) + "x",
+        "signed figures": "-1" * (length // 2) + "x",
+        "readings parted by spaces": readings + " mmHg",
+        "every character": "".join(draw.choice("0123456789+-.,()eE'’− ") for _ in range(length)) + "x",
+    }
+
+
+@pytest.mark.parametrize("decimal_comma", (False, True))
+def test_a_long_distinct_run_asks_the_classifier_a_few_times(decimal_comma, monkeypatch) -> None:
+    """Runs of 800 characters ask `_reads_as_a_number` fewer times than they have characters, and take a moment.
+
+    The Codex review of 3b-R0, item 2: `+` 800 times and an `x` asked
+    320,400 substrings in about eleven CPU seconds to answer None, and a
+    column of distinct annotations asked again for each. Mutation: the
+    search over every substring (110cb46) passes the cap of 800 asks on
+    the first run.
+    """
+    started = time.process_time()
+    for name, text in long_runs(800, 3).items():
+        asked = _counting_asks(monkeypatch, len(text))
+        taxonomy.affixed_split(text, decimal_comma)
+        assert asked["asks"] <= len(text), (name, asked)
+    seconds = time.process_time() - started
+    judged, why = kpi_rules.seconds_judged_here(kpi_rules.load_ledger())
+    if judged:
+        assert seconds < 2.0, seconds
+    else:
+        print(f"sixteen runs of 800 searched in {seconds:.2f} CPU s, reported and not judged here: {why}")
+
+
+def _split_cases(draw: random.Random) -> str:
+    """A short text of the characters a number is written with, figures and letters: the search's every road."""
+    alphabet = list("0123456789") * 3 + list("+-.,()eE'’−") + [" ", " ", "\t", " ", " ", " ", " ", "x"]
+    pieces = ["1", "12", "123", "1234", "0", "000", ",", ".", "e", "E", "-", "+", "−", "(", ")", " ", "'",
+              "’", " ", "e-", "e+", ",123", " 123", "99999", "x", "mg", " %", "$", "\t"]
+    if draw.random() < 0.5:
+        return "".join(draw.choice(alphabet) for _ in range(draw.randint(1, 14)))
+    return "".join(draw.choice(pieces) for _ in range(draw.randint(1, 8)))
+
+
+def test_the_single_pass_search_answers_what_every_substring_answered() -> None:
+    """6,000 seeded texts under both grammars, and texts at the edges of binary64's range, split as 110cb46 split them.
+
+    Every condition `_core_reach` stops or skips on is one every number
+    meets, so the longest and leftmost core is the one the search over
+    every substring found. Measured besides on 600,000 such texts and
+    600 texts of 300 to 330 figures under both grammars, grouped and
+    bracketed among them, with none apart. Mutations: a group
+    of thousands of two figures taken, the bracket's inner trailing
+    space refused, an exponent's sign read only after a lower-case `e`,
+    and either magnitude past the range read one figure early, each
+    part the two here.
+    """
+    draw = random.Random(380)
+    for _case in range(6000):
+        text = _split_cases(draw)
+        for decimal_comma in (False, True):
+            assert taxonomy.affixed_split(text, decimal_comma) == every_substring_split(text, decimal_comma), (
+                text, decimal_comma)
+    edges = [
+        "x" + "1" + "0" * 308 + " mg",
+        "x" + "9" * 309 + " mg",
+        "$" + "1" + "0" * 309 + "e-5x",
+        "a 0." + "0" * 323 + "5 mg",
+        "a 0." + "0" * 324 + "5 mg",
+        "x 1e" + "9" * 7 + " y",
+        "x 0e" + "9" * 8 + " y",
+        "x 5e-0000123456 y",
+    ]
+    for text in edges:
+        for decimal_comma in (False,):
+            assert taxonomy.affixed_split(text, decimal_comma) == every_substring_split(text, decimal_comma), (
+                text[:40], decimal_comma)
+
+
+def test_a_column_of_distinct_long_annotations_describes_with_few_asks(tmp_path, monkeypatch) -> None:
+    """A hundred rows, each a different run of signs and an `x`: described through the command, the classifier asked a few times a row.
+
+    The Codex review of 3b-R0, item 2, which stopped a 100-row
+    `profile_column` probe after 10,000 candidate checks. Mutation: the
+    search over every substring (110cb46) passes the cap.
+    """
+    cells = [f"{'+' * (400 + row)}x" for row in range(50)] + [f"{'(1' * (200 + row)} mg" for row in range(50)]
+    asked = _counting_asks(monkeypatch, 10_000)
+    path = _table(tmp_path / "in", "notes", cells)
+    code, said = _profile(path, tmp_path / "out")
+    assert code == 0, said
+    assert asked["asks"] < 10_000, asked
+    assert (tmp_path / "out" / "notes-profile.json").exists()
+
+
+def test_a_search_past_its_bound_stops_the_run_with_a_sentence(tmp_path, monkeypatch) -> None:
+    """A bound of 50,000 characters and a cell of 3,000 nines and `e5x`: the run stops, says why, and writes nothing.
+
+    The Codex review of 3b-R0, item 2: where the search cannot answer in
+    a bounded time it refuses in a sentence, never answers otherwise.
+    The column's other cells search well within it. Mutation: the bound
+    never asked (110cb46) describes the column.
+    """
+    monkeypatch.setattr(taxonomy, "SPLIT_SEARCH_CHARACTERS", 50_000)
+    cells = [f"{row % 90 + 10} mg" for row in range(149)] + ["9" * 3000 + "e5x"]
+    path = _table(tmp_path / "in", "long", cells)
+    code, said = _profile(path, tmp_path / "out")
+    assert code == 1, said
+    assert errors.cell_too_long_to_search(50_000) in said, said
+    assert not (tmp_path / "out" / "long-profile.json").exists()
+
+
+def dropped_runs() -> "dict[str, tuple[str, str, str, bool]]":
+    """Runs of characters a reading drops at an end of what it asks -- spaces of every kind, a declared column's points -- with and without a figure before them: the text before the run, one length of the run, the text after it, and the grammar."""
+    return {
+        "line feeds in a note": ("Note:", "\n", "Impression: stable", False),
+        "spaces after a sign": ("a +", " ", "b", False),
+        "spaces of every kind": ("x", "\u00a0\u2009 \t\u3000", "y", False),
+        "points on a declared column": ("Hemoglobin", ".", "high", True),
+        "spaces after a number past the range": ("1e400", " ", "y", False),
+        "spaces after 309 nines": ("9" * 309, " ", "y", False),
+        "points after a declared number past the range": ("1e400", ".", "y", True),
+    }
+
+
+def test_a_long_run_a_reading_drops_is_searched_once(monkeypatch) -> None:
+    """Runs of 50,000 characters a reading drops split as the old search splits them at 40, each character read about four times at most, a few questions asked.
+
+    The Codex review of 3b-R0, item 2, a residual measured after its
+    first fix: a start inside a run of spaces, line feeds or a declared
+    column's points read the run to its end, and an end inside one was
+    asked again for every character, so `Note:` and 7,000 line feeds
+    cost the square of the run and stopped the whole run at
+    `SPLIT_SEARCH_CHARACTERS` with no figure in the cell. A reading drops
+    such a run at either end of what it asks (`taxonomy._kept_places`),
+    so a start inside it reads what its next kept character starts, and
+    an end inside it reads what its last kept character ends. The split
+    at 50,000 is the one the search over every substring finds at 40,
+    the run as long in whichever part holds it. Mutations: the starts
+    inside the run each read it (the first fix) passes the bound of five
+    reads a character; every end inside it asked (the first fix) passes
+    the cap of ten asks; the search over every substring (110cb46)
+    passes that cap on the first run.
+    """
+    reads = taxonomy._reads_as_a_number
+    for name, (before, run, after, decimal_comma) in dropped_runs().items():
+        short, long = run * (40 // len(run)), run * (50_000 // len(run))
+        reference = every_substring_split(before + short + after, decimal_comma)
+        assert taxonomy.affixed_split(before + short + after, decimal_comma) == reference, name
+        text = before + long + after
+        monkeypatch.setattr(taxonomy, "SPLIT_SEARCH_CHARACTERS", 5 * len(text), raising=False)
+        asked = _counting_asks(monkeypatch, 10)
+        split = taxonomy.affixed_split(text, decimal_comma)
+        monkeypatch.setattr(taxonomy, "_reads_as_a_number", reads)
+        assert asked["asks"] <= 10, (name, asked)
+        if reference is None:
+            assert split is None, (name, split)
+        else:
+            assert split == tuple(part.replace(short, long) for part in reference), name

@@ -499,6 +499,53 @@ def test_a_run_of_one_value_keeps_one_mark():
     assert len(set(marked)) == 7
 
 
+def test_a_walk_stopped_short_lowers_no_cell_of_the_twin_s_marks(monkeypatch):
+    """Eight pooled, eighteen groupable, a budget of one step: all eighteen marked after one walk.
+
+    The twin asks how many cells its marks may hold as the loader asks
+    (`parsing.lone_pool_stands`; the Codex review of 3b-R0, its
+    verifier's open item): two sums, then True where the walk stops
+    short. Asked False, as 6c59700 asked it once a leaf stopped at its
+    ceilings, every walk stopped short lowered T by one cell -- eight
+    walks here and ten cells marked; at the shipped budget, 350,000
+    groupable cells and a pool of 200,000 under a line of 300,001 would
+    have asked about 50,000 walks of three CPU seconds, where 110cb46 and
+    this ask one and mark all 350,000.
+    Mutation: the twin asking False turns it red.
+    """
+    walks: "list[int]" = []
+    asked = parsing.mixture_pool_holds
+
+    def counted(*arguments):
+        nonlocal walks
+        walks += [arguments[0]]
+        return asked(*arguments)
+
+    monkeypatch.setattr(parsing, "mixture_pool_holds", counted)
+    monkeypatch.setattr(parsing, "POOL_SEARCH_STEPS", 1)
+    _worn, marked, named = _places(8, 18)
+    assert walks == [18], walks
+    assert len(marked) == 18 and max(marked.count(mark) for mark in set(marked)) <= 10
+    assert named == [("thousands_marks", "8", "18")]
+
+
+def test_the_count_of_marks_is_the_statement_s_where_every_walk_stops_short(monkeypatch):
+    """The witnessed counts of marks, each worked by hand from G6.1's sentence, under a budget of one step.
+
+    `generation._pool_mark_count` asks the fewest marks whose room lets
+    the pool stand as the loader asks it (`parsing.lone_pool_stands`; the
+    Codex review of 3b-R0, its verifier's open item), so a walk stopped
+    short changes no count. Asked False, every pool at the line or past it
+    went to seven marks: forty at a floor of eleven, beside three
+    spellings, to seven where the statement gives five.
+    Mutation: the count asking False turns it red.
+    """
+    from tests.test_oracle_rule_witnesses import _pool_mark_counts_missed
+
+    monkeypatch.setattr(parsing, "POOL_SEARCH_STEPS", 1)
+    assert _pool_mark_counts_missed(generation._pool_mark_count) == []
+
+
 def _trailing_negatives(seed: int, trailing: int, brackets: int, minus: int, sign: int,
                         positives: int, whole_others: bool = True, points: bool = True,
                         whole_share: float = 0.5, padded: int = 0,

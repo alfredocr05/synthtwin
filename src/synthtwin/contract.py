@@ -9754,16 +9754,29 @@ def _census_may_speak(
 ) -> None:
     """D12, P6, TM1 and NS2: a closed census pools only where a pool names no one (P4-D222, P4-D352).
 
-    `parsing.census_pools`, the one statement: on a closed vocabulary a
-    pool over more cells than all but one name can hold below the line
-    would say every name was written, so the producer never writes one.
+    `parsing.lone_pool_stands`, the one statement asked of the vocabulary
+    alone: on a closed vocabulary a pool over more cells than all but one
+    name can hold below the line would say every name was written, so
+    the producer never writes one.
+
+    ASKED AS THE LOADER'S OTHER CALL SITES ASK THE WALK (the Codex review
+    of 3b-R0, its verifier's open item): True where the walk stops short,
+    so a pool is refused only where the two sums `lone_pool_stands` asks
+    first, or a finished walk, show it pinned. Asked False, as it was, a
+    walk stopped short refused the pool: a leaf stops at its ceilings
+    since the review's item 1, so under a budget of one step a hand pool
+    of 32 grouped numbers the walk lets stand was refused here, and at
+    the shipped budget so was a pool of 400,000 under a line of 300,001,
+    which six marks hold. The sums keep the bound the contract states --
+    TM1's six and NS2's three times one less than the line -- where the
+    walk stops short.
 
     Raises ProfileError for the named invariant. No I/O of any kind.
     """
     if WITHHELD not in census or len(census) != 1:
         return
     total = census[WITHHELD]
-    if not parsing.census_pools(total, floor, names):
+    if not parsing.lone_pool_stands(total, floor, names, names):
         raise _broken(
             rule,
             where,

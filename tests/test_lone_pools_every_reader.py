@@ -693,13 +693,18 @@ def test_the_loader_admits_a_pool_its_walk_stops_short_of(cells, key, pool, tmp_
     """Two hand pools the loader refuses above load where the walk runs out of steps at once.
 
     `parsing.mixture_pool_holds` answers what its caller asks where the
-    walk stops short, and the loader asks True at both call sites -- TM1
-    and NS2 (`contract._mixture_pools_bounded`), P6, P6b, P6c, D3 and D12
-    (`contract._closed_pools_bounded`) -- so it refuses only a pool it has
-    shown pinned, and no census the producer counts under one name for a
-    walk stopped short can be refused. A budget of one step stops every
-    walk before it settles; the description is built before it is spent.
-    Mutation: either call site asking False turns its case red.
+    walk stops short, and the loader asks True at all three call sites --
+    TM1 and NS2 (`contract._mixture_pools_bounded`), P6, P6b, P6c, D3 and
+    D12 (`contract._closed_pools_bounded`), and the closed censuses' own
+    band, D12, P6, NS2 and TM1 (`contract._census_may_speak`, through
+    `parsing.lone_pool_stands`) -- so it refuses only a pool it has shown
+    pinned, and no census the producer counts under one name for a walk
+    stopped short can be refused. A budget of one step stops every walk
+    before it settles; the description is built before it is spent.
+    Mutation: any call site asking False turns its case red -- the third
+    did on 6c59700, where a leaf first stopped at its ceilings and TM1's
+    band, asking False, refused the pool of 32 (the Codex review of
+    3b-R0, its verifier's open item).
     """
     document = _document(cells)
     column = document["columns"][0]
@@ -709,3 +714,79 @@ def test_the_loader_admits_a_pool_its_walk_stops_short_of(cells, key, pool, tmp_
     assert _refusal(document, tmp_path) != "accepted"
     monkeypatch.setattr(parsing, "POOL_SEARCH_STEPS", 1)
     assert _refusal(document, tmp_path) == "accepted"
+
+
+# SIXTY-ONE GROUPED NUMBERS, each its own value of one spelling, beside
+# sixty small ones: the producer names the comma at 61.
+PAST_SIX_MARKS = (
+    ["%d,%03d" % (1 + k // 1000, k % 1000) for k in range(100, 161)]
+    + [str(10 + k) for k in range(60)]
+)
+
+
+def test_a_pool_past_what_all_marks_but_one_hold_is_refused_where_the_walk_stops_short(tmp_path, monkeypatch) -> None:
+    """Sixty-one grouped numbers pooled at a floor of eleven: refused at the shipped budget and at a budget of one step.
+
+    Seven marks under a line of eleven hold sixty with one of them absent,
+    so a pool of 61 says every mark was written: TM1 holds a lone pool to
+    six times one less than the line. The loader asks its closed censuses
+    True where the walk stops short (the Codex review of 3b-R0, its
+    verifier's open item), and the first sum `parsing.lone_pool_stands`
+    asks before any walk refuses this one, so the budget changes nothing.
+    Asked True with no sums, a walk stopped short took it -- and at the
+    shipped budget a pool of 2,100,000 under a line of 300,001, seven
+    times one less than the line, was admitted the same way.
+    Mutation: the first sum withdrawn turns it red.
+    """
+    document = _document(PAST_SIX_MARKS)
+    column = document["columns"][0]
+    assert column["thousands_marks"] == {",": 61}
+    column["thousands_marks"] = {"(withheld)": 61}
+    column["group_separator"] = ""
+    for steps in (parsing.POOL_SEARCH_STEPS, 1):
+        monkeypatch.setattr(parsing, "POOL_SEARCH_STEPS", steps)
+        said = _refusal(document, tmp_path)
+        assert "TM1" in said and "all 61 grouped numbers are held back" in said, (steps, said)
+
+
+def test_the_two_sums_are_the_walk_s_answer_on_one_kind_with_no_value(monkeypatch) -> None:
+    """Every pool to its names' reach, at ten floors, one to seven names and every room to eight: the sums answer as the walk.
+
+    `parsing.lone_pool_stands` asks two sums before it walks, and True
+    where the walk stops short (the Codex review of 3b-R0, its verifier's
+    open item). At the shipped budget it is `parsing.mixture_pool_holds`
+    over the same names, every walk here finishing. Under a budget of one
+    step every walk stops short at once, so what it answers is the sums'
+    answer: they never refuse a pool the walk lets stand, and wherever the
+    line is past three they are the walk's whole answer -- at a line of
+    three only the walk sees an odd pool pinned: with no name at one,
+    every name written holds two.
+    Mutations: either sum withdrawn, or the second taken at one less than
+    the line, turns it red.
+    """
+    shipped = parsing.POOL_SEARCH_STEPS
+    differed: "list[str]" = []
+    stands = pinned = 0
+    for floor in (1, 2, 3, 4, 5, 6, 7, 11, 16, 31):
+        line = parsing.census_floor(floor)
+        for names in range(1, 8):
+            for room in range(0, 9):
+                for population in range(0, names * line + 3):
+                    walked = parsing.mixture_pool_holds(population, floor, [population] * names, room)
+                    asked = parsing.lone_pool_stands(population, floor, names, room)
+                    monkeypatch.setattr(parsing, "POOL_SEARCH_STEPS", 1)
+                    summed = parsing.lone_pool_stands(population, floor, names, room)
+                    monkeypatch.setattr(parsing, "POOL_SEARCH_STEPS", shipped)
+                    case = f"{population} at floor {floor} over {names} names, room {room}"
+                    if asked is not walked:
+                        differed += [f"{case}: asked {asked}, walked {walked}"]
+                    if walked and not summed:
+                        differed += [f"{case}: the sums refuse what the walk lets stand"]
+                    if line > 3 and summed is not walked:
+                        differed += [f"{case}: summed {summed}, walked {walked}"]
+                    if line > 3 and population >= line:
+                        stands += walked is True
+                        pinned += walked is False
+    assert differed == [], "\n".join(differed[:10])
+    # BOTH ANSWERS ARE GIVEN OFTEN past the line, or the agreement is about one.
+    assert stands > 5000 and pinned > 5000, (stands, pinned)

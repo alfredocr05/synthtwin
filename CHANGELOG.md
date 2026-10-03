@@ -164,6 +164,33 @@ bound nothing over thousands of widths is answered as stopped short
 where the old walk finished; the census of widths hands in none of
 them. `K-S3-54`, `K-S3-55`.
 
+**The Codex review's three items** (on 110cb46). The walk asks its two
+budgets after every reading of a leaf, where it asked them only after
+the leaf: at a smallest group raised with the rows a million rows of
+`7.5` and `7.50` took a reading past the work's ceiling and time growing
+with the square of the rows, and now stop at it. The first split of each
+different text reads its spans once from each start instead of asking
+every substring: `+` written 800 times took about 11 CPU seconds and
+takes a thousandth of one, every split the same as before, and a cell
+whose search would still read more than twenty million characters -- a
+run of figures thousands long -- stops the run with a sentence rather
+than search on. A run of spaces, line feeds or a declared column's
+points is read once from where it starts: read again from every place
+inside it, a note holding 7,000 line feeds and no figure stopped the run
+with that sentence. And `K-S3-55` judges whether the unread 10,000-row
+column was described, so a failed run is red. Its verification found
+that the first fix had moved three callers -- one it showed failing,
+two it pointed at -- that asked False of a walk which, on one kind with
+no value, had always finished: the loader refused a pool the walk lets
+stand once the walk stopped short, and the twin lowered the cells its
+pooled marks hold one cell a walk stopped short, which at a smallest
+group of 300,001 would have taken about 50,000 walks of three seconds
+where the walk before the fix took one. They ask
+`parsing.lone_pool_stands` now -- two sums every reading meets, then
+the walk, True where it stops short -- and answer as they did on
+110cb46 at every floor: the 350,000 cells marked after one walk, and a
+pool past what six marks hold refused at once.
+
 ### Excel's hour and the 12-hour clock, read and written back (2026-10-01)
 
 **The reader** (plan P4-D370, landing T1). `3/17/2024 6:42`, `6:42 PM`,
