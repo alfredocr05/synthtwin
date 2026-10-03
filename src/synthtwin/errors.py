@@ -1458,6 +1458,36 @@ def the_date_codes_answer_reached_nothing(name: str) -> str:
     )
 
 
+def the_date_codes_answer_left_typed_words(
+    name: str, option: str, count: int
+) -> str:
+    """Message when an answer about a column's codes leaves typed words as they were.
+
+    The run that reads the answer finds the column's codes again, and
+    takes the reading whose codes are the ones the question described --
+    under the declarations typed on its own command line, or with the
+    typed words a code of the column would match taken out
+    (`asking.date_codes_answered`). Where neither is described, the
+    table or the options changed since the file was written, and the
+    typed words stand: one typed after ``option`` that says the opposite
+    of the answer, which the question may have counted, is left as typed
+    and the person is told so (the Codex review of lane R1, item 5,
+    where thirty cells stayed missing without a word). NOT A REFUSAL,
+    for `the_date_codes_answer_reached_nothing`'s reason. It names how
+    many words, and no word: the person typed them.
+    """
+    words = "a word" if count == 1 else f"{count} words"
+    them = "it" if count == 1 else "them"
+    return (
+        f"Your answer in the questions file about the codes in the column "
+        f"'{_shown(name)}' did not reach {words} you typed after {option}, "
+        f"so {them} stayed as you typed {them}: the codes in that column no "
+        f"longer look as the question described them, so synthtwin cannot "
+        f"tell whether your answer was about {them}. If it was, take {them} "
+        f"out of the command and run the command again with --answers."
+    )
+
+
 def answered_codes_contradict_each_other(path: str, clash: str) -> str:
     """Message when two answers make one spelling a value and 'no value' (plan P4-D381).
 

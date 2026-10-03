@@ -1327,6 +1327,85 @@ def test_real_value_answered_beside_a_typed_missing_value_keeps_every_code(tmp_p
     assert _block(tmp_path)["n_missing"] == 0
 
 
+@pytest.mark.parametrize(
+    "answer, typed, values, n_missing, n_kept, n_declared_missing",
+    [
+        # `XX` under the line, typed missing on both runs: the answer
+        # `missing` reads the column as dates.
+        (asking.ANSWER_NO_DATE, ("--missing-value", "XX"), ["UNK"] * 30 + ["XX"] * 10, 40, 0, 2),
+        # `NOTE` on the line, typed missing on both runs: `real-value`
+        # about `UNK` keeps `UNK` and leaves the twenty `NOTE` missing.
+        (asking.ANSWER_REAL_VALUE, ("--missing-value", "NOTE"), ["UNK"] * 30 + ["NOTE"] * 20, 20, 1, 1),
+        # `NOTE` typed kept on both runs: `missing` about `UNK` takes
+        # `UNK` alone and `NOTE` stays a value.
+        (asking.ANSWER_NO_DATE, ("--keep-value", "NOTE"), ["UNK"] * 30 + ["NOTE"] * 12, 30, 1, 1),
+    ],
+)
+def test_a_word_typed_on_both_runs_that_the_question_never_counted_stays_as_typed(
+    tmp_path: pathlib.Path,
+    answer: str,
+    typed: "tuple[str, str]",
+    values: "list[str]",
+    n_missing: int,
+    n_kept: int,
+    n_declared_missing: int,
+) -> None:
+    """A word typed on the run that asked and on the run that answers is not the answer's to take.
+
+    The regression the first repair of the Codex review of lane R1, item
+    5, brought: it found the codes again under NO typed declaration, so
+    a word typed on both runs -- which the question, worked out under it,
+    never counted -- was taken by the answer as well. `XX` typed missing
+    came back among the dates, the column read as labels and the answer
+    declared nothing; `NOTE` typed missing was kept by `real-value`;
+    `NOTE` typed kept was declared missing. The question's own words say
+    which codes it counted, and the codes found under the typed
+    declarations are those. Red on 622e810; the third is red on 110cb46
+    as well, which counted a typed `--keep-value` into the answer.
+    """
+    dates = _iso_days(1200 if typed[0] == "--keep-value" else 1000 - len(values))
+    cells = dates + values
+    _profiled(tmp_path, cells, *typed)
+    entries = _code_entries(_questions(tmp_path))
+    assert entries and "one spelling" in entries[0]["what_synthtwin_saw"], entries
+    answers = _answer(tmp_path, "seen_at", answer)
+    code, said = _profiled(tmp_path, cells, *typed, "--answers", str(answers))
+    assert code == 0, said
+    assert "declared nothing" not in said
+    assert "did not reach" not in said
+    assert "take these out" not in said
+    settings = json.loads((tmp_path / "real-profile.json").read_text(encoding="utf-8"))["settings"]
+    assert settings["kept_values"]["n_declared"] == n_kept
+    assert settings["declared_missing_values"]["n_declared"] == n_declared_missing
+    assert _block(tmp_path)["n_missing"] == n_missing
+    if answer == asking.ANSWER_NO_DATE:
+        assert _block(tmp_path)["role"] == "datetime"
+
+
+def test_an_answer_whose_codes_moved_leaves_the_typed_word_and_says_so(tmp_path: pathlib.Path) -> None:
+    """The table changed since the questions file: the typed `--missing-value UNK` stands, and the run says so.
+
+    The Codex review of lane R1, item 5: an answer that did not reach a
+    typed word stayed silent. Where neither reading of the codes is the
+    one the question described -- here the table gained ten `PENDING`
+    rows -- synthtwin cannot tell whether the answer was about `UNK`, so
+    the typed word stands and the run says the answer did not reach it.
+    Red on 622e810, which kept `UNK` without a word, and on 110cb46.
+    """
+    _profiled(tmp_path, _iso_days(940) + ["UNK"] * 30 + ["PENDING"] * 30)
+    answers = _answer(tmp_path, "seen_at", asking.ANSWER_REAL_VALUE)
+    later = _iso_days(930) + ["UNK"] * 30 + ["PENDING"] * 40
+    code, said = _profiled(tmp_path, later, "--missing-value", "UNK", "--answers", str(answers))
+    assert code == 0, said
+    assert (
+        "about the codes in the column 'seen_at' did not reach a word you typed after --missing-value"
+    ) in said
+    settings = json.loads((tmp_path / "real-profile.json").read_text(encoding="utf-8"))["settings"]
+    assert settings["kept_values"]["n_declared"] == 1
+    assert settings["declared_missing_values"]["n_declared"] == 1
+    assert _block(tmp_path)["n_missing"] == 30
+
+
 def test_the_repeat_line_says_which_typed_option_an_answer_replaced(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

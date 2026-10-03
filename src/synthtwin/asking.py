@@ -2388,8 +2388,9 @@ def date_codes_of(
        `--keep-value` is no code, because that is their answer --
        unless ``counting_kept`` asks for the codes as they stand
        whatever was kept, which is how a column whose codes were
-       answered `real-value` is still known for one asked about them,
-       and how an answer of `missing` reaches a code typed kept; and
+       answered `real-value` is still known for one asked about them
+       (an answer of `missing` reaches a code typed kept through
+       `date_codes_answered`, which takes that typed word out); and
        each code's rows are every cell its declaration would take, any
        spelling under the line it matches counted in, while a
        declaration that would also take a cell some date member or
@@ -2639,12 +2640,6 @@ def _date_codes_shape(
     """
     read = f"{found.n_read} of the {found.n_present} values"
     which = date_codes_reading(found)
-    named = ""
-    for spelling, held in found.codes:
-        one = f"written in {_code_written(spelling)}, on {held} rows"
-        if len(found.codes) > 1:
-            one = f"one {one}"
-        named = one if not named else f"{named}; {one}"
     also = ""
     if elsewhere:
         also = (
@@ -2662,23 +2657,133 @@ def _date_codes_shape(
     unread = _date_codes_unread(found)
     if unread:
         others = f"every other value but {_unread_words(found, floor)}"
-    if len(found.codes) == 1:
-        lead = (
-            f"{read} read as {which}, and {others} is one spelling, "
-            f"repeated on many rows, that reads as no date or time: {named}"
-        )
-    else:
-        lead = (
-            f"{read} read as {which}, and {others} is one of "
-            f"{len(found.codes)} spellings, each repeated on many rows, "
-            f"that read as no date or time: {named}"
-        )
+    lead = f"{read} read as {which}, and {others} is {_codes_said(found)}"
     if unread:
         lead = (
             f"{lead}; those left read as none of these and as no "
             f"{_read_kind(found)}, and stay unread whatever the answer"
         )
     return f"{lead}{also}"
+
+
+def _codes_said(found: DateCodes) -> str:
+    """The words a question says its codes in: how many, how each is written, on how many rows.
+
+    One sentence's middle, which `_date_codes_shape` puts in the question
+    and `date_codes_answered` looks for in a question handed back: the
+    same words for the same codes, and different words wherever the
+    count of codes, the way one is written or the rows of one differ.
+    """
+    named = ""
+    for spelling, held in found.codes:
+        one = f"written in {_code_written(spelling)}, on {held} rows"
+        if len(found.codes) > 1:
+            one = f"one {one}"
+        named = one if not named else f"{named}; {one}"
+    if len(found.codes) == 1:
+        return (
+            f"one spelling, repeated on many rows, that reads as no date "
+            f"or time: {named}"
+        )
+    return (
+        f"one of {len(found.codes)} spellings, each repeated on many rows, "
+        f"that read as no date or time: {named}"
+    )
+
+
+def _said_in(found: DateCodes, said: str) -> bool:
+    """Whether a question's words describe these codes.
+
+    The codes' words (`_codes_said`) stand in it whole: at its end, or
+    before the `;` or `.` that follow them in `_date_codes_shape`, so
+    "on 30 rows" is not found in "on 300 rows".
+    """
+    words = _codes_said(found)
+    # A slice and `in`, which are operators: no method of the handed-back
+    # words is called, for the offline audit's reason (`_joined`).
+    return (
+        said[len(said) - len(words):] == words
+        or f"{words};" in said
+        or f"{words}." in said
+    )
+
+
+def date_codes_answered(
+    cells: "list[str]",
+    settings: taxonomy.Settings,
+    said: str,
+    missing: bool,
+) -> "tuple[DateCodes | None, tuple[str, ...]]":
+    """The codes an answered question was about, found again in its column.
+
+    THE CODES THE QUESTION DESCRIBED, AND NO OTHERS (the Codex review of
+    lane R1, item 5, and the regression its first repair brought). The
+    questions file names the column and never its codes, so the run that
+    reads the answer finds them again -- and a word typed after
+    `--missing-value` or `--keep-value` decides what it finds. Found
+    under the typed declarations, `--missing-value UNK` typed beside an
+    answer of `real-value` about `UNK` and `PENDING` kept `PENDING` alone
+    and left the thirty `UNK` cells missing without a word; found under
+    none, a word typed on BOTH runs, which the question never counted,
+    was taken by the answer too: `--missing-value NOTE` beside `UNK`
+    answered `real-value` kept NOTE's twenty cells, and an `XX` under
+    the line typed missing was put back among the dates, so the column
+    read as labels and the answer declared nothing.
+
+    So the codes are found once under the typed declarations, as the
+    question is worked out under them, and that reading is taken where
+    ``said`` -- the question's own words, handed back in the file --
+    describes its codes (`_said_in`): the run that wrote the file was
+    typed the same way. Where it does not, they are found once more with
+    every typed word a code of this column would match taken out -- a
+    spelling on the codes' line of rows that reads as no date or time --
+    and that reading is taken where ``said`` describes it, or where the
+    first found nothing: the answer then replaces the typed words it
+    contradicts, as the newer statement. Where neither is described, the
+    table or the options changed since the file was written; the typed
+    declarations stand, and the typed words the answer contradicts that
+    a code would match are handed back, for the person to be told that
+    the answer left them as typed.
+
+    Guarantees: accepts every cell of the column in row order, the
+    settings of the run as typed, the question's words (empty where the
+    file carries none) and whether the answer was `missing`; returns the
+    codes or None, and the typed words left as typed -- each a
+    `--keep-value` where ``missing``, a `--missing-value` where not.
+    Determinism: a function of the arguments. Raises TypeError if a cell
+    is not text. No I/O.
+    """
+    n_rows = len(cells)
+    present, _absent = taxonomy.split_missing(cells, settings)
+    typed = date_codes_of(present, settings, n_rows)
+    if typed is not None and _said_in(typed, said):
+        return typed, ()
+    line = max(_DATE_CODES_LINE, parsing.census_floor(settings.small_cell_floor))
+    counted = _spellings_counted(cells)
+    could: "dict[tuple[str, object], int]" = {}
+    for spelling in counted:
+        if counted[spelling] >= line and not _a_date_or_a_time(spelling, ""):
+            could[_declared_identity(spelling)] = 1
+    kept = tuple(
+        one for one in settings.kept_values if _declared_identity(one) not in could
+    )
+    absent = tuple(
+        one
+        for one in settings.declared_missing_values
+        if _declared_identity(one) not in could
+    )
+    if kept == settings.kept_values and absent == settings.declared_missing_values:
+        return typed, ()
+    untyped_settings = dataclasses.replace(
+        settings, kept_values=kept, declared_missing_values=absent
+    )
+    present, _absent = taxonomy.split_missing(cells, untyped_settings)
+    untyped = date_codes_of(present, untyped_settings, n_rows)
+    if untyped is not None and (typed is None or _said_in(untyped, said)):
+        return untyped, ()
+    contrary = settings.kept_values if missing else settings.declared_missing_values
+    left = tuple(one for one in contrary if _declared_identity(one) in could)
+    return typed, left
 
 
 def _date_codes_unread(found: DateCodes) -> int:
@@ -3460,6 +3565,11 @@ class Answers:
     # opens and declares those (`date_codes_of`).
     missing_date_columns: "tuple[str, ...]" = ()
     real_value_columns: "tuple[str, ...]" = ()
+    # ...and what each of those questions said it saw, as the file holds
+    # it, column by column: the words that tell the run reading the
+    # answer which codes it was about (`date_codes_answered`). Empty
+    # words where an edited file carries none.
+    date_code_shapes: "tuple[tuple[str, str], ...]" = ()
 
 
 def _entry_answer(
@@ -3612,6 +3722,7 @@ def answers_in(document: object, shown: str) -> Answers:
     month_first = False
     missing_dates: "list[str]" = []
     real_values: "list[str]" = []
+    code_shapes: "list[tuple[str, str]]" = []
     for entry, place in _entries_of(document, shown):
         read = _entry_answer(entry, place)
         if read is None:
@@ -3659,10 +3770,18 @@ def answers_in(document: object, shown: str) -> Answers:
             # The reading that already stands; nothing to declare, and
             # the answer is carried so that it is not asked again.
             month_first = True
-        elif written == ANSWER_NO_DATE:
-            missing_dates += [name]
-        elif written == ANSWER_REAL_VALUE:
-            real_values += [name]
+        elif written == ANSWER_NO_DATE or written == ANSWER_REAL_VALUE:
+            if written == ANSWER_NO_DATE:
+                missing_dates += [name]
+            else:
+                real_values += [name]
+            # Read by index, for the offline policy above.
+            saw = (
+                entry["what_synthtwin_saw"]
+                if isinstance(entry, dict) and "what_synthtwin_saw" in entry
+                else ""
+            )
+            code_shapes += [(name, saw if isinstance(saw, str) else "")]
         elif written in ANSWER_DELIMITERS:
             # The one answer that decides how the file is SPLIT (plan
             # P4-D110), which is `--delimiter`.
@@ -3698,4 +3817,5 @@ def answers_in(document: object, shown: str) -> Answers:
         month_first=month_first,
         missing_date_columns=tuple(missing_dates),
         real_value_columns=tuple(real_values),
+        date_code_shapes=tuple(code_shapes),
     )

@@ -2519,6 +2519,9 @@ def _run_profile(
     answered_month_first = False
     answered_missing_dates: "list[str]" = []
     answered_real_values: "list[str]" = []
+    # ...and what each of those questions said it saw, by column, which
+    # tells the run which codes the answer was about.
+    answered_code_shapes: "dict[str, str]" = {}
     if answers_path is not None:
         try:
             written = asking.answers_in(
@@ -2670,6 +2673,8 @@ def _run_profile(
         # the table once it is open, below.
         answered_missing_dates = list(written.missing_date_columns)
         answered_real_values = list(written.real_value_columns)
+        for one, saw in written.date_code_shapes:
+            answered_code_shapes[one] = saw
         answers_were_handed_back = (
             bool(spoken_for)
             or bool(written.twelve_hours)
@@ -2936,27 +2941,34 @@ def _run_profile(
     for named_at in range(len(read.column_names)):
         if read.column_names[named_at] not in column_place:
             column_place[read.column_names[named_at]] = named_at
-    # THE CODES AS THEY STAND, WHATEVER WAS TYPED (the Codex review of
-    # lane R1, item 5): the answer is the newer statement (below), so
-    # neither a `--keep-value` nor a `--missing-value` the person typed
-    # hides from their answer a code the question counted. Split under
-    # the typed declarations, `--missing-value UNK` beside a column
-    # answered `real-value` about `UNK` and `PENDING` kept `PENDING`
-    # alone and left the thirty `UNK` cells missing, without a word.
-    undeclared = dataclasses.replace(
-        settings, kept_values=(), declared_missing_values=()
-    )
+    # THE CODES THE QUESTION DESCRIBED, AND NO OTHERS (the Codex review
+    # of lane R1, item 5): found under the typed declarations where the
+    # question's own words describe what is found -- the run that wrote
+    # the file was typed the same way -- and otherwise with the typed
+    # words a code of the column would match taken out, so the answer, the
+    # newer statement (below), replaces a typed word it was about and
+    # leaves alone one it never counted (`asking.date_codes_answered`).
+    # Where neither reading is the one described, the typed words stand,
+    # and a typed word the answer contradicts is said to be left as typed.
     for name, missing in (
         [(one, True) for one in answered_missing_dates]
         + [(one, False) for one in answered_real_values]
     ):
         column_at = column_place[name]
-        present, _absent = taxonomy.split_missing(
-            read.columns[column_at], undeclared
+        seen, left = asking.date_codes_answered(
+            read.columns[column_at],
+            settings,
+            answered_code_shapes[name] if name in answered_code_shapes else "",
+            missing,
         )
-        seen = asking.date_codes_of(
-            present, undeclared, len(read.columns[column_at]), True
-        )
+        if left:
+            _warn(
+                errors.the_date_codes_answer_left_typed_words(
+                    name,
+                    "--keep-value" if missing else "--missing-value",
+                    len(left),
+                )
+            )
         if seen is None:
             _warn(errors.the_date_codes_answer_reached_nothing(name))
             continue
