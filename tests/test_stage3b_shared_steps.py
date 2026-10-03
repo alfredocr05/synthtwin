@@ -48,7 +48,7 @@ import pathlib
 
 import pytest
 
-from synthtwin import calendar_rules, generation
+from synthtwin import generation
 
 REPOSITORY = pathlib.Path(__file__).resolve().parent.parent
 VECTORS = REPOSITORY / "tests" / "reference" / "generation-branch-vectors-15.json"
@@ -69,16 +69,6 @@ def _half_month(ordinal: int) -> int:
     return 0 if (datetime.date(1970, 1, 1) + datetime.timedelta(days=ordinal)).day <= 15 else 1
 
 
-# Each seam the file names, as the product reads it.
-_BINS = {
-    "weekday": calendar_rules.weekday_of,
-    "weekday-of-moment": lambda ordinal: calendar_rules.weekday_of(ordinal // DAY),
-    "hour": lambda ordinal: (ordinal // 3600) % 24,
-    "tenth": lambda ordinal: ordinal % 10,
-}
-_KEEPS = {"": None, "day-of-moment": lambda ordinal: ordinal // DAY}
-_PAIRS = {"": None, "half-month": _half_month}
-
 _FILE = json.loads(VECTORS.read_text(encoding="utf-8"))
 
 
@@ -91,13 +81,13 @@ def _state(case: dict) -> generation._WeekdayPass:
         moved=list(case["ordinals"]), held={}, where=list(case["where"]), facts=None,  # type: ignore[arg-type]
         word="", widths=False, kinds={}, holes=frozenset(case["holes"]), lows=list(case["lows"]),
         highs=list(case["highs"]), keep_units=case["reachable"], unit=case["unit"],
-        step=case["written_unit"], day=case["day"], bin_of=_BINS[case["bin"]], period=case["period"],
-        keep_of=_KEEPS[case["keep"]], pair_of=_PAIRS[case["pair"]],
+        step=case["written_unit"], day=case["day"], bins=case["bin"], period=case["period"],
+        keeps=case["keep"], pairs=case["pair"], pair_where=tuple(case["pair_where"]),
     )
     for ordinal in state.moved:
-        state.held[ordinal // state.step] = state.held.get(ordinal // state.step, 0) + 1
+        generation._weekday_tally(state.held, ordinal // state.step, 1)
         if state.unit != state.step:
-            state.units_held[ordinal // state.unit] = state.units_held.get(ordinal // state.unit, 0) + 1
+            generation._weekday_tally(state.units_held, ordinal // state.unit, 1)
     return state
 
 
@@ -106,9 +96,10 @@ def _movable(case: dict) -> "list[int]":
 
 
 def _holding(case: dict, moved: "list[int]", ranks) -> "list[int]":
+    state = _state(case)
     found = [0] * len(case["counts"])
     for rank in ranks:
-        found[case["where"][_BINS[case["bin"]](moved[rank])]] += 1
+        found[generation._weekday_group(state, moved[rank])] += 1
     return found
 
 
@@ -283,8 +274,8 @@ def test_every_cycle_up_to_seven_groups(monkeypatch: pytest.MonkeyPatch) -> None
 
 
 def test_three_group_cycles_above_seven(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Step 8.3 on ten groups asks cycles of at most three: the one through groups 0, 1 and 2 is
-    found. Mutant: a bound of two groups, and none is."""
+    """Step 8.3 on ten groups of the days of the month asks cycles of at most three: the one
+    through groups 0, 1 and 2 is found. Mutant: a bound of two groups, and none is."""
     case = _case("three_group_cycles_of_ten")
     assert _answer(case) == case["answer"] == [[0, 1], [1, 2], [2, 0]]
     monkeypatch.setattr(generation, "_WEEKDAY_CYCLE_LONGEST", 2)

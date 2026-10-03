@@ -12188,14 +12188,17 @@ def weekday_traded(walk, movable, owed):
 SHARED_DAY = 86400
 SHARED_MONDAY = days_from_civil(2024, 3, 4)  # a Monday
 SHARED_WEEKEND = [0, 0, 0, 0, 0, 1, 1]  # [Mon-Fri] [Sat-Sun]
-SHARED_BINS = {
-    "weekday": lambda ordinal: (ordinal + 3) % 7,
-    "weekday-of-moment": lambda ordinal: (ordinal // SHARED_DAY + 3) % 7,
-    "hour": lambda ordinal: (ordinal // 3600) % 24,
-    "tenth": lambda ordinal: ordinal % 10,
-}
-SHARED_KEEPS = {"day-of-moment": lambda ordinal: ordinal // SHARED_DAY}
-SHARED_PAIRS = {"half-month": lambda ordinal: 0 if civil_from_days(ordinal)[2] <= 15 else 1}
+
+
+def shared_bin(rule, ordinal, day):
+    """A bin by its rule's name, as the seams name it: the weekday of the
+    ordinal's day, Monday nought; the hour of the day; the day of the
+    month of the ordinal's day, the first nought."""
+    if rule == "hour":
+        return (ordinal // 3600) % 24
+    if rule == "day_of_month":
+        return civil_from_days(ordinal // day)[2] - 1
+    return (ordinal // day + 3) % 7
 
 
 def shared_layout(ordinals, pins):
@@ -12225,7 +12228,7 @@ def shared_case(why, step, ordinals, lows, highs, pinned, counts, where, **seams
         "why": why, "step": step, "ordinals": list(ordinals), "lows": list(lows),
         "highs": list(highs), "pinned": list(pinned), "counts": list(counts),
         "where": list(where), "unit": 1, "written_unit": 1, "day": 1, "bin": "weekday",
-        "period": 7, "keep": "", "pair": "", "holes": [], "reachable": True,
+        "period": 7, "keep": "", "pair": "", "pair_where": [], "holes": [], "reachable": True,
     }
     case.update(seams)
     case.setdefault("body", [0, len(ordinals) - 1])
@@ -12248,7 +12251,7 @@ def shared_hour_case():
         "more in the afternoon, which an early rank reaches sooner on the evening before.",
         "settled", ordinals, lows, highs, pinned, [morning - 10, len(ordinals) - morning + 10],
         [0] * 12 + [1] * 12, unit=3600, written_unit=60, day=SHARED_DAY, bin="hour", period=24,
-        keep="day-of-moment",
+        keep="day",
     )
 
 
@@ -12262,7 +12265,7 @@ def shared_moment_case():
         "A unit of a day of moments, seconds written: thirty weekday moments over two weeks, "
         "the census asking eight on the weekend; every move keeps the clock.",
         "settled", ordinals, lows, highs, pinned, [len(ordinals) - 8, 8], SHARED_WEEKEND,
-        unit=SHARED_DAY, written_unit=1, day=SHARED_DAY, bin="weekday-of-moment",
+        unit=SHARED_DAY, written_unit=1, day=SHARED_DAY,
     )
 
 
@@ -12311,8 +12314,7 @@ def shared_merge_case(same_clock):
         "at 14:00:00 held twice" + (", and 10:17:05 held a week later" if same_clock else "")
         + "; the count is one long.",
         "units_merged", ordinals, lows, highs, pinned, [len(ordinals) - 2, 0], SHARED_WEEKEND,
-        unit=SHARED_DAY, written_unit=1, day=SHARED_DAY, bin="weekday-of-moment",
-        wanted=len(set(ordinals)) - 1,
+        unit=SHARED_DAY, written_unit=1, day=SHARED_DAY, wanted=len(set(ordinals)) - 1,
     )
 
 
@@ -12343,26 +12345,34 @@ def shared_trade_case():
         "Step 8.6, the second census the half of the month: Saturday the 16th is one over the "
         "weekend's total and reaches only Friday the 15th, in the other half, so Monday the "
         "11th crosses the 15th the other way.",
-        "traded", ordinals, lows, highs, pinned, [5, 1], SHARED_WEEKEND, pair="half-month",
-        reachable=False, want=[2, 0],
+        "traded", ordinals, lows, highs, pinned, [5, 1], SHARED_WEEKEND, pair="day_of_month",
+        pair_where=[0] * 15 + [1] * 16, reachable=False, want=[2, 0],
     )
 
 
 def shared_cycle_case(groups):
-    listed = 4 if groups == 7 else 3
     rows = []
-    for group in range(listed):
-        first = (SHARED_MONDAY if groups == 7 else 0) + (56 if groups == 7 else 110) * group + group
-        last = first + 1 if group < listed - 1 else first + groups - listed + 1
+    if groups == 7:
+        for group in range(4):
+            first = SHARED_MONDAY + 57 * group
+            rows += [(first, first, first + 1 if group < 3 else first + 4, False)] * 2
+        return shared_case(
+            "Step 8.3's cycles on seven groups, one weekday each: two ranks on a Monday, a "
+            "Tuesday, a Wednesday and a Thursday of four weeks, each cell reaching the next "
+            "weekday and Thursday's the Monday after, so only the cycle through the four gains.",
+            "cycle", *shared_listed(rows), [2, 2, 2, 2, 0, 0, 0], list(range(7)), short=4,
+        )
+    for group in range(3):
+        first = days_from_civil(2024, group + 1, group + 1)
+        last = first + 1 if group < 2 else days_from_civil(2024, 4, 1)
         rows += [(first, first, last, False)] * 2
-    ordinals, lows, highs, pinned = shared_listed(rows)
     return shared_case(
-        f"Step 8.3's cycles on {groups} groups of one bin each: two ranks on a unit of each of the "
-        f"first {listed} groups, each cell reaching the next group's unit, the last the first's, "
-        "so only the cycle through every listed group gains.",
-        "cycle", ordinals, lows, highs, pinned, [2] * listed + [0] * (groups - listed),
-        list(range(groups)), short=4,
-        **({} if groups == 7 else {"bin": "tenth", "period": 10}),
+        "Step 8.3's cycles on ten groups of the days of the month, the first nine days one "
+        "group each and the 10th to the 31st the tenth: two ranks on 1 January, 2 February "
+        "and 3 March 2024, each cell reaching the next group's day and the last 1 April, so "
+        "only the cycle through the three gains.",
+        "cycle", *shared_listed(rows), [2, 2, 2] + [0] * 7, [min(day, 9) for day in range(31)],
+        short=4, bin="day_of_month", period=0,
     )
 
 
@@ -12381,11 +12391,16 @@ SHARED_STEP_CASES = {
 
 
 def shared_walk(case):
+    day = case["day"]
     seams = {
-        "unit": case["unit"], "step": case["written_unit"], "day": case["day"],
-        "bin_of": SHARED_BINS[case["bin"]], "keep_of": SHARED_KEEPS.get(case["keep"]),
-        "pair_of": SHARED_PAIRS.get(case["pair"]), "keeps_always": not case["reachable"],
+        "unit": case["unit"], "step": case["written_unit"], "day": day,
+        "bin_of": lambda ordinal: shared_bin(case["bin"], ordinal, day),
+        "keeps_always": not case["reachable"],
     }
+    if case["keep"] == "day":
+        seams["keep_of"] = lambda ordinal: ordinal // day
+    if case["pair"]:
+        seams["pair_of"] = lambda ordinal: case["pair_where"][shared_bin(case["pair"], ordinal, day)]
     return WeekdayWalk(
         case["counts"], case["where"], list(case["ordinals"]), list(case["lows"]),
         list(case["highs"]), set(case["holes"]), seams,
@@ -12426,7 +12441,7 @@ def shared_step_document():
         "P4-D366) are frozen on, each with the step's answer computed from the method's text: "
         "every rank's ordinal after it, or the cycle step 8.3 takes. A case names its seams: the "
         "unit, the written unit and the day in ordinals, the bin, what a move keeps and a second "
-        "census's group, each by a name the test maps to the product's own reading.",
+        "census's group, each rule by the name the product's own seams give it.",
         "generated_by": "tools/reference/make_generation_reference_vectors.py",
         "method": "docs/spec/generation-method-v1.md",
         "never_imports": ["synthtwin", "numpy", "pandas"],

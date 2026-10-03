@@ -6534,6 +6534,16 @@ written unit's.
 Where the census still does not hold, the report names `weekday_census`
 as a published fact the twin missed.
 
+**The shared steps' frozen cases** (plan P4-D366) are states of ranks,
+not columns: on every date battery the pass with steps 7b and 8.4 to 8.6
+writes the twin it wrote before them, so no column of whole dates
+reaches them through the whole generator. The fifteenth vectors file,
+`tests/reference/generation-branch-vectors-15.json`, holds ten such
+states -- an hour inside its day, a day of moments, the index of steps 5
+and 6, a chain, step 8.4 at its own clock and at another, a long pair, a
+two-census trade, and the cycles of seven and of ten groups -- with the
+answer this section gives each, and no G14.3 case.
+
 ### G7.4 Offsets: only where recorded
 
 `utc_offsets` maps an offset text to a count, under the small-cell

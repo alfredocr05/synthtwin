@@ -103,7 +103,7 @@
       "justification": "The states of ranks synthtwin's generation method freezes its shared weekday-pass steps on (landing 3b.D0, plan P4-D366, method section G7.3f): a unit of an hour with the day kept, a day of moments, the index of steps 5 and 6, step 7b's chain, step 8.4's two places, step 8.5's long pair, step 8.6's two-census trade and step 8.3's bounded cycles, each with the answer computed from that specification alone. It is not a file of columns: no column of whole dates reaches these steps through the whole generator, so each is frozen on ranks stated by hand, and tests/test_stage3b_shared_steps.py holds the product to every answer and turns each case red on its mutant. Whole numbers only; the oracle imports neither synthtwin, nor numpy, nor pandas.",
       "path": "tests/reference/generation-branch-vectors-15.json",
       "seed": 0,
-      "sha256": "c0b321880fdfe792c6ef45c1f4f401ffe2c92601dce7e022697752b8965e849a"
+      "sha256": "96889e5a9a2463f5ba7eb014e179af29e523872a7615c26b2140eebc2a566f72"
     },
     {
       "generator": "tools/reference/make_generation_branch_vectors_22.py",

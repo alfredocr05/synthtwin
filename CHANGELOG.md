@@ -6,6 +6,27 @@ exists).
 
 ## [Unreleased]
 
+### One weekday pass for every census of bins (2026-10-02)
+
+**No twin moves** (plan P4-D366, stage 3b landing D0). The day pass of
+method G7.3f is one pass over any census of bins, so the landings that
+put the hour, the day of the month and the weekday of timestamps on
+their twins build on it rather than writing it again: it takes a unit
+of any size (a date's day, a moment's day, an hour, a minute), the
+written unit the count of different values is counted in, the bin a
+value falls in and what a move must keep, such as the day an hour stands
+on. Steps 5 and 6 find a rank's destination through an index of its
+gap instead of walking up to 400 days each way, step 8.3's search of
+cycles is bounded above seven groups, and four steps are added for the
+censuses to come: a chain of moves through a third group (7b), whole
+values merged at their own clock first (8.4), pairs of moves across two
+gaps where the count is long (8.5), and a trade that keeps a second
+census (8.6). On 1,392 tables of sixteen date batteries (4,440 twins)
+every twin is the one before this landing, and the frozen vectors pass
+unchanged; the four steps are frozen on ten stated states of ranks in
+a fifteenth vectors file, each red on its own mutant. A count the pass
+leaves long is now named as long.
+
 ### The weekday guards dropped (2026-10-02)
 
 **The weekday census is published wherever its twin can meet it** (plan

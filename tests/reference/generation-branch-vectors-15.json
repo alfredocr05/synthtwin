@@ -63,6 +63,7 @@
         19795
       ],
       "pair": "",
+      "pair_where": [],
       "period": 7,
       "pinned": [
         true,
@@ -155,6 +156,7 @@
         19813
       ],
       "pair": "",
+      "pair_where": [],
       "period": 7,
       "pinned": [
         true,
@@ -216,7 +218,7 @@
         1710501219,
         1710507674
       ],
-      "bin": "weekday-of-moment",
+      "bin": "weekday",
       "body": [
         0,
         29
@@ -325,6 +327,7 @@
         1710507674
       ],
       "pair": "",
+      "pair_where": [],
       "period": 7,
       "pinned": [
         true,
@@ -419,7 +422,40 @@
         19798,
         19807
       ],
-      "pair": "half-month",
+      "pair": "day_of_month",
+      "pair_where": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
       "period": 7,
       "pinned": [
         true,
@@ -549,7 +585,7 @@
         1709743080
       ],
       "holes": [],
-      "keep": "day-of-moment",
+      "keep": "day",
       "lows": [
         1709514000,
         1709514000,
@@ -639,6 +675,7 @@
         1709743080
       ],
       "pair": "",
+      "pair_where": [],
       "period": 24,
       "pinned": [
         true,
@@ -784,6 +821,7 @@
         19957
       ],
       "pair": "",
+      "pair_where": [],
       "period": 7,
       "pinned": [
         false,
@@ -809,7 +847,7 @@
         5,
         6
       ],
-      "why": "Step 8.3's cycles on 7 groups of one bin each: two ranks on a unit of each of the first 4 groups, each cell reaching the next group's unit, the last the first's, so only the cycle through every listed group gains.",
+      "why": "Step 8.3's cycles on seven groups, one weekday each: two ranks on a Monday, a Tuesday, a Wednesday and a Thursday of four weeks, each cell reaching the next weekday and Thursday's the Monday after, so only the cycle through the four gains.",
       "written_unit": 1
     },
     "merged_at_another_clock": {
@@ -822,7 +860,7 @@
         1710424800,
         1711238400
       ],
-      "bin": "weekday-of-moment",
+      "bin": "weekday",
       "body": [
         0,
         6
@@ -862,6 +900,7 @@
         1711238400
       ],
       "pair": "",
+      "pair_where": [],
       "period": 7,
       "pinned": [
         true,
@@ -900,7 +939,7 @@
         1710424800,
         1711238400
       ],
-      "bin": "weekday-of-moment",
+      "bin": "weekday",
       "body": [
         0,
         8
@@ -946,6 +985,7 @@
         1711238400
       ],
       "pair": "",
+      "pair_where": [],
       "period": 7,
       "pinned": [
         true,
@@ -1796,6 +1836,7 @@
         20063
       ],
       "pair": "",
+      "pair_where": [],
       "period": 7,
       "pinned": [
         true,
@@ -2030,7 +2071,7 @@
           0
         ]
       ],
-      "bin": "tenth",
+      "bin": "day_of_month",
       "body": [
         0,
         5
@@ -2049,33 +2090,34 @@
       ],
       "day": 1,
       "highs": [
-        1,
-        1,
-        112,
-        112,
-        230,
-        230
+        19724,
+        19724,
+        19756,
+        19756,
+        19814,
+        19814
       ],
       "holes": [],
       "keep": "",
       "lows": [
-        0,
-        0,
-        111,
-        111,
-        222,
-        222
+        19723,
+        19723,
+        19755,
+        19755,
+        19785,
+        19785
       ],
       "ordinals": [
-        0,
-        0,
-        111,
-        111,
-        222,
-        222
+        19723,
+        19723,
+        19755,
+        19755,
+        19785,
+        19785
       ],
       "pair": "",
-      "period": 10,
+      "pair_where": [],
+      "period": 0,
       "pinned": [
         false,
         false,
@@ -2099,9 +2141,30 @@
         6,
         7,
         8,
+        9,
+        9,
+        9,
+        9,
+        9,
+        9,
+        9,
+        9,
+        9,
+        9,
+        9,
+        9,
+        9,
+        9,
+        9,
+        9,
+        9,
+        9,
+        9,
+        9,
+        9,
         9
       ],
-      "why": "Step 8.3's cycles on 10 groups of one bin each: two ranks on a unit of each of the first 3 groups, each cell reaching the next group's unit, the last the first's, so only the cycle through every listed group gains.",
+      "why": "Step 8.3's cycles on ten groups of the days of the month, the first nine days one group each and the 10th to the 31st the tenth: two ranks on 1 January, 2 February and 3 March 2024, each cell reaching the next group's day and the last 1 April, so only the cycle through the three gains.",
       "written_unit": 1
     }
   },
@@ -2112,5 +2175,5 @@
     "numpy",
     "pandas"
   ],
-  "what": "The states of ranks method section G7.3f's shared steps (landing 3b.D0, plan P4-D366) are frozen on, each with the step's answer computed from the method's text: every rank's ordinal after it, or the cycle step 8.3 takes. A case names its seams: the unit, the written unit and the day in ordinals, the bin, what a move keeps and a second census's group, each by a name the test maps to the product's own reading."
+  "what": "The states of ranks method section G7.3f's shared steps (landing 3b.D0, plan P4-D366) are frozen on, each with the step's answer computed from the method's text: every rank's ordinal after it, or the cycle step 8.3 takes. A case names its seams: the unit, the written unit and the day in ordinals, the bin, what a move keeps and a second census's group, each rule by the name the product's own seams give it."
 }

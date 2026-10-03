@@ -138,10 +138,8 @@ to read. The report states both limits on every run. Cross-column
 structure arrives in a later phase (Phase 5).
 """
 
-import bisect
 import dataclasses
 import math
-import typing
 from synthtwin import calendar_rules, contract, dialect, errors, parsing, taxonomy
 
 import numpy.random
@@ -18903,8 +18901,8 @@ _WEEKDAY_CAUSES = (
 
 # A unit's KIND (method G7.3f): whether a date on it counts into the
 # width census's one word, then what a move must keep besides
-# (`_WeekdayPass.keep_of`), then the second census's group a move keeps
-# (`_WeekdayPass.pair_of`); nought where the pass keeps neither. One
+# (`_WeekdayPass.keeps`), then the second census's group a move keeps
+# (`_WeekdayPass.pairs`); nought where the pass keeps neither. One
 # kind for every unit of a column with no width word and no seam.
 _WeekdayKind = tuple[bool, int, int]
 _PLAIN_KIND: _WeekdayKind = (True, 0, 0)
@@ -18926,17 +18924,21 @@ class _WeekdayPass:
     rank's place inside its unit, its clock on a day of moments; `step`
     how many ordinals one written value spans, a divisor of `unit`, so
     the count `held` keeps is `n_distinct`'s; `day` how many ordinals a
-    day spans, a hole being a day (`ordinal // day`); `bin_of` the bin an
-    ordinal falls in, its weekday for the weekday census, and `period`
+    day spans, a hole being a day (`ordinal // day`); `bins` names the
+    rule giving the bin an ordinal falls in (`_weekday_bin`: its weekday
+    for the weekday census, `"weekday"`), and `period`
     how many bins follow one another unit by unit before they repeat
     (nought where they do not, and a gap's units are then counted one by
-    one); `keep_of` what every move keeps besides the width kind (the
-    day, for a census of hours) and `pair_of` a second census's group,
+    one); `keeps` names what every move keeps besides the width kind
+    (`"day"`, for a census of hours; `""`, nothing) and `pairs` the rule
+    of a second census's bins, `pair_where` each of its bins' group,
     which only step 8.6 trades; `units_held` how many ranks stand on
     each unit, which the pass counts itself (`_bins_settled`) and keeps
-    only where a unit spans more than one written unit. `bin_of`,
-    `keep_of` and `pair_of` are read on any ordinal of a unit, so each
-    is a function of the unit. `indexes` keeps each gap's units by group
+    only where a unit spans more than one written unit. The bin, the keep
+    and the second group are read on any ordinal of a unit alike, so each
+    is a function of the unit. Every seam is a value and every rule a
+    name, never a function handed in (plan D6.2: no callback reaches the
+    product), so a landing adds its rule as a branch of `_weekday_bin`. `indexes` keeps each gap's units by group
     and kind once built, and `gap_sizes` how many movable ranks each gap
     holds, which decides whether one is built (`_weekday_index`).
     """
@@ -18955,10 +18957,11 @@ class _WeekdayPass:
     unit: int = 1
     step: int = 1
     day: int = 1
-    bin_of: "typing.Callable[[int], int]" = calendar_rules.weekday_of
+    bins: str = "weekday"
     period: int = calendar_rules.WEEKDAYS
-    keep_of: "typing.Callable[[int], int] | None" = None
-    pair_of: "typing.Callable[[int], int] | None" = None
+    keeps: str = ""
+    pairs: str = ""
+    pair_where: "tuple[int, ...]" = ()
     units_held: "dict[int, int]" = dataclasses.field(default_factory=dict)
     indexes: "dict[tuple[int, int], _WeekdayIndex | None]" = dataclasses.field(
         default_factory=dict
@@ -18983,7 +18986,54 @@ class _WeekdayIndex:
 
 
 def _weekday_group(state: _WeekdayPass, ordinal: int) -> int:
-    return state.where[state.bin_of(ordinal)]
+    return state.where[_weekday_bin(state, state.bins, ordinal)]
+
+
+def _weekday_bin(state: _WeekdayPass, rule: str, ordinal: int) -> int:
+    """The bin an ordinal falls in under a named rule (the seams of landing
+    3b.D0): `"weekday"` its day's weekday, Monday nought; `"hour"` its hour
+    of the day; `"day_of_month"` its day's day of the month, the first
+    nought. A landing that publishes another census adds its rule here."""
+    if rule == "hour":
+        return (ordinal // 3600) % 24
+    if rule == "day_of_month":
+        return parsing.civil_from_days(ordinal // state.day)[2] - 1
+    return calendar_rules.weekday_of(ordinal // state.day)
+
+
+def _weekday_keep(state: _WeekdayPass, ordinal: int) -> int:
+    """What a move keeps besides the width kind: the day under `"day"`."""
+    if state.keeps == "day":
+        return ordinal // state.day
+    return 0
+
+
+def _weekday_pair(state: _WeekdayPass, ordinal: int) -> int:
+    """The second census's group of an ordinal, nought where there is none."""
+    if not state.pairs:
+        return 0
+    return state.pair_where[_weekday_bin(state, state.pairs, ordinal)]
+
+
+def _weekday_tally(counts: "dict[int, int]", key: int, step: int) -> None:
+    """Add `step` to a count kept by key, from nought where it has none."""
+    if key in counts:
+        counts[key] = counts[key] + step
+    else:
+        counts[key] = step
+
+
+def _weekday_first_from(values: "list[int]", target: int) -> int:
+    """The first place in an ascending list holding `target` or more (its
+    length where none does), by halving."""
+    low, high = 0, len(values)
+    while low < high:
+        middle = (low + high) // 2
+        if values[middle] < target:
+            low = middle + 1
+        else:
+            high = middle
+    return low
 
 
 def _weekday_hole(state: _WeekdayPass, ordinal: int) -> bool:
@@ -18994,14 +19044,14 @@ def _weekday_hole(state: _WeekdayPass, ordinal: int) -> bool:
 def _weekday_kind(state: _WeekdayPass, ordinal: int) -> _WeekdayKind:
     """A unit's kind: its width kind, where the column has one width
     convention, and what the seams keep (`_WeekdayKind`)."""
-    if not state.widths and state.keep_of is None and state.pair_of is None:
+    if not state.widths and not state.keeps and not state.pairs:
         return _PLAIN_KIND
     unit = ordinal // state.unit
     if unit not in state.kinds:
         state.kinds[unit] = (
             _weekday_width_kind(state, ordinal),
-            state.keep_of(ordinal) if state.keep_of is not None else 0,
-            state.pair_of(ordinal) if state.pair_of is not None else 0,
+            _weekday_keep(state, ordinal),
+            _weekday_pair(state, ordinal),
         )
     return state.kinds[unit]
 
@@ -19023,7 +19073,7 @@ def _weekday_unit_free(state: _WeekdayPass, unit: int) -> bool:
     """Whether no rank stands anywhere on a unit."""
     if state.unit == state.step:
         return not _weekday_holds(state, unit * state.unit)
-    return state.units_held.get(unit, 0) <= 0
+    return unit not in state.units_held or state.units_held[unit] <= 0
 
 
 def _weekday_step(state: _WeekdayPass, rank: int, target: int) -> None:
@@ -19041,7 +19091,7 @@ def _weekday_step(state: _WeekdayPass, rank: int, target: int) -> None:
         key = before // state.unit
         state.units_held[key] = state.units_held[key] - 1
         key = target // state.unit
-        state.units_held[key] = state.units_held.get(key, 0) + 1
+        _weekday_tally(state.units_held, key, 1)
     state.moved[rank] = target
 
 
@@ -19075,7 +19125,7 @@ def _weekday_units_of(
     ascending by unit where they do not."""
     found: "list[int]" = []
     if state.period:
-        start = state.bin_of(first * state.unit)
+        start = _weekday_bin(state, state.bins, first * state.unit)
         for place in range(state.period):
             if state.where[place] != group:
                 continue
@@ -19100,7 +19150,7 @@ def _weekday_prior(
     first = low // state.unit
     last = high // state.unit
     if state.period:
-        start = state.bin_of(first * state.unit)
+        start = _weekday_bin(state, state.bins, first * state.unit)
         for place in range(state.period):
             unit = first + (place - start) % state.period
             if unit > last:
@@ -19253,7 +19303,7 @@ def _weekday_index(state: _WeekdayPass, low: int, high: int) -> "_WeekdayIndex |
         return state.indexes[(low, high)]
     first = low // state.unit
     last = high // state.unit
-    size = state.gap_sizes.get((low, high), 0)
+    size = state.gap_sizes[(low, high)] if (low, high) in state.gap_sizes else 0
     index: "_WeekdayIndex | None" = None
     if size > 0 and last - first + 1 <= size * (2 * _WEEKDAY_REACH + 1):
         units: "dict[tuple[int, _WeekdayKind], list[int]]" = {}
@@ -19358,7 +19408,7 @@ def _weekday_run_indexed(
                     [spot for spot in range(len(units))],
                 )
             links = alive[key]
-        start = bisect.bisect_left(units, here)
+        start = _weekday_first_from(units, here)
         for side in (0, 1):
             spot = start - 1 if side == 0 else start
             while 0 <= spot < len(units):
@@ -19460,7 +19510,7 @@ def _weekday_single_indexed(
         if key not in index.units:
             continue
         units = index.units[key]
-        start = bisect.bisect_left(units, here)
+        start = _weekday_first_from(units, here)
         lists += [units]
         downs += [start - 1]
         ups += [start + 1 if start < len(units) and units[start] == here else start]
@@ -20170,7 +20220,7 @@ def _weekday_units_merged(
         standing: "dict[int, int]" = {}
         if state.unit != state.step:
             for ordinal in state.moved:
-                standing[ordinal] = standing.get(ordinal, 0) + 1
+                _weekday_tally(standing, ordinal, 1)
         changed = False
         for _size, key in sorted(units):
             if _weekday_count(state) <= wanted:
@@ -20186,8 +20236,8 @@ def _weekday_units_merged(
                 continue
             for rank in ranks:
                 if state.unit != state.step:
-                    standing[state.moved[rank]] = standing[state.moved[rank]] - 1
-                    standing[target] = standing.get(target, 0) + 1
+                    _weekday_tally(standing, state.moved[rank], -1)
+                    _weekday_tally(standing, target, 1)
                 _weekday_step(state, rank, target)
             look = (
                 _weekday_group(state, target),
@@ -20195,7 +20245,9 @@ def _weekday_units_merged(
                 target % state.day == 0,
             )
             if look in spots and target not in spots[look]:
-                bisect.insort(spots[look], target)
+                found = spots[look]
+                spot = _weekday_first_from(found, target)
+                spots[look] = found[:spot] + [target] + found[spot:]
             changed = True
         if not changed:
             return
@@ -20272,14 +20324,15 @@ def _weekday_merge_any_clock(
         })
     found = spots[look]
     best: "tuple[int, int] | None" = None
-    middle = bisect.bisect_left(found, here)
+    middle = _weekday_first_from(found, here)
     for spot, way in ((middle - 1, -1), (middle, 1)):
         while 0 <= spot < len(found) and low <= found[spot] <= high:
             other = found[spot]
             if (
                 other // state.step != here // state.step
                 and not _weekday_hole(state, other)
-                and standing.get(other, 0) > 0
+                and other in standing
+                and standing[other] > 0
             ):
                 if best is None or (abs(other - here), other) < best:
                     best = (abs(other - here), other)
@@ -20397,11 +20450,11 @@ def _weekday_traded(
     """Step 8.6, THE TWO-CENSUS EXCHANGE (landing 3b.D0, plan P4-D366; the
     3b.3 skeptic's blocker 1 (b)).
 
-    Where the pass keeps a second census's group (`pair_of`) and the
+    Where the pass keeps a second census's group (`pairs`) and the
     ranks still do not hold the totals, up to `_WEEKDAY_TRADES` trades.
     A rank of a group over its total moves, within `_WEEKDAY_TRADE_REACH`
     units inside its gap, to a place no hole of a group under its total,
-    keeping its width kind and `keep_of` but not its second group: from
+    keeping its width kind and what it keeps but not its second group: from
     `a` to `b`. Where `a` and `b` differ, a second rank, of second group
     `b`, moves within `_WEEKDAY_TRADE_BACK` units inside its own gap to
     the nearest place no hole of its own group and kind but second group
@@ -20415,7 +20468,7 @@ def _weekday_traded(
     own gaps, never onto a hole; keeps `have` true and every second
     group's count. Raises nothing. No I/O of any kind.
     """
-    if state.pair_of is None:
+    if not state.pairs:
         return False
     traded = False
     for _round in range(_WEEKDAY_TRADES):
@@ -20538,7 +20591,9 @@ def _bins_settled(
     and moments, the day of the month, the hour of the day -- each
     landing building its own `_WeekdayPass` through the seams and calling
     this. `counts` are the published groups' counts, in group order, and
-    `wanted` the count of different written units to keep. In order: each
+    `wanted` the count of different written units to keep. The pass
+    counts `held` and `units_held` afresh from `moved` before it moves
+    anything, so a landing's state need hold only the ranks. In order: each
     group's OWED total (its count less the pinned body ranks it holds);
     every rank drawn onto a hole moved off it (`_weekday_holes_swept`);
     each gap's SHARE of every group (`_weekday_shares`); the moves, gap by
@@ -20554,14 +20609,14 @@ def _bins_settled(
     inside their own gaps and kinds and never onto a hole. Raises
     nothing. No I/O of any kind.
     """
-    state.held.clear()
-    state.units_held.clear()
+    for key in [key for key in state.held]:
+        del state.held[key]
+    for key in [key for key in state.units_held]:
+        del state.units_held[key]
     for ordinal in state.moved:
-        key = ordinal // state.step
-        state.held[key] = state.held.get(key, 0) + 1
+        _weekday_tally(state.held, ordinal // state.step, 1)
         if state.unit != state.step:
-            key = ordinal // state.unit
-            state.units_held[key] = state.units_held.get(key, 0) + 1
+            _weekday_tally(state.units_held, ordinal // state.unit, 1)
     owed = [count for count in counts]
     for rank in range(body_low, body_high + 1):
         if pinned[rank]:
@@ -20570,7 +20625,9 @@ def _bins_settled(
     gaps = _weekday_gaps(state, body_low, body_high, pinned)
     for ranks in gaps:
         spot = (state.lows[ranks[0]], state.highs[ranks[0]])
-        state.gap_sizes[spot] = state.gap_sizes.get(spot, 0) + len(ranks)
+        state.gap_sizes[spot] = (
+            state.gap_sizes[spot] + len(ranks) if spot in state.gap_sizes else len(ranks)
+        )
     _weekday_holes_swept(state, gaps)
     quota = _weekday_shares(state, gaps, owed)
     for index in range(len(gaps)):
