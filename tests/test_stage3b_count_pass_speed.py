@@ -15,21 +15,30 @@ column at 20,000 rows, where the pass asks for no trade, took 2.3 s.
 WHAT CHANGED, AND WHAT DID NOT. The pass keeps a book (`_TradeBook`):
 built once per call and brought up to date by the ranks a paid merge
 moved, with the ranks that can pay filed by their standing so a payment
-is sought among them alone. No answer changes. So this file keeps the
-function as 110cb46 shipped it (`_traded_merges_as_built`, with the
-payment walk it called) as its ORACLE and asks both the same questions:
+is sought among them alone; a payer whose search finds no unit at all
+leaves its list until it moves or the book is built again; a run that
+was offered the unit a merge left trades that one offer for its next
+nearest; and that unit leaves the files the searches walk. No answer
+changes. So this file keeps the function as 110cb46 shipped it
+(`_traded_merges_as_built`, with the payment walk it called) as its
+ORACLE and asks both the same questions:
 
 1. seeded hand-built trades, width and midnight, every argument drawn,
    the ranks, the counts per unit and the merges made compared whole;
-2. every call the real generator makes on seeded clinic-slot columns,
-   each answered by both from the same state.
+2. after every paid merge of more such trades, the book against one
+   built afresh from the trade's state at that moment, so a book that
+   drifts is caught where it drifts and not only where it moves a cell;
+3. every call the real generator makes on seeded clinic-slot columns,
+   and on the same slots with one cell in fifty written date-only, at
+   midnight, each answered by both from the same state.
 
-THE GROWTH MEASURE NEEDS NO CLOCK. Every rank the pass looks at is
+THE GROWTH MEASURES NEED NO CLOCK. Every rank the pass looks at is
 asked first whether the tail pins it, so the reads of its ``pinned``
-list count the ranks it reads, whichever way it is written. Ledger
-entry K-S3-51 holds the reads per rank and their growth when the rows
-double; the as-built pass is measured the same way here and must read
-far more, so the measure is known to see the defect it guards against.
+list count the ranks it reads, whichever way it is written; and the
+held-unit searches it makes are counted where it makes them. Ledger
+entry K-S3-51 holds both per rank at two sizes each; the as-built pass
+is measured the same way here and must count far more, so each measure
+is known to see the defect it guards against.
 """
 
 from __future__ import annotations
@@ -52,6 +61,10 @@ DAY = 86400
 # must exceed on the same columns for the measure to be known to see it.
 READS_PER_RANK_AT_MOST = 10
 AS_BUILT_READS_PER_RANK_AT_LEAST = 50
+# The same for the held-unit searches the pass makes, on clinic slots
+# with one cell in fifty at midnight, where it makes hundreds of merges.
+SEARCHES_PER_RANK_AT_MOST = 10
+AS_BUILT_SEARCHES_PER_RANK_AT_LEAST = 50
 
 
 # -- the oracle: the pass as 110cb46 shipped it -----------------------------
@@ -210,10 +223,15 @@ _WORDS = ("first-field-padded", "second-field-padded", "padded")
 _FIRST_DAY = 18530
 
 
-def _trade_case(draw: random.Random) -> "dict[str, object]":
-    """One trade's arguments, drawn: sorted ranks, pinned ends, gaps between pins."""
+def _trade_case(draw: random.Random, large: bool = False) -> "dict[str, object]":
+    """One trade's arguments, drawn: sorted ranks, pinned ends, gaps between pins.
+
+    ``large`` draws more ranks over more instants and owes more merges,
+    so one call makes many attempts; the draws a small case makes are
+    the same either way.
+    """
     clock = draw.random() < 0.6
-    count = draw.randrange(6, 48)
+    count = draw.randrange(30, 260) if large else draw.randrange(6, 48)
     if clock:
         unit = draw.choice((1, 60, 900))
         step = unit
@@ -221,7 +239,7 @@ def _trade_case(draw: random.Random) -> "dict[str, object]":
         start = _FIRST_DAY * DAY
         span = draw.randrange(2, 9)
         places: "list[int]" = []
-        for _place in range(draw.randrange(3, 14)):
+        for _place in range(draw.randrange(5, 60) if large else draw.randrange(3, 14)):
             if draw.random() < draw.choice((0.2, 0.5, 0.8)):
                 places += [start + DAY * draw.randrange(span)]
             else:
@@ -233,7 +251,10 @@ def _trade_case(draw: random.Random) -> "dict[str, object]":
         step = 1
         day = 1
         start = _FIRST_DAY
-        places = [start + draw.randrange(70) for _place in range(draw.randrange(3, 16))]
+        places = [
+            start + draw.randrange(70)
+            for _place in range(draw.randrange(5, 50) if large else draw.randrange(3, 16))
+        ]
     moved = [draw.choice(places) for _rank in range(count)]
     if clock and unit > 1 and draw.random() < 0.4:
         # Instants off the precision's lattice, so the ranks of one unit
@@ -264,7 +285,8 @@ def _trade_case(draw: random.Random) -> "dict[str, object]":
     return {
         "moved": moved, "pinned": pinned, "lows": lows, "highs": highs,
         "day": day, "step": step, "unit": unit, "held": held, "widths": widths,
-        "word": word, "owed": draw.randrange(1, 6), "clock": clock, "gone": gone,
+        "word": word, "owed": draw.randrange(1, 60) if large else draw.randrange(1, 6),
+        "clock": clock, "gone": gone,
     }
 
 
@@ -302,7 +324,191 @@ def test_hand_built_trades_answer_as_built() -> None:
     assert traded[True] >= 100 and traded[False] >= 100, traded
 
 
-# -- 2. every call the generator makes, on clinic slots ----------------------
+# -- 2. the book against one built afresh, after every paid merge -----------
+
+
+def _drift(book: typing.Any, left: int) -> "list[str]":
+    """What ``book`` says that a book built afresh from the trade's state does not.
+
+    Built afresh, a book holds what every attempt rebuilt before plan
+    P4-D376: the same offers (the pool), the same runs and the same ranks
+    on each unit. Beyond that the kept book promises that ``left``, the
+    unit the merge left, is in no file a search walks; that each payer
+    stands filed under its standing now, in rank order; and that a rank
+    the tail does not pin is out of its list only where its search, with
+    no unit set aside, finds no held unit at all.
+    """
+    wrong: "list[str]" = []
+    fresh = generation._trade_book(
+        book.facts, book.moved, book.pinned, book.lows, book.highs, book.day,
+        book.step, book.unit, book.held, book.widths, book.word, book.clock,
+        book.gone,
+    )
+    if book.pool != fresh.pool:
+        wrong += ["the offers"]
+    if book.last_of != fresh.last_of:
+        wrong += ["the runs"]
+    held_ranks = {key: ranks for key, ranks in book.on_unit.items() if ranks}
+    if held_ranks != fresh.on_unit:
+        wrong += ["the ranks on each unit"]
+    for keys in book.order.values():
+        if left in keys:
+            wrong += [f"unit {left}, which the merge left, still filed"]
+    for standing in (False, True):
+        ranks = book.payers[standing]
+        if ranks != sorted(ranks):
+            wrong += ["payers out of rank order"]
+        for rank in ranks:
+            if book.pinned[rank] or book.stands[rank] != standing:
+                wrong += [f"rank {rank} filed under the wrong standing"]
+    for rank in book.free:
+        if book.stands[rank] != fresh.stands[rank]:
+            wrong += [f"rank {rank} keeps a standing it left"]
+        if rank in book.payers[book.stands[rank]]:
+            continue
+        found = generation._nearest_held_unit(
+            book.facts, book.moved[rank], book.lows[rank], book.highs[rank],
+            book.day, book.step, book.unit, book.held, fresh.spot, fresh.order,
+            book.widths or not book.clock, book.word, not book.clock,
+            book.lows[rank] // book.unit - 1, book.clock, (), book.gone,
+        )
+        if found is not None:
+            wrong += [f"rank {rank} is out of its list but can pay"]
+    return wrong
+
+
+def test_the_book_is_the_rebuild_after_every_merge(monkeypatch: pytest.MonkeyPatch) -> None:
+    """1,500 small and 300 large drawn trades: after each paid merge, the book is a fresh one.
+
+    The kept book is compared with a book built afresh from the trade's
+    state after EVERY paid merge, and the ranks a walk takes out of its
+    list are checked as it takes them, so a book that drifts is caught
+    at the merge where it drifts. The draws must reach every way the
+    book changes: payers taken out, offers traded for the next nearest
+    with and without one to find, and the book built again whole.
+    """
+    drifted: "list[str]" = []
+    reached: "collections.Counter[str]" = collections.Counter()
+    # The books built afresh to check against are not the pass's own.
+    checking = [False]
+    settled = generation._book_settled
+    dropped = generation._book_payers_dropped
+    replaced = generation._book_offer_replaced
+    filled = generation._book_filled
+
+    def settled_checked(
+        book: typing.Any, done: "tuple[int, int, int, int, dict[int, int]]"
+    ) -> None:
+        nonlocal drifted
+        settled(book, done)
+        reached["merges"] += 1
+        checking[0] = True
+        drifted += _drift(book, done[2])
+        checking[0] = False
+
+    def dropped_checked(book: typing.Any, standing: bool, dead: "list[int]") -> None:
+        nonlocal drifted
+        checking[0] = True
+        fresh = generation._trade_book(
+            book.facts, book.moved, book.pinned, book.lows, book.highs,
+            book.day, book.step, book.unit, book.held, book.widths, book.word,
+            book.clock, book.gone,
+        )
+        checking[0] = False
+        for rank in dead:
+            found = generation._nearest_held_unit(
+                book.facts, book.moved[rank], book.lows[rank], book.highs[rank],
+                book.day, book.step, book.unit, book.held, fresh.spot,
+                fresh.order, book.widths or not book.clock, book.word,
+                not book.clock, book.lows[rank] // book.unit - 1, book.clock,
+                (), book.gone,
+            )
+            if found is not None:
+                drifted += [f"rank {rank} taken out of its list, but it can pay"]
+        if dead:
+            reached["payers taken out"] += 1
+        dropped(book, standing, dead)
+
+    def replaced_counted(book: typing.Any, first: int, left: int) -> None:
+        before = len(book.offers_of[first])
+        replaced(book, first, left)
+        if len(book.offers_of[first]) == before:
+            reached["offers traded for a next nearest"] += 1
+        else:
+            reached["offers given up"] += 1
+
+    def filled_counted(book: typing.Any) -> None:
+        if not checking[0]:
+            reached["books built"] += 1
+        filled(book)
+
+    monkeypatch.setattr(generation, "_book_settled", settled_checked)
+    monkeypatch.setattr(generation, "_book_payers_dropped", dropped_checked)
+    monkeypatch.setattr(generation, "_book_offer_replaced", replaced_counted)
+    monkeypatch.setattr(generation, "_book_filled", filled_counted)
+    draw = random.Random(3761)
+    missed: "list[str]" = []
+    calls = 0
+    for number in range(1800):
+        case = _trade_case(draw, large=number >= 1500)
+        want = _asked(_traded_merges_as_built, case)
+        before = reached["books built"]
+        got = _asked(generation._traded_merges, case)
+        if reached["books built"] > before:
+            calls += 1
+        if got != want:
+            missed += [f"case {number}: {got!r}, as built {want!r}"]
+    assert not missed, missed[:3]
+    assert not drifted, drifted[:5]
+    # Measured: 2,152 merges, 711 walks taking payers out, 201 offers
+    # traded for a next nearest and 274 given up, 63 books built again.
+    assert reached["merges"] >= 1000, reached
+    assert reached["payers taken out"] >= 100, reached
+    assert reached["offers traded for a next nearest"] >= 100, reached
+    assert reached["offers given up"] >= 100, reached
+    # Built again whole after a merge, beyond the one build of each call.
+    assert reached["books built"] - calls >= 20, (reached, calls)
+
+
+@pytest.mark.parametrize(("seed", "number"), [(107, 0), (2618, 31)])
+def test_a_payer_taken_out_and_moved_is_filed_again(
+    seed: int, number: int, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A payer a walk took out of its list moves with a merged run and is filed again.
+
+    Its own search, from its own instant, found no held unit; the run it
+    belongs to searches from its first rank's instant, which on a unit of
+    fifteen minutes can reach a unit the payer's walk could not. Drawn:
+    the first case of seed 107, and the 32nd of seed 2618, where taking
+    the moved rank out of its list by its place alone, without asking
+    whether it is there, takes out another rank that can pay. Each is
+    held to the as-built pass and to a book built afresh.
+    """
+    draw = random.Random(seed)
+    for _number in range(number + 1):
+        case = _trade_case(draw)
+    moved_out: "list[int]" = []
+    drifted: "list[str]" = []
+    settled = generation._book_settled
+
+    def watched(
+        book: typing.Any, done: "tuple[int, int, int, int, dict[int, int]]"
+    ) -> None:
+        nonlocal moved_out, drifted
+        start, size, _left, _onto, paid = done
+        for rank in list(range(start, start + size)) + sorted(paid):
+            if rank not in book.payers[book.stands[rank]]:
+                moved_out += [rank]
+        settled(book, done)
+        drifted += _drift(book, done[2])
+
+    monkeypatch.setattr(generation, "_book_settled", watched)
+    assert _asked(generation._traded_merges, case) == _asked(_traded_merges_as_built, case)
+    assert not drifted, drifted
+    assert moved_out, "the case no longer moves a payer taken out of its list"
+
+
+# -- 3. every call the generator makes, on clinic slots ----------------------
 
 _YEAR_START = 19358  # 2023-01-01
 _HOURS = (8, 9, 10, 11, 12, 13, 14, 15, 16)
@@ -337,6 +543,23 @@ def clinic_slots(rows: int, seed: int = 0) -> "list[str]":
     return cells
 
 
+def few_at_midnight(rows: int, seed: int = 0) -> "list[str]":
+    """The clinic slots of ``rows``, about one cell in fifty written date-only, at midnight.
+
+    A clinic that books some visits by the day alone. The twin holds the
+    published count of cells at midnight, so its count pass makes
+    hundreds of paid merges here where the clinic slots alone make a
+    handful: 293 at 10,000 rows and 698 at 20,000, against 2 and 11.
+    """
+    draw = random.Random(4343 + rows)
+    cells: "list[str]" = []
+    for cell in clinic_slots(rows, seed):
+        if draw.random() < 0.02:
+            cell = cell[:10] + " 00:00"
+        cells += [cell]
+    return cells
+
+
 def _described(folder: pathlib.Path, values: "list[str]") -> contract.Profile:
     """Write ``values`` as a one-column table, describe it with the real producer, load it."""
     folder.mkdir(parents=True, exist_ok=True)
@@ -353,12 +576,10 @@ def _described(folder: pathlib.Path, values: "list[str]") -> contract.Profile:
     return contract.load_profile(str(target))
 
 
-@pytest.mark.parametrize(("rows", "seed"), [(2500, 0), (2500, 3), (2500, 4), (5000, 1), (5000, 4)])
-def test_generator_calls_answer_as_built(
-    rows: int, seed: int, tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """Each trade the generator asks for, answered from one state by both: the same."""
-    loaded = _described(tmp_path, clinic_slots(rows, seed))
+def _calls_answer_as_built(
+    loaded: contract.Profile, seed: int, monkeypatch: pytest.MonkeyPatch
+) -> int:
+    """Generate ``loaded`` at ``seed`` with every trade answered by both passes; the merges made."""
     plain = rendering.twin_csv(generation.generate(loaded, seed))
     traded = generation._traded_merges
     asked: "list[int]" = []
@@ -383,12 +604,90 @@ def test_generator_calls_answer_as_built(
 
     monkeypatch.setattr(generation, "_traded_merges", both)
     checked = rendering.twin_csv(generation.generate(loaded, seed))
+    monkeypatch.setattr(generation, "_traded_merges", traded)
     assert not missed, missed
-    assert sum(asked) >= 1, "no trade was made, so nothing was compared"
     assert checked == plain
+    return sum(asked)
 
 
-# -- the growth measure (K-S3-51) --------------------------------------------
+@pytest.mark.parametrize(("rows", "seed"), [(2500, 0), (2500, 3), (2500, 4), (5000, 1), (5000, 4)])
+def test_generator_calls_answer_as_built(
+    rows: int, seed: int, tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Each trade the generator asks for, answered from one state by both: the same."""
+    made = _calls_answer_as_built(_described(tmp_path, clinic_slots(rows, seed)), seed, monkeypatch)
+    assert made >= 1, "no trade was made, so nothing was compared"
+
+
+@pytest.mark.parametrize(("rows", "seed"), [(2500, 0), (5000, 2)])
+def test_generator_calls_answer_as_built_on_midnight_slots(
+    rows: int, seed: int, tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The same, where one cell in fifty is written at midnight: hundreds of paid merges each."""
+    loaded = _described(tmp_path, few_at_midnight(rows, seed))
+    made = _calls_answer_as_built(loaded, seed, monkeypatch)
+    assert made >= 100, made
+
+
+# -- the growth measures (K-S3-51) -------------------------------------------
+
+
+def _trade_counts(
+    rows: int,
+    folder: pathlib.Path,
+    trade: "typing.Callable[..., int] | None",
+    checked: bool,
+    cells: "typing.Callable[[int], list[str]]",
+) -> "dict[str, int]":
+    """What the trade pass reads and searches generating ``cells(rows)`` at seed 0, and its merges.
+
+    Every rank the pass looks at -- building its offers, walking for a
+    payment -- is first asked whether the tail pins it, so the reads of
+    its ``pinned`` list count them; and each held-unit search
+    (`generation._nearest_held_unit`) it makes is counted while it runs.
+    ``trade`` stands in for the pass, so the as-built one is measured the
+    same way. Where ``checked``, the twin is also generated uncounted by
+    the shipped pass and must be the counted one, byte for byte, or this
+    raises.
+    """
+    loaded = _described(folder, cells(rows))
+    plain = rendering.twin_csv(generation.generate(loaded, 0)) if checked else ""
+    counts = {"reads": 0, "searches": 0, "made": 0}
+    inside = [False]
+
+    class Counted(list):  # type: ignore[type-arg]
+        def __getitem__(self, index):  # type: ignore[no-untyped-def]
+            counts["reads"] += 1
+            return list.__getitem__(self, index)
+
+    asked = trade or generation._traded_merges
+    original = generation._traded_merges
+    search = generation._nearest_held_unit
+
+    def searched(*arguments, **named):  # type: ignore[no-untyped-def]
+        if inside[0]:
+            counts["searches"] += 1
+        return search(*arguments, **named)
+
+    def counted(facts, moved, pinned, *rest):  # type: ignore[no-untyped-def]
+        inside[0] = True
+        try:
+            done = asked(facts, moved, Counted(pinned), *rest)
+        finally:
+            inside[0] = False
+        counts["made"] += done
+        return done
+
+    generation._traded_merges = counted
+    generation._nearest_held_unit = searched
+    try:
+        twin = rendering.twin_csv(generation.generate(loaded, 0))
+    finally:
+        generation._traded_merges = original
+        generation._nearest_held_unit = search
+    if checked and twin != plain:
+        raise AssertionError("counting the pass changed the twin")
+    return counts
 
 
 def trade_reads(
@@ -397,48 +696,27 @@ def trade_reads(
     trade: "typing.Callable[..., int] | None" = None,
     checked: bool = False,
 ) -> "tuple[int, int]":
-    """The ranks the trade pass reads generating the clinic slots of ``rows``, and the merges.
+    """The ranks the trade pass reads generating the clinic slots of ``rows``, and the merges."""
+    counts = _trade_counts(rows, folder, trade, checked, clinic_slots)
+    return counts["reads"], counts["made"]
 
-    Every rank the pass looks at -- building its offers, walking for a
-    payment -- is first asked whether the tail pins it, so the reads of
-    its ``pinned`` list count them. ``trade`` stands in for the pass, so
-    the as-built one is measured the same way. Where ``checked``, the
-    twin is also generated uncounted and must be the counted one, byte
-    for byte, or this raises.
-    """
-    loaded = _described(folder, clinic_slots(rows))
-    plain = rendering.twin_csv(generation.generate(loaded, 0)) if checked else ""
-    reads = [0]
-    made = [0]
 
-    class Counted(list):  # type: ignore[type-arg]
-        def __getitem__(self, index):  # type: ignore[no-untyped-def]
-            reads[0] += 1
-            return list.__getitem__(self, index)
-
-    asked = trade or generation._traded_merges
-    original = generation._traded_merges
-
-    def counted(facts, moved, pinned, *rest):  # type: ignore[no-untyped-def]
-        done = asked(facts, moved, Counted(pinned), *rest)
-        made[0] += done
-        return done
-
-    generation._traded_merges = counted
-    try:
-        twin = rendering.twin_csv(generation.generate(loaded, 0))
-    finally:
-        generation._traded_merges = original
-    if checked and twin != plain:
-        raise AssertionError("counting the reads changed the twin")
-    return reads[0], made[0]
+def trade_searches(
+    rows: int,
+    folder: pathlib.Path,
+    trade: "typing.Callable[..., int] | None" = None,
+    checked: bool = False,
+) -> "tuple[int, int]":
+    """The held-unit searches the trade pass makes on `few_at_midnight`'s ``rows``, and the merges."""
+    counts = _trade_counts(rows, folder, trade, checked, few_at_midnight)
+    return counts["searches"], counts["made"]
 
 
 def test_the_measure_sees_the_rebuild(tmp_path: pathlib.Path) -> None:
     """5,000 clinic slots: the book reads at most ten ranks a rank, the as-built pass over fifty.
 
     Measured with this measure: the as-built pass reads 90 a rank here,
-    159 at 10,000 rows and 1,600 at 20,000; the book 3.1, 2.6 and 5.2.
+    159 at 10,000 rows and 1,600 at 20,000; the book 2.0, 2.1 and 4.0.
     Ledger entry K-S3-51 holds the book at 10,000 and 40,000 rows.
     """
     reads, made = trade_reads(5000, tmp_path / "new", checked=True)
@@ -447,3 +725,20 @@ def test_the_measure_sees_the_rebuild(tmp_path: pathlib.Path) -> None:
     reads, made = trade_reads(5000, tmp_path / "old", _traded_merges_as_built, checked=True)
     assert made >= 1
     assert reads >= AS_BUILT_READS_PER_RANK_AT_LEAST * 5000, reads
+
+
+def test_the_measure_sees_the_walks(tmp_path: pathlib.Path) -> None:
+    """5,000 slots, one cell in fifty at midnight: ten searches a rank at most, as built over fifty.
+
+    Measured with this measure: the as-built pass searches 111 times a
+    rank here and 197 at 10,000 rows; the book as 40f1205 left it, whose
+    every walk asked again the payers that could pay nowhere, 12.6 and
+    20.6; this book 4.5 and 5.2. Ledger entry K-S3-51 holds it at 10,000
+    and 20,000 rows.
+    """
+    searches, made = trade_searches(5000, tmp_path / "new", checked=True)
+    assert made >= 100
+    assert searches <= SEARCHES_PER_RANK_AT_MOST * 5000, searches
+    searches, made = trade_searches(5000, tmp_path / "old", _traded_merges_as_built, checked=True)
+    assert made >= 100
+    assert searches >= AS_BUILT_SEARCHES_PER_RANK_AT_LEAST * 5000, searches

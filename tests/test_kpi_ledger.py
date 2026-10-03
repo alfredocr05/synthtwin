@@ -1712,7 +1712,10 @@ def test_k_s3_51(record_property, tmp_path: pathlib.Path) -> None:
     ranks the pass reads (its reads of the tail's pins). Before the
     landing every attempt rebuilt its offers from every rank and every
     offer walked every rank for its payment: 159 reads a rank at
-    10,000 rows, 1,600 at 20,000.
+    10,000 rows, 1,600 at 20,000. And the same slots with one cell in
+    fifty written at midnight (`few_at_midnight`) at 10,000 and 20,000
+    rows, where the pass makes hundreds of paid merges: the held-unit
+    searches it makes, 197 a rank at 10,000 rows before the landing.
     """
     import test_stage3b_count_pass_speed as count_pass
 
@@ -1721,6 +1724,10 @@ def test_k_s3_51(record_property, tmp_path: pathlib.Path) -> None:
         reads, made = count_pass.trade_reads(rows, tmp_path / f"slots{rows}")
         measured[f"reads_per_rank_{rows}"] = round(reads / rows, 2)
         measured[f"merges_made_{rows}"] = made
+    for rows in (10000, 20000):
+        searches, made = count_pass.trade_searches(rows, tmp_path / f"midnight{rows}")
+        measured[f"searches_per_rank_midnight_{rows}"] = round(searches / rows, 2)
+        measured[f"merges_made_midnight_{rows}"] = made
     _kpi(record_property, "K-S3-51", measured)
 
 

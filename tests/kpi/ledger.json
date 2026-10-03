@@ -6638,17 +6638,23 @@
    "headline": false,
    "name": "The count pass's paid merge reads a few ranks a rank, whatever the rows",
    "status": "GREEN",
-   "rule": "machine-free: generating the made-up clinic slots of tests/test_stage3b_count_pass_speed.py (about 154 a weekday, to the minute) at 10,000 and 40,000 rows, the ranks generation._traded_merges reads -- its reads of the tail's pins, which every rank it looks at is asked first -- stay at most 10 a rank at both sizes, and the pass makes at least one merge at each, so it is asked; the as-built pass, kept in that file as its oracle, must read over 50 a rank at 5,000 rows there, so the measure sees a rebuild",
+   "rule": "machine-free: generating the made-up clinic slots of tests/test_stage3b_count_pass_speed.py (about 154 a weekday, to the minute) at 10,000 and 40,000 rows, the ranks generation._traded_merges reads -- its reads of the tail's pins, which every rank it looks at is asked first -- stay at most 10 a rank at both sizes, and the pass makes at least one merge at each, so it is asked; and on the same slots with one cell in fifty written date-only, at midnight (few_at_midnight there), at 10,000 and 20,000 rows, the held-unit searches it makes stay at most 10 a rank at both sizes, with at least 100 paid merges at each; the as-built pass, kept in that file as its oracle, must read over 50 a rank and search over 50 times a rank at 5,000 rows of the two shapes, so each measure sees what it guards against",
    "rule_kind": "at_most",
    "expected": {
     "merges_made_10000": 1,
     "merges_made_40000": 1,
+    "merges_made_midnight_10000": 100,
+    "merges_made_midnight_20000": 100,
     "reads_per_rank_10000": 10,
-    "reads_per_rank_40000": 10
+    "reads_per_rank_40000": 10,
+    "searches_per_rank_midnight_10000": 10,
+    "searches_per_rank_midnight_20000": 10
    },
    "key_kinds": {
     "merges_made_10000": "at_least",
-    "merges_made_40000": "at_least"
+    "merges_made_40000": "at_least",
+    "merges_made_midnight_10000": "at_least",
+    "merges_made_midnight_20000": "at_least"
    },
    "tier": "FAST",
    "source": "pytest",
@@ -6656,7 +6662,7 @@
    "test": "tests/test_kpi_ledger.py::test_k_s3_51",
    "driver": null,
    "pin_strength": "NONE",
-   "measured_on": "tests/test_stage3b_count_pass_speed.py's clinic slots at 10,000 and 40,000 rows, described and generated at seed 0, the pass's pins counted through a list that counts its reads",
+   "measured_on": "tests/test_stage3b_count_pass_speed.py's clinic slots at 10,000 and 40,000 rows and its few_at_midnight slots at 10,000 and 20,000, each described and generated at seed 0, the pass's pins counted through a list that counts its reads and its held-unit searches counted while it runs",
    "evidence": "",
    "value_at": {}
   },
