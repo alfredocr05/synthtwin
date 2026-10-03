@@ -4265,23 +4265,48 @@ rows hold. Two rules follow, and neither publishes anything new:
    as the pair requires, the narrowest end the published facts allow.
    A clamp that put the end on a stand-in the block publishes as held
    (`kept`) stays: that end is the table's own heap.
-2. THE WALK. G6.6.2's demands are served after the census's commonest
-   demand -- the one asking for the most cells, the widest on a tie,
-   which is the one the census counted the wide cells into -- is
-   lowered by the cells this rule frees: on each side whose reach
-   passes the widest value any demand lets a cell hold, the tail's own
-   strata past that width, outermost first and whole strata only, up to
-   the line less one in all, stopping before the cells' distances from
-   their boundary would pass `m d1` in sum or `m rms**2` in squares --
-   the pair's own totals, every other row standing at nought or more.
+2. THE WALK. On each side whose reach passes the widest value any
+   demand lets a cell hold, the tail's own strata past that width are
+   LEFT there, outermost first and whole strata only, up to the line
+   less one in all, stopping before the cells' distances from their
+   boundary would pass `m d1` in sum or `m rms**2` in squares -- the
+   pair's own totals, every other row standing at nought or more. The
+   tail's OTHER strata past the width are MOVED under it before any
+   demand is served, nearest the boundary first, each to the nearest
+   value of the widest demanded figure count inside its own room
+   (G6.6.3's room between two neighbours, a stand-in never); a stratum
+   the order leaves no such value stays where it is. Then G6.6.2's
+   demands are served after the one the census counted the cells still
+   past the width into is lowered by them, by at most the line less
+   one: the EXACT demand asking for the most cells, the narrowest on a
+   tie, because a cell too few to name is counted into the width most
+   unpadded cells wrote (plan P4-D222) and G6.3's padded exchange hands
+   the padded form to values a published pad can hold, so the twin
+   writes those cells plainly; and only where no exact demand is
+   published, the padded ceiling asking for the most. Lowering the
+   commonest demand of either kind instead took the cells off a padded
+   ceiling: 200 codes `0001` to `0999` beside 100 of four figures,
+   `99999` and `88888`, at a floor of eleven, publish `pad_widths {"4":
+   200}`; the walk asked for 199 small values, moved the two hundredth
+   up to four figures, and the twin missed the padded census at seeds
+   0, 4 and 9. And the other strata move FIRST because a demand no
+   move serves stops the walk: 90 codes `0001` to `0999` beside 59 of
+   four figures and one `99999`, at a floor of 36 and seed 4, drew 89
+   small values and six cells past `9999` where the pair allows four,
+   and the padded ceiling found no stratum to take; over seeds 0 to 19
+   the twin missed the padded census at 18, where 110cb46 missed it at
+   one.
 
 Measured on `K-S3-22`'s 36 column-floors at seeds 0, 4 and 9: 111
 missed moment checks become 12, the two moments-only columns, with no
-new miss on them, on follow-up A's 37 shapes or on the stage-3 battery.
-The end rule is frozen in `tail_width_past_the_reach` (G14.3). THE WALK
-HAS NO FROZEN CASE, because the oracle does not run G6.6's walk at all
-(criterion 8 of the Phase 4 plan): it is pinned by
-`tests/test_stage3b_width.py`, beside its mutant.
+new miss on them, on follow-up A's 37 shapes or on the stage-3 battery;
+and on six shapes of padded codes beside plain numbers and one to three
+far cells, at floors 11 and 36 and seeds 0 to 19, 605 missed checks
+become 205, none of them new. The end rule is frozen in
+`tail_width_past_the_reach` (G14.3). THE WALK HAS NO FROZEN CASE,
+because the oracle does not run G6.6's walk at all (criterion 8 of the
+Phase 4 plan): it is pinned by `tests/test_stage3b_width.py`, beside a
+mutant for each clause.
 
 ### G6.7 No value stands where the description says there is none
 

@@ -19,11 +19,18 @@ distance), the hold stands aside and the end is the first whole number
 at or past the reach, never further than the fitted end and never off a
 stand-in the column holds. The width walk leaves up to the floor less
 one of the tail's own cells past every named width, stopping where
-their distances would pass the pair's own totals. Nothing new is
-published. `K-S3-22`'s 36 column-floors at seeds 0, 4 and 9: 111 missed
-mean and spread checks become 12, the two moments-only columns; no new
-miss there, on follow-up A's 37 shapes or on the stage-3 battery, and no
-twin newly outside its real range. One frozen case opens
+their distances would pass the pair's own totals; it moves the tail's
+other cells past the width under it before serving any demand, and
+takes every cell still past it off the unpadded demand the census
+counted it into (the padded one only where no cell is published
+unpadded), so padded codes beside plain numbers keep their padded
+census. Nothing new is published. `K-S3-22`'s 36 column-floors at seeds 0, 4 and 9: 111
+missed mean and spread checks become 12, the two moments-only columns;
+no new miss there, on follow-up A's 37 shapes or on the stage-3
+battery, and no twin newly outside its real range. Six shapes of padded
+codes beside plain numbers and far cells, at floors 11 and 36 and seeds
+0 to 19: 605 missed checks become 205, none new, where the walk's first
+form read 950. One frozen case opens
 `tests/reference/generation-branch-vectors-23.json`; the walk is pinned
 by `tests/test_stage3b_width.py`.
 
