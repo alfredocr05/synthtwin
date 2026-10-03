@@ -2,8 +2,8 @@
 
 LANDING 3b.1 (plan P4-D355), as plan P4-D365 left it. A column of whole
 dates publishes which days of the week the cells between its two tail
-boundaries fall on, grouped from a fixed menu wherever its twin can meet
-it, and the twin meets it (method G7.3f).
+boundaries fall on, grouped from a fixed menu unless a conservative rule
+withholds it, and the twin meets it (method G7.3f).
 
 K-S3-31, over the gate's own battery -- two years of admissions, billing
 dates heaped on the 1st and 15th, birth dates over seventy years, a

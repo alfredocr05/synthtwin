@@ -2173,12 +2173,14 @@ def test_a_minute_on_a_missing_moment_is_written_absent_and_named(tmp_path: path
 # body falls on, in groups the floor alone chooses from a fixed menu.
 # Since plan P4-D365 (the owner's principle of 2026-10-01: the threat is
 # a HIPAA exposure, never a reader rebuilding counts) the census the
-# menu offers is published wherever its twin can meet it: the full-fill
-# certificate, its bands, its cap, its ties refusal and WC5, WC7, WC8 and
-# WC9 are gone. The producer withholds where a group holds too few
-# different dates (`calendar_rules.few_dates`) or the published holes
-# other than width holes leave a group too little room
-# (`calendar_rules.room_short`), and the loader holds a census to its shape (`calendar_rules.shape_breach`).
+# menu offers is published unless a conservative rule withholds it: the
+# full-fill certificate, its bands, its cap, its ties refusal and WC5,
+# WC7, WC8 and WC9 are gone. The producer withholds where a group holds
+# too few different dates (`calendar_rules.few_dates`) or the published
+# holes other than width holes leave a group too little room
+# (`calendar_rules.room_short`) -- two rules set on measured cases, each
+# withholding some censuses a twin would meet (the Codex review of
+# P4-D365, item 2) -- and the loader holds a census to its shape (`calendar_rules.shape_breach`).
 # The clauses below are the landing's: the battery keeps every census
 # and its twins meet them with nothing missed and the weekday statistics
 # inside their scoped bounds; each rule has a seeded witness publishing
