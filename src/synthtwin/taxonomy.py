@@ -6359,12 +6359,14 @@ _MANTISSA_FIGURES_WITHIN_REASON = 999_000
 # THE MOST CHARACTERS THE SEARCH FOR ONE CELL'S CORE READS (the Codex
 # review of 3b-R0, item 2), about five CPU seconds. Past it the run stops
 # with `errors.cell_too_long_to_search` rather than search on. Measured
-# with `_core_reach`: `+` 800 times and an `x` reads none; a list of
-# 4,000 three-figure readings parted by spaces, 16,004 characters that
-# all read as one grouped number, reads about 6.6 million, at most a
-# hundred cells of such a list per minute; 3,000 nines and `e5x` reads
-# about 12.5 million. What passes it is a run of figures longer than
-# binary64 holds, many thousands long, in one cell.
+# with `_core_reach` and `_kept_places`: `+` 800 times and an `x` reads
+# 1,600 characters and asks the classifier nothing; `Note:`, 7,000
+# line feeds and a heading read 7,005, a run of spaces or of a declared
+# column's points being read once however long; a list of 4,000
+# three-figure readings parted by spaces, 16,004 characters that all
+# read as one grouped number, reads about 4.8 million; 3,000 nines and
+# `e5x` read about 9.8 million. What passes it is a run of figures
+# longer than binary64 holds, many thousands long, in one cell.
 SPLIT_SEARCH_CHARACTERS = 20_000_000
 
 
@@ -6374,6 +6376,53 @@ def _searched(read: int, more: int) -> int:
     if read > SPLIT_SEARCH_CHARACTERS:
         raise errors.ProfileError(errors.cell_too_long_to_search(SPLIT_SEARCH_CHARACTERS))
     return read
+
+
+def _dropped_at_an_end(character: str, decimal_comma: bool) -> bool:
+    """Whether a reading drops this character where it stands at an end of the text asked.
+
+    A space of any kind, which `parsing.classify_number` trims (inside a
+    span, every character not in `_CORE_CHARACTERS` is one), and on a
+    declared decimal comma's column a point, which
+    `parsing.written_with_a_decimal_comma` drops wherever it stands.
+    """
+    return character not in _CORE_CHARACTERS or (decimal_comma and character == ".")
+
+
+def _kept_places(
+    trimmed: str, start: int, stop: int, decimal_comma: bool
+) -> "tuple[list[int], list[int]]":
+    """For each place of the span, the nearest place at or after it, and at or before it, whose character a reading keeps.
+
+    A TEXT ASKED FROM INSIDE A RUN OF DROPPED CHARACTERS, OR UP TO
+    INSIDE ONE, READS AS THE TEXT FROM OR UP TO THE RUN'S KEPT NEIGHBOUR
+    (the Codex review of 3b-R0, item 2, a residual measured after the
+    first fix): a reading trims the spaces at both ends of what it is
+    asked and a declared decimal comma's reading drops every point
+    (`_dropped_at_an_end`), so the run adds nothing to it. Searched as
+    any other start and end, a run of 7,000 line feeds in a note, or of
+    points after a word on a declared column, cost the square of its
+    length and stopped the run at `SPLIT_SEARCH_CHARACTERS` with no
+    figure in the cell.
+
+    Returned, indexed from ``start``: the first kept place at or after
+    each (``stop`` where none is), and the last kept place at or before
+    each (``start - 1`` where none is). Determinism: a fixed function of
+    the four. Raises nothing. No I/O of any kind.
+    """
+    after = [stop] * (stop - start)
+    before = [start - 1] * (stop - start)
+    following = stop
+    for index in range(stop - 1, start - 1, -1):
+        if not _dropped_at_an_end(trimmed[index], decimal_comma):
+            following = index
+        after[index - start] = following
+    preceding = start - 1
+    for index in range(start, stop):
+        if not _dropped_at_an_end(trimmed[index], decimal_comma):
+            preceding = index
+        before[index - start] = preceding
+    return after, before
 
 
 def _exponents_ahead(trimmed: str, start: int, stop: int) -> "list[bool]":
@@ -6639,10 +6688,14 @@ def affixed_split(
     read = 0
     for span_start, span_stop in _core_spans(trimmed):
         exponent_ahead = _exponents_ahead(trimmed, span_start, span_stop)
+        kept_after, kept_before = _kept_places(trimmed, span_start, span_stop, decimal_comma)
+        resume = span_start
         for begin in range(span_start, span_stop):
             if span_stop - begin <= best_length:
                 # Nothing from here on can be longer than what is held.
                 break
+            if begin < resume:
+                continue
             # THE ENDS NO NUMBER CAN HAVE ARE NEVER ASKED (the Codex
             # review of 3b-R0, item 2): `_core_reach` reads the span once
             # from ``begin`` and says how far a number starting there can
@@ -6653,13 +6706,23 @@ def affixed_split(
                 trimmed, begin, span_start, span_stop, decimal_comma, exponent_ahead
             )
             read = _searched(read, 1 + reach - begin)
-            for end in range(reach, begin + best_length, -1):
-                if not open_ends[end - begin - 1]:
-                    continue
-                read = _searched(read, end - begin)
-                if _reads_as_a_number(trimmed[begin:end], decimal_comma):
-                    best_start, best_length = begin, end - begin
-                    break
+            end = reach
+            while end > begin + best_length:
+                if open_ends[end - begin - 1]:
+                    read = _searched(read, end - begin)
+                    if _reads_as_a_number(trimmed[begin:end], decimal_comma):
+                        best_start, best_length = begin, end - begin
+                        break
+                    # Every end back to the last character a reading
+                    # keeps reads as this one did (`_kept_places`).
+                    end = kept_before[end - 1 - span_start] + 1
+                end = end - 1
+            if kept_after[begin - span_start] > begin:
+                # A START ON A DROPPED CHARACTER reads the numbers its
+                # run's next kept character starts, and every start up
+                # to and on that character reads them shorter, so none
+                # of them can be longer than what is now held.
+                resume = kept_after[begin - span_start] + 1
     if best_length <= 0:
         return None
     prefix = trimmed[:best_start]

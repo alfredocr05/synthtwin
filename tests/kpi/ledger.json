@@ -6816,14 +6816,15 @@
     "tests/test_stage3b_full_precision.py::test_a_long_distinct_run_asks_the_classifier_a_few_times",
     "tests/test_stage3b_full_precision.py::test_the_single_pass_search_answers_what_every_substring_answered",
     "tests/test_stage3b_full_precision.py::test_a_column_of_distinct_long_annotations_describes_with_few_asks",
-    "tests/test_stage3b_full_precision.py::test_a_search_past_its_bound_stops_the_run_with_a_sentence"
+    "tests/test_stage3b_full_precision.py::test_a_search_past_its_bound_stops_the_run_with_a_sentence",
+    "tests/test_stage3b_full_precision.py::test_a_long_run_a_reading_drops_is_searched_once"
    ],
    "test": "tests/test_kpi_ledger.py::test_k_s3_55",
    "driver": "tools/measurements/kpi_full_precision.py --kpi",
    "pin_strength": "EXACT",
    "measured_on": "1,000 Oracle TIMESTAMP spellings (`18-SEP-21 09.51.52.229882 PM`), seed 7, through `synthtwin profile`, every split counted; the driver's 10,000 of them timed",
-   "evidence": "Before (668f276, the reach audit's skeptic): `affixed_split` ran 16 times a cell, `_reads_as_a_number` about 1,700 times a cell, 9.4 of the 9.9 s a 1,000-cell unread column took; 16,000 splits on this column. After: one per different text, the census's reading and the description's sharing the answers, kept for the reading's life at about 236 bytes per different text (170 for short texts with units, tracemalloc over 20,000), about 0.24 GB a column of a million different texts. The Codex review (110cb46, items 2 and 3): the first split of each different text asked every substring of a span, `+` 800 times and an `x` 320,400 asks in about 11 CPU s; one pass a start now asks none there, the same splits over 600,000 seeded texts, a cell past twenty million characters read refused in a sentence. And the driver wrote whether the unread column was described only on failure, under a key nothing bounded, so a failed run read PASS; the flag is written on both roads and bounded at 1.",
-   "nodes_min_collected": 7,
+   "evidence": "Before (668f276, the reach audit's skeptic): `affixed_split` ran 16 times a cell, `_reads_as_a_number` about 1,700 times a cell, 9.4 of the 9.9 s a 1,000-cell unread column took; 16,000 splits on this column. After: one per different text, the census's reading and the description's sharing the answers, kept for the reading's life at about 236 bytes per different text (170 for short texts with units, tracemalloc over 20,000), about 0.24 GB a column of a million different texts. The Codex review (110cb46, items 2 and 3): the first split of each different text asked every substring of a span, `+` 800 times and an `x` 320,400 asks in about 11 CPU s; one pass a start now asks none there, the same splits over 600,000 seeded texts, a cell past twenty million characters read refused in a sentence. A start or an end inside a run of spaces, line feeds or a declared column's points read the run again each time, so `Note:` and 7,000 line feeds were refused with no figure in the cell; such a run is read once now, 7,005 characters there, the same splits. And the driver wrote whether the unread column was described only on failure, under a key nothing bounded, so a failed run read PASS; the flag is written on both roads and bounded at 1.",
+   "nodes_min_collected": 8,
    "value_at": {
     "commit": "784ef3e",
     "date": "2026-10-02",

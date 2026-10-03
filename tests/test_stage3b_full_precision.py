@@ -1218,3 +1218,52 @@ def test_a_search_past_its_bound_stops_the_run_with_a_sentence(tmp_path, monkeyp
     assert code == 1, said
     assert errors.cell_too_long_to_search(50_000) in said, said
     assert not (tmp_path / "out" / "long-profile.json").exists()
+
+
+def dropped_runs() -> "dict[str, tuple[str, str, str, bool]]":
+    """Runs of characters a reading drops at an end of what it asks -- spaces of every kind, a declared column's points -- with and without a figure before them: the text before the run, one length of the run, the text after it, and the grammar."""
+    return {
+        "line feeds in a note": ("Note:", "\n", "Impression: stable", False),
+        "spaces after a sign": ("a +", " ", "b", False),
+        "spaces of every kind": ("x", "\u00a0\u2009 \t\u3000", "y", False),
+        "points on a declared column": ("Hemoglobin", ".", "high", True),
+        "spaces after a number past the range": ("1e400", " ", "y", False),
+        "spaces after 309 nines": ("9" * 309, " ", "y", False),
+        "points after a declared number past the range": ("1e400", ".", "y", True),
+    }
+
+
+def test_a_long_run_a_reading_drops_is_searched_once(monkeypatch) -> None:
+    """Runs of 50,000 characters a reading drops split as the old search splits them at 40, each character read about four times at most, a few questions asked.
+
+    The Codex review of 3b-R0, item 2, a residual measured after its
+    first fix: a start inside a run of spaces, line feeds or a declared
+    column's points read the run to its end, and an end inside one was
+    asked again for every character, so `Note:` and 7,000 line feeds
+    cost the square of the run and stopped the whole run at
+    `SPLIT_SEARCH_CHARACTERS` with no figure in the cell. A reading drops
+    such a run at either end of what it asks (`taxonomy._kept_places`),
+    so a start inside it reads what its next kept character starts, and
+    an end inside it reads what its last kept character ends. The split
+    at 50,000 is the one the search over every substring finds at 40,
+    the run as long in whichever part holds it. Mutations: the starts
+    inside the run each read it (the first fix) passes the bound of five
+    reads a character; every end inside it asked (the first fix) passes
+    the cap of ten asks; the search over every substring (110cb46)
+    passes that cap on the first run.
+    """
+    reads = taxonomy._reads_as_a_number
+    for name, (before, run, after, decimal_comma) in dropped_runs().items():
+        short, long = run * (40 // len(run)), run * (50_000 // len(run))
+        reference = every_substring_split(before + short + after, decimal_comma)
+        assert taxonomy.affixed_split(before + short + after, decimal_comma) == reference, name
+        text = before + long + after
+        monkeypatch.setattr(taxonomy, "SPLIT_SEARCH_CHARACTERS", 5 * len(text), raising=False)
+        asked = _counting_asks(monkeypatch, 10)
+        split = taxonomy.affixed_split(text, decimal_comma)
+        monkeypatch.setattr(taxonomy, "_reads_as_a_number", reads)
+        assert asked["asks"] <= 10, (name, asked)
+        if reference is None:
+            assert split is None, (name, split)
+        else:
+            assert split == tuple(part.replace(short, long) for part in reference), name
