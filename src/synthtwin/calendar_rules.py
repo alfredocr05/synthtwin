@@ -25,19 +25,26 @@ nothing else ever chooses one:
 A merged group of the menu says only that SOME member is short: the
 entry is read back from the shape of the groups alone (`entry_of`).
 
-WHETHER THE CENSUS THE MENU OFFERS IS PUBLISHED is decided by what the
-twin can meet, not by what a reader could work out from it (the
-owner's principle of 2026-10-01: the threat is a HIPAA exposure, never a
-reader rebuilding counts; plan P4-D365 dropped the full-fill
-certificate, its bands, its cap, its ties refusal and WC5, WC7, WC8 and
-WC9). The producer withholds a census whose twin cannot keep the
-column's count of different values (`few_dates`, `room_short`), and
-both the producer and the loader hold a published census to its shape
-(`shape_breach`): WC1 the cover, WC2 the floor, WC3 the total, WC4 the
-menu and WC6 one spelling per day (`one_spelling_published`) -- the
-published censuses of written forms give every date one text, so the
-count of different values is a count of different days. One storage
-class per workbook column (`stored_one_way`) is the producer's too.
+WHETHER THE CENSUS THE MENU OFFERS IS PUBLISHED is decided by rules
+about the twin and the census's own shape, never by what a reader could
+work out from it (the owner's principle of 2026-10-01: the threat is a
+HIPAA exposure, never a reader rebuilding counts; plan P4-D365 dropped
+the full-fill certificate, its bands, its cap, its ties refusal and
+WC5, WC7, WC8 and WC9). The producer withholds a census by two
+CONSERVATIVE rules, set on the cases where a twin was measured to miss
+the column's count of different values: too few different dates in a
+group (`few_dates`); and, beside May's holes, placeholder days or
+declared days (never width holes alone), a group with no free day that
+holds a date of one row (`room_short`). They are rules, not proofs that
+no twin can meet the census: each also withholds some censuses a twin
+meets (1 to 21 January 2024, a hundred rows a date; the 50 columns plan
+P4-D365 counts). Both the producer and the loader hold a published
+census to its shape (`shape_breach`): WC1 the cover, WC2 the floor, WC3
+the total, WC4 the menu and WC6 one spelling per day
+(`one_spelling_published`) -- the published censuses of written forms
+give every date one text, so the count of different values is a count
+of different days. One storage class per workbook column
+(`stored_one_way`) is the producer's too.
 
 AND THE RULES EVERY CENSUS OF STAGE 3B SHARES (plan P4-D364), each
 stated once so that no census writes its own: a count is nought or at
@@ -85,11 +92,13 @@ REASON_NO_TAILS = "no_tails"
 REASON_SPELLINGS = "spellings"
 REASON_WORKBOOK = "workbook"
 REASON_MENU = "menu"
-# Too few different dates in a group for the twin to keep the count of
-# different values while it meets the census (`few_dates`).
+# Too few different dates in a group, by the conservative rule
+# `few_dates`, for the twin to be sure to keep the count of different
+# values while it meets the census.
 REASON_FEW_DATES = "few_dates"
-# Too little room between the published holes for the twin to lay the
-# body's different dates on (`room_short`).
+# Too little room between the published holes, by the conservative rule
+# `room_short`, for the twin to be sure to lay the body's different dates
+# on.
 REASON_ROOM = "room"
 # The producer's own census broke a rule the loader asks (`shape_breach`).
 REASON_NARROWED = "narrowed"
@@ -123,11 +132,15 @@ REASON_UNSAID = "unsaid"
 # body, or where at least two groups are non-empty and they hold fewer
 # than seven and a half different real dates each on average -- fewer
 # than `MEAN_REAL_HALF_DATES` halves, so the rule stays in whole
-# numbers. Below either, the day pass splits a date's rows across two
-# dates to meet the census and the twin holds more different values
+# numbers. A CONSERVATIVE rule, set on measured cases: below either,
+# the day pass can split a date's rows across two dates to meet the
+# census, and the twins measured that did held more different values
 # than the column (k7 sessions 17 for 9; payroll on the 15th and the
 # last day 53 for 48; one date a month over 51 to 54 months, 7.00 to
-# 7.43 dates a group, 53 to 54 for 52).
+# 7.43 dates a group, 53 to 54 for 52). It withholds censuses a twin
+# meets as well: 1 to 21 January 2024, a hundred rows a date, met at
+# seeds 0 to 2 with all 21 dates once restored (the Codex review of
+# P4-D365, item 2). The thresholds stay; that is their price.
 FEWEST_REAL_DATES = 3
 MEAN_REAL_HALF_DATES = 15
 
@@ -1038,8 +1051,12 @@ def few_dates(
     `FEWEST_REAL_DATES` different days, or where at least two groups are
     non-empty and they hold fewer than seven and a half different days
     each on average (`MEAN_REAL_HALF_DATES` halves). There the day pass
-    meets the census only by splitting a date's rows across dates, and
-    the twin holds more different values than the column. A rule of what the twin can meet,
+    can meet the census by splitting a date's rows across dates, and a
+    twin that does holds more different values than the column, as the
+    measured cases did. A CONSERVATIVE rule, not a proof that no twin
+    can meet the census: it withholds some a twin meets (1 to 21 January
+    2024, a hundred rows a date; the Codex review of P4-D365, item 2),
+    and that is its price. A rule of what the twin is sure to meet,
     never of what a reader could work out: the loader cannot ask it, and
     need not.
 
@@ -1069,9 +1086,12 @@ def room_short(
     (`public_holes`). A group's FREE days are its weekdays' days from the
     first to the last that are no hole and hold no date of the body. True
     where a non-empty group has NO free day and holds a date of ONE row:
-    the day pass meets the census by moving single rows, a one-row date
-    it moves is left empty, and with no free day to stand a date on, the
-    twin holds fewer different values than the column. Measured on the
+    the day pass can meet the census by moving single rows, a one-row
+    date it moves can be left empty, and with no free day to stand a
+    date on, a twin that leaves one holds fewer different values than
+    the column. A CONSERVATIVE rule, set on the cases measured where a
+    twin missed, not a proof that none can meet the census (the Codex
+    review of P4-D365, item 2). Measured on the
     guard drop's batteries and its review's (plan P4-D365): every column
     whose twin missed its count of different values with the rule off was
     one of May dates written `17 May 2023` that filled every open day and

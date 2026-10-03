@@ -918,3 +918,115 @@ def weekend_moved(whole: int, single: int) -> "list[str]":
     cells = _moved(cells, "2024-05-27", "2024-05-11", single)
     random.Random(9).shuffle(cells)
     return cells
+
+
+# -- the review of landing 3b.D1 (plan P4-D365), item 1: a missed census is not said to be met --
+
+
+def test_a_census_the_twin_misses_is_not_said_to_be_met(tmp_path: pathlib.Path) -> None:
+    """The calendar sentence is read off the day pass's measurement, not off the census.
+
+    The review's scenario: 400 rows, 1 January to 9 April 2024, each date
+    four times, its census replaced by Monday to Saturday nought and
+    Sunday the whole body. The loader accepts it, and the body boundaries
+    (a Thursday and a Saturday) leave no twin able to meet it. At seed 0
+    the twin files `weekday_census` as a deviation, and on the reviewed
+    tree the sentence on how the column is spread still said "the
+    published counts per day of the week are met". Red when the sentence
+    is read off the census alone again, or when it calls the weekday
+    unpublished.
+    """
+    import copy
+
+    from synthtwin import generation
+
+    days = [datetime.date(2024, 1, 1) + datetime.timedelta(days=step) for step in range(100)]
+    cells = [day.isoformat() for day in days for _ in range(4)]
+    described = kpi_shapes.describe(tmp_path, "sundays", "visit\n" + "".join(f"{cell}\n" for cell in cells), 11)
+    document = copy.deepcopy(described.document)
+    block = document["columns"][0]
+    body = 400 - block["low_tail"]["rows"] - block["high_tail"]["rows"]
+    block["weekday_census"] = [{"first": 0, "last": 5, "count": 0}, {"first": 6, "last": 6, "count": body}]
+    loaded = contract.load_profile(str(fixtures.write_profile(tmp_path, "edited.json", document)))
+    twin = generation.generate(loaded, 0)
+    assert [note.fact for note in twin.deviations if note.fact == calendar_rules.WEEKDAY_CENSUS], twin.deviations
+    spread = [remark for remark in twin.remarks if remark.subject == "how these dates are spread across the calendar"]
+    assert len(spread) == 1, twin.remarks
+    said = f"{spread[0].held} {spread[0].note}"
+    assert "counts per day of the week are met" not in said, said
+    assert "counts per day of the week are not met" in said, said
+    assert "which days of the week the values fall on" not in said, said
+    # The column's own block carries the same sentence as the twin's list.
+    assert spread[0] in twin.outcomes[0].remarks
+    # The published census as it was: the sentence still says it is met.
+    met = generation.generate(described.loaded, 0)
+    assert not [note for note in met.deviations if note.fact == calendar_rules.WEEKDAY_CENSUS], met.deviations
+    kept = [remark for remark in met.remarks if remark.subject == "how these dates are spread across the calendar"]
+    assert "the published counts per day of the week are met" in kept[0].held, kept
+
+
+# -- the review of landing 3b.D1, item 2: the producer's two rules are conservative, and say so --
+
+
+def test_the_few_dates_rule_withholds_a_census_its_twins_meet_and_is_called_conservative(
+    tmp_path: pathlib.Path,
+) -> None:
+    """1 to 21 January 2024, a hundred rows each: withheld, and met once restored.
+
+    The review's scenario. Each weekday alone holds two or three of the
+    body's dates, so the few-dates rule withholds the census. Restored to
+    the census the menu would publish, its twins at seeds 0 to 2 hold all
+    21 dates, file no deviation and miss no check, the weekday groups
+    HELD. So the rule is not what no twin can meet: it is a conservative
+    rule set on measured cases where twins missed, and its price is a
+    census withheld that a twin would have met (plan P4-D365 counts 50
+    such columns). The thresholds stay. Red when the contract, the
+    module's docstring, either rule's docstring or the comment above
+    either rule's reason or the few-dates thresholds calls a withheld
+    census one no twin can meet again, or the rule stops withholding
+    this column.
+    """
+    from synthtwin import generation, rendering, validation
+
+    days = [datetime.date(2024, 1, 1) + datetime.timedelta(days=step) for step in range(21)]
+    cells = [day.isoformat() for day in days for _ in range(100)]
+    described = kpi_shapes.describe(tmp_path, "january", "visit\n" + "".join(f"{cell}\n" for cell in cells), 11)
+    block = described.block("visit")
+    assert block["weekday_census"] == [] and block["n_distinct"] == 21, block["weekday_census"]
+    body = sorted(cells)[block["low_tail"]["rows"] : len(cells) - block["high_tail"]["rows"]]
+    counts = [0] * 7
+    for cell in body:
+        counts[datetime.date.fromisoformat(cell).weekday()] += 1
+    groups = tuple((weekday, weekday, counts[weekday]) for weekday in range(7))
+    assert calendar_rules.few_dates(groups, [_day(cell) for cell in body])
+    document = dict(described.document)
+    document["columns"] = [dict(document["columns"][0], weekday_census=[{"first": first, "last": last, "count": count} for first, last, count in groups])]
+    restored = contract.load_profile(str(fixtures.write_profile(tmp_path, "restored.json", document)))
+    for seed in range(3):
+        twin = generation.generate(restored, seed)
+        assert len(set(twin.columns[0])) == 21, seed
+        assert list(twin.deviations) == [], (seed, twin.deviations)
+        checked = validation.measure(restored, str(fixtures.write(tmp_path, f"twin-{seed}.csv", rendering.twin_csv(twin))))
+        assert kpi_shapes.missed(checked) == [], seed
+        held = [check.verdict for check in checked.checks if check.subcheck == "weekday_census.groups"]
+        assert held == [validation.HELD], (seed, held)
+    contract_text = (fixtures.REPO_ROOT / "docs" / "spec" / "profile-contract-v6.md").read_text(encoding="utf-8")
+    start = contract_text.index("WHAT THE PRODUCER WITHHOLDS BESIDE THEM")
+    paragraph = " ".join(contract_text[start : contract_text.index("A FORM HOLE is", start)].split())
+    assert "what no twin can meet" not in paragraph, paragraph
+    assert "only by splitting" not in paragraph, paragraph
+    assert "conservative" in paragraph.lower(), paragraph
+    for said in (calendar_rules.few_dates.__doc__ or "", calendar_rules.room_short.__doc__ or ""):
+        said = " ".join(said.split())
+        assert "only by splitting" not in said and "is left empty, and with no free day" not in said, said
+        assert "conservative" in said.lower(), said
+    module = " ".join((calendar_rules.__doc__ or "").split())
+    assert "whose twin cannot keep" not in module and "decided by what the twin can meet" not in module and "conservative" in module.lower(), module
+    source = pathlib.Path(calendar_rules.__file__).read_text(encoding="utf-8").split("\n")
+    for constant in ("REASON_FEW_DATES", "REASON_ROOM", "FEWEST_REAL_DATES"):
+        end = next(index for index, line in enumerate(source) if line.startswith(f"{constant} = "))
+        start = end
+        while start > 0 and source[start - 1].startswith("#"):
+            start = start - 1
+        comment = " ".join(" ".join(source[start:end]).replace("#", " ").split())
+        assert "conservative" in comment.lower() and "the day pass splits a date's rows" not in comment, (constant, comment)

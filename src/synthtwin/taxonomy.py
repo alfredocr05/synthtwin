@@ -15584,17 +15584,20 @@ def weekday_decision(
     the days the published form censuses leave empty, the placeholder
     days `sentinel_verdicts` publishes as `read_as_missing`, and the days
     a published absent spelling names, `published_absent`), no menu
-    entry, too few different dates for the twin to keep the count of
-    different values (`calendar_rules.few_dates`), too little room
-    between the published holes other than width holes -- May's holes,
-    placeholder days and declared days (`calendar_rules.room_short`) --
+    entry, too few different dates by the conservative rule that keeps
+    the twin's count of different values (`calendar_rules.few_dates`),
+    too little room by its companion between the published holes other
+    than width holes -- May's holes, placeholder days and declared days
+    (`calendar_rules.room_short`) --
     and last the
     loader's own check (`calendar_rules.shape_breach`), so the producer
     never writes what the loader refuses. Since plan P4-D365 no rule
     here asks what a reader could work out from the census: the
     full-fill certificate, its bands, its cap and its ties refusal are
-    gone, and the census the menu offers is published wherever its twin
-    can meet it.
+    gone, and the census the menu offers is published unless one of the
+    two conservative rules above withholds it -- each set on measured
+    cases where a twin missed, and each withholding some censuses a twin
+    would meet (the Codex review of P4-D365, item 2).
 
     Guarantees: accepts the published block, the days, the published
     count, the settings, the storage flag and the texts; returns the

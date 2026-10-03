@@ -8,8 +8,8 @@ exists).
 
 ### The weekday guards dropped (2026-10-02)
 
-**The weekday census is published wherever its twin can meet it** (plan
-P4-D365, under the owner's principle of 2026-10-01). The full-fill
+**The weekday census is published unless a conservative rule withholds
+it** (plan P4-D365, under the owner's principle of 2026-10-01). The full-fill
 certificate, its bands, its 20,000-arrangement cap, its ties refusal and
 the loader's WC5, WC7, WC8 and WC9 are gone with `calendar_certificate.py`;
 the loader holds a census to its shape alone (WC1 to WC4, WC6). The
@@ -25,6 +25,24 @@ date pass folds into the dates is counted where the census counted it,
 and one left unparsed is not, so the source meets its own census.
 `K-S3-32` is floor-only, `K-S3-33` retired, `K-S3-35` new, and
 `K-S3-39`, `K-2B-13` and `K-2B-48` hold.
+
+**A census the twin misses is no longer said to be met** (its Codex
+review, item 1). The twin report's sentence on how a column of dates is
+spread said "the published counts per day of the week are met" wherever
+a census was published, even beside the line naming `weekday_census` as
+a fact the twin could not hold: a census edited to put the whole body on
+Sundays between a Thursday and a Saturday boundary loads, and no twin can
+meet it. The sentence is now read off the day pass's own measurement and
+says such a census is not met. No twin byte moves.
+
+**The two rules that withhold a census are called conservative, which
+they are** (its Codex review, item 2). The contract said they withheld
+"what no twin can meet". They do not: 1 to 21 January 2024, a hundred
+rows a date, is withheld by the few-dates rule, and its census restored
+is met at seeds 0 to 2 with all 21 dates and no deviation. The contract
+and the rules' own text now say each is set on the cases measured where
+a twin missed and withholds some censuses a twin would meet; the
+thresholds stay.
 
 ### Four paths of the largest tables grow with their rows (2026-10-01)
 

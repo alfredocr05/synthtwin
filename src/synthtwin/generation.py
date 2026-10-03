@@ -21179,6 +21179,19 @@ _SPREAD_WEEKDAYS_TOGETHER = (
     "differ from the real one."
 )
 
+# THE CLAUSE OF A CENSUS THE TWIN MISSED (review of landing 3b.D1, item
+# 1): the sentence is read off the completed measurement, the day pass's
+# own count of the body against the published groups, and not off the
+# census alone. A twin whose census is filed as a deviation is not said
+# to meet it; the weekday is not called unpublished either, because the
+# description does publish it.
+_SPREAD_WEEKDAY_MISSED = (
+    "The published counts per day of the week are not met over the "
+    "values between the two tail boundaries: weekday_census is named "
+    "among the facts the twin could not hold exactly, and counts per "
+    "weekday computed on this twin are not the real column's."
+)
+
 # How many things the sentence names, as it names them.
 _SPREAD_HOW_MANY = {1: "One", 2: "Two", 3: "Three", 4: "Four"}
 
@@ -21259,6 +21272,17 @@ def _weekday_spread(facts: contract.DatetimeFacts, spread: _Spread) -> _Spread:
     )
 
 
+def _weekday_missed_spread(spread: _Spread) -> _Spread:
+    """The sentence where the twin missed its weekday census (3b.D1 review)."""
+    return _Spread(
+        held=spread.held,
+        missing=tuple(
+            thing for thing in spread.missing if thing != _SPREAD_WEEKDAY_THING
+        ),
+        beside=tuple(list(spread.beside) + [_SPREAD_WEEKDAY_MISSED]),
+    )
+
+
 def _hour_spread(facts: contract.DatetimeFacts, spread: _Spread) -> _Spread:
     """The sentence with the hour census's clause.
 
@@ -21323,6 +21347,7 @@ def _spread_held(facts: contract.DatetimeFacts, held: str) -> str:
 
 def _spread_remarks(
     column: contract.ColumnBlock,
+    missed: "frozenset[str]" = frozenset(),
 ) -> "list[Remark]":
     """Say what a column of dates is NOT spread by (landing 2b.6).
 
@@ -21373,9 +21398,16 @@ def _spread_remarks(
     then those stage 3b reserves, each unchanged until its landing fills
     it.
 
-    Guarantees: accepts one column; returns one remark on a column of
-    dates and none on any other. Determinism: a function of the column.
-    Raises nothing. No I/O of any kind.
+    READ OFF THE MEASUREMENT, NOT THE CENSUS (review of landing 3b.D1,
+    item 1). `missed` is every fact the column's completed pass filed as
+    a deviation; a census among them is said to be missed, never met. A
+    description the loader accepts can publish a census its own tail
+    boundaries leave no twin able to meet, and the sentence had said it
+    was met beside the deviation saying it was not.
+
+    Guarantees: accepts one column and the facts it missed; returns one
+    remark on a column of dates and none on any other. Determinism: a
+    function of the arguments. Raises nothing. No I/O of any kind.
     """
     facts = column.facts
     if not isinstance(facts, contract.DatetimeFacts):
@@ -21389,7 +21421,10 @@ def _spread_remarks(
                 _SPREAD_PERIOD_NOTE,
             )
         ]
-    spread = _weekday_spread(facts, _SPREAD_NOTHING_MET)
+    if calendar_rules.WEEKDAY_CENSUS in missed:
+        spread = _weekday_missed_spread(_SPREAD_NOTHING_MET)
+    else:
+        spread = _weekday_spread(facts, _SPREAD_NOTHING_MET)
     # -- the hour of the written clock (3b.T2, P4-D371)
     spread = _hour_spread(facts, spread)
     # -- the minute and the second (3b.T3, P4-D372)
@@ -39208,7 +39243,9 @@ def generate(profile: contract.Profile, seed: int) -> Twin:
         # sentence it prints says each one is named in its own column's
         # block further down -- so a remark added to that list alone
         # makes the report promise a block it never writes.
-        spread = _spread_remarks(column)
+        spread = _spread_remarks(
+            column, frozenset(note.fact for note in notes)
+        )
         remarked = remarked + list(each.remarks)
         remarked = remarked + spread
         remarked = remarked + _held_back_absence_remarks(column, profile)
