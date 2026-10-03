@@ -6750,6 +6750,9 @@
     "tests/test_stage3b_full_precision.py::test_the_table_charged_before_a_step_is_taken_of_the_work",
     "tests/test_stage3b_full_precision.py::test_a_walk_out_of_work_stops_at_its_next_step",
     "tests/test_stage3b_full_precision.py::test_the_table_is_charged_every_group_handed_in_before_a_step",
+    "tests/test_stage3b_full_precision.py::test_a_leaf_s_readings_stop_when_the_steps_run_out",
+    "tests/test_stage3b_full_precision.py::test_a_leaf_s_readings_stop_when_the_work_runs_out",
+    "tests/test_stage3b_full_precision.py::test_a_raised_floor_over_values_written_two_ways_is_bounded_in_work",
     "tests/test_stage3b_full_precision.py::test_the_walk_can_never_reach_itself",
     "tests/test_stage3b_full_precision.py::test_the_sum_answers_what_the_walk_over_every_free_convention_answered",
     "tests/test_stage3b_full_precision.py::test_the_free_totals_are_every_total_the_free_conventions_hold",
@@ -6767,7 +6770,7 @@
    "pin_strength": "WEAKER",
    "measured_on": "three generators of computed numbers written by repr -- seconds/3600, a/b of whole numbers under 500, seconds/86400 -- at 1,000 rows and seeds 0 to 19 each, and seconds/3600 at 10,000 and 100,000 rows, seed 5000, through `synthtwin profile`",
    "evidence": "Before (668f276, the date-and-time reach audit's skeptic): `synthtwin profile` stopped on a RecursionError with no file in 14, 7 and 15 of 20 seeds of the three shapes at 1,000 rows, and on 3 of 3 workbook time columns holding seconds; the walk made iterative alone took 4.2 s at 1,000 rows, 41 s at 3,000 and more than twelve CPU minutes at 10,000, one reading of the free cells about 1.5 million big-number steps at 3,000 rows. After: the walk carries its own stack, a reading is a sum, and every step is charged its work against a second ceiling of four times the budget while the walk still answers by its steps counted one each: charged against the steps themselves (f31b3c5) the work changed 1 column of 668 measured, 1,000 whole numbers and quotients written in full (seed 8101), whose five files are 668f276's again here. The table was also charged for values the walk drops as bounding nothing (ae704e6), and a column of values each written two ways was counted at one width from 25,001 rows; the census of widths now hands the walk none of them, and that column keeps its pool.",
-   "nodes_min_collected": 22,
+   "nodes_min_collected": 25,
    "value_at": {
     "commit": "3827f20",
     "date": "2026-10-02",
@@ -6809,14 +6812,18 @@
    "source": "pytest",
    "nodes": [
     "tests/test_stage3b_full_precision.py::test_a_column_nothing_reads_is_split_once_per_different_text",
-    "tests/test_stage3b_full_precision.py::test_a_copy_of_a_reading_keeps_its_splits"
+    "tests/test_stage3b_full_precision.py::test_a_copy_of_a_reading_keeps_its_splits",
+    "tests/test_stage3b_full_precision.py::test_a_long_distinct_run_asks_the_classifier_a_few_times",
+    "tests/test_stage3b_full_precision.py::test_the_single_pass_search_answers_what_every_substring_answered",
+    "tests/test_stage3b_full_precision.py::test_a_column_of_distinct_long_annotations_describes_with_few_asks",
+    "tests/test_stage3b_full_precision.py::test_a_search_past_its_bound_stops_the_run_with_a_sentence"
    ],
    "test": "tests/test_kpi_ledger.py::test_k_s3_55",
    "driver": "tools/measurements/kpi_full_precision.py --kpi",
    "pin_strength": "EXACT",
    "measured_on": "1,000 Oracle TIMESTAMP spellings (`18-SEP-21 09.51.52.229882 PM`), seed 7, through `synthtwin profile`, every split counted; the driver's 10,000 of them timed",
    "evidence": "Before (668f276, the reach audit's skeptic): `affixed_split` ran 16 times a cell, `_reads_as_a_number` about 1,700 times a cell, 9.4 of the 9.9 s a 1,000-cell unread column took; 16,000 splits on this column. After: one per different text, the census's reading and the description's sharing the answers, kept for the reading's life at about 236 bytes per different text (170 for short texts with units, tracemalloc over 20,000), about 0.24 GB a column of a million different texts.",
-   "nodes_min_collected": 2,
+   "nodes_min_collected": 7,
    "value_at": {
     "commit": "3827f20",
     "date": "2026-10-02",

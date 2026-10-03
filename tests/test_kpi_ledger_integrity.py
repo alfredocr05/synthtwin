@@ -1024,7 +1024,7 @@ def test_an_unread_column_that_was_not_described_turns_k_s3_55_red() -> None:
     """
     entry = ENTRIES["K-S3-55"]
     recorded = {"id": entry["id"], "value": {"different_texts": 1000, "split_calls": 1000}, "detail": ""}
-    cases = {node: [{"outcome": "passed", "kpi": None}] for node in entry["nodes"]}
+    cases = _cases(entry, "passed", entry["nodes_min_collected"])
     cases[entry["test"]] = [{"outcome": "passed", "kpi": recorded}]
 
     def row(unread: "dict", seconds_count: bool) -> "dict":
