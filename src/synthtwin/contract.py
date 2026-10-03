@@ -1256,6 +1256,11 @@ INVARIANTS = {
         "every column named as holding the people the rows belong to is "
         "also declared as holding record numbers"
     ),
+    # The T1 review's item 7 (plan P4-D370, contract C6-10a).
+    "S8c": (
+        "a column whose clock is written on a 12-hour face with no AM or "
+        "PM is named as a 12-hour clock"
+    ),
     "S9": (
         "the smallest number of categories allowed is not larger than "
         "the largest"
@@ -3080,12 +3085,15 @@ class ClockFacts:
     values were written on and the codes written among them, and the
     census of the minutes of the hour, groups `(first, last, count)`.
 
-    Every clock value here is written in the form `clock_form` names,
-    two digits a field. The ladder is SELECTION -- eleven order
-    statistics of cells the column really holds -- and since stage 3
-    (contract T2) a rung is published only between the two tail
-    boundaries, so its two ends are always null. A tail's distances are
-    in the form's own unit: minutes for `hh-mm`, seconds for `hh-mm-ss`.
+    Every clock value here is written in the form `clock_form` names --
+    one of forty since landing T1 (contract C6-10a), its hour at the
+    form's width and on its face, its minutes and seconds in two digits
+    -- and ordered by the instant it names, never by its text. The
+    ladder is SELECTION -- eleven order statistics of cells the column
+    really holds -- and since stage 3 (contract T2) a rung is published
+    only between the two tail boundaries, so its two ends are always
+    null. A tail's distances are in the form's own unit: minutes for a
+    `-mm` form, seconds for a `-mm-ss` form.
     """
 
     clock_form: str
@@ -17294,6 +17302,26 @@ def _group_marks_agree(
                 )
 
 
+def _written_clock_style(column: ColumnBlock) -> "str | None":
+    """The written clock one column publishes, or None where it names none.
+
+    A column of clock times names it in `clock_form`; a slashed stamp in
+    its one `datetime_separators` word, unless that census was pooled.
+    Determinism: a function of the block. Raises nothing. No I/O.
+    """
+    facts = column.facts
+    if isinstance(facts, (ClockFacts,)):
+        return parsing.clock_style_of(facts.clock_form)
+    if isinstance(facts, (DatetimeFacts,)) and facts.parser_family in CLOCK_FORM_MEMBERS:
+        for word in sorted(facts.datetime_separators):
+            if word == WITHHELD:
+                continue
+            style = parsing.stamp_style(word)
+            if style is not None:
+                return style
+    return None
+
+
 def _cross_checks(
     columns: "tuple[ColumnBlock, ...]",
     settings: SettingsBlock,
@@ -17303,7 +17331,8 @@ def _cross_checks(
 
     S8: every name declared as holding record numbers is a column of
     this table -- a name that matches no column means the description
-    and the schema disagree about which columns were declared. S10:
+    and the schema disagree about which columns were declared. S8c: a
+    column written on the 12-hour face with no marker is declared one. S10:
     every note is about a column of this table. S11: the notes are
     grouped by column, in the order the columns come in the table.
     """
@@ -17350,6 +17379,25 @@ def _cross_checks(
                 f"'{name}' is named as a 12-hour clock",
                 "this table has no column of that name",
             )
+    # S8c (the T1 review's item 7): THE 12-HOUR FACE WITH NO MARKER IS A
+    # DECLARATION'S, and nothing else's (C6-10a). No cell says which clock
+    # wrote `12:15`, so a description publishing that face without the
+    # declaration beside it is read on the 24-hour face by everything
+    # that rebuilds the reading from the settings: the validator then read
+    # `12:xx` as noon and the unchanged source missed 16 checks.
+    for column in columns:
+        style = _written_clock_style(column)
+        if style is None or parsing.clock_face(style) != parsing.CLOCK_TWELVE_HOUR:
+            continue
+        if column.name in settings.forced_twelve_hour_clocks:
+            continue
+        raise _broken(
+            "S8c",
+            f"in the block for the column named '{column.name}'",
+            "the column writes its clock on a 12-hour face with no AM or PM",
+            "the block of rules that produced the description does not "
+            "name it as a 12-hour clock",
+        )
     _group_marks_agree(columns, settings)
     _mixture_pools_bounded(columns, settings)
     _closed_pools_bounded(columns, settings)

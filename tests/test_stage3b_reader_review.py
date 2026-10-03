@@ -33,10 +33,13 @@ at 110cb46 and passes with its fix:
   -- the contract and the method still refused a one-figure hour.
 """
 
+import copy
+import json
 import pathlib
 
 import pytest
 
+from synthtwin import contract
 from tests import test_stage3b_reader as gate
 
 
@@ -166,3 +169,35 @@ def test_item_6_the_oracle_places_the_same_days() -> None:
     reference = oracle.width_remainder(census, weights, both, days, 100, 11)
     assert product is not None and product == reference
     assert sorted({days[rank] for rank in product}) == [2, 3]
+
+
+# -- item 7: a 12-hour style needs its declaration -----------------------
+
+
+def _twelve_hour_dial() -> "list[str]":
+    """Codex's declared clock: the hour after midnight `12:00` to `12:59`, then `1:00` to `4:59`."""
+    return [f"12:{minute:02d}" for minute in range(60)] + [
+        f"{hour}:{minute:02d}" for hour in range(1, 5) for minute in range(60)
+    ]
+
+
+@pytest.mark.parametrize("prefix", ["", "3/17/2023 "])
+def test_item_7_a_twelve_hour_style_needs_its_declaration(
+    tmp_path: pathlib.Path, prefix: str
+) -> None:
+    """C6-10a: the ` twelve-hour` face is the face of a DECLARED column, and only that.
+
+    At 110cb46 the loader took the style with the declaration cleared,
+    and validation, reading `12:xx` as noon, missed 16 checks on the
+    unchanged source.
+    """
+    cells = [prefix + cell for cell in _twelve_hour_dial()]
+    block, profile, _questions = gate._described(tmp_path, cells, "--twelve-hour", "seen_at")
+    assert gate._style_of(block) == "h twelve-hour"
+    contract.load_profile(str(profile))
+    document = json.loads(profile.read_text(encoding="utf-8"))
+    changed = copy.deepcopy(document)
+    changed["settings"]["forced_twelve_hour_clocks"] = []
+    said = gate._refusal(tmp_path, changed)
+    assert contract.INVARIANTS["S8c"] in said, said
+    assert "seen_at" in said
