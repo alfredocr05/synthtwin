@@ -427,7 +427,10 @@ def test_the_book_is_the_rebuild_after_every_merge(monkeypatch: pytest.MonkeyPat
                 drifted += [f"rank {rank} taken out of its list, but it can pay"]
         if dead:
             reached["payers taken out"] += 1
+        kept = [rank for rank in book.payers[standing] if rank not in dead]
         dropped(book, standing, dead)
+        if book.payers[standing] != kept:
+            drifted += ["a walk's list lost a rank it did not name, or kept one it did"]
 
     def replaced_counted(book: typing.Any, first: int, left: int) -> None:
         before = len(book.offers_of[first])
