@@ -6704,10 +6704,17 @@ generator reaches it through `_cell_of_ordinal` and nowhere else.
 still zeros: the description says how MANY the finest cell carried and
 nothing about their values, so any other figure would be a made-up fact.
 The precision, the mark and the offset state are decision 5's own gains
-and are untouched. And the members the reader does not reach — a
-12-hour clock, `08APR2024`, Excel's unpadded hour — still fall to free
-text; the reversal is about writing what was read, not about reading
-more.
+and are untouched. And the spellings no member reads still fall to free
+text, `08APR2024` among them; the reversal is about writing what was
+read, not about reading more. Two this paragraph once named beside it
+are read since landing T1, on a slashed stamp: a 12-hour clock
+(`3/17/2023 9:30 PM`) and Excel's unpadded hour (`3/17/2023 9:30`),
+whose clock half the stamp members read in the forty forms of the
+`time_of_day` role (contract C6-10a, D12a) and the twin writes in its
+style (the T1 paragraph above). An ISO stamp still reads its clock with
+two figures a field on the 24-hour clock (the contract's `iso-datetime`
+row), so a 12-hour clock or a one-figure hour after an ISO date is not
+read (the T1 review's item 11).
 
 Then the clock half, exactly:
 
@@ -6722,6 +6729,15 @@ Then the clock half, exactly:
 
 then the offset suffix, when one was allocated: `Z`, or `+HH:MM`, or
 `-HH:MM`, exactly as the offset key spells it.
+
+**Read the table through the member.** Its texts are the ISO
+spellings: on every other member `YYYY-MM-DD` stands for the member's
+own date half (the table above), and on a slashed stamp `HH:MM` and
+`HH:MM:SS` stand for the clock its one `datetime_separators` word
+names (the T1 paragraph above): the two-figure 24-hour clock where
+that word is `space` or pooled, and otherwise the hour at its width
+and on its face (landing T1, contract C6-10a, D12a; the T1 review's
+item 11).
 
 **The table is COMPLETE, and that is now true of the contract as well**
 (P2-C1-F6). Revision 1 of the profile contract permitted a sixth pair —
@@ -7345,8 +7361,9 @@ P = n_present - n_unparsed        cells that parsed as clock times
 
 ### G7A.3 The one refusal this role adds
 
-A day holds 1,440 different minutes and 86,400 different seconds, and
-nothing else can be written in the column's form. So where
+A day holds 1,440 different minutes and 86,400 different seconds -- the
+declared 12-hour face half of each (G7A.1) -- and nothing else can be
+written in the column's form. So where
 
 ```
 n_distinct - n_unparsed  >  capacity(clock_form)
@@ -7507,15 +7524,22 @@ The `n_unparsed` cells are outside the obligation to reproduce a clock
 value: they are COUNTED rather than described, exactly as the datetime
 role's stand-ins are (G10.4). Each is stepped past four things — a
 spelling this column has already written, a word this format reads as
-"no value", a spelling that would read as a clock time in EITHER form,
-and a spelling this column publishes as a hole.
+"no value", a spelling that would read as a clock time in any of the
+forty forms (contract C6-10a, `parsing.clock_form`), and a spelling
+this column publishes as a hole.
 
 The third of those is the one specific to this role. A stand-in that
-reads as a clock time under the form the column did NOT publish is
-still a cell the twin's own description would count differently from
-the description the twin was built from, so it would quietly move
-`n_unparsed` — and a twin that re-describes to a different profile is
-the failure this whole document exists to prevent.
+reads as a clock time in any form, the column's or another, is a cell
+the twin's own description reads as a clock rather than counting it as
+text: in the column's precision and on its face it is read as one of
+the column's values whatever its hour's width (contract C6-10a, NF109),
+which quietly moves `n_unparsed`, and on another face or at the other
+precision it is weighed among the readings C6-10 and C6-10a compare. A
+twin that re-describes to a different profile is the failure this whole
+document exists to prevent.
+
+*Restated by the T1 review's item 11:* this section stepped a stand-in
+past a clock time "in EITHER form" while the reader had two.
 
 ## G8. Label columns (`constant`, `binary`, `categorical`, `long_tail_labels`)
 

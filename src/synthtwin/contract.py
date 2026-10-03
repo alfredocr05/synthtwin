@@ -513,7 +513,7 @@ COMPOUND_LABEL_KEYS = LABEL_KEYS + (
     "n_present",
 )
 
-# The clock role's own ten, and the two forms its cells can wear.
+# The clock role's own ten, and (below) the forty forms its cells can wear.
 # Nothing else joins them: these ten are the whole of what this role
 # adds to the universal keys, and the forbidden-key rule is what stops
 # an eleventh. STAGE 3 (plan P4-D328): the earliest and latest time went,
@@ -904,14 +904,14 @@ DATE_FORMATS = (
 ISO_MEMBERS = ("iso-date", "iso-datetime")
 FORMAT_ISO_MIXED = "iso-mixed"
 
-# The two readings that reach `datetime` resolution through a clock in
-# the time-of-day role's own two forms -- `HH:MM` and `HH:MM:SS`, and
-# nothing else. THEY CARRY NEITHER A FRACTION NOR AN OFFSET, because
-# their own reader takes neither (plan amendment A-P4-1 item 2), so a
-# description claiming one of those for such a column describes a
-# column no table can hold. That is a rule about the FORMAT and not
-# about the resolution, which is why D6 and D9 each need a clause of
-# their own for it (review item P4-DATE4-F1).
+# The readings that reach `datetime` resolution through a clock the
+# time-of-day role's own reader reads -- its forty forms since landing T1
+# (contract C6-10a, D12a) -- and nothing else. THEY CARRY NEITHER A
+# FRACTION NOR AN OFFSET, because their own reader takes neither (plan
+# amendment A-P4-1 item 2), so a description claiming one of those for
+# such a column describes a column no table can hold. That is a rule
+# about the FORMAT and not about the resolution, which is why D6 and D9
+# each need a clause of their own for it (review item P4-DATE4-F1).
 CLOCK_FORM_MEMBERS = (
     "month-first-datetime",
     "day-first-datetime",
@@ -3076,9 +3076,9 @@ class JoinedFacts:
 class ClockFacts:
     """A column of clock times (contract section 6, the clock role).
 
-    FIVE FACTS AND NO SIXTH: which of the two forms the cells wore, the
+    FIVE FACTS AND NO SIXTH: which of the forty forms the cells wore, the
     two tails, the eleven-rung ladder over the values that parsed, and
-    how many present cells no clock reading accepted. Beside them stand
+    how many present cells the clock reading left unread. Beside them stand
     the five stage 3b reserves (plan P4-D364), empty -- `clock_step`
     `None` -- on every column until the landing that fills each: the
     census of ten-minute bins, the values that stand out, the step the
@@ -15307,14 +15307,18 @@ def _is_canonical_width(name: str) -> bool:
 def _is_a_clock_value(text: object, form: str) -> bool:
     """Whether one published value is a clock time in one form.
 
-    Two digits a field, the separators where the form puts them, hours
-    to 23 and minutes and seconds to 59 -- invariant T1, asked of every
-    one of the thirteen clock values a block publishes.
+    Exactly the form's own spelling, in whichever of the forty forms of
+    contract C6-10a the block names: read in the form and written back
+    by its one writer character for character -- the hour at the form's
+    width and on its face, the minutes and seconds in two figures to 59
+    -- invariant T1, asked of every clock value a block publishes: each
+    tail's boundary and listed values, and every rung that is not null.
 
-    Built out of character comparisons rather than string methods: the
-    offline audit refuses a method call on a value it cannot trace to
-    text, and a value read out of somebody's document is exactly such a
-    value.
+    No string method is called on the value: once it is known to be
+    text it is handed to the reader and the writer in `parsing`, since
+    the offline audit refuses a method call on a value it cannot trace
+    to text, and a value read out of somebody's document is exactly
+    such a value.
     """
     if not isinstance(text, str):
         return False

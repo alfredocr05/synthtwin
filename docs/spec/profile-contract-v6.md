@@ -8714,8 +8714,9 @@ one date format must clear the line. Cells of the other precision, cells
 written on another face (NF108), and every other present cell no clock
 reading accepted, are counted in `n_unparsed` inside the slack the line
 leaves; a cell whose hour shows the other WIDTH is not among them, and
-is read in the column's (C6-10a, NF109). An in-slack minority is the
-line's ordinary arithmetic and not a decline.
+is read in the column's (C6-10a, NF109), save where both widths would
+spell a value declared missing. An in-slack minority is the line's
+ordinary arithmetic and not a decline.
 
 **Where BOTH precisions clear the line, the finer wins: the column
 takes its `-mm-ss` form.** A cell matches at most one precision, so
@@ -8784,8 +8785,10 @@ another face then drops does not shut out the reading that keeps more
    column and the cells of the other precision, or written on another
    face (NF108), are counted in `n_unparsed`, and where neither carries
    it the column declines to the later rules. A cell whose hour shows
-   the other WIDTH is not another form's cell: C6-10a reads it in the
-   column's. `datetime` has a joint
+   the other WIDTH is written in another of the forty forms and is read
+   all the same: C6-10a reads it in the column's width (NF109), save
+   where both widths would spell a value declared missing (the T1
+   review's item 11). `datetime` has a joint
    reading across ISO resolutions because that mix is the dominant
    export shape; clock-precision mixes are not, so this version takes
    the narrow reading and names the joint one as the candidate for a
@@ -8805,7 +8808,7 @@ All four are named residual R-P4-5.
 | `low_tail` | object or `null` | the five keys of DT1, values in `clock_form` | the cells below the low boundary: the boundary itself, how many lie strictly below it, how far below on average in minutes (a `-mm` form) or seconds (a `-mm-ss` form), the root-mean-square of those distances, and -- where the tail holds few values -- which values it holds | `boundary` and `rows` EXACT-OBSERVABLE; the two distances APPROXIMATED, inside the window of G12.14 |
 | `high_tail` | object or `null` | the same five keys | the cells above the high boundary, mirrored | as `low_tail` |
 | `clock_percentiles` | ladder of strings or `null` | section 5.6, rungs in `clock_form` | the eleven-rung ladder over the ordered clock values of the cells that parsed, published between the two tail boundaries and empty everywhere else (T2) | the two ends always `null`; each published interior rung APPROXIMATED, inside the window the generation method's approximated-fields table fixes for this role |
-| `n_unparsed` | integer ≥ 0 | — | present cells no clock reading of C6-10 accepted, the other form's cells among them | EXACT-OBSERVABLE as counted neutral stand-ins, explicitly OUTSIDE the clock representation obligation |
+| `n_unparsed` | integer ≥ 0 | — | present cells the column's clock reading leaves unread: those no reading of C6-10 accepts, the cells of the other precision and those written on another face (C6-10, NF108), and -- only where both hour widths would spell a value declared missing -- the cells so written (C6-10a); every other cell of the other hour width is read (NF109) | EXACT-OBSERVABLE as counted neutral stand-ins, explicitly OUTSIDE the clock representation obligation |
 
 **The five keys stage 3b reserves on this role** (plan P4-D364):
 `[]` -- `clock_step` `null` -- on every block until the landing their
@@ -13848,7 +13851,9 @@ a marked row.
       "one more thing a declaration can record" would be reading the
       smaller half.
 13. **The time-of-day form facts. NEW.** `clock_form` says which of the
-    two written clock forms the column's cells wore, and `n_unparsed`
+    forty written clock forms of C6-10a the column's cells wore -- the
+    precision, the hour's width and the face, where before landing T1
+    it named one of two (the T1 review's item 11) -- and `n_unparsed`
     counts the cells no clock reading accepted. Neither carries a
     value; both carry a shape and a count of the table.
 14. **The calendar-placeholder verdicts and their counts. NEW.** A

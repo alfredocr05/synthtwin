@@ -17901,8 +17901,10 @@ def _clock_content(
     # clock value and are counted rather than described. Each is
     # stepped past four things: a spelling this column already wrote, a
     # word this format reads as "no value", a spelling that would read
-    # as a clock time in EITHER form -- which would quietly move
-    # `n_unparsed` -- and a spelling this column publishes as a hole.
+    # as a clock time in any of the forty forms (contract C6-10a) --
+    # which the twin's own description would read as a clock rather
+    # than count as text -- and a spelling this column publishes as a
+    # hole.
     used: "dict[str, int]" = {cell: 1 for cell in cells}
     holes = _hole_spellings(column)
     step = 1
@@ -18001,10 +18003,13 @@ def _clock_off_the_holes(
 def _reads_as_a_clock(text: str) -> bool:
     """Whether this spelling would be read as a clock time at all.
 
-    Either form, because a stand-in that reads as one under the form
-    the column did NOT publish is still a cell the twin's own
-    description counts differently from the description it was built
-    from.
+    In any of the forty forms (contract C6-10a), the column's or
+    another, because a stand-in must be a cell no clock reading
+    touches: in the column's precision and on its face the twin's own
+    description would read it as a value whatever its hour's width, and
+    on another face or at the other precision it would be weighed among
+    the readings C6-10 and C6-10a compare, where a stand-in counted as
+    text is weighed by none (method G7A.5).
     """
     return parsing.clock_form(text) is not None
 

@@ -1946,7 +1946,7 @@ _STATED_WORDS: "dict[tuple[str, ...], tuple[str, ...]]" = {
     ),
     ("columns", _EACH, "date_percentiles", _KEY_OF): taxonomy.LADDER_NAMES,
     ("columns", _EACH, "clock_percentiles", _KEY_OF): taxonomy.LADDER_NAMES,
-    # Read from the one place the two forms are named, so the word a
+    # Read from the one place the forty forms are named, so the word a
     # producer writes and the word this guard admits cannot drift.
     ("columns", _EACH, "clock_form"): parsing.CLOCK_FORMS,
     # ...and the unit a tail is counted in (stage 3, contract DT4), a

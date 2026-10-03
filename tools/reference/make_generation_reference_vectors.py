@@ -18764,8 +18764,9 @@ def _clock_content(column):
             continue
         content.append(clock_spelling_of(ordinals[rank], form))
     # G7A.5.  The stand-ins this file builds are `text-N`, which reads
-    # as a clock time in NEITHER form, so the exclusion that belongs to
-    # this role is met by construction rather than by a search.
+    # as a clock time in none of the forty forms (contract C6-10a), so
+    # the exclusion that belongs to this role is met by construction
+    # rather than by a search.
     content.extend(text_stand_ins(content, column["n_unparsed"]))
     return content
 

@@ -16978,7 +16978,8 @@ def clock_reach(cells: _Cells) -> int:
 
     The count the closer of the two precisions reached, whether or not it
     cleared the detection line -- so a column that declined can still
-    say how far this reading got. Zero where no cell wore either form.
+    say how far this reading got. Zero where neither precision's reading
+    kept a cell, in any of the forty forms (contract C6-10a).
 
     A column that publishes nothing owes its owner the reason, and the
     reason is a set of counts (contract C6-5): the competing-readings
@@ -17362,17 +17363,19 @@ def _clock_reading(cells: _Cells) -> "_Clock | None":
 
     Guarantees:
 
-    - Determinism: every cell is read by `parsing.clock_form`, which is
-      a function of the cell alone, and the two forms are tried in a
-      fixed order. Nothing here reads a clock or a random source.
+    - Determinism: every cell is read by `parsing.clock_parts`, which is
+      a function of the cell alone, and the two precisions are tried in
+      a fixed order, each in the style contract C6-10a gives it out of
+      the forty forms (`_clock_candidates`). Nothing here reads a clock
+      or a random source.
     - The test is the contract's: at least the parse-line COUNT of
       present cells wear ONE form. It is a count and never a compared
       share, so no rounding of a division decides a role.
     - THE FINER FORM WINS where both clear the line, which can happen
-      only at a lowered parse rate -- no cell wears both, since the two
-      have different lengths, so both clearing needs twice the line to
-      fit inside the column. `hh-mm-ss` is tried first, which is that
-      rule.
+      only at a lowered parse rate -- no cell is at both precisions,
+      since a cell writes a seconds field or does not, so both clearing
+      needs twice the line to fit inside the column. The second is
+      tried first, which is that rule.
     - NO FLOOR IS READ HERE, and that is a decision rather than an
       omission. Two rules of this phase consult `small_cell_floor` at
       detection because publishing a floor-clearing SPELLING is what
@@ -17391,9 +17394,10 @@ def _clock_reading(cells: _Cells) -> "_Clock | None":
     needed = _needed(cells.settings.minimum_parse_rate, len(present))
     for clock in _clock_candidates(cells):
         # The CELL, not a tidied copy of it: what this role publishes
-        # are values some row wore, and the reader accepts nothing that
-        # needed tidying -- a cell of the other hour width is the one it
-        # writes the column's way (`_Clock.values`).
+        # are values some row held, each as the row wrote it but for a
+        # cell of the other hour width, which is written the column's way
+        # (`_Clock.values`), and the reader accepts nothing that needed
+        # tidying.
         if len(clock.values) >= needed and clock.values:
             return clock
     return None
@@ -17606,20 +17610,24 @@ def _clock_verdict(
 ) -> _Verdict:
     """The published block of a column of clock times (contract C6-10).
 
-    FIVE KEYS AND NO SIXTH: which form the cells wore, the earliest and
-    latest clock value, an eleven-rung ladder over the parsed values,
-    and how many present cells no clock reading accepted.
+    FIVE KEYS: which of the forty forms the cells wore (contract
+    C6-10a), the two tails that took the place of the earliest and
+    latest clock value (stage 3, plan P4-D328), an eleven-rung ladder
+    over the parsed values, and how many present cells the reading left
+    unread. The five stage 3b reserves are set beside them by
+    `_clock_census_published`.
 
     THE LADDER IS SELECTION, exactly as the date ladder is: eleven
-    order statistics of cells the column really holds, with no
-    interpolation anywhere in it. So every rung is a clock value some
-    row wore, and `min` and `max` are the endpoints themselves.
+    order statistics of the values the column really holds, with no
+    interpolation anywhere in it. So every published rung is a clock
+    value some row held, written in the column's form, and `min` and
+    `max` are always null (contract T2).
 
-    THE ORDER IS TEXT ORDER, and that is safe here rather than
-    convenient: both forms are fixed-width and zero-padded, so
-    comparing the written cells character by character puts them in
-    the same order their ordinals do. The contract states the same
-    equivalence and its own T3 is a text comparison for this reason.
+    THE ORDER IS THE INSTANT'S AND NEVER THE TEXT'S (landing T1). The
+    two agree on `hh-mm` and `hh-mm-ss`, and on the other thirty-eight
+    forms they do not -- `9:30` sorts after `10:00` as text, `1:05 PM`
+    before `11:00 AM` -- so the values are ordered by their ordinals in
+    the form, which is the order the contract's T3 checks.
 
     ONE LIMIT STATED AT THE FACT THAT CARRIES IT. The ladder reads the
     day as a LINE from `00:00` to the end of the day, as every ladder
@@ -19370,8 +19378,8 @@ def _decide(
        while the rule shipped, so a maintainer reading the one place
        that states the order was told of fourteen rules where there
        are fifteen (review round 8 of landing L8, item 6);
-    8. clock times, in one of two forms, at the parse rate --
-       `time_of_day`;
+    8. clock times, in one of the forty forms of contract C6-10a, at the
+       parse rate -- `time_of_day`;
     9. a number wearing one shared piece of text -- `affixed_number`;
     9b. a long tail of labels -- `long_tail_labels`;
     9c. TWO PLAIN WHOLE NUMBERS JOINED BY A SLASH in every cell but the

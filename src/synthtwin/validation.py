@@ -16630,7 +16630,7 @@ def _shown_clock_distance(ordinal: int, rung: int, form: str) -> str:
     # The two numbers arrive in seconds; a column of minutes says its
     # distance in minutes, which is what its reader has in front of
     # them. An odd number of seconds on such a column is a file that
-    # wore the other form, and it is said in seconds rather than
+    # wrote the other precision, and it is said in seconds rather than
     # rounded into a lie.
     away = ordinal - rung
     word = _clock_units(form)
@@ -16662,9 +16662,9 @@ def _within_clock(
     rung; and a window that does not reach the published value says so
     rather than leaving a reader to think the page is wrong.
     """
-    # IN SECONDS OF DAY, the one unit the two forms share, because the
-    # measured side was read in the FILE's own form and this one is
-    # read in the description's.
+    # IN SECONDS OF DAY, the one unit every one of the forty forms
+    # converts to, because the measured side was read in the FILE's own
+    # form and this one is read in the description's.
     step = parsing.clock_step(facts.clock_form)
     rung = step * _clock_ordinal_or_zero(published, facts.clock_form)
     low, high = window

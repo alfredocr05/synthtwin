@@ -175,8 +175,11 @@ declaration was used where its clocks write no AM or PM, and that it
 changed nothing where they do; the 12-hour and colon questions no
 longer say "every value" of a column holding cells they did not read,
 the colon one counting the cells that are not numbers joined by a
-colon; and the contract and the method no longer refuse `9:30` or
-order clock text as written.
+colon; and the contract, the method and the comments of the code no
+longer refuse `9:30`, order clock text as written or speak of two clock
+forms: G7.5 says a 12-hour clock and Excel's unpadded hour are read on a
+slashed stamp and not after an ISO date, and G7A.5 steps a stand-in past
+a clock time in any of the forty forms.
 
 ### Every tail publishes its pair (2026-10-01)
 

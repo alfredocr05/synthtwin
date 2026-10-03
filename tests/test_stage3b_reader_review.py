@@ -53,6 +53,20 @@ of its first round, and each but the bound's red at 110cb46 too:
   used;
 * item 10, the colon clause of its test -- a clock of the other
   precision was said not to be numbers joined by a colon.
+
+And its third round, item 11 alone, each sentence it adds red at
+9b60ab1 and every one but the first round's own "not another form's
+cell" red at 110cb46 too: G7.5 still sent a 12-hour clock and Excel's
+unpadded hour to free text, G7A.5 still stepped a stand-in past a clock
+time "in EITHER form", the contract's `n_unparsed` row still counted
+"the other form's cells", its fourth refusal said a cell of the other
+hour width was "not another form's cell" and its pricing of the clock
+facts still had `clock_form` name one of "two written clock forms", and
+the comments and docstrings of the product and the oracle still spoke
+of two clock forms -- one of them, the clock block's own, still saying
+its ladder was ordered by text. The sentences are now matched whatever
+their case and across a comment's lines, since `Two digits a field`
+survived the first round's lower-case entry.
 """
 
 import copy
@@ -532,6 +546,13 @@ _RETIRED = {
         "Cells of the other clock form, and every other present cell",
         "the finer wins: the column takes `hh-mm-ss`",
         "in minutes (`hh-mm`) or seconds (`hh-mm-ss`)",
+        # ...and the third round: `n_unparsed` counted "the other form's
+        # cells", the fourth refusal said a cell of the other hour width
+        # is not another form's, where under C6-10a it is one -- and is
+        # read all the same -- and the pricing of 12.3 still named two.
+        "present cells no clock reading of C6-10 accepted, the other form's cells among them",
+        "is not another form's cell",
+        "says which of the two written clock forms the column's cells wore",
     ),
     "docs/spec/generation-method-v1.md": (
         "What the reader accepts is EXACTLY these two shapes",
@@ -542,18 +563,84 @@ _RETIRED = {
         "values some row wore, character for character",
         "A cell wearing the form the column did NOT publish is counted unparsed",
         "minutes of the day for `hh-mm`, seconds for `hh-mm-ss`",
+        # ...and the third round: G7.5 sent a 12-hour clock and Excel's
+        # unpadded hour to free text, which the stamp members read since
+        # landing T1, and G7A.5 spoke of a clock time in "EITHER form".
+        "a 12-hour clock, `08APR2024`, Excel's unpadded hour — still fall to free text",
+        "a spelling that would read as a clock time in EITHER form",
+        "reads as a clock time under the form the column did NOT publish",
     ),
-    "src/synthtwin/contract.py": ("two digits a field",),
+    # ...and the comments and docstrings that say what the code does (the
+    # third round): each still spoke of the clock's two forms.
+    "src/synthtwin/contract.py": (
+        "two digits a field",
+        "the two forms its cells can wear",
+        "the time-of-day role's own two forms",
+        "which of the two forms the cells wore",
+        "hours to 23 and minutes and seconds to 59 -- invariant T1",
+    ),
+    "src/synthtwin/generation.py": (
+        "as a clock time in EITHER form",
+        "under the form the column did NOT publish",
+    ),
+    "src/synthtwin/parsing.py": (
+        "its clock is the time-of-day role's two forms",
+        "is the time-of-day role's own two forms",
+        "then a clock in the time-of-day role's two forms",
+    ),
+    "src/synthtwin/taxonomy.py": (
+        "THE ORDER IS TEXT ORDER",
+        "both forms are fixed-width and zero-padded",
+        "the two forms are tried in a fixed order",
+        "clock times, in one of two forms",
+        "Zero where no cell wore either form",
+        "every rung is a clock value some row wore",
+        "values some row wore, and the reader accepts nothing that needed tidying",
+    ),
+    "src/synthtwin/validation.py": (
+        "the one unit the two forms share",
+        "a file that wore the other form",
+    ),
+    "src/synthtwin/dialect.py": ("the two forms of contract C6-10",),
+    "src/synthtwin/profile.py": ("the one place the two forms are named",),
+    "tools/reference/make_generation_reference_vectors.py": (
+        "as a clock time in NEITHER form",
+    ),
 }
 
 
+def _words_of(name: str) -> str:
+    """One file's words: each line's comment mark off, whitespace collapsed, case folded."""
+    lines = (ROOT / name).read_text(encoding="utf-8").splitlines()
+    joined = " ".join(line.strip().lstrip("#") for line in lines)
+    return " ".join(joined.split()).casefold()
+
+
 def test_item_11_no_retained_clause_contradicts_the_forty_forms() -> None:
-    """The contract and the method state the forty forms, and no clause of the two forms survives."""
+    """The contract and the method state the forty forms, and no clause of the two forms survives.
+
+    Matched with whitespace collapsed, a comment's marks taken off each
+    line and whatever the case, so a retired sentence re-wrapped, run
+    across two comment lines or opening a docstring is still found.
+    """
     for name, sentences in _RETIRED.items():
-        text = " ".join((ROOT / name).read_text(encoding="utf-8").split())
+        text = _words_of(name)
         for sentence in sentences:
-            assert " ".join(sentence.split()) not in text, (name, sentence)
+            assert " ".join(sentence.split()).casefold() not in text, (name, sentence)
     contract_text = (ROOT / "docs/spec/profile-contract-v6.md").read_text(encoding="utf-8")
     assert "the thirty-eight more of C6-10a (forty in all" in contract_text
     method = (ROOT / "docs/spec/generation-method-v1.md").read_text(encoding="utf-8")
     assert "**What the reader accepts is EXACTLY the forty forms**" in method
+    # ...and the third round's restatements stand where the retired
+    # sentences stood.
+    method_text = " ".join(method.split())
+    assert "`08APR2024` among them" in method_text
+    assert "in any of the forty forms (contract C6-10a, `parsing.clock_form`)" in method_text
+    assert "**Read the table through the member.** Its texts are the ISO spellings" in method_text
+    contract_said = " ".join(contract_text.split())
+    assert "every other cell of the other hour width is read (NF109)" in contract_said
+    assert "says which of the forty written clock forms of C6-10a" in contract_said
+    # ...and the phase 2 plan's retired R-P2-7, which still says what
+    # fell to free text the day it retired, says what T1 narrowed.
+    plan_said = " ".join((ROOT / "docs/plans/phase-2-generator.md").read_text(encoding="utf-8").split())
+    assert "*Narrowed by landing T1 (plan P4-D370; the T1 review's item 11)" in plan_said
