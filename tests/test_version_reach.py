@@ -65,9 +65,10 @@ with no newline in it, which is most of this file's samples.)
 THE LIMIT THAT WOULD MATTER is a string of source that IS RUN --
 handed to `exec`, `eval` or `compile`, or to `runpy` -- because that
 spelling reaches the 3.10 cells while this file says nothing about it.
-The tree holds TWENTY-NINE such calls (counted again at the merge of
-stage 4's first tier into stage 3b's landings, 2026-10-02: the figure
-here had stood two short since before them). They are listed in
+The tree holds THIRTY-TWO such calls (counted again at the review of
+landing 3b.D0, 2026-10-03: the figure here had stood one short since
+the fifteenth vectors file's route arrived, and that review's mutants
+add two). They are listed in
 `ROUTES_THAT_RUN_SOURCE` below and
 `test_the_routes_that_run_a_string_of_source_are_the_ones_named_here`
 holds the tree to that list, so a thirtieth cannot arrive unread.
@@ -112,14 +113,24 @@ calls are held by what they are handed or by where they run:
   `cells = cells + [...]` and drops one `cells = list(...)`: a name, an
   assignment and an addition, which every Python spells alike, so it
   adds no spelling the floor could miss.
+- `tests/test_stage3b_shared_steps.py` builds a module with
+  `exec(compile(source, ...))` (plan P4-D366, the review of landing
+  3b.D0), where `source` is `src/synthtwin/generation.py`, a file this
+  guard reads, carrying ONE edit: a reviewer's mutant from
+  `REVIEW_MUTANTS`, or one of the three the long cause's test makes.
+  Each edit is a string constant of `tests/` that changes a comparison,
+  a constant or a condition, or leaves a line out -- names, numbers and
+  operators every Python spells alike -- so it adds no spelling the
+  floor could miss, and the test runs in every cell of the matrix.
 - `runpy.run_path` runs the same kind of committed file: twice in
-  `tests/`, in the two stage-2 oracle tests, and seventeen times in
+  `tests/`, in the two stage-2 oracle tests, and eighteen times in
   `tools/` -- one for the provenance guard's own runner and one for
-  each of the sixteen entry points of the generation vectors, among
+  each of the seventeen entry points of the generation vectors, among
   them the tenth and eleventh, which stage 3's two tail landings
   added (the date and clock tails, landing 3.4, opened the tenth and
-  the numeric tails, landing 3.3, the eleventh), and the sixteenth and
-  twenty-second files of stage 3b (plans P4-D375 and P4-D370). Each
+  the numeric tails, landing 3.3, the eleventh), and the sixteenth,
+  fifteenth and twenty-second files of stage 3b (plans P4-D375,
+  P4-D366 and P4-D370). Each
   runs the committed oracle
   `tools/reference/make_generation_reference_vectors.py` exactly as
   its siblings do, and the floor holds for them for the same reason:
@@ -258,6 +269,8 @@ ROUTES_THAT_RUN_SOURCE = {
     ("tests/test_ci_demo_steps.py", "exec"): 1,
     ("tests/test_stage4_linear_work.py", "compile"): 2,
     ("tests/test_stage4_linear_work.py", "exec"): 2,
+    ("tests/test_stage3b_shared_steps.py", "compile"): 1,
+    ("tests/test_stage3b_shared_steps.py", "exec"): 1,
     ("tests/test_stage2_datetime_oracle.py", "runpy.run_path"): 1,
     ("tests/test_stage2_grouping_oracle.py", "runpy.run_path"): 1,
     ("tools/provenance/guard_runner.py", "runpy.run_path"): 1,
