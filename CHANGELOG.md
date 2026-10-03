@@ -23,11 +23,11 @@ cycles is bounded above seven groups, and four steps are added for the
 censuses to come: a chain of moves through a third group (7b), whole
 values merged at their own clock first (8.4), pairs of moves across two
 gaps where the count is long (8.5), and a trade that keeps a second
-census (8.6). On 1,392 tables of sixteen date batteries (4,440 twins)
-every twin is the one before this landing, and the frozen vectors pass
-unchanged; the four steps are frozen on ten stated states of ranks in
-a fifteenth vectors file, each red on its own mutant. A count the pass
-leaves long is now named as long.
+census (8.6). On 4,666 date columns (14,810 twins: nineteen batteries
+and 3,000 random columns) every twin is the one before this landing,
+and the frozen vectors pass unchanged; the four steps are frozen on ten
+stated states of ranks in a fifteenth vectors file, each red on its own
+mutant. A count the pass leaves long is now named as long.
 
 ### The weekday guards dropped (2026-10-02)
 
