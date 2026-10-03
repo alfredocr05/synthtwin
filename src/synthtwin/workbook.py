@@ -2630,9 +2630,23 @@ def mixed_storage(
     text ones is not published, so is not kept, and the twin's report
     says so for the column.
 
-    Returns the column's index, `errors.MIXED_FORMATS` and the kinds its
-    numbers wear, in `FORMAT_KINDS` order, so the refusal can say which
-    they are. Guarantees: a fixed function of the sheet; raises nothing.
+    A TIME FORMAT OVER NUMBERS ON BOTH SIDES OF ONE DAY IS THAT MIX TOO
+    (review item 3 of landing R3). A number under one day wearing a time
+    format is a time of day to every reader, and one of a day or more is
+    a date with a time whose format shows only the time: openpyxl hands
+    back a `time` for the first and a `datetime` for the second. Such a
+    column is no clock column (`_read_as_one_column`), so it was read as
+    continuous numbers, and nothing in the description says which values
+    were the dates. Measured on 1,000 `h:mm` cells, 11 of a day or more
+    and 989 under one, all on whole minutes: openpyxl read the source as
+    989 times and 11 date-times, the twin as 980 and 20, 999 of them off
+    the minute, and `validate` reported no miss. Such a column is
+    refused, with `errors.MIXED_DAYS`, before a description is written.
+
+    Returns the column's index, `errors.MIXED_FORMATS` or
+    `errors.MIXED_DAYS`, and the kinds its numbers wear, in
+    `FORMAT_KINDS` order, so the refusal can say which they are.
+    Guarantees: a fixed function of the sheet; raises nothing.
     """
     for index in range(len(sheet.classes)):
         classes = sheet.classes[index]
@@ -2641,6 +2655,10 @@ def mixed_storage(
         for row in range(len(classes)):
             if classes[row] == dialect.SHEET_CELL_NUMBER and row < len(codes):
                 worn[format_kind(codes[row])] = True
+        if len(worn) == 1 and FORMAT_TIME in worn:
+            if _clock_and_moment(sheet.columns[index], classes, codes):
+                return (index, errors.MIXED_DAYS, (FORMAT_TIME,))
+            continue
         if len(worn) < 2:
             continue
         together = True
@@ -2655,6 +2673,39 @@ def mixed_storage(
                 found += [kind]
         return (index, errors.MIXED_FORMATS, tuple(found))
     return None
+
+
+def _clock_and_moment(
+    texts: "list[str]", classes: "list[str]", codes: "list[str]"
+) -> bool:
+    """Whether a column's time-format numbers stand both under one day and at one or more.
+
+    `mixed_storage`'s question for a column whose numbers wear only a
+    time format: a number from nought up to one day is a time of day to
+    every reader, and one of a day or more a date with a time. A cell
+    the reader already spelled as its clock holds no number and is a
+    time of day. Guarantees: a fixed function of the three; raises
+    nothing. No I/O of any kind.
+    """
+    under = False
+    over = False
+    for row in range(min(len(texts), len(classes), len(codes))):
+        if classes[row] != dialect.SHEET_CELL_NUMBER:
+            continue
+        if format_kind(codes[row]) != FORMAT_TIME:
+            continue
+        try:
+            value = float(texts[row])
+        except ValueError:
+            under = True
+            continue
+        if value >= 1:
+            over = True
+        elif value >= 0:
+            under = True
+        if under and over:
+            return True
+    return False
 
 
 def mixed_number_formats(sheet: Sheet, floor: int) -> "tuple[int, str] | None":

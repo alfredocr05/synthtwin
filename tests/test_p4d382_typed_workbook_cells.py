@@ -893,3 +893,66 @@ def test_stored_dates_are_counted_among_the_present_cells(
     dates = [value for value, _code in read if isinstance(value, datetime.datetime)]
     assert len(dates) == 950
     assert len([value for value, _code in read if value == word]) == ROWS
+
+
+def _clocks_beside_moments() -> "list[tuple[object, str]]":
+    """1,000 `h:mm` numbers: 11 date-times of a day or more, 989 clocks under one."""
+    cells: "list[tuple[object, str]]" = []
+    for index in range(ROWS):
+        if index < 11:
+            cells += [(45000 + index / 1440, "h:mm")]
+            continue
+        cells += [(((7 * index) % 1440) / 1440, "h:mm")]
+    return cells
+
+
+def test_clocks_beside_moments_under_one_time_format_are_refused(
+    tmp_path: pathlib.Path,
+) -> None:
+    """A time format over numbers both under one day and of a day or more.
+
+    Review item 3 of landing R3. openpyxl reads the source as 989 times
+    and 11 date-times, all on whole minutes; the column fell back to
+    continuous numbers and its twin read as 980 times and 20 date-times,
+    979 of them carrying fractions of a second, while `validate`
+    reported no miss. Nothing in a description says which values were
+    the date-times, so the table is refused, naming the column and what
+    to do, as every other mix a twin cannot carry is.
+    """
+    source = [
+        type(value).__name__
+        for value, _code in _cells_read_from_bytes(_book(_clocks_beside_moments()))
+    ]
+    assert collections.Counter(source) == {"time": 989, "datetime": 11}
+    table = tmp_path / "table.xlsx"
+    table.write_bytes(_book(_clocks_beside_moments()))
+    code, said = _exit_of(
+        ["profile", f"{table}", "--out-dir", f"{tmp_path}", "--replace",
+         "--smallest-group", "11"]
+    )
+    assert code == 1, said[-600:]
+    message = " ".join(said.split())
+    assert "event_at" in message
+    assert "shown as times of day" in message
+    assert "a whole day or more" in message
+    assert not (tmp_path / "table-profile.json").exists()
+    # The control: the same clocks with the eleven moments' days taken
+    # off are one kind of value to every reader, and are read as clocks
+    # (a column of moments alone under `h:mm` is
+    # `test_moments_wearing_a_clock_format_stay_numbers`).
+    trip = _trip(
+        tmp_path / "control",
+        [(value % 1, code) for value, code in _clocks_beside_moments()],
+    )
+    assert trip["column"]["role"] == "time_of_day"
+    assert trip["twin_exit"] == 0
+
+
+def _cells_read_from_bytes(held: bytes) -> "list[tuple[object, str]]":
+    """Every value cell of the first column of a workbook's bytes, as openpyxl reads it."""
+    sheet = crosscheck.reader().load_workbook(io.BytesIO(held)).worksheets[0]
+    out: "list[tuple[object, str]]" = []
+    for row in sheet.iter_rows(min_row=2, max_col=1):
+        if row[0].value is not None:
+            out += [(row[0].value, row[0].number_format)]
+    return out
