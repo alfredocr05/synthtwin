@@ -1091,3 +1091,133 @@ def test_every_argument_of_the_ladder_is_part_of_the_question() -> None:
             asked += 1
             assert verdict == taxonomy._decide(tally, forced, **named)  # type: ignore[arg-type]
             assert len(tally.decided) == asked, (forced, name)
+
+
+# -- 5. the made-up spellings of a label (review of landing S1, item 2) --
+
+
+def _case_spellings(label: str, count: int) -> "list[str]":
+    """The first ``count`` case flips of ``label``, in the counter order of method G8.2."""
+    spellings: "list[str]" = []
+    order = 1
+    while len(spellings) < count:
+        flip = generation._case_variant(label, order)
+        assert flip is not None, (label, count)
+        spellings += [flip]
+        order += 1
+    return spellings
+
+
+def _described_before_p4d275(
+    folder: pathlib.Path, values: "list[str]", floor: int = 11
+) -> "tuple[dict, contract.Profile]":
+    """A label column described the way the producer described it before plan P4-D275.
+
+    Today's producer counts every spelling below the floor into its
+    level's commonest (P4-D275) and so holds none back, while the loader
+    still accepts a level that holds spellings back. So the column is
+    described by today's producer and each level is then written again
+    by the earlier rule, from the column's own spellings: those the
+    floor clears named under `variants`, the rest counted by group size
+    under `variants_withheld` by the producer's own `_multiplicity_map`,
+    and `n_distinct` counting every spelling. The loader is then asked
+    to accept it.
+    """
+    folder.mkdir(parents=True, exist_ok=True)
+    path = fixtures.write(folder, "table.csv", _table(values))
+    table = reading.read_table(str(path), small_cell_floor=floor)
+    document = profile.build_document(table, taxonomy.Settings(small_cell_floor=floor), [])
+    spellings: "dict[str, dict[str, int]]" = {}
+    for value in values:
+        own = spellings.setdefault(parsing.folded(value), {})
+        own[value] = own.get(value, 0) + 1
+    column = document["columns"][0]
+    for level in column["levels"]:
+        own = spellings[level["label"]]
+        level["variants"] = {
+            spelling: own[spelling] for spelling in sorted(own) if own[spelling] >= floor
+        }
+        level["variants_withheld"] = taxonomy._multiplicity_map(
+            sorted(own[spelling] for spelling in own if own[spelling] < floor)
+        )
+    column["n_distinct"] = sum(len(own) for own in spellings.values())
+    target = fixtures.write_profile(folder, "earlier-profile.json", document)
+    return document, contract.load_profile(str(target))
+
+
+def test_an_earlier_label_profile_is_answered_in_bounded_spellings(tmp_path: pathlib.Path) -> None:
+    """A level holding back more spellings than the supply reaches is built in bounded work.
+
+    The review's shape at a size a test can hold: a constant column of
+    `abcdef` written 20 times, beside 400 of its spellings written twice
+    each -- which no letters-only label of six letters can spell by case
+    alone, so the earlier producer published `variants_withheld {"2":
+    400}`. On 110cb46 the twin wrote 337 trailing-space spellings, the
+    longest 343 characters, and walked the 63 case flips again for every
+    group. Now it writes its 63 flips and 64 trailing spaces, walks the
+    flips once, and writes the other 273 groups in the commonest
+    spelling, the published `abcdef`, which its report names.
+    """
+    label = "abcdef"
+    values = [label] * 20
+    for spelling in [label] + _case_spellings(label, 63):
+        for pad in range(7):
+            text = f"{spelling}{' ' * (pad + 1)}" if pad else f" {spelling}"
+            if len(values) < 20 + 2 * 400:
+                values += [text, text]
+    assert len(values) == 820
+    document, loaded = _described_before_p4d275(tmp_path, values)
+    level = document["columns"][0]["levels"][0]
+    assert level["variants"] == {label: 20} and level["variants_withheld"] == {"2": 400}
+    flips = [0]
+    shipped = generation._case_variant
+
+    def counted(spelling: str, order: int) -> "str | None":
+        flips[0] += 1
+        return shipped(spelling, order)
+
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(generation, "_case_variant", counted)
+        twin = generation.generate(loaded, 0)
+    cells = twin.columns[0]
+    assert len(cells) == len(values)
+    assert all(parsing.folded(cell) == label for cell in cells)
+    assert max(len(cell) for cell in cells) <= len(label) + 64
+    assert len(set(cells)) == 1 + 63 + 64
+    assert flips[0] <= 64, flips[0]
+    named = [
+        one.achieved for one in twin.deviations
+        if one.fact == "levels -> variants_withheld"
+    ]
+    assert named == [
+        "127 neutral spellings made up in their place, and 273 written "
+        "in their label's commonest spelling"
+    ], named
+    assert any(one.fact == "n_distinct" for one in twin.deviations)
+
+
+def test_the_supply_walk_resumes_where_it_stopped() -> None:
+    """Asked group after group, the walk gives what a walk from the start gives.
+
+    Over seeded labels, used spellings and wanted forms, the walk handed
+    its memory answers exactly as the walk handed none -- the bound
+    aside, which neither reaches here.
+    """
+    draw = random.Random(3853)
+    asked = 0
+    for _case in range(200):
+        parent = draw.choice(("ab", "a-b", "x.y", "abc", "a1", "q"))
+        used_now: "dict[str, int]" = {}
+        used_then: "dict[str, int]" = {}
+        for taken in draw.sample(_case_spellings(parent, 1) + [parent + " "], draw.randrange(0, 2)):
+            used_now[taken] = used_then[taken] = 1
+        owners_now: "dict[str, str]" = {}
+        owners_then: "dict[str, str]" = {}
+        walked: "dict[tuple[str, str | None], int]" = {}
+        for _ask in range(draw.randrange(1, 30)):
+            wanted = draw.choice(("", parsing.shape_form(parent)))
+            now = generation._variant_spelling(parent, used_now, owners_now, wanted, False, walked)
+            then = generation._variant_spelling(parent, used_then, owners_then, wanted, False)
+            assert now == then, (parent, wanted)
+            asked += 1
+    assert asked >= 1000, asked

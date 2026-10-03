@@ -7593,21 +7593,42 @@ of one size are indistinguishable in it.
 
 An invented variant must fold to its parent label, differ from every
 spelling already used in the column, WEAR THE FORM G8.1a ALLOTTED IT
-(G8.2a), and be produced by a rule that has an unbounded supply. In
-this order:
+(G8.2a), and be produced by a rule whose supply is BOUNDED, so that no
+invented spelling is more than 64 characters longer than its label and
+the walk over one column's groups grows with those groups. In this
+order:
 
 1. **Case flips.** Let the parent's alphabetic positions be
-   `q[0] .. q[L-1]`, left to right. For `k = 1, 2, 3, ...` write `k` in
-   binary and flip the case of position `q[i]` for every set bit `i`,
-   with bit 0 the LEFTMOST alphabetic position. Skip any candidate equal
-   to a spelling already used in this column, raw or after folding
-   against a DIFFERENT parent. This supplies `2**L - 1` spellings.
+   `q[0] .. q[L-1]`, left to right. For `k = 1, 2, 3, ...` up to `k =
+   4096` write `k` in binary and flip the case of position `q[i]` for
+   every set bit `i`, with bit 0 the LEFTMOST alphabetic position. Skip
+   any candidate equal to a spelling already used in this column, raw
+   or after folding against a DIFFERENT parent. This supplies `2**L - 1`
+   spellings, or as many of them as the first 4,096 steps reach.
 2. **Trailing spaces.** When the case flips are exhausted (a parent with
-   no letters exhausts them immediately), append `m = 1, 2, 3, ...`
+   no letters exhausts them immediately), append `m = 1, 2, ..., 64`
    space characters to the parent's spelling. Folding trims, so every
    one of these folds to the parent; the reader preserves them
    (`skipinitialspace=False`, and minimal quoting does not quote for a
-   trailing space); and the supply has no end.
+   trailing space).
+3. **The level's commonest spelling, once both are spent** (review of
+   landing S1, item 2; plan P4-D385). A group the supply cannot reach
+   is written in the level's published spelling covering the most rows
+   -- ties to the first in sorted order -- or in the label itself where
+   the level publishes none, and the twin's report names how many
+   groups were. That is how the producer has counted every spelling
+   below the floor since plan P4-D275, and why no description it
+   writes reaches this step: it holds no spelling back. Only a
+   description written before that rule can, and there a million
+   spellings held back of one label once asked for trailing spaces up
+   to a million long -- about 496 GB of them. The twin of such a
+   description holds fewer different values than it publishes, and the
+   report prints both numbers (G12.7).
+
+The walk is resumable: a candidate skipped once (used, folding onto
+another label, or wearing the other form) is skipped for the rest of
+the column, so each walk of the flips under one target form, and of the
+spaces of one label, continues where the last one stopped.
 
 A spelling that is only spaces cannot arise, because a published label
 is not empty — an empty cell is an absent value, not a label.
@@ -12079,10 +12100,12 @@ Where `S == n_distinct` the two ends coincide, the bound is a single
 number and the fact is exact — which is the ordinary case, and what the
 contract means by EXACT-OBSERVABLE "where the published variants and
 the withheld-variant map supply enough spellings" (contract 9.5). The
-envelope is the fallback the same line names. G8.2's supply has no end
-— case flips first, then trailing spaces — so a conforming generator
-that reaches this fallback at all has been handed a description whose
-own counts disagree, and the report prints both numbers.
+envelope is the fallback the same line names. G8.2's supply — case
+flips first, then trailing spaces — reaches every description the
+producer writes today, so a conforming generator that reaches this
+fallback has been handed a description whose own counts disagree, or
+one written before plan P4-D275 that holds back more spellings of one
+label than G8.2 step 3's bound, and the report prints both numbers.
 
 ### G12.8 The fallback on numeric `n_distinct` and `n_distinct_folded`
 

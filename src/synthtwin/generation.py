@@ -25440,6 +25440,11 @@ def _label_content(
     cells: list[str] = []
     notes: list[Deviation] = []
     made_up = 0
+    # Groups the bounded supply of G8.2 could not reach, written in their
+    # level's commonest spelling (review of landing S1, item 2), and
+    # where each walk of that supply stopped in this column.
+    absorbed = 0
+    flipped: "dict[tuple[str, str | None], int]" = {}
     for entry in facts.levels:
         covered = 0
         # ...AND HOW MANY OF THOSE CELLS ALREADY WEAR THE LABEL'S OWN
@@ -25493,18 +25498,29 @@ def _label_content(
                     left[key] = left[key] - 1
                 take = key == spare
                 variant = _variant_spelling(
-                    entry.label, used, owners, wanted, take
+                    entry.label, used, owners, wanted, take, flipped
                 )
                 if take:
                     spare = ""
-                made_up = made_up + 1
+                if variant is None:
+                    # THE SUPPLY RAN OUT, which only a description
+                    # written before plan P4-D275 can ask of it: the
+                    # group is written as today's producer counts a
+                    # spelling below the floor, in its level's
+                    # commonest one.
+                    variant = _commonest_spelling(entry)
+                    used[variant] = 1
+                    owners[parsing.folded(variant)] = entry.label
+                    absorbed = absorbed + 1
+                else:
+                    made_up = made_up + 1
                 cells += [variant for _row in range(rows)]
                 covered = covered + rows
         if covered < entry.count:
             cells += [entry.label for _row in range(entry.count - covered)]
             used[entry.label] = 1
             owners[parsing.folded(entry.label)] = entry.label
-    if made_up:
+    if made_up and not absorbed:
         notes += [
             _deviation(
                 column.name,
@@ -25515,6 +25531,26 @@ def _label_content(
                 "so the twin keeps the count and the values distinct; "
                 "below the floor the spellings themselves are in no "
                 "file synthtwin writes.",
+            )
+        ]
+    if absorbed:
+        notes += [
+            _deviation(
+                column.name,
+                "levels -> variants_withheld",
+                f"{made_up + absorbed} spellings that were held back",
+                f"{made_up} neutral spellings made up in their place, "
+                f"and {absorbed} written in their label's commonest "
+                "spelling",
+                "This description holds back more spellings of one label "
+                f"than synthtwin makes up: {_VARIANT_FLIPS} changes of "
+                f"case and {_VARIANT_SPACES} trailing spaces at most, so "
+                "no made-up spelling is far longer than its label. "
+                "A description synthtwin writes today holds no spelling "
+                "back, and the rest are written the way it counts them, "
+                "in the label's commonest spelling, so the twin holds "
+                "fewer different values than this description "
+                "publishes.",
             )
         ]
     number = 0
@@ -26373,20 +26409,49 @@ def _spare_variant_group(
     return best
 
 
+# HOW FAR THE SUPPLY OF MADE-UP SPELLINGS OF ONE LABEL REACHES (method
+# G8.2, review of landing S1 item 2). The case flips are walked to the
+# 4,096th step of the binary counter, as they always were, and then at
+# most 64 trailing spaces are added -- so no made-up spelling is more
+# than 64 characters longer than its label, and the walk is linear in
+# the groups it is asked for.
+_VARIANT_FLIPS = 4096
+_VARIANT_SPACES = 64
+
+
 def _variant_spelling(
     parent: str,
     used: "dict[str, int]",
     owners: "dict[str, str]",
     wanted: str,
     spare: bool = False,
-) -> str:
-    """One made-up spelling of a published label (method G8.2).
+    walked: "dict[tuple[str, str | None], int] | None" = None,
+) -> "str | None":
+    """One made-up spelling of a published label (method G8.2), or None.
 
     Case flips first, in the binary-counter order the method fixes, and
-    then trailing spaces, whose supply has no end. A candidate is
+    then trailing spaces. A candidate is
     stepped past when it is already used in this column, or when it
     would fold onto a DIFFERENT label -- so the published counts of
     folded identities stay exactly what the description says.
+
+    THE SUPPLY IS BOUNDED, AND None SAYS IT RAN OUT (review of landing
+    S1, item 2). The trailing spaces once had no end: a description
+    written before plan P4-D275 that holds back a million spellings of
+    one label, each written twice, was answered with spellings of up to
+    a million spaces -- about 496 GB of them, written twice -- and each
+    search for the next began again at one space. The flips stop at
+    `_VARIANT_FLIPS` and the spaces at `_VARIANT_SPACES`; the caller
+    writes a group the supply cannot reach in the level's commonest
+    spelling, which is how today's producer describes every spelling
+    below the floor, and names it. No description today's producer
+    writes reaches the bound: it holds no spelling back.
+
+    ``walked``, where given, keeps each walk where it stopped for the
+    column: the flips under each wanted form and the spaces of each
+    label. A candidate stepped past is used, folds elsewhere or wears
+    the other form, and stays so for the rest of the column, so the walk
+    resumes where it stopped and answers as a walk from the start would.
 
     ``wanted`` IS THE WRITTEN FORM THIS SPELLING MUST WEAR, "" for none
     (method G8.2a, plan amendment A-P4-47). A case flip of the label
@@ -26412,11 +26477,17 @@ def _variant_spelling(
         used[parent] = 1
         owners[parsing.folded(parent)] = parent
         return parent
-    order = 0
-    while order < 4096:
+    if walked is None:
+        walked = {}
+    flips: "tuple[str, str | None]" = (parent, wanted)
+    order = walked[flips] if flips in walked else 0
+    while order < _VARIANT_FLIPS:
         order = order + 1
         candidate = _case_variant(parent, order)
         if candidate is None:
+            # Every later step of the counter is past the label's flips
+            # too, so the walk is spent for good.
+            order = _VARIANT_FLIPS
             break
         if candidate in used or parsing.folded(candidate) != parent:
             continue
@@ -26425,18 +26496,41 @@ def _variant_spelling(
         taken = parsing.folded(candidate) in owners
         if taken and owners[parsing.folded(candidate)] != parent:
             continue
+        walked[flips] = order
         used[candidate] = 1
         owners[parsing.folded(candidate)] = parent
         return candidate
-    spaces = 0
-    while True:
+    walked[flips] = order
+    padded: "tuple[str, str | None]" = (parent, None)
+    spaces = walked[padded] if padded in walked else 0
+    while spaces < _VARIANT_SPACES:
         spaces = spaces + 1
         candidate = f"{parent}{_SPACE * spaces}"
         if candidate in used:
             continue
+        walked[padded] = spaces
         used[candidate] = 1
         owners[parsing.folded(candidate)] = parent
         return candidate
+    walked[padded] = spaces
+    return None
+
+
+def _commonest_spelling(entry: "contract.LevelEntry") -> str:
+    """The spelling a level's held-back groups are written in once G8.2 runs out.
+
+    The published spelling covering the most rows, ties to the first in
+    sorted order -- the rule plan P4-D275 counts a spelling below the
+    floor by -- and the label itself where the level publishes none.
+
+    Guarantees: a fixed function of the entry; one of its published
+    spellings or its label. No I/O.
+    """
+    best = ""
+    for spelling in sorted(entry.variants):
+        if not best or entry.variants[spelling] > entry.variants[best]:
+            best = spelling
+    return best if best else entry.label
 
 
 def _forms_owed(

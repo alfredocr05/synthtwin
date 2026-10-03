@@ -6650,14 +6650,32 @@ def partner_family(parent, longest):
         total += 1
 
 
+# HOW FAR G8.2's SUPPLY REACHES (review of landing S1, item 2): the
+# case flips to the 4,096th step of the counter, then at most 64
+# trailing spaces.  Past both, ``invented_variant`` answers None and the
+# group is written in its level's commonest spelling.
+VARIANT_FLIPS = 4096
+VARIANT_SPACES = 64
+
+
+def commonest_spelling(level):
+    """The published spelling covering most rows, ties to the first sorted; else the label."""
+    best = ""
+    for spelling in sorted(level["variants"]):
+        if not best or level["variants"][spelling] > level["variants"][best]:
+            best = spelling
+    return best or level["label"]
+
+
 def invented_variant(parent, used, target):
     """One invented variant spelling -- method sections G8.2 and G8.2a.
 
-    Case flips first, in binary-counter order, skipping any candidate
-    equal to a spelling already used in this column; then trailing
-    spaces, one more each time, which the fold trims away and the reader
-    preserves, and whose supply has no end.  A parent with no letters
-    exhausts the case flips immediately and goes straight to the spaces.
+    Case flips first, in binary-counter order to the 4,096th step,
+    skipping any candidate equal to a spelling already used in this
+    column; then trailing spaces, one more each time, which the fold
+    trims away and the reader preserves, to 64 of them; then None, the
+    supply spent.  A parent with no letters exhausts the case flips
+    immediately and goes straight to the spaces.
 
     ``target`` is the written form the spelling must wear, "" for none
     (G8.2a): a candidate wearing another form is stepped past, exactly
@@ -6668,7 +6686,7 @@ def invented_variant(parent, used, target):
     """
     seen = set(used)
     counter = 1
-    while True:
+    while counter <= VARIANT_FLIPS:
         candidate = case_flip(parent, counter)
         if candidate is None:
             break
@@ -6676,12 +6694,11 @@ def invented_variant(parent, used, target):
         if candidate in seen or written_form(candidate) != target:
             continue
         return candidate
-    spaces = 1
-    while True:
+    for spaces in range(1, VARIANT_SPACES + 1):
         candidate = parent + " " * spaces
-        spaces += 1
         if candidate not in seen:
             return candidate
+    return None
 
 
 SHAPE_FORM_LIMIT = 24
@@ -9155,6 +9172,8 @@ def _label_content(column):
                     spare = ""
                 else:
                     spelling = invented_variant(level["label"], used, target)
+                if spelling is None:
+                    spelling = commonest_spelling(level)
                 content.extend([spelling] * int(key))
                 used.append(spelling)
     census = column.get("shape_forms")
