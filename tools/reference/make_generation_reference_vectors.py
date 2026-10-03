@@ -18734,7 +18734,7 @@ def clock_run_shares(count, units, first_cells):
     for place, size in enumerate(units):
         share = (rest * (before + size)) // total - (rest * before) // total
         before += size
-        shares.append(first_cells[place] + share)
+        shares += [first_cells[place] + share]
     return shares
 
 
@@ -18829,7 +18829,7 @@ def clock_census_runs(column, parsed, tails, body, heaps, stride):
     if tails is not None:
         for end in body:
             if end not in [at for at, _c in inside] and end not in ends:
-                ends.append(end)
+                ends += [end]
     stretches, rank = [], low_rows
     for index, (first, last, count) in enumerate(groups):
         mine = [(at, c) for at, c in inside if first <= clock_bin(at, form) <= last]
@@ -18842,17 +18842,17 @@ def clock_census_runs(column, parsed, tails, body, heaps, stride):
             for at, _c in mine:
                 if low <= at <= high:
                     if at > start:
-                        runs.append((start, at - stride))
+                        runs += [(start, at - stride)]
                     start = at + stride
             if start <= high:
-                runs.append((start, high))
+                runs += [(start, high)]
             units = [(b - a) // stride + 1 for a, b in runs]
             first_cells = [sum(1 for end in ends if a <= end <= b) for a, b in runs]
             for (a, b), cells in zip(runs, clock_run_shares(count, units, first_cells)):
-                events.append((a, b, cells, False))
+                events += [(a, b, cells, False)]
         for low, high, cells, heap in sorted(events):
             if cells > 0:
-                stretches.append((rank, cells, low, high, heap, index))
+                stretches += [(rank, cells, low, high, heap, index)]
                 rank += cells
     return stretches
 
@@ -18927,7 +18927,7 @@ def clock_census_content(column):
                         if owed is not None:
                             owed -= mine[gap] * gap
                     else:
-                        free.append(gap)
+                        free += [gap]
                 shares = dict(zip(free, value_shares(free, rows, owed))) if free else {}
                 stood = []
                 for gap in gaps:
@@ -18997,11 +18997,11 @@ def clock_census_content(column):
         knots += [((rank * TWO64), (pins[rank] - low_at) // stride)
                   for rank in range(first, first + cells)
                   if rank in pins and not apart]
-        knots.append(((first + cells) * TWO64, size))
+        knots += [((first + cells) * TWO64, size)]
         places = []
         for rank in range(first, first + cells):
             if rank in pins:
-                places.append((pins[rank] - low_at) // stride)
+                places += [(pins[rank] - low_at) // stride]
                 continue
             position = rank * TWO64 + word_of.get(rank, 0)
             for place in range(len(knots) - 1):
@@ -19010,7 +19010,7 @@ def clock_census_content(column):
                     break
             share = min(max(position - start, 0), stop - start)
             index = below if stop <= start else below + (share * (above - below)) // (stop - start)
-            places.append(min(size - 1, index))
+            places += [min(size - 1, index)]
         if apart:
             places = clock_kept_apart(places, size)
         taken = {}
