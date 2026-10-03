@@ -48,7 +48,7 @@ stays in scope.
 | branch | `phase-5-relationships`, cut from `main`. `main` is pull-request only. Stage 2b was built on `carried-2b-integration`, cut from it at `53bb012`, and lands on it whole |
 | phase | **Phase 4 REOPENED 2026-09-12** — it closed on 2026-09-11 with silent within-column defects live inside its own charter. Phase 5 does not start until the ordered list below reaches it |
 | plan | This page is the plan of record. `docs/plans/phase-5-relationships.md` is a DRAFT whose scope is superseded: it deferred correlation, and correlation is now mandatory |
-| suite | 9,002 collected, and about 66 minutes in one process on the quiet machine (ledger `K-P0-10` carries the seconds). In CI it runs as **five shards**, the heaviest about 20 minutes. Re-measure here whenever the count moves |
+| suite | 9,019 collected, and about 66 minutes in one process on the quiet machine (ledger `K-P0-10` carries the seconds). In CI it runs as **five shards**, the heaviest about 20 minutes. Re-measure here whenever the count moves |
 | KPIs | `tests/kpi/ledger.json`: 189 KPIs over phases 0-4 and stages 1, 2, 2b, 3, 3b and 4, 30 of them headlines under a cap of 31 (raised from 30 by the orchestrator at 3b.K, plan P4-D364, for `K-S3-38`, time of day, still to come); 166 green, 11 open (6 with the stage that owns each, 5 with none set), 12 limits the owner accepted. Stage 3's are `K-S3-01` to `K-S3-25`, one of them a headline (`K-S3-11`, the tail leak); stage 3b's `K-S3-30` to `K-S3-32`, `K-S3-34`, `K-S3-35`, `K-S3-39`, `K-S3-50`, `K-S3-52` and `K-S3-54` to `K-S3-57` (`K-S3-33` retired with the weekday certificate), `K-S3-31` (the weekday) a headline in `K-2B-22b`'s place; stage 4's `K-S4-03`, a headline in `K-2B-14`'s place. **One command re-measures them all:** `.venv/bin/python tools/measurements/kpi_run.py` (add `--slow` for timings and scale). Run it at every stage close: **a KPI that drops is a regression even when every test is green** |
 | checks | `ruff check .`, `mypy --strict src/`, the offline import scan, the provenance check, the decontamination scan, the signed attestation and the disposition seal — all clean |
 | CI | runs on every pull request, five Pythons across Ubuntu, Windows and macOS. **It saw stages 1, 2 and 2b for the first time on 2026-09-20 (PR #6, run 35508922164): every static check green, every test cell red on three defects, all three repaired.** Its **second** run (35541541720) was red again on a deeper layer, all of it in the tests: two that asserted the answer for the machine they ran on, a `Path.read_text(newline=)` that exists only on 3.13 while the floor is 3.10, seventeen Windows failures caused by a temporary path containing `AppData` (which contains a sheet name the test forbade), and about 25 workbook cases that failed instead of skipping where openpyxl is absent. All repaired, each with a guard that now fails HERE rather than in CI. The suite is sharded five ways since, so a cell should cost about 13 minutes rather than up to three hours. **Its third run (35670708722, on `eaff15f`, 2026-09-22) passed 69 of 69 jobs, and run 36743015674 on `82b1f1a`, stages 3 and 3b, passed 69 of 69 on 2026-09-30.** A green local suite is not a green CI. Check `gh pr checks` before believing a branch is done |
@@ -140,7 +140,10 @@ ones.
   pair is published only where withholding it costs the twin its mean
   or spread ("Publish anyway", "Only where it costs", `K-S3-18`; the
   plan, not the owner, extends it to unsettled sides and orders the
-  candidates). A column's own values rebuilt from its description are
+  candidates). That rule is GONE since plan P4-D375 (2026-10-01, under
+  the principle below): every pair binary64 holds is published, so
+  nothing is withheld for a cost rule to weigh. A column's own values
+  rebuilt from its description are
   accepted -- never another column, and never which row except on a
   table sorted by that column, whose `row_order` puts the k-th value in
   row k (told 2026-09-30: "Yes, it stands"): by the exact skew
@@ -197,11 +200,14 @@ cannot get worse unseen.
   AT A FLOOR OF ONE and 0 at the default, and `K-S3-11` walks 105 cases
   of the tail battery without one published value, summary line or
   report line equal to an outermost value of the real column. Its one
-  stated residual is closed too: `edge_pinned` is 0, where the
-  published pair of an all-different clock tail used to leave a reader
-  exactly one arithmetic (plan P4-D346). A floor
-  lowered to one still names what it always named, which is what
-  lowering it asks for.
+  stated residual, `edge_pinned`, which plan P4-D346 closed, is open
+  again by choice since plan P4-D375 publishes every pair: `K-S3-11`
+  records 14 edge-pinned and 8 pinned tails of its 105 cases, whose
+  pairs give a reader back that tail's own outer values -- accepted
+  under the owner's principle of 2026-10-01, never another column, and
+  never which row except on a table sorted by that column, whose
+  description publishes the order (`row_order`). A floor lowered to one
+  still names what it always named, which is what lowering it asks for.
 - ~~**Spread too wide on normal-shaped columns.**~~ **CLOSED by landing
   3, 2026-09-23.** There is no published extreme to draw a straight line
   to: the outer rows are read through the shape fitted to their two
@@ -245,19 +251,17 @@ cannot get worse unseen.
   nothing, so a count G12.5 holds exactly is MISSED, 6 of 1,200 twins of
   a floor-50 family holding 1.5 to 2.4 times it -- each held by
   `tests/test_stage3b_gate.py` (P4-D358).
-- **Where no published pair keeps them, a raised floor still costs a
-  twin its mean and spread.** Since plan P4-D353 a withheld tail pair is
-  published wherever withholding it would leave the column's mean or
-  spread window short, so no twin of `K-S3-20`'s 37 shapes at a floor of
-  36 misses an obligation (22 a seed before) and `K-S3-15` is green.
-  Left, over 36 column-floors at three seeds (`K-S3-22`): 111 moment
+- **With every pair published, a raised floor still costs some twins
+  their mean and spread.** Since plan P4-D375 every tail pair binary64
+  holds is published, so no twin of `K-S3-20`'s 37 shapes at floors 11
+  to 50 misses an obligation and `K-S3-15` is green. Left, over 36
+  column-floors at three seeds (`K-S3-22`): 111 moment
   obligations -- a far value beyond the width the column publishes
   (`00001` to `00149` beside `99999`), whole-number Pareto(2) at 150
   rows from floor 20, some Pareto(2.5) columns at 36 and 50, blocks that
   publish moments only, and a lone far value whose pair keeps its mean
-  and not its spread. A withheld date or clock tail still narrows its
-  twin at a raised floor; its own cost rule is a later landing (owner,
-  2026-09-26).
+  and not its spread. No date or clock tail is withheld any more, so
+  none narrows its twin for want of a pair.
 - **A census of NOTATIONS that is only a pool is written as the
   majority.** Where no negative notation reaches the floor and the pool
   is no more than three notations hold below it, `negative_notations`

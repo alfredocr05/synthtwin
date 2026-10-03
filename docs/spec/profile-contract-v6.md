@@ -215,7 +215,7 @@ consistently.
 | MUST / MUST NOT | a conforming producer always does this; a conforming loader refuses a document that does not |
 | REQUIRED | the key is present in every block of that kind, on every run |
 | FORBIDDEN | the key is absent from every block of that kind; a loader refuses a document carrying it |
-| OPTIONAL | not used in this contract — there are no optional keys in version 6 |
+| OPTIONAL | not used in this contract — there are no optional keys in version 6, and a key added within it may be ABSENT only from a description written before it was added, as section 6.7a and C6-45a name |
 
 There are no optional keys on purpose. A key that appears only
 sometimes is a key a consumer comes to guess about, and the guess is
@@ -1297,8 +1297,10 @@ added `forced_twelve_hour_clocks`). No other key may appear under
 `settings`; a loader refuses one that does, naming it. A block of
 twenty-three keys or of twenty-five — one of the twenty-four skipped, or
 a key of somebody's own added — is a document this contract does not
-describe. (It said TWENTY while section 4.4
-said twenty-one and the producer wrote twenty-one, from the landing
+describe, except that a description written before landing T1 lacks
+`forced_twelve_hour_clocks` and is read as though it held `[]`
+(C6-45a). (It said TWENTY while section 4.4 said twenty-one and the
+producer wrote twenty-one, from the landing
 that added `forced_metadata_rows` until landing 2b.17's repair pass
 added `forced_delimiter` and corrected all three counts together; the
 guard that compares this clause with the producer read only a word
@@ -5488,8 +5490,9 @@ that rule catches. Section 14 indexes all four.
 **The seven keys stage 3b reserves** (plan P4-D364). Each is `[]` on
 every block until the landing its row names fills it, and the loader
 refuses anything else, so a description carrying one was written by a
-newer synthtwin. Each landing restates its own rows below its own
-line.
+newer synthtwin. A description written before plan P4-D364 carries none
+of the seven, and each absent one is read as `[]` (C6-45a). Each
+landing restates its own rows below its own line.
 
 <!-- anchor 3b-D1 (P4-D365) -->
 <!-- anchor 3b-D0 (P4-D366) -->
@@ -6771,8 +6774,9 @@ that role's alone and forbidden on `continuous` (section 7.13).
 
 ### 6.7a The tail rule: `tails` and `bin_groups` (stage 3)
 
-**A block carries these two keys or neither, and that is this format's
-one exception to "no optional keys."** A block written before stage 3
+**A block carries these two keys or neither, and that is the first of
+this format's two exceptions to "no optional keys"** (the other is
+C6-45a). A block written before stage 3
 carries neither and is read exactly as it always was, so every
 description already written still loads and its twin does not move. A
 block that carries `tails` carries `bin_groups` too, is a TAIL BLOCK,
@@ -8774,7 +8778,9 @@ All four are named residual R-P4-5.
 
 **The five keys stage 3b reserves on this role** (plan P4-D364):
 `[]` -- `clock_step` `null` -- on every block until the landing their
-rows name fills them, and the loader refuses anything else. Each
+rows name fills them, and the loader refuses anything else. A
+description written before plan P4-D364 carries none of the five, and
+each absent one is read as `[]`, `clock_step` as `null` (C6-45a). Each
 landing restates its own rows below its own line.
 
 <!-- anchor 3b-D1 (P4-D365) -->
@@ -11927,6 +11933,7 @@ a document, so no document can violate it.
 | id | statement | loader? |
 |---|---|---|
 | C6-44 | `profile_version` is the integer 6; every other integer is refused, and the version is read BEFORE the canonical round trip, so an older description draws advice about itself rather than a complaint about canonical form | yes |
+| C6-45a | the thirteen keys added within version 6 since 668f276 -- `settings.forced_twelve_hour_clocks` and the twelve stage 3b reserves -- are read as `[]` (`clock_step` as `null`) where ABSENT, and by their own rules where present; every other key stays required | yes |
 | S1 | `len(columns) == n_columns` | yes |
 | S2 | for every index `i` from zero, `columns[i].position == i + 1`; positions are exactly `1..n_columns`, each once, increasing along the list | yes |
 | S3 | the order of `columns` IS the schema order of the table, the left-to-right order of the twin's columns and of a written header row, and the order the single RNG stream is consumed | reading — else two producers could route values and RNG bytes differently while every set-shaped rule passed |
@@ -13315,6 +13322,22 @@ older document, does not partially accept one, and does not offer to. An
 older description carries facts computed under rules that changed;
 converting it would mean making up facts the older rules never held,
 which is the whole reason this version exists.
+
+**C6-45a (a key added within version 6, absent).** Version 6 is extended
+in place (A-P4-41), and plan P4-D375 keeps the readers of a withheld tail
+pair so that a description written before it still loads. 668f276, the
+last pushed tree to write one, wrote neither the twelve keys stage 3b
+reserves (plan P4-D364: seven on `datetime`, five on `time_of_day`) nor
+`settings.forced_twelve_hour_clocks` (landing T1, plan P4-D370), and the
+two merges after it that still withheld pairs wrote the reserves and not
+that key. Each of those thirteen keys, where it is ABSENT, is read as
+the value every producer since writes where nothing is published --
+`[]`, and `null` for `clock_step` -- and only then: present, it is read
+and checked by its own rule, and every other key stays REQUIRED. This is
+not C6-45's upgrade: an absent census and an empty one both say that
+nothing was published, so no fact is made up (review of landing 3b.G1,
+item 1; `tests/test_p4d375_earlier_descriptions.py`, on 668f276's own
+file).
 
 ### 10.7 The two version rows, and why their advice differs
 

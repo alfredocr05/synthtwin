@@ -594,6 +594,38 @@ DATETIME_KEYS = (
     "heavy_dates",
 )
 
+# THE KEYS A DESCRIPTION WRITTEN BEFORE THEM DOES NOT CARRY (review of
+# landing 3b.G1, item 1; plan P4-D375). Plan P4-D375 keeps the readers of
+# a withheld tail pair so that a description written before it still
+# loads, and 668f276 -- the last pushed tree to write one -- wrote neither
+# the twelve stage 3b reserves of plan P4-D364 nor the settings key
+# landing T1 added (plan P4-D370); the two merges after it that still
+# withheld pairs (fa00321, 9efcba2) wrote the reserves and not that key.
+# The strict key rule refused every such description before any reader
+# was reached. Each key below is read as what every producer since
+# writes in it where nothing is published --
+# `[]`, and `null` for `clock_step` -- WHEN IT IS ABSENT, and only then:
+# present, it is read and checked exactly as before, and every other key
+# stays required (contract 2.1 and C6-45a). Absent means nothing was
+# published, which is what an empty one says, so no fact is made up.
+SETTINGS_READ_AS_EMPTY_WHEN_ABSENT = ("forced_twelve_hour_clocks",)
+DATETIME_READ_AS_EMPTY_WHEN_ABSENT = (
+    "hour_census",
+    "minute_census",
+    "second_census",
+    "minute_heaps",
+    "second_heaps",
+    "day_of_month_census",
+    "heavy_dates",
+)
+CLOCK_READ_AS_EMPTY_WHEN_ABSENT = (
+    "clock_census",
+    "clock_heaps",
+    "clock_step",
+    "clock_codes",
+    "minute_census",
+)
+
 NUMERIC_KEYS = (
     "group_separator",
     # How a negative number and a signed decimal were written (landing
@@ -3966,6 +3998,28 @@ def _exactly(value: object, key: str, where: str, permitted: int) -> int:
     return found
 
 
+def _absent_read_as_empty(
+    mapping: "dict[str, object]", added: "tuple[str, ...]"
+) -> "dict[str, object]":
+    """The block with each of ``added`` it lacks read as empty (P4-D375).
+
+    Guarantees: returns ``mapping`` itself where it carries every key of
+    ``added``, and otherwise a shallow copy in which each absent one
+    stands as `[]` -- `None` for `clock_step` -- which is what every
+    producer since writes where nothing is published. The document is
+    never changed, a key that is present is left to its own reader, and
+    a key not in ``added`` is never supplied, so the key rule beside it
+    still refuses every other absence. No I/O of any kind.
+    """
+    missing = [key for key in added if key not in mapping]
+    if not missing:
+        return mapping
+    filled = dict(mapping)
+    for key in missing:
+        filled[key] = None if key == "clock_step" else []
+    return filled
+
+
 def _keys(
     mapping: "dict[str, object]",
     where: str,
@@ -5907,7 +5961,10 @@ def _settings(value: object) -> SettingsBlock:
     the default, which is the other half of the ruling.
     """
     where = "in the block of rules that produced the description"
-    mapping = _mapping(value, "settings", _AT_THE_TOP)
+    mapping = _absent_read_as_empty(
+        _mapping(value, "settings", _AT_THE_TOP),
+        SETTINGS_READ_AS_EMPTY_WHEN_ABSENT,
+    )
     _keys(mapping, where, SETTINGS_KEYS, "that block")
     floor = _whole(mapping["small_cell_floor"], "small_cell_floor", where, 1)
     ceiling = _whole(
@@ -6883,6 +6940,12 @@ def _column(
     role_keys = _role_keys(role)
     if "percentiles" in role_keys:
         role_keys = _numeric_key_set(mapping, role_keys)
+    if role == ROLE_DATETIME:
+        mapping = _absent_read_as_empty(
+            mapping, DATETIME_READ_AS_EMPTY_WHEN_ABSENT
+        )
+    if role == ROLE_CLOCK:
+        mapping = _absent_read_as_empty(mapping, CLOCK_READ_AS_EMPTY_WHEN_ABSENT)
     _keys(
         mapping,
         where,
@@ -11651,16 +11714,6 @@ def _next_representable(value: float, downward: bool) -> float:
     return -stepped if value < 0.0 else stepped
 
 
-# HOW FAR BEYOND THE FITTED END THE PINNED STRATUM STANDS (method G5.3b,
-# plan P4-D326). The two-moment shape ends at a finite `E`, and a tail
-# at least as long as an exponential one has its real extreme further
-# out, so code that learned the twin's range met real rows outside it.
-# From the fitted power named here up, the pinned end stands at the
-# larger of `E` and where the largest of `rows` exponential draws of the
-# tail's mean is expected, held inside the bound no row can pass.
-_TAIL_OUTWARD_POWER = 2
-
-
 @dataclasses.dataclass(frozen=True)
 class TailReader:
     """One side of a tail block's ladder, as the construction reads it.
@@ -12538,13 +12591,22 @@ def _tail_outward(
     column of charges 13 per cent past its own largest value and its
     twin's spread 9.7 per cent high.
 
-    THEN OUTWARD, where the fitted power is `_TAIL_OUTWARD_POWER` or
-    more -- a tail at least as long as an exponential one -- to the
-    larger of that and `d1 H(rows)`, `H` the harmonic sum
-    `1 + 1/2 + ... + 1/rows`, which is where the largest of `rows`
-    draws from an exponential tail of mean `d1` is expected; a shorter
-    tail keeps what it read. A function of published facts alone, held
-    under the tail's own bound by the caller.
+    THEN OUTWARD, WHATEVER THE FITTED POWER (method G5.3b step 4, the
+    oracle's `outward_move`), to the larger of that and `d1 H(rows)`,
+    `H` the harmonic sum `1 + 1/2 + ... + 1/rows`, which is where the
+    largest of `rows` draws from an exponential tail of mean `d1` is
+    expected. ``power`` is carried for the reader, as the oracle carries
+    it: plan P4-D322 made the move only at a fitted power of 2 or more,
+    and it is made on every tail since the light ones were measured, a
+    normal column's fitted end standing inside its real extreme. A FLAT
+    TAIL IS WHERE IT STANDS FURTHEST OUT (review of landing 3b.G1, item
+    2): 101 measurements 0.25 to 25.25 at a floor of 50 have a high tail
+    of power 0 beyond a boundary of 12.75, whose outermost row reads
+    12.5 past it -- the real maximum -- and `d1 H(50)` moves it to 28.68
+    past it, 64.7 per cent of the span beyond that maximum with every
+    moment inside its window (`K-S3-50`, recorded and not repaired). A
+    function of published facts alone, held under the tail's own bound
+    by the caller.
     """
     width = 2 * rows
     share = math.ldexp(((width - 1) << 53) // width, -53)

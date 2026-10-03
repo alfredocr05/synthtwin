@@ -860,7 +860,8 @@ def test_the_report_says_why_the_file_s_own_tail_is_silent_at_a_heaped_end(
 def test_a_heaped_end_over_a_tail_that_does_not_read_says_the_file_s_own_reason() -> None:
     """The heaped-end check's other quiet branch: the file's own tail publishes no distance and
     does not read as a tail (its values are not a list), so no bound is taken from it, and the
-    reason is still the one that block's remarks give -- or the whole rule where its role says none.
+    reason is still the one that block's remarks give -- or, where its role says none, the one
+    reason the producer has since plan P4-D375, a pair binary64 cannot hold.
     """
     remark = taxonomy.rendered(taxonomy.REMARK_LOW_TAIL_FOR_THE_HIGH, ())
     quiet = {"percent": 1, "rows": 12, "mean_distance": None, "rms_distance": None, "values": None}
@@ -874,7 +875,7 @@ def test_a_heaped_end_over_a_tail_that_does_not_read_says_the_file_s_own_reason(
         assert checked.verdict == validation.WITHHELD, checked
         assert _which_page_words(checked.citation, REPORT_WORDS) == expected, checked.citation
     unsaid = validation._heaped_end_check("value", "min", -500.0, {"tails": {"low": quiet}, "remarks": [remark]}, True)
-    assert unsaid.citation == validation._GATE_TAIL_WITHHELD_UNSAID, unsaid.citation
+    assert unsaid.citation == validation._GATE_TAIL_WITHHELD_UNHOLDABLE, unsaid.citation
 
 
 def _date_lines_say(page: str) -> "list[str]":
@@ -937,13 +938,17 @@ def test_a_date_or_clock_side_withheld_before_p4d375_says_its_reason(
         assert "one by one" not in page
 
 
-def test_a_block_that_says_no_reason_gets_the_whole_rule_and_no_cause() -> None:
+def test_a_block_that_says_no_reason_gets_the_one_reason_left() -> None:
     """A tail the report reads off a block whose producer writes no remark -- a joined part, a wrapper's
-    numbers -- is explained by the whole rule, never by a cause the block cannot vouch for.
+    numbers -- is explained by the one reason the producer has, never by a cause the block cannot vouch for.
 
     `_heaped_end_check` hands a joined part's own block, which carries no
     role; the remark is written by `_numeric_verdict` alone, so on any
-    other block a missing remark does not mean PINNED.
+    other block a missing remark does not mean PINNED. The file's own
+    description is the current producer's, which since plan P4-D375
+    withholds a pair only where binary64 cannot hold it, so that is what
+    the sentence says -- and not the withdrawn rules, which it named until
+    the review of landing 3b.G1 (item 3).
     """
     remark = taxonomy.rendered(taxonomy.REMARK_LOW_TAIL_FOR_THE_HIGH, ())
     tails = {"low": {"percent": 1, "rows": 12, "mean_distance": None, "rms_distance": None, "values": []}}
@@ -957,6 +962,6 @@ def test_a_block_that_says_no_reason_gets_the_whole_rule_and_no_cause() -> None:
         if "role" in block and block["role"] in ("count", "continuous"):
             assert _which_page_words(sentence, REPORT_WORDS) == expected, block
         else:
-            assert sentence == validation._GATE_TAIL_WITHHELD_UNSAID, block
-            assert "which withholds them where they would give back an outer cell or how many" in sentence
-    assert _which_page_words(validation._GATE_TAIL_WITHHELD_UNSAID, REPORT_WORDS).startswith("none of the four")
+            assert sentence == validation._GATE_TAIL_WITHHELD_UNHOLDABLE, block
+            assert _which_page_words(sentence, REPORT_WORDS) == taxonomy.TAIL_WITHHELD_UNHOLDABLE, block
+            assert "outer cell" not in sentence and "other tail" not in sentence, block

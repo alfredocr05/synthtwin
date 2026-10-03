@@ -6,6 +6,29 @@ exists).
 
 ## [Unreleased]
 
+### A description written before the published pairs loads again (2026-10-03)
+
+**The review of landing 3b.G1, its four items** (plan P4-D375). A
+description 668f276 wrote -- the last pushed tree whose tails withheld a
+pair -- was refused by every command that reads one: it lacks the twelve
+stage 3b reserves and `forced_twelve_hour_clocks`, and the loader
+required them. Each of those thirteen keys is now read as empty where it
+is absent, and only then (contract C6-45a); 668f276's own document for a
+table of dates, clocks and numbers loads, generates and validates with
+nothing missed, its withheld sides still withheld and its twin's report
+saying why, and so do 132 of its descriptions over all fifteen roles.
+`K-S3-50` gains two evenly spaced columns, whose twins reach up to 64.7
+per cent of the span past the real maximum against the 35.7 it recorded,
+every moment inside its window: recorded, not repaired, and its target
+asks them inside the range as well. What puts them there is method
+G5.3b's outward move, made whatever a tail's fitted power; the docstring
+that still made it wait for a power of 2 now says so, and the constant
+beside it, which nothing read, is gone. A checked file's tail too large
+for binary64 is explained by that alone, not by the rules the landing
+withdrew. STATE, `K-S3-13` and the tail producer's docstring no longer
+describe the withdrawn protection as current, and keep the sorted-table
+exception.
+
 ### The weekday guards dropped (2026-10-02)
 
 **The weekday census is published unless a conservative rule withholds
