@@ -21106,6 +21106,8 @@ From 40,000 three of the 24 stay withheld past the cap, by a certificate that do
 
 **Carried, now owned.** P4-D294's remainder written in one spelling, a new allocation of G7.5 recorded there for the next date landing, is lane T1's (the plan's skeptic, minor 5).
 
+**The review's one item (Codex, 3b.K).** `merged_groups` broke a tie between two neighbours of one count by taking the one before, so on a cycle a short group reached backwards past the last bin to a neighbour listed after the one it should join: the minutes `[0, 5, 5, 5]` and fifty-six empty ones published nothing where the rule as written publishes minutes 1 to 3 with 15 and the empty run, and `[5, 11, 11]` on a cycle joined 5 to the last 11. A tie now goes to the neighbour listed first in the census, and where one group is both neighbours it is joined through the bins before, as before. On every arrangement of up to six bins over the counts 0, 3, 5, 8, 11 and 16 (111,972 censuses) nothing off a cycle moves; on a cycle 10,554 move, and 107 fewer are withheld. No product path calls the helper yet, so no twin, vector or KPI moves.
+
 ## Decision P4-D365 — the weekday guards dropped (stage 3b landing 3b.G, 2026-10-02)
 
 **Why.** Under the owner's principle of 2026-10-01 (P4-D363) and his rule that a guard goes only at a high price, the orchestrator dropped every weekday guard that stood only against a reader combining published facts (the build plan's call (a)). Measured on 7b5f698, they withheld 366 of 1,147 censuses, left the twins' weekday share .123 from the real one against .036 without them, and spent 1,159 s describing against 67 s.

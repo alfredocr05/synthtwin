@@ -248,8 +248,8 @@ def test_the_shared_merge_rule() -> None:
     assert merged([3, 0, 20, 0, 5], [], 11) == ()
     # On a cycle the last bin neighbours the first, and the one group
     # running past the last bin is listed last.
-    assert merged([3, 0, 0, 20, 20, 0, 20, 0, 0, 5], [], 11, True) == (
-        (1, 2, 0), (3, 3, 20), (4, 4, 20), (5, 5, 0), (6, 0, 28)
+    assert merged([3, 0, 0, 30, 20, 0, 20, 0, 0, 5], [], 11, True) == (
+        (1, 2, 0), (3, 3, 30), (4, 4, 20), (5, 5, 0), (6, 0, 28)
     )
     assert merged([0, 0, 30, 0, 0], [], 11, True) == ((2, 2, 30), (3, 1, 0))
     # The short group of least count joins first, the earlier on a tie:
@@ -264,9 +264,28 @@ def test_the_shared_merge_rule() -> None:
     assert merged([5, 0, 0], [], 11) == ()
     # On a cycle the nought runs at both ends are one group, holding the
     # sure cells of both: 5 sure on either end bin make it short, so it
-    # joins its neighbour.
-    assert merged([0, 20, 20, 0], [0, 0, 0, 5], 11, True) == ((1, 1, 20), (2, 0, 20))
-    assert merged([0, 20, 20, 0], [5, 0, 0, 0], 11, True) == ((1, 1, 20), (2, 0, 20))
+    # joins its neighbour -- of two 20s the one listed first, at bin 1.
+    assert merged([0, 20, 20, 0], [0, 0, 0, 5], 11, True) == ((2, 2, 20), (3, 1, 20))
+    assert merged([0, 20, 20, 0], [5, 0, 0, 0], 11, True) == ((2, 2, 20), (3, 1, 20))
+
+
+def test_the_shared_merge_rule_breaks_a_tie_in_census_order() -> None:
+    # Between two neighbours of one count, a short group joins the one
+    # listed earlier in the census, never the one it reaches backwards
+    # past the last bin (Codex's review of 3b.K): minute 1 joins minute
+    # 2, then minute 3 joins them, and the empty run stands.
+    merged = calendar_rules.merged_groups
+    assert merged([0, 5, 5, 5] + [0] * 56, [], 11, True) == ((1, 3, 15), (4, 0, 0))
+    assert merged([5, 11, 11], [], 11, True) == ((0, 1, 16), (2, 2, 11))
+    assert merged([5, 11, 11], [], 11) == ((0, 1, 16), (2, 2, 11))
+    # ...the group running past the last bin is listed last, so of 20 at
+    # bin 3 and 20 at bin 6 it joins the one at bin 3.
+    assert merged([3, 0, 0, 20, 20, 0, 20, 0, 0, 5], [], 11, True) == (
+        (4, 4, 20), (5, 5, 0), (6, 6, 20), (7, 8, 0), (9, 3, 28)
+    )
+    # Where both neighbours are one group it joins it through the bins
+    # before it, as before: the first 8 of [8, 0, 8] past the last bin.
+    assert merged([8, 0, 8], [], 11, True) == ((1, 1, 0), (2, 0, 16))
 
 
 def test_the_shared_stand_out_rule() -> None:
