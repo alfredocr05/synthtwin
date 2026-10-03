@@ -300,3 +300,41 @@ def test_item_10_the_twelve_hour_question_says_what_it_read(tmp_path: pathlib.Pa
     cells = [f"{1 + minute // 60}:{minute % 60:02d}" for minute in range(300)]
     _block, _profile, questions = gate._described(tmp_path / "whole", cells)
     assert "every value" in _seen(questions)
+
+
+# -- item 11: no retained clause contradicts the forty forms -------------
+
+ROOT = pathlib.Path(__file__).resolve().parent.parent
+
+# Each sentence a consumer could follow to refuse `9:30`, or to order
+# `9:30 AM` after `1:00 PM` by its text, as 110cb46 still stated it.
+_RETIRED = {
+    "docs/spec/profile-contract-v6.md": (
+        "A single-digit hour does not parse",
+        "match ONE of the exactly two clock forms below",
+        "because both forms are fixed-width",
+        "every field in two digits and in the ranges",
+        "in one of the two forms the `time_of_day` role fixes",
+        "the `time_of_day` role's two forms",
+        "| `clock_form` | string | `hh-mm`, `hh-mm-ss` |",
+        "Two clock forms in one column are not read as one clock",
+    ),
+    "docs/spec/generation-method-v1.md": (
+        "What the reader accepts is EXACTLY these two shapes",
+        "zero-padded to two digits per",
+        "an hour written with one digit such as `9:30`\n(the published spellings are fixed width)",
+    ),
+    "src/synthtwin/contract.py": ("two digits a field",),
+}
+
+
+def test_item_11_no_retained_clause_contradicts_the_forty_forms() -> None:
+    """The contract and the method state the forty forms, and no clause of the two forms survives."""
+    for name, sentences in _RETIRED.items():
+        text = " ".join((ROOT / name).read_text(encoding="utf-8").split())
+        for sentence in sentences:
+            assert " ".join(sentence.split()) not in text, (name, sentence)
+    contract_text = (ROOT / "docs/spec/profile-contract-v6.md").read_text(encoding="utf-8")
+    assert "the thirty-eight more of C6-10a (forty in all" in contract_text
+    method = (ROOT / "docs/spec/generation-method-v1.md").read_text(encoding="utf-8")
+    assert "**What the reader accepts is EXACTLY the forty forms**" in method

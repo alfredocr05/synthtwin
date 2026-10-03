@@ -1278,6 +1278,13 @@ floor, so the real table meets its description by construction:
   the file reads on that face shows an hour width other than the
   published one -- a faithful twin that drew no hour below ten shows no
   width and is not accused -- and is MISSED otherwise;
+- a slashed stamp's TAILS are recounted over the cells its description
+  reads, and a stamp whose clock reads on another face than the
+  published style's is no date there, as the producer counts it unread
+  (contract NF108; the T1 review's item 2): three `12/31/2030 23:59`
+  beside 300 stamps written `3/17/2023 1:00 AM` stood in the high tail
+  the description measured without them, and the unchanged source
+  missed that tail's four checks;
 - `all_at_midnight` is compared where it is published `true`
   (`midnight.all`), and `n_at_midnight` where it is published at all,
   which is where it is above nought (`midnight.count`). The nought that

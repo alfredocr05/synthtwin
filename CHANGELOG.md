@@ -149,6 +149,24 @@ offer is asked again: `6` typed at a column of codes had recorded a
 12-hour clock on it. That stated limit is landing T2's to close: its hour
 census confines a declared 12-hour stamp's draws to the half day.
 
+**Its one review** (Codex at 110cb46; items 4 and 5 are landing R1's).
+A cell of the other hour width is never rewritten into a value declared
+missing: 180 `1:00` beside a declared `01:00` had come back as 191 holes
+where the source has eleven, and the column now keeps the width that
+spells none. Validation's tail recount and the day-or-month comparison
+read a stamp on its column's face, as the producer does, so a source
+with three 24-hour stamps among 300 marked ones no longer misses four
+checks, and 990 month-first stamps no longer lose to 999 day-first ones
+of which ten are then dropped. G7.5 step 5 searches the days depth
+first, product and oracle alike, and places a remainder of 13 on days of
+6 and 7 where the greedy walk gave up. The loader refuses a 12-hour face
+no declaration names (S8c). A scripted run offers `--twelve-hour` to the
+12-hour question and calls a clock column a clock; a declared stamp
+whose written clock was pooled is told the declaration was honoured;
+the 12-hour and colon questions no longer say "every value" of a column
+holding cells they did not read; and the contract and the method no
+longer refuse `9:30` or order clock text as written.
+
 ### Every tail publishes its pair (2026-10-01)
 
 **No tail pair is withheld but one binary64 cannot hold** (plan P4-D375,

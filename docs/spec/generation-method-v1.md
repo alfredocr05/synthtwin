@@ -6581,12 +6581,19 @@ come to less than the parsed cells -- a width each below the line was
 left out -- the named words keep exactly their published counts and the
 other `parsed - named` ranks wear joint words the census does not name,
 in the order `padded`, `unpadded`, `first-padded`, `second-padded`:
-WHOLE DAYS AT A TIME, from the ranks that show both fields, the days
-holding the fewest of them first, each day taken while it still fits
-the remainder; each word on at most the line less one ranks and on fewer
-than the largest named count, a day going to the first word it fits.
-Where no such set of days holds the remainder exactly, no rank moves and
-the report says so (`date_field_widths`): case (b), a remainder
+WHOLE DAYS AT A TIME, from the ranks that show both fields; each word
+on at most the line less one ranks and on fewer than the largest named
+count. THE DAYS ARE WALKED DEPTH FIRST (the T1 review's item 6): the
+days holding the fewest of those ranks first and the earlier day first
+among equals, each day put in the first word, then the next, then left
+out, and the first way whose days hold exactly the remainder is taken.
+The walk this replaced took each day that still fitted and never
+stepped back: on days of 4, 6 and 7 ranks under a remainder of 13 it
+took 4 and 6, could not take 7, and gave up, though 6 and 7 hold 13.
+Where the old walk reached the remainder the new one makes the same
+choice, its first path. Where no set of days holds the remainder
+exactly -- which is then true and not a walk's failure -- no rank moves
+and the report says so (`date_field_widths`): case (b), a remainder
 outnumbering the named word's visible cells, stays carried.
 
 **The joint words are joint on purpose, and that is a rule and not a
@@ -7254,30 +7261,37 @@ width, `hours % 12` with 12 in place of 0 on a 12-hour face, the marker's
 morning word below noon and its evening word from noon on. Every ordinal
 in `[0, capacity)` still has exactly one spelling, and ranks are ordered
 by ordinal, never by text. The reader below admits these forms; what it
-refuses beyond the five shapes is `24:00`, a marked hour of 0 or past 12,
+refuses beyond the shapes refused below is `24:00`, a marked hour of 0 or past 12,
 `Am`, a one-letter marker, and a marker after two spaces or a no-break
 space.
 
 The ordinal of a cell is `hours * 60 + minutes` for `hh-mm` and
-`hours * 3600 + minutes * 60 + seconds` for `hh-mm-ss`. The spelling of
-an ordinal is that map inverted and zero-padded to two digits per
-field. Because the unit is the form's own, every ordinal in
+`hours * 3600 + minutes * 60 + seconds` for `hh-mm-ss`, the hour read on
+the form's face for the other thirty-eight. The spelling of an ordinal
+is that map inverted, the minutes and seconds in two digits and the
+hour at the form's width as the paragraph above writes it. Because the unit is the form's own, every ordinal in
 `[0, capacity)` has exactly one spelling in that form, and no value the
 generator interpolates is ever truncated or widened to fit a cell.
 
-**What the reader accepts is EXACTLY these two shapes**, and the word
+**What the reader accepts is EXACTLY the forty forms**, and the word
 exactly is the rule rather than a summary of it: two ASCII digits in
-every field, hours at most 23, minutes and seconds at most 59, nothing
-before the digits and nothing after. Four shapes a reader might expect
-are refused on purpose — a fractional part (a reading that dropped it
+the minute and second fields, the hour in two figures or, below ten,
+one, at most 23 unmarked and 1 to 12 marked, minutes and seconds at
+most 59, the marker as the paragraph above admits it, and nothing
+before the digits and nothing after. Before landing T1 it was exactly
+the two shapes of the table, and an hour written with one digit such as
+`9:30` was refused; it is read since, the column keeping one width
+(contract C6-10a), and a consumer that refuses `9:30` or orders
+`9:30 AM` after `1:00 PM` by its text is not following this method
+(the T1 review's item 11). Three shapes a reader might expect are
+refused on purpose — a fractional part (a reading that dropped it
 would describe such a cell approximately while publishing an exact
 ladder), the leap second `23:59:60` (the ordinal space has no faithful
 point for it, and making one up would write into the twin a time that
-no clock face reaches), an hour written with one digit such as `9:30`
-(the published spellings are fixed width), and anything else — a
-date, an offset, a name.
+no clock face reaches), and anything else — a date, an offset, a
+name.
 
-**Nothing is trimmed before the reader looks**, and that is a fifth
+**Nothing is trimmed before the reader looks**, and that is a fourth
 refusal rather than an oversight. What this role publishes are the
 CELLS THEMSELVES: the two endpoints and the eleven ladder rungs are
 values some row wore, character for character. A cell wearing the form
