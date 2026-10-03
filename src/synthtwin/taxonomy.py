@@ -5251,7 +5251,10 @@ def _tail_side(
       timestamp tail came back at 0 to 0.78 of its real spread beyond
       the boundary, and validating its twin took about eight times as
       long. A pair can give back a tail's own outer values; it never
-      names a row or another column.
+      names another column, and never a row EXCEPT on a table sorted by
+      that column, whose description publishes the order (`row_order`):
+      there the k-th value rebuilt is row k's (the owner, told on
+      2026-09-30: "Yes, it stands"; review of landing 3b.G1, item 4).
 
     Guarantees: returns the five keys of `TAIL_KEYS`. Determinism: a
     function of the arguments. Raises nothing. No I/O of any kind.

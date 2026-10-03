@@ -1514,10 +1514,12 @@ def _lone_outer(cells: "list[str]", block: "dict", floor: int) -> "set[float]":
 # so both its distances are 0.0, and 0.0 is also a value one row of that
 # column holds at the other end.
 #
-# WHAT A READER CAN DO WITH A DISTANCE IS ARITHMETIC, AND THE GATE ASKS
-# THAT THROUGH THE BACK-SOLVE THE TAIL-LEAK DRIVER ALREADY HOLDS
-# (`test_no_tail_of_the_battery_back_solves_to_the_value_it_withheld`),
-# rather than through a second one of its own. Measured while this file
+# WHAT A READER CAN DO WITH A DISTANCE IS ARITHMETIC, AND THE GATE DOES
+# NOT ASK IT. It asked the tail-leak driver's back-solve until plan
+# P4-D375 published every pair binary64 holds and removed that test
+# with the withholding; what a pair gives back of its own tail is
+# `K-S3-11`'s and `K-S3-18`'s count now (review of landing 3b.G1, item
+# 4), never a second arithmetic of the gate's own. Measured while this file
 # was built: `boundary + mean_distance` over a TWELVE-row tail came back
 # 7.2 on `two_readings_fit`, which is a cell of that column and is a
 # coincidence -- the mean of twelve unequal distances names no row --
@@ -1711,9 +1713,9 @@ def test_the_sentence_leak_witness_fails_on_the_whole_word_split() -> None:
 
 # -- 3b. the reconstruction attacks (the fix pass, plan P4-D349) -------
 #
-# WHY THIS SECTION EXISTS. The walk above asks the tail-leak driver's
-# back-solve of the BATTERY, and the battery is the count design's own
-# shapes. It could not see the defect the adversarial round of stage 3
+# WHY THIS SECTION EXISTS. The walk above asked the tail-leak driver's
+# back-solve of the BATTERY until plan P4-D375, and the battery is the
+# count design's own shapes. It could not see the defect the adversarial round of stage 3
 # returned REJECT on, for three reasons at once: no shape of it is a
 # column of consecutive values; the driver's walk read `low_tail` and
 # `high_tail` and so measured a numeric block as having no tail at all;

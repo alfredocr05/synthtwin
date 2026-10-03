@@ -140,7 +140,9 @@ ones.
   pair is published only where withholding it costs the twin its mean
   or spread ("Publish anyway", "Only where it costs", `K-S3-18`; the
   plan, not the owner, extends it to unsettled sides and orders the
-  candidates). A column's own values rebuilt from its description are
+  candidates). That rule is GONE since plan P4-D375 (2026-10-01, under
+  the principle below): every pair binary64 holds is published, so
+  nothing is withheld for a cost rule to weigh. A column's own values rebuilt from its description are
   accepted -- never another column, and never which row except on a
   table sorted by that column, whose `row_order` puts the k-th value in
   row k (told 2026-09-30: "Yes, it stands"): by the exact skew
@@ -197,9 +199,12 @@ cannot get worse unseen.
   AT A FLOOR OF ONE and 0 at the default, and `K-S3-11` walks 105 cases
   of the tail battery without one published value, summary line or
   report line equal to an outermost value of the real column. Its one
-  stated residual is closed too: `edge_pinned` is 0, where the
-  published pair of an all-different clock tail used to leave a reader
-  exactly one arithmetic (plan P4-D346). A floor
+  stated residual, `edge_pinned`, which plan P4-D346 closed, is open
+  again by choice since plan P4-D375 publishes every pair: `K-S3-11`
+  records 14 edge-pinned and 8 pinned tails of its 105 cases, whose
+  pairs give a reader back that tail's own outer values -- accepted
+  under the owner's principle of 2026-10-01, never another column, and
+  never which row except on a table sorted by that column. A floor
   lowered to one still names what it always named, which is what
   lowering it asks for.
 - ~~**Spread too wide on normal-shaped columns.**~~ **CLOSED by landing
@@ -245,19 +250,17 @@ cannot get worse unseen.
   nothing, so a count G12.5 holds exactly is MISSED, 6 of 1,200 twins of
   a floor-50 family holding 1.5 to 2.4 times it -- each held by
   `tests/test_stage3b_gate.py` (P4-D358).
-- **Where no published pair keeps them, a raised floor still costs a
-  twin its mean and spread.** Since plan P4-D353 a withheld tail pair is
-  published wherever withholding it would leave the column's mean or
-  spread window short, so no twin of `K-S3-20`'s 37 shapes at a floor of
-  36 misses an obligation (22 a seed before) and `K-S3-15` is green.
-  Left, over 36 column-floors at three seeds (`K-S3-22`): 111 moment
+- **With every pair published, a raised floor still costs some twins
+  their mean and spread.** Since plan P4-D375 every tail pair binary64
+  holds is published, so no twin of `K-S3-20`'s 37 shapes at floors 11
+  to 50 misses an obligation and `K-S3-15` is green. Left, over 36
+  column-floors at three seeds (`K-S3-22`): 111 moment
   obligations -- a far value beyond the width the column publishes
   (`00001` to `00149` beside `99999`), whole-number Pareto(2) at 150
   rows from floor 20, some Pareto(2.5) columns at 36 and 50, blocks that
   publish moments only, and a lone far value whose pair keeps its mean
-  and not its spread. A withheld date or clock tail still narrows its
-  twin at a raised floor; its own cost rule is a later landing (owner,
-  2026-09-26).
+  and not its spread. No date or clock tail is withheld any more, so
+  none narrows its twin for want of a pair.
 - **A census of NOTATIONS that is only a pool is written as the
   majority.** Where no negative notation reaches the floor and the pool
   is no more than three notations hold below it, `negative_notations`
