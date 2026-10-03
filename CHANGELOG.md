@@ -26,6 +26,22 @@ and one left unparsed is not, so the source meets its own census.
 `K-S3-32` is floor-only, `K-S3-33` retired, `K-S3-35` new, and
 `K-S3-39`, `K-2B-13` and `K-2B-48` hold.
 
+### Stage 4's first tier repaired at its review (2026-10-02)
+
+**A twin of a description the producer writes today moves no byte**
+(plan P4-D385, its review). An identifier search knows a repeated shape
+before it builds that shape's permissions: 441 where it built 8,421 at
+461 rows. The made-up spellings of one label are bounded -- 4,096 case
+flips and 64 trailing spaces -- and their walk resumes where it
+stopped, so a description written before P4-D275 that holds back a
+million spellings of one label no longer asks for spellings a million
+spaces long: past the bound a group is written in its level's commonest
+spelling, and the twin's report says how many were. Nine lists that
+copied a comprehension in grow in place, and the guard sees that form.
+`K-S4-03` measures the lines the pair search runs and the bytes the
+class pass allocates, and its tests compare against frozen copies of
+the replaced functions.
+
 ### Four paths of the largest tables grow with their rows (2026-10-01)
 
 **No published fact and no twin byte moves** (plan P4-D385, stage 4's
