@@ -33074,7 +33074,8 @@ def _identifier_packings(
     # this packer already answers completely.
     for signing in (False, True):
         sized: dict[tuple[int, int], int] = {}
-        seen_permits: dict[tuple[tuple[int, int], ...], int] = {}
+        seen_permits: dict[tuple[tuple[tuple[int, int], int], ...], int] = {}
+        windows = _identifier_window_masks(facts, signing)
         for carriers in _shape_choices(groups):
             if len(found) >= budget:
                 return found
@@ -33082,13 +33083,20 @@ def _identifier_packings(
             if shape in sized:
                 continue
             sized[shape] = 1
-            permits = _identifier_windows(facts, total, carriers, signing)
-            seen = tuple(sorted(
-                [(groups[place], permits[place]) for place in range(total)]
-            ))
+            # A REPEAT IS KNOWN BEFORE ITS VECTOR IS BUILT (review of
+            # landing S1, item 1). The groups beside their permissions
+            # were built and sorted for every shape and only then
+            # compared, so a column of `k` different group sizes built
+            # `k * k` vectors of every group to ask about `k` questions:
+            # an identifier of 1,413 groups, 2,817,161,685 permissions.
+            # `_window_change` is the same comparison taken from the two
+            # carriers alone, so the same shapes are stepped over, in
+            # the same order, and a vector is built only for a new one.
+            seen = _window_change(groups, carriers, windows)
             if seen in seen_permits:
                 continue
             seen_permits[seen] = 1
+            permits = _identifier_windows(facts, total, carriers, signing)
             # THE FIRST TIER IS BOUNDED BY ITS OWN SHAPES, not by the
             # budget, and that is load-bearing: `_identifier_families`
             # asks for ONE candidate and the first shape it tries may
@@ -33558,19 +33566,87 @@ def _identifier_windows(
     carriers: "tuple[int, int]",
     signed: bool = False,
 ) -> "list[int]":
-    """The pairs every group may stand in, under one choice of end carriers."""
+    """The pairs every group may stand in, under one choice of end carriers.
+
+    THREE WINDOWS, WORKED OUT ONCE (stage 4, plan P4-D385, review of
+    landing S1 item 1). A group carrying the shortest length, one
+    carrying the longest, and every other group are the only three
+    questions `_identifier_permits` is asked here, so each is asked once
+    and the vector is filled from the three answers, where every group
+    asked its own: the answer is the same list.
+    """
+    low, high, middle = _identifier_window_masks(facts, signed)
     permits: list[int] = []
     for index in range(total):
-        shortest = facts.min_length
-        highest = facts.max_length
         if index == carriers[0]:
-            highest = facts.min_length
-        elif index == carriers[1] and facts.max_length > facts.min_length:
-            shortest = facts.max_length
-        permits += [
-            _identifier_permits(facts, shortest, highest, signed)
-        ]
+            permits += [low]
+        elif index == carriers[1]:
+            permits += [high]
+        else:
+            permits += [middle]
     return permits
+
+
+def _identifier_window_masks(
+    facts: contract.IdentifierFacts, signed: bool = False
+) -> "tuple[int, int, int]":
+    """The pairs a group may stand in as the shortest, the longest and any other.
+
+    The shortest carrier is held to the shortest published length; the
+    longest carrier to the longest where the two differ, and to the
+    whole range where they do not -- which is the window every other
+    group is given.
+
+    Guarantees: a fixed function of its arguments; no randomness and no
+    I/O.
+    """
+    middle = _identifier_permits(
+        facts, facts.min_length, facts.max_length, signed
+    )
+    low = _identifier_permits(facts, facts.min_length, facts.min_length, signed)
+    high = middle
+    if facts.max_length > facts.min_length:
+        high = _identifier_permits(
+            facts, facts.max_length, facts.max_length, signed
+        )
+    return low, high, middle
+
+
+def _window_change(
+    groups: "tuple[int, ...]",
+    carriers: "tuple[int, int]",
+    windows: "tuple[int, int, int]",
+) -> "tuple[tuple[tuple[int, int], int], ...]":
+    """How one choice of end carriers moves the groups off the middle window.
+
+    `_identifier_packings` steps over a choice whose groups, each beside
+    its permission, are the same as a choice already tried (sorted pairs
+    of size and mask). Every group not carrying an end holds the middle
+    window, so two choices give the same pairs exactly when they move
+    the same sizes to the same windows: this is that move, the pairs the
+    carriers take less the pairs they leave, with whatever cancels left
+    out. It is worked out from the two carriers alone, so a choice that
+    repeats one already tried is known before its vector is built (review
+    of landing S1, item 1: an identifier of 101 groups built 10,001
+    vectors of 101 masks to ask 101 questions).
+
+    Guarantees: equal for two choices exactly when the sorted pairs of
+    `_identifier_windows` are equal; a fixed function of its arguments.
+    """
+    low, high, middle = windows
+    change: "dict[tuple[int, int], int]" = {}
+    taken = [(carriers[0], low)]
+    if carriers[1] != carriers[0]:
+        taken += [(carriers[1], high)]
+    for place, permit in taken:
+        size = groups[place]
+        left = (size, middle)
+        came = (size, permit)
+        change[left] = (change[left] if left in change else 0) - 1
+        change[came] = (change[came] if came in change else 0) + 1
+    return tuple(sorted(
+        (pair, change[pair]) for pair in change if change[pair] != 0
+    ))
 
 
 def _identifier_classes(pairs: int) -> int:

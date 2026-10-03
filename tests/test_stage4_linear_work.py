@@ -289,6 +289,97 @@ def test_the_end_carrier_search_is_handed_no_more_pairs_as_the_rows_double() -> 
     assert old_large / old_small >= SQUARE_AT_LEAST, (old_small, old_large)
 
 
+def _one_odd_group(k: int) -> "list[str]":
+    """The review's identifier (landing S1, item 1): only its last group can carry the shortest value.
+
+    `7` written ``2k + 1`` times, and ``k`` more values written 2, 4,
+    ... ``2k`` times: ``k + 1`` different group sizes, and of them only
+    the odd one, last in order, can hold the one-figure value the count
+    of ordinary numbers needs.
+    """
+    values = ["7"] * (2 * k + 1)
+    for place in range(1, k + 1):
+        values += [f"{place:04d}e999"] * (2 * place)
+    return values
+
+
+def window_cells_built(k: int) -> "tuple[int, int]":
+    """The rows of `_one_odd_group(k)` and the permissions built for its twin, group by group."""
+    values = _one_odd_group(k)
+    with tempfile.TemporaryDirectory() as home:
+        loaded = _described(pathlib.Path(home), values, declared=["value"])
+    assert isinstance(loaded.columns[0].facts, contract.IdentifierFacts)
+    built = [0]
+    shipped = generation._identifier_windows
+
+    def counted(*arguments: object) -> "list[int]":
+        permits = shipped(*arguments)  # type: ignore[arg-type]
+        built[0] += len(permits)
+        return permits
+
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(generation, "_identifier_windows", counted)
+        generation.generate(loaded, 0)
+    return len(values), built[0]
+
+
+def test_a_repeated_carrier_choice_builds_no_permissions() -> None:
+    """The identifier search builds about one permission per row, not one per group per shape.
+
+    The review's witness asks ``k + 1`` different questions among
+    ``k * (k + 1)`` shapes, and every shape built a permission for every
+    group before the repeats were known: 8,421 at 461 rows and 65,641
+    at 1,721, the cube of ``k`` where the rows are its square. Each
+    repeat is known from its two carriers now, so only a new question
+    builds its vector.
+    """
+    for k in (10, 20):
+        rows, built = window_cells_built(k)
+        assert built <= 2 * rows, (k, rows, built)
+
+
+def _sorted_windows_as_built(
+    groups: "tuple[int, ...]",
+    carriers: "tuple[int, int]",
+    windows: "tuple[int, int, int]",
+) -> "tuple[tuple[int, int], ...]":
+    """What the identifier search compared before the review: every group beside its window, sorted."""
+    low, high, middle = windows
+    pairs: "list[tuple[int, int]]" = []
+    for place in range(len(groups)):
+        permit = middle
+        if place == carriers[0]:
+            permit = low
+        elif place == carriers[1]:
+            permit = high
+        pairs += [(groups[place], permit)]
+    return tuple(sorted(pairs))
+
+
+def test_a_carrier_choice_repeats_exactly_when_its_sorted_windows_did() -> None:
+    """`_window_change` tells two choices apart exactly where the sorted vectors did.
+
+    Over seeded groups and every pair of the old order, with windows
+    drawn from three values so the shortest, the longest and the middle
+    window coincide in every combination.
+    """
+    draw = random.Random(3852)
+    repeats = 0
+    for _case in range(400):
+        groups = tuple(draw.choice((1, 2, 2, 3, 5)) for _ in range(draw.randrange(1, 9)))
+        windows = (draw.choice((1, 2, 3)), draw.choice((1, 2, 3)), draw.choice((1, 2, 3)))
+        by_vector: "dict[object, int]" = {}
+        by_change: "dict[object, int]" = {}
+        for step, carriers in enumerate(_shape_choices_as_built(len(groups))):
+            vector = _sorted_windows_as_built(groups, carriers, windows)
+            change = generation._window_change(groups, carriers, windows)
+            first_vector = by_vector.setdefault(vector, step)
+            first_change = by_change.setdefault(change, step)
+            assert first_vector == first_change, (groups, windows, carriers)
+            repeats += first_vector != step
+    assert repeats >= 1000, repeats
+
+
 # -- 2. the held-back level lookups --------------------------------------
 
 
