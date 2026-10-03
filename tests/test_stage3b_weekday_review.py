@@ -918,3 +918,48 @@ def weekend_moved(whole: int, single: int) -> "list[str]":
     cells = _moved(cells, "2024-05-27", "2024-05-11", single)
     random.Random(9).shuffle(cells)
     return cells
+
+
+# -- the review of landing 3b.D1 (plan P4-D365), item 1: a missed census is not said to be met --
+
+
+def test_a_census_the_twin_misses_is_not_said_to_be_met(tmp_path: pathlib.Path) -> None:
+    """The calendar sentence is read off the day pass's measurement, not off the census.
+
+    The review's scenario: 400 rows, 1 January to 9 April 2024, each date
+    four times, its census replaced by Monday to Saturday nought and
+    Sunday the whole body. The loader accepts it, and the body boundaries
+    (a Thursday and a Saturday) leave no twin able to meet it. At seed 0
+    the twin files `weekday_census` as a deviation, and on the reviewed
+    tree the sentence on how the column is spread still said "the
+    published counts per day of the week are met". Red when the sentence
+    is read off the census alone again, or when it calls the weekday
+    unpublished.
+    """
+    import copy
+
+    from synthtwin import generation
+
+    days = [datetime.date(2024, 1, 1) + datetime.timedelta(days=step) for step in range(100)]
+    cells = [day.isoformat() for day in days for _ in range(4)]
+    described = kpi_shapes.describe(tmp_path, "sundays", "visit\n" + "".join(f"{cell}\n" for cell in cells), 11)
+    document = copy.deepcopy(described.document)
+    block = document["columns"][0]
+    body = 400 - block["low_tail"]["rows"] - block["high_tail"]["rows"]
+    block["weekday_census"] = [{"first": 0, "last": 5, "count": 0}, {"first": 6, "last": 6, "count": body}]
+    loaded = contract.load_profile(str(fixtures.write_profile(tmp_path, "edited.json", document)))
+    twin = generation.generate(loaded, 0)
+    assert [note.fact for note in twin.deviations if note.fact == calendar_rules.WEEKDAY_CENSUS], twin.deviations
+    spread = [remark for remark in twin.remarks if remark.subject == "how these dates are spread across the calendar"]
+    assert len(spread) == 1, twin.remarks
+    said = f"{spread[0].held} {spread[0].note}"
+    assert "counts per day of the week are met" not in said, said
+    assert "counts per day of the week are not met" in said, said
+    assert "which days of the week the values fall on" not in said, said
+    # The column's own block carries the same sentence as the twin's list.
+    assert spread[0] in twin.outcomes[0].remarks
+    # The published census as it was: the sentence still says it is met.
+    met = generation.generate(described.loaded, 0)
+    assert not [note for note in met.deviations if note.fact == calendar_rules.WEEKDAY_CENSUS], met.deviations
+    kept = [remark for remark in met.remarks if remark.subject == "how these dates are spread across the calendar"]
+    assert "the published counts per day of the week are met" in kept[0].held, kept

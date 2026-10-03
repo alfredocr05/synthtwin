@@ -6431,7 +6431,14 @@ ending once both sides lie outside it.
 9. Each run of ranks the layout does not pin is sorted.
 
 Where the census still does not hold, the report names `weekday_census`
-as a published fact the twin missed.
+as a published fact the twin missed, and the column's sentence on how
+its dates are spread across the calendar says the published counts per
+day of the week are NOT met. That sentence is read off this same
+measurement, the count of the body against the published groups once
+step 9 is done, and never off the census alone: a description the
+loader accepts can publish a census its own tail boundaries leave no
+twin able to meet, and the sentence said it was met beside the line
+naming it missed (review of landing 3b.D1, item 1).
 
 ### G7.4 Offsets: only where recorded
 

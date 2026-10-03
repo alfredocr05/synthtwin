@@ -26,6 +26,15 @@ and one left unparsed is not, so the source meets its own census.
 `K-S3-32` is floor-only, `K-S3-33` retired, `K-S3-35` new, and
 `K-S3-39`, `K-2B-13` and `K-2B-48` hold.
 
+**A census the twin misses is no longer said to be met** (its Codex
+review, item 1). The twin report's sentence on how a column of dates is
+spread said "the published counts per day of the week are met" wherever
+a census was published, even beside the line naming `weekday_census` as
+a fact the twin could not hold: a census edited to put the whole body on
+Sundays between a Thursday and a Saturday boundary loads, and no twin can
+meet it. The sentence is now read off the day pass's own measurement and
+says such a census is not met. No twin byte moves.
+
 ### Four paths of the largest tables grow with their rows (2026-10-01)
 
 **No published fact and no twin byte moves** (plan P4-D385, stage 4's
