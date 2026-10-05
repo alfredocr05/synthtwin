@@ -6533,21 +6533,26 @@ values than the column, as the measured weekly sessions, payroll days
 and monthly dates did. 1 to 21 January 2024, a hundred rows a date, is
 withheld by it too, and its census restored is met at seeds 0 to 2 with
 all 21 dates and no deviation (the Codex review of P4-D365, item 2).
-The count-room rule (plan P4-D388) reads the room the count of
-different values leaves the body, which a raised floor narrows: a tail
-that publishes its two distances rather than its values is rebuilt with
-up to the floor's number of different days, never more than its rows,
-and one that lists its values on those; the count pass leaves the body
-the column's different days less that most of the two tails; and the
-day pass moves a body rank only between the two pins either side of it
--- the body's boundaries and the rungs published between them -- so the
-census needs every pin day and, inside each such gap, a day of every
-group that holds rows and has a day there other than the gap's two pin
-days. Where that room is no more than the need and the need passes the
-pin days, the census is withheld: at the floor of 36, schedules whose
-tails held 59 and 40 rows on a few days came back with 32 and more
-different days in their twins' tails and more different values than
-the column. And beside every published hole other than a width hole -- where the
+The count-room rule (plan P4-D388), asked where the settings floor is
+raised above 11 -- the floor the few-dates rule was measured at --
+reads the room the count of different values leaves the body. A tail
+that lists its values is written on them; one that publishes its two
+distances is rebuilt with at most the floor's number of different days,
+never more than its rows, and no more than one past what its own spread
+allows (k different whole distances of one or more hold at least the
+squares of 1 to k, and one for each other row); the count pass leaves the
+body the column's different days less those its tails hold. The day
+pass moves a body rank only between the two pins either side of it --
+the body's boundaries and the rungs published between them -- so the
+census needs every pin day and, inside each gap, a day of every group
+that holds rows and has a day strictly inside the gap other than its
+two pin days. Where the census needs a day past the pin days and the
+room is no more than that need, the census is withheld: at the floor
+of 36, schedules whose tails held 59 and 40 rows on a few days came
+back with 32 and more different days in their twins' tails and more
+different values than the column. At 11 it is not asked: there it
+would withhold only censuses whose twins met them.
+And beside every published hole other than a width hole -- where the
 month-name census's one word has the length `either`, so every day
 outside May is a HOLE, and beside a placeholder or declared hole -- it
 is withheld where a non-empty group has no free day between the body's

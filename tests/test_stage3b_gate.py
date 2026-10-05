@@ -212,6 +212,7 @@ on a line of its own below its own anchor. The base they build on is
 held by tests/test_stage3b_base.py.
 anchor 3b-D1 (P4-D365)
 3b.G: this file's weekday half and tests/test_stage3b_weekday_review.py.
+3b.D1b: tests/test_stage3b_count_room.py, the count's room above the floor of 11 (P4-D388).
 anchor 3b-D0 (P4-D366)
 anchor 3b-D2 (P4-D367)
 anchor 3b-D3 (P4-D368)

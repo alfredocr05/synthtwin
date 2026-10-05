@@ -211,21 +211,31 @@ def test_the_pins_are_the_boundaries_and_the_rungs_strictly_between_them() -> No
     assert calendar_rules.body_pins(every, 49, 50, ladder) == ((49, 1049),)
 
 
-def test_the_tails_most_is_their_listed_values_or_up_to_the_floor() -> None:
+def test_the_tails_most_is_their_listed_values_or_up_to_the_floor_and_their_spread() -> None:
     """`calendar_rules.tails_most`: the most different days the twin's two tails can hold (method G7.3b).
 
-    A tail that lists its values holds at most as many days as it lists,
-    whatever its rows and the floor; one that publishes its two
-    distances at most the floor's number, and never more than its rows.
-    A floor below one is read as one, the twin's tie group then taking
-    every rank. Red when a distance tail counts its rows past the floor
-    or a rank under it, or a listed tail counts the floor.
+    Ten days a tail, one cell each, either side of a body of ten: each
+    tail spreads over distances 1 to 10, so it can hold all ten days at
+    any floor from 10 up, and at the floor of 4 only four; a tail that
+    lists its values holds at most as many days as it lists, whatever its
+    rows and the floor. Twenty cells a day out but one two days out hold
+    a sum of squares of 23, which two different distances fill (1 + 4 and
+    eighteen ones): two days and the one day beside allowed
+    (`SPREAD_SLACK`), three, at the floor of 20. A floor below one is read
+    as one, the twin's tie group then taking every rank. Red when a
+    distance tail counts its rows past the floor or a rank under it, a
+    listed tail counts the floor, the spread is not asked or asked
+    without its one day beside, or the floor is read as given.
     """
-    assert calendar_rules.tails_most((None, None), (59, 40), 36) == 72
-    assert calendar_rules.tails_most((3, None), (36, 37), 36) == 39
-    assert calendar_rules.tails_most((None, None), (20, 40), 36) == 56
-    assert calendar_rules.tails_most((2, 3), (100, 100), 11) == 5
-    assert calendar_rules.tails_most((None, None), (5, 5), 0) == 2
+    spread = tuple(range(100, 110)) + tuple(range(120, 130)) + tuple(range(140, 150))
+    assert calendar_rules.tails_most(spread, 10, 10, (None, None), 36) == 20
+    assert calendar_rules.tails_most(spread, 10, 10, (None, None), 10) == 20
+    assert calendar_rules.tails_most(spread, 10, 10, (None, None), 4) == 8
+    assert calendar_rules.tails_most(spread, 10, 10, (3, None), 36) == 13
+    assert calendar_rules.tails_most(spread, 10, 10, (2, 5), 36) == 7
+    near = (98,) + (99,) * 19 + tuple(range(100, 130)) + (130,) * 19 + (132,)
+    assert calendar_rules.tails_most(near, 20, 20, (None, None), 20) == 6
+    assert calendar_rules.tails_most(near, 20, 20, (None, None), 0) == 2
 
 
 @pytest.mark.parametrize("shape,low,high", [(0, 59, 40), (92, 57, 36)])
@@ -371,7 +381,7 @@ def test_at_the_floor_of_11_the_rule_is_not_asked_and_a_small_column_keeps_its_c
     rungs = block["date_percentiles"]
     percents = [(100 * num) // den for label, num, den in taxonomy.LADDER if rungs[label] is not None]
     pins = calendar_rules.body_pins(ordered, block["low_tail"]["rows"], block["high_tail"]["rows"], percents)
-    most = calendar_rules.tails_most((None, None), (block["low_tail"]["rows"], block["high_tail"]["rows"]), 11)
+    most = calendar_rules.tails_most(ordered, block["low_tail"]["rows"], block["high_tail"]["rows"], (None, None), 11)
     assert (block["low_tail"]["rows"], block["high_tail"]["rows"], most) == (15, 11, 22)
     assert calendar_rules.count_room_short(groups, pins, len(set(ordered)), most)
 

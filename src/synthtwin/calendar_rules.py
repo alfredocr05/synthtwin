@@ -165,6 +165,13 @@ MEAN_REAL_HALF_DATES = 15
 # twins met them -- that most is twice what the twins' tails held.
 COUNT_ROOM_ABOVE_FLOOR = 11
 
+# THE ONE DAY A TAIL'S SPREAD BOUND ALLOWS BESIDE ITSELF (`tails_most`,
+# plan P4-D388): the twin's tail is drawn to its published sum of squares
+# in expectation, and its words may carry it a little past; over the 26
+# batteries measured no twin's tail held more different days than its
+# spread allows.
+SPREAD_SLACK = 1
+
 # The censuses of written forms whose one form per cell makes one text
 # per date (WC6), in the order the description publishes them.
 FORM_CENSUSES = (
@@ -1126,35 +1133,70 @@ def body_pins(
 
 
 def tails_most(
+    days: "tuple[int, ...]",
+    rows_low: int,
+    rows_high: int,
     listed: "tuple[int | None, int | None]",
-    rows: "tuple[int, int]",
     floor: int,
 ) -> int:
     """The most different days the twin's two tails can hold (method G7.3b).
 
-    A tail that lists its values is written on those values, so on at
-    most as many days as it lists (`listed`, the count of its listed
-    values, or None where it publishes its two distances instead). A
-    tail that publishes its two distances is rebuilt with its outermost
-    ranks one distance apiece and the rest on one shared distance, the
-    ranks past the floor's number sharing it: at most the floor's number
-    of different days, and never more than its rows. (Where the column's
-    values all differ its ranks all differ too, but no twin of such a
-    column can hold more different values than the column, which holds
-    one in every cell.)
+    `days` is the day of every parsed cell ascending, `rows_low` and
+    `rows_high` the two tails' rows, and `listed` each tail's count of
+    listed values, or None where it publishes its two distances instead.
 
-    Guarantees: accepts each side's listed count or None, each side's
-    rows and the settings floor (read as at least one); returns the sum.
-    Determinism: a function of the three. Raises nothing. No I/O.
+    A tail that lists its values is written on those values, so on at
+    most as many days as it lists. A tail that publishes its two
+    distances is rebuilt with its outermost ranks one distance apiece and
+    the rest on one shared distance, the ranks past the floor's number
+    sharing it: at most the floor's number of different days, never more
+    than its rows -- AND NO MORE THAN ITS SPREAD ALLOWS, one day beside
+    (`SPREAD_SLACK`): k different whole distances of one or more over the
+    tail's rows hold a sum of squares of at least 1 + 4 + ... + k**2 and
+    one for each other row, and the twin's tail is drawn to the sum of
+    squares its published root-mean-square distance states, the real
+    tail's own (`_spread_most`). A tail close to its boundary holds few
+    days however many rows it has. (Where the column's values all differ
+    its ranks all differ too, but no twin of such a column can hold more
+    different values than the column, which holds one in every cell.)
+
+    Guarantees: accepts the days, the two tails' rows (each less than the
+    days' count), each side's listed count or None and the settings floor
+    (read as at least one); returns the sum. Determinism: a function of
+    the five. Raises nothing. No I/O of any kind.
     """
+    parsed = len(days)
+    low = rows_low
+    high = parsed - 1 - rows_high
+    sides = (
+        (listed[0], [days[low] - days[rank] for rank in range(low)]),
+        (listed[1], [days[rank] - days[high] for rank in range(high + 1, parsed)]),
+    )
     most = 0
-    for side in range(2):
-        count = listed[side]
-        if count is None:
-            most = most + min(rows[side], max(floor, 1))
-        else:
+    for count, distances in sides:
+        if count is not None:
             most = most + count
+            continue
+        cap = min(len(distances), max(floor, 1))
+        squares = 0
+        for distance in distances:
+            squares = squares + distance * distance
+        most = most + min(cap, _spread_most(len(distances), squares, cap) + SPREAD_SLACK)
     return most
+
+
+def _spread_most(rows: int, squares: int, cap: int) -> int:
+    """The most different whole distances of one or more `rows` distances
+    summing to `squares` squared can take, counted no higher than `cap`:
+    the largest k, at least one, with 1 + 4 + ... + k**2 + (rows - k) at
+    most `squares`."""
+    held = 1
+    while held < cap and (
+        (held + 1) * (held + 2) * (2 * held + 3) // 6 + rows - held - 1
+        <= squares
+    ):
+        held = held + 1
+    return held
 
 
 def count_room_short(

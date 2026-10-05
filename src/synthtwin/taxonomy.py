@@ -16169,8 +16169,9 @@ def weekday_decision(
     entry, too few different dates by the conservative rule that keeps
     the twin's count of different values (`calendar_rules.few_dates`),
     too few of the column's different days left to the body's gaps once
-    the most its rebuilt tails can hold is set aside, which a raised
-    floor widens (`calendar_rules.count_room_short`, plan P4-D388), too
+    the most its rebuilt tails can hold is set aside, asked above the
+    floor of 11 because it is a raised floor that widens those tails
+    (`calendar_rules.count_room_short`, plan P4-D388), too
     little room by its companion between the published holes other
     than width holes -- May's holes, placeholder days and declared days
     (`calendar_rules.room_short`) --
@@ -16279,8 +16280,10 @@ def weekday_decision(
             calendar_rules.body_pins(days, rows_low, rows_high, percents),
             len(set(days)),
             calendar_rules.tails_most(
+                days,
+                rows_low,
+                rows_high,
                 (listed[0], listed[1]),
-                (rows_low, rows_high),
                 settings.small_cell_floor,
             ),
         ):
