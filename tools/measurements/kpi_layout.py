@@ -14,7 +14,18 @@ generator and checker:
   `strptime` format refuses (where Python has a directive for it);
 * `missed`: twins of which validation MISSES a checkable obligation;
 * `iso_rewrites_held`: twins rewritten in ISO that validation does NOT
-  miss -- the check that sees the written layout.
+  miss -- the check that sees the written layout;
+* `describe_ratio_100k` and `describe_ratio_300k`: the build gate's two
+  scale nodes (the R2 design, section 7, and its skeptic, m2) -- the CPU
+  time describing a column costs when it is written in a layout, over
+  the time an ISO column of the same moments at the same precision
+  costs, the largest of four such pairs (SPSS's DATETIME20, DB2's
+  timestamp, HL7's fourteen figures, a Dutch `d-m-yyyy` date), at
+  100,000 and at 300,000 rows. The bounds are 1.3 and 1.6: the skeptic
+  measured the prototype's layouts costing 7 to 10 per cent more a cell
+  each time the rows tripled while ISO stayed flat, so the larger node
+  is what a million rows is projected from. Both times are taken in
+  this process, side by side, so the ratio is judged on any machine.
 
 Before R2a (9cb2eb5, base 2, these thirty-nine spellings at 1,000 rows
 and seed 0 through the base tree's own CLI): none read -- thirty-six
@@ -28,11 +39,13 @@ nothing to miss.
 
 import contextlib
 import csv
+import gc
 import io
 import json
 import pathlib
 import sys
 import tempfile
+import time
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "src"))
@@ -42,10 +55,21 @@ import fixtures  # noqa: E402
 import kpi_rules  # noqa: E402
 import layout_spellings as spellings  # noqa: E402
 
-from synthtwin import parsing  # noqa: E402
+from synthtwin import parsing, taxonomy  # noqa: E402
 from synthtwin.cli import main as cli  # noqa: E402
 
 RUNS = ((1000, (0, 1, 2)), (10000, (0,)))
+
+# THE BUILD GATE'S SCALE NODES: each layout beside the ISO spelling of the
+# same moments at its own precision, and the key the largest ratio goes in.
+SCALE_ROWS = ((100000, "describe_ratio_100k"), (300000, "describe_ratio_300k"))
+SCALE_PAIRS = (
+    ("spss_datetime20", "%Y-%m-%d %H:%M:%S"),
+    ("db2_timestamp", "%Y-%m-%d %H:%M:%S.%f"),
+    ("hl7_ts14", "%Y-%m-%d %H:%M:%S"),
+    ("dutch_unpadded", "%Y-%m-%d"),
+)
+SCALE_SEED = 7
 
 
 def _quiet(argv: "list[str]") -> int:
@@ -127,11 +151,40 @@ def measure(home: pathlib.Path) -> "tuple[dict[str, int], list[str]]":
     return totals, notes
 
 
+def _describe_seconds(cells: "list[str]") -> "tuple[float, str]":
+    """CPU seconds `profile_column` takes over one column, and the format it read."""
+    gc.collect()
+    start = time.process_time()
+    described = taxonomy.profile_column("seen_at", 1, cells, len(cells), taxonomy.Settings())
+    spent = time.process_time() - start
+    return spent, f"{(described.details or {}).get('format', '')}"
+
+
+def scale(notes: "list[str]") -> "dict[str, float]":
+    """The two scale nodes: the largest layout-over-ISO ratio at each size."""
+    ratios: "dict[str, float]" = {}
+    for rows, key in SCALE_ROWS:
+        moments = spellings.moments(rows, SCALE_SEED)
+        worst = 0.0
+        for name, iso in SCALE_PAIRS:
+            writer = spellings.SPELLINGS[name][0]
+            layout_seconds, read = _describe_seconds([writer(moment) for moment in moments])
+            iso_seconds, iso_read = _describe_seconds([moment.strftime(iso) for moment in moments])
+            if not parsing.is_layout_format(read) or not iso_read.startswith("iso-"):
+                notes += [f"{name} at {rows}: read as {read}, its ISO twin as {iso_read}"]
+            worst = max(worst, layout_seconds / max(iso_seconds, 1e-9))
+        del moments
+        ratios[key] = round(worst, 2)
+    return ratios
+
+
 def main() -> int:
     with tempfile.TemporaryDirectory() as folder:
         totals, notes = measure(pathlib.Path(folder))
+    value: "dict[str, object]" = {key: totals[key] for key in totals}
+    value.update(scale(notes))
     kpi_rules.emit(
-        "K-S3-58", totals, "; ".join(notes) if notes else "every spelling read, written back and checked"
+        "K-S3-58", value, "; ".join(notes) if notes else "every spelling read, written back and checked"
     )
     return 0
 

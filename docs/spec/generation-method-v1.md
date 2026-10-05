@@ -6320,6 +6320,13 @@ tail is placed where the column's own spelling cannot spell it:
   a twin that writes 1968 as `68` is read back as 2068 (measured:
   8 of 16 twins of a `dd/mm/yy` column wrote 1 to 3 such cells, each
   missing 4 to 7 of the tail's own checks);
+- for a LAYOUT (landing R2a, plan P4-D383), its year band,
+  1800-01-01 to 2299-12-31, where its year is four figures, and its
+  window where it is two: 1969 to 2068 under `{YY}`, and under
+  `{YY1900}`, `{YY1930}` or `{YY1940}` the window the person chose
+  (question Q5), 1900 to 1999, 1930 to 2029 or 1940 to 2039 -- a twin
+  writing a year outside it would be read back as another, or not at
+  all;
 - from the first day the workbook's date system can store, where the
   twin's cells are stored as workbook days: 1900-01-01 for the 1900
   system and 1904-01-01 for the 1904 one;
@@ -6874,6 +6881,27 @@ nothing.
 | `textual-month-first-date` | the month NAME, the day at its allocated width with the allocated comma, four-figure year, on the allocated mark | `Mar 17, 2024`, `Mar 17 2024` |
 | `iso-month` | `YYYY-MM` | `2024-03` |
 | `year-quarter` | `YYYY-` then `Q` or `q` as allocated, then the quarter | `2024-Q1`, `2024-q1` |
+
+**A LAYOUT IS WRITTEN WHOLE, FIELD BY FIELD** (landing R2a, plan
+P4-D383). A column read under a layout (contract LY1) has every cell
+written through that layout by `parsing.written_layout_date`, the one
+inverse of the layout reader, and nothing is appended after it: the
+year in four figures, or in two where the field is `{YY}` or one of
+the windows of G7.3e; `{MM}`, `{DD}`, `{HH}`, `{MI}` and `{SS}` in two
+figures and `{_D}` padded with a space; a flexible `{M}` or `{D}`
+padded or not as the width word its rank was allocated says, the
+census of contract LY5 spent over the layout's flexible fields in
+their own order -- one field takes `padded` or `unpadded`, two the
+slashed pair's joint words; a month or weekday name in its field's
+own set and case, the weekday the date's own; `{F}` as zeros at
+`subsecond_digits`; and the offset the rank wears in its field's own
+spelling, at the place the layout puts it -- `+0100` under `{+HHMM}`,
+`-05` under `{+HH}`, the word itself under `{Z}`, `{UTC}` or `{GMT}`.
+A rank allocated `(none)` under an offset some cells omit
+(`{+HHMM?}`) writes no offset and none of the marks before it; a field
+that must write one and is handed none writes the shared clock's,
+`+00:00` in its spelling. The ranks, the tails, the precision and the
+allocation of the offsets are every member's.
 
 A month NAME is built by `month_spelling`, the one inverse of the
 reader's own `month_of_name`, so a producer counting names and a
@@ -13416,7 +13444,7 @@ that happens -- and the clause beside it, `--missing-value`'s "CAN be
 published as the column's smallest value", is exactly right under the
 new rule.
 
-**All one hundred and fifty-four are required.** The count is taken off the committed
+**All one hundred and sixty-three are required.** The count is taken off the committed
 case sets and not carried forward: this sentence said fifty-two and a
 split of nine, twenty, sixteen and seven while the six files held
 seventy-three, because each repair that added a case added a clause to
@@ -13448,7 +13476,10 @@ thirteen; the SIXTEENTH,
 `tests/reference/generation-branch-vectors-14.json`, holds three; and the
 TWENTY-SECOND, `tests/reference/generation-branch-vectors-22.json`,
 holds five -- landing T1's written clocks and G7.5 step 5, in the file
-plan P4-D364's table gives that landing (G14.2),
+plan P4-D364's table gives that landing (G14.2); and the
+TWENTY-FIFTH, `tests/reference/generation-branch-vectors-25.json`,
+holds nine -- landing R2a's layouts and the century a person chose
+(plan P4-D383) --
 and a test holds this sentence to those files. The tenth grew by the
 two cases the GOVERNANCE PASS of stage 3's review added and the
 eleventh by the two the dates pass added; each number here is read off
@@ -13602,6 +13633,15 @@ case passed, which is the failure the count exists to prevent:
 | `stamp_twelve_hour_top` | G7.5's 12-hour face with its marker after a space (landing T1): `space h AM-PM`, the first hour of the day and the hour of noon written 12, midnight `12:00 AM`. Its mutant writes the hour less twelve with no top of the dial, so midnight comes out `0:00 AM` |
 | `stamp_dotted_seconds` | G7.5's dotted marker after one space at the second, on a day-first stamp (landing T1): `space h a.m.-p.m.`, `a.m.` below noon and `p.m.` from noon on. Its mutant writes the marker straight after the time |
 | `clock_unpadded_twelve_hour` | G7A.1's forms since landing T1: a column of clock times in `h-mm AM-PM`, every value spelled from its minute of the day by the one clock writer, twelve values of the ramp from midnight written `12:00 AM` to `12:11 AM`. Its mutant spells every value in the two-figure 24-hour clock |
+| `layout_sas_date9` | G7.5's layout written whole (landing R2a, plan P4-D383): SAS's DATE9., `17MAR2024`, twelve dates of the ramp from 1970-01-01 written field by field through the layout the real column was read under -- two figures of day, the month's abbreviation in capitals, four of year. Its mutant drops the month field, and every cell loses its month word |
+| `layout_hl7_fraction_offset` | G7.5's layout with a fraction and an offset in its own spelling (landing R2a): an HL7 timestamp written `20240317140500.0000+0100`, the fraction zeros at the published four figures and the offset the rank wears written as `+HHMM`, inside the cell. Its mutant spells the offset as ISO does, with its colon |
+| `layout_spaced_offset` | G7.5's layout with its offset after a space (landing R2a): SQL Server's datetimeoffset, `2024-03-17 14:05:00.0000000 +00:00`, seven figures of fraction and the space a literal of the layout. Its mutant drops the space, which ISO writes and this column does not |
+| `layout_hour_offset` | G7.5's `{+HH}` field (landing R2a): PostgreSQL's timestamptz text at a whole-hour offset, `2024-03-17 14:05:00-05`, the offset written as its sign and hour alone. Its mutant writes the minutes too, `-05:00` |
+| `layout_utc_word` | G7.5's zulu word (landing R2a): R's `usetz` at UTC, `2024-03-17 14:05:00 UTC`, the shared clock written as the word its field names, after one space. Its mutant writes ISO's `Z` instead |
+| `layout_optional_offset` | G7.5's offset some cells omit (landing R2a; the R2 design skeptic, M2): twenty-four HL7 stamps, half their ranks allocated `(none)` and half `-05:00`, the first written as fourteen figures and nothing after, the second with `-0500`, each on its own wall clock; a cell with no offset also reads as a number, so twelve are published numeric. Its mutant writes the offset on every rank |
+| `layout_flexible_widths` | G7.5's width census spent over a layout's two flexible fields (landing R2a, contract LY5): a Dutch `d-m-yyyy`, twelve dates of January 1970 published `{"unpadded": 12}` and written `1-1-1970`, the day's field first. Its mutant flips the padding, `01-01-1970` |
+| `layout_weekday_long_date` | G7.5's weekday lead (landing R2a): Excel's long date, `Thursday, January 1, 1970`, the weekday the date's own and the one flexible field, the day, unpadded. Its mutant drops the weekday and its comma |
+| `layout_century_window` | G7.3e's window a person chose (landing R2a, question Q5): twenty-four `mm/dd/yy` birth dates of January 1940 read under `{YY1930}`, a tail at either end, the days a tail may reach bounded by 1930 to 2029. Its mutant reads every two-figure year in the POSIX window, 1969 to 2068, and the column's own days fall outside what its spelling writes back |
 | `date_remainder_one_joint` | G7.5 step 5 (landing T1; plan l.17955's carried case (a)): twenty-two month-first dates over twelve days publishing `{"padded": 11}`, eleven values' widths left out. The step writes those eleven ranks on whole days, the days holding the fewest of the class's ranks first, in widths the census does not name -- nine `unpadded` and two `first-padded`, each fewer than the line and than the named word -- and the named word keeps its eleven. Its mutant withdraws the step |
 | `weekday_whole_runs` | G7.3f step 5 (plan P4-D355): 100 whole dates over three weeks with no weekend, published `[Mon-Fri] 77, [Sat-Sun] 0`, whose ranks of one day move whole onto a free day of a group with room for all of them before any single rank moves. Its mutant withdraws the step |
 | `plus_padded_field` | G6.3's second tier of named field widths (plan P4-D145): twenty-two cells of twelve thousand three hundred and forty-five published `leading_plus` with `pad_widths: {"7": 22}`, every one written `+0012345` |

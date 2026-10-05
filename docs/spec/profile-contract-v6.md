@@ -1328,7 +1328,7 @@ no other.
 
 | key | JSON type | range / permitted values | meaning |
 |---|---|---|---|
-| `century_windows` | array of `[name, year]` pairs | `[]` only, in this version | RESERVED by the second key cut (plan P4-D386) for lane R2a (plan P4-D383, question Q5): the columns whose two-figure years the person said are read in a window other than 1969 to 2068, each as its name and the window's first year. Empty in every description this version writes, and refused as anything else (R16), so a description carrying an entry was written by a newer synthtwin. An entry is read for its shape first -- a column's name and one whole number or word beside it, each column once -- and held to S8d, and only then refused for being there |
+| `century_windows` | array of `[name, year]` pairs | names of columns of this table, in rising order, each of them once, each beside `1900`, `1930` or `1940`; possibly empty | THE CENTURY OF A COLUMN'S TWO-FIGURE YEARS, AS THE PERSON GAVE IT (landing R2a, plan P4-D383, question Q5; the key the second key cut, plan P4-D386, reserved): each column whose two-figure years the person said are read in a window other than 1969 to 2068, as its name and the window's first year -- beside `1930`, `24` is 2024 and `31` is 1931. Typed as `--century NAME=YEAR`, or answered in the questions file, where Q5 is asked of every column read with a two-figure year, its four answers labelled by their years and Enter keeping 1969 to 2068, the reading where nobody said anything, which no entry names. A column named here and read with a two-figure year is read under a layout whose year field names that window (`{YY1930}`), because the two-figure members read the POSIX window alone, and it carries NF112 in place of NF42 (S8e); the validator reads a checked file's two-figure years in the same window. A name matching no column is refused (S8), a year outside the three is refused for its range, and S8d still keeps a column whose dates are counts off this key |
 
 <!-- -- 3b.R2c (P4-D383) -->
 
@@ -1570,7 +1570,8 @@ description was written from.
 **Invariant S8.** Every name in EACH of the five declaration arrays —
 `forced_identifiers`, `forced_codes`, `forced_measurements`,
 `forced_decimal_commas` and `forced_twelve_hour_clocks` (landing T1) —
-is the `name` of some column block. A name
+and every name `century_windows` pairs with a year (landing R2a) is
+the `name` of some column block. A name
 that matches no column is a refusal: it means the profile and the
 schema disagree about which columns were declared. The arrays are
 checked separately and by the same rule, so a misspelt `--code` name
@@ -1640,6 +1641,22 @@ carries its own code for S8a's reason. A loader of this version holds
 it BEFORE it refuses the three reserved declarations as not empty, so
 the rule stands before the landing that fills `forced_date_counts`,
 which removes only that refusal.
+
+**Invariant S8e (a two-figure year read in a century of the person's
+is theirs)** (landing R2a, plan P4-D383). A column whose two-figure
+years are read in a window other than 1969 to 2068 -- a layout whose
+year field is `{YY1900}`, `{YY1930}` or `{YY1940}` -- stands under
+`settings.century_windows` beside that window's first year; and a
+column standing there that is read with a two-figure year is read in
+that window, by such a layout, and not by a two-figure member, which
+reads the POSIX window alone. It is S8c's rule for the 12-hour face,
+said of the century: nothing in `24` says which century it is in, so
+the window is the person's answer and nothing else's, and a reader
+rebuilding the reading from the settings -- the validator above all --
+reads an undeclared column in the POSIX window, where births of the
+1930s written `31` read as the 2030s. A declared column whose years are
+written with four figures is not reached, and the command says so when
+the declaration is typed. It carries its own code for S8a's reason.
 
 **Invariant S9.** `categorical_floor <= categorical_ceiling`.
 
@@ -2047,8 +2064,8 @@ contract:
    widening it to arbitrary strings would be exactly the hole that lets
    a source-derived value into a sentence and be rebuilt successfully.
 
-**The census.** The table holds 85 forms and 104 argument positions.
-Of those, 77 are whole numbers, 5 are package words, 17 are nested
+**The census.** The table holds 86 forms and 105 argument positions.
+Of those, 78 are whole numbers, 5 are package words, 17 are nested
 forms, and 5 are bound affix strings. No position is a string of any
 other kind. The weekday census (landing 3b.1, plan P4-D355) added the
 eleven forms NF68 to NF78 and seven whole-number positions, each the
@@ -2057,7 +2074,8 @@ those positions (plan P4-D359), and the weekday guard drop a fourth,
 `weekday_census_withheld_too_few_repeats`, with another (plan P4-D365);
 plan P4-D357 A added the
 eight forms NF79 to NF86 and no position, and plan P4-D356 the form NF87
-and no position.
+and no position; landing R2a (plan P4-D383) added NF112 and one
+whole-number position, the century the person gave, a setting.
 
 **Thirteen of the seventeen nested positions carry a whole number
 instead, and which of the two they carry is decided by the floor.**
@@ -2097,8 +2115,8 @@ shipped. `tests/test_p4d334_sentence_arguments.py` re-measures the
 class over a committed battery, so it is a number a reader can run.
 
 So every argument position of every form is bound to WHAT IT IS, and
-the table below is closed over all 104 of them exactly as the form table
-is closed over the 85 forms. A position nobody bound is a number a
+the table below is closed over all 105 of them exactly as the form table
+is closed over the 86 forms. A position nobody bound is a number a
 sentence may print that no rule governs, and a producer that adds one
 is a producer this contract does not describe. The bindings are these:
 
@@ -2255,6 +2273,7 @@ and why the sentence that cannot be withdrawn now has NF61 to say.
 | `remark_some_values_are_not_numbers` | 1 | key `n_not_numeric` |
 | `remark_too_few_holdable_numbers` | 1 | key `n_numeric` |
 | `remark_too_few_holdable_numbers` | 2 | sum `n_numeric` + `n_out_of_range` + `n_contradictory` |
+| `remark_two_figure_years_are_read_in_a_declared_century` | 1 | setting (century of two-figure years) |
 | `remark_two_readings_both_fit` | 1 | floored |
 | `remark_values_contradictory` | 1 | key `n_contradictory` |
 | `remark_values_out_of_range` | 1 | key `n_out_of_range` |
@@ -2682,8 +2701,10 @@ recognize a column that should have been read the other way.
 **NF26. `remark_slashed_dates_are_month_first`** — arity 0. Carried
 when the chosen `format` is a month-first reading of a grammar whose
 day and month are BOTH written as numbers: the slashed pair, the
-slashed stamp pair, the dotted pair and the two-figure-year pair. Not
-carried for the textual pair, whose order a month name settles.
+slashed stamp pair, the dotted pair and the two-figure-year pair, and
+a layout whose month and day are figures written before its year, as
+`{MM}-{DD}-{YYYY}` (landing R2a). Not carried for the textual pair,
+whose order a month name settles, nor for a layout whose year leads.
 
 > where the day and the month are both written as numbers, they are
 > read month first (03/04/2024 is the 4th of March); if this table
@@ -3177,7 +3198,9 @@ column's one-based position.
 
 **NF42. `remark_two_figure_years_are_read_at_a_pivot`** — arity 0.
 Carried on every column read under the two-figure-year pair, whichever
-way its month and day were settled.
+way its month and day were settled, and under a layout whose year field
+is `{YY}` (landing R2a); a layout read in a window the person chose
+carries NF112 instead.
 
 > this column writes its years with two figures, which do not say which
 > century they are in; 00 to 68 are read as 2000 to 2068 and 69 to 99
@@ -3659,7 +3682,7 @@ names:
 
 | id | statement |
 |---|---|
-| NG14 | the form is one of the 85 in section 4.5.1 |
+| NG14 | the form is one of the 86 in section 4.5.1 |
 | NG15 | the argument count equals that form's arity |
 | NG16 | every argument is of one of C6-119's four classes |
 | NG17 | re-rendering the form with those arguments writes the leaf's text character for character |
@@ -4023,6 +4046,13 @@ back-solve beside the sentence correctly assumed they did not.
 <!-- anchor 3b-7 (P4-D378) -->
 <!-- anchor 3b-J (P4-D379) -->
 <!-- anchor 3b-R2a (P4-D383) -->
+
+**NF112. `remark_two_figure_years_are_read_in_a_declared_century` — the century the person gave** — arity 1 (landing R2a, plan P4-D383). A remark, carried in place of NF42 on a column whose two-figure years are read in a window the person chose (question Q5, `settings.century_windows`, S8e). Argument 1 is the window's first year, `1900`, `1930` or `1940`, a SETTING (C6-143); the window runs from it to that year and ninety-nine more.
+
+> this column writes its years with two figures, which do not say which
+> century they are in; as you said, they are read as 1930 to 2029, so
+> any year this table means outside those is read as the wrong one
+
 <!-- anchor 3b-R2b (P4-D383) -->
 <!-- anchor 3b-R2c (P4-D383) -->
 <!-- anchor 3b-R4 (P4-D384) -->
@@ -5545,7 +5575,7 @@ closed vocabularies below).
 
 | key | JSON type | permitted values | meaning |
 |---|---|---|---|
-| `format` | string | one of the TWENTY members of the table below | the parser family that read the REAL file |
+| `format` | string | one of the TWENTY members of the table below, or a LAYOUT the closed grammar of LY1 makes (landing R2a, below) | the parser family that read the REAL file |
 | `resolution` | string | `date`, `datetime`, `quarter`, `month` | which canonical form the published datetimes are written in |
 | `time_precision` | string | `subsecond`, `second`, `minute`, `date`, `quarter`, `month` | the FINEST precision any cell of the real column writes |
 | `subsecond_digits` | integer ≥ 0 | — | the most fractional-second digits any cell writes |
@@ -5629,6 +5659,25 @@ landing restates its own rows below its own line.
 <!-- anchor 3b-7 (P4-D378) -->
 <!-- anchor 3b-J (P4-D379) -->
 <!-- anchor 3b-R2a (P4-D383) -->
+
+**THE LAYOUT: A DATE NO MEMBER READS, READ BY ITS OWN SHAPE** (landing R2a, plan P4-D383). A column whose cells no member of the twenty reads may be read under a LAYOUT, published as its `format`: the text `layout ` followed by the cell's own shape in fields and marks -- `layout {DD}{MON}{YYYY}` for `17MAR2024`, `layout {YYYY}{MM}{DD}{HH}{MI}{SS}.{F}{+HHMM}` for an HL7 stamp. It is the LAST reading the format walk tries, after every member, so no column a member reads moves, and it is chosen as a member is, on the cells it reads against `minimum_parse_rate`'s line, exactly: candidates come from the texts on the first `n - needed + 1` rows, each is read over the column's different texts weighed by their rows and dropped once its misses pass `n - needed`, and a tie goes month first unless the person said the day comes first, then to an offset every cell writes, then to fewer space-padded and flexible fields, then to the standard month names, then to the shorter text. Every guard of the member walk stands: a column of dotted triples naming a zero field is read by no dotted layout, so firmware versions stay text.
+
+The fields, a closed table: `YYYY` (1800 to 2299 -- a four-figure year outside them is unread, which keeps a lot number from reading as a date), `YY` (two figures, read 1969 to 2068) and `YY1900`, `YY1930`, `YY1940` (the windows S8e names); `MM` and `DD` padded, `M` and `D` one or two figures (the FLEXIBLE fields), `_D` padded with a space; the month names `MON`, `Mon`, `mon` (the standard abbreviations, upper, title and lower case), `MONTH`, `Month`, `month` (in full) and `MONGB` and `MONAU` in the same three cases (`Sept` for September; `June`, `July` and `Sept`); the weekday names `DY` and `DAY` in the three cases, which a cell's own date must agree with; `HH`, `MI`, `SS` (two figures) and `F` (a fraction of one to nine figures); and the offsets `Z`, `z`, `UTC`, `GMT`, `+HH:MM`, `+HHMM` and `+HH`, last, the same with a trailing `?` where some cells write none (`utc_offsets`' `(none)` counts those). A mark is one of `-`, `/`, `.`, `,`, `:`, a space, `T` or `t`, and the whole text is at most eighty characters.
+
+**Invariant LY1 (a layout is one the grammar makes).** A `format` beginning `layout ` is a text of the fields and marks above, at most eighty characters, that the grammar's own productions give for a date written in it: written at a fixed instant, the cell reads back under that very layout among the layouts the grammar finds for it. A text of known fields that no production makes -- two flexible fields side by side -- is refused, so a description can name no layout the producer could not publish.
+
+**Invariant LY2 (a layout's resolution).** A column written in a layout is `datetime` exactly where the layout writes a time of day, and `date` otherwise; D1's table binds the twenty members, and this binds the layouts.
+
+**Invariant LY3 (a layout's precision).** Its `time_precision` is the finest its layout writes: `subsecond` with `F`, `second` with `SS`, `minute` with `MI` alone, `date` with no clock.
+
+**Invariant LY4 (a layout's offsets and marks).** A layout fixes its own joint and its own zulu spelling, so its `datetime_separators` and `zulu_case` are `{}`; and `utc_offsets` names an offset only where the layout's offset field can write it -- a zulu field `Z` alone, `+HH` whole hours alone -- and `(none)` only where the layout has no offset field or one some cells leave out.
+
+**Invariant LY5 (a layout's widths).** `date_field_widths` counts the widths of the flexible `M` and `D` fields, in the layout's own order, and is `{}` on a layout with neither; one flexible field takes the two words `padded` and `unpadded`.
+
+**Invariant LY6 (a layout's forms).** `resolution_mix` counts every parsed cell under the layout's own name, and under no other key.
+
+**Twin and check.** The twin writes every cell whole through the layout it was read under, field by field (method G7.5), so a person's own parsing code reads the twin as it reads the source; and the validator holds a layout BY FIT (the validation method's entry table).
+
 <!-- anchor 3b-R2b (P4-D383) -->
 <!-- anchor 3b-R2c (P4-D383) -->
 <!-- anchor 3b-R4 (P4-D384) -->
@@ -12096,7 +12145,7 @@ a document, so no document can violate it.
 | S5 | `source.used_fallback_encoding` is true exactly when `source.encoding == "latin-1"` | yes |
 | S6 | `source.header_by_convention` true implies `source.header_source == "file"`; generated names are not a convention about somebody's first record | yes |
 | S7 | `values_recorded` is `false` in both declaration records — neither carries the text the person typed; `true` is refused, naming an older profile that recorded spellings under this key | yes |
-| S8 | every name in each of the four declaration arrays — `forced_identifiers`, `forced_codes`, `forced_measurements`, `forced_decimal_commas` — is some column's `name`; a name matching no column means the profile and the schema disagree | yes |
+| S8 | every name in each of the five declaration arrays — `forced_identifiers`, `forced_codes`, `forced_measurements`, `forced_decimal_commas`, `forced_twelve_hour_clocks` — and every name `century_windows` pairs with a year (landing R2a) is some column's `name`; a name matching no column means the profile and the schema disagree | yes |
 | S8a | no name is in `forced_decimal_commas` and also in `forced_codes` or `forced_identifiers`; those two silence the numeric reading, so the comma declaration could never be used and would be recorded and ignored | yes |
 | S9 | `settings.categorical_floor <= settings.categorical_ceiling` | yes |
 | S10 | every `publication_notes[i].column` is some column's `name`, or is EMPTY and the note is about the whole table | yes |
@@ -12108,6 +12157,7 @@ a document, so no document can violate it.
 | S8b | every name under `settings.person_columns` is also under `settings.forced_identifiers` | yes |
 | S8c | a column whose written clock is on the ` twelve-hour` face is named under `settings.forced_twelve_hour_clocks`, and a column named there whose written clock writes no marker is on that face (C6-10a) | yes |
 | S8d | no name under `settings.forced_date_counts` is also under `forced_date_columns`, `century_windows`, `forced_twelve_hour_clocks`, `forced_codes`, `forced_identifiers` or `forced_measurements` | yes |
+| S8e | a column read in a century window of its own -- a layout whose year field is `{YY1900}`, `{YY1930}` or `{YY1940}` -- stands under `settings.century_windows` beside that window's first year, and a column standing there that is read with a two-figure year is read in that window, by such a layout (landing R2a) | yes |
 | C6-53 | a column block's key set is exactly the twenty-two universal keys plus the marked cells of its role's column in the forbidden-key matrix; every other key is FORBIDDEN, and refused by name | yes |
 
 **Four membership rules of this part carry no identifier**, so no list
@@ -12380,6 +12430,16 @@ it answers to.
 <!-- anchor 3b-7 (P4-D378) -->
 <!-- anchor 3b-J (P4-D379) -->
 <!-- anchor 3b-R2a (P4-D383) -->
+
+| id | statement | loader? |
+|---|---|---|
+| LY1 | a `format` beginning `layout ` is a text of the closed grammar's fields and marks, at most eighty characters, that the grammar's own productions make (landing R2a) | yes |
+| LY2 | a column written in a layout is `datetime` exactly where its layout writes a time of day, and `date` otherwise | yes |
+| LY3 | its `time_precision` is the finest its layout writes: `subsecond`, `second`, `minute` or `date` | yes |
+| LY4 | its `datetime_separators` and `zulu_case` are `{}`, and `utc_offsets` names an offset only where the layout's offset field can write it, `(none)` only where it has none or one some cells omit | yes |
+| LY5 | its `date_field_widths` counts the widths of its flexible fields and is `{}` on a layout with none | yes |
+| LY6 | its `resolution_mix` counts every parsed cell under the layout's own name alone | yes |
+
 <!-- anchor 3b-R2b (P4-D383) -->
 <!-- anchor 3b-R2c (P4-D383) -->
 <!-- anchor 3b-R4 (P4-D384) -->
@@ -12541,7 +12601,7 @@ month-first parsed.
 | NG11 | on `remark_affixed_numbers_may_be_codes`: argument 3 equals the named block's `n_affixed` |
 | NG12 | argument 1 is character-for-character that block's `affix_prefix` and argument 2 its `affix_suffix`, AT THOSE POSITIONS, not merely as members of the pair |
 | NG13 | on `remark_a_label_is_a_built_in_stand_in`: argument 1 is 1, 2 or 3 |
-| NG14 | for every form: one of the 85 the note grammar enumerates |
+| NG14 | for every form: one of the 86 the note grammar enumerates |
 | NG15 | the argument count equals that form's arity |
 | NG16 | every argument is of one of the four argument classes |
 | NG17 | re-rendering the form with those arguments writes the leaf's text character for character |
@@ -12923,7 +12983,7 @@ form, the stand-in is written in it (7.9.1).
 | `date_percentiles` interior rungs | APPROXIMATED — the window is G12.4 — for each rung the tail rule publishes; a rung it withholds is `null` and is listed, never checked. THE LADDER'S TWO ENDS ARE NOT IN THIS TABLE since stage 3, and their absence is the disposition: the ranks they would be read off hold the column's outermost values, so D11 makes both of them `null` in every description, they oblige no cell of any file, and the validator lists them as withheld rather than comparing a null with a null |
 | `resolution`, `time_precision`, `subsecond_digits`, `utc_offsets` | EXACT-OBSERVABLE, outside the withheld-offset corner below |
 | `datetimes_read_at` | EXACT-OBSERVABLE outside that corner — derived from the offset diversity present in the cells, so it is recomputable from the written twin and must be checked that way. A dispatch assertion cannot detect a twin that reprofiles from `utc` to `local` because one invented rare offset changed the diversity while the pooled offset map and the endpoints still matched |
-| `format` | EXACT-OBSERVABLE since the owner reversed decision 5 on 2026-09-15 (landing 2b.6) — the twin is written in the member that read the REAL column, at that member's own field order, delimiter, field widths, year length, month-name case and length, marks and marker cases, so describing the twin again names the same member. While decision 5 stood the twin was written in ISO syntax at the recorded precision, a month-first column's twin reprofiled as `iso-date`, and the field could not be reproduced at all (residual R-P2-7, now retired). ONE CORNER, and it is the same one `resolution_mix` carries: on an `iso-mixed` column NOT wholly at midnight the twin writes every value with a time of day, so its twin reads back as `iso-datetime` and the member is listed rather than checked (residual R-P4-12) |
+| `format` | EXACT-OBSERVABLE since the owner reversed decision 5 on 2026-09-15 (landing 2b.6) — the twin is written in the member that read the REAL column, at that member's own field order, delimiter, field widths, year length, month-name case and length, marks and marker cases, so describing the twin again names the same member. While decision 5 stood the twin was written in ISO syntax at the recorded precision, a month-first column's twin reprofiled as `iso-date`, and the field could not be reproduced at all (residual R-P2-7, now retired). ONE CORNER, and it is the same one `resolution_mix` carries: on an `iso-mixed` column NOT wholly at midnight the twin writes every value with a time of day, so its twin reads back as `iso-datetime` and the member is listed rather than checked (residual R-P4-12). A LAYOUT (landing R2a, LY1) is recounted BY FIT: a faithful twin may be described again under another layout or member that reads the same cells -- a twin of `{D}-{M}-{YYYY}` that drew no day below ten reads as `{DD}-{MM}-{YYYY}` -- so the published layout is held where it reads every cell the re-description reads, and MISSED where it does not (the validation method's entry table) |
 | `resolution_mix` | REPORT-ONLY — the twin writes every parsed cell at the column's finest recorded precision, exactly as the datetime rule writes every column, and the report names the recorded mix as not reproduced, per column, every run (residual R-P4-12); since landing 2b.3 a column whose `all_at_midnight` is `true` writes its whole-date ranks as whole dates, and the report names nothing |
 | `n_unparsed` | EXACT-OBSERVABLE as counted neutral stand-ins, explicitly OUTSIDE the parsed-value representation obligation |
 | `n_distinct`, `n_distinct_folded` | APPROXIMATED — the envelope is G12.5, and it is stated there that it need not contain the published count; held to the published count itself where that count lies inside the envelope on a column method G7.3's count pass applies to (`contract.datetime_counts_reachable`), which the pass reaches (plan P4-D192) |
@@ -13830,7 +13890,7 @@ this document, and the battery the plan requires turns red on it.
 | nothing-class blocks (`numeric_unrepresentable`, `identifier`, `free_text`) | lengths, word statistics, digit and code-alphabet counts, the whole-number test, the repetition multiset, on `numeric_unrepresentable` the whole-number and sign counts, on `free_text` the census of WRITTEN FORMS its cells wore (`shape_forms`), and on `identifier` the census of LAYOUTS (`layout_forms`, 7.12) and, by the owner's ruling of 2026-09-17, the literal PREFIX every cell of the column or of one named layout opens with (`layout_prefixes`, 7.12a, row 22) | no value, no spelling, no fragment of one but the prefix of row 22 — the form census included, whose every key is built from `%`, `@` and thirteen named marks -- characters no cell that has a form may contain, so a key can carry no letter and no figure of any cell; the multiplicity map publishes SIZES of unnamed groups under no floor, the form census under the floor with a `(withheld)` pool |
 | `empty` columns nobody declared | the absent SPELLINGS their cells wore and the two absence counts, exactly as any column that is not nothing-publishing | floor-governed |
 | `settings` | the rules the run applied, the floor's own value, how many values each declaration named, and which of THIS package's published words were among them | carries no cell, no column and no count of the table; a person's own spelling never enters |
-| `source.header_evidence`, `publication_notes[].note`, `detection_evidence`, `remarks` | sentences of the 85 closed forms: 104 argument positions, of which 77 are whole numbers, 5 package words, 17 nested forms and 5 bound affix strings | the whole numbers are counts the block beside them already publishes, EXCEPT the positions priced at rows 16 and 18 |
+| `source.header_evidence`, `publication_notes[].note`, `detection_evidence`, `remarks` | sentences of the 86 closed forms: 105 argument positions, of which 78 are whole numbers, 5 package words, 17 nested forms and 5 bound affix strings | the whole numbers are counts the block beside them already publishes, EXCEPT the positions priced at rows 16 and 18 |
 | `relationships` | nothing: eight nulls | — |
 
 ### 12.3 The rows, each priced
@@ -14894,10 +14954,10 @@ width at least ONE (`1`, `2`, `10`), a cell written as a whole number
 writing at least one figure (C6-29c). `(withheld)` is again the only
 non-numeric key permitted.
 
-### 14.8 The note grammar — 85 forms
+### 14.8 The note grammar — 86 forms
 
 Defined in 4.5.1, which is the authority on every rendering and every
-argument. 104 argument positions: 77 whole numbers, 5 package words, 17
+argument. 105 argument positions: 78 whole numbers, 5 package words, 17
 nested forms, 5 bound affix strings.
 
 > **THE CENSUS IS RECOMPUTED FROM THE CODE, NOT TAKEN FROM EITHER
@@ -15017,6 +15077,13 @@ nested forms, 5 bound affix strings.
 <!-- anchor 3b-7 (P4-D378) -->
 <!-- anchor 3b-J (P4-D379) -->
 <!-- anchor 3b-R2a (P4-D383) -->
+
+| # | form | arity |
+|---|---|---|
+| NG112 | `remark_two_figure_years_are_read_in_a_declared_century` | 1 |
+
+**A layout stands where a `format` member stands** (landing R2a, plan P4-D383): at `evidence_dates` argument 3 and `said_read_as_dates` argument 2, a `format` LY1 admits is a word of the second class as a member is. The layouts are not counted among the twenty-six below: they are a grammar's productions, not a list, and LY1 is the rule that admits one.
+
 <!-- anchor 3b-R2b (P4-D383) -->
 <!-- anchor 3b-R2c (P4-D383) -->
 <!-- anchor 3b-R4 (P4-D384) -->

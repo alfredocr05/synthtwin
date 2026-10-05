@@ -6,6 +6,23 @@ exists).
 
 ## [Unreleased]
 
+### Dates no member read are read by their shape, and written back as written (2026-10-05)
+
+**Landing R2a, the date half of the layout reader** (plan P4-D383).
+SAS's `17MAR2024`, Stata's `17mar2024`, SPSS, HL7's stamps with and
+without offsets, REDCap's hyphenated dates, Oracle's `17-MAR-24`, DB2,
+PostgreSQL and SQL Server offsets, Excel's long dates, unpadded dotted
+dates and the en-GB and en-AU month words were free text, counts or an
+affixed number, and their twins made-up strings. They now read under a
+layout, a closed grammar of date fields and marks published as the
+column's `format`, and the twin writes every cell back in its source's
+own spelling: the thirty-nine spellings of `K-S3-58` all read, are
+written back and validate, where none read before. Two-figure years are
+asked their century in the questions file (Q5, `--century`,
+`century_windows`), and a layout nothing in its cells tells from a code
+is asked whether it is one. The reach battery's 120 other columns are
+byte for byte as they were but for three questions files.
+
 ### A description written before the published pairs loads again (2026-10-03)
 
 **The review of landing 3b.G1, its four items** (plan P4-D375). A

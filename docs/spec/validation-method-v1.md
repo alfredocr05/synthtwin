@@ -1278,6 +1278,19 @@ floor, so the real table meets its description by construction:
   the file reads on that face shows an hour width other than the
   published one -- a faithful twin that drew no hour below ten shows no
   width and is not accused -- and is MISSED otherwise;
+- a LAYOUT `format` (landing R2a, plan P4-D383) is HELD BY FIT too:
+  the file's own re-description counts as the published layout where
+  every cell the member it was described under reads, the published
+  layout reads as well -- a faithful twin of `{D}-{M}-{YYYY}` that
+  drew no day below ten is described again as `{DD}-{MM}-{YYYY}`, and
+  one of `{YYYY}-{M}-{D}` whose every cell came out padded as
+  `iso-date`, and neither is accused -- and is MISSED where the file
+  reads as no date, or under a member or layout that writes a cell the
+  published layout does not read (`validation._format_check`). The
+  file's two-figure years are read in the window
+  `settings.century_windows` gives the column, as the description's
+  were; and no twin of the thirty-nine spellings of K-S3-58 rewritten
+  in ISO passes, by this check or by the census of widths;
 - EVERY RECOUNT of a slashed stamp or a clock column -- its tails, its
   census of date widths, the fit of its written clock -- reads the cells
   its description reads, and none the producer counted unread (the T1
