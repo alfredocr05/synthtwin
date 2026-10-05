@@ -26,14 +26,22 @@ at 10,000 rows 0.001 at most; every heap is exact; and no twin writes a
 cell a clock reader refuses where its table wrote a time. A label
 column's held-back levels of a clock's shape are written as clock
 times -- `7:30 AM` among them -- but only while its twin is still read
-back as labels: a column of appointment times beside six `99:99` in 250
-rows used to read back as clock times and fail its own check, and none
-of 36 such small tables or 80 columns beside codes near the line does
-now. A few rare words beside clock times, at most one cell in fifty,
-are counted missing wherever the column would otherwise be labels, and
-the clock-or-labels question is asked only of columns whose shared
-times hold every cell. `K-S3-48` and `K-S3-49` are new; vectors file
-21 freezes fourteen cases.
+back as labels, a line held for the one precision and face a reading as
+clock times takes: a column of appointment times beside six `99:99` in
+250 rows used to read back as clock times and fail its own check, and
+none of 36 such small tables or 80 columns beside codes near the line
+does now, nor does a twin half `HH:MM` and half `HH:MM:SS` write a
+made-up time (204 in 10,000 rows before). Where the level pass counts
+levels out of a column whose other cells are clock times -- a few rare
+words, one-off notes, times of another precision or face -- it counts
+out only what the clock's form does not read and the column is clock
+times, so its twin reads back the same way: 32 of 48 columns beside 2.2
+to 10 % one-off notes, past one cell in fifty, and 23 of 64 beside a
+minority of `HH:MM:SS` or `h:mm AM` failed their own check before, and
+none does now; where that would leave one time on every row but one,
+the pass counts out what it always did. The clock-or-labels question is
+asked only of columns whose shared times hold every cell. `K-S3-48` and
+`K-S3-49` are new; vectors file 21 freezes fifteen cases.
 
 ### The weekday guards dropped (2026-10-02)
 

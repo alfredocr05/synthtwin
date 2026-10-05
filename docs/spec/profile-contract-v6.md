@@ -4210,7 +4210,19 @@ labels whose twin reads back as clock times. It is asked of every first
 reading as labels or free text, not only where a level is counted out
 (the repair round of landing 3b.5): a column of `7:30 AM` beside 0.6 %
 `UNK` and 0.3 % `99:99` was free text at 300 and 1,000 rows at a floor
-of 36, and is clock times.
+of 36, and is clock times. AND WHERE THE PASS COUNTS LEVELS OUT OF A
+COLUMN WHOSE OTHER CELLS ARE A CLOCK'S, it counts out only the levels no
+spelling of which that clock's form reads -- words, and times of another
+precision or face -- and every rule reads the column again, the rare
+times of the form kept in (its second repair round): the column held to
+the labels with every level below the floor counted out had a twin, those
+cells blank, read back as clock times, so validation MISSED its role on
+32 of 48 columns of appointment times beside 2.2 to 10 % one-off notes
+and 23 of 64 beside a minority of `HH:MM:SS` or `h:mm AM`, and none now.
+Either route stands only where every rule then reads the column as clock
+times; where what it leaves is one time on every row but one, the pass
+counts out what it counts out of any labels, so no held-back pool of one
+row is published.
 
 **Why rules 9 through 12 sit after `categorical`.** They are tested
 last before the fallback, so they claim only columns every earlier rule
@@ -11321,7 +11333,14 @@ supply is therefore spent only while the twin stays labels under both,
 and every later stand-in of a clock's form is filled figure by figure,
 stepping past any spelling a clock reader takes; a column declared
 `--code`, read as labels whatever its cells hold, has no such line.
-After: none of those twins is MISSED.
+After: none of those twins is MISSED. HELD FOR ONE FORM (its second
+repair round): a reading as clock times takes the cells of one precision
+and one face, so the line holds only the clock times of the precision and
+face whose cells could reach it, and a stand-in of another is a time of
+its own form, never a rare word. Measured before: a label twin of 10,000
+rows half `HH:MM` and half `HH:MM:SS` wrote 204 made-up times a clock
+reader refuses, one of 100,000 rows beside 5 % `HH:MM:SS` wrote 2,003,
+and a free-text twin of 1,000 rows beside 5 % wrote 32; after, none.
 
 **A FREE-TEXT GROUP MAY TAKE A FORM OF ANY ADMITTED LENGTH, AND MUST
 BE ABLE TO.** A form fixes a length, so which lengths a group may be
