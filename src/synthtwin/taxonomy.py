@@ -16257,30 +16257,34 @@ def weekday_decision(
         return withheld(calendar_rules.REASON_MENU)
     if calendar_rules.few_dates(groups, list(body)):
         return withheld(calendar_rules.REASON_FEW_DATES, entry)
-    # THE COUNT'S ROOM, WHICH A RAISED FLOOR NARROWS (plan P4-D388): the
-    # most different days the twin's two tails can hold -- a listed tail's
+    # THE COUNT'S ROOM, WHICH A RAISED FLOOR NARROWS (plan P4-D388), asked
+    # above the floor the few-dates rule was measured at: the most
+    # different days the twin's two tails can hold -- a listed tail's
     # values, or up to the floor's number for one publishing its two
     # distances -- and the body's pins, its two boundaries and the rungs
     # published between them.
-    listed: "list[int | None]" = []
-    for tail in (low_tail, high_tail):
-        values = tail["values"] if "values" in tail else None
-        listed += [len(values) if isinstance(values, list) else None]
-    rungs = details["date_percentiles"] if "date_percentiles" in details else None
-    percents: "list[int]" = []
-    if isinstance(rungs, dict):
-        for label, num, den in LADDER:
-            if label in rungs and rungs[label] is not None:
-                percents += [(100 * num) // den]
-    if calendar_rules.count_room_short(
-        groups,
-        calendar_rules.body_pins(days, rows_low, rows_high, percents),
-        len(set(days)),
-        calendar_rules.tails_most(
-            (listed[0], listed[1]), (rows_low, rows_high), settings.small_cell_floor
-        ),
-    ):
-        return withheld(calendar_rules.REASON_COUNT_ROOM, entry)
+    if settings.small_cell_floor > calendar_rules.COUNT_ROOM_ABOVE_FLOOR:
+        listed: "list[int | None]" = []
+        for tail in (low_tail, high_tail):
+            values = tail["values"] if "values" in tail else None
+            listed += [len(values) if isinstance(values, list) else None]
+        rungs = details["date_percentiles"] if "date_percentiles" in details else None
+        percents: "list[int]" = []
+        if isinstance(rungs, dict):
+            for label, num, den in LADDER:
+                if label in rungs and rungs[label] is not None:
+                    percents += [(100 * num) // den]
+        if calendar_rules.count_room_short(
+            groups,
+            calendar_rules.body_pins(days, rows_low, rows_high, percents),
+            len(set(days)),
+            calendar_rules.tails_most(
+                (listed[0], listed[1]),
+                (rows_low, rows_high),
+                settings.small_cell_floor,
+            ),
+        ):
+            return withheld(calendar_rules.REASON_COUNT_ROOM, entry)
     # THE ROOM RULE BESIDE EVERY PUBLISHED HOLE BUT A WIDTH HOLE (second
     # review of landing 3b.G, item 1): May's holes, placeholder days and
     # declared days. No column between width holes was measured to miss

@@ -13,7 +13,10 @@ table's own numbers decide shares. Its two halves are what the
 construction can do at most -- the tails' most (`tails_most`), the
 census's need between the body's pins (`body_pins`) -- so it is
 conservative, and its price is the censuses it withholds that a twin
-would have met.
+would have met. It is asked above the floor of 11, the floor the
+few-dates rule was measured at (`COUNT_ROOM_ABOVE_FLOOR`): there no
+published census was measured to leave a twin long, and the rule asked
+there withheld only censuses whose twins met them.
 
 Each test names the mutation that turns it red.
 """
@@ -64,6 +67,29 @@ def _monthly(day: int, start: int, months: int, seed: int) -> "list[str]":
     draw = random.Random(seed)
     days = [datetime.date(start + step // 12, 1 + step % 12, day) for step in range(months)]
     return [draw.choice(days).isoformat() for _row in range(1000)]
+
+
+def _hunt(seed: int) -> "list[str]":
+    """A small column of 90 to 160 visits over two weeks to two hundred days (D0's hunt batteries, `Random(seed)`)."""
+    draw = random.Random(seed)
+    rows = draw.randint(90, 160)
+    span = draw.choice([14, 21, 28, 42, 60, 90, 120, 200])
+    first = datetime.date(2024, 1, 1) + datetime.timedelta(days=draw.randrange(60))
+    days = [first + datetime.timedelta(days=step) for step in range(span)]
+    kind = draw.randrange(5)
+    if kind == 0:
+        weights = [draw.uniform(0.5, 1.5) * (0.15 if day.weekday() >= 5 else 1) for day in days]
+    elif kind == 1:
+        keep = set(draw.sample(range(7), draw.randint(1, 3)))
+        weights = [draw.uniform(0.5, 1.5) if day.weekday() in keep else 0.02 for day in days]
+    elif kind == 2:
+        weights = [draw.choice([0.1, 0.1, 0.1, 3, 8]) for _each in days]
+    elif kind == 3:
+        on = set(draw.sample(range(span), max(3, span // draw.randint(3, 9))))
+        weights = [draw.uniform(0.5, 2) if step in on else 0.0 for step in range(span)]
+    else:
+        weights = [draw.uniform(0.2, 1.8) for _each in days]
+    return [draw.choices(days, weights)[0].isoformat() for _ in range(rows)]
 
 
 def _day(cell: str) -> int:
@@ -272,19 +298,20 @@ def test_one_date_a_month_at_the_floor_of_50_is_withheld_and_restored_comes_back
 def test_the_producer_hands_the_rule_the_block_s_pins_and_tails(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """What `taxonomy.weekday_decision` hands the rule (plan P4-D388).
+    """What `taxonomy.weekday_decision` hands the rule, and only above the floor of 11 (plan P4-D388).
 
     `_weekly_schedule(0)` at the floor of 36: both tails publish their
     distances, so their most is the floor each, 36 and 36 though they
     hold 59 and 40 rows; the pins are the two boundaries, at ranks 59
     and 229, and the rungs published between them, p25, p50 and p75 at
-    ranks 67, 134 and 201. At the floor of 11 its low tail lists one
-    value and its high tail's 14 rows give 11, and the pins are the
-    boundaries at 14 and 255 with p10 to p90 between (p95 stands at the
-    high boundary's rank, so not again). The column's different days are
-    its own 35. Red when the rungs are not handed over, the column's rows
-    stand for its days, the settings floor is not read, or a listed tail
-    is handed over as one publishing its distances.
+    ranks 67, 134 and 201. At the floor of 20 its low tail lists two
+    values and its high tail's 23 rows give 20, and the pins are the
+    boundaries at 21 and 246 with p10 to p95 between. The column's
+    different days are its own 35. At the floor of 11 the rule is not
+    asked at all (`calendar_rules.COUNT_ROOM_ABOVE_FLOOR`). Red when the
+    rungs are not handed over, the column's rows stand for its days, the
+    settings floor is not read, a listed tail is handed over as one
+    publishing its distances, or the rule is asked at the floor of 11.
     """
     seen: "list[tuple[object, ...]]" = []
     asked = calendar_rules.count_room_short
@@ -296,7 +323,7 @@ def test_the_producer_hands_the_rule_the_block_s_pins_and_tails(
     monkeypatch.setattr(calendar_rules, "count_room_short", recorded)
     cells = _weekly_schedule(0)
     ordered = sorted(_day(cell) for cell in cells)
-    for floor, tails in ((36, 72), (11, 12)):
+    for floor, tails, ranks in ((36, 72, [59, 67, 134, 201, 229]), (20, 22, [21, 26, 67, 134, 201, 242, 246])):
         seen.clear()
         block = _described(tmp_path, f"floor{floor}", cells, floor).block("visit")
         assert len(seen) == 1, seen
@@ -311,9 +338,42 @@ def test_the_producer_hands_the_rule_the_block_s_pins_and_tails(
             if rungs[label] is not None and expected[len(expected) - 1] < rank < high:
                 expected += [rank]
         expected += [high]
-        assert [rank for rank, _day_number in pins] == expected, (floor, pins, expected)
+        assert [rank for rank, _day_number in pins] == expected == ranks, (floor, pins, expected)
         assert [day for _rank, day in pins] == [ordered[rank] for rank in expected], floor
-    assert [rank for rank, _day_number in seen[0][0]] == [14, 26, 67, 134, 201, 242, 255]
+    seen.clear()
+    assert _described(tmp_path, "floor11", cells, 11).block("visit")["weekday_census"]
+    assert seen == [], seen
+
+
+def test_at_the_floor_of_11_the_rule_is_not_asked_and_a_small_column_keeps_its_census(tmp_path: pathlib.Path) -> None:
+    """The rule's scope (plan P4-D388): asked above the floor of 11, the floor the few-dates rule was measured at.
+
+    `_hunt(215)`, 95 visits over 30 days (D0's hunt batteries), at the
+    floor of 11 publishes Monday to Friday against the weekend and its
+    twins meet it at seeds 0 to 4. Asked here the rule would withhold it:
+    both tails publish their distances, 15 and 11 rows, so their most is
+    11 and 11 and leaves the body 8 of its 30 days, where its twins' tails
+    held 13 or 14 and left 16 or 17; the census needs 8. At the floor of
+    11 the 26 batteries measured hold 46 such censuses, every twin of
+    which met them, and no published census whose twin went long. Red
+    when the rule is asked at the floor of 11 or below.
+    """
+    cells = _hunt(215)
+    described = _described(tmp_path, "hunt215", cells, 11)
+    block = described.block("visit")
+    groups = tuple((group["first"], group["last"], group["count"]) for group in block["weekday_census"])
+    assert groups == ((0, 4, 56), (5, 6, 13)), groups
+    assert _decided(block, cells, 11).reason == ""
+    for seed in (0, 1, 2, 3, 4):
+        twin = kpi_shapes.twin_text(described, seed)
+        assert kpi_shapes.missed(kpi_shapes.measure(described, twin, f"hunt215-{seed}.csv")) == [], seed
+    ordered = tuple(sorted(_day(cell) for cell in cells))
+    rungs = block["date_percentiles"]
+    percents = [(100 * num) // den for label, num, den in taxonomy.LADDER if rungs[label] is not None]
+    pins = calendar_rules.body_pins(ordered, block["low_tail"]["rows"], block["high_tail"]["rows"], percents)
+    most = calendar_rules.tails_most((None, None), (block["low_tail"]["rows"], block["high_tail"]["rows"]), 11)
+    assert (block["low_tail"]["rows"], block["high_tail"]["rows"], most) == (15, 11, 22)
+    assert calendar_rules.count_room_short(groups, pins, len(set(ordered)), most)
 
 
 # The mini battery: (builder, shape) -> the decision at the floors 11, 20, 36 and 50, "" where published.

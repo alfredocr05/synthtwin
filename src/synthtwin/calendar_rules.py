@@ -154,6 +154,17 @@ REASON_UNSAID = "unsaid"
 FEWEST_REAL_DATES = 3
 MEAN_REAL_HALF_DATES = 15
 
+# THE COUNT-ROOM RULE IS ASKED ABOVE THIS FLOOR (plan P4-D388): the
+# floor the few-dates rule was set and measured at. A twin rebuilds a
+# tail publishing its two distances with up to the floor's number of
+# different days, so it is a raised floor that narrows the room the
+# count of different values leaves the body (`count_room_short`). At
+# this floor and below the rule is not asked: no published census was
+# measured to leave a twin holding more different values than its
+# column there, and asked there the rule withheld only censuses whose
+# twins met them -- that most is twice what the twins' tails held.
+COUNT_ROOM_ABOVE_FLOOR = 11
+
 # The censuses of written forms whose one form per cell makes one text
 # per date (WC6), in the order the description publishes them.
 FORM_CENSUSES = (
