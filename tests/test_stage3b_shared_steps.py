@@ -56,6 +56,13 @@ The cases and their clauses:
   holds the product to the file and states what the case shows;
   `test_each_clause_is_red_on_its_mutant` turns each red on its own
   source edit of the product (`REVIEW_MUTANTS`, the reviewer's ids);
+* the second review's cases (its item 1): a state for each line the
+  repair added whose mutant changed an answer while every case above
+  still held -- step 8.2's round asking its runs as they stood, step
+  8.5's stop at the most the count allows, the rank its tables list on
+  the unit it joins, its count of a unit's holders across the column and
+  its distance from the gaps' first places, and step 8.3's cycle undone
+  last move first -- each red on that review's mutant (N01 to N14);
 * `test_the_body_is_full_only_where_every_unit_the_census_counts_holds_a_rank`
   -- the test the short cause asks (the review's M65);
 * `test_a_schedule_at_floor_36_reaches_step_8_5`,
@@ -151,6 +158,8 @@ def _answer(case: dict, module=generation) -> list:
         module._weekday_traded(state, ranks, _holding(case, state.moved, ranks), list(case["want"]))
     elif step == "repaired":
         module._weekday_repaired(state, low, high, pinned, case["wanted"])
+    elif step == "exchanged":
+        module._weekday_exchanged(state, low, high, pinned, case["wanted"])
     elif step == "singles":
         # Steps 5 and 6 on the case's one gap, through its index as the pass builds it.
         ranks = _movable(case)
@@ -200,6 +209,9 @@ CASES = [
     "merged_in_the_pass", "merged_inside_the_shared_gap", "merged_only_alone", "merged_ties",
     "runs_merged_until_the_count_is_back", "the_index_reach", "the_index_tie",
     "the_prior_of_hours", "trades_in_rank_order",
+    # the second review's (its item 1)
+    "a_cycle_undone_last_move_first", "a_long_pair_by_first_places", "a_long_pair_by_two_first",
+    "long_pairs_count_the_pinned_rank", "long_pairs_move_a_joined_rank_again", "runs_merged_in_one_round",
 ]
 
 
@@ -653,8 +665,101 @@ def test_step_8_6_runs_in_the_whole_pass_and_the_count_after_it(monkeypatch: pyt
     assert _holding(case, withdrawn, range(len(withdrawn))) != case["counts"]
 
 
+# -- the second review's cases (review of landing 3b.D0, its second round, item 1) ----------
+
+
+def test_step_8_2_asks_a_round_of_runs_as_they_stood() -> None:
+    """Step 8.2's count kept a run at a time (the second review's N01): three Mondays held twice,
+    twice and five times, the count two long. The first Monday's two join the second's; the
+    second, holding four now, is not asked again in that round, and the third's five join it, the
+    nearest Monday held, so all nine stand on the second Monday. Taking the count down by two a
+    run ends the round after the first, and the next asks the four first, onto the third Monday."""
+    case = _case("runs_merged_in_one_round")
+    moved = _answer(case)
+    assert moved == case["answer"]
+    assert len(set(moved)) == case["wanted"]
+    assert moved.count(case["ordinals"][3]) == 9
+
+
+def test_step_8_5_stops_early_only_at_the_most_the_count_allows() -> None:
+    """Step 8.5's early stop (the second review's N04): on a unit of an hour with the day kept,
+    the count two long, the Tuesday's lone 09:00 first meets a pair with a Wednesday 15:00 rank,
+    its two cells one gap with one first place, taking the count down by one; the pair with the
+    Friday's lone 16:00 takes it down by two and is the one made. Stopped at the first pair whose
+    gaps stand no distance apart, the count falls by one and a second pair follows."""
+    case = _case("a_long_pair_by_two_first")
+    moved = _answer(case)
+    assert moved == case["answer"]
+    assert len({ordinal // 60 for ordinal in moved}) == case["wanted"]
+    assert moved[1] == case["ordinals"][2] and moved[9] == case["ordinals"][8]
+    assert moved[4:7] == case["ordinals"][4:7]
+
+
+def test_step_8_5_lists_a_rank_on_the_unit_it_joins() -> None:
+    """Step 8.5's tables keep a moved rank on the unit it joins (the second review's N06): the
+    Monday rank joins its gap's Saturday and a second-gap Saturday rank its Tuesday; then the
+    Thursday joins the Saturday left alone, and of the first gap's Saturday, held three times now,
+    the first rank in rank order -- the Monday rank -- goes on to the Tuesday. Left off the
+    Saturday's list, the Monday rank stays, and a Saturday rank goes in its place."""
+    case = _case("long_pairs_move_a_joined_rank_again")
+    moved = _answer(case)
+    assert moved == case["answer"]
+    assert len(set(moved)) == case["wanted"]
+    assert moved[1] == case["ordinals"][4]
+    assert moved[2] == moved[3] == case["ordinals"][2]
+    assert moved[9] == case["ordinals"][10] and moved[10] == case["ordinals"][7]
+
+
+def test_step_8_5_counts_every_holder_of_a_unit() -> None:
+    """Step 8.5 counts every rank of the column on a written unit, not its cell's alone (the second
+    review's N10): the first gap's Sunday is held by its rank and by the pinned rank the gap starts
+    at, so it is not alone, and the lone Saturday joins the Monday while a Tuesday rank joins the
+    second gap's Saturday: the count falls by one. Counted in its cell, the Sunday rank moves
+    first, and the count stays long."""
+    case = _case("long_pairs_count_the_pinned_rank")
+    moved = _answer(case)
+    assert moved == case["answer"]
+    assert len(set(moved)) == case["wanted"]
+    assert moved[1] == case["ordinals"][1] == case["ordinals"][0]
+    assert moved[4] == case["ordinals"][2] and moved[6] == case["ordinals"][8]
+
+
+def test_step_8_5_measures_two_gaps_apart_from_their_first_places() -> None:
+    """Step 8.5's distance between two gaps is between their first places (the second review's
+    N13): the one-week gap's lone Saturday pairs with the gap after it, starting a week from its
+    first place, and not with the gap before it, starting two weeks before -- though that gap ends
+    a week from its last place and the one after it two weeks."""
+    case = _case("a_long_pair_by_first_places")
+    moved = _answer(case)
+    assert moved == case["answer"]
+    assert len(set(moved)) == case["wanted"]
+    assert moved[8] == case["ordinals"][6] and moved[10] == case["ordinals"][12]
+    assert moved[:6] == case["ordinals"][:6]
+
+
+def test_a_cycle_is_undone_last_move_first(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Step 8.3's cycle undone last move first (the second review's N14): the Monday moment moves
+    onto the Tuesday's 10:00:00 and, the first rank there, on to Wednesday; the third move finds no
+    Monday place, so the Monday moment goes back to the Tuesday and then to the Monday, and
+    nothing has moved. Undone first move first, it is left on the Tuesday."""
+    case = _case("a_cycle_undone_last_move_first")
+    made: "list[int]" = []
+    moved_one = generation._weekday_cell_moved
+
+    def recorded(*arguments):
+        nonlocal made
+        found = moved_one(*arguments)
+        made += [found[0]]
+        return found
+
+    monkeypatch.setattr(generation, "_weekday_cell_moved", recorded)
+    assert _answer(case) == case["answer"] == case["ordinals"]
+    assert made == [1, 1, -1]
+
+
 # THE REVIEW'S MUTANTS (review of landing 3b.D0, items 3 to 5, by the reviewer's ids; M70 on are
-# the repair's own lines), each a source edit of the product, each red on the case beside it.
+# the repair's own lines, and N01 to N14 the second review's, item 1, on the repair's own lines
+# too), each a source edit of the product, each red on the case beside it.
 REVIEW_MUTANTS: "dict[str, tuple[str, str, str]]" = {
     "M09_unit_free_ignores_count": (
         "a_day_freed_for_a_cycle",
@@ -854,14 +959,48 @@ REVIEW_MUTANTS: "dict[str, tuple[str, str, str]]" = {
         "                _weekday_step(state, made[place][0], made[place][1])\n            return False",
         "            return False",
     ),
+    "N01_runs_count_falls_two": (
+        "runs_merged_in_one_round",
+        "        count = count - 1\n        changed = True\n    return changed",
+        "        count = count - 2\n        changed = True\n    return changed",
+    ),
+    "N04_pair_top_always_one": (
+        "a_long_pair_by_two_first",
+        "    top = (-2 if long >= 2 else -1, 0)",
+        "    top = (-1, 0)",
+    ),
+    "N06_pair_joined_not_listed": (
+        "long_pairs_move_a_joined_rank_again",
+        "    found = units[joined]\n    at = _weekday_first_from(found, rank)\n    found[at:at] = [rank]",
+        "    found = units[joined]\n    at = _weekday_first_from(found, rank)",
+    ),
+    "N10_pair_held_in_cell_only": (
+        "long_pairs_count_the_pinned_rank",
+        "            held = _weekday_there(state, written * state.step)\n",
+        "            held = len(units[written])\n",
+    ),
+    "N13_pair_score_last_places": (
+        "a_long_pair_by_first_places",
+        "score = (-gain, abs(pairs.keys[first][0] - pairs.keys[second][0]))",
+        "score = (-gain, abs(pairs.keys[first][1] - pairs.keys[second][1]))",
+    ),
+    "N14_cycle_undone_first_first": (
+        "a_cycle_undone_last_move_first",
+        "            for place in range(len(made) - 1, -1, -1):\n",
+        "            for place in range(len(made)):\n",
+    ),
 }
 
 
 @pytest.mark.parametrize("name", sorted(REVIEW_MUTANTS))
 def test_each_clause_is_red_on_its_mutant(name: str, monkeypatch: pytest.MonkeyPatch) -> None:
     """Every clause a reviewer's mutant changed while every case before the review still passed
-    (review of landing 3b.D0, items 3 to 5), and every line the repair added: under its source
-    edit the case beside it answers otherwise, or its tables raise (M73)."""
+    (review of landing 3b.D0, items 3 to 5), and every line the repair added whose edit changes an
+    answer (the second review, item 1): under its source edit the case beside it answers
+    otherwise, or its tables raise (M73). Two mutants of the repair's lines are not here, as
+    neither changes an answer: the second review's N07, a unit's status kept in its first cell
+    alone, is the same pass, a unit two cells hold having two holders, and M71, step 8.5's early
+    stop withdrawn, changes only its speed."""
     case_name, before, after = REVIEW_MUTANTS[name]
     case = _case(case_name)
     mutant = _mutant(monkeypatch, before, after)

@@ -71,7 +71,7 @@ the fifteenth vectors file's route arrived, and that review's mutants
 add two). They are listed in
 `ROUTES_THAT_RUN_SOURCE` below and
 `test_the_routes_that_run_a_string_of_source_are_the_ones_named_here`
-holds the tree to that list, so a thirtieth cannot arrive unread.
+holds the tree to that list, so a thirty-third cannot arrive unread.
 The `runpy` calls run a COMMITTED FILE of `tools/` or of `tests/`,
 which the folders below already read, and the `exec` and `compile`
 calls are held by what they are handed or by where they run:
@@ -113,15 +113,6 @@ calls are held by what they are handed or by where they run:
   `cells = cells + [...]` and drops one `cells = list(...)`: a name, an
   assignment and an addition, which every Python spells alike, so it
   adds no spelling the floor could miss.
-- `tests/test_stage3b_shared_steps.py` builds a module with
-  `exec(compile(source, ...))` (plan P4-D366, the review of landing
-  3b.D0), where `source` is `src/synthtwin/generation.py`, a file this
-  guard reads, carrying ONE edit: a reviewer's mutant from
-  `REVIEW_MUTANTS`, or one of the three the long cause's test makes.
-  Each edit is a string constant of `tests/` that changes a comparison,
-  a constant or a condition, or leaves a line out -- names, numbers and
-  operators every Python spells alike -- so it adds no spelling the
-  floor could miss, and the test runs in every cell of the matrix.
 - `runpy.run_path` runs the same kind of committed file: twice in
   `tests/`, in the two stage-2 oracle tests, and eighteen times in
   `tools/` -- one for the provenance guard's own runner and one for
@@ -135,6 +126,15 @@ calls are held by what they are handed or by where they run:
   `tools/reference/make_generation_reference_vectors.py` exactly as
   its siblings do, and the floor holds for them for the same reason:
   the file each runs is one of the files this guard reads.
+- `tests/test_stage3b_shared_steps.py` builds a module with
+  `exec(compile(source, ...))` (plan P4-D366, the review of landing
+  3b.D0), where `source` is `src/synthtwin/generation.py`, a file this
+  guard reads, carrying ONE edit: a reviewer's mutant from
+  `REVIEW_MUTANTS`, or one of the three the long cause's test makes.
+  Each edit is a string constant of `tests/` that changes a comparison,
+  a constant or a condition, or leaves a line out -- names, numbers and
+  operators every Python spells alike -- so it adds no spelling the
+  floor could miss, and the test runs in every cell of the matrix.
 
 A FILE loaded as a module is NOT this limit. The 26
 `importlib.util.spec_from_file_location` calls in the folders load
@@ -269,8 +269,6 @@ ROUTES_THAT_RUN_SOURCE = {
     ("tests/test_ci_demo_steps.py", "exec"): 1,
     ("tests/test_stage4_linear_work.py", "compile"): 2,
     ("tests/test_stage4_linear_work.py", "exec"): 2,
-    ("tests/test_stage3b_shared_steps.py", "compile"): 1,
-    ("tests/test_stage3b_shared_steps.py", "exec"): 1,
     ("tests/test_stage2_datetime_oracle.py", "runpy.run_path"): 1,
     ("tests/test_stage2_grouping_oracle.py", "runpy.run_path"): 1,
     ("tools/provenance/guard_runner.py", "runpy.run_path"): 1,
@@ -294,6 +292,10 @@ ROUTES_THAT_RUN_SOURCE = {
     # The fifteenth file, landing 3b.D0's shared steps (plan P4-D366): it
     # runs the same oracle by path, as every file above does.
     ("tools/reference/make_generation_branch_vectors_15.py", "runpy.run_path"): 1,
+    # Its test's mutants (the review of landing 3b.D0): the product's module
+    # with one edit, as the module docstring says.
+    ("tests/test_stage3b_shared_steps.py", "compile"): 1,
+    ("tests/test_stage3b_shared_steps.py", "exec"): 1,
     # anchor 3b-D2 (P4-D367)
     # anchor 3b-D3 (P4-D368)
     # anchor 3b-D4 (P4-D369)
