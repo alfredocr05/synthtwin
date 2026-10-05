@@ -6555,8 +6555,8 @@ asked: over the batteries measured it would withhold there only
 censuses whose twins met them.
 And beside every published hole other than a width hole -- where the
 month-name census's one word has the length `either`, so every day
-outside May is a HOLE, and beside a placeholder or declared hole -- it
-is withheld where a non-empty group has no free day between the body's
+outside May is a HOLE, and beside a placeholder or declared hole -- a
+census is withheld where a non-empty group has no free day between the body's
 first and last day -- every one of its days that is no hole holds a
 date -- while one of its dates holds a single row: a one-row date the
 day pass moves can be left empty, and with no free day a twin that
@@ -6566,7 +6566,8 @@ where no twin was measured to miss (the review of P4-D365, item 3);
 beside declared days a twin was (its second review, item 1), and a
 twin must pass its own checks. P4-D365 counts what the first and the
 last cost: 50 columns whose twins all met their census are withheld;
-P4-D388 counts what the count-room rule costs at each floor. A FORM HOLE is a day no cell can be written on under
+P4-D388 counts what the count-room rule costs at each floor.
+A FORM HOLE is a day no cell can be written on under
 the forms WC6 lets stand: where the width census's one word shows one
 field alone (`first-field-*`, `second-field-*`), every day whose other
 field is below ten, and where the month-name census's one word has the

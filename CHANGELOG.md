@@ -6,6 +6,27 @@ exists).
 
 ## [Unreleased]
 
+### Above the floor of 11 a weekday census no longer leaves a twin with too many different days (2026-10-05)
+
+**Landing 3b.D1b** (plan P4-D388, `K-S3-59`). At a raised floor a tail
+that publishes its two distances is rebuilt with up to the floor's
+number of different days, the count pass leaves the body what is left
+of the column's count, and a published weekday census then asked the
+body for more days than that: D0's repair found twins at the floor of
+36 holding more different values than their column. Above the floor of
+11 the producer now withholds the census where the column's different
+days, less the most the twin's tails can hold, leave the body no more
+room than the census needs between its pins
+(`calendar_rules.count_room_short`, with `body_pins` and `tails_most`),
+said in NF74's one sentence. On the 26 date batteries of D0's identity
+run (4,781 tables, seeds 0 to 4) the twins left long by their census
+fall from 86, 87 and 158 at the floors of 20, 36 and 50 to none, no
+twin misses a check its 493f6f8 twin met, and nothing moves at 11 and
+below. The price: 208, 84 and 111 censuses withheld, 185, 65 and 77 of
+them met by their twins, where thresholds scaled with the census line
+withheld 618, 509 and 553. `tests/test_stage3b_count_room.py` holds
+the rule.
+
 ### A description written before the published pairs loads again (2026-10-03)
 
 **The review of landing 3b.G1, its four items** (plan P4-D375). A
