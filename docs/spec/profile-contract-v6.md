@@ -3862,7 +3862,8 @@ decide says why in its own sentence: NF76
 `weekday_census_withheld_two_spellings` (the published forms may write a
 date two ways) and NF78 `weekday_census_withheld_no_tails`. Every
 withholding the table's own numbers decide -- among them the producer's
-few-dates and room rules (plan P4-D365) -- is said in ONE sentence,
+few-dates and room rules (plan P4-D365) and its count-room rule (plan
+P4-D388) -- is said in ONE sentence,
 NF74 `weekday_census_withheld_could_be_narrowed`, kept by plan P4-D365
 under the owner's rule that a guard goes only at a high price. NF74
 takes one argument, the census line; NF76 and NF78 take none. The forms
@@ -6515,11 +6516,11 @@ published census to these rules and to no other: it is a function of
 the census, the body, the line and the published forms, and walks no
 day.
 
-WHAT THE PRODUCER WITHHOLDS BESIDE THEM (plan P4-D365, under the
-owner's principle of 2026-10-01 that the threat is a HIPAA exposure and
-never a reader rebuilding counts from a description) are two
-CONSERVATIVE rules, set on the cases measured where a twin missed,
-decided on the table's own dates and so not checkable on load. Neither
+WHAT THE PRODUCER WITHHOLDS BESIDE THEM (plans P4-D365 and P4-D388,
+under the owner's principle of 2026-10-01 that the threat is a HIPAA
+exposure and never a reader rebuilding counts from a description) are
+three CONSERVATIVE rules, set on the cases measured where a twin missed,
+decided on the table's own dates and so not checkable on load. None
 proves a census impossible to meet: each withholds some a twin would
 meet, and that is its price -- the column loses its weekday statistic
 -- against a twin that would otherwise miss its own count of different
@@ -6532,7 +6533,21 @@ values than the column, as the measured weekly sessions, payroll days
 and monthly dates did. 1 to 21 January 2024, a hundred rows a date, is
 withheld by it too, and its census restored is met at seeds 0 to 2 with
 all 21 dates and no deviation (the Codex review of P4-D365, item 2).
-And beside every published hole other than a width hole -- where the
+The count-room rule (plan P4-D388) reads the room the count of
+different values leaves the body, which a raised floor narrows: a tail
+that publishes its two distances rather than its values is rebuilt with
+up to the floor's number of different days, never more than its rows,
+and one that lists its values on those; the count pass leaves the body
+the column's different days less that most of the two tails; and the
+day pass moves a body rank only between the two pins either side of it
+-- the body's boundaries and the rungs published between them -- so the
+census needs every pin day and, inside each such gap, a day of every
+group that holds rows and has a day there other than the gap's two pin
+days. Where that room is no more than the need and the need passes the
+pin days, the census is withheld: at the floor of 36, schedules whose
+tails held 59 and 40 rows on a few days came back with 32 and more
+different days in their twins' tails and more different values than
+the column. And beside every published hole other than a width hole -- where the
 month-name census's one word has the length `either`, so every day
 outside May is a HOLE, and beside a placeholder or declared hole -- it
 is withheld where a non-empty group has no free day between the body's
@@ -6543,8 +6558,9 @@ leaves one holds fewer different values than the column, as every day
 of three Mays did. That rule is not asked beside width holes alone,
 where no twin was measured to miss (the review of P4-D365, item 3);
 beside declared days a twin was (its second review, item 1), and a
-twin must pass its own checks. P4-D365 counts what the two rules cost:
-50 columns whose twins all met their census are withheld. A FORM HOLE is a day no cell can be written on under
+twin must pass its own checks. P4-D365 counts what the first and the
+last cost: 50 columns whose twins all met their census are withheld;
+P4-D388 counts what the count-room rule costs at each floor. A FORM HOLE is a day no cell can be written on under
 the forms WC6 lets stand: where the width census's one word shows one
 field alone (`first-field-*`, `second-field-*`), every day whose other
 field is below ten, and where the month-name census's one word has the

@@ -30,15 +30,19 @@ about the twin and the census's own shape, never by what a reader could
 work out from it (the owner's principle of 2026-10-01: the threat is a
 HIPAA exposure, never a reader rebuilding counts; plan P4-D365 dropped
 the full-fill certificate, its bands, its cap, its ties refusal and
-WC5, WC7, WC8 and WC9). The producer withholds a census by two
+WC5, WC7, WC8 and WC9). The producer withholds a census by three
 CONSERVATIVE rules, set on the cases where a twin was measured to miss
 the column's count of different values: too few different dates in a
-group (`few_dates`); and, beside May's holes, placeholder days or
-declared days (never width holes alone), a group with no free day that
-holds a date of one row (`room_short`). They are rules, not proofs that
-no twin can meet the census: each also withholds some censuses a twin
-meets (1 to 21 January 2024, a hundred rows a date; the 50 columns plan
-P4-D365 counts). Both the producer and the loader hold a published
+group (`few_dates`); too few of the column's different days left to the
+body, once the most its rebuilt tails can hold is set aside, for the
+days the census needs between the body's pins, which a raised floor
+narrows (`count_room_short`, plan P4-D388); and, beside May's holes,
+placeholder days or declared days (never width holes alone), a group
+with no free day that holds a date of one row (`room_short`). They are
+rules, not proofs that no twin can meet the census: each also withholds
+some censuses a twin meets (1 to 21 January 2024, a hundred rows a date;
+the 50 columns plan P4-D365 counts, and those P4-D388 counts). Both the
+producer and the loader hold a published
 census to its shape (`shape_breach`): WC1 the cover, WC2 the floor, WC3
 the total, WC4 the menu and WC6 one spelling per day
 (`one_spelling_published`) -- the published censuses of written forms
@@ -100,6 +104,11 @@ REASON_FEW_DATES = "few_dates"
 # `room_short`, for the twin to be sure to lay the body's different dates
 # on.
 REASON_ROOM = "room"
+# Too few of the column's different days left to the body, once the most
+# its tails can hold is set aside, for the days the census asks of the
+# body's gaps, by the conservative rule `count_room_short` (plan
+# P4-D388): a raised floor widens the tails a twin rebuilds.
+REASON_COUNT_ROOM = "count_room"
 # The producer's own census broke a rule the loader asks (`shape_breach`).
 REASON_NARROWED = "narrowed"
 # A day written in two texts by the table's own cells, or standing on a
@@ -113,6 +122,7 @@ REASONS = (
     REASON_MENU,
     REASON_FEW_DATES,
     REASON_ROOM,
+    REASON_COUNT_ROOM,
     REASON_NARROWED,
     REASON_TEXTS,
 )
@@ -1070,6 +1080,130 @@ def few_dates(
     if min(filled) < FEWEST_REAL_DATES:
         return True
     return len(filled) >= 2 and 2 * sum(filled) < MEAN_REAL_HALF_DATES * len(filled)
+
+
+def body_pins(
+    days: "tuple[int, ...]",
+    rows_low: int,
+    rows_high: int,
+    percents: "list[int]",
+) -> "tuple[tuple[int, int], ...]":
+    """The body's pinned ranks with their days, ascending (method G7.3).
+
+    The ranks no pass of the twin moves inside the body: the two tail
+    boundaries, ranks `rows_low` and `len(days) - 1 - rows_high`, and each
+    published rung strictly between them, at the rank its percent is read
+    off -- `(len(days) - 1) * percent // 100`, as the generator lays it
+    (`generation._date_layout`). `days` is the day of every parsed cell
+    ascending and `percents` the percents of the published rungs.
+
+    Guarantees: accepts the days, the two tails' rows (a body of at least
+    one rank between them) and the percents; returns each pinned rank
+    once with its day. Determinism: a function of the four. Raises
+    nothing. No I/O of any kind.
+    """
+    parsed = len(days)
+    high = parsed - 1 - rows_high
+    found = [(rows_low, days[rows_low])]
+    for percent in sorted(set(percents)):
+        rank = min(parsed - 1, ((parsed - 1) * percent) // 100)
+        if found[len(found) - 1][0] < rank < high:
+            found += [(rank, days[rank])]
+    if high > found[len(found) - 1][0]:
+        found += [(high, days[high])]
+    return tuple(found)
+
+
+def tails_most(
+    listed: "tuple[int | None, int | None]",
+    rows: "tuple[int, int]",
+    floor: int,
+) -> int:
+    """The most different days the twin's two tails can hold (method G7.3b).
+
+    A tail that lists its values is written on those values, so on at
+    most as many days as it lists (`listed`, the count of its listed
+    values, or None where it publishes its two distances instead). A
+    tail that publishes its two distances is rebuilt with its outermost
+    ranks one distance apiece and the rest on one shared distance, the
+    ranks past the floor's number sharing it: at most the floor's number
+    of different days, and never more than its rows. (Where the column's
+    values all differ its ranks all differ too, but no twin of such a
+    column can hold more different values than the column, which holds
+    one in every cell.)
+
+    Guarantees: accepts each side's listed count or None, each side's
+    rows and the settings floor (read as at least one); returns the sum.
+    Determinism: a function of the three. Raises nothing. No I/O.
+    """
+    most = 0
+    for side in range(2):
+        count = listed[side]
+        if count is None:
+            most = most + min(rows[side], max(floor, 1))
+        else:
+            most = most + count
+    return most
+
+
+def count_room_short(
+    groups: "tuple[tuple[int, int, int], ...]",
+    pins: "tuple[tuple[int, int], ...]",
+    days: int,
+    tails: int,
+) -> bool:
+    """Whether the body is left too few different days for the census (plan P4-D388).
+
+    THE PRODUCER'S COUNT-ROOM RULE, the few-dates rule's companion where
+    the floor is raised. `pins` are the body's pinned ranks with their
+    days, ascending (`body_pins`); `days` is how many different days the
+    column holds; `tails` the most different days the twin's two tails
+    can hold (`tails_most`).
+
+    The twin's count pass leaves the body the column's different days
+    less those its tails hold -- at least `days - tails`, its ROOM. Its
+    day pass moves a body rank only inside its GAP, between the two pins
+    either side of it, both days included, so the census NEEDS every pin
+    day and, inside each gap, one more day for each group holding rows
+    that has a day strictly inside the gap and stands on neither of its
+    two pin days (at most one a rank of the gap). True where the census
+    needs a day past the pin days and the room is no more than the need:
+    below it a twin meeting the census holds more different values than
+    the column, and AT it the day pass must find the fewest days the
+    census allows, which it does not always. Where the census needs no
+    day past the pin days, the body holds every pin day with or without
+    it, so it is no cause of a count left long.
+
+    A CONSERVATIVE rule, both halves erring towards withholding: the
+    tails' most is the most their construction can hold, and a group
+    with a day in a gap is counted whether or not the twin puts rows
+    there. It withholds censuses a twin would meet (plan P4-D388 counts
+    them), and that is its price.
+
+    Guarantees: accepts the census, the pins, the count and the tails'
+    most; returns the answer. Determinism: a function of the four. Raises
+    nothing. No I/O of any kind.
+    """
+    where = where_of(groups)
+    held: "list[int]" = []
+    for _rank, day in pins:
+        if day not in held:
+            held += [day]
+    need = len(held)
+    for place in range(len(pins) - 1):
+        rank, first = pins[place]
+        following, last = pins[place + 1]
+        inner = following - rank - 1
+        if inner < 1 or last <= first:
+            continue
+        ends = (where[weekday_of(first)], where[weekday_of(last)])
+        found: "list[int]" = []
+        for day in range(first + 1, min(last, first + WEEKDAYS)):
+            index = where[weekday_of(day)]
+            if groups[index][2] > 0 and index not in ends and index not in found:
+                found += [index]
+        need = need + min(len(found), inner)
+    return need > len(held) and days - tails <= need
 
 
 def room_short(
