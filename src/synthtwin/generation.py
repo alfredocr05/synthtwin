@@ -14508,15 +14508,18 @@ def _wide_enough(
     # the width there, and the staircase with it. ON ANOTHER PROVEN SIDE
     # -- the end past the width already on 110cb46, where the guard at
     # the tail's mean distance kept the fitted end -- ONLY WHERE THE WALK
-    # SERVES THE CENSUS BETTER AND STANDS NO FURTHER FROM THE PUBLISHED
-    # MEAN AND SPREAD (`_serves_better`). Six shapes of padded codes beside
-    # plain numbers and far cells missed their padded census at 110cb46
-    # and miss nothing with it; but 300 four-figure numbers beside nine
-    # cells at 20000 had their census served and their mean moved from
-    # 0.019 to 0.036 real standard deviations, and 500 blood pressures
-    # beside one `1300` their spread from 1.048 to 0.947 of the real
-    # one. Where the walk would trade a published moment for the census,
-    # the twin is 110cb46's.
+    # SERVES THE CENSUS STRICTLY BETTER AND STANDS NO FURTHER FROM THE
+    # PUBLISHED MEAN AND SPREAD (`_serves_better`). 60 codes beside 90
+    # plain numbers and `99999`, at a floor of eleven, missed their padded
+    # census at 110cb46 and miss nothing with it; but 300 four-figure
+    # numbers beside nine cells from 20000 would have had their census
+    # served and their mean moved from 0.019 to 0.036 real standard
+    # deviations. Where the walk would trade a published moment for the
+    # census, the twin is 110cb46's -- and where it serves the census no
+    # better, too: the census's count cannot see how the padded style is
+    # shared out afterwards, and on 200 codes beside 100 three-figure
+    # numbers and two far cells a walk it counted no worse wrote two more
+    # two-figure cells than 110cb46.
     sides = _proven_sides(facts, _widest_demanded(demands))
     reached: "list[tuple[bool, float, float, float, bool]]" = []
     for side in sides:
@@ -14877,13 +14880,9 @@ def _walked_past_the_width(
     function of those. Raises nothing. No I/O of any kind.
     """
     moved = [value for value in values]
-    widest = _widest_demanded(demands)
     if not sides:
         return moved, 0
-    exact = False
-    for wanted, kind, _cells in demands:
-        if wanted == widest and kind == 1:
-            exact = True
+    widest, exact = _width_of(demands)
     room = parsing.census_floor(floor) - 1
     freed = 0
     for high, boundary, first_total, second_total, _moved in sides:
@@ -15025,6 +15024,26 @@ def _side_strata(
     return found
 
 
+def _width_of(demands: "list[tuple[int, int, int]]") -> "tuple[int, bool]":
+    """The most figures a width demand lets a value hold, and whether a demand asks for exactly that many (G6.6.8).
+
+    A stratum the walk moves under the width stands where the census
+    counted the far cells: where an unpadded demand asks for exactly the
+    widest count, the value it takes has exactly that many figures; where
+    only padded ceilings ask, any count up to it.
+
+    Guarantees: accepts the demands; returns the count and the flag,
+    nought and False where there is none. Determinism: a function of the
+    demands. Raises nothing. No I/O of any kind.
+    """
+    widest = _widest_demanded(demands)
+    exact = False
+    for wanted, kind, _cells in demands:
+        if wanted == widest and kind == 1:
+            exact = True
+    return widest, exact
+
+
 def _widest_demanded(demands: "list[tuple[int, int, int]]") -> int:
     """The most figures any width demand lets a value hold (G6.6.8); nought where there is none."""
     widest = 0
@@ -15055,10 +15074,10 @@ def _targets_under_the_width(
     `00001` to `00399` beside one `12345`, where the end stands at `12280`:
     the first form pulled the staircase row beside it to `09998` and the
     twin's spread came back 1.21 to 1.28 times the real one, where 110cb46
-    read 1.14; spending the squares left over put it near `01633`, a code
-    no real cell stands near; beside the boundary it is `00455`, the
-    spread 0.995 and the mean within 0.0003 of the real one's deviation
-    at a floor of eleven.
+    read 1.14; spending the squares left over put it on `01631`, a code no
+    real cell stands near, the mean 0.005 of the real spread off; beside
+    the boundary it is `00455`, the spread 0.995 of the real one and the
+    mean 0.0002 off, at a floor of eleven.
 
     WHERE THE END'S STRATUM MOVES TOO, nothing past the width carries the
     tail's spread, so the moved strata carry it: what `m rms**2` has left
@@ -15067,7 +15086,7 @@ def _targets_under_the_width(
     Measured on 4,000 readings 1000 to 1900 beside one `99900`, the tail
     one stratum of 40 rows: by the squares it stands on `9998`, as 110cb46
     wrote it, its spread 0.57 of the real one; beside the boundary it
-    stood on `1901`, the spread 0.25.
+    stood on `1901`, the spread 0.18.
 
     Guarantees: accepts the layout, the values as they stand, the side's
     tail strata, the strata to move outermost first, the side (high or
@@ -15140,10 +15159,11 @@ def _pulled_under_the_width(
     between the stratum inside them and the width holds one free value for
     each: the run is spread down from the outermost free value under the
     width, `10**widest - 1` or the first one inside it that is not a
-    stand-in -- the end G5.3b step 4's clamp gave 110cb46. Measured on 400
-    whole-number Pareto(2.5) readings at a floor of 36, seed 9: ten strata
-    past `999` had seven free values between the stratum at `992` and the
-    width, and the first form of this pass left three of them past it.
+    stand-in -- the end G5.3b step 4's clamp gave 110cb46. Measured on
+    `K-S3-22`'s 400 whole-number Pareto(2.5) readings of seed 9, at a floor
+    of 36: ten strata past `999` had seven free values between the stratum
+    at `992` and the width, and a pass that did not widen left three of
+    them past it.
     Only where the side's own tail strata, every one of them taken in,
     still find too few free values do the outermost stay where they
     stood, their cells serving no demand; a stratum is never taken in
@@ -15413,33 +15433,23 @@ def _demands_less_the_freed(
     `99999` publish `field_widths {"3": 40, "4": 101}` beside `pad_widths
     {"4": 101}`, every cell of width four padded, and lowering the
     plus-signed numbers' demand wrote eleven of them with two figures.
-    Where no published demand is the one the census counted them into,
-    the exact demand asking for the most cells is chosen, the narrowest on
-    a tie, and the padded ceiling asking for the most only where no exact
-    demand is published.
+    That demand is always published: the commonest width's unpadded part
+    is a demand wherever any of its cells are unpadded, and its padded
+    ceiling wherever every one is, a width of one being never padded.
 
     Guarantees: accepts the demands, sorted narrowest first, the count
     freed and the block's facts; returns them with that count taken off
-    the chosen one, never below nought, and a demand left at nought
-    dropped. Determinism: a function of those. Raises nothing. No I/O of
-    any kind.
+    the demand the census counted the cells into, never below nought,
+    and a demand left at nought dropped -- unchanged where none is.
+    Determinism: a function of those. Raises nothing. No I/O of any kind.
     """
     if freed < 1 or not demands:
         return demands
     chosen = -1
     counted = _counted_into(facts)
-    if counted is not None:
-        for index in range(len(demands)):
-            if (demands[index][0], demands[index][1]) == counted:
-                chosen = index
-    for exact in (1, 0):
-        if chosen >= 0:
-            break
-        for index in range(len(demands)):
-            if demands[index][1] != exact:
-                continue
-            if chosen < 0 or demands[index][2] > demands[chosen][2]:
-                chosen = index
+    for index in range(len(demands)):
+        if (demands[index][0], demands[index][1]) == counted:
+            chosen = index
     kept: "list[tuple[int, int, int]]" = []
     for index in range(len(demands)):
         wanted, exact, cells = demands[index]

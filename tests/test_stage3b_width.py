@@ -38,6 +38,7 @@ from disk but the tree's own code.
 from __future__ import annotations
 
 import csv
+import dataclasses
 import io
 import math
 import pathlib
@@ -332,6 +333,22 @@ def test_the_ladder_read_without_the_reach_rule_holds_the_width_s_end(tmp_path: 
     assert [(side[0], side[4]) for side in sides] == [(True, False)]
 
 
+def test_a_side_is_walked_only_where_its_reach_passes_the_width(tmp_path: pathlib.Path) -> None:
+    """`_proven_sides`: a tail's pair proves a cell past every named width only where its reach passes `10**widest - 1`.
+
+    Nine four-figure cells beside 51 of five figures: the high pair's reach
+    stops short of `99999` and the low one cannot pass `-99999`, so no side
+    is walked. 300 four-figure numbers beside far cells on both sides of
+    nought: each side's reach passes the width on its own side, and both
+    are walked, low first.
+    """
+    narrow = _facts(_described(tmp_path, "narrow_beside_five", _narrow_beside_five(), 11))
+    assert narrow.tails is not None and narrow.tails.high is not None and narrow.tails.high.mean_distance is not None
+    assert generation._proven_sides(narrow, 5) == []
+    both = _facts(_described(tmp_path, "both", _both_sides(), 11))
+    assert [side[0] for side in generation._proven_sides(both, 4)] == [False, True]
+
+
 def test_a_hold_on_a_stand_in_the_block_holds_stays(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """`9999` fifteen times, the block's mode, beside one `10500`: the end stays on the heap.
 
@@ -536,29 +553,38 @@ def test_the_walk_stops_at_the_first_stratum_that_does_not_fit(tmp_path: pathlib
 
 
 def test_on_a_tie_the_outermost_by_rank_stays(tmp_path: pathlib.Path) -> None:
-    """100 codes beside 40 plus-signed numbers and one `99999`: the far value is written once, as the table holds it.
+    """100 codes beside 40 plus-signed numbers and one `99999`: the far value stays on the stratum holding the end.
 
     The staircase's last row stands on the end's own value, a tie in
-    distance; the walk keeps the outermost by rank -- the stratum holding
-    the end -- and moves the row under the width. Taken the other way, the
-    first skeptic measured `99999` written twice at every seed and the
-    spread 1.41 times the real one. The mean and spread are 110cb46's.
+    distance, and the pair's total of squares carries one of the two. The
+    walk keeps the outermost by rank -- the stratum holding the end -- and
+    moves the row under the width, so the strata keep their order. Taken
+    the other way, the first form wrote `99999` twice at every seed and
+    the spread 1.41 times the real one; with the end's stratum movable, it
+    would put the far value on the row and the end under the width, out
+    of order. The far value is written once and the mean and spread are
+    110cb46's.
     """
     cells = _plus_mixed()
     for floor in (11, 36):
         described = _described(tmp_path, f"plus_mixed_{floor}", cells, floor)
-        facts, layout, values, demands, _floor, sides = _walk_calls(described)[0]
-        widest = generation._widest_demanded(demands)
-        ties = [place for place in _left_past(facts, values, widest) if values[place] == values[len(values) - 1]]
+        walked = [call for call in _walk_calls(described) if call[5]]
+        assert walked, "premise: the side is walked"
+        facts, layout, values, demands, walk_floor, sides = walked[0]
+        last = len(values) - 1
         if floor == 11:
+            widest = generation._widest_demanded(demands)
+            ties = [place for place in _left_past(facts, values, widest) if values[place] == values[last]]
             assert len(ties) == 2, "premise: a staircase row on the end's value"
+        moved, _freed = generation._walked_past_the_width(facts, layout, values, demands, walk_floor, sides)
+        assert moved[last] == values[last], f"floor {floor}"
+        tail = [moved[place] for place in generation._side_strata(facts, layout, True)]
+        assert tail == sorted(tail), f"floor {floor}"
         for seed in SEEDS:
             written = _twin_numbers(described, seed)
             assert _past(written, 9999.0) == 1, f"floor {floor} seed {seed}"
             mean, spread = _errors(cells, written)
             assert mean < 0.0031 and spread < 0.001, f"floor {floor} seed {seed}: {mean} {spread}"
-        moved, _freed = generation._walked_past_the_width(facts, layout, values, demands, _floor, sides)
-        assert moved[len(values) - 1] == values[len(values) - 1]
 
 
 def test_each_side_walks_its_own_tail(tmp_path: pathlib.Path) -> None:
@@ -649,6 +675,13 @@ def test_a_row_moved_under_the_width_stands_beside_its_inner_neighbour(
         mean, spread = _errors(cells, written)
         assert mean <= mean_most + _SLACK and spread <= spread_most + _SLACK, f"seed {seed}: {mean} {spread}"
         assert not [value for value in written if 9000.0 <= value < 10000.0], f"seed {seed}"
+    facts, layout, values, demands, walk_floor, sides = _walk_calls(described)[0]
+    assert sides and sides[0][4], "premise: the side the reach rule moved"
+    moved, _freed = generation._walked_past_the_width(facts, layout, values, demands, walk_floor, sides)
+    pulled = [place for place in range(len(values)) if moved[place] != values[place]]
+    assert pulled, "premise: a staircase row is moved under the width"
+    for place in pulled:
+        assert 0.0 < moved[place] - moved[place - 1] <= 2.0, (place, moved[place - 1], moved[place])
     monkeypatch.setattr(
         generation,
         "_targets_under_the_width",
@@ -656,6 +689,58 @@ def test_a_row_moved_under_the_width_stands_beside_its_inner_neighbour(
     )
     written = _twin_numbers(described, 0)
     assert 9998.0 in written and _errors(cells, written)[1] > spread_most + 0.05
+
+
+def test_the_targets_spread_the_squares_left_outermost_first_and_never_past_the_width() -> None:
+    """`_targets_under_the_width` asked directly, on a tail of three strata above a boundary of 900.
+
+    Where the end's stratum moves too, what the total of squares has left
+    after the stratum staying goes to the moved strata outermost first,
+    each at `sqrt(left / size)` from the boundary and never past the
+    width's end -- so a second stratum still finds squares left after the
+    first is held at the end. Where the end's stratum stays, it carries
+    the distance the pair proves and every moved stratum stands at the
+    boundary.
+    """
+    layout = generation._NumericLayout(
+        sizes=(1, 1, 3, 2, 1), starts=(0, 1, 2, 5, 7), bands=("positive",) * 5, raw_budgets=(), folded_budgets=()
+    )
+    values = [100.0, 900.0, 950.0, 20000.0, 50000.0]
+    side = (True, 900.0, 1.0e10)
+    assert generation._targets_under_the_width(layout, values, [2, 3, 4], [4, 3], side, 9999.0) == [9999.0, 9999.0]
+    assert generation._targets_under_the_width(layout, values, [2, 3, 4], [3], side, 9999.0) == [900.0]
+
+
+def test_a_moved_stratum_takes_exactly_the_widest_count_only_where_a_demand_asks_exactly_that_many() -> None:
+    """`_width_of`: the widest figure count a demand lets a value hold, exact where an unpadded demand asks for it."""
+    assert generation._width_of([(3, 0, 200), (4, 1, 102)]) == (4, True)
+    assert generation._width_of([(4, 0, 400)]) == (4, False)
+    assert generation._width_of([(3, 0, 101), (3, 1, 40)]) == (3, True)
+    assert generation._width_of([(2, 1, 10), (4, 0, 90)]) == (4, False)
+    assert generation._width_of([]) == (0, False)
+
+
+def test_a_free_value_under_the_width_is_the_walk_s_own_rule(tmp_path: pathlib.Path) -> None:
+    """`_free_under_the_width` and `_nearest_under_the_width` asked directly, on a column of whole numbers holding no stand-in.
+
+    Free: held by no other stratum, on the stratum's side of nought, never
+    a stand-in the block does not hold, and of exactly the widest figure
+    count where a demand asks exactly that many, any count up to it where
+    only a padded ceiling asks; never past the width.
+    """
+    facts = _facts(_described(tmp_path, "ten_wide", _ten_wide(), 11))
+    assert facts.integer_valued and facts.kept_stand_ins == ()
+    free = generation._free_under_the_width
+    assert free(9998.0, {}, "positive", (4, True), facts)
+    assert not free(999.0, {}, "positive", (4, True), facts)
+    assert free(999.0, {}, "positive", (4, False), facts)
+    assert not free(10000.0, {}, "positive", (4, False), facts)
+    assert not free(9999.0, {}, "positive", (4, True), facts)
+    assert not free(9998.0, {9998.0: 1}, "positive", (4, True), facts)
+    assert not free(-9998.0, {}, "positive", (4, True), facts)
+    nearest = generation._nearest_under_the_width
+    assert nearest((900.0, 1100.0), {}, "positive", (4, True), 950.0, True, ()) == 1000.0
+    assert nearest((900.0, 1100.0), {}, "positive", (4, False), 950.0, True, ()) == 950.0
 
 
 def test_where_the_end_moves_too_the_moved_strata_carry_the_pair_s_squares(
@@ -788,6 +873,8 @@ def test_the_cells_left_come_off_the_demand_the_census_counted_them_into(
     assert generation._demands_less_the_freed([(3, 0, 200), (4, 1, 102)], 2, facts) == [(3, 0, 200), (4, 1, 100)]
     plus = _facts(_described(tmp_path, "plus_mixed", _plus_mixed(), 11))
     assert generation._counted_into(plus) == (3, 0)
+    assert generation._field_demands(plus) == [(3, 0, 101), (3, 1, 40)]
+    assert generation._demands_less_the_freed([(3, 0, 101), (3, 1, 40)], 1, plus) == [(3, 0, 100), (3, 1, 40)]
     for seed in SEEDS:
         assert _missed(described, seed) == [], f"seed {seed}"
     monkeypatch.setattr(generation, "_demands_less_the_freed", _demands_less_the_commonest)
@@ -835,6 +922,64 @@ def test_where_the_full_walk_would_cost_a_moment_the_twin_is_110cb46_s(
     monkeypatch.setattr(generation, "_serves_better", lambda *_arguments: True)
     for seed in SEEDS:
         assert _errors(cells, _twin_numbers(described, seed))[0] > kept[seed] + 0.01, f"seed {seed}"
+
+
+def test_the_full_walk_stands_only_on_a_census_strictly_better_and_no_moment_further_off(tmp_path: pathlib.Path) -> None:
+    """`_serves_better` asked directly, on the ten-wide column's hundred one-cell strata.
+
+    The trial leaves ten cells past the width and owes nothing; the walk
+    held leaves eleven and owes two. Each published moment is weighed only
+    where it is published: with neither, the census decides; a mean or a
+    spread published nearer the held walk's refuses the trial; both nearer
+    the trial's let it stand; and a trial that serves the census no better
+    is refused whatever its moments.
+    """
+    described = _described(tmp_path, "ten_wide", _ten_wide(), 11)
+    facts, layout, _values, demands, floor, _sides = _walk_calls(described)[0]
+    held = [1000.0 + place for place in range(89)] + [20000.0 + place for place in range(11)]
+    trial = [1000.0 + place for place in range(90)] + [20000.0 + place for place in range(10)]
+    level = [1100.0 + place for place in range(90)] + [30000.0 + place for place in range(10)]
+    owed = generation._census_owed
+    assert owed(facts, layout, trial, demands, floor) == 0 == owed(facts, layout, level, demands, floor)
+    assert owed(facts, layout, held, demands, floor) == 2
+    trial_mean, trial_spread = generation._strata_moments(layout, trial)
+    held_mean, held_spread = generation._strata_moments(layout, held)
+
+    def asked(mean, spread, walks):  # type: ignore[no-untyped-def]
+        published = dataclasses.replace(facts, mean=mean, std=spread)
+        return generation._serves_better(published, layout, walks, demands, floor)
+
+    assert asked(None, None, (trial, held))
+    assert not asked(held_mean, None, (trial, held))
+    assert not asked(None, held_spread, (trial, held))
+    assert asked(trial_mean, trial_spread, (trial, held))
+    level_mean, level_spread = generation._strata_moments(layout, level)
+    assert not asked(level_mean, level_spread, (level, trial))
+
+
+def test_where_the_full_walk_serves_the_census_no_better_the_side_keeps_110cb46_s_walk(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """K-S3-22's Pareto(2.5) readings of seed 0 at 36: 16 cells past `999`, as the source holds, where the full walk would leave 7.
+
+    The side's end stood past the width before the reach rule, and its
+    census is served on 110cb46's walk with every wide cell pooled; the
+    full walk would leave the census no better served and only moves the
+    tail's spread, so the side keeps 110cb46's walk. Its mutant takes the
+    full walk wherever the census is no worse.
+    """
+    described = _described(tmp_path, "pareto_0_36", reader.pareto(400, 0), 36)
+    sides = generation._proven_sides(_facts(described), 3)
+    assert [(side[0], side[4]) for side in sides] == [(True, False)], "premise: a side the rule did not move"
+    for seed in SEEDS:
+        assert _past(_twin_numbers(described, seed), 999.0) == 16, f"seed {seed}"
+    real = generation._census_owed
+
+    def no_worse(facts, layout, walks, demands, floor):  # type: ignore[no-untyped-def]
+        return real(facts, layout, walks[0], demands, floor) <= real(facts, layout, walks[1], demands, floor)
+
+    monkeypatch.setattr(generation, "_serves_better", no_worse)
+    assert _past(_twin_numbers(described, 0), 999.0) < 10
 
 
 def test_the_census_owed_counts_the_cells_past_the_width_beyond_the_pool(tmp_path: pathlib.Path) -> None:

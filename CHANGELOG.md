@@ -6,7 +6,7 @@ exists).
 
 ## [Unreleased]
 
-### A tail pair that proves a wider cell lets the end past the width (2026-10-02)
+### A tail pair that proves a wider cell lets the end past the width (2026-10-02, repaired 2026-10-05)
 
 **The width census no longer caps a tail its own pair proves wider**
 (plan P4-D377, method G6.6.8, lane G2 of stage 3b). The census counts a
@@ -17,22 +17,33 @@ furthest row at least `rms**2 / d1` from its boundary; where a width
 hold lowers the end inside that reach (and at or past the mean
 distance), the hold stands aside and the end is the first whole number
 at or past the reach, never further than the fitted end and never off a
-stand-in the column holds. The width walk leaves up to the floor less
-one of the tail's own cells past every named width, stopping where
-their distances would pass the pair's own totals; it moves the tail's
-other cells past the width under it before serving any demand, and
-takes every cell still past it off the unpadded demand the census
-counted it into (the padded one only where no cell is published
-unpadded), so padded codes beside plain numbers keep their padded
-census. Nothing new is published. `K-S3-22`'s 36 column-floors at seeds 0, 4 and 9: 111
-missed mean and spread checks become 12, the two moments-only columns;
-no new miss there, on follow-up A's 37 shapes or on the stage-3
-battery, and no twin newly outside its real range. Six shapes of padded
-codes beside plain numbers and far cells, at floors 11 and 36 and seeds
-0 to 19: 605 missed checks become 205, none new, where the walk's first
-form read 950. One frozen case opens
-`tests/reference/generation-branch-vectors-23.json`; the walk is pinned
-by `tests/test_stage3b_width.py`.
+stand-in the column holds. The width walk leaves past every named width
+only the tail's outermost strata that fit the floor's line less one and
+the pair's own totals, and moves every other stratum of the tail past
+the width under it before serving any demand, the one holding the end
+among them -- beside its inner neighbour where the end stays, where the
+pair's squares put it where the end moves too. Where the end already
+stood past the width before this rule, the walk stands only where it
+serves the width census strictly better and leaves neither the mean nor
+the spread further off. A padded cell no named width can hold is written
+plain where the column publishes no other point-free form, so a column
+of five-character codes stays five characters wide. Nothing new is
+published.
+
+The repair round fixed four faults the first form had and no check saw:
+a stratum holding a whole tail written on the far value (40 cells at
+`99900` for one in the table), `99999` written twice on a tie, a moved
+row left at `09998`, and a far code written `012280`. Twin by twin
+against 110cb46, at seeds 0, 4 and 9 over eight batteries: `K-S3-22`'s
+36 column-floors miss 12 mean and spread checks where 111 were missed,
+the six shapes of codes beside plain numbers miss 205 where 605 were
+missed, and the skeptics' shapes nothing where 222 were missed; of the
+349 twins the rule changes, none newly misses a check, writes its own
+width census further from the source's or a wider cell, 334 stand
+nearer the real mean and 331 nearer the real spread. `K-S3-22` now
+counts that comparison itself. The walk is pinned by
+`tests/test_stage3b_width.py`; one frozen case opens
+`tests/reference/generation-branch-vectors-23.json` for the end rule.
 
 ### The weekday guards dropped (2026-10-02)
 

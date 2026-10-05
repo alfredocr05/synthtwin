@@ -12893,8 +12893,11 @@ def _past_the_width(
     goes past the width only AS FAR AS THE REACH -- the first whole number
     at or beyond it -- and never past the end the fitted reading derived
     (``held``), so it is the narrowest end the pair allows; the census
-    still holds every cell it can, and the generator's width walk lets at
-    most the floor less one past it (`generation._wide_enough`).
+    still holds every cell it can, and the generator's width walk leaves
+    past it only the tail's outermost strata the line less one and the
+    pair's own totals carry, and moves the rest under it, the end's own
+    stratum among them where it does not fit
+    (`generation._walked_past_the_width`).
 
     AND IT IS THE HOLD THAT STANDS ASIDE, NOT THE GUARD BESIDE IT. Where
     the hold already lands the end inside the tail's mean distance the
