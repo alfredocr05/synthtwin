@@ -6958,6 +6958,29 @@ def clock_line_room(present, clocks, others, rate=MINIMUM_PARSE_RATE):
     return 0
 
 
+def clock_key(text):
+    """Which clock reading takes ``text``, or None where no clock reader does.
+
+    Whether it writes seconds, and the marker pair it ends in with the
+    space before it, if any: one reading of a column as clock times takes
+    the cells of one key, the hour's width aside, which a column counts
+    into its own (method G8.3, the second repair round of landing 3b.5).
+    """
+    if not clock_reads(text, False):
+        return None
+    body, face = text, ""
+    for name, (morning, evening) in sorted(CLOCK_PAIRS.items()):
+        for word in (morning, evening):
+            if len(body) > len(word) and body.endswith(word):
+                body, face = body[: -len(word)], name
+                if body.endswith(" "):
+                    body, face = body[:-1], " " + name
+                break
+        if face:
+            break
+    return (body.count(":") == 2, face)
+
+
 def figure_filled_clock(text):
     """Whether ``text`` is a clock's form filled figure by figure.
 
@@ -7283,7 +7306,7 @@ def shared_out(sizes, owing, seen, folds, supplied=None):
 
 def invented_levels(
     used, sizes, census=None, written=(), placed=None, level_shape="",
-    room=None,
+    line=None,
 ):
     """The stand-in labels of method sections G8.3 and G8.3a.
 
@@ -7300,12 +7323,18 @@ def invented_levels(
     numbers: those keep their spellings, every form a number can wear is
     taken out of the debt, and the words are settled over the rest.
 
-    ``room``, where given, is how many stand-in cells may still be clock
-    times (`clock_line_room`).  Before a stand-in of a clock's form whose
-    size is more than what is left, every later one of a clock's form is
+    ``line``, where given, is the column's present cells and its parse
+    rate, and the column has a clock line (`clock_line_room`), held key by
+    key (`clock_key`): a key is HELD where the cells already written and
+    the stand-ins whose form's times wear it reach the clock line of the
+    present cells less the most the rare words may hold, and the room is
+    how many stand-in cells of a held key may be times, the stand-ins of
+    every other key -- times of their own form -- standing beside the
+    written words.  Before a stand-in of a held key's form whose size is
+    more than the room left, every later one of a held key's form is
     filled figure by figure, on a cursor of its own per form, and a
-    spelling a clock reader takes is stepped past; each stand-in a clock
-    reader takes spends its size.
+    spelling a clock reader takes is stepped past; each stand-in of a held
+    key spends its size.
     """
     seen = set(used)
     folds = {folded(text) for text in used}
@@ -7328,6 +7357,34 @@ def invented_levels(
         shared, covered = level_shape_spent(
             sizes, shared, level_shape, placed or {}, seen, folds
         )
+    keys = {}
+    for place in range(len(sizes)):
+        if placed is not None and place in placed:
+            continue
+        form = shared[place]
+        if not form and place in covered:
+            form = level_shape
+        time = clock_filled_form(form, 0) if form else None
+        if time is not None:
+            keys[place] = clock_key(time)
+    held, room = set(), None
+    if line is not None:
+        present, rate = line
+        potential = {}
+        for cell in written:
+            key = clock_key(cell)
+            if key is not None:
+                potential[key] = potential.get(key, 0) + 1
+        for place in sorted(keys):
+            potential[keys[place]] = potential.get(keys[place], 0) + sizes[place]
+        least = clock_line(present - present // RARE_WORDS_BESIDE_CLOCKS, rate)
+        held = {key for key in potential if potential[key] >= least}
+        if held:
+            clocks = sum(1 for cell in written if clock_key(cell) in held)
+            others = len(written) - clocks + sum(
+                sizes[place] for place in keys if keys[place] not in held
+            )
+            room = clock_line_room(present, clocks, others, rate)
     produced = []
     walked = {}
     figures = None
@@ -7339,12 +7396,12 @@ def invented_levels(
         form = shared[place]
         if not form and place in covered:
             form = level_shape
-        clock_shaped = bool(form) and clock_filled_form(form, 0) is not None
-        if room is not None and figures is None and clock_shaped and size > room:
+        holding = place in keys and keys[place] in held
+        if room is not None and figures is None and holding and size > room:
             figures = {}
         candidate = None
         if form:
-            figured = figures is not None and clock_shaped
+            figured = figures is not None and holding
             cursor = figures if figured else walked
             steps = min(form_room(form), STAND_IN_STEPS)
             cursor.setdefault(form, 0)
@@ -7369,7 +7426,7 @@ def invented_levels(
                     continue
                 candidate = trial
                 break
-        if room is not None and clock_reads(candidate, False):
+        if room is not None and clock_key(candidate) in held:
             room -= size
         seen.add(candidate)
         folds.add(folded(candidate))
@@ -9359,24 +9416,20 @@ def _label_content(column):
     # THE SHAPE A STAND-IN OWED NO NAMED FORM TAKES (landing 2b.18 part 2).
     level_shape = published_level_shape(column)
     # THE CLOCK LINE THE TWIN IS HELD BELOW (the repair round of landing
-    # 3b.5), counted over the cells the published levels wrote; a column
-    # declared `--code` is read as labels whatever its cells read as, so
-    # it has none.
-    room = None
+    # 3b.5), counted over the cells the published levels wrote, key by key
+    # since its second repair round; a column declared `--code` is read as
+    # labels whatever its cells read as, so it has none.
+    line = None
     if not column.get("_code_declared"):
-        timed = sum(1 for cell in content if clock_reads(cell, False))
-        room = clock_line_room(
-            column["n_present"], timed, len(content) - timed,
-            column.get("_parse_rate", MINIMUM_PARSE_RATE),
-        )
+        line = (column["n_present"], column.get("_parse_rate", MINIMUM_PARSE_RATE))
     if placed is None:
         stand_ins = invented_levels(
-            used, sizes, census, content, level_shape=level_shape, room=room
+            used, sizes, census, content, level_shape=level_shape, line=line
         )
     else:
         stand_ins = invented_levels(
             used, sizes, census, content, placed=placed,
-            level_shape=level_shape, room=room,
+            level_shape=level_shape, line=line,
         )
     for spelling, size in stand_ins:
         content.extend([spelling] * size)
@@ -22091,6 +22144,33 @@ def _labels_clock_line():
         "parse_rate": 0.99,
     }
 
+def _labels_clock_forms():
+    column = _universal(
+        "column_1", 'categorical', 'categorical', "data", "ok",
+        level_ceiling=50,
+        levels=[{'count': 40, 'label': '08:00', 'shape_form_cells': 40, 'variants': {'08:00': 40}, 'variants_withheld': {}}, {'count': 40, 'label': '08:15', 'shape_form_cells': 40, 'variants': {'08:15': 40}, 'variants_withheld': {}}, {'count': 40, 'label': '08:30', 'shape_form_cells': 40, 'variants': {'08:30': 40}, 'variants_withheld': {}}, {'count': 40, 'label': '08:45', 'shape_form_cells': 40, 'variants': {'08:45': 40}, 'variants_withheld': {}}, {'count': 40, 'label': '09:00', 'shape_form_cells': 40, 'variants': {'09:00': 40}, 'variants_withheld': {}}, {'count': 40, 'label': '09:15', 'shape_form_cells': 40, 'variants': {'09:15': 40}, 'variants_withheld': {}}, {'count': 40, 'label': '09:30', 'shape_form_cells': 40, 'variants': {'09:30': 40}, 'variants_withheld': {}}, {'count': 40, 'label': '09:45', 'shape_form_cells': 40, 'variants': {'09:45': 40}, 'variants_withheld': {}}, {'count': 40, 'label': '10:00', 'shape_form_cells': 40, 'variants': {'10:00': 40}, 'variants_withheld': {}}, {'count': 40, 'label': '10:15', 'shape_form_cells': 40, 'variants': {'10:15': 40}, 'variants_withheld': {}}],
+        n_contradictory=0,
+        n_distinct=44,
+        n_distinct_folded=44,
+        n_missing=0,
+        n_not_numeric=500,
+        n_numeric=0,
+        n_out_of_range=0,
+        n_present=500,
+        shape_forms={'%%:%%': 488, '%%:%%:%%': 12},
+        suppressed_levels=34,
+        suppressed_numbers={'mean': None, 'n_cells': 0},
+        suppressed_rows=100,
+        detection_evidence='there are 44 different values, which is within the 50 a set of categories may have in a table of 500 rows, so this column is a set of categories',
+    )
+    return {
+        "why": "G8.3's clock line held key by key (the second repair round of landing 3b.5, plan P4-D373; contract 7.9.1): 500 appointment times, 488 at the minute and 12 at the second, described at a parse rate of 0.99, are a set of categories -- 488 read as times at the minute, under the line of 495. Its 100 held-back rows owe the forms `%%:%%` (88) and `%%:%%:%%` (12). One reading as clock times takes the cells of one form, so the line holds the minute's alone -- the one form whose cells, 488, reach 486, the line of the 490 cells left once the most the rare words may hold, ten, are counted out -- and the twelve rows at the second are times of their own form, never rare words; every held-back row is a time, and the twin, 488 times at the minute beside 12 at the second, is read back as labels. The mutant holds every clock time against one line, as before that round, and the last held-back rows are filled figure by figure.",
+        "column": column,
+        "rows": 500,
+        "identifier_declared": False,
+        "parse_rate": 0.99,
+    }
+
 
 NAMED_CASE_BUILDERS = {
     "date_only": _date_only,
@@ -30814,6 +30894,7 @@ TWENTY_FIRST_BRANCH_CASE_BUILDERS = {
     "clock_census_listed_tail_heap": _clock_census_listed_tail_heap,
     "labels_clock_shaped": _labels_clock_shaped,
     "labels_clock_line": _labels_clock_line,
+    "labels_clock_forms": _labels_clock_forms,
 }
 
 CASE_SETS = {
@@ -31525,7 +31606,8 @@ _TWENTY_FIRST_BRANCH_ACCOUNT = (
     "written back, a column with no tails and a quarter-hour grid whose "
     "tails list their values -- and G8.3's clock supply, the stand-ins of "
     "a label column written in a clock's form, and the clock line its "
-    "repair round holds a label column's twin below. They are computed by "
+    "repair round holds a label column's twin below, held key by key since "
+    "its second. They are computed by "
     "the "
     "same oracle and the same proof layer "
     "as tests/reference/generation-reference-vectors.json, "
@@ -32620,6 +32702,177 @@ GIVEN_WORDS = {
         9120290185916536888, 6994342431886251008, 16196746810711034644,
         8509437690836477963, 6804130648959594893, 10549130603238973507,
         5272371200732293213, 11624598269994319921, 330501688981110632,
+    ),
+    # ...and its second repair round's clock line held key by key, at
+    # seed 435.
+    "labels_clock_forms": (
+        14084341928545786475, 7480290095946438614, 3718216658121735814,
+        9135451279184533773, 7071429787532090171, 16415192941455336536,
+        13477182149207623412, 11284896562243790969, 7472884913412350789,
+        8881724485120093846, 3859227186604553546, 840272633578603368,
+        13768623035568440509, 3440597257844860557, 8022378983833196332,
+        3876293626695348376, 16695099035111788677, 9035972255704762647,
+        1182426136093576173, 12575205669363740782, 16172064354605162175,
+        16444925012887366654, 12188439850321741479, 1603565081190245363,
+        10026879527477827820, 6102747738031386848, 14743525264478474223,
+        10997963348473955098, 2043197194137636423, 11781200304945207893,
+        1529161409045720896, 6187532759586015862, 14250660322526619562,
+        4550321979904617493, 11482407570751634039, 14420253646032098616,
+        3260165125413956843, 10197091114191766094, 13922971805651045337,
+        18260684507750246318, 17408490507587981044, 8791112029797881003,
+        3411104070524832743, 3560941838222975572, 15372114080079735081,
+        11221101426755920861, 4351132662716051533, 14539880307461956183,
+        10869685954562767846, 17407390324002228097, 8440401938239385646,
+        17386473185278397925, 16899802347316391160, 9714865205516703397,
+        1029226957586738235, 13193345185245715891, 5803403701107120086,
+        11944305437134117299, 5607148451350299891, 7017369385796347931,
+        16986457791527407116, 452654092575973105, 16366392958526085198,
+        4279140421001412128, 4790369163746939202, 12942210001967718042,
+        9456366868725215371, 13693693614751594452, 3928390362920871505,
+        11927633741767821248, 3301409058365171984, 15249356627985468078,
+        3031785839747265695, 18157318720768774690, 16894262714049060256,
+        10178191459136756837, 17550474912520271892, 16686138921887610170,
+        5736202821466161234, 9897795822411406430, 5389936333248900041,
+        16760741288777086024, 6453040116608987963, 14587882763778510106,
+        10347400051392569167, 4877595423981155538, 12959079637774152310,
+        12730743064716016635, 103954988752024766, 12391897047410564338,
+        8197269808529928479, 16659960267745333990, 17374056965199929826,
+        1964065213099090006, 9335554705762607013, 13768281709429371691,
+        6308434465908091387, 18289640598896523830, 6499746095701362307,
+        13129191822546396997, 14686779721221423421, 12778112255437076196,
+        9330463413223176549, 7160249515403251492, 11089126868889757261,
+        6507059281731942517, 3071994262526739303, 3015637624089866651,
+        1820166238059803701, 1352466977643589293, 3425966768260313142,
+        9145087187502816215, 15268171874031507372, 7143630696216450151,
+        1278786701376694009, 16520065477580888846, 8409484532690260525,
+        14373095740641110234, 3139276049859128798, 1498787979186734354,
+        1464957945183022776, 5530835659146154186, 12430683308597033803,
+        9762199858054601988, 17602322797095871965, 6848932678770917067,
+        7904706465827320536, 1341778414447260741, 9802785215485008492,
+        3842753240390479285, 8922579951202368848, 9553434954441880344,
+        5245781221035926212, 6872652865267332456, 5918487319439426809,
+        10566881230751661267, 861030601361673687, 10956631161449716457,
+        18423411221999242777, 7415345038039004638, 14046805416853192990,
+        9391265288206614505, 17394030103396814498, 8844184434973627397,
+        699804561722758863, 10003196625017479424, 1802691803932867298,
+        12161193833505147592, 8723521597102698458, 13173742247681590392,
+        11926652210763313107, 16279384760200488846, 8897128628090902295,
+        2360050876638588170, 17607822800265714285, 9495564289596701585,
+        18236431713848466157, 3312174506640409734, 4963251258351344785,
+        5735680143448862705, 7015510174900319412, 10385849681219785496,
+        9751129766329839380, 8843478624829699455, 11176095919951468537,
+        13439535293951609238, 15135133617898891362, 6108926198712353583,
+        8801766238357098847, 5791112369392450050, 11776883656744218800,
+        7428232251205154305, 9749524408798659303, 1993897102676601921,
+        11744915939382895220, 18125852748033064703, 1725848480546428247,
+        10651151399446042057, 4271843664436888995, 7432331989590002020,
+        2581019991834952688, 15532939968413095672, 1244227117474572192,
+        3354740442088091835, 11012278967896862534, 362267644777848621,
+        12775513237538261362, 14447265822892545623, 1056418176248374348,
+        11874558023584921537, 1406846548166077539, 16551887588911794029,
+        2204719937209907061, 428880915411489786, 6015459394329621676,
+        2252087723776691164, 3384433600759418405, 9217132895072949868,
+        12201931877417194702, 8858384132695923181, 4676868683503999623,
+        4186682753799789730, 2894822341857188915, 8096775219345558003,
+        11973769033382327558, 18236819189014442522, 1469812988103071060,
+        16249447840466679673, 15723889845535382605, 609561083406107600,
+        13105779942973632287, 1200663360820909955, 3438691909842886199,
+        132117789585026650, 13009722243480195072, 16608666327798979236,
+        16467953971838648484, 15582532378020139892, 6072603010953640911,
+        15065360028549052010, 14602271147282390905, 17987989145360255080,
+        17334916370022266263, 2312293790153401296, 1621644318542536323,
+        7384629802594765108, 12366867425277323219, 1642555303774070198,
+        5245841243873908301, 8992903750528858320, 5601539539954102094,
+        13500923129614734628, 16481916982649537259, 4793459098140064923,
+        1929297308203220431, 12727561207465715409, 13290018057390916356,
+        15315395000600100693, 1940471665115925195, 5775124108431215912,
+        1780737155576571214, 14215482281532527641, 15882990201715003608,
+        16652742376269794690, 3563778807048753085, 8573623667214475560,
+        15345432419574642644, 11519027013665923269, 5481988626532071203,
+        12648250594840030891, 2933412442872130204, 16647797964124114845,
+        9759944835846919643, 16010670487517217114, 14232181879139061746,
+        846681614075838624, 3374007770366985667, 2035284357865732473,
+        18272372872432992537, 5615549051088661530, 5500537505074540211,
+        10870159748067846405, 10297170639723186777, 4973546105619238138,
+        1116967118269669713, 16160733694238539360, 2663789117571983519,
+        10132010117319678606, 8905945206055547561, 3094620939558207340,
+        7739737773442605607, 8244869102328790699, 3384264129205675635,
+        5347714726221294561, 8930711225228399701, 8675900343015628199,
+        10422707088701700911, 7985676412313563249, 13014345200240755992,
+        10988413341931103984, 9842823063695332805, 4402811938083250072,
+        1144377520086778033, 1385306779321469314, 5112060906036459826,
+        11103995715799742775, 2568197168839166806, 16108895986217947024,
+        17006428257155423590, 10492521129115342427, 5580359949886044104,
+        18235925009626327830, 12920212670698257067, 15527583282058497134,
+        8309491292555933634, 4729111693371465632, 13057911529240220773,
+        6688073285672693234, 8246517100496163025, 16102672619049445493,
+        12270581270133670852, 4684951994432170029, 15774668312447241379,
+        7948584289947325990, 3923772376873332966, 10238637618966316966,
+        4498789839379450888, 11709532039260990988, 11991068689171077191,
+        771699365252086550, 3759923509972339221, 15609443495662734813,
+        14342892876469092685, 10050946358573975240, 5381470277663775392,
+        10365826089115715527, 208168492605306944, 13070806648658092362,
+        17263471588003600525, 8243710757519392927, 706942968514537140,
+        13696806236210414785, 1035147791474519106, 16555633116918216681,
+        4264975434362248148, 1939726012743334396, 871559098728019487,
+        3832917168816482168, 6587702038841426648, 9956785536160123608,
+        2432304902527730523, 11388379004284113107, 9241864102334090044,
+        1722824145096354587, 2080647785730048073, 15188311403303660377,
+        8344934931285600672, 17277393579862225991, 9071586172236813387,
+        1415958200116147603, 7197045290692908956, 16928783270181737560,
+        9708139507976695116, 17630528623262205175, 9243870067278150706,
+        16264946301710534511, 5508145689444226854, 7825539665379325121,
+        10562381355983652112, 4906175712856835020, 9336436502221867290,
+        6332422858465907657, 3457543248221424475, 3919981191310992160,
+        14784574033519636881, 15602901652824537053, 5050257480010598232,
+        9819911375570805208, 15931299467504799111, 14027802175276328817,
+        14570095138828904915, 17894101806341160974, 17040500113723859439,
+        9527875338991592558, 14628124697178266367, 16389201165169825344,
+        5254095448749283570, 6854002039753032046, 6952716990844965253,
+        6784495017688456619, 12680005536422002355, 651475181864323490,
+        9377101739734795249, 7784728870902635816, 13757001538576013414,
+        17528359751942610819, 2838542798204116204, 804339647731382692,
+        5853754099667189426, 15957723497192550794, 1444303635541147655,
+        17459926819718935595, 15186839283976849927, 17946139408970623344,
+        9810747734038987638, 13501481345221088878, 12270063714420930329,
+        7441066674649433679, 1229522564453903940, 12305291833899384512,
+        1676935633754039129, 9452025741450675581, 5116448220255865967,
+        1426405115537700548, 10481930265705979998, 12897880831607137653,
+        4526679441620082167, 6683052376025649096, 14928093890429030165,
+        1802346885672654488, 15267098269134814777, 2364814071680015448,
+        10982254070552737577, 9175694593869076614, 7414395563517765756,
+        9161750463515113253, 5243391574133354856, 10282990859373953784,
+        17128672571953040306, 6175625015374595626, 16997845396173146703,
+        12511059192351519795, 4842635420589293490, 15358157164942263587,
+        7268858425586401194, 7063098846255384528, 17891052166186104209,
+        5807074049179101015, 5389840460645283953, 6885516714036233878,
+        3752309500790964594, 8522508724095133020, 11094817290799319157,
+        5346330389629071881, 16202536365854136589, 13042344756169223568,
+        11993609940878215990, 2745755851852672386, 17540797492919335832,
+        13198307032484864069, 10876350110224274772, 10400263386959484367,
+        7582255569418116489, 16083872987282372780, 7704362211780158650,
+        17432518966794616644, 11696693119954937204, 14718469989001150570,
+        4426599112335484983, 17683041884338420702, 12204978122131313958,
+        2944814849840895914, 14631051852837233178, 11060505457232283752,
+        8715370272717171080, 10842216925743856476, 4860128183720191733,
+        6113403497197536698, 4462372027881483114, 2385835970869718635,
+        12359521811951879938, 12428603089220343359, 17448085342135083452,
+        13977277380026502126, 12931134946738374666, 8137072493143999678,
+        8179633229873069371, 156980283194479117, 13884642858096536409,
+        2434831098665437042, 2616009256919496179, 3262521791775275833,
+        13442277685379459120, 4305555330197677846, 4652081220213487246,
+        4913933643983114290, 10107343577782000408, 5563990576444518202,
+        7347016891359415205, 17408401904069870365, 12409314993444118334,
+        8996498831642060279, 17741274356820338837, 1983737037473453705,
+        5457538993581059909, 6530505321549076185, 10259212752340170103,
+        6363973995397355529, 16703456885481520075, 6072147885433251576,
+        10517037582303980164, 16981601994575082868, 11771329242259521509,
+        17767423095735233722, 1022713076395936227, 5064628579845060058,
+        6665970278099526020, 16895791967971149072, 8012581508463330191,
+        13217415898925963571, 16682642054155362131, 17685219643283736866,
+        8966092117029681544, 14854423254073201070, 7015033587518588722,
+        1484743049823877755, 14915381097697466224, 17275774256485386002,
+        12919575068977783570,
     ),
     # LANDING T1'S WRITTEN CLOCKS (plan P4-D370), at seeds 416 to 420.
     "stamp_unpadded_hour": (

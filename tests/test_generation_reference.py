@@ -319,6 +319,7 @@ gen_filled_form = gen.filled_form
 gen_clock_census_runs = gen.clock_census_runs
 gen_clock_run_shares = gen.clock_run_shares
 gen_clock_filled_form = gen.clock_filled_form
+gen_clock_reads = gen.clock_reads
 gen_numeric_content = gen._numeric_content
 gen_grouped_enough = gen.grouped_enough
 gen_layout_preferences = gen.layout_preferences
@@ -829,6 +830,7 @@ TWENTY_FIRST_BRANCH_CASES = (
     "clock_census_seconds",
     "clock_census_slots",
     "clock_census_tail_heaps",
+    "labels_clock_forms",
     "labels_clock_line",
     "labels_clock_shaped",
 )
@@ -874,8 +876,10 @@ SEEDS = {
     "clock_census_no_tails": 431,
     "clock_census_listed_tail_heap": 432,
     "labels_clock_shaped": 433,
-    # ...and its repair round's clock line (plan P4-D373) the next one.
+    # ...and its repair round's clock line (plan P4-D373) the next one,
+    # and the second repair round's line held key by key the one after.
     "labels_clock_line": 434,
+    "labels_clock_forms": 435,
     # Landing T1's written clocks take the next seeds after the highest in
     # use below 34041 (plan P4-D370).
     "stamp_unpadded_hour": 416,
@@ -1094,8 +1098,8 @@ DECLARED_CODES = frozenset({"labels_clock_shaped"})
 
 # The cases described at a parse rate other than every other case's 0.9:
 # the clock line G8.3 holds a label column's twin below is the rate's
-# (the repair round of landing 3b.5), and this case's is the default.
-PARSE_RATES = {"labels_clock_line": 0.99}
+# (the repair round of landing 3b.5), and these cases' is the default.
+PARSE_RATES = {"labels_clock_line": 0.99, "labels_clock_forms": 0.99}
 
 # The cases whose column was declared with --identifier, which the
 # contract's invariant A1 binds to settings.forced_identifiers.
@@ -1774,9 +1778,9 @@ FOURTEENTH_BRANCH_NAMED_COUNTS = 53
 # its five cases publish no binary64 at all.
 TWENTY_SECOND_BRANCH_PUBLISHED_NUMBERS = 0
 TWENTY_SECOND_BRANCH_NAMED_COUNTS = 122
-# The twenty-first, at its own generator's line ("proved 40 ... beside 536").
+# The twenty-first, at its own generator's line ("proved 40 ... beside 629").
 TWENTY_FIRST_BRANCH_PUBLISHED_NUMBERS = 40
-TWENTY_FIRST_BRANCH_NAMED_COUNTS = 573
+TWENTY_FIRST_BRANCH_NAMED_COUNTS = 629
 # The document file publishes NO binary64 at all, and that is a fact
 # about its transforms rather than a gap in its proof: the written form,
 # the arrangement, the workbook writer, the shape of a line before a
@@ -3022,7 +3026,7 @@ def _next_on_the_ladder_without_the_census(
 
 def _levels_from_the_second_spelling(
     used, sizes, census=None, written=(), placed=None, level_shape="",
-    room=None,
+    line=None,
 ):
     """G8.3's stand-in walk, started one spelling along.
 
@@ -3527,6 +3531,11 @@ def _no_clock_line(present, clocks, others, rate=0.9):
     return present - clocks - others
 
 
+def _every_clock_one_key(text):
+    """G8.3's clock line held key by key withdrawn: every clock time one key."""
+    return "" if gen_clock_reads(text, False) else None
+
+
 def _clock_supply_on_the_hour(form, step):
     """G8.3's clock supply, every time on the hour: its minutes withdrawn."""
     text = gen_clock_filled_form(form, step)
@@ -3615,6 +3624,12 @@ CASE_MUTANTS = {
         branch="G8.3's clock supply, every time of the day a clock's form writes; the mutant writes every time on the hour, and the walk steps past the ones already written",
         attribute="clock_filled_form",
         replacement=_clock_supply_on_the_hour,
+        outcome=CHANGES_THE_CELLS,
+    ),
+    "labels_clock_forms": Mutant(
+        branch="G8.3's clock line held key by key (the second repair round of landing 3b.5), which holds a label column's held-back levels against the one form its twin could be read in; the mutant holds every clock time against one line, as before, and the last held-back rows are filled figure by figure",
+        attribute="clock_key",
+        replacement=_every_clock_one_key,
         outcome=CHANGES_THE_CELLS,
     ),
     "labels_clock_line": Mutant(

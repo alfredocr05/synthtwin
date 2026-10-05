@@ -25880,6 +25880,48 @@ def _held_back_debts(
     return tuple(found), tuple(wordy)
 
 
+def _clock_cells_counted(
+    timed: "dict[tuple[bool, str], int]", text: str, cells: int
+) -> None:
+    """Add ``cells`` cells of ``text`` to the tally of its clock key, if it has one.
+
+    Method G8.3's clock line counts a label column's published cells key
+    by key (`_clock_key`). Guarantees: changes ``timed`` alone. Raises
+    TypeError where ``text`` is not a string instance. No I/O of any kind.
+    """
+    key = _clock_key(text)
+    if key is not None:
+        timed[key] = (timed[key] if key in timed else 0) + cells
+
+
+def _stand_in_clock_keys(
+    count: int,
+    shared: "list[str]",
+    written_as: "dict[int, str]",
+    shaped_places: "dict[int, int]",
+    level_shape: str,
+) -> "dict[int, tuple[bool, str]]":
+    """The clock key of each stand-in whose form a time can wear (G8.3).
+
+    A stand-in's form is the one it was owed, or the shape of the
+    column's published labels where it was owed none and that shape is
+    spent on it -- the form `_made_up_label` fills; a stand-in written for
+    a class debt (G8.3a) holds a number and has none. Guarantees: a
+    function of the arguments, keyed by place. Raises nothing. No I/O.
+    """
+    keys: "dict[int, tuple[bool, str]]" = {}
+    for place in range(count):
+        if place in written_as:
+            continue
+        shape = shared[place]
+        if not shape and place in shaped_places:
+            shape = level_shape
+        key = _form_clock_key(shape)
+        if key is not None:
+            keys[place] = key
+    return keys
+
+
 def _label_content(
     plan: "_ColumnPlan",
     short: "list[int] | None" = None,
@@ -25909,8 +25951,10 @@ def _label_content(
     made_up = 0
     # HOW MANY OF THE CELLS WRITTEN BEFORE THE STAND-INS A CLOCK READER
     # TAKES (the repair round of landing 3b.5, `_clock_line_room`),
-    # counted spelling by spelling as each is written.
-    timed = 0
+    # counted spelling by spelling as each is written -- and, since its
+    # second repair round, key by key (`_clock_key`): one reading as clock
+    # times takes the cells of one key.
+    timed: "dict[tuple[bool, str], int]" = {}
     for entry in facts.levels:
         covered = 0
         # ...AND HOW MANY OF THOSE CELLS ALREADY WEAR THE LABEL'S OWN
@@ -25923,8 +25967,7 @@ def _label_content(
             covered = covered + entry.variants[spelling]
             if parsing.shape_form(spelling):
                 covered_in_form = covered_in_form + entry.variants[spelling]
-            if parsing.clock_parts(spelling) is not None:
-                timed = timed + entry.variants[spelling]
+            _clock_cells_counted(timed, spelling, entry.variants[spelling])
             used[spelling] = 1
             owners[parsing.folded(spelling)] = entry.label
         # WHICH HELD-BACK GROUPS KEEP THE LABEL'S WRITTEN FORM (method
@@ -25973,14 +26016,12 @@ def _label_content(
                 made_up = made_up + 1
                 cells += [variant for _row in range(rows)]
                 covered = covered + rows
-                if parsing.clock_parts(variant) is not None:
-                    timed = timed + rows
+                _clock_cells_counted(timed, variant, rows)
         if covered < entry.count:
             cells += [entry.label for _row in range(entry.count - covered)]
             used[entry.label] = 1
             owners[parsing.folded(entry.label)] = entry.label
-            if parsing.clock_parts(entry.label) is not None:
-                timed = timed + entry.count - covered
+            _clock_cells_counted(timed, entry.label, entry.count - covered)
     if made_up:
         notes += [
             _deviation(
@@ -26095,13 +26136,44 @@ def _label_content(
     # cells may be written as clock times before the column is read back
     # as clock times. A column declared `--code` is read as labels
     # whatever its cells read as, so it has no such line.
+    #
+    # HELD KEY BY KEY (its second repair round): the producer reads the
+    # twin as clock times in ONE form, so only the keys whose cells could
+    # reach the line are held (`_clock_keys_held`), and a stand-in of any
+    # other key is a time of its own form, counted beside the published
+    # words and never as a rare word. Holding every clock cell together
+    # wrote about 2 % of a mixed-precision twin as made-up times -- 204
+    # cells of 10,000 rows half `HH:MM` and half `HH:MM:SS` -- where no
+    # form could have reached the line.
     room: "int | None" = None
+    held: "dict[tuple[bool, str], bool]" = {}
+    keys_of: "dict[int, tuple[bool, str]]" = {}
     if plan.parse_rate is not None and not plan.code_declared:
-        room = _clock_line_room(
-            column.n_present, plan.parse_rate, timed, len(cells) - timed, True
+        keys_of = _stand_in_clock_keys(
+            len(sizes), shared, written_as, shaped_places, level_shape
         )
+        potential: "dict[tuple[bool, str], int]" = {}
+        for written_key in timed:
+            potential[written_key] = timed[written_key]
+        for place in keys_of:
+            owed_key = keys_of[place]
+            potential[owed_key] = (
+                potential[owed_key] if owed_key in potential else 0
+            ) + sizes[place]
+        held = _clock_keys_held(potential, column.n_present, plan.parse_rate)
+        if held:
+            clocks = 0
+            for held_key in held:
+                clocks = clocks + (timed[held_key] if held_key in timed else 0)
+            others = len(cells) - clocks
+            for place in keys_of:
+                if keys_of[place] not in held:
+                    others = others + sizes[place]
+            room = _clock_line_room(
+                column.n_present, plan.parse_rate, clocks, others, True
+            )
     # ...AND, ONCE THE NEXT TIME WOULD CROSS IT, EVERY LATER STAND-IN OF A
-    # CLOCK'S FORM IS FILLED FIGURE BY FIGURE, on cursors of its own.
+    # HELD KEY'S FORM IS FILLED FIGURE BY FIGURE, on cursors of its own.
     figures: "dict[str, int] | None" = None
     for place in range(len(sizes)):
         size = sizes[place]
@@ -26110,25 +26182,17 @@ def _label_content(
             label = written_as[place]
             form = asked[place]
         else:
-            shape = form
-            if not shape and place in shaped_places:
-                shape = level_shape
-            if (
-                room is not None
-                and figures is None
-                and size > room
-                and shape
-                and _clock_filled_form(shape, 0) is not None
-            ):
+            holding = place in keys_of and keys_of[place] in held
+            if room is not None and figures is None and size > room and holding:
                 figures = {}
             number, label = _made_up_label(
                 number, used, owners, form, plan.all_holes, walked,
                 level_shape if place in shaped_places else "",
-                figures,
+                figures if holding else None,
             )
             if not form and level_shape and _level_key(label) == level_shape:
                 kept = kept + 1
-        if room is not None and parsing.clock_parts(label) is not None:
+        if room is not None and _clock_key(label) in held:
             room = room - size
         # WHAT THE LABEL ACTUALLY WEARS, not what it was asked to wear
         # (review round 2 finding 12). The walk gives a form up when
@@ -27633,6 +27697,68 @@ def _clock_line_room(
         else:
             high = middle - 1
     return low
+
+
+def _clock_key(text: str) -> "tuple[bool, str] | None":
+    """Which clock reading takes one cell, or None where no clock reader does.
+
+    Its precision and its face as written (`parsing.clock_parts`): the
+    producer reads a column as clock times in ONE form, and the cells of
+    one key are the cells one such reading takes -- the hour's width does
+    not part them, since a column counts a cell of the other width into
+    its own (`parsing.clock_ordinal`). Method G8.3's clock line is held
+    per key (the second repair round of landing 3b.5).
+
+    Guarantees: a function of the text. Raises TypeError for anything that
+    is not a string instance. No I/O of any kind.
+    """
+    parts = parsing.clock_parts(text)
+    if parts is None:
+        return None
+    return (parts[3], parts[5])
+
+
+def _form_clock_key(form: str) -> "tuple[bool, str] | None":
+    """The key of the times a form's clock supply writes, or None (G8.3).
+
+    None where the form is empty or no clock time can wear it.
+    Guarantees: a function of the form. Raises nothing. No I/O.
+    """
+    if not form:
+        return None
+    time = _clock_filled_form(form, 0)
+    if time is None:
+        return None
+    return _clock_key(time)
+
+
+def _clock_keys_held(
+    potential: "dict[tuple[bool, str], int]", present: int, rate: float
+) -> "dict[tuple[bool, str], bool]":
+    """The keys a column of labels' twin could be read as clock times in (G8.3).
+
+    ``potential`` counts, key by key, the cells the published levels wrote
+    and the stand-in cells of a form whose times wear that key. A key is
+    HELD where that reaches the clock line of ``present`` less the most
+    the rare words beside it may hold (`taxonomy.RARE_WORDS_BESIDE_CLOCKS`),
+    the lowest line either of the producer's readings as clock times asks
+    for; no other key can reach either however its stand-ins are written,
+    so its stand-ins are times and are no rare words (the second repair
+    round of landing 3b.5). At the default parse rate of 0.99, and at any
+    above 0.52, at most one key is held, the one holding the most cells;
+    below that, every key held is held against the line together.
+
+    Guarantees: a function of the three. Raises TypeError where the rate
+    is not a float instance. No I/O of any kind.
+    """
+    line = taxonomy.clock_line(
+        rate, present - present // taxonomy.RARE_WORDS_BESIDE_CLOCKS
+    )
+    held: "dict[tuple[bool, str], bool]" = {}
+    for key in sorted(potential):
+        if potential[key] >= line:
+            held[key] = True
+    return held
 
 
 def _clock_cells_stand(
@@ -35180,7 +35306,9 @@ def _text_cells(
     ``parse_rate``, where given, is the clock line the twin is held below
     (`_clock_line_room`, unsettled: a value's level is not known until it
     is written), so a census form of a clock is filled with times only
-    while the twin would still be read back as free text.
+    while the twin would still be read back as free text -- each clock
+    key (`_clock_key`) against a line of its own, since one reading as
+    clock times takes the cells of one key.
 
     The text is MADE UP. This module never samples, quotes, templates
     from, or paraphrases source text, and no source text is available to
@@ -35296,12 +35424,16 @@ def _text_cells(
     # preference reads the level rather than the pair.
     carried: "dict[int, int]" = {}
     # THE CLOCK LINE (the repair round of landing 3b.5, plan P4-D373):
-    # how many more cells may be written as clock times, and whether a
-    # clock's form is now filled figure by figure.
+    # how many cells of ONE clock key may be written as times -- each key
+    # its own, since one reading as clock times takes one key's cells and
+    # the cells of another are never rare words (`_clock_key`, the second
+    # repair round) -- how many each key has written, and which keys'
+    # forms are now filled figure by figure.
     room: "int | None" = None
     if parse_rate is not None:
         room = _clock_line_room(sum(groups), parse_rate, 0, 0, False)
-    figured = False
+    timed: "dict[tuple[bool, str], int]" = {}
+    figured: "dict[tuple[bool, str], bool]" = {}
     for index in range(total):
         partner = _partner_of(
             index, folded, spellings, families, used, windows,
@@ -35312,8 +35444,7 @@ def _text_cells(
             _settle(owing, taken, groups[index])
             _spend_length(budget, len(taken) - lengths[index], groups[index])
             spellings += [taken]
-            if room is not None and parsing.clock_parts(taken) is not None:
-                room = room - groups[index]
+            _clock_cells_counted(timed, taken, groups[index])
             continue
         kind = _CLASSES[kinds[index]]
         band = _BANDS[bands[index]]
@@ -35323,8 +35454,7 @@ def _text_cells(
             _settle(owing, taken, groups[index])
             _spend_length(budget, len(taken) - lengths[index], groups[index])
             spellings += [taken]
-            if room is not None and parsing.clock_parts(taken) is not None:
-                room = room - groups[index]
+            _clock_cells_counted(timed, taken, groups[index])
             continue
         # THE PRE-DECIDED ASK, RE-ASKED WHERE IT HAS GONE STALE. The
         # order-aware pass above cannot know which groups will take a
@@ -35355,14 +35485,15 @@ def _text_cells(
                 band,
             )
         key = f"{kind}/{band}/{lengths[index]}/{counts[index]}"
+        form_key = _form_clock_key(asked_form)
         if (
             room is not None
-            and not figured
-            and asked_form
-            and groups[index] > room
-            and _clock_filled_form(asked_form, 0) is not None
+            and form_key is not None
+            and form_key not in figured
+            and groups[index]
+            > room - (timed[form_key] if form_key in timed else 0)
         ):
-            figured = True
+            figured[form_key] = True
         # EVERY SPELLING THE TABLE READS AS ABSENT, not this column's
         # alone (plan P4-D158): the caller hands the document's declared
         # hole spellings beside the column's own.
@@ -35371,7 +35502,7 @@ def _text_cells(
             asks[index], states, used,
             asked_form,
             holes if holes else _hole_spellings(column),
-            figured,
+            form_key in figured,
         )
         if spelling is None:
             held = 0
@@ -35391,8 +35522,7 @@ def _text_cells(
         _settle(owing, spelling, groups[index])
         _spend_length(budget, len(spelling) - lengths[index], groups[index])
         spellings += [spelling]
-        if room is not None and parsing.clock_parts(spelling) is not None:
-            room = room - groups[index]
+        _clock_cells_counted(timed, spelling, groups[index])
     # THE TWIN CAN REPROFILE INTO A DIFFERENT ROLE, AND NOW IT SAYS SO
     # (residual R-P4-36). A fold-collision partner folds onto its
     # parent, so the pair makes a level covering BOTH their rows -- and

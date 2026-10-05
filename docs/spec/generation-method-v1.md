@@ -7738,6 +7738,29 @@ times beside six `99:99`, labels on the table, had a twin read back as
 clock times and its role MISSED, as had 36 of 36 such small tables and
 23 of 80 columns beside clock-shaped codes near the line; after, none.
 
+*And by its second repair round:* **THE LINE IS HELD KEY BY KEY.** The
+producer reads a column as clock times in ONE form, so one such reading
+takes the cells of one KEY: the precision a cell writes, at the minute or
+at the second, and its face, the marker pair it ends in with the space
+before it if there is one (`parsing.clock_parts`); the hour's width does
+not part them, since a reading counts a cell of the other width into its
+own. A key is HELD where the cells the published levels wrote of it and
+the cells of the stand-ins whose form's times wear it reach the clock
+line of `P - floor(P / 50)`, the lowest line either reading asks for; no
+other key can reach either line however its stand-ins are written. `C`
+counts the published cells of the held keys alone, and `W` every other
+published cell and every stand-in of a key not held -- a time of its own
+form, which no reading as clock times of the column takes and which is
+never a rare word. Only a stand-in of a held key's form is filled figure
+by figure, and only one of a held key spends its size; where no key is
+held there is no room and no stand-in is filled figure by figure. Above
+a parse rate of 0.52, the default 0.99 among them, at most one key is
+held. A free-text column holds the cells of each key below its line on
+their own. Measured: a label column of 10,000 rows half `HH:MM` and half
+`HH:MM:SS` wrote 204 made-up times no clock reader takes where its table
+holds none, one of 100,000 rows beside 5 % `HH:MM:SS` wrote 2,003, and a
+free-text column of 1,000 rows beside 5 % wrote 32; after, none.
+
 `suppressed_levels` says how many levels were withheld and
 `suppressed_rows` how many rows they covered together. No size of any
 one of them is published (owner ruling of 2026-09-17, item 2, option A;
@@ -13266,7 +13289,7 @@ that happens -- and the clause beside it, `--missing-value`'s "CAN be
 published as the column's smallest value", is exactly right under the
 new rule.
 
-**All one hundred and sixty-eight are required.** The count is taken off the committed
+**All one hundred and sixty-nine are required.** The count is taken off the committed
 case sets and not carried forward: this sentence said fifty-two and a
 split of nine, twenty, sixteen and seven while the six files held
 seventy-three, because each repair that added a case added a clause to
@@ -13299,9 +13322,10 @@ thirteen; the SIXTEENTH,
 TWENTY-SECOND, `tests/reference/generation-branch-vectors-22.json`,
 holds five -- landing T1's written clocks and G7.5 step 5, in the file
 plan P4-D364's table gives that landing (G14.2); and the TWENTY-FIRST,
-`tests/reference/generation-branch-vectors-21.json`, holds fourteen --
+`tests/reference/generation-branch-vectors-21.json`, holds fifteen --
 landing 3b.5's census of a column of clock times, G7A.4b and G8.3's
-clock supply and clock line, in the file that table gives that landing,
+clock supply and clock line, held key by key since its second repair
+round, in the file that table gives that landing,
 and a test holds this sentence to those files. The tenth grew by the
 two cases the GOVERNANCE PASS of stage 3's review added and the
 eleventh by the two the dates pass added; each number here is read off
@@ -13470,6 +13494,7 @@ case passed, which is the failure the count exists to prevent:
 | `clock_census_listed_tail_heap` | G7A.4b on a quarter-hour grid, a published step of 900 seconds, whose low tail lists its one value: heaps at 06:00, the low tail's value, at 06:30 and 10:00, the two boundaries, and at 10:30 in the high tail, each holding its count exactly. Its mutant lays the body on the form's own minute, and its values leave the grid |
 | `labels_clock_shaped` | G8.3's clock supply (landing 3b.5, plan P4-D373; contract 7.9.1): a column declared labels, `--code`, whose ten held-back levels are written in the form `%%:%%`. A form a clock time can wear is filled with clock times first, and a column declared `--code` has no clock line, so every stand-in is a time a clock reader takes. Its mutant writes every time on the hour, and the walk steps past the ones already written |
 | `labels_clock_line` | G8.3's clock line (the repair round of landing 3b.5): 250 appointment times on a clinic's quarter hours beside six `99:99`, described at a parse rate of 0.99, a set of categories whose 202 held-back rows owe the form `%%:%%`. The clock supply fills them with times only while the twin stays labels -- at most 244 cells read as times -- so the last held-back levels are filled figure by figure. Its mutant withdraws the line, every held-back level is a time, and the twin is read back as clock times |
+| `labels_clock_forms` | G8.3's clock line held key by key (the second repair round of landing 3b.5): 500 appointment times, 488 at the minute and 12 at the second, described at a parse rate of 0.99, a set of categories whose 100 held-back rows owe the forms `%%:%%` (88) and `%%:%%:%%` (12). Only the minute's cells could reach the line, so the line holds them alone and the rows at the second are times of their own form, never rare words: every held-back row is a time, and the twin is read back as labels. Its mutant holds every clock time against one line, as before that round, and the last held-back rows are filled figure by figure |
 | `weekday_whole_runs` | G7.3f step 5 (plan P4-D355): 100 whole dates over three weeks with no weekend, published `[Mon-Fri] 77, [Sat-Sun] 0`, whose ranks of one day move whole onto a free day of a group with room for all of them before any single rank moves. Its mutant withdraws the step |
 | `plus_padded_field` | G6.3's second tier of named field widths (plan P4-D145): twenty-two cells of twelve thousand three hundred and forty-five published `leading_plus` with `pad_widths: {"7": 22}`, every one written `+0012345` |
 | `saturated_integers` | G6.5a's fill of a saturated integer grid (plan P4-D147): thirty-three whole numbers publishing twenty-two different values between the ends one and twenty-two, so the strata take those integers in order, each once, and all twenty-two are written |
