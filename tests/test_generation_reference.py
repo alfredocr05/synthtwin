@@ -246,6 +246,11 @@ THIRTEENTH_BRANCH_VECTORS = (
 # its own vectors file and its maker below its own line.
 # anchor 3b-D1 (P4-D365)
 # anchor 3b-D0 (P4-D366)
+# THE FIFTEENTH FILE (landing 3b.D0's shared steps of G7.3f, plan P4-D366):
+# states of ranks, not columns, held by tests/test_stage3b_shared_steps.py.
+FIFTEENTH_BRANCH_GENERATOR = (
+    REPOSITORY / "tools" / "reference" / "make_generation_branch_vectors_15.py"
+)
 # anchor 3b-D2 (P4-D367)
 # anchor 3b-D3 (P4-D368)
 # anchor 3b-D4 (P4-D369)
@@ -1403,6 +1408,7 @@ def test_the_branch_file_is_the_same_oracle_and_says_which_half_it_is() -> None:
         THIRTEENTH_BRANCH_GENERATOR,
         FOURTEENTH_BRANCH_GENERATOR,
         TWENTY_SECOND_BRANCH_GENERATOR,
+        FIFTEENTH_BRANCH_GENERATOR,
         DOCUMENT_GENERATOR,
     ],
 )
@@ -2408,7 +2414,10 @@ class Mutant(typing.NamedTuple):
     empty but where one rule stands in two statements -- G7.3f's step 8.1,
     whose moves step 8.3's one-group exchanges make themselves where it is
     withdrawn (plan P4-D359), held up alone by
-    tests/test_oracle_rule_witnesses.py; and G6.5a's fill of a grid with no spare
+    tests/test_oracle_rule_witnesses.py; G7.3f's step 8.2, whose runs step
+    8.4 merges itself where it is withdrawn, a date's written unit being
+    its day (plan P4-D366), held up alone there too, and step 8.4 by the
+    fifteenth vectors file; and G6.5a's fill of a grid with no spare
     point is stated column-wide (plans P4-D147 and P4-D176) and, since the
     carried numbers pass of 2026-09-18, band by band as well -- on a
     column of one sign the band fill IS the column fill, so withdrawing
@@ -4073,12 +4082,18 @@ CASE_MUTANTS = {
         replacement=lambda walk, gaps: None,
         outcome=CHANGES_THE_CELLS,
     ),
+    # ...and with it step 8.4 (plan P4-D366), whose whole written units are
+    # a date's whole days, so it merges step 8.2's runs here itself; step
+    # 8.2 is held up alone by tests/test_oracle_rule_witnesses.py
+    # (`STEP_EIGHT_ROWS`), step 8.4 by the fifteenth file's two merges.
     "weekday_runs_merged": Mutant(
-        branch="G7.3f step 8.2 (plan P4-D355); the mutant withdraws the runs "
-        "merged onto a held day of their own group",
+        branch="G7.3f steps 8.2 and 8.4 (plans P4-D355 and P4-D366); the "
+        "mutant withdraws the runs merged onto a held day of their own group "
+        "and the whole units step 8.4 would merge in their place",
         attribute="weekday_merged_runs",
         replacement=lambda walk, movable, wanted: None,
         outcome=CHANGES_THE_CELLS,
+        also=(("weekday_units_merged", lambda walk, movable, wanted: None),),
     ),
     "every_day_absent": Mutant(
         branch="G7.3 and G7.3b step 9 (plan P4-D358); the mutant offers a "

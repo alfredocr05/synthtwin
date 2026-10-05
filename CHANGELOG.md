@@ -29,6 +29,36 @@ withdrew. STATE, `K-S3-13` and the tail producer's docstring no longer
 describe the withdrawn protection as current, and keep the sorted-table
 exception.
 
+### One weekday pass for every census of bins (2026-10-02)
+
+**At the default floor no twin moves** (plan P4-D366, stage 3b landing
+D0). The day pass of method G7.3f is one pass over any census of bins,
+so the landings that put the hour, the day of the month and the weekday
+of timestamps on their twins build on it rather than writing it again:
+it takes a unit of any size (a date's day, a moment's day, an hour, a
+minute), the written unit the count of different values is counted in,
+the bin a value falls in and what a move must keep, such as the day an
+hour stands on. Steps 5 and 6 find a rank's destination through an index
+of its gap instead of walking up to 400 days each way (at 40,000 rows
+the pass takes 2.4 to 14.1 s on the stage 3b gate battery's three
+tables, where it took 3.8 to 26.6), step 8.3's search of cycles is
+bounded above seven groups, and four steps are added for the censuses to
+come: a chain of moves through a third group (7b), whole values merged
+at their own clock first (8.4), pairs of moves across two gaps where the
+count is long (8.5), and a trade that keeps a second census (8.6). At
+the default floor of 11 every twin of 4,782 tables of 26 date batteries
+(15,152 twins) is the one before this landing, and the frozen vectors
+pass unchanged; at a floor of 36 eight are not, each a count of
+different values already left long brought one or two values nearer the
+published one. The four steps, and every clause the landing's review
+asked about, are frozen on 40 stated states of ranks in a fifteenth
+vectors file, each red on its own mutant. A count the pass leaves long
+is named as long in the report, where the general sentence was printed
+over it; a cycle of step 8.3 is made whole or not at all on units wider
+than one ordinal; and steps 8.2, 8.4 and 8.5 no longer count the column
+again for every unit or pair (step 8.5 on 20,000 lone moments 400 too
+long: 0.09 s where it took 16).
+
 ### Stage 4's first tier repaired at its review (2026-10-02)
 
 **A twin of a description the producer writes today moves no byte**

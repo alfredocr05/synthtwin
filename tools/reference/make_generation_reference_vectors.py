@@ -11356,10 +11356,13 @@ def group_offers_taken(tails, owed):
 
 # ------------------------------------------------ G7.3f, the weekday pass
 #
-# Written from method section G7.3f (plan P4-D355) and from nothing else:
-# the day pass that puts a column of whole dates on the groups its
-# weekday census publishes.  Each step is a function of its own so that
-# a frozen case can withdraw it alone.
+# Written from method section G7.3f (plans P4-D355 and P4-D366) and from
+# nothing else: the day pass that puts a column of whole dates on the
+# groups its weekday census publishes, over THE SEAMS of landing 3b.D0 --
+# a unit, a written unit, a day, a bin, a keep and a second census's
+# group -- so the same walk serves any census of bins (`bins_settled`).
+# Each step is a function of its own so that a frozen case can withdraw
+# it alone.  Where the text says a day, the walk reads a unit.
 
 WEEKDAY_SHARE_SCALE = 2 ** 20
 WEEKDAY_RAKES = 60
@@ -11367,59 +11370,94 @@ WEEKDAY_REACH = 400
 WEEKDAY_ASKED = 64
 
 
-def weekday_candidates(day, low, high):
-    """G7.3f: d - 1, d + 1, d - 2, ... up to 400 away, inside [low, high]."""
+def weekday_candidates(day, low, high, unit=1):
+    """G7.3f: o - u, o + u, o - 2u, ... up to 400 units away, inside [low, high]."""
     for away in range(1, WEEKDAY_REACH + 1):
-        if day - away < low and day + away > high:
+        if day - away * unit < low and day + away * unit > high:
             return
-        for other in (day - away, day + away):
+        for other in (day - away * unit, day + away * unit):
             if low <= other <= high:
                 yield other
 
 
 class WeekdayWalk:
-    """The facts G7.3f reads, and the days every rank stands on."""
+    """The facts G7.3f reads, and the ordinal every rank stands on.
 
-    def __init__(self, column, ordinals, lows, highs, hole_days):
-        census = column["weekday_census"]
-        self.counts = [group["count"] for group in census]
-        self.group_of_weekday = [0] * 7
-        for index, group in enumerate(census):
-            for weekday in range(group["first"], group["last"] + 1):
-                self.group_of_weekday[weekday] = index
+    `counts` are the census's groups and `group_of_bin` each bin's group;
+    `unit`, `step` (the written unit) and `day` are counted in ordinals;
+    `bin_of`, `width_of` (a day's width kind), `keep_of` and `pair_of`
+    read an ordinal, the last two nought where the pass keeps nothing.
+    """
+
+    def __init__(self, counts, group_of_bin, ordinals, lows, highs, hole_days, seams):
+        self.counts = list(counts)
+        self.group_of_bin = list(group_of_bin)
         self.days = ordinals
         self.lows, self.highs = lows, highs
         self.holes = hole_days
-        self.held = {}
-        for day in ordinals:
-            self.held[day] = self.held.get(day, 0) + 1
-        widths = column.get("date_field_widths", {})
-        self.word = None
-        if len(widths) == 1 and (
-            column["format"] in VARIABLE_WIDTH_MEMBERS or column["format"] in TEXTUAL_MEMBERS
-        ):
-            self.word = next(iter(widths))
-        self.column = column
-        self.keeps_always = not date_counts_reachable(column)
+        self.unit = seams.get("unit", 1)
+        self.step = seams.get("step", 1)
+        self.day = seams.get("day", 1)
+        self.bin_of = seams.get("bin_of", lambda ordinal: (ordinal + 3) % 7)
+        self.width_of = seams.get("width_of", lambda day: True)
+        self.keep_of = seams.get("keep_of")
+        self.pair_of = seams.get("pair_of")
+        self.keeps_always = seams.get("keeps_always", False)
 
-    def group(self, day):
-        return self.group_of_weekday[(day + 3) % 7]
+    def group(self, ordinal):
+        return self.group_of_bin[self.bin_of(ordinal)]
 
-    def kind(self, day):
-        if self.word is None:
-            return True
-        return counts_into_width(self.column, day, self.word)
+    def kind(self, ordinal):
+        return (
+            self.width_of(ordinal // self.day),
+            self.keep_of(ordinal) if self.keep_of is not None else 0,
+            self.pair_of(ordinal) if self.pair_of is not None else 0,
+        )
 
-    def holding(self, day):
-        return self.held.get(day, 0)
+    def hole(self, ordinal):
+        return ordinal // self.day in self.holes
 
-    def move(self, rank, day):
-        self.held[self.days[rank]] -= 1
-        self.held[day] = self.held.get(day, 0) + 1
-        self.days[rank] = day
+    def holding(self, ordinal):
+        return sum(1 for other in self.days if other // self.step == ordinal // self.step)
+
+    def unit_free(self, unit):
+        return all(other // self.unit != unit for other in self.days)
+
+    def move(self, rank, ordinal):
+        self.days[rank] = ordinal
 
     def different(self):
-        return sum(1 for day in self.held if self.held[day] > 0)
+        return len({ordinal // self.step for ordinal in self.days})
+
+    def candidates(self, ordinal, low, high):
+        return weekday_candidates(ordinal, low, high, self.unit)
+
+    def candidates_whole(self, ordinal, low, high):
+        return weekday_candidates_whole(ordinal, low, high, self.unit)
+
+
+def weekday_walk_of(column, ordinals, lows, highs, hole_days):
+    """The walk of a column of whole dates: its weekday census, a unit, a
+    written unit and a day of one day each, the width kind of its one
+    width word, and no keep and no second census."""
+    census = column["weekday_census"]
+    group_of_weekday = [0] * 7
+    for index, group in enumerate(census):
+        for weekday in range(group["first"], group["last"] + 1):
+            group_of_weekday[weekday] = index
+    widths = column.get("date_field_widths", {})
+    word = None
+    if len(widths) == 1 and (
+        column["format"] in VARIABLE_WIDTH_MEMBERS or column["format"] in TEXTUAL_MEMBERS
+    ):
+        word = next(iter(widths))
+    seams = {"keeps_always": not date_counts_reachable(column)}
+    if word is not None:
+        seams["width_of"] = lambda day: counts_into_width(column, day, word)
+    return WeekdayWalk(
+        [group["count"] for group in census], group_of_weekday, ordinals, lows, highs,
+        hole_days, seams,
+    )
 
 
 def weekday_shares(walk, gaps, owed):
@@ -11439,19 +11477,28 @@ def weekday_shares(walk, gaps, owed):
 # its two end days at 2**19, and D is the sum of d over the groups divided
 # by 2**20, rounded down; nought where D is.
 def weekday_prior_row(walk, ranks, groups):
-    low, high = walk.lows[ranks[0]], walk.highs[ranks[0]]
-    d = [
-        sum(
-            WEEKDAY_SHARE_SCALE // (2 if day in (low, high) else 1)
-            for day in range(low, high + 1)
-            if day not in walk.holes and walk.group(day) == g
-        )
-        for g in range(groups)
-    ]
+    d = weekday_calendar_row(walk, walk.lows[ranks[0]], walk.highs[ranks[0]], groups)
     whole = sum(d) // WEEKDAY_SHARE_SCALE
     return [
         sum(1 for rank in ranks if walk.group(walk.days[rank]) == g) * WEEKDAY_SHARE_SCALE
         + (d[g] * len(ranks) // whole if whole > 0 else 0)
+        for g in range(groups)
+    ]
+
+
+# d[g], the calendar's part: the units of the gap from the unit of its
+# first ordinal to the unit of its last, both included, of group g that
+# are no hole -- a unit of a hole's day is a hole, every one of them --
+# at 2**20 each and the two end units at 2**19.
+def weekday_calendar_row(walk, low, high, groups):
+    first = low // walk.unit
+    last = high // walk.unit
+    return [
+        sum(
+            WEEKDAY_SHARE_SCALE // (2 if unit in (first, last) else 1)
+            for unit in range(first, last + 1)
+            if not walk.hole(unit * walk.unit) and walk.group(unit * walk.unit) == g
+        )
         for g in range(groups)
     ]
 
@@ -11526,7 +11573,7 @@ def weekday_best_move(q, x, prior, owed):
 def weekday_destination(walk, rank, other, have, want, size):
     """G7.3f step 4: may `size` ranks of this rank's kind go to `other`?"""
     return (
-        other not in walk.holes
+        not walk.hole(other)
         and walk.kind(other) == walk.kind(walk.days[rank])
         and have[walk.group(other)] + size <= want[walk.group(other)]
     )
@@ -11539,10 +11586,10 @@ def weekday_runs(walk, ranks, have, want):
             return
 
 
-# The gap's ranks on each day, days ascending, as the round begins.
+# The gap's ranks on each written unit, ascending, as the round begins.
 def weekday_runs_of(walk, ranks):
-    days = sorted({walk.days[rank] for rank in ranks})
-    return [[rank for rank in ranks if walk.days[rank] == day] for day in days]
+    units = sorted({walk.days[rank] // walk.step for rank in ranks})
+    return [[rank for rank in ranks if walk.days[rank] // walk.step == unit] for unit in units]
 
 
 # A run of two or more, alone on its day, whose group holds at least its
@@ -11555,7 +11602,7 @@ def weekday_run_moved(walk, run, have, want):
     target = next(
         (
             other
-            for other in weekday_candidates(day, walk.lows[run[0]], walk.highs[run[0]])
+            for other in walk.candidates(day, walk.lows[run[0]], walk.highs[run[0]])
             if walk.holding(other) == 0 and weekday_destination(walk, run[0], other, have, want, len(run))
         ),
         None,
@@ -11585,7 +11632,7 @@ def weekday_offer(walk, rank, have, want):
     day = walk.days[rank]
     alone = walk.holding(day) == 1
     kept, changed = [], []
-    for order, other in enumerate(weekday_candidates(day, walk.lows[rank], walk.highs[rank])):
+    for order, other in enumerate(walk.candidates(day, walk.lows[rank], walk.highs[rank])):
         if not weekday_destination(walk, rank, other, have, want, 1):
             continue
         keeps = walk.keeps_always or alone == (walk.holding(other) == 0)
@@ -11642,12 +11689,15 @@ def weekday_offer_taken(walk, rank, have, want, changing):
 
 def weekday_leftover(walk, movable, owed):
     """G7.3f step 7: what the gaps left, over every movable rank together."""
-    have = [0] * len(owed)
-    for rank in movable:
-        have[walk.group(walk.days[rank])] += 1
+    have = weekday_holdings(walk, movable, len(owed))
     target = [max(value, 0) for value in owed]
     if have != target:
         weekday_singles(walk, movable, have, target, 64, True)
+
+
+def weekday_holdings(walk, movable, groups):
+    """How many movable ranks stand on each group."""
+    return [sum(1 for rank in movable if walk.group(walk.days[rank]) == g) for g in range(groups)]
 
 
 def weekday_holes_left(walk, gaps):
@@ -11655,12 +11705,12 @@ def weekday_holes_left(walk, gaps):
     for ranks in gaps:
         for rank in ranks:
             day = walk.days[rank]
-            if day not in walk.holes:
+            if not walk.hole(day):
                 continue
             fitting = [
                 other
-                for other in weekday_candidates(day, walk.lows[rank], walk.highs[rank])
-                if other not in walk.holes and walk.kind(other) == walk.kind(day)
+                for other in walk.candidates(day, walk.lows[rank], walk.highs[rank])
+                if not walk.hole(other) and walk.kind(other) == walk.kind(day)
             ]
             alone = walk.holding(day) == 1
             keeping = [other for other in fitting if alone == (walk.holding(other) == 0)]
@@ -11674,8 +11724,8 @@ def weekday_standing_day(walk, rank, group, kind, want_held, most):
     """The first candidate of this group and kind, no hole, held or not as
     asked; at most `most` such candidates asked (0: no limit)."""
     asked = 0
-    for other in weekday_candidates(walk.days[rank], walk.lows[rank], walk.highs[rank]):
-        if other in walk.holes or walk.group(other) != group or walk.kind(other) != kind:
+    for other in walk.candidates(walk.days[rank], walk.lows[rank], walk.highs[rank]):
+        if walk.hole(other) or walk.group(other) != group or walk.kind(other) != kind:
             continue
         asked += 1
         if most and asked > most:
@@ -11704,8 +11754,12 @@ def weekday_exchanged(walk, movable, wanted):
         cycle = weekday_best_cycle(walk, movable, wanted - before)
         if cycle is None:
             break
-        for cell, giving, taking in cycle:
-            weekday_exchange_move(walk, movable, cell, giving, taking)
+        # The cycle whole or not at all (P4-D366): where any of its moves
+        # finds no place, every one of them is undone and the step ends.
+        saved = list(walk.days)
+        if not all([weekday_exchange_move(walk, movable, cell, giving, taking) for cell, giving, taking in cycle]):
+            walk.days[:] = saved
+            break
         if walk.different() <= before:
             break
     if walk.different() > wanted:
@@ -11731,16 +11785,19 @@ def weekday_give(walk, movable, cell, group):
 
 
 def weekday_take(walk, cell, group):
-    """One where a day of the group in the cell, of its kind and no hole, is
-    free, nought where only held ones stand, None where there is none."""
+    """One where a unit of the group in the cell, of its kind and no hole,
+    is free, nought where only held ones stand, None where there is none:
+    the units of the gap's first and last ordinals and every one between."""
     low, high, kind = cell
-    days = [
-        day for day in range(low, high + 1)
-        if walk.group(day) == group and walk.kind(day) == kind and day not in walk.holes
+    units = [
+        unit for unit in range(low // walk.unit, high // walk.unit + 1)
+        if walk.group(unit * walk.unit) == group
+        and walk.kind(unit * walk.unit) == kind
+        and not walk.hole(unit * walk.unit)
     ]
-    if not days:
+    if not units:
         return None
-    return 1 if any(walk.holding(day) == 0 for day in days) else 0
+    return 1 if any(walk.unit_free(unit) for unit in units) else 0
 
 
 def weekday_best_cycle(walk, movable, short):
@@ -11758,7 +11815,9 @@ def weekday_best_cycle(walk, movable, short):
                 if (giving, taking) not in pairs or give + take > pairs[(giving, taking)][0]:
                     pairs[(giving, taking)] = (give + take, cell)
     chosen = None
-    for size in range(1, groups + 1):
+    # Every cycle up to seven groups; above, cycles of at most three (P4-D366).
+    longest = groups if groups <= 7 else 3
+    for size in range(1, longest + 1):
         for members in itertools.combinations(range(groups), size):
             for rest in itertools.permutations(members[1:]):
                 order = (members[0],) + rest
@@ -11783,25 +11842,26 @@ def weekday_exchange_move(walk, movable, cell, giving, taking):
         if weekday_cell_of(walk, rank) == cell and walk.group(walk.days[rank]) == giving
     ]
     if not ranks:
-        return
+        return False
     rank = min(ranks, key=lambda each: (-walk.holding(walk.days[each]), each))
     low, high, kind = cell
     fitting = [
-        other for other in weekday_candidates_whole(walk.days[rank], low, high)
-        if walk.group(other) == taking and walk.kind(other) == kind and other not in walk.holes
+        other for other in walk.candidates_whole(walk.days[rank], low, high)
+        if walk.group(other) == taking and walk.kind(other) == kind and not walk.hole(other)
     ]
     free = [other for other in fitting if walk.holding(other) == 0]
     if free:
         walk.move(rank, free[0])
     elif fitting:
         walk.move(rank, fitting[0])
+    return bool(fitting)
 
 
-def weekday_candidates_whole(day, low, high):
-    """d - 1, d + 1, d - 2, ... over the whole of [low, high], not step 4's reach."""
+def weekday_candidates_whole(day, low, high, unit=1):
+    """o - u, o + u, o - 2u, ... over the whole of [low, high], not step 4's reach."""
     away = 1
-    while day - away >= low or day + away <= high:
-        for other in (day - away, day + away):
+    while day - away * unit >= low or day + away * unit <= high:
+        for other in (day - away * unit, day + away * unit):
             if low <= other <= high:
                 yield other
         away += 1
@@ -11836,18 +11896,19 @@ def weekday_merged_runs(walk, movable, wanted):
             return
         on_day = {}
         for rank in movable:
-            runs_of = on_day.setdefault(walk.days[rank], [])
+            runs_of = on_day.setdefault(walk.days[rank] // walk.step, [])
             runs_of += [rank]
         moved = False
         for _size, day in sorted((len(run), day) for day, run in on_day.items()):
             if walk.different() <= wanted:
                 return
             run = on_day[day]
-            if walk.holding(day) != len(run):
+            here = walk.days[run[0]]
+            if walk.holding(here) != len(run):
                 continue
             if any((walk.lows[r], walk.highs[r]) != (walk.lows[run[0]], walk.highs[run[0]]) for r in run):
                 continue
-            target = weekday_standing_day(walk, run[0], walk.group(day), walk.kind(day), True, 0)
+            target = weekday_standing_day(walk, run[0], walk.group(here), walk.kind(here), True, 0)
             if target is None:
                 continue
             for rank in run:
@@ -11914,22 +11975,26 @@ def weekday_settled(column, ordinals, parsed, whole, lows, highs, holes):
         or any(whole)
     ):
         return ordinals
-    walk = WeekdayWalk(column, ordinals, lows, highs, weekday_hole_days(column, holes))
-    wanted = walk.different()
+    walk = weekday_walk_of(column, ordinals, lows, highs, weekday_hole_days(column, holes))
     fixed = ranks_the_tail_pins(column, parsed)
     first = column["low_tail"]["rows"]
     last = parsed - 1 - column["high_tail"]["rows"]
-    movable = [
-        rank for rank in range(first, last + 1)
-        if not fixed[rank] and lows[rank] < highs[rank]
-    ]
+    pinned = [fixed[rank] or lows[rank] >= highs[rank] for rank in range(parsed)]
+    return bins_settled(walk, first, last, pinned, walk.different(), date_counts_reachable(column))
+
+
+def bins_settled(walk, first, last, pinned, wanted, reachable):
+    """G7.3f's steps over any census of bins (plan P4-D366): the ranks from
+    `first` to `last` the layout does not pin move; `wanted` is the count of
+    different written units to keep where `reachable`."""
+    movable = [rank for rank in range(first, last + 1) if not pinned[rank]]
     owed = list(walk.counts)
     for rank in range(first, last + 1):
         if rank not in movable:
             owed[walk.group(walk.days[rank])] -= 1
     gaps = []
     for rank in movable:
-        if gaps and gaps[-1][-1] == rank - 1 and (lows[gaps[-1][0]], highs[gaps[-1][0]]) == (lows[rank], highs[rank]):
+        if gaps and gaps[-1][-1] == rank - 1 and (walk.lows[gaps[-1][0]], walk.highs[gaps[-1][0]]) == (walk.lows[rank], walk.highs[rank]):
             gaps[-1] += [rank]
         else:
             gaps += [[rank]]
@@ -11942,11 +12007,1156 @@ def weekday_settled(column, ordinals, parsed, whole, lows, highs, holes):
         weekday_runs(walk, ranks, have, shares[j])
         weekday_singles(walk, ranks, have, shares[j], 16, False)
     weekday_leftover(walk, movable, owed)
-    if date_counts_reachable(column):
-        weekday_repair(walk, movable, wanted)
-    pinned = [fixed[rank] or lows[rank] >= highs[rank] for rank in range(parsed)]
+    weekday_chain(walk, movable, owed)
+    if reachable:
+        weekday_count_kept(walk, movable, wanted)
+    if weekday_traded(walk, movable, owed) and reachable:
+        weekday_count_kept(walk, movable, wanted)
     sort_unpinned_runs(walk.days, pinned)
     return walk.days
+
+
+def weekday_count_kept(walk, movable, wanted):
+    """G7.3f step 8: steps 8.1 to 8.3, then 8.4 and 8.5 where it is long."""
+    weekday_repair(walk, movable, wanted)
+    weekday_units_merged(walk, movable, wanted)
+    weekday_long_pairs(walk, movable, wanted)
+
+
+WEEKDAY_CHAINS = 256
+
+
+def weekday_chain(walk, movable, owed):
+    """G7.3f step 7b: paths of single moves from a group over to one under."""
+    target = [max(value, 0) for value in owed]
+    groups = len(owed)
+    for _ in range(WEEKDAY_CHAINS):
+        have = weekday_holdings(walk, movable, groups)
+        over = [g for g in range(groups) if have[g] > target[g]]
+        under = [g for g in range(groups) if have[g] < target[g]]
+        if not over or not under:
+            return
+        cells = sorted({weekday_cell_of(walk, rank) for rank in movable})
+        links = {}
+        for giving in range(groups):
+            for taking in range(groups):
+                if giving == taking:
+                    continue
+                for cell in cells:
+                    if weekday_give(walk, movable, cell, giving) is not None and weekday_take(walk, cell, taking) is not None:
+                        links[(giving, taking)] = cell
+                        break
+        came = {g: None for g in over}
+        queue = list(over)
+        reached = None
+        while queue and reached is None:
+            g = queue.pop(0)
+            for h in range(groups):
+                if h in came or (g, h) not in links:
+                    continue
+                came[h] = g
+                if h in under:
+                    reached = h
+                    break
+                queue += [h]
+        if reached is None:
+            return
+        path = [reached]
+        while came[path[-1]] is not None:
+            path += [came[path[-1]]]
+        path.reverse()
+        for g, h in zip(path, path[1:]):
+            if not weekday_exchange_move(walk, movable, links[(g, h)], g, h):
+                return
+
+
+WEEKDAY_MERGE_ROUNDS = 4
+
+
+def weekday_units_merged(walk, movable, wanted):
+    """G7.3f step 8.4: whole written units merged onto a held one of their standing."""
+    chosen = set(movable)
+    for _ in range(WEEKDAY_MERGE_ROUNDS):
+        if walk.different() <= wanted:
+            return
+        on_unit = {}
+        for rank in range(len(walk.days)):
+            on_unit.setdefault(walk.days[rank] // walk.step, [])
+            on_unit[walk.days[rank] // walk.step] += [rank]
+        order = sorted(
+            (len(ranks), unit) for unit, ranks in on_unit.items()
+            if all(rank in chosen for rank in ranks)
+        )
+        merged = False
+        for _size, unit in order:
+            if walk.different() <= wanted:
+                return
+            ranks = on_unit[unit]
+            here = walk.days[ranks[0]]
+            if walk.holding(here) != len(ranks):
+                continue
+            low = max(walk.lows[rank] for rank in ranks)
+            high = min(walk.highs[rank] for rank in ranks)
+            target = weekday_merge_place(walk, here, low, high)
+            if target is None:
+                continue
+            for rank in ranks:
+                walk.move(rank, target)
+            merged = True
+        if not merged:
+            return
+
+
+def weekday_merge_place(walk, here, low, high):
+    """Step 8.4's place: at its own place in the unit first, else (a unit of
+    more than one written unit) the nearest held ordinal starting a day
+    exactly where `here` does."""
+    group, kind = walk.group(here), walk.kind(here)
+    for other in walk.candidates_whole(here, low, high):
+        if not walk.hole(other) and walk.group(other) == group and walk.kind(other) == kind and walk.holding(other) > 0:
+            return other
+    if walk.unit == walk.step:
+        return None
+    places = sorted(
+        (abs(other - here), other)
+        for other in set(walk.days)
+        if other // walk.step != here // walk.step
+        and low <= other <= high
+        and not walk.hole(other)
+        and walk.group(other) == group
+        and walk.kind(other) == kind
+        and (other % walk.day == 0) == (here % walk.day == 0)
+    )
+    return places[0][1] if places else None
+
+
+WEEKDAY_PAIRS = 512
+
+
+def weekday_long_pairs(walk, movable, wanted):
+    """G7.3f step 8.5: pairs of moves across two cells, each group kept."""
+    groups = len(walk.counts)
+    for _ in range(WEEKDAY_PAIRS):
+        long = walk.different() - wanted
+        if long <= 0:
+            return
+        cells = sorted({weekday_cell_of(walk, rank) for rank in movable})
+
+        def units_of(cell):
+            return sorted({walk.days[r] // walk.step for r in movable if weekday_cell_of(walk, r) == cell})
+
+        def first_rank(cell, unit):
+            return min(r for r in movable if weekday_cell_of(walk, r) == cell and walk.days[r] // walk.step == unit)
+
+        def first_unit(cell, group, fits):
+            for unit in units_of(cell):
+                ordinal = walk.days[first_rank(cell, unit)]
+                if walk.group(ordinal) == group and fits(ordinal):
+                    return unit
+            return None
+
+        best = None
+        for a_cell in cells:
+            for x in units_of(a_cell):
+                mover = first_rank(a_cell, x)
+                if walk.holding(walk.days[mover]) != 1:
+                    continue
+                own = walk.group(walk.days[mover])
+                for other in range(groups):
+                    if other == own:
+                        continue
+                    y = first_unit(a_cell, other, lambda o: not walk.hole(o))
+                    if y is None:
+                        continue
+                    for b_cell in cells:
+                        if b_cell == a_cell:
+                            continue
+                        w = first_unit(b_cell, own, lambda o: not walk.hole(o))
+                        if w is None:
+                            continue
+                        alone = first_unit(b_cell, other, lambda o: walk.holding(o) == 1)
+                        shared = first_unit(b_cell, other, lambda o: walk.holding(o) >= 2)
+                        if long >= 2 and alone is not None:
+                            z, gain = alone, 2
+                        elif shared is not None:
+                            z, gain = shared, 1
+                        else:
+                            continue
+                        key = (-gain, abs(a_cell[0] - b_cell[0]))
+                        if best is None or key < best[0]:
+                            best = (
+                                key, mover, walk.days[first_rank(a_cell, y)],
+                                first_rank(b_cell, z), walk.days[first_rank(b_cell, w)],
+                            )
+        if best is None:
+            return
+        walk.move(best[1], best[2])
+        walk.move(best[3], best[4])
+
+
+WEEKDAY_TRADES = 200
+WEEKDAY_TRADE_REACH = 62
+WEEKDAY_TRADE_BACK = 31
+
+
+def weekday_scores(walk, ordinal, other):
+    """Nought where a move keeps the count of different values, else one."""
+    alone = walk.holding(ordinal) <= 1
+    there = walk.holding(other)
+    return 0 if (alone and there == 0) or (not alone and there > 0) else 1
+
+
+def weekday_traded(walk, movable, owed):
+    """G7.3f step 8.6: trades across a second census's groups; whether any."""
+    if walk.pair_of is None:
+        return False
+    target = [max(value, 0) for value in owed]
+    traded = False
+    for _ in range(WEEKDAY_TRADES):
+        have = weekday_holdings(walk, movable, len(owed))
+        if have == target:
+            return traded
+        back = {}
+        for rank in movable:
+            ordinal = walk.days[rank]
+            kind = walk.kind(ordinal)
+            for away in range(1, WEEKDAY_TRADE_BACK + 1):
+                for other in (ordinal - away * walk.unit, ordinal + away * walk.unit):
+                    if not walk.lows[rank] <= other <= walk.highs[rank] or walk.hole(other):
+                        continue
+                    found = walk.kind(other)
+                    if walk.group(other) != walk.group(ordinal) or found[:2] != kind[:2] or found[2] == kind[2]:
+                        continue
+                    option = (weekday_scores(walk, ordinal, other), away, rank, other)
+                    if (kind[2], found[2]) not in back or option < back[(kind[2], found[2])]:
+                        back[(kind[2], found[2])] = option
+        best = None
+        for rank in movable:
+            ordinal = walk.days[rank]
+            if have[walk.group(ordinal)] <= target[walk.group(ordinal)]:
+                continue
+            kind = walk.kind(ordinal)
+            for away in range(1, WEEKDAY_TRADE_REACH + 1):
+                for other in (ordinal - away * walk.unit, ordinal + away * walk.unit):
+                    if not walk.lows[rank] <= other <= walk.highs[rank] or walk.hole(other):
+                        continue
+                    if have[walk.group(other)] >= target[walk.group(other)]:
+                        continue
+                    found = walk.kind(other)
+                    if found[:2] != kind[:2]:
+                        continue
+                    score = weekday_scores(walk, ordinal, other)
+                    if found[2] == kind[2]:
+                        trade = ((score, away), rank, other, None)
+                    elif (found[2], kind[2]) in back:
+                        partner = back[(found[2], kind[2])]
+                        trade = ((score + partner[0], away + partner[1]), rank, other, partner)
+                    else:
+                        continue
+                    if best is None or trade[0] < best[0]:
+                        best = trade
+            if best is not None and best[0][0] == 0:
+                break
+        if best is None:
+            return traded
+        walk.move(best[1], best[2])
+        if best[3] is not None:
+            walk.move(best[3][2], best[3][3])
+        traded = True
+    return traded
+
+
+# ------------------------------- G7.3f's shared steps, the fifteenth file
+#
+# Landing 3b.D0 (plan P4-D366) makes the day pass one pass over any census
+# of bins, and at the default floor of 11 no column of whole dates reaches
+# its four new steps: on every date battery the twins are the ones before
+# it (at a floor of 36, eight of 15,152 are not).  So each step is frozen
+# here on a state of ranks stated by hand -- the ordinals, every rank's
+# gap, which ranks are pinned, the census and its seams, named -- and the
+# case carries what the method's text makes of it.  The product is held to
+# the same answer by `tests/test_stage3b_shared_steps.py`, which also turns
+# each case red on its mutant.
+
+SHARED_DAY = 86400
+SHARED_MONDAY = days_from_civil(2024, 3, 4)  # a Monday
+SHARED_WEEKEND = [0, 0, 0, 0, 0, 1, 1]  # [Mon-Fri] [Sat-Sun]
+
+
+def shared_bin(rule, ordinal, day):
+    """A bin by its rule's name, as the seams name it: the weekday of the
+    ordinal's day, Monday nought; the hour of the day; the day of the
+    month of the ordinal's day, the first nought."""
+    if rule == "hour":
+        return (ordinal // 3600) % 24
+    if rule == "day_of_month":
+        return civil_from_days(ordinal // day)[2] - 1
+    return (ordinal // day + 3) % 7
+
+
+def shared_layout(ordinals, pins):
+    """Every unpinned rank's gap runs between the pinned ranks either side of it."""
+    pinned = [rank in pins for rank in range(len(ordinals))]
+    lows = [
+        ordinals[rank] if pinned[rank] else ordinals[max(pin for pin in pins if pin < rank)]
+        for rank in range(len(ordinals))
+    ]
+    highs = [
+        ordinals[rank] if pinned[rank] else ordinals[min(pin for pin in pins if pin > rank)]
+        for rank in range(len(ordinals))
+    ]
+    return pinned, lows, highs
+
+
+def shared_listed(rows):
+    """Ranks stated one by one as (ordinal, low, high, pinned)."""
+    return (
+        [row[0] for row in rows], [row[1] for row in rows],
+        [row[2] for row in rows], [row[3] for row in rows],
+    )
+
+
+def shared_case(why, step, ordinals, lows, highs, pinned, counts, where, **seams):
+    case = {
+        "why": why, "step": step, "ordinals": list(ordinals), "lows": list(lows),
+        "highs": list(highs), "pinned": list(pinned), "counts": list(counts),
+        "where": list(where), "unit": 1, "written_unit": 1, "day": 1, "bin": "weekday",
+        "period": 7, "keep": "", "pair": "", "pair_where": [], "holes": [], "reachable": True,
+    }
+    case.update(seams)
+    case.setdefault("body", [0, len(ordinals) - 1])
+    case.setdefault("wanted", len({o // case["written_unit"] for o in ordinals}))
+    return case
+
+
+def shared_hour_case():
+    ordinals = sorted(
+        (SHARED_MONDAY + day) * SHARED_DAY
+        + (1, 2, 3, 4, 5, 13, 14, 15, 16)[(slot * 5 + day) % 9] * 3600
+        + ((slot * 17 + day * 7) % 60) * 60
+        for day in range(3) for slot in range(14)
+    )
+    pinned, lows, highs = shared_layout(ordinals, {0, len(ordinals) - 1})
+    morning = sum(1 for o in ordinals if (o // 3600) % 24 < 12)
+    return shared_case(
+        "A unit of an hour, minutes written, the day kept: forty-two moments over three days, "
+        "01:00 to 05:59 and 13:00 to 16:59, and a census of hours [00-11] [12-23] asking ten "
+        "more in the afternoon, which an early rank reaches sooner on the evening before.",
+        "settled", ordinals, lows, highs, pinned, [morning - 10, len(ordinals) - morning + 10],
+        [0] * 12 + [1] * 12, unit=3600, written_unit=60, day=SHARED_DAY, bin="hour", period=24,
+        keep="day",
+    )
+
+
+def shared_moment_case():
+    ordinals = sorted(
+        (SHARED_MONDAY + week * 7 + slot % 5) * SHARED_DAY + 8 * 3600 + slot * 1291
+        for week in range(2) for slot in range(15)
+    )
+    pinned, lows, highs = shared_layout(ordinals, {0, len(ordinals) - 1})
+    return shared_case(
+        "A unit of a day of moments, seconds written: thirty weekday moments over two weeks, "
+        "the census asking eight on the weekend; every move keeps the clock.",
+        "settled", ordinals, lows, highs, pinned, [len(ordinals) - 8, 8], SHARED_WEEKEND,
+        unit=SHARED_DAY, written_unit=1, day=SHARED_DAY,
+    )
+
+
+def shared_index_case():
+    ordinals = []
+    for rank in range(200):
+        ordinals += [SHARED_MONDAY + 7 * (rank // 5) + rank % 5]
+        if rank % 20 == 2:
+            ordinals[-1] = ordinals[-2]
+    ordinals = sorted(ordinals)
+    pinned, lows, highs = shared_layout(ordinals, {0, 120, 140, 199})
+    return shared_case(
+        "Steps 5 and 6 on gaps long enough to be searched by index: two hundred weekday dates "
+        "over forty weeks in three gaps, every twentieth from the third repeating the day "
+        "before, the census asking fifty on the weekend.",
+        "settled", ordinals, lows, highs, pinned, [150, 50], SHARED_WEEKEND,
+    )
+
+
+def shared_chain_case():
+    m = SHARED_MONDAY
+    ordinals, lows, highs, pinned = shared_listed(
+        [(m - 1, m - 1, m - 1, True)] + [(m, m, m + 1, False)] * 4 + [(m + 1, m + 1, m + 1, True)]
+        + [(m + 8, m + 8, m + 9, False)] * 3 + [(m + 9, m + 9, m + 9, True)]
+    )
+    return shared_case(
+        "Step 7b: [Mon] [Tue] [Wed-Sun], four ranks on a Monday in a gap of Monday and Tuesday, "
+        "three on a Tuesday in a gap of Tuesday and Wednesday; Monday two over and the last "
+        "group two under, which no Monday rank's gap holds.",
+        "chain", ordinals, lows, highs, pinned, [2, 4, 4], [0, 1, 2, 2, 2, 2, 2],
+        reachable=False, want=[2, 3, 2],
+    )
+
+
+def shared_merge_case(same_clock):
+    clock = 10 * 3600 + 17 * 60 + 5
+    m = SHARED_MONDAY * SHARED_DAY
+    ordinals = [m - SHARED_DAY, m + SHARED_DAY + clock]
+    ordinals += [m + 2 * SHARED_DAY + 14 * 3600] * 2 + [m + 10 * SHARED_DAY + 14 * 3600] * 2
+    if same_clock:
+        ordinals += [m + 8 * SHARED_DAY + clock] * 2
+    ordinals = sorted(ordinals + [m + 20 * SHARED_DAY])
+    pinned, lows, highs = shared_layout(ordinals, {0, len(ordinals) - 1})
+    return shared_case(
+        "Step 8.4: moments of one gap over three weeks, a Tuesday at 10:17:05 alone, weekdays "
+        "at 14:00:00 held twice" + (", and 10:17:05 held a week later" if same_clock else "")
+        + "; the count is one long.",
+        "units_merged", ordinals, lows, highs, pinned, [len(ordinals) - 2, 0], SHARED_WEEKEND,
+        unit=SHARED_DAY, written_unit=1, day=SHARED_DAY, wanted=len(set(ordinals)) - 1,
+    )
+
+
+def shared_pair_case():
+    m = SHARED_MONDAY
+    ordinals, lows, highs, pinned = shared_listed(
+        [(m - 1, m - 1, m - 1, True)] + [(m, m - 1, m + 13, False)] * 2
+        + [(m + 5, m - 1, m + 13, False), (m + 13, m + 13, m + 13, True)]
+        + [(m + 15, m + 13, m + 27, False)] * 2
+        + [(m + 19, m + 13, m + 27, False), (m + 27, m + 27, m + 27, True)]
+    )
+    return shared_case(
+        "Step 8.5: two cells of two weeks, a lone Saturday beside a Monday held twice, and a "
+        "Tuesday held twice beside a Saturday held once; the count is one long.",
+        "long_pairs", ordinals, lows, highs, pinned, [4, 2], SHARED_WEEKEND,
+        wanted=len(set(ordinals)) - 1,
+    )
+
+
+def shared_trade_case():
+    first = days_from_civil(2024, 3, 1)
+    ordinals, lows, highs, pinned = shared_listed(
+        [(first + 3, first + 3, first + 3, True), (first + 10, first + 3, first + 24, False),
+         (first + 14, first + 14, first + 14, True), (first + 15, first + 14, first + 15, False),
+         (first + 15, first + 15, first + 15, True), (first + 24, first + 24, first + 24, True)]
+    )
+    return shared_case(
+        "Step 8.6, the second census the half of the month: Saturday the 16th is one over the "
+        "weekend's total and reaches only Friday the 15th, in the other half, so Monday the "
+        "11th crosses the 15th the other way.",
+        "traded", ordinals, lows, highs, pinned, [5, 1], SHARED_WEEKEND, pair="day_of_month",
+        pair_where=[0] * 15 + [1] * 16, reachable=False, want=[2, 0],
+    )
+
+
+def shared_cycle_case(groups):
+    rows = []
+    if groups == 7:
+        for group in range(4):
+            first = SHARED_MONDAY + 57 * group
+            rows += [(first, first, first + 1 if group < 3 else first + 4, False)] * 2
+        return shared_case(
+            "Step 8.3's cycles on seven groups, one weekday each: two ranks on a Monday, a "
+            "Tuesday, a Wednesday and a Thursday of four weeks, each cell reaching the next "
+            "weekday and Thursday's the Monday after, so only the cycle through the four gains.",
+            "cycle", *shared_listed(rows), [2, 2, 2, 2, 0, 0, 0], list(range(7)), short=4,
+        )
+    for group in range(3):
+        first = days_from_civil(2024, group + 1, group + 1)
+        last = first + 1 if group < 2 else days_from_civil(2024, 4, 1)
+        rows += [(first, first, last, False)] * 2
+    return shared_case(
+        "Step 8.3's cycles on ten groups of the days of the month, the first nine days one "
+        "group each and the 10th to the 31st the tenth: two ranks on 1 January, 2 February "
+        "and 3 March 2024, each cell reaching the next group's day and the last 1 April, so "
+        "only the cycle through the three gains.",
+        "cycle", *shared_listed(rows), [2, 2, 2] + [0] * 7, [min(day, 9) for day in range(31)],
+        short=4, bin="day_of_month", period=0,
+    )
+
+
+# ...and the repair round's cases (review of landing 3b.D0, items 3 to 5):
+# each new step once through the whole pass, and one state for every
+# clause a reviewer's mutant changed with every case above still passing.
+
+SHARED_HOUR = 3600
+
+
+def shared_moment(day, hours, minutes=0, seconds=0):
+    """The second a moment stands on: a day number and its clock."""
+    return day * SHARED_DAY + hours * SHARED_HOUR + minutes * 60 + seconds
+
+
+def shared_index_tie_case():
+    m = SHARED_MONDAY
+    ordinals, lows, highs, pinned = shared_listed(
+        [(m - 1, m - 1, m - 1, True), (m + 9, m - 1, m + 20, False), (m + 20, m + 20, m + 20, True)]
+    )
+    return shared_case(
+        "Steps 5 and 6 through the gap's index, a tie: a Wednesday in a gap from a Sunday to the "
+        "Sunday three weeks on must go to the weekend, and the Sunday before it and the Saturday "
+        "after it stand three days away, both free; the earlier is taken.",
+        "singles", ordinals, lows, highs, pinned, [1, 2], SHARED_WEEKEND, want=[0, 1],
+    )
+
+
+def shared_index_reach_case():
+    low = days_from_civil(2023, 1, 30)
+    day = days_from_civil(2024, 3, 7)
+    high = day + 1
+    holes = [
+        days_from_civil(year, month, 31)
+        for year, month in ((2023, 3), (2023, 5), (2023, 7), (2023, 8), (2023, 10), (2023, 12), (2024, 1))
+    ]
+    ordinals, lows, highs, pinned = shared_listed(
+        [(low, low, low, True), (day, low, high, False), (high, high, high, True)]
+    )
+    return shared_case(
+        "Steps 5 and 6's reach of 400 units through the index: 7 March 2024, in a gap from 30 "
+        "January 2023, must go to a 31st; every 31st up to 400 days below it is a hole, and the "
+        "one free 31st, 31 January 2023, stands 401 days below, so no move is offered.",
+        "singles", ordinals, lows, highs, pinned, [2, 1], [0] * 30 + [1], want=[0, 1],
+        holes=holes, bin="day_of_month", period=0,
+    )
+
+
+def shared_moment_run_case():
+    m = SHARED_MONDAY
+    first, last = shared_moment(m - 1, 0), shared_moment(m + 13, 0)
+    rows = [(first, first, first, True), (shared_moment(m, 9), first, last, False)]
+    rows += [(shared_moment(m + 2, 10), first, last, False)] * 2
+    rows += [(shared_moment(m + 3, 15), first, last, False), (shared_moment(m + 8, 11), first, last, False)]
+    rows += [(last, last, last, True)]
+    ordinals, lows, highs, pinned = shared_listed(rows)
+    return shared_case(
+        "Step 5 on a day of moments: two moments on Wednesday at 10:00:00 run together, and the "
+        "census moves two weekday ranks to the weekend. The Sunday before and the Saturday after "
+        "stand three days away, 10:00:00 free on both, a rank on the Sunday's midnight: the run "
+        "goes whole to the Sunday at 10:00:00.",
+        "settled", ordinals, lows, highs, pinned, [3, 4], SHARED_WEEKEND,
+        unit=SHARED_DAY, written_unit=1, day=SHARED_DAY,
+    )
+
+
+def shared_hour_run_case():
+    day = SHARED_MONDAY + 1
+    first, last = shared_moment(day, 0), shared_moment(day, 23)
+    rows = [(first, first, first, True), (shared_moment(day, 8, 15), first, last, False)]
+    rows += [(shared_moment(day, 10, 30), first, last, False)] * 2
+    rows += [(shared_moment(day, 12), first, last, False), (last, last, last, True)]
+    ordinals, lows, highs, pinned = shared_listed(rows)
+    return shared_case(
+        "Step 5 on a unit of an hour, minutes written, the day kept: two ranks at 10:30 run "
+        "together and the census of hours [00-11] [12-23] asks two more in the afternoon. A rank "
+        "stands at 12:00 and 12:30 is free, so the run goes whole to 12:30.",
+        "settled", ordinals, lows, highs, pinned, [2, 4], [0] * 12 + [1] * 12,
+        unit=SHARED_HOUR, written_unit=60, day=SHARED_DAY, bin="hour", period=24, keep="day",
+    )
+
+
+def shared_chain_order_case():
+    m = SHARED_MONDAY
+    ordinals, lows, highs, pinned = shared_listed(
+        [(m, m, m + 1, False), (m + 1, m + 1, m + 4, False), (m + 2, m + 2, m + 4, False),
+         (m + 8, m + 8, m + 11, False)]
+    )
+    return shared_case(
+        "Step 7b's search, one group a weekday: Monday, Tuesday and Wednesday are each over and "
+        "Friday one under; the Monday's gap reaches the Tuesday, the first Tuesday's and the "
+        "Wednesday's reach the Friday, and a second Tuesday's reaches the Friday after. Breadth "
+        "first from Monday, Tuesday and Wednesday in turn, Tuesday reaches Friday first, through "
+        "its first cell: the first Tuesday moves to the Friday.",
+        "chain", ordinals, lows, highs, pinned, [1, 2, 1, 0, 0, 0, 0], list(range(7)),
+        reachable=False, want=[0, 1, 0, 0, 1, 0, 0],
+    )
+
+
+def shared_merge_ties_case():
+    m = SHARED_MONDAY
+    first, last = shared_moment(m - 1, 0), shared_moment(m + 20, 0)
+    rows = [(first, first, first, True)]
+    for when, rows_on in (
+        ((m, 10), 2), ((m + 2, 10), 1), ((m + 4, 10), 2),
+        ((m + 9, 8, 30), 2), ((m + 9, 10, 30), 1), ((m + 9, 12, 30), 2),
+        ((m + 16, 0), 2), ((m + 16, 10, 45), 1), ((m + 17, 9), 2),
+    ):
+        rows += [(shared_moment(*when), first, last, False)] * rows_on
+    rows += [(last, last, last, True)]
+    ordinals, lows, highs, pinned = shared_listed(rows)
+    return shared_case(
+        "Step 8.4's ties and its midnight, moments of one gap over three weeks, the count three "
+        "long: Wednesday 10:00:00 alone between Monday's and Friday's 10:00:00, each held twice, "
+        "joins Monday's; the next Wednesday's 10:30:00 alone, with no other 10:30:00 held, "
+        "between 08:30:00 and 12:30:00 of its own day, joins 08:30:00; and the third Wednesday's "
+        "10:45:00 alone joins Thursday's 09:00:00 rather than its own day's midnight, nearer.",
+        "units_merged", ordinals, lows, highs, pinned, [len(ordinals) - 2, 2], SHARED_WEEKEND,
+        unit=SHARED_DAY, written_unit=1, day=SHARED_DAY, wanted=len(set(ordinals)) - 3,
+    )
+
+
+def shared_merge_window_case():
+    m = SHARED_MONDAY
+    wide, narrow = (m - 1, m + 29), (m + 10, m + 29)
+    rows = [(m - 1, m - 1, m - 1, True)] + [(m + 7, *wide, False)] * 3
+    rows += [(m + 14, *wide, False), (m + 14, *narrow, False)] + [(m + 21, *wide, False)] * 3
+    rows += [(m + 29, m + 29, m + 29, True)]
+    ordinals, lows, highs, pinned = shared_listed(rows)
+    return shared_case(
+        "Step 8.4's window, one group a weekday: two ranks on a Monday, one in a gap from the "
+        "Sunday before it to five weeks on and one in a gap starting the Thursday after the "
+        "Monday before; the Mondays a week either side are each held three times. The two move "
+        "inside the gap they share, onto the Monday after.",
+        "units_merged", ordinals, lows, highs, pinned, [8, 0, 1, 0, 0, 0, 1], list(range(7)),
+        wanted=len(set(ordinals)) - 1,
+    )
+
+
+def shared_merge_alone_case():
+    m = SHARED_MONDAY
+    gap = (m - 1, m + 29)
+    rows = [(m - 1, m - 1, m - 1, True), (m, *gap, False), (m + 7, *gap, False)]
+    rows += [(m + 14, *gap, False)] * 2 + [(m + 21, *gap, False)] * 2 + [(m + 29, m + 29, m + 29, True)]
+    ordinals, lows, highs, pinned = shared_listed(rows)
+    return shared_case(
+        "Step 8.4 asks a unit only while it holds its own ranks and no other: four Mondays held "
+        "once, once, twice and twice, the count two long. The first joins the second; the second, "
+        "holding two now, is passed over; the third joins the second, a week either way.",
+        "units_merged", ordinals, lows, highs, pinned, [6, 1, 0, 0, 0, 0, 1], list(range(7)),
+        wanted=len(set(ordinals)) - 2,
+    )
+
+
+def shared_merge_rounds_case():
+    m = SHARED_MONDAY
+    wide, narrow = (m - 1, m + 30), (m + 20, m + 30)
+    rows = [(m - 1, m - 1, m - 1, True), (m, *wide, False), (m + 7, *wide, False)]
+    rows += [(m + 20, m + 20, m + 20, True)] + [(m + 21, *narrow, False)] * 3
+    rows += [(m + 30, m + 30, m + 30, True)]
+    ordinals, lows, highs, pinned = shared_listed(rows)
+    return shared_case(
+        "Step 8.4's second round: three Mondays held once, once and three times, the third's "
+        "gap reaching no other, the count two long. The first round merges the first onto the "
+        "second; the second round merges those two onto the third.",
+        "units_merged", ordinals, lows, highs, pinned, [5, 1, 1, 0, 0, 0, 1], list(range(7)),
+        wanted=len(set(ordinals)) - 2,
+    )
+
+
+def shared_pair_one_long_case():
+    m = SHARED_MONDAY
+    first, second = (m - 1, m + 13), (m + 13, m + 27)
+    rows = [(m - 1, m - 1, m - 1, True)]
+    rows += [(m, *first, False)] * 2 + [(m + 1, *first, False)] * 2 + [(m + 5, *first, False)]
+    rows += [(m + 13, m + 13, m + 13, True)]
+    rows += [(m + 14, *second, False)] + [(m + 16, *second, False)] * 2 + [(m + 19, *second, False)]
+    rows += [(m + 27, m + 27, m + 27, True)]
+    ordinals, lows, highs, pinned = shared_listed(rows)
+    return shared_case(
+        "Step 8.5 with the count one long: the first gap holds a lone Saturday, a Monday held "
+        "twice that is a hole and a Tuesday held twice; the second a Monday held once, a "
+        "Wednesday held twice and a lone Saturday. The Saturday joins the Tuesday, not the hole, "
+        "and a Wednesday rank joins the second gap's Saturday: the count falls by one, not two.",
+        "long_pairs", ordinals, lows, highs, pinned, [7, 5], SHARED_WEEKEND, holes=[m],
+        wanted=len(set(ordinals)) - 1,
+    )
+
+
+def shared_pairs_twice_case():
+    m = SHARED_MONDAY
+    rows = [(m - 1, m - 1, m - 1, True)]
+    for place in range(3):
+        low, high = m - 1 + 14 * place, m + 13 + 14 * place
+        start = m + 14 * place
+        rows += [(start, low, high, False)] * 2
+        if place < 2:
+            rows += [(start + 5, low, high, False)] * 2
+        else:
+            rows += [(start + 5, low, high, False), (start + 6, low, high, False)]
+        rows += [(high, high, high, True)]
+    ordinals, lows, highs, pinned = shared_listed(rows)
+    return shared_case(
+        "Step 8.5 twice, the count two long, three gaps of two weeks: the first two hold a Monday "
+        "and a Saturday twice each, the third a Monday twice and a lone Saturday and Sunday. The "
+        "third gap's Saturday joins its Monday and pairs with the nearer gap, the second, whose "
+        "Monday rank joins its Saturday; then that Monday, held once now, joins its Saturday "
+        "too, and a first-gap Saturday rank joins its Monday.",
+        "long_pairs", ordinals, lows, highs, pinned, [6, 10], SHARED_WEEKEND,
+        wanted=len(set(ordinals)) - 2,
+    )
+
+
+def shared_pair_emptied_case():
+    m = SHARED_MONDAY
+    rows = [(m - 1, m - 1, m - 1, True)]
+    for place, (weekday, saturday) in enumerate(((2, 1), (2, 2), (2, 1))):
+        low, high = m - 1 + 14 * place, m + 13 + 14 * place
+        start = m + 14 * place + (2 if place == 1 else 0)
+        rows += [(start, low, high, False)] * weekday
+        rows += [(m + 14 * place + 5, low, high, False)] * saturday
+        rows += [(high, high, high, True)]
+    ordinals, lows, highs, pinned = shared_listed(rows)
+    return shared_case(
+        "Step 8.5 leaves a unit it empties: three gaps of two weeks, the count two long; the "
+        "first holds a Monday twice and a lone Saturday, the second a Wednesday and a Saturday "
+        "twice each, the third a Monday twice and a lone Saturday. The first gap's Saturday "
+        "pairs with the second gap; then the first gap holds no weekend day, the third gap's "
+        "Saturday has nowhere to pair, and the count stays one long.",
+        "long_pairs", ordinals, lows, highs, pinned, [6, 9], SHARED_WEEKEND,
+        wanted=len(set(ordinals)) - 2,
+    )
+
+
+def shared_trade_order_case():
+    m = SHARED_MONDAY
+    ordinals, lows, highs, pinned = shared_listed(
+        [(m - 1, m - 1, m - 1, True), (m, m - 1, m + 6, False), (m + 6, m + 6, m + 6, True),
+         (m + 8, m + 8, m + 8, True), (m + 10, m + 8, m + 12, False), (m + 12, m + 12, m + 12, True),
+         (m + 15, m + 15, m + 15, True), (m + 17, m + 15, m + 19, False), (m + 19, m + 19, m + 19, True)]
+    )
+    return shared_case(
+        "Step 8.6 asks its ranks in order, the census [Friday] [every other day] and the second "
+        "the half of the month: Monday the 4th, Thursday the 14th and Thursday the 21st each "
+        "reach a free Friday of their own half, four, one and one days away, and two must go. "
+        "The first trade is the Monday's, its asking ended there; the second the 14th's.",
+        "traded", ordinals, lows, highs, pinned, [7, 2], [0, 0, 0, 0, 1, 0, 0], pair="day_of_month",
+        pair_where=[0] * 15 + [1] * 16, reachable=False, want=[1, 2],
+    )
+
+
+def shared_trade_hours_case():
+    day = SHARED_MONDAY + 1
+    first, last = shared_moment(day - 1, 20), shared_moment(day, 20)
+    ordinals, lows, highs, pinned = shared_listed(
+        [(first, first, first, True), (shared_moment(day, 1), first, last, False),
+         (shared_moment(day, 10), first, last, False), (last, last, last, True)]
+    )
+    return shared_case(
+        "Step 8.6 on a unit of an hour, the day kept: a rank at 01:00, its census group [00-07] "
+        "one over and [16-23] one under, its gap from 20:00 the evening before; [08-15] holds its "
+        "total. 23:00 the evening before is another day, and 08:00 a group at its total: the "
+        "rank goes to 16:00.",
+        "traded", ordinals, lows, highs, pinned, [1, 1, 2], [hour // 8 for hour in range(24)],
+        unit=SHARED_HOUR, written_unit=60, day=SHARED_DAY, bin="hour", period=24, keep="day",
+        pair="day_of_month", pair_where=[0] * 15 + [1] * 16, reachable=False, want=[0, 1, 1],
+    )
+
+
+def shared_trade_reach_case():
+    low, day, high = days_from_civil(2024, 5, 29), days_from_civil(2024, 5, 30), days_from_civil(2024, 8, 1)
+    ordinals, lows, highs, pinned = shared_listed(
+        [(low, low, low, True), (day, low, high, False), (high, high, high, True)]
+    )
+    return shared_case(
+        "Step 8.6's reach of 62 units: 30 May 2024 must go to a 31st, 31 May is a hole, and 31 "
+        "July stands 62 days on.",
+        "traded", ordinals, lows, highs, pinned, [3, 0], [0] * 30 + [1], bin="day_of_month",
+        period=0, holes=[days_from_civil(2024, 5, 31)], pair="day_of_month",
+        pair_where=[0] * 15 + [1] * 16, reachable=False, want=[0, 1],
+    )
+
+
+def shared_trade_back_case():
+    low, partner = days_from_civil(2024, 1, 29), days_from_civil(2024, 3, 1)
+    mover = days_from_civil(2024, 3, 16)
+    holes = [
+        day for day in range(days_from_civil(2024, 1, 31), partner)
+        if civil_from_days(day)[2] > 15 and (day + 3) % 7 < 5
+    ]
+    ordinals, lows, highs, pinned = shared_listed(
+        [(low, low, low, True), (partner, low, partner, False),
+         (days_from_civil(2024, 3, 14), days_from_civil(2024, 3, 14), days_from_civil(2024, 3, 14), True),
+         (mover, mover - 1, mover, False), (mover + 1, mover + 1, mover + 1, True)]
+    )
+    return shared_case(
+        "Step 8.6's second move reaches 31 units: Saturday 16 March must go to the weekdays and "
+        "reaches only Friday the 15th, in the first half of the month, so a weekday rank of the "
+        "first half crosses back: Friday 1 March, every weekday of the second half within 30 days "
+        "below it a hole, goes to Tuesday 30 January, 31 days below.",
+        "traded", ordinals, lows, highs, pinned, [3, 2], SHARED_WEEKEND, holes=holes,
+        pair="day_of_month", pair_where=[0] * 15 + [1] * 16, reachable=False, want=[2, 0],
+    )
+
+
+def shared_prior_case():
+    day = SHARED_MONDAY + 1
+    low, high = shared_moment(day, 6), shared_moment(day + 3, 18)
+    ordinals, lows, highs, pinned = shared_listed(
+        [(low, low, low, True), (shared_moment(day + 1, 9), low, high, False), (high, high, high, True)]
+    )
+    return shared_case(
+        "Step 3's prior on a unit of an hour: a gap from Tuesday 06:00 to Friday 18:00, Tuesday "
+        "and Thursday holes, the census [00-11] [12-23]. Every hour of a hole's day is a hole, "
+        "the gap's first hour at half, so Wednesday's hours and Friday's to 18:00 alone count.",
+        "prior", ordinals, lows, highs, pinned, [1, 2], [0] * 12 + [1] * 12, holes=[day, day + 2],
+        unit=SHARED_HOUR, written_unit=60, day=SHARED_DAY, bin="hour", period=24, keep="day",
+    )
+
+
+def shared_settled_chain_case():
+    day = SHARED_MONDAY + 1
+    low, high = shared_moment(day, 12), shared_moment(day + 1, 12)
+    ordinals, lows, highs, pinned = shared_listed(
+        [(low, low, low, True), (shared_moment(day, 13), low, high, False),
+         (shared_moment(day + 1, 8), low, high, False), (high, high, high, True)]
+    )
+    return shared_case(
+        "Step 7b through the whole pass, a unit of an hour with the day kept: a gap from Tuesday "
+        "12:00 to Wednesday 12:00, the census [00-11] [12-17] [18-23] owing one rank fewer in "
+        "the first group and one more in the last. Wednesday's 08:00 reaches no hour of the last "
+        "group on its own day, so it goes to Wednesday's 12:00 and Tuesday's 13:00 to 18:00.",
+        "settled", ordinals, lows, highs, pinned, [0, 3, 1], [0] * 12 + [1] * 6 + [2] * 6,
+        unit=SHARED_HOUR, written_unit=60, day=SHARED_DAY, bin="hour", period=24, keep="day",
+    )
+
+
+def shared_settled_merge_case():
+    m = SHARED_MONDAY
+    low, high = shared_moment(m - 1, 0), shared_moment(m + 6, 0)
+    rows = [(low, low, low, True)] + [(shared_moment(m, 9), low, high, False)] * 2
+    rows += [(shared_moment(m + 1, 14), low, high, False)] * 2 + [(high, high, high, True)]
+    ordinals, lows, highs, pinned = shared_listed(rows)
+    return shared_case(
+        "Step 8.4 through the whole pass, a day of moments: Monday 09:00:00 and Tuesday 14:00:00 "
+        "held twice each, and the census moving one to the weekend. The Monday rank goes to the "
+        "Sunday before at 09:00:00, the count one long; no other moment stands at 09:00:00 on "
+        "either group's days, so the Monday moment left alone joins Tuesday's 14:00:00.",
+        "settled", ordinals, lows, highs, pinned, [3, 3], SHARED_WEEKEND,
+        unit=SHARED_DAY, written_unit=1, day=SHARED_DAY,
+    )
+
+
+def shared_settled_pair_case():
+    m = SHARED_MONDAY
+    first, second = (m + 4, m + 5), (m + 12, m + 14)
+    rows = [(m + 4, *first, False)] * 2 + [(m + 5, *first, False)]
+    rows += [(m + 12, *second, False)] * 2 + [(m + 14, *second, False)] * 2
+    ordinals, lows, highs, pinned = shared_listed(rows)
+    return shared_case(
+        "Step 8.5 through the whole pass, the census held and the count one long: a gap of a "
+        "Friday held twice and a lone Saturday, and one of a Saturday and a Monday held twice "
+        "each. No held day of its own group stands in either gap, so the lone Saturday joins "
+        "the Friday and a Monday rank the other gap's Saturday.",
+        "settled", ordinals, lows, highs, pinned, [4, 3], SHARED_WEEKEND,
+        wanted=len(set(ordinals)) - 1,
+    )
+
+
+def shared_settled_trade_case():
+    day = days_from_civil(2024, 3, 1) - 1
+    rows = [(day + 4, day + 4, day + 4, True)] + [(day + 5, day + 4, day + 8, False)] * 2
+    rows += [(day + 8, day + 8, day + 8, True), (day + 13, day + 13, day + 13, True)]
+    rows += [(day + 14, day + 13, day + 20, False), (day + 15, day + 15, day + 15, True)]
+    rows += [(day + 16, day + 15, day + 17, False), (day + 17, day + 17, day + 17, True)]
+    rows += [(day + 20, day + 20, day + 20, True)]
+    ordinals, lows, highs, pinned = shared_listed(rows)
+    return shared_case(
+        "Step 8.6 through the whole pass, the second census the half of the month: Saturday "
+        "the 16th must go to the weekdays and reaches only Friday the 15th, held, in the other "
+        "half, so Thursday the 14th crosses to Monday the 18th, and the count falls by one; "
+        "steps 8.1 to 8.5 then run again, and one of the two ranks on Tuesday the 5th goes to "
+        "Wednesday the 6th.",
+        "settled", ordinals, lows, highs, pinned, [9, 1], SHARED_WEEKEND, pair="day_of_month",
+        pair_where=[0] * 15 + [1] * 16,
+    )
+
+
+def shared_cycle_undone_case():
+    m = SHARED_MONDAY
+    first = (shared_moment(m + 4, 20), shared_moment(m + 7, 6))
+    second = (shared_moment(m + 14, 0), shared_moment(m + 20, 23, 59, 59))
+    rows = [(shared_moment(m + 3, 0), shared_moment(m + 3, 0), shared_moment(m + 3, 0), True)]
+    rows += [(shared_moment(m + 5, 10), *first, False)] * 2 + [(shared_moment(m + 6, 10), *first, False)]
+    rows += [(shared_moment(m + 16, 12), *second, False)]
+    rows += [(shared_moment(m + 21, 0), shared_moment(m + 21, 0), shared_moment(m + 21, 0), True)]
+    ordinals, lows, highs, pinned = shared_listed(rows)
+    return shared_case(
+        "Step 8.3's cycle undone, a day of moments, the count one short: a gap from Friday "
+        "20:00:00 to Monday 06:00:00 holds Saturday 10:00:00 twice and Sunday 10:00:00, and a "
+        "gap of the week after next a lone Wednesday 12:00:00. The cycle weekday to weekend and "
+        "back moves the Wednesday moment to the Saturday after it, then finds no weekday place "
+        "for a 10:00:00 between Friday 20:00:00 and Monday 06:00:00: the Wednesday moment goes "
+        "back, and every group keeps its count.",
+        "settled", ordinals, lows, highs, pinned, [3, 3], SHARED_WEEKEND,
+        unit=SHARED_DAY, written_unit=1, day=SHARED_DAY, wanted=len(set(ordinals)) + 1,
+    )
+
+
+def shared_unit_freed_case():
+    m = SHARED_MONDAY
+    pins = (shared_moment(m, 4, 25, 4), shared_moment(m + 5, 0), shared_moment(m + 16, 7, 8, 34))
+    first, second = (pins[0], pins[1]), (pins[1], pins[2])
+    rows = [(pins[0], pins[0], pins[0], True), (shared_moment(m + 1, 8, 34, 25), *first, False)]
+    rows += [(shared_moment(m + 3, 7, 8, 34), *first, False)] * 2 + [(pins[1], pins[1], pins[1], True)]
+    rows += [(shared_moment(m + 15, 4, 25, 4), *second, False), (pins[2], pins[2], pins[2], True)]
+    ordinals, lows, highs, pinned = shared_listed(rows)
+    return shared_case(
+        "A day step 6 empties is free to step 8.3, a day of moments, each weekday its own group, "
+        "the count two short: a gap from Monday to Saturday holds Tuesday 08:34:25 and Thursday "
+        "07:08:34 twice, and the gap after it the Tuesday after next; the census asks a Friday, "
+        "and step 6 moves the first Tuesday's moment there. The cycle Tuesday to Thursday and "
+        "back then puts the second gap's Tuesday on a Thursday and a Thursday moment on the "
+        "emptied Tuesday, at 07:08:34.",
+        "settled", ordinals, lows, highs, pinned, [1, 1, 1, 2, 1, 1, 0], list(range(7)),
+        unit=SHARED_DAY, written_unit=1, day=SHARED_DAY, wanted=len(set(ordinals)) + 2,
+    )
+
+
+def shared_runs_merged_case():
+    m = SHARED_MONDAY
+    gap = (m - 1, m + 20)
+    rows = [(m - 1, m - 1, m - 1, True)]
+    for week in range(3):
+        rows += [(m + 7 * week, *gap, False)] * 2
+    rows += [(m + 20, m + 20, m + 20, True)]
+    ordinals, lows, highs, pinned = shared_listed(rows)
+    return shared_case(
+        "Step 8.2 stops once the count is back: three Mondays held twice each, the count one "
+        "long. The first Monday's two join the second's, and the third's stay where they are.",
+        "repaired", ordinals, lows, highs, pinned, [6, 0, 0, 0, 0, 1, 1], list(range(7)),
+        wanted=len(set(ordinals)) - 1,
+    )
+
+
+# ...and the second review's (review of landing 3b.D0, its second round,
+# item 1): one state for each line the repair added whose mutant changed an
+# answer while every case above still held.
+
+
+def shared_runs_one_round_case():
+    m = SHARED_MONDAY
+    gap = (m - 1, m + 20)
+    rows = [(m - 1, m - 1, m - 1, True)] + [(m, *gap, False)] * 2 + [(m + 7, *gap, False)] * 2
+    rows += [(m + 14, *gap, False)] * 5 + [(m + 20, m + 20, m + 20, True)]
+    ordinals, lows, highs, pinned = shared_listed(rows)
+    return shared_case(
+        "Step 8.2 keeps its count a run at a time, one round asking the runs as they stood: "
+        "three Mondays held twice, twice and five times, the count two long. The first Monday's "
+        "two join the second's; the second, holding four now, is not asked again in that round, "
+        "and the third's five join it too, the nearest Monday held.",
+        "repaired", ordinals, lows, highs, pinned, [9, 0, 0, 0, 0, 0, 2], list(range(7)),
+        wanted=len(set(ordinals)) - 2,
+    )
+
+
+def shared_pair_by_two_case():
+    day = SHARED_MONDAY + 1
+    first, last = shared_moment(day, 0), shared_moment(day + 1, 23)
+    later = shared_moment(day + 3, 23)
+    rows = [(first, first, first, True), (shared_moment(day, 9), first, last, False)]
+    rows += [(shared_moment(day, 14), first, last, False)] * 2
+    rows += [(shared_moment(day + 1, 8), first, last, False)]
+    rows += [(shared_moment(day + 1, 15), first, last, False)] * 2 + [(last, last, last, True)]
+    rows += [(shared_moment(day + 3, 7), last, later, False), (shared_moment(day + 3, 16), last, later, False)]
+    rows += [(later, later, later, True)]
+    ordinals, lows, highs, pinned = shared_listed(rows)
+    return shared_case(
+        "Step 8.5 on a unit of an hour, minutes written, the day kept, the count two long: a gap "
+        "from Tuesday 00:00 to Wednesday 23:00 holds 09:00 alone and 14:00 twice on the Tuesday "
+        "and 08:00 alone and 15:00 twice on the Wednesday -- two cells with one first place -- "
+        "and the gap after it 07:00 and 16:00 alone on the Friday. The Tuesday's 09:00 with a "
+        "Wednesday 15:00 rank would take the count down by one, its two gaps no distance apart; "
+        "with the Friday's lone 16:00 by two, and that pair is taken.",
+        "long_pairs", ordinals, lows, highs, pinned, [4, 7], [0] * 12 + [1] * 12,
+        unit=SHARED_HOUR, written_unit=60, day=SHARED_DAY, bin="hour", period=24, keep="day",
+        wanted=len({o // 60 for o in ordinals}) - 2,
+    )
+
+
+def shared_pair_joined_case():
+    m = SHARED_MONDAY
+    first, second = (m - 1, m + 13), (m + 13, m + 27)
+    rows = [(m - 1, m - 1, m - 1, True), (m, *first, False)]
+    rows += [(m + 5, *first, False)] * 2 + [(m + 8, *first, False)] * 2
+    rows += [(m + 13, m + 13, m + 13, True)]
+    rows += [(m + 15, *second, False)] * 2 + [(m + 17, *second, False)] + [(m + 19, *second, False)] * 2
+    rows += [(m + 27, m + 27, m + 27, True)]
+    ordinals, lows, highs, pinned = shared_listed(rows)
+    return shared_case(
+        "Step 8.5 twice, the count two long, two gaps of two weeks: the first holds a lone "
+        "Monday, a Saturday and a Tuesday held twice each, the second a Tuesday held twice, a "
+        "lone Thursday and a Saturday held twice. The Monday rank joins its gap's Saturday and "
+        "a second-gap Saturday rank joins its Tuesday; then the Thursday joins the Saturday left "
+        "alone, and the first rank on the first gap's Saturday, the Monday rank that joined it, "
+        "goes on to its Tuesday.",
+        "long_pairs", ordinals, lows, highs, pinned, [6, 7], SHARED_WEEKEND,
+        wanted=len(set(ordinals)) - 2,
+    )
+
+
+def shared_pair_beside_a_pin_case():
+    m = SHARED_MONDAY
+    first, second = (m - 1, m + 13), (m + 13, m + 27)
+    rows = [(m - 1, m - 1, m - 1, True), (m - 1, *first, False)]
+    rows += [(m, *first, False)] * 2 + [(m + 5, *first, False), (m + 13, m + 13, m + 13, True)]
+    rows += [(m + 15, *second, False)] * 2 + [(m + 19, *second, False)] * 2
+    rows += [(m + 27, m + 27, m + 27, True)]
+    ordinals, lows, highs, pinned = shared_listed(rows)
+    return shared_case(
+        "Step 8.5 counts every rank of the column on a unit, the count one long: the first gap's "
+        "Sunday is held by a rank of the gap and by the pinned rank the gap starts at, beside a "
+        "Monday held twice and a lone Saturday; the second gap holds a Tuesday and a Saturday "
+        "twice each. The Sunday is not alone, so the lone Saturday joins the Monday and a Tuesday "
+        "rank the second gap's Saturday.",
+        "long_pairs", ordinals, lows, highs, pinned, [4, 7], SHARED_WEEKEND,
+        wanted=len(set(ordinals)) - 1,
+    )
+
+
+def shared_pair_first_places_case():
+    m = SHARED_MONDAY
+    before, middle, after = (m - 1, m + 13), (m + 13, m + 20), (m + 20, m + 34)
+    rows = [(m - 1, m - 1, m - 1, True)] + [(m, *before, False)] * 2 + [(m + 5, *before, False)] * 2
+    rows += [(m + 13, m + 13, m + 13, True)]
+    rows += [(m + 15, *middle, False)] * 2 + [(m + 19, *middle, False), (m + 20, m + 20, m + 20, True)]
+    rows += [(m + 21, *after, False)] * 2 + [(m + 26, *after, False)] * 2
+    rows += [(m + 34, m + 34, m + 34, True)]
+    ordinals, lows, highs, pinned = shared_listed(rows)
+    return shared_case(
+        "Step 8.5 measures two gaps apart from their first places, the count one long: a gap of "
+        "one week, Sunday to Sunday, holds a Tuesday twice and a lone Saturday, between gaps of "
+        "two weeks that each hold a Monday and a Saturday twice. The gap after it starts a week "
+        "from its first place and the gap before it two weeks, though the one before ends a week "
+        "from its last place and the one after two weeks: the Saturday joins the Tuesday and a "
+        "Monday rank of the gap after takes its Saturday.",
+        "long_pairs", ordinals, lows, highs, pinned, [6, 9], SHARED_WEEKEND,
+        wanted=len(set(ordinals)) - 1,
+    )
+
+
+def shared_cycle_undone_twice_case():
+    m = SHARED_MONDAY
+    first = (shared_moment(m, 0), shared_moment(m + 8, 6))
+    second = (shared_moment(m + 13, 20), shared_moment(m + 14, 6))
+    rows = [(shared_moment(m - 1, 12), shared_moment(m - 1, 12), shared_moment(m - 1, 12), True)]
+    rows += [(shared_moment(m, 10), *first, False)] + [(shared_moment(m + 1, 10), *first, False)] * 2
+    rows += [(shared_moment(m + 13, 22), *second, False)] * 2
+    rows += [(shared_moment(m + 15, 12), shared_moment(m + 15, 12), shared_moment(m + 15, 12), True)]
+    ordinals, lows, highs, pinned = shared_listed(rows)
+    return shared_case(
+        "Step 8.3's cycle undone last move first, a day of moments, the census [Mon] [Tue] "
+        "[Wed-Sun], the count two short: a gap from Monday 00:00:00 to the Tuesday after next "
+        "06:00:00 holds Monday 10:00:00 alone and Tuesday 10:00:00 twice, and a gap from Sunday "
+        "20:00:00 to Monday 06:00:00 Sunday 22:00:00 twice. The cycle Monday to Tuesday to the "
+        "rest and back moves the Monday moment onto the Tuesday's 10:00:00, the one Tuesday place "
+        "at its clock inside its gap, then on to Wednesday as the first rank there, and finds no "
+        "Monday place for a 22:00:00 before Monday 06:00:00: the Monday moment goes back to the "
+        "Tuesday and then to the Monday, and nothing has moved.",
+        "exchanged", ordinals, lows, highs, pinned, [1, 3, 3], [0, 1, 2, 2, 2, 2, 2],
+        unit=SHARED_DAY, written_unit=1, day=SHARED_DAY, wanted=len(set(ordinals)) + 2,
+    )
+
+
+SHARED_STEP_CASES = {
+    "an_hour_inside_its_day": shared_hour_case,
+    "a_moments_day": shared_moment_case,
+    "the_index": shared_index_case,
+    "a_chain": shared_chain_case,
+    "merged_at_its_clock": lambda: shared_merge_case(True),
+    "merged_at_another_clock": lambda: shared_merge_case(False),
+    "a_long_pair": shared_pair_case,
+    "a_trade": shared_trade_case,
+    "every_cycle_of_seven": lambda: shared_cycle_case(7),
+    "three_group_cycles_of_ten": lambda: shared_cycle_case(10),
+    "the_index_tie": shared_index_tie_case,
+    "the_index_reach": shared_index_reach_case,
+    "a_moments_run": shared_moment_run_case,
+    "an_hour_run": shared_hour_run_case,
+    "a_chain_in_order": shared_chain_order_case,
+    "merged_ties": shared_merge_ties_case,
+    "merged_inside_the_shared_gap": shared_merge_window_case,
+    "merged_only_alone": shared_merge_alone_case,
+    "merged_in_a_second_round": shared_merge_rounds_case,
+    "a_long_pair_one_long": shared_pair_one_long_case,
+    "long_pairs_twice": shared_pairs_twice_case,
+    "long_pairs_leave_an_emptied_unit": shared_pair_emptied_case,
+    "trades_in_rank_order": shared_trade_order_case,
+    "a_trade_of_hours": shared_trade_hours_case,
+    "a_trade_reaching_62": shared_trade_reach_case,
+    "a_trade_back_31": shared_trade_back_case,
+    "the_prior_of_hours": shared_prior_case,
+    "a_chain_in_the_pass": shared_settled_chain_case,
+    "merged_in_the_pass": shared_settled_merge_case,
+    "a_long_pair_in_the_pass": shared_settled_pair_case,
+    "a_trade_in_the_pass": shared_settled_trade_case,
+    "a_cycle_undone": shared_cycle_undone_case,
+    "a_day_freed_for_a_cycle": shared_unit_freed_case,
+    "runs_merged_until_the_count_is_back": shared_runs_merged_case,
+    "runs_merged_in_one_round": shared_runs_one_round_case,
+    "a_long_pair_by_two_first": shared_pair_by_two_case,
+    "long_pairs_move_a_joined_rank_again": shared_pair_joined_case,
+    "long_pairs_count_the_pinned_rank": shared_pair_beside_a_pin_case,
+    "a_long_pair_by_first_places": shared_pair_first_places_case,
+    "a_cycle_undone_last_move_first": shared_cycle_undone_twice_case,
+}
+
+
+def shared_walk(case):
+    day = case["day"]
+    seams = {
+        "unit": case["unit"], "step": case["written_unit"], "day": day,
+        "bin_of": lambda ordinal: shared_bin(case["bin"], ordinal, day),
+        "keeps_always": not case["reachable"],
+    }
+    if case["keep"] == "day":
+        seams["keep_of"] = lambda ordinal: ordinal // day
+    if case["pair"]:
+        seams["pair_of"] = lambda ordinal: case["pair_where"][shared_bin(case["pair"], ordinal, day)]
+    return WeekdayWalk(
+        case["counts"], case["where"], list(case["ordinals"]), list(case["lows"]),
+        list(case["highs"]), set(case["holes"]), seams,
+    )
+
+
+def shared_answer(case):
+    """What G7.3f's text makes of one case: every rank's ordinal after the
+    step, or the cycle step 8.3 takes as [giving, taking] pairs."""
+    walk = shared_walk(case)
+    movable = [rank for rank in range(case["body"][0], case["body"][1] + 1) if not case["pinned"][rank]]
+    step = case["step"]
+    if step == "settled":
+        return bins_settled(walk, case["body"][0], case["body"][1], list(case["pinned"]), case["wanted"], case["reachable"])
+    if step == "chain":
+        weekday_chain(walk, movable, case["want"])
+    elif step == "units_merged":
+        weekday_units_merged(walk, movable, case["wanted"])
+    elif step == "long_pairs":
+        weekday_long_pairs(walk, movable, case["wanted"])
+    elif step == "traded":
+        weekday_traded(walk, movable, case["want"])
+    elif step == "cycle":
+        cycle = weekday_best_cycle(walk, movable, case["short"]) or []
+        return [[giving, taking] for _cell, giving, taking in cycle]
+    elif step == "singles":
+        # Steps 5 and 6 on one gap, its share of every group stated.
+        have = weekday_holdings(walk, movable, len(case["counts"]))
+        weekday_runs(walk, movable, have, list(case["want"]))
+        weekday_singles(walk, movable, have, list(case["want"]), 16, False)
+    elif step == "repaired":
+        # Steps 8.1 and 8.2, inside each group.
+        weekday_repair_singles(walk, movable, case["wanted"])
+        weekday_merged_runs(walk, movable, case["wanted"])
+    elif step == "exchanged":
+        # Step 8.3, its cycles across groups.
+        weekday_exchanged(walk, movable, case["wanted"])
+    elif step == "prior":
+        # Step 3's prior, the calendar's part, for each gap in turn.
+        gaps = sorted({(walk.lows[rank], walk.highs[rank]) for rank in movable})
+        return [weekday_calendar_row(walk, low, high, len(case["counts"])) for low, high in gaps]
+    return walk.days
+
+
+def shared_step_document():
+    """The fifteenth file: each shared-step case and its answer."""
+    cases = {}
+    for name in sorted(SHARED_STEP_CASES):
+        case = SHARED_STEP_CASES[name]()
+        case["answer"] = shared_answer(case)
+        cases[name] = case
+    return {
+        "what": "The states of ranks method section G7.3f's shared steps (landing 3b.D0, plan "
+        "P4-D366) are frozen on, each with the step's answer computed from the method's text: "
+        "every rank's ordinal after it, or the cycle step 8.3 takes. A case names its seams: the "
+        "unit, the written unit and the day in ordinals, the bin, what a move keeps and a second "
+        "census's group, each rule by the name the product's own seams give it.",
+        "generated_by": "tools/reference/make_generation_reference_vectors.py",
+        "method": "docs/spec/generation-method-v1.md",
+        "never_imports": ["synthtwin", "numpy", "pandas"],
+        "cases": cases,
+    }
 
 
 def sort_unpinned_runs(ordinals, pinned):
@@ -21050,6 +22260,10 @@ THIRTEENTH_BRANCH_PART = "branches-13"
 FOURTEENTH_BRANCH_PART = "branches-14"
 # The written clocks of landing T1 (plan P4-D370), the twenty-second file.
 TWENTY_SECOND_BRANCH_PART = "branches-22"
+# G7.3f's shared steps (landing 3b.D0, plan P4-D366), the fifteenth file:
+# not a file of columns but of the pass itself, each case a state of
+# ranks and the steps' answer (`shared_step_document`).
+FIFTEENTH_BRANCH_PART = "branches-15"
 
 
 # -- landing T1's written clocks and G7.5 step 5 (plan P4-D370) ---------
@@ -35712,6 +36926,14 @@ def main(argv=None, part=None):
     args = parser.parse_args(argv)
 
     _self_check_arithmetic()
+    if part == FIFTEENTH_BRANCH_PART:
+        # Whole numbers only, read by the pass and written by it: there is
+        # no binary64 here for the proof layer to certify.
+        text = json.dumps(shared_step_document(), indent=2, sort_keys=True, allow_nan=False)
+        with open(args.out, "w", encoding="utf-8", newline="\n") as handle:
+            handle.write(text + "\n")
+        print(f"wrote {args.out}", file=sys.stderr)
+        return 0
     document, claims = build_document(part)
     fields = whole_number_fields(document)
     proved = prove_every_published_float(
