@@ -25,7 +25,9 @@ generator and checker:
   measured the prototype's layouts costing 7 to 10 per cent more a cell
   each time the rows tripled while ISO stayed flat, so the larger node
   is what a million rows is projected from. Both times are taken in
-  this process, side by side, so the ratio is judged on any machine.
+  this process, side by side -- the faster of two runs of each, taken
+  in turn, so a moment of load on the machine falls on one run rather
+  than on the ratio -- and the ratio is judged on any machine.
 
 Before R2a (9cb2eb5, base 2, these thirty-nine spellings at 1,000 rows
 and seed 0 through the base tree's own CLI): none read -- thirty-six
@@ -70,6 +72,7 @@ SCALE_PAIRS = (
     ("dutch_unpadded", "%Y-%m-%d"),
 )
 SCALE_SEED = 7
+SCALE_ROUNDS = 2
 
 
 def _quiet(argv: "list[str]") -> int:
@@ -168,11 +171,19 @@ def scale(notes: "list[str]") -> "dict[str, float]":
         worst = 0.0
         for name, iso in SCALE_PAIRS:
             writer = spellings.SPELLINGS[name][0]
-            layout_seconds, read = _describe_seconds([writer(moment) for moment in moments])
-            iso_seconds, iso_read = _describe_seconds([moment.strftime(iso) for moment in moments])
+            layout_cells = [writer(moment) for moment in moments]
+            iso_cells = [moment.strftime(iso) for moment in moments]
+            layout_seconds = iso_seconds = float("inf")
+            read = iso_read = ""
+            for _round in range(SCALE_ROUNDS):
+                spent, read = _describe_seconds(layout_cells)
+                layout_seconds = min(layout_seconds, spent)
+                spent, iso_read = _describe_seconds(iso_cells)
+                iso_seconds = min(iso_seconds, spent)
             if not parsing.is_layout_format(read) or not iso_read.startswith("iso-"):
                 notes += [f"{name} at {rows}: read as {read}, its ISO twin as {iso_read}"]
             worst = max(worst, layout_seconds / max(iso_seconds, 1e-9))
+            del layout_cells, iso_cells
         del moments
         ratios[key] = round(worst, 2)
     return ratios
