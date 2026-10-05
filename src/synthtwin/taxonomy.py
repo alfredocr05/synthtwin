@@ -15763,11 +15763,12 @@ def _matching_date_format(
 # skeptic, m1). A column's different texts are each read once under the
 # chosen layout and the reading kept for every later cell of that text, so
 # a column of a million dates over a few thousand days is read a few
-# thousand times. A reading costs about 350 bytes kept, measured, so the
-# memo holds at most this many texts -- about 23 MB -- and a column with
-# more different texts than that reads the rest cell by cell, at the
-# reader's own cost, rather than holding a third of a gigabyte. It is one
-# dict made for one column and dropped with it.
+# thousand times. The design priced a kept reading at about 350 bytes; the
+# memo keeps three facts of it, not the reading, under the cell's own text,
+# and measured with tracemalloc it costs 85 to 92 bytes a text -- 5.99 MB
+# at this bound, and the same 5.99 MB for 99,986 different texts, past
+# which a column reads the rest cell by cell, at the reader's own cost. It
+# is one dict made for one column and dropped with it.
 LAYOUT_MEMO_TEXTS = 65536
 
 # What the layout member's helpers say when handed something that is not

@@ -483,13 +483,41 @@ def test_layouts_say_their_guesses(tmp_path: pathlib.Path) -> None:
 
 
 def test_the_memo_is_bounded(monkeypatch: pytest.MonkeyPatch) -> None:
-    """m1: the per-column memo keeps at most its bound, and the reading is the same past it."""
+    """m1: each different text is read once, the memos keep at most their bound, and say the same past it.
+
+    Counted by the readings taken: with no bound in reach a layout column's
+    census reads each of its different texts once; held to three texts,
+    it reads those three once and every other cell each time it stands,
+    which is a memo of three; and the reading and the census are the same
+    either way. Mutant, run: the census reads every cell (no memo), and
+    the first count is the cells, not the texts.
+    """
     cells = spellings.cells("sas_datetime20", 400)
+    cells = cells + cells
     whole = taxonomy._matching_layout(cells, taxonomy.Settings(), False)
+    assert whole is not None
+    texts: "list[str]" = []
+    for cell in whole[2]:
+        if cell not in texts:
+            texts += [cell]
+    calls: "list[str]" = []
+    shipped = parsing.layout_reading
+
+    def counted(text: str, items: "tuple[tuple[str, str], ...]") -> object:
+        nonlocal calls
+        calls += [text]
+        return shipped(text, items)
+
+    monkeypatch.setattr(parsing, "layout_reading", counted)
+    census = taxonomy._layout_census(whole[0], whole[2])
+    assert len(calls) == len(texts) < len(whole[2])
+    calls = []
     monkeypatch.setattr(taxonomy, "LAYOUT_MEMO_TEXTS", 3)
+    assert taxonomy._layout_census(whole[0], whole[2]) == census
+    others = sum(1 for cell in whole[2] if cell not in texts[0:3])
+    assert len(calls) == 3 + others
     bounded = taxonomy._matching_layout(cells, taxonomy.Settings(), False)
-    assert whole is not None and bounded is not None
-    assert whole[0:4] == bounded[0:4]
+    assert bounded is not None and whole[0:4] == bounded[0:4]
 
 
 def test_ly1_admits_only_layouts_the_grammar_makes() -> None:
