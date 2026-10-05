@@ -62,7 +62,10 @@ The cases and their clauses:
   8.5's stop at the most the count allows, the rank its tables list on
   the unit it joins, its count of a unit's holders across the column and
   its distance from the gaps' first places, and step 8.3's cycle undone
-  last move first -- each red on that review's mutant (N01 to N14);
+  last move first -- each red on that review's mutant (N01, N04, N06,
+  N10, N13 and N14; the review's other mutants of the repair's lines
+  were already red on this file's other tests, all but N07, which is
+  the same pass);
 * `test_the_body_is_full_only_where_every_unit_the_census_counts_holds_a_rank`
   -- the test the short cause asks (the review's M65);
 * `test_a_schedule_at_floor_36_reaches_step_8_5`,
@@ -758,8 +761,8 @@ def test_a_cycle_is_undone_last_move_first(monkeypatch: pytest.MonkeyPatch) -> N
 
 
 # THE REVIEW'S MUTANTS (review of landing 3b.D0, items 3 to 5, by the reviewer's ids; M70 on are
-# the repair's own lines, and N01 to N14 the second review's, item 1, on the repair's own lines
-# too), each a source edit of the product, each red on the case beside it.
+# the repair's own lines, and N01, N04, N06, N10, N13 and N14 the second review's, item 1, on the
+# repair's own lines too), each a source edit of the product, each red on the case beside it.
 REVIEW_MUTANTS: "dict[str, tuple[str, str, str]]" = {
     "M09_unit_free_ignores_count": (
         "a_day_freed_for_a_cycle",
@@ -995,12 +998,14 @@ REVIEW_MUTANTS: "dict[str, tuple[str, str, str]]" = {
 @pytest.mark.parametrize("name", sorted(REVIEW_MUTANTS))
 def test_each_clause_is_red_on_its_mutant(name: str, monkeypatch: pytest.MonkeyPatch) -> None:
     """Every clause a reviewer's mutant changed while every case before the review still passed
-    (review of landing 3b.D0, items 3 to 5), and every line the repair added whose edit changes an
-    answer (the second review, item 1): under its source edit the case beside it answers
-    otherwise, or its tables raise (M73). Two mutants of the repair's lines are not here, as
-    neither changes an answer: the second review's N07, a unit's status kept in its first cell
-    alone, is the same pass, a unit two cells hold having two holders, and M71, step 8.5's early
-    stop withdrawn, changes only its speed."""
+    (review of landing 3b.D0, items 3 to 5), every line the repair added that its own mutants
+    (M70 on) needed a case for, and every line of the repair a mutant of the second review
+    changed while all those cases still held (its item 1: N01, N04, N06, N10, N13 and N14): under
+    its source edit the case beside it answers otherwise, or its tables raise (M73). Every other
+    mutant of the repair's lines, its own or the second review's, is red on this file's other
+    tests, but two that change no answer: the second review's N07, a unit's status kept in its
+    first cell alone, is the same pass, a unit two cells hold having two holders, and M71, step
+    8.5's early stop withdrawn, changes only its speed."""
     case_name, before, after = REVIEW_MUTANTS[name]
     case = _case(case_name)
     mutant = _mutant(monkeypatch, before, after)
