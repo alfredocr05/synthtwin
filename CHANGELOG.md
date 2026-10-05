@@ -84,6 +84,11 @@ three values and the census, and the fifteenth vectors file holds it
 among 47 states. A date's day is one written value, so no date moves:
 every twin of the date batteries is the one before.
 
+**Where every move keeps the day, a search asks that day alone** (its
+Codex review, item 2). Step 8.3 built every hour of a gap for each of
+its days, 24 entries a day squared: 393,216 over 128 days. It builds 24
+a day now, and the other searches of the pass ask the same day only.
+
 ### Stage 4's first tier repaired at its review (2026-10-02)
 
 **A twin of a description the producer writes today moves no byte**

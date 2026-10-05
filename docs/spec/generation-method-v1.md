@@ -6388,8 +6388,12 @@ another unit by unit they repeat every PERIOD units (seven here). An
 ordinal's KIND is three things: whether its day counts into the width
 word, as above; what every move KEEPS besides -- nothing here, the day
 `o div 86,400` for a census of hours, so an hour moves inside its own
-day; and a second census's group, nought where there is none, which only
-step 8.6 changes. Bin, kind and hole are read alike on every ordinal of
+day, and where the day is kept the searches of steps 2 to 8.3 ask the
+rank's own day alone, the only part of its gap its kind allows (the
+Codex review of landing 3b.D0, item 2: step 8.3 built every unit of a
+group across a gap of D days for each of its D cells); and a second
+census's group, nought where there is none, which only step 8.6
+changes. Bin, kind and hole are read alike on every ordinal of
 a unit. A unit is FREE where no rank stands on any ordinal of it. Where
 a step below says a day, it is a unit; where it says a day's ranks, a
 written unit's.

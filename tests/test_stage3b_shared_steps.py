@@ -76,6 +76,9 @@ The cases and their clauses:
   made changes the mover of the next (`a_cycle_undone` and
   `a_cycle_undone_last_move_first`, restated): C1a to C1d in the mutant
   table, and M83 and N14 on the restated states;
+* the Codex review's growth tests (its items 2 to 5), machine-free, on
+  the review's own states at its own sizes and at 40,000 rows:
+  `test_step_8_3_asks_only_the_retained_day` (item 2);
 * `test_the_body_is_full_only_where_every_unit_the_census_counts_holds_a_rank`
   -- the test the short cause asks (the review's M65), and
   `test_the_body_counts_a_unit_a_move_empties` -- the review's M09 and
@@ -1259,3 +1262,67 @@ def test_a_cause_stands_only_where_the_recount_went_its_way(tmp_path: pathlib.Pa
                 assert "MORE different spellings" in said[0], (cause[-40:], counted)
             else:
                 assert said[0].startswith("The twin holds fewer different spellings"), (cause[-40:], counted)
+
+
+# -- the Codex review's growth tests (its items 2 to 5) -------------------------------------
+#
+# Machine-free: each counts the work one step does -- the entries it builds, the reads it makes --
+# on the review's own state at the review's own sizes, red on 9cb2eb5 there, and again at 40,000
+# rows, where the count must stay a fixed multiple of the rows.
+
+MONDAY_DAY = (datetime.date(2024, 3, 4) - datetime.date(1970, 1, 1)).days
+
+
+def _counting(monkeypatch: pytest.MonkeyPatch, name: str, measure) -> "list[int]":
+    """While the pass runs, each call of `generation.<name>` adds `measure(its answer)`."""
+    tally = [0]
+    original = getattr(generation, name)
+
+    def counted(*arguments):
+        found = original(*arguments)
+        tally[0] += measure(found)
+        return found
+
+    monkeypatch.setattr(generation, name, counted)
+    return tally
+
+
+def _hours_case(ordinals: "list[int]", counts: "list[int]", wanted: int, days: int) -> dict:
+    """A whole pass over one gap of `days` days of moments, a unit of an hour, minutes written, the
+    day kept, each hour its own group."""
+    low, high = MONDAY_DAY * DAY, (MONDAY_DAY + days) * DAY - 1
+    ranks = len(ordinals)
+    return {
+        "ordinals": sorted(ordinals), "lows": [low] * ranks, "highs": [high] * ranks, "pinned": [False] * ranks,
+        "counts": counts, "where": list(range(24)), "unit": HOUR, "written_unit": 60, "day": DAY, "bin": "hour",
+        "period": 24, "keep": "day", "pair": "", "pair_where": [], "holes": [], "reachable": True,
+        "body": [0, ranks - 1], "wanted": wanted, "step": "settled",
+    }
+
+
+def _two_a_day(days: int) -> dict:
+    """The Codex review's item 2 state: two ranks a day at 00:01 over `days` days but one at 01:01 on
+    the first, every rank asked in hour 0, `days + 1` values kept."""
+    ordinals: "list[int]" = []
+    for day in range(days):
+        ordinals += [(MONDAY_DAY + day) * DAY + 60] * 2
+    ordinals[1] = MONDAY_DAY * DAY + HOUR + 60
+    return _hours_case(ordinals, [2 * days] + [0] * 23, days + 1, days)
+
+
+def test_step_8_3_asks_only_the_retained_day(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Step 8.3 where every move keeps the day grows with the days, not their square (the Codex
+    review, item 2). Two ranks a day at 00:01 over D days, but one at 01:01 on the first, each hour
+    its own group, every rank asked in hour 0 and D + 1 values kept: step 6 puts the 01:01 rank on
+    00:01, and step 8.3 asks each day's cell for a cycle. Its take asks the units of each hour on
+    that cell's day alone, 24 a day, where it built every hour of the gap for every cell: 24 D
+    squared entries, 24,576, 98,304 and 393,216 at 32, 64 and 128 days. Asked at those sizes and at
+    20,000 days, 40,000 rows; the census holds and no place lets the count reach D + 1."""
+    for days in (32, 64, 128, 20000):
+        case = _two_a_day(days)
+        built = _counting(monkeypatch, "_weekday_units_of", len)
+        moved = _answer(case)
+        monkeypatch.undo()
+        assert built[0] == 24 * days, (days, built[0])
+        assert _holding(case, moved, range(len(moved))) == case["counts"], days
+        assert len({ordinal // 60 for ordinal in moved}) == days, days

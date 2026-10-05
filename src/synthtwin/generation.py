@@ -19263,6 +19263,22 @@ def _weekday_hole(state: _WeekdayPass, ordinal: int) -> bool:
     return ordinal // state.day in state.holes
 
 
+def _weekday_span(state: _WeekdayPass, ordinal: int, low: int, high: int) -> "tuple[int, int]":
+    """The part of [low, high] a move of the rank at `ordinal` may reach:
+    all of it, or, where every move keeps the day (`keeps`), the part on
+    the rank's own day. The searches of steps 2 to 8.3 ask only this part,
+    so none asks a unit of another day, whose kind it would refuse, and
+    each answer is the one the whole gap gives (the Codex review of landing
+    3b.D0, item 2: asked over the whole gap, step 8.3's take built every
+    unit of a group across a gap of D days for each of its D cells, 24 D
+    squared entries for a census of hours). Step 8.6's walks, 62 and 31
+    units at most, ask its kind as they always did."""
+    if state.keeps == "day":
+        start = ordinal // state.day * state.day
+        return max(low, start), min(high, start + state.day - 1)
+    return low, high
+
+
 def _weekday_kind(state: _WeekdayPass, ordinal: int) -> _WeekdayKind:
     """A unit's kind: its width kind, where the column has one width
     convention, and what the seams keep (`_WeekdayKind`)."""
@@ -19566,6 +19582,7 @@ def _weekday_run_target(
     index = _weekday_index(state, low, high)
     if index is not None:
         return _weekday_run_indexed(state, index, rank, size, have, want, kind, alive)
+    low, high = _weekday_span(state, ordinal, low, high)
     unit = state.unit
     for away in range(1, _WEEKDAY_REACH + 1):
         if ordinal - away * unit < low and ordinal + away * unit > high:
@@ -19677,6 +19694,7 @@ def _weekday_single_target(
     index = _weekday_index(state, low, high)
     if index is not None:
         return _weekday_single_indexed(state, index, rank, have, want, kind)
+    low, high = _weekday_span(state, ordinal, low, high)
     alone = _weekday_there(state, ordinal) <= 1
     keeping: "tuple[int, int] | None" = None
     changing: "tuple[int, int] | None" = None
@@ -19881,7 +19899,7 @@ def _weekday_holes_swept(state: _WeekdayPass, gaps: "list[list[int]]") -> None:
             ordinal = state.moved[rank]
             if not _weekday_hole(state, ordinal):
                 continue
-            low, high = state.lows[rank], state.highs[rank]
+            low, high = _weekday_span(state, ordinal, state.lows[rank], state.highs[rank])
             kind = _weekday_kind(state, ordinal)
             alone = _weekday_there(state, ordinal) <= 1
             first: "int | None" = None
@@ -19918,7 +19936,7 @@ def _weekday_nearest(
     or free as asked, that is no hole and not the rank's own; None where
     none is found among the first `limit` such places (0: no limit)."""
     ordinal = state.moved[rank]
-    low, high = state.lows[rank], state.highs[rank]
+    low, high = _weekday_span(state, ordinal, state.lows[rank], state.highs[rank])
     asked = 0
     unit = state.unit
     for away in range(1, _WEEKDAY_REACH + 1):
@@ -20177,6 +20195,7 @@ def _weekday_take(
     ordinal = state.moved[rank]
     here = ordinal // state.unit
     place = ordinal - here * state.unit
+    low, high = _weekday_span(state, ordinal, low, high)
     held = False
     for unit in _weekday_units_of(state, low // state.unit, high // state.unit, group):
         other = unit * state.unit + place
@@ -20361,7 +20380,7 @@ def _weekday_day_near(
     gap and no hole, held or free as asked, the earlier on a tie; None
     where its gap has none. The whole gap is asked, not step 4's reach."""
     ordinal = state.moved[rank]
-    low, high = state.lows[rank], state.highs[rank]
+    low, high = _weekday_span(state, ordinal, state.lows[rank], state.highs[rank])
     away = state.unit
     while ordinal - away >= low or ordinal + away <= high:
         for other in (ordinal - away, ordinal + away):
