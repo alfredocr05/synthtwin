@@ -6538,7 +6538,7 @@ raised above 11 -- the floor the few-dates rule was measured at --
 reads the room the count of different values leaves the body. A tail
 that lists its values is written on them; one that publishes its two
 distances is rebuilt with at most the floor's number of different days,
-never more than its rows, and no more than one past what its own spread
+never more than its rows, and no more than two past what its own spread
 allows (k different whole distances of one or more hold at least the
 squares of 1 to k, and one for each other row); the count pass leaves the
 body the column's different days less those its tails hold. The day

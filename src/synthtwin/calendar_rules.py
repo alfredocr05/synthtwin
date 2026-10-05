@@ -165,12 +165,15 @@ MEAN_REAL_HALF_DATES = 15
 # twins met them -- that most is twice what the twins' tails held.
 COUNT_ROOM_ABOVE_FLOOR = 11
 
-# THE ONE DAY A TAIL'S SPREAD BOUND ALLOWS BESIDE ITSELF (`tails_most`,
-# plan P4-D388): the twin's tail is drawn to its published sum of squares
-# in expectation, and its words may carry it a little past; over the 26
-# batteries measured no twin's tail held more different days than its
-# spread allows.
-SPREAD_SLACK = 1
+# THE DAYS A TAIL'S SPREAD BOUND ALLOWS BESIDE ITSELF (`tails_most`, plan
+# P4-D388). The twin's tail is drawn to its published sum of squares in
+# expectation, not exactly: its outermost rank stands at least at the
+# Bhatia-Davis reach of its pair (method G7.3b step 5) and its other ranks
+# are spread through a continuous shape, so a tail of a dozen rows a day
+# out but one five days out came back on four days where its spread
+# allows three. Over the 26 batteries measured no twin's tail held more
+# than one day past it; two are allowed.
+SPREAD_SLACK = 2
 
 # The censuses of written forms whose one form per cell makes one text
 # per date (WC6), in the order the description publishes them.
@@ -1150,7 +1153,7 @@ def tails_most(
     distances is rebuilt with its outermost ranks one distance apiece and
     the rest on one shared distance, the ranks past the floor's number
     sharing it: at most the floor's number of different days, never more
-    than its rows -- AND NO MORE THAN ITS SPREAD ALLOWS, one day beside
+    than its rows -- AND NO MORE THAN ITS SPREAD ALLOWS, two days beside
     (`SPREAD_SLACK`): k different whole distances of one or more over the
     tail's rows hold a sum of squares of at least 1 + 4 + ... + k**2 and
     one for each other row, and the twin's tail is drawn to the sum of

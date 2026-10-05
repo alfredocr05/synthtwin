@@ -220,12 +220,12 @@ def test_the_tails_most_is_their_listed_values_or_up_to_the_floor_and_their_spre
     lists its values holds at most as many days as it lists, whatever its
     rows and the floor. Twenty cells a day out but one two days out hold
     a sum of squares of 23, which two different distances fill (1 + 4 and
-    eighteen ones): two days and the one day beside allowed
-    (`SPREAD_SLACK`), three, at the floor of 20. A floor below one is read
-    as one, the twin's tie group then taking every rank. Red when a
-    distance tail counts its rows past the floor or a rank under it, a
-    listed tail counts the floor, the spread is not asked or asked
-    without its one day beside, or the floor is read as given.
+    eighteen ones): two days and the two beside allowed (`SPREAD_SLACK`),
+    four, at the floor of 20, and the high tail the same. A floor below
+    one is read as one, the twin's tie group then taking every rank. Red
+    when a distance tail counts its rows past the floor or a rank under
+    it, a listed tail counts the floor, the spread is not asked or asked
+    with another allowance beside it, or the floor is read as given.
     """
     spread = tuple(range(100, 110)) + tuple(range(120, 130)) + tuple(range(140, 150))
     assert calendar_rules.tails_most(spread, 10, 10, (None, None), 36) == 20
@@ -234,7 +234,7 @@ def test_the_tails_most_is_their_listed_values_or_up_to_the_floor_and_their_spre
     assert calendar_rules.tails_most(spread, 10, 10, (3, None), 36) == 13
     assert calendar_rules.tails_most(spread, 10, 10, (2, 5), 36) == 7
     near = (98,) + (99,) * 19 + tuple(range(100, 130)) + (130,) * 19 + (132,)
-    assert calendar_rules.tails_most(near, 20, 20, (None, None), 20) == 6
+    assert calendar_rules.tails_most(near, 20, 20, (None, None), 20) == 8
     assert calendar_rules.tails_most(near, 20, 20, (None, None), 0) == 2
 
 
