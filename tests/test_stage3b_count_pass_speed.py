@@ -19,11 +19,11 @@ is sought among them alone; a payer whose search finds no unit at all
 leaves its list until it moves or the book is built again; a run that
 was offered the unit a merge left trades that one offer for its next
 nearest; that unit leaves the files the searches walk; and the offers
-stand sorted in blocks of a few hundred (`_OfferPool`), so putting one
-in or taking one out moves one block. No answer changes. So this file
-keeps the function as 110cb46 shipped it (`_traded_merges_as_built`,
-with the payment walk it called) as its ORACLE and asks both the same
-questions:
+stand sorted in blocks of at most a few hundred (`_OfferPool`), so
+putting one in or taking one out moves one block. No answer changes.
+So this file keeps the function as 110cb46 shipped it
+(`_traded_merges_as_built`, with the payment walk it called) as its
+ORACLE and asks both the same questions:
 
 1. seeded hand-built trades, width and midnight, every argument drawn,
    the ranks, the counts per unit and the merges made compared whole,
@@ -32,9 +32,10 @@ questions:
 2. after every paid merge of more such trades, the book against one
    built afresh from the trade's state at that moment, so a book that
    drifts is caught where it drifts and not only where it moves a cell,
-   with blocks of two offers so the pool halves and drops blocks all
-   the while; and drawn puts and takes of the pool against one sorted
-   list;
+   with blocks cut at two offers so the pool halves and drops blocks all
+   the while; drawn puts and takes of the pool against one sorted list;
+   and, at the shipped size, where its blocks are cut, halved and
+   dropped, none of them merged;
 3. every call the real generator makes on seeded clinic-slot columns,
    and on the same slots with one cell in fifty written date-only, at
    midnight, each answered by both from the same state.
@@ -489,8 +490,8 @@ def test_the_book_is_the_rebuild_after_every_merge(monkeypatch: pytest.MonkeyPat
     at the merge where it drifts. The draws must reach every way the
     book changes: payers taken out, offers traded for the next nearest
     with and without one to find, the book built again whole, and its
-    pool's blocks halved and dropped, which blocks of two offers here
-    make happen all the while.
+    pool's blocks halved and dropped, which blocks cut at two offers
+    here make happen all the while.
     """
     monkeypatch.setattr(generation, "_OFFER_BLOCK", 2)
     drifted: "list[str]" = []
@@ -635,7 +636,7 @@ def test_the_pool_reads_as_one_sorted_list(block: int, monkeypatch: pytest.Monke
     few steps its blocks are what `generation._OfferPool` states: none
     empty or over twice the block size, each block's last offer filed.
     The draws crowd their offers together so blocks fill, halve and
-    empty at every size, the last of them at 256 offers a block.
+    empty at every size, the last of them blocks cut at 256 offers.
     """
     monkeypatch.setattr(generation, "_OFFER_BLOCK", block)
     upkept = generation._pool_blocks_replaced
@@ -685,8 +686,52 @@ def test_the_pool_reads_as_one_sorted_list(block: int, monkeypatch: pytest.Monke
                 wrong += _pool_faults(pool)
         wrong += _pool_faults(pool)
     assert not wrong, wrong[:3]
-    # Measured at 256 offers a block: 15 halved, 353 dropped.
+    # Measured with blocks cut at 256 offers: 15 halved, 353 dropped.
     assert reached["halved"] >= 5 and reached["dropped"] >= 5, reached
+
+
+def test_the_pool_cuts_halves_and_drops_its_blocks_and_merges_none() -> None:
+    """At the shipped size: blocks cut at 256 offers, halved past 512, dropped when emptied, never merged.
+
+    What plan P4-D376 and the comment at `generation._OFFER_BLOCK` state
+    of the pool's blocks, held here one statement at a time (the lane's
+    second skeptic found both saying "256 to 512", where takes leave most
+    blocks far smaller). Cut from 1,000 sorted offers, the pool holds
+    blocks of 256, 256, 256 and 232. Puts into the second block grow it
+    alone: it holds 512 offers after 256 of them, and the next halves it
+    into 256 and 257. A take changes no block but the one that held the
+    offer: a block shrinks in place to a single offer beside a full one,
+    and a block a take empties is dropped. No block is merged into a
+    neighbour, so a block holds anything from 1 to 512 offers.
+    """
+    offers = [(10 * number, 1, 0, 0) for number in range(1000)]
+    pool = generation._offer_pool(offers)
+    assert [len(block) for block in pool.blocks] == [256, 256, 256, 232]
+    # Each of these lies between the first block's last offer, (2550, ...),
+    # and the second's, (5110, ...), so a put files it in the second block.
+    puts = [(value, 1, 0, 0) for value in range(2551, 5110) if value % 10][:257]
+    for count, offer in enumerate(puts, start=1):
+        generation._pool_put(pool, offer)
+        sizes = [len(block) for block in pool.blocks]
+        if count <= 256:
+            assert sizes == [256, 256 + count, 256, 232], (count, sizes)
+        else:
+            assert sizes == [256, 256, 257, 256, 232], (count, sizes)
+    assert pool.blocks[0] == offers[:256], "a put into the second block changed the first"
+    assert pool.blocks[1] + pool.blocks[2] == sorted(offers[256:512] + puts)
+    assert pool.blocks[3:] == [offers[512:768], offers[768:]], "a put changed a block after its own"
+    # The first block down to one offer, the last emptied, the fourth down
+    # to 56: after each take the pool must be what it was with that offer
+    # gone from its own block, and that block gone once it holds none.
+    takes = offers[1:256] + offers[768:] + offers[512:712]
+    for offer in takes:
+        expected = [tuple(kept for kept in block if kept != offer) for block in pool.blocks]
+        expected = [block for block in expected if block]
+        generation._pool_take(pool, offer)
+        got = [tuple(block) for block in pool.blocks]
+        assert got == expected, (offer, [len(block) for block in pool.blocks])
+        assert pool.lasts == [block[-1] for block in pool.blocks], offer
+    assert [len(block) for block in pool.blocks] == [1, 256, 257, 56]
 
 
 # -- 3. every call the generator makes, on clinic slots ----------------------

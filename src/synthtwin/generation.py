@@ -24496,14 +24496,15 @@ class _TradeBook:
     pool: "_OfferPool"
 
 
-# HOW MANY OFFERS ONE BLOCK OF THE POOL HOLDS (plan P4-D376, the lane's
+# HOW MANY OFFERS THE POOL CUTS A BLOCK AT (plan P4-D376, the lane's
 # repair round). The pool was one sorted list, so every offer put in or
 # taken out moved every offer after it: on the lane test's clinic slots
 # with one cell in fifty written at midnight, at 160,000 rows, 1,908,126
 # puts and takes in a pool built at 201,216 offers moved 391,482 offers
-# a rank, and the pass took 29.8 s of CPU. Held in blocks of 256 to 512
-# offers, a put or a take moves at most one block's offers, 1,352 a rank
-# there, in 10.3 s; a block that grows past twice this is halved.
+# a rank, and the pass took 29.8 s of CPU. With the offers cut into
+# blocks of 256, each halved past 512 and dropped when a take empties it
+# (none is merged, so most hold fewer than 256), a put or a take moves
+# at most one block's offers, 1,352 a rank there, in 10.3 s.
 _OFFER_BLOCK = 256
 
 

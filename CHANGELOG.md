@@ -14,7 +14,7 @@ description publishes, the count pass's paid merge rebuilt its offers
 from every row on each attempt and walked every row again for each
 payment. It now keeps them between attempts, looks for a payment only
 among the rows that can give one, stops asking a row that has nowhere to
-go, and keeps its offers sorted in blocks of a few hundred, so that
+go, and keeps its offers sorted in blocks of at most a few hundred, so that
 putting one in or taking one out no longer moves every offer after it. A
 made-up column of 40,000 clinic appointments took 119 s of CPU to
 generate and now takes about 4, one of 80,000 took 298 s and takes 10,
