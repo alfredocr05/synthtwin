@@ -6550,13 +6550,14 @@ column of whole dates reaches them there through the whole generator;
 at a floor of 36 eight twins of 15,152 move, steps 8.4 and 8.5 merging a
 count already left long one or two values nearer the published one. The
 fifteenth vectors file, `tests/reference/generation-branch-vectors-15.json`,
-holds thirty-four such states -- the landing's ten (an hour inside its
+holds forty such states -- the landing's ten (an hour inside its
 day, a day of moments, the index of steps 5 and 6, a chain, step 8.4 at
 its own clock and at another, a long pair, a two-census trade, and the
-cycles of seven and of ten groups) and its review's twenty-four: each
-new step once through the whole pass, and a state for every clause a
-reviewer's mutant changed -- with the answer this section gives each,
-and no G14.3 case.
+cycles of seven and of ten groups), its review's twenty-four (each new
+step once through the whole pass, and a state for every clause a
+reviewer's mutant changed) and its second review's six (a state for
+every line of that review's repair whose mutant changed an answer) --
+with the answer this section gives each, and no G14.3 case.
 
 ### G7.4 Offsets: only where recorded
 

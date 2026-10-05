@@ -28,7 +28,7 @@ the default floor of 11 every twin of 4,782 tables of 26 date batteries
 pass unchanged; at a floor of 36 eight are not, each a count of
 different values already left long brought one or two values nearer the
 published one. The four steps, and every clause the landing's review
-asked about, are frozen on 34 stated states of ranks in a fifteenth
+asked about, are frozen on 40 stated states of ranks in a fifteenth
 vectors file, each red on its own mutant. A count the pass leaves long
 is named as long in the report, where the general sentence was printed
 over it; a cycle of step 8.3 is made whole or not at all on units wider
