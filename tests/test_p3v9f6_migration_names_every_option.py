@@ -253,6 +253,23 @@ def test_the_message_says_what_leaving_out_each_option_costs() -> None:
         "here, measure it the same way and either price it in the "
         "message or show that it changes only the reading."
     )
+    # ...EACH BY A CLAUSE OF ITS OWN (the second key cut, plan P4-D386).
+    # The `--answers` clause names most of these options again, as what
+    # an answer in a questions file stands for, so the search above
+    # finds an option there even where nothing says what leaving IT out
+    # costs: measured, `--twelve-hour`'s clause deleted alike from the
+    # message, the contract clause and the version-5 test left this file
+    # and that one green. Every price the sentence writes opens "without
+    # the <option> you gave", and so must the price of an option added.
+    unpriced = sorted(
+        option for option in owed if f"without the {option} you gave" not in said
+    )
+    assert not unpriced, (
+        "These options are named, and no clause of their own says what "
+        f"leaving them out costs: {unpriced}. Naming one in the --answers "
+        "clause, which lists what an answer stands for, prices --answers "
+        "and not the option."
+    )
     # ...and the sentence must not tell the reader that some subset is
     # free. The retired wording's "two of them" is the shape of that.
     assert "two of them change" not in said, (

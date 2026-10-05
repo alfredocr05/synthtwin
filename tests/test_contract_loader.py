@@ -1585,6 +1585,147 @@ def battery() -> list[Mutation]:
             edit("seen_at", minute_census=[{"first": 0, "last": 59, "count": 200}]),
             names="minute_census",
         ),
+        # THE SECOND CUT (plan P4-D386): three declarations of the settings
+        # block, each `[]`, and `count_form` null, until the landing that
+        # fills each; and S8d, which holds a column whose dates are counts
+        # to no other reading BEFORE its key is refused as non-empty, so
+        # each S8d case below is refused for the pair and not for the key.
+        # -- 3b.R2a (P4-D383)
+        Mutation(
+            "R16", "a window for two-figure years this version of synthtwin takes none of",
+            edit_in("settings", century_windows=[["recorded_on", 1930]]),
+            names="century_windows",
+        ),
+        # The reader of `[column, value]` pairs refuses each of these
+        # before the key's own refusal is reached, so each check stays
+        # held when R2a deletes that refusal.
+        Mutation(
+            "R16", "a window that is not a pair",
+            edit_in("settings", century_windows=[["recorded_on"]]),
+            names="a column's name and one value beside it",
+        ),
+        Mutation(
+            "R16", "a column given two windows",
+            edit_in("settings", century_windows=[["recorded_on", 1930], ["recorded_on", 1940]]),
+            names="each column named once",
+        ),
+        Mutation(
+            "R15", "a window's first year written with a fractional part",
+            edit_in("settings", century_windows=[["recorded_on", 1930.5]]),
+            names="century_windows[0][1]",
+        ),
+        Mutation(
+            "R16", "a window holding a value past its first year",
+            edit_in("settings", century_windows=[["recorded_on", 1930, 2029]]),
+            names="a column's name and one value beside it",
+        ),
+        # -- 3b.R2c (P4-D383)
+        Mutation(
+            "R16", "a column said to be dates this version of synthtwin takes none of",
+            edit_in("settings", forced_date_columns=["recorded_on"]),
+            names="forced_date_columns",
+        ),
+        Mutation(
+            "R16", "columns said to be dates out of order",
+            edit_in("settings", forced_date_columns=["visits", "recorded_on"]),
+            names="names in rising order, each of them once",
+        ),
+        # Each name once and each name a piece of text, both checked
+        # before the key's own refusal, so both stay held when R2c
+        # deletes that refusal.
+        Mutation(
+            "R16", "a column said to be dates twice",
+            edit_in("settings", forced_date_columns=["recorded_on", "recorded_on"]),
+            names="names in rising order, each of them once",
+        ),
+        Mutation(
+            "R15", "a column said to be dates named by a number",
+            edit_in("settings", forced_date_columns=[7]),
+            names="forced_date_columns[0]",
+        ),
+        # -- 3b.R4 (P4-D384)
+        Mutation(
+            "R16", "dates written as counts this version of synthtwin takes none of",
+            edit_in("settings", forced_date_counts=[["visits", "excel-1900"]]),
+            names="forced_date_counts",
+        ),
+        Mutation(
+            "R16", "a count_form this version of synthtwin publishes none of",
+            edit("recorded_on", count_form={"places": 0, "trimmed": False, "contacts": None}),
+            names="count_form",
+        ),
+        Mutation(
+            "S8d", "a column of counted dates also said to be dates read another way",
+            edit_in(
+                "settings",
+                forced_date_counts=[["visits", "excel-1900"]],
+                forced_date_columns=["visits"],
+            ),
+        ),
+        Mutation(
+            "S8d", "a column of counted dates also given a window for two-figure years",
+            edit_in(
+                "settings",
+                forced_date_counts=[["visits", "excel-1900"]],
+                century_windows=[["visits", 1930]],
+            ),
+        ),
+        Mutation(
+            "S8d", "a column of counted dates also said to be a 12-hour clock",
+            edit_in(
+                "settings",
+                forced_date_counts=[["logged_at", "seconds-since-1970"]],
+                forced_twelve_hour_clocks=["logged_at"],
+            ),
+        ),
+        Mutation(
+            "S8d", "a column of counted dates also said to hold codes",
+            edit_in(
+                "settings",
+                forced_date_counts=[["visits", "excel-1900"]],
+                forced_codes=["visits"],
+            ),
+        ),
+        Mutation(
+            "S8d", "a column of counted dates also said to hold record numbers",
+            edit_in(
+                "settings",
+                forced_date_counts=[["record_code", "excel-1900"]],
+            ),
+        ),
+        Mutation(
+            "S8d", "a column of counted dates also said to hold measurements",
+            edit_in(
+                "settings",
+                forced_date_counts=[["visits", "excel-1900"]],
+                forced_measurements=["visits"],
+            ),
+        ),
+        Mutation(
+            "S8d", "the second of two counted columns also said to hold codes",
+            edit_in(
+                "settings",
+                forced_date_counts=[["recorded_on", "excel-1900"], ["visits", "excel-1900"]],
+                forced_codes=["visits"],
+            ),
+        ),
+        Mutation(
+            "R15", "a counted column named by a number",
+            edit_in("settings", forced_date_counts=[[7, "excel-1900"]]),
+            names="forced_date_counts[0][0]",
+        ),
+        # A DECIMAL COMMA MAY STAND BESIDE A COUNTED COLUMN: S8d names no
+        # such pair, so this description is refused only for holding a
+        # count at all. R4, deleting that refusal, makes it one that loads.
+        Mutation(
+            "R16", "a counted column with a decimal comma, refused only as not empty",
+            edit_in(
+                "settings",
+                forced_date_counts=[["visits", "excel-1900"]],
+                forced_decimal_commas=["visits"],
+            ),
+            names="an empty list: this version of synthtwin takes no such",
+        ),
         # THE LANDINGS' ANCHORS (plan P4-D364): each landing of stage 3b adds
         # its mutations below its own line.
         # anchor 3b-D1 (P4-D365)
@@ -1602,6 +1743,10 @@ def battery() -> list[Mutation]:
         # anchor 3b-G2 (P4-D377)
         # anchor 3b-7 (P4-D378)
         # anchor 3b-J (P4-D379)
+        # anchor 3b-R2a (P4-D383)
+        # anchor 3b-R2b (P4-D383)
+        # anchor 3b-R2c (P4-D383)
+        # anchor 3b-R4 (P4-D384)
         # -- the numeric roles ----------------------------------------
         Mutation("Q1", "a row count of its own", edit("visits", n_rows=5)),
         Mutation(

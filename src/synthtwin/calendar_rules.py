@@ -1158,3 +1158,7 @@ def room_short(
 # anchor 3b-G2 (P4-D377)
 # anchor 3b-7 (P4-D378)
 # anchor 3b-J (P4-D379)
+# anchor 3b-R2a (P4-D383)
+# anchor 3b-R2b (P4-D383)
+# anchor 3b-R2c (P4-D383)
+# anchor 3b-R4 (P4-D384)

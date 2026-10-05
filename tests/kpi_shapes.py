@@ -120,18 +120,20 @@ def written_before_p4d375(
     still reads it.
 
     IT IS BUILT FROM A CURRENT DOCUMENT, and so it also loses the keys
-    668f276 -- the last pushed tree that withheld a pair -- never wrote: the
-    settings key `forced_twelve_hour_clocks` and the stage 3b reserves,
-    each where it holds the empty value (review of landing 3b.G1, item
-    1). Without that it carried every newer key, and could not see that
-    the loader refused the real documents. The real ones are held in
+    668f276 -- the last pushed tree that withheld a pair -- never wrote:
+    each settings key `contract.SETTINGS_READ_AS_EMPTY_WHEN_ABSENT` names
+    and each reserve of the date and clock roles, where it holds the empty
+    value (review of landing 3b.G1, item 1). Without that it carried
+    every newer key, and could not see that the loader refused the real
+    documents. The real ones are held in
     `tests/test_p4d375_earlier_descriptions.py`, from 668f276's own file.
     """
     import copy
 
     document = copy.deepcopy(described.document)
-    if document["settings"].get("forced_twelve_hour_clocks") == []:
-        del document["settings"]["forced_twelve_hour_clocks"]
+    for key in contract.SETTINGS_READ_AS_EMPTY_WHEN_ABSENT:
+        if document["settings"].get(key) == []:
+            del document["settings"][key]
     for column in document["columns"]:
         reserves: "tuple[str, ...]" = ()
         if column["role"] == contract.ROLE_DATETIME:

@@ -5045,6 +5045,10 @@ COVERING_RED_CASES: "dict[str, dict[str, tuple[tuple[str, str], ...]]]" = {
             # anchor 3b-G2 (P4-D377)
             # anchor 3b-7 (P4-D378)
             # anchor 3b-J (P4-D379)
+            # anchor 3b-R2a (P4-D383)
+            # anchor 3b-R2b (P4-D383)
+            # anchor 3b-R2c (P4-D383)
+            # anchor 3b-R4 (P4-D384)
             ("one-worded-recorded_on", "offsets.(none)"),
             ("mixed-recorded_on", "offsets.read-at"),
             ("renamed-recorded_on", "position.at"),
@@ -6561,6 +6565,10 @@ SUBCHECK_FACTS: "dict[tuple[str, str], str]" = {
     # anchor 3b-G2 (P4-D377)
     # anchor 3b-7 (P4-D378)
     # anchor 3b-J (P4-D379)
+    # anchor 3b-R2a (P4-D383)
+    # anchor 3b-R2b (P4-D383)
+    # anchor 3b-R2c (P4-D383)
+    # anchor 3b-R4 (P4-D384)
     ("datetime", "position.at"): "universal.position",
     ("datetime", "precision.resolution"): "datetime.resolution",
     ("datetime", "precision.time_precision"): "datetime.time_precision",

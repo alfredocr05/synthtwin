@@ -2858,6 +2858,11 @@ def _run_profile(
         declared_missing_values=tuple(missing_values),
         day_first=day_first,
         forced_twelve_hour_clocks=tuple(twelve_hours),
+        # The second cut's three declarations (plan P4-D386): the landing
+        # that fills each passes it here, below its own line.
+        # -- 3b.R2a (P4-D383)
+        # -- 3b.R2c (P4-D383)
+        # -- 3b.R4 (P4-D384)
     )
     read = reading.read_table(
         table, first_row, sheet=sheet, metadata_rows=metadata_rows,

@@ -29,6 +29,20 @@ withdrew. STATE, `K-S3-13` and the tail producer's docstring no longer
 describe the withdrawn protection as current, and keep the sorted-table
 exception.
 
+### The second key cut (2026-10-02)
+
+**Three declarations and one date key are reserved, empty** (plan
+P4-D386), so the layout reader's and the counted dates' landings fill
+them without recording the frozen files again. Every description's
+settings carry `century_windows`, `forced_date_columns` and
+`forced_date_counts` as empty lists, twenty-seven keys in all, and every
+date column carries `count_form` as `null`; a description holding
+anything else under one of them is refused as written by a newer
+synthtwin. A column named as writing its dates as counts and also under
+another reading is refused first (S8d). No twin, report or description
+changes but for those four keys, and a description written before the
+cut, which carries none of them, reads each as empty (contract C6-45a).
+
 ### One weekday pass for every census of bins (2026-10-02)
 
 **At the default floor no twin moves** (plan P4-D366, stage 3b landing

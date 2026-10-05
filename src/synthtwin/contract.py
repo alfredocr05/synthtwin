@@ -185,6 +185,16 @@ SETTINGS_KEYS = (
     "categorical_ceiling",
     "categorical_floor",
     "categorical_share",
+    # THE THREE DECLARATIONS STAGE 3B RESERVES (plan P4-D386): the window
+    # a column's two-figure years are read in (landing R2a, question Q5),
+    # the columns the person said are dates whatever else they hold
+    # (landing R2c, question Q6), and the columns the person said count
+    # their dates as numbers, each with the system it counts in (landing
+    # R4, question Q3). `[]` in every description until the landing that
+    # fills each, and the loader refuses anything else.
+    "century_windows",
+    "forced_date_columns",
+    "forced_date_counts",
     "declaration_matching",
     "declaration_publication",
     "declared_missing_values",
@@ -592,6 +602,12 @@ DATETIME_KEYS = (
     "second_heaps",
     "day_of_month_census",
     "heavy_dates",
+    # THE KEY THE SECOND CUT RESERVES (plan P4-D386): how a column whose
+    # dates are written as counts writes its numbers -- the figures after
+    # the point, whether trailing zeros are dropped, and an Epic contact
+    # census. `null` on every block until landing R4 (plan P4-D384) fills
+    # it, and the loader refuses anything else.
+    "count_form",
 )
 
 # THE KEYS A DESCRIPTION WRITTEN BEFORE THEM DOES NOT CARRY (review of
@@ -599,16 +615,22 @@ DATETIME_KEYS = (
 # a withheld tail pair so that a description written before it still
 # loads, and 668f276 -- the last pushed tree to write one -- wrote neither
 # the twelve stage 3b reserves of plan P4-D364 nor the settings key
-# landing T1 added (plan P4-D370); the two merges after it that still
-# withheld pairs (fa00321, 9efcba2) wrote the reserves and not that key.
+# landing T1 added (plan P4-D370) nor the four keys of the second key cut
+# (plan P4-D386); the two merges after it that still withheld pairs
+# (fa00321, 9efcba2) wrote the twelve reserves and none of the other five.
 # The strict key rule refused every such description before any reader
 # was reached. Each key below is read as what every producer since
-# writes in it where nothing is published --
-# `[]`, and `null` for `clock_step` -- WHEN IT IS ABSENT, and only then:
+# writes in it where nothing is published -- `[]`, and `null` for
+# `clock_step` and `count_form` -- WHEN IT IS ABSENT, and only then:
 # present, it is read and checked exactly as before, and every other key
 # stays required (contract 2.1 and C6-45a). Absent means nothing was
 # published, which is what an empty one says, so no fact is made up.
-SETTINGS_READ_AS_EMPTY_WHEN_ABSENT = ("forced_twelve_hour_clocks",)
+SETTINGS_READ_AS_EMPTY_WHEN_ABSENT = (
+    "forced_twelve_hour_clocks",
+    "century_windows",
+    "forced_date_columns",
+    "forced_date_counts",
+)
 DATETIME_READ_AS_EMPTY_WHEN_ABSENT = (
     "hour_census",
     "minute_census",
@@ -617,6 +639,7 @@ DATETIME_READ_AS_EMPTY_WHEN_ABSENT = (
     "second_heaps",
     "day_of_month_census",
     "heavy_dates",
+    "count_form",
 )
 CLOCK_READ_AS_EMPTY_WHEN_ABSENT = (
     "clock_census",
@@ -1293,6 +1316,12 @@ INVARIANTS = {
         "a column whose clock writes no AM or PM is written on the 12-hour "
         "face exactly where it is named as a 12-hour clock"
     ),
+    "S8d": (
+        "no column is named as writing its dates as counts and also as "
+        "a column of dates read another way, as writing two-figure "
+        "years, as a 12-hour clock, or as holding codes, record numbers "
+        "or measurements"
+    ),
     "S9": (
         "the smallest number of categories allowed is not larger than "
         "the largest"
@@ -1698,6 +1727,10 @@ INVARIANTS = {
     # anchor 3b-G2 (P4-D377)
     # anchor 3b-7 (P4-D378)
     # anchor 3b-J (P4-D379)
+    # anchor 3b-R2a (P4-D383)
+    # anchor 3b-R2b (P4-D383)
+    # anchor 3b-R2c (P4-D383)
+    # anchor 3b-R4 (P4-D384)
     "Q1": (
         "the row count a column of numbers repeats is the row count of "
         "the table"
@@ -2182,6 +2215,19 @@ class SettingsBlock:
     # `12:15` is a quarter past midnight -- and its twin writes hours 1 to
     # 12 only. S8 holds every name to a column of the table.
     forced_twelve_hour_clocks: "tuple[str, ...]" = ()
+    # THE THREE DECLARATIONS STAGE 3B RESERVES (plan P4-D386), empty in
+    # every description until the landing that fills each: `(column,
+    # first year)` per column whose two-figure years are read in a window
+    # the person chose (landing R2a), the columns the person said are
+    # dates whatever else they hold (landing R2c), and `(column, system)`
+    # per column whose dates are written as counts (landing R4). S8d
+    # holds the last to no other reading of its column.
+    # -- 3b.R2a (P4-D383)
+    century_windows: "tuple[tuple[str, int], ...]" = ()
+    # -- 3b.R2c (P4-D383)
+    forced_date_columns: "tuple[str, ...]" = ()
+    # -- 3b.R4 (P4-D384)
+    forced_date_counts: "tuple[tuple[str, str], ...]" = ()
 
 
 # TWO QUESTIONS, TWO NAMES, because a first version asked one and
@@ -2678,6 +2724,10 @@ class DatetimeFacts:
     second_heaps: "tuple[tuple[int, int], ...]" = ()
     day_of_month_census: "tuple[tuple[int, int, int], ...]" = ()
     heavy_dates: "tuple[tuple[int, int], ...]" = ()
+    # THE KEY THE SECOND CUT RESERVES (plan P4-D386), `None` on every
+    # column until landing R4 (plan P4-D384) fills it: how the counts a
+    # column writes its dates as are spelled.
+    count_form: "dict[str, object] | None" = None
 
 
 @dataclasses.dataclass(frozen=True)
@@ -4013,18 +4063,18 @@ def _absent_read_as_empty(
 
     Guarantees: returns ``mapping`` itself where it carries every key of
     ``added``, and otherwise a shallow copy in which each absent one
-    stands as `[]` -- `None` for `clock_step` -- which is what every
-    producer since writes where nothing is published. The document is
-    never changed, a key that is present is left to its own reader, and
-    a key not in ``added`` is never supplied, so the key rule beside it
-    still refuses every other absence. No I/O of any kind.
+    stands as `[]` -- `None` for `clock_step` and `count_form` -- which
+    is what every producer since writes where nothing is published. The
+    document is never changed, a key that is present is left to its own
+    reader, and a key not in ``added`` is never supplied, so the key rule
+    beside it still refuses every other absence. No I/O of any kind.
     """
     missing = [key for key in added if key not in mapping]
     if not missing:
         return mapping
     filled = dict(mapping)
     for key in missing:
-        filled[key] = None if key == "clock_step" else []
+        filled[key] = None if key in ("clock_step", "count_form") else []
     return filled
 
 
@@ -6103,6 +6153,85 @@ def _settings(value: object) -> SettingsBlock:
             )
         declared_codes += [found]
         place = place + 1
+    # THE THREE DECLARATIONS STAGE 3B RESERVES (plan P4-D386), read for
+    # their shape and their names, held to S8d, and only then refused as
+    # anything but empty: so the rule that keeps a column whose dates are
+    # counts off every other reading stands before the landing that fills
+    # the key, and that landing deletes only the refusal. Each lane's
+    # lines stand under its own `# -- 3b.X (P4-Dnnn)` line, so landings
+    # built side by side edit no line in common.
+    # -- 3b.R2c (P4-D383)
+    date_columns: list[str] = []
+    place = 0
+    for name in _listing(
+        mapping["forced_date_columns"], "forced_date_columns", where
+    ):
+        found = _text(name, f"forced_date_columns[{place}]", where)
+        if date_columns and found <= date_columns[len(date_columns) - 1]:
+            raise _out_of_range(
+                "forced_date_columns",
+                where,
+                f"'{found}'",
+                "names in rising order, each of them once",
+            )
+        date_columns += [found]
+        place = place + 1
+    # -- 3b.R2a (P4-D383)
+    windows = _declared_pairs(mapping["century_windows"], "century_windows", where)
+    # -- 3b.R4 (P4-D384)
+    counted = _declared_pairs(
+        mapping["forced_date_counts"], "forced_date_counts", where
+    )
+    # S8d, which stands whatever each landing fills.
+    for name, _system in counted:
+        for others, what in (
+            (date_columns, "a column of dates read another way"),
+            ([column for column, _year in windows], "writing two-figure years"),
+            (declared_twelve, "a 12-hour clock"),
+            (declared_codes, "holding codes"),
+            (declared, "holding record numbers"),
+            (declared_measurements, "holding measurements"),
+        ):
+            if name in others:
+                raise _broken(
+                    "S8d",
+                    where,
+                    f"'{name}' is named as writing its dates as counts "
+                    f"and also as {what}",
+                    "a column whose dates are written as counts is read "
+                    "one way, as those dates",
+                )
+    # The refusals, one to a lane: each landing deletes its own.
+    # -- 3b.R2a (P4-D383)
+    if windows:
+        raise _out_of_range(
+            "century_windows",
+            where,
+            "a list that is not empty",
+            "an empty list: this version of synthtwin takes no such "
+            "declaration, so a description holding one was written by a "
+            "newer synthtwin",
+        )
+    # -- 3b.R2c (P4-D383)
+    if date_columns:
+        raise _out_of_range(
+            "forced_date_columns",
+            where,
+            "a list that is not empty",
+            "an empty list: this version of synthtwin takes no such "
+            "declaration, so a description holding one was written by a "
+            "newer synthtwin",
+        )
+    # -- 3b.R4 (P4-D384)
+    if counted:
+        raise _out_of_range(
+            "forced_date_counts",
+            where,
+            "a list that is not empty",
+            "an empty list: this version of synthtwin takes no such "
+            "declaration, so a description holding one was written by a "
+            "newer synthtwin",
+        )
     block = SettingsBlock(
         small_cell_floor=floor,
         identifier_uniqueness=_share(
@@ -6186,6 +6315,14 @@ def _settings(value: object) -> SettingsBlock:
             ("",) + dialect.DELIMITERS,
         ),
         forced_twelve_hour_clocks=tuple(declared_twelve),
+        # The second cut's three (plan P4-D386): empty here, since each is
+        # refused above unless empty, and each landing fills its own line.
+        # -- 3b.R2a (P4-D383)
+        century_windows=(),
+        # -- 3b.R2c (P4-D383)
+        forced_date_columns=tuple(date_columns),
+        # -- 3b.R4 (P4-D384)
+        forced_date_counts=(),
     )
     # C5-K4 LAST, because it is the one rule here that needs BOTH
     # records: every other check is about one entry and is raised where
@@ -6194,6 +6331,47 @@ def _settings(value: object) -> SettingsBlock:
         block.kept_values, block.declared_missing_values, where
     )
     return block
+
+
+def _declared_pairs(
+    value: object, key: str, where: str
+) -> "list[tuple[str, object]]":
+    """A declaration of `[column, value]` pairs, read for its shape (plan P4-D386).
+
+    Each entry is a list of exactly two: a column's name, then one value
+    -- a first year or a counting system -- read here only as a piece of
+    text or a whole number, which the landing that fills the key holds
+    to its own list. No column is named twice.
+
+    Guarantees: returns the pairs in the order written. Raises
+    ProfileError for an entry that is not such a pair (R15, R16) and for
+    a column named twice (R16). No I/O of any kind.
+    """
+    pairs: "list[tuple[str, object]]" = []
+    names: "list[str]" = []
+    place = 0
+    for entry in _listing(value, key, where):
+        found = _listing(entry, f"{key}[{place}]", where)
+        if len(found) != 2:
+            raise _out_of_range(
+                f"{key}[{place}]",
+                where,
+                f"a list of {len(found)}",
+                "a column's name and one value beside it",
+            )
+        name = _text(found[0], f"{key}[{place}][0]", where)
+        if isinstance(found[1], str):
+            other: object = found[1]
+        else:
+            other = _whole(found[1], f"{key}[{place}][1]", where, 0)
+        if name in names:
+            raise _out_of_range(
+                key, where, f"'{name}'", "each column named once"
+            )
+        names += [name]
+        pairs += [(name, other)]
+        place = place + 1
+    return pairs
 
 
 def _relationships(value: object) -> RelationshipManifest:
@@ -8927,6 +9105,13 @@ def _datetime_facts(
             mapping, where, floor, n_present, n_distinct, judged, absent, facts
         ),
     )
+    # -- how dates written as counts spell them (3b.R4, P4-D384)
+    facts = dataclasses.replace(
+        facts,
+        count_form=_count_form(
+            mapping, where, floor, n_present, n_distinct, judged, absent, facts
+        ),
+    )
     return facts
 
 
@@ -9046,6 +9231,36 @@ def _heavy_dates(
     """
     _reserved_list(mapping["heavy_dates"], "heavy_dates", where)
     return ()
+
+
+def _count_form(
+    mapping: "dict[str, object]",
+    where: str,
+    floor: int,
+    n_present: int,
+    n_distinct: int,
+    judged: "tuple[str, ...]",
+    absent: "tuple[str, ...]",
+    facts: DatetimeFacts,
+) -> "dict[str, object] | None":
+    """A column's `count_form`, reserved: `null` and nothing else (plan P4-D386).
+
+    THE STUB OF LANDING R4 (plan P4-D384, numbers that are dates), which
+    fills this reader and nothing beside it. Handed what `_hour_census`
+    is handed.
+
+    Guarantees: returns `None`. Raises ProfileError for any other value
+    (R16). No I/O of any kind.
+    """
+    if mapping["count_form"] is not None:
+        raise _out_of_range(
+            "count_form",
+            where,
+            "a form of counts",
+            "nothing (null): this version of synthtwin reads no column of "
+            "dates written as counts",
+        )
+    return None
 
 
 def _weekday_census(

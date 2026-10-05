@@ -489,6 +489,8 @@ INPUT_SIDE_ENTRIES = (
     ("clock", "clock_codes"),
     # -- 3b.C2 (P4-D374)
     ("clock", "minute_census"),
+    # -- 3b.R4 (P4-D384), reserved by the second cut (P4-D386)
+    ("datetime", "count_form"),
 )
 
 # -- what a listing entry says, in one fixed sentence each ------------
@@ -1753,6 +1755,11 @@ def settings_for(description: contract.Profile) -> taxonomy.Settings:
         # THE 12-HOUR DECLARATION (landing T1, plan P4-D370), so a checked
         # file reads its clocks on the face the description read them on.
         forced_twelve_hour_clocks=block.forced_twelve_hour_clocks,
+        # The second cut's three declarations (plan P4-D386): the landing
+        # that fills each carries it here, below its own line.
+        # -- 3b.R2a (P4-D383)
+        # -- 3b.R2c (P4-D383)
+        # -- 3b.R4 (P4-D384)
     )
 
 

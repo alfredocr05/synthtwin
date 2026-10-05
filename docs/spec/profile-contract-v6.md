@@ -1282,7 +1282,7 @@ there.
 
 ### 4.4 `settings`
 
-An object with exactly these twenty-four keys. Its whole subtree is
+An object with exactly these twenty-seven keys. Its whole subtree is
 LOADER-ONLY: nothing in it is an output obligation, and the generator
 reads it only to interpret floor-governed facts elsewhere in the
 document.
@@ -1319,15 +1319,42 @@ claim.
 | `sentinel_outlier_iqr_multiple` | number | ≥ 0.0 | how many interquartile ranges beyond the quartiles of the column's other numbers a stand-in candidate must lie to count as an outlier |
 | `small_cell_floor` | integer | ≥ 1 | the disclosure floor: the smallest number of rows a group may cover and still be NAMED anywhere in this description |
 
-**C6-20 (membership).** All TWENTY-FOUR keys are REQUIRED (landing T1
-added `forced_twelve_hour_clocks`). No other key may appear under
+**The three declarations the second key cut reserves** (plan P4-D386)
+stand apart from the table above, each in its own table under its
+lane's line, so the landing that fills one restates its own row and
+no other.
+
+<!-- -- 3b.R2a (P4-D383) -->
+
+| key | JSON type | range / permitted values | meaning |
+|---|---|---|---|
+| `century_windows` | array of `[name, year]` pairs | `[]` only, in this version | RESERVED by the second key cut (plan P4-D386) for lane R2a (plan P4-D383, question Q5): the columns whose two-figure years the person said are read in a window other than 1969 to 2068, each as its name and the window's first year. Empty in every description this version writes, and refused as anything else (R16), so a description carrying an entry was written by a newer synthtwin. An entry is read for its shape first -- a column's name and one whole number or word beside it, each column once -- and held to S8d, and only then refused for being there |
+
+<!-- -- 3b.R2c (P4-D383) -->
+
+| key | JSON type | range / permitted values | meaning |
+|---|---|---|---|
+| `forced_date_columns` | array of strings | `[]` only, in this version | RESERVED by the second key cut (plan P4-D386) for lane R2c (plan P4-D383, question Q6): the columns the person said are dates whatever else some of their cells hold, in rising order, each of them once. Empty in every description this version writes, and refused as anything else (R16) after its names are read and held to S8d |
+
+<!-- -- 3b.R4 (P4-D384) -->
+
+| key | JSON type | range / permitted values | meaning |
+|---|---|---|---|
+| `forced_date_counts` | array of `[name, system]` pairs | `[]` only, in this version | RESERVED by the second key cut (plan P4-D386) for lane R4 (plan P4-D384, question Q3): the columns the person said write their dates as numbers counted from a fixed day, each as its name and the counting system it uses, in table order, each column once. Empty in every description this version writes, and refused as anything else (R16) after its entries are read for their shape and held to S8d, which keeps such a column off every other reading before the landing that fills the key |
+
+**C6-20 (membership).** All TWENTY-SEVEN keys are REQUIRED (landing T1
+added `forced_twelve_hour_clocks`, and the second key cut, plan
+P4-D386, `century_windows`, `forced_date_columns` and
+`forced_date_counts`). No other key may appear under
 `settings`; a loader refuses one that does, naming it. A block of
-twenty-three keys or of twenty-five — one of the twenty-four skipped, or
+twenty-six keys or of twenty-eight — one of the twenty-seven skipped, or
 a key of somebody's own added — is a document this contract does not
 describe, except that a description written before landing T1 lacks
-`forced_twelve_hour_clocks` and is read as though it held `[]`
-(C6-45a). (It said TWENTY while section 4.4 said twenty-one and the
-producer wrote twenty-one, from the landing
+`forced_twelve_hour_clocks`, and one written before the second key cut
+lacks `century_windows`, `forced_date_columns` and `forced_date_counts`,
+and each key so absent is read as though it held `[]` (C6-45a). (It
+said TWENTY while section 4.4 said twenty-one and the producer wrote
+twenty-one, from the landing
 that added `forced_metadata_rows` until landing 2b.17's repair pass
 added `forced_delimiter` and corrected all three counts together; the
 guard that compares this clause with the producer read only a word
@@ -1599,6 +1626,20 @@ the unchanged source missed 10 checks with `12:xx` read at the
 declaration against facts taken at noon. A declared column whose cells
 write AM or PM keeps their face and is not reached, and a stamp whose
 word was pooled names no clock and is not reached either.
+
+**Invariant S8d (a column whose dates are counts is read one way)**
+(plan P4-D386; the review of lane R4's design, item 10). No name under
+`settings.forced_date_counts` also stands under `forced_date_columns`,
+`century_windows`, `forced_twelve_hour_clocks`, `forced_codes`,
+`forced_identifiers` or `forced_measurements`. Such a column is read as
+the dates its numbers count, so a second reading could never be acted
+on and would be recorded and ignored. `forced_decimal_commas` is not on
+the list: the numbers a count is written in may carry a decimal comma,
+and that declaration says how they are spelled, not what they are. It
+carries its own code for S8a's reason. A loader of this version holds
+it BEFORE it refuses the three reserved declarations as not empty, so
+the rule stands before the landing that fills `forced_date_counts`,
+which removes only that refusal.
 
 **Invariant S9.** `categorical_floor <= categorical_ceiling`.
 
@@ -3981,6 +4022,10 @@ back-solve beside the sentence correctly assumed they did not.
 <!-- anchor 3b-G2 (P4-D377) -->
 <!-- anchor 3b-7 (P4-D378) -->
 <!-- anchor 3b-J (P4-D379) -->
+<!-- anchor 3b-R2a (P4-D383) -->
+<!-- anchor 3b-R2b (P4-D383) -->
+<!-- anchor 3b-R2c (P4-D383) -->
+<!-- anchor 3b-R4 (P4-D384) -->
 
 ## 5. The column block
 
@@ -5583,6 +5628,19 @@ landing restates its own rows below its own line.
 <!-- anchor 3b-G2 (P4-D377) -->
 <!-- anchor 3b-7 (P4-D378) -->
 <!-- anchor 3b-J (P4-D379) -->
+<!-- anchor 3b-R2a (P4-D383) -->
+<!-- anchor 3b-R2b (P4-D383) -->
+<!-- anchor 3b-R2c (P4-D383) -->
+<!-- anchor 3b-R4 (P4-D384) -->
+
+**The key the second cut reserves** (plan P4-D386): `null` on every
+block until landing R4 (plan P4-D384) fills it, and the loader refuses
+anything else. A description written before the cut does not carry it,
+and an absent one is read as `null` (C6-45a).
+
+| key | JSON type | permitted values | meaning |
+|---|---|---|---|
+| `count_form` | object or `null` | `null` | reserved for how a column whose dates are written as numbers counted from a fixed day spells those numbers -- the figures after the point, whether trailing zeros are dropped, and a contact number's census; landing R4 fills it |
 
 ##### The format vocabulary, its readings and its resolutions
 
@@ -7870,6 +7928,7 @@ rather than a list of its own, so the two cannot part again.
 | `second_heaps` | | | | | | | ● | | | | | | | | |
 | `day_of_month_census` | | | | | | | ● | | | | | | | | |
 | `heavy_dates` | | | | | | | ● | | | | | | | | |
+| `count_form` | | | | | | | ● | | | | | | | | |
 | `time_precision` | | | | | | | ● | | | | | | | | |
 | `subsecond_digits` | | | | | | | ● | | | | | | | | |
 | `datetimes_read_at` | | | | | | | ● | | | | | | | | |
@@ -7959,14 +8018,19 @@ rather than a list of its own, so the two cannot part again.
 | `numbers` | | | | | | | | | | | | | | | ● |
 | `labels` | | | | | | | | | | | | | | | ● |
 
-**One hundred and eleven rows, two hundred and one marked cells**,
+**One hundred and twelve rows, two hundred and two marked cells**,
 distributed `empty` 0, `numeric_unrepresentable` 9, `constant` 5,
-`binary` 5, `categorical` 6, `long_tail_labels` 5, `datetime` 27,
+`binary` 5, `categorical` 6, `long_tail_labels` 5, `datetime` 28,
 `time_of_day` 10, `count` 32, `continuous` 31, `affixed_number` 41,
 `identifier` 8, `free_text` 6, `joined_numbers` 8,
 `numbers_with_labels` 8. The counts are stated so that a reader can
 check a column of the matrix against the role's own section without
 counting twice.
+
+**RESTATED AT THE SECOND KEY CUT** (plan P4-D386): `count_form` is one
+row and one mark on `datetime`, so the rows go from a hundred and eleven
+to a hundred and twelve, the marked cells from two hundred and one to
+two hundred and two, and `datetime` from 27 to 28.
 
 **RESTATED AT THE KEYS STAGE 3B RESERVES** (plan P4-D364): seven rows
 and seven marks on `datetime`, and four rows and five marks on
@@ -8890,6 +8954,10 @@ landing restates its own rows below its own line.
 <!-- anchor 3b-G2 (P4-D377) -->
 <!-- anchor 3b-7 (P4-D378) -->
 <!-- anchor 3b-J (P4-D379) -->
+<!-- anchor 3b-R2a (P4-D383) -->
+<!-- anchor 3b-R2b (P4-D383) -->
+<!-- anchor 3b-R2c (P4-D383) -->
+<!-- anchor 3b-R4 (P4-D384) -->
 
 **C6-11.** Those ten -- the five above and the five stage 3b
 reserves -- are the whole of what this role adds to the
@@ -9045,10 +9113,11 @@ reader will expect them and their absence is a decision.
   zone: an offset moves an instant, and this role publishes none.
 - **The datetime role's written forms and calendar censuses.**
   `date_field_widths`, `month_name_styles`, `quarter_marker_case`,
-  `zulu_case`, `weekday_census` and the seven keys stage 3b reserves
-  there (plan P4-D364) are `datetime`'s too -- all but `minute_census`,
-  which this role reserves under the same name: a clock time has no
-  date to write or to count.
+  `zulu_case`, `weekday_census`, the seven keys stage 3b reserves
+  there (plan P4-D364) and `count_form`, which the second key cut
+  reserves (plan P4-D386), are `datetime`'s too -- all but
+  `minute_census`, which this role reserves under the same name: a
+  clock time has no date to write or to count.
 - **Every quantitative key.** `percentiles`, `mean`, `std`, `skew`,
   `numeric_styles`, `fraction_widths`, `integer_valued` and the rest
   belong to `count`, `continuous` and `affixed_number`, as does the
@@ -12019,7 +12088,7 @@ a document, so no document can violate it.
 | id | statement | loader? |
 |---|---|---|
 | C6-44 | `profile_version` is the integer 6; every other integer is refused, and the version is read BEFORE the canonical round trip, so an older description draws advice about itself rather than a complaint about canonical form | yes |
-| C6-45a | the thirteen keys added within version 6 since 668f276 -- `settings.forced_twelve_hour_clocks` and the twelve stage 3b reserves -- are read as `[]` (`clock_step` as `null`) where ABSENT, and by their own rules where present; every other key stays required | yes |
+| C6-45a | the seventeen keys added within version 6 since 668f276 -- `settings.forced_twelve_hour_clocks`, the twelve stage 3b reserves, and the second key cut's `settings.century_windows`, `settings.forced_date_columns`, `settings.forced_date_counts` and `count_form` -- are read as `[]` (`clock_step` and `count_form` as `null`) where ABSENT, and by their own rules where present; every other key stays required | yes |
 | S1 | `len(columns) == n_columns` | yes |
 | S2 | for every index `i` from zero, `columns[i].position == i + 1`; positions are exactly `1..n_columns`, each once, increasing along the list | yes |
 | S3 | the order of `columns` IS the schema order of the table, the left-to-right order of the twin's columns and of a written header row, and the order the single RNG stream is consumed | reading — else two producers could route values and RNG bytes differently while every set-shaped rule passed |
@@ -12035,9 +12104,10 @@ a document, so no document can violate it.
 | S12 | `relationships` has exactly the eight reserved keys, no ninth, every value exactly `null` | yes |
 | S13 | at `small_cell_floor` 1 every field carrying what the floor held back is empty or zero, over 4.4's closed list; on each of the eight maps that list names the `(withheld)` ENTRY goes, never the map -- save the six censuses plans P4-D220 and P4-D221 took off it (owner rulings of 2026-09-17), whose pools stand at any floor and, since plan P4-D222, only alone. Checked before any column block is read | yes |
 | S14 | each declaration record has exactly five keys | yes |
-| C6-20 | `settings` has exactly its twenty-four keys; twenty-three or twenty-five is a document this contract does not describe | yes |
+| C6-20 | `settings` has exactly its twenty-seven keys; twenty-six or twenty-eight is a document this contract does not describe | yes |
 | S8b | every name under `settings.person_columns` is also under `settings.forced_identifiers` | yes |
 | S8c | a column whose written clock is on the ` twelve-hour` face is named under `settings.forced_twelve_hour_clocks`, and a column named there whose written clock writes no marker is on that face (C6-10a) | yes |
+| S8d | no name under `settings.forced_date_counts` is also under `forced_date_columns`, `century_windows`, `forced_twelve_hour_clocks`, `forced_codes`, `forced_identifiers` or `forced_measurements` | yes |
 | C6-53 | a column block's key set is exactly the twenty-two universal keys plus the marked cells of its role's column in the forbidden-key matrix; every other key is FORBIDDEN, and refused by name | yes |
 
 **Four membership rules of this part carry no identifier**, so no list
@@ -12309,6 +12379,10 @@ it answers to.
 <!-- anchor 3b-G2 (P4-D377) -->
 <!-- anchor 3b-7 (P4-D378) -->
 <!-- anchor 3b-J (P4-D379) -->
+<!-- anchor 3b-R2a (P4-D383) -->
+<!-- anchor 3b-R2b (P4-D383) -->
+<!-- anchor 3b-R2c (P4-D383) -->
+<!-- anchor 3b-R4 (P4-D384) -->
 
 Since plan P4-D375 a date or clock tail that lists no values publishes
 its pair whatever a reader can work out from it; P4-D349 withheld it
@@ -12562,7 +12636,7 @@ find one".
 | `n_rows` (document) | EXACT-OBSERVABLE | the twin has this many data rows |
 | `n_columns` | EXACT-OBSERVABLE | the twin has this many columns |
 | `profile_version` | LOADER-ONLY | the integer 6 |
-| `settings` | LOADER-ONLY | whole subtree: all twenty-four keys, `day_first`, `long_tail_minimum_level` and `person_columns` among them, and both declaration records with all five of their keys — `built_in_dates` included. The count said seventeen from the landing that wrote this row until plan P4-D340, while 4.4, C6-20 and 14.3 moved together three times without it |
+| `settings` | LOADER-ONLY | whole subtree: all twenty-seven keys, `day_first`, `long_tail_minimum_level` and `person_columns` among them, and both declaration records with all five of their keys — `built_in_dates` included. The count said seventeen from the landing that wrote this row until plan P4-D340, while 4.4, C6-20 and 14.3 moved together three times without it |
 | `created_with` | LOADER-ONLY | |
 | `publication_notes` | LOADER-ONLY | whole subtree |
 | `relationships` | LOADER-ONLY | whole subtree; eight `null` slots |
@@ -12887,6 +12961,12 @@ form, the stand-in is written in it (7.9.1).
 <!-- anchor 3b-G2 (P4-D377) -->
 <!-- anchor 3b-7 (P4-D378) -->
 <!-- anchor 3b-J (P4-D379) -->
+<!-- anchor 3b-R2a (P4-D383) -->
+<!-- anchor 3b-R2b (P4-D383) -->
+<!-- anchor 3b-R2c (P4-D383) -->
+<!-- anchor 3b-R4 (P4-D384) -->
+
+| `count_form` | LOADER-ONLY (plan P4-D386): `null` on every block, refused as anything else, and no output obligation until landing R4 (plan P4-D384) fills it |
 
 `datetime_separators`, `all_at_midnight` and `n_at_midnight` have no
 row here: all three were added after the freeze and are EXACT-OBSERVABLE
@@ -13018,6 +13098,10 @@ table means exactly what its disposition says.
 <!-- anchor 3b-G2 (P4-D377) -->
 <!-- anchor 3b-7 (P4-D378) -->
 <!-- anchor 3b-J (P4-D379) -->
+<!-- anchor 3b-R2a (P4-D383) -->
+<!-- anchor 3b-R2b (P4-D383) -->
+<!-- anchor 3b-R2c (P4-D383) -->
+<!-- anchor 3b-R4 (P4-D384) -->
 
 The ladder reads the day as a LINE from `00:00` to `23:59:59`, as
 every ladder reads its axis, so a column whose values cluster across
@@ -13415,12 +13499,16 @@ in place (A-P4-41), and plan P4-D375 keeps the readers of a withheld tail
 pair so that a description written before it still loads. 668f276, the
 last pushed tree to write one, wrote neither the twelve keys stage 3b
 reserves (plan P4-D364: seven on `datetime`, five on `time_of_day`) nor
-`settings.forced_twelve_hour_clocks` (landing T1, plan P4-D370), and the
-two merges after it that still withheld pairs wrote the reserves and not
-that key. Each of those thirteen keys, where it is ABSENT, is read as
-the value every producer since writes where nothing is published --
-`[]`, and `null` for `clock_step` -- and only then: present, it is read
-and checked by its own rule, and every other key stays REQUIRED. This is
+`settings.forced_twelve_hour_clocks` (landing T1, plan P4-D370) nor the
+four keys of the second key cut (plan P4-D386: `century_windows`,
+`forced_date_columns` and `forced_date_counts` on `settings`, and
+`count_form` on `datetime`), and the two merges after it that still
+withheld pairs wrote the twelve reserves and none of the other five.
+Each of those seventeen keys, where it is ABSENT, is read as the value
+every producer since writes where nothing is published -- `[]`, and
+`null` for `clock_step` and `count_form` -- and only then: present, it
+is read and checked by its own rule, and every other key stays
+REQUIRED. This is
 not C6-45's upgrade: an absent census and an empty one both say that
 nothing was published, so no fact is made up (review of landing 3b.G1,
 item 1; `tests/test_p4d375_earlier_descriptions.py`, on 668f276's own
@@ -14646,11 +14734,12 @@ cells, defined in 6.11. Not reproduced here; a matrix is not a list.
 
 ### 14.3 Settings and declarations
 
-**`settings` keys — 24** (4.4), in the ascending code-point order every
+**`settings` keys — 27** (4.4), in the ascending code-point order every
 object of a canonical document takes: `categorical_ceiling`,
-`categorical_floor`, `categorical_share`, `day_first`,
+`categorical_floor`, `categorical_share`, `century_windows`, `day_first`,
 `declaration_matching`, `declaration_publication`,
-`declared_missing_values`, `forced_codes`, `forced_decimal_commas`,
+`declared_missing_values`, `forced_codes`, `forced_date_columns`,
+`forced_date_counts`, `forced_decimal_commas`,
 `forced_delimiter`, `forced_identifiers`,
 `forced_measurements`, `forced_metadata_rows`,
 `forced_twelve_hour_clocks`, `identifier_minimum_rows`, `identifier_uniqueness`, `kept_values`,
@@ -14927,6 +15016,10 @@ nested forms, 5 bound affix strings.
 <!-- anchor 3b-G2 (P4-D377) -->
 <!-- anchor 3b-7 (P4-D378) -->
 <!-- anchor 3b-J (P4-D379) -->
+<!-- anchor 3b-R2a (P4-D383) -->
+<!-- anchor 3b-R2b (P4-D383) -->
+<!-- anchor 3b-R2c (P4-D383) -->
+<!-- anchor 3b-R4 (P4-D384) -->
 
 **The package-word vocabulary — 26**, the whole of the second argument
 class (4.5.1): the twenty `format` members of 14.6, plus `day-first`

@@ -441,6 +441,7 @@ def test_r7_no_byte_moves(tmp_path: pathlib.Path) -> None:
 
     document = demo._demo_document(tmp_path)
     document["created_with"] = "(version normalized for the golden test)"
+    _without_the_second_cut(document)
     del document["settings"]["forced_twelve_hour_clocks"]
     assert hashlib.sha256(producer.serialize(document).encode("utf-8")).hexdigest() == (
         "17f1d514335b2eb06005f32357cd42c96c7b42036d5d1f71e23aee62ce08912f"
@@ -453,11 +454,32 @@ def test_r7_no_byte_moves(tmp_path: pathlib.Path) -> None:
         read, taxonomy.Settings(small_cell_floor=11), ["record_code"], [], [fixtures.JOINED_COLUMN]
     )
     described["created_with"] = golden.NORMALIZED_VERSION
+    _without_the_second_cut(described)
     del described["settings"]["forced_twelve_hour_clocks"]
     written = fixtures.write_profile(folder, "table-profile.json", described)
     assert hashlib.sha256(written.read_bytes()).hexdigest() == (
         "c126adc7722a717079b62801c73d02de97e2f65de624b0be82faffeb022f0eda"
     )
+
+
+def _without_the_second_cut(document: dict) -> None:
+    """The four keys the second cut reserves (plan P4-D386), taken out empty.
+
+    They arrived after T1, so "as before T1" reads the document without
+    them as well as without T1's own key.
+
+    IT STANDS BELOW R7, AND R7 CALLS IT ABOVE THE LINE THAT TAKES T1's KEY
+    OUT, because a landing that puts keys of its own back for R7 does so
+    above R7 and below that line (3b.C1's clock census does): the two then
+    merge with no line in common, both stay, both are called at R7's two
+    places, and R7's two digests do not move. Taking either one alone
+    turns R7 red, and re-recording its digests then would hide that.
+    """
+    for key in ("century_windows", "forced_date_columns", "forced_date_counts"):
+        assert document["settings"].pop(key) == [], key
+    for column in document["columns"]:
+        if "count_form" in column:
+            assert column.pop("count_form") is None, column["name"]
 
 
 # -- the design skeptic's items ------------------------------------------

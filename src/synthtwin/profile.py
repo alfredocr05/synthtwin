@@ -563,6 +563,17 @@ def _settings_block(
         "forced_twelve_hour_clocks": _named_once(
             list(settings.forced_twelve_hour_clocks)
         ),
+        # THE THREE DECLARATIONS STAGE 3B RESERVES (plan P4-D386), empty
+        # in every description until the landing that fills each: a
+        # column's window for two-figure years (landing R2a), the columns
+        # said to be dates (landing R2c), and the columns said to write
+        # their dates as counts (landing R4).
+        # -- 3b.R2a (P4-D383)
+        "century_windows": [],
+        # -- 3b.R2c (P4-D383)
+        "forced_date_columns": [],
+        # -- 3b.R4 (P4-D384)
+        "forced_date_counts": [],
     }
 
 
@@ -882,6 +893,10 @@ _WEEKDAY_COUNT = "a-weekday-group-count-zero-or-at-the-census-line"
 # anchor 3b-G2 (P4-D377)
 # anchor 3b-7 (P4-D378)
 # anchor 3b-J (P4-D379)
+# anchor 3b-R2a (P4-D383)
+# anchor 3b-R2b (P4-D383)
+# anchor 3b-R2c (P4-D383)
+# anchor 3b-R4 (P4-D384)
 _SHAPE_FORM = "a-written-form-a-cell-could-not-be-spelled-with"
 _LAYOUT_FORM = "a-layout-a-record-number-could-not-be-spelled-with"
 # The two kinds `layout_prefixes` carries (owner ruling 2026-09-17,
@@ -1007,6 +1022,15 @@ _STATED_RULES: "dict[tuple[str, ...], str]" = {
     ("settings", "forced_decimal_commas", _EACH): _KNOWN_NAME,
     ("settings", "forced_twelve_hour_clocks"): _ARRAY,
     ("settings", "forced_twelve_hour_clocks", _EACH): _KNOWN_NAME,
+    # THE THREE DECLARATIONS STAGE 3B RESERVES (plan P4-D386): each an
+    # EMPTY list until the landing that fills it adds the rows of what it
+    # holds, so an entry is a path no rule names and is refused here.
+    # -- 3b.R2a (P4-D383)
+    ("settings", "century_windows"): _ARRAY,
+    # -- 3b.R2c (P4-D383)
+    ("settings", "forced_date_columns"): _ARRAY,
+    # -- 3b.R4 (P4-D384)
+    ("settings", "forced_date_counts"): _ARRAY,
     # How the table was read.
     ("source",): _OBJECT,
     ("source", "encoding"): _WORD,
@@ -1695,6 +1719,9 @@ _STATED_RULES: "dict[tuple[str, ...], str]" = {
     ("columns", _EACH, "clock_heaps"): _ARRAY,
     ("columns", _EACH, "clock_step"): _NOTHING,
     ("columns", _EACH, "clock_codes"): _ARRAY,
+    # ...and the key the second cut reserves (plan P4-D386), nothing at
+    # all until landing R4 fills it.
+    ("columns", _EACH, "count_form"): _NOTHING,
     # THE LANDINGS' ANCHORS (plan P4-D364): each landing of stage 3b adds
     # its rows below its own line.
     # anchor 3b-D1 (P4-D365)
@@ -1712,6 +1739,10 @@ _STATED_RULES: "dict[tuple[str, ...], str]" = {
     # anchor 3b-G2 (P4-D377)
     # anchor 3b-7 (P4-D378)
     # anchor 3b-J (P4-D379)
+    # anchor 3b-R2a (P4-D383)
+    # anchor 3b-R2b (P4-D383)
+    # anchor 3b-R2c (P4-D383)
+    # anchor 3b-R4 (P4-D384)
     # The roles that publish no value at all.
     ("columns", _EACH, "min_length"): _COUNT,
     ("columns", _EACH, "max_length"): _COUNT,
@@ -2601,6 +2632,10 @@ def _leaf_is_published(
     # anchor 3b-G2 (P4-D377)
     # anchor 3b-7 (P4-D378)
     # anchor 3b-J (P4-D379)
+    # anchor 3b-R2a (P4-D383)
+    # anchor 3b-R2b (P4-D383)
+    # anchor 3b-R2c (P4-D383)
+    # anchor 3b-R4 (P4-D384)
     if kind == _TAIL_PERCENT:
         if isinstance(value, bool) or not isinstance(value, int):
             return False
