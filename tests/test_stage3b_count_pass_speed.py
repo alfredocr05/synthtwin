@@ -701,7 +701,12 @@ def test_the_pool_cuts_halves_and_drops_its_blocks_and_merges_none() -> None:
     alone: it holds 512 offers after 256 of them, and the next halves it
     into 256 and 257. A take changes no block but the one that held the
     offer: a block shrinks in place to a single offer beside a full one,
-    and a block a take empties is dropped. No block is merged into a
+    and a block a take empties is dropped. The second block then shrinks
+    to 56 beside the single offer and the block of 257, and the third to
+    113 beside two blocks of 56: neither is merged with a neighbour,
+    though the two would fit in 256 offers, nor topped up from a larger
+    one, which takes beside full blocks alone would not show (the
+    verifier of the second skeptic's fix). No block is merged into a
     neighbour, so a block holds anything from 1 to 512 offers.
     """
     offers = [(10 * number, 1, 0, 0) for number in range(1000)]
@@ -717,13 +722,16 @@ def test_the_pool_cuts_halves_and_drops_its_blocks_and_merges_none() -> None:
             assert sizes == [256, 256 + count, 256, 232], (count, sizes)
         else:
             assert sizes == [256, 256, 257, 256, 232], (count, sizes)
+    grown = sorted(offers[256:512] + puts)
     assert pool.blocks[0] == offers[:256], "a put into the second block changed the first"
-    assert pool.blocks[1] + pool.blocks[2] == sorted(offers[256:512] + puts)
+    assert pool.blocks[1] + pool.blocks[2] == grown
     assert pool.blocks[3:] == [offers[512:768], offers[768:]], "a put changed a block after its own"
     # The first block down to one offer, the last emptied, the fourth down
-    # to 56: after each take the pool must be what it was with that offer
-    # gone from its own block, and that block gone once it holds none.
-    takes = offers[1:256] + offers[768:] + offers[512:712]
+    # to 56, then the second down to 56 beside the single offer and the
+    # block of 257, and the third to 113 beside two blocks of 56: after
+    # each take the pool must be what it was with that offer gone from its
+    # own block, and that block gone once it holds none.
+    takes = offers[1:256] + offers[768:] + offers[512:712] + grown[:200] + grown[256:400]
     for offer in takes:
         expected = [tuple(kept for kept in block if kept != offer) for block in pool.blocks]
         expected = [block for block in expected if block]
@@ -731,7 +739,7 @@ def test_the_pool_cuts_halves_and_drops_its_blocks_and_merges_none() -> None:
         got = [tuple(block) for block in pool.blocks]
         assert got == expected, (offer, [len(block) for block in pool.blocks])
         assert pool.lasts == [block[-1] for block in pool.blocks], offer
-    assert [len(block) for block in pool.blocks] == [1, 256, 257, 56]
+    assert [len(block) for block in pool.blocks] == [1, 56, 113, 56]
 
 
 # -- 3. every call the generator makes, on clinic slots ----------------------
