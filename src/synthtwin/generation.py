@@ -3137,6 +3137,7 @@ def _padded_style_swaps(
     widths: "dict[str, int]",
     pinned: "list[int]",
     whole_column: bool,
+    far: "tuple[int, tuple[bool, ...]]" = (0, ()),
 ) -> "list[str]":
     """Move the padded style onto values a published field width can hold.
 
@@ -3165,10 +3166,14 @@ def _padded_style_swaps(
     that was already meeting the census is not stirred.
 
     Guarantees: accepts the assigned styles, the drawn values, the
-    published census, the pinned positions and whether the column is
-    whole; returns one style per cell, a permutation of the styles
-    handed in. Determinism: every walk is over an ascending index
-    order. Raises nothing. No I/O of any kind.
+    published census, the pinned positions, whether the column is whole
+    and ``far``, the widest figure count a width demand lets a value hold
+    with the sides a published tail pair proves a cell past it on
+    (`_proven_sides`, none by default); returns one style per cell, a
+    permutation of the styles handed in except that a cell no published
+    width can hold gives the padded style up as stated below.
+    Determinism: every walk is over an ascending index order. Raises
+    nothing. No I/O of any kind.
     """
     quotas: dict[int, int] = {}
     for key in sorted(widths):
@@ -3375,19 +3380,24 @@ def _padded_style_swaps(
     # which is exactly what the identity of contract 7.5.7 permits and
     # refuses in turn).
     #
-    # AND WHERE THE MAP CARRIES NO OTHER POINT-FREE FORM -- every cell of
-    # the column padded -- THE CELL IS WRITTEN PLAIN (lane G2 of stage
-    # 3b, plan P4-D377). Kept padded it is written one figure wider than
-    # any field the census names, and the source's own cell there cannot
-    # have been: a value needing as many figures as the widest published
-    # pad has no padded spelling at that width, so the census counted an
-    # unpadded cell into its commonest form and width (plan P4-D222).
-    # Measured on `00001` to `00399` beside one `12345`, where G6.6.8
-    # leaves the derived end `12280` past the width: the twin wrote
-    # `012280`, six characters in a column of five, at seeds 0, 4 and 9,
-    # where 110cb46 wrote every cell five wide; written plain, every cell
-    # is five wide again and nothing is missed. The pooled census holds
-    # it: at most the line less one cells can be past the width.
+    # WHERE THE MAP CARRIES NO OTHER POINT-FREE FORM -- every cell of the
+    # column padded -- the cell keeps the padded style (plan P4-D105):
+    # giving it up would write a form the map does not name, and the
+    # census is then unmeetable in both directions and G13's recount
+    # names it. EXCEPT A FAR CELL A TAIL'S PAIR PROVES (lane G2 of stage
+    # 3b, plan P4-D377): a value past every named width on a side whose
+    # published pair proves a cell past it (`_proven_side_holds`) is
+    # written PLAIN. Kept padded it stood one figure wider than any field
+    # the census names, where the source's own far cell -- which the
+    # census pooled into its commonest form and width (plan P4-D222) --
+    # could have been padded at none of them. Measured on `00001` to
+    # `00399` beside one `12345`, where G6.6.8 leaves the derived end
+    # `12280` past the width: the twin wrote `012280`, six characters in
+    # a column of five, at seeds 0, 4 and 9, where 110cb46 wrote every
+    # cell five wide; written plain, every cell is five wide again and
+    # nothing is missed. A value the draw alone left too wide keeps the
+    # padded style as P4-D105 states: the 1,920 runs of the stage-2b
+    # style battery give their named padded count up at eight.
     widest = 0
     for width in quotas:
         if width > widest:
@@ -3416,8 +3426,35 @@ def _padded_style_swaps(
         if swapped:
             continue
         given = _point_free_form_worn(styles, holds[index], whole_column)
-        moved[index] = given if given else "plain"
+        if not given and _proven_side_holds(holds[index], far, whole_column):
+            given = "plain"
+        if given:
+            moved[index] = given
     return moved
+
+
+def _proven_side_holds(
+    value: float, far: "tuple[int, tuple[bool, ...]]", whole_column: bool
+) -> bool:
+    """Whether a value stands past every named width on a side a tail's pair proves a cell past it (G6.3, G6.6.8).
+
+    ``far`` is the widest figure count any width demand lets a value hold
+    and the sides, high or not, whose published pair's reach passes it
+    (`_proven_sides`). Such a value is one of the far cells G6.6.8 leaves
+    past the width, the pair proving the source wrote at least one.
+
+    Guarantees: accepts a value, ``far`` and whether the column is whole;
+    returns True exactly where the value is carried plainly, has more
+    figures than the widest count, and stands on a proven side of nought.
+    Determinism: a function of the three. Raises nothing. No I/O of any
+    kind.
+    """
+    widest, sides = far
+    if widest < 1 or not _carries_plainly(value, whole_column):
+        return False
+    if _figure_count(value, whole_column) <= widest:
+        return False
+    return (value > 0.0 and True in sides) or (value < 0.0 and False in sides)
 
 
 def _point_free_form_worn(
@@ -14944,6 +14981,16 @@ def _proven_sides(
     width is demanded, or where the figure search cannot reach the width
     (`_FIGURE_REACH`).
 
+    AND EMPTY WHERE THE WIDTH CENSUS DOES NOT COUNT EVERY NUMBER of the
+    column. The census counts the cells written with no point, so beside
+    decimals or exponents it says nothing about the cells the tail holds,
+    and a reach past `10**widest - 1` proves no cell of the census wider:
+    on the stage-2b style battery's columns of two-figure padded codes
+    beside decimals reaching 750, both tails read as proven, and a padded
+    code past the width was written plain at 34 runs of 1,920 where the
+    battery gives its named padded count up at eight. G5.3b step 4's width
+    clamps, and with them rule 1, ask the same of the census.
+
     Guarantees: accepts one numeric block's facts and the widest demanded
     figure count; returns the proven sides, low first. Determinism: a
     function of the two. Raises nothing. No I/O of any kind.
@@ -14952,6 +14999,12 @@ def _proven_sides(
     if tails is None or tails.low is None or tails.high is None:
         return []
     if widest < 1 or widest > _FIGURE_REACH:
+        return []
+    counted = 0
+    for key in facts.field_widths:
+        if key != contract.WITHHELD:
+            counted = counted + facts.field_widths[key]
+    if counted != facts.n_used_in_statistics:
         return []
     ladder = contract.tail_ladder(facts)
     if ladder is None or ladder.low is None or ladder.high is None:
@@ -16980,12 +17033,14 @@ def _number_cells(
     # of them and wrote the rest at one, having met the padding census
     # exactly. One census was bought with another. Choosing the styles
     # first and the widths afterwards is what makes both reachable.
+    widest = _widest_demanded(_field_demands(facts))
     styles = _padded_style_swaps(
         styles,
         holds,
         facts.pad_widths,
         _pinned_cells(layout, values),
         facts.integer_valued,
+        (widest, tuple(side[0] for side in _proven_sides(facts, widest))),
     )
     # ...AND THE SIGNED-DECIMAL EXCHANGE BEFORE THE WIDTHS TOO, for the
     # same reason: a width goes to a cell wearing `decimal`, so a cell

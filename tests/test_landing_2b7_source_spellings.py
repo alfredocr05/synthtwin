@@ -737,36 +737,35 @@ def test_a_padded_value_no_field_can_hold_gives_the_style_up() -> None:
             assert generation._pad_need(holds[place], True) < 2
 
 
-def test_a_padded_cell_no_width_holds_is_written_plain_where_no_other_form_is_worn() -> None:
-    """And where there is no OTHER point-free form, the cell is written plain.
+def test_a_padded_cell_with_no_partner_keeps_the_style() -> None:
+    """And where there is no OTHER point-free form, nothing is invented.
 
-    AMENDED BY PLAN P4-D377 (lane G2 of stage 3b), which moved the rule
-    under it; until then this was
-    `test_a_padded_cell_with_no_partner_keeps_the_style`. Where the map
-    carried no other point-free form at all -- every cell of the column
-    padded -- the cell KEPT the padded style and was written one figure
-    wider than any field the census names: `00001` to `00399` beside one
-    `12345`, whose far cell method G6.6.8 leaves past the width, came back
-    holding `012280`, six characters in a column of five. The census
-    counts a form fewer than the line wrote into its commonest (plan
-    P4-D222), so it never said that no cell was plain, and a value no
-    published width can pad was not padded at any of them; written plain
-    it stands at the width the census names.
+    AMENDED BY PLAN P4-D105 (landing 2b.16 part 1), which is the
+    decision that moved the rule under it. This fixture was written at
+    landing 2b.7 with two `plain` cells beside the padded ones and
+    asserted that the pass left the column exactly as it found it. That
+    is no longer what the rule says: a cell wearing the padded style
+    whose value no published width can hold now gives the style up EVEN
+    WHERE NO PARTNER EXISTS, taking the point-free form the published
+    map carries most of, because leaving the style where it was is what
+    wrote a six-character code into a five-character field.
 
-    AMENDED BY PLAN P4-D105 (landing 2b.16 part 1) before that, and still
-    pinned below: a cell wearing the padded style whose value no published
-    width can hold gives the style up even where no partner exists,
-    taking the point-free form the published map carries most of.
+    What survives of the original intent is the clause that still
+    holds, and it is the one this now pins: where the map carries no
+    other point-free form at all -- every cell of the column padded --
+    there is nothing to give the style up to, so the cell KEEPS it and
+    G13's recount names the shortfall. A form no cell of the column
+    wears is never offered, which is the sentence both writings share.
     """
     from synthtwin import generation
 
     # Every cell padded, so there is no other point-free form to take:
-    # the overflowing cell is written plain and the rest keep their pad.
+    # the column comes back exactly as it went in.
     styles = ["leading_zero", "leading_zero", "leading_zero"]
     holds = [12.0, 3.0, 4.0]
     assert generation._padded_style_swaps(
         styles, holds, {"2": 3}, [], True
-    ) == ["plain", "leading_zero", "leading_zero"]
+    ) == styles
     # ...and with a `plain` cell in the map, the overflowing cell gives
     # the style up to it rather than keeping a field it cannot wear
     # (plan P4-D105). `12.0` needs both figures of a two-figure field,

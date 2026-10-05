@@ -230,6 +230,11 @@ def _both_sides() -> "list[str]":
     return [str(draw.randint(1000, 9999)) for _row in range(300)] + ["-99999", "-88888", "99999", "77777"]
 
 
+def _codes_beside_decimals() -> "list[str]":
+    """Codes `01` to `07` written twice, beside forty decimals from -400.125 to 575.125: the census names the codes alone."""
+    return [f"0{digit}" for digit in range(1, 8)] * 2 + [f"{value}.125" for value in range(-400, 600, 25)]
+
+
 def _staircase_far(rows: int, far: int, start: int) -> "list[str]":
     """Four-figure numbers beside a run of far cells one apart, fewer than the line."""
     draw = random.Random(f"g2/stair/{rows}/{far}/{start}")
@@ -355,6 +360,16 @@ def test_a_side_is_walked_only_where_its_reach_passes_the_width(tmp_path: pathli
     assert generation._proven_sides(narrow, 5) == []
     both = _facts(_described(tmp_path, "both", _both_sides(), 11))
     assert [side[0] for side in generation._proven_sides(both, 4)] == [False, True]
+    # ...and none where the census does not count every number: two-figure
+    # padded codes beside decimals reaching 575, whose tails are decimals
+    # far past `9`. The census counts the codes alone, and says nothing of
+    # the cells the tails hold.
+    beside = _facts(_described(tmp_path, "codes_beside_decimals", _codes_beside_decimals(), 11))
+    assert sum(beside.field_widths.values()) < beside.n_used_in_statistics, "premise: decimals the census does not count"
+    assert beside.tails is not None and beside.tails.high is not None and beside.tails.high.mean_distance is not None
+    ladder = contract.tail_ladder(beside)
+    assert ladder is not None and ladder.high is not None and ladder.high.boundary > 9.0, "premise: a tail past 9"
+    assert generation._proven_sides(beside, 1) == []
 
 
 def test_a_hold_on_a_stand_in_the_block_holds_stays(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -781,9 +796,10 @@ def test_a_far_cell_no_pad_can_hold_is_written_plain(tmp_path: pathlib.Path, mon
 
     The end G6.6.8 leaves past the width, `12280`, needs every figure of
     the one field the census names, so no pad can hold it, and the map
-    carries no other point-free form to give the padded style up to: it is
-    written plain (method G6.3, plan P4-D377). Its mutant keeps the pad and
-    writes `012280`, six characters in a column of five.
+    carries no other point-free form to give the padded style up to; the
+    tail's pair proves a cell past the width on its side, so it is written
+    plain (method G6.3, plan P4-D377). Its mutant keeps the pad and writes
+    `012280`, six characters in a column of five.
     """
     for rows in (150, 400):
         for floor in (11, 36):
@@ -796,6 +812,30 @@ def test_a_far_cell_no_pad_can_hold_is_written_plain(tmp_path: pathlib.Path, mon
         generation, "_point_free_form_worn", lambda styles, value, whole: _REAL_WORN(styles, value, whole) or "leading_zero"
     )
     assert max(len(cell) for cell in _cells(described, 0)) == 6
+
+
+def test_only_a_far_cell_a_pair_proves_gives_its_pad_up_to_a_form_the_map_does_not_name() -> None:
+    """`_padded_style_swaps` and `_proven_side_holds` asked directly: every cell padded, one value no pad can hold.
+
+    `12` in a column whose one pad width is two keeps the padded style
+    where no tail's pair proves a cell past the width (plan P4-D105: the
+    stage-2b style battery gives its named padded count up at eight runs
+    of 1,920, and writing plain there missed it at 34), and is written
+    plain where the high side's pair does (plan P4-D377). A value inside
+    the width, or one on the side no pair proves, is no far cell.
+    """
+    styles = ["leading_zero", "leading_zero", "leading_zero"]
+    holds = [12.0, 3.0, 4.0]
+    swaps = generation._padded_style_swaps
+    assert swaps(styles, holds, {"2": 3}, [], True) == styles
+    assert swaps(styles, holds, {"2": 3}, [], True, (1, (False,))) == styles
+    assert swaps(styles, holds, {"2": 3}, [], True, (1, (True,))) == ["plain", "leading_zero", "leading_zero"]
+    holds_far = generation._proven_side_holds
+    assert holds_far(12.0, (1, (True,)), True)
+    assert not holds_far(9.0, (1, (True,)), True)
+    assert not holds_far(-12.0, (1, (True,)), True)
+    assert holds_far(-12.0, (1, (False, True)), True)
+    assert not holds_far(12.0, (0, (True,)), True)
 
 
 def test_a_run_with_too_little_room_under_the_width_widens_inward(
