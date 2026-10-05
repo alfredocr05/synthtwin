@@ -20,14 +20,24 @@ holds the whole battery, and NF106's sentence:
   since the repair round, appointment times beside clock-shaped codes
   near the clock line and small tables beside a few past it keep their
   reading: as clock times, their twins refusing no cell the table does
-  not, or as labels, refusing fewer than a held-back level's more;
+  not, or as labels, refusing fewer than a held-back level's more; and,
+  since the second repair round, appointment times beside what the level
+  pass counts out -- 3 % one-off notes, 2 % `HH:MM:SS`, 10 % `h:mm AM` --
+  are clock times whose twins write every present cell as a time
+  (mutant: the level pass keeping the labels of what is left);
 * F `test_f_no_count_below_the_line_and_nothing_missed` -- every printed
   count is nought or at least the census line, the loader accepts every
   description (CC1 to CC5, CH1 and CH2), and every twin and every real
   table validates with nothing missed (V5-C1 and V5-C2 among the checks);
   so do the repair round's code mixes at 300 to 3,000 rows and its small
   tables, whose twins read back as labels where the tables are labels
-  (mutant: G8.3's clock line withdrawn, and the role is MISSED);
+  (mutant: G8.3's clock line withdrawn, and the role is MISSED), and the
+  second repair round's columns beside what the level pass counts out
+  (mutant: the level pass keeping the labels, and the role is MISSED);
+  the label column's clock line and, since the second repair round, the
+  free-text column's are the producer's own, exactly that many cells
+  read as times being labels and one more clock times (mutants: the
+  skeptic's line alone; the free-text line one cell higher);
 * H `test_h_the_hour_comes_back` -- at 1,000 rows every column's hour of
   day is within 0.03 of the real one, and at every size within the bound
   of the cells the census cannot place in their hour: the cells of groups
@@ -65,16 +75,24 @@ holds the whole battery, and NF106's sentence:
   beside 2 % words, two-figure and one-figure hours and Excel's `h:mm AM`,
   read as labels, write their held-back levels as times (mutants: the
   form filled figure by figure; the key of a clock with a space before
-  its marker withdrawn);
+  its marker withdrawn); and, since the second repair round, columns half
+  or 5 % of whose times are at the second, labels or free text, write no
+  cell a clock reader refuses: the clock line is held key by key (mutant:
+  every clock time one key);
 * W `test_w_rare_words_beside_clock_times_keep_the_clock` -- 296 shift
   starts beside four `UNK` are clock times, the words counted missing,
   and the twin reads back the same way (mutant: the level pass keeps the
-  labels);
+  labels); and, since the second repair round, a route to clock times
+  stands only where the column it leaves is clock times, so one time on
+  every row but one beside a few words or notes publishes no pool that
+  names a count (mutant: the route standing on labels);
 * Q `test_q_a_few_shared_times_are_asked_about` -- where a set of labels
   could hold the column too and the times many rows share hold every
   cell of its body, the questions file asks, and the answer `code` reads
-  it as labels; where a census is published, nobody is asked (mutants:
-  no question; the question asked beside a census);
+  it as labels; where a census is published, nobody is asked; shift
+  starts beside stray night times, whose tails meet on the middle heap,
+  are asked about (mutants: no question; the question asked beside a
+  census; the tails ignored);
 * G `test_g_the_guard_holds_each_clock_leaf_to_its_kind` -- the
   publication guard refuses a clock census bin, group count, heap count,
   heap value and step each of the wrong kind (mutant, one each: that
@@ -231,6 +249,10 @@ def test_r_every_column_is_a_clock_and_every_twin_cell_a_time(rows: int, floor: 
 
 def test_r_red_when_rule_8_is_asked_after_rule_7(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(taxonomy, "_clock_spellings_reach", lambda _cells: False)
+    # ...and the level pass's route to clock times with it (the second
+    # repair round): before this landing a column the level pass counted
+    # times out of stayed labels.
+    monkeypatch.setattr(taxonomy, "_levels_beside_clock_times", lambda *_a: None)
     _described.cache_clear()
     _twin.cache_clear()
     try:
@@ -300,6 +322,50 @@ def test_r_small_tables_beside_codes_keep_their_reading(spec: str, floor: int) -
     assert _kept_reading(document, columns, cells, floor) == [], (spec, floor)
 
 
+# THE SECOND REPAIR ROUND'S SHAPES (the 3b.5 skeptic 2's BLOCKER): appointment
+# times beside what the level pass counts out -- 3 % one-off notes, past the
+# few words of one cell in fifty, 2 % times at the second and 10 % times on
+# the 12-hour face -- at 1,000 rows and a floor of eleven, and the notes at
+# 3,000 rows and a floor of 36. The level pass counted every level below the
+# floor missing, rare times among them, and held the column to the labels;
+# its twin, those cells blank, read back as clock times and the role was
+# MISSED. Each is clock times now, the level pass counting out only what
+# the clock's form does not read.
+_LEVEL_PASS_CASES = (
+    (1000, 11, tuple(shapes.LEVEL_PASS_MIXES)),
+    (3000, 36, ("notes3",)),
+)
+
+
+def _not_clock_times(names: "tuple[str, ...]", rows: int, floor: int) -> "list[str]":
+    """The columns not read as clock times, or whose twin writes a cell no clock reader takes."""
+    _folder, _columns, document, _loaded, _table = _described(names, rows, floor)
+    cells, _missed_now = _twin(names, rows, floor, 0)
+    return [
+        name for name in names
+        if _block(document, name)["role"] != taxonomy.ROLE_CLOCK or _refused(cells[name]) != 0
+    ]
+
+
+@pytest.mark.parametrize("rows,floor,names", _LEVEL_PASS_CASES)
+def test_r_times_beside_what_the_level_pass_counts_out_are_clock_times(
+    rows: int, floor: int, names: "tuple[str, ...]"
+) -> None:
+    assert _not_clock_times(names, rows, floor) == [], (rows, floor)
+
+
+def test_r_red_when_the_level_pass_keeps_the_labels_of_a_clock(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(taxonomy, "_levels_beside_clock_times", lambda *_a: None)
+    _described.cache_clear()
+    _twin.cache_clear()
+    try:
+        for rows, floor, names in _LEVEL_PASS_CASES:
+            assert tuple(_not_clock_times(names, rows, floor)) == names, (rows, floor)
+    finally:
+        _described.cache_clear()
+        _twin.cache_clear()
+
+
 # -- F: the floor, the loader, and nothing missed ---------------------
 
 
@@ -339,6 +405,45 @@ def test_f_small_tables_beside_codes_validate(spec: str, floor: int) -> None:
     assert missed == [], (spec, floor, missed)
 
 
+@pytest.mark.parametrize("rows,floor,names", _LEVEL_PASS_CASES)
+def test_f_times_beside_what_the_level_pass_counts_out_validate(
+    rows: int, floor: int, names: "tuple[str, ...]"
+) -> None:
+    """The 3b.5 skeptic 2's BLOCKER: clock times on the table, clock times on the twin."""
+    _folder, _columns, _document, loaded, table = _described(names, rows, floor)
+    assert _missed(loaded, table) == []
+    _cells_now, missed = _twin(names, rows, floor, 0)
+    assert missed == [], (rows, floor, missed)
+
+
+def test_f_red_when_the_level_pass_keeps_the_labels_of_a_clock(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(taxonomy, "_levels_beside_clock_times", lambda *_a: None)
+    _described.cache_clear()
+    _twin.cache_clear()
+    try:
+        for rows, floor, names in _LEVEL_PASS_CASES:
+            _cells_now, missed = _twin(names, rows, floor, 0)
+            for name in names:
+                assert f"{name}:axes.role" in missed, (rows, floor, name, missed)
+    finally:
+        _described.cache_clear()
+        _twin.cache_clear()
+
+
+def _role_of(column: "list[str]") -> str:
+    """The role the producer reads one column of cells as, at the floor of eleven."""
+    folder = pathlib.Path(tempfile.mkdtemp(dir=_HOME[0]))
+    table = fixtures.write(folder, "line.csv", "c\n" + "\n".join(column) + "\n")
+    document = profile.build_document(
+        reading.read_table(str(table), small_cell_floor=11), taxonomy.Settings(small_cell_floor=11), []
+    )
+    return f"{document['columns'][0]['role']}"  # type: ignore[index]
+
+
+def _quarter_hours(draw: random.Random, count: int) -> "list[str]":
+    return [parsing.clock_spelling(15 * draw.randrange(32, 72), parsing.CLOCK_HH_MM) for _ in range(count)]
+
+
 # THE CLOCK LINE IS THE PRODUCER'S OWN (method G8.3, the repair round): the
 # room is the most cells of a column of labels a clock reader may take
 # before the producer reads it as clock times -- exactly that many beside
@@ -349,19 +454,25 @@ _LINE_CASES = ((250, 0), (1000, 0), (3000, 11), (3000, 30))
 
 
 def _read_with(present: int, words: int, timed: int) -> str:
-    """The role of a column of ``timed`` quarter hours, ``words`` `UNK` and rare words."""
+    """The role of a column of ``timed`` quarter hours, ``words`` `UNK` and rare words.
+
+    THE RARE WORDS ARE WRITTEN TWICE EACH, the last three times where the
+    cells left are odd, as a twin's stand-ins are sized: a pool of rows at
+    least twice its levels, which the level pass leaves alone. Written
+    once each, the pass counts them out and the times left are read as
+    clock times (the 3b.5 skeptic 2's item 1), which is the table's
+    reading and never its twin's.
+    """
     draw = random.Random(7 * present + words)
-    column = [
-        parsing.clock_spelling(15 * draw.randrange(32, 72), parsing.CLOCK_HH_MM) for _ in range(timed)
-    ]
-    column += ["UNK"] * words + [f"w{index}" for index in range(present - timed - words)]
+    column = _quarter_hours(draw, timed) + ["UNK"] * words
+    rest = present - timed - words
+    pairs = rest // 2
+    for index in range(pairs):
+        column += [f"w{index:04d}"] * (3 if index == pairs - 1 and rest % 2 else 2)
+    if rest == 1:
+        column += ["w0000"]
     draw.shuffle(column)
-    folder = pathlib.Path(tempfile.mkdtemp(dir=_HOME[0]))
-    table = fixtures.write(folder, "line.csv", "c\n" + "\n".join(column) + "\n")
-    document = profile.build_document(
-        reading.read_table(str(table), small_cell_floor=11), taxonomy.Settings(small_cell_floor=11), []
-    )
-    return f"{document['columns'][0]['role']}"  # type: ignore[index]
+    return _role_of(column)
 
 
 def _line_holds(present: int, words: int) -> bool:
@@ -397,6 +508,50 @@ def test_f_red_without_the_clock_line(monkeypatch: pytest.MonkeyPatch) -> None:
         assert any(entry.endswith(":axes.role") for entry in missed), missed
     finally:
         _twin.cache_clear()
+
+
+# THE FREE-TEXT ROOM IS THE PRODUCER'S OWN TOO (method G8.3, the 3b.5 skeptic
+# 2's item 3): a column whose levels are not known until they are written
+# keeps its clock times below the line of its present cells less the most
+# the rare words may hold, whichever of its other cells are rare. Exactly
+# that many quarter hours beside the most one-off notes the rare words may
+# hold, one cell in fifty, and a published `UNK` for the rest are not clock
+# times; one more is. The cases are the present cells, at sizes where the
+# rest reaches the floor and so is published.
+_TEXT_LINE_CASES = (1500, 3000)
+
+
+def _read_text_with(present: int, timed: int) -> str:
+    draw = random.Random(11 * present)
+    rare = present // 50
+    column = _quarter_hours(draw, timed) + [f"note {index}" for index in range(rare)]
+    column += ["UNK"] * (present - timed - rare)
+    draw.shuffle(column)
+    return _role_of(column)
+
+
+def _text_line_holds(present: int) -> bool:
+    room = generation._clock_line_room(present, taxonomy.Settings().minimum_parse_rate, 0, 0, False)
+    return (
+        _read_text_with(present, room) != taxonomy.ROLE_CLOCK
+        and _read_text_with(present, room + 1) == taxonomy.ROLE_CLOCK
+    )
+
+
+@pytest.mark.parametrize("present", _TEXT_LINE_CASES)
+def test_f_the_free_text_room_is_the_producers_own(present: int) -> None:
+    assert _text_line_holds(present)
+
+
+def test_f_red_on_the_free_text_room_one_more(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The line itself, not one cell below it: the off-by-one the skeptic's mutant made."""
+    built = generation._clock_line_room
+
+    def one_more(present: int, rate: float, clocks: int, others: int, settled: bool) -> int:
+        return built(present, rate, clocks, others, settled) + (0 if settled else 1)
+
+    monkeypatch.setattr(generation, "_clock_line_room", one_more)
+    assert not any(_text_line_holds(present) for present in _TEXT_LINE_CASES)
 
 
 # -- H: the hour of day -----------------------------------------------
@@ -933,6 +1088,48 @@ def test_m_red_without_the_key_of_a_spaced_clock(monkeypatch: pytest.MonkeyPatch
         _twin.cache_clear()
 
 
+# TIMES AT THE MINUTE BESIDE TIMES AT THE SECOND (the 3b.5 skeptic 2's item
+# 2): half the cells at the second, labels at a floor of eleven and free text
+# at 36, and 5 % at the second, free text at 36. The producer reads a column
+# as clock times in ONE form, so G8.3's clock line is held key by key: no
+# form of these reaches the line, and every stand-in is a time of its own
+# form. Held against every clock time together, about 2 % of their twins'
+# cells were made-up times a clock reader refuses, where the table has none.
+_FORMS = tuple(shapes.FORM_MIXES)
+_FORM_SIZES = ((1000, 11), (1000, 36))
+
+
+def _refused_beside_forms() -> "dict[tuple[int, int, str], int]":
+    """Each column read as labels or free text, and the cells of its twin a clock reader refuses."""
+    found: "dict[tuple[int, int, str], int]" = {}
+    for rows, floor in _FORM_SIZES:
+        _folder, _columns, document, _loaded, _table = _described(_FORMS, rows, floor)
+        cells, missed = _twin(_FORMS, rows, floor, 0)
+        assert missed == [], (rows, floor, missed)
+        for name in _FORMS:
+            if _block(document, name)["role"] != taxonomy.ROLE_CLOCK:
+                found[(rows, floor, name)] = _refused(cells[name])
+    return found
+
+
+def test_m_a_stand_in_of_another_precision_is_a_time() -> None:
+    found = _refused_beside_forms()
+    assert sorted(found) == [(1000, 11, "half_seconds"), (1000, 36, "half_seconds"), (1000, 36, "seconds5")]
+    assert all(count == 0 for count in found.values()), found
+
+
+def test_m_red_when_every_clock_time_is_one_key(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        generation, "_clock_key", lambda text: (False, "") if parsing.clock_parts(text) is not None else None
+    )
+    _twin.cache_clear()
+    try:
+        found = _refused_beside_forms()
+        assert all(count > 0 for count in found.values()), found
+    finally:
+        _twin.cache_clear()
+
+
 # -- W: rare words beside clock times keep the clock ----------------------
 
 
@@ -1011,6 +1208,9 @@ def test_w_red_when_the_few_words_are_none(monkeypatch: pytest.MonkeyPatch) -> N
 
 def test_w_red_when_the_level_pass_keeps_the_labels(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(taxonomy, "_rare_beside_clocks", lambda *_a: ())
+    # ...both of its routes to clock times: since the second repair round
+    # the four `UNK` the pass counts out leave clock times by the second.
+    monkeypatch.setattr(taxonomy, "_levels_beside_clock_times", lambda *_a: None)
     _described.cache_clear()
     _twin.cache_clear()
     try:
@@ -1021,6 +1221,44 @@ def test_w_red_when_the_level_pass_keeps_the_labels(monkeypatch: pytest.MonkeyPa
     finally:
         _described.cache_clear()
         _twin.cache_clear()
+
+
+# A ROUTE TO CLOCK TIMES STANDS ONLY WHERE THE COLUMN IS CLOCK TIMES (the
+# second repair round, `taxonomy._read_as_clock_times`). Each route counts out
+# fewer levels than the level pass would and keeps the rare times in; where
+# what it leaves is one time on every row but one, the column is read as
+# `binary`, and the rare time kept is a held-back level of one row whose
+# pool names it. Beside four `UNK` (the rare words) and beside twenty-nine
+# one-off notes, past the few words of one cell in fifty (the levels beside
+# clock times), the pass counts that row out, as before either route.
+_ONE_TIME = {
+    "words": ["07:00"] * 290 + ["19:00"] + ["UNK"] * 4,
+    "notes": ["08:00"] * 970 + ["20:00"] + [f"see note {index}" for index in range(29)],
+}
+
+
+def _pool_names_a_count(column: "list[str]") -> bool:
+    """Whether the column's description holds back a pool that names a count by subtraction."""
+    folder = pathlib.Path(tempfile.mkdtemp(dir=_HOME[0]))
+    table = fixtures.write(folder, "one.csv", "c\n" + "\n".join(column) + "\n")
+    document = profile.build_document(
+        reading.read_table(str(table), small_cell_floor=11), taxonomy.Settings(small_cell_floor=11), []
+    )
+    block = document["columns"][0]  # type: ignore[index]
+    assert block["role"] != taxonomy.ROLE_CLOCK, block["role"]
+    levels = int(block["suppressed_levels"] or 0)
+    published = sum(int(level["count"]) for level in block["levels"])
+    return levels > 0 and parsing.pool_names_a_level(levels, int(block["suppressed_rows"]), published)
+
+
+@pytest.mark.parametrize("name", sorted(_ONE_TIME))
+def test_w_a_route_to_clock_times_leaves_no_pool_that_names_a_count(name: str) -> None:
+    assert not _pool_names_a_count(_ONE_TIME[name])
+
+
+def test_w_red_when_a_route_stands_on_labels(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(taxonomy, "_read_as_clock_times", lambda *_a: True)
+    assert all(_pool_names_a_count(_ONE_TIME[name]) for name in sorted(_ONE_TIME))
 
 
 # -- Q: a few shared times are asked about --------------------------------
@@ -1059,6 +1297,22 @@ def test_q_a_few_shared_times_are_asked_about() -> None:
     assert _block(answered, "shifts3")["role"] == taxonomy.ROLE_CATEGORICAL
 
 
+def test_q_shift_starts_beside_stray_times_are_asked_about() -> None:
+    """The 3b.5 skeptic 2's item 3: tails that meet on the middle heap leave it the body.
+
+    Shift starts at 07:00, 15:00 and 19:00 beside fourteen stray night
+    times, fewer than the floor on either side: each tail reaches into the
+    shift starts and both boundaries stand at 15:00, so the heap there
+    holds every cell the tails leave, the census is empty, and the column
+    is asked about.
+    """
+    _folder, _columns, document, _loaded, _table = _described(("shifts_stray",), 1000, 11)
+    block = _block(document, "shifts_stray")
+    assert block["low_tail"]["boundary"] == block["high_tail"]["boundary"] == "15:00"  # type: ignore[index]
+    assert block["clock_census"] == []
+    assert _asked_about_times(("shifts_stray",), 1000) == ["shifts_stray"]
+
+
 def test_q_red_without_the_question(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(asking, "_clock_or_labels_question", lambda *_a: None)
     assert "shifts3" not in _asked_about_times(_ASKED, 1000)
@@ -1067,6 +1321,16 @@ def test_q_red_without_the_question(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_q_red_when_asked_beside_a_census(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(asking, "_heaps_hold_the_body", lambda _block: True)
     assert _asked_about_times(_ASKED, 1000) != ["shifts3"]
+
+
+def test_q_red_when_the_tails_are_ignored(monkeypatch: pytest.MonkeyPatch) -> None:
+    built = asking._heaps_hold_the_body
+
+    def tailless(block: "dict[str, object]") -> bool:
+        return built({**block, "low_tail": None, "high_tail": None})
+
+    monkeypatch.setattr(asking, "_heaps_hold_the_body", tailless)
+    assert _asked_about_times(("shifts_stray",), 1000) == []
 
 
 def test_the_description_says_so_where_the_census_is_left_out() -> None:

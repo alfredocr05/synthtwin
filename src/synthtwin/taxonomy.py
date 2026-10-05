@@ -17261,7 +17261,9 @@ def _rare_beside_clocks(
     `RARE_WORDS_BESIDE_CLOCKS` and the column without exactly their cells
     has a clock reading (`_clock_reading`); nothing otherwise, and nothing
     where there are none. The level pass counts these cells missing and
-    lets every rule read the column again (`_read_the_column`). It is
+    lets every rule read the column again (`_read_the_column`), where
+    every rule then reads it as clock times (`_read_as_clock_times`, the
+    second repair round). It is
     asked of every first reading as labels or free text, not only where
     the level pass counts a level out (the repair round of landing 3b.5):
     a column of `7:30 AM` beside 0.6 % `UNK` and 0.3 % `99:99` was free
@@ -17314,6 +17316,146 @@ def _rare_beside_clocks(
     if _clock_reading(reduced) is None:
         return ()
     return tuple(sorted(rare))
+
+
+def _levels_beside_clock_times(
+    cells: _Cells,
+    classified: "list[_Cell]",
+    counted_out: "tuple[str, ...]",
+    n_rows: int,
+    settings: Settings,
+    decimal_comma: bool,
+) -> "tuple[str, ...] | None":
+    """What the level pass counts out of a column whose other cells are a clock's.
+
+    The second repair round of landing 3b.5 (plan P4-D373). The level pass
+    counts ``counted_out`` missing and holds the column to the label rules,
+    but its twin is the table with those cells blank, read again by every
+    rule: where the cells left read as clock times (`_clock_reading`), so
+    does the twin, and a column published as labels had its role MISSED --
+    32 of 48 columns of appointment times beside 2.2 to 10 % one-off notes,
+    and 23 of 64 beside a minority of `HH:MM:SS` or `h:mm AM`. Such a
+    column is clock times. The answer is the levels of ``counted_out`` no
+    spelling of which that clock's own form reads (`parsing.clock_ordinal`)
+    -- the words, and the times of another precision or face; the rare
+    times of the form stay in, which is what the checker reads the table's
+    cells as. None where the cells left read as no clock, or where every
+    level counted out is a time of the form. The caller counts out only
+    the levels answered and keeps the answer only where every rule then
+    reads the column as clock times (`_read_as_clock_times`).
+
+    THE CELLS LEFT ARE COUNTED FIRST, spelling by spelling: a column whose
+    cells left do not reach the clock line in any form is answered without
+    a tally.
+
+    Guarantees: a function of the arguments, in sorted order. Raises
+    nothing. No I/O of any kind.
+    """
+    gone: "dict[str, bool]" = {}
+    held = 0
+    for label in counted_out:
+        gone[label] = True
+        held = held + cells.folded_counts[label]
+    left_cells = len(cells.present) - held
+    if left_cells <= 0:
+        return None
+    reached = 0
+    for folded in cells.spellings_by_folded:
+        if folded in gone:
+            continue
+        spellings = cells.spellings_by_folded[folded]
+        for spelling in spellings:
+            if parsing.clock_parts(spelling) is not None:
+                reached = reached + spellings[spelling]
+    if reached < clock_line(settings.minimum_parse_rate, left_cells):
+        return None
+    left = _tally(
+        [cell for cell in classified if cell.folded not in gone],
+        n_rows,
+        settings,
+        decimal_comma,
+    )
+    clock = _clock_reading(left)
+    if clock is None:
+        return None
+    narrowed: "list[str]" = []
+    for label in counted_out:
+        spellings = cells.spellings_by_folded[label]
+        if not any(
+            parsing.clock_ordinal(spelling, clock.form) is not None
+            for spelling in spellings
+        ):
+            narrowed += [label]
+    if not narrowed:
+        return None
+    return tuple(sorted(narrowed))
+
+
+def _read_as_clock_times(
+    left: _Cells,
+    removed: int,
+    after_removal: bool,
+    after_days: bool,
+    forced_measurement: bool,
+    described_as_pair: bool,
+    stored_as: str,
+) -> bool:
+    """Whether every rule reads what a clock route leaves as clock times.
+
+    The level pass takes two routes to a column of clock times (plan
+    P4-D373): the rare words beside clock times (`_rare_beside_clocks`)
+    and, since the second repair round of landing 3b.5, the levels below
+    the floor no spelling of which the clock's form reads
+    (`_levels_beside_clock_times`). Each counts out fewer levels than the
+    pass itself would and has every rule read the column again, and the
+    rare TIMES it leaves in are a clock column's values -- but only where
+    the column is read as clock times. Read as anything else, a rare time
+    left in is a held-back level, and its pool can name a count by
+    subtraction that the pass exists to refuse: 290 `07:00`, one `19:00`
+    and four `UNK` were a `binary` column publishing one held-back row on
+    the first repair round, where the pass counts that row missing. So a
+    route stands only where this answers True, asked as `profile_column`
+    asks it, which then finds the verdict kept on the tally (`_decision`).
+
+    Guarantees: a function of the arguments. Raises what `_decide` raises.
+    No I/O of any kind.
+    """
+    verdict = _decision(
+        left,
+        False,
+        removed,
+        after_removal=after_removal,
+        after_days=after_days,
+        forced_measurement=forced_measurement,
+        described_as_pair=described_as_pair,
+        stored_as=stored_as,
+    )
+    return verdict.role == ROLE_CLOCK
+
+
+def _levels_counted_out(
+    classified: "list[_Cell]", counted_out: "tuple[str, ...]"
+) -> "tuple[list[_Cell], int]":
+    """The cells the level pass keeps, and how many it counts missing.
+
+    LOOKED UP, NOT WALKED (stage 4, plan P4-D385): every cell asked the
+    sorted list of the levels counted out, which on a code register of
+    100,000 rows is 11,525 long.
+
+    Guarantees: the kept cells in their order, and the count of the rest.
+    Raises nothing. No I/O of any kind.
+    """
+    counted_keys: "dict[str, bool]" = {}
+    for label in counted_out:
+        counted_keys[label] = True
+    kept: "list[_Cell]" = []
+    absent = 0
+    for cell in classified:
+        if cell.folded in counted_keys:
+            absent = absent + 1
+        else:
+            kept += [cell]
+    return kept, absent
 
 
 def _clock_spellings_reach(cells: _Cells) -> bool:
@@ -21671,29 +21813,66 @@ def _read_the_column(
             # TEXT and published no number at all, where the honest
             # answer is a column of 98 numbers with two holes.
             labels_alone = trial.role in _LEVEL_ROLES and not clocks_left
-            # LOOKED UP, NOT WALKED (stage 4, plan P4-D385): every cell
-            # asked the sorted list of the levels counted out, which on
-            # a code register of 100,000 rows is 11,525 long.
-            counted_keys: "dict[str, bool]" = {}
-            for label in counted_out:
-                counted_keys[label] = True
-            level_kept: list[_Cell] = []
-            for cell in classified:
-                if cell.folded in counted_keys:
-                    # THE SPELLING IS NOT CARRIED OVER, and that is the
-                    # whole point. A cell counted absent under its own
-                    # spelling would put that spelling in
-                    # `missing_by_source` or in the pool beside it, and
-                    # a reader who can tell such a cell from an ordinary
-                    # blank has been told the count this pass exists to
-                    # withhold.
-                    missing += [("", parsing.MISSING_BLANK)]
-                else:
-                    level_kept += [cell]
-            classified = level_kept
-            cells = _tally(
-                classified, n_rows, settings, forced_decimal_comma
+            clock_route = bool(clocks_left)
+            # ...SAVE WHERE WHAT IS LEFT IS A CLOCK'S (the second repair
+            # round of landing 3b.5, plan P4-D373). The twin is the table
+            # with these cells blank, and the producer reads it again
+            # with every rule: where the cells left are clock times it
+            # is read as clock times, and a column published as labels
+            # had its role MISSED -- 32 of 48 columns of appointment
+            # times beside 2.2 to 10 % one-off notes, past the few-words
+            # cap above, and 23 of 64 beside a minority of `HH:MM:SS` or
+            # `h:mm AM`, whose cells a clock reader reads in another
+            # form. So such a column is clock times: only the levels no
+            # spelling of which that clock's form reads are counted out,
+            # and the rare times of the form stay in.
+            if labels_alone and not forced_code:
+                clocked = _levels_beside_clock_times(
+                    cells, classified, counted_out, n_rows, settings,
+                    forced_decimal_comma,
+                )
+                if clocked is not None:
+                    counted_out = clocked
+                    labels_alone = False
+                    clock_route = True
+            level_kept, absent = _levels_counted_out(classified, counted_out)
+            counted = _tally(
+                level_kept, n_rows, settings, forced_decimal_comma
             )
+            # ...AND EITHER CLOCK ROUTE STANDS ONLY WHERE THE COLUMN IT
+            # LEAVES IS CLOCK TIMES (`_read_as_clock_times`). Anywhere
+            # else the rare times it kept would be held-back levels whose
+            # pool names a count, so the pass counts out what it counts
+            # out of any column of labels, as before the routes.
+            if clock_route and not _read_as_clock_times(
+                counted,
+                removed_by_cores,
+                judged_over_cores,
+                judged_over_days,
+                forced_measurement,
+                described_as_pair,
+                stored_as,
+            ):
+                counted_out = _levels_read_by_subtraction(cells, trial.role)
+                labels_alone = bool(counted_out) and trial.role in _LEVEL_ROLES
+                level_kept, absent, counted = classified, 0, cells
+                if counted_out:
+                    level_kept, absent = _levels_counted_out(
+                        classified, counted_out
+                    )
+                    counted = _tally(
+                        level_kept, n_rows, settings, forced_decimal_comma
+                    )
+            for _absent in range(absent):
+                # THE SPELLING IS NOT CARRIED OVER, and that is the
+                # whole point. A cell counted absent under its own
+                # spelling would put that spelling in
+                # `missing_by_source` or in the pool beside it, and a
+                # reader who can tell such a cell from an ordinary blank
+                # has been told the count this pass exists to withhold.
+                missing += [("", parsing.MISSING_BLANK)]
+            classified = level_kept
+            cells = counted
             present = cells.present
             judged_over_levels = labels_alone
     return _ColumnReading(

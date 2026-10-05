@@ -17,7 +17,13 @@ two steps below a heap. Its repair round (the 3b.5 skeptic's items 1,
 3 and 5) adds appointment times beside clock-shaped codes near the one
 per cent the clock line allows (`CODE_MIXES`), small tables of them
 beside a few such codes past it (`SMALL_TABLES`), Excel's `h:mm AM`
-beside 2 % words, and three shift starts with no jitter.
+beside 2 % words, and three shift starts with no jitter. Its second
+repair round (the 3b.5 skeptic 2's items 1 and 3) adds appointment times
+beside what the level pass counts out -- one-off notes past the few
+words, times at the second, times on the 12-hour face
+(`LEVEL_PASS_MIXES`) -- and three shift starts beside stray night times,
+whose tails meet on the middle heap, and columns half or 5 % of whose
+times are at the second, which stay labels or free text (`FORM_MIXES`).
 """
 
 import random
@@ -155,6 +161,23 @@ def _shifts3(draw: random.Random) -> str:
     return _hm(draw.choices((7 * 60, 15 * 60, 23 * 60), weights=(4, 3, 3))[0])
 
 
+# FOURTEEN STRAY NIGHT TIMES, six after midnight and eight before it: fewer
+# than the floor on either side, so each tail reaches into the shift starts
+# and both boundaries stand on the middle one (the 3b.5 skeptic 2's item 3).
+_STRAYS = (10, 50, 90, 140, 190, 240, 1385, 1392, 1400, 1408, 1415, 1422, 1430, 1437)
+
+
+def _shifts_stray(rows: int, draw: random.Random) -> "list[str]":
+    """Shift starts at 07:00, 15:00 and 19:00 beside the stray night times."""
+    out = [_hm(minute) for minute in _STRAYS]
+    out += [
+        _hm(draw.choices((7 * 60, 15 * 60, 19 * 60), weights=(4, 3, 3))[0])
+        for _ in range(rows - len(_STRAYS))
+    ]
+    draw.shuffle(out)
+    return out
+
+
 def _slot_minute(draw: random.Random) -> int:
     """An outpatient appointment: quarter-hour slots from 07:00 mostly."""
     pick = draw.random()
@@ -179,6 +202,43 @@ CODE_MIXES: "dict[str, tuple[tuple[tuple[str, float], ...], str]]" = {
     "codes_e": ((("UNK", 0.009), ("99:99", 0.002), ("88:88", 0.002)), "hh"),
     "codes_ampm": ((("UNK", 0.006), ("99:99", 0.003)), "h AM-PM"),
 }
+
+# APPOINTMENT TIMES BESIDE WHAT THE LEVEL PASS COUNTS OUT (the 3b.5 skeptic
+# 2's BLOCKER): one-off notes, 3 % of the cells and past the few words of
+# one cell in fifty; times at the second, 2 %; times on the 12-hour face
+# with a space before the marker, 10 %. Each cell of them is below the
+# floor, the level pass counts them out, and the times left are a clock's.
+LEVEL_PASS_MIXES: "dict[str, tuple[str, float]]" = {
+    "notes3": ("note", 0.03),
+    "prec2": ("second", 0.02),
+    "face10": ("face", 0.10),
+}
+
+# ...AND BESIDE TIMES AT THE SECOND THAT KEEP THE COLUMN LABELS OR FREE
+# TEXT (its item 2): half the cells, or 5 % at a floor of 36, are a
+# precision of their own, which no form of the column's reaches the line in.
+FORM_MIXES: "dict[str, tuple[str, float]]" = {
+    "half_seconds": ("second", 0.5),
+    "seconds5": ("second", 0.05),
+}
+
+
+def _beside_slots(kind: str, share: float, rows: int, draw: random.Random) -> "list[str]":
+    out: "list[str]" = []
+    written = 0
+    for _row in range(rows):
+        minute = _slot_minute(draw)
+        if draw.random() >= share:
+            out += [_hm(minute)]
+        elif kind == "note":
+            written = written + 1
+            out += [f"see note {written}"]
+        elif kind == "second":
+            out += [parsing.clock_spelling(60 * minute + draw.randrange(60), parsing.CLOCK_HH_MM_SS)]
+        else:
+            out += [parsing.written_clock(60 * minute, False, "h AM-PM")]
+    return out
+
 
 # SMALL TABLES OF THEM BESIDE A FEW SUCH CODES PAST IT (item 1): each a
 # number of rows and the codes among them, in three variants of the times.
@@ -250,6 +310,12 @@ def cells(name: str, rows: int) -> "list[str]":
         return [_mixed_ampm(draw) for _ in range(rows)]
     if name == "shifts3":
         return [_shifts3(draw) for _ in range(rows)]
+    if name == "shifts_stray":
+        return _shifts_stray(rows, draw)
+    if name in LEVEL_PASS_MIXES:
+        return _beside_slots(LEVEL_PASS_MIXES[name][0], LEVEL_PASS_MIXES[name][1], rows, draw)
+    if name in FORM_MIXES:
+        return _beside_slots(FORM_MIXES[name][0], FORM_MIXES[name][1], rows, draw)
     if name in CODE_MIXES:
         return _coded_appointments(rows, CODE_MIXES[name][0], CODE_MIXES[name][1], draw)
     if name[:-1] in SMALL_TABLES:
