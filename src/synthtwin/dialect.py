@@ -3342,13 +3342,43 @@ def _cut_at_returns(piece: str, cut_at_a_feed: bool) -> "list[str]":
 
 @dataclasses.dataclass
 class _Cursor:
-    """The lines a walk reads, and the next one it has not read."""
+    """The lines a walk reads, and the next one it has not read.
+
+    ``lines`` holds the lines from line ``base`` on, and ``index`` counts
+    from the text's first line. Where ``more`` is given, the lines after
+    those held are cut from it one at a time as the walk reaches them
+    (`_line_at`), and the walk, which never reads a line behind it, lets
+    go of the one it held: the walk of a whole file holds one line and
+    not a list of them all (plan P4-D387).
+    """
 
     lines: "list[str]"
     index: int
     delimiter: str
     escape: str
     initial_space: bool
+    more: "typing.Iterator[str] | None" = None
+    base: int = 0
+
+
+def _line_at(cursor: _Cursor) -> "str | None":
+    """The line at the cursor's ``index``, or None where the text holds no more.
+
+    Every reader of a cursor asks for the line at its index and moves on
+    by one, so a line past those held is the next one ``more`` cuts.
+    """
+    place = cursor.index - cursor.base
+    if place < len(cursor.lines):
+        return cursor.lines[place]
+    if cursor.more is None:
+        return None
+    following = next(cursor.more, None)
+    if following is None:
+        cursor.more = None
+        return None
+    cursor.lines = [following]
+    cursor.base = cursor.index
+    return following
 
 
 @dataclasses.dataclass(frozen=True)
@@ -3437,9 +3467,9 @@ def _record_at(cursor: _Cursor) -> "Record | None":
     spans, with the end of each line handed to the machine as the reader
     hands it.
     """
-    if cursor.index >= len(cursor.lines):
+    line = _line_at(cursor)
+    if line is None:
         return None
-    line = cursor.lines[cursor.index]
     body, ending = _body_of(line)
     if not body:
         cursor.index = cursor.index + 1
@@ -3482,8 +3512,11 @@ def _record_by_characters(cursor: _Cursor) -> "Record | None":
     state = _START_FIELD
     ending = ""
     raw = ""
-    while cursor.index < len(cursor.lines):
-        line = _text(cursor.lines[cursor.index])
+    while True:
+        following = _line_at(cursor)
+        if following is None:
+            break
+        line = _text(following)
         cursor.index = cursor.index + 1
         for place in range(len(line)):
             character = line[place]
@@ -4571,11 +4604,7 @@ def _read_joined(stream: _Stream) -> "Record | None":
     record = _record_at(cursor)
     if record is None:
         return None
-    if (
-        record.ending == _CR
-        and cursor.index < len(cursor.lines)
-        and cursor.lines[cursor.index] == "\r\n"
-    ):
+    if record.ending == _CR and _line_at(cursor) == "\r\n":
         cursor.index = cursor.index + 1
         return dataclasses.replace(record, ending="\r\r\n")
     return record
@@ -4720,7 +4749,14 @@ def survey(
     else:
         spaced = initial_space
     escaping = escape if escape else ESCAPE_DOUBLED
-    cursor = _Cursor(physical_lines(body[at:]), 0, delimiter, escaping, spaced)
+    # THE WALK CUTS THE TEXT INTO LINES AS IT READS THEM (plan P4-D387).
+    # Every line of the file was cut and held as a list before the first
+    # record was read, a second copy of the text beside the text and the
+    # table the walk fills: on the made-up health table of 100,000 rows,
+    # 82 of the 169 megabytes the walk rose by.
+    cursor = _Cursor(
+        [], 0, delimiter, escaping, spaced, lines_in_turn(body[at:])
+    )
     stream = _Stream(cursor, [], 0)
     walk = _Walk([], "", 0)
     if hinted:

@@ -24,7 +24,11 @@ so the measure is known to see the defect rather than assumed to.
    `_reach_window`, `_reach_held`, method G5.2). Each question listed
    every candidate out to the column's strata before asking the first,
    each window search asked from the first number again for every answer
-   it took, and each round interpolated each share three times.
+   it took, and each round interpolated each share three times. And the
+   rounds themselves (`_reach_sizes`): on a column crowded onto few whole
+   numbers they come back to a division they reached before and walked
+   round it again to their bound, one more than the strata; a repeat is
+   now stepped past.
 3. **The row order** (`dialect.row_order_of`). Every cell of a column
    was keyed under each collation before the order was asked.
 4. **Detection** (`dialect.delimiter_reading`, `detected_initial_space`)
@@ -319,6 +323,25 @@ def _reach_window_as_built(rungs, numbers, band, held, floor, ceiling, reach):
     if best is None:
         return None
     return (best[1], best[2])
+
+
+def _reach_sizes_as_built(sizes, bands, rungs, whole_column, numbers, demand, plus_demand, grid):
+    if rungs is None or whole_column or (demand < 1 and plus_demand < 1):
+        return sizes
+    moved = [size for size in sizes]
+    for _round in range(len(sizes) + 2):
+        flags, held = generation._reach_held(moved, bands, rungs, whole_column, numbers)
+        if generation._reach_met(moved, bands, flags, demand, plus_demand):
+            break
+        stepped = generation._carrier_sizes(moved, bands, flags, demand, plus_demand, grid)
+        if stepped != moved:
+            moved = stepped
+            continue
+        grown = generation._reach_grow(moved, bands, flags, held, rungs, numbers, demand, plus_demand)
+        if grown == moved:
+            break
+        moved = grown
+    return moved
 
 
 def _whole_inside_as_built(value, band, share, ends, reach, taken, later=(), kept=()):
@@ -821,7 +844,7 @@ def _rungs(draw: random.Random, rising: bool) -> "tuple[float, ...]":
 
 
 def test_the_index_of_the_strata_ahead_answers_as_every_share_did() -> None:
-    """`_held_after` gives what the shares of every later stratum gave, on ladders read up and not.
+    """`_held_after` gives what the shares of every later stratum gave, a ladder read upward or shuffled.
 
     Over 600 made-up layouts, both walk orders and candidates at and
     around every share's ends. A shuffled ladder is not read upward, so
@@ -966,6 +989,128 @@ def test_the_reach_step_s_questions_grow_with_the_strata() -> None:
     for question in (0, 1):
         assert large[question] / small[question] < LINEAR_AT_MOST, (question, small, large)
         assert old_large[question] / old_small[question] >= SQUARE_AT_LEAST, (question, old_small, old_large)
+
+
+def _crowded() -> "list[tuple[str, list[str]]]":
+    """Mostly whole columns crowded onto fewer whole numbers than strata, whose reach rounds come round again."""
+    return [
+        ("charges-crowded", _charges(600, 11, 5.0, 0.5)),
+        ("day-counts-crowded", _day_counts(600, 11, 300)),
+        ("charges-crowded-narrow", _charges(400, 11, 4.0, 0.6)),
+        ("signed-crowded", _signed(600, 11)),
+    ]
+
+
+def reach_rounds(values: "list[str]", as_built: bool = False) -> "tuple[int, int, list[object], str]":
+    """The rounds the reach step runs twinning a one-column table of ``values``, their bound, its divisions and the twin.
+
+    A round is one question of which strata can hold a whole number
+    (`_reach_held`); the bound is the strata and two; the divisions are
+    what each asking of the step handed back. With ``as_built`` the
+    rounds are 110cb46's, which walked to the bound.
+    """
+    asked = [0]
+    strata = [0]
+    divisions: "list[object]" = []
+    held = generation._reach_held
+    sizes_step = _reach_sizes_as_built if as_built else generation._reach_sizes
+
+    def counted(sizes: "list[int]", *rest: object) -> object:
+        asked[0] += 1
+        strata[0] = len(sizes)
+        return held(sizes, *rest)  # type: ignore[arg-type]
+
+    def kept(*arguments: object) -> object:
+        nonlocal divisions
+        found = sizes_step(*arguments)  # type: ignore[operator]
+        divisions += [list(found)]
+        return found
+
+    with tempfile.TemporaryDirectory() as home:
+        loaded = _described(pathlib.Path(home), values)
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(generation, "_reach_held", counted)
+        patch.setattr(generation, "_reach_sizes", kept)
+        twin = generation.generate(loaded, 0)
+    return asked[0], strata[0] + 2, divisions, rendering.twin_csv(twin)
+
+
+def test_the_reach_rounds_stop_once_a_division_comes_round_again() -> None:
+    """On four crowded columns: every round to the bound as built, at most a third of them now, one division.
+
+    A round costs every stratum, so walking a repeat round to the bound,
+    one more than the strata, was the square of the strata. The division
+    each asking hands back, and the twin, are the same either way.
+    """
+    for name, values in _crowded():
+        rounds, bound, divisions, twin = reach_rounds(values)
+        old_rounds, old_bound, old_divisions, old_twin = reach_rounds(values, as_built=True)
+        assert old_bound == bound and old_rounds == bound, (name, old_rounds, bound)
+        assert rounds * 3 <= bound, (name, rounds, bound)
+        assert divisions and divisions == old_divisions, name
+        assert twin == old_twin, name
+
+
+def test_a_repeat_stepped_past_ends_where_the_rounds_as_written_end(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Over 4,000 made-up round functions the rounds end on the division 110cb46's rounds end on.
+
+    Each made-up division leads to one next division by the cell step or
+    by a grown window, meets the demand, or has nothing to grow, so the
+    rounds stop, come round again after any number of rounds and any
+    repeat length, or run to a bound of any size. The four questions a
+    round asks are answered from the made-up function, and both loops ask
+    them; repeats stepped past are required to have been met.
+    """
+    draw = random.Random(3877)
+    kinds: "list[str]" = []
+    following: "list[int]" = []
+    walked = [0]
+
+    def state(sizes: "list[int]") -> int:
+        return sizes[0] - 1
+
+    def division(at: int, strata: int) -> "list[int]":
+        return [at + 1] + [1] * (strata - 1)
+
+    def held(sizes: "list[int]", *_rest: object) -> "tuple[list[bool], dict[float, int]]":
+        walked[0] += 1
+        return [], {}
+
+    def met(sizes: "list[int]", *_rest: object) -> bool:
+        return kinds[state(sizes)] == "met"
+
+    def stepped(sizes: "list[int]", *_rest: object) -> "list[int]":
+        if kinds[state(sizes)] != "step":
+            return sizes
+        return division(following[state(sizes)], len(sizes))
+
+    def grown(sizes: "list[int]", *_rest: object) -> "list[int]":
+        if kinds[state(sizes)] != "grow":
+            return sizes
+        return division(following[state(sizes)], len(sizes))
+
+    monkeypatch.setattr(generation, "_reach_held", held)
+    monkeypatch.setattr(generation, "_reach_met", met)
+    monkeypatch.setattr(generation, "_carrier_sizes", stepped)
+    monkeypatch.setattr(generation, "_reach_grow", grown)
+    skipped = 0
+    for _case in range(4000):
+        count = draw.randrange(1, 30)
+        kinds[:] = [draw.choice(("step", "grow", "grow", "step", "met", "stuck")) if draw.random() < 0.2
+                    else draw.choice(("step", "grow")) for _state in range(count)]
+        following[:] = [draw.randrange(count) for _state in range(count)]
+        strata = draw.randrange(1, 70)
+        start = division(draw.randrange(count), strata)
+        arguments = (["positive"] * strata, (1.0, 2.0), False, strata, 1, 0, 0)
+        walked[0] = 0
+        theirs = _reach_sizes_as_built(list(start), *arguments)
+        old_rounds = walked[0]
+        walked[0] = 0
+        ours = generation._reach_sizes(list(start), *arguments)
+        assert ours == theirs, (kinds, following, strata, start)
+        if walked[0] < old_rounds:
+            skipped += 1
+    assert skipped > 1000, skipped
 
 
 def test_a_mostly_whole_column_of_100000_rows_is_twinned_and_meets_its_point_free_count(
@@ -1137,9 +1282,102 @@ def splits_reading(rows: int, as_built: bool = False) -> int:
 
 
 def test_detection_cuts_the_opening_lines_once() -> None:
-    """Reading a table cuts its opening megabyte once, where 110cb46 cut it once a candidate reading."""
-    assert splits_reading(300) == 2
+    """Reading a table cuts its opening megabyte into a list of lines once, and the whole text never.
+
+    110cb46 cut the megabyte once a candidate reading, and the whole text
+    once more for the walk; the walk now cuts each line as it reaches it.
+    """
+    assert splits_reading(300) == 1
     assert splits_reading(300, as_built=True) >= 20
+
+
+def _listed_cursor(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Make every walk cut its whole text into a list before the first record, as 110cb46 walked."""
+    real = dialect._Cursor
+
+    def listed(lines: "list[str]", index: int, delimiter: str, escape: str, initial_space: bool,
+               more: "object" = None, base: int = 0) -> "dialect._Cursor":
+        if more is not None:
+            lines = list(more)  # type: ignore[call-overload]
+        return real(lines, index, delimiter, escape, initial_space, None, base)
+
+    monkeypatch.setattr(dialect, "_Cursor", listed)
+
+
+def _survey_texts() -> "list[str]":
+    """Whole tables of every shape the walk reads: quoted lines, every ending, blank lines, preambles, escapes."""
+    draw = random.Random(3878)
+    texts = [
+        'id,note\n1,"two\nlines"\n2,"three\r\nmore\rlines"\n',
+        "id,v\r1,2\r\r\n3,4\r\r\n",
+        "Export of 3 October\n\nid,v\n1,2\n\n3,4\n   \n5,6\n",
+        "sep=;\nid;v\n1;2\n3;4\n",
+        'id,v\n"a\\"b",1\n"c",2\n',
+        "a, b\n1, 2\n3, 4\n",
+        "id,v,\n1,2,\n3,4,\n",
+        "id,v,w\n1,2\n3,4\n",
+        "id,v\n1,2\n3,4\x1a",
+        'id,v\n1,"open\n',
+        "id\n1\n2\n3\n",
+        "id,v\n",
+    ]
+    for _case in range(300):
+        delimiter = draw.choice((",", ";", "\t", "|"))
+        width = draw.randrange(1, 4)
+        ending = draw.choice(("\n", "\r\n", "\r"))
+        rows = [delimiter.join(f"h{place}" for place in range(width))]
+        for _row in range(draw.randrange(1, 25)):
+            cells = [draw.choice(("1", "x y", '"q\nr"', '"s\r\nt"', '"u""v"', "", "2.5", '"w' + delimiter + 'z"'))
+                     for _cell in range(width)]
+            rows += [delimiter.join(cells)]
+            if draw.random() < 0.1:
+                rows += [""]
+        texts += [ending.join(rows) + draw.choice(("", ending, ending + ending))]
+    return texts
+
+
+def _settled(text: str) -> str:
+    """What `dialect.settle` makes of a text, or the refusal it raises."""
+    try:
+        return repr(dialect.settle(text, "utf-8", False, False, "table.csv"))
+    except Exception as refusal:  # noqa: BLE001 -- the kind and words are what is compared
+        return f"{type(refusal).__name__}: {refusal}"
+
+
+def test_the_walk_cutting_lines_as_it_goes_reads_what_the_listed_walk_read(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Over 312 made-up tables, the survey is the one a walk over every line cut first made, refusals word for word."""
+    ours = [_settled(text) for text in _survey_texts()]
+    _listed_cursor(monkeypatch)
+    theirs = [_settled(text) for text in _survey_texts()]
+    assert ours == theirs
+    surveys = sum(1 for said in ours if said.startswith("Survey("))
+    assert surveys > 200 and len(ours) - surveys > 30, surveys
+
+
+def walk_peak(rows: int, listed: bool = False) -> "tuple[int, int]":
+    """The most memory the survey of a table of ``rows`` holds above its text, and the text's size."""
+    lines = ["id,amount,label,note"] + [f"{row},{row * 7}.25,L{row % 13},note number {row}" for row in range(rows)]
+    text = "\n".join(lines) + "\n"
+    with pytest.MonkeyPatch.context() as patch:
+        if listed:
+            _listed_cursor(patch)
+        tracemalloc.start()
+        try:
+            before = tracemalloc.get_traced_memory()[0]
+            tracemalloc.reset_peak()
+            found = dialect.settle(text, "utf-8", False, False, "table.csv")
+            peak = tracemalloc.get_traced_memory()[1]
+        finally:
+            tracemalloc.stop()
+    assert found.n_rows == rows
+    return peak - before, len(text)
+
+
+def test_the_walk_holds_a_line_and_not_a_list_of_them(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The survey's peak above its text: a list of every line less than the walk that cut them first."""
+    ours, size = walk_peak(20_000)
+    theirs, _size = walk_peak(20_000, listed=True)
+    assert theirs - ours > size, (ours, theirs, size)
 
 
 # -- 5. the checking pass ------------------------------------------------------
