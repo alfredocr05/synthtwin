@@ -1292,14 +1292,19 @@ def test_detection_cuts_the_opening_lines_once() -> None:
 
 
 def _listed_cursor(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Make every walk cut its whole text into a list before the first record, as 110cb46 walked."""
+    """Make every walk cut its whole text into a list before the first record, as 110cb46 walked.
+
+    The cursor is made with the five fields 110cb46's cursor has, so on
+    110cb46 itself the walk is the one it already walked and the test
+    below fails by its own measure.
+    """
     real = dialect._Cursor
 
     def listed(lines: "list[str]", index: int, delimiter: str, escape: str, initial_space: bool,
                more: "object" = None, base: int = 0) -> "dialect._Cursor":
         if more is not None:
             lines = list(more)  # type: ignore[call-overload]
-        return real(lines, index, delimiter, escape, initial_space, None, base)
+        return real(lines, index, delimiter, escape, initial_space)
 
     monkeypatch.setattr(dialect, "_Cursor", listed)
 
@@ -1495,8 +1500,12 @@ def check_peak(rows: int, as_built: bool = False) -> int:
 
 
 def test_the_checking_pass_holds_a_piece_and_not_a_second_table(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Over a reading, the pass holds about what one piece needs, where 110cb46 held the whole frame."""
-    monkeypatch.setattr(reading, "_CHECK_CELLS", 4096)
+    """Over a reading, the pass holds about what one piece needs, where 110cb46 held the whole frame.
+
+    The piece is set whether or not the module names one, so on 110cb46,
+    which reads the whole frame, the test fails by its own measure.
+    """
+    monkeypatch.setattr(reading, "_CHECK_CELLS", 4096, raising=False)
     ours = check_peak(40_000)
     theirs = check_peak(40_000, as_built=True)
     assert ours * 4 < theirs, (ours, theirs)

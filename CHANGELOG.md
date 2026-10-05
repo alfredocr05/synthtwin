@@ -6,6 +6,28 @@ exists).
 
 ## [Unreleased]
 
+### Mostly whole columns walked, and large tables read, without the square of their rows (2026-10-05)
+
+**No published fact and no twin byte moves** (plan P4-D387, stage 4's
+tier 2a). The walk that gives a column's strata their whole numbers
+worked out every later stratum's share for each stratum it visited, so
+one column of mostly whole charges took 18.9 s to twin at 2,000 rows and
+more than five minutes at 4,000, and a column of day counts with a
+visit's fraction on some rows 68.8 s at 4,000 rows and more than five
+minutes at 10,000: they take 0.4, 1.2, 0.6 and 1.5 s now, and rounds of
+the reach step that come back to a division they reached are stepped
+past. Reading the made-up 50-column health table of 200,000 rows takes
+26.2 s of CPU for 33.6 and peaks 906 MB above its start for 1,290, and
+500,000 rows are read at a peak near 2 GB where 110cb46 passed 2.8 GB
+within a minute: the file is cut into a list of lines once rather than
+31 times, a column's row order is read only until it is settled, and the
+pandas check reads a piece at a time rather than holding a second copy
+of the table. `K-S4-02` records the reader's peak memory a row. A column
+whose ladder is crowded onto fewer whole numbers than strata still
+spends minutes in the reach rounds from about 10,000 rows, and 500,000
+charges did not get through them in fifteen minutes: a limit the plan
+names.
+
 ### The weekday guards dropped (2026-10-02)
 
 **The weekday census is published wherever its twin can meet it** (plan
