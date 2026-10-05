@@ -15759,16 +15759,18 @@ def _matching_date_format(
     return _matching_layout(present, settings, contradicted)
 
 
-# THE LAYOUT MEMBER'S MEMO, AND ITS BOUND (landing R2a; the R2 design
-# skeptic, m1). A column's different texts are each read once under the
-# chosen layout and the reading kept for every later cell of that text, so
-# a column of a million dates over a few thousand days is read a few
-# thousand times. The design priced a kept reading at about 350 bytes; the
-# memo keeps three facts of it, not the reading, under the cell's own text,
-# and measured with tracemalloc it costs 85 to 92 bytes a text -- 5.99 MB
-# at this bound, and the same 5.99 MB for 99,986 different texts, past
-# which a column reads the rest cell by cell, at the reader's own cost. It
-# is one dict made for one column and dropped with it.
+# THE LAYOUT MEMBER'S TWO MEMOS, AND THEIR BOUND (landing R2a; the R2
+# design skeptic, m1). A column's different texts are each read once under
+# the chosen layout, so a column of a million dates over a few thousand
+# days is read a few thousand times: `_matching_layout` keeps each text's
+# reading for every later cell of that text, and `_layout_census` keeps
+# three facts of it. The design's prototype kept about 350 bytes a text,
+# about 330 MB for a million different texts. Measured with tracemalloc,
+# the choice's memo costs 29 to 32 bytes a text over the readings the
+# column keeps anyway, and the census's 85 to 92 -- 1.9 MB and 5.99 MB at
+# this bound, the same for 99,986 different texts, past which a column
+# reads the rest cell by cell, at the reader's own cost. Each is one dict
+# made for one column and dropped with it.
 LAYOUT_MEMO_TEXTS = 65536
 
 # What the layout member's helpers say when handed something that is not

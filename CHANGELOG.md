@@ -21,7 +21,11 @@ written back and validate, where none read before. Two-figure years are
 asked their century in the questions file (Q5, `--century`,
 `century_windows`), and a layout nothing in its cells tells from a code
 is asked whether it is one. The reach battery's 120 other columns are
-byte for byte as they were but for three questions files.
+byte for byte as they were but for three questions files. Describing a
+column written in a layout costs what ISO's spelling of the same moments
+costs: `K-S3-58`'s two scale nodes put the slowest of four layouts at
+1.02 times ISO's time at 100,000 rows and 1.06 at 300,000, under bounds
+of 1.3 and 1.6.
 
 ### A description written before the published pairs loads again (2026-10-03)
 
