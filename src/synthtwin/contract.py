@@ -12609,6 +12609,7 @@ def _derived_end(
     shape: "tuple[bool, int, float, float]",
     low: bool,
     published: "float | None",
+    reach_rule: bool = True,
 ) -> float:
     """The value a tail block's pinned stratum holds (G5.3b, G5.5a).
 
@@ -12741,19 +12742,20 @@ def _derived_end(
     # name, and on 240 prices written `92,959.11`, at 0.01 with no mark
     # in it.
     held = _signed_end(placed, low, boundary, facts, figures)
-    spelled = _within_the_marks(
-        _past_the_width(
-            _within_the_one_width(held, low, boundary, facts),
+    clamped = _within_the_one_width(held, low, boundary, facts)
+    # ...AND THE REACH RULE, which ``reach_rule`` False withdraws so the
+    # generator's width walk can tell a side this rule moved from one it
+    # left where the width clamp held it (method G6.6.8 rule 2).
+    if reach_rule:
+        clamped = _past_the_width(
+            clamped,
             held,
             low,
             boundary,
             (mean, pair_reach(mean, root)),
             kept,
-        ),
-        low,
-        boundary,
-        facts,
-    )
+        )
+    spelled = _within_the_marks(clamped, low, boundary, facts)
     # ...AND NO SPELLING RULE PULLS THE END INSIDE THE TAIL'S OWN MEAN
     # DISTANCE. A census of widths and a census of marks are POOLED at
     # the floor: a group of fewer cells than the smallest group is
@@ -13355,7 +13357,9 @@ def _moment_ladder(
     return _shaped(tuple(rungs), None, None)
 
 
-def tail_ladder(facts: NumericFacts) -> "ShapedLadder | None":
+def tail_ladder(
+    facts: NumericFacts, reach_rule: bool = True
+) -> "ShapedLadder | None":
     """The ladder of a tail block, every consumer's one ladder (G5.1a).
 
     Below the block floor the ramp (G5.3d); where only the moments are
@@ -13363,6 +13367,11 @@ def tail_ladder(facts: NumericFacts) -> "ShapedLadder | None":
     two boundary percents only, and outside them each tail's reading
     (G5.3b, or G5.3e where it is listed), with the two ends the pinned
     strata hold (`_derived_end`).
+
+    ``reach_rule`` False reads the ends with method G6.6.8's rule 1
+    withdrawn -- each width-held end where the width clamp left it --
+    which only the generator's width walk asks, to know which side that
+    rule moved; every consumer of the ladder itself takes the default.
     """
     tails = facts.tails
     if tails is None:
@@ -13418,7 +13427,7 @@ def tail_ladder(facts: NumericFacts) -> "ShapedLadder | None":
             blend=shape[2],
             reach=shape[3],
             end=_derived_end(
-                facts, side, boundary, shape, is_low, published
+                facts, side, boundary, shape, is_low, published, reach_rule
             ),
             listed=listed,
             counts=counts,
