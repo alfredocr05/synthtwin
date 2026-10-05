@@ -4130,7 +4130,9 @@ demand is short, one stratum takes a value of the figure count that
 demand wants. The stratum must be
 
 1. not one of the two PINNED strata, which hold the published ends of
-   the ladder;
+   the ladder -- G6.6.8's walk, which runs before any demand is served,
+   is what may move a tail's DERIVED end under the width, no rung being
+   published beyond a boundary;
 2. not in the ZERO band, so the count of zero values does not move;
 3. holding a value that can be written point-free, so that the pass
    moves nothing the point-free count, the strata-apart rule or the

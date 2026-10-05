@@ -24,8 +24,16 @@ named pad can hold is written plain (method G6.3).
 
 Each clause is held up by a test here and, where a mutant is cheap to
 write, by the mutant that withdraws it turning the test's own
-measurement the other way; the repair round ran a source mutant for
-every clause against this file. The end rule is also frozen in
+measurement the other way. The repair round ran a source mutant of each
+of 48 clauses against this file: 45 turn it red, and the other three
+change no twin of any battery the round measured. The widening's stop at
+another band cannot: no value outside the run's band is free to the run,
+so taking such a stratum in never adds room. Nor can the aim of the
+last-resort run, where every free value between a moved stratum's
+neighbour and its limit is that limit. The rule for a moved stratum
+whose own value another stratum also holds differs only where such a
+value lands beside a run that is still moving.
+The end rule is also frozen in
 `tail_width_past_the_reach` (tests/reference/generation-branch-vectors-23.json);
 the walk has no frozen case, because the oracle does not run G6.6's
 walk, so it is pinned here. The mean and spread 110cb46 wrote on the

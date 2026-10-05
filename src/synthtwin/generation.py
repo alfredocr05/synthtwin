@@ -14473,7 +14473,9 @@ def _wide_enough(
 
     THREE RULES ARE NEVER TRADED FOR A WIDTH, and they are the three
     the sibling passes keep. The two pinned strata hold the published
-    ends of the ladder and are left alone. A stratum in the zero band
+    ends of the ladder and are left alone -- only G6.6.8's walk, before
+    any demand is served, moves a tail's DERIVED end under the width,
+    no rung being published beyond a boundary. A stratum in the zero band
     is left alone, so the count of zero values does not move. And no
     stratum takes a value another stratum holds, so the count of
     different values does not fall.
