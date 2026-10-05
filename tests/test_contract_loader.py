@@ -1597,6 +1597,11 @@ def battery() -> list[Mutation]:
             edit_in("settings", century_windows=[["recorded_on", 1930.5]]),
             names="century_windows[0][1]",
         ),
+        Mutation(
+            "R16", "a window holding a value past its first year",
+            edit_in("settings", century_windows=[["recorded_on", 1930, 2029]]),
+            names="a column's name and one value beside it",
+        ),
         # -- 3b.R2c (P4-D383)
         Mutation(
             "R16", "a column said to be dates this version of synthtwin takes none of",
@@ -1607,6 +1612,19 @@ def battery() -> list[Mutation]:
             "R16", "columns said to be dates out of order",
             edit_in("settings", forced_date_columns=["visits", "recorded_on"]),
             names="names in rising order, each of them once",
+        ),
+        # Each name once and each name a piece of text, both checked
+        # before the key's own refusal, so both stay held when R2c
+        # deletes that refusal.
+        Mutation(
+            "R16", "a column said to be dates twice",
+            edit_in("settings", forced_date_columns=["recorded_on", "recorded_on"]),
+            names="names in rising order, each of them once",
+        ),
+        Mutation(
+            "R15", "a column said to be dates named by a number",
+            edit_in("settings", forced_date_columns=[7]),
+            names="forced_date_columns[0]",
         ),
         # -- 3b.R4 (P4-D384)
         Mutation(
