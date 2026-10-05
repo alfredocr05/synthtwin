@@ -6545,13 +6545,14 @@ body the column's different days less those its tails hold. The day
 pass moves a body rank only between the two pins either side of it --
 the body's boundaries and the rungs published between them -- so the
 census needs every pin day and, inside each gap, a day of every group
-that holds rows and has a day strictly inside the gap other than its
-two pin days. Where the census needs a day past the pin days and the
-room is no more than that need, the census is withheld: at the floor
-of 36, schedules whose tails held 59 and 40 rows on a few days came
-back with 32 and more different days in their twins' tails and more
-different values than the column. At 11 it is not asked: there it
-would withhold only censuses whose twins met them.
+that holds rows, has a day strictly inside the gap and is the group of
+neither of its two pin days. Where the census needs a day past the pin
+days and the room is no more than that need, the census is withheld:
+at the floor of 36, schedules whose tails held 59 and 40 rows on a few
+days came back with 32 and more different days in their twins' tails
+and more different values than the column. At 11 and below it is not
+asked: over the batteries measured it would withhold there only
+censuses whose twins met them.
 And beside every published hole other than a width hole -- where the
 month-name census's one word has the length `either`, so every day
 outside May is a HOLE, and beside a placeholder or declared hole -- it

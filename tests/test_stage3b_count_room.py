@@ -1,4 +1,4 @@
-"""Landing 3b.D1b (plan P4-D388): at a raised floor a weekday census never costs a twin its count of different values.
+"""Landing 3b.D1b (plan P4-D388): above the floor of 11 no published weekday census leaves a twin holding too many values.
 
 The few-dates rule of landing 3b.G (plan P4-D365) was measured at the
 floor of 11 alone. Raised to 36, 59 twins of the date batteries published

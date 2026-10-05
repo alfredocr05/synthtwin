@@ -159,10 +159,11 @@ MEAN_REAL_HALF_DATES = 15
 # tail publishing its two distances with up to the floor's number of
 # different days, so it is a raised floor that narrows the room the
 # count of different values leaves the body (`count_room_short`). At
-# this floor and below the rule is not asked: no published census was
-# measured to leave a twin holding more different values than its
-# column there, and asked there the rule withheld only censuses whose
-# twins met them -- that most is twice what the twins' tails held.
+# this floor and below the rule is not asked: over the 26 date batteries
+# measured no published census left a twin holding more different values
+# than its column there, and asked there the rule would withhold 27 of
+# the 2,380 censuses published at 11 and one of the 2,148 at 5, every
+# twin of which met them.
 COUNT_ROOM_ABOVE_FLOOR = 11
 
 # THE DAYS A TAIL'S SPREAD BOUND ALLOWS BESIDE ITSELF (`tails_most`, plan
