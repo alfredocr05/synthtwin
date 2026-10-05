@@ -1231,10 +1231,11 @@ def count_room_short(
     it, so it is no cause of a count left long.
 
     A CONSERVATIVE rule, both halves erring towards withholding: the
-    tails' most is the most their construction can hold, and a group
-    with a day in a gap is counted whether or not the twin puts rows
-    there. It withholds censuses a twin would meet (plan P4-D388 counts
-    them), and that is its price.
+    tails' most is the floor's number their construction can hold, or
+    their spread with two days beside it, more than any twin's tails
+    measured held, and a group with a day in a gap is counted whether or
+    not the twin puts rows there. It withholds censuses a twin would
+    meet (plan P4-D388 counts them), and that is its price.
 
     Guarantees: accepts the census, the pins, the count and the tails'
     most; returns the answer. Determinism: a function of the four. Raises

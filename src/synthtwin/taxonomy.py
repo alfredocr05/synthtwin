@@ -16261,9 +16261,9 @@ def weekday_decision(
     # THE COUNT'S ROOM, WHICH A RAISED FLOOR NARROWS (plan P4-D388), asked
     # above the floor the few-dates rule was measured at: the most
     # different days the twin's two tails can hold -- a listed tail's
-    # values, or up to the floor's number for one publishing its two
-    # distances -- and the body's pins, its two boundaries and the rungs
-    # published between them.
+    # values, or for one publishing its two distances up to the floor's
+    # number and what its spread allows -- and the body's pins, its two
+    # boundaries and the rungs published between them.
     if settings.small_cell_floor > calendar_rules.COUNT_ROOM_ABOVE_FLOOR:
         listed: "list[int | None]" = []
         for tail in (low_tail, high_tail):
