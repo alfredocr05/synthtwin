@@ -6464,8 +6464,8 @@ written unit's.
    **7b. The chain** (plan P4-D366). Where they still do not hold them,
    up to 256 rounds. A LINK from group `g` to group `h` is the first cell
    (step 8.3's cells, of the movable ranks, in its order) that holds a
-   movable rank of `g` and a unit of `h` of the cell's kind, no hole,
-   between the units of its gap's first and last ordinals. Breadth
+   movable rank of `g` whose MOVER, as step 8.3 names it, has a place of
+   `h`: step 8.3's `take(g, h)` is asked, and is not withheld. Breadth
    first from the groups over their totals, ascending, a group reached
    once and a group over its total never, each group's links asked in
    order of `h`, the first group under its total reached ends the search;
@@ -6491,31 +6491,46 @@ written unit's.
       back;
    3. where the count is still SHORT, up to 64 EXCHANGES across groups
       (review of landing 3b.1, item 5, plan P4-D359). A CELL is a gap
-      and a width kind. In a cell, `give(g)` is nought where a rank of
-      group `g` shares its day and minus one where each is alone, and
-      `take(h)` one where a day of group `h` of the cell's kind that is
-      no hole is free and nought where only held ones stand; neither is
-      asked where the cell has no such rank or day. Each ordered pair
+      and a width kind. In a cell, group `g`'s MOVER is its rank on the
+      written unit holding the most ranks, the lower rank on a tie: the
+      rank a move of `g` takes. `give(g)` is nought where the mover
+      shares its written unit and minus one where it stands alone, and
+      `take(g, h)` one where a PLACE the mover may take -- an ordinal a
+      whole number of units from its own, inside its gap, of group `h`
+      and the cell's kind, no hole -- stands on a written unit no rank
+      holds, and nought where every such place's written unit a rank
+      holds; neither is asked where the cell has no rank of `g` or the
+      mover no such place. THE TAKE COUNTS WRITTEN UNITS at the mover's
+      own place inside its unit, never whole units (the Codex review of
+      landing 3b.D0, item 1): forty ranks each at 00:15, 01:15 and 02:30
+      of one day, on a unit of an hour with minutes written and the day
+      kept, asked for eighty in hour 1, forty in hour 2 and three
+      values, were left on two, as hours 1 and 2 each held a rank while
+      01:30 and 02:15 stood free. On a date's day a unit is one written
+      unit and every rank of a cell has the same places, so the take is
+      the day's. Each ordered pair
       of groups `(g, h)`, one group twice included, takes the largest
-      `give(g) + take(h)` over the cells, the first cell on a tie, cells
-      in order of their gap's first day, last day and kind, the kind a
-      day outside the width word first. A CYCLE `g1, ..., gk`, each
+      `give(g) + take(g, h)` over the cells, the first cell on a tie,
+      cells in order of their gap's first day, last day and kind, the
+      kind a day outside the width word first. A CYCLE `g1, ..., gk`, each
       group once and `g1` the lowest, gains the sum over `(g1, g2)` to
       `(gk, g1)`; of the cycles gaining more than nought, the one whose
       gain is the largest not past what is short, else the smallest,
       then the fewest groups, then the earliest. Each pair in turn
-      moves, in its cell, the rank of `g` on the day holding the most
-      ranks, the lower rank on a tie, onto the day of `h` of the cell's
-      kind nearest it inside its gap, the whole gap asked and the
-      earlier on a tie, that no rank holds and is no hole, else the
-      nearest one a rank holds. A CYCLE IS MADE WHOLE OR NOT AT ALL
-      (plan P4-D366, the landing's review): on a unit of more than one
-      ordinal a cell's units run to the units of its gap's first and
-      last ordinals, and a rank whose place inside its unit lies outside
-      the gap on such an end unit cannot stand there, so where a move
-      finds no place the moves of its cycle made before it are undone,
-      last first, and the step ends; on a date's day every move finds
-      its place. The count, as a function of how many
+      moves, in its cell, the mover of `g` as the ranks then stand onto
+      the place of `h` of the cell's kind nearest it inside its gap, the
+      whole gap asked and the earlier on a tie, whose written unit no
+      rank holds and that is no hole, else the nearest one whose written
+      unit a rank holds. A CYCLE IS MADE WHOLE OR NOT AT ALL (plan
+      P4-D366, the landing's review; restated at its Codex review, item
+      1): the takes are asked of each group's mover as the ranks stand
+      before the cycle, and a move can change the mover of the group it
+      puts a rank on -- the rank moved stands on that group's written
+      unit holding the most ranks, or ties it lower in rank order -- whose
+      own place inside its unit may give it no place of the next group
+      inside the gap. Where a move finds no place, the moves of its cycle
+      made before it are undone, last first, and the step ends; on a
+      date's day every move finds its place. The count, as a function of how many
       ranks each cell puts on each group, is a sum of `min(ranks, free
       days)` -- concave -- so where no cycle gains it is the most the
       census allows the body around the tail dates the twin wrote, which
@@ -6606,14 +6621,19 @@ column of whole dates reaches them there through the whole generator;
 at a floor of 36 eight twins of 15,152 move, steps 8.4 and 8.5 merging a
 count already left long one or two values nearer the published one. The
 fifteenth vectors file, `tests/reference/generation-branch-vectors-15.json`,
-holds forty such states -- the landing's ten (an hour inside its
+holds forty-seven such states -- the landing's ten (an hour inside its
 day, a day of moments, the index of steps 5 and 6, a chain, step 8.4 at
 its own clock and at another, a long pair, a two-census trade, and the
 cycles of seven and of ten groups), its review's twenty-four (each new
 step once through the whole pass, and a state for every clause a
-reviewer's mutant changed) and its second review's six (a state for
-every line of that review's repair whose mutant changed an answer) --
-with the answer this section gives each, and no G14.3 case.
+reviewer's mutant changed), its second review's six (a state for
+every line of that review's repair whose mutant changed an answer) and
+its Codex review's seven (step 8.3's take in written units on its own
+state of forty ranks each at 00:15, 01:15 and 02:30 and on a day of
+moments, a place past the gap twice, a link past its gap, and each
+step's mover; and its two cycles undone restated, a move changing the
+next group's mover) -- with the answer this section gives each, and no
+G14.3 case.
 
 ### G7.4 Offsets: only where recorded
 

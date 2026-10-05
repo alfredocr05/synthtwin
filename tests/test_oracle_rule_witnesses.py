@@ -2832,7 +2832,7 @@ WITNESS_MUTANTS.update({
     ),
     "exchange_a_held_day_taken_as_free": (
         "exchange",
-        "    return 1 if any(walk.unit_free(unit) for unit in units) else 0\n",
+        "    return 1 if any(walk.holding(other) == 0 for other in places) else 0\n",
         "    return 1\n",
     ),
     "exchange_the_smallest_gain_first": (

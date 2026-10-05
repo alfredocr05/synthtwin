@@ -20142,18 +20142,48 @@ def _weekday_cells_of(
     return cells
 
 
+def _weekday_mover(state: _WeekdayPass, members: "list[int]") -> int:
+    """Of a cell's ranks of one group, in rank order, the one steps 7b and
+    8.3 move (`_weekday_cell_moved`): on the written unit holding the most
+    ranks, the lower rank on a tie."""
+    chosen = members[0]
+    most = 0
+    for rank in members:
+        there = _weekday_there(state, state.moved[rank])
+        if there > most:
+            most = there
+            chosen = rank
+    return chosen
+
+
 def _weekday_take(
-    state: _WeekdayPass, key: "tuple[int, int, _WeekdayKind]", group: int
+    state: _WeekdayPass, key: "tuple[int, int, _WeekdayKind]", group: int, rank: int
 ) -> "int | None":
-    """What putting one more rank of a cell on `group` adds to the count:
-    one where a unit of the group in the cell is free and no hole, nought
-    where only held ones stand, None where the cell has no such unit."""
+    """What moving `rank`, a rank of a cell, onto `group` adds to the count:
+    one where a PLACE it may move to -- a whole number of units from its
+    own ordinal, inside its gap, of the group and the cell's kind and no
+    hole -- stands on a WRITTEN unit no rank holds, nought where every such
+    place's written unit a rank holds, None where it has no such place.
+
+    THE WRITTEN UNIT, NOT THE UNIT (the Codex review of landing 3b.D0, item
+    1): a move keeps the rank's place inside its unit, so the values it can
+    add are the written units at that place. Asked whether a whole unit
+    stood free, forty ranks each at 00:15, 01:15 and 02:30, asked for
+    eighty in hour 1, forty in hour 2 and three different values, were
+    left on two: hours 1 and 2 each held a rank, so no exchange seemed to
+    gain, while 01:30 and 02:15 stood free. On a date's day a unit is one
+    written unit and the place nought, so the answer is the unit's."""
     low, high, kind = key
+    ordinal = state.moved[rank]
+    here = ordinal // state.unit
+    place = ordinal - here * state.unit
     held = False
     for unit in _weekday_units_of(state, low // state.unit, high // state.unit, group):
-        ordinal = unit * state.unit
-        if not _weekday_hole(state, ordinal) and _weekday_kind(state, ordinal) == kind:
-            if _weekday_unit_free(state, unit):
+        other = unit * state.unit + place
+        if unit == here or other < low or other > high:
+            continue
+        if not _weekday_hole(state, other) and _weekday_kind(state, other) == kind:
+            if not _weekday_holds(state, other):
                 return 1
             held = True
     return 0 if held else None
@@ -20167,7 +20197,11 @@ def _weekday_cycle(
     """The cycle of moves step 8.3 takes, or an empty list (method G7.3f).
 
     Each ordered pair of groups `(g, h)` -- `g` and `h` the same too --
-    is the best cell's `give(g) + take(h)`, cells in order on a tie. Of
+    is the best cell's `give(g) + take(g, h)`, cells in order on a tie,
+    both asked of the cell's MOVER of `g` (`_weekday_mover`), the rank the
+    move takes: `give` nought where it shares its written unit and minus
+    one where it is alone, `take` what `_weekday_take` says moving it onto
+    `h` adds. Of
     every cycle of groups, each group at most once, whose gain is above
     nought, the one with the largest gain not past `short`, else the
     smallest gain, then the fewest moves, then the earliest groups.
@@ -20182,29 +20216,29 @@ def _weekday_cycle(
     groups = max(state.where) + 1
     longest = groups if groups <= _WEEKDAY_CYCLE_GROUPS else _WEEKDAY_CYCLE_LONGEST
     give: "dict[tuple[tuple[int, int, _WeekdayKind], int], int]" = {}
-    take: "dict[tuple[tuple[int, int, _WeekdayKind], int], int]" = {}
+    take: "dict[tuple[tuple[int, int, _WeekdayKind], int, int], int]" = {}
     for key in sorted(cells):
         members = cells[key]
-        for group in range(groups):
-            if group in members:
-                shared = False
-                for rank in members[group]:
-                    if _weekday_there(state, state.moved[rank]) >= 2:
-                        shared = True
-                        break
-                give[(key, group)] = 0 if shared else -1
-            gained = _weekday_take(state, key, group)
-            if gained is not None:
-                take[(key, group)] = gained
+        for giving in range(groups):
+            if giving not in members:
+                continue
+            # The group's MOVER, the rank its moves take: give and take are
+            # both asked of it, so the gain is what that move makes.
+            mover = _weekday_mover(state, members[giving])
+            give[(key, giving)] = 0 if _weekday_there(state, state.moved[mover]) >= 2 else -1
+            for taking in range(groups):
+                gained = _weekday_take(state, key, taking, mover)
+                if gained is not None:
+                    take[(key, giving, taking)] = gained
     best: "dict[tuple[int, int], tuple[int, tuple[int, int, _WeekdayKind]]]" = {}
     for key in sorted(cells):
         for giving in range(groups):
             if (key, giving) not in give:
                 continue
             for taking in range(groups):
-                if (key, taking) not in take:
+                if (key, giving, taking) not in take:
                     continue
-                gain = give[(key, giving)] + take[(key, taking)]
+                gain = give[(key, giving)] + take[(key, giving, taking)]
                 if (giving, taking) not in best or gain > best[(giving, taking)][0]:
                     best[(giving, taking)] = (gain, key)
     chosen: "dict[str, tuple[tuple[int, int, int], tuple[int, ...]]]" = {}
@@ -20352,8 +20386,9 @@ def _weekday_chained(
     once step 7 is done, a rank of a group over its total may have no
     place of a group under it inside its gap, while a rank of a third
     group does. Each round links group `g` to group `h` through the first
-    cell, in cell order, holding a rank of `g` and a unit of `h` of its
-    kind that is no hole; finds, breadth first from the groups over their
+    cell, in cell order, holding a rank of `g` whose mover has a place of
+    `h` (`_weekday_take`, not None: a place of its kind, no hole, inside
+    its gap at its own place in its unit); finds, breadth first from the groups over their
     totals, groups ascending, the shortest path to a group under its
     total; and makes the path's moves in turn, each one rank of one cell
     (`_weekday_cell_move`), so every group between keeps its holding and
@@ -20375,10 +20410,11 @@ def _weekday_chained(
         link: "dict[tuple[int, int], tuple[int, int, _WeekdayKind]]" = {}
         for key in sorted(cells):
             for giving in sorted(cells[key]):
+                mover = _weekday_mover(state, cells[key][giving])
                 for taking in range(groups):
                     if taking == giving or (giving, taking) in link:
                         continue
-                    if _weekday_take(state, key, taking) is not None:
+                    if _weekday_take(state, key, taking, mover) is not None:
                         link[(giving, taking)] = key
         came: "dict[int, int]" = {}
         for group in over:

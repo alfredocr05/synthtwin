@@ -73,6 +73,17 @@ than one ordinal; and steps 8.2, 8.4 and 8.5 no longer count the column
 again for every unit or pair (step 8.5 on 20,000 lone moments 400 too
 long: 0.09 s where it took 16).
 
+**Step 8.3 counts the written values a move can reach** (its Codex
+review, item 1). The gain of an exchange asked whether a whole unit of a
+group stood free, while a move keeps a rank's place inside its unit and
+the count is of written values: forty values each at 00:15, 01:15 and
+02:30, asked for eighty in hour 1, forty in hour 2 and three values,
+came back as two, though 01:30 and 02:15 stood free. The gain now asks
+the rank its move takes for the places it can reach; that state keeps
+three values and the census, and the fifteenth vectors file holds it
+among 47 states. A date's day is one written value, so no date moves:
+every twin of the date batteries is the one before.
+
 ### Stage 4's first tier repaired at its review (2026-10-02)
 
 **A twin of a description the producer writes today moves no byte**

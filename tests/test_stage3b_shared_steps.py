@@ -66,8 +66,20 @@ The cases and their clauses:
   N10, N13 and N14; the review's other mutants of the repair's lines
   were already red on this file's other tests, all but N07, which is
   the same pass);
+* the Codex review's cases (its item 1): step 8.3's gain counts the
+  WRITTEN units its mover can take at its own place inside its unit --
+  Codex's own state of forty ranks each at 00:15, 01:15 and 02:30, and a
+  free second on a held day -- each step's mover is the rank on the
+  written unit holding the most, a place past the gap is no take (the
+  two states the landing's reviews froze a cycle undone on now offer no
+  cycle), and a cycle is still undone, last move first, where a move
+  made changes the mover of the next (`a_cycle_undone` and
+  `a_cycle_undone_last_move_first`, restated): C1a to C1d in the mutant
+  table, and M83 and N14 on the restated states;
 * `test_the_body_is_full_only_where_every_unit_the_census_counts_holds_a_rank`
-  -- the test the short cause asks (the review's M65);
+  -- the test the short cause asks (the review's M65), and
+  `test_the_body_counts_a_unit_a_move_empties` -- the review's M09 and
+  M10 on the count of each unit's ranks, which only that test reads;
 * `test_a_schedule_at_floor_36_reaches_step_8_5`,
   `test_a_count_left_long_is_named_long` and
   `test_a_cause_stands_only_where_the_recount_went_its_way` -- a column
@@ -215,6 +227,10 @@ CASES = [
     # the second review's (its item 1)
     "a_cycle_undone_last_move_first", "a_long_pair_by_first_places", "a_long_pair_by_two_first",
     "long_pairs_count_the_pinned_rank", "long_pairs_move_a_joined_rank_again", "runs_merged_in_one_round",
+    # the Codex review's (its item 1)
+    "a_chains_mover_holds_the_most", "a_cycles_mover_holds_the_most", "a_free_second_on_a_held_day",
+    "a_link_past_its_gap", "a_place_past_the_gap_offers_no_cycle",
+    "a_third_place_past_its_gap_offers_no_cycle", "written_units_free_in_held_hours",
 ]
 
 
@@ -484,23 +500,95 @@ def test_step_8_2_stops_once_the_count_is_back() -> None:
     assert moved.count(case["ordinals"][3]) == 4
 
 
-def test_a_cycle_is_made_whole_or_not_at_all(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Step 8.3's cycle, made whole or not at all (the repair; M83 leaves it half made): the
-    Wednesday moment moves to the Saturday after it, then a Saturday 10:00:00 finds no weekday
-    place between Friday 20:00:00 and Monday 06:00:00, so the Wednesday moment goes back: every
-    group keeps its count, and nothing has moved."""
-    case = _case("a_cycle_undone")
+def _made(monkeypatch: pytest.MonkeyPatch, case: dict, module=generation) -> "tuple[list[int], list[int]]":
+    """A case's answer, and the rank each move of steps 7b and 8.3 took (-1 where none moved)."""
     made: "list[int]" = []
-    moved_one = generation._weekday_cell_moved
+    moved_one = module._weekday_cell_moved
 
     def recorded(*arguments):
+        nonlocal made
         found = moved_one(*arguments)
-        made.append(found[0])
+        made += [found[0]]
         return found
 
-    monkeypatch.setattr(generation, "_weekday_cell_moved", recorded)
-    assert _answer(case) == case["answer"] == case["ordinals"]
-    assert made == [4, -1]
+    monkeypatch.setattr(module, "_weekday_cell_moved", recorded)
+    return _answer(case, module), made
+
+
+def test_a_cycle_is_made_whole_or_not_at_all(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Step 8.3's cycle, made whole or not at all (the repair; M83 leaves it half made). A move can
+    find no place where an earlier move of its cycle changed its group's mover (the Codex review,
+    item 1: the gain is asked of each group's mover before the cycle is made): a Tuesday moment
+    goes to Sunday 10:01:05 and, the lower rank of Sunday's two lone moments, is Sunday's mover;
+    Thursday 10:01:05 stands past the gap's close, so it goes back: every group keeps its count,
+    and nothing has moved."""
+    case = _case("a_cycle_undone")
+    answer, made = _made(monkeypatch, case)
+    assert answer == case["answer"] == case["ordinals"]
+    assert made == [0, -1]
+
+
+def test_a_cycle_whose_move_has_no_place_is_not_asked(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Step 8.3 asks a pair's take of its mover's own places, inside its gap (the Codex review,
+    item 1): the two states the landing's reviews froze a cycle undone on now offer no cycle, a
+    weekday at 10:00:00 standing outside the first gap of one and Monday 22:00:00 past the second
+    gap's close of the other, and no move is tried. Mutant: the take counts places past its gap,
+    and each cycle is made and undone again."""
+    for case, undone in (
+        (_case("a_place_past_the_gap_offers_no_cycle"), [4, -1]),
+        (_case("a_third_place_past_its_gap_offers_no_cycle"), [1, 1, -1]),
+    ):
+        answer, made = _made(monkeypatch, case)
+        assert answer == case["answer"] == case["ordinals"], case["why"]
+        assert made == [], case["why"]
+        mutant = _mutant(monkeypatch, *REVIEW_MUTANTS["C1b_take_ignores_the_gap"][1:])
+        answer, made = _made(monkeypatch, case, mutant)
+        assert answer == case["ordinals"] and made == undone, case["why"]
+        monkeypatch.undo()
+
+
+def test_step_8_3_counts_the_written_units_its_mover_can_take() -> None:
+    """Step 8.3's gain is asked of written units at its mover's place (the Codex review, item 1).
+    Codex's own state: forty ranks each at 00:15, 01:15 and 02:30, asked for eighty in hour 1,
+    forty in hour 2 and three values, keep three and the census -- 80 at 01:15, 1 at 02:15 and 39
+    at 02:30 -- where asking whether a whole hour stood free left 80 at 01:15 and 40 at 02:30, two
+    values. On a day of moments, Tuesday 10:01:30 and Wednesday 10:00:00 stand free though each day
+    holds a moment, and the count gains one. Mutant: the take asks whether the unit is free."""
+    case = _case("written_units_free_in_held_hours")
+    moved = _answer(case)
+    assert moved == case["answer"]
+    assert _holding(case, moved, range(len(moved))) == case["counts"]
+    assert len({ordinal // 60 for ordinal in moved}) == case["wanted"] == 3
+    assert sorted({ordinal % DAY for ordinal in moved}) == [HOUR + 15 * 60, 2 * HOUR + 15 * 60, 2 * HOUR + 30 * 60]
+    seconds = _case("a_free_second_on_a_held_day")
+    moved = _answer(seconds)
+    assert moved == seconds["answer"]
+    assert len(set(moved)) == len(set(seconds["ordinals"])) + 1
+    assert _holding(seconds, moved, range(len(moved))) == seconds["counts"]
+
+
+def test_the_mover_is_the_rank_on_the_written_unit_holding_the_most() -> None:
+    """Steps 7b and 8.3 ask a group's take of its MOVER, the rank its move takes (the Codex review,
+    item 1). Step 8.3: a Monday moment sharing its second goes to Tuesday 10:01:05 and the count
+    gains one, where the lone Thursday moment, stated first, gains nothing. Step 7b: a Wednesday
+    10:01:30 moment, held twice, has a Monday place inside the gap and goes there, where Wednesday
+    10:00:00, stated first, has none. Step 7b's link asks the mover's places inside its gap too:
+    Saturday 10:01:30 stands past the first gap's close, so a Tuesday moment of the second gap goes
+    to the Sunday before it. Mutants: each mover the first rank stated, and the take past its gap."""
+    case = _case("a_cycles_mover_holds_the_most")
+    moved = _answer(case)
+    assert moved == case["answer"]
+    assert moved[1] == case["ordinals"][1] + DAY and moved[0] == case["ordinals"][0]
+    case = _case("a_chains_mover_holds_the_most")
+    moved = _answer(case)
+    assert moved == case["answer"]
+    assert moved[1] == case["ordinals"][1] - 2 * DAY
+    assert _holding(case, moved, _movable(case)) == case["want"]
+    case = _case("a_link_past_its_gap")
+    moved = _answer(case)
+    assert moved == case["answer"]
+    assert moved[1] == case["ordinals"][1] - 2 * DAY and moved[0] == case["ordinals"][0]
+    assert _holding(case, moved, _movable(case)) == case["want"]
 
 
 def test_step_8_4_takes_the_earlier_tie_and_keeps_a_midnight_apart() -> None:
@@ -741,38 +829,48 @@ def test_step_8_5_measures_two_gaps_apart_from_their_first_places() -> None:
 
 
 def test_a_cycle_is_undone_last_move_first(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Step 8.3's cycle undone last move first (the second review's N14): the Monday moment moves
-    onto the Tuesday's 10:00:00 and, the first rank there, on to Wednesday; the third move finds no
-    Monday place, so the Monday moment goes back to the Tuesday and then to the Monday, and
-    nothing has moved. Undone first move first, it is left on the Tuesday."""
+    """Step 8.3's cycle undone last move first (the second review's N14, on the state its Codex
+    review restated, item 1): Tuesday 10:00:10 moves to Thursday 10:00:10 and, the lower rank of
+    Thursday's two lone minutes, on to Wednesday 10:00:10, where it is Wednesday's mover too;
+    Sunday 10:00:10 stands before the gap opens, so it goes back to Thursday and then to Tuesday,
+    and nothing has moved. Undone first move first, it is left on Thursday."""
     case = _case("a_cycle_undone_last_move_first")
-    made: "list[int]" = []
-    moved_one = generation._weekday_cell_moved
-
-    def recorded(*arguments):
-        nonlocal made
-        found = moved_one(*arguments)
-        made += [found[0]]
-        return found
-
-    monkeypatch.setattr(generation, "_weekday_cell_moved", recorded)
-    assert _answer(case) == case["answer"] == case["ordinals"]
-    assert made == [1, 1, -1]
+    answer, made = _made(monkeypatch, case)
+    assert answer == case["answer"] == case["ordinals"]
+    assert made == [0, 0, -1]
 
 
 # THE REVIEW'S MUTANTS (review of landing 3b.D0, items 3 to 5, by the reviewer's ids; M70 on are
-# the repair's own lines, and N01, N04, N06, N10, N13 and N14 the second review's, item 1, on the
-# repair's own lines too), each a source edit of the product, each red on the case beside it.
+# the repair's own lines, N01, N04, N06, N10, N13 and N14 the second review's, item 1, on the
+# repair's own lines too, and C1a to C1d its Codex review's, item 1, on the lines of the take that
+# counts written units), each a source edit of the product, each red on the case beside it. The
+# review's M09 and M10 are `BODY_MUTANTS`' now: since the Codex review step 8.3 asks written units,
+# and the count of each unit's ranks has one reader, the short cause's test of a full body.
 REVIEW_MUTANTS: "dict[str, tuple[str, str, str]]" = {
-    "M09_unit_free_ignores_count": (
-        "a_day_freed_for_a_cycle",
-        "return unit not in state.units_held or state.units_held[unit] <= 0",
-        "return unit not in state.units_held",
+    "C1a_take_asks_the_unit": (
+        "written_units_free_in_held_hours",
+        "            if not _weekday_holds(state, other):\n                return 1",
+        "            if _weekday_unit_free(state, unit):\n                return 1",
     ),
-    "M10_units_held_not_moved": (
-        "a_day_freed_for_a_cycle",
-        "    if state.unit != state.step:\n        key = before // state.unit",
-        "    if False:\n        key = before // state.unit",
+    "C1a_take_asks_the_unit_moments": (
+        "a_free_second_on_a_held_day",
+        "            if not _weekday_holds(state, other):\n                return 1",
+        "            if _weekday_unit_free(state, unit):\n                return 1",
+    ),
+    "C1b_take_ignores_the_gap": (
+        "a_link_past_its_gap",
+        "if unit == here or other < low or other > high:",
+        "if unit == here:",
+    ),
+    "C1c_cycle_mover_first_rank": (
+        "a_cycles_mover_holds_the_most",
+        "            mover = _weekday_mover(state, members[giving])",
+        "            mover = members[giving][0]",
+    ),
+    "C1d_chain_mover_first_rank": (
+        "a_chains_mover_holds_the_most",
+        "                mover = _weekday_mover(state, cells[key][giving])",
+        "                mover = cells[key][giving][0]",
     ),
     "M12_prior_hole_ends": (
         "the_prior_of_hours",
@@ -999,13 +1097,14 @@ REVIEW_MUTANTS: "dict[str, tuple[str, str, str]]" = {
 def test_each_clause_is_red_on_its_mutant(name: str, monkeypatch: pytest.MonkeyPatch) -> None:
     """Every clause a reviewer's mutant changed while every case before the review still passed
     (review of landing 3b.D0, items 3 to 5), every line the repair added that its own mutants
-    (M70 on) needed a case for, and every line of the repair a mutant of the second review
-    changed while all those cases still held (its item 1: N01, N04, N06, N10, N13 and N14): under
-    its source edit the case beside it answers otherwise, or its tables raise (M73). Every other
-    mutant of the repair's lines, its own or the second review's, is red on this file's other
-    tests, but two that change no answer: the second review's N07, a unit's status kept in its
-    first cell alone, is the same pass, a unit two cells hold having two holders, and M71, step
-    8.5's early stop withdrawn, changes only its speed."""
+    (M70 on) needed a case for, every line of the repair a mutant of the second review changed
+    while all those cases still held (its item 1: N01, N04, N06, N10, N13 and N14), and every line
+    of the take its Codex review asked for (item 1: C1a to C1d, the written unit, the gap, and
+    each step's mover): under its source edit the case beside it answers otherwise, or its tables
+    raise (M73). Every other mutant of the repair's lines, its own or the second review's, is red
+    on this file's other tests, but two that change no answer: the second review's N07, a unit's
+    status kept in its first cell alone, is the same pass, a unit two cells hold having two
+    holders, and M71, step 8.5's early stop withdrawn, changes only its speed."""
     case_name, before, after = REVIEW_MUTANTS[name]
     case = _case(case_name)
     mutant = _mutant(monkeypatch, before, after)
@@ -1028,6 +1127,47 @@ def test_the_body_is_full_only_where_every_unit_the_census_counts_holds_a_rank()
     assert generation._weekday_body_full(state, wednesday, wednesday, census)
     assert not generation._weekday_body_full(state, wednesday, wednesday + 1, census)
     assert generation._weekday_body_full(state, wednesday, wednesday + 1, ((0, 4, 0), (5, 6, 3)))
+
+
+# The review's M09 and M10, on the count of each unit's ranks (`units_held`), which since the Codex
+# review's item 1 only the short cause's test of a full body reads.
+BODY_MUTANTS: "dict[str, tuple[str, str]]" = {
+    "M09_unit_free_ignores_count": (
+        "return unit not in state.units_held or state.units_held[unit] <= 0",
+        "return unit not in state.units_held",
+    ),
+    "M10_units_held_not_moved": (
+        "    if state.unit != state.step:\n        key = before // state.unit",
+        "    if False:\n        key = before // state.unit",
+    ),
+}
+
+
+def test_the_body_counts_a_unit_a_move_empties(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The short cause's test of a full body counts the ranks on each unit as they move (the
+    review's M09 and M10, moved here from the mutant table once step 8.3 asked written units, its
+    Codex review's item 1): a day of moments holding Monday 08:00:00 and Tuesday 08:00:00 is full
+    over those two days, and is not once the Monday moment moves to Wednesday. Mutants: a unit
+    counted free only where it was never held (M09), and the count left where it was (M10)."""
+    monday = (datetime.date(2024, 3, 4) - datetime.date(1970, 1, 1)).days * DAY
+
+    def full_before_and_after(module) -> "tuple[bool, bool]":
+        case = {
+            "ordinals": [monday + 8 * HOUR, monday + DAY + 8 * HOUR], "where": [0, 0, 0, 0, 0, 1, 1],
+            "holes": [], "lows": [monday, monday], "highs": [monday + 6 * DAY, monday + 6 * DAY],
+            "reachable": True, "unit": DAY, "written_unit": 1, "day": DAY, "bin": "weekday",
+            "period": 7, "keep": "", "pair": "", "pair_where": [],
+        }
+        state = _state(case, module)
+        census = ((0, 4, 2), (5, 6, 0))
+        before = module._weekday_body_full(state, monday, monday + 2 * DAY - 1, census)
+        module._weekday_step(state, 0, monday + 2 * DAY + 8 * HOUR)
+        return before, module._weekday_body_full(state, monday, monday + 2 * DAY - 1, census)
+
+    assert full_before_and_after(generation) == (True, False)
+    for name, (before, after) in BODY_MUTANTS.items():
+        assert full_before_and_after(_mutant(monkeypatch, before, after)) == (True, True), name
+        monkeypatch.undo()
 
 
 # -- a column of the batteries through the whole generator (items 1 and 2) -----------------
