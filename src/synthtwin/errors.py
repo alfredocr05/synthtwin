@@ -1814,7 +1814,12 @@ def profile_version_is_older(found: int, reads: int) -> str:
     value" the person named -- and what to do, which is to describe the
     table again UNDER THE SAME OPTIONS.
 
-    IT NAMES FOURTEEN OPTIONS. `--twelve-hour` joined with landing T1
+    IT NAMES FIFTEEN OPTIONS. `--century` joined with landing R2a (plan
+    P4-D383): left out, a two-figure year is read as one of 1969 to
+    2068, so a birth date of 1931 written 31 is read as 2031 and the
+    published dates move a century; question Q5 answers it, so the
+    `--answers` clause names it too. Before it named fourteen.
+    `--twelve-hour` joined with landing T1
     (plan P4-D370): left out, the hour from twelve o'clock is read as
     noon, and the published times move. Before it named thirteen.
     `--metadata-rows` (plan P4-D81) and
@@ -1919,7 +1924,7 @@ def profile_version_is_older(found: int, reads: int) -> str:
         f"table, giving it every option you gave the first time: "
         f"--keep-value, --missing-value, --identifier, --code, "
         f"--measurement, --decimal-comma, --smallest-group, --first-row, "
-        f"--day-first, --twelve-hour, --metadata-rows, --sheet, "
+        f"--day-first, --twelve-hour, --century, --metadata-rows, --sheet, "
         f"--delimiter and "
         f"--answers. "
         f"Every one of them changes what the "
@@ -1946,6 +1951,10 @@ def profile_version_is_older(found: int, reads: int) -> str:
         f"AM or PM is read as a 24-hour clock, so the hour from twelve "
         f"o'clock is read as noon instead of the hour after midnight, "
         f"which changes the times the description publishes; without "
+        f"the --century you gave, a date whose year is written with "
+        f"two figures is read as one of 1969 to 2068, so a birth date "
+        f"of 1931 written 31 is read as 2031, which changes the dates "
+        f"the description publishes; without "
         f"the --metadata-rows you "
         f"gave, the rows under your column names that describe your "
         f"columns are read as records of your table, so their text is "
@@ -1960,7 +1969,8 @@ def profile_version_is_older(found: int, reads: int) -> str:
         f"gave, every answer you wrote in the questions file is gone \u2014 "
         f"each of them was a --code, an --identifier, a --measurement, "
         f"a --decimal-comma, a --metadata-rows, a --delimiter, a "
-        f"--twelve-hour, a --day-first, a --missing-value or a "
+        f"--twelve-hour, a --century, a --day-first, a --missing-value "
+        f"or a "
         f"--keep-value, "
         f"so leaving the file out costs whichever of those you had "
         f"given, and this same sentence says what each one costs. If "

@@ -13654,7 +13654,8 @@ version 5 document reads "version 5":
 > giving it every option you gave the first time: --keep-value,
 > --missing-value, --identifier, --code, --measurement,
 > --decimal-comma, --smallest-group, --first-row, --day-first,
-> --twelve-hour, --metadata-rows, --sheet, --delimiter and --answers.
+> --twelve-hour, --century, --metadata-rows, --sheet, --delimiter and
+> --answers.
 > Every one of them changes what the description PUBLISHES about your
 > table, so any option you leave out can put something into the new
 > description that the old one held back: without the --smallest-group
@@ -13686,7 +13687,11 @@ version 5 document reads "version 5":
 > gave, a column of times written on a 12-hour clock with no AM or PM
 > is read as a 24-hour clock, so the hour from twelve o'clock is read
 > as noon instead of the hour after midnight, which changes the times
-> the description publishes; without the --metadata-rows you gave, the
+> the description publishes; without the --century you gave, a date
+> whose year is written with two figures is read as one of 1969 to
+> 2068, so a birth date of 1931 written 31 is read as 2031, which
+> changes the dates the description publishes; without the
+> --metadata-rows you gave, the
 > rows under your column names that describe your columns are read as
 > records of your table, so their text is counted and described as
 > data and every count is two rows out; without the --sheet you gave,
@@ -13698,13 +13703,21 @@ version 5 document reads "version 5":
 > without the --answers you gave, every answer you wrote in the
 > questions file is gone — each of them was a --code, an --identifier,
 > a --measurement, a --decimal-comma, a --metadata-rows, a
-> --delimiter, a --twelve-hour, a --day-first, a --missing-value or a
+> --delimiter, a --twelve-hour, a --century, a --day-first, a
+> --missing-value or a
 > --keep-value, so leaving the file out costs whichever of those you
 > had given, and this same sentence says what each one costs. If you
 > do not hold the table yourself, ask whoever made this description to
 > run it again for you. Read the summary page synthtwin writes beside
 > the new description before either file goes anywhere, and use the
 > description exactly as synthtwin writes it.
+
+**Why it names fifteen options and prices each.** `--century` joined
+them with landing R2a (plan P4-D383): a re-run without it reads a date
+whose year is written with two figures as one of 1969 to 2068, so a
+birth date of 1931 written `31` is read as 2031 and the published
+dates move by a century. Question Q5 answers it in a questions file,
+so the `--answers` clause names it too.
 
 **Why it names fourteen options and prices each.** `--twelve-hour`
 joined them with landing T1 (plan P4-D370): a re-run without it reads

@@ -19,7 +19,8 @@ column's `format`, and the twin writes every cell back in its source's
 own spelling: the thirty-nine spellings of `K-S3-58` all read, are
 written back and validate, where none read before. Two-figure years are
 asked their century in the questions file (Q5, `--century`,
-`century_windows`), and a layout nothing in its cells tells from a code
+`century_windows`), an option the refusal of an older description now
+names and prices, and a layout nothing in its cells tells from a code
 is asked whether it is one. The reach battery's 120 other columns are
 byte for byte as they were but for three questions files. Describing a
 column written in a layout costs what ISO's spelling of the same moments
