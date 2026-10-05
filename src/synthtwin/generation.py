@@ -26152,26 +26152,10 @@ def _label_content(
         keys_of = _stand_in_clock_keys(
             len(sizes), shared, written_as, shaped_places, level_shape
         )
-        potential: "dict[tuple[bool, str], int]" = {}
-        for written_key in timed:
-            potential[written_key] = timed[written_key]
-        for place in keys_of:
-            owed_key = keys_of[place]
-            potential[owed_key] = (
-                potential[owed_key] if owed_key in potential else 0
-            ) + sizes[place]
-        held = _clock_keys_held(potential, column.n_present, plan.parse_rate)
-        if held:
-            clocks = 0
-            for held_key in held:
-                clocks = clocks + (timed[held_key] if held_key in timed else 0)
-            others = len(cells) - clocks
-            for place in keys_of:
-                if keys_of[place] not in held:
-                    others = others + sizes[place]
-            room = _clock_line_room(
-                column.n_present, plan.parse_rate, clocks, others, True
-            )
+        held, room = _held_clock_room(
+            timed, keys_of, sizes, len(cells), column.n_present,
+            plan.parse_rate,
+        )
     # ...AND, ONCE THE NEXT TIME WOULD CROSS IT, EVERY LATER STAND-IN OF A
     # HELD KEY'S FORM IS FILLED FIGURE BY FIGURE, on cursors of its own.
     figures: "dict[str, int] | None" = None
@@ -27759,6 +27743,55 @@ def _clock_keys_held(
         if potential[key] >= line:
             held[key] = True
     return held
+
+
+def _held_clock_room(
+    timed: "dict[tuple[bool, str], int]",
+    keys_of: "dict[int, tuple[bool, str]]",
+    sizes: "tuple[int, ...]",
+    written: int,
+    present: int,
+    rate: float,
+) -> "tuple[dict[tuple[bool, str], bool], int | None]":
+    """The keys G8.3's clock line holds, and the room it leaves (second repair round).
+
+    ``timed`` counts the cells the published levels wrote, key by key
+    (`_clock_key`); ``keys_of`` gives the key of each stand-in whose form
+    a time can wear (`_stand_in_clock_keys`), ``sizes`` every stand-in's
+    size, and ``written`` how many cells were written before them. A key
+    is held where its written cells and its stand-ins' reach the line
+    (`_clock_keys_held`). The room is `_clock_line_room` over the held
+    keys' written cells, every other written cell -- and every stand-in of
+    a key not held -- counted beside the published words: a time of its
+    own form, which no reading of the column as clock times takes and
+    which is never a rare word. Counted among the stand-ins instead, it
+    would stand for a rare word the producer never counts out, and the
+    room would let the twin cross the line it holds. No room where no key
+    is held: no stand-in can then carry the twin across.
+
+    Guarantees: a function of the arguments, ``held`` keyed in sorted
+    order. Raises TypeError where the rate is not a float instance. No
+    I/O of any kind.
+    """
+    potential: "dict[tuple[bool, str], int]" = {}
+    for written_key in timed:
+        potential[written_key] = timed[written_key]
+    for place in keys_of:
+        owed_key = keys_of[place]
+        potential[owed_key] = (
+            potential[owed_key] if owed_key in potential else 0
+        ) + sizes[place]
+    held = _clock_keys_held(potential, present, rate)
+    if not held:
+        return held, None
+    clocks = 0
+    for held_key in held:
+        clocks = clocks + (timed[held_key] if held_key in timed else 0)
+    others = written - clocks
+    for place in keys_of:
+        if keys_of[place] not in held:
+            others = others + sizes[place]
+    return held, _clock_line_room(present, rate, clocks, others, True)
 
 
 def _clock_cells_stand(

@@ -78,7 +78,9 @@ holds the whole battery, and NF106's sentence:
   its marker withdrawn); and, since the second repair round, columns half
   or 5 % of whose times are at the second, labels or free text, write no
   cell a clock reader refuses: the clock line is held key by key (mutant:
-  every clock time one key);
+  every clock time one key), and a stand-in of a key the line does not
+  hold stands beside the published words (mutant: counted among the
+  stand-ins, and the twin is read back as clock times);
 * W `test_w_rare_words_beside_clock_times_keep_the_clock` -- 296 shift
   starts beside four `UNK` are clock times, the words counted missing,
   and the twin reads back the same way (mutant: the level pass keeps the
@@ -1128,6 +1130,66 @@ def test_m_red_when_every_clock_time_is_one_key(monkeypatch: pytest.MonkeyPatch)
         assert all(count > 0 for count in found.values()), found
     finally:
         _twin.cache_clear()
+
+
+# ...AND A STAND-IN OF ANOTHER KEY STANDS BESIDE THE WORDS (its second repair
+# round, `generation._held_clock_room`): 1,800 quarter hours, 159 rare codes
+# of a clock's shape that no clock reader takes, twelve times at the second
+# -- a form of their own, published -- and twenty-nine rare words, in 2,000
+# rows, are labels, and the twin holds the codes' stand-ins to the room the
+# line leaves. Counted among the stand-ins, the twelve times at the second
+# stood for rare words the producer never counts out, every stand-in of the
+# codes' form was a time, and the twin -- 1,959 times at the minute beside
+# 29 words -- was read back as clock times.
+def _beside_the_words() -> "list[str]":
+    column: "list[str]" = []
+    for step in range(60):
+        column += [parsing.clock_spelling(6 * 60 + 15 * step, parsing.CLOCK_HH_MM)] * 30
+    for code in range(40):
+        column += [f"{25 + code // 4}:{10 * (code % 4) + 5:02d}"] * (3 if code == 39 else 4)
+    for second in (14 * 3600 + 610, 15 * 3600 + 1222, 16 * 3600 + 3015, 17 * 3600 + 77):
+        column += [parsing.clock_spelling(second, parsing.CLOCK_HH_MM_SS)] * 3
+    for word in range(10):
+        column += [f"note{chr(65 + word)}"] * (2 if word == 9 else 3)
+    random.Random(2207).shuffle(column)
+    return column
+
+
+def _one_column_read_back(column: "list[str]") -> "tuple[str, list[str], list[str]]":
+    """The column's role, and what validation MISSED on the table and on its twin."""
+    folder = pathlib.Path(tempfile.mkdtemp(dir=_HOME[0]))
+    table = fixtures.write(folder, "words.csv", "c\n" + "\n".join(column) + "\n")
+    document = profile.build_document(
+        reading.read_table(str(table), small_cell_floor=11), taxonomy.Settings(small_cell_floor=11), []
+    )
+    loaded = contract.load_profile(str(fixtures.write_profile(folder, "words.json", document)))
+    target = fixtures.write(folder, "twin-0.csv", rendering.twin_csv(generation.generate(loaded, 0)))
+    return f"{document['columns'][0]['role']}", _missed(loaded, table), _missed(loaded, target)  # type: ignore[index]
+
+
+def test_m_a_stand_in_of_another_key_stands_beside_the_words() -> None:
+    role, real, twin = _one_column_read_back(_beside_the_words())
+    assert role != taxonomy.ROLE_CLOCK and real == [] and twin == [], (role, real, twin)
+
+
+def test_m_red_when_another_keys_stand_ins_are_rare_words(monkeypatch: pytest.MonkeyPatch) -> None:
+    built = generation._held_clock_room
+
+    def among(
+        timed: "dict[tuple[bool, str], int]",
+        keys_of: "dict[int, tuple[bool, str]]",
+        sizes: "tuple[int, ...]",
+        written: int,
+        present: int,
+        rate: float,
+    ) -> "tuple[dict[tuple[bool, str], bool], int | None]":
+        held, _room = built(timed, keys_of, sizes, written, present, rate)
+        kept = {place: keys_of[place] for place in keys_of if keys_of[place] in held}
+        return built(timed, kept, sizes, written, present, rate)
+
+    monkeypatch.setattr(generation, "_held_clock_room", among)
+    _role, _real, twin = _one_column_read_back(_beside_the_words())
+    assert "c:axes.role" in twin, twin
 
 
 # -- W: rare words beside clock times keep the clock ----------------------
