@@ -52,10 +52,24 @@ column writes (item 5); and one clause for each rule no test turned red
 two spellings, the weekday, the fourteen hours, the space-padded day read
 and written, the runs asked, a day-first layout's evidence, R1's codes
 with Q1, the per-column century and the readable band.
+
+And skeptic 2's round, each clause run against the mutant its docstring
+names: G7.9b writes no offset the census names (item 1); it reads each
+cell's class once where nothing is owed and writes an offset only where
+it settles one (item 2); a run whose few suffixes read as an offset no
+census names is asked as the bare run is (item 3); and one clause for
+each of the repair round's rules no test turned red (item 4): the
+eighteen layouts that stand in for a two-figure member, the stand-ins
+taken off the debt, the zulu word, the run with a fraction, the
+hours-only and colon fields, the bound of the offer at 180 owed, the
+numbers left at the line, and no offset beside a pool.
 """
 
+import collections
 import csv
+import dataclasses
 import datetime
+import importlib.util
 import io
 import json
 import pathlib
@@ -65,7 +79,9 @@ import sys
 
 import pytest
 
-from synthtwin import asking, contract, errors, parsing, taxonomy, validation
+from synthtwin import (
+    asking, canonical, contract, errors, generation, parsing, taxonomy, validation,
+)
 from tests import fixtures
 from tests import layout_spellings as spellings
 
@@ -92,15 +108,15 @@ def _exit_of(argv: "list[str]") -> int:
 
 
 def _described(
-    folder: pathlib.Path, cells: "list[str]", *flags: str
+    folder: pathlib.Path, cells: "list[str]", *flags: str, floor: int = 11
 ) -> "tuple[dict[str, object], pathlib.Path, dict[str, object]]":
-    """Describe one column the way `synthtwin profile` does."""
+    """Describe one column the way `synthtwin profile` does, at the floor given."""
     folder.mkdir(parents=True, exist_ok=True)
     table = folder / "real.csv"
     names, rows = fixtures.rows_at_the_floor("seen_at", cells)
     table.write_text(fixtures.rows_to_csv(names, rows), encoding="utf-8", newline="\n")
     assert _exit_of(
-        ["profile", str(table), "--out-dir", str(folder), "--replace", "--smallest-group", "11"]
+        ["profile", str(table), "--out-dir", str(folder), "--replace", "--smallest-group", str(floor)]
         + list(flags)
     ) == 0
     profile = folder / "real-profile.json"
@@ -964,3 +980,349 @@ def test_item2_a_repeated_text_is_never_paid_on(tmp_path: pathlib.Path) -> None:
         twin, written = _twin(profile, seed)
         assert sum(1 for cell in written if not cell.isdigit()) == 15, seed
         assert _validated(profile, twin)[0] == 0, seed
+
+
+# -- skeptic 2's round (the report's item numbers) --------------------------
+
+_ORACLE_PATH = (
+    pathlib.Path(__file__).resolve().parents[1]
+    / "tools"
+    / "reference"
+    / "make_generation_reference_vectors.py"
+)
+_ORACLE: "list[object]" = []
+
+
+def _oracle() -> object:
+    """The generation oracle, loaded once from its path (it is not a package)."""
+    if not _ORACLE:
+        spec = importlib.util.spec_from_file_location(
+            "make_generation_reference_vectors", _ORACLE_PATH
+        )
+        assert spec is not None and spec.loader is not None
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        _ORACLE.extend([module])
+    return _ORACLE[0]
+
+
+def _stamps_wearing(
+    rows: int,
+    seed: int,
+    worn: "list[tuple[str, int]]",
+    shape: str = "%Y%m%d%H%M%S",
+) -> "list[str]":
+    """HL7 stamps over 900 days, interior ones ending in each suffix ``worn`` lists.
+
+    ``worn`` gives each suffix with how many cells end in it; they are
+    placed on interior cells in a shuffled order, no cell twice. These are
+    the columns skeptic 2 measured, cell for cell.
+    """
+    draw = random.Random(seed)
+    start = datetime.datetime(2021, 1, 1)
+    cells = [
+        (start + datetime.timedelta(seconds=draw.randrange(900 * 86400))).strftime(shape)
+        for _row in range(rows)
+    ]
+    places = list(range(1, rows - 1))
+    draw.shuffle(places)
+    at = 0
+    for suffix, count in worn:
+        for _cell in range(count):
+            cells[places[at]] = cells[places[at]] + suffix
+            at = at + 1
+    return cells
+
+
+def _not_numbers(cells: "list[str]") -> int:
+    """How many cells a reader of numbers refuses."""
+    return sum(1 for cell in cells if parsing.classify_number(cell) != parsing.NUMBER)
+
+
+def test_sk2_item1_no_offset_the_census_names_is_written_for_its_class_count(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Item 1: G7.9b never writes an offset the census names.
+
+    1,000 HL7 stamps, 300 ending `+0000` -- a named offset -- and 5 ending
+    `-0500`, which the census counts into `(none)`: the twin wears `+0000`
+    on exactly the 300 the census gives it and the five it owes at
+    `+0100`, and validates at floors 11 and 36 and seeds 0 to 2. Mutant,
+    run: the named offsets left on the offer, and the twin wears `+0000` on
+    305 cells and misses `utc_offsets` at every seed and floor.
+    """
+    cells = _stamps_wearing(1000, 101, [("+0000", 300), ("-0500", 5)])
+    for floor in (11, 36):
+        block, profile, _questions = _described(tmp_path / f"floor-{floor}", cells, floor=floor)
+        assert block["format"] == "layout {YYYY}{MM}{DD}{HH}{MI}{SS}{+HHMM?}"
+        assert block["utc_offsets"] == {"(none)": 700, "+00:00": 300}
+        assert block["n_not_numeric"] == 305
+        for seed in SEEDS:
+            twin, written = _twin(profile, seed)
+            assert sum(1 for cell in written if cell.endswith("+0000")) == 300, (floor, seed)
+            assert sum(1 for cell in written if cell.endswith("+0100")) == 5, (floor, seed)
+            assert _validated(profile, twin)[0] == 0, (floor, seed)
+
+
+def _loaded(profile: pathlib.Path) -> "tuple[contract.ColumnBlock, contract.DatetimeFacts]":
+    """The first column of a description as the generator loads it, and its facts."""
+    column = contract.load_profile(str(profile)).columns[0]
+    facts = column.facts
+    assert isinstance(facts, contract.DatetimeFacts)
+    return column, facts
+
+
+def test_sk2_item2_nothing_owed_reads_each_class_once_and_writes_no_offset(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Item 2: G7.9b costs one reading of each cell's class where nothing is owed.
+
+    300 stamps, seven ending in an offset the census counts into `(none)`.
+    Handed the cells as the table wrote them -- the seven wearing their
+    offsets, so nothing is owed -- the pass reads each cell's class once
+    and writes no offset; handed them bare, it writes the seven it owes
+    and asks the field for those seven alone. Mutants, run: the stop where
+    nothing is owed withdrawn (each open rank's class read a second time);
+    the offset written on every open rank before the debt is known, as the
+    pass did (298 more writes).
+    """
+    cells = _hl7_with_offsets(ROWS, 7)
+    block, profile, _questions = _described(tmp_path, cells)
+    assert block["format"] == "layout {YYYY}{MM}{DD}{HH}{MI}{SS}{+HHMM?}"
+    assert block["utc_offsets"] == {"(none)": ROWS} and block["n_not_numeric"] == 7
+    column, facts = _loaded(profile)
+    classes = 0
+    writes = 0
+    shipped_class = parsing.classify_number
+    shipped_added = parsing.layout_offset_added
+
+    def class_counted(text: str) -> str:
+        nonlocal classes
+        classes = classes + 1
+        return shipped_class(text)
+
+    def write_counted(cell: str, name: str, offset: str) -> "str | None":
+        nonlocal writes
+        writes = writes + 1
+        return shipped_added(cell, name, offset)
+
+    monkeypatch.setattr(parsing, "classify_number", class_counted)
+    monkeypatch.setattr(parsing, "layout_offset_added", write_counted)
+    kept = generation._offsets_owed_by_the_classes(column, facts, list(cells), (), 11)
+    assert kept == cells
+    assert (classes, writes) == (ROWS, 0)
+    bare = [cell[0:14] for cell in cells]
+    paid = generation._offsets_owed_by_the_classes(column, facts, list(bare), (), 11)
+    assert _not_numbers(paid) == 7
+    assert writes == 7
+
+
+def test_sk2_item3_a_run_whose_few_suffixes_read_as_an_offset_is_asked(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Item 3: a run ending in an offset no census names is asked as the bare run is.
+
+    1,000 fourteen-figure identifiers, eight ending `-0001` to `-0008`,
+    read under `{+HHMM?}`, and 1,000 twelve-figure ones, seven ending `-01`
+    or `-02`, under `{+HH?}`: each census names `(none)` alone, and each
+    column is asked keep, code or identifier at its run's own width, Enter
+    keeping the dates. Stamps half of which wear an offset the census
+    names are not asked. Mutant, run: the clause withdrawn, and neither run
+    is asked.
+    """
+    for name, cells, layout, width in (
+        (
+            "minutes",
+            _stamps_wearing(1000, 111, [(f"-00{suffix:02d}", 1) for suffix in range(1, 9)]),
+            "layout {YYYY}{MM}{DD}{HH}{MI}{SS}{+HHMM?}",
+            14,
+        ),
+        (
+            "lines",
+            _stamps_wearing(1000, 112, [("-01", 4), ("-02", 3)], "%Y%m%d%H%M"),
+            "layout {YYYY}{MM}{DD}{HH}{MI}{+HH?}",
+            12,
+        ),
+    ):
+        block, _profile, questions = _described(tmp_path / name, cells)
+        assert block["format"] == layout, name
+        assert block["utc_offsets"] == {"(none)": 1000}, name
+        asked = [entry for entry in questions["asked"] if entry["read_as_now"] == asking.ANSWER_KEEP]
+        assert asked, name
+        assert f"{width} characters wide" in asked[0]["what_synthtwin_saw"], name
+        assert "offset" in asked[0]["what_synthtwin_saw"], name
+        assert {"keep", "code", "identifier"} <= {
+            choice["answer"] for choice in asked[0]["answers_you_can_give"]
+        }, name
+    block, _profile, questions = _described(
+        tmp_path / "named", spellings.cells("hl7_offset_some_omit", ROWS)
+    )
+    assert block["format"] == "layout {YYYY}{MM}{DD}{HH}{MI}{SS}{+HHMM?}"
+    assert not [entry for entry in questions["asked"] if entry["read_as_now"] == asking.ANSWER_KEEP]
+
+
+# The eighteen layouts that stand in for a two-figure member in a declared
+# century, written out: each member shape on `/` or `.` with its year last,
+# in each of the three windows a person may declare.
+_MEMBER_LAYOUTS = (
+    "layout {M}/{D}/{YY1900}", "layout {M}/{D}/{YY1930}", "layout {M}/{D}/{YY1940}",
+    "layout {D}/{M}/{YY1900}", "layout {D}/{M}/{YY1930}", "layout {D}/{M}/{YY1940}",
+    "layout {MM}/{DD}/{YY1900}", "layout {MM}/{DD}/{YY1930}", "layout {MM}/{DD}/{YY1940}",
+    "layout {DD}/{MM}/{YY1900}", "layout {DD}/{MM}/{YY1930}", "layout {DD}/{MM}/{YY1940}",
+    "layout {MM}.{DD}.{YY1900}", "layout {MM}.{DD}.{YY1930}", "layout {MM}.{DD}.{YY1940}",
+    "layout {DD}.{MM}.{YY1900}", "layout {DD}.{MM}.{YY1930}", "layout {DD}.{MM}.{YY1940}",
+)
+_MEMBER_CELLS = {
+    "{M}/{D}/": "3/7/35",
+    "{D}/{M}/": "7/3/35",
+    "{MM}/{DD}/": "03/17/35",
+    "{DD}/{MM}/": "17/03/35",
+    "{MM}.{DD}.": "03.17.35",
+    "{DD}.{MM}.": "17.03.35",
+}
+
+
+def test_sk2_item4_every_member_layout_sets_the_spaces_round_a_cell_aside() -> None:
+    """Item 4: the eighteen layouts a declared century stands in with, listed.
+
+    Each reads a cell with a space, a tab or a no-break space before or
+    after it as the member it stands in for does, and no other layout is
+    among them. Mutants, run: `{D}/{M}/`, `{MM}.{DD}.` or `{DD}/{MM}/` left
+    out of the member shapes, or the 1940 window left out of the set --
+    each turned an answered column of births back into free text.
+    """
+    for name in _MEMBER_LAYOUTS:
+        assert parsing.layout_sets_spaces_aside(name), name
+        cell = _MEMBER_CELLS[name[len(parsing.LAYOUT_PREFIX) : name.index("{YY")]]
+        read = parsing.parse_datetime(cell, name)
+        assert read is not None, name
+        for spaced in (f" {cell}", f"{cell} ", f"\t{cell}", f"{cell} "):
+            assert parsing.parse_datetime(spaced, name) == read, (name, spaced)
+    assert len(parsing._LAYOUTS_READ_AS_MEMBERS) == len(_MEMBER_LAYOUTS)
+
+
+# G7.9b's rules for each field and for the stand-ins: seven of 1,000 stamps
+# ending in an offset the census counts into `(none)`, as skeptic 2 wrote
+# them -- (seed, suffixes, the stamp's shape, the layout read).
+_OWED_SHAPES = {
+    "colon": (131, [("-04:00", 4), ("-05:00", 3)], "%Y%m%d%H%M%S", "layout {YYYY}{MM}{DD}{HH}{MI}{SS}{+HH:MM?}"),
+    "fraction": (7, [("-0400", 4), ("-0500", 3)], "%Y%m%d%H%M%S.0000", "layout {YYYY}{MM}{DD}{HH}{MI}{SS}.{F}{+HHMM?}"),
+    "hours_only": (9, [("-04", 4), ("-05", 3)], "%Y%m%d%H%M%S", "layout {YYYY}{MM}{DD}{HH}{MI}{SS}{+HH?}"),
+    "stand_ins": (8, [("-0400", 4), ("-0500", 3)], "%Y%m%d%H%M%S", "layout {YYYY}{MM}{DD}{HH}{MI}{SS}{+HHMM?}"),
+    "zulu": (10, [("Z", 7)], "%Y%m%d%H%M%S", "layout {YYYY}{MM}{DD}{HH}{MI}{SS}{Z?}"),
+}
+
+
+@pytest.mark.parametrize("name", sorted(_OWED_SHAPES))
+def test_sk2_item4_each_field_writes_the_offsets_its_class_count_owes(
+    tmp_path: pathlib.Path, name: str
+) -> None:
+    """Item 4: one column for each of G7.9b's fields, and one beside stand-ins.
+
+    The twin holds the published count of cells that are not numbers and
+    validates: the offset written with its colon (`+00:00`), after a run
+    with a fraction (still a number without it), in hours alone (`+00`),
+    beside five texts that are no dates (the stand-ins, taken off the
+    debt), and on a zulu field (its own word). Mutants, run: the colon
+    dropped, the run with a fraction no longer a number, the hours-only
+    offset written in four figures, the numeric offsets offered to a zulu
+    field -- each wrote no offset -- and the stand-ins left on the debt,
+    which wrote twelve offsets for seven.
+    """
+    seed, worn, shape, layout = _OWED_SHAPES[name]
+    cells = _stamps_wearing(1000, seed, worn, shape)
+    if name == "stand_ins":
+        for place in range(5):
+            cells[100 + place * 37] = f"pending {place}"
+    block, profile, _questions = _described(tmp_path, cells)
+    assert block["format"] == layout
+    assert block["utc_offsets"] == {"(none)": block["n_present"] - block["n_unparsed"]}
+    assert block["n_not_numeric"] == 7 + block["n_unparsed"]
+    twin, written = _twin(profile, 0)
+    assert _not_numbers(written) == block["n_not_numeric"]
+    assert _validated(profile, twin)[0] == 0
+
+
+def test_sk2_item4_a_debt_past_the_offer_is_written_as_far_as_it_reaches(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Item 4: 180 offsets owed at a floor of 11, where the offer holds 150.
+
+    Twenty offsets of nine cells each, every one under the line, all
+    counted into `(none)`: the twin is written, wearing ten each of the
+    fifteen offsets on offer, and misses its two class counts and nothing
+    else -- the limit method G7.9b states. Mutant, run: the bound of ten
+    cells times the offsets on offer dropped, and generate stops on an
+    offset past the fifteenth.
+    """
+    hours = (-12, -11, -10, -9, -8, -7, -6, -5, -4, -3, -2, -1, 1, 2, 3, 4, 5, 6, 7, 8)
+    worn = [(f"{'+' if hour > 0 else '-'}{abs(hour):02d}00", 9) for hour in hours]
+    block, profile, _questions = _described(tmp_path, _stamps_wearing(1000, 5, worn))
+    assert block["utc_offsets"] == {"(none)": 1000} and block["n_not_numeric"] == 180
+    twin, written = _twin(profile, 0)
+    suffixes = collections.Counter(cell[14:] for cell in written if len(cell) > 14)
+    assert suffixes == {f"+{hour:02d}00": 10 for hour in range(15)}
+    code, report = _validated(profile, twin)
+    assert code == 3
+    missed = {line.split(" [")[0].strip() for line in report.splitlines() if line.rstrip().endswith(": MISSED")}
+    assert missed == {"counts.n_numeric", "counts.n_not_numeric"}
+
+
+def test_sk2_item4_the_numbers_left_stay_at_the_line(tmp_path: pathlib.Path) -> None:
+    """Item 4: G7.9b never leaves fewer numbers than the census line.
+
+    A description the loader takes, written by hand: 120 stamps all counted
+    into `(none)` beside 115 cells that are not numbers. Paid in full, five
+    numbers would be left, under the line of eleven, and the twin's own
+    description would no longer count its offsets into `(none)`; the pass
+    writes 109 and leaves eleven, and the oracle writes the same cells.
+    Mutant, run: the bound at the line dropped, 115 written and five
+    numbers left.
+    """
+    cells = _hl7_with_offsets(120, 3)
+    _block, profile, _questions = _described(tmp_path, cells)
+    document = json.loads(profile.read_text(encoding="utf-8"))
+    block = document["columns"][0]
+    assert block["utc_offsets"] == {"(none)": 120}
+    block["n_numeric"] = 5
+    block["n_not_numeric"] = 115
+    edited = tmp_path / "edited-profile.json"
+    edited.write_text(canonical.serialize(document), encoding="utf-8", newline="\n")
+    column, facts = _loaded(edited)
+    bare = [cell[0:14] for cell in cells]
+    paid = generation._offsets_owed_by_the_classes(column, facts, list(bare), (), 11)
+    assert len(bare) - _not_numbers(paid) == parsing.census_floor(11)
+    oracle = _oracle()
+    assert oracle.offsets_paid_to_the_classes(block, list(bare), (), 11) == paid  # type: ignore[attr-defined]
+
+
+def test_sk2_item4_no_offset_is_written_beside_a_pool(tmp_path: pathlib.Path) -> None:
+    """Item 4: G7.9b writes nothing where the census pools any offset.
+
+    The loader refuses a pool beside `(none)` (contract D3), so the rule is
+    asked of the function itself, and of the oracle: handed
+    `{"(none)": 290, "(withheld)": 10}` and ten cells that are not numbers
+    owed, each writes nothing; handed `{"(none)": 300}`, each writes the
+    same ten. Mutant, run: the pool's clause withdrawn, and ten are
+    written beside the pool.
+    """
+    cells = _hl7_with_offsets(ROWS, 2)
+    block, profile, _questions = _described(tmp_path, cells)
+    column, facts = _loaded(profile)
+    owing = dataclasses.replace(column, n_numeric=ROWS - 10, n_not_numeric=10)
+    bare = [cell[0:14] for cell in cells]
+    oracle = _oracle()
+    pooled = {"(none)": ROWS - 10, "(withheld)": 10}
+    kept = generation._offsets_owed_by_the_classes(
+        owing, dataclasses.replace(facts, utc_offsets=pooled), list(bare), (), 11
+    )
+    assert kept == bare
+    pooled_block = dict(block, n_numeric=ROWS - 10, n_not_numeric=10, utc_offsets=pooled)
+    assert oracle.offsets_paid_to_the_classes(pooled_block, list(bare), (), 11) == bare  # type: ignore[attr-defined]
+    whole = {"(none)": ROWS}
+    paid = generation._offsets_owed_by_the_classes(
+        owing, dataclasses.replace(facts, utc_offsets=whole), list(bare), (), 11
+    )
+    assert _not_numbers(paid) == 10
+    whole_block = dict(block, n_numeric=ROWS - 10, n_not_numeric=10, utc_offsets=whole)
+    assert oracle.offsets_paid_to_the_classes(whole_block, list(bare), (), 11) == paid  # type: ignore[attr-defined]

@@ -222,6 +222,9 @@ CENTURY_ANSWERS = {
 # with a two-figure year, and a run of 12 or 14 figures. Read as dates, and
 # asked; Enter keeps the dates.
 BECAUSE_DATES_LIKE_CODES = "dates-written-like-codes"
+# The offsets census's own member for a cell written with none (contract
+# NO_OFFSET): a run whose census names it alone is asked as the bare run.
+_NO_OFFSET = "(none)"
 BECAUSE_PADDED = "padded"
 BECAUSE_FIXED_WIDTH = "fixed-width"
 BECAUSE_JOINED = "two-numbers"
@@ -1883,6 +1886,18 @@ def _shape_of(
                 "four, each read as a date; version numbers and codes are "
                 "written the same way"
             )
+        if mark == "?":
+            # ...AND A RUN SOME OF WHOSE CELLS END IN WHAT IS READ AS AN
+            # OFFSET (skeptic 2 of landing R2a, item 3): the suffix an
+            # identifier carries is the reading the question puts to the
+            # person, so the sentence names it.
+            return (
+                f"the values that read as dates are written in figures, "
+                f"{remainder} characters wide, some of them followed by what "
+                f"is read as an offset from UTC, each read as a date and "
+                f"time written without marks; identifiers that end in a "
+                f"suffix are written the same way"
+            )
         return (
             f"the values that read as dates are written in figures alone, "
             f"{remainder} characters wide, each read as a date and time "
@@ -2002,17 +2017,40 @@ def _layout_question(
     fixed-width question a column of figures is asked, with the dates
     answer standing first because it is the reading taken.
 
+    AND A RUN WHOSE OFFSET A FEW CELLS CARRY, NONE OF THEM NAMED (skeptic 2
+    of landing R2a, item 3). A run ending in an offset some cells omit
+    (`{+HHMM?}`, `{+HH:MM?}`, `{+HH?}`, a zulu word) whose census of
+    offsets names `(none)` alone is asked as the bare run is, at the run's
+    own width: 1,000 fourteen-figure identifiers, eight ending `-0001` to
+    `-0008`, read under `{+HHMM?}` and were asked nothing, where the bare
+    run had been asked, and twelve-figure ones ending `-01` or `-02` the
+    same. An offset the census names marks a column of stamps, and it is
+    not asked.
+
     Guarantees: a function of the three; opens nothing; no cell of the
     column appears in what it returns.
     """
     if f"{block['role']}" != taxonomy.ROLE_DATETIME or "format" not in block:
         return None
-    mark = parsing.layout_low_evidence(f"{block['format']}")
+    shown = f"{block['format']}"
+    mark = parsing.layout_low_evidence(shown)
+    if mark is None:
+        run = parsing.layout_before_its_offset(shown)
+        offsets = block["utc_offsets"] if "utc_offsets" in block else {}
+        if (
+            run
+            and parsing.layout_low_evidence(run) == ""
+            and isinstance(offsets, dict)
+            and len(offsets) == 1
+            and _NO_OFFSET in offsets
+        ):
+            mark = "?"
+            shown = run
     if mark is None:
         return None
     # A run's width is the layout's own, 12 or 14 figures, whatever its
-    # cells beside it are.
-    width = len(parsing.layout_example(f"{block['format']}"))
+    # cells beside it are, and an offset after it is no part of it.
+    width = len(parsing.layout_example(shown))
     return Question(
         f"{block['name']}",
         taxonomy.ROLE_DATETIME,
