@@ -89,6 +89,17 @@ Codex review, item 2). Step 8.3 built every hour of a gap for each of
 its days, 24 entries a day squared: 393,216 over 128 days. It builds 24
 a day now, and the other searches of the pass ask the same day only.
 
+**Steps 8.4 and 8.5 and the index grow with the rows, not their square**
+(its Codex review, items 3 to 5). Where every move keeps the day, step
+8.4 walked every day of a gap for each value it might merge, and step
+8.5, where no pair could be made, asked every two days: 461,280 and
+640,800 reads at 480 rows. They ask the value's own day and only the
+days that can serve a pair now, 26 and 27 reads a row. The index of
+steps 5 and 6 could hold 801 places for each value and a kind for each
+place, 102,528 of each for 128 values; it is built now only where it
+holds at most 801 places or four a value, and a kind is kept once a
+day. No twin moves.
+
 ### Stage 4's first tier repaired at its review (2026-10-02)
 
 **A twin of a description the producer writes today moves no byte**

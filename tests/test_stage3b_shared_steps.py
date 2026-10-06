@@ -1431,3 +1431,42 @@ def test_step_8_5_asks_only_the_cells_holding_a_source(monkeypatch: pytest.Monke
         monkeypatch.undo()
         assert calls[0] == 119 * days, (days, calls[0])
         assert moved == case["ordinals"], days
+
+
+def _minutes_apart(ranks: int, apart: int) -> dict:
+    """The Codex review's item 5 state: `ranks` ranks at `apart` minutes and a second from one
+    another, one gap of `ranks * apart` minutes, a unit of a minute, seconds written, each hour a
+    group with no period, the day kept, and one count of hour 0 asked in hour 1."""
+    ordinals = [rank * apart * 60 + 1 for rank in range(ranks)]
+    counts = [0] * 24
+    for ordinal in ordinals:
+        counts[ordinal % DAY // HOUR] += 1
+    counts[0] -= 1
+    counts[1] += 1
+    return {
+        "ordinals": ordinals, "lows": [0] * ranks, "highs": [ranks * apart * 60 - 1] * ranks,
+        "pinned": [False] * ranks, "counts": counts, "where": list(range(24)), "unit": 60, "written_unit": 1,
+        "day": DAY, "bin": "hour", "period": 0, "keep": "day", "pair": "", "pair_where": [], "holes": [],
+        "reachable": True, "body": [0, ranks - 1], "wanted": ranks, "step": "settled",
+    }
+
+
+def test_the_index_holds_few_units_for_each_rank() -> None:
+    """Steps 5 and 6's index holds no more units than one rank's walk asks, 801, or four for each
+    movable rank, and the pass's kinds one for each day it asks (the Codex review, item 5). On the
+    review's state -- 128 ranks 801 minutes apart, a gap of 102,528 minutes kept by the day -- the
+    index held every one of its 102,528 units and a kind for each, 801 a rank; now it is not
+    built, and the gap is walked. The same at the review's 64 ranks and at 1,280; and where the
+    ranks stand three minutes apart the index is still built, three units a rank. The census
+    holds in each, one value moved and no other."""
+    for ranks, apart, built in ((128, 801, False), (64, 801, False), (1280, 801, False), (1000, 3, True)):
+        case = _minutes_apart(ranks, apart)
+        state = _state(case)
+        generation._bins_settled(state, list(case["counts"]), 0, ranks - 1, list(case["pinned"]), ranks)
+        indexes = [index for index in state.indexes.values() if index is not None]
+        units = sum(len(found) for index in indexes for found in index.units.values())
+        assert units <= max(801, 4 * ranks), (ranks, units)
+        assert (units == ranks * apart) if built else (units == 0), (ranks, units)
+        assert len(state.kinds) <= ranks * apart // 1440 + 1, (ranks, len(state.kinds))
+        assert _holding(case, state.moved, range(ranks)) == case["counts"], ranks
+        assert len(set(case["ordinals"]) - set(state.moved)) == len(set(state.moved) - set(case["ordinals"])) == 1, ranks

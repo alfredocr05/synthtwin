@@ -19064,6 +19064,10 @@ _WEEKDAY_PAIRS = 512
 _WEEKDAY_TRADES = 200
 _WEEKDAY_TRADE_REACH = 62
 _WEEKDAY_TRADE_BACK = 31
+# ...and how many units steps 5 and 6's index of a gap may hold for each
+# movable rank of the gap past the units of one rank's walk (the Codex
+# review of landing 3b.D0, item 5; `_weekday_index`).
+_WEEKDAY_INDEX_PER_RANK = 4
 
 # WHICH GAVE WAY, where the day pass meets the census and not the count
 # of different days (method G7.3f, step 8.3). The count's own recount
@@ -19131,7 +19135,8 @@ class _WeekdayPass:
 
     `moved` is every rank's ordinal, `held` how many ranks of the column
     stand on each WRITTEN UNIT (`ordinal // step`), `where` each bin's
-    group, `kinds` each unit's kind (filled as it is asked), `holes` the
+    group, `kinds` each day's kind -- each hour's, where the second census
+    is of hours -- filled as it is asked (`_weekday_kind`), `holes` the
     days no rank may stand on, and `lows` and `highs` every rank's gap.
 
     THE SEAMS OF STAGE 3B (landing 3b.D0, plan P4-D366), one pass for
@@ -19281,17 +19286,23 @@ def _weekday_span(state: _WeekdayPass, ordinal: int, low: int, high: int) -> "tu
 
 def _weekday_kind(state: _WeekdayPass, ordinal: int) -> _WeekdayKind:
     """A unit's kind: its width kind, where the column has one width
-    convention, and what the seams keep (`_WeekdayKind`)."""
+    convention, and what the seams keep (`_WeekdayKind`).
+
+    KEPT BY THE DAY, NOT THE UNIT (the Codex review of landing 3b.D0, item
+    5): the width kind and the keep are read off the day, and the second
+    group off the day too, or the hour where the second census is of
+    hours, so `kinds` holds one kind a day (an hour) asked. Kept by the
+    unit, a gap of 102,528 minutes asked of 128 ranks held 102,528."""
     if not state.widths and not state.keeps and not state.pairs:
         return _PLAIN_KIND
-    unit = ordinal // state.unit
-    if unit not in state.kinds:
-        state.kinds[unit] = (
+    grain = ordinal // (3600 if state.pairs == "hour" else state.day)
+    if grain not in state.kinds:
+        state.kinds[grain] = (
             _weekday_width_kind(state, ordinal),
             _weekday_keep(state, ordinal),
             _weekday_pair(state, ordinal),
         )
-    return state.kinds[unit]
+    return state.kinds[grain]
 
 
 def _weekday_width_kind(state: _WeekdayPass, ordinal: int) -> bool:
@@ -19536,14 +19547,27 @@ def _weekday_index(state: _WeekdayPass, low: int, high: int) -> "_WeekdayIndex |
     """The gap's units by group and kind (`_WeekdayIndex`), or None where
     the walk is cheaper: built once a gap, and only where the gap spans
     no more units than the walk of its movable ranks asks in one round
-    (`gap_sizes`), so it never costs more than the walk it replaces."""
+    (`gap_sizes`), so it never costs more than the walk it replaces.
+
+    AND ONLY WHERE IT HOLDS FEW UNITS FOR EACH RANK (the Codex review of
+    landing 3b.D0, item 5): no more than one rank's walk asks, 801, or
+    `_WEEKDAY_INDEX_PER_RANK` for each movable rank, whichever is more.
+    The first rule alone let an index hold 801 units for every rank: 128
+    ranks 801 minutes apart, on a gap of minutes kept by the day, built
+    102,528, and a million ranks could build 801 million. Past both the
+    gap is walked, as every gap was before the index, each walk asking
+    400 units each side at most; the answer is the same either way."""
     if (low, high) in state.indexes:
         return state.indexes[(low, high)]
     first = low // state.unit
     last = high // state.unit
     size = state.gap_sizes[(low, high)] if (low, high) in state.gap_sizes else 0
     index: "_WeekdayIndex | None" = None
-    if size > 0 and last - first + 1 <= size * (2 * _WEEKDAY_REACH + 1):
+    if (
+        size > 0
+        and last - first + 1 <= size * (2 * _WEEKDAY_REACH + 1)
+        and last - first + 1 <= max(2 * _WEEKDAY_REACH + 1, size * _WEEKDAY_INDEX_PER_RANK)
+    ):
         units: "dict[tuple[int, _WeekdayKind], list[int]]" = {}
         for unit in range(first, last + 1):
             ordinal = unit * state.unit
@@ -19696,6 +19720,11 @@ def _weekday_single_target(
         return _weekday_single_indexed(state, index, rank, have, want, kind)
     low, high = _weekday_span(state, ordinal, low, high)
     alone = _weekday_there(state, ordinal) <= 1
+    # As the index's search stops (`_weekday_single_indexed`), the walk
+    # stops once it holds a count-keeping destination holding the fewest
+    # ranks one may: nothing farther can be offered before it (the Codex
+    # review of landing 3b.D0, item 5, which walks more gaps).
+    least = 1 if state.keep_units and not alone else 0
     keeping: "tuple[int, int] | None" = None
     changing: "tuple[int, int] | None" = None
     unit = state.unit
@@ -19719,6 +19748,8 @@ def _weekday_single_target(
                     keeping = (there, other)
             elif changing is None or there < changing[0]:
                 changing = (there, other)
+        if keeping is not None and keeping[0] <= least:
+            break
     if keeping is not None:
         return (0, keeping[1])
     if changing is not None:
