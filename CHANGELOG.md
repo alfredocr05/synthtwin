@@ -6,6 +6,38 @@ exists).
 
 ## [Unreleased]
 
+### Time of day comes back on moments (2026-10-06)
+
+**A column of moments publishes its hours, and the twin meets them**
+(plan P4-D371, stage 3b landing 3b.2-H). The twin drew the time of day
+evenly: lab draws heaped between 06:00 and 08:00 came back at 8 per cent
+of the twin against 43 of the real column, discharges between 10:00 and
+14:00 at 17 against 63, an hour TVD of 0.18 to 0.65. A column of moments
+read on its own clock now publishes `hour_census`, how many cells
+between its two tail boundaries fall on each hour of the written clock,
+an hour alone or merged with its neighbours -- never across midnight --
+wherever it would name fewer than the census line, and the twin puts its
+cells on those hours, every rank inside its gap and keeping its weekday
+-- or, where a weekday census stands, its weekday's group -- and keeps
+the column's count of different values (method G7.3g); validation
+counts the file's body against the published groups (V5-H1). On the
+lane's battery of 25 columns at floors 11 and 36, seeds 0 to 4, all 250
+twins validate with nothing missed (and so do the design skeptic's
+sixteen other shapes, OR starts at 07:30 on weekdays alone among them
+once a unit with no place but a full hour takes one there when another
+unit of that hour leaves it), lab draws come back at 43.3 per cent
+between 06:00 and 08:00 against 43.3 real and discharges at 62.6
+against 62.6 between 10:00 and 14:00, and the hour TVD falls to 0.0002
+to 0.0020 at 10,000 rows. The pass takes 0.4 s at 40,000 arrivals and
+13 s of a 180 s generate at 1,000,000. A census is withheld, each reason
+said in a sentence of its own, where the column has no tails, its middle
+half spans fewer than four days, a workbook stores it two ways, or no
+grouping short of the whole day holds. A stamp declared a 12-hour clock
+with no AM or PM is drawn on the dial's half day, tails and body, so its
+twin validates clean (T1's carve-out, P4-D370), and a tail's tie group no
+longer stands at a midnight the tails listing only midnight values
+already hold. `K-S3-38` (a headline), `K-S3-40` and `K-S3-41` are new.
+
 ### The second key cut repaired at its review (2026-10-05)
 
 **A long reserved declaration is refused in step with its length** (plan
