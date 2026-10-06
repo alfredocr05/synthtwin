@@ -35,7 +35,9 @@ ORACLE and asks both the same questions:
    with blocks cut at two offers so the pool halves and drops blocks all
    the while; drawn puts and takes of the pool against one sorted list;
    and, at the shipped size, where its blocks are cut, halved and
-   dropped, none of them merged;
+   dropped, none of them merged, along one path built by hand, over every
+   cut of up to 1,100 offers, and over drawn steps each held to the
+   blocks the stated rules make;
 3. every call the real generator makes on seeded clinic-slot columns,
    and on the same slots with one cell in fifty written date-only, at
    midnight, each answered by both from the same state.
@@ -690,6 +692,100 @@ def test_the_pool_reads_as_one_sorted_list(block: int, monkeypatch: pytest.Monke
     assert reached["halved"] >= 5 and reached["dropped"] >= 5, reached
 
 
+def _stated_put(
+    blocks: "list[list[tuple[int, int, int, int]]]", offer: "tuple[int, int, int, int]"
+) -> int:
+    """Put ``offer`` into ``blocks`` as plan P4-D376 states a put, on plain lists.
+
+    It goes into the first block whose last offer is above it, or into
+    the last block where none is, at its place there, and no other block
+    changes; that block, grown past 512 offers, becomes its first
+    ``len // 2`` offers and the rest. Into no block at all, it is a
+    block of its own. Returns the place of the block it went into.
+    """
+    if not blocks:
+        blocks += [[offer]]
+        return 0
+    at = len(blocks) - 1
+    for place, block in enumerate(blocks):
+        if block[-1] > offer:
+            at = place
+            break
+    block = blocks[at]
+    slot = bisect.bisect_left(block, offer)
+    block[slot:slot] = [offer]
+    if len(block) > 512:
+        half = len(block) // 2
+        blocks[at:at + 1] = [block[:half], block[half:]]
+    return at
+
+
+def _stated_take(
+    blocks: "list[list[tuple[int, int, int, int]]]", offer: "tuple[int, int, int, int]"
+) -> int:
+    """Take ``offer`` out of ``blocks`` as plan P4-D376 states a take, on plain lists.
+
+    Only the block that holds it changes, and that block goes once it
+    holds none: no block is merged, joined or topped up. Returns the
+    place of the block it was in.
+    """
+    for place, block in enumerate(blocks):
+        slot = bisect.bisect_left(block, offer)
+        if slot < len(block) and block[slot] == offer:
+            del block[slot]
+            if not block:
+                del blocks[place]
+            return place
+    raise AssertionError(f"{offer} is in no block")
+
+
+def _stepped_alike(
+    pool: typing.Any,
+    stated: "list[list[tuple[int, int, int, int]]]",
+    held: "list[tuple[int, int, int, int]]",
+    offer: "tuple[int, int, int, int]",
+    reached: "collections.Counter[str]",
+) -> None:
+    """Take ``offer`` out where sorted ``held`` holds it, else put it in, on the pool and ``stated`` alike.
+
+    After the step the pool's blocks, and the last offer filed for each,
+    must be ``stated``'s, which `_stated_put` and `_stated_take` keep by
+    the stated rules alone. ``reached`` counts the steps where a block
+    merged, joined, topped up or spilled into would show: a take that
+    leaves a block under ten offers beside one under ten or one of 256
+    or more, a take that drops a block between two others, a put beside
+    a block under 256 that halves none, and a halving, of the last block
+    too.
+    """
+    sizes = [len(block) for block in stated]
+    at = bisect.bisect_left(held, offer)
+    if at < len(held) and held[at] == offer:
+        generation._pool_take(pool, offer)
+        place = _stated_take(stated, offer)
+        del held[at]
+        beside = sizes[max(place - 1, 0):place] + sizes[place + 1:place + 2]
+        if len(stated) < len(sizes) and 0 < place < len(stated):
+            reached["dropped between two"] += 1
+        if len(stated) == len(sizes) and sizes[place] <= 10:
+            if any(size < 10 for size in beside):
+                reached["left under ten beside under ten"] += 1
+            if any(size >= 256 for size in beside):
+                reached["left under ten beside 256 or more"] += 1
+    else:
+        generation._pool_put(pool, offer)
+        place = _stated_put(stated, offer)
+        held[at:at] = [offer]
+        beside = sizes[max(place - 1, 0):place] + sizes[place + 1:place + 2]
+        if sizes and len(stated) > len(sizes):
+            reached["halved"] += 1
+            if place == len(sizes) - 1:
+                reached["halved the last block"] += 1
+        elif any(size < 256 for size in beside):
+            reached["put beside a block under 256"] += 1
+    assert pool.blocks == stated, (offer, [len(block) for block in pool.blocks][:12])
+    assert pool.lasts == [block[-1] for block in stated], offer
+
+
 def test_the_pool_cuts_halves_and_drops_its_blocks_and_merges_none() -> None:
     """At the shipped size: blocks cut at 256 offers, halved past 512, dropped when emptied, never merged.
 
@@ -713,6 +809,24 @@ def test_the_pool_cuts_halves_and_drops_its_blocks_and_merges_none() -> None:
     others, would not show (two verifiers of the second skeptic's fix).
     No block is merged into a neighbour, so a block holds anything from
     1 to 512 offers.
+
+    One path is not enough, because a merge, a join or a spill that waits
+    for a condition the path never meets passes it: the verifier of
+    4262946 left all 19 lane tests green under a block merged into the
+    next where both hold 3 to 9 offers, a short last block of the cut
+    joined to the one before, and a put that moves an offer into a
+    shorter neighbour. So every cut of none to 1,100 offers is held to
+    blocks of 256 with the rest last, and drawn steps are held, after
+    each one, to the blocks `_stated_put` and `_stated_take` make of
+    plain lists by the stated rules alone. Ten cases each shape their
+    pool first, every block taken down or put up, in drawn turns, to a
+    drawn size from none to 511 offers, so that blocks of every size
+    stand beside each other and blocks are emptied between two others;
+    then 2,500 drawn steps at the case's share of takes, half of the takes
+    picking a block first and half of the puts crowding one spot, above
+    every offer in every other case, so that blocks fill and halve, the
+    last block among them. The counts of what the steps reached are held
+    below what they measured, so draws that stop reaching it fail.
     """
     offers = [(10 * number, 1, 0, 0) for number in range(1000)]
     pool = generation._offer_pool(offers)
@@ -747,6 +861,78 @@ def test_the_pool_cuts_halves_and_drops_its_blocks_and_merges_none() -> None:
         assert got == expected, (offer, [len(block) for block in pool.blocks])
         assert pool.lasts == [block[-1] for block in pool.blocks], offer
     assert [len(block) for block in pool.blocks] == [1, 1, 1]
+    # Every cut of none to 1,100 offers: blocks of 256, the rest last.
+    ordered = [(number, 1, 0, 0) for number in range(1100)]
+    for count in range(1101):
+        cut = [ordered[start:min(start + 256, count)] for start in range(0, count, 256)]
+        built = generation._offer_pool(ordered[:count])
+        assert built.blocks == cut, (count, [len(block) for block in built.blocks])
+        assert built.lasts == [block[-1] for block in cut], count
+    # Drawn steps, each held to the blocks the stated rules make of plain
+    # lists. A case shapes its pool first: each block, in turns drawn at
+    # random, is taken down or put up to a size drawn for it, none for
+    # half of them, else one offer, 2 to 9, 10 to 63, 64 to 255 or 256 to
+    # 511, so blocks of every size stand beside each other and blocks are
+    # emptied between two others. Then 2,500 drawn steps take at the
+    # case's share: half the takes pick a block first, so that small
+    # blocks empty, and half the puts crowd one spot, which in every other
+    # case lies above every offer, so that blocks fill and halve, the
+    # last one among them.
+    draw = random.Random(3768)
+    reached: "collections.Counter[str]" = collections.Counter()
+    spans = ((1, 1), (2, 9), (10, 63), (64, 255), (256, 511))
+    for case in range(10):
+        held = [(key, 1, 0, 0) for key in sorted(draw.sample(range(10**9), draw.randrange(1, 8200)))]
+        pool = generation._offer_pool(held)
+        stated = [held[start:start + 256] for start in range(0, len(held), 256)]
+        assert pool.blocks == stated, case
+        aims: "list[int]" = []
+        for _block in stated:
+            low, high = spans[draw.randrange(len(spans))]
+            aims += [0 if draw.random() < 0.5 else draw.randrange(low, high + 1)]
+        while True:
+            off = [at for at in range(len(stated)) if len(stated[at]) != aims[at]]
+            if not off:
+                break
+            at = off[draw.randrange(len(off))]
+            before = len(stated)
+            if len(stated[at]) > aims[at]:
+                _stepped_alike(pool, stated, held, stated[at][draw.randrange(len(stated[at]))], reached)
+                if len(stated) < before:
+                    del aims[at]
+                continue
+            # Above the last offer of the block before and below its own
+            # last offer, a put lands in this block.
+            low = stated[at - 1][-1][0] + 1 if at else 0
+            if low >= stated[at][-1][0]:
+                aims[at] = len(stated[at])
+                continue
+            offer = (draw.randrange(low, stated[at][-1][0]), 1, 0, 0)
+            if offer not in stated[at]:
+                _stepped_alike(pool, stated, held, offer, reached)
+        taken = (0.2, 0.5, 0.75)[case % 3]
+        hot = 10**9 + 50_000_000 if case % 2 else draw.randrange(10**9)
+        for _step in range(2500):
+            if held and draw.random() < taken:
+                if draw.random() < 0.5:
+                    block = stated[draw.randrange(len(stated))]
+                    offer = block[draw.randrange(len(block))]
+                else:
+                    offer = held[draw.randrange(len(held))]
+            elif draw.random() < 0.5:
+                offer = (hot + draw.randrange(-50_000_000, 50_000_001), 1, 0, 0)
+            else:
+                offer = (draw.randrange(10**9), 1, 0, 0)
+            _stepped_alike(pool, stated, held, offer, reached)
+    # Measured: 112 blocks dropped between two others; 607 takes leaving a
+    # block under ten offers beside one under ten and 443 beside one of
+    # 256 or more; 10,708 puts beside a block under 256; 14 blocks halved,
+    # 8 of them the last.
+    assert reached["dropped between two"] >= 50, reached
+    assert reached["left under ten beside under ten"] >= 200, reached
+    assert reached["left under ten beside 256 or more"] >= 150, reached
+    assert reached["put beside a block under 256"] >= 3000, reached
+    assert reached["halved"] >= 6 and reached["halved the last block"] >= 3, reached
 
 
 # -- 3. every call the generator makes, on clinic slots ----------------------
