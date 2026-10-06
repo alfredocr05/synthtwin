@@ -2960,15 +2960,19 @@ cells, a ceiling of one. Two rules follow and both are normative:
    cell of the column wears is never offered, because writing one would
    invent a spelling the description does not publish. Where the map
    carries no other point-free form at all, every cell of the column
-   being padded, the cell is written `plain` (plan P4-D377). The census
-   counts a form or a width fewer than the line wrote into its commonest
-   (plan P4-D222), so it never says that no cell was plain, and a value
-   no named width can pad was padded at none of them. Kept padded, the
-   cell stood one figure wider than every field the census names:
+   being padded, there is nothing to give the style up to and the cell
+   keeps it -- EXCEPT A FAR CELL A TAIL'S PAIR PROVES (plan P4-D377): a
+   value past every named width on a side whose published pair proves a
+   cell past it (G6.6.8) is written `plain`. The census counted the
+   source's own far cell into its commonest form and width (plan
+   P4-D222), and that cell could have been padded at none of them. Kept
+   padded, it stood one figure wider than every field the census names:
    `00001` to `00399` beside one `12345`, whose far cell G6.6.8 leaves
    past the width, came back holding `012280`, six characters in a
    column of five, at seeds 0, 4 and 9; written plain it stands at the
-   width the census names.
+   width the census names. A value the draw alone left too wide keeps
+   the padded style: written plain, the stage-2b style battery gave its
+   named padded count up at 34 runs of 1,920, where it does at eight.
 
    **WHAT THIS COSTS IS A FORM COUNT, AND G13's RECOUNT NAMES IT.** The
    exchange above moves no count; this gives one cell from
@@ -4274,8 +4278,11 @@ rows hold. Two rules follow, and neither publishes anything new:
    as the pair requires, the narrowest end the published facts allow.
    A clamp that put the end on a stand-in the block publishes as held
    (`kept`) stays: that end is the table's own heap.
-2. THE WALK. On each side whose reach passes the widest value any
-   demand lets a cell hold, `10**widest - 1`, the tail's own strata past
+2. THE WALK. On a column whose width census counts every number --
+   beside decimals or exponents it says nothing of the cells a tail
+   holds, which G5.3b step 4's clamps, and with them rule 1, already ask
+   -- and on each side whose reach passes the widest value any demand
+   lets a cell hold, `10**widest - 1`, the tail's own strata past
    that width -- the strata wholly inside the tail's rows, decided by
    rank -- are walked OUTERMOST FIRST, on a tie in distance the
    outermost by rank, so the stratum holding the end comes before a
@@ -4283,9 +4290,26 @@ rows hold. Two rules follow, and neither publishes anything new:
    Whole strata STAY past the width while the cells staying number at
    most the line less one over both tails AND their distances and
    squared distances from the boundary fit inside what the pair's own
-   totals, `m d1` and `m rms**2`, have left, every other row of the tail
-   standing at nought or more. The first stratum that does not fit stops
-   the walk, so the cells staying are always the outermost.
+   totals, `m d1` and `m rms**2`, have left -- the squares after those
+   the side's own strata under the width already hold, each at its own
+   distance, and the distance with every other row of the tail at
+   nought or more. The first stratum that does not fit stops the walk,
+   so the cells staying are always the outermost. THE SQUARES THE ROWS
+   UNDER THE WIDTH HOLD COME OFF FIRST because those rows hold their
+   share of `m rms**2` wherever the far cells stand: 150 two-figure
+   readings beside one `185`, at a floor of fifty, stack 24 of the
+   tail's rows on the reach, `103`, and inside the pair's totals alone
+   all 24 fit, the source's one far value written 24 times; with the
+   squares the tail's other strata hold taken off, none does. The
+   distance is not lowered the same way, because a far cell carries the
+   tail's squares far more than its distance -- one `188` beside 150
+   two-figure readings, at a floor of fifty, holds 14,641 of the tail's
+   34,855 squares and 121 of its 1,019 distance -- and the rows under
+   the width stand where the staircase stretched them toward the reach.
+   Measured and not taken: over 1,500 random shapes, lowering the
+   distance too took every far cell off 14 twins where this rule keeps
+   one, and left 50 means further from the real one than 110cb46's where
+   this leaves 44 (and 28 spreads where this leaves 30).
 
    EVERY OTHER STRATUM OF THE TAIL PAST THE WIDTH IS MOVED UNDER IT
    before any demand is served, the one holding the end among them: no
@@ -4305,9 +4329,17 @@ rows hold. Two rules follow, and neither publishes anything new:
    values than strata to move, the side's own strata under the width
    beside the run are taken into it one at a time until it holds one for
    each, and the run is spread down from the width's end, the end G5.3b
-   step 4's clamp gave 110cb46; only where the whole tail taken in still
-   finds too few do the outermost stay where they stood, serving no
-   demand.
+   step 4's clamp gave 110cb46. WHERE THE WHOLE TAIL TAKEN IN STILL
+   FINDS TOO FEW, the moved strata alone are placed, the innermost on
+   the outermost free values, and those that find none take the end the
+   width held on 110cb46 -- on a side rule 1 moved -- sharing it as that
+   end did; on another side, whose end stood past the width on 110cb46
+   already, the side's walk is given up and it keeps the values it was
+   drawn with. Readings 1 to 9 beside one `11`, 400 rows at a floor of
+   fifty, hold every value under the width: the end's stratum of 49
+   rows stayed past it on the repair's own first form, which wrote 49
+   cells on `10`, the mean 0.054 of the real spread off; they go back
+   to `9`, as 110cb46 wrote them, the mean 0.007 off.
 
    Then G6.6.2's demands are served, the one the census counted the
    cells staying past the width into lowered by them (plan P4-D222): the
@@ -4354,7 +4386,11 @@ rows hold. Two rules follow, and neither publishes anything new:
    moved a staircase row to `09998` rather than beside its neighbour, the
    spread 1.21 to 1.28 times the real one on follow-up A's codes beside
    one far value where 110cb46 read 1.14 and this rule reads 0.95 to
-   1.00; and it padded that far cell to `012280` (G6.3).
+   1.00; and it padded that far cell to `012280` (G6.3). The repair's
+   own first form (71a7b31) kept two more, which 1,500 random shapes
+   found: the strata with no room under the width stayed past it, and
+   the squares the rows under the width hold were read as the far
+   cells' own.
 
 Measured on eight batteries at seeds 0, 4 and 9 (the codes beside plain
 numbers at 0 to 19), 110cb46 against this rule: `K-S3-22`'s 36
@@ -4370,14 +4406,37 @@ both; 334 stand nearer the real mean and 331 nearer the real spread.
 Three -- 500 blood pressures heaped on tens beside one `1300`, at a
 floor of 20 -- stand 0.051 to 0.058 of the real spread off it where
 110cb46 stood 0.044 to 0.049, their mean 3.6 to 60 times nearer; and 32
-on five column-floors write more cells past the width than the source
-and 110cb46, every one inside the line less one and the pair's totals,
-with its own census the source's and its mean and spread nearer the
-real ones. The end rule is frozen in `tail_width_past_the_reach`
-(G14.3). THE WALK HAS NO FROZEN CASE, because the oracle does not run
-G6.6's walk at all (criterion 8 of the Phase 4 plan): it is pinned by
-`tests/test_stage3b_width.py`, where a source mutant of each clause
-that can change a twin turns a test red.
+on five column-floors stand further from the source's count of cells
+past the width than 110cb46's none, every one inside the line less one
+and the pair's totals, with its own census the source's and its mean
+and spread nearer the real ones.
+
+On 1,500 random shapes of one to four figures beside one to five far
+cells, at floors 11 to 50 and seed 0, the rule changes 221 twins: none
+misses a check 110cb46 met, writes its own census further from the
+source's or a wider cell; 170 stand nearer the real mean and 191 nearer
+the real spread, 44 and 30 further, 9 further on both -- where the
+repair's first form left 42 further on both, one twin's mean 1.47 real
+spreads off, and 8 with their own census further from the source's.
+WHAT THE RULE STILL COSTS IS MEASURED AND NOT HIDDEN. On 288 twins of
+readings 10 to 99, evenly or in a bell, 150 to 1,000 rows beside one or
+two far readings of three figures, where the reach stands barely past
+`99`, the rule changes 178 and misses nothing, but stands nearer the
+real mean on 104 and further on 73, nearer the real spread on 105 and
+further on 71, 19 further on both; 128 write more cells past the width
+than both the source and 110cb46, up to 23 on the reach where the
+source holds one, and 150 bell-shaped readings beside one `237`, at
+36, come back with a spread 1.17 to 1.20 times the real one where
+110cb46's stood 1.02 to 1.06. The reach is the nearest the furthest row
+can stand: where one far reading stands well beyond it, the pair's
+squares are carried from the reach by many rows. `K-S3-22` counts two
+of these shapes beside its own.
+
+The end rule is frozen in `tail_width_past_the_reach` (G14.3). THE
+WALK HAS NO FROZEN CASE, because the oracle does not run G6.6's walk at
+all (criterion 8 of the Phase 4 plan): it is pinned by
+`tests/test_stage3b_width.py`, where a source mutant of each of 64
+clauses of the two rules and of G6.3's give-up turns a test red.
 
 ### G6.7 No value stands where the description says there is none
 
