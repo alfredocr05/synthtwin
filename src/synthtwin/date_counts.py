@@ -878,26 +878,32 @@ def form_holds(form: CountForm, written: Written) -> bool:
 def set_aside_named(member: str) -> "tuple[tuple[int, str], ...]":
     """The whole counts a member's column sets aside, each with its word.
 
-    Nought (`0`) and minus one (`-1`) wherever the member reads them, the
-    member's own count for each placeholder day (`1900-01-01`,
-    `9999-12-31`) where it writes one, and Excel's day 60 (`60`), the 29
-    February 1900 the 1900 system counts; Excel's serial 1 is that
-    system's 1 January 1900. The words are this package's own: a question
-    may name them, and no cell stands behind one.
+    Nought (`0`) and minus one (`-1`), which a database writes for "not
+    set"; the member's count for each placeholder day (`1900-01-01`,
+    `9999-12-31`) -- by its own rule and by the plain arithmetic an
+    exporter writes it with from the member's epoch, which differ only
+    before March 1900 on Excel's 1900 system (serial 1 by Excel's rule,
+    2 from 30 December 1899) and before 1904 on its 1904 system, where
+    the count is below nought; and Excel's day 60 (`60`), the 29
+    February 1900 the 1900 system counts. The words are this package's
+    own: a question may name them, and no cell stands behind one.
 
     Guarantees: a function of the word, in rising order of the counts.
     Raises KeyError for a word outside `MEMBERS`. No I/O of any kind.
     """
     found = TABLE[member]
-    named: "dict[int, str]" = {0: "0"}
-    if found.signed:
-        named[-1] = "-1"
+    named: "dict[int, str]" = {0: "0", -1: "-1"}
     for year, month, date in ((1900, 1, 1), (9999, 12, 31)):
-        counted = count_of(member, _day(year, month, date), DAY)
+        word = f"{year:04d}-{month:02d}-{date:02d}"
+        day = _day(year, month, date)
+        counted = count_of(member, day, DAY)
         if counted is not None:
             numerator, denominator = counted
             if numerator % denominator == 0:
-                named[numerator // denominator] = f"{year:04d}-{month:02d}-{date:02d}"
+                named[numerator // denominator] = word
+        plain = (day - found.epoch) * DAY
+        if plain % found.unit == 0:
+            named[plain // found.unit] = word
     if member == EXCEL_1900:
         named[_EXCEL_LEAP_SERIAL] = "60"
     return tuple((number, named[number]) for number in sorted(named))
@@ -1183,16 +1189,17 @@ def asked_of(
             if rest - inside <= _strays_allowed(total):
                 held += [(member, RULE_MIDNIGHT)]
     if not held:
-        width = 0
         for member, rule in open_to:
             if rule != RULE_FIXED_WIDTH:
                 continue
-            if not width:
-                width = fixed_width(present)
-                if width < 5:
-                    return None
+            rest = len(ordered) - _aside_in(ordered, member)
+            if not _rest_is_enough(rest, total):
+                continue
             low, high = band(member, WIDE_FROM)
-            if ordered and ordered[0] >= low and ordered[len(ordered) - 1] < high:
+            inside = _in_band(ordered, low, high) - _aside_inside(
+                ordered, member, low, high
+            )
+            if rest - inside <= _strays_allowed(total):
                 held += [(member, RULE_FIXED_WIDTH)]
     if not held:
         return None
@@ -1231,16 +1238,23 @@ def _text_holds(present: "list[str]", member: str, rule: str, needed: int) -> bo
     """The written half of a rule: the grammar, the width, and midnight.
 
     At least ``needed`` present cells are counts by the grammar (text
-    cells stand to the date role's line). For rule A, the whole figures
-    of the counts inside the narrow band all have one width. For rule B,
-    every count is whole, and every count beside the set-aside numbers
-    stands at midnight UTC with at least eleven different values.
+    cells stand to the date role's line). For rule A, the whole figures of
+    the counts inside the narrow band all have one width; for rule C, every
+    count beside the set-aside numbers is whole, and those inside the wide
+    band all have one width of at least five figures. NO CELL OF ANOTHER
+    WIDTH IS LET STAND, where a stray outside the band is: measured on the
+    chance battery, letting one in a thousand stand asked two measurement
+    columns that are no fixed width -- the kind of question nothing asked
+    before -- and costs one keying slip that lands inside the band at
+    another width (`xl_birth` a century early, one seed of three). For
+    rule B, every count beside the set-aside numbers is whole and stands
+    at midnight UTC, with at least eleven different values.
     """
     found = TABLE[member]
     counted = 0
     widths: "dict[int, int]" = {}
     different: "dict[int, int]" = {}
-    low, high = band(member, NARROW_FROM)
+    low, high = band(member, WIDE_FROM if rule == RULE_FIXED_WIDTH else NARROW_FROM)
     per_day = DAY // found.unit if found.unit < DAY else 1
     aside: "dict[int, int]" = {}
     for number in set_aside(member):
@@ -1250,8 +1264,6 @@ def _text_holds(present: "list[str]", member: str, rule: str, needed: int) -> bo
         if written is None:
             continue
         counted = counted + 1
-        if rule == RULE_FIXED_WIDTH:
-            continue
         numerator, denominator = exact_value(written)
         if found.contacts:
             day_part = abs(numerator) // denominator
@@ -1265,15 +1277,21 @@ def _text_holds(present: "list[str]", member: str, rule: str, needed: int) -> bo
             if len(different) < REST_LEAST:
                 different[numerator] = 1
             continue
+        if rule == RULE_FIXED_WIDTH and (written.fraction or written.exponent_form):
+            return False
         whole = abs(numerator) // denominator
         if low <= numerator / denominator < high:
-            widths[len(f"{whole}")] = 1
-            if len(widths) > 1:
-                return False
+            width = len(f"{whole}")
+            widths[width] = (widths[width] if width in widths else 0) + 1
     if counted < needed:
         return False
-    if rule == RULE_MIDNIGHT and len(different) < REST_LEAST:
+    if rule == RULE_MIDNIGHT:
+        return len(different) >= REST_LEAST
+    if len(widths) > 1:
         return False
+    for width in widths:
+        if rule == RULE_FIXED_WIDTH and width < 5:
+            return False
     return True
 
 
