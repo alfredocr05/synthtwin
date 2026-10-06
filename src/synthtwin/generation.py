@@ -22100,8 +22100,8 @@ def _hour_relieved(
     with a count of its own that has no room for it, the place SAMEDAY
     gives it there on its own day inside its gap, once a RELIEF unit has
     left that group: the first, in rank order, of the group's units as
-    the step began, of as many ranks, that has SAMEDAY's place on its own
-    day in a group with room. Where the unit then has no place, the
+    they stood when RELIEF first asked that group, of as many ranks, that
+    has SAMEDAY's place on its own day in a group with room. Where the unit then has no place, the
     relief goes back and the next is asked. A relief unit that finds no
     place is not asked again, since no move of this step gives a group
     room. Every move keeps its ranks' day and gap and lands on a written

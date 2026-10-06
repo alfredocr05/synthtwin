@@ -9533,9 +9533,9 @@ def hour_relieved(walk, have, first, last, pinned):
     and a unit takes, in the first group with a count of its own and no
     room for it, SAMEDAY's place there on its own day inside its gap,
     asked of that group alone, once a RELIEF unit has left that group:
-    the first, in rank order, of the group's units as the step began, of
-    as many ranks, with SAMEDAY's place on its own day in a group with
-    room. Where the unit then has none, the relief goes back and the next
+    the first, in rank order, of the group's units as they stood when
+    RELIEF first asked that group, of as many ranks, with SAMEDAY's place
+    on its own day in a group with room. Where the unit then has none, the relief goes back and the next
     is asked; a relief unit that finds no place is not asked again.
     """
     counts = walk.counts

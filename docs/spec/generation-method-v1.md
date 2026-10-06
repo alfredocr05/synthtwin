@@ -6762,9 +6762,9 @@ weekday unless a published census allows it.
    then rank by rank, and a unit takes, in the first group with a count of
    its own and no room for it, SAMEDAY's place there on its own day inside
    its gap -- asked of that group alone -- once a RELIEF unit has left that
-   group: the first, in rank order, of that group's units as RELIEF began,
-   of as many ranks, that has SAMEDAY's place on its own day in a group
-   with room. Where the unit then has none, the relief unit goes back and
+   group: the first, in rank order, of that group's units as they stood
+   when RELIEF first asked that group, of as many ranks, that has
+   SAMEDAY's place on its own day in a group with room. Where the unit then has none, the relief unit goes back and
    the next is asked; one that finds no place is not asked again, since
    no move of RELIEF gives a group room.
 4. **Off midnight.** A movable rank the steps above left written at
