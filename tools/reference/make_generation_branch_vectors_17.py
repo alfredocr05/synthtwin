@@ -7,7 +7,8 @@ ranks landing 3b.D2 (plan P4-D367) freezes method section G7.3f's steps
 at another clock, where its own clock stands outside the gap there:
 three Wednesday sessions through the whole pass, the count of different
 values kept, a midnight kept, the nearer end day taken and a hole kept
-off. Step 8.7 puts a count left short back at another clock on a
+off, and its shift through a group at its total.
+Step 8.7 puts a count left short back at another clock on a
 moment's own day: crowded Wednesdays through the whole pass, the nearer
 minute taken, the earlier on a tie, no clock put on midnight or taken off
 it, a rank kept inside its gap and a hole's day left alone -- each with

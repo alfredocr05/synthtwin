@@ -12109,13 +12109,14 @@ def weekday_chain(walk, movable, owed):
 # so the first and last day of its gap take only the clocks inside it.
 WEEKDAY_ESCAPE_ROUNDS = 8
 WEEKDAY_ESCAPE_PROBES = 64
+WEEKDAY_SHIFTS = 64
 
 
 def weekday_escape(walk, movable, owed):
     """G7.3f step 7c: where a unit is a day spanning more than one written
     unit and the totals still do not hold, ranks of groups over their totals
     take another clock on an end day of their gaps, of a group under its
-    total, keeping offers first."""
+    total, keeping offers first; then the shift (`weekday_shift`)."""
     if walk.unit != walk.day or walk.unit == walk.step:
         return
     target = [max(value, 0) for value in owed]
@@ -12138,14 +12139,56 @@ def weekday_escape(walk, movable, owed):
             moved = True
         if not moved:
             if changing:
-                return
+                break
             changing = True
+    weekday_shift(walk, movable, owed)
 
 
-def weekday_escape_offer(walk, rank, have, target):
+def weekday_shift(walk, movable, owed):
+    """G7.3f step 7c's shift, from the method's text: while the totals do not
+    hold, at most 64 times, the first rank of a group over its total, in rank
+    order, offered a place on an end day of its gap whose group holds its
+    total and from which a link of step 7b leads to a group under its total
+    -- a cell whose mover of that group has a place of the group under --
+    takes the escape's offer there, and step 7b runs again; a shift after
+    which the summed excess over the totals is no lower ends the step, as
+    does a round with no such group or no such offer."""
+    target = [max(value, 0) for value in owed]
+    groups = len(owed)
+    for _ in range(WEEKDAY_SHIFTS):
+        have = weekday_holdings(walk, movable, groups)
+        if have == target:
+            return
+        excess = sum(max(0, have[g] - target[g]) for g in range(groups))
+        under = [g for g in range(groups) if have[g] < target[g]]
+        cells = sorted({weekday_cell_of(walk, rank) for rank in movable})
+        linked = {
+            h for h in range(groups)
+            if have[h] == target[h]
+            and any(weekday_take(walk, movable, cell, h, u) is not None for cell in cells for u in under)
+        }
+        if not linked:
+            return
+        offer = None
+        for rank in movable:
+            if have[walk.group(walk.days[rank])] > target[walk.group(walk.days[rank])]:
+                offer = weekday_escape_offer(walk, rank, have, target, linked)
+                if offer is not None:
+                    walk.move(rank, offer[2])
+                    break
+        if offer is None:
+            return
+        weekday_chain(walk, movable, owed)
+        have = weekday_holdings(walk, movable, groups)
+        if sum(max(0, have[g] - target[g]) for g in range(groups)) >= excess:
+            return
+
+
+def weekday_escape_offer(walk, rank, have, target, linked=frozenset()):
     """A rank's escape: (0 keeping or 1 changing the count, distance, place),
     the least over the end days of its gap other than its own day whose
-    group is under its total, no hole and of its kind; None where none is."""
+    group is under its total, or one of `linked` in the shift, no hole and
+    of its kind; None where none is."""
     ordinal = walk.days[rank]
     alone = walk.holding(ordinal) == 1
     offers = []
@@ -12153,7 +12196,7 @@ def weekday_escape_offer(walk, rank, have, target):
         spot = end * walk.unit
         if (
             end == ordinal // walk.unit
-            or have[walk.group(spot)] >= target[walk.group(spot)]
+            or (have[walk.group(spot)] >= target[walk.group(spot)] and walk.group(spot) not in linked)
             or walk.hole(spot)
             or walk.kind(spot) != walk.kind(ordinal)
         ):
@@ -13708,6 +13751,37 @@ def moment_hole_case():
     )
 
 
+def moment_shift_case():
+    """Step 7c alone, its shift: a group at its total passes an escape on."""
+    a_low, a_high = moment_at(1, 18, 4), moment_at(3, 11, 24)
+    b_low, b_high = moment_at(8, 9, 0), moment_at(12, 20, 0)
+    c_low, c_high = moment_at(17, 8, 0), moment_at(17, 20, 0)
+    rows = [
+        (a_low, a_low, a_low, True),
+        (moment_at(2, 15, 16), a_low, a_high, False),
+        (a_high, a_high, a_high, True),
+        (b_low, b_low, b_low, True),
+        (moment_at(8, 10, 0), b_low, b_high, False),
+        (b_high, b_high, b_high, True),
+        (c_low, c_low, c_low, True),
+        (moment_at(17, 12, 0), c_low, c_high, False),
+        (c_high, c_high, c_high, True),
+    ]
+    return moment_case(
+        "Step 7c alone, its shift: groups Tuesday, Wednesday, Thursday, Saturday and the other "
+        "days, the movable ranks asked for one Tuesday, one Thursday and one Saturday. A gap from "
+        "Tuesday 18:04 to Thursday 11:24 holds a moment at Wednesday 15:16, whose clock reaches "
+        "neither end day, and both end days' groups hold their totals, so the escape has no offer "
+        "for it. A gap from the next Tuesday 09:00 to Saturday 20:00 holds a moment at Tuesday "
+        "10:00 with a Saturday place, a link of step 7b from Tuesday to Saturday; a gap inside a "
+        "later Thursday holds one at 12:00, and no link leads on from Thursday. The shift takes "
+        "the Wednesday moment to Tuesday 18:05, the first minute of that end day inside its gap no "
+        "rank holds, past Thursday 11:23, nearer but linked to nothing, and step 7b then takes the "
+        "second Tuesday moment to Saturday 10:00.",
+        "escaped", rows, [0, 3, 0, 4, 2], where=[0, 1, 2, 3, 0, 4, 0], want=[0, 1, 0, 1, 1],
+    )
+
+
 def moment_crowded_case():
     """Step 8.7 through the whole pass: three moments at one clock, two Wednesdays to stand on."""
     w0, w1 = moment_at(2, 8, 0), moment_at(9, 18, 0)
@@ -13800,6 +13874,7 @@ MOMENT_STEP_CASES = {
     "an_escape_takes_the_nearer_end": moment_nearer_case,
     "an_escape_keeps_off_a_hole": moment_hole_case,
     "crowded_wednesdays_spread_on_their_day": moment_crowded_case,
+    "a_full_group_passes_an_escape_on": moment_shift_case,
     "a_day_spread_takes_the_nearer_minute": moment_spread_nearer_case,
     "a_day_spread_puts_no_clock_on_midnight": moment_spread_onto_midnight_case,
     "a_day_spread_takes_no_clock_off_midnight": moment_spread_off_midnight_case,

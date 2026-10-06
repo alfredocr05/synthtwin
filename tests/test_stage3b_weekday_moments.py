@@ -6,23 +6,30 @@ between the two tail boundaries, both included, compared as INSTANTS --
 counted on the weekday of each cell's day, in the groups of the menu
 (contract WC1 to WC4, WC3 widened). Before this landing it published
 `weekday_census: []`, and its twin drew every gap evenly: clinic visits
-on weekdays alone came back 24 to 31 per cent on weekends. Two rules
+on weekdays alone came back 24 to 31 per cent on weekends. Three rules
 more than a column of dates, one fewer: the middle half spans at least
 four weeks (WC10, loader and producer), the body holds at least eight
 different WRITTEN units a non-empty group on average where two or more
 are non-empty (the few-units rule, producer-only, the 3b.2-W skeptic's
-blocker 1), and WC6's half on written forms is not asked -- the count of
-different values counts instants there. Every withholding but one
+blocker 1), above a floor of 11 the units the tails leave the body reach
+what the census needs between its pins (the unit-room rule,
+producer-only, lane D1b's count-room rule in written units), and WC6's
+half on written forms is not asked -- the count of different values
+counts instants there. Every withholding but one
 without tails is said in NF74's sentence. The generator moves a moment
 by whole days, keeping its clock (G7.3f over a unit of 86,400 seconds);
 where its clock stands outside its gap on the gap's end day, step 7c
-lets it take another clock there, and where the kept clocks of few days
+lets it take another clock there -- through a group at its total where
+step 7b leads on from it -- and where the kept clocks of few days
 meet and leave the count of different values short, step 8.7 puts it
 back at another clock on each moment's own day. The validator counts the
 file's moments by instant (V5-W1).
 
 The gate's clauses, each beside the mutant that turns it red:
 
+* the unit-room rule: `test_a_raised_floor_withholds_what_the_tails_leave_the_body_too_few_values_for`
+  (mutant: the rule withdrawn, a noon schedule's twins long at a floor of 36) and
+  `test_the_unit_room_rule_gives_its_stated_answers`;
 * G-D1, what publishes: `test_moments_publish_their_census_where_the_rules_allow`
   -- clinic visits, emergency arrivals, admissions, Wednesday sessions,
   admissions at midnight and a business log publish; seven sessions,
@@ -43,7 +50,9 @@ The gate's clauses, each beside the mutant that turns it red:
   moved, never a share of the body;
 * G-D4, the mutants: the few-units rule keyed to `all_at_midnight`
   (`test_the_few_units_rule_is_asked_off_midnight_too`), step 7c
-  withdrawn (`test_wednesday_sessions_need_step_7c`), step 8.7 withdrawn
+  withdrawn (`test_wednesday_sessions_need_step_7c`), its shift offered
+  any group at its total (`test_the_shift_takes_only_a_group_step_7b_leads_on_from`),
+  step 8.7 withdrawn
   (`test_a_short_count_is_put_back_on_each_moments_own_day`: 2,400
   visits on seven Wednesdays, minutes from 07:00 to 19:59, miss their
   count of different values), and each clause of steps 7c and 8.7 on
@@ -338,7 +347,7 @@ def test_the_rules_give_their_stated_answers_on_hand_made_bodies() -> None:
     assert not calendar_rules.span_short(100, 128)
     assert calendar_rules.span_short(None, 128) and calendar_rules.span_short(100, None)
     groups = ((0, 4, 16), (5, 6, 16))
-    monday, saturday = 19781, 19786  # 2024-02-26 and 2024-03-02
+    monday, saturday = 19779, 19784  # 2024-02-26 and 2024-03-02
     body = [monday + 7 * (step % 8) for step in range(16)] + [saturday + 7 * (step % 8) for step in range(16)]
     assert not calendar_rules.few_units(groups, body, body)
     shorter = [monday + 7 * (step % 7) for step in range(16)] + [saturday + 7 * (step % 8) for step in range(16)]
@@ -346,6 +355,75 @@ def test_the_rules_give_their_stated_answers_on_hand_made_bodies() -> None:
     clocked = [day * DAY + 3600 * (step % 2) for step, day in enumerate(shorter)]
     assert not calendar_rules.few_units(groups, shorter, clocked)
     assert not calendar_rules.few_units(((0, 4, 32), (5, 6, 0)), [monday] * 32, [monday] * 32)
+
+
+def _noon_schedule(seed: int = 81004, weeks: int = 32) -> "list[str]":
+    """Wednesday sessions a week apart, a Thursday session every third week, every row at noon."""
+    draw = random.Random(seed)
+    days: "list[datetime.date]" = []
+    for week in range(weeks):
+        day = datetime.date(2023, 7, 12) + datetime.timedelta(days=7 * week)
+        days += [day] * draw.randrange(2, 12)
+        if week % 3 == 0:
+            days += [day + datetime.timedelta(days=1)] * draw.randrange(3, 10)
+    draw.shuffle(days)
+    return [f"{day.isoformat()} 12:00:00" for day in days]
+
+
+def test_a_raised_floor_withholds_what_the_tails_leave_the_body_too_few_values_for(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The unit-room rule (lane D1b's count-room rule in written units): a noon schedule of 279
+    rows and 43 different values, at a floor of 36, has tails the twin may rebuild on up to 72
+    values, so the body is left no more than its pins, and the census of Wednesdays and
+    Thursdays needs a Thursday more in its gaps: withheld, with NF74. Mutant: the rule
+    withdrawn, the census publishes and each of three twins holds more different values than
+    the column. At a floor of 11 the rule is not asked, and the same column publishes, met."""
+    cells = _noon_schedule()
+    document = _described(tmp_path / "asked", "visit", cells, 36).document
+    assert document["columns"][0]["weekday_census"] == []
+    assert any(NOTE_NF74 in entry["note"] for entry in document["publication_notes"])
+    monkeypatch.setattr(calendar_rules, "unit_room_short", lambda *arguments: False)
+    described = _described(tmp_path / "withdrawn", "visit", cells, 36)
+    assert [group["count"] > 0 for group in described.block("visit")["weekday_census"]].count(True) == 2
+    for seed in (0, 1, 2):
+        text = kpi_shapes.twin_text(described, seed)
+        assert "visit:distinct.n_distinct" in kpi_shapes.missed(kpi_shapes.measure(described, text, f"twin-{seed}.csv"))
+    monkeypatch.undo()
+    asked: "list[bool]" = []
+    rule = calendar_rules.unit_room_short
+
+    def counted(*arguments):
+        asked[:] = asked + [True]
+        return rule(*arguments)
+
+    monkeypatch.setattr(calendar_rules, "unit_room_short", counted)
+    described = _described(tmp_path / "eleven", "visit", cells, 11)
+    assert described.block("visit")["weekday_census"] and asked == []
+    for seed in (0, 1, 2):
+        text = kpi_shapes.twin_text(described, seed)
+        assert kpi_shapes.missed(kpi_shapes.measure(described, text, f"eleven-{seed}.csv")) == [], seed
+
+
+def test_the_unit_room_rule_gives_its_stated_answers() -> None:
+    """Hand-made pins: two Wednesday pins at noon with eight ranks between, the census asking
+    Wednesdays and Thursdays, need the two pins' units and a Thursday: a room of two withholds,
+    a room of three publishes; a census whose gaps hold no day of another group needs no more
+    than the pins and publishes whatever the room; a gap with no rank between its pins asks
+    nothing more, and one with one rank asks at most one more however many groups it crosses."""
+    wednesday = 19781  # 2024-02-28
+    groups = ((0, 1, 0), (2, 2, 100), (3, 3, 20), (4, 6, 0))
+    noon = 12 * 3600
+    pins = ((0, wednesday * DAY + noon), (9, (wednesday + 7) * DAY + noon))
+    assert calendar_rules.unit_room_short(groups, pins, 1, 4, 2)
+    assert not calendar_rules.unit_room_short(groups, pins, 1, 5, 2)
+    only = ((0, 1, 0), (2, 2, 120), (3, 6, 0))
+    assert not calendar_rules.unit_room_short(only, pins, 1, 2, 72)
+    close = ((0, wednesday * DAY + noon), (1, (wednesday + 7) * DAY + noon))
+    assert not calendar_rules.unit_room_short(groups, close, 1, 1, 72)
+    crossing = ((0, 1, 0), (2, 2, 100), (3, 3, 20), (4, 4, 20), (5, 6, 0))
+    one = ((0, wednesday * DAY + noon), (2, (wednesday + 7) * DAY + noon))
+    assert not calendar_rules.unit_room_short(crossing, one, 1, 5, 2)
+    assert calendar_rules.unit_room_short(crossing, one, 1, 4, 2)
+    assert calendar_rules.moments_pins((10, 20, 30, 40, 50, 60), 1, 1, [50]) == ((1, 20), (2, 30), (4, 50))
 
 
 # -- G-D2: every published census met --------------------------------------------
@@ -607,6 +685,7 @@ CASES = (
     "a_day_spread_puts_no_clock_on_midnight",
     "a_day_spread_takes_no_clock_off_midnight",
     "a_day_spread_takes_the_nearer_minute",
+    "a_full_group_passes_an_escape_on",
     "an_escape_keeps_off_a_hole",
     "an_escape_keeps_the_count",
     "an_escape_keeps_the_midnight",
@@ -641,6 +720,10 @@ MUTANTS = {
     "crowded_wednesdays_spread_on_their_day": (
         "    if state.keep_units and state.unit == state.day and state.unit != state.step:\n"
         "        _weekday_day_spread(state, body_low, body_high, pinned, wanted)\n",
+        "",
+    ),
+    "a_full_group_passes_an_escape_on": (
+        "    _weekday_shifted(state, ranks, have, want)\n",
         "",
     ),
     "a_day_spread_takes_the_nearer_minute": (
@@ -712,6 +795,33 @@ def test_an_escape_never_puts_a_clock_on_midnight_or_takes_one_off_it() -> None:
     for before, after in zip(case["ordinals"], case["answer"]):
         assert (before % DAY == 0) == (after % DAY == 0)
     assert case["answer"][1] == case["ordinals"][1], "a clock is never put on midnight"
+
+
+def test_the_shift_takes_only_a_group_step_7b_leads_on_from(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Step 7c's shift on its frozen state: the Wednesday moment goes to Tuesday 18:05, the
+    group step 7b leads on from to Saturday, and the census and the count are met. Mutant: every
+    group at its total holding a movable rank counted linked, the nearer Thursday 11:23 taken,
+    from which no link leads on, and the census is missed."""
+    case = _case("a_full_group_passes_an_escape_on")
+    moved = _answer(case)
+    assert _holding_of(case, moved) == case["counts"]
+    assert len({ordinal // 60 for ordinal in moved}) == case["wanted"]
+    mutant = _mutant(
+        monkeypatch,
+        "            for taking in under:\n"
+        "                if _weekday_take(state, key, taking, mover) is not None:\n",
+        "            for taking in under:\n"
+        "                if True:\n",
+    )
+    assert _holding_of(case, _answer(case, mutant)) != case["counts"]
+
+
+def _holding_of(case: dict, ordinals: "list[int]") -> "list[int]":
+    """How many of the body's ranks stand on each group of the case's census."""
+    found = [0] * len(case["counts"])
+    for rank in range(case["body"][0], case["body"][1] + 1):
+        found[case["where"][(ordinals[rank] // DAY + 3) % 7]] += 1
+    return found
 
 
 def test_crowded_wednesdays_take_one_more_minute_on_their_own_day() -> None:

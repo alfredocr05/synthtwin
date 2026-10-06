@@ -1153,15 +1153,17 @@ def room_short(
 # publishes the same census as a column of whole dates: its BODY's cells
 # counted on the weekday of the day each falls on, the body being the
 # cells between the two tail boundaries, both included, compared as
-# instants (WC3). Two rules more than a column of dates asks, and one
+# instants (WC3). Three rules more than a column of dates asks, and one
 # fewer: the middle half of the column spans at least four weeks (WC10),
 # so a census of weekdays is never a census of a few dates; the body
 # holds at least `FEWEST_MEAN_UNITS` different WRITTEN units a non-empty
 # group on average wherever two or more groups are non-empty (the
-# few-units rule, the producer's alone); and WC6's half on written forms
-# is not asked, as the count of different values on a column of moments
-# is a count of instants, never of days -- its half on a workbook's
-# storage is.
+# few-units rule, the producer's alone), and above a floor of 11 the
+# units its tails leave it reach what the census needs between its pins
+# (the unit-room rule, the producer's alone); and WC6's half on written
+# forms is not asked, as the count of different values on a column of
+# moments is a count of instants, never of days -- its half on a
+# workbook's storage is.
 
 # WC10: the days the middle half of a column of moments spans at least,
 # from its published `p25` to its published `p75` (four cycles of the
@@ -1186,7 +1188,19 @@ FEWEST_MEAN_UNITS = 8
 # decide (NF74, `REASON_UNSAID`).
 REASON_SPAN = "span"
 REASON_FEW_UNITS = "few_units"
-MOMENTS_REASONS = (REASON_SPAN, REASON_FEW_UNITS)
+REASON_UNIT_ROOM = "unit_room"
+MOMENTS_REASONS = (REASON_SPAN, REASON_FEW_UNITS, REASON_UNIT_ROOM)
+
+# THE UNIT-ROOM RULE IS ASKED ABOVE THIS FLOOR (plan P4-D367): the floor
+# the few-units rule was set and measured at. A twin rebuilds a tail that
+# publishes its two distances with up to the floor's number of different
+# values, so a raised floor narrows what the count of different values
+# leaves the body. Asked at a floor of 36 on this landing's batteries,
+# it withholds the censuses whose twins came back holding more different
+# values than the column (written at noon: Wednesday schedules, 54 twins
+# of 294, sparse columns, 75 of 219); at 11 and below no census of
+# moments measured there left its twins long.
+UNIT_ROOM_ABOVE_FLOOR = 11
 
 
 def span_short(p25: "int | None", p75: "int | None") -> bool:
@@ -1235,6 +1249,97 @@ def few_units(
         held[index] = held[index] + 1
     filled = [held[index] for index in range(len(groups)) if groups[index][2] > 0]
     return len(filled) >= 2 and sum(filled) < FEWEST_MEAN_UNITS * len(filled)
+
+
+def moments_pins(
+    moments: "tuple[int, ...]",
+    rows_low: int,
+    rows_high: int,
+    percents: "list[int]",
+) -> "tuple[tuple[int, int], ...]":
+    """The body's pinned ranks with their instants, ascending (method G7.3).
+
+    The ranks no pass of the twin moves inside the body: the two tail
+    boundaries, ranks `rows_low` and `len(moments) - 1 - rows_high`, and
+    each published rung strictly between them, at the rank its percent is
+    read off -- `(len(moments) - 1) * percent // 100`, as the generator
+    lays it. `moments` is the instant of every parsed cell ascending and
+    `percents` the percents of the published rungs.
+
+    Guarantees: accepts the instants, the two tails' rows (a body of at
+    least one rank between them) and the percents; returns each pinned
+    rank once with its instant. Determinism: a function of the four.
+    Raises nothing. No I/O of any kind.
+    """
+    parsed = len(moments)
+    high = parsed - 1 - rows_high
+    found = [(rows_low, moments[rows_low])]
+    for percent in sorted(set(percents)):
+        rank = min(parsed - 1, ((parsed - 1) * percent) // 100)
+        if found[len(found) - 1][0] < rank < high:
+            found += [(rank, moments[rank])]
+    if high > found[len(found) - 1][0]:
+        found += [(high, moments[high])]
+    return tuple(found)
+
+
+def unit_room_short(
+    groups: "tuple[tuple[int, int, int], ...]",
+    pins: "tuple[tuple[int, int], ...]",
+    step: int,
+    units: int,
+    tails: int,
+) -> bool:
+    """Whether the body is left too few written units for the census (plan P4-D367).
+
+    THE PRODUCER'S UNIT-ROOM RULE ON A COLUMN OF MOMENTS, asked above
+    `UNIT_ROOM_ABOVE_FLOOR`: lane D1b's count-room rule for whole dates
+    (plan P4-D388), restated in WRITTEN units. `pins` are the body's
+    pinned ranks with their instants, ascending (`moments_pins`); `step`
+    the seconds a written unit spans; `units` how many different written
+    units the column holds; `tails` the most its twin's two tails can
+    hold (the floor's number on a side publishing its two distances, its
+    rows where fewer, the count of a side listing its values).
+
+    The twin's count pass leaves the body at least `units - tails`
+    different values, its ROOM, and may stack a body rank on a pin's own
+    instant. Its day pass moves a body rank only inside its gap, between
+    the pins either side, so the census NEEDS every pin's written unit
+    and, inside each gap, one more for each group holding rows that has a
+    day strictly between the two pin days and stands on neither (at most
+    one a rank of the gap). True where the census needs a unit past the
+    pins' and the room is less than the need: measured at a floor of 36,
+    a Wednesday schedule written at noon, 35 different values and tails
+    of 59 and 40 rows, was left three by its tails, its pins, and asked
+    for two Thursdays more: its twins held 37. A CONSERVATIVE rule: a
+    tail rebuilt rarely holds the floor's number, so it withholds some
+    censuses a twin would meet, and that is its price (plan P4-D367).
+
+    Guarantees: accepts the census, the pins, the written unit, the
+    count and the tails' most; returns the answer. Determinism: a
+    function of the five. Raises nothing. No I/O of any kind.
+    """
+    where = where_of(groups)
+    held: "list[int]" = []
+    for _rank, instant in pins:
+        if instant // step not in held:
+            held += [instant // step]
+    need = len(held)
+    for place in range(len(pins) - 1):
+        rank, first = pins[place]
+        following, last = pins[place + 1]
+        inner = following - rank - 1
+        first_day, last_day = first // 86400, last // 86400
+        if inner < 1 or last_day <= first_day:
+            continue
+        ends = (where[weekday_of(first_day)], where[weekday_of(last_day)])
+        found: "list[int]" = []
+        for day in range(first_day + 1, min(last_day, first_day + WEEKDAYS)):
+            index = where[weekday_of(day)]
+            if groups[index][2] > 0 and index not in ends and index not in found:
+                found += [index]
+        need = need + min(len(found), inner)
+    return need > len(held) and units - tails < need
 
 
 def moments_breach(

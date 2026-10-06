@@ -20532,11 +20532,13 @@ def _weekday_chained(
             have[taking] = have[taking] + 1
 
 
-# STEP 7C'S FIXED NUMBERS (landing 3b.D2, plan P4-D367): its rounds, and
-# how many places of one end day it asks for one that keeps the count of
-# different values.
+# STEP 7C'S FIXED NUMBERS (landing 3b.D2, plan P4-D367): its rounds, how
+# many places of one end day it asks for one that keeps the count of
+# different values, and how many shifts through a group at its total it
+# makes at most.
 _WEEKDAY_ESCAPE_ROUNDS = 8
 _WEEKDAY_ESCAPE_PROBES = 64
+_WEEKDAY_SHIFTS = 64
 
 
 def _weekday_end_places(
@@ -20577,11 +20579,17 @@ def _weekday_end_places(
 
 
 def _weekday_escape(
-    state: _WeekdayPass, rank: int, have: "list[int]", want: "list[int]"
+    state: _WeekdayPass,
+    rank: int,
+    have: "list[int]",
+    want: "list[int]",
+    linked: "frozenset[int]" = frozenset(),
 ) -> "tuple[int, int, int] | None":
     """A rank's escape (step 7c): whether it changes the count of different
     values (1) or not (0), its distance, and the place; None where neither
-    end day of its gap offers one."""
+    end day of its gap offers one. An end day offers its group where that
+    group holds less than its total, or, in the step's shift, where the
+    group is one of `linked` (`_weekday_shifted`)."""
     ordinal = state.moved[rank]
     low, high = state.lows[rank], state.highs[rank]
     day = ordinal // state.unit
@@ -20594,7 +20602,7 @@ def _weekday_escape(
         spot = end * state.unit
         group = _weekday_group(state, spot)
         if (
-            have[group] >= want[group]
+            (have[group] >= want[group] and group not in linked)
             or _weekday_hole(state, spot)
             or _weekday_kind(state, spot) != kind
         ):
@@ -20639,9 +20647,12 @@ def _weekday_escaped(
     keeps the count, then the nearer, then the lower. Up to
     `_WEEKDAY_ESCAPE_ROUNDS` rounds, ranks in rank order, offers that keep
     the count first: a round that moves nothing allows the others, and a
-    round that moves nothing after that ends the step. It changes the
-    clocks of the ranks it moves, and only theirs; beside it only step 8.4's
-    merge at another clock, step 8.5's pairs and step 8.7
+    round that moves nothing after that ends the rounds. Where the totals
+    are still off then, THE SHIFT (`_weekday_shifted`): an end day whose
+    group holds its total may take the rank where step 7b leads on from
+    that group to one under its total, and step 7b runs again. It changes
+    the clocks of the ranks it moves, and only theirs; beside it only step
+    8.4's merge at another clock, step 8.5's pairs and step 8.7
     (`_weekday_day_spread`) change a written clock.
 
     Draws no word. Guarantees: moves only the given ranks, inside their own
@@ -20668,8 +20679,88 @@ def _weekday_escaped(
             changed = True
         if not changed:
             if allow:
-                return
+                break
             allow = True
+    _weekday_shifted(state, ranks, have, want)
+
+
+def _weekday_linked(
+    state: _WeekdayPass, ranks: "list[int]", have: "list[int]", want: "list[int]"
+) -> "frozenset[int]":
+    """The groups holding their totals from which a LINK of step 7b leads
+    to a group under its total: a cell holding a rank of the group whose
+    mover has a place of that group (`_weekday_take`, not None)."""
+    under = [group for group in range(len(want)) if have[group] < want[group]]
+    found: "set[int]" = set()
+    cells = _weekday_cells_of(state, ranks)
+    for key in sorted(cells):
+        for giving in sorted(cells[key]):
+            if giving in found or have[giving] != want[giving]:
+                continue
+            mover = _weekday_mover(state, cells[key][giving])
+            for taking in under:
+                if _weekday_take(state, key, taking, mover) is not None:
+                    found = found | {giving}
+                    break
+    return frozenset(found)
+
+
+def _weekday_shifted(
+    state: _WeekdayPass, ranks: "list[int]", have: "list[int]", want: "list[int]"
+) -> None:
+    """Step 7c's SHIFT through a group holding its total (landing 3b.D2, plan P4-D367).
+
+    The escape offers a rank only an end day of a group under its total,
+    and step 7b links a group only where a rank keeps its clock: a rank
+    of a group over its total, in a gap from Tuesday 18:04 to Thursday
+    11:24 at 17:58 on a Wednesday the census counts nought, reaches
+    neither Tuesday nor Thursday at its clock, and with both of those
+    groups at their totals and the group under its total, Saturday,
+    outside the gap, the census was missed by the ranks so left (floor
+    36, a Wednesday schedule, five of them). Up to `_WEEKDAY_SHIFTS`
+    times, while the totals do not hold: the first rank, in rank order,
+    of a group over its total offered a place on an end day of its gap
+    whose group holds its total and is LINKED (`_weekday_linked`: step
+    7b leads on from it to a group under its total), the offer chosen as
+    the escape's, moves there; step 7b then runs again. A shift after
+    which step 7b leaves the summed excess over the totals no lower ends
+    the step, as does a round with no linked group or no offer.
+
+    Draws no word. Guarantees: moves only the given ranks, inside their own
+    gaps and kinds, never onto a hole and never onto or off a midnight;
+    keeps `have` true. Raises nothing. No I/O of any kind.
+    """
+    for _shift in range(_WEEKDAY_SHIFTS):
+        if have == want:
+            return
+        excess = _weekday_excess(have, want)
+        linked = _weekday_linked(state, ranks, have, want)
+        if not linked:
+            return
+        chosen: "tuple[int, int, int] | None" = None
+        for rank in ranks:
+            source = _weekday_group(state, state.moved[rank])
+            if have[source] <= want[source]:
+                continue
+            offer = _weekday_escape(state, rank, have, want, linked)
+            if offer is not None:
+                chosen = (rank, source, offer[2])
+                break
+        if chosen is None:
+            return
+        rank, source, target = chosen
+        _weekday_step(state, rank, target)
+        have[source] = have[source] - 1
+        group = _weekday_group(state, target)
+        have[group] = have[group] + 1
+        _weekday_chained(state, ranks, have, want)
+        if _weekday_excess(have, want) >= excess:
+            return
+
+
+def _weekday_excess(have: "list[int]", want: "list[int]") -> int:
+    """How many ranks the groups over their totals hold past them, summed."""
+    return sum(have[group] - want[group] for group in range(len(want)) if have[group] > want[group])
 
 
 # STEP 8.7'S FIXED NUMBER (landing 3b.D2, plan P4-D367): how many places of

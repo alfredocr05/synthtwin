@@ -16377,6 +16377,10 @@ def moments_weekday_decision(
       3b.2-W skeptic's blocker 1: seven sessions at 09:00 came back 17
       different values for 9 where FEW DAYS, keyed to midnight, let
       them through);
+    * above a floor of 11, the column's different written units less the
+      most its twin's tails can hold leave the body fewer than the census
+      needs between its pins (`calendar_rules.unit_room_short`, lane
+      D1b's count-room rule restated in written units);
     * where every value stands at midnight, so the twin moves days as
       on a column of dates, the room rule beside the same holes
       (`calendar_rules.room_short`);
@@ -16458,6 +16462,32 @@ def moments_weekday_decision(
         return withheld(calendar_rules.REASON_FEW_DATES, entry)
     if calendar_rules.few_units(groups, body, units):
         return withheld(calendar_rules.REASON_FEW_UNITS, entry)
+    # THE UNITS' ROOM, WHICH A RAISED FLOOR NARROWS (lane D1b's count-room
+    # rule, plan P4-D388, restated in written units): the most different
+    # values the twin's two tails can hold -- a listed tail's values, or
+    # for one publishing its two distances up to the floor's number --
+    # and the body's pins, its two boundaries and the rungs between them.
+    if settings.small_cell_floor > calendar_rules.UNIT_ROOM_ABOVE_FLOOR:
+        tails = 0
+        for tail, rows in ((low_tail, rows_low), (high_tail, rows_high)):
+            values = tail["values"] if "values" in tail else None
+            if isinstance(values, list):
+                tails = tails + len(values)
+            else:
+                tails = tails + min(rows, max(settings.small_cell_floor, 1))
+        percents: "list[int]" = []
+        if isinstance(ladder, dict):
+            for label, num, den in LADDER:
+                if label in ladder and ladder[label] is not None:
+                    percents += [(100 * num) // den]
+        if calendar_rules.unit_room_short(
+            groups,
+            calendar_rules.moments_pins(moments, rows_low, rows_high, percents),
+            step,
+            len({instant // step for instant in moments}),
+            tails,
+        ):
+            return withheld(calendar_rules.REASON_UNIT_ROOM, entry)
     beside = calendar_rules.may_only_published(forms, format_name) or bool(
         set(holes) - set(calendar_rules.form_holes(forms, format_name, low, high))
     )

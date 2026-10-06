@@ -6633,8 +6633,8 @@ local clock, not in the joint member, with both tails, publishes the
 same census: its BODY is the cells between the two boundaries, both
 included, COMPARED AS INSTANTS -- so a cell on a boundary's day but
 before its instant is a tail cell -- each counted on the weekday of its
-day, in the menu's groups (WC1 to WC4). Two rules more than a column of
-dates asks, and one fewer. WC10: the published `p75` stands at least 28
+day, in the menu's groups (WC1 to WC4). Three rules more than a column
+of dates asks, and one fewer. WC10: the published `p75` stands at least 28
 days after the published `p25`, both named, so the middle half of the
 column spans at least four weeks and a census of weekdays is never a
 census of a few dates; the loader refuses a census beside a shorter
@@ -6645,9 +6645,20 @@ precision, or days where every value stands at midnight -- else the
 census is withheld, as below it the day pass meets the census by
 splitting a written unit's rows across days and the twins measured that
 did held more different values than the column (seven sessions at
-09:00, 17 for 9; payroll at 18:00, 53 for 48). The few-dates rule above
-is asked of the moments' days as of dates, and the room rule beside the
-same holes where every value stands at midnight. WC6's half on written
+09:00, 17 for 9; payroll at 18:00, 53 for 48). Above a floor of 11, the
+UNIT-ROOM rule, the producer's alone too: the column's different written
+units less the most its twin's two tails can hold -- a listed tail's
+values, or the floor's number on a side publishing its two distances,
+its rows where fewer -- must leave the body the units its census needs
+between its pins (each pin's own, and inside each gap one for each
+non-empty group with a day strictly between the pin days and on
+neither), else the census is withheld: a raised floor widens the tails
+a twin rebuilds, and at a floor of 36 schedules written at noon came
+back holding more different values than the column (lane D1b's
+count-room rule for whole dates, plan P4-D388, restated in written
+units). The few-dates rule above is asked of the moments' days as of
+dates, and the room rule beside the same holes where every value stands
+at midnight. WC6's half on written
 forms is NOT asked: the count of different values counts instants on a
 column of moments, never days, so two ways of writing an instant cost
 the day pass no day; its half on a workbook's storage is. Every

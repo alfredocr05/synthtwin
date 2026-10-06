@@ -327,6 +327,103 @@
       "why": "Step 8.7 takes the nearest minute of a rank's own day no rank holds, the earlier on a tie: three moments share Wednesday 10:00 and the count is two short; the first takes 09:59, before 10:01, and the second, 09:59 then held, takes 10:01.",
       "written_unit": 60
     },
+    "a_full_group_passes_an_escape_on": {
+      "answer": [
+        1709661840,
+        1709661900,
+        1709810640,
+        1710234000,
+        1710583200,
+        1710619200,
+        1711008000,
+        1711022400,
+        1711051200
+      ],
+      "bin": "weekday",
+      "body": [
+        0,
+        8
+      ],
+      "counts": [
+        0,
+        3,
+        0,
+        4,
+        2
+      ],
+      "day": 86400,
+      "highs": [
+        1709661840,
+        1709810640,
+        1709810640,
+        1710234000,
+        1710619200,
+        1710619200,
+        1711008000,
+        1711051200,
+        1711051200
+      ],
+      "holes": [],
+      "keep": "",
+      "lows": [
+        1709661840,
+        1709661840,
+        1709810640,
+        1710234000,
+        1710234000,
+        1710619200,
+        1711008000,
+        1711008000,
+        1711051200
+      ],
+      "ordinals": [
+        1709661840,
+        1709738160,
+        1709810640,
+        1710234000,
+        1710237600,
+        1710619200,
+        1711008000,
+        1711022400,
+        1711051200
+      ],
+      "pair": "",
+      "pair_where": [],
+      "period": 7,
+      "pinned": [
+        true,
+        false,
+        true,
+        true,
+        false,
+        true,
+        true,
+        false,
+        true
+      ],
+      "reachable": true,
+      "step": "escaped",
+      "unit": 86400,
+      "want": [
+        0,
+        1,
+        0,
+        1,
+        1
+      ],
+      "wanted": 9,
+      "where": [
+        0,
+        1,
+        2,
+        3,
+        0,
+        4,
+        0
+      ],
+      "why": "Step 7c alone, its shift: groups Tuesday, Wednesday, Thursday, Saturday and the other days, the movable ranks asked for one Tuesday, one Thursday and one Saturday. A gap from Tuesday 18:04 to Thursday 11:24 holds a moment at Wednesday 15:16, whose clock reaches neither end day, and both end days' groups hold their totals, so the escape has no offer for it. A gap from the next Tuesday 09:00 to Saturday 20:00 holds a moment at Tuesday 10:00 with a Saturday place, a link of step 7b from Tuesday to Saturday; a gap inside a later Thursday holds one at 12:00, and no link leads on from Thursday. The shift takes the Wednesday moment to Tuesday 18:05, the first minute of that end day inside its gap no rank holds, past Thursday 11:23, nearer but linked to nothing, and step 7b then takes the second Tuesday moment to Saturday 10:00.",
+      "written_unit": 60
+    },
     "an_escape_keeps_off_a_hole": {
       "answer": [
         1709722800,

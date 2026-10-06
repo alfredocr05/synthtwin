@@ -1684,29 +1684,24 @@ def _a_trade_left_no_way_back() -> dict:
     }
 
 
-@pytest.mark.xfail(
-    strict=True,
-    raises=AssertionError,
-    reason=(
-        "plan P4-D366's stated limit, owned by landing D3, the first to keep a second census: a "
-        "cycle of step 8.3 and a merge of step 8.4 made before step 8.6 can leave it no way back, "
-        "and the census is missed where 9cb2eb5 met it; step 8.6 asked first meets this state "
-        "but measured worse over states keeping the half of the month, so the order stays"
-    ),
-)
-def test_a_trade_keeps_a_way_back_once_the_count_is_put_back() -> None:
-    """Strict, and owned by landing D3 (P4-D366's limit). Step 8.3, its take counting written
-    units since the Codex review's item 1, moves Friday 26 July 05:47:46 to Monday 29 July and
-    Monday 23:51:26 to Friday 26 July, a gain of two where one is asked, and step 8.4 merges the
-    other Friday moment onto 23:51:26: each Friday moment of July now stands at 23:51:26, whose
-    Friday in the first half of August, the 2nd, lies past the gap's close, and no Monday of
-    August is in the gap, so step 8.6 has no second move into August and the Thursday moment
-    never reaches Saturday 27 July. 9cb2eb5's take found no cycle, so its step 8.6 traded. D3's
-    battery turns this into a passing test, or restates it."""
+def test_a_trade_keeps_a_way_back_once_the_count_is_put_back(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A strict xfail of P4-D366's limit, owned by landing D3, until landing 3b.D2 (plan
+    P4-D367): step 7c's shift now meets this state before steps 8.3 and 8.4 can take its way back.
+    The Thursday moment over its total stands where neither end day of its gap takes its clock
+    for a group under its total, so the shift takes it to Friday 2 August 09:51:35, a group at
+    its total from which step 7b leads on, and step 7b takes Friday 26 July 05:47:46 to Saturday
+    27 July, the second half of July kept: the census and the count are met. With the shift
+    withdrawn the limit stands as P4-D366 states it -- step 8.3 moves Friday 26 July 05:47:46 to
+    Monday 29 July and Monday 23:51:26 to Friday 26 July, step 8.4 merges the other Friday
+    moment onto 23:51:26, and step 8.6 has no second move into August -- so the order of steps 8.3
+    to 8.6 stays D3's to ask on states the shift does not reach."""
     case = _a_trade_left_no_way_back()
     moved = _answer(case)
     assert len(set(moved)) == case["wanted"]
     assert _holding(case, moved, range(len(moved))) == case["counts"]
+    monkeypatch.setattr(generation, "_weekday_shifted", _withdrawn)
+    moved = _answer(case)
+    assert _holding(case, moved, range(len(moved))) != case["counts"]
 
 
 def _a_chain_asked_of_its_mover_alone() -> dict:

@@ -6530,10 +6530,22 @@ written unit's.
    the nearer to the rank's own ordinal, then the lower. A round takes
    only the offers that keep the count until a round moves nothing, and
    every offer from then on; a round that moves nothing after that ends
-   the step. It changes only the clocks of the ranks it moves; beside it
-   only step 8.4's merge at another clock, step 8.5's pairs and step 8.7
-   change a written clock, each on the ranks it moves, and every other
-   step keeps each rank's written clock.
+   the rounds. Where the totals still do not hold, THE SHIFT, up to 64
+   times: an end day whose group holds exactly its total offers its
+   places as well, where a LINK of step 7b leads on from that group to a
+   group under its total (a cell holding a rank of the group whose mover
+   has a place of the group under). The first rank, in rank order, of a
+   group over its total with such an offer takes it, chosen as above, and
+   step 7b runs again; a shift after which the ranks the groups over their
+   totals hold past them, summed, are no fewer ends the step, as does a
+   round with no such group or no such offer. A Wednesday schedule at a
+   floor of 36 had ranks at 15:16 to 17:58 in a gap from Tuesday 18:04 to
+   Thursday 11:24, both of those groups at their totals and the group
+   under them, Saturday, outside the gap, and missed its census by five
+   before the shift. It changes only the clocks of the ranks it moves;
+   beside it only step 8.4's merge at another clock, step 8.5's pairs and
+   step 8.7 change a written clock, each on the ranks it moves, and every
+   other step keeps each rank's written clock.
 8. **The count of different days**, where the column's distinct count
    is reachable, put back to what it was before step 2, by moves that
    keep every group's count:
@@ -6738,10 +6750,11 @@ too, on a day of moments written to the minute, in the seventeenth
 vectors file, `tests/reference/generation-branch-vectors-17.json`: three
 Wednesday sessions through the whole pass, and step 7c alone keeping the
 count of different values, keeping the midnight, taking the nearer end
-day and keeping off a hole; and step 8.7 through the whole pass on
-crowded Wednesdays, and alone taking the nearest free minute of a rank's
-own day, the earlier on a tie, inside its gap and off midnight -- each
-with the answer this section gives it, and no G14.3 case.
+day and keeping off a hole, and its shift through a group at its total;
+and step 8.7 through the whole pass on crowded
+Wednesdays, and alone taking the nearest free minute of a rank's own
+day, the earlier on a tie, inside its gap and off midnight -- each with
+the answer this section gives it, and no G14.3 case.
 
 ### G7.4 Offsets: only where recorded
 
