@@ -45,6 +45,7 @@ import importlib.metadata
 import pathlib
 
 from synthtwin import (
+    calendar_clock,
     calendar_rules,
     canonical,
     dialect,
@@ -885,6 +886,13 @@ _WEEKDAY_COUNT = "a-weekday-group-count-zero-or-at-the-census-line"
 # anchor 3b-D4 (P4-D369)
 # anchor 3b-T1 (P4-D370)
 # anchor 3b-T2 (P4-D371)
+# THE HOUR CENSUS OF A COLUMN OF MOMENTS (landing 3b.2-H, plan P4-D371): a
+# group's first and last hour, 0 to 23, and its count, nought or at the
+# census line. Which groupings may stand, and whether the census may
+# stand at all, are invariants HC1 to HC6, asked with the block's other
+# facts beside them.
+_HOUR = "an-hour-of-the-day"
+_HOUR_COUNT = "an-hour-group-count-zero-or-at-the-census-line"
 # anchor 3b-T3 (P4-D372)
 # anchor 3b-C1 (P4-D373)
 # anchor 3b-C2 (P4-D374)
@@ -1731,6 +1739,12 @@ _STATED_RULES: "dict[tuple[str, ...], str]" = {
     # anchor 3b-D4 (P4-D369)
     # anchor 3b-T1 (P4-D370)
     # anchor 3b-T2 (P4-D371)
+    # WHICH HOURS OF THE DAY THE BODY FALLS ON (landing 3b.2-H): groups of
+    # hours, each counted nought or at the census line.
+    ("columns", _EACH, "hour_census", _EACH): _OBJECT,
+    ("columns", _EACH, "hour_census", _EACH, "first"): _HOUR,
+    ("columns", _EACH, "hour_census", _EACH, "last"): _HOUR,
+    ("columns", _EACH, "hour_census", _EACH, "count"): _HOUR_COUNT,
     # anchor 3b-T3 (P4-D372)
     # anchor 3b-C1 (P4-D373)
     # anchor 3b-C2 (P4-D374)
@@ -2624,6 +2638,17 @@ def _leaf_is_published(
     # anchor 3b-D4 (P4-D369)
     # anchor 3b-T1 (P4-D370)
     # anchor 3b-T2 (P4-D371)
+    if kind == _HOUR:
+        if isinstance(value, bool) or not isinstance(value, int):
+            return False
+        return 0 <= value < calendar_clock.HOURS
+    if kind == _HOUR_COUNT:
+        if isinstance(value, bool) or not isinstance(value, int):
+            return False
+        # HC2, ASKED OF THE ONE STATEMENT every census shares (plan P4-D364).
+        return calendar_rules.calendar_floor_ok(
+            value, parsing.census_floor(context.floor)
+        )
     # anchor 3b-T3 (P4-D372)
     # anchor 3b-C1 (P4-D373)
     # anchor 3b-C2 (P4-D374)

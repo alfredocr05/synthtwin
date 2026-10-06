@@ -91,7 +91,7 @@ import json
 import math
 import pathlib
 
-from synthtwin import calendar_rules, canonical, dialect, errors, parsing
+from synthtwin import calendar_clock, calendar_rules, canonical, dialect, errors, parsing
 from synthtwin.paths import validate_local_path
 
 # The one version this loader reads. `profile_version` must be exactly
@@ -1719,6 +1719,39 @@ INVARIANTS = {
         "one, because it writes every clock one way"
     ),
     # anchor 3b-T2 (P4-D371)
+    # THE HOUR CENSUS (landing 3b.2-H, plan P4-D371): six rules, each
+    # asked of the published numbers alone (`calendar_clock.hour_breach`
+    # for the first, second, third's total and fifth).
+    "HC1": (
+        "the groups of an hour census cover hour 0 to hour 23 in order, "
+        "each hour exactly once, and no group runs past midnight"
+    ),
+    "HC2": (
+        "every group of an hour census counts nought or at least the "
+        "census line, the smallest group size and never fewer than two"
+    ),
+    "HC3": (
+        "an hour census stands only on a column of moments read on the "
+        "local clock, not in the joint member, not wholly at midnight and "
+        "with both tails, and its groups add up to the values between the "
+        "two tail boundaries"
+    ),
+    "HC4": (
+        "an hour census stands only where the published 25th and 75th "
+        "percentiles lie at least four days apart, so that no census is "
+        "the hours of a few dates"
+    ),
+    "HC5": (
+        "every group of an hour census holds at least the values the rest "
+        "of the description places in its hours -- each tail boundary and "
+        "published percentile, and the values at midnight the description "
+        "counts beyond those of a tail listing only midnight values -- and what "
+        "is left of it is nought or at least the census line"
+    ),
+    "HC6": (
+        "an hour census stands only where a workbook's published cell "
+        "classes do not show the column's values stored in two ways"
+    ),
     # anchor 3b-T3 (P4-D372)
     # anchor 3b-C1 (P4-D373)
     # anchor 3b-C2 (P4-D374)
@@ -5017,6 +5050,36 @@ def _weekday_storage(
                 "WC6",
                 f"in the block for the column named '{columns[place].name}'",
                 "a weekday census is published beside values the workbook "
+                "stores in two ways",
+                "the census stands only where every value of the column is "
+                "stored one way",
+            )
+
+
+def _hour_storage(
+    source: SourceBlock, columns: "tuple[ColumnBlock, ...]"
+) -> None:
+    """HC6: no hour census beside values a workbook stores two ways.
+
+    Landing 3b.2-H (plan P4-D371), WC6's storage half asked of the hour
+    census: a column whose values the workbook stores partly as one
+    class and partly as another is read back differently cell by cell,
+    and the producer publishes no census of it; where the published cell
+    classes show two value classes holding cells, a reader knows it, and
+    so does this loader (`calendar_rules.published_one_way`).
+    """
+    form = source.workbook
+    if form is None:
+        return
+    for place in range(min(len(columns), len(form.columns))):
+        facts = columns[place].facts
+        if not isinstance(facts, DatetimeFacts) or not facts.hour_census:
+            continue
+        if not calendar_rules.published_one_way(form.columns[place].cell_classes):
+            raise _broken(
+                "HC6",
+                f"in the block for the column named '{columns[place].name}'",
+                "an hour census is published beside values the workbook "
                 "stores in two ways",
                 "the census stands only where every value of the column is "
                 "stored one way",
@@ -9160,19 +9223,102 @@ def _hour_census(
     absent: "tuple[str, ...]",
     facts: DatetimeFacts,
 ) -> "tuple[tuple[int, int, int], ...]":
-    """A column's `hour_census`, reserved: `[]` and nothing else (plan P4-D364).
+    """A column's `hour_census`, read and held to HC1 to HC5 (plan P4-D371).
 
-    THE STUB OF LANDING 3b.2-H (lane T2, plan P4-D371), which fills this
-    reader and nothing beside it. It is handed the block, where it
-    stands, the floor, the column's present and different values, the
-    block's judged candidates and absent spellings, and every fact read
-    before it.
+    Landing 3b.2-H (lane T2). An empty census is always legal. A
+    published one must stand on a column of moments read on the local
+    clock, not in the joint member, not wholly at midnight, with both
+    tails (HC3), whose published p25 and p75 lie at least four days apart
+    (HC4); then `calendar_clock.hour_breach` asks the groups' cover over
+    hours 0 to 23 on a line (HC1), the floor (HC2), their total against
+    the body (HC3) and the sure cells (HC5: every published body instant
+    in its own hour, and rule 4's cells at midnight, `calendar_clock.
+    midnight_sure`), and the first broken rule is refused by name. HC6,
+    the workbook's two storages, is asked over the whole document
+    (`_hour_storage`). Nothing here asks what a reader could work out
+    from the census (the owner's principle of 2026-10-01).
 
-    Guarantees: returns the census, empty. Raises ProfileError for any
-    other value (`_reserved_list`). No I/O of any kind.
+    Guarantees: accepts the block and every fact read before it; returns
+    the groups as `(first, last, count)`. Raises ProfileError for a wrong
+    type and for any broken rule. No I/O of any kind.
     """
-    _reserved_list(mapping["hour_census"], "hour_census", where)
-    return ()
+    groups = _listing(mapping["hour_census"], "hour_census", where)
+    found: "list[tuple[int, int, int]]" = []
+    for entry in groups:
+        group = _mapping(entry, "hour_census", where)
+        _keys(group, where, ("count", "first", "last"), "every hour group")
+        found += [
+            (
+                _whole(group["first"], "hour_census -> first", where, 0),
+                _whole(group["last"], "hour_census -> last", where, 0),
+                _whole(group["count"], "hour_census -> count", where, 0),
+            )
+        ]
+    if not found:
+        return ()
+    low = facts.low_tail
+    high = facts.high_tail
+    if (
+        facts.resolution != "datetime"
+        or facts.datetimes_read_at != "local"
+        or facts.parser_family == FORMAT_ISO_MIXED
+        or facts.all_at_midnight
+        or low is None
+        or high is None
+    ):
+        raise _broken(
+            "HC3",
+            where,
+            "an hour census is published",
+            "only a column of moments read on the local clock, not in the "
+            "joint member, not wholly at midnight and with both tails "
+            "publishes one",
+        )
+    parsed = n_present - facts.n_unparsed
+    rungs = facts.date_percentiles.rungs
+    by_percent: "dict[int, str | None]" = {}
+    for index in range(min(len(rungs), len(LADDER_PERCENTS))):
+        by_percent[LADDER_PERCENTS[index]] = rungs[index]
+    quarter = by_percent[25] if 25 in by_percent else None
+    third = by_percent[75] if 75 in by_percent else None
+    if not calendar_clock.span_long_enough(
+        None if quarter is None else calendar_clock.seconds_of(quarter),
+        None if third is None else calendar_clock.seconds_of(third),
+    ):
+        raise _broken(
+            "HC4",
+            where,
+            "an hour census is published",
+            f"the published 25th and 75th percentiles, {quarter} and "
+            f"{third}, are not {calendar_clock.HOUR_SPAN_DAYS} days apart",
+        )
+    published = [
+        (low.rows, calendar_clock.seconds_of(low.boundary)),
+        (parsed - 1 - high.rows, calendar_clock.seconds_of(high.boundary)),
+    ]
+    for percent in sorted(by_percent):
+        rung = by_percent[percent]
+        if rung is None or percent in (0, 100):
+            continue
+        published += [
+            (calendar_clock.rung_rank(percent, parsed), calendar_clock.seconds_of(rung))
+        ]
+    sure = calendar_clock.hour_sure(
+        published,
+        calendar_clock.midnight_sure(
+            facts.n_at_midnight,
+            [(low.rows, low.values), (high.rows, high.values)],
+        ),
+    )
+    broken = calendar_clock.hour_breach(
+        tuple(found),
+        parsed - low.rows - high.rows,
+        parsing.census_floor(floor),
+        sure,
+    )
+    if broken is not None:
+        raise _broken(broken[0], where, broken[1], broken[2])
+    return tuple(found)
 
 
 def _clock_field_censuses(
@@ -18120,6 +18266,8 @@ def _validated(document: "dict[str, object]") -> Profile:
         source, columns, n_rows, settings.small_cell_floor
     )
     _weekday_storage(source, columns)
+    # -- the hour of the written clock (3b.T2, P4-D371)
+    _hour_storage(source, columns)
     return Profile(
         profile_version=PROFILE_VERSION,
         created_with=created_with,
