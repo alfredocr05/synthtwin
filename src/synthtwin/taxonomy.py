@@ -15847,6 +15847,23 @@ def _layout_guarded(layout: str, contradicted: bool) -> bool:
     )
 
 
+def _layouts_of_text(text: str, window: int) -> "tuple[str, ...]":
+    """The layouts one text's shape is read under, its spaces set aside in a declared century.
+
+    In a declared window (skeptic 1 of landing R2a, item 1) the layouts
+    standing in for the two-figure members read a cell as the members do,
+    its surrounding whitespace set aside, so their candidates come from the
+    trimmed text. `parsing.layouts_of` makes no layout of a text with
+    whitespace round it, so trimming takes no candidate from any other
+    layout. Raises TypeError for anything that is not text. No I/O.
+    """
+    if not isinstance(text, str):
+        raise TypeError(_LAYOUT_NOT_TEXT)
+    if window:
+        return parsing.layouts_of(text.strip())
+    return parsing.layouts_of(text)
+
+
 def _layout_candidates(
     counted: "dict[str, int]",
     room: int,
@@ -15877,7 +15894,7 @@ def _layout_candidates(
         if rows > room:
             break
         rows = rows + counted[text]
-        for layout in parsing.layouts_of(text.strip() if window else text):
+        for layout in _layouts_of_text(text, window):
             if window:
                 layout = parsing.layout_in_window(layout, window)
             if _layout_guarded(layout, contradicted):

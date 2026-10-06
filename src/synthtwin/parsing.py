@@ -8447,23 +8447,24 @@ def _layout_tail(items: "tuple[tuple[str, str], ...]") -> int:
 # a trailing space, answered 1930, fell to 970 read, under the line, and the
 # column became free text. Nowhere else: a layout no member reads trims
 # nothing under every answer, so an answer changes the century and nothing
-# else.
-_LAYOUT_MEMBER_SHAPES = (
-    "{M}/{D}/{YY}",
-    "{D}/{M}/{YY}",
-    "{MM}/{DD}/{YY}",
-    "{DD}/{MM}/{YY}",
-    "{MM}.{DD}.{YY}",
-    "{DD}.{MM}.{YY}",
+# else. Each shape is written here up to its year, which every declared
+# window then completes (`{YY1900}`, `{YY1930}`, `{YY1940}`).
+_LAYOUT_MEMBER_DATES = (
+    "{M}/{D}/",
+    "{D}/{M}/",
+    "{MM}/{DD}/",
+    "{DD}/{MM}/",
+    "{MM}.{DD}.",
+    "{DD}.{MM}.",
 )
 
 
 def _layouts_read_as_members() -> "dict[tuple[tuple[str, str], ...], int]":
     """The compiled items of every layout that reads a cell as a two-figure member does (built once)."""
     found: "dict[tuple[tuple[str, str], ...], int]" = {}
-    for shape in _LAYOUT_MEMBER_SHAPES:
+    for date in _LAYOUT_MEMBER_DATES:
         for first_year in CENTURY_WINDOW_YEARS:
-            items = compiled_layout(shape.replace("{YY}", f"{{YY{first_year}}}"))
+            items = compiled_layout(f"{date}{{YY{first_year}}}")
             if items is not None:
                 found[items] = 1
     return found
