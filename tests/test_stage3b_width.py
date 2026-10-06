@@ -19,8 +19,11 @@ its inner neighbour where the end stays past the width, where the pair's
 squares put it where the end moves too, and onto the end the width held
 on 110cb46 where no value under the width is free. It takes the cells
 left past it off the demand the census counted them into. On a side
-rule 1 moved it always walks; on another proven side, where 110cb46's
-end already stood past the width, its walk stands only where it serves
+rule 1 moved it always walks, and the strata it leaves past the width
+stand only where they read the published mean and spread, together, no
+further off than the same walk with none left there; on another proven
+side, where 110cb46's end already stood past the width, its walk stands
+only where it serves
 the census strictly better and leaves neither published moment further
 off, and is given up where a stratum finds no room. A side is proven
 only where the width census counts every number of the column, and a
@@ -30,8 +33,11 @@ G6.3).
 Each clause is held up by a test here and, where a mutant is cheap to
 write, by the mutant that withdraws it turning the test's own
 measurement the other way. The repair round ran a source mutant of each
-of 64 clauses of the two rules and of G6.3's give-up against this file,
-and every one turns it red. The end rule is also frozen in
+of 75 clauses of the two rules, of the guard on the cells left past the
+width and of G6.3's give-up against this file: 74 turn it red, and the
+one that does not drops the check that asks the second walk only where
+a cell stands past the width -- with none there the two walks are one,
+so it changes no twin. The end rule is also frozen in
 `tail_width_past_the_reach` (tests/reference/generation-branch-vectors-23.json);
 the walk has no frozen case, because the oracle does not run G6.6's
 walk, so it is pinned here. The mean and spread 110cb46 wrote on the
@@ -50,6 +56,7 @@ import math
 import pathlib
 import random
 import statistics
+import types
 
 import pytest
 
@@ -711,6 +718,180 @@ def test_each_side_walks_its_own_tail(tmp_path: pathlib.Path) -> None:
             assert _missed(described, seed) == [], f"floor {floor} seed {seed}"
 
 
+# -- 2b. the strata left past the width, weighed against none left -----------
+
+
+def _bell_beside_237() -> "list[str]":
+    """150 two-figure readings shaped like a bell around 54.5, beside one `237` (the repair round's cost shape)."""
+    draw = random.Random("g2/bell/150/237")
+    return [str(max(10, min(99, int(round(draw.gauss(54.5, 89 / 6)))))) for _row in range(150)] + ["237"]
+
+
+def _pressures_beside_1300() -> "list[str]":
+    """500 blood pressures heaped on tens from 90 to 190, beside one `1300` (the first skeptic's shape)."""
+    draw = random.Random("g2skep/bp/500/c")
+    return [str(min(190, max(90, 10 * round(draw.gauss(130, 15) / 10)))) for _row in range(500)] + ["1300"]
+
+
+def _withdrawn_numbers(described: kpi_shapes.Described, seed: int) -> "list[float]":
+    """110cb46's twin: method G6.6.8 and its G6.3 clause withdrawn through the lane's own seams, as `K-S3-22` withdraws them."""
+    ladder = contract.tail_ladder
+    worn = generation._point_free_form_worn
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(contract, "tail_ladder", lambda facts, reach_rule=True: ladder(facts, reach_rule=False))
+        patch.setattr(generation, "_proven_sides", lambda _facts, _widest: [])
+        patch.setattr(
+            generation, "_point_free_form_worn", lambda styles, value, whole: worn(styles, value, whole) or "leading_zero"
+        )
+        return _twin_numbers(described, seed)
+
+
+def test_strata_at_the_reach_that_read_the_moments_further_off_go_under_the_width(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """150 bell-shaped two-figure readings beside one `237`, at 36: the cells the walk would leave past `99` go under it.
+
+    Rule 1 takes the high end from `99` to the reach, `146`, and the walk
+    leaves three cells from `145` past the width inside the line less one
+    and the pair's totals; but the reach is the nearest the furthest row
+    can stand, and the spread they leave is 1.20 times the real one where
+    the same walk with nothing past the width reads 1.06. Taken together
+    the second reads the published mean and spread better, so it stands:
+    no cell past `99`, the spread inside a tenth of the real one. Its
+    mutant keeps the walk that leaves the cells, and the spread is 1.17 to
+    1.20 again.
+    """
+    cells = _bell_beside_237()
+    described = _described(tmp_path, "bell_237", cells, 36)
+    ladder = contract.tail_ladder(_facts(described))
+    assert ladder is not None and ladder.high is not None and ladder.high.end > 99.0, "premise: the end past the width"
+    for seed in SEEDS:
+        written = _twin_numbers(described, seed)
+        assert _past(written, 99.0) == 0, f"seed {seed}"
+        assert _errors(cells, written)[1] < 0.1, f"seed {seed}"
+        assert _missed(described, seed) == [], f"seed {seed}"
+    monkeypatch.setattr(generation, "_reads_no_further", lambda *_arguments: True)
+    for seed in SEEDS:
+        written = _twin_numbers(described, seed)
+        assert _past(written, 99.0) > 0 and _errors(cells, written)[1] > 0.15, f"seed {seed}"
+
+
+def test_where_the_guard_takes_the_cells_under_the_width_the_twin_reads_both_moments_nearer_than_110cb46(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """500 heaped blood pressures beside one `1300`, at 20: both moments nearer the real ones than 110cb46's twin.
+
+    The walk leaving its strata past `999` at the reach took the mean from
+    0.022 to 0.030 real spreads off down to under 0.01, but the spread from
+    1.04 to 1.05 times the real one to 0.94 to 0.95 -- the three twins the
+    repair round's first count found further from the real spread than
+    110cb46's. With nothing past the width the twin reads both moments
+    better than either: its mean and its spread each stand nearer the real
+    ones than 110cb46's. Its mutant keeps the walk that leaves the cells.
+    """
+    cells = _pressures_beside_1300()
+    described = _described(tmp_path, "pressures", cells, 20)
+    for seed in SEEDS:
+        mine = _errors(cells, _twin_numbers(described, seed))
+        theirs = _errors(cells, _withdrawn_numbers(described, seed))
+        assert mine[0] < theirs[0] and mine[1] < theirs[1], f"seed {seed}: {mine} {theirs}"
+    monkeypatch.setattr(generation, "_reads_no_further", lambda *_arguments: True)
+    for seed in SEEDS:
+        mine = _errors(cells, _twin_numbers(described, seed))
+        theirs = _errors(cells, _withdrawn_numbers(described, seed))
+        assert mine[1] > theirs[1], f"seed {seed}: {mine} {theirs}"
+
+
+def test_the_walks_are_weighed_on_both_moments_together() -> None:
+    """`_reads_no_further` asked directly: the summed distance from the published mean and spread, each counted where published.
+
+    Four one-cell strata. A first walk nearer on the mean by more than it is
+    further on the spread stands; one nearer on the spread by less than it
+    is further on the mean does not; a level sum stands; and a moment that
+    is not published is not counted -- with neither published, the first
+    walk stands.
+    """
+    layout = generation._NumericLayout(
+        sizes=(1, 1, 1, 1), starts=(0, 1, 2, 3), bands=("positive",) * 4, raw_budgets=(), folded_budgets=()
+    )
+    first = [1.0, 2.0, 3.0, 10.0]
+    second = [1.0, 2.0, 3.0, 4.0]
+    mean_1, spread_1 = generation._strata_moments(layout, first)
+    mean_2, spread_2 = generation._strata_moments(layout, second)
+    assert mean_1 is not None and spread_1 is not None and mean_2 is not None and spread_2 is not None
+
+    def weighed(mean, spread, walks):  # type: ignore[no-untyped-def]
+        facts = types.SimpleNamespace(mean=mean, std=spread)
+        return generation._reads_no_further(facts, layout, walks)  # type: ignore[arg-type]
+
+    assert (mean_1, mean_2) == (4.0, 2.5) and spread_1 > spread_2 + 2.7, "premise: the first wider and further up"
+    assert weighed(mean_1, spread_1, (first, second)) and not weighed(mean_1, spread_1, (second, first))
+    assert weighed(mean_2, spread_2, (second, first)) and not weighed(mean_2, spread_2, (first, second))
+    # A mean of 6 and a spread of 2 published: the first is 1.5 nearer on
+    # the mean and 1.37 further on the spread, so it stands, and the second
+    # does not; a mean of 3 leaves the first 0.5 further on the mean too.
+    assert weighed(6.0, 2.0, (first, second)) and not weighed(6.0, 2.0, (second, first))
+    assert weighed(3.0, 2.0, (second, first)) and not weighed(3.0, 2.0, (first, second))
+    # Level: a mean halfway between and no spread published, either way.
+    assert weighed(3.25, None, (first, second)) and weighed(3.25, None, (second, first))
+    assert weighed(None, None, (second, first))
+    assert not weighed(None, spread_1, (second, first))
+
+
+def test_moved_under_spends_the_first_total_and_keeps_the_rest() -> None:
+    """`_moved_under`: each side with its first total at nought, everything else and the order kept."""
+    sides = [(False, -10.0, 5.0, 50.0, True, -99.0), (True, 10.0, 7.0, 70.0, False, 99.0)]
+    assert generation._moved_under(sides) == [(False, -10.0, 0.0, 50.0, True, -99.0), (True, 10.0, 0.0, 70.0, False, 99.0)]
+    assert generation._moved_under([]) == []
+
+
+def test_the_second_walk_is_asked_only_where_a_cell_stands_past_the_width(tmp_path: pathlib.Path) -> None:
+    """`_left_past_the_width`: some value carried plainly with more figures than any demand lets a cell hold."""
+    facts = _facts(_described(tmp_path, "ten_wide", _ten_wide(), 11))
+    demands = [(4, 1, 100)]
+    assert not generation._left_past_the_width(facts, [1000.0, 9999.0, -9999.0], demands)
+    assert generation._left_past_the_width(facts, [1000.0, 10000.0], demands)
+    assert generation._left_past_the_width(facts, [-10000.0, 1000.0], demands)
+    assert not generation._left_past_the_width(facts, [], demands)
+
+
+def test_where_the_guard_spends_a_side_the_trial_walks_it_spent_too(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Both tails past the width, one moved by rule 1 and one not: the trial walk of the other carries the guard's choice.
+
+    300 four-figure numbers beside far cells on both sides, the low side
+    read as one rule 1 left. Where the guard takes the high side's cells
+    under the width, the trial weighed for the low side walks the high
+    side with nothing left past it too, in the order low then high, so the
+    trial cannot bring back what the guard took away. Its mutant hands the
+    trial the high side as it was.
+    """
+    described = _described(tmp_path, "both", _both_sides(), 11)
+    real_sides = generation._proven_sides
+
+    def low_left(facts, widest):  # type: ignore[no-untyped-def]
+        return [(side[0], side[1], side[2], side[3], side[0], side[5]) for side in real_sides(facts, widest)]
+
+    walked: "list[list[tuple]]" = []
+    real_walk = generation._width_walk
+
+    def watched(column, facts, layout, rungs, values, census, sides):  # type: ignore[no-untyped-def]
+        walked.append([side for side in sides])
+        return real_walk(column, facts, layout, rungs, values, census, sides)
+
+    monkeypatch.setattr(generation, "_proven_sides", low_left)
+    monkeypatch.setattr(generation, "_reads_no_further", lambda *_arguments: False)
+    monkeypatch.setattr(generation, "_width_walk", watched)
+    kpi_shapes.twin_text(described, 0)
+    calls = [call for call in walked if call]
+    assert len(calls) == 3, "premise: the walk, the walk with nothing past the width, and the trial"
+    walk, under, trial = calls
+    assert [side[0] for side in walk] == [True] and under == generation._moved_under(walk)
+    assert [side[0] for side in trial] == [False, True]
+    assert trial[0][2] > 0.0 and trial[1] == under[0]
+
+
 # -- 3. where the strata moved under the width go ----------------------------
 
 
@@ -773,6 +954,14 @@ def test_a_row_moved_under_the_width_stands_beside_its_inner_neighbour(
     the row at the width's end, and the walk puts it on `09998`: the first
     form's fault, which left the spread 0.23 to 0.28 off the real one where
     110cb46 stood 0.14 off.
+
+    At a floor of 36 the walk's own guard then takes the end under the
+    width as well: with the end at the reach the twin reads the published
+    spread 0.05 low, with nothing past the width 0.002, and the means are
+    0.004 and 0.036 of the real spread off -- taken together the second
+    reads the moments better, so the twin writes `09998` there, its mean
+    and spread both still nearer the real ones than 110cb46's. At eleven
+    the end stays (0.0003 and 0.005 against 0.033 and 0.001).
     """
     cells = _beside_one_far(rows)
     described = _described(tmp_path, f"codes{rows}", cells, floor)
@@ -781,7 +970,9 @@ def test_a_row_moved_under_the_width_stands_beside_its_inner_neighbour(
         written = _twin_numbers(described, seed)
         mean, spread = _errors(cells, written)
         assert mean <= mean_most + _SLACK and spread <= spread_most + _SLACK, f"seed {seed}: {mean} {spread}"
-        assert not [value for value in written if 9000.0 <= value < 10000.0], f"seed {seed}"
+        if floor == 11:
+            assert max(written) > 9999.0, f"premise: the end stays past the width, seed {seed}"
+            assert not [value for value in written if 9000.0 <= value < 10000.0], f"seed {seed}"
     facts, layout, values, demands, walk_floor, sides = _walk_calls(described)[0]
     assert sides and sides[0][4], "premise: the side the reach rule moved"
     moved, _freed = generation._walked_past_the_width(facts, layout, values, demands, walk_floor, sides)
@@ -886,7 +1077,7 @@ def test_a_far_cell_no_pad_can_hold_is_written_plain(tmp_path: pathlib.Path, mon
     `012280`, six characters in a column of five.
     """
     for rows in (150, 400):
-        for floor in (11, 36):
+        for floor in (11, 20):
             described = _described(tmp_path, f"codes{rows}_{floor}", _beside_one_far(rows), floor)
             for seed in SEEDS:
                 cells = _cells(described, seed)

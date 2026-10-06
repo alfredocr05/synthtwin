@@ -14559,6 +14559,20 @@ def _wide_enough(
     # shared out afterwards, and on 200 codes beside 100 three-figure
     # numbers and two far cells a walk it counted no worse wrote two more
     # two-figure cells than 110cb46.
+    #
+    # AND ON A SIDE RULE 1 MOVED, THE STRATA THE WALK LEAVES PAST THE WIDTH
+    # STAND ONLY WHERE THEY READ THE PUBLISHED MEAN AND SPREAD, TOGETHER,
+    # NO FURTHER OFF than the same walk moving every one of them under the
+    # width (`_reads_no_further`, `_moved_under`). The reach is the NEAREST the
+    # furthest row can stand, so where one far reading stands well beyond
+    # it, the pair's squares are carried from the reach by many rows: 150
+    # two-figure readings beside one `237`, at a floor of 36, came back
+    # with three cells from `145` and a spread 1.20 times the real one,
+    # where 110cb46 wrote 1.06 and every cell under the width writes 1.06;
+    # and 500 blood pressures heaped on tens beside one `1300`, at a floor
+    # of 20, with a spread 0.053 of the real one off where 110cb46 stood
+    # 0.047 off. The pair proves a cell past the width; it does not prove
+    # that the twin's cells there, at the reach, read the column better.
     sides = _proven_sides(facts, _widest_demanded(demands))
     reached: "list[tuple[bool, float, float, float, bool, float]]" = []
     for side in sides:
@@ -14567,13 +14581,74 @@ def _wide_enough(
     best = _width_walk(
         column, facts, layout, rungs, values, (demands, floor), reached
     )
+    spent = False
+    if reached and _left_past_the_width(facts, best, demands):
+        under = _width_walk(
+            column,
+            facts,
+            layout,
+            rungs,
+            values,
+            (demands, floor),
+            _moved_under(reached),
+        )
+        if not _reads_no_further(facts, layout, (best, under)):
+            best = under
+            spent = True
     if len(reached) < len(sides):
+        walked: "list[tuple[bool, float, float, float, bool, float]]" = []
+        for side in sides:
+            walked += _moved_under([side]) if side[4] and spent else [side]
         trial = _width_walk(
-            column, facts, layout, rungs, values, (demands, floor), sides
+            column, facts, layout, rungs, values, (demands, floor), walked
         )
         if _serves_better(facts, layout, (trial, best), demands, floor):
             best = trial
     return best
+
+
+def _left_past_the_width(
+    facts: contract.NumericFacts,
+    values: "list[float]",
+    demands: "list[tuple[int, int, int]]",
+) -> bool:
+    """Whether any stratum's value has more figures than any width demand lets a cell hold (G6.6.8).
+
+    Guarantees: accepts one numeric block's facts, one value a stratum
+    and its demands; returns True exactly where some value is carried
+    plainly with more figures than `_widest_demanded` names. Where none
+    is, moving every stratum past the width under it moves nothing, and
+    `_wide_enough` asks no second walk. Determinism: a function of the
+    three. Raises nothing. No I/O of any kind.
+    """
+    widest = _widest_demanded(demands)
+    for value in values:
+        if not _carries_plainly(value, facts.integer_valued):
+            continue
+        if _figure_count(value, facts.integer_valued) > widest:
+            return True
+    return False
+
+
+def _moved_under(
+    sides: "list[tuple[bool, float, float, float, bool, float]]",
+) -> "list[tuple[bool, float, float, float, bool, float]]":
+    """The sides with no distance left to spend past the width, so the walk moves every tail stratum there under it (G6.6.8).
+
+    The pair's first total, `m d1`, taken as spent: no stratum past the
+    width fits inside it, so `_walked_past_the_width` leaves none there
+    and moves each under the width as it moves the strata that do not
+    fit -- the end's own among them, by the squares the second total
+    leaves, onto the end the width held where nothing under it is free.
+
+    Guarantees: accepts proven sides; returns the same sides, in order,
+    each with its first total at nought. Determinism: a function of the
+    sides. Raises nothing. No I/O of any kind.
+    """
+    found: "list[tuple[bool, float, float, float, bool, float]]" = []
+    for high, boundary, _first_total, second_total, reached, held in sides:
+        found += [(high, boundary, 0.0, second_total, reached, held)]
+    return found
 
 
 def _width_walk(
@@ -14649,6 +14724,48 @@ def _serves_better(
         if abs(mine - published) > abs(theirs - published):
             return False
     return True
+
+
+def _reads_no_further(
+    facts: contract.NumericFacts,
+    layout: "_NumericLayout",
+    walks: "tuple[list[float], list[float]]",
+) -> bool:
+    """Whether the first walk reads the published mean and spread, together, no further off than the second (G6.6.8).
+
+    The mean and the spread each walk's strata hold, weighted by their
+    cells (`_strata_moments`): the first stands where its distance from
+    the published `mean` added to its distance from the published `std`
+    is no larger than the second's -- each moment counted only where it
+    is published, finite and measurable on both, and the first standing
+    where neither is.
+
+    TOGETHER AND NOT ONE BY ONE, because the second walk is not 110cb46's
+    twin but the same one with no cell past the width, and a spread a
+    few thousandths nearer is no reason to give up the mean: on `00001`
+    to `00149` beside one `12345`, at a floor of eleven, moving the end
+    under the width took the spread from 0.995 of the real one to 0.999
+    and the mean from 0.0003 of the real spread off to 0.033, and wrote
+    the codes `07333` and `09998`.
+
+    Guarantees: accepts the column's facts, its layout and the two walks'
+    values; returns True or False as stated. Determinism: a function of
+    those. Raises nothing. No I/O of any kind.
+    """
+    trial, held = walks
+    tried = _strata_moments(layout, trial)
+    kept = _strata_moments(layout, held)
+    mine = 0.0
+    theirs = 0.0
+    for published, first, second in (
+        (facts.mean, tried[0], kept[0]),
+        (facts.std, tried[1], kept[1]),
+    ):
+        if published is None or first is None or second is None:
+            continue
+        mine = mine + abs(first - published)
+        theirs = theirs + abs(second - published)
+    return not mine > theirs
 
 
 def _strata_moments(
